@@ -1,23 +1,49 @@
-use super::resolver::{normalize_type, type_uses_self_assoc};
-use crate::{
-	analysis::get_all_parameters,
-	core::{
-		config::Config,
-		constants::{
-			attributes::{DOCUMENT_DEFAULT, DOCUMENT_TYPE_PARAMETERS},
-			macros::IMPL_KIND_MACRO,
-		},
-		error_handling::{CollectErrors, ErrorCollector},
+use {
+	super::resolver::{
+		normalize_type,
+		type_uses_self_assoc,
 	},
-	hkt::{ImplKindInput, canonicalizer::hash_assoc_signature},
-	resolution::{ImplKey, ProjectionKey},
-	support::{
-		attributes::has_attribute,
-		documentation_parameters::{DocumentationParameter, DocumentationParameters},
+	crate::{
+		analysis::get_all_parameters,
+		core::{
+			config::Config,
+			constants::{
+				attributes::{
+					DOCUMENT_DEFAULT,
+					DOCUMENT_TYPE_PARAMETERS,
+				},
+				macros::IMPL_KIND_MACRO,
+			},
+			error_handling::{
+				CollectErrors,
+				ErrorCollector,
+			},
+		},
+		hkt::{
+			ImplKindInput,
+			canonicalizer::hash_assoc_signature,
+		},
+		resolution::{
+			ImplKey,
+			ProjectionKey,
+		},
+		support::{
+			attributes::has_attribute,
+			documentation_parameters::{
+				DocumentationParameter,
+				DocumentationParameters,
+			},
+		},
+	},
+	quote::ToTokens,
+	syn::{
+		Error,
+		ImplItem,
+		Item,
+		Result,
+		spanned::Spanned,
 	},
 };
-use quote::ToTokens;
-use syn::{Error, ImplItem, Item, Result, spanned::Spanned};
 
 /// Type alias for tracking scoped defaults
 type ScopedDefaultsTracker =
@@ -190,7 +216,7 @@ fn process_impl_type_parameter_documentation(
 					errors.push(Error::new(
 						attr.span(),
 						format!(
-							"Expected {} description arguments for impl generics, found {}.",
+							"Expected exactly {} description arguments for impl generics, found {}.",
 							targets.len(),
 							entries.len()
 						),
@@ -200,9 +226,8 @@ fn process_impl_type_parameter_documentation(
 					for (name_from_target, entry) in targets.iter().zip(entries) {
 						let (_name, desc) = match entry {
 							DocumentationParameter::Override(n, d) => (n.value(), d.value()),
-							DocumentationParameter::Description(d) => {
-								(name_from_target.clone(), d.value())
-							}
+							DocumentationParameter::Description(d) =>
+								(name_from_target.clone(), d.value()),
 						};
 						docs.push((name_from_target.clone(), desc));
 					}

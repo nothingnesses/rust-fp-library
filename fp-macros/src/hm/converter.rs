@@ -3,17 +3,37 @@
 //! This module contains the main conversion logic for transforming
 //! Rust types into Hindley-Milner representations.
 
-use crate::{
-	analysis::traits::format_brand_name,
-	core::{
-		config::Config,
-		constants::{traits, types},
+use {
+	crate::{
+		analysis::traits::format_brand_name,
+		core::{
+			config::Config,
+			constants::{
+				traits,
+				types,
+			},
+		},
+		hm::{
+			HmAst,
+			ast_builder::HmAstBuilder,
+		},
+		support::{
+			TypeVisitor,
+			last_path_segment,
+		},
 	},
-	hm::{HmAst, ast_builder::HmAstBuilder},
-	support::{TypeVisitor, last_path_segment},
+	std::collections::{
+		HashMap,
+		HashSet,
+	},
+	syn::{
+		GenericArgument,
+		PathArguments,
+		ReturnType,
+		TraitBound,
+		Type,
+	},
 };
-use std::collections::{HashMap, HashSet};
-use syn::{GenericArgument, PathArguments, ReturnType, TraitBound, Type};
 
 // ============================================================================
 // Main Conversion Entry Point
@@ -29,7 +49,11 @@ pub fn type_to_hm(
 	generic_names: &HashSet<String>,
 	config: &Config,
 ) -> HmAst {
-	let mut visitor = HmAstBuilder { fn_bounds, generic_names, config };
+	let mut visitor = HmAstBuilder {
+		fn_bounds,
+		generic_names,
+		config,
+	};
 	visitor.visit(ty)
 }
 
@@ -132,6 +156,8 @@ pub fn trait_bound_to_hm_arrow(
 		let input_ty = if inputs.is_empty() {
 			HmAst::Unit
 		} else if inputs.len() == 1 {
+			// SAFETY: inputs.len() == 1 checked above
+			#[allow(clippy::indexing_slicing)]
 			inputs[0].clone()
 		} else {
 			HmAst::Tuple(inputs)

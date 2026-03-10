@@ -28,9 +28,14 @@ pub struct Container<'a, T> {
 
 #[test]
 fn test_structs_compile() {
-	let _p = Point { x: 1, y: 2 };
+	let _p = Point {
+		x: 1,
+		y: 2,
+	};
 	let _w = Wrapper(42);
 	let _t = Triple(1, "hello".to_string(), true);
 	let value = 100;
-	let _c = Container { data: &value };
+	let _c = Container {
+		data: &value,
+	};
 }

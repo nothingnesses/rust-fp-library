@@ -2,8 +2,14 @@
 //!
 //! This module tests the validation warnings that are emitted when
 //! impl blocks or methods are missing expected documentation attributes.
+//! Since warnings are now emitted via `#[deprecated]` instead of `compile_error!`,
+//! all tests compile successfully (warnings don't block compilation).
 
 use fp_macros::document_module;
+
+// =========================================================================
+// Existing tests
+// =========================================================================
 
 // Test that validation mode can be disabled
 // This module has undocumented items but should compile without warnings
@@ -33,54 +39,6 @@ fn test_no_validation_mode_compiles() {
 	// If this test compiles, it means no_validation mode is working
 	let _ = test_no_validation::MyType::new();
 }
-
-// This module should produce validation warnings (errors) when compiled
-// Comment out to allow tests to pass - uncomment to see validation in action
-/*
-#[document_module]
-mod test_default_validation {
-	pub struct MyType;
-
-	// This should warn: impl has methods with receivers but no #[document_parameters]
-	impl MyType {
-		// This should warn: method missing #[document_signature]
-		pub fn new() -> Self {
-			Self
-		}
-
-		// This should warn multiple times:
-		// - Missing #[document_signature]
-		// - Has type parameters but no #[document_type_parameters]
-		// - Has parameters but no #[document_parameters]
-		pub fn process<T>(&self, _value: T) -> T {
-			_value
-		}
-	}
-}
-*/
-
-// Commented out: Examples that would trigger validation warnings
-// Uncomment to see the validation in action:
-//
-// #[document_module]  // Uses default validation (warn mode)
-// mod test_with_warnings {
-//     pub struct MyType;
-//
-//     // WARNING: Impl block contains methods with receiver parameters but no #[document_parameters]
-//     impl MyType {
-//         // WARNING: Method missing #[document_signature]
-//         pub fn new() -> Self {
-//             Self
-//         }
-//
-//         // WARNING: Method has type parameters but no #[document_type_parameters]
-//         // WARNING: Method has parameters but no #[document_parameters]
-//         // WARNING: Method missing #[document_signature]
-//         pub fn process<T>(&self, _value: T) -> T {
-//             _value
-//         }
-//     }
-// }
 
 // Test validation with type parameters on impl
 #[document_module(no_validation)]
@@ -132,4 +90,77 @@ fn test_nested_no_validation_compiles() {
 
 	let inner = test_nested_no_validation::inner::Inner;
 	inner.inner_method();
+}
+
+// Test that #[allow_named_generics] suppresses the lint
+#[document_module(no_validation)]
+mod test_impl_trait_lint_suppressed {
+	pub struct MyType;
+
+	impl MyType {
+		#[allow(dead_code)]
+		#[allow_named_generics]
+		pub fn apply<F: Fn(i32) -> i32>(
+			f: F,
+			x: i32,
+		) -> i32 {
+			f(x)
+		}
+	}
+}
+
+#[test]
+fn test_impl_trait_lint_suppressed() {
+	let result = test_impl_trait_lint_suppressed::MyType::apply(|x| x * 2, 5);
+	assert_eq!(result, 10);
+}
+
+// Test that no_validation also skips the impl Trait lint
+#[document_module(no_validation)]
+mod test_no_validation_mode_skips_lint {
+	pub struct MyType;
+
+	impl MyType {
+		#[allow(dead_code)]
+		pub fn apply<F: Fn(i32) -> i32>(
+			f: F,
+			x: i32,
+		) -> i32 {
+			f(x)
+		}
+	}
+}
+
+#[test]
+fn test_no_validation_mode_skips_lint() {
+	let result = test_no_validation_mode_skips_lint::MyType::apply(|x| x + 10, 5);
+	assert_eq!(result, 15);
+}
+
+// =========================================================================
+// 7e: Suppression attribute is properly stripped
+// =========================================================================
+
+// If #[allow_named_generics] is NOT stripped, this would cause
+// "unknown attribute" error. Compiling successfully proves it's stripped.
+#[document_module(no_validation)]
+mod test_allow_named_generics_stripped {
+	pub struct MyType;
+
+	impl MyType {
+		#[allow(dead_code)]
+		#[allow_named_generics]
+		pub fn transform<F: Fn(i32) -> i32>(
+			f: F,
+			x: i32,
+		) -> i32 {
+			f(x)
+		}
+	}
+}
+
+#[test]
+fn test_allow_named_generics_stripped() {
+	let result = test_allow_named_generics_stripped::MyType::transform(|x| x * 3, 4);
+	assert_eq!(result, 12);
 }

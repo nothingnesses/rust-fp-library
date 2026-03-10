@@ -3,21 +3,36 @@
 //! This module handles the parsing and expansion of the `impl_kind!` macro, which is used
 //! to implement a generated `Kind` trait for a specific brand type.
 
-use super::{
-	AssociatedType as AssociatedTypeInput, AssociatedTypeBase, AssociatedTypes, generate_name,
-};
-use crate::{
-	core::Result,
-	support::{
-		attributes,
-		parsing::{parse_many, parse_non_empty},
+use {
+	super::{
+		AssociatedType as AssociatedTypeInput,
+		AssociatedTypeBase,
+		AssociatedTypes,
+		generate_name,
 	},
-};
-use proc_macro2::TokenStream;
-use quote::quote;
-use syn::{
-	Generics, Token, Type, WhereClause, braced,
-	parse::{Parse, ParseStream},
+	crate::{
+		core::Result,
+		support::{
+			attributes,
+			parsing::{
+				parse_many,
+				parse_non_empty,
+			},
+		},
+	},
+	proc_macro2::TokenStream,
+	quote::quote,
+	syn::{
+		Generics,
+		Token,
+		Type,
+		WhereClause,
+		braced,
+		parse::{
+			Parse,
+			ParseStream,
+		},
+	},
 };
 
 /// Input structure for the `impl_kind!` macro.
@@ -112,7 +127,13 @@ impl Parse for AssociatedType {
 
 		let semi_token: Token![;] = input.parse()?;
 
-		Ok(AssociatedType { signature, _eq_token: eq_token, target_type, where_clause, semi_token })
+		Ok(AssociatedType {
+			signature,
+			_eq_token: eq_token,
+			target_type,
+			where_clause,
+			semi_token,
+		})
 	}
 }
 

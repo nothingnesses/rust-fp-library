@@ -9,20 +9,20 @@
 // They CANNOT be explicitly annotated when calling the function
 
 // Simple function with a LATE BOUND lifetime parameter
-fn identity<'a>(x: &'a str) -> &'a str {
+fn identity(x: &str) -> &str {
 	x
 }
 
 // Function with multiple LATE BOUND lifetime parameters
-fn first_of_two<'a, 'b>(
+fn first_of_two<'a>(
 	x: &'a str,
-	_y: &'b str,
+	_y: &str,
 ) -> &'a str {
 	x
 }
 
 // Function with LATE BOUND lifetime and type parameters
-fn generic_identity<'a, T>(x: &'a T) -> &'a T {
+fn generic_identity<T>(x: &T) -> &T {
 	x
 }
 
@@ -46,16 +46,14 @@ fn early_bound_trait<'a, T: 'a>(x: &'a T) -> &'a T {
 // Lifetime used as a type parameter constraint - EARLY BOUND
 fn early_bound_complex<'a, T>(x: &'a T) -> &'a T
 where
-	T: std::fmt::Debug + 'a,
-{
+	T: std::fmt::Debug + 'a, {
 	x
 }
 
 // Using const generics with lifetime - EARLY BOUND
 fn early_bound_const<'a, T, const N: usize>(x: &'a [T; N]) -> &'a [T; N]
 where
-	T: 'a,
-{
+	T: 'a, {
 	x
 }
 

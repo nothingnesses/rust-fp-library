@@ -1,5 +1,10 @@
-use criterion::{BenchmarkId, Criterion};
-use fp_library::functions::identity;
+use {
+	criterion::{
+		BenchmarkId,
+		Criterion,
+	},
+	fp_library::functions::identity,
+};
 
 pub fn bench_functions(c: &mut Criterion) {
 	let val = 42;

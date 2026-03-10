@@ -25,8 +25,11 @@
 //! ## Examples
 //!
 //! * `Kind_ad6c20556a82a1f0`: Signature `type Of<A>;`.
-//! * `Kind_140eb1e35dc7afb3`: Signature `type Of<'a, A, B>;`.
 //! * `Kind_cdc7cd43dac7585f`: Signature `type Of<'a, A: 'a>: 'a;`.
+//! * `Kind_5b1bcedfd80bdc16`: Signature `type Of<A, B>;`.
+//! * `Kind_140eb1e35dc7afb3`: Signature `type Of<'a, A, B>;`.
+//! * `Kind_f910c70f664f876a`: Signature `type Of<'a, A, B>: 'a;`.
+//! * `Kind_266801a817966495`: Signature `type Of<'a, A: 'a, B: 'a>: 'a;`.
 //!
 //! As an example of how to use these traits, the trait [`Kind_ad6c20556a82a1f0`] would be
 //! implemented by a [`Brand`][crate::brands] representing type constructors
@@ -42,11 +45,6 @@ trait_kind! {
 
 trait_kind! {
 	/// The applied type.
-	type Of<A, B>;
-}
-
-trait_kind! {
-	/// The applied type.
 	type Of<'a>;
 }
 
@@ -57,12 +55,22 @@ trait_kind! {
 
 trait_kind! {
 	/// The applied type.
+	type Of<'a, A: 'a>: 'a;
+}
+
+trait_kind! {
+	/// The applied type.
+	type Of<A, B>;
+}
+
+trait_kind! {
+	/// The applied type.
 	type Of<'a, A, B>;
 }
 
 trait_kind! {
 	/// The applied type.
-	type Of<'a, A: 'a>: 'a;
+	type Of<'a, A, B>: 'a;
 }
 
 trait_kind! {

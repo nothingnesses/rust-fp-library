@@ -13,13 +13,23 @@ pub mod impl_kind;
 pub mod input;
 pub mod trait_kind;
 
-pub use apply::{ApplyInput, apply_worker};
-pub use associated_type::AssociatedTypeBase;
-pub use canonicalizer::generate_name;
-pub use impl_kind::{ImplKindInput, impl_kind_worker};
-pub use input::{AssociatedType, AssociatedTypes};
-pub use trait_kind::trait_kind_worker;
-
 // Only needed for tests
 #[cfg(test)]
 pub use canonicalizer::Canonicalizer;
+pub use {
+	apply::{
+		ApplyInput,
+		apply_worker,
+	},
+	associated_type::AssociatedTypeBase,
+	canonicalizer::generate_name,
+	impl_kind::{
+		ImplKindInput,
+		impl_kind_worker,
+	},
+	input::{
+		AssociatedType,
+		AssociatedTypes,
+	},
+	trait_kind::trait_kind_worker,
+};

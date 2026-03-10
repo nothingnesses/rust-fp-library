@@ -1,4 +1,7 @@
-use criterion::{criterion_group, criterion_main};
+use criterion::{
+	criterion_group,
+	criterion_main,
+};
 
 #[path = "benchmarks/cat_list.rs"]
 mod cat_list;
@@ -15,13 +18,15 @@ mod string;
 #[path = "benchmarks/vec.rs"]
 mod vec;
 
-use cat_list::bench_cat_list;
-use functions::bench_functions;
-use option::bench_option;
-use pair::bench_pair;
-use result::bench_result;
-use string::bench_string;
-use vec::bench_vec;
+use {
+	cat_list::bench_cat_list,
+	functions::bench_functions,
+	option::bench_option,
+	pair::bench_pair,
+	result::bench_result,
+	string::bench_string,
+	vec::bench_vec,
+};
 
 criterion_group!(
 	benches,

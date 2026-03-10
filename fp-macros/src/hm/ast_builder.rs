@@ -3,22 +3,45 @@
 //! This module contains the HmAstBuilder, which implements the TypeVisitor trait
 //! to transform Rust types into Hindley-Milner representations.
 
-use crate::{
-	analysis::{get_apply_macro_parameters, get_fn_brand_info, traits::format_brand_name},
-	core::{
-		config::Config,
-		constants::{markers, types},
-	},
-	hm::{
-		HmAst,
-		converter::{
-			get_smart_pointer_inner, is_phantom_data_path, is_smart_pointer, trait_bound_to_hm_type,
+use {
+	crate::{
+		analysis::{
+			get_apply_macro_parameters,
+			get_fn_brand_info,
+			traits::format_brand_name,
+		},
+		core::{
+			config::Config,
+			constants::{
+				markers,
+				types,
+			},
+		},
+		hm::{
+			HmAst,
+			converter::{
+				get_smart_pointer_inner,
+				is_phantom_data_path,
+				is_smart_pointer,
+				trait_bound_to_hm_type,
+			},
+		},
+		support::{
+			TypeVisitor,
+			last_path_segment,
 		},
 	},
-	support::{TypeVisitor, last_path_segment},
+	std::collections::{
+		HashMap,
+		HashSet,
+	},
+	syn::{
+		GenericArgument,
+		PathArguments,
+		ReturnType,
+		TypeParamBound,
+	},
 };
-use std::collections::{HashMap, HashSet};
-use syn::{GenericArgument, PathArguments, ReturnType, TypeParamBound};
 
 /// Visitor that builds HM type representations from Rust types.
 ///
@@ -50,6 +73,8 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 			let input = if input_hm_types.is_empty() {
 				HmAst::Unit
 			} else if input_hm_types.len() == 1 {
+				// SAFETY: length checked to be 1 above
+				#[allow(clippy::indexing_slicing)]
 				input_hm_types[0].clone()
 			} else {
 				HmAst::Tuple(input_hm_types)
@@ -76,13 +101,12 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 
 			// Merge constructor and args
 			match constructor_type {
-				HmAst::Variable(name) => {
+				HmAst::Variable(name) =>
 					if args_list.is_empty() {
 						HmAst::Variable(name)
 					} else {
 						HmAst::Constructor(name, args_list)
-					}
-				}
+					},
 				HmAst::Constructor(name, mut prev_args) => {
 					prev_args.extend(args_list);
 					HmAst::Constructor(name, prev_args)
@@ -101,6 +125,8 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 			}
 
 			if type_path.path.segments.len() >= 2 {
+				// SAFETY: segments.len() >= 2 checked above
+				#[allow(clippy::indexing_slicing)]
 				let first = &type_path.path.segments[0];
 				let Some(last) = last_path_segment(&type_path.path) else {
 					// Should be unreachable given the len() >= 2 check, but handle defensively
@@ -224,13 +250,12 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 			let type_args: Vec<_> = args.iter().map(|ty| self.visit(ty)).collect();
 
 			match constructor_type {
-				HmAst::Variable(name) => {
+				HmAst::Variable(name) =>
 					if type_args.is_empty() {
 						HmAst::Variable(name)
 					} else {
 						HmAst::Constructor(name, type_args)
-					}
-				}
+					},
 				HmAst::Constructor(name, mut prev_args) => {
 					prev_args.extend(type_args);
 					HmAst::Constructor(name, prev_args)
@@ -283,6 +308,8 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 		if bounds.is_empty() {
 			HmAst::TraitObject(Box::new(HmAst::Variable("_".to_string())))
 		} else {
+			// SAFETY: bounds checked non-empty above
+			#[allow(clippy::indexing_slicing)]
 			let inner = if bounds.len() == 1 { bounds[0].clone() } else { HmAst::Tuple(bounds) };
 			HmAst::TraitObject(Box::new(inner))
 		}
@@ -315,6 +342,8 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 			ReturnType::Default => HmAst::Unit,
 			ReturnType::Type(_, ty) => self.visit(ty),
 		};
+		// SAFETY: inputs.len() == 1 checked in condition
+		#[allow(clippy::indexing_slicing)]
 		let input_ty = if inputs.len() == 1 { inputs[0].clone() } else { HmAst::Tuple(inputs) };
 		HmAst::Arrow(Box::new(input_ty), Box::new(output))
 	}
@@ -332,6 +361,8 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 		if types.is_empty() {
 			HmAst::Unit
 		} else if types.len() == 1 {
+			// SAFETY: types.len() == 1 checked above
+			#[allow(clippy::indexing_slicing)]
 			types[0].clone()
 		} else {
 			HmAst::Tuple(types)

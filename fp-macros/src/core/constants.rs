@@ -69,6 +69,19 @@ pub mod macros {
 	pub const TRAIT_KIND_MACRO: &str = "trait_kind";
 	/// The `impl_kind!` macro
 	pub const IMPL_KIND_MACRO: &str = "impl_kind";
+	/// Assertion macros that doc examples must invoke at least once.
+	///
+	/// Each entry is the macro name including its trailing `!` so a simple
+	/// substring search on the example string is sufficient.
+	pub const ASSERTION_MACROS: &[&str] = &[
+		"assert!",
+		"assert_eq!",
+		"assert_ne!",
+		"debug_assert!",
+		"debug_assert_eq!",
+		"debug_assert_ne!",
+		"assert_matches!",
+	];
 }
 
 /// Markers and suffixes used for internal analysis
@@ -91,10 +104,16 @@ pub mod attributes {
 	pub const DOCUMENT_TYPE_PARAMETERS: &str = "document_type_parameters";
 	/// Attribute for function parameter documentation
 	pub const DOCUMENT_PARAMETERS: &str = "document_parameters";
+	/// Attribute for function return documentation
+	pub const DOCUMENT_RETURNS: &str = "document_returns";
+	/// Attribute for function examples documentation
+	pub const DOCUMENT_EXAMPLES: &str = "document_examples";
 	/// Attribute for struct field documentation
 	pub const DOCUMENT_FIELDS: &str = "document_fields";
 	/// Attribute for module documentation
 	pub const DOCUMENT_MODULE: &str = "document_module";
+	/// Attribute to suppress the `impl Trait` lint for named generics
+	pub const ALLOW_NAMED_GENERICS: &str = "allow_named_generics";
 	/// List of documentation-specific attributes
 	pub const DOCUMENT_SPECIFIC_ATTRS: &[&str] = &[
 		DOCUMENT_DEFAULT,
@@ -102,8 +121,20 @@ pub mod attributes {
 		DOCUMENT_SIGNATURE,
 		DOCUMENT_TYPE_PARAMETERS,
 		DOCUMENT_PARAMETERS,
+		DOCUMENT_RETURNS,
+		DOCUMENT_EXAMPLES,
 		DOCUMENT_FIELDS,
 		DOCUMENT_MODULE,
+		ALLOW_NAMED_GENERICS,
+	];
+	/// The required order for documentation attributes on a method or impl item.
+	/// Any subset of these attributes must appear in this order.
+	pub const DOCUMENT_ATTR_ORDER: &[&str] = &[
+		DOCUMENT_SIGNATURE,
+		DOCUMENT_TYPE_PARAMETERS,
+		DOCUMENT_PARAMETERS,
+		DOCUMENT_RETURNS,
+		DOCUMENT_EXAMPLES,
 	];
 }
 
@@ -127,4 +158,10 @@ pub mod re_export {
 	pub const CRATE_KEYWORD: &str = "crate";
 	/// The 'src' directory name
 	pub const SRC_DIR: &str = "src";
+}
+
+/// Constants related to documentation parsing and generation
+pub mod documentation {
+	/// Language tags that indicate Rust code blocks (validated for assertions).
+	pub const RUST_CODE_TAGS: &[&str] = &["", "rust", "no_run", "rust,no_run"];
 }

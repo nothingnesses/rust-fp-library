@@ -1,14 +1,29 @@
 //! Common parsing patterns and input validation helpers.
 
-use crate::{
-	core::{Error, Result, constants::attributes::DOCUMENT_PARAMETERS},
-	support::documentation_parameters::DocumentationParameter,
-};
-use proc_macro2::{Span, TokenStream};
-use std::collections::HashMap;
-use syn::{
-	GenericParam, Generics, Ident, LitStr,
-	parse::{Parse, ParseStream},
+use {
+	crate::{
+		core::{
+			Error,
+			Result,
+			constants::attributes::DOCUMENT_PARAMETERS,
+		},
+		support::documentation_parameters::DocumentationParameter,
+	},
+	proc_macro2::{
+		Span,
+		TokenStream,
+	},
+	std::collections::HashMap,
+	syn::{
+		GenericParam,
+		Generics,
+		Ident,
+		LitStr,
+		parse::{
+			Parse,
+			ParseStream,
+		},
+	},
 };
 
 /// Parse a stream of items until it's empty.
@@ -108,7 +123,7 @@ pub fn parse_entry_count(
 		return Err(Error::Parse(syn::Error::new(
 			span,
 			format!(
-				"Expected {expected} description arguments (one for each {context}), found {provided}. All {context}s must be documented."
+				"Expected exactly {expected} description arguments (one for each {context}), found {provided}. All {context}s must be documented."
 			),
 		)));
 	}
@@ -207,8 +222,7 @@ pub fn parse_non_zero_count<F>(
 	error_fn: F,
 ) -> Result<usize>
 where
-	F: FnOnce() -> String,
-{
+	F: FnOnce() -> String, {
 	if count == 0 {
 		return Err(Error::Parse(syn::Error::new(span, error_fn())));
 	}
@@ -359,8 +373,10 @@ pub fn parse_parameter_documentation_pairs(
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use quote::format_ident;
+	use {
+		super::*,
+		quote::format_ident,
+	};
 
 	#[test]
 	fn test_parse_many() {
@@ -426,7 +442,7 @@ mod tests {
 		let result = parse_entry_count(3, 2, Span::call_site(), "field");
 		assert!(result.is_err());
 		let error = result.unwrap_err().to_string();
-		assert!(error.contains("Expected 3"));
+		assert!(error.contains("Expected exactly 3"));
 		assert!(error.contains("found 2"));
 	}
 

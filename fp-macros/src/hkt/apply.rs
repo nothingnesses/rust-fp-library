@@ -3,13 +3,24 @@
 //! This module handles the parsing and expansion of the `Apply!` macro, which is used
 //! to apply a Higher-Kinded Type (HKT) "brand" to a set of generic arguments.
 
-use super::AssociatedTypes;
-use crate::{core::Result, generate_name};
-use proc_macro2::TokenStream;
-use quote::quote;
-use syn::{
-	AngleBracketedGenericArguments, Ident, Token, Type,
-	parse::{Parse, ParseStream},
+use {
+	super::AssociatedTypes,
+	crate::{
+		core::Result,
+		generate_name,
+	},
+	proc_macro2::TokenStream,
+	quote::quote,
+	syn::{
+		AngleBracketedGenericArguments,
+		Ident,
+		Token,
+		Type,
+		parse::{
+			Parse,
+			ParseStream,
+		},
+	},
 };
 
 /// Input structure for the `Apply!` macro.
@@ -64,7 +75,12 @@ impl Parse for ApplyInput {
 		// Parse `<...>` Args
 		let args: AngleBracketedGenericArguments = input.parse()?;
 
-		Ok(ApplyInput { brand, kind_input, assoc_name, args })
+		Ok(ApplyInput {
+			brand,
+			kind_input,
+			assoc_name,
+			args,
+		})
 	}
 }
 
@@ -82,8 +98,10 @@ pub fn apply_worker(input: ApplyInput) -> Result<TokenStream> {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use syn::parse_str;
+	use {
+		super::*,
+		syn::parse_str,
+	};
 
 	#[test]
 	fn test_parse_apply_new_syntax() {

@@ -1,5 +1,10 @@
-use fp_library::types::{ArcLazy, RcLazy};
-use quickcheck_macros::quickcheck;
+use {
+	fp_library::types::{
+		ArcLazy,
+		RcLazy,
+	},
+	quickcheck_macros::quickcheck,
+};
 
 // =========================================================================
 // Lazy Property Tests
@@ -98,9 +103,16 @@ fn prop_memo_deterministic(
 /// Verifies that `ArcLazy` computes only once even when accessed from multiple threads.
 #[test]
 fn prop_arc_memo_thread_safety() {
-	use std::sync::Arc;
-	use std::sync::atomic::{AtomicUsize, Ordering};
-	use std::thread;
+	use std::{
+		sync::{
+			Arc,
+			atomic::{
+				AtomicUsize,
+				Ordering,
+			},
+		},
+		thread,
+	};
 
 	let counter = Arc::new(AtomicUsize::new(0));
 	let counter_clone = counter.clone();
@@ -112,7 +124,7 @@ fn prop_arc_memo_thread_safety() {
 	});
 
 	let mut handles = vec![];
-	for _ in 0..10 {
+	for _ in 0 .. 10 {
 		let memo_clone = memo.clone();
 		handles.push(thread::spawn(move || {
 			assert_eq!(*memo_clone.evaluate(), 42);

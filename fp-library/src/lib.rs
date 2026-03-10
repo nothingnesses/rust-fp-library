@@ -1,4 +1,5 @@
 #![warn(missing_docs)]
+#![allow(clippy::tabs_in_doc_comments)]
 
 //! A functional programming library for Rust featuring your favourite higher-kinded types and type classes.
 //!
@@ -19,10 +20,15 @@
 //! - **Type Classes:** A comprehensive collection of standard type classes including:
 //!   - **Core:** `Functor`, `Applicative`, `Monad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`
 //!   - **Collections:** `Compactable`, `Filterable`, `Witherable`
-//!   - **Category Theory:** `Category`, `Semigroupoid`
+//!   - **Category Theory:** `Category`, `Semigroupoid`, `Profunctor`, `Strong`, `Choice`
 //!   - **Utilities:** `Pointed`, `Lift`, `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`
 //!   - **Advanced/Internal:** `MonadRec`, `RefFunctor`, `Defer`, `SendDefer`
 //!   - **Function & Pointer Abstractions:** `Function`, `CloneableFn`, `SendCloneableFn`, `ParFoldable`, `Pointer`, `RefCountedPointer`, `SendRefCountedPointer`
+//! - **Optics:** Composable data accessors for elegant field access and updates:
+//!   - **Lens:** Fully polymorphic focus (S -> T, A -> B) - Matches PureScript `Lens`
+//!   - **LensPrime:** Monomorphic focus on a field (S -> S, A -> A) - Matches PureScript `Lens'`
+//!   - **Prism:** Focus on a variant within a sum type
+//!   - Based on profunctor encoding for type-safe composition
 //! - **Helper Functions:** Standard FP utilities:
 //!   - `compose`, `constant`, `flip`, `identity`
 //! - **Data Types:** Implementations for standard and custom types:
@@ -41,14 +47,17 @@
 //! Each type constructor has a corresponding `Brand` type (e.g., `OptionBrand` for `Option`). These brands implement the `Kind` traits, which map the brand and generic arguments back to the concrete type. The library provides macros to simplify this process.
 //!
 //! ```rust
-//! use fp_library::{impl_kind, kinds::*};
+//! use fp_library::{
+//! 	impl_kind,
+//! 	kinds::*,
+//! };
 //!
 //! pub struct OptionBrand;
 //!
 //! impl_kind! {
-//!     for OptionBrand {
-//!         type Of<'a, A: 'a>: 'a = Option<A>;
-//!     }
+//! 	for OptionBrand {
+//! 		type Of<'a, A: 'a>: 'a = Option<A>;
+//! 	}
 //! }
 //! ```
 //!
@@ -94,7 +103,7 @@
 //! Unlike lazy languages (e.g., Haskell) where the runtime handles everything, Rust requires us to choose our trade-offs:
 //!
 //! 1. **`Thunk` vs `Trampoline`**: `Thunk` is faster and supports borrowing (`&'a T`). Its `tail_rec_m` is stack-safe, but deep `bind` chains will overflow the stack. `Trampoline` guarantees stack safety for all operations via a trampoline (the `Free` monad) but requires types to be `'static` and `Send`. A key distinction is that `Thunk` implements `Functor`, `Applicative`, and `Monad` directly, making it suitable for generic programming, while `Trampoline` does not.
-//! 2. **Computation vs Caching**: `Thunk` and `Trampoline` describe _computations_—they re-run every time you call `.evaluate()`. If you have an expensive operation (like a DB call), convert it to a `Lazy` to cache the result.
+//! 2. **Computation vs Caching**: `Thunk` and `Trampoline` describe _computations_-they re-run every time you call `.evaluate()`. If you have an expensive operation (like a DB call), convert it to a `Lazy` to cache the result.
 //!
 //! #### Workflow Example: Expression Evaluator
 //!
@@ -107,49 +116,45 @@
 //!
 //! #[derive(Clone)]
 //! enum Expr {
-//!     Val(i32),
-//!     Add(Box<Expr>, Box<Expr>),
-//!     Div(Box<Expr>, Box<Expr>),
+//! 	Val(i32),
+//! 	Add(Box<Expr>, Box<Expr>),
+//! 	Div(Box<Expr>, Box<Expr>),
 //! }
 //!
 //! // 1. Stack-safe recursion with error handling (TryTrampoline)
 //! fn eval(expr: &Expr) -> TryTrampoline<i32, String> {
-//!     let expr = expr.clone(); // Capture owned data for 'static closure
-//!     TryTrampoline::defer(move || match expr {
-//!         Expr::Val(n) => TryTrampoline::ok(n),
-//!         Expr::Add(lhs, rhs) => {
-//!             eval(&lhs).bind(move |l| eval(&rhs).map(move |r| l + r))
-//!         }
-//!         Expr::Div(lhs, rhs) => {
-//!             eval(&lhs).bind(move |l| {
-//!                 eval(&rhs).bind(move |r| {
-//!                     if r == 0 {
-//!                         TryTrampoline::err("Division by zero".to_string())
-//!                     } else {
-//!                         TryTrampoline::ok(l / r)
-//!                     }
-//!                 })
-//!             })
-//!         }
-//!     })
+//! 	let expr = expr.clone(); // Capture owned data for 'static closure
+//! 	TryTrampoline::defer(move || match expr {
+//! 		Expr::Val(n) => TryTrampoline::ok(n),
+//! 		Expr::Add(lhs, rhs) => eval(&lhs).bind(move |l| eval(&rhs).map(move |r| l + r)),
+//! 		Expr::Div(lhs, rhs) => eval(&lhs).bind(move |l| {
+//! 			eval(&rhs).bind(move |r| {
+//! 				if r == 0 {
+//! 					TryTrampoline::err("Division by zero".to_string())
+//! 				} else {
+//! 					TryTrampoline::ok(l / r)
+//! 				}
+//! 			})
+//! 		}),
+//! 	})
 //! }
 //!
 //! // Usage
 //! fn main() {
-//!     let expr = Expr::Div(Box::new(Expr::Val(100)), Box::new(Expr::Val(2)));
+//! 	let expr = Expr::Div(Box::new(Expr::Val(100)), Box::new(Expr::Val(2)));
 //!
-//!     // 2. Memoize result (TryLazy)
-//!     // The evaluation runs at most once, even if accessed multiple times.
-//!     let result = RcTryLazy::new(move || eval(&expr).evaluate());
+//! 	// 2. Memoize result (TryLazy)
+//! 	// The evaluation runs at most once, even if accessed multiple times.
+//! 	let result = RcTryLazy::new(move || eval(&expr).evaluate());
 //!
-//!     // 3. Create deferred view (TryThunk)
-//!     // Borrow the cached result to format it.
-//!     let view: TryThunk<String, String> = TryThunk::new(|| {
-//!         let val = result.evaluate().map_err(|e| e.clone())?;
-//!         Ok(format!("Result: {}", val))
-//!     });
+//! 	// 3. Create deferred view (TryThunk)
+//! 	// Borrow the cached result to format it.
+//! 	let view: TryThunk<String, String> = TryThunk::new(|| {
+//! 		let val = result.evaluate().map_err(|e| e.clone())?;
+//! 		Ok(format!("Result: {}", val))
+//! 	});
 //!
-//!     assert_eq!(view.evaluate(), Ok("Result: 50".to_string()));
+//! 	assert_eq!(view.evaluate(), Ok("Result: 50".to_string()));
 //! }
 //! ```
 //!
@@ -162,7 +167,10 @@
 //! - **Rayon Support**: `VecBrand` supports parallel execution using `rayon` when the `rayon` feature is enabled.
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let v = vec![1, 2, 3, 4, 5];
 //! // Create a thread-safe function wrapper
@@ -175,11 +183,14 @@
 //! ## Example: Using `Functor` with `Option`
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let x = Some(5);
 //! // Map a function over the `Option` using the `Functor` type class
-//! let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
+//! let y = map::<OptionBrand, _, _>(|i| i * 2, x);
 //! assert_eq!(y, Some(10));
 //! ```
 //!
@@ -196,7 +207,4 @@ pub mod functions;
 pub mod kinds;
 pub mod types;
 
-pub use fp_macros::Apply;
-pub use fp_macros::Kind;
-pub use fp_macros::impl_kind;
-pub use fp_macros::trait_kind;
+pub use fp_macros::*;

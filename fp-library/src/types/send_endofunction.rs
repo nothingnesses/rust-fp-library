@@ -4,14 +4,24 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		classes::{Monoid, Semigroup, SendCloneableFn},
-		functions::identity,
-	};
-	use fp_macros::{document_fields, document_parameters, document_type_parameters};
-	use std::{
-		fmt::{self, Debug, Formatter},
-		hash::Hash,
+	use {
+		crate::{
+			classes::{
+				Monoid,
+				Semigroup,
+				SendCloneableFn,
+			},
+			functions::identity,
+		},
+		fp_macros::*,
+		std::{
+			fmt::{
+				self,
+				Debug,
+				Formatter,
+			},
+			hash::Hash,
+		},
 	};
 
 	/// A thread-safe wrapper for endofunctions (functions from a set to the same set) that enables monoidal operations.
@@ -24,61 +34,45 @@ mod inner {
 	/// * The identity element [empty][Monoid::empty] is the [identity function][crate::functions::identity].
 	///
 	/// The wrapped function can be accessed directly via the [`.0` field][SendEndofunction#structfield.0].
-	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
-	///
-	/// ### Fields
 	///
 	#[document_fields("The wrapped thread-safe function.")]
 	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2));
-	/// assert_eq!(f.0(5), 10);
-	/// ```
-	pub struct SendEndofunction<'a, FnBrand: SendCloneableFn, A>(
+	pub struct SendEndofunction<'a, FnBrand: SendCloneableFn, A: 'a>(
 		pub <FnBrand as SendCloneableFn>::SendOf<'a, A, A>,
 	);
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
-	impl<'a, FnBrand: SendCloneableFn, A> SendEndofunction<'a, FnBrand, A> {
+	impl<'a, FnBrand: SendCloneableFn, A: 'a> SendEndofunction<'a, FnBrand, A> {
 		/// Creates a new `SendEndofunction`.
 		///
 		/// This function wraps a thread-safe function `a -> a` in a `SendEndofunction` struct.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to wrap.")]
 		///
-		/// ### Returns
+		#[document_returns("A new `SendEndofunction`.")]
 		///
-		/// A new `SendEndofunction`.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
-		/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(
+		/// 	|x: i32| x * 2,
+		/// ));
 		/// assert_eq!(f.0(5), 10);
 		/// ```
 		pub fn new(f: <FnBrand as SendCloneableFn>::SendOf<'a, A, A>) -> Self {
@@ -86,42 +80,62 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to clone.")]
-	impl<'a, FnBrand: SendCloneableFn, A> Clone for SendEndofunction<'a, FnBrand, A> {
-		/// ### Type Signature
-		///
+	impl<'a, FnBrand: SendCloneableFn, A: 'a> Clone for SendEndofunction<'a, FnBrand, A> {
 		#[document_signature]
+		#[document_returns("A new `SendEndofunction` instance that is a copy of the original.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(
+		/// 	|x: i32| x * 2,
+		/// ));
+		/// let cloned = f.clone();
+		/// assert_eq!(cloned.0(5), 10);
+		/// ```
 		fn clone(&self) -> Self {
 			Self::new(self.0.clone())
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to format.")]
-	impl<'a, FnBrand: SendCloneableFn, A> Debug for SendEndofunction<'a, FnBrand, A>
+	impl<'a, FnBrand: SendCloneableFn, A: 'a> Debug for SendEndofunction<'a, FnBrand, A>
 	where
 		<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: Debug,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The formatter to use.")]
+		#[document_returns("The result of the formatting operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(
+		/// 	|x: i32| x * 2,
+		/// ));
+		/// // Debug formatting is available when the inner function type implements Debug.
+		/// // Verify the endofunction applies correctly:
+		/// assert_eq!(f.0(5), 10);
+		/// ```
 		fn fmt(
 			&self,
 			fmt: &mut Formatter<'_>,
@@ -130,41 +144,44 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
-	impl<'a, FnBrand: SendCloneableFn, A> Eq for SendEndofunction<'a, FnBrand, A> where
+	impl<'a, FnBrand: SendCloneableFn, A: 'a> Eq for SendEndofunction<'a, FnBrand, A> where
 		<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: Eq
 	{
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to hash.")]
-	impl<'a, FnBrand: SendCloneableFn, A> Hash for SendEndofunction<'a, FnBrand, A>
+	impl<'a, FnBrand: SendCloneableFn, A: 'a> Hash for SendEndofunction<'a, FnBrand, A>
 	where
 		<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: Hash,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the hasher.")]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The hasher state to update.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(
+		/// 	|x: i32| x * 2,
+		/// ));
+		/// // Hash is available when the inner function type implements Hash.
+		/// // Verify the endofunction applies correctly:
+		/// assert_eq!(f.0(5), 10);
+		/// ```
 		fn hash<H: std::hash::Hasher>(
 			&self,
 			state: &mut H,
@@ -173,25 +190,37 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<'a, FnBrand: SendCloneableFn, A> Ord for SendEndofunction<'a, FnBrand, A>
+	impl<'a, FnBrand: SendCloneableFn, A: 'a> Ord for SendEndofunction<'a, FnBrand, A>
 	where
 		<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: Ord,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other function to compare to.")]
+		#[document_returns("The ordering of the values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(
+		/// 	|x: i32| x * 2,
+		/// ));
+		/// let g = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(
+		/// 	|x: i32| x * 2,
+		/// ));
+		/// // Ord is available when the inner function type implements Ord.
+		/// // Both produce the same output for the same input:
+		/// assert_eq!(f.0(5), g.0(5));
+		/// ```
 		fn cmp(
 			&self,
 			other: &Self,
@@ -200,25 +229,37 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<'a, FnBrand: SendCloneableFn, A> PartialEq for SendEndofunction<'a, FnBrand, A>
+	impl<'a, FnBrand: SendCloneableFn, A: 'a> PartialEq for SendEndofunction<'a, FnBrand, A>
 	where
 		<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: PartialEq,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other function to compare to.")]
+		#[document_returns("True if the values are equal, false otherwise.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(
+		/// 	|x: i32| x * 2,
+		/// ));
+		/// let g = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(
+		/// 	|x: i32| x * 2,
+		/// ));
+		/// // PartialEq is available when the inner function type implements PartialEq.
+		/// // Both produce the same output for the same input:
+		/// assert_eq!(f.0(5), g.0(5));
+		/// ```
 		fn eq(
 			&self,
 			other: &Self,
@@ -227,25 +268,37 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<'a, FnBrand: SendCloneableFn, A> PartialOrd for SendEndofunction<'a, FnBrand, A>
+	impl<'a, FnBrand: SendCloneableFn, A: 'a> PartialOrd for SendEndofunction<'a, FnBrand, A>
 	where
 		<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: PartialOrd,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other function to compare to.")]
+		#[document_returns("An ordering if the values can be compared, none otherwise.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(
+		/// 	|x: i32| x * 2,
+		/// ));
+		/// let g = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(
+		/// 	|x: i32| x * 2,
+		/// ));
+		/// // PartialOrd is available when the inner function type implements PartialOrd.
+		/// // Both produce the same output for the same input:
+		/// assert_eq!(f.0(5), g.0(5));
+		/// ```
 		fn partial_cmp(
 			&self,
 			other: &Self,
@@ -254,8 +307,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
@@ -269,29 +320,29 @@ mod inner {
 		/// This method combines two endofunctions into a single endofunction.
 		/// Note that `SendEndofunction` composition is reversed relative to standard function composition:
 		/// `append(f, g)` results in `f . g` (read as "f after g"), meaning `g` is applied first, then `f`.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The second function to apply (the outer function).",
 			"The first function to apply (the inner function)."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The composed function `a . b`.
-		///
-		/// ### Examples
+		#[document_returns("The composed function `a . b`.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
-		/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2));
-		/// let g = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x + 1));
+		/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(
+		/// 	|x: i32| x * 2,
+		/// ));
+		/// let g = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(
+		/// 	|x: i32| x + 1,
+		/// ));
 		///
 		/// // f(g(x)) = (x + 1) * 2
 		/// let h = append::<_>(f, g);
@@ -308,8 +359,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
@@ -321,19 +370,18 @@ mod inner {
 		/// The identity element.
 		///
 		/// This method returns the identity endofunction, which wraps the identity function.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Returns
+		#[document_returns("The identity endofunction.")]
 		///
-		/// The identity endofunction.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let id = empty::<SendEndofunction<ArcFnBrand, i32>>();
 		/// assert_eq!(id.0(5), 5);

@@ -15,12 +15,14 @@
 
 pub mod arc_ptr;
 pub mod cat_list;
+pub mod const_val;
 pub mod endofunction;
 pub mod endomorphism;
 pub mod fn_brand;
 pub mod free;
 pub mod identity;
 pub mod lazy;
+pub mod optics;
 pub mod option;
 pub mod pair;
 pub mod rc_ptr;
@@ -37,17 +39,35 @@ pub mod tuple_1;
 pub mod tuple_2;
 pub mod vec;
 
-pub use cat_list::CatList;
-pub use endofunction::Endofunction;
-pub use endomorphism::Endomorphism;
-pub use free::Free;
-pub use identity::Identity;
-pub use lazy::{ArcLazy, ArcLazyConfig, Lazy, LazyConfig, RcLazy, RcLazyConfig};
-pub use pair::Pair;
-pub use send_endofunction::SendEndofunction;
-pub use step::Step;
-pub use thunk::Thunk;
-pub use trampoline::Trampoline;
-pub use try_lazy::{ArcTryLazy, RcTryLazy, TryLazy};
-pub use try_thunk::TryThunk;
-pub use try_trampoline::TryTrampoline;
+pub use {
+	cat_list::CatList,
+	endofunction::Endofunction,
+	endomorphism::Endomorphism,
+	free::Free,
+	identity::Identity,
+	lazy::{
+		ArcLazy,
+		ArcLazyConfig,
+		Lazy,
+		LazyConfig,
+		RcLazy,
+		RcLazyConfig,
+	},
+	optics::{
+		Composed,
+		Lens,
+		LensPrime,
+	},
+	pair::Pair,
+	send_endofunction::SendEndofunction,
+	step::Step,
+	thunk::Thunk,
+	trampoline::Trampoline,
+	try_lazy::{
+		ArcTryLazy,
+		RcTryLazy,
+		TryLazy,
+	},
+	try_thunk::TryThunk,
+	try_trampoline::TryTrampoline,
+};

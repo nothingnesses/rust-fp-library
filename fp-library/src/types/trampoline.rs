@@ -8,20 +8,28 @@
 //! use fp_library::types::*;
 //!
 //! let task = Trampoline::new(|| 1 + 1)
-//!     .bind(|x| Trampoline::new(move || x * 2))
-//!     .bind(|x| Trampoline::new(move || x + 10));
+//! 	.bind(|x| Trampoline::new(move || x * 2))
+//! 	.bind(|x| Trampoline::new(move || x + 10));
 //!
 //! assert_eq!(task.evaluate(), 14);
 //! ```
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		brands::ThunkBrand,
-		classes::Deferrable,
-		types::{Free, Lazy, LazyConfig, Step, Thunk},
+	use {
+		crate::{
+			brands::ThunkBrand,
+			classes::Deferrable,
+			types::{
+				Free,
+				Lazy,
+				LazyConfig,
+				Step,
+				Thunk,
+			},
+		},
+		fp_macros::*,
 	};
-	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 
 	/// A lazy, stack-safe computation that produces a value of type `A`.
 	///
@@ -32,7 +40,7 @@ mod inner {
 	///
 	/// # Requirements
 	///
-	/// - `A: 'static + Send` — Required due to type erasure via [`Box<dyn Any>`].
+	/// - `A: 'static + Send` - Required due to type erasure via [`Box<dyn Any>`].
 	///
 	/// # Guarantees
 	///
@@ -57,30 +65,12 @@ mod inner {
 	/// lazy.evaluate(); // Computes
 	/// lazy.evaluate(); // Returns cached
 	/// ```
-	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the value produced by the task.")]
-	///
-	/// ### Fields
 	///
 	#[document_fields("The internal `Free` monad representation.")]
 	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let task = Trampoline::new(|| 1 + 1)
-	///     .bind(|x| Trampoline::new(move || x * 2))
-	///     .bind(|x| Trampoline::new(move || x + 10));
-	///
-	/// assert_eq!(task.evaluate(), 14);
-	/// ```
 	pub struct Trampoline<A: 'static>(Free<ThunkBrand, A>);
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the value produced by the task.")]
 	#[document_parameters("The `Trampoline` instance.")]
 	impl<A: 'static + Send> Trampoline<A> {
@@ -89,20 +79,14 @@ mod inner {
 		/// ### Complexity
 		///
 		/// O(1) creation, O(1) evaluation
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
+		#[document_returns("A `Trampoline` that produces the value `a`.")]
 		///
-		/// A `Trampoline` that produces the value `a`.
-		///
-		/// ### Examples
+		#[inline]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -110,53 +94,39 @@ mod inner {
 		/// let task = Trampoline::pure(42);
 		/// assert_eq!(task.evaluate(), 42);
 		/// ```
-		#[inline]
 		pub fn pure(a: A) -> Self {
 			Trampoline(Free::pure(a))
 		}
 
 		/// Creates a lazy `Trampoline` that computes `f` on first evaluation.
 		///
-		/// `Trampoline` does NOT memoize — each `evaluate()`
+		/// `Trampoline` does NOT memoize - each `evaluate()`
 		/// re-evaluates. Use [`Lazy`] for caching.
 		///
 		/// # Complexity
 		/// O(1) creation
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters("The type of the closure.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The closure to execute.")]
 		///
-		/// ### Returns
+		#[document_returns("A `Trampoline` that executes `f` when run.")]
 		///
-		/// A `Trampoline` that executes `f` when run.
-		///
-		/// ### Examples
+		#[inline]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
 		///
 		/// let task = Trampoline::new(|| {
-		///     // println!("Computing!");
-		///     1 + 1
+		/// 	// println!("Computing!");
+		/// 	1 + 1
 		/// });
 		///
 		/// // Nothing printed yet
 		/// let result = task.evaluate(); // Prints "Computing!"
+		/// assert_eq!(result, 2);
 		/// ```
-		#[inline]
-		pub fn new<F>(f: F) -> Self
-		where
-			F: FnOnce() -> A + 'static,
-		{
+		pub fn new(f: impl FnOnce() -> A + 'static) -> Self {
 			Trampoline(Free::wrap(Thunk::new(move || Free::pure(f()))))
 		}
 
@@ -165,45 +135,35 @@ mod inner {
 		/// This is critical for stack-safe recursion: instead of
 		/// building a chain of `Trampoline`s directly (which grows the stack),
 		/// we defer the construction.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters("The type of the closure.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The closure that produces a `Trampoline`.")]
 		///
-		/// ### Returns
+		#[document_returns("A `Trampoline` that defers the creation of the inner task.")]
 		///
-		/// A `Trampoline` that defers the creation of the inner task.
-		///
-		/// ### Examples
+		#[inline]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
 		///
-		/// fn recursive_sum(n: u64, acc: u64) -> Trampoline<u64> {
-		///     if n == 0 {
-		///         Trampoline::pure(acc)
-		///     } else {
-		///         // Defer construction to avoid stack growth
-		///         Trampoline::defer(move || recursive_sum(n - 1, acc + n))
-		///     }
+		/// fn recursive_sum(
+		/// 	n: u64,
+		/// 	acc: u64,
+		/// ) -> Trampoline<u64> {
+		/// 	if n == 0 {
+		/// 		Trampoline::pure(acc)
+		/// 	} else {
+		/// 		// Defer construction to avoid stack growth
+		/// 		Trampoline::defer(move || recursive_sum(n - 1, acc + n))
+		/// 	}
 		/// }
 		///
 		/// // This works for n = 1_000_000 without stack overflow!
 		/// let result = recursive_sum(1_000, 0).evaluate();
+		/// assert_eq!(result, 500500);
 		/// ```
-		#[inline]
-		pub fn defer<F>(f: F) -> Self
-		where
-			F: FnOnce() -> Trampoline<A> + 'static,
-		{
+		pub fn defer(f: impl FnOnce() -> Trampoline<A> + 'static) -> Self {
 			Trampoline(Free::wrap(Thunk::new(move || f().0)))
 		}
 
@@ -211,70 +171,45 @@ mod inner {
 		///
 		/// Chains computations together. The key property is that
 		/// left-associated chains don't degrade to O(n²).
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters(
-			"The type of the result of the new task.",
-			"The type of the binding function."
-		)]
-		///
-		/// ### Parameters
+		#[document_type_parameters("The type of the result of the new task.")]
 		///
 		#[document_parameters("The function to apply to the result of this task.")]
 		///
-		/// ### Returns
+		#[document_returns("A new `Trampoline` that chains `f` after this task.")]
 		///
-		/// A new `Trampoline` that chains `f` after this task.
-		///
-		/// ### Examples
+		#[inline]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
 		///
 		/// // This is O(n), not O(n²)
 		/// let mut task = Trampoline::pure(0);
-		/// for i in 0..100 {
-		///     task = task.bind(move |x| Trampoline::pure(x + i));
+		/// for i in 0 .. 100 {
+		/// 	task = task.bind(move |x| Trampoline::pure(x + i));
 		/// }
+		/// assert_eq!(task.evaluate(), 4950);
 		/// ```
-		#[inline]
-		pub fn bind<B: 'static + Send, F>(
+		pub fn bind<B: 'static + Send>(
 			self,
-			f: F,
-		) -> Trampoline<B>
-		where
-			F: FnOnce(A) -> Trampoline<B> + 'static,
-		{
+			f: impl FnOnce(A) -> Trampoline<B> + 'static,
+		) -> Trampoline<B> {
 			Trampoline(self.0.bind(move |a| f(a).0))
 		}
 
 		/// Functor map: transforms the result without changing structure.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters(
-			"The type of the result of the mapping function.",
-			"The type of the mapping function."
-		)]
-		///
-		/// ### Parameters
+		#[document_type_parameters("The type of the result of the mapping function.")]
 		///
 		#[document_parameters("The function to apply to the result of this task.")]
 		///
-		/// ### Returns
+		#[document_returns("A new `Trampoline` with the transformed result.")]
 		///
-		/// A new `Trampoline` with the transformed result.
-		///
-		/// ### Examples
+		#[inline]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -282,14 +217,10 @@ mod inner {
 		/// let task = Trampoline::pure(10).map(|x| x * 2);
 		/// assert_eq!(task.evaluate(), 20);
 		/// ```
-		#[inline]
-		pub fn map<B: 'static + Send, F>(
+		pub fn map<B: 'static + Send>(
 			self,
-			f: F,
-		) -> Trampoline<B>
-		where
-			F: FnOnce(A) -> B + 'static,
-		{
+			f: impl FnOnce(A) -> B + 'static,
+		) -> Trampoline<B> {
 			self.bind(move |a| Trampoline::pure(f(a)))
 		}
 
@@ -297,20 +228,13 @@ mod inner {
 		///
 		/// This runs the trampoline loop, iteratively processing
 		/// the CatList of continuations without growing the stack.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters]
 		///
-		/// ### Returns
+		#[document_returns("The result of the computation.")]
 		///
-		/// The result of the computation.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -323,28 +247,18 @@ mod inner {
 		}
 
 		/// Combines two `Trampoline`s, running both and combining results.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The type of the second task's result.",
-			"The type of the combined result.",
-			"The type of the combining function."
+			"The type of the combined result."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The second task.", "The function to combine the results.")]
 		///
-		/// ### Returns
+		#[document_returns("A new `Trampoline` producing the combined result.")]
 		///
-		/// A new `Trampoline` producing the combined result.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -354,36 +268,26 @@ mod inner {
 		/// let t3 = t1.lift2(t2, |a, b| a + b);
 		/// assert_eq!(t3.evaluate(), 30);
 		/// ```
-		pub fn lift2<B: 'static + Send, C: 'static + Send, F>(
+		pub fn lift2<B: 'static + Send, C: 'static + Send>(
 			self,
 			other: Trampoline<B>,
-			f: F,
-		) -> Trampoline<C>
-		where
-			F: FnOnce(A, B) -> C + 'static,
-		{
+			f: impl FnOnce(A, B) -> C + 'static,
+		) -> Trampoline<C> {
 			self.bind(move |a| other.map(move |b| f(a, b)))
 		}
 
 		/// Sequences two `Trampoline`s, discarding the first result.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters("The type of the second task's result.")]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The second task.")]
 		///
-		/// ### Returns
+		#[document_returns(
+			"A new `Trampoline` that runs both tasks and returns the result of the second."
+		)]
 		///
-		/// A new `Trampoline` that runs both tasks and returns the result of the second.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -410,59 +314,51 @@ mod inner {
 		///
 		/// For closures that don't implement `Clone`, use `arc_tail_rec_m`
 		/// which wraps the closure in `Arc` internally.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters("The type of the state.", "The type of the step function.")]
-		///
-		/// ### Parameters
+		#[document_type_parameters("The type of the state.")]
 		///
 		#[document_parameters(
 			"The function that performs one step of the recursion.",
 			"The initial state."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A `Trampoline` that performs the recursion.
-		///
-		/// ### Examples
+		#[document_returns("A `Trampoline` that performs the recursion.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::{Trampoline, Step};
+		/// use fp_library::types::{
+		/// 	Step,
+		/// 	Trampoline,
+		/// };
 		///
 		/// // Fibonacci using tail recursion
 		/// fn fib(n: u64) -> Trampoline<u64> {
-		///     Trampoline::tail_rec_m(|(n, a, b)| {
-		///         if n == 0 {
-		///             Trampoline::pure(Step::Done(a))
-		///         } else {
-		///             Trampoline::pure(Step::Loop((n - 1, b, a + b)))
-		///         }
-		///     }, (n, 0u64, 1u64))
+		/// 	Trampoline::tail_rec_m(
+		/// 		|(n, a, b)| {
+		/// 			if n == 0 {
+		/// 				Trampoline::pure(Step::Done(a))
+		/// 			} else {
+		/// 				Trampoline::pure(Step::Loop((n - 1, b, a + b)))
+		/// 			}
+		/// 		},
+		/// 		(n, 0u64, 1u64),
+		/// 	)
 		/// }
 		///
 		/// assert_eq!(fib(50).evaluate(), 12586269025);
 		/// ```
-		pub fn tail_rec_m<S: 'static + Send, F>(
-			f: F,
+		pub fn tail_rec_m<S: 'static + Send>(
+			f: impl Fn(S) -> Trampoline<Step<S, A>> + Clone + 'static,
 			initial: S,
-		) -> Self
-		where
-			F: Fn(S) -> Trampoline<Step<S, A>> + Clone + 'static,
-		{
+		) -> Self {
 			// Use defer to ensure each step is trampolined.
 			fn go<A: 'static + Send, B: 'static + Send, F>(
 				f: F,
 				a: A,
 			) -> Trampoline<B>
 			where
-				F: Fn(A) -> Trampoline<Step<A, B>> + Clone + 'static,
-			{
+				F: Fn(A) -> Trampoline<Step<A, B>> + Clone + 'static, {
 				let f_clone = f.clone();
 				Trampoline::defer(move || {
 					f(a).bind(move |step| match step {
@@ -478,50 +374,54 @@ mod inner {
 		/// Arc-wrapped version for non-Clone closures.
 		///
 		/// Use this when your closure captures non-Clone state.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters("The type of the state.", "The type of the step function.")]
-		///
-		/// ### Parameters
+		#[document_type_parameters("The type of the state.")]
 		///
 		#[document_parameters(
 			"The function that performs one step of the recursion.",
 			"The initial state."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A `Trampoline` that performs the recursion.
-		///
-		/// ### Examples
+		#[document_returns("A `Trampoline` that performs the recursion.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::{Trampoline, Step};
-		/// use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
+		/// use {
+		/// 	fp_library::types::{
+		/// 		Step,
+		/// 		Trampoline,
+		/// 	},
+		/// 	std::sync::{
+		/// 		Arc,
+		/// 		atomic::{
+		/// 			AtomicUsize,
+		/// 			Ordering,
+		/// 		},
+		/// 	},
+		/// };
 		///
 		/// // Closure captures non-Clone state
 		/// let counter = Arc::new(AtomicUsize::new(0));
-		/// Trampoline::arc_tail_rec_m(move |n| {
-		///     counter.fetch_add(1, Ordering::SeqCst);
-		///     if n == 0 {
-		///         Trampoline::pure(Step::Done(0))
-		///     } else {
-		///         Trampoline::pure(Step::Loop(n - 1))
-		///     }
-		/// }, 100);
+		/// let counter_clone = Arc::clone(&counter);
+		/// let task = Trampoline::arc_tail_rec_m(
+		/// 	move |n| {
+		/// 		counter_clone.fetch_add(1, Ordering::SeqCst);
+		/// 		if n == 0 {
+		/// 			Trampoline::pure(Step::Done(0))
+		/// 		} else {
+		/// 			Trampoline::pure(Step::Loop(n - 1))
+		/// 		}
+		/// 	},
+		/// 	100,
+		/// );
+		/// assert_eq!(task.evaluate(), 0);
+		/// assert_eq!(counter.load(Ordering::SeqCst), 101);
 		/// ```
-		pub fn arc_tail_rec_m<S: 'static + Send, F>(
-			f: F,
+		pub fn arc_tail_rec_m<S: 'static + Send>(
+			f: impl Fn(S) -> Trampoline<Step<S, A>> + 'static,
 			initial: S,
-		) -> Self
-		where
-			F: Fn(S) -> Trampoline<Step<S, A>> + 'static,
-		{
+		) -> Self {
 			use std::sync::Arc;
 			let f = Arc::new(f);
 			let wrapper = move |s: S| {
@@ -532,8 +432,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The type of the value produced by the task.",
 		"The memoization configuration."
@@ -541,53 +439,47 @@ mod inner {
 	impl<A: 'static + Send + Clone, Config: LazyConfig> From<Lazy<'static, A, Config>>
 		for Trampoline<A>
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The lazy value to convert.")]
+		#[document_returns("A trampoline that evaluates the lazy value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let lazy = Lazy::<_, RcLazyConfig>::pure(42);
+		/// let task = Trampoline::from(lazy);
+		/// assert_eq!(task.evaluate(), 42);
+		/// ```
 		fn from(lazy: Lazy<'static, A, Config>) -> Self {
 			Trampoline::new(move || lazy.evaluate().clone())
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the value produced by the task.")]
 	impl<A: 'static + Send> Deferrable<'static> for Trampoline<A> {
 		/// Creates a `Trampoline` from a computation that produces it.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters("The type of the closure.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("A thunk that produces the trampoline.")]
 		///
-		/// ### Returns
+		#[document_returns("The deferred trampoline.")]
 		///
-		/// The deferred trampoline.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::Deferrable,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let task: Trampoline<i32> = Deferrable::defer(|| Trampoline::pure(42));
 		/// assert_eq!(task.evaluate(), 42);
 		/// ```
-		fn defer<F>(f: F) -> Self
+		fn defer(f: impl FnOnce() -> Self + 'static) -> Self
 		where
-			F: FnOnce() -> Self + 'static,
-			Self: Sized,
-		{
+			Self: Sized, {
 			Trampoline::defer(f)
 		}
 	}
@@ -596,8 +488,10 @@ pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use crate::types::step::Step;
+	use {
+		super::*,
+		crate::types::step::Step,
+	};
 
 	/// Tests `Trampoline::pure`.
 	///
@@ -694,7 +588,10 @@ mod tests {
 	fn test_task_arc_tail_rec_m() {
 		use std::sync::{
 			Arc,
-			atomic::{AtomicUsize, Ordering},
+			atomic::{
+				AtomicUsize,
+				Ordering,
+			},
 		};
 
 		let counter = Arc::new(AtomicUsize::new(0));
@@ -721,9 +618,16 @@ mod tests {
 	/// Verifies that `From<Lazy>` creates a task that retrieves the memoized value lazily.
 	#[test]
 	fn test_task_from_memo() {
-		use crate::types::{Lazy, RcLazyConfig};
-		use std::cell::RefCell;
-		use std::rc::Rc;
+		use {
+			crate::types::{
+				Lazy,
+				RcLazyConfig,
+			},
+			std::{
+				cell::RefCell,
+				rc::Rc,
+			},
+		};
 
 		let counter = Rc::new(RefCell::new(0));
 		let counter_clone = counter.clone();
@@ -749,8 +653,16 @@ mod tests {
 	/// Tests `Trampoline::from` with `ArcLazy`.
 	#[test]
 	fn test_task_from_arc_memo() {
-		use crate::types::{ArcLazyConfig, Lazy};
-		use std::sync::{Arc, Mutex};
+		use {
+			crate::types::{
+				ArcLazyConfig,
+				Lazy,
+			},
+			std::sync::{
+				Arc,
+				Mutex,
+			},
+		};
 
 		let counter = Arc::new(Mutex::new(0));
 		let counter_clone = counter.clone();

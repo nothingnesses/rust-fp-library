@@ -1,5 +1,10 @@
-use fp_library::{brands::*, functions::*};
-use std::thread;
+use {
+	fp_library::{
+		brands::*,
+		functions::*,
+	},
+	std::thread,
+};
 
 #[test]
 fn test_spawn_thread_with_send_fn() {

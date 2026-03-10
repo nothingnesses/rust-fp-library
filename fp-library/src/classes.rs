@@ -8,33 +8,43 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let x = Some(5);
-//! let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
+//! let y = map::<OptionBrand, _, _>(|i| i * 2, x);
 //! assert_eq!(y, Some(10));
 //! ```
 
 pub mod applicative;
 pub mod apply_first;
 pub mod apply_second;
+pub mod bifoldable;
 pub mod bifunctor;
+pub mod bitraversable;
 pub mod category;
 pub mod cloneable_fn;
 pub mod compactable;
+pub mod contravariant;
 pub mod deferrable;
 pub mod evaluable;
 pub mod filterable;
 pub mod foldable;
+pub mod foldable_with_index;
 pub mod function;
 pub mod functor;
+pub mod functor_with_index;
 pub mod lift;
 pub mod monad;
 pub mod monad_rec;
 pub mod monoid;
+pub mod optics;
 pub mod par_foldable;
 pub mod pointed;
 pub mod pointer;
+pub mod profunctor;
 pub mod ref_counted_pointer;
 pub mod ref_functor;
 pub mod semiapplicative;
@@ -46,6 +56,7 @@ pub mod send_deferrable;
 pub mod send_ref_counted_pointer;
 pub mod send_unsized_coercible;
 pub mod traversable;
+pub mod traversable_with_index;
 pub mod unsized_coercible;
 pub mod witherable;
 

@@ -1,24 +1,46 @@
-use criterion::{BenchmarkId, Criterion};
-use fp_library::{
-	brands::{ArcFnBrand, OptionBrand, PairWithFirstBrand, RcFnBrand},
-	classes::{
-		foldable::{fold_left, fold_right},
-		functor::map,
-		lift::lift2,
-		par_foldable::{par_fold_map, par_fold_right},
-		pointed::pure,
-		semiapplicative::apply,
-		semimonad::bind,
-		traversable::{sequence, traverse},
+use {
+	criterion::{
+		BenchmarkId,
+		Criterion,
 	},
-	functions::{cloneable_fn_new, send_cloneable_fn_new},
-	types::Pair,
+	fp_library::{
+		brands::{
+			ArcFnBrand,
+			OptionBrand,
+			PairFirstAppliedBrand,
+			RcFnBrand,
+		},
+		classes::{
+			foldable::{
+				fold_left,
+				fold_right,
+			},
+			functor::map,
+			lift::lift2,
+			par_foldable::{
+				par_fold_map,
+				par_fold_right,
+			},
+			pointed::pure,
+			semiapplicative::apply,
+			semimonad::bind,
+			traversable::{
+				sequence,
+				traverse,
+			},
+		},
+		functions::{
+			cloneable_fn_new,
+			send_cloneable_fn_new,
+		},
+		types::Pair,
+	},
 };
 
 /// Benchmarks for Pair operations.
 ///
 /// Tests Pair performance for various type class methods.
-/// Pair is benchmarked using PairWithFirstBrand (functor over the second element).
+/// Pair is benchmarked using PairFirstAppliedBrand (functor over the second element).
 pub fn bench_pair(c: &mut Criterion) {
 	let val = Pair("first".to_string(), 42);
 	let input_desc = "Pair(\"first\", 42)";
@@ -34,7 +56,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				map::<PairWithFirstBrand<String>, _, _, _>(
+				map::<PairFirstAppliedBrand<String>, _, _>(
 					|x| x * 2,
 					std::hint::black_box(val.clone()),
 				)
@@ -54,7 +76,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_right::<RcFnBrand, PairWithFirstBrand<String>, _, _, _>(
+				fold_right::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
 					|x, acc| x + acc,
 					0,
 					std::hint::black_box(val.clone()),
@@ -75,7 +97,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_left::<RcFnBrand, PairWithFirstBrand<String>, _, _, _>(
+				fold_left::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
 					|acc, x| acc + x,
 					0,
 					std::hint::black_box(val.clone()),
@@ -96,7 +118,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				traverse::<PairWithFirstBrand<String>, _, _, OptionBrand, _>(
+				traverse::<PairFirstAppliedBrand<String>, _, _, OptionBrand>(
 					|x| Some(x * 2),
 					std::hint::black_box(val.clone()),
 				)
@@ -122,7 +144,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		);
 		group.bench_with_input(BenchmarkId::new("fp", input_desc_opt), &input_desc_opt, |b, &_| {
 			b.iter(|| {
-				sequence::<PairWithFirstBrand<String>, _, OptionBrand>(std::hint::black_box(
+				sequence::<PairFirstAppliedBrand<String>, _, OptionBrand>(std::hint::black_box(
 					val_opt.clone(),
 				))
 			})
@@ -142,7 +164,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				bind::<PairWithFirstBrand<String>, _, _, _>(
+				bind::<PairFirstAppliedBrand<String>, _, _>(
 					std::hint::black_box(val.clone()),
 					|x| Pair("second".to_string(), x * 2),
 				)
@@ -164,7 +186,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				lift2::<PairWithFirstBrand<String>, _, _, _, _>(
+				lift2::<PairFirstAppliedBrand<String>, _, _, _>(
 					|x, y| x + y,
 					std::hint::black_box(val.clone()),
 					std::hint::black_box(val2.clone()),
@@ -181,7 +203,7 @@ pub fn bench_pair(c: &mut Criterion) {
 			b.iter(|| Pair(String::new(), i))
 		});
 		group.bench_with_input(BenchmarkId::new("fp", "42"), &42, |b, &i| {
-			b.iter(|| pure::<PairWithFirstBrand<String>, _>(i))
+			b.iter(|| pure::<PairFirstAppliedBrand<String>, _>(i))
 		});
 		group.finish();
 	}
@@ -199,7 +221,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				apply::<RcFnBrand, PairWithFirstBrand<String>, _, _>(
+				apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
 					std::hint::black_box(f.clone()),
 					std::hint::black_box(val.clone()),
 				)
@@ -213,7 +235,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		let mut group = c.benchmark_group("Pair Par Fold Map");
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				par_fold_map::<ArcFnBrand, PairWithFirstBrand<String>, _, _>(
+				par_fold_map::<ArcFnBrand, PairFirstAppliedBrand<String>, _, _>(
 					send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string()),
 					std::hint::black_box(val.clone()),
 				)
@@ -227,7 +249,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		let mut group = c.benchmark_group("Pair Par Fold Right");
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				par_fold_right::<ArcFnBrand, PairWithFirstBrand<String>, _, _>(
+				par_fold_right::<ArcFnBrand, PairFirstAppliedBrand<String>, _, _>(
 					send_cloneable_fn_new::<ArcFnBrand, _, _>(|(x, acc)| x + acc),
 					0,
 					std::hint::black_box(val.clone()),

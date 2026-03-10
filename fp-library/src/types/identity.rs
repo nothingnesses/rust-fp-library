@@ -4,17 +4,31 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		brands::IdentityBrand,
-		classes::{
-			Applicative, ApplyFirst, ApplySecond, CloneableFn, Foldable, Functor, Lift, Monoid,
-			ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn, Traversable,
+	use {
+		crate::{
+			Apply,
+			brands::IdentityBrand,
+			classes::{
+				Applicative,
+				ApplyFirst,
+				ApplySecond,
+				CloneableFn,
+				Foldable,
+				Functor,
+				Lift,
+				Monoid,
+				ParFoldable,
+				Pointed,
+				Semiapplicative,
+				Semimonad,
+				SendCloneableFn,
+				Traversable,
+			},
+			impl_kind,
+			kinds::*,
 		},
-		impl_kind,
-		kinds::*,
+		fp_macros::*,
 	};
-	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 
 	/// Wraps a value.
 	///
@@ -29,23 +43,10 @@ mod inner {
 	/// ### Serialization
 	///
 	/// This type supports serialization and deserialization via [`serde`](https://serde.rs) when the `serde` feature is enabled.
-	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the wrapped value.")]
-	///
-	/// ### Fields
 	///
 	#[document_fields("The wrapped value.")]
 	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let x = Identity(5);
-	/// assert_eq!(x.0, 5);
-	/// ```
 	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 	#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 	pub struct Identity<A>(pub A);
@@ -60,44 +61,35 @@ mod inner {
 		/// Maps a function over the value in the identity.
 		///
 		/// This method applies a function to the value inside the identity, producing a new identity with the transformed value.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the value.",
 			"The type of the value inside the identity.",
-			"The type of the result of applying the function.",
-			"The type of the function to apply."
+			"The type of the result of applying the function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The identity to map over.")]
 		///
-		/// ### Returns
+		#[document_returns("A new identity containing the result of applying the function.")]
 		///
-		/// A new identity containing the result of applying the function.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = map::<IdentityBrand, _, _, _>(|i| i * 2, x);
+		/// let y = map::<IdentityBrand, _, _>(|i| i * 2, x);
 		/// assert_eq!(y, Identity(10));
 		/// ```
-		fn map<'a, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn map<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> B + 'a,
-		{
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			Identity(func(fa.0))
 		}
 	}
@@ -106,22 +98,14 @@ mod inner {
 		/// Lifts a binary function into the identity context.
 		///
 		/// This method lifts a binary function to operate on values within the identity context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the first identity's value.",
 			"The type of the second identity's value.",
-			"The return type of the function.",
-			"The type of the binary function."
+			"The return type of the function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply.",
@@ -129,31 +113,30 @@ mod inner {
 			"The second identity."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new identity containing the result of applying the function.
-		///
-		/// ### Examples
+		#[document_returns("A new identity containing the result of applying the function.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(1);
 		/// let y = Identity(2);
-		/// let z = lift2::<IdentityBrand, _, _, _, _>(|a, b| a + b, x, y);
+		/// let z = lift2::<IdentityBrand, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, Identity(3));
 		/// ```
-		fn lift2<'a, A, B, C, Func>(
-			func: Func,
+		fn lift2<'a, A, B, C>(
+			func: impl Fn(A, B) -> C + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 		where
-			Func: Fn(A, B) -> C + 'a,
 			A: 'a,
 			B: 'a,
-			C: 'a,
-		{
+			C: 'a, {
 			Identity(func(fa.0, fb.0))
 		}
 	}
@@ -162,27 +145,22 @@ mod inner {
 		/// Wraps a value in an identity.
 		///
 		/// This method wraps a value in an identity context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
+		#[document_returns("An identity containing the value.")]
 		///
-		/// An identity containing the value.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = pure::<IdentityBrand, _>(5);
 		/// assert_eq!(x, Identity(5));
@@ -199,12 +177,7 @@ mod inner {
 		/// Applies a wrapped function to a wrapped value.
 		///
 		/// This method applies a function wrapped in an identity to a value wrapped in an identity.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -213,21 +186,20 @@ mod inner {
 			"The type of the output value."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters(
 			"The identity containing the function.",
 			"The identity containing the value."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new identity containing the result of applying the function.
-		///
-		/// ### Examples
+		#[document_returns("A new identity containing the result of applying the function.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let f = Identity(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let x = Identity(5);
@@ -246,47 +218,37 @@ mod inner {
 		/// Chains identity computations.
 		///
 		/// This method chains two identity computations, where the second computation depends on the result of the first.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the result of the first computation.",
-			"The type of the result of the second computation.",
-			"The type of the function to apply."
+			"The type of the result of the second computation."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The first identity.",
 			"The function to apply to the value inside the identity."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The result of applying `f` to the value.
-		///
-		/// ### Examples
+		#[document_returns("The result of applying `f` to the value.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = bind::<IdentityBrand, _, _, _>(x, |i| Identity(i * 2));
+		/// let y = bind::<IdentityBrand, _, _>(x, |i| Identity(i * 2));
 		/// assert_eq!(y, Identity(10));
 		/// ```
-		fn bind<'a, A: 'a, B: 'a, Func>(
+		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			func: Func,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-		{
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			func(ma.0)
 		}
 	}
@@ -295,22 +257,14 @@ mod inner {
 		/// Folds the identity from the right.
 		///
 		/// This method performs a right-associative fold of the identity. Since `Identity` contains only one element, this is equivalent to applying the function to the element and the initial value.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element and the accumulator.",
@@ -318,50 +272,41 @@ mod inner {
 			"The identity to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The final accumulator value.
-		///
-		/// ### Examples
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = fold_right::<RcFnBrand, IdentityBrand, _, _, _>(|a, b| a + b, 10, x);
+		/// let y = fold_right::<RcFnBrand, IdentityBrand, _, _>(|a, b| a + b, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
-		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn fold_right<'a, FnBrand, A: 'a, B: 'a>(
+			func: impl Fn(A, B) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			func(fa.0, initial)
 		}
 
 		/// Folds the identity from the left.
 		///
 		/// This method performs a left-associative fold of the identity. Since `Identity` contains only one element, this is equivalent to applying the function to the initial value and the element.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the accumulator and each element.",
@@ -369,75 +314,66 @@ mod inner {
 			"The structure to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The final accumulator value.
-		///
-		/// ### Examples
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = fold_left::<RcFnBrand, IdentityBrand, _, _, _>(|b, a| b + a, 10, x);
+		/// let y = fold_left::<RcFnBrand, IdentityBrand, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
-		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn fold_left<'a, FnBrand, A: 'a, B: 'a>(
+			func: impl Fn(B, A) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			func(initial, fa.0)
 		}
 
 		/// Maps the value to a monoid and returns it.
 		///
 		/// This method maps the element of the identity to a monoid.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the monoid.",
-			"The type of the mapping function."
+			"The type of the monoid."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The identity to fold.")]
 		///
-		/// ### Returns
+		#[document_returns("The monoid value.")]
 		///
-		/// The monoid value.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = fold_map::<RcFnBrand, IdentityBrand, _, _, _>(|a: i32| a.to_string(), x);
+		/// let y = fold_map::<RcFnBrand, IdentityBrand, _, _>(|a: i32| a.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
-			func: Func,
+		fn fold_map<'a, FnBrand, A: 'a, M>(
+			func: impl Fn(A) -> M + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			M: Monoid + 'a,
-			Func: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			func(fa.0)
 		}
 	}
@@ -446,60 +382,47 @@ mod inner {
 		/// Traverses the identity with an applicative function.
 		///
 		/// This method maps the element of the identity to a computation, evaluates it, and wraps the result in the applicative context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The type of the elements in the resulting traversable structure.",
-			"The applicative context.",
-			"The type of the function to apply."
+			"The applicative context."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning a value in an applicative context.",
 			"The identity to traverse."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The identity wrapped in the applicative context.
-		///
-		/// ### Examples
+		#[document_returns("The identity wrapped in the applicative context.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = traverse::<IdentityBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
+		/// let y = traverse::<IdentityBrand, _, _, OptionBrand>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some(Identity(10)));
 		/// ```
-		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
-			func: Func,
+		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
-			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-		{
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			F::map(|b| Identity(b), func(ta.0))
 		}
+
 		/// Sequences an identity of applicative.
 		///
 		/// This method evaluates the computation inside the identity and wraps the result in the applicative context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -507,18 +430,21 @@ mod inner {
 			"The applicative context."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The identity containing the applicative value.")]
+		///
+		#[document_returns("The result of the traversal.")]
 		///
 		/// # Returns
 		///
 		/// The identity wrapped in the applicative context.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(Some(5));
 		/// let y = sequence::<IdentityBrand, _, OptionBrand>(x);
@@ -529,8 +455,7 @@ mod inner {
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-		{
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 			F::map(|a| Identity(a), ta.0)
 		}
 	}
@@ -539,12 +464,7 @@ mod inner {
 		/// Maps the value to a monoid and returns it in parallel.
 		///
 		/// This method maps the element of the identity to a monoid. Since `Identity` contains only one element, no actual parallelism occurs, but the interface is satisfied.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -553,18 +473,18 @@ mod inner {
 			"The monoid type."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The mapping function.", "The identity to fold.")]
 		///
-		/// ### Returns
+		#[document_returns("The combined monoid value.")]
 		///
-		/// The combined monoid value.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(1);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -578,20 +498,14 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a,
-		{
+			M: Monoid + Send + Sync + 'a, {
 			func(fa.0)
 		}
 
 		/// Folds the identity from the right in parallel.
 		///
 		/// This method performs a right-associative fold of the identity. Since `Identity` contains only one element, no actual parallelism occurs.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -600,22 +514,21 @@ mod inner {
 			"The accumulator type."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters(
 			"The thread-safe function to apply to each element and the accumulator.",
 			"The initial value of the accumulator.",
 			"The identity to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The final accumulator value.
-		///
-		/// ### Examples
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(1);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
@@ -630,8 +543,7 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			B: Send + Sync + 'a,
-		{
+			B: Send + Sync + 'a, {
 			func((fa.0, initial))
 		}
 	}
@@ -640,16 +552,28 @@ pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::inner::Identity;
-	use crate::{
-		brands::{IdentityBrand, OptionBrand, RcFnBrand},
-		classes::{
-			cloneable_fn::CloneableFn, functor::map, pointed::pure, semiapplicative::apply,
-			semimonad::bind,
+	use {
+		super::inner::Identity,
+		crate::{
+			brands::{
+				IdentityBrand,
+				OptionBrand,
+				RcFnBrand,
+			},
+			classes::{
+				cloneable_fn::CloneableFn,
+				functor::map,
+				pointed::pure,
+				semiapplicative::apply,
+				semimonad::bind,
+			},
+			functions::{
+				compose,
+				identity,
+			},
 		},
-		functions::{compose, identity},
+		quickcheck_macros::quickcheck,
 	};
-	use quickcheck_macros::quickcheck;
 
 	// Functor Laws
 
@@ -657,7 +581,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity(x: i32) -> bool {
 		let x = Identity(x);
-		map::<IdentityBrand, _, _, _>(identity, x) == x
+		map::<IdentityBrand, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -666,8 +590,8 @@ mod tests {
 		let x = Identity(x);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<IdentityBrand, _, _, _>(compose(f, g), x)
-			== map::<IdentityBrand, _, _, _>(f, map::<IdentityBrand, _, _, _>(g, x))
+		map::<IdentityBrand, _, _>(compose(f, g), x)
+			== map::<IdentityBrand, _, _>(f, map::<IdentityBrand, _, _>(g, x))
 	}
 
 	// Applicative Laws
@@ -707,7 +631,7 @@ mod tests {
 		let u = pure::<IdentityBrand, _>(<RcFnBrand as CloneableFn>::new(u_fn));
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<RcFnBrand, IdentityBrand, _, _>(v.clone(), w.clone());
+		let vw = apply::<RcFnBrand, IdentityBrand, _, _>(v.clone(), w);
 		let rhs = apply::<RcFnBrand, IdentityBrand, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
@@ -742,14 +666,14 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| Identity(x.wrapping_mul(2));
-		bind::<IdentityBrand, _, _, _>(pure::<IdentityBrand, _>(a), f) == f(a)
+		bind::<IdentityBrand, _, _>(pure::<IdentityBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: i32) -> bool {
 		let m = Identity(m);
-		bind::<IdentityBrand, _, _, _>(m, pure::<IdentityBrand, _>) == m
+		bind::<IdentityBrand, _, _>(m, pure::<IdentityBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -758,8 +682,8 @@ mod tests {
 		let m = Identity(m);
 		let f = |x: i32| Identity(x.wrapping_mul(2));
 		let g = |x: i32| Identity(x.wrapping_add(1));
-		bind::<IdentityBrand, _, _, _>(bind::<IdentityBrand, _, _, _>(m, f), g)
-			== bind::<IdentityBrand, _, _, _>(m, |x| bind::<IdentityBrand, _, _, _>(f(x), g))
+		bind::<IdentityBrand, _, _>(bind::<IdentityBrand, _, _>(m, f), g)
+			== bind::<IdentityBrand, _, _>(m, |x| bind::<IdentityBrand, _, _>(f(x), g))
 	}
 
 	// Edge Cases
@@ -767,20 +691,20 @@ mod tests {
 	/// Tests the `map` function.
 	#[test]
 	fn map_test() {
-		assert_eq!(map::<IdentityBrand, _, _, _>(|x: i32| x + 1, Identity(1)), Identity(2));
+		assert_eq!(map::<IdentityBrand, _, _>(|x: i32| x + 1, Identity(1)), Identity(2));
 	}
 
 	/// Tests the `bind` function.
 	#[test]
 	fn bind_test() {
-		assert_eq!(bind::<IdentityBrand, _, _, _>(Identity(1), |x| Identity(x + 1)), Identity(2));
+		assert_eq!(bind::<IdentityBrand, _, _>(Identity(1), |x| Identity(x + 1)), Identity(2));
 	}
 
 	/// Tests the `fold_right` function.
 	#[test]
 	fn fold_right_test() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<RcFnBrand, IdentityBrand, _, _, _>(
+			crate::classes::foldable::fold_right::<RcFnBrand, IdentityBrand, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				Identity(1)
@@ -793,7 +717,7 @@ mod tests {
 	#[test]
 	fn fold_left_test() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<RcFnBrand, IdentityBrand, _, _, _>(
+			crate::classes::foldable::fold_left::<RcFnBrand, IdentityBrand, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				Identity(1)
@@ -806,7 +730,7 @@ mod tests {
 	#[test]
 	fn traverse_test() {
 		assert_eq!(
-			crate::classes::traversable::traverse::<IdentityBrand, _, _, OptionBrand, _>(
+			crate::classes::traversable::traverse::<IdentityBrand, _, _, OptionBrand>(
 				|x: i32| Some(x + 1),
 				Identity(1)
 			),
@@ -819,7 +743,10 @@ mod tests {
 	/// Tests `par_fold_map`.
 	#[test]
 	fn par_fold_map_test() {
-		use crate::{brands::*, functions::*};
+		use crate::{
+			brands::*,
+			functions::*,
+		};
 
 		let x = Identity(1);
 		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -829,7 +756,10 @@ mod tests {
 	/// Tests `par_fold_right`.
 	#[test]
 	fn par_fold_right_test() {
-		use crate::{brands::*, functions::*};
+		use crate::{
+			brands::*,
+			functions::*,
+		};
 
 		let x = Identity(1);
 		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);

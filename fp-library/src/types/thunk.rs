@@ -4,18 +4,36 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		brands::ThunkBrand,
-		classes::{
-			ApplyFirst, ApplySecond, CloneableFn, Deferrable, Evaluable, Foldable, Functor, Lift,
-			MonadRec, Monoid, Pointed, Semiapplicative, Semigroup, Semimonad,
+	use {
+		crate::{
+			Apply,
+			brands::ThunkBrand,
+			classes::{
+				ApplyFirst,
+				ApplySecond,
+				CloneableFn,
+				Deferrable,
+				Evaluable,
+				Foldable,
+				Functor,
+				Lift,
+				MonadRec,
+				Monoid,
+				Pointed,
+				Semiapplicative,
+				Semigroup,
+				Semimonad,
+			},
+			impl_kind,
+			kinds::*,
+			types::{
+				Lazy,
+				LazyConfig,
+				Step,
+			},
 		},
-		impl_kind,
-		kinds::*,
-		types::{Lazy, LazyConfig, Step},
+		fp_macros::*,
 	};
-	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 
 	/// A deferred computation that produces a value of type `A`.
 	///
@@ -57,36 +75,15 @@ mod inner {
 	/// Implemented typeclasses:
 	/// - ✅ [`Functor`], [`Foldable`], [`Semimonad`]/Monad, [`Semiapplicative`]/Applicative
 	/// - ❌ [`Traversable`](crate::classes::Traversable) (requires `Clone`)
-	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value produced by the computation."
 	)]
 	///
-	/// ### Fields
-	///
 	#[document_fields("The closure that performs the computation.")]
 	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let computation = Thunk::new(|| 5)
-	///     .map(|x| x * 2)
-	///     .map(|x| x + 1);
-	///
-	/// // No computation has happened yet!
-	/// // Only when we call evaluate() does it execute:
-	/// let result = computation.evaluate();
-	/// assert_eq!(result, 11);
-	/// ```
 	pub struct Thunk<'a, A>(Box<dyn FnOnce() -> A + 'a>);
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value produced by the computation."
@@ -94,24 +91,13 @@ mod inner {
 	#[document_parameters("The thunk instance.")]
 	impl<'a, A: 'a> Thunk<'a, A> {
 		/// Creates a new `Thunk` from a thunk.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters("The type of the closure.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The thunk to wrap.")]
 		///
-		/// ### Returns
+		#[document_returns("A new `Thunk` instance.")]
 		///
-		/// A new `Thunk` instance.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -119,72 +105,55 @@ mod inner {
 		/// let thunk = Thunk::new(|| 42);
 		/// assert_eq!(thunk.evaluate(), 42);
 		/// ```
-		pub fn new<F>(f: F) -> Self
-		where
-			F: FnOnce() -> A + 'a,
-		{
+		pub fn new(f: impl FnOnce() -> A + 'a) -> Self {
 			Thunk(Box::new(f))
 		}
 
 		/// Returns a pure value (already computed).
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
+		#[document_returns("A new `Thunk` instance containing the value.")]
 		///
-		/// A new `Thunk` instance containing the value.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, classes::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(42);
 		/// assert_eq!(thunk.evaluate(), 42);
 		/// ```
 		pub fn pure(a: A) -> Self
 		where
-			A: 'a,
-		{
+			A: 'a, {
 			Thunk::new(move || a)
 		}
 
 		/// Defers a computation that returns a Thunk.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters("The type of the closure.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The thunk that returns a `Thunk`.")]
 		///
-		/// ### Returns
+		#[document_returns("A new `Thunk` instance.")]
 		///
-		/// A new `Thunk` instance.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let thunk = Thunk::defer(|| pure::<ThunkBrand, _>(42));
 		/// assert_eq!(thunk.evaluate(), 42);
 		/// ```
-		pub fn defer<F>(f: F) -> Self
-		where
-			F: FnOnce() -> Thunk<'a, A> + 'a,
-		{
+		pub fn defer(f: impl FnOnce() -> Thunk<'a, A> + 'a) -> Self {
 			Thunk::new(move || f().evaluate())
 		}
 
@@ -192,41 +161,29 @@ mod inner {
 		///
 		/// Note: Each `bind` adds to the call stack. For deep recursion,
 		/// use [`Trampoline`](crate::types::Trampoline) instead.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters(
-			"The type of the result of the new computation.",
-			"The type of the function to apply."
-		)]
-		///
-		/// ### Parameters
+		#[document_type_parameters("The type of the result of the new computation.")]
 		///
 		#[document_parameters("The function to apply to the result of the computation.")]
 		///
-		/// ### Returns
+		#[document_returns("A new `Thunk` instance representing the chained computation.")]
 		///
-		/// A new `Thunk` instance representing the chained computation.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(21).bind(|x| pure::<ThunkBrand, _>(x * 2));
 		/// assert_eq!(thunk.evaluate(), 42);
 		/// ```
-		pub fn bind<B: 'a, F>(
+		pub fn bind<B: 'a>(
 			self,
-			f: F,
-		) -> Thunk<'a, B>
-		where
-			F: FnOnce(A) -> Thunk<'a, B> + 'a,
-		{
+			f: impl FnOnce(A) -> Thunk<'a, B> + 'a,
+		) -> Thunk<'a, B> {
 			Thunk::new(move || {
 				let a = (self.0)();
 				let thunk_b = f(a);
@@ -235,58 +192,44 @@ mod inner {
 		}
 
 		/// Functor map: transforms the result.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters(
-			"The type of the result of the transformation.",
-			"The type of the transformation function."
-		)]
-		///
-		/// ### Parameters
+		#[document_type_parameters("The type of the result of the transformation.")]
 		///
 		#[document_parameters("The function to apply to the result of the computation.")]
 		///
-		/// ### Returns
+		#[document_returns("A new `Thunk` instance with the transformed result.")]
 		///
-		/// A new `Thunk` instance with the transformed result.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(21).map(|x| x * 2);
 		/// assert_eq!(thunk.evaluate(), 42);
 		/// ```
-		pub fn map<B: 'a, F>(
+		pub fn map<B: 'a>(
 			self,
-			f: F,
-		) -> Thunk<'a, B>
-		where
-			F: FnOnce(A) -> B + 'a,
-		{
+			f: impl FnOnce(A) -> B + 'a,
+		) -> Thunk<'a, B> {
 			Thunk::new(move || f((self.0)()))
 		}
 
 		/// Forces evaluation and returns the result.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Returns
+		#[document_returns("The result of the computation.")]
 		///
-		/// The result of the computation.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(42);
 		/// assert_eq!(thunk.evaluate(), 42);
@@ -296,8 +239,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value produced by the computation.",
@@ -308,13 +249,17 @@ mod inner {
 		A: Clone + 'a,
 		Config: LazyConfig,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The lazy value to convert.")]
+		#[document_returns("A thunk that evaluates the lazy value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let lazy = Lazy::<_, RcLazyConfig>::pure(42);
+		/// let thunk = Thunk::from(lazy);
+		/// assert_eq!(thunk.evaluate(), 42);
+		/// ```
 		fn from(lazy: Lazy<'a, A, Config>) -> Self {
 			Thunk::new(move || lazy.evaluate().clone())
 		}
@@ -326,121 +271,95 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value produced by the computation."
 	)]
 	impl<'a, A: 'a> Deferrable<'a> for Thunk<'a, A> {
 		/// Creates a `Thunk` from a computation that produces it.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters("The type of the closure.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("A thunk that produces the thunk.")]
 		///
-		/// ### Returns
+		#[document_returns("The deferred thunk.")]
 		///
-		/// The deferred thunk.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::Deferrable,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let task: Thunk<i32> = Deferrable::defer(|| Thunk::pure(42));
 		/// assert_eq!(task.evaluate(), 42);
 		/// ```
-		fn defer<F>(f: F) -> Self
+		fn defer(f: impl FnOnce() -> Self + 'a) -> Self
 		where
-			F: FnOnce() -> Self + 'a,
-			Self: Sized,
-		{
+			Self: Sized, {
 			Thunk::defer(f)
 		}
 	}
 
 	impl Functor for ThunkBrand {
 		/// Maps a function over the result of a `Thunk` computation.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
 			"The type of the value inside the `Thunk`.",
-			"The type of the result of the transformation.",
-			"The type of the transformation function."
+			"The type of the result of the transformation."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the result of the computation.",
 			"The `Thunk` instance."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new `Thunk` instance with the transformed result.
-		///
-		/// ### Examples
+		#[document_returns("A new `Thunk` instance with the transformed result.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
-		/// let mapped = map::<ThunkBrand, _, _, _>(|x| x * 2, thunk);
+		/// let mapped = map::<ThunkBrand, _, _>(|x| x * 2, thunk);
 		/// assert_eq!(mapped.evaluate(), 20);
 		/// ```
-		fn map<'a, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn map<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> B + 'a,
-		{
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.map(func)
 		}
 	}
 
 	impl Pointed for ThunkBrand {
 		/// Wraps a value in a `Thunk` context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
 			"The type of the value to wrap."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
+		#[document_returns("A new `Thunk` instance containing the value.")]
 		///
-		/// A new `Thunk` instance containing the value.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let thunk: Thunk<i32> = pure::<ThunkBrand, _>(42);
 		/// assert_eq!(thunk.evaluate(), 42);
@@ -452,22 +371,14 @@ mod inner {
 
 	impl Lift for ThunkBrand {
 		/// Lifts a binary function into the `Thunk` context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
 			"The type of the first value.",
 			"The type of the second value.",
-			"The type of the result.",
-			"The type of the binary function."
+			"The type of the result."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply.",
@@ -475,31 +386,31 @@ mod inner {
 			"The second `Thunk`."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new `Thunk` instance containing the result of applying the function.
-		///
-		/// ### Examples
+		#[document_returns(
+			"A new `Thunk` instance containing the result of applying the function."
+		)]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let eval1 = pure::<ThunkBrand, _>(10);
 		/// let eval2 = pure::<ThunkBrand, _>(20);
-		/// let result = lift2::<ThunkBrand, _, _, _, _>(|a, b| a + b, eval1, eval2);
+		/// let result = lift2::<ThunkBrand, _, _, _>(|a, b| a + b, eval1, eval2);
 		/// assert_eq!(result.evaluate(), 30);
 		/// ```
-		fn lift2<'a, A, B, C, Func>(
-			func: Func,
+		fn lift2<'a, A, B, C>(
+			func: impl Fn(A, B) -> C + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 		where
-			Func: Fn(A, B) -> C + 'a,
 			A: Clone + 'a,
 			B: Clone + 'a,
-			C: 'a,
-		{
+			C: 'a, {
 			fa.bind(move |a| fb.map(move |b| func(a, b)))
 		}
 	}
@@ -509,12 +420,7 @@ mod inner {
 
 	impl Semiapplicative for ThunkBrand {
 		/// Applies a function wrapped in `Thunk` to a value wrapped in `Thunk`.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
@@ -523,21 +429,21 @@ mod inner {
 			"The type of the result."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters(
 			"The `Thunk` containing the function.",
 			"The `Thunk` containing the value."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new `Thunk` instance containing the result of applying the function.
-		///
-		/// ### Examples
+		#[document_returns(
+			"A new `Thunk` instance containing the result of applying the function."
+		)]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let func = pure::<ThunkBrand, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let val = pure::<ThunkBrand, _>(21);
@@ -559,95 +465,76 @@ mod inner {
 
 	impl Semimonad for ThunkBrand {
 		/// Chains `Thunk` computations.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
 			"The type of the result of the first computation.",
-			"The type of the result of the new computation.",
-			"The type of the function to apply."
+			"The type of the result of the new computation."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The first `Thunk`.",
 			"The function to apply to the result of the computation."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new `Thunk` instance representing the chained computation.
-		///
-		/// ### Examples
+		#[document_returns("A new `Thunk` instance representing the chained computation.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
-		/// let result = bind::<ThunkBrand, _, _, _>(thunk, |x| pure::<ThunkBrand, _>(x * 2));
+		/// let result = bind::<ThunkBrand, _, _>(thunk, |x| pure::<ThunkBrand, _>(x * 2));
 		/// assert_eq!(result.evaluate(), 20);
 		/// ```
-		fn bind<'a, A: 'a, B: 'a, Func>(
+		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			func: Func,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-		{
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			ma.bind(func)
 		}
 	}
 
 	impl MonadRec for ThunkBrand {
 		/// Performs tail-recursive monadic computation.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
 			"The type of the initial value and loop state.",
-			"The type of the result.",
-			"The type of the step function."
+			"The type of the result."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The step function.", "The initial value.")]
 		///
-		/// ### Returns
+		#[document_returns("The result of the computation.")]
 		///
-		/// The result of the computation.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
-		/// let result = tail_rec_m::<ThunkBrand, _, _, _>(
-		///     |x| pure::<ThunkBrand, _>(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
-		///     0,
+		/// let result = tail_rec_m::<ThunkBrand, _, _>(
+		/// 	|x| pure::<ThunkBrand, _>(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
+		/// 	0,
 		/// );
 		/// assert_eq!(result.evaluate(), 1000);
 		/// ```
-		fn tail_rec_m<'a, A: 'a, B: 'a, F>(
-			f: F,
+		fn tail_rec_m<'a, A: 'a, B: 'a>(
+			f: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			+ Clone
+			+ 'a,
 			a: A,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
-				+ Clone
-				+ 'a,
-		{
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			Thunk::new(move || {
 				let mut current = a;
 				loop {
@@ -662,30 +549,26 @@ mod inner {
 
 	impl Evaluable for ThunkBrand {
 		/// Runs the eval, producing the inner value.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
 			"The type of the value inside the thunk."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The eval to run.")]
 		///
-		/// ### Returns
+		#[document_returns("The result of running the thunk.")]
 		///
-		/// The result of running the thunk.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let thunk = Thunk::new(|| 42);
 		/// assert_eq!(evaluate::<ThunkBrand, _>(thunk), 42);
@@ -699,22 +582,14 @@ mod inner {
 
 	impl Foldable for ThunkBrand {
 		/// Folds the `Thunk` from the right.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element and the accumulator.",
@@ -722,48 +597,38 @@ mod inner {
 			"The `Thunk` to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The final accumulator value.
-		///
-		/// ### Examples
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
-		/// let result = fold_right::<RcFnBrand, ThunkBrand, _, _, _>(|a, b| a + b, 5, thunk);
+		/// let result = fold_right::<RcFnBrand, ThunkBrand, _, _>(|a, b| a + b, 5, thunk);
 		/// assert_eq!(result, 15);
 		/// ```
-		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(A, B) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			func(fa.evaluate(), initial)
 		}
 
 		/// Folds the `Thunk` from the left.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the accumulator and each element.",
@@ -771,102 +636,86 @@ mod inner {
 			"The `Thunk` to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The final accumulator value.
-		///
-		/// ### Examples
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
-		/// let result = fold_left::<RcFnBrand, ThunkBrand, _, _, _>(|b, a| b + a, 5, thunk);
+		/// let result = fold_left::<RcFnBrand, ThunkBrand, _, _>(|b, a| b + a, 5, thunk);
 		/// assert_eq!(result, 15);
 		/// ```
-		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(B, A) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			func(initial, fa.evaluate())
 		}
 
 		/// Maps the value to a monoid and returns it.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the monoid.",
-			"The type of the mapping function."
+			"The type of the monoid."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The Thunk to fold.")]
 		///
-		/// ### Returns
+		#[document_returns("The monoid value.")]
 		///
-		/// The monoid value.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
-		/// let result = fold_map::<RcFnBrand, ThunkBrand, _, _, _>(|a| a.to_string(), thunk);
+		/// let result = fold_map::<RcFnBrand, ThunkBrand, _, _>(|a| a.to_string(), thunk);
 		/// assert_eq!(result, "10");
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
-			func: Func,
+		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(A) -> M + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			M: Monoid + 'a,
-			Func: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			func(fa.evaluate())
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value produced by the computation."
 	)]
 	impl<'a, A: Semigroup + 'a> Semigroup for Thunk<'a, A> {
 		/// Combines two `Thunk`s by combining their results.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The first `Thunk`.", "The second `Thunk`.")]
 		///
-		/// ### Returns
+		#[document_returns("A new `Thunk` containing the combined result.")]
 		///
-		/// A new `Thunk` containing the combined result.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let t1 = pure::<ThunkBrand, _>("Hello".to_string());
 		/// let t2 = pure::<ThunkBrand, _>(" World".to_string());
@@ -881,27 +730,23 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value produced by the computation."
 	)]
 	impl<'a, A: Monoid + 'a> Monoid for Thunk<'a, A> {
 		/// Returns the identity `Thunk`.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Returns
+		#[document_returns("A `Thunk` producing the identity value of `A`.")]
 		///
-		/// A `Thunk` producing the identity value of `A`.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{classes::*, types::*};
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let t: Thunk<String> = Thunk::empty();
 		/// assert_eq!(t.evaluate(), "");
@@ -986,8 +831,11 @@ mod tests {
 	/// Verifies that `append` correctly combines two evals.
 	#[test]
 	fn test_eval_semigroup() {
-		use crate::classes::semigroup::append;
-		use crate::{brands::*, functions::*};
+		use crate::{
+			brands::*,
+			classes::semigroup::append,
+			functions::*,
+		};
 		let t1 = pure::<ThunkBrand, _>("Hello".to_string());
 		let t2 = pure::<ThunkBrand, _>(" World".to_string());
 		let t3 = append(t1, t2);

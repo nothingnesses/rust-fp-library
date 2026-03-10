@@ -3,9 +3,14 @@
 //! This module provides a comprehensive error system with rich context for
 //! generating helpful compile-time error messages.
 
-use proc_macro2::{Span, TokenStream};
-use std::fmt;
-use thiserror::Error;
+use {
+	proc_macro2::{
+		Span,
+		TokenStream,
+	},
+	std::fmt,
+	thiserror::Error,
+};
 
 /// Result type alias using our unified error type
 pub type Result<T> = std::result::Result<T, Error>;
@@ -103,7 +108,11 @@ impl Error {
 		span: Span,
 		message: impl Into<String>,
 	) -> Self {
-		Self::Validation { message: message.into(), span, suggestion: None }
+		Self::Validation {
+			message: message.into(),
+			span,
+			suggestion: None,
+		}
 	}
 
 	/// Add a suggestion to this error
@@ -111,7 +120,10 @@ impl Error {
 		mut self,
 		suggestion: impl Into<String>,
 	) -> Self {
-		if let Error::Validation { suggestion: s, .. } = &mut self {
+		if let Error::Validation {
+			suggestion: s, ..
+		} = &mut self
+		{
 			*s = Some(suggestion.into());
 		}
 		self
@@ -123,7 +135,11 @@ impl Error {
 		message: impl Into<String>,
 		available_types: Vec<String>,
 	) -> Self {
-		Self::Resolution { message: message.into(), span, available_types }
+		Self::Resolution {
+			message: message.into(),
+			span,
+			available_types,
+		}
 	}
 
 	/// Create an unsupported feature error
@@ -131,7 +147,10 @@ impl Error {
 		span: Span,
 		feature: impl Into<String>,
 	) -> Self {
-		Self::Unsupported(UnsupportedFeature::ComplexTypes { description: feature.into(), span })
+		Self::Unsupported(UnsupportedFeature::ComplexTypes {
+			description: feature.into(),
+			span,
+		})
 	}
 
 	/// Create an internal error (for "should never happen" cases)
@@ -143,8 +162,12 @@ impl Error {
 	pub fn span(&self) -> Span {
 		match self {
 			Error::Parse(e) => e.span(),
-			Error::Validation { span, .. } => *span,
-			Error::Resolution { span, .. } => *span,
+			Error::Validation {
+				span, ..
+			} => *span,
+			Error::Resolution {
+				span, ..
+			} => *span,
 			Error::Unsupported(u) => u.span(),
 			Error::Internal(_) => Span::call_site(),
 			Error::Io(_) => Span::call_site(),
@@ -158,10 +181,20 @@ impl Error {
 	) -> Self {
 		match self {
 			Error::Internal(msg) => Error::Internal(format!("{context}: {msg}")),
-			Error::Validation { message, span, suggestion } => {
-				Error::Validation { message: format!("{context}: {message}"), span, suggestion }
-			}
-			Error::Resolution { message, span, available_types } => Error::Resolution {
+			Error::Validation {
+				message,
+				span,
+				suggestion,
+			} => Error::Validation {
+				message: format!("{context}: {message}"),
+				span,
+				suggestion,
+			},
+			Error::Resolution {
+				message,
+				span,
+				available_types,
+			} => Error::Resolution {
 				message: format!("{context}: {message}"),
 				span,
 				available_types,
@@ -193,11 +226,21 @@ impl UnsupportedFeature {
 	/// Get the span for this unsupported feature
 	pub fn span(&self) -> Span {
 		match self {
-			UnsupportedFeature::ConstGenerics { span } => *span,
-			UnsupportedFeature::VerbatimBounds { span } => *span,
-			UnsupportedFeature::ComplexTypes { span, .. } => *span,
-			UnsupportedFeature::GenericArgument { span, .. } => *span,
-			UnsupportedFeature::BoundType { span, .. } => *span,
+			UnsupportedFeature::ConstGenerics {
+				span,
+			} => *span,
+			UnsupportedFeature::VerbatimBounds {
+				span,
+			} => *span,
+			UnsupportedFeature::ComplexTypes {
+				span, ..
+			} => *span,
+			UnsupportedFeature::GenericArgument {
+				span, ..
+			} => *span,
+			UnsupportedFeature::BoundType {
+				span, ..
+			} => *span,
 		}
 	}
 }
@@ -216,7 +259,10 @@ impl From<Error> for syn::Error {
 		let mut message = err.to_string();
 
 		// Add suggestion directly to the message for Validation errors
-		if let Error::Validation { suggestion: Some(s), .. } = &err {
+		if let Error::Validation {
+			suggestion: Some(s), ..
+		} = &err
+		{
 			message = format!(
 				r#"{message}
   help: {s}"#
@@ -224,8 +270,9 @@ impl From<Error> for syn::Error {
 		}
 
 		// Add available alternatives for Resolution errors
-		if let Error::Resolution { available_types, .. } = &err
-			&& !available_types.is_empty()
+		if let Error::Resolution {
+			available_types, ..
+		} = &err && !available_types.is_empty()
 		{
 			message = format!(
 				r#"{message}
@@ -247,7 +294,9 @@ pub struct ErrorCollector {
 #[allow(dead_code)]
 impl ErrorCollector {
 	pub fn new() -> Self {
-		Self { errors: Vec::new() }
+		Self {
+			errors: Vec::new(),
+		}
 	}
 
 	pub fn push(
@@ -261,8 +310,7 @@ impl ErrorCollector {
 		&mut self,
 		other_errors: I,
 	) where
-		I: IntoIterator<Item = syn::Error>,
-	{
+		I: IntoIterator<Item = syn::Error>, {
 		self.errors.extend(other_errors);
 	}
 
@@ -311,8 +359,8 @@ impl Default for ErrorCollector {
 }
 
 impl IntoIterator for ErrorCollector {
-	type Item = syn::Error;
 	type IntoIter = std::vec::IntoIter<syn::Error>;
+	type Item = syn::Error;
 
 	fn into_iter(self) -> Self::IntoIter {
 		self.errors.into_iter()
@@ -320,8 +368,8 @@ impl IntoIterator for ErrorCollector {
 }
 
 impl<'a> IntoIterator for &'a ErrorCollector {
-	type Item = &'a syn::Error;
 	type IntoIter = std::slice::Iter<'a, syn::Error>;
+	type Item = &'a syn::Error;
 
 	fn into_iter(self) -> Self::IntoIter {
 		self.errors.iter()
@@ -426,8 +474,7 @@ impl CollectErrors for ErrorCollector {
 		f: F,
 	) -> Option<T>
 	where
-		F: FnOnce() -> syn::Result<T>,
-	{
+		F: FnOnce() -> syn::Result<T>, {
 		match f() {
 			Ok(value) => Some(value),
 			Err(e) => {
@@ -443,8 +490,7 @@ impl CollectErrors for ErrorCollector {
 		f: F,
 	) -> Option<T>
 	where
-		F: FnOnce() -> syn::Result<T>,
-	{
+		F: FnOnce() -> syn::Result<T>, {
 		match f() {
 			Ok(value) => Some(value),
 			Err(e) => {
@@ -460,8 +506,7 @@ impl CollectErrors for ErrorCollector {
 		f: F,
 	) -> Option<T>
 	where
-		F: FnOnce() -> Result<T>,
-	{
+		F: FnOnce() -> Result<T>, {
 		match f() {
 			Ok(value) => Some(value),
 			Err(e) => {
@@ -477,8 +522,7 @@ impl CollectErrors for ErrorCollector {
 		f: F,
 	) -> Option<T>
 	where
-		F: FnOnce() -> Result<T>,
-	{
+		F: FnOnce() -> Result<T>, {
 		match f() {
 			Ok(value) => Some(value),
 			Err(e) => {
@@ -547,7 +591,9 @@ mod tests {
 	#[test]
 	fn test_unsupported_const_generics() {
 		let span = Span::call_site();
-		let err = UnsupportedFeature::ConstGenerics { span };
+		let err = UnsupportedFeature::ConstGenerics {
+			span,
+		};
 		assert!(err.to_string().contains("Const generic parameters are not supported"));
 	}
 

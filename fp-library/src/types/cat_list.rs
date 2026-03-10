@@ -7,40 +7,60 @@
 //! ```
 //! use fp_library::types::cat_list::CatList;
 //!
-//! let list = CatList::singleton(1)
-//!     .snoc(2)
-//!     .snoc(3)
-//!     .append(CatList::singleton(4));
+//! let list = CatList::singleton(1).snoc(2).snoc(3).append(CatList::singleton(4));
 //!
 //! let mut result = Vec::new();
 //! let mut current = list;
 //! while let Some((head, tail)) = current.uncons() {
-//!     result.push(head);
-//!     current = tail;
+//! 	result.push(head);
+//! 	current = tail;
 //! }
 //! assert_eq!(result, vec![1, 2, 3, 4]);
 //! ```
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		brands::{CatListBrand, OptionBrand},
-		classes::{
-			Applicative, ApplyFirst, ApplySecond, CloneableFn, Compactable, Filterable, Foldable,
-			Functor, Lift, Monoid, ParFoldable, Pointed, Semiapplicative, Semigroup, Semimonad,
-			SendCloneableFn, Traversable, Witherable,
-		},
-		impl_kind,
-		kinds::*,
-	};
-	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 	#[cfg(feature = "rayon")]
 	use rayon::prelude::*;
-	use std::{
-		cmp::Ordering,
-		collections::VecDeque,
-		hash::{Hash, Hasher},
+	use {
+		crate::{
+			Apply,
+			brands::{
+				CatListBrand,
+				OptionBrand,
+			},
+			classes::{
+				Applicative,
+				ApplyFirst,
+				ApplySecond,
+				CloneableFn,
+				Compactable,
+				Filterable,
+				Foldable,
+				Functor,
+				Lift,
+				Monoid,
+				ParFoldable,
+				Pointed,
+				Semiapplicative,
+				Semigroup,
+				Semimonad,
+				SendCloneableFn,
+				Traversable,
+				Witherable,
+			},
+			impl_kind,
+			kinds::*,
+		},
+		fp_macros::*,
+		std::{
+			cmp::Ordering,
+			collections::VecDeque,
+			hash::{
+				Hash,
+				Hasher,
+			},
+		},
 	};
 
 	/// A catenable list with O(1) append and O(1) amortized uncons.
@@ -65,18 +85,8 @@ mod inner {
 	/// * **O(1) amortized uncons**: Elements are extracted by flattening the deque.
 	/// * **No reversal overhead**: Unlike two-stack queue implementations, `VecDeque`
 	///   provides true O(1) operations on both ends without periodic reversal.
-	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::cat_list::CatList;
-	///
-	/// let list: CatList<i32> = CatList::empty();
-	/// ```
 	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 	#[derive(Clone, Debug, Default)]
 	pub enum CatList<A> {
@@ -87,18 +97,20 @@ mod inner {
 		Cons(A, VecDeque<CatList<A>>, usize),
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to compare.")]
 	impl<A: PartialEq + Clone> PartialEq for CatList<A> {
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other list to compare to.")]
+		#[document_returns("True if the values are equal, false otherwise.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		/// let list1: CatList<i32> = CatList::singleton(1);
+		/// let list2: CatList<i32> = CatList::singleton(1);
+		/// assert_eq!(list1, list2);
+		/// ```
 		fn eq(
 			&self,
 			other: &Self,
@@ -110,27 +122,34 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	impl<A: Eq + Clone> Eq for CatList<A> {}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to hash.")]
 	impl<A: Hash + Clone> Hash for CatList<A> {
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the hasher.")]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The hasher state to update.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::types::cat_list::CatList,
+		/// 	std::{
+		/// 		collections::hash_map::DefaultHasher,
+		/// 		hash::{
+		/// 			Hash,
+		/// 			Hasher,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// let list = CatList::singleton(1);
+		/// let mut hasher = DefaultHasher::new();
+		/// list.hash(&mut hasher);
+		/// assert!(hasher.finish() != 0);
+		/// ```
 		fn hash<H: Hasher>(
 			&self,
 			state: &mut H,
@@ -142,18 +161,21 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to compare.")]
 	impl<A: PartialOrd + Clone> PartialOrd for CatList<A> {
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other list to compare to.")]
+		#[document_returns("An ordering if the values can be compared, none otherwise.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list1 = CatList::singleton(1);
+		/// let list2 = CatList::singleton(2);
+		/// assert!(list1 < list2);
+		/// ```
 		fn partial_cmp(
 			&self,
 			other: &Self,
@@ -162,18 +184,24 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to compare.")]
 	impl<A: Ord + Clone> Ord for CatList<A> {
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other list to compare to.")]
+		#[document_returns("The ordering of the values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::types::cat_list::CatList,
+		/// 	std::cmp::Ordering,
+		/// };
+		///
+		/// let list1 = CatList::singleton(1);
+		/// let list2 = CatList::singleton(2);
+		/// assert_eq!(list1.cmp(&list2), Ordering::Less);
+		/// ```
 		fn cmp(
 			&self,
 			other: &Self,
@@ -192,27 +220,23 @@ mod inner {
 		/// Constructs a new list by prepending a value to an existing list.
 		///
 		/// This method creates a new list with the given head element followed by the elements of the tail list.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters("The type of the elements in the list.")]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("A value to prepend to the list.", "A list to prepend the value to.")]
 		///
-		/// ### Returns
+		#[document_returns(
+			"A new list consisting of the `head` element prepended to the `tail` list."
+		)]
 		///
-		/// A new list consisting of the `head` element prepended to the `tail` list.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let head = 1;
 		/// let tail = CatList::singleton(2).snoc(3);
@@ -230,28 +254,23 @@ mod inner {
 		/// Deconstructs a list into its head element and tail list.
 		///
 		/// This method splits a list into its first element and the rest of the elements as a new list.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters("The type of the elements in the list.")]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The list to deconstruct.")]
 		///
-		/// ### Returns
+		#[document_returns(
+			"An [`Option`] containing a tuple of the head element and the remaining tail list, or [`None`] if the list is empty."
+		)]
 		///
-		/// An [`Option`] containing a tuple of the head element and the remaining tail list,
-		/// or [`None`] if the list is empty.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2);
 		/// let deconstructed = CatListBrand::deconstruct(&list);
@@ -262,8 +281,7 @@ mod inner {
 		/// ```
 		pub fn deconstruct<A>(list: &CatList<A>) -> Option<(A, CatList<A>)>
 		where
-			A: Clone,
-		{
+			A: Clone, {
 			list.clone().uncons()
 		}
 	}
@@ -272,45 +290,36 @@ mod inner {
 		/// Maps a function over the list.
 		///
 		/// This method applies a function to each element of the list, producing a new list with the transformed values.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements in the list.",
-			"The type of the elements in the resulting list.",
-			"The type of the function to apply."
+			"The type of the elements in the resulting list."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to each element.", "The list to map over.")]
 		///
-		/// ### Returns
+		#[document_returns("A new list containing the results of applying the function.")]
 		///
-		/// A new list containing the results of applying the function.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// let mapped = map::<CatListBrand, _, _, _>(|x: i32| x * 2, list);
+		/// let mapped = map::<CatListBrand, _, _>(|x: i32| x * 2, list);
 		/// let vec: Vec<_> = mapped.into_iter().collect();
 		/// assert_eq!(vec, vec![2, 4, 6]);
 		/// ```
-		fn map<'a, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn map<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> B + 'a,
-		{
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.into_iter().map(func).collect()
 		}
 	}
@@ -319,22 +328,14 @@ mod inner {
 		/// Lifts a binary function into the list context (Cartesian product).
 		///
 		/// This method applies a binary function to all pairs of elements from two lists, producing a new list containing the results (Cartesian product).
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements in the first list.",
 			"The type of the elements in the second list.",
-			"The type of the elements in the resulting list.",
-			"The type of the binary function."
+			"The type of the elements in the resulting list."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply.",
@@ -342,32 +343,33 @@ mod inner {
 			"The second list."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new list containing the results of applying the function to all pairs of elements.
-		///
-		/// ### Examples
+		#[document_returns(
+			"A new list containing the results of applying the function to all pairs of elements."
+		)]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list1 = CatList::singleton(1).snoc(2);
 		/// let list2 = CatList::singleton(10).snoc(20);
-		/// let lifted = lift2::<CatListBrand, _, _, _, _>(|x, y| x + y, list1, list2);
+		/// let lifted = lift2::<CatListBrand, _, _, _>(|x, y| x + y, list1, list2);
 		/// let vec: Vec<_> = lifted.into_iter().collect();
 		/// assert_eq!(vec, vec![11, 21, 12, 22]);
 		/// ```
-		fn lift2<'a, A, B, C, Func>(
-			func: Func,
+		fn lift2<'a, A, B, C>(
+			func: impl Fn(A, B) -> C + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 		where
-			Func: Fn(A, B) -> C + 'a,
 			A: Clone + 'a,
 			B: Clone + 'a,
-			C: 'a,
-		{
+			C: 'a, {
 			fa.into_iter()
 				.flat_map(|a| {
 					let f = &func;
@@ -381,27 +383,22 @@ mod inner {
 		/// Wraps a value in a list.
 		///
 		/// This method creates a new list containing the single given value.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
+		#[document_returns("A list containing the single value.")]
 		///
-		/// A list containing the single value.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = pure::<CatListBrand, _>(5);
 		/// let vec: Vec<_> = list.into_iter().collect();
@@ -419,12 +416,7 @@ mod inner {
 		/// Applies wrapped functions to wrapped values (Cartesian product).
 		///
 		/// This method applies each function in the first list to each value in the second list, producing a new list containing all the results.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -433,24 +425,25 @@ mod inner {
 			"The type of the output values."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters(
 			"The list containing the functions.",
 			"The list containing the values."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new list containing the results of applying each function to each value.
-		///
-		/// ### Examples
+		#[document_returns(
+			"A new list containing the results of applying each function to each value."
+		)]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let funcs = CatList::singleton(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1))
-		///     .snoc(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// 	.snoc(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let vals = CatList::singleton(1).snoc(2);
 		/// let applied = apply::<RcFnBrand, CatListBrand, _, _>(funcs, vals);
 		/// let vec: Vec<_> = applied.into_iter().collect();
@@ -468,48 +461,38 @@ mod inner {
 		/// Chains list computations (`flat_map`).
 		///
 		/// This method applies a function that returns a list to each element of the input list, and then flattens the result.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements in the input list.",
-			"The type of the elements in the output list.",
-			"The type of the function to apply."
+			"The type of the elements in the output list."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The first list.",
 			"The function to apply to each element, returning a list."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new list containing the flattened results.
-		///
-		/// ### Examples
+		#[document_returns("A new list containing the flattened results.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2);
-		/// let bound = bind::<CatListBrand, _, _, _>(list, |x| CatList::singleton(x).snoc(x * 2));
+		/// let bound = bind::<CatListBrand, _, _>(list, |x| CatList::singleton(x).snoc(x * 2));
 		/// let vec: Vec<_> = bound.into_iter().collect();
 		/// assert_eq!(vec, vec![1, 2, 2, 4]);
 		/// ```
-		fn bind<'a, A: 'a, B: 'a, Func>(
+		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			func: Func,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-		{
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			ma.into_iter().flat_map(func).collect()
 		}
 	}
@@ -518,46 +501,38 @@ mod inner {
 		/// Folds the list from the right.
 		///
 		/// This method performs a right-associative fold of the list.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the list.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The list to fold.")]
 		///
-		/// ### Returns
+		#[document_returns("The final accumulator value.")]
 		///
-		/// The final accumulator value.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// assert_eq!(fold_right::<RcFnBrand, CatListBrand, _, _, _>(|x: i32, acc| x + acc, 0, list), 6);
+		/// assert_eq!(fold_right::<RcFnBrand, CatListBrand, _, _>(|x: i32, acc| x + acc, 0, list), 6);
 		/// ```
-		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(A, B) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			fa.into_iter()
 				.collect::<Vec<_>>()
 				.into_iter()
@@ -568,22 +543,14 @@ mod inner {
 		/// Folds the list from the left.
 		///
 		/// This method performs a left-associative fold of the list.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the list.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the accumulator and each element.",
@@ -591,76 +558,67 @@ mod inner {
 			"The list to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The final accumulator value.
-		///
-		/// ### Examples
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// assert_eq!(fold_left::<RcFnBrand, CatListBrand, _, _, _>(|acc, x: i32| acc + x, 0, list), 6);
+		/// assert_eq!(fold_left::<RcFnBrand, CatListBrand, _, _>(|acc, x: i32| acc + x, 0, list), 6);
 		/// ```
-		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(B, A) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			fa.into_iter().fold(initial, func)
 		}
 
 		/// Maps the values to a monoid and combines them.
 		///
 		/// This method maps each element of the list to a monoid and then combines the results using the monoid's `append` operation.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the list.",
-			"The type of the monoid.",
-			"The type of the mapping function."
+			"The type of the monoid."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The list to fold.")]
 		///
-		/// ### Returns
+		#[document_returns("The combined monoid value.")]
 		///
-		/// The combined monoid value.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
 		/// assert_eq!(
-		///     fold_map::<RcFnBrand, CatListBrand, _, _, _>(|x: i32| x.to_string(), list),
-		///     "123".to_string()
+		/// 	fold_map::<RcFnBrand, CatListBrand, _, _>(|x: i32| x.to_string(), list),
+		/// 	"123".to_string()
 		/// );
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
-			func: Func,
+		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(A) -> M + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			M: Monoid + 'a,
-			Func: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			fa.into_iter().map(func).fold(M::empty(), |acc, x| M::append(acc, x))
 		}
 	}
@@ -669,51 +627,42 @@ mod inner {
 		/// Traverses the list with an applicative function.
 		///
 		/// This method maps each element of the list to a computation, evaluates them, and combines the results into an applicative context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements in the traversable structure.",
 			"The type of the elements in the resulting traversable structure.",
-			"The applicative context.",
-			"The type of the function to apply."
+			"The applicative context."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning a value in an applicative context.",
 			"The list to traverse."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The list wrapped in the applicative context.
-		///
-		/// ### Examples
+		#[document_returns("The list wrapped in the applicative context.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// let traversed = traverse::<CatListBrand, _, _, OptionBrand, _>(|x| Some(x * 2), list);
+		/// let traversed = traverse::<CatListBrand, _, _, OptionBrand>(|x| Some(x * 2), list);
 		/// let vec: Vec<_> = traversed.unwrap().into_iter().collect();
 		/// assert_eq!(vec, vec![2, 4, 6]);
 		/// ```
-		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
-			func: Func,
+		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
-			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-		{
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			ta.into_iter().fold(F::pure(CatList::empty()), |acc, x| {
 				F::lift2(|list, b| list.snoc(b), acc, func(x))
 			})
@@ -722,12 +671,7 @@ mod inner {
 		/// Sequences a list of applicative.
 		///
 		/// This method evaluates the computations inside the list and accumulates the results into an applicative context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -735,18 +679,18 @@ mod inner {
 			"The applicative context."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The list containing the applicative values.")]
 		///
-		/// ### Returns
+		#[document_returns("The list wrapped in the applicative context.")]
 		///
-		/// The list wrapped in the applicative context.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(Some(1)).snoc(Some(2));
 		/// let sequenced = sequence::<CatListBrand, _, OptionBrand>(list);
@@ -758,8 +702,7 @@ mod inner {
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-		{
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 			ta.into_iter()
 				.fold(F::pure(CatList::empty()), |acc, x| F::lift2(|list, a| list.snoc(a), acc, x))
 		}
@@ -771,12 +714,7 @@ mod inner {
 		/// This method maps each element of the list to a monoid and then combines the results using the monoid's `append` operation. The mapping and combination operations may be executed in parallel.
 		///
 		/// **Note: The `rayon` feature must be enabled to use parallel iteration.**
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -785,21 +723,20 @@ mod inner {
 			"The monoid type."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters(
 			"The thread-safe function to map each element to a monoid.",
 			"The list to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The combined monoid value.
-		///
-		/// ### Examples
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -812,12 +749,12 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a,
-		{
+			M: Monoid + Send + Sync + 'a, {
 			// CatList doesn't support parallel iteration directly, so we collect to Vec first.
 			let vec: Vec<_> = fa.into_iter().collect();
 			#[cfg(feature = "rayon")]
 			{
+				#[allow(clippy::redundant_closure)] // Required: Arc<dyn Fn> doesn't impl Fn
 				vec.into_par_iter().map(|a| func(a)).reduce(M::empty, |acc, m| M::append(acc, m))
 			}
 			#[cfg(not(feature = "rayon"))]
@@ -832,27 +769,22 @@ mod inner {
 		/// Compacts a list of options.
 		///
 		/// This method flattens a list of options, discarding `None` values.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The list of options.")]
 		///
-		/// ### Returns
+		#[document_returns("The flattened list.")]
 		///
-		/// The flattened list.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(Some(1)).snoc(None).snoc(Some(2));
 		/// let compacted = compact::<CatListBrand, _>(list);
@@ -871,12 +803,7 @@ mod inner {
 		/// Separates a list of results.
 		///
 		/// This method separates a list of results into a pair of lists.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -884,18 +811,18 @@ mod inner {
 			"The type of the success value."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The list of results.")]
 		///
-		/// ### Returns
+		#[document_returns("A pair of lists.")]
 		///
-		/// A pair of lists.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(Ok(1)).snoc(Err("error")).snoc(Ok(2));
 		/// let (errs, oks) = separate::<CatListBrand, _, _>(list);
@@ -926,51 +853,43 @@ mod inner {
 		/// Partitions a list based on a function that returns a result.
 		///
 		/// This method partitions a list based on a function that returns a result.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the input value.",
 			"The type of the error value.",
-			"The type of the success value.",
-			"The type of the function to apply."
+			"The type of the success value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The list to partition.")]
 		///
-		/// ### Returns
+		#[document_returns("A pair of lists.")]
 		///
-		/// A pair of lists.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let (errs, oks) = partition_map::<CatListBrand, _, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, list);
+		/// let (errs, oks) =
+		/// 	partition_map::<CatListBrand, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, list);
 		/// let oks_vec: Vec<_> = oks.into_iter().collect();
 		/// let errs_vec: Vec<_> = errs.into_iter().collect();
 		/// assert_eq!(oks_vec, vec![2, 4]);
 		/// assert_eq!(errs_vec, vec![1, 3]);
 		/// ```
-		fn partition_map<'a, A: 'a, E: 'a, O: 'a, Func>(
-			func: Func,
+		fn partition_map<'a, A: 'a, E: 'a, O: 'a>(
+			func: impl Fn(A) -> Result<O, E> + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> (
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
-		)
-		where
-			Func: Fn(A) -> Result<O, E> + 'a,
-		{
+		) {
 			let mut oks = CatList::empty();
 			let mut errs = CatList::empty();
 			for a in fa {
@@ -985,49 +904,37 @@ mod inner {
 		/// Partitions a list based on a predicate.
 		///
 		/// This method partitions a list based on a predicate.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters(
-			"The lifetime of the elements.",
-			"The type of the elements.",
-			"The type of the predicate."
-		)]
-		///
-		/// ### Parameters
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
 		///
 		#[document_parameters("The predicate.", "The list to partition.")]
 		///
-		/// ### Returns
+		#[document_returns("A pair of lists.")]
 		///
-		/// A pair of lists.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let (not_satisfied, satisfied) = partition::<CatListBrand, _, _>(|a| a % 2 == 0, list);
+		/// let (not_satisfied, satisfied) = partition::<CatListBrand, _>(|a| a % 2 == 0, list);
 		/// let sat_vec: Vec<_> = satisfied.into_iter().collect();
 		/// let not_sat_vec: Vec<_> = not_satisfied.into_iter().collect();
 		/// assert_eq!(sat_vec, vec![2, 4]);
 		/// assert_eq!(not_sat_vec, vec![1, 3]);
 		/// ```
-		fn partition<'a, A: 'a + Clone, Func>(
-			func: Func,
+		fn partition<'a, A: 'a + Clone>(
+			func: impl Fn(A) -> bool + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> (
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		)
-		where
-			Func: Fn(A) -> bool + 'a,
-		{
+		) {
 			let mut satisfied = CatList::empty();
 			let mut not_satisfied = CatList::empty();
 			for a in fa {
@@ -1043,89 +950,69 @@ mod inner {
 		/// Maps a function over a list and filters out `None` results.
 		///
 		/// This method maps a function over a list and filters out `None` results.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the input value.",
-			"The type of the result of applying the function.",
-			"The type of the function to apply."
+			"The type of the result of applying the function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The list to filter and map.")]
 		///
-		/// ### Returns
+		#[document_returns("The filtered and mapped list.")]
 		///
-		/// The filtered and mapped list.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let filtered = filter_map::<CatListBrand, _, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, list);
+		/// let filtered =
+		/// 	filter_map::<CatListBrand, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, list);
 		/// let vec: Vec<_> = filtered.into_iter().collect();
 		/// assert_eq!(vec, vec![4, 8]);
 		/// ```
-		fn filter_map<'a, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn filter_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> Option<B> + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> Option<B> + 'a,
-		{
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.into_iter().filter_map(func).collect()
 		}
 
 		/// Filters a list based on a predicate.
 		///
 		/// This method filters a list based on a predicate.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters(
-			"The lifetime of the elements.",
-			"The type of the elements.",
-			"The type of the predicate."
-		)]
-		///
-		/// ### Parameters
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
 		///
 		#[document_parameters("The predicate.", "The list to filter.")]
 		///
-		/// ### Returns
+		#[document_returns("The filtered list.")]
 		///
-		/// The filtered list.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let filtered = filter::<CatListBrand, _, _>(|a| a % 2 == 0, list);
+		/// let filtered = filter::<CatListBrand, _>(|a| a % 2 == 0, list);
 		/// let vec: Vec<_> = filtered.into_iter().collect();
 		/// assert_eq!(vec, vec![2, 4]);
 		/// ```
-		fn filter<'a, A: 'a + Clone, Func>(
-			func: Func,
+		fn filter<'a, A: 'a + Clone>(
+			func: impl Fn(A) -> bool + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
-		where
-			Func: Fn(A) -> bool + 'a,
-		{
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			fa.into_iter().filter(|a| func(a.clone())).collect()
 		}
 	}
@@ -1134,45 +1021,43 @@ mod inner {
 		/// Partitions a list based on a function that returns a result in an applicative context.
 		///
 		/// This method partitions a list based on a function that returns a result in an applicative context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The applicative context.",
 			"The type of the input value.",
 			"The type of the error value.",
-			"The type of the success value.",
-			"The type of the function to apply."
+			"The type of the success value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The list to partition.")]
 		///
-		/// ### Returns
+		#[document_returns("The partitioned list wrapped in the applicative context.")]
 		///
-		/// The partitioned list wrapped in the applicative context.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let wilted = wilt::<CatListBrand, OptionBrand, _, _, _, _>(|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }), list);
+		/// let wilted = wilt::<CatListBrand, OptionBrand, _, _, _>(
+		/// 	|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }),
+		/// 	list,
+		/// );
 		/// let (errs, oks) = wilted.unwrap();
 		/// let oks_vec: Vec<_> = oks.into_iter().collect();
 		/// let errs_vec: Vec<_> = errs.into_iter().collect();
 		/// assert_eq!(oks_vec, vec![2, 4]);
 		/// assert_eq!(errs_vec, vec![1, 3]);
 		/// ```
-		fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
-			func: Func,
+		fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone>(
+			func: impl Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
+			+ 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 		'a,
@@ -1182,11 +1067,8 @@ mod inner {
 		),
 	>)
 		where
-			Func:
-				Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
-			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
-		{
+			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone, {
 			ta.into_iter().fold(M::pure((CatList::empty(), CatList::empty())), |acc, x| {
 				M::lift2(
 					|mut pair, res| {
@@ -1205,54 +1087,48 @@ mod inner {
 		/// Maps a function over a list and filters out `None` results in an applicative context.
 		///
 		/// This method maps a function over a list and filters out `None` results in an applicative context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The applicative context.",
 			"The type of the elements in the input structure.",
-			"The type of the result of applying the function.",
-			"The type of the function to apply."
+			"The type of the result of applying the function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning an `Option` in an applicative context.",
 			"The list to filter and map."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The filtered and mapped list wrapped in the applicative context.
-		///
-		/// ### Examples
+		#[document_returns("The filtered and mapped list wrapped in the applicative context.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let withered = wither::<CatListBrand, OptionBrand, _, _, _>(|a| Some(if a % 2 == 0 { Some(a * 2) } else { None }), list);
+		/// let withered = wither::<CatListBrand, OptionBrand, _, _>(
+		/// 	|a| Some(if a % 2 == 0 { Some(a * 2) } else { None }),
+		/// 	list,
+		/// );
 		/// let vec: Vec<_> = withered.unwrap().into_iter().collect();
 		/// assert_eq!(vec, vec![4, 8]);
 		/// ```
-		fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
-			func: Func,
+		fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone>(
+			func: impl Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 		'a,
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	>)
 		where
-			Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
-			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
-		{
+			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone, {
 			ta.into_iter().fold(M::pure(CatList::empty()), |acc, x| {
 				M::lift2(
 					|list, opt_b| {
@@ -1265,30 +1141,24 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	impl<A> Semigroup for CatList<A> {
 		/// Appends one list to another.
 		///
 		/// This method concatenates two lists.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The first list.", "The second list.")]
 		///
-		/// ### Returns
+		#[document_returns("The concatenated list.")]
 		///
-		/// The concatenated list.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{functions::*, types::*};
+		/// use fp_library::{
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list1 = CatList::singleton(1).snoc(2);
 		/// let list2 = CatList::singleton(3).snoc(4);
@@ -1304,26 +1174,22 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	impl<A> Monoid for CatList<A> {
 		/// Returns an empty list.
 		///
 		/// This method returns a new, empty list.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Returns
+		#[document_returns("An empty list.")]
 		///
-		/// An empty list.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{functions::*, types::*};
+		/// use fp_library::{
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = empty::<CatList<i32>>();
 		/// assert!(list.is_empty());
@@ -1333,25 +1199,18 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to operate on.")]
 	impl<A> CatList<A> {
 		/// Creates an empty CatList.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Returns
+		#[document_returns("An empty `CatList`.")]
 		///
-		/// An empty `CatList`.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::types::cat_list::CatList;
 		///
 		/// let list: CatList<i32> = CatList::empty();
 		/// assert!(list.is_empty());
@@ -1362,47 +1221,34 @@ mod inner {
 		}
 
 		/// Returns `true` if the list is empty.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters]
 		///
-		/// ### Returns
+		#[document_returns("`true` if the list is empty, `false` otherwise.")]
 		///
-		/// `true` if the list is empty, `false` otherwise.
-		///
-		/// ### Examples
+		#[inline]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::types::cat_list::CatList;
 		///
 		/// let list: CatList<i32> = CatList::empty();
 		/// assert!(list.is_empty());
 		/// ```
-		#[inline]
 		pub fn is_empty(&self) -> bool {
 			matches!(self, CatList::Nil)
 		}
 
 		/// Creates a CatList with a single element.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The element to put in the list.")]
 		///
-		/// ### Returns
+		#[document_returns("A `CatList` containing the single element.")]
 		///
-		/// A `CatList` containing the single element.
-		///
-		/// ### Examples
+		#[inline]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -1410,33 +1256,26 @@ mod inner {
 		/// let list = CatList::singleton(1);
 		/// assert!(!list.is_empty());
 		/// ```
-		#[inline]
 		pub fn singleton(a: A) -> Self {
 			CatList::Cons(a, VecDeque::new(), 1)
 		}
 
 		/// Appends an element to the front of the list.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The element to prepend.")]
 		///
-		/// ### Returns
+		#[document_returns("The new list with the element appended to the front.")]
 		///
-		/// The new list with the element appended to the front.
-		///
-		/// ### Examples
+		#[inline]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
 		///
 		/// let list = CatList::empty().cons(1);
+		/// assert_eq!(list.len(), 1);
 		/// ```
-		#[inline]
 		pub fn cons(
 			self,
 			a: A,
@@ -1445,27 +1284,21 @@ mod inner {
 		}
 
 		/// Appends an element to the back of the list.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The element to append.")]
 		///
-		/// ### Returns
+		#[document_returns("The new list with the element appended to the back.")]
 		///
-		/// The new list with the element appended to the back.
-		///
-		/// ### Examples
+		#[inline]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
 		///
 		/// let list = CatList::empty().snoc(1);
+		/// assert_eq!(list.len(), 1);
 		/// ```
-		#[inline]
 		pub fn snoc(
 			self,
 			a: A,
@@ -1477,20 +1310,13 @@ mod inner {
 		///
 		/// This is the key operation that makes CatList special:
 		/// concatenation is O(1), not O(n).
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The second list.")]
 		///
-		/// ### Returns
+		#[document_returns("The concatenated list.")]
 		///
-		/// The concatenated list.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -1498,6 +1324,7 @@ mod inner {
 		/// let list1 = CatList::singleton(1);
 		/// let list2 = CatList::singleton(2);
 		/// let list3 = list1.append(list2);
+		/// assert_eq!(list3.len(), 2);
 		/// ```
 		pub fn append(
 			self,
@@ -1509,18 +1336,22 @@ mod inner {
 		/// Internal linking operation.
 		///
 		/// Links two `CatList`s by pushing the second onto the first's sublist deque.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The first list.", "The second list.")]
 		///
-		/// ### Returns
+		#[document_returns("A new list consisting of the two input lists linked together.")]
+		#[document_examples]
 		///
-		/// A new list consisting of the two input lists linked together.
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// // link is internal, but we can use it via other methods
+		/// let list1 = CatList::singleton(1);
+		/// let list2 = CatList::singleton(2);
+		/// let linked = list1.append(list2);
+		/// assert_eq!(linked.len(), 2);
+		/// ```
 		fn link(
 			left: Self,
 			right: Self,
@@ -1539,20 +1370,15 @@ mod inner {
 		/// Removes and returns the first element.
 		///
 		/// Returns `None` if the list is empty.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters]
 		///
-		/// ### Returns
+		#[document_returns(
+			"An option containing the first element and the rest of the list, or `None` if empty."
+		)]
 		///
-		/// An option containing the first element and the rest of the list, or `None` if empty.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -1582,18 +1408,26 @@ mod inner {
 		/// This is equivalent to `foldr link CatNil deque` in PureScript.
 		///
 		/// We use an iterative approach to avoid stack overflow on deeply nested structures.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The deque of sublists to flatten.")]
 		///
-		/// ### Returns
+		#[document_returns("A single flattened `CatList`.")]
+		#[document_examples]
 		///
-		/// A single flattened `CatList`.
+		/// ```
+		/// use {
+		/// 	fp_library::types::cat_list::CatList,
+		/// 	std::collections::VecDeque,
+		/// };
+		///
+		/// let mut deque = VecDeque::new();
+		/// deque.push_back(CatList::singleton(1));
+		/// deque.push_back(CatList::singleton(2));
+		/// // flatten_deque is internal, but used by uncons
+		/// let list = CatList::singleton(0).append(CatList::singleton(1));
+		/// assert_eq!(list.len(), 2);
+		/// ```
 		fn flatten_deque(deque: VecDeque<CatList<A>>) -> Self {
 			// Right fold: link(list[0], link(list[1], ... link(list[n-1], Nil)))
 			// We process from right to left using DoubleEndedIterator
@@ -1601,20 +1435,14 @@ mod inner {
 		}
 
 		/// Returns the number of elements.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters]
 		///
-		/// ### Returns
+		#[document_returns("The number of elements in the list.")]
 		///
-		/// The number of elements in the list.
-		///
-		/// ### Examples
+		#[inline]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -1622,7 +1450,6 @@ mod inner {
 		/// let list = CatList::singleton(1);
 		/// assert_eq!(list.len(), 1);
 		/// ```
-		#[inline]
 		pub fn len(&self) -> usize {
 			match self {
 				CatList::Nil => 0,
@@ -1632,43 +1459,51 @@ mod inner {
 	}
 
 	// Iteration support
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to consume.")]
 	impl<A> IntoIterator for CatList<A> {
-		type Item = A;
 		type IntoIter = CatListIterator<A>;
+		type Item = A;
 
-		/// ### Type Signature
-		///
 		#[document_signature]
+		#[document_returns("An iterator that consumes the list and yields its elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(1).snoc(2);
+		/// let vec: Vec<_> = list.into_iter().collect();
+		/// assert_eq!(vec, vec![1, 2]);
+		/// ```
 		fn into_iter(self) -> Self::IntoIter {
 			CatListIterator(self)
 		}
 	}
 
 	/// An iterator that consumes a `CatList`.
-	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
-	///
-	/// ### Fields
 	///
 	#[document_fields("The list being iterated over.")]
 	pub struct CatListIterator<A>(CatList<A>);
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The iterator state.")]
 	impl<A> Iterator for CatListIterator<A> {
 		type Item = A;
 
-		/// ### Type Signature
-		///
 		#[document_signature]
+		#[document_returns("The next element in the list, or `None` if the iterator is exhausted.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(1);
+		/// let mut iter = list.into_iter();
+		/// assert_eq!(iter.next(), Some(1));
+		/// assert_eq!(iter.next(), None);
+		/// ```
 		fn next(&mut self) -> Option<Self::Item> {
 			let (head, tail) = std::mem::take(&mut self.0).uncons()?;
 			self.0 = tail;
@@ -1677,21 +1512,21 @@ mod inner {
 	}
 
 	// FromIterator for easy construction
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	impl<A> FromIterator<A> for CatList<A> {
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The iterator type.")]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The iterator to collect from.")]
+		#[document_returns("A new `CatList` containing the elements from the iterator.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let vec = vec![1, 2, 3];
+		/// let list: CatList<_> = CatList::from_iter(vec);
+		/// assert_eq!(list.len(), 3);
+		/// ```
 		fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Self {
 			iter.into_iter().fold(CatList::Nil, |acc, a| acc.snoc(a))
 		}
@@ -1755,9 +1590,9 @@ mod tests {
 	/// We verify that the iterator yields all elements in the correct order.
 	#[test]
 	fn test_iteration() {
-		let list: CatList<_> = (0..10).collect();
+		let list: CatList<_> = (0 .. 10).collect();
 		let vec: Vec<_> = list.into_iter().collect();
-		assert_eq!(vec, (0..10).collect::<Vec<_>>());
+		assert_eq!(vec, (0 .. 10).collect::<Vec<_>>());
 	}
 
 	/// Tests the O(1) length tracking.
@@ -1765,7 +1600,7 @@ mod tests {
 	/// We verify that the length is reported correctly as 100.
 	#[test]
 	fn test_len() {
-		let list: CatList<_> = (0..100).collect();
+		let list: CatList<_> = (0 .. 100).collect();
 		assert_eq!(list.len(), 100);
 	}
 
@@ -1872,8 +1707,14 @@ mod tests {
 		assert_eq!(tail.len(), 0);
 	}
 
-	use crate::{brands::*, classes::CloneableFn, functions::*};
-	use quickcheck_macros::quickcheck;
+	use {
+		crate::{
+			brands::*,
+			classes::CloneableFn,
+			functions::*,
+		},
+		quickcheck_macros::quickcheck,
+	};
 
 	// Functor Laws
 
@@ -1881,7 +1722,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity(x: Vec<i32>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
-		map::<CatListBrand, _, _, _>(identity, x.clone()) == x
+		map::<CatListBrand, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -1890,8 +1731,8 @@ mod tests {
 		let x: CatList<_> = x.into_iter().collect();
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<CatListBrand, _, _, _>(compose(f, g), x.clone())
-			== map::<CatListBrand, _, _, _>(f, map::<CatListBrand, _, _, _>(g, x))
+		map::<CatListBrand, _, _>(compose(f, g), x.clone())
+			== map::<CatListBrand, _, _>(f, map::<CatListBrand, _, _>(g, x))
 	}
 
 	// Applicative Laws
@@ -1953,14 +1794,14 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| CatList::singleton(x.wrapping_mul(2));
-		bind::<CatListBrand, _, _, _>(pure::<CatListBrand, _>(a), f) == f(a)
+		bind::<CatListBrand, _, _>(pure::<CatListBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: Vec<i32>) -> bool {
 		let m: CatList<_> = m.into_iter().collect();
-		bind::<CatListBrand, _, _, _>(m.clone(), pure::<CatListBrand, _>) == m
+		bind::<CatListBrand, _, _>(m.clone(), pure::<CatListBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -1969,8 +1810,8 @@ mod tests {
 		let m: CatList<_> = m.into_iter().collect();
 		let f = |x: i32| CatList::singleton(x.wrapping_mul(2));
 		let g = |x: i32| CatList::singleton(x.wrapping_add(1));
-		bind::<CatListBrand, _, _, _>(bind::<CatListBrand, _, _, _>(m.clone(), f), g)
-			== bind::<CatListBrand, _, _, _>(m, |x| bind::<CatListBrand, _, _, _>(f(x), g))
+		bind::<CatListBrand, _, _>(bind::<CatListBrand, _, _>(m.clone(), f), g)
+			== bind::<CatListBrand, _, _>(m, |x| bind::<CatListBrand, _, _>(f(x), g))
 	}
 
 	// Edge Cases
@@ -1979,7 +1820,7 @@ mod tests {
 	#[test]
 	fn map_empty() {
 		assert_eq!(
-			map::<CatListBrand, _, _, _>(|x: i32| x + 1, CatList::empty() as CatList<i32>),
+			map::<CatListBrand, _, _>(|x: i32| x + 1, CatList::empty() as CatList<i32>),
 			CatList::empty() as CatList<i32>
 		);
 	}
@@ -1988,7 +1829,7 @@ mod tests {
 	#[test]
 	fn bind_empty() {
 		assert_eq!(
-			bind::<CatListBrand, _, _, _>(CatList::empty() as CatList<i32>, |x: i32| {
+			bind::<CatListBrand, _, _>(CatList::empty() as CatList<i32>, |x: i32| {
 				CatList::singleton(x + 1)
 			}),
 			CatList::empty() as CatList<i32>
@@ -2000,7 +1841,7 @@ mod tests {
 	fn bind_returning_empty() {
 		let list: CatList<_> = vec![1, 2, 3].into_iter().collect();
 		assert_eq!(
-			bind::<CatListBrand, _, _, _>(list, |_| CatList::empty() as CatList<i32>),
+			bind::<CatListBrand, _, _>(list, |_| CatList::empty() as CatList<i32>),
 			CatList::empty() as CatList<i32>
 		);
 	}
@@ -2009,7 +1850,7 @@ mod tests {
 	#[test]
 	fn fold_right_empty() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<RcFnBrand, CatListBrand, _, _, _>(
+			crate::classes::foldable::fold_right::<RcFnBrand, CatListBrand, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				CatList::empty()
@@ -2022,7 +1863,7 @@ mod tests {
 	#[test]
 	fn fold_left_empty() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<RcFnBrand, CatListBrand, _, _, _>(
+			crate::classes::foldable::fold_left::<RcFnBrand, CatListBrand, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				CatList::empty()
@@ -2036,7 +1877,7 @@ mod tests {
 	fn traverse_empty() {
 		use crate::brands::OptionBrand;
 		assert_eq!(
-			crate::classes::traversable::traverse::<CatListBrand, _, _, OptionBrand, _>(
+			crate::classes::traversable::traverse::<CatListBrand, _, _, OptionBrand>(
 				|x: i32| Some(x + 1),
 				CatList::empty()
 			),
@@ -2076,21 +1917,21 @@ mod tests {
 	#[quickcheck]
 	fn filterable_filter_map_identity(x: Vec<Option<i32>>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
-		filter_map::<CatListBrand, _, _, _>(identity, x.clone()) == compact::<CatListBrand, _>(x)
+		filter_map::<CatListBrand, _, _>(identity, x.clone()) == compact::<CatListBrand, _>(x)
 	}
 
 	/// Tests `filterMap Just ≡ identity`.
 	#[quickcheck]
 	fn filterable_filter_map_just(x: Vec<i32>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
-		filter_map::<CatListBrand, _, _, _>(Some, x.clone()) == x
+		filter_map::<CatListBrand, _, _>(Some, x.clone()) == x
 	}
 
 	/// Tests `partitionMap identity ≡ separate`.
 	#[quickcheck]
 	fn filterable_partition_map_identity(x: Vec<Result<i32, i32>>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
-		partition_map::<CatListBrand, _, _, _, _>(identity, x.clone())
+		partition_map::<CatListBrand, _, _, _>(identity, x.clone())
 			== separate::<CatListBrand, _, _>(x)
 	}
 
@@ -2100,6 +1941,6 @@ mod tests {
 	#[quickcheck]
 	fn witherable_identity(x: Vec<i32>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
-		wither::<CatListBrand, OptionBrand, _, _, _>(|i| Some(Some(i)), x.clone()) == Some(x)
+		wither::<CatListBrand, OptionBrand, _, _>(|i| Some(Some(i)), x.clone()) == Some(x)
 	}
 }

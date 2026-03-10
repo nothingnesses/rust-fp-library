@@ -1,27 +1,60 @@
-use criterion::{BatchSize, BenchmarkId, Criterion};
-use fp_library::{
-	brands::{ArcFnBrand, OptionBrand, RcFnBrand, ResultWithErrBrand, VecBrand},
-	classes::{
-		compactable::{compact, separate},
-		filterable::{filter, filter_map, partition, partition_map},
-		foldable::{fold_left, fold_map, fold_right},
-		functor::map,
-		lift::lift2,
-		monoid::empty,
-		par_foldable::par_fold_map,
-		pointed::pure,
-		semiapplicative::apply,
-		semigroup::append,
-		semimonad::bind,
-		traversable::{sequence, traverse},
-		witherable::{wilt, wither},
+use {
+	criterion::{
+		BatchSize,
+		BenchmarkId,
+		Criterion,
 	},
-	functions::{cloneable_fn_new, send_cloneable_fn_new},
+	fp_library::{
+		brands::{
+			ArcFnBrand,
+			OptionBrand,
+			RcFnBrand,
+			ResultErrAppliedBrand,
+			VecBrand,
+		},
+		classes::{
+			compactable::{
+				compact,
+				separate,
+			},
+			filterable::{
+				filter,
+				filter_map,
+				partition,
+				partition_map,
+			},
+			foldable::{
+				fold_left,
+				fold_map,
+				fold_right,
+			},
+			functor::map,
+			lift::lift2,
+			monoid::empty,
+			par_foldable::par_fold_map,
+			pointed::pure,
+			semiapplicative::apply,
+			semigroup::append,
+			semimonad::bind,
+			traversable::{
+				sequence,
+				traverse,
+			},
+			witherable::{
+				wilt,
+				wither,
+			},
+		},
+		functions::{
+			cloneable_fn_new,
+			send_cloneable_fn_new,
+		},
+	},
 };
 
 pub fn bench_vec(c: &mut Criterion) {
 	let size = 1000;
-	let v_orig: Vec<i32> = (0..size).collect();
+	let v_orig: Vec<i32> = (0 .. size).collect();
 
 	// Map
 	{
@@ -36,7 +69,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| map::<VecBrand, _, _, _>(|x| x * 2, v),
+				|v| map::<VecBrand, _, _>(|x| x * 2, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -57,7 +90,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| fold_right::<RcFnBrand, VecBrand, _, _, _>(|x, acc| x + acc, 0, v),
+				|v| fold_right::<RcFnBrand, VecBrand, _, _>(|x, acc| x + acc, 0, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -78,7 +111,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| fold_left::<RcFnBrand, VecBrand, _, _, _>(|acc, x| acc + x, 0, v),
+				|v| fold_left::<RcFnBrand, VecBrand, _, _>(|acc, x| acc + x, 0, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -99,7 +132,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| fold_map::<RcFnBrand, VecBrand, _, _, _>(|x: i32| x.to_string(), v),
+				|v| fold_map::<RcFnBrand, VecBrand, _, _>(|x: i32| x.to_string(), v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -108,7 +141,7 @@ pub fn bench_vec(c: &mut Criterion) {
 
 	// Traverse (Result)
 	// std: map().collect::<Result<Vec<_>, _>>()
-	let v_res: Vec<Result<i32, i32>> = (0..size).map(|x| Ok(x)).collect();
+	let v_res: Vec<Result<i32, i32>> = (0 .. size).map(|x| Ok(x)).collect();
 	{
 		let mut group = c.benchmark_group("Vec Traverse");
 		group.bench_with_input(BenchmarkId::new("std", size), &size, |b, &_| {
@@ -121,7 +154,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| traverse::<VecBrand, _, _, ResultWithErrBrand<i32>, _>(|x| Ok(x * 2), v),
+				|v| traverse::<VecBrand, _, _, ResultErrAppliedBrand<i32>>(|x| Ok(x * 2), v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -142,7 +175,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_res.clone(),
-				|v| sequence::<VecBrand, _, ResultWithErrBrand<i32>>(v),
+				|v| sequence::<VecBrand, _, ResultErrAppliedBrand<i32>>(v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -163,7 +196,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| bind::<VecBrand, _, _, _>(v, |x| vec![x, x * 2]),
+				|v| bind::<VecBrand, _, _>(v, |x| vec![x, x * 2]),
 				BatchSize::SmallInput,
 			)
 		});
@@ -252,7 +285,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| filter::<VecBrand, _, _>(|x| x % 2 == 0, v),
+				|v| filter::<VecBrand, _>(|x| x % 2 == 0, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -277,10 +310,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			b.iter_batched(
 				|| v_orig.clone(),
 				|v| {
-					filter_map::<VecBrand, _, _, _>(
-						|x| if x % 2 == 0 { Some(x * 2) } else { None },
-						v,
-					)
+					filter_map::<VecBrand, _, _>(|x| if x % 2 == 0 { Some(x * 2) } else { None }, v)
 				},
 				BatchSize::SmallInput,
 			)
@@ -301,7 +331,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| partition::<VecBrand, _, _>(|x| x % 2 == 0, v),
+				|v| partition::<VecBrand, _>(|x| x % 2 == 0, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -333,7 +363,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			b.iter_batched(
 				|| v_orig.clone(),
 				|v| {
-					partition_map::<VecBrand, _, _, _, _>(
+					partition_map::<VecBrand, _, _, _>(
 						|x| if x % 2 == 0 { Ok(x * 2) } else { Err(x) },
 						v,
 					)
@@ -346,7 +376,7 @@ pub fn bench_vec(c: &mut Criterion) {
 
 	// Compact
 	let v_nested: Vec<Option<i32>> =
-		(0..size).map(|x| if x % 2 == 0 { Some(x) } else { None }).collect();
+		(0 .. size).map(|x| if x % 2 == 0 { Some(x) } else { None }).collect();
 	{
 		let mut group = c.benchmark_group("Vec Compact");
 		group.bench_with_input(BenchmarkId::new("std", size), &size, |b, &_| {
@@ -368,7 +398,7 @@ pub fn bench_vec(c: &mut Criterion) {
 
 	// Separate
 	let v_res_sep: Vec<Result<i32, i32>> =
-		(0..size).map(|x| if x % 2 == 0 { Ok(x) } else { Err(x) }).collect();
+		(0 .. size).map(|x| if x % 2 == 0 { Ok(x) } else { Err(x) }).collect();
 	{
 		let mut group = c.benchmark_group("Vec Separate");
 		group.bench_with_input(BenchmarkId::new("std", size), &size, |b, &_| {
@@ -420,7 +450,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			b.iter_batched(
 				|| v_orig.clone(),
 				|v| {
-					wither::<VecBrand, OptionBrand, _, _, _>(
+					wither::<VecBrand, OptionBrand, _, _>(
 						|x| Some(if x % 2 == 0 { Some(x * 2) } else { None }),
 						v,
 					)
@@ -456,7 +486,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			b.iter_batched(
 				|| v_orig.clone(),
 				|v| {
-					wilt::<VecBrand, OptionBrand, _, _, _, _>(
+					wilt::<VecBrand, OptionBrand, _, _, _>(
 						|x| Some(if x % 2 == 0 { Ok(x * 2) } else { Err(x) }),
 						v,
 					)
@@ -483,7 +513,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| (v_orig.clone(), v2.clone()),
-				|(v1, v2)| lift2::<VecBrand, _, _, _, _>(|x, y| x + y, v1, v2),
+				|(v1, v2)| lift2::<VecBrand, _, _, _>(|x, y| x + y, v1, v2),
 				BatchSize::SmallInput,
 			)
 		});

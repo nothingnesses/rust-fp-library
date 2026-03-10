@@ -1,19 +1,49 @@
-use crate::{
-	core::{
-		Error as CoreError, Result, config::get_config, constants::attributes::DOCUMENT_PARAMETERS,
-		error_handling::ErrorCollector,
+use {
+	crate::{
+		core::{
+			Error as CoreError,
+			Result,
+			config::get_config,
+			constants::attributes::DOCUMENT_PARAMETERS,
+			error_handling::ErrorCollector,
+		},
+		support::{
+			Parameter,
+			attributes::{
+				find_attribute,
+				remove_attribute_tokens,
+			},
+			documentation_parameters::{
+				DocumentationParameter,
+				DocumentationParameters,
+			},
+			generate_documentation::{
+				generate_doc_comments,
+				insert_doc_comments_batch,
+			},
+			get_parameters,
+			impl_has_receiver_methods,
+			method_utils::{
+				sig_has_receiver,
+				trait_has_receiver_methods,
+			},
+			parsing,
+		},
 	},
-	support::{
-		Parameter,
-		attributes::{find_attribute, remove_attribute_tokens},
-		documentation_parameters::{DocumentationParameter, DocumentationParameters},
-		generate_documentation::{generate_doc_comments, insert_doc_comments_batch},
-		get_parameters, has_receiver, impl_has_receiver_methods, parsing,
+	proc_macro2::TokenStream,
+	quote::{
+		ToTokens,
+		quote,
+	},
+	syn::{
+		ImplItem,
+		ImplItemFn,
+		LitStr,
+		TraitItem,
+		parse::Parse,
+		spanned::Spanned,
 	},
 };
-use proc_macro2::TokenStream;
-use quote::{ToTokens, quote};
-use syn::{ImplItem, ImplItemFn, LitStr, parse::Parse, spanned::Spanned};
 
 /// Parse single string literal for receiver documentation
 struct ReceiverDoc {
@@ -23,7 +53,9 @@ struct ReceiverDoc {
 impl Parse for ReceiverDoc {
 	fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
 		let description = input.parse()?;
-		Ok(ReceiverDoc { description })
+		Ok(ReceiverDoc {
+			description,
+		})
 	}
 }
 
@@ -33,51 +65,49 @@ fn process_method_in_impl(
 	receiver_doc: &str,
 	config: &crate::core::config::Config,
 ) -> Result<()> {
-	// Find the #[document_parameters] attribute
-	let Some(attr_pos) = find_attribute(&method.attrs, DOCUMENT_PARAMETERS) else {
-		// No attribute on this method, skip it
+	process_method_parameters(&mut method.attrs, &method.sig, receiver_doc, config)
+}
+
+/// Shared core for processing a method's `#[document_parameters]` attribute with receiver documentation.
+///
+/// Works with any method that exposes `attrs`, `sig`, and `span()`.
+fn process_method_parameters(
+	attrs: &mut Vec<syn::Attribute>,
+	sig: &syn::Signature,
+	receiver_doc: &str,
+	config: &crate::core::config::Config,
+) -> Result<()> {
+	let Some(attr_pos) = find_attribute(attrs, DOCUMENT_PARAMETERS) else {
 		return Ok(());
 	};
 
-	// Remove the attribute and get its tokens
-	let attr_tokens = remove_attribute_tokens(&mut method.attrs, attr_pos)?;
+	let attr_tokens = remove_attribute_tokens(attrs, attr_pos)?;
 
-	// Get logical params (excluding receiver)
-	let logical_params = get_parameters(&method.sig, config);
+	let logical_params = get_parameters(sig, config);
+	let has_receiver_param = sig_has_receiver(sig);
 
-	// Check if method has receiver
-	let has_receiver_param = has_receiver(method);
-
-	// Error if no parameters at all
 	if logical_params.is_empty() && !has_receiver_param {
 		let _ = parsing::parse_has_documentable_items(
-			0, // Explicit 0 to trigger error
-			method.sig.ident.span(),
+			0,
+			sig.ident.span(),
 			DOCUMENT_PARAMETERS,
-			&format!("method '{}' with no parameters", method.sig.ident),
+			&format!("method '{}' with no parameters", sig.ident),
 		)?;
 	}
 
-	// Parse the arguments from the attribute (may be empty for receiver-only docs)
 	let parse_result = syn::parse2::<DocumentationParameters>(attr_tokens.clone());
 
-	// Get entries, which may be empty if only documenting receiver
 	let entries: Vec<_> = if let Ok(args) = parse_result {
 		args.entries.into_iter().collect()
+	} else if logical_params.is_empty() && has_receiver_param {
+		Vec::new()
 	} else {
-		// If parse fails and we have no logical params, it's likely just empty parens or no args
-		// which is fine if we only have a receiver
-		if logical_params.is_empty() && has_receiver_param {
-			Vec::new()
-		} else {
-			return Err(CoreError::Parse(syn::Error::new(
-				attr_tokens.span(),
-				format!("Failed to parse {DOCUMENT_PARAMETERS} arguments"),
-			)));
-		}
+		return Err(CoreError::Parse(syn::Error::new(
+			attr_tokens.span(),
+			format!("Failed to parse {DOCUMENT_PARAMETERS} arguments"),
+		)));
 	};
 
-	// Validate entry count matches logical params (not including receiver)
 	let (_expected, _provided) = parsing::parse_entry_count(
 		logical_params.len(),
 		entries.len(),
@@ -85,14 +115,11 @@ fn process_method_in_impl(
 		"parameter",
 	)?;
 
-	// Generate parameter names for all params including receiver
 	let mut param_names = Vec::new();
 	let mut param_descs = Vec::new();
 
-	// Add receiver if present
 	if has_receiver_param {
-		// Get receiver name from signature
-		let receiver_name = if let Some(syn::FnArg::Receiver(recv)) = method.sig.inputs.first() {
+		let receiver_name = if let Some(syn::FnArg::Receiver(recv)) = sig.inputs.first() {
 			if recv.mutability.is_some() {
 				"&mut self"
 			} else if recv.reference.is_some() {
@@ -107,30 +134,36 @@ fn process_method_in_impl(
 		param_descs.push(receiver_doc.to_string());
 	}
 
-	// Add other parameters
 	for (param, entry) in logical_params.iter().zip(entries) {
 		let (name, desc) = match (param, entry) {
-			(Parameter::Explicit(_pat), DocumentationParameter::Override(n, d)) => {
-				(n.value(), d.value())
-			}
+			(Parameter::Explicit(_pat), DocumentationParameter::Override(n, d)) =>
+				(n.value(), d.value()),
 			(Parameter::Explicit(pat), DocumentationParameter::Description(d)) => {
 				let name = pat.to_token_stream().to_string().replace(" , ", ", ");
 				(name, d.value())
 			}
-			(Parameter::Implicit(_), DocumentationParameter::Override(n, d)) => {
-				(n.value(), d.value())
-			}
-			(Parameter::Implicit(_), DocumentationParameter::Description(d)) => {
-				("_".to_string(), d.value())
-			}
+			(Parameter::Implicit(_), DocumentationParameter::Override(n, d)) =>
+				(n.value(), d.value()),
+			(Parameter::Implicit(_), DocumentationParameter::Description(d)) =>
+				("_".to_string(), d.value()),
 		};
 		param_names.push(name);
 		param_descs.push(desc);
 	}
 
-	// Generate doc comments and insert them
-	let docs: Vec<_> = param_names.into_iter().zip(param_descs).collect();
-	insert_doc_comments_batch(&mut method.attrs, docs, attr_pos);
+	let mut docs: Vec<_> = param_names.into_iter().zip(param_descs).collect();
+
+	docs.insert(
+		0,
+		(
+			String::new(),
+			r#"### Parameters
+"#
+			.to_string(),
+		),
+	);
+
+	insert_doc_comments_batch(attrs, docs, attr_pos);
 
 	Ok(())
 }
@@ -181,6 +214,53 @@ fn process_impl_block(
 	Ok(quote!(#item_impl))
 }
 
+/// Process trait definition with #[document_parameters("receiver doc")]
+fn process_trait_block(
+	attr: TokenStream,
+	mut item_trait: syn::ItemTrait,
+) -> Result<TokenStream> {
+	// Parse the receiver documentation
+	let receiver_doc = syn::parse2::<ReceiverDoc>(attr.clone()).map_err(|e| {
+		syn::Error::new(
+			e.span(),
+			format!(
+				"{DOCUMENT_PARAMETERS} on traits must have exactly one string literal for receiver documentation"
+			),
+		)
+	})?;
+
+	// Verify that the trait has at least one method with a receiver
+	if !trait_has_receiver_methods(&item_trait) {
+		return Err(CoreError::Parse(syn::Error::new(
+			attr.span(),
+			format!(
+				"{DOCUMENT_PARAMETERS} cannot be used on traits with no methods that have receiver parameters"
+			),
+		)));
+	}
+
+	let receiver_desc = receiver_doc.description.value();
+	let config = get_config();
+
+	// Collect errors from all methods instead of returning early
+	let mut errors = ErrorCollector::new();
+
+	// Process each method that has #[document_parameters]
+	for item in &mut item_trait.items {
+		if let TraitItem::Fn(method) = item
+			&& let Err(e) =
+				process_method_parameters(&mut method.attrs, &method.sig, &receiver_desc, &config)
+		{
+			errors.push(e.into());
+		}
+	}
+
+	// Finish and convert any collected errors
+	errors.finish()?;
+
+	Ok(quote!(#item_trait))
+}
+
 pub fn document_parameters_worker(
 	attr: TokenStream,
 	item_tokens: TokenStream,
@@ -190,14 +270,21 @@ pub fn document_parameters_worker(
 		return process_impl_block(attr, item_impl);
 	}
 
+	// Try parsing as trait definition
+	if let Ok(item_trait) = syn::parse2::<syn::ItemTrait>(item_tokens.clone()) {
+		return process_trait_block(attr, item_trait);
+	}
+
 	// Otherwise, process as a function with generate_doc_comments
-	generate_doc_comments(attr, item_tokens, |generic_item| {
+	generate_doc_comments(attr, item_tokens, "Parameters", |generic_item| {
 		let config = get_config();
 
 		let sig = generic_item.signature().ok_or_else(|| {
 			syn::Error::new(
 				proc_macro2::Span::call_site(),
-				format!("{DOCUMENT_PARAMETERS} can only be used on functions or impl blocks"),
+				format!(
+					"{DOCUMENT_PARAMETERS} can only be used on functions, impl blocks, or traits"
+				),
 			)
 		})?;
 
@@ -218,10 +305,12 @@ pub fn document_parameters_worker(
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use crate::support::generate_documentation::get_doc;
-	use quote::quote;
-	use syn::ItemFn;
+	use {
+		super::*,
+		crate::support::generate_documentation::get_doc,
+		quote::quote,
+		syn::ItemFn,
+	};
 
 	#[test]
 	fn test_doc_params_basic() {
@@ -233,9 +322,11 @@ mod tests {
 		let output = document_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
-		assert_eq!(output_fn.attrs.len(), 2);
-		assert_eq!(get_doc(&output_fn.attrs[0]), "* `a`: Arg 1");
-		assert_eq!(get_doc(&output_fn.attrs[1]), "* `b`: Arg 2");
+		// 2 parameters + 1 header = 3 attributes
+		assert_eq!(output_fn.attrs.len(), 3);
+		assert_eq!(get_doc(&output_fn.attrs[0]), "### Parameters\n");
+		assert_eq!(get_doc(&output_fn.attrs[1]), "* `a`: Arg 1");
+		assert_eq!(get_doc(&output_fn.attrs[2]), "* `b`: Arg 2");
 	}
 
 	#[test]
@@ -248,8 +339,9 @@ mod tests {
 		let output = document_parameters_worker(attr, item).unwrap();
 		let output_fn: syn::TraitItemFn = syn::parse2(output).unwrap();
 
-		assert_eq!(output_fn.attrs.len(), 1);
-		assert_eq!(get_doc(&output_fn.attrs[0]), "* `a`: Arg 1");
+		assert_eq!(output_fn.attrs.len(), 2);
+		assert_eq!(get_doc(&output_fn.attrs[0]), "### Parameters\n");
+		assert_eq!(get_doc(&output_fn.attrs[1]), "* `a`: Arg 1");
 	}
 
 	#[test]
@@ -262,9 +354,10 @@ mod tests {
 		let output = document_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
-		assert_eq!(output_fn.attrs.len(), 2);
-		assert_eq!(get_doc(&output_fn.attrs[0]), "* `custom_a`: Arg 1");
-		assert_eq!(get_doc(&output_fn.attrs[1]), "* `b`: Arg 2");
+		assert_eq!(output_fn.attrs.len(), 3);
+		assert_eq!(get_doc(&output_fn.attrs[0]), "### Parameters\n");
+		assert_eq!(get_doc(&output_fn.attrs[1]), "* `custom_a`: Arg 1");
+		assert_eq!(get_doc(&output_fn.attrs[2]), "* `b`: Arg 2");
 	}
 
 	#[test]
@@ -277,9 +370,10 @@ mod tests {
 		let output = document_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
-		assert_eq!(output_fn.attrs.len(), 2);
-		assert_eq!(get_doc(&output_fn.attrs[0]), "* `a`: Arg 1");
-		assert_eq!(get_doc(&output_fn.attrs[1]), "* `_`: Curried Arg");
+		assert_eq!(output_fn.attrs.len(), 3);
+		assert_eq!(get_doc(&output_fn.attrs[0]), "### Parameters\n");
+		assert_eq!(get_doc(&output_fn.attrs[1]), "* `a`: Arg 1");
+		assert_eq!(get_doc(&output_fn.attrs[2]), "* `_`: Curried Arg");
 	}
 
 	#[test]
@@ -291,9 +385,9 @@ mod tests {
 
 		let output = document_parameters_worker(attr, item).unwrap_err();
 		let error = output.to_string();
-		assert!(
-			error.contains("Expected 2 description arguments (one for each parameter), found 1")
-		);
+		assert!(error.contains(
+			"Expected exactly 2 description arguments (one for each parameter), found 1"
+		));
 	}
 
 	#[test]
@@ -306,8 +400,9 @@ mod tests {
 		let output = document_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
-		assert_eq!(output_fn.attrs.len(), 1);
-		assert_eq!(get_doc(&output_fn.attrs[0]), "* `a`: Arg 1");
+		assert_eq!(output_fn.attrs.len(), 2);
+		assert_eq!(get_doc(&output_fn.attrs[0]), "### Parameters\n");
+		assert_eq!(get_doc(&output_fn.attrs[1]), "* `a`: Arg 1");
 	}
 
 	#[test]
@@ -325,8 +420,9 @@ mod tests {
 		let output_impl: syn::ItemImpl = syn::parse2(output).unwrap();
 
 		if let ImplItem::Fn(method) = &output_impl.items[0] {
-			assert_eq!(method.attrs.len(), 1);
-			assert_eq!(get_doc(&method.attrs[0]), "* `&self`: The receiver parameter");
+			assert_eq!(method.attrs.len(), 2);
+			assert_eq!(get_doc(&method.attrs[0]), "### Parameters\n");
+			assert_eq!(get_doc(&method.attrs[1]), "* `&self`: The receiver parameter");
 		} else {
 			panic!("Expected method");
 		}
@@ -347,9 +443,10 @@ mod tests {
 		let output_impl: syn::ItemImpl = syn::parse2(output).unwrap();
 
 		if let ImplItem::Fn(method) = &output_impl.items[0] {
-			assert_eq!(method.attrs.len(), 2);
-			assert_eq!(get_doc(&method.attrs[0]), "* `&mut self`: The list instance");
-			assert_eq!(get_doc(&method.attrs[1]), "* `item`: The element to append");
+			assert_eq!(method.attrs.len(), 3);
+			assert_eq!(get_doc(&method.attrs[0]), "### Parameters\n");
+			assert_eq!(get_doc(&method.attrs[1]), "* `&mut self`: The list instance");
+			assert_eq!(get_doc(&method.attrs[2]), "* `item`: The element to append");
 		} else {
 			panic!("Expected method");
 		}
@@ -406,8 +503,9 @@ mod tests {
 
 		// First method should have doc
 		if let ImplItem::Fn(method) = &output_impl.items[0] {
-			assert_eq!(method.attrs.len(), 1);
-			assert_eq!(get_doc(&method.attrs[0]), "* `&self`: The receiver");
+			assert_eq!(method.attrs.len(), 2);
+			assert_eq!(get_doc(&method.attrs[0]), "### Parameters\n");
+			assert_eq!(get_doc(&method.attrs[1]), "* `&self`: The receiver");
 		} else {
 			panic!("Expected method");
 		}
@@ -430,5 +528,97 @@ mod tests {
 		// Should error - function has no parameters
 		let result = document_parameters_worker(attr, item);
 		assert!(result.is_err());
+	}
+
+	#[test]
+	fn test_doc_params_trait_with_receiver_only() {
+		let attr = quote! { "The instance" };
+		let item = quote! {
+			trait Foo {
+				#[document_parameters]
+				fn bar(&self) -> usize;
+			}
+		};
+
+		let output = document_parameters_worker(attr, item).unwrap();
+		let output_trait: syn::ItemTrait = syn::parse2(output).unwrap();
+
+		if let TraitItem::Fn(method) = &output_trait.items[0] {
+			assert_eq!(method.attrs.len(), 2);
+			assert_eq!(get_doc(&method.attrs[0]), "### Parameters\n");
+			assert_eq!(get_doc(&method.attrs[1]), "* `&self`: The instance");
+		} else {
+			panic!("Expected method");
+		}
+	}
+
+	#[test]
+	fn test_doc_params_trait_with_receiver_and_params() {
+		let attr = quote! { "The collection" };
+		let item = quote! {
+			trait Collection {
+				#[document_parameters("The element to add")]
+				fn push(&mut self, item: A);
+			}
+		};
+
+		let output = document_parameters_worker(attr, item).unwrap();
+		let output_trait: syn::ItemTrait = syn::parse2(output).unwrap();
+
+		if let TraitItem::Fn(method) = &output_trait.items[0] {
+			assert_eq!(method.attrs.len(), 3);
+			assert_eq!(get_doc(&method.attrs[0]), "### Parameters\n");
+			assert_eq!(get_doc(&method.attrs[1]), "* `&mut self`: The collection");
+			assert_eq!(get_doc(&method.attrs[2]), "* `item`: The element to add");
+		} else {
+			panic!("Expected method");
+		}
+	}
+
+	#[test]
+	fn test_doc_params_trait_no_receiver_methods() {
+		let attr = quote! { "The instance" };
+		let item = quote! {
+			trait Foo {
+				fn bar(a: i32) -> i32;
+			}
+		};
+
+		let result = document_parameters_worker(attr, item);
+		assert!(result.is_err());
+		let error = result.unwrap_err().to_string();
+		assert!(error.contains("no methods that have receiver parameters"));
+	}
+
+	#[test]
+	fn test_doc_params_trait_static_method_ignored() {
+		let attr = quote! { "The instance" };
+		let item = quote! {
+			trait Foo {
+				#[document_parameters]
+				fn bar(&self) -> usize;
+
+				fn static_method() -> Self;
+			}
+		};
+
+		let output = document_parameters_worker(attr, item).unwrap();
+		let output_trait: syn::ItemTrait = syn::parse2(output).unwrap();
+
+		// First method should have doc
+		if let TraitItem::Fn(method) = &output_trait.items[0] {
+			assert_eq!(method.attrs.len(), 2);
+			assert_eq!(get_doc(&method.attrs[0]), "### Parameters\n");
+			assert_eq!(get_doc(&method.attrs[1]), "* `&self`: The instance");
+		} else {
+			panic!("Expected method");
+		}
+
+		// Second method should have no doc attributes
+		if let TraitItem::Fn(method) = &output_trait.items[1] {
+			assert_eq!(method.attrs.len(), 0);
+		} else {
+			panic!("Expected method");
+		}
 	}
 }

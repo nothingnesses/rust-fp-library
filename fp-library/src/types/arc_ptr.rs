@@ -5,7 +5,10 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 //! assert_eq!(*ptr, 42);
@@ -13,156 +16,190 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		brands::ArcBrand,
-		classes::{
-			Pointer, RefCountedPointer, SendRefCountedPointer, SendUnsizedCoercible,
-			UnsizedCoercible,
+	use {
+		crate::{
+			brands::ArcBrand,
+			classes::{
+				Pointer,
+				RefCountedPointer,
+				SendRefCountedPointer,
+				SendUnsizedCoercible,
+				UnsizedCoercible,
+			},
+		},
+		fp_macros::*,
+		std::sync::{
+			Arc,
+			Mutex,
 		},
 	};
-	use fp_macros::document_parameters;
-	use std::sync::Arc;
 
 	impl Pointer for ArcBrand {
-		type Of<T: ?Sized> = Arc<T>;
+		type Of<'a, T: ?Sized + 'a> = Arc<T>;
 
 		/// Wraps a sized value in an `Arc`.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters("The type of the value to wrap.")]
-		///
-		/// ### Parameters
+		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
+		#[document_returns("The value wrapped in an `Arc`.")]
 		///
-		/// The value wrapped in an `Arc`.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let ptr = pointer_new::<ArcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
 		/// ```
-		fn new<T>(value: T) -> Arc<T> {
+		fn new<'a, T: 'a>(value: T) -> Arc<T> {
 			Arc::new(value)
 		}
 	}
 
 	impl RefCountedPointer for ArcBrand {
-		type CloneableOf<T: ?Sized> = Arc<T>;
+		type CloneableOf<'a, T: ?Sized + 'a> = Arc<T>;
+		type TakeCellOf<'a, T: 'a> = Arc<Mutex<Option<T>>>;
 
 		/// Wraps a sized value in an `Arc`.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters("The type of the value to wrap.")]
-		///
-		/// ### Parameters
+		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
+		#[document_returns("The value wrapped in an `Arc`.")]
 		///
-		/// The value wrapped in an `Arc`.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let ptr = ref_counted_pointer_new::<ArcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
 		/// ```
-		fn cloneable_new<T>(value: T) -> Arc<T> {
+		fn cloneable_new<'a, T: 'a>(value: T) -> Arc<T> {
 			Arc::new(value)
 		}
 
 		/// Attempts to unwrap the inner value if this is the sole reference.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters("The type of the wrapped value.")]
-		///
-		/// ### Parameters
+		#[document_type_parameters(
+			"The lifetime of the wrapped value.",
+			"The type of the wrapped value."
+		)]
 		///
 		#[document_parameters("The pointer to attempt to unwrap.")]
 		///
-		/// ### Returns
+		#[document_returns("`Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.")]
 		///
-		/// `Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let ptr = ref_counted_pointer_new::<ArcBrand, _>(42);
 		/// assert_eq!(try_unwrap::<ArcBrand, _>(ptr), Ok(42));
 		/// ```
-		fn try_unwrap<T>(ptr: Arc<T>) -> Result<T, Arc<T>> {
+		fn try_unwrap<'a, T: 'a>(ptr: Arc<T>) -> Result<T, Arc<T>> {
 			Arc::try_unwrap(ptr)
+		}
+
+		/// Creates a new take-cell containing the given value.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type of the value to store.")]
+		///
+		#[document_parameters("The value to store in the cell.")]
+		///
+		#[document_returns("A new `Arc<Mutex<Option<T>>>` containing the value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// };
+		///
+		/// let cell = ArcBrand::take_cell_new(42);
+		/// assert_eq!(ArcBrand::take_cell_take(&cell), Some(42));
+		/// ```
+		fn take_cell_new<'a, T: 'a>(value: T) -> Arc<Mutex<Option<T>>> {
+			Arc::new(Mutex::new(Some(value)))
+		}
+
+		/// Takes the value out of the cell, leaving `None` behind.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type of the stored value.")]
+		///
+		#[document_parameters("The cell to take the value from.")]
+		///
+		#[document_returns("`Some(value)` if the cell still contains a value, `None` otherwise.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// };
+		///
+		/// let cell = ArcBrand::take_cell_new(42);
+		/// assert_eq!(ArcBrand::take_cell_take(&cell), Some(42));
+		/// assert_eq!(ArcBrand::take_cell_take(&cell), None);
+		/// ```
+		fn take_cell_take<'a, T: 'a>(cell: &Arc<Mutex<Option<T>>>) -> Option<T> {
+			// SAFETY: lock only fails on poisoning, which cannot occur here
+			#[allow(clippy::unwrap_used)]
+			cell.lock().unwrap().take()
 		}
 	}
 
 	impl SendRefCountedPointer for ArcBrand {
-		type SendOf<T: ?Sized + Send + Sync> = Arc<T>;
+		type SendOf<'a, T: ?Sized + Send + Sync + 'a> = Arc<T>;
 
 		/// Wraps a sized value in an `Arc`.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters("The type of the value to wrap.")]
-		///
-		/// ### Parameters
+		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
+		#[document_returns("The value wrapped in an `Arc`.")]
 		///
-		/// The value wrapped in an `Arc`.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
 		/// ```
-		fn send_new<T: Send + Sync>(value: T) -> Arc<T> {
+		fn send_new<'a, T: Send + Sync + 'a>(value: T) -> Arc<T> {
 			Arc::new(value)
 		}
 	}
 
 	impl UnsizedCoercible for ArcBrand {
 		/// Coerces a sized closure to a `dyn Fn` wrapped in an `Arc`.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the closure.",
@@ -170,35 +207,29 @@ mod inner {
 			"The output type of the function."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The closure to coerce.")]
 		///
-		/// ### Returns
+		#[document_returns("The closure wrapped in an `Arc` as a trait object.")]
 		///
-		/// The closure wrapped in an `Arc` as a trait object.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
-		/// let f = coerce_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
+		/// let f = coerce_fn::<ArcBrand, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
-		fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Arc<dyn 'a + Fn(A) -> B> {
+		fn coerce_fn<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Arc<dyn 'a + Fn(A) -> B> {
 			Arc::new(f)
 		}
 	}
 
 	impl SendUnsizedCoercible for ArcBrand {
 		/// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync` wrapped in an `Arc`.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the closure.",
@@ -206,23 +237,22 @@ mod inner {
 			"The output type of the function."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The closure to coerce.")]
 		///
-		/// ### Returns
+		#[document_returns("The closure wrapped in an `Arc` as a thread-safe trait object.")]
 		///
-		/// The closure wrapped in an `Arc` as a thread-safe trait object.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
-		/// let f = coerce_send_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
+		/// let f = coerce_send_fn::<ArcBrand, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
-		fn coerce_send_fn<'a, A, B>(
+		fn coerce_send_fn<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(A) -> B + Send + Sync
 		) -> Arc<dyn 'a + Fn(A) -> B + Send + Sync> {
 			Arc::new(f)
@@ -235,7 +265,9 @@ mod tests {
 	use crate::{
 		brands::ArcBrand,
 		classes::{
-			RefCountedPointer, pointer::new, ref_counted_pointer::cloneable_new,
+			RefCountedPointer,
+			pointer::new,
+			ref_counted_pointer::cloneable_new,
 			send_ref_counted_pointer::send_new,
 		},
 	};

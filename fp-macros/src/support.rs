@@ -25,6 +25,13 @@ pub mod parsing;
 pub mod type_visitor;
 
 // Re-export commonly used items
-pub use get_parameters::{Parameter, get_parameters, is_phantom_data, last_path_segment};
-pub use method_utils::{has_receiver, impl_has_receiver_methods};
-pub use type_visitor::TypeVisitor;
+pub use {
+	get_parameters::{
+		Parameter,
+		get_parameters,
+		is_phantom_data,
+		last_path_segment,
+	},
+	method_utils::impl_has_receiver_methods,
+	type_visitor::TypeVisitor,
+};

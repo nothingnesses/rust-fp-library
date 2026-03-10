@@ -8,16 +8,19 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let f = |x: i32| x + 1;
 //! let g = |x: i32| x * 2;
-//! let h = compose::<i32, i32, _, _, _>(f, g);
+//! let h = compose(f, g);
 //!
-//! assert_eq!(map::<OptionBrand, _, _, _>(h, Some(5)), Some(11));
+//! assert_eq!(map::<OptionBrand, _, _>(h, Some(5)), Some(11));
 //! ```
 
-use fp_macros::{document_parameters, document_signature, document_type_parameters};
+use fp_macros::*;
 // Auto-generate re-exports, passing in aliases for conflicting names.
 fp_macros::generate_function_re_exports!("src/classes", {
 	"category::identity": category_identity,
@@ -29,27 +32,30 @@ fp_macros::generate_function_re_exports!("src/classes", {
 	"semigroupoid::compose": semigroupoid_compose,
 	"send_cloneable_fn::new": send_cloneable_fn_new,
 });
+pub use crate::types::optics::{
+	optics_as_index,
+	optics_compose,
+	optics_indexed_fold_map,
+	optics_indexed_over,
+	optics_indexed_preview,
+	optics_indexed_set,
+	optics_indexed_view,
+	optics_reindexed,
+	optics_un_index,
+	positions,
+};
 
 /// Composes two functions.
 ///
 /// Takes two functions, `f` and `g`, and returns a new function that applies `g` to its argument,
 /// and then applies `f` to the result. This is equivalent to the mathematical composition `f ∘ g`.
-///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The input type of the inner function `g`.",
 	"The output type of `g` and the input type of `f`.",
-	"The output type of the outer function `f`.",
-	"The type of the outer function.",
-	"The type of the inner function."
+	"The output type of the outer function `f`."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The outer function to apply second.",
@@ -70,19 +76,12 @@ fp_macros::generate_function_re_exports!("src/classes", {
 /// let times_two_add_one = compose(add_one, times_two);
 ///
 /// // 3 * 2 + 1 = 7
-/// assert_eq!(
-///     times_two_add_one(3),
-///     7
-/// );
+/// assert_eq!(times_two_add_one(3), 7);
 /// ```
-pub fn compose<A, B, C, F, G>(
-	f: F,
-	g: G,
-) -> impl Fn(A) -> C
-where
-	F: Fn(B) -> C,
-	G: Fn(A) -> B,
-{
+pub fn compose<A, B, C>(
+	f: impl Fn(B) -> C,
+	g: impl Fn(A) -> B,
+) -> impl Fn(A) -> C {
 	move |a| f(g(a))
 }
 
@@ -90,19 +89,12 @@ where
 ///
 /// Returns a function that ignores its argument and always returns the provided value `a`.
 /// This is useful when a function is expected but a constant value is needed.
-///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The type of the value to return.",
 	"The type of the argument to ignore."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The value to be returned by the constant function.",
@@ -117,10 +109,7 @@ where
 /// ```rust
 /// use fp_library::functions::*;
 ///
-/// assert_eq!(
-///     constant(true, false),
-///     true
-/// );
+/// assert_eq!(constant(true, false), true);
 /// ```
 pub fn constant<A: Clone, B>(
 	a: A,
@@ -133,21 +122,13 @@ pub fn constant<A: Clone, B>(
 ///
 /// Returns a new function that takes its arguments in the reverse order of the input function `f`.
 /// If `f` takes `(a, b)`, the returned function takes `(b, a)`.
-///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The type of the first argument of the input function.",
 	"The type of the second argument of the input function.",
-	"The return type of the function.",
-	"The type of the input binary function."
+	"The return type of the function."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"A binary function.",
@@ -166,31 +147,18 @@ pub fn constant<A: Clone, B>(
 /// let subtract = |a, b| a - b;
 ///
 /// // 0 - 1 = -1
-/// assert_eq!(
-///     flip(subtract)(1, 0),
-///     -1
-/// );
+/// assert_eq!(flip(subtract)(1, 0), -1);
 /// ```
-pub fn flip<A, B, C, F>(f: F) -> impl Fn(B, A) -> C
-where
-	F: Fn(A, B) -> C,
-{
+pub fn flip<A, B, C>(f: impl Fn(A, B) -> C) -> impl Fn(B, A) -> C {
 	move |b, a| f(a, b)
 }
 
 /// The identity function.
 ///
 /// Returns its input argument as is. This is often used as a default or placeholder function.
-///
-/// ### Type Signature
-///
 #[document_signature]
 ///
-/// ### Type Parameters
-///
 #[document_type_parameters("The type of the value.")]
-///
-/// ### Parameters
 ///
 #[document_parameters("A value.")]
 ///
@@ -203,10 +171,7 @@ where
 /// ```rust
 /// use fp_library::functions::*;
 ///
-/// assert_eq!(
-///     identity(()),
-///     ()
-/// );
+/// assert_eq!(identity(()), ());
 /// ```
 pub fn identity<A>(a: A) -> A {
 	a

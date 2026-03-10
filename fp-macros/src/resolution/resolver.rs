@@ -228,22 +228,36 @@
 //! Errors are collected in [`SelfSubstitutor::errors`] and can be reported
 //! to the user with proper span information.
 
-use crate::{
-	analysis::{format_brand_name, get_type_parameters},
-	core::{
-		config::Config,
-		constants::{macros, types},
-		error_handling::ErrorCollector,
+use {
+	crate::{
+		analysis::{
+			format_brand_name,
+			get_type_parameters,
+		},
+		core::{
+			config::Config,
+			constants::{
+				macros,
+				types,
+			},
+			error_handling::ErrorCollector,
+		},
+		hkt::ApplyInput,
+		resolution::ProjectionKey,
 	},
-	hkt::ApplyInput,
-	resolution::ProjectionKey,
-};
-use quote::quote;
-use std::collections::HashMap;
-use syn::{
-	Error, GenericParam, Signature, parse_quote,
-	spanned::Spanned,
-	visit_mut::{self, VisitMut},
+	quote::quote,
+	std::collections::HashMap,
+	syn::{
+		Error,
+		GenericParam,
+		Signature,
+		parse_quote,
+		spanned::Spanned,
+		visit_mut::{
+			self,
+			VisitMut,
+		},
+	},
 };
 
 /// Extract the concrete type name from a Type for use in HM signatures
@@ -272,9 +286,8 @@ pub fn get_self_type_info(
 	impl_generics: &syn::Generics,
 ) -> (Option<String>, Vec<String>) {
 	let base_name = match self_ty {
-		syn::Type::Path(type_path) => {
-			type_path.path.segments.last().map(|seg| seg.ident.to_string())
-		}
+		syn::Type::Path(type_path) =>
+			type_path.path.segments.last().map(|seg| seg.ident.to_string()),
 		_ => None,
 	};
 
@@ -525,6 +538,8 @@ impl<'a> VisitMut for SelfSubstitutor<'a> {
 				&& tp.path.segments.len() > 1
 			{
 				// Resolve Self::AssocType<Args>
+				// SAFETY: segments.len() > 1 checked above
+				#[allow(clippy::indexing_slicing)]
 				let segment = &tp.path.segments[1];
 				*i = self.resolve_self_assoc_type(tp, segment);
 			}
@@ -661,7 +676,9 @@ pub fn type_uses_self_assoc(ty: &syn::Type) -> bool {
 			syn::visit::visit_type_path(self, i);
 		}
 	}
-	let mut visitor = SelfAssocVisitor { found: false };
+	let mut visitor = SelfAssocVisitor {
+		found: false,
+	};
 	syn::visit::visit_type(&mut visitor, ty);
 	visitor.found
 }
@@ -744,7 +761,10 @@ pub(crate) fn substitute_generics(
 		}
 	}
 
-	let mut visitor = SubstitutionVisitor { mapping: &mapping, const_mapping: &const_mapping };
+	let mut visitor = SubstitutionVisitor {
+		mapping: &mapping,
+		const_mapping: &const_mapping,
+	};
 	visitor.visit_type_mut(&mut ty);
 	ty
 }
@@ -800,7 +820,9 @@ pub fn normalize_type(
 		}
 	}
 
-	let mut visitor = NormalizationVisitor { mapping: &mapping };
+	let mut visitor = NormalizationVisitor {
+		mapping: &mapping,
+	};
 	visitor.visit_type_mut(&mut ty);
 	ty
 }

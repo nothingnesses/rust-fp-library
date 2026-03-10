@@ -1,13 +1,27 @@
-use crate::{
-	analysis::{
-		get_apply_macro_parameters,
-		patterns::get_fn_brand_info,
-		traits::{TraitCategory, classify_trait},
+use {
+	crate::{
+		analysis::{
+			get_apply_macro_parameters,
+			patterns::get_fn_brand_info,
+			traits::{
+				TraitCategory,
+				classify_trait,
+			},
+		},
+		core::{
+			config::Config,
+			constants::types,
+		},
+		support::type_visitor::TypeVisitor,
 	},
-	core::{config::Config, constants::types},
-	support::type_visitor::TypeVisitor,
+	syn::{
+		PathArguments,
+		ReturnType,
+		TraitBound,
+		Type,
+		TypeParamBound,
+	},
 };
-use syn::{PathArguments, ReturnType, TraitBound, Type, TypeParamBound};
 
 /// Represents a parameter in a function signature, either explicit or implicit.
 #[derive(Clone, Debug)]
@@ -53,11 +67,10 @@ pub fn get_parameters(
 	for input in &sig.inputs {
 		match input {
 			syn::FnArg::Receiver(_) => continue, // Skip self
-			syn::FnArg::Typed(pat_type) => {
+			syn::FnArg::Typed(pat_type) =>
 				if !is_phantom_data(&pat_type.ty) {
 					params.push(Parameter::Explicit((*pat_type.pat).clone()));
-				}
-			}
+				},
 		}
 	}
 
@@ -82,7 +95,10 @@ fn get_parameters_from_type(
 	params: &mut Vec<Parameter>,
 	config: &Config,
 ) {
-	let mut visitor = CurriedParametersExtractor { params, config };
+	let mut visitor = CurriedParametersExtractor {
+		params,
+		config,
+	};
 	visitor.visit(ty);
 }
 

@@ -1,13 +1,25 @@
-use super::common::Sum;
-use fp_library::brands::{ArcFnBrand, VecBrand};
-use fp_library::classes::{Foldable, Monoid, ParFoldable, SendCloneableFn};
-use quickcheck_macros::quickcheck;
+use {
+	super::common::Sum,
+	fp_library::{
+		brands::{
+			ArcFnBrand,
+			VecBrand,
+		},
+		classes::{
+			Foldable,
+			Monoid,
+			ParFoldable,
+			SendCloneableFn,
+		},
+	},
+	quickcheck_macros::quickcheck,
+};
 
 /// Verifies that `par_fold_map` correctly sums a large vector (100,000 elements)
 /// without overflow or errors, ensuring basic correctness for large datasets.
 #[test]
 fn test_large_vector_par_fold_map() {
-	let xs: Vec<i32> = (0..100000).collect();
+	let xs: Vec<i32> = (0 .. 100000).collect();
 	let f_par = <ArcFnBrand as SendCloneableFn>::send_cloneable_fn_new(|x: i32| Sum(x as i64));
 	let res = VecBrand::par_fold_map::<ArcFnBrand, _, _>(f_par, xs);
 	assert_eq!(res, Sum(4999950000));
@@ -21,7 +33,7 @@ fn prop_par_fold_map_equals_fold_map(xs: Vec<i32>) -> bool {
 	let f_par = <ArcFnBrand as SendCloneableFn>::send_cloneable_fn_new(|x: i32| Sum(x as i64));
 
 	// Foldable::fold_map takes (f, fa)
-	let seq_res = VecBrand::fold_map::<ArcFnBrand, _, _, _>(f_seq, xs.clone());
+	let seq_res = VecBrand::fold_map::<ArcFnBrand, _, _>(f_seq, xs.clone());
 	let par_res = VecBrand::par_fold_map::<ArcFnBrand, _, _>(f_par, xs);
 
 	seq_res == par_res
@@ -40,7 +52,7 @@ fn prop_par_fold_right_equals_fold_right(xs: Vec<i32>) -> bool {
 	});
 	let init = 0;
 
-	let seq_res = VecBrand::fold_right::<ArcFnBrand, _, _, _>(f_seq, init, xs.clone());
+	let seq_res = VecBrand::fold_right::<ArcFnBrand, _, _>(f_seq, init, xs.clone());
 	let par_res = VecBrand::par_fold_right::<ArcFnBrand, _, _>(f_par, init, xs.clone());
 
 	if seq_res != par_res {

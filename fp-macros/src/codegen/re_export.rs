@@ -1,10 +1,29 @@
-use crate::core::constants::{configuration, re_export};
-use proc_macro2::TokenStream;
-use quote::quote;
-use std::{collections::HashMap, fs, path::Path};
-use syn::{
-	parse::{Parse, ParseStream},
-	{Ident, Item, LitStr, Result, Token, Visibility, braced, parse_file},
+use {
+	crate::core::constants::{
+		configuration,
+		re_export,
+	},
+	proc_macro2::TokenStream,
+	quote::quote,
+	std::{
+		collections::HashMap,
+		fs,
+		path::Path,
+	},
+	syn::{
+		Ident,
+		Item,
+		LitStr,
+		Result,
+		Token,
+		Visibility,
+		braced,
+		parse::{
+			Parse,
+			ParseStream,
+		},
+		parse_file,
+	},
 };
 
 /// Trait for formatting re-exports based on item type.
@@ -141,7 +160,10 @@ impl Parse for ReExportInput {
 			}
 		}
 
-		Ok(ReExportInput { path, aliases })
+		Ok(ReExportInput {
+			path,
+			aliases,
+		})
 	}
 }
 
@@ -173,8 +195,7 @@ fn collect_items<V, F>(
 ) -> Vec<String>
 where
 	V: FnMut(&Item) -> bool,
-	F: FnMut(&Item) -> Option<String>,
-{
+	F: FnMut(&Item) -> Option<String>, {
 	if let Some(module_name) = reexport_module {
 		// Collect items from the re-exported nested module
 		file.items
@@ -232,8 +253,7 @@ fn collect_public_items<F>(
 	item_filter: F,
 ) -> Vec<String>
 where
-	F: FnMut(&Item) -> Option<String>,
-{
+	F: FnMut(&Item) -> Option<String>, {
 	collect_items(file, reexport_module, is_public_item, item_filter)
 }
 
@@ -242,6 +262,8 @@ fn scan_directory_and_collect(
 	input: &ReExportInput,
 	formatter: &dyn ReExportFormatter,
 ) -> Vec<TokenStream> {
+	// SAFETY: CARGO_MANIFEST_DIR is always set by Cargo during compilation
+	#[allow(clippy::expect_used)]
 	let manifest_dir =
 		std::env::var(configuration::CARGO_MANIFEST_DIR).expect("CARGO_MANIFEST_DIR not set");
 	let base_path = Path::new(&manifest_dir).join(input.path.value());
@@ -340,5 +362,8 @@ fn parse_base_path_from_input(input: &ReExportInput) -> syn::Path {
 		});
 	}
 
-	syn::Path { leading_colon: None, segments }
+	syn::Path {
+		leading_colon: None,
+		segments,
+	}
 }

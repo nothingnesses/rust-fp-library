@@ -5,7 +5,10 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let ptr = pointer_new::<RcBrand, _>(42);
 //! assert_eq!(*ptr, 42);
@@ -13,119 +16,158 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		brands::RcBrand,
-		classes::{Pointer, RefCountedPointer, UnsizedCoercible},
+	use {
+		crate::{
+			brands::RcBrand,
+			classes::{
+				Pointer,
+				RefCountedPointer,
+				UnsizedCoercible,
+			},
+		},
+		fp_macros::*,
+		std::{
+			cell::RefCell,
+			rc::Rc,
+		},
 	};
-	use fp_macros::document_parameters;
-	use std::rc::Rc;
 
 	impl Pointer for RcBrand {
-		type Of<T: ?Sized> = Rc<T>;
+		type Of<'a, T: ?Sized + 'a> = Rc<T>;
 
 		/// Wraps a sized value in an `Rc`.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters("The type of the value to wrap.")]
-		///
-		/// ### Parameters
+		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
+		#[document_returns("The value wrapped in an `Rc`.")]
 		///
-		/// The value wrapped in an `Rc`.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let ptr = pointer_new::<RcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
 		/// ```
-		fn new<T>(value: T) -> Rc<T> {
+		fn new<'a, T: 'a>(value: T) -> Rc<T> {
 			Rc::new(value)
 		}
 	}
 
 	impl RefCountedPointer for RcBrand {
-		type CloneableOf<T: ?Sized> = Rc<T>;
+		type CloneableOf<'a, T: ?Sized + 'a> = Rc<T>;
+		type TakeCellOf<'a, T: 'a> = Rc<RefCell<Option<T>>>;
 
 		/// Wraps a sized value in an `Rc`.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters("The type of the value to wrap.")]
-		///
-		/// ### Parameters
+		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
+		#[document_returns("The value wrapped in an `Rc`.")]
 		///
-		/// The value wrapped in an `Rc`.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
 		/// ```
-		fn cloneable_new<T>(value: T) -> Rc<T> {
+		fn cloneable_new<'a, T: 'a>(value: T) -> Rc<T> {
 			Rc::new(value)
 		}
 
 		/// Attempts to unwrap the inner value if this is the sole reference.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters("The type of the wrapped value.")]
-		///
-		/// ### Parameters
+		#[document_type_parameters(
+			"The lifetime of the wrapped value.",
+			"The type of the wrapped value."
+		)]
 		///
 		#[document_parameters("The pointer to attempt to unwrap.")]
 		///
-		/// ### Returns
+		#[document_returns("`Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.")]
 		///
-		/// `Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
 		/// assert_eq!(try_unwrap::<RcBrand, _>(ptr), Ok(42));
 		/// ```
-		fn try_unwrap<T>(ptr: Rc<T>) -> Result<T, Rc<T>> {
+		fn try_unwrap<'a, T: 'a>(ptr: Rc<T>) -> Result<T, Rc<T>> {
 			Rc::try_unwrap(ptr)
+		}
+
+		/// Creates a new take-cell containing the given value.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type of the value to store.")]
+		///
+		#[document_parameters("The value to store in the cell.")]
+		///
+		#[document_returns("A new `Rc<RefCell<Option<T>>>` containing the value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// };
+		///
+		/// let cell = RcBrand::take_cell_new(42);
+		/// assert_eq!(RcBrand::take_cell_take(&cell), Some(42));
+		/// ```
+		fn take_cell_new<'a, T: 'a>(value: T) -> Rc<RefCell<Option<T>>> {
+			Rc::new(RefCell::new(Some(value)))
+		}
+
+		/// Takes the value out of the cell, leaving `None` behind.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type of the stored value.")]
+		///
+		#[document_parameters("The cell to take the value from.")]
+		///
+		#[document_returns("`Some(value)` if the cell still contains a value, `None` otherwise.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// };
+		///
+		/// let cell = RcBrand::take_cell_new(42);
+		/// assert_eq!(RcBrand::take_cell_take(&cell), Some(42));
+		/// assert_eq!(RcBrand::take_cell_take(&cell), None);
+		/// ```
+		fn take_cell_take<'a, T: 'a>(cell: &Rc<RefCell<Option<T>>>) -> Option<T> {
+			cell.borrow_mut().take()
 		}
 	}
 
 	impl UnsizedCoercible for RcBrand {
 		/// Coerces a sized closure to a `dyn Fn` wrapped in an `Rc`.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the closure.",
@@ -133,23 +175,22 @@ mod inner {
 			"The output type of the function."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The closure to coerce.")]
 		///
-		/// ### Returns
+		#[document_returns("The closure wrapped in an `Rc` as a trait object.")]
 		///
-		/// The closure wrapped in an `Rc` as a trait object.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
-		/// let f = coerce_fn::<RcBrand, _, _, _>(|x: i32| x + 1);
+		/// let f = coerce_fn::<RcBrand, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
-		fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Rc<dyn 'a + Fn(A) -> B> {
+		fn coerce_fn<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Rc<dyn 'a + Fn(A) -> B> {
 			Rc::new(f)
 		}
 	}
@@ -158,8 +199,14 @@ mod inner {
 #[cfg(test)]
 mod tests {
 
-	use crate::brands::RcBrand;
-	use crate::classes::{RefCountedPointer, pointer::new, ref_counted_pointer::cloneable_new};
+	use crate::{
+		brands::RcBrand,
+		classes::{
+			RefCountedPointer,
+			pointer::new,
+			ref_counted_pointer::cloneable_new,
+		},
+	};
 
 	/// Tests that `pointer_new` correctly creates an `Rc` wrapping the value.
 	#[test]

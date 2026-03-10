@@ -11,31 +11,49 @@
 //! assert_eq!(z, "Hello, World!".to_string());
 //! ```
 
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
-/// A type class for types that support an associative binary operation.
-///
-/// `Semigroup` instances must satisfy the associative law:
-/// * Associativity: `append(a, append(b, c)) = append(append(a, b), c)`.
-pub trait Semigroup {
+#[fp_macros::document_module]
+mod inner {
+	use fp_macros::*;
+	/// A type class for types that support an associative binary operation.
+	///
+	/// `Semigroup` instances must satisfy the associative law:
+	/// * Associativity: `append(a, append(b, c)) = append(append(a, b), c)`.
+	pub trait Semigroup {
+		/// The result of combining the two values using the semigroup operation.
+		///
+		/// This method combines two values of the same type into a single value of that type.
+		#[document_signature]
+		///
+		#[document_parameters("The first value.", "The second value.")]
+		///
+		#[document_returns("The combined value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::functions::*;
+		///
+		/// let x = "Hello, ".to_string();
+		/// let y = "World!".to_string();
+		/// let z = append::<_>(x, y);
+		/// assert_eq!(z, "Hello, World!".to_string());
+		/// ```
+		fn append(
+			a: Self,
+			b: Self,
+		) -> Self;
+	}
+
 	/// The result of combining the two values using the semigroup operation.
 	///
-	/// This method combines two values of the same type into a single value of that type.
-	///
-	/// ### Type Signature
-	///
+	/// Free function version that dispatches to [the type class' associated function][`Semigroup::append`].
 	#[document_signature]
 	///
-	/// ### Parameters
+	#[document_type_parameters("The type of the semigroup.")]
 	///
 	#[document_parameters("The first value.", "The second value.")]
 	///
-	/// ### Returns
-	///
-	/// The combined value.
-	///
-	/// ### Examples
+	#[document_returns("The combined value.")]
+	#[document_examples]
 	///
 	/// ```
 	/// use fp_library::functions::*;
@@ -45,45 +63,12 @@ pub trait Semigroup {
 	/// let z = append::<_>(x, y);
 	/// assert_eq!(z, "Hello, World!".to_string());
 	/// ```
-	fn append(
-		a: Self,
-		b: Self,
-	) -> Self;
+	pub fn append<S: Semigroup>(
+		a: S,
+		b: S,
+	) -> S {
+		S::append(a, b)
+	}
 }
 
-/// The result of combining the two values using the semigroup operation.
-///
-/// Free function version that dispatches to [the type class' associated function][`Semigroup::append`].
-///
-/// ### Type Signature
-///
-#[document_signature]
-///
-/// ### Type Parameters
-///
-#[document_type_parameters("The type of the semigroup.")]
-///
-/// ### Parameters
-///
-#[document_parameters("The first value.", "The second value.")]
-///
-/// ### Returns
-///
-/// The combined value.
-///
-/// ### Examples
-///
-/// ```
-/// use fp_library::functions::*;
-///
-/// let x = "Hello, ".to_string();
-/// let y = "World!".to_string();
-/// let z = append::<_>(x, y);
-/// assert_eq!(z, "Hello, World!".to_string());
-/// ```
-pub fn append<S: Semigroup>(
-	a: S,
-	b: S,
-) -> S {
-	S::append(a, b)
-}
+pub use inner::*;

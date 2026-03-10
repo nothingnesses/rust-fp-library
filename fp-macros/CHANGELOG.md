@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.4.1] - 2026-03-10
+
+### Added
+- `#[document_returns]` attribute macro for generating "Returns" documentation sections.
+- `#[document_examples]` attribute macro for inserting "Examples" headings and validating that doc comment code blocks contain assertion macros.
+- Impl trait lint in `#[document_module]`: detects named generic type parameters that could use `impl Trait` syntax, emitting compile-time warnings. Suppressible with `#[allow_named_generics]`.
+- Trait definition support in `#[document_module]` and `#[document_parameters]`, enabling validation and documentation generation for trait methods alongside impl blocks.
+
+### Changed
+- `#[document_module]` validation now emits compile-time warnings (via `proc-macro-warning`) instead of hard compile errors, allowing builds to succeed while flagging documentation issues.
+- Internal refactoring: extracted constants to dedicated module, generalized method utilities for shared trait/impl processing, adopted `strip_prefix` over manual string slicing.
+
 ## [0.4.0] - 2026-02-13
 
 ### Added

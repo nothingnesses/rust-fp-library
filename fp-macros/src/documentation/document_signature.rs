@@ -1,19 +1,43 @@
-use crate::{
-	analysis::{TraitCategory, analyze_generics, classify_trait, format_brand_name},
-	core::{
-		config::{Config, get_config},
-		constants::attributes::DOCUMENT_SIGNATURE,
-		{Error, Result},
+use {
+	crate::{
+		analysis::{
+			TraitCategory,
+			analyze_generics,
+			classify_trait,
+			format_brand_name,
+		},
+		core::{
+			Error,
+			Result,
+			config::{
+				Config,
+				get_config,
+			},
+			constants::attributes::DOCUMENT_SIGNATURE,
+		},
+		hm::{
+			HmAst,
+			type_to_hm,
+		},
+		support::{
+			ast::RustAst,
+			generate_documentation::insert_doc_comment,
+			is_phantom_data,
+			parsing::parse_empty_attributes,
+		},
 	},
-	hm::{HmAst, type_to_hm},
-	support::{
-		ast::RustAst, generate_documentation::insert_doc_comment, is_phantom_data,
-		parsing::parse_empty_attributes,
+	proc_macro2::TokenStream,
+	std::collections::{
+		HashMap,
+		HashSet,
+	},
+	syn::{
+		GenericParam,
+		ReturnType,
+		TypeParamBound,
+		WherePredicate,
 	},
 };
-use proc_macro2::TokenStream;
-use std::collections::{HashMap, HashSet};
-use syn::{GenericParam, ReturnType, TypeParamBound, WherePredicate};
 
 pub fn document_signature_worker(
 	attr: TokenStream,
@@ -40,6 +64,14 @@ pub fn document_signature_worker(
 	let signature = generate_signature(sig, &cfg);
 	let doc_comment = format!("`{signature}`");
 
+	// Insert header
+	insert_doc_comment(
+		item.attributes(),
+		r#"### Type Signature
+"#
+		.to_string(),
+		proc_macro2::Span::call_site(),
+	);
 	// Insert the documentation comment
 	insert_doc_comment(item.attributes(), doc_comment, proc_macro2::Span::call_site());
 
@@ -68,6 +100,8 @@ impl std::fmt::Display for SignatureData {
 
 		if !self.constraints.is_empty() {
 			let s = if self.constraints.len() == 1 {
+				// SAFETY: constraints checked non-empty above
+				#[allow(clippy::indexing_slicing)]
 				self.constraints[0].clone()
 			} else {
 				format!("({})", self.constraints.join(", "))
@@ -80,6 +114,8 @@ impl std::fmt::Display for SignatureData {
 			func_type.to_string()
 		} else {
 			let input_type = if self.params.len() == 1 {
+				// SAFETY: params.len() == 1 checked above
+				#[allow(clippy::indexing_slicing)]
 				self.params[0].clone()
 			} else {
 				HmAst::Tuple(self.params.clone())
@@ -94,8 +130,6 @@ impl std::fmt::Display for SignatureData {
 }
 
 /// Generates a Hindley-Milner type signature from a Rust function signature.
-///
-/// ### Parameters
 ///
 /// * `sig` - The Rust function signature to convert
 /// * `config` - Configuration for type resolution and formatting
@@ -125,7 +159,12 @@ pub fn generate_signature(
 	// through the regular generic parameter collection. Trait constraints are also
 	// handled through the normal constraint collection process.
 
-	SignatureData { forall, constraints, params, return_type: ret }
+	SignatureData {
+		forall,
+		constraints,
+		params,
+		return_type: ret,
+	}
 }
 
 fn format_generics(
@@ -188,14 +227,13 @@ fn format_trait_bound(
 
 	match classify_trait(&trait_name, config) {
 		TraitCategory::FnTrait | TraitCategory::FnBrand => None,
-		TraitCategory::Other(name) => {
+		TraitCategory::Other(name) =>
 			if config.ignored_traits().contains(&name) {
 				None
 			} else {
 				let name = format_brand_name(&name, config);
 				Some(format!("{name} {type_var}"))
-			}
-		}
+			},
 		_ => None,
 	}
 }
@@ -221,11 +259,10 @@ fn format_parameters(
 					params.push(self_ty);
 				}
 			}
-			syn::FnArg::Typed(pat_type) => {
+			syn::FnArg::Typed(pat_type) =>
 				if !is_phantom_data(&pat_type.ty) {
 					params.push(type_to_hm(&pat_type.ty, fn_bounds, generic_names, config));
-				}
-			}
+				},
 		}
 	}
 	params
@@ -245,9 +282,14 @@ fn format_return_type(
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use crate::support::generate_documentation::get_doc;
-	use syn::{ItemFn, parse_quote};
+	use {
+		super::*,
+		crate::support::generate_documentation::get_doc,
+		syn::{
+			ItemFn,
+			parse_quote,
+		},
+	};
 
 	#[test]
 	fn test_simple_signature() {

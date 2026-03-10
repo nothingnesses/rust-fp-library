@@ -210,16 +210,30 @@
 //! 3. **Separation of Concerns**: Simple extraction (type params, all params) doesn't need
 //!    external context, while semantic analysis (bounds) does.
 
-use crate::{analysis::traits::get_fn_type_from_bound, core::config::Config, hm::HmAst};
-use std::collections::{HashMap, HashSet};
-use syn::{GenericParam, Generics, Signature, Type, TypeParamBound, WherePredicate};
+use {
+	crate::{
+		analysis::traits::get_fn_type_from_bound,
+		core::config::Config,
+		hm::HmAst,
+	},
+	std::collections::{
+		HashMap,
+		HashSet,
+	},
+	syn::{
+		GenericParam,
+		Generics,
+		Signature,
+		Type,
+		TypeParamBound,
+		WherePredicate,
+	},
+};
 
 /// Extracts only type parameter names.
 ///
 /// This returns type parameters like `T`, `U`, filtering out lifetimes
 /// and const parameters.
-///
-/// ### Parameters
 ///
 /// * `generics` - The generics to extract type parameters from
 ///
@@ -245,8 +259,6 @@ pub fn get_type_parameters(generics: &Generics) -> Vec<String> {
 ///
 /// This returns all parameters including lifetimes, type parameters,
 /// and const parameters.
-///
-/// ### Parameters
 ///
 /// * `generics` - The generics to extract parameters from
 ///
@@ -274,8 +286,6 @@ pub fn get_all_parameters(generics: &Generics) -> Vec<String> {
 /// This is a convenience function for when you need to perform membership
 /// checks to determine if an identifier is a type variable.
 ///
-/// ### Parameters
-///
 /// * `generics` - The generics to extract type parameters from
 ///
 /// ### Returns
@@ -300,8 +310,6 @@ pub fn type_parameters_to_set(generics: &Generics) -> HashSet<String> {
 /// This function extracts function signatures from trait bounds like
 /// `F: Fn(A) -> B`, returning a map from type parameter names to
 /// their HM type representations.
-///
-/// ### Parameters
 ///
 /// * `sig` - The function signature containing the generics and where clause
 /// * `config` - Configuration for type conversion
@@ -358,6 +366,8 @@ pub fn analyze_fn_bounds(
 				&& let Type::Path(type_path) = &predicate_type.bounded_ty
 				&& type_path.path.segments.len() == 1
 			{
+				// SAFETY: segments.len() == 1 checked above
+				#[allow(clippy::indexing_slicing)]
 				let name = type_path.path.segments[0].ident.to_string();
 				for bound in &predicate_type.bounds {
 					if let TypeParamBound::Trait(trait_bound) = bound

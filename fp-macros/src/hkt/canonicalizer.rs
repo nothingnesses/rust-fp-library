@@ -11,16 +11,32 @@
 //! - Recursively canonicalizing nested types and generic arguments.
 //! - Generating unique, deterministic identifiers for `Kind` traits.
 
-use crate::{
-	AssociatedTypes,
-	core::error_handling::{Error, UnsupportedFeature},
-	support::type_visitor::TypeVisitor,
-};
-use quote::{format_ident, quote};
-use std::collections::BTreeMap;
-use syn::{
-	GenericArgument, GenericParam, Generics, Ident, PathArguments, ReturnType, Token, Type,
-	TypeParamBound, punctuated::Punctuated,
+use {
+	crate::{
+		AssociatedTypes,
+		core::error_handling::{
+			Error,
+			UnsupportedFeature,
+		},
+		support::type_visitor::TypeVisitor,
+	},
+	quote::{
+		format_ident,
+		quote,
+	},
+	std::collections::BTreeMap,
+	syn::{
+		GenericArgument,
+		GenericParam,
+		Generics,
+		Ident,
+		PathArguments,
+		ReturnType,
+		Token,
+		Type,
+		TypeParamBound,
+		punctuated::Punctuated,
+	},
 };
 
 /// Result type for canonicalization operations
@@ -67,7 +83,10 @@ impl Canonicalizer {
 			}
 		}
 
-		Self { lifetime_map, type_map }
+		Self {
+			lifetime_map,
+			type_map,
+		}
 	}
 
 	/// Canonicalizes a single type bound.
@@ -121,11 +140,10 @@ impl Canonicalizer {
 				let path = path_parts.join("::");
 				Ok(format!("t{path}"))
 			}
-			TypeParamBound::Verbatim(_tokens) => {
+			TypeParamBound::Verbatim(_tokens) =>
 				Err(Error::Unsupported(UnsupportedFeature::VerbatimBounds {
 					span: proc_macro2::Span::call_site(),
-				}))
-			}
+				})),
 			_ => Err(Error::Unsupported(UnsupportedFeature::BoundType {
 				description: "Unknown bound type variant".to_string(),
 				span: proc_macro2::Span::call_site(),
@@ -159,16 +177,14 @@ impl Canonicalizer {
 					Ok(lt.ident.to_string())
 				}
 			}
-			GenericArgument::AssocType(assoc) => {
-				Ok(format!("{}={}", assoc.ident, self.canonicalize_type(&assoc.ty)?))
-			}
+			GenericArgument::AssocType(assoc) =>
+				Ok(format!("{}={}", assoc.ident, self.canonicalize_type(&assoc.ty)?)),
 			GenericArgument::Const(expr) => Ok(quote!(#expr).to_string().replace(" ", "")),
-			GenericArgument::AssocConst(_) | GenericArgument::Constraint(_) => {
+			GenericArgument::AssocConst(_) | GenericArgument::Constraint(_) =>
 				Err(Error::Unsupported(UnsupportedFeature::GenericArgument {
 					description: "Associated const or constraint".to_string(),
 					span: proc_macro2::Span::call_site(),
-				}))
-			}
+				})),
 			_ => Err(Error::Unsupported(UnsupportedFeature::GenericArgument {
 				description: "Unknown generic argument variant".to_string(),
 				span: proc_macro2::Span::call_site(),
@@ -280,12 +296,11 @@ impl TypeVisitor for Canonicalizer {
 		match ty {
 			Type::Never(_) => Ok("!".to_string()),
 			Type::Infer(_) => Ok("_".to_string()),
-			Type::BareFn(_) | Type::ImplTrait(_) | Type::TraitObject(_) => {
+			Type::BareFn(_) | Type::ImplTrait(_) | Type::TraitObject(_) =>
 				Err(Error::Unsupported(UnsupportedFeature::ComplexTypes {
 					description: format!("Type {} in canonicalization", quote!(#ty)),
 					span: proc_macro2::Span::call_site(),
-				}))
-			}
+				})),
 			_ => self.default_output(),
 		}
 	}
@@ -384,7 +399,7 @@ pub fn hash_assoc_signature(signature: &crate::hkt::AssociatedTypeBase) -> Resul
 pub fn generate_name(input: &AssociatedTypes) -> Result<Ident> {
 	let mut assoc_types: Vec<_> = input.associated_types.iter().collect();
 	// Sort by identifier to ensure order-independence
-	assoc_types.sort_by(|a, b| a.signature.name.to_string().cmp(&b.signature.name.to_string()));
+	assoc_types.sort_by_key(|a| a.signature.name.to_string());
 
 	let mut canonical_parts = Vec::new();
 
@@ -401,8 +416,10 @@ pub fn generate_name(input: &AssociatedTypes) -> Result<Ident> {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use syn::parse_quote;
+	use {
+		super::*,
+		syn::parse_quote,
+	};
 
 	// ===========================================================================
 	// Canonicalizer - Basic Bound Tests

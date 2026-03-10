@@ -4,18 +4,37 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		brands::OptionBrand,
-		classes::{
-			Applicative, ApplyFirst, ApplySecond, CloneableFn, Compactable, Filterable, Foldable,
-			Functor, Lift, Monoid, ParFoldable, Pointed, Semiapplicative, Semimonad,
-			SendCloneableFn, Traversable, Witherable,
+	use {
+		crate::{
+			Apply,
+			brands::OptionBrand,
+			classes::{
+				Applicative,
+				ApplyFirst,
+				ApplySecond,
+				CloneableFn,
+				Compactable,
+				Filterable,
+				Foldable,
+				Functor,
+				Lift,
+				Monoid,
+				ParFoldable,
+				Pointed,
+				Semiapplicative,
+				Semimonad,
+				SendCloneableFn,
+				Traversable,
+				Witherable,
+				foldable_with_index::FoldableWithIndex,
+				functor_with_index::FunctorWithIndex,
+				traversable_with_index::TraversableWithIndex,
+			},
+			impl_kind,
+			kinds::*,
 		},
-		impl_kind,
-		kinds::*,
+		fp_macros::*,
 	};
-	use fp_macros::document_parameters;
 
 	impl_kind! {
 		for OptionBrand {
@@ -27,44 +46,36 @@ mod inner {
 		/// Maps a function over the value in the option.
 		///
 		/// This method applies a function to the value inside the option, producing a new option with the transformed value. If the option is `None`, it returns `None`.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the value.",
 			"The type of the value inside the option.",
-			"The type of the result of applying the function.",
-			"The type of the function to apply."
+			"The type of the result of applying the function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to the value.", "The option to map over.")]
 		///
-		/// ### Returns
+		#[document_returns(
+			"A new option containing the result of applying the function, or `None`."
+		)]
 		///
-		/// A new option containing the result of applying the function, or `None`.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
-		/// let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
+		/// let y = map::<OptionBrand, _, _>(|i| i * 2, x);
 		/// assert_eq!(y, Some(10));
 		/// ```
-		fn map<'a, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn map<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> B + 'a,
-		{
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.map(func)
 		}
 	}
@@ -73,22 +84,14 @@ mod inner {
 		/// Lifts a binary function into the option context.
 		///
 		/// This method lifts a binary function to operate on values within the option context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the first option's value.",
 			"The type of the second option's value.",
-			"The return type of the function.",
-			"The type of the binary function."
+			"The return type of the function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply.",
@@ -96,31 +99,29 @@ mod inner {
 			"The second option."
 		)]
 		///
-		/// ### Returns
-		///
-		/// `Some(f(a, b))` if both options are `Some`, otherwise `None`.
-		///
-		/// ### Examples
+		#[document_returns("`Some(f(a, b))` if both options are `Some`, otherwise `None`.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(1);
 		/// let y = Some(2);
-		/// let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
+		/// let z = lift2::<OptionBrand, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, Some(3));
 		/// ```
-		fn lift2<'a, A, B, C, Func>(
-			func: Func,
+		fn lift2<'a, A, B, C>(
+			func: impl Fn(A, B) -> C + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 		where
-			Func: Fn(A, B) -> C + 'a,
 			A: 'a,
 			B: 'a,
-			C: 'a,
-		{
+			C: 'a, {
 			fa.zip(fb).map(|(a, b)| func(a, b))
 		}
 	}
@@ -129,28 +130,21 @@ mod inner {
 		/// Wraps a value in an option.
 		///
 		/// This method wraps a value in an option context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
+		#[document_returns("`Some(a)`.")]
 		///
-		/// `Some(a)`.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::OptionBrand;
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = pure::<OptionBrand, _>(5);
 		/// assert_eq!(x, Some(5));
@@ -167,12 +161,7 @@ mod inner {
 		/// Applies a wrapped function to a wrapped value.
 		///
 		/// This method applies a function wrapped in an option to a value wrapped in an option.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -181,21 +170,20 @@ mod inner {
 			"The type of the output value."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters(
 			"The option containing the function.",
 			"The option containing the value."
 		)]
 		///
-		/// ### Returns
-		///
-		/// `Some(f(a))` if both are `Some`, otherwise `None`.
-		///
-		/// ### Examples
+		#[document_returns("`Some(f(a))` if both are `Some`, otherwise `None`.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let x = Some(5);
@@ -217,48 +205,38 @@ mod inner {
 		/// Chains option computations.
 		///
 		/// This method chains two option computations, where the second computation depends on the result of the first.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the result of the first computation.",
-			"The type of the result of the second computation.",
-			"The type of the function to apply."
+			"The type of the result of the second computation."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The first option.",
 			"The function to apply to the value inside the option."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The result of applying `f` to the value if `ma` is `Some`, otherwise `None`.
-		///
-		/// ### Examples
+		#[document_returns(
+			"The result of applying `f` to the value if `ma` is `Some`, otherwise `None`."
+		)]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::OptionBrand;
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
-		/// let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
+		/// let y = bind::<OptionBrand, _, _>(x, |i| Some(i * 2));
 		/// assert_eq!(y, Some(10));
 		/// ```
-		fn bind<'a, A: 'a, B: 'a, Func>(
+		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			func: Func,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-		{
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			ma.and_then(func)
 		}
 	}
@@ -267,47 +245,38 @@ mod inner {
 		/// Folds the option from the right.
 		///
 		/// This method performs a right-associative fold of the option. If the option is `Some(a)`, it applies the function to `a` and the initial value. If `None`, it returns the initial value.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The option to fold.")]
 		///
-		/// ### Returns
+		#[document_returns("`func(a, initial)` if `fa` is `Some(a)`, otherwise `initial`.")]
 		///
-		/// `func(a, initial)` if `fa` is `Some(a)`, otherwise `initial`.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_right::<RcFnBrand, OptionBrand, _, _, _>(|a, b| a + b, 10, x);
+		/// let y = fold_right::<RcFnBrand, OptionBrand, _, _>(|a, b| a + b, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
-		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(A, B) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			match fa {
 				Some(a) => func(a, initial),
 				None => initial,
@@ -317,22 +286,14 @@ mod inner {
 		/// Folds the option from the left.
 		///
 		/// This method performs a left-associative fold of the option. If the option is `Some(a)`, it applies the function to the initial value and `a`. If `None`, it returns the initial value.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the accumulator and each element.",
@@ -340,28 +301,26 @@ mod inner {
 			"The option to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// `f(initial, a)` if `fa` is `Some(a)`, otherwise `initial`.
-		///
-		/// ### Examples
+		#[document_returns("`f(initial, a)` if `fa` is `Some(a)`, otherwise `initial`.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_left::<RcFnBrand, OptionBrand, _, _, _>(|b, a| b + a, 10, x);
+		/// let y = fold_left::<RcFnBrand, OptionBrand, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
-		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(B, A) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			match fa {
 				Some(a) => func(initial, a),
 				None => initial,
@@ -371,47 +330,38 @@ mod inner {
 		/// Maps the value to a monoid and returns it, or returns empty.
 		///
 		/// This method maps the element of the option to a monoid. If the option is `None`, it returns the monoid's identity element.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the monoid.",
-			"The type of the mapping function."
+			"The type of the monoid."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The option to fold.")]
 		///
-		/// ### Returns
+		#[document_returns("`func(a)` if `fa` is `Some(a)`, otherwise `M::empty()`.")]
 		///
-		/// `func(a)` if `fa` is `Some(a)`, otherwise `M::empty()`.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_map::<RcFnBrand, OptionBrand, _, _, _>(|a: i32| a.to_string(), x);
+		/// let y = fold_map::<RcFnBrand, OptionBrand, _, _>(|a: i32| a.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
-			func: Func,
+		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(A) -> M + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			M: Monoid + 'a,
-			Func: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			match fa {
 				Some(a) => func(a),
 				None => M::empty(),
@@ -423,64 +373,49 @@ mod inner {
 		/// Traverses the option with an applicative function.
 		///
 		/// This method maps the element of the option to a computation, evaluates it, and wraps the result in the applicative context. If `None`, it returns `pure(None)`.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The type of the elements in the resulting traversable structure.",
-			"The applicative context.",
-			"The type of the function to apply."
+			"The applicative context."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning a value in an applicative context.",
 			"The option to traverse."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The option wrapped in the applicative context.
-		///
-		/// ### Examples
+		#[document_returns("The option wrapped in the applicative context.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::OptionBrand;
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
-		/// let y = traverse::<OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
+		/// let y = traverse::<OptionBrand, _, _, OptionBrand>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some(Some(10)));
 		/// ```
-		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
-			func: Func,
+		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
-			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-		{
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			match ta {
 				Some(a) => F::map(|b| Some(b), func(a)),
 				None => F::pure(None),
 			}
 		}
+
 		/// Sequences an option of applicative.
 		///
 		/// This method evaluates the computation inside the option and wraps the result in the applicative context. If `None`, it returns `pure(None)`.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -488,19 +423,20 @@ mod inner {
 			"The applicative context."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The option containing the applicative value.")]
+		///
+		#[document_returns("The result of the traversal.")]
 		///
 		/// # Returns
 		///
 		/// The option wrapped in the applicative context.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::OptionBrand;
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(Some(5));
 		/// let y = sequence::<OptionBrand, _, OptionBrand>(x);
@@ -511,11 +447,122 @@ mod inner {
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-		{
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 			match ta {
 				Some(fa) => F::map(|a| Some(a), fa),
 				None => F::pure(None),
+			}
+		}
+	}
+
+	impl FunctorWithIndex<()> for OptionBrand {
+		/// Maps a function over the value in the option, providing the index `()`.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type of the value inside the option.",
+			"The type of the result of applying the function."
+		)]
+		#[document_parameters(
+			"The function to apply to the value and its index.",
+			"The option to map over."
+		)]
+		#[document_returns(
+			"A new option containing the result of applying the function, or `None`."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	classes::functor_with_index::FunctorWithIndex,
+		/// 	functions::*,
+		/// };
+		/// let x = Some(5);
+		/// let y = <OptionBrand as FunctorWithIndex<()>>::map_with_index(|_, i| i * 2, x);
+		/// assert_eq!(y, Some(10));
+		/// ```
+		fn map_with_index<'a, A: 'a, B: 'a>(
+			f: impl Fn((), A) -> B + 'a,
+			fa: Option<A>,
+		) -> Option<B> {
+			fa.map(|a| f((), a))
+		}
+	}
+
+	impl FoldableWithIndex<()> for OptionBrand {
+		/// Folds the option using a monoid, providing the index `()`.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type of the value inside the option.",
+			"The monoid type."
+		)]
+		#[document_parameters(
+			"The function to apply to the value and its index.",
+			"The option to fold."
+		)]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	classes::foldable_with_index::FoldableWithIndex,
+		/// 	functions::*,
+		/// };
+		/// let x = Some(5);
+		/// let y =
+		/// 	<OptionBrand as FoldableWithIndex<()>>::fold_map_with_index(|_, i: i32| i.to_string(), x);
+		/// assert_eq!(y, "5".to_string());
+		/// ```
+		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
+			f: impl Fn((), A) -> R + 'a,
+			fa: Option<A>,
+		) -> R {
+			match fa {
+				Some(a) => f((), a),
+				None => R::empty(),
+			}
+		}
+	}
+
+	impl TraversableWithIndex<()> for OptionBrand {
+		/// Traverses the option with an applicative function, providing the index `()`.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type of the value inside the option.",
+			"The type of the result.",
+			"The applicative context."
+		)]
+		#[document_parameters(
+			"The function to apply to the value and its index, returning a value in an applicative context.",
+			"The option to traverse."
+		)]
+		#[document_returns("The option wrapped in the applicative context.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	classes::traversable_with_index::TraversableWithIndex,
+		/// 	functions::*,
+		/// };
+		/// let x = Some(5);
+		/// let y = <OptionBrand as TraversableWithIndex<()>>::traverse_with_index::<i32, i32, OptionBrand>(
+		/// 	|_, i| Some(i * 2),
+		/// 	x,
+		/// );
+		/// assert_eq!(y, Some(Some(10)));
+		/// ```
+		fn traverse_with_index<'a, A: 'a, B: 'a + Clone, M: Applicative>(
+			f: impl Fn((), A) -> M::Of<'a, B> + 'a,
+			ta: Option<A>,
+		) -> M::Of<'a, Option<B>> {
+			match ta {
+				Some(a) => M::map(|b| Some(b), f((), a)),
+				None => M::pure(None),
 			}
 		}
 	}
@@ -524,12 +571,7 @@ mod inner {
 		/// Maps the value to a monoid and returns it, or returns empty, in parallel.
 		///
 		/// This method maps the element of the option to a monoid. Since `Option` contains at most one element, no actual parallelism occurs, but the interface is satisfied.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -538,18 +580,17 @@ mod inner {
 			"The monoid type."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The mapping function.", "The option to fold.")]
 		///
-		/// ### Returns
+		#[document_returns("The combined monoid value.")]
 		///
-		/// The combined monoid value.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(1);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -563,8 +604,7 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a,
-		{
+			M: Monoid + Send + Sync + 'a, {
 			match fa {
 				Some(a) => func(a),
 				None => M::empty(),
@@ -576,28 +616,21 @@ mod inner {
 		/// Compacts a nested option.
 		///
 		/// This method flattens a nested option.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters("The lifetime of the values.", "The type of the elements.")]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The nested option.")]
 		///
-		/// ### Returns
+		#[document_returns("The flattened option.")]
 		///
-		/// The flattened option.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::OptionBrand;
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(Some(5));
 		/// let y = compact::<OptionBrand, _>(x);
@@ -615,12 +648,7 @@ mod inner {
 		/// Separates an option of result.
 		///
 		/// This method separates an option of result into a pair of options.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -628,18 +656,17 @@ mod inner {
 			"The type of the success value."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The option of result.")]
 		///
-		/// ### Returns
+		#[document_returns("A pair of options.")]
 		///
-		/// A pair of options.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x: Option<Result<i32, &str>> = Some(Ok(5));
 		/// let (errs, oks) = separate::<OptionBrand, _, _>(x);
@@ -664,49 +691,40 @@ mod inner {
 		/// Partitions an option based on a function that returns a result.
 		///
 		/// This method partitions an option based on a function that returns a result.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the input value.",
 			"The type of the error value.",
-			"The type of the success value.",
-			"The type of the function to apply."
+			"The type of the success value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The option to partition.")]
 		///
-		/// ### Returns
+		#[document_returns("A pair of options.")]
 		///
-		/// A pair of options.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
-		/// let (errs, oks) = partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+		/// let (errs, oks) =
+		/// 	partition_map::<OptionBrand, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
 		/// assert_eq!(oks, Some(5));
 		/// assert_eq!(errs, None);
 		/// ```
-		fn partition_map<'a, A: 'a, E: 'a, O: 'a, Func>(
-			func: Func,
+		fn partition_map<'a, A: 'a, E: 'a, O: 'a>(
+			func: impl Fn(A) -> Result<O, E> + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> (
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
-		)
-		where
-			Func: Fn(A) -> Result<O, E> + 'a,
-		{
+		) {
 			match fa {
 				Some(a) => match func(a) {
 					Ok(o) => (None, Some(o)),
@@ -715,58 +733,45 @@ mod inner {
 				None => (None, None),
 			}
 		}
+
 		/// Partitions an option based on a predicate.
 		///
 		/// This method partitions an option based on a predicate.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters(
-			"The lifetime of the values.",
-			"The type of the elements.",
-			"The type of the predicate."
-		)]
-		///
-		/// ### Parameters
+		#[document_type_parameters("The lifetime of the values.", "The type of the elements.")]
 		///
 		#[document_parameters("The predicate.", "The option to partition.")]
 		///
-		/// ### Returns
+		#[document_returns("A pair of options.")]
 		///
-		/// A pair of options.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
-		/// let (not_satisfied, satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);
+		/// let (not_satisfied, satisfied) = partition::<OptionBrand, _>(|a| a > 2, x);
 		/// assert_eq!(satisfied, Some(5));
 		/// assert_eq!(not_satisfied, None);
 		/// ```
-		fn partition<'a, A: 'a + Clone, Func>(
-			func: Func,
+		fn partition<'a, A: 'a + Clone>(
+			func: impl Fn(A) -> bool + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> (
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		)
-		where
-			Func: Fn(A) -> bool + 'a,
-		{
+		) {
 			match fa {
-				Some(a) => {
+				Some(a) =>
 					if func(a.clone()) {
 						(None, Some(a))
 					} else {
 						(Some(a), None)
-					}
-				}
+					},
 				None => (None, None),
 			}
 		}
@@ -774,89 +779,64 @@ mod inner {
 		/// Maps a function over an option and filters out `None` results.
 		///
 		/// This method maps a function over an option and filters out `None` results.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the input value.",
-			"The type of the result of applying the function.",
-			"The type of the function to apply."
+			"The type of the result of applying the function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The option to filter and map.")]
 		///
-		/// ### Returns
+		#[document_returns("The filtered and mapped option.")]
 		///
-		/// The filtered and mapped option.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::OptionBrand;
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
-		/// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
+		/// let y = filter_map::<OptionBrand, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
 		/// assert_eq!(y, Some(10));
 		/// ```
-		fn filter_map<'a, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn filter_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> Option<B> + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> Option<B> + 'a,
-		{
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.and_then(func)
 		}
 
 		/// Filters an option based on a predicate.
 		///
 		/// This method filters an option based on a predicate.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters(
-			"The lifetime of the values.",
-			"The type of the elements.",
-			"The type of the predicate."
-		)]
-		///
-		/// ### Parameters
+		#[document_type_parameters("The lifetime of the values.", "The type of the elements.")]
 		///
 		#[document_parameters("The predicate.", "The option to filter.")]
 		///
-		/// ### Returns
+		#[document_returns("The filtered option.")]
 		///
-		/// The filtered option.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::OptionBrand;
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
-		/// let y = filter::<OptionBrand, _, _>(|a| a > 2, x);
+		/// let y = filter::<OptionBrand, _>(|a| a > 2, x);
 		/// assert_eq!(y, Some(5));
 		/// ```
-		fn filter<'a, A: 'a + Clone, Func>(
-			func: Func,
+		fn filter<'a, A: 'a + Clone>(
+			func: impl Fn(A) -> bool + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
-		where
-			Func: Fn(A) -> bool + 'a,
-		{
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			fa.filter(|a| func(a.clone()))
 		}
 	}
@@ -865,44 +845,38 @@ mod inner {
 		/// Partitions an option based on a function that returns a result in an applicative context.
 		///
 		/// This method partitions an option based on a function that returns a result in an applicative context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The applicative context.",
 			"The type of the elements in the input structure.",
 			"The type of the error values.",
-			"The type of the success values.",
-			"The type of the function to apply."
+			"The type of the success values."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning a `Result` in an applicative context.",
 			"The option to partition."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The partitioned option wrapped in the applicative context.
-		///
-		/// ### Examples
+		#[document_returns("The partitioned option wrapped in the applicative context.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{functions::*, brands::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
-		/// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
+		/// let y =
+		/// 	wilt::<OptionBrand, OptionBrand, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
 		/// assert_eq!(y, Some((None, Some(5))));
 		/// ```
-		fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
-			func: Func,
+		fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone>(
+			func: impl Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
+			+ 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 		'a,
@@ -912,11 +886,8 @@ mod inner {
 		),
 	>)
 		where
-			Func:
-				Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
-			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
-		{
+			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone, {
 			match ta {
 				Some(a) => M::map(
 					|res| match res {
@@ -932,53 +903,46 @@ mod inner {
 		/// Maps a function over an option and filters out `None` results in an applicative context.
 		///
 		/// This method maps a function over an option and filters out `None` results in an applicative context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The applicative context.",
 			"The type of the elements in the input structure.",
-			"The type of the result of applying the function.",
-			"The type of the function to apply."
+			"The type of the result of applying the function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning an `Option` in an applicative context.",
 			"The option to filter and map."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The filtered and mapped option wrapped in the applicative context.
-		///
-		/// ### Examples
+		#[document_returns("The filtered and mapped option wrapped in the applicative context.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{functions::*, brands::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
-		/// let y = wither::<OptionBrand, OptionBrand, _, _, _>(|a| Some(if a > 2 { Some(a * 2) } else { None }), x);
+		/// let y = wither::<OptionBrand, OptionBrand, _, _>(
+		/// 	|a| Some(if a > 2 { Some(a * 2) } else { None }),
+		/// 	x,
+		/// );
 		/// assert_eq!(y, Some(Some(10)));
 		/// ```
-		fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
-			func: Func,
+		fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone>(
+			func: impl Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 		'a,
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	>)
 		where
-			Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
-			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
-		{
+			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone, {
 			match ta {
 				Some(a) => func(a),
 				None => M::pure(None),
@@ -990,15 +954,21 @@ mod inner {
 #[cfg(test)]
 mod tests {
 
-	use crate::{brands::*, classes::CloneableFn, functions::*};
-	use quickcheck_macros::quickcheck;
+	use {
+		crate::{
+			brands::*,
+			classes::CloneableFn,
+			functions::*,
+		},
+		quickcheck_macros::quickcheck,
+	};
 
 	// Functor Laws
 
 	/// Tests the identity law for Functor.
 	#[quickcheck]
 	fn functor_identity(x: Option<i32>) -> bool {
-		map::<OptionBrand, _, _, _>(identity, x) == x
+		map::<OptionBrand, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -1006,8 +976,8 @@ mod tests {
 	fn functor_composition(x: Option<i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<OptionBrand, _, _, _>(compose(f, g), x)
-			== map::<OptionBrand, _, _, _>(f, map::<OptionBrand, _, _, _>(g, x))
+		map::<OptionBrand, _, _>(compose(f, g), x)
+			== map::<OptionBrand, _, _>(f, map::<OptionBrand, _, _>(g, x))
 	}
 
 	// Applicative Laws
@@ -1053,7 +1023,7 @@ mod tests {
 		};
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<RcFnBrand, OptionBrand, _, _>(v.clone(), w.clone());
+		let vw = apply::<RcFnBrand, OptionBrand, _, _>(v.clone(), w);
 		let rhs = apply::<RcFnBrand, OptionBrand, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
@@ -1093,13 +1063,13 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| Some(x.wrapping_mul(2));
-		bind::<OptionBrand, _, _, _>(pure::<OptionBrand, _>(a), f) == f(a)
+		bind::<OptionBrand, _, _>(pure::<OptionBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: Option<i32>) -> bool {
-		bind::<OptionBrand, _, _, _>(m, pure::<OptionBrand, _>) == m
+		bind::<OptionBrand, _, _>(m, pure::<OptionBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -1107,8 +1077,8 @@ mod tests {
 	fn monad_associativity(m: Option<i32>) -> bool {
 		let f = |x: i32| Some(x.wrapping_mul(2));
 		let g = |x: i32| Some(x.wrapping_add(1));
-		bind::<OptionBrand, _, _, _>(bind::<OptionBrand, _, _, _>(m, f), g)
-			== bind::<OptionBrand, _, _, _>(m, |x| bind::<OptionBrand, _, _, _>(f(x), g))
+		bind::<OptionBrand, _, _>(bind::<OptionBrand, _, _>(m, f), g)
+			== bind::<OptionBrand, _, _>(m, |x| bind::<OptionBrand, _, _>(f(x), g))
 	}
 
 	// Edge Cases
@@ -1116,26 +1086,26 @@ mod tests {
 	/// Tests `map` on `None`.
 	#[test]
 	fn map_none() {
-		assert_eq!(map::<OptionBrand, _, _, _>(|x: i32| x + 1, None), None);
+		assert_eq!(map::<OptionBrand, _, _>(|x: i32| x + 1, None), None);
 	}
 
 	/// Tests `bind` on `None`.
 	#[test]
 	fn bind_none() {
-		assert_eq!(bind::<OptionBrand, _, _, _>(None, |x: i32| Some(x + 1)), None);
+		assert_eq!(bind::<OptionBrand, _, _>(None, |x: i32| Some(x + 1)), None);
 	}
 
 	/// Tests `bind` returning `None`.
 	#[test]
 	fn bind_returning_none() {
-		assert_eq!(bind::<OptionBrand, _, _, _>(Some(5), |_| None::<i32>), None);
+		assert_eq!(bind::<OptionBrand, _, _>(Some(5), |_| None::<i32>), None);
 	}
 
 	/// Tests `fold_right` on `None`.
 	#[test]
 	fn fold_right_none() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<RcFnBrand, OptionBrand, _, _, _>(
+			crate::classes::foldable::fold_right::<RcFnBrand, OptionBrand, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				None
@@ -1148,7 +1118,7 @@ mod tests {
 	#[test]
 	fn fold_left_none() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<RcFnBrand, OptionBrand, _, _, _>(
+			crate::classes::foldable::fold_left::<RcFnBrand, OptionBrand, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				None
@@ -1161,7 +1131,7 @@ mod tests {
 	#[test]
 	fn traverse_none() {
 		assert_eq!(
-			crate::classes::traversable::traverse::<OptionBrand, _, _, OptionBrand, _>(
+			crate::classes::traversable::traverse::<OptionBrand, _, _, OptionBrand>(
 				|x: i32| Some(x + 1),
 				None
 			),
@@ -1173,7 +1143,7 @@ mod tests {
 	#[test]
 	fn traverse_returning_none() {
 		assert_eq!(
-			crate::classes::traversable::traverse::<OptionBrand, _, _, OptionBrand, _>(
+			crate::classes::traversable::traverse::<OptionBrand, _, _, OptionBrand>(
 				|_: i32| None::<i32>,
 				Some(5)
 			),
@@ -1212,13 +1182,13 @@ mod tests {
 	/// Tests `filterMap identity ≡ compact`.
 	#[quickcheck]
 	fn filterable_filter_map_identity(x: Option<Option<i32>>) -> bool {
-		filter_map::<OptionBrand, _, _, _>(identity, x.clone()) == compact::<OptionBrand, _>(x)
+		filter_map::<OptionBrand, _, _>(identity, x) == compact::<OptionBrand, _>(x)
 	}
 
 	/// Tests `filterMap Just ≡ identity`.
 	#[quickcheck]
 	fn filterable_filter_map_just(x: Option<i32>) -> bool {
-		filter_map::<OptionBrand, _, _, _>(Some, x.clone()) == x
+		filter_map::<OptionBrand, _, _>(Some, x) == x
 	}
 
 	/// Tests `filterMap (l <=< r) ≡ filterMap l <<< filterMap r`.
@@ -1228,8 +1198,8 @@ mod tests {
 		let l = |i: i32| if i > 5 { Some(i) } else { None };
 		let composed = |i| r(i).and_then(l);
 
-		filter_map::<OptionBrand, _, _, _>(composed, x.clone())
-			== filter_map::<OptionBrand, _, _, _>(l, filter_map::<OptionBrand, _, _, _>(r, x))
+		filter_map::<OptionBrand, _, _>(composed, x)
+			== filter_map::<OptionBrand, _, _>(l, filter_map::<OptionBrand, _, _>(r, x))
 	}
 
 	/// Tests `filter ≡ filterMap <<< maybeBool`.
@@ -1238,28 +1208,26 @@ mod tests {
 		let p = |i: i32| i % 2 == 0;
 		let maybe_bool = |i| if p(i) { Some(i) } else { None };
 
-		filter::<OptionBrand, _, _>(p, x.clone())
-			== filter_map::<OptionBrand, _, _, _>(maybe_bool, x)
+		filter::<OptionBrand, _>(p, x) == filter_map::<OptionBrand, _, _>(maybe_bool, x)
 	}
 
 	/// Tests `partitionMap identity ≡ separate`.
 	#[quickcheck]
 	fn filterable_partition_map_identity(x: Option<Result<i32, i32>>) -> bool {
-		partition_map::<OptionBrand, _, _, _, _>(identity, x.clone())
-			== separate::<OptionBrand, _, _>(x)
+		partition_map::<OptionBrand, _, _, _>(identity, x) == separate::<OptionBrand, _, _>(x)
 	}
 
 	/// Tests `partitionMap Right ≡ identity` (on the right side).
 	#[quickcheck]
 	fn filterable_partition_map_right_identity(x: Option<i32>) -> bool {
-		let (_, oks) = partition_map::<OptionBrand, _, _, _, _>(Ok::<_, i32>, x.clone());
+		let (_, oks) = partition_map::<OptionBrand, _, _, _>(Ok::<_, i32>, x);
 		oks == x
 	}
 
 	/// Tests `partitionMap Left ≡ identity` (on the left side).
 	#[quickcheck]
 	fn filterable_partition_map_left_identity(x: Option<i32>) -> bool {
-		let (errs, _) = partition_map::<OptionBrand, _, _, _, _>(Err::<i32, _>, x.clone());
+		let (errs, _) = partition_map::<OptionBrand, _, _, _>(Err::<i32, _>, x);
 		errs == x
 	}
 
@@ -1269,8 +1237,8 @@ mod tests {
 		let p = |i: i32| i % 2 == 0;
 		let either_bool = |i| if p(i) { Ok(i) } else { Err(i) };
 
-		let (not_satisfied, satisfied) = partition::<OptionBrand, _, _>(p, x.clone());
-		let (errs, oks) = partition_map::<OptionBrand, _, _, _, _>(either_bool, x);
+		let (not_satisfied, satisfied) = partition::<OptionBrand, _>(p, x);
+		let (errs, oks) = partition_map::<OptionBrand, _, _, _>(either_bool, x);
 
 		satisfied == oks && not_satisfied == errs
 	}
@@ -1280,7 +1248,7 @@ mod tests {
 	/// Tests `wither (pure <<< Just) ≡ pure`.
 	#[quickcheck]
 	fn witherable_identity(x: Option<i32>) -> bool {
-		wither::<OptionBrand, OptionBrand, _, _, _>(|i| Some(Some(i)), x.clone()) == Some(x)
+		wither::<OptionBrand, OptionBrand, _, _>(|i| Some(Some(i)), x) == Some(x)
 	}
 
 	/// Tests `wilt p ≡ map separate <<< traverse p`.
@@ -1288,10 +1256,10 @@ mod tests {
 	fn witherable_wilt_consistency(x: Option<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Ok(i) } else { Err(i) });
 
-		let lhs = wilt::<OptionBrand, OptionBrand, _, _, _, _>(p, x.clone());
-		let rhs = map::<OptionBrand, _, _, _>(
-			|res| separate::<OptionBrand, _, _>(res),
-			traverse::<OptionBrand, _, _, OptionBrand, _>(p, x),
+		let lhs = wilt::<OptionBrand, OptionBrand, _, _, _>(p, x);
+		let rhs = map::<OptionBrand, _, _>(
+			separate::<OptionBrand, _, _>,
+			traverse::<OptionBrand, _, _, OptionBrand>(p, x),
 		);
 
 		lhs == rhs
@@ -1302,10 +1270,10 @@ mod tests {
 	fn witherable_wither_consistency(x: Option<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Some(i) } else { None });
 
-		let lhs = wither::<OptionBrand, OptionBrand, _, _, _>(p, x.clone());
-		let rhs = map::<OptionBrand, _, _, _>(
-			|opt| compact::<OptionBrand, _>(opt),
-			traverse::<OptionBrand, _, _, OptionBrand, _>(p, x),
+		let lhs = wither::<OptionBrand, OptionBrand, _, _>(p, x);
+		let rhs = map::<OptionBrand, _, _>(
+			compact::<OptionBrand, _>,
+			traverse::<OptionBrand, _, _, OptionBrand>(p, x),
 		);
 
 		lhs == rhs
@@ -1359,7 +1327,7 @@ mod tests {
 	#[test]
 	fn partition_map_none() {
 		let (errs, oks) =
-			partition_map::<OptionBrand, _, _, _, _>(|x: i32| Ok::<i32, i32>(x), None::<i32>);
+			partition_map::<OptionBrand, _, _, _>(|x: i32| Ok::<i32, i32>(x), None::<i32>);
 		assert_eq!(oks, None);
 		assert_eq!(errs, None);
 	}
@@ -1367,8 +1335,7 @@ mod tests {
 	/// Tests `partition` on `None`.
 	#[test]
 	fn partition_none() {
-		let (not_satisfied, satisfied) =
-			partition::<OptionBrand, _, _>(|x: i32| x > 0, None::<i32>);
+		let (not_satisfied, satisfied) = partition::<OptionBrand, _>(|x: i32| x > 0, None::<i32>);
 		assert_eq!(satisfied, None);
 		assert_eq!(not_satisfied, None);
 	}
@@ -1376,19 +1343,19 @@ mod tests {
 	/// Tests `filter_map` on `None`.
 	#[test]
 	fn filter_map_none() {
-		assert_eq!(filter_map::<OptionBrand, _, _, _>(|x: i32| Some(x), None::<i32>), None);
+		assert_eq!(filter_map::<OptionBrand, _, _>(|x: i32| Some(x), None::<i32>), None);
 	}
 
 	/// Tests `filter` on `None`.
 	#[test]
 	fn filter_none() {
-		assert_eq!(filter::<OptionBrand, _, _>(|x: i32| x > 0, None::<i32>), None);
+		assert_eq!(filter::<OptionBrand, _>(|x: i32| x > 0, None::<i32>), None);
 	}
 
 	/// Tests `wilt` on `None`.
 	#[test]
 	fn wilt_none() {
-		let res = wilt::<OptionBrand, OptionBrand, _, _, _, _>(
+		let res = wilt::<OptionBrand, OptionBrand, _, _, _>(
 			|x: i32| Some(Ok::<i32, i32>(x)),
 			None::<i32>,
 		);
@@ -1398,7 +1365,7 @@ mod tests {
 	/// Tests `wither` on `None`.
 	#[test]
 	fn wither_none() {
-		let res = wither::<OptionBrand, OptionBrand, _, _, _>(|x: i32| Some(Some(x)), None::<i32>);
+		let res = wither::<OptionBrand, OptionBrand, _, _>(|x: i32| Some(Some(x)), None::<i32>);
 		assert_eq!(res, Some(None));
 	}
 }

@@ -3,16 +3,41 @@
 //! This module provides utilities for parsing, filtering, and working with attributes,
 //! including documentation-specific attributes like `document_default` and `document_use`.
 
-use crate::core::{Result, constants::attributes};
-use proc_macro2::TokenStream;
-use syn::{Attribute, Expr, ExprLit, Lit, Meta, parse::Parse, spanned::Spanned};
+use {
+	crate::core::{
+		Result,
+		constants::attributes,
+	},
+	proc_macro2::TokenStream,
+	syn::{
+		Attribute,
+		Expr,
+		ExprLit,
+		Lit,
+		Meta,
+		parse::Parse,
+		spanned::Spanned,
+	},
+};
+
+/// Check if an attribute path matches a given name.
+///
+/// Matches both simple idents (`#[document_signature]`) and qualified paths
+/// (`#[fp_macros::document_signature]`) by comparing the last path segment.
+pub(crate) fn attr_matches(
+	attr: &Attribute,
+	name: &str,
+) -> bool {
+	let path = attr.path();
+	path.is_ident(name) || path.segments.last().is_some_and(|seg| seg.ident == name)
+}
 
 /// Finds the index of the first attribute with the given name.
 pub fn find_attribute(
 	attrs: &[Attribute],
 	name: &str,
 ) -> Option<usize> {
-	attrs.iter().position(|attr| attr.path().is_ident(name))
+	attrs.iter().position(|attr| attr_matches(attr, name))
 }
 
 /// Checks if an attribute with the given name exists.
@@ -20,7 +45,7 @@ pub fn has_attribute(
 	attrs: &[Attribute],
 	name: &str,
 ) -> bool {
-	attrs.iter().any(|attr| attr.path().is_ident(name))
+	attrs.iter().any(|attr| attr_matches(attr, name))
 }
 
 /// Returns true if the attribute should be kept in generated code.
@@ -140,7 +165,9 @@ pub fn parse_unique_attribute_value(
 				));
 			}
 			if let syn::Meta::NameValue(nv) = &attr.meta
-				&& let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &nv.value
+				&& let syn::Expr::Lit(syn::ExprLit {
+					lit: syn::Lit::Str(s), ..
+				}) = &nv.value
 			{
 				found = Some(s.value());
 			}
@@ -314,7 +341,9 @@ impl AttributeExt for Vec<Attribute> {
 
 		let attr = self.remove(index);
 		if let Meta::NameValue(nv) = &attr.meta
-			&& let Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) = &nv.value
+			&& let Expr::Lit(ExprLit {
+				lit: Lit::Str(s), ..
+			}) = &nv.value
 		{
 			return Ok(Some(s.value()));
 		}
@@ -426,7 +455,11 @@ mod tests {
 
 	#[test]
 	fn test_remove_attribute_tokens() {
-		use syn::{ItemStruct, LitStr, parse_quote};
+		use syn::{
+			ItemStruct,
+			LitStr,
+			parse_quote,
+		};
 		let mut item: ItemStruct = parse_quote! {
 			#[test_attr("hello")]
 			#[derive(Debug)]
@@ -448,7 +481,10 @@ mod tests {
 
 	#[test]
 	fn test_remove_attribute_tokens_empty() {
-		use syn::{ItemStruct, parse_quote};
+		use syn::{
+			ItemStruct,
+			parse_quote,
+		};
 		let mut item: ItemStruct = parse_quote! {
 			#[test_attr]
 			struct Foo;
@@ -488,7 +524,12 @@ mod tests {
 	// Tests for AttributeExt trait
 	#[test]
 	fn test_attribute_ext_find_and_remove() {
-		use syn::{ItemStruct, LitStr, parse::Parse, parse_quote};
+		use syn::{
+			ItemStruct,
+			LitStr,
+			parse::Parse,
+			parse_quote,
+		};
 
 		struct TestArgs {
 			value: LitStr,
@@ -496,7 +537,9 @@ mod tests {
 
 		impl Parse for TestArgs {
 			fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-				Ok(TestArgs { value: input.parse()? })
+				Ok(TestArgs {
+					value: input.parse()?,
+				})
 			}
 		}
 
@@ -518,7 +561,12 @@ mod tests {
 
 	#[test]
 	fn test_attribute_ext_find_and_remove_not_found() {
-		use syn::{ItemStruct, LitStr, parse::Parse, parse_quote};
+		use syn::{
+			ItemStruct,
+			LitStr,
+			parse::Parse,
+			parse_quote,
+		};
 
 		struct TestArgs {
 			_value: LitStr,
@@ -526,7 +574,9 @@ mod tests {
 
 		impl Parse for TestArgs {
 			fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-				Ok(TestArgs { _value: input.parse()? })
+				Ok(TestArgs {
+					_value: input.parse()?,
+				})
 			}
 		}
 
@@ -544,7 +594,12 @@ mod tests {
 
 	#[test]
 	fn test_attribute_ext_find_and_remove_empty_attr() {
-		use syn::{ItemStruct, LitStr, parse::Parse, parse_quote};
+		use syn::{
+			ItemStruct,
+			LitStr,
+			parse::Parse,
+			parse_quote,
+		};
 
 		struct TestArgs {
 			_value: LitStr,
@@ -552,7 +607,9 @@ mod tests {
 
 		impl Parse for TestArgs {
 			fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-				Ok(TestArgs { _value: input.parse()? })
+				Ok(TestArgs {
+					_value: input.parse()?,
+				})
 			}
 		}
 
@@ -571,7 +628,10 @@ mod tests {
 
 	#[test]
 	fn test_attribute_ext_find_value() {
-		use syn::{ItemStruct, parse_quote};
+		use syn::{
+			ItemStruct,
+			parse_quote,
+		};
 
 		let item: ItemStruct = parse_quote! {
 			#[document_use = "SomeType"]
@@ -588,7 +648,10 @@ mod tests {
 
 	#[test]
 	fn test_attribute_ext_find_value_not_found() {
-		use syn::{ItemStruct, parse_quote};
+		use syn::{
+			ItemStruct,
+			parse_quote,
+		};
 
 		let item: ItemStruct = parse_quote! {
 			#[derive(Debug)]
@@ -601,7 +664,10 @@ mod tests {
 
 	#[test]
 	fn test_attribute_ext_find_value_duplicate_error() {
-		use syn::{ItemStruct, parse_quote};
+		use syn::{
+			ItemStruct,
+			parse_quote,
+		};
 
 		let item: ItemStruct = parse_quote! {
 			#[test = "v1"]
@@ -615,7 +681,10 @@ mod tests {
 
 	#[test]
 	fn test_attribute_ext_find_and_remove_value() {
-		use syn::{ItemStruct, parse_quote};
+		use syn::{
+			ItemStruct,
+			parse_quote,
+		};
 
 		let mut item: ItemStruct = parse_quote! {
 			#[document_use = "SomeType"]
@@ -634,7 +703,10 @@ mod tests {
 
 	#[test]
 	fn test_attribute_ext_find_and_remove_value_not_found() {
-		use syn::{ItemStruct, parse_quote};
+		use syn::{
+			ItemStruct,
+			parse_quote,
+		};
 
 		let mut item: ItemStruct = parse_quote! {
 			#[derive(Debug)]
@@ -649,7 +721,10 @@ mod tests {
 
 	#[test]
 	fn test_attribute_ext_find_and_remove_value_not_name_value() {
-		use syn::{ItemStruct, parse_quote};
+		use syn::{
+			ItemStruct,
+			parse_quote,
+		};
 
 		let mut item: ItemStruct = parse_quote! {
 			#[test_attr]
@@ -664,7 +739,10 @@ mod tests {
 
 	#[test]
 	fn test_attribute_ext_has_attribute() {
-		use syn::{ItemStruct, parse_quote};
+		use syn::{
+			ItemStruct,
+			parse_quote,
+		};
 
 		let item: ItemStruct = parse_quote! {
 			#[derive(Debug)]
@@ -679,7 +757,10 @@ mod tests {
 
 	#[test]
 	fn test_attribute_ext_has_attribute_empty() {
-		use syn::{ItemStruct, parse_quote};
+		use syn::{
+			ItemStruct,
+			parse_quote,
+		};
 
 		let item: ItemStruct = parse_quote! {
 			struct Foo;

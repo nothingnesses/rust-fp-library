@@ -1,18 +1,36 @@
+use {
+	std::collections::HashMap,
+	syn::{
+		Attribute,
+		Fields,
+		Ident,
+		LitStr,
+		Token,
+		parse::{
+			Parse,
+			ParseStream,
+		},
+		punctuated::Punctuated,
+	},
+};
+
 /// Field documentation generation utilities.
 ///
 /// This module provides a unified interface for documenting struct and enum variant fields,
 /// handling both named and unnamed (tuple) fields.
 use crate::{
-	core::{Error as CoreError, Result},
+	core::{
+		Error as CoreError,
+		Result,
+	},
 	support::{
-		generate_documentation::{format_parameter_doc, insert_doc_comment},
+		generate_documentation::{
+			format_parameter_doc,
+			insert_doc_comment,
+		},
 		parsing,
 	},
 };
-use std::collections::HashMap;
-use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
-use syn::{Attribute, Fields, Ident, LitStr, Token};
 
 /// Represents a field documentation entry.
 ///
@@ -47,7 +65,9 @@ pub struct DocumentFieldParameters {
 
 impl Parse for DocumentFieldParameters {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		Ok(DocumentFieldParameters { entries: Punctuated::parse_terminated(input)? })
+		Ok(DocumentFieldParameters {
+			entries: Punctuated::parse_terminated(input)?,
+		})
 	}
 }
 
@@ -73,8 +93,9 @@ impl FieldInfo {
 	) -> Result<Self> {
 		match fields {
 			Fields::Named(fields_named) => {
-				let field_names: Vec<_> =
-					fields_named.named.iter().map(|f| f.ident.clone().unwrap()).collect();
+				// SAFETY: named fields always have an ident
+				#[allow(clippy::unwrap_used)]
+				let field_names: Vec<_> = fields_named.named.iter().map(|f| f.ident.clone().unwrap()).collect();
 
 				let _ = parsing::parse_not_zero_sized(
 					field_names.len(),
@@ -122,7 +143,11 @@ impl FieldDocumenter {
 		attr_span: proc_macro2::Span,
 		context: &'static str,
 	) -> Self {
-		Self { field_info, attr_span, context }
+		Self {
+			field_info,
+			attr_span,
+			context,
+		}
 	}
 
 	/// Validate and generate documentation for fields.
@@ -143,12 +168,10 @@ impl FieldDocumenter {
 		attrs: &mut Vec<Attribute>,
 	) -> Result<()> {
 		match &self.field_info {
-			FieldInfo::Named(expected_fields) => {
-				self.process_named_fields(args, expected_fields, attrs)
-			}
-			FieldInfo::Unnamed(expected_count) => {
-				self.process_unnamed_fields(args, *expected_count, attrs)
-			}
+			FieldInfo::Named(expected_fields) =>
+				self.process_named_fields(args, expected_fields, attrs),
+			FieldInfo::Unnamed(expected_count) =>
+				self.process_unnamed_fields(args, *expected_count, attrs),
 		}
 	}
 
@@ -248,9 +271,11 @@ impl FieldDocumenter {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use quote::quote;
-	use syn::parse_quote;
+	use {
+		super::*,
+		quote::quote,
+		syn::parse_quote,
+	};
 
 	#[test]
 	fn test_field_doc_arg_named() {

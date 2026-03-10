@@ -1,6 +1,6 @@
 [package]
 name = "fp-library"
-version = "0.9.0"
+version = "0.10.0"
 edition = "2024"
 description = "A functional programming library for Rust featuring your favourite higher-kinded types and type classes."
 readme = "../README.md"
@@ -28,6 +28,9 @@ criterion = { version = "0.8", features = ["html_reports"] }
 quickcheck = "1.0"
 quickcheck_macros = "1.1"
 trybuild = "1.0"
+
+[lints]
+workspace = true
 
 [features]
 default = []

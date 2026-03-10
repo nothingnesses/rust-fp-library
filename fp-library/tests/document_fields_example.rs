@@ -1,10 +1,15 @@
-use fp_library::{Apply, kinds::*};
-use fp_macros::document_fields;
+use {
+	fp_library::{
+		Apply,
+		kinds::*,
+	},
+	fp_macros::document_fields,
+};
 
 // Example: Using document_fields on a tuple struct similar to Endomorphism
 #[document_fields("The wrapped morphism from an object to itself")]
-pub struct MyEndomorphism<'a, C: fp_library::classes::Category, A>(
-	pub Apply!(<C as Kind!(type Of<'a, T, U>;)>::Of<'a, A, A>),
+pub struct MyEndomorphism<'a, C: fp_library::classes::Category, A: 'a>(
+	pub Apply!(<C as Kind!(type Of<'a, T: 'a, U: 'a>: 'a;)>::Of<'a, A, A>),
 );
 
 // Example: Using document_fields on a named struct
@@ -32,9 +37,16 @@ pub struct Point3D {
 #[test]
 fn test_document_fields_usage() {
 	// Just verify they compile
-	let point = Point3D { x: 1.0, y: 2.0, z: 3.0 };
+	let point = Point3D {
+		x: 1.0,
+		y: 2.0,
+		z: 3.0,
+	};
 	assert_eq!(point.x, 1.0);
 
-	let tagged = Tagged { value: 42, metadata: Some("answer".to_string()) };
+	let tagged = Tagged {
+		value: 42,
+		metadata: Some("answer".to_string()),
+	};
 	assert_eq!(tagged.value, 42);
 }

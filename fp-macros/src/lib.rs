@@ -1,4 +1,5 @@
 #![warn(missing_docs)]
+#![allow(clippy::tabs_in_doc_comments)]
 
 //! Procedural macros for the [`fp-library`](https://docs.rs/fp-library/latest/fp_library/) crate.
 //!
@@ -16,19 +17,36 @@ pub(crate) mod support; // Support utilities (attributes, syntax, validation, er
 #[cfg(test)]
 mod property_tests;
 
-use crate::core::ToCompileError;
-use codegen::{FunctionFormatter, ReExportInput, TraitFormatter, generate_re_exports_worker};
-use documentation::{
-	document_fields_worker, document_module_worker, document_parameters_worker,
-	document_signature_worker, document_type_parameters_worker,
+use {
+	crate::core::ToCompileError,
+	codegen::{
+		FunctionFormatter,
+		ReExportInput,
+		TraitFormatter,
+		generate_re_exports_worker,
+	},
+	documentation::{
+		document_examples_worker,
+		document_fields_worker,
+		document_module_worker,
+		document_parameters_worker,
+		document_returns_worker,
+		document_signature_worker,
+		document_type_parameters_worker,
+	},
+	hkt::{
+		ApplyInput,
+		AssociatedTypes,
+		ImplKindInput,
+		apply_worker,
+		generate_name,
+		impl_kind_worker,
+		trait_kind_worker,
+	},
+	proc_macro::TokenStream,
+	quote::quote,
+	syn::parse_macro_input,
 };
-use hkt::{
-	ApplyInput, AssociatedTypes, ImplKindInput, apply_worker, generate_name, impl_kind_worker,
-	trait_kind_worker,
-};
-use proc_macro::TokenStream;
-use quote::quote;
-use syn::parse_macro_input;
 
 /// Generates the name of a `Kind` trait based on its signature.
 ///
@@ -42,8 +60,6 @@ use syn::parse_macro_input;
 ///     // ...
 /// )
 /// ```
-///
-/// ### Parameters
 ///
 /// * `Associated Types`: A list of associated type definitions (e.g., `type Of<T>;`) that define the signature of the Kind.
 ///
@@ -113,8 +129,6 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 ///     // ...
 /// )
 /// ```
-///
-/// ### Parameters
 ///
 /// * `Associated Types`: A list of associated type definitions (e.g., `type Of<T>;`) that define the signature of the Kind.
 ///
@@ -189,8 +203,6 @@ pub fn trait_kind(input: TokenStream) -> TokenStream {
 ///     }
 /// }
 /// ```
-///
-/// ### Parameters
 ///
 /// * `Generics`: Optional generic parameters for the implementation.
 /// * `BrandType`: The brand type to implement the Kind for.
@@ -291,8 +303,6 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 /// Apply!(<Brand as Kind!( KindSignature )>::AssocType<Args>)
 /// ```
 ///
-/// ### Parameters
-///
 /// * `Brand`: The brand type (e.g., `OptionBrand`).
 /// * `KindSignature`: A list of associated type definitions defining the `Kind` trait schema.
 /// * `AssocType`: The associated type to project (e.g., `Of`).
@@ -363,8 +373,6 @@ pub fn Apply(input: TokenStream) -> TokenStream {
 /// })
 /// ```
 ///
-/// ### Parameters
-///
 /// * `path/to/directory`: The path to the directory containing the modules, relative to the crate root.
 /// * `aliases`: A map of function names to their desired aliases.
 ///
@@ -405,8 +413,6 @@ pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
 ///     ...
 /// })
 /// ```
-///
-/// ### Parameters
 ///
 /// * `path/to/directory`: The path to the directory containing the modules, relative to the crate root.
 /// * `aliases`: A map of trait names to their desired aliases (optional).
@@ -543,8 +549,6 @@ pub fn document_signature(
 /// impl<T> MyType<T> { ... }
 /// ```
 ///
-/// ### Parameters
-///
 /// * `Descriptions`: A comma-separated list. Each entry can be either a string literal
 ///   or a tuple of two string literals `(Name, Description)`.
 ///
@@ -616,8 +620,6 @@ pub fn document_type_parameters(
 /// }
 /// ```
 ///
-/// ### Parameters
-///
 /// * `Descriptions`: A comma-separated list. Each entry can be either a string literal
 ///   or a tuple of two string literals `(Name, Description)`.
 /// * For `impl` blocks: Exactly one string literal describing the receiver parameter.
@@ -686,6 +688,85 @@ pub fn document_parameters(
 	}
 }
 
+/// Generates documentation for the return value of a function.
+///
+/// This macro adds a "Returns" section to the function's documentation.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// #[document_returns("Description of the return value.")]
+/// pub fn foo() -> i32 { ... }
+/// ```
+///
+/// ### Generates
+///
+/// A documentation comment describing the return value.
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// #[document_returns("The sum of x and y.")]
+/// pub fn add(x: i32, y: i32) -> i32 { ... }
+///
+/// // Expanded code
+/// /// ### Returns
+/// /// The sum of x and y.
+/// pub fn add(x: i32, y: i32) -> i32 { ... }
+/// ```
+#[proc_macro_attribute]
+pub fn document_returns(
+	attr: TokenStream,
+	item: TokenStream,
+) -> TokenStream {
+	match document_returns_worker(attr.into(), item.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Inserts a `### Examples` heading and validates doc comment code blocks.
+///
+/// This attribute macro expands in-place to a `### Examples` heading. Example
+/// code is written as regular doc comments using fenced code blocks after the
+/// attribute. Every Rust code block must contain at least one assertion macro
+/// invocation (e.g., `assert_eq!`, `assert!`).
+///
+/// ### Syntax
+///
+/// ```ignore
+/// #[document_examples]
+/// ///
+/// /// ```
+/// /// let result = add(1, 2);
+/// /// assert_eq!(result, 3);
+/// /// ```
+/// pub fn add(x: i32, y: i32) -> i32 { ... }
+/// ```
+///
+/// ### Generates
+///
+/// A `### Examples` heading is inserted at the attribute's position. The code
+/// blocks in the doc comments are validated but not modified.
+///
+/// ### Errors
+///
+/// * Arguments are provided to the attribute.
+/// * No Rust code block is found in the doc comments.
+/// * A Rust code block does not contain an assertion macro invocation.
+/// * The attribute is applied more than once to the same function.
+#[proc_macro_attribute]
+pub fn document_examples(
+	attr: TokenStream,
+	item: TokenStream,
+) -> TokenStream {
+	match document_examples_worker(attr.into(), item.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
 /// Generates documentation for struct fields or enum variant fields.
 ///
 /// This macro analyzes a struct or enum and generates documentation comments for its fields.
@@ -735,8 +816,6 @@ pub fn document_parameters(
 ///     Variant2(Type3),
 /// }
 /// ```
-///
-/// ### Parameters
 ///
 /// * For structs with named fields: A comma-separated list of `field_ident: "description"` pairs.
 /// * For structs with tuple fields: A comma-separated list of string literal descriptions, in order.

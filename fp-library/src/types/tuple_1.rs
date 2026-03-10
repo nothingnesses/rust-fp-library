@@ -4,17 +4,31 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		brands::Tuple1Brand,
-		classes::{
-			Applicative, ApplyFirst, ApplySecond, CloneableFn, Foldable, Functor, Lift, Monoid,
-			ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn, Traversable,
+	use {
+		crate::{
+			Apply,
+			brands::Tuple1Brand,
+			classes::{
+				Applicative,
+				ApplyFirst,
+				ApplySecond,
+				CloneableFn,
+				Foldable,
+				Functor,
+				Lift,
+				Monoid,
+				ParFoldable,
+				Pointed,
+				Semiapplicative,
+				Semimonad,
+				SendCloneableFn,
+				Traversable,
+			},
+			impl_kind,
+			kinds::*,
 		},
-		impl_kind,
-		kinds::*,
+		fp_macros::*,
 	};
-	use fp_macros::document_parameters;
 
 	impl_kind! {
 		for Tuple1Brand {
@@ -32,44 +46,34 @@ mod inner {
 		/// Maps a function over the value in the tuple.
 		///
 		/// This method applies a function to the value inside the 1-tuple, producing a new 1-tuple with the transformed value.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the value.",
 			"The type of the value inside the tuple.",
-			"The type of the result of applying the function.",
-			"The type of the function to apply."
+			"The type of the result of applying the function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The tuple to map over.")]
 		///
-		/// ### Returns
+		#[document_returns("A new 1-tuple containing the result of applying the function.")]
 		///
-		/// A new 1-tuple containing the result of applying the function.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = (5,);
-		/// let y = map::<Tuple1Brand, _, _, _>(|i| i * 2, x);
+		/// let y = map::<Tuple1Brand, _, _>(|i| i * 2, x);
 		/// assert_eq!(y, (10,));
 		/// ```
-		fn map<'a, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn map<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> B + 'a,
-		{
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			(func(fa.0),)
 		}
 	}
@@ -78,22 +82,14 @@ mod inner {
 		/// Lifts a binary function into the tuple context.
 		///
 		/// This method lifts a binary function to operate on values within the 1-tuple context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the first tuple's value.",
 			"The type of the second tuple's value.",
-			"The return type of the function.",
-			"The type of the binary function."
+			"The return type of the function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply.",
@@ -101,31 +97,29 @@ mod inner {
 			"The second tuple."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new 1-tuple containing the result of applying the function.
-		///
-		/// ### Examples
+		#[document_returns("A new 1-tuple containing the result of applying the function.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = (1,);
 		/// let y = (2,);
-		/// let z = lift2::<Tuple1Brand, _, _, _, _>(|a, b| a + b, x, y);
+		/// let z = lift2::<Tuple1Brand, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, (3,));
 		/// ```
-		fn lift2<'a, A, B, C, Func>(
-			func: Func,
+		fn lift2<'a, A, B, C>(
+			func: impl Fn(A, B) -> C + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 		where
-			Func: Fn(A, B) -> C + 'a,
 			A: 'a,
 			B: 'a,
-			C: 'a,
-		{
+			C: 'a, {
 			(func(fa.0, fb.0),)
 		}
 	}
@@ -134,27 +128,21 @@ mod inner {
 		/// Wraps a value in a 1-tuple.
 		///
 		/// This method wraps a value in a 1-tuple context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
+		#[document_returns("A 1-tuple containing the value.")]
 		///
-		/// A 1-tuple containing the value.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = pure::<Tuple1Brand, _>(5);
 		/// assert_eq!(x, (5,));
@@ -171,12 +159,7 @@ mod inner {
 		/// Applies a wrapped function to a wrapped value.
 		///
 		/// This method applies a function wrapped in a 1-tuple to a value wrapped in a 1-tuple.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -185,21 +168,19 @@ mod inner {
 			"The type of the output value."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters(
 			"The tuple containing the function.",
 			"The tuple containing the value."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new 1-tuple containing the result of applying the function.
-		///
-		/// ### Examples
+		#[document_returns("A new 1-tuple containing the result of applying the function.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let f = (cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),);
 		/// let x = (5,);
@@ -218,47 +199,36 @@ mod inner {
 		/// Chains 1-tuple computations.
 		///
 		/// This method chains two 1-tuple computations, where the second computation depends on the result of the first.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the result of the first computation.",
-			"The type of the result of the second computation.",
-			"The type of the function to apply."
+			"The type of the result of the second computation."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The first tuple.",
 			"The function to apply to the value inside the tuple."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The result of applying `f` to the value.
-		///
-		/// ### Examples
+		#[document_returns("The result of applying `f` to the value.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = (5,);
-		/// let y = bind::<Tuple1Brand, _, _, _>(x, |i| (i * 2,));
+		/// let y = bind::<Tuple1Brand, _, _>(x, |i| (i * 2,));
 		/// assert_eq!(y, (10,));
 		/// ```
-		fn bind<'a, A: 'a, B: 'a, Func>(
+		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			func: Func,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-		{
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			func(ma.0)
 		}
 	}
@@ -267,22 +237,14 @@ mod inner {
 		/// Folds the 1-tuple from the right.
 		///
 		/// This method performs a right-associative fold of the 1-tuple. Since it contains only one element, this is equivalent to applying the function to the element and the initial value.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element and the accumulator.",
@@ -290,50 +252,40 @@ mod inner {
 			"The tuple to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The final accumulator value.
-		///
-		/// ### Examples
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = (5,);
-		/// let y = fold_right::<RcFnBrand, Tuple1Brand, _, _, _>(|a, b| a + b, 10, x);
+		/// let y = fold_right::<RcFnBrand, Tuple1Brand, _, _>(|a, b| a + b, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
-		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(A, B) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			func(fa.0, initial)
 		}
 
 		/// Folds the 1-tuple from the left.
 		///
 		/// This method performs a left-associative fold of the 1-tuple. Since it contains only one element, this is equivalent to applying the function to the initial value and the element.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the accumulator and each element.",
@@ -341,78 +293,66 @@ mod inner {
 			"The tuple to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The final accumulator value.
-		///
-		/// ### Examples
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = (5,);
-		/// let y = fold_left::<RcFnBrand, Tuple1Brand, _, _, _>(|b, a| b + a, 10, x);
+		/// let y = fold_left::<RcFnBrand, Tuple1Brand, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
-		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(B, A) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			func(initial, fa.0)
 		}
 
 		/// Maps the value to a monoid and returns it.
 		///
 		/// This method maps the element of the 1-tuple to a monoid.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the monoid.",
-			"The type of the mapping function."
+			"The type of the monoid."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to map each element to a monoid.",
 			"The tuple to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The monoid value.
-		///
-		/// ### Examples
+		#[document_returns("The monoid value.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = (5,);
-		/// let y = fold_map::<RcFnBrand, Tuple1Brand, _, _, _>(|a: i32| a.to_string(), x);
+		/// let y = fold_map::<RcFnBrand, Tuple1Brand, _, _>(|a: i32| a.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
-			func: Func,
+		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(A) -> M + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			M: Monoid + 'a,
-			Func: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			func(fa.0)
 		}
 	}
@@ -421,61 +361,46 @@ mod inner {
 		/// Traverses the 1-tuple with an applicative function.
 		///
 		/// This method maps the element of the 1-tuple to a computation, evaluates it, and wraps the result in the applicative context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The type of the elements in the resulting traversable structure.",
-			"The applicative context.",
-			"The type of the function to apply."
+			"The applicative context."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning a value in an applicative context.",
 			"The tuple to traverse."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The 1-tuple wrapped in the applicative context.
-		///
-		/// ### Examples
+		#[document_returns("The 1-tuple wrapped in the applicative context.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = (5,);
-		/// let y = traverse::<Tuple1Brand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
+		/// let y = traverse::<Tuple1Brand, _, _, OptionBrand>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some((10,)));
 		/// ```
-		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
-			func: Func,
+		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
-			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-		{
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			F::map(|b| (b,), func(ta.0))
 		}
 
 		/// Sequences a 1-tuple of applicative.
 		///
 		/// This method evaluates the computation inside the 1-tuple and wraps the result in the applicative context.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -483,18 +408,17 @@ mod inner {
 			"The applicative context."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters("The tuple containing the applicative value.")]
 		///
-		/// ### Returns
+		#[document_returns("The 1-tuple wrapped in the applicative context.")]
 		///
-		/// The 1-tuple wrapped in the applicative context.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = (Some(5),);
 		/// let y = sequence::<Tuple1Brand, _, OptionBrand>(x);
@@ -505,8 +429,7 @@ mod inner {
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-		{
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 			F::map(|a| (a,), ta.0)
 		}
 	}
@@ -515,12 +438,7 @@ mod inner {
 		/// Maps the value to a monoid and returns it in parallel.
 		///
 		/// This method maps the element of the 1-tuple to a monoid. Since it contains only one element, no actual parallelism occurs, but the interface is satisfied.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -529,21 +447,19 @@ mod inner {
 			"The monoid type."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters(
 			"The function to map each element to a monoid.",
 			"The tuple to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The combined monoid value.
-		///
-		/// ### Examples
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = (1,);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -557,20 +473,14 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a,
-		{
+			M: Monoid + Send + Sync + 'a, {
 			func(fa.0)
 		}
 
 		/// Folds the 1-tuple from the right in parallel.
 		///
 		/// This method performs a right-associative fold of the 1-tuple. Since it contains only one element, no actual parallelism occurs.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -579,22 +489,20 @@ mod inner {
 			"The accumulator type."
 		)]
 		///
-		/// ### Parameters
-		///
 		#[document_parameters(
 			"The thread-safe function to apply to each element and the accumulator.",
 			"The initial value of the accumulator.",
 			"The tuple to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The final accumulator value.
-		///
-		/// ### Examples
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = (1,);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
@@ -609,8 +517,7 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			B: Send + Sync + 'a,
-		{
+			B: Send + Sync + 'a, {
 			func((fa.0, initial))
 		}
 	}
@@ -619,14 +526,27 @@ mod inner {
 #[cfg(test)]
 mod tests {
 
-	use crate::{
-		brands::{OptionBrand, RcFnBrand, Tuple1Brand},
-		classes::{
-			CloneableFn, functor::map, pointed::pure, semiapplicative::apply, semimonad::bind,
+	use {
+		crate::{
+			brands::{
+				OptionBrand,
+				RcFnBrand,
+				Tuple1Brand,
+			},
+			classes::{
+				CloneableFn,
+				functor::map,
+				pointed::pure,
+				semiapplicative::apply,
+				semimonad::bind,
+			},
+			functions::{
+				compose,
+				identity,
+			},
 		},
-		functions::{compose, identity},
+		quickcheck_macros::quickcheck,
 	};
-	use quickcheck_macros::quickcheck;
 
 	// Functor Laws
 
@@ -634,7 +554,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity(x: i32) -> bool {
 		let x = (x,);
-		map::<Tuple1Brand, _, _, _>(identity, x) == x
+		map::<Tuple1Brand, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -643,8 +563,8 @@ mod tests {
 		let x = (x,);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<Tuple1Brand, _, _, _>(compose(f, g), x)
-			== map::<Tuple1Brand, _, _, _>(f, map::<Tuple1Brand, _, _, _>(g, x))
+		map::<Tuple1Brand, _, _>(compose(f, g), x)
+			== map::<Tuple1Brand, _, _>(f, map::<Tuple1Brand, _, _>(g, x))
 	}
 
 	// Applicative Laws
@@ -684,7 +604,7 @@ mod tests {
 		let u = pure::<Tuple1Brand, _>(<RcFnBrand as CloneableFn>::new(u_fn));
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<RcFnBrand, Tuple1Brand, _, _>(v.clone(), w.clone());
+		let vw = apply::<RcFnBrand, Tuple1Brand, _, _>(v.clone(), w);
 		let rhs = apply::<RcFnBrand, Tuple1Brand, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
@@ -718,14 +638,14 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| (x.wrapping_mul(2),);
-		bind::<Tuple1Brand, _, _, _>(pure::<Tuple1Brand, _>(a), f) == f(a)
+		bind::<Tuple1Brand, _, _>(pure::<Tuple1Brand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: i32) -> bool {
 		let m = (m,);
-		bind::<Tuple1Brand, _, _, _>(m, pure::<Tuple1Brand, _>) == m
+		bind::<Tuple1Brand, _, _>(m, pure::<Tuple1Brand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -734,8 +654,8 @@ mod tests {
 		let m = (m,);
 		let f = |x: i32| (x.wrapping_mul(2),);
 		let g = |x: i32| (x.wrapping_add(1),);
-		bind::<Tuple1Brand, _, _, _>(bind::<Tuple1Brand, _, _, _>(m, f), g)
-			== bind::<Tuple1Brand, _, _, _>(m, |x| bind::<Tuple1Brand, _, _, _>(f(x), g))
+		bind::<Tuple1Brand, _, _>(bind::<Tuple1Brand, _, _>(m, f), g)
+			== bind::<Tuple1Brand, _, _>(m, |x| bind::<Tuple1Brand, _, _>(f(x), g))
 	}
 
 	// Edge Cases
@@ -743,20 +663,20 @@ mod tests {
 	/// Tests the `map` function.
 	#[test]
 	fn map_test() {
-		assert_eq!(map::<Tuple1Brand, _, _, _>(|x: i32| x + 1, (1,)), (2,));
+		assert_eq!(map::<Tuple1Brand, _, _>(|x: i32| x + 1, (1,)), (2,));
 	}
 
 	/// Tests the `bind` function.
 	#[test]
 	fn bind_test() {
-		assert_eq!(bind::<Tuple1Brand, _, _, _>((1,), |x| (x + 1,)), (2,));
+		assert_eq!(bind::<Tuple1Brand, _, _>((1,), |x| (x + 1,)), (2,));
 	}
 
 	/// Tests the `fold_right` function.
 	#[test]
 	fn fold_right_test() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<RcFnBrand, Tuple1Brand, _, _, _>(
+			crate::classes::foldable::fold_right::<RcFnBrand, Tuple1Brand, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				(1,)
@@ -769,7 +689,7 @@ mod tests {
 	#[test]
 	fn fold_left_test() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<RcFnBrand, Tuple1Brand, _, _, _>(
+			crate::classes::foldable::fold_left::<RcFnBrand, Tuple1Brand, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				(1,)
@@ -782,7 +702,7 @@ mod tests {
 	#[test]
 	fn traverse_test() {
 		assert_eq!(
-			crate::classes::traversable::traverse::<Tuple1Brand, _, _, OptionBrand, _>(
+			crate::classes::traversable::traverse::<Tuple1Brand, _, _, OptionBrand>(
 				|x: i32| Some(x + 1),
 				(1,)
 			),
@@ -795,7 +715,10 @@ mod tests {
 	/// Tests `par_fold_map`.
 	#[test]
 	fn par_fold_map_test() {
-		use crate::{brands::*, functions::*};
+		use crate::{
+			brands::*,
+			functions::*,
+		};
 
 		let x = (1,);
 		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -805,7 +728,10 @@ mod tests {
 	/// Tests `par_fold_right`.
 	#[test]
 	fn par_fold_right_test() {
-		use crate::{brands::*, functions::*};
+		use crate::{
+			brands::*,
+			functions::*,
+		};
 
 		let x = (1,);
 		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);

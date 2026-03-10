@@ -4,14 +4,24 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		classes::{CloneableFn, Monoid, Semigroup},
-		functions::identity,
-	};
-	use fp_macros::{document_fields, document_parameters, document_type_parameters};
-	use std::{
-		fmt::{self, Debug, Formatter},
-		hash::Hash,
+	use {
+		crate::{
+			classes::{
+				CloneableFn,
+				Monoid,
+				Semigroup,
+			},
+			functions::identity,
+		},
+		fp_macros::*,
+		std::{
+			fmt::{
+				self,
+				Debug,
+				Formatter,
+			},
+			hash::Hash,
+		},
 	};
 
 	/// A wrapper for endofunctions (functions from a set to the same set) that enables monoidal operations.
@@ -24,28 +34,15 @@ mod inner {
 	/// * The identity element [empty][Monoid::empty] is the [identity function][crate::functions::identity].
 	///
 	/// The wrapped function can be accessed directly via the [`.0` field][Endofunction#structfield.0].
-	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
 	///
-	/// ### Fields
-	///
 	#[document_fields("The wrapped function.")]
 	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-	/// assert_eq!(f.0(5), 10);
-	/// ```
-	pub struct Endofunction<'a, FnBrand: CloneableFn, A>(
+	pub struct Endofunction<'a, FnBrand: CloneableFn, A: 'a>(
 		pub <FnBrand as CloneableFn>::Of<'a, A, A>,
 	);
 
@@ -54,27 +51,24 @@ mod inner {
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
-	impl<'a, FnBrand: CloneableFn, A> Endofunction<'a, FnBrand, A> {
+	impl<'a, FnBrand: CloneableFn, A: 'a> Endofunction<'a, FnBrand, A> {
 		/// Creates a new `Endofunction`.
 		///
 		/// This function wraps a function `a -> a` in an `Endofunction` struct.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to wrap.")]
 		///
-		/// ### Returns
+		#[document_returns("A new `Endofunction`.")]
 		///
-		/// A new `Endofunction`.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(f.0(5), 10);
@@ -84,42 +78,58 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to clone.")]
-	impl<'a, FnBrand: CloneableFn, A> Clone for Endofunction<'a, FnBrand, A> {
-		/// ### Type Signature
-		///
+	impl<'a, FnBrand: CloneableFn, A: 'a> Clone for Endofunction<'a, FnBrand, A> {
 		#[document_signature]
+		#[document_returns("The cloned endofunction.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let cloned = f.clone();
+		/// assert_eq!(cloned.0(5), 10);
+		/// ```
 		fn clone(&self) -> Self {
 			Self::new(self.0.clone())
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to format.")]
-	impl<'a, FnBrand: CloneableFn, A> Debug for Endofunction<'a, FnBrand, A>
+	impl<'a, FnBrand: CloneableFn, A: 'a> Debug for Endofunction<'a, FnBrand, A>
 	where
 		<FnBrand as CloneableFn>::Of<'a, A, A>: Debug,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The formatter to use.")]
+		#[document_returns("The result of the formatting operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// // Debug formatting is available when the inner function type implements Debug.
+		/// // Verify the endofunction applies correctly:
+		/// assert_eq!(f.0(5), 10);
+		/// ```
 		fn fmt(
 			&self,
 			fmt: &mut Formatter<'_>,
@@ -128,41 +138,42 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
-	impl<'a, FnBrand: CloneableFn, A> Eq for Endofunction<'a, FnBrand, A> where
+	impl<'a, FnBrand: CloneableFn, A: 'a> Eq for Endofunction<'a, FnBrand, A> where
 		<FnBrand as CloneableFn>::Of<'a, A, A>: Eq
 	{
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to hash.")]
-	impl<'a, FnBrand: CloneableFn, A> Hash for Endofunction<'a, FnBrand, A>
+	impl<'a, FnBrand: CloneableFn, A: 'a> Hash for Endofunction<'a, FnBrand, A>
 	where
 		<FnBrand as CloneableFn>::Of<'a, A, A>: Hash,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the hasher.")]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The hasher state to update.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// // Hash is available when the inner function type implements Hash.
+		/// // Verify the endofunction applies correctly:
+		/// assert_eq!(f.0(5), 10);
+		/// ```
 		fn hash<H: std::hash::Hasher>(
 			&self,
 			state: &mut H,
@@ -171,25 +182,33 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<'a, FnBrand: CloneableFn, A> Ord for Endofunction<'a, FnBrand, A>
+	impl<'a, FnBrand: CloneableFn, A: 'a> Ord for Endofunction<'a, FnBrand, A>
 	where
 		<FnBrand as CloneableFn>::Of<'a, A, A>: Ord,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other function to compare to.")]
+		#[document_returns("The ordering of the values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let g = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// // Ord is available when the inner function type implements Ord.
+		/// // Both produce the same output for the same input:
+		/// assert_eq!(f.0(5), g.0(5));
+		/// ```
 		fn cmp(
 			&self,
 			other: &Self,
@@ -198,25 +217,33 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<'a, FnBrand: CloneableFn, A> PartialEq for Endofunction<'a, FnBrand, A>
+	impl<'a, FnBrand: CloneableFn, A: 'a> PartialEq for Endofunction<'a, FnBrand, A>
 	where
 		<FnBrand as CloneableFn>::Of<'a, A, A>: PartialEq,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other function to compare to.")]
+		#[document_returns("True if the values are equal, false otherwise.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let g = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// // PartialEq is available when the inner function type implements PartialEq.
+		/// // Both produce the same output for the same input:
+		/// assert_eq!(f.0(5), g.0(5));
+		/// ```
 		fn eq(
 			&self,
 			other: &Self,
@@ -225,25 +252,33 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<'a, FnBrand: CloneableFn, A> PartialOrd for Endofunction<'a, FnBrand, A>
+	impl<'a, FnBrand: CloneableFn, A: 'a> PartialOrd for Endofunction<'a, FnBrand, A>
 	where
 		<FnBrand as CloneableFn>::Of<'a, A, A>: PartialOrd,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other function to compare to.")]
+		#[document_returns("An ordering if the values can be compared, none otherwise.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let g = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// // PartialOrd is available when the inner function type implements PartialOrd.
+		/// // Both produce the same output for the same input:
+		/// assert_eq!(f.0(5), g.0(5));
+		/// ```
 		fn partial_cmp(
 			&self,
 			other: &Self,
@@ -252,8 +287,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
@@ -265,26 +298,22 @@ mod inner {
 		/// This method composes two endofunctions into a single endofunction.
 		/// Note that `Endofunction` composition is reversed relative to standard function composition:
 		/// `append(f, g)` results in `f . g` (read as "f after g"), meaning `g` is applied first, then `f`.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The second function to apply (the outer function).",
 			"The first function to apply (the inner function)."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The composed function `a . b`.
-		///
-		/// ### Examples
+		#[document_returns("The composed function `a . b`.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let g = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
@@ -304,8 +333,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
@@ -315,19 +342,18 @@ mod inner {
 		/// The identity element.
 		///
 		/// This method returns the identity endofunction, which wraps the identity function.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Returns
+		#[document_returns("The identity endofunction.")]
 		///
-		/// The identity endofunction.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let id = empty::<Endofunction<RcFnBrand, i32>>();
 		/// assert_eq!(id.0(5), 5);
@@ -341,12 +367,18 @@ pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use crate::{
-		brands::RcFnBrand,
-		classes::{cloneable_fn::CloneableFn, monoid::empty, semigroup::append},
+	use {
+		super::*,
+		crate::{
+			brands::RcFnBrand,
+			classes::{
+				cloneable_fn::CloneableFn,
+				monoid::empty,
+				semigroup::append,
+			},
+		},
+		quickcheck_macros::quickcheck,
 	};
-	use quickcheck_macros::quickcheck;
 
 	// Semigroup Laws
 

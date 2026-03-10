@@ -4,15 +4,25 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		classes::{Category, Monoid, Semigroup},
-		kinds::*,
-	};
-	use fp_macros::{document_fields, document_parameters, document_type_parameters};
-	use std::{
-		fmt::{self, Debug, Formatter},
-		hash::Hash,
+	use {
+		crate::{
+			Apply,
+			classes::{
+				Category,
+				Monoid,
+				Semigroup,
+			},
+			kinds::*,
+		},
+		fp_macros::*,
+		std::{
+			fmt::{
+				self,
+				Debug,
+				Formatter,
+			},
+			hash::Hash,
+		},
 	};
 
 	/// A wrapper for endomorphisms (morphisms from an object to the same object) that enables monoidal operations.
@@ -27,28 +37,21 @@ mod inner {
 	///
 	/// The wrapped morphism can be accessed directly via the [`.0` field][Endomorphism#structfield.0].
 	///
-	/// ### Type Parameters
+	/// ### Hierarchy Unification
 	///
+	/// `Endomorphism` now requires that its object type `A` outlive the lifetime `'a` of the
+	/// endomorphism itself (`A: 'a`). This is necessary to satisfy the requirements of the
+	/// unified [`Kind_266801a817966495`] used by the [`Category`] hierarchy.
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
 	///
-	/// ### Fields
-	///
 	#[document_fields("The wrapped morphism.")]
 	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-	/// assert_eq!(f.0(5), 10);
-	/// ```
-	pub struct Endomorphism<'a, C: Category, A>(
-		pub Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>),
+	pub struct Endomorphism<'a, C: Category, A: 'a>(
+		pub Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>),
 	);
 
 	#[document_type_parameters(
@@ -56,75 +59,90 @@ mod inner {
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
-	impl<'a, C: Category, A> Endomorphism<'a, C, A> {
+	impl<'a, C: Category, A: 'a> Endomorphism<'a, C, A> {
 		/// Creates a new `Endomorphism`.
 		///
 		/// This function wraps a morphism `c a a` in an `Endomorphism` struct.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The morphism to wrap.")]
 		///
-		/// ### Returns
+		#[document_returns("A new `Endomorphism`.")]
 		///
-		/// A new `Endomorphism`.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(f.0(5), 10);
 		/// ```
-		pub fn new(f: Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>)) -> Self {
+		pub fn new(
+			f: Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>)
+		) -> Self {
 			Self(f)
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to clone.")]
-	impl<'a, C: Category, A> Clone for Endomorphism<'a, C, A>
+	impl<'a, C: Category, A: 'a> Clone for Endomorphism<'a, C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Clone,
+		Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>): Clone,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
+		#[document_returns("A new `Endomorphism` instance that is a copy of the original.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let cloned = f.clone();
+		/// assert_eq!(cloned.0(5), 10);
+		/// ```
 		fn clone(&self) -> Self {
 			Self::new(self.0.clone())
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to format.")]
-	impl<'a, C: Category, A> Debug for Endomorphism<'a, C, A>
+	impl<'a, C: Category, A: 'a> Debug for Endomorphism<'a, C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Debug,
+		Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>): Debug,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The formatter to use.")]
+		#[document_returns("The result of the formatting operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// // Debug formatting is available when the inner function type implements Debug.
+		/// // Verify the endomorphism applies correctly:
+		/// assert_eq!(f.0(5), 10);
+		/// ```
 		fn fmt(
 			&self,
 			fmt: &mut Formatter<'_>,
@@ -133,41 +151,42 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
-	impl<'a, C: Category, A> Eq for Endomorphism<'a, C, A> where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Eq
+	impl<'a, C: Category, A: 'a> Eq for Endomorphism<'a, C, A> where
+		Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>): Eq
 	{
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to hash.")]
-	impl<'a, C: Category, A> Hash for Endomorphism<'a, C, A>
+	impl<'a, C: Category, A: 'a> Hash for Endomorphism<'a, C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Hash,
+		Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>): Hash,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the hasher.")]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The hasher state to update.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// // Hash is available when the inner function type implements Hash.
+		/// // Verify the endomorphism applies correctly:
+		/// assert_eq!(f.0(5), 10);
+		/// ```
 		fn hash<H: std::hash::Hasher>(
 			&self,
 			state: &mut H,
@@ -176,25 +195,33 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to compare.")]
-	impl<'a, C: Category, A> Ord for Endomorphism<'a, C, A>
+	impl<'a, C: Category, A: 'a> Ord for Endomorphism<'a, C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Ord,
+		Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>): Ord,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other morphism to compare to.")]
+		#[document_returns("The ordering of the values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// // Ord is available when the inner function type implements Ord.
+		/// // Both produce the same output for the same input:
+		/// assert_eq!(f.0(5), g.0(5));
+		/// ```
 		fn cmp(
 			&self,
 			other: &Self,
@@ -203,25 +230,33 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to compare.")]
-	impl<'a, C: Category, A> PartialEq for Endomorphism<'a, C, A>
+	impl<'a, C: Category, A: 'a> PartialEq for Endomorphism<'a, C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): PartialEq,
+		Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>): PartialEq,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other morphism to compare to.")]
+		#[document_returns("True if the values are equal, false otherwise.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// // PartialEq is available when the inner function type implements PartialEq.
+		/// // Both produce the same output for the same input:
+		/// assert_eq!(f.0(5), g.0(5));
+		/// ```
 		fn eq(
 			&self,
 			other: &Self,
@@ -230,25 +265,33 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to compare.")]
-	impl<'a, C: Category, A> PartialOrd for Endomorphism<'a, C, A>
+	impl<'a, C: Category, A: 'a> PartialOrd for Endomorphism<'a, C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): PartialOrd,
+		Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>): PartialOrd,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other morphism to compare to.")]
+		#[document_returns("An ordering if the values can be compared, none otherwise.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// // PartialOrd is available when the inner function type implements PartialOrd.
+		/// // Both produce the same output for the same input:
+		/// assert_eq!(f.0(5), g.0(5));
+		/// ```
 		fn partial_cmp(
 			&self,
 			other: &Self,
@@ -257,8 +300,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
@@ -270,26 +311,22 @@ mod inner {
 		/// This method composes two endomorphisms into a single endomorphism using the underlying category's composition.
 		/// Note that `Endomorphism` composition is reversed relative to standard function composition:
 		/// `append(f, g)` results in `f . g` (read as "f after g"), meaning `g` is applied first, then `f`.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The second morphism to apply (the outer function).",
 			"The first morphism to apply (the inner function)."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The composed morphism `a . b`.
-		///
-		/// ### Examples
+		#[document_returns("The composed morphism `a . b`.")]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
@@ -306,8 +343,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
@@ -317,19 +352,18 @@ mod inner {
 		/// The identity element.
 		///
 		/// This method returns the identity endomorphism, which wraps the identity morphism of the underlying category.
-		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Returns
+		#[document_returns("The identity endomorphism.")]
 		///
-		/// The identity endomorphism.
-		///
-		/// ### Examples
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let id = empty::<Endomorphism<RcFnBrand, i32>>();
 		/// assert_eq!(id.0(5), 5);
@@ -343,12 +377,18 @@ pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use crate::{
-		brands::RcFnBrand,
-		classes::{cloneable_fn::CloneableFn, monoid::empty, semigroup::append},
+	use {
+		super::*,
+		crate::{
+			brands::RcFnBrand,
+			classes::{
+				cloneable_fn::CloneableFn,
+				monoid::empty,
+				semigroup::append,
+			},
+		},
+		quickcheck_macros::quickcheck,
 	};
-	use quickcheck_macros::quickcheck;
 
 	// Semigroup Laws
 
