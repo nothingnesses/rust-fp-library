@@ -37,7 +37,9 @@ mod inner {
 				Compactable,
 				Filterable,
 				Foldable,
+				FoldableWithIndex,
 				Functor,
+				FunctorWithIndex,
 				Lift,
 				Monoid,
 				ParFoldable,
@@ -47,6 +49,7 @@ mod inner {
 				Semimonad,
 				SendCloneableFn,
 				Traversable,
+				TraversableWithIndex,
 				Witherable,
 			},
 			impl_kind,
@@ -320,7 +323,7 @@ mod inner {
 			func: impl Fn(A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			fa.into_iter().map(func).collect()
+			fa.map(func)
 		}
 	}
 
@@ -405,7 +408,7 @@ mod inner {
 		/// assert_eq!(vec, vec![5]);
 		/// ```
 		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
-			CatList::singleton(a)
+			CatList::pure(a)
 		}
 	}
 
@@ -493,7 +496,7 @@ mod inner {
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			ma.into_iter().flat_map(func).collect()
+			ma.bind(func)
 		}
 	}
 
@@ -533,11 +536,7 @@ mod inner {
 		) -> B
 		where
 			FnBrand: CloneableFn + 'a, {
-			fa.into_iter()
-				.collect::<Vec<_>>()
-				.into_iter()
-				.rev()
-				.fold(initial, |acc, x| func(x, acc))
+			fa.fold_right(func, initial)
 		}
 
 		/// Folds the list from the left.
@@ -578,7 +577,7 @@ mod inner {
 		) -> B
 		where
 			FnBrand: CloneableFn + 'a, {
-			fa.into_iter().fold(initial, func)
+			fa.fold_left(func, initial)
 		}
 
 		/// Maps the values to a monoid and combines them.
@@ -619,7 +618,7 @@ mod inner {
 		where
 			M: Monoid + 'a,
 			FnBrand: CloneableFn + 'a, {
-			fa.into_iter().map(func).fold(M::empty(), |acc, x| M::append(acc, x))
+			fa.fold_map(func)
 		}
 	}
 
@@ -705,6 +704,134 @@ mod inner {
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 			ta.into_iter()
 				.fold(F::pure(CatList::empty()), |acc, x| F::lift2(|list, a| list.snoc(a), acc, x))
+		}
+	}
+
+	impl FunctorWithIndex<usize> for CatListBrand {
+		/// Maps a function over the list, providing the index of each element.
+		///
+		/// This is the trait form of [`CatList::map_with_index`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the elements in the list.",
+			"The type of the elements in the resulting list."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element and its index.",
+			"The list to map over."
+		)]
+		///
+		#[document_returns("A new list containing the mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::functor_with_index::FunctorWithIndex,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(10).snoc(20).snoc(30);
+		/// let result = CatListBrand::map_with_index(|i, x: i32| x + i as i32, list);
+		/// let vec: Vec<_> = result.into_iter().collect();
+		/// assert_eq!(vec, vec![10, 21, 32]);
+		/// ```
+		fn map_with_index<'a, A: 'a, B: 'a>(
+			f: impl Fn(usize, A) -> B + 'a,
+			fa: CatList<A>,
+		) -> CatList<B> {
+			fa.map_with_index(f)
+		}
+	}
+
+	impl FoldableWithIndex<usize> for CatListBrand {
+		/// Folds the list using a monoid, providing the index of each element.
+		///
+		/// This is the trait form of [`CatList::fold_map_with_index`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the elements in the list.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element and its index.",
+			"The list to fold."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::foldable_with_index::FoldableWithIndex,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(10).snoc(20).snoc(30);
+		/// let result = CatListBrand::fold_map_with_index(|i, x: i32| format!("{i}:{x}"), list);
+		/// assert_eq!(result, "0:101:202:30");
+		/// ```
+		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
+			f: impl Fn(usize, A) -> R + 'a,
+			fa: CatList<A>,
+		) -> R {
+			fa.fold_map_with_index(f)
+		}
+	}
+
+	impl TraversableWithIndex<usize> for CatListBrand {
+		/// Traverses the list with an applicative function, providing the index of each element.
+		///
+		/// This is the trait form of [`CatList::traverse_with_index`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the elements in the list.",
+			"The type of the elements in the resulting list.",
+			"The applicative context."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element and its index, returning a value in an applicative context.",
+			"The list to traverse."
+		)]
+		///
+		#[document_returns("The list wrapped in the applicative context.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::traversable_with_index::TraversableWithIndex,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let result = CatListBrand::traverse_with_index::<i32, i32, OptionBrand>(
+		/// 	|_i, x| if x > 0 { Some(x * 2) } else { None },
+		/// 	list,
+		/// );
+		/// let vec: Vec<_> = result.unwrap().into_iter().collect();
+		/// assert_eq!(vec, vec![2, 4, 6]);
+		/// ```
+		fn traverse_with_index<'a, A: 'a, B: 'a + Clone, M: Applicative>(
+			f: impl Fn(usize, A) -> M::Of<'a, B> + 'a,
+			ta: CatList<A>,
+		) -> M::Of<'a, CatList<B>>
+		where
+			CatList<B>: Clone,
+			M::Of<'a, B>: Clone, {
+			ta.into_iter().enumerate().fold(M::pure(CatList::empty()), |acc, (i, x)| {
+				M::lift2(|list, b| list.snoc(b), acc, f(i, x))
+			})
 		}
 	}
 
@@ -1455,6 +1582,230 @@ mod inner {
 				CatList::Nil => 0,
 				CatList::Cons(_, _, len) => *len,
 			}
+		}
+
+		/// Wraps a value in a singleton list.
+		///
+		/// This is the inherent method form of [`Pointed::pure`](crate::classes::pointed::Pointed::pure).
+		/// Equivalent to [`CatList::singleton`].
+		#[document_signature]
+		#[document_parameters("The value to wrap.")]
+		#[document_returns("A `CatList` containing the single value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::pure(42);
+		/// assert_eq!(list.len(), 1);
+		/// ```
+		pub fn pure(a: A) -> Self {
+			CatList::singleton(a)
+		}
+
+		/// Maps a function over each element of the list.
+		///
+		/// This is the inherent method form of [`Functor::map`](crate::classes::functor::Functor::map).
+		#[document_signature]
+		#[document_type_parameters("The type of the elements in the resulting list.")]
+		#[document_parameters("The function to apply to each element.")]
+		#[document_returns("A new list containing the mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let mapped = list.map(|x| x * 2);
+		/// let vec: Vec<_> = mapped.into_iter().collect();
+		/// assert_eq!(vec, vec![2, 4, 6]);
+		/// ```
+		pub fn map<B>(
+			self,
+			f: impl FnMut(A) -> B,
+		) -> CatList<B> {
+			self.into_iter().map(f).collect()
+		}
+
+		/// Chains list computations (flat_map).
+		///
+		/// Applies a function returning a list to each element and flattens the result.
+		/// This is the inherent method form of [`Semimonad::bind`](crate::classes::semimonad::Semimonad::bind).
+		#[document_signature]
+		#[document_type_parameters("The type of the elements in the resulting list.")]
+		#[document_parameters("The function to apply to each element, returning a list.")]
+		#[document_returns("A new list containing the flattened results.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(1).snoc(2);
+		/// let bound = list.bind(|x| CatList::singleton(x).snoc(x * 2));
+		/// let vec: Vec<_> = bound.into_iter().collect();
+		/// assert_eq!(vec, vec![1, 2, 2, 4]);
+		/// ```
+		pub fn bind<B>(
+			self,
+			f: impl FnMut(A) -> CatList<B>,
+		) -> CatList<B> {
+			self.into_iter().flat_map(f).collect()
+		}
+
+		/// Folds the list from the right.
+		///
+		/// This is the inherent method form of [`Foldable::fold_right`](crate::classes::foldable::Foldable::fold_right).
+		#[document_signature]
+		#[document_type_parameters("The type of the accumulator.")]
+		#[document_parameters("The folding function.", "The initial accumulator value.")]
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// assert_eq!(list.fold_right(|x, acc| x + acc, 0), 6);
+		/// ```
+		pub fn fold_right<B>(
+			self,
+			f: impl Fn(A, B) -> B,
+			initial: B,
+		) -> B {
+			self.into_iter().collect::<Vec<_>>().into_iter().rev().fold(initial, |acc, x| f(x, acc))
+		}
+
+		/// Folds the list from the left.
+		///
+		/// This is the inherent method form of [`Foldable::fold_left`](crate::classes::foldable::Foldable::fold_left).
+		#[document_signature]
+		#[document_type_parameters("The type of the accumulator.")]
+		#[document_parameters("The folding function.", "The initial accumulator value.")]
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// assert_eq!(list.fold_left(|acc, x| acc + x, 0), 6);
+		/// ```
+		pub fn fold_left<B>(
+			self,
+			f: impl Fn(B, A) -> B,
+			initial: B,
+		) -> B {
+			self.into_iter().fold(initial, f)
+		}
+
+		/// Maps each element to a monoid and combines the results.
+		///
+		/// This is the inherent method form of [`Foldable::fold_map`](crate::classes::foldable::Foldable::fold_map).
+		#[document_signature]
+		#[document_type_parameters("The monoid type.")]
+		#[document_parameters("The mapping function.")]
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// assert_eq!(list.fold_map(|x: i32| x.to_string()), "123".to_string());
+		/// ```
+		pub fn fold_map<M: Monoid>(
+			self,
+			f: impl FnMut(A) -> M,
+		) -> M {
+			self.into_iter().map(f).fold(M::empty(), |acc, x| M::append(acc, x))
+		}
+
+		/// Maps a function over each element, providing the index.
+		///
+		/// This is the inherent method form of [`FunctorWithIndex::map_with_index`](crate::classes::functor_with_index::FunctorWithIndex::map_with_index).
+		#[document_signature]
+		#[document_type_parameters("The type of the elements in the resulting list.")]
+		#[document_parameters("The function to apply to each element and its index.")]
+		#[document_returns("A new list containing the mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(10).snoc(20).snoc(30);
+		/// let mapped = list.map_with_index(|i, x| x + i as i32);
+		/// let vec: Vec<_> = mapped.into_iter().collect();
+		/// assert_eq!(vec, vec![10, 21, 32]);
+		/// ```
+		pub fn map_with_index<B>(
+			self,
+			mut f: impl FnMut(usize, A) -> B,
+		) -> CatList<B> {
+			self.into_iter().enumerate().map(|(i, a)| f(i, a)).collect()
+		}
+
+		/// Maps each element to a monoid and combines the results, providing the index.
+		///
+		/// This is the inherent method form of [`FoldableWithIndex::fold_map_with_index`](crate::classes::foldable_with_index::FoldableWithIndex::fold_map_with_index).
+		#[document_signature]
+		#[document_type_parameters("The monoid type.")]
+		#[document_parameters("The function to apply to each element and its index.")]
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(10).snoc(20).snoc(30);
+		/// let result = list.fold_map_with_index(|i, x: i32| format!("{i}:{x}"));
+		/// assert_eq!(result, "0:101:202:30");
+		/// ```
+		pub fn fold_map_with_index<M: Monoid>(
+			self,
+			mut f: impl FnMut(usize, A) -> M,
+		) -> M {
+			self.into_iter()
+				.enumerate()
+				.map(|(i, a)| f(i, a))
+				.fold(M::empty(), |acc, x| M::append(acc, x))
+		}
+
+		/// Traverses the list with an applicative function, providing the index.
+		///
+		/// This is the inherent method form of [`TraversableWithIndex::traverse_with_index`](crate::classes::traversable_with_index::TraversableWithIndex::traverse_with_index).
+		#[document_signature]
+		#[document_type_parameters(
+			"The type of the elements in the resulting list.",
+			"The applicative context."
+		)]
+		#[document_parameters(
+			"The function to apply to each element and its index, returning a value in an applicative context."
+		)]
+		#[document_returns("The list wrapped in the applicative context.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::cat_list::CatList,
+		/// };
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let result = list
+		/// 	.traverse_with_index::<i32, OptionBrand>(|_i, x| if x > 0 { Some(x * 2) } else { None });
+		/// let vec: Vec<_> = result.unwrap().into_iter().collect();
+		/// assert_eq!(vec, vec![2, 4, 6]);
+		/// ```
+		pub fn traverse_with_index<B: Clone, M: Applicative>(
+			self,
+			f: impl Fn(usize, A) -> M::Of<'static, B>,
+		) -> M::Of<'static, CatList<B>>
+		where
+			CatList<B>: Clone,
+			M::Of<'static, B>: Clone, {
+			self.into_iter().enumerate().fold(M::pure(CatList::empty()), |acc, (i, x)| {
+				M::lift2(|list, b| list.snoc(b), acc, f(i, x))
+			})
 		}
 	}
 

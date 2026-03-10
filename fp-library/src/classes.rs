@@ -42,6 +42,7 @@ pub mod monad_rec;
 pub mod monoid;
 pub mod optics;
 pub mod par_foldable;
+pub mod pipe;
 pub mod pointed;
 pub mod pointer;
 pub mod profunctor;

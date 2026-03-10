@@ -40,6 +40,7 @@ mod inner {
 		"The stored type.",
 		"The ignored type."
 	)]
+	#[document_parameters("The `Const` instance.")]
 	impl<'a, R, A> Const<'a, R, A> {
 		/// Creates a new `Const` instance.
 		#[document_signature]
@@ -55,6 +56,131 @@ mod inner {
 		/// ```
 		pub fn new(r: R) -> Self {
 			Const(r, PhantomData)
+		}
+
+		/// Maps over the phantom type parameter, preserving the stored value.
+		///
+		/// Since `Const` ignores its second type parameter, the function is never called.
+		/// This is the inherent method form of [`Functor::map`](crate::classes::functor::Functor::map).
+		#[document_signature]
+		#[document_type_parameters("The new phantom type.")]
+		#[document_parameters("The function to map (ignored).")]
+		#[document_returns(
+			"A new `Const` instance with the same stored value but a different phantom type."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::const_val::Const;
+		///
+		/// let c: Const<i32, String> = Const::new(42);
+		/// let mapped: Const<i32, bool> = c.map(|s: String| s.is_empty());
+		/// assert_eq!(mapped.0, 42);
+		/// ```
+		pub fn map<B>(
+			self,
+			_f: impl FnOnce(A) -> B,
+		) -> Const<'a, R, B> {
+			Const::new(self.0)
+		}
+
+		/// Combines two `Const` values by appending their stored values, discarding the phantom types.
+		///
+		/// This is the inherent method form of [`Lift::lift2`](crate::classes::lift::Lift::lift2).
+		#[document_signature]
+		#[document_type_parameters("The second phantom type.", "The result phantom type.")]
+		#[document_parameters("The other `Const` instance.", "The function to lift (ignored).")]
+		#[document_returns("A new `Const` instance with the appended stored values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::const_val::Const;
+		///
+		/// let c1: Const<String, i32> = Const::new("Hello".to_string());
+		/// let c2: Const<String, i32> = Const::new(" World".to_string());
+		/// let lifted = c1.lift2(c2, |a: i32, b: i32| a + b);
+		/// assert_eq!(lifted.0, "Hello World");
+		/// ```
+		pub fn lift2<B, C>(
+			self,
+			other: Const<'a, R, B>,
+			_f: impl FnOnce(A, B) -> C,
+		) -> Const<'a, R, C>
+		where
+			R: Semigroup, {
+			Const::new(R::append(self.0, other.0))
+		}
+
+		/// Combines the stored values of two `Const` instances, keeping the phantom type of the first.
+		///
+		/// This is the inherent method form of [`ApplyFirst::apply_first`](crate::classes::apply_first::ApplyFirst::apply_first).
+		#[document_signature]
+		#[document_type_parameters("The phantom type of the second `Const` instance.")]
+		#[document_parameters("The second `Const` instance.")]
+		#[document_returns("A new `Const` instance with the appended stored values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::const_val::Const;
+		///
+		/// let c1: Const<String, i32> = Const::new("Hello".to_string());
+		/// let c2: Const<String, bool> = Const::new(" World".to_string());
+		/// let result = c1.apply_first(c2);
+		/// assert_eq!(result.0, "Hello World");
+		/// ```
+		pub fn apply_first<B>(
+			self,
+			other: Const<'a, R, B>,
+		) -> Const<'a, R, A>
+		where
+			R: Semigroup, {
+			Const::new(R::append(self.0, other.0))
+		}
+
+		/// Combines the stored values of two `Const` instances, keeping the phantom type of the second.
+		///
+		/// This is the inherent method form of [`ApplySecond::apply_second`](crate::classes::apply_second::ApplySecond::apply_second).
+		#[document_signature]
+		#[document_type_parameters("The phantom type of the second `Const` instance.")]
+		#[document_parameters("The second `Const` instance.")]
+		#[document_returns("A new `Const` instance with the appended stored values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::const_val::Const;
+		///
+		/// let c1: Const<String, i32> = Const::new("Hello".to_string());
+		/// let c2: Const<String, bool> = Const::new(" World".to_string());
+		/// let result = c1.apply_second(c2);
+		/// assert_eq!(result.0, "Hello World");
+		/// ```
+		pub fn apply_second<B>(
+			self,
+			other: Const<'a, R, B>,
+		) -> Const<'a, R, B>
+		where
+			R: Semigroup, {
+			Const::new(R::append(self.0, other.0))
+		}
+
+		/// Creates a `Const` with the monoidal identity, ignoring the given value.
+		///
+		/// This is the inherent method form of [`Pointed::pure`](crate::classes::pointed::Pointed::pure).
+		#[document_signature]
+		#[document_parameters("The value to wrap (ignored).")]
+		#[document_returns("A new `Const` instance with the empty value of the stored type.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::const_val::Const;
+		///
+		/// let c: Const<String, i32> = Const::pure(42);
+		/// assert_eq!(c.0, "".to_string());
+		/// ```
+		pub fn pure(_a: A) -> Self
+		where
+			R: Monoid, {
+			Const::new(R::empty())
 		}
 	}
 
@@ -94,7 +220,7 @@ mod inner {
 			_f: impl Fn(A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, B>) {
-			Const::new(fa.0)
+			fa.map(_f)
 		}
 	}
 
@@ -136,7 +262,7 @@ mod inner {
 			A: Clone + 'a,
 			B: Clone + 'a,
 			C: 'a, {
-			Const::new(R::append(fa.0, fb.0))
+			fa.lift2(fb, _func)
 		}
 	}
 
@@ -210,7 +336,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, A>) {
-			Const::new(R::append(fa.0, fb.0))
+			fa.apply_first(fb)
 		}
 	}
 
@@ -242,7 +368,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, B>) {
-			Const::new(R::append(fa.0, fb.0))
+			fa.apply_second(fb)
 		}
 	}
 
@@ -265,7 +391,7 @@ mod inner {
 		/// assert_eq!(c.0, "".to_string());
 		/// ```
 		fn pure<'a, A: 'a>(_a: A) -> Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, A>) {
-			Const::new(R::empty())
+			Const::pure(_a)
 		}
 	}
 }

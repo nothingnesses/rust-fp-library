@@ -57,6 +57,289 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters("The type of the wrapped value.")]
+	#[document_parameters("The identity instance.")]
+	impl<A> Identity<A> {
+		/// Maps a function over the value in the identity.
+		///
+		/// This is the inherent version of [`Functor::map`], accepting
+		/// `FnOnce` instead of `Fn` since it consumes `self`.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the result of applying the function.")]
+		///
+		#[document_parameters("The function to apply.")]
+		///
+		#[document_returns("A new identity containing the result of applying the function.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x = Identity(5);
+		/// let y = x.map(|i| i * 2);
+		/// assert_eq!(y, Identity(10));
+		/// ```
+		pub fn map<B>(
+			self,
+			f: impl FnOnce(A) -> B,
+		) -> Identity<B> {
+			Identity(f(self.0))
+		}
+
+		/// Lifts a binary function to operate on two identities.
+		///
+		/// See [`Lift::lift2`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The type of the other identity's value.",
+			"The return type of the function."
+		)]
+		///
+		#[document_parameters("The other identity.", "The binary function to apply.")]
+		///
+		#[document_returns("A new identity containing the result of applying the function.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x = Identity(1);
+		/// let y = Identity(2);
+		/// let z = x.lift2(y, |a, b| a + b);
+		/// assert_eq!(z, Identity(3));
+		/// ```
+		pub fn lift2<B, C>(
+			self,
+			other: Identity<B>,
+			f: impl FnOnce(A, B) -> C,
+		) -> Identity<C> {
+			Identity(f(self.0, other.0))
+		}
+
+		/// Applies a wrapped function to a value.
+		///
+		/// See [`Semiapplicative::apply`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters("The return type of the wrapped function.")]
+		///
+		#[document_parameters("The identity containing the function.")]
+		///
+		#[document_returns("A new identity containing the result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let f = Identity(|x: i32| x * 2);
+		/// let x = Identity(5);
+		/// let y = x.apply(f);
+		/// assert_eq!(y, Identity(10));
+		/// ```
+		pub fn apply<B>(
+			self,
+			ff: Identity<impl FnOnce(A) -> B>,
+		) -> Identity<B> {
+			Identity(ff.0(self.0))
+		}
+
+		/// Chains identity computations.
+		///
+		/// This is the inherent version of [`Semimonad::bind`], accepting
+		/// `FnOnce` instead of `Fn` since it consumes `self`.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the result of the chained computation.")]
+		///
+		#[document_parameters("The function to apply to the value inside the identity.")]
+		///
+		#[document_returns("The result of applying `f` to the value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x = Identity(5);
+		/// let y = x.bind(|i| Identity(i * 2));
+		/// assert_eq!(y, Identity(10));
+		/// ```
+		pub fn bind<B>(
+			self,
+			f: impl FnOnce(A) -> Identity<B>,
+		) -> Identity<B> {
+			f(self.0)
+		}
+
+		/// Folds the identity from the right.
+		///
+		/// See [`Foldable::fold_right`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the accumulator.")]
+		///
+		#[document_parameters(
+			"The function to apply to the element and the accumulator.",
+			"The initial value of the accumulator."
+		)]
+		///
+		#[document_returns("The final accumulator value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x = Identity(5);
+		/// let y = x.fold_right(|a, b| a + b, 10);
+		/// assert_eq!(y, 15);
+		/// ```
+		pub fn fold_right<B>(
+			self,
+			f: impl FnOnce(A, B) -> B,
+			initial: B,
+		) -> B {
+			f(self.0, initial)
+		}
+
+		/// Folds the identity from the left.
+		///
+		/// See [`Foldable::fold_left`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the accumulator.")]
+		///
+		#[document_parameters(
+			"The function to apply to the accumulator and the element.",
+			"The initial value of the accumulator."
+		)]
+		///
+		#[document_returns("The final accumulator value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x = Identity(5);
+		/// let y = x.fold_left(|b, a| b + a, 10);
+		/// assert_eq!(y, 15);
+		/// ```
+		pub fn fold_left<B>(
+			self,
+			f: impl FnOnce(B, A) -> B,
+			initial: B,
+		) -> B {
+			f(initial, self.0)
+		}
+
+		/// Maps the value to a monoid and returns it.
+		///
+		/// See [`Foldable::fold_map`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters("The monoid type.")]
+		///
+		#[document_parameters("The mapping function.")]
+		///
+		#[document_returns("The monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x = Identity(5);
+		/// let y = x.fold_map(|a: i32| a.to_string());
+		/// assert_eq!(y, "5".to_string());
+		/// ```
+		pub fn fold_map<M>(
+			self,
+			f: impl FnOnce(A) -> M,
+		) -> M {
+			f(self.0)
+		}
+	}
+
+	#[document_type_parameters("The lifetime of the values.", "The type of the wrapped value.")]
+	#[document_parameters("The identity instance.")]
+	impl<'a, A: 'a> Identity<A> {
+		/// Traverses the identity with an applicative function.
+		///
+		/// See [`Traversable::traverse`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The type of the elements in the resulting identity.",
+			"The applicative context."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply, returning a value in an applicative context."
+		)]
+		///
+		#[document_returns("The identity wrapped in the applicative context.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = Identity(5);
+		/// let y = x.traverse::<_, OptionBrand>(|a| Some(a * 2));
+		/// assert_eq!(y, Some(Identity(10)));
+		/// ```
+		pub fn traverse<B: 'a + Clone, F: Applicative>(
+			self,
+			f: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Identity<B>>)
+		where
+			Identity<B>: Clone, {
+			F::map(|b| Identity(b), f(self.0))
+		}
+
+		/// Sequences an identity containing an applicative value.
+		///
+		/// See [`Traversable::sequence`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The inner type wrapped in the applicative context.",
+			"The applicative context."
+		)]
+		///
+		#[document_returns("The identity wrapped in the applicative context.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = Identity(Some(5));
+		/// let y: Option<Identity<i32>> = x.sequence::<i32, OptionBrand>();
+		/// assert_eq!(y, Some(Identity(5)));
+		/// ```
+		pub fn sequence<InnerA: 'a + Clone, F: Applicative>(
+			self
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Identity<InnerA>>)
+		where
+			A: Into<Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, InnerA>)>,
+			Identity<InnerA>: Clone, {
+			F::map(|a| Identity(a), self.0.into())
+		}
+	}
+
 	impl Functor for IdentityBrand {
 		/// Maps a function over the value in the identity.
 		///
@@ -90,7 +373,7 @@ mod inner {
 			func: impl Fn(A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			Identity(func(fa.0))
+			fa.map(func)
 		}
 	}
 
@@ -137,7 +420,7 @@ mod inner {
 			A: 'a,
 			B: 'a,
 			C: 'a, {
-			Identity(func(fa.0, fb.0))
+			fa.lift2(fb, func)
 		}
 	}
 
@@ -166,7 +449,7 @@ mod inner {
 		/// assert_eq!(x, Identity(5));
 		/// ```
 		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
-			Identity(a)
+			Identity(a) // Identity constructor is already equivalent to pure
 		}
 	}
 
@@ -210,7 +493,7 @@ mod inner {
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			Identity(ff.0(fa.0))
+			fa.apply(ff.map(|f| move |a| f(a)))
 		}
 	}
 
@@ -249,7 +532,7 @@ mod inner {
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			func(ma.0)
+			ma.bind(func)
 		}
 	}
 
@@ -293,7 +576,7 @@ mod inner {
 		) -> B
 		where
 			FnBrand: CloneableFn + 'a, {
-			func(fa.0, initial)
+			fa.fold_right(func, initial)
 		}
 
 		/// Folds the identity from the left.
@@ -335,7 +618,7 @@ mod inner {
 		) -> B
 		where
 			FnBrand: CloneableFn + 'a, {
-			func(initial, fa.0)
+			fa.fold_left(func, initial)
 		}
 
 		/// Maps the value to a monoid and returns it.
@@ -374,7 +657,7 @@ mod inner {
 		where
 			M: Monoid + 'a,
 			FnBrand: CloneableFn + 'a, {
-			func(fa.0)
+			fa.fold_map(func)
 		}
 	}
 
@@ -416,7 +699,7 @@ mod inner {
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
-			F::map(|b| Identity(b), func(ta.0))
+			ta.traverse::<B, F>(func)
 		}
 
 		/// Sequences an identity of applicative.
@@ -456,7 +739,7 @@ mod inner {
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
-			F::map(|a| Identity(a), ta.0)
+			ta.traverse::<A, F>(|a| a)
 		}
 	}
 

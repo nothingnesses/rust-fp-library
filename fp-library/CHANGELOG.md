@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-03-10
+
+### Added
+- **`Pipe` trait**: Left-to-right function application via method syntax (`value.pipe(f)`), similar to PureScript's `#` or Haskell's `&` operator.
+- **`Bifoldable` implementations**: Added `Bifoldable` for `PairBrand` and `StepBrand`.
+- **`Bitraversable` implementations**: Added `Bitraversable` for `PairBrand` and `StepBrand`.
+- **Indexed type class implementations for `CatList`**: Added `FunctorWithIndex<usize>`, `FoldableWithIndex<usize>`, and `TraversableWithIndex<usize>` for `CatListBrand`.
+- **Inherent methods**: Added inherent methods to data types, with type class trait implementations delegating to them:
+  - `Identity`: `map`, `lift2`, `apply`, `bind`, `fold_right`, `fold_left`, `fold_map`, `traverse`, `sequence`.
+  - `Pair`: `bimap`, `map_first`, `map_second`, `fold`, `bi_fold_right`, `bi_fold_left`, `bi_fold_map`, `bi_traverse`, `bind`, `bind_first`.
+  - `Step`: `bimap`, `map_loop`, `map_done`, `bi_fold_right`, `bi_fold_left`, `bi_fold_map`, `bi_traverse`, `fold_right`, `fold_left`, `fold_map`, `bind`, `bind_loop`.
+  - `ConstVal`: `map`, `lift2`, `apply_first`, `apply_second`, `pure`.
+  - `CatList`: `pure`, `map`, `bind`, `fold_right`, `fold_left`, `fold_map`, `map_with_index`, `fold_map_with_index`, `traverse_with_index`.
+  - `Lazy`: `ref_map`.
+
 ## [0.11.0] - 2026-03-10
 
 ### Changed

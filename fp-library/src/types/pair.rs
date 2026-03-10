@@ -16,7 +16,9 @@ mod inner {
 				Applicative,
 				ApplyFirst,
 				ApplySecond,
+				Bifoldable,
 				Bifunctor,
+				Bitraversable,
 				CloneableFn,
 				Foldable,
 				Functor,
@@ -70,6 +72,345 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters("The type of the first value.", "The type of the second value.")]
+	#[document_parameters("The pair instance.")]
+	impl<First, Second> Pair<First, Second> {
+		/// Maps functions over both values in the pair.
+		///
+		/// See [`Bifunctor::bimap`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The type of the mapped first value.",
+			"The type of the mapped second value."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the first value.",
+			"The function to apply to the second value."
+		)]
+		///
+		#[document_returns("A new pair containing the mapped values.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x = Pair(1, 5);
+		/// assert_eq!(x.bimap(|a| a + 1, |b| b * 2), Pair(2, 10));
+		/// ```
+		pub fn bimap<B, D>(
+			self,
+			f: impl FnOnce(First) -> B,
+			g: impl FnOnce(Second) -> D,
+		) -> Pair<B, D> {
+			Pair(f(self.0), g(self.1))
+		}
+
+		/// Maps a function over the first value in the pair.
+		///
+		/// See [`Bifunctor::bimap`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the mapped first value.")]
+		///
+		#[document_parameters("The function to apply to the first value.")]
+		///
+		#[document_returns("A new pair with the transformed first value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x = Pair(1, 5);
+		/// assert_eq!(x.map_first(|a| a + 1), Pair(2, 5));
+		/// ```
+		pub fn map_first<B>(
+			self,
+			f: impl FnOnce(First) -> B,
+		) -> Pair<B, Second> {
+			Pair(f(self.0), self.1)
+		}
+
+		/// Maps a function over the second value in the pair.
+		///
+		/// See [`Bifunctor::bimap`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the mapped second value.")]
+		///
+		#[document_parameters("The function to apply to the second value.")]
+		///
+		#[document_returns("A new pair with the transformed second value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x = Pair(1, 5);
+		/// assert_eq!(x.map_second(|b| b * 2), Pair(1, 10));
+		/// ```
+		pub fn map_second<D>(
+			self,
+			g: impl FnOnce(Second) -> D,
+		) -> Pair<First, D> {
+			Pair(self.0, g(self.1))
+		}
+
+		/// Folds both values into a single result.
+		///
+		/// Applies two functions to the first and second values respectively,
+		/// then combines the results using `FnOnce`.
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type.")]
+		///
+		#[document_parameters(
+			"The function to apply to the first value.",
+			"The function to apply to the second value.",
+			"The function to combine the results."
+		)]
+		///
+		#[document_returns("The combined result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x = Pair(1, 2);
+		/// let y = x.fold(|a| a.to_string(), |b| b.to_string(), |a, b| format!("{a},{b}"));
+		/// assert_eq!(y, "1,2");
+		/// ```
+		pub fn fold<C>(
+			self,
+			f: impl FnOnce(First) -> C,
+			g: impl FnOnce(Second) -> C,
+			combine: impl FnOnce(C, C) -> C,
+		) -> C {
+			combine(f(self.0), g(self.1))
+		}
+
+		/// Folds the pair from right to left using two step functions.
+		///
+		/// See [`Bifoldable::bi_fold_right`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters("The accumulator type.")]
+		///
+		#[document_parameters(
+			"The step function for the first value.",
+			"The step function for the second value.",
+			"The initial accumulator."
+		)]
+		///
+		#[document_returns("The result of folding: `f(first, g(second, z))`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x = Pair(3, 5);
+		/// assert_eq!(x.bi_fold_right(|a, acc| acc - a, |b, acc| acc + b, 0), 2);
+		/// ```
+		pub fn bi_fold_right<C>(
+			self,
+			f: impl FnOnce(First, C) -> C,
+			g: impl FnOnce(Second, C) -> C,
+			z: C,
+		) -> C {
+			f(self.0, g(self.1, z))
+		}
+
+		/// Folds the pair from left to right using two step functions.
+		///
+		/// See [`Bifoldable::bi_fold_left`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters("The accumulator type.")]
+		///
+		#[document_parameters(
+			"The step function for the first value.",
+			"The step function for the second value.",
+			"The initial accumulator."
+		)]
+		///
+		#[document_returns("The result of folding: `g(f(z, first), second)`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x = Pair(3, 5);
+		/// assert_eq!(x.bi_fold_left(|acc, a| acc - a, |acc, b| acc + b, 0), 2);
+		/// ```
+		pub fn bi_fold_left<C>(
+			self,
+			f: impl FnOnce(C, First) -> C,
+			g: impl FnOnce(C, Second) -> C,
+			z: C,
+		) -> C {
+			g(f(z, self.0), self.1)
+		}
+
+		/// Maps both values to a monoid and combines the results.
+		///
+		/// See [`Bifoldable::bi_fold_map`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters("The monoid type.")]
+		///
+		#[document_parameters(
+			"The function mapping the first value to the monoid.",
+			"The function mapping the second value to the monoid."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x = Pair(3, 5);
+		/// assert_eq!(x.bi_fold_map(|a: i32| a.to_string(), |b: i32| b.to_string()), "35".to_string());
+		/// ```
+		pub fn bi_fold_map<M: Semigroup>(
+			self,
+			f: impl FnOnce(First) -> M,
+			g: impl FnOnce(Second) -> M,
+		) -> M {
+			Semigroup::append(f(self.0), g(self.1))
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The type of the first value.",
+		"The type of the second value."
+	)]
+	#[document_parameters("The pair instance.")]
+	impl<'a, First: 'a, Second: 'a> Pair<First, Second> {
+		/// Traverses the pair with two effectful functions.
+		///
+		/// See [`Bitraversable::bi_traverse`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The output type for the first value.",
+			"The output type for the second value.",
+			"The applicative context."
+		)]
+		///
+		#[document_parameters(
+			"The function for the first value.",
+			"The function for the second value."
+		)]
+		///
+		#[document_returns("A pair of the transformed values wrapped in the applicative context.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = Pair(3, 5);
+		/// let y = x.bi_traverse::<_, _, OptionBrand>(|a| Some(a + 1), |b| Some(b * 2));
+		/// assert_eq!(y, Some(Pair(4, 10)));
+		/// ```
+		pub fn bi_traverse<C: 'a + Clone, D: 'a + Clone, F: Applicative>(
+			self,
+			f: impl Fn(First) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
+			g: impl Fn(Second) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a,
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Pair<C, D>>)
+		where
+			Pair<C, D>: Clone, {
+			F::lift2(|c, d| Pair(c, d), f(self.0), g(self.1))
+		}
+	}
+
+	#[document_type_parameters("The type of the first value.", "The type of the second value.")]
+	#[document_parameters("The pair instance.")]
+	impl<First: Semigroup, Second> Pair<First, Second> {
+		/// Chains a computation over the second value, combining first values via their semigroup.
+		///
+		/// See [`Semimonad::bind`] for the type class version
+		/// (via [`PairFirstAppliedBrand`]).
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the new second value.")]
+		///
+		#[document_parameters("The function to apply to the second value.")]
+		///
+		#[document_returns(
+			"A new pair where the first values are combined and the second value is transformed."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// assert_eq!(
+		/// 	Pair("a".to_string(), 5).bind(|x| Pair("b".to_string(), x * 2)),
+		/// 	Pair("ab".to_string(), 10)
+		/// );
+		/// ```
+		pub fn bind<C>(
+			self,
+			f: impl FnOnce(Second) -> Pair<First, C>,
+		) -> Pair<First, C> {
+			let Pair(first, second) = self;
+			let Pair(next_first, next_second) = f(second);
+			Pair(Semigroup::append(first, next_first), next_second)
+		}
+	}
+
+	#[document_type_parameters("The type of the first value.", "The type of the second value.")]
+	#[document_parameters("The pair instance.")]
+	impl<First, Second: Semigroup> Pair<First, Second> {
+		/// Chains a computation over the first value, combining second values via their semigroup.
+		///
+		/// See [`Semimonad::bind`] for the type class version
+		/// (via [`PairSecondAppliedBrand`]).
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the new first value.")]
+		///
+		#[document_parameters("The function to apply to the first value.")]
+		///
+		#[document_returns(
+			"A new pair where the first value is transformed and the second values are combined."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// assert_eq!(
+		/// 	Pair(5, "a".to_string()).bind_first(|x| Pair(x * 2, "b".to_string())),
+		/// 	Pair(10, "ab".to_string())
+		/// );
+		/// ```
+		pub fn bind_first<C>(
+			self,
+			f: impl FnOnce(First) -> Pair<C, Second>,
+		) -> Pair<C, Second> {
+			let Pair(first, second) = self;
+			let Pair(next_first, next_second) = f(first);
+			Pair(next_first, Semigroup::append(second, next_second))
+		}
+	}
+
 	impl Bifunctor for PairBrand {
 		/// Maps functions over the values in the pair.
 		///
@@ -109,8 +450,206 @@ mod inner {
 			g: impl Fn(C) -> D + 'a,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
 		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>) {
-			let Pair(a, c) = p;
-			Pair(f(a), g(c))
+			p.bimap(f, g)
+		}
+	}
+
+	impl Bifoldable for PairBrand {
+		/// Folds the pair from right to left using two step functions.
+		///
+		/// Folds `Pair(a, b)` as `f(a, g(b, z))`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the first value.",
+			"The type of the second value.",
+			"The accumulator type."
+		)]
+		///
+		#[document_parameters(
+			"The step function for the first value.",
+			"The step function for the second value.",
+			"The initial accumulator.",
+			"The pair to fold."
+		)]
+		///
+		#[document_returns("`f(a, g(b, z))`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = Pair(3, 5);
+		/// assert_eq!(
+		/// 	bi_fold_right::<RcFnBrand, PairBrand, _, _, _>(|a, acc| acc - a, |b, acc| acc + b, 0, x,),
+		/// 	2
+		/// );
+		/// ```
+		fn bi_fold_right<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+			f: impl Fn(A, C) -> C + 'a,
+			g: impl Fn(B, C) -> C + 'a,
+			z: C,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> C {
+			p.bi_fold_right(f, g, z)
+		}
+
+		/// Folds the pair from left to right using two step functions.
+		///
+		/// Folds `Pair(a, b)` as `g(f(z, a), b)`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the first value.",
+			"The type of the second value.",
+			"The accumulator type."
+		)]
+		///
+		#[document_parameters(
+			"The step function for the first value.",
+			"The step function for the second value.",
+			"The initial accumulator.",
+			"The pair to fold."
+		)]
+		///
+		#[document_returns("`g(f(z, a), b)`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = Pair(3, 5);
+		/// assert_eq!(
+		/// 	bi_fold_left::<RcFnBrand, PairBrand, _, _, _>(|acc, a| acc - a, |acc, b| acc + b, 0, x,),
+		/// 	2
+		/// );
+		/// ```
+		fn bi_fold_left<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+			f: impl Fn(C, A) -> C + 'a,
+			g: impl Fn(C, B) -> C + 'a,
+			z: C,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> C {
+			p.bi_fold_left(f, g, z)
+		}
+
+		/// Maps both values to a monoid and combines the results.
+		///
+		/// Computes `Semigroup::append(f(a), g(b))` for `Pair(a, b)`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the first value.",
+			"The type of the second value.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function mapping the first value to the monoid.",
+			"The function mapping the second value to the monoid.",
+			"The pair to fold."
+		)]
+		///
+		#[document_returns("`Semigroup::append(f(a), g(b))`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	bi_fold_map::<RcFnBrand, PairBrand, _, _, _>(
+		/// 		|a: i32| a.to_string(),
+		/// 		|b: i32| b.to_string(),
+		/// 		Pair(3, 5),
+		/// 	),
+		/// 	"35".to_string()
+		/// );
+		/// ```
+		fn bi_fold_map<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, M>(
+			f: impl Fn(A) -> M + 'a,
+			g: impl Fn(B) -> M + 'a,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> M
+		where
+			M: Monoid + 'a, {
+			p.bi_fold_map(f, g)
+		}
+	}
+
+	impl Bitraversable for PairBrand {
+		/// Traverses the pair with two effectful functions.
+		///
+		/// Applies `f` to the first value and `g` to the second value,
+		/// combining the effects via `lift2`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the first value.",
+			"The type of the second value.",
+			"The output type for the first value.",
+			"The output type for the second value.",
+			"The applicative context."
+		)]
+		///
+		#[document_parameters(
+			"The function applied to the first value.",
+			"The function applied to the second value.",
+			"The pair to traverse."
+		)]
+		///
+		#[document_returns("`lift2(Pair, f(a), g(b))`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = Pair(3, 5);
+		/// assert_eq!(
+		/// 	bi_traverse::<PairBrand, _, _, _, _, OptionBrand>(
+		/// 		|a: i32| Some(a + 1),
+		/// 		|b: i32| Some(b * 2),
+		/// 		x,
+		/// 	),
+		/// 	Some(Pair(4, 10))
+		/// );
+		/// ```
+		fn bi_traverse<
+			'a,
+			A: 'a + Clone,
+			B: 'a + Clone,
+			C: 'a + Clone,
+			D: 'a + Clone,
+			F: Applicative,
+		>(
+			f: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
+			g: impl Fn(B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
+		{
+			p.bi_traverse::<C, D, F>(f, g)
 		}
 	}
 
@@ -159,7 +698,7 @@ mod inner {
 			func: impl Fn(A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			Pair(fa.0, func(fa.1))
+			fa.map_second(func)
 		}
 	}
 
@@ -216,7 +755,9 @@ mod inner {
 			A: Clone + 'a,
 			B: Clone + 'a,
 			C: 'a, {
-			Pair(Semigroup::append(fa.0, fb.0), func(fa.1, fb.1))
+			let Pair(fa_first, fa_second) = fa;
+			let Pair(fb_first, fb_second) = fb;
+			Pair(Semigroup::append(fa_first, fb_first), func(fa_second, fb_second))
 		}
 	}
 
@@ -347,9 +888,7 @@ mod inner {
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			let Pair(first, second) = ma;
-			let Pair(next_first, next_second) = func(second);
-			Pair(Semigroup::append(first, next_first), next_second)
+			ma.bind(func)
 		}
 	}
 
@@ -697,7 +1236,7 @@ mod inner {
 			func: impl Fn(A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			Pair(func(fa.0), fa.1)
+			fa.map_first(func)
 		}
 	}
 
@@ -887,9 +1426,7 @@ mod inner {
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			let Pair(first, second) = ma;
-			let Pair(next_first, next_second) = func(first);
-			Pair(next_first, Semigroup::append(second, next_second))
+			ma.bind_first(func)
 		}
 	}
 
