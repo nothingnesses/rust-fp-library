@@ -4,21 +4,19 @@ This document outlines the steps for releasing new versions of `fp-library` and 
 
 ## Prerequisites
 
-- Ensure you have the latest code: `git pull`
+- Ensure you have the latest `main`: `git checkout main && git pull`
 - Ensure the working directory is clean: `git status`
 - Ensure all tests pass: `cargo test`
 
-## Merging to Main
-
-All changes should be merged into `main` via Pull Requests before a release is cut.
-
-- **Squash and Merge**: This is the preferred method to keep the `main` branch history clean and linear.
-- **CI Checks**: All CI checks (tests, clippy, formatting, cargo-deny) must pass before merging. See `.github/workflows/ci.yml`.
-- **Conventional Commits**: Encouraged for PR titles/squash commits to simplify changelog generation (e.g., `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, etc.).
-
 ## Release Steps
 
-### 1. Determine Version Bump
+### 1. Create a Release Branch
+
+```bash
+git checkout -b release/fp-library-vX.Y.Z
+```
+
+### 2. Determine Version Bump
 
 Follow [Semantic Versioning](https://semver.org/), with the following policy for pre-1.0.0 releases:
 
@@ -26,7 +24,7 @@ Follow [Semantic Versioning](https://semver.org/), with the following policy for
 - **Minor** (0.X.0): Incompatible API changes or significant new functionality.
 - **Patch** (0.0.X): Backwards-compatible bug fixes or minor additions.
 
-### 2. Update Changelogs
+### 3. Update Changelogs
 
 Update `fp-library/CHANGELOG.md` and `fp-macros/CHANGELOG.md` (if applicable).
 
@@ -71,7 +69,7 @@ For each package being released, determine what has changed since the last relea
 2.  List all notable changes under the appropriate headers (Added, Changed, Removed, Fixed).
 3.  Create a new empty `[Unreleased]` section at the top.
 
-### 3. Update Cargo.toml
+### 4. Update Cargo.toml
 
 #### fp-macros (if changed)
 
@@ -82,9 +80,9 @@ For each package being released, determine what has changed since the last relea
 1.  Update `version` in `fp-library/Cargo.toml` and in `README.md`.
 2.  If `fp-macros` was updated, ensure the `fp-macros` dependency in `fp-library/Cargo.toml` matches the new version.
 
-### 4. Verification
+### 5. Verification
 
-Run the full suite of checks to ensure the release is stable:
+Run the full suite of checks locally to catch issues before the PR:
 
 ```bash
 # Check compilation
@@ -100,24 +98,41 @@ cargo clippy
 cargo doc --open
 ```
 
-### 5. Commit and Tag
+### 6. Commit and Open PR
 
-1.  Stage the changes:
+1.  Stage and commit the release changes:
 
     ```bash
     git add fp-library/Cargo.toml fp-library/CHANGELOG.md
     # Add fp-macros files if changed
     git add fp-macros/Cargo.toml fp-macros/CHANGELOG.md
-    ```
 
-2.  Commit with a release message:
-
-    ```bash
     git commit -m "chore: release fp-library vX.Y.Z / fp-macros vA.B.C"
     ```
 
-3.  Tag the release(s):
-    Since crates are versioned independently, create a tag for each crate being released:
+2.  Push and open a pull request:
+
+    ```bash
+    git push origin release/fp-library-vX.Y.Z
+    ```
+
+    Open a PR targeting `main`. All CI checks (tests, clippy, formatting, cargo-deny) must pass before merging. See `.github/workflows/ci.yml`.
+
+    - **Squash and Merge** is preferred to keep the `main` branch history clean and linear.
+    - **Conventional Commits** are encouraged for PR titles/squash commits (e.g., `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, etc.).
+
+### 7. Tag and Publish
+
+After the PR is merged, tag the release on `main`:
+
+1.  Switch to `main` and pull the merge:
+
+    ```bash
+    git checkout main
+    git pull
+    ```
+
+2.  Tag the release(s). Since crates are versioned independently, create a tag for each crate being released:
 
     ```bash
     # If releasing fp-library
@@ -127,14 +142,11 @@ cargo doc --open
     git tag fp-macros-vA.B.C
     ```
 
-### 6. Push and Publish
+3.  Push the tag(s) to trigger the automated release workflow:
 
-Push the commit and tags to trigger the automated release workflow:
-
-```bash
-git push origin main
-git push origin --tags
-```
+    ```bash
+    git push origin --tags
+    ```
 
 The release workflow (`.github/workflows/release.yml`) will automatically:
 
