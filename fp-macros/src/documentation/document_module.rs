@@ -365,6 +365,8 @@ fn validate_no_duplicate_doc_attrs(
 /// Check that the ordered documentation attributes appear in the canonical order:
 /// document_signature → document_type_parameters → document_parameters →
 /// document_returns → document_examples.
+// SAFETY: all indices are bounded by DOCUMENT_ATTR_ORDER.len() and names come from DOCUMENT_ATTR_ORDER itself
+#[allow(clippy::indexing_slicing, clippy::unwrap_used)]
 fn validate_doc_attr_order(
 	attrs: &[syn::Attribute],
 	item_span: proc_macro2::Span,

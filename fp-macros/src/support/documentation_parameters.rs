@@ -23,6 +23,8 @@ pub enum DocumentationParameter {
 }
 
 impl Parse for DocumentationParameter {
+	// SAFETY: tuple.elems.len() == 2 validated above
+	#[allow(clippy::indexing_slicing)]
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		if input.peek(syn::token::Paren) {
 			let tuple: ExprTuple = input.parse()?;

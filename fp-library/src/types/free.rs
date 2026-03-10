@@ -294,12 +294,16 @@ mod inner {
 		) -> Free<F, B> {
 			// Type-erase the continuation
 			let erased_f: Continuation<F> = Box::new(move |val: TypeErasedValue| {
+				// SAFETY: type is maintained by internal invariant — mismatch indicates a bug
+				#[allow(clippy::expect_used)]
 				let a: A = *val.downcast().expect("Type mismatch in Free::bind");
 				let free_b: Free<F, B> = f(a);
 				free_b.erase_type()
 			});
 
 			// Extract inner safely
+			// SAFETY: Free values are used exactly once — double consumption indicates a bug
+			#[allow(clippy::expect_used)]
 			let inner = self.0.take().expect("Free value already consumed");
 
 			match inner {
@@ -353,6 +357,8 @@ mod inner {
 		/// assert!(erased.evaluate().is::<i32>());
 		/// ```
 		pub fn erase_type(mut self) -> Free<F, TypeErasedValue> {
+			// SAFETY: Free values are used exactly once — double consumption indicates a bug
+			#[allow(clippy::expect_used)]
 			let inner = self.0.take().expect("Free value already consumed");
 
 			match inner {
@@ -419,6 +425,8 @@ mod inner {
 			let mut continuations: CatList<Continuation<F>> = CatList::empty();
 
 			loop {
+				// SAFETY: Free values are used exactly once — double consumption indicates a bug
+				#[allow(clippy::expect_used)]
 				let inner = current.0.take().expect("Free value already consumed");
 
 				match inner {
@@ -431,6 +439,8 @@ mod inner {
 							}
 							None => {
 								// No more continuations - we're done!
+								// SAFETY: type is maintained by internal invariant — mismatch indicates a bug
+								#[allow(clippy::expect_used)]
 								return *val
 									.downcast::<A>()
 									.expect("Type mismatch in Free::evaluate final downcast");

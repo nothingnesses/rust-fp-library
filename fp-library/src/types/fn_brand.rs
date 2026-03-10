@@ -423,6 +423,8 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>) {
 			P::coerce_fn(move |s| {
 				let pab = pab.clone();
+				// SAFETY: traversal contract guarantees Some when applying through OptionBrand
+				#[allow(clippy::unwrap_used)]
 				traversal
 					.apply::<crate::brands::OptionBrand>(Box::new(move |a| Some(pab(a))), s)
 					.unwrap()

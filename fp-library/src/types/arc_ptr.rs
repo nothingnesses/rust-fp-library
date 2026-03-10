@@ -163,6 +163,8 @@ mod inner {
 		/// assert_eq!(ArcBrand::take_cell_take(&cell), None);
 		/// ```
 		fn take_cell_take<'a, T: 'a>(cell: &Arc<Mutex<Option<T>>>) -> Option<T> {
+			// SAFETY: lock only fails on poisoning, which cannot occur here
+			#[allow(clippy::unwrap_used)]
 			cell.lock().unwrap().take()
 		}
 	}

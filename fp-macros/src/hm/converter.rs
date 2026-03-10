@@ -156,6 +156,8 @@ pub fn trait_bound_to_hm_arrow(
 		let input_ty = if inputs.is_empty() {
 			HmAst::Unit
 		} else if inputs.len() == 1 {
+			// SAFETY: inputs.len() == 1 checked above
+			#[allow(clippy::indexing_slicing)]
 			inputs[0].clone()
 		} else {
 			HmAst::Tuple(inputs)

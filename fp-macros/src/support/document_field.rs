@@ -93,8 +93,9 @@ impl FieldInfo {
 	) -> Result<Self> {
 		match fields {
 			Fields::Named(fields_named) => {
-				let field_names: Vec<_> =
-					fields_named.named.iter().map(|f| f.ident.clone().unwrap()).collect();
+				// SAFETY: named fields always have an ident
+				#[allow(clippy::unwrap_used)]
+				let field_names: Vec<_> = fields_named.named.iter().map(|f| f.ident.clone().unwrap()).collect();
 
 				let _ = parsing::parse_not_zero_sized(
 					field_names.len(),

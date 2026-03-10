@@ -162,6 +162,8 @@ mod inner {
 			BazaarList {
 				foci: vec![],
 				rebuild: <FunctionBrand as CloneableFn>::new(move |_: Vec<B>| {
+					// SAFETY: take_cell_take is called exactly once per the optics rebuild contract
+					#[allow(clippy::expect_used)]
 					Ptr::<FunctionBrand>::take_cell_take(&a)
 						.expect("BazaarList::pure rebuild called more than once")
 				}),
@@ -633,6 +635,8 @@ mod inner {
 				BazaarList {
 					foci: bl.foci,
 					rebuild: <FunctionBrand as CloneableFn>::new(move |bs: Vec<B>| {
+						// SAFETY: take_cell_take is called exactly once per the optics rebuild contract
+						#[allow(clippy::expect_used)]
 						let c = Ptr::<FunctionBrand>::take_cell_take(&c)
 							.expect("BazaarList rebuild called more than once");
 						((*rebuild)(bs), c)
@@ -692,6 +696,8 @@ mod inner {
 				BazaarList {
 					foci: bl.foci,
 					rebuild: <FunctionBrand as CloneableFn>::new(move |bs: Vec<B>| {
+						// SAFETY: take_cell_take is called exactly once per the optics rebuild contract
+						#[allow(clippy::expect_used)]
 						let c = Ptr::<FunctionBrand>::take_cell_take(&c)
 							.expect("BazaarList rebuild called more than once");
 						(c, (*rebuild)(bs))
@@ -773,6 +779,8 @@ mod inner {
 					BazaarList {
 						foci: vec![],
 						rebuild: <FunctionBrand as CloneableFn>::new(move |_: Vec<B>| {
+							// SAFETY: take_cell_take is called exactly once per the optics rebuild contract
+							#[allow(clippy::expect_used)]
 							Ok(Ptr::<FunctionBrand>::take_cell_take(&c)
 								.expect("BazaarList rebuild called more than once"))
 						}),
@@ -845,6 +853,8 @@ mod inner {
 					BazaarList {
 						foci: vec![],
 						rebuild: <FunctionBrand as CloneableFn>::new(move |_: Vec<B>| {
+							// SAFETY: take_cell_take is called exactly once per the optics rebuild contract
+							#[allow(clippy::expect_used)]
 							Err(Ptr::<FunctionBrand>::take_cell_take(&c)
 								.expect("BazaarList rebuild called more than once"))
 						}),

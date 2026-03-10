@@ -366,6 +366,8 @@ pub fn analyze_fn_bounds(
 				&& let Type::Path(type_path) = &predicate_type.bounded_ty
 				&& type_path.path.segments.len() == 1
 			{
+				// SAFETY: segments.len() == 1 checked above
+				#[allow(clippy::indexing_slicing)]
 				let name = type_path.path.segments[0].ident.to_string();
 				for bound in &predicate_type.bounds {
 					if let TypeParamBound::Trait(trait_bound) = bound
