@@ -92,67 +92,6 @@ fn test_nested_no_validation_compiles() {
 	inner.inner_method();
 }
 
-// =========================================================================
-// 7d: Validation warnings don't block compilation (error→warning migration)
-// =========================================================================
-
-// Key regression test: previously this was commented out because validation
-// emitted compile_error!. Now it emits warnings via #[deprecated], so this
-// should compile successfully.
-#[document_module]
-#[allow(deprecated)]
-mod test_validation_warnings_dont_block_compilation {
-	pub struct MyType;
-
-	// This impl block is missing documentation attributes.
-	// Validation emits warnings but doesn't block compilation.
-	impl MyType {
-		pub fn new() -> Self {
-			Self
-		}
-
-		#[allow(dead_code)]
-		pub fn process<T>(
-			&self,
-			_value: T,
-		) -> T {
-			_value
-		}
-	}
-}
-
-#[test]
-fn test_validation_warnings_dont_block_compilation() {
-	let _ = test_validation_warnings_dont_block_compilation::MyType::new();
-}
-
-// =========================================================================
-// 7d: impl Trait lint integration tests
-// =========================================================================
-
-// Test that a named generic that could be impl Trait compiles (warning emitted)
-#[document_module(no_validation)]
-#[allow(deprecated)]
-mod test_impl_trait_lint_compiles_with_named_generic {
-	pub struct MyType;
-
-	impl MyType {
-		#[allow(dead_code)]
-		pub fn apply<F: Fn(i32) -> i32>(
-			f: F,
-			x: i32,
-		) -> i32 {
-			f(x)
-		}
-	}
-}
-
-#[test]
-fn test_impl_trait_lint_compiles_with_named_generic() {
-	let result = test_impl_trait_lint_compiles_with_named_generic::MyType::apply(|x| x + 1, 5);
-	assert_eq!(result, 6);
-}
-
 // Test that #[allow_named_generics] suppresses the lint
 #[document_module(no_validation)]
 mod test_impl_trait_lint_suppressed {

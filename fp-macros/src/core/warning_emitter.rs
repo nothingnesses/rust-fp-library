@@ -47,6 +47,7 @@ impl WarningEmitter {
 	}
 
 	/// Returns `true` if no warnings have been emitted.
+	#[allow(dead_code)]
 	pub fn is_empty(&self) -> bool {
 		self.warnings.is_empty()
 	}
