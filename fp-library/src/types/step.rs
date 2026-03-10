@@ -30,7 +30,9 @@ mod inner {
 				Applicative,
 				ApplyFirst,
 				ApplySecond,
+				Bifoldable,
 				Bifunctor,
+				Bitraversable,
 				CloneableFn,
 				Foldable,
 				Functor,
@@ -209,6 +211,320 @@ mod inner {
 				Step::Done(b) => Step::Done(g(b)),
 			}
 		}
+
+		/// Folds the step from right to left using two step functions.
+		///
+		/// See [`Bifoldable::bi_fold_right`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters("The accumulator type.")]
+		///
+		#[document_parameters(
+			"The step function for the Loop variant.",
+			"The step function for the Done variant.",
+			"The initial accumulator."
+		)]
+		///
+		#[document_returns("The result of folding.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x: Step<i32, i32> = Step::Loop(3);
+		/// assert_eq!(x.bi_fold_right(|a, acc| acc - a, |b, acc| acc + b, 10), 7);
+		/// ```
+		pub fn bi_fold_right<C>(
+			self,
+			f: impl FnOnce(A, C) -> C,
+			g: impl FnOnce(B, C) -> C,
+			z: C,
+		) -> C {
+			match self {
+				Step::Loop(a) => f(a, z),
+				Step::Done(b) => g(b, z),
+			}
+		}
+
+		/// Folds the step from left to right using two step functions.
+		///
+		/// See [`Bifoldable::bi_fold_left`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters("The accumulator type.")]
+		///
+		#[document_parameters(
+			"The step function for the Loop variant.",
+			"The step function for the Done variant.",
+			"The initial accumulator."
+		)]
+		///
+		#[document_returns("The result of folding.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x: Step<i32, i32> = Step::Done(5);
+		/// assert_eq!(x.bi_fold_left(|acc, a| acc - a, |acc, b| acc + b, 10), 15);
+		/// ```
+		pub fn bi_fold_left<C>(
+			self,
+			f: impl FnOnce(C, A) -> C,
+			g: impl FnOnce(C, B) -> C,
+			z: C,
+		) -> C {
+			match self {
+				Step::Loop(a) => f(z, a),
+				Step::Done(b) => g(z, b),
+			}
+		}
+
+		/// Maps the value to a monoid depending on the variant.
+		///
+		/// See [`Bifoldable::bi_fold_map`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters("The monoid type.")]
+		///
+		#[document_parameters(
+			"The function mapping the Loop value to the monoid.",
+			"The function mapping the Done value to the monoid."
+		)]
+		///
+		#[document_returns("The monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x: Step<i32, i32> = Step::Loop(3);
+		/// assert_eq!(x.bi_fold_map(|a: i32| a.to_string(), |b: i32| b.to_string()), "3");
+		/// ```
+		pub fn bi_fold_map<M>(
+			self,
+			f: impl FnOnce(A) -> M,
+			g: impl FnOnce(B) -> M,
+		) -> M {
+			match self {
+				Step::Loop(a) => f(a),
+				Step::Done(b) => g(b),
+			}
+		}
+
+		/// Folds the Done value, returning `initial` for Loop.
+		///
+		/// See [`Foldable::fold_right`] for the type class version
+		/// (via [`StepLoopAppliedBrand`]).
+		#[document_signature]
+		///
+		#[document_type_parameters("The accumulator type.")]
+		///
+		#[document_parameters(
+			"The function to apply to the Done value and the accumulator.",
+			"The initial accumulator."
+		)]
+		///
+		#[document_returns("The result of folding.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x: Step<(), i32> = Step::Done(5);
+		/// assert_eq!(x.fold_right(|b, acc| b + acc, 10), 15);
+		/// ```
+		pub fn fold_right<C>(
+			self,
+			f: impl FnOnce(B, C) -> C,
+			initial: C,
+		) -> C {
+			match self {
+				Step::Loop(_) => initial,
+				Step::Done(b) => f(b, initial),
+			}
+		}
+
+		/// Folds the Done value from the left, returning `initial` for Loop.
+		///
+		/// See [`Foldable::fold_left`] for the type class version
+		/// (via [`StepLoopAppliedBrand`]).
+		#[document_signature]
+		///
+		#[document_type_parameters("The accumulator type.")]
+		///
+		#[document_parameters(
+			"The function to apply to the accumulator and the Done value.",
+			"The initial accumulator."
+		)]
+		///
+		#[document_returns("The result of folding.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x: Step<(), i32> = Step::Done(5);
+		/// assert_eq!(x.fold_left(|acc, b| acc + b, 10), 15);
+		/// ```
+		pub fn fold_left<C>(
+			self,
+			f: impl FnOnce(C, B) -> C,
+			initial: C,
+		) -> C {
+			match self {
+				Step::Loop(_) => initial,
+				Step::Done(b) => f(initial, b),
+			}
+		}
+
+		/// Maps the Done value to a monoid, returning `M::empty()` for Loop.
+		///
+		/// See [`Foldable::fold_map`] for the type class version
+		/// (via [`StepLoopAppliedBrand`]).
+		#[document_signature]
+		///
+		#[document_type_parameters("The monoid type.")]
+		///
+		#[document_parameters("The mapping function.")]
+		///
+		#[document_returns("The monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x: Step<(), i32> = Step::Done(5);
+		/// assert_eq!(x.fold_map(|b: i32| b.to_string()), "5".to_string());
+		/// ```
+		pub fn fold_map<M: Monoid>(
+			self,
+			f: impl FnOnce(B) -> M,
+		) -> M {
+			match self {
+				Step::Loop(_) => M::empty(),
+				Step::Done(b) => f(b),
+			}
+		}
+
+		/// Chains the Done value into a new computation, passing through Loop.
+		///
+		/// See [`Semimonad::bind`] for the type class version
+		/// (via [`StepLoopAppliedBrand`]).
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the resulting Done value.")]
+		///
+		#[document_parameters("The function to apply to the Done value.")]
+		///
+		#[document_returns("The result of the computation.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x: Step<i32, i32> = Step::Done(5);
+		/// let y = x.bind(|b| Step::Done(b * 2));
+		/// assert_eq!(y, Step::Done(10));
+		/// ```
+		pub fn bind<C>(
+			self,
+			f: impl FnOnce(B) -> Step<A, C>,
+		) -> Step<A, C> {
+			match self {
+				Step::Loop(a) => Step::Loop(a),
+				Step::Done(b) => f(b),
+			}
+		}
+
+		/// Chains the Loop value into a new computation, passing through Done.
+		///
+		/// See [`Semimonad::bind`] for the type class version
+		/// (via [`StepDoneAppliedBrand`]).
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the resulting Loop value.")]
+		///
+		#[document_parameters("The function to apply to the Loop value.")]
+		///
+		#[document_returns("The result of the computation.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let x: Step<i32, i32> = Step::Loop(5);
+		/// let y = x.bind_loop(|a| Step::Loop(a * 2));
+		/// assert_eq!(y, Step::Loop(10));
+		/// ```
+		pub fn bind_loop<C>(
+			self,
+			f: impl FnOnce(A) -> Step<C, B>,
+		) -> Step<C, B> {
+			match self {
+				Step::Loop(a) => f(a),
+				Step::Done(b) => Step::Done(b),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The type of the Loop value.",
+		"The type of the Done value."
+	)]
+	#[document_parameters("The step instance.")]
+	impl<'a, A: 'a, B: 'a> Step<A, B> {
+		/// Traverses the step with two effectful functions.
+		///
+		/// See [`Bitraversable::bi_traverse`] for the type class version.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The output type for the Loop value.",
+			"The output type for the Done value.",
+			"The applicative context."
+		)]
+		///
+		#[document_parameters(
+			"The function for the Loop value.",
+			"The function for the Done value."
+		)]
+		///
+		#[document_returns("The transformed step wrapped in the applicative context.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x: Step<i32, i32> = Step::Loop(3);
+		/// let y = x.bi_traverse::<_, _, OptionBrand>(|a| Some(a + 1), |b| Some(b * 2));
+		/// assert_eq!(y, Some(Step::Loop(4)));
+		/// ```
+		pub fn bi_traverse<C: 'a + Clone, D: 'a + Clone, F: Applicative>(
+			self,
+			f: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
+			g: impl Fn(B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a,
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<C, D>>)
+		where
+			Step<C, D>: Clone, {
+			match self {
+				Step::Loop(a) => F::map(|c| Step::Loop(c), f(a)),
+				Step::Done(b) => F::map(|d| Step::Done(d), g(b)),
+			}
+		}
 	}
 
 	impl_kind! {
@@ -263,6 +579,206 @@ mod inner {
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
 		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>) {
 			p.bimap(f, g)
+		}
+	}
+
+	impl Bifoldable for StepBrand {
+		/// Folds the step from right to left using two step functions.
+		///
+		/// Applies `f` to the Loop value or `g` to the Done value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the Loop value.",
+			"The type of the Done value.",
+			"The accumulator type."
+		)]
+		///
+		#[document_parameters(
+			"The step function for the Loop variant.",
+			"The step function for the Done variant.",
+			"The initial accumulator.",
+			"The step to fold."
+		)]
+		///
+		#[document_returns("The folded result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x: Step<i32, i32> = Step::Loop(3);
+		/// assert_eq!(
+		/// 	bi_fold_right::<RcFnBrand, StepBrand, _, _, _>(|a, acc| acc - a, |b, acc| acc + b, 10, x,),
+		/// 	7
+		/// );
+		/// ```
+		fn bi_fold_right<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+			f: impl Fn(A, C) -> C + 'a,
+			g: impl Fn(B, C) -> C + 'a,
+			z: C,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> C {
+			p.bi_fold_right(f, g, z)
+		}
+
+		/// Folds the step from left to right using two step functions.
+		///
+		/// Applies `f` to the Loop value or `g` to the Done value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the Loop value.",
+			"The type of the Done value.",
+			"The accumulator type."
+		)]
+		///
+		#[document_parameters(
+			"The step function for the Loop variant.",
+			"The step function for the Done variant.",
+			"The initial accumulator.",
+			"The step to fold."
+		)]
+		///
+		#[document_returns("The folded result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x: Step<i32, i32> = Step::Done(5);
+		/// assert_eq!(
+		/// 	bi_fold_left::<RcFnBrand, StepBrand, _, _, _>(|acc, a| acc - a, |acc, b| acc + b, 10, x,),
+		/// 	15
+		/// );
+		/// ```
+		fn bi_fold_left<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+			f: impl Fn(C, A) -> C + 'a,
+			g: impl Fn(C, B) -> C + 'a,
+			z: C,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> C {
+			p.bi_fold_left(f, g, z)
+		}
+
+		/// Maps the value to a monoid depending on the variant.
+		///
+		/// Applies `f` if Loop, `g` if Done.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the Loop value.",
+			"The type of the Done value.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function mapping the Loop value to the monoid.",
+			"The function mapping the Done value to the monoid.",
+			"The step to fold."
+		)]
+		///
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x: Step<i32, i32> = Step::Loop(3);
+		/// assert_eq!(
+		/// 	bi_fold_map::<RcFnBrand, StepBrand, _, _, _>(
+		/// 		|a: i32| a.to_string(),
+		/// 		|b: i32| b.to_string(),
+		/// 		x,
+		/// 	),
+		/// 	"3".to_string()
+		/// );
+		/// ```
+		fn bi_fold_map<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, M>(
+			f: impl Fn(A) -> M + 'a,
+			g: impl Fn(B) -> M + 'a,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> M
+		where
+			M: Monoid + 'a, {
+			p.bi_fold_map(f, g)
+		}
+	}
+
+	impl Bitraversable for StepBrand {
+		/// Traverses the step with two effectful functions.
+		///
+		/// Applies `f` to the Loop value or `g` to the Done value,
+		/// wrapping the result in the applicative context.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the Loop value.",
+			"The type of the Done value.",
+			"The output type for Loop.",
+			"The output type for Done.",
+			"The applicative context."
+		)]
+		///
+		#[document_parameters(
+			"The function applied to the Loop value.",
+			"The function applied to the Done value.",
+			"The step to traverse."
+		)]
+		///
+		#[document_returns("The transformed step wrapped in the applicative context.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x: Step<i32, i32> = Step::Loop(3);
+		/// assert_eq!(
+		/// 	bi_traverse::<StepBrand, _, _, _, _, OptionBrand>(
+		/// 		|a: i32| Some(a + 1),
+		/// 		|b: i32| Some(b * 2),
+		/// 		x,
+		/// 	),
+		/// 	Some(Step::Loop(4))
+		/// );
+		/// ```
+		fn bi_traverse<
+			'a,
+			A: 'a + Clone,
+			B: 'a + Clone,
+			C: 'a + Clone,
+			D: 'a + Clone,
+			F: Applicative,
+		>(
+			f: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
+			g: impl Fn(B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
+		{
+			p.bi_traverse::<C, D, F>(f, g)
 		}
 	}
 
@@ -505,10 +1021,7 @@ mod inner {
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			match ma {
-				Step::Done(a) => func(a),
-				Step::Loop(e) => Step::Loop(e),
-			}
+			ma.bind(func)
 		}
 	}
 
@@ -559,10 +1072,7 @@ mod inner {
 		) -> B
 		where
 			FnBrand: CloneableFn + 'a, {
-			match fa {
-				Step::Done(a) => func(a, initial),
-				Step::Loop(_) => initial,
-			}
+			fa.fold_right(func, initial)
 		}
 
 		/// Folds the step from the left.
@@ -610,10 +1120,7 @@ mod inner {
 		) -> B
 		where
 			FnBrand: CloneableFn + 'a, {
-			match fa {
-				Step::Done(a) => func(initial, a),
-				Step::Loop(_) => initial,
-			}
+			fa.fold_left(func, initial)
 		}
 
 		/// Maps the value to a monoid and returns it.
@@ -663,10 +1170,7 @@ mod inner {
 		where
 			M: Monoid + 'a,
 			FnBrand: CloneableFn + 'a, {
-			match fa {
-				Step::Done(a) => func(a),
-				Step::Loop(_) => M::empty(),
-			}
+			fa.fold_map(func)
 		}
 	}
 
@@ -1113,10 +1617,7 @@ mod inner {
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			match ma {
-				Step::Done(t) => Step::Done(t),
-				Step::Loop(e) => func(e),
-			}
+			ma.bind_loop(func)
 		}
 	}
 

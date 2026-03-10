@@ -457,6 +457,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
+	#[document_parameters("The lazy instance.")]
 	impl<'a, A> Lazy<'a, A, RcLazyConfig>
 	where
 		A: 'a,
@@ -499,6 +500,33 @@ mod inner {
 		/// ```
 		pub fn pure(a: A) -> Self {
 			Lazy(RcLazyConfig::lazy_new(Box::new(move || a)))
+		}
+
+		/// Maps a function over the memoized value by reference.
+		///
+		/// This is the inherent method form of [`RefFunctor::ref_map`](crate::classes::ref_functor::RefFunctor::ref_map).
+		/// The mapping function receives a reference to the cached value and returns a new value,
+		/// which is itself lazily memoized.
+		#[document_signature]
+		#[document_type_parameters("The type of the result.")]
+		#[document_parameters("The function to apply to the memoized value.")]
+		#[document_returns("A new `Lazy` instance containing the mapped value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
+		/// let mapped = memo.ref_map(|x| *x * 2);
+		/// assert_eq!(*mapped.evaluate(), 20);
+		/// ```
+		pub fn ref_map<B: 'a>(
+			self,
+			f: impl FnOnce(&A) -> B + 'a,
+		) -> Lazy<'a, B, RcLazyConfig> {
+			let fa = self.clone();
+			let init: Box<dyn FnOnce() -> B + 'a> = Box::new(move || f(fa.evaluate()));
+			Lazy(RcLazyConfig::lazy_new(init))
 		}
 	}
 
@@ -704,9 +732,7 @@ mod inner {
 			f: impl FnOnce(&A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			let fa = fa.clone();
-			let init: Box<dyn FnOnce() -> B + 'a> = Box::new(move || f(fa.evaluate()));
-			Lazy(RcLazyConfig::lazy_new(init))
+			fa.ref_map(f)
 		}
 	}
 }
