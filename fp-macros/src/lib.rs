@@ -8,6 +8,7 @@
 pub(crate) mod analysis; // Type and trait analysis
 pub(crate) mod codegen; // Code generation (includes re-exports)
 pub(crate) mod core; // Core infrastructure (config, error, result)
+pub(crate) mod do_notation; // Monadic do-notation
 pub(crate) mod documentation; // Documentation generation macros
 pub(crate) mod hkt; // Higher-Kinded Type macros
 pub(crate) mod hm; // Hindley-Milner type conversion
@@ -24,6 +25,10 @@ use {
 		ReExportInput,
 		TraitFormatter,
 		generate_re_exports_worker,
+	},
+	do_notation::{
+		DoInput,
+		m_worker,
 	},
 	documentation::{
 		document_examples_worker,
@@ -756,6 +761,28 @@ pub fn document_returns(
 /// A `### Examples` heading is inserted at the attribute's position. The code
 /// blocks in the doc comments are validated but not modified.
 ///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// #[document_examples]
+/// ///
+/// /// ```
+/// /// let x = my_fn(1, 2);
+/// /// assert_eq!(x, 3);
+/// /// ```
+/// pub fn my_fn(a: i32, b: i32) -> i32 { a + b }
+///
+/// // Expanded code
+/// /// ### Examples
+/// ///
+/// /// ```
+/// /// let x = my_fn(1, 2);
+/// /// assert_eq!(x, 3);
+/// /// ```
+/// pub fn my_fn(a: i32, b: i32) -> i32 { a + b }
+/// ```
+///
 /// ### Errors
 ///
 /// * Arguments are provided to the attribute.
@@ -1122,6 +1149,92 @@ pub fn document_module(
 	item: TokenStream,
 ) -> TokenStream {
 	match document_module_worker(attr.into(), item.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Monadic do-notation.
+///
+/// Desugars flat monadic syntax into nested `bind` calls, matching
+/// Haskell/PureScript `do` notation. The name is `m` because `do`
+/// is a reserved keyword in Rust.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// m!(Brand {
+///     x <- expr;            // Bind: extract value from monadic computation
+///     y: Type <- expr;      // Typed bind: with explicit type annotation
+///     _ <- expr;            // Discard bind: sequence, discarding the result
+///     expr;                 // Sequence: discard result (shorthand for `_ <- expr;`)
+///     let z = expr;         // Let binding: pure, not monadic
+///     let w: Type = expr;   // Typed let binding
+///     expr                  // Final expression: no semicolon, returned as-is
+/// })
+/// ```
+///
+/// * `Brand`: The monad brand type (e.g., `OptionBrand`, `VecBrand`).
+/// * `x <- expr;`: Binds the result of a monadic expression to a pattern.
+/// * `let z = expr;`: A pure let binding (not monadic).
+/// * `expr;`: Sequences a monadic expression, discarding the result.
+/// * `expr` (final): The return expression, emitted as-is.
+///
+/// Bare `pure(args)` calls are automatically rewritten to `pure::<Brand, _>(args)`.
+///
+/// ### Statement Forms
+///
+/// | Syntax | Expansion |
+/// |--------|-----------|
+/// | `x <- expr;` | `bind::<Brand, _, _>(expr, move \|x\| { ...rest })` |
+/// | `x: Type <- expr;` | `bind::<Brand, _, _>(expr, move \|x: Type\| { ...rest })` |
+/// | `_ <- expr;` | `bind::<Brand, _, _>(expr, move \|_\| { ...rest })` |
+/// | `expr;` | `bind::<Brand, _, _>(expr, move \|_\| { ...rest })` |
+/// | `let x = expr;` | `{ let x = expr; ...rest }` |
+/// | `expr` (final) | Emitted as-is |
+///
+/// ### Generates
+///
+/// Nested `bind` calls equivalent to hand-written monadic code.
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// use fp_library::{brands::*, functions::*};
+/// use fp_macros::m;
+///
+/// let result = m!(OptionBrand {
+///     x <- Some(5);
+///     y <- Some(x + 1);
+///     let z = x * y;
+///     pure(z)
+/// });
+/// assert_eq!(result, Some(30));
+///
+/// // Expanded code
+/// let result = bind::<OptionBrand, _, _>(Some(5), move |x| {
+///     bind::<OptionBrand, _, _>(Some(x + 1), move |y| {
+///         let z = x * y;
+///         pure::<OptionBrand, _>(z)
+///     })
+/// });
+/// ```
+///
+/// ```ignore
+/// // Invocation
+/// // Works with any monad brand
+/// let result = m!(VecBrand {
+///     x <- vec![1, 2];
+///     y <- vec![10, 20];
+///     pure(x + y)
+/// });
+/// assert_eq!(result, vec![11, 21, 12, 22]);
+/// ```
+#[proc_macro]
+pub fn m(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as DoInput);
+	match m_worker(input) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}
