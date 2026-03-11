@@ -6,6 +6,7 @@
 * `Alternative` type class (requires `Plus` and `Applicative`).
 * Kleisli composition (`compose_kleisli`, `>=>` equivalent). Composes monadic functions `A -> F<B>` and `B -> F<C>` into `A -> F<C>` without explicit `bind` threading. Enables point-free monadic pipelines and reusable monadic function building blocks.
 * `do!` macro. Desugars sequential monadic binds from flat syntax into nested `bind` calls, e.g. `do! { x <- fa; y <- g(x); pure(x + y) }` becomes `bind(fa, |x| bind(g(x), |y| pure(x + y)))`. Eliminates rightward drift from deeply nested closures.
+	* Inline `!`-notation within `do!`: allow `do! { pure(!fa + !fb) }` as shorthand that automatically lifts subexpressions into binds, similar to Idris's `!`-notation. Avoids unnecessary intermediate bindings when a value is used once, immediately. Implement as an incremental enhancement to `do!` rather than a standalone feature.
 * Property-based tests for type class laws.
 	* [Validity](https://github.com/NorfairKing/validity).
 * Add a diagram of the typeclass/trait hierarchy and reasoning/justification for why the current hierarchy is as it is.
