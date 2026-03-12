@@ -29,22 +29,50 @@ enum ParseState {
 	InSkippedBlock,
 }
 
-/// Extract the content of all `#[doc = "..."]` attributes.
+/// Extract the content of all `#[doc = "..."]` and `#[doc = concat!(...)]`
+/// attributes.
 fn extract_doc_content(attrs: &[syn::Attribute]) -> Vec<String> {
 	attrs
 		.iter()
 		.filter_map(|attr| {
 			if let syn::Meta::NameValue(nv) = &attr.meta
 				&& nv.path.is_ident("doc")
-				&& let syn::Expr::Lit(lit) = &nv.value
-				&& let syn::Lit::Str(s) = &lit.lit
 			{
-				Some(s.value())
+				if let syn::Expr::Lit(lit) = &nv.value
+					&& let syn::Lit::Str(s) = &lit.lit
+				{
+					Some(s.value())
+				} else if let syn::Expr::Macro(expr_macro) = &nv.value
+					&& expr_macro.mac.path.is_ident("concat")
+				{
+					Some(extract_concat_string_literals(&expr_macro.mac.tokens))
+				} else {
+					None
+				}
 			} else {
 				None
 			}
 		})
 		.collect()
+}
+
+/// Extract string literal content from `concat!(...)` arguments.
+///
+/// Parses the token stream inside a `concat!()` invocation and
+/// concatenates all string literal arguments. Non-literal arguments
+/// (e.g., `stringify!(...)`) are skipped, since the string literal
+/// portions are sufficient for detecting code fence boundaries and
+/// assertion macros.
+fn extract_concat_string_literals(tokens: &proc_macro2::TokenStream) -> String {
+	let mut result = String::new();
+	for token in tokens.clone() {
+		if let proc_macro2::TokenTree::Literal(lit) = token
+			&& let Ok(s) = syn::parse2::<syn::LitStr>(proc_macro2::TokenTree::Literal(lit).into())
+		{
+			result.push_str(&s.value());
+		}
+	}
+	result
 }
 
 /// Extract Rust code blocks from doc comment lines.

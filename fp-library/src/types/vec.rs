@@ -1552,6 +1552,78 @@ mod tests {
 		lhs == rhs
 	}
 
+	// Alt Laws
+
+	/// Tests the associativity law for Alt.
+	#[quickcheck]
+	fn alt_associativity(
+		x: Vec<i32>,
+		y: Vec<i32>,
+		z: Vec<i32>,
+	) -> bool {
+		alt::<VecBrand, _>(alt::<VecBrand, _>(x.clone(), y.clone()), z.clone())
+			== alt::<VecBrand, _>(x, alt::<VecBrand, _>(y, z))
+	}
+
+	/// Tests the distributivity law for Alt.
+	#[quickcheck]
+	fn alt_distributivity(
+		x: Vec<i32>,
+		y: Vec<i32>,
+	) -> bool {
+		let f = |i: i32| i.wrapping_mul(2).wrapping_add(1);
+		map::<VecBrand, _, _>(f, alt::<VecBrand, _>(x.clone(), y.clone()))
+			== alt::<VecBrand, _>(map::<VecBrand, _, _>(f, x), map::<VecBrand, _, _>(f, y))
+	}
+
+	// Plus Laws
+
+	/// Tests the left identity law for Plus.
+	#[quickcheck]
+	fn plus_left_identity(x: Vec<i32>) -> bool {
+		alt::<VecBrand, _>(plus_empty::<VecBrand, i32>(), x.clone()) == x
+	}
+
+	/// Tests the right identity law for Plus.
+	#[quickcheck]
+	fn plus_right_identity(x: Vec<i32>) -> bool {
+		alt::<VecBrand, _>(x.clone(), plus_empty::<VecBrand, i32>()) == x
+	}
+
+	/// Tests the annihilation law for Plus.
+	#[test]
+	fn plus_annihilation() {
+		let f = |i: i32| i.wrapping_mul(2);
+		assert_eq!(
+			map::<VecBrand, _, _>(f, plus_empty::<VecBrand, i32>()),
+			plus_empty::<VecBrand, i32>(),
+		);
+	}
+
+	// Compactable Laws (Plus-dependent)
+
+	/// Tests the functor identity law for Compactable.
+	#[quickcheck]
+	fn compactable_functor_identity(fa: Vec<i32>) -> bool {
+		compact::<VecBrand, _>(map::<VecBrand, _, _>(Some, fa.clone())) == fa
+	}
+
+	/// Tests the Plus annihilation (empty) law for Compactable.
+	#[test]
+	fn compactable_plus_annihilation_empty() {
+		assert_eq!(
+			compact::<VecBrand, _>(plus_empty::<VecBrand, Option<i32>>()),
+			plus_empty::<VecBrand, i32>(),
+		);
+	}
+
+	/// Tests the Plus annihilation (map) law for Compactable.
+	#[quickcheck]
+	fn compactable_plus_annihilation_map(xs: Vec<i32>) -> bool {
+		compact::<VecBrand, _>(map::<VecBrand, _, _>(|_: i32| None::<i32>, xs))
+			== plus_empty::<VecBrand, i32>()
+	}
+
 	// Edge Cases
 
 	/// Tests `compact` on an empty vector.
@@ -1623,5 +1695,78 @@ mod tests {
 	fn wither_empty() {
 		let res = wither::<VecBrand, OptionBrand, _, _>(|x: i32| Some(Some(x)), vec![]);
 		assert_eq!(res, Some(vec![]));
+	}
+
+	// ParFoldable Laws
+
+	/// Verifies that `par_fold_map` correctly sums a large vector (100,000 elements).
+	#[test]
+	fn test_large_vector_par_fold_map() {
+		use crate::types::Additive;
+
+		let xs: Vec<i32> = (0 .. 100000).collect();
+		let f_par = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| Additive(x as i64));
+		let res = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f_par, xs);
+		assert_eq!(res, Additive(4999950000));
+	}
+
+	/// Property: parallel `par_fold_map` produces the same result as sequential `fold_map`.
+	#[quickcheck]
+	fn prop_par_fold_map_equals_fold_map(xs: Vec<i32>) -> bool {
+		use crate::types::Additive;
+
+		let f_seq = |x: i32| Additive(x as i64);
+		let f_par = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| Additive(x as i64));
+
+		let seq_res =
+			crate::classes::foldable::fold_map::<ArcFnBrand, VecBrand, _, _>(f_seq, xs.clone());
+		let par_res = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f_par, xs);
+
+		seq_res == par_res
+	}
+
+	/// Property: parallel `par_fold_right` produces the same result as sequential `fold_right`.
+	#[quickcheck]
+	fn prop_par_fold_right_equals_fold_right(xs: Vec<i32>) -> bool {
+		let f_seq = |a: i32, b: i32| a.wrapping_add(b);
+		let f_par =
+			send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a.wrapping_add(b));
+		let init = 0;
+
+		let seq_res = crate::classes::foldable::fold_right::<ArcFnBrand, VecBrand, _, _>(
+			f_seq,
+			init,
+			xs.clone(),
+		);
+		let par_res = par_fold_right::<ArcFnBrand, VecBrand, _, _>(f_par, init, xs);
+
+		seq_res == par_res
+	}
+
+	/// Property: `par_fold_map` on an empty vector returns the Monoid's empty value.
+	#[quickcheck]
+	fn prop_par_fold_map_empty_is_empty(xs: Vec<i32>) -> bool {
+		use crate::types::Additive;
+
+		if !xs.is_empty() {
+			return true;
+		}
+
+		let f_par = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| Additive(x as i64));
+		let par_res = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f_par, xs);
+
+		par_res == empty::<Additive<i64>>()
+	}
+
+	/// Property: `par_fold_map` is deterministic.
+	#[quickcheck]
+	fn prop_par_fold_map_deterministic(xs: Vec<i32>) -> bool {
+		use crate::types::Additive;
+
+		let f_par = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| Additive(x as i64));
+
+		let res1 = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f_par.clone(), xs.clone());
+		let res2 = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f_par, xs);
+		res1 == res2
 	}
 }

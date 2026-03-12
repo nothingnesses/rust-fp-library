@@ -13,15 +13,22 @@
 //! assert_eq!(x.0, 5);
 //! ```
 
+pub mod additive;
 pub mod arc_ptr;
 pub mod cat_list;
+pub mod conjunctive;
 pub mod const_val;
+pub mod disjunctive;
+pub mod dual;
 pub mod endofunction;
 pub mod endomorphism;
+pub mod first;
 pub mod fn_brand;
 pub mod free;
 pub mod identity;
+pub mod last;
 pub mod lazy;
+pub mod multiplicative;
 pub mod optics;
 pub mod option;
 pub mod pair;
@@ -40,11 +47,17 @@ pub mod tuple_2;
 pub mod vec;
 
 pub use {
+	additive::Additive,
 	cat_list::CatList,
+	conjunctive::Conjunctive,
+	disjunctive::Disjunctive,
+	dual::Dual,
 	endofunction::Endofunction,
 	endomorphism::Endomorphism,
+	first::First,
 	free::Free,
 	identity::Identity,
+	last::Last,
 	lazy::{
 		ArcLazy,
 		ArcLazyConfig,
@@ -53,6 +66,7 @@ pub use {
 		RcLazy,
 		RcLazyConfig,
 	},
+	multiplicative::Multiplicative,
 	optics::{
 		Composed,
 		Lens,

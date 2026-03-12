@@ -1336,6 +1336,78 @@ mod tests {
 		lhs == rhs
 	}
 
+	// Alt Laws
+
+	/// Tests the associativity law for Alt.
+	#[quickcheck]
+	fn alt_associativity(
+		x: Option<i32>,
+		y: Option<i32>,
+		z: Option<i32>,
+	) -> bool {
+		alt::<OptionBrand, _>(alt::<OptionBrand, _>(x, y), z)
+			== alt::<OptionBrand, _>(x, alt::<OptionBrand, _>(y, z))
+	}
+
+	/// Tests the distributivity law for Alt.
+	#[quickcheck]
+	fn alt_distributivity(
+		x: Option<i32>,
+		y: Option<i32>,
+	) -> bool {
+		let f = |i: i32| i.wrapping_mul(2).wrapping_add(1);
+		map::<OptionBrand, _, _>(f, alt::<OptionBrand, _>(x, y))
+			== alt::<OptionBrand, _>(map::<OptionBrand, _, _>(f, x), map::<OptionBrand, _, _>(f, y))
+	}
+
+	// Plus Laws
+
+	/// Tests the left identity law for Plus.
+	#[quickcheck]
+	fn plus_left_identity(x: Option<i32>) -> bool {
+		alt::<OptionBrand, _>(plus_empty::<OptionBrand, i32>(), x) == x
+	}
+
+	/// Tests the right identity law for Plus.
+	#[quickcheck]
+	fn plus_right_identity(x: Option<i32>) -> bool {
+		alt::<OptionBrand, _>(x, plus_empty::<OptionBrand, i32>()) == x
+	}
+
+	/// Tests the annihilation law for Plus.
+	#[test]
+	fn plus_annihilation() {
+		let f = |i: i32| i.wrapping_mul(2);
+		assert_eq!(
+			map::<OptionBrand, _, _>(f, plus_empty::<OptionBrand, i32>()),
+			plus_empty::<OptionBrand, i32>(),
+		);
+	}
+
+	// Compactable Laws (Plus-dependent)
+
+	/// Tests the functor identity law for Compactable.
+	#[quickcheck]
+	fn compactable_functor_identity(fa: Option<i32>) -> bool {
+		compact::<OptionBrand, _>(map::<OptionBrand, _, _>(Some, fa)) == fa
+	}
+
+	/// Tests the Plus annihilation (empty) law for Compactable.
+	#[test]
+	fn compactable_plus_annihilation_empty() {
+		assert_eq!(
+			compact::<OptionBrand, _>(plus_empty::<OptionBrand, Option<i32>>()),
+			plus_empty::<OptionBrand, i32>(),
+		);
+	}
+
+	/// Tests the Plus annihilation (map) law for Compactable.
+	#[quickcheck]
+	fn compactable_plus_annihilation_map(xs: Option<i32>) -> bool {
+		compact::<OptionBrand, _>(map::<OptionBrand, _, _>(|_: i32| None::<i32>, xs))
+			== plus_empty::<OptionBrand, i32>()
+	}
+
 	// Edge Cases
 
 	/// Tests `compact` on `Some(None)`.

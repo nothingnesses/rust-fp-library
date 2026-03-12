@@ -747,6 +747,7 @@ mod tests {
 			Thunk,
 			Trampoline,
 		},
+		quickcheck_macros::quickcheck,
 		std::{
 			cell::RefCell,
 			rc::Rc,
@@ -912,5 +913,76 @@ mod tests {
 		for handle in handles {
 			handle.join().unwrap();
 		}
+	}
+
+	// Memoization Properties
+
+	/// Property: getting a memoized value twice returns the same result (Rc).
+	#[quickcheck]
+	fn prop_rc_memo_get_memoization(x: i32) -> bool {
+		let memo = RcLazy::new(move || x.wrapping_mul(2));
+		let result1 = *memo.evaluate();
+		let result2 = *memo.evaluate();
+		result1 == result2
+	}
+
+	/// Property: getting a memoized value twice returns the same result (Arc).
+	#[quickcheck]
+	fn prop_arc_memo_get_memoization(x: i32) -> bool {
+		let memo = ArcLazy::new(move || x.wrapping_mul(2));
+		let result1 = *memo.evaluate();
+		let result2 = *memo.evaluate();
+		result1 == result2
+	}
+
+	// Clone Equivalence Properties
+
+	/// Property: cloning an RcLazy shares state.
+	#[quickcheck]
+	fn prop_rc_memo_clone_shares_state(x: i32) -> bool {
+		let memo1 = RcLazy::new(move || x);
+		let memo2 = memo1.clone();
+
+		let result1 = *memo1.evaluate();
+		let result2 = *memo2.evaluate();
+		result1 == result2
+	}
+
+	/// Property: cloning an ArcLazy shares state.
+	#[quickcheck]
+	fn prop_arc_memo_clone_shares_state(x: i32) -> bool {
+		let memo1 = ArcLazy::new(move || x);
+		let memo2 = memo1.clone();
+
+		let result1 = *memo1.evaluate();
+		let result2 = *memo2.evaluate();
+		result1 == result2
+	}
+
+	/// Property: getting original then clone gives same result.
+	#[quickcheck]
+	fn prop_memo_get_original_then_clone(x: String) -> bool {
+		let value = x.clone();
+		let memo = RcLazy::new(move || value.clone());
+		let memo_clone = memo.clone();
+
+		let result1 = memo.evaluate().clone();
+		let result2 = memo_clone.evaluate().clone();
+
+		result1 == result2
+	}
+
+	// Determinism Properties
+
+	/// Property: lazy computation is deterministic.
+	#[quickcheck]
+	fn prop_memo_deterministic(
+		x: i32,
+		y: i32,
+	) -> bool {
+		let memo1 = RcLazy::new(move || x.wrapping_add(y));
+		let memo2 = RcLazy::new(move || x.wrapping_add(y));
+
+		*memo1.evaluate() == *memo2.evaluate()
 	}
 }
