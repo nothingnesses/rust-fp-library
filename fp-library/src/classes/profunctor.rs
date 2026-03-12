@@ -70,7 +70,39 @@ mod inner {
 	///
 	/// `Profunctor` instances must satisfy the following laws:
 	/// * Identity: `dimap(identity, identity, p) = p`.
-	/// * Composition: `dimap(f1 ∘ f2, g2 ∘ g1, p) = dimap(f1, g1, dimap(f2, g2, p))`.
+	/// * Composition: `dimap(f2 ∘ f1, g1 ∘ g2, p) = dimap(f1, g1, dimap(f2, g2, p))`.
+	#[document_examples]
+	///
+	/// Profunctor laws for [`RcFnBrand`](crate::brands::RcFnBrand):
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let p = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
+	///
+	/// // Identity: dimap(identity, identity, p) = p
+	/// let id_mapped = dimap::<RcFnBrand, _, _, _, _>(identity, identity, p.clone());
+	/// assert_eq!(id_mapped(5), p(5));
+	/// assert_eq!(id_mapped(0), p(0));
+	///
+	/// // Composition: dimap(f2 ∘ f1, g1 ∘ g2, p)
+	/// //            = dimap(f1, g1, dimap(f2, g2, p))
+	/// let f1 = |x: i32| x + 10;
+	/// let f2 = |x: i32| x * 2;
+	/// let g1 = |x: i32| x - 1;
+	/// let g2 = |x: i32| x * 3;
+	/// let left = dimap::<RcFnBrand, _, _, _, _>(
+	/// 	compose(f2, f1), // f2 ∘ f1
+	/// 	compose(g1, g2), // g1 ∘ g2
+	/// 	p.clone(),
+	/// );
+	/// let right = dimap::<RcFnBrand, _, _, _, _>(f1, g1, dimap::<RcFnBrand, _, _, _, _>(f2, g2, p));
+	/// assert_eq!(left(5), right(5));
+	/// assert_eq!(left(0), right(0));
+	/// ```
 	pub trait Profunctor: Kind_266801a817966495 {
 		/// Maps over both arguments of the profunctor.
 		///

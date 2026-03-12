@@ -9,6 +9,7 @@ mod inner {
 			Apply,
 			brands::OptionBrand,
 			classes::{
+				Alt,
 				Applicative,
 				ApplyFirst,
 				ApplySecond,
@@ -20,6 +21,7 @@ mod inner {
 				Lift,
 				Monoid,
 				ParFoldable,
+				Plus,
 				Pointed,
 				Semiapplicative,
 				Semimonad,
@@ -238,6 +240,61 @@ mod inner {
 			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			ma.and_then(func)
+		}
+	}
+
+	impl Alt for OptionBrand {
+		/// Chooses between two options.
+		///
+		/// Returns the first `Some` value, or `None` if both are `None`.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the values.", "The type of the value.")]
+		///
+		#[document_parameters("The first option.", "The second option.")]
+		///
+		#[document_returns("The first `Some` value, or `None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(alt::<OptionBrand, _>(None, Some(5)), Some(5));
+		/// assert_eq!(alt::<OptionBrand, _>(Some(3), Some(5)), Some(3));
+		/// assert_eq!(alt::<OptionBrand, _>(None::<i32>, None), None);
+		/// ```
+		fn alt<'a, A: 'a>(
+			fa1: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa2: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			fa1.or(fa2)
+		}
+	}
+
+	impl Plus for OptionBrand {
+		/// Returns `None`, the identity element for [`alt`](Alt::alt).
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type of the value.")]
+		///
+		#[document_returns("`None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x: Option<i32> = plus_empty::<OptionBrand, i32>();
+		/// assert_eq!(x, None);
+		/// ```
+		fn empty<'a, A: 'a>() -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			None
 		}
 	}
 

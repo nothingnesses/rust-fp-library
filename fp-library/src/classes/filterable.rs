@@ -31,6 +31,96 @@ mod inner {
 	/// *   `partition`: Splitting elements based on a predicate.
 	/// *   `partition_map`: Mapping and partitioning in one step.
 	///
+	/// ### Laws
+	///
+	/// `Filterable` instances must satisfy the following laws:
+	/// * Distributivity: `filter_map(identity, fa) = compact(fa)`.
+	/// * Distributivity: `partition_map(identity, fa) = separate(fa)`.
+	/// * Identity: `filter_map(Some, fa) = fa`.
+	/// * Composition: `filter_map(|a| r(a).and_then(l), fa) = filter_map(l, filter_map(r, fa))`.
+	/// * Consistency (`filter`/`filter_map`): `filter(p, fa) = filter_map(|a| if p(a) { Some(a) } else { None }, fa)`.
+	/// * Consistency (`partition`/`partition_map`): `partition(p, fa) = partition_map(|a| if p(a) { Ok(a) } else { Err(a) }, fa)`.
+	#[document_examples]
+	///
+	/// Filterable laws for [`Option`]:
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// // Distributivity: filter_map(identity, fa) = compact(fa)
+	/// let fa: Option<Option<i32>> = Some(Some(5));
+	/// assert_eq!(
+	/// 	filter_map::<OptionBrand, _, _>(identity, fa),
+	/// 	compact::<OptionBrand, _>(fa),
+	/// );
+	///
+	/// // Distributivity: partition_map(identity, fa) = separate(fa)
+	/// let fa: Option<Result<i32, &str>> = Some(Ok(5));
+	/// assert_eq!(
+	/// 	partition_map::<OptionBrand, _, _, _>(identity, fa),
+	/// 	separate::<OptionBrand, _, _>(fa),
+	/// );
+	///
+	/// // Identity: filter_map(Some, fa) = fa
+	/// assert_eq!(filter_map::<OptionBrand, _, _>(Some, Some(5)), Some(5));
+	/// assert_eq!(filter_map::<OptionBrand, _, _>(Some, None::<i32>), None);
+	///
+	/// // Composition: filter_map(|a| r(a).and_then(l), fa) = filter_map(l, filter_map(r, fa))
+	/// let l = |x: i32| if x > 3 { Some(x * 10) } else { None };
+	/// let r = |x: i32| if x > 1 { Some(x + 1) } else { None };
+	/// assert_eq!(
+	/// 	filter_map::<OptionBrand, _, _>(|a| r(a).and_then(l), Some(5)),
+	/// 	filter_map::<OptionBrand, _, _>(l, filter_map::<OptionBrand, _, _>(r, Some(5))),
+	/// );
+	///
+	/// // Consistency (filter/filter_map): filter(p, fa) = filter_map(|a| if p(a) { Some(a) } else { None }, fa)
+	/// let p = |x: i32| x > 3;
+	/// assert_eq!(
+	/// 	filter::<OptionBrand, _>(p, Some(5)),
+	/// 	filter_map::<OptionBrand, _, _>(|a: i32| if p(a) { Some(a) } else { None }, Some(5)),
+	/// );
+	/// ```
+	///
+	/// Filterable laws for [`Vec`]:
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// // Distributivity: filter_map(identity, fa) = compact(fa)
+	/// let fa: Vec<Option<i32>> = vec![Some(1), None, Some(3)];
+	/// assert_eq!(
+	/// 	filter_map::<VecBrand, _, _>(identity, fa.clone()),
+	/// 	compact::<VecBrand, _>(fa),
+	/// );
+	///
+	/// // Identity: filter_map(Some, fa) = fa
+	/// assert_eq!(
+	/// 	filter_map::<VecBrand, _, _>(Some, vec![1, 2, 3]),
+	/// 	vec![1, 2, 3],
+	/// );
+	///
+	/// // Composition: filter_map(|a| r(a).and_then(l), fa) = filter_map(l, filter_map(r, fa))
+	/// let l = |x: i32| if x > 3 { Some(x * 10) } else { None };
+	/// let r = |x: i32| if x > 1 { Some(x + 1) } else { None };
+	/// assert_eq!(
+	/// 	filter_map::<VecBrand, _, _>(|a| r(a).and_then(l), vec![1, 2, 3, 4, 5]),
+	/// 	filter_map::<VecBrand, _, _>(l, filter_map::<VecBrand, _, _>(r, vec![1, 2, 3, 4, 5])),
+	/// );
+	///
+	/// // Consistency (filter/filter_map): filter(p, fa) = filter_map(|a| if p(a) { Some(a) } else { None }, fa)
+	/// let p = |x: i32| x > 3;
+	/// assert_eq!(
+	/// 	filter::<VecBrand, _>(p, vec![1, 2, 3, 4, 5]),
+	/// 	filter_map::<VecBrand, _, _>(|a: i32| if p(a) { Some(a) } else { None }, vec![1, 2, 3, 4, 5]),
+	/// );
+	/// ```
+	///
 	/// ### Minimal Implementation
 	///
 	/// A minimal implementation of `Filterable` requires no specific method implementations, as all methods have default implementations based on [`Compactable`] and [`Functor`].

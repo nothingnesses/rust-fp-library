@@ -33,7 +33,46 @@ mod inner {
 	/// ### Laws
 	///
 	/// `Semiapplicative` instances must satisfy the following law:
-	/// * Composition: `apply(apply(f, g), x) = apply(f, apply(g, x))`.
+	/// * Associative composition: `apply(apply(map(|f| |g| compose(f, g), u), v), w) = apply(u, apply(v, w))`.
+	#[document_examples]
+	///
+	/// Associative composition for [`Option`]:
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	classes::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let u = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
+	/// let v = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+	/// let w = Some(5i32);
+	///
+	/// // Right side: apply(u, apply(v, w))
+	/// let right = apply::<RcFnBrand, OptionBrand, _, _>(
+	/// 	u.clone(),
+	/// 	apply::<RcFnBrand, OptionBrand, _, _>(v.clone(), w),
+	/// );
+	///
+	/// // Left side: apply(apply(map(|f| |g| compose(f, g), u), v), w)
+	/// // Step 1: map the composition combinator over u
+	/// let compose_u = map::<OptionBrand, _, _>(
+	/// 	|u_fn: std::rc::Rc<dyn Fn(i32) -> i32>| {
+	/// 		cloneable_fn_new::<RcFnBrand, _, _>(move |v_fn: std::rc::Rc<dyn Fn(i32) -> i32>| {
+	/// 			let u_fn = u_fn.clone();
+	/// 			cloneable_fn_new::<RcFnBrand, _, _>(move |x: i32| u_fn(v_fn(x)))
+	/// 		})
+	/// 	},
+	/// 	u,
+	/// );
+	/// // Step 2: apply to v, then to w
+	/// let composed = apply::<RcFnBrand, OptionBrand, _, _>(compose_u, v);
+	/// let left = apply::<RcFnBrand, OptionBrand, _, _>(composed, w);
+	///
+	/// assert_eq!(left, right);
+	/// assert_eq!(left, Some(11)); // (5 * 2) + 1
+	/// ```
 	pub trait Semiapplicative: Lift + Functor {
 		/// Applies a function within a context to a value within a context.
 		///

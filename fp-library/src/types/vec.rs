@@ -14,6 +14,7 @@ mod inner {
 				VecBrand,
 			},
 			classes::{
+				Alt,
 				Applicative,
 				ApplyFirst,
 				ApplySecond,
@@ -25,6 +26,7 @@ mod inner {
 				Lift,
 				Monoid,
 				ParFoldable,
+				Plus,
 				Pointed,
 				Semiapplicative,
 				Semigroup,
@@ -311,6 +313,64 @@ mod inner {
 			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			ma.into_iter().flat_map(func).collect()
+		}
+	}
+
+	impl Alt for VecBrand {
+		/// Concatenates two vectors.
+		///
+		/// This is the same as [`Semigroup::append`] for `Vec`, providing an
+		/// associative choice operation for the `Vec` type constructor.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
+		///
+		#[document_parameters("The first vector.", "The second vector.")]
+		///
+		#[document_returns("The concatenated vector.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = vec![1, 2];
+		/// let y = vec![3, 4];
+		/// assert_eq!(alt::<VecBrand, _>(x, y), vec![1, 2, 3, 4]);
+		/// ```
+		fn alt<'a, A: 'a>(
+			fa1: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa2: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			let mut result = fa1;
+			result.extend(fa2);
+			result
+		}
+	}
+
+	impl Plus for VecBrand {
+		/// Returns an empty vector, the identity element for [`alt`](Alt::alt).
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
+		///
+		#[document_returns("An empty vector.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x: Vec<i32> = plus_empty::<VecBrand, i32>();
+		/// assert_eq!(x, vec![]);
+		/// ```
+		fn empty<'a, A: 'a>() -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			Vec::new()
 		}
 	}
 

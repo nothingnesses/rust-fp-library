@@ -29,6 +29,7 @@ fp_macros::generate_function_re_exports!("src/classes", {
 	"pointer::new": pointer_new,
 	"ref_counted_pointer::cloneable_new": ref_counted_pointer_new,
 	"send_ref_counted_pointer::send_new": send_ref_counted_pointer_new,
+	"plus::empty": plus_empty,
 	"semigroupoid::compose": semigroupoid_compose,
 	"send_cloneable_fn::new": send_cloneable_fn_new,
 });

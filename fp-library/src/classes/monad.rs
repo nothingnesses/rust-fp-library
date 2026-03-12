@@ -1,17 +1,113 @@
 //! Monads, allowing for sequencing computations where the structure depends on previous results.
 //!
+//! A monad combines [`Pointed`][crate::classes::Pointed] (for lifting values with
+//! [`pure`][crate::functions::pure]) and [`Semimonad`][crate::classes::Semimonad]
+//! (for chaining computations with [`bind`][crate::functions::bind]).
+//! The [`m!`][fp_macros::m] macro provides do-notation for writing monadic code
+//! in a flat, readable style.
+//!
 //! ### Examples
 //!
-//! ```
-//! use fp_library::{
-//! 	brands::*,
-//! 	functions::*,
-//! };
+//! Chaining fallible computations with [`Option`]:
 //!
-//! // Monad combines Pointed (pure) and Semimonad (bind)
-//! let x = pure::<OptionBrand, _>(5);
-//! let y = bind::<OptionBrand, _, _>(x, |i| pure::<OptionBrand, _>(i * 2));
-//! assert_eq!(y, Some(10));
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//! use fp_macros::m;
+//!
+//! fn safe_div(a: i32, b: i32) -> Option<i32> {
+//! 	if b == 0 { None } else { Some(a / b) }
+//! }
+//!
+//! // Each `<-` extracts the value; None short-circuits the whole block
+//! let result = m!(OptionBrand {
+//! 	x <- safe_div(100, 2);
+//! 	y <- safe_div(x, 5);
+//! 	pure(y + 1)
+//! });
+//! assert_eq!(result, Some(11));
+//!
+//! // Short-circuits on failure
+//! let result = m!(OptionBrand {
+//! 	x <- safe_div(100, 0);
+//! 	y <- safe_div(x, 5);
+//! 	pure(y + 1)
+//! });
+//! assert_eq!(result, None);
+//! ```
+//!
+//! List comprehensions with [`Vec`]:
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//! use fp_macros::m;
+//!
+//! // Generate Pythagorean triples up to 10
+//! let triples = m!(VecBrand {
+//! 	x <- (1..=10i32).collect::<Vec<_>>();
+//! 	y <- (x..=10).collect::<Vec<_>>();
+//! 	z <- (y..=10).collect::<Vec<_>>();
+//! 	_ <- if x * x + y * y == z * z { vec![()] } else { vec![] };
+//! 	pure((x, y, z))
+//! });
+//! assert_eq!(triples, vec![(3, 4, 5), (6, 8, 10)]);
+//! ```
+//!
+//! Error handling with [`Result`]:
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//! use fp_macros::m;
+//!
+//! fn parse_field(input: &str) -> Result<i32, String> {
+//! 	input.parse().map_err(|_| format!("invalid: {}", input))
+//! }
+//!
+//! let result: Result<i32, String> = m!(ResultErrAppliedBrand<String> {
+//! 	x <- parse_field("10");
+//! 	y <- parse_field("20");
+//! 	let sum = x + y;
+//! 	pure(sum)
+//! });
+//! assert_eq!(result, Ok(30));
+//!
+//! let result: Result<i32, String> = m!(ResultErrAppliedBrand<String> {
+//! 	x <- parse_field("10");
+//! 	y <- parse_field("abc");
+//! 	pure(x + y)
+//! });
+//! assert_eq!(result, Err("invalid: abc".to_string()));
+//! ```
+//!
+//! The `m!` macro supports typed bindings, let bindings, sequencing, and
+//! automatic `pure` rewriting:
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//! use fp_macros::m;
+//!
+//! // Typed bindings
+//! let r = m!(OptionBrand { x: i32 <- Some(5); pure(x * 2) });
+//! assert_eq!(r, Some(10));
+//!
+//! // Let bindings for pure local computations
+//! let r = m!(OptionBrand {
+//! 	x <- Some(5);
+//! 	let y = x * 2;
+//! 	pure(y)
+//! });
+//! assert_eq!(r, Some(10));
+//!
+//! // Sequencing: execute for effects, discard result
+//! let r = m!(OptionBrand { Some(()); pure(42) });
+//! assert_eq!(r, Some(42));
+//!
+//! // `pure(...)` is auto-rewritten with the correct brand
+//! let r = m!(OptionBrand {
+//! 	x <- Some(5);
+//! 	y <- pure(x + 1);
+//! 	pure(x + y)
+//! });
+//! assert_eq!(r, Some(11));
 //! ```
 
 #[fp_macros::document_module]
@@ -24,10 +120,69 @@ mod inner {
 		fp_macros::*,
 	};
 
-	/// A type class for monads, allowing for sequencing computations where the structure of the computation depends on the result of the previous computation.
+	/// A type class for monads, allowing for sequencing computations where the
+	/// structure of the computation depends on the result of the previous
+	/// computation.
 	///
 	/// `class (Applicative m, Semimonad m) => Monad m`
+	///
+	/// A lawful `Monad` must satisfy three laws:
+	///
+	/// 1. **Left identity**: `bind(pure(a), f) ≡ f(a)` — lifting a value and
+	///    immediately binding it is the same as applying the function directly.
+	/// 2. **Right identity**: `bind(m, pure) ≡ m` — binding a computation to
+	///    `pure` leaves it unchanged.
+	/// 3. **Associativity**: `bind(bind(m, f), g) ≡ bind(m, |x| bind(f(x), g))`
+	///    — the order of nesting doesn't matter, only the order of operations.
 	#[document_examples]
+	///
+	/// Monad laws for [`Option`]:
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	/// use fp_macros::m;
+	///
+	/// let f = |x: i32| Some(x + 1);
+	/// let g = |x: i32| Some(x * 2);
+	///
+	/// // Left identity: bind(pure(a), f) ≡ f(a)
+	/// assert_eq!(
+	/// 	bind::<OptionBrand, _, _>(pure::<OptionBrand, _>(5), f),
+	/// 	f(5),
+	/// );
+	/// // With m!: wrapping in pure then binding is the same as calling f
+	/// assert_eq!(
+	/// 	m!(OptionBrand { x <- pure(5); pure(x + 1) }),
+	/// 	Some(6),
+	/// );
+	///
+	/// // Right identity: bind(m, pure) ≡ m
+	/// assert_eq!(
+	/// 	bind::<OptionBrand, _, _>(Some(42), pure::<OptionBrand, _>),
+	/// 	Some(42),
+	/// );
+	/// // With m!: extracting and re-wrapping is a no-op
+	/// assert_eq!(
+	/// 	m!(OptionBrand { x <- Some(42); pure(x) }),
+	/// 	Some(42),
+	/// );
+	///
+	/// // Associativity: bind(bind(m, f), g) ≡ bind(m, |x| bind(f(x), g))
+	/// assert_eq!(
+	/// 	bind::<OptionBrand, _, _>(
+	/// 		bind::<OptionBrand, _, _>(Some(5), f),
+	/// 		g,
+	/// 	),
+	/// 	bind::<OptionBrand, _, _>(Some(5), |x| bind::<OptionBrand, _, _>(f(x), g)),
+	/// );
+	/// // With m!: sequential binds compose naturally
+	/// assert_eq!(
+	/// 	m!(OptionBrand { x <- Some(5); y <- pure(x + 1); pure(y * 2) }),
+	/// 	Some(12),
+	/// );
+	/// ```
+	///
+	/// Monad laws for [`Vec`]:
 	///
 	/// ```
 	/// use fp_library::{
@@ -35,10 +190,21 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// // Monad combines Pointed (pure) and Semimonad (bind)
-	/// let x = pure::<OptionBrand, _>(5);
-	/// let y = bind::<OptionBrand, _, _>(x, |i| pure::<OptionBrand, _>(i * 2));
-	/// assert_eq!(y, Some(10));
+	/// let f = |x: i32| vec![x, x + 1];
+	/// let g = |x: i32| vec![x * 10];
+	///
+	/// // Left identity: bind(pure(a), f) ≡ f(a)
+	/// assert_eq!(bind::<VecBrand, _, _>(pure::<VecBrand, _>(3), f), f(3),);
+	///
+	/// // Right identity: bind(m, pure) ≡ m
+	/// assert_eq!(bind::<VecBrand, _, _>(vec![1, 2, 3], pure::<VecBrand, _>), vec![1, 2, 3],);
+	///
+	/// // Associativity: bind(bind(m, f), g) ≡ bind(m, |x| bind(f(x), g))
+	/// let m = vec![1, 2];
+	/// assert_eq!(
+	/// 	bind::<VecBrand, _, _>(bind::<VecBrand, _, _>(m.clone(), f), g,),
+	/// 	bind::<VecBrand, _, _>(m, |x| bind::<VecBrand, _, _>(f(x), g)),
+	/// );
 	/// ```
 	pub trait Monad: Applicative + Semimonad {}
 

@@ -23,6 +23,35 @@ mod inner {
 	/// `Monoid` instances must satisfy the identity laws:
 	/// * Left Identity: `append(empty(), a) = a`.
 	/// * Right Identity: `append(a, empty()) = a`.
+	#[document_examples]
+	///
+	/// Monoid laws for [`String`]:
+	///
+	/// ```
+	/// use fp_library::functions::*;
+	///
+	/// let a = "hello".to_string();
+	///
+	/// // Left Identity: append(empty(), a) = a
+	/// assert_eq!(append(empty::<String>(), a.clone()), a);
+	///
+	/// // Right Identity: append(a, empty()) = a
+	/// assert_eq!(append(a.clone(), empty::<String>()), a);
+	/// ```
+	///
+	/// Monoid laws for [`Vec`]:
+	///
+	/// ```
+	/// use fp_library::functions::*;
+	///
+	/// let a = vec![1, 2, 3];
+	///
+	/// // Left Identity: append(empty(), a) = a
+	/// assert_eq!(append(empty::<Vec<i32>>(), a.clone()), a);
+	///
+	/// // Right Identity: append(a, empty()) = a
+	/// assert_eq!(append(a.clone(), empty::<Vec<i32>>()), a);
+	/// ```
 	pub trait Monoid: Semigroup {
 		/// The identity element.
 		///

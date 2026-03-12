@@ -32,6 +32,80 @@ mod inner {
 	/// *   `wither`: Effectful `filter_map`.
 	/// *   `wilt`: Effectful `partition_map`.
 	///
+	/// ### Laws
+	///
+	/// `Witherable` instances must satisfy the following laws:
+	/// * Identity: `wither(|a| pure(Some(a)), fa) = pure(fa)`.
+	/// * Multipass (filter): `wither(p, fa) = map(|r| compact(r), traverse(p, fa))`.
+	/// * Multipass (partition): `wilt(p, fa) = map(|r| separate(r), traverse(p, fa))`.
+	///
+	/// Superclass equivalences:
+	/// * `filter_map(p, fa) = unwrap(wither(|a| Identity(p(a)), fa))`.
+	/// * `partition_map(p, fa) = unwrap(wilt(|a| Identity(p(a)), fa))`.
+	/// * `traverse(f, fa) = wither(|a| map(Some, f(a)), fa)`.
+	#[document_examples]
+	///
+	/// Witherable laws for [`Option`]:
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// // Identity: wither(|a| pure(Some(a)), fa) = pure(fa)
+	/// assert_eq!(wither::<OptionBrand, OptionBrand, _, _>(|a| Some(Some(a)), Some(5)), Some(Some(5)),);
+	/// assert_eq!(
+	/// 	wither::<OptionBrand, OptionBrand, _, _>(|a| Some(Some(a)), None::<i32>),
+	/// 	Some(None),
+	/// );
+	///
+	/// // Multipass (filter): wither(p, fa) = map(|r| compact(r), traverse(p, fa))
+	/// let p = |a: i32| Some(if a > 2 { Some(a * 2) } else { None });
+	/// assert_eq!(
+	/// 	wither::<OptionBrand, OptionBrand, _, _>(p, Some(5)),
+	/// 	map::<OptionBrand, _, _>(
+	/// 		|r| compact::<OptionBrand, _>(r),
+	/// 		traverse::<OptionBrand, _, _, OptionBrand>(p, Some(5)),
+	/// 	),
+	/// );
+	///
+	/// // Multipass (partition): wilt(p, fa) = map(|r| separate(r), traverse(p, fa))
+	/// let p = |a: i32| Some(if a > 2 { Ok(a) } else { Err(a) });
+	/// assert_eq!(
+	/// 	wilt::<OptionBrand, OptionBrand, _, _, _>(p, Some(5)),
+	/// 	map::<OptionBrand, _, _>(
+	/// 		|r| separate::<OptionBrand, _, _>(r),
+	/// 		traverse::<OptionBrand, _, _, OptionBrand>(p, Some(5)),
+	/// 	),
+	/// );
+	/// ```
+	///
+	/// Witherable laws for [`Vec`]:
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// // Identity: wither(|a| pure(Some(a)), fa) = pure(fa)
+	/// assert_eq!(
+	/// 	wither::<VecBrand, OptionBrand, _, _>(|a| Some(Some(a)), vec![1, 2, 3]),
+	/// 	Some(vec![1, 2, 3]),
+	/// );
+	///
+	/// // Multipass (filter): wither(p, fa) = map(|r| compact(r), traverse(p, fa))
+	/// let p = |a: i32| Some(if a > 2 { Some(a * 2) } else { None });
+	/// assert_eq!(
+	/// 	wither::<VecBrand, OptionBrand, _, _>(p, vec![1, 2, 3, 4, 5]),
+	/// 	map::<OptionBrand, _, _>(
+	/// 		|r| compact::<VecBrand, _>(r),
+	/// 		traverse::<VecBrand, _, _, OptionBrand>(p, vec![1, 2, 3, 4, 5]),
+	/// 	),
+	/// );
+	/// ```
+	///
 	/// ### Minimal Implementation
 	///
 	/// A minimal implementation of `Witherable` requires no specific method implementations, as all methods have default implementations based on [`Traversable`] and [`Compactable`](crate::classes::compactable::Compactable).

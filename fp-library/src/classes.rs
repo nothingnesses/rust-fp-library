@@ -18,6 +18,8 @@
 //! assert_eq!(y, Some(10));
 //! ```
 
+pub mod alt;
+pub mod alternative;
 pub mod applicative;
 pub mod apply_first;
 pub mod apply_second;
@@ -43,6 +45,7 @@ pub mod monoid;
 pub mod optics;
 pub mod par_foldable;
 pub mod pipe;
+pub mod plus;
 pub mod pointed;
 pub mod pointer;
 pub mod profunctor;

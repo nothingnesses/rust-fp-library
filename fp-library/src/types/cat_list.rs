@@ -30,6 +30,7 @@ mod inner {
 				OptionBrand,
 			},
 			classes::{
+				Alt,
 				Applicative,
 				ApplyFirst,
 				ApplySecond,
@@ -43,6 +44,7 @@ mod inner {
 				Lift,
 				Monoid,
 				ParFoldable,
+				Plus,
 				Pointed,
 				Semiapplicative,
 				Semigroup,
@@ -457,6 +459,65 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			ff.into_iter().flat_map(|f| fa.clone().into_iter().map(move |a| f(a.clone()))).collect()
+		}
+	}
+
+	impl Alt for CatListBrand {
+		/// Concatenates two lists.
+		///
+		/// This is the same as [`Semigroup::append`] for `CatList`, providing an
+		/// associative choice operation for the `CatList` type constructor.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
+		///
+		#[document_parameters("The first list.", "The second list.")]
+		///
+		#[document_returns("The concatenated list.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = CatList::singleton(1).snoc(2);
+		/// let y = CatList::singleton(3).snoc(4);
+		/// let result: Vec<_> = alt::<CatListBrand, _>(x, y).into_iter().collect();
+		/// assert_eq!(result, vec![1, 2, 3, 4]);
+		/// ```
+		fn alt<'a, A: 'a>(
+			fa1: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa2: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			fa1.append(fa2)
+		}
+	}
+
+	impl Plus for CatListBrand {
+		/// Returns an empty list, the identity element for [`alt`](Alt::alt).
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
+		///
+		#[document_returns("An empty list.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x: CatList<i32> = plus_empty::<CatListBrand, i32>();
+		/// assert!(x.is_empty());
+		/// ```
+		fn empty<'a, A: 'a>() -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			CatList::empty()
 		}
 	}
 

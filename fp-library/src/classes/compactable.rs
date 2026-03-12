@@ -28,6 +28,67 @@ mod inner {
 	/// `Compactable` allows for:
 	/// *   `compact`: Filtering out [`None`] values and unwrapping [`Some`] values from a structure of [`Option`]s.
 	/// *   `separate`: Splitting a structure of [`Result`]s into a pair of structures, one containing the [`Err`] values and the other containing the [`Ok`] values.
+	///
+	/// ### Laws
+	///
+	/// To be `Compactable` alone, no laws must be satisfied other than the type signature.
+	///
+	/// If the data type is also a [`Functor`](crate::classes::Functor):
+	/// * Identity: `compact(map(Some, fa)) = fa`.
+	///
+	/// If the data type is also [`Plus`](crate::classes::Plus):
+	/// * Annihilation (empty): `compact(empty) = empty`.
+	/// * Annihilation (map): `compact(map(|_| None, xs)) = empty`.
+	#[document_examples]
+	///
+	/// Compactable laws for [`Option`]:
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// // Functor Identity: compact(map(Some, fa)) = fa
+	/// assert_eq!(compact::<OptionBrand, _>(map::<OptionBrand, _, _>(Some, Some(5))), Some(5),);
+	/// assert_eq!(compact::<OptionBrand, _>(map::<OptionBrand, _, _>(Some, None::<i32>)), None,);
+	///
+	/// // Plus Annihilation (empty): compact(empty) = empty
+	/// assert_eq!(
+	/// 	compact::<OptionBrand, _>(plus_empty::<OptionBrand, Option<i32>>()),
+	/// 	plus_empty::<OptionBrand, i32>(),
+	/// );
+	///
+	/// // Plus Annihilation (map): compact(map(|_| None, xs)) = empty
+	/// assert_eq!(
+	/// 	compact::<OptionBrand, _>(map::<OptionBrand, _, _>(|_: i32| None::<i32>, Some(5))),
+	/// 	plus_empty::<OptionBrand, i32>(),
+	/// );
+	/// ```
+	///
+	/// Compactable laws for [`Vec`]:
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// // Functor Identity: compact(map(Some, fa)) = fa
+	/// assert_eq!(compact::<VecBrand, _>(map::<VecBrand, _, _>(Some, vec![1, 2, 3])), vec![1, 2, 3],);
+	///
+	/// // Plus Annihilation (empty): compact(empty) = empty
+	/// assert_eq!(
+	/// 	compact::<VecBrand, _>(plus_empty::<VecBrand, Option<i32>>()),
+	/// 	plus_empty::<VecBrand, i32>(),
+	/// );
+	///
+	/// // Plus Annihilation (map): compact(map(|_| None, xs)) = empty
+	/// assert_eq!(
+	/// 	compact::<VecBrand, _>(map::<VecBrand, _, _>(|_: i32| None::<i32>, vec![1, 2, 3])),
+	/// 	plus_empty::<VecBrand, i32>(),
+	/// );
+	/// ```
 	pub trait Compactable: Kind_cdc7cd43dac7585f {
 		/// Compacts a data structure of [`Option`]s, discarding [`None`] values and keeping [`Some`] values.
 		#[document_signature]
