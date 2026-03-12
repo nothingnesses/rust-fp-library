@@ -1,5 +1,5 @@
-//! A newtype wrapper whose [`Semigroup`] and [`Monoid`] instances use
-//! disjunction from [`HeytingAlgebra`].
+//! A newtype wrapper whose [`Semigroup`](crate::classes::Semigroup) and [`Monoid`](crate::classes::Monoid) instances use
+//! disjunction from [`HeytingAlgebra`](crate::classes::HeytingAlgebra).
 //!
 //! ### Examples
 //!

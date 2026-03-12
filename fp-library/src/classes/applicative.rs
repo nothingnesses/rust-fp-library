@@ -19,7 +19,10 @@
 #[fp_macros::document_module]
 mod inner {
 	use {
-		crate::classes::*,
+		crate::{
+			classes::*,
+			kinds::*,
+		},
 		fp_macros::*,
 	};
 
@@ -77,6 +80,72 @@ mod inner {
 	/// Blanket implementation of [`Applicative`].
 	#[document_type_parameters("The brand type.")]
 	impl<Brand> Applicative for Brand where Brand: Pointed + Semiapplicative + ApplyFirst + ApplySecond {}
+
+	/// Performs an applicative action when a condition is true.
+	///
+	/// Returns the given action if `condition` is `true`, otherwise returns `pure(())`.
+	#[document_signature]
+	///
+	#[document_type_parameters("The lifetime of the computation.", "The brand of the applicative.")]
+	///
+	#[document_parameters(
+		"The condition to check.",
+		"The action to perform if the condition is true."
+	)]
+	///
+	#[document_returns("The action if the condition is true, otherwise `pure(())`.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// assert_eq!(when::<OptionBrand>(true, Some(())), Some(()));
+	/// assert_eq!(when::<OptionBrand>(false, Some(())), Some(()));
+	/// assert_eq!(when::<VecBrand>(true, vec![(), ()]), vec![(), ()]);
+	/// assert_eq!(when::<VecBrand>(false, vec![(), ()]), vec![()]);
+	/// ```
+	pub fn when<'a, Brand: Applicative>(
+		condition: bool,
+		action: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>),
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>) {
+		if condition { action } else { Brand::pure(()) }
+	}
+
+	/// Performs an applicative action unless a condition is true.
+	///
+	/// Returns the given action if `condition` is `false`, otherwise returns `pure(())`.
+	#[document_signature]
+	///
+	#[document_type_parameters("The lifetime of the computation.", "The brand of the applicative.")]
+	///
+	#[document_parameters(
+		"The condition to check.",
+		"The action to perform if the condition is false."
+	)]
+	///
+	#[document_returns("The action if the condition is false, otherwise `pure(())`.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// assert_eq!(unless::<OptionBrand>(false, Some(())), Some(()));
+	/// assert_eq!(unless::<OptionBrand>(true, Some(())), Some(()));
+	/// assert_eq!(unless::<VecBrand>(false, vec![(), ()]), vec![(), ()]);
+	/// assert_eq!(unless::<VecBrand>(true, vec![(), ()]), vec![()]);
+	/// ```
+	pub fn unless<'a, Brand: Applicative>(
+		condition: bool,
+		action: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>),
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>) {
+		if !condition { action } else { Brand::pure(()) }
+	}
 }
 
 pub use inner::*;

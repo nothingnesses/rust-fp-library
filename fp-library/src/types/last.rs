@@ -1,4 +1,4 @@
-//! A newtype wrapper whose [`Semigroup`] instance always keeps the last
+//! A newtype wrapper whose [`Semigroup`](crate::classes::Semigroup) instance always keeps the last
 //! (rightmost) value.
 //!
 //! ### Examples

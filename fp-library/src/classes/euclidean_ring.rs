@@ -176,11 +176,11 @@ mod inner {
 	#[document_examples]
 	///
 	/// ```
-	/// use fp_library::classes::euclidean_ring::greatest_common_divisor;
+	/// use fp_library::classes::euclidean_ring::gcd;
 	///
-	/// assert_eq!(greatest_common_divisor(12i32, 8), 4);
+	/// assert_eq!(gcd(12i32, 8), 4);
 	/// ```
-	pub fn greatest_common_divisor<E: EuclideanRing + PartialEq + Clone>(
+	pub fn gcd<E: EuclideanRing + PartialEq + Clone>(
 		a: E,
 		b: E,
 	) -> E {
@@ -188,7 +188,7 @@ mod inner {
 			a
 		} else {
 			let r = E::modulo(a, b.clone());
-			greatest_common_divisor(b, r)
+			gcd(b, r)
 		}
 	}
 
@@ -203,18 +203,18 @@ mod inner {
 	#[document_examples]
 	///
 	/// ```
-	/// use fp_library::classes::euclidean_ring::least_common_multiple;
+	/// use fp_library::classes::euclidean_ring::lcm;
 	///
-	/// assert_eq!(least_common_multiple(4i32, 6), 12);
+	/// assert_eq!(lcm(4i32, 6), 12);
 	/// ```
-	pub fn least_common_multiple<E: EuclideanRing + PartialEq + Clone>(
+	pub fn lcm<E: EuclideanRing + PartialEq + Clone>(
 		a: E,
 		b: E,
 	) -> E {
 		if a == E::zero() || b == E::zero() {
 			E::zero()
 		} else {
-			let g = greatest_common_divisor(a.clone(), b.clone());
+			let g = gcd(a.clone(), b.clone());
 			E::multiply(a, E::divide(b, g))
 		}
 	}

@@ -257,6 +257,76 @@ mod inner {
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 		Brand::bind(cond, move |c| if c { then_branch.clone() } else { else_branch.clone() })
 	}
+
+	/// Performs a monadic action when a monadic condition is true.
+	///
+	/// Evaluates the monadic boolean condition, then executes the action if the
+	/// result is `true`, otherwise returns `pure(())`.
+	#[document_signature]
+	///
+	#[document_type_parameters("The lifetime of the computations.", "The brand of the monad.")]
+	///
+	#[document_parameters(
+		"A monadic computation that produces a boolean.",
+		"The action to perform if the condition is true."
+	)]
+	///
+	#[document_returns("The action if the condition is true, otherwise `pure(())`.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// assert_eq!(when_m::<OptionBrand>(Some(true), Some(())), Some(()));
+	/// assert_eq!(when_m::<OptionBrand>(Some(false), Some(())), Some(()));
+	/// assert_eq!(when_m::<OptionBrand>(None, Some(())), None);
+	/// ```
+	pub fn when_m<'a, Brand: Monad>(
+		cond: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, bool>),
+		action: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>),
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>)
+	where
+		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>): Clone, {
+		Brand::bind(cond, move |c| if c { action.clone() } else { Brand::pure(()) })
+	}
+
+	/// Performs a monadic action unless a monadic condition is true.
+	///
+	/// Evaluates the monadic boolean condition, then executes the action if the
+	/// result is `false`, otherwise returns `pure(())`.
+	#[document_signature]
+	///
+	#[document_type_parameters("The lifetime of the computations.", "The brand of the monad.")]
+	///
+	#[document_parameters(
+		"A monadic computation that produces a boolean.",
+		"The action to perform if the condition is false."
+	)]
+	///
+	#[document_returns("The action if the condition is false, otherwise `pure(())`.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// assert_eq!(unless_m::<OptionBrand>(Some(false), Some(())), Some(()));
+	/// assert_eq!(unless_m::<OptionBrand>(Some(true), Some(())), Some(()));
+	/// assert_eq!(unless_m::<OptionBrand>(None, Some(())), None);
+	/// ```
+	pub fn unless_m<'a, Brand: Monad>(
+		cond: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, bool>),
+		action: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>),
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>)
+	where
+		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>): Clone, {
+		Brand::bind(cond, move |c| if !c { action.clone() } else { Brand::pure(()) })
+	}
 }
 
 pub use inner::*;

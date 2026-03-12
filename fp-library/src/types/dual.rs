@@ -1,4 +1,4 @@
-//! A newtype wrapper that reverses the order of a [`Semigroup`]'s operation.
+//! A newtype wrapper that reverses the order of a [`Semigroup`](crate::classes::Semigroup)'s operation.
 //!
 //! ### Examples
 //!

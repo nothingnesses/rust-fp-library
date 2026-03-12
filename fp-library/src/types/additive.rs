@@ -1,5 +1,5 @@
-//! A newtype wrapper whose [`Semigroup`] and [`Monoid`] instances use addition
-//! from [`Semiring`].
+//! A newtype wrapper whose [`Semigroup`](crate::classes::Semigroup) and [`Monoid`](crate::classes::Monoid) instances use addition
+//! from [`Semiring`](crate::classes::Semiring).
 //!
 //! ### Examples
 //!
