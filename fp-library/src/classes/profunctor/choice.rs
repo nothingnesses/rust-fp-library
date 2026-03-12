@@ -58,6 +58,38 @@ mod inner {
 	/// * Identity: `left(identity) = identity`.
 	/// * Composition: `left(p ∘ q) = left(p) ∘ left(q)`.
 	/// * Naturality: `dimap(Left, Left) ∘ left(p) = left(p) ∘ dimap(Left, Left)`.
+	#[document_examples]
+	///
+	/// Choice laws for [`RcFnBrand`](crate::brands::RcFnBrand):
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	classes::profunctor::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let p = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2 + 1);
+	/// let q = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 10);
+	///
+	/// // Identity: left(identity) = identity
+	/// let id = category_identity::<RcFnBrand, i32>();
+	/// let left_id = left::<RcFnBrand, _, _, String>(id);
+	/// assert_eq!(left_id(Err(5)), Err(5));
+	/// assert_eq!(left_id(Ok("hi".to_string())), Ok("hi".to_string()));
+	///
+	/// // Composition: left(p ∘ q) = left(p) ∘ left(q)
+	/// let lhs = left::<RcFnBrand, _, _, String>(semigroupoid_compose::<RcFnBrand, _, _, _>(
+	/// 	p.clone(),
+	/// 	q.clone(),
+	/// ));
+	/// let rhs = semigroupoid_compose::<RcFnBrand, _, _, _>(
+	/// 	left::<RcFnBrand, _, _, String>(p),
+	/// 	left::<RcFnBrand, _, _, String>(q),
+	/// );
+	/// assert_eq!(lhs(Err(5)), rhs(Err(5)));
+	/// assert_eq!(lhs(Ok("pass-through".to_string())), rhs(Ok("pass-through".to_string())),);
+	/// ```
 	pub trait Choice: Profunctor {
 		/// Lift a profunctor to operate on the left (Err) variant of a Result.
 		///
