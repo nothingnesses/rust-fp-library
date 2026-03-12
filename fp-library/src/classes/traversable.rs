@@ -27,6 +27,40 @@ mod inner {
 	/// A type class for traversable functors.
 	///
 	/// `Traversable` functors can be traversed, which accumulates results and effects in some [`Applicative`] context.
+	///
+	/// ### Laws
+	///
+	/// `Traversable` instances must satisfy:
+	/// * Traverse/sequence consistency: `traverse(f, xs) = sequence(map(f, xs))`.
+	/// * Sequence/traverse consistency: `sequence(xs) = traverse(identity, xs)`.
+	#[document_examples]
+	///
+	/// Traversable laws for [`Vec`]:
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let xs = vec![1, 2, 3];
+	/// let f = |a: i32| if a > 0 { Some(a * 2) } else { None };
+	///
+	/// // Traverse/sequence consistency:
+	/// // traverse(f, xs) = sequence(map(f, xs))
+	/// assert_eq!(
+	/// 	traverse::<VecBrand, _, _, OptionBrand>(f, xs.clone()),
+	/// 	sequence::<VecBrand, _, OptionBrand>(map::<VecBrand, _, _>(f, xs.clone())),
+	/// );
+	///
+	/// // Sequence/traverse consistency:
+	/// // sequence(xs) = traverse(identity, xs)
+	/// let ys: Vec<Option<i32>> = vec![Some(1), Some(2), Some(3)];
+	/// assert_eq!(
+	/// 	sequence::<VecBrand, _, OptionBrand>(ys.clone()),
+	/// 	traverse::<VecBrand, _, _, OptionBrand>(identity, ys),
+	/// );
+	/// ```
 	pub trait Traversable: Functor + Foldable {
 		/// Map each element of the [`Traversable`] structure to a computation, evaluate those computations and combine the results into an [`Applicative`] context.
 		///

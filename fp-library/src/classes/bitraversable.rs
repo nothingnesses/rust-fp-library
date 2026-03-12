@@ -43,9 +43,38 @@ mod inner {
 	///
 	/// ### Laws
 	///
-	/// `Bitraversable` instances must be consistent with `Bifunctor` and `Bifoldable` when
-	/// those are also defined, following the general principle that the structure of the
-	/// traversal mirrors the structure of the map and fold.
+	/// `Bitraversable` instances must be consistent with `Bifunctor` and `Bifoldable`:
+	/// * Traverse/sequence consistency: `bi_traverse(f, g, x) = bi_sequence(bimap(f, g, x))`.
+	#[document_examples]
+	///
+	/// Bitraversable laws for [`Result`]:
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// // ResultBrand has Of<E, A> = Result<A, E>, so the first function handles errors
+	/// // and the second function handles ok values.
+	/// let f = |e: String| if e.is_empty() { None } else { Some(e.len()) };
+	/// let g = |a: i32| if a > 0 { Some(a * 2) } else { None };
+	///
+	/// // Traverse/sequence consistency (Ok case):
+	/// // bi_traverse(f, g, x) = bi_sequence(bimap(f, g, x))
+	/// let ok: Result<i32, String> = Ok(5);
+	/// assert_eq!(
+	/// 	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand>(f, g, ok.clone()),
+	/// 	bi_sequence::<ResultBrand, _, _, OptionBrand>(bimap::<ResultBrand, _, _, _, _>(f, g, ok)),
+	/// );
+	///
+	/// // Traverse/sequence consistency (Err case):
+	/// let err: Result<i32, String> = Err("hello".to_string());
+	/// assert_eq!(
+	/// 	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand>(f, g, err.clone()),
+	/// 	bi_sequence::<ResultBrand, _, _, OptionBrand>(bimap::<ResultBrand, _, _, _, _>(f, g, err)),
+	/// );
+	/// ```
 	pub trait Bitraversable: Bifunctor + Bifoldable {
 		/// Traverses the bitraversable structure with two effectful functions.
 		///

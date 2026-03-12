@@ -11,7 +11,36 @@ mod inner {
 	///
 	/// A `TraversableWithIndex` is a `Traversable` that also allows you to access the
 	/// index of each element when traversing the structure.
+	///
+	/// ### Laws
+	///
+	/// `TraversableWithIndex` instances must be compatible with their `Traversable` instance:
+	/// * Compatibility with Traversable: `traverse(f, fa) = traverse_with_index(|_, a| f(a), fa)`.
 	#[document_type_parameters("The index type.")]
+	#[document_examples]
+	///
+	/// TraversableWithIndex laws for [`Vec`]:
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::{
+	/// 		OptionBrand,
+	/// 		VecBrand,
+	/// 	},
+	/// 	classes::traversable_with_index::TraversableWithIndex,
+	/// 	functions::*,
+	/// };
+	///
+	/// let xs = vec![1, 2, 3];
+	/// let f = |a: i32| if a > 0 { Some(a * 2) } else { None };
+	///
+	/// // Compatibility with Traversable:
+	/// // traverse(f, fa) = traverse_with_index(|_, a| f(a), fa)
+	/// assert_eq!(
+	/// 	traverse::<VecBrand, _, _, OptionBrand>(f, xs.clone()),
+	/// 	VecBrand::traverse_with_index::<i32, i32, OptionBrand>(|_, a| f(a), xs),
+	/// );
+	/// ```
 	pub trait TraversableWithIndex<I>:
 		Traversable + FoldableWithIndex<I> + FunctorWithIndex<I> {
 		/// Traverse the structure with an effectful function, providing the index of each element.

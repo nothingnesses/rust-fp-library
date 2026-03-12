@@ -37,6 +37,35 @@ mod inner {
 	/// *   If [`Foldable::fold_map`] is implemented, [`Foldable::fold_right`] is derived from it, and [`Foldable::fold_left`] is derived from the derived [`Foldable::fold_right`].
 	///
 	/// Note that [`Foldable::fold_left`] is not sufficient on its own because the default implementations of [`Foldable::fold_right`] and [`Foldable::fold_map`] do not depend on it.
+	///
+	/// ### Laws
+	///
+	/// `Foldable` instances must be internally consistent:
+	/// * fold_map/fold_right consistency: `fold_map(f, fa) = fold_right(|a, m| append(f(a), m), empty(), fa)`.
+	#[document_examples]
+	///
+	/// Foldable laws for [`Vec`]:
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let xs = vec![1, 2, 3];
+	/// let f = |a: i32| a.to_string();
+	///
+	/// // fold_map/fold_right consistency:
+	/// // fold_map(f, fa) = fold_right(|a, m| append(f(a), m), empty(), fa)
+	/// assert_eq!(
+	/// 	fold_map::<RcFnBrand, VecBrand, _, _>(f, xs.clone()),
+	/// 	fold_right::<RcFnBrand, VecBrand, _, _>(
+	/// 		|a: i32, m: String| append(f(a), m),
+	/// 		empty::<String>(),
+	/// 		xs,
+	/// 	),
+	/// );
+	/// ```
 	pub trait Foldable: Kind_cdc7cd43dac7585f {
 		/// Folds the structure by applying a function from right to left.
 		///
