@@ -228,7 +228,7 @@ mod inner {
 		IndexedFoldFunc<'a, I, Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>), A>
 		for Folded<Brand>
 	where
-		Brand: FoldableWithIndex<I>,
+		Brand: FoldableWithIndex<Index = I>,
 		A: 'a,
 		I: 'a,
 	{
@@ -282,7 +282,7 @@ mod inner {
 			Folded<Brand>,
 		>
 	where
-		Brand: FoldableWithIndex<I>,
+		Brand: FoldableWithIndex<Index = I>,
 		A: 'a,
 		I: 'a,
 	{
@@ -333,7 +333,7 @@ mod inner {
 			Folded<Brand>,
 		>
 	where
-		Brand: FoldableWithIndex<I>,
+		Brand: FoldableWithIndex<Index = I>,
 		A: 'a,
 		I: 'a,
 	{

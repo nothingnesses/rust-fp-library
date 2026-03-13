@@ -24,10 +24,9 @@ mod inner {
 	///
 	/// ### Thread Safety
 	///
-	/// The index type `I` must satisfy `I: Send + Sync + Copy` when calling
+	/// The index type must satisfy `Self::Index: Send + Sync + Copy` when calling
 	/// [`par_fold_map_with_index`][ParFoldableWithIndex::par_fold_map_with_index]. These bounds
 	/// apply even when the `rayon` feature is disabled.
-	#[document_type_parameters("The index type.")]
 	#[document_examples]
 	///
 	/// ParFoldableWithIndex laws for [`Vec`]:
@@ -49,7 +48,7 @@ mod inner {
 	/// 	VecBrand::par_fold_map_with_index(|_, a| f(a), xs),
 	/// );
 	/// ```
-	pub trait ParFoldableWithIndex<I>: ParFoldable + FoldableWithIndex<I> {
+	pub trait ParFoldableWithIndex: ParFoldable + FoldableWithIndex {
 		/// Maps each element and its index to a [`Monoid`] value and combines them in parallel.
 		///
 		/// When the `rayon` feature is enabled, the mapping and reduction are done across multiple
@@ -78,11 +77,11 @@ mod inner {
 		/// assert_eq!(result, "0:101:202:30");
 		/// ```
 		fn par_fold_map_with_index<'a, A: 'a + Send, M: Monoid + Send + 'a>(
-			f: impl Fn(I, A) -> M + Send + Sync + 'a,
+			f: impl Fn(Self::Index, A) -> M + Send + Sync + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
-			I: Send + Sync + Copy + 'a;
+			Self::Index: Send + Sync + Copy + 'a;
 	}
 
 	/// Maps each element and its index to a [`Monoid`] value and combines them in parallel.
@@ -93,7 +92,6 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the structure.",
-		"The index type.",
 		"The type of the elements.",
 		"The monoid type."
 	)]
@@ -110,19 +108,17 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let result: String = par_fold_map_with_index::<VecBrand, usize, _, _>(
-	/// 	|i, x: i32| format!("{i}:{x}"),
-	/// 	vec![10, 20, 30],
-	/// );
+	/// let result: String =
+	/// 	par_fold_map_with_index::<VecBrand, _, _>(|i, x: i32| format!("{i}:{x}"), vec![10, 20, 30]);
 	/// assert_eq!(result, "0:101:202:30");
 	/// ```
-	pub fn par_fold_map_with_index<'a, Brand, I, A: 'a + Send, M: Monoid + Send + 'a>(
-		f: impl Fn(I, A) -> M + Send + Sync + 'a,
+	pub fn par_fold_map_with_index<'a, Brand, A: 'a + Send, M: Monoid + Send + 'a>(
+		f: impl Fn(Brand::Index, A) -> M + Send + Sync + 'a,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
-		Brand: ParFoldableWithIndex<I>,
-		I: Send + Sync + Copy + 'a, {
+		Brand: ParFoldableWithIndex,
+		Brand::Index: Send + Sync + Copy + 'a, {
 		Brand::par_fold_map_with_index(f, fa)
 	}
 }

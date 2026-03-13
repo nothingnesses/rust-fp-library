@@ -54,6 +54,7 @@ mod inner {
 				Semimonad,
 				Traversable,
 				TraversableWithIndex,
+				WithIndex,
 				Witherable,
 			},
 			impl_kind,
@@ -770,7 +771,11 @@ mod inner {
 		}
 	}
 
-	impl FunctorWithIndex<usize> for CatListBrand {
+	impl WithIndex for CatListBrand {
+		type Index = usize;
+	}
+
+	impl FunctorWithIndex for CatListBrand {
 		/// Maps a function over the list, providing the index of each element.
 		///
 		/// This is the trait form of [`CatList::map_with_index`].
@@ -810,7 +815,7 @@ mod inner {
 		}
 	}
 
-	impl FoldableWithIndex<usize> for CatListBrand {
+	impl FoldableWithIndex for CatListBrand {
 		/// Folds the list using a monoid, providing the index of each element.
 		///
 		/// This is the trait form of [`CatList::fold_map_with_index`].
@@ -849,7 +854,7 @@ mod inner {
 		}
 	}
 
-	impl TraversableWithIndex<usize> for CatListBrand {
+	impl TraversableWithIndex for CatListBrand {
 		/// Traverses the list with an applicative function, providing the index of each element.
 		///
 		/// This is the trait form of [`CatList::traverse_with_index`].
@@ -1129,7 +1134,7 @@ mod inner {
 		}
 	}
 
-	impl ParFunctorWithIndex<usize> for CatListBrand {
+	impl ParFunctorWithIndex for CatListBrand {
 		/// Maps a function over the list in parallel, providing each element's index.
 		///
 		/// Delegates to [`CatList::par_map_with_index`].
@@ -1172,7 +1177,7 @@ mod inner {
 		}
 	}
 
-	impl ParFoldableWithIndex<usize> for CatListBrand {
+	impl ParFoldableWithIndex for CatListBrand {
 		/// Maps each element and its index to a [`Monoid`] value and combines them in parallel.
 		///
 		/// Delegates to [`CatList::par_fold_map_with_index`].
@@ -2927,7 +2932,7 @@ mod tests {
 	fn par_map_with_index_basic() {
 		let v: CatList<_> = vec![10, 20, 30].into_iter().collect();
 		let result: CatList<i32> =
-			par_map_with_index::<CatListBrand, usize, _, _>(|i, x: i32| x + i as i32, v);
+			par_map_with_index::<CatListBrand, _, _>(|i, x: i32| x + i as i32, v);
 		assert_eq!(result.into_iter().collect::<Vec<_>>(), vec![10, 21, 32]);
 	}
 
@@ -2936,7 +2941,7 @@ mod tests {
 	fn par_fold_map_with_index_basic() {
 		let v: CatList<_> = vec![10, 20, 30].into_iter().collect();
 		let result: String =
-			par_fold_map_with_index::<CatListBrand, usize, _, _>(|i, x: i32| format!("{i}:{x}"), v);
+			par_fold_map_with_index::<CatListBrand, _, _>(|i, x: i32| format!("{i}:{x}"), v);
 		assert_eq!(result, "0:101:202:30");
 	}
 

@@ -74,6 +74,7 @@ pub mod send_unsized_coercible;
 pub mod traversable;
 pub mod traversable_with_index;
 pub mod unsized_coercible;
+pub mod with_index;
 pub mod witherable;
 
 // Automatically re-export all traits defined in submodules.

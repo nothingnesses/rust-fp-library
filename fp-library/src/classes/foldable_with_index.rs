@@ -10,13 +10,13 @@ mod inner {
 	/// A `Foldable` with an additional index.
 	///
 	/// A `FoldableWithIndex` is a `Foldable` that also allows you to access the
-	/// index of each element when folding over the structure.
+	/// index of each element when folding over the structure. The index type is
+	/// uniquely determined by the implementing brand via the [`WithIndex`] supertype.
 	///
 	/// ### Laws
 	///
 	/// `FoldableWithIndex` instances must be compatible with their `Foldable` instance:
 	/// * Compatibility with Foldable: `fold_map(f, fa) = fold_map_with_index(|_, a| f(a), fa)`.
-	#[document_type_parameters("The index type.")]
 	#[document_examples]
 	///
 	/// FoldableWithIndex laws for [`Vec`]:
@@ -38,7 +38,7 @@ mod inner {
 	/// 	VecBrand::fold_map_with_index(|_, a| f(a), xs),
 	/// );
 	/// ```
-	pub trait FoldableWithIndex<I>: Foldable {
+	pub trait FoldableWithIndex: Foldable + WithIndex {
 		/// Map each element of the structure to a monoid, and combine the results,
 		/// providing the index of each element.
 		#[document_signature]
@@ -64,7 +64,7 @@ mod inner {
 		/// assert_eq!(result, "0:101:202:30");
 		/// ```
 		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
-			f: impl Fn(I, A) -> R + 'a,
+			f: impl Fn(Self::Index, A) -> R + 'a,
 			fa: Self::Of<'a, A>,
 		) -> R;
 	}

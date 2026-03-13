@@ -39,6 +39,7 @@ mod inner {
 				par_foldable_with_index::ParFoldableWithIndex,
 				par_functor_with_index::ParFunctorWithIndex,
 				traversable_with_index::TraversableWithIndex,
+				with_index::WithIndex,
 			},
 			impl_kind,
 			kinds::*,
@@ -595,7 +596,11 @@ mod inner {
 		}
 	}
 
-	impl FunctorWithIndex<usize> for VecBrand {
+	impl WithIndex for VecBrand {
+		type Index = usize;
+	}
+
+	impl FunctorWithIndex for VecBrand {
 		/// Maps a function over the vector, providing the index of each element.
 		#[document_signature]
 		#[document_type_parameters(
@@ -619,7 +624,7 @@ mod inner {
 		/// // Use `map_with_index` via the method on the trait, or a helper function if one existed.
 		/// // Since there's no helper function in `functions.rs` yet, we use explicit syntax or call it via trait.
 		/// use fp_library::classes::functor_with_index::FunctorWithIndex;
-		/// let mapped = <VecBrand as FunctorWithIndex<usize>>::map_with_index(|i, x| x + i as i32, v);
+		/// let mapped = <VecBrand as FunctorWithIndex>::map_with_index(|i, x| x + i as i32, v);
 		/// assert_eq!(mapped, vec![10, 21, 32]);
 		/// ```
 		fn map_with_index<'a, A: 'a, B: 'a>(
@@ -630,7 +635,7 @@ mod inner {
 		}
 	}
 
-	impl FoldableWithIndex<usize> for VecBrand {
+	impl FoldableWithIndex for VecBrand {
 		/// Folds the vector using a monoid, providing the index of each element.
 		#[document_signature]
 		#[document_type_parameters(
@@ -652,10 +657,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		/// let v = vec![10, 20, 30];
-		/// let s = <VecBrand as FoldableWithIndex<usize>>::fold_map_with_index(
-		/// 	|i, x| format!("{}:{}", i, x),
-		/// 	v,
-		/// );
+		/// let s = <VecBrand as FoldableWithIndex>::fold_map_with_index(|i, x| format!("{}:{}", i, x), v);
 		/// assert_eq!(s, "0:101:202:30");
 		/// ```
 		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
@@ -669,7 +671,7 @@ mod inner {
 		}
 	}
 
-	impl TraversableWithIndex<usize> for VecBrand {
+	impl TraversableWithIndex for VecBrand {
 		/// Traverses the vector with an applicative function, providing the index of each element.
 		#[document_signature]
 		#[document_type_parameters(
@@ -695,7 +697,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		/// let v = vec![10, 20, 30];
-		/// let t = <VecBrand as TraversableWithIndex<usize>>::traverse_with_index::<i32, i32, OptionBrand>(
+		/// let t = <VecBrand as TraversableWithIndex>::traverse_with_index::<i32, i32, OptionBrand>(
 		/// 	|i, x| Some(x + i as i32),
 		/// 	v,
 		/// );
@@ -1317,7 +1319,7 @@ mod inner {
 		}
 	}
 
-	impl ParFunctorWithIndex<usize> for VecBrand {
+	impl ParFunctorWithIndex for VecBrand {
 		/// Maps a function over the vector in parallel, providing each element's index.
 		///
 		/// Delegates to [`VecBrand::par_map_with_index`].
@@ -1357,7 +1359,7 @@ mod inner {
 		}
 	}
 
-	impl ParFoldableWithIndex<usize> for VecBrand {
+	impl ParFoldableWithIndex for VecBrand {
 		/// Maps each element and its index to a [`Monoid`] value and combines them in parallel.
 		///
 		/// Delegates to [`VecBrand::par_fold_map_with_index`].
@@ -2046,8 +2048,7 @@ mod tests {
 	#[test]
 	fn par_map_with_index_basic() {
 		let v = vec![10, 20, 30];
-		let result: Vec<i32> =
-			par_map_with_index::<VecBrand, usize, _, _>(|i, x: i32| x + i as i32, v);
+		let result: Vec<i32> = par_map_with_index::<VecBrand, _, _>(|i, x: i32| x + i as i32, v);
 		assert_eq!(result, vec![10, 21, 32]);
 	}
 
@@ -2070,7 +2071,7 @@ mod tests {
 	fn par_fold_map_with_index_basic() {
 		let v = vec![10, 20, 30];
 		let result: String =
-			par_fold_map_with_index::<VecBrand, usize, _, _>(|i, x: i32| format!("{i}:{x}"), v);
+			par_fold_map_with_index::<VecBrand, _, _>(|i, x: i32| format!("{i}:{x}"), v);
 		assert_eq!(result, "0:101:202:30");
 	}
 

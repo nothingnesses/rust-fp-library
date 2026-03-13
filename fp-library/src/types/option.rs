@@ -29,6 +29,7 @@ mod inner {
 				foldable_with_index::FoldableWithIndex,
 				functor_with_index::FunctorWithIndex,
 				traversable_with_index::TraversableWithIndex,
+				with_index::WithIndex,
 			},
 			impl_kind,
 			kinds::*,
@@ -510,7 +511,11 @@ mod inner {
 		}
 	}
 
-	impl FunctorWithIndex<()> for OptionBrand {
+	impl WithIndex for OptionBrand {
+		type Index = ();
+	}
+
+	impl FunctorWithIndex for OptionBrand {
 		/// Maps a function over the value in the option, providing the index `()`.
 		#[document_signature]
 		#[document_type_parameters(
@@ -534,7 +539,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		/// let x = Some(5);
-		/// let y = <OptionBrand as FunctorWithIndex<()>>::map_with_index(|_, i| i * 2, x);
+		/// let y = <OptionBrand as FunctorWithIndex>::map_with_index(|_, i| i * 2, x);
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn map_with_index<'a, A: 'a, B: 'a>(
@@ -545,7 +550,7 @@ mod inner {
 		}
 	}
 
-	impl FoldableWithIndex<()> for OptionBrand {
+	impl FoldableWithIndex for OptionBrand {
 		/// Folds the option using a monoid, providing the index `()`.
 		#[document_signature]
 		#[document_type_parameters(
@@ -567,8 +572,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		/// let x = Some(5);
-		/// let y =
-		/// 	<OptionBrand as FoldableWithIndex<()>>::fold_map_with_index(|_, i: i32| i.to_string(), x);
+		/// let y = <OptionBrand as FoldableWithIndex>::fold_map_with_index(|_, i: i32| i.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
 		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
@@ -582,7 +586,7 @@ mod inner {
 		}
 	}
 
-	impl TraversableWithIndex<()> for OptionBrand {
+	impl TraversableWithIndex for OptionBrand {
 		/// Traverses the option with an applicative function, providing the index `()`.
 		#[document_signature]
 		#[document_type_parameters(
@@ -605,7 +609,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		/// let x = Some(5);
-		/// let y = <OptionBrand as TraversableWithIndex<()>>::traverse_with_index::<i32, i32, OptionBrand>(
+		/// let y = <OptionBrand as TraversableWithIndex>::traverse_with_index::<i32, i32, OptionBrand>(
 		/// 	|_, i| Some(i * 2),
 		/// 	x,
 		/// );

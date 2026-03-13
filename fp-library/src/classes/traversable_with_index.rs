@@ -10,13 +10,13 @@ mod inner {
 	/// A `Traversable` with an additional index.
 	///
 	/// A `TraversableWithIndex` is a `Traversable` that also allows you to access the
-	/// index of each element when traversing the structure.
+	/// index of each element when traversing the structure. The index type is
+	/// uniquely determined by the implementing brand via the [`WithIndex`] supertype.
 	///
 	/// ### Laws
 	///
 	/// `TraversableWithIndex` instances must be compatible with their `Traversable` instance:
 	/// * Compatibility with Traversable: `traverse(f, fa) = traverse_with_index(|_, a| f(a), fa)`.
-	#[document_type_parameters("The index type.")]
 	#[document_examples]
 	///
 	/// TraversableWithIndex laws for [`Vec`]:
@@ -41,8 +41,7 @@ mod inner {
 	/// 	VecBrand::traverse_with_index::<i32, i32, OptionBrand>(|_, a| f(a), xs),
 	/// );
 	/// ```
-	pub trait TraversableWithIndex<I>:
-		Traversable + FoldableWithIndex<I> + FunctorWithIndex<I> {
+	pub trait TraversableWithIndex: Traversable + FoldableWithIndex + FunctorWithIndex {
 		/// Traverse the structure with an effectful function, providing the index of each element.
 		#[document_signature]
 		#[document_type_parameters(
@@ -74,7 +73,7 @@ mod inner {
 		/// assert_eq!(result, Some(vec![2, 4, 6]));
 		/// ```
 		fn traverse_with_index<'a, A: 'a, B: 'a + Clone, M: Applicative>(
-			f: impl Fn(I, A) -> M::Of<'a, B> + 'a,
+			f: impl Fn(Self::Index, A) -> M::Of<'a, B> + 'a,
 			ta: Self::Of<'a, A>,
 		) -> M::Of<'a, Self::Of<'a, B>>
 		where

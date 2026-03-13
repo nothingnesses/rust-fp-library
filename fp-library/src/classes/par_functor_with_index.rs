@@ -25,10 +25,9 @@ mod inner {
 	///
 	/// ### Thread Safety
 	///
-	/// The index type `I` must satisfy `I: Send + Sync + Copy` when calling
+	/// The index type must satisfy `Self::Index: Send + Sync + Copy` when calling
 	/// [`par_map_with_index`][ParFunctorWithIndex::par_map_with_index]. These bounds apply even
 	/// when the `rayon` feature is disabled.
-	#[document_type_parameters("The index type.")]
 	#[document_examples]
 	///
 	/// ParFunctorWithIndex laws for [`Vec`]:
@@ -53,7 +52,7 @@ mod inner {
 	/// 	VecBrand::par_map_with_index(|_, a| f(a), xs),
 	/// );
 	/// ```
-	pub trait ParFunctorWithIndex<I>: ParFunctor + FunctorWithIndex<I> {
+	pub trait ParFunctorWithIndex: ParFunctor + FunctorWithIndex {
 		/// Maps a function over the structure in parallel, providing the index of each element.
 		///
 		/// When the `rayon` feature is enabled, elements are processed across multiple threads.
@@ -81,11 +80,11 @@ mod inner {
 		/// assert_eq!(result, vec![10, 21, 32]);
 		/// ```
 		fn par_map_with_index<'a, A: 'a + Send, B: 'a + Send>(
-			f: impl Fn(I, A) -> B + Send + Sync + 'a,
+			f: impl Fn(Self::Index, A) -> B + Send + Sync + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			I: Send + Sync + Copy + 'a;
+			Self::Index: Send + Sync + Copy + 'a;
 	}
 
 	/// Maps a function over the structure in parallel, providing the index of each element.
@@ -96,7 +95,6 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the structure.",
-		"The index type.",
 		"The type of the elements.",
 		"The type of the result."
 	)]
@@ -114,16 +112,16 @@ mod inner {
 	/// };
 	///
 	/// let result: Vec<i32> =
-	/// 	par_map_with_index::<VecBrand, usize, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
+	/// 	par_map_with_index::<VecBrand, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
 	/// assert_eq!(result, vec![10, 21, 32]);
 	/// ```
-	pub fn par_map_with_index<'a, Brand, I, A: 'a + Send, B: 'a + Send>(
-		f: impl Fn(I, A) -> B + Send + Sync + 'a,
+	pub fn par_map_with_index<'a, Brand, A: 'a + Send, B: 'a + Send>(
+		f: impl Fn(Brand::Index, A) -> B + Send + Sync + 'a,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		Brand: ParFunctorWithIndex<I>,
-		I: Send + Sync + Copy + 'a, {
+		Brand: ParFunctorWithIndex,
+		Brand::Index: Send + Sync + Copy + 'a, {
 		Brand::par_map_with_index(f, fa)
 	}
 }
