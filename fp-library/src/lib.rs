@@ -16,16 +16,22 @@
 //! ## Features
 //!
 //! - **Higher-Kinded Types (HKT):** Implemented using lightweight higher-kinded polymorphism (type-level defunctionalization/brands).
-//! - **Macros:** Procedural macros (`trait_kind!`, `impl_kind!`, `Apply!`) to simplify HKT boilerplate and type application.
+//! - **Macros:** Procedural macros for working with HKTs and monadic code:
+//!   - **HKT:** `trait_kind!`, `impl_kind!`, `Apply!` for defining and applying higher-kinded type encodings
+//!   - **Do-Notation:** `m_do!` for monadic do-notation, `a_do!` for applicative do-notation
 //! - **Type Classes:** A comprehensive collection of standard type classes including:
-//!   - **Core:** `Functor`, `Applicative`, `Monad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`
+//!   - **Core:** `Functor`, `Contravariant`, `Pointed`, `Applicative`, `Semiapplicative`, `Monad`, `Semimonad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`, `Alt`, `Plus`, `Alternative`
+//!   - **Applicative Utilities:** `Lift`, `ApplyFirst`, `ApplySecond`
+//!   - **Monad Utilities:** `MonadRec`, `Evaluable`
 //!   - **Bifunctors:** `Bifunctor`, `Bifoldable`, `Bitraversable`
 //!   - **Collections:** `Compactable`, `Filterable`, `Witherable`
 //!   - **Indexed:** `FunctorWithIndex`, `FoldableWithIndex`, `TraversableWithIndex`
 //!   - **Category Theory:** `Category`, `Semigroupoid`, `Profunctor`, `Strong`, `Choice`, `Closed`, `Cochoice`, `Costrong`, `Wander`
-//!   - **Utilities:** `Pointed`, `Lift`, `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`, `Contravariant`, `Evaluable`
-//!   - **Advanced/Internal:** `MonadRec`, `RefFunctor`, `Deferrable`, `SendDeferrable`
-//!   - **Function & Pointer Abstractions:** `Function`, `CloneableFn`, `SendCloneableFn`, `UnsizedCoercible`, `SendUnsizedCoercible`, `ParFoldable`, `Pointer`, `RefCountedPointer`, `SendRefCountedPointer`
+//!   - **Laziness & Effects:** `RefFunctor`, `Deferrable`, `SendDeferrable`
+//! - **Function & Pointer Abstractions:** Traits for abstracting over function wrappers and reference counting:
+//!   - **Functions:** `Function`, `CloneableFn`, `SendCloneableFn`, `UnsizedCoercible`, `SendUnsizedCoercible`
+//!   - **Pointers:** `Pointer`, `RefCountedPointer`, `SendRefCountedPointer`
+//!   - **Parallel:** `ParFoldable`
 //! - **Optics:** Composable data accessors using profunctor encoding (port of PureScript's `purescript-profunctor-lenses`):
 //!   - **Iso / IsoPrime:** Isomorphism between two types
 //!   - **Lens / LensPrime:** Focus on a field within a product type
@@ -39,8 +45,10 @@
 //!   - **Grate / GratePrime:** Closed/zipping optics
 //!   - **Indexed variants:** `IndexedLens`, `IndexedTraversal`, `IndexedGetter`, `IndexedFold`, `IndexedSetter`
 //!   - **Composition:** `Composed` struct and `optics_compose` for zero-cost optic composition
+//! - **Numeric Algebra:** `Semiring`, `Ring`, `CommutativeRing`, `EuclideanRing`, `DivisionRing`, `Field`, `HeytingAlgebra`
+//! - **Newtype Wrappers:** `Additive`, `Multiplicative`, `Conjunctive`, `Disjunctive`, `First`, `Last`, `Dual`
 //! - **Helper Functions:** Standard FP utilities:
-//!   - `compose`, `constant`, `flip`, `identity`
+//!   - `compose`, `constant`, `flip`, `identity`, `on`
 //! - **Data Types:** Implementations for standard and custom types:
 //!   - **Standard Library:** `Option`, `Result`, `Vec`, `String`
 //!   - **Laziness, Memoization & Stack Safety:** `Lazy` (`RcLazy`, `ArcLazy`), `Thunk`, `Trampoline`, `Free`
@@ -203,6 +211,32 @@
 //! // Map a function over the `Option` using the `Functor` type class
 //! let y = map::<OptionBrand, _, _>(|i| i * 2, x);
 //! assert_eq!(y, Some(10));
+//! ```
+//!
+//! ## Example: Monadic Do-Notation with `m_do!`
+//!
+//! The `m_do!` macro provides Haskell/PureScript-style do-notation for flat monadic code.
+//! It desugars `<-` binds into nested [`bind`](functions::bind) calls.
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//! use fp_macros::m_do;
+//!
+//! let result = m_do!(OptionBrand {
+//! 	x <- Some(5);
+//! 	y <- Some(x + 1);
+//! 	let z = x * y;
+//! 	pure(z)
+//! });
+//! assert_eq!(result, Some(30));
+//!
+//! // Works with any monad brand
+//! let result = m_do!(VecBrand {
+//! 	x <- vec![1, 2];
+//! 	y <- vec![10, 20];
+//! 	pure(x + y)
+//! });
+//! assert_eq!(result, vec![11, 21, 12, 22]);
 //! ```
 //!
 //! ## Crate Features

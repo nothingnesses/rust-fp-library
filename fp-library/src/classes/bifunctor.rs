@@ -45,6 +45,38 @@ mod inner {
 	/// `Bifunctor` instances must satisfy the following laws:
 	/// * Identity: `bimap(identity, identity, p) = p`.
 	/// * Composition: `bimap(compose(f, g), compose(h, i), p) = bimap(f, h, bimap(g, i, p))`.
+	#[document_examples]
+	///
+	/// Bifunctor laws for [`Result`]:
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let ok: Result<i32, i32> = Ok(5);
+	/// let err: Result<i32, i32> = Err(3);
+	///
+	/// // Identity: bimap(identity, identity, p) = p
+	/// assert_eq!(bimap::<ResultBrand, _, _, _, _>(identity, identity, ok), ok);
+	/// assert_eq!(bimap::<ResultBrand, _, _, _, _>(identity, identity, err), err);
+	///
+	/// // Composition: bimap(compose(f, g), compose(h, i), p)
+	/// //            = bimap(f, h, bimap(g, i, p))
+	/// let f = |x: i32| x + 1;
+	/// let g = |x: i32| x * 2;
+	/// let h = |x: i32| x + 10;
+	/// let i = |x: i32| x * 3;
+	/// assert_eq!(
+	/// 	bimap::<ResultBrand, _, _, _, _>(compose(f, g), compose(h, i), ok),
+	/// 	bimap::<ResultBrand, _, _, _, _>(f, h, bimap::<ResultBrand, _, _, _, _>(g, i, ok)),
+	/// );
+	/// assert_eq!(
+	/// 	bimap::<ResultBrand, _, _, _, _>(compose(f, g), compose(h, i), err),
+	/// 	bimap::<ResultBrand, _, _, _, _>(f, h, bimap::<ResultBrand, _, _, _, _>(g, i, err)),
+	/// );
+	/// ```
 	pub trait Bifunctor: Kind_266801a817966495 {
 		/// Maps functions over the values in the bifunctor context.
 		///

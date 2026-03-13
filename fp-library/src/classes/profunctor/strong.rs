@@ -45,6 +45,37 @@ mod inner {
 	/// * Identity: `first(identity) = identity`.
 	/// * Composition: `first(p ∘ q) = first(p) ∘ first(q)`.
 	/// * Naturality: `dimap(fst, fst) ∘ first(p) = first(p) ∘ dimap(fst, fst)`.
+	#[document_examples]
+	///
+	/// Strong laws for [`RcFnBrand`](crate::brands::RcFnBrand):
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	classes::profunctor::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let p = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2 + 1);
+	/// let q = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 10);
+	///
+	/// // Identity: first(identity) = identity
+	/// let id = category_identity::<RcFnBrand, i32>();
+	/// let first_id = first::<RcFnBrand, _, _, String>(id);
+	/// assert_eq!(first_id((5, "hi".to_string())), (5, "hi".to_string()));
+	///
+	/// // Composition: first(p ∘ q) = first(p) ∘ first(q)
+	/// let lhs = first::<RcFnBrand, _, _, String>(semigroupoid_compose::<RcFnBrand, _, _, _>(
+	/// 	p.clone(),
+	/// 	q.clone(),
+	/// ));
+	/// let rhs = semigroupoid_compose::<RcFnBrand, _, _, _>(
+	/// 	first::<RcFnBrand, _, _, String>(p),
+	/// 	first::<RcFnBrand, _, _, String>(q),
+	/// );
+	/// assert_eq!(lhs((5, "hi".to_string())), rhs((5, "hi".to_string())));
+	/// assert_eq!(lhs((0, "lo".to_string())), rhs((0, "lo".to_string())));
+	/// ```
 	pub trait Strong: Profunctor {
 		/// Lift a profunctor to operate on the first component of a pair.
 		///

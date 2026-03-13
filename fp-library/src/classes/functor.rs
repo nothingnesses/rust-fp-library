@@ -42,6 +42,48 @@ mod inner {
 	/// `Functor` instances must satisfy the following laws:
 	/// * Identity: `map(identity, fa) = fa`.
 	/// * Composition: `map(compose(f, g), fa) = map(f, map(g, fa))`.
+	#[document_examples]
+	///
+	/// Functor laws for [`Option`]:
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// // Identity: map(identity, fa) = fa
+	/// assert_eq!(map::<OptionBrand, _, _>(identity, Some(5)), Some(5));
+	/// assert_eq!(map::<OptionBrand, _, _>(identity, None::<i32>), None);
+	///
+	/// // Composition: map(compose(f, g), fa) = map(f, map(g, fa))
+	/// let f = |x: i32| x + 1;
+	/// let g = |x: i32| x * 2;
+	/// assert_eq!(
+	/// 	map::<OptionBrand, _, _>(compose(f, g), Some(5)),
+	/// 	map::<OptionBrand, _, _>(f, map::<OptionBrand, _, _>(g, Some(5))),
+	/// );
+	/// ```
+	///
+	/// Functor laws for [`Vec`]:
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// // Identity: map(identity, fa) = fa
+	/// assert_eq!(map::<VecBrand, _, _>(identity, vec![1, 2, 3]), vec![1, 2, 3]);
+	///
+	/// // Composition: map(compose(f, g), fa) = map(f, map(g, fa))
+	/// let f = |x: i32| x + 1;
+	/// let g = |x: i32| x * 2;
+	/// assert_eq!(
+	/// 	map::<VecBrand, _, _>(compose(f, g), vec![1, 2, 3]),
+	/// 	map::<VecBrand, _, _>(f, map::<VecBrand, _, _>(g, vec![1, 2, 3])),
+	/// );
+	/// ```
 	pub trait Functor: Kind_cdc7cd43dac7585f {
 		/// Maps a function over the values in the functor context.
 		///

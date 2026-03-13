@@ -14,6 +14,29 @@ All shell commands must be prefixed with `eval "$(direnv export bash 2>/dev/null
 
 ## Development Commands
 
+### Formatting & Linting
+
+```bash
+# Format code (uses rustfmt.toml configuration)
+eval "$(direnv export bash 2>/dev/null)"; cargo fmt --all
+
+# Check formatting
+eval "$(direnv export bash 2>/dev/null)"; cargo fmt --all -- --check
+
+# Run clippy
+eval "$(direnv export bash 2>/dev/null)"; cargo clippy --workspace --all-features
+```
+
+### Documentation
+
+```bash
+# Check documentation (must produce zero warnings)
+eval "$(direnv export bash 2>/dev/null)"; cargo doc --workspace --all-features --no-deps
+
+# Build and open documentation
+eval "$(direnv export bash 2>/dev/null)"; cargo doc --workspace --all-features --open
+```
+
 ### Testing
 
 ```bash
@@ -67,27 +90,15 @@ eval "$(direnv export bash 2>/dev/null)"; cargo bench -p fp-library --bench benc
 # Benchmark reports are generated in target/criterion/report/index.html
 ```
 
-### Formatting & Linting
+### Verification
+
+After making changes, always verify in this order: **fmt → clippy → doc → test**.
 
 ```bash
-# Format code (uses rustfmt.toml configuration)
 eval "$(direnv export bash 2>/dev/null)"; cargo fmt --all
-
-# Check formatting
-eval "$(direnv export bash 2>/dev/null)"; cargo fmt --all -- --check
-
-# Run clippy
 eval "$(direnv export bash 2>/dev/null)"; cargo clippy --workspace --all-features
-```
-
-### Documentation
-
-```bash
-# Build and open documentation
-eval "$(direnv export bash 2>/dev/null)"; cargo doc --workspace --all-features --open
-
-# Check documentation
 eval "$(direnv export bash 2>/dev/null)"; cargo doc --workspace --all-features --no-deps
+eval "$(direnv export bash 2>/dev/null)"; cargo test --workspace --all-features
 ```
 
 ## Language Server & Code Intelligence

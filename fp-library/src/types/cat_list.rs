@@ -30,6 +30,7 @@ mod inner {
 				OptionBrand,
 			},
 			classes::{
+				Alt,
 				Applicative,
 				ApplyFirst,
 				ApplySecond,
@@ -43,6 +44,7 @@ mod inner {
 				Lift,
 				Monoid,
 				ParFoldable,
+				Plus,
 				Pointed,
 				Semiapplicative,
 				Semigroup,
@@ -457,6 +459,65 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			ff.into_iter().flat_map(|f| fa.clone().into_iter().map(move |a| f(a.clone()))).collect()
+		}
+	}
+
+	impl Alt for CatListBrand {
+		/// Concatenates two lists.
+		///
+		/// This is the same as [`Semigroup::append`] for `CatList`, providing an
+		/// associative choice operation for the `CatList` type constructor.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
+		///
+		#[document_parameters("The first list.", "The second list.")]
+		///
+		#[document_returns("The concatenated list.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = CatList::singleton(1).snoc(2);
+		/// let y = CatList::singleton(3).snoc(4);
+		/// let result: Vec<_> = alt::<CatListBrand, _>(x, y).into_iter().collect();
+		/// assert_eq!(result, vec![1, 2, 3, 4]);
+		/// ```
+		fn alt<'a, A: 'a>(
+			fa1: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa2: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			fa1.append(fa2)
+		}
+	}
+
+	impl Plus for CatListBrand {
+		/// Returns an empty list, the identity element for [`alt`](Alt::alt).
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
+		///
+		#[document_returns("An empty list.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x: CatList<i32> = plus_empty::<CatListBrand, i32>();
+		/// assert!(x.is_empty());
+		/// ```
+		fn empty<'a, A: 'a>() -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			CatList::empty()
 		}
 	}
 
@@ -2293,5 +2354,309 @@ mod tests {
 	fn witherable_identity(x: Vec<i32>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
 		wither::<CatListBrand, OptionBrand, _, _>(|i| Some(Some(i)), x.clone()) == Some(x)
+	}
+
+	// Alt Laws
+
+	/// Tests the associativity law for Alt.
+	#[quickcheck]
+	fn alt_associativity(
+		x: Vec<i32>,
+		y: Vec<i32>,
+		z: Vec<i32>,
+	) -> bool {
+		let cx: CatList<_> = x.into_iter().collect();
+		let cy: CatList<_> = y.into_iter().collect();
+		let cz: CatList<_> = z.into_iter().collect();
+		let lhs: Vec<_> =
+			alt::<CatListBrand, _>(alt::<CatListBrand, _>(cx.clone(), cy.clone()), cz.clone())
+				.into_iter()
+				.collect();
+		let rhs: Vec<_> =
+			alt::<CatListBrand, _>(cx, alt::<CatListBrand, _>(cy, cz)).into_iter().collect();
+		lhs == rhs
+	}
+
+	/// Tests the distributivity law for Alt.
+	#[quickcheck]
+	fn alt_distributivity(
+		x: Vec<i32>,
+		y: Vec<i32>,
+	) -> bool {
+		let cx: CatList<_> = x.into_iter().collect();
+		let cy: CatList<_> = y.into_iter().collect();
+		let f = |i: i32| i.wrapping_mul(2).wrapping_add(1);
+		let lhs: Vec<_> =
+			map::<CatListBrand, _, _>(f, alt::<CatListBrand, _>(cx.clone(), cy.clone()))
+				.into_iter()
+				.collect();
+		let rhs: Vec<_> = alt::<CatListBrand, _>(
+			map::<CatListBrand, _, _>(f, cx),
+			map::<CatListBrand, _, _>(f, cy),
+		)
+		.into_iter()
+		.collect();
+		lhs == rhs
+	}
+
+	// Plus Laws
+
+	/// Tests the left identity law for Plus.
+	#[quickcheck]
+	fn plus_left_identity(x: Vec<i32>) -> bool {
+		let cx: CatList<_> = x.into_iter().collect();
+		let lhs: Vec<_> = alt::<CatListBrand, _>(plus_empty::<CatListBrand, i32>(), cx.clone())
+			.into_iter()
+			.collect();
+		let rhs: Vec<_> = cx.into_iter().collect();
+		lhs == rhs
+	}
+
+	/// Tests the right identity law for Plus.
+	#[quickcheck]
+	fn plus_right_identity(x: Vec<i32>) -> bool {
+		let cx: CatList<_> = x.into_iter().collect();
+		let lhs: Vec<_> = alt::<CatListBrand, _>(cx.clone(), plus_empty::<CatListBrand, i32>())
+			.into_iter()
+			.collect();
+		let rhs: Vec<_> = cx.into_iter().collect();
+		lhs == rhs
+	}
+
+	/// Tests the annihilation law for Plus.
+	#[test]
+	fn plus_annihilation() {
+		let f = |i: i32| i.wrapping_mul(2);
+		let lhs: Vec<_> =
+			map::<CatListBrand, _, _>(f, plus_empty::<CatListBrand, i32>()).into_iter().collect();
+		let rhs: Vec<_> = plus_empty::<CatListBrand, i32>().into_iter().collect();
+		assert_eq!(lhs, rhs);
+	}
+
+	// Compactable Laws (Plus-dependent)
+
+	/// Tests the functor identity law for Compactable.
+	#[quickcheck]
+	fn compactable_functor_identity(x: Vec<i32>) -> bool {
+		let cx: CatList<_> = x.into_iter().collect();
+		let lhs: Vec<_> = compact::<CatListBrand, _>(map::<CatListBrand, _, _>(Some, cx.clone()))
+			.into_iter()
+			.collect();
+		let rhs: Vec<_> = cx.into_iter().collect();
+		lhs == rhs
+	}
+
+	// Data Structure Property Tests
+
+	/// Property: cons adds element to the front.
+	#[quickcheck]
+	fn prop_cons_adds_to_front(
+		head: i32,
+		tail: Vec<i32>,
+	) -> bool {
+		let list: CatList<_> = tail.iter().cloned().collect();
+		let list = list.cons(head);
+
+		let mut expected = vec![head];
+		expected.extend(tail);
+
+		let result: Vec<_> = list.into_iter().collect();
+		result == expected
+	}
+
+	/// Property: snoc adds element to the back.
+	#[quickcheck]
+	fn prop_snoc_adds_to_back(
+		init: Vec<i32>,
+		last: i32,
+	) -> bool {
+		let list: CatList<_> = init.iter().cloned().collect();
+		let list = list.snoc(last);
+
+		let mut expected = init;
+		expected.push(last);
+
+		let result: Vec<_> = list.into_iter().collect();
+		result == expected
+	}
+
+	/// Property: append concatenates two lists.
+	#[quickcheck]
+	fn prop_append_concatenates(
+		xs: Vec<i32>,
+		ys: Vec<i32>,
+	) -> bool {
+		let list1: CatList<_> = xs.iter().cloned().collect();
+		let list2: CatList<_> = ys.iter().cloned().collect();
+		let list3 = list1.append(list2);
+
+		let mut expected = xs;
+		expected.extend(ys);
+
+		let result: Vec<_> = list3.into_iter().collect();
+		result == expected
+	}
+
+	/// Property: append is associative.
+	#[quickcheck]
+	fn prop_append_associative(
+		xs: Vec<i32>,
+		ys: Vec<i32>,
+		zs: Vec<i32>,
+	) -> bool {
+		let l1: CatList<_> = xs.iter().cloned().collect();
+		let l2: CatList<_> = ys.iter().cloned().collect();
+		let l3: CatList<_> = zs.iter().cloned().collect();
+
+		let left = l1.clone().append(l2.clone()).append(l3.clone());
+		let right = l1.append(l2.append(l3));
+
+		let r1: Vec<_> = left.into_iter().collect();
+		let r2: Vec<_> = right.into_iter().collect();
+		r1 == r2
+	}
+
+	/// Property: append with empty is identity.
+	#[quickcheck]
+	fn prop_append_identity(xs: Vec<i32>) -> bool {
+		let list: CatList<_> = xs.iter().cloned().collect();
+		let empty = CatList::empty();
+
+		let left = empty.clone().append(list.clone());
+		let right = list.clone().append(empty);
+
+		let r1: Vec<_> = left.into_iter().collect();
+		let r2: Vec<_> = right.into_iter().collect();
+
+		r1 == xs && r2 == xs
+	}
+
+	/// Property: len returns correct length.
+	#[quickcheck]
+	fn prop_len_correct(xs: Vec<i32>) -> bool {
+		let list: CatList<_> = xs.iter().cloned().collect();
+		list.len() == xs.len()
+	}
+
+	/// Property: is_empty is true iff length is 0.
+	#[quickcheck]
+	fn prop_is_empty_correct(xs: Vec<i32>) -> bool {
+		let list: CatList<_> = xs.iter().cloned().collect();
+		list.is_empty() == xs.is_empty()
+	}
+
+	/// Property: uncons returns head and tail.
+	#[quickcheck]
+	fn prop_uncons_correct(xs: Vec<i32>) -> bool {
+		let list: CatList<_> = xs.iter().cloned().collect();
+
+		match list.uncons() {
+			None => xs.is_empty(),
+			Some((head, tail)) =>
+				if xs.is_empty() {
+					false
+				} else {
+					let expected_head = xs[0];
+					let expected_tail = &xs[1 ..];
+					let tail_vec: Vec<_> = tail.into_iter().collect();
+
+					head == expected_head && tail_vec == expected_tail
+				},
+		}
+	}
+
+	/// Property: cons increases length by 1.
+	#[quickcheck]
+	fn prop_cons_increases_len(
+		head: i32,
+		tail: Vec<i32>,
+	) -> bool {
+		let list: CatList<_> = tail.iter().cloned().collect();
+		let initial_len = list.len();
+		let list = list.cons(head);
+		list.len() == initial_len + 1
+	}
+
+	/// Property: snoc increases length by 1.
+	#[quickcheck]
+	fn prop_snoc_increases_len(
+		init: Vec<i32>,
+		last: i32,
+	) -> bool {
+		let list: CatList<_> = init.iter().cloned().collect();
+		let initial_len = list.len();
+		let list = list.snoc(last);
+		list.len() == initial_len + 1
+	}
+
+	/// Property: append sums lengths.
+	#[quickcheck]
+	fn prop_append_sums_len(
+		xs: Vec<i32>,
+		ys: Vec<i32>,
+	) -> bool {
+		let list1: CatList<_> = xs.iter().cloned().collect();
+		let list2: CatList<_> = ys.iter().cloned().collect();
+		let len1 = list1.len();
+		let len2 = list2.len();
+
+		let list3 = list1.append(list2);
+		list3.len() == len1 + len2
+	}
+
+	/// Property: uncons decreases length by 1.
+	#[quickcheck]
+	fn prop_uncons_decreases_len(xs: Vec<i32>) -> bool {
+		let list: CatList<_> = xs.iter().cloned().collect();
+		let initial_len = list.len();
+
+		match list.uncons() {
+			None => initial_len == 0,
+			Some((_, tail)) => tail.len() == initial_len - 1,
+		}
+	}
+
+	/// Property: cons equivalence with LinkedList.
+	#[quickcheck]
+	fn prop_cons_equivalence_linked_list(xs: Vec<i32>) -> bool {
+		use std::collections::LinkedList;
+
+		let mut cat_list = CatList::empty();
+		let mut linked_list = LinkedList::new();
+
+		for &x in &xs {
+			cat_list = cat_list.cons(x);
+			linked_list.push_front(x);
+		}
+
+		let cat_vec: Vec<_> = cat_list.into_iter().collect();
+		let linked_vec: Vec<_> = linked_list.into_iter().collect();
+
+		cat_vec == linked_vec
+	}
+
+	/// Property: uncons equivalence with LinkedList.
+	#[quickcheck]
+	fn prop_uncons_equivalence_linked_list(xs: Vec<i32>) -> bool {
+		use std::collections::LinkedList;
+
+		let mut cat_list: CatList<_> = xs.iter().cloned().collect();
+		let mut linked_list: LinkedList<_> = xs.iter().cloned().collect();
+
+		loop {
+			let cat_res = cat_list.uncons();
+			let linked_res = linked_list.pop_front();
+
+			match (cat_res, linked_res) {
+				(Some((a, tail)), Some(b)) => {
+					if a != b {
+						return false;
+					}
+					cat_list = tail;
+				}
+				(None, None) => return true,
+				_ => return false,
+			}
+		}
 	}
 }

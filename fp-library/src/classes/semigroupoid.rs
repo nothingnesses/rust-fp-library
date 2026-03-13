@@ -38,6 +38,34 @@ mod inner {
 	///
 	/// Semigroupoid instances must satisfy the associative law:
 	/// * Associativity: `compose(p, compose(q, r)) = compose(compose(p, q), r)`.
+	#[document_examples]
+	///
+	/// Associativity for [`RcFnBrand`](crate::brands::RcFnBrand):
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	classes::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+	/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+	/// let h = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x - 3);
+	///
+	/// // Associativity: compose(f, compose(g, h)) = compose(compose(f, g), h)
+	/// let left = semigroupoid_compose::<RcFnBrand, _, _, _>(
+	/// 	f.clone(),
+	/// 	semigroupoid_compose::<RcFnBrand, _, _, _>(g.clone(), h.clone()),
+	/// );
+	/// let right = semigroupoid_compose::<RcFnBrand, _, _, _>(
+	/// 	semigroupoid_compose::<RcFnBrand, _, _, _>(f, g),
+	/// 	h,
+	/// );
+	/// // Both sides produce the same result for any input
+	/// assert_eq!(left(10), right(10));
+	/// assert_eq!(left(0), right(0));
+	/// ```
 	pub trait Semigroupoid: Kind_266801a817966495 {
 		/// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
 		///

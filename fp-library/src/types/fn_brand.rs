@@ -524,4 +524,69 @@ mod tests {
 
 		lhs(x) == rhs(x)
 	}
+
+	// Profunctor Laws
+
+	/// Tests the identity law for Profunctor.
+	#[quickcheck]
+	fn profunctor_identity(input: i32) -> bool {
+		use crate::{
+			classes::profunctor::dimap,
+			functions::identity,
+		};
+		let p = std::rc::Rc::new(|x: i32| x.wrapping_mul(3).wrapping_add(7))
+			as std::rc::Rc<dyn Fn(i32) -> i32>;
+		let result = dimap::<RcFnBrand, _, _, _, _>(identity, identity, p.clone());
+		result(input) == p(input)
+	}
+
+	/// Tests the composition law for Profunctor.
+	#[quickcheck]
+	fn profunctor_composition(input: i32) -> bool {
+		use crate::{
+			classes::profunctor::dimap,
+			functions::compose,
+		};
+		let p = std::rc::Rc::new(|x: i32| x.wrapping_add(1)) as std::rc::Rc<dyn Fn(i32) -> i32>;
+		let f1 = |x: i32| x.wrapping_add(10);
+		let f2 = |x: i32| x.wrapping_mul(2);
+		let g1 = |x: i32| x.wrapping_sub(1);
+		let g2 = |x: i32| x.wrapping_mul(3);
+		let lhs = dimap::<RcFnBrand, _, _, _, _>(compose(f2, f1), compose(g1, g2), p.clone());
+		let rhs = dimap::<RcFnBrand, _, _, _, _>(f1, g1, dimap::<RcFnBrand, _, _, _, _>(f2, g2, p));
+		lhs(input) == rhs(input)
+	}
+
+	// Contravariant Laws
+
+	/// Tests the identity law for Contravariant.
+	#[quickcheck]
+	fn contravariant_identity(input: i32) -> bool {
+		use crate::{
+			classes::contravariant::contramap,
+			functions::identity,
+		};
+		let fa = std::rc::Rc::new(|x: i32| x.wrapping_mul(2).wrapping_add(3))
+			as std::rc::Rc<dyn Fn(i32) -> i32>;
+		let result =
+			contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, i32>, _, _>(identity, fa.clone());
+		result(input) == fa(input)
+	}
+
+	/// Tests the composition law for Contravariant.
+	#[quickcheck]
+	fn contravariant_composition(input: i32) -> bool {
+		use crate::{
+			classes::contravariant::contramap,
+			functions::compose,
+		};
+		type Contra = ProfunctorSecondAppliedBrand<RcFnBrand, i32>;
+		let fa = std::rc::Rc::new(|x: i32| x.wrapping_mul(2).wrapping_add(3))
+			as std::rc::Rc<dyn Fn(i32) -> i32>;
+		let f = |x: i32| x.wrapping_add(10);
+		let g = |x: i32| x.wrapping_mul(3);
+		let lhs = contramap::<Contra, _, _>(compose(f, g), fa.clone());
+		let rhs = contramap::<Contra, _, _>(g, contramap::<Contra, _, _>(f, fa));
+		lhs(input) == rhs(input)
+	}
 }

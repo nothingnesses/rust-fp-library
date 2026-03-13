@@ -11,7 +11,33 @@ mod inner {
 	///
 	/// A `FunctorWithIndex` is a `Functor` that also allows you to access the
 	/// index of each element when mapping over the structure.
+	///
+	/// ### Laws
+	///
+	/// `FunctorWithIndex` instances must satisfy:
+	/// * Identity: `map_with_index(|_, a| a, fa) = fa`.
+	/// * Compatibility with Functor: `map(f, fa) = map_with_index(|_, a| f(a), fa)`.
 	#[document_type_parameters("The index type.")]
+	#[document_examples]
+	///
+	/// FunctorWithIndex laws for [`Vec`]:
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::VecBrand,
+	/// 	classes::functor_with_index::FunctorWithIndex,
+	/// 	functions::*,
+	/// };
+	///
+	/// let xs = vec![10, 20, 30];
+	///
+	/// // Identity: map_with_index(|_, a| a, fa) = fa
+	/// assert_eq!(VecBrand::map_with_index(|_, a: i32| a, xs.clone()), xs,);
+	///
+	/// // Compatibility with Functor: map(f, fa) = map_with_index(|_, a| f(a), fa)
+	/// let f = |a: i32| a * 2;
+	/// assert_eq!(map::<VecBrand, _, _>(f, xs.clone()), VecBrand::map_with_index(|_, a| f(a), xs),);
+	/// ```
 	pub trait FunctorWithIndex<I>: Functor {
 		/// Map a function over the structure, providing the index of each element.
 		#[document_signature]

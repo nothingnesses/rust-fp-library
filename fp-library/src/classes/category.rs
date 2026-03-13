@@ -37,7 +37,33 @@ mod inner {
 	/// ### Laws
 	///
 	/// `Category` instances must satisfy the identity law:
-	/// * Identity: `compose(identity, p) = compose(p, identity)`.
+	/// * Identity: `compose(identity, p) = compose(p, identity) = p`.
+	#[document_examples]
+	///
+	/// Identity law for [`RcFnBrand`](crate::brands::RcFnBrand):
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	classes::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let p = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2 + 1);
+	/// let id = category_identity::<RcFnBrand, i32>();
+	///
+	/// // Left identity: compose(identity, p) = p
+	/// let left = semigroupoid_compose::<RcFnBrand, _, _, _>(id, p.clone());
+	/// assert_eq!(left(5), p(5));
+	///
+	/// // Right identity: compose(p, identity) = p
+	/// let id = category_identity::<RcFnBrand, i32>();
+	/// let right = semigroupoid_compose::<RcFnBrand, _, _, _>(p.clone(), id);
+	/// assert_eq!(right(5), p(5));
+	///
+	/// // Both sides equal
+	/// assert_eq!(left(5), right(5));
+	/// ```
 	pub trait Category: Semigroupoid {
 		/// Returns the identity morphism.
 		///

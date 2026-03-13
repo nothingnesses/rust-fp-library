@@ -10,25 +10,7 @@ This document outlines the steps for releasing new versions of `fp-library` and 
 
 ## Release Steps
 
-### 1. Create a Release Branch
-
-```bash
-git checkout -b release/fp-library-vX.Y.Z
-```
-
-### 2. Determine Version Bump
-
-Follow [Semantic Versioning](https://semver.org/), with the following policy for pre-1.0.0 releases:
-
-- **Major** (X.0.0): Reserved for when the API is declared stable.
-- **Minor** (0.X.0): Incompatible API changes or significant new functionality.
-- **Patch** (0.0.X): Backwards-compatible bug fixes or minor additions.
-
-### 3. Update Changelogs
-
-Update `fp-library/CHANGELOG.md` and `fp-macros/CHANGELOG.md` (if applicable).
-
-#### Determining changelog content
+### 1. Review Changes Since Last Release
 
 For each package being released, determine what has changed since the last release:
 
@@ -63,13 +45,28 @@ For each package being released, determine what has changed since the last relea
 
     Use the commit messages (especially conventional commit prefixes like `feat:`, `fix:`, `refactor:`) as a guide, but always verify against the actual diff to ensure nothing is missed or mischaracterized.
 
-#### Writing the changelog entry
+    Record the categorized changes under the `[Unreleased]` section of `fp-library/CHANGELOG.md` and `fp-macros/CHANGELOG.md` (if applicable).
+
+### 2. Determine Version Bump
+
+Based on the changes identified above, follow [Semantic Versioning](https://semver.org/) with the following policy for pre-1.0.0 releases:
+
+- **Major** (X.0.0): Reserved for when the API is declared stable.
+- **Minor** (0.X.0): Incompatible API changes or significant new functionality.
+- **Patch** (0.0.X): Backwards-compatible bug fixes or minor additions.
+
+### 3. Create a Release Branch
+
+```bash
+git checkout -b release/fp-library-vX.Y.Z
+```
+
+### 4. Finalize Changelogs
 
 1.  Rename the `[Unreleased]` section to the new version number and date (e.g., `[0.3.0] - 2026-01-16`).
-2.  List all notable changes under the appropriate headers (Added, Changed, Removed, Fixed).
-3.  Create a new empty `[Unreleased]` section at the top.
+2.  Create a new empty `[Unreleased]` section at the top.
 
-### 4. Update Cargo.toml
+### 5. Update Cargo.toml
 
 #### fp-macros (if changed)
 
@@ -80,7 +77,7 @@ For each package being released, determine what has changed since the last relea
 1.  Update `version` in `fp-library/Cargo.toml` and in `README.md`.
 2.  If `fp-macros` was updated, ensure the `fp-macros` dependency in `fp-library/Cargo.toml` matches the new version.
 
-### 5. Verification
+### 6. Verification
 
 Run the full suite of checks locally to catch issues before the PR:
 
@@ -98,7 +95,7 @@ cargo clippy
 cargo doc --open
 ```
 
-### 6. Commit and Open PR
+### 7. Commit and Open PR
 
 1.  Stage and commit the release changes:
 
@@ -121,7 +118,7 @@ cargo doc --open
     - **Squash and Merge** is preferred to keep the `main` branch history clean and linear.
     - **Conventional Commits** are encouraged for PR titles/squash commits (e.g., `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, etc.).
 
-### 7. Tag and Publish
+### 8. Tag and Publish
 
 After the PR is merged, tag the release on `main`:
 

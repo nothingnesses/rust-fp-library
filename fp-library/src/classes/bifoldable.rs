@@ -49,9 +49,48 @@ mod inner {
 	///
 	/// ### Laws
 	///
-	/// `Bifoldable` instances must be consistent with `Bifunctor` when one is also
-	/// defined, following the general principle that the structure of the fold mirrors
-	/// the structure of the map.
+	/// `Bifoldable` instances must be internally consistent and consistent with
+	/// `Bifunctor` when one is also defined:
+	/// * bi_fold_map/bi_fold_right consistency: `bi_fold_map(f, g, x) = bi_fold_right(|a, c| append(f(a), c), |b, c| append(g(b), c), empty(), x)`.
+	#[document_examples]
+	///
+	/// Bifoldable laws for [`Result`]:
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// // ResultBrand has Of<E, A> = Result<A, E>, so the first function handles errors
+	/// // and the second function handles ok values.
+	/// let ok: Result<i32, String> = Ok(5);
+	/// let err: Result<i32, String> = Err("err".to_string());
+	/// let f = |e: String| format!("err:{e}");
+	/// let g = |a: i32| a.to_string();
+	///
+	/// // bi_fold_map/bi_fold_right consistency (Ok case):
+	/// assert_eq!(
+	/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(f, g, ok.clone()),
+	/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
+	/// 		|a: String, c: String| append(f(a), c),
+	/// 		|b: i32, c: String| append(g(b), c),
+	/// 		empty::<String>(),
+	/// 		ok,
+	/// 	),
+	/// );
+	///
+	/// // bi_fold_map/bi_fold_right consistency (Err case):
+	/// assert_eq!(
+	/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(f, g, err.clone()),
+	/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
+	/// 		|a: String, c: String| append(f(a), c),
+	/// 		|b: i32, c: String| append(g(b), c),
+	/// 		empty::<String>(),
+	/// 		err,
+	/// 	),
+	/// );
+	/// ```
 	pub trait Bifoldable: Kind_266801a817966495 {
 		/// Folds the bifoldable structure from right to left using two step functions.
 		///

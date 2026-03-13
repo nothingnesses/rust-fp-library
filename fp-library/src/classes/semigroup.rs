@@ -18,6 +18,32 @@ mod inner {
 	///
 	/// `Semigroup` instances must satisfy the associative law:
 	/// * Associativity: `append(a, append(b, c)) = append(append(a, b), c)`.
+	#[document_examples]
+	///
+	/// Associativity for [`String`]:
+	///
+	/// ```
+	/// use fp_library::functions::*;
+	///
+	/// let a = "hello".to_string();
+	/// let b = " ".to_string();
+	/// let c = "world".to_string();
+	///
+	/// // Associativity: append(a, append(b, c)) = append(append(a, b), c)
+	/// assert_eq!(append(a.clone(), append(b.clone(), c.clone())), append(append(a, b), c),);
+	/// ```
+	///
+	/// Associativity for [`Vec`]:
+	///
+	/// ```
+	/// use fp_library::functions::*;
+	///
+	/// let a = vec![1, 2];
+	/// let b = vec![3];
+	/// let c = vec![4, 5];
+	///
+	/// assert_eq!(append(a.clone(), append(b.clone(), c.clone())), append(append(a, b), c),);
+	/// ```
 	pub trait Semigroup {
 		/// The result of combining the two values using the semigroup operation.
 		///

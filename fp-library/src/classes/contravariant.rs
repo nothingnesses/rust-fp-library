@@ -40,6 +40,38 @@ mod inner {
 	/// `Contravariant` instances must satisfy the following laws:
 	/// * Identity: `contramap(identity, fa) = fa`.
 	/// * Composition: `contramap(compose(f, g), fa) = contramap(g, contramap(f, fa))`.
+	#[document_examples]
+	///
+	/// Contravariant laws for functions via
+	/// [`ProfunctorSecondAppliedBrand`](crate::brands::ProfunctorSecondAppliedBrand):
+	///
+	/// ```
+	/// use {
+	/// 	fp_library::{
+	/// 		brands::*,
+	/// 		classes::contravariant::contramap,
+	/// 		functions::*,
+	/// 	},
+	/// 	std::rc::Rc,
+	/// };
+	///
+	/// type Pred = ProfunctorSecondAppliedBrand<RcFnBrand, bool>;
+	///
+	/// let p = Rc::new(|x: i32| x > 0) as Rc<dyn Fn(i32) -> bool>;
+	///
+	/// // Identity: contramap(identity, p) = p
+	/// let id_mapped = contramap::<Pred, _, _>(identity, p.clone());
+	/// assert_eq!(id_mapped(5), p(5));
+	/// assert_eq!(id_mapped(-3), p(-3));
+	///
+	/// // Composition: contramap(compose(f, g), p) = contramap(g, contramap(f, p))
+	/// let f = |x: i32| x + 10;
+	/// let g = |x: i32| x * 2;
+	/// let left = contramap::<Pred, _, _>(compose(f, g), p.clone());
+	/// let right = contramap::<Pred, _, _>(g, contramap::<Pred, _, _>(f, p));
+	/// assert_eq!(left(5), right(5));
+	/// assert_eq!(left(-10), right(-10));
+	/// ```
 	pub trait Contravariant: Kind_cdc7cd43dac7585f {
 		/// Maps a function contravariantly over the context.
 		///

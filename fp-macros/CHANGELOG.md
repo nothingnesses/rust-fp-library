@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-13
+
+### Added
+- **`m_do!` proc macro**: Monadic do-notation that desugars flat syntax into nested `bind` calls, matching Haskell/PureScript `do` notation. Supports `x <- expr;` binds, `let` bindings, sequence (`expr;`), typed binds (`x: Type <- expr;`), and automatic `pure(...)` rewriting.
+- **`a_do!` proc macro**: Applicative do-notation that desugars into `pure`/`map`/`lift2`–`lift5` calls, matching PureScript `ado` notation. Bindings are independent (not monadic), enabling applicative optimizations.
+- `#[document_examples]` now handles `#[doc = concat!(...)]` attributes for trait-level doc examples.
+
+### Changed
+- Internal module organization: `do_notation` → `m_do`, `ado_notation` → `a_do`.
+
 ## [0.4.2] - 2026-03-10
 
 ### Changed

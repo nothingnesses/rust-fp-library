@@ -5,12 +5,14 @@
 //!
 //! This crate provides macros for generating and working with Higher-Kinded Type (HKT) traits.
 
+pub(crate) mod a_do; // Applicative do-notation
 pub(crate) mod analysis; // Type and trait analysis
 pub(crate) mod codegen; // Code generation (includes re-exports)
 pub(crate) mod core; // Core infrastructure (config, error, result)
 pub(crate) mod documentation; // Documentation generation macros
 pub(crate) mod hkt; // Higher-Kinded Type macros
 pub(crate) mod hm; // Hindley-Milner type conversion
+pub(crate) mod m_do; // Monadic do-notation
 pub(crate) mod resolution; // Type resolution
 pub(crate) mod support; // Support utilities (attributes, syntax, validation, errors)
 
@@ -19,6 +21,7 @@ mod property_tests;
 
 use {
 	crate::core::ToCompileError,
+	a_do::a_do_worker,
 	codegen::{
 		FunctionFormatter,
 		ReExportInput,
@@ -42,6 +45,10 @@ use {
 		generate_name,
 		impl_kind_worker,
 		trait_kind_worker,
+	},
+	m_do::{
+		DoInput,
+		m_do_worker,
 	},
 	proc_macro::TokenStream,
 	quote::quote,
@@ -756,6 +763,28 @@ pub fn document_returns(
 /// A `### Examples` heading is inserted at the attribute's position. The code
 /// blocks in the doc comments are validated but not modified.
 ///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// #[document_examples]
+/// ///
+/// /// ```
+/// /// let x = my_fn(1, 2);
+/// /// assert_eq!(x, 3);
+/// /// ```
+/// pub fn my_fn(a: i32, b: i32) -> i32 { a + b }
+///
+/// // Expanded code
+/// /// ### Examples
+/// ///
+/// /// ```
+/// /// let x = my_fn(1, 2);
+/// /// assert_eq!(x, 3);
+/// /// ```
+/// pub fn my_fn(a: i32, b: i32) -> i32 { a + b }
+/// ```
+///
 /// ### Errors
 ///
 /// * Arguments are provided to the attribute.
@@ -1122,6 +1151,159 @@ pub fn document_module(
 	item: TokenStream,
 ) -> TokenStream {
 	match document_module_worker(attr.into(), item.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Monadic do-notation.
+///
+/// Desugars flat monadic syntax into nested `bind` calls, matching
+/// Haskell/PureScript `do` notation.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// m_do!(Brand {
+///     x <- expr;            // Bind: extract value from monadic computation
+///     y: Type <- expr;      // Typed bind: with explicit type annotation
+///     _ <- expr;            // Discard bind: sequence, discarding the result
+///     expr;                 // Sequence: discard result (shorthand for `_ <- expr;`)
+///     let z = expr;         // Let binding: pure, not monadic
+///     let w: Type = expr;   // Typed let binding
+///     expr                  // Final expression: no semicolon, returned as-is
+/// })
+/// ```
+///
+/// * `Brand`: The monad brand type (e.g., `OptionBrand`, `VecBrand`).
+/// * `x <- expr;`: Binds the result of a monadic expression to a pattern.
+/// * `let z = expr;`: A pure let binding (not monadic).
+/// * `expr;`: Sequences a monadic expression, discarding the result.
+/// * `expr` (final): The return expression, emitted as-is.
+///
+/// Bare `pure(args)` calls are automatically rewritten to `pure::<Brand, _>(args)`.
+///
+/// ### Statement Forms
+///
+/// | Syntax | Expansion |
+/// |--------|-----------|
+/// | `x <- expr;` | `bind::<Brand, _, _>(expr, move \|x\| { … })` |
+/// | `x: Type <- expr;` | `bind::<Brand, _, _>(expr, move \|x: Type\| { … })` |
+/// | `_ <- expr;` | `bind::<Brand, _, _>(expr, move \|_\| { … })` |
+/// | `expr;` | `bind::<Brand, _, _>(expr, move \|_\| { … })` |
+/// | `let x = expr;` | `{ let x = expr; … }` |
+/// | `expr` (final) | Emitted as-is |
+///
+/// ### Generates
+///
+/// Nested `bind` calls equivalent to hand-written monadic code.
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// use fp_library::{brands::*, functions::*};
+/// use fp_macros::m_do;
+///
+/// let result = m_do!(OptionBrand {
+///     x <- Some(5);
+///     y <- Some(x + 1);
+///     let z = x * y;
+///     pure(z)
+/// });
+/// assert_eq!(result, Some(30));
+///
+/// // Expanded code
+/// let result = bind::<OptionBrand, _, _>(Some(5), move |x| {
+///     bind::<OptionBrand, _, _>(Some(x + 1), move |y| {
+///         let z = x * y;
+///         pure::<OptionBrand, _>(z)
+///     })
+/// });
+/// ```
+///
+/// ```ignore
+/// // Invocation
+/// // Works with any monad brand
+/// let result = m_do!(VecBrand {
+///     x <- vec![1, 2];
+///     y <- vec![10, 20];
+///     pure(x + y)
+/// });
+/// assert_eq!(result, vec![11, 21, 12, 22]);
+/// ```
+#[proc_macro]
+pub fn m_do(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as DoInput);
+	match m_do_worker(input) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Applicative do-notation.
+///
+/// Desugars flat applicative syntax into `pure` / `map` / `lift2`–`lift5`
+/// calls, matching PureScript `ado` notation. Unlike [`m_do!`], bindings are
+/// independent — later bind expressions cannot reference earlier bound variables.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// a_do!(Brand {
+///     x <- expr;            // Bind: independent applicative computation
+///     y: Type <- expr;      // Typed bind: with explicit type annotation
+///     _ <- expr;            // Discard bind: compute for effect
+///     expr;                 // Sequence: shorthand for `_ <- expr;`
+///     let z = expr;         // Let binding: placed inside the combining closure
+///     let w: Type = expr;   // Typed let binding
+///     expr                  // Final expression: the combining body
+/// })
+/// ```
+///
+/// * `Brand`: The applicative brand type (e.g., `OptionBrand`, `VecBrand`).
+/// * Bind expressions are evaluated independently (applicative, not monadic).
+/// * `let` bindings before any `<-` are hoisted outside the combinator call.
+/// * `let` bindings after a `<-` are placed inside the combining closure.
+/// * Bare `pure(args)` calls in bind expressions are rewritten to `pure::<Brand, _>(args)`.
+///
+/// ### Desugaring
+///
+/// | Binds | Expansion |
+/// |-------|-----------|
+/// | 0 | `pure::<Brand, _>(final_expr)` |
+/// | 1 | `map::<Brand, _, _>(\|x\| body, expr)` |
+/// | N (2–5) | `liftN::<Brand, _, …>(\|x, y, …\| body, expr1, expr2, …)` |
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::{brands::*, functions::*};
+/// use fp_macros::a_do;
+///
+/// // Two independent computations combined with lift2
+/// let result = a_do!(OptionBrand {
+///     x <- Some(3);
+///     y <- Some(4);
+///     x + y
+/// });
+/// assert_eq!(result, Some(7));
+///
+/// // Expands to:
+/// let result = lift2::<OptionBrand, _, _, _>(|x, y| x + y, Some(3), Some(4));
+///
+/// // Single bind uses map
+/// let result = a_do!(OptionBrand { x <- Some(5); x * 2 });
+/// assert_eq!(result, Some(10));
+///
+/// // No binds uses pure
+/// let result: Option<i32> = a_do!(OptionBrand { 42 });
+/// assert_eq!(result, Some(42));
+/// ```
+#[proc_macro]
+pub fn a_do(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as DoInput);
+	match a_do_worker(input) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}

@@ -29,6 +29,7 @@ fp_macros::generate_function_re_exports!("src/classes", {
 	"pointer::new": pointer_new,
 	"ref_counted_pointer::cloneable_new": ref_counted_pointer_new,
 	"send_ref_counted_pointer::send_new": send_ref_counted_pointer_new,
+	"plus::empty": plus_empty,
 	"semigroupoid::compose": semigroupoid_compose,
 	"send_cloneable_fn::new": send_cloneable_fn_new,
 });
@@ -175,4 +176,46 @@ pub fn flip<A, B, C>(f: impl Fn(A, B) -> C) -> impl Fn(B, A) -> C {
 /// ```
 pub fn identity<A>(a: A) -> A {
 	a
+}
+
+/// Applies a binary function after projecting both arguments through a common function.
+///
+/// `on(f, g, x, y)` computes `f(g(x), g(y))`. This is useful for changing the domain
+/// of a binary operation.
+#[document_signature]
+///
+#[document_type_parameters(
+	"The type of the original arguments.",
+	"The type of the projected arguments.",
+	"The result type."
+)]
+///
+#[document_parameters(
+	"The binary function to apply to the projected values.",
+	"The projection function applied to both arguments.",
+	"The first argument.",
+	"The second argument."
+)]
+///
+#[document_returns("The result of applying `f` to the projected values.")]
+#[document_examples]
+///
+/// ```
+/// use fp_library::functions::*;
+///
+/// // Compare by absolute value
+/// let max_by_abs = on(|a: i32, b: i32| a.max(b), |x: i32| x.abs(), -5, 3);
+/// assert_eq!(max_by_abs, 5);
+///
+/// // Sum the lengths of two strings
+/// let sum_lens = on(|a: usize, b: usize| a + b, |s: &str| s.len(), "hello", "hi");
+/// assert_eq!(sum_lens, 7);
+/// ```
+pub fn on<A, B, C>(
+	f: impl Fn(B, B) -> C,
+	g: impl Fn(A) -> B,
+	x: A,
+	y: A,
+) -> C {
+	f(g(x), g(y))
 }
