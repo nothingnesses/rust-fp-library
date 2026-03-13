@@ -14,7 +14,7 @@
 //! use fp_library::{brands::*, functions::*};
 //! use fp_macros::a_do;
 //!
-//! // Bindings are independent — each is a separate computation
+//! // Bindings are independent: each is a separate computation
 //! let result = a_do!(OptionBrand {
 //! 	x <- Some(3);
 //! 	y <- Some(4);

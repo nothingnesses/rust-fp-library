@@ -21,9 +21,12 @@ mod inner {
 				Filterable,
 				Foldable,
 				Functor,
-				IntoParallel,
 				Lift,
 				Monoid,
+				ParCompactable,
+				ParFilterable,
+				ParFoldable,
+				ParFunctor,
 				Plus,
 				Pointed,
 				Semiapplicative,
@@ -33,6 +36,8 @@ mod inner {
 				Witherable,
 				foldable_with_index::FoldableWithIndex,
 				functor_with_index::FunctorWithIndex,
+				par_foldable_with_index::ParFoldableWithIndex,
+				par_functor_with_index::ParFunctorWithIndex,
 				traversable_with_index::TraversableWithIndex,
 			},
 			impl_kind,
@@ -761,63 +766,635 @@ mod inner {
 		}
 	}
 
-	impl IntoParallel for VecBrand {
-		/// Flattens a `Vec` to a `Vec` (identity conversion).
+	impl VecBrand {
+		/// Maps a function over the vector in parallel.
 		///
-		/// For `Vec`, this is a zero-cost identity — no allocation occurs.
+		/// When the `rayon` feature is enabled, elements are processed across multiple threads.
+		/// Otherwise falls back to sequential mapping.
 		#[document_signature]
 		///
-		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The input element type.",
+			"The output element type."
+		)]
 		///
-		#[document_parameters("The `Vec` to convert.")]
+		#[document_parameters(
+			"The function to apply to each element. Must be `Send + Sync`.",
+			"The vector to map over."
+		)]
 		///
-		#[document_returns("The same `Vec`, unchanged.")]
+		#[document_returns("A new vector containing the mapped elements.")]
 		///
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::VecBrand,
-		/// 	classes::IntoParallel,
-		/// };
+		/// use fp_library::brands::VecBrand;
 		///
-		/// let v = vec![1, 2, 3];
-		/// let result: Vec<i32> = VecBrand::collect_vec(v);
-		/// assert_eq!(result, vec![1, 2, 3]);
+		/// let result = VecBrand::par_map(|x: i32| x * 2, vec![1, 2, 3]);
+		/// assert_eq!(result, vec![2, 4, 6]);
 		/// ```
-		fn collect_vec<'a, A: 'a>(
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
-		) -> Vec<A> {
-			fa
+		pub fn par_map<'a, A: 'a + Send, B: 'a + Send>(
+			f: impl Fn(A) -> B + Send + Sync + 'a,
+			fa: Vec<A>,
+		) -> Vec<B> {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.into_par_iter().map(f).collect()
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.into_iter().map(f).collect()
 		}
 
-		/// Reconstructs a `Vec` from a `Vec` (identity conversion).
+		/// Compacts a vector of options in parallel, discarding `None` values.
 		///
-		/// For `Vec`, this is a zero-cost identity — no allocation occurs.
+		/// When the `rayon` feature is enabled, elements are processed across multiple threads.
+		/// Otherwise falls back to sequential compaction.
 		#[document_signature]
 		///
 		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
 		///
-		#[document_parameters("The `Vec` to convert.")]
+		#[document_parameters("The vector of options.")]
 		///
-		#[document_returns("The same `Vec`, unchanged.")]
+		#[document_returns("A new vector containing the unwrapped `Some` values.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::brands::VecBrand;
+		///
+		/// let result = VecBrand::par_compact(vec![Some(1), None, Some(3)]);
+		/// assert_eq!(result, vec![1, 3]);
+		/// ```
+		pub fn par_compact<'a, A: 'a + Send>(fa: Vec<Option<A>>) -> Vec<A> {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.into_par_iter().flatten().collect()
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.into_iter().flatten().collect()
+		}
+
+		/// Separates a vector of results into `(errors, oks)` in parallel.
+		///
+		/// When the `rayon` feature is enabled, elements are processed across multiple threads.
+		/// Otherwise falls back to sequential separation.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The error type.",
+			"The success type."
+		)]
+		///
+		#[document_parameters("The vector of results.")]
+		///
+		#[document_returns(
+			"A pair `(errs, oks)` where `errs` contains the `Err` values and `oks` the `Ok` values."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::brands::VecBrand;
+		///
+		/// let v: Vec<Result<i32, &str>> = vec![Ok(1), Err("a"), Ok(3)];
+		/// let (errs, oks): (Vec<&str>, Vec<i32>) = VecBrand::par_separate(v);
+		/// assert_eq!(errs, vec!["a"]);
+		/// assert_eq!(oks, vec![1, 3]);
+		/// ```
+		pub fn par_separate<'a, E: 'a + Send, O: 'a + Send>(
+			fa: Vec<Result<O, E>>
+		) -> (Vec<E>, Vec<O>) {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::{
+					iter::Either,
+					prelude::*,
+				};
+				fa.into_par_iter().partition_map(|r| match r {
+					Ok(o) => Either::Right(o),
+					Err(e) => Either::Left(e),
+				})
+			}
+			#[cfg(not(feature = "rayon"))]
+			{
+				let mut errs = Vec::new();
+				let mut oks = Vec::new();
+				for result in fa {
+					match result {
+						Ok(o) => oks.push(o),
+						Err(e) => errs.push(e),
+					}
+				}
+				(errs, oks)
+			}
+		}
+
+		/// Maps and filters a vector in parallel, discarding elements where `f` returns `None`.
+		///
+		/// When the `rayon` feature is enabled, elements are processed across multiple threads.
+		/// Otherwise falls back to sequential filter-mapping.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The input element type.",
+			"The output element type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply. Must be `Send + Sync`.",
+			"The vector to filter and map."
+		)]
+		///
+		#[document_returns("A new vector containing the `Some` results of applying `f`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::brands::VecBrand;
+		///
+		/// let result = VecBrand::par_filter_map(
+		/// 	|x: i32| if x % 2 == 0 { Some(x * 10) } else { None },
+		/// 	vec![1, 2, 3, 4, 5],
+		/// );
+		/// assert_eq!(result, vec![20, 40]);
+		/// ```
+		pub fn par_filter_map<'a, A: 'a + Send, B: 'a + Send>(
+			f: impl Fn(A) -> Option<B> + Send + Sync + 'a,
+			fa: Vec<A>,
+		) -> Vec<B> {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.into_par_iter().filter_map(f).collect()
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.into_iter().filter_map(f).collect()
+		}
+
+		/// Filters a vector in parallel, retaining only elements satisfying `f`.
+		///
+		/// When the `rayon` feature is enabled, elements are processed across multiple threads.
+		/// Otherwise falls back to sequential filtering.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
+		///
+		#[document_parameters("The predicate. Must be `Send + Sync`.", "The vector to filter.")]
+		///
+		#[document_returns("A new vector containing only the elements satisfying `f`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::brands::VecBrand;
+		///
+		/// let result = VecBrand::par_filter(|x: &i32| x % 2 == 0, vec![1, 2, 3, 4, 5]);
+		/// assert_eq!(result, vec![2, 4]);
+		/// ```
+		pub fn par_filter<'a, A: 'a + Send>(
+			f: impl Fn(&A) -> bool + Send + Sync + 'a,
+			fa: Vec<A>,
+		) -> Vec<A> {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.into_par_iter().filter(|a| f(a)).collect()
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.into_iter().filter(|a| f(a)).collect()
+		}
+
+		/// Maps each element to a [`Monoid`] value and combines them in parallel.
+		///
+		/// When the `rayon` feature is enabled, mapping and reduction happen across multiple threads.
+		/// Otherwise falls back to sequential fold-map.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The element type.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function mapping each element to a monoid value. Must be `Send + Sync`.",
+			"The vector to fold."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::brands::VecBrand;
+		///
+		/// let result = VecBrand::par_fold_map(|x: i32| x.to_string(), vec![1, 2, 3]);
+		/// assert_eq!(result, "123");
+		/// ```
+		pub fn par_fold_map<'a, A: 'a + Send, M: Monoid + Send + 'a>(
+			f: impl Fn(A) -> M + Send + Sync + 'a,
+			fa: Vec<A>,
+		) -> M {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.into_par_iter().map(f).reduce(M::empty, |acc, m| M::append(acc, m))
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.into_iter().map(f).fold(M::empty(), |acc, m| M::append(acc, m))
+		}
+
+		/// Maps a function over the vector in parallel, providing each element's index.
+		///
+		/// When the `rayon` feature is enabled, elements are processed across multiple threads.
+		/// Otherwise falls back to sequential indexed mapping.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The input element type.",
+			"The output element type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each index and element. Must be `Send + Sync`.",
+			"The vector to map over."
+		)]
+		///
+		#[document_returns("A new vector containing the mapped elements.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::brands::VecBrand;
+		///
+		/// let result = VecBrand::par_map_with_index(|i, x: i32| x + i as i32, vec![10, 20, 30]);
+		/// assert_eq!(result, vec![10, 21, 32]);
+		/// ```
+		pub fn par_map_with_index<'a, A: 'a + Send, B: 'a + Send>(
+			f: impl Fn(usize, A) -> B + Send + Sync + 'a,
+			fa: Vec<A>,
+		) -> Vec<B> {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.into_par_iter().enumerate().map(|(i, a)| f(i, a)).collect()
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.into_iter().enumerate().map(|(i, a)| f(i, a)).collect()
+		}
+
+		/// Maps each element and its index to a [`Monoid`] value and combines them in parallel.
+		///
+		/// When the `rayon` feature is enabled, mapping and reduction happen across multiple threads.
+		/// Otherwise falls back to sequential indexed fold-map.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The element type.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function mapping each index and element to a monoid value. Must be `Send + Sync`.",
+			"The vector to fold."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::brands::VecBrand;
+		///
+		/// let result =
+		/// 	VecBrand::par_fold_map_with_index(|i, x: i32| format!("{i}:{x}"), vec![10, 20, 30]);
+		/// assert_eq!(result, "0:101:202:30");
+		/// ```
+		pub fn par_fold_map_with_index<'a, A: 'a + Send, M: Monoid + Send + 'a>(
+			f: impl Fn(usize, A) -> M + Send + Sync + 'a,
+			fa: Vec<A>,
+		) -> M {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.into_par_iter()
+					.enumerate()
+					.map(|(i, a)| f(i, a))
+					.reduce(M::empty, |acc, m| M::append(acc, m))
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.into_iter()
+				.enumerate()
+				.map(|(i, a)| f(i, a))
+				.fold(M::empty(), |acc, m| M::append(acc, m))
+		}
+	}
+
+	impl ParFunctor for VecBrand {
+		/// Maps a function over the vector in parallel.
+		///
+		/// Delegates to [`VecBrand::par_map`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The input element type.",
+			"The output element type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element. Must be `Send + Sync`.",
+			"The vector to map over."
+		)]
+		///
+		#[document_returns("A new vector containing the mapped elements.")]
 		///
 		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::VecBrand,
-		/// 	classes::IntoParallel,
+		/// 	classes::par_functor::ParFunctor,
 		/// };
 		///
-		/// let v = vec![1, 2, 3];
-		/// let result: Vec<i32> = VecBrand::from_vec(v);
-		/// assert_eq!(result, vec![1, 2, 3]);
+		/// let result = VecBrand::par_map(|x: i32| x * 2, vec![1, 2, 3]);
+		/// assert_eq!(result, vec![2, 4, 6]);
 		/// ```
-		fn from_vec<'a, A: 'a>(
-			v: Vec<A>
+		fn par_map<'a, A: 'a + Send, B: 'a + Send>(
+			f: impl Fn(A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			VecBrand::par_map(f, fa)
+		}
+	}
+
+	impl ParCompactable for VecBrand {
+		/// Compacts a vector of options in parallel, discarding `None` values.
+		///
+		/// Delegates to [`VecBrand::par_compact`].
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
+		///
+		#[document_parameters("The vector of options.")]
+		///
+		#[document_returns("A new vector containing the unwrapped `Some` values.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_compactable::ParCompactable,
+		/// };
+		///
+		/// let result = VecBrand::par_compact(vec![Some(1), None, Some(3)]);
+		/// assert_eq!(result, vec![1, 3]);
+		/// ```
+		fn par_compact<'a, A: 'a + Send>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Apply!(<OptionBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
-			v
+			VecBrand::par_compact(fa)
+		}
+
+		/// Separates a vector of results into `(errors, oks)` in parallel.
+		///
+		/// Delegates to [`VecBrand::par_separate`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The error type.",
+			"The success type."
+		)]
+		///
+		#[document_parameters("The vector of results.")]
+		///
+		#[document_returns(
+			"A pair `(errs, oks)` where `errs` contains the `Err` values and `oks` the `Ok` values."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_compactable::ParCompactable,
+		/// };
+		///
+		/// let v: Vec<Result<i32, &str>> = vec![Ok(1), Err("a"), Ok(3)];
+		/// let (errs, oks): (Vec<&str>, Vec<i32>) = VecBrand::par_separate(v);
+		/// assert_eq!(errs, vec!["a"]);
+		/// assert_eq!(oks, vec![1, 3]);
+		/// ```
+		fn par_separate<'a, E: 'a + Send, O: 'a + Send>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
+		) -> (
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		) {
+			VecBrand::par_separate(fa)
+		}
+	}
+
+	impl ParFilterable for VecBrand {
+		/// Maps and filters a vector in parallel, discarding elements where `f` returns `None`.
+		///
+		/// Single-pass implementation using rayon's `filter_map`. Delegates to
+		/// [`VecBrand::par_filter_map`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The input element type.",
+			"The output element type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply. Must be `Send + Sync`.",
+			"The vector to filter and map."
+		)]
+		///
+		#[document_returns("A new vector containing the `Some` results of applying `f`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_filterable::ParFilterable,
+		/// };
+		///
+		/// let result = VecBrand::par_filter_map(
+		/// 	|x: i32| if x % 2 == 0 { Some(x * 10) } else { None },
+		/// 	vec![1, 2, 3, 4, 5],
+		/// );
+		/// assert_eq!(result, vec![20, 40]);
+		/// ```
+		fn par_filter_map<'a, A: 'a + Send, B: 'a + Send>(
+			f: impl Fn(A) -> Option<B> + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			VecBrand::par_filter_map(f, fa)
+		}
+
+		/// Filters a vector in parallel, retaining only elements satisfying `f`.
+		///
+		/// Single-pass implementation using rayon's `filter`. Delegates to
+		/// [`VecBrand::par_filter`].
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
+		///
+		#[document_parameters("The predicate. Must be `Send + Sync`.", "The vector to filter.")]
+		///
+		#[document_returns("A new vector containing only the elements satisfying `f`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_filterable::ParFilterable,
+		/// };
+		///
+		/// let result = VecBrand::par_filter(|x: &i32| x % 2 == 0, vec![1, 2, 3, 4, 5]);
+		/// assert_eq!(result, vec![2, 4]);
+		/// ```
+		fn par_filter<'a, A: 'a + Send>(
+			f: impl Fn(&A) -> bool + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			VecBrand::par_filter(f, fa)
+		}
+	}
+
+	impl ParFoldable for VecBrand {
+		/// Maps each element to a [`Monoid`] value and combines them in parallel.
+		///
+		/// Delegates to [`VecBrand::par_fold_map`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The element type.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function mapping each element to a monoid value. Must be `Send + Sync`.",
+			"The vector to fold."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_foldable::ParFoldable,
+		/// };
+		///
+		/// let result = VecBrand::par_fold_map(|x: i32| x.to_string(), vec![1, 2, 3]);
+		/// assert_eq!(result, "123");
+		/// ```
+		fn par_fold_map<'a, A: 'a + Send, M: Monoid + Send + 'a>(
+			f: impl Fn(A) -> M + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M {
+			VecBrand::par_fold_map(f, fa)
+		}
+	}
+
+	impl ParFunctorWithIndex<usize> for VecBrand {
+		/// Maps a function over the vector in parallel, providing each element's index.
+		///
+		/// Delegates to [`VecBrand::par_map_with_index`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The input element type.",
+			"The output element type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each index and element. Must be `Send + Sync`.",
+			"The vector to map over."
+		)]
+		///
+		#[document_returns("A new vector containing the mapped elements.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_functor_with_index::ParFunctorWithIndex,
+		/// };
+		///
+		/// let result = VecBrand::par_map_with_index(|i, x: i32| x + i as i32, vec![10, 20, 30]);
+		/// assert_eq!(result, vec![10, 21, 32]);
+		/// ```
+		fn par_map_with_index<'a, A: 'a + Send, B: 'a + Send>(
+			f: impl Fn(usize, A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+		where
+			usize: Send + Sync + Copy + 'a, {
+			VecBrand::par_map_with_index(f, fa)
+		}
+	}
+
+	impl ParFoldableWithIndex<usize> for VecBrand {
+		/// Maps each element and its index to a [`Monoid`] value and combines them in parallel.
+		///
+		/// Delegates to [`VecBrand::par_fold_map_with_index`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The element type.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function mapping each index and element to a monoid value. Must be `Send + Sync`.",
+			"The vector to fold."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_foldable_with_index::ParFoldableWithIndex,
+		/// };
+		///
+		/// let result =
+		/// 	VecBrand::par_fold_map_with_index(|i, x: i32| format!("{i}:{x}"), vec![10, 20, 30]);
+		/// assert_eq!(result, "0:101:202:30");
+		/// ```
+		fn par_fold_map_with_index<'a, A: 'a + Send, M: Monoid + Send + 'a>(
+			f: impl Fn(usize, A) -> M + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			usize: Send + Sync + Copy + 'a, {
+			VecBrand::par_fold_map_with_index(f, fa)
 		}
 	}
 
@@ -1419,7 +1996,7 @@ mod tests {
 		assert_eq!(VecBrand::deconstruct::<i32>(&[]), None);
 	}
 
-	// IntoParallel Tests
+	// Parallel Trait Tests
 
 	/// Tests `par_map` on a vector.
 	#[test]
@@ -1448,6 +2025,32 @@ mod tests {
 		assert_eq!(result, vec![20, 40]);
 	}
 
+	/// Tests `par_compact` on a vector of options.
+	#[test]
+	fn par_compact_basic() {
+		let v = vec![Some(1), None, Some(3), None, Some(5)];
+		let result: Vec<i32> = par_compact::<VecBrand, _>(v);
+		assert_eq!(result, vec![1, 3, 5]);
+	}
+
+	/// Tests `par_separate` on a vector of results.
+	#[test]
+	fn par_separate_basic() {
+		let v: Vec<Result<i32, &str>> = vec![Ok(1), Err("a"), Ok(3), Err("b")];
+		let (errs, oks): (Vec<&str>, Vec<i32>) = par_separate::<VecBrand, _, _>(v);
+		assert_eq!(errs, vec!["a", "b"]);
+		assert_eq!(oks, vec![1, 3]);
+	}
+
+	/// Tests `par_map_with_index` on a vector.
+	#[test]
+	fn par_map_with_index_basic() {
+		let v = vec![10, 20, 30];
+		let result: Vec<i32> =
+			par_map_with_index::<VecBrand, usize, _, _>(|i, x: i32| x + i as i32, v);
+		assert_eq!(result, vec![10, 21, 32]);
+	}
+
 	/// Tests `par_fold_map` on an empty vector.
 	#[test]
 	fn par_fold_map_empty() {
@@ -1460,6 +2063,15 @@ mod tests {
 	fn par_fold_map_multiple() {
 		let v = vec![1, 2, 3];
 		assert_eq!(par_fold_map::<VecBrand, _, _>(|x: i32| x.to_string(), v), "123".to_string());
+	}
+
+	/// Tests `par_fold_map_with_index` on a vector.
+	#[test]
+	fn par_fold_map_with_index_basic() {
+		let v = vec![10, 20, 30];
+		let result: String =
+			par_fold_map_with_index::<VecBrand, usize, _, _>(|i, x: i32| format!("{i}:{x}"), v);
+		assert_eq!(result, "0:101:202:30");
 	}
 
 	// Filterable Laws
@@ -1709,7 +2321,7 @@ mod tests {
 		assert_eq!(res, Some(vec![]));
 	}
 
-	// IntoParallel Laws
+	// Parallel Trait Laws
 
 	/// Verifies that `par_fold_map` correctly sums a large vector (100,000 elements).
 	#[test]

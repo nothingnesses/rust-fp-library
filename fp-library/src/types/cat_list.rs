@@ -39,9 +39,14 @@ mod inner {
 				FoldableWithIndex,
 				Functor,
 				FunctorWithIndex,
-				IntoParallel,
 				Lift,
 				Monoid,
+				ParCompactable,
+				ParFilterable,
+				ParFoldable,
+				ParFoldableWithIndex,
+				ParFunctor,
+				ParFunctorWithIndex,
 				Plus,
 				Pointed,
 				Semiapplicative,
@@ -893,65 +898,319 @@ mod inner {
 		}
 	}
 
-	impl IntoParallel for CatListBrand {
-		/// Flattens a `CatList` into a `Vec` by traversing all elements.
+	impl ParFunctor for CatListBrand {
+		/// Maps a function over the list in parallel.
 		///
-		/// Performs a linear traversal of the list structure to collect all elements in order.
+		/// Delegates to [`CatList::par_map`].
 		#[document_signature]
 		///
-		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The input element type.",
+			"The output element type."
+		)]
 		///
-		#[document_parameters("The `CatList` to convert.")]
+		#[document_parameters(
+			"The function to apply to each element. Must be `Send + Sync`.",
+			"The list to map over."
+		)]
 		///
-		#[document_returns("A `Vec` containing all elements in order.")]
+		#[document_returns("A new list containing the mapped elements.")]
 		///
 		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::CatListBrand,
-		/// 	classes::IntoParallel,
+		/// 	classes::par_functor::ParFunctor,
 		/// 	types::CatList,
 		/// };
 		///
-		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// let result: Vec<i32> = CatListBrand::collect_vec(list);
-		/// assert_eq!(result, vec![1, 2, 3]);
+		/// let list: CatList<i32> = vec![1, 2, 3].into_iter().collect();
+		/// let result: Vec<_> = CatListBrand::par_map(|x: i32| x * 2, list).into_iter().collect();
+		/// assert_eq!(result, vec![2, 4, 6]);
 		/// ```
-		fn collect_vec<'a, A: 'a>(
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
-		) -> Vec<A> {
-			fa.into_iter().collect()
+		fn par_map<'a, A: 'a + Send, B: 'a + Send>(
+			f: impl Fn(A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.par_map(f)
+		}
+	}
+
+	impl ParCompactable for CatListBrand {
+		/// Compacts a list of options in parallel, discarding `None` values.
+		///
+		/// Delegates to [`CatList::par_compact`].
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
+		///
+		#[document_parameters("The list of options.")]
+		///
+		#[document_returns("A new list containing the unwrapped `Some` values.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_compactable::ParCompactable,
+		/// 	types::CatList,
+		/// };
+		///
+		/// let list: CatList<Option<i32>> = vec![Some(1), None, Some(3)].into_iter().collect();
+		/// let result: Vec<_> = CatListBrand::par_compact(list).into_iter().collect();
+		/// assert_eq!(result, vec![1, 3]);
+		/// ```
+		fn par_compact<'a, A: 'a + Send>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Apply!(<OptionBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			fa.par_compact()
 		}
 
-		/// Reconstructs a `CatList` from a `Vec`.
+		/// Separates a list of results into `(errors, oks)` in parallel.
 		///
-		/// Constructs a `CatList` by iterating over the `Vec` elements.
+		/// Delegates to [`CatList::par_separate`].
 		#[document_signature]
 		///
-		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The error type.",
+			"The success type."
+		)]
 		///
-		#[document_parameters("The `Vec` to convert.")]
+		#[document_parameters("The list of results.")]
 		///
-		#[document_returns("A `CatList` containing all elements in order.")]
+		#[document_returns(
+			"A pair `(errs, oks)` where `errs` contains the `Err` values and `oks` the `Ok` values."
+		)]
 		///
 		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::CatListBrand,
-		/// 	classes::IntoParallel,
+		/// 	classes::par_compactable::ParCompactable,
 		/// 	types::CatList,
 		/// };
 		///
-		/// let v = vec![1, 2, 3];
-		/// let result: CatList<i32> = CatListBrand::from_vec(v);
-		/// assert_eq!(result.into_iter().collect::<Vec<_>>(), vec![1, 2, 3]);
+		/// let list: CatList<Result<i32, &str>> = vec![Ok(1), Err("a"), Ok(3)].into_iter().collect();
+		/// let (errs, oks): (CatList<&str>, CatList<i32>) = CatListBrand::par_separate(list);
+		/// assert_eq!(errs.into_iter().collect::<Vec<_>>(), vec!["a"]);
+		/// assert_eq!(oks.into_iter().collect::<Vec<_>>(), vec![1, 3]);
 		/// ```
-		fn from_vec<'a, A: 'a>(
-			v: Vec<A>
+		fn par_separate<'a, E: 'a + Send, O: 'a + Send>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
+		) -> (
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		) {
+			fa.par_separate()
+		}
+	}
+
+	impl ParFilterable for CatListBrand {
+		/// Maps and filters a list in parallel, discarding elements where `f` returns `None`.
+		///
+		/// Single-pass implementation via Vec intermediary. Delegates to
+		/// [`CatList::par_filter_map`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The input element type.",
+			"The output element type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply. Must be `Send + Sync`.",
+			"The list to filter and map."
+		)]
+		///
+		#[document_returns("A new list containing the `Some` results of applying `f`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_filterable::ParFilterable,
+		/// 	types::CatList,
+		/// };
+		///
+		/// let list: CatList<i32> = vec![1, 2, 3, 4, 5].into_iter().collect();
+		/// let result: Vec<_> =
+		/// 	CatListBrand::par_filter_map(|x: i32| if x % 2 == 0 { Some(x * 10) } else { None }, list)
+		/// 		.into_iter()
+		/// 		.collect();
+		/// assert_eq!(result, vec![20, 40]);
+		/// ```
+		fn par_filter_map<'a, A: 'a + Send, B: 'a + Send>(
+			f: impl Fn(A) -> Option<B> + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.par_filter_map(f)
+		}
+
+		/// Filters a list in parallel, retaining only elements satisfying `f`.
+		///
+		/// Single-pass implementation via Vec intermediary. Delegates to
+		/// [`CatList::par_filter`].
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
+		///
+		#[document_parameters("The predicate. Must be `Send + Sync`.", "The list to filter.")]
+		///
+		#[document_returns("A new list containing only the elements satisfying `f`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_filterable::ParFilterable,
+		/// 	types::CatList,
+		/// };
+		///
+		/// let list: CatList<i32> = vec![1, 2, 3, 4, 5].into_iter().collect();
+		/// let result: Vec<_> = CatListBrand::par_filter(|x: &i32| x % 2 == 0, list).into_iter().collect();
+		/// assert_eq!(result, vec![2, 4]);
+		/// ```
+		fn par_filter<'a, A: 'a + Send>(
+			f: impl Fn(&A) -> bool + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
-			v.into_iter().collect()
+			fa.par_filter(f)
+		}
+	}
+
+	impl ParFoldable for CatListBrand {
+		/// Maps each element to a [`Monoid`] value and combines them in parallel.
+		///
+		/// Delegates to [`CatList::par_fold_map`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The element type.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function mapping each element to a monoid value. Must be `Send + Sync`.",
+			"The list to fold."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_foldable::ParFoldable,
+		/// 	types::CatList,
+		/// };
+		///
+		/// let list: CatList<i32> = vec![1, 2, 3].into_iter().collect();
+		/// let result = CatListBrand::par_fold_map(|x: i32| x.to_string(), list);
+		/// assert_eq!(result, "123");
+		/// ```
+		fn par_fold_map<'a, A: 'a + Send, M: Monoid + Send + 'a>(
+			f: impl Fn(A) -> M + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M {
+			fa.par_fold_map(f)
+		}
+	}
+
+	impl ParFunctorWithIndex<usize> for CatListBrand {
+		/// Maps a function over the list in parallel, providing each element's index.
+		///
+		/// Delegates to [`CatList::par_map_with_index`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The input element type.",
+			"The output element type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each index and element. Must be `Send + Sync`.",
+			"The list to map over."
+		)]
+		///
+		#[document_returns("A new list containing the mapped elements.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_functor_with_index::ParFunctorWithIndex,
+		/// 	types::CatList,
+		/// };
+		///
+		/// let list: CatList<i32> = vec![10, 20, 30].into_iter().collect();
+		/// let result: Vec<_> =
+		/// 	CatListBrand::par_map_with_index(|i, x: i32| x + i as i32, list).into_iter().collect();
+		/// assert_eq!(result, vec![10, 21, 32]);
+		/// ```
+		fn par_map_with_index<'a, A: 'a + Send, B: 'a + Send>(
+			f: impl Fn(usize, A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+		where
+			usize: Send + Sync + Copy + 'a, {
+			fa.par_map_with_index(f)
+		}
+	}
+
+	impl ParFoldableWithIndex<usize> for CatListBrand {
+		/// Maps each element and its index to a [`Monoid`] value and combines them in parallel.
+		///
+		/// Delegates to [`CatList::par_fold_map_with_index`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The element type.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function mapping each index and element to a monoid value. Must be `Send + Sync`.",
+			"The list to fold."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_foldable_with_index::ParFoldableWithIndex,
+		/// 	types::CatList,
+		/// };
+		///
+		/// let list: CatList<i32> = vec![10, 20, 30].into_iter().collect();
+		/// let result = CatListBrand::par_fold_map_with_index(|i, x: i32| format!("{i}:{x}"), list);
+		/// assert_eq!(result, "0:101:202:30");
+		/// ```
+		fn par_fold_map_with_index<'a, A: 'a + Send, M: Monoid + Send + 'a>(
+			f: impl Fn(usize, A) -> M + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			usize: Send + Sync + Copy + 'a, {
+			fa.par_fold_map_with_index(f)
 		}
 	}
 
@@ -1870,6 +2129,307 @@ mod inner {
 				M::lift2(|list, b| list.snoc(b), acc, f(i, x))
 			})
 		}
+
+		/// Maps a function over the list in parallel via a `Vec` intermediary.
+		///
+		/// Collects to `Vec`, applies `f` in parallel (or sequentially without rayon), then
+		/// reconstructs a `CatList`.
+		#[document_signature]
+		#[document_type_parameters("The type of the elements in the resulting list.")]
+		#[document_parameters("The function to apply to each element. Must be `Send + Sync`.")]
+		#[document_returns("A new list containing the mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::CatList;
+		///
+		/// let list: CatList<i32> = vec![1, 2, 3].into_iter().collect();
+		/// let result: Vec<_> = list.par_map(|x: i32| x * 2).into_iter().collect();
+		/// assert_eq!(result, vec![2, 4, 6]);
+		/// ```
+		pub fn par_map<B: Send>(
+			self,
+			f: impl Fn(A) -> B + Send + Sync,
+		) -> CatList<B>
+		where
+			A: Send, {
+			let v: Vec<A> = self.into_iter().collect();
+			#[cfg(feature = "rayon")]
+			let result: Vec<B> = {
+				use rayon::prelude::*;
+				v.into_par_iter().map(f).collect()
+			};
+			#[cfg(not(feature = "rayon"))]
+			let result: Vec<B> = v.into_iter().map(f).collect();
+			result.into_iter().collect()
+		}
+
+		/// Maps and filters the list in parallel, discarding elements where `f` returns `None`.
+		///
+		/// Collects to `Vec`, applies `filter_map` in parallel (or sequentially without rayon),
+		/// then reconstructs a `CatList`.
+		#[document_signature]
+		#[document_type_parameters("The type of the elements in the resulting list.")]
+		#[document_parameters("The function to apply. Must be `Send + Sync`.")]
+		#[document_returns("A new list containing the `Some` results of applying `f`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::CatList;
+		///
+		/// let list: CatList<i32> = vec![1, 2, 3, 4, 5].into_iter().collect();
+		/// let result: Vec<_> = list
+		/// 	.par_filter_map(|x: i32| if x % 2 == 0 { Some(x * 10) } else { None })
+		/// 	.into_iter()
+		/// 	.collect();
+		/// assert_eq!(result, vec![20, 40]);
+		/// ```
+		pub fn par_filter_map<B: Send>(
+			self,
+			f: impl Fn(A) -> Option<B> + Send + Sync,
+		) -> CatList<B>
+		where
+			A: Send, {
+			let v: Vec<A> = self.into_iter().collect();
+			#[cfg(feature = "rayon")]
+			let result: Vec<B> = {
+				use rayon::prelude::*;
+				v.into_par_iter().filter_map(f).collect()
+			};
+			#[cfg(not(feature = "rayon"))]
+			let result: Vec<B> = v.into_iter().filter_map(f).collect();
+			result.into_iter().collect()
+		}
+
+		/// Filters the list in parallel, retaining only elements satisfying `f`.
+		///
+		/// Collects to `Vec`, filters in parallel (or sequentially without rayon), then
+		/// reconstructs a `CatList`.
+		#[document_signature]
+		#[document_parameters("The predicate. Must be `Send + Sync`.")]
+		#[document_returns("A new list containing only the elements satisfying `f`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::CatList;
+		///
+		/// let list: CatList<i32> = vec![1, 2, 3, 4, 5].into_iter().collect();
+		/// let result: Vec<_> = list.par_filter(|x: &i32| x % 2 == 0).into_iter().collect();
+		/// assert_eq!(result, vec![2, 4]);
+		/// ```
+		pub fn par_filter(
+			self,
+			f: impl Fn(&A) -> bool + Send + Sync,
+		) -> CatList<A>
+		where
+			A: Send, {
+			let v: Vec<A> = self.into_iter().collect();
+			#[cfg(feature = "rayon")]
+			let result: Vec<A> = {
+				use rayon::prelude::*;
+				v.into_par_iter().filter(|a| f(a)).collect()
+			};
+			#[cfg(not(feature = "rayon"))]
+			let result: Vec<A> = v.into_iter().filter(|a| f(a)).collect();
+			result.into_iter().collect()
+		}
+
+		/// Maps each element to a [`Monoid`] value and combines them in parallel.
+		///
+		/// Collects to `Vec`, then maps and reduces in parallel (or sequentially without rayon).
+		#[document_signature]
+		#[document_type_parameters("The monoid type.")]
+		#[document_parameters(
+			"The function mapping each element to a monoid value. Must be `Send + Sync`."
+		)]
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::CatList;
+		///
+		/// let list: CatList<i32> = vec![1, 2, 3].into_iter().collect();
+		/// let result = list.par_fold_map(|x: i32| x.to_string());
+		/// assert_eq!(result, "123");
+		/// ```
+		pub fn par_fold_map<M: Monoid + Send>(
+			self,
+			f: impl Fn(A) -> M + Send + Sync,
+		) -> M
+		where
+			A: Send, {
+			let v: Vec<A> = self.into_iter().collect();
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				v.into_par_iter().map(f).reduce(M::empty, |acc, m| M::append(acc, m))
+			}
+			#[cfg(not(feature = "rayon"))]
+			v.into_iter().map(f).fold(M::empty(), |acc, m| M::append(acc, m))
+		}
+
+		/// Maps a function over the list in parallel, providing each element's index.
+		///
+		/// Collects to `Vec`, applies the indexed mapping in parallel (or sequentially without
+		/// rayon), then reconstructs a `CatList`.
+		#[document_signature]
+		#[document_type_parameters("The type of the elements in the resulting list.")]
+		#[document_parameters(
+			"The function to apply to each index and element. Must be `Send + Sync`."
+		)]
+		#[document_returns("A new list containing the mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::CatList;
+		///
+		/// let list: CatList<i32> = vec![10, 20, 30].into_iter().collect();
+		/// let result: Vec<_> = list.par_map_with_index(|i, x: i32| x + i as i32).into_iter().collect();
+		/// assert_eq!(result, vec![10, 21, 32]);
+		/// ```
+		pub fn par_map_with_index<B: Send>(
+			self,
+			f: impl Fn(usize, A) -> B + Send + Sync,
+		) -> CatList<B>
+		where
+			A: Send, {
+			let v: Vec<A> = self.into_iter().collect();
+			#[cfg(feature = "rayon")]
+			let result: Vec<B> = {
+				use rayon::prelude::*;
+				v.into_par_iter().enumerate().map(|(i, a)| f(i, a)).collect()
+			};
+			#[cfg(not(feature = "rayon"))]
+			let result: Vec<B> = v.into_iter().enumerate().map(|(i, a)| f(i, a)).collect();
+			result.into_iter().collect()
+		}
+
+		/// Maps each element and its index to a [`Monoid`] value and combines them in parallel.
+		///
+		/// Collects to `Vec`, then maps with index and reduces in parallel (or sequentially
+		/// without rayon).
+		#[document_signature]
+		#[document_type_parameters("The monoid type.")]
+		#[document_parameters(
+			"The function mapping each index and element to a monoid value. Must be `Send + Sync`."
+		)]
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::CatList;
+		///
+		/// let list: CatList<i32> = vec![10, 20, 30].into_iter().collect();
+		/// let result = list.par_fold_map_with_index(|i, x: i32| format!("{i}:{x}"));
+		/// assert_eq!(result, "0:101:202:30");
+		/// ```
+		pub fn par_fold_map_with_index<M: Monoid + Send>(
+			self,
+			f: impl Fn(usize, A) -> M + Send + Sync,
+		) -> M
+		where
+			A: Send, {
+			let v: Vec<A> = self.into_iter().collect();
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				v.into_par_iter()
+					.enumerate()
+					.map(|(i, a)| f(i, a))
+					.reduce(M::empty, |acc, m| M::append(acc, m))
+			}
+			#[cfg(not(feature = "rayon"))]
+			v.into_iter()
+				.enumerate()
+				.map(|(i, a)| f(i, a))
+				.fold(M::empty(), |acc, m| M::append(acc, m))
+		}
+	}
+
+	#[document_type_parameters("The type of the values inside the `Option`s.")]
+	#[document_parameters("The list of options.")]
+	impl<A> CatList<Option<A>> {
+		/// Compacts a list of options in parallel, discarding `None` values.
+		///
+		/// Collects to `Vec<Option<A>>`, flattens in parallel (or sequentially without rayon),
+		/// then reconstructs a `CatList`.
+		#[document_signature]
+		#[document_returns("A new list containing the unwrapped `Some` values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::CatList;
+		///
+		/// let list: CatList<Option<i32>> = vec![Some(1), None, Some(3)].into_iter().collect();
+		/// let result: Vec<_> = list.par_compact().into_iter().collect();
+		/// assert_eq!(result, vec![1, 3]);
+		/// ```
+		pub fn par_compact(self) -> CatList<A>
+		where
+			A: Send, {
+			let v: Vec<Option<A>> = self.into_iter().collect();
+			#[cfg(feature = "rayon")]
+			let result: Vec<A> = {
+				use rayon::prelude::*;
+				v.into_par_iter().flatten().collect()
+			};
+			#[cfg(not(feature = "rayon"))]
+			let result: Vec<A> = v.into_iter().flatten().collect();
+			result.into_iter().collect()
+		}
+	}
+
+	#[document_type_parameters("The error type.", "The success type.")]
+	#[document_parameters("The list of results.")]
+	impl<E, O> CatList<Result<O, E>> {
+		/// Separates a list of results into `(errors, oks)` in parallel.
+		///
+		/// Collects to `Vec`, partitions in parallel (or sequentially without rayon), then
+		/// reconstructs two `CatList` values.
+		#[document_signature]
+		#[document_returns(
+			"A pair `(errs, oks)` where `errs` contains the `Err` values and `oks` the `Ok` values."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::CatList;
+		///
+		/// let list: CatList<Result<i32, &str>> = vec![Ok(1), Err("a"), Ok(3)].into_iter().collect();
+		/// let (errs, oks): (CatList<&str>, CatList<i32>) = list.par_separate();
+		/// assert_eq!(errs.into_iter().collect::<Vec<_>>(), vec!["a"]);
+		/// assert_eq!(oks.into_iter().collect::<Vec<_>>(), vec![1, 3]);
+		/// ```
+		pub fn par_separate(self) -> (CatList<E>, CatList<O>)
+		where
+			E: Send,
+			O: Send, {
+			let v: Vec<Result<O, E>> = self.into_iter().collect();
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::{
+					iter::Either,
+					prelude::*,
+				};
+				let (errs, oks): (Vec<E>, Vec<O>) = v.into_par_iter().partition_map(|r| match r {
+					Ok(o) => Either::Right(o),
+					Err(e) => Either::Left(e),
+				});
+				(errs.into_iter().collect(), oks.into_iter().collect())
+			}
+			#[cfg(not(feature = "rayon"))]
+			{
+				let mut errs = Vec::new();
+				let mut oks = Vec::new();
+				for result in v {
+					match result {
+						Ok(o) => oks.push(o),
+						Err(e) => errs.push(e),
+					}
+				}
+				(errs.into_iter().collect(), oks.into_iter().collect())
+			}
+		}
 	}
 
 	// Iteration support
@@ -2299,7 +2859,7 @@ mod tests {
 		);
 	}
 
-	// IntoParallel Tests
+	// Parallel Trait Tests
 
 	/// Tests `par_map` on a list.
 	#[test]
@@ -2328,6 +2888,23 @@ mod tests {
 		assert_eq!(result.into_iter().collect::<Vec<_>>(), vec![20, 40]);
 	}
 
+	/// Tests `par_compact` on a list of options.
+	#[test]
+	fn par_compact_basic() {
+		let v: CatList<_> = vec![Some(1), None, Some(3)].into_iter().collect();
+		let result: CatList<i32> = par_compact::<CatListBrand, _>(v);
+		assert_eq!(result.into_iter().collect::<Vec<_>>(), vec![1, 3]);
+	}
+
+	/// Tests `par_separate` on a list of results.
+	#[test]
+	fn par_separate_basic() {
+		let v: CatList<Result<i32, &str>> = vec![Ok(1), Err("e"), Ok(3)].into_iter().collect();
+		let (errs, oks): (CatList<&str>, CatList<i32>) = par_separate::<CatListBrand, _, _>(v);
+		assert_eq!(errs.into_iter().collect::<Vec<_>>(), vec!["e"]);
+		assert_eq!(oks.into_iter().collect::<Vec<_>>(), vec![1, 3]);
+	}
+
 	/// Tests `par_fold_map` on an empty list.
 	#[test]
 	fn par_fold_map_empty() {
@@ -2345,7 +2922,25 @@ mod tests {
 		);
 	}
 
-	// IntoParallel Laws
+	/// Tests `par_map_with_index` on a list.
+	#[test]
+	fn par_map_with_index_basic() {
+		let v: CatList<_> = vec![10, 20, 30].into_iter().collect();
+		let result: CatList<i32> =
+			par_map_with_index::<CatListBrand, usize, _, _>(|i, x: i32| x + i as i32, v);
+		assert_eq!(result.into_iter().collect::<Vec<_>>(), vec![10, 21, 32]);
+	}
+
+	/// Tests `par_fold_map_with_index` on a list.
+	#[test]
+	fn par_fold_map_with_index_basic() {
+		let v: CatList<_> = vec![10, 20, 30].into_iter().collect();
+		let result: String =
+			par_fold_map_with_index::<CatListBrand, usize, _, _>(|i, x: i32| format!("{i}:{x}"), v);
+		assert_eq!(result, "0:101:202:30");
+	}
+
+	// Parallel Trait Laws
 
 	/// Property: `par_map` agrees with sequential `map`.
 	#[quickcheck]
