@@ -61,7 +61,7 @@ pub fn m_worker(input: DoInput) -> syn::Result<TokenStream> {
 }
 
 /// Rewrites bare `pure(args)` calls to `pure::<Brand, _>(args)` within an expression.
-fn rewrite_pure(
+pub(crate) fn rewrite_pure(
 	brand: &Type,
 	expr: &Expr,
 ) -> TokenStream {

@@ -5,6 +5,7 @@
 //!
 //! This crate provides macros for generating and working with Higher-Kinded Type (HKT) traits.
 
+pub(crate) mod ado_notation; // Applicative do-notation
 pub(crate) mod analysis; // Type and trait analysis
 pub(crate) mod codegen; // Code generation (includes re-exports)
 pub(crate) mod core; // Core infrastructure (config, error, result)
@@ -20,6 +21,7 @@ mod property_tests;
 
 use {
 	crate::core::ToCompileError,
+	ado_notation::ado_worker,
 	codegen::{
 		FunctionFormatter,
 		ReExportInput,
@@ -1235,6 +1237,74 @@ pub fn document_module(
 pub fn m(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as DoInput);
 	match m_worker(input) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Applicative do-notation.
+///
+/// Desugars flat applicative syntax into `pure` / `map` / `lift2`–`lift5`
+/// calls, matching PureScript `ado` notation. Unlike [`m!`], bindings are
+/// independent — later bind expressions cannot reference earlier bound variables.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// ado!(Brand {
+///     x <- expr;            // Bind: independent applicative computation
+///     y: Type <- expr;      // Typed bind: with explicit type annotation
+///     _ <- expr;            // Discard bind: compute for effect
+///     expr;                 // Sequence: shorthand for `_ <- expr;`
+///     let z = expr;         // Let binding: placed inside the combining closure
+///     let w: Type = expr;   // Typed let binding
+///     expr                  // Final expression: the combining body
+/// })
+/// ```
+///
+/// * `Brand`: The applicative brand type (e.g., `OptionBrand`, `VecBrand`).
+/// * Bind expressions are evaluated independently (applicative, not monadic).
+/// * `let` bindings before any `<-` are hoisted outside the combinator call.
+/// * `let` bindings after a `<-` are placed inside the combining closure.
+/// * Bare `pure(args)` calls in bind expressions are rewritten to `pure::<Brand, _>(args)`.
+///
+/// ### Desugaring
+///
+/// | Binds | Expansion |
+/// |-------|-----------|
+/// | 0 | `pure::<Brand, _>(final_expr)` |
+/// | 1 | `map::<Brand, _, _>(\|x\| body, expr)` |
+/// | N (2–5) | `liftN::<Brand, _, …>(\|x, y, …\| body, expr1, expr2, …)` |
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::{brands::*, functions::*};
+/// use fp_macros::ado;
+///
+/// // Two independent computations combined with lift2
+/// let result = ado!(OptionBrand {
+///     x <- Some(3);
+///     y <- Some(4);
+///     x + y
+/// });
+/// assert_eq!(result, Some(7));
+///
+/// // Expands to:
+/// let result = lift2::<OptionBrand, _, _, _>(|x, y| x + y, Some(3), Some(4));
+///
+/// // Single bind uses map
+/// let result = ado!(OptionBrand { x <- Some(5); x * 2 });
+/// assert_eq!(result, Some(10));
+///
+/// // No binds uses pure
+/// let result: Option<i32> = ado!(OptionBrand { 42 });
+/// assert_eq!(result, Some(42));
+/// ```
+#[proc_macro]
+pub fn ado(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as DoInput);
+	match ado_worker(input) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}

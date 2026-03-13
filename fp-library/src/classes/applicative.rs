@@ -1,6 +1,51 @@
-//! Applicative functors, allowing for values and functions to be wrapped and applied within a context.
+//! Applicative functors, allowing for independent computations to be combined within a context.
+//!
+//! An applicative functor combines [`Pointed`][crate::classes::Pointed] (for lifting values
+//! with [`pure`][crate::functions::pure]) and [`Semiapplicative`][crate::classes::Semiapplicative]
+//! (for applying wrapped functions with [`apply`][crate::functions::apply]).
+//! The [`ado!`][fp_macros::ado] macro provides applicative do-notation for combining
+//! independent computations in a flat, readable style.
 //!
 //! ### Examples
+//!
+//! Combining independent computations with [`ado!`][fp_macros::ado]:
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//! use fp_macros::ado;
+//!
+//! // Bindings are independent — each is a separate computation
+//! let result = ado!(OptionBrand {
+//! 	x <- Some(3);
+//! 	y <- Some(4);
+//! 	x + y
+//! });
+//! assert_eq!(result, Some(7));
+//!
+//! // None in any position short-circuits the whole expression
+//! let result = ado!(OptionBrand {
+//! 	x <- Some(3);
+//! 	y: i32 <- None;
+//! 	x + y
+//! });
+//! assert_eq!(result, None);
+//! ```
+//!
+//! Combining lists (all combinations):
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//! use fp_macros::ado;
+//!
+//! let result = ado!(VecBrand {
+//! 	x <- vec![1, 2];
+//! 	y <- vec![10, 20];
+//! 	x + y
+//! });
+//! assert_eq!(result, vec![11, 21, 12, 22]);
+//! ```
+//!
+//! Using [`apply`][crate::functions::apply] directly:
 //!
 //! ```
 //! use fp_library::{
@@ -9,7 +54,6 @@
 //! 	functions::*,
 //! };
 //!
-//! // Applicative combines Pointed (pure) and Semiapplicative (apply)
 //! let f = pure::<OptionBrand, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 //! let x = pure::<OptionBrand, _>(5);
 //! let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
