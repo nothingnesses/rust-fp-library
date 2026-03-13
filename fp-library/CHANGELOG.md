@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-03-13
+
+### Added
+- **`Alt` / `Plus` / `Alternative` type classes**: Associative choice (`alt`), identity for choice (`plus_empty`), and `Alternative` (blanket impl for `Applicative + Plus`). Implementations for `Option`, `Vec`, `CatList`.
+- **Numeric algebra hierarchy**: `Semiring`, `Ring`, `CommutativeRing`, `EuclideanRing` (with `gcd`/`lcm`), `DivisionRing`, `Field`, `HeytingAlgebra`. Instances for all Rust numeric primitives and `bool`. Integer instances use wrapping arithmetic.
+- **Monoid newtype wrappers**: `Additive`, `Multiplicative`, `Conjunctive`, `Disjunctive`, `First`, `Last`, `Dual` with `Semigroup`/`Monoid` instances.
+- **`Semimonad` derived combinators**: `bind_flipped`, `join`, `compose_kleisli`, `compose_kleisli_flipped`.
+- **`Monad` derived combinators**: `if_m`, `when_m`, `unless_m`.
+- **`Applicative` combinators**: `when`, `unless`.
+- **`Monoid` combinator**: `power` (binary exponentiation via repeated `append`).
+- **`Lift` functions**: `lift3`, `lift4`, `lift5` for higher-arity lifting via nested `lift2`.
+- **`on` function**: Apply a binary function after projecting both arguments (`on(f, g, x, y) = f(g(x), g(y))`).
+- **Law-checking doc examples** across 22 type class traits: `Applicative`, `Bifunctor`, `Bifoldable`, `Bitraversable`, `Category`, `Choice`, `Compactable`, `Contravariant`, `Filterable`, `Foldable`, `FoldableWithIndex`, `Functor`, `FunctorWithIndex`, `Monad`, `Monoid`, `Semiapplicative`, `Semigroup`, `Semigroupoid`, `Strong`, `Traversable`, `TraversableWithIndex`, `Witherable`.
+
+### Changed
+- Updated doc examples and imports to use renamed `m_do!`/`a_do!` macros (from `m!`/`ado!`).
+
+### Fixed
+- Profunctor composition law: corrected `g` argument order.
+- 15 broken rustdoc links in newtype wrapper module docs.
+
 ## [0.11.1] - 2026-03-10
 
 ### Added

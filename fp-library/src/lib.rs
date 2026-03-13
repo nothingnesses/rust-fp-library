@@ -18,9 +18,9 @@
 //! - **Higher-Kinded Types (HKT):** Implemented using lightweight higher-kinded polymorphism (type-level defunctionalization/brands).
 //! - **Macros:** Procedural macros for working with HKTs and monadic code:
 //!   - **HKT:** `trait_kind!`, `impl_kind!`, `Apply!` for defining and applying higher-kinded type encodings
-//!   - **Do-Notation:** `m_do!` for Haskell/PureScript-style monadic do-notation
+//!   - **Do-Notation:** `m_do!` for monadic do-notation, `a_do!` for applicative do-notation
 //! - **Type Classes:** A comprehensive collection of standard type classes including:
-//!   - **Core:** `Functor`, `Contravariant`, `Pointed`, `Applicative`, `Semiapplicative`, `Monad`, `Semimonad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`
+//!   - **Core:** `Functor`, `Contravariant`, `Pointed`, `Applicative`, `Semiapplicative`, `Monad`, `Semimonad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`, `Alt`, `Plus`, `Alternative`
 //!   - **Applicative Utilities:** `Lift`, `ApplyFirst`, `ApplySecond`
 //!   - **Monad Utilities:** `MonadRec`, `Evaluable`
 //!   - **Bifunctors:** `Bifunctor`, `Bifoldable`, `Bitraversable`
@@ -45,8 +45,10 @@
 //!   - **Grate / GratePrime:** Closed/zipping optics
 //!   - **Indexed variants:** `IndexedLens`, `IndexedTraversal`, `IndexedGetter`, `IndexedFold`, `IndexedSetter`
 //!   - **Composition:** `Composed` struct and `optics_compose` for zero-cost optic composition
+//! - **Numeric Algebra:** `Semiring`, `Ring`, `CommutativeRing`, `EuclideanRing`, `DivisionRing`, `Field`, `HeytingAlgebra`
+//! - **Newtype Wrappers:** `Additive`, `Multiplicative`, `Conjunctive`, `Disjunctive`, `First`, `Last`, `Dual`
 //! - **Helper Functions:** Standard FP utilities:
-//!   - `compose`, `constant`, `flip`, `identity`
+//!   - `compose`, `constant`, `flip`, `identity`, `on`
 //! - **Data Types:** Implementations for standard and custom types:
 //!   - **Standard Library:** `Option`, `Result`, `Vec`, `String`
 //!   - **Laziness, Memoization & Stack Safety:** `Lazy` (`RcLazy`, `ArcLazy`), `Thunk`, `Trampoline`, `Free`
