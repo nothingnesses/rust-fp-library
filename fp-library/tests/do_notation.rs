@@ -3,12 +3,12 @@ use {
 		brands::*,
 		functions::*,
 	},
-	fp_macros::m,
+	fp_macros::m_do,
 };
 
 #[test]
 fn basic_bind_chain() {
-	let result = m!(OptionBrand {
+	let result = m_do!(OptionBrand {
 		x <- Some(5);
 		y <- Some(x + 1);
 		pure(x + y)
@@ -18,7 +18,7 @@ fn basic_bind_chain() {
 
 #[test]
 fn let_binding() {
-	let result = m!(OptionBrand {
+	let result = m_do!(OptionBrand {
 		x <- Some(5);
 		let z = x * 2;
 		pure(z)
@@ -28,7 +28,7 @@ fn let_binding() {
 
 #[test]
 fn typed_let_binding() {
-	let result = m!(OptionBrand {
+	let result = m_do!(OptionBrand {
 		x <- Some(5);
 		let z: i32 = x * 2;
 		pure(z)
@@ -38,7 +38,7 @@ fn typed_let_binding() {
 
 #[test]
 fn discard_bind() {
-	let result = m!(OptionBrand {
+	let result = m_do!(OptionBrand {
 		_ <- Some(());
 		pure(42)
 	});
@@ -47,7 +47,7 @@ fn discard_bind() {
 
 #[test]
 fn sequence_statement() {
-	let result = m!(OptionBrand {
+	let result = m_do!(OptionBrand {
 		Some(());
 		pure(42)
 	});
@@ -56,7 +56,7 @@ fn sequence_statement() {
 
 #[test]
 fn short_circuit_on_none() {
-	let result: Option<i32> = m!(OptionBrand {
+	let result: Option<i32> = m_do!(OptionBrand {
 		x <- Some(5);
 		_ <- None::<()>;
 		pure(x)
@@ -67,7 +67,7 @@ fn short_circuit_on_none() {
 #[test]
 fn pure_auto_rewriting() {
 	// `pure(x)` is rewritten to `pure::<OptionBrand, _>(x)`
-	let result = m!(OptionBrand {
+	let result = m_do!(OptionBrand {
 		x <- Some(5);
 		y <- pure(x + 1);
 		pure(x + y)
@@ -77,7 +77,7 @@ fn pure_auto_rewriting() {
 
 #[test]
 fn pure_in_sequence_position() {
-	let result = m!(OptionBrand {
+	let result = m_do!(OptionBrand {
 		pure(());
 		pure(42)
 	});
@@ -86,7 +86,7 @@ fn pure_in_sequence_position() {
 
 #[test]
 fn only_final_expression() {
-	let result = m!(OptionBrand {
+	let result = m_do!(OptionBrand {
 		pure(42)
 	});
 	assert_eq!(result, Some(42));
@@ -94,7 +94,7 @@ fn only_final_expression() {
 
 #[test]
 fn vec_bind() {
-	let result = m!(VecBrand {
+	let result = m_do!(VecBrand {
 		x <- vec![1, 2];
 		y <- vec![10, 20];
 		pure(x + y)
@@ -104,7 +104,7 @@ fn vec_bind() {
 
 #[test]
 fn result_bind() {
-	let result: Result<i32, &str> = m!(ResultErrAppliedBrand<&str> {
+	let result: Result<i32, &str> = m_do!(ResultErrAppliedBrand<&str> {
 		x <- Ok(5);
 		y <- Ok(x + 1);
 		pure(x + y)
@@ -114,7 +114,7 @@ fn result_bind() {
 
 #[test]
 fn result_short_circuit() {
-	let result: Result<i32, &str> = m!(ResultErrAppliedBrand<&str> {
+	let result: Result<i32, &str> = m_do!(ResultErrAppliedBrand<&str> {
 		x <- Ok(5);
 		_: i32 <- Err("oops");
 		pure(x)
@@ -124,8 +124,8 @@ fn result_short_circuit() {
 
 #[test]
 fn equivalent_to_manual_bind() {
-	// m! expansion should produce the same result as hand-written nested binds
-	let do_result = m!(OptionBrand {
+	// m_do! expansion should produce the same result as hand-written nested binds
+	let do_result = m_do!(OptionBrand {
 		x <- Some(5);
 		y <- Some(x + 1);
 		let z = x * y;
@@ -144,7 +144,7 @@ fn equivalent_to_manual_bind() {
 
 #[test]
 fn multiple_let_bindings() {
-	let result = m!(OptionBrand {
+	let result = m_do!(OptionBrand {
 		x <- Some(3);
 		let a = x + 1;
 		let b = a * 2;
@@ -156,7 +156,7 @@ fn multiple_let_bindings() {
 
 #[test]
 fn typed_bind() {
-	let result = m!(OptionBrand {
+	let result = m_do!(OptionBrand {
 		x: i32 <- Some(5);
 		pure(x * 2)
 	});
@@ -165,7 +165,7 @@ fn typed_bind() {
 
 #[test]
 fn complex_expressions_in_bind() {
-	let result = m!(OptionBrand {
+	let result = m_do!(OptionBrand {
 		x <- Some(vec![1, 2, 3]);
 		let sum: i32 = x.iter().sum();
 		pure(sum)

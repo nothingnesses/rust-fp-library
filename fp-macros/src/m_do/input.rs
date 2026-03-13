@@ -1,4 +1,4 @@
-//! Parsing for the `m!` macro input.
+//! Parsing for the `m_do!` macro input.
 //!
 //! Defines `DoInput` and `DoStatement` types and their `Parse` implementations.
 
@@ -18,7 +18,7 @@ use {
 	},
 };
 
-/// The parsed input to the `m!` macro.
+/// The parsed input to the `m_do!` macro.
 ///
 /// Represents `Brand { statements... final_expr }`.
 pub struct DoInput {
@@ -30,7 +30,7 @@ pub struct DoInput {
 	pub final_expr: Expr,
 }
 
-/// A single statement in a `m!` block.
+/// A single statement in a `m_do!` block.
 pub enum DoStatement {
 	/// `pat <- expr;` or `pat: Type <- expr;` -- monadic bind.
 	Bind {
@@ -68,7 +68,7 @@ impl Parse for DoInput {
 
 		loop {
 			if content.is_empty() {
-				return Err(content.error("m! block must contain at least one expression"));
+				return Err(content.error("m_do! block must contain at least one expression"));
 			}
 
 			// `let` binding

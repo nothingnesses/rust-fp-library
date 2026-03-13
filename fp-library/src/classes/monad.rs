@@ -3,7 +3,7 @@
 //! A monad combines [`Pointed`][crate::classes::Pointed] (for lifting values with
 //! [`pure`][crate::functions::pure]) and [`Semimonad`][crate::classes::Semimonad]
 //! (for chaining computations with [`bind`][crate::functions::bind]).
-//! The [`m!`][fp_macros::m] macro provides do-notation for writing monadic code
+//! The [`m_do!`][fp_macros::m_do] macro provides do-notation for writing monadic code
 //! in a flat, readable style.
 //!
 //! ### Examples
@@ -12,14 +12,14 @@
 //!
 //! ```
 //! use fp_library::{brands::*, functions::*};
-//! use fp_macros::m;
+//! use fp_macros::m_do;
 //!
 //! fn safe_div(a: i32, b: i32) -> Option<i32> {
 //! 	if b == 0 { None } else { Some(a / b) }
 //! }
 //!
 //! // Each `<-` extracts the value; None short-circuits the whole block
-//! let result = m!(OptionBrand {
+//! let result = m_do!(OptionBrand {
 //! 	x <- safe_div(100, 2);
 //! 	y <- safe_div(x, 5);
 //! 	pure(y + 1)
@@ -27,7 +27,7 @@
 //! assert_eq!(result, Some(11));
 //!
 //! // Short-circuits on failure
-//! let result = m!(OptionBrand {
+//! let result = m_do!(OptionBrand {
 //! 	x <- safe_div(100, 0);
 //! 	y <- safe_div(x, 5);
 //! 	pure(y + 1)
@@ -39,10 +39,10 @@
 //!
 //! ```
 //! use fp_library::{brands::*, functions::*};
-//! use fp_macros::m;
+//! use fp_macros::m_do;
 //!
 //! // Generate Pythagorean triples up to 10
-//! let triples = m!(VecBrand {
+//! let triples = m_do!(VecBrand {
 //! 	x <- (1..=10i32).collect::<Vec<_>>();
 //! 	y <- (x..=10).collect::<Vec<_>>();
 //! 	z <- (y..=10).collect::<Vec<_>>();
@@ -56,13 +56,13 @@
 //!
 //! ```
 //! use fp_library::{brands::*, functions::*};
-//! use fp_macros::m;
+//! use fp_macros::m_do;
 //!
 //! fn parse_field(input: &str) -> Result<i32, String> {
 //! 	input.parse().map_err(|_| format!("invalid: {}", input))
 //! }
 //!
-//! let result: Result<i32, String> = m!(ResultErrAppliedBrand<String> {
+//! let result: Result<i32, String> = m_do!(ResultErrAppliedBrand<String> {
 //! 	x <- parse_field("10");
 //! 	y <- parse_field("20");
 //! 	let sum = x + y;
@@ -70,7 +70,7 @@
 //! });
 //! assert_eq!(result, Ok(30));
 //!
-//! let result: Result<i32, String> = m!(ResultErrAppliedBrand<String> {
+//! let result: Result<i32, String> = m_do!(ResultErrAppliedBrand<String> {
 //! 	x <- parse_field("10");
 //! 	y <- parse_field("abc");
 //! 	pure(x + y)
@@ -78,19 +78,19 @@
 //! assert_eq!(result, Err("invalid: abc".to_string()));
 //! ```
 //!
-//! The `m!` macro supports typed bindings, let bindings, sequencing, and
+//! The `m_do!` macro supports typed bindings, let bindings, sequencing, and
 //! automatic `pure` rewriting:
 //!
 //! ```
 //! use fp_library::{brands::*, functions::*};
-//! use fp_macros::m;
+//! use fp_macros::m_do;
 //!
 //! // Typed bindings
-//! let r = m!(OptionBrand { x: i32 <- Some(5); pure(x * 2) });
+//! let r = m_do!(OptionBrand { x: i32 <- Some(5); pure(x * 2) });
 //! assert_eq!(r, Some(10));
 //!
 //! // Let bindings for pure local computations
-//! let r = m!(OptionBrand {
+//! let r = m_do!(OptionBrand {
 //! 	x <- Some(5);
 //! 	let y = x * 2;
 //! 	pure(y)
@@ -98,11 +98,11 @@
 //! assert_eq!(r, Some(10));
 //!
 //! // Sequencing: execute for effects, discard result
-//! let r = m!(OptionBrand { Some(()); pure(42) });
+//! let r = m_do!(OptionBrand { Some(()); pure(42) });
 //! assert_eq!(r, Some(42));
 //!
 //! // `pure(...)` is auto-rewritten with the correct brand
-//! let r = m!(OptionBrand {
+//! let r = m_do!(OptionBrand {
 //! 	x <- Some(5);
 //! 	y <- pure(x + 1);
 //! 	pure(x + y)
@@ -140,7 +140,7 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{brands::*, functions::*};
-	/// use fp_macros::m;
+	/// use fp_macros::m_do;
 	///
 	/// let f = |x: i32| Some(x + 1);
 	/// let g = |x: i32| Some(x * 2);
@@ -150,9 +150,9 @@ mod inner {
 	/// 	bind::<OptionBrand, _, _>(pure::<OptionBrand, _>(5), f),
 	/// 	f(5),
 	/// );
-	/// // With m!: wrapping in pure then binding is the same as calling f
+	/// // With m_do!: wrapping in pure then binding is the same as calling f
 	/// assert_eq!(
-	/// 	m!(OptionBrand { x <- pure(5); pure(x + 1) }),
+	/// 	m_do!(OptionBrand { x <- pure(5); pure(x + 1) }),
 	/// 	Some(6),
 	/// );
 	///
@@ -161,9 +161,9 @@ mod inner {
 	/// 	bind::<OptionBrand, _, _>(Some(42), pure::<OptionBrand, _>),
 	/// 	Some(42),
 	/// );
-	/// // With m!: extracting and re-wrapping is a no-op
+	/// // With m_do!: extracting and re-wrapping is a no-op
 	/// assert_eq!(
-	/// 	m!(OptionBrand { x <- Some(42); pure(x) }),
+	/// 	m_do!(OptionBrand { x <- Some(42); pure(x) }),
 	/// 	Some(42),
 	/// );
 	///
@@ -175,9 +175,9 @@ mod inner {
 	/// 	),
 	/// 	bind::<OptionBrand, _, _>(Some(5), |x| bind::<OptionBrand, _, _>(f(x), g)),
 	/// );
-	/// // With m!: sequential binds compose naturally
+	/// // With m_do!: sequential binds compose naturally
 	/// assert_eq!(
-	/// 	m!(OptionBrand { x <- Some(5); y <- pure(x + 1); pure(y * 2) }),
+	/// 	m_do!(OptionBrand { x <- Some(5); y <- pure(x + 1); pure(y * 2) }),
 	/// 	Some(12),
 	/// );
 	/// ```

@@ -1,4 +1,4 @@
-//! Code generation for the `m!` macro.
+//! Code generation for the `m_do!` macro.
 //!
 //! Transforms parsed `DoInput` into nested `bind` calls with `pure` auto-rewriting.
 
@@ -18,8 +18,8 @@ use {
 	},
 };
 
-/// Generates the expanded token stream for a `m!` invocation.
-pub fn m_worker(input: DoInput) -> syn::Result<TokenStream> {
+/// Generates the expanded token stream for a `m_do!` invocation.
+pub fn m_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 	let brand = &input.brand;
 	let mut result = rewrite_pure(brand, &input.final_expr);
 

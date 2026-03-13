@@ -18,7 +18,7 @@
 //! - **Higher-Kinded Types (HKT):** Implemented using lightweight higher-kinded polymorphism (type-level defunctionalization/brands).
 //! - **Macros:** Procedural macros for working with HKTs and monadic code:
 //!   - **HKT:** `trait_kind!`, `impl_kind!`, `Apply!` for defining and applying higher-kinded type encodings
-//!   - **Do-Notation:** `m!` for Haskell/PureScript-style monadic do-notation
+//!   - **Do-Notation:** `m_do!` for Haskell/PureScript-style monadic do-notation
 //! - **Type Classes:** A comprehensive collection of standard type classes including:
 //!   - **Core:** `Functor`, `Contravariant`, `Pointed`, `Applicative`, `Semiapplicative`, `Monad`, `Semimonad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`
 //!   - **Applicative Utilities:** `Lift`, `ApplyFirst`, `ApplySecond`
@@ -211,16 +211,16 @@
 //! assert_eq!(y, Some(10));
 //! ```
 //!
-//! ## Example: Monadic Do-Notation with `m!`
+//! ## Example: Monadic Do-Notation with `m_do!`
 //!
-//! The `m!` macro provides Haskell/PureScript-style do-notation for flat monadic code.
+//! The `m_do!` macro provides Haskell/PureScript-style do-notation for flat monadic code.
 //! It desugars `<-` binds into nested [`bind`](functions::bind) calls.
 //!
 //! ```
 //! use fp_library::{brands::*, functions::*};
-//! use fp_macros::m;
+//! use fp_macros::m_do;
 //!
-//! let result = m!(OptionBrand {
+//! let result = m_do!(OptionBrand {
 //! 	x <- Some(5);
 //! 	y <- Some(x + 1);
 //! 	let z = x * y;
@@ -229,7 +229,7 @@
 //! assert_eq!(result, Some(30));
 //!
 //! // Works with any monad brand
-//! let result = m!(VecBrand {
+//! let result = m_do!(VecBrand {
 //! 	x <- vec![1, 2];
 //! 	y <- vec![10, 20];
 //! 	pure(x + y)

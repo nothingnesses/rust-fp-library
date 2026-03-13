@@ -3,20 +3,20 @@ use {
 		brands::*,
 		functions::*,
 	},
-	fp_macros::ado,
+	fp_macros::a_do,
 };
 
 // --- 0 binds: pure ---
 
 #[test]
 fn zero_binds_wraps_in_pure() {
-	let result: Option<i32> = ado!(OptionBrand { 42 });
+	let result: Option<i32> = a_do!(OptionBrand { 42 });
 	assert_eq!(result, Some(42));
 }
 
 #[test]
 fn zero_binds_vec() {
-	let result: Vec<i32> = ado!(VecBrand { 7 });
+	let result: Vec<i32> = a_do!(VecBrand { 7 });
 	assert_eq!(result, vec![7]);
 }
 
@@ -24,7 +24,7 @@ fn zero_binds_vec() {
 
 #[test]
 fn single_bind_uses_map() {
-	let result = ado!(OptionBrand {
+	let result = a_do!(OptionBrand {
 		x <- Some(5);
 		x * 2
 	});
@@ -33,7 +33,7 @@ fn single_bind_uses_map() {
 
 #[test]
 fn single_bind_none_propagates() {
-	let result = ado!(OptionBrand {
+	let result = a_do!(OptionBrand {
 		x: i32 <- None;
 		x * 2
 	});
@@ -44,7 +44,7 @@ fn single_bind_none_propagates() {
 
 #[test]
 fn two_binds_uses_lift2() {
-	let result = ado!(OptionBrand {
+	let result = a_do!(OptionBrand {
 		x <- Some(3);
 		y <- Some(4);
 		x + y
@@ -54,7 +54,7 @@ fn two_binds_uses_lift2() {
 
 #[test]
 fn two_binds_none_short_circuits() {
-	let result = ado!(OptionBrand {
+	let result = a_do!(OptionBrand {
 		x <- Some(3);
 		y: i32 <- None;
 		x + y
@@ -66,7 +66,7 @@ fn two_binds_none_short_circuits() {
 
 #[test]
 fn three_binds_uses_lift3() {
-	let result = ado!(OptionBrand {
+	let result = a_do!(OptionBrand {
 		a <- Some(1);
 		b <- Some(2);
 		c <- Some(3);
@@ -79,7 +79,7 @@ fn three_binds_uses_lift3() {
 
 #[test]
 fn four_binds_uses_lift4() {
-	let result = ado!(OptionBrand {
+	let result = a_do!(OptionBrand {
 		a <- Some(1);
 		b <- Some(2);
 		c <- Some(3);
@@ -93,7 +93,7 @@ fn four_binds_uses_lift4() {
 
 #[test]
 fn five_binds_uses_lift5() {
-	let result = ado!(OptionBrand {
+	let result = a_do!(OptionBrand {
 		a <- Some(1);
 		b <- Some(2);
 		c <- Some(3);
@@ -108,7 +108,7 @@ fn five_binds_uses_lift5() {
 
 #[test]
 fn let_binding_inside_closure() {
-	let result = ado!(OptionBrand {
+	let result = a_do!(OptionBrand {
 		x <- Some(5);
 		y <- Some(3);
 		let z = x + y;
@@ -119,7 +119,7 @@ fn let_binding_inside_closure() {
 
 #[test]
 fn typed_let_binding() {
-	let result = ado!(OptionBrand {
+	let result = a_do!(OptionBrand {
 		x <- Some(5);
 		let z: i32 = x * 2;
 		z + 1
@@ -129,7 +129,7 @@ fn typed_let_binding() {
 
 #[test]
 fn leading_let_hoisted_outside() {
-	let result = ado!(OptionBrand {
+	let result = a_do!(OptionBrand {
 		let factor = 10;
 		x <- Some(3);
 		x * factor
@@ -139,7 +139,7 @@ fn leading_let_hoisted_outside() {
 
 #[test]
 fn leading_let_used_in_bind_expr() {
-	let result = ado!(OptionBrand {
+	let result = a_do!(OptionBrand {
 		let base = 100;
 		x <- Some(base + 1);
 		x * 2
@@ -151,7 +151,7 @@ fn leading_let_used_in_bind_expr() {
 
 #[test]
 fn sequence_as_discard_bind() {
-	let result = ado!(OptionBrand {
+	let result = a_do!(OptionBrand {
 		Some(());
 		x <- Some(42);
 		x
@@ -163,7 +163,7 @@ fn sequence_as_discard_bind() {
 
 #[test]
 fn pure_rewritten_in_bind_expr() {
-	let result = ado!(OptionBrand {
+	let result = a_do!(OptionBrand {
 		x <- pure(10);
 		y <- pure(20);
 		x + y
@@ -175,7 +175,7 @@ fn pure_rewritten_in_bind_expr() {
 
 #[test]
 fn vec_brand_lift2() {
-	let result = ado!(VecBrand {
+	let result = a_do!(VecBrand {
 		x <- vec![1, 2];
 		y <- vec![10, 20];
 		x + y
@@ -185,7 +185,7 @@ fn vec_brand_lift2() {
 
 #[test]
 fn vec_brand_map() {
-	let result = ado!(VecBrand {
+	let result = a_do!(VecBrand {
 		x <- vec![1, 2, 3];
 		x * 10
 	});
@@ -196,7 +196,7 @@ fn vec_brand_map() {
 
 #[test]
 fn equivalent_to_manual_lift2() {
-	let ado_result = ado!(OptionBrand {
+	let ado_result = a_do!(OptionBrand {
 		a <- Some(5);
 		b <- Some(3);
 		a - b
@@ -207,7 +207,7 @@ fn equivalent_to_manual_lift2() {
 
 #[test]
 fn equivalent_to_manual_map() {
-	let ado_result = ado!(OptionBrand {
+	let ado_result = a_do!(OptionBrand {
 		x <- Some(7);
 		x + 1
 	});
@@ -217,7 +217,7 @@ fn equivalent_to_manual_map() {
 
 #[test]
 fn equivalent_to_manual_pure() {
-	let ado_result: Option<i32> = ado!(OptionBrand { 99 });
+	let ado_result: Option<i32> = a_do!(OptionBrand { 99 });
 	let manual_result = pure::<OptionBrand, _>(99);
 	assert_eq!(ado_result, manual_result);
 }

@@ -1,9 +1,9 @@
-//! Code generation for the `ado!` macro.
+//! Code generation for the `a_do!` macro.
 //!
 //! Transforms parsed `DoInput` into `pure` / `map` / `liftN` calls.
 
 use {
-	crate::do_notation::{
+	crate::m_do::{
 		codegen::rewrite_pure,
 		input::{
 			DoInput,
@@ -17,7 +17,7 @@ use {
 	},
 };
 
-/// Generates the expanded token stream for an `ado!` invocation.
+/// Generates the expanded token stream for an `a_do!` invocation.
 ///
 /// Separates statements into binds (applicative computations) and let bindings,
 /// then desugars into the appropriate combinator:
@@ -25,7 +25,7 @@ use {
 /// - 0 binds → `pure::<Brand, _>(final_expr)`
 /// - 1 bind  → `map::<Brand, _, _>(|pat| body, expr)`
 /// - N binds → `liftN::<Brand, _, …>(|pats…| body, exprs…)`
-pub fn ado_worker(input: DoInput) -> syn::Result<TokenStream> {
+pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 	let brand = &input.brand;
 
 	let mut leading_lets: Vec<TokenStream> = vec![];
@@ -100,7 +100,7 @@ pub fn ado_worker(input: DoInput) -> syn::Result<TokenStream> {
 		_ => {
 			return Err(syn::Error::new(
 				proc_macro2::Span::call_site(),
-				"ado! supports at most 5 bindings; use m! for more complex cases",
+				"a_do! supports at most 5 bindings; use m_do! for more complex cases",
 			));
 		}
 	};

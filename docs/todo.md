@@ -2,10 +2,11 @@
 
 * Optics: Implement missing functionality from [analysis](optics-analysis.md).
 * Algebraic effects/effect system to implement extensible effects
+	* [Analysis](../plans/effects/effects.md)
 	* [Eff](https://github.com/lexi-lambda/eff) [documentation](https://hasura.github.io/eff/Control-Effect.html)
 * `Extend` and `Comonad` type classes (dual of `Monad`).
 * `MonadZero` and `MonadPlus` type classes.
-* Inline `!`-notation within `m!`: allow `m! { pure(!fa + !fb) }` as shorthand that automatically lifts subexpressions into binds, similar to Idris's `!`-notation. Avoids unnecessary intermediate bindings when a value is used once, immediately. Implement as an incremental enhancement to `m!` rather than a standalone feature.
+* Inline `!`-notation within `m_do!`: allow `m_do! { pure(!fa + !fb) }` as shorthand that automatically lifts subexpressions into binds, similar to Idris's `!`-notation. Avoids unnecessary intermediate bindings when a value is used once, immediately. Implement as an incremental enhancement to `m_do!` rather than a standalone feature.
 * Property-based tests for type class laws.
 	* [Validity](https://github.com/NorfairKing/validity).
 * Add a diagram of the typeclass/trait hierarchy and reasoning/justification for why the current hierarchy is as it is.

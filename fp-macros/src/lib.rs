@@ -5,14 +5,14 @@
 //!
 //! This crate provides macros for generating and working with Higher-Kinded Type (HKT) traits.
 
-pub(crate) mod ado_notation; // Applicative do-notation
+pub(crate) mod a_do; // Applicative do-notation
 pub(crate) mod analysis; // Type and trait analysis
 pub(crate) mod codegen; // Code generation (includes re-exports)
 pub(crate) mod core; // Core infrastructure (config, error, result)
-pub(crate) mod do_notation; // Monadic do-notation
 pub(crate) mod documentation; // Documentation generation macros
 pub(crate) mod hkt; // Higher-Kinded Type macros
 pub(crate) mod hm; // Hindley-Milner type conversion
+pub(crate) mod m_do; // Monadic do-notation
 pub(crate) mod resolution; // Type resolution
 pub(crate) mod support; // Support utilities (attributes, syntax, validation, errors)
 
@@ -21,16 +21,12 @@ mod property_tests;
 
 use {
 	crate::core::ToCompileError,
-	ado_notation::ado_worker,
+	a_do::a_do_worker,
 	codegen::{
 		FunctionFormatter,
 		ReExportInput,
 		TraitFormatter,
 		generate_re_exports_worker,
-	},
-	do_notation::{
-		DoInput,
-		m_worker,
 	},
 	documentation::{
 		document_examples_worker,
@@ -49,6 +45,10 @@ use {
 		generate_name,
 		impl_kind_worker,
 		trait_kind_worker,
+	},
+	m_do::{
+		DoInput,
+		m_do_worker,
 	},
 	proc_macro::TokenStream,
 	quote::quote,
@@ -1159,13 +1159,12 @@ pub fn document_module(
 /// Monadic do-notation.
 ///
 /// Desugars flat monadic syntax into nested `bind` calls, matching
-/// Haskell/PureScript `do` notation. The name is `m` because `do`
-/// is a reserved keyword in Rust.
+/// Haskell/PureScript `do` notation.
 ///
 /// ### Syntax
 ///
 /// ```ignore
-/// m!(Brand {
+/// m_do!(Brand {
 ///     x <- expr;            // Bind: extract value from monadic computation
 ///     y: Type <- expr;      // Typed bind: with explicit type annotation
 ///     _ <- expr;            // Discard bind: sequence, discarding the result
@@ -1188,11 +1187,11 @@ pub fn document_module(
 ///
 /// | Syntax | Expansion |
 /// |--------|-----------|
-/// | `x <- expr;` | `bind::<Brand, _, _>(expr, move \|x\| { ...rest })` |
-/// | `x: Type <- expr;` | `bind::<Brand, _, _>(expr, move \|x: Type\| { ...rest })` |
-/// | `_ <- expr;` | `bind::<Brand, _, _>(expr, move \|_\| { ...rest })` |
-/// | `expr;` | `bind::<Brand, _, _>(expr, move \|_\| { ...rest })` |
-/// | `let x = expr;` | `{ let x = expr; ...rest }` |
+/// | `x <- expr;` | `bind::<Brand, _, _>(expr, move \|x\| { … })` |
+/// | `x: Type <- expr;` | `bind::<Brand, _, _>(expr, move \|x: Type\| { … })` |
+/// | `_ <- expr;` | `bind::<Brand, _, _>(expr, move \|_\| { … })` |
+/// | `expr;` | `bind::<Brand, _, _>(expr, move \|_\| { … })` |
+/// | `let x = expr;` | `{ let x = expr; … }` |
 /// | `expr` (final) | Emitted as-is |
 ///
 /// ### Generates
@@ -1204,9 +1203,9 @@ pub fn document_module(
 /// ```ignore
 /// // Invocation
 /// use fp_library::{brands::*, functions::*};
-/// use fp_macros::m;
+/// use fp_macros::m_do;
 ///
-/// let result = m!(OptionBrand {
+/// let result = m_do!(OptionBrand {
 ///     x <- Some(5);
 ///     y <- Some(x + 1);
 ///     let z = x * y;
@@ -1226,7 +1225,7 @@ pub fn document_module(
 /// ```ignore
 /// // Invocation
 /// // Works with any monad brand
-/// let result = m!(VecBrand {
+/// let result = m_do!(VecBrand {
 ///     x <- vec![1, 2];
 ///     y <- vec![10, 20];
 ///     pure(x + y)
@@ -1234,9 +1233,9 @@ pub fn document_module(
 /// assert_eq!(result, vec![11, 21, 12, 22]);
 /// ```
 #[proc_macro]
-pub fn m(input: TokenStream) -> TokenStream {
+pub fn m_do(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as DoInput);
-	match m_worker(input) {
+	match m_do_worker(input) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}
@@ -1245,13 +1244,13 @@ pub fn m(input: TokenStream) -> TokenStream {
 /// Applicative do-notation.
 ///
 /// Desugars flat applicative syntax into `pure` / `map` / `lift2`–`lift5`
-/// calls, matching PureScript `ado` notation. Unlike [`m!`], bindings are
+/// calls, matching PureScript `ado` notation. Unlike [`m_do!`], bindings are
 /// independent — later bind expressions cannot reference earlier bound variables.
 ///
 /// ### Syntax
 ///
 /// ```ignore
-/// ado!(Brand {
+/// a_do!(Brand {
 ///     x <- expr;            // Bind: independent applicative computation
 ///     y: Type <- expr;      // Typed bind: with explicit type annotation
 ///     _ <- expr;            // Discard bind: compute for effect
@@ -1280,10 +1279,10 @@ pub fn m(input: TokenStream) -> TokenStream {
 ///
 /// ```ignore
 /// use fp_library::{brands::*, functions::*};
-/// use fp_macros::ado;
+/// use fp_macros::a_do;
 ///
 /// // Two independent computations combined with lift2
-/// let result = ado!(OptionBrand {
+/// let result = a_do!(OptionBrand {
 ///     x <- Some(3);
 ///     y <- Some(4);
 ///     x + y
@@ -1294,17 +1293,17 @@ pub fn m(input: TokenStream) -> TokenStream {
 /// let result = lift2::<OptionBrand, _, _, _>(|x, y| x + y, Some(3), Some(4));
 ///
 /// // Single bind uses map
-/// let result = ado!(OptionBrand { x <- Some(5); x * 2 });
+/// let result = a_do!(OptionBrand { x <- Some(5); x * 2 });
 /// assert_eq!(result, Some(10));
 ///
 /// // No binds uses pure
-/// let result: Option<i32> = ado!(OptionBrand { 42 });
+/// let result: Option<i32> = a_do!(OptionBrand { 42 });
 /// assert_eq!(result, Some(42));
 /// ```
 #[proc_macro]
-pub fn ado(input: TokenStream) -> TokenStream {
+pub fn a_do(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as DoInput);
-	match ado_worker(input) {
+	match a_do_worker(input) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}
