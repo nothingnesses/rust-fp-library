@@ -38,11 +38,9 @@ mod inner {
 				Functor,
 				Lift,
 				Monoid,
-				ParFoldable,
 				Pointed,
 				Semiapplicative,
 				Semimonad,
-				SendCloneableFn,
 				Traversable,
 			},
 			impl_kind,
@@ -1271,115 +1269,6 @@ mod inner {
 		}
 	}
 
-	#[document_type_parameters("The loop type.")]
-	impl<LoopType: 'static> ParFoldable for StepLoopAppliedBrand<LoopType> {
-		/// Maps the value to a monoid and returns it, or returns empty, in parallel.
-		///
-		/// This method maps the element of the step to a monoid and then returns it. The mapping operation may be executed in parallel.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the values.",
-			"The brand of the cloneable function wrapper.",
-			"The element type.",
-			"The monoid type."
-		)]
-		///
-		#[document_parameters(
-			"The thread-safe function to map each element to a monoid.",
-			"The step to fold."
-		)]
-		///
-		#[document_returns("The combined monoid value.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let x: Step<i32, i32> = Step::Done(5);
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		/// assert_eq!(
-		/// 	par_fold_map::<ArcFnBrand, StepLoopAppliedBrand<i32>, _, _>(f.clone(), x),
-		/// 	"5".to_string()
-		/// );
-		///
-		/// let x_loop: Step<i32, i32> = Step::Loop(1);
-		/// assert_eq!(
-		/// 	par_fold_map::<ArcFnBrand, StepLoopAppliedBrand<i32>, _, _>(f, x_loop),
-		/// 	"".to_string()
-		/// );
-		/// ```
-		fn par_fold_map<'a, FnBrand, A, M>(
-			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> M
-		where
-			FnBrand: 'a + SendCloneableFn,
-			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a, {
-			match fa {
-				Step::Done(a) => func(a),
-				Step::Loop(_) => M::empty(),
-			}
-		}
-
-		/// Folds the step from the right in parallel.
-		///
-		/// This method folds the step by applying a function from right to left, potentially in parallel.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the values.",
-			"The brand of the cloneable function wrapper.",
-			"The element type.",
-			"The accumulator type."
-		)]
-		///
-		#[document_parameters(
-			"The thread-safe function to apply to each element and the accumulator.",
-			"The initial value.",
-			"The step to fold."
-		)]
-		///
-		#[document_returns("The final accumulator value.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let x: Step<i32, i32> = Step::Done(5);
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-		/// assert_eq!(par_fold_right::<ArcFnBrand, StepLoopAppliedBrand<i32>, _, _>(f.clone(), 10, x), 15);
-		///
-		/// let x_loop: Step<i32, i32> = Step::Loop(1);
-		/// assert_eq!(par_fold_right::<ArcFnBrand, StepLoopAppliedBrand<i32>, _, _>(f, 10, x_loop), 10);
-		/// ```
-		fn par_fold_right<'a, FnBrand, A, B>(
-			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
-			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> B
-		where
-			FnBrand: 'a + SendCloneableFn,
-			A: 'a + Clone + Send + Sync,
-			B: Send + Sync + 'a, {
-			match fa {
-				Step::Done(a) => func((a, initial)),
-				Step::Loop(_) => initial,
-			}
-		}
-	}
-
 	// StepDoneAppliedBrand<DoneType> (Functor over A - Loop)
 
 	impl_kind! {
@@ -1883,115 +1772,6 @@ mod inner {
 			}
 		}
 	}
-
-	#[document_type_parameters("The done type.")]
-	impl<DoneType: 'static> ParFoldable for StepDoneAppliedBrand<DoneType> {
-		/// Maps the value to a monoid and returns it, or returns empty, in parallel (over loop).
-		///
-		/// This method maps the element of the step to a monoid and then returns it (over loop). The mapping operation may be executed in parallel.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the values.",
-			"The brand of the cloneable function wrapper.",
-			"The element type.",
-			"The monoid type."
-		)]
-		///
-		#[document_parameters(
-			"The thread-safe function to map each element to a monoid.",
-			"The step to fold."
-		)]
-		///
-		#[document_returns("The combined monoid value.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let x: Step<i32, i32> = Step::Loop(5);
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		/// assert_eq!(
-		/// 	par_fold_map::<ArcFnBrand, StepDoneAppliedBrand<i32>, _, _>(f.clone(), x),
-		/// 	"5".to_string()
-		/// );
-		///
-		/// let x_done: Step<i32, i32> = Step::Done(1);
-		/// assert_eq!(
-		/// 	par_fold_map::<ArcFnBrand, StepDoneAppliedBrand<i32>, _, _>(f, x_done),
-		/// 	"".to_string()
-		/// );
-		/// ```
-		fn par_fold_map<'a, FnBrand, A, M>(
-			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> M
-		where
-			FnBrand: 'a + SendCloneableFn,
-			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a, {
-			match fa {
-				Step::Loop(e) => func(e),
-				Step::Done(_) => M::empty(),
-			}
-		}
-
-		/// Folds the step from the right in parallel (over loop).
-		///
-		/// This method folds the step by applying a function from right to left, potentially in parallel (over loop).
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the values.",
-			"The brand of the cloneable function wrapper.",
-			"The element type.",
-			"The accumulator type."
-		)]
-		///
-		#[document_parameters(
-			"The thread-safe function to apply to each element and the accumulator.",
-			"The initial value.",
-			"The step to fold."
-		)]
-		///
-		#[document_returns("The final accumulator value.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let x: Step<i32, i32> = Step::Loop(5);
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-		/// assert_eq!(par_fold_right::<ArcFnBrand, StepDoneAppliedBrand<i32>, _, _>(f.clone(), 10, x), 15);
-		///
-		/// let x_done: Step<i32, i32> = Step::Done(1);
-		/// assert_eq!(par_fold_right::<ArcFnBrand, StepDoneAppliedBrand<i32>, _, _>(f, 10, x_done), 10);
-		/// ```
-		fn par_fold_right<'a, FnBrand, A, B>(
-			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
-			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> B
-		where
-			FnBrand: 'a + SendCloneableFn,
-			A: 'a + Clone + Send + Sync,
-			B: Send + Sync + 'a, {
-			match fa {
-				Step::Loop(e) => func((e, initial)),
-				Step::Done(_) => initial,
-			}
-		}
-	}
 }
 pub use inner::*;
 
@@ -2006,7 +1786,6 @@ mod tests {
 				foldable::*,
 				functor::*,
 				lift::*,
-				par_foldable::*,
 				pointed::*,
 				semiapplicative::*,
 				semimonad::*,
@@ -2419,28 +2198,6 @@ mod tests {
 			traverse::<StepDoneAppliedBrand<i32>, _, _, OptionBrand>(|a| Some(a * 2), done_step),
 			Some(Step::Done(1))
 		);
-	}
-
-	// ParFoldable Tests
-
-	/// Tests `par_fold_map` for `StepLoopAppliedBrand`.
-	///
-	/// Verifies parallel folding behavior (conceptually, as it delegates to sequential for simple types).
-	#[test]
-	fn test_par_foldable_step_with_loop() {
-		let x = pure::<StepLoopAppliedBrand<()>, _>(5);
-		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|a: i32| a.to_string());
-		assert_eq!(par_fold_map::<ArcFnBrand, StepLoopAppliedBrand<()>, _, _>(f, x), "5");
-	}
-
-	/// Tests `par_fold_map` for `StepDoneAppliedBrand`.
-	///
-	/// Verifies parallel folding behavior.
-	#[test]
-	fn test_par_foldable_step_with_done() {
-		let x = pure::<StepDoneAppliedBrand<()>, _>(5);
-		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|a: i32| a.to_string());
-		assert_eq!(par_fold_map::<ArcFnBrand, StepDoneAppliedBrand<()>, _, _>(f, x), "5");
 	}
 
 	// Monad Laws for StepLoopAppliedBrand

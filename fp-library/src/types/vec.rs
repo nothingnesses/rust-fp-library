@@ -4,8 +4,6 @@
 
 #[fp_macros::document_module]
 mod inner {
-	#[cfg(feature = "rayon")]
-	use rayon::prelude::*;
 	use {
 		crate::{
 			Apply,
@@ -23,15 +21,14 @@ mod inner {
 				Filterable,
 				Foldable,
 				Functor,
+				IntoParallel,
 				Lift,
 				Monoid,
-				ParFoldable,
 				Plus,
 				Pointed,
 				Semiapplicative,
 				Semigroup,
 				Semimonad,
-				SendCloneableFn,
 				Traversable,
 				Witherable,
 				foldable_with_index::FoldableWithIndex,
@@ -764,57 +761,63 @@ mod inner {
 		}
 	}
 
-	impl ParFoldable for VecBrand {
-		/// Maps values to a monoid and combines them in parallel.
+	impl IntoParallel for VecBrand {
+		/// Flattens a `Vec` to a `Vec` (identity conversion).
 		///
-		/// This method maps each element of the vector to a monoid and then combines the results using the monoid's `append` operation. The mapping and combination operations may be executed in parallel.
-		///
-		/// **Note: The `rayon` feature must be enabled to use parallel iteration.**
+		/// For `Vec`, this is a zero-cost identity — no allocation occurs.
 		#[document_signature]
 		///
-		#[document_type_parameters(
-			"The lifetime of the elements.",
-			"The brand of the cloneable function wrapper.",
-			"The element type.",
-			"The monoid type."
-		)]
+		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
 		///
-		#[document_parameters(
-			"The thread-safe function to map each element to a monoid.",
-			"The vector to fold."
-		)]
+		#[document_parameters("The `Vec` to convert.")]
 		///
-		#[document_returns("The combined monoid value.")]
+		#[document_returns("The same `Vec`, unchanged.")]
+		///
 		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
+		/// 	brands::VecBrand,
+		/// 	classes::IntoParallel,
 		/// };
 		///
 		/// let v = vec![1, 2, 3];
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		/// assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v), "123".to_string());
+		/// let result: Vec<i32> = VecBrand::collect_vec(v);
+		/// assert_eq!(result, vec![1, 2, 3]);
 		/// ```
-		fn par_fold_map<'a, FnBrand, A, M>(
-			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> M
-		where
-			FnBrand: 'a + SendCloneableFn,
-			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a, {
-			#[cfg(feature = "rayon")]
-			{
-				#[allow(clippy::redundant_closure)] // Required: Arc<dyn Fn> doesn't impl Fn
-				fa.into_par_iter().map(|a| func(a)).reduce(M::empty, |acc, m| M::append(acc, m))
-			}
-			#[cfg(not(feature = "rayon"))]
-			{
-				#[allow(clippy::redundant_closure)] // Required for move semantics
-				fa.into_iter().map(|a| func(a)).fold(M::empty(), |acc, m| M::append(acc, m))
-			}
+		fn collect_vec<'a, A: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		) -> Vec<A> {
+			fa
+		}
+
+		/// Reconstructs a `Vec` from a `Vec` (identity conversion).
+		///
+		/// For `Vec`, this is a zero-cost identity — no allocation occurs.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
+		///
+		#[document_parameters("The `Vec` to convert.")]
+		///
+		#[document_returns("The same `Vec`, unchanged.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::IntoParallel,
+		/// };
+		///
+		/// let v = vec![1, 2, 3];
+		/// let result: Vec<i32> = VecBrand::from_vec(v);
+		/// assert_eq!(result, vec![1, 2, 3]);
+		/// ```
+		fn from_vec<'a, A: 'a>(
+			v: Vec<A>
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			v
 		}
 	}
 
@@ -1416,38 +1419,47 @@ mod tests {
 		assert_eq!(VecBrand::deconstruct::<i32>(&[]), None);
 	}
 
-	// ParFoldable Tests
+	// IntoParallel Tests
+
+	/// Tests `par_map` on a vector.
+	#[test]
+	fn par_map_basic() {
+		let v = vec![1, 2, 3];
+		let result: Vec<i32> = par_map::<VecBrand, _, _>(|x: i32| x * 2, v);
+		assert_eq!(result, vec![2, 4, 6]);
+	}
+
+	/// Tests `par_filter` on a vector.
+	#[test]
+	fn par_filter_basic() {
+		let v = vec![1, 2, 3, 4, 5];
+		let result: Vec<i32> = par_filter::<VecBrand, _>(|x: &i32| x % 2 == 0, v);
+		assert_eq!(result, vec![2, 4]);
+	}
+
+	/// Tests `par_filter_map` on a vector.
+	#[test]
+	fn par_filter_map_basic() {
+		let v = vec![1, 2, 3, 4, 5];
+		let result: Vec<i32> = par_filter_map::<VecBrand, _, _>(
+			|x: i32| if x % 2 == 0 { Some(x * 10) } else { None },
+			v,
+		);
+		assert_eq!(result, vec![20, 40]);
+	}
 
 	/// Tests `par_fold_map` on an empty vector.
 	#[test]
 	fn par_fold_map_empty() {
 		let v: Vec<i32> = vec![];
-		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v), "".to_string());
-	}
-
-	/// Tests `par_fold_map` on a single element.
-	#[test]
-	fn par_fold_map_single() {
-		let v = vec![1];
-		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v), "1".to_string());
+		assert_eq!(par_fold_map::<VecBrand, _, _>(|x: i32| x.to_string(), v), "".to_string());
 	}
 
 	/// Tests `par_fold_map` on multiple elements.
 	#[test]
 	fn par_fold_map_multiple() {
 		let v = vec![1, 2, 3];
-		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v), "123".to_string());
-	}
-
-	/// Tests `par_fold_right` on multiple elements.
-	#[test]
-	fn par_fold_right_multiple() {
-		let v = vec![1, 2, 3];
-		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-		assert_eq!(par_fold_right::<ArcFnBrand, VecBrand, _, _>(f, 0, v), 6);
+		assert_eq!(par_fold_map::<VecBrand, _, _>(|x: i32| x.to_string(), v), "123".to_string());
 	}
 
 	// Filterable Laws
@@ -1697,7 +1709,7 @@ mod tests {
 		assert_eq!(res, Some(vec![]));
 	}
 
-	// ParFoldable Laws
+	// IntoParallel Laws
 
 	/// Verifies that `par_fold_map` correctly sums a large vector (100,000 elements).
 	#[test]
@@ -1705,41 +1717,30 @@ mod tests {
 		use crate::types::Additive;
 
 		let xs: Vec<i32> = (0 .. 100000).collect();
-		let f_par = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| Additive(x as i64));
-		let res = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f_par, xs);
+		let res = par_fold_map::<VecBrand, _, _>(|x: i32| Additive(x as i64), xs);
 		assert_eq!(res, Additive(4999950000));
 	}
 
-	/// Property: parallel `par_fold_map` produces the same result as sequential `fold_map`.
+	/// Property: `par_map` agrees with sequential `map`.
+	#[quickcheck]
+	fn prop_par_map_equals_map(xs: Vec<i32>) -> bool {
+		let f = |x: i32| x.wrapping_add(1);
+		let seq_res = map::<VecBrand, _, _>(f, xs.clone());
+		let par_res = par_map::<VecBrand, _, _>(f, xs);
+		seq_res == par_res
+	}
+
+	/// Property: `par_fold_map` agrees with sequential `fold_map`.
 	#[quickcheck]
 	fn prop_par_fold_map_equals_fold_map(xs: Vec<i32>) -> bool {
 		use crate::types::Additive;
 
-		let f_seq = |x: i32| Additive(x as i64);
-		let f_par = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| Additive(x as i64));
-
-		let seq_res =
-			crate::classes::foldable::fold_map::<ArcFnBrand, VecBrand, _, _>(f_seq, xs.clone());
-		let par_res = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f_par, xs);
-
-		seq_res == par_res
-	}
-
-	/// Property: parallel `par_fold_right` produces the same result as sequential `fold_right`.
-	#[quickcheck]
-	fn prop_par_fold_right_equals_fold_right(xs: Vec<i32>) -> bool {
-		let f_seq = |a: i32, b: i32| a.wrapping_add(b);
-		let f_par =
-			send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a.wrapping_add(b));
-		let init = 0;
-
-		let seq_res = crate::classes::foldable::fold_right::<ArcFnBrand, VecBrand, _, _>(
-			f_seq,
-			init,
+		let f = |x: i32| Additive(x as i64);
+		let seq_res = crate::classes::foldable::fold_map::<crate::brands::RcFnBrand, VecBrand, _, _>(
+			f,
 			xs.clone(),
 		);
-		let par_res = par_fold_right::<ArcFnBrand, VecBrand, _, _>(f_par, init, xs);
-
+		let par_res = par_fold_map::<VecBrand, _, _>(f, xs);
 		seq_res == par_res
 	}
 
@@ -1751,22 +1752,7 @@ mod tests {
 		if !xs.is_empty() {
 			return true;
 		}
-
-		let f_par = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| Additive(x as i64));
-		let par_res = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f_par, xs);
-
+		let par_res = par_fold_map::<VecBrand, _, _>(|x: i32| Additive(x as i64), xs);
 		par_res == empty::<Additive<i64>>()
-	}
-
-	/// Property: `par_fold_map` is deterministic.
-	#[quickcheck]
-	fn prop_par_fold_map_deterministic(xs: Vec<i32>) -> bool {
-		use crate::types::Additive;
-
-		let f_par = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| Additive(x as i64));
-
-		let res1 = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f_par.clone(), xs.clone());
-		let res2 = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f_par, xs);
-		res1 == res2
 	}
 }

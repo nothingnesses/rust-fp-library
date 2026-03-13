@@ -20,8 +20,6 @@
 
 #[fp_macros::document_module]
 mod inner {
-	#[cfg(feature = "rayon")]
-	use rayon::prelude::*;
 	use {
 		crate::{
 			Apply,
@@ -41,15 +39,14 @@ mod inner {
 				FoldableWithIndex,
 				Functor,
 				FunctorWithIndex,
+				IntoParallel,
 				Lift,
 				Monoid,
-				ParFoldable,
 				Plus,
 				Pointed,
 				Semiapplicative,
 				Semigroup,
 				Semimonad,
-				SendCloneableFn,
 				Traversable,
 				TraversableWithIndex,
 				Witherable,
@@ -896,60 +893,65 @@ mod inner {
 		}
 	}
 
-	impl ParFoldable for CatListBrand {
-		/// Maps values to a monoid and combines them in parallel.
+	impl IntoParallel for CatListBrand {
+		/// Flattens a `CatList` into a `Vec` by traversing all elements.
 		///
-		/// This method maps each element of the list to a monoid and then combines the results using the monoid's `append` operation. The mapping and combination operations may be executed in parallel.
-		///
-		/// **Note: The `rayon` feature must be enabled to use parallel iteration.**
+		/// Performs a linear traversal of the list structure to collect all elements in order.
 		#[document_signature]
 		///
-		#[document_type_parameters(
-			"The lifetime of the values.",
-			"The brand of the cloneable function wrapper.",
-			"The element type.",
-			"The monoid type."
-		)]
+		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
 		///
-		#[document_parameters(
-			"The thread-safe function to map each element to a monoid.",
-			"The list to fold."
-		)]
+		#[document_parameters("The `CatList` to convert.")]
 		///
-		#[document_returns("The combined monoid value.")]
+		#[document_returns("A `Vec` containing all elements in order.")]
+		///
 		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
+		/// 	brands::CatListBrand,
+		/// 	classes::IntoParallel,
+		/// 	types::CatList,
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		/// assert_eq!(par_fold_map::<ArcFnBrand, CatListBrand, _, _>(f, list), "123".to_string());
+		/// let result: Vec<i32> = CatListBrand::collect_vec(list);
+		/// assert_eq!(result, vec![1, 2, 3]);
 		/// ```
-		fn par_fold_map<'a, FnBrand, A, M>(
-			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> M
-		where
-			FnBrand: 'a + SendCloneableFn,
-			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a, {
-			// CatList doesn't support parallel iteration directly, so we collect to Vec first.
-			let vec: Vec<_> = fa.into_iter().collect();
-			#[cfg(feature = "rayon")]
-			{
-				#[allow(clippy::redundant_closure)] // Required: Arc<dyn Fn> doesn't impl Fn
-				vec.into_par_iter().map(|a| func(a)).reduce(M::empty, |acc, m| M::append(acc, m))
-			}
-			#[cfg(not(feature = "rayon"))]
-			{
-				#[allow(clippy::redundant_closure)] // Required for move semantics
-				vec.into_iter().map(|a| func(a)).fold(M::empty(), |acc, m| M::append(acc, m))
-			}
+		fn collect_vec<'a, A: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		) -> Vec<A> {
+			fa.into_iter().collect()
+		}
+
+		/// Reconstructs a `CatList` from a `Vec`.
+		///
+		/// Constructs a `CatList` by iterating over the `Vec` elements.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
+		///
+		#[document_parameters("The `Vec` to convert.")]
+		///
+		#[document_returns("A `CatList` containing all elements in order.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::IntoParallel,
+		/// 	types::CatList,
+		/// };
+		///
+		/// let v = vec![1, 2, 3];
+		/// let result: CatList<i32> = CatListBrand::from_vec(v);
+		/// assert_eq!(result.into_iter().collect::<Vec<_>>(), vec![1, 2, 3]);
+		/// ```
+		fn from_vec<'a, A: 'a>(
+			v: Vec<A>
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			v.into_iter().collect()
 		}
 	}
 
@@ -2297,30 +2299,78 @@ mod tests {
 		);
 	}
 
-	// ParFoldable Tests
+	// IntoParallel Tests
+
+	/// Tests `par_map` on a list.
+	#[test]
+	fn par_map_basic() {
+		let v: CatList<_> = vec![1, 2, 3].into_iter().collect();
+		let result: CatList<i32> = par_map::<CatListBrand, _, _>(|x: i32| x * 2, v);
+		assert_eq!(result.into_iter().collect::<Vec<_>>(), vec![2, 4, 6]);
+	}
+
+	/// Tests `par_filter` on a list.
+	#[test]
+	fn par_filter_basic() {
+		let v: CatList<_> = vec![1, 2, 3, 4, 5].into_iter().collect();
+		let result: CatList<i32> = par_filter::<CatListBrand, _>(|x: &i32| x % 2 == 0, v);
+		assert_eq!(result.into_iter().collect::<Vec<_>>(), vec![2, 4]);
+	}
+
+	/// Tests `par_filter_map` on a list.
+	#[test]
+	fn par_filter_map_basic() {
+		let v: CatList<_> = vec![1, 2, 3, 4, 5].into_iter().collect();
+		let result: CatList<i32> = par_filter_map::<CatListBrand, _, _>(
+			|x: i32| if x % 2 == 0 { Some(x * 10) } else { None },
+			v,
+		);
+		assert_eq!(result.into_iter().collect::<Vec<_>>(), vec![20, 40]);
+	}
 
 	/// Tests `par_fold_map` on an empty list.
 	#[test]
 	fn par_fold_map_empty() {
 		let v: CatList<i32> = CatList::empty();
-		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		assert_eq!(par_fold_map::<ArcFnBrand, CatListBrand, _, _>(f, v), "".to_string());
-	}
-
-	/// Tests `par_fold_map` on a single element.
-	#[test]
-	fn par_fold_map_single() {
-		let v = CatList::singleton(1);
-		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		assert_eq!(par_fold_map::<ArcFnBrand, CatListBrand, _, _>(f, v), "1".to_string());
+		assert_eq!(par_fold_map::<CatListBrand, _, _>(|x: i32| x.to_string(), v), "".to_string());
 	}
 
 	/// Tests `par_fold_map` on multiple elements.
 	#[test]
 	fn par_fold_map_multiple() {
 		let v: CatList<_> = vec![1, 2, 3].into_iter().collect();
-		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		assert_eq!(par_fold_map::<ArcFnBrand, CatListBrand, _, _>(f, v), "123".to_string());
+		assert_eq!(
+			par_fold_map::<CatListBrand, _, _>(|x: i32| x.to_string(), v),
+			"123".to_string()
+		);
+	}
+
+	// IntoParallel Laws
+
+	/// Property: `par_map` agrees with sequential `map`.
+	#[quickcheck]
+	fn prop_par_map_equals_map(xs: Vec<i32>) -> bool {
+		let xs: CatList<_> = xs.into_iter().collect();
+		let f = |x: i32| x.wrapping_add(1);
+		let seq_res: CatList<_> = map::<CatListBrand, _, _>(f, xs.clone());
+		let par_res: CatList<_> = par_map::<CatListBrand, _, _>(f, xs);
+		seq_res == par_res
+	}
+
+	/// Property: `par_fold_map` agrees with sequential `fold_map`.
+	#[quickcheck]
+	fn prop_par_fold_map_equals_fold_map(xs: Vec<i32>) -> bool {
+		use crate::types::Additive;
+
+		let xs: CatList<_> = xs.into_iter().collect();
+		let f = |x: i32| Additive(x as i64);
+		let seq_res =
+			crate::classes::foldable::fold_map::<crate::brands::RcFnBrand, CatListBrand, _, _>(
+				f,
+				xs.clone(),
+			);
+		let par_res = par_fold_map::<CatListBrand, _, _>(f, xs);
+		seq_res == par_res
 	}
 
 	// Filterable Laws

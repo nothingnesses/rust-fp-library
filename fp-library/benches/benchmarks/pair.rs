@@ -5,7 +5,6 @@ use {
 	},
 	fp_library::{
 		brands::{
-			ArcFnBrand,
 			OptionBrand,
 			PairFirstAppliedBrand,
 			RcFnBrand,
@@ -17,10 +16,6 @@ use {
 			},
 			functor::map,
 			lift::lift2,
-			par_foldable::{
-				par_fold_map,
-				par_fold_right,
-			},
 			pointed::pure,
 			semiapplicative::apply,
 			semimonad::bind,
@@ -29,10 +24,7 @@ use {
 				traverse,
 			},
 		},
-		functions::{
-			cloneable_fn_new,
-			send_cloneable_fn_new,
-		},
+		functions::cloneable_fn_new,
 		types::Pair,
 	},
 };
@@ -223,35 +215,6 @@ pub fn bench_pair(c: &mut Criterion) {
 			b.iter(|| {
 				apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
 					std::hint::black_box(f.clone()),
-					std::hint::black_box(val.clone()),
-				)
-			})
-		});
-		group.finish();
-	}
-
-	// Par Fold Map
-	{
-		let mut group = c.benchmark_group("Pair Par Fold Map");
-		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
-			b.iter(|| {
-				par_fold_map::<ArcFnBrand, PairFirstAppliedBrand<String>, _, _>(
-					send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string()),
-					std::hint::black_box(val.clone()),
-				)
-			})
-		});
-		group.finish();
-	}
-
-	// Par Fold Right
-	{
-		let mut group = c.benchmark_group("Pair Par Fold Right");
-		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
-			b.iter(|| {
-				par_fold_right::<ArcFnBrand, PairFirstAppliedBrand<String>, _, _>(
-					send_cloneable_fn_new::<ArcFnBrand, _, _>(|(x, acc)| x + acc),
-					0,
 					std::hint::black_box(val.clone()),
 				)
 			})

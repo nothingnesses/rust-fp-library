@@ -31,7 +31,7 @@
 //! - **Function & Pointer Abstractions:** Traits for abstracting over function wrappers and reference counting:
 //!   - **Functions:** `Function`, `CloneableFn`, `SendCloneableFn`, `UnsizedCoercible`, `SendUnsizedCoercible`
 //!   - **Pointers:** `Pointer`, `RefCountedPointer`, `SendRefCountedPointer`
-//!   - **Parallel:** `ParFoldable`
+//!   - **Parallel:** `IntoParallel`
 //! - **Optics:** Composable data accessors using profunctor encoding (port of PureScript's `purescript-profunctor-lenses`):
 //!   - **Iso / IsoPrime:** Isomorphism between two types
 //!   - **Lens / LensPrime:** Focus on a field within a product type
@@ -54,7 +54,7 @@
 //!   - **Laziness, Memoization & Stack Safety:** `Lazy` (`RcLazy`, `ArcLazy`), `Thunk`, `Trampoline`, `Free`
 //!   - **Fallible Variants:** `TryLazy` (`RcTryLazy`, `ArcTryLazy`), `TryThunk`, `TryTrampoline`
 //!   - **Generic Containers:** `Identity`, `Pair`, `Step`, `CatList`
-//!   - **Function Wrappers:** `Endofunction`, `Endomorphism`, `SendEndofunction`
+//!   - **Function Wrappers:** `Endofunction`, `Endomorphism`
 //!   - **Marker Types:** `RcBrand`, `ArcBrand`, `FnBrand`
 //!
 //! ## How it Works
@@ -179,11 +179,14 @@
 //!
 //! ### Thread Safety and Parallelism
 //!
-//! The library supports thread-safe operations through the `SendCloneableFn` extension trait and parallel folding via `ParFoldable`.
+//! The library supports parallel operations via the `IntoParallel` trait, which enables
+//! collection types to be processed using `par_map`, `par_filter`, `par_filter_map`, and
+//! `par_fold_map`. Functions accept plain `impl Fn + Send + Sync` closures — no wrapper
+//! types required.
 //!
 //! - **`SendCloneableFn`**: Extends `CloneableFn` to provide `Send + Sync` function wrappers. Implemented by `ArcFnBrand`.
-//! - **`ParFoldable`**: Provides `par_fold_map` and `par_fold_right` for parallel execution.
-//! - **Rayon Support**: `VecBrand` supports parallel execution using `rayon` when the `rayon` feature is enabled.
+//! - **`IntoParallel`**: Provides `par_map`, `par_filter`, `par_filter_map`, and `par_fold_map` for parallel execution.
+//! - **Rayon Support**: When the `rayon` feature is enabled, `par_*` functions use rayon for true parallel execution. Otherwise they fall back to sequential equivalents.
 //!
 //! ```
 //! use fp_library::{
@@ -192,10 +195,11 @@
 //! };
 //!
 //! let v = vec![1, 2, 3, 4, 5];
-//! // Create a thread-safe function wrapper
-//! let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-//! // Fold in parallel (if rayon feature is enabled)
-//! let result = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v);
+//! // Map in parallel (uses rayon if feature is enabled)
+//! let doubled: Vec<i32> = par_map::<VecBrand, _, _>(|x: i32| x * 2, v.clone());
+//! assert_eq!(doubled, vec![2, 4, 6, 8, 10]);
+//! // Fold in parallel
+//! let result = par_fold_map::<VecBrand, _, _>(|x: i32| x.to_string(), v);
 //! assert_eq!(result, "12345".to_string());
 //! ```
 //!
@@ -241,7 +245,7 @@
 //!
 //! ## Crate Features
 //!
-//! - **`rayon`**: Enables parallel folding operations (`ParFoldable`) and parallel execution support for `VecBrand` using the [rayon](https://github.com/rayon-rs/rayon) library.
+//! - **`rayon`**: Enables true parallel execution for `par_*` functions (`IntoParallel`) using the [rayon](https://github.com/rayon-rs/rayon) library. Without this feature, `par_*` functions fall back to sequential equivalents.
 //! - **`serde`**: Enables serialization and deserialization support for pure data types using the [serde](https://github.com/serde-rs/serde) library.
 
 extern crate fp_macros;

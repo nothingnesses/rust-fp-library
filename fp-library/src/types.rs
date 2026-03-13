@@ -34,7 +34,6 @@ pub mod option;
 pub mod pair;
 pub mod rc_ptr;
 pub mod result;
-pub mod send_endofunction;
 pub mod step;
 pub mod string;
 pub mod thunk;
@@ -73,7 +72,6 @@ pub use {
 		LensPrime,
 	},
 	pair::Pair,
-	send_endofunction::SendEndofunction,
 	step::Step,
 	thunk::Thunk,
 	trampoline::Trampoline,

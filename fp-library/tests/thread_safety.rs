@@ -28,12 +28,9 @@ fn test_share_send_fn_across_threads() {
 }
 
 #[test]
-fn test_par_foldable_in_thread() {
+fn test_par_fold_map_in_thread() {
 	let v = vec![1, 2, 3, 4, 5];
-	let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-
-	let handle = thread::spawn(move || par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v));
-
+	let handle = thread::spawn(move || par_fold_map::<VecBrand, _, _>(|x: i32| x.to_string(), v));
 	assert_eq!(handle.join().unwrap(), "12345".to_string());
 }
 
@@ -56,18 +53,16 @@ impl fp_library::classes::monoid::Monoid for Sum {
 }
 
 #[test]
-fn test_par_foldable_concurrent_access() {
+fn test_par_fold_map_concurrent_access() {
 	let v = vec![1, 2, 3];
-	let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| Sum(x * 2));
-	let f_clone = f.clone();
 	let v_clone = v.clone();
 
-	// Thread 1 uses f to fold v
+	// Thread 1 uses par_fold_map on v_clone
 	let handle1 =
-		thread::spawn(move || par_fold_map::<ArcFnBrand, VecBrand, _, _>(f_clone, v_clone));
+		thread::spawn(move || par_fold_map::<VecBrand, _, _>(|x: i32| Sum(x * 2), v_clone));
 
-	// Main thread uses f to fold v
-	let result2 = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v);
+	// Main thread uses par_fold_map on v
+	let result2 = par_fold_map::<VecBrand, _, _>(|x: i32| Sum(x * 2), v);
 
 	// Wait for thread 1
 	let result1 = handle1.join().unwrap();
@@ -77,11 +72,8 @@ fn test_par_foldable_concurrent_access() {
 }
 
 #[test]
-fn test_par_fold_right_in_threaded_context() {
+fn test_par_map_in_threaded_context() {
 	let v = vec![1, 2, 3, 4, 5];
-	let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-
-	let handle = thread::spawn(move || par_fold_right::<ArcFnBrand, VecBrand, _, _>(f, 0, v));
-
-	assert_eq!(handle.join().unwrap(), 15);
+	let handle = thread::spawn(move || par_map::<VecBrand, _, _>(|x: i32| x * 2, v));
+	assert_eq!(handle.join().unwrap(), vec![2, 4, 6, 8, 10]);
 }
