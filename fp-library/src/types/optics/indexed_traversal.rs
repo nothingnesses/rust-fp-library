@@ -68,7 +68,7 @@ mod inner {
 			B,
 		> for Traversed<Brand>
 	where
-		Brand: TraversableWithIndex<I>,
+		Brand: TraversableWithIndex<Index = I>,
 		A: 'a + Clone,
 		B: 'a + Clone,
 		I: 'a,
@@ -147,7 +147,7 @@ mod inner {
 			Traversed<Brand>,
 		>
 	where
-		Brand: TraversableWithIndex<I>,
+		Brand: TraversableWithIndex<Index = I>,
 		A: 'a + Clone,
 		B: 'a + Clone,
 		I: 'a,
@@ -197,7 +197,7 @@ mod inner {
 			Traversed<Brand>,
 		>
 	where
-		Brand: TraversableWithIndex<I>,
+		Brand: TraversableWithIndex<Index = I>,
 		A: 'a + Clone,
 		I: 'a,
 		Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>): Clone,

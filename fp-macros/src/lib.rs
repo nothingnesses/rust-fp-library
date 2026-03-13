@@ -1245,7 +1245,7 @@ pub fn m_do(input: TokenStream) -> TokenStream {
 ///
 /// Desugars flat applicative syntax into `pure` / `map` / `lift2`–`lift5`
 /// calls, matching PureScript `ado` notation. Unlike [`m_do!`], bindings are
-/// independent — later bind expressions cannot reference earlier bound variables.
+/// independent: later bind expressions cannot reference earlier bound variables.
 ///
 /// ### Syntax
 ///

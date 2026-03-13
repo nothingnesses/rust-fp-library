@@ -44,17 +44,17 @@
 //!
 //! - **Core:** The [`crate::classes::optics::Optic`] trait and [`Composed`] / [`optics_compose`]
 //! - **Optic Types:**
-//!   - [`Iso`] / [`IsoPrime`] — Isomorphisms
-//!   - [`Lens`] / [`LensPrime`] — Product types (get/set a field)
-//!   - [`Prism`] / [`PrismPrime`] — Sum types (match/construct a variant)
-//!   - [`AffineTraversal`] / [`AffineTraversalPrime`] — Optional focusing (Lens + Prism)
-//!   - [`Traversal`] / [`TraversalPrime`] — Multiple foci
-//!   - [`Getter`] / [`GetterPrime`] — Read-only access
-//!   - [`Setter`] / [`SetterPrime`] — Write-only modification
-//!   - [`Fold`] / [`FoldPrime`] — Collecting multiple values (read-only)
-//!   - [`Review`] / [`ReviewPrime`] — Constructing values
-//!   - [`Grate`] / [`GratePrime`] — Closed/zipping optics
-//!   - [`ReversedOptic`] — Reversed/inverted optic
+//!   - [`Iso`] / [`IsoPrime`]: Isomorphisms
+//!   - [`Lens`] / [`LensPrime`]: Product types (get/set a field)
+//!   - [`Prism`] / [`PrismPrime`]: Sum types (match/construct a variant)
+//!   - [`AffineTraversal`] / [`AffineTraversalPrime`]: Optional focusing (Lens + Prism)
+//!   - [`Traversal`] / [`TraversalPrime`]: Multiple foci
+//!   - [`Getter`] / [`GetterPrime`]: Read-only access
+//!   - [`Setter`] / [`SetterPrime`]: Write-only modification
+//!   - [`Fold`] / [`FoldPrime`]: Collecting multiple values (read-only)
+//!   - [`Review`] / [`ReviewPrime`]: Constructing values
+//!   - [`Grate`] / [`GratePrime`]: Closed/zipping optics
+//!   - [`ReversedOptic`]: Reversed/inverted optic
 //! - **Indexed Optics:**
 //!   - [`IndexedLens`] / [`IndexedLensPrime`]
 //!   - [`IndexedTraversal`] / [`IndexedTraversalPrime`]

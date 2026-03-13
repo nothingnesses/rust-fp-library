@@ -17,11 +17,9 @@ mod inner {
 				Functor,
 				Lift,
 				Monoid,
-				ParFoldable,
 				Pointed,
 				Semiapplicative,
 				Semimonad,
-				SendCloneableFn,
 				Traversable,
 			},
 			impl_kind,
@@ -742,94 +740,6 @@ mod inner {
 			ta.traverse::<A, F>(|a| a)
 		}
 	}
-
-	impl ParFoldable for IdentityBrand {
-		/// Maps the value to a monoid and returns it in parallel.
-		///
-		/// This method maps the element of the identity to a monoid. Since `Identity` contains only one element, no actual parallelism occurs, but the interface is satisfied.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the values.",
-			"The brand of the cloneable function wrapper.",
-			"The element type.",
-			"The monoid type."
-		)]
-		///
-		#[document_parameters("The mapping function.", "The identity to fold.")]
-		///
-		#[document_returns("The combined monoid value.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let x = Identity(1);
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		/// let y = par_fold_map::<ArcFnBrand, IdentityBrand, _, _>(f, x);
-		/// assert_eq!(y, "1".to_string());
-		/// ```
-		fn par_fold_map<'a, FnBrand, A, M>(
-			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> M
-		where
-			FnBrand: 'a + SendCloneableFn,
-			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a, {
-			func(fa.0)
-		}
-
-		/// Folds the identity from the right in parallel.
-		///
-		/// This method performs a right-associative fold of the identity. Since `Identity` contains only one element, no actual parallelism occurs.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the values.",
-			"The brand of the cloneable function wrapper.",
-			"The element type.",
-			"The accumulator type."
-		)]
-		///
-		#[document_parameters(
-			"The thread-safe function to apply to each element and the accumulator.",
-			"The initial value of the accumulator.",
-			"The identity to fold."
-		)]
-		///
-		#[document_returns("The final accumulator value.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let x = Identity(1);
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-		/// let y = par_fold_right::<ArcFnBrand, IdentityBrand, _, _>(f, 10, x);
-		/// assert_eq!(y, 11);
-		/// ```
-		fn par_fold_right<'a, FnBrand, A, B>(
-			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
-			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> B
-		where
-			FnBrand: 'a + SendCloneableFn,
-			A: 'a + Clone + Send + Sync,
-			B: Send + Sync + 'a, {
-			func((fa.0, initial))
-		}
-	}
 }
 pub use inner::*;
 
@@ -1019,33 +929,5 @@ mod tests {
 			),
 			Some(Identity(2))
 		);
-	}
-
-	// ParFoldable Tests
-
-	/// Tests `par_fold_map`.
-	#[test]
-	fn par_fold_map_test() {
-		use crate::{
-			brands::*,
-			functions::*,
-		};
-
-		let x = Identity(1);
-		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		assert_eq!(par_fold_map::<ArcFnBrand, IdentityBrand, _, _>(f, x), "1".to_string());
-	}
-
-	/// Tests `par_fold_right`.
-	#[test]
-	fn par_fold_right_test() {
-		use crate::{
-			brands::*,
-			functions::*,
-		};
-
-		let x = Identity(1);
-		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-		assert_eq!(par_fold_right::<ArcFnBrand, IdentityBrand, _, _>(f, 10, x), 11);
 	}
 }

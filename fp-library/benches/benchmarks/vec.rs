@@ -6,7 +6,6 @@ use {
 	},
 	fp_library::{
 		brands::{
-			ArcFnBrand,
 			OptionBrand,
 			RcFnBrand,
 			ResultErrAppliedBrand,
@@ -45,10 +44,7 @@ use {
 				wither,
 			},
 		},
-		functions::{
-			cloneable_fn_new,
-			send_cloneable_fn_new,
-		},
+		functions::cloneable_fn_new,
 	},
 };
 
@@ -562,12 +558,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| {
-					par_fold_map::<ArcFnBrand, VecBrand, _, _>(
-						send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string()),
-						v,
-					)
-				},
+				|v| par_fold_map::<VecBrand, _, _>(|x: i32| x.to_string(), v),
 				BatchSize::SmallInput,
 			)
 		});

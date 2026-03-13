@@ -128,12 +128,12 @@ mod inner {
 	///
 	/// A lawful `Monad` must satisfy three laws:
 	///
-	/// 1. **Left identity**: `bind(pure(a), f) ≡ f(a)` — lifting a value and
+	/// 1. **Left identity**: `bind(pure(a), f) ≡ f(a)`: lifting a value and
 	///    immediately binding it is the same as applying the function directly.
-	/// 2. **Right identity**: `bind(m, pure) ≡ m` — binding a computation to
+	/// 2. **Right identity**: `bind(m, pure) ≡ m`: binding a computation to
 	///    `pure` leaves it unchanged.
-	/// 3. **Associativity**: `bind(bind(m, f), g) ≡ bind(m, |x| bind(f(x), g))`
-	///    — the order of nesting doesn't matter, only the order of operations.
+	/// 3. **Associativity**: `bind(bind(m, f), g) ≡ bind(m, |x| bind(f(x), g))`:
+	///    the order of nesting doesn't matter, only the order of operations.
 	#[document_examples]
 	///
 	/// Monad laws for [`Option`]:

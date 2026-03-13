@@ -48,7 +48,12 @@ pub mod monad;
 pub mod monad_rec;
 pub mod monoid;
 pub mod optics;
+pub mod par_compactable;
+pub mod par_filterable;
 pub mod par_foldable;
+pub mod par_foldable_with_index;
+pub mod par_functor;
+pub mod par_functor_with_index;
 pub mod pipe;
 pub mod plus;
 pub mod pointed;
@@ -69,6 +74,7 @@ pub mod send_unsized_coercible;
 pub mod traversable;
 pub mod traversable_with_index;
 pub mod unsized_coercible;
+pub mod with_index;
 pub mod witherable;
 
 // Automatically re-export all traits defined in submodules.

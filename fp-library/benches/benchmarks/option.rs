@@ -5,7 +5,6 @@ use {
 	},
 	fp_library::{
 		brands::{
-			ArcFnBrand,
 			OptionBrand,
 			RcFnBrand,
 			ResultErrAppliedBrand,
@@ -27,7 +26,6 @@ use {
 			},
 			functor::map,
 			lift::lift2,
-			par_foldable::par_fold_map,
 			pointed::pure,
 			semiapplicative::apply,
 			semimonad::bind,
@@ -40,10 +38,7 @@ use {
 				wither,
 			},
 		},
-		functions::{
-			cloneable_fn_new,
-			send_cloneable_fn_new,
-		},
+		functions::cloneable_fn_new,
 	},
 };
 
@@ -342,20 +337,6 @@ pub fn bench_option(c: &mut Criterion) {
 			b.iter(|| {
 				apply::<RcFnBrand, OptionBrand, _, _>(
 					std::hint::black_box(f.clone()),
-					std::hint::black_box(val),
-				)
-			})
-		});
-		group.finish();
-	}
-
-	// Par Fold Map
-	{
-		let mut group = c.benchmark_group("Option Par Fold Map");
-		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
-			b.iter(|| {
-				par_fold_map::<ArcFnBrand, OptionBrand, _, _>(
-					send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string()),
 					std::hint::black_box(val),
 				)
 			})

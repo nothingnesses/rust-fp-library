@@ -10,14 +10,15 @@ mod inner {
 	/// A `Functor` with an additional index.
 	///
 	/// A `FunctorWithIndex` is a `Functor` that also allows you to access the
-	/// index of each element when mapping over the structure.
+	/// index of each element when mapping over the structure. The index type is
+	/// uniquely determined by the implementing brand via the [`WithIndex`] supertype,
+	/// encoding the functional dependency `f -> i` from PureScript.
 	///
 	/// ### Laws
 	///
 	/// `FunctorWithIndex` instances must satisfy:
 	/// * Identity: `map_with_index(|_, a| a, fa) = fa`.
 	/// * Compatibility with Functor: `map(f, fa) = map_with_index(|_, a| f(a), fa)`.
-	#[document_type_parameters("The index type.")]
 	#[document_examples]
 	///
 	/// FunctorWithIndex laws for [`Vec`]:
@@ -38,7 +39,7 @@ mod inner {
 	/// let f = |a: i32| a * 2;
 	/// assert_eq!(map::<VecBrand, _, _>(f, xs.clone()), VecBrand::map_with_index(|_, a| f(a), xs),);
 	/// ```
-	pub trait FunctorWithIndex<I>: Functor {
+	pub trait FunctorWithIndex: Functor + WithIndex {
 		/// Map a function over the structure, providing the index of each element.
 		#[document_signature]
 		#[document_type_parameters(
@@ -63,7 +64,7 @@ mod inner {
 		/// assert_eq!(result, vec![10, 21, 32]);
 		/// ```
 		fn map_with_index<'a, A: 'a, B: 'a>(
-			f: impl Fn(I, A) -> B + 'a,
+			f: impl Fn(Self::Index, A) -> B + 'a,
 			fa: Self::Of<'a, A>,
 		) -> Self::Of<'a, B>;
 	}

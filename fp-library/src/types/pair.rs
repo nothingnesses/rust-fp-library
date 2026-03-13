@@ -24,12 +24,10 @@ mod inner {
 				Functor,
 				Lift,
 				Monoid,
-				ParFoldable,
 				Pointed,
 				Semiapplicative,
 				Semigroup,
 				Semimonad,
-				SendCloneableFn,
 				Traversable,
 			},
 			impl_kind,
@@ -1102,97 +1100,6 @@ mod inner {
 		}
 	}
 
-	#[document_type_parameters("The type of the first value in the pair.")]
-	impl<First: 'static> ParFoldable for PairFirstAppliedBrand<First> {
-		/// Maps the value to a monoid and returns it in parallel (over second).
-		///
-		/// This method maps the element of the pair to a monoid and then returns it (over second). The mapping operation may be executed in parallel.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the values.",
-			"The brand of the cloneable function wrapper.",
-			"The element type.",
-			"The monoid type."
-		)]
-		///
-		#[document_parameters(
-			"The thread-safe function to map each element to a monoid.",
-			"The pair to fold."
-		)]
-		///
-		#[document_returns("The combined monoid value.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let x = Pair("a".to_string(), 1);
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		/// assert_eq!(
-		/// 	par_fold_map::<ArcFnBrand, PairFirstAppliedBrand<String>, _, _>(f, x),
-		/// 	"1".to_string()
-		/// );
-		/// ```
-		fn par_fold_map<'a, FnBrand, A, M>(
-			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> M
-		where
-			FnBrand: 'a + SendCloneableFn,
-			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a, {
-			func(fa.1)
-		}
-
-		/// Folds the pair from the right in parallel (over second).
-		///
-		/// This method folds the pair by applying a function from right to left, potentially in parallel (over second).
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the values.",
-			"The brand of the cloneable function wrapper.",
-			"The element type.",
-			"The accumulator type."
-		)]
-		///
-		#[document_parameters(
-			"The thread-safe function to apply to each element and the accumulator.",
-			"The initial value.",
-			"The pair to fold."
-		)]
-		///
-		#[document_returns("The final accumulator value.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let x = Pair("a".to_string(), 1);
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-		/// assert_eq!(par_fold_right::<ArcFnBrand, PairFirstAppliedBrand<String>, _, _>(f, 10, x), 11);
-		/// ```
-		fn par_fold_right<'a, FnBrand, A, B>(
-			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
-			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> B
-		where
-			FnBrand: 'a + SendCloneableFn,
-			A: 'a + Clone + Send + Sync,
-			B: Send + Sync + 'a, {
-			func((fa.1, initial))
-		}
-	}
 	// PairSecondAppliedBrand<Second> (Functor over First)
 
 	impl_kind! {
@@ -1637,98 +1544,6 @@ mod inner {
 			F::map(move |a| Pair(a, second.clone()), first)
 		}
 	}
-
-	#[document_type_parameters("The type of the second value in the pair.")]
-	impl<Second: 'static> ParFoldable for PairSecondAppliedBrand<Second> {
-		/// Maps the value to a monoid and returns it in parallel (over first).
-		///
-		/// This method maps the element of the pair to a monoid and then returns it (over first). The mapping operation may be executed in parallel.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the values.",
-			"The brand of the cloneable function wrapper.",
-			"The element type.",
-			"The monoid type."
-		)]
-		///
-		#[document_parameters(
-			"The thread-safe function to map each element to a monoid.",
-			"The pair to fold."
-		)]
-		///
-		#[document_returns("The combined monoid value.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let x = Pair(1, "a".to_string());
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		/// assert_eq!(
-		/// 	par_fold_map::<ArcFnBrand, PairSecondAppliedBrand<String>, _, _>(f, x),
-		/// 	"1".to_string()
-		/// );
-		/// ```
-		fn par_fold_map<'a, FnBrand, A, M>(
-			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> M
-		where
-			FnBrand: 'a + SendCloneableFn,
-			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a, {
-			func(fa.0)
-		}
-
-		/// Folds the pair from the right in parallel (over first).
-		///
-		/// This method folds the pair by applying a function from right to left, potentially in parallel (over first).
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the values.",
-			"The brand of the cloneable function wrapper.",
-			"The element type.",
-			"The accumulator type."
-		)]
-		///
-		#[document_parameters(
-			"The thread-safe function to apply to each element and the accumulator.",
-			"The initial value.",
-			"The pair to fold."
-		)]
-		///
-		#[document_returns("The final accumulator value.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let x = Pair(1, "a".to_string());
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-		/// assert_eq!(par_fold_right::<ArcFnBrand, PairSecondAppliedBrand<String>, _, _>(f, 10, x), 11);
-		/// ```
-		fn par_fold_right<'a, FnBrand, A, B>(
-			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
-			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> B
-		where
-			FnBrand: 'a + SendCloneableFn,
-			A: 'a + Clone + Send + Sync,
-			B: Send + Sync + 'a, {
-			func((fa.0, initial))
-		}
-	}
 }
 pub use inner::*;
 
@@ -1938,50 +1753,5 @@ mod tests {
 		) == bind::<PairFirstAppliedBrand<String>, _, _>(m, |x| {
 			bind::<PairFirstAppliedBrand<String>, _, _>(f(x), g)
 		})
-	}
-
-	// ParFoldable Tests for PairFirstAppliedBrand (Functor over Second)
-
-	/// Tests `par_fold_map` on `PairFirstAppliedBrand`.
-	#[test]
-	fn par_fold_map_pair_with_first() {
-		let x = Pair("a".to_string(), 1);
-		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		assert_eq!(
-			par_fold_map::<ArcFnBrand, PairFirstAppliedBrand<String>, _, _>(f, x),
-			"1".to_string()
-		);
-	}
-
-	/// Tests `par_fold_right` on `PairFirstAppliedBrand`.
-	#[test]
-	fn par_fold_right_pair_with_first() {
-		let x = Pair("a".to_string(), 1);
-		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-		assert_eq!(par_fold_right::<ArcFnBrand, PairFirstAppliedBrand<String>, _, _>(f, 10, x), 11);
-	}
-
-	// ParFoldable Tests for PairSecondAppliedBrand (Functor over First)
-
-	/// Tests `par_fold_map` on `PairSecondAppliedBrand`.
-	#[test]
-	fn par_fold_map_pair_with_second() {
-		let x = Pair(1, "a".to_string());
-		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		assert_eq!(
-			par_fold_map::<ArcFnBrand, PairSecondAppliedBrand<String>, _, _>(f, x),
-			"1".to_string()
-		);
-	}
-
-	/// Tests `par_fold_right` on `PairSecondAppliedBrand`.
-	#[test]
-	fn par_fold_right_pair_with_second() {
-		let x = Pair(1, "a".to_string());
-		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-		assert_eq!(
-			par_fold_right::<ArcFnBrand, PairSecondAppliedBrand<String>, _, _>(f, 10, x),
-			11
-		);
 	}
 }

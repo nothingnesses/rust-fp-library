@@ -86,7 +86,7 @@ mod inner {
 			B,
 		> for Mapped<Brand>
 	where
-		Brand: FunctorWithIndex<I>,
+		Brand: FunctorWithIndex<Index = I>,
 		A: 'a,
 		B: 'a,
 		I: 'a,
@@ -340,7 +340,7 @@ mod inner {
 			Mapped<Brand>,
 		>
 	where
-		Brand: FunctorWithIndex<I>,
+		Brand: FunctorWithIndex<Index = I>,
 		A: 'a,
 		B: 'a,
 		I: 'a,
@@ -580,7 +580,7 @@ mod inner {
 			Mapped<Brand>,
 		>
 	where
-		Brand: FunctorWithIndex<I>,
+		Brand: FunctorWithIndex<Index = I>,
 		A: 'a,
 		I: 'a,
 	{

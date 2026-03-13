@@ -95,6 +95,7 @@
                 pkgs.cargo-edit
                 pkgs.bacon
                 pkgs.rust-analyzer
+                pkgs.gh
                 pkgs.just
                 pkgs.python3
                 # For criterion.rs
