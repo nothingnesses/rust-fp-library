@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-03-13
+
+### Added
+- **`WithIndex` supertrait**: New trait encoding the functional dependency `f -> i` from PureScript, providing an associated `Index` type that uniquely determines the index type for a brand. Prevents inconsistent index types across `FunctorWithIndex`, `FoldableWithIndex`, and `TraversableWithIndex` for the same brand.
+- **Parallel trait hierarchy**: A full set of parallel type classes mirroring the sequential ones, all accepting plain `impl Fn + Send + Sync` closures with no wrapper types required:
+  - `ParFunctor` with `par_map`.
+  - `ParCompactable` with `par_compact` and `par_separate`.
+  - `ParFilterable` (extends `ParFunctor + ParCompactable`) with `par_filter_map` and `par_filter`, including default implementations derived from `par_map` + `par_compact`.
+  - `ParFunctorWithIndex` (extends `ParFunctor + FunctorWithIndex`) with `par_map_with_index`.
+  - `ParFoldableWithIndex` (extends `ParFoldable + FoldableWithIndex`) with `par_fold_map_with_index`.
+- **Parallel trait implementations** for `VecBrand` and `CatListBrand`: `ParFunctor`, `ParCompactable`, `ParFilterable`, `ParFoldable`, `ParFunctorWithIndex`, `ParFoldableWithIndex`.
+- **`WithIndex` implementations**: `VecBrand` (`Index = usize`), `CatListBrand` (`Index = usize`), `OptionBrand` (`Index = ()`).
+- **Inherent parallel methods** on `Vec` and `CatList`: `par_map`, `par_compact`, `par_separate`, `par_filter_map`, `par_filter`, `par_fold_map`, `par_map_with_index`, `par_fold_map_with_index`.
+
+### Changed
+- **`ParFoldable` redesigned (API Breaking)**: The trait now accepts plain `impl Fn(A) -> M + Send + Sync` closures instead of requiring `SendCloneableFn` wrapper types and an `FnBrand` type parameter. The `A: Clone` bound has been removed, and `M: Sync` relaxed to `M: Send`. The `Foldable` supertrait requirement has been replaced with `Kind`.
+- **`*WithIndex` traits refactored (API Breaking)**: `FunctorWithIndex`, `FoldableWithIndex`, and `TraversableWithIndex` no longer take a generic index type parameter `<I>`. Instead, the index type is obtained from the `WithIndex` supertrait's associated `Index` type. Trait bounds like `Brand: FunctorWithIndex<usize>` become `Brand: FunctorWithIndex<Index = usize>`.
+- **Indexed optics trait bounds updated**: All indexed optic constructors updated from `FunctorWithIndex<I>` / `FoldableWithIndex<I>` / `TraversableWithIndex<I>` bounds to use associated type equality (e.g., `FoldableWithIndex<Index = I>`).
+
+### Removed
+- **`par_fold_right` (API Breaking)**: Removed `ParFoldable::par_fold_right` method and its free function. The endofunction encoding required for a general right fold has a sequential application step, making it not genuinely parallel. Use `par_fold_map` with a commutative `Monoid` instead.
+- **`SendEndofunction` (API Breaking)**: Removed the thread-safe endofunction wrapper type and its module. This type was used internally by the removed `par_fold_right`.
+- **`ParFoldable` implementations for single-element types (API Breaking)**: Removed from `IdentityBrand`, `OptionBrand`, `PairFirstAppliedBrand`, `PairSecondAppliedBrand`, `ResultErrAppliedBrand`, `ResultOkAppliedBrand`, `Tuple1Brand`, `Tuple2FirstAppliedBrand`, `Tuple2SecondAppliedBrand`, `StepLoopAppliedBrand`, and `StepDoneAppliedBrand`, where parallelism provided no benefit.
+
 ## [0.12.0] - 2026-03-13
 
 ### Added
