@@ -13,12 +13,9 @@ use {
 		Span,
 		TokenStream,
 	},
-	std::collections::HashMap,
 	syn::{
 		GenericParam,
 		Generics,
-		Ident,
-		LitStr,
 		parse::{
 			Parse,
 			ParseStream,
@@ -130,80 +127,6 @@ pub fn parse_entry_count(
 	Ok((expected, provided))
 }
 
-/// Parses a mapping of named entries, checking for completeness and extra entries.
-///
-/// Returns both expected and provided if valid.
-///
-/// # Parameters
-/// - `expected`: Vec of expected field names
-/// - `provided`: HashMap of provided field names to descriptions
-/// - `span`: The span for error reporting
-/// - `context`: A string describing what is being validated (e.g., "field", "parameter")
-///
-/// # Returns
-/// - `Ok((expected, provided))` if all expected fields are present and no extra fields exist
-/// - `Err` with a descriptive error otherwise
-pub fn parse_named_entries<'a>(
-	expected: &'a [Ident],
-	provided: HashMap<Ident, LitStr>,
-	span: Span,
-	context: &str,
-) -> Result<(&'a [Ident], HashMap<Ident, LitStr>)> {
-	// Check that all expected entries have documentation
-	for expected_name in expected {
-		if !provided.contains_key(expected_name) {
-			return Err(Error::Parse(syn::Error::new(
-				span,
-				format_missing_doc_error(context, &expected_name.to_string()),
-			)));
-		}
-	}
-
-	// Check that no extra entries are documented
-	for provided_name in provided.keys() {
-		if !expected.iter().any(|e| e == provided_name) {
-			return Err(Error::Parse(syn::Error::new(
-				provided_name.span(),
-				format_nonexistent_item_error(
-					context,
-					&provided_name.to_string(),
-					&expected.iter().map(|e| e.to_string()).collect::<Vec<_>>(),
-				),
-			)));
-		}
-	}
-
-	Ok((expected, provided))
-}
-
-/// Parses duplicate check during HashMap insertion.
-///
-/// Returns the value if it's not a duplicate.
-///
-/// # Parameters
-/// - `name`: The identifier being checked
-/// - `value`: The new value being inserted
-/// - `existing_value`: The result of HashMap::insert (Some if duplicate, None if new)
-/// - `context`: A string describing what is being validated
-///
-/// # Returns
-/// - `Ok(value)` if no duplicate
-/// - `Err` with a descriptive error if duplicate found
-pub fn parse_no_duplicate<T>(
-	name: &Ident,
-	value: T,
-	existing_value: Option<T>,
-	context: &str,
-) -> Result<T> {
-	if existing_value.is_some() {
-		return Err(Error::Parse(syn::Error::new(
-			name.span(),
-			format_duplicate_doc_error(context, &name.to_string()),
-		)));
-	}
-	Ok(value)
-}
-
 /// Generic helper to validate that a count is non-zero.
 ///
 /// Returns the count if valid, or an error with a custom message.
@@ -229,30 +152,6 @@ where
 	Ok(count)
 }
 
-/// Parses that a type has at least one field (not zero-sized).
-///
-/// Returns the field count if valid.
-///
-/// # Parameters
-/// - `field_count`: The number of fields
-/// - `span`: The span for error reporting
-/// - `type_kind`: A string describing the type (e.g., "struct", "variant")
-/// - `attribute_name`: The name of the attribute being applied
-///
-/// # Returns
-/// - `Ok(field_count)` if field_count > 0
-/// - `Err` if field_count == 0
-pub fn parse_not_zero_sized(
-	field_count: usize,
-	span: Span,
-	type_kind: &str,
-	attribute_name: &str,
-) -> Result<usize> {
-	parse_non_zero_count(field_count, span, || {
-		format!("{attribute_name} cannot be used on zero-sized types ({type_kind}s with no fields)")
-	})
-}
-
 /// Parses that documentable items are provided (not empty).
 ///
 /// Returns the count if valid.
@@ -276,66 +175,6 @@ pub fn parse_has_documentable_items(
 	item_description: &str,
 ) -> Result<usize> {
 	parse_non_zero_count(count, span, || format!("Cannot use #[{attr_name}] on {item_description}"))
-}
-
-/// Helper function to capitalize the first character of a string.
-fn capitalize_first(s: &str) -> String {
-	let mut chars = s.chars();
-	match chars.next() {
-		None => String::new(),
-		Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-	}
-}
-
-/// Format a missing documentation error message.
-///
-/// # Parameters
-/// - `context`: A string describing what is being validated (e.g., "field", "parameter")
-/// - `name`: The name of the item missing documentation
-///
-/// # Returns
-/// A formatted error message string
-pub fn format_missing_doc_error(
-	context: &str,
-	name: &str,
-) -> String {
-	format!("Missing documentation for {context} `{name}`. All {context}s must be documented.")
-}
-
-/// Format a duplicate documentation error message.
-///
-/// # Parameters
-/// - `context`: A string describing what is being validated (e.g., "field", "parameter")
-/// - `name`: The name of the item with duplicate documentation
-///
-/// # Returns
-/// A formatted error message string
-pub fn format_duplicate_doc_error(
-	context: &str,
-	name: &str,
-) -> String {
-	format!("Duplicate documentation for {context} `{name}`")
-}
-
-/// Format a non-existent item error message.
-///
-/// # Parameters
-/// - `context`: A string describing what is being validated (e.g., "field", "parameter")
-/// - `name`: The name of the non-existent item
-/// - `available`: List of available item names
-///
-/// # Returns
-/// A formatted error message string
-pub fn format_nonexistent_item_error(
-	context: &str,
-	name: &str,
-	available: &[impl std::fmt::Display],
-) -> String {
-	format!(
-		"{} `{name}` does not exist. Available {context}s: {}",
-		capitalize_first(context),
-		available.iter().map(|f| format!("`{f}`")).collect::<Vec<_>>().join(", ")
-	)
 }
 
 /// Parses and validates parameter documentation pairs.
@@ -373,10 +212,7 @@ pub fn parse_parameter_documentation_pairs(
 
 #[cfg(test)]
 mod tests {
-	use {
-		super::*,
-		quote::format_ident,
-	};
+	use super::*;
 
 	#[test]
 	fn test_parse_many() {
@@ -444,77 +280,6 @@ mod tests {
 		let error = result.unwrap_err().to_string();
 		assert!(error.contains("Expected exactly 3"));
 		assert!(error.contains("found 2"));
-	}
-
-	#[test]
-	fn test_parse_named_entries_complete() {
-		let expected = vec![format_ident!("x"), format_ident!("y")];
-		let mut provided = HashMap::new();
-		provided.insert(format_ident!("x"), syn::parse_quote!("X coord"));
-		provided.insert(format_ident!("y"), syn::parse_quote!("Y coord"));
-
-		let result = parse_named_entries(&expected, provided, Span::call_site(), "field");
-		assert!(result.is_ok());
-		let (exp, prov) = result.unwrap();
-		assert_eq!(exp.len(), 2);
-		assert_eq!(prov.len(), 2);
-	}
-
-	#[test]
-	fn test_parse_named_entries_missing() {
-		let expected = vec![format_ident!("x"), format_ident!("y")];
-		let mut provided = HashMap::new();
-		provided.insert(format_ident!("x"), syn::parse_quote!("X coord"));
-
-		let result = parse_named_entries(&expected, provided, Span::call_site(), "field");
-		assert!(result.is_err());
-		let error = result.unwrap_err().to_string();
-		assert!(error.contains("Missing documentation for field `y`"));
-	}
-
-	#[test]
-	fn test_parse_named_entries_extra() {
-		let expected = vec![format_ident!("x")];
-		let mut provided = HashMap::new();
-		provided.insert(format_ident!("x"), syn::parse_quote!("X coord"));
-		provided.insert(format_ident!("z"), syn::parse_quote!("Z coord"));
-
-		let result = parse_named_entries(&expected, provided, Span::call_site(), "field");
-		assert!(result.is_err());
-		let error = result.unwrap_err().to_string();
-		assert!(error.contains("Field `z` does not exist"));
-	}
-
-	#[test]
-	fn test_parse_no_duplicate_ok() {
-		let name = format_ident!("x");
-		let result = parse_no_duplicate(&name, "new_value", None::<&str>, "field");
-		assert!(result.is_ok());
-		assert_eq!(result.unwrap(), "new_value");
-	}
-
-	#[test]
-	fn test_parse_no_duplicate_error() {
-		let name = format_ident!("x");
-		let result = parse_no_duplicate(&name, "new_value", Some("previous"), "field");
-		assert!(result.is_err());
-		let error = result.unwrap_err().to_string();
-		assert!(error.contains("Duplicate documentation for field `x`"));
-	}
-
-	#[test]
-	fn test_parse_not_zero_sized_ok() {
-		let result = parse_not_zero_sized(1, Span::call_site(), "struct", "#[document_fields]");
-		assert!(result.is_ok());
-		assert_eq!(result.unwrap(), 1);
-	}
-
-	#[test]
-	fn test_parse_not_zero_sized_zero() {
-		let result = parse_not_zero_sized(0, Span::call_site(), "struct", "#[document_fields]");
-		assert!(result.is_err());
-		let error = result.unwrap_err().to_string();
-		assert!(error.contains("zero-sized types"));
 	}
 
 	#[test]

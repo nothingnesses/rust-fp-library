@@ -107,7 +107,6 @@ mod inner {
 		"The base functor (must implement [`Functor`]).",
 		"The result type."
 	)]
-	#[document_fields]
 	pub enum FreeInner<F, A>
 	where
 		F: Functor + 'static,

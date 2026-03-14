@@ -9,16 +9,19 @@ use {
 			Result as OurResult,
 			WarningEmitter,
 			config::Config,
-			constants::attributes::{
-				ALLOW_NAMED_GENERICS,
-				DOCUMENT_ATTR_ORDER,
-				DOCUMENT_EXAMPLES,
-				DOCUMENT_MODULE,
-				DOCUMENT_PARAMETERS,
-				DOCUMENT_RETURNS,
-				DOCUMENT_SIGNATURE,
-				DOCUMENT_TYPE_PARAMETERS,
-				NO_VALIDATION,
+			constants::{
+				attributes::{
+					ALLOW_NAMED_GENERICS,
+					DOCUMENT_ATTR_ORDER,
+					DOCUMENT_EXAMPLES,
+					DOCUMENT_MODULE,
+					DOCUMENT_PARAMETERS,
+					DOCUMENT_RETURNS,
+					DOCUMENT_SIGNATURE,
+					DOCUMENT_TYPE_PARAMETERS,
+					NO_VALIDATION,
+				},
+				markers::KIND_PREFIX,
 			},
 			error_handling::ErrorCollector,
 		},
@@ -46,6 +49,7 @@ use {
 		Item,
 		ItemMod,
 		TraitItem,
+		TypeParamBound,
 		parse::{
 			Parse,
 			ParseStream,
@@ -560,12 +564,29 @@ fn validate_trait_documentation(
 	item_trait: &syn::ItemTrait,
 	warnings: &mut WarningEmitter,
 ) {
+	// Warn if trait uses raw Kind_* supertrait instead of #[kind(...)] attribute
+	for bound in &item_trait.supertraits {
+		if let TypeParamBound::Trait(trait_bound) = bound
+			&& let Some(segment) = trait_bound.path.segments.last()
+			&& segment.ident.to_string().starts_with(KIND_PREFIX)
+		{
+			warnings.warn(
+				segment.ident.span(),
+				format!(
+					"Trait `{}` uses raw `{}` supertrait. Use `#[kind(...)]` attribute instead",
+					item_trait.ident, segment.ident
+				),
+			);
+		}
+	}
+
+	let label = format!("Trait `{}`", item_trait.ident);
 	validate_container_documentation(
 		&item_trait.attrs,
 		&item_trait.generics,
 		trait_has_receiver_methods(item_trait),
 		item_trait.span(),
-		"Trait",
+		&label,
 		warnings,
 	);
 

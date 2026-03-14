@@ -314,3 +314,36 @@ fn test_trait_support_integration() {
 fn test_trait_level_document_parameters_integration() {
 	// Compile-time test: trait-level #[document_parameters] with receiver doc
 }
+
+/// Trait with #[document_signature] on methods — correct ordering.
+#[document_module]
+mod test_trait_signature_with_examples {
+	use fp_macros::{
+		document_examples,
+		document_returns,
+	};
+
+	#[allow(dead_code)]
+	/// A test trait with examples.
+	#[document_examples]
+	///
+	/// ```
+	/// assert!(true);
+	/// ```
+	pub trait Testable {
+		/// Does a thing.
+		#[fp_macros::document_signature]
+		#[document_returns("A result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// assert!(true);
+		/// ```
+		fn do_thing() -> bool;
+	}
+}
+
+#[test]
+fn test_trait_signature_with_examples() {
+	// Compile-time test: #[document_signature] on trait methods
+}

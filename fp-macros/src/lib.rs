@@ -30,7 +30,6 @@ use {
 	},
 	documentation::{
 		document_examples_worker,
-		document_fields_worker,
 		document_module_worker,
 		document_parameters_worker,
 		document_returns_worker,
@@ -44,6 +43,7 @@ use {
 		apply_worker,
 		generate_name,
 		impl_kind_worker,
+		kind_attr_worker,
 		trait_kind_worker,
 	},
 	m_do::{
@@ -112,7 +112,13 @@ use {
 /// * Type aliases: `type MyKind = Kind!(...);` (Invalid)
 /// * Trait aliases: `trait MyKind = Kind!(...);` (Invalid)
 ///
-/// In these cases, you must use the generated name directly (e.g., `Kind_...`).
+/// For supertrait bounds, use the [`kind`] attribute macro instead:
+/// ```ignore
+/// #[kind(type Of<'a, A: 'a>: 'a;)]
+/// pub trait Functor { ... }
+/// ```
+///
+/// For other positions, you must use the generated name directly (e.g., `Kind_...`).
 #[proc_macro]
 #[allow(non_snake_case)]
 pub fn Kind(input: TokenStream) -> TokenStream {
@@ -361,6 +367,59 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 pub fn Apply(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as ApplyInput);
 	match apply_worker(input) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Adds a `Kind` supertrait bound to a trait definition.
+///
+/// This attribute macro parses a Kind signature and adds the corresponding
+/// `Kind_` trait as a supertrait bound, avoiding the need to reference
+/// hash-based trait names directly.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// #[kind(type AssocName<Params>: Bounds;)]
+/// pub trait MyTrait {
+///     // ...
+/// }
+/// ```
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// #[kind(type Of<'a, A: 'a>: 'a;)]
+/// pub trait Functor {
+///     fn map<'a, A: 'a, B: 'a>(
+///         f: impl Fn(A) -> B + 'a,
+///         fa: Apply!(<Self as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, A>),
+///     ) -> Apply!(<Self as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>);
+/// }
+///
+/// // Expanded code
+/// pub trait Functor: Kind_cdc7cd43dac7585f {
+///     // body unchanged
+/// }
+/// ```
+///
+/// ```ignore
+/// // Works with existing supertraits
+/// #[kind(type Of<'a, A: 'a>: 'a;)]
+/// pub trait Monad: Applicative {
+///     // Kind_ bound is appended: Monad: Applicative + Kind_...
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn kind(
+	attr: TokenStream,
+	item: TokenStream,
+) -> TokenStream {
+	let attr = parse_macro_input!(attr as AssociatedTypes);
+	let item = parse_macro_input!(item as syn::ItemTrait);
+	match kind_attr_worker(attr, item) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}
@@ -797,152 +856,6 @@ pub fn document_examples(
 	item: TokenStream,
 ) -> TokenStream {
 	match document_examples_worker(attr.into(), item.into()) {
-		Ok(tokens) => tokens.into(),
-		Err(e) => e.to_compile_error().into(),
-	}
-}
-
-/// Generates documentation for struct fields or enum variant fields.
-///
-/// This macro analyzes a struct or enum and generates documentation comments for its fields.
-/// It can be used on named structs, tuple structs, and enums with variants that have fields.
-///
-/// ### Syntax
-///
-/// For named structs:
-/// ```ignore
-/// #[document_fields(
-///     field_name: "Description for field_name",
-///     other_field: "Description for other_field",
-///     ...
-/// )]
-/// pub struct MyStruct {
-///     pub field_name: Type1,
-///     pub other_field: Type2,
-/// }
-/// ```
-///
-/// For tuple structs:
-/// ```ignore
-/// #[document_fields(
-///     "Description for first field",
-///     "Description for second field",
-///     ...
-/// )]
-/// pub struct MyTuple(Type1, Type2);
-/// ```
-///
-/// For enums (similar to [`#[document_module]`](macro@document_module)):
-/// ```ignore
-/// #[document_fields]
-/// pub enum MyEnum {
-///     #[document_fields(
-///         field1: "Description for field1",
-///         field2: "Description for field2"
-///     )]
-///     Variant1 {
-///         field1: Type1,
-///         field2: Type2,
-///     },
-///
-///     #[document_fields(
-///         "Description for tuple field"
-///     )]
-///     Variant2(Type3),
-/// }
-/// ```
-///
-/// * For structs with named fields: A comma-separated list of `field_ident: "description"` pairs.
-/// * For structs with tuple fields: A comma-separated list of string literal descriptions, in order.
-/// * For enums: No arguments on the enum itself. Use `#[document_fields(...)]` on individual variants.
-///
-/// ### Generates
-///
-/// A list of documentation comments, one for each field, prepended to the struct or variant definition.
-///
-/// ### Examples
-///
-/// ```ignore
-/// // Invocation (named struct)
-/// #[document_fields(
-///     x: "The x coordinate",
-///     y: "The y coordinate"
-/// )]
-/// pub struct Point {
-///     pub x: i32,
-///     pub y: i32,
-/// }
-///
-/// // Expanded code
-/// /// ### Fields
-/// /// * `x`: The x coordinate
-/// /// * `y`: The y coordinate
-/// pub struct Point {
-///     pub x: i32,
-///     pub y: i32,
-/// }
-/// ```
-///
-/// ```ignore
-/// // Invocation (tuple struct)
-/// #[document_fields(
-///     "The wrapped morphism"
-/// )]
-/// pub struct Endomorphism<'a, C, A>(
-///     pub Apply!(<C as Kind!(type Of<'a, T, U>;)>::Of<'a, A, A>),
-/// );
-///
-/// // Expanded code
-/// /// ### Fields
-/// /// * `0`: The wrapped morphism
-/// pub struct Endomorphism<'a, C, A>(
-///     pub Apply!(<C as Kind!(type Of<'a, T, U>;)>::Of<'a, A, A>),
-/// );
-/// ```
-///
-/// ```ignore
-/// // Invocation (enum with variants)
-/// #[document_fields]
-/// pub enum FreeInner<F, A> {
-///     Pure(A),
-///
-///     #[document_fields(
-///         head: "The initial computation.",
-///         continuations: "The list of continuations."
-///     )]
-///     Bind {
-///         head: Box<Free<F, A>>,
-///         continuations: CatList<Continuation<F>>,
-///     },
-/// }
-///
-/// // Expanded code
-/// pub enum FreeInner<F, A> {
-///     Pure(A),
-///
-///     /// * `head`: The initial computation.
-///     /// * `continuations`: The list of continuations.
-///     Bind {
-///         head: Box<Free<F, A>>,
-///         continuations: CatList<Continuation<F>>,
-///     },
-/// }
-/// ```
-///
-/// ### Constraints
-///
-/// * All fields must be documented - the macro will error if any field is missing documentation.
-/// * The macro cannot be used on zero-sized types (unit structs/variants or structs/variants with no fields).
-/// * For named fields, you must use the `field_name: "description"` syntax.
-/// * For tuple fields, you must use just `"description"` (no field names).
-/// * For enums, the outer `#[document_fields]` must have no arguments.
-/// * The macro will error if the wrong syntax is used for the field type.
-#[proc_macro_attribute]
-pub fn document_fields(
-	attr: TokenStream,
-	item: TokenStream,
-) -> TokenStream {
-	match document_fields_worker(attr.into(), item.into()) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}

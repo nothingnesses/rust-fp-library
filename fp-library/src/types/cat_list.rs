@@ -2463,8 +2463,10 @@ mod inner {
 	/// An iterator that consumes a `CatList`.
 	#[document_type_parameters("The type of the elements in the list.")]
 	///
-	#[document_fields("The list being iterated over.")]
-	pub struct CatListIterator<A>(CatList<A>);
+	pub struct CatListIterator<A>(
+		/// The list being iterated over.
+		CatList<A>,
+	);
 
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The iterator state.")]

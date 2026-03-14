@@ -31,7 +31,7 @@ mod inner {
 	///
 	/// ### Hierarchy Unification
 	///
-	/// This trait inherits from [`Kind_cdc7cd43dac7585f`], ensuring that all contravariant
+	/// This trait inherits from [`Kind!(type Of<'a, A: 'a>: 'a;)`](crate::kinds::Kind_cdc7cd43dac7585f), ensuring that all contravariant
 	/// contexts satisfy the strict lifetime requirements where the type argument must
 	/// outlive the context's application lifetime.
 	///
@@ -72,7 +72,8 @@ mod inner {
 	/// assert_eq!(left(5), right(5));
 	/// assert_eq!(left(-10), right(-10));
 	/// ```
-	pub trait Contravariant: Kind_cdc7cd43dac7585f {
+	#[kind(type Of<'a, A: 'a>: 'a;)]
+	pub trait Contravariant {
 		/// Maps a function contravariantly over the context.
 		///
 		/// This method applies a function to the input before it is consumed by the context.

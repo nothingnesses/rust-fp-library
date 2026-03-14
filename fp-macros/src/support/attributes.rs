@@ -48,6 +48,32 @@ pub fn has_attribute(
 	attrs.iter().any(|attr| attr_matches(attr, name))
 }
 
+/// Counts the number of attributes with the given name.
+pub fn count_attributes(
+	attrs: &[Attribute],
+	name: &str,
+) -> usize {
+	attrs.iter().filter(|attr| attr_matches(attr, name)).count()
+}
+
+/// Returns an error if the attribute list contains a duplicate of the given attribute.
+///
+/// Used by standalone attribute macros: the current attribute is consumed by rustc,
+/// so any remaining occurrence in the parsed item is a duplicate.
+pub fn reject_duplicate_attribute(
+	attrs: &[Attribute],
+	name: &str,
+) -> crate::core::Result<()> {
+	if has_attribute(attrs, name) {
+		Err(crate::core::Error::validation(
+			proc_macro2::Span::call_site(),
+			format!("#[{name}] can only be used once per item. Remove the duplicate attribute"),
+		))
+	} else {
+		Ok(())
+	}
+}
+
 /// Returns true if the attribute should be kept in generated code.
 ///
 /// This filters out documentation-specific attributes like `document_default`
@@ -125,9 +151,8 @@ pub fn filter_doc_attributes(attrs: &[Attribute]) -> impl Iterator<Item = &Attri
 /// # Examples
 ///
 /// ```ignore
-/// let idx = find_attribute(&item.attrs, "document_fields").unwrap();
+/// let idx = find_attribute(&item.attrs, "document_signature").unwrap();
 /// let tokens = remove_attribute_tokens(&mut item.attrs, idx)?;
-/// let args: DocumentFieldParameters = syn::parse2(tokens)?;
 /// ```
 pub fn remove_attribute_tokens(
 	attrs: &mut Vec<Attribute>,
@@ -187,7 +212,7 @@ pub fn parse_unique_attribute_value(
 /// use crate::support::attributes::AttributeExt;
 ///
 /// // Find and remove a parsed attribute
-/// if let Some(args) = item.attrs.find_and_remove::<DocumentFieldParameters>("document_fields")? {
+/// if let Some(args) = item.attrs.find_and_remove::<MyParsedArgs>("my_attribute")? {
 ///     // Process args
 /// }
 ///
@@ -211,7 +236,7 @@ pub trait AttributeExt {
 	/// ```ignore
 	/// use crate::support::attributes::AttributeExt;
 	///
-	/// if let Some(args) = item.attrs.find_and_remove::<DocumentFieldParameters>("document_fields")? {
+	/// if let Some(args) = item.attrs.find_and_remove::<MyParsedArgs>("my_attribute")? {
 	///     // The attribute has been removed and args are parsed
 	/// }
 	/// ```

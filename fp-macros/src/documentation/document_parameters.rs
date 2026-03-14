@@ -11,6 +11,7 @@ use {
 			Parameter,
 			attributes::{
 				find_attribute,
+				reject_duplicate_attribute,
 				remove_attribute_tokens,
 			},
 			documentation_parameters::{
@@ -173,6 +174,8 @@ fn process_impl_block(
 	attr: TokenStream,
 	mut item_impl: syn::ItemImpl,
 ) -> Result<TokenStream> {
+	reject_duplicate_attribute(&item_impl.attrs, DOCUMENT_PARAMETERS)?;
+
 	// Parse the receiver documentation
 	let receiver_doc = syn::parse2::<ReceiverDoc>(attr.clone()).map_err(|e| {
 		syn::Error::new(
@@ -219,6 +222,8 @@ fn process_trait_block(
 	attr: TokenStream,
 	mut item_trait: syn::ItemTrait,
 ) -> Result<TokenStream> {
+	reject_duplicate_attribute(&item_trait.attrs, DOCUMENT_PARAMETERS)?;
+
 	// Parse the receiver documentation
 	let receiver_doc = syn::parse2::<ReceiverDoc>(attr.clone()).map_err(|e| {
 		syn::Error::new(
@@ -276,7 +281,7 @@ pub fn document_parameters_worker(
 	}
 
 	// Otherwise, process as a function with generate_doc_comments
-	generate_doc_comments(attr, item_tokens, "Parameters", |generic_item| {
+	generate_doc_comments(attr, item_tokens, "Parameters", DOCUMENT_PARAMETERS, |generic_item| {
 		let config = get_config();
 
 		let sig = generic_item.signature().ok_or_else(|| {

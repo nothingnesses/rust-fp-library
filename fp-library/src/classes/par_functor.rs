@@ -65,7 +65,8 @@ mod inner {
 	/// 	par_map::<VecBrand, _, _>(f, par_map::<VecBrand, _, _>(g, xs)),
 	/// );
 	/// ```
-	pub trait ParFunctor: Kind_cdc7cd43dac7585f {
+	#[kind(type Of<'a, A: 'a>: 'a;)]
+	pub trait ParFunctor {
 		/// Maps a function over a data structure in parallel.
 		///
 		/// When the `rayon` feature is enabled, elements are processed across multiple threads.

@@ -4,7 +4,7 @@
 //!
 //! ### Hierarchy Unification
 //!
-//! `FnBrand` uses [`Kind_266801a817966495`](crate::kinds::Kind_266801a817966495), which enforces
+//! `FnBrand` uses [`Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)`](crate::kinds::Kind_266801a817966495), which enforces
 //! that input and output types outlive the function wrapper's lifetime. This allows `FnBrand` to
 //! be used consistently across the unified profunctor and arrow hierarchies, while supporting
 //! non-static types where the lifetimes are correctly tracked.

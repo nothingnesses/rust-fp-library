@@ -2,3 +2,4 @@
 *.code-workspace
 /target
 .vscode
+.claude/test-cache/

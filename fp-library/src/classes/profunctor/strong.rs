@@ -35,7 +35,7 @@ mod inner {
 	///
 	/// ### Hierarchy Unification
 	///
-	/// This trait uses the strict Kind signature from [`Kind_266801a817966495`]. This ensures
+	/// This trait uses the strict Kind signature from [`Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)`](crate::kinds::Kind_266801a817966495). This ensures
 	/// that when lifting a profunctor, the secondary component of the product type (the context)
 	/// correctly satisfies lifetime requirements relative to the profunctor's application.
 	///

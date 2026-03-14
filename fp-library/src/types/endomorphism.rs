@@ -39,18 +39,17 @@ mod inner {
 	///
 	/// ### Hierarchy Unification
 	///
-	/// `Endomorphism` now requires that its object type `A` outlive the lifetime `'a` of the
+	/// `Endomorphism` requires that its object type `A` outlive the lifetime `'a` of the
 	/// endomorphism itself (`A: 'a`). This is necessary to satisfy the requirements of the
-	/// unified [`Kind_266801a817966495`] used by the [`Category`] hierarchy.
+	/// unified [`Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)`](crate::kinds::Kind_266801a817966495) used by the [`Category`] hierarchy.
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
 	///
-	#[document_fields("The wrapped morphism.")]
-	///
 	pub struct Endomorphism<'a, C: Category, A: 'a>(
+		/// The wrapped morphism.
 		pub Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>),
 	);
 

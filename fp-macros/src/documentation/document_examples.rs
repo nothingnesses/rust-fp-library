@@ -10,6 +10,7 @@ use {
 		},
 		support::{
 			ast::RustAst,
+			attributes::reject_duplicate_attribute,
 			generate_documentation::insert_doc_comment,
 		},
 	},
@@ -178,14 +179,7 @@ pub fn document_examples_worker(
 	let is_function = ast.signature().is_some();
 
 	// Check for duplicate #[document_examples]
-	let has_duplicate = ast.attributes().iter().any(|a| a.path().is_ident(DOCUMENT_EXAMPLES));
-	if has_duplicate {
-		return Err(syn::Error::new(
-			proc_macro2::Span::call_site(),
-			format!("#[{DOCUMENT_EXAMPLES}] should only be applied once per item"),
-		)
-		.into());
-	}
+	reject_duplicate_attribute(ast.attributes(), DOCUMENT_EXAMPLES)?;
 
 	// Extract and validate doc comment code blocks
 	let doc_content = extract_doc_content(ast.attributes());

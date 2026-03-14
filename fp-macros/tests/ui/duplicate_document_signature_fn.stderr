@@ -1,0 +1,7 @@
+error: Validation error: #[document_signature] can only be used once per item. Remove the duplicate attribute
+ --> tests/ui/duplicate_document_signature_fn.rs:8:1
+  |
+8 | #[document_signature]
+  | ^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `document_signature` (in Nightly builds, run with -Z macro-backtrace for more info)

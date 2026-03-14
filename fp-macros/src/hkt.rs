@@ -11,6 +11,7 @@ pub mod associated_type;
 pub mod canonicalizer;
 pub mod impl_kind;
 pub mod input;
+pub mod kind_attr;
 pub mod trait_kind;
 
 // Only needed for tests
@@ -31,5 +32,6 @@ pub use {
 		AssociatedType,
 		AssociatedTypes,
 	},
+	kind_attr::kind_attr_worker,
 	trait_kind::trait_kind_worker,
 };

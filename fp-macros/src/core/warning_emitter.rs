@@ -10,14 +10,20 @@ use {
 		TokenStream,
 	},
 	quote::ToTokens,
+	std::sync::atomic::{
+		AtomicUsize,
+		Ordering,
+	},
 };
+
+/// Global counter ensuring unique warning names across all proc-macro invocations.
+static GLOBAL_WARNING_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 /// Collects warnings and converts them to token streams for compile-time emission.
 ///
 /// Analogous to `ErrorCollector` but produces warnings (via `#[deprecated]`)
 /// instead of `compile_error!` invocations.
 pub struct WarningEmitter {
-	counter: usize,
 	warnings: Vec<TokenStream>,
 }
 
@@ -25,22 +31,21 @@ impl WarningEmitter {
 	/// Create a new, empty warning emitter.
 	pub fn new() -> Self {
 		Self {
-			counter: 0,
 			warnings: Vec::new(),
 		}
 	}
 
 	/// Emit a warning with the given span and message.
 	///
-	/// Each warning gets a unique name (`_fp_macros_warning_{counter}`) to avoid
-	/// name collisions when multiple warnings are emitted in a single expansion.
+	/// Each warning gets a globally unique name (`_fp_macros_warning_{id}`) to avoid
+	/// name collisions across multiple macro invocations at the same scope.
 	pub fn warn(
 		&mut self,
 		span: Span,
 		message: impl Into<String>,
 	) {
-		let name = format!("_fp_macros_warning_{}", self.counter);
-		self.counter += 1;
+		let id = GLOBAL_WARNING_COUNTER.fetch_add(1, Ordering::Relaxed);
+		let name = format!("_fp_macros_warning_{id}");
 
 		let warning = FormattedWarning::new_deprecated(&name, message, span);
 		self.warnings.push(warning.into_token_stream());
@@ -107,8 +112,13 @@ mod tests {
 		let token_strings: Vec<String> = tokens.iter().map(|t| t.to_string()).collect();
 
 		// Each token stream should contain a distinct _fp_macros_warning_ identifier
-		assert!(token_strings[0].contains("_fp_macros_warning_0"));
-		assert!(token_strings[1].contains("_fp_macros_warning_1"));
-		assert!(token_strings[2].contains("_fp_macros_warning_2"));
+		assert!(token_strings[0].contains("_fp_macros_warning_"));
+		assert!(token_strings[1].contains("_fp_macros_warning_"));
+		assert!(token_strings[2].contains("_fp_macros_warning_"));
+
+		// All three should be different
+		assert_ne!(token_strings[0], token_strings[1]);
+		assert_ne!(token_strings[1], token_strings[2]);
+		assert_ne!(token_strings[0], token_strings[2]);
 	}
 }

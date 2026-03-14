@@ -1,6 +1,7 @@
 use {
 	crate::support::{
 		ast::RustAst,
+		attributes::reject_duplicate_attribute,
 		documentation_parameters::{
 			DocumentationParameter,
 			DocumentationParameters,
@@ -32,11 +33,14 @@ pub fn generate_doc_comments<F>(
 	attr: TokenStream,
 	item_tokens: TokenStream,
 	section_title: &str,
+	attribute_name: &str,
 	get_targets: F,
 ) -> crate::core::Result<TokenStream>
 where
 	F: FnOnce(&RustAst) -> Result<Vec<String>, Error>, {
 	let mut generic_item = RustAst::parse(item_tokens).map_err(crate::core::Error::Parse)?;
+
+	reject_duplicate_attribute(generic_item.attributes(), attribute_name)?;
 
 	let args =
 		syn::parse2::<DocumentationParameters>(attr.clone()).map_err(crate::core::Error::Parse)?;

@@ -1,0 +1,7 @@
+error: Validation error: #[document_type_parameters] can only be used once per item. Remove the duplicate attribute
+ --> tests/ui/duplicate_document_type_parameters.rs:5:1
+  |
+5 | #[document_type_parameters("Type A")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `document_type_parameters` (in Nightly builds, run with -Z macro-backtrace for more info)

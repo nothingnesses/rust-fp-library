@@ -57,7 +57,8 @@ mod inner {
 	/// let result: String = par_fold_map::<VecBrand, _, _>(|x: i32| x.to_string(), v);
 	/// assert_eq!(result, "12345");
 	/// ```
-	pub trait ParFoldable: Kind_cdc7cd43dac7585f {
+	#[kind(type Of<'a, A: 'a>: 'a;)]
+	pub trait ParFoldable {
 		/// Maps each element to a [`Monoid`] value and combines them in parallel.
 		///
 		/// Maps each element using `f`, then reduces the results using

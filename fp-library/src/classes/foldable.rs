@@ -66,7 +66,8 @@ mod inner {
 	/// 	),
 	/// );
 	/// ```
-	pub trait Foldable: Kind_cdc7cd43dac7585f {
+	#[kind(type Of<'a, A: 'a>: 'a;)]
+	pub trait Foldable {
 		/// Folds the structure by applying a function from right to left.
 		///
 		/// This method performs a right-associative fold of the structure.

@@ -1,0 +1,7 @@
+error: Validation error: document_signature can only be used on functions and methods
+ --> tests/ui/duplicate_document_signature_trait.rs:8:1
+  |
+8 | #[document_signature]
+  | ^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `document_signature` (in Nightly builds, run with -Z macro-backtrace for more info)

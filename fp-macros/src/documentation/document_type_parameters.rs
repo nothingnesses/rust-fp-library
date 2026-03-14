@@ -20,27 +20,33 @@ pub fn document_type_parameters_worker(
 	attr: TokenStream,
 	item_tokens: TokenStream,
 ) -> Result<TokenStream> {
-	generate_doc_comments(attr, item_tokens, "Type Parameters", |generic_item| {
-		let generics = generic_item.generics();
+	generate_doc_comments(
+		attr,
+		item_tokens,
+		"Type Parameters",
+		DOCUMENT_TYPE_PARAMETERS,
+		|generic_item| {
+			let generics = generic_item.generics();
 
-		// Error if there are no type parameters
-		let _count = parsing::parse_has_documentable_items(
-			generics.params.len(),
-			generics.span(),
-			DOCUMENT_TYPE_PARAMETERS,
-			"items with no type parameters",
-		)?;
+			// Error if there are no type parameters
+			let _count = parsing::parse_has_documentable_items(
+				generics.params.len(),
+				generics.span(),
+				DOCUMENT_TYPE_PARAMETERS,
+				"items with no type parameters",
+			)?;
 
-		Ok(generics
-			.params
-			.iter()
-			.map(|param| match param {
-				GenericParam::Type(t) => t.ident.to_string(),
-				GenericParam::Lifetime(l) => l.lifetime.to_string(),
-				GenericParam::Const(c) => c.ident.to_string(),
-			})
-			.collect())
-	})
+			Ok(generics
+				.params
+				.iter()
+				.map(|param| match param {
+					GenericParam::Type(t) => t.ident.to_string(),
+					GenericParam::Lifetime(l) => l.lifetime.to_string(),
+					GenericParam::Const(c) => c.ident.to_string(),
+				})
+				.collect())
+		},
+	)
 }
 
 #[cfg(test)]
