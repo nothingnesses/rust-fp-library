@@ -12,7 +12,7 @@ This document surveys every major strategy for implementing algebraic effects as
 
 You represent an effectful computation as a data structure — a free monad — that records each effectful operation as a node in a tree. The tree is then *interpreted* by a handler that walks the structure, pattern-matching on effect operations and producing concrete results.
 
-The core type is:
+The core type of the standard free monad is:
 
 ```
 data Free f a
@@ -20,9 +20,19 @@ data Free f a
   | Impure (f (Free f a))
 ```
 
-To make effects extensible, `f` is an *open sum* (extensible variant/coproduct) of individual effect functors. PureScript's `Run` uses `VariantF` (a row-polymorphic variant of functors); Haskell libraries typically use a type-level list with membership constraints.
+This requires `f` to be a Functor. The *freer* monad (used by `freer-simple` and related libraries) eliminates this constraint by existentially quantifying over the intermediate type:
 
-Each effect is a functor whose constructors encode the operation's parameters and a continuation slot:
+```
+data Freer f a
+  = Pure a
+  | forall x. Impure (f x) (x -> Freer f a)
+```
+
+This separates the effect operation (`f x`) from the continuation (`x -> Freer f a`), so individual effects no longer need to be functors — they are plain GADTs describing operations and their return types. PureScript's `Run` uses the standard free monad (with the Functor requirement), while `freer-simple` uses the freer encoding.
+
+To make effects extensible, `f` is an *open sum* (extensible variant/coproduct) of individual effect types. PureScript's `Run` uses `VariantF` (a row-polymorphic variant of functors); Haskell libraries typically use a type-level list with membership constraints.
+
+In the standard free monad, each effect is a functor whose constructors encode the operation's parameters and a continuation slot:
 
 ```
 data State s a
@@ -30,11 +40,19 @@ data State s a
   | Put s (() -> a)
 ```
 
+In the freer encoding, effects are instead plain GADTs without a continuation slot:
+
+```
+data State s a where
+  Get :: State s s
+  Put :: s -> State s ()
+```
+
 An interpreter peels one layer of the free monad at a time, matching on the effect tag and either handling it or forwarding unhandled effects.
 
 ### Prerequisites from the host language
 
-- **Higher-kinded types or a way to simulate them.** You need to parameterize over functors (`f` in `Free f a`). Languages with HKTs (Haskell, Scala, PureScript) make this natural. Languages without them (Rust, TypeScript) require workarounds (defunctionalization, trait-based emulation, or giving up on some generality).
+- **Higher-kinded types or a way to simulate them.** The standard free monad requires parameterizing over functors (`f` in `Free f a`), which needs HKTs. Languages with HKTs (Haskell, Scala, PureScript) make this natural. The freer encoding reduces this requirement somewhat (effects are plain GADTs, not functors), but you still need HKTs or equivalent for the `Freer` type itself. Languages without HKTs (Rust, TypeScript) require workarounds (defunctionalization, trait-based emulation, or giving up on some generality).
 - **Sum types or extensible variants.** You need a way to combine multiple effect functors into one open sum. Row polymorphism (PureScript) is the cleanest. Type-level lists with membership type classes (Haskell) work but require more boilerplate and can produce confusing type errors. Tagged unions with runtime dispatch (dynamically typed languages) are the simplest but sacrifice static safety.
 - **Tail-call optimization or explicit trampolining.** Interpreting a free monad is inherently recursive. Without TCO, you need to convert to a loop using a trampoline (explicit `Step`/`Done` constructors), as PureScript's `Run` does with its `*Rec` interpreter variants.
 
@@ -56,7 +74,9 @@ The free monad approach struggles with "scoped" or higher-order effects — oper
 
 ## Approach 2: ReaderT IO / Evidence-in-Environment
 
-**Reference implementations:** Haskell `effectful`, Haskell `cleff`, Haskell `bluefin`
+**Reference implementations:** Haskell `effectful`, Haskell `cleff`
+
+> **Note:** Haskell `bluefin` is sometimes grouped with these libraries, but it uses a distinct capability-passing design rather than the ReaderT IO pattern. It is listed separately in the implementations table at the end of this document.
 
 ### How it works
 
@@ -136,7 +156,7 @@ If you can't modify the runtime, you can approximate delimited continuations usi
 
 ## Approach 4: Coroutines / Asymmetric Coroutines
 
-**Reference implementations:** Lua and Ruby libraries from "One-shot Algebraic Effects as Coroutines" (Satoshi et al.), JavaScript `effects.js`, Python implementations using generators
+**Reference implementations:** Lua and Ruby libraries from "One-shot Algebraic Effects as Coroutines" (Kawahara & Kameyama, 2020), JavaScript `effects.js`, Python implementations using generators
 
 ### How it works
 
@@ -208,7 +228,9 @@ local result = eff.handler({
 
 ## Approach 5: CPS Transformation (Selective or Global)
 
-**Reference implementations:** Koka (compiler-level), Scala `Effekt` library, `effect-ts` (TypeScript)
+**Reference implementations:** Koka (compiler-level), Scala `Effekt` library
+
+> **Note:** The TypeScript library commonly known as "Effect" (formerly `effect-ts` / `@effect-ts/core`) is sometimes mentioned in this context, but it uses a ZIO-inspired fiber-based runtime architecture, not CPS transformation. It belongs more naturally alongside Approach 2 (environment-passing with a typed effect channel) than here.
 
 ### How it works
 
@@ -348,7 +370,7 @@ This is the oldest approach and predates algebraic effects. It's included here b
 - **"Freer Monads, More Extensible Effects"** (Kiselyov & Ishii, 2015) — The freer monad approach that eliminates the Functor constraint.
 - **"Type Directed Compilation of Row-typed Algebraic Effects"** (Leijen, 2017) — Koka's selective CPS and evidence passing.
 - **"Generalized Evidence Passing for Effect Handlers"** (Xie, Brachthäuser, Hillerström, Schuster, Leijen, 2020) — The O(1) dispatch strategy.
-- **"One-shot Algebraic Effects as Coroutines"** (Satoshi et al., 2020) — The coroutine embedding.
+- **"One-shot Algebraic Effects as Coroutines"** (Kawahara & Kameyama, 2020) — The coroutine embedding.
 - **"Capability-passing Style for Zero-cost Effect Handlers"** (Schuster, Brachthäuser, Ostermann, ICFP 2020) — Effekt's approach.
 - **"Effects, Capabilities, and Boxes"** (Brachthäuser et al., OOPSLA 2022) — Extends capability passing with scope safety.
 - **"Efficient Compilation of Algebraic Effects"** (Pretnar et al., 2020) — Source-to-source optimization of effect handlers.
@@ -363,10 +385,12 @@ This is the oldest approach and predates algebraic effects. It's included here b
 | `effectful` | Haskell | ReaderT IO | Best-performing Haskell library |
 | `cleff` | Haskell | ReaderT IO (lighter weight) | Simpler API than effectful, good source to read |
 | `polysemy` | Haskell | Free monad + higher-order weaving | Ambitious attempt at higher-order effects |
-| `heftia` | Haskell | Hefty algebras | First correct higher-order + algebraic effects |
+| `fused-effects` | Haskell | Church-encoded free monad + weaving | Higher-order effects via weaving; good middle ground between free monads and ReaderT IO |
+| `heftia` | Haskell | Hefty algebras | Implements correct higher-order + algebraic effect semantics (based on Poulsen & van der Rest's hefty algebras) |
 | `bluefin` | Haskell | Capability passing (no algebraic effects) | Shows how far you can go without continuations |
 | Effekt (Scala library) | Scala | Multi-prompt delimited continuations + capabilities | Best library-level CPS implementation |
-| `effects.js` | JavaScript | Generators as do-notation | Practical JS implementation with multi-shot |
+| ZIO | Scala | Fiber-based runtime + typed error channels | Most widely deployed effect system in industry; not algebraic effects per se, but an influential alternative |
+| `effects.js` | JavaScript | Generators as do-notation | Practical JS implementation with multi-shot via replay (re-executes from start; not true continuation cloning) |
 | Koka's `libhandler` | C | `setjmp`/`longjmp` + stack capture | How to implement effects in C |
 | OCaml 5 `Effect` module | OCaml | Native fibers | Reference for runtime-level implementation |
 | Yelouafi's gist | JavaScript | Generators as delimited continuations | Excellent pedagogical implementation |
