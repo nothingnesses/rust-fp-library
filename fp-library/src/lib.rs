@@ -25,7 +25,7 @@
 //!   - **Monad Utilities:** `MonadRec`, `Evaluable`
 //!   - **Bifunctors:** `Bifunctor`, `Bifoldable`, `Bitraversable`
 //!   - **Collections:** `Compactable`, `Filterable`, `Witherable`
-//!   - **Indexed:** `FunctorWithIndex`, `FoldableWithIndex`, `TraversableWithIndex`
+//!   - **Indexed:** `WithIndex`, `FunctorWithIndex`, `FoldableWithIndex`, `TraversableWithIndex`
 //!   - **Category Theory:** `Category`, `Semigroupoid`, `Profunctor`, `Strong`, `Choice`, `Closed`, `Cochoice`, `Costrong`, `Wander`
 //!   - **Laziness & Effects:** `RefFunctor`, `Deferrable`, `SendDeferrable`
 //!   - **Parallel:** `ParFunctor`, `ParCompactable`, `ParFilterable`, `ParFoldable`, `ParFunctorWithIndex`, `ParFoldableWithIndex`
@@ -48,7 +48,7 @@
 //! - **Numeric Algebra:** `Semiring`, `Ring`, `CommutativeRing`, `EuclideanRing`, `DivisionRing`, `Field`, `HeytingAlgebra`
 //! - **Newtype Wrappers:** `Additive`, `Multiplicative`, `Conjunctive`, `Disjunctive`, `First`, `Last`, `Dual`
 //! - **Helper Functions:** Standard FP utilities:
-//!   - `compose`, `constant`, `flip`, `identity`, `on`
+//!   - `compose`, `constant`, `flip`, `identity`, `on`, `pipe`
 //! - **Data Types:** Implementations for standard and custom types:
 //!   - **Standard Library:** `Option`, `Result`, `Vec`, `String`
 //!   - **Laziness, Memoization & Stack Safety:** `Lazy` (`RcLazy`, `ArcLazy`), `Thunk`, `Trampoline`, `Free`
@@ -189,8 +189,8 @@
 //! | `ParCompactable` | `par_compact`, `par_separate` | `Kind` |
 //! | `ParFilterable` | `par_filter_map`, `par_filter` | `ParFunctor + ParCompactable` |
 //! | `ParFoldable` | `par_fold_map` | `Kind` |
-//! | `ParFunctorWithIndex<I>` | `par_map_with_index` | `ParFunctor + FunctorWithIndex<I>` |
-//! | `ParFoldableWithIndex<I>` | `par_fold_map_with_index` | `ParFoldable + FoldableWithIndex<I>` |
+//! | `ParFunctorWithIndex` | `par_map_with_index` | `ParFunctor + FunctorWithIndex` |
+//! | `ParFoldableWithIndex` | `par_fold_map_with_index` | `ParFoldable + FoldableWithIndex` |
 //!
 //! `ParFilterable` provides default implementations of `par_filter_map` and `par_filter`
 //! derived from `par_map` + `par_compact`; types can override them for single-pass efficiency.
