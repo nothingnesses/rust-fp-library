@@ -30,7 +30,7 @@ mod inner {
 	///
 	/// ### Hierarchy Unification
 	///
-	/// This trait inherits from [`Kind_266801a817966495`], ensuring that all bifunctor
+	/// This trait inherits from [`Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)`](crate::kinds::Kind_266801a817966495), ensuring that all bifunctor
 	/// contexts satisfy the strict lifetime requirements where both type arguments must
 	/// outlive the context's application lifetime.
 	///
@@ -77,7 +77,8 @@ mod inner {
 	/// 	bimap::<ResultBrand, _, _, _, _>(f, h, bimap::<ResultBrand, _, _, _, _>(g, i, err)),
 	/// );
 	/// ```
-	pub trait Bifunctor: Kind_266801a817966495 {
+	#[kind(type Of<'a, A: 'a, B: 'a>: 'a;)]
+	pub trait Bifunctor {
 		/// Maps functions over the values in the bifunctor context.
 		///
 		/// This method applies two functions to the values inside the bifunctor context, producing a new bifunctor context with the transformed values.

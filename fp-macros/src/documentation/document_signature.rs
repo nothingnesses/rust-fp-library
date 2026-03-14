@@ -21,12 +21,14 @@ use {
 		},
 		support::{
 			ast::RustAst,
+			attributes::reject_duplicate_attribute,
 			generate_documentation::insert_doc_comment,
 			is_phantom_data,
 			parsing::parse_empty_attributes,
 		},
 	},
 	proc_macro2::TokenStream,
+	quote::quote,
 	std::collections::{
 		HashMap,
 		HashSet,
@@ -49,11 +51,14 @@ pub fn document_signature_worker(
 	// Parse the item
 	let mut item = RustAst::parse(item_tokens).map_err(Error::Parse)?;
 
-	// Get the function signature
+	// Check for duplicate #[document_signature] attributes
+	reject_duplicate_attribute(item.attributes(), DOCUMENT_SIGNATURE)?;
+
+	// Handle functions and methods — generate HM type signature
 	let sig = item.signature().ok_or_else(|| {
 		Error::validation(
 			proc_macro2::Span::call_site(),
-			format!("{DOCUMENT_SIGNATURE} can only be used on functions or methods"),
+			format!("{DOCUMENT_SIGNATURE} can only be used on functions and methods"),
 		)
 	})?;
 
@@ -75,9 +80,7 @@ pub fn document_signature_worker(
 	// Insert the documentation comment
 	insert_doc_comment(item.attributes(), doc_comment, proc_macro2::Span::call_site());
 
-	Ok(quote::quote! {
-		#item
-	})
+	Ok(quote! { #item })
 }
 
 pub struct SignatureData {
@@ -226,7 +229,7 @@ fn format_trait_bound(
 	let trait_name = segment.ident.to_string();
 
 	match classify_trait(&trait_name, config) {
-		TraitCategory::FnTrait | TraitCategory::FnBrand => None,
+		TraitCategory::FnTrait | TraitCategory::FnBrand | TraitCategory::Kind => None,
 		TraitCategory::Other(name) =>
 			if config.ignored_traits().contains(&name) {
 				None

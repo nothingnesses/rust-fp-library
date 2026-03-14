@@ -219,8 +219,6 @@ mod inner {
 		/// Maps a function over a data structure and filters out [`None`] results.
 		///
 		/// The default implementation uses [`map`](crate::functions::map) and [`compact`](crate::functions::compact).
-		///
-		/// ### Type Signature
 		#[document_signature]
 		///
 		#[document_type_parameters(

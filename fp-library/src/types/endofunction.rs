@@ -40,9 +40,8 @@ mod inner {
 		"The input and output type of the function."
 	)]
 	///
-	#[document_fields("The wrapped function.")]
-	///
 	pub struct Endofunction<'a, FnBrand: CloneableFn, A: 'a>(
+		/// The wrapped function.
 		pub <FnBrand as CloneableFn>::Of<'a, A, A>,
 	);
 

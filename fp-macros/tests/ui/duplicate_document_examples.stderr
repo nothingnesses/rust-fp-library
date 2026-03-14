@@ -1,0 +1,7 @@
+error: Validation error: #[document_examples] can only be used once per item. Remove the duplicate attribute
+ --> tests/ui/duplicate_document_examples.rs:5:1
+  |
+5 | #[document_examples]
+  | ^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `document_examples` (in Nightly builds, run with -Z macro-backtrace for more info)

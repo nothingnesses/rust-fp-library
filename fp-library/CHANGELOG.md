@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-03-14
+
+### Changed
+- **`#[kind]` attribute migration**: All 15 type class traits migrated from raw `Kind_*` supertraits to `#[kind(type Of<'a, A: 'a>: 'a;)]` attribute annotations. The generated supertrait bounds are identical; this is a source-level readability improvement only.
+- **Rustdoc link improvements**: Doc comments updated to use `Kind!(...)` rustdoc links instead of raw `Kind_*` trait names for better documentation readability.
+- **Native field documentation**: Replaced all `#[document_fields]` usages with native `///` doc comments directly on struct fields and enum variants across 12 types (`CatListIterator`, `Endofunction`, `Endomorphism`, `Identity`, `Lazy`, `Pair`, `Thunk`, `Trampoline`, `TryLazy`, `TryThunk`, `TryTrampoline`, `FreeInner`).
+
 ## [0.13.0] - 2026-03-13
 
 ### Added

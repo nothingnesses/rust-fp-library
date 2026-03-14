@@ -52,11 +52,14 @@ mod inner {
 	/// This type supports serialization and deserialization via [`serde`](https://serde.rs) when the `serde` feature is enabled.
 	#[document_type_parameters("The type of the first value.", "The type of the second value.")]
 	///
-	#[document_fields("The first value.", "The second value.")]
-	///
 	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 	#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-	pub struct Pair<First, Second>(pub First, pub Second);
+	pub struct Pair<First, Second>(
+		/// The first value.
+		pub First,
+		/// The second value.
+		pub Second,
+	);
 
 	impl_kind! {
 		for PairBrand {

@@ -67,9 +67,10 @@ mod inner {
 	/// ```
 	#[document_type_parameters("The type of the value produced by the task.")]
 	///
-	#[document_fields("The internal `Free` monad representation.")]
-	///
-	pub struct Trampoline<A: 'static>(Free<ThunkBrand, A>);
+	pub struct Trampoline<A: 'static>(
+		/// The internal `Free` monad representation.
+		Free<ThunkBrand, A>,
+	);
 
 	#[document_type_parameters("The type of the value produced by the task.")]
 	#[document_parameters("The `Trampoline` instance.")]

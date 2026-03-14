@@ -30,7 +30,7 @@ mod inner {
 	///
 	/// ### Hierarchy Unification
 	///
-	/// By inheriting from [`Semigroupoid`], this trait implicitly requires [`Kind_266801a817966495`].
+	/// By inheriting from [`Semigroupoid`], this trait implicitly requires [`Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)`](crate::kinds::Kind_266801a817966495).
 	/// This unification ensures that categorical identity morphisms also satisfy the strict lifetime
 	/// requirements where the object type must outlive the morphism's application lifetime.
 	///

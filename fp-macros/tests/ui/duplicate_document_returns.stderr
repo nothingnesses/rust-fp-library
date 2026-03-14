@@ -1,0 +1,7 @@
+error: Validation error: #[document_returns] can only be used once per item. Remove the duplicate attribute
+ --> tests/ui/duplicate_document_returns.rs:5:1
+  |
+5 | #[document_returns("The result")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `document_returns` (in Nightly builds, run with -Z macro-backtrace for more info)

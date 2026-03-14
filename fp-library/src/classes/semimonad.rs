@@ -25,7 +25,8 @@ mod inner {
 	/// If `x` has type `m a` and `f` has type `a -> m b`, then `bind(x, f)` has type `m b`,
 	/// representing the result of executing `x` to get a value of type `a` and then
 	/// passing it to `f` to get a computation of type `m b`.
-	pub trait Semimonad: Kind_cdc7cd43dac7585f {
+	#[kind(type Of<'a, A: 'a>: 'a;)]
+	pub trait Semimonad {
 		/// Sequences two computations, allowing the second to depend on the value computed by the first.
 		///
 		/// This method chains two computations, where the second computation depends on the result of the first.

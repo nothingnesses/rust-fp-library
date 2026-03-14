@@ -40,8 +40,8 @@ mod inner {
 	///
 	/// The higher-kinded representation of this type constructor is [`TryLazyBrand<E, Config>`](crate::brands::TryLazyBrand),
 	/// which is parameterized by both the error type and the `LazyConfig`, and is polymorphic over the success value type.
-	#[document_fields("The internal lazy cell.")]
 	pub struct TryLazy<'a, A, E, Config: LazyConfig = RcLazyConfig>(
+		/// The internal lazy cell.
 		pub(crate) Config::TryLazy<'a, A, E>,
 	)
 	where

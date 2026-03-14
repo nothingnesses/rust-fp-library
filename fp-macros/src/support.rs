@@ -11,12 +11,10 @@
 //! - [`generate_documentation`]: Documentation comment generation utilities.
 //! - [`get_parameters`]: Logical parameter extraction from function signatures.
 //! - [`type_visitor`]: Trait for traversing and transforming Rust type syntax trees.
-//! - [`document_field`]: Unified field documentation generation for structs and enum variants.
 //! - [`method_utils`]: Utilities for analyzing methods and impl blocks.
 
 pub mod ast;
 pub mod attributes;
-pub mod document_field;
 pub mod documentation_parameters;
 pub mod generate_documentation;
 pub mod get_parameters;

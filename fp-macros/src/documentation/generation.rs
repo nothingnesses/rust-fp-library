@@ -27,6 +27,7 @@ use {
 		support::{
 			attributes::{
 				AttributeExt,
+				count_attributes,
 				find_attribute,
 			},
 			documentation_parameters::{
@@ -232,23 +233,43 @@ fn process_method_documentation(
 
 	// 1. Handle HM Signature
 	if let Some(attr_pos) = find_attribute(&method.attrs, DOCUMENT_SIGNATURE) {
-		process_document_signature(
-			method,
-			attr_pos,
-			self_ty,
-			self_ty_path,
-			trait_name,
-			trait_path_str,
-			document_use.as_deref(),
-			item_impl_generics,
-			config,
-			errors,
-		);
+		if count_attributes(&method.attrs, DOCUMENT_SIGNATURE) > 1 {
+			errors.push(syn::Error::new(
+				method.sig.ident.span(),
+				format!(
+					"#[{DOCUMENT_SIGNATURE}] can only be used once per item. Remove the duplicate attribute on method `{}`",
+					method.sig.ident
+				),
+			));
+		} else {
+			process_document_signature(
+				method,
+				attr_pos,
+				self_ty,
+				self_ty_path,
+				trait_name,
+				trait_path_str,
+				document_use.as_deref(),
+				item_impl_generics,
+				config,
+				errors,
+			);
+		}
 	}
 
 	// 2. Handle Doc Type Params
 	if let Some(attr_pos) = find_attribute(&method.attrs, DOCUMENT_TYPE_PARAMETERS) {
-		process_document_type_parameters(method, attr_pos, errors);
+		if count_attributes(&method.attrs, DOCUMENT_TYPE_PARAMETERS) > 1 {
+			errors.push(syn::Error::new(
+				method.sig.ident.span(),
+				format!(
+					"#[{DOCUMENT_TYPE_PARAMETERS}] can only be used once per item. Remove the duplicate attribute on method `{}`",
+					method.sig.ident
+				),
+			));
+		} else {
+			process_document_type_parameters(method, attr_pos, errors);
+		}
 	}
 
 	// 3. Document parameters is now handled directly in document_parameters.rs
@@ -268,7 +289,14 @@ fn process_impl_block(
 	let trait_path_str = trait_path.map(|p| quote!(#p).to_string());
 
 	// Generate impl-level documentation for type parameters if attribute is present
-	if let Some(attr_pos) = find_attribute(&item_impl.attrs, DOCUMENT_TYPE_PARAMETERS) {
+	if count_attributes(&item_impl.attrs, DOCUMENT_TYPE_PARAMETERS) > 1 {
+		errors.push(syn::Error::new(
+			item_impl.self_ty.span(),
+			format!(
+				"#[{DOCUMENT_TYPE_PARAMETERS}] can only be used once per item. Remove the duplicate attribute on impl block for `{self_ty_path}`",
+			),
+		));
+	} else if let Some(attr_pos) = find_attribute(&item_impl.attrs, DOCUMENT_TYPE_PARAMETERS) {
 		// Create impl key and process in one go to avoid borrow conflicts
 		let impl_key = ImplKey::from_paths(&self_ty_path, trait_path_str.as_deref());
 
@@ -333,19 +361,39 @@ fn process_trait_method_documentation(
 ) {
 	// 1. Handle HM Signature - no Self substitution needed
 	if let Some(attr_pos) = find_attribute(&method.attrs, DOCUMENT_SIGNATURE) {
-		method.attrs.remove(attr_pos);
-		insert_signature_docs(&mut method.attrs, attr_pos, &method.sig, config);
+		if count_attributes(&method.attrs, DOCUMENT_SIGNATURE) > 1 {
+			errors.push(syn::Error::new(
+				method.sig.ident.span(),
+				format!(
+					"#[{DOCUMENT_SIGNATURE}] can only be used once per item. Remove the duplicate attribute on method `{}`",
+					method.sig.ident
+				),
+			));
+		} else {
+			method.attrs.remove(attr_pos);
+			insert_signature_docs(&mut method.attrs, attr_pos, &method.sig, config);
+		}
 	}
 
 	// 2. Handle Doc Type Params
 	if let Some(attr_pos) = find_attribute(&method.attrs, DOCUMENT_TYPE_PARAMETERS) {
-		process_type_parameters_core(
-			&mut method.attrs,
-			&method.sig.generics,
-			&format!("method '{}'", method.sig.ident),
-			attr_pos,
-			errors,
-		);
+		if count_attributes(&method.attrs, DOCUMENT_TYPE_PARAMETERS) > 1 {
+			errors.push(syn::Error::new(
+				method.sig.ident.span(),
+				format!(
+					"#[{DOCUMENT_TYPE_PARAMETERS}] can only be used once per item. Remove the duplicate attribute on method `{}`",
+					method.sig.ident
+				),
+			));
+		} else {
+			process_type_parameters_core(
+				&mut method.attrs,
+				&method.sig.generics,
+				&format!("method '{}'", method.sig.ident),
+				attr_pos,
+				errors,
+			);
+		}
 	}
 }
 
@@ -357,13 +405,23 @@ fn process_trait_block(
 ) {
 	// Handle trait-level #[document_type_parameters]
 	if let Some(attr_pos) = find_attribute(&item_trait.attrs, DOCUMENT_TYPE_PARAMETERS) {
-		process_type_parameters_core(
-			&mut item_trait.attrs,
-			&item_trait.generics,
-			&format!("trait '{}'", item_trait.ident),
-			attr_pos,
-			errors,
-		);
+		if count_attributes(&item_trait.attrs, DOCUMENT_TYPE_PARAMETERS) > 1 {
+			errors.push(syn::Error::new(
+				item_trait.ident.span(),
+				format!(
+					"#[{DOCUMENT_TYPE_PARAMETERS}] can only be used once per item. Remove the duplicate attribute on trait `{}`",
+					item_trait.ident
+				),
+			));
+		} else {
+			process_type_parameters_core(
+				&mut item_trait.attrs,
+				&item_trait.generics,
+				&format!("trait '{}'", item_trait.ident),
+				attr_pos,
+				errors,
+			);
+		}
 	}
 
 	// Process each method in the trait

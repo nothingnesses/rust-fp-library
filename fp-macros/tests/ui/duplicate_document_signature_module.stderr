@@ -1,0 +1,10 @@
+error: cannot find attribute `document_signature` in this scope
+  --> tests/ui/duplicate_document_signature_module.rs:10:4
+   |
+10 |     #[document_signature]
+   |       ^^^^^^^^^^^^^^^^^^
+   |
+help: consider importing this attribute macro
+   |
+ 9 +     use fp_macros::document_signature;
+   |

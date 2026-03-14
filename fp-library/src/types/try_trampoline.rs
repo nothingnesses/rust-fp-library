@@ -33,9 +33,10 @@ mod inner {
 	/// This is [`Trampoline<Result<A, E>>`] with ergonomic combinators.
 	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
 	///
-	#[document_fields("The internal `Trampoline` wrapping a `Result`.")]
-	///
-	pub struct TryTrampoline<A: 'static, E: 'static>(Trampoline<Result<A, E>>);
+	pub struct TryTrampoline<A: 'static, E: 'static>(
+		/// The internal `Trampoline` wrapping a `Result`.
+		Trampoline<Result<A, E>>,
+	);
 
 	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
 	#[document_parameters("The fallible trampoline computation.")]

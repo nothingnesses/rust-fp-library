@@ -55,7 +55,8 @@ mod inner {
 	/// assert_eq!(errs, vec!["e"]);
 	/// assert_eq!(oks, vec![1, 3]);
 	/// ```
-	pub trait ParCompactable: Kind_cdc7cd43dac7585f {
+	#[kind(type Of<'a, A: 'a>: 'a;)]
+	pub trait ParCompactable {
 		/// Compacts a data structure of [`Option`]s in parallel, discarding [`None`] values and
 		/// keeping [`Some`] values.
 		///

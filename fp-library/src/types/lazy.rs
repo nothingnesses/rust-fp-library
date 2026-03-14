@@ -391,9 +391,10 @@ mod inner {
 		"The memoization configuration (determines Rc vs Arc)."
 	)]
 	///
-	#[document_fields("The internal lazy cell.")]
-	///
-	pub struct Lazy<'a, A, Config: LazyConfig = RcLazyConfig>(pub(crate) Config::Lazy<'a, A>)
+	pub struct Lazy<'a, A, Config: LazyConfig = RcLazyConfig>(
+		/// The internal lazy cell.
+		pub(crate) Config::Lazy<'a, A>,
+	)
 	where
 		A: 'a;
 

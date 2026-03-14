@@ -6,6 +6,7 @@ use {
 		},
 		support::{
 			ast::RustAst,
+			attributes::reject_duplicate_attribute,
 			generate_documentation::{
 				find_insertion_index,
 				insert_doc_comments_batch,
@@ -23,6 +24,8 @@ pub fn document_returns_worker(
 ) -> OurResult<TokenStream> {
 	let description: syn::LitStr = syn::parse2(attr)?;
 	let mut ast = RustAst::parse(item).map_err(crate::core::Error::Parse)?;
+
+	reject_duplicate_attribute(ast.attributes(), DOCUMENT_RETURNS)?;
 
 	if ast.signature().is_some() {
 		process_document_returns_on_ast(&mut ast, &description);

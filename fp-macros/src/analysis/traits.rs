@@ -25,6 +25,7 @@ pub enum TraitCategory {
 	FnTrait,
 	FnBrand,
 	ApplyMacro,
+	Kind,
 	Other(String),
 }
 
@@ -37,6 +38,7 @@ pub fn classify_trait(
 		n if brands::FN_BRANDS.contains(&n) => TraitCategory::FnBrand,
 		macros::APPLY_MACRO => TraitCategory::ApplyMacro,
 		n if config.apply_macro_aliases().contains(n) => TraitCategory::ApplyMacro,
+		n if n.starts_with(markers::KIND_PREFIX) => TraitCategory::Kind,
 		_ => TraitCategory::Other(name.to_string()),
 	}
 }

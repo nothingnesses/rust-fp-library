@@ -89,7 +89,8 @@ mod inner {
 	/// 	plus_empty::<VecBrand, i32>(),
 	/// );
 	/// ```
-	pub trait Compactable: Kind_cdc7cd43dac7585f {
+	#[kind(type Of<'a, A: 'a>: 'a;)]
+	pub trait Compactable {
 		/// Compacts a data structure of [`Option`]s, discarding [`None`] values and keeping [`Some`] values.
 		#[document_signature]
 		///

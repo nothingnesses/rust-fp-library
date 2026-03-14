@@ -29,7 +29,8 @@ mod inner {
 	};
 
 	/// A type class for lifting binary functions into a context.
-	pub trait Lift: Kind_cdc7cd43dac7585f {
+	#[kind(type Of<'a, A: 'a>: 'a;)]
+	pub trait Lift {
 		/// Lifts a binary function into the context.
 		///
 		/// This method lifts a binary function to operate on values within the context.

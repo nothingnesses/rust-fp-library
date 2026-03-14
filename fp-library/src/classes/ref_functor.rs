@@ -25,7 +25,8 @@ mod inner {
 	///
 	/// This is a variant of `Functor` for types where `map` receives/returns references.
 	/// This is required for types like `Lazy` where `get()` returns `&A`, not `A`.
-	pub trait RefFunctor: Kind_cdc7cd43dac7585f {
+	#[kind(type Of<'a, A: 'a>: 'a;)]
+	pub trait RefFunctor {
 		/// Maps a function over the values in the functor context, where the function takes a reference.
 		#[document_signature]
 		///

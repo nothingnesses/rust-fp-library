@@ -57,9 +57,10 @@ mod inner {
 	/// - [`TryThunkBrand`](crate::brands::TryThunkBrand): fully polymorphic over both error and success types (bifunctor).
 	/// - [`TryThunkErrAppliedBrand<E>`](crate::brands::TryThunkErrAppliedBrand): the error type is fixed, polymorphic over the success type (functor over `Ok`).
 	/// - [`TryThunkOkAppliedBrand<A>`](crate::brands::TryThunkOkAppliedBrand): the success type is fixed, polymorphic over the error type (functor over `Err`).
-	#[document_fields("The closure that performs the computation.")]
-	///
-	pub struct TryThunk<'a, A, E>(Box<dyn FnOnce() -> Result<A, E> + 'a>);
+	pub struct TryThunk<'a, A, E>(
+		/// The closure that performs the computation.
+		Box<dyn FnOnce() -> Result<A, E> + 'a>,
+	);
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",

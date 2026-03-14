@@ -80,9 +80,10 @@ mod inner {
 		"The type of the value produced by the computation."
 	)]
 	///
-	#[document_fields("The closure that performs the computation.")]
-	///
-	pub struct Thunk<'a, A>(Box<dyn FnOnce() -> A + 'a>);
+	pub struct Thunk<'a, A>(
+		/// The closure that performs the computation.
+		Box<dyn FnOnce() -> A + 'a>,
+	);
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-03-14
+
+### Added
+- **`#[kind]` attribute macro**: Ergonomic Kind supertrait bounds for trait definitions. Replaces raw hash-based trait names (e.g., `Kind_cdc7cd43dac7585f`) with `#[kind(type Of<'a, A: 'a>: 'a;)]` annotations that compute the deterministic hash and append the correct Kind trait as a supertrait bound.
+- **`Kind` variant in `TraitCategory`**: Proper classification of `Kind_*` traits in trait analysis, with `KIND_PREFIX` constant.
+- **Duplicate attribute rejection**: All standalone `#[document_*]` attribute macros (`document_signature`, `document_type_parameters`, `document_parameters`, `document_returns`, `document_examples`) now reject duplicate usage on the same item with clear error messages. Inside `#[document_module]`, the same checks apply via `count_attributes` for traits, methods, and impl blocks. Compile-fail tests added for each macro.
+- **Raw `Kind_*` supertrait warning**: `#[document_module]` now emits a compile-time warning when traits use raw `Kind_*` supertraits instead of the `#[kind(...)]` attribute.
+
+### Changed
+- **`#[document_signature]` restricted to functions and methods**: Using `#[document_signature]` on a trait definition now produces a clear error message instead of generating a class signature. Class signatures were redundant with `cargo doc`'s native supertrait display.
+- **Validation label improvement**: `validate_container_documentation` now includes the trait name in its label (e.g., `Trait 'Functor'` instead of `Trait`).
+
+### Removed
+- **`#[document_fields]` macro**: Removed in favor of native `///` doc comments directly on struct fields and enum variants. The macro worker, support module, proc macro export, constant, and integration tests have all been deleted.
+
+### Fixed
+- **`WarningEmitter` name collision**: Fixed E0428 name conflicts when multiple `#[document_module]` invocations exist at the same scope by using a global `AtomicUsize` counter instead of a per-instance counter for warning constant names.
+
 ## [0.5.0] - 2026-03-13
 
 ### Added

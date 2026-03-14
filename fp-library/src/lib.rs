@@ -17,7 +17,7 @@
 //!
 //! - **Higher-Kinded Types (HKT):** Implemented using lightweight higher-kinded polymorphism (type-level defunctionalization/brands).
 //! - **Macros:** Procedural macros for working with HKTs and monadic code:
-//!   - **HKT:** `trait_kind!`, `impl_kind!`, `Apply!` for defining and applying higher-kinded type encodings
+//!   - **HKT:** `trait_kind!`, `impl_kind!`, `Apply!`, `#[kind]` for defining and applying higher-kinded type encodings
 //!   - **Do-Notation:** `m_do!` for monadic do-notation, `a_do!` for applicative do-notation
 //! - **Type Classes:** A comprehensive collection of standard type classes including:
 //!   - **Core:** `Functor`, `Contravariant`, `Pointed`, `Applicative`, `Semiapplicative`, `Monad`, `Semimonad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`, `Alt`, `Plus`, `Alternative`

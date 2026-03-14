@@ -91,7 +91,8 @@ mod inner {
 	/// 	),
 	/// );
 	/// ```
-	pub trait Bifoldable: Kind_266801a817966495 {
+	#[kind(type Of<'a, A: 'a, B: 'a>: 'a;)]
+	pub trait Bifoldable {
 		/// Folds the bifoldable structure from right to left using two step functions.
 		///
 		/// This method performs a right-associative fold, dispatching to `f` for

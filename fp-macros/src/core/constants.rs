@@ -90,6 +90,8 @@ pub mod markers {
 	pub const FN_BRAND_MARKER: &str = "fn_brand_marker";
 	/// Common suffix for brand types
 	pub const BRAND_SUFFIX: &str = "Brand";
+	/// Prefix for generated Kind trait names (e.g., `Kind_cdc7cd43dac7585f`)
+	pub const KIND_PREFIX: &str = "Kind_";
 }
 
 /// Known attribute names used by the documentation macros
@@ -108,8 +110,6 @@ pub mod attributes {
 	pub const DOCUMENT_RETURNS: &str = "document_returns";
 	/// Attribute for function examples documentation
 	pub const DOCUMENT_EXAMPLES: &str = "document_examples";
-	/// Attribute for struct field documentation
-	pub const DOCUMENT_FIELDS: &str = "document_fields";
 	/// Attribute for module documentation
 	pub const DOCUMENT_MODULE: &str = "document_module";
 	/// Attribute to suppress the `impl Trait` lint for named generics
@@ -125,7 +125,6 @@ pub mod attributes {
 		DOCUMENT_PARAMETERS,
 		DOCUMENT_RETURNS,
 		DOCUMENT_EXAMPLES,
-		DOCUMENT_FIELDS,
 		DOCUMENT_MODULE,
 		ALLOW_NAMED_GENERICS,
 	];

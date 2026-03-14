@@ -27,7 +27,7 @@ mod inner {
 	///
 	/// ### Hierarchy Unification
 	///
-	/// This trait now inherits from [`Kind_cdc7cd43dac7585f`], ensuring that all functor
+	/// This trait inherits from [`Kind!(type Of<'a, A: 'a>: 'a;)`](crate::kinds::Kind_cdc7cd43dac7585f), ensuring that all functor
 	/// contexts satisfy the strict lifetime requirements where the type argument must
 	/// outlive the context's application lifetime.
 	///
@@ -84,7 +84,8 @@ mod inner {
 	/// 	map::<VecBrand, _, _>(f, map::<VecBrand, _, _>(g, vec![1, 2, 3])),
 	/// );
 	/// ```
-	pub trait Functor: Kind_cdc7cd43dac7585f {
+	#[kind(type Of<'a, A: 'a>: 'a;)]
+	pub trait Functor {
 		/// Maps a function over the values in the functor context.
 		///
 		/// This method applies a function to the value(s) inside the functor context, producing a new functor context with the transformed value(s).

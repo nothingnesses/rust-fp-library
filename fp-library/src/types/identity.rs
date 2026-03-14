@@ -43,11 +43,12 @@ mod inner {
 	/// This type supports serialization and deserialization via [`serde`](https://serde.rs) when the `serde` feature is enabled.
 	#[document_type_parameters("The type of the wrapped value.")]
 	///
-	#[document_fields("The wrapped value.")]
-	///
 	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 	#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-	pub struct Identity<A>(pub A);
+	pub struct Identity<A>(
+		/// The wrapped value.
+		pub A,
+	);
 
 	impl_kind! {
 		for IdentityBrand {

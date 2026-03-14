@@ -56,9 +56,10 @@ mod inner {
 	/// ### Hierarchy Unification
 	///
 	/// This trait is now the root of the unified profunctor and arrow hierarchies on
-	/// [`Kind_266801a817966495`]. This unification ensures that all profunctor-based abstractions
+	/// [`Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)`](crate::kinds::Kind_266801a817966495).
+	/// This unification ensures that all profunctor-based abstractions
 	/// (including lenses and prisms) share a consistent higher-kinded representation with
-	/// strict lifetime bounds (`type Of<'a, T: 'a, U: 'a>: 'a;`).
+	/// strict lifetime bounds.
 	///
 	/// By explicitly requiring that both type parameters outlive the application lifetime `'a`,
 	/// we provide the compiler with the necessary guarantees to handle trait objects
@@ -103,7 +104,8 @@ mod inner {
 	/// assert_eq!(left(5), right(5));
 	/// assert_eq!(left(0), right(0));
 	/// ```
-	pub trait Profunctor: Kind_266801a817966495 {
+	#[kind(type Of<'a, A: 'a, B: 'a>: 'a;)]
+	pub trait Profunctor {
 		/// Maps over both arguments of the profunctor.
 		///
 		/// This method applies a contravariant function to the first argument and a covariant

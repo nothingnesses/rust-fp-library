@@ -20,7 +20,8 @@ mod inner {
 	};
 
 	/// A type class for contexts that can be initialized with a value.
-	pub trait Pointed: Kind_cdc7cd43dac7585f {
+	#[kind(type Of<'a, A: 'a>: 'a;)]
+	pub trait Pointed {
 		/// The value wrapped in the context.
 		///
 		/// This method wraps a value in a context.

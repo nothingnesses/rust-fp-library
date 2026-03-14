@@ -29,9 +29,9 @@ mod inner {
 	///
 	/// ### Hierarchy Unification
 	///
-	/// This trait inherits from [`Kind_266801a817966495`], which uses the strict Kind signature
-	/// `type Of<'a, T: 'a, U: 'a>: 'a;`. This unification ensures that all profunctors and arrows
-	/// share a consistent higher-kinded representation, and requires that the source and target
+	/// This trait inherits from [`Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)`](crate::kinds::Kind_266801a817966495).
+	/// This unification ensures that all profunctors and arrows share a
+	/// consistent higher-kinded representation, and requires that the source and target
 	/// types of a morphism outlive the morphism's application lifetime.
 	///
 	/// ### Laws
@@ -66,7 +66,8 @@ mod inner {
 	/// assert_eq!(left(10), right(10));
 	/// assert_eq!(left(0), right(0));
 	/// ```
-	pub trait Semigroupoid: Kind_266801a817966495 {
+	#[kind(type Of<'a, A: 'a, B: 'a>: 'a;)]
+	pub trait Semigroupoid {
 		/// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
 		///
 		/// This method composes two morphisms `f` and `g` to produce a new morphism that represents the application of `g` followed by `f`.
