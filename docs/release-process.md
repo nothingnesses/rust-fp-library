@@ -82,28 +82,61 @@ git checkout -b release/fp-library-vX.Y.Z
 Run the full suite of checks locally to catch issues before the PR:
 
 ```bash
-# Check compilation
-cargo check
-
-# Run all tests (unit, integration, and doc)
-cargo test
+# Format code
+cargo fmt --all
 
 # Run linter
-cargo clippy
+cargo clippy --workspace --all-features
 
-# Verify documentation builds and looks correct
-cargo doc --open
+# Verify documentation builds (must produce zero warnings)
+cargo doc --workspace --all-features --no-deps
+
+# Run all tests
+cargo test --workspace --all-features
 ```
+
+#### Test Output Caching
+
+To avoid re-running expensive test suites when source files haven't changed, cache test outputs:
+
+**Cache file location:** `.claude/test-cache/` (gitignored)
+
+**After running tests**, save the output:
+```bash
+mkdir -p .claude/test-cache
+cargo test --workspace --all-features 2>&1 | tee .claude/test-cache/test-output.txt
+# Record the timestamp of the newest source file at cache time
+find fp-library/src fp-macros/src -name '*.rs' -printf '%T@\n' | sort -rn | head -1 > .claude/test-cache/source-timestamp.txt
+```
+
+**Before re-running tests**, check if cache is still valid:
+```bash
+# Get newest source file timestamp
+LATEST=$(find fp-library/src fp-macros/src -name '*.rs' -printf '%T@\n' | sort -rn | head -1)
+CACHED=$(cat .claude/test-cache/source-timestamp.txt 2>/dev/null || echo "0")
+if [ "$LATEST" = "$CACHED" ]; then
+  echo "=== CACHED TEST OUTPUT (no source changes) ==="
+  cat .claude/test-cache/test-output.txt
+else
+  echo "=== Source files changed, re-running tests ==="
+  cargo test --workspace --all-features 2>&1 | tee .claude/test-cache/test-output.txt
+  echo "$LATEST" > .claude/test-cache/source-timestamp.txt
+fi
+```
+
+**Always invalidate** (re-run tests) when:
+- Any `.rs` file under `fp-library/src/` or `fp-macros/src/` has been modified since the cached timestamp
+- `Cargo.toml` files have changed
+- Test files under `tests/` have changed
+
+**Use cached output** when you just need to re-check results (e.g., confirming a test name, reviewing output) and no source files have changed.
 
 ### 7. Commit and Open PR
 
-1.  Stage and commit the release changes:
+1.  Stage and commit the release changes (includes `Cargo.lock`, READMEs, and any other release-related updates):
 
     ```bash
-    git add fp-library/Cargo.toml fp-library/CHANGELOG.md
-    # Add fp-macros files if changed
-    git add fp-macros/Cargo.toml fp-macros/CHANGELOG.md
-
+    git add .
     git commit -m "chore: release fp-library vX.Y.Z / fp-macros vA.B.C"
     ```
 
