@@ -700,9 +700,11 @@ mod tests {
 			TryThunk,
 			TryTrampoline,
 		},
+		quickcheck_macros::quickcheck,
 		std::{
 			cell::RefCell,
 			rc::Rc,
+			sync::Arc,
 		},
 	};
 
@@ -877,5 +879,98 @@ mod tests {
 	fn test_arc_try_lazy_from_result_err() {
 		let memo: ArcTryLazy<i32, String> = ArcTryLazy::from(Err("error".to_string()));
 		assert_eq!(memo.evaluate(), Err(&"error".to_string()));
+	}
+
+	// SC-2: Panic poisoning test for TryLazy
+
+	/// Tests that a panicking initializer poisons the RcTryLazy.
+	///
+	/// Verifies that subsequent evaluate calls also panic after
+	/// the initializer panics.
+	#[test]
+	fn test_panic_poisoning() {
+		use std::panic;
+
+		let memo: RcTryLazy<i32, String> = RcTryLazy::new(|| {
+			panic!("initializer panic");
+		});
+
+		let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+			let _ = memo.evaluate();
+		}));
+		assert!(result.is_err(), "First evaluate should panic");
+
+		let result2 = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+			let _ = memo.evaluate();
+		}));
+		assert!(result2.is_err(), "Second evaluate should also panic (poisoned)");
+	}
+
+	// SC-2: Thread safety test for ArcTryLazy
+
+	/// Tests that ArcTryLazy is thread-safe.
+	///
+	/// Spawns 10 threads sharing an ArcTryLazy and verifies the
+	/// computation runs exactly once.
+	#[test]
+	fn test_arc_try_lazy_thread_safety() {
+		use std::{
+			sync::atomic::{
+				AtomicUsize,
+				Ordering,
+			},
+			thread,
+		};
+
+		let counter = Arc::new(AtomicUsize::new(0));
+		let counter_clone = counter.clone();
+		let memo: ArcTryLazy<i32, String> = ArcTryLazy::new(move || {
+			counter_clone.fetch_add(1, Ordering::SeqCst);
+			Ok(42)
+		});
+
+		let mut handles = vec![];
+		for _ in 0 .. 10 {
+			let memo_clone = memo.clone();
+			handles.push(thread::spawn(move || {
+				assert_eq!(memo_clone.evaluate(), Ok(&42));
+			}));
+		}
+
+		for handle in handles {
+			handle.join().unwrap();
+		}
+
+		assert_eq!(counter.load(Ordering::SeqCst), 1);
+	}
+
+	// QuickCheck Law Tests
+
+	/// Memoization: evaluating twice returns the same value.
+	#[quickcheck]
+	fn memoization_ok(x: i32) -> bool {
+		let memo: RcTryLazy<i32, i32> = RcTryLazy::new(move || Ok(x));
+		let first = memo.evaluate();
+		let second = memo.evaluate();
+		first == second && first == Ok(&x)
+	}
+
+	/// Error memoization: error values are cached correctly.
+	#[quickcheck]
+	fn memoization_err(e: i32) -> bool {
+		let memo: RcTryLazy<i32, i32> = RcTryLazy::new(move || Err(e));
+		let first = memo.evaluate();
+		let second = memo.evaluate();
+		first == second && first == Err(&e)
+	}
+
+	/// Deferrable transparency: `send_defer(|| x).evaluate() == x.evaluate()`.
+	#[quickcheck]
+	fn deferrable_transparency(x: i32) -> bool {
+		use crate::classes::send_deferrable::send_defer;
+
+		let memo: ArcTryLazy<i32, i32> = ArcTryLazy::new(move || Ok(x));
+		let deferred: ArcTryLazy<i32, i32> = send_defer(move || ArcTryLazy::new(move || Ok(x)));
+		memo.evaluate() == deferred.evaluate()
 	}
 }

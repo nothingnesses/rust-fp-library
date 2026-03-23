@@ -1785,6 +1785,7 @@ mod tests {
 	use {
 		super::*,
 		crate::types::Thunk,
+		quickcheck_macros::quickcheck,
 	};
 
 	/// Tests success path.
@@ -2182,5 +2183,103 @@ mod tests {
 	fn test_try_thunk_from_result_err() {
 		let try_thunk: TryThunk<i32, String> = TryThunk::from(Err("error".to_string()));
 		assert_eq!(try_thunk.evaluate(), Err("error".to_string()));
+	}
+
+	// QuickCheck Law Tests
+
+	// Functor Laws (via HKT, TryThunkErrAppliedBrand)
+
+	/// Functor identity: `map(id, t).evaluate() == t.evaluate()`.
+	#[quickcheck]
+	fn functor_identity(x: i32) -> bool {
+		use crate::{
+			brands::*,
+			functions::*,
+		};
+		let t: TryThunk<i32, i32> = TryThunk::ok(x);
+		map::<TryThunkErrAppliedBrand<i32>, _, _>(|a| a, t).evaluate() == Ok(x)
+	}
+
+	/// Functor composition: `map(f . g, t) == map(f, map(g, t))`.
+	#[quickcheck]
+	fn functor_composition(x: i32) -> bool {
+		use crate::{
+			brands::*,
+			functions::*,
+		};
+		let f = |a: i32| a.wrapping_add(1);
+		let g = |a: i32| a.wrapping_mul(2);
+		let lhs =
+			map::<TryThunkErrAppliedBrand<i32>, _, _>(move |a| f(g(a)), TryThunk::ok(x)).evaluate();
+		let rhs = map::<TryThunkErrAppliedBrand<i32>, _, _>(
+			f,
+			map::<TryThunkErrAppliedBrand<i32>, _, _>(g, TryThunk::ok(x)),
+		)
+		.evaluate();
+		lhs == rhs
+	}
+
+	// Monad Laws (via HKT, TryThunkErrAppliedBrand)
+
+	/// Monad left identity: `pure(a).bind(f) == f(a)` (for Ok values).
+	#[quickcheck]
+	fn monad_left_identity(a: i32) -> bool {
+		use crate::{
+			brands::*,
+			functions::*,
+		};
+		let f = |x: i32| pure::<TryThunkErrAppliedBrand<i32>, _>(x.wrapping_mul(2));
+		let lhs = bind::<TryThunkErrAppliedBrand<i32>, _, _>(
+			pure::<TryThunkErrAppliedBrand<i32>, _>(a),
+			f,
+		)
+		.evaluate();
+		let rhs = f(a).evaluate();
+		lhs == rhs
+	}
+
+	/// Monad right identity: `t.bind(pure) == t`.
+	#[quickcheck]
+	fn monad_right_identity(x: i32) -> bool {
+		use crate::{
+			brands::*,
+			functions::*,
+		};
+		let lhs = bind::<TryThunkErrAppliedBrand<i32>, _, _>(
+			pure::<TryThunkErrAppliedBrand<i32>, _>(x),
+			pure::<TryThunkErrAppliedBrand<i32>, _>,
+		)
+		.evaluate();
+		lhs == Ok(x)
+	}
+
+	/// Monad associativity: `m.bind(f).bind(g) == m.bind(|a| f(a).bind(g))`.
+	#[quickcheck]
+	fn monad_associativity(x: i32) -> bool {
+		use crate::{
+			brands::*,
+			functions::*,
+		};
+		let f = |a: i32| pure::<TryThunkErrAppliedBrand<i32>, _>(a.wrapping_add(1));
+		let g = |a: i32| pure::<TryThunkErrAppliedBrand<i32>, _>(a.wrapping_mul(3));
+		let m: TryThunk<i32, i32> = TryThunk::ok(x);
+		let m2: TryThunk<i32, i32> = TryThunk::ok(x);
+		let lhs = bind::<TryThunkErrAppliedBrand<i32>, _, _>(
+			bind::<TryThunkErrAppliedBrand<i32>, _, _>(m, f),
+			g,
+		)
+		.evaluate();
+		let rhs = bind::<TryThunkErrAppliedBrand<i32>, _, _>(m2, move |a| {
+			bind::<TryThunkErrAppliedBrand<i32>, _, _>(f(a), g)
+		})
+		.evaluate();
+		lhs == rhs
+	}
+
+	/// Error short-circuit: `TryThunk::err(e).bind(f).evaluate() == Err(e)`.
+	#[quickcheck]
+	fn error_short_circuit(e: i32) -> bool {
+		let t: TryThunk<i32, i32> = TryThunk::err(e);
+		t.bind(|x| TryThunk::ok(x.wrapping_add(1))).evaluate() == Err(e)
 	}
 }

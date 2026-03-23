@@ -2140,4 +2140,29 @@ mod tests {
 		let rhs: ArcLazy<String> = append(a, empty());
 		*rhs.evaluate() == x
 	}
+
+	// SC-2: Panic poisoning test for Lazy
+
+	/// Tests that a panicking initializer poisons the RcLazy.
+	///
+	/// Verifies that subsequent evaluate calls also panic after
+	/// the initializer panics.
+	#[test]
+	fn test_panic_poisoning() {
+		use std::panic;
+
+		let memo: RcLazy<i32> = RcLazy::new(|| {
+			panic!("initializer panic");
+		});
+
+		let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+			let _ = memo.evaluate();
+		}));
+		assert!(result.is_err(), "First evaluate should panic");
+
+		let result2 = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+			let _ = memo.evaluate();
+		}));
+		assert!(result2.is_err(), "Second evaluate should also panic (poisoned)");
+	}
 }

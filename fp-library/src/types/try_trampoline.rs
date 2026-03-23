@@ -730,6 +730,7 @@ mod tests {
 			Step,
 			Trampoline,
 		},
+		quickcheck_macros::quickcheck,
 	};
 
 	/// Tests `TryTrampoline::ok`.
@@ -1138,5 +1139,57 @@ mod tests {
 	fn test_catch_unwind_success() {
 		let task = TryTrampoline::<i32, String>::catch_unwind(|| 42);
 		assert_eq!(task.evaluate(), Ok(42));
+	}
+
+	// QuickCheck Law Tests (via inherent methods)
+
+	// Functor Laws
+
+	/// Functor identity: `ok(a).map(identity) == Ok(a)`.
+	#[quickcheck]
+	fn functor_identity(x: i32) -> bool {
+		TryTrampoline::<i32, i32>::ok(x).map(|a| a).evaluate() == Ok(x)
+	}
+
+	/// Functor composition: `t.map(f . g) == t.map(g).map(f)`.
+	#[quickcheck]
+	fn functor_composition(x: i32) -> bool {
+		let f = |a: i32| a.wrapping_add(1);
+		let g = |a: i32| a.wrapping_mul(2);
+		let lhs = TryTrampoline::<i32, i32>::ok(x).map(move |a| f(g(a))).evaluate();
+		let rhs = TryTrampoline::<i32, i32>::ok(x).map(g).map(f).evaluate();
+		lhs == rhs
+	}
+
+	// Monad Laws
+
+	/// Monad left identity: `ok(a).bind(f) == f(a)`.
+	#[quickcheck]
+	fn monad_left_identity(a: i32) -> bool {
+		let f = |x: i32| TryTrampoline::<i32, i32>::ok(x.wrapping_mul(2));
+		TryTrampoline::ok(a).bind(f).evaluate() == f(a).evaluate()
+	}
+
+	/// Monad right identity: `m.bind(ok) == m`.
+	#[quickcheck]
+	fn monad_right_identity(x: i32) -> bool {
+		TryTrampoline::<i32, i32>::ok(x).bind(TryTrampoline::ok).evaluate() == Ok(x)
+	}
+
+	/// Monad associativity: `m.bind(f).bind(g) == m.bind(|a| f(a).bind(g))`.
+	#[quickcheck]
+	fn monad_associativity(x: i32) -> bool {
+		let f = |a: i32| TryTrampoline::<i32, i32>::ok(a.wrapping_add(1));
+		let g = |a: i32| TryTrampoline::<i32, i32>::ok(a.wrapping_mul(3));
+		let lhs = TryTrampoline::<i32, i32>::ok(x).bind(f).bind(g).evaluate();
+		let rhs = TryTrampoline::<i32, i32>::ok(x).bind(move |a| f(a).bind(g)).evaluate();
+		lhs == rhs
+	}
+
+	/// Error short-circuit: `err(e).bind(f).evaluate() == Err(e)`.
+	#[quickcheck]
+	fn error_short_circuit(e: i32) -> bool {
+		TryTrampoline::<i32, i32>::err(e).bind(|x| TryTrampoline::ok(x.wrapping_add(1))).evaluate()
+			== Err(e)
 	}
 }
