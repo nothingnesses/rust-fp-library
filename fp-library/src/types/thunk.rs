@@ -280,6 +280,10 @@ mod inner {
 		A: Clone + 'a,
 		Config: LazyConfig,
 	{
+		/// Converts a [`Lazy`] value into a [`Thunk`] by cloning the memoized value.
+		///
+		/// This conversion clones the cached value on each evaluation.
+		/// The cost depends on the [`Clone`] implementation of `A`.
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
 		#[document_returns("A thunk that evaluates the lazy value.")]

@@ -57,7 +57,7 @@ mod inner {
 	///
 	/// # Memoization
 	///
-	/// `Trampoline` does NOT memoize. Each call to `run` re-evaluates.
+	/// `Trampoline` does NOT memoize. Each call to `evaluate` re-evaluates.
 	/// For memoization, wrap in [`Lazy`]:
 	///
 	/// ```rust
@@ -125,8 +125,8 @@ mod inner {
 		/// 	1 + 1
 		/// });
 		///
-		/// // Nothing printed yet
-		/// let result = task.evaluate(); // Prints "Computing!"
+		/// // Nothing computed yet
+		/// let result = task.evaluate(); // Now the closure runs
 		/// assert_eq!(result, 2);
 		/// ```
 		pub fn new(f: impl FnOnce() -> A + 'static) -> Self {
@@ -463,6 +463,10 @@ mod inner {
 		"The memoization configuration."
 	)]
 	impl<A: 'static + Clone, Config: LazyConfig> From<Lazy<'static, A, Config>> for Trampoline<A> {
+		/// Converts a [`Lazy`] value into a [`Trampoline`] by cloning the memoized value.
+		///
+		/// This conversion clones the cached value on each evaluation.
+		/// The cost depends on the [`Clone`] implementation of `A`.
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
 		#[document_returns("A trampoline that evaluates the lazy value.")]

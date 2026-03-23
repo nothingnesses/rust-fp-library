@@ -379,6 +379,10 @@ mod inner {
 		E: Clone + 'a,
 		Config: LazyConfig,
 	{
+		/// Converts a [`TryLazy`] value into a [`TryThunk`] by cloning the memoized result.
+		///
+		/// This conversion clones both the success and error values on each evaluation.
+		/// The cost depends on the [`Clone`] implementations of `A` and `E`.
 		#[document_signature]
 		#[document_parameters("The fallible lazy value to convert.")]
 		#[document_returns("A new `TryThunk` instance that wraps the fallible lazy value.")]

@@ -22,6 +22,19 @@ mod inner {
 	///
 	/// `Deferrable` instances must satisfy the following law:
 	/// * Transparency: `defer(|| x)` is observationally equivalent to `x` when evaluated.
+	///
+	/// ### Why there is no generic `fix`
+	///
+	/// In PureScript, `fix :: Lazy l => (l -> l) -> l` enables lazy self-reference,
+	/// which is essential for tying the knot in recursive values. In Rust, lazy
+	/// self-reference requires shared ownership (`Rc`/`Arc`) and interior mutability,
+	/// which are properties specific to [`Lazy`](crate::types::Lazy) rather than
+	/// all `Deferrable` types. For example, [`Thunk`](crate::types::Thunk) is consumed
+	/// on evaluation, so self-referential construction is not possible.
+	///
+	/// The concrete functions [`rc_lazy_fix`](crate::types::lazy::rc_lazy_fix) and
+	/// [`arc_lazy_fix`](crate::types::lazy::arc_lazy_fix) provide this capability for
+	/// `Lazy` specifically.
 	#[document_type_parameters("The lifetime of the computation.")]
 	#[document_examples]
 	///

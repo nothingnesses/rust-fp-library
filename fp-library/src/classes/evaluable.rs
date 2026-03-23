@@ -26,10 +26,18 @@ mod inner {
 		fp_macros::*,
 	};
 
-	/// A functor whose effects can be evaluated to produce the inner value.
+	/// A functor containing exactly one extractable value, providing a natural
+	/// transformation `F ~> Id`.
 	///
-	/// This trait is used by [`Free::evaluate`](crate::types::Free::evaluate) to execute the effects
-	/// in a [`Free`](crate::types::Free) monad.
+	/// This trait witnesses that a functor always holds a single value that can be
+	/// extracted by running its effect. It is used by
+	/// [`Free::evaluate`](crate::types::Free::evaluate) to execute the effects in a
+	/// [`Free`](crate::types::Free) monad.
+	///
+	/// Currently only [`ThunkBrand`](crate::brands::ThunkBrand) implements this trait.
+	/// [`Lazy`](crate::types::Lazy) cannot implement it because `evaluate` returns `&A`
+	/// (a reference), not an owned `A`. [`Trampoline`](crate::types::Trampoline) does not
+	/// have a brand and therefore cannot participate in HKT traits.
 	pub trait Evaluable: Functor {
 		/// Evaluates the effect, producing the inner value.
 		#[document_signature]
@@ -70,7 +78,7 @@ mod inner {
 		"The type of the value inside the functor."
 	)]
 	///
-	#[document_parameters("The functor instance to evaluable.")]
+	#[document_parameters("The functor instance to evaluate.")]
 	///
 	#[document_returns("The inner value.")]
 	#[document_examples]
