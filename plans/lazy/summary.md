@@ -1,205 +1,109 @@
-# Lazy Hierarchy: Consolidated Analysis Summary
+# Lazy Evaluation Hierarchy: Consolidated Analysis Summary
 
-## Verdict
+## Executive Summary
 
-The lazy evaluation hierarchy is fundamentally sound and well-designed. The three-type split (Thunk, Trampoline, Lazy) reflects genuine, irreconcilable constraints in Rust's type system: HKT compatibility conflicts with type erasure; owned evaluation conflicts with shared memoization; lifetime polymorphism conflicts with `Box<dyn Any>`. No fundamental redesign is warranted. The fallible variants (TryThunk, TryTrampoline, TryLazy) provide a clean parallel hierarchy. The suggested improvements are incremental: missing type class instances, missing combinators, documentation gaps, and test coverage.
+The lazy evaluation hierarchy in this library is architecturally sound. The three-way split between `Thunk` (lifetime-flexible deferred computation), `Trampoline` (stack-safe recursion), and `Lazy` (memoized caching) is well-motivated by fundamental Rust constraints: memoization conflicts with standard `Functor` because `evaluate` returns `&A`; stack safety via type erasure (`Box<dyn Any>`) requires `'static`; and HKT compatibility requires lifetime polymorphism. All ten analyses agree that these constraints make unification impractical without sacrificing correctness or ergonomics. The `Try*` variants provide genuine ergonomic value through short-circuiting `bind` semantics, and the `LazyConfig` trait is a clean abstraction that avoids duplicating the `Lazy` implementation for `Rc` and `Arc` strategies.
 
----
+The primary concerns across analyses are practical rather than architectural. Code duplication in the `Try*` types accounts for roughly 40-50% of their line count, representing a maintenance risk as the library matures. No benchmarks exist for any lazy type despite these types having the highest per-operation overhead in the library. Several test coverage gaps exist, particularly for recently added methods (`lift2`, `then`, `memoize`) and for TryLazy's `map`/`map_err`. Thread safety is uniformly assessed as sound, with zero `unsafe` code and all synchronization delegated to well-audited `std` library types.
 
-## Prioritized Issues
+The adaptation from PureScript is honest and well-reasoned. Where PureScript's `Data.Lazy` supports full `Functor`, `Monad`, `Traversable`, and `Comonad` thanks to garbage collection and implicit laziness, the Rust version correctly identifies these as impossible (or impractical) given ownership semantics and introduces appropriate alternatives like `RefFunctor`. The library gains thread safety as a first-class concern, explicit stack safety guarantees, and the extensible `LazyConfig` trait, none of which exist in the PureScript original.
 
-### Critical Issues
+## Consensus Findings
 
-No bugs, unsoundness, or correctness problems were found. All implementations use safe Rust, all type class laws hold extensionally, and the type-level invariants are correctly maintained.
+These observations appear consistently across multiple analysis files.
 
-### High-Priority Improvements
+- **The three-type split is well-motivated and architecturally correct.** Each type occupies a distinct point in the design space dictated by Rust's ownership model. No reasonable unification exists. (Files 1, 3, 6, 7)
+- **Trampoline's exclusion from HKT is a fundamental limitation, not a fixable gap.** The `'static` requirement from `Box<dyn Any>` type erasure is incompatible with the `Kind` trait's `type Of<'a, A: 'a>: 'a` signature. (Files 1, 3, 6, 7)
+- **`RefFunctor` is the correct abstraction for `Lazy` in Rust.** Standard `Functor` is impossible because `evaluate()` returns `&A`, not `A`. (Files 1, 4, 6, 7)
+- **The `LazyConfig` trait is well-designed and extensible.** It cleanly unifies `Rc` and `Arc` variants without code duplication and is open for third-party implementations. (Files 1, 4, 8)
+- **Thread safety is sound throughout, with zero `unsafe` code.** All Send/Sync derivations are automatic and correct. `ArcLazy` properly delegates to `LazyLock` for concurrent initialization. (Files 4, 8)
+- **Try\* types provide genuine ergonomic value through short-circuiting `bind`.** The newtype wrapper approach is pragmatic for Rust; monad transformers (`EitherT`) are infeasible given the type system constraints. (Files 1, 5, 7)
+- **Code duplication in Try\* types is real but tolerable.** Approximately 40-50% of Try\* code is structural duplication with mechanical `Result` wrapping. A proc macro could reduce this. (Files 1, 2, 5)
+- **`Thunk::bind` chains are not stack-safe.** This is documented in multiple places but could be more prominent. `tail_rec_m` is the correct mitigation. (Files 1, 2, 9)
+- **No benchmarks exist for any lazy type.** This is the most actionable performance gap. (Files 9, 10)
+- **Several test coverage gaps exist.** Missing tests for `TryThunk::lift2`/`then`/`memoize`, `TryLazy::map`/`map_err`, Foldable laws, Applicative laws, and Bifunctor property tests. (Files 5, 6)
 
-| # | Issue | Agents | Suggested Fix | Affected Files |
-|---|-------|--------|---------------|----------------|
-| H1 | `TryTrampoline` lacks `tail_rec_m`, undermining the primary value proposition of stack-safe fallible recursion. | 7 | Delegate to `Trampoline::tail_rec_m` with `Result<Step<S, A>, E>` unwrapping. | `fp-library/src/types/try_trampoline.rs` |
-| H2 | `TryTrampoline` lacks `lift2` and `then`, leaving the API incomplete relative to `Trampoline`. | 7 | Straightforward delegation to `Trampoline`'s equivalents with `Result` wrapping. | `fp-library/src/types/try_trampoline.rs` |
-| H3 | `Trampoline` requires `A: Send` on all methods, but `Trampoline` itself is `!Send` (internal `Thunk` closures are not `Send`). The `Send` bound may be unnecessarily restrictive, preventing use with `Rc<T>` and other `!Send` types. | 4, 9 | Audit whether `A: Send` is actually required. If not, remove it from `Trampoline` and offer a `Send`-bounded variant separately. | `fp-library/src/types/trampoline.rs` (impl block, ~line 77) |
-| H4 | `RefFunctor` not implemented for `LazyBrand<ArcLazyConfig>`. The thread-safe `ArcLazy` variant cannot be ref-mapped through the type class. | 1, 2, 5 | Add `RefFunctor for LazyBrand<ArcLazyConfig>`. May require a `SendRefFunctor` trait or adjusting `RefFunctor` bounds, since `ArcLazy::new` requires `Send` on the closure. Also add an inherent `ref_map` method on the `ArcLazy` impl block. | `fp-library/src/types/lazy.rs`, `fp-library/src/classes/ref_functor.rs` |
-| H5 | Missing `fix` combinator. PureScript's `Control.Lazy` exists primarily for `fix :: (l -> l) -> l`, which ties recursive knots. This is absent from the library. | 1, 6 | Add `fix` as standalone functions for `RcLazy` and `ArcLazy` (not as a trait method, since it requires `Clone` and self-referential structure). Use an `Rc<OnceCell<RcLazy<A>>>` approach. | `fp-library/src/classes/deferrable.rs` or a new `fp-library/src/functions/fix.rs` |
-| H6 | No QuickCheck property tests for `Thunk`, despite it being a full Monad. Every other major type has comprehensive law tests. | 8 | Add QuickCheck tests for Functor identity/composition, Monad left/right identity and associativity, Semigroup associativity, and Monoid identity. Agent 8 provides example test code. | `fp-library/src/types/thunk.rs` (test module) or `fp-library/tests/property.rs` |
+## Key Design Issues
 
-### Medium-Priority Improvements
+### Critical
 
-| # | Issue | Agents | Suggested Fix | Affected Files |
-|---|-------|--------|---------------|----------------|
-| M1 | `Lazy` lacks `Semigroup`/`Monoid` implementations, breaking symmetry with `Thunk`. | 1, 2, 5 | Implement with `A: Clone + Semigroup`/`Monoid` bounds: `append(a, b) = Lazy::new(\|\| Semigroup::append(a.evaluate().clone(), b.evaluate().clone()))`. | `fp-library/src/types/lazy.rs` |
-| M2 | `Lazy` lacks `Foldable` implementation. | 1, 2, 5 | Implement `Foldable for LazyBrand<RcLazyConfig>` with `A: Clone`: `fold_right(f, init, lazy) = f(lazy.evaluate().clone(), init)`. | `fp-library/src/types/lazy.rs` |
-| M3 | `TryThunkBrand` implements `Bifunctor` but not `Bifoldable` or `Bitraversable`. | 2 | Add `Bifoldable` for `TryThunkBrand` (straightforward single-element fold over both sides). | `fp-library/src/types/try_thunk.rs` |
-| M4 | `MonadRec` missing for `TryThunkOkAppliedBrand<A>` (error-side monad). | 2 | Implement `tail_rec_m` with a loop that short-circuits on `Ok` instead of `Err`. Agent 2 provides the implementation sketch. | `fp-library/src/types/try_thunk.rs` |
-| M5 | Missing `From<TryThunk> for TryTrampoline` conversion. Cannot easily upgrade a fallible thunk to stack-safe fallible computation. | 7 | Add `From<TryThunk<'static, A, E>> for TryTrampoline<A, E>` with `A + E: Send + 'static`. | `fp-library/src/types/try_trampoline.rs` |
-| M6 | Missing `From<Thunk<'static, A>> for Trampoline<A>` and `From<Trampoline<A>> for Thunk<'static, A>` conversions. | 4 | Add both `From` impls to complete the conversion graph between Thunk and Trampoline. | `fp-library/src/types/trampoline.rs`, `fp-library/src/types/thunk.rs` |
-| M7 | No QuickCheck property tests for `Trampoline` (Monad laws via inherent methods). | 8 | Add tests for left/right identity, associativity, and functor identity using inherent `bind`/`map`/`pure`. | `fp-library/src/types/trampoline.rs` or `fp-library/tests/property.rs` |
-| M8 | No QuickCheck tests for `Lazy` covering `RefFunctor` laws or `Deferrable` transparency. | 8 | Add property tests: `ref_map(clone, lazy).evaluate() == lazy.evaluate()` and `defer(\|\| lazy).evaluate() == lazy.evaluate()`. | `fp-library/src/types/lazy.rs` or `fp-library/tests/property.rs` |
-| M9 | `RefFunctor` and `Deferrable` traits have no documented laws. | 8 | Add law documentation to both traits (identity/composition for `RefFunctor`; transparency for `Deferrable`). | `fp-library/src/classes/ref_functor.rs`, `fp-library/src/classes/deferrable.rs` |
-| M10 | Panic behavior of `Lazy` during initialization is undocumented. If the initializer panics, `LazyCell`/`LazyLock` poison the cell. | 5 | Document panic behavior in `Lazy`'s type-level docs. Consider a `catch_unwind` method on `Lazy` itself (not just `TryLazy`). | `fp-library/src/types/lazy.rs` |
+None. The architecture is sound, thread safety is correct, and typeclass laws are satisfied. No unsoundness or data corruption risks were identified.
 
-### Low-Priority Polish
+### Significant
 
-| # | Issue | Agents | Suggested Fix | Affected Files |
-|---|-------|--------|---------------|----------------|
-| L1 | No `Debug` implementation for any of the three types or their fallible variants. | 3, 9 | Implement `Debug` showing `Thunk(<unevaluated>)`, `Lazy(<value>)` or `Lazy(<unevaluated>)` (checking if evaluated), and `Trampoline(<unevaluated>)`. | All type files |
-| L2 | `Thunk` doc comment says "each call to `evaluate` re-executes the computation," but `evaluate(self)` consumes the thunk, so it can only be called once. | 1, 3 | Reword to: "Thunk does not cache results. If you need the same computation's result more than once, wrap it in `Lazy`." | `fp-library/src/types/thunk.rs` |
-| L3 | `TryLazy` lacks `ok()`/`err()` convenience constructors, breaking symmetry with `TryThunk` and `TryTrampoline`. | 7 | Add `TryLazy::ok(a)` and `TryLazy::err(e)` methods. | `fp-library/src/types/try_lazy.rs` |
-| L4 | No `From<Result<A, E>>` for the `Try*` types. | 7 | Add `From<Result<A, E>>` for `TryThunk`, `TryTrampoline`, and `TryLazy` for ergonomic conversion from already-computed results. | All `try_*` type files |
-| L5 | Missing `catch_unwind` on `TryThunk` (currently only on `TryLazy`). | 7 | Add a `catch_unwind` constructor to `TryThunk`. | `fp-library/src/types/try_thunk.rs` |
-| L6 | The `FnOnce` vs `Fn` discrepancy between `Thunk`'s inherent `bind` and `Semimonad::bind` should be documented. | 3, 9 | Add a note explaining that HKT-level `bind`/`map` require `Fn` closures (for types like `Vec`), while inherent methods accept `FnOnce`. | `fp-library/src/types/thunk.rs` |
-| L7 | `Trampoline`/`Free` documentation could explain the "Trampoline = Free over Thunk" connection more explicitly, noting why `Thunk` is used instead of `Identity` in a strict language. | 4 | Add a module-level doc note to `trampoline.rs` and/or `free.rs`. | `fp-library/src/types/trampoline.rs`, `fp-library/src/types/free.rs` |
-| L8 | The "When to Use" comparison table in `thunk.rs` does not mention the `Send` requirement on `Trampoline`. | 2 | Update the comparison table to include the `Send` constraint. | `fp-library/src/types/thunk.rs` |
-| L9 | Consider a `Thunk::memoize()` and `Trampoline::memoize()` convenience method for discoverability. | 10 | Add inherent methods that delegate to the existing `From` conversions. | `fp-library/src/types/thunk.rs`, `fp-library/src/types/trampoline.rs` |
-| L10 | `LazyConfig` extensibility is undocumented. Users could provide custom configs (e.g., `parking_lot`-based). | 5 | Document `LazyConfig`'s extensibility in its trait docs. | `fp-library/src/types/lazy.rs` |
-| L11 | Consider documenting the Cats `Eval` correspondence for users coming from Scala. | 10 | Add a doc section mapping `Eval.now` to `Thunk::pure`, `Eval.always` to `Thunk::new`, `Eval.later` to `Lazy::new`, etc. | `fp-library/src/types/thunk.rs` or module-level docs |
-| L12 | `Lazy` lacks `PartialEq`/`PartialOrd`/`Display` implementations. | 1, 5 | Implement by delegating to the cached value: `lazy1 == lazy2` iff `*lazy1.evaluate() == *lazy2.evaluate()`. | `fp-library/src/types/lazy.rs` |
-| L13 | Consider `TryThunk` refactoring as a newtype over `Thunk<'a, Result<A, E>>` (following `TryTrampoline`'s pattern) to reduce code duplication. | 7 | Rewrite `TryThunk` to delegate to `Thunk<'a, Result<A, E>>` with thin wrappers for `ok`, `err`, `map_err`, `catch`. | `fp-library/src/types/try_thunk.rs` |
+- **No benchmarks for lazy types (File 9).** The library has Criterion benchmarks for `Vec`, `Option`, `Result`, and other types, but nothing for `Thunk`, `Trampoline`, `Lazy`, or `Free`. These types have the highest per-operation overhead in the library (heap allocation per operation, vtable dispatch, type erasure). Without benchmarks, performance claims cannot be validated and regressions cannot be detected.
+- **Missing `#[inline]` annotations on `Thunk` and `Lazy` (File 9).** Neither type has any `#[inline]` hints. Since the library is consumed as a dependency, cross-crate inlining of trivial wrappers like `new`, `pure`, and `evaluate` requires either `#[inline]` or LTO. `Trampoline` already has `#[inline]` on its methods.
+- **No compile-fail tests for lazy types (File 10).** Common mistakes (sending `Thunk` across threads, using borrowed data with `Trampoline`, non-Send closures with `ArcLazy`) produce cryptic errors pointing at library internals rather than helpful messages.
+- **Missing `catch_unwind` for `ArcTryLazy` (File 5).** Only `RcTryLazy` has `catch_unwind`. This is the most notable API inconsistency across the Try\* types.
+- **`catch_unwind` documentation is slightly misleading about stack overflows (File 3).** The docs mention stack overflow as motivation, but `catch_unwind` does not catch stack overflows on most platforms (they trigger SIGSEGV, not a Rust panic).
 
----
+### Minor
 
-## Design Validation: What Is Correct and Should Not Change
+- **`Lazy::ref_map` performs an unnecessary clone (File 9).** The method takes `self` by value but then clones it for the closure capture; moving `self` directly into the closure would save an `Rc::clone`/`Arc::clone`.
+- **`Trampoline::map` goes through the full `bind` path (File 9).** A dedicated `map` variant on `Free` could avoid the type erasure roundtrip for simple mappings.
+- **`Thunk::pure` allocates a `Box` for an already-known value (Files 2, 9).** An enum-based `Pure(A)` variant could avoid this, though the savings are small.
+- **Doc examples inconsistently use `Lazy::<_, RcLazyConfig>::new(...)` vs `RcLazy::new(...)` (File 10).** Standardizing on the type alias would improve clarity.
+- **`LazyConfig` is disconnected from the `RefCountedPointer` hierarchy (File 4).** An associated type linking the two would enable generic code that composes lazy evaluation with pointer-parameterized abstractions.
+- **README line 193 says Thunk/Trampoline "re-run every time you call `.evaluate()`," but `evaluate` consumes `self` so it can only be called once (File 10).**
 
-The following aspects were confirmed as correct and well-designed by multiple agents:
+## Recommended Improvements
 
-| Aspect | Confirmed By | Notes |
-|--------|-------------|-------|
-| Three-type split (Thunk/Trampoline/Lazy) is necessary and well-motivated. | 1, 4, 9, 10 | Reflects irreconcilable Rust type system constraints: HKT vs type erasure, owned vs shared evaluation, `'a` vs `'static`. |
-| `Thunk` single-variant `Box<dyn FnOnce>` design (no enum). | 3, 10 | Uniform closure representation; `pure` wraps in closure anyway; avoids branching for zero benefit. |
-| `Thunk` consuming `evaluate(self) -> A` semantics. | 3, 8, 9 | Correct for `FnOnce`; prevents double-evaluation; enables full Monad. |
-| `Lazy` using `Rc<LazyCell>`/`Arc<LazyLock>` from std. | 5, 10 | Idiomatic Rust 1.80+; no unsafe code; delegates interior mutability to battle-tested primitives. |
-| `LazyConfig` trait for Rc/Arc abstraction. | 1, 2, 5, 9, 10 | Clean strategy pattern; avoids code duplication; enables generic programming with aliases for ergonomics. |
-| `Lazy::evaluate(&self) -> &A` returning a reference. | 5, 10 | Avoids unnecessary cloning; enables shared caching; correct trade-off against full Monad. |
-| `Lazy` implementing `RefFunctor` instead of `Functor`. | 1, 2, 5, 8 | `Functor` would require `Clone` on `A` (not in trait signature); `RefFunctor` matches reference-returning semantics. |
-| Trampoline as newtype over `Free<ThunkBrand, A>`. | 4, 10 | Ergonomic naming; curated API surface; reusable Free monad; O(1) bind via CatList. |
-| Trampoline lacking HKT brand. | 1, 2, 4, 10 | `Kind` requires lifetime polymorphism; `Trampoline` is `'static`-only. Correct omission. |
-| `Free` using "Reflection without Remorse" with CatList. | 4 | O(1) bind; O(n) evaluation; no left-associated bind degradation. |
-| Iterative `Drop` for `Free`. | 4, 9 | Prevents stack overflow during destruction of deep `Bind` chains. Tested for 100,000+ depth. |
-| `MonadRec::tail_rec_m` for `Thunk` is genuinely stack-safe. | 3, 8 | Uses explicit loop; no recursion; tested at 1,000,000 iterations. |
-| `Deferrable` trait design (minimal, no supertraits, lifetime-parameterized). | 6, 8 | Clean, comprehensive implementation coverage across all six types plus `Free`. |
-| Naming choice of `Deferrable` (avoids collision with `Lazy` type and `defer` method). | 6 | Reasonable compromise; `Lazy` would cause confusion. |
-| All type class laws hold extensionally for Thunk and Lazy. | 8 | Functor, Monad, Applicative, RefFunctor, Semigroup, Monoid, Deferrable transparency. |
-| `SendDeferrable` as independent trait from `Deferrable`. | 1, 6 | Correct; `ArcLazy` requires `Send` on closures, which `Deferrable`'s signature cannot express. |
-| No unsafe code in any lazy type or `Deferrable`. | 9 | Type erasure in `Free` uses safe `downcast()`. |
-| Conversion graph via `From` impls is comprehensive and correctly bounded. | 1, 2, 4 | Clone bounds on Lazy-to-Thunk; `'static` bounds on Trampoline conversions; `Send` propagation. |
-| Current parallel `Try*` types approach over monad transformer approach. | 7, 10 | Transformer not practical given `'static` on Trampoline, reference-returning Lazy, and `LazyConfig` integration. |
+### Priority 1: Immediate value, low effort
 
----
+1. **Add `#[inline]` to trivial wrapper methods on `Thunk` and `Lazy`.** Target `new`, `pure`, `evaluate`, `map`, `bind` at minimum. (File 9)
+2. **Fix the unnecessary clone in `Lazy::ref_map`.** Move `self` directly into the closure instead of cloning. (File 9)
+3. **Add `catch_unwind` for `ArcTryLazy`.** Mirrors the existing implementation on `RcTryLazy`. (File 5)
+4. **Correct the README wording** about Thunk/Trampoline "re-running" evaluate. (File 10)
 
-## Per-Type Issue Map
+### Priority 2: Significant value, moderate effort
 
-### Thunk (`fp-library/src/types/thunk.rs`)
+5. **Add Criterion benchmarks for lazy types.** Cover: Thunk map/bind chains (1, 10, 100 deep), Trampoline bind chains (100, 10000), Lazy first-access vs cached, Trampoline deep recursion vs hand-written loop, left-vs-right-associated Free bind chains. (File 9)
+6. **Add compile-fail tests (`trybuild`)** for: sending Thunk across threads, using borrowed data with Trampoline, non-Send closures with ArcLazy. (File 10)
+7. **Fill test coverage gaps.** Add tests for TryThunk `lift2`/`then`/`memoize`/`memoize_arc`, TryLazy `map`/`map_err` (both Rc and Arc), property tests for Bifunctor/Bifoldable laws, Foldable law property tests. (Files 5, 6)
+8. **Expand the comparison table** in `lib.rs` and the README to include Try\* types. (File 10)
+9. **Make Thunk's bind-chain stack overflow warning more prominent.** Add a dedicated "Stack Safety" section to the struct-level docs. (Files 2, 10)
 
-| Priority | Issue | Ref |
-|----------|-------|-----|
-| High | No QuickCheck property tests for type class laws. | H6 |
-| Medium | Missing `From<Thunk<'static, A>> for Trampoline<A>` conversion. | M6 |
-| Low | Doc comment about re-execution is misleading for consuming evaluate. | L2 |
-| Low | `Fn` vs `FnOnce` discrepancy undocumented. | L6 |
-| Low | Comparison table does not mention Trampoline's `Send` requirement. | L8 |
-| Low | Consider `memoize()` convenience method. | L9 |
+### Priority 3: Nice to have, higher effort
 
-### Trampoline (`fp-library/src/types/trampoline.rs`)
+10. **Consider a `derive_try_variant!` proc macro** to generate the mechanical parts of Try\* types from base types. (Files 1, 5)
+11. **Add `resume` and `foldFree` to `Free`.** These would enable step-by-step inspection and custom interpreters, significantly increasing `Free`'s utility beyond trampolining. (File 3)
+12. **Add a dedicated `Map` variant to `FreeInner`** to optimize `Trampoline::map` chains without going through the full `bind` path. (Files 3, 9)
+13. **Consider a `SendRefFunctor` trait** to give `ArcLazy` trait-level `ref_map`, mirroring the `Deferrable`/`SendDeferrable` pattern. (File 4)
+14. **Generalize `catch_unwind`** to accept a conversion function `Box<dyn Any> -> E` instead of hardcoding `E = String`. (Files 4, 5)
+15. **Add `Semigroup`/`Monoid` as inherent methods on `Trampoline`.** The `lift2` method already exists, so `append` could delegate to it. (File 6)
+16. **Consider adding `Traversable` for `Lazy`** (with `A: Clone` bound), which PureScript supports. (File 6)
 
-| Priority | Issue | Ref |
-|----------|-------|-----|
-| High | `A: Send` bound may be unnecessarily restrictive (Trampoline is `!Send` anyway). | H3 |
-| Medium | Missing `From<Trampoline<A>> for Thunk<'static, A>` conversion. | M6 |
-| Medium | No QuickCheck property tests for Monad laws. | M7 |
-| Low | Module docs could explain Free-over-Thunk connection more explicitly. | L7 |
-| Low | No `Debug` implementation. | L1 |
-| Low | Consider `memoize()` convenience method. | L9 |
+## Dissenting Views
 
-### Lazy (`fp-library/src/types/lazy.rs`)
+- **Value of Try\* types.** File 7 notes that in a language with the `?` operator, `Thunk<'a, Result<A, E>>` with manual error handling might be "sufficient," making Try\* types debatable. All other analyses (1, 2, 5) consider the ergonomic value (short-circuiting `bind`, `map_err`, `catch`) to clearly justify the wrapper types. The majority position is stronger: the `?` operator does not compose well inside closure chains passed to `bind`, which is exactly where Try\* types add value.
+- **Whether Lazy should try harder to support Functor.** File 7 suggests that offering both a reference-returning `get()` and a consuming `evaluate()` could let `Lazy` implement standard `Functor`. Files 1, 4, and 6 consider `RefFunctor` the correct and sufficient abstraction, noting that a consuming `evaluate` on a shared `Rc`/`Arc` cell is semantically problematic. The majority view is that `RefFunctor` is the right trade-off; adding a consuming variant would require `Clone` and muddle the type's semantics.
+- **Severity of code duplication.** File 1 calls the duplication "tolerable" and "manageable." File 5 quantifies it at 40-50% and calls it a "maintenance risk." Both agree a macro could help; they differ on urgency. Given the library is maturing and types change infrequently, the pragmatic assessment in File 1 is reasonable, but File 5's concern becomes valid if new base types are added.
+- **Whether `Trampoline::map` through `bind` is worth optimizing.** File 9 identifies this as a "medium" severity issue. File 3 notes it as a "minor optimization" and says the current approach is simpler. The actual impact depends on workload (map-heavy vs bind-heavy chains), which cannot be assessed without the missing benchmarks.
 
-| Priority | Issue | Ref |
-|----------|-------|-----|
-| High | `RefFunctor` missing for `ArcLazyConfig`. | H4 |
-| High | `fix` combinator missing. | H5 |
-| Medium | Missing `Semigroup`/`Monoid`. | M1 |
-| Medium | Missing `Foldable`. | M2 |
-| Medium | No QuickCheck tests for `RefFunctor` laws. | M8 |
-| Medium | Panic behavior during initialization undocumented. | M10 |
-| Low | No `Debug`/`Display` implementation. | L1 |
-| Low | Missing `PartialEq`/`PartialOrd`. | L12 |
-| Low | `LazyConfig` extensibility undocumented. | L10 |
+## Strengths
 
-### TryThunk (`fp-library/src/types/try_thunk.rs`)
+- **Clear separation of concerns.** Each type addresses a specific need with well-documented trade-offs. No type tries to be everything. (Files 1, 7)
+- **Comprehensive conversion graph.** The `From` implementations allow smooth transitions between types as requirements change, with appropriate bounds (`Clone` for extracting from `Lazy`, `'static` for entering `Trampoline`). (Files 1, 5)
+- **Correct HKT integration.** Types participate in the typeclass hierarchy exactly where their semantics allow. `Thunk` gets the full monad tower, `Lazy` gets `RefFunctor` and `Foldable`, `Trampoline` stays outside. No incorrect trait implementations. (Files 1, 6)
+- **Sound thread safety with zero unsafe code.** All Send/Sync is auto-derived from field types. Concurrent `ArcLazy` evaluation is properly synchronized via `LazyLock`. The `memoize_arc` pattern correctly handles the !Send boundary by eager evaluation. (File 8)
+- **Thorough documentation.** Every public method has doc comments with structured sections (signature, parameters, returns, examples). Comparison tables are embedded in type-level docs. Limitations are explicitly documented. (File 10)
+- **Monad and Functor laws are satisfied and property-tested.** QuickCheck tests verify identity, composition, associativity, and left/right identity for both Thunk and Trampoline. (Files 2, 6)
+- **Well-designed `LazyConfig` abstraction.** Unifies `Rc`/`Arc` variants without duplication, is open for third-party extension (e.g., `parking_lot` locks), and handles the cell type difference cleanly. (Files 1, 4)
+- **Honest PureScript adaptation.** The library confronts fundamental Rust/PureScript differences rather than papering over them. The `RefFunctor` trait, the `fix` as concrete functions, and the three-type split are all well-reasoned responses to Rust's ownership model. (File 7)
+- **Stack-safe `Free` monad with O(1) bind.** The "Reflection without Remorse" implementation with `CatList` is state-of-the-art, and the iterative `Drop` prevents stack overflow on destruction. (File 3)
+- **Method naming consistency.** `evaluate()` is used uniformly across all six types. `bind`, `map`, `defer`, `memoize`, `memoize_arc`, `ok`, `err` are consistent wherever they appear. (File 10)
 
-| Priority | Issue | Ref |
-|----------|-------|-----|
-| Medium | `Bifoldable`/`Bitraversable` missing for `TryThunkBrand`. | M3 |
-| Medium | `MonadRec` missing for `TryThunkOkAppliedBrand<A>`. | M4 |
-| Low | Missing `catch_unwind` constructor. | L5 |
-| Low | Consider refactoring as newtype over `Thunk<'a, Result<A, E>>`. | L13 |
-| Low | Missing `From<Result<A, E>>`. | L4 |
+## Individual Analysis Index
 
-### TryTrampoline (`fp-library/src/types/try_trampoline.rs`)
-
-| Priority | Issue | Ref |
-|----------|-------|-----|
-| High | Missing `tail_rec_m` (stack-safe fallible recursion). | H1 |
-| High | Missing `lift2` and `then`. | H2 |
-| Medium | Missing `From<TryThunk> for TryTrampoline` conversion. | M5 |
-| Low | Missing `From<Result<A, E>>`. | L4 |
-
-### TryLazy (`fp-library/src/types/try_lazy.rs`)
-
-| Priority | Issue | Ref |
-|----------|-------|-----|
-| Low | Missing `ok()`/`err()` convenience constructors. | L3 |
-| Low | Missing `From<Result<A, E>>`. | L4 |
-
-### Deferrable Trait (`fp-library/src/classes/deferrable.rs`)
-
-| Priority | Issue | Ref |
-|----------|-------|-----|
-| High | Missing `fix` combinator (PureScript's primary use of `Control.Lazy`). | H5 |
-| Medium | No documented laws. | M9 |
-
-### RefFunctor Trait (`fp-library/src/classes/ref_functor.rs`)
-
-| Priority | Issue | Ref |
-|----------|-------|-----|
-| Medium | No documented laws. | M9 |
-
----
-
-## Recommended Implementation Order
-
-**Phase 1: High-impact, low-risk additions**
-
-1. Add `tail_rec_m`, `lift2`, and `then` to `TryTrampoline` (H1, H2). These are straightforward delegations.
-2. Add `RefFunctor` for `ArcLazyConfig` and inherent `ref_map` on `ArcLazy` (H4).
-3. Add QuickCheck property tests for `Thunk` type class laws (H6).
-
-**Phase 2: Trampoline Send audit and conversion completions**
-
-4. Audit and potentially remove `A: Send` from `Trampoline` (H3). This may have cascading effects; verify all downstream types.
-5. Add missing `From` conversions: Thunk/Trampoline bidirectional (M6), TryThunk to TryTrampoline (M5).
-
-**Phase 3: Lazy type class enrichment**
-
-6. Add `Semigroup`/`Monoid` for `Lazy` (M1).
-7. Add `Foldable` for `LazyBrand<RcLazyConfig>` (M2).
-8. Add `PartialEq`/`PartialOrd` for `Lazy` (L12).
-
-**Phase 4: TryThunk completions**
-
-9. Add `Bifoldable` for `TryThunkBrand` (M3).
-10. Add `MonadRec` for `TryThunkOkAppliedBrand` (M4).
-
-**Phase 5: fix combinator and test coverage**
-
-11. Implement `fix` for `RcLazy` and `ArcLazy` (H5).
-12. Add QuickCheck tests for `Trampoline` and `Lazy` (M7, M8).
-
-**Phase 6: Documentation and polish**
-
-13. Document laws for `RefFunctor`, `Deferrable`, `SendDeferrable` (M9).
-14. Document panic behavior in `Lazy` (M10).
-15. Fix misleading `Thunk` doc comment (L2).
-16. Add `Debug` implementations (L1).
-17. Add convenience constructors and conversions (L3, L4, L5, L9).
-18. Documentation improvements (L6, L7, L8, L10, L11).
-19. Consider `TryThunk` refactoring (L13), as a larger effort.
+| File | Focus Area | Key Contribution |
+|------|-----------|-----------------|
+| `1.md` | Overall architecture | Validates the three-type split, assesses duplication, maps the conversion graph, identifies architectural gaps. |
+| `2.md` | Thunk implementation | Deep dive into representation, law compliance, `tail_rec_m` stack safety, memory behavior, TryThunk enhancements. |
+| `3.md` | Trampoline/Free implementation | Analyzes Free monad internals, CatList, stack safety proof, type erasure, comparison with Haskell/PureScript/Scala. |
+| `4.md` | Lazy implementation | Assesses LazyConfig design, interior mutability correctness, memoization semantics, Rc/Arc parameterization. |
+| `5.md` | Try\* variant pattern | Evaluates the newtype approach vs alternatives, quantifies duplication, checks error handling consistency, identifies test gaps. |
+| `6.md` | HKT/Brand integration | Verifies Brand definitions, Kind implementations, Functor/Monad law compliance, identifies missing typeclass instances. |
+| `7.md` | PureScript comparison | Maps PureScript's Data.Lazy to Rust equivalents, catalogs lost and gained capabilities, assesses adaptation quality. |
+| `8.md` | Thread safety | Audits Send/Sync for all types, validates LazyLock soundness, confirms zero unsafe code, assesses Rc/Arc consistency. |
+| `9.md` | Performance | Profiles allocation patterns, identifies missing benchmarks and inlining hints, analyzes stack usage, suggests optimizations. |
+| `10.md` | API ergonomics | Evaluates naming, discoverability, documentation quality, common pitfalls, missing compile-fail tests. |
