@@ -32,11 +32,16 @@ mod inner {
 			impl_kind,
 			kinds::*,
 			types::{
+				ArcLazyConfig,
+				ArcTryLazy,
 				Lazy,
 				LazyConfig,
+				RcLazyConfig,
+				RcTryLazy,
 				Step,
 				Thunk,
 				TryLazy,
+				TryTrampoline,
 			},
 		},
 		fp_macros::*,
@@ -92,6 +97,10 @@ mod inner {
 		}
 
 		/// Returns a pure value (already computed).
+		#[deprecated(
+			since = "0.14.0",
+			note = "Use `ok` instead for consistency with TryTrampoline and TryLazy"
+		)]
 		#[document_signature]
 		///
 		#[document_parameters("The value to wrap.")]
@@ -103,6 +112,7 @@ mod inner {
 		/// ```
 		/// use fp_library::types::*;
 		///
+		/// #[allow(deprecated)]
 		/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(42);
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
@@ -124,15 +134,13 @@ mod inner {
 		/// ```
 		/// use fp_library::types::*;
 		///
-		/// let try_thunk: TryThunk<i32, ()> = TryThunk::defer(|| TryThunk::pure(42));
+		/// let try_thunk: TryThunk<i32, ()> = TryThunk::defer(|| TryThunk::ok(42));
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
 		pub fn defer(f: impl FnOnce() -> TryThunk<'a, A, E> + 'a) -> Self {
 			TryThunk(Thunk::defer(move || f().0))
 		}
 
-		/// Alias for [`pure`](Self::pure).
-		///
 		/// Creates a successful computation.
 		#[document_signature]
 		///
@@ -151,7 +159,7 @@ mod inner {
 		pub fn ok(a: A) -> Self
 		where
 			A: 'a, {
-			Self::pure(a)
+			TryThunk(Thunk::pure(Ok(a)))
 		}
 
 		/// Returns a pure error.
@@ -189,7 +197,7 @@ mod inner {
 		/// ```
 		/// use fp_library::types::*;
 		///
-		/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(21).bind(|x| TryThunk::pure(x * 2));
+		/// let try_thunk: TryThunk<i32, ()> = TryThunk::ok(21).bind(|x| TryThunk::ok(x * 2));
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
 		pub fn bind<B: 'a>(
@@ -216,7 +224,7 @@ mod inner {
 		/// ```
 		/// use fp_library::types::*;
 		///
-		/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(21).map(|x| x * 2);
+		/// let try_thunk: TryThunk<i32, ()> = TryThunk::ok(21).map(|x| x * 2);
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
 		pub fn map<B: 'a>(
@@ -262,7 +270,7 @@ mod inner {
 		/// ```
 		/// use fp_library::types::*;
 		///
-		/// let try_thunk: TryThunk<i32, &str> = TryThunk::err("error").catch(|_| TryThunk::pure(42));
+		/// let try_thunk: TryThunk<i32, &str> = TryThunk::err("error").catch(|_| TryThunk::ok(42));
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
 		pub fn catch(
@@ -285,11 +293,129 @@ mod inner {
 		/// ```
 		/// use fp_library::types::*;
 		///
-		/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(42);
+		/// let try_thunk: TryThunk<i32, ()> = TryThunk::ok(42);
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
 		pub fn evaluate(self) -> Result<A, E> {
 			self.0.evaluate()
+		}
+
+		/// Combines two `TryThunk`s, running both and combining their results.
+		///
+		/// Short-circuits on error: if `self` fails, `other` is never evaluated.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The type of the second computation's success value.",
+			"The type of the combined result."
+		)]
+		///
+		#[document_parameters("The second computation.", "The function to combine the results.")]
+		///
+		#[document_returns("A new `TryThunk` producing the combined result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let t1: TryThunk<i32, String> = TryThunk::ok(10);
+		/// let t2: TryThunk<i32, String> = TryThunk::ok(20);
+		/// let t3 = t1.lift2(t2, |a, b| a + b);
+		/// assert_eq!(t3.evaluate(), Ok(30));
+		///
+		/// let t4: TryThunk<i32, String> = TryThunk::err("fail".to_string());
+		/// let t5: TryThunk<i32, String> = TryThunk::ok(20);
+		/// let t6 = t4.lift2(t5, |a, b| a + b);
+		/// assert_eq!(t6.evaluate(), Err("fail".to_string()));
+		/// ```
+		pub fn lift2<B: 'a, C: 'a>(
+			self,
+			other: TryThunk<'a, B, E>,
+			f: impl FnOnce(A, B) -> C + 'a,
+		) -> TryThunk<'a, C, E> {
+			self.bind(move |a| other.map(move |b| f(a, b)))
+		}
+
+		/// Sequences two `TryThunk`s, discarding the first result.
+		///
+		/// Short-circuits on error: if `self` fails, `other` is never evaluated.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the second computation's success value.")]
+		///
+		#[document_parameters("The second computation.")]
+		///
+		#[document_returns(
+			"A new `TryThunk` that runs both computations and returns the result of the second."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let t1: TryThunk<i32, String> = TryThunk::ok(10);
+		/// let t2: TryThunk<i32, String> = TryThunk::ok(20);
+		/// let t3 = t1.then(t2);
+		/// assert_eq!(t3.evaluate(), Ok(20));
+		///
+		/// let t4: TryThunk<i32, String> = TryThunk::err("fail".to_string());
+		/// let t5: TryThunk<i32, String> = TryThunk::ok(20);
+		/// let t6 = t4.then(t5);
+		/// assert_eq!(t6.evaluate(), Err("fail".to_string()));
+		/// ```
+		pub fn then<B: 'a>(
+			self,
+			other: TryThunk<'a, B, E>,
+		) -> TryThunk<'a, B, E> {
+			self.bind(move |_| other)
+		}
+
+		/// Converts this `TryThunk` into a memoized [`RcTryLazy`].
+		///
+		/// The resulting `RcTryLazy` will evaluate the computation on first
+		/// access and cache the result for subsequent accesses.
+		#[document_signature]
+		///
+		#[document_returns("A memoized `RcTryLazy` wrapping this computation.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let thunk: TryThunk<i32, ()> = TryThunk::ok(42);
+		/// let lazy: RcTryLazy<i32, ()> = thunk.memoize();
+		/// assert_eq!(lazy.evaluate(), Ok(&42));
+		/// ```
+		pub fn memoize(self) -> RcTryLazy<'a, A, E> {
+			RcTryLazy::from(self)
+		}
+
+		/// Evaluates this `TryThunk` and wraps the result in a thread-safe [`ArcTryLazy`].
+		///
+		/// The thunk is evaluated eagerly because its inner closure is not
+		/// `Send`. The result is stored in an `ArcTryLazy` for thread-safe sharing.
+		#[document_signature]
+		///
+		#[document_returns("A thread-safe memoized `ArcTryLazy` wrapping this computation.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let thunk: TryThunk<i32, ()> = TryThunk::ok(42);
+		/// let lazy: ArcTryLazy<i32, ()> = thunk.memoize_arc();
+		/// assert_eq!(lazy.evaluate(), Ok(&42));
+		/// ```
+		pub fn memoize_arc(self) -> ArcTryLazy<'a, A, E>
+		where
+			A: Send + Sync + 'a,
+			E: Send + Sync + 'a, {
+			let result = self.evaluate();
+			ArcTryLazy::new(move || result)
 		}
 	}
 
@@ -437,6 +563,28 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
+	impl<A: 'static, E: 'static> From<TryTrampoline<A, E>> for TryThunk<'static, A, E> {
+		/// Converts a [`TryTrampoline`] into a `TryThunk`.
+		///
+		/// The resulting `TryThunk` will evaluate the trampoline when forced.
+		#[document_signature]
+		#[document_parameters("The fallible trampoline to convert.")]
+		#[document_returns("A new `TryThunk` instance that evaluates the trampoline.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let tramp: TryTrampoline<i32, String> = TryTrampoline::ok(42);
+		/// let thunk: TryThunk<i32, String> = TryThunk::from(tramp);
+		/// assert_eq!(thunk.evaluate(), Ok(42));
+		/// ```
+		fn from(tramp: TryTrampoline<A, E>) -> Self {
+			TryThunk::new(move || tramp.evaluate())
+		}
+	}
+
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the success value.",
@@ -464,7 +612,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let task: TryThunk<i32, ()> = Deferrable::defer(|| TryThunk::pure(42));
+		/// let task: TryThunk<i32, ()> = Deferrable::defer(|| TryThunk::ok(42));
 		/// assert_eq!(task.evaluate(), Ok(42));
 		/// ```
 		fn defer(f: impl FnOnce() -> Self + 'a) -> Self
@@ -546,7 +694,7 @@ mod inner {
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
 		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
-			TryThunk::pure(a)
+			TryThunk::ok(a)
 		}
 	}
 
@@ -988,7 +1136,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let x: TryThunk<i32, i32> = TryThunk::pure(5);
+		/// let x: TryThunk<i32, i32> = TryThunk::ok(5);
 		/// assert_eq!(bimap::<TryThunkBrand, _, _, _, _>(|e| e + 1, |s| s * 2, x).evaluate(), Ok(10));
 		///
 		/// let y: TryThunk<i32, i32> = TryThunk::err(5);
@@ -1052,7 +1200,7 @@ mod inner {
 		/// 		|e: i32, acc| acc - e,
 		/// 		|s: i32, acc| acc + s,
 		/// 		10,
-		/// 		TryThunk::pure(5),
+		/// 		TryThunk::ok(5),
 		/// 	),
 		/// 	15
 		/// );
@@ -1114,7 +1262,7 @@ mod inner {
 		/// 		|acc, e: i32| acc - e,
 		/// 		|acc, s: i32| acc + s,
 		/// 		10,
-		/// 		TryThunk::pure(5),
+		/// 		TryThunk::ok(5),
 		/// 	),
 		/// 	15
 		/// );
@@ -1173,7 +1321,7 @@ mod inner {
 		/// 	bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _>(
 		/// 		|e: i32| e.to_string(),
 		/// 		|s: i32| s.to_string(),
-		/// 		TryThunk::pure(5),
+		/// 		TryThunk::ok(5),
 		/// 	),
 		/// 	"5".to_string()
 		/// );
@@ -1641,9 +1789,17 @@ mod tests {
 
 	/// Tests success path.
 	///
-	/// Verifies that `TryThunk::pure` creates a successful computation.
+	/// Verifies that `TryThunk::ok` creates a successful computation.
 	#[test]
 	fn test_success() {
+		let try_thunk: TryThunk<i32, ()> = TryThunk::ok(42);
+		assert_eq!(try_thunk.evaluate(), Ok(42));
+	}
+
+	/// Tests that `TryThunk::pure` still works but is deprecated.
+	#[test]
+	#[allow(deprecated)]
+	fn test_pure_deprecated() {
 		let try_thunk: TryThunk<i32, ()> = TryThunk::pure(42);
 		assert_eq!(try_thunk.evaluate(), Ok(42));
 	}
@@ -1662,7 +1818,7 @@ mod tests {
 	/// Verifies that `map` transforms the success value.
 	#[test]
 	fn test_map() {
-		let try_thunk: TryThunk<i32, ()> = TryThunk::pure(21).map(|x| x * 2);
+		let try_thunk: TryThunk<i32, ()> = TryThunk::ok(21).map(|x| x * 2);
 		assert_eq!(try_thunk.evaluate(), Ok(42));
 	}
 
@@ -1680,7 +1836,7 @@ mod tests {
 	/// Verifies that `bind` chains computations.
 	#[test]
 	fn test_bind() {
-		let try_thunk: TryThunk<i32, ()> = TryThunk::pure(21).bind(|x| TryThunk::pure(x * 2));
+		let try_thunk: TryThunk<i32, ()> = TryThunk::ok(21).bind(|x| TryThunk::ok(x * 2));
 		assert_eq!(try_thunk.evaluate(), Ok(42));
 	}
 
@@ -1699,7 +1855,7 @@ mod tests {
 	/// Verifies that if the first computation fails, the second one is not executed.
 	#[test]
 	fn test_bind_failure() {
-		let try_thunk = TryThunk::<i32, &str>::err("error").bind(|x| TryThunk::pure(x * 2));
+		let try_thunk = TryThunk::<i32, &str>::err("error").bind(|x| TryThunk::ok(x * 2));
 		assert_eq!(try_thunk.evaluate(), Err("error"));
 	}
 
@@ -1752,7 +1908,7 @@ mod tests {
 	/// Tests `TryThunk::defer`.
 	#[test]
 	fn test_defer() {
-		let try_thunk: TryThunk<i32, ()> = TryThunk::defer(|| TryThunk::pure(42));
+		let try_thunk: TryThunk<i32, ()> = TryThunk::defer(|| TryThunk::ok(42));
 		assert_eq!(try_thunk.evaluate(), Ok(42));
 	}
 
@@ -1761,7 +1917,7 @@ mod tests {
 	/// Verifies that `catch` recovers from failure.
 	#[test]
 	fn test_catch() {
-		let try_thunk: TryThunk<i32, &str> = TryThunk::err("error").catch(|_| TryThunk::pure(42));
+		let try_thunk: TryThunk<i32, &str> = TryThunk::err("error").catch(|_| TryThunk::ok(42));
 		assert_eq!(try_thunk.evaluate(), Ok(42));
 	}
 
@@ -1774,7 +1930,7 @@ mod tests {
 		};
 
 		// Functor (map over success)
-		let try_thunk: TryThunk<i32, ()> = TryThunk::pure(10);
+		let try_thunk: TryThunk<i32, ()> = TryThunk::ok(10);
 		let mapped = map::<TryThunkErrAppliedBrand<()>, _, _>(|x| x * 2, try_thunk);
 		assert_eq!(mapped.evaluate(), Ok(20));
 
@@ -1783,14 +1939,14 @@ mod tests {
 		assert_eq!(try_thunk.evaluate(), Ok(42));
 
 		// Semimonad (bind over success)
-		let try_thunk: TryThunk<i32, ()> = TryThunk::pure(10);
+		let try_thunk: TryThunk<i32, ()> = TryThunk::ok(10);
 		let bound = bind::<TryThunkErrAppliedBrand<()>, _, _>(try_thunk, |x| {
 			pure::<TryThunkErrAppliedBrand<()>, _>(x * 2)
 		});
 		assert_eq!(bound.evaluate(), Ok(20));
 
 		// Foldable (fold over success)
-		let try_thunk: TryThunk<i32, ()> = TryThunk::pure(10);
+		let try_thunk: TryThunk<i32, ()> = TryThunk::ok(10);
 		let folded = fold_right::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _>(
 			|x, acc| x + acc,
 			5,
@@ -1807,7 +1963,7 @@ mod tests {
 			classes::bifunctor::*,
 		};
 
-		let x: TryThunk<i32, i32> = TryThunk::pure(5);
+		let x: TryThunk<i32, i32> = TryThunk::ok(5);
 		assert_eq!(bimap::<TryThunkBrand, _, _, _, _>(|e| e + 1, |s| s * 2, x).evaluate(), Ok(10));
 
 		let y: TryThunk<i32, i32> = TryThunk::err(5);
@@ -1841,7 +1997,7 @@ mod tests {
 				|e: i32, acc| acc - e,
 				|s: i32, acc| acc + s,
 				10,
-				TryThunk::pure(5),
+				TryThunk::ok(5),
 			),
 			15
 		);
@@ -1872,7 +2028,7 @@ mod tests {
 				|acc, e: i32| acc - e,
 				|acc, s: i32| acc + s,
 				10,
-				TryThunk::pure(5),
+				TryThunk::ok(5),
 			),
 			15
 		);
@@ -1901,7 +2057,7 @@ mod tests {
 			bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _>(
 				|e: i32| e.to_string(),
 				|s: i32| s.to_string(),
-				TryThunk::pure(5),
+				TryThunk::ok(5),
 			),
 			"5".to_string()
 		);
