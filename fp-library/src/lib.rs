@@ -269,5 +269,6 @@ pub mod classes;
 pub mod functions;
 pub mod kinds;
 pub mod types;
+pub(crate) mod utils;
 
 pub use fp_macros::*;

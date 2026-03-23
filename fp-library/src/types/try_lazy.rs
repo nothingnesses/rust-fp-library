@@ -363,15 +363,7 @@ mod inner {
 		/// ```
 		pub fn catch_unwind(f: impl FnOnce() -> A + std::panic::UnwindSafe + 'a) -> Self {
 			Self::new(move || {
-				std::panic::catch_unwind(f).map_err(|e| {
-					if let Some(s) = e.downcast_ref::<&str>() {
-						s.to_string()
-					} else if let Some(s) = e.downcast_ref::<String>() {
-						s.clone()
-					} else {
-						"Unknown panic".to_string()
-					}
-				})
+				std::panic::catch_unwind(f).map_err(crate::utils::panic_payload_to_string)
 			})
 		}
 	}

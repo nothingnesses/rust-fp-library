@@ -452,6 +452,45 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters("The type of the computed value.")]
+	impl<A: 'static> TryTrampoline<A, String> {
+		/// Creates a `TryTrampoline` that catches unwinds (panics).
+		///
+		/// The closure is executed when the trampoline is evaluated. If the closure
+		/// panics, the panic payload is converted to a `String` error. If the
+		/// closure returns normally, the value is wrapped in `Ok`.
+		///
+		/// This is particularly useful for deep recursion where stack overflow
+		/// panics are a real concern, as `TryTrampoline` provides stack safety
+		/// for the recursive computation itself.
+		#[document_signature]
+		///
+		#[document_parameters("The closure that might panic.")]
+		///
+		#[document_returns(
+			"A new `TryTrampoline` instance where panics are converted to `Err(String)`."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task = TryTrampoline::<i32, String>::catch_unwind(|| {
+		/// 	if true {
+		/// 		panic!("oops")
+		/// 	}
+		/// 	42
+		/// });
+		/// assert_eq!(task.evaluate(), Err("oops".to_string()));
+		/// ```
+		pub fn catch_unwind(f: impl FnOnce() -> A + std::panic::UnwindSafe + 'static) -> Self {
+			TryTrampoline::new(move || {
+				std::panic::catch_unwind(f).map_err(crate::utils::panic_payload_to_string)
+			})
+		}
+	}
+
 	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
 	impl<A, E> From<Trampoline<A>> for TryTrampoline<A, E>
 	where
@@ -1028,5 +1067,28 @@ mod tests {
 			(100u64, Rc::new(0u64)),
 		);
 		assert_eq!(*task.evaluate().unwrap(), 5050);
+	}
+
+	/// Tests `catch_unwind` on `TryTrampoline`.
+	///
+	/// Verifies that panics are caught and converted to `Err(String)`.
+	#[test]
+	fn test_catch_unwind() {
+		let task = TryTrampoline::<i32, String>::catch_unwind(|| {
+			if true {
+				panic!("oops")
+			}
+			42
+		});
+		assert_eq!(task.evaluate(), Err("oops".to_string()));
+	}
+
+	/// Tests `catch_unwind` on `TryTrampoline` with a non-panicking closure.
+	///
+	/// Verifies that a successful closure wraps the value in `Ok`.
+	#[test]
+	fn test_catch_unwind_success() {
+		let task = TryTrampoline::<i32, String>::catch_unwind(|| 42);
+		assert_eq!(task.evaluate(), Ok(42));
 	}
 }
