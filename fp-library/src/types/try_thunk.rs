@@ -15,6 +15,7 @@ mod inner {
 			classes::{
 				ApplyFirst,
 				ApplySecond,
+				Bifoldable,
 				Bifunctor,
 				CloneableFn,
 				Deferrable,
@@ -39,10 +40,12 @@ mod inner {
 			},
 		},
 		fp_macros::*,
+		std::fmt,
 	};
 
 	/// A deferred computation that may fail with error type `E`.
 	///
+	/// This is [`Thunk<'a, Result<A, E>>`] with ergonomic combinators for error handling.
 	/// Like [`Thunk`], this is NOT memoized. Each [`TryThunk::evaluate`] re-executes.
 	/// Unlike [`Thunk`], the result is [`Result<A, E>`].
 	#[document_type_parameters(
@@ -58,8 +61,8 @@ mod inner {
 	/// - [`TryThunkErrAppliedBrand<E>`](crate::brands::TryThunkErrAppliedBrand): the error type is fixed, polymorphic over the success type (functor over `Ok`).
 	/// - [`TryThunkOkAppliedBrand<A>`](crate::brands::TryThunkOkAppliedBrand): the success type is fixed, polymorphic over the error type (functor over `Err`).
 	pub struct TryThunk<'a, A, E>(
-		/// The closure that performs the computation.
-		Box<dyn FnOnce() -> Result<A, E> + 'a>,
+		/// The internal `Thunk` wrapping a `Result`.
+		Thunk<'a, Result<A, E>>,
 	);
 
 	#[document_type_parameters(
@@ -85,7 +88,7 @@ mod inner {
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
 		pub fn new(f: impl FnOnce() -> Result<A, E> + 'a) -> Self {
-			TryThunk(Box::new(f))
+			TryThunk(Thunk::new(f))
 		}
 
 		/// Returns a pure value (already computed).
@@ -106,7 +109,7 @@ mod inner {
 		pub fn pure(a: A) -> Self
 		where
 			A: 'a, {
-			TryThunk::new(move || Ok(a))
+			TryThunk(Thunk::pure(Ok(a)))
 		}
 
 		/// Defers a computation that returns a TryThunk.
@@ -125,7 +128,7 @@ mod inner {
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
 		pub fn defer(f: impl FnOnce() -> TryThunk<'a, A, E> + 'a) -> Self {
-			TryThunk::new(move || f().evaluate())
+			TryThunk(Thunk::defer(move || f().0))
 		}
 
 		/// Alias for [`pure`](Self::pure).
@@ -169,7 +172,7 @@ mod inner {
 		pub fn err(e: E) -> Self
 		where
 			E: 'a, {
-			TryThunk::new(move || Err(e))
+			TryThunk(Thunk::pure(Err(e)))
 		}
 
 		/// Monadic bind: chains computations.
@@ -193,10 +196,10 @@ mod inner {
 			self,
 			f: impl FnOnce(A) -> TryThunk<'a, B, E> + 'a,
 		) -> TryThunk<'a, B, E> {
-			TryThunk::new(move || match (self.0)() {
-				Ok(a) => (f(a).0)(),
-				Err(e) => Err(e),
-			})
+			TryThunk(self.0.bind(|result| match result {
+				Ok(a) => f(a).0,
+				Err(e) => Thunk::pure(Err(e)),
+			}))
 		}
 
 		/// Functor map: transforms the result.
@@ -220,7 +223,7 @@ mod inner {
 			self,
 			func: impl FnOnce(A) -> B + 'a,
 		) -> TryThunk<'a, B, E> {
-			TryThunk::new(move || (self.0)().map(func))
+			TryThunk(self.0.map(|result| result.map(func)))
 		}
 
 		/// Map error: transforms the error.
@@ -244,7 +247,7 @@ mod inner {
 			self,
 			f: impl FnOnce(E) -> E2 + 'a,
 		) -> TryThunk<'a, A, E2> {
-			TryThunk::new(move || (self.0)().map_err(f))
+			TryThunk(self.0.map(|result| result.map_err(f)))
 		}
 
 		/// Recovers from an error.
@@ -266,10 +269,10 @@ mod inner {
 			self,
 			f: impl FnOnce(E) -> TryThunk<'a, A, E> + 'a,
 		) -> Self {
-			TryThunk::new(move || match (self.0)() {
-				Ok(a) => Ok(a),
-				Err(e) => (f(e).0)(),
-			})
+			TryThunk(self.0.bind(|result| match result {
+				Ok(a) => Thunk::pure(Ok(a)),
+				Err(e) => f(e).0,
+			}))
 		}
 
 		/// Forces evaluation and returns the result.
@@ -286,7 +289,53 @@ mod inner {
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
 		pub fn evaluate(self) -> Result<A, E> {
-			(self.0)()
+			self.0.evaluate()
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value."
+	)]
+	impl<'a, A: 'a> TryThunk<'a, A, String> {
+		/// Creates a `TryThunk` that catches unwinds (panics).
+		///
+		/// The closure is executed when the thunk is evaluated. If the closure
+		/// panics, the panic payload is converted to a `String` error. If the
+		/// closure returns normally, the value is wrapped in `Ok`.
+		#[document_signature]
+		///
+		#[document_parameters("The closure that might panic.")]
+		///
+		#[document_returns(
+			"A new `TryThunk` instance where panics are converted to `Err(String)`."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let thunk = TryThunk::<i32, String>::catch_unwind(|| {
+		/// 	if true {
+		/// 		panic!("oops")
+		/// 	}
+		/// 	42
+		/// });
+		/// assert_eq!(thunk.evaluate(), Err("oops".to_string()));
+		/// ```
+		pub fn catch_unwind(f: impl FnOnce() -> A + std::panic::UnwindSafe + 'a) -> Self {
+			TryThunk::new(move || {
+				std::panic::catch_unwind(f).map_err(|e| {
+					if let Some(s) = e.downcast_ref::<&str>() {
+						s.to_string()
+					} else if let Some(s) = e.downcast_ref::<String>() {
+						s.clone()
+					} else {
+						"Unknown panic".to_string()
+					}
+				})
+			})
 		}
 	}
 
@@ -364,7 +413,31 @@ mod inner {
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
 		fn from(eval: Thunk<'a, A>) -> Self {
-			TryThunk::new(move || Ok(eval.evaluate()))
+			TryThunk(eval.map(Ok))
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the success value.",
+		"The type of the error value."
+	)]
+	impl<'a, A: 'a, E: 'a> From<Result<A, E>> for TryThunk<'a, A, E> {
+		#[document_signature]
+		#[document_parameters("The result to convert.")]
+		#[document_returns("A new `TryThunk` instance that produces the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let ok_thunk: TryThunk<i32, String> = TryThunk::from(Ok(42));
+		/// assert_eq!(ok_thunk.evaluate(), Ok(42));
+		///
+		/// let err_thunk: TryThunk<i32, String> = TryThunk::from(Err("error".to_string()));
+		/// assert_eq!(err_thunk.evaluate(), Err("error".to_string()));
+		/// ```
+		fn from(result: Result<A, E>) -> Self {
+			TryThunk(Thunk::pure(result))
 		}
 	}
 
@@ -872,7 +945,7 @@ mod inner {
 		/// assert_eq!(t.evaluate(), Ok("".to_string()));
 		/// ```
 		fn empty() -> Self {
-			TryThunk::new(|| Ok(Monoid::empty()))
+			TryThunk(Thunk::pure(Ok(Monoid::empty())))
 		}
 	}
 
@@ -930,10 +1003,196 @@ mod inner {
 			g: impl Fn(C) -> D + 'a,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
 		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>) {
-			TryThunk::new(move || match p.evaluate() {
+			TryThunk(p.0.map(move |result| match result {
 				Ok(c) => Ok(g(c)),
 				Err(a) => Err(f(a)),
-			})
+			}))
+		}
+	}
+
+	impl Bifoldable for TryThunkBrand {
+		/// Folds a `TryThunk` using two step functions, right-associatively.
+		///
+		/// Dispatches to `f` for error values and `g` for success values.
+		/// The thunk is evaluated to determine which branch to fold.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The error type (first position).",
+			"The success type (second position).",
+			"The accumulator type."
+		)]
+		///
+		#[document_parameters(
+			"The step function applied to the error value.",
+			"The step function applied to the success value.",
+			"The initial accumulator.",
+			"The `TryThunk` to fold."
+		)]
+		///
+		#[document_returns("`f(e, z)` for `Err(e)`, or `g(a, z)` for `Ok(a)`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _>(
+		/// 		|e: i32, acc| acc - e,
+		/// 		|s: i32, acc| acc + s,
+		/// 		10,
+		/// 		TryThunk::err(3),
+		/// 	),
+		/// 	7
+		/// );
+		/// assert_eq!(
+		/// 	bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _>(
+		/// 		|e: i32, acc| acc - e,
+		/// 		|s: i32, acc| acc + s,
+		/// 		10,
+		/// 		TryThunk::pure(5),
+		/// 	),
+		/// 	15
+		/// );
+		/// ```
+		fn bi_fold_right<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+			f: impl Fn(A, C) -> C + 'a,
+			g: impl Fn(B, C) -> C + 'a,
+			z: C,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> C {
+			match p.evaluate() {
+				Err(a) => f(a, z),
+				Ok(b) => g(b, z),
+			}
+		}
+
+		/// Folds a `TryThunk` using two step functions, left-associatively.
+		///
+		/// Dispatches to `f` for error values and `g` for success values.
+		/// The thunk is evaluated to determine which branch to fold.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The error type (first position).",
+			"The success type (second position).",
+			"The accumulator type."
+		)]
+		///
+		#[document_parameters(
+			"The step function applied to the error value.",
+			"The step function applied to the success value.",
+			"The initial accumulator.",
+			"The `TryThunk` to fold."
+		)]
+		///
+		#[document_returns("`f(z, e)` for `Err(e)`, or `g(z, a)` for `Ok(a)`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _>(
+		/// 		|acc, e: i32| acc - e,
+		/// 		|acc, s: i32| acc + s,
+		/// 		10,
+		/// 		TryThunk::err(3),
+		/// 	),
+		/// 	7
+		/// );
+		/// assert_eq!(
+		/// 	bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _>(
+		/// 		|acc, e: i32| acc - e,
+		/// 		|acc, s: i32| acc + s,
+		/// 		10,
+		/// 		TryThunk::pure(5),
+		/// 	),
+		/// 	15
+		/// );
+		/// ```
+		fn bi_fold_left<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+			f: impl Fn(C, A) -> C + 'a,
+			g: impl Fn(C, B) -> C + 'a,
+			z: C,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> C {
+			match p.evaluate() {
+				Err(a) => f(z, a),
+				Ok(b) => g(z, b),
+			}
+		}
+
+		/// Maps a `TryThunk`'s value to a monoid using two functions and returns the result.
+		///
+		/// Dispatches to `f` for error values and `g` for success values,
+		/// returning the monoid value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The error type (first position).",
+			"The success type (second position).",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function mapping the error to the monoid.",
+			"The function mapping the success to the monoid.",
+			"The `TryThunk` to fold."
+		)]
+		///
+		#[document_returns("`f(e)` for `Err(e)`, or `g(a)` for `Ok(a)`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _>(
+		/// 		|e: i32| e.to_string(),
+		/// 		|s: i32| s.to_string(),
+		/// 		TryThunk::err(3),
+		/// 	),
+		/// 	"3".to_string()
+		/// );
+		/// assert_eq!(
+		/// 	bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _>(
+		/// 		|e: i32| e.to_string(),
+		/// 		|s: i32| s.to_string(),
+		/// 		TryThunk::pure(5),
+		/// 	),
+		/// 	"5".to_string()
+		/// );
+		/// ```
+		fn bi_fold_map<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, M>(
+			f: impl Fn(A) -> M + 'a,
+			g: impl Fn(B) -> M + 'a,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> M
+		where
+			M: Monoid + 'a, {
+			match p.evaluate() {
+				Err(a) => f(a),
+				Ok(b) => g(b),
+			}
 		}
 	}
 
@@ -1160,6 +1419,64 @@ mod inner {
 	}
 
 	#[document_type_parameters("The success type.")]
+	impl<A: 'static> MonadRec for TryThunkOkAppliedBrand<A> {
+		/// Performs tail-recursive monadic computation over the error channel.
+		///
+		/// The step function returns `TryThunk<A, Step<E, E2>>`. The loop
+		/// continues while the error is `Step::Loop`, terminates with the
+		/// final error on `Step::Done`, and short-circuits on `Ok`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the initial value and loop state.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters("The step function.", "The initial value.")]
+		///
+		#[document_returns("The result of the computation.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result = tail_rec_m::<TryThunkOkAppliedBrand<i32>, _, _>(
+		/// 	|x| {
+		/// 		pure::<TryThunkOkAppliedBrand<i32>, _>(
+		/// 			if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) },
+		/// 		)
+		/// 	},
+		/// 	0,
+		/// );
+		/// assert_eq!(result.evaluate(), Err(1000));
+		/// ```
+		fn tail_rec_m<'a, E: 'a, E2: 'a>(
+			f: impl Fn(E) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<E, E2>>)
+			+ Clone
+			+ 'a,
+			e: E,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E2>) {
+			TryThunk::new(move || {
+				let mut current = e;
+				loop {
+					match f(current).evaluate() {
+						Err(Step::Loop(next)) => current = next,
+						Err(Step::Done(res)) => break Err(res),
+						Ok(a) => break Ok(a),
+					}
+				}
+			})
+		}
+	}
+
+	#[document_type_parameters("The success type.")]
 	impl<A: 'static> Foldable for TryThunkOkAppliedBrand<A> {
 		/// Folds the `TryThunk` from the right (over error).
 		#[document_signature]
@@ -1288,6 +1605,32 @@ mod inner {
 				Err(e) => func(e),
 				Ok(_) => M::empty(),
 			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the success value.",
+		"The type of the error value."
+	)]
+	#[document_parameters("The try-thunk to format.")]
+	impl<'a, A, E> fmt::Debug for TryThunk<'a, A, E> {
+		/// Formats the try-thunk without evaluating it.
+		#[document_signature]
+		#[document_parameters("The formatter.")]
+		#[document_returns("The formatting result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let thunk = TryThunk::new(|| Ok::<i32, ()>(42));
+		/// assert_eq!(format!("{:?}", thunk), "TryThunk(<unevaluated>)");
+		/// ```
+		fn fmt(
+			&self,
+			f: &mut fmt::Formatter<'_>,
+		) -> fmt::Result {
+			f.write_str("TryThunk(<unevaluated>)")
 		}
 	}
 }
@@ -1475,6 +1818,168 @@ mod tests {
 		assert_eq!(bimap::<TryThunkBrand, _, _, _, _>(|e| e + 1, |s| s * 2, y).evaluate(), Err(6));
 	}
 
+	/// Tests `Bifoldable` for `TryThunkBrand` with `bi_fold_right`.
+	///
+	/// Verifies that error values are folded with `f` and success values with `g`.
+	#[test]
+	fn test_bifoldable_right() {
+		use crate::{
+			brands::*,
+			functions::*,
+		};
+
+		// Error case: f(3, 10) = 10 - 3 = 7
+		assert_eq!(
+			bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _>(
+				|e: i32, acc| acc - e,
+				|s: i32, acc| acc + s,
+				10,
+				TryThunk::err(3),
+			),
+			7
+		);
+
+		// Success case: g(5, 10) = 10 + 5 = 15
+		assert_eq!(
+			bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _>(
+				|e: i32, acc| acc - e,
+				|s: i32, acc| acc + s,
+				10,
+				TryThunk::pure(5),
+			),
+			15
+		);
+	}
+
+	/// Tests `Bifoldable` for `TryThunkBrand` with `bi_fold_left`.
+	///
+	/// Verifies left-associative folding over both error and success values.
+	#[test]
+	fn test_bifoldable_left() {
+		use crate::{
+			brands::*,
+			functions::*,
+		};
+
+		assert_eq!(
+			bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _>(
+				|acc, e: i32| acc - e,
+				|acc, s: i32| acc + s,
+				10,
+				TryThunk::err(3),
+			),
+			7
+		);
+
+		assert_eq!(
+			bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _>(
+				|acc, e: i32| acc - e,
+				|acc, s: i32| acc + s,
+				10,
+				TryThunk::pure(5),
+			),
+			15
+		);
+	}
+
+	/// Tests `Bifoldable` for `TryThunkBrand` with `bi_fold_map`.
+	///
+	/// Verifies that both error and success values can be mapped to a monoid.
+	#[test]
+	fn test_bifoldable_map() {
+		use crate::{
+			brands::*,
+			functions::*,
+		};
+
+		assert_eq!(
+			bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _>(
+				|e: i32| e.to_string(),
+				|s: i32| s.to_string(),
+				TryThunk::err(3),
+			),
+			"3".to_string()
+		);
+
+		assert_eq!(
+			bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _>(
+				|e: i32| e.to_string(),
+				|s: i32| s.to_string(),
+				TryThunk::pure(5),
+			),
+			"5".to_string()
+		);
+	}
+
+	/// Tests `MonadRec` for `TryThunkOkAppliedBrand` (tail recursion over error).
+	///
+	/// Verifies that the loop continues on `Step::Loop` and terminates on `Step::Done`.
+	#[test]
+	fn test_monad_rec_ok_applied() {
+		use crate::{
+			brands::*,
+			functions::*,
+			types::Step,
+		};
+
+		let result = tail_rec_m::<TryThunkOkAppliedBrand<i32>, _, _>(
+			|x| {
+				pure::<TryThunkOkAppliedBrand<i32>, _>(
+					if x < 100 { Step::Loop(x + 1) } else { Step::Done(x) },
+				)
+			},
+			0,
+		);
+		assert_eq!(result.evaluate(), Err(100));
+	}
+
+	/// Tests `MonadRec` for `TryThunkOkAppliedBrand` short-circuits on `Ok`.
+	///
+	/// Verifies that encountering an `Ok` value terminates the loop immediately.
+	#[test]
+	fn test_monad_rec_ok_applied_short_circuit() {
+		use crate::{
+			brands::*,
+			functions::*,
+			types::Step,
+		};
+
+		let result = tail_rec_m::<TryThunkOkAppliedBrand<i32>, _, _>(
+			|x: i32| {
+				if x == 5 {
+					TryThunk::ok(42)
+				} else {
+					pure::<TryThunkOkAppliedBrand<i32>, _>(Step::<i32, i32>::Loop(x + 1))
+				}
+			},
+			0,
+		);
+		assert_eq!(result.evaluate(), Ok(42));
+	}
+
+	/// Tests `catch_unwind` on `TryThunk`.
+	///
+	/// Verifies that panics are caught and converted to `Err(String)`.
+	#[test]
+	fn test_catch_unwind() {
+		let thunk = TryThunk::<i32, String>::catch_unwind(|| {
+			if true {
+				panic!("oops")
+			}
+			42
+		});
+		assert_eq!(thunk.evaluate(), Err("oops".to_string()));
+	}
+
+	/// Tests `catch_unwind` on `TryThunk` with a non-panicking closure.
+	///
+	/// Verifies that a successful closure wraps the value in `Ok`.
+	#[test]
+	fn test_catch_unwind_success() {
+		let thunk = TryThunk::<i32, String>::catch_unwind(|| 42);
+		assert_eq!(thunk.evaluate(), Ok(42));
+	}
+
 	/// Tests `TryThunkOkAppliedBrand` (Functor over Error).
 	#[test]
 	fn test_try_thunk_with_ok_brand() {
@@ -1507,5 +2012,23 @@ mod tests {
 			try_thunk,
 		);
 		assert_eq!(folded, 15);
+	}
+
+	/// Tests `From<Result>` with `Ok`.
+	///
+	/// Verifies that converting an `Ok` result produces a successful `TryThunk`.
+	#[test]
+	fn test_try_thunk_from_result_ok() {
+		let try_thunk: TryThunk<i32, String> = TryThunk::from(Ok(42));
+		assert_eq!(try_thunk.evaluate(), Ok(42));
+	}
+
+	/// Tests `From<Result>` with `Err`.
+	///
+	/// Verifies that converting an `Err` result produces a failed `TryThunk`.
+	#[test]
+	fn test_try_thunk_from_result_err() {
+		let try_thunk: TryThunk<i32, String> = TryThunk::from(Err("error".to_string()));
+		assert_eq!(try_thunk.evaluate(), Err("error".to_string()));
 	}
 }

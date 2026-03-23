@@ -17,7 +17,27 @@
 mod inner {
 	use fp_macros::*;
 	/// A type class for types that can be constructed lazily.
+	///
+	/// ### Laws
+	///
+	/// `Deferrable` instances must satisfy the following law:
+	/// * Transparency: `defer(|| x)` is observationally equivalent to `x` when evaluated.
 	#[document_type_parameters("The lifetime of the computation.")]
+	#[document_examples]
+	///
+	/// Transparency law for [`Thunk`](crate::types::Thunk):
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
+	///
+	/// // Transparency: defer(|| x) is equivalent to x when evaluated.
+	/// let x = Thunk::pure(42);
+	/// let deferred: Thunk<i32> = defer(|| Thunk::pure(42));
+	/// assert_eq!(deferred.evaluate(), x.evaluate());
+	/// ```
 	pub trait Deferrable<'a> {
 		/// Creates a value from a computation that produces the value.
 		///

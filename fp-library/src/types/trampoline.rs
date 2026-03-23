@@ -24,11 +24,13 @@ mod inner {
 				Free,
 				Lazy,
 				LazyConfig,
+				RcLazyConfig,
 				Step,
 				Thunk,
 			},
 		},
 		fp_macros::*,
+		std::fmt,
 	};
 
 	/// A lazy, stack-safe computation that produces a value of type `A`.
@@ -40,7 +42,7 @@ mod inner {
 	///
 	/// # Requirements
 	///
-	/// - `A: 'static + Send` - Required due to type erasure via [`Box<dyn Any>`].
+	/// - `A: 'static` - Required due to type erasure via [`Box<dyn Any>`].
 	///
 	/// # Guarantees
 	///
@@ -74,7 +76,7 @@ mod inner {
 
 	#[document_type_parameters("The type of the value produced by the task.")]
 	#[document_parameters("The `Trampoline` instance.")]
-	impl<A: 'static + Send> Trampoline<A> {
+	impl<A: 'static> Trampoline<A> {
 		/// Creates a `Trampoline` from an already-computed value.
 		///
 		/// ### Complexity
@@ -193,7 +195,7 @@ mod inner {
 		/// }
 		/// assert_eq!(task.evaluate(), 4950);
 		/// ```
-		pub fn bind<B: 'static + Send>(
+		pub fn bind<B: 'static>(
 			self,
 			f: impl FnOnce(A) -> Trampoline<B> + 'static,
 		) -> Trampoline<B> {
@@ -218,7 +220,7 @@ mod inner {
 		/// let task = Trampoline::pure(10).map(|x| x * 2);
 		/// assert_eq!(task.evaluate(), 20);
 		/// ```
-		pub fn map<B: 'static + Send>(
+		pub fn map<B: 'static>(
 			self,
 			f: impl FnOnce(A) -> B + 'static,
 		) -> Trampoline<B> {
@@ -247,6 +249,29 @@ mod inner {
 			self.0.evaluate()
 		}
 
+		/// Converts this `Trampoline` into a memoized [`Lazy`](crate::types::Lazy) value.
+		///
+		/// The computation will be evaluated at most once; subsequent accesses
+		/// return the cached result.
+		#[document_signature]
+		///
+		#[document_returns(
+			"A memoized `Lazy` value that evaluates this trampoline on first access."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task = Trampoline::new(|| 42);
+		/// let lazy = task.memoize();
+		/// assert_eq!(*lazy.evaluate(), 42);
+		/// ```
+		pub fn memoize(self) -> Lazy<'static, A, RcLazyConfig> {
+			Lazy::from(self)
+		}
+
 		/// Combines two `Trampoline`s, running both and combining results.
 		#[document_signature]
 		///
@@ -269,7 +294,7 @@ mod inner {
 		/// let t3 = t1.lift2(t2, |a, b| a + b);
 		/// assert_eq!(t3.evaluate(), 30);
 		/// ```
-		pub fn lift2<B: 'static + Send, C: 'static + Send>(
+		pub fn lift2<B: 'static, C: 'static>(
 			self,
 			other: Trampoline<B>,
 			f: impl FnOnce(A, B) -> C + 'static,
@@ -298,7 +323,7 @@ mod inner {
 		/// let t3 = t1.then(t2);
 		/// assert_eq!(t3.evaluate(), 20);
 		/// ```
-		pub fn then<B: 'static + Send>(
+		pub fn then<B: 'static>(
 			self,
 			other: Trampoline<B>,
 		) -> Trampoline<B> {
@@ -349,12 +374,12 @@ mod inner {
 		///
 		/// assert_eq!(fib(50).evaluate(), 12586269025);
 		/// ```
-		pub fn tail_rec_m<S: 'static + Send>(
+		pub fn tail_rec_m<S: 'static>(
 			f: impl Fn(S) -> Trampoline<Step<S, A>> + Clone + 'static,
 			initial: S,
 		) -> Self {
 			// Use defer to ensure each step is trampolined.
-			fn go<A: 'static + Send, B: 'static + Send, F>(
+			fn go<A: 'static, B: 'static, F>(
 				f: F,
 				a: A,
 			) -> Trampoline<B>
@@ -419,7 +444,7 @@ mod inner {
 		/// assert_eq!(task.evaluate(), 0);
 		/// assert_eq!(counter.load(Ordering::SeqCst), 101);
 		/// ```
-		pub fn arc_tail_rec_m<S: 'static + Send>(
+		pub fn arc_tail_rec_m<S: 'static>(
 			f: impl Fn(S) -> Trampoline<Step<S, A>> + 'static,
 			initial: S,
 		) -> Self {
@@ -437,9 +462,7 @@ mod inner {
 		"The type of the value produced by the task.",
 		"The memoization configuration."
 	)]
-	impl<A: 'static + Send + Clone, Config: LazyConfig> From<Lazy<'static, A, Config>>
-		for Trampoline<A>
-	{
+	impl<A: 'static + Clone, Config: LazyConfig> From<Lazy<'static, A, Config>> for Trampoline<A> {
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
 		#[document_returns("A trampoline that evaluates the lazy value.")]
@@ -457,7 +480,25 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the value produced by the task.")]
-	impl<A: 'static + Send> Deferrable<'static> for Trampoline<A> {
+	impl<A: 'static> From<Thunk<'static, A>> for Trampoline<A> {
+		#[document_signature]
+		#[document_parameters("The thunk to convert.")]
+		#[document_returns("A trampoline that evaluates the thunk.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let thunk = Thunk::pure(42);
+		/// let task = Trampoline::from(thunk);
+		/// assert_eq!(task.evaluate(), 42);
+		/// ```
+		fn from(thunk: Thunk<'static, A>) -> Self {
+			Trampoline::new(move || thunk.evaluate())
+		}
+	}
+
+	#[document_type_parameters("The type of the value produced by the task.")]
+	impl<A: 'static> Deferrable<'static> for Trampoline<A> {
 		/// Creates a `Trampoline` from a computation that produces it.
 		#[document_signature]
 		///
@@ -484,6 +525,28 @@ mod inner {
 			Trampoline::defer(f)
 		}
 	}
+
+	#[document_type_parameters("The type of the value produced by the task.")]
+	#[document_parameters("The trampoline to format.")]
+	impl<A: 'static> fmt::Debug for Trampoline<A> {
+		/// Formats the trampoline without evaluating it.
+		#[document_signature]
+		#[document_parameters("The formatter.")]
+		#[document_returns("The formatting result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let task = Trampoline::pure(42);
+		/// assert_eq!(format!("{:?}", task), "Trampoline(<unevaluated>)");
+		/// ```
+		fn fmt(
+			&self,
+			f: &mut fmt::Formatter<'_>,
+		) -> fmt::Result {
+			f.write_str("Trampoline(<unevaluated>)")
+		}
+	}
 }
 pub use inner::*;
 
@@ -492,6 +555,7 @@ mod tests {
 	use {
 		super::*,
 		crate::types::step::Step,
+		quickcheck_macros::quickcheck,
 	};
 
 	/// Tests `Trampoline::pure`.
@@ -684,5 +748,146 @@ mod tests {
 		let task2 = Trampoline::from(memo);
 		assert_eq!(task2.evaluate(), 42);
 		assert_eq!(*counter.lock().unwrap(), 1);
+	}
+
+	/// Tests `From<Thunk>` for `Trampoline`.
+	///
+	/// Verifies that converting a `Thunk` to a `Trampoline` preserves the computed value.
+	#[test]
+	fn test_task_from_thunk() {
+		use crate::types::Thunk;
+
+		let thunk = Thunk::pure(42);
+		let task = Trampoline::from(thunk);
+		assert_eq!(task.evaluate(), 42);
+	}
+
+	/// Tests roundtrip `Thunk` -> `Trampoline` -> evaluate.
+	///
+	/// Verifies that a lazy thunk is correctly evaluated when converted to a trampoline.
+	#[test]
+	fn test_task_from_thunk_lazy() {
+		use crate::types::Thunk;
+
+		let thunk = Thunk::new(|| 21 * 2);
+		let task = Trampoline::from(thunk);
+		assert_eq!(task.evaluate(), 42);
+	}
+
+	// QuickCheck Law Tests
+
+	// Functor Laws (via inherent methods)
+
+	/// Functor identity: `pure(a).map(identity) == a`.
+	#[quickcheck]
+	fn functor_identity(x: i32) -> bool {
+		Trampoline::pure(x).map(|a| a).evaluate() == x
+	}
+
+	/// Functor composition: `fa.map(f . g) == fa.map(g).map(f)`.
+	#[quickcheck]
+	fn functor_composition(x: i32) -> bool {
+		let f = |a: i32| a.wrapping_add(1);
+		let g = |a: i32| a.wrapping_mul(2);
+		let lhs = Trampoline::pure(x).map(move |a| f(g(a))).evaluate();
+		let rhs = Trampoline::pure(x).map(g).map(f).evaluate();
+		lhs == rhs
+	}
+
+	// Monad Laws (via inherent methods)
+
+	/// Monad left identity: `pure(a).bind(f) == f(a)`.
+	#[quickcheck]
+	fn monad_left_identity(a: i32) -> bool {
+		let f = |x: i32| Trampoline::pure(x.wrapping_mul(2));
+		Trampoline::pure(a).bind(f).evaluate() == f(a).evaluate()
+	}
+
+	/// Monad right identity: `m.bind(pure) == m`.
+	#[quickcheck]
+	fn monad_right_identity(x: i32) -> bool {
+		Trampoline::pure(x).bind(Trampoline::pure).evaluate() == x
+	}
+
+	/// Monad associativity: `m.bind(f).bind(g) == m.bind(|a| f(a).bind(g))`.
+	#[quickcheck]
+	fn monad_associativity(x: i32) -> bool {
+		let f = |a: i32| Trampoline::pure(a.wrapping_add(1));
+		let g = |a: i32| Trampoline::pure(a.wrapping_mul(3));
+		let lhs = Trampoline::pure(x).bind(f).bind(g).evaluate();
+		let rhs = Trampoline::pure(x).bind(move |a| f(a).bind(g)).evaluate();
+		lhs == rhs
+	}
+
+	// Tests for !Send types (Rc)
+
+	/// Tests that `Trampoline` works with `Rc<T>`, a `!Send` type.
+	///
+	/// This verifies that the `Send` bound relaxation allows single-threaded
+	/// stack-safe recursion with reference-counted types.
+	#[test]
+	fn test_trampoline_with_rc() {
+		use std::rc::Rc;
+
+		let rc_val = Rc::new(42);
+		let task = Trampoline::pure(rc_val);
+		let result = task.evaluate();
+		assert_eq!(*result, 42);
+	}
+
+	/// Tests `Trampoline::bind` with `Rc<T>`.
+	///
+	/// Verifies that `bind` works correctly when the value type is `!Send`.
+	#[test]
+	fn test_trampoline_bind_with_rc() {
+		use std::rc::Rc;
+
+		let task = Trampoline::pure(Rc::new(10)).bind(|rc| {
+			let val = *rc;
+			Trampoline::pure(Rc::new(val * 2))
+		});
+		assert_eq!(*task.evaluate(), 20);
+	}
+
+	/// Tests `Trampoline::map` with `Rc<T>`.
+	///
+	/// Verifies that `map` works correctly with `!Send` types.
+	#[test]
+	fn test_trampoline_map_with_rc() {
+		use std::rc::Rc;
+
+		let task = Trampoline::pure(Rc::new(10)).map(|rc| Rc::new(*rc * 3));
+		assert_eq!(*task.evaluate(), 30);
+	}
+
+	/// Tests `Trampoline::defer` with `Rc<T>`.
+	///
+	/// Verifies that deferred construction works with `!Send` types.
+	#[test]
+	fn test_trampoline_defer_with_rc() {
+		use std::rc::Rc;
+
+		let task = Trampoline::defer(|| Trampoline::pure(Rc::new(42)));
+		assert_eq!(*task.evaluate(), 42);
+	}
+
+	/// Tests `Trampoline::tail_rec_m` with `Rc<T>`.
+	///
+	/// Verifies that stack-safe recursion works with `!Send` types.
+	#[test]
+	fn test_trampoline_tail_rec_m_with_rc() {
+		use std::rc::Rc;
+
+		let task = Trampoline::tail_rec_m(
+			|(n, acc): (u64, Rc<u64>)| {
+				if n == 0 {
+					Trampoline::pure(Step::Done(acc))
+				} else {
+					Trampoline::pure(Step::Loop((n - 1, Rc::new(*acc + n))))
+				}
+			},
+			(100u64, Rc::new(0u64)),
+		);
+		assert_eq!(*task.evaluate(), 5050);
 	}
 }

@@ -23,6 +23,7 @@ mod inner {
 			},
 		},
 		fp_macros::*,
+		std::fmt,
 	};
 
 	/// A lazily-computed, memoized value that may fail.
@@ -135,6 +136,44 @@ mod inner {
 		pub fn new(f: impl FnOnce() -> Result<A, E> + 'a) -> Self {
 			TryLazy(RcLazyConfig::try_lazy_new(Box::new(f)))
 		}
+
+		/// Creates a `TryLazy` containing an already-computed success value.
+		#[document_signature]
+		///
+		#[document_parameters("The success value to wrap.")]
+		///
+		#[document_returns("A new `TryLazy` instance that evaluates to `Ok(&a)`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = RcTryLazy::<i32, ()>::ok(42);
+		/// assert_eq!(memo.evaluate(), Ok(&42));
+		/// ```
+		pub fn ok(a: A) -> Self {
+			Self::new(move || Ok(a))
+		}
+
+		/// Creates a `TryLazy` containing an already-computed error value.
+		#[document_signature]
+		///
+		#[document_parameters("The error value to wrap.")]
+		///
+		#[document_returns("A new `TryLazy` instance that evaluates to `Err(&e)`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = RcTryLazy::<i32, String>::err("error".to_string());
+		/// assert_eq!(memo.evaluate(), Err(&"error".to_string()));
+		/// ```
+		pub fn err(e: E) -> Self {
+			Self::new(move || Err(e))
+		}
 	}
 
 	#[document_type_parameters(
@@ -243,6 +282,59 @@ mod inner {
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
+	impl<'a, A: 'a, E: 'a> From<Result<A, E>> for TryLazy<'a, A, E, RcLazyConfig> {
+		#[document_signature]
+		#[document_parameters("The result to convert.")]
+		#[document_returns("A new `TryLazy` instance that produces the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let ok_memo: RcTryLazy<i32, String> = RcTryLazy::from(Ok(42));
+		/// assert_eq!(ok_memo.evaluate(), Ok(&42));
+		///
+		/// let err_memo: RcTryLazy<i32, String> = RcTryLazy::from(Err("error".to_string()));
+		/// assert_eq!(err_memo.evaluate(), Err(&"error".to_string()));
+		/// ```
+		fn from(result: Result<A, E>) -> Self {
+			Self::new(move || result)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
+	impl<'a, A, E> From<Result<A, E>> for TryLazy<'a, A, E, ArcLazyConfig>
+	where
+		A: 'a,
+		E: 'a,
+		Result<A, E>: Send,
+	{
+		#[document_signature]
+		#[document_parameters("The result to convert.")]
+		#[document_returns("A new `TryLazy` instance that produces the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let ok_memo: ArcTryLazy<i32, String> = ArcTryLazy::from(Ok(42));
+		/// assert_eq!(ok_memo.evaluate(), Ok(&42));
+		///
+		/// let err_memo: ArcTryLazy<i32, String> = ArcTryLazy::from(Err("error".to_string()));
+		/// assert_eq!(err_memo.evaluate(), Err(&"error".to_string()));
+		/// ```
+		fn from(result: Result<A, E>) -> Self {
+			Self::new(move || result)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
 		"The type of the computed value."
 	)]
 	impl<'a, A> TryLazy<'a, A, String, RcLazyConfig>
@@ -311,6 +403,50 @@ mod inner {
 		/// ```
 		pub fn new(f: impl FnOnce() -> Result<A, E> + Send + 'a) -> Self {
 			TryLazy(ArcLazyConfig::try_lazy_new(Box::new(f)))
+		}
+
+		/// Creates a thread-safe `TryLazy` containing an already-computed success value.
+		#[document_signature]
+		///
+		#[document_parameters("The success value to wrap.")]
+		///
+		#[document_returns("A new `ArcTryLazy` instance that evaluates to `Ok(&a)`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = ArcTryLazy::<i32, ()>::ok(42);
+		/// assert_eq!(memo.evaluate(), Ok(&42));
+		/// ```
+		pub fn ok(a: A) -> Self
+		where
+			A: Send,
+			E: Send, {
+			Self::new(move || Ok(a))
+		}
+
+		/// Creates a thread-safe `TryLazy` containing an already-computed error value.
+		#[document_signature]
+		///
+		#[document_parameters("The error value to wrap.")]
+		///
+		#[document_returns("A new `ArcTryLazy` instance that evaluates to `Err(&e)`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = ArcTryLazy::<i32, String>::err("error".to_string());
+		/// assert_eq!(memo.evaluate(), Err(&"error".to_string()));
+		/// ```
+		pub fn err(e: E) -> Self
+		where
+			A: Send,
+			E: Send, {
+			Self::new(move || Err(e))
 		}
 	}
 
@@ -405,6 +541,37 @@ mod inner {
 
 	/// Thread-safe fallible memoization alias.
 	pub type ArcTryLazy<'a, A, E> = TryLazy<'a, A, E, ArcLazyConfig>;
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error.",
+		"The memoization configuration."
+	)]
+	#[document_parameters("The try-lazy value to format.")]
+	impl<'a, A, E, Config: LazyConfig> fmt::Debug for TryLazy<'a, A, E, Config>
+	where
+		A: 'a,
+		E: 'a,
+	{
+		/// Formats the try-lazy value without evaluating it.
+		#[document_signature]
+		#[document_parameters("The formatter.")]
+		#[document_returns("The formatting result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
+		/// assert_eq!(format!("{:?}", memo), "TryLazy(..)");
+		/// ```
+		fn fmt(
+			&self,
+			f: &mut fmt::Formatter<'_>,
+		) -> fmt::Result {
+			f.write_str("TryLazy(..)")
+		}
+	}
 }
 pub use inner::*;
 
@@ -538,5 +705,61 @@ mod tests {
 
 		let memo: ArcTryLazy<i32, ()> = send_defer(|| ArcTryLazy::new(|| Ok(42)));
 		assert_eq!(memo.evaluate(), Ok(&42));
+	}
+
+	/// Tests `RcTryLazy::ok` convenience constructor.
+	#[test]
+	fn test_rc_try_lazy_ok() {
+		let memo = RcTryLazy::<i32, ()>::ok(42);
+		assert_eq!(memo.evaluate(), Ok(&42));
+	}
+
+	/// Tests `RcTryLazy::err` convenience constructor.
+	#[test]
+	fn test_rc_try_lazy_err() {
+		let memo = RcTryLazy::<i32, String>::err("error".to_string());
+		assert_eq!(memo.evaluate(), Err(&"error".to_string()));
+	}
+
+	/// Tests `ArcTryLazy::ok` convenience constructor.
+	#[test]
+	fn test_arc_try_lazy_ok() {
+		let memo = ArcTryLazy::<i32, ()>::ok(42);
+		assert_eq!(memo.evaluate(), Ok(&42));
+	}
+
+	/// Tests `ArcTryLazy::err` convenience constructor.
+	#[test]
+	fn test_arc_try_lazy_err() {
+		let memo = ArcTryLazy::<i32, String>::err("error".to_string());
+		assert_eq!(memo.evaluate(), Err(&"error".to_string()));
+	}
+
+	/// Tests `From<Result>` for `RcTryLazy` with `Ok`.
+	#[test]
+	fn test_rc_try_lazy_from_result_ok() {
+		let memo: RcTryLazy<i32, String> = RcTryLazy::from(Ok(42));
+		assert_eq!(memo.evaluate(), Ok(&42));
+	}
+
+	/// Tests `From<Result>` for `RcTryLazy` with `Err`.
+	#[test]
+	fn test_rc_try_lazy_from_result_err() {
+		let memo: RcTryLazy<i32, String> = RcTryLazy::from(Err("error".to_string()));
+		assert_eq!(memo.evaluate(), Err(&"error".to_string()));
+	}
+
+	/// Tests `From<Result>` for `ArcTryLazy` with `Ok`.
+	#[test]
+	fn test_arc_try_lazy_from_result_ok() {
+		let memo: ArcTryLazy<i32, String> = ArcTryLazy::from(Ok(42));
+		assert_eq!(memo.evaluate(), Ok(&42));
+	}
+
+	/// Tests `From<Result>` for `ArcTryLazy` with `Err`.
+	#[test]
+	fn test_arc_try_lazy_from_result_err() {
+		let memo: ArcTryLazy<i32, String> = ArcTryLazy::from(Err("error".to_string()));
+		assert_eq!(memo.evaluate(), Err(&"error".to_string()));
 	}
 }

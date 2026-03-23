@@ -25,6 +25,39 @@ mod inner {
 	///
 	/// This is a variant of `Functor` for types where `map` receives/returns references.
 	/// This is required for types like `Lazy` where `get()` returns `&A`, not `A`.
+	///
+	/// ### Laws
+	///
+	/// `RefFunctor` instances must satisfy the following laws:
+	/// * Identity: `ref_map(|x| x.clone(), fa)` evaluates to a value equal to `fa`'s evaluated value.
+	/// * Composition: `ref_map(|x| f(&g(x)), fa)` evaluates to the same value as `ref_map(f, ref_map(g, fa))`.
+	#[document_examples]
+	///
+	/// RefFunctor laws for [`Lazy`](crate::types::Lazy):
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
+	///
+	/// // Identity: ref_map(|x| x.clone(), fa) evaluates to the same value as fa.
+	/// let fa = RcLazy::pure(5);
+	/// let mapped = ref_map::<LazyBrand<RcLazyConfig>, _, _>(|x: &i32| *x, fa.clone());
+	/// assert_eq!(*mapped.evaluate(), *fa.evaluate());
+	///
+	/// // Composition: ref_map(|x| f(&g(x)), fa) = ref_map(f, ref_map(g, fa))
+	/// let f = |x: &i32| x + 1;
+	/// let g = |x: &i32| *x * 2;
+	/// let fa = RcLazy::pure(5);
+	/// let composed = ref_map::<LazyBrand<RcLazyConfig>, _, _>(|x: &i32| f(&g(x)), fa.clone());
+	/// let sequential = ref_map::<LazyBrand<RcLazyConfig>, _, _>(
+	/// 	f,
+	/// 	ref_map::<LazyBrand<RcLazyConfig>, _, _>(g, fa),
+	/// );
+	/// assert_eq!(*composed.evaluate(), *sequential.evaluate());
+	/// ```
 	#[kind(type Of<'a, A: 'a>: 'a;)]
 	pub trait RefFunctor {
 		/// Maps a function over the values in the functor context, where the function takes a reference.

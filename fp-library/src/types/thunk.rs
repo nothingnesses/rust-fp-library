@@ -1,6 +1,6 @@
 //! Deferred, non-memoized computation with higher-kinded type support.
 //!
-//! Builds computation chains without stack safety guarantees but supports borrowing and lifetime polymorphism. Each call to [`Thunk::evaluate`] re-executes the computation. For stack-safe alternatives, use [`Trampoline`](crate::types::Trampoline).
+//! Builds computation chains without stack safety guarantees but supports borrowing and lifetime polymorphism. Does not cache results; if you need the same computation's result more than once, wrap it in [`Lazy`](crate::types::Lazy). For stack-safe alternatives, use [`Trampoline`](crate::types::Trampoline).
 
 #[fp_macros::document_module]
 mod inner {
@@ -29,16 +29,19 @@ mod inner {
 			types::{
 				Lazy,
 				LazyConfig,
+				RcLazyConfig,
 				Step,
 			},
 		},
 		fp_macros::*,
+		std::fmt,
 	};
 
 	/// A deferred computation that produces a value of type `A`.
 	///
-	/// `Thunk` is NOT memoized - each call to [`Thunk::evaluate`] re-executes the computation.
-	/// This type exists to build computation chains without allocation overhead.
+	/// `Thunk` is NOT memoized and does not cache results. Since [`evaluate`](Thunk::evaluate) takes
+	/// `self` by value, a `Thunk` can only be evaluated once. If you need the result more than once,
+	/// wrap it in [`Lazy`](crate::types::Lazy) via [`memoize`](Thunk::memoize).
 	///
 	/// Unlike [`Trampoline`](crate::types::Trampoline), `Thunk` does NOT require `'static` and CAN implement
 	/// HKT traits like [`Functor`], [`Semimonad`], etc.
@@ -50,12 +53,13 @@ mod inner {
 	///
 	/// ### Trade-offs vs `Trampoline`
 	///
-	/// | Aspect         | `Thunk<'a, A>`              | `Trampoline<A>`            |
-	/// |----------------|-----------------------------|----------------------------|
-	/// | HKT compatible | ✅ Yes                      | ❌ No (requires `'static`) |
-	/// | Stack-safe     | ⚠️ Partial (tail_rec_m only) | ✅ Yes (unlimited)         |
-	/// | Lifetime       | `'a` (can borrow)           | `'static` only             |
-	/// | Use case       | Glue code, composition      | Deep recursion, pipelines  |
+	/// | Aspect         | `Thunk<'a, A>`              | `Trampoline<A>`              |
+	/// |----------------|-----------------------------|------------------------------ |
+	/// | HKT compatible | ✅ Yes                      | ❌ No (requires `'static`)   |
+	/// | Stack-safe     | ⚠️ Partial (tail_rec_m only) | ✅ Yes (unlimited)           |
+	/// | Lifetime       | `'a` (can borrow)           | `'static` only               |
+	/// | Thread safety  | Not `Send`                  | Not `Send` (`A: 'static`)    |
+	/// | Use case       | Glue code, composition      | Deep recursion, pipelines    |
 	///
 	/// ### Algebraic Properties
 	///
@@ -162,6 +166,11 @@ mod inner {
 		///
 		/// Note: Each `bind` adds to the call stack. For deep recursion,
 		/// use [`Trampoline`](crate::types::Trampoline) instead.
+		///
+		/// This inherent method accepts [`FnOnce`] for maximum flexibility. The HKT-level
+		/// [`Semimonad::bind`](crate::classes::Semimonad::bind) requires [`Fn`] instead,
+		/// because some types (such as `Vec`) need to call the function multiple times.
+		/// Prefer this inherent method when you do not need HKT generality.
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the result of the new computation.")]
@@ -238,6 +247,27 @@ mod inner {
 		pub fn evaluate(self) -> A {
 			(self.0)()
 		}
+
+		/// Converts this `Thunk` into a memoized [`Lazy`](crate::types::Lazy) value.
+		///
+		/// The computation will be evaluated at most once; subsequent accesses
+		/// return the cached result.
+		#[document_signature]
+		///
+		#[document_returns("A memoized `Lazy` value that evaluates this thunk on first access.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let thunk = Thunk::new(|| 42);
+		/// let lazy = thunk.memoize();
+		/// assert_eq!(*lazy.evaluate(), 42);
+		/// ```
+		pub fn memoize(self) -> Lazy<'a, A, RcLazyConfig> {
+			Lazy::from(self)
+		}
 	}
 
 	#[document_type_parameters(
@@ -263,6 +293,24 @@ mod inner {
 		/// ```
 		fn from(lazy: Lazy<'a, A, Config>) -> Self {
 			Thunk::new(move || lazy.evaluate().clone())
+		}
+	}
+
+	#[document_type_parameters("The type of the value produced by the computation.")]
+	impl<A: 'static + Send> From<crate::types::Trampoline<A>> for Thunk<'static, A> {
+		#[document_signature]
+		#[document_parameters("The trampoline to convert.")]
+		#[document_returns("A thunk that evaluates the trampoline.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let task = Trampoline::pure(42);
+		/// let thunk = Thunk::from(task);
+		/// assert_eq!(thunk.evaluate(), 42);
+		/// ```
+		fn from(trampoline: crate::types::Trampoline<A>) -> Self {
+			Thunk::new(move || trampoline.evaluate())
 		}
 	}
 
@@ -756,12 +804,48 @@ mod inner {
 			Thunk::new(|| Monoid::empty())
 		}
 	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value."
+	)]
+	#[document_parameters("The thunk to format.")]
+	impl<'a, A> fmt::Debug for Thunk<'a, A> {
+		/// Formats the thunk without evaluating it.
+		#[document_signature]
+		#[document_parameters("The formatter.")]
+		#[document_returns("The formatting result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let thunk = Thunk::pure(42);
+		/// assert_eq!(format!("{:?}", thunk), "Thunk(<unevaluated>)");
+		/// ```
+		fn fmt(
+			&self,
+			f: &mut fmt::Formatter<'_>,
+		) -> fmt::Result {
+			f.write_str("Thunk(<unevaluated>)")
+		}
+	}
 }
 pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use {
+		super::*,
+		crate::{
+			brands::*,
+			classes::{
+				monoid::empty,
+				semigroup::append,
+			},
+			functions::*,
+		},
+		quickcheck_macros::quickcheck,
+	};
 
 	/// Tests basic execution of Thunk.
 	///
@@ -851,5 +935,120 @@ mod tests {
 		use crate::classes::monoid::empty;
 		let t: Thunk<String> = empty();
 		assert_eq!(t.evaluate(), "");
+	}
+
+	/// Tests `From<Trampoline>` for `Thunk`.
+	///
+	/// Verifies that converting a `Trampoline` to a `Thunk` preserves the computed value.
+	#[test]
+	fn test_thunk_from_trampoline() {
+		use crate::types::Trampoline;
+
+		let task = Trampoline::pure(42);
+		let thunk = Thunk::from(task);
+		assert_eq!(thunk.evaluate(), 42);
+	}
+
+	/// Tests roundtrip `Trampoline` -> `Thunk` -> evaluate with a lazy computation.
+	///
+	/// Verifies that a lazy trampoline is correctly evaluated when converted to a thunk.
+	#[test]
+	fn test_thunk_from_trampoline_lazy() {
+		use crate::types::Trampoline;
+
+		let task = Trampoline::new(|| 21 * 2);
+		let thunk = Thunk::from(task);
+		assert_eq!(thunk.evaluate(), 42);
+	}
+
+	// QuickCheck Law Tests
+
+	// Functor Laws
+
+	/// Functor identity: `map(identity, fa) == fa`.
+	#[quickcheck]
+	fn functor_identity(x: i32) -> bool {
+		map::<ThunkBrand, _, _>(identity, pure::<ThunkBrand, _>(x)).evaluate() == x
+	}
+
+	/// Functor composition: `map(f . g, fa) == map(f, map(g, fa))`.
+	#[quickcheck]
+	fn functor_composition(x: i32) -> bool {
+		let f = |a: i32| a.wrapping_add(1);
+		let g = |a: i32| a.wrapping_mul(2);
+		let lhs = map::<ThunkBrand, _, _>(move |a| f(g(a)), pure::<ThunkBrand, _>(x)).evaluate();
+		let rhs = map::<ThunkBrand, _, _>(f, map::<ThunkBrand, _, _>(g, pure::<ThunkBrand, _>(x)))
+			.evaluate();
+		lhs == rhs
+	}
+
+	// Monad Laws
+
+	/// Monad left identity: `pure(a).bind(f) == f(a)`.
+	#[quickcheck]
+	fn monad_left_identity(a: i32) -> bool {
+		let f = |x: i32| pure::<ThunkBrand, _>(x.wrapping_mul(2));
+		let lhs = bind::<ThunkBrand, _, _>(pure::<ThunkBrand, _>(a), f).evaluate();
+		let rhs = f(a).evaluate();
+		lhs == rhs
+	}
+
+	/// Monad right identity: `m.bind(pure) == m`.
+	#[quickcheck]
+	fn monad_right_identity(x: i32) -> bool {
+		let lhs =
+			bind::<ThunkBrand, _, _>(pure::<ThunkBrand, _>(x), pure::<ThunkBrand, _>).evaluate();
+		lhs == x
+	}
+
+	/// Monad associativity: `m.bind(f).bind(g) == m.bind(|a| f(a).bind(g))`.
+	#[quickcheck]
+	fn monad_associativity(x: i32) -> bool {
+		let f = |a: i32| pure::<ThunkBrand, _>(a.wrapping_add(1));
+		let g = |a: i32| pure::<ThunkBrand, _>(a.wrapping_mul(3));
+		let m = pure::<ThunkBrand, _>(x);
+		let m2 = pure::<ThunkBrand, _>(x);
+		let lhs = bind::<ThunkBrand, _, _>(bind::<ThunkBrand, _, _>(m, f), g).evaluate();
+		let rhs =
+			bind::<ThunkBrand, _, _>(m2, move |a| bind::<ThunkBrand, _, _>(f(a), g)).evaluate();
+		lhs == rhs
+	}
+
+	// Semigroup Laws
+
+	/// Semigroup associativity: `append(append(a, b), c) == append(a, append(b, c))`.
+	#[quickcheck]
+	fn semigroup_associativity(
+		a: String,
+		b: String,
+		c: String,
+	) -> bool {
+		let ta = pure::<ThunkBrand, _>(a.clone());
+		let tb = pure::<ThunkBrand, _>(b.clone());
+		let tc = pure::<ThunkBrand, _>(c.clone());
+		let ta2 = pure::<ThunkBrand, _>(a);
+		let tb2 = pure::<ThunkBrand, _>(b);
+		let tc2 = pure::<ThunkBrand, _>(c);
+		let lhs = append(append(ta, tb), tc).evaluate();
+		let rhs = append(ta2, append(tb2, tc2)).evaluate();
+		lhs == rhs
+	}
+
+	// Monoid Laws
+
+	/// Monoid left identity: `append(empty(), a) == a`.
+	#[quickcheck]
+	fn monoid_left_identity(x: String) -> bool {
+		let a = pure::<ThunkBrand, _>(x.clone());
+		let lhs: Thunk<String> = append(empty(), a);
+		lhs.evaluate() == x
+	}
+
+	/// Monoid right identity: `append(a, empty()) == a`.
+	#[quickcheck]
+	fn monoid_right_identity(x: String) -> bool {
+		let a = pure::<ThunkBrand, _>(x.clone());
+		let rhs: Thunk<String> = append(a, empty());
+		rhs.evaluate() == x
 	}
 }
