@@ -450,6 +450,54 @@ mod inner {
 		pub fn evaluate(self) -> Result<A, E> {
 			self.0.evaluate()
 		}
+
+		/// Converts this `TryTrampoline` into a memoized [`RcTryLazy`](crate::types::RcTryLazy) value.
+		///
+		/// The computation will be evaluated at most once; subsequent accesses
+		/// return the cached result.
+		#[document_signature]
+		///
+		#[document_returns(
+			"A memoized `RcTryLazy` value that evaluates this trampoline on first access."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
+		/// let lazy = task.memoize();
+		/// assert_eq!(lazy.evaluate(), Ok(&42));
+		/// ```
+		pub fn memoize(self) -> crate::types::RcTryLazy<'static, A, E> {
+			crate::types::RcTryLazy::from(self)
+		}
+
+		/// Evaluates this `TryTrampoline` and wraps the result in a thread-safe [`ArcTryLazy`](crate::types::ArcTryLazy).
+		///
+		/// The trampoline is evaluated eagerly because its inner closures are
+		/// not `Send`. The result is stored in an `ArcTryLazy` for thread-safe sharing.
+		#[document_signature]
+		///
+		#[document_returns("A thread-safe `ArcTryLazy` containing the eagerly evaluated result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
+		/// let lazy = task.memoize_arc();
+		/// assert_eq!(lazy.evaluate(), Ok(&42));
+		/// ```
+		pub fn memoize_arc(self) -> crate::types::ArcTryLazy<'static, A, E>
+		where
+			A: Send + Sync,
+			E: Send + Sync, {
+			let result = self.evaluate();
+			crate::types::ArcTryLazy::new(move || result)
+		}
 	}
 
 	#[document_type_parameters("The type of the computed value.")]

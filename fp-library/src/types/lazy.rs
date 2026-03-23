@@ -1165,6 +1165,131 @@ mod inner {
 		}
 	}
 
+	impl Foldable for LazyBrand<ArcLazyConfig> {
+		/// Folds the `ArcLazy` from the right.
+		///
+		/// Forces evaluation of the lazy value and applies the folding function to the cloned
+		/// result and the initial accumulator. Since `Lazy` contains exactly one element, this is
+		/// equivalent to applying the function once.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the accumulator."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element and the accumulator.",
+			"The initial value of the accumulator.",
+			"The `ArcLazy` to fold."
+		)]
+		///
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = ArcLazy::pure(10);
+		/// let result = fold_right::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(|a, b| a + b, 5, lazy);
+		/// assert_eq!(result, 15);
+		/// ```
+		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(A, B) -> B + 'a,
+			initial: B,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> B
+		where
+			FnBrand: CloneableFn + 'a, {
+			func(fa.evaluate().clone(), initial)
+		}
+
+		/// Folds the `ArcLazy` from the left.
+		///
+		/// Forces evaluation and applies the folding function with the accumulator on the left.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the accumulator."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the accumulator and each element.",
+			"The initial value of the accumulator.",
+			"The `ArcLazy` to fold."
+		)]
+		///
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = ArcLazy::pure(10);
+		/// let result = fold_left::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(|b, a| b + a, 5, lazy);
+		/// assert_eq!(result, 15);
+		/// ```
+		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(B, A) -> B + 'a,
+			initial: B,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> B
+		where
+			FnBrand: CloneableFn + 'a, {
+			func(initial, fa.evaluate().clone())
+		}
+
+		/// Maps the value to a monoid and returns it.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the monoid."
+		)]
+		///
+		#[document_parameters("The mapping function.", "The `ArcLazy` to fold.")]
+		///
+		#[document_returns("The monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = ArcLazy::pure(10);
+		/// let result = fold_map::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(|a| a.to_string(), lazy);
+		/// assert_eq!(result, "10");
+		/// ```
+		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(A) -> M + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			M: Monoid + 'a,
+			FnBrand: CloneableFn + 'a, {
+			func(fa.evaluate().clone())
+		}
+	}
+
 	// --- PartialEq ---
 
 	#[document_type_parameters(

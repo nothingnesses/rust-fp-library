@@ -27,6 +27,7 @@ mod inner {
 			impl_kind,
 			kinds::*,
 			types::{
+				ArcLazyConfig,
 				Lazy,
 				LazyConfig,
 				RcLazyConfig,
@@ -268,6 +269,30 @@ mod inner {
 		pub fn memoize(self) -> Lazy<'a, A, RcLazyConfig> {
 			Lazy::from(self)
 		}
+
+		/// Evaluates this `Thunk` and wraps the result in a thread-safe [`ArcLazy`](crate::types::Lazy).
+		///
+		/// The thunk is evaluated eagerly because its inner closure is not
+		/// `Send`. The result is stored in an `ArcLazy` for thread-safe sharing.
+		#[document_signature]
+		///
+		#[document_returns("A thread-safe `ArcLazy` containing the eagerly evaluated result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let thunk = Thunk::new(|| 42);
+		/// let lazy = thunk.memoize_arc();
+		/// assert_eq!(*lazy.evaluate(), 42);
+		/// ```
+		pub fn memoize_arc(self) -> Lazy<'a, A, ArcLazyConfig>
+		where
+			A: Send + Sync + 'a, {
+			let val = self.evaluate();
+			Lazy::<'a, A, ArcLazyConfig>::new(move || val)
+		}
 	}
 
 	#[document_type_parameters(
@@ -301,7 +326,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the value produced by the computation.")]
-	impl<A: 'static + Send> From<crate::types::Trampoline<A>> for Thunk<'static, A> {
+	impl<A: 'static> From<crate::types::Trampoline<A>> for Thunk<'static, A> {
 		#[document_signature]
 		#[document_parameters("The trampoline to convert.")]
 		#[document_returns("A thunk that evaluates the trampoline.")]

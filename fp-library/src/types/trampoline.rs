@@ -21,6 +21,7 @@ mod inner {
 			brands::ThunkBrand,
 			classes::Deferrable,
 			types::{
+				ArcLazyConfig,
 				Free,
 				Lazy,
 				LazyConfig,
@@ -270,6 +271,30 @@ mod inner {
 		/// ```
 		pub fn memoize(self) -> Lazy<'static, A, RcLazyConfig> {
 			Lazy::from(self)
+		}
+
+		/// Evaluates this `Trampoline` and wraps the result in a thread-safe [`ArcLazy`](crate::types::Lazy).
+		///
+		/// The trampoline is evaluated eagerly because its inner closures are
+		/// not `Send`. The result is stored in an `ArcLazy` for thread-safe sharing.
+		#[document_signature]
+		///
+		#[document_returns("A thread-safe `ArcLazy` containing the eagerly evaluated result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task = Trampoline::new(|| 42);
+		/// let lazy = task.memoize_arc();
+		/// assert_eq!(*lazy.evaluate(), 42);
+		/// ```
+		pub fn memoize_arc(self) -> Lazy<'static, A, ArcLazyConfig>
+		where
+			A: Send + Sync, {
+			let val = self.evaluate();
+			Lazy::<'static, A, ArcLazyConfig>::new(move || val)
 		}
 
 		/// Combines two `Trampoline`s, running both and combining results.

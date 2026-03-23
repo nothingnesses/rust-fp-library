@@ -174,6 +174,68 @@ mod inner {
 		pub fn err(e: E) -> Self {
 			Self::new(move || Err(e))
 		}
+
+		/// Transforms the success value by creating a new `TryLazy` cell.
+		///
+		/// The original cell is evaluated on first access of the new cell. The mapping
+		/// function receives a reference to the cached success value. The error type must
+		/// be `Clone` because the new cell owns its own cached result.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the mapped success value.")]
+		///
+		#[document_parameters("The function to apply to the success value.")]
+		///
+		#[document_returns("A new `RcTryLazy` that applies `f` to the success value of this cell.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = RcTryLazy::<i32, String>::ok(10);
+		/// let mapped = memo.map(|a| a * 2);
+		/// assert_eq!(mapped.evaluate(), Ok(&20));
+		/// ```
+		pub fn map<B: 'a>(
+			self,
+			f: impl FnOnce(&A) -> B + 'a,
+		) -> RcTryLazy<'a, B, E>
+		where
+			E: Clone + 'a, {
+			RcTryLazy::new(move || self.evaluate().map(|a| f(a)).map_err(|e| e.clone()))
+		}
+
+		/// Transforms the error value by creating a new `TryLazy` cell.
+		///
+		/// The original cell is evaluated on first access of the new cell. The mapping
+		/// function receives a reference to the cached error value. The success type must
+		/// be `Clone` because the new cell owns its own cached result.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the mapped error value.")]
+		///
+		#[document_parameters("The function to apply to the error value.")]
+		///
+		#[document_returns("A new `RcTryLazy` that applies `f` to the error value of this cell.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = RcTryLazy::<i32, String>::err("error".to_string());
+		/// let mapped = memo.map_err(|e| format!("wrapped: {}", e));
+		/// assert_eq!(mapped.evaluate(), Err(&"wrapped: error".to_string()));
+		/// ```
+		pub fn map_err<E2: 'a>(
+			self,
+			f: impl FnOnce(&E) -> E2 + 'a,
+		) -> RcTryLazy<'a, A, E2>
+		where
+			A: Clone + 'a, {
+			RcTryLazy::new(move || self.evaluate().map(|a| a.clone()).map_err(|e| f(e)))
+		}
 	}
 
 	#[document_type_parameters(
@@ -205,11 +267,7 @@ mod inner {
 		"The type of the computed value.",
 		"The type of the error."
 	)]
-	impl<'a, A, E> From<TryTrampoline<A, E>> for TryLazy<'a, A, E, RcLazyConfig>
-	where
-		A: Send,
-		E: Send,
-	{
+	impl<'a, A, E> From<TryTrampoline<A, E>> for TryLazy<'a, A, E, RcLazyConfig> {
 		#[document_signature]
 		#[document_parameters("The fallible trampoline to convert.")]
 		#[document_returns(
@@ -439,6 +497,72 @@ mod inner {
 			A: Send,
 			E: Send, {
 			Self::new(move || Err(e))
+		}
+
+		/// Transforms the success value by creating a new thread-safe `TryLazy` cell.
+		///
+		/// The original cell is evaluated on first access of the new cell. The mapping
+		/// function receives a reference to the cached success value. The error type must
+		/// be `Clone` because the new cell owns its own cached result.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the mapped success value.")]
+		///
+		#[document_parameters("The function to apply to the success value.")]
+		///
+		#[document_returns(
+			"A new `ArcTryLazy` that applies `f` to the success value of this cell."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = ArcTryLazy::<i32, String>::ok(10);
+		/// let mapped = memo.map(|a| a * 2);
+		/// assert_eq!(mapped.evaluate(), Ok(&20));
+		/// ```
+		pub fn map<B: 'a>(
+			self,
+			f: impl FnOnce(&A) -> B + Send + 'a,
+		) -> ArcTryLazy<'a, B, E>
+		where
+			A: Send + Sync,
+			E: Clone + Send + Sync, {
+			ArcTryLazy::new(move || self.evaluate().map(|a| f(a)).map_err(|e| e.clone()))
+		}
+
+		/// Transforms the error value by creating a new thread-safe `TryLazy` cell.
+		///
+		/// The original cell is evaluated on first access of the new cell. The mapping
+		/// function receives a reference to the cached error value. The success type must
+		/// be `Clone` because the new cell owns its own cached result.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the mapped error value.")]
+		///
+		#[document_parameters("The function to apply to the error value.")]
+		///
+		#[document_returns("A new `ArcTryLazy` that applies `f` to the error value of this cell.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = ArcTryLazy::<i32, String>::err("error".to_string());
+		/// let mapped = memo.map_err(|e| format!("wrapped: {}", e));
+		/// assert_eq!(mapped.evaluate(), Err(&"wrapped: error".to_string()));
+		/// ```
+		pub fn map_err<E2: 'a>(
+			self,
+			f: impl FnOnce(&E) -> E2 + Send + 'a,
+		) -> ArcTryLazy<'a, A, E2>
+		where
+			A: Clone + Send + Sync,
+			E: Send + Sync, {
+			ArcTryLazy::new(move || self.evaluate().map(|a| a.clone()).map_err(|e| f(e)))
 		}
 	}
 
