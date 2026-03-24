@@ -111,6 +111,7 @@ mod inner {
 		/// let thunk = Thunk::new(|| 42);
 		/// assert_eq!(thunk.evaluate(), 42);
 		/// ```
+		#[inline]
 		pub fn new(f: impl FnOnce() -> A + 'a) -> Self {
 			Thunk(Box::new(f))
 		}
@@ -134,6 +135,7 @@ mod inner {
 		/// let thunk = pure::<ThunkBrand, _>(42);
 		/// assert_eq!(thunk.evaluate(), 42);
 		/// ```
+		#[inline]
 		pub fn pure(a: A) -> Self
 		where
 			A: 'a, {
@@ -159,6 +161,7 @@ mod inner {
 		/// let thunk = Thunk::defer(|| pure::<ThunkBrand, _>(42));
 		/// assert_eq!(thunk.evaluate(), 42);
 		/// ```
+		#[inline]
 		pub fn defer(f: impl FnOnce() -> Thunk<'a, A> + 'a) -> Self {
 			Thunk::new(move || f().evaluate())
 		}
@@ -191,6 +194,7 @@ mod inner {
 		/// let thunk = pure::<ThunkBrand, _>(21).bind(|x| pure::<ThunkBrand, _>(x * 2));
 		/// assert_eq!(thunk.evaluate(), 42);
 		/// ```
+		#[inline]
 		pub fn bind<B: 'a>(
 			self,
 			f: impl FnOnce(A) -> Thunk<'a, B> + 'a,
@@ -222,6 +226,7 @@ mod inner {
 		/// let thunk = pure::<ThunkBrand, _>(21).map(|x| x * 2);
 		/// assert_eq!(thunk.evaluate(), 42);
 		/// ```
+		#[inline]
 		pub fn map<B: 'a>(
 			self,
 			f: impl FnOnce(A) -> B + 'a,
@@ -245,6 +250,7 @@ mod inner {
 		/// let thunk = pure::<ThunkBrand, _>(42);
 		/// assert_eq!(thunk.evaluate(), 42);
 		/// ```
+		#[inline]
 		pub fn evaluate(self) -> A {
 			(self.0)()
 		}
@@ -266,6 +272,7 @@ mod inner {
 		/// let lazy = thunk.memoize();
 		/// assert_eq!(*lazy.evaluate(), 42);
 		/// ```
+		#[inline]
 		pub fn memoize(self) -> Lazy<'a, A, RcLazyConfig> {
 			Lazy::from(self)
 		}
@@ -287,6 +294,7 @@ mod inner {
 		/// let lazy = thunk.memoize_arc();
 		/// assert_eq!(*lazy.evaluate(), 42);
 		/// ```
+		#[inline]
 		pub fn memoize_arc(self) -> Lazy<'a, A, ArcLazyConfig>
 		where
 			A: Send + Sync + 'a, {

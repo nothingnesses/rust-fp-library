@@ -482,6 +482,7 @@ mod inner {
 		/// let memo = Lazy::<_, RcLazyConfig>::new(|| 42);
 		/// assert_eq!(*memo.evaluate(), 42);
 		/// ```
+		#[inline]
 		pub fn evaluate(&self) -> &A {
 			Config::evaluate(&self.0)
 		}
@@ -500,6 +501,7 @@ mod inner {
 		///
 		#[document_returns("A new `Lazy` instance.")]
 		///
+		#[inline]
 		#[document_examples]
 		///
 		/// ```
@@ -521,6 +523,7 @@ mod inner {
 		///
 		#[document_returns("A new `Lazy` instance containing the value.")]
 		///
+		#[inline]
 		#[document_examples]
 		///
 		/// ```
@@ -551,12 +554,12 @@ mod inner {
 		/// let mapped = memo.ref_map(|x| *x * 2);
 		/// assert_eq!(*mapped.evaluate(), 20);
 		/// ```
+		#[inline]
 		pub fn ref_map<B: 'a>(
 			self,
 			f: impl FnOnce(&A) -> B + 'a,
 		) -> Lazy<'a, B, RcLazyConfig> {
-			let fa = self.clone();
-			let init: Box<dyn FnOnce() -> B + 'a> = Box::new(move || f(fa.evaluate()));
+			let init: Box<dyn FnOnce() -> B + 'a> = Box::new(move || f(self.evaluate()));
 			Lazy(RcLazyConfig::lazy_new(init))
 		}
 	}
@@ -611,6 +614,7 @@ mod inner {
 		///
 		#[document_returns("A new `Lazy` instance.")]
 		///
+		#[inline]
 		#[document_examples]
 		///
 		/// ```
@@ -633,6 +637,7 @@ mod inner {
 		///
 		#[document_returns("A new `Lazy` instance containing the value.")]
 		///
+		#[inline]
 		#[document_examples]
 		///
 		/// ```
@@ -674,14 +679,14 @@ mod inner {
 		/// let mapped = memo.ref_map(|x| *x * 2);
 		/// assert_eq!(*mapped.evaluate(), 20);
 		/// ```
+		#[inline]
 		pub fn ref_map<B: 'a>(
 			self,
 			f: impl FnOnce(&A) -> B + Send + 'a,
 		) -> Lazy<'a, B, ArcLazyConfig>
 		where
 			A: Send + Sync, {
-			let fa = self.clone();
-			ArcLazy::new(move || f(fa.evaluate()))
+			ArcLazy::new(move || f(self.evaluate()))
 		}
 	}
 

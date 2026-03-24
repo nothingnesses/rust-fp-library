@@ -92,6 +92,7 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, ()> = TryThunk::new(|| Ok(42));
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
+		#[inline]
 		pub fn new(f: impl FnOnce() -> Result<A, E> + 'a) -> Self {
 			TryThunk(Thunk::new(f))
 		}
@@ -116,6 +117,7 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(42);
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
+		#[inline]
 		pub fn pure(a: A) -> Self
 		where
 			A: 'a, {
@@ -137,6 +139,7 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, ()> = TryThunk::defer(|| TryThunk::ok(42));
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
+		#[inline]
 		pub fn defer(f: impl FnOnce() -> TryThunk<'a, A, E> + 'a) -> Self {
 			TryThunk(Thunk::defer(move || f().0))
 		}
@@ -156,6 +159,7 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, ()> = TryThunk::ok(42);
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
+		#[inline]
 		pub fn ok(a: A) -> Self
 		where
 			A: 'a, {
@@ -177,6 +181,7 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, &str> = TryThunk::err("error");
 		/// assert_eq!(try_thunk.evaluate(), Err("error"));
 		/// ```
+		#[inline]
 		pub fn err(e: E) -> Self
 		where
 			E: 'a, {
@@ -200,6 +205,7 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, ()> = TryThunk::ok(21).bind(|x| TryThunk::ok(x * 2));
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
+		#[inline]
 		pub fn bind<B: 'a>(
 			self,
 			f: impl FnOnce(A) -> TryThunk<'a, B, E> + 'a,
@@ -227,6 +233,7 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, ()> = TryThunk::ok(21).map(|x| x * 2);
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
+		#[inline]
 		pub fn map<B: 'a>(
 			self,
 			func: impl FnOnce(A) -> B + 'a,
@@ -251,6 +258,7 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, i32> = TryThunk::err(21).map_err(|x| x * 2);
 		/// assert_eq!(try_thunk.evaluate(), Err(42));
 		/// ```
+		#[inline]
 		pub fn map_err<E2: 'a>(
 			self,
 			f: impl FnOnce(E) -> E2 + 'a,
