@@ -19,7 +19,11 @@ mod inner {
 	use {
 		crate::{
 			brands::ThunkBrand,
-			classes::Deferrable,
+			classes::{
+				Deferrable,
+				Monoid,
+				Semigroup,
+			},
 			types::{
 				ArcLazyConfig,
 				Free,
@@ -353,6 +357,57 @@ mod inner {
 			other: Trampoline<B>,
 		) -> Trampoline<B> {
 			self.bind(move |_| other)
+		}
+
+		/// Combines two `Trampoline` values using the `Semigroup` operation on their results.
+		///
+		/// Evaluates both trampolines and combines the results via [`Semigroup::append`].
+		/// The combination itself is deferred and stack-safe.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The second `Trampoline` whose result will be combined with this one."
+		)]
+		///
+		#[document_returns("A new `Trampoline` producing the combined result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let t1 = Trampoline::pure(vec![1, 2]);
+		/// let t2 = Trampoline::pure(vec![3, 4]);
+		/// assert_eq!(t1.append(t2).evaluate(), vec![1, 2, 3, 4]);
+		/// ```
+		#[inline]
+		pub fn append(
+			self,
+			other: Trampoline<A>,
+		) -> Trampoline<A>
+		where
+			A: Semigroup + 'static, {
+			self.lift2(other, Semigroup::append)
+		}
+
+		/// Creates a `Trampoline` that produces the identity element for the given `Monoid`.
+		#[document_signature]
+		///
+		#[document_returns("A `Trampoline` producing the monoid identity element.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let t: Trampoline<Vec<i32>> = Trampoline::empty();
+		/// assert_eq!(t.evaluate(), Vec::<i32>::new());
+		/// ```
+		#[inline]
+		pub fn empty() -> Trampoline<A>
+		where
+			A: Monoid + 'static, {
+			Trampoline::pure(Monoid::empty())
 		}
 
 		/// Stack-safe tail recursion within Trampoline.
@@ -918,5 +973,32 @@ mod tests {
 			(100u64, Rc::new(0u64)),
 		);
 		assert_eq!(*task.evaluate(), 5050);
+	}
+
+	#[test]
+	fn test_trampoline_append() {
+		let t1 = Trampoline::pure(vec![1, 2]);
+		let t2 = Trampoline::pure(vec![3, 4]);
+		assert_eq!(t1.append(t2).evaluate(), vec![1, 2, 3, 4]);
+	}
+
+	#[test]
+	fn test_trampoline_append_strings() {
+		let t1 = Trampoline::pure("hello".to_string());
+		let t2 = Trampoline::pure(" world".to_string());
+		assert_eq!(t1.append(t2).evaluate(), "hello world");
+	}
+
+	#[test]
+	fn test_trampoline_empty() {
+		let t: Trampoline<Vec<i32>> = Trampoline::empty();
+		assert_eq!(t.evaluate(), Vec::<i32>::new());
+	}
+
+	#[test]
+	fn test_trampoline_append_with_empty() {
+		let t1 = Trampoline::pure(vec![1, 2, 3]);
+		let t2: Trampoline<Vec<i32>> = Trampoline::empty();
+		assert_eq!(t1.append(t2).evaluate(), vec![1, 2, 3]);
 	}
 }
