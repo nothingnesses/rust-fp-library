@@ -581,6 +581,47 @@ mod inner {
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
+		"The type of the computed value."
+	)]
+	impl<'a, A> TryLazy<'a, A, String, ArcLazyConfig>
+	where
+		A: 'a,
+	{
+		/// Creates a thread-safe `TryLazy` that catches unwinds (panics).
+		///
+		/// The closure is executed when the lazy cell is first evaluated. If the
+		/// closure panics, the panic payload is converted to a `String` error and
+		/// cached. If the closure returns normally, the value is cached as `Ok`.
+		#[document_signature]
+		///
+		#[document_parameters("The closure that might panic.")]
+		///
+		#[document_returns(
+			"A new `ArcTryLazy` instance where panics are converted to `Err(String)`."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = TryLazy::<_, String, ArcLazyConfig>::catch_unwind(|| {
+		/// 	if true {
+		/// 		panic!("oops")
+		/// 	}
+		/// 	42
+		/// });
+		/// assert_eq!(memo.evaluate(), Err(&"oops".to_string()));
+		/// ```
+		pub fn catch_unwind(f: impl FnOnce() -> A + std::panic::UnwindSafe + Send + 'a) -> Self {
+			Self::new(move || {
+				std::panic::catch_unwind(f).map_err(crate::utils::panic_payload_to_string)
+			})
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
 		"The type of the computed value.",
 		"The type of the error."
 	)]
@@ -985,5 +1026,112 @@ mod tests {
 		let memo: ArcTryLazy<i32, i32> = ArcTryLazy::new(move || Ok(x));
 		let deferred: ArcTryLazy<i32, i32> = send_defer(move || ArcTryLazy::new(move || Ok(x)));
 		memo.evaluate() == deferred.evaluate()
+	}
+
+	/// Tests `ArcTryLazy::catch_unwind` with a panicking closure.
+	///
+	/// Verifies that panics are caught and converted to errors.
+	#[test]
+	fn test_arc_catch_unwind() {
+		let memo = ArcTryLazy::catch_unwind(|| {
+			if true {
+				panic!("oops")
+			}
+			42
+		});
+
+		match memo.evaluate() {
+			Err(e) => assert_eq!(e, "oops"),
+			Ok(_) => panic!("Should have failed"),
+		}
+	}
+
+	/// Tests `ArcTryLazy::catch_unwind` with a non-panicking closure.
+	///
+	/// Verifies that a successful closure wraps the value in `Ok`.
+	#[test]
+	fn test_arc_catch_unwind_success() {
+		let memo = ArcTryLazy::catch_unwind(|| 42);
+		assert_eq!(memo.evaluate(), Ok(&42));
+	}
+
+	/// Tests `RcTryLazy::map` with a successful value.
+	///
+	/// Verifies that `map` transforms the cached success value.
+	#[test]
+	fn test_rc_try_lazy_map_ok() {
+		let memo = RcTryLazy::<i32, String>::ok(10);
+		let mapped = memo.map(|a| a * 2);
+		assert_eq!(mapped.evaluate(), Ok(&20));
+	}
+
+	/// Tests `RcTryLazy::map` with an error value.
+	///
+	/// Verifies that `map` propagates the error without calling the function.
+	#[test]
+	fn test_rc_try_lazy_map_err() {
+		let memo = RcTryLazy::<i32, String>::err("error".to_string());
+		let mapped = memo.map(|a| a * 2);
+		assert_eq!(mapped.evaluate(), Err(&"error".to_string()));
+	}
+
+	/// Tests `RcTryLazy::map_err` with an error value.
+	///
+	/// Verifies that `map_err` transforms the cached error value.
+	#[test]
+	fn test_rc_try_lazy_map_err_err() {
+		let memo = RcTryLazy::<i32, String>::err("error".to_string());
+		let mapped = memo.map_err(|e| format!("wrapped: {}", e));
+		assert_eq!(mapped.evaluate(), Err(&"wrapped: error".to_string()));
+	}
+
+	/// Tests `RcTryLazy::map_err` with a successful value.
+	///
+	/// Verifies that `map_err` propagates the success without calling the function.
+	#[test]
+	fn test_rc_try_lazy_map_err_ok() {
+		let memo = RcTryLazy::<i32, String>::ok(42);
+		let mapped = memo.map_err(|e| format!("wrapped: {}", e));
+		assert_eq!(mapped.evaluate(), Ok(&42));
+	}
+
+	/// Tests `ArcTryLazy::map` with a successful value.
+	///
+	/// Verifies that `map` transforms the cached success value.
+	#[test]
+	fn test_arc_try_lazy_map_ok() {
+		let memo = ArcTryLazy::<i32, String>::ok(10);
+		let mapped = memo.map(|a| a * 2);
+		assert_eq!(mapped.evaluate(), Ok(&20));
+	}
+
+	/// Tests `ArcTryLazy::map` with an error value.
+	///
+	/// Verifies that `map` propagates the error without calling the function.
+	#[test]
+	fn test_arc_try_lazy_map_err() {
+		let memo = ArcTryLazy::<i32, String>::err("error".to_string());
+		let mapped = memo.map(|a| a * 2);
+		assert_eq!(mapped.evaluate(), Err(&"error".to_string()));
+	}
+
+	/// Tests `ArcTryLazy::map_err` with an error value.
+	///
+	/// Verifies that `map_err` transforms the cached error value.
+	#[test]
+	fn test_arc_try_lazy_map_err_err() {
+		let memo = ArcTryLazy::<i32, String>::err("error".to_string());
+		let mapped = memo.map_err(|e| format!("wrapped: {}", e));
+		assert_eq!(mapped.evaluate(), Err(&"wrapped: error".to_string()));
+	}
+
+	/// Tests `ArcTryLazy::map_err` with a successful value.
+	///
+	/// Verifies that `map_err` propagates the success without calling the function.
+	#[test]
+	fn test_arc_try_lazy_map_err_ok() {
+		let memo = ArcTryLazy::<i32, String>::ok(42);
+		let mapped = memo.map_err(|e| format!("wrapped: {}", e));
+		assert_eq!(mapped.evaluate(), Ok(&42));
 	}
 }

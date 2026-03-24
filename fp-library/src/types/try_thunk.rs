@@ -435,6 +435,53 @@ mod inner {
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error value."
+	)]
+	impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
+		/// Creates a `TryThunk` that catches unwinds (panics), converting the
+		/// panic payload using a custom conversion function.
+		///
+		/// The closure `f` is executed when the thunk is evaluated. If `f`
+		/// panics, the panic payload is passed to `handler` to produce the
+		/// error value. If `f` returns normally, the value is wrapped in `Ok`.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The closure that might panic.",
+			"The function that converts a panic payload into the error type."
+		)]
+		///
+		#[document_returns(
+			"A new `TryThunk` instance where panics are converted to `Err(E)` via the handler."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let thunk = TryThunk::<i32, i32>::catch_unwind_with(
+		/// 	|| {
+		/// 		if true {
+		/// 			panic!("oops")
+		/// 		}
+		/// 		42
+		/// 	},
+		/// 	|_payload| -1,
+		/// );
+		/// assert_eq!(thunk.evaluate(), Err(-1));
+		/// ```
+		pub fn catch_unwind_with(
+			f: impl FnOnce() -> A + std::panic::UnwindSafe + 'a,
+			handler: impl FnOnce(Box<dyn std::any::Any + Send>) -> E + 'a,
+		) -> Self {
+			TryThunk::new(move || std::panic::catch_unwind(f).map_err(handler))
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
 		"The type of the computed value."
 	)]
 	impl<'a, A: 'a> TryThunk<'a, A, String> {
@@ -443,6 +490,9 @@ mod inner {
 		/// The closure is executed when the thunk is evaluated. If the closure
 		/// panics, the panic payload is converted to a `String` error. If the
 		/// closure returns normally, the value is wrapped in `Ok`.
+		///
+		/// This is a convenience wrapper around [`catch_unwind_with`](TryThunk::catch_unwind_with)
+		/// that uses the default panic payload to string conversion.
 		#[document_signature]
 		///
 		#[document_parameters("The closure that might panic.")]
@@ -465,9 +515,7 @@ mod inner {
 		/// assert_eq!(thunk.evaluate(), Err("oops".to_string()));
 		/// ```
 		pub fn catch_unwind(f: impl FnOnce() -> A + std::panic::UnwindSafe + 'a) -> Self {
-			TryThunk::new(move || {
-				std::panic::catch_unwind(f).map_err(crate::utils::panic_payload_to_string)
-			})
+			Self::catch_unwind_with(f, crate::utils::panic_payload_to_string)
 		}
 	}
 
@@ -2295,5 +2343,161 @@ mod tests {
 	fn error_short_circuit(e: i32) -> bool {
 		let t: TryThunk<i32, i32> = TryThunk::err(e);
 		t.bind(|x| TryThunk::ok(x.wrapping_add(1))).evaluate() == Err(e)
+	}
+
+	/// Tests `TryThunk::lift2` with two successful values.
+	///
+	/// Verifies that `lift2` combines results from both computations.
+	#[test]
+	fn test_lift2_ok_ok() {
+		let t1: TryThunk<i32, String> = TryThunk::ok(10);
+		let t2: TryThunk<i32, String> = TryThunk::ok(20);
+		let t3 = t1.lift2(t2, |a, b| a + b);
+		assert_eq!(t3.evaluate(), Ok(30));
+	}
+
+	/// Tests `TryThunk::lift2` short-circuits on first error.
+	///
+	/// Verifies that if the first computation fails, the second is not evaluated.
+	#[test]
+	fn test_lift2_err_ok() {
+		let t1: TryThunk<i32, String> = TryThunk::err("first".to_string());
+		let t2: TryThunk<i32, String> = TryThunk::ok(20);
+		let t3 = t1.lift2(t2, |a, b| a + b);
+		assert_eq!(t3.evaluate(), Err("first".to_string()));
+	}
+
+	/// Tests `TryThunk::lift2` propagates second error.
+	///
+	/// Verifies that if the second computation fails, the error is propagated.
+	#[test]
+	fn test_lift2_ok_err() {
+		let t1: TryThunk<i32, String> = TryThunk::ok(10);
+		let t2: TryThunk<i32, String> = TryThunk::err("second".to_string());
+		let t3 = t1.lift2(t2, |a, b| a + b);
+		assert_eq!(t3.evaluate(), Err("second".to_string()));
+	}
+
+	/// Tests `TryThunk::then` with two successful values.
+	///
+	/// Verifies that `then` discards the first result and returns the second.
+	#[test]
+	fn test_then_ok_ok() {
+		let t1: TryThunk<i32, String> = TryThunk::ok(10);
+		let t2: TryThunk<i32, String> = TryThunk::ok(20);
+		let t3 = t1.then(t2);
+		assert_eq!(t3.evaluate(), Ok(20));
+	}
+
+	/// Tests `TryThunk::then` short-circuits on first error.
+	///
+	/// Verifies that if the first computation fails, the second is not evaluated.
+	#[test]
+	fn test_then_err_ok() {
+		let t1: TryThunk<i32, String> = TryThunk::err("first".to_string());
+		let t2: TryThunk<i32, String> = TryThunk::ok(20);
+		let t3 = t1.then(t2);
+		assert_eq!(t3.evaluate(), Err("first".to_string()));
+	}
+
+	/// Tests `TryThunk::then` propagates second error.
+	///
+	/// Verifies that if the second computation fails, the error is propagated.
+	#[test]
+	fn test_then_ok_err() {
+		let t1: TryThunk<i32, String> = TryThunk::ok(10);
+		let t2: TryThunk<i32, String> = TryThunk::err("second".to_string());
+		let t3 = t1.then(t2);
+		assert_eq!(t3.evaluate(), Err("second".to_string()));
+	}
+
+	/// Tests `TryThunk::memoize` basic usage.
+	///
+	/// Verifies that memoizing a thunk produces a lazy value with the same result.
+	#[test]
+	fn test_memoize() {
+		let thunk: TryThunk<i32, ()> = TryThunk::ok(42);
+		let lazy = thunk.memoize();
+		assert_eq!(lazy.evaluate(), Ok(&42));
+	}
+
+	/// Tests `TryThunk::memoize` caching behavior.
+	///
+	/// Verifies that the memoized value is computed only once.
+	#[test]
+	fn test_memoize_caching() {
+		use std::{
+			cell::RefCell,
+			rc::Rc,
+		};
+
+		let counter = Rc::new(RefCell::new(0));
+		let counter_clone = counter.clone();
+		let thunk: TryThunk<i32, ()> = TryThunk::new(move || {
+			*counter_clone.borrow_mut() += 1;
+			Ok(42)
+		});
+		let lazy = thunk.memoize();
+
+		assert_eq!(*counter.borrow(), 0);
+		assert_eq!(lazy.evaluate(), Ok(&42));
+		assert_eq!(*counter.borrow(), 1);
+		assert_eq!(lazy.evaluate(), Ok(&42));
+		assert_eq!(*counter.borrow(), 1);
+	}
+
+	/// Tests `TryThunk::memoize_arc` basic usage.
+	///
+	/// Verifies that memoizing a thunk produces a thread-safe lazy value.
+	#[test]
+	fn test_memoize_arc() {
+		let thunk: TryThunk<i32, ()> = TryThunk::ok(42);
+		let lazy = thunk.memoize_arc();
+		assert_eq!(lazy.evaluate(), Ok(&42));
+	}
+
+	/// Tests `TryThunk::memoize_arc` is Send and Sync.
+	///
+	/// Verifies that the resulting `ArcTryLazy` can be shared across threads.
+	#[test]
+	fn test_memoize_arc_send_sync() {
+		use std::thread;
+
+		let thunk: TryThunk<i32, String> = TryThunk::ok(42);
+		let lazy = thunk.memoize_arc();
+		let lazy_clone = lazy.clone();
+
+		let handle = thread::spawn(move || {
+			assert_eq!(lazy_clone.evaluate(), Ok(&42));
+		});
+
+		assert_eq!(lazy.evaluate(), Ok(&42));
+		handle.join().unwrap();
+	}
+
+	/// Tests `TryThunk::catch_unwind_with` with a panicking closure.
+	///
+	/// Verifies that the custom handler converts the panic payload.
+	#[test]
+	fn test_catch_unwind_with_panic() {
+		let thunk = TryThunk::<i32, i32>::catch_unwind_with(
+			|| {
+				if true {
+					panic!("oops")
+				}
+				42
+			},
+			|_payload| -1,
+		);
+		assert_eq!(thunk.evaluate(), Err(-1));
+	}
+
+	/// Tests `TryThunk::catch_unwind_with` with a non-panicking closure.
+	///
+	/// Verifies that a successful closure wraps the value in `Ok`.
+	#[test]
+	fn test_catch_unwind_with_success() {
+		let thunk = TryThunk::<i32, i32>::catch_unwind_with(|| 42, |_payload| -1);
+		assert_eq!(thunk.evaluate(), Ok(42));
 	}
 }
