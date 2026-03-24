@@ -70,6 +70,7 @@ pub mod semiring;
 pub mod send_cloneable_fn;
 pub mod send_deferrable;
 pub mod send_ref_counted_pointer;
+pub mod send_ref_functor;
 pub mod send_unsized_coercible;
 pub mod traversable;
 pub mod traversable_with_index;

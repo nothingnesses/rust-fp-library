@@ -20,6 +20,7 @@ mod inner {
 				RefFunctor,
 				Semigroup,
 				SendDeferrable,
+				SendRefFunctor,
 			},
 			impl_kind,
 			kinds::*,
@@ -924,6 +925,41 @@ mod inner {
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
 			f: impl FnOnce(&A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.ref_map(f)
+		}
+	}
+
+	impl SendRefFunctor for LazyBrand<ArcLazyConfig> {
+		/// Maps a thread-safe function over the memoized value, where the function takes a reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the value.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters("The function to apply.", "The memoized value.")]
+		///
+		#[document_returns("A new memoized value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let memo = ArcLazy::new(|| 10);
+		/// let mapped = LazyBrand::<ArcLazyConfig>::send_ref_map(|x: &i32| *x * 2, memo);
+		/// assert_eq!(*mapped.evaluate(), 20);
+		/// ```
+		fn send_ref_map<'a, A: Send + Sync + 'a, B: Send + 'a>(
+			f: impl FnOnce(&A) -> B + Send + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.ref_map(f)
