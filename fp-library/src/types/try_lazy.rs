@@ -114,6 +114,7 @@ mod inner {
 		"The type of the computed value.",
 		"The type of the error."
 	)]
+	#[document_parameters("The try-lazy cell instance.")]
 	impl<'a, A, E> TryLazy<'a, A, E, RcLazyConfig>
 	where
 		A: 'a,
@@ -208,7 +209,7 @@ mod inner {
 		) -> RcTryLazy<'a, B, E>
 		where
 			E: Clone + 'a, {
-			RcTryLazy::new(move || self.evaluate().map(|a| f(a)).map_err(|e| e.clone()))
+			RcTryLazy::new(move || self.evaluate().map(f).map_err(|e| e.clone()))
 		}
 
 		/// Transforms the error value by creating a new `TryLazy` cell.
@@ -234,14 +235,13 @@ mod inner {
 		/// assert_eq!(mapped.evaluate(), Err(&"wrapped: error".to_string()));
 		/// ```
 		#[inline]
-		#[inline]
 		pub fn map_err<E2: 'a>(
 			self,
 			f: impl FnOnce(&E) -> E2 + 'a,
 		) -> RcTryLazy<'a, A, E2>
 		where
 			A: Clone + 'a, {
-			RcTryLazy::new(move || self.evaluate().map(|a| a.clone()).map_err(|e| f(e)))
+			RcTryLazy::new(move || self.evaluate().cloned().map_err(f))
 		}
 	}
 
@@ -486,6 +486,7 @@ mod inner {
 		"The type of the computed value.",
 		"The type of the error."
 	)]
+	#[document_parameters("The try-lazy cell instance.")]
 	impl<'a, A, E> TryLazy<'a, A, E, ArcLazyConfig>
 	where
 		A: 'a,
@@ -589,7 +590,7 @@ mod inner {
 		where
 			A: Send + Sync,
 			E: Clone + Send + Sync, {
-			ArcTryLazy::new(move || self.evaluate().map(|a| f(a)).map_err(|e| e.clone()))
+			ArcTryLazy::new(move || self.evaluate().map(f).map_err(|e| e.clone()))
 		}
 
 		/// Transforms the error value by creating a new thread-safe `TryLazy` cell.
@@ -615,7 +616,6 @@ mod inner {
 		/// assert_eq!(mapped.evaluate(), Err(&"wrapped: error".to_string()));
 		/// ```
 		#[inline]
-		#[inline]
 		pub fn map_err<E2: 'a>(
 			self,
 			f: impl FnOnce(&E) -> E2 + Send + 'a,
@@ -623,7 +623,7 @@ mod inner {
 		where
 			A: Clone + Send + Sync,
 			E: Send + Sync, {
-			ArcTryLazy::new(move || self.evaluate().map(|a| a.clone()).map_err(|e| f(e)))
+			ArcTryLazy::new(move || self.evaluate().cloned().map_err(f))
 		}
 	}
 

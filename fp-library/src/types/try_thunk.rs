@@ -32,11 +32,9 @@ mod inner {
 			impl_kind,
 			kinds::*,
 			types::{
-				ArcLazyConfig,
 				ArcTryLazy,
 				Lazy,
 				LazyConfig,
-				RcLazyConfig,
 				RcTryLazy,
 				Step,
 				Thunk,

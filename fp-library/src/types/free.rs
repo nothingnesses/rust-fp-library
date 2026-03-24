@@ -72,8 +72,6 @@ mod inner {
 				Evaluable,
 				Functor,
 				Monad,
-				Pointed,
-				Semimonad,
 			},
 			kinds::*,
 			types::{
@@ -97,6 +95,7 @@ mod inner {
 	/// Natural transformations are used by [`Free::fold_free`] to interpret a free monad
 	/// over functor `F` into an arbitrary monad `G`.
 	#[document_type_parameters("The source functor brand.", "The target functor brand.")]
+	#[document_parameters("The natural transformation to apply.")]
 	pub trait NaturalTransformation<F: Functor + 'static, G: Functor + 'static> {
 		/// Applies the natural transformation to a value of type `F<B>`,
 		/// producing a value of type `G<B>`.
@@ -107,6 +106,29 @@ mod inner {
 		#[document_parameters("The functor value to transform.")]
 		///
 		#[document_returns("The transformed value in the target functor.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// #[derive(Clone)]
+		/// struct ThunkToOption;
+		/// impl NaturalTransformation<ThunkBrand, OptionBrand> for ThunkToOption {
+		/// 	fn transform<B: 'static>(
+		/// 		&self,
+		/// 		fb: Thunk<'static, B>,
+		/// 	) -> Option<B> {
+		/// 		Some(fb.evaluate())
+		/// 	}
+		/// }
+		///
+		/// let nt = ThunkToOption;
+		/// let result = nt.transform(Thunk::new(|| 42));
+		/// assert_eq!(result, Some(42));
+		/// ```
 		fn transform<B: 'static>(
 			&self,
 			fb: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, B>),
