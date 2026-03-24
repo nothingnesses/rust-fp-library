@@ -281,6 +281,7 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, &str> = TryThunk::err("error").catch(|_| TryThunk::ok(42));
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
+		#[inline]
 		pub fn catch(
 			self,
 			f: impl FnOnce(E) -> TryThunk<'a, A, E> + 'a,
@@ -304,6 +305,7 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, ()> = TryThunk::ok(42);
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
+		#[inline]
 		pub fn evaluate(self) -> Result<A, E> {
 			self.0.evaluate()
 		}
@@ -337,6 +339,7 @@ mod inner {
 		/// let t6 = t4.lift2(t5, |a, b| a + b);
 		/// assert_eq!(t6.evaluate(), Err("fail".to_string()));
 		/// ```
+		#[inline]
 		pub fn lift2<B: 'a, C: 'a>(
 			self,
 			other: TryThunk<'a, B, E>,
@@ -373,6 +376,7 @@ mod inner {
 		/// let t6 = t4.then(t5);
 		/// assert_eq!(t6.evaluate(), Err("fail".to_string()));
 		/// ```
+		#[inline]
 		pub fn then<B: 'a>(
 			self,
 			other: TryThunk<'a, B, E>,
@@ -397,6 +401,7 @@ mod inner {
 		/// let lazy: RcTryLazy<i32, ()> = thunk.memoize();
 		/// assert_eq!(lazy.evaluate(), Ok(&42));
 		/// ```
+		#[inline]
 		pub fn memoize(self) -> RcTryLazy<'a, A, E> {
 			RcTryLazy::from(self)
 		}
@@ -418,6 +423,7 @@ mod inner {
 		/// let lazy: ArcTryLazy<i32, ()> = thunk.memoize_arc();
 		/// assert_eq!(lazy.evaluate(), Ok(&42));
 		/// ```
+		#[inline]
 		pub fn memoize_arc(self) -> ArcTryLazy<'a, A, E>
 		where
 			A: Send + Sync + 'a,

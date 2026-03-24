@@ -103,6 +103,7 @@ mod inner {
 		/// let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
 		/// assert_eq!(memo.evaluate(), Ok(&42));
 		/// ```
+		#[inline]
 		pub fn evaluate(&self) -> Result<&A, &E> {
 			Config::try_evaluate(&self.0)
 		}
@@ -133,6 +134,7 @@ mod inner {
 		/// let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
 		/// assert_eq!(memo.evaluate(), Ok(&42));
 		/// ```
+		#[inline]
 		pub fn new(f: impl FnOnce() -> Result<A, E> + 'a) -> Self {
 			TryLazy(RcLazyConfig::try_lazy_new(Box::new(f)))
 		}
@@ -152,6 +154,7 @@ mod inner {
 		/// let memo = RcTryLazy::<i32, ()>::ok(42);
 		/// assert_eq!(memo.evaluate(), Ok(&42));
 		/// ```
+		#[inline]
 		pub fn ok(a: A) -> Self {
 			Self::new(move || Ok(a))
 		}
@@ -171,6 +174,7 @@ mod inner {
 		/// let memo = RcTryLazy::<i32, String>::err("error".to_string());
 		/// assert_eq!(memo.evaluate(), Err(&"error".to_string()));
 		/// ```
+		#[inline]
 		pub fn err(e: E) -> Self {
 			Self::new(move || Err(e))
 		}
@@ -197,6 +201,7 @@ mod inner {
 		/// let mapped = memo.map(|a| a * 2);
 		/// assert_eq!(mapped.evaluate(), Ok(&20));
 		/// ```
+		#[inline]
 		pub fn map<B: 'a>(
 			self,
 			f: impl FnOnce(&A) -> B + 'a,
@@ -228,6 +233,8 @@ mod inner {
 		/// let mapped = memo.map_err(|e| format!("wrapped: {}", e));
 		/// assert_eq!(mapped.evaluate(), Err(&"wrapped: error".to_string()));
 		/// ```
+		#[inline]
+		#[inline]
 		pub fn map_err<E2: 'a>(
 			self,
 			f: impl FnOnce(&E) -> E2 + 'a,
@@ -451,6 +458,7 @@ mod inner {
 		/// let memo = TryLazy::<_, _, ArcLazyConfig>::new(|| Ok::<i32, ()>(42));
 		/// assert_eq!(memo.evaluate(), Ok(&42));
 		/// ```
+		#[inline]
 		pub fn new(f: impl FnOnce() -> Result<A, E> + Send + 'a) -> Self {
 			TryLazy(ArcLazyConfig::try_lazy_new(Box::new(f)))
 		}
@@ -470,6 +478,7 @@ mod inner {
 		/// let memo = ArcTryLazy::<i32, ()>::ok(42);
 		/// assert_eq!(memo.evaluate(), Ok(&42));
 		/// ```
+		#[inline]
 		pub fn ok(a: A) -> Self
 		where
 			A: Send,
@@ -492,6 +501,7 @@ mod inner {
 		/// let memo = ArcTryLazy::<i32, String>::err("error".to_string());
 		/// assert_eq!(memo.evaluate(), Err(&"error".to_string()));
 		/// ```
+		#[inline]
 		pub fn err(e: E) -> Self
 		where
 			A: Send,
@@ -523,6 +533,7 @@ mod inner {
 		/// let mapped = memo.map(|a| a * 2);
 		/// assert_eq!(mapped.evaluate(), Ok(&20));
 		/// ```
+		#[inline]
 		pub fn map<B: 'a>(
 			self,
 			f: impl FnOnce(&A) -> B + Send + 'a,
@@ -555,6 +566,8 @@ mod inner {
 		/// let mapped = memo.map_err(|e| format!("wrapped: {}", e));
 		/// assert_eq!(mapped.evaluate(), Err(&"wrapped: error".to_string()));
 		/// ```
+		#[inline]
+		#[inline]
 		pub fn map_err<E2: 'a>(
 			self,
 			f: impl FnOnce(&E) -> E2 + Send + 'a,

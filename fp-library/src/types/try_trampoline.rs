@@ -58,6 +58,7 @@ mod inner {
 		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
 		/// assert_eq!(task.evaluate(), Ok(42));
 		/// ```
+		#[inline]
 		pub fn ok(a: A) -> Self {
 			TryTrampoline(Trampoline::pure(Ok(a)))
 		}
@@ -77,6 +78,7 @@ mod inner {
 		/// let task: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string());
 		/// assert_eq!(task.evaluate(), Err("error".to_string()));
 		/// ```
+		#[inline]
 		pub fn err(e: E) -> Self {
 			TryTrampoline(Trampoline::pure(Err(e)))
 		}
@@ -96,6 +98,7 @@ mod inner {
 		/// let task: TryTrampoline<i32, String> = TryTrampoline::new(|| Ok(42));
 		/// assert_eq!(task.evaluate(), Ok(42));
 		/// ```
+		#[inline]
 		pub fn new(f: impl FnOnce() -> Result<A, E> + 'static) -> Self {
 			TryTrampoline(Trampoline::new(f))
 		}
@@ -139,6 +142,7 @@ mod inner {
 		/// let task: TryTrampoline<i32, String> = TryTrampoline::defer(|| TryTrampoline::ok(42));
 		/// assert_eq!(task.evaluate(), Ok(42));
 		/// ```
+		#[inline]
 		pub fn defer(f: impl FnOnce() -> TryTrampoline<A, E> + 'static) -> Self {
 			TryTrampoline(Trampoline::defer(move || f().0))
 		}
@@ -160,6 +164,7 @@ mod inner {
 		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).map(|x| x * 2);
 		/// assert_eq!(task.evaluate(), Ok(20));
 		/// ```
+		#[inline]
 		pub fn map<B: 'static>(
 			self,
 			func: impl FnOnce(A) -> B + 'static,
@@ -185,6 +190,7 @@ mod inner {
 		/// 	TryTrampoline::err("error".to_string()).map_err(|e| e.to_uppercase());
 		/// assert_eq!(task.evaluate(), Err("ERROR".to_string()));
 		/// ```
+		#[inline]
 		pub fn map_err<E2: 'static>(
 			self,
 			func: impl FnOnce(E) -> E2 + 'static,
@@ -209,6 +215,7 @@ mod inner {
 		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).bind(|x| TryTrampoline::ok(x * 2));
 		/// assert_eq!(task.evaluate(), Ok(20));
 		/// ```
+		#[inline]
 		pub fn bind<B: 'static>(
 			self,
 			f: impl FnOnce(A) -> TryTrampoline<B, E> + 'static,
@@ -235,6 +242,7 @@ mod inner {
 		/// 	TryTrampoline::err("error".to_string()).catch(|_| TryTrampoline::ok(42));
 		/// assert_eq!(task.evaluate(), Ok(42));
 		/// ```
+		#[inline]
 		pub fn catch(
 			self,
 			f: impl FnOnce(E) -> TryTrampoline<A, E> + 'static,
@@ -269,6 +277,7 @@ mod inner {
 		/// let t3 = t1.lift2(t2, |a, b| a + b);
 		/// assert_eq!(t3.evaluate(), Ok(30));
 		/// ```
+		#[inline]
 		pub fn lift2<B: 'static, C: 'static>(
 			self,
 			other: TryTrampoline<B, E>,
@@ -300,6 +309,7 @@ mod inner {
 		/// let t3 = t1.then(t2);
 		/// assert_eq!(t3.evaluate(), Ok(20));
 		/// ```
+		#[inline]
 		pub fn then<B: 'static>(
 			self,
 			other: TryTrampoline<B, E>,
@@ -447,6 +457,7 @@ mod inner {
 		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
 		/// assert_eq!(task.evaluate(), Ok(42));
 		/// ```
+		#[inline]
 		pub fn evaluate(self) -> Result<A, E> {
 			self.0.evaluate()
 		}
@@ -470,6 +481,7 @@ mod inner {
 		/// let lazy = task.memoize();
 		/// assert_eq!(lazy.evaluate(), Ok(&42));
 		/// ```
+		#[inline]
 		pub fn memoize(self) -> crate::types::RcTryLazy<'static, A, E> {
 			crate::types::RcTryLazy::from(self)
 		}
@@ -491,6 +503,7 @@ mod inner {
 		/// let lazy = task.memoize_arc();
 		/// assert_eq!(lazy.evaluate(), Ok(&42));
 		/// ```
+		#[inline]
 		pub fn memoize_arc(self) -> crate::types::ArcTryLazy<'static, A, E>
 		where
 			A: Send + Sync,

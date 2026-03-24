@@ -69,6 +69,18 @@ mod inner {
 	/// - `thunk.bind(pure) == thunk` (right identity).
 	/// - `thunk.bind(f).bind(g) == thunk.bind(|a| f(a).bind(g))` (associativity).
 	///
+	/// ### Stack Safety
+	///
+	/// `Thunk::bind` chains are **not** stack-safe. Each nested [`bind`](Thunk::bind) adds a
+	/// frame to the call stack, so sufficiently deep chains will cause a stack overflow.
+	///
+	/// For stack-safe recursion within `Thunk`, use [`tail_rec_m`](Thunk::tail_rec_m), which
+	/// uses an internal loop to avoid growing the stack.
+	///
+	/// For unlimited stack safety on all operations (including `bind` chains of arbitrary
+	/// depth), convert to [`Trampoline`](crate::types::Trampoline) instead, which is built
+	/// on the [`Free`](crate::types::Free) monad and guarantees O(1) stack usage.
+	///
 	/// ### Limitations
 	///
 	/// **Cannot implement `Traversable`**: `Thunk` wraps `Box<dyn FnOnce() -> A>`, which cannot be cloned
