@@ -513,6 +513,49 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters("The type of the computed value.", "The type of the error value.")]
+	impl<A: 'static, E: 'static> TryTrampoline<A, E> {
+		/// Creates a `TryTrampoline` that catches unwinds (panics), converting the
+		/// panic payload using a custom conversion function.
+		///
+		/// The closure `f` is executed when the trampoline is evaluated. If `f`
+		/// panics, the panic payload is passed to `handler` to produce the
+		/// error value. If `f` returns normally, the value is wrapped in `Ok`.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The closure that might panic.",
+			"The function that converts a panic payload into the error type."
+		)]
+		///
+		#[document_returns(
+			"A new `TryTrampoline` instance where panics are converted to `Err(E)` via the handler."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task = TryTrampoline::<i32, i32>::catch_unwind_with(
+		/// 	|| {
+		/// 		if true {
+		/// 			panic!("oops")
+		/// 		}
+		/// 		42
+		/// 	},
+		/// 	|_payload| -1,
+		/// );
+		/// assert_eq!(task.evaluate(), Err(-1));
+		/// ```
+		pub fn catch_unwind_with(
+			f: impl FnOnce() -> A + std::panic::UnwindSafe + 'static,
+			handler: impl FnOnce(Box<dyn std::any::Any + Send>) -> E + 'static,
+		) -> Self {
+			Self::new(move || std::panic::catch_unwind(f).map_err(handler))
+		}
+	}
+
 	#[document_type_parameters("The type of the computed value.")]
 	impl<A: 'static> TryTrampoline<A, String> {
 		/// Creates a `TryTrampoline` that catches unwinds (panics).
@@ -521,9 +564,8 @@ mod inner {
 		/// panics, the panic payload is converted to a `String` error. If the
 		/// closure returns normally, the value is wrapped in `Ok`.
 		///
-		/// This is particularly useful for deep recursion where stack overflow
-		/// panics are a real concern, as `TryTrampoline` provides stack safety
-		/// for the recursive computation itself.
+		/// This is a convenience wrapper around [`catch_unwind_with`](TryTrampoline::catch_unwind_with)
+		/// that uses the default panic payload to string conversion.
 		#[document_signature]
 		///
 		#[document_parameters("The closure that might panic.")]
@@ -546,9 +588,7 @@ mod inner {
 		/// assert_eq!(task.evaluate(), Err("oops".to_string()));
 		/// ```
 		pub fn catch_unwind(f: impl FnOnce() -> A + std::panic::UnwindSafe + 'static) -> Self {
-			TryTrampoline::new(move || {
-				std::panic::catch_unwind(f).map_err(crate::utils::panic_payload_to_string)
-			})
+			Self::catch_unwind_with(f, crate::utils::panic_payload_to_string)
 		}
 	}
 
@@ -1151,6 +1191,32 @@ mod tests {
 	#[test]
 	fn test_catch_unwind_success() {
 		let task = TryTrampoline::<i32, String>::catch_unwind(|| 42);
+		assert_eq!(task.evaluate(), Ok(42));
+	}
+
+	/// Tests `TryTrampoline::catch_unwind_with` with a panicking closure.
+	///
+	/// Verifies that the custom handler converts the panic payload.
+	#[test]
+	fn test_catch_unwind_with_panic() {
+		let task = TryTrampoline::<i32, i32>::catch_unwind_with(
+			|| {
+				if true {
+					panic!("oops")
+				}
+				42
+			},
+			|_payload| -1,
+		);
+		assert_eq!(task.evaluate(), Err(-1));
+	}
+
+	/// Tests `TryTrampoline::catch_unwind_with` with a non-panicking closure.
+	///
+	/// Verifies that a successful closure wraps the value in `Ok`.
+	#[test]
+	fn test_catch_unwind_with_success() {
+		let task = TryTrampoline::<i32, i32>::catch_unwind_with(|| 42, |_payload| -1);
 		assert_eq!(task.evaluate(), Ok(42));
 	}
 

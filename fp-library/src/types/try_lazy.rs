@@ -400,6 +400,53 @@ mod inner {
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error value."
+	)]
+	impl<'a, A: 'a, E: 'a> TryLazy<'a, A, E, RcLazyConfig> {
+		/// Creates a `TryLazy` that catches unwinds (panics), converting the
+		/// panic payload using a custom conversion function.
+		///
+		/// The closure `f` is executed when the lazy cell is first evaluated.
+		/// If `f` panics, the panic payload is passed to `handler` to produce
+		/// the error value. If `f` returns normally, the value is wrapped in `Ok`.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The closure that might panic.",
+			"The function that converts a panic payload into the error type."
+		)]
+		///
+		#[document_returns(
+			"A new `TryLazy` instance where panics are converted to `Err(E)` via the handler."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = RcTryLazy::<i32, i32>::catch_unwind_with(
+		/// 	|| {
+		/// 		if true {
+		/// 			panic!("oops")
+		/// 		}
+		/// 		42
+		/// 	},
+		/// 	|_payload| -1,
+		/// );
+		/// assert_eq!(memo.evaluate(), Err(&-1));
+		/// ```
+		pub fn catch_unwind_with(
+			f: impl FnOnce() -> A + std::panic::UnwindSafe + 'a,
+			handler: impl FnOnce(Box<dyn std::any::Any + Send>) -> E + 'a,
+		) -> Self {
+			Self::new(move || std::panic::catch_unwind(f).map_err(handler))
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
 		"The type of the computed value."
 	)]
 	impl<'a, A> TryLazy<'a, A, String, RcLazyConfig>
@@ -407,6 +454,9 @@ mod inner {
 		A: 'a,
 	{
 		/// Creates a `TryLazy` that catches unwinds (panics).
+		///
+		/// This is a convenience wrapper around [`catch_unwind_with`](TryLazy::catch_unwind_with)
+		/// that uses the default panic payload to string conversion.
 		#[document_signature]
 		///
 		#[document_parameters("The closure that might panic.")]
@@ -427,9 +477,7 @@ mod inner {
 		/// assert_eq!(memo.evaluate(), Err(&"oops".to_string()));
 		/// ```
 		pub fn catch_unwind(f: impl FnOnce() -> A + std::panic::UnwindSafe + 'a) -> Self {
-			Self::new(move || {
-				std::panic::catch_unwind(f).map_err(crate::utils::panic_payload_to_string)
-			})
+			Self::catch_unwind_with(f, crate::utils::panic_payload_to_string)
 		}
 	}
 
@@ -581,6 +629,53 @@ mod inner {
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error value."
+	)]
+	impl<'a, A: 'a, E: 'a> TryLazy<'a, A, E, ArcLazyConfig> {
+		/// Creates a thread-safe `TryLazy` that catches unwinds (panics),
+		/// converting the panic payload using a custom conversion function.
+		///
+		/// The closure `f` is executed when the lazy cell is first evaluated.
+		/// If `f` panics, the panic payload is passed to `handler` to produce
+		/// the error value. If `f` returns normally, the value is wrapped in `Ok`.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The closure that might panic.",
+			"The function that converts a panic payload into the error type."
+		)]
+		///
+		#[document_returns(
+			"A new `ArcTryLazy` instance where panics are converted to `Err(E)` via the handler."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = ArcTryLazy::<i32, i32>::catch_unwind_with(
+		/// 	|| {
+		/// 		if true {
+		/// 			panic!("oops")
+		/// 		}
+		/// 		42
+		/// 	},
+		/// 	|_payload| -1,
+		/// );
+		/// assert_eq!(memo.evaluate(), Err(&-1));
+		/// ```
+		pub fn catch_unwind_with(
+			f: impl FnOnce() -> A + std::panic::UnwindSafe + Send + 'a,
+			handler: impl FnOnce(Box<dyn std::any::Any + Send>) -> E + Send + 'a,
+		) -> Self {
+			Self::new(move || std::panic::catch_unwind(f).map_err(handler))
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
 		"The type of the computed value."
 	)]
 	impl<'a, A> TryLazy<'a, A, String, ArcLazyConfig>
@@ -592,6 +687,9 @@ mod inner {
 		/// The closure is executed when the lazy cell is first evaluated. If the
 		/// closure panics, the panic payload is converted to a `String` error and
 		/// cached. If the closure returns normally, the value is cached as `Ok`.
+		///
+		/// This is a convenience wrapper around [`catch_unwind_with`](TryLazy::catch_unwind_with)
+		/// that uses the default panic payload to string conversion.
 		#[document_signature]
 		///
 		#[document_parameters("The closure that might panic.")]
@@ -614,9 +712,7 @@ mod inner {
 		/// assert_eq!(memo.evaluate(), Err(&"oops".to_string()));
 		/// ```
 		pub fn catch_unwind(f: impl FnOnce() -> A + std::panic::UnwindSafe + Send + 'a) -> Self {
-			Self::new(move || {
-				std::panic::catch_unwind(f).map_err(crate::utils::panic_payload_to_string)
-			})
+			Self::catch_unwind_with(f, crate::utils::panic_payload_to_string)
 		}
 	}
 
@@ -1052,6 +1148,58 @@ mod tests {
 	#[test]
 	fn test_arc_catch_unwind_success() {
 		let memo = ArcTryLazy::catch_unwind(|| 42);
+		assert_eq!(memo.evaluate(), Ok(&42));
+	}
+
+	/// Tests `RcTryLazy::catch_unwind_with` with a panicking closure.
+	///
+	/// Verifies that the custom handler converts the panic payload.
+	#[test]
+	fn test_rc_catch_unwind_with_panic() {
+		let memo = RcTryLazy::<i32, i32>::catch_unwind_with(
+			|| {
+				if true {
+					panic!("oops")
+				}
+				42
+			},
+			|_payload| -1,
+		);
+		assert_eq!(memo.evaluate(), Err(&-1));
+	}
+
+	/// Tests `RcTryLazy::catch_unwind_with` with a non-panicking closure.
+	///
+	/// Verifies that a successful closure wraps the value in `Ok`.
+	#[test]
+	fn test_rc_catch_unwind_with_success() {
+		let memo = RcTryLazy::<i32, i32>::catch_unwind_with(|| 42, |_payload| -1);
+		assert_eq!(memo.evaluate(), Ok(&42));
+	}
+
+	/// Tests `ArcTryLazy::catch_unwind_with` with a panicking closure.
+	///
+	/// Verifies that the custom handler converts the panic payload.
+	#[test]
+	fn test_arc_catch_unwind_with_panic() {
+		let memo = ArcTryLazy::<i32, i32>::catch_unwind_with(
+			|| {
+				if true {
+					panic!("oops")
+				}
+				42
+			},
+			|_payload| -1,
+		);
+		assert_eq!(memo.evaluate(), Err(&-1));
+	}
+
+	/// Tests `ArcTryLazy::catch_unwind_with` with a non-panicking closure.
+	///
+	/// Verifies that a successful closure wraps the value in `Ok`.
+	#[test]
+	fn test_arc_catch_unwind_with_success() {
+		let memo = ArcTryLazy::<i32, i32>::catch_unwind_with(|| 42, |_payload| -1);
 		assert_eq!(memo.evaluate(), Ok(&42));
 	}
 
