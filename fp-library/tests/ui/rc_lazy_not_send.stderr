@@ -1,0 +1,32 @@
+error[E0277]: `Rc<LazyCell<i32, Box<dyn FnOnce() -> i32>>>` cannot be sent between threads safely
+  --> tests/ui/rc_lazy_not_send.rs:8:21
+   |
+ 8 |       std::thread::spawn(move || {
+   |       ------------------ ^------
+   |       |                  |
+   |  _____|__________________within this `{closure@$DIR/tests/ui/rc_lazy_not_send.rs:8:21: 8:28}`
+   | |     |
+   | |     required by a bound introduced by this call
+ 9 | |         lazy.evaluate();
+10 | |     });
+   | |_____^ `Rc<LazyCell<i32, Box<dyn FnOnce() -> i32>>>` cannot be sent between threads safely
+   |
+   = help: within `{closure@$DIR/tests/ui/rc_lazy_not_send.rs:8:21: 8:28}`, the trait `Send` is not implemented for `Rc<LazyCell<i32, Box<dyn FnOnce() -> i32>>>`
+note: required because it appears within the type `Lazy<'_, i32>`
+  --> src/types/lazy.rs
+   |
+   |     pub struct Lazy<'a, A, Config: LazyConfig = RcLazyConfig>(
+   |                ^^^^
+note: required because it's used within this closure
+  --> tests/ui/rc_lazy_not_send.rs:8:21
+   |
+ 8 |     std::thread::spawn(move || {
+   |                        ^^^^^^^
+note: required by a bound in `spawn`
+  --> $RUST/std/src/thread/functions.rs
+   |
+   | pub fn spawn<F, T>(f: F) -> JoinHandle<T>
+   |        ----- required by a bound in this function
+...
+   |     F: Send + 'static,
+   |        ^^^^ required by this bound in `spawn`
