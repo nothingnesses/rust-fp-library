@@ -117,12 +117,20 @@
 //! | **`Trampoline<A>`** | **Deep Recursion & Pipelines.** Heavy-duty computation. Uses a trampoline to guarantee stack safety for infinite recursion. | ✅ Yes                         | ❌ No     | ❌ `'static` | ❌ No                                |
 //! | **`Lazy<'a, A>`**   | **Caching.** Wraps a computation to ensure it runs at most once.                                                            | N/A                            | ✅ Yes    | ✅ `'a`      | ✅ `RefFunctor`                      |
 //!
+//! Each of these has a fallible counterpart that wraps `Result<A, E>` with ergonomic error-handling combinators:
+//!
+//! | Type                      | Primary Use Case                                                                                                       | Stack Safe?                    | Memoized? | Lifetimes?   | HKT Traits                                              |
+//! | :------------------------ | :--------------------------------------------------------------------------------------------------------------------- | :----------------------------- | :-------- | :----------- | :------------------------------------------------------- |
+//! | **`TryThunk<'a, A, E>`**  | **Fallible Glue Code.** Lightweight deferred computation that may fail. Best for short chains with error handling.      | ⚠️ Partial (`tail_rec_m` only) | ❌ No     | ✅ `'a`      | ✅ `Functor`, `Applicative`, `Monad`, `Bifunctor`, `Foldable` |
+//! | **`TryTrampoline<A, E>`** | **Fallible Deep Recursion.** Stack-safe computation that may fail. Uses a trampoline for unlimited recursion depth.     | ✅ Yes                         | ❌ No     | ❌ `'static` | ❌ No                                                    |
+//! | **`TryLazy<'a, A, E>`**   | **Fallible Caching.** Computes a `Result` at most once and caches either the success value or error. Clones share the cache. | N/A                            | ✅ Yes    | ✅ `'a`      | ❌ No                                                    |
+//!
 //! #### The "Why" of Three Types
 //!
 //! Unlike lazy languages (e.g., Haskell) where the runtime handles everything, Rust requires us to choose our trade-offs:
 //!
 //! 1. **`Thunk` vs `Trampoline`**: `Thunk` is faster and supports borrowing (`&'a T`). Its `tail_rec_m` is stack-safe, but deep `bind` chains will overflow the stack. `Trampoline` guarantees stack safety for all operations via a trampoline (the `Free` monad) but requires types to be `'static`. Note that `!Send` types like `Rc<T>` are fully supported. A key distinction is that `Thunk` implements `Functor`, `Applicative`, and `Monad` directly, making it suitable for generic programming, while `Trampoline` does not.
-//! 2. **Computation vs Caching**: `Thunk` and `Trampoline` describe _computations_: they re-run every time you call `.evaluate()`. If you have an expensive operation (like a DB call), convert it to a `Lazy` to cache the result.
+//! 2. **Computation vs Caching**: `Thunk` and `Trampoline` describe _computations_ that are not memoized. Each instance is consumed on `.evaluate()` (which takes `self` by value), so the computation runs exactly once per instance, but constructing a new instance re-executes the work. `Lazy`, by contrast, caches the result so that all clones share a single evaluation. If you have an expensive operation (like a DB call), convert it to a `Lazy` to guarantee it runs at most once.
 //!
 //! #### Workflow Example: Expression Evaluator
 //!
