@@ -74,7 +74,7 @@ mod inner {
 	/// `Thunk::bind` chains are **not** stack-safe. Each nested [`bind`](Thunk::bind) adds a
 	/// frame to the call stack, so sufficiently deep chains will cause a stack overflow.
 	///
-	/// For stack-safe recursion within `Thunk`, use [`tail_rec_m`](Thunk::tail_rec_m), which
+	/// For stack-safe recursion within `Thunk`, use [`tail_rec_m`](crate::functions::tail_rec_m), which
 	/// uses an internal loop to avoid growing the stack.
 	///
 	/// For unlimited stack safety on all operations (including `bind` chains of arbitrary
