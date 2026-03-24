@@ -7,7 +7,11 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::LazyBrand,
+			brands::{
+				ArcBrand,
+				LazyBrand,
+				RcBrand,
+			},
 			classes::{
 				CloneableFn,
 				Deferrable,
@@ -63,6 +67,13 @@ mod inner {
 	/// [`try_evaluate`](LazyConfig::try_evaluate)), then use your config as the
 	/// `Config` parameter on [`Lazy`] and [`TryLazy`](crate::types::TryLazy).
 	pub trait LazyConfig: 'static {
+		/// The pointer brand used by this configuration.
+		///
+		/// Links the lazy configuration to the pointer hierarchy, enabling
+		/// generic code to obtain the underlying pointer brand from a
+		/// `LazyConfig` without hard-coding `RcBrand` or `ArcBrand`.
+		type PointerBrand: crate::classes::RefCountedPointer;
+
 		/// The lazy cell type for infallible memoization.
 		type Lazy<'a, A: 'a>: Clone;
 
@@ -176,6 +187,7 @@ mod inner {
 
 	impl LazyConfig for RcLazyConfig {
 		type Lazy<'a, A: 'a> = Rc<LazyCell<A, Box<dyn FnOnce() -> A + 'a>>>;
+		type PointerBrand = RcBrand;
 		type Thunk<'a, A: 'a> = dyn FnOnce() -> A + 'a;
 		type TryLazy<'a, A: 'a, E: 'a> =
 			Rc<LazyCell<Result<A, E>, Box<dyn FnOnce() -> Result<A, E> + 'a>>>;
@@ -290,6 +302,7 @@ mod inner {
 
 	impl LazyConfig for ArcLazyConfig {
 		type Lazy<'a, A: 'a> = Arc<LazyLock<A, Box<dyn FnOnce() -> A + Send + 'a>>>;
+		type PointerBrand = ArcBrand;
 		type Thunk<'a, A: 'a> = dyn FnOnce() -> A + Send + 'a;
 		type TryLazy<'a, A: 'a, E: 'a> =
 			Arc<LazyLock<Result<A, E>, Box<dyn FnOnce() -> Result<A, E> + Send + 'a>>>;
@@ -2144,6 +2157,22 @@ mod tests {
 		let a = ArcLazy::pure(x.clone());
 		let rhs: ArcLazy<String> = append(a, empty());
 		*rhs.evaluate() == x
+	}
+
+	// --- Tests for LazyConfig::PointerBrand ---
+
+	/// Tests that `RcLazyConfig::PointerBrand` is `RcBrand`.
+	#[test]
+	fn test_rc_lazy_config_pointer_brand() {
+		fn assert_brand_is_rc<C: LazyConfig<PointerBrand = crate::brands::RcBrand>>() {}
+		assert_brand_is_rc::<RcLazyConfig>();
+	}
+
+	/// Tests that `ArcLazyConfig::PointerBrand` is `ArcBrand`.
+	#[test]
+	fn test_arc_lazy_config_pointer_brand() {
+		fn assert_brand_is_arc<C: LazyConfig<PointerBrand = crate::brands::ArcBrand>>() {}
+		assert_brand_is_arc::<ArcLazyConfig>();
 	}
 
 	// SC-2: Panic poisoning test for Lazy
