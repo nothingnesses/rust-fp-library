@@ -28,6 +28,13 @@ mod inner {
 	/// must be `Send`, making it suitable for thread-safe lazy types like
 	/// [`ArcLazy`](crate::types::ArcLazy).
 	///
+	/// ### Why a Separate Trait?
+	///
+	/// A single trait with `Send` bounds on `RefFunctor` would exclude `RcLazy`, which uses
+	/// `Rc` (a `!Send` type). By keeping `RefFunctor` free of `Send` bounds and providing
+	/// `SendRefFunctor` separately, `RcLazy` can implement `RefFunctor` while `ArcLazy`
+	/// implements both `RefFunctor` and `SendRefFunctor`.
+	///
 	/// ### Laws
 	///
 	/// `SendRefFunctor` instances must satisfy the following laws:

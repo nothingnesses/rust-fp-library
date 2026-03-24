@@ -15,12 +15,48 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use fp_macros::*;
+	use {
+		crate::classes::Deferrable,
+		fp_macros::*,
+	};
 	/// A trait for deferred lazy evaluation with thread-safe thunks.
 	///
-	/// This is similar to [`Deferrable`](crate::classes::Deferrable), but the thunk must be `Send + Sync`.
+	/// This extends [`Deferrable`] with the additional requirement that the thunk
+	/// must be `Send + Sync`, following the same supertrait pattern used by
+	/// [`SendCloneableFn: CloneableFn`](crate::classes::SendCloneableFn).
+	///
+	/// Every `SendDeferrable` type is also `Deferrable`, so generic code written
+	/// against `Deferrable` accepts both single-threaded and thread-safe types.
+	///
+	/// ### Laws
+	///
+	/// `SendDeferrable` instances must satisfy the following law:
+	/// * Transparency: `send_defer(|| x)` is observationally equivalent to `x` when evaluated.
+	///
+	/// ### Why there is no generic `fix`
+	///
+	/// As with [`Deferrable`](crate::classes::Deferrable), lazy self-reference requires
+	/// shared ownership and interior mutability, which are properties specific to
+	/// [`Lazy`](crate::types::Lazy). The concrete function
+	/// [`arc_lazy_fix`](crate::types::lazy::arc_lazy_fix) provides this capability for
+	/// `ArcLazy` specifically.
 	#[document_type_parameters("The lifetime of the computation.")]
-	pub trait SendDeferrable<'a> {
+	#[document_examples]
+	///
+	/// Transparency law for [`ArcLazy`](crate::types::ArcLazy):
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
+	///
+	/// // Transparency: send_defer(|| x) is equivalent to x when evaluated.
+	/// let x = ArcLazy::pure(42);
+	/// let deferred: ArcLazy<i32> = send_defer(|| ArcLazy::pure(42));
+	/// assert_eq!(*deferred.evaluate(), *x.evaluate());
+	/// ```
+	pub trait SendDeferrable<'a>: Deferrable<'a> {
 		/// Creates a deferred value from a thread-safe thunk.
 		#[document_signature]
 		///
@@ -50,7 +86,7 @@ mod inner {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the computation",
+		"The lifetime of the computation.",
 		"The type of the deferred value."
 	)]
 	///

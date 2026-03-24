@@ -37,7 +37,7 @@
 //! * Act as a generic DSL where the interpretation is decoupled from the operation type.
 //!   * *Example*: You cannot easily define a `DatabaseOp` enum and interpret it differently for
 //!     production (SQL) and testing (InMemory) using this `Free` implementation, because
-//!     `DatabaseOp` must implement a single `Runnable` trait.
+//!     `DatabaseOp` must implement a single `Evaluable` trait.
 //!   * Note: `fold_free` with `NaturalTransformation` does support this pattern for simple cases.
 //!
 //! ### Lifetimes and Memory Management
@@ -355,7 +355,7 @@ mod inner {
 		) -> Free<F, B> {
 			// Type-erase the continuation
 			let erased_f: Continuation<F> = Box::new(move |val: TypeErasedValue| {
-				// SAFETY: type is maintained by internal invariant - mismatch indicates a bug
+				// INVARIANT: type is maintained by internal invariant - mismatch indicates a bug
 				#[allow(clippy::expect_used)]
 				let a: A = *val.downcast().expect("Type mismatch in Free::bind");
 				let free_b: Free<F, B> = f(a);
@@ -363,7 +363,7 @@ mod inner {
 			});
 
 			// Extract inner safely
-			// SAFETY: Free values are used exactly once - double consumption indicates a bug
+			// INVARIANT: Free values are used exactly once - double consumption indicates a bug
 			#[allow(clippy::expect_used)]
 			let inner = self.0.take().expect("Free value already consumed");
 
@@ -447,7 +447,7 @@ mod inner {
 			let erased_self = self.erase_type();
 			let erased_f: Box<dyn FnOnce(TypeErasedValue) -> B> =
 				Box::new(move |val: TypeErasedValue| {
-					// SAFETY: type is maintained by internal invariant - mismatch indicates a bug
+					// INVARIANT: type is maintained by internal invariant - mismatch indicates a bug
 					#[allow(clippy::expect_used)]
 					let a: A = *val.downcast().expect("Type mismatch in Free::map");
 					f(a)
@@ -497,7 +497,7 @@ mod inner {
 			let mut continuations: CatList<Continuation<F>> = CatList::empty();
 
 			loop {
-				// SAFETY: Free values are used exactly once - double consumption indicates a bug
+				// INVARIANT: Free values are used exactly once - double consumption indicates a bug
 				#[allow(clippy::expect_used)]
 				let inner = current.0.take().expect("Free value already consumed");
 
@@ -510,7 +510,7 @@ mod inner {
 							}
 							None => {
 								// No more continuations - we have a final pure value
-								// SAFETY: type is maintained by internal invariant
+								// INVARIANT: type is maintained by internal invariant
 								#[allow(clippy::expect_used)]
 								return Ok(*val
 									.downcast::<A>()
@@ -531,7 +531,7 @@ mod inner {
 									// Wrap the erased free in a Bind that downcasts back to A
 									let cont: Continuation<F> =
 										Box::new(move |val: TypeErasedValue| {
-											// SAFETY: type is maintained by internal invariant
+											// INVARIANT: type is maintained by internal invariant
 											#[allow(clippy::expect_used)]
 											let a: A = *val
 												.downcast()
@@ -554,7 +554,7 @@ mod inner {
 							let remaining = std::cell::Cell::new(Some(continuations));
 							let typed_fa = F::map(
 								move |inner_free: Free<F, TypeErasedValue>| {
-									// SAFETY: functors call map exactly once per element
+									// INVARIANT: functors call map exactly once per element
 									#[allow(clippy::expect_used)]
 									let conts = remaining
 										.take()
@@ -564,7 +564,7 @@ mod inner {
 									// downcasts back to A.
 									let downcast_cont: Continuation<F> =
 										Box::new(move |val: TypeErasedValue| {
-											// SAFETY: type is maintained by internal invariant
+											// INVARIANT: type is maintained by internal invariant
 											#[allow(clippy::expect_used)]
 											let a: A = *val
 												.downcast()
@@ -618,6 +618,13 @@ mod inner {
 		/// For `Pure(a)`, returns `G::pure(a)`.
 		/// For `Wrap(fa)`, applies the natural transformation to get `G<Free<F, A>>`,
 		/// then binds recursively to interpret the rest.
+		///
+		/// ### Stack Safety
+		///
+		/// Unlike [`Free::evaluate`], which uses an iterative loop, `fold_free` uses
+		/// actual recursion: each `Wrap` layer adds one stack frame via [`Semimonad::bind`](crate::classes::Semimonad::bind).
+		/// For strict target monads (e.g., `OptionBrand`), deep `Free` computations
+		/// will overflow the stack.
 		#[document_signature]
 		///
 		#[document_type_parameters("The target monad brand.")]
@@ -693,7 +700,7 @@ mod inner {
 		/// assert!(erased.evaluate().is::<i32>());
 		/// ```
 		pub fn erase_type(mut self) -> Free<F, TypeErasedValue> {
-			// SAFETY: Free values are used exactly once - double consumption indicates a bug
+			// INVARIANT: Free values are used exactly once - double consumption indicates a bug
 			#[allow(clippy::expect_used)]
 			let inner = self.0.take().expect("Free value already consumed");
 
@@ -775,7 +782,7 @@ mod inner {
 			let mut continuations: CatList<Continuation<F>> = CatList::empty();
 
 			loop {
-				// SAFETY: Free values are used exactly once - double consumption indicates a bug
+				// INVARIANT: Free values are used exactly once - double consumption indicates a bug
 				#[allow(clippy::expect_used)]
 				let inner = current.0.take().expect("Free value already consumed");
 
@@ -789,7 +796,7 @@ mod inner {
 							}
 							None => {
 								// No more continuations - we're done!
-								// SAFETY: type is maintained by internal invariant - mismatch indicates a bug
+								// INVARIANT: type is maintained by internal invariant - mismatch indicates a bug
 								#[allow(clippy::expect_used)]
 								return *val
 									.downcast::<A>()
@@ -966,12 +973,12 @@ mod tests {
 		assert_eq!(free.evaluate(), 42);
 	}
 
-	/// Tests `Free::roll`.
+	/// Tests `Free::wrap`.
 	///
-	/// **What it tests:** Verifies that `roll` creates a computation from a suspended effect.
-	/// **How it tests:** Wraps a `Free::pure(42)` inside a `Thunk`, rolls it into a `Free`, and runs it to ensure it unwraps correctly.
+	/// **What it tests:** Verifies that `wrap` creates a computation from a suspended effect.
+	/// **How it tests:** Wraps a `Free::pure(42)` inside a `Thunk`, wraps it into a `Free`, and runs it to ensure it unwraps correctly.
 	#[test]
-	fn test_free_roll() {
+	fn test_free_wrap() {
 		let eval = Thunk::new(|| Free::pure(42));
 		let free = Free::<ThunkBrand, _>::wrap(eval);
 		assert_eq!(free.evaluate(), 42);

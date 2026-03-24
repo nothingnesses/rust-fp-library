@@ -17,13 +17,18 @@
 mod inner {
 	use {
 		crate::{
-			classes::Deferrable,
+			classes::{
+				Deferrable,
+				Monoid,
+				Semigroup,
+			},
 			types::{
 				Lazy,
 				LazyConfig,
 				Step,
 				Trampoline,
 				TryLazy,
+				TryLazyConfig,
 			},
 		},
 		fp_macros::*,
@@ -33,6 +38,14 @@ mod inner {
 	/// A lazy, stack-safe computation that may fail with an error.
 	///
 	/// This is [`Trampoline<Result<A, E>>`] with ergonomic combinators.
+	///
+	/// ### When to Use
+	///
+	/// Use `TryTrampoline` for stack-safe fallible recursion. It provides unlimited recursion
+	/// depth without stack overflow, but requires `'static` types and does not have HKT brands.
+	/// For lightweight fallible deferred computation with HKT support, use
+	/// [`TryThunk`](crate::types::TryThunk). For memoized fallible computation, use
+	/// [`TryLazy`](crate::types::TryLazy).
 	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
 	///
 	pub struct TryTrampoline<A: 'static, E: 'static>(
@@ -196,6 +209,46 @@ mod inner {
 			func: impl FnOnce(E) -> E2 + 'static,
 		) -> TryTrampoline<A, E2> {
 			TryTrampoline(self.0.map(|result| result.map_err(func)))
+		}
+
+		/// Maps over both the success and error values simultaneously.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The type of the new success value.",
+			"The type of the new error value."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the success value.",
+			"The function to apply to the error value."
+		)]
+		///
+		#[document_returns("A new `TryTrampoline` with both sides transformed.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let ok_task: TryTrampoline<i32, String> = TryTrampoline::ok(10);
+		/// let mapped = ok_task.bimap(|x| x * 2, |e| e.len());
+		/// assert_eq!(mapped.evaluate(), Ok(20));
+		///
+		/// let err_task: TryTrampoline<i32, String> = TryTrampoline::err("hello".to_string());
+		/// let mapped = err_task.bimap(|x| x * 2, |e| e.len());
+		/// assert_eq!(mapped.evaluate(), Err(5));
+		/// ```
+		#[inline]
+		pub fn bimap<B: 'static, F: 'static>(
+			self,
+			f: impl FnOnce(A) -> B + 'static,
+			g: impl FnOnce(E) -> F + 'static,
+		) -> TryTrampoline<B, F> {
+			TryTrampoline(self.0.map(|result| match result {
+				Ok(a) => Ok(f(a)),
+				Err(e) => Err(g(e)),
+			}))
 		}
 
 		/// Chains fallible computations.
@@ -625,6 +678,11 @@ mod inner {
 		E: 'static,
 		Config: LazyConfig,
 	{
+		/// Converts a [`Lazy`] value into a [`TryTrampoline`] by evaluating eagerly.
+		///
+		/// The `Lazy` is forced at conversion time and the result is cloned into a
+		/// pure `TryTrampoline`. This is the same eager semantics as
+		/// [`From<TryLazy>`](#impl-From<TryLazy<'static,+A,+E,+Config>>-for-TryTrampoline<A,+E>).
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
 		#[document_returns("A new `TryTrampoline` instance that wraps the lazy value.")]
@@ -650,7 +708,7 @@ mod inner {
 	where
 		A: Clone + 'static,
 		E: Clone + 'static,
-		Config: LazyConfig,
+		Config: TryLazyConfig,
 	{
 		/// Converts a [`TryLazy`] value into a [`TryTrampoline`] by cloning the memoized result.
 		///
@@ -748,6 +806,75 @@ mod inner {
 		where
 			Self: Sized, {
 			TryTrampoline(Trampoline::defer(move || f().0))
+		}
+	}
+
+	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
+	impl<A, E> Semigroup for TryTrampoline<A, E>
+	where
+		A: Semigroup + 'static,
+		E: 'static,
+	{
+		/// Combines two `TryTrampoline` computations.
+		///
+		/// Both computations are evaluated; if both succeed, their results are combined
+		/// using the inner `Semigroup`. If either fails, the first error is propagated.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The first `TryTrampoline` computation.",
+			"The second `TryTrampoline` computation."
+		)]
+		///
+		#[document_returns(
+			"A `TryTrampoline` that evaluates both and combines the results, or propagates the first error."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::Semigroup,
+		/// 	types::*,
+		/// };
+		///
+		/// let a: TryTrampoline<String, ()> = TryTrampoline::ok("hello".to_string());
+		/// let b: TryTrampoline<String, ()> = TryTrampoline::ok(" world".to_string());
+		/// let combined = Semigroup::append(a, b);
+		/// assert_eq!(combined.evaluate(), Ok("hello world".to_string()));
+		/// ```
+		fn append(
+			a: Self,
+			b: Self,
+		) -> Self {
+			a.lift2(b, Semigroup::append)
+		}
+	}
+
+	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
+	impl<A, E> Monoid for TryTrampoline<A, E>
+	where
+		A: Monoid + 'static,
+		E: 'static,
+	{
+		/// Returns a `TryTrampoline` containing the monoidal identity.
+		#[document_signature]
+		///
+		#[document_returns("A `TryTrampoline` that succeeds with the monoidal identity element.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::Monoid,
+		/// 	types::*,
+		/// };
+		///
+		/// let e: TryTrampoline<String, ()> = Monoid::empty();
+		/// assert_eq!(e.evaluate(), Ok(String::new()));
+		/// ```
+		fn empty() -> Self {
+			TryTrampoline::ok(A::empty())
 		}
 	}
 
@@ -1270,5 +1397,140 @@ mod tests {
 	fn error_short_circuit(e: i32) -> bool {
 		TryTrampoline::<i32, i32>::err(e).bind(|x| TryTrampoline::ok(x.wrapping_add(1))).evaluate()
 			== Err(e)
+	}
+
+	// Semigroup / Monoid tests
+
+	/// Tests Semigroup::append with two successful computations.
+	#[test]
+	fn test_semigroup_append_both_ok() {
+		use crate::classes::Semigroup;
+
+		let a: TryTrampoline<String, ()> = TryTrampoline::ok("hello".to_string());
+		let b: TryTrampoline<String, ()> = TryTrampoline::ok(" world".to_string());
+		let result = Semigroup::append(a, b);
+		assert_eq!(result.evaluate(), Ok("hello world".to_string()));
+	}
+
+	/// Tests Semigroup::append propagates the first error.
+	#[test]
+	fn test_semigroup_append_first_err() {
+		use crate::classes::Semigroup;
+
+		let a: TryTrampoline<String, String> = TryTrampoline::err("fail".to_string());
+		let b: TryTrampoline<String, String> = TryTrampoline::ok(" world".to_string());
+		let result = Semigroup::append(a, b);
+		assert_eq!(result.evaluate(), Err("fail".to_string()));
+	}
+
+	/// Tests Semigroup::append propagates the second error.
+	#[test]
+	fn test_semigroup_append_second_err() {
+		use crate::classes::Semigroup;
+
+		let a: TryTrampoline<String, String> = TryTrampoline::ok("hello".to_string());
+		let b: TryTrampoline<String, String> = TryTrampoline::err("fail".to_string());
+		let result = Semigroup::append(a, b);
+		assert_eq!(result.evaluate(), Err("fail".to_string()));
+	}
+
+	/// Tests Semigroup associativity law for TryTrampoline.
+	#[quickcheck]
+	fn semigroup_associativity(
+		a: String,
+		b: String,
+		c: String,
+	) -> bool {
+		use crate::classes::Semigroup;
+
+		let lhs = Semigroup::append(
+			Semigroup::append(
+				TryTrampoline::<String, ()>::ok(a.clone()),
+				TryTrampoline::ok(b.clone()),
+			),
+			TryTrampoline::ok(c.clone()),
+		)
+		.evaluate();
+		let rhs = Semigroup::append(
+			TryTrampoline::<String, ()>::ok(a),
+			Semigroup::append(TryTrampoline::ok(b), TryTrampoline::ok(c)),
+		)
+		.evaluate();
+		lhs == rhs
+	}
+
+	/// Tests Monoid::empty returns Ok with the monoidal identity.
+	#[test]
+	fn test_monoid_empty() {
+		use crate::classes::Monoid;
+
+		let e: TryTrampoline<String, ()> = Monoid::empty();
+		assert_eq!(e.evaluate(), Ok(String::new()));
+	}
+
+	/// Tests Monoid left identity law.
+	#[quickcheck]
+	fn monoid_left_identity(a: String) -> bool {
+		use crate::classes::{
+			Monoid,
+			Semigroup,
+		};
+
+		let lhs = Semigroup::append(Monoid::empty(), TryTrampoline::<String, ()>::ok(a.clone()))
+			.evaluate();
+		lhs == Ok(a)
+	}
+
+	/// Tests Monoid right identity law.
+	#[quickcheck]
+	fn monoid_right_identity(a: String) -> bool {
+		use crate::classes::{
+			Monoid,
+			Semigroup,
+		};
+
+		let lhs = Semigroup::append(TryTrampoline::<String, ()>::ok(a.clone()), Monoid::empty())
+			.evaluate();
+		lhs == Ok(a)
+	}
+
+	// bimap tests
+
+	/// Tests bimap on a successful computation.
+	#[test]
+	fn test_bimap_ok() {
+		let task: TryTrampoline<i32, String> = TryTrampoline::ok(10);
+		let result = task.bimap(|x| x * 2, |e| e.len());
+		assert_eq!(result.evaluate(), Ok(20));
+	}
+
+	/// Tests bimap on a failed computation.
+	#[test]
+	fn test_bimap_err() {
+		let task: TryTrampoline<i32, String> = TryTrampoline::err("hello".to_string());
+		let result = task.bimap(|x| x * 2, |e| e.len());
+		assert_eq!(result.evaluate(), Err(5));
+	}
+
+	/// Tests bimap composes with map and map_err.
+	#[quickcheck]
+	fn bimap_consistent_with_map_and_map_err(x: i32) -> bool {
+		let f = |a: i32| a.wrapping_add(1);
+		let g = |e: i32| e.wrapping_mul(2);
+
+		let via_bimap = TryTrampoline::<i32, i32>::ok(x).bimap(f, g).evaluate();
+		let via_map = TryTrampoline::<i32, i32>::ok(x).map(f).evaluate();
+		via_bimap == via_map
+	}
+
+	/// Tests bimap on error is consistent with map_err.
+	#[quickcheck]
+	fn bimap_err_consistent_with_map_err(e: i32) -> bool {
+		let f = |a: i32| a.wrapping_add(1);
+		let g = |e: i32| e.wrapping_mul(2);
+
+		let via_bimap = TryTrampoline::<i32, i32>::err(e).bimap(f, g).evaluate();
+		let via_map_err = TryTrampoline::<i32, i32>::err(e).map_err(g).evaluate();
+		via_bimap == via_map_err
 	}
 }

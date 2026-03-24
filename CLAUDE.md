@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Running Commands
 
-All shell commands must be prefixed with `eval "$(direnv export bash 2>/dev/null)"; ` to ensure the correct Nix development environment is loaded. This applies to every command — building, testing, formatting, linting, benchmarking, etc.
+All shell commands must be prefixed with `direnv allow && eval "$(direnv export bash)"; ` to ensure the correct Nix development environment is loaded. This applies to every command — building, testing, formatting, linting, benchmarking, etc.
 
 ## Development Commands
 
@@ -18,74 +18,76 @@ All shell commands must be prefixed with `eval "$(direnv export bash 2>/dev/null
 
 ```bash
 # Format code (uses rustfmt.toml configuration)
-eval "$(direnv export bash 2>/dev/null)"; cargo fmt --all
+direnv allow && eval "$(direnv export bash)"; cargo fmt --all
 
 # Check formatting
-eval "$(direnv export bash 2>/dev/null)"; cargo fmt --all -- --check
+direnv allow && eval "$(direnv export bash)"; cargo fmt --all -- --check
 
 # Run clippy
-eval "$(direnv export bash 2>/dev/null)"; cargo clippy --workspace --all-features
+direnv allow && eval "$(direnv export bash)"; cargo clippy --workspace --all-features
 ```
 
 ### Documentation
 
 ```bash
 # Check documentation (must produce zero warnings)
-eval "$(direnv export bash 2>/dev/null)"; cargo doc --workspace --all-features --no-deps
+direnv allow && eval "$(direnv export bash)"; cargo doc --workspace --all-features --no-deps
 
 # Build and open documentation
-eval "$(direnv export bash 2>/dev/null)"; cargo doc --workspace --all-features --open
+direnv allow && eval "$(direnv export bash)"; cargo doc --workspace --all-features --open
 ```
 
 ### Testing
 
+**Always use the caching wrapper from the "Test Output Caching" section for full test runs.** The commands below are reference for the underlying `cargo test` invocations and for subset runs (which should still be piped through `tee .claude/test-cache/test-output.txt`).
+
 ```bash
-# Run all tests in the workspace
-eval "$(direnv export bash 2>/dev/null)"; cargo test --workspace
+# Run all tests in the workspace (prefer the caching wrapper instead)
+direnv allow && eval "$(direnv export bash)"; cargo test --workspace 2>&1 | tee .claude/test-cache/test-output.txt
 
 # Run tests for a specific package
-eval "$(direnv export bash 2>/dev/null)"; cargo test -p fp-library
-eval "$(direnv export bash 2>/dev/null)"; cargo test -p fp-macros
+direnv allow && eval "$(direnv export bash)"; cargo test -p fp-library 2>&1 | tee .claude/test-cache/test-output.txt
+direnv allow && eval "$(direnv export bash)"; cargo test -p fp-macros 2>&1 | tee .claude/test-cache/test-output.txt
 
 # Run a specific test by name
-eval "$(direnv export bash 2>/dev/null)"; cargo test -p fp-library test_name
+direnv allow && eval "$(direnv export bash)"; cargo test -p fp-library test_name 2>&1 | tee .claude/test-cache/test-output.txt
 
-# Run tests with all features enabled
-eval "$(direnv export bash 2>/dev/null)"; cargo test --workspace --all-features
+# Run tests with all features enabled (prefer the caching wrapper instead)
+direnv allow && eval "$(direnv export bash)"; cargo test --workspace --all-features 2>&1 | tee .claude/test-cache/test-output.txt
 
 # Run property-based tests (QuickCheck)
-eval "$(direnv export bash 2>/dev/null)"; cargo test -p fp-library --test property
+direnv allow && eval "$(direnv export bash)"; cargo test -p fp-library --test property 2>&1 | tee .claude/test-cache/test-output.txt
 
 # Run doc tests
-eval "$(direnv export bash 2>/dev/null)"; cargo test --doc -p fp-library
+direnv allow && eval "$(direnv export bash)"; cargo test --doc -p fp-library 2>&1 | tee .claude/test-cache/test-output.txt
 ```
 
 ### Building
 
 ```bash
 # Build the workspace
-eval "$(direnv export bash 2>/dev/null)"; cargo build --workspace
+direnv allow && eval "$(direnv export bash)"; cargo build --workspace
 
 # Build with specific features
-eval "$(direnv export bash 2>/dev/null)"; cargo build -p fp-library --features rayon
-eval "$(direnv export bash 2>/dev/null)"; cargo build -p fp-library --features serde
-eval "$(direnv export bash 2>/dev/null)"; cargo build -p fp-library --all-features
+direnv allow && eval "$(direnv export bash)"; cargo build -p fp-library --features rayon
+direnv allow && eval "$(direnv export bash)"; cargo build -p fp-library --features serde
+direnv allow && eval "$(direnv export bash)"; cargo build -p fp-library --all-features
 
 # Check without building
-eval "$(direnv export bash 2>/dev/null)"; cargo check --workspace
+direnv allow && eval "$(direnv export bash)"; cargo check --workspace
 ```
 
 ### Benchmarking
 
 ```bash
 # Run all benchmarks
-eval "$(direnv export bash 2>/dev/null)"; cargo bench -p fp-library
+direnv allow && eval "$(direnv export bash)"; cargo bench -p fp-library
 
 # List available benchmarks
-eval "$(direnv export bash 2>/dev/null)"; cargo bench -p fp-library --bench benchmarks -- --list
+direnv allow && eval "$(direnv export bash)"; cargo bench -p fp-library --bench benchmarks -- --list
 
 # Run specific benchmark (e.g., Vec)
-eval "$(direnv export bash 2>/dev/null)"; cargo bench -p fp-library --bench benchmarks -- Vec
+direnv allow && eval "$(direnv export bash)"; cargo bench -p fp-library --bench benchmarks -- Vec
 
 # Benchmark reports are generated in target/criterion/report/index.html
 ```
@@ -95,47 +97,35 @@ eval "$(direnv export bash 2>/dev/null)"; cargo bench -p fp-library --bench benc
 After making changes, always verify in this order: **fmt → clippy → doc → test**.
 
 ```bash
-eval "$(direnv export bash 2>/dev/null)"; cargo fmt --all
-eval "$(direnv export bash 2>/dev/null)"; cargo clippy --workspace --all-features
-eval "$(direnv export bash 2>/dev/null)"; cargo doc --workspace --all-features --no-deps
-eval "$(direnv export bash 2>/dev/null)"; cargo test --workspace --all-features
+direnv allow && eval "$(direnv export bash)"; cargo fmt --all
+direnv allow && eval "$(direnv export bash)"; cargo clippy --workspace --all-features
+direnv allow && eval "$(direnv export bash)"; cargo doc --workspace --all-features --no-deps
+# For the test step, use the caching wrapper from the "Test Output Caching" section below.
 ```
 
 ### Test Output Caching
 
-To avoid re-running expensive test suites when source files haven't changed, cache test outputs:
+**Important: Never run `cargo test` directly.** Always use the caching wrapper below. This avoids re-running expensive test suites when source files have not changed.
 
 **Cache file location:** `.claude/test-cache/` (gitignored)
 
-**After running tests**, save the output:
+**How to run tests (always use this):**
+
 ```bash
-mkdir -p .claude/test-cache
-eval "$(direnv export bash 2>/dev/null)"; cargo test --workspace --all-features 2>&1 | tee .claude/test-cache/test-output.txt
-# Record the timestamp of the newest source file at cache time
-find fp-library/src fp-macros/src -name '*.rs' -printf '%T@\n' | sort -rn | head -1 > .claude/test-cache/source-timestamp.txt
+mkdir -p .claude/test-cache && LATEST=$(find fp-library/src fp-macros/src tests -name '*.rs' -printf '%T@\n' 2>/dev/null | sort -rn | head -1; find . -maxdepth 2 -name 'Cargo.toml' -printf '%T@\n' | sort -rn | head -1) && CACHED=$(cat .claude/test-cache/source-timestamp.txt 2>/dev/null || echo "0") && if [ "$LATEST" = "$CACHED" ]; then echo "=== CACHED TEST OUTPUT (no source changes) ===" && cat .claude/test-cache/test-output.txt; else echo "=== Source files changed, re-running tests ===" && direnv allow && eval "$(direnv export bash)" && cargo test --workspace --all-features 2>&1 | tee .claude/test-cache/test-output.txt && echo "$LATEST" > .claude/test-cache/source-timestamp.txt; fi
 ```
 
-**Before re-running tests**, check if cache is still valid:
+For running a subset of tests (e.g., a specific package or test name), run `cargo test` directly with `tee` to cache:
+
 ```bash
-# Get newest source file timestamp
-LATEST=$(find fp-library/src fp-macros/src -name '*.rs' -printf '%T@\n' | sort -rn | head -1)
-CACHED=$(cat .claude/test-cache/source-timestamp.txt 2>/dev/null || echo "0")
-if [ "$LATEST" = "$CACHED" ]; then
-  echo "=== CACHED TEST OUTPUT (no source changes) ==="
-  cat .claude/test-cache/test-output.txt
-else
-  echo "=== Source files changed, re-running tests ==="
-  eval "$(direnv export bash 2>/dev/null)"; cargo test --workspace --all-features 2>&1 | tee .claude/test-cache/test-output.txt
-  echo "$LATEST" > .claude/test-cache/source-timestamp.txt
-fi
+direnv allow && eval "$(direnv export bash)" && cargo test -p fp-library <test_name> 2>&1 | tee .claude/test-cache/test-output.txt
 ```
 
-**Always invalidate** (re-run tests) when:
-- Any `.rs` file under `fp-library/src/` or `fp-macros/src/` has been modified since the cached timestamp
-- `Cargo.toml` files have changed
-- Test files under `tests/` have changed
+Subset runs do not update `source-timestamp.txt` since they do not validate the full suite.
 
-**Use cached output** when you just need to re-check results (e.g., confirming a test name, reviewing output) and no source files have changed.
+**The cache is invalidated automatically** when any `.rs` file under `fp-library/src/`, `fp-macros/src/`, or `tests/`, or any `Cargo.toml`, is newer than the cached timestamp.
+
+**Force re-run** by deleting the timestamp: `rm -f .claude/test-cache/source-timestamp.txt`
 
 ## Language Server & Code Intelligence
 
@@ -213,15 +203,33 @@ The library uses a unified pointer hierarchy to abstract over reference counting
 
 ### Lazy Evaluation Types
 
-Three distinct types handle deferred computation:
+The hierarchy consists of infallible computation types, fallible counterparts, and the `Free` monad infrastructure. Each type makes different trade-offs around stack safety, memoization, lifetimes, and thread safety.
 
-| Type | Use Case | Stack Safe? | Memoized? | Lifetimes? | HKT Traits? |
-|------|----------|-------------|-----------|------------|-------------|
-| `Thunk<'a, A>` | Lightweight deferred computation, borrowing support | Partial | No | `'a` | Yes (Functor, Monad) |
-| `Trampoline<A>` | Deep recursion, guaranteed stack safety | Yes | No | `'static` | No |
-| `Lazy<'a, A>` | Caching expensive computations | N/A | Yes | `'a` | Partial (RefFunctor) |
+| Type | Underlying | HKT | Stack Safe | Memoized | Lifetimes | Send |
+|------|-----------|-----|-----------|----------|-----------|------|
+| `Thunk<'a, A>` | `Box<dyn FnOnce() -> A + 'a>` | Yes (full) | Partial (`tail_rec_m` only) | No | `'a` | No |
+| `SendThunk<'a, A>` | `Box<dyn FnOnce() -> A + Send + 'a>` | No | No | No | `'a` | Yes |
+| `Trampoline<A>` | `Free<ThunkBrand, A>` | No | Yes | No | `'static` | No |
+| `RcLazy<'a, A>` | `Rc<LazyCell<A, ...>>` | Partial (`RefFunctor`) | N/A | Yes | `'a` | No |
+| `ArcLazy<'a, A>` | `Arc<LazyLock<A, ...>>` | Partial (`SendRefFunctor`) | N/A | Yes | `'a` | Yes |
+| `TryThunk<'a, A, E>` | `Thunk<'a, Result<A, E>>` | Yes (full) | Partial (`tail_rec_m` only) | No | `'a` | No |
+| `TryTrampoline<A, E>` | `Trampoline<Result<A, E>>` | No | Yes | No | `'static` | No |
+| `RcTryLazy<'a, A, E>` | `Rc<LazyCell<Result<A, E>, ...>>` | Partial (`RefFunctor`, `Foldable`) | N/A | Yes | `'a` | No |
+| `ArcTryLazy<'a, A, E>` | `Arc<LazyLock<Result<A, E>, ...>>` | Partial (`SendRefFunctor`, `Foldable`) | N/A | Yes | `'a` | Yes |
+| `Free<F, A>` | CatList-based "Reflection without Remorse" | No | Yes | No | `'static` | No |
 
-**Pattern:** Use `Trampoline` for stack-safe recursion, wrap in `Lazy` for memoization, use `Thunk` for lightweight views.
+Supporting traits:
+
+| Trait | Purpose | Implementors in hierarchy |
+|-------|---------|--------------------------|
+| `Deferrable<'a>` | Lazy construction from thunk | `Thunk`, `SendThunk`, `Trampoline`, `RcLazy`, `ArcLazy`, `RcTryLazy`, `ArcTryLazy`, `TryThunk`, `Free<ThunkBrand, A>` |
+| `SendDeferrable<'a>` | Thread-safe lazy construction (extends `Deferrable`) | `SendThunk`, `ArcLazy`, `ArcTryLazy` |
+| `RefFunctor` | Mapping with `&A` input | `LazyBrand<RcLazyConfig>`, `TryLazyBrand<E, RcLazyConfig>` |
+| `SendRefFunctor` | Thread-safe mapping with `&A` input | `LazyBrand<ArcLazyConfig>`, `TryLazyBrand<E, ArcLazyConfig>` |
+| `LazyConfig` | Infallible memoization strategy (pointer + cell choice) | `RcLazyConfig`, `ArcLazyConfig` |
+| `TryLazyConfig` | Fallible memoization strategy (extends `LazyConfig`) | `RcLazyConfig`, `ArcLazyConfig` |
+
+**Pattern:** Use `Trampoline` for stack-safe recursion, wrap in `Lazy` for memoization, use `Thunk` for lightweight views. Use `SendThunk` when the deferred computation must cross thread boundaries without eager evaluation.
 
 ### Optics System
 

@@ -34,6 +34,7 @@ pub mod option;
 pub mod pair;
 pub mod rc_ptr;
 pub mod result;
+pub mod send_thunk;
 pub mod step;
 pub mod string;
 pub mod thunk;
@@ -67,6 +68,7 @@ pub use {
 		LazyConfig,
 		RcLazy,
 		RcLazyConfig,
+		TryLazyConfig,
 	},
 	multiplicative::Multiplicative,
 	optics::{
@@ -75,6 +77,7 @@ pub use {
 		LensPrime,
 	},
 	pair::Pair,
+	send_thunk::SendThunk,
 	step::Step,
 	thunk::Thunk,
 	trampoline::Trampoline,

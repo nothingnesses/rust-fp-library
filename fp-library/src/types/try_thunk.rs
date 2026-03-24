@@ -39,6 +39,7 @@ mod inner {
 				Step,
 				Thunk,
 				TryLazy,
+				TryLazyConfig,
 				TryTrampoline,
 			},
 		},
@@ -51,6 +52,13 @@ mod inner {
 	/// This is [`Thunk<'a, Result<A, E>>`] with ergonomic combinators for error handling.
 	/// Like [`Thunk`], this is NOT memoized. Each [`TryThunk::evaluate`] re-executes.
 	/// Unlike [`Thunk`], the result is [`Result<A, E>`].
+	///
+	/// ### Stack Safety
+	///
+	/// `TryThunk::bind` chains are **not** stack-safe. Each nested [`bind`](TryThunk::bind)
+	/// adds a frame to the call stack, so sufficiently deep chains will cause a stack
+	/// overflow. For stack-safe fallible recursion, use
+	/// [`TryTrampoline`](crate::types::TryTrampoline) instead.
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value produced by the computation on success.",
@@ -63,6 +71,36 @@ mod inner {
 	/// - [`TryThunkBrand`](crate::brands::TryThunkBrand): fully polymorphic over both error and success types (bifunctor).
 	/// - [`TryThunkErrAppliedBrand<E>`](crate::brands::TryThunkErrAppliedBrand): the error type is fixed, polymorphic over the success type (functor over `Ok`).
 	/// - [`TryThunkOkAppliedBrand<A>`](crate::brands::TryThunkOkAppliedBrand): the success type is fixed, polymorphic over the error type (functor over `Err`).
+	///
+	/// ### When to Use
+	///
+	/// Use `TryThunk` for lightweight fallible deferred computation with full HKT support.
+	/// It is not stack-safe for deep [`bind`](TryThunk::bind) chains. For stack-safe fallible
+	/// recursion, use [`TryTrampoline`](crate::types::TryTrampoline). For memoized fallible
+	/// computation, use [`TryLazy`](crate::types::TryLazy).
+	///
+	/// ### Algebraic Properties
+	///
+	/// `TryThunk` forms a monad over the success type `A` (with `E` fixed):
+	/// - `TryThunk::pure(a).bind(f).evaluate() == f(a).evaluate()` (left identity).
+	/// - `thunk.bind(TryThunk::pure).evaluate() == thunk.evaluate()` (right identity).
+	/// - `thunk.bind(f).bind(g).evaluate() == thunk.bind(|a| f(a).bind(g)).evaluate()` (associativity).
+	///
+	/// On the error channel, `bind` short-circuits: if the computation produces `Err(e)`,
+	/// the continuation `f` is never called.
+	///
+	/// ### Stack Safety
+	///
+	/// `TryThunk::bind` chains are **not** stack-safe. Each nested [`bind`](TryThunk::bind)
+	/// adds a frame to the call stack, so sufficiently deep chains will cause a stack overflow.
+	/// For stack-safe fallible recursion, use [`TryTrampoline`](crate::types::TryTrampoline).
+	///
+	/// ### Limitations
+	///
+	/// **Cannot implement `Traversable`**: `TryThunk` wraps a `FnOnce` closure, which cannot be
+	/// cloned because `FnOnce` is consumed when called. The [`Traversable`](crate::classes::Traversable)
+	/// trait requires `Clone` bounds on the result type, making it fundamentally incompatible
+	/// with `TryThunk`'s design. This mirrors the same limitation on [`Thunk`].
 	pub struct TryThunk<'a, A, E>(
 		/// The internal `Thunk` wrapping a `Result`.
 		Thunk<'a, Result<A, E>>,
@@ -550,7 +588,7 @@ mod inner {
 	where
 		A: Clone + 'a,
 		E: Clone + 'a,
-		Config: LazyConfig,
+		Config: TryLazyConfig,
 	{
 		/// Converts a [`TryLazy`] value into a [`TryThunk`] by cloning the memoized result.
 		///
@@ -1852,10 +1890,9 @@ mod tests {
 		assert_eq!(try_thunk.evaluate(), Ok(42));
 	}
 
-	/// Tests that `TryThunk::pure` still works but is deprecated.
+	/// Tests that `TryThunk::pure` creates a successful computation.
 	#[test]
-	#[allow(deprecated)]
-	fn test_pure_deprecated() {
+	fn test_pure() {
 		let try_thunk: TryThunk<i32, ()> = TryThunk::pure(42);
 		assert_eq!(try_thunk.evaluate(), Ok(42));
 	}
@@ -2492,5 +2529,229 @@ mod tests {
 	fn test_catch_unwind_with_success() {
 		let thunk = TryThunk::<i32, i32>::catch_unwind_with(|| 42, |_payload| -1);
 		assert_eq!(thunk.evaluate(), Ok(42));
+	}
+
+	// 7.3: Bifunctor law QuickCheck tests for TryThunkBrand
+
+	/// Bifunctor identity: `bimap(id, id, t) == t`.
+	#[quickcheck]
+	fn bifunctor_identity_ok(x: i32) -> bool {
+		use crate::{
+			brands::*,
+			classes::bifunctor::*,
+		};
+		let t: TryThunk<i32, i32> = TryThunk::ok(x);
+		bimap::<TryThunkBrand, _, _, _, _>(|e| e, |a| a, t).evaluate() == Ok(x)
+	}
+
+	/// Bifunctor identity on error path: `bimap(id, id, err(e)) == err(e)`.
+	#[quickcheck]
+	fn bifunctor_identity_err(e: i32) -> bool {
+		use crate::{
+			brands::*,
+			classes::bifunctor::*,
+		};
+		let t: TryThunk<i32, i32> = TryThunk::err(e);
+		bimap::<TryThunkBrand, _, _, _, _>(|e| e, |a| a, t).evaluate() == Err(e)
+	}
+
+	/// Bifunctor composition: `bimap(f1 . f2, g1 . g2, t) == bimap(f1, g1, bimap(f2, g2, t))`.
+	#[quickcheck]
+	fn bifunctor_composition_ok(x: i32) -> bool {
+		use crate::{
+			brands::*,
+			classes::bifunctor::*,
+		};
+		let f1 = |a: i32| a.wrapping_add(1);
+		let f2 = |a: i32| a.wrapping_mul(2);
+		let g1 = |a: i32| a.wrapping_add(10);
+		let g2 = |a: i32| a.wrapping_mul(3);
+
+		let lhs = bimap::<TryThunkBrand, _, _, _, _>(
+			move |e| f1(f2(e)),
+			move |a| g1(g2(a)),
+			TryThunk::ok(x),
+		)
+		.evaluate();
+		let rhs = bimap::<TryThunkBrand, _, _, _, _>(
+			f1,
+			g1,
+			bimap::<TryThunkBrand, _, _, _, _>(f2, g2, TryThunk::ok(x)),
+		)
+		.evaluate();
+		lhs == rhs
+	}
+
+	/// Bifunctor composition on error path.
+	#[quickcheck]
+	fn bifunctor_composition_err(e: i32) -> bool {
+		use crate::{
+			brands::*,
+			classes::bifunctor::*,
+		};
+		let f1 = |a: i32| a.wrapping_add(1);
+		let f2 = |a: i32| a.wrapping_mul(2);
+		let g1 = |a: i32| a.wrapping_add(10);
+		let g2 = |a: i32| a.wrapping_mul(3);
+
+		let lhs = bimap::<TryThunkBrand, _, _, _, _>(
+			move |e| f1(f2(e)),
+			move |a| g1(g2(a)),
+			TryThunk::err(e),
+		)
+		.evaluate();
+		let rhs = bimap::<TryThunkBrand, _, _, _, _>(
+			f1,
+			g1,
+			bimap::<TryThunkBrand, _, _, _, _>(f2, g2, TryThunk::err(e)),
+		)
+		.evaluate();
+		lhs == rhs
+	}
+
+	// 7.4: Error-channel monad law QuickCheck tests via TryThunkOkAppliedBrand
+
+	/// Error-channel monad left identity: `pure(a).bind(f) == f(a)`.
+	#[quickcheck]
+	fn error_monad_left_identity(a: i32) -> bool {
+		use crate::{
+			brands::*,
+			functions::*,
+		};
+		let f = |x: i32| pure::<TryThunkOkAppliedBrand<i32>, _>(x.wrapping_mul(2));
+		let lhs =
+			bind::<TryThunkOkAppliedBrand<i32>, _, _>(pure::<TryThunkOkAppliedBrand<i32>, _>(a), f)
+				.evaluate();
+		let rhs = f(a).evaluate();
+		lhs == rhs
+	}
+
+	/// Error-channel monad right identity: `m.bind(pure) == m`.
+	#[quickcheck]
+	fn error_monad_right_identity(x: i32) -> bool {
+		use crate::{
+			brands::*,
+			functions::*,
+		};
+		let lhs = bind::<TryThunkOkAppliedBrand<i32>, _, _>(
+			pure::<TryThunkOkAppliedBrand<i32>, _>(x),
+			pure::<TryThunkOkAppliedBrand<i32>, _>,
+		)
+		.evaluate();
+		lhs == Err(x)
+	}
+
+	/// Error-channel monad associativity: `m.bind(f).bind(g) == m.bind(|a| f(a).bind(g))`.
+	#[quickcheck]
+	fn error_monad_associativity(x: i32) -> bool {
+		use crate::{
+			brands::*,
+			functions::*,
+		};
+		let f = |a: i32| pure::<TryThunkOkAppliedBrand<i32>, _>(a.wrapping_add(1));
+		let g = |a: i32| pure::<TryThunkOkAppliedBrand<i32>, _>(a.wrapping_mul(3));
+		let m: TryThunk<i32, i32> = TryThunk::err(x);
+		let m2: TryThunk<i32, i32> = TryThunk::err(x);
+		let lhs = bind::<TryThunkOkAppliedBrand<i32>, _, _>(
+			bind::<TryThunkOkAppliedBrand<i32>, _, _>(m, f),
+			g,
+		)
+		.evaluate();
+		let rhs = bind::<TryThunkOkAppliedBrand<i32>, _, _>(m2, move |a| {
+			bind::<TryThunkOkAppliedBrand<i32>, _, _>(f(a), g)
+		})
+		.evaluate();
+		lhs == rhs
+	}
+
+	// 7.5: Semigroup/Monoid law QuickCheck tests for TryThunk
+
+	/// Semigroup associativity for TryThunk: `append(append(a, b), c) == append(a, append(b, c))`.
+	#[quickcheck]
+	fn try_thunk_semigroup_associativity(
+		a: String,
+		b: String,
+		c: String,
+	) -> bool {
+		use crate::classes::semigroup::append;
+
+		let ta: TryThunk<String, ()> = TryThunk::ok(a.clone());
+		let tb: TryThunk<String, ()> = TryThunk::ok(b.clone());
+		let tc: TryThunk<String, ()> = TryThunk::ok(c.clone());
+		let ta2: TryThunk<String, ()> = TryThunk::ok(a);
+		let tb2: TryThunk<String, ()> = TryThunk::ok(b);
+		let tc2: TryThunk<String, ()> = TryThunk::ok(c);
+		let lhs = append(append(ta, tb), tc).evaluate();
+		let rhs = append(ta2, append(tb2, tc2)).evaluate();
+		lhs == rhs
+	}
+
+	/// Monoid left identity for TryThunk: `append(empty(), a) == a`.
+	#[quickcheck]
+	fn try_thunk_monoid_left_identity(x: String) -> bool {
+		use crate::classes::{
+			monoid::empty,
+			semigroup::append,
+		};
+
+		let a: TryThunk<String, ()> = TryThunk::ok(x.clone());
+		let lhs: TryThunk<String, ()> = append(empty(), a);
+		lhs.evaluate() == Ok(x)
+	}
+
+	/// Monoid right identity for TryThunk: `append(a, empty()) == a`.
+	#[quickcheck]
+	fn try_thunk_monoid_right_identity(x: String) -> bool {
+		use crate::classes::{
+			monoid::empty,
+			semigroup::append,
+		};
+
+		let a: TryThunk<String, ()> = TryThunk::ok(x.clone());
+		let rhs: TryThunk<String, ()> = append(a, empty());
+		rhs.evaluate() == Ok(x)
+	}
+
+	// 7.6: Thread safety test for TryThunk::memoize_arc
+
+	/// Tests that `TryThunk::memoize_arc` produces a thread-safe value
+	/// and all threads see the same cached result.
+	#[test]
+	fn test_memoize_arc_thread_safety() {
+		use std::{
+			sync::{
+				Arc,
+				atomic::{
+					AtomicUsize,
+					Ordering,
+				},
+			},
+			thread,
+		};
+
+		let counter = Arc::new(AtomicUsize::new(0));
+		let counter_clone = Arc::clone(&counter);
+		let thunk: TryThunk<i32, String> = TryThunk::new(move || {
+			counter_clone.fetch_add(1, Ordering::SeqCst);
+			Ok(42)
+		});
+		let lazy = thunk.memoize_arc();
+
+		let handles: Vec<_> = (0 .. 8)
+			.map(|_| {
+				let lazy_clone = lazy.clone();
+				thread::spawn(move || {
+					assert_eq!(lazy_clone.evaluate(), Ok(&42));
+				})
+			})
+			.collect();
+
+		assert_eq!(lazy.evaluate(), Ok(&42));
+		for h in handles {
+			h.join().unwrap();
+		}
+
+		// The closure should have been invoked exactly once.
+		assert_eq!(counter.load(Ordering::SeqCst), 1);
 	}
 }

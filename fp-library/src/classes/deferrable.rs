@@ -4,7 +4,6 @@
 //!
 //! ```
 //! use fp_library::{
-//! 	brands::*,
 //! 	functions::*,
 //! 	types::*,
 //! };
@@ -64,7 +63,6 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
@@ -83,7 +81,7 @@ mod inner {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the computation",
+		"The lifetime of the computation.",
 		"The type of the deferred value."
 	)]
 	///
@@ -94,7 +92,6 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::*,
 	/// 	functions::*,
 	/// 	types::*,
 	/// };

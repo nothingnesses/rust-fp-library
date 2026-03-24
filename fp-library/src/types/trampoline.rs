@@ -1,6 +1,6 @@
 //! Stack-safe computation type with guaranteed safety for unlimited recursion depth.
 //!
-//! Built on the [`Free`](crate::types::Free) monad with O(1) [`bind`](crate::functions::bind) operations. Provides complete stack safety at the cost of requiring `'static` types. Use this for deep recursion and heavy monadic pipelines.
+//! Built on the [`Free`](crate::types::Free) monad with O(1) [`bind`](Trampoline::bind) operations. Provides complete stack safety at the cost of requiring `'static` types. Use this for deep recursion and heavy monadic pipelines.
 //!
 //! ### Examples
 //!
@@ -42,7 +42,7 @@ mod inner {
 	///
 	/// `Trampoline` is the "heavy-duty" monadic type for deferred computations that
 	/// require **guaranteed stack safety**. It is built on [`Free<Thunk, A>`] with
-	/// [`CatList`](crate::types::CatList)-based bind stack, ensuring O(1) [`bind`](crate::functions::bind)
+	/// [`CatList`](crate::types::CatList)-based bind stack, ensuring O(1) [`bind`](Trampoline::bind)
 	/// operations and unlimited recursion depth without stack overflow.
 	///
 	/// # Requirements
@@ -271,6 +271,7 @@ mod inner {
 		///
 		/// let task = Trampoline::new(|| 42);
 		/// let lazy = task.memoize();
+		/// // evaluate() returns &i32, so deref to get i32 for comparison
 		/// assert_eq!(*lazy.evaluate(), 42);
 		/// ```
 		pub fn memoize(self) -> Lazy<'static, A, RcLazyConfig> {
@@ -708,22 +709,22 @@ mod tests {
 		assert_eq!(factorial(5).evaluate(), 120);
 	}
 
-	/// Tests `Trampoline::map2`.
+	/// Tests `Trampoline::lift2`.
 	///
-	/// Verifies that `map2` combines two tasks.
+	/// Verifies that `lift2` combines two tasks.
 	#[test]
-	fn test_task_map2() {
+	fn test_task_lift2() {
 		let t1 = Trampoline::pure(10);
 		let t2 = Trampoline::pure(20);
 		let t3 = t1.lift2(t2, |a, b| a + b);
 		assert_eq!(t3.evaluate(), 30);
 	}
 
-	/// Tests `Trampoline::and_then`.
+	/// Tests `Trampoline::then`.
 	///
-	/// Verifies that `and_then` sequences two tasks.
+	/// Verifies that `then` sequences two tasks.
 	#[test]
-	fn test_task_and_then() {
+	fn test_task_then() {
 		let t1 = Trampoline::pure(10);
 		let t2 = Trampoline::pure(20);
 		let t3 = t1.then(t2);
@@ -1000,5 +1001,45 @@ mod tests {
 		let t1 = Trampoline::pure(vec![1, 2, 3]);
 		let t2: Trampoline<Vec<i32>> = Trampoline::empty();
 		assert_eq!(t1.append(t2).evaluate(), vec![1, 2, 3]);
+	}
+
+	// 7.7: Deeper stack safety stress test for tail_rec_m
+
+	/// Stress test for `Trampoline::tail_rec_m` with 100,000+ iterations.
+	///
+	/// Verifies that stack safety holds at depths far exceeding typical stack limits.
+	#[test]
+	fn test_tail_rec_m_deep_stack_safety() {
+		let n: u64 = 200_000;
+		let result = Trampoline::tail_rec_m(
+			move |acc: u64| {
+				if acc >= n {
+					Trampoline::pure(Step::Done(acc))
+				} else {
+					Trampoline::pure(Step::Loop(acc + 1))
+				}
+			},
+			0u64,
+		);
+		assert_eq!(result.evaluate(), n);
+	}
+
+	/// Stress test for `Trampoline::arc_tail_rec_m` with 100,000+ iterations.
+	///
+	/// Verifies that the `Arc`-based variant is also stack-safe at high depth.
+	#[test]
+	fn test_arc_tail_rec_m_deep_stack_safety() {
+		let n: u64 = 200_000;
+		let result = Trampoline::arc_tail_rec_m(
+			move |acc: u64| {
+				if acc >= n {
+					Trampoline::pure(Step::Done(acc))
+				} else {
+					Trampoline::pure(Step::Loop(acc + 1))
+				}
+			},
+			0u64,
+		);
+		assert_eq!(result.evaluate(), n);
 	}
 }

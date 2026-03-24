@@ -20,7 +20,13 @@
 //! ```
 
 use {
-	crate::classes::RefCountedPointer,
+	crate::{
+		classes::RefCountedPointer,
+		types::{
+			ArcLazyConfig,
+			RcLazyConfig,
+		},
+	},
 	std::marker::PhantomData,
 };
 
@@ -90,6 +96,12 @@ pub struct IdentityBrand;
 /// Brand for [`Lazy`](crate::types::Lazy).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LazyBrand<Config>(PhantomData<Config>);
+
+/// Brand for single-threaded [`RcLazy`](crate::types::RcLazy).
+pub type RcLazyBrand = LazyBrand<RcLazyConfig>;
+
+/// Brand for thread-safe [`ArcLazy`](crate::types::ArcLazy).
+pub type ArcLazyBrand = LazyBrand<ArcLazyConfig>;
 
 /// Brand for [`Option`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -187,6 +199,13 @@ pub struct StepDoneAppliedBrand<B>(PhantomData<B>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepLoopAppliedBrand<A>(PhantomData<A>);
 
+/// Brand for [`SendThunk`](crate::types::SendThunk).
+///
+/// Thread-safe counterpart of [`ThunkBrand`]. The inner closure is `Send`,
+/// enabling deferred computation across thread boundaries.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SendThunkBrand;
+
 /// Brand for [`Thunk`](crate::types::Thunk).
 ///
 /// Note: This is for `Thunk<'a, A>`, NOT for `Trampoline<A>`.
@@ -197,6 +216,12 @@ pub struct ThunkBrand;
 /// Brand for [`TryLazy`](crate::types::TryLazy).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryLazyBrand<E, Config>(PhantomData<(E, Config)>);
+
+/// Brand for single-threaded [`RcTryLazy`](crate::types::RcTryLazy).
+pub type RcTryLazyBrand<E> = TryLazyBrand<E, RcLazyConfig>;
+
+/// Brand for thread-safe [`ArcTryLazy`](crate::types::ArcTryLazy).
+pub type ArcTryLazyBrand<E> = TryLazyBrand<E, ArcLazyConfig>;
 
 /// Brand for [`TryThunk`](crate::types::TryThunk) (Bifunctor).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

@@ -15,7 +15,9 @@ mod inner {
 				Deferrable,
 				Evaluable,
 				Foldable,
+				FoldableWithIndex,
 				Functor,
+				FunctorWithIndex,
 				Lift,
 				MonadRec,
 				Monoid,
@@ -23,6 +25,7 @@ mod inner {
 				Semiapplicative,
 				Semigroup,
 				Semimonad,
+				WithIndex,
 			},
 			impl_kind,
 			kinds::*,
@@ -599,6 +602,11 @@ mod inner {
 
 	impl MonadRec for ThunkBrand {
 		/// Performs tail-recursive monadic computation.
+		///
+		/// The step function `f` should return shallow thunks (ideally [`Thunk::pure`]
+		/// or a single-level [`Thunk::new`]). If `f` builds deep [`bind`](Thunk::bind)
+		/// chains inside the returned thunk, the internal [`evaluate`](Thunk::evaluate)
+		/// call can still overflow the stack.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -794,6 +802,77 @@ mod inner {
 		}
 	}
 
+	impl WithIndex for ThunkBrand {
+		type Index = ();
+	}
+
+	impl FunctorWithIndex for ThunkBrand {
+		/// Maps a function over the value in the thunk, providing the index `()`.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the value inside the thunk.",
+			"The type of the result of applying the function."
+		)]
+		#[document_parameters(
+			"The function to apply to the value and its index.",
+			"The thunk to map over."
+		)]
+		#[document_returns("A new thunk containing the result of applying the function.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::ThunkBrand,
+		/// 	classes::functor_with_index::FunctorWithIndex,
+		/// };
+		///
+		/// let thunk = fp_library::types::Thunk::pure(5);
+		/// let result = <ThunkBrand as FunctorWithIndex>::map_with_index(|_, x| x * 2, thunk);
+		/// assert_eq!(result.evaluate(), 10);
+		/// ```
+		fn map_with_index<'a, A: 'a, B: 'a>(
+			f: impl Fn((), A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.map(move |a| f((), a))
+		}
+	}
+
+	impl FoldableWithIndex for ThunkBrand {
+		/// Folds the thunk using a monoid, providing the index `()`.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the value inside the thunk.",
+			"The monoid type."
+		)]
+		#[document_parameters(
+			"The function to apply to the value and its index.",
+			"The thunk to fold."
+		)]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::ThunkBrand,
+		/// 	classes::foldable_with_index::FoldableWithIndex,
+		/// };
+		///
+		/// let thunk = fp_library::types::Thunk::pure(5);
+		/// let result =
+		/// 	<ThunkBrand as FoldableWithIndex>::fold_map_with_index(|_, x: i32| x.to_string(), thunk);
+		/// assert_eq!(result, "5");
+		/// ```
+		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
+			f: impl Fn((), A) -> R + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R {
+			f((), fa.evaluate())
+		}
+	}
+
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value produced by the computation."
@@ -944,7 +1023,7 @@ mod tests {
 
 	/// Tests `Thunk::defer`.
 	///
-	/// Verifies that `defer` allows creating an `Thunk` from a thunk that returns an `Thunk`.
+	/// Verifies that `defer` allows creating a `Thunk` from a thunk that returns a `Thunk`.
 	#[test]
 	fn test_defer() {
 		let thunk = Thunk::defer(|| Thunk::pure(42));
@@ -953,7 +1032,7 @@ mod tests {
 
 	/// Tests `From<Lazy>`.
 	#[test]
-	fn test_eval_from_memo() {
+	fn test_thunk_from_memo() {
 		use crate::types::RcLazy;
 		let memo = RcLazy::new(|| 42);
 		let thunk = Thunk::from(memo);
@@ -962,9 +1041,9 @@ mod tests {
 
 	/// Tests the `Semigroup` implementation for `Thunk`.
 	///
-	/// Verifies that `append` correctly combines two evals.
+	/// Verifies that `append` correctly combines two thunks.
 	#[test]
-	fn test_eval_semigroup() {
+	fn test_thunk_semigroup() {
 		use crate::{
 			brands::*,
 			classes::semigroup::append,
@@ -980,7 +1059,7 @@ mod tests {
 	///
 	/// Verifies that `empty` returns the identity element.
 	#[test]
-	fn test_eval_monoid() {
+	fn test_thunk_monoid() {
 		use crate::classes::monoid::empty;
 		let t: Thunk<String> = empty();
 		assert_eq!(t.evaluate(), "");
@@ -1099,5 +1178,86 @@ mod tests {
 		let a = pure::<ThunkBrand, _>(x.clone());
 		let rhs: Thunk<String> = append(a, empty());
 		rhs.evaluate() == x
+	}
+
+	// 7.1: HKT-level trait tests
+
+	/// Tests `Foldable` for `ThunkBrand` via the free function `fold_right`.
+	#[test]
+	fn test_foldable_via_brand() {
+		let thunk = pure::<ThunkBrand, _>(10);
+		let result = fold_right::<RcFnBrand, ThunkBrand, _, _>(|x, acc| x + acc, 5, thunk);
+		assert_eq!(result, 15);
+	}
+
+	/// Tests `Lift::lift2` for `ThunkBrand` via the free function.
+	#[test]
+	fn test_lift2_via_brand() {
+		let t1 = pure::<ThunkBrand, _>(10);
+		let t2 = pure::<ThunkBrand, _>(20);
+		let result = lift2::<ThunkBrand, _, _, _>(|a, b| a + b, t1, t2);
+		assert_eq!(result.evaluate(), 30);
+	}
+
+	/// Tests `Semiapplicative::apply` for `ThunkBrand` via the free function.
+	#[test]
+	fn test_apply_via_brand() {
+		let func = pure::<ThunkBrand, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		let val = pure::<ThunkBrand, _>(21);
+		let result = apply::<RcFnBrand, ThunkBrand, _, _>(func, val);
+		assert_eq!(result.evaluate(), 42);
+	}
+
+	/// Tests `Evaluable::evaluate` for `ThunkBrand` via the free function.
+	#[test]
+	fn test_evaluable_via_brand() {
+		let thunk = pure::<ThunkBrand, _>(42);
+		let result = evaluate::<ThunkBrand, _>(thunk);
+		assert_eq!(result, 42);
+	}
+
+	// 7.2: Memoize and memoize_arc tests
+
+	/// Tests that `Thunk::memoize` caches the result and does not re-run the closure.
+	#[test]
+	fn test_memoize_caching() {
+		use std::cell::Cell;
+
+		let counter = Cell::new(0usize);
+		let thunk = Thunk::new(|| {
+			counter.set(counter.get() + 1);
+			42
+		});
+		let lazy = thunk.memoize();
+
+		assert_eq!(counter.get(), 0);
+		assert_eq!(*lazy.evaluate(), 42);
+		assert_eq!(counter.get(), 1);
+		assert_eq!(*lazy.evaluate(), 42);
+		assert_eq!(counter.get(), 1);
+	}
+
+	/// Tests that `Thunk::memoize_arc` caches the result and does not re-run the closure.
+	#[test]
+	fn test_memoize_arc_caching() {
+		use std::sync::atomic::{
+			AtomicUsize,
+			Ordering,
+		};
+
+		let counter = AtomicUsize::new(0);
+		let thunk = Thunk::new(|| {
+			counter.fetch_add(1, Ordering::SeqCst);
+			42
+		});
+		let lazy = thunk.memoize_arc();
+
+		// memoize_arc evaluates eagerly because Thunk is !Send,
+		// so the counter should already be 1.
+		assert_eq!(counter.load(Ordering::SeqCst), 1);
+		assert_eq!(*lazy.evaluate(), 42);
+		assert_eq!(counter.load(Ordering::SeqCst), 1);
+		assert_eq!(*lazy.evaluate(), 42);
+		assert_eq!(counter.load(Ordering::SeqCst), 1);
 	}
 }
