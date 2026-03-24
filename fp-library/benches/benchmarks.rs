@@ -7,6 +7,8 @@ use criterion::{
 mod cat_list;
 #[path = "benchmarks/functions.rs"]
 mod functions;
+#[path = "benchmarks/lazy.rs"]
+mod lazy;
 #[path = "benchmarks/option.rs"]
 mod option;
 #[path = "benchmarks/pair.rs"]
@@ -21,6 +23,7 @@ mod vec;
 use {
 	cat_list::bench_cat_list,
 	functions::bench_functions,
+	lazy::bench_lazy,
 	option::bench_option,
 	pair::bench_pair,
 	result::bench_result,
@@ -36,6 +39,7 @@ criterion_group!(
 	bench_pair,
 	bench_string,
 	bench_functions,
-	bench_cat_list
+	bench_cat_list,
+	bench_lazy
 );
 criterion_main!(benches);
