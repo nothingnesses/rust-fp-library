@@ -14,6 +14,7 @@ The hierarchy consists of infallible computation types, fallible counterparts, a
 | `RcLazy<'a, A>` | `Rc<LazyCell<A, ...>>` | Partial (`RefFunctor`) | N/A | Yes | `'a` | No |
 | `ArcLazy<'a, A>` | `Arc<LazyLock<A, ...>>` | Partial (`SendRefFunctor`) | N/A | Yes | `'a` | Yes |
 | `TryThunk<'a, A, E>` | `Thunk<'a, Result<A, E>>` | Yes (full) | Partial (`tail_rec_m` only) | No | `'a` | No |
+| `TrySendThunk<'a, A, E>` | `SendThunk<'a, Result<A, E>>` | No | No | No | `'a` | Yes |
 | `TryTrampoline<A, E>` | `Trampoline<Result<A, E>>` | No | Yes | No | `'static` | No |
 | `RcTryLazy<'a, A, E>` | `Rc<LazyCell<Result<A, E>, ...>>` | Partial (`RefFunctor`, `Foldable`) | N/A | Yes | `'a` | No |
 | `ArcTryLazy<'a, A, E>` | `Arc<LazyLock<Result<A, E>, ...>>` | Partial (`SendRefFunctor`, `Foldable`) | N/A | Yes | `'a` | Yes |
@@ -23,8 +24,8 @@ The hierarchy consists of infallible computation types, fallible counterparts, a
 
 | Trait | Purpose | Implementors in hierarchy |
 |-------|---------|--------------------------|
-| `Deferrable<'a>` | Lazy construction from thunk | `Thunk`, `SendThunk`, `Trampoline`, `RcLazy`, `ArcLazy`, `RcTryLazy`, `ArcTryLazy`, `TryThunk`, `Free<ThunkBrand, A>` |
-| `SendDeferrable<'a>` | Thread-safe lazy construction (extends `Deferrable`) | `SendThunk`, `ArcLazy`, `ArcTryLazy` |
+| `Deferrable<'a>` | Lazy construction from thunk | `Thunk`, `SendThunk`, `Trampoline`, `RcLazy`, `ArcLazy`, `RcTryLazy`, `ArcTryLazy`, `TryThunk`, `TrySendThunk`, `Free<ThunkBrand, A>` |
+| `SendDeferrable<'a>` | Thread-safe lazy construction (extends `Deferrable`) | `SendThunk`, `TrySendThunk`, `ArcLazy`, `ArcTryLazy` |
 | `RefFunctor` | Mapping with `&A` input | `LazyBrand<RcLazyConfig>`, `TryLazyBrand<E, RcLazyConfig>` |
 | `SendRefFunctor` | Thread-safe mapping with `&A` input | `LazyBrand<ArcLazyConfig>`, `TryLazyBrand<E, ArcLazyConfig>` |
 | `LazyConfig` | Infallible memoization strategy (pointer + cell choice) | `RcLazyConfig`, `ArcLazyConfig` |

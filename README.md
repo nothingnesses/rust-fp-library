@@ -179,26 +179,31 @@ For these specific cases, the library provides `Brand` types (like `RcFnBrand` a
 
 Rust is an eagerly evaluated language. To enable functional patterns like deferred execution and safe recursion, `fp-library` provides a granular set of types that let you opt-in to specific behaviors without paying for unnecessary overhead.
 
-| Type                | Primary Use Case                                                                                                            | Stack Safe?                    | Memoized? | Lifetimes?   | HKT Traits                           |
-| :------------------ | :-------------------------------------------------------------------------------------------------------------------------- | :----------------------------- | :-------- | :----------- | :----------------------------------- |
-| **`Thunk<'a, A>`**  | **Glue Code & Borrowing.** Lightweight deferred computation. Best for short chains and working with references.             | ⚠️ Partial (`tail_rec_m` only) | ❌ No     | ✅ `'a`      | ✅ `Functor`, `Applicative`, `Monad` |
-| **`Trampoline<A>`** | **Deep Recursion & Pipelines.** Heavy-duty computation. Uses a trampoline to guarantee stack safety for infinite recursion. | ✅ Yes                         | ❌ No     | ❌ `'static` | ❌ No                                |
-| **`Lazy<'a, A>`**   | **Caching.** Wraps a computation to ensure it runs at most once.                                                            | N/A                            | ✅ Yes    | ✅ `'a`      | ✅ `RefFunctor`                      |
+| Type                   | Primary Use Case                                                                                                            | Stack Safe?                    | Memoized? | Lifetimes?   | Send? | HKT Traits                           |
+| :--------------------- | :-------------------------------------------------------------------------------------------------------------------------- | :----------------------------- | :-------- | :----------- | :---- | :----------------------------------- |
+| **`Thunk<'a, A>`**     | **Glue Code & Borrowing.** Lightweight deferred computation. Best for short chains and working with references.             | ⚠️ Partial (`tail_rec_m` only) | ❌ No     | ✅ `'a`      | ❌    | ✅ `Functor`, `Applicative`, `Monad` |
+| **`SendThunk<'a, A>`** | **Thread-Safe Glue Code.** Like `Thunk`, but the closure is `Send`. Enables truly lazy `memoize_arc()`.                     | ❌ No                          | ❌ No     | ✅ `'a`      | ✅    | ❌ No                                |
+| **`Trampoline<A>`**    | **Deep Recursion & Pipelines.** Heavy-duty computation. Uses a trampoline to guarantee stack safety for infinite recursion. | ✅ Yes                         | ❌ No     | ❌ `'static` | ❌    | ❌ No                                |
+| **`Lazy<'a, A>`**      | **Caching.** Wraps a computation to ensure it runs at most once. `RcLazy` for single-threaded, `ArcLazy` for thread-safe.   | N/A                            | ✅ Yes    | ✅ `'a`      | ⚡    | ✅ `RefFunctor`, `Foldable`          |
 
 Each of these has a fallible counterpart that wraps `Result<A, E>` with ergonomic error-handling combinators:
 
-| Type                      | Primary Use Case                                                                                                       | Stack Safe?                    | Memoized? | Lifetimes?   | HKT Traits                                              |
-| :------------------------ | :--------------------------------------------------------------------------------------------------------------------- | :----------------------------- | :-------- | :----------- | :------------------------------------------------------- |
-| **`TryThunk<'a, A, E>`**  | **Fallible Glue Code.** Lightweight deferred computation that may fail. Best for short chains with error handling.      | ⚠️ Partial (`tail_rec_m` only) | ❌ No     | ✅ `'a`      | ✅ `Functor`, `Applicative`, `Monad`, `Bifunctor`, `Foldable` |
-| **`TryTrampoline<A, E>`** | **Fallible Deep Recursion.** Stack-safe computation that may fail. Uses a trampoline for unlimited recursion depth.     | ✅ Yes                         | ❌ No     | ❌ `'static` | ❌ No                                                    |
-| **`TryLazy<'a, A, E>`**   | **Fallible Caching.** Computes a `Result` at most once and caches either the success value or error. Clones share the cache. | N/A                            | ✅ Yes    | ✅ `'a`      | ❌ No                                                    |
+| Type                         | Primary Use Case                                                                                                    | Stack Safe?                    | Memoized? | Lifetimes?   | Send? | HKT Traits                                                    |
+| :--------------------------- | :------------------------------------------------------------------------------------------------------------------ | :----------------------------- | :-------- | :----------- | :---- | :------------------------------------------------------------ |
+| **`TryThunk<'a, A, E>`**     | **Fallible Glue Code.** Lightweight deferred computation that may fail. Best for short chains with error handling.  | ⚠️ Partial (`tail_rec_m` only) | ❌ No     | ✅ `'a`      | ❌    | ✅ `Functor`, `Applicative`, `Monad`, `Bifunctor`, `Foldable` |
+| **`TrySendThunk<'a, A, E>`** | **Thread-Safe Fallible Glue Code.** Like `TryThunk`, but the closure is `Send`.                                     | ❌ No                          | ❌ No     | ✅ `'a`      | ✅    | ❌ No                                                         |
+| **`TryTrampoline<A, E>`**    | **Fallible Deep Recursion.** Stack-safe computation that may fail. Uses a trampoline for unlimited recursion depth. | ✅ Yes                         | ❌ No     | ❌ `'static` | ❌    | ❌ No                                                         |
+| **`TryLazy<'a, A, E>`**      | **Fallible Caching.** Computes a `Result` at most once and caches either the success value or error.                | N/A                            | ✅ Yes    | ✅ `'a`      | ⚡    | ✅ `RefFunctor`, `Foldable`                                   |
 
-#### The "Why" of Three Types
+> ⚡ `Send` depends on configuration: `ArcLazy`/`ArcTryLazy` are `Send + Sync`; `RcLazy`/`RcTryLazy` are not.
+
+#### The "Why" of Multiple Types
 
 Unlike lazy languages (e.g., Haskell) where the runtime handles everything, Rust requires us to choose our trade-offs:
 
 1. **`Thunk` vs `Trampoline`**: `Thunk` is faster and supports borrowing (`&'a T`). Its `tail_rec_m` is stack-safe, but deep `bind` chains will overflow the stack. `Trampoline` guarantees stack safety for all operations via a trampoline (the `Free` monad) but requires types to be `'static`. Note that `!Send` types like `Rc<T>` are fully supported. A key distinction is that `Thunk` implements `Functor`, `Applicative`, and `Monad` directly, making it suitable for generic programming, while `Trampoline` does not.
-2. **Computation vs Caching**: `Thunk` and `Trampoline` describe _computations_ that are not memoized. Each instance is consumed on `.evaluate()` (which takes `self` by value), so the computation runs exactly once per instance, but constructing a new instance re-executes the work. `Lazy`, by contrast, caches the result so that all clones share a single evaluation. If you have an expensive operation (like a DB call), convert it to a `Lazy` to guarantee it runs at most once.
+2. **`Thunk` vs `SendThunk`**: `Thunk` wraps `Box<dyn FnOnce() -> A + 'a>` and is `!Send`. `SendThunk` wraps `Box<dyn FnOnce() -> A + Send + 'a>` and can cross thread boundaries. Use `SendThunk` when you need truly lazy `memoize_arc()` (converting to `ArcLazy` without eager evaluation), or when building deferred computation chains that will be consumed on another thread. `TrySendThunk` is the fallible counterpart.
+3. **Computation vs Caching**: `Thunk` and `Trampoline` describe _computations_ that are not memoized. Each instance is consumed on `.evaluate()` (which takes `self` by value), so the computation runs exactly once per instance, but constructing a new instance re-executes the work. `Lazy`, by contrast, caches the result so that all clones share a single evaluation. If you have an expensive operation (like a DB call), convert it to a `Lazy` to guarantee it runs at most once.
 
 #### Workflow Example: Expression Evaluator
 
@@ -263,14 +268,14 @@ The library provides a parallel trait hierarchy that mirrors the sequential one.
 All `par_*` free functions accept plain `impl Fn + Send + Sync` closures: no wrapper
 types required. Element types require `A: Send`; closures require `Send + Sync`.
 
-| Parallel trait | Operations | Supertraits |
-|---|---|---|
-| `ParFunctor` | `par_map` | `Kind` |
-| `ParCompactable` | `par_compact`, `par_separate` | `Kind` |
-| `ParFilterable` | `par_filter_map`, `par_filter` | `ParFunctor + ParCompactable` |
-| `ParFoldable` | `par_fold_map` | `Kind` |
-| `ParFunctorWithIndex` | `par_map_with_index` | `ParFunctor + FunctorWithIndex` |
-| `ParFoldableWithIndex` | `par_fold_map_with_index` | `ParFoldable + FoldableWithIndex` |
+| Parallel trait         | Operations                     | Supertraits                       |
+| ---------------------- | ------------------------------ | --------------------------------- |
+| `ParFunctor`           | `par_map`                      | `Kind`                            |
+| `ParCompactable`       | `par_compact`, `par_separate`  | `Kind`                            |
+| `ParFilterable`        | `par_filter_map`, `par_filter` | `ParFunctor + ParCompactable`     |
+| `ParFoldable`          | `par_fold_map`                 | `Kind`                            |
+| `ParFunctorWithIndex`  | `par_map_with_index`           | `ParFunctor + FunctorWithIndex`   |
+| `ParFoldableWithIndex` | `par_fold_map_with_index`      | `ParFoldable + FoldableWithIndex` |
 
 `ParFilterable` provides default implementations of `par_filter_map` and `par_filter`
 derived from `par_map` + `par_compact`; types can override them for single-pass efficiency.

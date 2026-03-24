@@ -223,6 +223,11 @@ pub type RcTryLazyBrand<E> = TryLazyBrand<E, RcLazyConfig>;
 /// Brand for thread-safe [`ArcTryLazy`](crate::types::ArcTryLazy).
 pub type ArcTryLazyBrand<E> = TryLazyBrand<E, ArcLazyConfig>;
 
+/// Brand for [`TrySendThunk`](crate::types::TrySendThunk) (Bifunctor),
+/// enabling fallible deferred computation across thread boundaries.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TrySendThunkBrand;
+
 /// Brand for [`TryThunk`](crate::types::TryThunk) (Bifunctor).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryThunkBrand;

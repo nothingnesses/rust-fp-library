@@ -40,6 +40,7 @@ pub mod string;
 pub mod thunk;
 pub mod trampoline;
 pub mod try_lazy;
+pub mod try_send_thunk;
 pub mod try_thunk;
 pub mod try_trampoline;
 pub mod tuple_1;
@@ -86,6 +87,7 @@ pub use {
 		RcTryLazy,
 		TryLazy,
 	},
+	try_send_thunk::TrySendThunk,
 	try_thunk::TryThunk,
 	try_trampoline::TryTrampoline,
 };
