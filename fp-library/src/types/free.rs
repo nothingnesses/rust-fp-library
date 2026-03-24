@@ -19,8 +19,8 @@
 //!
 //! 2. **API Surface**:
 //!    * **PureScript**: Rich API including `liftF`, `hoistFree`, `resume`, `foldFree`.
-//!    * **Rust**: Focused API with construction (`pure`, `wrap`, `lift_f`, `bind`) and execution (`evaluate`).
-//!      * `resume` is missing (cannot inspect the computation step-by-step).
+//!    * **Rust**: Focused API with construction (`pure`, `wrap`, `lift_f`, `bind`), execution (`evaluate`),
+//!      introspection (`resume`), and interpretation (`fold_free`).
 //!      * `hoistFree` is missing.
 //!
 //! 3. **Terminology**:
@@ -38,7 +38,7 @@
 //!   * *Example*: You cannot easily define a `DatabaseOp` enum and interpret it differently for
 //!     production (SQL) and testing (InMemory) using this `Free` implementation, because
 //!     `DatabaseOp` must implement a single `Runnable` trait.
-//! * Inspect the structure of the computation (introspection) via `resume`.
+//!   * Note: `fold_free` with `NaturalTransformation` does support this pattern for simple cases.
 //!
 //! ### Lifetimes and Memory Management
 //!
@@ -71,6 +71,9 @@ mod inner {
 				Deferrable,
 				Evaluable,
 				Functor,
+				Monad,
+				Pointed,
+				Semimonad,
 			},
 			kinds::*,
 			types::{
@@ -84,6 +87,31 @@ mod inner {
 			marker::PhantomData,
 		},
 	};
+
+	/// A natural transformation from functor `F` to functor `G`.
+	///
+	/// This trait represents a polymorphic function that transforms `F<B>` into `G<B>`
+	/// for any type `B`. It is the Rust workaround for rank-2 polymorphism, which cannot
+	/// be expressed directly with closures.
+	///
+	/// Natural transformations are used by [`Free::fold_free`] to interpret a free monad
+	/// over functor `F` into an arbitrary monad `G`.
+	#[document_type_parameters("The source functor brand.", "The target functor brand.")]
+	pub trait NaturalTransformation<F: Functor + 'static, G: Functor + 'static> {
+		/// Applies the natural transformation to a value of type `F<B>`,
+		/// producing a value of type `G<B>`.
+		#[document_signature]
+		///
+		#[document_type_parameters("The inner type being transformed over.")]
+		///
+		#[document_parameters("The functor value to transform.")]
+		///
+		#[document_returns("The transformed value in the target functor.")]
+		fn transform<B: 'static>(
+			&self,
+			fb: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, B>),
+		) -> Apply!(<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, B>);
+	}
 
 	/// A type-erased value for internal use.
 	///
@@ -121,6 +149,18 @@ mod inner {
 		/// This variant represents a computation that is suspended in the functor `F`.
 		/// The functor contains the next step of the computation.
 		Wrap(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)),
+
+		/// A mapped computation.
+		///
+		/// This variant stores a value and a mapping function, avoiding the
+		/// type-erasure roundtrip that would occur if `map` were implemented
+		/// via `bind`. This provides a more direct path for functor mapping.
+		Map {
+			/// The inner computation whose result will be mapped.
+			value: Box<Free<F, TypeErasedValue>>,
+			/// The mapping function to apply to the result.
+			f: Box<dyn FnOnce(TypeErasedValue) -> A>,
+		},
 
 		/// A bind operation.
 		///
@@ -326,6 +366,22 @@ mod inner {
 					}))
 				}
 
+				// Map: wrap in a Bind
+				FreeInner::Map {
+					value,
+					f: map_fn,
+				} => {
+					let head = Free(Some(FreeInner::Map {
+						value,
+						f: map_fn,
+					}));
+					Free(Some(FreeInner::Bind {
+						head: head.boxed_erase_type(),
+						continuations: CatList::singleton(erased_f),
+						_marker: PhantomData,
+					}))
+				}
+
 				// Bind: snoc the new continuation onto the CatList (O(1)!)
 				FreeInner::Bind {
 					head,
@@ -336,6 +392,265 @@ mod inner {
 					continuations: conts.snoc(erased_f),
 					_marker: PhantomData,
 				})),
+			}
+		}
+
+		/// Functor map: transforms the result without changing structure.
+		///
+		/// Uses the [`Map`](FreeInner::Map) variant directly to avoid the
+		/// type-erasure overhead of going through [`bind`](Free::bind).
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the mapping function.")]
+		///
+		#[document_parameters("The function to apply to the result of this computation.")]
+		///
+		#[document_returns("A new `Free` computation with the transformed result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = Free::<ThunkBrand, _>::pure(10).map(|x| x * 2);
+		/// assert_eq!(free.evaluate(), 20);
+		/// ```
+		pub fn map<B: 'static>(
+			self,
+			f: impl FnOnce(A) -> B + 'static,
+		) -> Free<F, B> {
+			let erased_self = self.erase_type();
+			let erased_f: Box<dyn FnOnce(TypeErasedValue) -> B> =
+				Box::new(move |val: TypeErasedValue| {
+					// SAFETY: type is maintained by internal invariant - mismatch indicates a bug
+					#[allow(clippy::expect_used)]
+					let a: A = *val.downcast().expect("Type mismatch in Free::map");
+					f(a)
+				});
+			Free(Some(FreeInner::Map {
+				value: Box::new(erased_self),
+				f: erased_f,
+			}))
+		}
+
+		/// Decomposes this `Free` computation into one step.
+		///
+		/// Returns `Ok(a)` if the computation is a pure value, or
+		/// `Err(f_free)` if the computation is suspended in the functor `F`,
+		/// where `f_free` contains the next `Free` computation wrapped in `F`.
+		///
+		/// For `Bind` and `Map` variants, the continuation chain is collapsed first by
+		/// iteratively applying continuations until a `Pure` or `Wrap` is reached.
+		#[document_signature]
+		///
+		#[document_returns(
+			"`Ok(a)` if the computation is a pure value, `Err(fa)` if it is a suspended computation."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// // Pure returns Ok
+		/// let free = Free::<ThunkBrand, _>::pure(42);
+		/// assert!(matches!(free.resume(), Ok(42)));
+		///
+		/// // Wrap returns Err containing the functor layer
+		/// let free = Free::<ThunkBrand, _>::wrap(Thunk::new(|| Free::pure(99)));
+		/// assert!(free.resume().is_err());
+		/// ```
+		pub fn resume(
+			self
+		) -> Result<A, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)> {
+			// We process the bind chain iteratively, similar to evaluate,
+			// but stop when we reach a Pure or Wrap at the top level.
+			let mut current: Free<F, TypeErasedValue> = self.erase_type();
+			let mut continuations: CatList<Continuation<F>> = CatList::empty();
+
+			loop {
+				// SAFETY: Free values are used exactly once - double consumption indicates a bug
+				#[allow(clippy::expect_used)]
+				let inner = current.0.take().expect("Free value already consumed");
+
+				match inner {
+					FreeInner::Pure(val) => {
+						match continuations.uncons() {
+							Some((continuation, rest)) => {
+								current = continuation(val);
+								continuations = rest;
+							}
+							None => {
+								// No more continuations - we have a final pure value
+								// SAFETY: type is maintained by internal invariant
+								#[allow(clippy::expect_used)]
+								return Ok(*val
+									.downcast::<A>()
+									.expect("Type mismatch in Free::resume final downcast"));
+							}
+						}
+					}
+
+					FreeInner::Wrap(fa) => {
+						// We have a suspended computation. We need to rebuild the
+						// Free<F, A> from the type-erased Free<F, TypeErasedValue>
+						// by re-attaching the remaining continuations.
+						if continuations.is_empty() {
+							// No continuations to reattach; just reconstruct the typed version.
+							// fa is F<Free<F, TypeErasedValue>>. We need F<Free<F, A>>.
+							let typed_fa = F::map(
+								|inner_free: Free<F, TypeErasedValue>| {
+									// Wrap the erased free in a Bind that downcasts back to A
+									let cont: Continuation<F> =
+										Box::new(move |val: TypeErasedValue| {
+											// SAFETY: type is maintained by internal invariant
+											#[allow(clippy::expect_used)]
+											let a: A = *val
+												.downcast()
+												.expect("Type mismatch in Free::resume downcast");
+											Free::<F, A>::pure(a).erase_type()
+										});
+									Free(Some(FreeInner::Bind {
+										head: Box::new(inner_free),
+										continuations: CatList::singleton(cont),
+										_marker: PhantomData,
+									}))
+								},
+								fa,
+							);
+							return Err(typed_fa);
+						} else {
+							// There are continuations remaining. We need to attach them
+							// to the inner Free computations via map.
+							// Use Cell to move the CatList into the Fn closure (called exactly once).
+							let remaining = std::cell::Cell::new(Some(continuations));
+							let typed_fa = F::map(
+								move |inner_free: Free<F, TypeErasedValue>| {
+									// SAFETY: functors call map exactly once per element
+									#[allow(clippy::expect_used)]
+									let conts = remaining
+										.take()
+										.expect("Free::resume map called more than once");
+									// Create a Bind node that first runs inner_free,
+									// then applies the remaining continuations, then
+									// downcasts back to A.
+									let downcast_cont: Continuation<F> =
+										Box::new(move |val: TypeErasedValue| {
+											// SAFETY: type is maintained by internal invariant
+											#[allow(clippy::expect_used)]
+											let a: A = *val
+												.downcast()
+												.expect("Type mismatch in Free::resume downcast");
+											Free::<F, A>::pure(a).erase_type()
+										});
+									let all_conts = conts.snoc(downcast_cont);
+									Free(Some(FreeInner::Bind {
+										head: Box::new(inner_free),
+										continuations: all_conts,
+										_marker: PhantomData,
+									}))
+								},
+								fa,
+							);
+							return Err(typed_fa);
+						}
+					}
+
+					FreeInner::Map {
+						value,
+						f: map_fn,
+					} => {
+						// Convert the Map into a continuation and continue the loop
+						let map_cont: Continuation<F> = Box::new(move |val: TypeErasedValue| {
+							let mapped = map_fn(val);
+							Free::pure(mapped)
+						});
+						current = *value;
+						continuations = CatList::singleton(map_cont).append(continuations);
+					}
+
+					FreeInner::Bind {
+						head,
+						continuations: inner_continuations,
+						..
+					} => {
+						current = *head;
+						continuations = inner_continuations.append(continuations);
+					}
+				}
+			}
+		}
+
+		/// Interprets this `Free` monad into a target monad `G` using a natural transformation.
+		///
+		/// This is the standard `foldFree` operation from Haskell/PureScript. It recursively
+		/// processes the free structure, applying the natural transformation at each suspended
+		/// layer to convert from functor `F` into monad `G`.
+		///
+		/// For `Pure(a)`, returns `G::pure(a)`.
+		/// For `Wrap(fa)`, applies the natural transformation to get `G<Free<F, A>>`,
+		/// then binds recursively to interpret the rest.
+		#[document_signature]
+		///
+		#[document_type_parameters("The target monad brand.")]
+		///
+		#[document_parameters("The natural transformation from `F` to `G`.")]
+		///
+		#[document_returns("The result of interpreting this free computation in monad `G`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	brands::*,
+		/// 	classes::Functor,
+		/// 	kinds::*,
+		/// 	types::*,
+		/// };
+		///
+		/// // Define a natural transformation from Thunk to Option
+		/// #[derive(Clone)]
+		/// struct ThunkToOption;
+		/// impl NaturalTransformation<ThunkBrand, OptionBrand> for ThunkToOption {
+		/// 	fn transform<B: 'static>(
+		/// 		&self,
+		/// 		fb: Thunk<'static, B>,
+		/// 	) -> Option<B> {
+		/// 		Some(fb.evaluate())
+		/// 	}
+		/// }
+		///
+		/// let free = Free::<ThunkBrand, _>::pure(42);
+		/// let result: Option<i32> = free.fold_free::<OptionBrand>(ThunkToOption);
+		/// assert_eq!(result, Some(42));
+		/// ```
+		pub fn fold_free<G>(
+			self,
+			nt: impl NaturalTransformation<F, G> + Clone + 'static,
+		) -> Apply!(<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+		where
+			G: Monad + 'static, {
+			match self.resume() {
+				Ok(a) => G::pure(a),
+				Err(fa) => {
+					// fa: F<Free<F, A>>
+					// Transform F<Free<F, A>> into G<Free<F, A>> using the natural transformation
+					let nt2 = nt.clone();
+					let ga: Apply!(
+						<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>
+					) = nt.transform(fa);
+					// Bind over G to recursively fold the inner Free<F, A>
+					G::bind(ga, move |inner_free: Free<F, A>| {
+						inner_free.fold_free::<G>(nt2.clone())
+					})
+				}
 			}
 		}
 
@@ -366,6 +681,20 @@ mod inner {
 					// Map over the functor to erase the inner type
 					let erased = F::map(|inner: Free<F, A>| inner.erase_type(), fa);
 					Free(Some(FreeInner::Wrap(erased)))
+				}
+				FreeInner::Map {
+					value,
+					f: map_fn,
+				} => {
+					// Compose the map function with boxing to produce TypeErasedValue
+					let erased_f: Box<dyn FnOnce(TypeErasedValue) -> TypeErasedValue> =
+						Box::new(move |val: TypeErasedValue| {
+							Box::new(map_fn(val)) as TypeErasedValue
+						});
+					Free(Some(FreeInner::Map {
+						value,
+						f: erased_f,
+					}))
 				}
 				FreeInner::Bind {
 					head,
@@ -452,6 +781,19 @@ mod inner {
 						current = <F as Evaluable>::evaluate(fa);
 					}
 
+					FreeInner::Map {
+						value,
+						f: map_fn,
+					} => {
+						// Convert the Map into a continuation and continue the loop
+						let map_cont: Continuation<F> = Box::new(move |val: TypeErasedValue| {
+							let mapped = map_fn(val);
+							Free::pure(mapped)
+						});
+						current = *value;
+						continuations = CatList::singleton(map_cont).append(continuations);
+					}
+
 					FreeInner::Bind {
 						head,
 						continuations: inner_continuations,
@@ -491,6 +833,32 @@ mod inner {
 			// We take the inner value out.
 			let inner = self.0.take();
 
+			// Handle Map variant: take out the inner value to continue the chain.
+			if let Some(FreeInner::Map {
+				mut value, ..
+			}) = inner
+			{
+				let mut current = value.0.take();
+
+				// Walk through any nested Bind or Map chains.
+				loop {
+					match current {
+						Some(FreeInner::Bind {
+							mut head, ..
+						}) => {
+							current = head.0.take();
+						}
+						Some(FreeInner::Map {
+							mut value, ..
+						}) => {
+							current = value.0.take();
+						}
+						_ => break,
+					}
+				}
+				return;
+			}
+
 			// If the top level is a Bind, we need to start the iterative drop chain.
 			if let Some(FreeInner::Bind {
 				mut head, ..
@@ -501,11 +869,20 @@ mod inner {
 				// From now on, everything is typed as FreeInner<F, TypeEraseValue>.
 				let mut current = head.0.take();
 
-				while let Some(FreeInner::Bind {
-					mut head, ..
-				}) = current
-				{
-					current = head.0.take();
+				loop {
+					match current {
+						Some(FreeInner::Bind {
+							mut head, ..
+						}) => {
+							current = head.0.take();
+						}
+						Some(FreeInner::Map {
+							mut value, ..
+						}) => {
+							current = value.0.take();
+						}
+						_ => break,
+					}
 				}
 			}
 		}
@@ -549,7 +926,11 @@ mod tests {
 	use {
 		super::*,
 		crate::{
-			brands::ThunkBrand,
+			brands::{
+				OptionBrand,
+				ThunkBrand,
+			},
+			classes::Functor,
 			types::thunk::Thunk,
 		},
 	};
@@ -649,5 +1030,183 @@ mod tests {
 			.bind(|x| Free::<ThunkBrand, _>::lift_f(Thunk::new(move || x * 2)))
 			.bind(|x| Free::<ThunkBrand, _>::lift_f(Thunk::new(move || x + 5)));
 		assert_eq!(computation.evaluate(), 25);
+	}
+
+	/// Tests `Free::resume` on a `Pure` variant.
+	///
+	/// **What it tests:** Verifies that `resume` on a pure value returns `Ok(value)`.
+	/// **How it tests:** Creates a `Free::pure(42)` and asserts `resume()` returns `Ok(42)`.
+	#[test]
+	fn test_free_resume_pure() {
+		let free = Free::<ThunkBrand, _>::pure(42);
+		assert!(matches!(free.resume(), Ok(42)));
+	}
+
+	/// Tests `Free::resume` on a `Wrap` variant.
+	///
+	/// **What it tests:** Verifies that `resume` on a suspended computation returns `Err(functor_layer)`.
+	/// **How it tests:** Creates a `Free::wrap(...)` and asserts `resume()` returns `Err(_)`,
+	/// then evaluates the inner `Free` to verify the value is preserved.
+	#[test]
+	fn test_free_resume_wrap() {
+		let free = Free::<ThunkBrand, _>::wrap(Thunk::new(|| Free::pure(99)));
+		let result = free.resume();
+		assert!(result.is_err());
+		// Evaluate the inner thunk to verify the value
+		let thunk = result.unwrap_err();
+		let inner_free: Free<ThunkBrand, i32> = thunk.evaluate();
+		assert_eq!(inner_free.evaluate(), 99);
+	}
+
+	/// Tests `Free::resume` on a `Bind` variant.
+	///
+	/// **What it tests:** Verifies that `resume` correctly collapses bind chains.
+	/// **How it tests:** Creates a `pure(10).bind(|x| pure(x + 5))` and checks
+	/// that resume returns `Ok(15)` after collapsing the bind.
+	#[test]
+	fn test_free_resume_bind() {
+		let free = Free::<ThunkBrand, _>::pure(10).bind(|x: i32| Free::pure(x + 5));
+		assert!(matches!(free.resume(), Ok(15)));
+	}
+
+	/// Tests `Free::resume` on a `Bind` with `Wrap`.
+	///
+	/// **What it tests:** Verifies that `resume` correctly handles bind chains that end in a `Wrap`.
+	/// **How it tests:** Creates a `wrap(...).bind(...)` and checks that resume returns `Err(_)`.
+	#[test]
+	fn test_free_resume_bind_on_wrap() {
+		let free = Free::<ThunkBrand, _>::wrap(Thunk::new(|| Free::pure(10)))
+			.bind(|x: i32| Free::pure(x + 5));
+		let result = free.resume();
+		assert!(result.is_err());
+		// The inner computation, when evaluated, should produce 15
+		let thunk = result.unwrap_err();
+		let inner_free: Free<ThunkBrand, i32> = thunk.evaluate();
+		assert_eq!(inner_free.evaluate(), 15);
+	}
+
+	/// A natural transformation from `ThunkBrand` to `OptionBrand`.
+	///
+	/// Evaluates the thunk and wraps the result in `Some`.
+	#[derive(Clone)]
+	struct ThunkToOption;
+	impl NaturalTransformation<ThunkBrand, OptionBrand> for ThunkToOption {
+		fn transform<B: 'static>(
+			&self,
+			fb: Thunk<'static, B>,
+		) -> Option<B> {
+			Some(fb.evaluate())
+		}
+	}
+
+	/// Tests `Free::fold_free` on a `Pure` variant.
+	///
+	/// **What it tests:** Verifies that `fold_free` on a pure value wraps it in the target monad.
+	/// **How it tests:** Folds `Free::pure(42)` with `ThunkToOption` and asserts it returns `Some(42)`.
+	#[test]
+	fn test_free_fold_free_pure() {
+		let free = Free::<ThunkBrand, _>::pure(42);
+		let result: Option<i32> = free.fold_free::<OptionBrand>(ThunkToOption);
+		assert_eq!(result, Some(42));
+	}
+
+	/// Tests `Free::fold_free` on a suspended computation.
+	///
+	/// **What it tests:** Verifies that `fold_free` correctly interprets a computation with effects.
+	/// **How it tests:** Lifts a thunk into Free, then folds with `ThunkToOption`.
+	#[test]
+	fn test_free_fold_free_wrap() {
+		let free = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 42));
+		let result: Option<i32> = free.fold_free::<OptionBrand>(ThunkToOption);
+		assert_eq!(result, Some(42));
+	}
+
+	/// Tests `Free::fold_free` on a chained computation.
+	///
+	/// **What it tests:** Verifies that `fold_free` correctly interprets a multi-step computation.
+	/// **How it tests:** Chains several binds and folds with `ThunkToOption`.
+	#[test]
+	fn test_free_fold_free_chain() {
+		let free = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 10))
+			.bind(|x| Free::<ThunkBrand, _>::lift_f(Thunk::new(move || x * 2)))
+			.bind(|x| Free::pure(x + 5));
+		let result: Option<i32> = free.fold_free::<OptionBrand>(ThunkToOption);
+		assert_eq!(result, Some(25));
+	}
+
+	/// Tests `Free::map` on a pure value.
+	///
+	/// **What it tests:** Verifies that the `Map` variant correctly transforms a pure value.
+	/// **How it tests:** Creates `Free::pure(10).map(|x| x * 2)` and evaluates.
+	#[test]
+	fn test_free_map_pure() {
+		let free = Free::<ThunkBrand, _>::pure(10).map(|x| x * 2);
+		assert_eq!(free.evaluate(), 20);
+	}
+
+	/// Tests chained `Free::map` operations.
+	///
+	/// **What it tests:** Verifies that multiple map operations compose correctly.
+	/// **How it tests:** Chains three maps and verifies the final result.
+	#[test]
+	fn test_free_map_chain() {
+		let free = Free::<ThunkBrand, _>::pure(5).map(|x| x + 1).map(|x| x * 3).map(|x| x - 2);
+		assert_eq!(free.evaluate(), 16);
+	}
+
+	/// Tests `Free::map` on a wrapped computation.
+	///
+	/// **What it tests:** Verifies that map works on suspended computations.
+	/// **How it tests:** Wraps a thunk in Free, maps over it, and evaluates.
+	#[test]
+	fn test_free_map_wrap() {
+		let free = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 7)).map(|x| x * 3);
+		assert_eq!(free.evaluate(), 21);
+	}
+
+	/// Tests `Free::map` followed by `Free::bind`.
+	///
+	/// **What it tests:** Verifies that map and bind interoperate correctly.
+	/// **How it tests:** Maps, then binds, and checks the result.
+	#[test]
+	fn test_free_map_then_bind() {
+		let free = Free::<ThunkBrand, _>::pure(10).map(|x| x + 5).bind(|x| Free::pure(x * 2));
+		assert_eq!(free.evaluate(), 30);
+	}
+
+	/// Tests `Free::bind` followed by `Free::map`.
+	///
+	/// **What it tests:** Verifies that bind and map interoperate correctly.
+	/// **How it tests:** Binds, then maps, and checks the result.
+	#[test]
+	fn test_free_bind_then_map() {
+		let free = Free::<ThunkBrand, _>::pure(10).bind(|x| Free::pure(x + 5)).map(|x| x * 2);
+		assert_eq!(free.evaluate(), 30);
+	}
+
+	/// Tests stack safety of deep `Free::map` chains.
+	///
+	/// **What it tests:** Verifies that deeply nested map chains do not overflow the stack.
+	/// **How it tests:** Creates a chain of 10,000 map operations.
+	#[test]
+	fn test_free_map_deep_chain() {
+		let mut free = Free::<ThunkBrand, _>::pure(0i64);
+		for _ in 0 .. 10_000 {
+			free = free.map(|x| x + 1);
+		}
+		assert_eq!(free.evaluate(), 10_000);
+	}
+
+	/// Tests drop safety of deep `Free::map` chains.
+	///
+	/// **What it tests:** Verifies that dropping deeply nested map chains does not overflow the stack.
+	/// **How it tests:** Creates a deep map chain and drops it without evaluating.
+	#[test]
+	fn test_free_map_drop_safety() {
+		let mut free = Free::<ThunkBrand, _>::pure(0i64);
+		for _ in 0 .. 10_000 {
+			free = free.map(|x| x + 1);
+		}
+		drop(free);
 	}
 }

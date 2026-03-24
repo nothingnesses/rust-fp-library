@@ -225,7 +225,7 @@ mod inner {
 			self,
 			f: impl FnOnce(A) -> B + 'static,
 		) -> Trampoline<B> {
-			self.bind(move |a| Trampoline::pure(f(a)))
+			Trampoline(self.0.map(f))
 		}
 
 		/// Forces evaluation and returns the result.

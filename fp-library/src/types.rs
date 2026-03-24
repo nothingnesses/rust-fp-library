@@ -54,7 +54,10 @@ pub use {
 	endofunction::Endofunction,
 	endomorphism::Endomorphism,
 	first::First,
-	free::Free,
+	free::{
+		Free,
+		NaturalTransformation,
+	},
 	identity::Identity,
 	last::Last,
 	lazy::{
