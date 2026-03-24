@@ -96,10 +96,6 @@ mod inner {
 		}
 
 		/// Returns a pure value (already computed).
-		#[deprecated(
-			since = "0.14.0",
-			note = "Use `ok` instead for consistency with TryTrampoline and TryLazy"
-		)]
 		#[document_signature]
 		///
 		#[document_parameters("The value to wrap.")]
@@ -111,7 +107,6 @@ mod inner {
 		/// ```
 		/// use fp_library::types::*;
 		///
-		/// #[allow(deprecated)]
 		/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(42);
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```

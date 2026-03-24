@@ -952,7 +952,6 @@ mod tests {
 				OptionBrand,
 				ThunkBrand,
 			},
-			classes::Functor,
 			types::thunk::Thunk,
 		},
 	};
