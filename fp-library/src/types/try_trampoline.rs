@@ -60,6 +60,46 @@ mod inner {
 			TryTrampoline(Trampoline::pure(Ok(a)))
 		}
 
+		/// Creates a successful `TryTrampoline`.
+		///
+		/// This is an alias for [`ok`](TryTrampoline::ok), provided for consistency
+		/// with other types in the library.
+		#[document_signature]
+		///
+		#[document_parameters("The success value.")]
+		///
+		#[document_returns("A `TryTrampoline` representing success.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task: TryTrampoline<i32, String> = TryTrampoline::pure(42);
+		/// assert_eq!(task.evaluate(), Ok(42));
+		/// ```
+		pub fn pure(a: A) -> Self {
+			Self::ok(a)
+		}
+
+		/// Unwraps the newtype to expose the inner `Trampoline<Result<A, E>>`.
+		#[document_signature]
+		///
+		#[document_returns("The inner `Trampoline<Result<A, E>>`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
+		/// let inner: Trampoline<Result<i32, String>> = task.into_trampoline();
+		/// assert_eq!(inner.evaluate(), Ok(42));
+		/// ```
+		pub fn into_trampoline(self) -> Trampoline<Result<A, E>> {
+			self.0
+		}
+
 		/// Creates a failed `TryTrampoline`.
 		#[document_signature]
 		///
@@ -443,6 +483,25 @@ mod tests {
 	fn test_try_task_new() {
 		let task: TryTrampoline<i32, String> = TryTrampoline::new(|| Ok(42));
 		assert_eq!(task.evaluate(), Ok(42));
+	}
+
+	/// Tests `TryTrampoline::pure`.
+	///
+	/// Verifies that `pure` creates a successful task.
+	#[test]
+	fn test_try_trampoline_pure() {
+		let task: TryTrampoline<i32, String> = TryTrampoline::pure(42);
+		assert_eq!(task.evaluate(), Ok(42));
+	}
+
+	/// Tests `TryTrampoline::into_trampoline`.
+	///
+	/// Verifies that `into_trampoline` unwraps the newtype.
+	#[test]
+	fn test_try_trampoline_into_trampoline() {
+		let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
+		let inner: Trampoline<Result<i32, String>> = task.into_trampoline();
+		assert_eq!(inner.evaluate(), Ok(42));
 	}
 
 	/// Tests `From<Trampoline>`.
