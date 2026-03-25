@@ -1652,4 +1652,53 @@ mod tests {
 		let via_map_err = TryTrampoline::<i32, i32>::err(e).map_err(g).evaluate();
 		via_bimap == via_map_err
 	}
+
+	// into_rc_try_lazy / into_arc_try_lazy tests
+
+	/// Tests `TryTrampoline::into_rc_try_lazy` with a successful computation.
+	///
+	/// Verifies that the returned `RcTryLazy` evaluates to the same result and
+	/// memoizes it (the computation runs at most once).
+	#[test]
+	fn test_into_rc_try_lazy_ok() {
+		let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
+		let lazy = task.into_rc_try_lazy();
+		assert_eq!(lazy.evaluate(), Ok(&42));
+		// Second access returns the cached value.
+		assert_eq!(lazy.evaluate(), Ok(&42));
+	}
+
+	/// Tests `TryTrampoline::into_rc_try_lazy` with a failed computation.
+	///
+	/// Verifies that the returned `RcTryLazy` memoizes the error result.
+	#[test]
+	fn test_into_rc_try_lazy_err() {
+		let task: TryTrampoline<i32, String> = TryTrampoline::err("oops".to_string());
+		let lazy = task.into_rc_try_lazy();
+		assert_eq!(lazy.evaluate(), Err(&"oops".to_string()));
+	}
+
+	/// Tests `TryTrampoline::into_arc_try_lazy` with a successful computation.
+	///
+	/// Verifies that the returned `ArcTryLazy` evaluates to the same result.
+	/// `into_arc_try_lazy` evaluates eagerly because the inner closures are not
+	/// `Send`, so the result is stored immediately.
+	#[test]
+	fn test_into_arc_try_lazy_ok() {
+		let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
+		let lazy = task.into_arc_try_lazy();
+		assert_eq!(lazy.evaluate(), Ok(&42));
+		// Second access returns the cached value.
+		assert_eq!(lazy.evaluate(), Ok(&42));
+	}
+
+	/// Tests `TryTrampoline::into_arc_try_lazy` with a failed computation.
+	///
+	/// Verifies that the returned `ArcTryLazy` memoizes the error result.
+	#[test]
+	fn test_into_arc_try_lazy_err() {
+		let task: TryTrampoline<i32, String> = TryTrampoline::err("oops".to_string());
+		let lazy = task.into_arc_try_lazy();
+		assert_eq!(lazy.evaluate(), Err(&"oops".to_string()));
+	}
 }

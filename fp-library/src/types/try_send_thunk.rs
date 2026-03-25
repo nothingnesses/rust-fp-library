@@ -729,6 +729,39 @@ mod inner {
 		"The type of the success value.",
 		"The type of the error value."
 	)]
+	impl<'a, A: 'a, E: 'a> From<ArcTryLazy<'a, A, E>> for TrySendThunk<'a, A, E>
+	where
+		A: Clone + Send,
+		E: Clone + Send,
+	{
+		/// Converts an [`ArcTryLazy`] into a [`TrySendThunk`] by cloning the
+		/// memoized result.
+		///
+		/// The `ArcTryLazy` is evaluated (forcing memoization), and the result
+		/// is cloned into a new `TrySendThunk`. This conversion requires both
+		/// `A` and `E` to implement [`Clone`] and [`Send`].
+		#[document_signature]
+		#[document_parameters("The thread-safe fallible lazy value to convert.")]
+		#[document_returns("A new `TrySendThunk` wrapping the cloned result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let lazy: ArcTryLazy<i32, ()> = ArcTryLazy::new(|| Ok(42));
+		/// let thunk: TrySendThunk<i32, ()> = TrySendThunk::from(lazy);
+		/// assert_eq!(thunk.evaluate(), Ok(42));
+		/// ```
+		fn from(lazy: ArcTryLazy<'a, A, E>) -> Self {
+			let result = lazy.evaluate().map(Clone::clone).map_err(Clone::clone);
+			TrySendThunk::new(move || result)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the success value.",
+		"The type of the error value."
+	)]
 	impl<'a, A, E> Deferrable<'a> for TrySendThunk<'a, A, E>
 	where
 		A: 'a,
@@ -825,10 +858,10 @@ mod inner {
 			a: Self,
 			b: Self,
 		) -> Self {
-			TrySendThunk::new(move || match (a.evaluate(), b.evaluate()) {
-				(Ok(a_val), Ok(b_val)) => Ok(Semigroup::append(a_val, b_val)),
-				(Err(e), _) => Err(e),
-				(_, Err(e)) => Err(e),
+			TrySendThunk::new(move || {
+				let a_val = a.evaluate()?;
+				let b_val = b.evaluate()?;
+				Ok(Semigroup::append(a_val, b_val))
 			})
 		}
 	}
@@ -1172,5 +1205,81 @@ mod tests {
 		use crate::classes::SendDeferrable;
 		let t: TrySendThunk<i32, ()> = SendDeferrable::send_defer(|| TrySendThunk::ok(42));
 		assert_eq!(t.evaluate(), Ok(42));
+	}
+
+	/// Tests that `catch` propagates a replacement error when recovery also fails.
+	#[test]
+	fn test_catch_recovery_fails() {
+		let t: TrySendThunk<i32, &str> =
+			TrySendThunk::err("first").catch(|_| TrySendThunk::err("second"));
+		assert_eq!(t.evaluate(), Err("second"));
+	}
+
+	/// Tests `bimap` applies both the success and error transformations simultaneously.
+	///
+	/// Verifies that `bimap(f, g)` applies `f` to the success value and `g` to the
+	/// error value depending on which path is taken.
+	#[test]
+	fn test_bimap_both_paths() {
+		let ok: TrySendThunk<i32, i32> = TrySendThunk::ok(10);
+		let ok_result = ok.bimap(|s| s + 5, |e| e * 3);
+		assert_eq!(ok_result.evaluate(), Ok(15));
+
+		let err: TrySendThunk<i32, i32> = TrySendThunk::err(10);
+		let err_result = err.bimap(|s| s + 5, |e| e * 3);
+		assert_eq!(err_result.evaluate(), Err(30));
+	}
+
+	/// Tests that `Semigroup::append` short-circuits when the first operand is `Err`.
+	///
+	/// The second operand must NOT be evaluated when the first is already `Err`.
+	#[test]
+	fn test_semigroup_append_first_err_short_circuits() {
+		use std::sync::{
+			Arc,
+			atomic::{
+				AtomicU32,
+				Ordering,
+			},
+		};
+
+		let counter = Arc::new(AtomicU32::new(0));
+		let counter_clone = counter.clone();
+
+		let t1: TrySendThunk<String, &str> = TrySendThunk::err("fail");
+		let t2: TrySendThunk<String, &str> = TrySendThunk::new(move || {
+			counter_clone.fetch_add(1, Ordering::SeqCst);
+			Ok("world".to_string())
+		});
+		let t3 = append(t1, t2);
+		assert_eq!(t3.evaluate(), Err("fail"));
+		assert_eq!(counter.load(Ordering::SeqCst), 0, "second operand should not be evaluated");
+	}
+
+	/// Tests that `Semigroup::append` propagates an error from the second operand.
+	#[test]
+	fn test_semigroup_append_second_err() {
+		let t1: TrySendThunk<String, &str> = TrySendThunk::ok("hello".to_string());
+		let t2: TrySendThunk<String, &str> = TrySendThunk::err("fail");
+		let t3 = append(t1, t2);
+		assert_eq!(t3.evaluate(), Err("fail"));
+	}
+
+	/// Tests `From<ArcTryLazy>` with a successful lazy value.
+	#[test]
+	fn test_from_arc_try_lazy() {
+		use crate::types::ArcTryLazy;
+		let lazy: ArcTryLazy<i32, ()> = ArcTryLazy::new(|| Ok(42));
+		let thunk: TrySendThunk<i32, ()> = TrySendThunk::from(lazy);
+		assert_eq!(thunk.evaluate(), Ok(42));
+	}
+
+	/// Tests `From<ArcTryLazy>` with a failed lazy value.
+	#[test]
+	fn test_from_arc_try_lazy_err() {
+		use crate::types::ArcTryLazy;
+		let lazy: ArcTryLazy<i32, String> = ArcTryLazy::new(|| Err("error".to_string()));
+		let thunk: TrySendThunk<i32, String> = TrySendThunk::from(lazy);
+		assert_eq!(thunk.evaluate(), Err("error".to_string()));
 	}
 }

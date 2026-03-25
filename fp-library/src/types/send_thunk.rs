@@ -523,4 +523,34 @@ mod tests {
 		let task: SendThunk<i32> = SendDeferrable::send_defer(|| SendThunk::pure(42));
 		assert_eq!(task.evaluate(), 42);
 	}
+
+	/// Tests that a `SendThunk` can be sent to another thread and evaluated there.
+	///
+	/// Verifies that `SendThunk` satisfies the `Send` bound by moving it across a
+	/// thread boundary via `std::thread::spawn`.
+	#[test]
+	fn test_send_thunk_cross_thread() {
+		let thunk = SendThunk::new(|| 42 * 2);
+		let handle = std::thread::spawn(move || thunk.evaluate());
+		let result = handle.join().expect("thread should not panic");
+		assert_eq!(result, 84);
+	}
+
+	/// Tests that a mapped `SendThunk` evaluates correctly on another thread.
+	#[test]
+	fn test_send_thunk_cross_thread_with_map() {
+		let thunk = SendThunk::pure(10).map(|x| x + 5).map(|x| x * 3);
+		let handle = std::thread::spawn(move || thunk.evaluate());
+		let result = handle.join().expect("thread should not panic");
+		assert_eq!(result, 45);
+	}
+
+	/// Tests that a bound `SendThunk` evaluates correctly on another thread.
+	#[test]
+	fn test_send_thunk_cross_thread_with_bind() {
+		let thunk = SendThunk::pure(7).bind(|x| SendThunk::pure(x * 6));
+		let handle = std::thread::spawn(move || thunk.evaluate());
+		let result = handle.join().expect("thread should not panic");
+		assert_eq!(result, 42);
+	}
 }
