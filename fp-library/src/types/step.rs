@@ -75,9 +75,9 @@ mod inner {
 	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 	#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 	pub enum Step<A, B> {
-		/// Continue the loop with a new value
+		/// Continue the loop with a new value.
 		Loop(A),
-		/// Finish the computation with a final value
+		/// Finish the computation with a final value.
 		Done(B),
 	}
 
@@ -1772,6 +1772,64 @@ mod inner {
 			}
 		}
 	}
+
+	// Conversions: Step <-> Result
+
+	/// Converts a [`Result`] into a [`Step`].
+	///
+	/// [`Ok(b)`] becomes [`Step::Done(b)`] and [`Err(a)`] becomes [`Step::Loop(a)`].
+	#[document_type_parameters("The loop type (error type).", "The done type (ok type).")]
+	impl<A, B> From<Result<B, A>> for Step<A, B> {
+		fn from(result: Result<B, A>) -> Self {
+			match result {
+				Ok(b) => Step::Done(b),
+				Err(a) => Step::Loop(a),
+			}
+		}
+	}
+
+	/// Converts a [`Step`] into a [`Result`].
+	///
+	/// [`Step::Done(b)`] becomes [`Ok(b)`] and [`Step::Loop(a)`] becomes [`Err(a)`].
+	#[document_type_parameters("The loop type (error type).", "The done type (ok type).")]
+	impl<A, B> From<Step<A, B>> for Result<B, A> {
+		fn from(step: Step<A, B>) -> Self {
+			match step {
+				Step::Done(b) => Ok(b),
+				Step::Loop(a) => Err(a),
+			}
+		}
+	}
+
+	// Conversions: Step <-> ControlFlow
+
+	/// Converts a [`core::ops::ControlFlow`] into a [`Step`].
+	///
+	/// [`ControlFlow::Break(b)`] becomes [`Step::Done(b)`] and
+	/// [`ControlFlow::Continue(a)`] becomes [`Step::Loop(a)`].
+	#[document_type_parameters("The loop type (continue type).", "The done type (break type).")]
+	impl<A, B> From<core::ops::ControlFlow<B, A>> for Step<A, B> {
+		fn from(cf: core::ops::ControlFlow<B, A>) -> Self {
+			match cf {
+				core::ops::ControlFlow::Break(b) => Step::Done(b),
+				core::ops::ControlFlow::Continue(a) => Step::Loop(a),
+			}
+		}
+	}
+
+	/// Converts a [`Step`] into a [`core::ops::ControlFlow`].
+	///
+	/// [`Step::Done(b)`] becomes [`ControlFlow::Break(b)`] and
+	/// [`Step::Loop(a)`] becomes [`ControlFlow::Continue(a)`].
+	#[document_type_parameters("The loop type (continue type).", "The done type (break type).")]
+	impl<A, B> From<Step<A, B>> for core::ops::ControlFlow<B, A> {
+		fn from(step: Step<A, B>) -> Self {
+			match step {
+				Step::Done(b) => core::ops::ControlFlow::Break(b),
+				Step::Loop(a) => core::ops::ControlFlow::Continue(a),
+			}
+		}
+	}
 }
 pub use inner::*;
 
@@ -2250,5 +2308,108 @@ mod tests {
 			== bind::<StepDoneAppliedBrand<i32>, _, _>(x, |a| {
 				bind::<StepDoneAppliedBrand<i32>, _, _>(f(a), g)
 			})
+	}
+
+	// Applicative and Monad marker trait verification
+
+	/// Verifies that `StepLoopAppliedBrand` satisfies the `Applicative` trait.
+	#[test]
+	fn test_applicative_step_loop_applied() {
+		fn assert_applicative<B: crate::classes::Applicative>() {}
+		assert_applicative::<StepLoopAppliedBrand<i32>>();
+	}
+
+	/// Verifies that `StepDoneAppliedBrand` satisfies the `Applicative` trait.
+	#[test]
+	fn test_applicative_step_done_applied() {
+		fn assert_applicative<B: crate::classes::Applicative>() {}
+		assert_applicative::<StepDoneAppliedBrand<i32>>();
+	}
+
+	/// Verifies that `StepLoopAppliedBrand` satisfies the `Monad` trait.
+	#[test]
+	fn test_monad_step_loop_applied() {
+		fn assert_monad<B: crate::classes::Monad>() {}
+		assert_monad::<StepLoopAppliedBrand<i32>>();
+	}
+
+	/// Verifies that `StepDoneAppliedBrand` satisfies the `Monad` trait.
+	#[test]
+	fn test_monad_step_done_applied() {
+		fn assert_monad<B: crate::classes::Monad>() {}
+		assert_monad::<StepDoneAppliedBrand<i32>>();
+	}
+
+	// Conversion Tests: Step <-> Result
+
+	/// Tests converting `Result` to `Step`.
+	#[test]
+	fn test_from_result_to_step() {
+		let ok: Result<i32, &str> = Ok(42);
+		assert_eq!(Step::from(ok), Step::Done(42));
+
+		let err: Result<i32, &str> = Err("error");
+		assert_eq!(Step::from(err), Step::Loop("error"));
+	}
+
+	/// Tests converting `Step` to `Result`.
+	#[test]
+	fn test_from_step_to_result() {
+		let done: Step<&str, i32> = Step::Done(42);
+		assert_eq!(Result::from(done), Ok(42));
+
+		let loop_step: Step<&str, i32> = Step::Loop("error");
+		assert_eq!(Result::from(loop_step), Err("error"));
+	}
+
+	/// Property: `Step -> Result -> Step` round-trips.
+	#[quickcheck]
+	fn step_result_roundtrip(x: Step<i32, i32>) -> bool {
+		let result: Result<i32, i32> = Result::from(x);
+		Step::from(result) == x
+	}
+
+	/// Property: `Result -> Step -> Result` round-trips.
+	#[quickcheck]
+	fn result_step_roundtrip(
+		ok: bool,
+		val: i32,
+	) -> bool {
+		let result: Result<i32, i32> = if ok { Ok(val) } else { Err(val) };
+		let step: Step<i32, i32> = Step::from(result);
+		Result::from(step) == result
+	}
+
+	// Conversion Tests: Step <-> ControlFlow
+
+	/// Tests converting `ControlFlow` to `Step`.
+	#[test]
+	fn test_from_control_flow_to_step() {
+		use core::ops::ControlFlow;
+
+		let brk: ControlFlow<i32, &str> = ControlFlow::Break(42);
+		assert_eq!(Step::from(brk), Step::Done(42));
+
+		let cont: ControlFlow<i32, &str> = ControlFlow::Continue("again");
+		assert_eq!(Step::from(cont), Step::Loop("again"));
+	}
+
+	/// Tests converting `Step` to `ControlFlow`.
+	#[test]
+	fn test_from_step_to_control_flow() {
+		use core::ops::ControlFlow;
+
+		let done: Step<&str, i32> = Step::Done(42);
+		assert_eq!(ControlFlow::from(done), ControlFlow::Break(42));
+
+		let loop_step: Step<&str, i32> = Step::Loop("again");
+		assert_eq!(ControlFlow::from(loop_step), ControlFlow::Continue("again"));
+	}
+
+	/// Property: `Step -> ControlFlow -> Step` round-trips.
+	#[quickcheck]
+	fn step_control_flow_roundtrip(x: Step<i32, i32>) -> bool {
+		let cf: core::ops::ControlFlow<i32, i32> = core::ops::ControlFlow::from(x);
+		Step::from(cf) == x
 	}
 }
