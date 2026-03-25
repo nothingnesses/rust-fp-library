@@ -346,6 +346,46 @@ mod inner {
 			}))
 		}
 
+		/// Recovers from an error using a fallible recovery function that may produce a different error type.
+		///
+		/// Unlike [`catch`](TryTrampoline::catch), `catch_with` allows the recovery function to return a
+		/// `TryTrampoline` with a different error type `E2`. On success, the value is passed through
+		/// unchanged. On failure, the recovery function is applied to the error value and its result
+		/// is evaluated.
+		#[document_signature]
+		///
+		#[document_type_parameters("The error type produced by the recovery computation.")]
+		///
+		#[document_parameters("The monadic recovery function applied to the error value.")]
+		///
+		#[document_returns(
+			"A new `TryTrampoline` that either passes through the success value or uses the result of the recovery computation."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let recovered: TryTrampoline<i32, i32> =
+		/// 	TryTrampoline::<i32, &str>::err("error").catch_with(|_| TryTrampoline::err(42));
+		/// assert_eq!(recovered.evaluate(), Err(42));
+		///
+		/// let ok: TryTrampoline<i32, i32> =
+		/// 	TryTrampoline::<i32, &str>::ok(1).catch_with(|_| TryTrampoline::err(42));
+		/// assert_eq!(ok.evaluate(), Ok(1));
+		/// ```
+		#[inline]
+		pub fn catch_with<E2: 'static>(
+			self,
+			f: impl FnOnce(E) -> TryTrampoline<A, E2> + 'static,
+		) -> TryTrampoline<A, E2> {
+			TryTrampoline(Trampoline::new(move || match self.evaluate() {
+				Ok(a) => Ok(a),
+				Err(e) => f(e).evaluate(),
+			}))
+		}
+
 		/// Combines two `TryTrampoline`s, running both and combining results.
 		///
 		/// Short-circuits on error: if `self` fails, `other` is never evaluated.
@@ -571,11 +611,11 @@ mod inner {
 		/// use fp_library::types::*;
 		///
 		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
-		/// let lazy = task.memoize();
+		/// let lazy = task.into_rc_try_lazy();
 		/// assert_eq!(lazy.evaluate(), Ok(&42));
 		/// ```
 		#[inline]
-		pub fn memoize(self) -> crate::types::RcTryLazy<'static, A, E> {
+		pub fn into_rc_try_lazy(self) -> crate::types::RcTryLazy<'static, A, E> {
 			crate::types::RcTryLazy::from(self)
 		}
 
@@ -593,11 +633,11 @@ mod inner {
 		/// use fp_library::types::*;
 		///
 		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
-		/// let lazy = task.memoize_arc();
+		/// let lazy = task.into_arc_try_lazy();
 		/// assert_eq!(lazy.evaluate(), Ok(&42));
 		/// ```
 		#[inline]
-		pub fn memoize_arc(self) -> crate::types::ArcTryLazy<'static, A, E>
+		pub fn into_arc_try_lazy(self) -> crate::types::ArcTryLazy<'static, A, E>
 		where
 			A: Send + Sync,
 			E: Send + Sync, {
@@ -1008,6 +1048,26 @@ mod tests {
 		let task: TryTrampoline<i32, String> =
 			TryTrampoline::err("error".to_string()).catch(|_| TryTrampoline::ok(42));
 		assert_eq!(task.evaluate(), Ok(42));
+	}
+
+	/// Tests `TryTrampoline::catch_with`.
+	///
+	/// Verifies that `catch_with` recovers from failure using a different error type.
+	#[test]
+	fn test_catch_with_recovers() {
+		let task: TryTrampoline<i32, i32> = TryTrampoline::<i32, String>::err("error".to_string())
+			.catch_with(|_| TryTrampoline::err(42));
+		assert_eq!(task.evaluate(), Err(42));
+	}
+
+	/// Tests `TryTrampoline::catch_with` when the computation succeeds.
+	///
+	/// Verifies that success values pass through unchanged.
+	#[test]
+	fn test_catch_with_success_passes_through() {
+		let task: TryTrampoline<i32, i32> =
+			TryTrampoline::<i32, String>::ok(1).catch_with(|_| TryTrampoline::err(42));
+		assert_eq!(task.evaluate(), Ok(1));
 	}
 
 	/// Tests `TryTrampoline::new`.

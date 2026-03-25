@@ -2,7 +2,7 @@
 //!
 //! Like [`Thunk`](crate::types::Thunk) but with a `Send` bound on the inner closure,
 //! enabling thread-safe deferred computation chains and truly lazy
-//! [`memoize_arc`](SendThunk::memoize_arc) without eager evaluation.
+//! [`into_arc_lazy`](SendThunk::into_arc_lazy) without eager evaluation.
 //!
 //! Standard HKT traits (`Functor`, `Semimonad`, etc.) cannot be implemented because
 //! their signatures do not require `Send` on mapping functions. Use the inherent
@@ -38,7 +38,7 @@ mod inner {
 	/// `Box<dyn FnOnce() -> A + Send + 'a>`, so it can be transferred across thread
 	/// boundaries. Like `Thunk`, it is NOT memoized and does not cache results.
 	///
-	/// The key advantage over `Thunk` is that [`memoize_arc`](SendThunk::memoize_arc)
+	/// The key advantage over `Thunk` is that [`into_arc_lazy`](SendThunk::into_arc_lazy)
 	/// can wrap the closure lazily in an [`ArcLazy`] without forcing evaluation
 	/// first, because the inner closure satisfies `Send`.
 	///
@@ -223,7 +223,7 @@ mod inner {
 
 		/// Converts this `SendThunk` into a memoized [`ArcLazy`] value.
 		///
-		/// Unlike [`Thunk::memoize_arc`](crate::types::Thunk::memoize_arc), this
+		/// Unlike [`Thunk::into_arc_lazy`](crate::types::Thunk::into_arc_lazy), this
 		/// does **not** evaluate eagerly. The inner `Send` closure is passed
 		/// directly into `ArcLazy::new`, so evaluation is deferred until the
 		/// `ArcLazy` is first accessed.
@@ -237,11 +237,11 @@ mod inner {
 		/// use fp_library::types::*;
 		///
 		/// let thunk = SendThunk::new(|| 42);
-		/// let lazy = thunk.memoize_arc();
+		/// let lazy = thunk.into_arc_lazy();
 		/// assert_eq!(*lazy.evaluate(), 42);
 		/// ```
 		#[inline]
-		pub fn memoize_arc(self) -> ArcLazy<'a, A> {
+		pub fn into_arc_lazy(self) -> ArcLazy<'a, A> {
 			Lazy::<'a, A, ArcLazyConfig>::new(move || self.evaluate())
 		}
 	}
@@ -469,9 +469,9 @@ mod tests {
 	}
 
 	#[test]
-	fn test_send_thunk_memoize_arc() {
+	fn test_send_thunk_into_arc_lazy() {
 		let thunk = SendThunk::new(|| 42);
-		let lazy = thunk.memoize_arc();
+		let lazy = thunk.into_arc_lazy();
 		assert_eq!(*lazy.evaluate(), 42);
 		// Second access returns cached value.
 		assert_eq!(*lazy.evaluate(), 42);

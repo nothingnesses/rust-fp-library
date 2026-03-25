@@ -1407,7 +1407,9 @@ mod tests {
 		let lhs = Free::<ThunkBrand, _>::pure(10).bind(f).bind(g).bind(h).evaluate();
 
 		// m >>= (\x -> f(x) >>= (\y -> g(y) >>= h))
-		let rhs = Free::<ThunkBrand, _>::pure(10).bind(move |x| f(x).bind(move |y| g(y).bind(h))).evaluate();
+		let rhs = Free::<ThunkBrand, _>::pure(10)
+			.bind(move |x| f(x).bind(move |y| g(y).bind(h)))
+			.evaluate();
 
 		assert_eq!(lhs, rhs);
 		assert_eq!(lhs, 19); // ((10 + 1) * 2) - 3

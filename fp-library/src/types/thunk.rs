@@ -46,7 +46,7 @@ mod inner {
 	///
 	/// `Thunk` is NOT memoized and does not cache results. Since [`evaluate`](Thunk::evaluate) takes
 	/// `self` by value, a `Thunk` can only be evaluated once. If you need the result more than once,
-	/// wrap it in [`Lazy`](crate::types::Lazy) via [`memoize`](Thunk::memoize).
+	/// wrap it in [`Lazy`](crate::types::Lazy) via [`into_rc_lazy`](Thunk::into_rc_lazy).
 	///
 	/// Unlike [`Trampoline`](crate::types::Trampoline), `Thunk` does NOT require `'static` and CAN implement
 	/// HKT traits like [`Functor`], [`Semimonad`], etc.
@@ -295,11 +295,11 @@ mod inner {
 		/// use fp_library::types::*;
 		///
 		/// let thunk = Thunk::new(|| 42);
-		/// let lazy = thunk.memoize();
+		/// let lazy = thunk.into_rc_lazy();
 		/// assert_eq!(*lazy.evaluate(), 42);
 		/// ```
 		#[inline]
-		pub fn memoize(self) -> Lazy<'a, A, RcLazyConfig> {
+		pub fn into_rc_lazy(self) -> Lazy<'a, A, RcLazyConfig> {
 			Lazy::from(self)
 		}
 
@@ -317,11 +317,11 @@ mod inner {
 		/// use fp_library::types::*;
 		///
 		/// let thunk = Thunk::new(|| 42);
-		/// let lazy = thunk.memoize_arc();
+		/// let lazy = thunk.into_arc_lazy();
 		/// assert_eq!(*lazy.evaluate(), 42);
 		/// ```
 		#[inline]
-		pub fn memoize_arc(self) -> Lazy<'a, A, ArcLazyConfig>
+		pub fn into_arc_lazy(self) -> Lazy<'a, A, ArcLazyConfig>
 		where
 			A: Send + Sync + 'a, {
 			let val = self.evaluate();
@@ -1271,9 +1271,9 @@ mod tests {
 		assert_eq!(result, 42);
 	}
 
-	// 7.2: Memoize and memoize_arc tests
+	// 7.2: into_rc_lazy and into_arc_lazy tests
 
-	/// Tests that `Thunk::memoize` caches the result and does not re-run the closure.
+	/// Tests that `Thunk::into_rc_lazy` caches the result and does not re-run the closure.
 	#[test]
 	fn test_memoize_caching() {
 		use std::cell::Cell;
@@ -1283,7 +1283,7 @@ mod tests {
 			counter.set(counter.get() + 1);
 			42
 		});
-		let lazy = thunk.memoize();
+		let lazy = thunk.into_rc_lazy();
 
 		assert_eq!(counter.get(), 0);
 		assert_eq!(*lazy.evaluate(), 42);
@@ -1292,7 +1292,7 @@ mod tests {
 		assert_eq!(counter.get(), 1);
 	}
 
-	/// Tests that `Thunk::memoize_arc` caches the result and does not re-run the closure.
+	/// Tests that `Thunk::into_arc_lazy` caches the result and does not re-run the closure.
 	#[test]
 	fn test_memoize_arc_caching() {
 		use std::sync::atomic::{
@@ -1305,9 +1305,9 @@ mod tests {
 			counter.fetch_add(1, Ordering::SeqCst);
 			42
 		});
-		let lazy = thunk.memoize_arc();
+		let lazy = thunk.into_arc_lazy();
 
-		// memoize_arc evaluates eagerly because Thunk is !Send,
+		// into_arc_lazy evaluates eagerly because Thunk is !Send,
 		// so the counter should already be 1.
 		assert_eq!(counter.load(Ordering::SeqCst), 1);
 		assert_eq!(*lazy.evaluate(), 42);

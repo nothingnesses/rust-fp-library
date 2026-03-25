@@ -1545,7 +1545,10 @@ mod inner {
 	#[document_examples]
 	///
 	/// ```
-	/// use fp_library::types::{*, lazy::rc_lazy_fix};
+	/// use fp_library::types::{
+	/// 	lazy::rc_lazy_fix,
+	/// 	*,
+	/// };
 	///
 	/// let lazy = rc_lazy_fix(|_self_ref: RcLazy<i32>| 42);
 	/// assert_eq!(*lazy.evaluate(), 42);
@@ -1586,7 +1589,10 @@ mod inner {
 	#[document_examples]
 	///
 	/// ```
-	/// use fp_library::types::{*, lazy::arc_lazy_fix};
+	/// use fp_library::types::{
+	/// 	lazy::arc_lazy_fix,
+	/// 	*,
+	/// };
 	///
 	/// let lazy = arc_lazy_fix(|_self_ref: ArcLazy<i32>| 42);
 	/// assert_eq!(*lazy.evaluate(), 42);

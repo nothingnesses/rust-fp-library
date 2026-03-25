@@ -331,6 +331,45 @@ mod inner {
 			}))
 		}
 
+		/// Recovers from an error using a fallible recovery function that may produce a different error type.
+		///
+		/// Unlike [`catch`](TryThunk::catch), `catch_with` allows the recovery function to return a
+		/// `TryThunk` with a different error type `E2`. On success, the value is passed through
+		/// unchanged. On failure, the recovery function is applied to the error value and its result
+		/// is evaluated.
+		#[document_signature]
+		///
+		#[document_type_parameters("The error type produced by the recovery computation.")]
+		///
+		#[document_parameters("The monadic recovery function applied to the error value.")]
+		///
+		#[document_returns(
+			"A new `TryThunk` that either passes through the success value or uses the result of the recovery computation."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let recovered: TryThunk<i32, i32> =
+		/// 	TryThunk::<i32, &str>::err("error").catch_with(|_| TryThunk::err(42));
+		/// assert_eq!(recovered.evaluate(), Err(42));
+		///
+		/// let ok: TryThunk<i32, i32> = TryThunk::<i32, &str>::ok(1).catch_with(|_| TryThunk::err(42));
+		/// assert_eq!(ok.evaluate(), Ok(1));
+		/// ```
+		#[inline]
+		pub fn catch_with<E2: 'a>(
+			self,
+			f: impl FnOnce(E) -> TryThunk<'a, A, E2> + 'a,
+		) -> TryThunk<'a, A, E2> {
+			TryThunk(Thunk::new(move || match self.evaluate() {
+				Ok(a) => Ok(a),
+				Err(e) => f(e).evaluate(),
+			}))
+		}
+
 		/// Maps both the success and error values simultaneously.
 		#[document_signature]
 		///
@@ -474,11 +513,11 @@ mod inner {
 		/// use fp_library::types::*;
 		///
 		/// let thunk: TryThunk<i32, ()> = TryThunk::ok(42);
-		/// let lazy: RcTryLazy<i32, ()> = thunk.memoize();
+		/// let lazy: RcTryLazy<i32, ()> = thunk.into_rc_try_lazy();
 		/// assert_eq!(lazy.evaluate(), Ok(&42));
 		/// ```
 		#[inline]
-		pub fn memoize(self) -> RcTryLazy<'a, A, E> {
+		pub fn into_rc_try_lazy(self) -> RcTryLazy<'a, A, E> {
 			RcTryLazy::from(self)
 		}
 
@@ -496,11 +535,11 @@ mod inner {
 		/// use fp_library::types::*;
 		///
 		/// let thunk: TryThunk<i32, ()> = TryThunk::ok(42);
-		/// let lazy: ArcTryLazy<i32, ()> = thunk.memoize_arc();
+		/// let lazy: ArcTryLazy<i32, ()> = thunk.into_arc_try_lazy();
 		/// assert_eq!(lazy.evaluate(), Ok(&42));
 		/// ```
 		#[inline]
-		pub fn memoize_arc(self) -> ArcTryLazy<'a, A, E>
+		pub fn into_arc_try_lazy(self) -> ArcTryLazy<'a, A, E>
 		where
 			A: Send + Sync + 'a,
 			E: Send + Sync + 'a, {
@@ -2254,6 +2293,19 @@ mod tests {
 		assert_eq!(try_thunk.evaluate(), Ok(42));
 	}
 
+	/// Tests `TryThunk::catch_with`.
+	///
+	/// Verifies that `catch_with` recovers from failure using a different error type.
+	#[test]
+	fn test_catch_with() {
+		let recovered: TryThunk<i32, i32> =
+			TryThunk::<i32, &str>::err("error").catch_with(|_| TryThunk::err(42));
+		assert_eq!(recovered.evaluate(), Err(42));
+
+		let ok: TryThunk<i32, i32> = TryThunk::<i32, &str>::ok(1).catch_with(|_| TryThunk::err(42));
+		assert_eq!(ok.evaluate(), Ok(1));
+	}
+
 	/// Tests `TryThunkErrAppliedBrand` (Functor over Success).
 	#[test]
 	fn test_try_thunk_with_err_brand() {
@@ -2681,21 +2733,21 @@ mod tests {
 		assert_eq!(t3.evaluate(), Err("second".to_string()));
 	}
 
-	/// Tests `TryThunk::memoize` basic usage.
+	/// Tests `TryThunk::into_rc_try_lazy` basic usage.
 	///
-	/// Verifies that memoizing a thunk produces a lazy value with the same result.
+	/// Verifies that converting a thunk produces a lazy value with the same result.
 	#[test]
-	fn test_memoize() {
+	fn test_into_rc_try_lazy() {
 		let thunk: TryThunk<i32, ()> = TryThunk::ok(42);
-		let lazy = thunk.memoize();
+		let lazy = thunk.into_rc_try_lazy();
 		assert_eq!(lazy.evaluate(), Ok(&42));
 	}
 
-	/// Tests `TryThunk::memoize` caching behavior.
+	/// Tests `TryThunk::into_rc_try_lazy` caching behavior.
 	///
 	/// Verifies that the memoized value is computed only once.
 	#[test]
-	fn test_memoize_caching() {
+	fn test_into_rc_try_lazy_caching() {
 		use std::{
 			cell::RefCell,
 			rc::Rc,
@@ -2707,7 +2759,7 @@ mod tests {
 			*counter_clone.borrow_mut() += 1;
 			Ok(42)
 		});
-		let lazy = thunk.memoize();
+		let lazy = thunk.into_rc_try_lazy();
 
 		assert_eq!(*counter.borrow(), 0);
 		assert_eq!(lazy.evaluate(), Ok(&42));
@@ -2716,25 +2768,25 @@ mod tests {
 		assert_eq!(*counter.borrow(), 1);
 	}
 
-	/// Tests `TryThunk::memoize_arc` basic usage.
+	/// Tests `TryThunk::into_arc_try_lazy` basic usage.
 	///
-	/// Verifies that memoizing a thunk produces a thread-safe lazy value.
+	/// Verifies that converting a thunk produces a thread-safe lazy value.
 	#[test]
-	fn test_memoize_arc() {
+	fn test_into_arc_try_lazy() {
 		let thunk: TryThunk<i32, ()> = TryThunk::ok(42);
-		let lazy = thunk.memoize_arc();
+		let lazy = thunk.into_arc_try_lazy();
 		assert_eq!(lazy.evaluate(), Ok(&42));
 	}
 
-	/// Tests `TryThunk::memoize_arc` is Send and Sync.
+	/// Tests `TryThunk::into_arc_try_lazy` is Send and Sync.
 	///
 	/// Verifies that the resulting `ArcTryLazy` can be shared across threads.
 	#[test]
-	fn test_memoize_arc_send_sync() {
+	fn test_into_arc_try_lazy_send_sync() {
 		use std::thread;
 
 		let thunk: TryThunk<i32, String> = TryThunk::ok(42);
-		let lazy = thunk.memoize_arc();
+		let lazy = thunk.into_arc_try_lazy();
 		let lazy_clone = lazy.clone();
 
 		let handle = thread::spawn(move || {
@@ -2952,12 +3004,12 @@ mod tests {
 		rhs.evaluate() == Ok(x)
 	}
 
-	// 7.6: Thread safety test for TryThunk::memoize_arc
+	// 7.6: Thread safety test for TryThunk::into_arc_try_lazy
 
-	/// Tests that `TryThunk::memoize_arc` produces a thread-safe value
+	/// Tests that `TryThunk::into_arc_try_lazy` produces a thread-safe value
 	/// and all threads see the same cached result.
 	#[test]
-	fn test_memoize_arc_thread_safety() {
+	fn test_into_arc_try_lazy_thread_safety() {
 		use std::{
 			sync::{
 				Arc,
@@ -2975,7 +3027,7 @@ mod tests {
 			counter_clone.fetch_add(1, Ordering::SeqCst);
 			Ok(42)
 		});
-		let lazy = thunk.memoize_arc();
+		let lazy = thunk.into_arc_try_lazy();
 
 		let handles: Vec<_> = (0 .. 8)
 			.map(|_| {

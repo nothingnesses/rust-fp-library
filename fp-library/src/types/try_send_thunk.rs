@@ -371,6 +371,46 @@ mod inner {
 			}))
 		}
 
+		/// Recovers from an error using a fallible recovery function that may produce a different error type.
+		///
+		/// Unlike [`catch`](TrySendThunk::catch), `catch_with` allows the recovery function to return a
+		/// `TrySendThunk` with a different error type `E2`. On success, the value is passed through
+		/// unchanged. On failure, the recovery function is applied to the error value and its result
+		/// is evaluated.
+		#[document_signature]
+		///
+		#[document_type_parameters("The error type produced by the recovery computation.")]
+		///
+		#[document_parameters("The monadic recovery function applied to the error value.")]
+		///
+		#[document_returns(
+			"A new `TrySendThunk` that either passes through the success value or uses the result of the recovery computation."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let recovered: TrySendThunk<i32, i32> =
+		/// 	TrySendThunk::<i32, &str>::err("error").catch_with(|_| TrySendThunk::err(42));
+		/// assert_eq!(recovered.evaluate(), Err(42));
+		///
+		/// let ok: TrySendThunk<i32, i32> =
+		/// 	TrySendThunk::<i32, &str>::ok(1).catch_with(|_| TrySendThunk::err(42));
+		/// assert_eq!(ok.evaluate(), Ok(1));
+		/// ```
+		#[inline]
+		pub fn catch_with<E2: 'a>(
+			self,
+			f: impl FnOnce(E) -> TrySendThunk<'a, A, E2> + Send + 'a,
+		) -> TrySendThunk<'a, A, E2> {
+			TrySendThunk(SendThunk::new(move || match self.evaluate() {
+				Ok(a) => Ok(a),
+				Err(e) => f(e).evaluate(),
+			}))
+		}
+
 		/// Forces evaluation and returns the result.
 		#[document_signature]
 		///
@@ -474,7 +514,7 @@ mod inner {
 
 		/// Converts this `TrySendThunk` into a memoized, thread-safe [`ArcTryLazy`].
 		///
-		/// Unlike [`TryThunk::memoize_arc`](crate::types::TryThunk::memoize_arc),
+		/// Unlike [`TryThunk::into_arc_try_lazy`](crate::types::TryThunk::into_arc_try_lazy),
 		/// this does **not** evaluate eagerly. The inner `Send` closure is passed
 		/// directly into `ArcTryLazy::new`, so evaluation is deferred until the
 		/// `ArcTryLazy` is first accessed.
@@ -488,11 +528,11 @@ mod inner {
 		/// use fp_library::types::*;
 		///
 		/// let thunk: TrySendThunk<i32, ()> = TrySendThunk::ok(42);
-		/// let lazy: ArcTryLazy<i32, ()> = thunk.memoize_arc();
+		/// let lazy: ArcTryLazy<i32, ()> = thunk.into_arc_try_lazy();
 		/// assert_eq!(lazy.evaluate(), Ok(&42));
 		/// ```
 		#[inline]
-		pub fn memoize_arc(self) -> ArcTryLazy<'a, A, E>
+		pub fn into_arc_try_lazy(self) -> ArcTryLazy<'a, A, E>
 		where
 			A: Send + Sync + 'a,
 			E: Send + Sync + 'a, {
@@ -955,6 +995,20 @@ mod tests {
 	}
 
 	#[test]
+	fn test_catch_with_recovers() {
+		let t: TrySendThunk<i32, i32> =
+			TrySendThunk::<i32, &str>::err("error").catch_with(|_| TrySendThunk::err(42));
+		assert_eq!(t.evaluate(), Err(42));
+	}
+
+	#[test]
+	fn test_catch_with_success_passes_through() {
+		let t: TrySendThunk<i32, i32> =
+			TrySendThunk::<i32, &str>::ok(1).catch_with(|_| TrySendThunk::err(42));
+		assert_eq!(t.evaluate(), Ok(1));
+	}
+
+	#[test]
 	fn test_lift2() {
 		let t1: TrySendThunk<i32, String> = TrySendThunk::ok(10);
 		let t2: TrySendThunk<i32, String> = TrySendThunk::ok(20);
@@ -1022,18 +1076,18 @@ mod tests {
 	}
 
 	#[test]
-	fn test_memoize_arc() {
+	fn test_into_arc_try_lazy() {
 		let t: TrySendThunk<i32, ()> = TrySendThunk::ok(42);
-		let lazy = t.memoize_arc();
+		let lazy = t.into_arc_try_lazy();
 		assert_eq!(lazy.evaluate(), Ok(&42));
 		// Second access returns cached value.
 		assert_eq!(lazy.evaluate(), Ok(&42));
 	}
 
 	#[test]
-	fn test_memoize_arc_thread_safety() {
+	fn test_into_arc_try_lazy_thread_safety() {
 		let t: TrySendThunk<i32, ()> = TrySendThunk::ok(42);
-		let lazy = t.memoize_arc();
+		let lazy = t.into_arc_try_lazy();
 		let lazy_clone = lazy.clone();
 		let handle = std::thread::spawn(move || {
 			assert_eq!(lazy_clone.evaluate(), Ok(&42));

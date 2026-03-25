@@ -270,11 +270,11 @@ mod inner {
 		/// use fp_library::types::*;
 		///
 		/// let task = Trampoline::new(|| 42);
-		/// let lazy = task.memoize();
+		/// let lazy = task.into_rc_lazy();
 		/// // evaluate() returns &i32, so deref to get i32 for comparison
 		/// assert_eq!(*lazy.evaluate(), 42);
 		/// ```
-		pub fn memoize(self) -> Lazy<'static, A, RcLazyConfig> {
+		pub fn into_rc_lazy(self) -> Lazy<'static, A, RcLazyConfig> {
 			Lazy::from(self)
 		}
 
@@ -292,10 +292,10 @@ mod inner {
 		/// use fp_library::types::*;
 		///
 		/// let task = Trampoline::new(|| 42);
-		/// let lazy = task.memoize_arc();
+		/// let lazy = task.into_arc_lazy();
 		/// assert_eq!(*lazy.evaluate(), 42);
 		/// ```
-		pub fn memoize_arc(self) -> Lazy<'static, A, ArcLazyConfig>
+		pub fn into_arc_lazy(self) -> Lazy<'static, A, ArcLazyConfig>
 		where
 			A: Send + Sync, {
 			let val = self.evaluate();
