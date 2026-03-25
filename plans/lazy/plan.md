@@ -86,17 +86,13 @@ Tasks 1.1a, 1.1b, 1.1c are independent and can be parallelized.
 
 **Summary ref:** 2.1
 
-**Requires design decision.** Two options:
+**Decision: Option B (document limitation, keep traits independent).**
 
-- **Option A:** Add `RefFunctor` as a supertrait of `SendRefFunctor` and impl `RefFunctor` for `LazyBrand<ArcLazyConfig>`. This may not be possible because `RefFunctor::ref_map` lacks `Send` bounds.
-- **Option B:** Document the limitation prominently and leave the traits independent.
+Option A (supertrait) is infeasible: `ArcLazy::new` requires `Box<dyn FnOnce() -> A + Send + 'a>`, so any `ref_map` implementation for `LazyBrand<ArcLazyConfig>` must require `Send` on the closure. But `RefFunctor::ref_map` accepts `impl FnOnce(&A) -> B + 'a` with no `Send` bound. There is no way to implement `RefFunctor` for `ArcLazy` without violating the trait contract. The comment at `lazy.rs:776-779` explicitly documents this constraint.
 
-- [ ] **Task 2.2a:** Investigate whether Option A is feasible by checking if `RefFunctor::ref_map`'s closure bound can accept `ArcLazy` values.
-  - Files: `fp-library/src/classes/ref_functor.rs`, `fp-library/src/classes/send_ref_functor.rs`, `fp-library/src/types/lazy.rs`
-  - Complexity: small (investigation only).
-- [ ] **Task 2.2b:** Implement the chosen option.
-  - Depends on: 2.2a.
-  - Complexity: medium (Option A) or small (Option B).
+- [ ] **Task 2.2:** Document the limitation prominently in `SendRefFunctor` and `RefFunctor` trait docs. Explain that the traits are independent because `ArcLazy::new` requires `Send` on the closure, which `RefFunctor` cannot guarantee.
+  - Files: `fp-library/src/classes/ref_functor.rs`, `fp-library/src/classes/send_ref_functor.rs`
+  - Complexity: small.
 
 ### 2.3 Fix false documentation claim about `ArcLazy` implementing `RefFunctor`
 
@@ -105,7 +101,7 @@ Tasks 1.1a, 1.1b, 1.1c are independent and can be parallelized.
 - [ ] **Task 2.3:** Correct the `SendRefFunctor` trait docs that claim `ArcLazy` implements both `RefFunctor` and `SendRefFunctor`.
   - File: `fp-library/src/classes/send_ref_functor.rs`
   - Also check `fp-library/src/classes/ref_functor.rs` for similar claims.
-  - Depends on: 2.2b (the docs should reflect whichever design was chosen).
+  - Depends on: 2.2 (the docs should reflect the decision to keep traits independent).
   - Complexity: small.
 
 ### 2.4 Change `rc_lazy_fix` and `arc_lazy_fix` to accept `FnOnce`
@@ -155,10 +151,16 @@ Tasks 1.1a, 1.1b, 1.1c are independent and can be parallelized.
 
 **Summary ref:** 1.3, 2.8
 
+**Decision: Keep `Free::Map` variant, fix its documentation.**
+
+The `Map` variant adds 7 match arms and complicates `Drop`, but provides a real construction-time optimization (one fewer CatList entry per `map` call). Both `resume()` and `evaluate()` convert `Map` into a continuation during evaluation, so the benefit is in construction, not evaluation. Removal would simplify `Drop` significantly (~180 lines affected), but the semantic clarity of an explicit `map` operation and existing test coverage (6 dedicated tests) justify keeping it.
+
+Note: if Task 1.2 (hardening `Free::Drop`) proves difficult due to `Map` complexity, reconsider removal at that point.
+
 - [ ] **Task 2.9a:** Add documentation to `Free::resume` explaining the `Cell::take` trick and the invariant that `Functor::map` must call the mapping function exactly once.
   - File: `fp-library/src/types/free.rs`
   - Complexity: small.
-- [ ] **Task 2.9b:** Fix `Free::Map` variant documentation to accurately describe its benefit (one fewer continuation in CatList, not "avoids type-erasure roundtrip").
+- [ ] **Task 2.9b:** Fix `Free::Map` variant documentation: the benefit is one fewer CatList continuation entry at construction time, not "avoids type-erasure roundtrip." Both `resume()` and `evaluate()` convert `Map` to a continuation anyway.
   - File: `fp-library/src/types/free.rs`
   - Complexity: small.
 
@@ -251,24 +253,38 @@ These are independent and can be parallelized.
 - [ ] **Task 3.3f:** Add `Applicative` / `Monad` marker impls for `Step` brands.
   - Covered by Task 2.6; skip here.
 
-### 3.4 Larger missing features (defer or discuss)
+### 3.4 Larger missing features
 
-These require design decisions or are large scope:
+#### 3.4a `SendTrampoline` type
 
-- [ ] **Task 3.4a (design decision):** `SendTrampoline` type for stack-safe computation across thread boundaries.
-  - This is a notable hierarchy gap. Requires deciding whether to parameterize `Free` for `Send`, create a separate `SendFree`, or find another approach.
-  - Complexity: large.
-  - Flag for discussion before implementation.
-- [ ] **Task 3.4b (design decision):** `CatList` borrowing iterator.
-  - Currently forces `Clone` on `PartialEq`, `Hash`, `Ord`. A borrowing iterator would remove this requirement.
+**Decision: Deferred.** No concrete use case exists. Parameterizing `Free` with a Send marker is not viable in Rust (trait object bounds cannot be abstracted via generics). The only viable path is a separate `SendFree`/`SendTrampoline` (~650 new lines, ~40% code reuse with `Free`), following the existing `Thunk`/`SendThunk` pattern. The current hierarchy (`SendThunk` + `Trampoline` + `ArcLazy`) covers most real-world patterns; `SendTrampoline` only matters for deep recursion that must cross thread boundaries.
+
+If a concrete use case arises, implement as a separate `SendFree` type with `Send`-bounded continuations.
+
+#### 3.4b `CatList` borrowing iterator
+
+- [ ] **Task 3.4b:** Implement a borrowing iterator `CatListIter<'a, A>` for `CatList<A>`.
+  - File: `fp-library/src/types/cat_list.rs`
+  - Approach: stack-based depth-first traversal using `Vec<std::collections::vec_deque::Iter<'a, CatList<A>>>`. For each `Cons(a, deque, _)`, yield `&a`, then push `deque.iter()` onto the stack and descend. The deque stores sublists in left-to-right order, so this matches the consuming iterator's element ordering.
+  - This requires only immutable borrows; no restructuring or `flatten_deque` needed.
+  - Also implement `IntoIterator for &'a CatList<A>`.
+  - Remove `Clone` bounds from `PartialEq`, `Hash`, `Ord`, `PartialOrd` impls by using the borrowing iterator instead of `clone().into_iter()`.
+  - Add tests comparing borrowing iterator output against consuming iterator for equivalence.
   - Complexity: medium.
-  - Flag for discussion (may conflict with CatList's consuming nature).
-- [ ] **Task 3.4c (design decision):** `Lazy: Extend / Comonad`.
-  - Requires a `Comonad` trait to exist in the library first. Deferred until the trait is defined.
-  - Complexity: medium (depends on `Comonad` trait design).
-- [ ] **Task 3.4d (design decision):** `catch_with` variant for fallible types that allows changing the error type.
-  - Files: `fp-library/src/types/try_thunk.rs`, `fp-library/src/types/try_trampoline.rs`
-  - Complexity: small per file, but requires deciding on naming and signature.
+
+#### 3.4c `Lazy: Comonad`
+
+Deferred until the `Comonad` trait is defined in the library.
+
+#### 3.4d `catch_with` variant for fallible types
+
+**Decision: Implement with low priority.** Users can compose `catch` + `map_err` for most cases, but true monadic error recovery (`E -> TryThunk<'a, A, E2>`) is more ergonomic when the recovery itself can fail with a different error type.
+
+- [ ] **Task 3.4d:** Add `catch_with` to `TryThunk`, `TrySendThunk`, and `TryTrampoline`.
+  - Signature: `pub fn catch_with<E2>(self, f: impl FnOnce(E) -> TryThunk<'a, A, E2>) -> TryThunk<'a, A, E2>` (and analogous for the other types).
+  - Name follows existing `catch_unwind_with` precedent.
+  - Files: `fp-library/src/types/try_thunk.rs`, `fp-library/src/types/try_send_thunk.rs`, `fp-library/src/types/try_trampoline.rs`
+  - Complexity: small per file.
 
 ---
 
@@ -317,11 +333,18 @@ These are documentation-only changes. All are independent and can be parallelize
 - [ ] **Task 4.2h:** Add explanation of why `FnOnce` is used for `RefFunctor::ref_map`.
   - File: `fp-library/src/classes/ref_functor.rs`
   - Complexity: small.
-- [ ] **Task 4.2i:** Rename `memoize_arc` to `evaluate_into_arc_lazy` or add clarifying docs that it evaluates eagerly.
-  - File: `fp-library/src/types/trampoline.rs`
-  - **Requires design decision:** renaming is a breaking change; may prefer adding docs instead.
-  - Complexity: small.
-- [ ] **Task 4.2j:** Simplify module doc memoization example to reference the `memoize()` method.
+- [ ] **Task 4.2i:** Rename `memoize` to `into_rc_lazy` and `memoize_arc` to `into_arc_lazy` across all types.
+  - **Decision: Rename without deprecation.** The `into_*` convention is neutral on evaluation timing, eliminating the confusion where `memoize_arc` evaluates eagerly on some types (`Thunk`, `Trampoline`, `TryThunk`, `TryTrampoline`) but lazily on others (`SendThunk`, `TrySendThunk`).
+  - Files (all methods to rename):
+    - `fp-library/src/types/thunk.rs`: `memoize` -> `into_rc_lazy`, `memoize_arc` -> `into_arc_lazy`
+    - `fp-library/src/types/send_thunk.rs`: `memoize_arc` -> `into_arc_lazy`
+    - `fp-library/src/types/trampoline.rs`: `memoize` -> `into_rc_lazy`, `memoize_arc` -> `into_arc_lazy`
+    - `fp-library/src/types/try_thunk.rs`: `memoize` -> `into_rc_try_lazy`, `memoize_arc` -> `into_arc_try_lazy`
+    - `fp-library/src/types/try_send_thunk.rs`: `memoize_arc` -> `into_arc_try_lazy`
+    - `fp-library/src/types/try_trampoline.rs`: `memoize` -> `into_rc_try_lazy`, `memoize_arc` -> `into_arc_try_lazy`
+  - Also update all doc examples, doc references, and tests that call these methods.
+  - Complexity: medium (many files, but each change is mechanical).
+- [ ] **Task 4.2j:** Simplify module doc memoization example to reference the `into_rc_lazy()` method.
   - File: `fp-library/src/types/trampoline.rs`
   - Complexity: small.
 - [ ] **Task 4.2k:** Document that `Thunk`'s inherent `map` accepts `FnOnce` while HKT `Functor::map` requires `Fn`.
@@ -366,13 +389,14 @@ Covered by Task 3.3d. No additional work needed here.
   - File: `fp-library/src/types/trampoline.rs`
   - Complexity: small.
 
-### 5.3 Minor: `SendThunk::memoize_arc` closure indirection
+### 5.3 Minor: `SendThunk::into_arc_lazy` closure indirection
 
 **Summary ref:** 5.3
 
-- [ ] **Task 5.3:** Remove the unnecessary wrapper closure in `memoize_arc`, passing the inner `Box<dyn FnOnce>` directly if possible.
+- [ ] **Task 5.3:** Remove the unnecessary wrapper closure in `into_arc_lazy` (formerly `memoize_arc`), passing the inner `Box<dyn FnOnce>` directly if possible.
   - File: `fp-library/src/types/send_thunk.rs`
   - Likely optimized away by the compiler; lowest priority.
+  - Depends on: 4.2i (rename must happen first).
   - Complexity: small.
 
 ### 5.4 `Free::erase_type` allocation (informational, no action)
@@ -418,8 +442,9 @@ All independent; can be parallelized.
 - [ ] **Task 6.2f:** `rc_lazy_fix` / `arc_lazy_fix` tests where `f` actually uses the self-reference.
   - File: `fp-library/src/types/lazy.rs`
   - Complexity: small.
-- [ ] **Task 6.2g:** `memoize` / `memoize_arc` unit tests for `TryTrampoline` (currently only in doc tests).
+- [ ] **Task 6.2g:** `into_rc_try_lazy` / `into_arc_try_lazy` unit tests for `TryTrampoline` (currently only in doc tests).
   - File: `fp-library/src/types/try_trampoline.rs`
+  - Depends on: 4.2i (rename must happen first).
   - Complexity: small.
 - [ ] **Task 6.2h:** Monad law tests for `Free` (left identity, right identity, associativity).
   - File: `fp-library/src/types/free.rs`
@@ -439,22 +464,24 @@ All independent; can be parallelized.
 ## Dependency Graph (key ordering constraints)
 
 ```
-Task 2.2a -> 2.2b -> 2.3   (investigate RefFunctor relationship before fixing docs)
+Task 2.2 -> 2.3             (document RefFunctor limitation before fixing false claims)
 Task 1.1*  -> 6.1*          (fix append before writing tests for it)
+Task 4.2i -> 5.3            (rename memoize methods before optimizing closure indirection)
+Task 4.2i -> 6.2g           (rename memoize methods before writing unit tests)
 ```
 
 All other tasks are independent of each other within their phase.
 
 ---
 
-## Summary of Design Decisions Required
+## Design Decisions (Resolved)
 
-| Task | Decision | Options |
-|------|----------|---------|
-| 2.2 | `SendRefFunctor` supertrait relationship | A: Add supertrait + blanket impl. B: Document limitation only. |
-| 2.9 | `Free::Map` variant | Remove it (simplify) or fix its documentation. |
-| 3.4a | `SendTrampoline` type | Parameterize `Free` for `Send`, create separate `SendFree`, or defer. |
-| 3.4b | `CatList` borrowing iterator | May conflict with consuming semantics; needs investigation. |
-| 3.4c | `Lazy: Comonad` | Blocked on `Comonad` trait design. |
-| 3.4d | `catch_with` naming and signature | Decide error type flexibility. |
-| 4.2i | `memoize_arc` naming | Rename (breaking) or just add docs. |
+| Task | Decision | Rationale |
+|------|----------|-----------|
+| 2.2 | **Option B:** Document limitation, keep traits independent. | `ArcLazy::new` requires `Send` on closures; `RefFunctor::ref_map` cannot guarantee it. Option A is infeasible. |
+| 2.9 | **Keep `Free::Map`, fix docs.** | Construction-time optimization is real. Reconsider removal only if Task 1.2 (`Drop` hardening) proves too complex due to `Map`. |
+| 3.4a | **Deferred.** If needed, implement as separate `SendFree` type. | No concrete use case. Parameterization is not viable in Rust. |
+| 3.4b | **Implement borrowing iterator.** | Feasible via stack-based depth-first traversal; removes `Clone` bounds from comparison traits. |
+| 3.4c | **Deferred.** | Blocked on `Comonad` trait design. |
+| 3.4d | **Implement `catch_with`, low priority.** | `catch` + `map_err` covers most cases; `catch_with` adds ergonomic monadic error recovery. |
+| 4.2i | **Rename: `memoize` -> `into_rc_lazy`, `memoize_arc` -> `into_arc_lazy`.** | `into_*` convention is neutral on evaluation timing; eliminates eager/lazy naming confusion across types. |
