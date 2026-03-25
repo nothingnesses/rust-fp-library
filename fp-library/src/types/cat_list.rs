@@ -90,9 +90,14 @@ mod inner {
 	/// This implementation uses a [`VecDeque`] to store sublists, providing:
 	///
 	/// * **O(1) append**: Sublists are pushed to the back of the deque.
-	/// * **O(1) amortized uncons**: Elements are extracted by flattening the deque.
-	/// * **No reversal overhead**: Unlike two-stack queue implementations, `VecDeque`
-	///   provides true O(1) operations on both ends without periodic reversal.
+	/// * **O(1) amortized uncons**: Extracting the head is O(1) when the sublist deque
+	///   is empty. When non-empty, `uncons` calls `flatten_deque`, which performs a
+	///   right fold over the deque entries. Each entry is visited exactly once across
+	///   the full sequence of `uncons` calls, so the cost is O(1) amortized per element.
+	/// * **Low overhead deque operations**: The underlying `VecDeque` provides O(1)
+	///   push and pop on both ends. Unlike a two-stack queue, it does not require
+	///   periodic bulk reversal, though it may occasionally reallocate its backing
+	///   buffer when capacity is exceeded.
 	#[document_type_parameters("The type of the elements in the list.")]
 	///
 	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -107,7 +112,7 @@ mod inner {
 
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to compare.")]
-	impl<A: PartialEq + Clone> PartialEq for CatList<A> {
+	impl<A: PartialEq> PartialEq for CatList<A> {
 		#[document_signature]
 		#[document_parameters("The other list to compare to.")]
 		#[document_returns("True if the values are equal, false otherwise.")]
@@ -126,16 +131,16 @@ mod inner {
 			if self.len() != other.len() {
 				return false;
 			}
-			(*self).clone().into_iter().eq(other.clone())
+			self.iter().eq(other.iter())
 		}
 	}
 
 	#[document_type_parameters("The type of the elements in the list.")]
-	impl<A: Eq + Clone> Eq for CatList<A> {}
+	impl<A: Eq> Eq for CatList<A> {}
 
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to hash.")]
-	impl<A: Hash + Clone> Hash for CatList<A> {
+	impl<A: Hash> Hash for CatList<A> {
 		#[document_signature]
 		#[document_type_parameters("The type of the hasher.")]
 		#[document_parameters("The hasher state to update.")]
@@ -163,7 +168,7 @@ mod inner {
 			state: &mut H,
 		) {
 			self.len().hash(state);
-			for a in (*self).clone() {
+			for a in self.iter() {
 				a.hash(state);
 			}
 		}
@@ -171,7 +176,7 @@ mod inner {
 
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to compare.")]
-	impl<A: PartialOrd + Clone> PartialOrd for CatList<A> {
+	impl<A: PartialOrd> PartialOrd for CatList<A> {
 		#[document_signature]
 		#[document_parameters("The other list to compare to.")]
 		#[document_returns("An ordering if the values can be compared, none otherwise.")]
@@ -188,13 +193,13 @@ mod inner {
 			&self,
 			other: &Self,
 		) -> Option<Ordering> {
-			(*self).clone().into_iter().partial_cmp((other).clone())
+			self.iter().partial_cmp(other.iter())
 		}
 	}
 
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to compare.")]
-	impl<A: Ord + Clone> Ord for CatList<A> {
+	impl<A: Ord> Ord for CatList<A> {
 		#[document_signature]
 		#[document_parameters("The other list to compare to.")]
 		#[document_returns("The ordering of the values.")]
@@ -214,7 +219,7 @@ mod inner {
 			&self,
 			other: &Self,
 		) -> Ordering {
-			(*self).clone().into_iter().cmp((other).clone())
+			self.iter().cmp(other.iter())
 		}
 	}
 
@@ -1823,7 +1828,11 @@ mod inner {
 
 		/// Removes and returns the first element.
 		///
-		/// Returns `None` if the list is empty.
+		/// Returns `None` if the list is empty. When the internal sublist deque
+		/// is non-empty, this operation calls `flatten_deque` to restructure the
+		/// remaining elements, which may traverse multiple deque entries. However,
+		/// each entry is visited at most once across a full sequence of `uncons`
+		/// calls, yielding O(1) amortized cost per element.
 		#[document_signature]
 		///
 		#[document_parameters]
@@ -1908,6 +1917,46 @@ mod inner {
 			match self {
 				CatList::Nil => 0,
 				CatList::Cons(_, _, len) => *len,
+			}
+		}
+
+		/// Returns a borrowing iterator over the list's elements.
+		///
+		/// This iterator yields shared references without consuming the list,
+		/// using a stack-based depth-first traversal of the internal tree structure.
+		#[document_signature]
+		///
+		#[document_parameters]
+		///
+		#[document_returns("A borrowing iterator over the elements of the list.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let refs: Vec<_> = list.iter().collect();
+		/// assert_eq!(refs, vec![&1, &2, &3]);
+		/// ```
+		pub fn iter(&self) -> CatListIter<'_, A> {
+			match self {
+				CatList::Nil => CatListIter {
+					stack: Vec::new(),
+					current_head: None,
+					remaining: 0,
+				},
+				CatList::Cons(a, deque, len) => {
+					let mut stack = Vec::new();
+					if !deque.is_empty() {
+						stack.push(deque.iter());
+					}
+					CatListIter {
+						stack,
+						current_head: Some(a),
+						remaining: *len,
+					}
+				}
 			}
 		}
 
@@ -2489,6 +2538,119 @@ mod inner {
 			let (head, tail) = std::mem::take(&mut self.0).uncons()?;
 			self.0 = tail;
 			Some(head)
+		}
+
+		fn size_hint(&self) -> (usize, Option<usize>) {
+			let len = self.0.len();
+			(len, Some(len))
+		}
+	}
+
+	impl<A> ExactSizeIterator for CatListIterator<A> {}
+
+	/// A borrowing iterator over a `CatList`.
+	///
+	/// This iterator yields shared references to the elements without consuming
+	/// the list. It uses a stack-based depth-first traversal of the internal
+	/// tree structure.
+	#[document_type_parameters(
+		"The lifetime of the elements.",
+		"The type of the elements in the list."
+	)]
+	///
+	pub struct CatListIter<'a, A> {
+		/// Stack of deque iterators for depth-first traversal.
+		stack: Vec<std::collections::vec_deque::Iter<'a, CatList<A>>>,
+		/// The next head element to yield, if any.
+		current_head: Option<&'a A>,
+		/// The number of remaining elements.
+		remaining: usize,
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the elements.",
+		"The type of the elements in the list."
+	)]
+	#[document_parameters("The iterator state.")]
+	impl<'a, A> Iterator for CatListIter<'a, A> {
+		type Item = &'a A;
+
+		#[document_signature]
+		#[document_returns(
+			"A shared reference to the next element in the list, or `None` if the iterator is exhausted."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let mut iter = list.iter();
+		/// assert_eq!(iter.next(), Some(&1));
+		/// assert_eq!(iter.next(), Some(&2));
+		/// assert_eq!(iter.next(), Some(&3));
+		/// assert_eq!(iter.next(), None);
+		/// ```
+		fn next(&mut self) -> Option<Self::Item> {
+			// If we have a head element queued, yield it
+			if let Some(head) = self.current_head.take() {
+				self.remaining -= 1;
+				return Some(head);
+			}
+
+			// Otherwise, pop from the stack until we find a non-empty deque iterator
+			while let Some(deque_iter) = self.stack.last_mut() {
+				if let Some(sublist) = deque_iter.next() {
+					match sublist {
+						CatList::Nil => continue,
+						CatList::Cons(a, deque, _) => {
+							// Push the deque's children onto the stack for later traversal
+							if !deque.is_empty() {
+								self.stack.push(deque.iter());
+							}
+							self.remaining -= 1;
+							return Some(a);
+						}
+					}
+				} else {
+					self.stack.pop();
+				}
+			}
+
+			None
+		}
+
+		fn size_hint(&self) -> (usize, Option<usize>) {
+			(self.remaining, Some(self.remaining))
+		}
+	}
+
+	impl<A> ExactSizeIterator for CatListIter<'_, A> {}
+
+	#[document_type_parameters(
+		"The lifetime of the elements.",
+		"The type of the elements in the list."
+	)]
+	#[document_parameters("The list to borrow.")]
+	impl<'a, A> IntoIterator for &'a CatList<A> {
+		type IntoIter = CatListIter<'a, A>;
+		type Item = &'a A;
+
+		#[document_signature]
+		#[document_returns("A borrowing iterator over the list's elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(1).snoc(2);
+		/// let refs: Vec<_> = (&list).into_iter().collect();
+		/// assert_eq!(refs, vec![&1, &2]);
+		/// // list is still usable
+		/// assert_eq!(list.len(), 2);
+		/// ```
+		fn into_iter(self) -> Self::IntoIter {
+			self.iter()
 		}
 	}
 
@@ -3310,5 +3472,67 @@ mod tests {
 				_ => return false,
 			}
 		}
+	}
+
+	/// Tests that the borrowing iterator yields the same elements as the consuming iterator.
+	#[test]
+	fn test_borrowing_iter_matches_consuming_iter() {
+		let list = CatList::singleton(1).snoc(2).snoc(3).append(CatList::singleton(4).snoc(5));
+		let borrowed: Vec<_> = list.iter().collect();
+		let owned: Vec<_> = list.clone().into_iter().collect();
+		assert_eq!(borrowed.len(), owned.len());
+		for (b, o) in borrowed.iter().zip(owned.iter()) {
+			assert_eq!(*b, o);
+		}
+	}
+
+	/// Tests the borrowing iterator on an empty list.
+	#[test]
+	fn test_borrowing_iter_empty() {
+		let list: CatList<i32> = CatList::empty();
+		let borrowed: Vec<_> = list.iter().collect();
+		assert!(borrowed.is_empty());
+	}
+
+	/// Tests the borrowing iterator on a singleton list.
+	#[test]
+	fn test_borrowing_iter_singleton() {
+		let list = CatList::singleton(42);
+		let borrowed: Vec<_> = list.iter().collect();
+		assert_eq!(borrowed, vec![&42]);
+	}
+
+	/// Tests ExactSizeIterator for the consuming iterator.
+	#[test]
+	fn test_consuming_iter_exact_size() {
+		let list: CatList<_> = (0 .. 5).collect();
+		let iter = list.into_iter();
+		assert_eq!(iter.len(), 5);
+	}
+
+	/// Tests ExactSizeIterator for the borrowing iterator.
+	#[test]
+	fn test_borrowing_iter_exact_size() {
+		let list: CatList<_> = (0 .. 5).collect();
+		let iter = list.iter();
+		assert_eq!(iter.len(), 5);
+	}
+
+	/// Property: borrowing iterator produces same elements as consuming iterator.
+	#[quickcheck]
+	fn prop_borrowing_iter_matches_consuming(xs: Vec<i32>) -> bool {
+		let list: CatList<_> = xs.into_iter().collect();
+		let borrowed: Vec<_> = list.iter().copied().collect();
+		let owned: Vec<_> = list.into_iter().collect();
+		borrowed == owned
+	}
+
+	/// Property: borrowing iterator size_hint is exact.
+	#[quickcheck]
+	fn prop_borrowing_iter_size_hint(xs: Vec<i32>) -> bool {
+		let list: CatList<_> = xs.into_iter().collect();
+		let iter = list.iter();
+		let (lo, hi) = iter.size_hint();
+		lo == list.len() && hi == Some(list.len())
 	}
 }
