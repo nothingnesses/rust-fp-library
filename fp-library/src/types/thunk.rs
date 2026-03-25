@@ -15,7 +15,9 @@ mod inner {
 				Deferrable,
 				Evaluable,
 				Foldable,
+				FoldableWithIndex,
 				Functor,
+				FunctorWithIndex,
 				Lift,
 				MonadRec,
 				Monoid,
@@ -23,6 +25,7 @@ mod inner {
 				Semiapplicative,
 				Semigroup,
 				Semimonad,
+				WithIndex,
 			},
 			impl_kind,
 			kinds::*,
@@ -30,6 +33,7 @@ mod inner {
 				Lazy,
 				LazyConfig,
 				Step,
+				Trampoline,
 			},
 		},
 		fp_macros::*,
@@ -66,11 +70,14 @@ mod inner {
 	///
 	/// ### Limitations
 	///
-	/// **Cannot implement `Traversable`**: `Thunk` wraps `Box<dyn FnOnce() -> A>`, which cannot be cloned
-	/// because `FnOnce` is consumed when called. The [`Traversable`](crate::classes::Traversable) trait
-	/// requires `Clone` bounds on the result type (to build the output structure), making it fundamentally
-	/// incompatible with `Thunk`'s design. This is an intentional trade-off: `Thunk` prioritizes
-	/// zero-overhead deferred execution and lifetime flexibility over structural cloning.
+	/// **Cannot implement `Traversable`**: The [`Traversable`](crate::classes::Traversable) trait
+	/// requires `Self::Of<'a, B>: Clone` (i.e., `Thunk<'a, B>: Clone`) in both `traverse` and
+	/// `sequence`. `Thunk` wraps `Box<dyn FnOnce() -> A>`, which cannot implement `Clone`
+	/// because `FnOnce` closures are consumed on invocation and `Box<dyn FnOnce>` does not
+	/// support cloning. Since the trait bounds on `Traversable` are fixed, there is no way
+	/// to implement the trait for `Thunk` without changing its internal representation.
+	/// This is an intentional trade-off: `Thunk` prioritizes zero-overhead deferred execution
+	/// and lifetime flexibility over structural cloning.
 	///
 	/// Implemented typeclasses:
 	/// - ✅ [`Functor`], [`Foldable`], [`Semimonad`]/Monad, [`Semiapplicative`]/Applicative
@@ -193,6 +200,13 @@ mod inner {
 		}
 
 		/// Functor map: transforms the result.
+		///
+		/// This inherent method accepts `FnOnce`, which is more permissive than the
+		/// HKT [`Functor::map`] free function. The HKT version requires `Fn` because
+		/// the trait signature must support containers with multiple elements (e.g., `Vec`).
+		/// Since `Thunk` contains exactly one value, `FnOnce` suffices here. Prefer
+		/// this method when you do not need HKT polymorphism and want to pass a
+		/// non-reusable closure.
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the result of the transformation.")]
@@ -263,6 +277,28 @@ mod inner {
 		/// ```
 		fn from(lazy: Lazy<'a, A, Config>) -> Self {
 			Thunk::new(move || lazy.evaluate().clone())
+		}
+	}
+
+	#[document_type_parameters("The type of the value produced by the computation.")]
+	impl<A: 'static + Send> From<Thunk<'static, A>> for Trampoline<A> {
+		/// Converts a `'static` `Thunk` into a `Trampoline`.
+		///
+		/// This lifts a non-stack-safe `Thunk` into the stack-safe `Trampoline`
+		/// execution model. The resulting `Trampoline` evaluates the thunk when run.
+		#[document_signature]
+		#[document_parameters("The thunk to convert.")]
+		#[document_returns("A trampoline that evaluates the thunk.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let thunk = Thunk::new(|| 42);
+		/// let trampoline = Trampoline::from(thunk);
+		/// assert_eq!(trampoline.evaluate(), 42);
+		/// ```
+		fn from(thunk: Thunk<'static, A>) -> Self {
+			Trampoline::new(move || thunk.evaluate())
 		}
 	}
 
@@ -697,6 +733,82 @@ mod inner {
 		}
 	}
 
+	impl WithIndex for ThunkBrand {
+		type Index = ();
+	}
+
+	impl FunctorWithIndex for ThunkBrand {
+		/// Maps a function over the result of a `Thunk`, providing the unit index `()`.
+		///
+		/// Since `Thunk` contains exactly one value, the index is always `()`.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the value inside the `Thunk`.",
+			"The type of the result of the transformation."
+		)]
+		#[document_parameters(
+			"The function to apply to the index and the result of the computation.",
+			"The `Thunk` instance."
+		)]
+		#[document_returns("A new `Thunk` instance with the transformed result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::ThunkBrand,
+		/// 	classes::functor_with_index::FunctorWithIndex,
+		/// 	functions::*,
+		/// };
+		///
+		/// let thunk = pure::<ThunkBrand, _>(10);
+		/// let mapped = ThunkBrand::map_with_index(|(), x| x * 2, thunk);
+		/// assert_eq!(mapped.evaluate(), 20);
+		/// ```
+		fn map_with_index<'a, A: 'a, B: 'a>(
+			f: impl Fn((), A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.map(move |a| f((), a))
+		}
+	}
+
+	impl FoldableWithIndex for ThunkBrand {
+		/// Maps the value to a monoid providing the unit index `()`, and returns it.
+		///
+		/// Since `Thunk` contains exactly one value, the index is always `()`.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the value inside the `Thunk`.",
+			"The monoid type."
+		)]
+		#[document_parameters(
+			"The function to apply to the index and value.",
+			"The `Thunk` to fold."
+		)]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::ThunkBrand,
+		/// 	classes::foldable_with_index::FoldableWithIndex,
+		/// 	functions::*,
+		/// };
+		///
+		/// let thunk = pure::<ThunkBrand, _>(10);
+		/// let result = ThunkBrand::fold_map_with_index(|(), a: i32| a.to_string(), thunk);
+		/// assert_eq!(result, "10");
+		/// ```
+		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
+			f: impl Fn((), A) -> R + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R {
+			f((), fa.evaluate())
+		}
+	}
+
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value produced by the computation."
@@ -851,5 +963,144 @@ mod tests {
 		use crate::classes::monoid::empty;
 		let t: Thunk<String> = empty();
 		assert_eq!(t.evaluate(), "");
+	}
+
+	/// Tests `From<Thunk<'static, A>> for Trampoline<A>`.
+	///
+	/// Verifies that a `'static` `Thunk` can be converted to a `Trampoline`.
+	#[test]
+	fn test_thunk_to_trampoline() {
+		use crate::types::Trampoline;
+		let thunk = Thunk::new(|| 42);
+		let trampoline = Trampoline::from(thunk);
+		assert_eq!(trampoline.evaluate(), 42);
+	}
+
+	/// Tests `From<Thunk<'static, A>> for Trampoline<A>` with chained computation.
+	///
+	/// Verifies that conversion preserves the deferred computation.
+	#[test]
+	fn test_thunk_to_trampoline_chained() {
+		use crate::types::Trampoline;
+		let thunk = Thunk::pure(10).map(|x| x * 3).bind(|x| Thunk::pure(x + 12));
+		let trampoline = Trampoline::from(thunk);
+		assert_eq!(trampoline.evaluate(), 42);
+	}
+
+	/// Tests `MonadRec::tail_rec_m` stack safety with a large iteration count.
+	///
+	/// Verifies that `tail_rec_m` does not overflow the stack even with 100,000+ iterations,
+	/// because it uses an iterative loop internally rather than recursive calls.
+	#[test]
+	fn test_tail_rec_m_stack_safety() {
+		use crate::{
+			brands::ThunkBrand,
+			classes::monad_rec::tail_rec_m,
+			functions::pure,
+			types::Step,
+		};
+
+		let iterations: i64 = 200_000;
+		let result = tail_rec_m::<ThunkBrand, _, _>(
+			|acc| {
+				pure::<ThunkBrand, _>(
+					if acc < iterations { Step::Loop(acc + 1) } else { Step::Done(acc) },
+				)
+			},
+			0i64,
+		);
+		assert_eq!(result.evaluate(), iterations);
+	}
+
+	/// Tests `FunctorWithIndex` for `ThunkBrand` via the HKT trait method.
+	///
+	/// Verifies that `map_with_index` provides the unit index `()` and transforms the value.
+	#[test]
+	fn test_functor_with_index() {
+		use crate::{
+			brands::ThunkBrand,
+			classes::functor_with_index::FunctorWithIndex,
+			functions::pure,
+		};
+
+		let thunk = pure::<ThunkBrand, _>(21);
+		let result = ThunkBrand::map_with_index(|(), x| x * 2, thunk);
+		assert_eq!(result.evaluate(), 42);
+	}
+
+	/// Tests `FunctorWithIndex` identity law for `ThunkBrand`.
+	///
+	/// Verifies that `map_with_index(|_, a| a, fa)` is equivalent to `fa`.
+	#[test]
+	fn test_functor_with_index_identity() {
+		use crate::{
+			brands::ThunkBrand,
+			classes::functor_with_index::FunctorWithIndex,
+			functions::pure,
+		};
+
+		let thunk = pure::<ThunkBrand, _>(42);
+		let result = ThunkBrand::map_with_index(|_, a: i32| a, thunk);
+		assert_eq!(result.evaluate(), 42);
+	}
+
+	/// Tests `FunctorWithIndex` compatibility with `Functor` for `ThunkBrand`.
+	///
+	/// Verifies that `map(f, fa) == map_with_index(|_, a| f(a), fa)`.
+	#[test]
+	fn test_functor_with_index_compat_with_functor() {
+		use crate::{
+			brands::ThunkBrand,
+			classes::functor_with_index::FunctorWithIndex,
+			functions::{
+				map,
+				pure,
+			},
+		};
+
+		let f = |a: i32| a * 3 + 1;
+		let thunk1 = pure::<ThunkBrand, _>(10);
+		let thunk2 = pure::<ThunkBrand, _>(10);
+		let via_map = map::<ThunkBrand, _, _>(f, thunk1).evaluate();
+		let via_map_with_index = ThunkBrand::map_with_index(|_, a| f(a), thunk2).evaluate();
+		assert_eq!(via_map, via_map_with_index);
+	}
+
+	/// Tests `FoldableWithIndex` for `ThunkBrand` via the HKT trait method.
+	///
+	/// Verifies that `fold_map_with_index` provides the unit index `()` and folds the value.
+	#[test]
+	fn test_foldable_with_index() {
+		use crate::{
+			brands::ThunkBrand,
+			classes::foldable_with_index::FoldableWithIndex,
+			functions::pure,
+		};
+
+		let thunk = pure::<ThunkBrand, _>(42);
+		let result: String = ThunkBrand::fold_map_with_index(|(), a: i32| a.to_string(), thunk);
+		assert_eq!(result, "42");
+	}
+
+	/// Tests `FoldableWithIndex` compatibility with `Foldable` for `ThunkBrand`.
+	///
+	/// Verifies that `fold_map(f, fa) == fold_map_with_index(|_, a| f(a), fa)`.
+	#[test]
+	fn test_foldable_with_index_compat_with_foldable() {
+		use crate::{
+			brands::*,
+			classes::foldable_with_index::FoldableWithIndex,
+			functions::{
+				fold_map,
+				pure,
+			},
+		};
+
+		let f = |a: i32| a.to_string();
+		let thunk1 = pure::<ThunkBrand, _>(99);
+		let thunk2 = pure::<ThunkBrand, _>(99);
+		let via_fold_map = fold_map::<RcFnBrand, ThunkBrand, _, _>(f, thunk1);
+		let via_fold_map_with_index: String = ThunkBrand::fold_map_with_index(|_, a| f(a), thunk2);
+		assert_eq!(via_fold_map, via_fold_map_with_index);
 	}
 }
