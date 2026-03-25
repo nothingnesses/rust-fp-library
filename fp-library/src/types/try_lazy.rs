@@ -393,7 +393,7 @@ mod inner {
 		/// let lazy: ArcTryLazy<i32, ()> = ArcTryLazy::send_defer(|| ArcTryLazy::new(|| Ok(42)));
 		/// assert_eq!(lazy.evaluate(), Ok(&42));
 		/// ```
-		fn send_defer(f: impl FnOnce() -> Self + Send + Sync + 'a) -> Self
+		fn send_defer(f: impl FnOnce() -> Self + Send + 'a) -> Self
 		where
 			Self: Sized, {
 			Self::new(move || f().evaluate().cloned().map_err(Clone::clone))

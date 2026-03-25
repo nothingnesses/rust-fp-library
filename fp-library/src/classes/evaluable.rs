@@ -30,6 +30,21 @@ mod inner {
 	///
 	/// This trait is used by [`Free::evaluate`](crate::types::Free::evaluate) to execute the effects
 	/// in a [`Free`](crate::types::Free) monad.
+	///
+	/// # Laws
+	///
+	/// **Naturality:** `evaluate` commutes with natural transformations. Given a natural
+	/// transformation `nat: F<A> -> G<A>` and an evaluable functor `fa: F<A>`, the following
+	/// must hold:
+	///
+	/// ```text
+	/// evaluate(nat(fa)) == evaluate(fa)
+	/// ```
+	///
+	/// In other words, if `nat` is a structure-preserving transformation between two
+	/// evaluable functors, then evaluating after transforming is the same as evaluating
+	/// directly. This ensures that `evaluate` extracts the "content" of the functor
+	/// regardless of the particular functor wrapper used.
 	pub trait Evaluable: Functor {
 		/// Evaluates the effect, producing the inner value.
 		#[document_signature]

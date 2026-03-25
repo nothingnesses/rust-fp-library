@@ -9,7 +9,7 @@
 //! 	types::*,
 //! };
 //!
-//! let eval: Thunk<i32> = defer(|| Thunk::new(|| 42));
+//! let eval: Thunk<i32> = defer(|| Thunk::pure(42));
 //! assert_eq!(eval.evaluate(), 42);
 //! ```
 
@@ -17,6 +17,14 @@
 mod inner {
 	use fp_macros::*;
 	/// A type class for types that can be constructed lazily.
+	///
+	/// # Warning
+	///
+	/// Some implementations may evaluate the thunk eagerly when the produced type requires
+	/// `Send`. For example, `ArcLazy`'s `Deferrable` implementation evaluates the outer thunk
+	/// immediately because `ArcLazy::new` requires a `Send` closure, but the `Deferrable`
+	/// trait does not impose that bound. If you need guaranteed deferred evaluation with
+	/// thread-safe types, prefer [`SendDeferrable`](crate::classes::SendDeferrable) instead.
 	#[document_type_parameters("The lifetime of the computation.")]
 	pub trait Deferrable<'a> {
 		/// Creates a value from a computation that produces the value.
@@ -36,7 +44,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let eval: Thunk<i32> = defer(|| Thunk::new(|| 42));
+		/// let eval: Thunk<i32> = defer(|| Thunk::pure(42));
 		/// assert_eq!(eval.evaluate(), 42);
 		/// ```
 		fn defer(f: impl FnOnce() -> Self + 'a) -> Self
@@ -66,7 +74,7 @@ mod inner {
 	/// 	types::*,
 	/// };
 	///
-	/// let eval: Thunk<i32> = defer(|| Thunk::new(|| 42));
+	/// let eval: Thunk<i32> = defer(|| Thunk::pure(42));
 	/// assert_eq!(eval.evaluate(), 42);
 	/// ```
 	pub fn defer<'a, D: Deferrable<'a>>(f: impl FnOnce() -> D + 'a) -> D {
