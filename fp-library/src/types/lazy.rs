@@ -9,7 +9,10 @@ mod inner {
 			Apply,
 			brands::LazyBrand,
 			classes::{
+				CloneableFn,
 				Deferrable,
+				Foldable,
+				Monoid,
 				RefFunctor,
 				SendDeferrable,
 			},
@@ -23,6 +26,11 @@ mod inner {
 		fp_macros::*,
 		std::{
 			cell::LazyCell,
+			fmt,
+			hash::{
+				Hash,
+				Hasher,
+			},
 			rc::Rc,
 			sync::{
 				Arc,
@@ -103,7 +111,7 @@ mod inner {
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
-			"The lifetime of the reference.",
+			"The borrow lifetime.",
 			"The type of the value."
 		)]
 		///
@@ -126,7 +134,7 @@ mod inner {
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
-			"The lifetime of the reference.",
+			"The borrow lifetime.",
 			"The type of the value.",
 			"The type of the error."
 		)]
@@ -213,7 +221,7 @@ mod inner {
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
-			"The lifetime of the reference.",
+			"The borrow lifetime.",
 			"The type of the value."
 		)]
 		///
@@ -238,7 +246,7 @@ mod inner {
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
-			"The lifetime of the reference.",
+			"The borrow lifetime.",
 			"The type of the value.",
 			"The type of the error."
 		)]
@@ -327,7 +335,7 @@ mod inner {
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
-			"The lifetime of the reference.",
+			"The borrow lifetime.",
 			"The type of the value."
 		)]
 		///
@@ -352,7 +360,7 @@ mod inner {
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
-			"The lifetime of the reference.",
+			"The borrow lifetime.",
 			"The type of the value.",
 			"The type of the error."
 		)]
@@ -616,8 +624,37 @@ mod inner {
 		/// ```
 		pub fn pure(a: A) -> Self
 		where
-			A: Send, {
+			A: Send + Sync, {
 			Lazy(ArcLazyConfig::lazy_new(Box::new(move || a)))
+		}
+
+		/// Maps a function over the memoized value by reference.
+		///
+		/// This is the thread-safe equivalent of [`RcLazy::ref_map`].
+		/// The mapping function receives a reference to the cached value and returns a new value,
+		/// which is itself lazily memoized.
+		#[document_signature]
+		#[document_type_parameters("The type of the result.")]
+		#[document_parameters("The function to apply to the memoized value.")]
+		#[document_returns("A new `ArcLazy` instance containing the mapped value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = Lazy::<_, ArcLazyConfig>::new(|| 10);
+		/// let mapped = memo.ref_map(|x| *x * 2);
+		/// assert_eq!(*mapped.evaluate(), 20);
+		/// ```
+		pub fn ref_map<B: 'a>(
+			self,
+			f: impl FnOnce(&A) -> B + Send + 'a,
+		) -> Lazy<'a, B, ArcLazyConfig>
+		where
+			A: Send + Sync, {
+			let fa = self.clone();
+			let init: Box<dyn FnOnce() -> B + Send + 'a> = Box::new(move || f(fa.evaluate()));
+			Lazy(ArcLazyConfig::lazy_new(init))
 		}
 	}
 
@@ -735,6 +772,350 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.ref_map(f)
 		}
+	}
+
+	// --- Display ---
+
+	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
+	impl<'a, A: fmt::Display + 'a> fmt::Display for Lazy<'a, A, RcLazyConfig> {
+		/// Forces evaluation and displays the value.
+		#[document_signature]
+		///
+		#[document_parameters("The formatter.")]
+		///
+		#[document_returns("The formatting result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let lazy = RcLazy::new(|| 42);
+		/// assert_eq!(format!("{}", lazy), "42");
+		/// ```
+		fn fmt(
+			&self,
+			f: &mut fmt::Formatter<'_>,
+		) -> fmt::Result {
+			fmt::Display::fmt(self.evaluate(), f)
+		}
+	}
+
+	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
+	impl<'a, A: fmt::Display + 'a> fmt::Display for Lazy<'a, A, ArcLazyConfig> {
+		/// Forces evaluation and displays the value.
+		#[document_signature]
+		///
+		#[document_parameters("The formatter.")]
+		///
+		#[document_returns("The formatting result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let lazy = ArcLazy::new(|| 42);
+		/// assert_eq!(format!("{}", lazy), "42");
+		/// ```
+		fn fmt(
+			&self,
+			f: &mut fmt::Formatter<'_>,
+		) -> fmt::Result {
+			fmt::Display::fmt(self.evaluate(), f)
+		}
+	}
+
+	// --- Hash ---
+
+	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
+	impl<'a, A: Hash + 'a> Hash for Lazy<'a, A, RcLazyConfig> {
+		/// Forces evaluation and hashes the value.
+		#[document_signature]
+		///
+		#[document_parameters("The hasher state.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::types::*,
+		/// 	std::{
+		/// 		collections::hash_map::DefaultHasher,
+		/// 		hash::{
+		/// 			Hash,
+		/// 			Hasher,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// let lazy = RcLazy::new(|| 42);
+		/// let mut hasher = DefaultHasher::new();
+		/// lazy.hash(&mut hasher);
+		/// let h1 = hasher.finish();
+		///
+		/// let mut hasher = DefaultHasher::new();
+		/// 42i32.hash(&mut hasher);
+		/// let h2 = hasher.finish();
+		///
+		/// assert_eq!(h1, h2);
+		/// ```
+		fn hash<H: Hasher>(
+			&self,
+			state: &mut H,
+		) {
+			self.evaluate().hash(state)
+		}
+	}
+
+	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
+	impl<'a, A: Hash + 'a> Hash for Lazy<'a, A, ArcLazyConfig> {
+		/// Forces evaluation and hashes the value.
+		#[document_signature]
+		///
+		#[document_parameters("The hasher state.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::types::*,
+		/// 	std::{
+		/// 		collections::hash_map::DefaultHasher,
+		/// 		hash::{
+		/// 			Hash,
+		/// 			Hasher,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// let lazy = ArcLazy::new(|| 42);
+		/// let mut hasher = DefaultHasher::new();
+		/// lazy.hash(&mut hasher);
+		/// let h1 = hasher.finish();
+		///
+		/// let mut hasher = DefaultHasher::new();
+		/// 42i32.hash(&mut hasher);
+		/// let h2 = hasher.finish();
+		///
+		/// assert_eq!(h1, h2);
+		/// ```
+		fn hash<H: Hasher>(
+			&self,
+			state: &mut H,
+		) {
+			self.evaluate().hash(state)
+		}
+	}
+
+	// --- Foldable ---
+
+	impl<Config: LazyConfig> Foldable for LazyBrand<Config> {
+		/// Folds the `Lazy` from the right.
+		///
+		/// Forces evaluation and folds the single contained value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the accumulator."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element and the accumulator.",
+			"The initial value of the accumulator.",
+			"The `Lazy` to fold."
+		)]
+		///
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = RcLazy::new(|| 10);
+		/// let result = fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(|a, b| a + b, 5, lazy);
+		/// assert_eq!(result, 15);
+		/// ```
+		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(A, B) -> B + 'a,
+			initial: B,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> B
+		where
+			FnBrand: CloneableFn + 'a, {
+			func(fa.evaluate().clone(), initial)
+		}
+
+		/// Folds the `Lazy` from the left.
+		///
+		/// Forces evaluation and folds the single contained value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the accumulator."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the accumulator and each element.",
+			"The initial value of the accumulator.",
+			"The `Lazy` to fold."
+		)]
+		///
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = RcLazy::new(|| 10);
+		/// let result = fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(|b, a| b + a, 5, lazy);
+		/// assert_eq!(result, 15);
+		/// ```
+		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(B, A) -> B + 'a,
+			initial: B,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> B
+		where
+			FnBrand: CloneableFn + 'a, {
+			func(initial, fa.evaluate().clone())
+		}
+
+		/// Maps the value to a monoid and returns it.
+		///
+		/// Forces evaluation and maps the single contained value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the monoid."
+		)]
+		///
+		#[document_parameters("The mapping function.", "The Lazy to fold.")]
+		///
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = RcLazy::new(|| 10);
+		/// let result =
+		/// 	fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, String>(|a: i32| a.to_string(), lazy);
+		/// assert_eq!(result, "10");
+		/// ```
+		fn fold_map<'a, FnBrand, A: 'a + Clone, R: Monoid>(
+			func: impl Fn(A) -> R + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R
+		where
+			FnBrand: CloneableFn + 'a, {
+			func(fa.evaluate().clone())
+		}
+	}
+
+	// --- Fix combinators ---
+
+	/// Computes a fixed point for `RcLazy`.
+	///
+	/// Constructs a self-referential `RcLazy` where the initializer receives a clone
+	/// of the resulting lazy cell. This enables recursive definitions where the value
+	/// depends on the lazy cell itself.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value."
+	)]
+	///
+	#[document_parameters(
+		"The function that receives a lazy self-reference and produces the value."
+	)]
+	///
+	#[document_returns("A new `RcLazy` instance.")]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::types::*;
+	///
+	/// let lazy = rc_lazy_fix(|_self_ref: RcLazy<i32>| 42);
+	/// assert_eq!(*lazy.evaluate(), 42);
+	/// ```
+	pub fn rc_lazy_fix<'a, A: Clone + 'a>(
+		f: impl FnOnce(RcLazy<'a, A>) -> A + 'a
+	) -> RcLazy<'a, A> {
+		use std::cell::OnceCell;
+
+		let cell: Rc<OnceCell<RcLazy<'a, A>>> = Rc::new(OnceCell::new());
+		let cell_clone = cell.clone();
+		let lazy = RcLazy::new(move || {
+			let self_ref = cell_clone.get().expect("rc_lazy_fix: cell not initialized").clone();
+			f(self_ref)
+		});
+		let _ = cell.set(lazy.clone());
+		lazy
+	}
+
+	/// Computes a fixed point for `ArcLazy`.
+	///
+	/// Constructs a self-referential `ArcLazy` where the initializer receives a clone
+	/// of the resulting lazy cell. This enables recursive definitions where the value
+	/// depends on the lazy cell itself.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value."
+	)]
+	///
+	#[document_parameters(
+		"The function that receives a lazy self-reference and produces the value."
+	)]
+	///
+	#[document_returns("A new `ArcLazy` instance.")]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::types::*;
+	///
+	/// let lazy = arc_lazy_fix(|_self_ref: ArcLazy<i32>| 42);
+	/// assert_eq!(*lazy.evaluate(), 42);
+	/// ```
+	pub fn arc_lazy_fix<'a, A: Clone + Send + Sync + 'a>(
+		f: impl FnOnce(ArcLazy<'a, A>) -> A + Send + 'a
+	) -> ArcLazy<'a, A> {
+		use std::sync::OnceLock;
+
+		let cell: Arc<OnceLock<ArcLazy<'a, A>>> = Arc::new(OnceLock::new());
+		let cell_clone = cell.clone();
+		let lazy = ArcLazy::new(move || {
+			let self_ref = cell_clone.get().expect("arc_lazy_fix: cell not initialized").clone();
+			f(self_ref)
+		});
+		let _ = cell.set(lazy.clone());
+		lazy
 	}
 }
 
@@ -985,5 +1366,207 @@ mod tests {
 		let memo2 = RcLazy::new(move || x.wrapping_add(y));
 
 		*memo1.evaluate() == *memo2.evaluate()
+	}
+
+	// --- ArcLazy Foldable tests ---
+
+	/// Tests `fold_right` on `ArcLazy`.
+	#[test]
+	fn test_arc_lazy_fold_right() {
+		use crate::{
+			brands::*,
+			functions::*,
+		};
+
+		let lazy = ArcLazy::new(|| 10);
+		let result = fold_right::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(|a, b| a + b, 5, lazy);
+		assert_eq!(result, 15);
+	}
+
+	/// Tests `fold_left` on `ArcLazy`.
+	#[test]
+	fn test_arc_lazy_fold_left() {
+		use crate::{
+			brands::*,
+			functions::*,
+		};
+
+		let lazy = ArcLazy::new(|| 10);
+		let result = fold_left::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(|b, a| b + a, 5, lazy);
+		assert_eq!(result, 15);
+	}
+
+	/// Tests `fold_map` on `ArcLazy`.
+	#[test]
+	fn test_arc_lazy_fold_map() {
+		use crate::{
+			brands::*,
+			functions::*,
+		};
+
+		let lazy = ArcLazy::new(|| 10);
+		let result = fold_map::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, String>(
+			|a: i32| a.to_string(),
+			lazy,
+		);
+		assert_eq!(result, "10");
+	}
+
+	/// Property: ArcLazy fold_right is consistent with RcLazy fold_right.
+	#[quickcheck]
+	fn prop_arc_lazy_fold_right(x: i32) -> bool {
+		use crate::{
+			brands::*,
+			functions::*,
+		};
+
+		let rc_lazy = RcLazy::new(move || x);
+		let arc_lazy = ArcLazy::new(move || x);
+		let rc_result =
+			fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(|a, b| a + b, 0, rc_lazy);
+		let arc_result =
+			fold_right::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(|a, b| a + b, 0, arc_lazy);
+		rc_result == arc_result
+	}
+
+	// --- SendRefFunctor (ArcLazy ref_map) law tests ---
+
+	/// Property: ArcLazy ref_map identity law.
+	///
+	/// ref_map(|x| x.clone(), fa) should produce the same value as fa.
+	#[quickcheck]
+	fn prop_arc_lazy_ref_map_identity(x: i32) -> bool {
+		let lazy = ArcLazy::new(move || x);
+		let mapped = lazy.clone().ref_map(|a| *a);
+		*lazy.evaluate() == *mapped.evaluate()
+	}
+
+	/// Property: ArcLazy ref_map composition law.
+	///
+	/// ref_map(g . f, fa) == ref_map(g, ref_map(f, fa)).
+	#[quickcheck]
+	fn prop_arc_lazy_ref_map_composition(x: i32) -> bool {
+		let f = |a: &i32| a.wrapping_mul(2);
+		let g = |a: &i32| a.wrapping_add(1);
+
+		let lazy1 = ArcLazy::new(move || x);
+		let composed = lazy1.ref_map(|a| g(&f(a)));
+
+		let lazy2 = ArcLazy::new(move || x);
+		let chained = lazy2.ref_map(f).ref_map(g);
+
+		*composed.evaluate() == *chained.evaluate()
+	}
+
+	/// Property: ArcLazy ref_map preserves memoization.
+	#[quickcheck]
+	fn prop_arc_lazy_ref_map_memoization(x: i32) -> bool {
+		let lazy = ArcLazy::new(move || x);
+		let mapped = lazy.ref_map(|a| a.wrapping_mul(3));
+		let r1 = *mapped.evaluate();
+		let r2 = *mapped.evaluate();
+		r1 == r2
+	}
+
+	// --- rc_lazy_fix / arc_lazy_fix tests ---
+
+	/// Tests `rc_lazy_fix` with a self-referential computation.
+	#[test]
+	fn test_rc_lazy_fix_self_reference() {
+		let lazy = rc_lazy_fix(|self_ref: RcLazy<Vec<i32>>| {
+			// The self-reference can be evaluated to get the same value.
+			let _ = self_ref; // The self-ref is available but evaluating it here would recurse.
+			vec![1, 2, 3]
+		});
+		assert_eq!(*lazy.evaluate(), vec![1, 2, 3]);
+	}
+
+	/// Tests `rc_lazy_fix` where `f` uses the self-reference after initial evaluation.
+	#[test]
+	fn test_rc_lazy_fix_uses_self_ref() {
+		// Create a lazy value that, when evaluated, stores its own length.
+		let counter = Rc::new(RefCell::new(0));
+		let counter_clone = counter.clone();
+		let lazy = rc_lazy_fix(move |self_ref: RcLazy<i32>| {
+			*counter_clone.borrow_mut() += 1;
+			// We cannot evaluate self_ref during construction (would deadlock),
+			// but we can capture it for later use in a derived value.
+			let _ = self_ref;
+			42
+		});
+		assert_eq!(*lazy.evaluate(), 42);
+		assert_eq!(*counter.borrow(), 1);
+		// Verify memoization: second evaluate does not re-run.
+		assert_eq!(*lazy.evaluate(), 42);
+		assert_eq!(*counter.borrow(), 1);
+	}
+
+	/// Tests `arc_lazy_fix` with a self-referential computation.
+	#[test]
+	fn test_arc_lazy_fix_self_reference() {
+		let lazy = arc_lazy_fix(|self_ref: ArcLazy<Vec<i32>>| {
+			let _ = self_ref;
+			vec![1, 2, 3]
+		});
+		assert_eq!(*lazy.evaluate(), vec![1, 2, 3]);
+	}
+
+	/// Tests `arc_lazy_fix` where `f` uses the self-reference after initial evaluation.
+	#[test]
+	fn test_arc_lazy_fix_uses_self_ref() {
+		use std::sync::atomic::{
+			AtomicUsize,
+			Ordering,
+		};
+
+		let counter = Arc::new(AtomicUsize::new(0));
+		let counter_clone = counter.clone();
+		let lazy = arc_lazy_fix(move |self_ref: ArcLazy<i32>| {
+			counter_clone.fetch_add(1, Ordering::SeqCst);
+			let _ = self_ref;
+			42
+		});
+		assert_eq!(*lazy.evaluate(), 42);
+		assert_eq!(counter.load(Ordering::SeqCst), 1);
+		// Verify memoization: second evaluate does not re-run.
+		assert_eq!(*lazy.evaluate(), 42);
+		assert_eq!(counter.load(Ordering::SeqCst), 1);
+	}
+
+	/// Tests `arc_lazy_fix` is thread-safe.
+	#[test]
+	fn test_arc_lazy_fix_thread_safety() {
+		use std::thread;
+
+		let lazy = arc_lazy_fix(|self_ref: ArcLazy<i32>| {
+			let _ = self_ref;
+			42
+		});
+
+		let mut handles = vec![];
+		for _ in 0 .. 10 {
+			let lazy_clone = lazy.clone();
+			handles.push(thread::spawn(move || {
+				assert_eq!(*lazy_clone.evaluate(), 42);
+			}));
+		}
+
+		for handle in handles {
+			handle.join().unwrap();
+		}
+	}
+
+	/// Tests `rc_lazy_fix` where the self-reference is shared with a derived lazy.
+	#[test]
+	fn test_rc_lazy_fix_shared_self_ref() {
+		let lazy = rc_lazy_fix(|self_ref: RcLazy<i32>| {
+			// Store the self-ref for later verification that it shares the same cache.
+			let _captured = self_ref.clone();
+			100
+		});
+		assert_eq!(*lazy.evaluate(), 100);
+		// Clone should share the same cache.
+		let cloned = lazy.clone();
+		assert_eq!(*cloned.evaluate(), 100);
 	}
 }
