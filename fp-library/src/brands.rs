@@ -20,7 +20,10 @@
 //! ```
 
 use {
-	crate::classes::RefCountedPointer,
+	crate::{
+		classes::RefCountedPointer,
+		types::LazyConfig,
+	},
 	std::marker::PhantomData,
 };
 
@@ -88,8 +91,14 @@ pub struct FnBrand<PtrBrand: RefCountedPointer>(PhantomData<PtrBrand>);
 pub struct IdentityBrand;
 
 /// Brand for [`Lazy`](crate::types::Lazy).
+///
+/// # Type Parameters
+///
+/// - `Config`: The memoization strategy, implementing [`LazyConfig`]. Use
+///   [`RcLazyConfig`](crate::types::RcLazyConfig) for single-threaded contexts
+///   or [`ArcLazyConfig`](crate::types::ArcLazyConfig) for thread-safe contexts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct LazyBrand<Config>(PhantomData<Config>);
+pub struct LazyBrand<Config: LazyConfig>(PhantomData<Config>);
 
 /// Brand for [`Option`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -195,18 +204,37 @@ pub struct StepLoopAppliedBrand<A>(PhantomData<A>);
 pub struct ThunkBrand;
 
 /// Brand for [`TryLazy`](crate::types::TryLazy).
+///
+/// # Type Parameters
+///
+/// - `E`: The error type for the fallible computation.
+/// - `Config`: The memoization strategy, implementing [`LazyConfig`]. Use
+///   [`RcLazyConfig`](crate::types::RcLazyConfig) for single-threaded contexts
+///   or [`ArcLazyConfig`](crate::types::ArcLazyConfig) for thread-safe contexts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TryLazyBrand<E, Config>(PhantomData<(E, Config)>);
+pub struct TryLazyBrand<E, Config: LazyConfig>(PhantomData<(E, Config)>);
 
 /// Brand for [`TryThunk`](crate::types::TryThunk) (Bifunctor).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryThunkBrand;
 
 /// Brand for [`TryThunk`](crate::types::TryThunk) with the error value applied (Functor over [`Ok`]).
+///
+/// # Note
+///
+/// There is no `TrySendThunkErrAppliedBrand` counterpart. `SendThunk` (and by
+/// extension `TrySendThunk`) cannot implement HKT traits like [`Functor`](crate::classes::Functor)
+/// because the HKT trait signatures lack `Send` bounds on their closure parameters.
+/// Without HKT support, partially-applied brands serve no purpose.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryThunkErrAppliedBrand<E>(PhantomData<E>);
 
 /// Brand for [`TryThunk`](crate::types::TryThunk) with the success value applied (Functor over [`Err`]).
+///
+/// # Note
+///
+/// There is no `TrySendThunkOkAppliedBrand` counterpart. See
+/// [`TryThunkErrAppliedBrand`] for the rationale.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryThunkOkAppliedBrand<A>(PhantomData<A>);
 
