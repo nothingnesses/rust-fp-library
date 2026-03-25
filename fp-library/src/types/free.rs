@@ -204,6 +204,16 @@ mod inner {
 	/// This implementation follows ["Reflection without Remorse"](http://okmij.org/ftp/Haskell/zseq.pdf) to ensure
 	/// that left-associated binds do not degrade performance.
 	///
+	/// # Linear consumption invariant
+	///
+	/// `Free` values must be consumed exactly once, either by calling [`evaluate`](Free::evaluate),
+	/// [`bind`](Free::bind), [`erase_type`](Free::erase_type), or by being dropped. The inner
+	/// `Option` wrapper enables a take-and-replace pattern (analogous to `Cell::take`) so that
+	/// methods like `bind` and `erase_type` can move the `FreeInner` out of `&mut self` without
+	/// leaving the struct in an invalid state. After the take, the `Option` is `None`, and any
+	/// subsequent access will panic with "Free value already consumed." This invariant is relied
+	/// upon by the `Drop` implementation to avoid double-freeing internal allocations.
+	///
 	/// # HKT and Lifetime Limitations
 	///
 	/// `Free` does not implement HKT traits (like `Functor`, `Monad`) from this library.
@@ -230,7 +240,7 @@ mod inner {
 		"The result type."
 	)]
 	///
-	pub struct Free<F, A>(pub(crate) Option<FreeInner<F, A>>)
+	pub struct Free<F, A>(Option<FreeInner<F, A>>)
 	where
 		F: Functor + 'static,
 		A: 'static;
@@ -242,6 +252,32 @@ mod inner {
 		F: Functor + 'static,
 		A: 'static,
 	{
+		/// Constructs a `Free` from a `FreeInner` value.
+		///
+		/// This is the sole internal constructor, ensuring all `Free` values
+		/// start with `Some(inner)`.
+		fn from_inner(inner: FreeInner<F, A>) -> Self {
+			Free(Some(inner))
+		}
+
+		/// Takes the inner value out of this `Free`, leaving `None` behind.
+		///
+		/// This implements the linear consumption pattern: each `Free` value
+		/// is consumed exactly once. The `Option` wrapper allows moving the
+		/// `FreeInner` out through `&mut self` (as required by `bind`, `erase_type`,
+		/// `evaluate`, and `Drop`) without leaving the struct in an invalid state.
+		/// After this call, the `Option` is `None`. Any subsequent call will panic
+		/// with "Free value already consumed."
+		///
+		/// # Panics
+		///
+		/// Panics if the inner value has already been taken.
+		fn take_inner(&mut self) -> FreeInner<F, A> {
+			// SAFETY: Free values are used exactly once; double consumption indicates a bug.
+			#[allow(clippy::expect_used)]
+			self.0.take().expect("Free value already consumed")
+		}
+
 		/// Creates a pure `Free` value.
 		#[document_signature]
 		///
@@ -262,7 +298,7 @@ mod inner {
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
 		pub fn pure(a: A) -> Self {
-			Free(Some(FreeInner::Pure(a)))
+			Free::from_inner(FreeInner::Pure(a))
 		}
 
 		/// Creates a suspended computation from a functor value.
@@ -287,7 +323,7 @@ mod inner {
 		pub fn wrap(
 			fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)
 		) -> Self {
-			Free(Some(FreeInner::Wrap(fa)))
+			Free::from_inner(FreeInner::Wrap(fa))
 		}
 
 		/// Lifts a functor value into the Free monad.
@@ -362,30 +398,27 @@ mod inner {
 				free_b.erase_type()
 			});
 
-			// Extract inner safely
-			// INVARIANT: Free values are used exactly once - double consumption indicates a bug
-			#[allow(clippy::expect_used)]
-			let inner = self.0.take().expect("Free value already consumed");
+			let inner = self.take_inner();
 
 			match inner {
 				// Pure: create a Bind with this continuation
 				FreeInner::Pure(a) => {
 					let head: Free<F, TypeErasedValue> = Free::pure(a).erase_type();
-					Free(Some(FreeInner::Bind {
+					Free::from_inner(FreeInner::Bind {
 						head: Box::new(head),
 						continuations: CatList::singleton(erased_f),
 						_marker: PhantomData,
-					}))
+					})
 				}
 
 				// Wrap: wrap in a Bind
 				FreeInner::Wrap(fa) => {
 					let head = Free::wrap(fa).boxed_erase_type();
-					Free(Some(FreeInner::Bind {
+					Free::from_inner(FreeInner::Bind {
 						head,
 						continuations: CatList::singleton(erased_f),
 						_marker: PhantomData,
-					}))
+					})
 				}
 
 				// Map: wrap in a Bind
@@ -409,11 +442,11 @@ mod inner {
 					head,
 					continuations: conts,
 					..
-				} => Free(Some(FreeInner::Bind {
+				} => Free::from_inner(FreeInner::Bind {
 					head,
 					continuations: conts.snoc(erased_f),
 					_marker: PhantomData,
-				})),
+				}),
 			}
 		}
 
@@ -700,16 +733,19 @@ mod inner {
 		/// assert!(erased.evaluate().is::<i32>());
 		/// ```
 		pub fn erase_type(mut self) -> Free<F, TypeErasedValue> {
-			// INVARIANT: Free values are used exactly once - double consumption indicates a bug
-			#[allow(clippy::expect_used)]
-			let inner = self.0.take().expect("Free value already consumed");
+			let inner = self.take_inner();
 
 			match inner {
-				FreeInner::Pure(a) => Free(Some(FreeInner::Pure(Box::new(a) as TypeErasedValue))),
+				FreeInner::Pure(a) =>
+					Free::from_inner(FreeInner::Pure(Box::new(a) as TypeErasedValue)),
 				FreeInner::Wrap(fa) => {
-					// Map over the functor to erase the inner type
+					// Map over the functor to erase the inner type.
+					// IMPORTANT: this relies on the invariant that `Functor::map` for `F`
+					// calls the mapping function exactly once. If it were called zero times,
+					// the inner `Free` value would leak. If called more than once, it would
+					// be consumed multiple times, violating the linear consumption invariant.
 					let erased = F::map(|inner: Free<F, A>| inner.erase_type(), fa);
-					Free(Some(FreeInner::Wrap(erased)))
+					Free::from_inner(FreeInner::Wrap(erased))
 				}
 				FreeInner::Map {
 					value,
@@ -729,11 +765,11 @@ mod inner {
 					head,
 					continuations,
 					..
-				} => Free(Some(FreeInner::Bind {
+				} => Free::from_inner(FreeInner::Bind {
 					head,
 					continuations,
 					_marker: PhantomData,
-				})),
+				}),
 			}
 		}
 
@@ -782,9 +818,7 @@ mod inner {
 			let mut continuations: CatList<Continuation<F>> = CatList::empty();
 
 			loop {
-				// INVARIANT: Free values are used exactly once - double consumption indicates a bug
-				#[allow(clippy::expect_used)]
-				let inner = current.0.take().expect("Free value already consumed");
+				let inner = current.take_inner();
 
 				match inner {
 					FreeInner::Pure(val) => {
@@ -859,58 +893,81 @@ mod inner {
 		/// assert!(true);
 		/// ```
 		fn drop(&mut self) {
-			// We take the inner value out.
-			let inner = self.0.take();
+			// Take the inner value out so we can iteratively dismantle the chain
+			// instead of relying on recursive Drop, which would overflow the stack
+			// for deep computations.
+			let mut current_opt = self.0.take();
 
-			// Handle Map variant: take out the inner value to continue the chain.
-			if let Some(FreeInner::Map {
-				mut value, ..
-			}) = inner
-			{
-				let mut current = value.0.take();
+			loop {
+				match current_opt {
+					Some(FreeInner::Bind {
+						head,
+						continuations,
+						..
+					}) => {
+						// Drop the head computation. Since `head` is
+						// `Box<Free<F, TypeErasedValue>>` (a different type
+						// parameter than ours), we cannot fold it into
+						// `current_opt`. Its own `Drop` impl will iteratively
+						// dismantle any nested `Bind` chains it contains.
+						drop(head);
 
-				// Walk through any nested Bind or Map chains.
-				loop {
-					match current {
-						Some(FreeInner::Bind {
-							mut head, ..
-						}) => {
-							current = head.0.take();
+						// Drain the CatList of continuations iteratively. Each
+						// continuation is a Box<dyn FnOnce> that may capture Free
+						// values. By consuming them one at a time via uncons, we
+						// let each boxed closure drop without building stack depth.
+						let mut conts = continuations;
+						while let Some((_continuation, rest)) = conts.uncons() {
+							// _continuation (a Box<dyn FnOnce>) drops here, which
+							// frees any captured Free values. Those Free values'
+							// own Drop impls will re-enter this iterative loop.
+							conts = rest;
 						}
-						Some(FreeInner::Map {
-							mut value, ..
-						}) => {
-							current = value.0.take();
-						}
-						_ => break,
+						break;
 					}
-				}
-				return;
-			}
-
-			// If the top level is a Bind, we need to start the iterative drop chain.
-			if let Some(FreeInner::Bind {
-				mut head, ..
-			}) = inner
-			{
-				// head is Box<Free<F, TypeEraseValue>>.
-				// We take its inner value to continue the chain.
-				// From now on, everything is typed as FreeInner<F, TypeEraseValue>.
-				let mut current = head.0.take();
-
-				loop {
-					match current {
-						Some(FreeInner::Bind {
-							mut head, ..
-						}) => {
-							current = head.0.take();
+					Some(FreeInner::Map {
+						mut value, ..
+					}) => {
+						// Iteratively walk through nested Map chains. All inner
+						// values are `Box<Free<F, Box<dyn Any>>>` (type-erased),
+						// so we can loop homogeneously without type mismatch.
+						loop {
+							match value.0.take() {
+								Some(FreeInner::Map {
+									value: next, ..
+								}) => {
+									value = next;
+								}
+								Some(FreeInner::Bind {
+									head,
+									continuations,
+									..
+								}) => {
+									drop(head);
+									let mut conts = continuations;
+									while let Some((_cont, rest)) = conts.uncons() {
+										conts = rest;
+									}
+									break;
+								}
+								_ => break,
+							}
 						}
-						Some(FreeInner::Map {
-							mut value, ..
-						}) => {
-							current = value.0.take();
-						}
-						_ => break,
+						break;
+					}
+					Some(FreeInner::Wrap(_fa)) => {
+						// The Wrap variant contains a functor value holding a
+						// Free computation. We cannot generically extract the
+						// inner Free from an arbitrary functor, so we let the
+						// functor's own Drop handle it. For ThunkBrand (the
+						// primary use case), the Thunk contains a boxed closure
+						// whose drop is shallow.
+						break;
+					}
+					Some(FreeInner::Pure(_)) | None => {
+						// Pure values and already-consumed (None) nodes are
+						// trivially dropped.
+						break;
 					}
 				}
 			}
@@ -1225,6 +1282,226 @@ mod tests {
 		assert_eq!(free.evaluate(), 10_000);
 	}
 
+	// ── Monad law tests (Task 6.2h) ──
+
+	/// Tests monad left identity law for `Free`.
+	///
+	/// **What it tests:** Left identity: `pure(a).bind(f)` equals `f(a)`.
+	/// **How it tests:** Applies `bind` to a `pure` value and compares the result
+	/// to calling `f` directly on the same value.
+	#[test]
+	fn test_free_monad_left_identity() {
+		let a = 42_i32;
+		let f = |x: i32| Free::<ThunkBrand, _>::pure(x * 2 + 1);
+
+		let lhs = Free::<ThunkBrand, _>::pure(a).bind(f).evaluate();
+		let rhs = f(a).evaluate();
+		assert_eq!(lhs, rhs);
+	}
+
+	/// Tests monad left identity law with `lift_f`.
+	///
+	/// **What it tests:** Left identity with an effectful continuation: `pure(a).bind(f)`
+	/// equals `f(a)` when `f` uses `lift_f`.
+	/// **How it tests:** Uses `lift_f` inside the continuation to introduce a functor layer.
+	#[test]
+	fn test_free_monad_left_identity_with_lift_f() {
+		let a = 10_i32;
+		let f = |x: i32| Free::<ThunkBrand, _>::lift_f(Thunk::new(move || x + 5));
+
+		let lhs = Free::<ThunkBrand, _>::pure(a).bind(f).evaluate();
+		let rhs = f(a).evaluate();
+		assert_eq!(lhs, rhs);
+	}
+
+	/// Tests monad right identity law for `Free`.
+	///
+	/// **What it tests:** Right identity: `m.bind(pure)` equals `m`.
+	/// **How it tests:** Binds `pure` to various `Free` computations and checks that
+	/// the result is unchanged.
+	#[test]
+	fn test_free_monad_right_identity_pure() {
+		let m = Free::<ThunkBrand, _>::pure(42);
+		let result = m.bind(Free::pure).evaluate();
+		assert_eq!(result, 42);
+	}
+
+	/// Tests monad right identity law with a bind chain.
+	///
+	/// **What it tests:** Right identity on a computation that already has binds:
+	/// `m.bind(|x| Free::pure(x))` produces the same result as `m`.
+	/// **How it tests:** Constructs a chain of binds and appends `pure` at the end.
+	#[test]
+	fn test_free_monad_right_identity_chain() {
+		let m =
+			Free::<ThunkBrand, _>::pure(10).bind(|x| Free::pure(x + 5)).bind(|x| Free::pure(x * 3));
+
+		let expected = Free::<ThunkBrand, _>::pure(10)
+			.bind(|x| Free::pure(x + 5))
+			.bind(|x| Free::pure(x * 3))
+			.evaluate();
+
+		let result = m.bind(Free::pure).evaluate();
+		assert_eq!(result, expected);
+	}
+
+	/// Tests monad right identity law with a `Wrap` variant.
+	///
+	/// **What it tests:** Right identity when the initial computation is a `Wrap`.
+	/// **How it tests:** Wraps a thunk, binds `pure`, and checks the result.
+	#[test]
+	fn test_free_monad_right_identity_wrap() {
+		let m = Free::<ThunkBrand, _>::wrap(Thunk::new(|| Free::pure(99)));
+		let result = m.bind(Free::pure).evaluate();
+		assert_eq!(result, 99);
+	}
+
+	/// Tests monad associativity law for `Free`.
+	///
+	/// **What it tests:** Associativity: `m.bind(f).bind(g)` equals
+	/// `m.bind(|x| f(x).bind(g))`.
+	/// **How it tests:** Evaluates both sides of the law and checks equality.
+	#[test]
+	fn test_free_monad_associativity() {
+		let f = |x: i32| Free::<ThunkBrand, _>::pure(x + 10);
+		let g = |x: i32| Free::<ThunkBrand, _>::pure(x * 2);
+
+		// Left grouping: (m >>= f) >>= g
+		let lhs = Free::<ThunkBrand, _>::pure(5).bind(f).bind(g).evaluate();
+
+		// Right grouping: m >>= (\x -> f x >>= g)
+		let rhs = Free::<ThunkBrand, _>::pure(5).bind(move |x| f(x).bind(g)).evaluate();
+
+		assert_eq!(lhs, rhs);
+		assert_eq!(lhs, 30); // (5 + 10) * 2
+	}
+
+	/// Tests monad associativity law with effectful continuations.
+	///
+	/// **What it tests:** Associativity when continuations use `lift_f` for real effects.
+	/// **How it tests:** Both groupings produce the same result when `lift_f` is involved.
+	#[test]
+	fn test_free_monad_associativity_with_effects() {
+		let f = |x: i32| Free::<ThunkBrand, _>::lift_f(Thunk::new(move || x + 3));
+		let g = |x: i32| Free::<ThunkBrand, _>::lift_f(Thunk::new(move || x * 4));
+
+		let lhs = Free::<ThunkBrand, _>::pure(7).bind(f).bind(g).evaluate();
+		let rhs = Free::<ThunkBrand, _>::pure(7).bind(move |x| f(x).bind(g)).evaluate();
+
+		assert_eq!(lhs, rhs);
+		assert_eq!(lhs, 40); // (7 + 3) * 4
+	}
+
+	/// Tests monad associativity law with three continuations.
+	///
+	/// **What it tests:** Associativity holds for longer chains where multiple
+	/// groupings are possible.
+	/// **How it tests:** Compares sequential bind with nested bind for three functions.
+	#[test]
+	fn test_free_monad_associativity_three_functions() {
+		let f = |x: i32| Free::<ThunkBrand, _>::pure(x + 1);
+		let g = |x: i32| Free::<ThunkBrand, _>::pure(x * 2);
+		let h = |x: i32| Free::<ThunkBrand, _>::pure(x - 3);
+
+		// ((m >>= f) >>= g) >>= h
+		let lhs = Free::<ThunkBrand, _>::pure(10).bind(f).bind(g).bind(h).evaluate();
+
+		// m >>= (\x -> f(x) >>= (\y -> g(y) >>= h))
+		let rhs = Free::<ThunkBrand, _>::pure(10).bind(move |x| f(x).bind(move |y| g(y).bind(h))).evaluate();
+
+		assert_eq!(lhs, rhs);
+		assert_eq!(lhs, 19); // ((10 + 1) * 2) - 3
+	}
+
+	// ── Mixed deep chain tests (Task 6.2i) ──
+
+	/// Tests interleaved `bind` and `wrap` in a deep chain.
+	///
+	/// **What it tests:** Verifies that alternating `bind` and `wrap` operations
+	/// compose correctly and evaluate to the expected result.
+	/// **How it tests:** Builds a chain that alternates between `bind` (increment)
+	/// and `wrap` (deferred computation) for 1,000 iterations.
+	#[test]
+	fn test_free_mixed_bind_and_wrap() {
+		let mut free = Free::<ThunkBrand, _>::pure(0_i32);
+		for _ in 0 .. 1_000 {
+			free = free.bind(|x| {
+				let inner = Free::pure(x + 1);
+				Free::wrap(Thunk::new(move || inner))
+			});
+		}
+		assert_eq!(free.evaluate(), 1_000);
+	}
+
+	/// Tests interleaved `bind` and `lift_f` in a deep chain.
+	///
+	/// **What it tests:** Verifies that alternating `bind` and `lift_f` operations
+	/// compose correctly.
+	/// **How it tests:** Builds a chain of 1,000 iterations mixing `bind` with `lift_f`.
+	#[test]
+	fn test_free_mixed_bind_and_lift_f() {
+		let mut free = Free::<ThunkBrand, _>::pure(0_i32);
+		for i in 0 .. 1_000 {
+			if i % 2 == 0 {
+				free = free.bind(|x| Free::pure(x + 1));
+			} else {
+				free = free.bind(|x| Free::<ThunkBrand, _>::lift_f(Thunk::new(move || x + 1)));
+			}
+		}
+		assert_eq!(free.evaluate(), 1_000);
+	}
+
+	/// Tests a deep chain mixing all four construction methods.
+	///
+	/// **What it tests:** Verifies that `pure`, `bind`, `wrap`, and `lift_f` can be
+	/// freely interleaved in a single computation chain.
+	/// **How it tests:** Applies a rotating pattern of operations across 400 iterations
+	/// (100 of each type) and checks the final accumulated value.
+	#[test]
+	fn test_free_mixed_all_constructors() {
+		let mut free = Free::<ThunkBrand, _>::pure(0_i32);
+		for i in 0 .. 400 {
+			match i % 4 {
+				0 => {
+					// bind with pure
+					free = free.bind(|x| Free::pure(x + 1));
+				}
+				1 => {
+					// bind with lift_f
+					free = free.bind(|x| Free::<ThunkBrand, _>::lift_f(Thunk::new(move || x + 1)));
+				}
+				2 => {
+					// bind with wrap
+					free = free.bind(|x| {
+						let inner = Free::pure(x + 1);
+						Free::wrap(Thunk::new(move || inner))
+					});
+				}
+				3 => {
+					// nested bind
+					free =
+						free.bind(|x| Free::<ThunkBrand, _>::pure(x).bind(|y| Free::pure(y + 1)));
+				}
+				_ => unreachable!(),
+			}
+		}
+		assert_eq!(free.evaluate(), 400);
+	}
+
+	/// Tests deep chain with `lift_f` at the root.
+	///
+	/// **What it tests:** Verifies that starting a chain from `lift_f` (a `Wrap` variant)
+	/// and then applying many `bind` operations works correctly.
+	/// **How it tests:** Starts with `lift_f` and chains 10,000 binds.
+	#[test]
+	fn test_free_deep_chain_from_lift_f() {
+		let mut free = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 0_i32));
+		for _ in 0 .. 10_000 {
+			free = free.bind(|x| Free::pure(x + 1));
+		}
+		assert_eq!(free.evaluate(), 10_000);
+	}
+
 	/// Tests drop safety of deep `Free::map` chains.
 	///
 	/// **What it tests:** Verifies that dropping deeply nested map chains does not overflow the stack.
@@ -1235,6 +1512,45 @@ mod tests {
 		for _ in 0 .. 10_000 {
 			free = free.map(|x| x + 1);
 		}
+		drop(free);
+	}
+
+	/// Tests deep chain with nested wraps.
+	///
+	/// **What it tests:** Verifies that deeply nested `wrap` operations evaluate correctly.
+	/// **How it tests:** Creates 1,000 nested wraps around a pure value.
+	#[test]
+	fn test_free_deep_nested_wraps() {
+		let mut free = Free::<ThunkBrand, _>::pure(42_i32);
+		for _ in 0 .. 1_000 {
+			let inner = free;
+			free = Free::wrap(Thunk::new(move || inner));
+		}
+		assert_eq!(free.evaluate(), 42);
+	}
+
+	/// Tests dropping a deeply mixed chain without evaluating.
+	///
+	/// **What it tests:** Verifies that Drop handles deep chains with interleaved
+	/// `bind`, `wrap`, and `lift_f` without stack overflow.
+	/// **How it tests:** Builds a mixed chain of 50,000 operations and drops it.
+	#[test]
+	fn test_free_drop_deep_mixed_chain() {
+		let mut free = Free::<ThunkBrand, _>::pure(0_i32);
+		for i in 0 .. 50_000 {
+			if i % 3 == 0 {
+				free = free.bind(|x| Free::pure(x + 1));
+			} else if i % 3 == 1 {
+				free = free.bind(|x| Free::<ThunkBrand, _>::lift_f(Thunk::new(move || x + 1)));
+			} else {
+				free = free.bind(|x| {
+					let inner = Free::pure(x + 1);
+					Free::wrap(Thunk::new(move || inner))
+				});
+			}
+		}
+		// Drop without evaluating; should not overflow the stack.
+
 		drop(free);
 	}
 }

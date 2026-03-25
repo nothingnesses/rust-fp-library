@@ -334,7 +334,7 @@ mod inner {
 		/// let task: SendThunk<i32> = SendDeferrable::send_defer(|| SendThunk::pure(42));
 		/// assert_eq!(task.evaluate(), 42);
 		/// ```
-		fn send_defer(f: impl FnOnce() -> Self + Send + Sync + 'a) -> Self
+		fn send_defer(f: impl FnOnce() -> Self + Send + 'a) -> Self
 		where
 			Self: Sized, {
 			SendThunk::new(move || f().evaluate())

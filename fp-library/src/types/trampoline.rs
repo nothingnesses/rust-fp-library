@@ -565,24 +565,6 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the value produced by the task.")]
-	impl<A: 'static> From<Thunk<'static, A>> for Trampoline<A> {
-		#[document_signature]
-		#[document_parameters("The thunk to convert.")]
-		#[document_returns("A trampoline that evaluates the thunk.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::types::*;
-		/// let thunk = Thunk::pure(42);
-		/// let task = Trampoline::from(thunk);
-		/// assert_eq!(task.evaluate(), 42);
-		/// ```
-		fn from(thunk: Thunk<'static, A>) -> Self {
-			Trampoline::new(move || thunk.evaluate())
-		}
-	}
-
-	#[document_type_parameters("The type of the value produced by the task.")]
 	impl<A: 'static> Deferrable<'static> for Trampoline<A> {
 		/// Creates a `Trampoline` from a computation that produces it.
 		#[document_signature]

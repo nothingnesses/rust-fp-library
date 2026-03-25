@@ -20,7 +20,9 @@ mod inner {
 				CloneableFn,
 				Deferrable,
 				Foldable,
+				FoldableWithIndex,
 				Functor,
+				FunctorWithIndex,
 				Lift,
 				MonadRec,
 				Monoid,
@@ -28,6 +30,7 @@ mod inner {
 				Semiapplicative,
 				Semigroup,
 				Semimonad,
+				WithIndex,
 			},
 			impl_kind,
 			kinds::*,
@@ -175,7 +178,12 @@ mod inner {
 			TryThunk(Thunk::defer(move || f().0))
 		}
 
-		/// Creates a successful computation.
+		/// Alias for [`pure`](Self::pure), provided for readability.
+		///
+		/// Both `TryThunk::ok(x)` and `TryThunk::pure(x)` produce the same result: a
+		/// deferred computation that succeeds with `x`. The `ok` variant mirrors the
+		/// `Result::Ok` constructor name, making intent clearer when working directly
+		/// with `TryThunk` values rather than through HKT abstractions.
 		#[document_signature]
 		///
 		#[document_parameters("The value to wrap.")]
@@ -320,6 +328,43 @@ mod inner {
 			TryThunk(self.0.bind(|result| match result {
 				Ok(a) => Thunk::pure(Ok(a)),
 				Err(e) => f(e).0,
+			}))
+		}
+
+		/// Maps both the success and error values simultaneously.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The type of the new success value.",
+			"The type of the new error value."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the success value.",
+			"The function to apply to the error value."
+		)]
+		///
+		#[document_returns("A new `TryThunk` with both sides transformed.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let ok: TryThunk<i32, i32> = TryThunk::pure(5);
+		/// assert_eq!(ok.bimap(|x| x * 2, |e| e + 1).evaluate(), Ok(10));
+		///
+		/// let err: TryThunk<i32, i32> = TryThunk::err(5);
+		/// assert_eq!(err.bimap(|x| x * 2, |e| e + 1).evaluate(), Err(6));
+		/// ```
+		pub fn bimap<B: 'a, E2: 'a>(
+			self,
+			f: impl FnOnce(A) -> B + 'a,
+			g: impl FnOnce(E) -> E2 + 'a,
+		) -> TryThunk<'a, B, E2> {
+			TryThunk(self.0.map(|result| match result {
+				Ok(a) => Ok(f(a)),
+				Err(e) => Err(g(e)),
 			}))
 		}
 
@@ -508,6 +553,24 @@ mod inner {
 			handler: impl FnOnce(Box<dyn std::any::Any + Send>) -> E + 'a,
 		) -> Self {
 			TryThunk::new(move || std::panic::catch_unwind(f).map_err(handler))
+		}
+
+		/// Unwraps the newtype, returning the inner `Thunk<'a, Result<A, E>>`.
+		#[document_signature]
+		///
+		#[document_returns("The underlying `Thunk` that produces a `Result`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(42);
+		/// let inner = try_thunk.into_inner();
+		/// assert_eq!(inner.evaluate(), Ok(42));
+		/// ```
+		pub fn into_inner(self) -> Thunk<'a, Result<A, E>> {
+			self.0
 		}
 	}
 
@@ -1151,10 +1214,10 @@ mod inner {
 			a: Self,
 			b: Self,
 		) -> Self {
-			TryThunk::new(move || match (a.evaluate(), b.evaluate()) {
-				(Ok(a_val), Ok(b_val)) => Ok(Semigroup::append(a_val, b_val)),
-				(Err(e), _) => Err(e),
-				(_, Err(e)) => Err(e),
+			TryThunk::new(move || {
+				let a_val = a.evaluate()?;
+				let b_val = b.evaluate()?;
+				Ok(Semigroup::append(a_val, b_val))
 			})
 		}
 	}
@@ -1434,6 +1497,17 @@ mod inner {
 	}
 
 	impl_kind! {
+		/// HKT branding for `TryThunk` with the success type `A` fixed.
+		///
+		/// This is the "dual-channel" encoding for `TryThunk`:
+		/// - [`TryThunkErrAppliedBrand<E>`] fixes the error type and is polymorphic over `Ok` values,
+		///   giving a standard `Functor`/`Monad` that maps and chains success values.
+		/// - `TryThunkOkAppliedBrand<A>` fixes the success type and is polymorphic over `Err` values,
+		///   giving a `Functor`/`Monad` that maps and chains error values.
+		///
+		/// Together they allow the same `TryThunk<'a, A, E>` to participate in HKT abstractions
+		/// on either channel. For example, `pure::<TryThunkErrAppliedBrand<E>, _>(x)` produces
+		/// `Ok(x)`, while `pure::<TryThunkOkAppliedBrand<A>, _>(e)` produces `Err(e)`.
 		impl<A: 'static> for TryThunkOkAppliedBrand<A> {
 			#[document_default]
 			type Of<'a, E: 'a>: 'a = TryThunk<'a, A, E>;
@@ -1868,6 +1942,172 @@ mod inner {
 			f: &mut fmt::Formatter<'_>,
 		) -> fmt::Result {
 			f.write_str("TryThunk(<unevaluated>)")
+		}
+	}
+
+	#[document_type_parameters("The error type.")]
+	impl<E: 'static> WithIndex for TryThunkErrAppliedBrand<E> {
+		type Index = ();
+	}
+
+	#[document_type_parameters("The error type.")]
+	impl<E: 'static> FunctorWithIndex for TryThunkErrAppliedBrand<E> {
+		/// Maps a function over the success value in the `TryThunk`, providing the index `()`.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the success value inside the `TryThunk`.",
+			"The type of the result of applying the function."
+		)]
+		#[document_parameters(
+			"The function to apply to the value and its index.",
+			"The `TryThunk` to map over."
+		)]
+		#[document_returns(
+			"A new `TryThunk` containing the result of applying the function, or the original error."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::TryThunkErrAppliedBrand,
+		/// 	classes::functor_with_index::FunctorWithIndex,
+		/// 	types::*,
+		/// };
+		///
+		/// let x: TryThunk<i32, ()> = TryThunk::pure(5);
+		/// let y = <TryThunkErrAppliedBrand<()> as FunctorWithIndex>::map_with_index(|_, i| i * 2, x);
+		/// assert_eq!(y.evaluate(), Ok(10));
+		/// ```
+		fn map_with_index<'a, A: 'a, B: 'a>(
+			f: impl Fn((), A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.map(move |a| f((), a))
+		}
+	}
+
+	#[document_type_parameters("The error type.")]
+	impl<E: 'static> FoldableWithIndex for TryThunkErrAppliedBrand<E> {
+		/// Folds the `TryThunk` using a monoid, providing the index `()`.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the success value inside the `TryThunk`.",
+			"The monoid type."
+		)]
+		#[document_parameters(
+			"The function to apply to the value and its index.",
+			"The `TryThunk` to fold."
+		)]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::TryThunkErrAppliedBrand,
+		/// 	classes::foldable_with_index::FoldableWithIndex,
+		/// 	types::*,
+		/// };
+		///
+		/// let x: TryThunk<i32, ()> = TryThunk::pure(5);
+		/// let y = <TryThunkErrAppliedBrand<()> as FoldableWithIndex>::fold_map_with_index(
+		/// 	|_, i: i32| i.to_string(),
+		/// 	x,
+		/// );
+		/// assert_eq!(y, "5".to_string());
+		/// ```
+		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
+			f: impl Fn((), A) -> R + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R {
+			match fa.evaluate() {
+				Ok(a) => f((), a),
+				Err(_) => R::empty(),
+			}
+		}
+	}
+
+	#[document_type_parameters("The success type.")]
+	impl<A: 'static> WithIndex for TryThunkOkAppliedBrand<A> {
+		type Index = ();
+	}
+
+	#[document_type_parameters("The success type.")]
+	impl<A: 'static> FunctorWithIndex for TryThunkOkAppliedBrand<A> {
+		/// Maps a function over the error value in the `TryThunk`, providing the index `()`.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the error value inside the `TryThunk`.",
+			"The type of the result of applying the function."
+		)]
+		#[document_parameters(
+			"The function to apply to the error and its index.",
+			"The `TryThunk` to map over."
+		)]
+		#[document_returns(
+			"A new `TryThunk` containing the original success or the transformed error."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::TryThunkOkAppliedBrand,
+		/// 	classes::functor_with_index::FunctorWithIndex,
+		/// 	types::*,
+		/// };
+		///
+		/// let x: TryThunk<i32, i32> = TryThunk::err(5);
+		/// let y = <TryThunkOkAppliedBrand<i32> as FunctorWithIndex>::map_with_index(|_, e| e * 2, x);
+		/// assert_eq!(y.evaluate(), Err(10));
+		/// ```
+		fn map_with_index<'a, E: 'a, E2: 'a>(
+			f: impl Fn((), E) -> E2 + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E2>) {
+			fa.map_err(move |e| f((), e))
+		}
+	}
+
+	#[document_type_parameters("The success type.")]
+	impl<A: 'static> FoldableWithIndex for TryThunkOkAppliedBrand<A> {
+		/// Folds the `TryThunk` over the error using a monoid, providing the index `()`.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the error value inside the `TryThunk`.",
+			"The monoid type."
+		)]
+		#[document_parameters(
+			"The function to apply to the error and its index.",
+			"The `TryThunk` to fold."
+		)]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::TryThunkOkAppliedBrand,
+		/// 	classes::foldable_with_index::FoldableWithIndex,
+		/// 	types::*,
+		/// };
+		///
+		/// let x: TryThunk<i32, i32> = TryThunk::err(5);
+		/// let y = <TryThunkOkAppliedBrand<i32> as FoldableWithIndex>::fold_map_with_index(
+		/// 	|_, e: i32| e.to_string(),
+		/// 	x,
+		/// );
+		/// assert_eq!(y, "5".to_string());
+		/// ```
+		fn fold_map_with_index<'a, E: 'a, R: Monoid>(
+			f: impl Fn((), E) -> R + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+		) -> R {
+			match fa.evaluate() {
+				Err(e) => f((), e),
+				Ok(_) => R::empty(),
+			}
 		}
 	}
 }
@@ -2753,5 +2993,40 @@ mod tests {
 
 		// The closure should have been invoked exactly once.
 		assert_eq!(counter.load(Ordering::SeqCst), 1);
+	}
+
+	/// Tests `Semigroup::append` short-circuits when the first operand is `Err`.
+	///
+	/// Verifies that the second operand is never evaluated when the first fails.
+	#[test]
+	fn test_semigroup_append_first_err_short_circuits() {
+		use {
+			crate::classes::semigroup::append,
+			std::cell::Cell,
+		};
+
+		let counter = Cell::new(0u32);
+		let t1: TryThunk<String, &str> = TryThunk::err("first failed");
+		let t2: TryThunk<String, &str> = TryThunk::new(|| {
+			counter.set(counter.get() + 1);
+			Ok("second".to_string())
+		});
+		let result = append(t1, t2);
+		assert_eq!(result.evaluate(), Err("first failed"));
+		assert_eq!(counter.get(), 0, "second operand should not have been evaluated");
+	}
+
+	/// Tests `Semigroup::append` propagates the error when the second operand fails.
+	///
+	/// Verifies that when the first operand succeeds but the second fails, the error
+	/// from the second operand is returned.
+	#[test]
+	fn test_semigroup_append_second_err_propagates() {
+		use crate::classes::semigroup::append;
+
+		let t1: TryThunk<String, &str> = TryThunk::pure("hello".to_string());
+		let t2: TryThunk<String, &str> = TryThunk::err("second failed");
+		let result = append(t1, t2);
+		assert_eq!(result.evaluate(), Err("second failed"));
 	}
 }
