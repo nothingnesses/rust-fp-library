@@ -18,7 +18,11 @@ mod inner {
 	use fp_macros::*;
 	/// A trait for deferred lazy evaluation with thread-safe thunks.
 	///
-	/// This is similar to [`Deferrable`](crate::classes::Deferrable), but the thunk must be `Send + Sync`.
+	/// This is similar to [`Deferrable`](crate::classes::Deferrable), but the thunk must be
+	/// `Send`. Unlike [`SendCloneableFn`](crate::classes::SendCloneableFn), which wraps
+	/// multi-use `Fn` closures that are `Send + Sync`, this trait accepts a `FnOnce` closure
+	/// that only needs to be `Send` (not `Sync`), since deferred computations are executed
+	/// at most once.
 	#[document_type_parameters("The lifetime of the computation.")]
 	pub trait SendDeferrable<'a> {
 		/// Creates a deferred value from a thread-safe thunk.
@@ -39,7 +43,7 @@ mod inner {
 		/// let memo: ArcLazy<i32> = send_defer(|| ArcLazy::new(|| 42));
 		/// assert_eq!(*memo.evaluate(), 42);
 		/// ```
-		fn send_defer(f: impl FnOnce() -> Self + Send + Sync + 'a) -> Self
+		fn send_defer(f: impl FnOnce() -> Self + Send + 'a) -> Self
 		where
 			Self: Sized;
 	}
@@ -69,7 +73,7 @@ mod inner {
 	/// let memo: ArcLazy<i32> = send_defer(|| ArcLazy::new(|| 42));
 	/// assert_eq!(*memo.evaluate(), 42);
 	/// ```
-	pub fn send_defer<'a, D: SendDeferrable<'a>>(f: impl FnOnce() -> D + Send + Sync + 'a) -> D {
+	pub fn send_defer<'a, D: SendDeferrable<'a>>(f: impl FnOnce() -> D + Send + 'a) -> D {
 		D::send_defer(f)
 	}
 }

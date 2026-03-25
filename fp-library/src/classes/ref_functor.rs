@@ -25,6 +25,29 @@ mod inner {
 	///
 	/// This is a variant of `Functor` for types where `map` receives/returns references.
 	/// This is required for types like `Lazy` where `get()` returns `&A`, not `A`.
+	///
+	/// `RefFunctor` is intentionally independent from `SendRefFunctor`. Although one might
+	/// expect `SendRefFunctor` to be a subtrait of `RefFunctor`, this is not the case because
+	/// `ArcLazy::new` requires `Send` on the closure, which a generic `RefFunctor` cannot
+	/// guarantee. As a result, `ArcLazy` implements only `SendRefFunctor`, not `RefFunctor`,
+	/// and `RcLazy` implements only `RefFunctor`, not `SendRefFunctor`. A future
+	/// `SendRefFunctor` trait will serve as the thread-safe counterpart.
+	///
+	/// # Laws
+	///
+	/// **Identity:** `ref_map(|x| x.clone(), fa)` is equivalent to `fa`, given `A: Clone`.
+	/// The `Clone` requirement arises because the mapping function receives `&A` but must
+	/// produce a value of type `A` to satisfy the identity law.
+	///
+	/// **Composition:** `ref_map(|x| g(&f(x)), fa)` is equivalent to
+	/// `ref_map(g, ref_map(f, fa))`.
+	///
+	/// # Why `FnOnce`?
+	///
+	/// The `func` parameter uses `FnOnce` rather than `Fn` because memoized types like
+	/// `Lazy` create a new `Lazy` value capturing the closure. Since the resulting `Lazy`
+	/// will evaluate the closure at most once, `FnOnce` is sufficient and avoids imposing
+	/// unnecessary `Clone` or multi-call constraints on the caller.
 	#[kind(type Of<'a, A: 'a>: 'a;)]
 	pub trait RefFunctor {
 		/// Maps a function over the values in the functor context, where the function takes a reference.
