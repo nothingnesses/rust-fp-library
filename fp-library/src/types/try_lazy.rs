@@ -274,7 +274,10 @@ mod inner {
 		) -> RcTryLazy<'a, B, E>
 		where
 			E: Clone + 'a, {
-			RcTryLazy::new(move || self.evaluate().map(f).map_err(|e| e.clone()))
+			RcTryLazy::new(move || match self.evaluate() {
+				Ok(a) => Ok(f(a)),
+				Err(e) => Err(e.clone()),
+			})
 		}
 
 		/// Transforms the error value by creating a new `TryLazy` cell.
@@ -311,7 +314,10 @@ mod inner {
 		) -> RcTryLazy<'a, A, E2>
 		where
 			A: Clone + 'a, {
-			RcTryLazy::new(move || self.evaluate().cloned().map_err(f))
+			RcTryLazy::new(move || match self.evaluate() {
+				Ok(a) => Ok(a.clone()),
+				Err(e) => Err(f(e)),
+			})
 		}
 	}
 
@@ -629,6 +635,10 @@ mod inner {
 		/// If this `TryLazy` succeeds, applies `f` to the cached `&A` and returns a new
 		/// `TryLazy` that evaluates the result of `f`. If this `TryLazy` fails, the
 		/// error is cloned into the new `TryLazy`.
+		///
+		/// Note: unlike the typical Rust `and_then` signature where the callback takes
+		/// an owned `A`, this callback receives `&A` (a shared reference to the memoized
+		/// value) because `TryLazy` caches its result behind a shared pointer.
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the new success value.")]
@@ -650,7 +660,7 @@ mod inner {
 			self,
 			f: impl FnOnce(&A) -> Result<B, E> + 'a,
 		) -> TryLazy<'a, B, E, RcLazyConfig> {
-			let fa = self.clone();
+			let fa = self;
 			TryLazy::<'a, B, E, RcLazyConfig>::new(move || match fa.evaluate() {
 				Ok(a) => f(a),
 				Err(e) => Err(e.clone()),
@@ -681,7 +691,7 @@ mod inner {
 			self,
 			f: impl FnOnce(&E) -> Result<A, E> + 'a,
 		) -> TryLazy<'a, A, E, RcLazyConfig> {
-			let fa = self.clone();
+			let fa = self;
 			TryLazy::<'a, A, E, RcLazyConfig>::new(move || match fa.evaluate() {
 				Ok(a) => Ok(a.clone()),
 				Err(e) => f(e),
@@ -705,6 +715,10 @@ mod inner {
 		/// If this `ArcTryLazy` succeeds, applies `f` to the cached `&A` and returns a
 		/// new `ArcTryLazy` that evaluates the result of `f`. If this `ArcTryLazy`
 		/// fails, the error is cloned into the new `ArcTryLazy`.
+		///
+		/// Note: unlike the typical Rust `and_then` signature where the callback takes
+		/// an owned `A`, this callback receives `&A` (a shared reference to the memoized
+		/// value) because `ArcTryLazy` caches its result behind a shared pointer.
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the new success value.")]
@@ -726,7 +740,7 @@ mod inner {
 			self,
 			f: impl FnOnce(&A) -> Result<B, E> + Send + 'a,
 		) -> TryLazy<'a, B, E, ArcLazyConfig> {
-			let fa = self.clone();
+			let fa = self;
 			TryLazy::<'a, B, E, ArcLazyConfig>::new(move || match fa.evaluate() {
 				Ok(a) => f(a),
 				Err(e) => Err(e.clone()),
@@ -757,7 +771,7 @@ mod inner {
 			self,
 			f: impl FnOnce(&E) -> Result<A, E> + Send + 'a,
 		) -> TryLazy<'a, A, E, ArcLazyConfig> {
-			let fa = self.clone();
+			let fa = self;
 			TryLazy::<'a, A, E, ArcLazyConfig>::new(move || match fa.evaluate() {
 				Ok(a) => Ok(a.clone()),
 				Err(e) => f(e),
@@ -874,7 +888,10 @@ mod inner {
 		where
 			A: Send + Sync,
 			E: Clone + Send + Sync, {
-			ArcTryLazy::new(move || self.evaluate().map(f).map_err(|e| e.clone()))
+			ArcTryLazy::new(move || match self.evaluate() {
+				Ok(a) => Ok(f(a)),
+				Err(e) => Err(e.clone()),
+			})
 		}
 
 		/// Transforms the error value by creating a new thread-safe `TryLazy` cell.
@@ -907,7 +924,10 @@ mod inner {
 		where
 			A: Clone + Send + Sync,
 			E: Send + Sync, {
-			ArcTryLazy::new(move || self.evaluate().cloned().map_err(f))
+			ArcTryLazy::new(move || match self.evaluate() {
+				Ok(a) => Ok(a.clone()),
+				Err(e) => Err(f(e)),
+			})
 		}
 	}
 
@@ -1036,7 +1056,10 @@ mod inner {
 		fn defer(f: impl FnOnce() -> Self + 'a) -> Self
 		where
 			Self: Sized, {
-			Self::new(move || f().evaluate().cloned().map_err(Clone::clone))
+			Self::new(move || match f().evaluate() {
+				Ok(a) => Ok(a.clone()),
+				Err(e) => Err(e.clone()),
+			})
 		}
 	}
 
@@ -1242,6 +1265,50 @@ mod inner {
 				Err(_) => initial,
 			}
 		}
+
+		/// Maps the success value to a monoid and returns it.
+		///
+		/// Forces evaluation and, if the computation succeeded, maps the value.
+		/// If the computation failed, returns the monoid identity element.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the monoid."
+		)]
+		///
+		#[document_parameters("The mapping function.", "The TryLazy to fold.")]
+		///
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let memo: RcTryLazy<i32, ()> = RcTryLazy::new(|| Ok(10));
+		/// let result = fold_map::<RcFnBrand, TryLazyBrand<(), RcLazyConfig>, _, String>(
+		/// 	|a: i32| a.to_string(),
+		/// 	memo,
+		/// );
+		/// assert_eq!(result, "10");
+		/// ```
+		fn fold_map<'a, FnBrand, A: 'a + Clone, R: Monoid>(
+			func: impl Fn(A) -> R + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R
+		where
+			FnBrand: CloneableFn + 'a, {
+			match fa.evaluate() {
+				Ok(a) => func(a.clone()),
+				Err(_) => Monoid::empty(),
+			}
+		}
 	}
 
 	#[document_type_parameters(
@@ -1322,7 +1389,10 @@ mod inner {
 		fn send_defer(f: impl FnOnce() -> Self + Send + 'a) -> Self
 		where
 			Self: Sized, {
-			Self::new(move || f().evaluate().cloned().map_err(Clone::clone))
+			Self::new(move || match f().evaluate() {
+				Ok(a) => Ok(a.clone()),
+				Err(e) => Err(e.clone()),
+			})
 		}
 	}
 
@@ -1372,7 +1442,10 @@ mod inner {
 			f: impl FnOnce(&A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			RcTryLazy::new(move || fa.evaluate().map(f).map_err(|e| e.clone()))
+			RcTryLazy::new(move || match fa.evaluate() {
+				Ok(a) => Ok(f(a)),
+				Err(e) => Err(e.clone()),
+			})
 		}
 	}
 
@@ -1416,7 +1489,10 @@ mod inner {
 			f: impl FnOnce(&A) -> B + Send + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			ArcTryLazy::new(move || fa.evaluate().map(f).map_err(|e| e.clone()))
+			ArcTryLazy::new(move || match fa.evaluate() {
+				Ok(a) => Ok(f(a)),
+				Err(e) => Err(e.clone()),
+			})
 		}
 	}
 

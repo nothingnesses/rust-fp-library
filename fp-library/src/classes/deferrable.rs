@@ -20,7 +20,8 @@ mod inner {
 	/// ### Laws
 	///
 	/// `Deferrable` instances must satisfy the following law:
-	/// * Transparency: `defer(|| x)` is observationally equivalent to `x` when evaluated.
+	/// * Transparency: The value produced by `defer(|| x)` is identical to `x`. This law
+	///   does not constrain *when* evaluation occurs; some implementations may evaluate eagerly.
 	///
 	/// ### Why there is no generic `fix`
 	///

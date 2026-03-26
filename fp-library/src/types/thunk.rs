@@ -305,8 +305,11 @@ mod inner {
 
 		/// Evaluates this `Thunk` and wraps the result in a thread-safe [`ArcLazy`](crate::types::Lazy).
 		///
-		/// The thunk is evaluated eagerly because its inner closure is not
-		/// `Send`. The result is stored in an `ArcLazy` for thread-safe sharing.
+		/// The thunk is evaluated eagerly because its inner closure is `!Send`
+		/// (it is stored as `Box<dyn FnOnce() -> A + 'a>`), so it cannot be
+		/// placed inside an `Arc`-based lazy value that requires `Send`. By
+		/// evaluating first, only the resulting `A` (which is `Send + Sync`)
+		/// needs to cross the thread-safety boundary.
 		#[document_signature]
 		///
 		#[document_returns("A thread-safe `ArcLazy` containing the eagerly evaluated result.")]
@@ -378,7 +381,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the value produced by the computation.")]
-	impl<A: 'static + Send> From<Thunk<'static, A>> for Trampoline<A> {
+	impl<A: 'static> From<Thunk<'static, A>> for Trampoline<A> {
 		/// Converts a `'static` `Thunk` into a `Trampoline`.
 		///
 		/// This lifts a non-stack-safe `Thunk` into the stack-safe `Trampoline`
@@ -1142,6 +1145,21 @@ mod tests {
 		let thunk = Thunk::pure(10).map(|x| x * 3).bind(|x| Thunk::pure(x + 12));
 		let trampoline = Trampoline::from(thunk);
 		assert_eq!(trampoline.evaluate(), 42);
+	}
+
+	/// Tests `From<Thunk<'static, Rc<i32>>> for Trampoline<Rc<i32>>`.
+	///
+	/// Verifies that a non-`Send` type (`Rc`) can be converted now that the
+	/// spurious `Send` bound has been removed.
+	#[test]
+	fn test_thunk_to_trampoline_non_send() {
+		use {
+			crate::types::Trampoline,
+			std::rc::Rc,
+		};
+		let thunk = Thunk::new(|| Rc::new(42));
+		let trampoline = Trampoline::from(thunk);
+		assert_eq!(*trampoline.evaluate(), 42);
 	}
 
 	// QuickCheck Law Tests

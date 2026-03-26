@@ -1,6 +1,6 @@
 //! Efficient queue-like structure with O(1) append and O(1) amortized uncons.
 //!
-//! Implements the ["Reflection without Remorse"](http://okmij.org/ftp/Haskell/zseq.pdf) data structure used to enable O(1) left-associated [`bind`](crate::functions::bind) operations in the [`Free`](crate::types::Free) monad.
+//! Implements the ["Reflection without Remorse"](http://okmij.org/ftp/Haskell/zseq.pdf) data structure used to enable O(1) left-associated [`bind`](crate::functions::bind) operations in the [`Free`](crate::types::Free) monad. In that context, `CatList` serves as the continuation queue: each `bind` appends a continuation in O(1), and [`Free::evaluate`](crate::types::Free::evaluate) pops continuations one at a time via `uncons`.
 //!
 //! ### Examples
 //!
@@ -2048,7 +2048,7 @@ mod inner {
 			f: impl Fn(A, B) -> B,
 			initial: B,
 		) -> B {
-			self.into_iter().collect::<Vec<_>>().into_iter().rev().fold(initial, |acc, x| f(x, acc))
+			self.into_iter().collect::<Vec<_>>().into_iter().rfold(initial, |acc, x| f(x, acc))
 		}
 
 		/// Folds the list from the left.
@@ -2703,7 +2703,19 @@ mod inner {
 		/// assert_eq!(list.len(), 3);
 		/// ```
 		fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Self {
-			iter.into_iter().fold(CatList::Nil, |acc, a| acc.snoc(a))
+			let mut iter = iter.into_iter();
+			match iter.next() {
+				None => CatList::Nil,
+				Some(first) => {
+					let mut deque = VecDeque::new();
+					let mut count = 1usize;
+					for item in iter {
+						deque.push_back(CatList::singleton(item));
+						count += 1;
+					}
+					CatList::Cons(first, deque, count)
+				}
+			}
 		}
 	}
 }

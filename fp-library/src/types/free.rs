@@ -124,18 +124,6 @@ mod inner {
 		/// The functor contains the next step of the computation.
 		Wrap(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)),
 
-		/// A mapped computation.
-		///
-		/// This variant stores a value and a mapping function, avoiding the
-		/// type-erasure roundtrip that would occur if `map` were implemented
-		/// via `bind`. This provides a more direct path for functor mapping.
-		Map {
-			/// The inner computation whose result will be mapped.
-			value: Box<Free<F, TypeErasedValue>>,
-			/// The mapping function to apply to the result.
-			f: Box<dyn FnOnce(TypeErasedValue) -> A>,
-		},
-
 		/// A bind operation.
 		///
 		/// This variant represents a computation followed by a sequence of continuations.
@@ -187,6 +175,18 @@ mod inner {
 	/// 2.  **Performance**: `bind` would be O(N), leading to quadratic complexity for sequences of binds.
 	///
 	/// This implementation prioritizes **stack safety** and **O(1) bind** over HKT trait compatibility.
+	///
+	/// # Consuming a `Free`: `evaluate` vs `fold_free`
+	///
+	/// * [`evaluate`](Free::evaluate) runs the computation to completion using an iterative
+	///   loop. It requires the base functor `F` to implement [`Evaluable`], meaning each
+	///   suspended layer can be "unwrapped" to reveal the next step. Use this when you want
+	///   the final `A` value directly.
+	/// * [`fold_free`](Free::fold_free) interprets the `Free` into a different monad `G` via
+	///   a [`NaturalTransformation`] from `F` to `G`. Each suspended `F` layer is transformed
+	///   into `G`, and the results are threaded together with `G::bind`. Use this when you
+	///   want to translate the free structure into another effect (e.g., `Option`, `Result`,
+	///   or a custom interpreter).
 	#[document_type_parameters(
 		"The base functor (must implement [`Functor`]).",
 		"The result type."
@@ -384,7 +384,8 @@ mod inner {
 			match inner {
 				// Pure: create a Bind with this continuation
 				FreeInner::Pure(a) => {
-					let head: Free<F, TypeErasedValue> = Free::pure(a).erase_type();
+					let head: Free<F, TypeErasedValue> =
+						Free::from_inner(FreeInner::Pure(Box::new(a) as TypeErasedValue));
 					Free::from_inner(FreeInner::Bind {
 						head: Box::new(head),
 						continuations: CatList::singleton(erased_f),
@@ -402,22 +403,6 @@ mod inner {
 					})
 				}
 
-				// Map: wrap in a Bind
-				FreeInner::Map {
-					value,
-					f: map_fn,
-				} => {
-					let head = Free(Some(FreeInner::Map {
-						value,
-						f: map_fn,
-					}));
-					Free(Some(FreeInner::Bind {
-						head: head.boxed_erase_type(),
-						continuations: CatList::singleton(erased_f),
-						_marker: PhantomData,
-					}))
-				}
-
 				// Bind: snoc the new continuation onto the CatList (O(1)!)
 				FreeInner::Bind {
 					head,
@@ -433,8 +418,8 @@ mod inner {
 
 		/// Functor map: transforms the result without changing structure.
 		///
-		/// Uses the [`Map`](FreeInner::Map) variant directly to avoid the
-		/// type-erasure overhead of going through [`bind`](Free::bind).
+		/// Implemented via [`bind`](Free::bind) and [`pure`](Free::pure),
+		/// keeping the internal representation simple with fewer variants.
 		#[document_signature]
 		///
 		#[document_type_parameters("The result type of the mapping function.")]
@@ -458,18 +443,7 @@ mod inner {
 			self,
 			f: impl FnOnce(A) -> B + 'static,
 		) -> Free<F, B> {
-			let erased_self = self.erase_type();
-			let erased_f: Box<dyn FnOnce(TypeErasedValue) -> B> =
-				Box::new(move |val: TypeErasedValue| {
-					// INVARIANT: type is maintained by internal invariant - mismatch indicates a bug
-					#[allow(clippy::expect_used)]
-					let a: A = *val.downcast().expect("Type mismatch in Free::map");
-					f(a)
-				});
-			Free(Some(FreeInner::Map {
-				value: Box::new(erased_self),
-				f: erased_f,
-			}))
+			self.bind(move |a| Free::pure(f(a)))
 		}
 
 		/// Decomposes this `Free` computation into one step.
@@ -478,7 +452,7 @@ mod inner {
 		/// `Err(f_free)` if the computation is suspended in the functor `F`,
 		/// where `f_free` contains the next `Free` computation wrapped in `F`.
 		///
-		/// For `Bind` and `Map` variants, the continuation chain is collapsed first by
+		/// For `Bind` variants, the continuation chain is collapsed first by
 		/// iteratively applying continuations until a `Pure` or `Wrap` is reached.
 		#[document_signature]
 		///
@@ -537,78 +511,34 @@ mod inner {
 						// We have a suspended computation. We need to rebuild the
 						// Free<F, A> from the type-erased Free<F, TypeErasedValue>
 						// by re-attaching the remaining continuations.
-						if continuations.is_empty() {
-							// No continuations to reattach; just reconstruct the typed version.
-							// fa is F<Free<F, TypeErasedValue>>. We need F<Free<F, A>>.
-							let typed_fa = F::map(
-								|inner_free: Free<F, TypeErasedValue>| {
-									// Wrap the erased free in a Bind that downcasts back to A
-									let cont: Continuation<F> =
-										Box::new(move |val: TypeErasedValue| {
-											// INVARIANT: type is maintained by internal invariant
-											#[allow(clippy::expect_used)]
-											let a: A = *val
-												.downcast()
-												.expect("Type mismatch in Free::resume downcast");
-											Free::<F, A>::pure(a).erase_type()
-										});
-									Free(Some(FreeInner::Bind {
-										head: Box::new(inner_free),
-										continuations: CatList::singleton(cont),
-										_marker: PhantomData,
-									}))
-								},
-								fa,
-							);
-							return Err(typed_fa);
-						} else {
-							// There are continuations remaining. We need to attach them
-							// to the inner Free computations via map.
-							// Use Cell to move the CatList into the Fn closure (called exactly once).
-							let remaining = std::cell::Cell::new(Some(continuations));
-							let typed_fa = F::map(
-								move |inner_free: Free<F, TypeErasedValue>| {
-									// INVARIANT: functors call map exactly once per element
-									#[allow(clippy::expect_used)]
-									let conts = remaining
-										.take()
-										.expect("Free::resume map called more than once");
-									// Create a Bind node that first runs inner_free,
-									// then applies the remaining continuations, then
-									// downcasts back to A.
-									let downcast_cont: Continuation<F> =
-										Box::new(move |val: TypeErasedValue| {
-											// INVARIANT: type is maintained by internal invariant
-											#[allow(clippy::expect_used)]
-											let a: A = *val
-												.downcast()
-												.expect("Type mismatch in Free::resume downcast");
-											Free::<F, A>::pure(a).erase_type()
-										});
-									let all_conts = conts.snoc(downcast_cont);
-									Free(Some(FreeInner::Bind {
-										head: Box::new(inner_free),
-										continuations: all_conts,
-										_marker: PhantomData,
-									}))
-								},
-								fa,
-							);
-							return Err(typed_fa);
-						}
-					}
 
-					FreeInner::Map {
-						value,
-						f: map_fn,
-					} => {
-						// Convert the Map into a continuation and continue the loop
-						let map_cont: Continuation<F> = Box::new(move |val: TypeErasedValue| {
-							let mapped = map_fn(val);
-							Free::pure(mapped)
-						});
-						current = *value;
-						continuations = CatList::singleton(map_cont).append(continuations);
+						// Always append the downcast continuation that converts
+						// TypeErasedValue back to the concrete type A.
+						let downcast_cont: Continuation<F> =
+							Box::new(move |val: TypeErasedValue| {
+								// INVARIANT: type is maintained by internal invariant
+								#[allow(clippy::expect_used)]
+								let a: A = *val.downcast().expect("Type mismatch in Free::resume downcast");
+								Free::<F, A>::pure(a).erase_type()
+							});
+						let all_conts = continuations.snoc(downcast_cont);
+
+						// Use Cell to move the CatList into the Fn closure (called exactly once).
+						let remaining = std::cell::Cell::new(Some(all_conts));
+						let typed_fa = F::map(
+							move |inner_free: Free<F, TypeErasedValue>| {
+								// INVARIANT: functors call map exactly once per element
+								#[allow(clippy::expect_used)]
+								let conts = remaining.take().expect("Free::resume map called more than once");
+								Free(Some(FreeInner::Bind {
+									head: Box::new(inner_free),
+									continuations: conts,
+									_marker: PhantomData,
+								}))
+							},
+							fa,
+						);
+						return Err(typed_fa);
 					}
 
 					FreeInner::Bind {
@@ -635,10 +565,16 @@ mod inner {
 		///
 		/// ### Stack Safety
 		///
-		/// Unlike [`Free::evaluate`], which uses an iterative loop, `fold_free` uses
-		/// actual recursion: each `Wrap` layer adds one stack frame via [`Semimonad::bind`](crate::classes::Semimonad::bind).
-		/// For strict target monads (e.g., `OptionBrand`), deep `Free` computations
-		/// will overflow the stack.
+		/// **Caveat:** `fold_free` is **not** stack-safe when interpreting into a
+		/// strict (non-trampolined) target monad. Unlike [`Free::evaluate`], which
+		/// uses an iterative loop, `fold_free` relies on actual recursion: each
+		/// `Wrap` layer adds one stack frame via
+		/// [`Semimonad::bind`](crate::classes::Semimonad::bind). For strict target
+		/// monads (e.g., `OptionBrand`), deeply nested `Free` structures will
+		/// overflow the stack.
+		///
+		/// Prefer [`Free::evaluate`] for stack-safe execution when you do not need
+		/// to interpret into a different monad.
 		#[document_signature]
 		///
 		#[document_type_parameters("The target monad brand.")]
@@ -728,20 +664,6 @@ mod inner {
 					let erased = F::map(|inner: Free<F, A>| inner.erase_type(), fa);
 					Free::from_inner(FreeInner::Wrap(erased))
 				}
-				FreeInner::Map {
-					value,
-					f: map_fn,
-				} => {
-					// Compose the map function with boxing to produce TypeErasedValue
-					let erased_f: Box<dyn FnOnce(TypeErasedValue) -> TypeErasedValue> =
-						Box::new(move |val: TypeErasedValue| {
-							Box::new(map_fn(val)) as TypeErasedValue
-						});
-					Free(Some(FreeInner::Map {
-						value,
-						f: erased_f,
-					}))
-				}
 				FreeInner::Bind {
 					head,
 					continuations,
@@ -825,19 +747,6 @@ mod inner {
 						current = <F as Evaluable>::evaluate(fa);
 					}
 
-					FreeInner::Map {
-						value,
-						f: map_fn,
-					} => {
-						// Convert the Map into a continuation and continue the loop
-						let map_cont: Continuation<F> = Box::new(move |val: TypeErasedValue| {
-							let mapped = map_fn(val);
-							Free::pure(mapped)
-						});
-						current = *value;
-						continuations = CatList::singleton(map_cont).append(continuations);
-					}
-
 					FreeInner::Bind {
 						head,
 						continuations: inner_continuations,
@@ -902,35 +811,6 @@ mod inner {
 						// frees any captured Free values. Those Free values'
 						// own Drop impls will re-enter this iterative loop.
 						conts = rest;
-					}
-				}
-				Some(FreeInner::Map {
-					mut value, ..
-				}) => {
-					// Iteratively walk through nested Map chains. All inner
-					// values are `Box<Free<F, Box<dyn Any>>>` (type-erased),
-					// so we can loop homogeneously without type mismatch.
-					loop {
-						match value.0.take() {
-							Some(FreeInner::Map {
-								value: next, ..
-							}) => {
-								value = next;
-							}
-							Some(FreeInner::Bind {
-								head,
-								continuations,
-								..
-							}) => {
-								drop(head);
-								let mut conts = continuations;
-								while let Some((_cont, rest)) = conts.uncons() {
-									conts = rest;
-								}
-								break;
-							}
-							_ => break,
-						}
 					}
 				}
 				Some(FreeInner::Wrap(_)) | Some(FreeInner::Pure(_)) | None => {
@@ -1189,7 +1069,7 @@ mod tests {
 
 	/// Tests `Free::map` on a pure value.
 	///
-	/// **What it tests:** Verifies that the `Map` variant correctly transforms a pure value.
+	/// **What it tests:** Verifies that `map` correctly transforms a pure value.
 	/// **How it tests:** Creates `Free::pure(10).map(|x| x * 2)` and evaluates.
 	#[test]
 	fn test_free_map_pure() {

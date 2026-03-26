@@ -1,5 +1,10 @@
 //! Stack-safe computation type with guaranteed safety for unlimited recursion depth.
 //!
+//! Trampolining converts stack-based recursion into heap-based iteration: instead
+//! of each recursive call consuming a stack frame, each step returns a thunk that
+//! the driver loop evaluates iteratively. This eliminates the risk of stack overflow
+//! regardless of recursion depth.
+//!
 //! Built on the [`Free`](crate::types::Free) monad with O(1) [`bind`](Trampoline::bind) operations. Provides complete stack safety at the cost of requiring `'static` types. Use this for deep recursion and heavy monadic pipelines.
 //!
 //! ### Examples
@@ -281,7 +286,10 @@ mod inner {
 		/// Evaluates this `Trampoline` and wraps the result in a thread-safe [`ArcLazy`](crate::types::Lazy).
 		///
 		/// The trampoline is evaluated eagerly because its inner closures are
-		/// not `Send`. The result is stored in an `ArcLazy` for thread-safe sharing.
+		/// `!Send` (they are stored as `Box<dyn FnOnce>` inside the underlying
+		/// `Free` monad), so they cannot be placed inside an `Arc`-based lazy
+		/// value that requires `Send`. By evaluating first, only the resulting
+		/// `A` (which is `Send + Sync`) needs to cross the thread-safety boundary.
 		#[document_signature]
 		///
 		#[document_returns("A thread-safe `ArcLazy` containing the eagerly evaluated result.")]
@@ -298,8 +306,7 @@ mod inner {
 		pub fn into_arc_lazy(self) -> Lazy<'static, A, ArcLazyConfig>
 		where
 			A: Send + Sync, {
-			let val = self.evaluate();
-			Lazy::<'static, A, ArcLazyConfig>::new(move || val)
+			Lazy::from(self)
 		}
 
 		/// Combines two `Trampoline`s, running both and combining results.
@@ -466,10 +473,10 @@ mod inner {
 			) -> Trampoline<B>
 			where
 				F: Fn(A) -> Trampoline<Step<A, B>> + Clone + 'static, {
-				let f_clone = f.clone();
 				Trampoline::defer(move || {
-					f(a).bind(move |step| match step {
-						Step::Loop(next) => go(f_clone.clone(), next),
+					let result = f(a);
+					result.bind(move |step| match step {
+						Step::Loop(next) => go(f, next),
 						Step::Done(b) => Trampoline::pure(b),
 					})
 				})
@@ -590,6 +597,61 @@ mod inner {
 		where
 			Self: Sized, {
 			Trampoline::defer(f)
+		}
+	}
+
+	#[document_type_parameters("The type of the value produced by the task.")]
+	impl<A: Semigroup + 'static> Semigroup for Trampoline<A> {
+		/// Combines two `Trampoline`s by combining their results via [`Semigroup::append`].
+		#[document_signature]
+		///
+		#[document_parameters("The first `Trampoline`.", "The second `Trampoline`.")]
+		///
+		#[document_returns("A new `Trampoline` producing the combined result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let t1 = Trampoline::pure(vec![1, 2]);
+		/// let t2 = Trampoline::pure(vec![3, 4]);
+		/// let t3 = append::<_>(t1, t2);
+		/// assert_eq!(t3.evaluate(), vec![1, 2, 3, 4]);
+		/// ```
+		fn append(
+			a: Self,
+			b: Self,
+		) -> Self {
+			a.lift2(b, Semigroup::append)
+		}
+	}
+
+	#[document_type_parameters("The type of the value produced by the task.")]
+	impl<A: Monoid + 'static> Monoid for Trampoline<A> {
+		/// Returns a `Trampoline` producing the identity element for `A`.
+		#[document_signature]
+		///
+		#[document_returns("A `Trampoline` producing the monoid identity element.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let t: Trampoline<Vec<i32>> = empty::<Trampoline<Vec<i32>>>();
+		/// assert_eq!(t.evaluate(), Vec::<i32>::new());
+		/// ```
+		fn empty() -> Self {
+			Trampoline::pure(Monoid::empty())
 		}
 	}
 

@@ -350,8 +350,8 @@ mod inner {
 		///
 		/// Unlike [`catch`](TryTrampoline::catch), `catch_with` allows the recovery function to return a
 		/// `TryTrampoline` with a different error type `E2`. On success, the value is passed through
-		/// unchanged. On failure, the recovery function is applied to the error value and its result
-		/// is evaluated.
+		/// unchanged. On failure, the recovery function is applied to the error value and its
+		/// resulting `TryTrampoline` is composed via `bind`, preserving stack safety through deeply chained recovery operations.
 		#[document_signature]
 		///
 		#[document_type_parameters("The error type produced by the recovery computation.")]
@@ -380,9 +380,9 @@ mod inner {
 			self,
 			f: impl FnOnce(E) -> TryTrampoline<A, E2> + 'static,
 		) -> TryTrampoline<A, E2> {
-			TryTrampoline(Trampoline::new(move || match self.evaluate() {
-				Ok(a) => Ok(a),
-				Err(e) => f(e).evaluate(),
+			TryTrampoline(self.0.bind(move |result| match result {
+				Ok(a) => Trampoline::pure(Ok(a)),
+				Err(e) => f(e).0,
 			}))
 		}
 
@@ -504,17 +504,20 @@ mod inner {
 			f: impl Fn(S) -> TryTrampoline<Step<S, A>, E> + Clone + 'static,
 			initial: S,
 		) -> Self {
-			TryTrampoline(Trampoline::tail_rec_m(
-				move |state: Result<S, E>| match state {
-					Err(e) => Trampoline::pure(Step::Done(Err(e))),
-					Ok(s) => f(s).0.map(|result| match result {
-						Ok(Step::Loop(next)) => Step::Loop(Ok(next)),
-						Ok(Step::Done(a)) => Step::Done(Ok(a)),
-						Err(e) => Step::Done(Err(e)),
-					}),
-				},
-				Ok(initial),
-			))
+			fn go<S: 'static, A: 'static, E: 'static>(
+				f: impl Fn(S) -> TryTrampoline<Step<S, A>, E> + Clone + 'static,
+				s: S,
+			) -> Trampoline<Result<A, E>> {
+				Trampoline::defer(move || {
+					let result = f(s);
+					result.0.bind(move |r| match r {
+						Ok(Step::Loop(next)) => go(f, next),
+						Ok(Step::Done(a)) => Trampoline::pure(Ok(a)),
+						Err(e) => Trampoline::pure(Err(e)),
+					})
+				})
+			}
+			TryTrampoline(go(f, initial))
 		}
 
 		/// Arc-wrapped version of `tail_rec_m` for non-Clone closures.
@@ -595,6 +598,60 @@ mod inner {
 			self.0.evaluate()
 		}
 
+		/// Combines two `TryTrampoline` values using the inner type's [`Semigroup`].
+		///
+		/// Both computations are evaluated. If both succeed, their results are
+		/// combined via [`Semigroup::append`]. If either fails, the first error
+		/// is propagated (short-circuiting on the left).
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The second `TryTrampoline` whose result will be combined with this one."
+		)]
+		///
+		#[document_returns("A new `TryTrampoline` producing the combined result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let t1: TryTrampoline<Vec<i32>, String> = TryTrampoline::ok(vec![1, 2]);
+		/// let t2: TryTrampoline<Vec<i32>, String> = TryTrampoline::ok(vec![3, 4]);
+		/// assert_eq!(t1.append(t2).evaluate(), Ok(vec![1, 2, 3, 4]));
+		/// ```
+		#[inline]
+		pub fn append(
+			self,
+			other: TryTrampoline<A, E>,
+		) -> TryTrampoline<A, E>
+		where
+			A: Semigroup + 'static, {
+			self.lift2(other, Semigroup::append)
+		}
+
+		/// Creates a `TryTrampoline` that produces the identity element for the given [`Monoid`].
+		#[document_signature]
+		///
+		#[document_returns(
+			"A `TryTrampoline` producing the monoid identity element wrapped in `Ok`."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let t: TryTrampoline<Vec<i32>, String> = TryTrampoline::empty();
+		/// assert_eq!(t.evaluate(), Ok(Vec::<i32>::new()));
+		/// ```
+		#[inline]
+		pub fn empty() -> TryTrampoline<A, E>
+		where
+			A: Monoid + 'static, {
+			TryTrampoline::ok(Monoid::empty())
+		}
+
 		/// Converts this `TryTrampoline` into a memoized [`RcTryLazy`](crate::types::RcTryLazy) value.
 		///
 		/// The computation will be evaluated at most once; subsequent accesses
@@ -641,8 +698,7 @@ mod inner {
 		where
 			A: Send + Sync,
 			E: Send + Sync, {
-			let result = self.evaluate();
-			crate::types::ArcTryLazy::new(move || result)
+			crate::types::ArcTryLazy::from(self)
 		}
 	}
 
@@ -758,10 +814,10 @@ mod inner {
 		E: 'static,
 		Config: LazyConfig,
 	{
-		/// Converts a [`Lazy`] value into a [`TryTrampoline`] by evaluating eagerly.
+		/// Converts a [`Lazy`] value into a [`TryTrampoline`] that defers evaluation.
 		///
-		/// The `Lazy` is forced at conversion time and the result is cloned into a
-		/// pure `TryTrampoline`. This is the same eager semantics as
+		/// The `Lazy` is not forced at conversion time; instead, the `TryTrampoline`
+		/// defers evaluation until it is run. This is the same deferred semantics as
 		/// [`From<TryLazy>`](#impl-From<TryLazy<'static,+A,+E,+Config>>-for-TryTrampoline<A,+E>).
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
@@ -775,7 +831,7 @@ mod inner {
 		/// assert_eq!(try_task.evaluate(), Ok(42));
 		/// ```
 		fn from(memo: Lazy<'static, A, Config>) -> Self {
-			TryTrampoline(Trampoline::pure(Ok(memo.evaluate().clone())))
+			TryTrampoline(Trampoline::new(move || Ok(memo.evaluate().clone())))
 		}
 	}
 
@@ -790,9 +846,9 @@ mod inner {
 		E: Clone + 'static,
 		Config: TryLazyConfig,
 	{
-		/// Converts a [`TryLazy`] value into a [`TryTrampoline`] by cloning the memoized result.
+		/// Converts a [`TryLazy`] value into a [`TryTrampoline`] that defers evaluation.
 		///
-		/// This conversion clones both the success and error values eagerly.
+		/// This conversion defers forcing the `TryLazy` until the `TryTrampoline` is run.
 		/// The cost depends on the [`Clone`] implementations of `A` and `E`.
 		#[document_signature]
 		#[document_parameters("The fallible lazy value to convert.")]
@@ -806,7 +862,13 @@ mod inner {
 		/// assert_eq!(try_task.evaluate(), Ok(42));
 		/// ```
 		fn from(memo: TryLazy<'static, A, E, Config>) -> Self {
-			TryTrampoline(Trampoline::pure(memo.evaluate().cloned().map_err(Clone::clone)))
+			TryTrampoline(Trampoline::new(move || {
+				let result = memo.evaluate();
+				match result {
+					Ok(a) => Ok(a.clone()),
+					Err(e) => Err(e.clone()),
+				}
+			}))
 		}
 	}
 
@@ -1700,5 +1762,33 @@ mod tests {
 		let task: TryTrampoline<i32, String> = TryTrampoline::err("oops".to_string());
 		let lazy = task.into_arc_try_lazy();
 		assert_eq!(lazy.evaluate(), Err(&"oops".to_string()));
+	}
+
+	/// Tests `TryTrampoline::catch_with` stack safety.
+	///
+	/// Verifies that deeply chained `catch_with` calls do not overflow the stack.
+	#[test]
+	fn test_catch_with_stack_safety() {
+		let n = 100_000u64;
+		let mut task: TryTrampoline<u64, u64> = TryTrampoline::err(0);
+		for i in 1 ..= n {
+			task = task.catch_with(move |_| TryTrampoline::err(i));
+		}
+		assert_eq!(task.evaluate(), Err(n));
+	}
+
+	/// Tests `TryTrampoline::catch_with` stack safety on the success path.
+	///
+	/// Verifies that a deeply chained `catch_with` that eventually succeeds
+	/// does not overflow the stack.
+	#[test]
+	fn test_catch_with_stack_safety_ok() {
+		let n = 100_000u64;
+		let mut task: TryTrampoline<u64, u64> = TryTrampoline::err(0);
+		for i in 1 .. n {
+			task = task.catch_with(move |_| TryTrampoline::err(i));
+		}
+		task = task.catch_with(|e| TryTrampoline::ok(e));
+		assert_eq!(task.evaluate(), Ok(n - 1));
 	}
 }

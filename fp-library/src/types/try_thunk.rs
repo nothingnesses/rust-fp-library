@@ -145,9 +145,7 @@ mod inner {
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
 		#[inline]
-		pub fn pure(a: A) -> Self
-		where
-			A: 'a, {
+		pub fn pure(a: A) -> Self {
 			TryThunk(Thunk::pure(Ok(a)))
 		}
 
@@ -192,9 +190,7 @@ mod inner {
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
 		#[inline]
-		pub fn ok(a: A) -> Self
-		where
-			A: 'a, {
+		pub fn ok(a: A) -> Self {
 			TryThunk(Thunk::pure(Ok(a)))
 		}
 
@@ -214,9 +210,7 @@ mod inner {
 		/// assert_eq!(try_thunk.evaluate(), Err("error"));
 		/// ```
 		#[inline]
-		pub fn err(e: E) -> Self
-		where
-			E: 'a, {
+		pub fn err(e: E) -> Self {
 			TryThunk(Thunk::pure(Err(e)))
 		}
 
@@ -1617,6 +1611,14 @@ mod inner {
 	#[document_type_parameters("The success type.")]
 	impl<A: 'static> Lift for TryThunkOkAppliedBrand<A> {
 		/// Lifts a binary function into the `TryThunk` context (over error).
+		///
+		/// # Evaluation strategy
+		///
+		/// This implementation uses **fail-last** semantics: both `fa` and `fb` are
+		/// evaluated before the results are inspected. If either side is `Ok`, the
+		/// `Ok` value is returned and the function is never called. This contrasts
+		/// with the monadic [`bind`](TryThunk::bind) path, which is **fail-fast**
+		/// and short-circuits on the first `Ok` without evaluating the second thunk.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1675,6 +1677,14 @@ mod inner {
 	#[document_type_parameters("The success type.")]
 	impl<A: 'static> Semiapplicative for TryThunkOkAppliedBrand<A> {
 		/// Applies a function wrapped in `TryThunk` (as error) to a value wrapped in `TryThunk` (as error).
+		///
+		/// # Evaluation strategy
+		///
+		/// This implementation uses **fail-last** semantics: both `ff` and `fa` are
+		/// evaluated before the results are inspected. If either side is `Ok`, the
+		/// `Ok` value is returned. This contrasts with the monadic
+		/// [`bind`](TryThunk::bind) path, which is **fail-fast** and short-circuits
+		/// on the first `Ok` without evaluating the second thunk.
 		#[document_signature]
 		///
 		#[document_type_parameters(

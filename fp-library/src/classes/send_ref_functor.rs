@@ -33,7 +33,7 @@ mod inner {
 	/// A single trait with `Send` bounds on `RefFunctor` would exclude `RcLazy`, which uses
 	/// `Rc` (a `!Send` type). By keeping `RefFunctor` free of `Send` bounds and providing
 	/// `SendRefFunctor` separately, `RcLazy` can implement `RefFunctor` while `ArcLazy`
-	/// implements both `RefFunctor` and `SendRefFunctor`.
+	/// implements only `SendRefFunctor`.
 	///
 	/// ### Laws
 	///

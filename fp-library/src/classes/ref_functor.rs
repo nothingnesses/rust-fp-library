@@ -26,18 +26,16 @@ mod inner {
 	/// This is a variant of `Functor` for types where `map` receives/returns references.
 	/// This is required for types like `Lazy` where `get()` returns `&A`, not `A`.
 	///
-	/// `RefFunctor` is intentionally independent from `SendRefFunctor`. Although one might
+	/// `RefFunctor` is intentionally independent from
+	/// [`SendRefFunctor`](crate::classes::SendRefFunctor). Although one might
 	/// expect `SendRefFunctor` to be a subtrait of `RefFunctor`, this is not the case because
 	/// `ArcLazy::new` requires `Send` on the closure, which a generic `RefFunctor` cannot
 	/// guarantee. As a result, `ArcLazy` implements only `SendRefFunctor`, not `RefFunctor`,
-	/// and `RcLazy` implements only `RefFunctor`, not `SendRefFunctor`. A future
-	/// `SendRefFunctor` trait will serve as the thread-safe counterpart.
+	/// and `RcLazy` implements only `RefFunctor`, not `SendRefFunctor`.
 	///
 	/// ### Laws
 	///
 	/// `RefFunctor` instances must satisfy the following laws:
-	/// * Identity: `ref_map(|x| x.clone(), fa)` evaluates to a value equal to `fa`'s evaluated value.
-	/// * Composition: `ref_map(|x| f(&g(x)), fa)` evaluates to the same value as `ref_map(f, ref_map(g, fa))`.
 	///
 	/// **Identity:** `ref_map(|x| x.clone(), fa)` is equivalent to `fa`, given `A: Clone`.
 	/// The `Clone` requirement arises because the mapping function receives `&A` but must
@@ -72,6 +70,14 @@ mod inner {
 	/// );
 	/// assert_eq!(*composed.evaluate(), *sequential.evaluate());
 	/// ```
+	///
+	/// # Cache chain behavior
+	///
+	/// Chaining `ref_map` calls on memoized types like [`Lazy`](crate::types::Lazy) creates
+	/// a linked list of `Rc`/`Arc`-referenced cells. Each mapped value retains a reference to
+	/// its predecessor, so the entire chain of predecessor cells stays alive as long as any
+	/// downstream mapped value is reachable. Be aware that long chains can accumulate memory
+	/// that is only freed when the final value in the chain is dropped.
 	///
 	/// # Why `FnOnce`?
 	///

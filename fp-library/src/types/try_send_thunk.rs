@@ -249,7 +249,7 @@ mod inner {
 			B: Send + 'a,
 			E: Send + 'a, {
 			TrySendThunk(self.0.bind(move |result| match result {
-				Ok(a) => SendThunk::new(move || f(a).evaluate()),
+				Ok(a) => f(a).0,
 				Err(e) => SendThunk::pure(Err(e)),
 			}))
 		}
@@ -368,7 +368,7 @@ mod inner {
 			E: Send, {
 			TrySendThunk(self.0.bind(move |result| match result {
 				Ok(a) => SendThunk::pure(Ok(a)),
-				Err(e) => SendThunk::new(move || f(e).evaluate()),
+				Err(e) => f(e).0,
 			}))
 		}
 
@@ -410,6 +410,24 @@ mod inner {
 				Ok(a) => Ok(a),
 				Err(e) => f(e).evaluate(),
 			}))
+		}
+
+		/// Unwraps the newtype, returning the inner `SendThunk<'a, Result<A, E>>`.
+		#[document_signature]
+		///
+		#[document_returns("The underlying `SendThunk` that produces a `Result`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let try_thunk: TrySendThunk<i32, ()> = TrySendThunk::pure(42);
+		/// let inner = try_thunk.into_inner();
+		/// assert_eq!(inner.evaluate(), Ok(42));
+		/// ```
+		pub fn into_inner(self) -> SendThunk<'a, Result<A, E>> {
+			self.0
 		}
 
 		/// Forces evaluation and returns the result.
@@ -722,6 +740,64 @@ mod inner {
 		/// ```
 		fn from(thunk: SendThunk<'a, A>) -> Self {
 			TrySendThunk(thunk.map(Ok))
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the success value.",
+		"The type of the error value."
+	)]
+	impl<'a, A: 'a, E: 'a> From<crate::types::ArcLazy<'a, A>> for TrySendThunk<'a, A, E>
+	where
+		A: Clone + Send,
+		E: Send,
+	{
+		/// Converts an [`ArcLazy`](crate::types::ArcLazy) into a [`TrySendThunk`] that always succeeds.
+		///
+		/// The lazy value is forced and the result is cloned into a new `TrySendThunk`.
+		#[document_signature]
+		#[document_parameters("The thread-safe lazy value to convert.")]
+		#[document_returns("A new `TrySendThunk` wrapping the cloned result as a success.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let lazy = ArcLazy::new(|| 42);
+		/// let thunk: TrySendThunk<i32, ()> = TrySendThunk::from(lazy);
+		/// assert_eq!(thunk.evaluate(), Ok(42));
+		/// ```
+		fn from(lazy: crate::types::ArcLazy<'a, A>) -> Self {
+			let val = lazy.evaluate().clone();
+			TrySendThunk::new(move || Ok(val))
+		}
+	}
+
+	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
+	impl<A: 'static, E: 'static> From<crate::types::TryTrampoline<A, E>> for TrySendThunk<'static, A, E>
+	where
+		A: Send,
+		E: Send,
+	{
+		/// Converts a [`TryTrampoline`](crate::types::TryTrampoline) into a [`TrySendThunk`].
+		///
+		/// The trampoline is eagerly evaluated because its inner closures are not
+		/// `Send`. The result is wrapped in a new `TrySendThunk`.
+		#[document_signature]
+		#[document_parameters("The fallible trampoline to convert.")]
+		#[document_returns("A new `TrySendThunk` wrapping the evaluated result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let tramp: TryTrampoline<i32, String> = TryTrampoline::ok(42);
+		/// let thunk: TrySendThunk<i32, String> = TrySendThunk::from(tramp);
+		/// assert_eq!(thunk.evaluate(), Ok(42));
+		/// ```
+		fn from(tramp: crate::types::TryTrampoline<A, E>) -> Self {
+			let result = tramp.evaluate();
+			TrySendThunk::new(move || result)
 		}
 	}
 
@@ -1281,6 +1357,37 @@ mod tests {
 		use crate::types::ArcTryLazy;
 		let lazy: ArcTryLazy<i32, String> = ArcTryLazy::new(|| Err("error".to_string()));
 		let thunk: TrySendThunk<i32, String> = TrySendThunk::from(lazy);
+		assert_eq!(thunk.evaluate(), Err("error".to_string()));
+	}
+
+	#[test]
+	fn test_into_inner() {
+		let t: TrySendThunk<i32, ()> = TrySendThunk::pure(42);
+		let inner = t.into_inner();
+		assert_eq!(inner.evaluate(), Ok(42));
+	}
+
+	#[test]
+	fn test_from_arc_lazy() {
+		use crate::types::ArcLazy;
+		let lazy = ArcLazy::new(|| 42);
+		let thunk: TrySendThunk<i32, ()> = TrySendThunk::from(lazy);
+		assert_eq!(thunk.evaluate(), Ok(42));
+	}
+
+	#[test]
+	fn test_from_try_trampoline() {
+		use crate::types::TryTrampoline;
+		let tramp: TryTrampoline<i32, String> = TryTrampoline::ok(42);
+		let thunk: TrySendThunk<i32, String> = TrySendThunk::from(tramp);
+		assert_eq!(thunk.evaluate(), Ok(42));
+	}
+
+	#[test]
+	fn test_from_try_trampoline_err() {
+		use crate::types::TryTrampoline;
+		let tramp: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string());
+		let thunk: TrySendThunk<i32, String> = TrySendThunk::from(tramp);
 		assert_eq!(thunk.evaluate(), Err("error".to_string()));
 	}
 }

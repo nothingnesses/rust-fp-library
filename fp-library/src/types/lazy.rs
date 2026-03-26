@@ -608,8 +608,7 @@ mod inner {
 			self,
 			f: impl FnOnce(&A) -> B + 'a,
 		) -> Lazy<'a, B, RcLazyConfig> {
-			let init: Box<dyn FnOnce() -> B + 'a> = Box::new(move || f(self.evaluate()));
-			Lazy(RcLazyConfig::lazy_new(init))
+			RcLazy::new(move || f(self.evaluate()))
 		}
 	}
 
@@ -854,7 +853,7 @@ mod inner {
 	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
 	impl<'a, A> Deferrable<'a> for Lazy<'a, A, ArcLazyConfig>
 	where
-		A: Clone + Send + Sync + 'a,
+		A: Send + Sync + 'a,
 	{
 		/// Defers a computation that produces a thread-safe `Lazy` value.
 		///
@@ -998,9 +997,13 @@ mod inner {
 
 	// --- Display ---
 
-	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
+	#[document_type_parameters(
+		"The lifetime of the reference.",
+		"The type of the computed value.",
+		"The memoization configuration."
+	)]
 	#[document_parameters("The lazy value to display.")]
-	impl<'a, A: fmt::Display + 'a> fmt::Display for Lazy<'a, A, RcLazyConfig> {
+	impl<'a, A: fmt::Display + 'a, Config: LazyConfig> fmt::Display for Lazy<'a, A, Config> {
 		/// Forces evaluation and displays the value.
 		#[document_signature]
 		///
@@ -1015,29 +1018,6 @@ mod inner {
 		///
 		/// let lazy = RcLazy::new(|| 42);
 		/// assert_eq!(format!("{}", lazy), "42");
-		/// ```
-		fn fmt(
-			&self,
-			f: &mut fmt::Formatter<'_>,
-		) -> fmt::Result {
-			fmt::Display::fmt(self.evaluate(), f)
-		}
-	}
-
-	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
-	#[document_parameters("The lazy value to display.")]
-	impl<'a, A: fmt::Display + 'a> fmt::Display for Lazy<'a, A, ArcLazyConfig> {
-		/// Forces evaluation and displays the value.
-		#[document_signature]
-		///
-		#[document_parameters("The formatter.")]
-		///
-		#[document_returns("The formatting result.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::types::*;
 		///
 		/// let lazy = ArcLazy::new(|| 42);
 		/// assert_eq!(format!("{}", lazy), "42");
@@ -1178,9 +1158,13 @@ mod inner {
 
 	// --- Hash ---
 
-	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
+	#[document_type_parameters(
+		"The lifetime of the reference.",
+		"The type of the computed value.",
+		"The memoization configuration."
+	)]
 	#[document_parameters("The lazy value to hash.")]
-	impl<'a, A: Hash + 'a> Hash for Lazy<'a, A, RcLazyConfig> {
+	impl<'a, A: Hash + 'a, Config: LazyConfig> Hash for Lazy<'a, A, Config> {
 		/// Forces evaluation and hashes the value.
 		#[document_signature]
 		#[document_type_parameters("The type of the hasher.")]
@@ -1211,48 +1195,13 @@ mod inner {
 		/// let h2 = hasher.finish();
 		///
 		/// assert_eq!(h1, h2);
-		/// ```
-		fn hash<H: Hasher>(
-			&self,
-			state: &mut H,
-		) {
-			self.evaluate().hash(state)
-		}
-	}
-
-	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
-	#[document_parameters("The lazy value to hash.")]
-	impl<'a, A: Hash + 'a> Hash for Lazy<'a, A, ArcLazyConfig> {
-		/// Forces evaluation and hashes the value.
-		#[document_signature]
-		#[document_type_parameters("The type of the hasher.")]
-		///
-		#[document_parameters("The hasher state.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::types::*,
-		/// 	std::{
-		/// 		collections::hash_map::DefaultHasher,
-		/// 		hash::{
-		/// 			Hash,
-		/// 			Hasher,
-		/// 		},
-		/// 	},
-		/// };
 		///
 		/// let lazy = ArcLazy::new(|| 42);
 		/// let mut hasher = DefaultHasher::new();
 		/// lazy.hash(&mut hasher);
-		/// let h1 = hasher.finish();
+		/// let h3 = hasher.finish();
 		///
-		/// let mut hasher = DefaultHasher::new();
-		/// 42i32.hash(&mut hasher);
-		/// let h2 = hasher.finish();
-		///
-		/// assert_eq!(h1, h2);
+		/// assert_eq!(h1, h3);
 		/// ```
 		fn hash<H: Hasher>(
 			&self,
@@ -1532,6 +1481,17 @@ mod inner {
 	/// Constructs a self-referential `RcLazy` where the initializer receives a clone
 	/// of the resulting lazy cell. This enables recursive definitions where the value
 	/// depends on the lazy cell itself.
+	///
+	/// # Caveats
+	///
+	/// **Memory leak if dropped without evaluation:** The returned `RcLazy` participates
+	/// in an `Rc` cycle (the lazy cell references itself through the `OnceCell`). This
+	/// cycle is broken when the lazy cell is first evaluated. If the `RcLazy` is dropped
+	/// without ever being forced, the cycle leaks.
+	///
+	/// **Panic on reentrant evaluation:** Forcing the self-reference inside `f` before
+	/// the outer cell has completed initialization causes a panic, because `LazyCell`
+	/// detects the reentrant access.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -1564,7 +1524,7 @@ mod inner {
 		let cell: Rc<OnceCell<RcLazy<'a, A>>> = Rc::new(OnceCell::new());
 		let cell_clone = cell.clone();
 		let lazy = RcLazy::new(move || {
-			// SAFETY: cell is always set on the line after this closure is created,
+			// INVARIANT: cell is always set on the line after this closure is created,
 			// before the lazy value is ever evaluated.
 			#[allow(clippy::expect_used)]
 			let self_ref = cell_clone.get().expect("rc_lazy_fix: cell not initialized").clone();
@@ -1579,6 +1539,17 @@ mod inner {
 	/// Constructs a self-referential `ArcLazy` where the initializer receives a clone
 	/// of the resulting lazy cell. This enables recursive definitions where the value
 	/// depends on the lazy cell itself.
+	///
+	/// # Caveats
+	///
+	/// **Memory leak if dropped without evaluation:** The returned `ArcLazy` participates
+	/// in an `Arc` cycle (the lazy cell references itself through the `OnceLock`). This
+	/// cycle is broken when the lazy cell is first evaluated. If the `ArcLazy` is dropped
+	/// without ever being forced, the cycle leaks.
+	///
+	/// **Deadlock on reentrant evaluation:** Forcing the self-reference inside `f` before
+	/// the outer cell has completed initialization causes a deadlock, because `LazyLock`
+	/// blocks on the lock that the current thread already holds.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -1611,7 +1582,7 @@ mod inner {
 		let cell: Arc<OnceLock<ArcLazy<'a, A>>> = Arc::new(OnceLock::new());
 		let cell_clone = cell.clone();
 		let lazy = ArcLazy::new(move || {
-			// SAFETY: cell is always set on the line after this closure is created,
+			// INVARIANT: cell is always set on the line after this closure is created,
 			// before the lazy value is ever evaluated.
 			#[allow(clippy::expect_used)]
 			let self_ref = cell_clone.get().expect("arc_lazy_fix: cell not initialized").clone();

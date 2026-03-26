@@ -26,11 +26,15 @@ mod inner {
 				ArcLazyConfig,
 				Lazy,
 				LazyConfig,
+				Step,
 				Thunk,
 			},
 		},
 		fp_macros::*,
-		std::fmt,
+		std::{
+			fmt,
+			sync::Arc,
+		},
 	};
 
 	/// A thread-safe deferred computation that produces a value of type `A`.
@@ -75,7 +79,7 @@ mod inner {
 		Box<dyn FnOnce() -> A + Send + 'a>,
 	);
 
-	// SAFETY: SendThunk is Send because its inner closure is Send.
+	// INVARIANT: SendThunk is Send because its inner closure is Send.
 	// The Box<dyn FnOnce() -> A + Send + 'a> already guarantees Send on the closure.
 	// Rust auto-derives Send for Box<dyn ... + Send>, so this is sound.
 
@@ -222,6 +226,117 @@ mod inner {
 			(self.0)()
 		}
 
+		/// Performs tail-recursive monadic computation.
+		///
+		/// The step function `f` is called in a loop, avoiding stack growth.
+		/// Each iteration evaluates `f(state)` and inspects the resulting
+		/// [`Step`]: `Step::Loop(next)` continues with `next`, while
+		/// `Step::Done(a)` breaks out and returns `a`.
+		///
+		/// # Clone Bound
+		///
+		/// The function `f` must implement `Clone` because each iteration
+		/// of the recursion may need its own copy. Most closures naturally
+		/// implement `Clone` when all their captures implement `Clone`.
+		///
+		/// For closures that do not implement `Clone`, use
+		/// [`arc_tail_rec_m`](SendThunk::arc_tail_rec_m), which wraps the
+		/// closure in `Arc` internally.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the loop state.")]
+		///
+		#[document_parameters(
+			"The step function that produces the next state or the final result.",
+			"The initial state."
+		)]
+		///
+		#[document_returns("A `SendThunk` that, when evaluated, runs the tail-recursive loop.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let result = SendThunk::tail_rec_m(
+		/// 	|x| SendThunk::pure(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
+		/// 	0,
+		/// );
+		/// assert_eq!(result.evaluate(), 1000);
+		/// ```
+		pub fn tail_rec_m<S>(
+			f: impl Fn(S) -> SendThunk<'a, Step<S, A>> + Clone + Send + 'a,
+			initial: S,
+		) -> Self
+		where
+			S: Send + 'a, {
+			SendThunk::new(move || {
+				let mut state = initial;
+				loop {
+					match f(state).evaluate() {
+						Step::Done(a) => return a,
+						Step::Loop(next) => state = next,
+					}
+				}
+			})
+		}
+
+		/// Arc-wrapped version of [`tail_rec_m`](SendThunk::tail_rec_m) for non-Clone closures.
+		///
+		/// Use this when your closure captures non-Clone state. The closure is
+		/// wrapped in [`Arc`] internally, which provides the required `Clone`
+		/// implementation.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the loop state.")]
+		///
+		#[document_parameters(
+			"The step function that produces the next state or the final result.",
+			"The initial state."
+		)]
+		///
+		#[document_returns("A `SendThunk` that, when evaluated, runs the tail-recursive loop.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::types::*,
+		/// 	std::sync::{
+		/// 		Arc,
+		/// 		atomic::{
+		/// 			AtomicUsize,
+		/// 			Ordering,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// let counter = Arc::new(AtomicUsize::new(0));
+		/// let counter_clone = Arc::clone(&counter);
+		/// let result = SendThunk::arc_tail_rec_m(
+		/// 	move |x| {
+		/// 		counter_clone.fetch_add(1, Ordering::SeqCst);
+		/// 		SendThunk::pure(if x < 100 { Step::Loop(x + 1) } else { Step::Done(x) })
+		/// 	},
+		/// 	0,
+		/// );
+		/// assert_eq!(result.evaluate(), 100);
+		/// assert_eq!(counter.load(Ordering::SeqCst), 101);
+		/// ```
+		pub fn arc_tail_rec_m<S>(
+			f: impl Fn(S) -> SendThunk<'a, Step<S, A>> + Send + Sync + 'a,
+			initial: S,
+		) -> Self
+		where
+			S: Send + 'a, {
+			let f = Arc::new(f);
+			let wrapper = move |s: S| {
+				let f = Arc::clone(&f);
+				f(s)
+			};
+			Self::tail_rec_m(wrapper, initial)
+		}
+
 		/// Converts this `SendThunk` into a memoized [`ArcLazy`] value.
 		///
 		/// Unlike [`Thunk::into_arc_lazy`](crate::types::Thunk::into_arc_lazy), this
@@ -268,8 +383,7 @@ mod inner {
 		/// assert_eq!(send_thunk.evaluate(), 42);
 		/// ```
 		fn from(thunk: Thunk<'a, A>) -> Self {
-			let val = thunk.evaluate();
-			SendThunk::new(move || val)
+			SendThunk::pure(thunk.evaluate())
 		}
 	}
 
@@ -338,7 +452,7 @@ mod inner {
 		fn send_defer(f: impl FnOnce() -> Self + Send + 'a) -> Self
 		where
 			Self: Sized, {
-			SendThunk::new(move || f().evaluate())
+			SendThunk::defer(f)
 		}
 	}
 
@@ -553,5 +667,55 @@ mod tests {
 		let handle = std::thread::spawn(move || thunk.evaluate());
 		let result = handle.join().expect("thread should not panic");
 		assert_eq!(result, 42);
+	}
+
+	#[test]
+	fn test_send_thunk_tail_rec_m() {
+		use crate::types::Step;
+		let result = SendThunk::tail_rec_m(
+			|x| SendThunk::pure(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
+			0,
+		);
+		assert_eq!(result.evaluate(), 1000);
+	}
+
+	#[test]
+	fn test_send_thunk_tail_rec_m_stack_safety() {
+		use crate::types::Step;
+		let iterations: i64 = 200_000;
+		let result = SendThunk::tail_rec_m(
+			|acc| {
+				SendThunk::pure(
+					if acc < iterations { Step::Loop(acc + 1) } else { Step::Done(acc) },
+				)
+			},
+			0i64,
+		);
+		assert_eq!(result.evaluate(), iterations);
+	}
+
+	#[test]
+	fn test_send_thunk_arc_tail_rec_m() {
+		use {
+			crate::types::Step,
+			std::sync::{
+				Arc,
+				atomic::{
+					AtomicUsize,
+					Ordering,
+				},
+			},
+		};
+		let counter = Arc::new(AtomicUsize::new(0));
+		let counter_clone = Arc::clone(&counter);
+		let result = SendThunk::arc_tail_rec_m(
+			move |x| {
+				counter_clone.fetch_add(1, Ordering::SeqCst);
+				SendThunk::pure(if x < 100 { Step::Loop(x + 1) } else { Step::Done(x) })
+			},
+			0,
+		);
+		assert_eq!(result.evaluate(), 100);
+		assert_eq!(counter.load(Ordering::SeqCst), 101);
 	}
 }

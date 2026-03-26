@@ -26,6 +26,7 @@ use {
 			ArcLazyConfig,
 			LazyConfig,
 			RcLazyConfig,
+			TryLazyConfig,
 		},
 	},
 	std::marker::PhantomData,
@@ -225,11 +226,20 @@ pub struct ThunkBrand;
 /// # Type Parameters
 ///
 /// - `E`: The error type for the fallible computation.
-/// - `Config`: The memoization strategy, implementing [`LazyConfig`]. Use
+/// - `Config`: The memoization strategy, implementing [`TryLazyConfig`]. Use
 ///   [`RcLazyConfig`] for single-threaded contexts
 ///   or [`ArcLazyConfig`] for thread-safe contexts.
+///
+/// # `'static` bound on `E`
+///
+/// The type parameter `E` requires `'static` in all HKT trait implementations.
+/// This is an inherent limitation of the Brand pattern's reliance on type erasure:
+/// the `Kind` trait's associated type `Of<'a, A>` introduces its own lifetime `'a`,
+/// so any type parameter baked into the brand must outlive all possible `'a`, which
+/// effectively requires `'static`. This prevents use with borrowed error types in
+/// HKT contexts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TryLazyBrand<E, Config: LazyConfig>(PhantomData<(E, Config)>);
+pub struct TryLazyBrand<E, Config: TryLazyConfig>(PhantomData<(E, Config)>);
 
 /// Brand for single-threaded [`RcTryLazy`](crate::types::RcTryLazy).
 pub type RcTryLazyBrand<E> = TryLazyBrand<E, RcLazyConfig>;
@@ -248,6 +258,15 @@ pub struct TryThunkBrand;
 
 /// Brand for [`TryThunk`](crate::types::TryThunk) with the error value applied (Functor over [`Ok`]).
 ///
+/// # `'static` bound on `E`
+///
+/// The type parameter `E` requires `'static` in all HKT trait implementations.
+/// This is an inherent limitation of the Brand pattern's reliance on type erasure:
+/// the `Kind` trait's associated type `Of<'a, A>` introduces its own lifetime `'a`,
+/// so any type parameter baked into the brand must outlive all possible `'a`, which
+/// effectively requires `'static`. This prevents use with borrowed error types in
+/// HKT contexts.
+///
 /// # Note
 ///
 /// There is no `TrySendThunkErrAppliedBrand` counterpart. `SendThunk` (and by
@@ -258,6 +277,15 @@ pub struct TryThunkBrand;
 pub struct TryThunkErrAppliedBrand<E>(PhantomData<E>);
 
 /// Brand for [`TryThunk`](crate::types::TryThunk) with the success value applied (Functor over [`Err`]).
+///
+/// # `'static` bound on `A`
+///
+/// The type parameter `A` requires `'static` in all HKT trait implementations.
+/// This is an inherent limitation of the Brand pattern's reliance on type erasure:
+/// the `Kind` trait's associated type `Of<'a, A>` introduces its own lifetime `'a`,
+/// so any type parameter baked into the brand must outlive all possible `'a`, which
+/// effectively requires `'static`. This prevents use with borrowed success types in
+/// HKT contexts.
 ///
 /// # Note
 ///
