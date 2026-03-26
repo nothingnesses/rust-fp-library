@@ -2540,12 +2540,28 @@ mod inner {
 			Some(head)
 		}
 
+		#[document_signature]
+		#[document_returns(
+			"A lower bound and optional exact upper bound on the number of remaining elements."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let mut iter = list.into_iter();
+		/// assert_eq!(iter.size_hint(), (3, Some(3)));
+		/// let _ = iter.next();
+		/// assert_eq!(iter.size_hint(), (2, Some(2)));
+		/// ```
 		fn size_hint(&self) -> (usize, Option<usize>) {
 			let len = self.0.len();
 			(len, Some(len))
 		}
 	}
 
+	#[document_type_parameters("The type of the elements in the list.")]
 	impl<A> ExactSizeIterator for CatListIterator<A> {}
 
 	/// A borrowing iterator over a `CatList`.
@@ -2620,11 +2636,27 @@ mod inner {
 			None
 		}
 
+		#[document_signature]
+		#[document_returns(
+			"A lower bound and optional exact upper bound on the number of remaining elements."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let mut iter = list.iter();
+		/// assert_eq!(iter.size_hint(), (3, Some(3)));
+		/// let _ = iter.next();
+		/// assert_eq!(iter.size_hint(), (2, Some(2)));
+		/// ```
 		fn size_hint(&self) -> (usize, Option<usize>) {
 			(self.remaining, Some(self.remaining))
 		}
 	}
 
+	#[document_type_parameters("The type of the elements in the list.")]
 	impl<A> ExactSizeIterator for CatListIter<'_, A> {}
 
 	#[document_type_parameters(

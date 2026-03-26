@@ -40,10 +40,7 @@ mod inner {
 		},
 		fp_macros::*,
 		std::{
-			cell::{
-				LazyCell,
-				OnceCell,
-			},
+			cell::LazyCell,
 			fmt,
 			hash::{
 				Hash,
@@ -53,7 +50,6 @@ mod inner {
 			sync::{
 				Arc,
 				LazyLock,
-				OnceLock,
 			},
 		},
 	};
@@ -1003,6 +999,7 @@ mod inner {
 	// --- Display ---
 
 	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
+	#[document_parameters("The lazy value to display.")]
 	impl<'a, A: fmt::Display + 'a> fmt::Display for Lazy<'a, A, RcLazyConfig> {
 		/// Forces evaluation and displays the value.
 		#[document_signature]
@@ -1028,6 +1025,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
+	#[document_parameters("The lazy value to display.")]
 	impl<'a, A: fmt::Display + 'a> fmt::Display for Lazy<'a, A, ArcLazyConfig> {
 		/// Forces evaluation and displays the value.
 		#[document_signature]
@@ -1181,9 +1179,11 @@ mod inner {
 	// --- Hash ---
 
 	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
+	#[document_parameters("The lazy value to hash.")]
 	impl<'a, A: Hash + 'a> Hash for Lazy<'a, A, RcLazyConfig> {
 		/// Forces evaluation and hashes the value.
 		#[document_signature]
+		#[document_type_parameters("The type of the hasher.")]
 		///
 		#[document_parameters("The hasher state.")]
 		///
@@ -1221,9 +1221,11 @@ mod inner {
 	}
 
 	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
+	#[document_parameters("The lazy value to hash.")]
 	impl<'a, A: Hash + 'a> Hash for Lazy<'a, A, ArcLazyConfig> {
 		/// Forces evaluation and hashes the value.
 		#[document_signature]
+		#[document_type_parameters("The type of the hasher.")]
 		///
 		#[document_parameters("The hasher state.")]
 		///
@@ -1262,6 +1264,7 @@ mod inner {
 
 	// --- Foldable ---
 
+	#[document_type_parameters("The memoization configuration (determines Rc vs Arc).")]
 	impl<Config: LazyConfig> Foldable for LazyBrand<Config> {
 		/// Folds the `Lazy` from the right.
 		///
@@ -1561,6 +1564,9 @@ mod inner {
 		let cell: Rc<OnceCell<RcLazy<'a, A>>> = Rc::new(OnceCell::new());
 		let cell_clone = cell.clone();
 		let lazy = RcLazy::new(move || {
+			// SAFETY: cell is always set on the line after this closure is created,
+			// before the lazy value is ever evaluated.
+			#[allow(clippy::expect_used)]
 			let self_ref = cell_clone.get().expect("rc_lazy_fix: cell not initialized").clone();
 			f(self_ref)
 		});
@@ -1605,6 +1611,9 @@ mod inner {
 		let cell: Arc<OnceLock<ArcLazy<'a, A>>> = Arc::new(OnceLock::new());
 		let cell_clone = cell.clone();
 		let lazy = ArcLazy::new(move || {
+			// SAFETY: cell is always set on the line after this closure is created,
+			// before the lazy value is ever evaluated.
+			#[allow(clippy::expect_used)]
 			let self_ref = cell_clone.get().expect("arc_lazy_fix: cell not initialized").clone();
 			f(self_ref)
 		});

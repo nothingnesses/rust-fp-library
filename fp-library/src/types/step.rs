@@ -1780,6 +1780,20 @@ mod inner {
 	/// [`Ok(b)`] becomes [`Step::Done(b)`] and [`Err(a)`] becomes [`Step::Loop(a)`].
 	#[document_type_parameters("The loop type (error type).", "The done type (ok type).")]
 	impl<A, B> From<Result<B, A>> for Step<A, B> {
+		#[document_signature]
+		#[document_parameters("The `Result` value to convert.")]
+		#[document_returns("A `Step` equivalent to the given `Result`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::step::Step;
+		///
+		/// let step: Step<i32, i32> = Ok(1).into();
+		/// assert_eq!(step, Step::Done(1));
+		///
+		/// let step: Step<i32, i32> = Err(2).into();
+		/// assert_eq!(step, Step::Loop(2));
+		/// ```
 		fn from(result: Result<B, A>) -> Self {
 			match result {
 				Ok(b) => Step::Done(b),
@@ -1793,6 +1807,20 @@ mod inner {
 	/// [`Step::Done(b)`] becomes [`Ok(b)`] and [`Step::Loop(a)`] becomes [`Err(a)`].
 	#[document_type_parameters("The loop type (error type).", "The done type (ok type).")]
 	impl<A, B> From<Step<A, B>> for Result<B, A> {
+		#[document_signature]
+		#[document_parameters("The `Step` value to convert.")]
+		#[document_returns("A `Result` equivalent to the given `Step`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::step::Step;
+		///
+		/// let result: Result<i32, i32> = Step::Done(1).into();
+		/// assert_eq!(result, Ok(1));
+		///
+		/// let result: Result<i32, i32> = Step::Loop(2).into();
+		/// assert_eq!(result, Err(2));
+		/// ```
 		fn from(step: Step<A, B>) -> Self {
 			match step {
 				Step::Done(b) => Ok(b),
@@ -1809,6 +1837,23 @@ mod inner {
 	/// [`ControlFlow::Continue(a)`] becomes [`Step::Loop(a)`].
 	#[document_type_parameters("The loop type (continue type).", "The done type (break type).")]
 	impl<A, B> From<core::ops::ControlFlow<B, A>> for Step<A, B> {
+		#[document_signature]
+		#[document_parameters("The `ControlFlow` value to convert.")]
+		#[document_returns("A `Step` equivalent to the given `ControlFlow`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::types::step::Step,
+		/// };
+		///
+		/// let step: Step<i32, i32> = ControlFlow::Break(1).into();
+		/// assert_eq!(step, Step::Done(1));
+		///
+		/// let step: Step<i32, i32> = ControlFlow::Continue(2).into();
+		/// assert_eq!(step, Step::Loop(2));
+		/// ```
 		fn from(cf: core::ops::ControlFlow<B, A>) -> Self {
 			match cf {
 				core::ops::ControlFlow::Break(b) => Step::Done(b),
@@ -1823,6 +1868,23 @@ mod inner {
 	/// [`Step::Loop(a)`] becomes [`ControlFlow::Continue(a)`].
 	#[document_type_parameters("The loop type (continue type).", "The done type (break type).")]
 	impl<A, B> From<Step<A, B>> for core::ops::ControlFlow<B, A> {
+		#[document_signature]
+		#[document_parameters("The `Step` value to convert.")]
+		#[document_returns("A `ControlFlow` equivalent to the given `Step`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::types::step::Step,
+		/// };
+		///
+		/// let cf: ControlFlow<i32, i32> = Step::Done(1).into();
+		/// assert_eq!(cf, ControlFlow::Break(1));
+		///
+		/// let cf: ControlFlow<i32, i32> = Step::Loop(2).into();
+		/// assert_eq!(cf, ControlFlow::Continue(2));
+		/// ```
 		fn from(step: Step<A, B>) -> Self {
 			match step {
 				Step::Done(b) => core::ops::ControlFlow::Break(b),

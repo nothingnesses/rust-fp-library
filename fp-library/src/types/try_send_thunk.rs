@@ -753,7 +753,7 @@ mod inner {
 		/// assert_eq!(thunk.evaluate(), Ok(42));
 		/// ```
 		fn from(lazy: ArcTryLazy<'a, A, E>) -> Self {
-			let result = lazy.evaluate().map(Clone::clone).map_err(Clone::clone);
+			let result = lazy.evaluate().cloned().map_err(Clone::clone);
 			TrySendThunk::new(move || result)
 		}
 	}

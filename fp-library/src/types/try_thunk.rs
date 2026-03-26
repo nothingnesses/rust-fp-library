@@ -546,6 +546,7 @@ mod inner {
 		"The type of the computed value.",
 		"The type of the error value."
 	)]
+	#[document_parameters("The `TryThunk` to operate on.")]
 	impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 		/// Creates a `TryThunk` that catches unwinds (panics), converting the
 		/// panic payload using a custom conversion function.

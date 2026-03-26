@@ -37,7 +37,6 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			Kind,
 			brands::TryLazyBrand,
 			classes::{
 				CloneableFn,
@@ -54,7 +53,6 @@ mod inner {
 			types::{
 				ArcLazyConfig,
 				Lazy,
-				LazyConfig,
 				RcLazyConfig,
 				TryLazyConfig,
 				TryThunk,
@@ -1521,7 +1519,6 @@ mod tests {
 			brands::TryLazyBrand,
 			types::{
 				ArcLazyConfig,
-				LazyConfig,
 				RcLazy,
 				RcLazyConfig,
 				TryThunk,

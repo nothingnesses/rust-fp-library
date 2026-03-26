@@ -256,6 +256,21 @@ mod inner {
 		///
 		/// This is the sole internal constructor, ensuring all `Free` values
 		/// start with `Some(inner)`.
+		#[document_signature]
+		#[document_parameters("The inner value to wrap.")]
+		#[document_returns("A new `Free` containing the given inner value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// // `from_inner` is internal; `pure` is the public API that uses it.
+		/// let free = Free::<ThunkBrand, _>::pure(42);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
 		fn from_inner(inner: FreeInner<F, A>) -> Self {
 			Free(Some(inner))
 		}
@@ -272,6 +287,20 @@ mod inner {
 		/// # Panics
 		///
 		/// Panics if the inner value has already been taken.
+		#[document_signature]
+		#[document_returns("The inner `FreeInner` value, consuming it from this `Free`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// // `take_inner` is internal; `evaluate` is the public API that uses it.
+		/// let free = Free::<ThunkBrand, _>::pure(10);
+		/// assert_eq!(free.evaluate(), 10);
+		/// ```
 		fn take_inner(&mut self) -> FreeInner<F, A> {
 			// SAFETY: Free values are used exactly once; double consumption indicates a bug.
 			#[allow(clippy::expect_used)]
@@ -896,79 +925,65 @@ mod inner {
 			// Take the inner value out so we can iteratively dismantle the chain
 			// instead of relying on recursive Drop, which would overflow the stack
 			// for deep computations.
-			let mut current_opt = self.0.take();
+			let current_opt = self.0.take();
 
-			loop {
-				match current_opt {
-					Some(FreeInner::Bind {
-						head,
-						continuations,
-						..
-					}) => {
-						// Drop the head computation. Since `head` is
-						// `Box<Free<F, TypeErasedValue>>` (a different type
-						// parameter than ours), we cannot fold it into
-						// `current_opt`. Its own `Drop` impl will iteratively
-						// dismantle any nested `Bind` chains it contains.
-						drop(head);
+			match current_opt {
+				Some(FreeInner::Bind {
+					head,
+					continuations,
+					..
+				}) => {
+					// Drop the head computation. Since `head` is
+					// `Box<Free<F, TypeErasedValue>>` (a different type
+					// parameter than ours), we cannot fold it into
+					// `current_opt`. Its own `Drop` impl will iteratively
+					// dismantle any nested chains it contains.
+					drop(head);
 
-						// Drain the CatList of continuations iteratively. Each
-						// continuation is a Box<dyn FnOnce> that may capture Free
-						// values. By consuming them one at a time via uncons, we
-						// let each boxed closure drop without building stack depth.
-						let mut conts = continuations;
-						while let Some((_continuation, rest)) = conts.uncons() {
-							// _continuation (a Box<dyn FnOnce>) drops here, which
-							// frees any captured Free values. Those Free values'
-							// own Drop impls will re-enter this iterative loop.
-							conts = rest;
-						}
-						break;
+					// Drain the CatList of continuations iteratively. Each
+					// continuation is a Box<dyn FnOnce> that may capture Free
+					// values. By consuming them one at a time via uncons, we
+					// let each boxed closure drop without building stack depth.
+					let mut conts = continuations;
+					while let Some((_continuation, rest)) = conts.uncons() {
+						// _continuation (a Box<dyn FnOnce>) drops here, which
+						// frees any captured Free values. Those Free values'
+						// own Drop impls will re-enter this iterative loop.
+						conts = rest;
 					}
-					Some(FreeInner::Map {
-						mut value, ..
-					}) => {
-						// Iteratively walk through nested Map chains. All inner
-						// values are `Box<Free<F, Box<dyn Any>>>` (type-erased),
-						// so we can loop homogeneously without type mismatch.
-						loop {
-							match value.0.take() {
-								Some(FreeInner::Map {
-									value: next, ..
-								}) => {
-									value = next;
-								}
-								Some(FreeInner::Bind {
-									head,
-									continuations,
-									..
-								}) => {
-									drop(head);
-									let mut conts = continuations;
-									while let Some((_cont, rest)) = conts.uncons() {
-										conts = rest;
-									}
-									break;
-								}
-								_ => break,
+				}
+				Some(FreeInner::Map {
+					mut value, ..
+				}) => {
+					// Iteratively walk through nested Map chains. All inner
+					// values are `Box<Free<F, Box<dyn Any>>>` (type-erased),
+					// so we can loop homogeneously without type mismatch.
+					loop {
+						match value.0.take() {
+							Some(FreeInner::Map {
+								value: next, ..
+							}) => {
+								value = next;
 							}
+							Some(FreeInner::Bind {
+								head,
+								continuations,
+								..
+							}) => {
+								drop(head);
+								let mut conts = continuations;
+								while let Some((_cont, rest)) = conts.uncons() {
+									conts = rest;
+								}
+								break;
+							}
+							_ => break,
 						}
-						break;
 					}
-					Some(FreeInner::Wrap(_fa)) => {
-						// The Wrap variant contains a functor value holding a
-						// Free computation. We cannot generically extract the
-						// inner Free from an arbitrary functor, so we let the
-						// functor's own Drop handle it. For ThunkBrand (the
-						// primary use case), the Thunk contains a boxed closure
-						// whose drop is shallow.
-						break;
-					}
-					Some(FreeInner::Pure(_)) | None => {
-						// Pure values and already-consumed (None) nodes are
-						// trivially dropped.
-						break;
-					}
+				}
+				Some(FreeInner::Wrap(_)) | Some(FreeInner::Pure(_)) | None => {
+					// Wrap: functor's own Drop handles the inner Free.
+					// Pure/None: trivially dropped.
 				}
 			}
 		}
