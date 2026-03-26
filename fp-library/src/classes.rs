@@ -47,6 +47,7 @@ pub mod lift;
 pub mod monad;
 pub mod monad_rec;
 pub mod monoid;
+pub mod natural_transformation;
 pub mod optics;
 pub mod par_compactable;
 pub mod par_filterable;
