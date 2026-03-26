@@ -25,6 +25,7 @@ mod inner {
 				ArcLazy,
 				ArcLazyConfig,
 				Lazy,
+				LazyConfig,
 				Thunk,
 			},
 		},
@@ -242,7 +243,7 @@ mod inner {
 		/// ```
 		#[inline]
 		pub fn into_arc_lazy(self) -> ArcLazy<'a, A> {
-			Lazy::<'a, A, ArcLazyConfig>::new(move || self.evaluate())
+			Lazy(ArcLazyConfig::lazy_new(self.0))
 		}
 	}
 

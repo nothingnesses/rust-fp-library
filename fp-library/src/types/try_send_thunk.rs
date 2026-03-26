@@ -21,6 +21,7 @@ mod inner {
 			types::{
 				ArcTryLazy,
 				SendThunk,
+				TryLazy,
 				TryThunk,
 			},
 		},
@@ -536,7 +537,7 @@ mod inner {
 		where
 			A: Send + Sync + 'a,
 			E: Send + Sync + 'a, {
-			ArcTryLazy::new(move || self.evaluate())
+			TryLazy(self.0.into_arc_lazy().0)
 		}
 	}
 
