@@ -55,13 +55,40 @@ mod inner {
 	/// For any functors `F` and `G` where `Functor::map` is defined, a natural
 	/// transformation `nt` must satisfy the naturality condition:
 	///
-	/// ```text
-	/// nt(map(f, fa)) == map(f, nt(fa))
-	/// ```
+	/// `nt(map(f, fa)) == map(f, nt(fa))`
 	///
 	/// That is, transforming the structure and then mapping a function over the result
 	/// must be the same as mapping first and then transforming. This law ensures the
 	/// transformation only changes the "container," not the "content."
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	classes::NaturalTransformation,
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
+	///
+	/// #[derive(Clone)]
+	/// struct ThunkToOption;
+	/// impl NaturalTransformation<ThunkBrand, OptionBrand> for ThunkToOption {
+	/// 	fn transform<'a, A: 'a>(
+	/// 		&self,
+	/// 		fa: Thunk<'a, A>,
+	/// 	) -> Option<A> {
+	/// 		Some(fa.evaluate())
+	/// 	}
+	/// }
+	///
+	/// let nt = ThunkToOption;
+	/// let f = |x: i32| x * 3;
+	///
+	/// // Naturality: nt(map(f, fa)) == map(f, nt(fa))
+	/// let lhs: Option<i32> = nt.transform(map::<ThunkBrand, _, _>(f, Thunk::new(|| 7)));
+	/// let rhs: Option<i32> = map::<OptionBrand, _, _>(f, nt.transform(Thunk::new(|| 7)));
+	/// assert_eq!(lhs, rhs);
+	/// assert_eq!(lhs, Some(21));
+	/// ```
 	#[document_type_parameters(
 		"The source type constructor brand.",
 		"The target type constructor brand."
