@@ -55,13 +55,6 @@ mod inner {
 	/// This is [`Thunk<'a, Result<A, E>>`] with ergonomic combinators for error handling.
 	/// Like [`Thunk`], this is NOT memoized. Each [`TryThunk::evaluate`] re-executes.
 	/// Unlike [`Thunk`], the result is [`Result<A, E>`].
-	///
-	/// ### Stack Safety
-	///
-	/// `TryThunk::bind` chains are **not** stack-safe. Each nested [`bind`](TryThunk::bind)
-	/// adds a frame to the call stack, so sufficiently deep chains will cause a stack
-	/// overflow. For stack-safe fallible recursion, use
-	/// [`TryTrampoline`](crate::types::TryTrampoline) instead.
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value produced by the computation on success.",

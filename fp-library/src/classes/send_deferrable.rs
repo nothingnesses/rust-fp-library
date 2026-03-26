@@ -22,7 +22,7 @@ mod inner {
 	/// A trait for deferred lazy evaluation with thread-safe thunks.
 	///
 	/// This extends [`Deferrable`] with the additional requirement that the thunk
-	/// must be `Send + Sync`, following the same supertrait pattern used by
+	/// must be `Send`, following the same supertrait pattern used by
 	/// [`SendCloneableFn: CloneableFn`](crate::classes::SendCloneableFn).
 	///
 	/// Every `SendDeferrable` type is also `Deferrable`, so generic code written

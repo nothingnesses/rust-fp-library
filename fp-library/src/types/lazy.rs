@@ -118,7 +118,7 @@ mod inner {
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
-			"The lifetime of the computation.",
+			"The borrow lifetime.",
 			"The type of the value."
 		)]
 		///
@@ -247,7 +247,7 @@ mod inner {
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
-			"The lifetime of the computation.",
+			"The borrow lifetime.",
 			"The type of the value."
 		)]
 		///
@@ -365,7 +365,7 @@ mod inner {
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
-			"The lifetime of the computation.",
+			"The borrow lifetime.",
 			"The type of the value."
 		)]
 		///
