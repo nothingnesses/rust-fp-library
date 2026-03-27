@@ -117,3 +117,26 @@ mod inner {
 }
 
 pub use inner::*;
+
+#[cfg(test)]
+mod tests {
+	use {
+		crate::{
+			brands::*,
+			functions::*,
+			types::*,
+		},
+		quickcheck_macros::quickcheck,
+	};
+
+	/// Evaluable map-extract law: evaluate(map(f, fa)) == f(evaluate(fa)).
+	#[quickcheck]
+	fn prop_evaluable_map_extract(x: i32) -> bool {
+		let f = |a: i32| a.wrapping_mul(3).wrapping_add(7);
+		let fa = Thunk::new(|| x);
+		let fa2 = Thunk::new(|| x);
+		let lhs = evaluate::<ThunkBrand, _>(map::<ThunkBrand, _, _>(f, fa));
+		let rhs = f(evaluate::<ThunkBrand, _>(fa2));
+		lhs == rhs
+	}
+}

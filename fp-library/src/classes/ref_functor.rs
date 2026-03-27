@@ -59,14 +59,14 @@ mod inner {
 	/// let mapped = ref_map::<LazyBrand<RcLazyConfig>, _, _>(|x: &i32| *x, fa.clone());
 	/// assert_eq!(*mapped.evaluate(), *fa.evaluate());
 	///
-	/// // Composition: ref_map(|x| f(&g(x)), fa) = ref_map(f, ref_map(g, fa))
-	/// let f = |x: &i32| x + 1;
-	/// let g = |x: &i32| *x * 2;
+	/// // Composition: ref_map(|x| g(&f(x)), fa) = ref_map(g, ref_map(f, fa))
+	/// let f = |x: &i32| *x * 2;
+	/// let g = |x: &i32| x + 1;
 	/// let fa = RcLazy::pure(5);
-	/// let composed = ref_map::<LazyBrand<RcLazyConfig>, _, _>(|x: &i32| f(&g(x)), fa.clone());
+	/// let composed = ref_map::<LazyBrand<RcLazyConfig>, _, _>(|x: &i32| g(&f(x)), fa.clone());
 	/// let sequential = ref_map::<LazyBrand<RcLazyConfig>, _, _>(
-	/// 	f,
-	/// 	ref_map::<LazyBrand<RcLazyConfig>, _, _>(g, fa),
+	/// 	g,
+	/// 	ref_map::<LazyBrand<RcLazyConfig>, _, _>(f, fa),
 	/// );
 	/// assert_eq!(*composed.evaluate(), *sequential.evaluate());
 	/// ```
@@ -163,3 +163,38 @@ mod inner {
 }
 
 pub use inner::*;
+
+#[cfg(test)]
+mod tests {
+	use {
+		crate::{
+			brands::*,
+			functions::*,
+			types::*,
+		},
+		quickcheck_macros::quickcheck,
+	};
+
+	/// RefFunctor identity law: ref_map(Clone::clone, lazy) evaluates to the same value as lazy.
+	#[quickcheck]
+	fn prop_ref_functor_identity(x: i32) -> bool {
+		let lazy = RcLazy::pure(x);
+		let mapped = ref_map::<LazyBrand<RcLazyConfig>, _, _>(|v: &i32| *v, lazy.clone());
+		*mapped.evaluate() == *lazy.evaluate()
+	}
+
+	/// RefFunctor composition law: ref_map(|x| g(&f(x)), lazy) == ref_map(g, ref_map(f, lazy)).
+	#[quickcheck]
+	fn prop_ref_functor_composition(x: i32) -> bool {
+		let f = |v: &i32| v.wrapping_mul(2);
+		let g = |v: &i32| v.wrapping_add(1);
+		let lazy1 = RcLazy::pure(x);
+		let lazy2 = RcLazy::pure(x);
+		let composed = ref_map::<LazyBrand<RcLazyConfig>, _, _>(|v: &i32| g(&f(v)), lazy1);
+		let sequential = ref_map::<LazyBrand<RcLazyConfig>, _, _>(
+			g,
+			ref_map::<LazyBrand<RcLazyConfig>, _, _>(f, lazy2),
+		);
+		*composed.evaluate() == *sequential.evaluate()
+	}
+}

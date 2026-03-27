@@ -109,10 +109,10 @@ mod inner {
 		/// use fp_library::types::*;
 		///
 		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
-		/// let inner: Trampoline<Result<i32, String>> = task.into_trampoline();
+		/// let inner: Trampoline<Result<i32, String>> = task.into_inner();
 		/// assert_eq!(inner.evaluate(), Ok(42));
 		/// ```
-		pub fn into_trampoline(self) -> Trampoline<Result<A, E>> {
+		pub fn into_inner(self) -> Trampoline<Result<A, E>> {
 			self.0
 		}
 
@@ -165,6 +165,7 @@ mod inner {
 		///
 		#[document_returns("A `TryTrampoline` that executes `f` to get the next step.")]
 		///
+		#[document_examples]
 		///
 		/// Stack-safe recursion:
 		///
@@ -187,7 +188,6 @@ mod inner {
 		/// let task = factorial(5, 1);
 		/// assert_eq!(task.evaluate(), Ok(120));
 		/// ```
-		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -1154,13 +1154,13 @@ mod tests {
 		assert_eq!(task.evaluate(), Ok(42));
 	}
 
-	/// Tests `TryTrampoline::into_trampoline`.
+	/// Tests `TryTrampoline::into_inner`.
 	///
-	/// Verifies that `into_trampoline` unwraps the newtype.
+	/// Verifies that `into_inner` unwraps the newtype.
 	#[test]
-	fn test_try_trampoline_into_trampoline() {
+	fn test_try_trampoline_into_inner() {
 		let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
-		let inner: Trampoline<Result<i32, String>> = task.into_trampoline();
+		let inner: Trampoline<Result<i32, String>> = task.into_inner();
 		assert_eq!(inner.evaluate(), Ok(42));
 	}
 

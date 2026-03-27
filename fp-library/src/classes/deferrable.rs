@@ -114,3 +114,30 @@ mod inner {
 }
 
 pub use inner::*;
+
+#[cfg(test)]
+mod tests {
+	use {
+		crate::{
+			brands::*,
+			functions::*,
+			types::*,
+		},
+		quickcheck_macros::quickcheck,
+	};
+
+	/// Deferrable transparency law: evaluate(defer(|| x)) == x.
+	#[quickcheck]
+	fn prop_deferrable_transparency(x: i32) -> bool {
+		let deferred: Thunk<i32> = defer(|| Thunk::pure(x));
+		deferred.evaluate() == x
+	}
+
+	/// Deferrable nesting law: evaluate(defer(|| defer(|| x))) == evaluate(defer(|| x)).
+	#[quickcheck]
+	fn prop_deferrable_nesting(x: i32) -> bool {
+		let nested: Thunk<i32> = defer(|| defer(|| Thunk::pure(x)));
+		let single: Thunk<i32> = defer(|| Thunk::pure(x));
+		nested.evaluate() == single.evaluate()
+	}
+}

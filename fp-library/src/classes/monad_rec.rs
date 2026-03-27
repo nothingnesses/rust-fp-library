@@ -51,11 +51,32 @@ mod inner {
 	///
 	/// ### Laws
 	///
-	/// 1. **Equivalence**: `tail_rec_m(f, a)` produces the same result as the
-	///    recursive definition.
+	/// 1. **Identity**: `tail_rec_m(|a| pure(Step::Done(a)), x) == pure(x)`.
+	///    Immediately wrapping a value in [`Step::Done`](crate::types::Step::Done)
+	///    must be equivalent to [`pure`](crate::classes::Pointed::pure).
 	///
-	/// 2. **Safety varies**: `Thunk` is stack-safe for `tail_rec_m` but not for deep `bind` chains.
-	///    `Trampoline` is guaranteed stack-safe for all operations.
+	/// ### Class Invariant
+	///
+	/// [`tail_rec_m`](MonadRec::tail_rec_m) must execute in constant stack space
+	/// regardless of how many [`Step::Loop`](crate::types::Step::Loop) iterations
+	/// occur. This is a structural requirement on the implementation, not an
+	/// algebraic law.
+	///
+	/// ### Examples
+	///
+	/// Demonstrating the identity law with [`OptionBrand`](crate::brands::OptionBrand):
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
+	///
+	/// // Identity law: tail_rec_m(|a| pure(Step::Done(a)), x) == pure(x)
+	/// let result = tail_rec_m::<OptionBrand, _, _>(|a| Some(Step::Done(a)), 42);
+	/// assert_eq!(result, Some(42));
+	/// ```
 	pub trait MonadRec: Monad {
 		/// Performs tail-recursive monadic computation.
 		#[document_signature]
@@ -136,3 +157,29 @@ mod inner {
 }
 
 pub use inner::*;
+
+#[cfg(test)]
+mod tests {
+	use {
+		crate::{
+			brands::*,
+			functions::*,
+			types::*,
+		},
+		quickcheck_macros::quickcheck,
+	};
+
+	/// MonadRec identity law for OptionBrand: tail_rec_m(|a| pure(Done(a)), x) == pure(x).
+	#[quickcheck]
+	fn prop_monad_rec_identity_option(x: i32) -> bool {
+		let result = tail_rec_m::<OptionBrand, _, _>(|a| Some(Step::Done(a)), x);
+		result == Some(x)
+	}
+
+	/// MonadRec identity law for ThunkBrand: tail_rec_m(|a| pure(Done(a)), x) == pure(x).
+	#[quickcheck]
+	fn prop_monad_rec_identity_thunk(x: i32) -> bool {
+		let result = tail_rec_m::<ThunkBrand, _, _>(|a| Thunk::pure(Step::Done(a)), x);
+		result.evaluate() == pure::<ThunkBrand, _>(x).evaluate()
+	}
+}

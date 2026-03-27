@@ -1965,7 +1965,7 @@ mod inner {
 		///
 		/// This is equivalent to `foldr link CatNil deque` in PureScript.
 		///
-		/// We use an iterative approach to avoid stack overflow on deeply nested structures.
+		/// Uses a stack-safe right fold (`rfold`) over the deque's `DoubleEndedIterator`.
 		#[document_signature]
 		///
 		#[document_parameters("The deque of sublists to flatten.")]

@@ -1,4 +1,4 @@
-//! Types that can be mapped over by receiving or returning references to their contents,
+//! Types that can be mapped over by receiving references to their contents,
 //! with thread-safe mapping functions.
 //!
 //! ### Examples
@@ -22,7 +22,7 @@ mod inner {
 		fp_macros::*,
 	};
 
-	/// A type class for types that can be mapped over, returning references, with thread-safe functions.
+	/// A type class for types that can be mapped over, receiving references, with thread-safe functions.
 	///
 	/// This is a variant of [`RefFunctor`](crate::classes::RefFunctor) where the mapping function
 	/// must be `Send`, making it suitable for thread-safe lazy types like
@@ -67,6 +67,21 @@ mod inner {
 	/// );
 	/// assert_eq!(*composed.evaluate(), *sequential.evaluate());
 	/// ```
+	///
+	/// # Cache chain behavior
+	///
+	/// Chaining `send_ref_map` calls on memoized types like [`ArcLazy`](crate::types::ArcLazy)
+	/// creates a linked list of `Arc`-referenced cells. Each mapped value retains a reference to
+	/// its predecessor, so the entire chain of predecessor cells stays alive as long as any
+	/// downstream mapped value is reachable. Be aware that long chains can accumulate memory
+	/// that is only freed when the final value in the chain is dropped.
+	///
+	/// # Why `FnOnce`?
+	///
+	/// The `func` parameter uses `FnOnce` rather than `Fn` because memoized types like
+	/// `ArcLazy` create a new `ArcLazy` value capturing the closure. Since the resulting
+	/// `ArcLazy` will evaluate the closure at most once, `FnOnce` is sufficient and avoids
+	/// imposing unnecessary `Clone` or multi-call constraints on the caller.
 	#[kind(type Of<'a, A: 'a>: 'a;)]
 	pub trait SendRefFunctor {
 		/// Maps a thread-safe function over the values in the functor context, where the function takes a reference.
@@ -145,3 +160,38 @@ mod inner {
 }
 
 pub use inner::*;
+
+#[cfg(test)]
+mod tests {
+	use {
+		crate::{
+			brands::*,
+			functions::*,
+			types::*,
+		},
+		quickcheck_macros::quickcheck,
+	};
+
+	/// SendRefFunctor identity law: send_ref_map(Clone::clone, lazy) evaluates to the same value as lazy.
+	#[quickcheck]
+	fn prop_send_ref_functor_identity(x: i32) -> bool {
+		let lazy = ArcLazy::pure(x);
+		let mapped = send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(|v: &i32| *v, lazy.clone());
+		*mapped.evaluate() == *lazy.evaluate()
+	}
+
+	/// SendRefFunctor composition law: send_ref_map(|x| g(&f(x)), lazy) == send_ref_map(g, send_ref_map(f, lazy)).
+	#[quickcheck]
+	fn prop_send_ref_functor_composition(x: i32) -> bool {
+		let f = |v: &i32| v.wrapping_mul(2);
+		let g = |v: &i32| v.wrapping_add(1);
+		let lazy1 = ArcLazy::pure(x);
+		let lazy2 = ArcLazy::pure(x);
+		let composed = send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(|v: &i32| g(&f(v)), lazy1);
+		let sequential = send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(
+			g,
+			send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(f, lazy2),
+		);
+		*composed.evaluate() == *sequential.evaluate()
+	}
+}

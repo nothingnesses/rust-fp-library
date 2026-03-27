@@ -177,7 +177,12 @@ mod inner {
 			TrySendThunk(SendThunk::new(move || f().evaluate()))
 		}
 
-		/// Creates a successful computation.
+		/// Alias for [`pure`](Self::pure), provided for readability.
+		///
+		/// Both `TrySendThunk::ok(x)` and `TrySendThunk::pure(x)` produce the same result: a
+		/// deferred computation that succeeds with `x`. The `ok` variant mirrors the
+		/// `Result::Ok` constructor name, making intent clearer when working directly
+		/// with `TrySendThunk` values rather than through HKT abstractions.
 		#[document_signature]
 		///
 		#[document_parameters("The value to wrap.")]

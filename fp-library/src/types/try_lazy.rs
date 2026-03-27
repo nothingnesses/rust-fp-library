@@ -61,7 +61,13 @@ mod inner {
 			},
 		},
 		fp_macros::*,
-		std::fmt,
+		std::{
+			fmt,
+			hash::{
+				Hash,
+				Hasher,
+			},
+		},
 	};
 
 	/// A lazily-computed, memoized value that may fail.
@@ -1586,6 +1592,177 @@ mod inner {
 		}
 	}
 
+	// --- Hash ---
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error.",
+		"The memoization configuration."
+	)]
+	#[document_parameters("The try-lazy value to hash.")]
+	impl<'a, A: Hash + 'a, E: Hash + 'a, Config: TryLazyConfig> Hash for TryLazy<'a, A, E, Config> {
+		/// Forces evaluation and hashes the result.
+		#[document_signature]
+		#[document_type_parameters("The type of the hasher.")]
+		///
+		#[document_parameters("The hasher state.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::types::*,
+		/// 	std::{
+		/// 		collections::hash_map::DefaultHasher,
+		/// 		hash::{
+		/// 			Hash,
+		/// 			Hasher,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// let lazy = RcTryLazy::<i32, ()>::new(|| Ok(42));
+		/// let mut hasher = DefaultHasher::new();
+		/// lazy.hash(&mut hasher);
+		/// let h1 = hasher.finish();
+		///
+		/// let mut hasher = DefaultHasher::new();
+		/// Ok::<i32, ()>(42).hash(&mut hasher);
+		/// let h2 = hasher.finish();
+		///
+		/// assert_eq!(h1, h2);
+		///
+		/// let lazy = ArcTryLazy::<i32, ()>::new(|| Ok(42));
+		/// let mut hasher = DefaultHasher::new();
+		/// lazy.hash(&mut hasher);
+		/// let h3 = hasher.finish();
+		///
+		/// assert_eq!(h1, h3);
+		/// ```
+		fn hash<H: Hasher>(
+			&self,
+			state: &mut H,
+		) {
+			self.evaluate().hash(state)
+		}
+	}
+
+	// --- PartialEq ---
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error.",
+		"The memoization configuration."
+	)]
+	#[document_parameters("The try-lazy value to compare.")]
+	impl<'a, A: PartialEq + 'a, E: PartialEq + 'a, Config: TryLazyConfig> PartialEq
+		for TryLazy<'a, A, E, Config>
+	{
+		/// Compares two `TryLazy` values for equality by forcing evaluation of both sides.
+		///
+		/// Note: This will trigger computation if either value has not yet been evaluated.
+		#[document_signature]
+		#[document_parameters("The other try-lazy value to compare with.")]
+		#[document_returns("`true` if the evaluated results are equal.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let a = RcTryLazy::<i32, ()>::new(|| Ok(42));
+		/// let b = RcTryLazy::<i32, ()>::new(|| Ok(42));
+		/// assert!(a == b);
+		/// ```
+		fn eq(
+			&self,
+			other: &Self,
+		) -> bool {
+			self.evaluate() == other.evaluate()
+		}
+	}
+
+	// --- PartialOrd ---
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error.",
+		"The memoization configuration."
+	)]
+	#[document_parameters("The try-lazy value to compare.")]
+	impl<'a, A: PartialOrd + 'a, E: PartialOrd + 'a, Config: TryLazyConfig> PartialOrd
+		for TryLazy<'a, A, E, Config>
+	{
+		/// Compares two `TryLazy` values for ordering by forcing evaluation of both sides.
+		///
+		/// Note: This will trigger computation if either value has not yet been evaluated.
+		#[document_signature]
+		#[document_parameters("The other try-lazy value to compare with.")]
+		#[document_returns(
+			"The ordering between the evaluated results, or `None` if not comparable."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let a = RcTryLazy::<i32, ()>::new(|| Ok(1));
+		/// let b = RcTryLazy::<i32, ()>::new(|| Ok(2));
+		/// assert!(a < b);
+		/// ```
+		fn partial_cmp(
+			&self,
+			other: &Self,
+		) -> Option<std::cmp::Ordering> {
+			self.evaluate().partial_cmp(&other.evaluate())
+		}
+	}
+
+	// --- Eq ---
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error.",
+		"The memoization configuration."
+	)]
+	impl<'a, A: Eq + 'a, E: Eq + 'a, Config: TryLazyConfig> Eq for TryLazy<'a, A, E, Config> {}
+
+	// --- Ord ---
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error.",
+		"The memoization configuration."
+	)]
+	#[document_parameters("The try-lazy value to compare.")]
+	impl<'a, A: Ord + 'a, E: Ord + 'a, Config: TryLazyConfig> Ord for TryLazy<'a, A, E, Config> {
+		/// Compares two `TryLazy` values for ordering by forcing evaluation of both sides.
+		///
+		/// Note: This will trigger computation if either value has not yet been evaluated.
+		#[document_signature]
+		#[document_parameters("The other try-lazy value to compare with.")]
+		#[document_returns("The ordering between the evaluated results.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let a = RcTryLazy::<i32, ()>::new(|| Ok(1));
+		/// let b = RcTryLazy::<i32, ()>::new(|| Ok(2));
+		/// assert_eq!(a.cmp(&b), std::cmp::Ordering::Less);
+		/// ```
+		fn cmp(
+			&self,
+			other: &Self,
+		) -> std::cmp::Ordering {
+			self.evaluate().cmp(&other.evaluate())
+		}
+	}
+
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -2531,5 +2708,154 @@ mod tests {
 		let thunk: TrySendThunk<i32, ()> = TrySendThunk::ok(42);
 		let lazy: ArcTryLazy<i32, ()> = thunk.into();
 		assert_eq!(lazy.evaluate(), Ok(&42));
+	}
+
+	// --- PartialEq tests ---
+
+	/// Tests `PartialEq` for equal `Ok` values.
+	#[test]
+	fn test_try_lazy_partial_eq_ok() {
+		let a = RcTryLazy::<i32, ()>::ok(42);
+		let b = RcTryLazy::<i32, ()>::ok(42);
+		assert_eq!(a, b);
+	}
+
+	/// Tests `PartialEq` for unequal `Ok` values.
+	#[test]
+	fn test_try_lazy_partial_eq_ok_neq() {
+		let a = RcTryLazy::<i32, ()>::ok(1);
+		let b = RcTryLazy::<i32, ()>::ok(2);
+		assert_ne!(a, b);
+	}
+
+	/// Tests `PartialEq` for equal `Err` values.
+	#[test]
+	fn test_try_lazy_partial_eq_err() {
+		let a = RcTryLazy::<i32, String>::err("fail".to_string());
+		let b = RcTryLazy::<i32, String>::err("fail".to_string());
+		assert_eq!(a, b);
+	}
+
+	/// Tests `PartialEq` for `Ok` vs `Err`.
+	#[test]
+	fn test_try_lazy_partial_eq_ok_vs_err() {
+		let a = RcTryLazy::<i32, i32>::ok(1);
+		let b = RcTryLazy::<i32, i32>::err(1);
+		assert_ne!(a, b);
+	}
+
+	/// Tests `PartialEq` for `ArcTryLazy`.
+	#[test]
+	fn test_try_lazy_partial_eq_arc() {
+		let a = ArcTryLazy::<i32, ()>::ok(42);
+		let b = ArcTryLazy::<i32, ()>::ok(42);
+		assert_eq!(a, b);
+	}
+
+	// --- Hash tests ---
+
+	/// Tests that equal `TryLazy` values produce equal hashes.
+	#[test]
+	fn test_try_lazy_hash_eq() {
+		use std::{
+			collections::hash_map::DefaultHasher,
+			hash::{
+				Hash,
+				Hasher,
+			},
+		};
+
+		let a = RcTryLazy::<i32, ()>::ok(42);
+		let b = RcTryLazy::<i32, ()>::ok(42);
+
+		let mut h1 = DefaultHasher::new();
+		a.hash(&mut h1);
+		let mut h2 = DefaultHasher::new();
+		b.hash(&mut h2);
+
+		assert_eq!(h1.finish(), h2.finish());
+	}
+
+	/// Tests that `TryLazy` hash matches the underlying `Result` hash.
+	#[test]
+	fn test_try_lazy_hash_matches_result() {
+		use std::{
+			collections::hash_map::DefaultHasher,
+			hash::{
+				Hash,
+				Hasher,
+			},
+		};
+
+		let lazy = RcTryLazy::<i32, ()>::ok(42);
+		let mut h1 = DefaultHasher::new();
+		lazy.hash(&mut h1);
+
+		let result: Result<&i32, &()> = Ok(&42);
+		let mut h2 = DefaultHasher::new();
+		result.hash(&mut h2);
+
+		assert_eq!(h1.finish(), h2.finish());
+	}
+
+	// --- PartialOrd tests ---
+
+	/// Tests `PartialOrd` for `Ok` values.
+	#[test]
+	fn test_try_lazy_partial_ord_ok() {
+		let a = RcTryLazy::<i32, ()>::ok(1);
+		let b = RcTryLazy::<i32, ()>::ok(2);
+		assert!(a < b);
+		assert!(b > a);
+	}
+
+	/// Tests `PartialOrd` for equal values.
+	#[test]
+	fn test_try_lazy_partial_ord_eq() {
+		let a = RcTryLazy::<i32, ()>::ok(42);
+		let b = RcTryLazy::<i32, ()>::ok(42);
+		assert!(a <= b);
+		assert!(a >= b);
+	}
+
+	// --- Ord tests ---
+
+	/// Tests `Ord` for `Ok` values.
+	#[test]
+	fn test_try_lazy_ord_ok() {
+		use std::cmp::Ordering;
+
+		let a = RcTryLazy::<i32, ()>::ok(1);
+		let b = RcTryLazy::<i32, ()>::ok(2);
+		assert_eq!(a.cmp(&b), Ordering::Less);
+		assert_eq!(b.cmp(&a), Ordering::Greater);
+	}
+
+	/// Tests `Ord` for equal values.
+	#[test]
+	fn test_try_lazy_ord_eq() {
+		use std::cmp::Ordering;
+
+		let a = RcTryLazy::<i32, ()>::ok(42);
+		let b = RcTryLazy::<i32, ()>::ok(42);
+		assert_eq!(a.cmp(&b), Ordering::Equal);
+	}
+
+	/// Tests `Ord` for `ArcTryLazy`.
+	#[test]
+	fn test_try_lazy_ord_arc() {
+		use std::cmp::Ordering;
+
+		let a = ArcTryLazy::<i32, ()>::ok(1);
+		let b = ArcTryLazy::<i32, ()>::ok(2);
+		assert_eq!(a.cmp(&b), Ordering::Less);
+	}
+
+	/// Tests `Eq` is implemented (compile-time check via trait bound).
+	#[test]
+	fn test_try_lazy_eq_trait() {
+		fn assert_eq_impl<T: Eq>(_: &T) {}
+		let a = RcTryLazy::<i32, ()>::ok(42);
+		assert_eq_impl(&a);
 	}
 }

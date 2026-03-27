@@ -80,6 +80,11 @@ pub struct BifunctorFirstAppliedBrand<Brand, A>(PhantomData<(Brand, A)>);
 pub struct BifunctorSecondAppliedBrand<Brand, B>(PhantomData<(Brand, B)>);
 
 /// Brand for [`CatList`](crate::types::CatList).
+///
+/// `CatList` is the catenable list that serves as the backbone of
+/// [`Free`](crate::types::Free) monad evaluation, providing O(1) append
+/// and amortized O(1) uncons for the "Reflection without Remorse" technique
+/// that makes `Free` stack-safe.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CatListBrand;
 
@@ -196,14 +201,27 @@ pub struct ResultErrAppliedBrand<E>(PhantomData<E>);
 pub struct ResultOkAppliedBrand<T>(PhantomData<T>);
 
 /// Brand for [`Step`](crate::types::Step).
+///
+/// `Step` is the two-variant type (`Loop` / `Done`) used by
+/// [`MonadRec::tail_rec_m`](crate::classes::MonadRec::tail_rec_m) to signal
+/// whether a recursive computation should continue looping or return a final
+/// result.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepBrand;
 
 /// Brand for the partially-applied form of [`Step`](crate::types::Step) with the [`Done`](crate::types::Step::Done) type applied.
+///
+/// Fixes the `Done` (result) type, yielding a `Functor` over the `Loop`
+/// (continuation) type. Used when `MonadRec` needs to map over the looping
+/// side of a `Step` value.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepDoneAppliedBrand<B>(PhantomData<B>);
 
 /// Brand for the partially-applied form of [`Step`](crate::types::Step) with the [`Loop`](crate::types::Step::Loop) type applied.
+///
+/// Fixes the `Loop` (continuation) type, yielding a `Functor` over the `Done`
+/// (result) type. Used when `MonadRec` needs to map over the result side of a
+/// `Step` value.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepLoopAppliedBrand<A>(PhantomData<A>);
 
@@ -211,6 +229,16 @@ pub struct StepLoopAppliedBrand<A>(PhantomData<A>);
 ///
 /// Thread-safe counterpart of [`ThunkBrand`]. The inner closure is `Send`,
 /// enabling deferred computation across thread boundaries.
+///
+/// # HKT limitations
+///
+/// `SendThunkBrand` does **not** implement [`Functor`](crate::classes::Functor),
+/// [`Monad`](crate::classes::Monad), or any other HKT type-class traits.
+/// Those traits accept closure parameters as `impl Fn`/`impl FnOnce` without a
+/// `Send` bound, so there is no way to guarantee that the closures passed to
+/// `map`, `bind`, etc. are safe to store inside a `Send` thunk. Use
+/// [`ThunkBrand`] when HKT polymorphism is needed, or work with `SendThunk`
+/// directly through its inherent methods.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SendThunkBrand;
 

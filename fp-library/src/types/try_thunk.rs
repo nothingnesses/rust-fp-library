@@ -1175,7 +1175,7 @@ mod inner {
 			"The type of the monoid."
 		)]
 		///
-		#[document_parameters("The mapping function.", "The Thunk to fold.")]
+		#[document_parameters("The mapping function.", "The TryThunk to fold.")]
 		///
 		#[document_returns("The monoid value.")]
 		///
@@ -1927,7 +1927,7 @@ mod inner {
 			"The type of the monoid."
 		)]
 		///
-		#[document_parameters("The mapping function.", "The Thunk to fold.")]
+		#[document_parameters("The mapping function.", "The TryThunk to fold.")]
 		///
 		#[document_returns("The monoid value.")]
 		///

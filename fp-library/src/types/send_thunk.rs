@@ -57,6 +57,17 @@ mod inner {
 	/// [`SendThunkBrand`](crate::brands::SendThunkBrand), which is fully
 	/// polymorphic over the result type.
 	///
+	/// ### Trade-offs vs Other Lazy Types
+	///
+	/// | Aspect         | `SendThunk<'a, A>`            | `Thunk<'a, A>`                | `Trampoline<A>`              | `ArcLazy<'a, A>`             |
+	/// |----------------|-------------------------------|-------------------------------|------------------------------|------------------------------|
+	/// | Thread safety  | ✅ `Send`                     | ❌ Not `Send`                 | ❌ Not `Send`                | ✅ `Send + Sync`             |
+	/// | HKT compatible | ❌ No (needs `Send` closures) | ✅ Yes                        | ❌ No (requires `'static`)   | ❌ Partial (`SendRefFunctor`)|
+	/// | Stack-safe     | ⚠️ Partial (`tail_rec_m` only)| ⚠️ Partial (`tail_rec_m` only)| ✅ Yes (unlimited)           | N/A (memoized)               |
+	/// | Memoized       | ❌ No                         | ❌ No                         | ❌ No                        | ✅ Yes                       |
+	/// | Lifetime       | `'a` (can borrow)             | `'a` (can borrow)             | `'static` only               | `'a` (can borrow)            |
+	/// | Use case       | Cross-thread lazy pipelines   | Glue code, composition        | Deep recursion, pipelines    | Shared cached values          |
+	///
 	/// ### HKT Trait Limitations
 	///
 	/// Standard HKT traits such as `Functor`, `Pointed`, `Semimonad`, and
@@ -68,6 +79,14 @@ mod inner {
 	/// Use the inherent methods ([`map`](SendThunk::map),
 	/// [`bind`](SendThunk::bind)) instead, which accept `Send` closures
 	/// explicitly.
+	///
+	/// ### Algebraic Properties
+	///
+	/// `SendThunk` satisfies the monad laws through its inherent methods, even though
+	/// it cannot implement the HKT `Monad` trait (due to the `Send` bound requirement):
+	/// - `pure(a).bind(f) ≡ f(a)` (left identity).
+	/// - `m.bind(|x| pure(x)) ≡ m` (right identity).
+	/// - `m.bind(f).bind(g) ≡ m.bind(|x| f(x).bind(g))` (associativity).
 	///
 	/// ### Stack Safety
 	///
