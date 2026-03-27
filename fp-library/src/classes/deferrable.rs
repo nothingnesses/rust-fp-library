@@ -119,7 +119,6 @@ pub use inner::*;
 mod tests {
 	use {
 		crate::{
-			brands::*,
 			functions::*,
 			types::*,
 		},

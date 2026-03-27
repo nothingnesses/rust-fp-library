@@ -36,6 +36,7 @@ mod inner {
 			impl_kind,
 			kinds::*,
 			types::{
+				SendThunk,
 				Thunk,
 				Trampoline,
 			},
@@ -705,6 +706,89 @@ mod inner {
 		/// ```
 		fn from(task: Trampoline<A>) -> Self {
 			Self::pure(task.evaluate())
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value."
+	)]
+	impl<'a, A: 'a> From<SendThunk<'a, A>> for Lazy<'a, A, ArcLazyConfig> {
+		/// Converts a [`SendThunk`] into an [`ArcLazy`] without eager evaluation.
+		///
+		/// Because `SendThunk` already satisfies `Send`, the inner closure can be
+		/// passed directly into `ArcLazy`, deferring computation until first access.
+		#[document_signature]
+		#[document_parameters("The send thunk to convert.")]
+		#[document_returns("A new `ArcLazy` wrapping the deferred computation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let thunk = SendThunk::new(|| 42);
+		/// let lazy: ArcLazy<i32> = ArcLazy::from(thunk);
+		/// assert_eq!(*lazy.evaluate(), 42);
+		/// ```
+		fn from(thunk: SendThunk<'a, A>) -> Self {
+			Self::new(move || thunk.evaluate())
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value."
+	)]
+	impl<'a, A: Clone + Send + Sync + 'a> From<Lazy<'a, A, RcLazyConfig>>
+		for Lazy<'a, A, ArcLazyConfig>
+	{
+		/// Converts an [`RcLazy`] into an [`ArcLazy`] by eagerly evaluating and cloning the value.
+		///
+		/// `RcLazy` is `!Send`, so the value must be computed immediately and cloned
+		/// into the thread-safe `ArcLazy` world.
+		#[document_signature]
+		#[document_parameters("The `RcLazy` instance to convert.")]
+		#[document_returns(
+			"A new `ArcLazy` instance containing a clone of the eagerly evaluated value."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let rc_lazy = RcLazy::new(|| 42);
+		/// let arc_lazy: ArcLazy<i32> = ArcLazy::from(rc_lazy);
+		/// assert_eq!(*arc_lazy.evaluate(), 42);
+		/// ```
+		fn from(source: Lazy<'a, A, RcLazyConfig>) -> Self {
+			Self::pure(source.evaluate().clone())
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value."
+	)]
+	impl<'a, A: Clone + 'a> From<Lazy<'a, A, ArcLazyConfig>> for Lazy<'a, A, RcLazyConfig> {
+		/// Converts an [`ArcLazy`] into an [`RcLazy`] by eagerly evaluating and cloning the value.
+		///
+		/// The value is computed immediately and cloned into a new single-threaded
+		/// `RcLazy` instance.
+		#[document_signature]
+		#[document_parameters("The `ArcLazy` instance to convert.")]
+		#[document_returns(
+			"A new `RcLazy` instance containing a clone of the eagerly evaluated value."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let arc_lazy = ArcLazy::new(|| 42);
+		/// let rc_lazy: RcLazy<i32> = RcLazy::from(arc_lazy);
+		/// assert_eq!(*rc_lazy.evaluate(), 42);
+		/// ```
+		fn from(source: Lazy<'a, A, ArcLazyConfig>) -> Self {
+			Self::pure(source.evaluate().clone())
 		}
 	}
 
@@ -1757,6 +1841,89 @@ mod tests {
 		let task = Trampoline::pure(42);
 		let memo = RcLazy::from(task);
 		assert_eq!(*memo.evaluate(), 42);
+	}
+
+	/// Tests conversion from `RcLazy` to `ArcLazy`.
+	///
+	/// Verifies `From<RcLazy>` for `ArcLazy` works correctly.
+	#[test]
+	fn test_rc_lazy_to_arc_lazy() {
+		let rc = RcLazy::new(|| "hello".to_string());
+		let arc: ArcLazy<String> = ArcLazy::from(rc);
+		assert_eq!(*arc.evaluate(), "hello");
+	}
+
+	/// Tests conversion from `ArcLazy` to `RcLazy`.
+	///
+	/// Verifies `From<ArcLazy>` for `RcLazy` works correctly.
+	#[test]
+	fn test_arc_lazy_to_rc_lazy() {
+		let arc = ArcLazy::new(|| "world".to_string());
+		let rc: RcLazy<String> = RcLazy::from(arc);
+		assert_eq!(*rc.evaluate(), "world");
+	}
+
+	/// Tests that `RcLazy` to `ArcLazy` conversion eagerly evaluates.
+	///
+	/// Verifies that the source is evaluated during conversion, not deferred.
+	#[test]
+	fn test_rc_to_arc_eager_evaluation() {
+		let counter = Rc::new(RefCell::new(0));
+		let counter_clone = counter.clone();
+		let rc = RcLazy::new(move || {
+			*counter_clone.borrow_mut() += 1;
+			99
+		});
+		assert_eq!(*counter.borrow(), 0);
+
+		let arc: ArcLazy<i32> = ArcLazy::from(rc);
+		// Conversion should have forced evaluation.
+		assert_eq!(*counter.borrow(), 1);
+		assert_eq!(*arc.evaluate(), 99);
+		// No additional evaluation.
+		assert_eq!(*counter.borrow(), 1);
+	}
+
+	/// Tests that `ArcLazy` to `RcLazy` conversion eagerly evaluates.
+	///
+	/// Verifies that the source is evaluated during conversion, not deferred.
+	#[test]
+	fn test_arc_to_rc_eager_evaluation() {
+		use std::sync::atomic::{
+			AtomicUsize,
+			Ordering,
+		};
+
+		let counter = Arc::new(AtomicUsize::new(0));
+		let counter_clone = counter.clone();
+		let arc = ArcLazy::new(move || {
+			counter_clone.fetch_add(1, Ordering::SeqCst);
+			77
+		});
+		assert_eq!(counter.load(Ordering::SeqCst), 0);
+
+		let rc: RcLazy<i32> = RcLazy::from(arc);
+		// Conversion should have forced evaluation.
+		assert_eq!(counter.load(Ordering::SeqCst), 1);
+		assert_eq!(*rc.evaluate(), 77);
+		// No additional evaluation.
+		assert_eq!(counter.load(Ordering::SeqCst), 1);
+	}
+
+	/// Property: RcLazy to ArcLazy round-trip preserves values.
+	#[quickcheck]
+	fn prop_rc_to_arc_preserves_value(x: i32) -> bool {
+		let rc = RcLazy::new(move || x);
+		let arc: ArcLazy<i32> = ArcLazy::from(rc);
+		*arc.evaluate() == x
+	}
+
+	/// Property: ArcLazy to RcLazy round-trip preserves values.
+	#[quickcheck]
+	fn prop_arc_to_rc_preserves_value(x: i32) -> bool {
+		let arc = ArcLazy::new(move || x);
+		let rc: RcLazy<i32> = RcLazy::from(arc);
+		*rc.evaluate() == x
 	}
 
 	/// Tests Defer implementation.

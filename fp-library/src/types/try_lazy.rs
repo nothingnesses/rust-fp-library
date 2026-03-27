@@ -326,6 +326,54 @@ mod inner {
 				Err(e) => Err(f(e)),
 			})
 		}
+
+		/// Transforms both the success and error values by creating a new `TryLazy` cell.
+		///
+		/// The original cell is evaluated on first access of the new cell. The success
+		/// mapping function `f` receives a reference to the cached success value, and the
+		/// error mapping function `g` receives a reference to the cached error value.
+		/// Unlike `map` (which requires `E: Clone`) or `map_err` (which requires `A: Clone`),
+		/// `bimap` needs neither because each branch is fully transformed.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The type of the mapped success value.",
+			"The type of the mapped error value."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the success value.",
+			"The function to apply to the error value."
+		)]
+		///
+		#[document_returns(
+			"A new `RcTryLazy` that applies `f` to the success value or `g` to the error value of this cell."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let ok_memo = RcTryLazy::<i32, String>::ok(10);
+		/// let mapped = ok_memo.bimap(|a| a * 2, |e| e.len());
+		/// assert_eq!(mapped.evaluate(), Ok(&20));
+		///
+		/// let err_memo = RcTryLazy::<i32, String>::err("error".to_string());
+		/// let mapped = err_memo.bimap(|a| a * 2, |e| e.len());
+		/// assert_eq!(mapped.evaluate(), Err(&5));
+		/// ```
+		#[inline]
+		pub fn bimap<B: 'a, F: 'a>(
+			self,
+			f: impl FnOnce(&A) -> B + 'a,
+			g: impl FnOnce(&E) -> F + 'a,
+		) -> RcTryLazy<'a, B, F> {
+			RcTryLazy::new(move || match self.evaluate() {
+				Ok(a) => Ok(f(a)),
+				Err(e) => Err(g(e)),
+			})
+		}
 	}
 
 	#[document_type_parameters(
@@ -965,6 +1013,58 @@ mod inner {
 			ArcTryLazy::new(move || match self.evaluate() {
 				Ok(a) => Ok(a.clone()),
 				Err(e) => Err(f(e)),
+			})
+		}
+
+		/// Transforms both the success and error values by creating a new thread-safe
+		/// `TryLazy` cell.
+		///
+		/// The original cell is evaluated on first access of the new cell. The success
+		/// mapping function `f` receives a reference to the cached success value, and the
+		/// error mapping function `g` receives a reference to the cached error value.
+		/// Unlike `map` (which requires `E: Clone`) or `map_err` (which requires `A: Clone`),
+		/// `bimap` needs neither because each branch is fully transformed.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The type of the mapped success value.",
+			"The type of the mapped error value."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the success value.",
+			"The function to apply to the error value."
+		)]
+		///
+		#[document_returns(
+			"A new `ArcTryLazy` that applies `f` to the success value or `g` to the error value of this cell."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let ok_memo = ArcTryLazy::<i32, String>::ok(10);
+		/// let mapped = ok_memo.bimap(|a| a * 2, |e| e.len());
+		/// assert_eq!(mapped.evaluate(), Ok(&20));
+		///
+		/// let err_memo = ArcTryLazy::<i32, String>::err("error".to_string());
+		/// let mapped = err_memo.bimap(|a| a * 2, |e| e.len());
+		/// assert_eq!(mapped.evaluate(), Err(&5));
+		/// ```
+		#[inline]
+		pub fn bimap<B: 'a, F: 'a>(
+			self,
+			f: impl FnOnce(&A) -> B + Send + 'a,
+			g: impl FnOnce(&E) -> F + Send + 'a,
+		) -> ArcTryLazy<'a, B, F>
+		where
+			A: Send + Sync,
+			E: Send + Sync, {
+			ArcTryLazy::new(move || match self.evaluate() {
+				Ok(a) => Ok(f(a)),
+				Err(e) => Err(g(e)),
 			})
 		}
 	}
@@ -2204,6 +2304,26 @@ mod tests {
 		assert_eq!(mapped.evaluate(), Ok(&42));
 	}
 
+	/// Tests `RcTryLazy::bimap` with a successful value.
+	///
+	/// Verifies that `bimap` transforms the success value via `f`.
+	#[test]
+	fn test_rc_try_lazy_bimap_ok() {
+		let memo = RcTryLazy::<i32, String>::ok(10);
+		let mapped = memo.bimap(|a| a * 2, |e| e.len());
+		assert_eq!(mapped.evaluate(), Ok(&20));
+	}
+
+	/// Tests `RcTryLazy::bimap` with an error value.
+	///
+	/// Verifies that `bimap` transforms the error value via `g`.
+	#[test]
+	fn test_rc_try_lazy_bimap_err() {
+		let memo = RcTryLazy::<i32, String>::err("error".to_string());
+		let mapped = memo.bimap(|a| a * 2, |e| e.len());
+		assert_eq!(mapped.evaluate(), Err(&5));
+	}
+
 	/// Tests `ArcTryLazy::map` with a successful value.
 	///
 	/// Verifies that `map` transforms the cached success value.
@@ -2242,6 +2362,26 @@ mod tests {
 		let memo = ArcTryLazy::<i32, String>::ok(42);
 		let mapped = memo.map_err(|e| format!("wrapped: {}", e));
 		assert_eq!(mapped.evaluate(), Ok(&42));
+	}
+
+	/// Tests `ArcTryLazy::bimap` with a successful value.
+	///
+	/// Verifies that `bimap` transforms the success value via `f`.
+	#[test]
+	fn test_arc_try_lazy_bimap_ok() {
+		let memo = ArcTryLazy::<i32, String>::ok(10);
+		let mapped = memo.bimap(|a| a * 2, |e| e.len());
+		assert_eq!(mapped.evaluate(), Ok(&20));
+	}
+
+	/// Tests `ArcTryLazy::bimap` with an error value.
+	///
+	/// Verifies that `bimap` transforms the error value via `g`.
+	#[test]
+	fn test_arc_try_lazy_bimap_err() {
+		let memo = ArcTryLazy::<i32, String>::err("error".to_string());
+		let mapped = memo.bimap(|a| a * 2, |e| e.len());
+		assert_eq!(mapped.evaluate(), Err(&5));
 	}
 
 	// --- RefFunctor tests ---

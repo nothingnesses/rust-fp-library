@@ -27,9 +27,6 @@ mod inner {
 			kinds::*,
 			types::{
 				ArcLazy,
-				ArcLazyConfig,
-				Lazy,
-				LazyConfig,
 				Step,
 				Thunk,
 			},
@@ -401,7 +398,7 @@ mod inner {
 		/// ```
 		#[inline]
 		pub fn into_arc_lazy(self) -> ArcLazy<'a, A> {
-			Lazy(ArcLazyConfig::lazy_new(self.0))
+			self.into()
 		}
 	}
 

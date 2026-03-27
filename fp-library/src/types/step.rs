@@ -473,6 +473,78 @@ mod inner {
 				Step::Done(b) => Step::Done(b),
 			}
 		}
+
+		/// Extracts the `Done` value, returning `None` if this is a `Loop`.
+		#[document_signature]
+		///
+		#[document_returns("`Some(b)` if `Done(b)`, `None` if `Loop(_)`.")]
+		///
+		#[inline]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let step: Step<i32, i32> = Step::Done(42);
+		/// assert_eq!(step.done(), Some(42));
+		///
+		/// let step: Step<i32, i32> = Step::Loop(1);
+		/// assert_eq!(step.done(), None);
+		/// ```
+		pub fn done(self) -> Option<B> {
+			match self {
+				Step::Done(b) => Some(b),
+				Step::Loop(_) => None,
+			}
+		}
+
+		/// Extracts the `Loop` value, returning `None` if this is `Done`.
+		#[document_signature]
+		///
+		#[document_returns("`Some(a)` if `Loop(a)`, `None` if `Done(_)`.")]
+		///
+		#[inline]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let step: Step<i32, i32> = Step::Loop(7);
+		/// assert_eq!(step.loop_val(), Some(7));
+		///
+		/// let step: Step<i32, i32> = Step::Done(42);
+		/// assert_eq!(step.loop_val(), None);
+		/// ```
+		pub fn loop_val(self) -> Option<A> {
+			match self {
+				Step::Loop(a) => Some(a),
+				Step::Done(_) => None,
+			}
+		}
+
+		/// Swaps the type parameters, mapping `Loop(a)` to `Done(a)` and `Done(b)` to `Loop(b)`.
+		#[document_signature]
+		///
+		#[document_returns("A new `Step` with the variants swapped.")]
+		///
+		#[inline]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let step: Step<i32, &str> = Step::Loop(1);
+		/// assert_eq!(step.swap(), Step::Done(1));
+		///
+		/// let step: Step<i32, &str> = Step::Done("hello");
+		/// assert_eq!(step.swap(), Step::Loop("hello"));
+		/// ```
+		pub fn swap(self) -> Step<B, A> {
+			match self {
+				Step::Loop(a) => Step::Done(a),
+				Step::Done(b) => Step::Loop(b),
+			}
+		}
 	}
 
 	#[document_type_parameters(
@@ -2716,5 +2788,53 @@ mod tests {
 	fn test_monad_rec_step_done_applied() {
 		fn assert_monad_rec<B: crate::classes::MonadRec>() {}
 		assert_monad_rec::<StepDoneAppliedBrand<i32>>();
+	}
+
+	/// Tests the `done` method.
+	///
+	/// Verifies that `done` returns `Some(b)` for `Done(b)` and `None` for `Loop(_)`.
+	#[test]
+	fn test_done() {
+		let step: Step<i32, i32> = Step::Done(42);
+		assert_eq!(step.done(), Some(42));
+
+		let step: Step<i32, i32> = Step::Loop(1);
+		assert_eq!(step.done(), None);
+	}
+
+	/// Tests the `loop_val` method.
+	///
+	/// Verifies that `loop_val` returns `Some(a)` for `Loop(a)` and `None` for `Done(_)`.
+	#[test]
+	fn test_loop_val() {
+		let step: Step<i32, i32> = Step::Loop(7);
+		assert_eq!(step.loop_val(), Some(7));
+
+		let step: Step<i32, i32> = Step::Done(42);
+		assert_eq!(step.loop_val(), None);
+	}
+
+	/// Tests the `swap` method.
+	///
+	/// Verifies that `swap` maps `Loop(a)` to `Done(a)` and `Done(b)` to `Loop(b)`.
+	#[test]
+	fn test_swap() {
+		let step: Step<i32, &str> = Step::Loop(1);
+		assert_eq!(step.swap(), Step::Done(1));
+
+		let step: Step<i32, &str> = Step::Done("hello");
+		assert_eq!(step.swap(), Step::Loop("hello"));
+	}
+
+	/// Property test: `done` and `loop_val` are complementary.
+	#[quickcheck]
+	fn done_and_loop_val_complementary(step: Step<i32, i32>) -> bool {
+		step.done().is_some() != step.loop_val().is_some()
+	}
+
+	/// Property test: swapping twice is identity.
+	#[quickcheck]
+	fn swap_involution(step: Step<i32, i32>) -> bool {
+		step.swap().swap() == step
 	}
 }
