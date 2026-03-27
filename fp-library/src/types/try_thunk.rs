@@ -1059,9 +1059,7 @@ mod inner {
 		/// assert_eq!(result.evaluate(), Ok(1000));
 		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a>(
-			f: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
-			+ Clone
-			+ 'a,
+			f: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>) + 'a,
 			a: A,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			TryThunk::new(move || {
@@ -1813,7 +1811,6 @@ mod inner {
 		/// ```
 		fn tail_rec_m<'a, E: 'a, E2: 'a>(
 			f: impl Fn(E) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<E, E2>>)
-			+ Clone
 			+ 'a,
 			e: E,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E2>) {
@@ -2060,7 +2057,7 @@ mod inner {
 		/// );
 		/// assert_eq!(y, "5".to_string());
 		/// ```
-		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
+		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
 			f: impl Fn((), A) -> R + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> R {
@@ -2143,7 +2140,7 @@ mod inner {
 		/// );
 		/// assert_eq!(y, "5".to_string());
 		/// ```
-		fn fold_map_with_index<'a, E: 'a, R: Monoid>(
+		fn fold_map_with_index<'a, E: 'a + Clone, R: Monoid>(
 			f: impl Fn((), E) -> R + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
 		) -> R {

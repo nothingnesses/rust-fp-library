@@ -55,6 +55,7 @@ mod inner {
 				Lazy,
 				RcLazyConfig,
 				TryLazyConfig,
+				TrySendThunk,
 				TryThunk,
 				TryTrampoline,
 			},
@@ -533,6 +534,37 @@ mod inner {
 		/// ```
 		fn from(result: Result<A, E>) -> Self {
 			Self::new(move || result)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
+	impl<'a, A, E> From<TrySendThunk<'a, A, E>> for TryLazy<'a, A, E, ArcLazyConfig>
+	where
+		A: Send + Sync + 'a,
+		E: Send + Sync + 'a,
+	{
+		/// Converts a [`TrySendThunk`] into an [`ArcTryLazy`] without eager evaluation.
+		///
+		/// Unlike conversions from `TryThunk` or `TryTrampoline`, this conversion does
+		/// **not** evaluate the thunk eagerly. The inner `Send` closure is passed directly
+		/// into `ArcTryLazy::new`, so evaluation is deferred until first access.
+		#[document_signature]
+		#[document_parameters("The fallible send thunk to convert.")]
+		#[document_returns("A thread-safe `ArcTryLazy` that evaluates the thunk on first access.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let thunk: TrySendThunk<i32, ()> = TrySendThunk::ok(42);
+		/// let lazy: ArcTryLazy<i32, ()> = ArcTryLazy::from(thunk);
+		/// assert_eq!(lazy.evaluate(), Ok(&42));
+		/// ```
+		fn from(thunk: TrySendThunk<'a, A, E>) -> Self {
+			thunk.into_arc_try_lazy()
 		}
 	}
 
@@ -1597,6 +1629,7 @@ mod tests {
 				ArcLazyConfig,
 				RcLazy,
 				RcLazyConfig,
+				TrySendThunk,
 				TryThunk,
 				TryTrampoline,
 			},
@@ -2457,5 +2490,46 @@ mod tests {
 			memo,
 		);
 		assert_eq!(result, 5);
+	}
+
+	/// Tests `From<TrySendThunk> for ArcTryLazy` with a successful thunk.
+	#[test]
+	fn test_from_try_send_thunk_ok() {
+		let counter = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+		let counter_clone = counter.clone();
+		let thunk: TrySendThunk<i32, ()> = TrySendThunk::new(move || {
+			counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+			Ok(42)
+		});
+
+		// Conversion should not evaluate eagerly.
+		assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 0);
+
+		let lazy: ArcTryLazy<i32, ()> = ArcTryLazy::from(thunk);
+		assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 0);
+
+		// First access triggers evaluation.
+		assert_eq!(lazy.evaluate(), Ok(&42));
+		assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+		// Second access uses cached result.
+		assert_eq!(lazy.evaluate(), Ok(&42));
+		assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 1);
+	}
+
+	/// Tests `From<TrySendThunk> for ArcTryLazy` with a failing thunk.
+	#[test]
+	fn test_from_try_send_thunk_err() {
+		let thunk: TrySendThunk<i32, String> = TrySendThunk::new(move || Err("fail".to_string()));
+		let lazy: ArcTryLazy<i32, String> = ArcTryLazy::from(thunk);
+		assert_eq!(lazy.evaluate(), Err(&"fail".to_string()));
+	}
+
+	/// Tests that `Into<ArcTryLazy>` works for `TrySendThunk`.
+	#[test]
+	fn test_try_send_thunk_into_arc_try_lazy() {
+		let thunk: TrySendThunk<i32, ()> = TrySendThunk::ok(42);
+		let lazy: ArcTryLazy<i32, ()> = thunk.into();
+		assert_eq!(lazy.evaluate(), Ok(&42));
 	}
 }

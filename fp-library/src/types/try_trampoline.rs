@@ -878,6 +878,10 @@ mod inner {
 		A: 'static,
 		E: 'static,
 	{
+		/// Converts a `'static` [`TryThunk`](crate::types::TryThunk) into a `TryTrampoline`.
+		///
+		/// This lifts a non-stack-safe `TryThunk` into the stack-safe `TryTrampoline`
+		/// execution model. The resulting `TryTrampoline` evaluates the thunk when run.
 		#[document_signature]
 		#[document_parameters("The fallible thunk to convert.")]
 		#[document_returns("A new `TryTrampoline` instance that evaluates the thunk.")]
@@ -1417,6 +1421,26 @@ mod tests {
 		let thunk = TryThunk::new(|| Err::<i32, String>("error".to_string()));
 		let task = TryTrampoline::from(thunk);
 		assert_eq!(task.evaluate(), Err("error".to_string()));
+	}
+
+	/// Tests bidirectional conversion between `TryThunk` and `TryTrampoline`.
+	///
+	/// Verifies that a value survives a round-trip through both conversions.
+	#[test]
+	fn test_try_thunk_try_trampoline_round_trip() {
+		use crate::types::TryThunk;
+
+		// TryThunk -> TryTrampoline -> TryThunk (Ok case)
+		let thunk = TryThunk::new(|| Ok::<i32, String>(42));
+		let tramp = TryTrampoline::from(thunk);
+		let thunk_back: TryThunk<i32, String> = TryThunk::from(tramp);
+		assert_eq!(thunk_back.evaluate(), Ok(42));
+
+		// TryTrampoline -> TryThunk -> TryTrampoline (Err case)
+		let tramp = TryTrampoline::err("fail".to_string());
+		let thunk: TryThunk<i32, String> = TryThunk::from(tramp);
+		let tramp_back = TryTrampoline::from(thunk);
+		assert_eq!(tramp_back.evaluate(), Err("fail".to_string()));
 	}
 
 	/// Tests `From<Result>` with `Ok`.

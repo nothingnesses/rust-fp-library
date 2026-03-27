@@ -700,9 +700,7 @@ mod inner {
 		/// assert_eq!(result.evaluate(), 1000);
 		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a>(
-			f: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
-			+ Clone
-			+ 'a,
+			f: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>) + 'a,
 			a: A,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			Thunk::new(move || {
@@ -929,7 +927,7 @@ mod inner {
 		/// 	<ThunkBrand as FoldableWithIndex>::fold_map_with_index(|_, x: i32| x.to_string(), thunk);
 		/// assert_eq!(result, "5");
 		/// ```
-		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
+		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
 			f: impl Fn((), A) -> R + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> R {

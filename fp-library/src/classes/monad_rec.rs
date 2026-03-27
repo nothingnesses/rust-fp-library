@@ -89,7 +89,6 @@ mod inner {
 		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
-			+ Clone
 			+ 'a,
 			initial: A,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
@@ -129,9 +128,7 @@ mod inner {
 	/// assert_eq!(result.evaluate(), 10);
 	/// ```
 	pub fn tail_rec_m<'a, Brand: MonadRec, A: 'a, B: 'a>(
-		func: impl Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
-		+ Clone
-		+ 'a,
+		func: impl Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>) + 'a,
 		initial: A,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		Brand::tail_rec_m(func, initial)

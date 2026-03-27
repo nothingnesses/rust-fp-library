@@ -25,11 +25,13 @@ mod inner {
 				CloneableFn,
 				Deferrable,
 				Foldable,
+				FoldableWithIndex,
 				Monoid,
 				RefFunctor,
 				Semigroup,
 				SendDeferrable,
 				SendRefFunctor,
+				WithIndex,
 			},
 			impl_kind,
 			kinds::*,
@@ -1338,6 +1340,58 @@ mod inner {
 		}
 	}
 
+	// --- WithIndex ---
+
+	#[document_type_parameters("The memoization configuration (determines Rc vs Arc).")]
+	impl<Config: LazyConfig> WithIndex for LazyBrand<Config> {
+		type Index = ();
+	}
+
+	// --- FoldableWithIndex ---
+
+	#[document_type_parameters("The memoization configuration (determines Rc vs Arc).")]
+	impl<Config: LazyConfig> FoldableWithIndex for LazyBrand<Config> {
+		/// Folds the `Lazy` using a monoid, providing the index `()`.
+		///
+		/// Forces evaluation and maps the single contained value with the unit index.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the computed value.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the index and the value.",
+			"The `Lazy` to fold."
+		)]
+		///
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::foldable_with_index::FoldableWithIndex,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = RcLazy::new(|| 10);
+		/// let result = <LazyBrand<RcLazyConfig> as FoldableWithIndex>::fold_map_with_index(
+		/// 	|_, x: i32| x.to_string(),
+		/// 	lazy,
+		/// );
+		/// assert_eq!(result, "10");
+		/// ```
+		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
+			f: impl Fn((), A) -> R + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R {
+			f((), fa.evaluate().clone())
+		}
+	}
+
 	// --- PartialEq ---
 
 	#[document_type_parameters(
@@ -2234,6 +2288,65 @@ mod tests {
 		let arc_result =
 			fold_right::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(|a, b| a + b, 0, arc_lazy);
 		rc_result == arc_result
+	}
+
+	// --- FoldableWithIndex tests ---
+
+	/// Tests `fold_map_with_index` for `RcLazy`.
+	///
+	/// Verifies that the index is `()` and the value is folded correctly.
+	#[test]
+	fn test_rc_lazy_fold_map_with_index() {
+		use crate::{
+			brands::*,
+			classes::foldable_with_index::FoldableWithIndex,
+		};
+
+		let lazy = RcLazy::new(|| 42);
+		let result = <LazyBrand<RcLazyConfig> as FoldableWithIndex>::fold_map_with_index(
+			|_, x: i32| x.to_string(),
+			lazy,
+		);
+		assert_eq!(result, "42");
+	}
+
+	/// Tests `fold_map_with_index` for `ArcLazy`.
+	///
+	/// Verifies that the index is `()` and the value is folded correctly.
+	#[test]
+	fn test_arc_lazy_fold_map_with_index() {
+		use crate::{
+			brands::*,
+			classes::foldable_with_index::FoldableWithIndex,
+		};
+
+		let lazy = ArcLazy::new(|| 10);
+		let result = <LazyBrand<ArcLazyConfig> as FoldableWithIndex>::fold_map_with_index(
+			|_, x: i32| x.to_string(),
+			lazy,
+		);
+		assert_eq!(result, "10");
+	}
+
+	/// Tests compatibility of `FoldableWithIndex` with `Foldable`.
+	///
+	/// Verifies that `fold_map(f, fa) = fold_map_with_index(|_, a| f(a), fa)`.
+	#[test]
+	fn test_rc_lazy_foldable_with_index_compatibility() {
+		use crate::{
+			brands::*,
+			classes::foldable_with_index::FoldableWithIndex,
+			functions::*,
+		};
+
+		let lazy1 = RcLazy::new(|| 7);
+		let lazy2 = RcLazy::new(|| 7);
+		let f = |a: i32| a.to_string();
+
+		let fold_result = fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, String>(f, lazy1);
+		let fold_with_index_result =
+			<LazyBrand<RcLazyConfig> as FoldableWithIndex>::fold_map_with_index(|_, a| f(a), lazy2);
+		assert_eq!(fold_result, fold_with_index_result);
 	}
 
 	// --- SendRefFunctor (ArcLazy ref_map) law tests ---

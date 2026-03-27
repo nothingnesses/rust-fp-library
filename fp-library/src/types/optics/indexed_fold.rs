@@ -229,7 +229,7 @@ mod inner {
 		for Folded<Brand>
 	where
 		Brand: FoldableWithIndex<Index = I>,
-		A: 'a,
+		A: 'a + Clone,
 		I: 'a,
 	{
 		#[document_signature]
@@ -283,7 +283,7 @@ mod inner {
 		>
 	where
 		Brand: FoldableWithIndex<Index = I>,
-		A: 'a,
+		A: 'a + Clone,
 		I: 'a,
 	{
 		/// Create an indexed fold from a `FoldableWithIndex`.
@@ -334,7 +334,7 @@ mod inner {
 		>
 	where
 		Brand: FoldableWithIndex<Index = I>,
-		A: 'a,
+		A: 'a + Clone,
 		I: 'a,
 	{
 		/// Create a monomorphic indexed fold from a `FoldableWithIndex`.

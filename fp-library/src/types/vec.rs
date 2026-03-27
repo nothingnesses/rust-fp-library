@@ -662,7 +662,7 @@ mod inner {
 		/// let s = <VecBrand as FoldableWithIndex>::fold_map_with_index(|i, x| format!("{}:{}", i, x), v);
 		/// assert_eq!(s, "0:101:202:30");
 		/// ```
-		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
+		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
 			f: impl Fn(usize, A) -> R + 'a,
 			fa: Vec<A>,
 		) -> R {
@@ -1798,7 +1798,6 @@ mod inner {
 		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
-			+ Clone
 			+ 'a,
 			initial: A,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {

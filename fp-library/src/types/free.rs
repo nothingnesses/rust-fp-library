@@ -21,7 +21,7 @@
 //!    * **PureScript**: Rich API including `liftF`, `hoistFree`, `resume`, `foldFree`.
 //!    * **Rust**: Focused API with construction (`pure`, `wrap`, `lift_f`, `bind`), execution (`evaluate`),
 //!      introspection (`resume`), and interpretation (`fold_free`).
-//!      * `hoistFree` is missing.
+//!      * `hoistFree` is provided as [`hoist_free`](Free::hoist_free).
 //!
 //! 3. **Terminology**:
 //!    * Rust's `Free::wrap` corresponds to PureScript's `wrap`.
@@ -70,12 +70,13 @@ mod inner {
 			classes::{
 				Deferrable,
 				Evaluable,
-				Monad,
+				MonadRec,
 				NaturalTransformation,
 			},
 			kinds::*,
 			types::{
 				CatList,
+				Step,
 				Thunk,
 			},
 		},
@@ -183,9 +184,9 @@ mod inner {
 	///   the final `A` value directly.
 	/// * [`fold_free`](Free::fold_free) interprets the `Free` into a different monad `G` via
 	///   a [`NaturalTransformation`] from `F` to `G`. Each suspended `F` layer is transformed
-	///   into `G`, and the results are threaded together with `G::bind`. Use this when you
-	///   want to translate the free structure into another effect (e.g., `Option`, `Result`,
-	///   or a custom interpreter).
+	///   into `G`, and the results are threaded together using [`MonadRec::tail_rec_m`] for
+	///   stack-safe iteration. Use this when you want to translate the free structure into
+	///   another effect (e.g., `Option`, `Result`, or a custom interpreter).
 	#[document_type_parameters(
 		"The base functor (must implement [`Evaluable`]).",
 		"The result type."
@@ -554,26 +555,21 @@ mod inner {
 
 		/// Interprets this `Free` monad into a target monad `G` using a natural transformation.
 		///
-		/// This is the standard `foldFree` operation from Haskell/PureScript. It recursively
-		/// processes the free structure, applying the natural transformation at each suspended
-		/// layer to convert from functor `F` into monad `G`.
+		/// This is the standard `foldFree` operation from Haskell/PureScript. It uses
+		/// [`MonadRec::tail_rec_m`] to iteratively process the free structure, applying the
+		/// natural transformation at each suspended layer to convert from functor `F` into
+		/// monad `G`.
 		///
-		/// For `Pure(a)`, returns `G::pure(a)`.
+		/// For `Pure(a)`, returns `G::pure(Step::Done(a))`.
 		/// For `Wrap(fa)`, applies the natural transformation to get `G<Free<F, A>>`,
-		/// then binds recursively to interpret the rest.
+		/// then maps to `Step::Loop` to continue the iteration.
 		///
 		/// ### Stack Safety
 		///
-		/// **Caveat:** `fold_free` is **not** stack-safe when interpreting into a
-		/// strict (non-trampolined) target monad. Unlike [`Free::evaluate`], which
-		/// uses an iterative loop, `fold_free` relies on actual recursion: each
-		/// `Wrap` layer adds one stack frame via
-		/// [`Semimonad::bind`](crate::classes::Semimonad::bind). For strict target
-		/// monads (e.g., `OptionBrand`), deeply nested `Free` structures will
-		/// overflow the stack.
-		///
-		/// Prefer [`Free::evaluate`] for stack-safe execution when you do not need
-		/// to interpret into a different monad.
+		/// This implementation is stack-safe as long as the target monad `G` implements
+		/// [`MonadRec`] with a stack-safe `tail_rec_m`. The iteration is driven by
+		/// `G::tail_rec_m` rather than actual recursion, so deeply nested `Free`
+		/// structures will not overflow the stack.
 		#[document_signature]
 		///
 		#[document_type_parameters("The target monad brand.")]
@@ -614,20 +610,95 @@ mod inner {
 			nt: impl NaturalTransformation<F, G> + Clone + 'static,
 		) -> Apply!(<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
 		where
-			G: Monad + 'static, {
+			G: MonadRec + 'static, {
+			G::tail_rec_m(
+				move |free: Free<F, A>| match free.resume() {
+					Ok(a) => G::pure(Step::Done(a)),
+					Err(fa) => {
+						// fa: F<Free<F, A>>
+						// Transform F<Free<F, A>> into G<Free<F, A>> using the natural
+						// transformation, then map to Step::Loop to continue iteration.
+						let ga: Apply!(
+							<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+								'static,
+								Free<F, A>,
+							>
+						) = nt.transform(fa);
+						G::map(|inner_free: Free<F, A>| Step::Loop(inner_free), ga)
+					}
+				},
+				self,
+			)
+		}
+
+		/// Transforms the functor layer of this `Free` monad using a natural transformation.
+		///
+		/// Converts `Free<F, A>` into `Free<G, A>` by applying a natural transformation
+		/// to each suspended functor layer. This is the standard `hoistFree` operation from
+		/// PureScript/Haskell.
+		///
+		/// ### Stack Safety
+		///
+		/// This method is **not** stack-safe for deeply nested `Wrap` chains. It recurses
+		/// once per `Wrap` layer; computations with thousands of `Wrap` layers may overflow
+		/// the stack. `Bind` chains are not a concern since [`resume`](Free::resume)
+		/// collapses them iteratively.
+		///
+		/// In practice the `Wrap` depth equals the number of [`lift_f`](Free::lift_f) calls
+		/// (i.e., the number of distinct effects), which is typically small. This matches
+		/// PureScript's `hoistFree`, which is also recursive over `Wrap` depth. Unlike
+		/// [`fold_free`](Free::fold_free) (which delegates stack safety to `MonadRec`),
+		/// a fully iterative `hoist_free` is not feasible because `Free<G, A>` cannot
+		/// implement `MonadRec` as an HKT trait due to `'static` constraints.
+		#[document_signature]
+		///
+		#[document_type_parameters("The target functor brand.")]
+		///
+		#[document_parameters("The natural transformation from `F` to `G`.")]
+		///
+		#[document_returns("A `Free` computation over functor `G` with the same result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::NaturalTransformation,
+		/// 	types::*,
+		/// };
+		///
+		/// // Identity natural transformation (Thunk to Thunk)
+		/// #[derive(Clone)]
+		/// struct ThunkId;
+		/// impl NaturalTransformation<ThunkBrand, ThunkBrand> for ThunkId {
+		/// 	fn transform<'a, A: 'a>(
+		/// 		&self,
+		/// 		fa: Thunk<'a, A>,
+		/// 	) -> Thunk<'a, A> {
+		/// 		fa
+		/// 	}
+		/// }
+		///
+		/// let free = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 42));
+		/// let hoisted: Free<ThunkBrand, i32> = free.hoist_free(ThunkId);
+		/// assert_eq!(hoisted.evaluate(), 42);
+		/// ```
+		pub fn hoist_free<G: Evaluable + 'static>(
+			self,
+			nt: impl NaturalTransformation<F, G> + Clone + 'static,
+		) -> Free<G, A> {
 			match self.resume() {
-				Ok(a) => G::pure(a),
+				Ok(a) => Free::pure(a),
 				Err(fa) => {
 					// fa: F<Free<F, A>>
-					// Transform F<Free<F, A>> into G<Free<F, A>> using the natural transformation
-					let nt2 = nt.clone();
-					let ga: Apply!(
-						<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>
-					) = nt.transform(fa);
-					// Bind over G to recursively fold the inner Free<F, A>
-					G::bind(ga, move |inner_free: Free<F, A>| {
-						inner_free.fold_free::<G>(nt2.clone())
-					})
+					// Transform F<Free<F, A>> into G<Free<F, A>>
+					let nt_clone = nt.clone();
+					let ga = nt.transform(fa);
+					// Map over the inner Free<F, A> to recursively hoist it to Free<G, A>.
+					// Clone nt_clone inside the closure because Functor::map requires Fn, not FnOnce.
+					let hoisted =
+						G::map(move |inner: Free<F, A>| inner.hoist_free(nt_clone.clone()), ga);
+					Free::wrap(hoisted)
 				}
 			}
 		}
@@ -1082,6 +1153,21 @@ mod tests {
 		assert_eq!(result, Some(25));
 	}
 
+	/// Tests `Free::fold_free` stack safety with a deeply nested `Wrap` chain.
+	///
+	/// **What it tests:** Verifies that `fold_free` does not overflow the stack on deep structures.
+	/// **How it tests:** Builds a chain of 100,000 `Wrap` layers and folds with `ThunkToOption`.
+	#[test]
+	fn test_free_fold_free_stack_safety() {
+		let depth = 100_000;
+		let mut free = Free::<ThunkBrand, i32>::pure(0);
+		for _ in 0 .. depth {
+			free = Free::wrap(Thunk::new(move || free));
+		}
+		let result: Option<i32> = free.fold_free::<OptionBrand>(ThunkToOption);
+		assert_eq!(result, Some(0));
+	}
+
 	/// Tests `Free::map` on a pure value.
 	///
 	/// **What it tests:** Verifies that `map` correctly transforms a pure value.
@@ -1417,5 +1503,113 @@ mod tests {
 		// Drop without evaluating; should not overflow the stack.
 
 		drop(free);
+	}
+
+	// ── hoist_free tests ──
+
+	/// An identity natural transformation from `ThunkBrand` to `ThunkBrand`.
+	///
+	/// Used to test `hoist_free` with the same source and target functor.
+	#[derive(Clone)]
+	struct ThunkId;
+	impl NaturalTransformation<ThunkBrand, ThunkBrand> for ThunkId {
+		fn transform<'a, A: 'a>(
+			&self,
+			fa: Thunk<'a, A>,
+		) -> Thunk<'a, A> {
+			fa
+		}
+	}
+
+	/// A natural transformation that wraps a thunk in an extra layer.
+	///
+	/// Evaluates the original thunk eagerly and returns a new thunk producing
+	/// that value, demonstrating the transformation is actually invoked.
+	#[derive(Clone)]
+	struct ThunkEager;
+	impl NaturalTransformation<ThunkBrand, ThunkBrand> for ThunkEager {
+		fn transform<'a, A: 'a>(
+			&self,
+			fa: Thunk<'a, A>,
+		) -> Thunk<'a, A> {
+			let val = fa.evaluate();
+			Thunk::new(move || val)
+		}
+	}
+
+	/// Tests `Free::hoist_free` on a pure value.
+	///
+	/// **What it tests:** Verifies that hoisting a pure computation preserves the value,
+	/// since there are no `Wrap` layers for the natural transformation to act on.
+	/// **How it tests:** Creates `Free::pure(42)`, hoists with `ThunkId`, evaluates.
+	#[test]
+	fn test_free_hoist_free_pure() {
+		let free = Free::<ThunkBrand, _>::pure(42);
+		let hoisted = free.hoist_free(ThunkId);
+		assert_eq!(hoisted.evaluate(), 42);
+	}
+
+	/// Tests `Free::hoist_free` on a single `Wrap` layer.
+	///
+	/// **What it tests:** Verifies that the natural transformation is applied to the functor layer.
+	/// **How it tests:** Lifts a thunk into Free, hoists with `ThunkId`, and evaluates.
+	#[test]
+	fn test_free_hoist_free_single_wrap() {
+		let free = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 42));
+		let hoisted = free.hoist_free(ThunkId);
+		assert_eq!(hoisted.evaluate(), 42);
+	}
+
+	/// Tests `Free::hoist_free` with a transformation that eagerly evaluates.
+	///
+	/// **What it tests:** Verifies the natural transformation is actually invoked on each layer.
+	/// **How it tests:** Uses `ThunkEager` which evaluates the thunk during transformation,
+	/// proving the transformation runs rather than being a no-op.
+	#[test]
+	fn test_free_hoist_free_transformation_applied() {
+		let free = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 42));
+		let hoisted = free.hoist_free(ThunkEager);
+		assert_eq!(hoisted.evaluate(), 42);
+	}
+
+	/// Tests `Free::hoist_free` with multiple `Wrap` layers.
+	///
+	/// **What it tests:** Verifies that each functor layer is transformed.
+	/// **How it tests:** Builds a chain of three nested `Wrap` layers and hoists all of them.
+	#[test]
+	fn test_free_hoist_free_multiple_wraps() {
+		let free = Free::<ThunkBrand, _>::wrap(Thunk::new(|| {
+			Free::wrap(Thunk::new(|| Free::wrap(Thunk::new(|| Free::pure(7)))))
+		}));
+		let hoisted = free.hoist_free(ThunkId);
+		assert_eq!(hoisted.evaluate(), 7);
+	}
+
+	/// Tests `Free::hoist_free` with bind chains.
+	///
+	/// **What it tests:** Verifies that bind chains are preserved through hoisting.
+	/// **How it tests:** Chains `lift_f` and `bind`, hoists, and checks the final result.
+	#[test]
+	fn test_free_hoist_free_with_binds() {
+		let free = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 10))
+			.bind(|x| Free::<ThunkBrand, _>::lift_f(Thunk::new(move || x * 2)))
+			.bind(|x| Free::pure(x + 5));
+		let hoisted = free.hoist_free(ThunkId);
+		assert_eq!(hoisted.evaluate(), 25);
+	}
+
+	/// Tests `Free::hoist_free` preserves values across a deep wrap chain.
+	///
+	/// **What it tests:** Verifies hoisting works on moderately deep wrap chains.
+	/// **How it tests:** Builds 100 nested `Wrap` layers and hoists them all.
+	#[test]
+	fn test_free_hoist_free_deep_wraps() {
+		let depth = 100;
+		let mut free = Free::<ThunkBrand, i32>::pure(99);
+		for _ in 0 .. depth {
+			free = Free::wrap(Thunk::new(move || free));
+		}
+		let hoisted = free.hoist_free(ThunkId);
+		assert_eq!(hoisted.evaluate(), 99);
 	}
 }

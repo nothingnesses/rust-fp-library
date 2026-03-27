@@ -1936,7 +1936,6 @@ mod inner {
 		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
-			+ Clone
 			+ 'a,
 			initial: A,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -1993,7 +1992,6 @@ mod inner {
 		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
-			+ Clone
 			+ 'a,
 			initial: A,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
