@@ -4,10 +4,15 @@
 //! computations are stack-safe for deep recursion, deep bind chains, and
 //! deep defer chains.
 
-use fp_library::types::{
-	Step,
-	Trampoline,
-	TryTrampoline,
+use fp_library::{
+	brands::ThunkBrand,
+	types::{
+		Free,
+		Step,
+		Thunk,
+		Trampoline,
+		TryTrampoline,
+	},
 };
 
 /// Tests deep recursion using `tail_rec_m`.
@@ -111,4 +116,35 @@ fn test_try_trampoline_deep_bind_chain() {
 		task = task.bind(|x| TryTrampoline::ok(x + 1));
 	}
 	assert_eq!(task.evaluate(), Ok(100_000));
+}
+
+/// Tests that dropping a deeply nested Wrap-only `Free` chain does not overflow the stack.
+///
+/// Constructs 100,000 nested `Free::wrap(Thunk::new(|| ...))` layers and drops them.
+/// Without iterative drop, this would cause a stack overflow.
+#[test]
+fn test_deep_wrap_chain_drop() {
+	let depth = 100_000;
+	let mut free: Free<ThunkBrand, i32> = Free::pure(42);
+	for _ in 0 .. depth {
+		let inner = free;
+		free = Free::<ThunkBrand, _>::wrap(Thunk::new(move || inner));
+	}
+	// Dropping `free` should not overflow the stack.
+	drop(free);
+}
+
+/// Tests that evaluating a deeply nested Wrap-only `Free` chain works correctly.
+///
+/// This complements the drop test by verifying the value is preserved through
+/// 100,000 nested Wrap layers.
+#[test]
+fn test_deep_wrap_chain_evaluate() {
+	let depth = 100_000;
+	let mut free: Free<ThunkBrand, i32> = Free::pure(42);
+	for _ in 0 .. depth {
+		let inner = free;
+		free = Free::<ThunkBrand, _>::wrap(Thunk::new(move || inner));
+	}
+	assert_eq!(free.evaluate(), 42);
 }

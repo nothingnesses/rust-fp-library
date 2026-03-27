@@ -37,6 +37,7 @@ mod inner {
 				Foldable,
 				Functor,
 				Lift,
+				MonadRec,
 				Monoid,
 				Pointed,
 				Semiapplicative,
@@ -1892,6 +1893,120 @@ mod inner {
 			}
 		}
 	}
+
+	/// [`MonadRec`] implementation for [`StepLoopAppliedBrand`].
+	#[document_type_parameters("The loop type.")]
+	impl<LoopType: Clone + 'static> MonadRec for StepLoopAppliedBrand<LoopType> {
+		/// Performs tail-recursive monadic computation over [`Step`] (done channel).
+		///
+		/// Iteratively applies the step function. If the function returns [`Step::Loop`],
+		/// the computation short-circuits with that loop value. If it returns
+		/// `Done(Step::Loop(a))`, the loop continues with the new state. If it returns
+		/// `Done(Step::Done(b))`, the computation completes with `Done(b)`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the initial value and loop state.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters("The step function.", "The initial value.")]
+		///
+		#[document_returns(
+			"The result of the computation, or a loop if the step function returned `Loop`."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result = tail_rec_m::<StepLoopAppliedBrand<&str>, _, _>(
+		/// 	|n| {
+		/// 		if n < 10 { Step::Done(Step::Loop(n + 1)) } else { Step::Done(Step::Done(n)) }
+		/// 	},
+		/// 	0,
+		/// );
+		/// assert_eq!(result, Step::Done(10));
+		/// ```
+		fn tail_rec_m<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			+ Clone
+			+ 'a,
+			initial: A,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let mut current = initial;
+			loop {
+				match func(current) {
+					Step::Loop(l) => return Step::Loop(l),
+					Step::Done(Step::Loop(next)) => current = next,
+					Step::Done(Step::Done(b)) => return Step::Done(b),
+				}
+			}
+		}
+	}
+
+	/// [`MonadRec`] implementation for [`StepDoneAppliedBrand`].
+	#[document_type_parameters("The done type.")]
+	impl<DoneType: Clone + 'static> MonadRec for StepDoneAppliedBrand<DoneType> {
+		/// Performs tail-recursive monadic computation over [`Step`] (loop channel).
+		///
+		/// Iteratively applies the step function. If the function returns [`Step::Done`],
+		/// the computation short-circuits with that done value. If it returns
+		/// `Loop(Step::Loop(a))`, the loop continues with the new state. If it returns
+		/// `Loop(Step::Done(b))`, the computation completes with `Loop(b)`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the initial value and loop state.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters("The step function.", "The initial value.")]
+		///
+		#[document_returns(
+			"The result of the computation, or a done if the step function returned `Done`."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result = tail_rec_m::<StepDoneAppliedBrand<&str>, _, _>(
+		/// 	|n| {
+		/// 		if n < 10 { Step::Loop(Step::Loop(n + 1)) } else { Step::Loop(Step::Done(n)) }
+		/// 	},
+		/// 	0,
+		/// );
+		/// assert_eq!(result, Step::Loop(10));
+		/// ```
+		fn tail_rec_m<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			+ Clone
+			+ 'a,
+			initial: A,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let mut current = initial;
+			loop {
+				match func(current) {
+					Step::Done(d) => return Step::Done(d),
+					Step::Loop(Step::Loop(next)) => current = next,
+					Step::Loop(Step::Done(b)) => return Step::Loop(b),
+				}
+			}
+		}
+	}
 }
 pub use inner::*;
 
@@ -2473,5 +2588,135 @@ mod tests {
 	fn step_control_flow_roundtrip(x: Step<i32, i32>) -> bool {
 		let cf: core::ops::ControlFlow<i32, i32> = core::ops::ControlFlow::from(x);
 		Step::from(cf) == x
+	}
+
+	// MonadRec tests for StepLoopAppliedBrand
+
+	/// Tests the MonadRec identity law for `StepLoopAppliedBrand`:
+	/// `tail_rec_m(|a| Done(Done(a)), x) == Done(x)`.
+	#[quickcheck]
+	fn monad_rec_step_loop_applied_identity(x: i32) -> bool {
+		tail_rec_m::<StepLoopAppliedBrand<()>, _, _>(|a| Step::Done(Step::Done(a)), x)
+			== Step::Done(x)
+	}
+
+	/// Tests a recursive computation that sums a range via `tail_rec_m`
+	/// on the done channel of `StepLoopAppliedBrand`.
+	#[test]
+	fn monad_rec_step_loop_applied_sum_range() {
+		let result = tail_rec_m::<StepLoopAppliedBrand<&str>, _, _>(
+			|(n, acc)| {
+				if n == 0 {
+					Step::Done(Step::Done(acc))
+				} else {
+					Step::Done(Step::Loop((n - 1, acc + n)))
+				}
+			},
+			(100i64, 0i64),
+		);
+		assert_eq!(result, Step::Done(5050));
+	}
+
+	/// Tests that `tail_rec_m` short-circuits on `Loop` for `StepLoopAppliedBrand`.
+	#[test]
+	fn monad_rec_step_loop_applied_short_circuit() {
+		let result = tail_rec_m::<StepLoopAppliedBrand<&str>, _, _>(
+			|n| {
+				if n == 5 { Step::Loop("stopped") } else { Step::Done(Step::Loop(n + 1)) }
+			},
+			0,
+		);
+		assert_eq!(result, Step::<&str, i32>::Loop("stopped"));
+	}
+
+	/// Tests stack safety: `tail_rec_m` handles large iteration counts
+	/// for `StepLoopAppliedBrand`.
+	#[test]
+	fn monad_rec_step_loop_applied_stack_safety() {
+		let iterations: i64 = 200_000;
+		let result = tail_rec_m::<StepLoopAppliedBrand<()>, _, _>(
+			|acc| {
+				if acc < iterations {
+					Step::Done(Step::Loop(acc + 1))
+				} else {
+					Step::Done(Step::Done(acc))
+				}
+			},
+			0i64,
+		);
+		assert_eq!(result, Step::Done(iterations));
+	}
+
+	// MonadRec tests for StepDoneAppliedBrand
+
+	/// Tests the MonadRec identity law for `StepDoneAppliedBrand`:
+	/// `tail_rec_m(|a| Loop(Done(a)), x) == Loop(x)`.
+	#[quickcheck]
+	fn monad_rec_step_done_applied_identity(x: i32) -> bool {
+		tail_rec_m::<StepDoneAppliedBrand<()>, _, _>(|a| Step::Loop(Step::Done(a)), x)
+			== Step::Loop(x)
+	}
+
+	/// Tests a recursive computation that sums a range via `tail_rec_m`
+	/// on the loop channel of `StepDoneAppliedBrand`.
+	#[test]
+	fn monad_rec_step_done_applied_sum_range() {
+		let result = tail_rec_m::<StepDoneAppliedBrand<&str>, _, _>(
+			|(n, acc)| {
+				if n == 0 {
+					Step::Loop(Step::Done(acc))
+				} else {
+					Step::Loop(Step::Loop((n - 1, acc + n)))
+				}
+			},
+			(100i64, 0i64),
+		);
+		assert_eq!(result, Step::Loop(5050));
+	}
+
+	/// Tests that `tail_rec_m` short-circuits on `Done` for `StepDoneAppliedBrand`.
+	#[test]
+	fn monad_rec_step_done_applied_short_circuit() {
+		let result = tail_rec_m::<StepDoneAppliedBrand<&str>, _, _>(
+			|n| {
+				if n == 5 { Step::Done("stopped") } else { Step::Loop(Step::Loop(n + 1)) }
+			},
+			0,
+		);
+		assert_eq!(result, Step::<i32, &str>::Done("stopped"));
+	}
+
+	/// Tests stack safety: `tail_rec_m` handles large iteration counts
+	/// for `StepDoneAppliedBrand`.
+	#[test]
+	fn monad_rec_step_done_applied_stack_safety() {
+		let iterations: i64 = 200_000;
+		let result = tail_rec_m::<StepDoneAppliedBrand<()>, _, _>(
+			|acc| {
+				if acc < iterations {
+					Step::Loop(Step::Loop(acc + 1))
+				} else {
+					Step::Loop(Step::Done(acc))
+				}
+			},
+			0i64,
+		);
+		assert_eq!(result, Step::Loop(iterations));
+	}
+
+	// MonadRec marker trait verification
+
+	/// Verifies that `StepLoopAppliedBrand` satisfies the `MonadRec` trait.
+	#[test]
+	fn test_monad_rec_step_loop_applied() {
+		fn assert_monad_rec<B: crate::classes::MonadRec>() {}
+		assert_monad_rec::<StepLoopAppliedBrand<i32>>();
+	}
+
+	/// Verifies that `StepDoneAppliedBrand` satisfies the `MonadRec` trait.
+	#[test]
+	fn test_monad_rec_step_done_applied() {
+		fn assert_monad_rec<B: crate::classes::MonadRec>() {}
+		assert_monad_rec::<StepDoneAppliedBrand<i32>>();
 	}
 }

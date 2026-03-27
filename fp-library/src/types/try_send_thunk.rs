@@ -21,12 +21,16 @@ mod inner {
 			types::{
 				ArcTryLazy,
 				SendThunk,
+				Step,
 				TryLazy,
 				TryThunk,
 			},
 		},
 		fp_macros::*,
-		std::fmt,
+		std::{
+			fmt,
+			sync::Arc,
+		},
 	};
 
 	/// A thread-safe deferred computation that may fail with error type `E`.
@@ -529,6 +533,122 @@ mod inner {
 			B: Send + 'a,
 			E: Send + 'a, {
 			self.bind(move |_| other)
+		}
+
+		/// Performs tail-recursive monadic computation with error handling.
+		///
+		/// The step function `f` is called in a loop, avoiding stack growth.
+		/// Each iteration evaluates `f(state)` and inspects the resulting
+		/// [`Result`] and [`Step`]: `Ok(Step::Loop(next))` continues with
+		/// `next`, `Ok(Step::Done(a))` breaks out and returns `Ok(a)`, and
+		/// `Err(e)` short-circuits with `Err(e)`.
+		///
+		/// # Clone Bound
+		///
+		/// The function `f` must implement `Clone` because each iteration
+		/// of the recursion may need its own copy. Most closures naturally
+		/// implement `Clone` when all their captures implement `Clone`.
+		///
+		/// For closures that do not implement `Clone`, use
+		/// [`arc_tail_rec_m`](TrySendThunk::arc_tail_rec_m), which wraps
+		/// the closure in `Arc` internally.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the loop state.")]
+		///
+		#[document_parameters(
+			"The step function that produces the next state, the final result, or an error.",
+			"The initial state."
+		)]
+		///
+		#[document_returns("A `TrySendThunk` that, when evaluated, runs the tail-recursive loop.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let result: TrySendThunk<i32, ()> = TrySendThunk::tail_rec_m(
+		/// 	|x| TrySendThunk::ok(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
+		/// 	0,
+		/// );
+		/// assert_eq!(result.evaluate(), Ok(1000));
+		/// ```
+		pub fn tail_rec_m<S>(
+			f: impl Fn(S) -> TrySendThunk<'a, Step<S, A>, E> + Clone + Send + 'a,
+			initial: S,
+		) -> Self
+		where
+			S: Send + 'a,
+			E: Send + 'a, {
+			TrySendThunk::new(move || {
+				let mut state = initial;
+				loop {
+					match f(state).evaluate() {
+						Ok(Step::Loop(next)) => state = next,
+						Ok(Step::Done(a)) => break Ok(a),
+						Err(e) => break Err(e),
+					}
+				}
+			})
+		}
+
+		/// Arc-wrapped version of [`tail_rec_m`](TrySendThunk::tail_rec_m) for
+		/// non-Clone closures.
+		///
+		/// Use this when your closure captures non-Clone state. The closure is
+		/// wrapped in [`Arc`] internally, which provides the required `Clone`
+		/// implementation.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the loop state.")]
+		///
+		#[document_parameters(
+			"The step function that produces the next state, the final result, or an error.",
+			"The initial state."
+		)]
+		///
+		#[document_returns("A `TrySendThunk` that, when evaluated, runs the tail-recursive loop.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::types::*,
+		/// 	std::sync::{
+		/// 		Arc,
+		/// 		atomic::{
+		/// 			AtomicUsize,
+		/// 			Ordering,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// let counter = Arc::new(AtomicUsize::new(0));
+		/// let counter_clone = Arc::clone(&counter);
+		/// let result: TrySendThunk<i32, ()> = TrySendThunk::arc_tail_rec_m(
+		/// 	move |x| {
+		/// 		counter_clone.fetch_add(1, Ordering::SeqCst);
+		/// 		TrySendThunk::ok(if x < 100 { Step::Loop(x + 1) } else { Step::Done(x) })
+		/// 	},
+		/// 	0,
+		/// );
+		/// assert_eq!(result.evaluate(), Ok(100));
+		/// assert_eq!(counter.load(Ordering::SeqCst), 101);
+		/// ```
+		pub fn arc_tail_rec_m<S>(
+			f: impl Fn(S) -> TrySendThunk<'a, Step<S, A>, E> + Send + Sync + 'a,
+			initial: S,
+		) -> Self
+		where
+			S: Send + 'a,
+			E: Send + 'a, {
+			let f = Arc::new(f);
+			let wrapper = move |s: S| {
+				let f = Arc::clone(&f);
+				f(s)
+			};
+			Self::tail_rec_m(wrapper, initial)
 		}
 
 		/// Converts this `TrySendThunk` into a memoized, thread-safe [`ArcTryLazy`].
@@ -1389,5 +1509,102 @@ mod tests {
 		let tramp: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string());
 		let thunk: TrySendThunk<i32, String> = TrySendThunk::from(tramp);
 		assert_eq!(thunk.evaluate(), Err("error".to_string()));
+	}
+
+	#[test]
+	fn test_tail_rec_m_success() {
+		use crate::types::Step;
+		let result: TrySendThunk<i32, ()> = TrySendThunk::tail_rec_m(
+			|x| TrySendThunk::ok(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
+			0,
+		);
+		assert_eq!(result.evaluate(), Ok(1000));
+	}
+
+	#[test]
+	fn test_tail_rec_m_early_error() {
+		use crate::types::Step;
+		let result: TrySendThunk<i32, &str> = TrySendThunk::tail_rec_m(
+			|x| {
+				if x == 5 {
+					TrySendThunk::err("stopped at 5")
+				} else {
+					TrySendThunk::ok(Step::Loop(x + 1))
+				}
+			},
+			0,
+		);
+		assert_eq!(result.evaluate(), Err("stopped at 5"));
+	}
+
+	#[test]
+	fn test_tail_rec_m_stack_safety() {
+		use crate::types::Step;
+		let iterations: i64 = 100_000;
+		let result: TrySendThunk<i64, ()> = TrySendThunk::tail_rec_m(
+			|acc| {
+				TrySendThunk::ok(
+					if acc < iterations { Step::Loop(acc + 1) } else { Step::Done(acc) },
+				)
+			},
+			0i64,
+		);
+		assert_eq!(result.evaluate(), Ok(iterations));
+	}
+
+	#[test]
+	fn test_arc_tail_rec_m_success() {
+		use {
+			crate::types::Step,
+			std::sync::{
+				Arc,
+				atomic::{
+					AtomicUsize,
+					Ordering,
+				},
+			},
+		};
+		let counter = Arc::new(AtomicUsize::new(0));
+		let counter_clone = Arc::clone(&counter);
+		let result: TrySendThunk<i32, ()> = TrySendThunk::arc_tail_rec_m(
+			move |x| {
+				counter_clone.fetch_add(1, Ordering::SeqCst);
+				TrySendThunk::ok(if x < 100 { Step::Loop(x + 1) } else { Step::Done(x) })
+			},
+			0,
+		);
+		assert_eq!(result.evaluate(), Ok(100));
+		assert_eq!(counter.load(Ordering::SeqCst), 101);
+	}
+
+	#[test]
+	fn test_arc_tail_rec_m_early_error() {
+		use crate::types::Step;
+		let result: TrySendThunk<i32, &str> = TrySendThunk::arc_tail_rec_m(
+			|x| {
+				if x == 5 {
+					TrySendThunk::err("stopped at 5")
+				} else {
+					TrySendThunk::ok(Step::Loop(x + 1))
+				}
+			},
+			0,
+		);
+		assert_eq!(result.evaluate(), Err("stopped at 5"));
+	}
+
+	#[test]
+	fn test_arc_tail_rec_m_stack_safety() {
+		use crate::types::Step;
+		let iterations: i64 = 100_000;
+		let result: TrySendThunk<i64, ()> = TrySendThunk::arc_tail_rec_m(
+			|acc| {
+				TrySendThunk::ok(
+					if acc < iterations { Step::Loop(acc + 1) } else { Step::Done(acc) },
+				)
+			},
+			0i64,
+		);
+		assert_eq!(result.evaluate(), Ok(iterations));
 	}
 }

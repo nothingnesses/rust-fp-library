@@ -89,6 +89,26 @@ mod inner {
 	)]
 	#[document_parameters("The send thunk instance.")]
 	impl<'a, A: 'a> SendThunk<'a, A> {
+		/// Returns the inner boxed closure, erasing the `Send` bound.
+		///
+		/// This is a crate-internal helper used by `From<SendThunk> for Thunk`
+		/// to perform a zero-cost unsizing coercion.
+		#[document_signature]
+		#[document_returns("The inner boxed closure with the `Send` bound erased.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let send_thunk = SendThunk::new(|| 42);
+		/// let thunk = Thunk::from(send_thunk);
+		/// assert_eq!(thunk.evaluate(), 42);
+		/// ```
+		#[inline]
+		pub(crate) fn into_inner(self) -> Box<dyn FnOnce() -> A + 'a> {
+			self.0
+		}
+
 		/// Creates a new `SendThunk` from a thread-safe closure.
 		#[document_signature]
 		///

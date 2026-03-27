@@ -34,6 +34,7 @@ mod inner {
 				Lazy,
 				LazyConfig,
 				RcLazyConfig,
+				SendThunk,
 				Step,
 				Trampoline,
 			},
@@ -359,6 +360,33 @@ mod inner {
 		/// ```
 		fn from(lazy: Lazy<'a, A, Config>) -> Self {
 			Thunk::new(move || lazy.evaluate().clone())
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the value produced by the computation."
+	)]
+	impl<'a, A: 'a> From<SendThunk<'a, A>> for Thunk<'a, A> {
+		/// Converts a [`SendThunk`] into a [`Thunk`] by erasing the `Send` bound.
+		///
+		/// This is a zero-cost unsizing coercion: the inner
+		/// `Box<dyn FnOnce() -> A + Send + 'a>` is coerced to
+		/// `Box<dyn FnOnce() -> A + 'a>`, which the compiler performs
+		/// without any runtime overhead.
+		#[document_signature]
+		#[document_parameters("The send thunk to convert.")]
+		#[document_returns("A `Thunk` wrapping the same deferred computation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let send_thunk = SendThunk::pure(42);
+		/// let thunk = Thunk::from(send_thunk);
+		/// assert_eq!(thunk.evaluate(), 42);
+		/// ```
+		fn from(send_thunk: SendThunk<'a, A>) -> Self {
+			Thunk(send_thunk.into_inner())
 		}
 	}
 
@@ -1072,6 +1100,18 @@ mod tests {
 		use crate::types::RcLazy;
 		let memo = RcLazy::new(|| 42);
 		let thunk = Thunk::from(memo);
+		assert_eq!(thunk.evaluate(), 42);
+	}
+
+	/// Tests `From<SendThunk>`.
+	///
+	/// Verifies that a `SendThunk` can be converted into a `Thunk` by erasing
+	/// the `Send` bound, and that the resulting `Thunk` produces the same value.
+	#[test]
+	fn test_thunk_from_send_thunk() {
+		use crate::types::SendThunk;
+		let send_thunk = SendThunk::new(|| 21 * 2);
+		let thunk = Thunk::from(send_thunk);
 		assert_eq!(thunk.evaluate(), 42);
 	}
 

@@ -70,7 +70,6 @@ mod inner {
 			classes::{
 				Deferrable,
 				Evaluable,
-				Functor,
 				Monad,
 				NaturalTransformation,
 			},
@@ -106,12 +105,12 @@ mod inner {
 	/// This enum encodes the structure of the free monad, supporting
 	/// pure values, suspended computations, and efficient concatenation of binds.
 	#[document_type_parameters(
-		"The base functor (must implement [`Functor`]).",
+		"The base functor (must implement [`Evaluable`]).",
 		"The result type."
 	)]
 	pub enum FreeInner<F, A>
 	where
-		F: Functor + 'static,
+		F: Evaluable + 'static,
 		A: 'static, {
 		/// A pure value.
 		///
@@ -188,20 +187,20 @@ mod inner {
 	///   want to translate the free structure into another effect (e.g., `Option`, `Result`,
 	///   or a custom interpreter).
 	#[document_type_parameters(
-		"The base functor (must implement [`Functor`]).",
+		"The base functor (must implement [`Evaluable`]).",
 		"The result type."
 	)]
 	///
 	pub struct Free<F, A>(Option<FreeInner<F, A>>)
 	where
-		F: Functor + 'static,
+		F: Evaluable + 'static,
 		A: 'static;
 
 	#[document_type_parameters("The base functor.", "The result type.")]
 	#[document_parameters("The Free monad instance to operate on.")]
 	impl<F, A> Free<F, A>
 	where
-		F: Functor + 'static,
+		F: Evaluable + 'static,
 		A: 'static,
 	{
 		/// Constructs a `Free` from a `FreeInner` value.
@@ -713,9 +712,7 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(42);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
-		pub fn evaluate(self) -> A
-		where
-			F: Evaluable, {
+		pub fn evaluate(self) -> A {
 			// Start with a type-erased version
 			let mut current: Free<F, TypeErasedValue> = self.erase_type();
 			let mut continuations: CatList<Continuation<F>> = CatList::empty();
@@ -766,7 +763,7 @@ mod inner {
 	#[document_parameters("The free monad instance to drop.")]
 	impl<F, A> Drop for Free<F, A>
 	where
-		F: Functor + 'static,
+		F: Evaluable + 'static,
 		A: 'static,
 	{
 		#[document_signature]
@@ -785,37 +782,55 @@ mod inner {
 		fn drop(&mut self) {
 			// Take the inner value out so we can iteratively dismantle the chain
 			// instead of relying on recursive Drop, which would overflow the stack
-			// for deep computations.
-			let current_opt = self.0.take();
+			// for deep computations (both Bind chains and Wrap chains).
+			let mut worklist: Vec<FreeInner<F, A>> = Vec::new();
 
-			match current_opt {
-				Some(FreeInner::Bind {
-					head,
-					continuations,
-					..
-				}) => {
-					// Drop the head computation. Since `head` is
-					// `Box<Free<F, TypeErasedValue>>` (a different type
-					// parameter than ours), we cannot fold it into
-					// `current_opt`. Its own `Drop` impl will iteratively
-					// dismantle any nested chains it contains.
-					drop(head);
+			if let Some(inner) = self.0.take() {
+				worklist.push(inner);
+			}
 
-					// Drain the CatList of continuations iteratively. Each
-					// continuation is a Box<dyn FnOnce> that may capture Free
-					// values. By consuming them one at a time via uncons, we
-					// let each boxed closure drop without building stack depth.
-					let mut conts = continuations;
-					while let Some((_continuation, rest)) = conts.uncons() {
-						// _continuation (a Box<dyn FnOnce>) drops here, which
-						// frees any captured Free values. Those Free values'
-						// own Drop impls will re-enter this iterative loop.
-						conts = rest;
+			while let Some(node) = worklist.pop() {
+				match node {
+					FreeInner::Pure(_) => {
+						// Trivially dropped, no nested Free values.
 					}
-				}
-				Some(FreeInner::Wrap(_)) | Some(FreeInner::Pure(_)) | None => {
-					// Wrap: functor's own Drop handles the inner Free.
-					// Pure/None: trivially dropped.
+
+					FreeInner::Wrap(fa) => {
+						// The functor layer contains a `Free<F, A>` inside. If we
+						// let it drop recursively, deeply nested Wrap chains will
+						// overflow the stack. Instead, we use `Evaluable::evaluate`
+						// to eagerly extract the inner `Free`, then push it onto
+						// the worklist for iterative dismantling.
+						let mut extracted = <F as Evaluable>::evaluate(fa);
+						if let Some(next_inner) = extracted.0.take() {
+							worklist.push(next_inner);
+						}
+					}
+
+					FreeInner::Bind {
+						head,
+						continuations,
+						..
+					} => {
+						// Drop the head computation. Since `head` is
+						// `Box<Free<F, TypeErasedValue>>` (a different type
+						// parameter than ours), we cannot fold it into our
+						// worklist. Its own `Drop` impl will iteratively
+						// dismantle any nested chains it contains.
+						drop(head);
+
+						// Drain the CatList of continuations iteratively. Each
+						// continuation is a Box<dyn FnOnce> that may capture Free
+						// values. By consuming them one at a time via uncons, we
+						// let each boxed closure drop without building stack depth.
+						let mut conts = continuations;
+						while let Some((_continuation, rest)) = conts.uncons() {
+							// _continuation (a Box<dyn FnOnce>) drops here, which
+							// frees any captured Free values. Those Free values'
+							// own Drop impls will re-enter this iterative loop.
+							conts = rest;
+						}
+					}
 				}
 			}
 		}

@@ -987,7 +987,7 @@ mod inner {
 		/// let mapped = LazyBrand::<ArcLazyConfig>::send_ref_map(|x: &i32| *x * 2, memo);
 		/// assert_eq!(*mapped.evaluate(), 20);
 		/// ```
-		fn send_ref_map<'a, A: Send + Sync + 'a, B: Send + 'a>(
+		fn send_ref_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
 			f: impl FnOnce(&A) -> B + Send + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {

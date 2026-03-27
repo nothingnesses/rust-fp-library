@@ -40,6 +40,7 @@ mod inner {
 				Functor,
 				FunctorWithIndex,
 				Lift,
+				MonadRec,
 				Monoid,
 				ParCompactable,
 				ParFilterable,
@@ -59,6 +60,7 @@ mod inner {
 			},
 			impl_kind,
 			kinds::*,
+			types::Step,
 		},
 		fp_macros::*,
 		std::{
@@ -70,6 +72,21 @@ mod inner {
 			},
 		},
 	};
+
+	/// Internal representation of a `CatList`.
+	///
+	/// This enum is private; the public type is the newtype wrapper [`CatList`].
+	/// Keeping `CatListInner` free of a custom `Drop` impl allows `uncons` to
+	/// destructure it by move, eliminating the need for unsafe code.
+	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+	#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	enum CatListInner<A> {
+		/// Empty list
+		#[default]
+		Nil,
+		/// Head element plus deque of sublists and total length
+		Cons(A, VecDeque<CatList<A>>, usize),
+	}
 
 	/// A catenable list with O(1) append and O(1) amortized uncons.
 	///
@@ -101,13 +118,24 @@ mod inner {
 	#[document_type_parameters("The type of the elements in the list.")]
 	///
 	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-	#[derive(Clone, Debug, Default)]
-	pub enum CatList<A> {
-		/// Empty list
-		#[default]
-		Nil,
-		/// Head element plus deque of sublists and total length
-		Cons(A, VecDeque<CatList<A>>, usize),
+	#[derive(Debug, Clone, Eq)]
+	pub struct CatList<A>(CatListInner<A>);
+
+	#[document_type_parameters("The type of the elements in the list.")]
+	impl<A> Default for CatList<A> {
+		#[document_signature]
+		#[document_returns("An empty `CatList`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list: CatList<i32> = Default::default();
+		/// assert!(list.is_empty());
+		/// ```
+		fn default() -> Self {
+			CatList::empty()
+		}
 	}
 
 	#[document_type_parameters("The type of the elements in the list.")]
@@ -134,9 +162,6 @@ mod inner {
 			self.iter().eq(other.iter())
 		}
 	}
-
-	#[document_type_parameters("The type of the elements in the list.")]
-	impl<A: Eq> Eq for CatList<A> {}
 
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to hash.")]
@@ -1600,6 +1625,73 @@ mod inner {
 		}
 	}
 
+	impl MonadRec for CatListBrand {
+		/// Performs tail-recursive monadic computation over [`CatList`].
+		///
+		/// Since `CatList` represents nondeterminism, this performs a breadth-first
+		/// expansion: each iteration maps all current `Loop` states through the step
+		/// function, collecting `Done` results as they appear. The computation
+		/// terminates when no `Loop` values remain.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the initial value and loop state.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters("The step function.", "The initial value.")]
+		///
+		#[document_returns("A CatList of all completed results.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// // Branch into two paths, each running until done
+		/// let result = tail_rec_m::<CatListBrand, _, _>(
+		/// 	|n| {
+		/// 		if n < 3 {
+		/// 			CatList::singleton(Step::Loop(n + 1)).snoc(Step::Done(n * 10))
+		/// 		} else {
+		/// 			CatList::singleton(Step::Done(n * 10))
+		/// 		}
+		/// 	},
+		/// 	0,
+		/// );
+		/// // Starting from 0: branches at 0,1,2; done at 3
+		/// let vec: Vec<_> = result.into_iter().collect();
+		/// assert_eq!(vec, vec![0, 10, 20, 30]);
+		/// ```
+		fn tail_rec_m<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			+ Clone
+			+ 'a,
+			initial: A,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let mut done: CatList<B> = CatList::empty();
+			let mut pending: CatList<A> = CatList::singleton(initial);
+			while !pending.is_empty() {
+				let mut next_pending: CatList<A> = CatList::empty();
+				for a in pending {
+					for step in func(a) {
+						match step {
+							Step::Loop(next) => next_pending = next_pending.snoc(next),
+							Step::Done(b) => done = done.snoc(b),
+						}
+					}
+				}
+				pending = next_pending;
+			}
+			done
+		}
+	}
+
 	#[document_type_parameters("The type of the elements in the list.")]
 	impl<A> Semigroup for CatList<A> {
 		/// Appends one list to another.
@@ -1676,7 +1768,7 @@ mod inner {
 		/// ```
 		#[inline]
 		pub const fn empty() -> Self {
-			CatList::Nil
+			CatList(CatListInner::Nil)
 		}
 
 		/// Returns `true` if the list is empty.
@@ -1696,7 +1788,7 @@ mod inner {
 		/// assert!(list.is_empty());
 		/// ```
 		pub fn is_empty(&self) -> bool {
-			matches!(self, CatList::Nil)
+			matches!(self.0, CatListInner::Nil)
 		}
 
 		/// Creates a CatList with a single element.
@@ -1716,7 +1808,7 @@ mod inner {
 		/// assert!(!list.is_empty());
 		/// ```
 		pub fn singleton(a: A) -> Self {
-			CatList::Cons(a, VecDeque::new(), 1)
+			CatList(CatListInner::Cons(a, VecDeque::new(), 1))
 		}
 
 		/// Appends an element to the front of the list.
@@ -1812,18 +1904,20 @@ mod inner {
 		/// assert_eq!(linked.len(), 2);
 		/// ```
 		fn link(
-			left: Self,
+			mut left: Self,
 			right: Self,
 		) -> Self {
-			match (left, right) {
-				(CatList::Nil, cat) => cat,
-				(cat, CatList::Nil) => cat,
-				(CatList::Cons(a, mut q, len), cat) => {
-					let new_len = len + cat.len();
-					q.push_back(cat);
-					CatList::Cons(a, q, new_len)
-				}
+			if left.is_empty() {
+				return right;
 			}
+			if right.is_empty() {
+				return left;
+			}
+			if let CatListInner::Cons(_, q, len) = &mut left.0 {
+				*len += right.len();
+				q.push_back(right);
+			}
+			left
 		}
 
 		/// Removes and returns the first element.
@@ -1851,18 +1945,20 @@ mod inner {
 		/// assert_eq!(a, 1);
 		/// assert!(list.is_empty());
 		/// ```
-		pub fn uncons(self) -> Option<(A, Self)> {
-			match self {
-				CatList::Nil => None,
-				CatList::Cons(a, q, _) => {
+		pub fn uncons(mut self) -> Option<(A, Self)> {
+			// Replace self.0 with Nil, taking ownership of the inner enum.
+			// CatListInner has no Drop impl, so we can destructure it by move.
+			let inner = std::mem::replace(&mut self.0, CatListInner::Nil);
+			// self.0 is now Nil, so forgetting self leaks nothing.
+			std::mem::forget(self);
+			match inner {
+				CatListInner::Nil => None,
+				CatListInner::Cons(a, q, _) =>
 					if q.is_empty() {
-						Some((a, CatList::Nil))
+						Some((a, CatList::empty()))
 					} else {
-						// Flatten the deque of sublists into a single CatList
-						let tail = Self::flatten_deque(q);
-						Some((a, tail))
-					}
-				}
+						Some((a, Self::flatten_deque(q)))
+					},
 			}
 		}
 
@@ -1894,7 +1990,7 @@ mod inner {
 		fn flatten_deque(deque: VecDeque<CatList<A>>) -> Self {
 			// Right fold: link(list[0], link(list[1], ... link(list[n-1], Nil)))
 			// We process from right to left using DoubleEndedIterator
-			deque.into_iter().rfold(CatList::Nil, |acc, list| Self::link(list, acc))
+			deque.into_iter().rfold(CatList::empty(), |acc, list| Self::link(list, acc))
 		}
 
 		/// Returns the number of elements.
@@ -1914,9 +2010,9 @@ mod inner {
 		/// assert_eq!(list.len(), 1);
 		/// ```
 		pub fn len(&self) -> usize {
-			match self {
-				CatList::Nil => 0,
-				CatList::Cons(_, _, len) => *len,
+			match &self.0 {
+				CatListInner::Nil => 0,
+				CatListInner::Cons(_, _, len) => *len,
 			}
 		}
 
@@ -1940,13 +2036,13 @@ mod inner {
 		/// assert_eq!(refs, vec![&1, &2, &3]);
 		/// ```
 		pub fn iter(&self) -> CatListIter<'_, A> {
-			match self {
-				CatList::Nil => CatListIter {
+			match &self.0 {
+				CatListInner::Nil => CatListIter {
 					stack: Vec::new(),
 					current_head: None,
 					remaining: 0,
 				},
-				CatList::Cons(a, deque, len) => {
+				CatListInner::Cons(a, deque, len) => {
 					let mut stack = Vec::new();
 					if !deque.is_empty() {
 						stack.push(deque.iter());
@@ -2617,9 +2713,9 @@ mod inner {
 			// Otherwise, pop from the stack until we find a non-empty deque iterator
 			while let Some(deque_iter) = self.stack.last_mut() {
 				if let Some(sublist) = deque_iter.next() {
-					match sublist {
-						CatList::Nil => continue,
-						CatList::Cons(a, deque, _) => {
+					match &sublist.0 {
+						CatListInner::Nil => continue,
+						CatListInner::Cons(a, deque, _) => {
 							// Push the deque's children onto the stack for later traversal
 							if !deque.is_empty() {
 								self.stack.push(deque.iter());
@@ -2705,7 +2801,7 @@ mod inner {
 		fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Self {
 			let mut iter = iter.into_iter();
 			match iter.next() {
-				None => CatList::Nil,
+				None => CatList::empty(),
 				Some(first) => {
 					let mut deque = VecDeque::new();
 					let mut count = 1usize;
@@ -2713,7 +2809,44 @@ mod inner {
 						deque.push_back(CatList::singleton(item));
 						count += 1;
 					}
-					CatList::Cons(first, deque, count)
+					CatList(CatListInner::Cons(first, deque, count))
+				}
+			}
+		}
+	}
+
+	#[document_type_parameters("The type of the elements in the list.")]
+	#[document_parameters("The list to drop.")]
+	impl<A> Drop for CatList<A> {
+		#[document_signature]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		/// {
+		/// 	let _list = CatList::singleton(1).snoc(2).snoc(3);
+		/// } // drop called here
+		/// assert!(true);
+		/// ```
+		fn drop(&mut self) {
+			let mut worklist: Vec<VecDeque<CatList<A>>> = Vec::new();
+
+			// Take the current node's children, if any.
+			if let CatListInner::Cons(_, deque, _) = &mut self.0
+				&& !deque.is_empty()
+			{
+				worklist.push(std::mem::take(deque));
+			}
+
+			while let Some(mut deque) = worklist.pop() {
+				for mut child in deque.drain(..) {
+					if let CatListInner::Cons(_, inner_deque, _) = &mut child.0
+						&& !inner_deque.is_empty()
+					{
+						worklist.push(std::mem::take(inner_deque));
+					}
+					// child is now Cons(a, empty_deque, _) or Nil,
+					// which drops without recursion.
 				}
 			}
 		}
@@ -3578,5 +3711,84 @@ mod tests {
 		let iter = list.iter();
 		let (lo, hi) = iter.size_hint();
 		lo == list.len() && hi == Some(list.len())
+	}
+
+	/// Tests that dropping a deeply nested `CatList` does not overflow the stack.
+	///
+	/// A right-associated chain of appends creates deep nesting in the sublist
+	/// deques. Without the iterative `Drop` implementation, this would cause a
+	/// stack overflow from recursive destructor calls.
+	#[test]
+	fn test_deep_drop_does_not_overflow_stack() {
+		let depth = 100_000;
+		let mut list = CatList::singleton(0);
+		for i in 1 .. depth {
+			// Right-associated: each append nests the accumulator inside a new node's deque.
+			list = CatList::singleton(i).append(list);
+		}
+		assert_eq!(list.len(), depth);
+		// Dropping `list` here exercises the iterative Drop implementation.
+		drop(list);
+	}
+
+	// MonadRec tests
+
+	/// Tests the MonadRec identity law: `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
+	#[quickcheck]
+	fn monad_rec_identity(x: i32) -> bool {
+		use crate::{
+			classes::monad_rec::tail_rec_m,
+			types::Step,
+		};
+		let result: Vec<_> =
+			tail_rec_m::<CatListBrand, _, _>(|a| CatList::singleton(Step::Done(a)), x)
+				.into_iter()
+				.collect();
+		let expected: Vec<_> = CatList::singleton(x).into_iter().collect();
+		result == expected
+	}
+
+	/// Tests a recursive computation that sums a range via `tail_rec_m`.
+	#[test]
+	fn monad_rec_sum_range() {
+		use crate::{
+			classes::monad_rec::tail_rec_m,
+			types::Step,
+		};
+		// Sum numbers from 1 to 100: tail_rec_m with accumulator
+		let result = tail_rec_m::<CatListBrand, _, _>(
+			|(n, acc)| {
+				if n > 100 {
+					CatList::singleton(Step::Done(acc))
+				} else {
+					CatList::singleton(Step::Loop((n + 1, acc + n)))
+				}
+			},
+			(1i64, 0i64),
+		);
+		let vec: Vec<_> = result.into_iter().collect();
+		assert_eq!(vec, vec![5050]);
+	}
+
+	/// Tests that `tail_rec_m` is stack-safe with 200,000 iterations.
+	#[test]
+	fn monad_rec_stack_safety() {
+		use crate::{
+			classes::monad_rec::tail_rec_m,
+			types::Step,
+		};
+		let iterations = 200_000i64;
+		let result = tail_rec_m::<CatListBrand, _, _>(
+			|n| {
+				if n >= iterations {
+					CatList::singleton(Step::Done(n))
+				} else {
+					CatList::singleton(Step::Loop(n + 1))
+				}
+			},
+			0i64,
+		);
+		let vec: Vec<_> = result.into_iter().collect();
+		assert_eq!(vec, vec![iterations]);
 	}
 }

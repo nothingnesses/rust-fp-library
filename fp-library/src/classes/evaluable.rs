@@ -34,25 +34,25 @@ mod inner {
 	/// [`Free::evaluate`](crate::types::Free::evaluate) to execute the effects in a
 	/// [`Free`](crate::types::Free) monad.
 	///
-	/// Currently only [`ThunkBrand`](crate::brands::ThunkBrand) implements this trait.
-	/// [`Lazy`](crate::types::Lazy) cannot implement it because `evaluate` returns `&A`
-	/// (a reference), not an owned `A`. [`Trampoline`](crate::types::Trampoline) does not
-	/// have a brand and therefore cannot participate in HKT traits.
+	/// Implemented by functors that always contain exactly one value and can
+	/// surrender ownership of it. [`Lazy`](crate::types::Lazy) cannot implement
+	/// this trait because forcing it returns `&A` (a reference), not an owned `A`.
+	/// [`Trampoline`](crate::types::Trampoline) does not have a brand and therefore
+	/// cannot participate in HKT traits.
 	///
 	/// # Laws
 	///
-	/// **Naturality:** `evaluate` commutes with natural transformations. Given a natural
-	/// transformation `nat: F<A> -> G<A>` and an evaluable functor `fa: F<A>`, the following
-	/// must hold:
+	/// **Map-extract:** extracting after mapping is the same as extracting and then
+	/// applying the function. For any `f: A -> B` and `fa: F<A>`:
 	///
 	/// ```text
-	/// evaluate(nat(fa)) == evaluate(fa)
+	/// evaluate(map(f, fa)) == f(evaluate(fa))
 	/// ```
 	///
-	/// In other words, if `nat` is a structure-preserving transformation between two
-	/// evaluable functors, then evaluating after transforming is the same as evaluating
-	/// directly. This ensures that `evaluate` extracts the "content" of the functor
-	/// regardless of the particular functor wrapper used.
+	/// This law states that the functor wrapper does not alter the value observed
+	/// by `evaluate`; mapping a function over the functor and then extracting
+	/// always yields the same result as extracting first and applying the function
+	/// afterwards.
 	pub trait Evaluable: Functor {
 		/// Evaluates the effect, producing the inner value.
 		#[document_signature]

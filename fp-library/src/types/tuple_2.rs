@@ -23,6 +23,7 @@ mod inner {
 				Foldable,
 				Functor,
 				Lift,
+				MonadRec,
 				Monoid,
 				Pointed,
 				Semiapplicative,
@@ -32,6 +33,7 @@ mod inner {
 			},
 			impl_kind,
 			kinds::*,
+			types::Step,
 		},
 		fp_macros::*,
 	};
@@ -531,6 +533,70 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the first value in the tuple.")]
+	impl<First: Clone + 'static> MonadRec for Tuple2FirstAppliedBrand<First>
+	where
+		First: Monoid,
+	{
+		/// Performs tail-recursive monadic computation over a tuple (varying the second element).
+		///
+		/// Iteratively applies the step function, accumulating the first element
+		/// via `Semigroup::append` at each iteration. When the step function returns
+		/// `Step::Done`, the accumulated first element and the final result are returned.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the initial value and loop state.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters("The step function.", "The initial value.")]
+		///
+		#[document_returns(
+			"A tuple with the accumulated first value and the result of the computation."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result = tail_rec_m::<Tuple2FirstAppliedBrand<String>, _, _>(
+		/// 	|n| {
+		/// 		if n < 3 {
+		/// 			(format!("{n},"), Step::Loop(n + 1))
+		/// 		} else {
+		/// 			(format!("{n}"), Step::Done(n))
+		/// 		}
+		/// 	},
+		/// 	0,
+		/// );
+		/// assert_eq!(result, ("0,1,2,3".to_string(), 3));
+		/// ```
+		fn tail_rec_m<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			+ Clone
+			+ 'a,
+			initial: A,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let mut acc: First = Monoid::empty();
+			let mut current = initial;
+			loop {
+				let (first, step) = func(current);
+				acc = Semigroup::append(acc, first);
+				match step {
+					Step::Loop(next) => current = next,
+					Step::Done(b) => return (acc, b),
+				}
+			}
+		}
+	}
+
+	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: 'static> Foldable for Tuple2FirstAppliedBrand<First> {
 		/// Folds the tuple from the right (over second).
 		///
@@ -968,6 +1034,70 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the second value in the tuple.")]
+	impl<Second: Clone + 'static> MonadRec for Tuple2SecondAppliedBrand<Second>
+	where
+		Second: Monoid,
+	{
+		/// Performs tail-recursive monadic computation over a tuple (varying the first element).
+		///
+		/// Iteratively applies the step function, accumulating the second element
+		/// via `Semigroup::append` at each iteration. When the step function returns
+		/// `Step::Done`, the final result and the accumulated second element are returned.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the initial value and loop state.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters("The step function.", "The initial value.")]
+		///
+		#[document_returns(
+			"A tuple with the result of the computation and the accumulated second value."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result = tail_rec_m::<Tuple2SecondAppliedBrand<String>, _, _>(
+		/// 	|n| {
+		/// 		if n < 3 {
+		/// 			(Step::Loop(n + 1), format!("{n},"))
+		/// 		} else {
+		/// 			(Step::Done(n), format!("{n}"))
+		/// 		}
+		/// 	},
+		/// 	0,
+		/// );
+		/// assert_eq!(result, (3, "0,1,2,3".to_string()));
+		/// ```
+		fn tail_rec_m<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			+ Clone
+			+ 'a,
+			initial: A,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let mut acc: Second = Monoid::empty();
+			let mut current = initial;
+			loop {
+				let (step, second) = func(current);
+				acc = Semigroup::append(acc, second);
+				match step {
+					Step::Loop(next) => current = next,
+					Step::Done(b) => return (b, acc),
+				}
+			}
+		}
+	}
+
+	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: 'static> Foldable for Tuple2SecondAppliedBrand<Second> {
 		/// Folds the tuple from the right (over first).
 		///
@@ -1177,8 +1307,10 @@ mod tests {
 			classes::{
 				CloneableFn,
 				bifunctor::*,
+				monad_rec::tail_rec_m,
 			},
 			functions::*,
+			types::Step,
 		},
 		quickcheck_macros::quickcheck,
 	};
@@ -1376,5 +1508,91 @@ mod tests {
 		) == bind::<Tuple2FirstAppliedBrand<String>, _, _>(m, |x| {
 			bind::<Tuple2FirstAppliedBrand<String>, _, _>(f(x), g)
 		})
+	}
+
+	// MonadRec tests (Tuple2FirstAppliedBrand)
+
+	/// Tests the MonadRec identity law for Tuple2FirstAppliedBrand:
+	/// `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
+	#[quickcheck]
+	fn monad_rec_first_identity(x: i32) -> bool {
+		tail_rec_m::<Tuple2FirstAppliedBrand<String>, _, _>(|a| (String::new(), Step::Done(a)), x)
+			== pure::<Tuple2FirstAppliedBrand<String>, _>(x)
+	}
+
+	/// Tests a recursive computation that accumulates the first element.
+	#[test]
+	fn monad_rec_first_accumulation() {
+		let result = tail_rec_m::<Tuple2FirstAppliedBrand<String>, _, _>(
+			|n: i32| {
+				if n < 3 {
+					(format!("{n},"), Step::Loop(n + 1))
+				} else {
+					(format!("{n}"), Step::Done(n))
+				}
+			},
+			0,
+		);
+		assert_eq!(result, ("0,1,2,3".to_string(), 3));
+	}
+
+	/// Tests stack safety for Tuple2FirstAppliedBrand: `tail_rec_m` handles large iteration counts.
+	#[test]
+	fn monad_rec_first_stack_safety() {
+		let iterations: i64 = 200_000;
+		let result = tail_rec_m::<Tuple2FirstAppliedBrand<String>, _, _>(
+			|acc| {
+				if acc < iterations {
+					(String::new(), Step::Loop(acc + 1))
+				} else {
+					(String::new(), Step::Done(acc))
+				}
+			},
+			0i64,
+		);
+		assert_eq!(result, (String::new(), iterations));
+	}
+
+	// MonadRec tests (Tuple2SecondAppliedBrand)
+
+	/// Tests the MonadRec identity law for Tuple2SecondAppliedBrand:
+	/// `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
+	#[quickcheck]
+	fn monad_rec_second_identity(x: i32) -> bool {
+		tail_rec_m::<Tuple2SecondAppliedBrand<String>, _, _>(|a| (Step::Done(a), String::new()), x)
+			== pure::<Tuple2SecondAppliedBrand<String>, _>(x)
+	}
+
+	/// Tests a recursive computation that accumulates the second element.
+	#[test]
+	fn monad_rec_second_accumulation() {
+		let result = tail_rec_m::<Tuple2SecondAppliedBrand<String>, _, _>(
+			|n: i32| {
+				if n < 3 {
+					(Step::Loop(n + 1), format!("{n},"))
+				} else {
+					(Step::Done(n), format!("{n}"))
+				}
+			},
+			0,
+		);
+		assert_eq!(result, (3, "0,1,2,3".to_string()));
+	}
+
+	/// Tests stack safety for Tuple2SecondAppliedBrand: `tail_rec_m` handles large iteration counts.
+	#[test]
+	fn monad_rec_second_stack_safety() {
+		let iterations: i64 = 200_000;
+		let result = tail_rec_m::<Tuple2SecondAppliedBrand<String>, _, _>(
+			|acc| {
+				if acc < iterations {
+					(Step::Loop(acc + 1), String::new())
+				} else {
+					(Step::Done(acc), String::new())
+				}
+			},
+			0i64,
+		);
+		assert_eq!(result, (iterations, String::new()));
 	}
 }

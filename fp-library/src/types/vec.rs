@@ -22,6 +22,7 @@ mod inner {
 				Foldable,
 				Functor,
 				Lift,
+				MonadRec,
 				Monoid,
 				ParCompactable,
 				ParFilterable,
@@ -43,6 +44,7 @@ mod inner {
 			},
 			impl_kind,
 			kinds::*,
+			types::Step,
 		},
 		fp_macros::*,
 	};
@@ -1751,6 +1753,72 @@ mod inner {
 			})
 		}
 	}
+
+	impl MonadRec for VecBrand {
+		/// Performs tail-recursive monadic computation over [`Vec`].
+		///
+		/// Since `Vec` represents nondeterminism, this performs a breadth-first
+		/// expansion: each iteration maps all current `Loop` states through the step
+		/// function, collecting `Done` results as they appear. The computation
+		/// terminates when no `Loop` values remain.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the initial value and loop state.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters("The step function.", "The initial value.")]
+		///
+		#[document_returns("A vector of all completed results.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// // Branch into two paths, each running until done
+		/// let result = tail_rec_m::<VecBrand, _, _>(
+		/// 	|n| {
+		/// 		if n < 3 {
+		/// 			vec![Step::Loop(n + 1), Step::Done(n * 10)]
+		/// 		} else {
+		/// 			vec![Step::Done(n * 10)]
+		/// 		}
+		/// 	},
+		/// 	0,
+		/// );
+		/// // Starting from 0: branches at 0,1,2; done at 3
+		/// assert_eq!(result, vec![0, 10, 20, 30]);
+		/// ```
+		fn tail_rec_m<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			+ Clone
+			+ 'a,
+			initial: A,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let mut done: Vec<B> = Vec::new();
+			let mut pending: Vec<A> = vec![initial];
+			while !pending.is_empty() {
+				let mut next_pending: Vec<A> = Vec::new();
+				for a in pending {
+					for step in func(a) {
+						match step {
+							Step::Loop(next) => next_pending.push(next),
+							Step::Done(b) => done.push(b),
+						}
+					}
+				}
+				pending = next_pending;
+			}
+			done
+		}
+	}
 }
 
 #[cfg(test)]
@@ -2367,5 +2435,69 @@ mod tests {
 		}
 		let par_res = par_fold_map::<VecBrand, _, _>(|x: i32| Additive(x as i64), xs);
 		par_res == empty::<Additive<i64>>()
+	}
+
+	// MonadRec tests
+
+	/// Tests the MonadRec identity law: `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
+	#[quickcheck]
+	fn monad_rec_identity(x: i32) -> bool {
+		use crate::{
+			classes::monad_rec::tail_rec_m,
+			types::Step,
+		};
+		tail_rec_m::<VecBrand, _, _>(|a| vec![Step::Done(a)], x) == vec![x]
+	}
+
+	/// Tests a simple linear recursion via `tail_rec_m`.
+	#[test]
+	fn monad_rec_linear() {
+		use crate::{
+			classes::monad_rec::tail_rec_m,
+			types::Step,
+		};
+		// Count up to 5
+		let result = tail_rec_m::<VecBrand, _, _>(
+			|n| {
+				if n < 5 { vec![Step::Loop(n + 1)] } else { vec![Step::Done(n)] }
+			},
+			0,
+		);
+		assert_eq!(result, vec![5]);
+	}
+
+	/// Tests branching nondeterminism via `tail_rec_m`.
+	#[test]
+	fn monad_rec_branching() {
+		use crate::{
+			classes::monad_rec::tail_rec_m,
+			types::Step,
+		};
+		// Each step either finishes or continues
+		let result = tail_rec_m::<VecBrand, _, _>(
+			|n: i32| {
+				if n < 2 {
+					vec![Step::Loop(n + 1), Step::Done(n * 100)]
+				} else {
+					vec![Step::Done(n * 100)]
+				}
+			},
+			0,
+		);
+		// n=0: Loop(1), Done(0)
+		// n=1: Loop(2), Done(100)
+		// n=2: Done(200)
+		assert_eq!(result, vec![0, 100, 200]);
+	}
+
+	/// Tests that `tail_rec_m` handles an empty result from the step function.
+	#[test]
+	fn monad_rec_empty() {
+		use crate::{
+			classes::monad_rec::tail_rec_m,
+			types::Step,
+		};
+		let result: Vec<i32> = tail_rec_m::<VecBrand, _, _>(|_n| Vec::<Step<i32, i32>>::new(), 0);
+		assert_eq!(result, Vec::<i32>::new());
 	}
 }

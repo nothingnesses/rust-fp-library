@@ -1,4 +1,4 @@
-//! Single-value tuple with [`Functor`](crate::classes::Functor), [`Applicative`](crate::classes::Applicative), [`Monad`](crate::classes::Monad), [`Foldable`](crate::classes::Foldable), [`Traversable`](crate::classes::Traversable), and parallel folding instances.
+//! Single-value tuple with [`Functor`](crate::classes::Functor), [`Applicative`](crate::classes::Applicative), [`Monad`](crate::classes::Monad), [`MonadRec`](crate::classes::MonadRec), [`Foldable`](crate::classes::Foldable), [`Traversable`](crate::classes::Traversable), and parallel folding instances.
 //!
 //! A trivial wrapper using the native Rust 1-tuple `(A,)`.
 
@@ -16,6 +16,7 @@ mod inner {
 				Foldable,
 				Functor,
 				Lift,
+				MonadRec,
 				Monoid,
 				Pointed,
 				Semiapplicative,
@@ -24,6 +25,7 @@ mod inner {
 			},
 			impl_kind,
 			kinds::*,
+			types::Step,
 		},
 		fp_macros::*,
 	};
@@ -431,6 +433,56 @@ mod inner {
 			F::map(|a| (a,), ta.0)
 		}
 	}
+
+	impl MonadRec for Tuple1Brand {
+		/// Performs tail-recursive monadic computation over 1-tuples.
+		///
+		/// Since the 1-tuple has no effect, this simply loops on the inner value
+		/// until the step function returns [`Step::Done`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the initial value and loop state.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters("The step function.", "The initial value.")]
+		///
+		#[document_returns("A 1-tuple containing the result of the computation.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result = tail_rec_m::<Tuple1Brand, _, _>(
+		/// 	|n| {
+		/// 		if n < 10 { (Step::Loop(n + 1),) } else { (Step::Done(n),) }
+		/// 	},
+		/// 	0,
+		/// );
+		/// assert_eq!(result, (10,));
+		/// ```
+		fn tail_rec_m<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			+ Clone
+			+ 'a,
+			initial: A,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let mut current = initial;
+			loop {
+				match func(current).0 {
+					Step::Loop(next) => current = next,
+					Step::Done(b) => return (b,),
+				}
+			}
+		}
+	}
 }
 
 #[cfg(test)]
@@ -618,5 +670,50 @@ mod tests {
 			),
 			Some((2,))
 		);
+	}
+
+	// MonadRec tests
+
+	/// Tests the MonadRec identity law: `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
+	#[quickcheck]
+	fn monad_rec_identity(x: i32) -> bool {
+		use crate::{
+			classes::monad_rec::tail_rec_m,
+			types::Step,
+		};
+		tail_rec_m::<Tuple1Brand, _, _>(|a| (Step::Done(a),), x) == (x,)
+	}
+
+	/// Tests a recursive computation that sums a range via `tail_rec_m`.
+	#[test]
+	fn monad_rec_sum_range() {
+		use crate::{
+			classes::monad_rec::tail_rec_m,
+			types::Step,
+		};
+		let result = tail_rec_m::<Tuple1Brand, _, _>(
+			|(n, acc)| {
+				if n == 0 { (Step::Done(acc),) } else { (Step::Loop((n - 1, acc + n)),) }
+			},
+			(100i64, 0i64),
+		);
+		assert_eq!(result, (5050,));
+	}
+
+	/// Tests stack safety: `tail_rec_m` handles large iteration counts.
+	#[test]
+	fn monad_rec_stack_safety() {
+		use crate::{
+			classes::monad_rec::tail_rec_m,
+			types::Step,
+		};
+		let iterations: i64 = 200_000;
+		let result = tail_rec_m::<Tuple1Brand, _, _>(
+			|acc| {
+				if acc < iterations { (Step::Loop(acc + 1),) } else { (Step::Done(acc),) }
+			},
+			0i64,
+		);
+		assert_eq!(result, (iterations,));
 	}
 }
