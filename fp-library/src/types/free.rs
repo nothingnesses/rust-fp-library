@@ -129,6 +129,28 @@ mod inner {
 		),
 	}
 
+	/// The result of stepping through a [`Free`] computation.
+	///
+	/// Produced by [`Free::to_view`], this decomposes a `Free` into either
+	/// a final value or a suspended functor layer with all pending
+	/// continuations reattached. This provides a unified, single-step
+	/// decomposition that both [`Free::evaluate`] and [`Free::resume`]
+	/// delegate to.
+	#[document_type_parameters(
+		"The base functor. Requires [`Extract`] and [`Functor`] to match the struct-level bounds on [`Free`].",
+		"The result type of the computation."
+	)]
+	pub enum FreeStep<F, A>
+	where
+		F: Extract + Functor + 'static,
+		A: 'static, {
+		/// The computation completed with a final value.
+		Done(A),
+		/// The computation is suspended in the functor `F`.
+		/// The inner `Free` values have all pending continuations reattached.
+		Suspended(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)),
+	}
+
 	/// The Free monad with O(1) bind via [`CatList`].
 	///
 	/// This implementation follows ["Reflection without Remorse"](http://okmij.org/ftp/Haskell/zseq.pdf) to ensure
@@ -525,14 +547,121 @@ mod inner {
 			Free::wrap(F::map(Free::pure, fa))
 		}
 
+		/// Decomposes this `Free` computation into a single [`FreeStep`].
+		///
+		/// Iteratively applies pending continuations until the computation
+		/// reaches either a final value ([`FreeStep::Done`]) or a suspended
+		/// functor layer ([`FreeStep::Suspended`]). In the `Suspended` case,
+		/// all remaining continuations are reattached to the inner `Free`
+		/// values via [`Functor::map`], so the caller receives a fully
+		/// self-contained layer that can be further interpreted.
+		///
+		/// This is the shared core that both [`evaluate`](Free::evaluate) and
+		/// [`resume`](Free::resume) delegate to.
+		#[document_signature]
+		///
+		#[document_returns(
+			"[`FreeStep::Done(a)`](FreeStep::Done) if the computation is complete, or [`FreeStep::Suspended(fa)`](FreeStep::Suspended) if it is suspended in the functor `F`."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// // Pure value yields Done
+		/// let free = Free::<ThunkBrand, _>::pure(42);
+		/// match free.to_view() {
+		/// 	FreeStep::Done(a) => assert_eq!(a, 42),
+		/// 	FreeStep::Suspended(_) => panic!("expected Done"),
+		/// }
+		///
+		/// // Wrapped value yields Suspended
+		/// let free = Free::<ThunkBrand, _>::wrap(Thunk::new(|| Free::pure(99)));
+		/// assert!(matches!(free.to_view(), FreeStep::Suspended(_)));
+		/// ```
+		#[allow(clippy::expect_used)]
+		pub fn to_view(mut self) -> FreeStep<F, A> {
+			let (view, continuations) = self.take_parts();
+
+			// INVARIANT: Free values are used exactly once; double consumption indicates a bug
+			let mut current_view = view.expect("Free value already consumed");
+			let mut conts = continuations;
+
+			loop {
+				match current_view {
+					FreeView::Return(val) => {
+						match conts.uncons() {
+							Some((continuation, rest)) => {
+								let mut next = continuation(val);
+								let (next_view, next_conts) = next.take_parts();
+								// INVARIANT: continuation returns a valid Free
+								current_view =
+									next_view.expect("Free value already consumed (continuation)");
+								conts = next_conts.append(rest);
+							}
+							None => {
+								// No more continuations; we have a final pure value.
+								// INVARIANT: type is maintained by internal invariant
+								return FreeStep::Done(
+									*val.downcast::<A>()
+										.expect("Type mismatch in Free::to_view final downcast"),
+								);
+							}
+						}
+					}
+
+					FreeView::Suspend(fa) => {
+						// We have a suspended computation. Rebuild the
+						// Free<F, A> from the type-erased Free<F, TypeErasedValue>
+						// by re-attaching the remaining continuations.
+
+						// Append a final downcast continuation that converts
+						// TypeErasedValue back to the concrete type A.
+						let downcast_cont: Continuation<F> =
+							Box::new(move |val: TypeErasedValue| {
+								// INVARIANT: type is maintained by internal invariant
+								let a: A = *val
+									.downcast()
+									.expect("Type mismatch in Free::to_view downcast");
+								Free::<F, A>::pure(a).cast_phantom()
+							});
+						let all_conts = conts.snoc(downcast_cont);
+
+						// Use Cell to move the CatList into the Fn closure (called exactly once).
+						let remaining = std::cell::Cell::new(Some(all_conts));
+						let typed_fa = F::map(
+							move |mut inner_free: Free<F, TypeErasedValue>| {
+								// INVARIANT: functors call map exactly once per element
+								let conts_for_inner = remaining
+									.take()
+									.expect("Free::to_view map called more than once");
+								let (v, c) = inner_free.take_parts();
+								Free {
+									view: v,
+									continuations: c.append(conts_for_inner),
+									_marker: PhantomData,
+								}
+							},
+							fa,
+						);
+						return FreeStep::Suspended(typed_fa);
+					}
+				}
+			}
+		}
+
 		/// Decomposes this `Free` computation into one step.
 		///
 		/// Returns `Ok(a)` if the computation is a pure value, or
 		/// `Err(f_free)` if the computation is suspended in the functor `F`,
 		/// where `f_free` contains the next `Free` computation wrapped in `F`.
 		///
-		/// The continuation chain is collapsed iteratively by applying continuations
-		/// until a `Return` or `Suspend` view is reached with an empty continuation queue.
+		/// Delegates to [`to_view`](Free::to_view) and converts the resulting
+		/// [`FreeStep`] into a `Result`.
 		#[document_signature]
 		///
 		#[document_returns(
@@ -555,75 +684,12 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::wrap(Thunk::new(|| Free::pure(99)));
 		/// assert!(free.resume().is_err());
 		/// ```
-		#[allow(clippy::expect_used)]
 		pub fn resume(
-			mut self
+			self
 		) -> Result<A, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)> {
-			let (view, continuations) = self.take_parts();
-
-			// INVARIANT: Free values are used exactly once; double consumption indicates a bug
-			let mut current_view = view.expect("Free value already consumed");
-			let mut conts = continuations;
-
-			loop {
-				match current_view {
-					FreeView::Return(val) => {
-						match conts.uncons() {
-							Some((continuation, rest)) => {
-								let mut next = continuation(val);
-								let (next_view, next_conts) = next.take_parts();
-								// INVARIANT: continuation returns a valid Free
-								current_view =
-									next_view.expect("Free value already consumed (continuation)");
-								conts = next_conts.append(rest);
-							}
-							None => {
-								// No more continuations; we have a final pure value.
-								// INVARIANT: type is maintained by internal invariant
-								return Ok(*val
-									.downcast::<A>()
-									.expect("Type mismatch in Free::resume final downcast"));
-							}
-						}
-					}
-
-					FreeView::Suspend(fa) => {
-						// We have a suspended computation. We need to rebuild the
-						// Free<F, A> from the type-erased Free<F, TypeErasedValue>
-						// by re-attaching the remaining continuations.
-
-						// Append a final downcast continuation that converts
-						// TypeErasedValue back to the concrete type A.
-						let downcast_cont: Continuation<F> =
-							Box::new(move |val: TypeErasedValue| {
-								// INVARIANT: type is maintained by internal invariant
-								let a: A = *val
-									.downcast()
-									.expect("Type mismatch in Free::resume downcast");
-								Free::<F, A>::pure(a).cast_phantom()
-							});
-						let all_conts = conts.snoc(downcast_cont);
-
-						// Use Cell to move the CatList into the Fn closure (called exactly once).
-						let remaining = std::cell::Cell::new(Some(all_conts));
-						let typed_fa = F::map(
-							move |mut inner_free: Free<F, TypeErasedValue>| {
-								// INVARIANT: functors call map exactly once per element
-								let conts_for_inner = remaining
-									.take()
-									.expect("Free::resume map called more than once");
-								let (v, c) = inner_free.take_parts();
-								Free {
-									view: v,
-									continuations: c.append(conts_for_inner),
-									_marker: PhantomData,
-								}
-							},
-							fa,
-						);
-						return Err(typed_fa);
-					}
-				}
+			match self.to_view() {
+				FreeStep::Done(a) => Ok(a),
+				FreeStep::Suspended(fa) => Err(fa),
 			}
 		}
 
@@ -776,6 +842,74 @@ mod inner {
 				}
 			}
 		}
+
+		/// Interprets `Free<F, A>` into `Free<G, A>` by substituting each
+		/// suspended `F` layer with a `Free<G, _>` computation.
+		///
+		/// This is the standard `substFree` from PureScript. It is similar to
+		/// [`hoist_free`](Free::hoist_free) but more powerful: instead of a
+		/// plain natural transformation `F ~> G`, the callback returns
+		/// `Free<G, _>`, allowing each `F` layer to expand into an entire
+		/// `Free<G>` sub-computation.
+		///
+		/// ### Stack Safety
+		///
+		/// Like `hoist_free`, this method is **not** stack-safe for deeply
+		/// nested `Suspend` chains. It recurses once per `Suspend` layer
+		/// encountered during construction; the recursion happens inside
+		/// `bind`'s deferred continuation (stored in the CatList), so it does
+		/// not grow the stack during construction. The stack unwinds only when
+		/// the resulting `Free<G, A>` is later evaluated.
+		#[document_signature]
+		///
+		#[document_type_parameters("The target functor brand.")]
+		///
+		#[document_parameters(
+			"A function that transforms each suspended `F` layer into a `Free<G, _>` computation."
+		)]
+		///
+		#[document_returns(
+			"A `Free<G, A>` computation where every `F` layer has been substituted."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::NaturalTransformation,
+		/// 	types::*,
+		/// };
+		///
+		/// // Identity substitution: each Thunk layer becomes a Free<ThunkBrand, _>
+		/// let free = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 42));
+		/// let substituted: Free<ThunkBrand, i32> =
+		/// 	free.substitute_free(|thunk: Thunk<'static, Free<ThunkBrand, i32>>| {
+		/// 		Free::<ThunkBrand, _>::lift_f(thunk)
+		/// 	});
+		/// assert_eq!(substituted.evaluate(), 42);
+		/// ```
+		pub fn substitute_free<G: Extract + Functor + 'static>(
+			self,
+			nt: impl Fn(
+				Apply!(
+					<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>
+				),
+			) -> Free<G, Free<F, A>>
+			+ Clone
+			+ 'static,
+		) -> Free<G, A> {
+			match self.to_view() {
+				FreeStep::Done(a) => Free::pure(a),
+				FreeStep::Suspended(fa) => {
+					// nt transforms the F-layer into Free<G, Free<F, A>>
+					let free_g: Free<G, Free<F, A>> = nt.clone()(fa);
+					// bind to recurse: for each inner Free<F, A>, continue substituting
+					let nt_clone = nt;
+					free_g.bind(move |inner| inner.substitute_free(nt_clone.clone()))
+				}
+			}
+		}
 	}
 
 	// ── Evaluation (requires Extract) ─────────────────────────────────
@@ -794,8 +928,11 @@ mod inner {
 	{
 		/// Executes the Free computation, returning the final result.
 		///
-		/// This is the "trampoline" that iteratively processes the
-		/// [`CatList`] of continuations without growing the stack.
+		/// Uses [`to_view`](Free::to_view) to iteratively step through the
+		/// computation: each `Suspended` layer is unwrapped via
+		/// [`Extract::extract`] and fed back into the loop, while `Done`
+		/// returns the final value. The continuation chain is collapsed by
+		/// `to_view`, so this outer loop only sees functor layers.
 		#[document_signature]
 		///
 		#[document_returns("The final result of the computation.")]
@@ -811,45 +948,13 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(42);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
-		#[allow(clippy::expect_used)]
-		pub fn evaluate(mut self) -> A {
-			let (view, continuations) = self.take_parts();
-
-			// INVARIANT: Free values are used exactly once; double consumption indicates a bug
-			let mut current_view = view.expect("Free value already consumed");
-			let mut conts = continuations;
-
+		pub fn evaluate(self) -> A {
+			let mut current = self;
 			loop {
-				match current_view {
-					FreeView::Return(val) => {
-						match conts.uncons() {
-							Some((continuation, rest)) => {
-								let mut next = continuation(val);
-								let (next_view, next_conts) = next.take_parts();
-								// INVARIANT: continuation returns a valid Free
-								current_view =
-									next_view.expect("Free value already consumed (continuation)");
-								// Merge the next node's continuations with the remaining ones
-								conts = next_conts.append(rest);
-							}
-							None => {
-								// No more continuations; we are done!
-								// INVARIANT: type is maintained by internal invariant; mismatch indicates a bug
-								return *val
-									.downcast::<A>()
-									.expect("Type mismatch in Free::evaluate final downcast");
-							}
-						}
-					}
-
-					FreeView::Suspend(fa) => {
-						// Run the effect to get the inner Free
-						let mut inner: Free<F, TypeErasedValue> = <F as Extract>::extract(fa);
-						let (inner_view, inner_conts) = inner.take_parts();
-						// INVARIANT: evaluated Free is valid
-						current_view =
-							inner_view.expect("Free value already consumed (evaluate suspend)");
-						conts = inner_conts.append(conts);
+				match current.to_view() {
+					FreeStep::Done(a) => return a,
+					FreeStep::Suspended(fa) => {
+						current = <F as Extract>::extract(fa);
 					}
 				}
 			}
@@ -1626,5 +1731,181 @@ mod tests {
 		}
 		let hoisted = free.hoist_free(ThunkId);
 		assert_eq!(hoisted.evaluate(), 99);
+	}
+
+	// ── to_view tests ──
+
+	/// Tests `Free::to_view` on a pure value.
+	///
+	/// **What it tests:** Verifies that `to_view` on a pure computation returns `FreeStep::Done`.
+	/// **How it tests:** Creates `Free::pure(42)` and checks that `to_view` produces `Done(42)`.
+	#[test]
+	fn test_free_to_view_pure() {
+		let free = Free::<ThunkBrand, _>::pure(42);
+		match free.to_view() {
+			FreeStep::Done(a) => assert_eq!(a, 42),
+			FreeStep::Suspended(_) => panic!("expected Done"),
+		}
+	}
+
+	/// Tests `Free::to_view` on a wrapped value.
+	///
+	/// **What it tests:** Verifies that `to_view` on a suspended computation returns
+	/// `FreeStep::Suspended`.
+	/// **How it tests:** Wraps a `Free::pure(99)` in a `Thunk` and checks that `to_view`
+	/// produces `Suspended`, then evaluates the inner layer to verify the value.
+	#[test]
+	fn test_free_to_view_wrapped() {
+		let free = Free::<ThunkBrand, _>::wrap(Thunk::new(|| Free::pure(99)));
+		match free.to_view() {
+			FreeStep::Done(_) => panic!("expected Suspended"),
+			FreeStep::Suspended(thunk) => {
+				let inner: Free<ThunkBrand, i32> = thunk.evaluate();
+				assert_eq!(inner.evaluate(), 99);
+			}
+		}
+	}
+
+	/// Tests `Free::to_view` on a bind chain that resolves to a pure value.
+	///
+	/// **What it tests:** Verifies that `to_view` collapses a chain of `bind` operations
+	/// and returns `Done` when all continuations produce pure values.
+	/// **How it tests:** Creates `pure(10).bind(|x| pure(x + 5))` and checks that `to_view`
+	/// returns `Done(15)`.
+	#[test]
+	fn test_free_to_view_bind_chain_done() {
+		let free = Free::<ThunkBrand, _>::pure(10).bind(|x: i32| Free::pure(x + 5));
+		match free.to_view() {
+			FreeStep::Done(a) => assert_eq!(a, 15),
+			FreeStep::Suspended(_) => panic!("expected Done"),
+		}
+	}
+
+	/// Tests `Free::to_view` on a bind chain that resolves to a suspended layer.
+	///
+	/// **What it tests:** Verifies that `to_view` collapses bind continuations until it
+	/// reaches a `Suspend`, then returns `Suspended` with continuations reattached.
+	/// **How it tests:** Creates `wrap(...).bind(|x| pure(x + 5))` and checks that `to_view`
+	/// returns `Suspended`, then evaluates the result to verify the value is correct.
+	#[test]
+	fn test_free_to_view_bind_chain_suspended() {
+		let free = Free::<ThunkBrand, _>::wrap(Thunk::new(|| Free::pure(10)))
+			.bind(|x: i32| Free::pure(x + 5));
+		match free.to_view() {
+			FreeStep::Done(_) => panic!("expected Suspended"),
+			FreeStep::Suspended(thunk) => {
+				// The inner Free should have the bind continuation reattached,
+				// so evaluating the full thing should yield 15.
+				let inner: Free<ThunkBrand, i32> = thunk.evaluate();
+				assert_eq!(inner.evaluate(), 15);
+			}
+		}
+	}
+
+	/// Tests that `resume` delegates correctly to `to_view` after refactoring.
+	///
+	/// **What it tests:** Verifies that `resume` still produces the same results as before
+	/// the refactoring to use `to_view`.
+	/// **How it tests:** Exercises both `Ok` and `Err` paths and verifies values.
+	#[test]
+	fn test_free_resume_delegates_to_view() {
+		// Pure -> Ok
+		let free = Free::<ThunkBrand, _>::pure(42);
+		assert!(matches!(free.resume(), Ok(42)));
+
+		// Wrap -> Err
+		let free = Free::<ThunkBrand, _>::wrap(Thunk::new(|| Free::pure(99)));
+		let err = free.resume().unwrap_err();
+		let inner: Free<ThunkBrand, i32> = err.evaluate();
+		assert_eq!(inner.evaluate(), 99);
+
+		// Bind chain -> Ok
+		let free = Free::<ThunkBrand, _>::pure(10).bind(|x: i32| Free::pure(x + 5));
+		assert!(matches!(free.resume(), Ok(15)));
+	}
+
+	/// Tests that `evaluate` delegates correctly to `to_view` after refactoring.
+	///
+	/// **What it tests:** Verifies that `evaluate` still produces the same results as before
+	/// the refactoring to use `to_view`.
+	/// **How it tests:** Exercises pure, wrapped, and bind-chain computations.
+	#[test]
+	fn test_free_evaluate_delegates_to_view() {
+		assert_eq!(Free::<ThunkBrand, _>::pure(42).evaluate(), 42);
+
+		let free = Free::<ThunkBrand, _>::wrap(Thunk::new(|| Free::pure(99)));
+		assert_eq!(free.evaluate(), 99);
+
+		let free =
+			Free::<ThunkBrand, _>::pure(10).bind(|x| Free::pure(x + 5)).bind(|x| Free::pure(x * 2));
+		assert_eq!(free.evaluate(), 30);
+	}
+
+	// ── substitute_free tests ──
+
+	/// Tests `substitute_free` with an identity-like substitution.
+	///
+	/// **What it tests:** Verifies that substituting each `F` layer with `lift_f` (wrapping it
+	/// back into `Free<F, _>`) preserves the computation result.
+	/// **How it tests:** Lifts a thunk into Free, substitutes with `lift_f`, and evaluates.
+	#[test]
+	fn test_free_substitute_free_identity() {
+		let free = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 42));
+		let substituted = free.substitute_free(|thunk: Thunk<'static, Free<ThunkBrand, i32>>| {
+			Free::<ThunkBrand, _>::lift_f(thunk)
+		});
+		assert_eq!(substituted.evaluate(), 42);
+	}
+
+	/// Tests `substitute_free` on a pure value.
+	///
+	/// **What it tests:** Verifies that `substitute_free` on a pure computation returns
+	/// the same value without invoking the natural transformation.
+	/// **How it tests:** Creates `Free::pure(42)` and substitutes, checking the result.
+	#[test]
+	fn test_free_substitute_free_pure() {
+		let free = Free::<ThunkBrand, _>::pure(42);
+		let substituted: Free<ThunkBrand, i32> =
+			free.substitute_free(|_thunk: Thunk<'static, Free<ThunkBrand, i32>>| {
+				panic!("should not be called on a pure value")
+			});
+		assert_eq!(substituted.evaluate(), 42);
+	}
+
+	/// Tests `substitute_free` with a chain of binds.
+	///
+	/// **What it tests:** Verifies that `substitute_free` correctly handles computations
+	/// with bind chains.
+	/// **How it tests:** Creates a computation with `lift_f` and `bind`, substitutes, and
+	/// checks the final result.
+	#[test]
+	fn test_free_substitute_free_with_binds() {
+		let free = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 10))
+			.bind(|x| Free::<ThunkBrand, _>::lift_f(Thunk::new(move || x * 2)))
+			.bind(|x| Free::pure(x + 5));
+		let substituted: Free<ThunkBrand, i32> =
+			free.substitute_free(|thunk: Thunk<'static, Free<ThunkBrand, i32>>| {
+				Free::<ThunkBrand, _>::lift_f(thunk)
+			});
+		assert_eq!(substituted.evaluate(), 25);
+	}
+
+	/// Tests `substitute_free` that expands each layer into multiple layers.
+	///
+	/// **What it tests:** Verifies that `substitute_free` can expand each `F` layer into
+	/// an entire `Free<G, _>` sub-computation (not just a single layer).
+	/// **How it tests:** Substitutes each thunk layer with a double-wrapped computation
+	/// and verifies the final result is correct.
+	#[test]
+	fn test_free_substitute_free_expands_layers() {
+		let free = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 7));
+		// Each thunk layer becomes a double-wrapped Free
+		let substituted: Free<ThunkBrand, i32> =
+			free.substitute_free(|thunk: Thunk<'static, Free<ThunkBrand, i32>>| {
+				// Wrap the original thunk layer, then add an extra wrap layer
+				let inner = Free::<ThunkBrand, _>::lift_f(thunk);
+				Free::wrap(Thunk::new(move || inner))
+			});
+		assert_eq!(substituted.evaluate(), 7);
 	}
 }
