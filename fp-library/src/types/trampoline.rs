@@ -542,6 +542,47 @@ mod inner {
 			};
 			Self::tail_rec_m(wrapper, initial)
 		}
+
+		/// Peels off one layer of the trampoline.
+		///
+		/// Returns `Ok(a)` if the computation has already completed with value `a`,
+		/// or `Err(thunk)` if the computation is suspended. Evaluating the returned
+		/// [`Thunk`] yields the next `Trampoline` step.
+		///
+		/// This is useful for implementing custom interpreters or drivers that need
+		/// to interleave trampoline steps with other logic (e.g., logging, resource
+		/// cleanup, cooperative scheduling).
+		#[document_signature]
+		///
+		#[document_returns(
+			"`Ok(a)` if the computation is finished, `Err(thunk)` if it is suspended."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// // A pure trampoline resumes immediately.
+		/// let t = Trampoline::pure(42);
+		/// assert_eq!(t.resume().unwrap(), 42);
+		///
+		/// // A deferred trampoline is suspended.
+		/// let t = Trampoline::defer(|| Trampoline::pure(99));
+		/// match t.resume() {
+		/// 	Ok(_) => panic!("expected suspension"),
+		/// 	Err(thunk) => {
+		/// 		let next = thunk.evaluate();
+		/// 		assert_eq!(next.resume().unwrap(), 99);
+		/// 	}
+		/// }
+		/// ```
+		pub fn resume(self) -> Result<A, Thunk<'static, Trampoline<A>>> {
+			match self.0.resume() {
+				Ok(a) => Ok(a),
+				Err(thunk_of_free) => Err(thunk_of_free.map(Trampoline)),
+			}
+		}
 	}
 
 	#[document_type_parameters(
@@ -1083,5 +1124,55 @@ mod tests {
 			0u64,
 		);
 		assert_eq!(result.evaluate(), n);
+	}
+
+	/// Tests `Trampoline::resume` on a pure value.
+	///
+	/// Verifies that resuming a pure trampoline returns `Ok(value)`.
+	#[test]
+	fn test_resume_pure() {
+		let t = Trampoline::pure(42);
+		assert_eq!(t.resume().unwrap(), 42);
+	}
+
+	/// Tests `Trampoline::resume` on a deferred computation.
+	///
+	/// Verifies that resuming a deferred trampoline returns `Err(thunk)`,
+	/// and evaluating the thunk yields another trampoline that can be resumed.
+	#[test]
+	fn test_resume_deferred() {
+		let t = Trampoline::defer(|| Trampoline::pure(99));
+		match t.resume() {
+			Ok(_) => panic!("expected suspension"),
+			Err(thunk) => {
+				let next = thunk.evaluate();
+				assert_eq!(next.resume().unwrap(), 99);
+			}
+		}
+	}
+
+	/// Tests that resuming through a chain of deferred steps eventually reaches `Ok`.
+	///
+	/// Builds a chain of three deferred steps and manually drives it to completion.
+	#[test]
+	fn test_resume_chain_reaches_ok() {
+		let t =
+			Trampoline::defer(|| Trampoline::defer(|| Trampoline::defer(|| Trampoline::pure(7))));
+
+		let mut current = t;
+		let mut steps = 0;
+		loop {
+			match current.resume() {
+				Ok(value) => {
+					assert_eq!(value, 7);
+					break;
+				}
+				Err(thunk) => {
+					current = thunk.evaluate();
+					steps += 1;
+				}
+			}
+		}
+		assert!(steps > 0, "expected at least one suspension step");
 	}
 }

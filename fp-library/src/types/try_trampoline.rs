@@ -26,6 +26,7 @@ mod inner {
 			},
 			types::{
 				Lazy,
+				Thunk,
 				Trampoline,
 				TryLazy,
 			},
@@ -730,6 +731,48 @@ mod inner {
 			A: Send + Sync,
 			E: Send + Sync, {
 			crate::types::ArcTryLazy::from(self)
+		}
+
+		/// Peels off one layer of the trampoline.
+		///
+		/// Returns `Ok(result)` if the computation has completed (where `result` is
+		/// itself a `Result<A, E>` indicating success or failure), or
+		/// `Err(thunk)` if the computation is suspended. Evaluating the returned
+		/// [`Thunk`] yields the next `TryTrampoline` step.
+		///
+		/// This is useful for implementing custom interpreters or drivers that need
+		/// to interleave trampoline steps with other logic (e.g., logging, resource
+		/// cleanup, cooperative scheduling).
+		#[document_signature]
+		///
+		#[document_returns(
+			"`Ok(result)` if the computation is finished, `Err(thunk)` if it is suspended."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// // A completed TryTrampoline resumes immediately.
+		/// let t: TryTrampoline<i32, String> = TryTrampoline::ok(42);
+		/// assert_eq!(t.resume().unwrap(), Ok(42));
+		///
+		/// // A deferred TryTrampoline is suspended.
+		/// let t: TryTrampoline<i32, String> = TryTrampoline::defer(|| TryTrampoline::ok(99));
+		/// match t.resume() {
+		/// 	Ok(_) => panic!("expected suspension"),
+		/// 	Err(thunk) => {
+		/// 		let next = thunk.evaluate();
+		/// 		assert_eq!(next.resume().unwrap(), Ok(99));
+		/// 	}
+		/// }
+		/// ```
+		pub fn resume(self) -> Result<Result<A, E>, Thunk<'static, TryTrampoline<A, E>>> {
+			match self.0.resume() {
+				Ok(result) => Ok(result),
+				Err(thunk) => Err(thunk.map(TryTrampoline)),
+			}
 		}
 	}
 
@@ -1843,5 +1886,65 @@ mod tests {
 		}
 		task = task.catch_with(|e| TryTrampoline::ok(e));
 		assert_eq!(task.evaluate(), Ok(n - 1));
+	}
+
+	/// Tests `TryTrampoline::resume` on a successful pure value.
+	///
+	/// Verifies that resuming a completed `TryTrampoline::ok` returns `Ok(Ok(value))`.
+	#[test]
+	fn test_resume_ok() {
+		let t: TryTrampoline<i32, String> = TryTrampoline::ok(42);
+		assert_eq!(t.resume().unwrap(), Ok(42));
+	}
+
+	/// Tests `TryTrampoline::resume` on a failed pure value.
+	///
+	/// Verifies that resuming a completed `TryTrampoline::err` returns `Ok(Err(error))`.
+	#[test]
+	fn test_resume_err() {
+		let t: TryTrampoline<i32, String> = TryTrampoline::err("oops".to_string());
+		assert_eq!(t.resume().unwrap(), Err("oops".to_string()));
+	}
+
+	/// Tests `TryTrampoline::resume` on a deferred computation.
+	///
+	/// Verifies that resuming a deferred `TryTrampoline` returns `Err(thunk)`,
+	/// and evaluating the thunk yields another `TryTrampoline` that can be resumed.
+	#[test]
+	fn test_resume_deferred() {
+		let t: TryTrampoline<i32, String> = TryTrampoline::defer(|| TryTrampoline::ok(99));
+		match t.resume() {
+			Ok(_) => panic!("expected suspension"),
+			Err(thunk) => {
+				let next = thunk.evaluate();
+				assert_eq!(next.resume().unwrap(), Ok(99));
+			}
+		}
+	}
+
+	/// Tests that resuming through a chain of deferred steps eventually reaches `Ok`.
+	///
+	/// Builds a chain of three deferred steps and manually drives it to completion.
+	#[test]
+	fn test_resume_chain_reaches_ok() {
+		let t: TryTrampoline<i32, String> = TryTrampoline::defer(|| {
+			TryTrampoline::defer(|| TryTrampoline::defer(|| TryTrampoline::ok(7)))
+		});
+
+		let mut current = t;
+		let mut steps = 0;
+		loop {
+			match current.resume() {
+				Ok(result) => {
+					assert_eq!(result, Ok(7));
+					break;
+				}
+				Err(thunk) => {
+					current = thunk.evaluate();
+					steps += 1;
+				}
+			}
+		}
+		assert!(steps > 0, "expected at least one suspension step");
 	}
 }
