@@ -35,7 +35,8 @@ just doc --workspace --all-features --open       # Build and open docs
 **Never run `cargo test` directly.** Use `just test` which caches output and only re-runs when source files change.
 
 ```bash
-just test                                        # Run all tests (cached)
+just test --all-features                             # Run all tests with all features (cached)
+just test                                            # Run all tests, default features (cached)
 just test -p fp-library test_name                # Run a subset (no caching)
 just test -p fp-library --test property          # Run property-based tests
 just test --doc -p fp-library                    # Run doc tests
@@ -74,7 +75,7 @@ Or individually:
 just fmt
 just clippy --workspace --all-features
 just doc --workspace --all-features --no-deps
-just test
+just test --all-features
 ```
 
 ## Language Server & Code Intelligence

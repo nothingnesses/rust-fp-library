@@ -62,7 +62,7 @@ test *args:
         cat "$OUTPUT_FILE"
     else
         echo "=== Running tests ==="
-        {{direnv_prefix}} cargo test --workspace --all-features $ARGS 2>&1 | tee "$OUTPUT_FILE"
+        {{direnv_prefix}} cargo test --workspace $ARGS 2>&1 | tee "$OUTPUT_FILE"
         echo "$LATEST" > "$TIMESTAMP_FILE"
     fi
 
@@ -71,4 +71,4 @@ verify:
     just fmt
     just clippy --workspace --all-features
     just doc --workspace --all-features --no-deps
-    just test
+    just test --all-features
