@@ -108,7 +108,9 @@ mod inner {
 	/// variants hold type-erased values; the concrete type `A` is tracked by
 	/// [`PhantomData`] on the outer [`Free`] struct. The CatList of continuations
 	/// lives at the top level in [`Free`], not inside any variant.
-	#[document_type_parameters("The base functor (must implement [`Extract`] and [`Functor`]).")]
+	#[document_type_parameters(
+		"The base functor. Requires [`Extract`] and [`Functor`] to match the struct-level bounds on [`Free`]; the `Suspend` variant itself only uses the [`Kind`](crate::kinds) trait (implied by `Functor`) for type application, and the `Extract` bound is needed for stack-safe `Drop`."
+	)]
 	pub enum FreeView<F>
 	where
 		F: Extract + Functor + 'static, {
@@ -188,7 +190,7 @@ mod inner {
 	///   stack-safe iteration. Use this when you want to translate the free structure into
 	///   another effect (e.g., `Option`, `Result`, or a custom interpreter).
 	#[document_type_parameters(
-		"The base functor (must implement [`Extract`] and [`Functor`]).",
+		"The base functor (must implement [`Extract`] and [`Functor`]). Many construction methods (`pure`, `bind`, `map`) only need `F: 'static` in principle, and functor-dependent methods (`wrap`, `lift_f`, `resume`, `fold_free`, `hoist_free`) only need `Functor`. The `Extract` bound is required at the struct level because the custom `Drop` implementation calls [`Extract::extract`] to iteratively dismantle `Suspend` nodes without overflowing the stack.",
 		"The result type."
 	)]
 	///
@@ -203,6 +205,13 @@ mod inner {
 		/// Phantom data tracking the concrete result type.
 		_marker: PhantomData<A>,
 	}
+
+	// ── Construction and composition ──────────────────────────────────
+	//
+	// Methods in this block only need `F: 'static` in principle; they
+	// never call `Functor::map` or `Extract::extract`. The `Extract +
+	// Functor` bounds are inherited from the struct definition, which
+	// requires them for stack-safe `Drop` of `Suspend` nodes.
 
 	#[document_type_parameters("The base functor.", "The result type.")]
 	#[document_parameters("The Free monad instance to operate on.")]
@@ -294,79 +303,6 @@ mod inner {
 			}
 		}
 
-		/// Creates a suspended computation from a functor value.
-		#[document_signature]
-		///
-		#[document_parameters("The functor value containing the next step.")]
-		///
-		#[document_returns("A `Free` computation that performs the effect `fa`.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let eval = Thunk::new(|| Free::pure(42));
-		/// let free = Free::<ThunkBrand, _>::wrap(eval);
-		/// assert_eq!(free.evaluate(), 42);
-		/// ```
-		pub fn wrap(
-			fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)
-		) -> Self {
-			// Type-erase the inner Free values in the functor using F::map.
-			let erased_fa = F::map(
-				|inner: Free<F, A>| -> Free<F, TypeErasedValue> { inner.cast_phantom() },
-				fa,
-			);
-			Free {
-				view: Some(FreeView::Suspend(erased_fa)),
-				continuations: CatList::empty(),
-				_marker: PhantomData,
-			}
-		}
-
-		/// Lifts a functor value into the Free monad.
-		///
-		/// This is the primary way to inject effects into Free monad computations.
-		/// Equivalent to PureScript's `liftF` and Haskell's `liftF`.
-		#[document_signature]
-		///
-		/// ### Implementation
-		///
-		/// ```text
-		/// liftF fa = wrap (map pure fa)
-		/// ```
-		#[document_parameters("The functor value to lift.")]
-		///
-		#[document_returns("A `Free` computation that performs the effect and returns the result.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::*,
-		/// };
-		///
-		/// // Lift a simple computation
-		/// let thunk = Thunk::new(|| 42);
-		/// let free = Free::<ThunkBrand, _>::lift_f(thunk);
-		/// assert_eq!(free.evaluate(), 42);
-		///
-		/// // Build a computation from raw effects
-		/// let computation = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 10))
-		/// 	.bind(|x| Free::lift_f(Thunk::new(move || x * 2)))
-		/// 	.bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
-		/// assert_eq!(computation.evaluate(), 25);
-		/// ```
-		pub fn lift_f(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)) -> Self {
-			// Map the value to a pure Free, then wrap it
-			Free::wrap(F::map(Free::pure, fa))
-		}
-
 		/// Monadic bind with O(1) complexity.
 		///
 		/// This is uniformly O(1) for all cases: the new continuation is simply
@@ -445,6 +381,148 @@ mod inner {
 			f: impl FnOnce(A) -> B + 'static,
 		) -> Free<F, B> {
 			self.bind(move |a| Free::pure(f(a)))
+		}
+
+		/// Converts to type-erased form.
+		///
+		/// With the CatList-paired representation, the view is already type-erased,
+		/// so this operation simply changes the phantom type parameter.
+		#[document_signature]
+		#[document_returns(
+			"A `Free` computation where the result type has been erased to `Box<dyn Any>`."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		/// let free = Free::<ThunkBrand, _>::pure(42);
+		/// let erased = free.erase_type();
+		/// assert!(erased.evaluate().is::<i32>());
+		/// ```
+		pub fn erase_type(mut self) -> Free<F, TypeErasedValue> {
+			let (view, conts) = self.take_parts();
+			// Append a continuation that re-boxes the value so that the outer
+			// phantom type (TypeErasedValue = Box<dyn Any>) matches the stored
+			// type. Without this, evaluate would try to downcast Box<dyn Any>
+			// containing A to Box<dyn Any>, which fails when A != Box<dyn Any>.
+			let rebox_cont: Continuation<F> = Box::new(|val: TypeErasedValue| Free {
+				view: Some(FreeView::Return(Box::new(val) as TypeErasedValue)),
+				continuations: CatList::empty(),
+				_marker: PhantomData,
+			});
+			Free {
+				view,
+				continuations: conts.snoc(rebox_cont),
+				_marker: PhantomData,
+			}
+		}
+
+		/// Converts to boxed type-erased form.
+		#[document_signature]
+		#[document_returns("A boxed `Free` computation where the result type has been erased.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		/// let free = Free::<ThunkBrand, _>::pure(42);
+		/// let boxed = free.boxed_erase_type();
+		/// assert!(boxed.evaluate().is::<i32>());
+		/// ```
+		pub fn boxed_erase_type(self) -> Box<Free<F, TypeErasedValue>> {
+			Box::new(self.erase_type())
+		}
+	}
+
+	// ── Functor-dependent operations ──────────────────────────────────
+	//
+	// Methods in this block call `Functor::map` (`F::map`) and thus
+	// require `F: Functor`. They do NOT call `Extract::extract`; the
+	// `Extract` bound is inherited from the struct definition.
+
+	#[document_type_parameters("The base functor.", "The result type.")]
+	#[document_parameters("The Free monad instance to operate on.")]
+	impl<F, A> Free<F, A>
+	where
+		F: Extract + Functor + 'static,
+		A: 'static,
+	{
+		/// Creates a suspended computation from a functor value.
+		#[document_signature]
+		///
+		#[document_parameters("The functor value containing the next step.")]
+		///
+		#[document_returns("A `Free` computation that performs the effect `fa`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let eval = Thunk::new(|| Free::pure(42));
+		/// let free = Free::<ThunkBrand, _>::wrap(eval);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		pub fn wrap(
+			fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)
+		) -> Self {
+			// Type-erase the inner Free values in the functor using F::map.
+			let erased_fa = F::map(
+				|inner: Free<F, A>| -> Free<F, TypeErasedValue> { inner.cast_phantom() },
+				fa,
+			);
+			Free {
+				view: Some(FreeView::Suspend(erased_fa)),
+				continuations: CatList::empty(),
+				_marker: PhantomData,
+			}
+		}
+
+		/// Lifts a functor value into the Free monad.
+		///
+		/// This is the primary way to inject effects into Free monad computations.
+		/// Equivalent to PureScript's `liftF` and Haskell's `liftF`.
+		#[document_signature]
+		///
+		/// ### Implementation
+		///
+		/// ```text
+		/// liftF fa = wrap (map pure fa)
+		/// ```
+		#[document_parameters("The functor value to lift.")]
+		///
+		#[document_returns("A `Free` computation that performs the effect and returns the result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// // Lift a simple computation
+		/// let thunk = Thunk::new(|| 42);
+		/// let free = Free::<ThunkBrand, _>::lift_f(thunk);
+		/// assert_eq!(free.evaluate(), 42);
+		///
+		/// // Build a computation from raw effects
+		/// let computation = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 10))
+		/// 	.bind(|x| Free::lift_f(Thunk::new(move || x * 2)))
+		/// 	.bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
+		/// assert_eq!(computation.evaluate(), 25);
+		/// ```
+		pub fn lift_f(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)) -> Self {
+			// Map the value to a pure Free, then wrap it
+			Free::wrap(F::map(Free::pure, fa))
 		}
 
 		/// Decomposes this `Free` computation into one step.
@@ -698,62 +776,22 @@ mod inner {
 				}
 			}
 		}
+	}
 
-		/// Converts to type-erased form.
-		///
-		/// With the CatList-paired representation, the view is already type-erased,
-		/// so this operation simply changes the phantom type parameter.
-		#[document_signature]
-		#[document_returns(
-			"A `Free` computation where the result type has been erased to `Box<dyn Any>`."
-		)]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::*,
-		/// };
-		/// let free = Free::<ThunkBrand, _>::pure(42);
-		/// let erased = free.erase_type();
-		/// assert!(erased.evaluate().is::<i32>());
-		/// ```
-		pub fn erase_type(mut self) -> Free<F, TypeErasedValue> {
-			let (view, conts) = self.take_parts();
-			// Append a continuation that re-boxes the value so that the outer
-			// phantom type (TypeErasedValue = Box<dyn Any>) matches the stored
-			// type. Without this, evaluate would try to downcast Box<dyn Any>
-			// containing A to Box<dyn Any>, which fails when A != Box<dyn Any>.
-			let rebox_cont: Continuation<F> = Box::new(|val: TypeErasedValue| Free {
-				view: Some(FreeView::Return(Box::new(val) as TypeErasedValue)),
-				continuations: CatList::empty(),
-				_marker: PhantomData,
-			});
-			Free {
-				view,
-				continuations: conts.snoc(rebox_cont),
-				_marker: PhantomData,
-			}
-		}
+	// ── Evaluation (requires Extract) ─────────────────────────────────
+	//
+	// This method calls `Extract::extract` and thus genuinely requires
+	// `F: Extract + Functor`. The `Drop` implementation also needs
+	// `Extract` for the same reason (stack-safe dismantling of `Suspend`
+	// nodes).
 
-		/// Converts to boxed type-erased form.
-		#[document_signature]
-		#[document_returns("A boxed `Free` computation where the result type has been erased.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::*,
-		/// };
-		/// let free = Free::<ThunkBrand, _>::pure(42);
-		/// let boxed = free.boxed_erase_type();
-		/// assert!(boxed.evaluate().is::<i32>());
-		/// ```
-		pub fn boxed_erase_type(self) -> Box<Free<F, TypeErasedValue>> {
-			Box::new(self.erase_type())
-		}
-
+	#[document_type_parameters("The base functor.", "The result type.")]
+	#[document_parameters("The Free monad instance to operate on.")]
+	impl<F, A> Free<F, A>
+	where
+		F: Extract + Functor + 'static,
+		A: 'static,
+	{
 		/// Executes the Free computation, returning the final result.
 		///
 		/// This is the "trampoline" that iteratively processes the
