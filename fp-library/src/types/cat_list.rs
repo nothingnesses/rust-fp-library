@@ -34,6 +34,7 @@ mod inner {
 				ApplySecond,
 				CloneableFn,
 				Compactable,
+				Extend,
 				Filterable,
 				Foldable,
 				FoldableWithIndex,
@@ -1623,6 +1624,62 @@ mod inner {
 					func(x),
 				)
 			})
+		}
+	}
+
+	/// Cooperative extension for [`CatList`], following the same suffix semantics
+	/// as the PureScript `Extend Array` instance.
+	///
+	/// `extend(f, list)` produces a new list where each element is `f` applied to
+	/// the suffix of the original list starting at that position. Requires
+	/// `A: Clone` because suffixes are materialized as owned lists.
+	impl Extend for CatListBrand {
+		/// Extends a local context-dependent computation to a global computation
+		/// over [`CatList`].
+		///
+		/// Applies `f` to every suffix of the input list. For a list `[a, b, c]`,
+		/// the result is `[f([a, b, c]), f([b, c]), f([c])]`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the elements in the list.",
+			"The result type of the extension function."
+		)]
+		///
+		#[document_parameters(
+			"The function that consumes a suffix list and produces a value.",
+			"The list to extend over."
+		)]
+		///
+		#[document_returns(
+			"A new list containing the results of applying the function to each suffix."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let result = extend::<CatListBrand, _, _>(|cl: CatList<i32>| cl.into_iter().sum::<i32>(), list);
+		/// let vec: Vec<_> = result.into_iter().collect();
+		/// assert_eq!(vec, vec![6, 5, 3]);
+		/// ```
+		fn extend<'a, A: 'a + Clone, B: 'a>(
+			f: impl Fn(Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> B + 'a,
+			wa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			// Collect to a Vec for indexed suffix access, then build the result
+			// as a CatList.
+			let elements: Vec<A> = wa.into_iter().collect();
+			(0 .. elements.len())
+				.map(|i| f(elements.get(i ..).unwrap_or_default().iter().cloned().collect()))
+				.collect()
 		}
 	}
 
@@ -3883,5 +3940,68 @@ mod tests {
 	fn test_cat_list_display_strings() {
 		let list = CatList::singleton("hello".to_string()).snoc("world".to_string());
 		assert_eq!(format!("{}", list), "[hello, world]");
+	}
+
+	// --- Extend tests ---
+
+	/// Tests basic `extend` on `CatList`: sum of suffixes.
+	#[test]
+	fn extend_sum_of_suffixes() {
+		use crate::classes::extend::extend;
+		let list = CatList::singleton(1).snoc(2).snoc(3);
+		let result =
+			extend::<CatListBrand, _, _>(|cl: CatList<i32>| cl.into_iter().sum::<i32>(), list);
+		let vec: Vec<_> = result.into_iter().collect();
+		assert_eq!(vec, vec![6, 5, 3]);
+	}
+
+	/// Extend associativity: `extend(f, extend(g, w)) == extend(|w| f(extend(g, w)), w)`.
+	#[test]
+	fn extend_associativity() {
+		use crate::classes::extend::extend;
+		let g = |cl: CatList<i32>| cl.into_iter().map(|x| x * 2).sum::<i32>();
+		let f = |cl: CatList<i32>| cl.into_iter().map(|x| x + 1).sum::<i32>();
+		let w = CatList::singleton(1).snoc(2).snoc(3);
+		let lhs = extend::<CatListBrand, _, _>(f, extend::<CatListBrand, _, _>(g, w.clone()));
+		let rhs = extend::<CatListBrand, _, _>(
+			|w: CatList<i32>| f(extend::<CatListBrand, _, _>(g, w)),
+			w,
+		);
+		let lhs_vec: Vec<_> = lhs.into_iter().collect();
+		let rhs_vec: Vec<_> = rhs.into_iter().collect();
+		assert_eq!(lhs_vec, rhs_vec);
+	}
+
+	/// Tests that `duplicate` produces suffixes.
+	#[test]
+	fn extend_duplicate_suffixes() {
+		use crate::classes::extend::duplicate;
+		let list = CatList::singleton(1).snoc(2).snoc(3);
+		let result = duplicate::<CatListBrand, _>(list);
+		let vecs: Vec<Vec<_>> = result.into_iter().map(|cl| cl.into_iter().collect()).collect();
+		assert_eq!(vecs, vec![vec![1, 2, 3], vec![2, 3], vec![3]]);
+	}
+
+	/// Tests `extend` on an empty list.
+	#[test]
+	fn extend_empty() {
+		use crate::classes::extend::extend;
+		let result = extend::<CatListBrand, _, _>(
+			|cl: CatList<i32>| cl.into_iter().sum::<i32>(),
+			CatList::empty(),
+		);
+		assert!(result.is_empty());
+	}
+
+	/// Tests `extend` on a singleton list.
+	#[test]
+	fn extend_singleton() {
+		use crate::classes::extend::extend;
+		let result = extend::<CatListBrand, _, _>(
+			|cl: CatList<i32>| cl.into_iter().sum::<i32>(),
+			CatList::singleton(42),
+		);
+		let vec: Vec<_> = result.into_iter().collect();
+		assert_eq!(vec, vec![42]);
 	}
 }

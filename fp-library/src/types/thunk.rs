@@ -794,7 +794,7 @@ mod inner {
 		/// let result = extend::<ThunkBrand, _, _>(|w: Thunk<i32>| w.evaluate() * 2, thunk);
 		/// assert_eq!(result.evaluate(), 42);
 		/// ```
-		fn extend<'a, A: 'a, B: 'a>(
+		fn extend<'a, A: 'a + Clone, B: 'a>(
 			f: impl Fn(Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> B + 'a,
 			wa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {

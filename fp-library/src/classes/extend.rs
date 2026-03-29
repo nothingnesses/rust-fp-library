@@ -70,7 +70,7 @@ mod inner {
 		#[document_returns(
 			"A new comonadic context containing the results of applying the function."
 		)]
-		fn extend<'a, A: 'a, B: 'a>(
+		fn extend<'a, A: 'a + Clone, B: 'a>(
 			f: impl Fn(Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> B + 'a,
 			wa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
@@ -91,7 +91,7 @@ mod inner {
 		#[document_parameters("The comonadic context to duplicate.")]
 		///
 		#[document_returns("A doubly-wrapped comonadic context.")]
-		fn duplicate<'a, A: 'a>(
+		fn duplicate<'a, A: 'a + Clone>(
 			wa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		where
@@ -118,7 +118,7 @@ mod inner {
 	)]
 	///
 	#[document_returns("A new comonadic context containing the results of applying the function.")]
-	pub fn extend<'a, Brand: Extend, A: 'a, B: 'a>(
+	pub fn extend<'a, Brand: Extend, A: 'a + Clone, B: 'a>(
 		f: impl Fn(Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> B + 'a,
 		wa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -142,7 +142,7 @@ mod inner {
 	#[document_parameters("The comonadic context to duplicate.")]
 	///
 	#[document_returns("A doubly-wrapped comonadic context.")]
-	pub fn duplicate<'a, Brand: Extend, A: 'a>(
+	pub fn duplicate<'a, Brand: Extend, A: 'a + Clone>(
 		wa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
@@ -174,7 +174,7 @@ mod inner {
 	#[document_returns(
 		"The result of composing both co-Kleisli functions and applying them to the context."
 	)]
-	pub fn compose_co_kleisli<'a, Brand: Extend, A: 'a, B: 'a, C: 'a>(
+	pub fn compose_co_kleisli<'a, Brand: Extend, A: 'a + Clone, B: 'a + Clone, C: 'a>(
 		f: impl Fn(Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> B + 'a,
 		g: impl Fn(Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)) -> C + 'a,
 		wa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -206,7 +206,7 @@ mod inner {
 	#[document_returns(
 		"The result of composing both co-Kleisli functions and applying them to the context."
 	)]
-	pub fn compose_co_kleisli_flipped<'a, Brand: Extend, A: 'a, B: 'a, C: 'a>(
+	pub fn compose_co_kleisli_flipped<'a, Brand: Extend, A: 'a + Clone, B: 'a + Clone, C: 'a>(
 		f: impl Fn(Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)) -> C + 'a,
 		g: impl Fn(Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> B + 'a,
 		wa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -234,7 +234,7 @@ mod inner {
 	)]
 	///
 	#[document_returns("A new comonadic context containing the results of applying the function.")]
-	pub fn extend_flipped<'a, Brand: Extend, A: 'a, B: 'a>(
+	pub fn extend_flipped<'a, Brand: Extend, A: 'a + Clone, B: 'a>(
 		wa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		f: impl Fn(Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> B + 'a,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {

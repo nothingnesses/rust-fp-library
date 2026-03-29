@@ -874,7 +874,7 @@ mod inner {
 		/// let result = extend::<IdentityBrand, _, _>(|w: Identity<i32>| w.0 * 2, id);
 		/// assert_eq!(result, Identity(10));
 		/// ```
-		fn extend<'a, A: 'a, B: 'a>(
+		fn extend<'a, A: 'a + Clone, B: 'a>(
 			f: impl Fn(Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> B + 'a,
 			wa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
