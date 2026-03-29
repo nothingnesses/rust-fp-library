@@ -1,34 +1,55 @@
-# SendDeferrable Analysis
-
-**File:** `fp-library/src/classes/send_deferrable.rs`
+# SendDeferrable Trait Analysis
 
 ## Overview
 
-`SendDeferrable<'a>` is a trait for types that support deferred lazy evaluation with thread-safe (`Send`) thunks. It extends `Deferrable<'a>` as a supertrait, adding a `send_defer` method that requires the closure to be `Send`. The module also provides a free function `send_defer` that dispatches to the trait method.
+`SendDeferrable<'a>` is a trait for deferred lazy evaluation with thread-safe thunks. It extends `Deferrable<'a>` by adding a `Send` bound on the closure parameter. The trait lives at `fp-library/src/classes/send_deferrable.rs` and has a single method, `send_defer`, plus a corresponding free function.
 
-## 1. Design
+**Signature:**
 
-### Supertrait relationship
+```rust
+pub trait SendDeferrable<'a>: Deferrable<'a> {
+    fn send_defer(f: impl FnOnce() -> Self + Send + 'a) -> Self
+    where
+        Self: Sized;
+}
+```
 
-The `SendDeferrable<'a>: Deferrable<'a>` supertrait bound (line 64) is well-motivated. It mirrors the `SendCloneableFn: CloneableFn` pattern used elsewhere in the codebase (documented in the trait doc at line 26). The key property this enables: any generic code written against `Deferrable` accepts both single-threaded and thread-safe types. This is the standard Rust idiom for "progressive capability," where thread safety is an opt-in extension.
+**Implementors:**
 
-However, the supertrait design creates a practical tension. For `SendThunk`, the `Deferrable::defer` implementation (at `send_thunk.rs:422-427`) must evaluate the thunk eagerly (`f()`) because the `Deferrable` trait signature does not require `Send` on the closure, and `SendThunk` internally requires `Send`. This means calling `defer` on a `SendThunk` loses laziness, which undercuts the "transparency" law that `Deferrable` promises. The `Deferrable` doc (at `deferrable.rs:39-45`) mitigates this with a warning, and the transparency law at `deferrable.rs:23-24` is carefully worded to say it "does not constrain when evaluation occurs." Still, this is an inherent awkwardness of the supertrait design: a `SendDeferrable` type's `Deferrable` implementation may behave less lazily than expected.
+| Type | Bounds on impl | Behavior |
+|------|---------------|----------|
+| `SendThunk<'a, A>` | `A: Send + 'a` | Delegates to `SendThunk::defer(f)`, which flattens via `SendThunk::new(move \|\| f().evaluate())`. |
+| `TrySendThunk<'a, A, E>` | `A: Send + 'a, E: Send + 'a` | Flattens via `TrySendThunk(SendThunk::new(move \|\| f().evaluate()))`. |
+| `Lazy<'a, A, ArcLazyConfig>` (ArcLazy) | `A: Clone + Send + Sync + 'a` | Creates a new `ArcLazy` via `ArcLazy::new(move \|\| f().evaluate().clone())`. |
+| `TryLazy<'a, A, E, ArcLazyConfig>` (ArcTryLazy) | `A: Clone + Send + Sync + 'a, E: Clone + Send + Sync + 'a` | Creates a new `ArcTryLazy` via `Self::new(move \|\| match f().evaluate() { ... })`. |
 
-The same tension applies to `ArcLazy`'s `Deferrable::defer` (`lazy.rs:884-888`), which also evaluates eagerly (`f()`), while its `SendDeferrable::send_defer` (`lazy.rs:921-924`) defers properly.
+## 1. Trait Design: Supertrait Relationship
 
-### Alternative: no supertrait
+### Strengths
 
-An alternative would be to make `SendDeferrable` standalone (not a supertrait of `Deferrable`). This would avoid the awkward eager-`defer` implementations. But it would also mean generic code could not accept both thread-safe and single-threaded types through a single bound, which is a significant ergonomic loss. The current design is the better trade-off.
+The `SendDeferrable<'a>: Deferrable<'a>` supertrait approach is well-motivated and consistent with the library's conventions:
 
-### Verdict
+- **Liskov substitution:** Any `SendDeferrable` type can be used in code that only requires `Deferrable`. This is documented explicitly: "Every `SendDeferrable` type is also `Deferrable`, so generic code written against `Deferrable` accepts both single-threaded and thread-safe types."
+- **Mirrors the `CloneableFn`/`SendCloneableFn` pattern:** The library already establishes this convention for the `Send`/non-`Send` split, so users encounter a familiar structure.
+- **Differs from `RefFunctor`/`SendRefFunctor`:** The docs for `RefFunctor` explicitly explain that `SendRefFunctor` is NOT a subtrait of `RefFunctor` because `ArcLazy::new` requires `Send` on the closure, preventing a valid `RefFunctor` impl for `ArcLazy`. The `Deferrable`/`SendDeferrable` pair avoids this issue because `Deferrable::defer` takes `FnOnce() -> Self`, which does not constrain the inner closure of the type being produced, only the outer thunk itself. Each Send-capable type can satisfy `Deferrable` by eagerly calling the non-Send outer thunk, then wrapping the result.
 
-The supertrait design is sound and consistent with the library's established patterns. The eager-evaluation compromise in `Deferrable` impls for `Send` types is well-documented.
+### The Eager-Evaluation Compromise
 
-## 2. Implementation Quality
+The supertrait relationship introduces a subtle semantic consequence: `Deferrable::defer` for Send types (`SendThunk`, `ArcLazy`, `TrySendThunk`, `ArcTryLazy`) must call the thunk **eagerly** because the outer thunk `f` is not guaranteed `Send`.
 
-### Trait definition (lines 64-86)
+- For `SendThunk`'s `Deferrable` impl: `fn defer(f) -> Self { f() }` calls `f` immediately.
+- For `ArcLazy`'s `Deferrable` impl: `fn defer(f) -> Self { f() }` calls `f` immediately.
+- The `SendDeferrable::send_defer` implementations, by contrast, can truly defer because the `Send` bound on the closure allows wrapping it in a new `SendThunk::new(...)` or `ArcLazy::new(...)`.
 
-The trait is minimal, containing a single method:
+This is well-documented in the `Deferrable` trait itself (the "Warning" section) and in each eager impl's doc comment. The documentation correctly steers users toward `SendDeferrable` when they need guaranteed deferred evaluation with thread-safe types.
+
+### Assessment
+
+The design is sound. The supertrait relationship maintains useful subtyping at the cost of eager evaluation in the `Deferrable` fallback, which is explicitly documented and reasonable.
+
+## 2. Method Signatures
+
+### `send_defer` Signature
 
 ```rust
 fn send_defer(f: impl FnOnce() -> Self + Send + 'a) -> Self
@@ -36,127 +57,109 @@ where
     Self: Sized;
 ```
 
-This is correct. The `FnOnce` bound (rather than `Fn`) is appropriate for computations that execute at most once. The `Send` bound (without `Sync`) is justified and explicitly documented at lines 31-34: deferred computations are executed at most once, so they do not need `Sync`. This is a meaningful distinction from `SendCloneableFn`, which wraps multi-use `Fn` closures and requires `Send + Sync`.
+**Correctness of bounds:**
 
-### Free function (lines 113-115)
+- `FnOnce()`: Correct. Deferred computations are executed at most once. Using `Fn` or `FnMut` would be unnecessarily restrictive.
+- `Send`: Correct. This is the distinguishing requirement over `Deferrable::defer`. The closure must be transferable across thread boundaries.
+- Not `Sync`: Correct. The docs explicitly justify this: "this trait accepts a `FnOnce` closure that only needs to be `Send` (not `Sync`), since deferred computations are executed at most once." A `FnOnce` closure is consumed on call, so `Sync` (shared-reference thread safety) is irrelevant.
+- `'a`: Correct. Matches the lifetime parameter on the trait, allowing the closure to borrow data with lifetime `'a`.
+- `Self: Sized`: Standard for trait methods that return `Self` by value. Prevents calling on `dyn SendDeferrable` trait objects, which is acceptable since the library uses static dispatch throughout.
+
+**No `Send` bound on `Self`:** The trait does not require `Self: Send`. This is correct because the trait is about constructing a value from a `Send` thunk, not about the resulting value being `Send`. Whether the constructed type is `Send` depends on the concrete type (e.g., `SendThunk` is `Send` when `A: Send`, `ArcLazy` is always `Send`).
+
+### Free Function Signature
 
 ```rust
-pub fn send_defer<'a, D: SendDeferrable<'a>>(f: impl FnOnce() -> D + Send + 'a) -> D {
-    D::send_defer(f)
-}
+pub fn send_defer<'a, D: SendDeferrable<'a>>(f: impl FnOnce() -> D + Send + 'a) -> D
 ```
 
-Correct, minimal delegation. Follows the same pattern as `defer` in `deferrable.rs:111-113`.
+Correctly mirrors the trait method. The generic parameter `D` allows type inference to determine the concrete type.
 
-### Implementors
+## 3. Consistency with Library-Wide Send/non-Send Patterns
 
-Four types implement `SendDeferrable`:
+The library uses three distinct patterns for the Send/non-Send split:
 
-1. **`SendThunk`** (`send_thunk.rs:433-457`): Delegates to the inherent `SendThunk::defer` (line 455), which calls `SendThunk::new(move || f().evaluate())` (line 150-152). This is correctly lazy; the outer thunk captures `f` and defers both the outer thunk call and the inner evaluation. Requires `A: Send`.
+| Pattern | Supertrait? | Reason |
+|---------|------------|--------|
+| `CloneableFn` / `SendCloneableFn` | Yes (`SendCloneableFn: CloneableFn`) | The wrapper type changes (`Rc` vs `Arc`), but both can exist for the same brand. |
+| `RefFunctor` / `SendRefFunctor` | No (independent) | `ArcLazy::new` requires `Send` closure, so `ArcLazy` cannot implement `RefFunctor` (which does not impose `Send`). |
+| `Deferrable` / `SendDeferrable` | Yes (`SendDeferrable: Deferrable`) | Eager evaluation fallback allows Send types to satisfy the non-Send trait. |
 
-2. **`ArcLazy`** (`lazy.rs:895-924`): Creates a new `ArcLazy` via `ArcLazy::new(move || f().evaluate().clone())`. This is correctly lazy (deferred until first access). Requires `A: Clone + Send + Sync`.
+`SendDeferrable` follows the `SendCloneableFn` pattern (supertrait), not the `SendRefFunctor` pattern (independent). This is correct because the eager-evaluation workaround makes it possible to implement `Deferrable` for all Send types, whereas `RefFunctor` has no such workaround for `ArcLazy`.
 
-3. **`TrySendThunk`** (`try_send_thunk.rs:880`): Fallible counterpart of `SendThunk`.
+**Naming convention** is consistent: the `Send` variant prefixes the non-Send name with `Send` and the free function prefixes with `send_`.
 
-4. **`ArcTryLazy`** (`try_lazy.rs:1362`): Fallible counterpart of `ArcLazy`.
+**Documentation cross-references** between `Deferrable` and `SendDeferrable` are thorough, with `Deferrable`'s Warning section pointing users to `SendDeferrable`, and `SendDeferrable` referencing the `SendCloneableFn: CloneableFn` pattern as precedent.
 
-All implementations are consistent and correct.
+## 4. Documentation Quality
 
-### Potential issue: `SendThunk::send_defer` method resolution
+### Strengths
 
-At `send_thunk.rs:455`, the call `SendThunk::defer(f)` resolves to the *inherent* method `SendThunk::defer` (line 150), not the `Deferrable::defer` trait method (line 422), because inherent methods take priority in Rust's method resolution. This is the correct behavior, but it relies on an implicit resolution rule. A more explicit approach would be `SendThunk::new(move || f().evaluate())` directly, avoiding any ambiguity. This is a minor style concern, not a bug.
+- **Clear purpose statement:** "A trait for deferred lazy evaluation with thread-safe thunks."
+- **Good cross-references:** Links to `Deferrable`, `SendCloneableFn`, and the concrete `arc_lazy_fix` function.
+- **FnOnce vs Fn justification:** Explicitly explains why `FnOnce` is used rather than `Fn`, and why `Send` but not `Sync` is required.
+- **Law is stated:** Transparency law is clearly specified.
+- **"Why there is no generic `fix`" section:** Correctly explains that lazy self-reference requires shared ownership and interior mutability.
+- **Working examples:** Both the module-level example and the doc examples on the trait and free function compile and demonstrate real usage.
+- **Uses the library's documentation macro system** (`#[document_signature]`, `#[document_parameters]`, `#[document_returns]`, `#[document_examples]`) consistently.
 
-## 3. API Surface
+### Weaknesses
 
-### Completeness
+- **No explicit mention of the eager-evaluation tradeoff in `SendDeferrable` itself.** The `Deferrable` trait documents the Warning about eager evaluation, and each concrete impl documents it, but the `SendDeferrable` trait docs could benefit from a note explaining that `send_defer` guarantees truly deferred evaluation, contrasting with `defer` on Send types.
+- **Single law only.** `Deferrable` has two QuickCheck tests (transparency and nesting). `SendDeferrable` has zero QuickCheck tests and states only the transparency law. The nesting law (`send_defer(|| send_defer(|| x))` equals `send_defer(|| x)`) is not mentioned, though it arguably follows from transparency.
+- **Module-level example is narrow.** Uses only `ArcLazy`; could show `SendThunk` as well to demonstrate the trait across multiple types.
 
-The API surface is intentionally minimal: one trait method and one free function. This is appropriate. `SendDeferrable` is a capability trait, not a rich interface. The actual computation-building API lives on the concrete types (`SendThunk::map`, `SendThunk::bind`, etc.).
+## 5. Issues and Limitations
 
-### Discoverability
+### 5.1 No Property Tests
 
-The free function `send_defer` is auto-exported via the `generate_function_re_exports!` macro in `functions.rs:25-35`, making it available through `use fp_library::functions::*`. The module-level example at lines 6-13 demonstrates usage with this import path. This is good.
+`Deferrable` has a `#[cfg(test)]` module with two QuickCheck properties (transparency and nesting). `SendDeferrable` has no tests at all. There are only individual unit tests inside the impl modules for `SendThunk` and `TrySendThunk`. A property-based test for `SendDeferrable` transparency across all implementors would strengthen the test suite.
 
-### Missing: no `send_defer` in `functions.rs` re-exports list
+### 5.2 Clone Bound Asymmetry
 
-The `generate_function_re_exports!` macro scans `src/classes/` and automatically finds free functions, so `send_defer` does not need a manual entry. This is fine; the macro handles it.
+The `ArcLazy` `SendDeferrable` impl requires `A: Clone`, while its `Deferrable` impl does not. This is because `send_defer` calls `f().evaluate().clone()` to extract the inner value from the intermediate `ArcLazy` (which returns `&A`), whereas the `Deferrable::defer` impl just calls `f()` eagerly and returns the result as-is. The `Clone` bound is a genuine limitation: types that are `Send + Sync` but not `Clone` cannot use `send_defer` with `ArcLazy`. The same asymmetry applies to `ArcTryLazy`. This is inherent to the memoized types' design (`evaluate` returns `&A`) and not a bug, but it is worth calling out.
 
-## 4. Consistency
+### 5.3 Not Used as a Bound in Generic Code
 
-### With `Deferrable`
+A search for `SendDeferrable` shows it is never used as a trait bound in generic functions or other traits. It is only implemented and called at concrete types. This suggests the abstraction is currently useful primarily for documentation and for a uniform API surface (`send_defer`), rather than for writing polymorphic code. If the library evolves to have generic functions that accept `SendDeferrable`, the trait will become more valuable. Currently its primary benefit is naming the pattern and providing the free function.
 
-The trait structure exactly mirrors `Deferrable`:
+### 5.4 No `Evaluable` Integration
 
-| Aspect | `Deferrable` | `SendDeferrable` |
-|---|---|---|
-| Trait method | `defer(f: impl FnOnce() -> Self + 'a)` | `send_defer(f: impl FnOnce() -> Self + Send + 'a)` |
-| Free function | `defer<'a, D>(f)` | `send_defer<'a, D>(f)` |
-| Module pattern | `document_module` + `pub use inner::*` | Same |
-| Law | Transparency | Transparency (same) |
+The `send_defer` implementations all call `.evaluate()` internally. There is an `Evaluable` trait in the library, but `SendDeferrable` does not require `Evaluable` as a supertrait. This is fine since `Evaluable` may have a different evaluation signature (returning `&A` vs `A`), but it means the flattening behavior in each `send_defer` impl is ad-hoc rather than expressed through the type system.
 
-The only difference is the `+ Send` bound on the closure. This is exactly what one would expect.
+### 5.5 Trampoline and Free Do Not Implement SendDeferrable
 
-### With the Send pattern elsewhere
+`Trampoline<A>` and `Free<ThunkBrand, A>` implement `Deferrable<'static>` but not `SendDeferrable`. This makes sense because `Thunk` (their underlying functor) is `!Send`. If a `SendThunk`-based `Free` variant were added, it could implement `SendDeferrable`.
 
-The library uses a consistent pattern for thread-safe extensions:
+## 6. Alternatives Considered
 
-- `CloneableFn` / `SendCloneableFn` (referenced in doc, line 26)
-- `RefFunctor` / `SendRefFunctor`
-- `Deferrable` / `SendDeferrable`
-- `RefCountedPointer` / `SendRefCountedPointer`
+### 6.1 Blanket Impl Instead of Separate Trait
 
-`SendDeferrable` follows this established convention.
+One alternative: drop `SendDeferrable` and instead provide a blanket impl of `Deferrable` that adds `Send` bounds. This does not work in Rust because you cannot conditionally add bounds to an existing trait method. The separate trait is the correct approach.
 
-### Naming
+### 6.2 Conditional Impls via Marker Traits
 
-The method is named `send_defer` rather than `defer` (which would shadow the supertrait method). This avoids ambiguity and is consistent with `SendCloneableFn` which uses `SendOf` as its associated type name rather than `Of`.
+Another approach: have a single `Deferrable` trait with an associated type or const that indicates whether `Send` is required, then use conditional compilation or specialization. This is overly complex and specialization is unstable. The current two-trait approach is simpler and idiomatic.
 
-## 5. Limitations
+### 6.3 Making `Deferrable::defer` Require `Send`
 
-### No blanket impl
+If `Deferrable::defer` required `Send` on the closure, `SendDeferrable` would be unnecessary. However, this would exclude `Thunk`, `RcLazy`, `TryThunk`, `Free`, and `Trampoline` from implementing `Deferrable`, since their closures are `!Send`. This is clearly worse.
 
-There is no blanket `impl<T: SendDeferrable<'a>> Deferrable<'a> for T`. This is correct; each type provides its own `Deferrable` impl (some eager, some not), so a blanket impl would be wrong. But it does mean every `SendDeferrable` implementor must also manually implement `Deferrable`, which is a small maintenance burden.
+### 6.4 Independent Traits (Like RefFunctor/SendRefFunctor)
 
-### `FnOnce` prevents retry/multi-evaluation
+Making `SendDeferrable` independent from `Deferrable` (no supertrait) would lose the ability to use Send types in `Deferrable`-bounded generic code. The supertrait approach is strictly better here because the eager-evaluation fallback makes it possible for all Send types to implement `Deferrable`.
 
-The `FnOnce` bound means the deferred computation can only be produced once. If the thunk fails (e.g., panics), there is no way to retry. This is inherent to `FnOnce` and is the correct trade-off for move semantics.
+### 6.5 A Generic `Deferrable` Parameterized by Thread Safety
 
-### No `Sync` bound on the trait itself
+Something like `Deferrable<'a, Safety = NotSend>` / `Deferrable<'a, Safety = IsSend>`. This is theoretically elegant but adds complexity to every bound site and does not compose well with Rust's trait system. The two-trait approach is more pragmatic.
 
-`SendDeferrable` only requires the closure to be `Send`, not `Sync`. The trait itself has no `Send` or `Sync` bound on `Self`. This means a `SendDeferrable` type is not necessarily `Send` itself (e.g., `ArcLazy` is `Send + Sync` because of `Arc`, but the trait does not guarantee this). This is fine; the trait only governs construction, not the thread-safety of the resulting value.
+## 7. Summary
 
-### `'static` limitation for some implementors
+`SendDeferrable` is a well-designed, focused trait that correctly extends `Deferrable` with `Send` bounds on the closure. The supertrait relationship is justified by the eager-evaluation fallback that allows Send types to satisfy `Deferrable`. The `FnOnce + Send` (not `Sync`) bound is precisely correct for single-use deferred computations.
 
-`Trampoline<A>` (which is `Free<ThunkBrand, A>`) is listed in the CLAUDE.md table as implementing `Deferrable` but is absent from `SendDeferrable` implementors. This is because `Trampoline` requires `'static` and is not `Send`. This limitation is inherent to the type, not to `SendDeferrable`.
+**Key strengths:** Correct bounds, consistent naming, good documentation, follows established library patterns.
 
-### No default implementation
-
-The trait provides no default `send_defer` in terms of `defer`. This is correct because `defer` has weaker bounds (no `Send`), so it cannot delegate to `send_defer`, and going the other direction (`send_defer` delegating to `defer`) would lose the `Send` guarantee.
-
-## 6. Documentation
-
-### Trait doc (lines 22-63)
-
-Thorough and accurate. Specifically:
-
-- **Lines 24-26:** Correctly describes the supertrait relationship and cites the analogous `SendCloneableFn: CloneableFn` pattern.
-- **Lines 28-29:** Correctly states that `Deferrable` code accepts both single-threaded and thread-safe types.
-- **Lines 31-34:** Important clarification that `FnOnce` only needs `Send` (not `Sync`), with a clear rationale. This is a notable design decision that deserves this level of documentation.
-- **Lines 38-39:** The transparency law is stated. It mirrors `Deferrable`'s law.
-- **Lines 41-47:** The "Why there is no generic `fix`" section correctly explains that lazy self-reference requires shared ownership and interior mutability, pointing to `arc_lazy_fix` as the concrete solution. This mirrors the equivalent section in `Deferrable`'s doc (`deferrable.rs:28-37`).
-- **Lines 51-63:** The example demonstrates the transparency law with `ArcLazy`.
-
-### Module doc (lines 1-14)
-
-The module-level example uses `ArcLazy` and demonstrates the `send_defer` free function. Accurate.
-
-### Free function doc (lines 88-115)
-
-Correctly describes itself as a dispatch wrapper. Includes type parameter and parameter documentation.
-
-### Minor documentation observations
-
-- The transparency law at line 39 says `send_defer(|| x)` is "observationally equivalent to `x` when evaluated." This matches `Deferrable`'s wording. However, unlike `Deferrable`, which warns that some implementations may evaluate eagerly, `SendDeferrable` does not include this caveat. This is correct since `SendDeferrable` implementations are expected to be truly lazy (the whole point of the trait is to provide the `Send` bound that enables true laziness for types like `ArcLazy` and `SendThunk`).
-
-## Summary
-
-`SendDeferrable` is a well-designed, minimal trait that follows the library's established patterns for thread-safe extensions. The supertrait relationship with `Deferrable` is sound, the implementation is correct across all four implementors, and the documentation is thorough. The main inherent tension (eager evaluation in `Deferrable` impls for `Send` types) is a necessary trade-off that is well-documented. No bugs or significant design issues were found.
+**Areas for improvement:**
+1. Add QuickCheck property tests for the transparency law (and ideally the nesting law).
+2. Add a note in the `SendDeferrable` trait docs explicitly contrasting guaranteed-deferred evaluation in `send_defer` with eager evaluation in `defer` for Send types.
+3. Consider whether the `Clone` bound on `ArcLazy`/`ArcTryLazy` implementations could be relaxed (likely not without changing the `Lazy` evaluation model, but worth documenting the limitation in the trait docs).

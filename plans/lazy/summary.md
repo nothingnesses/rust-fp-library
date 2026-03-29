@@ -1,227 +1,295 @@
 # Lazy Evaluation Hierarchy: Consolidated Analysis Summary
 
-## 1. Overview
+This document consolidates findings from individual analyses of all 18 components in the lazy evaluation hierarchy. It is organized by theme rather than by file, grouping related issues together and highlighting cross-cutting concerns.
 
-The lazy evaluation hierarchy comprises 18 analyzed components spanning four categories:
+---
 
-- **Infallible computation types:** `Thunk`, `SendThunk`, `Trampoline`, `RcLazy`, `ArcLazy`, and the `Free` monad (backed by `CatList`).
-- **Fallible computation types:** `TryThunk`, `TrySendThunk`, `TryTrampoline`, `RcTryLazy`, `ArcTryLazy`.
-- **Type classes and traits:** `Deferrable`, `SendDeferrable`, `Evaluable`, `RefFunctor`, `SendRefFunctor`, `MonadRec`.
-- **Supporting infrastructure:** `Step` (recursion control type), `CatList` (catenable list for `Free`), and brand definitions in `brands.rs`.
+## Table of Contents
 
-Each type makes different trade-offs across five axes: stack safety, memoization, lifetime polymorphism, thread safety (`Send`), and HKT compatibility. The hierarchy is well-structured, with clear upgrade paths between types (e.g., `Thunk` to `Trampoline` for stack safety, `Thunk` to `RcLazy` for memoization, `Thunk` to `SendThunk` for thread safety).
+1. [Architecture and Design Coherence](#1-architecture-and-design-coherence)
+2. [Cross-Cutting Concerns](#2-cross-cutting-concerns)
+3. [Significant Issues and Design Flaws](#3-significant-issues-and-design-flaws)
+4. [Missing Implementations and Inconsistencies](#4-missing-implementations-and-inconsistencies)
+5. [Strengths and Well-Designed Elements](#5-strengths-and-well-designed-elements)
+6. [Suggested Improvements by Priority](#6-suggested-improvements-by-priority)
 
-## 2. Cross-Cutting Themes
+---
 
-### 2.1 Eager Evaluation in `Deferrable` for `Send` Types
+## 1. Architecture and Design Coherence
 
-The most pervasive design tension across the hierarchy. `SendThunk`, `TrySendThunk`, `ArcLazy`, and `ArcTryLazy` all implement `Deferrable::defer` by calling `f()` eagerly, because the trait signature does not require `Send` on the closure. True deferral is only available through `SendDeferrable::send_defer`. This is documented on the `Deferrable` trait and on individual impls, but remains a potential surprise for users writing generic code against `Deferrable`.
+### 1.1 The Type Hierarchy
 
-*Affected files: deferrable.md, send_deferrable.md, send_thunk.md, try_send_thunk.md, lazy.md, try_lazy.md.*
+The hierarchy consists of 11 concrete types (plus supporting traits and brands) organized along three axes: infallible/fallible, Send/non-Send, and memoized/non-memoized/stack-safe.
 
-### 2.2 `Send` Bounds Prevent HKT Trait Implementations
+| | Non-Send, non-memoized | Send, non-memoized | Non-Send, memoized | Send, memoized | Non-Send, stack-safe |
+|---|---|---|---|---|---|
+| **Infallible** | `Thunk<'a, A>` | `SendThunk<'a, A>` | `RcLazy<'a, A>` | `ArcLazy<'a, A>` | `Trampoline<A>` |
+| **Fallible** | `TryThunk<'a, A, E>` | `TrySendThunk<'a, A, E>` | `RcTryLazy<'a, A, E>` | `ArcTryLazy<'a, A, E>` | `TryTrampoline<A, E>` |
 
-`SendThunk` and `TrySendThunk` cannot implement HKT traits (`Functor`, `Semimonad`, `MonadRec`, etc.) because the trait method signatures do not carry `Send` bounds on closure parameters. These types provide equivalent inherent methods instead. This is a fundamental limitation of the library's HKT encoding.
+Supporting types: `Free<F, A>` (the engine behind `Trampoline`), `CatList<A>` (the continuation queue for `Free`), `Step<A, B>` (control type for `MonadRec`).
 
-*Affected files: send_thunk.md, try_send_thunk.md, brands.md.*
+### 1.2 HKT Coverage Gradient
 
-### 2.3 Reference-Returning `evaluate` Prevents Standard Functor
+The HKT support forms a deliberate gradient reflecting each type's capabilities:
 
-`Lazy` and `TryLazy` return `&A` from `evaluate()` due to memoization behind shared pointers. This prevents implementing `Functor` (which requires owned `A`), leading to the separate `RefFunctor`/`SendRefFunctor` traits. The consequence is that `Lazy`/`TryLazy` cannot participate in the standard `Functor` -> `Applicative` -> `Monad` tower.
+- **Full HKT:** `ThunkBrand` (Functor through MonadRec, Evaluable, Foldable, indexed variants), `TryThunkErrAppliedBrand<E>` and `TryThunkOkAppliedBrand<A>` (full monadic stacks), `CatListBrand` (the richest brand in the hierarchy).
+- **Partial HKT:** `LazyBrand<Config>` and `TryLazyBrand<E, Config>` (RefFunctor/SendRefFunctor, Foldable; cannot implement Functor due to `&A` evaluation), `SendThunkBrand` (Foldable only; cannot implement Functor due to Send constraints).
+- **No HKT:** `Trampoline`, `TryTrampoline`, `Free` (all require `'static`, incompatible with the Kind trait's lifetime polymorphism).
 
-*Affected files: lazy.md, try_lazy.md, ref_functor.md, send_ref_functor.md.*
+This gradient is well-calibrated. The library does not force HKT support where it does not fit, and each limitation is documented with clear rationale.
 
-### 2.4 `'static` Requirement Blocks HKT for `Free`/`Trampoline`
+### 1.3 Newtype Composition Pattern
 
-`Free` uses `Box<dyn Any>` for type erasure, requiring `A: 'static`. This conflicts with the `Kind` trait's lifetime polymorphism (`Of<'a, A>`), so `Trampoline`, `TryTrampoline`, and `Free` itself have no HKT brands. They provide inherent methods (`pure`, `bind`, `map`) instead.
+The fallible types consistently wrap their infallible counterparts: `TryThunk` wraps `Thunk<Result<A, E>>`, `TrySendThunk` wraps `SendThunk<Result<A, E>>`, `TryTrampoline` wraps `Trampoline<Result<A, E>>`, and `TryLazy` wraps memoized `Result<A, E>`. This pattern maximizes code reuse (stack safety, CatList machinery, pointer management all come from the base types) while providing ergonomic error-aware combinators (`map`, `bind` with short-circuiting, `catch`, `catch_with`, `bimap`).
 
-*Affected files: free.md, trampoline.md, try_trampoline.md, brands.md.*
+### 1.4 Config-Parameterized Unification
 
-### 2.5 `Clone` Requirements in Memoized Types
+The `LazyConfig`/`TryLazyConfig` trait system unifies `RcLazy`/`ArcLazy` and `RcTryLazy`/`ArcTryLazy` under single brand definitions (`LazyBrand<Config>`, `TryLazyBrand<E, Config>`). This avoids duplicating brand definitions and all their type class impls, while remaining open to third-party extensions (e.g., `parking_lot`-based or async-aware cells).
 
-Operations on `RcLazy`, `ArcLazy`, `RcTryLazy`, and `ArcTryLazy` frequently require `Clone` on value types because `evaluate()` returns references and new cells need owned values. This excludes non-cloneable types from many combinators (`Deferrable`, `Semigroup`, `Monoid`, `Foldable`, `map`/`map_err` on `TryLazy`).
+---
 
-*Affected files: lazy.md, try_lazy.md, deferrable.md.*
+## 2. Cross-Cutting Concerns
 
-### 2.6 Missing Property-Based Law Tests
+### 2.1 The Send Boundary Problem
 
-Multiple traits and types lack QuickCheck property tests for their stated laws. The existing doc-test examples demonstrate correctness but do not systematically verify algebraic properties.
+The most pervasive tension in the hierarchy is between Rust's `Send` bound system and the HKT trait signatures. The library's HKT traits (`Functor::map`, `Semimonad::bind`, etc.) accept closures as `impl Fn(A) -> B + 'a` without a `Send` bound. This means:
 
-*Affected files: deferrable.md, evaluable.md, monad_rec.md, ref_functor.md, send_ref_functor.md.*
+- `SendThunk`, `TrySendThunk`, `ArcLazy`, and `ArcTryLazy` **cannot implement Functor, Monad, or any closure-accepting HKT trait**, because a caller could pass a non-Send closure that the type cannot store.
+- The library uses three different patterns for the Send/non-Send split:
+  - **Supertrait:** `SendDeferrable: Deferrable` (works because the eager-evaluation fallback allows Send types to satisfy the non-Send trait).
+  - **Independent traits:** `RefFunctor` vs `SendRefFunctor` (cannot use supertrait because `ArcLazy::new` requires `Send` on the closure, preventing a valid `RefFunctor` impl).
+  - **Inherent methods only:** `SendThunk` and `TrySendThunk` provide `map`, `bind`, `tail_rec_m` as inherent methods rather than through any trait.
 
-### 2.7 Consistent Documentation Quality
+This three-pattern approach is pragmatically correct but means there is no way to write code that is generic over "any mappable lazy type" spanning both Send and non-Send variants. The documentation correctly identifies this as a fundamental Rust constraint.
 
-All types and traits use the project's documentation macros (`#[document_signature]`, `#[document_type_parameters]`, `#[document_parameters]`, `#[document_returns]`, `#[document_examples]`) consistently. Doc examples compile and contain assertions. This is a strength across the board.
+**Affected files:** brands.md, send_thunk.md, try_send_thunk.md, deferrable.md, send_deferrable.md, ref_functor.md, send_ref_functor.md, lazy.md.
 
-## 3. Issues by Severity
+### 2.2 The `'static` Constraint
 
-### High Severity
+`Free`, `Trampoline`, and `TryTrampoline` require `A: 'static` because `Free` uses `Box<dyn Any>` for type erasure in its CatList of continuations. This constraint:
 
-1. **`Free::Drop` stack overflow for deeply nested `Wrap` chains** (free.md). The `Drop` impl handles `Bind` chains iteratively but delegates `Wrap` variants to the functor's `Drop`, which recurses. Deeply nested `Wrap`-only chains (without `Bind`) can overflow the stack on drop.
+- Prevents these types from having HKT brands (the Kind system requires lifetime polymorphism).
+- Forces all closures passed to `bind`, `map`, `defer`, etc. to be `'static`.
+- Creates a hard boundary: types that need borrowed data must use `Thunk`/`TryThunk` (with limited stack safety), while types that need stack safety must use `Trampoline`/`TryTrampoline` (with `'static` data only).
 
-2. **`CatList` recursive `Drop` for deeply nested structures** (cat_list.md). No custom `Drop` implementation; deeply nested `CatList` trees can overflow the stack when dropped. Less likely in practice due to `flatten_deque` restructuring during iteration, but a latent risk for standalone usage.
+Additionally, partially-applied brands like `TryThunkErrAppliedBrand<E>` require `E: 'static`, preventing HKT-polymorphic code from working with borrowed error types. This is inherent to the Brand pattern's encoding.
 
-3. **`Evaluable` naturality law is incorrectly stated** (evaluable.md). The stated law constrains natural transformations, not `evaluate` itself. It should be replaced with the standard comonad extract law: `evaluate(map(f, fa)) == f(evaluate(fa))`.
+**Affected files:** free.md, trampoline.md, try_trampoline.md, brands.md, evaluable.md.
 
-### Medium Severity
+### 2.3 The `Fn` vs `FnOnce` Tension
 
-4. **`TrySendThunk` missing `tail_rec_m` / `arc_tail_rec_m`** (try_send_thunk.md). Every other thunk/trampoline variant has stack-safe recursion support; `TrySendThunk` does not. This leaves no stack-safe recursion path for fallible + thread-safe deferred computations without falling back to `TryTrampoline` (which requires `'static` and eager conversion).
+The library's HKT traits use `impl Fn` for closure parameters (to support multi-element containers like `Vec` where the function is called multiple times), but single-element types like `Thunk` only need `FnOnce`. This means:
 
-5. **`MonadRec` missing implementations for standard types** (monad_rec.md). `OptionBrand`, `VecBrand`, `ResultErrAppliedBrand`, and `IdentityBrand` do not implement `MonadRec`, even though their `bind` is inherently stack-safe. This limits the utility of generic `MonadRec`-polymorphic code.
+- Users of HKT-polymorphic code must provide `Fn` closures even when working with `Thunk`, which only calls them once.
+- The inherent methods on `Thunk`, `SendThunk`, etc. accept `FnOnce` for maximum flexibility.
+- Both `RefFunctor` and `SendRefFunctor` correctly use `FnOnce` since memoized types evaluate at most once.
 
-6. **`MonadRec` law documentation is weak** (monad_rec.md). The stated "Equivalence" law is a tautology (correctness requirement), and "Safety varies" is an implementation note, not a law. The actual PureScript law (`tail_rec_m(|a| pure(Done(a)), x) == pure(x)`) is not stated.
+This is a fundamental design tension: the unified HKT approach sacrifices some per-type flexibility for the benefit of a single trait hierarchy.
 
-7. **`Free::fold_free` is not stack-safe** (free.md). Uses actual recursion; deeply nested computations with strict target monads will overflow. Documented, but a stack-safe variant (`fold_free` via `resume` in a loop) would be valuable.
+**Affected files:** thunk.md, send_thunk.md, ref_functor.md, send_ref_functor.md, free.md.
 
-8. **`TryThunkOkAppliedBrand` applicative/monad inconsistency** (try_thunk.md). `apply` uses fail-last semantics while `bind` uses fail-fast. This violates the standard applicative/monad consistency law. Documented and intentional (mirrors Haskell's `Validation` vs `Either`), but may surprise users.
+### 2.4 The `Clone` Requirement Propagation
 
-9. **Missing `From<SendThunk> for Thunk` conversion** (send_thunk.md, thunk.md). A `SendThunk` closure is a subtype of a `Thunk` closure (`Box<dyn FnOnce() -> A + Send>` is a subtype of `Box<dyn FnOnce() -> A>`). This zero-cost conversion is missing.
+`Clone` bounds appear throughout the hierarchy for multiple reasons:
 
-10. **`SendRefFunctor` `B` bound lacks `Sync`** (send_ref_functor.md). The trait requires `B: Send` but not `Sync`. The resulting `ArcLazy<B>` will be `!Send` if `B` is `Send` but not `Sync`, which silently defeats the purpose of using `ArcLazy`.
+- **Memoized types:** `Lazy::evaluate()` returns `&A`, so extracting owned values requires cloning. This affects `Deferrable`, `Semigroup`, `Monoid`, and `Foldable` implementations for all `Lazy`/`TryLazy` types.
+- **HKT trait signatures:** `Lift::lift2` and `Semiapplicative::apply` require `A: Clone` because multi-element containers need to reuse values. Single-element types like `Thunk` pay this cost unnecessarily.
+- **`Trampoline::tail_rec_m`:** Requires `Clone + 'static` on the step function because each iteration captures `f` by value. The `arc_tail_rec_m` variant relaxes `Clone` via `Arc` wrapping.
+- **Conversions:** `From<Lazy> for Trampoline` requires `A: Clone` to extract the memoized value.
 
-### Low Severity
+**Affected files:** lazy.md, try_lazy.md, thunk.md, monad_rec.md, trampoline.md, deferrable.md.
 
-11. **`MonadRec` `Clone` bound on `func` is over-constraining** (monad_rec.md). The trait requires `Clone` on the step function, but all current HKT implementors use simple loops where `Fn` alone suffices. The `Clone` bound exists for `Trampoline`'s recursive `go` pattern, but `Trampoline` cannot implement the HKT trait anyway.
+### 2.5 Code Duplication
 
-12. **`SendThunk::into_arc_lazy` bypasses `Lazy` abstraction boundary** (send_thunk.md). Constructs `Lazy` directly via its tuple struct field rather than using a `From` impl or constructor.
+Substantial structural duplication exists across four axes:
 
-13. **Minor copy-paste doc errors in `TryThunk`** (try_thunk.md). `fold_map` parameter descriptions say "The Thunk to fold" instead of "The TryThunk to fold" (lines 1180, 1933).
+1. **Send/non-Send pairs:** `Thunk`/`SendThunk` and `TryThunk`/`TrySendThunk` have nearly identical inherent methods differing only in `+ Send` bounds (~150 lines per pair).
+2. **Infallible/Fallible pairs:** `Trampoline`/`TryTrampoline` and `Thunk`/`TryThunk` share the same combinator surface with added `Result` handling.
+3. **Rc/Arc duplication within memoized types:** `RcLazy`/`ArcLazy` and `RcTryLazy`/`ArcTryLazy` duplicate methods with different `Send + Sync` bounds.
+4. **HKT impls vs inherent methods:** Types without HKT brands (`Trampoline`, `TryTrampoline`, `SendThunk`, `TrySendThunk`) re-implement monadic operations as inherent methods.
 
-14. **`TryTrampoline::into_trampoline` naming inconsistency** (try_trampoline.md). `TryThunk` uses `into_inner`; `TryTrampoline` uses `into_trampoline`. Should be standardized.
+This duplication is a known cost of Rust's type system (no way to parameterize over the presence of a `Send` bound, no way to abstract over trait objects with different auto-trait bounds). Macro-based deduplication is possible but would harm readability. The current approach is acceptable.
 
-15. **`TrySendThunk::ok` missing "Alias for `pure`" doc note** (try_send_thunk.md). `TryThunk::ok` documents itself as an alias for `pure`; `TrySendThunk::ok` does not.
+**Affected files:** send_thunk.md, try_send_thunk.md, try_trampoline.md, try_lazy.md, lazy.md.
 
-16. **`SendRefFunctor` missing "Cache chain behavior" and "Why `FnOnce`?" doc sections** (send_ref_functor.md). These sections exist in `RefFunctor` and apply equally to `SendRefFunctor`.
+### 2.6 Eager Evaluation in `Deferrable` for Send Types
 
-17. **`RefFunctor` composition law doc uses reversed variable naming between abstract law and example** (ref_functor.md). Minor readability issue.
+Four types (`SendThunk`, `ArcLazy`, `TrySendThunk`, `ArcTryLazy`) implement `Deferrable::defer` by calling `f()` eagerly, because `Deferrable::defer` does not require `Send` on its closure parameter and these types need `Send` closures internally. This is:
 
-18. **`flatten_deque` doc says "iterative approach" but uses `rfold`** (cat_list.md). The `VecDeque` iterator's `rfold` is stack-safe, so the claim is effectively correct, but the wording is slightly misleading.
+- Documented in the `Deferrable` trait's Warning section.
+- Mitigated by the `SendDeferrable` trait, which provides truly deferred evaluation with `Send`-bounded closures.
+- Technically law-preserving (the transparency law `defer(|| x) == x` holds for values), but semantically surprising (side effects in `f` happen at defer-time, not at evaluation-time).
 
-19. **`TryLazy` lacks `PartialEq`/`Eq`/`Hash`/`Ord` unlike `Lazy`** (try_lazy.md). Not documented why.
+**Affected files:** deferrable.md, send_deferrable.md, lazy.md, send_thunk.md, try_send_thunk.md.
 
-## 4. Missing Implementations
+---
 
-### Missing Type Class Instances
+## 3. Significant Issues and Design Flaws
 
-| Type | Missing Instance | Feasibility | Notes |
-|------|-----------------|-------------|-------|
-| `SendThunkBrand` | `Foldable`, `FoldableWithIndex` | Feasible | Fold functions do not need `Send`; they run after evaluation. |
-| `LazyBrand<Config>` | `FoldableWithIndex` (Index = `()`) | Feasible | Straightforward; only requires `Foldable + WithIndex`. |
-| `LazyBrand<Config>` | Semiring-family traits | Feasible | If the library has `Semiring`, `Ring`, etc. |
-| `OptionBrand` | `MonadRec` | Trivial | Inherently stack-safe `bind`. |
-| `VecBrand` | `MonadRec` | Trivial | Inherently stack-safe `bind`. |
-| `ResultErrAppliedBrand<E>` | `MonadRec` | Trivial | Inherently stack-safe `bind`. |
-| `IdentityBrand` | `MonadRec` | Trivial | Inherently stack-safe `bind`. |
+### 3.1 `TrySendThunkBrand` Is a Hollow Brand
 
-### Missing Conversions
+`TrySendThunkBrand` has an `impl_kind!` (bifunctor signature) but zero type class implementations. No `Bifunctor`, no `Bifoldable`, no partially-applied brands. By contrast, `TryThunkBrand` has `Bifunctor`, `Bifoldable`, `Bitraversable`, plus two partially-applied brands with full monadic stacks. The brand currently serves no functional purpose and should either gain implementations or be removed.
 
-| From | To | Type | Notes |
-|------|----|------|-------|
-| `SendThunk<'a, A>` | `Thunk<'a, A>` | Zero-cost | Erase `Send` bound on closure. |
-| `RcLazy` | `ArcLazy` | Eager | Force `RcLazy`, wrap result. |
-| `ArcLazy` | `RcLazy` | Eager | Downgrade pointer. |
-| `SendThunk` | `ArcLazy` | Lazy | `SendThunk` closure is already `Send`. (Partially exists via `into_arc_lazy`.) |
-| `TrySendThunk` | Single-threaded types (`Thunk`, `Lazy`, `RcTryLazy`) | Eager | Cross-thread-boundary conversions. |
-| `TryThunk` | `TryTrampoline` | With `'static` | Reverse of existing `From<TryTrampoline> for TryThunk`. |
-| `TrySendThunk` | `ArcTryLazy` | Lazy | Via `From` impl. Currently only `into_arc_try_lazy` inherent method. |
+### 3.2 `Evaluable` Has Only One Implementor
 
-### Missing Operations
+Only `ThunkBrand` implements `Evaluable`. This makes the trait's genericity over `F` in `Free<F, A>` purely theoretical. `Free` could have been hardcoded to `ThunkBrand` with identical observable behavior. Adding `IdentityBrand` as a second implementor would validate the abstraction. The trait also lacks documentation of the pure-extract law (`evaluate(pure(x)) == x`) that `Free::evaluate` implicitly relies on.
 
-| Type | Operation | Notes |
-|------|-----------|-------|
-| `TrySendThunk` | `tail_rec_m`, `arc_tail_rec_m` | Stack-safe fallible recursion for `Send` types. |
-| `Free` | `hoist_free` | Transform `Free<F, A>` to `Free<G, A>` via natural transformation. Acknowledged missing in docs. |
-| `Free` | Stack-safe `fold_free` variant | Via `resume` in iterative loop. |
-| `TryLazy` | `bimap` | Map both `A` and `E` in one pass. |
-| `Step` | `done() -> Option<B>`, `loop_val() -> Option<A>` | Non-panicking extractors. |
-| `Step` | `swap()` | Swap `Loop`/`Done` variants. |
+### 3.3 `Free`'s `Evaluable` Constraint Is Overly Broad
 
-## 5. Documentation Gaps
+`Free<F, A>` requires `F: Evaluable` on all operations, including `pure`, `bind`, and `map`, which do not need to evaluate anything. Loosening the constraint to `F: Functor` on construction methods (and only requiring `Evaluable` on `evaluate`) would increase flexibility. `fold_free` already works with any functor via `NaturalTransformation`.
 
-### Incorrect or Weak Law Statements
+### 3.4 `hoist_free` Is Not Stack-Safe
 
-- **`Evaluable`:** Naturality law is incorrectly stated; should be the map-extract law.
-- **`MonadRec`:** "Equivalence" and "Safety varies" are not proper algebraic laws. The PureScript identity law is missing.
-- **`Deferrable`:** Nesting law (`defer(|| defer(|| x)) == defer(|| x)`) is implied by transparency but not stated.
+`Free::hoist_free` recurses once per `Wrap` layer. For programmatically generated deep `Wrap` chains, this can overflow the stack. The `fold_free` alternative is stack-safe because it delegates to `MonadRec::tail_rec_m`. This is documented but represents a potential footgun.
 
-### Missing Documentation Sections
+### 3.5 `brands.rs` Depends on `types` Module
 
-- `SendRefFunctor` lacks "Cache chain behavior" and "Why `FnOnce`?" sections present in `RefFunctor`.
-- `SendThunk` lacks a comparison table (like `Thunk` has) and monad law documentation for its inherent methods.
-- `TryLazy` does not document the absence of `PartialEq`/`Eq`/`Hash`/`Ord`.
-- `CatListBrand` docs could note its role as the backbone of `Free` monad evaluation.
-- `StepBrand` docs could mention its role in `MonadRec`.
-- `SendThunkBrand` docs could note HKT trait limitations.
+The import of `LazyConfig` and `TryLazyConfig` from `types` into `brands.rs` violates the stated dependency ordering (brands -> classes -> types). These config traits are more "class-like" than "type-like" and could be relocated to `classes/` to restore the intended layering.
 
-### Missing Property-Based Tests
+### 3.6 Thunk's `MonadRec` Is Only Conditionally Stack-Safe
 
-- `Deferrable` transparency and nesting laws.
-- `Evaluable` map-extract law.
-- `MonadRec` identity law.
-- `RefFunctor` identity and composition laws (only doc tests exist).
-- `SendRefFunctor` identity and composition laws (only tested via inherent method, not trait/free function).
+`ThunkBrand`'s `tail_rec_m` wraps the entire loop in a single `Thunk::new`. The loop itself is stack-safe, but if the step function builds deep `bind` chains inside the returned thunk, those chains blow the stack during evaluation. Users who reach for `MonadRec` expect unconditional stack safety, but `ThunkBrand` only provides it for "shallow" thunks. `Trampoline::tail_rec_m` provides unconditional safety via `Free`.
 
-### Minor Doc Issues
+### 3.7 No Send-Safe Stack-Safe Recursion
 
-- `TryThunk` fold_map parameter descriptions say "Thunk" instead of "TryThunk" (copy-paste).
-- `SendRefFunctor` line 26 says "returning references" but should say "receiving references."
-- `Evaluable` line 37 "Currently only ThunkBrand implements this trait" is fragile.
-- `TryTrampoline::defer` has unusual `#[document_examples]` placement.
+There is no `SendTrampoline` or `SendFree`. Users needing both thread safety and stack safety have no direct option. `SendThunk::tail_rec_m` provides thread-safe recursion but with the same conditional stack safety as `ThunkBrand`. A `SendFree` would require `Send`-bounded continuations throughout `Free`, which would be a significant refactor.
 
-## 6. Design Strengths
+---
 
-1. **Config-parameterized `Lazy`/`TryLazy`:** The `LazyConfig`/`TryLazyConfig` traits cleanly abstract over `Rc`/`Arc` pointer choice, eliminating code duplication while preserving distinct `Send` bounds.
+## 4. Missing Implementations and Inconsistencies
 
-2. **"Reflection without Remorse" `Free` monad:** CatList-based implementation achieves O(1) bind and genuinely stack-safe evaluation. No unsafe code. Type erasure via `Box<dyn Any>` is sound.
+### 4.1 Missing Trait Implementations
 
-3. **Comprehensive brand system:** Every type that can participate in HKT has a brand. Every type that cannot has a documented rationale. The naming is systematic and consistent.
+| Missing Implementation | Comparison | Priority |
+|---|---|---|
+| `FoldableWithIndex` for `TryLazyBrand<E, Config>` | `LazyBrand<Config>` has it; `TryLazyBrand` does not. Trivial addition (`Index = ()`). | High |
+| `WithIndex` for `TryLazyBrand<E, Config>` | Prerequisite for `FoldableWithIndex`. | High |
+| `Traversable` for `ThunkBrand` | Single-element Traversable is well-defined. `CatListBrand` has it. `Thunk` is `!Clone`, which may block this. | Medium |
+| `Display` for `TryLazy` | `Lazy` has `Display`. `TryLazy` does not. | Low |
+| `Bifunctor`/`Bifoldable` for `TrySendThunkBrand` | `TryThunkBrand` has both. `TrySendThunkBrand` has neither. | Low (blocked by Send constraints) |
+| Cross-config conversions for `TryLazy` (`RcTryLazy <-> ArcTryLazy`) | `Lazy` has these conversions. `TryLazy` does not. | Low |
+| Fix combinators for `TryLazy` | `Lazy` has `rc_lazy_fix`/`arc_lazy_fix`. `TryLazy` has none. | Low |
 
-4. **Rich conversion graph:** Extensive `From` implementations connect types across the hierarchy, with clear documentation of which conversions are eager vs lazy and why.
+### 4.2 Missing Conversions
 
-5. **Consistent API surface across variants:** `Thunk`, `SendThunk`, `TryThunk`, `TrySendThunk`, `Trampoline`, and `TryTrampoline` all share a common method vocabulary (`new`, `pure`, `defer`, `bind`, `map`, `evaluate`, `into_rc_lazy`/`into_arc_lazy`).
+| Missing Conversion | Notes | Priority |
+|---|---|---|
+| `From<TrySendThunk> for TryThunk` | `From<SendThunk> for Thunk` exists (zero-cost unsizing coercion). The parallel for Try types is missing. | Medium |
+| `From<Trampoline> for SendThunk` | The path `Trampoline -> Thunk -> SendThunk` exists via chaining, but a direct conversion (with eager evaluation) would be convenient. | Low |
 
-6. **`Step` type with triple HKT encoding:** Clean separation of bifunctor, Loop-applied, and Done-applied brands with comprehensive type class coverage and thorough QuickCheck law tests.
+### 4.3 Documentation Gaps
 
-7. **CatList correctness:** Right data structure for `Free`; O(1) snoc, O(1) amortized uncons, O(1) append. Complete type class coverage. Correct amortized analysis.
+| Gap | Location | Priority |
+|---|---|---|
+| `Evaluable` does not document the pure-extract law | `evaluable.rs` | Medium |
+| `MonadRec` states only the identity law; missing the unfolding/equivalence law | `monad_rec.rs` | Medium |
+| `TryTrampoline` lacks algebraic properties section and limitations section | `try_trampoline.rs` | Medium |
+| `SendDeferrable` has no property-based tests | `send_deferrable.rs` | Medium |
+| `SendThunk` has no QuickCheck property tests for monad/functor laws on inherent methods | `send_thunk.rs` | Low |
+| No documentation of nondeterministic termination caveat for `VecBrand`/`CatListBrand` MonadRec | `monad_rec.rs` | Low |
 
-8. **Documentation quality:** Thorough, consistent use of documentation macros across all components. Design rationale, limitations, and trade-offs are generally well-explained.
+### 4.4 Naming Inconsistencies
 
-9. **`Deferrable`/`SendDeferrable` supertrait design:** Follows the library's established `Send` extension pattern. The eager-evaluation compromise is the correct trade-off for maintaining the supertrait relationship.
+- `Step` has asymmetric accessor names: `done()` vs `loop_val()`. A symmetric pair (`done`/`loop_val` or `done_val`/`loop_val`) would be more consistent.
+- `Evaluable`'s parameter docs on the `ThunkBrand` impl use "eval" as a noun ("The eval to run"), while the trait-level doc consistently uses "evaluate."
 
-10. **Separation of `RefFunctor` and `SendRefFunctor`:** Correctly independent due to incompatible `Send` bound requirements. The alternative (`Functor` with `Clone`) would be strictly worse.
+---
 
-## 7. Recommendations (Prioritized)
+## 5. Strengths and Well-Designed Elements
 
-### Priority 1: Correctness and Safety
+### 5.1 Overall Architecture
 
-1. **Add iterative `Drop` for `Free` `Wrap` chains.** Prevents stack overflow when dropping deeply nested wrap-only structures.
-2. **Add iterative `Drop` for `CatList`.** Prevents stack overflow when dropping deeply nested `CatList` trees.
-3. **Fix `Evaluable` naturality law.** Replace with `evaluate(map(f, fa)) == f(evaluate(fa))`.
-4. **Add `tail_rec_m` and `arc_tail_rec_m` to `TrySendThunk`.** Closes the last gap in stack-safe recursion coverage.
+- **Principled trade-off documentation.** Every limitation (no HKT for Trampoline, no Functor for Lazy, eager Deferrable for Send types) is documented with clear reasoning, not just acknowledged as a gap.
+- **Config-parameterized brands** (`LazyBrand<Config>`) avoid duplicating type class impls while supporting both Rc and Arc variants through a single generic implementation.
+- **The newtype composition pattern** (TryThunk wraps Thunk, TryTrampoline wraps Trampoline) maximizes code reuse without introducing abstraction overhead.
 
-### Priority 2: Completeness
+### 5.2 CatList
 
-5. **Implement `MonadRec` for `OptionBrand`, `VecBrand`, `ResultErrAppliedBrand<E>`, `IdentityBrand`.** Trivial implementations that significantly increase `MonadRec` utility.
-6. **Add `From<SendThunk> for Thunk` conversion.** Zero-cost, enables ergonomic interop.
-7. **Add `From<TryThunk> for TryTrampoline` conversion.** Completes the bidirectional conversion symmetry.
-8. **Implement `Foldable` and `FoldableWithIndex` for `SendThunkBrand`.** Feasible since fold functions do not require `Send`.
-9. **Implement `FoldableWithIndex` for `LazyBrand<Config>`.** Straightforward with index type `()`.
-10. **Add `hoist_free` to `Free`.** Standard `Free` monad operation, acknowledged as missing.
+- Pragmatic adaptation of PureScript's `CatList` using `VecDeque` (better cache locality, no bulk reversals) rather than a two-list queue.
+- O(1) cached length (an enhancement over PureScript).
+- Stack-safe iterative `Drop` with tested guarantee (100,000 right-associated appends).
+- The richest type class surface in the hierarchy (Functor through Witherable, MonadRec, parallel variants).
 
-### Priority 3: Documentation and Testing
+### 5.3 Free Monad
 
-11. **Rewrite `MonadRec` laws section.** State the PureScript identity law; reframe stack safety as a class invariant.
-12. **Add QuickCheck property tests** for `Deferrable`, `Evaluable`, `MonadRec`, `RefFunctor`, and `SendRefFunctor` laws.
-13. **Add "Cache chain behavior" and "Why `FnOnce`?" sections to `SendRefFunctor` docs.** Parity with `RefFunctor`.
-14. **Fix `TryThunk` copy-paste doc errors** ("The Thunk to fold" at lines 1180, 1933).
-15. **Standardize `into_inner` vs `into_trampoline` naming** across `TryThunk` and `TryTrampoline`.
-16. **Add `SendThunk` comparison table and monad law docs** to match `Thunk` documentation depth.
+- Correct "Reflection without Remorse" implementation with O(1) bind and iterative evaluation.
+- Safe type erasure via `Box<dyn Any>` with runtime downcast (vs. PureScript's unsafe coercion).
+- Stack-safe `Drop` implementation using a worklist pattern.
+- Clean separation of concerns: `Free` handles stack safety and CatList management; `Evaluable` handles functor unwrapping; `Trampoline` provides the user-facing API.
 
-### Priority 4: Nice-to-Have Enhancements
+### 5.4 RefFunctor / SendRefFunctor
 
-17. **Add a stack-safe `fold_free` variant** that uses `resume` in an iterative loop.
-18. **Add `RcLazy` <-> `ArcLazy` conversions** (requires eager evaluation).
-19. **Consider `Sync` bound on `SendRefFunctor::B`** or document why it is omitted.
-20. **Add `bimap` to `TryLazy`.** Convenience for mapping both `A` and `E`.
-21. **Add `From<TrySendThunk>` for `ArcTryLazy`.** Completes the conversion graph.
-22. **Consider relaxing `MonadRec` `Clone` bound** on the step function, since all HKT implementors use simple loops.
+- The `RefFunctor` trait is the correct Rust-specific adaptation for mapping over shared memoized values. The separation from `Functor` is well-justified by the `&A` vs `A` distinction.
+- The independence of `RefFunctor` and `SendRefFunctor` (not a supertrait relationship) correctly prevents unsound implementations.
+- Cache chain behavior is documented with appropriate warnings about memory accumulation.
+
+### 5.5 Step Type
+
+- Clean, zero-cost enum with `Loop`/`Done` variants that are self-documenting in MonadRec contexts.
+- Three-brand HKT support (StepBrand, StepLoopAppliedBrand, StepDoneAppliedBrand) with full Monad + MonadRec towers.
+- Bidirectional conversions with both `Result` and `ControlFlow`, with round-trip property tests.
+- Derives `Copy` for zero-cost pattern matching in tight loops.
+
+### 5.6 Documentation and Testing
+
+- Every public method across all 18 files uses the library's documentation macro system (`#[document_signature]`, `#[document_type_parameters]`, `#[document_parameters]`, `#[document_returns]`, `#[document_examples]`).
+- QuickCheck property tests verify algebraic laws (Functor, Monad, Semigroup, etc.) across most types.
+- Stack safety stress tests (100,000+ to 200,000 iterations) exist for all relevant types.
+- Conversion round-trip tests ensure the type conversion web is consistent.
+
+### 5.7 Naming Consistency
+
+- `XBrand` for simple types, `XBrand<Config>` for config-parameterized types.
+- `Rc`/`Arc` prefixes for pointer-specific type aliases.
+- `Try` prefix always comes before `Send` when both are present (`TrySendThunk`, not `SendTryThunk`).
+- `Send` prefix for thread-safe variants consistently mirrors the non-Send names.
+
+---
+
+## 6. Suggested Improvements by Priority
+
+### High Priority
+
+1. **Add `FoldableWithIndex` and `WithIndex` for `TryLazyBrand<E, Config>`.** This is a trivial addition that restores parity with `LazyBrand` and fills an obvious gap in the hierarchy.
+
+2. **Either implement type classes for `TrySendThunkBrand` or remove it.** The brand currently has zero implementations and serves no functional purpose. If `Bifunctor`/`Bifoldable` are blocked by the Send constraint, document this and consider removal.
+
+3. **Document the unfolding/equivalence law for `MonadRec`.** The trait currently states only the identity law. The equivalence law (`tail_rec_m(f, a) == f(a) >>= match { Loop(a') => tail_rec_m(f, a'), Done(b) => pure(b) }`) is critical for correctness and should be explicitly stated.
+
+4. **Document the pure-extract law for `Evaluable`.** The law `evaluate(pure(x)) == x` is implicitly relied upon by `Free::evaluate` but is not documented.
+
+### Medium Priority
+
+5. **Add `From<TrySendThunk> for TryThunk`.** This fills a gap in the conversion web; `From<SendThunk> for Thunk` already exists.
+
+6. **Consider moving `LazyConfig`/`TryLazyConfig` trait definitions to `classes/`.** This restores the stated brands -> classes -> types dependency ordering while keeping concrete impls in `types/lazy.rs`.
+
+7. **Relax `Free<F, A>`'s `Evaluable` constraint on construction methods.** Allow `pure`, `bind`, `map` to require only `F: Functor` (or no constraint at all), reserving `F: Evaluable` for `evaluate` only.
+
+8. **Add `Traversable` for `ThunkBrand`.** A single-element Traversable is well-defined and useful for generic programming. (Note: may be blocked by `Thunk`'s `!Clone`; needs investigation.)
+
+9. **Add QuickCheck property tests for `SendDeferrable` and `SendThunk`.** Currently, `Deferrable` has property tests but `SendDeferrable` does not. `Thunk` has QuickCheck law tests but `SendThunk` does not.
+
+10. **Add algebraic properties and limitations sections to `TryTrampoline`'s documentation.** The type currently lacks the structured documentation that `TryThunk` and `Trampoline` have.
+
+### Low Priority
+
+11. **Add `Display` for `TryLazy`.** `Lazy` has it; `TryLazy` should too.
+
+12. **Add cross-config conversions for `TryLazy`.** `Lazy` has `RcLazy <-> ArcLazy` conversions; `TryLazy` lacks the parallel `RcTryLazy <-> ArcTryLazy`.
+
+13. **Relax `Clone` bound on `SendThunk::tail_rec_m`.** The step function is `Fn` (not `FnOnce`), so `Clone` is unnecessary; the function can be called by reference in the loop.
+
+14. **Add `Evaluable` for `IdentityBrand`.** This validates the abstraction with a second implementor and enables `Free<IdentityBrand, A>` as a useful degenerate case.
+
+15. **Consider adding derived `MonadRec` combinators.** `forever`, `while_m`, `until_m` from PureScript's ecosystem would make `MonadRec` more practically useful.
+
+16. **Add `evaluate_owned` convenience method to `Lazy`.** Returns `A` where `A: Clone`, avoiding the `.evaluate().clone()` pattern.
+
+17. **Consider weak references in fix combinators.** `rc_lazy_fix`/`arc_lazy_fix` create reference cycles that leak memory if the lazy value is dropped without evaluation. Weak references would eliminate this at the cost of slightly more complex implementation.
+
+18. **Document the nondeterministic termination caveat for `VecBrand`/`CatListBrand` `MonadRec`.** If the step function always produces `Loop` values, the computation never terminates and consumes unbounded memory.
+
+19. **Make `hoist_free` stack-safe.** Currently recurses over `Wrap` depth. Could use an explicit stack or iterate via `resume`.
+
+20. **Add a visual diagram of the brand hierarchy** showing which brands exist, which Kind signatures they implement, and which type classes they support. The individual analysis files contain all the data needed to produce this.

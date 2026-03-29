@@ -1,191 +1,338 @@
 # Trampoline Analysis
 
-File: `fp-library/src/types/trampoline.rs` (680 lines of source, 410 lines of tests)
+**File:** `fp-library/src/types/trampoline.rs`
 
-## 1. Design: Trampoline = Free<ThunkBrand, A>
+## 1. Type Design
 
-### Assessment: Strong design, well-motivated
+`Trampoline<A>` is defined as a newtype wrapper around `Free<ThunkBrand, A>`:
 
-The choice to define `Trampoline<A>` as a newtype over `Free<ThunkBrand, A>` (line 82-85) is sound and follows established FP tradition. In Haskell/PureScript, `Trampoline` is typically defined as `Free Identity`, where `Identity` is the trivial functor. Here, `ThunkBrand` (a deferred `FnOnce() -> A`) plays the role of `Identity` with added laziness, which is the right choice for Rust where laziness is not the default.
+```rust
+pub struct Trampoline<A: 'static>(Free<ThunkBrand, A>);
+```
 
-**Advantages of this design:**
+This is notably *not* a type alias; it is a proper newtype struct. This is a good design choice because it:
 
-- Stack safety is inherited from `Free`'s CatList-based "Reflection without Remorse" evaluation loop (free.rs lines 716-762), rather than being reimplemented.
-- O(1) `bind` is inherited from `Free`'s `CatList` snoc operation (free.rs line 413).
-- The `evaluate` method delegates directly to `Free::evaluate` (line 258-260), which uses an iterative loop over the CatList of type-erased continuations.
-- Separation of concerns: `Free` handles the stack-safety machinery; `Trampoline` provides the ergonomic API.
+- Provides a focused, ergonomic API without exposing the full `Free` machinery.
+- Prevents users from accidentally mixing raw `Free` operations with `Trampoline` operations.
+- Allows `Trampoline`-specific trait implementations (e.g., `Semigroup`, `Monoid`, `Debug`, `Deferrable`) that would otherwise conflict with or clutter `Free`'s own API.
+- Enables dedicated `tail_rec_m` and `arc_tail_rec_m` methods that are tailored to the `Trampoline` use case.
 
-**Comparison to typical trampoline implementations:**
+### Trade-offs
 
-Most Rust trampoline crates (e.g., `tramp`) use a simple `enum { Done(A), More(Box<dyn FnOnce() -> Trampoline<A>>) }` with an iterative `run` loop. This approach is simpler but has O(n) left-associated bind due to closure nesting. The `Free`-based approach here gives O(1) bind at the cost of more complex internals (type erasure via `Box<dyn Any>`, `CatList` of continuations).
+**Pro:** Maximum code reuse. All the difficult parts (CatList-based bind, iterative evaluate, type erasure, stack-safe Drop) live in `Free` and are inherited by delegation.
 
-This trade-off is appropriate for a library that emphasizes monadic composition, where left-associated bind chains are common.
+**Con:** Every `Trampoline` method wraps/unwraps the newtype, creating a thin layer of indirection in the source. In practice this should be zero-cost after inlining, but it means the `Trampoline` API is a manual re-export of `Free`'s API. Each method (`pure`, `bind`, `map`, `evaluate`, `defer`) simply delegates to the inner `Free`. This creates maintenance overhead: if `Free`'s signature changes, every `Trampoline` method must be updated.
 
-## 2. Implementation Quality
+**Structural note:** The CLAUDE.md table describes `Trampoline<A>` as a type alias `Free<ThunkBrand, A>`, but the actual code uses a newtype wrapper. The table should be updated to reflect this, since it matters for API visibility and trait implementation.
 
-### 2.1 Core Methods: Correct
+## 2. Stack Safety
 
-- **`pure`** (line 110-112): Delegates to `Free::pure`. Correct.
-- **`new`** (line 142-144): Wraps a `FnOnce` in a `Thunk` that produces a `Free::pure`. Correct, the closure is deferred until evaluation.
-- **`defer`** (line 179-181): Wraps a closure that produces a `Trampoline` into a `Free::wrap(Thunk::new(...))`. This is the critical method for stack-safe recursion, and it correctly defers construction of the inner trampoline.
-- **`bind`** (line 208-213): Delegates to `Free::bind`, unwrapping and rewrapping the newtype. Correct.
-- **`map`** (line 233-238): Delegates to `Free::map`. Correct.
-- **`evaluate`** (line 258-260): Delegates to `Free::evaluate`. Correct.
+### Mechanism
 
-### 2.2 Stack Safety: Verified
+Stack safety is achieved through the "Reflection without Remorse" technique implemented in `Free`:
 
-Stack safety holds because:
+1. **CatList-based continuation queue**: Each `bind` appends a continuation to a `CatList` in O(1) time via `snoc`. This avoids building deeply nested closures.
+2. **Iterative evaluate loop**: `Free::evaluate` runs an iterative loop that processes `Pure`, `Wrap`, and `Bind` variants without recursion. `Wrap` layers are unwrapped via `Evaluable::evaluate` (which for `ThunkBrand` simply runs the thunk). `Bind` layers merge their continuation lists via `CatList::append` in O(1).
+3. **`defer` for safe recursion**: `Trampoline::defer` wraps a computation-producing closure in `Free::wrap(Thunk::new(...))`, ensuring the recursive call itself is deferred rather than immediately executed on the stack.
+4. **Iterative Drop**: `Free`'s `Drop` implementation uses a worklist to iteratively dismantle `Bind` chains and `Wrap` chains, preventing stack overflow during cleanup of deeply nested structures.
 
-1. `Free::evaluate` uses an iterative loop (free.rs lines 720-762) that never recurses.
-2. `Free::bind` appends to a `CatList` in O(1) (free.rs lines 406-416).
-3. `Trampoline::defer` wraps construction in `Free::wrap(Thunk::new(...))`, ensuring recursive calls become data on the heap rather than stack frames.
-4. `Trampoline::tail_rec_m` (lines 465-486) uses `defer` + `bind` internally, making each recursive step a heap allocation processed by the iterative evaluator.
-5. Tests at lines 1056-1088 verify 200,000 iterations without stack overflow.
+### Is the guarantee solid?
 
-### 2.3 tail_rec_m Implementation
+Yes, with a caveat. The guarantee holds for:
 
-The `tail_rec_m` implementation (lines 465-486) uses an interesting approach: a recursive helper function `go` that uses `Trampoline::defer` and `bind` to build up a chain of deferred steps. This is correct and stack-safe because each step is a `defer` (which creates a `Free::Wrap`), and the evaluator processes these iteratively.
+- Deep `bind` chains (handled by CatList + iterative evaluate).
+- Deep `defer` chains (each `defer` becomes a `Wrap` node that the evaluate loop handles iteratively).
+- Deep `tail_rec_m` recursion (each step uses `defer`, so it trampolines).
+- Deep `Drop` (iterative dismantling via worklist).
 
-However, there is a **performance concern**: each iteration allocates a `Thunk` (via `defer`) and a continuation (via `bind`), plus type erasure overhead. A more efficient implementation could use an imperative loop similar to `Thunk`'s `MonadRec` implementation (thunk.rs), but this would bypass the `Free` monad infrastructure. The current approach trades allocation efficiency for consistency and code reuse.
+The one weakness: `Free::hoist_free` is documented as *not* stack-safe for deeply nested `Wrap` chains, because it recurses once per `Wrap` layer. However, this method is on `Free`, not exposed through `Trampoline`, so it does not affect `Trampoline`'s safety guarantees directly.
 
-The `arc_tail_rec_m` variant (lines 535-546) neatly solves the `Clone` bound issue by wrapping the closure in `Arc`. This is a thoughtful ergonomic addition.
+## 3. HKT Support
 
-### 2.4 Potential Issues
+### Why no brand?
 
-**No bugs found.** The implementation is straightforward delegation to `Free`, which is well-tested.
+`Trampoline` has no brand type and does not participate in the library's HKT system. This is a direct consequence of the `'static` requirement:
 
-**Minor observation:** The `Clone` bound on `tail_rec_m`'s `f` parameter (line 466) is necessary because the recursive `go` function clones `f` at each step. The documentation at lines 423-430 clearly explains this and points to `arc_tail_rec_m` as the alternative.
+- The `Kind` trait requires `type Of<'a, A: 'a>: 'a`, meaning the type constructor must accept *any* lifetime `'a`.
+- `Free` (and therefore `Trampoline`) requires `A: 'static` because it uses `Box<dyn Any>` for type erasure in the CatList of continuations. `dyn Any` requires `'static`.
+- This creates an irreconcilable conflict: `Trampoline` cannot satisfy `Kind`'s lifetime polymorphism.
 
-## 3. Type Class Instances
+### Should it have one?
 
-### Implemented:
+No, not under the current architecture. Adding a brand would require either:
 
-| Instance | Lines | Correct? | Notes |
-|----------|-------|----------|-------|
-| `Deferrable<'static>` | 575-601 | Yes | Delegates to `Trampoline::defer`. |
-| `Semigroup` (where `A: Semigroup`) | 604-632 | Yes | Uses `lift2` with `Semigroup::append`. |
-| `Monoid` (where `A: Monoid`) | 635-656 | Yes | Uses `Trampoline::pure(Monoid::empty())`. |
-| `Debug` | 660-678 | Yes | Always prints `"Trampoline(<unevaluated>)"`. |
-| `From<Lazy<'static, A, Config>>` | 553-572 | Yes | Clones the lazy value; requires `A: Clone`. |
+1. Removing the `'static` requirement from `Free` (which would require a fundamentally different implementation strategy, likely sacrificing O(1) bind or stack safety).
+2. Creating a `Kind` variant that only works for `'static` lifetimes (which would break the uniformity of the HKT system and create a confusing second-class citizen).
 
-### Conversions (defined in other files):
+The current design correctly identifies this as a fundamental limitation and does not paper over it. Users who need HKT-compatible lazy computation should use `Thunk<'a, A>` (which has a brand via `ThunkBrand`), accepting the trade-off of less-than-guaranteed stack safety.
 
-| Conversion | Location | Notes |
-|------------|----------|-------|
-| `From<Thunk<'static, A>> for Trampoline<A>` | thunk.rs:384 | Evaluates thunk eagerly in a deferred wrapper. |
-| `From<Trampoline<A>> for Thunk<'static, A>` | thunk.rs:366 | Wraps `trampoline.evaluate()` in a thunk. |
-| `From<Trampoline<A>> for Lazy<'_, A, RcLazyConfig>` | lazy.rs:640 | Deferred evaluation with memoization. |
-| `From<Trampoline<A>> for Lazy<'_, A, ArcLazyConfig>` | lazy.rs:688 | Eager evaluation (Trampoline is `!Send`). |
+## 4. Type Class Implementations
 
-### Missing Instances:
+### Currently implemented
 
-**No HKT instances** (Functor, Monad, Foldable, etc.). This is intentional and well-documented. `Trampoline` requires `'static` due to `Box<dyn Any>` in `Free`, which conflicts with the `Kind` trait's lifetime polymorphism. The brands.rs file (lines 219-220) explicitly notes: "This is for `Thunk<'a, A>`, NOT for `Trampoline<A>`. `Trampoline` cannot implement HKT traits due to its `'static` requirement."
+| Trait | Notes |
+|-------|-------|
+| `Deferrable<'static>` | Delegates to `Trampoline::defer`. |
+| `Semigroup` (where `A: Semigroup`) | Combines via `lift2` + `Semigroup::append`. |
+| `Monoid` (where `A: Monoid`) | Uses `Trampoline::pure(Monoid::empty())`. |
+| `Debug` | Constant string `"Trampoline(<unevaluated>)"`, does not force. |
 
-**Not missing but worth noting:**
-- No `Eq`/`PartialEq`: Cannot compare without evaluating, which would require consuming the value. Reasonable omission.
-- No `Clone`: The underlying `Free` uses `Box<dyn FnOnce>` which is not cloneable. Correct omission.
-- No `Foldable`/`Traversable`: Would require HKT brands. Correct omission.
-- No `MonadRec`: Cannot implement the HKT-based `MonadRec` trait, but provides an equivalent inherent method `tail_rec_m`. This is documented in monad_rec.rs (lines 46-48).
+### Conversions
 
-## 4. API Surface
+| From | To | Notes |
+|------|----|-------|
+| `Lazy<'static, A, Config>` (where `A: Clone`) | `Trampoline<A>` | Clones the memoized value. |
+| `Thunk<'static, A>` | `Trampoline<A>` | Wraps thunk evaluation in `Trampoline::new`. |
+| `Trampoline<A>` | `Lazy<'a, A, RcLazyConfig>` | Evaluates lazily on first access. |
+| `Trampoline<A>` | `Lazy<'a, A, ArcLazyConfig>` (where `A: Send + Sync`) | Evaluates eagerly (Trampoline is `!Send`). |
+| `Trampoline<A>` | `TryTrampoline<A, E>` | Wraps in `Ok`. |
 
-### Assessment: Well-designed, complete
+### Coverage assessment
 
-The API covers all essential operations:
+The coverage is appropriate given the constraints. `Trampoline` cannot implement `Functor`, `Monad`, `Applicative`, or `MonadRec` as HKT traits because it lacks a brand. Instead, it provides equivalent functionality through inherent methods (`map`, `bind`, `pure`, `lift2`, `then`, `tail_rec_m`).
 
-| Method | Purpose | Signature Quality |
-|--------|---------|-------------------|
-| `pure` | Lift a value | Clean |
-| `new` | Defer a computation | Clean |
-| `defer` | Defer construction of a Trampoline | Critical for recursion |
-| `bind` | Monadic sequencing | Clean |
-| `map` | Functor mapping | Clean |
-| `evaluate` | Force computation | Clean |
-| `lift2` | Applicative lifting | Useful convenience |
-| `then` | Sequence, discarding first result | Useful convenience |
-| `append` | Semigroup combination | Consistent with hierarchy |
-| `empty` | Monoid identity | Consistent with hierarchy |
-| `tail_rec_m` | Stack-safe tail recursion | Essential |
-| `arc_tail_rec_m` | Non-Clone variant | Thoughtful ergonomic addition |
-| `into_rc_lazy` | Convert to memoized form | Good escape hatch |
-| `into_arc_lazy` | Convert to thread-safe memoized form | Good escape hatch |
+**Potential additions:**
 
-**One observation on `into_arc_lazy`** (lines 306-310): The doc comment (lines 286-292) explains that Trampoline is `!Send` so it must evaluate eagerly. But the implementation delegates to `Lazy::from(self)` (line 309), which is the `From<Trampoline<A>> for Lazy<'a, A, ArcLazyConfig>` impl at lazy.rs:688 that does `Self::pure(eval.evaluate())`. This means the computation is evaluated during conversion, not deferred. The documentation is accurate, but the naming `into_arc_lazy` could be slightly misleading since the result is already evaluated (just wrapped in a `Lazy::pure`). However, this is consistent with `Thunk::into_arc_lazy` which does the same thing.
+- `Eq` / `PartialEq` could be derived for `Trampoline<A>` where `A: Eq`, but this would require eagerly evaluating, which conflicts with laziness semantics. The current `Debug` approach (not evaluating) is correct.
+- `From<A>` for `Trampoline<A>` as a convenience (equivalent to `Trampoline::pure`). This is a stylistic choice; `pure` is already clear.
 
-## 5. Consistency with the Hierarchy
+### Missing: `Foldable` and `Traversable`
 
-### Assessment: Highly consistent
+PureScript's `Free` implements both `Foldable` and `Traversable`. This library's `Free` does not, and by extension neither does `Trampoline`. This is reasonable because:
 
-- **Naming**: Uses the same method names as `Thunk` (`pure`, `new`, `defer`, `bind`, `map`, `evaluate`, `into_rc_lazy`, `into_arc_lazy`). Users can switch between them with minimal API changes.
-- **Semigroup/Monoid**: Same pattern as other lazy types (lift the operation into the deferred context).
-- **Deferrable**: Implements `Deferrable<'static>`, consistent with the trait's purpose.
-- **Conversions**: Bidirectional conversions with `Thunk`, `Lazy`, and `ArcLazy` are comprehensive.
-- **TryTrampoline**: Follows the same newtype-over-inner pattern (`TryTrampoline<A, E> = Trampoline<Result<A, E>>`), consistent with `TryThunk = Thunk<Result<A, E>>`.
-- **Debug**: Opaque output (`"Trampoline(<unevaluated>)"`) is consistent with `Thunk`'s approach.
+- `Foldable` on `Free<ThunkBrand, A>` would just extract the single value (equivalent to `evaluate`), adding little value.
+- `Traversable` would require HKT support, which is unavailable.
 
-## 6. Limitations
+## 5. The `'static` Requirement
 
-### 6.1 The `'static` Requirement
+### Why it exists
 
-The most significant limitation. All values in a `Trampoline` must be `'static` because `Free` uses `Box<dyn Any>` for type erasure, and `Any: 'static`. This means:
+The `'static` bound is a direct consequence of using `Box<dyn Any>` for type erasure in `Free`'s continuation queue. The Rust trait `Any` has an inherent `'static` bound:
 
-- Cannot use borrowed data (e.g., `&str`, `&[u8]`).
-- Cannot capture non-`'static` references in closures passed to `new`, `defer`, `bind`.
-- Cannot implement HKT traits.
+```rust
+pub trait Any: 'static { ... }
+```
 
-This is well-documented (lines 55, 82) and inherent to the "Reflection without Remorse" technique in Rust. The documentation correctly directs users to `Thunk` for lifetime-polymorphic use cases.
+This is necessary because `Any` uses `TypeId` for runtime type identification, and `TypeId` can only distinguish types that are fully owned (no borrows). A `&'a str` with different lifetimes `'a` would have different types at the language level but the same `TypeId`, creating unsoundness.
 
-### 6.2 Performance Overhead
+### Is this fundamental?
 
-Each `bind` operation involves:
-1. Type erasure via `Box::new(a) as Box<dyn Any>` (allocation).
-2. A `Continuation<F>` closure allocation (boxed `FnOnce`).
-3. `CatList::snoc` (O(1) amortized but involves allocation).
-4. `downcast` on evaluation (dynamic type check, though practically free).
+Yes, given the "Reflection without Remorse" approach. The technique requires storing heterogeneous continuations in a single queue, which requires type erasure. In Rust, safe type erasure (`dyn Any` + `downcast`) requires `'static`. Alternative approaches exist:
 
-For shallow chains, a simple `Thunk` chain will be faster. The overhead pays off only for deep chains (hundreds/thousands of binds) where stack safety matters.
+1. **`unsafeCoerce` (PureScript's approach):** PureScript uses `unsafeCoerce` instead of `dyn Any`, bypassing the type system. Rust could use `unsafe` transmute, but this would sacrifice memory safety guarantees.
+2. **GATs/existentials:** A hypothetical Rust feature for safe existential types could potentially eliminate the need for `dyn Any`, but no such feature exists today.
+3. **Naive Free:** A `Free` without CatList could avoid type erasure entirely, but at the cost of O(n) bind and no stack safety guarantee.
 
-### 6.3 Not `Send`
+The `'static` requirement is the correct trade-off for a Rust library prioritizing safety. The practical impact is limited: most computations use owned data, and the few that need borrowed references can use `Thunk<'a, A>` instead.
 
-`Trampoline` is `!Send` because `Thunk` wraps `Box<dyn FnOnce() -> A>` without a `Send` bound, and `Free` internally stores `Box<dyn FnOnce(Box<dyn Any>) -> Free<F, Box<dyn Any>>>` continuations that are also `!Send`. This limits `Trampoline` to single-threaded contexts.
+## 6. Comparison to PureScript
 
-The `into_arc_lazy` method provides an escape hatch by eagerly evaluating and then wrapping in a thread-safe container.
+### PureScript's Trampoline
 
-### 6.4 No Memoization
+```purescript
+type Trampoline = Free ((->) Unit)
+```
 
-Documented at line 70-79. Each call to `evaluate` re-runs the computation. The documentation suggests wrapping in `Lazy` for caching, which is the correct approach.
+PureScript defines `Trampoline` as a type *alias* for `Free` over the `Unit -> _` functor (a thunk). Key differences:
 
-### 6.5 Missing Deep Bind Chain Test
+| Aspect | PureScript | Rust |
+|--------|-----------|------|
+| Definition | Type alias | Newtype wrapper |
+| Base functor | `(->) Unit` (function from Unit) | `ThunkBrand` (brand for `Box<dyn FnOnce() -> A>`) |
+| HKT | Full (inherits all of Free's instances: Functor, Monad, MonadRec, Foldable, Traversable, etc.) | None (cannot participate in HKT system) |
+| Lifetime restriction | None (GC handles everything) | `'static` only |
+| Type erasure | `unsafeCoerce` | `Box<dyn Any>` with safe `downcast` |
+| API surface | Thin (3 functions: `done`, `delay`, `runTrampoline`) | Rich (pure, new, defer, bind, map, evaluate, lift2, then, append, empty, tail_rec_m, arc_tail_rec_m, into_rc_lazy, into_arc_lazy) |
 
-The test suite includes a 200,000-iteration stress test for `tail_rec_m` (lines 1056-1069) but no equivalent deep bind chain test for `Trampoline` specifically. The `Free` tests do cover this (free.rs:909-917 tests 100,000 bind iterations), so stack safety is verified at the `Free` level, but a dedicated `Trampoline` test would improve confidence. This is a minor gap.
+### Structural comparison
 
-## 7. Documentation
+PureScript's approach is remarkably minimal because `Trampoline` inherits everything from `Free`, which in turn inherits from `Functor`, `Monad`, `MonadRec`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`, etc. The Rust version must reimplement each of these as inherent methods because the HKT system is inaccessible.
 
-### Assessment: Thorough and accurate
+PureScript's `runTrampoline` is:
+```purescript
+runTrampoline = runFree (_ $ unit)
+```
 
-- **Module-level docs** (lines 1-20): Clear explanation of trampolining, with a working example.
-- **Struct docs** (lines 46-85): Comprehensive coverage of requirements, guarantees, when-to-use guidance, and memoization note with code example.
-- **Method docs**: Every method has `#[document_signature]`, type parameter descriptions, parameter descriptions, return descriptions, and examples with assertions.
-- **`tail_rec_m` Clone bound** (lines 423-430): Explicitly explains why `Clone` is needed and points to `arc_tail_rec_m`.
-- **Comparison table** in thunk.rs (lines 60-67): Clear side-by-side comparison between `Thunk` and `Trampoline`.
+This is a single-line definition that unwraps one functor layer at a time. Rust's `Trampoline::evaluate` delegates to `Free::evaluate`, which uses the iterative trampoline loop with CatList processing.
 
-**One minor documentation gap:** The `lift2` method (lines 334-340) is documented but does not mention that it is implemented as `self.bind(|a| other.map(|b| f(a, b)))`, which means evaluation is sequential (left then right). For a type that claims no parallelism, this is fine, but explicit mention of sequential evaluation would be helpful.
+### Key insight
 
-## 8. Summary
+PureScript can use `Free` as a universal abstraction (AST interpretation, trampolining, DSL embedding) because type erasure is free (via `unsafeCoerce` and GC). Rust's `Free` is more specialized: it is primarily a stack-safety mechanism, with `fold_free` offering limited interpretation capability. The Rust `Trampoline` wrapper makes this specialization explicit by providing a focused API.
 
-| Aspect | Rating | Notes |
-|--------|--------|-------|
-| Design | Excellent | `Free<ThunkBrand, A>` is the right abstraction. |
-| Correctness | No bugs found | Delegation to well-tested `Free` is reliable. |
-| Stack safety | Verified | Iterative evaluation loop, CatList, tests at 200K depth. |
-| Type class instances | Complete for constraints | No HKT instances (correctly impossible). Semigroup, Monoid, Deferrable present. |
-| API surface | Complete and ergonomic | All essential operations present, good convenience methods. |
-| Consistency | High | Matches Thunk/TryTrampoline patterns closely. |
-| Performance | Acceptable overhead | Type erasure cost is inherent to the "Reflection without Remorse" technique. |
-| Documentation | Thorough | Every method documented with examples. Trade-offs clearly explained. |
+## 7. Free-Based Approach: Overhead Analysis
 
-**Recommendations:**
+### Overhead of delegating to Free
 
-1. Add a dedicated deep bind chain stack-safety test (e.g., 100,000 binds) to the Trampoline test module, mirroring the Free-level test.
-2. Consider whether `tail_rec_m` could use an imperative loop (like Thunk's `MonadRec`) for better allocation performance, since Trampoline's evaluate is already iterative. This would bypass the `defer`/`bind` overhead per iteration while still being stack-safe.
-3. No structural changes needed. The implementation is sound.
+Each `Trampoline` operation pays for `Free`'s full machinery:
+
+1. **`Trampoline::new(f)`** creates `Free::wrap(Thunk::new(move || Free::pure(f())))`. This involves:
+   - One `Box` allocation for the `Thunk` closure.
+   - One `FreeInner::Wrap` variant wrapping it.
+   - The `Option<FreeInner>` wrapper for linear consumption.
+
+2. **`Trampoline::bind(f)`** creates a type-erased continuation via `Free::bind`:
+   - One `Box` allocation for the erased closure.
+   - One `CatList::singleton` / `CatList::snoc` operation.
+   - One `downcast` per continuation during evaluation.
+
+3. **`Trampoline::evaluate()`** calls `Free::evaluate`:
+   - `erase_type()` is called first, wrapping `A` in `Box<dyn Any>`.
+   - Each continuation requires a `downcast` (safe but involves a `TypeId` comparison).
+   - Each `Wrap` layer requires `Evaluable::evaluate` (for `ThunkBrand`, this calls the thunk).
+
+### Compared to a dedicated Trampoline
+
+A dedicated `Trampoline` enum (without Free) could look like:
+
+```rust
+enum Trampoline<A> {
+    Done(A),
+    More(Box<dyn FnOnce() -> Trampoline<A>>),
+}
+```
+
+This avoids:
+- Type erasure (`Box<dyn Any>`, `downcast`).
+- The `Option` wrapper for linear consumption.
+- CatList overhead for short chains.
+
+But it loses:
+- O(1) bind (naive `Trampoline` has O(n) left-associated bind).
+- The CatList-based reassociation that prevents quadratic blowup.
+
+For the common case of `defer`-based recursion (not heavy `bind` chains), the naive approach would be simpler and slightly faster. For monadic pipeline use cases with many `bind`s, the `Free`-based approach is strictly better due to O(1) bind.
+
+### Verdict
+
+The `Free`-based approach is the right choice for a general-purpose library. The overhead of type erasure is constant per operation and dwarfed by the algorithmic improvement from O(1) bind. The alternative would be to maintain two separate Trampoline implementations (one naive for simple recursion, one Free-based for monadic pipelines), which is not worth the complexity.
+
+## 8. Documentation Quality
+
+### Strengths
+
+- Module-level documentation is clear and concise, explaining what trampolining is and why it exists.
+- The "When to Use" section correctly differentiates `Trampoline` from `Thunk`.
+- The `Memoization` section proactively warns users that `Trampoline` does not memoize and shows how to wrap in `Lazy`.
+- Every public method has `#[document_signature]`, `#[document_parameters]`, `#[document_returns]`, and `#[document_examples]` annotations.
+- The `tail_rec_m` documentation includes a complete Fibonacci example.
+- The `defer` documentation includes a recursive sum example demonstrating stack safety.
+- The `into_arc_lazy` documentation explains *why* eager evaluation is required (Trampoline is `!Send`).
+
+### Weaknesses
+
+- The `Clone` bound on `tail_rec_m`'s `f` parameter is documented but could benefit from a more concrete example of what fails without `Clone` and why `arc_tail_rec_m` exists.
+- The module-level doc example could be slightly more motivating; it shows a trivial chain that does not actually demonstrate stack safety.
+- No cross-reference to `TryTrampoline` for the fallible variant.
+- The `Debug` implementation always returns `"Trampoline(<unevaluated>)"` even for `Trampoline::pure(42)` where the value is immediately available. This is a reasonable simplification but could be documented.
+
+### Test coverage
+
+Tests are comprehensive:
+- Basic operations: `pure`, `new`, `bind`, `map`, `defer`.
+- `tail_rec_m` and `arc_tail_rec_m` correctness.
+- `lift2` and `then` combinators.
+- `Semigroup` / `Monoid` via `append` and `empty`.
+- Conversions: `From<Lazy>`, `From<Thunk>` (both `Rc` and `Arc` variants).
+- `!Send` types (`Rc<T>`) across all operations.
+- QuickCheck property tests for Functor laws (identity, composition) and Monad laws (left identity, right identity, associativity).
+- Stack safety stress tests at 200,000 iterations for both `tail_rec_m` and `arc_tail_rec_m`.
+
+## 9. Issues, Limitations, and Design Flaws
+
+### 9.1. No `Send` variant
+
+`Trampoline` is `!Send` because `Free` uses `Box<dyn FnOnce()>` (not `Box<dyn FnOnce() + Send>`) for type-erased continuations. There is no `SendTrampoline` equivalent. Users needing thread-safe stack-safe recursion must use `SendThunk` (which is not stack-safe) or find a workaround. The `into_arc_lazy` method handles the output side (converting a computed result to a `Send` type), but there is no way to *build* a stack-safe computation that is `Send`.
+
+This is a genuine gap in the hierarchy. A `SendFree` or `SendTrampoline` would require `Send`-bounded continuations throughout `Free`, which would be a significant refactor.
+
+### 9.2. `tail_rec_m` requires `Clone` on the step function
+
+The `Clone` bound on `tail_rec_m`'s function parameter is a Rust-specific limitation. Each iteration of the inner `go` function captures `f` by value (via `move` in the `Trampoline::defer` closure), so `f` must be cloneable. The `arc_tail_rec_m` variant works around this by wrapping in `Arc`, but at the cost of atomic reference counting overhead.
+
+In PureScript, this is a non-issue because closures are implicitly shared (GC-managed).
+
+### 9.3. `map` is implemented via `bind`
+
+`Trampoline::map` delegates to `Free::map`, which is implemented as `self.bind(|a| Free::pure(f(a)))`. This means every `map` creates a type-erased continuation and a `CatList` entry, even though map is semantically simpler than bind. A dedicated `FreeInner::Map` variant could optimize this, but it would add complexity to `Free`'s evaluate loop. This is an acceptable trade-off for simplicity.
+
+### 9.4. `From<Lazy>` requires `Clone`
+
+Converting `Lazy<'static, A, Config>` to `Trampoline<A>` requires `A: Clone` because `Lazy::evaluate` returns `&A` (a reference), not an owned `A`. The `Trampoline::new(move || lazy.evaluate().clone())` pattern copies the memoized value. This is documented but could surprise users with expensive `Clone` implementations.
+
+### 9.5. No `flatten` / `join`
+
+There is no `Trampoline<Trampoline<A>> -> Trampoline<A>` method. This can be achieved via `.bind(|x| x)`, but a dedicated `flatten` method would improve discoverability.
+
+### 9.6. Debug does not differentiate variants
+
+The `Debug` implementation always outputs `"Trampoline(<unevaluated>)"` regardless of whether the value is `Pure`, `Wrap`, or `Bind`. This prevents users from inspecting the structure during debugging. A more informative implementation could show `"Trampoline(Pure(...))"` for pure values (where `A: Debug`), though this would require evaluating for `Wrap`/`Bind` variants which conflicts with laziness semantics.
+
+### 9.7. No `apply` / `ap` method
+
+While `lift2` is provided, there is no `apply` method (`Trampoline<Fn(A) -> B>` applied to `Trampoline<A>`). This is a minor omission since `lift2` covers most use cases, but `apply` is a fundamental operation in functional programming.
+
+## 10. Alternatives: Dedicated Trampoline Enum vs. Free Alias
+
+### Option A: Current approach (newtype over Free)
+
+```rust
+pub struct Trampoline<A: 'static>(Free<ThunkBrand, A>);
+```
+
+**Pros:**
+- Code reuse: CatList, evaluate loop, type erasure, stack-safe Drop are all shared with `Free`.
+- O(1) bind via CatList reassociation.
+- `fold_free` and `hoist_free` are available on the inner `Free` (not exposed but could be).
+- Consistent with the library's overall design philosophy of building on `Free`.
+
+**Cons:**
+- Pays for `Free`'s generality even when only trampolining is needed.
+- `'static` requirement inherited from `Free`'s `dyn Any` usage.
+- No HKT support.
+- `Box<dyn Any>` downcast overhead per continuation.
+
+### Option B: Dedicated Trampoline enum
+
+```rust
+enum Trampoline<A> {
+    Done(A),
+    More(Box<dyn FnOnce() -> Trampoline<A>>),
+}
+```
+
+**Pros:**
+- Simpler implementation (no type erasure, no CatList, no Option wrapper).
+- Could potentially support non-`'static` types (no `dyn Any`).
+- Slightly less allocation per step.
+- Easier to understand.
+
+**Cons:**
+- O(n) left-associated bind leads to quadratic blowup for monadic pipelines.
+- Must separately implement stack-safe evaluate (simple iterative loop, but duplicates logic).
+- Must separately implement stack-safe Drop.
+- No path to `fold_free` or `hoist_free`.
+- Would need a third variant `Bind(Box<Trampoline<dyn Any>>, Box<dyn FnOnce(dyn Any) -> Trampoline<A>>)` to get O(1) bind, at which point it has reimplemented Free.
+
+### Option C: Dedicated Trampoline with CatList
+
+A dedicated enum that embeds CatList directly for O(1) bind, without the `Free` abstraction layer:
+
+```rust
+enum Trampoline<A: 'static> {
+    Done(A),
+    More(Box<dyn FnOnce() -> Trampoline<A>>),
+    Bind {
+        head: Box<Trampoline<Box<dyn Any>>>,
+        continuations: CatList<Box<dyn FnOnce(Box<dyn Any>) -> Trampoline<Box<dyn Any>>>>,
+        _marker: PhantomData<A>,
+    },
+}
+```
+
+This is essentially `Free<ThunkBrand, A>` with `ThunkBrand` inlined. It would eliminate the `Evaluable` trait dispatch but otherwise be structurally identical. The marginal benefit is near zero, and it would duplicate all of `Free`'s evaluate/Drop logic.
+
+### Recommendation
+
+The current approach (Option A) is correct. The overhead of delegating to `Free` is negligible, and the code reuse benefit is substantial. Option B would only make sense if the library also wanted to support non-`'static` trampolining (which would sacrifice O(1) bind). Option C would be premature optimization with no practical benefit.
+
+The one change worth considering is exposing `resume` and `fold_free` through the `Trampoline` API for users who need to inspect or interpret the computation structure. Currently these are only available on the inner `Free`.

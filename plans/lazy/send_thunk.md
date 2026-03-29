@@ -1,201 +1,292 @@
 # SendThunk Analysis
 
-File: `fp-library/src/types/send_thunk.rs` (544 lines including tests)
+**File:** `fp-library/src/types/send_thunk.rs`
 
-## Overview
+## 1. Type Design
 
-`SendThunk<'a, A>` wraps `Box<dyn FnOnce() -> A + Send + 'a>`, providing a thread-safe counterpart to `Thunk<'a, A>` (which wraps `Box<dyn FnOnce() -> A + 'a>`). The sole difference is the `Send` bound on the inner closure, enabling cross-thread transfer of deferred computations.
+```rust
+pub struct SendThunk<'a, A>(Box<dyn FnOnce() -> A + Send + 'a>);
+```
 
-## 1. Design
+The representation is correct and minimal. It mirrors `Thunk<'a, A>(Box<dyn FnOnce() -> A + 'a>)` with the addition of a `Send` bound on the inner trait object. This is the canonical Rust encoding for a thread-safe, non-memoized deferred computation.
+
+The `Send` auto-trait derivation is sound: `Box<dyn FnOnce() -> A + Send + 'a>` is `Send` whenever the trait object itself is `Send`, which it is by definition. The comment on lines 102-104 correctly explains this.
+
+## 2. HKT Support
+
+### Current state
+
+`SendThunkBrand` exists in `brands.rs` and has an `impl_kind!` at line 430-434:
+
+```rust
+impl_kind! {
+    for SendThunkBrand {
+        type Of<'a, A: 'a>: 'a = SendThunk<'a, A>;
+    }
+}
+```
+
+So `SendThunk` **does** have a brand and a `Kind` mapping. What it lacks is implementations of the HKT type-class traits (`Functor`, `Pointed`, `Semimonad`, `Semiapplicative`, `MonadRec`, `Evaluable`, `Lift`, `ApplyFirst`, `ApplySecond`, `FunctorWithIndex`).
+
+### Why it cannot implement them
+
+The HKT traits accept closure parameters as `impl Fn(A) -> B + 'a` without a `Send` bound. For example, `Functor::map` takes `impl Fn(A) -> B + 'a`. If SendThunkBrand implemented `Functor`, a caller could pass a non-`Send` closure, and the implementation would need to store it inside a `SendThunk`, violating the `Send` invariant.
+
+This is a fundamental limitation of the trait signatures, not a design flaw in `SendThunk` itself.
+
+### Should it have a brand?
+
+Having the brand is still valuable even without Functor/Monad. The brand enables:
+- `Foldable` for `SendThunkBrand` (implemented), since `fold_right`/`fold_left`/`fold_map` consume the closure eagerly and never store a non-`Send` function inside the result.
+- `FoldableWithIndex` for `SendThunkBrand` (implemented).
+- `WithIndex` for `SendThunkBrand` (implemented, `Index = ()`).
+- Potential future traits that only read from the structure without composing closures into it.
 
 ### Trade-offs
 
-The core trade-off is sound and well-motivated: adding `Send` to the closure enables genuine lazy conversion to `ArcLazy` (line 360-362), whereas `Thunk::into_arc_lazy` must evaluate eagerly (thunk.rs line 330). This is the primary reason `SendThunk` exists, and the design delivers on that promise.
+The cost of having the brand is negligible (a zero-sized marker type). The benefit is participation in generic code over `Foldable` and `WithIndex`. Removing the brand would be a regression. The current approach is correct.
 
-The decision to forgo HKT trait implementations (`Functor`, `Semimonad`, etc.) is correct. The HKT trait signatures do not carry `Send` bounds on their closure parameters, so implementing them would require accepting non-`Send` closures and breaking the `Send` invariant on the composed result. The module-level doc (lines 7-9) and the struct-level doc (lines 56-66) both explain this clearly.
+### Possible future direction
 
-### Relationship to PureScript
+If the library introduced `SendFunctor`, `SendSemimonad`, etc. (traits whose closure parameters carry `Send` bounds), `SendThunkBrand` could implement them. However, this would double the trait hierarchy and is likely not worth the complexity.
 
-PureScript's `Data.Lazy` is a memoized type (comparable to `RcLazy`/`ArcLazy`), not a non-memoized thunk. `SendThunk` has no direct PureScript counterpart; it is a Rust-specific adaptation that exists because Rust's type system requires explicit `Send` bounds. This is a reasonable design choice for the library.
+## 3. Type Class Implementations
 
-## 2. Implementation Quality
+### What SendThunk implements (via brand, on `SendThunkBrand`)
 
-### Correctness
+| Trait | Notes |
+|-------|-------|
+| `Foldable` | `fold_right`, `fold_left`, `fold_map` all evaluate eagerly and return `B`/`M`, not a new `SendThunk`. |
+| `WithIndex` | `Index = ()`. |
+| `FoldableWithIndex` | `fold_map_with_index`. |
 
-All inherent methods are straightforward and correct:
+### What SendThunk implements (directly on the type)
 
-- `new` (line 108): Boxes a `Send` closure. Sound.
-- `pure` (line 128): Wraps a value in a closure. The `A: Send` bound (line 130) is necessary and correctly placed.
-- `defer` (line 150): Flattens a `SendThunk<SendThunk<A>>` by evaluating the outer layer. The `Send` bound on `f` is correct.
-- `bind` (line 175-184): Standard monadic bind via closure composition. Correct.
-- `map` (line 204-209): Standard functor map. Correct.
-- `evaluate` (line 225-227): Trivial unwrap. Correct.
-- `into_arc_lazy` (line 360-362): Passes the `Send` closure directly into `ArcLazy::new` via `ArcLazyConfig::lazy_new`. This is the key advantage over `Thunk::into_arc_lazy`, and it works because the closure is already `Send`.
+| Trait/Impl | Notes |
+|------------|-------|
+| `Deferrable<'a>` | Eager implementation: calls `f()` immediately because `Deferrable::defer` does not require `Send` on the closure. |
+| `SendDeferrable<'a>` | Truly lazy: delegates to `SendThunk::defer(f)` which wraps the closure without evaluating. |
+| `Semigroup` | Requires `A: Semigroup + Send`. |
+| `Monoid` | Requires `A: Monoid + Send`. |
+| `Debug` | Always prints `"SendThunk(<unevaluated>)"`. |
+| `From<Thunk<'a, A>>` (where `A: Send`) | Eager evaluation: evaluates the Thunk first because its closure is `!Send`. |
 
-### `tail_rec_m` (lines 267-282)
+### What SendThunk has as inherent methods
 
-The implementation is a standard iterative loop, which is stack-safe by construction. The `Clone + Send` bounds on `f` are necessary (each iteration needs a fresh call to `f`, which requires `Fn`, and the resulting `SendThunk` closure must be `Send`). Correct.
+- `new`, `pure`, `defer`, `bind`, `map`, `evaluate`.
+- `tail_rec_m` (stack-safe loop, requires `Clone + Send` on the step function).
+- `arc_tail_rec_m` (like `tail_rec_m` but wraps the step function in `Arc` to avoid `Clone` requirement).
+- `into_arc_lazy` (zero-cost conversion to `ArcLazy`).
+- `into_inner` (crate-internal helper for the `From<SendThunk> for Thunk` unsizing coercion).
 
-### `arc_tail_rec_m` (lines 326-338)
+### What Thunk implements that SendThunk does NOT
 
-Wraps the closure in `Arc` to provide `Clone` for non-cloneable closures. The additional `Sync` bound (line 327) is required because `Arc<T>: Clone` requires `T: Send + Sync`. This is correct.
+| Trait | Reason missing |
+|-------|---------------|
+| `Functor` (HKT) | Closure in `map` is not `Send`. |
+| `Pointed` (HKT) | Could arguably be implemented (pure values are `Send`), but Pointed alone without Functor has limited utility. |
+| `Semimonad` (HKT) | Closure in `bind` is not `Send`. |
+| `Semiapplicative` (HKT) | Depends on `CloneableFn` which is not `Send`-bounded. |
+| `MonadRec` (HKT) | Closure in `tail_rec_m` is not `Send`. Has inherent `tail_rec_m` instead. |
+| `Evaluable` (HKT) | Requires `Functor` as a supertrait. |
+| `Lift` (HKT) | Closure is not `Send`. |
+| `ApplyFirst`, `ApplySecond` (HKT) | Depend on `Semiapplicative`. |
+| `FunctorWithIndex` (HKT) | Requires `Functor` (closure is not `Send`). |
+| `From<Trampoline<A>>` | Not implemented. Could be: `Trampoline` is `!Send`, so conversion would require eager evaluation (like `From<Thunk>`). Arguably useful but not critical. |
+| `From<Lazy<'a, A, Config>>` | Not implemented. `RcLazy` is `!Send`; `ArcLazy` could work but would need eager clone. |
 
-### `From<Thunk<'a, A>>` (lines 366-388)
+### Notable: `Deferrable` is eager
 
-Eagerly evaluates the `Thunk` and wraps the result in `SendThunk::pure`. This is the only sound approach because `Thunk`'s inner closure is not `Send`. The `A: Send` bound is correct. The documentation (lines 371-373) accurately explains the eager evaluation.
+The `Deferrable<'a>` implementation for `SendThunk` (line 622-626) calls `f()` immediately, making it semantically equivalent to a strict evaluation. This is documented and explained: since `Deferrable::defer` does not require `Send` on its closure parameter, there is no way to store the closure in a `SendThunk`. The `SendDeferrable` trait exists precisely to solve this, and its implementation on `SendThunk` (line 652-656) is truly lazy.
 
-### Edge Cases
+This is a correct design decision but worth noting: code generic over `Deferrable` that expects laziness will get eager evaluation when instantiated with `SendThunk`.
 
-No bugs found. The implementation is minimal and each method does exactly one thing.
+## 4. Thread Safety
 
-## 3. Type Class Instances
+### Send bounds
 
-### Implemented
+- `SendThunk<'a, A>` is `Send` because `Box<dyn FnOnce() -> A + Send + 'a>` is `Send`. This is auto-derived by the compiler, no manual `unsafe impl Send` is needed.
+- The `pure` method requires `A: Send + 'a`, which is correct: the value `a` is moved into a closure that must be `Send`.
+- The `map` and `bind` methods require their closure arguments to be `Send + 'a`, which is correct.
+- The `Semigroup`/`Monoid` impls require `A: Send`, which is correct for composing two `SendThunk` values.
 
-| Instance | Lines | Correct? | Notes |
-|----------|-------|----------|-------|
-| `Deferrable<'a>` | 400-427 | Mostly | See issue below |
-| `SendDeferrable<'a>` | 433-457 | Yes | Delegates to `SendThunk::defer` |
-| `Semigroup` | 463-491 | Yes | Lifts `Semigroup::append` into deferred context |
-| `Monoid` | 497-517 | Yes | Lifts `Monoid::empty` into deferred context |
-| `Debug` | 524-542 | Yes | Static string, does not force evaluation |
-| `Kind` (via `impl_kind!`) | 390-394 | Yes | Maps `SendThunkBrand` to `SendThunk<'a, A>` |
+### Sync
 
-### Deferrable Issue (lines 422-426)
+`SendThunk` does NOT implement `Sync`, which is correct. `Box<dyn FnOnce()>` cannot be shared between threads because `FnOnce` is consumed on call (it takes `self`). There is no `&self` interface.
 
-The `Deferrable::defer` implementation evaluates the thunk eagerly:
+### Not verified
+
+The type does not explicitly test that `SendThunk<'a, A>` is `!Sync`, though this is enforced by the compiler automatically. A compile-fail test for `!Sync` would be a minor improvement for documentation purposes.
+
+## 5. Relationship to Thunk
+
+### Code duplication
+
+The inherent methods `new`, `pure`, `defer`, `bind`, `map`, `evaluate` are nearly identical between `Thunk` and `SendThunk`, differing only in the `+ Send` bound on closures. This is approximately 150 lines of duplicated logic.
+
+### Conversion pathways
+
+```
+Thunk  --> SendThunk  (eager: evaluates, wraps result)
+SendThunk --> Thunk   (zero-cost: unsizing coercion via into_inner)
+SendThunk --> ArcLazy (lazy: closure passed directly)
+Thunk  --> ArcLazy    (eager: must evaluate first since closure is !Send)
+```
+
+The asymmetry is correct and well-documented: `SendThunk -> Thunk` is zero-cost (unsizing coercion drops the `Send` marker), while `Thunk -> SendThunk` must be eager because the inner closure is `!Send`.
+
+### Should they be unified?
+
+**Option A: Generic over a marker trait.** One could imagine:
+```rust
+pub struct GenericThunk<'a, A, S: ThreadSafety>(Box<dyn FnOnce() -> A + ... + 'a>);
+```
+However, Rust does not support conditional auto-trait bounds on trait objects based on a type parameter. You cannot write `Box<dyn FnOnce() -> A + MaybeSend<S> + 'a>`. The `+ Send` bound is part of the trait object type, not something that can be parameterized. This approach is not feasible in current Rust.
+
+**Option B: Macro-generated implementations.** A declarative macro could generate both `Thunk` and `SendThunk` from a common template, reducing duplication. This would be a maintenance improvement but adds macro complexity. The current duplication is modest (approximately 150 lines of inherent methods, plus parallel trait impls) and manageable.
+
+**Option C: Shared inner function bodies.** Extract shared logic into free functions that both types call. This is possible but would require exposing internals and would not reduce the public API surface.
+
+**Verdict:** The current duplication is acceptable. The two types have genuinely different bounds, different trait implementations, and different conversion semantics. Unification is not worth the complexity.
+
+## 6. Lifetime Handling
+
+`SendThunk<'a, A>` is parameterized over `'a`, allowing it to borrow from the environment. This matches `Thunk<'a, A>` and contrasts with `Trampoline<A>` which requires `'static`.
+
+All method signatures correctly propagate `'a`:
+- `new(f: impl FnOnce() -> A + Send + 'a)` captures `'a`.
+- `bind(self, f: impl FnOnce(A) -> SendThunk<'a, B> + Send + 'a)` returns `SendThunk<'a, B>`.
+- `map(self, f: impl FnOnce(A) -> B + Send + 'a)` returns `SendThunk<'a, B>`.
+- `pure(a: A) where A: Send + 'a` requires `A` to be bounded by `'a`.
+
+The `tail_rec_m` method requires `S: Send + 'a` and `f: Fn(S) -> SendThunk<'a, Step<S, A>> + Clone + Send + 'a`, which is correct.
+
+One subtlety: `pure` requires `A: Send + 'a`, while `Thunk::pure` only requires `A: 'a`. The `Send` bound is necessary because the value is captured in a `Send` closure. This is correct.
+
+## 7. Documentation Quality
+
+### Strengths
+
+- Thorough module-level documentation (lines 1-9) explaining the relationship to `Thunk` and the HKT limitation.
+- Comprehensive comparison table in the struct docs (lines 57-66) covering thread safety, HKT compatibility, stack safety, memoization, lifetime, and use case.
+- Clear explanation of why HKT traits cannot be implemented (lines 68-78).
+- Algebraic properties (monad laws) stated explicitly (lines 80-87).
+- Stack safety caveats documented (lines 89-91).
+- Every public method has `#[document_signature]`, `#[document_parameters]`, `#[document_returns]`, and `#[document_examples]` attributes.
+- The `Deferrable` impl documents its eager semantics.
+- The `From<Thunk>` impl documents the eager evaluation requirement.
+
+### Weaknesses
+
+- The doc comment on `SendThunk::pure` says "Returns a pure value (already computed)" which is slightly misleading; it wraps the value in a closure that returns it. Technically it is "already determined" but the closure is still called on `evaluate()`.
+- No `# Safety` or `# Panics` sections, though none are needed (no unsafe code, no panics in public API).
+- The comparison table uses emoji characters which may not render well in all documentation viewers.
+- Missing a note about `Sync` behavior (i.e., that `SendThunk` is `Send` but not `Sync`).
+
+## 8. Issues, Limitations, and Design Flaws
+
+### Issue 1: `Deferrable::defer` is eager
+
+As discussed in section 3, the `Deferrable` implementation calls `f()` immediately. This is correct but potentially surprising to users who expect `Deferrable::defer` to be lazy. The doc comment explains this, but it violates the "transparency" law stated in the `Deferrable` trait docs (`defer(|| x)` should be equivalent to `x` "when evaluated"). Technically the law holds because `f()` produces a `SendThunk` that is still deferred, but the outer thunk `f` itself is not deferred.
+
+**Severity:** Low. Documented and unavoidable given the trait signature.
+
+### Issue 2: No `Evaluable` implementation
+
+`Evaluable` requires `Functor` as a supertrait, so `SendThunkBrand` cannot implement it. This means generic code over `Evaluable` cannot work with `SendThunk`. The inherent `evaluate()` method exists but is not accessible through a trait-generic interface.
+
+**Severity:** Medium. Users who want to write generic "evaluate any lazy type" code cannot include `SendThunk`.
+
+### Issue 3: No `FunctorWithIndex` implementation
+
+`Thunk` implements `FunctorWithIndex` (with `Index = ()`), but `SendThunk` does not because `FunctorWithIndex` requires `Functor`. `FoldableWithIndex` is implemented, so there is an asymmetry: you can fold with index but not map with index via the HKT trait. The inherent `map` method is available.
+
+**Severity:** Low. `FunctorWithIndex` with `Index = ()` is rarely useful in practice.
+
+### Issue 4: Missing `From<Trampoline<A>>` conversion
+
+`Thunk` has `From<Trampoline<A>>` and `From<Trampoline<A>> for Thunk<'static, A>`. `SendThunk` has neither direction. Since `Trampoline` is `!Send` (it is built on `Free<ThunkBrand, A>` which uses `Thunk` internally), `From<Trampoline<A>> for SendThunk` would need eager evaluation, similar to `From<Thunk> for SendThunk`.
+
+**Severity:** Low. The conversion path `Trampoline -> Thunk -> SendThunk` exists via chaining.
+
+### Issue 5: `tail_rec_m` requires `Clone` on the step function
+
+The inherent `tail_rec_m` requires `f: impl Fn(S) -> SendThunk<'a, Step<S, A>> + Clone + Send + 'a`. The `Clone` bound is needed because the loop calls `f` multiple times, but since `f` is `Fn` (not `FnOnce`), the `Clone` bound is actually unnecessary; `Fn` closures can be called multiple times without cloning. The `Clone` is inherited from `Thunk`'s `MonadRec::tail_rec_m` pattern, but for the inherent method it could be relaxed to just `Fn + Send + 'a`.
+
+Looking more carefully: the `arc_tail_rec_m` variant exists for non-`Clone` closures, wrapping in `Arc`. But the underlying `tail_rec_m` still takes `Clone`. In practice, because `tail_rec_m` creates a `SendThunk::new(move || { ... loop { f(state) } })`, the `f` is moved into the closure and called in a loop. Since `Fn` closures can be called by reference (`(&f)(state)`), `Clone` is indeed not necessary here. The `Clone` requirement appears to be overly strict.
+
+**Severity:** Low. `arc_tail_rec_m` provides a workaround, and most small closures are `Clone` anyway.
+
+### Issue 6: No `apply` or `lift2` inherent methods
+
+`Thunk` has HKT-level `Semiapplicative::apply` and `Lift::lift2`. `SendThunk` has neither as inherent methods, even though `Send`-bounded versions would be straightforward:
+```rust
+pub fn lift2<B, C>(f: impl FnOnce(A, B) -> C + Send + 'a, ...) -> SendThunk<'a, C>
+```
+
+**Severity:** Low. Users can compose `bind` and `map` manually.
+
+## 9. Alternatives to the Current Design
+
+### A. Conditional `Send` via sealed trait
 
 ```rust
-fn defer(f: impl FnOnce() -> Self + 'a) -> Self
-where
-    Self: Sized, {
-    f()
+mod sealed {
+    pub trait MaybeSend {}
+    pub struct IsSend;
+    pub struct NotSend;
+    impl MaybeSend for IsSend {}
+    impl MaybeSend for NotSend {}
 }
 ```
 
-This satisfies the transparency law ("defer(|| x) is equivalent to x"), but it is **not** truly deferred. The `Thunk` version (thunk.rs line 436-440) uses `Thunk::defer(f)`, which wraps the computation in a new closure and delays evaluation.
+This does not help because `Box<dyn FnOnce() -> A>` vs `Box<dyn FnOnce() -> A + Send>` are different types at the trait-object level. You cannot parameterize the `+ Send` part.
 
-The eager evaluation here is a deliberate choice: since the `Deferrable` trait does not require `Send` on its closure parameter, and `SendThunk::defer` (the inherent method at line 150) requires `Send`, the trait implementation cannot delegate to the inherent method. The documentation at line 403-404 explains this. This is a correct and well-documented concession.
+### B. Feature flag for `Send` variants
 
-However, this means that `Deferrable::defer` for `SendThunk` has different performance characteristics than for `Thunk`. Generic code using `Deferrable` will get eager evaluation for `SendThunk` but deferred evaluation for `Thunk`. This is documented but could surprise users.
+This would be worse than the current approach. Feature flags are additive; you cannot have a feature that removes `Send` bounds.
 
-### `SendDeferrable` Implementation (lines 452-456)
+### C. Newtype wrapper
 
 ```rust
-fn send_defer(f: impl FnOnce() -> Self + Send + 'a) -> Self {
-    SendThunk::defer(f)
-}
+pub struct SendThunk<'a, A>(Thunk<'a, A>);
 ```
 
-This delegates to the inherent `SendThunk::defer`, which calls `SendThunk::new(move || f().evaluate())`. This is truly deferred. The implementation is correct.
+This does not work because `Thunk`'s inner closure is `!Send`. You would need `unsafe` to assert `Send`, and the assertion would be incorrect for closures capturing `!Send` data.
 
-However, there is a subtle issue: `send_defer` calls `SendThunk::defer(f)`, and `SendThunk::defer` (line 150-152) calls `SendThunk::new(move || f().evaluate())`. This means the outer thunk `f` is deferred, but when it produces a `SendThunk`, that inner thunk is immediately evaluated. This is the expected "join" semantics for `defer`, equivalent to Thunk's version.
+### D. Status quo
 
-### Missing Instances
+The current approach of two separate types with parallel inherent methods is the correct Rust solution. It is the same pattern used by `Rc`/`Arc`, `Cell`/`AtomicCell`, `RefCell`/`Mutex`, etc. The duplication is a known Rust ergonomics limitation.
 
-Compared to `Thunk`, `SendThunk` is missing the following HKT trait implementations:
+## 10. Summary of Recommendations
 
-- **`Functor` for `SendThunkBrand`**: Cannot be implemented (HKT `map` signature lacks `Send`).
-- **`Pointed` for `SendThunkBrand`**: Could potentially be implemented, since `Pointed::pure` takes a value, not a closure. The value just needs to be `Send`. However, implementing `Pointed` without `Functor` would be unusual and might be confusing.
-- **`Semimonad`/`Semiapplicative`**: Cannot be implemented (closure parameters lack `Send`).
-- **`Foldable` for `SendThunkBrand`**: Could potentially be implemented. `Foldable::fold_right` takes an `Fn(A, B) -> B` which does not need to be `Send` because it is called during evaluation (which happens on a single thread). The fold functions consume the `SendThunk` by evaluating it and then applying the fold function. This would work because the fold function does not need to be stored inside a `Send` closure; it is used immediately after the thunk is evaluated.
-- **`Evaluable` for `SendThunkBrand`**: Requires `Functor` as a supertrait, so cannot be implemented.
-- **`MonadRec` for `SendThunkBrand`**: Cannot be implemented (requires `Semimonad` or at minimum `Functor`).
-- **`WithIndex`/`FunctorWithIndex`/`FoldableWithIndex`**: `FunctorWithIndex` requires `Functor`, so no. `FoldableWithIndex` requires `Foldable`, which could be implemented (see above).
+1. **Keep the current design.** The duplication between `Thunk` and `SendThunk` is the idiomatic Rust approach for `Send`/`!Send` variants.
+2. **Consider relaxing the `Clone` bound on `tail_rec_m`** since the step function is `Fn`, not `FnOnce`.
+3. **Consider adding inherent `lift2`/`apply` methods** for parity with the operations available on `Thunk` via HKT.
+4. **Consider adding `From<Trampoline<A>>` for `SendThunk<'static, A>`** (with eager evaluation) for completeness.
+5. **Consider adding a compile-fail test** verifying that `SendThunk` is `!Sync`.
+6. **Documentation:** Add a note about `Send`-but-not-`Sync` behavior in the struct-level docs.
 
-**Recommendation**: Consider implementing `Foldable` and `FoldableWithIndex` for `SendThunkBrand`. The fold functions are not stored inside the thunk; they are applied after evaluation. The `Send` bound on the thunk's closure is not violated because the fold function runs on whatever thread calls `evaluate`. This would give `SendThunk` parity with the fold capabilities of `Thunk`.
+## 11. Test Coverage
 
-### Missing Trait Implementations (Non-HKT)
+The test module (lines 746-1016) is comprehensive:
 
-- **`Eq`/`PartialEq`**: Cannot be implemented without evaluating. `Thunk` does not implement these either. Consistent.
-- **`Display`**: Not implemented by `Thunk` either. Could be useful but would require forcing evaluation. Consistent.
+- Basic operations: `pure`, `new`, `map`, `bind`, `defer`, `evaluate`.
+- `into_arc_lazy` with double-access to verify memoization.
+- `Semigroup` and `Monoid`.
+- `From<Thunk>` conversion.
+- `Debug` formatting.
+- `Send` marker assertion (`assert_send::<SendThunk<'static, i32>>()`).
+- `Deferrable` and `SendDeferrable` trait usage.
+- Cross-thread evaluation (3 tests: basic, with `map`, with `bind`).
+- `tail_rec_m` basic and stack-safety (200,000 iterations).
+- `arc_tail_rec_m` with `AtomicUsize` counter.
+- `Foldable`: `fold_right`, `fold_left`, `fold_map`.
+- `FoldableWithIndex`: `fold_map_with_index`, unit-index assertion.
+- Consistency between `Foldable` and `FoldableWithIndex`.
 
-## 4. API Surface
-
-### Well-Designed
-
-The API mirrors `Thunk`'s inherent methods closely:
-
-| `Thunk` | `SendThunk` | Notes |
-|---------|-------------|-------|
-| `new(f)` | `new(f)` | `f` requires `Send` in `SendThunk` |
-| `pure(a)` | `pure(a)` | `a` requires `Send` in `SendThunk` |
-| `defer(f)` | `defer(f)` | `f` requires `Send` in `SendThunk` |
-| `bind(f)` | `bind(f)` | `f` requires `Send` in `SendThunk` |
-| `map(f)` | `map(f)` | `f` requires `Send` in `SendThunk` |
-| `evaluate()` | `evaluate()` | Identical |
-| `into_rc_lazy()` | (missing) | See below |
-| `into_arc_lazy()` | `into_arc_lazy()` | `Thunk` evaluates eagerly; `SendThunk` defers |
-| `tail_rec_m(f, s)` | `tail_rec_m(f, s)` | Identical structure; `f` requires `Send` |
-| (missing) | `arc_tail_rec_m(f, s)` | `SendThunk` adds this for non-Clone closures |
-
-### Missing Methods
-
-- **`into_rc_lazy`**: Not provided. A `SendThunk` could be converted to an `RcLazy` by passing the closure (which is `Send`, and `Send` is not required for `RcLazy`). This conversion would be trivially sound and would allow users to go from thread-safe deferred to single-threaded memoized. Low priority since users can just use `Thunk` if they want `RcLazy`.
-
-- **`apply` / `lift2`**: `Thunk` has these as HKT trait implementations, but `SendThunk` cannot have them at the HKT level. Inherent `apply` and `lift2` methods that accept `Send` closures could be added for ergonomic parity, but the use case is niche. Low priority.
-
-- **`From<SendThunk> for Thunk`**: A `SendThunk` could be trivially converted to a `Thunk` by erasing the `Send` bound on the inner closure (the `Box<dyn FnOnce() -> A + Send>` is a subtype of `Box<dyn FnOnce() -> A>`). This conversion is currently missing. It would be zero-cost and useful for interop.
-
-- **`rc_tail_rec_m`**: `Thunk` has `arc_tail_rec_m` via `MonadRec` HKT. `SendThunk` has its own `arc_tail_rec_m` (line 326). An `rc_tail_rec_m` analog is not needed since `Rc` is not `Send`.
-
-### Unnecessary Methods
-
-None found. The API is lean and purposeful.
-
-## 5. Consistency
-
-### Consistent With Thunk
-
-The implementation closely mirrors `Thunk` in structure, naming, documentation style, and behavior. The `Send` bounds are applied consistently across all methods that store closures.
-
-### Consistent With TrySendThunk
-
-`TrySendThunk` wraps `SendThunk<'a, Result<A, E>>` and follows the same pattern of inherent methods with `Send` bounds. The relationship between `SendThunk`/`TrySendThunk` mirrors `Thunk`/`TryThunk`.
-
-### Minor Inconsistency
-
-- `Thunk`'s `Deferrable` implementation delegates to the inherent `Thunk::defer` (truly deferred), while `SendThunk`'s `Deferrable` evaluates eagerly. This is documented and justified, but the behavioral difference could surprise generic code. Not a bug, but worth keeping in mind.
-
-## 6. Limitations and Issues
-
-### Fundamental Limitations
-
-1. **No HKT traits**: The core limitation. `SendThunk` cannot participate in generic HKT-polymorphic code (e.g., `map::<Brand, _, _>(f, x)` does not work). Users must use inherent methods directly. This is an inherent consequence of Rust's type system and the library's HKT encoding.
-
-2. **Not stack-safe**: Like `Thunk`, `bind` chains grow the stack. `tail_rec_m` provides an escape hatch. This is documented (line 70-71).
-
-3. **Not memoized**: Evaluation re-runs the closure each time (though `evaluate` takes `self`, so in practice it can only be called once). This is by design.
-
-### Potential Issues
-
-1. **`Deferrable` eager evaluation**: As discussed in section 3. Not a bug, but a surprising semantic difference from `Thunk`'s `Deferrable` implementation.
-
-2. **`into_arc_lazy` accesses `Lazy` internals**: Line 361 calls `Lazy(ArcLazyConfig::lazy_new(self.0))`, constructing a `Lazy` directly via its tuple struct field. This creates a coupling to `Lazy`'s internal representation. If `Lazy`'s fields change, this code breaks. `Thunk::into_rc_lazy` (thunk.rs line 303) uses `Lazy::from(self)`, which is more robust. Consider whether `SendThunk` could use a similar conversion trait or a dedicated constructor on `Lazy`.
-
-## 7. Documentation
-
-### Quality
-
-Documentation is thorough and accurate:
-
-- Module-level doc (lines 1-9) concisely explains the purpose and limitations.
-- Struct-level doc (lines 40-71) covers HKT representation, trait limitations, stack safety, and comparison with `Thunk`.
-- All methods have `#[document_signature]`, `#[document_parameters]`, `#[document_returns]`, and `#[document_examples]` attributes.
-- The `Deferrable` implementation's eager evaluation is documented (line 401-404).
-- The `From<Thunk>` conversion's eager evaluation is documented (lines 371-373).
-
-### Missing Documentation
-
-- The struct doc does not include a comparison table like `Thunk` has (thunk.rs lines 59-67). A table comparing `SendThunk` vs `Thunk` would help users choose between them.
-- No mention of the algebraic properties (monad laws) like `Thunk` has (thunk.rs lines 69-74). While `SendThunk` cannot implement the HKT `Semimonad` trait, its inherent `bind`/`pure` still satisfy the monad laws.
-- `arc_tail_rec_m` does not document why `Sync` is required in addition to `Send` (line 327). This is because `Arc::clone` requires `T: Send + Sync` for the `Arc<T>` to be `Send`.
-
-## Summary of Recommendations
-
-1. **Consider implementing `Foldable` for `SendThunkBrand`**: The fold functions do not need `Send` bounds, so this should be feasible and would improve HKT interop.
-2. **Consider adding `From<SendThunk> for Thunk`**: Zero-cost conversion that erases the `Send` bound.
-3. **Address `into_arc_lazy` coupling**: The direct construction of `Lazy(ArcLazyConfig::lazy_new(...))` bypasses any abstraction boundary. Consider adding a constructor or `From` impl on `Lazy`/`ArcLazy` that accepts `Box<dyn FnOnce() -> A + Send>`.
-4. **Add monad law documentation**: Document that `pure`/`bind`/`map` satisfy the functor and monad laws via inherent methods.
-5. **Add comparison table**: Similar to `Thunk`'s table, compare `SendThunk` vs `Thunk` in the struct docs.
-6. **Document `Sync` requirement on `arc_tail_rec_m`**: Explain why the closure needs `Sync` in addition to `Send`.
+Missing test coverage:
+- `Sync`-negative test (compile-fail).
+- Monad law tests (left identity, right identity, associativity) for the inherent methods.
+- Functor law tests (identity, composition) for the inherent `map`.
+- Property-based (QuickCheck) tests (Thunk has them, SendThunk does not).

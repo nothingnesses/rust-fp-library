@@ -1,249 +1,396 @@
-# Analysis of `fp-library/src/types/free.rs`
+# Free Monad Analysis
 
-## 1. Design
+## 1. Type Design
 
-The overall design is sound and faithfully implements the "Reflection without Remorse" approach. The core insight of the paper is correctly captured: instead of a naive recursive `Free` definition that leads to O(n) left-associated binds, the implementation uses a `CatList` of type-erased continuations to achieve O(1) `bind` and stack-safe evaluation via an iterative trampoline loop.
+### Core Representation
 
-The three-variant `FreeInner` enum (`Pure`, `Wrap`, `Bind`) is the standard representation. The `Bind` variant stores a `head: Box<Free<F, TypeErasedValue>>` plus a `CatList<Continuation<F>>`, which is correct. The `evaluate` loop iteratively processes `Bind` nodes by merging continuation lists (O(1) via `CatList::append`), evaluates `Wrap` nodes by calling `F::evaluate`, and applies continuations to `Pure` values.
-
-The `Option<FreeInner<F, A>>` wrapper with take-and-replace semantics is a pragmatic solution to Rust's ownership constraints. It enables `bind` and `erase_type` to move the inner value out of `&mut self` without unsafe code, at the cost of a runtime panic for double-consumption. This is reasonable; the invariant is well-documented and enforced at all consumption sites.
-
-**Design trade-off acknowledged:** The use of `Box<dyn Any>` for type erasure forces `A: 'static`, which prevents `Free` from implementing the library's HKT traits (which require lifetime polymorphism). The module documentation clearly explains this trade-off and why the naive recursive definition was rejected. This is the right call; stack safety and O(1) bind are more important than HKT compatibility for a Free monad.
-
-## 2. Correctness
-
-### Type erasure and downcast safety
-
-All `downcast` calls are guarded by the internal invariant that type information is preserved through the continuation chain. The types flow as follows:
-
-1. `bind` erases `A` into `TypeErasedValue` via `Box::new(a)`.
-2. Each `Continuation<F>` downcasts `TypeErasedValue` back to the expected type.
-3. The final downcast in `evaluate` recovers the original `A`.
-
-This is sound as long as the `CatList` of continuations is assembled correctly, which it is: `snoc` appends to the end, and `uncons` pops from the front, preserving FIFO order.
-
-### Potential bug: `bind` on `Pure` is unnecessarily indirect
-
-When `bind` encounters a `Pure(a)`, it wraps the value in a `Bind` node with a type-erased head:
+The Rust `Free` monad uses a three-variant enum `FreeInner<F, A>`:
 
 ```rust
-FreeInner::Pure(a) => {
-    let head = Free::from_inner(FreeInner::Pure(Box::new(a) as TypeErasedValue));
-    Free::from_inner(FreeInner::Bind {
-        head: Box::new(head),
-        continuations: CatList::singleton(erased_f),
-        _marker: PhantomData,
-    })
+enum FreeInner<F, A> {
+    Pure(A),
+    Wrap(F::Of<'static, Free<F, A>>),
+    Bind {
+        head: Box<Free<F, TypeErasedValue>>,
+        continuations: CatList<Continuation<F>>,
+        _marker: PhantomData<A>,
+    },
 }
 ```
 
-This is not a bug, but it is suboptimal. An alternative would be to immediately apply `f(a)` and return the result, avoiding an unnecessary `Bind` node, a `Box` allocation for the head, and a `CatList::singleton`. However, this would change the semantics: `bind` would eagerly evaluate the continuation for `Pure` values, which contradicts the lazy/deferred semantics of `Free`. The current approach is correct in preserving laziness uniformly.
+Where:
+- `TypeErasedValue = Box<dyn Any>`
+- `Continuation<F> = Box<dyn FnOnce(TypeErasedValue) -> Free<F, TypeErasedValue>>`
 
-### `erase_type` on `Bind` variant: phantom type coercion
-
-The `erase_type` method handles `Bind` by simply reconstructing it with a different `_marker: PhantomData`:
+The public type `Free<F, A>` wraps this in an `Option`:
 
 ```rust
-FreeInner::Bind { head, continuations, .. } => Free::from_inner(FreeInner::Bind {
-    head,
-    continuations,
-    _marker: PhantomData,
-})
+pub struct Free<F, A>(Option<FreeInner<F, A>>);
 ```
 
-This is correct because `Bind`'s `head` is already `Free<F, TypeErasedValue>`, and the continuations are already type-erased. The `A` type parameter on `Bind` is purely phantom, used only to track the "output" type at the Rust type level. Changing the phantom marker is safe.
+The `Option` wrapper enables a linear consumption pattern: methods like `bind`, `erase_type`, and `evaluate` call `take_inner()` to move the `FreeInner` out. This avoids needing `unsafe` to move out of `&mut self` while keeping the struct in a valid (though empty) state.
 
-### `resume` correctness
+### Comparison to PureScript's Representation
 
-The `resume` function is the most complex part. When it encounters a `Wrap(fa)` with remaining continuations, it must reconstruct a `Free<F, A>` by mapping over the functor to reattach the continuations. The implementation uses `Cell` to move the `CatList` into the map closure, which is called exactly once. A downcast continuation is appended to convert `TypeErasedValue` back to `A`.
+PureScript uses:
 
-This is correct, but relies on the invariant that `F::map` calls the closure exactly once. The code documents this with an `expect` message. This is a reasonable assumption for a lawful `Functor`, but is not enforced by the type system.
+```purescript
+data Free f a = Free (FreeView f Val Val) (CatList (ExpF f))
+data FreeView f a b = Return a | Bind (f b) (b -> Free f a)
+data Val
+newtype ExpF f = ExpF (Val -> Free f Val)
+```
 
-### No unsafe code
+PureScript's approach is more compact: it uses a single `Free` constructor that always pairs a `FreeView` with a `CatList`. The Rust version uses three distinct variants (`Pure`, `Wrap`, `Bind`), which is structurally different but semantically equivalent. The Rust approach makes the three states explicit, whereas PureScript encodes them by distinguishing an empty CatList from a non-empty one.
 
-The implementation contains zero `unsafe` blocks, relying entirely on `Box<dyn Any>` and `downcast` for type erasure. This is a positive design choice.
+Key structural difference: PureScript stores the CatList alongside every Free value (even Pure ones, where it is empty). Rust only attaches a CatList to the `Bind` variant, making `Pure` and `Wrap` smaller. This is a reasonable optimization.
 
-## 3. Type class instances
+### Type Erasure Strategy
 
-### Implemented
+PureScript uses `unsafeCoerce` and a phantom `Val` type to erase types in the continuation queue. Rust uses `Box<dyn Any>` with runtime `downcast()`. Both are performing the same logical operation (hiding the intermediate types so continuations can be stored homogeneously in the CatList), but with different safety trade-offs:
 
-- **`Deferrable<'static>`** for `Free<ThunkBrand, A>`: Correctly delegates to `Free::wrap(Thunk::new(f))`.
+- PureScript's `unsafeCoerce` is zero-cost but entirely unchecked.
+- Rust's `Box<dyn Any>` adds a heap allocation per erased value and a runtime type check per `downcast`, but provides a runtime safety net. A type mismatch produces a panic with a meaningful message rather than undefined behavior.
 
-### Not implemented (with analysis of whether they should be)
+The `dyn Any` approach is what forces the `'static` constraint, since `Any: 'static`.
 
-- **`Functor`, `Monad`, `Applicative`**: Cannot be implemented via the library's HKT traits due to the `'static` requirement. The `map`, `bind`, and `pure` methods are provided as inherent methods instead. This is the correct approach.
+## 2. "Reflection without Remorse"
 
-- **`Semigroup`/`Monoid`**: Could theoretically be implemented for `Free<F, A>` where `A: Semigroup`/`A: Monoid`, but this would require eager evaluation or would need to wrap the combination in another `bind`. Not clearly useful.
+### Correctness of the Technique
 
-- **`Foldable`/`Traversable`**: These don't make sense for `Free` because it's a computation, not a container. `Free` holds exactly one value when evaluated, so `Foldable` would be trivial (equivalent to `evaluate`).
+The "Reflection without Remorse" technique addresses the quadratic complexity of left-associated binds in naive Free monad implementations. The core insight: instead of nesting continuations (which produces a left-leaning tree that must be traversed on each step), store them in a flat queue.
 
-- **`Eq`/`PartialEq`/`Debug`/`Clone`**: `Free` cannot implement `Clone` because continuations are `Box<dyn FnOnce>` (not cloneable). `Eq`/`PartialEq` would require evaluating and comparing, which is effectful. `Debug` cannot show the internals meaningfully due to type erasure. None of these are implementable or appropriate.
+The Rust implementation achieves this correctly:
 
-- **`MonadTailRec`**: The library has a `MonadTailRec` trait (in `monad_rec.rs`). `Free` inherently provides stack-safe recursion, so implementing `MonadTailRec` for it would be natural. However, since `Free` cannot implement the library's `Monad` trait (due to `'static`), it also cannot implement `MonadTailRec`. The `Trampoline` wrapper provides this functionality instead.
+1. **O(1) `bind`**: When binding on a `Bind` variant, the new continuation is appended to the existing `CatList` via `snoc`, which is O(1). When binding on `Pure` or `Wrap`, a new `Bind` node is created with a singleton CatList, also O(1).
 
-- **`SendDeferrable`**: Not implemented. `Free` uses `Box<dyn FnOnce>` (not `Send`), so it cannot be `Send`. A `SendFree` variant would require `Box<dyn FnOnce + Send>` continuations.
+2. **O(1) amortized `uncons`**: During `evaluate`, when a `Pure` value is reached, the next continuation is popped from the CatList via `uncons` (O(1) amortized). When a `Bind` is encountered, its inner CatList is merged with the outer one via `append` (O(1)).
 
-**Verdict:** All applicable type class instances are implemented. The inherent methods (`pure`, `bind`, `map`) adequately substitute for the HKT-based type classes.
+3. **No left-association penalty**: A sequence like `pure(a).bind(f1).bind(f2).bind(f3)...bind(fn)` builds a single `Bind` node with the CatList `[f1, f2, ..., fn]`, rather than a nested tree of binds.
 
-## 4. API surface
+### CatList Backing
 
-### Present and well-designed
+The Rust CatList uses `VecDeque<CatList<A>>` for the sublist queue rather than PureScript's `CatQueue` (a two-list queue). This is a pragmatic choice: `VecDeque` provides O(1) amortized operations on both ends with cache-friendly contiguous storage, whereas PureScript's `CatQueue` uses a pair of linked lists. The Rust approach should perform better in practice due to reduced allocation overhead and better locality.
 
-- `pure(a)` / `wrap(fa)` / `lift_f(fa)`: Complete construction API.
-- `bind(f)` / `map(f)`: Monadic operations.
-- `evaluate()`: Stack-safe execution via trampoline.
-- `resume()`: One-step decomposition, essential for interpreters.
-- `fold_free(nt)`: Interpretation into a different monad via natural transformation.
-- `erase_type()` / `boxed_erase_type()`: Internal but publicly exposed for advanced use.
+One concern: `flatten_deque` performs a right fold over the entire deque. The documentation claims O(1) amortized per element across a full sequence of `uncons` calls, which is correct by the standard amortization argument (each element enters the deque at most once and is visited by `flatten_deque` at most once).
 
-### Missing operations
+## 3. Stack Safety
 
-1. **`hoist_free`**: The documentation explicitly acknowledges this is missing. `hoist_free` would transform `Free<F, A>` into `Free<G, A>` given a natural transformation `F ~> G`. This is useful for changing the base functor without interpreting the computation. Implementation would require walking the structure and transforming each `Wrap` layer. Since `resume` already does the hard work of decomposing the structure, `hoist_free` could be implemented by iterating `resume` calls.
+### `evaluate` Loop
 
-2. **`iter`/`go`**: A stack-safe version of `fold_free` that uses an iterative loop instead of recursion. The current `fold_free` is explicitly documented as not stack-safe for strict target monads. An iterative variant (often called `go` or `runFree`) that uses `resume` in a loop would be valuable.
+The `evaluate` method is the core trampoline. It works as follows:
 
-3. **`ap` (applicative apply)**: While `map` and `bind` are present, there's no direct `ap` method. It could be implemented via `bind`: `self.bind(|f| other.map(f))`. Not critical, but would complete the monadic API.
+1. Type-erase the entire `Free` value via `erase_type()`.
+2. Enter an iterative loop with two pieces of state: `current` (the current node) and `continuations` (a CatList of pending continuations).
+3. On `Pure(val)`: pop the next continuation and apply it, or if empty, downcast to `A` and return.
+4. On `Wrap(fa)`: call `F::evaluate(fa)` to extract the inner `Free` and continue.
+5. On `Bind { head, continuations: inner }`: set `current = *head` and merge `inner.append(continuations)`.
 
-4. **`and_then` alias**: Rust idiom typically uses `and_then` for monadic bind. A simple alias would improve ergonomics for Rust developers unfamiliar with FP terminology.
+This is fully iterative; no recursion occurs. The stack depth is constant regardless of the number of `bind` operations or `wrap` layers.
 
-5. **`From` conversions**: No `From<A> for Free<F, A>` (equivalent to `pure`), and no `From<F<Free<F, A>>> for Free<F, A>` (equivalent to `wrap`). These would enable `?` operator integration for types that implement `Try`.
+### `resume` Loop
 
-## 5. Stack safety
+`resume` follows the same iterative pattern as `evaluate` but stops at the first `Wrap` layer instead of evaluating through it. When it encounters a `Wrap`, it must reconstruct the remaining continuation chain by mapping over the functor to reattach all pending continuations. This is correct but involves some clever type-level gymnastics (using `Cell` to move the CatList into an `Fn` closure).
 
-### `evaluate`: Fully stack-safe
+### `Drop` Implementation
 
-The `evaluate` loop is genuinely stack-safe:
+The custom `Drop` is essential for stack safety: without it, dropping a deeply nested `Free` would recursively drop each node, overflowing the stack. The implementation uses a worklist-based approach:
 
-- `Pure` with continuations: applies the next continuation, loops back. No stack growth.
-- `Wrap(fa)`: calls `F::evaluate(fa)` which for `ThunkBrand` calls `thunk.evaluate()` (a single function call, O(1) stack). The result is assigned to `current`, and we loop back.
-- `Bind`: merges continuation lists via `CatList::append` (O(1)), destructures the head, loops back.
+1. Push the inner `FreeInner` onto a `Vec` worklist.
+2. Pop nodes and process them: `Pure` nodes drop trivially, `Wrap` nodes are eagerly evaluated to extract the inner `Free`, `Bind` nodes have their head dropped and continuations drained via `uncons`.
 
-No recursive calls exist in the loop. Stack depth is bounded by the constant overhead of the loop body.
+One concern: for `Wrap` nodes, the `Drop` implementation calls `Evaluable::evaluate` to extract the inner `Free`. This forces evaluation of potentially expensive effects purely for the sake of drop safety. If the functor `F` has expensive side effects, dropping an unevaluated `Free` could be surprising. For the primary use case (`ThunkBrand`/`Trampoline`), thunks are cheap closures, so this is acceptable.
 
-### `fold_free`: Not stack-safe (documented)
+Another concern: for `Bind` nodes, the comment acknowledges that `head` (of type `Box<Free<F, TypeErasedValue>>`) cannot be folded into the worklist because it has a different type parameter. It relies on the head's own `Drop` impl to handle nested chains. This is correct (the head's `Drop` will also use the worklist pattern), but it means each `Bind` level creates a new `Drop` invocation. For a chain of `n` binds, this should still be O(n) total work with O(1) stack depth, because each `Bind`'s head is typically a leaf (`Pure` or `Wrap`), not another deeply nested `Bind`.
 
-`fold_free` uses actual recursion: each `Wrap` layer adds a stack frame via `G::bind(..., |inner| inner.fold_free(nt))`. For strict monads like `Option`, deeply nested computations will overflow. The documentation correctly warns about this.
+### `hoist_free` is NOT Stack-safe
 
-### `resume`: Stack-safe
+The documentation correctly notes that `hoist_free` recurses over `Wrap` depth. Each `Wrap` layer produces one recursive call. This is acceptable in practice because `Wrap` depth corresponds to the number of distinct `lift_f` calls (effects), not the number of `bind` operations (which can be arbitrarily deep). However, for programmatically generated `Wrap` chains (e.g., the test `test_free_hoist_free_deep_wraps` uses only 100 layers), this could overflow for thousands of layers. The `fold_free` alternative is stack-safe because it delegates to `MonadRec::tail_rec_m`.
 
-`resume` uses the same iterative pattern as `evaluate`, processing `Bind` nodes in a loop without recursion.
+## 4. Comparison to PureScript's Free
 
-### `Drop`: Partially stack-safe (potential issue)
+### Semantic Fidelity
 
-The `Drop` implementation iteratively dismantles `Bind` chains by draining the `CatList` of continuations. This is correct for chains of `bind` operations.
+The Rust version captures the core semantics of PureScript's Free:
 
-**However, the `Wrap` case delegates entirely to the functor's `Drop`:**
+| Feature | PureScript | Rust | Match? |
+|---------|-----------|------|--------|
+| O(1) bind | Yes (CatList of ExpF) | Yes (CatList of Continuation) | Yes |
+| Stack-safe evaluation | Yes (toView is iterative) | Yes (evaluate loop) | Yes |
+| `pure` | `pure = fromView <<< Return` | `Free::pure(a)` | Yes |
+| `wrap` | `wrap f = fromView (Bind (unsafeCoerce f) unsafeCoerce)` | `Free::wrap(fa)` | Yes |
+| `liftF` | `liftF f = fromView (Bind ...)` | `Free::lift_f(fa) = wrap(map(pure, fa))` | Equivalent |
+| `bind` | `bind (Free v s) k = Free v (snoc s ...)` | Matches for `Bind` variant; creates `Bind` for `Pure`/`Wrap` | Equivalent |
+| `resume` | Pattern match on `toView` | Iterative loop collapsing binds | Equivalent |
+| `foldFree` | `tailRecM go` | `G::tail_rec_m(...)` | Yes |
+| `hoistFree` | `substFree (liftF <<< k)` | Recursive via `resume` | Different impl, same semantics |
+| `substFree` | Recursive fold | Not provided | Missing |
+| `runFree` | Recursive | Not provided | Missing |
+| `runFreeM` | `tailRecM go` | Not provided | Missing |
+
+### Key Differences
+
+1. **Type erasure mechanism**: PureScript uses `unsafeCoerce` with a phantom `Val` type. Rust uses `Box<dyn Any>` with `downcast`. Both serve the same purpose: allowing heterogeneous continuations in the CatList.
+
+2. **Evaluable constraint**: PureScript's Free is generic over any functor and provides multiple interpretation strategies (`foldFree`, `runFree`, `runFreeM`, `resume`). Rust's Free requires `F: Evaluable`, tying the functor to a specific evaluation strategy. This constrains flexibility but simplifies the API.
+
+3. **Missing operations**: Rust lacks `substFree` (fold into another Free monad), `runFree` (step-by-step with a functor unwrapper), and `runFreeM` (step-by-step into a MonadRec). The `fold_free` method covers the most important use case (`foldFree`), and `resume` covers the step-by-step case.
+
+4. **MonadTrans**: PureScript's Free implements `MonadTrans` (`lift = liftF`). Rust's Free does not, because it lacks HKT trait integration.
+
+5. **Foldable/Traversable**: PureScript implements `Foldable` and `Traversable` for `Free f` when `f` is `Foldable`/`Traversable`. Rust does not, due to the lack of HKT integration.
+
+6. **Eq/Ord**: PureScript derives `Eq` and `Ord` for Free via `resume`. Rust does not implement these (likely because `Box<dyn Any>` makes equality comparison difficult).
+
+7. **bind implementation detail**: PureScript's `bind` always appends to the existing CatList (`snoc`), regardless of the current variant. The Rust version has three match arms for `Pure`, `Wrap`, and `Bind`. For `Pure` and `Wrap`, it creates a new `Bind` node. Only the `Bind` arm uses `snoc` directly. This means a sequence of binds on a `Pure` value will create nested `Bind` nodes until `evaluate` flattens them. PureScript avoids this because it always stores a CatList alongside the view. This is a minor structural difference; the flattening in `evaluate` handles it efficiently.
+
+### `toView` vs `evaluate`
+
+PureScript's `toView` is the workhorse: it iteratively collapses the Free structure into a `FreeView` (either `Return a` or `Bind (f b) (b -> Free f a)`). This is then pattern-matched by consumers like `resume`, `foldFree`, etc.
+
+Rust's `evaluate` and `resume` each contain their own iterative loop, duplicating the pattern-collapsing logic. A `toView`-like helper would reduce this duplication, though the Rust ownership model makes a shared helper less natural (each consumer needs to handle the extracted value differently).
+
+## 5. HKT Support
+
+### No Brand for Free
+
+`Free` does not have a brand type and does not implement `Kind`. The module documentation explains the fundamental conflict:
+
+- `Kind` requires `type Of<'a, A: 'a>: 'a`, meaning the type constructor must accept any lifetime `'a`.
+- `Free` uses `Box<dyn Any>`, which requires `A: 'static`.
+
+These are irreconcilable: `Free` cannot promise to work with `&'a str` or other non-static references.
+
+### Consequences
+
+Without HKT integration, `Free` cannot be used with the library's generic functions (`map`, `bind`, `pure`, `fold`, etc.) or participate in type class hierarchies. Instead, it provides its own inherent methods (`Free::pure`, `Free::bind`, `Free::map`, `Free::evaluate`). This is a significant limitation for composability, but the trade-off (stack safety + O(1) bind) is documented and justified.
+
+The `Trampoline` type is a newtype wrapper around `Free<ThunkBrand, A>` that provides a more ergonomic API for the common case.
+
+## 6. Type Class Implementations
+
+### What is Implemented
+
+Free implements very few type class traits from the library:
+
+1. **`Deferrable<'static>`** for `Free<ThunkBrand, A>`: Allows `defer(|| ...)` to create a deferred Free computation. This delegates to `Free::wrap(Thunk::new(f))`.
+
+### What is NOT Implemented
+
+- **Functor**: `Free::map` is an inherent method, not a `Functor` trait impl.
+- **Monad**: `Free::bind` and `Free::pure` are inherent methods.
+- **MonadRec**: Not implemented as a trait (cannot be, due to `'static` constraint). However, `Free::evaluate` effectively provides the same functionality.
+- **Foldable/Traversable**: Not implemented.
+- **Semigroup/Monoid**: Not implemented.
+
+PureScript implements all of these (`Functor`, `Apply`, `Applicative`, `Bind`, `Monad`, `MonadRec`, `MonadTrans`, `Foldable`, `Traversable`, `Semigroup`, `Monoid`) for its Free type. The Rust version only has inherent methods for the core monadic operations.
+
+### Correctness of Inherent Methods
+
+The inherent methods are correct:
+
+- `map` is implemented via `bind` + `pure`, matching PureScript's `map k f = pure <<< k =<< f`.
+- `bind` appends to the CatList, matching the O(1) guarantee.
+- `pure` creates a `Pure` variant.
+
+The monad laws are tested extensively (left identity, right identity, associativity) with both `pure` and `lift_f` based computations.
+
+## 7. The `'static` Requirement
+
+### Why Required
+
+`Box<dyn Any>` requires `A: 'static` because `Any` is defined as:
 
 ```rust
-Some(FreeInner::Wrap(_)) => {
-    // Wrap: functor's own Drop handles the inner Free.
+pub trait Any: 'static { ... }
+```
+
+This exists so that `TypeId::of::<T>()` is well-defined; type IDs are only meaningful for `'static` types.
+
+### Can it be Relaxed?
+
+**Short answer: No, not without fundamental changes.**
+
+Possible approaches:
+
+1. **Unsafe type erasure**: Replace `Box<dyn Any>` with raw pointer casts (like PureScript's `unsafeCoerce`). This would remove the `'static` requirement but sacrifice runtime type safety. A type mismatch would be silent UB rather than a panic.
+
+2. **GATs or higher-rank trait bounds**: Even with Rust's current GAT support, the fundamental issue is that the CatList must store continuations of heterogeneous types. Without type erasure, there is no way to store `FnOnce(A) -> Free<F, B>` and `FnOnce(B) -> Free<F, C>` in the same collection.
+
+3. **Naive Free without CatList**: A naive `enum Free { Pure(A), Wrap(F<Free<F, A>>) }` with a recursive `Bind` variant can support arbitrary lifetimes but loses O(1) bind and stack safety.
+
+The `'static` requirement is a fundamental trade-off inherent to the "Reflection without Remorse" technique in Rust's type system.
+
+## 8. Performance
+
+### Allocation Overhead
+
+Each `bind` operation:
+- Boxes the continuation closure: `Box::new(move |val| ...)` (1 heap allocation).
+- May box the erased value: `Box::new(a) as TypeErasedValue` (1 heap allocation).
+- Appends to CatList via `snoc` (O(1), may trigger VecDeque reallocation).
+
+For `Pure` and `Wrap` variants, `bind` also creates a `Bind` node, boxing the head `Free` value.
+
+Compared to PureScript (which allocates freely via GC), the Rust version is more explicit about allocations but likely has similar overhead in practice. Each continuation is a boxed closure in both languages.
+
+### `evaluate` Overhead
+
+Each step in the evaluation loop involves:
+- Taking the inner value from the `Option` wrapper.
+- Pattern matching on `FreeInner`.
+- For `Pure`: downcast (`downcast::<A>()`) on the final value.
+- For continuations: downcast per continuation application.
+
+The `downcast` calls involve a `TypeId` comparison (cheap) but also an `expect` with string formatting on failure (should be optimized away on the happy path).
+
+### Type Erasure Cost
+
+The `erase_type` method traverses the `Free` structure, boxing values:
+- `Pure(a)` becomes `Pure(Box::new(a))`.
+- `Wrap(fa)` maps over the functor to erase the inner type.
+- `Bind` can simply change the `PhantomData` marker.
+
+This traversal happens once at the start of `evaluate`. For a `Pure` value, it is O(1). For a `Wrap`, it maps the functor (one function call). For a `Bind`, it is O(1) since only the marker changes.
+
+### Potential Concern: Bind on Pure/Wrap Creates Extra Indirection
+
+When `bind` is called on a `Pure(a)`:
+1. It creates `Free::from_inner(FreeInner::Pure(Box::new(a)))` as the head.
+2. Wraps it in `FreeInner::Bind { head: Box::new(head), ... }`.
+
+This adds two layers of boxing. PureScript avoids this by always having a CatList attached to the view. In the Rust version, a single `pure(a).bind(f)` produces:
+
+```
+Bind {
+    head: Box(Free(Some(Pure(Box(a))))),
+    continuations: CatList([f]),
 }
 ```
 
-For deeply nested `Wrap` values (e.g., `Free::wrap(Thunk::new(|| Free::wrap(Thunk::new(|| ...))))` nested 100,000 times), each `Thunk` drop triggers the drop of its captured `Free`, which triggers the drop of the next `Thunk`, and so on. This is O(n) recursive stack depth.
+Whereas PureScript produces `Free(Return(a), CatList([f]))`, a flatter structure. However, the Rust version flattens this during `evaluate`, so the runtime cost is similar (just one extra level of boxing per bind on a non-Bind variant).
 
-The existing test `test_free_deep_nested_wraps` evaluates the chain (which is stack-safe via the loop) but does not test dropping without evaluation. A test like this could overflow:
-
-```rust
-let mut free = Free::<ThunkBrand, _>::pure(42_i32);
-for _ in 0..100_000 {
-    let inner = free;
-    free = Free::wrap(Thunk::new(move || inner));
-}
-drop(free); // potential stack overflow
-```
-
-**Severity:** Medium. In practice, deeply nested pure `Wrap` chains without intervening `Bind` nodes are uncommon because `bind` and `lift_f` create `Bind` nodes (which are iteratively dropped). But it is a theoretical unsoundness in the stack-safety guarantee.
-
-**Fix:** The `Drop` impl could check for `Wrap` and iteratively unwrap by calling `F::evaluate` on each layer (if `F: Evaluable`), or by converting to `Bind` form first. However, `Drop` cannot have additional trait bounds, making this non-trivial. An alternative is to convert deeply nested wraps into the `Bind` representation during construction.
-
-## 6. Performance
-
-### Allocation overhead
-
-Each `bind` call allocates:
-- One `Box<dyn FnOnce>` for the continuation.
-- One `CatList::singleton` (creates a `Cons` with an empty `VecDeque`).
-- For `Pure` case: one additional `Box<Free<F, TypeErasedValue>>` and one `Box::new(a)` for type erasure.
-- For `Wrap` case: one `Box<Free<F, TypeErasedValue>>` via `boxed_erase_type`.
-
-The `VecDeque` allocation in `CatList::singleton` is notable: even an empty `VecDeque` allocates (Rust's `VecDeque::new()` has zero capacity, so no allocation until first push). Since most singletons are immediately `snoc`'d into, this is fine.
-
-### Unnecessary work in `bind` for `Pure`
-
-As noted in Section 2, `bind` on `Pure(a)` creates a `Bind` node with a singleton continuation rather than eagerly applying `f(a)`. This adds one `Box` allocation and one `CatList::singleton`. For the common pattern of `pure(a).bind(f)`, this is wasteful. However, maintaining uniform laziness is arguably more important.
-
-### `erase_type` on `Wrap` calls `F::map`
-
-When `erase_type` is called on a `Wrap(fa)`, it calls `F::map(|inner| inner.erase_type(), fa)`. For `ThunkBrand`, this wraps the original thunk in a new thunk that calls `erase_type` on the result. This adds one `Box` allocation per `Wrap` layer. This is unavoidable given the design, but it means `erase_type` is O(1) per call (it doesn't recurse; it defers via `map`).
-
-### `CatList::append` is O(1) amortized
-
-The `CatList` operations (`snoc`, `append`, `uncons`) have the expected amortized complexity. `uncons` may call `flatten_deque` which is O(k) where k is the number of sublists, but this cost is amortized across all `uncons` calls.
-
-### Overall
-
-Performance is good. The implementation achieves the theoretical bounds from the "Reflection without Remorse" paper. The constant factors are reasonable for Rust's ownership model, which necessitates more boxing than Haskell/PureScript would need.
-
-## 7. Documentation
+## 9. Documentation Quality
 
 ### Strengths
 
-- The module-level documentation is excellent. It clearly explains the PureScript comparison, lists key differences, and provides a capabilities/limitations section.
-- The HKT limitation is thoroughly explained with a "why not naive?" section.
-- Each method has comprehensive documentation including signatures, type parameters, parameter descriptions, return values, and examples.
-- The `evaluate` vs `fold_free` distinction is clearly documented.
-- Stack safety caveats for `fold_free` are explicitly warned about.
+- The module-level documentation is excellent: it clearly explains the PureScript comparison, the intended use case, the HKT limitation, and the `'static` constraint rationale.
+- Each method has comprehensive doc comments with signature annotations, parameter descriptions, return descriptions, and runnable examples.
+- The `Consuming a Free: evaluate vs fold_free` section provides clear guidance.
+- The "Capabilities and Limitations" section is honest about what Free cannot do.
+- The "Linear consumption invariant" documentation explains the `Option` wrapper pattern.
 
 ### Weaknesses
 
-- The `Drop` documentation does not mention the `Wrap` nesting limitation described in Section 5.
-- The `erase_type` method is documented as public API but its use cases are unclear for external consumers. It would benefit from a note about when users might need it directly (answer: they probably shouldn't).
-- The `fold_free` documentation could include a note about which target monads are safe (those that themselves use trampolining, like another `Free`).
-- No module-level complexity table summarizing the cost of each operation.
+- The `evaluate` method's doc comment could explain the trampoline algorithm in more detail (the current description is "iteratively processes the CatList of continuations without growing the stack," which is accurate but brief).
+- The relationship between `Free` and `Trampoline` is mentioned in the module docs for `trampoline.rs` but not in `free.rs`. A cross-reference would help.
+- The `FreeInner` enum is documented but the Evaluable bound on `F` could be explained more (why `Evaluable` specifically, rather than just `Functor`).
+- The `erase_type` method's invariant about `Functor::map` calling the mapping function exactly once is documented inline but could be elevated to a more prominent location, since violating it causes UB-like behavior (double-free or leak).
 
-## 8. Consistency with library patterns
+## 10. Issues, Limitations, Design Flaws
 
-### Consistent
+### Issue 1: `Evaluable` Constraint is Overly Restrictive
 
-- Uses `fp_macros::document_module`, `document_signature`, `document_type_parameters`, `document_parameters`, `document_returns`, `document_examples` macros throughout.
-- Uses the `Apply!` and `Kind!` macros for HKT type application.
-- Tab indentation matching `rustfmt.toml`.
-- `Evaluable` trait integration follows the same pattern as `ThunkBrand`.
-- Test naming follows the `test_free_*` convention with descriptive doc comments.
+`Free<F, A>` requires `F: Evaluable` on all operations, including `pure`, `bind`, and `map`, which do not need to evaluate anything. This prevents constructing a `Free` over a functor that is not `Evaluable`. In PureScript, `Free` only requires `Functor f` for operations like `resume` and no constraint at all for `pure` and `bind`.
 
-### Slightly inconsistent
+Loosening the constraint to `F: Functor` on construction methods and only requiring `F: Evaluable` on `evaluate` would increase flexibility. The `fold_free` method already works with any functor (it just needs `NaturalTransformation`).
 
-- Other types like `Thunk` and `Trampoline` implement `Display` and `Debug`. `Free` implements neither (understandably, due to type erasure, but the discrepancy exists).
-- `Trampoline` provides `Semigroup` and `Monoid` implementations. `Free` does not, even though it could delegate to the inner type's instances via `bind`.
-- The `Deferrable` implementation is only for `Free<ThunkBrand, A>`. This is correct (other functors don't have `Thunk::new`), but it means `Free` with other functors has no `Deferrable` instance.
+### Issue 2: No `Apply` / `Applicative`
 
-## 9. Limitations and issues
+PureScript's Free implements `Apply` (via `ap`) and `Applicative` (via `pure`). The Rust version has `pure` and `bind` but no `apply`. While `apply` can be derived from `bind` (as PureScript does), having it as an inherent method would be convenient.
 
-### Inherent limitations
+### Issue 3: `hoist_free` Stack Safety
 
-1. **`'static` requirement**: All types must be `'static` due to `Box<dyn Any>`. This prevents use with borrowed data and HKT trait integration.
+As noted above, `hoist_free` recurses over `Wrap` depth. For programmatically generated deep `Wrap` chains, this can overflow. A stack-safe version could use an explicit stack or iterate via `resume`.
 
-2. **Single-threaded only**: Continuations are `Box<dyn FnOnce>` (not `Send`). Cannot be used across thread boundaries.
+### Issue 4: Bind on Pure Creates Unnecessary Nesting
 
-3. **No memoization**: `Free` re-evaluates on each call to `evaluate`. The `Trampoline` wrapper has the same limitation, and users are directed to wrap in `Lazy` for caching.
+When calling `bind` on `Pure(a)`, the implementation boxes `a` into a new `Pure(Box::new(a))`, wraps that in a `Free`, boxes that into a `Bind` head. This is two heap allocations that PureScript avoids. A more direct approach: store the continuation directly and defer application, rather than creating a `Bind` with a `Pure` head.
 
-4. **Only `ThunkBrand` is practical**: While `Free` is generic over any `Functor`, only `ThunkBrand` implements `Evaluable`. Other functors would need their own `Evaluable` implementations or must use `fold_free`.
+Alternatively, the PureScript approach of always pairing a view with a CatList would eliminate this special case entirely.
 
-5. **`fold_free` is not stack-safe**: As documented. This limits the utility of interpreting `Free` into strict monads for deep computations.
+### Issue 5: `evaluate` Calls in `Drop`
 
-### Issues to address
+The `Drop` implementation calls `Evaluable::evaluate` on `Wrap` nodes to extract the inner `Free` for iterative dismantling. This means dropping an unevaluated `Free` will force evaluation of all wrapped functor layers. For thunks this is typically cheap, but for a hypothetical functor with expensive or side-effectful `evaluate`, this could be surprising. The documentation does not mention this behavior.
 
-1. **`Drop` stack safety for nested `Wrap`**: As described in Section 5, deeply nested `Wrap` chains can overflow the stack on drop. Consider adding an iterative unwinding strategy for `Wrap` in the `Drop` impl, possibly by converting to `Bind` form.
+### Issue 6: `map` Uses FnOnce but Functor::map Requires Fn
 
-2. **Missing `hoist_free`**: Explicitly acknowledged in the documentation. Should be added for completeness, as it's a standard `Free` monad operation.
+`Free::map` takes `FnOnce` but internally calls `bind`, which creates a continuation that calls `Free::pure(f(a))`. This is fine. However, `erase_type` and `resume` call `F::map` with a closure, and `Functor::map` in this library requires `impl Fn` (not `FnOnce`). The code uses `Cell` tricks to move owned values into `Fn` closures, which works but adds complexity. This is a recurring friction point between Rust's ownership model and the FP library's `Fn`-based traits.
 
-3. **`fold_free` could be made stack-safe**: By using `resume` in an iterative loop and requiring the target monad to support `bind` in a way that can be trampolined. Alternatively, a specialized `fold_free_trampoline` could interpret into `Trampoline` specifically.
+### Issue 7: No Debug Implementation
 
-4. **`erase_type` and `boxed_erase_type` are public**: These are implementation details that leak into the public API. They could be made `pub(crate)` unless there's a compelling reason for external use.
+`Free<F, A>` does not implement `Debug`, making it harder to inspect values during development. The type-erased internals make this non-trivial but not impossible (at least for the `Pure` variant).
 
-5. **No `iter` method for stepping through**: An iterator-like interface for stepping through a `Free` computation one `Wrap` layer at a time (via repeated `resume` calls) would be useful for debugging and custom interpreters.
+### Issue 8: Missing `substFree`
 
-### Summary
+PureScript's `substFree` folds a Free into another Free without the `MonadRec` overhead. This is useful for rewriting Free computations. The Rust version only has `fold_free` (which requires `MonadRec` on the target) and `hoist_free` (which only changes the functor, not the structure).
 
-The `Free` monad implementation is well-designed and correct for its primary use case (stack-safe monadic computation via trampolining). The code quality is high, with thorough documentation, comprehensive tests (including monad law verification and stack-safety tests), and zero unsafe code. The main areas for improvement are: (1) the `Drop` impl's potential stack overflow for deeply nested `Wrap` chains, (2) the missing `hoist_free` operation, and (3) the lack of a stack-safe `fold_free` variant. These are all incremental improvements to a solid foundation.
+## 11. Alternatives and Improvements
+
+### Alternative 1: Church-encoded Free
+
+Instead of the CatList approach, a Church-encoded Free monad (also known as codensity-transformed Free) avoids the quadratic bind issue by CPS-transforming the structure:
+
+```rust
+struct Free<F, A> {
+    run: Box<dyn FnOnce(&dyn Fn(A) -> R, &dyn Fn(F<Free<F, A>>) -> R) -> R>
+}
+```
+
+This eliminates the need for type erasure and CatList entirely but makes `resume` difficult and has its own complexity trade-offs. It would also still struggle with Rust's ownership and lifetime constraints.
+
+### Alternative 2: Unsafe Type Erasure
+
+Replace `Box<dyn Any>` with unsafe pointer casts to remove the `'static` requirement:
+
+```rust
+type TypeErasedValue = *mut ();
+```
+
+This would allow `Free` to work with non-static lifetimes and potentially integrate with the HKT system. The downside is the loss of runtime type safety; a bug in the continuation chain would be silent UB rather than a caught panic. Given the internal-only nature of the type erasure (users never interact with `TypeErasedValue` directly), this could be justified with sufficient testing and careful invariant maintenance.
+
+### Alternative 3: Split the Constraints
+
+Separate construction from evaluation:
+
+```rust
+// Construction: no constraints on F
+impl<F, A: 'static> Free<F, A> {
+    pub fn pure(a: A) -> Self { ... }
+    pub fn bind<B: 'static>(self, f: impl FnOnce(A) -> Free<F, B> + 'static) -> Free<F, B> { ... }
+}
+
+// Evaluation: requires Evaluable
+impl<F: Evaluable, A: 'static> Free<F, A> {
+    pub fn evaluate(self) -> A { ... }
+}
+```
+
+This would allow building Free computations over arbitrary brands and only requiring `Evaluable` when actually running them.
+
+### Alternative 4: Generalized Interpretation
+
+Add `substFree` and `runFreeM` to match PureScript's API:
+
+```rust
+pub fn subst_free<G: Evaluable + 'static>(
+    self,
+    nt: impl NaturalTransformation<F, FreeBrand<G>> + Clone + 'static,
+) -> Free<G, A> { ... }
+```
+
+This would enable the "interpret into another Free" pattern without `MonadRec` overhead.
+
+### Improvement: Flatten `bind` on `Pure`
+
+Instead of creating a `Bind { head: Pure(a), continuations: [f] }`, directly apply `f(a)`:
+
+```rust
+FreeInner::Pure(a) => f(a).erase_type_to_b(),
+```
+
+However, this would make `bind` non-O(1) if `f` itself returns a deep chain. The current approach correctly defers all work to `evaluate`. The extra indirection is the price of guaranteed O(1) `bind`.
+
+### Improvement: Shared `toView` Helper
+
+Factor the iterative loop from `evaluate` and `resume` into a shared helper function, similar to PureScript's `toView`. This would reduce code duplication and make the core algorithm easier to audit. The challenge is designing the return type to work with Rust's ownership model.

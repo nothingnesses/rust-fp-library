@@ -1,239 +1,294 @@
 # TryThunk Analysis
 
-**File:** `fp-library/src/types/try_thunk.rs` (3089 lines)
+## Overview
 
-## 1. Design: Is the Fallible Wrapper Justified?
+`TryThunk<'a, A, E>` is a deferred, non-memoized fallible computation. It is a newtype wrapper around `Thunk<'a, Result<A, E>>` that provides ergonomic combinators for error handling and full higher-kinded type support across three separate brands.
 
-`TryThunk<'a, A, E>` is a newtype over `Thunk<'a, Result<A, E>>` (line 100-103). This is explicitly documented at line 55: "This is `Thunk<'a, Result<A, E>>` with ergonomic combinators for error handling."
+**File:** `/home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/try_thunk.rs` (3086 lines).
 
-**Value added beyond raw `Thunk<Result<A, E>>`:**
+**Definition:**
 
-- **Ergonomic API**: `ok`, `err`, `catch`, `catch_with`, `map_err`, `bimap`, `lift2`, `then` are all purpose-built for fallible semantics and would require manual `Result` matching if using raw `Thunk`.
-- **Short-circuiting `bind`** (line 239-243): Automatically propagates errors without requiring the user to pattern-match. This is the core monadic behavior that justifies the wrapper.
-- **Error recovery**: `catch` (line 311-319) and `catch_with` (line 350-358) provide monadic error handling that has no analog on plain `Thunk`.
-- **Panic capture**: `catch_unwind` / `catch_unwind_with` (lines 578-640) bridge Rust's panic mechanism into the `Result` monad.
-- **Triple HKT encoding**: `TryThunkBrand` (bifunctor), `TryThunkErrAppliedBrand<E>` (functor/monad over `Ok`), `TryThunkOkAppliedBrand<A>` (functor/monad over `Err`). This is a significant structural addition that raw `Thunk<Result>` cannot provide.
-- **Conversions**: `From<Thunk>`, `From<Result>`, `From<TryTrampoline>`, `From<Lazy>`, `From<TryLazy>`, `into_rc_try_lazy`, `into_arc_try_lazy`, `into_inner`. A rich conversion graph that connects the lazy hierarchy.
+```rust
+pub struct TryThunk<'a, A, E>(Thunk<'a, Result<A, E>>);
+```
 
-**Verdict:** The newtype is well-justified. It is a thin, zero-cost wrapper that adds substantial ergonomic and algebraic value. The `into_inner` method (line 599) provides an escape hatch when users need the raw `Thunk<Result>`.
+## 1. Type Design
 
-## 2. Implementation Quality
+### Wrapping `Thunk<Result<A, E>>` is the Right Choice
 
-### Correctness
+The newtype-over-composition approach is sound for several reasons:
 
-All core operations delegate to `Thunk` correctly:
+- It reuses `Thunk`'s box-allocated `FnOnce` closure machinery rather than duplicating it.
+- It maintains lifetime polymorphism (`'a`) from `Thunk`, allowing borrowed data in closures.
+- The newtype boundary provides a place to define monadic `bind` that short-circuits on `Err`, which a raw `Thunk<Result<A, E>>` cannot express through `Thunk`'s own `bind`.
+- `evaluate` returns `Result<A, E>` directly, making it natural to use with `?`.
 
-- `new` (line 128-130): Wraps `FnOnce() -> Result<A, E>` in `Thunk::new`. Correct.
-- `pure` (line 148-150): `Thunk::pure(Ok(a))`. Correct.
-- `bind` (line 235-243): Pattern-matches the Result, short-circuits on `Err`. Correct.
-- `map` (line 263-268): Delegates to `Thunk::map` with `Result::map`. Correct.
-- `map_err` (line 288-293): Delegates to `Thunk::map` with `Result::map_err`. Correct.
-- `catch` (line 311-319): Uses `Thunk::bind` to match the Result and call the recovery function on `Err`. Correct.
-- `catch_with` (line 350-358): Evaluates `self` eagerly inside a new `Thunk::new`, matches, and calls `f(e).evaluate()`. Correct but note the eager evaluation is necessary because `catch_with` changes the error type, so it cannot be deferred through `Thunk::bind` which preserves the `Result` type parameter.
-- `bimap` (line 386-395): Maps both arms of the Result. Correct.
-- `evaluate` (line 411-413): Delegates to inner `Thunk::evaluate`. Correct.
+### Alternatives Considered
 
-### Potential Issues
+- **Enum with `Ok`/`Err`/`Deferred` variants:** Would allow inspecting whether a value is already resolved without evaluating. However, this would break the invariant that the computation is always deferred, complicate the API surface, and lose the clean delegation to `Thunk`.
+- **Trait-based abstraction (e.g., `Fallible<F>` parameterized over an effect):** Too abstract for a concrete type. The hierarchy already provides `TryTrampoline`, `TrySendThunk`, `TryLazy` variants for different trade-offs.
+- **Using `Result` directly in the `Kind` system:** This is already done via `ResultBrand`/`ResultErrAppliedBrand`. `TryThunk` adds the deferred computation aspect that `Result` alone does not provide.
 
-**No bugs found.** The implementation is straightforward delegation to `Thunk` with `Result` plumbing. All operations preserve the invariant that the inner `Thunk` produces a `Result`.
+## 2. HKT Support
 
-**Minor observation:** `catch_with` (line 354) calls `self.evaluate()` eagerly inside the closure, which means the original thunk is consumed at construction time of the new thunk. This is actually fine because `Thunk::new` wraps the whole thing in a new closure, so the evaluation is still deferred. The `self.evaluate()` only runs when the outer thunk is forced.
+### Three-Brand Strategy
 
-## 3. Type Class Instances
+`TryThunk<'a, A, E>` has two type parameters (besides the lifetime), so it needs multiple brands to participate in different HKT contexts:
 
-### Implemented (via `TryThunkErrAppliedBrand<E>`, functor over `Ok`):
+| Brand | Kind Mapping | Role |
+|-------|-------------|------|
+| `TryThunkBrand` | `Of<'a, E, A> = TryThunk<'a, A, E>` | Bifunctor (2-ary kind). Note: parameters are `(E, A)`, not `(A, E)`, following the Haskell `Either e a` convention. |
+| `TryThunkErrAppliedBrand<E>` | `Of<'a, A> = TryThunk<'a, A, E>` | Functor/Monad over `Ok` (the success channel). `E` is fixed. |
+| `TryThunkOkAppliedBrand<A>` | `Of<'a, E> = TryThunk<'a, A, E>` | Functor/Monad over `Err` (the error channel). `A` is fixed. |
 
-| Type Class | Lines | Correct? |
-|---|---|---|
-| `Functor` | 816-851 | Yes, delegates to `fa.map(func)`. |
-| `Pointed` | 854-882 | Yes, `TryThunk::ok(a)`. |
-| `Lift` | 885-930 | Yes, `fa.bind(move \|a\| fb.map(move \|b\| func(a, b)))`. |
-| `ApplyFirst` | 933 | Yes (default impl). |
-| `ApplySecond` | 936 | Yes (default impl). |
-| `Semiapplicative` | 939-984 | Yes, `ff.bind` then `fa.map`. |
-| `Semimonad` | 987-1024 | Yes, delegates to `ma.bind(func)`. |
-| `MonadRec` | 1027-1078 | Yes, loop with `Ok(Step::Loop)` / `Ok(Step::Done)` / `Err`. |
-| `Foldable` | 1081-1210 | Yes, evaluates and folds `Ok`, returns initial on `Err`. |
-| `WithIndex` | 1992-1994 | Yes, `Index = ()`. |
-| `FunctorWithIndex` | 1997-2031 | Yes, maps with `()` index. |
-| `FoldableWithIndex` | 2034-2072 | Yes, folds with `()` index. |
-| `Semigroup` | 1217-1250 | Yes, short-circuits on first `Err`, combines `Ok` values. |
-| `Monoid` | 1257-1277 | Yes, `Ok(Monoid::empty())`. |
-| `Deferrable` | 776-806 | Yes, delegates to `TryThunk::defer`. |
+This mirrors the `ResultBrand`/`ResultErrAppliedBrand<E>`/`ResultOkAppliedBrand<A>` pattern already in the library, providing consistency.
 
-### Implemented (via `TryThunkOkAppliedBrand<A>`, functor over `Err`):
+### `'static` Constraint on Partially-Applied Brands
 
-| Type Class | Lines | Correct? |
-|---|---|---|
-| `Functor` | 1545-1578 | Yes, delegates to `fa.map_err(func)`. |
-| `Pointed` | 1581-1609 | Yes, `TryThunk::err(e)`. |
-| `Lift` | 1612-1669 | See below. |
-| `ApplyFirst` | 1672 | Yes. |
-| `ApplySecond` | 1675 | Yes. |
-| `Semiapplicative` | 1678-1730 | See below. |
-| `Semimonad` | 1733-1773 | Yes, bind over error channel, short-circuits on `Ok`. |
-| `MonadRec` | 1776-1831 | Yes, loop over `Err(Step::Loop)` / `Err(Step::Done)` / `Ok`. |
-| `Foldable` | 1834-1963 | Yes, folds `Err` values, returns initial on `Ok`. |
-| `WithIndex` | 2075-2077 | Yes, `Index = ()`. |
-| `FunctorWithIndex` | 2080-2114 | Yes. |
-| `FoldableWithIndex` | 2117-2155 | Yes. |
+Both `TryThunkErrAppliedBrand<E>` and `TryThunkOkAppliedBrand<A>` require their type parameter to be `'static`. This is documented in `brands.rs` and is an inherent limitation of the Brand pattern: the `Kind` trait's `Of<'a, A>` introduces its own lifetime `'a`, so any type parameter baked into the brand struct must outlive all possible `'a`, which means `'static`. This prevents use with borrowed error types (e.g., `TryThunkErrAppliedBrand<&str>`) in HKT contexts. It is a real ergonomic limitation, but there is no known fix within the current Brand encoding.
 
-### Implemented (via `TryThunkBrand`, bifunctor):
+### Parameter Ordering in `TryThunkBrand`
 
-| Type Class | Lines | Correct? |
-|---|---|---|
-| `Bifunctor` | 1291-1338 | Yes. |
-| `Bifoldable` | 1340-1524 | Yes, all three methods. |
+The `impl_kind!` maps `Of<'a, E, A>` to `TryThunk<'a, A, E>`, placing `E` first in the kind and `A` second. This follows the convention from Haskell's `Either e a` where the success type is the last parameter, matching how `Bifunctor::bimap` expects `(f_for_first, g_for_second)`. The code documents this explicitly with a comment.
 
-### Applicative/Monad Consistency for `TryThunkOkAppliedBrand`
+## 3. Type Class Implementations
 
-The `Lift` impl for `TryThunkOkAppliedBrand<A>` (lines 1654-1668) uses **fail-last** semantics: it evaluates both `fa` and `fb` before inspecting results. The `Semiapplicative::apply` (lines 1720-1729) also uses fail-last.
+### For `TryThunkErrAppliedBrand<E>` (Functor over Success)
 
-However, the `Semimonad::bind` (lines 1764-1772) uses **fail-fast**: it evaluates `ma`, and if it is `Ok`, it returns `Ok` immediately without evaluating the continuation.
+| Trait | Status | Notes |
+|-------|--------|-------|
+| `Functor` | Implemented | Maps over success value; errors pass through. |
+| `Pointed` | Implemented | `pure(a)` produces `TryThunk::ok(a)`. |
+| `Lift` | Implemented | `lift2` combines two successes via `bind`. |
+| `ApplyFirst` | Implemented | Blanket (default). |
+| `ApplySecond` | Implemented | Blanket (default). |
+| `Semiapplicative` | Implemented | `apply` via `bind` then `map`. |
+| `Semimonad` | Implemented | `bind` short-circuits on `Err`. |
+| `MonadRec` | Implemented | Tail-recursive loop; breaks on `Err(e)` or `Ok(Step::Done(b))`. |
+| `Foldable` | Implemented | Folds success value; returns initial on `Err`. |
+| `WithIndex` | Implemented | `Index = ()`. |
+| `FunctorWithIndex` | Implemented | Maps with `()` index. |
+| `FoldableWithIndex` | Implemented | Fold-maps with `()` index. |
+| `Evaluable` | **Missing** | See section 8. |
+| `Traversable` | Not implemented | Documented as impossible (same `FnOnce`/`Clone` conflict as `Thunk`). |
 
-This is a **known semantic divergence** between the applicative and monadic interfaces on the error channel, and it is clearly documented in the code (lines 1615-1621, 1681-1687). In Haskell's `Validation` type, the same pattern exists: the applicative accumulates errors while the monad short-circuits. This is intentional and well-established in FP, though it does mean that `apply(pure(f), x) /= bind(pure(f), \f -> map(f, x))` when `x` is `Ok`, which violates the standard monad/applicative consistency law.
+### For `TryThunkOkAppliedBrand<A>` (Functor over Error)
 
-Whether this is a bug or a feature depends on the intended use case. The documentation acknowledges the divergence. Strictly speaking, this makes `TryThunkOkAppliedBrand` not a lawful monad if the applicative/monad consistency law is required.
+| Trait | Status | Notes |
+|-------|--------|-------|
+| `Functor` | Implemented | Maps over error value; successes pass through. |
+| `Pointed` | Implemented | `pure(e)` produces `TryThunk::err(e)`. |
+| `Lift` | Implemented | Uses fail-last semantics (evaluates both sides). |
+| `ApplyFirst` | Implemented | Blanket (default). |
+| `ApplySecond` | Implemented | Blanket (default). |
+| `Semiapplicative` | Implemented | Uses fail-last semantics. |
+| `Semimonad` | Implemented | `bind` over error; short-circuits on `Ok`. |
+| `MonadRec` | Implemented | Tail-recursive loop over error channel. |
+| `Foldable` | Implemented | Folds error value; returns initial on `Ok`. |
+| `WithIndex` | Implemented | `Index = ()`. |
+| `FunctorWithIndex` | Implemented | Maps error with `()` index. |
+| `FoldableWithIndex` | Implemented | Fold-maps error with `()` index. |
 
-### Missing Instances
+### For `TryThunkBrand` (Bifunctor)
 
-1. **`Evaluable`**: `Thunk` implements `Evaluable` (line 692 of thunk.rs), but `TryThunkErrAppliedBrand<E>` does not. This makes sense because `Evaluable` extracts the inner value, but `TryThunk::evaluate` returns `Result<A, E>`, not `A`. The type class would need to return `Result<A, E>` which does not match `Evaluable`'s signature of `fn evaluate<A>(fa) -> A`. So this omission is correct.
+| Trait | Status | Notes |
+|-------|--------|-------|
+| `Bifunctor` | Implemented | Maps both success and error. |
+| `Bifoldable` | Implemented | Folds from either channel. |
+| `Bitraversable` | **Missing** | Same `Clone`/`FnOnce` issue as `Traversable`. See section 8. |
 
-2. **`Traversable`**: Explicitly documented as impossible (lines 96-99) due to `FnOnce` not being `Clone`. Same limitation as `Thunk`. Correct.
+### Instance-Level Traits
 
-3. **`Bitraversable`**: Not implemented. This would require `TryThunk` to be `Clone`, which it cannot be for the same reason as `Traversable`. Correct omission.
+| Trait | Status | Notes |
+|-------|--------|-------|
+| `Deferrable<'a>` | Implemented | `defer(f)` creates a lazily-produced `TryThunk`. |
+| `Semigroup` | Implemented | `append` evaluates both, combines successes, short-circuits on first error. |
+| `Monoid` | Implemented | `empty()` produces `Ok(A::empty())`. |
+| `Debug` | Implemented | Prints `"TryThunk(<unevaluated>)"` without forcing. |
 
-4. **`Alt`/`Plus`**: Not implemented. These could potentially be implemented for `TryThunkErrAppliedBrand<E>` (try first, on failure try second, similar to `catch`). This is a potential addition but not a gap, since `Alt` is not commonly implemented across the hierarchy.
+### Correctness Assessment
 
-5. **`MonadError`/`MonadThrow`**: There is no `MonadThrow`/`MonadError` class in the library, so this is not applicable, but `catch` and `catch_with` provide the equivalent functionality as inherent methods.
+The implementations are correct:
 
-## 4. API Surface
+- **Monadic `bind` (success channel):** Properly short-circuits on `Err` by matching the `Result` from the inner `Thunk` and only calling the continuation on `Ok`. This is the standard `Result` monad behavior, lifted into the deferred context.
+- **Monadic `bind` (error channel, via `OkAppliedBrand`):** Correctly short-circuits on `Ok`, calling the continuation only on `Err`.
+- **`MonadRec` (both channels):** Both implementations use an iterative loop with `match`, breaking on the terminal case or the short-circuit case. This provides O(1) stack usage for the recursion itself (though individual step evaluations can still stack-overflow if they build deep `bind` chains internally).
+- **`Semiapplicative` (error channel):** Uses fail-last semantics (evaluates both sides before inspecting), which is the correct behavior for an applicative on the error channel (it collects all errors rather than short-circuiting). This is explicitly documented.
+- **`Bifunctor`/`Bifoldable`:** Correctly dispatch to the appropriate branch based on `Ok`/`Err`.
+- **`Semigroup`:** Uses `?` operator for short-circuiting, which is idiomatic and correct.
 
-**Well-designed.** The API mirrors `Thunk` closely while adding fallible-specific operations:
+## 4. Error Handling
 
-| Thunk Method | TryThunk Equivalent | Notes |
-|---|---|---|
-| `new(f)` | `new(f)` | `f` returns `Result<A, E>` instead of `A`. |
-| `pure(a)` | `pure(a)` / `ok(a)` | `ok` is an alias for readability. |
-| N/A | `err(e)` | Error constructor. |
-| `bind(f)` | `bind(f)` | Short-circuits on `Err`. |
-| `map(f)` | `map(f)` | Maps `Ok` value. |
-| N/A | `map_err(f)` | Maps `Err` value. |
-| N/A | `catch(f)` | Error recovery (same error type). |
-| N/A | `catch_with(f)` | Error recovery (different error type). |
-| N/A | `bimap(f, g)` | Maps both channels. |
-| `evaluate()` | `evaluate()` | Returns `Result<A, E>`. |
-| `defer(f)` | `defer(f)` | Deferred construction. |
-| `into_rc_lazy()` | `into_rc_try_lazy()` | Memoize. |
-| `into_arc_lazy()` | `into_arc_try_lazy()` | Thread-safe memoize. |
-| N/A | `into_inner()` | Escape hatch to `Thunk<Result>`. |
-| N/A | `lift2(other, f)` | Inherent lift2. |
-| N/A | `then(other)` | Sequence, discarding first. |
-| N/A | `catch_unwind(f)` | Panic capture (`E = String`). |
-| N/A | `catch_unwind_with(f, handler)` | Panic capture (custom `E`). |
+### Ergonomic API
 
-**Observations:**
+The inherent methods provide a clean error-handling surface:
 
-- `lift2` and `then` are convenience methods not present on `Thunk`. They are useful for `TryThunk` because the short-circuiting behavior makes sequencing/combining common.
-- `catch_unwind` is restricted to `E = String` (line 608). The `catch_unwind_with` variant is generic. Good layered design.
-- There is no `and_then` alias for `bind`, which might be more idiomatic for Rust users familiar with `Result::and_then`. This is a minor observation, not a deficiency.
+- `TryThunk::ok(a)` / `TryThunk::err(e)` for constructing success/failure.
+- `map` / `map_err` for transforming each channel independently.
+- `bimap` for transforming both simultaneously.
+- `bind` for monadic chaining with short-circuit on error.
+- `catch` for error recovery (same error type).
+- `catch_with` for error recovery with error type change.
+- `catch_unwind` / `catch_unwind_with` for converting panics to errors.
+- `evaluate` returns `Result<A, E>` directly, enabling use with `?`.
 
-## 5. Consistency with Thunk and Other Try* Types
+### `catch` vs `catch_with`
 
-### Consistent with `Thunk`:
+The distinction between `catch` (same error type) and `catch_with` (different error type) is well-designed:
 
-- Same newtype-over-`Box<dyn FnOnce>` pattern (via delegation to `Thunk`).
-- Same documentation structure (type parameters, examples, limitations).
-- Same HKT pattern (`impl_kind!` macro).
-- Same type class implementations (Functor, Pointed, Lift, Semiapplicative, Semimonad, MonadRec, Foldable, WithIndex, FunctorWithIndex, FoldableWithIndex, Semigroup, Monoid, Deferrable, Debug).
-- Same `cannot implement Traversable` limitation documented.
-- Same `into_rc_*` and `into_arc_*` conversion pattern, with `into_arc_*` evaluating eagerly due to `!Send` closure.
+- `catch` preserves the error type, allowing repeated recovery attempts.
+- `catch_with` allows changing the error type during recovery, which is useful for layered error handling.
 
-### Consistent with `TrySendThunk`:
+Both are implemented correctly: `catch` uses `Thunk::bind` internally (keeping the result wrapped in a `Thunk`), while `catch_with` creates a new `Thunk::new` that evaluates and pattern-matches.
 
-- `TrySendThunk` is the `Send` counterpart, wrapping `SendThunk<Result<A, E>>`.
-- `TrySendThunk` lacks HKT trait impls (Functor, Monad, etc.) because the HKT trait signatures do not impose `Send` bounds on closures. This is documented at brands.rs lines 272-275.
-- Both share the same API shape (new, ok, err, bind, map, map_err, catch, evaluate, etc.).
+### Panic Handling
 
-### Consistent with `TryTrampoline`:
+`catch_unwind` and `catch_unwind_with` are thoughtful additions:
 
-- `From<TryTrampoline>` is implemented (line 750-769), maintaining the conversion graph.
-- `TryTrampoline` requires `'static` while `TryThunk` supports `'a`. This trade-off is documented.
+- `catch_unwind_with` is generic over the handler and the error type.
+- `catch_unwind` is a convenience that requires `E = String` and uses a utility function to convert panic payloads.
+- Both correctly require `UnwindSafe` on the closure.
 
-### Consistent with `TryLazy`:
+## 5. Relationship to `Thunk`
 
-- `From<TryLazy>` is implemented (line 677-701).
-- `into_rc_try_lazy` and `into_arc_try_lazy` are provided for the reverse direction.
+### Code Reuse
 
-## 6. Limitations and Issues
+`TryThunk` achieves excellent reuse of `Thunk`:
 
-### Confirmed Limitations (correctly documented)
+- `new` delegates to `Thunk::new`.
+- `pure` delegates to `Thunk::pure(Ok(a))`.
+- `evaluate` delegates to `self.0.evaluate()`.
+- `map` delegates to `self.0.map(|r| r.map(f))`.
+- `bind` delegates to `self.0.bind(|r| match r { ... })`.
+- `defer` delegates to `Thunk::defer(move || f().0)`.
 
-1. **Not stack-safe** (lines 88-92): `bind` chains grow the stack. Documented, with `TryTrampoline` as the alternative.
-2. **Not memoized** (line 56): Each `evaluate` re-runs the computation. Documented, with `TryLazy` as the alternative.
-3. **Cannot implement `Traversable`** (lines 96-99): Due to `FnOnce` not being `Clone`.
-4. **`'static` bound on brand type parameters** (documented at brands.rs lines 262-268): `TryThunkErrAppliedBrand<E>` requires `E: 'static`, `TryThunkOkAppliedBrand<A>` requires `A: 'static`. This is an inherent limitation of the Brand pattern.
+The only non-trivial logic is the `Result` matching inside `bind`, `catch`, and `catch_with`. This is minimal and appropriate.
 
-### Potential Issues
+### Duplication
 
-1. **Applicative/Monad inconsistency on `TryThunkOkAppliedBrand`**: As discussed in section 3, `apply` uses fail-last while `bind` uses fail-fast. This is documented but may surprise users who expect the standard consistency law to hold. Whether to split into separate applicative-only and monad-only brands (like Haskell's `Validation` vs `Either`) could be considered.
+There is effectively no code duplication between `Thunk` and `TryThunk`. The HKT trait implementations for `TryThunkErrAppliedBrand` necessarily duplicate the *structure* of `ThunkBrand`'s implementations (since they must implement the same traits), but the *logic* differs because of error handling. This is unavoidable given Rust's trait system, where each brand needs its own impl block.
 
-2. **`Semigroup` short-circuit semantics**: The `Semigroup` impl (lines 1244-1249) uses `?` to short-circuit on the first `Err`. This means `append(err, ok)` returns the first error, and `append(ok, err)` returns the second error. The associativity law holds because `append` on the inner `A: Semigroup` is associative and the `?` operator is left-to-right sequential. This is correct.
+The `TryThunkOkAppliedBrand` implementations are genuinely new logic (error-channel monad) with no counterpart in `Thunk`.
 
-3. **Duplicate `impl` block**: There are two `impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E>` blocks (starting at lines 111 and 544). The second block contains `catch_unwind_with` and `into_inner`. This is not a bug but is slightly unusual; it may have been split for organizational reasons (the second block has different `document_*` attributes). This is fine.
+### Missing `From<TrySendThunk>` Conversion
 
-4. **No `From<TryThunk> for TryTrampoline`**: There is `From<TryTrampoline> for TryThunk` (line 750) but not the reverse. `Thunk` has bidirectional conversion with `Trampoline` (thunk.rs lines 366-402). The missing direction would require `A: 'static` and `E: 'static`, which is valid. This is a minor asymmetry.
+`Thunk` has `From<SendThunk>` to erase the `Send` bound. However, `TryThunk` has no `From<TrySendThunk>` conversion. This is an omission; the conversion should be straightforward since `TrySendThunk` wraps `SendThunk<'a, Result<A, E>>`, and `SendThunk` can be converted to `Thunk` via the existing `From` impl.
+
+## 6. Relationship to `Result`
+
+### Proper Leveraging of `Result`
+
+The implementation leverages `Result`'s combinators effectively:
+
+- `map` uses `Result::map`.
+- `map_err` uses `Result::map_err`.
+- `Semigroup::append` uses `?` for short-circuit evaluation.
+- `From<Result<A, E>>` wraps the result in `Thunk::pure`.
+
+### Conversions
+
+The type provides a rich set of conversions:
+
+| From | To | Notes |
+|------|----|-------|
+| `Thunk<'a, A>` | `TryThunk<'a, A, E>` | Wraps in `Ok`. |
+| `Result<A, E>` | `TryThunk<'a, A, E>` | Pure/immediate. |
+| `Lazy<'a, A, Config>` | `TryThunk<'a, A, E>` | Clones memoized value, wraps in `Ok`. |
+| `TryLazy<'a, A, E, Config>` | `TryThunk<'a, A, E>` | Clones memoized result. |
+| `TryTrampoline<A, E>` | `TryThunk<'static, A, E>` | Evaluates trampoline when forced. |
+| `TryThunk<'static, A, E>` | `TryTrampoline<A, E>` | Defined in `try_trampoline.rs`. |
+
+The `into_inner` method allows extracting the underlying `Thunk<'a, Result<A, E>>` for interop with raw `Thunk`-based code.
 
 ## 7. Documentation Quality
 
-**Excellent.** Documentation is thorough and consistent:
+### Strengths
 
-- Module-level doc comment (lines 1-3) is concise and accurate.
-- Struct-level doc (lines 53-103) covers: what it is, HKT representations, when to use, algebraic properties, stack safety, and limitations.
-- Every public method has `#[document_signature]`, `#[document_type_parameters]`, `#[document_parameters]`, `#[document_returns]`, and `#[document_examples]` attributes following the project convention.
-- All doc examples are testable (`cargo test --doc`).
-- The `catch_with` documentation (lines 321-335) clearly explains how it differs from `catch`.
-- The `OkAppliedBrand` `Lift` and `Semiapplicative` impls document the fail-last semantics explicitly (lines 1615-1621, 1681-1687).
-- The `'static` bound rationale is documented on both brand types in brands.rs.
+- The type-level documentation is thorough, covering HKT representation, when to use, algebraic properties, stack safety, and limitations.
+- Every method has `#[document_signature]`, `#[document_type_parameters]`, `#[document_parameters]`, `#[document_returns]`, and `#[document_examples]` attributes.
+- The `OkAppliedBrand` `Lift`/`Semiapplicative` implementations explicitly document their "fail-last" evaluation strategy and contrast it with the "fail-fast" monadic `bind` path.
+- The `TryThunkBrand` `impl_kind!` includes a comment explaining the `(E, A)` parameter ordering convention.
 
-**Minor documentation issue:** In `fold_map` for `TryThunkOkAppliedBrand` (line 1933), the parameter description says "The Thunk to fold" rather than "The TryThunk to fold." Same issue at line 1180 for `TryThunkErrAppliedBrand`. These are copy-paste artifacts from the `Thunk` implementation.
+### Weaknesses
 
-## 8. Test Coverage
+- The inherent `bind` method documentation does not mention that the HKT-level `Semimonad::bind` requires `Fn` while the inherent method accepts `FnOnce`, unlike `Thunk` which documents this distinction explicitly.
+- The `catch_with` method's implementation differs from `catch`: it uses `Thunk::new(move || match self.evaluate() { ... })` rather than `self.0.bind(...)`. This is because `catch_with` changes the error type, which requires constructing a new closure. The difference is correct but not documented.
 
-**Comprehensive.** The test module (lines 2159-3088) includes:
+## 8. Issues, Limitations, and Design Flaws
 
-- Basic success/failure paths (7 tests).
-- `map`, `map_err`, `bind` with both success and failure propagation.
-- Borrowing test (captures references).
-- Conversion tests: `From<Lazy>`, `From<TryLazy>`, `From<Thunk>`, `From<Result>`.
-- `defer`, `catch`, `catch_with`.
-- HKT tests for both `ErrAppliedBrand` and `OkAppliedBrand` (Functor, Pointed, Semimonad, Foldable).
-- Bifunctor and Bifoldable tests.
-- MonadRec tests including short-circuit on `Ok`.
-- `catch_unwind` and `catch_unwind_with` tests.
-- `into_rc_try_lazy` with caching verification.
-- `into_arc_try_lazy` with thread safety verification (multi-threaded test).
-- `Semigroup` short-circuit tests.
+### Issue 1: Missing `Evaluable` Implementation
 
-**QuickCheck property tests:**
+`Thunk` implements `Evaluable` for `ThunkBrand`, but neither `TryThunkErrAppliedBrand<E>` nor `TryThunkOkAppliedBrand<A>` implements `Evaluable`. This is notable because:
 
-- Functor identity and composition laws.
-- Monad left identity, right identity, and associativity (both `Ok` and `Err` channels).
-- Error short-circuit property.
-- Bifunctor identity and composition laws (both `Ok` and `Err` paths).
-- Semigroup associativity.
-- Monoid left and right identity.
+- `TryThunkErrAppliedBrand<E>` could implement `Evaluable` where `evaluate` returns the `Ok` value (panicking on `Err`), but this would be unsound for a fallible type.
+- The `Evaluable` trait's signature is `fn evaluate<'a, A: 'a>(fa: ...) -> A`, which extracts a bare `A`, not a `Result<A, E>`. For a fallible computation, this does not fit cleanly.
 
-This is thorough. No significant gaps in test coverage.
+This is arguably correct as-is. `Evaluable` means "you can always extract a value," which is not true for a computation that may fail. The omission is intentional, not a bug.
+
+### Issue 2: Missing `From<TrySendThunk>` Conversion
+
+As noted in section 5, there is no `From<TrySendThunk<'a, A, E>> for TryThunk<'a, A, E>`. Given that `Thunk` has `From<SendThunk>`, this is an inconsistency.
+
+### Issue 3: No `and_then` Alias
+
+Rust's `Result` uses `and_then` for monadic bind. `TryThunk` uses `bind`. While `bind` is the correct FP term and matches the library's conventions, an `and_then` alias would improve discoverability for Rust users coming from the standard library.
+
+### Issue 4: `Semigroup` Error Semantics
+
+The `Semigroup` implementation short-circuits on the first error:
+
+```rust
+fn append(a: Self, b: Self) -> Self {
+    TryThunk::new(move || {
+        let a_val = a.evaluate()?;
+        let b_val = b.evaluate()?;
+        Ok(Semigroup::append(a_val, b_val))
+    })
+}
+```
+
+This means `append(err1, err2)` returns `err1`, discarding `err2`. An alternative would be to accumulate errors (using `Semigroup` on `E`), but that would require `E: Semigroup` and change the semantics. The current behavior is the standard choice and matches `Result`'s behavior.
+
+### Issue 5: `Bitraversable` Not Implemented
+
+The `Bitraversable` trait requires the same `Clone` bounds that prevent `Traversable` from being implemented. This is documented for `Traversable` at the type level but not explicitly called out as a missing `Bitraversable`.
+
+### Issue 6: `'static` Bound on Brand Parameters Limits HKT Generality
+
+The `E: 'static` requirement on `TryThunkErrAppliedBrand<E>` means you cannot use HKT functions (like `map`, `bind`, `pure` from the free function API) with borrowed error types. The inherent methods (`.map()`, `.bind()`, `.pure()`) still work with any lifetime, so this is only a limitation for generic, brand-parameterized code. This is a known, documented limitation of the Brand pattern.
+
+### Limitation: Not Stack-Safe
+
+Like `Thunk`, `TryThunk`'s `bind` chains grow the stack. `MonadRec::tail_rec_m` provides an escape hatch for structured recursion, but arbitrary `bind` chains remain unsafe. The documentation correctly directs users to `TryTrampoline` for stack-safe fallible recursion.
+
+## 9. Alternatives and Improvements
+
+### Potential Improvements
+
+1. **Add `From<TrySendThunk>` conversion.** This is a straightforward addition:
+   ```rust
+   impl<'a, A: 'a, E: 'a> From<TrySendThunk<'a, A, E>> for TryThunk<'a, A, E> {
+       fn from(t: TrySendThunk<'a, A, E>) -> Self {
+           TryThunk(Thunk::from(t.into_inner()))
+       }
+   }
+   ```
+   (Assuming `TrySendThunk` has an `into_inner` that returns `SendThunk<'a, Result<A, E>>`.)
+
+2. **Document the `FnOnce` vs `Fn` distinction on inherent `bind`.** Match `Thunk`'s documentation style.
+
+3. **Consider an `and_then` alias** for the inherent `bind` method to improve discoverability.
+
+4. **Add `unwrap` / `unwrap_or` / `unwrap_or_else` convenience methods.** These would evaluate and then unwrap the `Result`, mirroring `Result`'s API. This is optional; users can already call `.evaluate().unwrap()`.
+
+5. **Consider `flatten` for `TryThunk<'a, TryThunk<'a, A, E>, E>`.** While `bind(id)` achieves this, a dedicated method could be clearer.
+
+### Design Alternatives Not Worth Pursuing
+
+- **Generic error handling via a trait (MonadError-style):** The library does not have a `MonadError` trait. Adding one is a separate concern and not specific to `TryThunk`.
+- **Accumulating errors in `Semiapplicative`:** The success-channel `Semiapplicative` uses `bind` semantics (fail-fast), which is standard. The error-channel `Semiapplicative` already uses fail-last. Adding error accumulation to the success channel would require a `Validation`-like type, which is a different abstraction.
+- **Replacing the newtype with a trait-based approach:** The current design is simpler and more performant. A trait-based approach would add indirection without clear benefit.
 
 ## Summary
 
-`TryThunk` is a well-designed, correctly implemented, and thoroughly tested fallible deferred computation type. It justifies its existence as a newtype over `Thunk<Result>` through ergonomic API, short-circuiting monadic semantics, error recovery combinators, triple HKT encoding, and a rich conversion graph with the rest of the lazy hierarchy.
-
-**Key findings:**
-
-- No correctness bugs found.
-- The applicative/monad inconsistency on `TryThunkOkAppliedBrand` is intentional and documented, but may warrant consideration of whether a separate `Validation`-style type would be cleaner.
-- Two minor copy-paste documentation issues ("The Thunk to fold" instead of "The TryThunk to fold") at lines 1180 and 1933.
-- Missing `From<TryThunk> for TryTrampoline` conversion (asymmetric with the `Thunk`/`Trampoline` relationship).
-- Implementation quality is high; the delegation pattern to `Thunk` keeps the code DRY and correct.
+`TryThunk` is a well-designed, thoroughly-implemented fallible lazy computation type. Its three-brand HKT strategy provides comprehensive type class coverage on both the success and error channels, plus bifunctor operations. The implementation correctly reuses `Thunk` internally with minimal duplication. The main gaps are the missing `From<TrySendThunk>` conversion and the `FnOnce`/`Fn` documentation asymmetry with `Thunk`. The test suite is comprehensive, covering unit tests, property-based law verification (Functor, Monad, Bifunctor, Semigroup/Monoid laws), error propagation, panic catching, memoization conversions, and thread safety.

@@ -1,182 +1,280 @@
-# RefFunctor Analysis
+# RefFunctor Trait Analysis
 
 ## Overview
 
-`RefFunctor` (defined in `fp-library/src/classes/ref_functor.rs`) is a type class for mapping over types where the contained value is accessed by reference rather than by ownership. Its sole current implementors are `LazyBrand<RcLazyConfig>` (line 928 of `lazy.rs`) and `TryLazyBrand<E, RcLazyConfig>` (line 1408 of `try_lazy.rs`).
+`RefFunctor` is a type class for types whose mapping operation receives a reference (`&A`) rather than an owned value (`A`). It exists to support memoized lazy types (`RcLazy`, `RcTryLazy`) where `evaluate()` returns `&A`, making a standard `Functor` implementation impossible without implicit cloning.
 
-The trait provides a single method:
+**File:** `fp-library/src/classes/ref_functor.rs`
+
+---
+
+## 1. Why RefFunctor Is Separate from Functor
+
+The core issue: `Lazy::evaluate(&self) -> &A` returns a borrow. The standard `Functor` trait requires `map(f: impl Fn(A) -> B, fa: F<A>) -> F<B>`, where `f` takes an owned `A`. For `Lazy`, there are only two ways to get an owned `A` from `&A`:
+
+1. **Clone it** (requires `A: Clone`, violates zero-cost abstraction principle).
+2. **Consume the cell** (destroying the memoization, since other clones share the cell).
+
+Neither is acceptable as an implicit operation in a library that prioritizes zero-cost abstractions. So `RefFunctor` honestly represents what memoized lazy types can do: `ref_map(f: impl FnOnce(&A) -> B, fa: F<A>) -> F<B>`.
+
+This is the right call. The separation prevents a `Functor` implementation from silently cloning cached values. Users who want to clone must do so explicitly in their mapping function.
+
+### Comparison to PureScript
+
+PureScript's `Data.Lazy` implements a normal `Functor` because `force :: Lazy a -> a` returns an owned value (GC handles sharing). The Rust version cannot return owned values from shared cells without `Clone`, so the `RefFunctor` abstraction is a necessary Rust-specific adaptation.
+
+```purescript
+-- PureScript: force gives owned `a`, so Functor is trivial
+instance functorLazy :: Functor Lazy where
+  map f l = defer \_ -> f (force l)
+```
+
+```rust
+// Rust: evaluate gives `&A`, so we need RefFunctor
+fn ref_map<'a, A: 'a, B: 'a>(
+    func: impl FnOnce(&A) -> B + 'a,
+    fa: Lazy<'a, A, RcLazyConfig>,
+) -> Lazy<'a, B, RcLazyConfig>
+```
+
+---
+
+## 2. Method Signatures
+
+### The trait method
 
 ```rust
 fn ref_map<'a, A: 'a, B: 'a>(
     func: impl FnOnce(&A) -> B + 'a,
-    fa: Apply!(<Self as Kind!(...)>::Of<'a, A>),
-) -> Apply!(<Self as Kind!(...)>::Of<'a, B>);
+    fa: Apply!(<Self as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, A>),
+) -> Apply!(<Self as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>);
 ```
 
-## 1. Design: Why RefFunctor Exists Separately from Functor
+**Key design choices:**
 
-**The core reason is sound.** `Lazy::evaluate` returns `&A` (line 532 of `lazy.rs`), not an owned `A`. The standard `Functor::map` signature requires `impl Fn(A) -> B`, which demands ownership of `A`. For a memoized type that only exposes `&A`, this would require either:
+- **`FnOnce` instead of `Fn`:** Correct. Since memoized types evaluate the closure at most once, `FnOnce` is sufficient. The documentation explains this well. Using `Fn` would unnecessarily constrain callers.
 
-- Cloning the cached value on every `map` call (wasteful, requires `Clone`).
-- Consuming/invalidating the cache (defeats the purpose of memoization).
+- **`'a` lifetime on the closure:** The closure is bounded by `'a`, the same lifetime as the container's contents. This is correct because the closure is captured inside a new `Lazy` cell, which itself lives for `'a`.
 
-By introducing `RefFunctor` with `impl FnOnce(&A) -> B`, the mapping function borrows the cached value. This is the correct design for memoized types.
+- **No `Clone` bounds on `A` or `B`:** Correct. The mapping function receives `&A` and produces an owned `B`, so neither needs to be `Clone`. This is an advantage over the `Foldable` implementation, which requires `A: Clone` because its callbacks take owned `A`.
 
-**The independence from `SendRefFunctor` is also justified.** As documented at lines 29-34 of `ref_functor.rs`, `ArcLazy::new` requires `Send` on the closure. A `RefFunctor` supertrait relationship would require `ArcLazy` to accept non-`Send` closures, which `ArcLazy` cannot do (its underlying `LazyLock` requires `Send`). Keeping the two traits independent means `RcLazy` implements only `RefFunctor`, and `ArcLazy` implements only `SendRefFunctor`, with neither forced to satisfy the other's constraints.
+- **No `Send` bounds:** Correct for the `!Send` variant (`RcLazy`). The `Send` variant is handled by the separate `SendRefFunctor` trait.
 
-**Limitation of this approach.** The split means there is no trait-level polymorphism over "any lazy type that supports ref_map." Generic code cannot abstract over both `RcLazy` and `ArcLazy` using a single bound. A hypothetical unifying trait parameterized by a marker (e.g., `RefFunctor<ThreadSafety>`) could address this, but at significant complexity cost.
+### Observation: `FnOnce` prevents reuse of the mapping function
 
-## 2. Implementation Quality and Correctness
+Because `ref_map` takes `FnOnce`, if a user wants to apply the same mapping function to multiple `Lazy` values, they must either:
+- Clone the closure manually.
+- Use a reference to the function and wrap it in a new `FnOnce` closure each time.
 
-### Trait definition (ref_functor.rs, lines 88-124)
+This is a minor ergonomic trade-off for the flexibility of `FnOnce`. It is the right choice because the memoized cell only calls the closure once, and using `Fn` would force closures that capture non-cloneable state to be wrapped unnecessarily.
 
-The trait definition is correct. Key observations:
+---
 
-- **`FnOnce` is the right choice** (documented at lines 82-87). Since `Lazy` evaluates the closure at most once (the result is memoized), `FnOnce` is sufficient and strictly more permissive for callers than `Fn` or `FnMut`. This is a deliberate and correct divergence from `Functor::map`, which uses `impl Fn(A) -> B` (line 122 of `functor.rs`). `Functor` needs `Fn` because types like `Vec` call the function multiple times; `Lazy` calls it exactly once.
+## 3. Relationship to Functor
 
-- **The `Kind` machinery** (`#[kind(type Of<'a, A: 'a>: 'a;)]` on line 88) correctly mirrors `Functor`'s kind annotation (line 87 of `functor.rs`), ensuring consistent HKT encoding.
+### Could they be unified?
 
-### `LazyBrand<RcLazyConfig>` implementation (lazy.rs, lines 928-961)
-
-The implementation delegates to the inherent `ref_map` method (line 959: `fa.ref_map(f)`). The inherent method (lines 607-612) creates a new `RcLazy` that captures `self` (the original `Lazy`) and the closure:
+One approach would be to parameterize `Functor` over the "access mode" of the mapping function, e.g.:
 
 ```rust
-RcLazy::new(move || f(self.evaluate()))
+// Hypothetical: Functor parameterized over access mode
+trait Functor {
+    fn map<'a, A: 'a, B: 'a>(
+        f: impl FnOnce(/* &A or A */) -> B + 'a,
+        fa: ...,
+    ) -> ...;
+}
 ```
 
-This is correct: on first evaluation of the mapped `Lazy`, it forces the original, passes the reference to `f`, and memoizes the result. The `self` capture by move means the original `Lazy` (which is `Rc`-backed and `Clone`) is kept alive by the new one, which is correctly documented in the "Cache chain behavior" section (lines 74-80).
+This is not viable in Rust because the function signature difference (`&A -> B` vs `A -> B`) is fundamentally different at the type level. You cannot abstract over "reference-ness" of a function parameter without GATs or higher-order trait abstractions that Rust does not support.
 
-### `TryLazyBrand<E, RcLazyConfig>` implementation (try_lazy.rs, lines 1408-1450)
+### Could RefFunctor be a supertrait or subtrait of Functor?
 
-The implementation handles the `Result` semantics correctly:
+- **`Functor: RefFunctor`** (every Functor is a RefFunctor): Technically feasible via a blanket impl `impl<F: Functor> RefFunctor for F` that clones inside `ref_map`. But this violates the zero-cost principle, and `map` takes `Fn` while `ref_map` takes `FnOnce`, so the signatures are not directly compatible.
+
+- **`RefFunctor: Functor`** (every RefFunctor is a Functor): Not possible because `ref_map` cannot provide an owned `A` to `map`'s callback.
+
+**Verdict:** Separation is necessary. These are genuinely different abstractions, not just variants of the same one.
+
+---
+
+## 4. HKT Integration
+
+`RefFunctor` uses the same Brand/Kind pattern as `Functor`:
 
 ```rust
-RcTryLazy::new(move || match fa.evaluate() {
-    Ok(a) => Ok(f(a)),
-    Err(e) => Err(e.clone()),
-})
+#[kind(type Of<'a, A: 'a>: 'a;)]
+pub trait RefFunctor { ... }
 ```
 
-The `E: Clone` bound on the impl (line 1408: `impl<E: 'static + Clone>`) is necessary because on the error path, the error must be cloned into the new cell. This is a reasonable requirement.
+The `#[kind(...)]` attribute generates a supertrait bound equivalent to `Kind!(type Of<'a, A: 'a>: 'a;)`, tying the Brand to its type constructor. The `Apply!` macro resolves `<Self as Kind>::Of<'a, A>` to the concrete type (e.g., `Lazy<'a, A, RcLazyConfig>`).
 
-### Free function (ref_functor.rs, lines 157-162)
+The impl_kind for `LazyBrand<Config>`:
 
-The free function `ref_map` is a thin wrapper that dispatches to `Brand::ref_map(func, fa)`. This follows the same pattern as `map` in `functor.rs` (lines 158-163). Correct.
+```rust
+impl_kind! {
+    impl<Config: LazyConfig> for LazyBrand<Config> {
+        type Of<'a, A: 'a>: 'a = Lazy<'a, A, Config>;
+    }
+}
+```
 
-## 3. Laws
+This is clean. `LazyBrand<Config>` serves as the brand type, and `Kind::Of<'a, A>` resolves to `Lazy<'a, A, Config>`. Both `RefFunctor` and `SendRefFunctor` can be implemented for specific `Config` instantiations, which is exactly what happens: `RefFunctor for LazyBrand<RcLazyConfig>` and `SendRefFunctor for LazyBrand<ArcLazyConfig>`.
 
-The documented laws (lines 38-45) are:
+### Limitation: No generic RefFunctor for LazyBrand<Config>
 
-- **Identity:** `ref_map(|x| x.clone(), fa)` is equivalent to `fa`, given `A: Clone`.
-- **Composition:** `ref_map(|x| g(&f(x)), fa)` is equivalent to `ref_map(g, ref_map(f, fa))`.
+There is no `impl<Config: LazyConfig> RefFunctor for LazyBrand<Config>` because `RcLazy::new` and `ArcLazy::new` have different closure bounds (`ArcLazy` requires `Send`). This forces separate impls for each config, which is handled by the `RefFunctor` / `SendRefFunctor` split.
 
-### Assessment
+---
 
-These are the correct functor laws adapted for reference semantics. The identity law necessarily requires `Clone` because `ref_map` receives `&A` but must produce a value; `|x| x.clone()` is the closest analogue to the standard identity function in this context.
+## 5. Implementors
 
-The composition law is correctly stated: since the inner `ref_map(f, fa)` produces a new `Lazy<B>` and the outer `ref_map(g, ...)` receives `&B`, the composed version must also take `&A` and produce the final value via `g(&f(x))`.
+### Current implementors of RefFunctor
 
-**Subtlety worth noting:** The identity law holds up to value equality (as tested in the doc example at line 60: `assert_eq!(*mapped.evaluate(), *fa.evaluate())`), not referential equality. Two distinct `Lazy` instances with the same evaluated value are "equivalent" for law purposes, but they are different allocations. This is inherent to the design and correctly reflected in the examples.
+| Brand | Concrete type | Notes |
+|-------|---------------|-------|
+| `LazyBrand<RcLazyConfig>` | `RcLazy<'a, A>` | Primary use case. |
+| `TryLazyBrand<E, RcLazyConfig>` | `RcTryLazy<'a, A, E>` | Requires `E: 'static + Clone`. Error is cloned on the `Err` path. |
 
-**Missing:** There are no property-based tests for these laws. The only validation is through doc tests. Property tests (QuickCheck) would strengthen confidence, especially for composition across chained `ref_map` calls.
+### Current implementors of SendRefFunctor
 
-## 4. API Surface
+| Brand | Concrete type | Notes |
+|-------|---------------|-------|
+| `LazyBrand<ArcLazyConfig>` | `ArcLazy<'a, A>` | Thread-safe counterpart. Requires `A: Send + Sync`, closure `Send`. |
+| `TryLazyBrand<E, ArcLazyConfig>` | `ArcTryLazy<'a, A, E>` | Requires `E: 'static + Clone + Send + Sync`. |
+
+### Does the implementor set make sense?
+
+Yes. The implementors are exactly the memoized types in the hierarchy. Non-memoized types (`Thunk`, `SendThunk`, `Trampoline`, `Free`) consume their value on evaluation (they take `self`, not `&self`), so they implement `Functor` instead. The split is clean:
+
+- **Memoized, shared access (`&A`):** `RefFunctor` / `SendRefFunctor`.
+- **One-shot, owned access (`A`):** `Functor`.
+
+### TryLazy's `E: Clone` requirement
+
+The `TryLazyBrand<E, RcLazyConfig>: RefFunctor` impl requires `E: 'static + Clone`. This is because when the inner result is `Err(e)`, `ref_map` must propagate the error into a new `TryLazy` cell. Since `evaluate()` returns `Result<&A, &E>` (a borrow), the error must be cloned to move it into the new cell's closure. The `'static` bound comes from the `TryLazyBrand` struct itself (the error type is part of the brand, which is `'static`).
+
+This is a known limitation but a reasonable one. Most error types are `Clone`.
+
+---
+
+## 6. Documentation Quality
 
 ### Strengths
 
-- The free function `ref_map` (lines 157-162) provides a convenient calling convention matching other type class free functions (`map`, `bind`, etc.).
-- The inherent method `Lazy::ref_map` (line 607 of `lazy.rs`) provides an ergonomic method-call syntax for direct use.
-- The function re-export through `functions.rs` works via the `generate_function_re_exports!` macro (line 25 of `functions.rs`), so `ref_map` is available through `fp_library::functions::*`.
+- The trait-level documentation clearly explains why `RefFunctor` exists (the `&A` vs `A` distinction).
+- The relationship to `SendRefFunctor` is documented directly on the trait, including why they are not in a subtype relationship.
+- Laws are stated with examples.
+- The "Cache chain behavior" section warns about memory accumulation from chaining `ref_map`.
+- The "Why `FnOnce`?" section explains the closure choice.
+- All methods have `#[document_signature]`, `#[document_type_parameters]`, `#[document_parameters]`, and `#[document_returns]` attributes.
+- Property-based tests (QuickCheck) verify both identity and composition laws.
 
-### Concerns
+### Weaknesses
 
-1. **Verbosity of generic free function calls.** Callers must write `ref_map::<LazyBrand<RcLazyConfig>, _, _>(|x: &i32| ..., fa)`, which is considerably more verbose than the inherent `fa.ref_map(|x| ...)`. In practice, most users will prefer the inherent method. The free function's primary value is for generic programming over `RefFunctor` bounds, but since the only implementors are `Lazy` variants, the generic use case is narrow.
+- The identity law states `ref_map(|x| x.clone(), fa)` but the actual test uses `|v: &i32| *v` (dereference-copy, not `clone()`). For `i32` these are equivalent, but the law statement implies `Clone` is needed for identity, which is only true when `A` is not `Copy`. The law could be more precise.
 
-2. **No `Fn` version.** The trait only offers `FnOnce`. While this is correct for `Lazy` (single evaluation), if a future implementor needed multi-evaluation semantics (e.g., a hypothetical `LazyStream`), it could not use `RefFunctor`. This is acceptable given the current scope.
+- The composition law in the doc comment uses `ref_map(|x| g(&f(x)), fa)`, where `f` receives `&A` and `g` receives `&B`. But in the sequential form `ref_map(g, ref_map(f, fa))`, the inner `ref_map(f, fa)` produces `F<B>`, and the outer `ref_map(g, ...)` receives `&B`. So `f` is `&A -> B` and `g` is `&B -> C`. The composed form must therefore be `|x: &A| g(&f(x))`. This is correct as stated but could benefit from explicit type annotations in the doc to make the reference threading clearer.
 
-## 5. Consistency with Other Type Classes
+- There are no doc examples showing the "cache chain" behavior concretely (e.g., a chain of `ref_map` calls demonstrating that all predecessors remain alive).
 
-**Consistent aspects:**
+---
 
-- Uses the same `#[kind(...)]` annotation as `Functor`, `Foldable`, etc.
-- Follows the same `trait + free function` pattern in an inner `document_module` block.
-- Documentation follows the same template: laws section, examples, `#[document_signature]`, `#[document_type_parameters]`, `#[document_parameters]`, `#[document_returns]`, `#[document_examples]`.
-- Re-exported through `functions.rs` like other free functions.
+## 7. Issues, Limitations, and Design Flaws
 
-**Inconsistent aspects:**
+### 7.1 RefFunctor and SendRefFunctor are disconnected
 
-- `Functor::map` uses `impl Fn(A) -> B` while `RefFunctor::ref_map` uses `impl FnOnce(&A) -> B`. The `FnOnce` choice is justified (see section 2), but this means `RefFunctor` is not a drop-in replacement for `Functor`. The relationship between the two traits is "similar but parallel" rather than hierarchical.
-- `RefFunctor` and `SendRefFunctor` are fully independent traits with no shared supertrait. By contrast, many other trait pairs in the codebase have supertrait relationships (e.g., `Monad: Applicative`, `SendDeferrable: Deferrable`). The `SendDeferrable: Deferrable` relationship works because `Deferrable` does not impose bounds that conflict with `Send`; `RefFunctor` cannot follow this pattern because `ArcLazy::new` requires `Send` on the closure.
+The documentation explicitly notes this: `SendRefFunctor` is not a subtrait of `RefFunctor`, so generic code written against `RefFunctor` cannot be used with `ArcLazy`. If you write a function `fn foo<F: RefFunctor>(...)`, it cannot accept `ArcLazy` values. Similarly, a function `fn bar<F: SendRefFunctor>(...)` cannot accept `RcLazy` values.
 
-## 6. Limitations and Alternatives
+This means there is no way to write code that is generic over "any mappable lazy type." You must choose one or the other, or duplicate the function.
 
-### Current limitations
+This is a fundamental tension caused by Rust's `Send` bound system. Making `SendRefFunctor: RefFunctor` would require `ArcLazy` to implement `RefFunctor`, which would mean `ref_map` could be called with a non-`Send` closure on a type that requires `Send` closures. The current design correctly avoids this unsoundness.
 
-1. **No supertrait relationship with `Functor`.** Code that is generic over `Functor` cannot work with `Lazy`. This means `Lazy` is excluded from any combinator or algorithm built on `Functor`, `Applicative`, `Monad`, etc. The entire standard functor/monad tower is unavailable for `Lazy`.
+### 7.2 `ref_map` creates a new Lazy cell (not a view)
 
-2. **Only two implementors.** `RefFunctor` is implemented only for `LazyBrand<RcLazyConfig>` and `TryLazyBrand<E, RcLazyConfig>`. This limits its utility as a generic abstraction. It is effectively a "Lazy-specific Functor."
+Each `ref_map` call allocates a new `Rc`/`Arc`-wrapped lazy cell. The documentation warns about this ("Cache chain behavior"), but it means chaining `ref_map` builds up a linked list of reference-counted allocations. This is different from, say, a `map` on `Vec` which produces a single new `Vec`.
 
-3. **No `Applicative` or `Monad` analogue.** There is no `RefApplicative` or `RefMonad`. If users want to combine multiple `Lazy` values, they must do so manually or use `ref_map` with captured references.
+This is inherent to the memoized lazy design, not a flaw in the trait itself.
 
-4. **Cache chain memory behavior.** As documented (lines 74-80), chaining `ref_map` creates a linked list of `Rc`-held cells. Each mapped value retains its predecessor. Long chains accumulate memory. This is inherent and well-documented, but users may not expect it.
+### 7.3 No `Applicative` or `Monad` for memoized types
 
-### Alternative: Functor with Clone
+Because `RefFunctor` sits outside the `Functor -> Applicative -> Monad` hierarchy, memoized types cannot participate in the standard type class tower. You cannot `pure` into a `RefFunctor` context generically, or `bind`/`flatMap` over one.
 
-One alternative would be to implement `Functor` for `Lazy` where `A: Clone`, using `map(f, fa)` = `Lazy::new(move || f(fa.evaluate().clone()))`. This would integrate `Lazy` into the standard functor tower.
+The `Lazy` type does have inherent `pure` methods, and `Deferrable` provides a kind of `bind`-like operation (deferred flattening), but these are not expressed through the standard HKT type class hierarchy.
 
-**Tradeoffs:**
-- Pro: `Lazy` could participate in `Functor`-generic code.
-- Pro: No need for a separate `RefFunctor` trait.
-- Con: Forces a `Clone` on every `map`, which may be expensive.
-- Con: Rust's trait system does not easily support conditional `Functor` impls where `A: Clone`; the `Kind` trait's `Of<'a, A>` has no `Clone` bound, and adding one would affect all `Functor` implementors.
+### 7.4 Inconsistency between RefFunctor and Foldable
 
-**Verdict:** The `Clone`-based approach would be worse. It imposes unnecessary costs and cannot be expressed cleanly in the current HKT encoding without polluting the `Functor` trait itself. `RefFunctor` is the right solution for this constraint.
+`Foldable for LazyBrand<Config>` is implemented generically over all `Config: LazyConfig`, but `RefFunctor` is only implemented for `LazyBrand<RcLazyConfig>`. The `Foldable` implementation works generically because its callbacks receive `A` (owned, via `Clone`), not `&A`. This means `Foldable` imposes `A: Clone` while `RefFunctor` does not.
 
-### Alternative: Functor with interior mutability
+This is consistent with the design principles, but it means `Foldable` and `RefFunctor` cannot be composed in generic code (e.g., you cannot write a generic function that both folds and maps over a lazy type using a single trait bound).
 
-Another approach: make `Lazy::evaluate` return an owned value via `Clone` internally, storing `A: Clone` as a bound on the `Kind` impl. This is essentially a variation of the above, with the same drawbacks.
+### 7.5 The free function `ref_map` is not re-exported in `functions.rs`
 
-### Alternative: Comonad-style `extract`
+Looking at `fp-library/src/functions.rs`, `ref_map` is auto-generated through the `generate_function_re_exports!` macro (since the macro scans `src/classes`). The integration test at `fp-library/tests/hkt_integration.rs` imports `ref_map` from `crate::classes::ref_functor::ref_map`, not from `functions::*`, which suggests the re-export is working (the module-level example imports from `functions::*` successfully). This is fine.
 
-In Haskell, `Comonad` provides `extract :: w a -> a`. `Lazy` could be a `Comonad` where `extract` forces evaluation and clones the result. Then `extend :: (w a -> b) -> w a -> w b` would be the natural mapping operation, which is essentially `ref_map` but with the full context available. This is a more principled categorical framing, but requires implementing the full `Comonad` trait and still requires `Clone` for `extract`.
+---
 
-## 7. Documentation Quality
+## 8. Alternatives
 
-### Strengths
+### 8.1 Functor with A: Clone bound
 
-- The module-level docs (lines 1-15) provide a working example.
-- The trait-level docs (lines 24-87) are thorough, covering:
-  - Why `RefFunctor` exists (lines 24-27).
-  - Why it is independent from `SendRefFunctor` (lines 29-34).
-  - Laws with explanation of the `Clone` requirement (lines 38-45).
-  - Working law examples (lines 48-72).
-  - Cache chain behavior warning (lines 74-80).
-  - Why `FnOnce` is used (lines 82-87).
-- The free function docs (lines 126-162) follow the standard template.
+```rust
+// Hypothetical: Functor impl that clones
+impl Functor for LazyBrand<RcLazyConfig> {
+    fn map<'a, A: Clone + 'a, B: 'a>(
+        f: impl Fn(A) -> B + 'a,
+        fa: Lazy<'a, A, RcLazyConfig>,
+    ) -> Lazy<'a, B, RcLazyConfig> {
+        RcLazy::new(move || f(fa.evaluate().clone()))
+    }
+}
+```
 
-### Issues
+**Problem:** `Functor::map` does not have a `Clone` bound on `A` in its trait definition. Adding `Clone` to the trait would break all other implementations. Adding it only to this impl is not possible because trait method bounds must match the trait definition.
 
-1. **Composition law documentation ambiguity (line 45).** The composition law states `ref_map(|x| g(&f(x)), fa)` is equivalent to `ref_map(g, ref_map(f, fa))`. In the doc example (lines 63-64), `f` is `|x: &i32| *x * 2` and `g` is not present in the composed form in the same way. The notation is fine but could be clearer about the types: in the composed form, `f` returns an owned `B`, and `g` takes `&B`. The doc example correctly demonstrates this (line 66: `|x: &i32| f(&g(x))`), but the abstract law statement on line 45 uses `f` and `g` in the opposite order from the example, which could confuse readers. In the law, `f` is applied first (inner), but in the example, `g` is applied first. This is technically correct (the law uses mathematical composition order), but the inconsistency between the law statement and the example is a minor readability issue.
+This could work if `Functor` were redesigned with an additional `A: Clone` bound, but that would be too restrictive for types like `Option` and `Vec` where `map` does not need `Clone`.
 
-2. **The identity law example (line 59) uses `|x: &i32| *x` instead of `|x: &i32| x.clone()`.** For `i32` these are equivalent (dereferencing a `Copy` type), but the law as stated says `x.clone()`. Using `*x` is fine for the example but slightly diverges from the stated law.
+### 8.2 A `Functor`-like trait with `FnOnce(&A) -> B`
 
-## Summary of Findings
+This is essentially what `RefFunctor` already is. The question is whether it should be called `Functor` with a different "mode." But as analyzed in section 3, Rust's type system cannot abstract over reference-ness of parameters.
 
-| Aspect | Assessment |
-|--------|-----------|
-| Design rationale | Sound; `RefFunctor` is necessary for memoized types that expose `&A`. |
-| Independence from `SendRefFunctor` | Correctly justified by `Send` bound incompatibility. |
-| Implementation correctness | Correct for both `Lazy` and `TryLazy`. |
-| `FnOnce` choice | Correct and well-reasoned. |
-| Laws | Correct adaptation of functor laws for reference semantics. |
-| Property tests | Missing; only doc tests validate laws. |
-| API surface | Adequate; inherent methods provide ergonomic access. Free function useful for generic code. |
-| Consistency | Mostly consistent with other type classes; the `FnOnce` vs `Fn` difference is justified. |
-| Documentation | Thorough and accurate, with minor composition law readability issue. |
-| Limitations | Cannot integrate with Functor tower; only two implementors; no RefApplicative/RefMonad. |
+### 8.3 Comonad approach
 
-### Recommendations
+In Haskell/PureScript, `Lazy` is a `Comonad` with `extract = force` and `extend f x = defer (\_ -> f x)`. The `extract` gives you the value, and `extend` gives you a derived lazy computation.
 
-1. Add property-based tests for `RefFunctor` identity and composition laws.
-2. Consider clarifying the composition law documentation to use consistent variable naming between the abstract law and the example.
-3. The overall design is correct and should be kept. The alternative of `Functor` with `Clone` bounds is strictly worse for this use case.
+In Rust, `extract` would need to return an owned `A`, which requires `Clone` (same issue as `Functor`). You could define a `RefComonad` with `extract(&self) -> &A`, but this adds another custom trait without solving the core problem.
+
+### 8.4 GAT-based approach
+
+A more general approach using GATs could parameterize `Functor` over the "access pattern":
+
+```rust
+trait Functor {
+    type Access<'b, A: 'b>;  // Either `A` or `&'b A`
+    fn map<'a, A: 'a, B: 'a>(
+        f: impl FnOnce(Self::Access<'_, A>) -> B + 'a,
+        fa: ...,
+    ) -> ...;
+}
+```
+
+This is theoretically interesting but would massively complicate the trait hierarchy. The current `RefFunctor` approach is simpler and more direct.
+
+### 8.5 Accept the status quo
+
+The current design is pragmatic. `RefFunctor` is a niche trait used by exactly the types that need it (memoized lazy values). It has clear laws, good documentation, and the separation from `Functor` is well-justified. The main cost is that generic code cannot be polymorphic over both `Functor` and `RefFunctor` types, but this reflects a genuine semantic difference in what these types can do.
+
+---
+
+## Summary
+
+`RefFunctor` is a well-designed, Rust-specific adaptation to the problem of mapping over shared, memoized values that can only be accessed by reference. The trait is clean, the laws are correct, the documentation is thorough, and the implementation set is exactly right.
+
+The main design tensions are:
+
+1. **Disconnection from `Functor`:** Unavoidable given Rust's ownership model.
+2. **Disconnection between `RefFunctor` and `SendRefFunctor`:** Unavoidable given Rust's `Send` bound system. Well-documented.
+3. **No participation in the type class tower** (no `Applicative`, `Monad`, etc.): A consequence of (1), and inherent to the approach.
+4. **Cache chain memory accumulation:** Inherent to memoized lazy evaluation, well-documented.
+
+No changes are recommended for the trait itself. The design is sound for its purpose.

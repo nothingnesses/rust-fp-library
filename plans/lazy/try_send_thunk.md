@@ -1,268 +1,360 @@
 # TrySendThunk Analysis
 
 **File:** `fp-library/src/types/try_send_thunk.rs`
-**Lines:** 1394
+**Type:** `TrySendThunk<'a, A, E>` (thread-safe fallible deferred computation)
+**Lines:** ~1,600 (including tests)
 
-## 1. Design: Does the Send+Try combination make sense?
-
-Yes. `TrySendThunk<'a, A, E>` is the product of two orthogonal axes: fallibility (`Result<A, E>`) and thread safety (`Send`). It fills the same cell in the design matrix as `SendThunk` does for the infallible case, and as `TryThunk` does for the single-threaded fallible case.
-
-The representation is clean: a newtype over `SendThunk<'a, Result<A, E>>` (line 101-103). This mirrors `TryThunk`'s representation as a newtype over `Thunk<'a, Result<A, E>>`. The delegation to `SendThunk` is the right call; it reuses the `Send`-enforcing closure boxing without duplicating machinery.
-
-**Practical motivation:** Sending a fallible deferred computation to a thread pool (e.g., `std::thread::spawn`, rayon, tokio) is a real use case. Without `TrySendThunk`, users would have to use `SendThunk<Result<A, E>>` directly, losing the ergonomic combinators (`bind`, `map_err`, `catch`, `bimap`, etc.).
-
-## 2. Implementation Quality
-
-### Correctness
-
-The core operations are correct:
-
-- **`bind` (lines 243-255):** Properly short-circuits on `Err`, delegates to `SendThunk::bind`. The `Send` bounds on all type parameters (`A`, `B`, `E`) and the closure `f` are correct and necessary.
-- **`map` (lines 275-280):** Correctly delegates `result.map(func)` through `SendThunk::map`.
-- **`map_err` (lines 300-305):** Correctly delegates `result.map_err(f)` through `SendThunk::map`.
-- **`bimap` (lines 334-343):** Correct match-based implementation, both closures carry `Send + 'a`.
-- **`catch` (lines 362-373):** Correct: on `Ok`, wraps in `SendThunk::pure(Ok(a))`; on `Err`, delegates to recovery function. The `Send` bounds on `A` and `E` are required for `SendThunk::pure`.
-- **`catch_with` (lines 405-413):** Correct: creates a new `SendThunk::new` that evaluates `self` and dispatches. This avoids the type-mismatch issues that would arise from using `SendThunk::bind` when the error type changes.
-- **`Semigroup` (lines 934-943):** Correctly short-circuits via `?` operator. The `Semigroup` bound on `A` ensures the inner values can be combined.
-- **`into_arc_try_lazy` (lines 554-559):** Correctly delegates through `SendThunk::into_arc_lazy`, wrapping back in `TryLazy`. This is a genuine lazy conversion (no eager evaluation), which is the key advantage of the `Send` variant.
-
-### No bugs found
-
-The implementation is straightforward delegation to `SendThunk` with `Result` wrapping/unwrapping. The patterns are consistent and correct.
-
-### Bound consistency
-
-One minor observation: `bind` requires `A: Send + 'a`, `B: Send + 'a`, `E: Send + 'a` in `where` clauses (lines 248-250), while `map` only requires `Send + 'a` on the closure (line 277). This asymmetry is correct: `bind` must construct a `SendThunk::pure(Err(e))` in the error branch, which requires `E: Send`, and `SendThunk::bind` internally needs `A: Send`. `map` only wraps around the existing `SendThunk::map`, which handles the `Send` constraint internally.
-
-## 3. Type Class Instances
-
-### Implemented
-
-| Instance | Lines | Correct? |
-|---|---|---|
-| `Deferrable` | 842-873 | Yes, eagerly evaluates (documented) |
-| `SendDeferrable` | 880-905 | Yes, truly deferred via `SendThunk::new` |
-| `Semigroup` | 912-944 | Yes, requires `A: Semigroup + Send`, `E: Send` |
-| `Monoid` | 951-971 | Yes, delegates to `Monoid::empty()` |
-| `Debug` | 979-997 | Yes, prints without evaluating |
-
-### Correctly absent (cannot be implemented)
-
-The following HKT traits cannot be implemented for `TrySendThunk` because their signatures do not require `Send` on closure parameters. This is well-documented in the module-level docs (lines 7-9 of `send_thunk.rs`) and the struct docs (lines 49-62 of `try_send_thunk.rs`):
-
-- `Functor` / `FunctorWithIndex`
-- `Pointed`
-- `Semimonad` / `Semiapplicative`
-- `Foldable` / `FoldableWithIndex`
-- `Bifunctor` / `Bifoldable`
-- `MonadRec`
-- `Lift`, `ApplyFirst`, `ApplySecond`
-- `WithIndex`
-
-This is the same limitation as `SendThunk`, and for exactly the same reason.
-
-### Correctly absent brands
-
-There are no `TrySendThunkErrAppliedBrand` or `TrySendThunkOkAppliedBrand` types. This is correct and documented in `brands.rs` (lines 271-275, 291-294): without HKT trait support, partially-applied brands serve no purpose.
-
-The bifunctor brand `TrySendThunkBrand` exists (line 649-658) and maps `Of<'a, E, A> = TrySendThunk<'a, A, E>`. This is consistent with `TryThunkBrand`'s convention. However, no `Bifunctor` or `Bifoldable` is implemented for it, which is correct since those traits also lack `Send` bounds on their closures.
-
-### Missing: `tail_rec_m` / `arc_tail_rec_m` inherent methods
-
-`SendThunk` has `tail_rec_m` (lines 267-282) and `arc_tail_rec_m` (lines 326-338), providing stack-safe recursion for infallible computations. `TryThunk` has `MonadRec` via its brand (line 1027-1078), providing stack-safe recursion for fallible computations.
-
-**`TrySendThunk` has neither.** This is a gap. A `tail_rec_m` inherent method would be valuable for stack-safe fallible recursion across thread boundaries. The implementation would be straightforward:
+## 1. Type Design
 
 ```rust
-pub fn tail_rec_m<S>(
-    f: impl Fn(S) -> TrySendThunk<'a, Step<S, A>, E> + Clone + Send + 'a,
-    initial: S,
-) -> Self
-where
-    S: Send + 'a,
-    A: Send + 'a,
-    E: Send + 'a,
-{
-    TrySendThunk::new(move || {
-        let mut state = initial;
-        loop {
-            match f(state).evaluate() {
-                Ok(Step::Loop(next)) => state = next,
-                Ok(Step::Done(a)) => break Ok(a),
-                Err(e) => break Err(e),
-            }
-        }
-    })
+pub struct TrySendThunk<'a, A, E>(SendThunk<'a, Result<A, E>>);
+```
+
+TrySendThunk wraps `SendThunk<'a, Result<A, E>>`, which itself wraps `Box<dyn FnOnce() -> Result<A, E> + Send + 'a>`. This is a two-layer newtype: TrySendThunk -> SendThunk -> Box.
+
+**Assessment: Correct and consistent.**
+
+The design follows the library's established pattern exactly:
+
+| Type | Wraps |
+|------|-------|
+| `TryThunk<'a, A, E>` | `Thunk<'a, Result<A, E>>` |
+| `TrySendThunk<'a, A, E>` | `SendThunk<'a, Result<A, E>>` |
+
+This is the right approach. `TrySendThunk` relates to `SendThunk` the same way `TryThunk` relates to `Thunk`. The newtype adds error-aware combinators (`map`, `bind`, `map_err`, `bimap`, `catch`, `catch_with`) that understand `Result` semantics, while delegating the actual closure management and `Send` invariant to `SendThunk`.
+
+**Trade-off acknowledged:** The two-layer indirection (TrySendThunk -> SendThunk -> Box) is zero-cost at runtime since both newtypes are repr-transparent. There is no performance concern.
+
+## 2. HKT Support
+
+**Contrary to the task description, TrySendThunk DOES have a brand and HKT support, but it is limited.**
+
+### What exists
+
+The file defines:
+
+```rust
+impl_kind! {
+    for TrySendThunkBrand {
+        type Of<'a, E: 'a, A: 'a>: 'a = TrySendThunk<'a, A, E>;
+    }
 }
 ```
 
-## 4. API Surface
+The brand `TrySendThunkBrand` exists in `brands.rs` and the `impl_kind!` invocation maps it to `TrySendThunk`. The parameter ordering is `(E, A)`, matching `TryThunkBrand` and `ResultBrand` conventions.
 
-### Core API (inherent methods)
+### What is missing
 
-| Method | Present? | Notes |
-|---|---|---|
-| `new` | Yes (line 129) | |
-| `pure` | Yes (line 149) | |
-| `ok` | Yes (line 192) | |
-| `err` | Yes (line 215) | |
-| `defer` | Yes (line 172) | |
-| `map` | Yes (line 275) | |
-| `map_err` | Yes (line 300) | |
-| `bimap` | Yes (line 334) | |
-| `bind` | Yes (line 243) | |
-| `catch` | Yes (line 362) | |
-| `catch_with` | Yes (line 405) | |
-| `evaluate` | Yes (line 447) | |
-| `lift2` | Yes (line 481) | |
-| `then` | Yes (line 523) | |
-| `into_inner` | Yes (line 429) | |
-| `into_arc_try_lazy` | Yes (line 554) | Truly lazy (not eager) |
-| `catch_unwind_with` | Yes (line 601) | |
-| `catch_unwind` | Yes (line 644) | E=String convenience |
-| `tail_rec_m` | **No** | Missing |
-| `arc_tail_rec_m` | **No** | Missing |
+Unlike `TryThunk`, which has three brands and extensive trait implementations:
 
-### Conversions (`From` impls)
+| Brand | TryThunk | TrySendThunk |
+|-------|----------|--------------|
+| Bifunctor brand (`*Brand`) | `TryThunkBrand` with `Bifunctor`, `Bifoldable` | `TrySendThunkBrand` exists but has **no trait impls** |
+| Error-applied brand (`*ErrAppliedBrand<E>`) | `TryThunkErrAppliedBrand<E>` with `Functor`, `Pointed`, `Lift`, `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`, `MonadRec`, `Foldable`, `WithIndex`, `FunctorWithIndex`, `FoldableWithIndex` | **Does not exist** |
+| Ok-applied brand (`*OkAppliedBrand<A>`) | `TryThunkOkAppliedBrand<A>` with `Functor`, `Pointed`, `Semimonad`, `Foldable`, `WithIndex`, `FunctorWithIndex`, `FoldableWithIndex` | **Does not exist** |
 
-| From | Present? | Eager? | Notes |
-|---|---|---|---|
-| `TryThunk` | Yes (line 665) | Yes | Must eagerly evaluate (not `Send`) |
-| `Result` | Yes (line 696) | N/A | Already a value |
-| `SendThunk` | Yes (line 725) | No | Maps with `Ok` |
-| `ArcLazy` | Yes (line 751) | Yes | Forces + clones |
-| `TryTrampoline` | Yes (line 777) | Yes | Must eagerly evaluate (not `Send`) |
-| `ArcTryLazy` | Yes (line 809) | Yes | Forces + clones |
+### Why the gap exists
 
-**Missing conversions compared to `TryThunk`:**
-- `From<Lazy<Config>>` for `TrySendThunk`: `TryThunk` has this (line 649-668). For `TrySendThunk`, this would require eager evaluation (since `Lazy`'s inner closure is not `Send`). Could be added for completeness.
-- `From<TryLazy<Config>>` for `TrySendThunk`: `TryThunk` has this (line 677-701). Same reasoning.
-- `From<Thunk>` for `TrySendThunk`: `TryThunk` has this (line 708-723). Would require eager evaluation.
+The documentation on the struct explains this clearly: standard HKT traits like `Functor`, `Pointed`, `Semimonad`, and `Semiapplicative` cannot be implemented because their signatures do not require `Send` on the mapping or binding closures. Composing a `SendThunk<Result<A, E>>` with a non-`Send` closure would violate the `Send` invariant.
 
-These are "cross-thread-boundary" conversions that all require eager evaluation. The `ArcLazy` and `ArcTryLazy` conversions (which are present) cover the thread-safe memoized types. The missing ones are for single-threaded types, which is a less common conversion path but could be useful.
+This is the same fundamental limitation that `SendThunk` faces, and it is correctly identified.
 
-## 5. Consistency with Other Variants
+### Should it have more HKT support?
 
-### Comparison matrix
+**No, the current state is correct.** The `Send` bound mismatch is a genuine type system constraint, not an oversight. Possible future directions:
 
-| Feature | `Thunk` | `SendThunk` | `TryThunk` | `TrySendThunk` |
-|---|---|---|---|---|
-| `new` | Yes | Yes | Yes | Yes |
-| `pure` | Yes | Yes | Yes | Yes |
-| `ok`/`err` | N/A | N/A | Yes | Yes |
-| `defer` | Yes | Yes | Yes | Yes |
-| `map` | Yes | Yes | Yes | Yes |
-| `bind` | Yes | Yes | Yes | Yes |
-| `evaluate` | Yes | Yes | Yes | Yes |
-| `tail_rec_m` | Yes | Yes | Via MonadRec | **Missing** |
-| `arc_tail_rec_m` | N/A | Yes | N/A | **Missing** |
-| HKT traits | Full | None | Full | None |
-| `Deferrable` | Yes | Yes (eager) | Yes | Yes (eager) |
-| `SendDeferrable` | N/A | Yes | N/A | Yes |
-| `Semigroup`/`Monoid` | Yes | Yes | Yes | Yes |
-| `into_rc_lazy` | Yes | N/A | Yes (`into_rc_try_lazy`) | N/A |
-| `into_arc_lazy` | Yes (eager) | Yes (lazy) | Yes (eager) | Yes (lazy) |
-| `catch`/`catch_with` | N/A | N/A | Yes | Yes |
-| `bimap`/`map_err` | N/A | N/A | Yes | Yes |
-| `lift2`/`then` | Via HKT | N/A | Yes | Yes |
-| `catch_unwind` | N/A | N/A | Yes | Yes |
-| `into_inner` | N/A | N/A | Yes | Yes |
+- A hypothetical `SendFunctor` / `SendSemimonad` trait family that requires `Send` on closures could enable HKT-style programming for `Send` types. But this would be a significant library-wide addition.
+- The bifunctor brand `TrySendThunkBrand` currently has no trait implementations. `Bifunctor` and `Bifoldable` could technically be implemented if their closure arguments were required to be `Send`, but the current trait definitions do not require this. This is consistent; the brand exists purely for type-level identification.
 
-The API is highly consistent. The main gap is `tail_rec_m`/`arc_tail_rec_m`.
+## 3. Type Class Implementations
 
-### `ok` vs `pure` inconsistency
+### What TrySendThunk implements (via trait)
 
-In `TryThunk`, `ok` is documented as an alias for `pure` (line 172-177: "Alias for `pure`, provided for readability"). Both have identical implementations (`Thunk::pure(Ok(a))`), and `ok` has no `Send` bounds because `Thunk::pure` does not need them.
+| Trait | Notes |
+|-------|-------|
+| `Deferrable<'a>` | Eagerly evaluates the closure (since `Deferrable::defer` does not require `Send`). |
+| `SendDeferrable<'a>` | Truly deferred; wraps the `Send` closure in a new `SendThunk`. |
+| `Semigroup` | Requires `A: Semigroup + Send`, `E: Send`. Short-circuits on error. |
+| `Monoid` | Requires `A: Monoid + Send`, `E: Send`. Returns `Ok(Monoid::empty())`. |
+| `Debug` | Prints `"TrySendThunk(<unevaluated>)"` without forcing. |
+| `From<TryThunk>` | Eagerly evaluates (TryThunk is not Send). |
+| `From<Result>` | Wraps via `SendThunk::pure`. |
+| `From<SendThunk>` | Maps the value through `Ok`. |
+| `From<ArcLazy>` | Eagerly evaluates and clones; wraps as `Ok`. |
+| `From<TryTrampoline>` | Eagerly evaluates (Trampoline is not Send). |
+| `From<ArcTryLazy>` | Eagerly evaluates and clones the result. |
 
-In `TrySendThunk`, both `pure` (line 149) and `ok` (line 192) have identical implementations (`SendThunk::pure(Ok(a))`), identical bounds (`A: Send + 'a, E: Send + 'a`), and identical doc examples. However, `ok` lacks the "Alias for `pure`" documentation that `TryThunk::ok` has. This is a minor doc inconsistency.
+### What TrySendThunk implements (via inherent methods)
 
-### `Deferrable::defer` consistency
+| Method | Analogous Trait |
+|--------|----------------|
+| `map` | `Functor::map` |
+| `map_err` | (error-channel functor) |
+| `bimap` | `Bifunctor::bimap` |
+| `bind` | `Semimonad::bind` |
+| `pure` / `ok` | `Pointed::pure` |
+| `err` | (error-channel pointed) |
+| `defer` | `Deferrable::defer` (but with Send) |
+| `catch` | (error recovery, same E) |
+| `catch_with` | (error recovery, different E) |
+| `lift2` | `Lift::lift2` |
+| `then` | `ApplySecond::apply_second` |
+| `tail_rec_m` | `MonadRec::tail_rec_m` |
+| `arc_tail_rec_m` | (Arc-wrapped variant for non-Clone closures) |
+| `catch_unwind_with` | (panic recovery with custom handler) |
+| `catch_unwind` | (panic recovery to String, E=String only) |
+| `into_inner` | (unwrap newtype) |
+| `evaluate` | (force computation) |
+| `into_arc_try_lazy` | (convert to memoized ArcTryLazy) |
 
-Both `SendThunk` and `TrySendThunk` implement `Deferrable::defer` by eagerly calling `f()` (lines 871 for `TrySendThunk`, 425 for `SendThunk`). This is correct and well-documented: the `Deferrable` trait does not require `Send` on the closure, so deferral is impossible without violating the `Send` invariant.
+### Comparison with TryThunk
 
-Both implement `SendDeferrable::send_defer` with true deferral. `SendThunk` delegates to `SendThunk::defer` (line 455), while `TrySendThunk` creates `SendThunk::new(move || f().evaluate())` (line 903). Both are correct.
+TryThunk has all of the above inherent methods **plus** full HKT trait implementations via `TryThunkErrAppliedBrand<E>` and `TryThunkOkAppliedBrand<A>`:
 
-## 6. Limitations and Issues
+- `Functor`, `Pointed`, `Lift`, `Semiapplicative`, `Semimonad`, `MonadRec`, `ApplyFirst`, `ApplySecond` on the error-applied brand.
+- `Functor`, `Pointed`, `Semimonad`, `Foldable`, `FoldableWithIndex`, `FunctorWithIndex`, `WithIndex` on both applied brands.
+- `Bifunctor`, `Bifoldable` on the bifunctor brand.
 
-### Missing `tail_rec_m`
+TrySendThunk has **none** of these trait impls. This is the major difference, and it is justified by the `Send` constraint.
 
-As noted in Section 3, `TrySendThunk` lacks `tail_rec_m` and `arc_tail_rec_m`. `SendThunk` has both. `TryThunk` has `MonadRec` via its brand. `TrySendThunk` has neither. This means there is no stack-safe recursion path for fallible + thread-safe deferred computations.
+### Comparison with SendThunk
 
-**Severity:** Moderate. Users who need stack-safe fallible recursion with `Send` must use `TryTrampoline` and then convert to `TrySendThunk` via `From`, which requires `'static` and eager evaluation.
+SendThunk has trait implementations that TrySendThunk lacks:
 
-### No `From<Thunk>`, `From<Lazy>`, `From<RcTryLazy>`, `From<RcLazy>`
+- `Foldable` (via `SendThunkBrand`).
+- `FoldableWithIndex` (via `SendThunkBrand`).
+- `WithIndex` (via `SendThunkBrand`).
 
-These single-threaded to thread-safe conversions are absent. Each would require eager evaluation. This is arguably fine since the `Send` variants (`SendThunk`, `ArcLazy`, `ArcTryLazy`) are covered, and converting from a non-`Send` type to a `Send` type always requires eager evaluation anyway. But for completeness, they could be added.
+TrySendThunk does not implement `Foldable` or any indexed variant. This is a gap worth examining:
 
-### `TrySendThunkBrand` exists but has no trait implementations
+**Missing `Foldable`:** `TryThunk` implements `Foldable` via `TryThunkErrAppliedBrand<E>`, which folds over the success channel (returning `initial` on error). TrySendThunk could in principle provide the same behavior via an error-applied brand, but it cannot because the applied brand does not exist. This is a consequence of the fundamental HKT limitation.
 
-`TrySendThunkBrand` (line 649-658) is defined as a bifunctor-style brand (`Of<'a, E, A> = TrySendThunk<'a, A, E>`), but no HKT traits are implemented for it. This is correctly documented as intentional. The brand exists for potential future use or for generic code that needs to reference the type constructor. This is fine.
+## 4. Thread Safety
 
-### `Semigroup` does not short-circuit at the type level
+### Send bounds: Correct
 
-The `Semigroup` implementation (lines 934-943) uses `?` to short-circuit on error. This is correct at runtime, but the bound is `A: Semigroup + Send`, not `Result<A, E>: Semigroup`. This means the semigroup operation combines success values only, and errors short-circuit. This is the correct behavior for a monadic error type (matching `TryThunk`'s behavior).
+- The struct wraps `SendThunk<'a, Result<A, E>>`, which wraps `Box<dyn FnOnce() -> Result<A, E> + Send + 'a>`.
+- The `+ Send` bound on the inner closure ensures the entire `TrySendThunk` is `Send`.
+- All inherent methods that compose closures (map, bind, map_err, bimap, catch, catch_with, etc.) require `+ Send` on their closure arguments.
+- All methods that produce values from `A` or `E` require the respective `Send` bounds.
 
-### `bind` has more restrictive bounds than `map`
+### Deferrable implementation: Subtly correct but potentially surprising
 
-`bind` requires `A: Send + 'a`, `B: Send + 'a`, `E: Send + 'a` (lines 248-250), while `map` only requires the closure to be `Send + 'a` (line 277). This is correct but may surprise users. The reason: `bind`'s error path must construct `SendThunk::pure(Err(e))`, which requires `Err(e): Send`, hence `E: Send`. The `A: Send` bound comes from `SendThunk::bind`'s requirement that the inner closure produces `Send` results.
+The `Deferrable::defer` implementation **eagerly evaluates** the closure:
 
-## 7. Documentation
+```rust
+fn defer(f: impl FnOnce() -> Self + 'a) -> Self
+where Self: Sized {
+    f()  // eager!
+}
+```
 
-### Module-level docs (lines 1-6)
+This is because `Deferrable::defer` does not require `Send` on `f`, so wrapping `f` inside a `SendThunk` would be unsound. The `SendDeferrable::send_defer` implementation correctly defers:
 
-Brief and accurate. Correctly identifies the type as the fallible counterpart to `SendThunk` and notes re-execution semantics.
+```rust
+fn send_defer(f: impl FnOnce() -> Self + Send + 'a) -> Self {
+    TrySendThunk(SendThunk::new(move || f().evaluate()))
+}
+```
 
-### Struct-level docs (lines 32-94)
+This matches `SendThunk`'s own `Deferrable` implementation, which also eagerly evaluates for the same reason. The pattern is consistent across the library.
 
-Thorough and well-structured:
-- Identifies the underlying representation (line 34).
-- Explains the `Send` invariant (line 35).
-- Documents non-memoized semantics (lines 39-41).
-- HKT representation section (lines 43-47).
-- HKT limitations section (lines 49-62) with clear explanation of why HKT traits cannot be implemented.
-- "When to Use" section (lines 64-70) with alternatives.
-- Algebraic properties section (lines 72-80) documenting monad laws and short-circuit behavior.
-- Stack safety warning (lines 82-86).
-- Traversable limitation (lines 88-94).
+### Test coverage of thread safety
 
-### Minor doc issues
+The test suite includes:
+- `test_is_send`: Static assertion that `TrySendThunk<'static, i32, String>: Send`.
+- `test_send_across_thread`: Actually spawns a thread and evaluates.
+- `test_into_arc_try_lazy_thread_safety`: Spawns a thread with a cloned ArcTryLazy.
 
-1. **`ok` method (line 176):** Documented as "Creates a successful computation" but lacks the "Alias for `pure`" note that `TryThunk::ok` has (TryThunk line 172). This should be added for consistency.
+This is adequate.
 
-2. **Right identity law (line 76):** States `thunk.bind(TrySendThunk::ok)`. This is correct but note that `TrySendThunk::ok` and `TrySendThunk::pure` are identical, so either could be cited. `TryThunk` uses `TryThunk::pure` in the same position (TryThunk line 82), which is slightly inconsistent across the two types.
+## 5. Code Duplication
 
-3. **`catch_unwind_with` and `catch_unwind` (lines 567-646):** Well-documented with examples and clear `Send + UnwindSafe` bounds.
+### High duplication with TryThunk
 
-4. **All `From` impls:** Documented with doc comments explaining eager vs lazy semantics and the reason for eager evaluation where applicable.
+Nearly every inherent method on `TrySendThunk` is a mechanical copy of the corresponding `TryThunk` method with `Thunk` replaced by `SendThunk` and `+ Send` bounds added. The method bodies are structurally identical:
 
-### Test coverage
+| Method | TryThunk body | TrySendThunk body |
+|--------|---------------|-------------------|
+| `new` | `TryThunk(Thunk::new(f))` | `TrySendThunk(SendThunk::new(f))` |
+| `pure` | `TryThunk(Thunk::pure(Ok(a)))` | `TrySendThunk(SendThunk::pure(Ok(a)))` |
+| `ok` | `TryThunk(Thunk::pure(Ok(a)))` | `TrySendThunk(SendThunk::pure(Ok(a)))` |
+| `err` | `TryThunk(Thunk::pure(Err(e)))` | `TrySendThunk(SendThunk::pure(Err(e)))` |
+| `bind` | `TryThunk(self.0.bind(...))` | `TrySendThunk(self.0.bind(...))` |
+| `map` | `TryThunk(self.0.map(...))` | `TrySendThunk(self.0.map(...))` |
+| `map_err` | `TryThunk(self.0.map(...))` | `TrySendThunk(self.0.map(...))` |
+| `bimap` | `TryThunk(self.0.map(...))` | `TrySendThunk(self.0.map(...))` |
+| `catch` | `TryThunk(self.0.bind(...))` | `TrySendThunk(self.0.bind(...))` |
+| `catch_with` | `TryThunk(Thunk::new(...))` | `TrySendThunk(SendThunk::new(...))` |
+| `evaluate` | `self.0.evaluate()` | `self.0.evaluate()` |
+| `lift2` | `self.bind(...)` | `self.bind(...)` |
+| `then` | `self.bind(...)` | `self.bind(...)` |
+| `tail_rec_m` | loop pattern | identical loop pattern |
+| `arc_tail_rec_m` | Arc wrapper pattern | identical Arc wrapper pattern |
+| `catch_unwind_with` | `TryThunk::new(...)` | `TrySendThunk::new(...)` |
+| `catch_unwind` | delegates to `catch_unwind_with` | delegates to `catch_unwind_with` |
 
-The test suite (lines 1001-1393) is comprehensive with 39 tests covering:
-- Basic operations (`ok`, `err`, `new`, `pure`, `defer`).
-- Combinators (`map`, `map_err`, `bimap`, `bind`, `catch`, `catch_with`).
-- Applicative (`lift2`, `then`).
-- Conversions (`From<TryThunk>`, `From<Result>`, `From<SendThunk>`, `From<ArcLazy>`, `From<ArcTryLazy>`, `From<TryTrampoline>`).
-- Type class instances (`Semigroup`, `Monoid`, `Deferrable`, `SendDeferrable`).
-- Thread safety (`is_send`, `send_across_thread`, `into_arc_try_lazy_thread_safety`).
-- Panic handling (`catch_unwind`, `catch_unwind_with`).
-- Error propagation and short-circuiting.
+The test suites are also near-duplicates.
 
-No missing test categories identified.
+### Why this duplication exists
 
-## Summary of Findings
+Rust's type system does not offer a way to parameterize a struct over "the presence or absence of a `Send` bound on its inner closure." You cannot write a generic `TryThunkBase<Inner>` that works for both `Thunk` and `SendThunk` without losing the ergonomic method signatures.
 
-| Category | Rating | Key Issues |
-|---|---|---|
-| Design | Good | Sound Send+Try product type |
-| Correctness | Good | No bugs found |
-| Type classes | Good, one gap | Missing `tail_rec_m`/`arc_tail_rec_m` inherent methods |
-| API surface | Good, minor gaps | Missing some `From` impls for single-threaded types |
-| Consistency | Good | Matches `SendThunk`/`TryThunk` patterns closely |
-| Documentation | Good, minor issues | `ok` missing "alias" note; minor law citation inconsistency |
-| Test coverage | Good | Comprehensive, 39 tests |
+Macro-based deduplication (a declarative macro that generates both `TryThunk` and `TrySendThunk`) is theoretically possible but would significantly harm readability and make the documentation generation (which relies on procedural macros like `#[document_signature]`) more complex.
 
-### Recommended actions
+### Verdict
 
-1. **Add `tail_rec_m` and `arc_tail_rec_m` inherent methods** to provide stack-safe fallible recursion for thread-safe computations. This is the most significant gap.
-2. **Add "Alias for `pure`" note** to `TrySendThunk::ok` documentation for consistency with `TryThunk::ok`.
-3. **Consider adding `From<Thunk>`, `From<Lazy>`, `From<TryLazy<RcLazyConfig>>`, `From<RcLazy>`** for single-threaded to thread-safe conversions (all would require eager evaluation). Lower priority since the thread-safe source conversions are already covered.
+The duplication is an acceptable cost of Rust's type system constraints. The code is consistent and well-maintained. If the two implementations ever diverge in a bug-introducing way, the nearly identical test suites should catch it.
+
+## 6. Documentation Quality
+
+**Excellent.** The documentation is thorough and well-structured:
+
+- **Module-level docs:** Clear one-line description, cross-references to related types (`SendThunk`, `TryThunk`, `ArcTryLazy`).
+- **Struct-level docs:** Explains the wrapper pattern, HKT representation, HKT trait limitations (with reasoning), when-to-use guidance, algebraic properties (monad laws), stack safety warning, and Traversable limitation.
+- **Method-level docs:** Every method has `#[document_signature]`, `#[document_parameters]`, `#[document_returns]`, and `#[document_examples]` with working code examples.
+- **Trait impl docs:** Each `From`, `Deferrable`, `SendDeferrable`, `Semigroup`, `Monoid`, and `Debug` implementation has full documentation.
+
+### Minor observations
+
+- The `pure` method requires `A: Send + 'a, E: Send + 'a` where TryThunk's `pure` requires only `'a`. This is correct (the value goes into a `SendThunk`), but the extra bounds are not explicitly called out in the documentation as a difference from TryThunk.
+- The `Deferrable::defer` eagerly evaluates, and this is documented in its doc comment ("The thunk `f` is called eagerly because `Deferrable::defer` does not require `Send` on the closure."). Good.
+
+## 7. Issues, Limitations, and Design Flaws
+
+### 7.1 Deferrable::defer is eager (semantic mismatch)
+
+The `Deferrable` trait exists to create lazily deferred values. TrySendThunk's implementation eagerly evaluates the closure `f()`. While this is the only sound option given the trait signature, it means that code written generically over `Deferrable` will get surprising behavior when instantiated with `TrySendThunk`. The trait contract arguably does not guarantee laziness, but users may expect it.
+
+This is the same issue as `SendThunk`'s `Deferrable` implementation. It is a library-wide design tension, not specific to TrySendThunk.
+
+### 7.2 No Foldable implementation
+
+`SendThunk` implements `Foldable` (and `FoldableWithIndex`) via `SendThunkBrand`. `TryThunk` implements `Foldable` via `TryThunkErrAppliedBrand<E>`. `TrySendThunk` implements neither, despite having a brand (`TrySendThunkBrand`).
+
+The bifunctor brand cannot support `Foldable` (it requires a unary type constructor). An error-applied brand (`TrySendThunkErrAppliedBrand<E>`) would be needed, but then implementing `Foldable` on it would require implementing `Functor` first (since the HKT machinery requires the brand to participate in the kind system). And `Functor` cannot be implemented due to the `Send` constraint.
+
+This is a genuine limitation.
+
+### 7.3 No Bifunctor or Bifoldable on TrySendThunkBrand
+
+The brand exists but has zero trait implementations. `TryThunkBrand` implements both `Bifunctor` and `Bifoldable`. The same `Send` constraint issue applies: `Bifunctor::bimap` does not require `Send` on its closure arguments.
+
+The brand currently serves only as a type-level tag. It could be removed without losing functionality, or it could be kept for future use if `Send`-aware bifunctor traits are introduced.
+
+### 7.4 bind requires A: Send (potentially surprising)
+
+```rust
+pub fn bind<B>(
+    self,
+    f: impl FnOnce(A) -> TrySendThunk<'a, B, E> + Send + 'a,
+) -> TrySendThunk<'a, B, E>
+where
+    A: Send + 'a,
+    B: Send + 'a,
+    E: Send + 'a,
+```
+
+The `A: Send` bound on `bind` is necessary because the Err path constructs `SendThunk::pure(Err(e))`, which requires `E: Send`, and the overall closure capturing `self` (which contains a `Result<A, E>`) requires `A: Send`. This is correct but means you cannot use `bind` if `A` is not `Send`, even though the error path does not use `A`. This is an inherent limitation of the approach.
+
+By contrast, TryThunk's `bind` has no `Send` bounds at all.
+
+### 7.5 The `defer` inherent method differs subtly from `Deferrable::defer`
+
+The inherent `TrySendThunk::defer` method:
+```rust
+pub fn defer(f: impl FnOnce() -> TrySendThunk<'a, A, E> + Send + 'a) -> Self {
+    TrySendThunk(SendThunk::new(move || f().evaluate()))
+}
+```
+
+This is truly lazy (wraps in `SendThunk::new`). But `Deferrable::defer` is eager. Users calling `TrySendThunk::defer(...)` directly get laziness; users calling `Deferrable::defer(...)` get eagerness. The naming collision could be confusing, though the trait method and inherent method have different signatures (`Send` vs no `Send` on the closure).
+
+### 7.6 No `into_rc_try_lazy` conversion
+
+TryThunk has `into_rc_try_lazy` (converting to single-threaded memoized). TrySendThunk only has `into_arc_try_lazy`. This is reasonable since a `Send` type should convert to a `Send`-compatible lazy type. Including `into_rc_try_lazy` would be technically possible but would lose the `Send` guarantee, which would be unexpected.
+
+### 7.7 `into_arc_try_lazy` uses internal details
+
+```rust
+pub fn into_arc_try_lazy(self) -> ArcTryLazy<'a, A, E> {
+    TryLazy(self.0.into_arc_lazy().0)
+}
+```
+
+This reaches into `TryLazy`'s internal tuple field `.0` and `ArcLazy`'s internal `.0` to construct the result. This works but couples the implementation to the internal representation of `TryLazy` and `ArcLazy`. If those types' internals change, this breaks. A constructor method on `TryLazy` or `ArcTryLazy` would be more robust.
+
+## 8. Alternatives and Improvements
+
+### 8.1 Macro-based deduplication
+
+A declarative macro could generate both `TryThunk` and `TrySendThunk` from a single template, parameterized by the base thunk type and the Send bound. This would eliminate the duplication identified in section 5. However, it would make the code harder to read and would complicate the documentation generation pipeline. Not recommended unless the types diverge further and maintenance becomes burdensome.
+
+### 8.2 SendFunctor / SendSemimonad trait family
+
+A parallel hierarchy of type classes requiring `Send` on closure arguments would allow TrySendThunk to participate in HKT abstractions. This is a significant design decision affecting the entire library. Traits like `SendFunctor`, `SendSemimonad`, `SendApplicative` would mirror the existing hierarchy but with `+ Send` bounds.
+
+**Pros:** Enables generic programming over Send-capable types.
+**Cons:** Doubles the trait hierarchy; users must choose which family to program against; may not compose well with the existing non-Send hierarchy.
+
+### 8.3 Remove TrySendThunkBrand
+
+Since the brand has no trait implementations, it adds no value beyond type-level tagging. Removing it would simplify the code. However, keeping it is harmless and preserves the option of adding trait implementations in the future.
+
+### 8.4 Add From<TrySendThunk> for TryThunk
+
+Currently, conversion goes TryThunk -> TrySendThunk (via `From`, eagerly evaluated). The reverse direction (TrySendThunk -> TryThunk) is not implemented. Since `SendThunk` has `into_inner()` which erases the `Send` bound via unsizing coercion, a zero-cost conversion is possible:
+
+```rust
+impl<'a, A: 'a, E: 'a> From<TrySendThunk<'a, A, E>> for TryThunk<'a, A, E> {
+    fn from(t: TrySendThunk<'a, A, E>) -> Self {
+        TryThunk(Thunk::from(t.0))  // uses existing From<SendThunk> for Thunk
+    }
+}
+```
+
+This would enable round-tripping and allow users to "downgrade" a TrySendThunk back to a TryThunk for use in non-Send HKT contexts.
+
+### 8.5 Encapsulate `into_arc_try_lazy` construction
+
+Replace the direct field access with a proper constructor on `ArcTryLazy`:
+
+```rust
+pub fn into_arc_try_lazy(self) -> ArcTryLazy<'a, A, E> {
+    ArcTryLazy::from_send_thunk(self.0)  // hypothetical method
+}
+```
+
+This would reduce coupling to internal representations.
+
+## 9. Test Coverage Summary
+
+The test module contains 32 tests covering:
+
+- Basic constructors: `ok`, `err`, `new`, `pure`, `defer`.
+- Combinators: `map`, `map_err`, `bimap`, `bind`, `catch`, `catch_with`, `lift2`, `then`.
+- Error propagation: map on error, bind on error, catch recovery fails.
+- Conversions: `From<TryThunk>`, `From<Result>`, `From<SendThunk>`, `From<ArcLazy>`, `From<TryTrampoline>`, `From<ArcTryLazy>`, `into_inner`.
+- Memoization: `into_arc_try_lazy` (value + thread safety).
+- Algebra: `Semigroup::append` (success, error, short-circuit), `Monoid::empty`.
+- Traits: `Deferrable`, `SendDeferrable`, `Debug`.
+- Thread safety: `is_send` static check, `send_across_thread`.
+- Stack safety: `tail_rec_m` (success, early error, 100k iterations), `arc_tail_rec_m` (success, early error).
+- Panic handling: `catch_unwind_with` (panic + no panic), `catch_unwind` (panic + no panic).
+
+**Missing test coverage:**
+- No test for `From<ArcTryLazy>` with error path (there is `test_from_arc_try_lazy_err` which covers it, so this is fine).
+- No property-based tests verifying monad laws, though these may exist in a separate property test file.
+
+## 10. Summary Table
+
+| Aspect | Rating | Notes |
+|--------|--------|-------|
+| Type design | Good | Correct wrapper pattern, consistent with library conventions. |
+| HKT support | Acceptable | Brand exists but has no trait impls; justified by Send constraint. |
+| Type class impls | Good | Comprehensive inherent methods mirror TryThunk; Deferrable + SendDeferrable + Semigroup + Monoid. |
+| Thread safety | Good | Send bounds correctly propagated throughout. |
+| Code duplication | High but acceptable | Nearly identical to TryThunk; unavoidable without macros or Send-parameterized generics. |
+| Documentation | Excellent | Thorough, with working examples on every method. |
+| Test coverage | Very good | 32 tests covering all major paths. |
+| Overall | Solid | Well-implemented with clear limitations documented. Main improvement opportunity is `From<TrySendThunk> for TryThunk` and encapsulating `into_arc_try_lazy`. |

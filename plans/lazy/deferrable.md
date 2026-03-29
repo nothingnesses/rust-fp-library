@@ -1,17 +1,12 @@
-# Analysis: `Deferrable` Trait
+# Deferrable Trait Analysis
 
-**File:** `fp-library/src/classes/deferrable.rs`
+## Overview
 
-## 1. Design: Faithfulness to PureScript's `Lazy`
+`Deferrable<'a>` is the Rust equivalent of PureScript's `Lazy` type class. It provides a single operation, `defer`, which constructs a value from a thunk (`FnOnce() -> Self`). The companion trait `SendDeferrable<'a>` extends it with a `Send`-bounded variant.
 
-PureScript's `Control.Lazy` (lines 10-11 of the reference):
+**File:** `/home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/deferrable.rs`
 
-```purescript
-class Lazy l where
-  defer :: (Unit -> l) -> l
-```
-
-The Rust `Deferrable` trait (line 62-84 of `deferrable.rs`):
+## Trait Definition
 
 ```rust
 pub trait Deferrable<'a> {
@@ -21,160 +16,189 @@ pub trait Deferrable<'a> {
 }
 ```
 
-### Correspondences
+Free function wrapper:
 
-| PureScript | Rust | Notes |
-|---|---|---|
-| `class Lazy l` | `trait Deferrable<'a>` | Lifetime parameter added for Rust's ownership model. |
-| `defer :: (Unit -> l) -> l` | `fn defer(f: impl FnOnce() -> Self + 'a) -> Self` | `Unit -> l` maps to `FnOnce() -> Self`. |
-| `fix :: Lazy l => (l -> l) -> l` | `rc_lazy_fix` / `arc_lazy_fix` (concrete functions) | Cannot be generic; see below. |
+```rust
+pub fn defer<'a, D: Deferrable<'a>>(f: impl FnOnce() -> D + 'a) -> D
+```
+
+## Comparison with PureScript's Lazy
+
+PureScript defines:
+
+```purescript
+class Lazy l where
+  defer :: (Unit -> l) -> l
+
+fix :: forall l. Lazy l => (l -> l) -> l
+fix f = go where go = defer \_ -> f go
+```
 
 ### Key differences
 
-- **Lifetime parameter `'a`:** PureScript's `Lazy` has no lifetime. Rust requires `'a` to bound how long the captured closure lives. This is a necessary adaptation. `Trampoline` and `Free<ThunkBrand, _>` implement `Deferrable<'static>` because their internal thunks require `'static`.
+1. **`Unit -> l` vs `FnOnce() -> Self`.** PureScript uses `Unit -> l` (a function from Unit) as its thunking mechanism. Rust uses `FnOnce() -> Self`, which is semantically identical but idiomatic for Rust. Good translation.
 
-- **`FnOnce` vs `Unit ->`:** PureScript uses `Unit -> l` (a regular function). Rust's `FnOnce() -> Self` is the direct equivalent. Using `FnOnce` (not `Fn`) is correct since the thunk is consumed at most once.
+2. **Lifetime parameter `'a`.** PureScript's `Lazy` has no lifetime parameter because PureScript is garbage-collected. The Rust version adds `'a` to the trait, which constrains both the thunk closure (`+ 'a`) and allows implementors to tie the lifetime to their own internal storage. This is necessary and correct.
 
-- **`fix` is not generic:** The documentation (lines 26-37) explains this well. In PureScript, `fix` works because all values are lazily evaluated and can self-reference through thunks. In Rust, self-reference requires `Rc`/`Arc` + interior mutability, which is specific to `Lazy`, not all `Deferrable` types. The decision to provide `rc_lazy_fix` and `arc_lazy_fix` as concrete functions rather than forcing a `fix` method on the trait is sound.
+3. **No `fix`.** PureScript's `fix` enables lazy self-reference ("tying the knot"). The Rust trait correctly omits this because `fix` requires shared ownership and interior mutability, which not all Deferrable types have. Thunks are consumed on evaluation, making self-reference impossible. The documentation explicitly explains this and points to the concrete `rc_lazy_fix` and `arc_lazy_fix` functions.
 
-- **Renamed from `Lazy` to `Deferrable`:** Good choice. `Lazy` is already used as a type name (`Lazy<'a, A, Config>`), so using the same name for the trait would cause confusion. "Deferrable" communicates the intent clearly.
+4. **No blanket instance for functions.** PureScript provides `instance lazyFn :: Lazy (a -> b)` which makes all function types lazy by eta-expansion. The Rust version does not provide a blanket impl for `Fn` types. This is reasonable since Rust functions are already lazy (they only execute when called), so the blanket instance would be trivial and potentially confusing.
 
-- **No `Lazy (a -> b)` instance:** PureScript provides `instance lazyFn :: Lazy (a -> b) where defer f = \x -> f unit x`. There is no equivalent Rust impl for function types. This is reasonable since Rust functions are not lazily evaluated by default, and a blanket impl for `Fn` would conflict with the ownership model. This instance is mainly useful in PureScript for tying the knot with function values, which is not ergonomic in Rust anyway.
+5. **No `Unit` instance.** PureScript provides `instance lazyUnit :: Lazy Unit`. There is no corresponding `impl Deferrable<'_> for ()` in the Rust code. This could be added trivially (`fn defer(f) -> () { f() }`) but its utility is minimal.
 
-### Assessment
+## Implementors Survey
 
-The adaptation is faithful and appropriate. The lifetime parameter, `FnOnce` choice, and exclusion of generic `fix` are all well-motivated by Rust's ownership model.
+| Type | Lifetime | Behavior | Notes |
+|------|----------|----------|-------|
+| `Thunk<'a, A>` | `'a` | Truly deferred: wraps `f` in a new thunk | Delegates to inherent `Thunk::defer` |
+| `SendThunk<'a, A>` | `'a` | **Eager**: calls `f()` immediately | Cannot store non-`Send` closure |
+| `Trampoline<A>` | `'static` | Truly deferred via `Trampoline::defer` | Restricted to `'static` |
+| `RcLazy<'a, A>` | `'a` | Truly deferred: wraps in `RcLazy::new` | Requires `A: Clone` |
+| `ArcLazy<'a, A>` | `'a` | **Eager**: calls `f()` immediately | Cannot store non-`Send` closure |
+| `TryThunk<'a, A, E>` | `'a` | Truly deferred: delegates to `TryThunk::defer` | |
+| `TrySendThunk<'a, A, E>` | `'a` | **Eager**: calls `f()` immediately | Cannot store non-`Send` closure |
+| `TryTrampoline<A, E>` | `'static` | Truly deferred via inner `Trampoline::defer` | Restricted to `'static` |
+| `RcTryLazy<'a, A, E>` | `'a` | Truly deferred: wraps in new `TryLazy` | Requires `A: Clone, E: Clone` |
+| `ArcTryLazy<'a, A, E>` | `'a` | **Eager**: calls `f()` immediately | Cannot store non-`Send` closure |
+| `Free<ThunkBrand, A>` | `'static` | Truly deferred via `Free::wrap` + `Thunk::new` | Restricted to `'static` |
 
-## 2. Implementation Quality
+### The eager evaluation problem
 
-### The trait itself (lines 62-84)
+Three implementors (`SendThunk`, `ArcLazy`, `TrySendThunk`, `ArcTryLazy`) execute the thunk eagerly in their `Deferrable::defer` implementation. The reason is that `Deferrable::defer` does not require `Send` on the closure, but these types need `Send` closures internally. They cannot store the non-`Send` closure, so they evaluate it immediately and wrap the resulting value.
 
-The trait definition is clean and minimal. Two observations:
+This is documented in the trait-level `# Warning` section. The transparency law (`defer(|| x) == x`) is technically preserved because the *value* produced is the same, but the *deferred evaluation semantics* are lost. From the caller's perspective, side effects in `f` happen at `defer` time rather than at evaluation time.
 
-- **`where Self: Sized` bound:** Required because `impl FnOnce()` arguments use static dispatch. This prevents `dyn Deferrable<'a>` usage, but that is acceptable since deferred construction is inherently a concrete-type operation.
+**Severity:** Medium. This is a fundamental tension between the trait's single-method design and Rust's ownership/Send constraints. The current design handles it pragmatically. The `SendDeferrable` trait exists as the correct alternative for callers who need guaranteed deferred evaluation with `Send` types.
 
-- **`+ 'a` on the closure:** Correctly ties the closure's lifetime to the trait's lifetime parameter, ensuring captured references do not outlive the deferred value.
+**Possible alternative:** The trait could have been designed without `Deferrable` implementations for Send types at all, with only `SendDeferrable` serving them. However, the current approach allows generic code written against `Deferrable` to accept both single-threaded and thread-safe types, which is valuable for library ergonomics.
 
-### Implementor behavior varies significantly
+## Method Signature Analysis
 
-The implementations fall into three categories:
+### `fn defer(f: impl FnOnce() -> Self + 'a) -> Self where Self: Sized`
 
-1. **Truly deferred:** `Thunk`, `TryThunk`, `Trampoline`, `TryTrampoline`, `Free<ThunkBrand, _>`, `RcLazy`, `RcTryLazy` all wrap the closure and defer evaluation. These satisfy the spirit of `Deferrable`.
+**`FnOnce` is correct.** A deferred computation only needs to be called once. Using `Fn` or `FnMut` would over-constrain callers.
 
-2. **Eagerly evaluated (due to `Send` gap):** `SendThunk` (line 400-426 of `send_thunk.rs`), `TrySendThunk` (line 842-872 of `try_send_thunk.rs`), `ArcLazy` (line 854-888 of `lazy.rs`), and `ArcTryLazy` (line 1319-1354 of `try_lazy.rs`) all call `f()` immediately in their `defer` implementation. This is because `Deferrable::defer` does not require `Send` on the closure, but these types need `Send` closures internally.
+**`+ 'a` on the closure is correct.** It ties the closure's lifetime to the trait's lifetime parameter, ensuring the closure does not outlive its captured references.
 
-   This is a significant semantic issue: calling `defer(|| expensive())` on these types evaluates `expensive()` immediately, which violates the expected deferred-evaluation semantics. The transparency law (`defer(|| x) == x`) is technically satisfied since the value is the same, but the *purpose* of deferral (delaying computation) is lost.
+**`Self: Sized` is necessary.** The function returns `Self` by value, which requires `Sized`. This prevents implementing `Deferrable` for trait objects, which is appropriate since deferred construction of dynamically-sized types is not meaningful in this context.
 
-   The documentation at lines 39-45 warns about this for `ArcLazy`, which is good. However, the warning is on the `Deferrable` trait docs, not on the individual `SendThunk`/`TrySendThunk` impls, where users are more likely to encounter it.
+**Static dispatch via `impl FnOnce`.** This matches the library's design philosophy of uncurried semantics with `impl Fn` for zero-cost abstractions. No boxing occurs at the trait boundary; implementors decide whether and how to box.
 
-### Potential correctness issue: `RcLazy` flattening
+**The signature is a constructor (associated function), not a method.** There is no `self` parameter. This is correct for `Deferrable` since the operation creates a new value rather than transforming an existing one. It does mean the trait cannot be used as a trait object (no `dyn Deferrable`), which is acceptable.
 
-The `RcLazy` impl (lines 819-851 of `lazy.rs`):
+## Free Function Analysis
 
 ```rust
-fn defer(f: impl FnOnce() -> Self + 'a) -> Self {
-    RcLazy::new(move || f().evaluate().clone())
+pub fn defer<'a, D: Deferrable<'a>>(f: impl FnOnce() -> D + 'a) -> D {
+    D::defer(f)
 }
 ```
 
-This creates a new `RcLazy` that, when evaluated, evaluates the inner `RcLazy` and clones its value. The `Clone` bound on `A` is required for this flattening. This is semantically `join` (monadic flattening) rather than simple deferral. A simpler implementation could have been:
+The free function is a straightforward delegation. It enables the common `let x: Thunk<i32> = defer(|| ...)` call pattern, which is more ergonomic than `Deferrable::defer(|| ...)` or `Thunk::defer(|| ...)`.
 
-```rust
-fn defer(f: impl FnOnce() -> Self + 'a) -> Self {
-    RcLazy::new(move || f().evaluate().clone())
-}
-```
+The return type `D` must be inferable from context (either via type annotation on the binding or from a surrounding function signature). This is standard for Rust type inference with associated-function-style traits.
 
-This is actually the only option given `RcLazy`'s API (it stores `A`, not `RcLazy<A>`), so the flattening is a necessary consequence. The `Clone` bound is the price.
+## Relationship with Evaluable
 
-## 3. Laws
+`Deferrable` and `Evaluable` are conceptual duals:
+- `Deferrable::defer: (() -> Self) -> Self` (injects a computation)
+- `Evaluable::evaluate: F<A> -> A` (extracts a value)
 
-### Stated law: Transparency (line 23-24)
+However, they are not formally linked. `Evaluable` is an HKT trait on brands (`Evaluable: Functor`), while `Deferrable` is a value-level trait on concrete types. This asymmetry exists because:
+- `Evaluable` needs HKT to express the natural transformation `F ~> Id`.
+- `Deferrable` operates on concrete types (`Self`), not parameterized type constructors.
 
-> The value produced by `defer(|| x)` is identical to `x`. This law does not constrain *when* evaluation occurs.
+The asymmetry means you cannot write a single generic function that both defers and evaluates over an abstract type while preserving HKT polymorphism. This is a design limitation, but a natural one given Rust's type system.
 
-This is the only law stated, and it corresponds to PureScript's implied semantics. However:
-
-### Missing laws and considerations
-
-1. **Idempotency / nesting:** `defer(|| defer(|| x))` should be observationally equivalent to `defer(|| x)`. This is implied by transparency but worth stating explicitly, especially since some impls (e.g., `RcLazy`) do non-trivial flattening.
-
-2. **No side-effect duplication:** For memoized types (`Lazy`), `defer` should not cause a side effect in the thunk to execute more than once. This is an implementation property, not a law per se, but it is worth documenting.
-
-3. **PureScript has no explicit laws either:** The PureScript `Lazy` class does not state formal laws beyond the implicit expectation that `defer` is transparent. So the Rust version is at parity.
-
-### Law testing
-
-There are no dedicated law tests for `Deferrable` in the test suite. The doc examples demonstrate transparency but do not use property-based testing (QuickCheck). Other type classes in the library (e.g., `Functor`, `Foldable`) have QuickCheck law tests. `Deferrable` should have them too, at minimum for:
-
-- Transparency: `defer(|| pure(x)).evaluate() == pure(x).evaluate()` for each implementor.
-- Nesting: `defer(|| defer(|| pure(x))).evaluate() == pure(x).evaluate()`.
-
-## 4. API Surface
-
-### Current API
-
-- `Deferrable::defer` (trait method)
-- `defer` (free function, line 111-113)
-- `SendDeferrable::send_defer` (separate trait, `send_deferrable.rs`)
-- `send_defer` (free function)
-- `rc_lazy_fix` / `arc_lazy_fix` (concrete fixed-point combinators)
-
-### Assessment
-
-The API is minimal and well-designed. Each piece has a clear role.
-
-### Possible additions
-
-1. **`defer_with` or `delay`:** A convenience that takes `impl FnOnce() -> A` instead of `impl FnOnce() -> Self`. Currently, users must write `defer(|| Thunk::new(|| 42))` or `defer(|| Thunk::pure(42))`. A method like `delay(|| 42)` that combines `new`/`pure` with `defer` would reduce boilerplate. However, this conflates two distinct operations (construction and deferral), so omitting it is defensible.
-
-2. **`force` counterpart:** PureScript has no `force` in the `Lazy` class, so its absence here is consistent. The library uses `evaluate()` as an inherent method on each type instead, which is idiomatic Rust. Adding `force` to `Deferrable` would require an associated output type, adding complexity. The `Evaluable` trait already serves this role.
-
-## 5. Consistency with Other Type Classes
-
-### Positive consistency
-
-- **Module structure:** `deferrable.rs` follows the same `#[fp_macros::document_module] mod inner { ... } pub use inner::*;` pattern as `functor.rs`, `foldable.rs`, etc.
-- **Free function pattern:** The `defer` free function mirrors `map`, `pure`, `bind`, etc.
-- **Documentation macros:** Uses `#[document_signature]`, `#[document_type_parameters]`, `#[document_parameters]`, `#[document_returns]`, `#[document_examples]` consistently.
-- **Supertrait pattern:** `SendDeferrable: Deferrable` follows the same pattern as `SendCloneableFn: CloneableFn`.
-
-### Inconsistencies
-
-1. **Not HKT-based:** Most type classes in the library (`Functor`, `Monad`, etc.) are implemented on Brand types and use `Kind` machinery. `Deferrable` is implemented directly on concrete types (`Thunk<'a, A>`, `Lazy<'a, A, Config>`, etc.), not on brands. This is necessary because `Deferrable` does not involve mapping over a type parameter; it is about constructing a value from a thunk. The trait's signature `fn defer(f: ...) -> Self` has no `Kind` types. This is correct but worth noting as a design difference.
-
-2. **Lifetime parameter on the trait:** Most type classes do not have a lifetime parameter; they use `for<'a>` bounds within their methods. `Deferrable<'a>` puts the lifetime on the trait itself, which means each impl specifies a concrete lifetime (e.g., `impl<'a, A: 'a> Deferrable<'a> for Thunk<'a, A>`). This is forced by the `+ 'a` bound on the closure needing to match the type's own lifetime. It is the right choice but makes `Deferrable` feel different from other traits in the hierarchy.
-
-## 6. Limitations
-
-1. **Eager evaluation for `Send` types:** As discussed in section 2, `SendThunk`, `TrySendThunk`, `ArcLazy`, and `ArcTryLazy` evaluate eagerly under `Deferrable::defer`. Users who want true deferral with thread-safe types must use `SendDeferrable::send_defer` instead. This is a footgun that the documentation mitigates but does not eliminate.
-
-2. **`Clone` bound on `Lazy` impls:** `RcLazy`'s `Deferrable` impl requires `A: Clone` (line 821). `ArcLazy`'s `SendDeferrable` impl requires `A: Clone + Send + Sync` (line 897). These bounds come from the flattening (`f().evaluate().clone()`). Types that are expensive to clone pay a hidden cost.
-
-3. **No `Deferrable` for `Option`, `Vec`, etc.:** The trait is only implemented for lazy evaluation types. In PureScript, `Lazy` can be implemented for any type where deferral makes sense. In Rust, deferral only makes sense for types that wrap closures, so the narrow scope is appropriate.
-
-4. **`Sized` bound prevents trait objects:** `where Self: Sized` on `defer` means you cannot call `defer` through a `dyn Deferrable<'a>` reference. This is fine in practice since `defer` is a constructor (no `self` parameter), so trait objects would not help.
-
-5. **No blanket impl for newtypes:** If you create a newtype `struct MyThunk(Thunk<'a, A>)`, you must manually implement `Deferrable`. There is no derive macro or blanket impl for delegating. This is a minor ergonomic limitation.
-
-## 7. Documentation
+## Documentation Quality
 
 ### Strengths
 
-- The trait-level docs (lines 18-61) are thorough. They explain the law, the rationale for omitting `fix`, and warn about eager evaluation in `Send` types.
-- Cross-references to `Lazy`, `Thunk`, `rc_lazy_fix`, `arc_lazy_fix`, and `SendDeferrable` are all present and linked.
-- Doc examples compile and demonstrate the transparency law.
+- The trait-level documentation is thorough, including the transparency law, the explanation of why `fix` is omitted, and the warning about eager evaluation.
+- Cross-references to `SendDeferrable`, `rc_lazy_fix`, and `arc_lazy_fix` are provided.
+- Doc examples are included on the trait, the method, and the free function.
+- Property-based tests verify the transparency law and a nesting law.
 
-### Issues
+### Weaknesses
 
-1. **Module-level docs (lines 1-13) are minimal:** The module doc just says "Types that can be constructed lazily from a computation" with a single example. Compare with `functor.rs` which has a richer module-level explanation. A sentence or two about when to use `Deferrable` vs constructing types directly would help.
+- The examples all use `Thunk`, which is the simplest implementor. A supplementary example showing `RcLazy` or `Trampoline` would illustrate the broader applicability.
+- The warning about eager evaluation could link more explicitly to the specific types that evaluate eagerly (currently it only mentions `ArcLazy` by name).
+- The nesting law in the tests (`defer(|| defer(|| x)) == defer(|| x)`) is not documented in the trait-level laws section. It follows from transparency, so it is a derived property rather than an independent law, but stating it explicitly could help users.
 
-2. **Warning placement (lines 39-45):** The warning about eager evaluation for `ArcLazy` is on the `Deferrable` trait itself. It would be more discoverable on the individual impl docs for `SendThunk` and `TrySendThunk` as well. The `SendThunk` impl (line 403-404 of `send_thunk.rs`) does mention it in a brief comment, but the `ArcLazy` impl (line 860-864 of `lazy.rs`) is more thorough.
+## Design Issues and Considerations
 
-3. **The law name "Transparency" is non-standard:** PureScript does not name this law. Other functional programming literature sometimes calls it "identity" or "delay-force identity." The name "Transparency" is fine but could benefit from a brief explanation of why it is called that (the deferral should be transparent to the consumer).
+### 1. No connection to HKT / Brand system
 
-4. **Missing doc for the `'a` lifetime parameter:** The `#[document_type_parameters]` on line 46 says "The lifetime of the computation." This is accurate but could be more precise: it is the lifetime of the closure captured by `defer`, which bounds how long the deferred value can live.
+`Deferrable` is a value-level trait (`trait Deferrable<'a>` on concrete types), not an HKT brand-level trait. This means:
+- You cannot write `F: Functor + Deferrable` as a bound.
+- Generic HKT code cannot abstract over "functors that support deferred construction."
+
+This is a deliberate design choice. Making `Deferrable` brand-level would require it to work with `Kind::Of<'a, A>`, but `defer` constructs a value from nothing (not from a `Kind::Of<'a, A>`), so the HKT encoding would be awkward.
+
+**Verdict:** The current value-level design is the right call. The trait is primarily used for constructing individual values, not for abstracting across type constructors.
+
+### 2. The trait is used almost exclusively for ad-hoc dispatch
+
+Searching the codebase, `Deferrable` is used as a trait bound only in:
+- The `defer` free function.
+- The `SendDeferrable` supertrait.
+
+No other generic function or trait in the library uses `Deferrable` as a bound. This means the trait's primary role is providing a uniform API (`defer(|| ...)`) across lazy types, rather than enabling generic programming. This is not necessarily a problem; a uniform vocabulary is valuable even without heavy generic usage.
+
+### 3. Extra bounds on Lazy implementations
+
+`RcLazy`'s `Deferrable` impl requires `A: Clone`, and `ArcLazy`'s requires `A: Send + Sync`. The `Clone` requirement comes from `Lazy`'s memoization semantics (it returns `&A` from `evaluate`, and `defer` flattens via `.evaluate().clone()`). The `Send + Sync` requirement comes from `Arc`/`LazyLock`.
+
+These extra bounds mean `Deferrable` is not uniformly available for all `Lazy` values. A `Lazy<'a, NonCloneType, RcLazyConfig>` cannot be deferred. This is an inherent tension between the memoized types and the trait's generality.
+
+### 4. The `Self: Sized` bound
+
+The `where Self: Sized` bound on `defer` prevents implementing `Deferrable` for unsized types. Since all current implementors are sized, this is fine in practice. However, it does prevent the trait from being object-safe, which means you cannot have `Box<dyn Deferrable<'a>>`. This is appropriate since `defer` is a constructor, not a method.
+
+### 5. Asymmetric `Clone` requirements between `Deferrable` and `SendDeferrable` for `ArcLazy`
+
+`ArcLazy`'s `Deferrable` impl requires `A: Send + Sync` (no `Clone`), while its `SendDeferrable` impl requires `A: Clone + Send + Sync`. The difference is that:
+- `Deferrable::defer` for `ArcLazy` evaluates eagerly (just calls `f()`), so no flattening is needed.
+- `SendDeferrable::send_defer` for `ArcLazy` truly defers (wraps in `ArcLazy::new`), which requires flattening via `.evaluate().clone()`.
+
+This asymmetry is correct but subtle. Users might be surprised that `defer` on `ArcLazy` has weaker bounds than `send_defer`, given that `send_defer` is the "better" (truly deferred) option.
+
+## Alternatives Considered
+
+### Alternative 1: Split into `Deferrable` and `SendDeferrable` only (no eager impls)
+
+Remove the `Deferrable` implementations for `SendThunk`, `ArcLazy`, `TrySendThunk`, and `ArcTryLazy`. Only provide `SendDeferrable` for those types.
+
+**Pros:** Eliminates the confusing eager-evaluation behavior. `Deferrable` would always mean truly deferred.
+**Cons:** Generic code written against `Deferrable` would not accept `SendThunk` or `ArcLazy`, reducing composability.
+
+**Verdict:** The current approach is better for library ergonomics. The eager-evaluation warning is sufficient.
+
+### Alternative 2: Add a `DeferrableBrand` for HKT integration
+
+Create a brand-level trait that connects `Deferrable` to the Kind system.
+
+**Pros:** Would enable `F: Functor + DeferrableBrand` bounds.
+**Cons:** Awkward encoding since `defer` is a constructor, not a natural transformation. Would require `Kind::Of<'a, A>: Deferrable<'a>` bounds, adding complexity.
+
+**Verdict:** Not worth the complexity. The trait's current usage does not demand HKT integration.
+
+### Alternative 3: Make `defer` take `&self` (factory pattern)
+
+Instead of a constructor, make `defer` an instance method on a "factory" type.
+
+**Cons:** Completely changes the semantics. The PureScript model (and the current design) treats `Deferrable` as a property of the type itself, not of a factory instance.
+
+**Verdict:** Not appropriate for this library's design philosophy.
+
+## Test Coverage
+
+The module includes two QuickCheck property tests:
+1. **Transparency:** `evaluate(defer(|| pure(x))) == x` (for `Thunk`).
+2. **Nesting:** `evaluate(defer(|| defer(|| pure(x)))) == evaluate(defer(|| pure(x)))` (for `Thunk`).
+
+These tests only cover `Thunk`. The eager-evaluation behavior of `SendThunk`, `ArcLazy`, etc. is tested implicitly through those types' own test suites, but there are no property tests that specifically verify the transparency law across all implementors.
 
 ## Summary
 
-`Deferrable` is a clean, well-motivated adaptation of PureScript's `Lazy` class. The core design is sound: the lifetime parameter, `FnOnce` usage, and exclusion of generic `fix` are all correct for Rust. The main concern is that several implementations (`SendThunk`, `TrySendThunk`, `ArcLazy`, `ArcTryLazy`) evaluate eagerly, which undermines the trait's stated purpose. This is documented but remains a potential source of confusion. Adding QuickCheck-based law tests and slightly enriching the module-level documentation would improve the trait's standing in the library.
+The `Deferrable` trait is a clean, well-documented translation of PureScript's `Lazy` class. The key Rust-specific adaptations (lifetime parameter, `FnOnce`, omission of `fix`, `Send`-aware companion trait) are all well-motivated. The main design tension is the eager evaluation of `Send`-requiring types, which is documented and mitigated by `SendDeferrable`. The trait sees limited use as a generic bound in the codebase, serving primarily as a uniform API rather than an abstraction point for polymorphic code.

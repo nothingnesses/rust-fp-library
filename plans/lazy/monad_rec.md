@@ -1,199 +1,357 @@
-# MonadRec Analysis
+# MonadRec Trait Analysis
 
-File: `fp-library/src/classes/monad_rec.rs`
+## Overview
 
-## 1. Design: Faithfulness to PureScript/Haskell
+`MonadRec` is a type class for monads that support stack-safe tail recursion, defined in
+`/home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/monad_rec.rs`.
+It extends `Monad` (which is `Applicative + Semimonad`) with a single method, `tail_rec_m`,
+that performs iterative monadic computation using the `Step<A, B>` control type.
 
-PureScript's `MonadRec` has this signature:
+**Core signature:**
+
+```rust
+pub trait MonadRec: Monad {
+    fn tail_rec_m<'a, A: 'a, B: 'a>(
+        func: impl Fn(A) -> Apply!(<Self as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, Step<A, B>>) + 'a,
+        initial: A,
+    ) -> Apply!(<Self as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>);
+}
+```
+
+## 1. Trait Design: Comparison with PureScript/Haskell
+
+### PureScript reference
 
 ```purescript
 class Monad m <= MonadRec m where
   tailRecM :: forall a b. (a -> m (Step a b)) -> a -> m b
 ```
 
-The Rust `MonadRec` trait (line 59) mirrors this faithfully:
+### Assessment
+
+The Rust `MonadRec` faithfully mirrors the PureScript design. The key structural elements are identical:
+
+- **Superclass:** `Monad` (PureScript: `Monad m`).
+- **Method:** `tail_rec_m` corresponds to `tailRecM`.
+- **Step type:** `Step<A, B>` with `Loop(A)` and `Done(B)` corresponds to PureScript's `Step a b` with `Loop a` and `Done b`.
+- **Semantics:** The step function `A -> M<Step<A, B>>` is called repeatedly; `Loop(a)` feeds `a` back in, `Done(b)` terminates with `b`.
+
+**Naming:** The library uses `Loop`/`Done` rather than Haskell's `Left`/`Right` (via `Either`), which is clearer and more self-documenting. This matches PureScript's naming.
+
+**Correctness verdict:** The trait correctly captures the tail-recursive monad abstraction.
+
+## 2. Method Signature Analysis
+
+### `tail_rec_m` signature
 
 ```rust
-pub trait MonadRec: Monad {
-    fn tail_rec_m<'a, A: 'a, B: 'a>(
-        func: impl Fn(A) -> Apply!(<Self as Kind!(...)>::Of<'a, Step<A, B>>) + Clone + 'a,
-        initial: A,
-    ) -> Apply!(<Self as Kind!(...)>::Of<'a, B>);
-}
+fn tail_rec_m<'a, A: 'a, B: 'a>(
+    func: impl Fn(A) -> Apply!(<Self as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, Step<A, B>>) + 'a,
+    initial: A,
+) -> Apply!(<Self as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>);
 ```
-
-**Key differences from PureScript:**
-
-- **`Clone` bound on `func`**: PureScript does not need this because closures are implicitly shareable in a garbage-collected runtime. In Rust, the step function is called repeatedly in a loop, so it must either be `Clone` (to survive multiple calls via `Fn`) or wrapped in `Arc`. The `Clone` bound is a reasonable Rust adaptation. The `Fn` (not `FnOnce`) bound already implies re-callability, so `Clone` is needed only for types that store `func` and need to copy it (like `Trampoline::tail_rec_m`'s inner `go` function which recursively passes `f`). For `Thunk`'s implementation (which uses a simple loop), the `Clone` bound is unnecessary since `Fn` alone suffices for repeated calls in a loop. This is a minor over-constraint.
-
-- **Lifetime parameter `'a`**: PureScript has no lifetimes. The `'a` parameter is necessary for Rust's ownership model and allows `Thunk` (which supports non-`'static` lifetimes) to implement the trait. This is well-designed.
-
-- **`Step` type**: Matches PureScript's `Step` exactly with `Loop(a)` and `Done(b)` variants.
-
-**Verdict**: Faithful translation with appropriate Rust adaptations.
-
-## 2. Implementation Quality and Stack Safety
-
-### ThunkBrand (line 639-689 of `thunk.rs`)
-
-```rust
-fn tail_rec_m<'a, A: 'a, B: 'a>(f, a) -> Thunk<'a, B> {
-    Thunk::new(move || {
-        let mut current = a;
-        loop {
-            match f(current).evaluate() {
-                Step::Loop(next) => current = next,
-                Step::Done(res) => break res,
-            }
-        }
-    })
-}
-```
-
-This wraps the entire recursion in a single `Thunk::new`, deferring evaluation. Inside, it uses an imperative `loop` that eagerly evaluates each step. This is **genuinely stack-safe** because:
-- Each iteration calls `f(current)` which returns a `Thunk<Step<A, B>>`.
-- `.evaluate()` forces that thunk (one stack frame deep at most, assuming shallow thunks).
-- The loop replaces `current` in place; no recursive calls accumulate stack frames.
-
-**Caveat** (correctly documented at line 641-644): If the step function `f` builds deep `bind` chains inside the returned thunk, the inner `.evaluate()` can overflow. This is inherent to `Thunk`'s non-stack-safe `bind`, not a defect in `tail_rec_m`.
-
-### Trampoline (line 465-486 of `trampoline.rs`)
-
-```rust
-pub fn tail_rec_m<S: 'static>(f, initial) -> Self {
-    fn go<A, B, F>(f: F, a: A) -> Trampoline<B>
-    where F: Fn(A) -> Trampoline<Step<A, B>> + Clone + 'static {
-        Trampoline::defer(move || {
-            let result = f(a);
-            result.bind(move |step| match step {
-                Step::Loop(next) => go(f, next),
-                Step::Done(b) => Trampoline::pure(b),
-            })
-        })
-    }
-    go(f, initial)
-}
-```
-
-This is stack-safe because:
-- `Trampoline::defer` wraps the recursive call in a thunk, preventing stack growth.
-- `result.bind(...)` uses `Free`'s O(1) bind (CatList-based).
-- The recursive `go(f, next)` call happens inside a `defer` closure, so it produces a `Trampoline` value rather than recursing on the call stack.
-- `Free::evaluate` (line 716-762 of `free.rs`) drives everything with an iterative loop.
-
-This is **fully stack-safe** for any recursion depth. The `Clone` bound on `f` is essential here because `go` recursively passes `f` to itself, requiring ownership transfer at each step.
-
-### TryThunkErrAppliedBrand (line 1027-1077 of `try_thunk.rs`)
-
-Uses the same imperative loop pattern as `ThunkBrand`. Correctly short-circuits on `Err`. Stack-safe under the same caveats as `ThunkBrand`.
-
-### TryThunkOkAppliedBrand (line 1776-1829 of `try_thunk.rs`)
-
-Mirrors `TryThunkErrAppliedBrand` but recurses over the error channel. Loops on `Err(Step::Loop(...))`, terminates on `Err(Step::Done(...))`, and short-circuits on `Ok(a)`. Correct and stack-safe.
-
-### Non-HKT inherent methods
-
-`SendThunk`, `Trampoline`, and `TryTrampoline` all provide inherent `tail_rec_m` methods (not via the trait) because they cannot implement HKT traits. These follow the same patterns and are correct.
-
-## 3. Laws
-
-The documentation (lines 53-58) states two "laws":
-
-1. **Equivalence**: `tail_rec_m(f, a)` produces the same result as the recursive definition.
-2. **Safety varies**: `Thunk` is stack-safe for `tail_rec_m` but not for deep `bind` chains. `Trampoline` is guaranteed stack-safe for all operations.
-
-**Issues:**
-
-- The PureScript `MonadRec` has a single law: **stack safety**. The class exists specifically to guarantee that `tailRecM` can be used for unbounded recursion without stack overflow. The law is roughly: `tailRecM f a` must complete without stack overflow for any `f` that always eventually returns `Done`.
-
-- The "Equivalence" law stated in the docs is really just a correctness requirement (the function does what it says), not a `MonadRec`-specific law. Every function should be equivalent to its specification.
-
-- The "Safety varies" note is honest but unusual. In PureScript, all `MonadRec` instances must be stack-safe; that is the whole point of the class. Here, `ThunkBrand`'s `tail_rec_m` IS stack-safe (the loop is iterative), but the caveat about deep `bind` chains inside the step function is worth noting.
-
-- **No formal law tests exist.** There are no property-based tests (QuickCheck) verifying MonadRec laws. The existing tests are example-based (factorial, counting to N, stress tests with 200K iterations). These are good smoke tests but do not systematically verify the algebraic properties.
-
-- **Missing law**: PureScript documents the law as:
-  ```
-  tailRecM (\a -> pure (Done a)) a = pure a
-  ```
-  This "identity" or "pure Done" law is not stated anywhere.
-
-## 4. API Surface
-
-**Well-designed aspects:**
-
-- The trait has a single method (`tail_rec_m`), matching PureScript's minimal design.
-- A free function wrapper `tail_rec_m` (line 131-138) provides convenient dispatch.
-- The module-level doc example (lines 5-28) is clear and demonstrates a practical use case (factorial).
-- The method-level doc example (lines 74-89) is simple and shows the counting pattern.
 
 **Observations:**
 
-- `tail_rec_m` is NOT re-exported in `functions.rs`. The `generate_function_re_exports!` macro at `functions.rs:25` auto-generates re-exports from `src/classes`, but the module example at `monad_rec.rs:9` uses `functions::tail_rec_m`, suggesting it IS re-exported. This should work if the macro scans `monad_rec.rs` and finds the free function. The doc test passes, confirming it works.
+1. **Lifetime parameterization (`'a`):** The method is generic over `'a`, allowing implementations that borrow data (e.g., `Thunk<'a, A>`). This is more flexible than PureScript, which has no lifetime concept. The `'a` bound on `func` means the step function can capture references with that lifetime.
 
-- PureScript provides `tailRecM2` and `tailRecM3` convenience functions for multi-argument recursion. These are absent here, but Rust's tuple syntax `(a, b, c)` makes them less necessary (as shown in the factorial example using `(n, acc)`).
+2. **`impl Fn(A)` vs `impl FnOnce(A)`:** The step function is `Fn`, not `FnOnce`. This is correct because the function may be called multiple times (once per `Loop` iteration). This matches PureScript's semantics.
 
-- There is no `forever` combinator (which PureScript derives from `MonadRec`). This could be useful but is a minor omission.
+3. **`+ 'a` on `func`:** The step function must live at least as long as `'a`. This is needed because some implementations (e.g., `Thunk`) capture the closure in a boxed thunk with lifetime `'a`.
 
-## 5. Consistency with Other Type Classes
+4. **Macro-expanded types:** The `Apply!` and `Kind!` macros handle HKT type application. After expansion, the return type resolves to the concrete applied type (e.g., `Thunk<'a, B>`, `Option<B>`).
 
-**Superclass**: `MonadRec: Monad` (line 59) correctly mirrors the PureScript hierarchy.
+**Potential issue: `A` and `B` bounds.** Both `A: 'a` and `B: 'a` are required, which is correct for the general case (the values must outlive the computation). However, this means that for `'static` computations (like `Trampoline`), users must use `'static` types. Since `Trampoline` cannot implement this trait anyway (due to HKT limitations), this is not a practical problem.
 
-**Pattern consistency:**
-- The trait follows the same pattern as other type classes: trait definition in `classes/`, free function wrapper in the same file, re-export via `functions.rs`.
-- The documentation attributes (`#[document_signature]`, `#[document_type_parameters]`, etc.) are consistently applied.
-- The `inner` module pattern with `#[fp_macros::document_module]` matches other class modules.
+**Design decision: no `Clone` on `func`.** The trait-level signature does not require `Clone` on the step function. However, `Trampoline::tail_rec_m` (an inherent method, not a trait impl) does require `Clone + 'static`. This discrepancy is because the trait is for HKT-compatible types, and `Trampoline` cannot implement the trait, so its inherent method has different bounds.
 
-**Naming**: `tail_rec_m` uses snake_case for PureScript's `tailRecM`, following Rust conventions consistently.
+## 3. Relationship to Step Type
 
-**Implementors**: Only `ThunkBrand`, `TryThunkErrAppliedBrand<E>`, and `TryThunkOkAppliedBrand<A>` implement the HKT trait. `Trampoline`, `SendThunk`, `TryTrampoline`, and `TrySendThunk` provide inherent `tail_rec_m` methods instead. This split is consistent with the library's general approach to types that cannot satisfy HKT lifetime requirements.
+### Step type (`/home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/step.rs`)
 
-## 6. Limitations
+```rust
+pub enum Step<A, B> {
+    Loop(A),  // Continue with new state
+    Done(B),  // Terminate with result
+}
+```
 
-1. **Only three HKT implementors**: `ThunkBrand`, `TryThunkErrAppliedBrand`, and `TryThunkOkAppliedBrand`. Standard types like `Option`, `Vec`, `Result`, and `Identity` do not implement `MonadRec`, even though they trivially could (their `bind` is already stack-safe for `tail_rec_m` purposes). In PureScript, `Identity`, `Maybe`, `Either`, and `Effect` all implement `MonadRec`.
+### HKT representations
 
-2. **No implementation for `OptionBrand`, `VecBrand`, `ResultErrAppliedBrand`, `IdentityBrand`**: These types have inherently stack-safe `bind` (no deferred computation), so `tail_rec_m` could simply be implemented as a loop that unwraps and re-applies. This limits the genericity of code written against `MonadRec`.
+Step has three brand representations:
+- `StepBrand`: Bifunctor over both type parameters.
+- `StepLoopAppliedBrand<LoopType>`: Fixed loop type, functor over done type. Monad that short-circuits on `Loop`.
+- `StepDoneAppliedBrand<DoneType>`: Fixed done type, functor over loop type. Monad that short-circuits on `Done`.
 
-3. **`Trampoline` cannot implement the trait**: Due to `'static` requirements conflicting with HKT lifetime polymorphism. This is a fundamental limitation of the Brand pattern, not a design flaw. The inherent method is the correct workaround.
+Both applied brands implement `MonadRec`, creating a nested-Step pattern:
+- `StepLoopAppliedBrand`: The step function returns `Step<LoopType, Step<A, B>>`, where `Loop(l)` short-circuits and `Done(Step::Loop(a))` continues.
+- `StepDoneAppliedBrand`: The step function returns `Step<Step<A, B>, DoneType>`, where `Done(d)` short-circuits and `Loop(Step::Loop(a))` continues.
 
-4. **`Clone` bound on `func`**: As noted above, this is unnecessary for the `ThunkBrand` and `TryThunk*` implementations (which use a simple loop where `Fn` suffices). It is only needed for `Trampoline`'s recursive `go` pattern. The trait-level `Clone` bound forces all implementations to accept `Clone` closures, which can be inconvenient. `Trampoline` works around this for its inherent method by also providing `arc_tail_rec_m`.
+### Ergonomics
 
-5. **No `arc_tail_rec_m` variant on the trait**: The trait only provides the `Clone`-based version. Types that provide `Arc`-wrapped alternatives do so as inherent methods, not through the trait. This means generic code using `MonadRec` cannot opt into the `Arc` pattern.
+The API is ergonomic for the common case. Users construct `Step::Loop(a)` and `Step::Done(b)` directly, which is clear and readable:
 
-6. **`SendThunkBrand` has no `MonadRec` impl**: `SendThunk` provides an inherent `tail_rec_m` but cannot implement the HKT trait because the trait's closure parameters lack `Send` bounds.
+```rust
+tail_rec_m::<ThunkBrand, _, _>(
+    |n| {
+        if n < 10 { Thunk::pure(Step::Loop(n + 1)) }
+        else { Thunk::pure(Step::Done(n)) }
+    },
+    0,
+)
+```
 
-## 7. Documentation
+The nested-Step pattern for `StepLoopAppliedBrand`/`StepDoneAppliedBrand` is less ergonomic (`Step::Done(Step::Loop(n + 1))`), but this is inherent to using Step-as-a-monad and unlikely to be a common user-facing pattern.
 
-**Accurate aspects:**
-- The module-level docs (lines 1-28) correctly describe the purpose and provide a working example.
-- The "Important Design Note" (lines 43-50) clearly explains the `Thunk` vs `Trampoline` distinction.
-- The caveat about `Thunk`'s partial stack safety is honest and important.
+### Rich API on Step
 
-**Issues:**
-- Lines 46-47: "Trampoline CANNOT implement this trait (requires `'static`)." This is accurate but could benefit from a brief explanation of why `'static` prevents HKT trait implementation (the `Kind` trait requires lifetime polymorphism).
-- The "Laws" section (lines 53-58) is weak. It lists an "Equivalence" law that is really just correctness, and a "Safety varies" note that is more of a caveat than a law. The actual MonadRec law from the literature (the "pure Done" identity) is not stated. See section 3 above.
-- Line 57: "Safety varies" is listed as a "law" but it is an implementation note, not an algebraic law.
-- The free function docs (lines 98-138) duplicate the trait method docs closely, which is fine for discoverability.
+Step provides a comprehensive set of methods:
+- Inspection: `is_loop`, `is_done`, `loop_val`, `done`.
+- Transformation: `map_loop`, `map_done`, `bimap`, `swap`.
+- Folding: `fold_right`, `fold_left`, `fold_map`, `bi_fold_right`, `bi_fold_left`, `bi_fold_map`.
+- Binding: `bind` (over Done), `bind_loop` (over Loop).
+- Traversal: `bi_traverse`.
+- Conversions: `From<ControlFlow>` / `Into<ControlFlow>` (bidirectional).
 
-## Summary of Findings
+The `ControlFlow` conversions are a nice touch, mapping `Step::Done` to `ControlFlow::Break` and `Step::Loop` to `ControlFlow::Continue`. This lets users interoperate with Rust's standard library.
 
-| Aspect | Rating | Notes |
-|--------|--------|-------|
-| Design faithfulness | Good | Faithful PureScript translation with appropriate Rust adaptations. |
-| Stack safety | Good | `ThunkBrand` uses iterative loop; `Trampoline` uses `defer`+`bind`. Both correct. |
-| Laws | Weak | No formal MonadRec law stated; no property-based tests. |
-| API surface | Good | Clean, minimal. Missing `MonadRec` impls for standard types (`Option`, `Vec`, etc.). |
-| Consistency | Good | Follows library patterns for trait definition, free functions, and documentation. |
-| Documentation | Adequate | Accurate on stack safety caveats; laws section needs improvement. |
+## 4. Stack Safety Guarantees
 
-### Recommended Improvements
+### Does the design guarantee stack safety?
 
-1. **Add `MonadRec` implementations for `OptionBrand`, `VecBrand`, `ResultErrAppliedBrand<E>`, and `IdentityBrand`.** These are trivial (iterative loop) and would significantly increase the utility of generic `MonadRec` code.
+The trait documentation states a **class invariant**:
 
-2. **State the actual MonadRec law.** Replace the current "laws" section with the PureScript law: `tail_rec_m(|a| pure(Step::Done(a)), x)` equals `pure(x)`. The stack-safety guarantee should be stated as a class invariant, not a "law."
+> `tail_rec_m` must execute in constant stack space regardless of how many `Step::Loop` iterations occur.
 
-3. **Add property-based tests** for the MonadRec law across all implementations.
+This is a structural requirement on implementations, not an algebraic law that can be checked at compile time. Each implementor must ensure its `tail_rec_m` uses a loop (or equivalent iterative mechanism) rather than recursion.
 
-4. **Consider relaxing the `Clone` bound.** For implementations that use a simple loop (all current HKT impls), `Fn` alone is sufficient. The `Clone` bound exists to support the `Trampoline`-style recursive pattern, but `Trampoline` cannot implement the HKT trait anyway. Removing `Clone` from the trait would simplify usage. If a future HKT-compatible type needs `Clone`, it can be added then.
+### Implementation patterns
 
-5. **Document why `Trampoline` cannot implement the trait** more explicitly in the trait-level docs, referencing the `'static` vs lifetime-polymorphism conflict.
+The implementations fall into three categories:
+
+**Category 1: Direct loop (truly stack-safe).** These implementations use a Rust `loop` with mutable state, consuming zero additional stack frames per iteration:
+- `OptionBrand`: Loop, return `None` on short-circuit.
+- `IdentityBrand`: Loop on inner value.
+- `Tuple1Brand`: Loop on inner value.
+- `ResultErrAppliedBrand<E>`: Loop, return `Err(e)` on short-circuit.
+- `ResultOkAppliedBrand<E>`: Loop, return `Ok(t)` on short-circuit.
+- `StepLoopAppliedBrand<L>`: Loop, return `Step::Loop(l)` on short-circuit.
+- `StepDoneAppliedBrand<D>`: Loop, return `Step::Done(d)` on short-circuit.
+- `VecBrand`: Breadth-first expansion loop.
+- `CatListBrand`: Breadth-first expansion loop.
+- `PairFirstAppliedBrand<F>`: Loop with monoid accumulation on first element.
+- `PairSecondAppliedBrand<S>`: Loop with monoid accumulation on second element.
+- `Tuple2FirstAppliedBrand<F>`: Loop with monoid accumulation.
+- `Tuple2SecondAppliedBrand<S>`: Loop with monoid accumulation.
+
+**Category 2: Lazy wrapper around a loop (stack-safe when evaluated).** These implementations wrap a loop in a thunk, deferring execution:
+- `ThunkBrand`: Wraps the loop in `Thunk::new(move || { loop { ... } })`. The loop itself is stack-safe, but the thunk's `evaluate` call evaluates the step function at each iteration. The docs warn: "The step function `f` should return shallow thunks (ideally `Thunk::pure` or a single-level `Thunk::new`). If `f` builds deep `bind` chains inside the returned thunk, the internal `evaluate` call can still overflow the stack."
+- `TryThunkErrAppliedBrand<E>`: Same pattern, loop in `TryThunk::new`.
+- `TryThunkOkAppliedBrand<A>`: Same pattern, loop in `TryThunk::new`.
+
+**Category 3: Non-trait inherent methods (not MonadRec impls but equivalent).** These types cannot implement the HKT-based `MonadRec` trait but provide equivalent inherent methods:
+- `Trampoline::tail_rec_m`: Uses `Free`'s `defer` + `bind` chain, which is fully stack-safe even with deep bind chains. Requires `Clone + 'static` on the step function.
+- `Trampoline::arc_tail_rec_m`: Wraps non-Clone closures in `Arc`.
+- `SendThunk::tail_rec_m`: Loop inside `SendThunk::new`, requires `Send + Clone`.
+- `SendThunk::arc_tail_rec_m`: Arc-wrapped variant.
+- `TryTrampoline::tail_rec_m`: Same as Trampoline but for fallible computations.
+- `TryTrampoline::arc_tail_rec_m`: Arc-wrapped variant.
+- `TrySendThunk::tail_rec_m`: Loop inside `TrySendThunk::new`, requires `Send + Clone`.
+- `TrySendThunk::arc_tail_rec_m`: Arc-wrapped variant.
+
+### Stack safety caveats
+
+1. **Thunk's conditional safety:** `ThunkBrand`'s `tail_rec_m` is stack-safe for the iteration loop, but if the step function itself builds deep `bind` chains within each returned thunk, those chains will consume stack during `evaluate`. This is documented but could surprise users.
+
+2. **No compile-time enforcement:** There is no way to enforce the stack-safety invariant at the type level. A buggy implementation could use recursion and violate the invariant. The tests (200,000 iteration stress tests) provide runtime confidence.
+
+3. **Trampoline is fully safe:** `Trampoline::tail_rec_m` is the only implementation that provides *unconditional* stack safety, because it builds a `Free` monad chain that is evaluated iteratively by `Free::evaluate`. Even deep bind chains within the step function are safe.
+
+## 5. Implementors
+
+### Trait implementors (via `MonadRec` trait)
+
+| Brand | Type | Short-circuit behavior |
+|-------|------|------------------------|
+| `OptionBrand` | `Option<B>` | `None` terminates |
+| `IdentityBrand` | `Identity<B>` | No short-circuit |
+| `Tuple1Brand` | `(B,)` | No short-circuit |
+| `ThunkBrand` | `Thunk<'a, B>` | No short-circuit (lazy) |
+| `VecBrand` | `Vec<B>` | Breadth-first nondeterminism |
+| `CatListBrand` | `CatList<B>` | Breadth-first nondeterminism |
+| `ResultErrAppliedBrand<E>` | `Result<B, E>` | `Err(e)` terminates |
+| `ResultOkAppliedBrand<E>` | `Result<E, B>` | `Ok(t)` terminates |
+| `StepLoopAppliedBrand<L>` | `Step<L, B>` | `Loop(l)` terminates |
+| `StepDoneAppliedBrand<D>` | `Step<B, D>` | `Done(d)` terminates |
+| `PairFirstAppliedBrand<F>` | `Pair<F, B>` | Accumulates first via `Monoid` |
+| `PairSecondAppliedBrand<S>` | `Pair<B, S>` | Accumulates second via `Monoid` |
+| `Tuple2FirstAppliedBrand<F>` | `(F, B)` | Accumulates first via `Monoid` |
+| `Tuple2SecondAppliedBrand<S>` | `(B, S)` | Accumulates second via `Monoid` |
+| `TryThunkErrAppliedBrand<E>` | `TryThunk<'a, B, E>` | `Err(e)` terminates (lazy) |
+| `TryThunkOkAppliedBrand<A>` | `TryThunk<'a, A, B>` | `Ok(a)` terminates (lazy) |
+
+### Inherent `tail_rec_m` methods (not trait impls)
+
+| Type | Requires | Notes |
+|------|----------|-------|
+| `Trampoline<A>` | `Clone + 'static` on `f` | Fully stack-safe, uses `Free` |
+| `SendThunk<'a, A>` | `Clone + Send + 'a` on `f` | Thread-safe, loop-based |
+| `TryTrampoline<A, E>` | `Clone + 'static` on `f` | Fallible, fully stack-safe |
+| `TrySendThunk<'a, A, E>` | `Clone + Send + 'a` on `f` | Fallible, thread-safe, loop-based |
+
+All four also provide `arc_tail_rec_m` variants for non-Clone closures.
+
+### Coverage assessment
+
+**Good coverage.** Every type that has a `Monad` implementation and is HKT-compatible also implements `MonadRec`. The types that cannot implement the trait (`Trampoline`, `SendThunk`, `TrySendThunk`, `TryTrampoline`) provide equivalent inherent methods.
+
+**Missing:** No `MonadRec` for `Free<F, A>` itself (as a trait impl). This is documented and inherent to the `'static` constraint on `Free`. Users access stack-safe recursion on `Free` through `Trampoline::tail_rec_m` or `Free::fold_free` (which takes a `G: MonadRec`).
+
+## 6. Free Function Wrapper
+
+```rust
+pub fn tail_rec_m<'a, Brand: MonadRec, A: 'a, B: 'a>(
+    func: impl Fn(A) -> Apply!(...) + 'a,
+    initial: A,
+) -> Apply!(...) {
+    Brand::tail_rec_m(func, initial)
+}
+```
+
+The free function is a straightforward dispatch wrapper. It is re-exported via `fp-library/src/functions.rs` as `functions::tail_rec_m`.
+
+**Ergonomics:** The brand type parameter must be specified explicitly (e.g., `tail_rec_m::<ThunkBrand, _, _>(...)`), which is typical for this library's design. The `A` and `B` parameters can be inferred.
+
+## 7. Documentation Quality
+
+### Trait-level docs
+
+- **Module doc:** Includes a complete, working example (factorial with `ThunkBrand`).
+- **Trait doc:** Explains the Thunk vs Trampoline distinction, documents the identity law, states the stack-safety class invariant, and includes a working example.
+- **Method doc:** Uses the library's documentation macros (`#[document_signature]`, `#[document_type_parameters]`, etc.) for consistent formatting.
+
+### Implementation docs
+
+Each implementation has:
+- A prose description of the specific behavior (short-circuit semantics, breadth-first expansion, etc.).
+- Documented type parameters, parameters, and return values.
+- A working code example.
+
+### Tests
+
+- **Property-based:** QuickCheck tests for the identity law (`OptionBrand`, `ThunkBrand`).
+- **Stack safety:** 200,000-iteration stress tests in most implementations.
+- **Short-circuit:** Tests verifying that `None`, `Err`, `Ok`, `Loop`, `Done` short-circuit correctly.
+- **Coverage:** Tests exist for all trait implementors and all inherent methods.
+
+### Assessment
+
+Documentation quality is high. The trait docs clearly explain the design tradeoffs and the relationship between `Thunk` (HKT-compatible, conditionally stack-safe) and `Trampoline` (not HKT-compatible, unconditionally stack-safe).
+
+**One area for improvement:** The trait doc mentions only the identity law. PureScript's `MonadRec` documentation also describes a "stack safety" law and an "equivalence" law (`tail_rec_m f a == f a >>= case _ of Loop a' -> tail_rec_m f a'; Done b -> pure b`). The equivalence law is implicitly expected but not stated.
+
+## 8. Issues, Limitations, and Design Flaws
+
+### 8.1. Thunk's partial stack safety
+
+`ThunkBrand`'s `tail_rec_m` wraps the entire loop in a single `Thunk::new`, which means:
+- The loop itself is stack-safe (it is a Rust `loop`).
+- But the step function's returned thunk is eagerly evaluated via `.evaluate()` at each iteration.
+- If the step function returns a thunk with deep bind chains, those chains will blow the stack.
+
+This is documented but represents a footgun. Users who reach for `MonadRec` expect unconditional stack safety, but `ThunkBrand` only provides it under the assumption that the step function returns "shallow" thunks.
+
+### 8.2. No trait impl for `Trampoline`, `SendThunk`, or `Free`
+
+These types provide `tail_rec_m` as inherent methods rather than trait implementations:
+- `Trampoline` and `TryTrampoline` require `'static` and `Clone`, incompatible with the trait's HKT signature.
+- `SendThunk` and `TrySendThunk` require `Send` bounds not expressible in the trait.
+
+This means generic code written against `MonadRec` cannot use `Trampoline` or `SendThunk`. Users must choose: either write code that is generic over `MonadRec` (and accept the HKT constraints), or write code that is specific to `Trampoline` (and get unconditional stack safety).
+
+This is a fundamental tension that arises from Rust's type system limitations. It is well-documented in the codebase.
+
+### 8.3. `Clone + 'static` requirement on `Trampoline::tail_rec_m`
+
+`Trampoline::tail_rec_m` requires the step function to be `Clone + 'static` because internally it calls `go(f, next)` recursively (building a `Free` chain), and each recursive call needs its own copy of `f`. The `arc_tail_rec_m` variant relaxes `Clone` by wrapping in `Arc`, but still requires `'static`.
+
+This is a practical limitation: closures that capture non-Clone, non-Arc-wrappable state cannot use `Trampoline::tail_rec_m`. However, such closures are rare in practice.
+
+### 8.4. Only one law stated
+
+The trait documents only the identity law:
+```
+tail_rec_m(|a| pure(Step::Done(a)), x) == pure(x)
+```
+
+Missing laws that would strengthen the contract:
+- **Equivalence/unfolding law:** `tail_rec_m(f, a)` should be equivalent to `f(a) >>= match { Loop(a') => tail_rec_m(f, a'), Done(b) => pure(b) }`. This law ensures that `tail_rec_m` is a valid optimization of the naive recursive definition.
+- **Naturality:** For any monad homomorphism `h: M ~> N`, `h(tail_rec_m(f, a)) == tail_rec_m(h . f, a)`.
+
+The unfolding law is particularly important because it is what makes `tail_rec_m` a "correct" optimization. Without it, an implementation could do something unrelated to the step function.
+
+### 8.5. No `forever` or derived combinators
+
+PureScript's `MonadRec` ecosystem includes derived combinators like `forever` (run an action indefinitely without stack overflow) and `whileM` / `untilM`. The Rust library does not provide these yet. They would be useful for long-running computations.
+
+### 8.6. Breadth-first expansion for Vec/CatList may not terminate
+
+`VecBrand` and `CatListBrand` use breadth-first expansion: each `Loop` value is fed back through the step function, and the results are accumulated. If the step function always produces at least one `Loop` for each input, the computation will never terminate (and will consume unbounded memory). This is inherent to the nondeterministic monad semantics, but it is not explicitly warned about in the docs.
+
+## 9. Alternatives and Improvements
+
+### 9.1. Add the unfolding/equivalence law to documentation
+
+State the equivalence law in the trait doc:
+
+```text
+tail_rec_m(f, a) == bind(f(a), |step| match step {
+    Step::Loop(a') => tail_rec_m(f, a'),
+    Step::Done(b) => pure(b),
+})
+```
+
+This makes the relationship between `tail_rec_m` and `bind` explicit.
+
+### 9.2. Add property tests for the unfolding law
+
+The current tests verify the identity law. Adding a test that checks the unfolding law (for types where the naive recursive version does not blow the stack, e.g., `OptionBrand` with small iteration counts) would strengthen confidence.
+
+### 9.3. Consider a `SendMonadRec` trait
+
+Currently, thread-safe types like `SendThunk` and `TrySendThunk` provide `tail_rec_m` as inherent methods because the trait cannot express `Send` bounds. A `SendMonadRec` trait (analogous to `SendDeferrable` and `SendRefFunctor`) could enable generic programming over thread-safe monadic recursion. However, this would only be useful if `SendThunk` / `TrySendThunk` could implement it as HKT-compatible types, which they currently cannot.
+
+### 9.4. Add derived combinators
+
+Useful combinators that could be provided as default methods or free functions:
+- `forever<M: MonadRec>(action: M<A>) -> M<Void>`: Run an action indefinitely.
+- `while_m<M: MonadRec>(cond: M<bool>, body: M<()>) -> M<()>`: Loop while condition holds.
+- `until_m<M: MonadRec>(body: M<bool>) -> M<()>`: Loop until body returns true.
+- `iterate<M: MonadRec>(f: A -> M<A>, initial: A) -> M<Void>`: Infinite iteration.
+
+These are common in PureScript's ecosystem and would make `MonadRec` more practically useful.
+
+### 9.5. Document the nondeterministic termination caveat
+
+For `VecBrand` and `CatListBrand`, add a warning that the computation may not terminate if the step function always produces `Loop` values with at least one output for every input. Also warn about unbounded memory growth.
+
+### 9.6. Consider `ControlFlow` integration
+
+Since `Step` already has `From<ControlFlow>` / `Into<ControlFlow>` conversions, consider adding a convenience method that accepts `ControlFlow`-returning step functions:
+
+```rust
+fn tail_rec_m_cf<'a, A: 'a, B: 'a>(
+    func: impl Fn(A) -> M<ControlFlow<B, A>> + 'a,
+    initial: A,
+) -> M<B>;
+```
+
+This would let users use Rust's `?` operator with `ControlFlow` in some cases, improving ergonomics.
+
+## Summary
+
+`MonadRec` is a well-designed, correctly implemented trait that faithfully captures the tail-recursive monad pattern from PureScript. The `Step` type is clean, well-documented, and richly featured. The implementation coverage is comprehensive, with every applicable type providing either a trait impl or an equivalent inherent method.
+
+The main limitations are fundamental to Rust's type system: `Trampoline` and `Free` cannot implement the HKT-based trait due to `'static` and `Clone` requirements, and `SendThunk` cannot express `Send` bounds in the trait. These are well-documented and handled gracefully with inherent methods.
+
+The most actionable improvements are: (1) documenting the unfolding/equivalence law, (2) adding property tests for it, (3) adding derived combinators like `forever`, and (4) documenting the nondeterministic termination caveat for `Vec`/`CatList`.

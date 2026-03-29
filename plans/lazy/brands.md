@@ -1,153 +1,210 @@
 # Lazy Hierarchy Brand Definitions: Analysis
 
-Analysis of brand definitions in `fp-library/src/brands.rs` and their `impl_kind!` invocations across the type modules.
+## Overview
 
-## Inventory
+The file `fp-library/src/brands.rs` centralizes all brand (HKT witness) types as leaf nodes in the dependency graph. The lazy evaluation hierarchy accounts for 14 of the file's brand definitions (including type aliases), plus 2 config trait implementations defined in `fp-library/src/types/lazy.rs`.
 
-### Infallible Computation Brands
+---
 
-| Brand | Line in brands.rs | Kind Signature | Maps To |
-|-------|-------------------|----------------|---------|
-| `ThunkBrand` | 222 | `Of<'a, A: 'a>: 'a` | `Thunk<'a, A>` |
-| `SendThunkBrand` | 215 | `Of<'a, A: 'a>: 'a` | `SendThunk<'a, A>` |
-| `LazyBrand<Config>` | 106 | `Of<'a, A: 'a>: 'a` | `Lazy<'a, A, Config>` |
-| `RcLazyBrand` (type alias) | 109 | (via `LazyBrand<RcLazyConfig>`) | `Lazy<'a, A, RcLazyConfig>` |
-| `ArcLazyBrand` (type alias) | 112 | (via `LazyBrand<ArcLazyConfig>`) | `Lazy<'a, A, ArcLazyConfig>` |
-| `CatListBrand` | 84 | `Of<'a, A: 'a>: 'a` | `CatList<A>` |
+## 1. Inventory of Lazy-Related Brands
 
-### Fallible Computation Brands
+### Brands with full `impl_kind!` (HKT-enabled)
 
-| Brand | Line in brands.rs | Kind Signature | Maps To |
-|-------|-------------------|----------------|---------|
-| `TryThunkBrand` | 257 | `Of<'a, E: 'a, A: 'a>: 'a` | `TryThunk<'a, A, E>` |
-| `TryThunkErrAppliedBrand<E>` | 277 | `Of<'a, A: 'a>: 'a` | `TryThunk<'a, A, E>` |
-| `TryThunkOkAppliedBrand<A>` | 295 | `Of<'a, E: 'a>: 'a` | `TryThunk<'a, A, E>` |
-| `TrySendThunkBrand` | 253 | `Of<'a, E: 'a, A: 'a>: 'a` | `TrySendThunk<'a, A, E>` |
-| `TryLazyBrand<E, Config>` | 242 | `Of<'a, A: 'a>: 'a` | `TryLazy<'a, A, E, Config>` |
-| `RcTryLazyBrand<E>` (type alias) | 245 | (via `TryLazyBrand<E, RcLazyConfig>`) | `TryLazy<'a, A, E, RcLazyConfig>` |
-| `ArcTryLazyBrand<E>` (type alias) | 248 | (via `TryLazyBrand<E, ArcLazyConfig>`) | `TryLazy<'a, A, E, ArcLazyConfig>` |
+| Brand | Kind signature | Defined type | Type class depth |
+|-------|---------------|--------------|-----------------|
+| `ThunkBrand` | `type Of<'a, A: 'a>: 'a = Thunk<'a, A>` | Infallible deferred computation | Full: Functor, Pointed, Lift, Semiapplicative, Semimonad, MonadRec, Evaluable, Foldable, FunctorWithIndex, FoldableWithIndex |
+| `SendThunkBrand` | `type Of<'a, A: 'a>: 'a = SendThunk<'a, A>` | Thread-safe deferred computation | Minimal: Foldable, FoldableWithIndex only |
+| `LazyBrand<Config>` | `type Of<'a, A: 'a>: 'a = Lazy<'a, A, Config>` | Memoized computation | Partial: RefFunctor (Rc), SendRefFunctor (Arc), Foldable, FoldableWithIndex |
+| `TryLazyBrand<E, Config>` | `type Of<'a, A: 'a>: 'a = TryLazy<'a, A, E, Config>` | Memoized fallible computation | Partial: RefFunctor (Rc, E: Clone), SendRefFunctor (Arc, E: Clone+Send+Sync), Foldable |
+| `TryThunkBrand` | `type Of<'a, E: 'a, A: 'a>: 'a = TryThunk<'a, A, E>` | Bifunctor brand (unapplied) | Bifunctor, Bifoldable, Bitraversable |
+| `TryThunkErrAppliedBrand<E>` | `type Of<'a, A: 'a>: 'a = TryThunk<'a, A, E>` | Error-fixed functor over Ok | Full: Functor, Pointed, Lift, Semiapplicative, Semimonad, MonadRec, Foldable, FunctorWithIndex, FoldableWithIndex |
+| `TryThunkOkAppliedBrand<A>` | `type Of<'a, E: 'a>: 'a = TryThunk<'a, A, E>` | Ok-fixed functor over Err | Full: Functor, Pointed, Lift, Semiapplicative, Semimonad, MonadRec, Foldable, FunctorWithIndex, FoldableWithIndex |
+| `TrySendThunkBrand` | `type Of<'a, E: 'a, A: 'a>: 'a = TrySendThunk<'a, A, E>` | Bifunctor brand | Bifunctor brand only (no type class impls found) |
+| `CatListBrand` | `type Of<'a, A: 'a>: 'a = CatList<A>` | Catenable list (Free backbone) | Full: Functor, Pointed, Lift, Semiapplicative, Semimonad, Alt, Plus, Foldable, Traversable, Compactable, Filterable, Witherable, MonadRec, Par*, WithIndex variants |
+| `StepBrand` | `type Of<A, B> = Step<A, B>` + `type Of<'a, A: 'a, B: 'a>: 'a = Step<A, B>` | Loop/Done signal for MonadRec | Bifunctor, Bifoldable, Bitraversable |
+| `StepLoopAppliedBrand<L>` | `type Of<'a, B: 'a>: 'a = Step<L, B>` | Loop-fixed, functor over Done | Functor, Pointed, Lift, Foldable, Traversable |
+| `StepDoneAppliedBrand<D>` | `type Of<'a, A: 'a>: 'a = Step<A, D>` | Done-fixed, functor over Loop | Functor, Pointed, Lift, Foldable, Traversable |
 
-### Step Brands (MonadRec Infrastructure)
+### Type aliases for convenience
 
-| Brand | Line in brands.rs | Kind Signature | Maps To |
-|-------|-------------------|----------------|---------|
-| `StepBrand` | 200 | `Of<A, B>` and `Of<'a, A: 'a, B: 'a>: 'a` | `Step<A, B>` |
-| `StepDoneAppliedBrand<B>` | 204 | `Of<'a, A: 'a>: 'a` | `Step<A, DoneType>` |
-| `StepLoopAppliedBrand<A>` | 208 | `Of<'a, B: 'a>: 'a` | `Step<LoopType, B>` |
+| Alias | Expands to |
+|-------|-----------|
+| `RcLazyBrand` | `LazyBrand<RcLazyConfig>` |
+| `ArcLazyBrand` | `LazyBrand<ArcLazyConfig>` |
+| `RcTryLazyBrand<E>` | `TryLazyBrand<E, RcLazyConfig>` |
+| `ArcTryLazyBrand<E>` | `TryLazyBrand<E, ArcLazyConfig>` |
 
-## Analysis
+### Types with NO brand (intentionally)
 
-### 1. Design Correctness
+| Type | Why no brand |
+|------|-------------|
+| `Trampoline<A>` | Requires `A: 'static` (wraps `Free<ThunkBrand, A>`). The HKT Kind trait introduces `'a`, so `A` must outlive all `'a`, requiring `'static`. Since `Trampoline` already requires `'static`, it could theoretically have a brand with `type Of<A> = Trampoline<A>` (no lifetime), but the library's type class traits uniformly use `type Of<'a, A: 'a>: 'a`, making a `'static`-only brand useless for polymorphic code. |
+| `TryTrampoline<A, E>` | Same `'static` constraint as `Trampoline`. Inherits the limitation from `Free`. |
+| `Free<F, A>` | Requires `F: Evaluable + 'static` and `A: 'static`. Uses `Box<dyn Any>` for type erasure, which demands `'static`. Cannot participate in the lifetime-polymorphic Kind system. |
 
-All brand definitions correctly represent their type constructors:
+---
 
-- **ThunkBrand / SendThunkBrand**: Both use `Of<'a, A: 'a>: 'a`, which correctly captures `Thunk<'a, A>` and `SendThunk<'a, A>`. The lifetime parameter `'a` flows through properly since both types wrap closures with `'a` lifetimes.
+## 2. Design Coherence
 
-- **LazyBrand<Config>**: The `Config` parameter is a brand-level parameter (not a Kind parameter), which is the correct design. The Kind signature `Of<'a, A: 'a>: 'a` means `LazyBrand` acts as a unary type constructor parameterized over the value type, with the Config strategy baked into the brand. This mirrors PureScript's approach where effect system configuration is a phantom parameter on the type constructor, not a parameter of the applied type.
+### Strengths
 
-- **TryThunkBrand**: Uses `Of<'a, E: 'a, A: 'a>: 'a` with the parameter order `E, A` (error first, success second). The mapping `TryThunk<'a, A, E>` swaps the order, which is correct: the Kind parameters follow the `ResultBrand` convention (error first in the HKT, matching Haskell's `Either e a`), while the Rust struct uses the idiomatic `Result<A, E>` ordering. Documented at try_thunk.rs:1282-1285.
+**Consistent bifunctor pattern.** The `TryThunk`/`TrySendThunk` types follow the same bifunctor brand pattern as `Result` and `Step`: a full bifunctor brand plus two partially-applied brands (one fixing each type parameter). `TryThunkBrand` parallels `ResultBrand` and `StepBrand`; `TryThunkErrAppliedBrand<E>` parallels `ResultErrAppliedBrand<E>` and `StepLoopAppliedBrand<L>`.
 
-- **TryThunkErrAppliedBrand<E> / TryThunkOkAppliedBrand<A>**: These correctly partial-apply one parameter, requiring `'static` on the fixed parameter (documented at brands.rs:262-268, 282-288). The `'static` requirement is an inherent limitation of the Brand pattern, well-explained in the documentation.
+**Principled Send limitation.** The doc comments on `SendThunkBrand` and `TryThunkErrAppliedBrand` clearly explain why `SendThunk` cannot implement Functor/Monad: the HKT trait signatures accept `impl Fn`/`impl FnOnce` without a `Send` bound, so closures passed to `map`/`bind` cannot be guaranteed thread-safe. The library explicitly documents why there is no `TrySendThunkErrAppliedBrand`. This is an honest acknowledgment of a real constraint rather than a gap.
 
-- **TrySendThunkBrand**: Uses the same `Of<'a, E: 'a, A: 'a>: 'a` bifunctor signature as `TryThunkBrand`, correctly mapping to `TrySendThunk<'a, A, E>`.
+**Config-parameterized unification.** `LazyBrand<Config>` with `RcLazyBrand`/`ArcLazyBrand` as aliases avoids duplicating brand definitions and all their type class impls. A single `impl<Config: LazyConfig> Foldable for LazyBrand<Config>` covers both Rc and Arc variants.
 
-- **TryLazyBrand<E, Config>**: Both `E` and `Config` are brand-level parameters, leaving only `A` as the Kind parameter. This is the correct design for a type that is functorial over the success value while the error type and configuration strategy are fixed.
+**Clean `'static` documentation.** The `TryLazyBrand` and `TryThunkErrAppliedBrand` doc comments include a thorough explanation of why baked-in type parameters require `'static`, tracing the reasoning through the Kind trait's lifetime introduction.
 
-- **CatListBrand**: Maps `Of<'a, A: 'a>: 'a` to `CatList<A>`. The `CatList` type itself has no lifetime parameter (it is `CatList<A>`, not `CatList<'a, A>`), so the `'a` in the Kind signature is effectively unused in the output type. This is correct; the Kind trait requires the lifetime-bounded signature, and `CatList<A>` trivially satisfies `: 'a` when `A: 'a`.
+### Concerns
 
-- **StepBrand**: Has two impl_kind invocations (step.rs:528-531 and step.rs:534-538), one without lifetimes (`Of<A, B>`) and one with (`Of<'a, A: 'a, B: 'a>: 'a`). This dual registration is correct and matches `ResultBrand`'s pattern (result.rs:38-57), enabling `Step` to participate in both lifetime-free and lifetime-bounded HKT contexts.
+**`TrySendThunkBrand` is a hollow brand.** It has an `impl_kind!` (bifunctor signature) but zero type class implementations. No `Bifunctor`, no `Bifoldable`, no partially-applied brands. By contrast, `TryThunkBrand` has `Bifunctor`, `Bifoldable`, and `Bitraversable`. This creates a structural asymmetry: `TrySendThunkBrand` exists purely as a marker with no functional value. It should either gain type class impls or be removed if it serves no purpose.
 
-- **StepLoopAppliedBrand<LoopType> / StepDoneAppliedBrand<DoneType>**: Correctly partial-apply one type parameter with a `'static` bound, exactly paralleling `ResultErrAppliedBrand<E>` / `ResultOkAppliedBrand<T>`.
+**CatList as "lazy hierarchy" member is debatable.** `CatListBrand` is an internal data structure for `Free` monad evaluation. It has an extraordinarily rich type class surface (Functor through Witherable, MonadRec, parallel variants). While it supports the lazy hierarchy mechanically, it is more of a general-purpose persistent list than a "lazy evaluation" type. Its brand is well-designed; the question is purely about conceptual grouping.
 
-### 2. Naming Consistency
+---
 
-**Strengths:**
+## 3. HKT Coverage Analysis
 
-- The `{Type}Brand` pattern is used uniformly: `ThunkBrand`, `SendThunkBrand`, `CatListBrand`, `StepBrand`.
-- Type aliases for convenience brands follow a clear pattern: `RcLazyBrand = LazyBrand<RcLazyConfig>`, `ArcLazyBrand = LazyBrand<ArcLazyConfig>`, `RcTryLazyBrand<E> = TryLazyBrand<E, RcLazyConfig>`, etc.
-- The `Try` prefix is consistently applied to fallible variants: `TryThunkBrand`, `TrySendThunkBrand`, `TryLazyBrand`.
-- Applied brands use the `{Type}{FixedParam}AppliedBrand` pattern consistently: `TryThunkErrAppliedBrand`, `TryThunkOkAppliedBrand`, `StepDoneAppliedBrand`, `StepLoopAppliedBrand`.
+### Full HKT support
 
-**Observation on Send prefix positioning:**
+- **ThunkBrand**: The flagship lazy brand. Full monadic stack (Functor through MonadRec), plus Evaluable (critical for `Free`), Foldable, and indexed variants. This is the "workhorse" for HKT-polymorphic lazy code.
+- **TryThunkErrAppliedBrand<E>**: Full monadic stack mirroring `ThunkBrand`, but for fallible computations. The `E: 'static` constraint is unfortunate but inherent.
+- **TryThunkOkAppliedBrand<A>**: Full monadic stack for the error channel. Symmetric with `TryThunkErrAppliedBrand`.
+- **CatListBrand**: Full type class coverage, including `Traversable` and parallel variants.
 
-- `SendThunkBrand` puts `Send` first.
-- `TrySendThunkBrand` puts `Try` before `Send`.
+### Partial HKT support
 
-This is consistent in the sense that `Try` is always the outermost prefix (matching how `TrySendThunk` wraps `SendThunk`), while `Send` describes the thread-safety property. The naming mirrors the type names themselves (`SendThunk`, `TrySendThunk`), which is the right approach.
+- **LazyBrand<Config>**: Has `RefFunctor`/`SendRefFunctor` (not `Functor`!) and `Foldable`. Cannot implement `Functor` because evaluation returns `&A` (a reference), not an owned `A`. The `ref_map` pattern (mapping `&A -> B`) is the correct abstraction. This partial support is well-motivated.
+- **TryLazyBrand<E, Config>**: Same pattern as `LazyBrand`, with `RefFunctor`/`SendRefFunctor` and `Foldable`. Missing `FoldableWithIndex` (which `LazyBrand` has). This may be an oversight or may reflect a design choice about fallible containers.
+- **SendThunkBrand**: Has a Kind impl but only `Foldable` and `FoldableWithIndex`. No Functor because of the Send constraint problem. This is the correct minimal surface.
 
-### 3. Completeness
+### No HKT support
 
-**Intentionally absent brands (correctly omitted):**
+- **Trampoline**, **TryTrampoline**, **Free**: Intentionally excluded due to `'static` constraints. The reasoning is sound: the Kind system requires lifetime polymorphism that `'static`-only types cannot provide.
 
-- **No `TrampolineBrand`**: `Trampoline<A>` is `Free<ThunkBrand, A>` and requires `'static`, which is incompatible with the `Kind` trait's `'a` lifetime parameter. Documented at brands.rs:219-220.
+### Assessment
 
-- **No `TryTrampolineBrand`**: Same reasoning; `TryTrampoline<A, E>` is `Trampoline<Result<A, E>>`, inheriting the `'static` constraint.
+The HKT coverage is well-calibrated to each type's capabilities. The library does not force HKT support where it does not fit. The hierarchy of `ThunkBrand` (full HKT) > `LazyBrand` (partial, ref-based) > `SendThunkBrand` (foldable only) > `Trampoline` (none) reflects a genuine gradient of capability, not arbitrary omissions.
 
-- **No `FreeBrand`**: `Free<F, A>` requires `F: Functor + 'static` and `A: 'static`, making it incompatible with lifetime-polymorphic HKT. This is correct.
+One potential gap: `TryLazyBrand` lacks `FoldableWithIndex` while `LazyBrand` has it, and `TryThunkErrAppliedBrand` has it. This looks like an omission rather than a deliberate design choice.
 
-- **No `TrySendThunkErrAppliedBrand` / `TrySendThunkOkAppliedBrand`**: Explicitly documented at brands.rs:271-275 and 292-293. Since `SendThunk` cannot implement HKT traits (the trait signatures lack `Send` bounds on closure parameters), partially-applied brands would serve no purpose. This is a well-reasoned design decision.
+---
 
-**All necessary brands are present.** Every type in the lazy hierarchy that can participate in HKT has a corresponding brand, and every type that cannot has a documented rationale for omission.
+## 4. Config Type Design
 
-### 4. HKT Correctness
+### Current approach
 
-All Kind mappings are type-theoretically sound:
+```
+trait LazyConfig: 'static {
+    type PointerBrand: RefCountedPointer;
+    type Lazy<'a, A: 'a>: Clone;
+    type Thunk<'a, A: 'a>: ?Sized;
+    fn lazy_new<'a, A: 'a>(f: Box<Self::Thunk<'a, A>>) -> Self::Lazy<'a, A>;
+    fn evaluate<'a, 'b, A: 'a>(lazy: &'b Self::Lazy<'a, A>) -> &'b A;
+}
 
-- **Unary type constructors** (`Thunk`, `SendThunk`, `Lazy`, `CatList`) all use `Of<'a, A: 'a>: 'a`, which is the standard Kind for `* -> *` with lifetime tracking.
+trait TryLazyConfig: LazyConfig {
+    type TryLazy<'a, A: 'a, E: 'a>: Clone;
+    type TryThunk<'a, A: 'a, E: 'a>: ?Sized;
+    fn try_lazy_new<'a, A: 'a, E: 'a>(f: Box<Self::TryThunk<'a, A, E>>) -> Self::TryLazy<'a, A, E>;
+    fn try_evaluate<'a, 'b, A: 'a, E: 'a>(lazy: &'b Self::TryLazy<'a, A, E>) -> Result<&'b A, &'b E>;
+}
+```
 
-- **Binary type constructors** (`TryThunk`, `TrySendThunk`, `Step`) use `Of<'a, E: 'a, A: 'a>: 'a` for the bifunctor brand, plus partially-applied brands with `Of<'a, A: 'a>: 'a` for functorial use on a single channel.
+Two concrete impls: `RcLazyConfig` (Rc + LazyCell) and `ArcLazyConfig` (Arc + LazyLock).
 
-- **The E/A parameter swap** in `TryThunkBrand` and `TrySendThunkBrand` (Kind parameters `E, A` map to Rust struct `TryThunk<'a, A, E>`) correctly follows the Haskell convention where the last type parameter is the one that varies in functorial operations. This is consistent with `ResultBrand` and `StepBrand`.
+### Strengths
 
-- **`'static` bounds on applied brand parameters** (`E: 'static` in `TryThunkErrAppliedBrand<E>`, `A: 'static` in `TryThunkOkAppliedBrand<A>`, `LoopType: 'static`, `DoneType: 'static`) are necessary and correctly applied. The Brand pattern requires baked-in type parameters to outlive all possible `'a` values.
+1. **Single brand, dual behavior.** `LazyBrand<Config>` avoids duplicating brand definitions. Generic impls like `impl<Config: LazyConfig> Foldable for LazyBrand<Config>` work across both Rc and Arc variants.
 
-### 5. Consistency Across the Hierarchy
+2. **Extensibility.** The doc comments explicitly invite third-party configs (e.g., `parking_lot`-based locks, async-aware cells). The trait surface is minimal (2 associated types + 2 methods for infallible; 2+2 more for fallible).
 
-The lazy brands follow the exact same structural patterns as the non-lazy brands in the codebase:
+3. **PointerBrand linkage.** `LazyConfig::PointerBrand` connects the config to the pointer hierarchy, allowing generic code to recover the pointer brand without hard-coding it.
 
-| Pattern | Lazy Example | Non-Lazy Example |
-|---------|-------------|-----------------|
-| Simple brand | `ThunkBrand` | `OptionBrand`, `VecBrand` |
-| Config-parameterized brand | `LazyBrand<Config>` | `FnBrand<PtrBrand>` |
-| Convenience type alias | `RcLazyBrand = LazyBrand<RcLazyConfig>` | `RcFnBrand = FnBrand<RcBrand>` |
-| Bifunctor brand | `TryThunkBrand` | `ResultBrand`, `StepBrand` |
-| ErrApplied brand | `TryThunkErrAppliedBrand<E>` | `ResultErrAppliedBrand<E>` |
-| OkApplied brand | `TryThunkOkAppliedBrand<A>` | `ResultOkAppliedBrand<T>` |
+4. **Clean separation.** `TryLazyConfig` extends `LazyConfig` rather than duplicating it. A config can implement only `LazyConfig` if fallible memoization is not needed.
 
-All derive the same set of traits: `Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash` (for structs) or a subset for type aliases (which inherit from their underlying struct).
+### Weaknesses
 
-One minor inconsistency: `BifunctorFirstAppliedBrand` and `BifunctorSecondAppliedBrand` (lines 63, 80) derive only `Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash` (no `Default`), while most brand structs derive `Default` as well. The lazy brands with `PhantomData` parameters like `TryThunkErrAppliedBrand<E>` (line 277) also omit `Default`, which is consistent since `Default` for a brand with `PhantomData<E>` would require `E: Default`, which is not desirable for marker types. The simple brands (`ThunkBrand`, `SendThunkBrand`, `CatListBrand`, etc.) all include `Default`, which makes sense since they are zero-sized with no type parameters.
+1. **Config traits live in `types/lazy.rs`, not `brands.rs` or `classes/`.** The `brands.rs` file imports `LazyConfig` and `TryLazyConfig` from `types`, creating a dependency from brands (supposed leaf nodes) into types. This is a mild violation of the stated dependency ordering (brands -> classes -> types). In practice, the config traits are trait definitions (closer to "classes" than "types"), so they could be moved to `classes/` to restore the intended layering.
 
-### 6. Issues
+2. **`'static` bound on `LazyConfig`.** The trait itself requires `'static`, which is needed because brand type parameters must outlive all `'a` in the Kind system. However, this means custom configs cannot capture non-`'static` data (not that they would need to, since configs are zero-sized marker types, but the constraint is more restrictive than strictly necessary for the trait definition itself).
 
-**No significant issues found.** The brand definitions are well-designed and correctly implemented.
+3. **The `Box<Self::Thunk<'a, A>>` parameter.** Both `lazy_new` and `try_lazy_new` accept `Box<Self::Thunk<...>>`. Since `Thunk` is `?Sized` (it is `dyn FnOnce() -> A + 'a`), boxing is required. This means every lazy cell construction allocates. This is inherent to the design (you cannot store an unsized type without indirection), but it is worth noting that the allocation is unavoidable at the trait level.
 
-Minor observations (not bugs):
+### Alternatives considered
 
-1. **Alphabetical ordering**: The brands in `brands.rs` are sorted alphabetically, which aids discoverability. The lazy brands are interleaved with non-lazy brands rather than grouped together. This is a deliberate organizational choice consistent with the file's role as a flat registry of all brands.
+**Alternative 1: Separate `RcLazyBrand` and `ArcLazyBrand` as independent structs.** This would eliminate the config machinery but double the type class implementation burden. Every trait impl for `LazyBrand` would need to be written twice. The current approach is clearly better.
 
-2. **Documentation quality varies slightly**: `ThunkBrand` (line 217-222) has a brief note about `Trampoline`. `TryThunkErrAppliedBrand` (line 259-277) has extensive documentation about `'static` bounds and the absence of `TrySendThunk` counterparts. `CatListBrand` (line 82-84) has only a one-liner. The simpler brands arguably need less documentation, but there is room for more consistent depth; for instance, `SendThunkBrand` (line 210-215) could note why it exists as a brand despite not implementing standard HKT traits.
+**Alternative 2: Parameterize `LazyBrand` directly over a pointer brand (e.g., `LazyBrand<PtrBrand: RefCountedPointer>`) instead of a config trait.** This would simplify the trait hierarchy but lose the ability to customize the lazy cell type (e.g., using `LazyLock` vs `LazyCell` vs a custom cell). The config approach is more general.
 
-3. **`LazyBrand` documentation** (line 98-106) references `LazyConfig` but does not mention that `Lazy` implements `RefFunctor` / `SendRefFunctor` rather than `Functor`. This context is in the module-level docs of `lazy.rs` but a brief note in the brand doc would aid users browsing `brands.rs` directly.
+**Alternative 3: Move config traits to `classes/`.** Since `LazyConfig` and `TryLazyConfig` are trait definitions that describe behavior (not concrete type implementations), they fit the `classes/` module's role. This would restore the clean dependency ordering: brands depend only on classes, not on types. The concrete impls (`RcLazyConfig`, `ArcLazyConfig`) would stay in `types/lazy.rs`.
 
-### 7. Documentation Assessment
+---
 
-**Well-documented aspects:**
+## 5. Naming Consistency
 
-- The `'static` limitation on applied brands is explained thoroughly with the same boilerplate in `TryThunkErrAppliedBrand` (lines 262-268), `TryThunkOkAppliedBrand` (lines 282-288), and `TryLazyBrand` (lines 233-240). This repetition is appropriate since each brand is independently discoverable.
+### Conventions observed
 
-- The absence of `TrySendThunkErrAppliedBrand` / `TrySendThunkOkAppliedBrand` is explicitly documented with rationale (lines 271-275, 292-293).
+- **`XBrand`** for simple types: `ThunkBrand`, `SendThunkBrand`, `CatListBrand`, `StepBrand`. Consistent.
+- **`XBrand<Config>`** for config-parameterized types: `LazyBrand<Config>`, `TryLazyBrand<E, Config>`. Consistent.
+- **Type aliases** use the pointer prefix: `RcLazyBrand`, `ArcLazyBrand`, `RcTryLazyBrand<E>`, `ArcTryLazyBrand<E>`. Consistent with `RcFnBrand`/`ArcFnBrand`.
+- **Partially-applied bifunctor brands** follow `XYAppliedBrand<T>` pattern: `TryThunkErrAppliedBrand<E>`, `TryThunkOkAppliedBrand<A>`, `StepLoopAppliedBrand<A>`, `StepDoneAppliedBrand<B>`. Consistent with `ResultErrAppliedBrand<E>`, `ResultOkAppliedBrand<T>`.
+- **`Try` prefix** for fallible variants: `TryThunkBrand`, `TrySendThunkBrand`, `TryLazyBrand`. Consistent.
+- **`Send` prefix** for thread-safe variants: `SendThunkBrand`, `TrySendThunkBrand`. Consistent with `SendDeferrable`, `SendRefFunctor`.
 
-- `ThunkBrand` clarifies that it is for `Thunk`, not `Trampoline` (line 219-220).
+### Minor observations
 
-- `TrySendThunkBrand` (lines 250-253) notes it is for bifunctor use, enabling fallible deferred computation across thread boundaries.
+- The `Send` prefix comes after `Try` for `TrySendThunkBrand`, reading as "try, then send". This parallels how `TrySendThunk` is named. The alternative `SendTryThunkBrand` would read as "send, then try". The current ordering is consistent: `Try` always comes first when both prefixes are present.
+- `StepBrand` has two `impl_kind!` invocations (one for `type Of<A, B>` without lifetimes, one for `type Of<'a, A: 'a, B: 'a>: 'a` with lifetimes). This dual registration lets `Step` participate in both lifetime-free and lifetime-aware HKT contexts.
 
-**Areas for improvement:**
+---
 
-- `CatListBrand` (line 82-84) could note that `CatList` is the backbone of `Free` monad evaluation.
-- `StepBrand` (line 198-200) could mention its role in `MonadRec` and tail-recursive computation.
-- `SendThunkBrand` (line 210-215) could note the HKT trait limitations (no `Functor` impl due to `Send` bounds) as `TrySendThunkBrand` does, or at least cross-reference the `SendThunk` module docs.
+## 6. Issues and Limitations
 
-## Summary
+### `TrySendThunkBrand` has no implementations
 
-The lazy hierarchy brand definitions are well-designed, correctly implemented, and consistent with the rest of the codebase. The naming is systematic, the Kind mappings are type-theoretically correct, and the completeness is justified (every omission is documented). The main area for improvement is minor: a few brands could benefit from slightly richer documentation to match the standard set by the `TryThunk`-related brands.
+`TrySendThunkBrand` is defined with an `impl_kind!` but has zero type class implementations. No `Bifunctor`, no `Bifoldable`, no partially-applied error/ok brands. This makes it a dead brand. By contrast:
+
+- `TryThunkBrand` has `Bifunctor`, `Bifoldable`, `Bitraversable`, plus the two partially-applied brands with full monadic stacks.
+- `TrySendThunkBrand` has nothing.
+
+If the brand exists only for future use or symmetry, it should be documented as such. If it will never gain impls (because of the Send constraint), it should be removed.
+
+### `'static` on baked-in type parameters
+
+Both `TryThunkErrAppliedBrand<E>` and `TryThunkOkAppliedBrand<A>` require their type parameter to be `'static`. This is correctly documented but has practical consequences: you cannot use `TryThunkErrAppliedBrand<&str>` in HKT-polymorphic code. The same applies to `TryLazyBrand<E, Config>` where `E: 'static`. This is an inherent limitation of the Brand pattern, not a fixable issue.
+
+### `brands.rs` depends on `types` module
+
+The import `crate::types::{ArcLazyConfig, LazyConfig, RcLazyConfig, TryLazyConfig}` creates a dependency from `brands` (supposed to be leaf nodes) into `types`. The config traits are more "class-like" than "type-like" and could be relocated to `classes/` to maintain the stated dependency ordering.
+
+### Missing `FoldableWithIndex` for `TryLazyBrand`
+
+`LazyBrand<Config>` implements both `Foldable` and `FoldableWithIndex`. `TryLazyBrand<E, Config>` implements `Foldable` but not `FoldableWithIndex`. Since both are single-element containers, the indexed variant should be trivially implementable for `TryLazyBrand` as well.
+
+### No Traversable for `ThunkBrand` or `LazyBrand`
+
+`ThunkBrand` implements Foldable but not Traversable. For a single-element container, `Traversable` should be straightforward (it would be equivalent to mapping and wrapping). The same applies to `LazyBrand`. `CatListBrand` does implement Traversable, showing the pattern is established in the codebase.
+
+---
+
+## 7. Suggestions
+
+### Short-term
+
+1. **Add `FoldableWithIndex` for `TryLazyBrand<E, Config>`.** This is a trivial addition that restores parity with `LazyBrand`.
+
+2. **Either implement type classes for `TrySendThunkBrand` or remove it.** If the bifunctor impls are blocked by the Send constraint (same as why `SendThunkBrand` lacks Functor), document that and consider removing the brand. If bifunctor impls are feasible (since `bimap` takes two separate closures, the Send constraint may be enforceable differently for bifunctors), implement them.
+
+3. **Consider moving `LazyConfig`/`TryLazyConfig` trait definitions to `classes/`.** Keep the concrete impls (`RcLazyConfig`, `ArcLazyConfig`) in `types/lazy.rs`, but move the trait definitions to `classes/lazy_config.rs` to restore the brands -> classes -> types dependency ordering.
+
+### Medium-term
+
+4. **Add `Traversable` for `ThunkBrand`.** A single-element Traversable is well-defined and useful for generic programming (e.g., `sequence` on a Thunk inside an applicative).
+
+5. **Consider a `Foldable` impl for `TrySendThunkBrand` (via partially-applied brands).** Even if Functor is blocked, Foldable only requires consuming the value, which does not need closures stored in the thunk. If `TrySendThunkErrAppliedBrand<E>` could at least implement `Foldable`, it would provide some utility.
+
+### Long-term
+
+6. **Document the brand hierarchy visually.** A diagram showing which brands exist, which Kind signatures they implement, and which type classes they support would help newcomers navigate the 14 lazy-related brands. This analysis could serve as the basis for such documentation.

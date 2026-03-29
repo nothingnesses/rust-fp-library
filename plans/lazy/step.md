@@ -1,195 +1,271 @@
-# Analysis: `fp-library/src/types/step.rs`
+# Step Type Analysis
 
 ## Overview
 
-`Step<A, B>` is a two-variant enum (`Loop(A)` / `Done(B)`) used by `MonadRec` to signal whether a tail-recursive monadic computation should continue or terminate. It is structurally isomorphic to `Result<B, A>` (and `Either<A, B>` in Haskell/PureScript) but carries domain-specific semantics for recursion control.
+`Step<A, B>` is a two-variant enum used as the control type for tail-recursive monadic computations via `MonadRec`. It lives at `/home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/step.rs` (2841 lines including tests). The type is structurally isomorphic to `Result<B, A>` and `core::ops::ControlFlow<B, A>`, but carries domain-specific naming that makes `MonadRec` usage sites self-documenting.
 
-The file is 2478 lines, comprising the enum definition, inherent methods, HKT brand/kind integrations, type class implementations for three brands (`StepBrand`, `StepLoopAppliedBrand<A>`, `StepDoneAppliedBrand<B>`), conversions, and an extensive test suite with property-based (QuickCheck) law verification.
+```rust
+pub enum Step<A, B> {
+    Loop(A),  // continue with new state
+    Done(B),  // computation finished
+}
+```
 
----
+## 1. Type Design
 
-## 1. Design
+### Verdict: Well-designed, appropriate for its role.
 
-**Verdict: Sound, well-structured.**
+The two-variant design is correct and matches the established pattern from PureScript/Haskell (`Step` in purescript-tailrec). The generic parameter ordering `Step<A, B>` where `A` is the loop/continuation type and `B` is the done/result type is consistent with `Either<A, B>` conventions where the "success" or "primary" channel is the second parameter.
 
-The core design is correct. `Step<A, B>` is the standard approach for `MonadRec`, matching PureScript's `Step` from `Control.Monad.Rec.Class`. The choice to make it a standalone type rather than reusing `Result` is the right call: it provides clear domain semantics (`Loop`/`Done` vs `Ok`/`Err`) and avoids conflating error handling with recursion control.
+The `derive` list is appropriate:
 
-The three-brand HKT strategy is well-considered:
+- `Clone, Copy` for value semantics (Step contains no heap data by itself).
+- `Debug, PartialEq, Eq, Hash` for diagnostics and testing.
+- `serde::Serialize, serde::Deserialize` gated behind the `serde` feature.
 
-- `StepBrand`: bifunctor-level operations over both type parameters.
-- `StepLoopAppliedBrand<A>`: functor/monad over the `Done` (B) position, with `Loop` type fixed. This is the primary brand used by `MonadRec`, where `pure` wraps into `Done`.
-- `StepDoneAppliedBrand<B>`: functor/monad over the `Loop` (A) position, with `Done` type fixed. This is the symmetric dual, where `pure` wraps into `Loop`.
+One design observation: because `Step` derives `Copy`, it is zero-cost to pass around and match on, which is important since `MonadRec` implementations pattern-match on Step in a tight loop.
 
-This mirrors how `Result` is handled in the library (`ResultBrand`, `ResultErrAppliedBrand<E>`, `ResultOkAppliedBrand<T>`), ensuring consistency.
+## 2. HKT Support
 
-**One design nuance worth noting**: `StepLoopAppliedBrand` is the "natural" brand for `MonadRec` usage, since `MonadRec::tail_rec_m` produces `Step<A, B>` where `B` is the type that varies (it is the final result type). `Pointed::pure` for `StepLoopAppliedBrand` correctly wraps into `Done`, meaning `pure(x)` signals termination, which is the correct semantic for `MonadRec`.
+### Three brands, well-structured.
 
----
+Step has thorough HKT support through three brand types defined in `brands.rs`:
 
-## 2. Correctness
+| Brand | Kind | Purpose |
+|-------|------|---------|
+| `StepBrand` | `Step<A, B>` (bifunctor) | Fully polymorphic over both type parameters. |
+| `StepLoopAppliedBrand<A>` | `Step<A, _>` (functor over Done) | Loop type fixed; polymorphic over Done. This is the "primary" functor, analogous to `Either`'s right-biased functor. |
+| `StepDoneAppliedBrand<B>` | `Step<_, B>` (functor over Loop) | Done type fixed; polymorphic over Loop. The "secondary" functor. |
 
-**Verdict: No bugs found.**
+The bifunctor brand `StepBrand` has two `impl_kind!` declarations:
 
-All implementations are logically correct:
+```rust
+impl_kind! { for StepBrand { type Of<A, B> = Step<A, B>; } }
+impl_kind! { for StepBrand { type Of<'a, A: 'a, B: 'a>: 'a = Step<A, B>; } }
+```
 
-- `map_loop` and `map_done` correctly target their respective variants and pass through the other.
-- `bimap` correctly applies `f` to `Loop` and `g` to `Done`.
-- `bind` for `StepLoopAppliedBrand` correctly chains on `Done` and short-circuits on `Loop`.
-- `bind` for `StepDoneAppliedBrand` correctly chains on `Loop` and short-circuits on `Done`.
-- `Foldable` implementations return `initial` for the "empty" variant and apply the function for the "full" variant.
-- `Traversable::traverse` correctly wraps the unchanged variant in `F::pure` and maps over the active variant.
-- `Semiapplicative::apply` and `Lift::lift2` correctly handle all variant combinations, returning the first short-circuiting variant when not both sides are the active variant.
-- All `From` conversions are correct and consistent in both directions.
-- The `Bifoldable` and `Bitraversable` implementations delegate correctly to inherent methods.
+This dual registration handles both lifetime-free and lifetime-bounded contexts.
 
-The QuickCheck property tests verify functor laws (identity, composition), bifunctor laws (identity, composition), monad laws (left identity, right identity, associativity), and round-trip properties for conversions. This is thorough.
+### Observation: `'static` constraint on applied brands.
 
----
+Both `StepLoopAppliedBrand<A>` and `StepDoneAppliedBrand<B>` require their applied type parameter to be `'static`:
 
-## 3. Type Class Instances
+```rust
+impl_kind! {
+    impl<LoopType: 'static> for StepLoopAppliedBrand<LoopType> { ... }
+}
+```
 
-**Implemented (for `StepBrand`):**
+This is a necessary constraint given that brand type parameters in this library's HKT encoding flow through `impl` blocks that typically require `'static`. Since Step is primarily used as a control type within `tail_rec_m` (where the loop state `A` and result `B` are often concrete, stack-allocated types), this is rarely limiting in practice.
+
+## 3. Type Class Implementations
+
+### Full class hierarchy for both applied brands.
+
+Each applied brand implements the complete Monad + MonadRec tower:
+
+**StepLoopAppliedBrand (functor over Done):**
+- `Functor` (maps over Done via `map_done`)
+- `Pointed` (wraps in `Done`)
+- `Lift` (lifts binary functions; both-Done produces Done, first-Loop short-circuits)
+- `Semiapplicative` (applies wrapped functions; short-circuits on Loop)
+- `ApplyFirst`, `ApplySecond` (marker traits, blanket defaults)
+- `Applicative` (blanket from Pointed + Semiapplicative + ApplyFirst + ApplySecond)
+- `Semimonad` (binds through Done, short-circuits Loop)
+- `Monad` (blanket from Applicative + Semimonad)
+- `Foldable` (folds Done value, returns initial for Loop)
+- `Traversable` (traverses Done, wraps Loop in pure)
+- `MonadRec` (loop-based `tail_rec_m` that handles nested `Step<Step<A, B>>`)
+
+**StepDoneAppliedBrand (functor over Loop):**
+- Same hierarchy as above, but mirrored: maps/binds/folds over Loop; short-circuits on Done.
+- `Pointed` wraps in `Loop` (not Done).
+
+**StepBrand (bifunctor):**
 - `Bifunctor`
 - `Bifoldable`
 - `Bitraversable`
 
-**Implemented (for `StepLoopAppliedBrand<A>` and `StepDoneAppliedBrand<B>`):**
-- `Functor`
-- `Lift`
-- `Pointed`
-- `ApplyFirst`
-- `ApplySecond`
-- `Semiapplicative`
-- `Semimonad`
-- `Foldable`
-- `Traversable`
-- `Applicative` (via blanket impl)
-- `Monad` (via blanket impl)
+### Correctness observations.
 
-**Not implemented but potentially applicable:**
+1. **MonadRec for Step itself is unusual but correct.** The `tail_rec_m` implementation for `StepLoopAppliedBrand` works on `Step<LoopType, Step<A, B>>`. The outer Step is the monadic layer; the inner Step controls the recursion. If the outer layer is `Loop(l)`, it short-circuits. If it's `Done(Step::Loop(next))`, the iteration continues. If it's `Done(Step::Done(b))`, it finishes. This is the correct encoding for a MonadRec on an Either-like type.
 
-- **`Semigroup` / `Monoid`**: Could be implemented for `Step<A, B>` where `A: Semigroup` (or `B: Semigroup` depending on the bias). PureScript's `Either` has `Semigroup` when the right side is a semigroup. However, `Step` is primarily a control-flow type, not a data type meant for combination, so omitting these is reasonable.
+2. **Monad laws are verified** via QuickCheck property tests (left identity, right identity, associativity) for both applied brands. This is thorough.
 
-- **`FunctorWithIndex` / `FoldableWithIndex` / `TraversableWithIndex`**: Could use a unit index (like `Option` does) for the applied brands. These are low priority since `Step` typically contains at most one element per variant.
+3. **No `Monad` or `Applicative` impls are written explicitly.** They come from blanket impls in the class modules, which is the correct pattern for this codebase.
 
-- **`Alt`**: `StepLoopAppliedBrand<A>` could implement `Alt` (try the first, if `Loop`, try the second). This would give `Step` "first success" semantics. However, `Step` is not a container type where alternative choice is natural, so omitting this is defensible.
+### Missing type class: `Eq` as a type class.
 
-- **`Compactable` / `Filterable`**: These require `Option`-based filtering. Not applicable to `Step`'s semantics.
+Step derives `Eq`, but it does not implement an `Eq` type class (if one exists in the library). This is a minor point; Rust's `Eq` derive is sufficient for testing.
 
-- **`MonadRec`**: Not implemented for `StepLoopAppliedBrand` or `StepDoneAppliedBrand`. This would allow `Step` itself to be used as a `MonadRec`, which is theoretically possible (just run the loop inline). However, `Step` is a pure data type with no deferred computation, so stack safety is not a concern, and implementing `MonadRec` on it would be unusual.
+### Missing type class: `Alt` / `Plus`.
 
-Overall, the set of implemented type classes is comprehensive and appropriate for the type's role.
+Step does not implement `Alt` or `Plus`. For `StepLoopAppliedBrand`, an `Alt` instance could try the first value and fall back to the second on `Loop`. This would mirror `Either`'s `Alt` instance. However, this is not essential for Step's primary use case (MonadRec control flow), so its absence is reasonable.
 
----
+## 4. Usage Patterns
 
-## 4. API Surface
+### Primary: MonadRec step function return type.
 
-**Verdict: Well-designed, minor gaps.**
-
-The inherent methods provide a clean, ergonomic API:
-
-- Predicates: `is_loop()`, `is_done()`.
-- Mapping: `map_loop()`, `map_done()`, `bimap()`.
-- Folding: `bi_fold_right()`, `bi_fold_left()`, `bi_fold_map()`, `fold_right()`, `fold_left()`, `fold_map()`.
-- Binding: `bind()` (over Done), `bind_loop()` (over Loop).
-- Traversal: `bi_traverse()`.
-- Conversions: `From<Result>`, `Into<Result>`, `From<ControlFlow>`, `Into<ControlFlow>`.
-
-**Potentially missing operations (minor):**
-
-- **`unwrap_done()` / `unwrap_loop()`**: Panicking extractors, analogous to `Result::unwrap()` / `unwrap_err()`. These are convenient for tests and prototyping. However, the library may deliberately avoid panicking APIs, which is a valid choice.
-
-- **`done()` / `loop_val()`**: Non-panicking extractors returning `Option<B>` / `Option<A>`, analogous to `Result::ok()` / `Result::err()`. These would be useful for pattern-matching avoidance.
-
-- **`map_loop_or()` / `map_done_or()`**: Extractors with defaults, analogous to `Result::map_or()`.
-
-- **`traverse()` (single-variant)**: A method `traverse_done()` or similar that traverses only the `Done` side with an effectful function. The current `bi_traverse` covers the general case, and the HKT `Traversable` covers the applied-brand case, so this gap is minor.
-
-- **`swap()`**: Swaps `Loop(a)` to `Done(a)` and vice versa. This is a simple utility that can be useful, analogous to `Either.swap()`.
-
-None of these are critical; the existing API covers the essential operations, and users can always pattern-match directly.
-
----
-
-## 5. HKT Integration
-
-**Verdict: Correct.**
-
-The `impl_kind!` invocations are correct:
+Step's main purpose is as the return type within `tail_rec_m` step functions. Every `MonadRec` implementation pattern-matches on Step:
 
 ```rust
-// Bifunctor-level (two type params, no lifetime)
-impl_kind! { for StepBrand { type Of<A, B> = Step<A, B>; } }
-
-// Bifunctor-level (two type params, with lifetime)
-impl_kind! { for StepBrand { type Of<'a, A: 'a, B: 'a>: 'a = Step<A, B>; } }
-
-// Applied brands (one type param, with lifetime)
-impl_kind! { impl<LoopType: 'static> for StepLoopAppliedBrand<LoopType> { type Of<'a, B: 'a>: 'a = Step<LoopType, B>; } }
-impl_kind! { impl<DoneType: 'static> for StepDoneAppliedBrand<DoneType> { type Of<'a, A: 'a>: 'a = Step<A, DoneType>; } }
+// In ThunkBrand's MonadRec:
+fn tail_rec_m<'a, A: 'a, B: 'a>(func: impl Fn(A) -> Thunk<'a, Step<A, B>> + 'a, initial: A) -> Thunk<'a, B> {
+    Thunk::new(move || {
+        let mut current = initial;
+        loop {
+            match func(current).evaluate() {
+                Step::Loop(next) => current = next,
+                Step::Done(res) => break res,
+            }
+        }
+    })
+}
 ```
 
-The `'static` bound on `LoopType` / `DoneType` in the applied brands is the standard limitation of the Brand pattern in this library (the baked-in type parameter must outlive all possible `'a`). This is consistent with how `ResultErrAppliedBrand<E>` requires `E: 'static`.
+This pattern is consistent across all 16+ `MonadRec` implementors in the codebase.
 
-The brand types in `brands.rs` (`StepBrand`, `StepLoopAppliedBrand<B>`, `StepDoneAppliedBrand<A>`) are correctly defined as zero-sized marker types with standard derives.
+### Secondary: Free monad interpretation.
 
----
+`Free::fold_free` uses Step to drive the interpretation loop:
 
-## 6. Documentation
+```rust
+G::tail_rec_m(
+    move |free: Free<F, A>| match free.resume() {
+        Ok(a)  => G::pure(Step::Done(a)),
+        Err(fa) => G::map(|inner_free| Step::Loop(inner_free), nt.transform(fa)),
+    },
+    self,
+)
+```
 
-**Verdict: Thorough and accurate, with minor issues.**
+### Tertiary: SendThunk and TrySendThunk.
 
-Positive aspects:
-- Every public method has a doc comment, `#[document_signature]`, `#[document_type_parameters]`, `#[document_parameters]`, `#[document_returns]`, `#[document_examples]` with tested code examples.
-- The module-level doc comment explains the purpose with a working example.
-- The HKT representation section in the `Step` enum docs clearly explains the three-brand strategy.
-- Serde support is documented.
-- Conversion impls have clear docs explaining the mapping.
+These types have their own `tail_rec_m` inherent methods (not via the `MonadRec` trait, since they lack full HKT support) that use Step in the same pattern.
 
-Minor issues:
-- The `fold_right` and `fold_left` inherent methods document their parameter as `"The step value."` via the `impl` block's `#[document_parameters]`, but this refers to `self` which is not typically listed as a parameter in Rust doc conventions. This is a library-wide convention though, not specific to `Step`.
-- The `bi_traverse` method's doc says "See `Bitraversable::bi_traverse` for the type class version" but the inherent method predates the trait method in the file. This is just a cross-reference, not an issue.
+### Usage ergonomics at call sites.
 
----
+Typical usage:
 
-## 7. Consistency
+```rust
+tail_rec_m::<ThunkBrand, _, _>(
+    |(n, acc)| {
+        if n == 0 { Thunk::pure(Step::Done(acc)) }
+        else      { Thunk::pure(Step::Loop((n - 1, n * acc))) }
+    },
+    (n, 1),
+)
+```
 
-**Verdict: Highly consistent with library patterns.**
+The `Step::Loop` / `Step::Done` constructors are clear and self-documenting. No complaints here.
 
-The file follows the library's conventions closely:
+## 5. Ergonomics
 
-- Uses `#[fp_macros::document_module]` / `mod inner` / `pub use inner::*` pattern.
-- Tab indentation matching `rustfmt.toml`.
-- Import style matches (grouped, one per line).
-- Type class implementations follow the same structure as `Result`, `Option`, `Pair`, etc.
-- Applied brand naming convention (`StepLoopAppliedBrand` / `StepDoneAppliedBrand`) matches `ResultErrAppliedBrand` / `ResultOkAppliedBrand`.
-- `Clone` bounds on `Lift` and `Semiapplicative` impls match other types.
-- The test module structure (unit tests, property-based law tests, trait marker verification) is consistent.
-- `QuickCheck` `Arbitrary` implementation is provided in the test module.
+### Strengths.
 
----
+1. **Rich inherent API.** Step provides `is_loop`, `is_done`, `map_loop`, `map_done`, `bimap`, `bi_fold_right`, `bi_fold_left`, `bi_fold_map`, `fold_right`, `fold_left`, `fold_map`, `bind`, `bind_loop`, `done`, `loop_val`, `swap`. These cover the common operations without requiring the HKT machinery.
 
-## 8. Limitations and Issues
+2. **Conversion traits.** Bidirectional `From` implementations for `Result` and `ControlFlow` with round-trip property tests. This makes interop with standard Rust idioms seamless.
 
-### Inherent Limitations
+3. **Variant naming.** `Loop` and `Done` are clear and domain-specific. They immediately communicate intent in `MonadRec` contexts, unlike generic names like `Left`/`Right` or `Continue`/`Break`.
 
-1. **`'static` requirement on applied brand type parameters**: `StepLoopAppliedBrand<A>` requires `A: 'static`, and `StepDoneAppliedBrand<B>` requires `B: 'static`. This is a fundamental limitation of the Brand pattern and cannot be avoided without changing the HKT encoding.
+### Potential improvements.
 
-2. **No `PartialOrd` / `Ord` derives**: The enum derives `Clone, Copy, Debug, PartialEq, Eq, Hash` but not `PartialOrd` or `Ord`. For a control-flow type this is fine; ordering on `Step` values has no clear semantic meaning. If ordering were added, the question of whether `Loop < Done` or `Done < Loop` would be arbitrary.
+1. **`unwrap_done` / `unwrap_loop` methods.** Step has `done() -> Option<B>` and `loop_val() -> Option<A>`, but no panicking extractors. These could be useful for testing, similar to `Result::unwrap()`. However, their absence encourages safer code patterns, so this is a stylistic choice.
 
-3. **No `Default` derive**: `Step` has no natural default value (unlike `Option` which defaults to `None`). This is correct.
+2. **`map` as an alias for `map_done`.** Since `StepLoopAppliedBrand` treats Done as the "primary" channel (matching `Either`'s right-bias), a `map` inherent method that maps Done would make the type feel more natural for users who think of Step as "right-biased Either". However, this could cause confusion since Step also supports mapping the Loop side.
 
-4. **Duplication between applied brands**: The `StepLoopAppliedBrand` and `StepDoneAppliedBrand` implementations are nearly symmetric mirrors of each other. This is roughly 800 lines of near-duplicate code. This is an inherent consequence of providing both orientations, and the library has the same pattern for `Result` (`ResultErrAppliedBrand` / `ResultOkAppliedBrand`). There is no obvious way to reduce this duplication without macros or higher-level abstraction.
+3. **The `loop_val` name.** The name `loop_val` breaks from the pattern of `done`. A more symmetric pair would be `loop_val` / `done_val`, or `into_loop` / `into_done`, or just `loop_` / `done` (where `loop_` avoids the keyword). The current asymmetry (`done` vs. `loop_val`) is mildly inconsistent but not a significant issue.
 
-5. **`Semimonad` without `Monad` for `StepDoneAppliedBrand`**: While `StepDoneAppliedBrand` gets `Monad` via blanket impl, its semantics are somewhat unusual: `pure` wraps into `Loop`, meaning "continue the computation." This is mathematically valid but semantically backwards from `MonadRec`'s perspective, where `Done` means termination. Users should prefer `StepLoopAppliedBrand` for `MonadRec`-related work. The `StepDoneAppliedBrand` monad is the dual and exists for completeness.
+## 6. Documentation Quality
 
-### No Issues Found
+### Verdict: Excellent.
 
-- No bugs or logic errors detected.
-- No unsoundness concerns (the type is a simple enum with no unsafe code).
-- The `From` conversions are correct and the mapping (`Loop <-> Err/Continue`, `Done <-> Ok/Break`) is semantically sensible.
-- The `serde` feature gate is correctly applied.
+1. **Module-level docs** with a working example showing `sum_to_zero`.
+2. **Type-level docs** explain HKT representation with all three brands, serde support, variant descriptions.
+3. **Every method** has `#[document_signature]`, `#[document_type_parameters]`, `#[document_parameters]`, `#[document_returns]`, and `#[document_examples]` with working code examples.
+4. **Type class implementations** each have full documentation following the same template.
+5. **Conversion implementations** document the mapping between variants clearly.
 
-### Summary
+The doc comments are consistent with the library's documentation standards. No gaps detected.
 
-`Step` is a well-implemented, thoroughly tested, and correctly documented type that serves its purpose as the control type for `MonadRec`. The type class coverage is comprehensive for a two-variant sum type. The main trade-off is the ~800 lines of near-symmetric duplication between the two applied brands, which is an acceptable cost of the library's HKT encoding approach. No changes are required; potential enhancements (convenience extractors like `done() -> Option<B>`, a `swap()` method) are nice-to-haves rather than necessities.
+## 7. Issues and Limitations
+
+### 7.1. `'static` requirement on applied brand type parameters.
+
+As noted in section 2, `StepLoopAppliedBrand<LoopType: 'static>` and `StepDoneAppliedBrand<DoneType: 'static>` require `'static`. This means you cannot use Step with the HKT machinery for types containing borrowed data. For Step's primary use case (MonadRec control types with owned data), this is not a problem. But it prevents generic library code from using `StepLoopAppliedBrand` with borrowed loop states.
+
+### 7.2. `Clone` requirement on applied brand parameters for Monad/Applicative.
+
+`Semiapplicative`, `Semimonad`, `Lift`, and `MonadRec` impls require `LoopType: Clone + 'static` (or `DoneType: Clone + 'static`). This is because the "short-circuit" variant must be moved into the result, and multiple branches might need it. Since Step derives `Clone`, this propagates. This is inherent to the semantics and not a design flaw.
+
+### 7.3. No `Extend` / `Comonad` instances.
+
+Step cannot have a lawful `Comonad` instance because `extract` would need to choose between Loop and Done without knowing which variant is present. This is correct; these are intentionally absent.
+
+### 7.4. No `Display` implementation.
+
+Step derives `Debug` but does not implement `Display`. This is a minor gap; a `Display` impl could produce `"Loop(x)"` or `"Done(x)"` for types where `A: Display, B: Display`. Not essential but could improve error messages.
+
+### 7.5. Inherent methods duplicate type class methods.
+
+`Step::bimap`, `Step::fold_right`, `Step::bi_fold_right`, etc. duplicate the functionality provided by the `Bifunctor`, `Foldable`, `Bifoldable` type class implementations. The type class impls delegate to the inherent methods, so there is no code duplication in logic. The inherent methods serve as a more ergonomic API for direct use without HKT machinery, which is the correct design choice.
+
+## 8. Alternatives Analysis
+
+### 8.1. Using `Result<B, A>` directly instead of Step.
+
+**Pros:** No new type; reuses a well-known standard type.
+**Cons:** `Err` for "continue looping" and `Ok` for "done" inverts the usual semantics where `Err` means failure. This would make MonadRec code confusing. Step's domain-specific naming (`Loop`/`Done`) is a significant readability win.
+
+**Verdict:** Step is better than bare Result for this use case.
+
+### 8.2. Using `core::ops::ControlFlow<B, A>` directly.
+
+**Pros:** Standard library type with `Continue`/`Break` semantics that roughly align.
+**Cons:**
+- `ControlFlow` uses `Break` for termination and `Continue` for looping, which maps well conceptually. However, `ControlFlow` is designed for Rust's `?` operator and `Try` trait, not for HKT/MonadRec. Having a separate type allows implementing HKT brands and type classes.
+- `ControlFlow` does not derive `Hash` or `serde` traits.
+- The naming `Break`/`Continue` is tied to Rust's loop semantics, not to "monadic recursion" semantics.
+
+**Verdict:** Step is better because it can carry HKT brands and has domain-appropriate naming. The `From` conversions provide interop when needed.
+
+### 8.3. Using a trait instead of an enum.
+
+**Pros:** Could theoretically allow open extension.
+**Cons:** MonadRec inherently needs exactly two states (loop or done). A trait would add indirection and prevent exhaustive matching. The enum is zero-cost and statically known.
+
+**Verdict:** Enum is clearly the right representation.
+
+### 8.4. Newtype over `Result`.
+
+```rust
+pub struct Step<A, B>(Result<B, A>);
+```
+
+**Pros:** Reuses Result's machinery internally.
+**Cons:** Adds indirection conceptually. Pattern matching requires destructuring the newtype. The enum representation is simpler and more direct.
+
+**Verdict:** Direct enum is better.
+
+## 9. Testing Coverage
+
+The test module (lines 2083-2840) is comprehensive:
+
+- **Unit tests** for all inherent methods (`is_loop`, `is_done`, `map_loop`, `map_done`, `bimap`, `done`, `loop_val`, `swap`).
+- **Type class tests** for both applied brands: Functor, Bifunctor, Lift, Pointed, Semiapplicative, Semimonad, Foldable, Traversable.
+- **Law verification** via QuickCheck: Functor identity/composition, Bifunctor identity/composition, Monad left identity/right identity/associativity, MonadRec identity.
+- **Conversion round-trip** property tests for Step/Result and Step/ControlFlow.
+- **MonadRec** tests including identity law, recursive sum, short-circuiting, and stack safety (200,000 iterations).
+- **Marker trait** compile-time checks for Applicative, Monad, and MonadRec.
+- **Custom `Arbitrary` impl** for QuickCheck that generates both variants with equal probability.
+
+This is thorough testing. No significant gaps.
+
+## 10. Summary
+
+Step is a well-designed, well-documented, thoroughly tested control type that serves its purpose cleanly. The enum representation with `Loop`/`Done` variants is the right choice. The three-brand HKT support (`StepBrand`, `StepLoopAppliedBrand`, `StepDoneAppliedBrand`) is comprehensive and mirrors the pattern used by other bifunctor types like Pair and Tuple2 in the library. The full Monad + MonadRec tower for both applied brands, plus Bifunctor/Bifoldable/Bitraversable for the base brand, covers all realistic use cases.
+
+The type has no significant design issues. The minor observations (no `Display`, slight naming asymmetry between `done` and `loop_val`, `'static` bounds on applied brands) are all either intentional trade-offs or low-priority improvements that do not affect the type's fitness for its primary role in the MonadRec machinery.
+
+**No changes recommended.** Step is production-ready as-is.
