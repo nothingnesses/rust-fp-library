@@ -40,10 +40,9 @@ just test                                        # Run all tests (cached)
 just test -p fp-library test_name                # Run a subset (no caching)
 just test -p fp-library --test property          # Run property-based tests
 just test --doc -p fp-library                    # Run doc tests
-just test-force                                  # Force re-run full suite (ignores cache)
 ```
 
-Cache location: `.claude/test-cache/` (gitignored). Invalidated automatically when `.rs` files or `Cargo.toml` change.
+Cache location: `.claude/test-cache/` (gitignored). Invalidated automatically when `.rs` files or `Cargo.toml` change. **Do not re-run `just test` if no source files have changed since the last run.** The cached output is printed automatically; check it instead of re-running. There is no command to bypass the cache.
 
 ### Building
 
@@ -213,7 +212,7 @@ The codebase uses custom rustfmt rules (`rustfmt.toml`):
 - Grouped imports by `StdExternalCrate`
 - Single import per line (`imports_granularity = "One"`)
 
-**Always run `cargo fmt` before committing.**
+**Always run `just fmt --all` before committing.**
 
 ### Documentation Standards
 

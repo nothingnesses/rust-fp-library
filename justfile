@@ -60,14 +60,6 @@ test *args:
         echo "$LATEST" > "$TIMESTAMP_FILE"
     fi
 
-# Force re-run tests (ignores cache).
-test-force *args:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    rm -f .claude/test-cache/*
-    just test {{ args }}
-
-
 # Verify: fmt, clippy, doc, then test (in order).
 verify:
     just fmt --all
