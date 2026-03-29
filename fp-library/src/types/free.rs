@@ -779,17 +779,12 @@ mod inner {
 		///
 		/// ### Stack Safety
 		///
-		/// This method is **not** stack-safe for deeply nested `Suspend` chains. It recurses
-		/// once per `Suspend` layer; computations with thousands of `Suspend` layers may overflow
-		/// the stack. `bind` chains are not a concern since [`resume`](Free::resume)
-		/// collapses them iteratively.
-		///
-		/// In practice the `Suspend` depth equals the number of [`lift_f`](Free::lift_f) calls
-		/// (i.e., the number of distinct effects), which is typically small. This matches
-		/// PureScript's `hoistFree`, which is also recursive over `Suspend` depth. Unlike
-		/// [`fold_free`](Free::fold_free) (which delegates stack safety to `MonadRec`),
-		/// a fully iterative `hoist_free` is not feasible because `Free<G, A>` cannot
-		/// implement `MonadRec` as an HKT trait due to `'static` constraints.
+		/// This method is stack-safe for arbitrarily deep `Suspend` chains. Rather than
+		/// recursively mapping `hoist_free` over inner layers during construction, it uses
+		/// [`lift_f`](Free::lift_f) and [`bind`](Free::bind) to defer each layer's
+		/// transformation into a continuation stored in the `CatList`. The actual work
+		/// happens inside [`evaluate`](Free::evaluate)'s iterative loop, so the call
+		/// stack depth is O(1) regardless of how many `Suspend` layers the `Free` contains.
 		#[document_signature]
 		///
 		#[document_type_parameters("The target functor brand.")]
@@ -834,11 +829,12 @@ mod inner {
 					// Transform F<Free<F, A>> into G<Free<F, A>>
 					let nt_clone = nt.clone();
 					let ga = nt.transform(fa);
-					// Map over the inner Free<F, A> to recursively hoist it to Free<G, A>.
-					// Clone nt_clone inside the closure because Functor::map requires Fn, not FnOnce.
-					let hoisted =
-						G::map(move |inner: Free<F, A>| inner.hoist_free(nt_clone.clone()), ga);
-					Free::wrap(hoisted)
+					// Lift G<Free<F, A>> into Free<G, Free<F, A>> using lift_f,
+					// then bind to recursively hoist. The bind closure is stored
+					// in the CatList and only executed during evaluate's iterative
+					// loop, so this does not grow the call stack.
+					Free::<G, Free<F, A>>::lift_f(ga)
+						.bind(move |inner: Free<F, A>| inner.hoist_free(nt_clone))
 				}
 			}
 		}
@@ -1731,6 +1727,22 @@ mod tests {
 		}
 		let hoisted = free.hoist_free(ThunkId);
 		assert_eq!(hoisted.evaluate(), 99);
+	}
+
+	/// Tests `Free::hoist_free` is stack-safe with 100k nested `Wrap` layers.
+	///
+	/// **What it tests:** Verifies that `hoist_free` does not overflow the stack on deeply
+	/// nested `Suspend` chains. The old recursive implementation would overflow at this depth.
+	/// **How it tests:** Builds 100,000 nested `Wrap` layers, hoists with `ThunkId`, and evaluates.
+	#[test]
+	fn test_free_hoist_free_stack_safety() {
+		let depth = 100_000;
+		let mut free = Free::<ThunkBrand, i32>::pure(42);
+		for _ in 0 .. depth {
+			free = Free::wrap(Thunk::new(move || free));
+		}
+		let hoisted = free.hoist_free(ThunkId);
+		assert_eq!(hoisted.evaluate(), 42);
 	}
 
 	// ── to_view tests ──
