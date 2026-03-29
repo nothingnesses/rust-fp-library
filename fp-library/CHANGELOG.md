@@ -11,8 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`Extend` type class**: Co-Kleisli extension, the dual of `Semimonad`. Implementations for `IdentityBrand`, `ThunkBrand`, `VecBrand`, and `CatListBrand`. Includes `extend`, `duplicate`, `extend_flipped`, `compose_co_kleisli`, `compose_co_kleisli_flipped` free functions. `duplicate` is also a default trait method.
+- **`Extend` type class**: Co-Kleisli extension, the dual of `Semimonad`. Implementations for `IdentityBrand`, `ThunkBrand`, `VecBrand` (suffix-based), and `CatListBrand` (suffix-based). `extend` is the required method; `duplicate`, `extend_flipped`, `compose_co_kleisli`, `compose_co_kleisli_flipped` are default trait methods and also available as free functions.
 - **`Comonad` type class**: Blanket impl for `Extend + Extract`. Documents comonad laws (left identity, right identity, map-extract).
+- **`MonadPlus` type class**: Blanket impl for `Monad + Alternative`. Documents the distributivity law (`bind(alt(x, y), f) == alt(bind(x, f), bind(y, f))`). `VecBrand` and `CatListBrand` are lawful implementors; `OptionBrand` acquires the trait but does not satisfy distributivity.
 - **`Extract` type class**: Renamed from `Evaluable`. The `Functor` supertrait has been removed; `Functor` now lives on `Extend` instead.
 - **`ControlFlowBrand`**, **`ControlFlowBreakAppliedBrand`**, **`ControlFlowContinueAppliedBrand`**: HKT brands for `core::ops::ControlFlow`, replacing the custom `Step` type. Type parameters are swapped (matching `ResultBrand`'s pattern) so the first HKT parameter is the continue/loop value.
 - **`FreeStep` enum**, **`to_view`**, **`substitute_free`** on `Free`: `to_view` factors out the shared collapse logic from `evaluate` and `resume`. `substitute_free` enables Free-to-Free transformations without `MonadRec`.
@@ -37,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`LazyConfig` and `TryLazyConfig` moved to `classes/`**: Fixes `brands -> types` dependency ordering violation.
 - **Unsafe code removed from `Free`**: `take_parts` uses `mem::replace` instead of `ManuallyDrop` + `ptr::read`.
 - **`Extend` requires `A: Clone`**: Needed for collection types (Vec, CatList) to create suffix copies during extension.
+- **Duality cross-references added**: `Semimonad` docs reference `Extend` as its dual; `Monad` docs reference `Comonad`; `Deferrable`/`Extract` docs reworded from "dual" to "inverse" (they operate at different abstraction levels).
 
 ### Removed
 
