@@ -1,12 +1,14 @@
 # Lazy Evaluation Hierarchy: Implementation Plan
 
-This plan addresses all issues identified in the [consolidated analysis summary](summary.md) and subsequent research conversations. Work is grouped into sequential phases, ordered so that foundational and blocking changes come first.
+This plan addresses all issues identified in the [consolidated analysis summary](summary.md) and subsequent research conversations. Work is grouped into sequential phases, ordered so that foundational and blocking changes come first. Each phase includes its own testing tasks to ensure the test suite stays green throughout.
+
+**Parallelism:** Tasks within a phase that share no dependencies can be worked on concurrently. These are noted with "(parallelizable)" in the phase description.
 
 ---
 
 ## Phase 1: Structural Foundations
 
-Foundational changes that unblock or simplify later phases.
+Foundational changes that unblock or simplify later phases. Tasks 1.1, 1.2, and 1.3 are independent and parallelizable.
 
 ### Task 1.1: Move `LazyConfig` and `TryLazyConfig` trait definitions to `classes/`
 
@@ -64,6 +66,7 @@ Foundational changes that unblock or simplify later phases.
   `Hash` and `Copy` are preserved (`ControlFlow` derives both when its fields do). Serde support (`Serialize`/`Deserialize` behind the `serde` feature flag) is lost because serde derives cannot be added to foreign types directly. If serde support is needed in the future, use `#[serde(remote = "ControlFlow")]` on a helper struct or implement `Serialize`/`Deserialize` manually. Remove `From` conversions between `Step` and `ControlFlow` (no longer needed).
 - **Why:** Uses a standard library type instead of a custom enum. Provides interop with Rust's `?` operator and `Try` trait. Eliminates `From` conversion boilerplate. The swapped-parameter `impl_kind!` preserves all HKT semantics.
 - **Dependencies:** None, but best done early since it touches many files.
+- **Docs:** Update `MonadRec` trait docs to use `ControlFlow::Continue`/`ControlFlow::Break` terminology. Add the equivalence law: `tail_rec_m(f, a)` is equivalent to `f(a) >>= match { Continue(a') => tail_rec_m(f, a'), Break(b) => pure(b) }`. Add nondeterministic termination caveat for `VecBrand`/`CatListBrand`: if the step function always produces `Continue`, the computation never terminates and consumes unbounded memory.
 
 ### Task 1.3: Refactor `Free` to CatList-paired representation
 
@@ -189,11 +192,16 @@ Foundational changes that unblock or simplify later phases.
 - **Why:** Eliminates the "Bind on Pure creates unnecessary nesting" issue: `pure(a).bind(f1).bind(f2)` produces `(Return(a), CatList[f1, f2])` instead of nested `Bind { head: Bind { head: Pure(a), ... }, ... }`. Reduces per-bind allocations for Pure/Wrap values (no extra `Box` wrapping). Simplifies the evaluate loop (two-way match instead of three-way). Aligns with PureScript's proven "Reflection without Remorse" design.
 - **Dependencies:** None, but should be done before other Free-related changes (Tasks 5.1, 5.2, 7.4).
 
+### Task 1.4: Phase 1 verification
+
+- **What:** Run `fmt -> clippy -> doc -> test`. Ensure all existing tests pass after the structural changes. Port existing `Step` tests to use `ControlFlow`. Verify all `MonadRec` implementors produce correct results with the new type.
+- **Dependencies:** Tasks 1.1, 1.2, 1.3.
+
 ---
 
-## Phase 2: Missing Trait Implementations (High Priority)
+## Phase 2: Gap Fills
 
-Fills obvious gaps in the type class hierarchy. These are small, self-contained additions.
+Fills obvious gaps in the type class hierarchy and conversion web. All tasks are independent and parallelizable.
 
 ### Task 2.1: Add `WithIndex` and `FoldableWithIndex` for `TryLazyBrand<E, Config>`
 
@@ -220,11 +228,40 @@ Fills obvious gaps in the type class hierarchy. These are small, self-contained 
 - **Why:** Fills a gap in the conversion web. The infallible pair already exists.
 - **Dependencies:** None.
 
+### Task 2.4: Add `Display` for `TryLazy`
+
+- **Files to modify:**
+  - `fp-library/src/types/try_lazy.rs`
+- **What:** Implement `Display` mirroring `Lazy`'s implementation.
+- **Why:** Restores parity with `Lazy`.
+- **Dependencies:** None.
+
+### Task 2.5: Add `Display` for `CatList`
+
+- **Files to modify:**
+  - `fp-library/src/types/cat_list.rs`
+- **What:** Implement `Display for CatList<A: Display>` showing elements in list notation (e.g., `[1, 2, 3]`).
+- **Why:** Natural representation for a list type. Trivial to implement via `self.iter()`.
+- **Dependencies:** None.
+
+### Task 2.6: Add cross-config conversions for `TryLazy`
+
+- **Files to modify:**
+  - `fp-library/src/types/try_lazy.rs`
+- **What:** Add `From<RcTryLazy> for ArcTryLazy` and vice versa, following `Lazy`'s pattern.
+- **Why:** Completes the conversion matrix.
+- **Dependencies:** None.
+
+### Task 2.7: Phase 2 verification
+
+- **What:** Run `fmt -> clippy -> doc -> test`. Verify new `From` impls, `Display` impls, and `FoldableWithIndex` with unit tests.
+- **Dependencies:** Tasks 2.1 through 2.6.
+
 ---
 
 ## Phase 3: New Type Classes
 
-Renames `Evaluable` to `Extract` and introduces `Extend` and `Comonad` to complete the categorical duality with `Monad`.
+Renames `Evaluable` to `Extract` and introduces `Extend` and `Comonad` to complete the categorical duality with `Monad`. Tasks 3.1 and 3.2 are independent and parallelizable. Tasks 3.4, 3.5, and 3.6 are independent and parallelizable (after 3.3).
 
 ### Task 3.1: Rename `Evaluable` to `Extract`
 
@@ -238,6 +275,7 @@ Renames `Evaluable` to `Extract` and introduces `Extend` and `Comonad` to comple
 - **What:** Rename the `Evaluable` trait to `Extract` and its method from `evaluate` to `extract`. Remove the `Functor` supertrait from `Extract`; the `Functor` constraint belongs on `Extend` instead (see Task 3.2). Update `Free`'s bounds from `F: Evaluable` to `F: Extract + Functor` where both are needed. Rename the free function wrapper from `evaluate` to `extract`. Rename the file from `evaluable.rs` to `extract.rs`.
 
   Inherent `evaluate` methods on `Thunk`, `Lazy`, `TryLazy`, `Trampoline`, `TryTrampoline`, `Free`, etc. are **not renamed**; they mean "force/run this computation," which is a broader operation than categorical extraction.
+- **Docs:** Add the law `extract(pure(x)) == x` to `Extract` docs. Document that `Extract` and `Deferrable` are duals: `Deferrable` constructs lazy values from thunks, `Extract` forces/extracts them. For types implementing both (like `Thunk`), `extract(defer(|| x)) == x` forms a round-trip. Add reciprocal cross-references on `Deferrable`.
 - **Why:** `extract` is the standard categorical name (matching PureScript/Haskell). Removing `Functor` from `Extract` allows it to stand independently; `Functor` is a law-level consequence of `Extend`, not of `Extract` alone. The map-extract law (`extract(map(f, fa)) == f(extract(fa))`) belongs to `Comonad` (the combination), not to `Extract` in isolation.
 - **Dependencies:** None. This is a rename + constraint adjustment.
 
@@ -319,30 +357,18 @@ Renames `Evaluable` to `Extract` and introduces `Extend` and `Comonad` to comple
 - **Why:** Memoized lazy values support contextual mapping even though they cannot extract owned values.
 - **Dependencies:** Task 3.2.
 
+### Task 3.7: Phase 3 verification
+
+- **What:** Run `fmt -> clippy -> doc -> test`. Add QuickCheck property tests for comonad laws (`extract . duplicate == id`, `fmap extract . duplicate == id`, `duplicate . duplicate == fmap duplicate . duplicate`) for `IdentityBrand`, `ThunkBrand`, and `LazyBrand` (Extend-only laws for Lazy). Verify all existing tests still pass after the `Evaluable` -> `Extract` rename.
+- **Dependencies:** Tasks 3.1 through 3.6.
+
 ---
 
-## Phase 4: Documentation Fixes
+## Phase 4: Documentation
 
-Addresses documentation gaps that affect correctness understanding. Text-only changes with no code impact.
+Addresses documentation gaps that affect correctness understanding. Text-only changes with no code impact. All tasks are independent and parallelizable.
 
-### Task 4.1: Document the unfolding/equivalence law for `MonadRec`
-
-- **Files to modify:**
-  - `fp-library/src/classes/monad_rec.rs` (update trait-level doc comment)
-- **What:** Add the equivalence law: `tail_rec_m(f, a)` is equivalent to `f(a) >>= match { Continue(a') => tail_rec_m(f, a'), Break(b) => pure(b) }`.
-- **Why:** The trait currently states only the identity law. The equivalence law is critical for reasoning about correctness.
-- **Dependencies:** Task 1.2 (uses ControlFlow terminology).
-
-### Task 4.2: Document the pure-extract law for `Extract` and cross-reference with `Deferrable`
-
-- **Files to modify:**
-  - `fp-library/src/classes/extract.rs` (update trait-level doc comment)
-  - `fp-library/src/classes/deferrable.rs` (add cross-reference)
-- **What:** Add the law `extract(pure(x)) == x` to `Extract` docs. Document that `Extract` and `Deferrable` are duals: `Deferrable` constructs lazy values from thunks, `Extract` forces/extracts them. For types implementing both (like `Thunk`), `extract(defer(|| x)) == x` forms a round-trip. Add reciprocal cross-references on both traits.
-- **Why:** `Free::evaluate` implicitly relies on this law. The duality is a key conceptual relationship that aids understanding.
-- **Dependencies:** Task 3.1 (rename must be done first).
-
-### Task 4.3: Add algebraic properties and limitations sections to `TryTrampoline`
+### Task 4.1: Add algebraic properties and limitations sections to `TryTrampoline`
 
 - **Files to modify:**
   - `fp-library/src/types/try_trampoline.rs` (update doc comments)
@@ -350,18 +376,16 @@ Addresses documentation gaps that affect correctness understanding. Text-only ch
 - **Why:** `TryTrampoline` is the only major type lacking structured property documentation.
 - **Dependencies:** None.
 
-### Task 4.4: Document nondeterministic termination caveat for multi-element `MonadRec`
+### Task 4.2: Phase 4 verification
 
-- **Files to modify:**
-  - `fp-library/src/classes/monad_rec.rs` (add note to trait docs or impl docs)
-- **What:** Note that for `VecBrand`/`CatListBrand`, if the step function always produces `Continue` values, the computation never terminates and consumes unbounded memory.
-- **Dependencies:** Task 1.2 (uses ControlFlow terminology).
+- **What:** Run `cargo doc --workspace --all-features --no-deps` and verify zero warnings.
+- **Dependencies:** Task 4.1.
 
 ---
 
-## Phase 5: Free Monad Constraint Relaxation
+## Phase 5: Free Monad Improvements
 
-Loosens overly broad type constraints on `Free`.
+Loosens overly broad type constraints on `Free` and adds new operations. Tasks 5.1 and 5.2 are independent and parallelizable.
 
 ### Task 5.1: Relax `Extract` constraint on `Free` construction methods
 
@@ -439,37 +463,20 @@ Loosens overly broad type constraints on `Free`.
 - **Why:** Reduces code duplication between `evaluate` and `resume`. `substitute_free` enables Free-to-Free transformations without the `MonadRec` overhead of `fold_free`.
 - **Dependencies:** Task 1.3 (CatList-paired refactor simplifies the view concept).
 
+### Task 5.3: Phase 5 verification
+
+- **What:** Run `fmt -> clippy -> doc -> test`. Verify that `Free` construction works with functors that only implement `Functor` (not `Extract`). Test `substitute_free` with `Free<ThunkBrand, A>` -> `Free<IdentityBrand, A>` transformations.
+- **Dependencies:** Tasks 5.1, 5.2.
+
 ---
 
-## Phase 6: Additional Trait Implementations and Combinators (Medium Priority)
+## Phase 6: New Functionality
 
-Expands the hierarchy's utility.
+Adds new operations and combinators. Grouped by area.
 
-### Task 6.1: Add `Display` for `TryLazy`
+### 6A: Trampoline and Free Operations
 
-- **Files to modify:**
-  - `fp-library/src/types/try_lazy.rs`
-- **What:** Implement `Display` mirroring `Lazy`'s implementation.
-- **Why:** Restores parity with `Lazy`.
-- **Dependencies:** None.
-
-### Task 6.2: Add `Display` for `CatList`
-
-- **Files to modify:**
-  - `fp-library/src/types/cat_list.rs`
-- **What:** Implement `Display for CatList<A: Display>` showing elements in list notation (e.g., `[1, 2, 3]`).
-- **Why:** Natural representation for a list type. Trivial to implement via `self.iter()`.
-- **Dependencies:** None.
-
-### Task 6.3: Add cross-config conversions for `TryLazy`
-
-- **Files to modify:**
-  - `fp-library/src/types/try_lazy.rs`
-- **What:** Add `From<RcTryLazy> for ArcTryLazy` and vice versa, following `Lazy`'s pattern.
-- **Why:** Completes the conversion matrix.
-- **Dependencies:** None.
-
-### Task 6.4: Add `resume` method to `Trampoline` and `TryTrampoline`
+#### Task 6.1: Add `resume` method to `Trampoline` and `TryTrampoline`
 
 - **Files to modify:**
   - `fp-library/src/types/trampoline.rs`
@@ -478,13 +485,23 @@ Expands the hierarchy's utility.
 - **Why:** `resume` is a fundamental Free monad operation that is currently available only on `Free` directly.
 - **Dependencies:** Task 1.3 (benefits from the CatList-paired refactor).
 
-### Task 6.5: Add derived `MonadRec` combinators
+#### Task 6.2: Make `hoist_free` stack-safe
+
+- **Files to modify:**
+  - `fp-library/src/types/free.rs`
+- **What:** Replace the recursive `hoist_free` with an iterative implementation using `resume` or an explicit stack.
+- **Why:** The current implementation recurses per `Wrap` layer and can overflow on deep chains.
+- **Dependencies:** Tasks 1.3, 5.1.
+
+### 6B: MonadRec Combinators
+
+#### Task 6.3: Add derived `MonadRec` combinators
 
 - **Reference:** [PureScript's `Control.Monad.Rec.Class`](../../../purescript-tailrec/src/Control/Monad/Rec/Class.purs)
 - **Files to modify:**
   - `fp-library/src/classes/monad_rec.rs` (add free functions)
   - `fp-library/src/functions.rs` (re-export)
-- **What:** Implement derived combinators as free functions. Phase 1 (MVP):
+- **What:** Implement derived combinators as free functions. MVP:
   - `forever<Brand: MonadRec>(action) -> m b` : run an action indefinitely (stack-safe).
   - `while_some<Brand: MonadRec, A: Monoid>(computation) -> m A` : loop accumulating via Monoid until `None`.
   - `until_some<Brand: MonadRec>(computation) -> m A` : loop until `Some(x)`.
@@ -492,7 +509,7 @@ Expands the hierarchy's utility.
   - `while_m<Brand: MonadRec>(condition, body)` : loop while monadic condition holds.
   - `until_m<Brand: MonadRec>(condition, body)` : loop until monadic condition becomes true.
 
-  Phase 2 (follow-up):
+  Follow-up (can be a separate PR):
   - `fold_m` : stack-safe monadic fold over a `Foldable`.
   - `find_m` : search with monadic predicate, short-circuit on match.
   - `any_m` / `all_m` : monadic predicates with short-circuit.
@@ -504,11 +521,16 @@ Expands the hierarchy's utility.
 - **Why:** Makes `MonadRec` practically useful beyond manual `tail_rec_m` calls. These combinators are standard in PureScript's `purescript-tailrec` and Haskell's `monad-loops`.
 - **Dependencies:** Task 1.2 (uses ControlFlow).
 
+### Task 6.4: Phase 6 verification
+
+- **What:** Run `fmt -> clippy -> doc -> test`. Test `resume` on `Trampoline`/`TryTrampoline`. Verify `hoist_free` stack safety at 100k+ iterations. Test `forever` stack safety, `while_some`/`until_some` correctness, and all other new combinators with unit and property tests.
+- **Dependencies:** Tasks 6.1 through 6.3.
+
 ---
 
 ## Phase 7: Minor Improvements (Low Priority)
 
-Small quality-of-life improvements.
+Small quality-of-life improvements. Tasks 7.1 through 7.4 are independent and parallelizable.
 
 ### Task 7.1: Use weak references in Lazy fix combinators
 
@@ -534,15 +556,7 @@ Small quality-of-life improvements.
 - **Why:** Eliminates the common `.evaluate().clone()` pattern.
 - **Dependencies:** None.
 
-### Task 7.4: Make `hoist_free` stack-safe
-
-- **Files to modify:**
-  - `fp-library/src/types/free.rs`
-- **What:** Replace the recursive `hoist_free` with an iterative implementation using `resume` or an explicit stack.
-- **Why:** The current implementation recurses per `Wrap` layer and can overflow on deep chains.
-- **Dependencies:** Tasks 1.3, 5.1.
-
-### Task 7.5: Relax `Clone` bound on `SendThunk::tail_rec_m`
+### Task 7.4: Relax `Clone` bound on `SendThunk::tail_rec_m`
 
 - **Files to modify:**
   - `fp-library/src/types/send_thunk.rs`
@@ -550,55 +564,18 @@ Small quality-of-life improvements.
 - **Why:** Reduces friction for callers without changing behavior.
 - **Dependencies:** None.
 
+### Task 7.5: Phase 7 verification
+
+- **What:** Run `fmt -> clippy -> doc -> test`. Add QuickCheck property tests for `SendDeferrable` laws (transparency, idempotence) for `SendThunk`, `ArcLazy`, `TrySendThunk`, `ArcTryLazy`. Add QuickCheck tests verifying functor and monad laws for `SendThunk`'s inherent `map` and `bind`.
+- **Dependencies:** Tasks 7.1 through 7.4.
+
 ---
 
-## Phase 8: Testing and Verification
+## Final Verification
 
-Validates all changes and fills testing gaps.
+### Task F.1: Run full verification suite
 
-### Task 8.1: Add QuickCheck property tests for `SendDeferrable`
-
-- **Files to modify:**
-  - `fp-library/src/classes/send_deferrable.rs` (add test module)
-- **What:** Property tests verifying `SendDeferrable` laws (transparency, idempotence) for `SendThunk`, `ArcLazy`, `TrySendThunk`, `ArcTryLazy`.
-- **Why:** `Deferrable` has property tests but `SendDeferrable` does not.
-- **Dependencies:** All prior phases.
-
-### Task 8.2: Add QuickCheck property tests for `SendThunk` inherent methods
-
-- **Files to modify:**
-  - `fp-library/src/types/send_thunk.rs`
-- **What:** QuickCheck tests verifying functor laws and monad laws for `SendThunk`'s inherent `map` and `bind`.
-- **Why:** `Thunk` has law tests through HKT traits; `SendThunk` lacks equivalent coverage.
-- **Dependencies:** Task 7.5.
-
-### Task 8.3: Add tests for new ControlFlow brands
-
-- **Files to modify:**
-  - `fp-library/src/types/step.rs` (or renamed file)
-- **What:** Verify all type class instances (Bifunctor, Bifoldable, Bitraversable, Functor, Monad, MonadRec on both applied brands) with QuickCheck property tests. Port existing Step tests to use ControlFlow.
-- **Why:** Ensures the replacement preserves all algebraic properties.
-- **Dependencies:** Task 1.2.
-
-### Task 8.4: Add tests for `Extend`/`Comonad` instances
-
-- **Files to modify:**
-  - Test files for identity, thunk, lazy
-- **What:** QuickCheck property tests for comonad laws: `extract . duplicate == id`, `fmap extract . duplicate == id`, `duplicate . duplicate == fmap duplicate . duplicate`.
-- **Why:** Validates the new type class hierarchy.
-- **Dependencies:** Phase 3.
-
-### Task 8.5: Add tests for derived `MonadRec` combinators
-
-- **Files to modify:**
-  - `fp-library/src/classes/monad_rec.rs` (test module)
-- **What:** Unit and property tests for `forever` (verify stack safety at 100k+ iterations), `while_some`, `until_some`, `repeat_m`, `while_m`, `until_m`, and Phase 2 combinators.
-- **Why:** Ensures stack safety and correctness of all new combinators.
-- **Dependencies:** Task 6.7.
-
-### Task 8.6: Run full verification suite
-
-- **What:** Run `fmt -> clippy -> doc -> test`. Ensure zero warnings from `cargo doc` and zero clippy lints.
+- **What:** Run `fmt -> clippy -> doc -> test` (using the test caching wrapper). Ensure zero warnings from `cargo doc` and zero clippy lints. Verify all doc examples compile and pass.
 - **Dependencies:** All prior phases.
 
 ---
@@ -621,7 +598,7 @@ A `Send` variant of `Free` (and by extension `SendTrampoline`/`SendTryTrampoline
 
 ### `CatList::map` should flatten (not preserve structure)
 
-PureScript's `CatList` Functor instance also flattens during `map`: it calls `foldr link CatNil q` to collapse the internal queue before recursing. The Rust implementation's `into_iter().map(f).collect()` achieves the same flattening. Structure-preserving `map` would diverge from the reference implementation and the internal tree structure is an implementation detail of O(1) append, not something users should depend on. Flattening during `map` normalizes the structure, improving subsequent iteration performance.
+PureScript's `CatList` Functor instance also flattens during `map`: it calls `foldr link CatNil q` to collapse the internal queue before recursing. The Rust implementation's `into_iter().map(f).collect()` achieves the same flattening. The internal tree structure is a transient artifact of O(1) `append`, not something to preserve. Flattening during `map` normalizes the structure, improving performance of all subsequent operations (iteration, `uncons`, `fold`, further `map`s) at no extra asymptotic cost since `map` is already O(n). Structure-preserving `map` would not win in any operation and would add allocation overhead by rebuilding `VecDeque`s at each tree level.
 
 ### `TrySendThunkBrand` cannot implement any HKT traits
 
@@ -641,11 +618,10 @@ Adding `A: Clone` to `Functor` would not enable `Lazy` types to implement `Funct
 
 | Phase | Files Modified | Files Created |
 |-------|---------------|---------------|
-| 1 | `classes.rs`, `types/lazy.rs`, `types/try_lazy.rs`, `brands.rs`, `types/step.rs`, `classes/monad_rec.rs`, all MonadRec implementors, `types/free.rs`, `functions.rs` | `classes/lazy_config.rs` |
-| 2 | `types/try_lazy.rs`, `brands.rs`, `types/try_send_thunk.rs`, `types/try_thunk.rs` | None |
-| 3 | `classes/evaluable.rs` (renamed to `classes/extract.rs`), `types/thunk.rs`, `types/free.rs`, `types/identity.rs`, `types/lazy.rs`, `classes.rs`, `functions.rs`, all files importing `Evaluable` | `classes/extend.rs`, `classes/comonad.rs` |
-| 4 | `classes/monad_rec.rs`, `classes/extract.rs`, `classes/deferrable.rs`, `types/try_trampoline.rs` | None |
+| 1 | `classes.rs`, `types/lazy.rs`, `types/try_lazy.rs`, `brands.rs`, `types/step.rs`, `classes/monad_rec.rs`, all MonadRec implementors, `types/free.rs`, `functions.rs` | `classes/lazy_config.rs`, `classes/try_lazy_config.rs` |
+| 2 | `types/try_lazy.rs`, `brands.rs`, `types/try_send_thunk.rs`, `types/try_thunk.rs`, `types/cat_list.rs` | None |
+| 3 | `classes/evaluable.rs` (renamed to `classes/extract.rs`), `classes/deferrable.rs`, `types/thunk.rs`, `types/free.rs`, `types/identity.rs`, `types/lazy.rs`, `classes.rs`, `functions.rs`, all files importing `Evaluable` | `classes/extend.rs`, `classes/comonad.rs` |
+| 4 | `types/try_trampoline.rs` | None |
 | 5 | `types/free.rs` | None |
-| 6 | `types/try_lazy.rs`, `types/cat_list.rs`, `types/trampoline.rs`, `types/try_trampoline.rs`, `classes/monad_rec.rs`, `functions.rs` | None |
-| 7 | `types/lazy.rs`, `types/try_lazy.rs`, `types/free.rs`, `types/send_thunk.rs` | None |
-| 8 | Test files across the crate | None |
+| 6 | `types/trampoline.rs`, `types/try_trampoline.rs`, `types/free.rs`, `classes/monad_rec.rs`, `functions.rs` | None |
+| 7 | `types/lazy.rs`, `types/try_lazy.rs`, `types/send_thunk.rs` | None |
