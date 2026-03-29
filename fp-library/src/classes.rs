@@ -48,6 +48,7 @@ pub mod heyting_algebra;
 pub mod lazy_config;
 pub mod lift;
 pub mod monad;
+pub mod monad_plus;
 pub mod monad_rec;
 pub mod monoid;
 pub mod natural_transformation;

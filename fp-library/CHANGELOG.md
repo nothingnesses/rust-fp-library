@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-03-29
+
+### Added
+
+- **`Extend` type class**: Co-Kleisli extension, the dual of `Semimonad`. Implementations for `IdentityBrand`, `ThunkBrand`, `VecBrand`, and `CatListBrand`. Includes `extend`, `duplicate`, `extend_flipped`, `compose_co_kleisli`, `compose_co_kleisli_flipped` free functions. `duplicate` is also a default trait method.
+- **`Comonad` type class**: Blanket impl for `Extend + Extract`. Documents comonad laws (left identity, right identity, map-extract).
+- **`Extract` type class**: Renamed from `Evaluable`. The `Functor` supertrait has been removed; `Functor` now lives on `Extend` instead.
+- **`ControlFlowBrand`**, **`ControlFlowBreakAppliedBrand`**, **`ControlFlowContinueAppliedBrand`**: HKT brands for `core::ops::ControlFlow`, replacing the custom `Step` type. Type parameters are swapped (matching `ResultBrand`'s pattern) so the first HKT parameter is the continue/loop value.
+- **`FreeStep` enum**, **`to_view`**, **`substitute_free`** on `Free`: `to_view` factors out the shared collapse logic from `evaluate` and `resume`. `substitute_free` enables Free-to-Free transformations without `MonadRec`.
+- **`resume` method** on `Trampoline` and `TryTrampoline`: Decomposes a computation into one step without full evaluation.
+- **`MonadRec` combinators**: `forever`, `while_some`, `until_some`, `repeat_m`, `while_m`, `until_m`. All stack-safe via internal `tail_rec_m`.
+- **`Display`** for `CatList` (bracket notation, e.g., `[1, 2, 3]`) and `TryLazy`.
+- **`evaluate_owned`** convenience method on `RcLazy`, `ArcLazy`, `RcTryLazy`, `ArcTryLazy`. Returns a cloned owned value.
+- **`From<TrySendThunk> for TryThunk`** conversion.
+- **`WithIndex`** and **`FoldableWithIndex`** for `TryLazyBrand`.
+- **Inherent `ref_map` methods** on `RcTryLazy` and `ArcTryLazy` (trait impls now delegate to these).
+- **Fix combinators for `TryLazy`**: `rc_try_lazy_fix` and `arc_try_lazy_fix`, using weak references.
+- **Property tests** for `SendDeferrable` laws and `SendThunk` functor/monad laws.
+
+### Changed
+
+- **`Evaluable` renamed to `Extract` (API Breaking)**: Trait renamed, method `evaluate` renamed to `extract`, file renamed from `evaluable.rs` to `extract.rs`. Inherent `evaluate()` methods on concrete types are unchanged.
+- **`Functor` supertrait moved from `Extract` to `Extend` (API Breaking)**: `Extract` is now independent of `Functor`. `Free` uses `F: Extract + Functor` where both are needed.
+- **`Step` replaced by `core::ops::ControlFlow` (API Breaking)**: `StepBrand`, `StepLoopAppliedBrand`, `StepDoneAppliedBrand` replaced by `ControlFlowBrand`, `ControlFlowBreakAppliedBrand`, `ControlFlowContinueAppliedBrand`. All `Step::Loop`/`Step::Done` usages changed to `ControlFlow::Continue`/`ControlFlow::Break`.
+- **`Free` refactored to CatList-paired representation**: Internal `FreeInner` enum (Pure/Wrap/Bind) replaced by `FreeView` (Return/Suspend) paired with `CatList<Continuation>`. `bind` is now uniformly O(1) for all cases. Eliminates unnecessary nesting when binding on pure values.
+- **`hoist_free` made stack-safe**: Uses `lift_f` + `bind` to defer transformations into the CatList instead of recursing per Suspend layer.
+- **Lazy fix combinators use weak references**: `rc_lazy_fix` and `arc_lazy_fix` no longer leak memory when dropped without evaluation.
+- **`LazyConfig` and `TryLazyConfig` moved to `classes/`**: Fixes `brands -> types` dependency ordering violation.
+- **Unsafe code removed from `Free`**: `take_parts` uses `mem::replace` instead of `ManuallyDrop` + `ptr::read`.
+- **`Extend` requires `A: Clone`**: Needed for collection types (Vec, CatList) to create suffix copies during extension.
+
+### Removed
+
+- **`Step` enum (API Breaking)**: Replaced by `core::ops::ControlFlow`.
+- **`StepBrand`, `StepLoopAppliedBrand`, `StepDoneAppliedBrand` (API Breaking)**: Replaced by ControlFlow brands.
+- **`TrySendThunkBrand` (API Breaking)**: Had zero trait implementations; cannot soundly implement HKT traits due to `Send` invariant.
+- **`Clone` bound on `SendThunk::tail_rec_m` and `TrySendThunk::tail_rec_m`**: These use iterative loops, so `Clone` was unnecessary.
+- **Serde support for `ControlFlow`**: `Step` had `#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]`; `ControlFlow` is a foreign type and cannot derive serde traits directly.
+
 ## [0.13.1] - 2026-03-14
 
 ### Changed

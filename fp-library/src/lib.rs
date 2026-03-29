@@ -22,7 +22,7 @@
 //! - **Type Classes:** A comprehensive collection of standard type classes including:
 //!   - **Core:** `Functor`, `Contravariant`, `Pointed`, `Applicative`, `Semiapplicative`, `Monad`, `Semimonad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`, `Alt`, `Plus`, `Alternative`
 //!   - **Applicative Utilities:** `Lift`, `ApplyFirst`, `ApplySecond`
-//!   - **Monad Utilities:** `MonadRec`, `Extract`
+//!   - **Monad Utilities:** `MonadPlus`, `MonadRec`, `Extract`
 //!   - **Comonads:** `Extend`, `Comonad`
 //!   - **Bifunctors:** `Bifunctor`, `Bifoldable`, `Bitraversable`
 //!   - **Collections:** `Compactable`, `Filterable`, `Witherable`
