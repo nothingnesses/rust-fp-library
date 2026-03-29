@@ -4,7 +4,6 @@
 - Algebraic effects/effect system to implement extensible effects
   - [Analysis](../plans/effects/effects.md)
   - [Eff](https://github.com/lexi-lambda/eff) [documentation](https://hasura.github.io/eff/Control-Effect.html)
-- `MonadZero` and `MonadPlus` type classes.
 - Inline `!`-notation within `m_do!`: allow `m_do! { pure(!fa + !fb) }` as shorthand that automatically lifts subexpressions into binds, similar to Idris's `!`-notation. Avoids unnecessary intermediate bindings when a value is used once, immediately. Implement as an incremental enhancement to `m_do!` rather than a standalone feature.
 - Property-based tests for type class laws.
   - [Validity](https://github.com/NorfairKing/validity).

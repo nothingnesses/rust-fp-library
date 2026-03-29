@@ -39,20 +39,22 @@ mod inner {
 	///
 	/// # Laws
 	///
-	/// A lawful `MonadPlus` must satisfy the following laws:
+	/// A lawful `MonadPlus` must satisfy:
 	///
-	/// 1. **Distributivity:** binding over a choice distributes:
+	/// - **Distributivity:** binding over a choice distributes:
 	///
-	///    ```text
-	///    bind(alt(x, y), f) == alt(bind(x, f), bind(y, f))
-	///    ```
+	///   ```text
+	///   bind(alt(x, y), f) == alt(bind(x, f), bind(y, f))
+	///   ```
 	///
-	/// 2. **Left zero:** binding on the identity element yields the
-	///    identity element:
+	/// The following property also holds for any `Monad + Alternative`:
 	///
-	///    ```text
-	///    bind(empty(), f) == empty()
-	///    ```
+	/// - **Left zero:** binding on the identity element yields the
+	///   identity element:
+	///
+	///   ```text
+	///   bind(empty(), f) == empty()
+	///   ```
 	///
 	/// # Examples
 	///
