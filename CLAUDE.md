@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Running Commands
 
-All shell commands must be prefixed with `direnv allow && eval "$(direnv export bash)"; ` to ensure the correct Nix development environment is loaded. This applies to every command — building, testing, formatting, linting, benchmarking, etc.
+All cargo commands must be run via the `.claude/direnv-cargo.sh` wrapper script, which loads the correct Nix development environment via direnv before invoking cargo. Usage: `.claude/direnv-cargo.sh <cargo-subcommand> [args...]` (e.g., `.claude/direnv-cargo.sh check --workspace`). This applies to every command: building, testing, formatting, linting, benchmarking, etc.
 
 ## Development Commands
 
@@ -18,23 +18,23 @@ All shell commands must be prefixed with `direnv allow && eval "$(direnv export 
 
 ```bash
 # Format code (uses rustfmt.toml configuration)
-direnv allow && eval "$(direnv export bash)"; cargo fmt --all
+.claude/direnv-cargo.sh fmt --all
 
 # Check formatting
-direnv allow && eval "$(direnv export bash)"; cargo fmt --all -- --check
+.claude/direnv-cargo.sh fmt --all -- --check
 
 # Run clippy
-direnv allow && eval "$(direnv export bash)"; cargo clippy --workspace --all-features
+.claude/direnv-cargo.sh clippy --workspace --all-features
 ```
 
 ### Documentation
 
 ```bash
 # Check documentation (must produce zero warnings)
-direnv allow && eval "$(direnv export bash)"; cargo doc --workspace --all-features --no-deps
+.claude/direnv-cargo.sh doc --workspace --all-features --no-deps
 
 # Build and open documentation
-direnv allow && eval "$(direnv export bash)"; cargo doc --workspace --all-features --open
+.claude/direnv-cargo.sh doc --workspace --all-features --open
 ```
 
 ### Testing
@@ -43,51 +43,51 @@ direnv allow && eval "$(direnv export bash)"; cargo doc --workspace --all-featur
 
 ```bash
 # Run all tests in the workspace (prefer the caching wrapper instead)
-direnv allow && eval "$(direnv export bash)"; cargo test --workspace 2>&1 | tee .claude/test-cache/test-output.txt
+.claude/direnv-cargo.sh test --workspace 2>&1 | tee .claude/test-cache/test-output.txt
 
 # Run tests for a specific package
-direnv allow && eval "$(direnv export bash)"; cargo test -p fp-library 2>&1 | tee .claude/test-cache/test-output.txt
-direnv allow && eval "$(direnv export bash)"; cargo test -p fp-macros 2>&1 | tee .claude/test-cache/test-output.txt
+.claude/direnv-cargo.sh test -p fp-library 2>&1 | tee .claude/test-cache/test-output.txt
+.claude/direnv-cargo.sh test -p fp-macros 2>&1 | tee .claude/test-cache/test-output.txt
 
 # Run a specific test by name
-direnv allow && eval "$(direnv export bash)"; cargo test -p fp-library test_name 2>&1 | tee .claude/test-cache/test-output.txt
+.claude/direnv-cargo.sh test -p fp-library test_name 2>&1 | tee .claude/test-cache/test-output.txt
 
 # Run tests with all features enabled (prefer the caching wrapper instead)
-direnv allow && eval "$(direnv export bash)"; cargo test --workspace --all-features 2>&1 | tee .claude/test-cache/test-output.txt
+.claude/direnv-cargo.sh test --workspace --all-features 2>&1 | tee .claude/test-cache/test-output.txt
 
 # Run property-based tests (QuickCheck)
-direnv allow && eval "$(direnv export bash)"; cargo test -p fp-library --test property 2>&1 | tee .claude/test-cache/test-output.txt
+.claude/direnv-cargo.sh test -p fp-library --test property 2>&1 | tee .claude/test-cache/test-output.txt
 
 # Run doc tests
-direnv allow && eval "$(direnv export bash)"; cargo test --doc -p fp-library 2>&1 | tee .claude/test-cache/test-output.txt
+.claude/direnv-cargo.sh test --doc -p fp-library 2>&1 | tee .claude/test-cache/test-output.txt
 ```
 
 ### Building
 
 ```bash
 # Build the workspace
-direnv allow && eval "$(direnv export bash)"; cargo build --workspace
+.claude/direnv-cargo.sh build --workspace
 
 # Build with specific features
-direnv allow && eval "$(direnv export bash)"; cargo build -p fp-library --features rayon
-direnv allow && eval "$(direnv export bash)"; cargo build -p fp-library --features serde
-direnv allow && eval "$(direnv export bash)"; cargo build -p fp-library --all-features
+.claude/direnv-cargo.sh build -p fp-library --features rayon
+.claude/direnv-cargo.sh build -p fp-library --features serde
+.claude/direnv-cargo.sh build -p fp-library --all-features
 
 # Check without building
-direnv allow && eval "$(direnv export bash)"; cargo check --workspace
+.claude/direnv-cargo.sh check --workspace
 ```
 
 ### Benchmarking
 
 ```bash
 # Run all benchmarks
-direnv allow && eval "$(direnv export bash)"; cargo bench -p fp-library
+.claude/direnv-cargo.sh bench -p fp-library
 
 # List available benchmarks
-direnv allow && eval "$(direnv export bash)"; cargo bench -p fp-library --bench benchmarks -- --list
+.claude/direnv-cargo.sh bench -p fp-library --bench benchmarks -- --list
 
 # Run specific benchmark (e.g., Vec)
-direnv allow && eval "$(direnv export bash)"; cargo bench -p fp-library --bench benchmarks -- Vec
+.claude/direnv-cargo.sh bench -p fp-library --bench benchmarks -- Vec
 
 # Benchmark reports are generated in target/criterion/report/index.html
 ```
@@ -97,9 +97,9 @@ direnv allow && eval "$(direnv export bash)"; cargo bench -p fp-library --bench 
 After making changes, always verify in this order: **fmt → clippy → doc → test**.
 
 ```bash
-direnv allow && eval "$(direnv export bash)"; cargo fmt --all
-direnv allow && eval "$(direnv export bash)"; cargo clippy --workspace --all-features
-direnv allow && eval "$(direnv export bash)"; cargo doc --workspace --all-features --no-deps
+.claude/direnv-cargo.sh fmt --all
+.claude/direnv-cargo.sh clippy --workspace --all-features
+.claude/direnv-cargo.sh doc --workspace --all-features --no-deps
 # For the test step, use the caching wrapper from the "Test Output Caching" section below.
 ```
 
@@ -112,13 +112,13 @@ direnv allow && eval "$(direnv export bash)"; cargo doc --workspace --all-featur
 **How to run tests (always use this):**
 
 ```bash
-mkdir -p .claude/test-cache && LATEST=$(find fp-library/src fp-macros/src tests -name '*.rs' -printf '%T@\n' 2>/dev/null | sort -rn | head -1; find . -maxdepth 2 -name 'Cargo.toml' -printf '%T@\n' | sort -rn | head -1) && CACHED=$(cat .claude/test-cache/source-timestamp.txt 2>/dev/null || echo "0") && if [ "$LATEST" = "$CACHED" ]; then echo "=== CACHED TEST OUTPUT (no source changes) ===" && cat .claude/test-cache/test-output.txt; else echo "=== Source files changed, re-running tests ===" && direnv allow && eval "$(direnv export bash)" && cargo test --workspace --all-features 2>&1 | tee .claude/test-cache/test-output.txt && echo "$LATEST" > .claude/test-cache/source-timestamp.txt; fi
+mkdir -p .claude/test-cache && LATEST=$(find fp-library/src fp-macros/src tests -name '*.rs' -printf '%T@\n' 2>/dev/null | sort -rn | head -1; find . -maxdepth 2 -name 'Cargo.toml' -printf '%T@\n' | sort -rn | head -1) && CACHED=$(cat .claude/test-cache/source-timestamp.txt 2>/dev/null || echo "0") && if [ "$LATEST" = "$CACHED" ]; then echo "=== CACHED TEST OUTPUT (no source changes) ===" && cat .claude/test-cache/test-output.txt; else echo "=== Source files changed, re-running tests ===" && .claude/direnv-cargo.sh test --workspace --all-features 2>&1 | tee .claude/test-cache/test-output.txt && echo "$LATEST" > .claude/test-cache/source-timestamp.txt; fi
 ```
 
 For running a subset of tests (e.g., a specific package or test name), run `cargo test` directly with `tee` to cache:
 
 ```bash
-direnv allow && eval "$(direnv export bash)" && cargo test -p fp-library <test_name> 2>&1 | tee .claude/test-cache/test-output.txt
+.claude/direnv-cargo.sh test -p fp-library <test_name> 2>&1 | tee .claude/test-cache/test-output.txt
 ```
 
 Subset runs do not update `source-timestamp.txt` since they do not validate the full suite.
