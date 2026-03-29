@@ -582,7 +582,7 @@ mod inner {
 		/// assert_eq!(result.evaluate(), Ok(1000));
 		/// ```
 		pub fn tail_rec_m<S>(
-			f: impl Fn(S) -> TrySendThunk<'a, ControlFlow<A, S>, E> + Clone + Send + 'a,
+			f: impl Fn(S) -> TrySendThunk<'a, ControlFlow<A, S>, E> + Send + 'a,
 			initial: S,
 		) -> Self
 		where
