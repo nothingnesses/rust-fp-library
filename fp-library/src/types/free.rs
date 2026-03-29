@@ -84,6 +84,7 @@ mod inner {
 		std::{
 			any::Any,
 			marker::PhantomData,
+			mem::ManuallyDrop,
 		},
 	};
 
@@ -101,42 +102,29 @@ mod inner {
 	#[document_type_parameters("The base functor.")]
 	pub type Continuation<F> = Box<dyn FnOnce(TypeErasedValue) -> Free<F, TypeErasedValue>>;
 
-	/// The internal representation of the [`Free`] monad.
+	/// The internal view of the [`Free`] monad.
 	///
-	/// This enum encodes the structure of the free monad, supporting
-	/// pure values, suspended computations, and efficient concatenation of binds.
-	#[document_type_parameters(
-		"The base functor (must implement [`Evaluable`]).",
-		"The result type."
-	)]
-	pub enum FreeInner<F, A>
+	/// This enum encodes the current step of the free monad computation. Both
+	/// variants hold type-erased values; the concrete type `A` is tracked by
+	/// [`PhantomData`] on the outer [`Free`] struct. The CatList of continuations
+	/// lives at the top level in [`Free`], not inside any variant.
+	#[document_type_parameters("The base functor (must implement [`Evaluable`]).")]
+	pub enum FreeView<F>
 	where
-		F: Evaluable + 'static,
-		A: 'static, {
-		/// A pure value.
+		F: Evaluable + 'static, {
+		/// A pure value (type-erased).
 		///
 		/// This variant represents a computation that has finished and produced a value.
-		Pure(A),
+		/// The actual type is tracked by `PhantomData<A>` on the enclosing [`Free`].
+		Return(TypeErasedValue),
 
-		/// A suspended computation.
+		/// A suspended computation (type-erased).
 		///
 		/// This variant represents a computation that is suspended in the functor `F`.
-		/// The functor contains the next step of the computation.
-		Wrap(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)),
-
-		/// A bind operation.
-		///
-		/// This variant represents a computation followed by a sequence of continuations.
-		/// It uses a [`CatList`] to store continuations, ensuring O(1) append complexity
-		/// for left-associated binds.
-		Bind {
-			/// The initial computation.
-			head: Box<Free<F, TypeErasedValue>>,
-			/// The list of continuations to apply to the result of `head`.
-			continuations: CatList<Continuation<F>>,
-			/// Phantom data for type parameter `A`.
-			_marker: PhantomData<A>,
-		},
+		/// The functor contains `Free<F, TypeErasedValue>` as the next step.
+		Suspend(
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, TypeErasedValue>>),
+		),
 	}
 
 	/// The Free monad with O(1) bind via [`CatList`].
@@ -144,12 +132,24 @@ mod inner {
 	/// This implementation follows ["Reflection without Remorse"](http://okmij.org/ftp/Haskell/zseq.pdf) to ensure
 	/// that left-associated binds do not degrade performance.
 	///
+	/// # Internal representation
+	///
+	/// A `Free` value consists of:
+	/// * A **view** (`FreeView<F>`) that is either a pure value (`Return`) or a suspended
+	///   computation (`Suspend`). Both variants hold type-erased values.
+	/// * A **continuation queue** (`CatList<Continuation<F>>`) that stores the chain of
+	///   pending `bind` operations with O(1) snoc and O(1) amortized uncons.
+	/// * A `PhantomData<A>` that tracks the concrete result type at the type level.
+	///
+	/// Because the view is fully type-erased, `bind` is uniformly O(1) for all cases:
+	/// it simply appends the new continuation to the CatList without inspecting the view.
+	///
 	/// # Linear consumption invariant
 	///
 	/// `Free` values must be consumed exactly once, either by calling [`evaluate`](Free::evaluate),
-	/// [`bind`](Free::bind), [`erase_type`](Free::erase_type), or by being dropped. The inner
-	/// `Option` wrapper enables a take-and-replace pattern (analogous to `Cell::take`) so that
-	/// methods like `bind` and `erase_type` can move the `FreeInner` out of `&mut self` without
+	/// [`bind`](Free::bind), [`erase_type`](Free::erase_type), or by being dropped. The `view`
+	/// field is wrapped in `Option` to enable a take-and-replace pattern (analogous to
+	/// `Cell::take`) so that methods like `evaluate` and `Drop` can move the view out without
 	/// leaving the struct in an invalid state. After the take, the `Option` is `None`, and any
 	/// subsequent access will panic with "Free value already consumed." This invariant is relied
 	/// upon by the `Drop` implementation to avoid double-freeing internal allocations.
@@ -192,10 +192,17 @@ mod inner {
 		"The result type."
 	)]
 	///
-	pub struct Free<F, A>(Option<FreeInner<F, A>>)
+	pub struct Free<F, A>
 	where
 		F: Evaluable + 'static,
-		A: 'static;
+		A: 'static, {
+		/// The current step of the computation (type-erased).
+		view: Option<FreeView<F>>,
+		/// The queue of pending continuations.
+		continuations: CatList<Continuation<F>>,
+		/// Phantom data tracking the concrete result type.
+		_marker: PhantomData<A>,
+	}
 
 	#[document_type_parameters("The base functor.", "The result type.")]
 	#[document_parameters("The Free monad instance to operate on.")]
@@ -204,13 +211,16 @@ mod inner {
 		F: Evaluable + 'static,
 		A: 'static,
 	{
-		/// Constructs a `Free` from a `FreeInner` value.
+		/// Consumes `self` by value and returns the view and continuations
+		/// without running the custom `Drop` implementation.
 		///
-		/// This is the sole internal constructor, ensuring all `Free` values
-		/// start with `Some(inner)`.
+		/// Uses `ManuallyDrop` to suppress the destructor, then reads the
+		/// fields out via `std::ptr::read`. This is safe because:
+		/// 1. `ManuallyDrop` guarantees the destructor will not run.
+		/// 2. The fields are read exactly once and the `ManuallyDrop` wrapper
+		///    is never accessed again afterward.
 		#[document_signature]
-		#[document_parameters("The inner value to wrap.")]
-		#[document_returns("A new `Free` containing the given inner value.")]
+		#[document_returns("A tuple of the view and continuation queue, moved out of this `Free`.")]
 		#[document_examples]
 		///
 		/// ```
@@ -219,28 +229,30 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// // `from_inner` is internal; `pure` is the public API that uses it.
+		/// // `into_parts` is internal; `evaluate` is the public API that uses it.
 		/// let free = Free::<ThunkBrand, _>::pure(42);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
-		fn from_inner(inner: FreeInner<F, A>) -> Self {
-			Free(Some(inner))
+		fn into_parts(self) -> (Option<FreeView<F>>, CatList<Continuation<F>>) {
+			let md = ManuallyDrop::new(self);
+			// SAFETY: We own the value (it was moved into ManuallyDrop), and we
+			// read each field exactly once. The ManuallyDrop prevents double-drop.
+			unsafe {
+				let view = std::ptr::read(&md.view);
+				let conts = std::ptr::read(&md.continuations);
+				(view, conts)
+			}
 		}
 
-		/// Takes the inner value out of this `Free`, leaving `None` behind.
+		/// Changes the phantom type parameter without adding any continuations.
 		///
-		/// This implements the linear consumption pattern: each `Free` value
-		/// is consumed exactly once. The `Option` wrapper allows moving the
-		/// `FreeInner` out through `&mut self` (as required by `bind`, `erase_type`,
-		/// `evaluate`, and `Drop`) without leaving the struct in an invalid state.
-		/// After this call, the `Option` is `None`. Any subsequent call will panic
-		/// with "Free value already consumed."
-		///
-		/// # Panics
-		///
-		/// Panics if the inner value has already been taken.
+		/// This is an internal-only operation used by `bind` continuations where
+		/// the caller guarantees the stored type matches the new phantom. Unlike
+		/// the public [`erase_type`](Free::erase_type), this does not append a
+		/// rebox continuation, so the caller must ensure type safety.
 		#[document_signature]
-		#[document_returns("The inner `FreeInner` value, consuming it from this `Free`.")]
+		#[document_type_parameters("The target phantom type.")]
+		#[document_returns("The same `Free` with a different phantom type parameter.")]
 		#[document_examples]
 		///
 		/// ```
@@ -249,14 +261,17 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// // `take_inner` is internal; `evaluate` is the public API that uses it.
-		/// let free = Free::<ThunkBrand, _>::pure(10);
-		/// assert_eq!(free.evaluate(), 10);
+		/// // `cast_phantom` is internal; `bind` is the public API that uses it.
+		/// let free = Free::<ThunkBrand, _>::pure(42).bind(|x| Free::pure(x + 1));
+		/// assert_eq!(free.evaluate(), 43);
 		/// ```
-		fn take_inner(&mut self) -> FreeInner<F, A> {
-			// SAFETY: Free values are used exactly once; double consumption indicates a bug.
-			#[allow(clippy::expect_used)]
-			self.0.take().expect("Free value already consumed")
+		fn cast_phantom<B: 'static>(self) -> Free<F, B> {
+			let (view, conts) = self.into_parts();
+			Free {
+				view,
+				continuations: conts,
+				_marker: PhantomData,
+			}
 		}
 
 		/// Creates a pure `Free` value.
@@ -279,7 +294,11 @@ mod inner {
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
 		pub fn pure(a: A) -> Self {
-			Free::from_inner(FreeInner::Pure(a))
+			Free {
+				view: Some(FreeView::Return(Box::new(a) as TypeErasedValue)),
+				continuations: CatList::empty(),
+				_marker: PhantomData,
+			}
 		}
 
 		/// Creates a suspended computation from a functor value.
@@ -304,7 +323,16 @@ mod inner {
 		pub fn wrap(
 			fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)
 		) -> Self {
-			Free::from_inner(FreeInner::Wrap(fa))
+			// Type-erase the inner Free values in the functor using F::map.
+			let erased_fa = F::map(
+				|inner: Free<F, A>| -> Free<F, TypeErasedValue> { inner.cast_phantom() },
+				fa,
+			);
+			Free {
+				view: Some(FreeView::Suspend(erased_fa)),
+				continuations: CatList::empty(),
+				_marker: PhantomData,
+			}
 		}
 
 		/// Lifts a functor value into the Free monad.
@@ -347,6 +375,9 @@ mod inner {
 		}
 
 		/// Monadic bind with O(1) complexity.
+		///
+		/// This is uniformly O(1) for all cases: the new continuation is simply
+		/// appended to the CatList without inspecting the view.
 		#[document_signature]
 		///
 		#[document_type_parameters("The result type of the new computation.")]
@@ -367,52 +398,29 @@ mod inner {
 		/// assert_eq!(free.evaluate(), 43);
 		/// ```
 		pub fn bind<B: 'static>(
-			mut self,
+			self,
 			f: impl FnOnce(A) -> Free<F, B> + 'static,
 		) -> Free<F, B> {
 			// Type-erase the continuation
 			let erased_f: Continuation<F> = Box::new(move |val: TypeErasedValue| {
-				// INVARIANT: type is maintained by internal invariant - mismatch indicates a bug
+				// INVARIANT: type is maintained by internal invariant; mismatch indicates a bug
 				#[allow(clippy::expect_used)]
 				let a: A = *val.downcast().expect("Type mismatch in Free::bind");
 				let free_b: Free<F, B> = f(a);
-				free_b.erase_type()
+				// Use cast_phantom (not erase_type) to avoid adding a rebox
+				// continuation. The view already stores TypeErasedValue, and
+				// the next continuation in the chain knows the correct type to
+				// downcast to.
+				free_b.cast_phantom()
 			});
 
-			let inner = self.take_inner();
-
-			match inner {
-				// Pure: create a Bind with this continuation
-				FreeInner::Pure(a) => {
-					let head: Free<F, TypeErasedValue> =
-						Free::from_inner(FreeInner::Pure(Box::new(a) as TypeErasedValue));
-					Free::from_inner(FreeInner::Bind {
-						head: Box::new(head),
-						continuations: CatList::singleton(erased_f),
-						_marker: PhantomData,
-					})
-				}
-
-				// Wrap: wrap in a Bind
-				FreeInner::Wrap(fa) => {
-					let head = Free::wrap(fa).boxed_erase_type();
-					Free::from_inner(FreeInner::Bind {
-						head,
-						continuations: CatList::singleton(erased_f),
-						_marker: PhantomData,
-					})
-				}
-
-				// Bind: snoc the new continuation onto the CatList (O(1)!)
-				FreeInner::Bind {
-					head,
-					continuations: conts,
-					..
-				} => Free::from_inner(FreeInner::Bind {
-					head,
-					continuations: conts.snoc(erased_f),
-					_marker: PhantomData,
-				}),
+			// Uniformly O(1): just move the view and snoc the continuation.
+			// The view is already type-erased, so it can be moved directly.
+			let (view, conts) = self.into_parts();
+			Free {
+				view,
+				continuations: conts.snoc(erased_f),
+				_marker: PhantomData,
 			}
 		}
 
@@ -452,8 +460,8 @@ mod inner {
 		/// `Err(f_free)` if the computation is suspended in the functor `F`,
 		/// where `f_free` contains the next `Free` computation wrapped in `F`.
 		///
-		/// For `Bind` variants, the continuation chain is collapsed first by
-		/// iteratively applying continuations until a `Pure` or `Wrap` is reached.
+		/// The continuation chain is collapsed iteratively by applying continuations
+		/// until a `Return` or `Suspend` view is reached with an empty continuation queue.
 		#[document_signature]
 		///
 		#[document_returns(
@@ -476,30 +484,31 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::wrap(Thunk::new(|| Free::pure(99)));
 		/// assert!(free.resume().is_err());
 		/// ```
+		#[allow(clippy::expect_used)]
 		pub fn resume(
 			self
 		) -> Result<A, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)> {
-			// We process the bind chain iteratively, similar to evaluate,
-			// but stop when we reach a Pure or Wrap at the top level.
-			let mut current: Free<F, TypeErasedValue> = self.erase_type();
-			let mut continuations: CatList<Continuation<F>> = CatList::empty();
+			let (view, continuations) = self.into_parts();
+
+			// INVARIANT: Free values are used exactly once; double consumption indicates a bug
+			let mut current_view = view.expect("Free value already consumed");
+			let mut conts = continuations;
 
 			loop {
-				// INVARIANT: Free values are used exactly once - double consumption indicates a bug
-				#[allow(clippy::expect_used)]
-				let inner = current.0.take().expect("Free value already consumed");
-
-				match inner {
-					FreeInner::Pure(val) => {
-						match continuations.uncons() {
+				match current_view {
+					FreeView::Return(val) => {
+						match conts.uncons() {
 							Some((continuation, rest)) => {
-								current = continuation(val);
-								continuations = rest;
+								let next = continuation(val);
+								let (next_view, next_conts) = next.into_parts();
+								// INVARIANT: continuation returns a valid Free
+								current_view =
+									next_view.expect("Free value already consumed (continuation)");
+								conts = next_conts.append(rest);
 							}
 							None => {
-								// No more continuations - we have a final pure value
+								// No more continuations; we have a final pure value.
 								// INVARIANT: type is maintained by internal invariant
-								#[allow(clippy::expect_used)]
 								return Ok(*val
 									.downcast::<A>()
 									.expect("Type mismatch in Free::resume final downcast"));
@@ -507,47 +516,41 @@ mod inner {
 						}
 					}
 
-					FreeInner::Wrap(fa) => {
+					FreeView::Suspend(fa) => {
 						// We have a suspended computation. We need to rebuild the
 						// Free<F, A> from the type-erased Free<F, TypeErasedValue>
 						// by re-attaching the remaining continuations.
 
-						// Always append the downcast continuation that converts
+						// Append a final downcast continuation that converts
 						// TypeErasedValue back to the concrete type A.
 						let downcast_cont: Continuation<F> =
 							Box::new(move |val: TypeErasedValue| {
 								// INVARIANT: type is maintained by internal invariant
-								#[allow(clippy::expect_used)]
-								let a: A = *val.downcast().expect("Type mismatch in Free::resume downcast");
-								Free::<F, A>::pure(a).erase_type()
+								let a: A = *val
+									.downcast()
+									.expect("Type mismatch in Free::resume downcast");
+								Free::<F, A>::pure(a).cast_phantom()
 							});
-						let all_conts = continuations.snoc(downcast_cont);
+						let all_conts = conts.snoc(downcast_cont);
 
 						// Use Cell to move the CatList into the Fn closure (called exactly once).
 						let remaining = std::cell::Cell::new(Some(all_conts));
 						let typed_fa = F::map(
 							move |inner_free: Free<F, TypeErasedValue>| {
 								// INVARIANT: functors call map exactly once per element
-								#[allow(clippy::expect_used)]
-								let conts = remaining.take().expect("Free::resume map called more than once");
-								Free(Some(FreeInner::Bind {
-									head: Box::new(inner_free),
-									continuations: conts,
+								let conts_for_inner = remaining
+									.take()
+									.expect("Free::resume map called more than once");
+								let (v, c) = inner_free.into_parts();
+								Free {
+									view: v,
+									continuations: c.append(conts_for_inner),
 									_marker: PhantomData,
-								}))
+								}
 							},
 							fa,
 						);
 						return Err(typed_fa);
-					}
-
-					FreeInner::Bind {
-						head,
-						continuations: inner_continuations,
-						..
-					} => {
-						current = *head;
-						continuations = inner_continuations.append(continuations);
 					}
 				}
 			}
@@ -639,14 +642,14 @@ mod inner {
 		///
 		/// ### Stack Safety
 		///
-		/// This method is **not** stack-safe for deeply nested `Wrap` chains. It recurses
-		/// once per `Wrap` layer; computations with thousands of `Wrap` layers may overflow
-		/// the stack. `Bind` chains are not a concern since [`resume`](Free::resume)
+		/// This method is **not** stack-safe for deeply nested `Suspend` chains. It recurses
+		/// once per `Suspend` layer; computations with thousands of `Suspend` layers may overflow
+		/// the stack. `bind` chains are not a concern since [`resume`](Free::resume)
 		/// collapses them iteratively.
 		///
-		/// In practice the `Wrap` depth equals the number of [`lift_f`](Free::lift_f) calls
+		/// In practice the `Suspend` depth equals the number of [`lift_f`](Free::lift_f) calls
 		/// (i.e., the number of distinct effects), which is typically small. This matches
-		/// PureScript's `hoistFree`, which is also recursive over `Wrap` depth. Unlike
+		/// PureScript's `hoistFree`, which is also recursive over `Suspend` depth. Unlike
 		/// [`fold_free`](Free::fold_free) (which delegates stack safety to `MonadRec`),
 		/// a fully iterative `hoist_free` is not feasible because `Free<G, A>` cannot
 		/// implement `MonadRec` as an HKT trait due to `'static` constraints.
@@ -704,6 +707,9 @@ mod inner {
 		}
 
 		/// Converts to type-erased form.
+		///
+		/// With the CatList-paired representation, the view is already type-erased,
+		/// so this operation simply changes the phantom type parameter.
 		#[document_signature]
 		#[document_returns(
 			"A `Free` computation where the result type has been erased to `Box<dyn Any>`."
@@ -719,30 +725,21 @@ mod inner {
 		/// let erased = free.erase_type();
 		/// assert!(erased.evaluate().is::<i32>());
 		/// ```
-		pub fn erase_type(mut self) -> Free<F, TypeErasedValue> {
-			let inner = self.take_inner();
-
-			match inner {
-				FreeInner::Pure(a) =>
-					Free::from_inner(FreeInner::Pure(Box::new(a) as TypeErasedValue)),
-				FreeInner::Wrap(fa) => {
-					// Map over the functor to erase the inner type.
-					// IMPORTANT: this relies on the invariant that `Functor::map` for `F`
-					// calls the mapping function exactly once. If it were called zero times,
-					// the inner `Free` value would leak. If called more than once, it would
-					// be consumed multiple times, violating the linear consumption invariant.
-					let erased = F::map(|inner: Free<F, A>| inner.erase_type(), fa);
-					Free::from_inner(FreeInner::Wrap(erased))
-				}
-				FreeInner::Bind {
-					head,
-					continuations,
-					..
-				} => Free::from_inner(FreeInner::Bind {
-					head,
-					continuations,
-					_marker: PhantomData,
-				}),
+		pub fn erase_type(self) -> Free<F, TypeErasedValue> {
+			let (view, conts) = self.into_parts();
+			// Append a continuation that re-boxes the value so that the outer
+			// phantom type (TypeErasedValue = Box<dyn Any>) matches the stored
+			// type. Without this, evaluate would try to downcast Box<dyn Any>
+			// containing A to Box<dyn Any>, which fails when A != Box<dyn Any>.
+			let rebox_cont: Continuation<F> = Box::new(|val: TypeErasedValue| Free {
+				view: Some(FreeView::Return(Box::new(val) as TypeErasedValue)),
+				continuations: CatList::empty(),
+				_marker: PhantomData,
+			});
+			Free {
+				view,
+				continuations: conts.snoc(rebox_cont),
+				_marker: PhantomData,
 			}
 		}
 
@@ -783,26 +780,30 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(42);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
+		#[allow(clippy::expect_used)]
 		pub fn evaluate(self) -> A {
-			// Start with a type-erased version
-			let mut current: Free<F, TypeErasedValue> = self.erase_type();
-			let mut continuations: CatList<Continuation<F>> = CatList::empty();
+			let (view, continuations) = self.into_parts();
+
+			// INVARIANT: Free values are used exactly once; double consumption indicates a bug
+			let mut current_view = view.expect("Free value already consumed");
+			let mut conts = continuations;
 
 			loop {
-				let inner = current.take_inner();
-
-				match inner {
-					FreeInner::Pure(val) => {
-						// Try to apply the next continuation
-						match continuations.uncons() {
+				match current_view {
+					FreeView::Return(val) => {
+						match conts.uncons() {
 							Some((continuation, rest)) => {
-								current = continuation(val);
-								continuations = rest;
+								let next = continuation(val);
+								let (next_view, next_conts) = next.into_parts();
+								// INVARIANT: continuation returns a valid Free
+								current_view =
+									next_view.expect("Free value already consumed (continuation)");
+								// Merge the next node's continuations with the remaining ones
+								conts = next_conts.append(rest);
 							}
 							None => {
-								// No more continuations - we're done!
-								// INVARIANT: type is maintained by internal invariant - mismatch indicates a bug
-								#[allow(clippy::expect_used)]
+								// No more continuations; we are done!
+								// INVARIANT: type is maintained by internal invariant; mismatch indicates a bug
 								return *val
 									.downcast::<A>()
 									.expect("Type mismatch in Free::evaluate final downcast");
@@ -810,20 +811,14 @@ mod inner {
 						}
 					}
 
-					FreeInner::Wrap(fa) => {
+					FreeView::Suspend(fa) => {
 						// Run the effect to get the inner Free
-						current = <F as Evaluable>::evaluate(fa);
-					}
-
-					FreeInner::Bind {
-						head,
-						continuations: inner_continuations,
-						..
-					} => {
-						// Merge the inner continuations with outer ones
-						// This is where CatList's O(1) append shines!
-						current = *head;
-						continuations = inner_continuations.append(continuations);
+						let inner: Free<F, TypeErasedValue> = <F as Evaluable>::evaluate(fa);
+						let (inner_view, inner_conts) = inner.into_parts();
+						// INVARIANT: evaluated Free is valid
+						current_view =
+							inner_view.expect("Free value already consumed (evaluate suspend)");
+						conts = inner_conts.append(conts);
 					}
 				}
 			}
@@ -851,55 +846,45 @@ mod inner {
 		/// assert!(true);
 		/// ```
 		fn drop(&mut self) {
-			// Take the inner value out so we can iteratively dismantle the chain
+			// Take the view out so we can iteratively dismantle the chain
 			// instead of relying on recursive Drop, which would overflow the stack
-			// for deep computations (both Bind chains and Wrap chains).
-			let mut worklist: Vec<FreeInner<F, A>> = Vec::new();
+			// for deep computations (both continuation chains and Suspend chains).
+			let mut worklist: Vec<FreeView<F>> = Vec::new();
 
-			if let Some(inner) = self.0.take() {
-				worklist.push(inner);
+			if let Some(view) = self.view.take() {
+				worklist.push(view);
 			}
 
-			while let Some(node) = worklist.pop() {
-				match node {
-					FreeInner::Pure(_) => {
+			// Drain the top-level continuations iteratively. Each
+			// continuation is a Box<dyn FnOnce> that may capture Free
+			// values. By consuming them one at a time via uncons, we
+			// let each boxed closure drop without building stack depth.
+			let mut top_conts = std::mem::take(&mut self.continuations);
+			while let Some((_continuation, rest)) = top_conts.uncons() {
+				top_conts = rest;
+			}
+
+			while let Some(view) = worklist.pop() {
+				match view {
+					FreeView::Return(_) => {
 						// Trivially dropped, no nested Free values.
 					}
 
-					FreeInner::Wrap(fa) => {
-						// The functor layer contains a `Free<F, A>` inside. If we
-						// let it drop recursively, deeply nested Wrap chains will
+					FreeView::Suspend(fa) => {
+						// The functor layer contains a `Free<F, TypeErasedValue>` inside.
+						// If we let it drop recursively, deeply nested Suspend chains will
 						// overflow the stack. Instead, we use `Evaluable::evaluate`
-						// to eagerly extract the inner `Free`, then push it onto
+						// to eagerly extract the inner `Free`, then push its view onto
 						// the worklist for iterative dismantling.
-						let mut extracted = <F as Evaluable>::evaluate(fa);
-						if let Some(next_inner) = extracted.0.take() {
-							worklist.push(next_inner);
+						let mut extracted: Free<F, TypeErasedValue> =
+							<F as Evaluable>::evaluate(fa);
+						if let Some(inner_view) = extracted.view.take() {
+							worklist.push(inner_view);
 						}
-					}
-
-					FreeInner::Bind {
-						head,
-						continuations,
-						..
-					} => {
-						// Drop the head computation. Since `head` is
-						// `Box<Free<F, TypeErasedValue>>` (a different type
-						// parameter than ours), we cannot fold it into our
-						// worklist. Its own `Drop` impl will iteratively
-						// dismantle any nested chains it contains.
-						drop(head);
-
-						// Drain the CatList of continuations iteratively. Each
-						// continuation is a Box<dyn FnOnce> that may capture Free
-						// values. By consuming them one at a time via uncons, we
-						// let each boxed closure drop without building stack depth.
-						let mut conts = continuations;
-						while let Some((_continuation, rest)) = conts.uncons() {
-							// _continuation (a Box<dyn FnOnce>) drops here, which
-							// frees any captured Free values. Those Free values'
-							// own Drop impls will re-enter this iterative loop.
-							conts = rest;
+						// Drain the extracted node's continuations iteratively.
+						let mut inner_conts = std::mem::take(&mut extracted.continuations);
+						while let Some((_continuation, rest)) = inner_conts.uncons() {
+							inner_conts = rest;
 						}
 					}
 				}
