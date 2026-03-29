@@ -13,7 +13,7 @@ mod inner {
 				ApplySecond,
 				CloneableFn,
 				Deferrable,
-				Evaluable,
+				Extract,
 				Foldable,
 				FoldableWithIndex,
 				Functor,
@@ -726,8 +726,8 @@ mod inner {
 		}
 	}
 
-	impl Evaluable for ThunkBrand {
-		/// Runs the eval, producing the inner value.
+	impl Extract for ThunkBrand {
+		/// Extracts the inner value from a thunk by running it.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -735,7 +735,7 @@ mod inner {
 			"The type of the value inside the thunk."
 		)]
 		///
-		#[document_parameters("The eval to run.")]
+		#[document_parameters("The thunk to extract from.")]
 		///
 		#[document_returns("The result of running the thunk.")]
 		///
@@ -750,9 +750,9 @@ mod inner {
 		/// };
 		///
 		/// let thunk = Thunk::new(|| 42);
-		/// assert_eq!(evaluate::<ThunkBrand, _>(thunk), 42);
+		/// assert_eq!(extract::<ThunkBrand, _>(thunk), 42);
 		/// ```
-		fn evaluate<'a, A: 'a>(
+		fn extract<'a, A: 'a>(
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		) -> A {
 			fa.evaluate()
@@ -1330,11 +1330,11 @@ mod tests {
 		assert_eq!(result.evaluate(), 42);
 	}
 
-	/// Tests `Evaluable::evaluate` for `ThunkBrand` via the free function.
+	/// Tests `Extract::extract` for `ThunkBrand` via the free function.
 	#[test]
-	fn test_evaluable_via_brand() {
+	fn test_extract_via_brand() {
 		let thunk = pure::<ThunkBrand, _>(42);
-		let result = evaluate::<ThunkBrand, _>(thunk);
+		let result = extract::<ThunkBrand, _>(thunk);
 		assert_eq!(result, 42);
 	}
 

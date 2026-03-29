@@ -14,7 +14,7 @@
 //!    * **PureScript**: Designed as a generic Abstract Syntax Tree (AST) that can be interpreted into *any* target
 //!      monad using `runFree` or `foldFree` by providing a natural transformation at runtime.
 //!    * **Rust**: Designed primarily for **stack-safe execution** of computations. The interpretation logic is
-//!      baked into the [`Evaluable`](crate::classes::Evaluable) trait implemented by the functor `F`.
+//!      baked into the [`Extract`](crate::classes::Extract) trait implemented by the functor `F`.
 //!      The [`Free::wrap`] method wraps a functor layer containing a Free computation.
 //!
 //! 2. **API Surface**:
@@ -37,7 +37,7 @@
 //! * Act as a generic DSL where the interpretation is decoupled from the operation type.
 //!   * *Example*: You cannot easily define a `DatabaseOp` enum and interpret it differently for
 //!     production (SQL) and testing (InMemory) using this `Free` implementation, because
-//!     `DatabaseOp` must implement a single `Evaluable` trait.
+//!     `DatabaseOp` must implement a single `Extract` trait.
 //!   * Note: `fold_free` with `NaturalTransformation` does support this pattern for simple cases.
 //!
 //! ### Lifetimes and Memory Management
@@ -69,7 +69,8 @@ mod inner {
 			brands::ThunkBrand,
 			classes::{
 				Deferrable,
-				Evaluable,
+				Extract,
+				Functor,
 				MonadRec,
 				NaturalTransformation,
 			},
@@ -107,10 +108,10 @@ mod inner {
 	/// variants hold type-erased values; the concrete type `A` is tracked by
 	/// [`PhantomData`] on the outer [`Free`] struct. The CatList of continuations
 	/// lives at the top level in [`Free`], not inside any variant.
-	#[document_type_parameters("The base functor (must implement [`Evaluable`]).")]
+	#[document_type_parameters("The base functor (must implement [`Extract`] and [`Functor`]).")]
 	pub enum FreeView<F>
 	where
-		F: Evaluable + 'static, {
+		F: Extract + Functor + 'static, {
 		/// A pure value (type-erased).
 		///
 		/// This variant represents a computation that has finished and produced a value.
@@ -178,7 +179,7 @@ mod inner {
 	/// # Consuming a `Free`: `evaluate` vs `fold_free`
 	///
 	/// * [`evaluate`](Free::evaluate) runs the computation to completion using an iterative
-	///   loop. It requires the base functor `F` to implement [`Evaluable`], meaning each
+	///   loop. It requires the base functor `F` to implement [`Extract`], meaning each
 	///   suspended layer can be "unwrapped" to reveal the next step. Use this when you want
 	///   the final `A` value directly.
 	/// * [`fold_free`](Free::fold_free) interprets the `Free` into a different monad `G` via
@@ -187,13 +188,13 @@ mod inner {
 	///   stack-safe iteration. Use this when you want to translate the free structure into
 	///   another effect (e.g., `Option`, `Result`, or a custom interpreter).
 	#[document_type_parameters(
-		"The base functor (must implement [`Evaluable`]).",
+		"The base functor (must implement [`Extract`] and [`Functor`]).",
 		"The result type."
 	)]
 	///
 	pub struct Free<F, A>
 	where
-		F: Evaluable + 'static,
+		F: Extract + Functor + 'static,
 		A: 'static, {
 		/// The current step of the computation (type-erased).
 		view: Option<FreeView<F>>,
@@ -207,7 +208,7 @@ mod inner {
 	#[document_parameters("The Free monad instance to operate on.")]
 	impl<F, A> Free<F, A>
 	where
-		F: Evaluable + 'static,
+		F: Extract + Functor + 'static,
 		A: 'static,
 	{
 		/// Extracts the view and continuations, leaving `self` in a consumed
@@ -678,7 +679,7 @@ mod inner {
 		/// let hoisted: Free<ThunkBrand, i32> = free.hoist_free(ThunkId);
 		/// assert_eq!(hoisted.evaluate(), 42);
 		/// ```
-		pub fn hoist_free<G: Evaluable + 'static>(
+		pub fn hoist_free<G: Extract + Functor + 'static>(
 			self,
 			nt: impl NaturalTransformation<F, G> + Clone + 'static,
 		) -> Free<G, A> {
@@ -805,7 +806,7 @@ mod inner {
 
 					FreeView::Suspend(fa) => {
 						// Run the effect to get the inner Free
-						let mut inner: Free<F, TypeErasedValue> = <F as Evaluable>::evaluate(fa);
+						let mut inner: Free<F, TypeErasedValue> = <F as Extract>::extract(fa);
 						let (inner_view, inner_conts) = inner.take_parts();
 						// INVARIANT: evaluated Free is valid
 						current_view =
@@ -821,7 +822,7 @@ mod inner {
 	#[document_parameters("The free monad instance to drop.")]
 	impl<F, A> Drop for Free<F, A>
 	where
-		F: Evaluable + 'static,
+		F: Extract + Functor + 'static,
 		A: 'static,
 	{
 		#[document_signature]
@@ -865,11 +866,10 @@ mod inner {
 					FreeView::Suspend(fa) => {
 						// The functor layer contains a `Free<F, TypeErasedValue>` inside.
 						// If we let it drop recursively, deeply nested Suspend chains will
-						// overflow the stack. Instead, we use `Evaluable::evaluate`
+						// overflow the stack. Instead, we use `Extract::extract`
 						// to eagerly extract the inner `Free`, then push its view onto
 						// the worklist for iterative dismantling.
-						let mut extracted: Free<F, TypeErasedValue> =
-							<F as Evaluable>::evaluate(fa);
+						let mut extracted: Free<F, TypeErasedValue> = <F as Extract>::extract(fa);
 						if let Some(inner_view) = extracted.view.take() {
 							worklist.push(inner_view);
 						}

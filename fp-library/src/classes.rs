@@ -34,7 +34,7 @@ pub mod contravariant;
 pub mod deferrable;
 pub mod division_ring;
 pub mod euclidean_ring;
-pub mod evaluable;
+pub mod extract;
 pub mod field;
 pub mod filterable;
 pub mod foldable;

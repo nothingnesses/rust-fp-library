@@ -17,6 +17,12 @@ mod inner {
 	use fp_macros::*;
 	/// A type class for types that can be constructed lazily.
 	///
+	/// `Deferrable` is the dual of [`Extract`](crate::classes::Extract): where
+	/// `Extract` forces/extracts the inner value, `Deferrable` constructs a value
+	/// lazily from a thunk. For types implementing both (like
+	/// [`Thunk`](crate::types::Thunk)), `extract(defer(|| x)) == x` forms a
+	/// round-trip.
+	///
 	/// ### Laws
 	///
 	/// `Deferrable` instances must satisfy the following law:
