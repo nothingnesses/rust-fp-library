@@ -37,10 +37,10 @@ just doc --workspace --all-features --open       # Build and open docs
 
 ```bash
 just test                                        # Run all tests (cached)
-just test-force                                  # Force re-run (ignores cache)
-just test-subset -p fp-library test_name         # Run a subset (always runs, no cache update)
-just test-subset -p fp-library --test property   # Run property-based tests
-just test-subset --doc -p fp-library             # Run doc tests
+just test -p fp-library test_name                # Run a subset (no caching)
+just test -p fp-library --test property          # Run property-based tests
+just test --doc -p fp-library                    # Run doc tests
+just test-force                                  # Force re-run full suite (ignores cache)
 ```
 
 Cache location: `.claude/test-cache/` (gitignored). Invalidated automatically when `.rs` files or `Cargo.toml` change.

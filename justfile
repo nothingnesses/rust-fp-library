@@ -40,37 +40,33 @@ cargo *args:
     {{direnv_prefix}} cargo "$@"
 
 # Run tests with output caching. Re-runs only when source files have changed.
+# Each unique set of arguments gets its own independent cache.
 test *args:
     #!/usr/bin/env bash
     set -euo pipefail
     mkdir -p .claude/test-cache
-    LATEST=$(find fp-library/src fp-macros/src tests -name '*.rs' -printf '%T@\n' 2>/dev/null | sort -rn | head -1; find . -maxdepth 2 -name 'Cargo.toml' -printf '%T@\n' | sort -rn | head -1)
-    CACHED=$(cat .claude/test-cache/source-timestamp.txt 2>/dev/null || echo "0")
     ARGS="{{ args }}"
-    if [ "$LATEST" = "$CACHED" ] && [ -z "$ARGS" ]; then
+    CACHE_KEY=$(echo "$ARGS" | md5sum | cut -c1-12)
+    OUTPUT_FILE=".claude/test-cache/test-output-${CACHE_KEY}.txt"
+    TIMESTAMP_FILE=".claude/test-cache/source-timestamp-${CACHE_KEY}.txt"
+    LATEST=$(find fp-library/src fp-macros/src tests -name '*.rs' -printf '%T@\n' 2>/dev/null | sort -rn | head -1; find . -maxdepth 2 -name 'Cargo.toml' -printf '%T@\n' | sort -rn | head -1)
+    CACHED=$(cat "$TIMESTAMP_FILE" 2>/dev/null || echo "0")
+    if [ "$LATEST" = "$CACHED" ]; then
         echo "=== CACHED TEST OUTPUT (no source changes) ==="
-        cat .claude/test-cache/test-output.txt
+        cat "$OUTPUT_FILE"
     else
         echo "=== Running tests ==="
-        {{direnv_prefix}} cargo test --workspace --all-features $ARGS 2>&1 | tee .claude/test-cache/test-output.txt
-        if [ -z "$ARGS" ]; then
-            echo "$LATEST" > .claude/test-cache/source-timestamp.txt
-        fi
+        {{direnv_prefix}} cargo test --workspace --all-features $ARGS 2>&1 | tee "$OUTPUT_FILE"
+        echo "$LATEST" > "$TIMESTAMP_FILE"
     fi
 
 # Force re-run tests (ignores cache).
 test-force *args:
     #!/usr/bin/env bash
     set -euo pipefail
-    rm -f .claude/test-cache/source-timestamp.txt
+    rm -f .claude/test-cache/*
     just test {{ args }}
 
-# Run a subset of tests (always runs, does not update cache timestamp).
-test-subset +args:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    mkdir -p .claude/test-cache
-    {{direnv_prefix}} cargo test {{ args }} 2>&1 | tee .claude/test-cache/test-output.txt
 
 # Verify: fmt, clippy, doc, then test (in order).
 verify:
