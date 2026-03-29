@@ -10,122 +10,74 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Running Commands
 
-All cargo commands must be run via the `.claude/direnv-cargo.sh` wrapper script, which loads the correct Nix development environment via direnv before invoking cargo. Usage: `.claude/direnv-cargo.sh <cargo-subcommand> [args...]` (e.g., `.claude/direnv-cargo.sh check --workspace`). This applies to every command: building, testing, formatting, linting, benchmarking, etc.
+All commands must be run via `just` recipes defined in the project's `justfile`. The `justfile` loads the Nix development environment via direnv automatically. Run `just --list` to see all available recipes.
+
+**Never run `cargo` directly.** Always use `just <recipe>` or `just cargo <subcommand>` for non-standard cargo commands.
 
 ## Development Commands
 
 ### Formatting & Linting
 
 ```bash
-# Format code (uses rustfmt.toml configuration)
-.claude/direnv-cargo.sh fmt --all
-
-# Check formatting
-.claude/direnv-cargo.sh fmt --all -- --check
-
-# Run clippy
-.claude/direnv-cargo.sh clippy --workspace --all-features
+just fmt --all                              # Format code (rustfmt)
+just fmt --all -- --check                   # Check formatting
+just clippy --workspace --all-features      # Run clippy
 ```
 
 ### Documentation
 
 ```bash
-# Check documentation (must produce zero warnings)
-.claude/direnv-cargo.sh doc --workspace --all-features --no-deps
-
-# Build and open documentation
-.claude/direnv-cargo.sh doc --workspace --all-features --open
+just doc --workspace --all-features --no-deps   # Check docs (must produce zero warnings)
+just doc --workspace --all-features --open       # Build and open docs
 ```
 
 ### Testing
 
-**Always use the caching wrapper from the "Test Output Caching" section for full test runs.** The commands below are reference for the underlying `cargo test` invocations and for subset runs (which should still be piped through `tee .claude/test-cache/test-output.txt`).
+**Never run `cargo test` directly.** Use `just test` which caches output and only re-runs when source files change.
 
 ```bash
-# Run all tests in the workspace (prefer the caching wrapper instead)
-.claude/direnv-cargo.sh test --workspace 2>&1 | tee .claude/test-cache/test-output.txt
-
-# Run tests for a specific package
-.claude/direnv-cargo.sh test -p fp-library 2>&1 | tee .claude/test-cache/test-output.txt
-.claude/direnv-cargo.sh test -p fp-macros 2>&1 | tee .claude/test-cache/test-output.txt
-
-# Run a specific test by name
-.claude/direnv-cargo.sh test -p fp-library test_name 2>&1 | tee .claude/test-cache/test-output.txt
-
-# Run tests with all features enabled (prefer the caching wrapper instead)
-.claude/direnv-cargo.sh test --workspace --all-features 2>&1 | tee .claude/test-cache/test-output.txt
-
-# Run property-based tests (QuickCheck)
-.claude/direnv-cargo.sh test -p fp-library --test property 2>&1 | tee .claude/test-cache/test-output.txt
-
-# Run doc tests
-.claude/direnv-cargo.sh test --doc -p fp-library 2>&1 | tee .claude/test-cache/test-output.txt
+just test                                        # Run all tests (cached)
+just test-force                                  # Force re-run (ignores cache)
+just test-subset -p fp-library test_name         # Run a subset (always runs, no cache update)
+just test-subset -p fp-library --test property   # Run property-based tests
+just test-subset --doc -p fp-library             # Run doc tests
 ```
+
+Cache location: `.claude/test-cache/` (gitignored). Invalidated automatically when `.rs` files or `Cargo.toml` change.
 
 ### Building
 
 ```bash
-# Build the workspace
-.claude/direnv-cargo.sh build --workspace
-
-# Build with specific features
-.claude/direnv-cargo.sh build -p fp-library --features rayon
-.claude/direnv-cargo.sh build -p fp-library --features serde
-.claude/direnv-cargo.sh build -p fp-library --all-features
-
-# Check without building
-.claude/direnv-cargo.sh check --workspace
+just build --workspace                           # Build the workspace
+just build -p fp-library --all-features          # Build with all features
+just check --workspace                           # Check without building
 ```
 
 ### Benchmarking
 
 ```bash
-# Run all benchmarks
-.claude/direnv-cargo.sh bench -p fp-library
-
-# List available benchmarks
-.claude/direnv-cargo.sh bench -p fp-library --bench benchmarks -- --list
-
-# Run specific benchmark (e.g., Vec)
-.claude/direnv-cargo.sh bench -p fp-library --bench benchmarks -- Vec
-
-# Benchmark reports are generated in target/criterion/report/index.html
+just bench -p fp-library                                   # Run all benchmarks
+just bench -p fp-library --bench benchmarks -- --list      # List benchmarks
+just bench -p fp-library --bench benchmarks -- Vec         # Run specific benchmark
+# Benchmark reports: target/criterion/report/index.html
 ```
 
 ### Verification
 
-After making changes, always verify in this order: **fmt → clippy → doc → test**.
+After making changes, verify in this order: **fmt, clippy, doc, test**.
 
 ```bash
-.claude/direnv-cargo.sh fmt --all
-.claude/direnv-cargo.sh clippy --workspace --all-features
-.claude/direnv-cargo.sh doc --workspace --all-features --no-deps
-# For the test step, use the caching wrapper from the "Test Output Caching" section below.
+just verify    # Runs all four steps in order
 ```
 
-### Test Output Caching
-
-**Important: Never run `cargo test` directly.** Always use the caching wrapper below. This avoids re-running expensive test suites when source files have not changed.
-
-**Cache file location:** `.claude/test-cache/` (gitignored)
-
-**How to run tests (always use this):**
+Or individually:
 
 ```bash
-mkdir -p .claude/test-cache && LATEST=$(find fp-library/src fp-macros/src tests -name '*.rs' -printf '%T@\n' 2>/dev/null | sort -rn | head -1; find . -maxdepth 2 -name 'Cargo.toml' -printf '%T@\n' | sort -rn | head -1) && CACHED=$(cat .claude/test-cache/source-timestamp.txt 2>/dev/null || echo "0") && if [ "$LATEST" = "$CACHED" ]; then echo "=== CACHED TEST OUTPUT (no source changes) ===" && cat .claude/test-cache/test-output.txt; else echo "=== Source files changed, re-running tests ===" && .claude/direnv-cargo.sh test --workspace --all-features 2>&1 | tee .claude/test-cache/test-output.txt && echo "$LATEST" > .claude/test-cache/source-timestamp.txt; fi
+just fmt --all
+just clippy --workspace --all-features
+just doc --workspace --all-features --no-deps
+just test
 ```
-
-For running a subset of tests (e.g., a specific package or test name), run `cargo test` directly with `tee` to cache:
-
-```bash
-.claude/direnv-cargo.sh test -p fp-library <test_name> 2>&1 | tee .claude/test-cache/test-output.txt
-```
-
-Subset runs do not update `source-timestamp.txt` since they do not validate the full suite.
-
-**The cache is invalidated automatically** when any `.rs` file under `fp-library/src/`, `fp-macros/src/`, or `tests/`, or any `Cargo.toml`, is newer than the cached timestamp.
-
-**Force re-run** by deleting the timestamp: `rm -f .claude/test-cache/source-timestamp.txt`
 
 ## Language Server & Code Intelligence
 
