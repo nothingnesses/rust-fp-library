@@ -627,6 +627,80 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
+		"The type of the error."
+	)]
+	impl<'a, A: Clone + Send + Sync + 'a, E: Clone + Send + Sync + 'a>
+		From<TryLazy<'a, A, E, RcLazyConfig>> for TryLazy<'a, A, E, ArcLazyConfig>
+	{
+		/// Converts an [`RcTryLazy`] into an [`ArcTryLazy`] by eagerly evaluating and cloning the
+		/// result.
+		///
+		/// `RcTryLazy` is `!Send`, so the result must be computed immediately and cloned
+		/// into the thread-safe `ArcTryLazy` world.
+		#[document_signature]
+		#[document_parameters("The `RcTryLazy` instance to convert.")]
+		#[document_returns(
+			"A new `ArcTryLazy` instance containing a clone of the eagerly evaluated result."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let rc_lazy = RcTryLazy::<i32, String>::ok(42);
+		/// let arc_lazy: ArcTryLazy<i32, String> = ArcTryLazy::from(rc_lazy);
+		/// assert_eq!(arc_lazy.evaluate(), Ok(&42));
+		///
+		/// let rc_err = RcTryLazy::<i32, String>::err("oops".to_string());
+		/// let arc_err: ArcTryLazy<i32, String> = ArcTryLazy::from(rc_err);
+		/// assert_eq!(arc_err.evaluate(), Err(&"oops".to_string()));
+		/// ```
+		fn from(source: TryLazy<'a, A, E, RcLazyConfig>) -> Self {
+			let result: Result<A, E> = source.evaluate().cloned().map_err(Clone::clone);
+			Self::new(move || result)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
+	impl<'a, A: Clone + 'a, E: Clone + 'a> From<TryLazy<'a, A, E, ArcLazyConfig>>
+		for TryLazy<'a, A, E, RcLazyConfig>
+	{
+		/// Converts an [`ArcTryLazy`] into an [`RcTryLazy`] by eagerly evaluating and cloning the
+		/// result.
+		///
+		/// The result is computed immediately and cloned into a new single-threaded
+		/// `RcTryLazy` instance.
+		#[document_signature]
+		#[document_parameters("The `ArcTryLazy` instance to convert.")]
+		#[document_returns(
+			"A new `RcTryLazy` instance containing a clone of the eagerly evaluated result."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let arc_lazy = ArcTryLazy::<i32, String>::ok(42);
+		/// let rc_lazy: RcTryLazy<i32, String> = RcTryLazy::from(arc_lazy);
+		/// assert_eq!(rc_lazy.evaluate(), Ok(&42));
+		///
+		/// let arc_err = ArcTryLazy::<i32, String>::err("oops".to_string());
+		/// let rc_err: RcTryLazy<i32, String> = RcTryLazy::from(arc_err);
+		/// assert_eq!(rc_err.evaluate(), Err(&"oops".to_string()));
+		/// ```
+		fn from(source: TryLazy<'a, A, E, ArcLazyConfig>) -> Self {
+			let result: Result<A, E> = source.evaluate().cloned().map_err(Clone::clone);
+			Self::new(move || result)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
 		"The type of the error value."
 	)]
 	impl<'a, A: 'a, E: 'a> TryLazy<'a, A, E, RcLazyConfig> {
@@ -1922,6 +1996,55 @@ mod inner {
 		}
 	}
 
+	// --- Display ---
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error.",
+		"The memoization configuration."
+	)]
+	#[document_parameters("The try-lazy value to display.")]
+	impl<'a, A: fmt::Display + 'a, E: fmt::Display + 'a, Config: TryLazyConfig> fmt::Display
+		for TryLazy<'a, A, E, Config>
+	{
+		/// Forces evaluation and displays `Ok(value)` or `Err(error)`.
+		#[document_signature]
+		///
+		#[document_parameters("The formatter.")]
+		///
+		#[document_returns("The formatting result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let ok_lazy = RcTryLazy::<i32, String>::ok(42);
+		/// assert_eq!(format!("{}", ok_lazy), "Ok(42)");
+		///
+		/// let err_lazy = RcTryLazy::<i32, String>::err("oops".to_string());
+		/// assert_eq!(format!("{}", err_lazy), "Err(oops)");
+		///
+		/// let ok_arc = ArcTryLazy::<i32, String>::ok(42);
+		/// assert_eq!(format!("{}", ok_arc), "Ok(42)");
+		///
+		/// let err_arc = ArcTryLazy::<i32, String>::err("oops".to_string());
+		/// assert_eq!(format!("{}", err_arc), "Err(oops)");
+		/// ```
+		fn fmt(
+			&self,
+			f: &mut fmt::Formatter<'_>,
+		) -> fmt::Result {
+			match self.evaluate() {
+				Ok(a) => write!(f, "Ok({})", a),
+				Err(e) => write!(f, "Err({})", e),
+			}
+		}
+	}
+
+	// --- Debug ---
+
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -3145,5 +3268,69 @@ mod tests {
 		fn assert_eq_impl<T: Eq>(_: &T) {}
 		let a = RcTryLazy::<i32, ()>::ok(42);
 		assert_eq_impl(&a);
+	}
+
+	// --- Display tests ---
+
+	/// Tests `Display` for `RcTryLazy` with `Ok` value.
+	#[test]
+	fn test_try_lazy_display_ok_rc() {
+		let lazy = RcTryLazy::<i32, String>::ok(42);
+		assert_eq!(format!("{}", lazy), "Ok(42)");
+	}
+
+	/// Tests `Display` for `RcTryLazy` with `Err` value.
+	#[test]
+	fn test_try_lazy_display_err_rc() {
+		let lazy = RcTryLazy::<i32, String>::err("oops".to_string());
+		assert_eq!(format!("{}", lazy), "Err(oops)");
+	}
+
+	/// Tests `Display` for `ArcTryLazy` with `Ok` value.
+	#[test]
+	fn test_try_lazy_display_ok_arc() {
+		let lazy = ArcTryLazy::<i32, String>::ok(42);
+		assert_eq!(format!("{}", lazy), "Ok(42)");
+	}
+
+	/// Tests `Display` for `ArcTryLazy` with `Err` value.
+	#[test]
+	fn test_try_lazy_display_err_arc() {
+		let lazy = ArcTryLazy::<i32, String>::err("oops".to_string());
+		assert_eq!(format!("{}", lazy), "Err(oops)");
+	}
+
+	// --- Cross-config conversion tests ---
+
+	/// Tests converting `RcTryLazy` to `ArcTryLazy` with `Ok` value.
+	#[test]
+	fn test_try_lazy_rc_to_arc_ok() {
+		let rc_lazy = RcTryLazy::<i32, String>::ok(42);
+		let arc_lazy: ArcTryLazy<i32, String> = ArcTryLazy::from(rc_lazy);
+		assert_eq!(arc_lazy.evaluate(), Ok(&42));
+	}
+
+	/// Tests converting `RcTryLazy` to `ArcTryLazy` with `Err` value.
+	#[test]
+	fn test_try_lazy_rc_to_arc_err() {
+		let rc_lazy = RcTryLazy::<i32, String>::err("fail".to_string());
+		let arc_lazy: ArcTryLazy<i32, String> = ArcTryLazy::from(rc_lazy);
+		assert_eq!(arc_lazy.evaluate(), Err(&"fail".to_string()));
+	}
+
+	/// Tests converting `ArcTryLazy` to `RcTryLazy` with `Ok` value.
+	#[test]
+	fn test_try_lazy_arc_to_rc_ok() {
+		let arc_lazy = ArcTryLazy::<i32, String>::ok(42);
+		let rc_lazy: RcTryLazy<i32, String> = RcTryLazy::from(arc_lazy);
+		assert_eq!(rc_lazy.evaluate(), Ok(&42));
+	}
+
+	/// Tests converting `ArcTryLazy` to `RcTryLazy` with `Err` value.
+	#[test]
+	fn test_try_lazy_arc_to_rc_err() {
+		let arc_lazy = ArcTryLazy::<i32, String>::err("fail".to_string());
+		let rc_lazy: RcTryLazy<i32, String> = RcTryLazy::from(arc_lazy);
+		assert_eq!(rc_lazy.evaluate(), Err(&"fail".to_string()));
 	}
 }
