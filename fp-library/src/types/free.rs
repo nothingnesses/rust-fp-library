@@ -234,6 +234,17 @@ mod inner {
 	// never call `Functor::map` or `Extract::extract`. The `Extract +
 	// Functor` bounds are inherited from the struct definition, which
 	// requires them for stack-safe `Drop` of `Suspend` nodes.
+	//
+	// Relaxing these bounds was investigated and is not feasible: Rust
+	// requires `Drop` impl bounds to match the struct bounds exactly,
+	// and the `Drop` impl needs `Extract` to iteratively dismantle
+	// `Suspend` nodes without stack overflow. Alternative approaches
+	// (ManuallyDrop with leaks, type-erased drop functions, split
+	// structs) all introduce unsoundness, leaks, or significant
+	// per-node overhead for marginal gain. This is a Rust-specific
+	// limitation; PureScript/Haskell avoid it via GC. The workaround
+	// for non-Extract functors is `fold_free`, which interprets into
+	// any `MonadRec` target.
 
 	#[document_type_parameters("The base functor.", "The result type.")]
 	#[document_parameters("The Free monad instance to operate on.")]
@@ -850,12 +861,14 @@ mod inner {
 		///
 		/// ### Stack Safety
 		///
-		/// Like `hoist_free`, this method is **not** stack-safe for deeply
-		/// nested `Suspend` chains. It recurses once per `Suspend` layer
-		/// encountered during construction; the recursion happens inside
-		/// `bind`'s deferred continuation (stored in the CatList), so it does
-		/// not grow the stack during construction. The stack unwinds only when
-		/// the resulting `Free<G, A>` is later evaluated.
+		/// This method is stack-safe for arbitrarily deep `Suspend` chains,
+		/// following the same pattern as [`hoist_free`](Free::hoist_free). The
+		/// recursive `substitute_free` call is inside a [`bind`](Free::bind)
+		/// closure deferred into the CatList. Each invocation does O(1) work
+		/// (one [`to_view`](Free::to_view), one natural transformation, one
+		/// `bind`) and returns immediately. The actual work happens inside
+		/// [`evaluate`](Free::evaluate)'s iterative loop, so the call stack
+		/// depth is O(1) regardless of `Suspend` depth.
 		#[document_signature]
 		///
 		#[document_type_parameters("The target functor brand.")]

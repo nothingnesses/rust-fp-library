@@ -39,6 +39,15 @@ mod inner {
 	/// ```
 	///
 	/// This is dual to the associativity law for `bind`.
+	///
+	/// # Note on `LazyBrand`
+	///
+	/// `LazyBrand` cannot implement `Extend` because `Extend: Functor` and
+	/// `LazyBrand` cannot implement `Functor` (its `evaluate` returns `&A`,
+	/// not owned `A`). PureScript's `Lazy` has `Extend`/`Comonad` because GC
+	/// provides owned values from `force`. In this library, `ThunkBrand` fills
+	/// the `Functor + Extend + Comonad` role for lazy types, while `LazyBrand`
+	/// provides memoization via [`RefFunctor`](crate::classes::RefFunctor).
 	pub trait Extend: Functor {
 		/// Extends a local context-dependent computation to a global computation.
 		///
