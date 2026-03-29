@@ -67,19 +67,127 @@ Foundational changes that unblock or simplify later phases.
 
 ### Task 1.3: Refactor `Free` to CatList-paired representation
 
+- **Reference:** [PureScript's Free monad](../../../purescript-free/src/Control/Monad/Free.purs)
 - **Files to modify:**
   - `fp-library/src/types/free.rs` (rewrite internals)
-- **What:** Replace the three-variant `FreeInner` enum (`Pure`, `Wrap`, `Bind`) with a two-component structure pairing a `FreeView` (`Return(value)` or `Suspend(functor)`) with a `CatList<Continuation<F>>`. This matches PureScript's design where every `Free` value is `(FreeView, CatList)`.
+- **What:** Replace the current three-variant `FreeInner` enum with a two-component structure pairing a `FreeView` with a `CatList<Continuation<F>>`, matching PureScript's design.
 
-  Key changes:
-  - `bind` becomes uniformly O(1) `snoc` for all cases (no special-casing for Pure/Wrap).
-  - `pure(a).bind(f1).bind(f2)` produces `(Return(a), CatList[f1, f2])` instead of nested `Bind { head: Bind { head: Pure(a), ... }, ... }`.
-  - `evaluate` simplifies to a two-way match (Return/Suspend) with continuation merging.
-  - The public API (`pure`, `wrap`, `bind`, `map`, `evaluate`, `resume`, `fold_free`, `hoist_free`) is unchanged.
+  **Current Rust representation (three variants):**
 
-  This eliminates the "Bind on Pure creates unnecessary nesting" issue identified in the analysis: no extra boxing when binding on Pure, fewer branches in evaluate, and closer alignment with PureScript's proven design.
-- **Why:** Reduces per-bind allocations for Pure values, simplifies the evaluate loop, eliminates a class of unnecessary nesting, and aligns with the PureScript reference implementation.
-- **Dependencies:** None, but should be done before other Free-related changes (Tasks 4.1, 6.4, 8.3).
+  ```rust
+  enum FreeInner<F, A> {
+      Pure(A),
+      Wrap(F::Of<'static, Free<F, A>>),
+      Bind {
+          head: Box<Free<F, TypeErasedValue>>,
+          continuations: CatList<Continuation<F>>,
+          _marker: PhantomData<A>,
+      },
+  }
+  pub struct Free<F, A>(Option<FreeInner<F, A>>);
+  ```
+
+  **PureScript representation (view + CatList):**
+
+  ```purescript
+  data Free f a = Free (FreeView f Val Val) (CatList (ExpF f))
+  data FreeView f a b = Return a | Bind (f b) (b -> Free f a)
+  ```
+
+  **Proposed Rust representation:**
+
+  ```rust
+  enum FreeView<F> {
+      Return(TypeErasedValue),
+      Suspend(Apply!(<F as Kind!(...)>::Of<'static, Free<F, TypeErasedValue>>)),
+  }
+  pub struct Free<F, A> {
+      view: FreeView<F>,
+      continuations: CatList<Continuation<F>>,
+      _marker: PhantomData<A>,
+  }
+  ```
+
+  Note: PureScript's `Bind(f b, b -> Free f a)` variant stores both a functor value and a continuation in the view. The Rust `Suspend` variant stores only the functor value (equivalent to PureScript's `Bind(f b, identity)`), because the continuation is always in the CatList. Both approaches are valid; the simpler `Suspend`-only view is sufficient since `wrap` and `liftF` can place their continuations in the CatList.
+
+  **Key change in `bind`:**
+
+  Current Rust `bind` has three branches:
+  ```rust
+  // Current: bind on Pure creates unnecessary nesting
+  FreeInner::Pure(a) => {
+      let head = Free::from_inner(FreeInner::Pure(Box::new(a)));
+      Free::from_inner(FreeInner::Bind {
+          head: Box::new(head),        // extra Box
+          continuations: CatList::singleton(erased_f),
+      })
+  }
+  // Current: bind on Wrap also creates a Bind node
+  FreeInner::Wrap(fa) => {
+      let head = Free::wrap(fa).boxed_erase_type();
+      Free::from_inner(FreeInner::Bind { head, continuations: CatList::singleton(erased_f) })
+  }
+  // Current: bind on Bind appends (O(1))
+  FreeInner::Bind { head, continuations, .. } => {
+      Free::from_inner(FreeInner::Bind { head, continuations: conts.snoc(erased_f) })
+  }
+  ```
+
+  PureScript's `bind` is a single case:
+  ```purescript
+  bind (Free v s) k = Free v (snoc s k)
+  ```
+
+  Proposed Rust `bind` becomes uniformly O(1) with no branching:
+  ```rust
+  fn bind(self, f: ...) -> Free<F, B> {
+      Free {
+          view: self.view,   // view unchanged
+          continuations: self.continuations.snoc(erased_f),
+          _marker: PhantomData,
+      }
+  }
+  ```
+
+  **Key change in `evaluate`:**
+
+  Current Rust `evaluate` matches three variants:
+  ```rust
+  loop {
+      match current.take_inner() {
+          FreeInner::Pure(val) => { /* apply next continuation or return */ }
+          FreeInner::Wrap(fa) => { current = F::evaluate(fa); }
+          FreeInner::Bind { head, continuations, .. } => {
+              current = *head;
+              outer_continuations = continuations.append(outer_continuations);
+          }
+      }
+  }
+  ```
+
+  Proposed `evaluate` matches two variants, analogous to PureScript's `toView`:
+  ```rust
+  loop {
+      // Merge this node's continuations into the outer queue
+      continuations = current.continuations.append(continuations);
+      match current.view {
+          FreeView::Return(val) => {
+              match continuations.uncons() {
+                  Some((k, rest)) => { current = k(val); continuations = rest; }
+                  None => return downcast(val),
+              }
+          }
+          FreeView::Suspend(fa) => {
+              current = F::extract(fa);  // (formerly F::evaluate)
+          }
+      }
+  }
+  ```
+
+  The public API (`pure`, `wrap`, `bind`, `map`, `evaluate`, `resume`, `fold_free`, `hoist_free`) is unchanged.
+
+- **Why:** Eliminates the "Bind on Pure creates unnecessary nesting" issue: `pure(a).bind(f1).bind(f2)` produces `(Return(a), CatList[f1, f2])` instead of nested `Bind { head: Bind { head: Pure(a), ... }, ... }`. Reduces per-bind allocations for Pure/Wrap values (no extra `Box` wrapping). Simplifies the evaluate loop (two-way match instead of three-way). Aligns with PureScript's proven "Reflection without Remorse" design.
+- **Dependencies:** None, but should be done before other Free-related changes (Tasks 5.1, 5.2, 7.4).
 
 ---
 
@@ -135,6 +243,7 @@ Renames `Evaluable` to `Extract` and introduces `Extend` and `Comonad` to comple
 
 ### Task 3.2: Implement `Extend` trait
 
+- **Reference:** [PureScript's `Control.Extend`](../../../purescript-control/src/Control/Extend.purs)
 - **Files to create:**
   - `fp-library/src/classes/extend.rs`
 - **Files to modify:**
@@ -158,6 +267,7 @@ Renames `Evaluable` to `Extract` and introduces `Extend` and `Comonad` to comple
 
 ### Task 3.3: Implement `Comonad` trait as `Extend + Extract`
 
+- **Reference:** [PureScript's `Control.Comonad`](../../../purescript-control/src/Control/Comonad.purs)
 - **Files to create:**
   - `fp-library/src/classes/comonad.rs`
 - **Files to modify:**
@@ -261,12 +371,72 @@ Loosens overly broad type constraints on `Free`.
 - **Why:** Currently all methods require `F: Extract` (formerly `Evaluable`), preventing construction of `Free` values over functors that are not `Extract`. PureScript's Free only requires `Functor` for structural operations.
 - **Dependencies:** Tasks 1.3 (CatList-paired refactor), 3.1 (rename).
 
-### Task 5.2: Add `to_view` helper and `subst_free` method to `Free`
+### Task 5.2: Add `to_view` helper and `substitute_free` method to `Free`
 
+- **Reference:** [PureScript's `toView` and `substFree`](../../../purescript-free/src/Control/Monad/Free.purs)
 - **Files to modify:**
   - `fp-library/src/types/free.rs`
-- **What:** Factor the iterative loop from `evaluate` and `resume` into a shared `to_view`-like helper that returns either `Return(a)` or `Suspend(fa, continuation)`. Then implement `subst_free` which folds `Free<F, A>` into `Free<G, A>` using a natural transformation `F ~> Free<G>`, without requiring `MonadRec` on the target (unlike `fold_free`).
-- **Why:** Reduces code duplication between `evaluate` and `resume`. `subst_free` enables Free-to-Free transformations without the `MonadRec` overhead of `fold_free`.
+- **What:** Factor the iterative collapse logic shared by `evaluate` and `resume` into a `to_view` helper, then implement `substitute_free`.
+
+  **PureScript's `toView`** collapses a `Free` into its outermost step:
+  ```purescript
+  toView :: forall f a. Free f a -> FreeView f a Val
+  toView (Free v s) = case v of
+      Return a -> case uncons s of
+          Nothing  -> Return a
+          Just (h, t) -> toView (concatF (h a) t)    -- apply continuation, loop
+      Bind f k -> Bind f (\a -> concatF (k a) s)     -- reattach remaining continuations
+  ```
+
+  In the CatList-paired Rust representation (Task 1.3), this becomes:
+  ```rust
+  enum FreeStep<F, A> {
+      Done(A),
+      Suspended(Apply!(<F as Kind!(...)>::Of<'static, Free<F, A>>)),
+  }
+
+  fn to_view(self) -> FreeStep<F, A> {
+      let mut current = self;
+      loop {
+          let Free { view, continuations, .. } = current;
+          match view {
+              FreeView::Return(val) => match continuations.uncons() {
+                  None => return FreeStep::Done(downcast(val)),
+                  Some((k, rest)) => { current = concat_free(k(val), rest); }
+              },
+              FreeView::Suspend(fa) => {
+                  // Reattach continuations to the inner Free
+                  let typed_fa = F::map(|inner| concat_free(inner, continuations), fa);
+                  return FreeStep::Suspended(typed_fa);
+              }
+          }
+      }
+  }
+  ```
+
+  Both `evaluate` and `resume` then become thin wrappers over `to_view`.
+
+  **PureScript's `substFree`** folds `Free f` into `Free g` without `MonadRec`:
+  ```purescript
+  substFree :: forall f g. (f ~> Free g) -> Free f ~> Free g
+  substFree k = go where
+      go f = case toView f of
+          Return a -> pure a
+          Bind g i -> k g >>= go <<< i
+  ```
+
+  Rust equivalent:
+  ```rust
+  pub fn substitute_free<G: Extract + Functor + 'static>(
+      self,
+      nt: impl Fn(Apply!(<F as Kind!(...)>::Of<'static, Free<F, A>>))
+              -> Free<G, Free<F, A>> + Clone + 'static,
+  ) -> Free<G, A>
+  ```
+
+  Note: PureScript's `hoistFree` is implemented as `substFree (liftF <<< k)`, so `substitute_free` is the more general operation.
+
+- **Why:** Reduces code duplication between `evaluate` and `resume`. `substitute_free` enables Free-to-Free transformations without the `MonadRec` overhead of `fold_free`.
 - **Dependencies:** Task 1.3 (CatList-paired refactor simplifies the view concept).
 
 ---
@@ -310,6 +480,7 @@ Expands the hierarchy's utility.
 
 ### Task 6.5: Add derived `MonadRec` combinators
 
+- **Reference:** [PureScript's `Control.Monad.Rec.Class`](../../../purescript-tailrec/src/Control/Monad/Rec/Class.purs)
 - **Files to modify:**
   - `fp-library/src/classes/monad_rec.rs` (add free functions)
   - `fp-library/src/functions.rs` (re-export)
