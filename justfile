@@ -1,6 +1,9 @@
 # Load the Nix development environment via direnv for all recipes.
+# In CI, recipes are invoked via `nix develop --command just`, so direnv
+# is not available. Set SKIP_DIRENV=1 to bypass the prefix.
 set shell := ["bash", "-c"]
-direnv_prefix := "direnv allow && eval \"$(direnv export bash)\" &&"
+skip_direnv := env_var_or_default("SKIP_DIRENV", "")
+direnv_prefix := if skip_direnv != "" { "" } else { "direnv allow && eval \"$(direnv export bash)\" &&" }
 
 # List available recipes.
 default:
