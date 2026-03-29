@@ -42,12 +42,14 @@ mod inner {
 				CloneableFn,
 				Deferrable,
 				Foldable,
+				FoldableWithIndex,
 				Monoid,
 				RefFunctor,
 				Semigroup,
 				SendDeferrable,
 				SendRefFunctor,
 				TryLazyConfig,
+				WithIndex,
 			},
 			impl_kind,
 			kinds::*,
@@ -1449,6 +1451,63 @@ mod inner {
 		}
 	}
 
+	// --- WithIndex ---
+
+	#[document_type_parameters("The error type.", "The memoization configuration.")]
+	impl<E: 'static, Config: TryLazyConfig> WithIndex for TryLazyBrand<E, Config> {
+		type Index = ();
+	}
+
+	// --- FoldableWithIndex ---
+
+	#[document_type_parameters("The error type.", "The memoization configuration.")]
+	impl<E: 'static, Config: TryLazyConfig> FoldableWithIndex for TryLazyBrand<E, Config> {
+		/// Folds the `TryLazy` using a monoid, providing the index `()`.
+		///
+		/// Forces evaluation and, if the computation succeeded, maps the value with
+		/// the unit index. If the computation failed, returns the monoid identity
+		/// element.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the computed value.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the index and the value.",
+			"The `TryLazy` to fold."
+		)]
+		///
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::foldable_with_index::FoldableWithIndex,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy: RcTryLazy<i32, ()> = RcTryLazy::new(|| Ok(10));
+		/// let result = <TryLazyBrand<(), RcLazyConfig> as FoldableWithIndex>::fold_map_with_index(
+		/// 	|_, x: i32| x.to_string(),
+		/// 	lazy,
+		/// );
+		/// assert_eq!(result, "10");
+		/// ```
+		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
+			f: impl Fn((), A) -> R + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R {
+			match fa.evaluate() {
+				Ok(a) => f((), a.clone()),
+				Err(_) => Monoid::empty(),
+			}
+		}
+	}
+
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -2646,6 +2705,95 @@ mod tests {
 			_,
 		>(|a, b| a + b, 5, lazy);
 		assert_eq!(result, 5);
+	}
+
+	// --- FoldableWithIndex tests ---
+
+	/// Tests `fold_map_with_index` for `RcTryLazy` with `Ok`.
+	///
+	/// Verifies that the index is `()` and the value is folded correctly.
+	#[test]
+	fn test_rc_try_lazy_fold_map_with_index_ok() {
+		use crate::classes::foldable_with_index::FoldableWithIndex;
+
+		let lazy = RcTryLazy::<i32, ()>::ok(42);
+		let result = <TryLazyBrand<(), RcLazyConfig> as FoldableWithIndex>::fold_map_with_index(
+			|_, x: i32| x.to_string(),
+			lazy,
+		);
+		assert_eq!(result, "42");
+	}
+
+	/// Tests `fold_map_with_index` for `RcTryLazy` with `Err`.
+	///
+	/// Verifies that the monoid identity is returned when the computation fails.
+	#[test]
+	fn test_rc_try_lazy_fold_map_with_index_err() {
+		use crate::classes::foldable_with_index::FoldableWithIndex;
+
+		let lazy = RcTryLazy::<i32, String>::err("fail".to_string());
+		let result = <TryLazyBrand<String, RcLazyConfig> as FoldableWithIndex>::fold_map_with_index(
+			|_, x: i32| x.to_string(),
+			lazy,
+		);
+		assert_eq!(result, "");
+	}
+
+	/// Tests `fold_map_with_index` for `ArcTryLazy` with `Ok`.
+	///
+	/// Verifies that the index is `()` and the value is folded correctly.
+	#[test]
+	fn test_arc_try_lazy_fold_map_with_index_ok() {
+		use crate::classes::foldable_with_index::FoldableWithIndex;
+
+		let lazy = ArcTryLazy::<i32, ()>::ok(10);
+		let result = <TryLazyBrand<(), ArcLazyConfig> as FoldableWithIndex>::fold_map_with_index(
+			|_, x: i32| x.to_string(),
+			lazy,
+		);
+		assert_eq!(result, "10");
+	}
+
+	/// Tests `fold_map_with_index` for `ArcTryLazy` with `Err`.
+	///
+	/// Verifies that the monoid identity is returned when the computation fails.
+	#[test]
+	fn test_arc_try_lazy_fold_map_with_index_err() {
+		use crate::classes::foldable_with_index::FoldableWithIndex;
+
+		let lazy = ArcTryLazy::<i32, String>::err("fail".to_string());
+		let result =
+			<TryLazyBrand<String, ArcLazyConfig> as FoldableWithIndex>::fold_map_with_index(
+				|_, x: i32| x.to_string(),
+				lazy,
+			);
+		assert_eq!(result, "");
+	}
+
+	/// Tests compatibility of `FoldableWithIndex` with `Foldable`.
+	///
+	/// Verifies that `fold_map(f, fa) == fold_map_with_index(|_, a| f(a), fa)`.
+	#[test]
+	fn test_rc_try_lazy_foldable_with_index_compatibility() {
+		use crate::{
+			classes::foldable_with_index::FoldableWithIndex,
+			functions::*,
+		};
+
+		let lazy1 = RcTryLazy::<i32, ()>::ok(7);
+		let lazy2 = RcTryLazy::<i32, ()>::ok(7);
+		let f = |a: i32| a.to_string();
+
+		let fold_result =
+			fold_map::<crate::brands::RcFnBrand, TryLazyBrand<(), RcLazyConfig>, _, String>(
+				f, lazy1,
+			);
+		let fold_with_index_result =
+			<TryLazyBrand<(), RcLazyConfig> as FoldableWithIndex>::fold_map_with_index(
+				|_, a| f(a),
+				lazy2,
+			);
+		assert_eq!(fold_result, fold_with_index_result);
 	}
 
 	/// Tests `Semigroup::append` where the first operand is `Err`.
