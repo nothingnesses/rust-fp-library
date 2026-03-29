@@ -19,18 +19,18 @@ mod inner {
 		crate::{
 			classes::{
 				Deferrable,
+				LazyConfig,
 				Monoid,
 				Semigroup,
+				TryLazyConfig,
 			},
 			types::{
 				Lazy,
-				LazyConfig,
-				Step,
 				Trampoline,
 				TryLazy,
-				TryLazyConfig,
 			},
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 		std::fmt,
 	};
@@ -452,7 +452,7 @@ mod inner {
 
 		/// Stack-safe tail recursion for fallible computations.
 		///
-		/// The step function returns `TryTrampoline<Step<S, A>, E>`, and the
+		/// The step function returns `TryTrampoline<ControlFlow<A, S>, E>`, and the
 		/// loop short-circuits on error.
 		///
 		/// # Clone Bound
@@ -476,9 +476,9 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::{
-		/// 	Step,
-		/// 	TryTrampoline,
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::types::TryTrampoline,
 		/// };
 		///
 		/// // Fallible factorial using tail recursion
@@ -488,9 +488,9 @@ mod inner {
 		/// 			if n < 0 {
 		/// 				TryTrampoline::err("Negative input".to_string())
 		/// 			} else if n <= 1 {
-		/// 				TryTrampoline::ok(Step::Done(acc))
+		/// 				TryTrampoline::ok(ControlFlow::Break(acc))
 		/// 			} else {
-		/// 				TryTrampoline::ok(Step::Loop((n - 1, n * acc)))
+		/// 				TryTrampoline::ok(ControlFlow::Continue((n - 1, n * acc)))
 		/// 			}
 		/// 		},
 		/// 		(n, 1),
@@ -501,18 +501,18 @@ mod inner {
 		/// assert_eq!(factorial(-1).evaluate(), Err("Negative input".to_string()));
 		/// ```
 		pub fn tail_rec_m<S: 'static>(
-			f: impl Fn(S) -> TryTrampoline<Step<S, A>, E> + Clone + 'static,
+			f: impl Fn(S) -> TryTrampoline<ControlFlow<A, S>, E> + Clone + 'static,
 			initial: S,
 		) -> Self {
 			fn go<S: 'static, A: 'static, E: 'static>(
-				f: impl Fn(S) -> TryTrampoline<Step<S, A>, E> + Clone + 'static,
+				f: impl Fn(S) -> TryTrampoline<ControlFlow<A, S>, E> + Clone + 'static,
 				s: S,
 			) -> Trampoline<Result<A, E>> {
 				Trampoline::defer(move || {
 					let result = f(s);
 					result.0.bind(move |r| match r {
-						Ok(Step::Loop(next)) => go(f, next),
-						Ok(Step::Done(a)) => Trampoline::pure(Ok(a)),
+						Ok(ControlFlow::Continue(next)) => go(f, next),
+						Ok(ControlFlow::Break(a)) => Trampoline::pure(Ok(a)),
 						Err(e) => Trampoline::pure(Err(e)),
 					})
 				})
@@ -537,10 +537,8 @@ mod inner {
 		///
 		/// ```
 		/// use {
-		/// 	fp_library::types::{
-		/// 		Step,
-		/// 		TryTrampoline,
-		/// 	},
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::types::TryTrampoline,
 		/// 	std::sync::{
 		/// 		Arc,
 		/// 		atomic::{
@@ -557,9 +555,9 @@ mod inner {
 		/// 	move |n| {
 		/// 		counter_clone.fetch_add(1, Ordering::SeqCst);
 		/// 		if n == 0 {
-		/// 			TryTrampoline::ok(Step::Done(0))
+		/// 			TryTrampoline::ok(ControlFlow::Break(0))
 		/// 		} else {
-		/// 			TryTrampoline::ok(Step::Loop(n - 1))
+		/// 			TryTrampoline::ok(ControlFlow::Continue(n - 1))
 		/// 		}
 		/// 	},
 		/// 	100,
@@ -568,7 +566,7 @@ mod inner {
 		/// assert_eq!(counter.load(Ordering::SeqCst), 101);
 		/// ```
 		pub fn arc_tail_rec_m<S: 'static>(
-			f: impl Fn(S) -> TryTrampoline<Step<S, A>, E> + 'static,
+			f: impl Fn(S) -> TryTrampoline<ControlFlow<A, S>, E> + 'static,
 			initial: S,
 		) -> Self {
 			use std::sync::Arc;
@@ -1052,10 +1050,8 @@ pub use inner::*;
 mod tests {
 	use {
 		super::*,
-		crate::types::{
-			Step,
-			Trampoline,
-		},
+		crate::types::Trampoline,
+		core::ops::ControlFlow,
 		quickcheck_macros::quickcheck,
 	};
 
@@ -1267,9 +1263,9 @@ mod tests {
 					if n < 0 {
 						TryTrampoline::err("Negative input".to_string())
 					} else if n <= 1 {
-						TryTrampoline::ok(Step::Done(acc))
+						TryTrampoline::ok(ControlFlow::Break(acc))
 					} else {
-						TryTrampoline::ok(Step::Loop((n - 1, n * acc)))
+						TryTrampoline::ok(ControlFlow::Continue((n - 1, n * acc)))
 					}
 				},
 				(n, 1),
@@ -1291,7 +1287,7 @@ mod tests {
 				if n >= 5 {
 					TryTrampoline::err(format!("too large: {}", n))
 				} else {
-					TryTrampoline::ok(Step::Loop(n + 1))
+					TryTrampoline::ok(ControlFlow::Continue(n + 1))
 				}
 			},
 			0,
@@ -1309,9 +1305,9 @@ mod tests {
 		let task: TryTrampoline<u64, String> = TryTrampoline::tail_rec_m(
 			|(remaining, acc)| {
 				if remaining == 0 {
-					TryTrampoline::ok(Step::Done(acc))
+					TryTrampoline::ok(ControlFlow::Break(acc))
 				} else {
-					TryTrampoline::ok(Step::Loop((remaining - 1, acc + remaining)))
+					TryTrampoline::ok(ControlFlow::Continue((remaining - 1, acc + remaining)))
 				}
 			},
 			(n, 0u64),
@@ -1331,7 +1327,7 @@ mod tests {
 				if remaining == 0 {
 					TryTrampoline::err("done iterating".to_string())
 				} else {
-					TryTrampoline::ok(Step::Loop(remaining - 1))
+					TryTrampoline::ok(ControlFlow::Continue(remaining - 1))
 				}
 			},
 			n,
@@ -1360,9 +1356,9 @@ mod tests {
 			move |n| {
 				counter_clone.fetch_add(1, Ordering::SeqCst);
 				if n == 0 {
-					TryTrampoline::ok(Step::Done(0))
+					TryTrampoline::ok(ControlFlow::Break(0))
 				} else {
-					TryTrampoline::ok(Step::Loop(n - 1))
+					TryTrampoline::ok(ControlFlow::Continue(n - 1))
 				}
 			},
 			10,
@@ -1394,7 +1390,7 @@ mod tests {
 				if n >= 5 {
 					TryTrampoline::err(format!("too large: {}", n))
 				} else {
-					TryTrampoline::ok(Step::Loop(n + 1))
+					TryTrampoline::ok(ControlFlow::Continue(n + 1))
 				}
 			},
 			0,
@@ -1493,9 +1489,9 @@ mod tests {
 		let task: TryTrampoline<Rc<u64>, Rc<String>> = TryTrampoline::tail_rec_m(
 			|(n, acc): (u64, Rc<u64>)| {
 				if n == 0 {
-					TryTrampoline::ok(Step::Done(acc))
+					TryTrampoline::ok(ControlFlow::Break(acc))
 				} else {
-					TryTrampoline::ok(Step::Loop((n - 1, Rc::new(*acc + n))))
+					TryTrampoline::ok(ControlFlow::Continue((n - 1, Rc::new(*acc + n))))
 				}
 			},
 			(100u64, Rc::new(0u64)),

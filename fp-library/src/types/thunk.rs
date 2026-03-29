@@ -18,6 +18,7 @@ mod inner {
 				FoldableWithIndex,
 				Functor,
 				FunctorWithIndex,
+				LazyConfig,
 				Lift,
 				MonadRec,
 				Monoid,
@@ -32,13 +33,12 @@ mod inner {
 			types::{
 				ArcLazyConfig,
 				Lazy,
-				LazyConfig,
 				RcLazyConfig,
 				SendThunk,
-				Step,
 				Trampoline,
 			},
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 		std::fmt,
 	};
@@ -686,29 +686,40 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::*,
-		/// 	functions::*,
-		/// 	types::*,
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
 		/// };
 		///
 		/// let result = tail_rec_m::<ThunkBrand, _, _>(
-		/// 	|x| pure::<ThunkBrand, _>(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
+		/// 	|x| {
+		/// 		pure::<ThunkBrand, _>(
+		/// 			if x < 1000 { ControlFlow::Continue(x + 1) } else { ControlFlow::Break(x) },
+		/// 		)
+		/// 	},
 		/// 	0,
 		/// );
 		/// assert_eq!(result.evaluate(), 1000);
 		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a>(
-			f: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>) + 'a,
+			f: impl Fn(
+				A,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
+			+ 'a,
 			a: A,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			Thunk::new(move || {
 				let mut current = a;
 				loop {
 					match f(current).evaluate() {
-						Step::Loop(next) => current = next,
-						Step::Done(res) => break res,
+						ControlFlow::Continue(next) => current = next,
+						ControlFlow::Break(res) => break res,
 					}
 				}
 			})
@@ -1378,18 +1389,24 @@ mod tests {
 	/// because it uses an iterative loop internally rather than recursive calls.
 	#[test]
 	fn test_tail_rec_m_stack_safety() {
-		use crate::{
-			brands::ThunkBrand,
-			classes::monad_rec::tail_rec_m,
-			functions::pure,
-			types::Step,
+		use {
+			crate::{
+				brands::ThunkBrand,
+				classes::monad_rec::tail_rec_m,
+				functions::pure,
+			},
+			core::ops::ControlFlow,
 		};
 
 		let iterations: i64 = 200_000;
 		let result = tail_rec_m::<ThunkBrand, _, _>(
 			|acc| {
 				pure::<ThunkBrand, _>(
-					if acc < iterations { Step::Loop(acc + 1) } else { Step::Done(acc) },
+					if acc < iterations {
+						ControlFlow::Continue(acc + 1)
+					} else {
+						ControlFlow::Break(acc)
+					},
 				)
 			},
 			0i64,

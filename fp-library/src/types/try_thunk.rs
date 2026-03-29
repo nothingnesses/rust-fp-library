@@ -23,6 +23,7 @@ mod inner {
 				FoldableWithIndex,
 				Functor,
 				FunctorWithIndex,
+				LazyConfig,
 				Lift,
 				MonadRec,
 				Monoid,
@@ -30,6 +31,7 @@ mod inner {
 				Semiapplicative,
 				Semigroup,
 				Semimonad,
+				TryLazyConfig,
 				WithIndex,
 			},
 			impl_kind,
@@ -37,15 +39,13 @@ mod inner {
 			types::{
 				ArcTryLazy,
 				Lazy,
-				LazyConfig,
 				RcTryLazy,
-				Step,
 				Thunk,
 				TryLazy,
-				TryLazyConfig,
 				TryTrampoline,
 			},
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 		std::fmt,
 	};
@@ -1041,17 +1041,20 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::*,
-		/// 	functions::*,
-		/// 	types::*,
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
 		/// };
 		///
 		/// let result = tail_rec_m::<TryThunkErrAppliedBrand<()>, _, _>(
 		/// 	|x| {
 		/// 		pure::<TryThunkErrAppliedBrand<()>, _>(
-		/// 			if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) },
+		/// 			if x < 1000 { ControlFlow::Continue(x + 1) } else { ControlFlow::Break(x) },
 		/// 		)
 		/// 	},
 		/// 	0,
@@ -1059,15 +1062,19 @@ mod inner {
 		/// assert_eq!(result.evaluate(), Ok(1000));
 		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a>(
-			f: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>) + 'a,
+			f: impl Fn(
+				A,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
+			+ 'a,
 			a: A,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			TryThunk::new(move || {
 				let mut current = a;
 				loop {
 					match f(current).evaluate() {
-						Ok(Step::Loop(next)) => current = next,
-						Ok(Step::Done(res)) => break Ok(res),
+						Ok(ControlFlow::Continue(next)) => current = next,
+						Ok(ControlFlow::Break(res)) => break Ok(res),
 						Err(e) => break Err(e),
 					}
 				}
@@ -1774,9 +1781,9 @@ mod inner {
 	impl<A: 'static> MonadRec for TryThunkOkAppliedBrand<A> {
 		/// Performs tail-recursive monadic computation over the error channel.
 		///
-		/// The step function returns `TryThunk<A, Step<E, E2>>`. The loop
-		/// continues while the error is `Step::Loop`, terminates with the
-		/// final error on `Step::Done`, and short-circuits on `Ok`.
+		/// The step function returns `TryThunk<A, ControlFlow<E2, E>>`. The loop
+		/// continues while the error is `ControlFlow::Continue`, terminates with the
+		/// final error on `ControlFlow::Break`, and short-circuits on `Ok`.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1792,17 +1799,20 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::*,
-		/// 	functions::*,
-		/// 	types::*,
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
 		/// };
 		///
 		/// let result = tail_rec_m::<TryThunkOkAppliedBrand<i32>, _, _>(
 		/// 	|x| {
 		/// 		pure::<TryThunkOkAppliedBrand<i32>, _>(
-		/// 			if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) },
+		/// 			if x < 1000 { ControlFlow::Continue(x + 1) } else { ControlFlow::Break(x) },
 		/// 		)
 		/// 	},
 		/// 	0,
@@ -1810,7 +1820,10 @@ mod inner {
 		/// assert_eq!(result.evaluate(), Err(1000));
 		/// ```
 		fn tail_rec_m<'a, E: 'a, E2: 'a>(
-			f: impl Fn(E) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<E, E2>>)
+			f: impl Fn(
+				E,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<E2, E>>)
 			+ 'a,
 			e: E,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E2>) {
@@ -1818,8 +1831,8 @@ mod inner {
 				let mut current = e;
 				loop {
 					match f(current).evaluate() {
-						Err(Step::Loop(next)) => current = next,
-						Err(Step::Done(res)) => break Err(res),
+						Err(ControlFlow::Continue(next)) => current = next,
+						Err(ControlFlow::Break(res)) => break Err(res),
 						Ok(a) => break Ok(a),
 					}
 				}
@@ -2451,19 +2464,21 @@ mod tests {
 
 	/// Tests `MonadRec` for `TryThunkOkAppliedBrand` (tail recursion over error).
 	///
-	/// Verifies that the loop continues on `Step::Loop` and terminates on `Step::Done`.
+	/// Verifies that the loop continues on `ControlFlow::Continue` and terminates on `ControlFlow::Break`.
 	#[test]
 	fn test_monad_rec_ok_applied() {
-		use crate::{
-			brands::*,
-			functions::*,
-			types::Step,
+		use {
+			crate::{
+				brands::*,
+				functions::*,
+			},
+			core::ops::ControlFlow,
 		};
 
 		let result = tail_rec_m::<TryThunkOkAppliedBrand<i32>, _, _>(
 			|x| {
 				pure::<TryThunkOkAppliedBrand<i32>, _>(
-					if x < 100 { Step::Loop(x + 1) } else { Step::Done(x) },
+					if x < 100 { ControlFlow::Continue(x + 1) } else { ControlFlow::Break(x) },
 				)
 			},
 			0,
@@ -2476,10 +2491,12 @@ mod tests {
 	/// Verifies that encountering an `Ok` value terminates the loop immediately.
 	#[test]
 	fn test_monad_rec_ok_applied_short_circuit() {
-		use crate::{
-			brands::*,
-			functions::*,
-			types::Step,
+		use {
+			crate::{
+				brands::*,
+				functions::*,
+			},
+			core::ops::ControlFlow,
 		};
 
 		let result = tail_rec_m::<TryThunkOkAppliedBrand<i32>, _, _>(
@@ -2487,7 +2504,7 @@ mod tests {
 				if x == 5 {
 					TryThunk::ok(42)
 				} else {
-					pure::<TryThunkOkAppliedBrand<i32>, _>(Step::<i32, i32>::Loop(x + 1))
+					pure::<TryThunkOkAppliedBrand<i32>, _>(ControlFlow::<i32, i32>::Continue(x + 1))
 				}
 			},
 			0,

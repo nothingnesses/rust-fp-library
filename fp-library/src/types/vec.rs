@@ -44,8 +44,8 @@ mod inner {
 			},
 			impl_kind,
 			kinds::*,
-			types::Step,
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 	};
 
@@ -1776,19 +1776,22 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
 		/// };
 		///
 		/// // Branch into two paths, each running until done
 		/// let result = tail_rec_m::<VecBrand, _, _>(
 		/// 	|n| {
 		/// 		if n < 3 {
-		/// 			vec![Step::Loop(n + 1), Step::Done(n * 10)]
+		/// 			vec![ControlFlow::Continue(n + 1), ControlFlow::Break(n * 10)]
 		/// 		} else {
-		/// 			vec![Step::Done(n * 10)]
+		/// 			vec![ControlFlow::Break(n * 10)]
 		/// 		}
 		/// 	},
 		/// 	0,
@@ -1797,7 +1800,10 @@ mod inner {
 		/// assert_eq!(result, vec![0, 10, 20, 30]);
 		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a>(
-			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			func: impl Fn(
+				A,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
 			+ 'a,
 			initial: A,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -1808,8 +1814,8 @@ mod inner {
 				for a in pending {
 					for step in func(a) {
 						match step {
-							Step::Loop(next) => next_pending.push(next),
-							Step::Done(b) => done.push(b),
+							ControlFlow::Continue(next) => next_pending.push(next),
+							ControlFlow::Break(b) => done.push(b),
 						}
 					}
 				}
@@ -2441,24 +2447,24 @@ mod tests {
 	/// Tests the MonadRec identity law: `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
 	#[quickcheck]
 	fn monad_rec_identity(x: i32) -> bool {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
-		tail_rec_m::<VecBrand, _, _>(|a| vec![Step::Done(a)], x) == vec![x]
+		tail_rec_m::<VecBrand, _, _>(|a| vec![ControlFlow::Break(a)], x) == vec![x]
 	}
 
 	/// Tests a simple linear recursion via `tail_rec_m`.
 	#[test]
 	fn monad_rec_linear() {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
 		// Count up to 5
 		let result = tail_rec_m::<VecBrand, _, _>(
 			|n| {
-				if n < 5 { vec![Step::Loop(n + 1)] } else { vec![Step::Done(n)] }
+				if n < 5 { vec![ControlFlow::Continue(n + 1)] } else { vec![ControlFlow::Break(n)] }
 			},
 			0,
 		);
@@ -2468,17 +2474,17 @@ mod tests {
 	/// Tests branching nondeterminism via `tail_rec_m`.
 	#[test]
 	fn monad_rec_branching() {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
 		// Each step either finishes or continues
 		let result = tail_rec_m::<VecBrand, _, _>(
 			|n: i32| {
 				if n < 2 {
-					vec![Step::Loop(n + 1), Step::Done(n * 100)]
+					vec![ControlFlow::Continue(n + 1), ControlFlow::Break(n * 100)]
 				} else {
-					vec![Step::Done(n * 100)]
+					vec![ControlFlow::Break(n * 100)]
 				}
 			},
 			0,
@@ -2492,11 +2498,12 @@ mod tests {
 	/// Tests that `tail_rec_m` handles an empty result from the step function.
 	#[test]
 	fn monad_rec_empty() {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
-		let result: Vec<i32> = tail_rec_m::<VecBrand, _, _>(|_n| Vec::<Step<i32, i32>>::new(), 0);
+		let result: Vec<i32> =
+			tail_rec_m::<VecBrand, _, _>(|_n| Vec::<ControlFlow<i32, i32>>::new(), 0);
 		assert_eq!(result, Vec::<i32>::new());
 	}
 }

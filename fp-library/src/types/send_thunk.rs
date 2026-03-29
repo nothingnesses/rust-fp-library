@@ -27,10 +27,10 @@ mod inner {
 			kinds::*,
 			types::{
 				ArcLazy,
-				Step,
 				Thunk,
 			},
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 		std::{
 			fmt,
@@ -270,8 +270,8 @@ mod inner {
 		///
 		/// The step function `f` is called in a loop, avoiding stack growth.
 		/// Each iteration evaluates `f(state)` and inspects the resulting
-		/// [`Step`]: `Step::Loop(next)` continues with `next`, while
-		/// `Step::Done(a)` breaks out and returns `a`.
+		/// [`ControlFlow`]: `ControlFlow::Continue(next)` continues with `next`, while
+		/// `ControlFlow::Break(a)` breaks out and returns `a`.
 		///
 		/// # Clone Bound
 		///
@@ -296,16 +296,23 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::types::*,
+		/// };
 		///
 		/// let result = SendThunk::tail_rec_m(
-		/// 	|x| SendThunk::pure(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
+		/// 	|x| {
+		/// 		SendThunk::pure(
+		/// 			if x < 1000 { ControlFlow::Continue(x + 1) } else { ControlFlow::Break(x) },
+		/// 		)
+		/// 	},
 		/// 	0,
 		/// );
 		/// assert_eq!(result.evaluate(), 1000);
 		/// ```
 		pub fn tail_rec_m<S>(
-			f: impl Fn(S) -> SendThunk<'a, Step<S, A>> + Clone + Send + 'a,
+			f: impl Fn(S) -> SendThunk<'a, ControlFlow<A, S>> + Clone + Send + 'a,
 			initial: S,
 		) -> Self
 		where
@@ -314,8 +321,8 @@ mod inner {
 				let mut state = initial;
 				loop {
 					match f(state).evaluate() {
-						Step::Done(a) => return a,
-						Step::Loop(next) => state = next,
+						ControlFlow::Break(a) => return a,
+						ControlFlow::Continue(next) => state = next,
 					}
 				}
 			})
@@ -341,6 +348,7 @@ mod inner {
 		///
 		/// ```
 		/// use {
+		/// 	core::ops::ControlFlow,
 		/// 	fp_library::types::*,
 		/// 	std::sync::{
 		/// 		Arc,
@@ -356,7 +364,9 @@ mod inner {
 		/// let result = SendThunk::arc_tail_rec_m(
 		/// 	move |x| {
 		/// 		counter_clone.fetch_add(1, Ordering::SeqCst);
-		/// 		SendThunk::pure(if x < 100 { Step::Loop(x + 1) } else { Step::Done(x) })
+		/// 		SendThunk::pure(
+		/// 			if x < 100 { ControlFlow::Continue(x + 1) } else { ControlFlow::Break(x) },
+		/// 		)
 		/// 	},
 		/// 	0,
 		/// );
@@ -364,7 +374,7 @@ mod inner {
 		/// assert_eq!(counter.load(Ordering::SeqCst), 101);
 		/// ```
 		pub fn arc_tail_rec_m<S>(
-			f: impl Fn(S) -> SendThunk<'a, Step<S, A>> + Send + Sync + 'a,
+			f: impl Fn(S) -> SendThunk<'a, ControlFlow<A, S>> + Send + Sync + 'a,
 			initial: S,
 		) -> Self
 		where
@@ -871,9 +881,13 @@ mod tests {
 
 	#[test]
 	fn test_send_thunk_tail_rec_m() {
-		use crate::types::Step;
+		use core::ops::ControlFlow;
 		let result = SendThunk::tail_rec_m(
-			|x| SendThunk::pure(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
+			|x| {
+				SendThunk::pure(
+					if x < 1000 { ControlFlow::Continue(x + 1) } else { ControlFlow::Break(x) },
+				)
+			},
 			0,
 		);
 		assert_eq!(result.evaluate(), 1000);
@@ -881,12 +895,16 @@ mod tests {
 
 	#[test]
 	fn test_send_thunk_tail_rec_m_stack_safety() {
-		use crate::types::Step;
+		use core::ops::ControlFlow;
 		let iterations: i64 = 200_000;
 		let result = SendThunk::tail_rec_m(
 			|acc| {
 				SendThunk::pure(
-					if acc < iterations { Step::Loop(acc + 1) } else { Step::Done(acc) },
+					if acc < iterations {
+						ControlFlow::Continue(acc + 1)
+					} else {
+						ControlFlow::Break(acc)
+					},
 				)
 			},
 			0i64,
@@ -897,7 +915,7 @@ mod tests {
 	#[test]
 	fn test_send_thunk_arc_tail_rec_m() {
 		use {
-			crate::types::Step,
+			core::ops::ControlFlow,
 			std::sync::{
 				Arc,
 				atomic::{
@@ -911,7 +929,9 @@ mod tests {
 		let result = SendThunk::arc_tail_rec_m(
 			move |x| {
 				counter_clone.fetch_add(1, Ordering::SeqCst);
-				SendThunk::pure(if x < 100 { Step::Loop(x + 1) } else { Step::Done(x) })
+				SendThunk::pure(
+					if x < 100 { ControlFlow::Continue(x + 1) } else { ControlFlow::Break(x) },
+				)
 			},
 			0,
 		);

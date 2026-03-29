@@ -76,10 +76,10 @@ mod inner {
 			kinds::*,
 			types::{
 				CatList,
-				Step,
 				Thunk,
 			},
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 		std::{
 			any::Any,
@@ -560,9 +560,9 @@ mod inner {
 		/// natural transformation at each suspended layer to convert from functor `F` into
 		/// monad `G`.
 		///
-		/// For `Pure(a)`, returns `G::pure(Step::Done(a))`.
+		/// For `Pure(a)`, returns `G::pure(ControlFlow::Break(a))`.
 		/// For `Wrap(fa)`, applies the natural transformation to get `G<Free<F, A>>`,
-		/// then maps to `Step::Loop` to continue the iteration.
+		/// then maps to `ControlFlow::Continue` to continue the iteration.
 		///
 		/// ### Stack Safety
 		///
@@ -613,18 +613,18 @@ mod inner {
 			G: MonadRec + 'static, {
 			G::tail_rec_m(
 				move |free: Free<F, A>| match free.resume() {
-					Ok(a) => G::pure(Step::Done(a)),
+					Ok(a) => G::pure(ControlFlow::Break(a)),
 					Err(fa) => {
 						// fa: F<Free<F, A>>
 						// Transform F<Free<F, A>> into G<Free<F, A>> using the natural
-						// transformation, then map to Step::Loop to continue iteration.
+						// transformation, then map to ControlFlow::Continue to continue iteration.
 						let ga: Apply!(
 							<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 								'static,
 								Free<F, A>,
 							>
 						) = nt.transform(fa);
-						G::map(|inner_free: Free<F, A>| Step::Loop(inner_free), ga)
+						G::map(|inner_free: Free<F, A>| ControlFlow::Continue(inner_free), ga)
 					}
 				},
 				self,

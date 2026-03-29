@@ -60,8 +60,8 @@ mod inner {
 			},
 			impl_kind,
 			kinds::*,
-			types::Step,
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 		std::{
 			cmp::Ordering,
@@ -1647,19 +1647,22 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
 		/// };
 		///
 		/// // Branch into two paths, each running until done
 		/// let result = tail_rec_m::<CatListBrand, _, _>(
 		/// 	|n| {
 		/// 		if n < 3 {
-		/// 			CatList::singleton(Step::Loop(n + 1)).snoc(Step::Done(n * 10))
+		/// 			CatList::singleton(ControlFlow::Continue(n + 1)).snoc(ControlFlow::Break(n * 10))
 		/// 		} else {
-		/// 			CatList::singleton(Step::Done(n * 10))
+		/// 			CatList::singleton(ControlFlow::Break(n * 10))
 		/// 		}
 		/// 	},
 		/// 	0,
@@ -1669,7 +1672,10 @@ mod inner {
 		/// assert_eq!(vec, vec![0, 10, 20, 30]);
 		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a>(
-			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			func: impl Fn(
+				A,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
 			+ 'a,
 			initial: A,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -1680,8 +1686,8 @@ mod inner {
 				for a in pending {
 					for step in func(a) {
 						match step {
-							Step::Loop(next) => next_pending = next_pending.snoc(next),
-							Step::Done(b) => done = done.snoc(b),
+							ControlFlow::Continue(next) => next_pending = next_pending.snoc(next),
+							ControlFlow::Break(b) => done = done.snoc(b),
 						}
 					}
 				}
@@ -3735,12 +3741,12 @@ mod tests {
 	/// Tests the MonadRec identity law: `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
 	#[quickcheck]
 	fn monad_rec_identity(x: i32) -> bool {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
 		let result: Vec<_> =
-			tail_rec_m::<CatListBrand, _, _>(|a| CatList::singleton(Step::Done(a)), x)
+			tail_rec_m::<CatListBrand, _, _>(|a| CatList::singleton(ControlFlow::Break(a)), x)
 				.into_iter()
 				.collect();
 		let expected: Vec<_> = CatList::singleton(x).into_iter().collect();
@@ -3750,17 +3756,17 @@ mod tests {
 	/// Tests a recursive computation that sums a range via `tail_rec_m`.
 	#[test]
 	fn monad_rec_sum_range() {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
 		// Sum numbers from 1 to 100: tail_rec_m with accumulator
 		let result = tail_rec_m::<CatListBrand, _, _>(
 			|(n, acc)| {
 				if n > 100 {
-					CatList::singleton(Step::Done(acc))
+					CatList::singleton(ControlFlow::Break(acc))
 				} else {
-					CatList::singleton(Step::Loop((n + 1, acc + n)))
+					CatList::singleton(ControlFlow::Continue((n + 1, acc + n)))
 				}
 			},
 			(1i64, 0i64),
@@ -3772,17 +3778,17 @@ mod tests {
 	/// Tests that `tail_rec_m` is stack-safe with 200,000 iterations.
 	#[test]
 	fn monad_rec_stack_safety() {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
 		let iterations = 200_000i64;
 		let result = tail_rec_m::<CatListBrand, _, _>(
 			|n| {
 				if n >= iterations {
-					CatList::singleton(Step::Done(n))
+					CatList::singleton(ControlFlow::Break(n))
 				} else {
-					CatList::singleton(Step::Loop(n + 1))
+					CatList::singleton(ControlFlow::Continue(n + 1))
 				}
 			},
 			0i64,

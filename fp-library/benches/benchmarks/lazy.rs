@@ -1,4 +1,5 @@
 use {
+	core::ops::ControlFlow,
 	criterion::{
 		BatchSize,
 		BenchmarkId,
@@ -12,7 +13,6 @@ use {
 			Free,
 			Lazy,
 			RcLazyConfig,
-			Step,
 			Thunk,
 			Trampoline,
 		},
@@ -126,9 +126,9 @@ pub fn bench_lazy(c: &mut Criterion) {
 				Trampoline::tail_rec_m(
 					|state: u64| {
 						if state == 0 {
-							Trampoline::pure(Step::Done(0u64))
+							Trampoline::pure(ControlFlow::Break(0u64))
 						} else {
-							Trampoline::pure(Step::Loop(state - 1))
+							Trampoline::pure(ControlFlow::Continue(state - 1))
 						}
 					},
 					n,
@@ -148,9 +148,9 @@ pub fn bench_lazy(c: &mut Criterion) {
 				Trampoline::tail_rec_m(
 					|state: u64| {
 						if state == 0 {
-							Trampoline::pure(Step::Done(0u64))
+							Trampoline::pure(ControlFlow::Break(0u64))
 						} else {
-							Trampoline::pure(Step::Loop(state - 1))
+							Trampoline::pure(ControlFlow::Continue(state - 1))
 						}
 					},
 					n,

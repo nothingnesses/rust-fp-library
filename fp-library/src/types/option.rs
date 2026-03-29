@@ -34,8 +34,8 @@ mod inner {
 			},
 			impl_kind,
 			kinds::*,
-			types::Step,
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 	};
 
@@ -970,8 +970,8 @@ mod inner {
 		/// Performs tail-recursive monadic computation over [`Option`].
 		///
 		/// Iteratively applies the step function. If the function returns [`None`],
-		/// the computation short-circuits. If it returns `Some(Step::Loop(a))`, the
-		/// loop continues with the new state. If it returns `Some(Step::Done(b))`,
+		/// the computation short-circuits. If it returns `Some(ControlFlow::Continue(a))`, the
+		/// loop continues with the new state. If it returns `Some(ControlFlow::Break(b))`,
 		/// the computation completes with `Some(b)`.
 		#[document_signature]
 		///
@@ -990,22 +990,28 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
 		/// };
 		///
 		/// let result = tail_rec_m::<OptionBrand, _, _>(
 		/// 	|n| {
-		/// 		if n < 10 { Some(Step::Loop(n + 1)) } else { Some(Step::Done(n)) }
+		/// 		if n < 10 { Some(ControlFlow::Continue(n + 1)) } else { Some(ControlFlow::Break(n)) }
 		/// 	},
 		/// 	0,
 		/// );
 		/// assert_eq!(result, Some(10));
 		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a>(
-			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			func: impl Fn(
+				A,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
 			+ 'a,
 			initial: A,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -1013,8 +1019,8 @@ mod inner {
 			loop {
 				match func(current) {
 					None => return None,
-					Some(Step::Loop(next)) => current = next,
-					Some(Step::Done(b)) => return Some(b),
+					Some(ControlFlow::Continue(next)) => current = next,
+					Some(ControlFlow::Break(b)) => return Some(b),
 				}
 			}
 		}
@@ -1226,24 +1232,28 @@ mod tests {
 	/// Tests the MonadRec identity law: `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
 	#[quickcheck]
 	fn monad_rec_identity(x: i32) -> bool {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
-		tail_rec_m::<OptionBrand, _, _>(|a| Some(Step::Done(a)), x) == Some(x)
+		tail_rec_m::<OptionBrand, _, _>(|a| Some(ControlFlow::Break(a)), x) == Some(x)
 	}
 
 	/// Tests a recursive computation that sums a range via `tail_rec_m`.
 	#[test]
 	fn monad_rec_sum_range() {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
 		// Sum 1..=100 using tail_rec_m
 		let result = tail_rec_m::<OptionBrand, _, _>(
 			|(n, acc)| {
-				if n == 0 { Some(Step::Done(acc)) } else { Some(Step::Loop((n - 1, acc + n))) }
+				if n == 0 {
+					Some(ControlFlow::Break(acc))
+				} else {
+					Some(ControlFlow::Continue((n - 1, acc + n)))
+				}
 			},
 			(100i64, 0i64),
 		);
@@ -1253,13 +1263,13 @@ mod tests {
 	/// Tests that `tail_rec_m` short-circuits on `None`.
 	#[test]
 	fn monad_rec_short_circuit() {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
 		let result: Option<i32> = tail_rec_m::<OptionBrand, _, _>(
 			|n| {
-				if n == 5 { None } else { Some(Step::Loop(n + 1)) }
+				if n == 5 { None } else { Some(ControlFlow::Continue(n + 1)) }
 			},
 			0,
 		);
@@ -1269,14 +1279,18 @@ mod tests {
 	/// Tests stack safety: `tail_rec_m` handles large iteration counts.
 	#[test]
 	fn monad_rec_stack_safety() {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
 		let iterations: i64 = 200_000;
 		let result = tail_rec_m::<OptionBrand, _, _>(
 			|acc| {
-				if acc < iterations { Some(Step::Loop(acc + 1)) } else { Some(Step::Done(acc)) }
+				if acc < iterations {
+					Some(ControlFlow::Continue(acc + 1))
+				} else {
+					Some(ControlFlow::Break(acc))
+				}
 			},
 			0i64,
 		);

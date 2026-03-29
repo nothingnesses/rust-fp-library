@@ -1,19 +1,21 @@
-use fp_library::{
-	brands::{
-		LazyBrand,
-		RcFnBrand,
-		ThunkBrand,
-	},
-	classes::{
-		foldable::Foldable,
-		monad_rec::tail_rec_m,
-		ref_functor::ref_map,
-	},
-	types::{
-		Lazy,
-		RcLazyConfig,
-		Step,
-		Thunk,
+use {
+	core::ops::ControlFlow,
+	fp_library::{
+		brands::{
+			LazyBrand,
+			RcFnBrand,
+			ThunkBrand,
+		},
+		classes::{
+			foldable::Foldable,
+			monad_rec::tail_rec_m,
+			ref_functor::ref_map,
+		},
+		types::{
+			Lazy,
+			RcLazyConfig,
+			Thunk,
+		},
 	},
 };
 
@@ -24,9 +26,9 @@ fn test_eval_monad_rec() {
 		tail_rec_m::<ThunkBrand, _, _>(
 			|(n, acc)| {
 				if n == 0 {
-					Thunk::pure(Step::Done(acc))
+					Thunk::pure(ControlFlow::Break(acc))
 				} else {
-					Thunk::pure(Step::Loop((n - 1, n * acc)))
+					Thunk::pure(ControlFlow::Continue((n - 1, n * acc)))
 				}
 			},
 			(n, 1),

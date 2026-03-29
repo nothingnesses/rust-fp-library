@@ -1,13 +1,16 @@
-//! Monads that support stack-safe tail recursion via the [`Step`](crate::types::Step) type.
+//! Monads that support stack-safe tail recursion via [`ControlFlow`](core::ops::ControlFlow).
 //!
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{
-//! 	brands::*,
-//! 	classes::*,
-//! 	functions::tail_rec_m,
-//! 	types::*,
+//! use {
+//! 	core::ops::ControlFlow,
+//! 	fp_library::{
+//! 		brands::*,
+//! 		classes::*,
+//! 		functions::tail_rec_m,
+//! 		types::*,
+//! 	},
 //! };
 //!
 //! // A tail-recursive function to calculate factorial
@@ -15,9 +18,9 @@
 //! 	tail_rec_m::<ThunkBrand, _, _>(
 //! 		|(n, acc)| {
 //! 			if n == 0 {
-//! 				Thunk::pure(Step::Done(acc))
+//! 				Thunk::pure(ControlFlow::Break(acc))
 //! 			} else {
-//! 				Thunk::pure(Step::Loop((n - 1, n * acc)))
+//! 				Thunk::pure(ControlFlow::Continue((n - 1, n * acc)))
 //! 			}
 //! 		},
 //! 		(n, 1),
@@ -33,8 +36,8 @@ mod inner {
 		crate::{
 			classes::*,
 			kinds::*,
-			types::*,
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 	};
 
@@ -51,30 +54,31 @@ mod inner {
 	///
 	/// ### Laws
 	///
-	/// 1. **Identity**: `tail_rec_m(|a| pure(Step::Done(a)), x) == pure(x)`.
-	///    Immediately wrapping a value in [`Step::Done`](crate::types::Step::Done)
-	///    must be equivalent to [`pure`](crate::classes::Pointed::pure).
+	/// 1. **Identity**: `tail_rec_m(|a| pure(ControlFlow::Break(a)), x) == pure(x)`.
+	///    Immediately wrapping a value in [`ControlFlow::Break`] must be equivalent
+	///    to [`pure`](crate::classes::Pointed::pure).
 	///
 	/// ### Class Invariant
 	///
 	/// [`tail_rec_m`](MonadRec::tail_rec_m) must execute in constant stack space
-	/// regardless of how many [`Step::Loop`](crate::types::Step::Loop) iterations
-	/// occur. This is a structural requirement on the implementation, not an
-	/// algebraic law.
+	/// regardless of how many [`ControlFlow::Continue`] iterations occur. This is
+	/// a structural requirement on the implementation, not an algebraic law.
 	///
 	/// ### Examples
 	///
 	/// Demonstrating the identity law with [`OptionBrand`](crate::brands::OptionBrand):
 	///
 	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// 	types::*,
+	/// use {
+	/// 	core::ops::ControlFlow,
+	/// 	fp_library::{
+	/// 		brands::*,
+	/// 		functions::*,
+	/// 	},
 	/// };
 	///
-	/// // Identity law: tail_rec_m(|a| pure(Step::Done(a)), x) == pure(x)
-	/// let result = tail_rec_m::<OptionBrand, _, _>(|a| Some(Step::Done(a)), 42);
+	/// // Identity law: tail_rec_m(|a| pure(ControlFlow::Break(a)), x) == pure(x)
+	/// let result = tail_rec_m::<OptionBrand, _, _>(|a| Some(ControlFlow::Break(a)), 42);
 	/// assert_eq!(result, Some(42));
 	/// ```
 	pub trait MonadRec: Monad {
@@ -93,15 +97,22 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
 		/// };
 		///
 		/// let result = tail_rec_m::<ThunkBrand, _, _>(
 		/// 	|n| {
-		/// 		if n < 10 { Thunk::pure(Step::Loop(n + 1)) } else { Thunk::pure(Step::Done(n)) }
+		/// 		if n < 10 {
+		/// 			Thunk::pure(ControlFlow::Continue(n + 1))
+		/// 		} else {
+		/// 			Thunk::pure(ControlFlow::Break(n))
+		/// 		}
 		/// 	},
 		/// 	0,
 		/// );
@@ -109,7 +120,10 @@ mod inner {
 		/// assert_eq!(result.evaluate(), 10);
 		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a>(
-			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			func: impl Fn(
+				A,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
 			+ 'a,
 			initial: A,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
@@ -133,15 +147,22 @@ mod inner {
 	#[document_examples]
 	///
 	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// 	types::*,
+	/// use {
+	/// 	core::ops::ControlFlow,
+	/// 	fp_library::{
+	/// 		brands::*,
+	/// 		functions::*,
+	/// 		types::*,
+	/// 	},
 	/// };
 	///
 	/// let result = tail_rec_m::<ThunkBrand, _, _>(
 	/// 	|n| {
-	/// 		if n < 10 { Thunk::pure(Step::Loop(n + 1)) } else { Thunk::pure(Step::Done(n)) }
+	/// 		if n < 10 {
+	/// 			Thunk::pure(ControlFlow::Continue(n + 1))
+	/// 		} else {
+	/// 			Thunk::pure(ControlFlow::Break(n))
+	/// 		}
 	/// 	},
 	/// 	0,
 	/// );
@@ -149,7 +170,11 @@ mod inner {
 	/// assert_eq!(result.evaluate(), 10);
 	/// ```
 	pub fn tail_rec_m<'a, Brand: MonadRec, A: 'a, B: 'a>(
-		func: impl Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>) + 'a,
+		func: impl Fn(
+			A,
+		)
+			-> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
+		+ 'a,
 		initial: A,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		Brand::tail_rec_m(func, initial)
@@ -166,20 +191,21 @@ mod tests {
 			functions::*,
 			types::*,
 		},
+		core::ops::ControlFlow,
 		quickcheck_macros::quickcheck,
 	};
 
-	/// MonadRec identity law for OptionBrand: tail_rec_m(|a| pure(Done(a)), x) == pure(x).
+	/// MonadRec identity law for OptionBrand: tail_rec_m(|a| pure(Break(a)), x) == pure(x).
 	#[quickcheck]
 	fn prop_monad_rec_identity_option(x: i32) -> bool {
-		let result = tail_rec_m::<OptionBrand, _, _>(|a| Some(Step::Done(a)), x);
+		let result = tail_rec_m::<OptionBrand, _, _>(|a| Some(ControlFlow::Break(a)), x);
 		result == Some(x)
 	}
 
-	/// MonadRec identity law for ThunkBrand: tail_rec_m(|a| pure(Done(a)), x) == pure(x).
+	/// MonadRec identity law for ThunkBrand: tail_rec_m(|a| pure(Break(a)), x) == pure(x).
 	#[quickcheck]
 	fn prop_monad_rec_identity_thunk(x: i32) -> bool {
-		let result = tail_rec_m::<ThunkBrand, _, _>(|a| Thunk::pure(Step::Done(a)), x);
+		let result = tail_rec_m::<ThunkBrand, _, _>(|a| Thunk::pure(ControlFlow::Break(a)), x);
 		result.evaluate() == pure::<ThunkBrand, _>(x).evaluate()
 	}
 }

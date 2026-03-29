@@ -25,8 +25,8 @@ mod inner {
 			},
 			impl_kind,
 			kinds::*,
-			types::Step,
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 	};
 
@@ -748,7 +748,7 @@ mod inner {
 		/// Performs tail-recursive monadic computation over [`Identity`].
 		///
 		/// Since `Identity` has no effect, this simply loops on the inner value
-		/// until the step function returns [`Step::Done`].
+		/// until the step function returns [`ControlFlow::Break`].
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -764,30 +764,40 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
 		/// };
 		///
 		/// let result = tail_rec_m::<IdentityBrand, _, _>(
 		/// 	|n| {
-		/// 		if n < 10 { Identity(Step::Loop(n + 1)) } else { Identity(Step::Done(n)) }
+		/// 		if n < 10 {
+		/// 			Identity(ControlFlow::Continue(n + 1))
+		/// 		} else {
+		/// 			Identity(ControlFlow::Break(n))
+		/// 		}
 		/// 	},
 		/// 	0,
 		/// );
 		/// assert_eq!(result, Identity(10));
 		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a>(
-			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			func: impl Fn(
+				A,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
 			+ 'a,
 			initial: A,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			let mut current = initial;
 			loop {
 				match func(current).0 {
-					Step::Loop(next) => current = next,
-					Step::Done(b) => return Identity(b),
+					ControlFlow::Continue(next) => current = next,
+					ControlFlow::Break(b) => return Identity(b),
 				}
 			}
 		}
@@ -988,26 +998,26 @@ mod tests {
 	/// Tests the MonadRec identity law: `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
 	#[quickcheck]
 	fn monad_rec_identity(x: i32) -> bool {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
-		tail_rec_m::<IdentityBrand, _, _>(|a| Identity(Step::Done(a)), x) == Identity(x)
+		tail_rec_m::<IdentityBrand, _, _>(|a| Identity(ControlFlow::Break(a)), x) == Identity(x)
 	}
 
 	/// Tests a recursive computation that sums a range via `tail_rec_m`.
 	#[test]
 	fn monad_rec_sum_range() {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
 		let result = tail_rec_m::<IdentityBrand, _, _>(
 			|(n, acc)| {
 				if n == 0 {
-					Identity(Step::Done(acc))
+					Identity(ControlFlow::Break(acc))
 				} else {
-					Identity(Step::Loop((n - 1, acc + n)))
+					Identity(ControlFlow::Continue((n - 1, acc + n)))
 				}
 			},
 			(100i64, 0i64),
@@ -1018,17 +1028,17 @@ mod tests {
 	/// Tests stack safety: `tail_rec_m` handles large iteration counts.
 	#[test]
 	fn monad_rec_stack_safety() {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
 		let iterations: i64 = 200_000;
 		let result = tail_rec_m::<IdentityBrand, _, _>(
 			|acc| {
 				if acc < iterations {
-					Identity(Step::Loop(acc + 1))
+					Identity(ControlFlow::Continue(acc + 1))
 				} else {
-					Identity(Step::Done(acc))
+					Identity(ControlFlow::Break(acc))
 				}
 			},
 			0i64,

@@ -33,8 +33,8 @@ mod inner {
 			},
 			impl_kind,
 			kinds::*,
-			types::Step,
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 	};
 
@@ -541,7 +541,7 @@ mod inner {
 		///
 		/// Iteratively applies the step function, accumulating the first element
 		/// via `Semigroup::append` at each iteration. When the step function returns
-		/// `Step::Done`, the accumulated first element and the final result are returned.
+		/// `ControlFlow::Break`, the accumulated first element and the final result are returned.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -559,18 +559,21 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
 		/// };
 		///
 		/// let result = tail_rec_m::<Tuple2FirstAppliedBrand<String>, _, _>(
 		/// 	|n| {
 		/// 		if n < 3 {
-		/// 			(format!("{n},"), Step::Loop(n + 1))
+		/// 			(format!("{n},"), ControlFlow::Continue(n + 1))
 		/// 		} else {
-		/// 			(format!("{n}"), Step::Done(n))
+		/// 			(format!("{n}"), ControlFlow::Break(n))
 		/// 		}
 		/// 	},
 		/// 	0,
@@ -578,7 +581,10 @@ mod inner {
 		/// assert_eq!(result, ("0,1,2,3".to_string(), 3));
 		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a>(
-			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			func: impl Fn(
+				A,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
 			+ 'a,
 			initial: A,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -588,8 +594,8 @@ mod inner {
 				let (first, step) = func(current);
 				acc = Semigroup::append(acc, first);
 				match step {
-					Step::Loop(next) => current = next,
-					Step::Done(b) => return (acc, b),
+					ControlFlow::Continue(next) => current = next,
+					ControlFlow::Break(b) => return (acc, b),
 				}
 			}
 		}
@@ -1041,7 +1047,7 @@ mod inner {
 		///
 		/// Iteratively applies the step function, accumulating the second element
 		/// via `Semigroup::append` at each iteration. When the step function returns
-		/// `Step::Done`, the final result and the accumulated second element are returned.
+		/// `ControlFlow::Break`, the final result and the accumulated second element are returned.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1059,18 +1065,21 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
 		/// };
 		///
 		/// let result = tail_rec_m::<Tuple2SecondAppliedBrand<String>, _, _>(
 		/// 	|n| {
 		/// 		if n < 3 {
-		/// 			(Step::Loop(n + 1), format!("{n},"))
+		/// 			(ControlFlow::Continue(n + 1), format!("{n},"))
 		/// 		} else {
-		/// 			(Step::Done(n), format!("{n}"))
+		/// 			(ControlFlow::Break(n), format!("{n}"))
 		/// 		}
 		/// 	},
 		/// 	0,
@@ -1078,7 +1087,10 @@ mod inner {
 		/// assert_eq!(result, (3, "0,1,2,3".to_string()));
 		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a>(
-			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			func: impl Fn(
+				A,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
 			+ 'a,
 			initial: A,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -1088,8 +1100,8 @@ mod inner {
 				let (step, second) = func(current);
 				acc = Semigroup::append(acc, second);
 				match step {
-					Step::Loop(next) => current = next,
-					Step::Done(b) => return (b, acc),
+					ControlFlow::Continue(next) => current = next,
+					ControlFlow::Break(b) => return (b, acc),
 				}
 			}
 		}
@@ -1308,8 +1320,8 @@ mod tests {
 				monad_rec::tail_rec_m,
 			},
 			functions::*,
-			types::Step,
 		},
+		core::ops::ControlFlow,
 		quickcheck_macros::quickcheck,
 	};
 
@@ -1514,8 +1526,10 @@ mod tests {
 	/// `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
 	#[quickcheck]
 	fn monad_rec_first_identity(x: i32) -> bool {
-		tail_rec_m::<Tuple2FirstAppliedBrand<String>, _, _>(|a| (String::new(), Step::Done(a)), x)
-			== pure::<Tuple2FirstAppliedBrand<String>, _>(x)
+		tail_rec_m::<Tuple2FirstAppliedBrand<String>, _, _>(
+			|a| (String::new(), ControlFlow::Break(a)),
+			x,
+		) == pure::<Tuple2FirstAppliedBrand<String>, _>(x)
 	}
 
 	/// Tests a recursive computation that accumulates the first element.
@@ -1524,9 +1538,9 @@ mod tests {
 		let result = tail_rec_m::<Tuple2FirstAppliedBrand<String>, _, _>(
 			|n: i32| {
 				if n < 3 {
-					(format!("{n},"), Step::Loop(n + 1))
+					(format!("{n},"), ControlFlow::Continue(n + 1))
 				} else {
-					(format!("{n}"), Step::Done(n))
+					(format!("{n}"), ControlFlow::Break(n))
 				}
 			},
 			0,
@@ -1541,9 +1555,9 @@ mod tests {
 		let result = tail_rec_m::<Tuple2FirstAppliedBrand<String>, _, _>(
 			|acc| {
 				if acc < iterations {
-					(String::new(), Step::Loop(acc + 1))
+					(String::new(), ControlFlow::Continue(acc + 1))
 				} else {
-					(String::new(), Step::Done(acc))
+					(String::new(), ControlFlow::Break(acc))
 				}
 			},
 			0i64,
@@ -1557,8 +1571,10 @@ mod tests {
 	/// `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
 	#[quickcheck]
 	fn monad_rec_second_identity(x: i32) -> bool {
-		tail_rec_m::<Tuple2SecondAppliedBrand<String>, _, _>(|a| (Step::Done(a), String::new()), x)
-			== pure::<Tuple2SecondAppliedBrand<String>, _>(x)
+		tail_rec_m::<Tuple2SecondAppliedBrand<String>, _, _>(
+			|a| (ControlFlow::Break(a), String::new()),
+			x,
+		) == pure::<Tuple2SecondAppliedBrand<String>, _>(x)
 	}
 
 	/// Tests a recursive computation that accumulates the second element.
@@ -1567,9 +1583,9 @@ mod tests {
 		let result = tail_rec_m::<Tuple2SecondAppliedBrand<String>, _, _>(
 			|n: i32| {
 				if n < 3 {
-					(Step::Loop(n + 1), format!("{n},"))
+					(ControlFlow::Continue(n + 1), format!("{n},"))
 				} else {
-					(Step::Done(n), format!("{n}"))
+					(ControlFlow::Break(n), format!("{n}"))
 				}
 			},
 			0,
@@ -1584,9 +1600,9 @@ mod tests {
 		let result = tail_rec_m::<Tuple2SecondAppliedBrand<String>, _, _>(
 			|acc| {
 				if acc < iterations {
-					(Step::Loop(acc + 1), String::new())
+					(ControlFlow::Continue(acc + 1), String::new())
 				} else {
-					(Step::Done(acc), String::new())
+					(ControlFlow::Break(acc), String::new())
 				}
 			},
 			0i64,

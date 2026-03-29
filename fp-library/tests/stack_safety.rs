@@ -4,14 +4,16 @@
 //! computations are stack-safe for deep recursion, deep bind chains, and
 //! deep defer chains.
 
-use fp_library::{
-	brands::ThunkBrand,
-	types::{
-		Free,
-		Step,
-		Thunk,
-		Trampoline,
-		TryTrampoline,
+use {
+	core::ops::ControlFlow,
+	fp_library::{
+		brands::ThunkBrand,
+		types::{
+			Free,
+			Thunk,
+			Trampoline,
+			TryTrampoline,
+		},
 	},
 };
 
@@ -24,9 +26,9 @@ fn test_deep_recursion() {
 		Trampoline::tail_rec_m(
 			|n| {
 				if n == 0 {
-					Trampoline::pure(Step::Done(0))
+					Trampoline::pure(ControlFlow::Break(0))
 				} else {
-					Trampoline::pure(Step::Loop(n - 1))
+					Trampoline::pure(ControlFlow::Continue(n - 1))
 				}
 			},
 			n,
@@ -78,7 +80,11 @@ fn test_thunk_tail_rec_m_stack_safety() {
 	};
 
 	let result = tail_rec_m::<ThunkBrand, _, _>(
-		|n: u64| pure::<ThunkBrand, _>(if n == 0 { Step::Done(0u64) } else { Step::Loop(n - 1) }),
+		|n: u64| {
+			pure::<ThunkBrand, _>(
+				if n == 0 { ControlFlow::Break(0u64) } else { ControlFlow::Continue(n - 1) },
+			)
+		},
 		1_000_000u64,
 	);
 	assert_eq!(result.evaluate(), 0);
@@ -94,9 +100,12 @@ fn test_try_trampoline_stack_safety() {
 	let task: TryTrampoline<u64, String> = TryTrampoline::tail_rec_m(
 		|(remaining, acc)| {
 			if remaining == 0 {
-				TryTrampoline::ok(Step::Done(acc))
+				TryTrampoline::ok(ControlFlow::Break(acc))
 			} else {
-				TryTrampoline::ok(Step::Loop((remaining - 1, acc.wrapping_add(remaining))))
+				TryTrampoline::ok(ControlFlow::Continue((
+					remaining - 1,
+					acc.wrapping_add(remaining),
+				)))
 			}
 		},
 		(n, 0u64),

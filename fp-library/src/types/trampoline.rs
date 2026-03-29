@@ -26,6 +26,7 @@ mod inner {
 			brands::ThunkBrand,
 			classes::{
 				Deferrable,
+				LazyConfig,
 				Monoid,
 				Semigroup,
 			},
@@ -33,12 +34,11 @@ mod inner {
 				ArcLazyConfig,
 				Free,
 				Lazy,
-				LazyConfig,
 				RcLazyConfig,
-				Step,
 				Thunk,
 			},
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 		std::fmt,
 	};
@@ -441,9 +441,9 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::{
-		/// 	Step,
-		/// 	Trampoline,
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::types::Trampoline,
 		/// };
 		///
 		/// // Fibonacci using tail recursion
@@ -451,9 +451,9 @@ mod inner {
 		/// 	Trampoline::tail_rec_m(
 		/// 		|(n, a, b)| {
 		/// 			if n == 0 {
-		/// 				Trampoline::pure(Step::Done(a))
+		/// 				Trampoline::pure(ControlFlow::Break(a))
 		/// 			} else {
-		/// 				Trampoline::pure(Step::Loop((n - 1, b, a + b)))
+		/// 				Trampoline::pure(ControlFlow::Continue((n - 1, b, a + b)))
 		/// 			}
 		/// 		},
 		/// 		(n, 0u64, 1u64),
@@ -463,7 +463,7 @@ mod inner {
 		/// assert_eq!(fib(50).evaluate(), 12586269025);
 		/// ```
 		pub fn tail_rec_m<S: 'static>(
-			f: impl Fn(S) -> Trampoline<Step<S, A>> + Clone + 'static,
+			f: impl Fn(S) -> Trampoline<ControlFlow<A, S>> + Clone + 'static,
 			initial: S,
 		) -> Self {
 			// Use defer to ensure each step is trampolined.
@@ -472,12 +472,12 @@ mod inner {
 				a: A,
 			) -> Trampoline<B>
 			where
-				F: Fn(A) -> Trampoline<Step<A, B>> + Clone + 'static, {
+				F: Fn(A) -> Trampoline<ControlFlow<B, A>> + Clone + 'static, {
 				Trampoline::defer(move || {
 					let result = f(a);
 					result.bind(move |step| match step {
-						Step::Loop(next) => go(f, next),
-						Step::Done(b) => Trampoline::pure(b),
+						ControlFlow::Continue(next) => go(f, next),
+						ControlFlow::Break(b) => Trampoline::pure(b),
 					})
 				})
 			}
@@ -502,10 +502,8 @@ mod inner {
 		///
 		/// ```
 		/// use {
-		/// 	fp_library::types::{
-		/// 		Step,
-		/// 		Trampoline,
-		/// 	},
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::types::Trampoline,
 		/// 	std::sync::{
 		/// 		Arc,
 		/// 		atomic::{
@@ -522,9 +520,9 @@ mod inner {
 		/// 	move |n| {
 		/// 		counter_clone.fetch_add(1, Ordering::SeqCst);
 		/// 		if n == 0 {
-		/// 			Trampoline::pure(Step::Done(0))
+		/// 			Trampoline::pure(ControlFlow::Break(0))
 		/// 		} else {
-		/// 			Trampoline::pure(Step::Loop(n - 1))
+		/// 			Trampoline::pure(ControlFlow::Continue(n - 1))
 		/// 		}
 		/// 	},
 		/// 	100,
@@ -533,7 +531,7 @@ mod inner {
 		/// assert_eq!(counter.load(Ordering::SeqCst), 101);
 		/// ```
 		pub fn arc_tail_rec_m<S: 'static>(
-			f: impl Fn(S) -> Trampoline<Step<S, A>> + 'static,
+			f: impl Fn(S) -> Trampoline<ControlFlow<A, S>> + 'static,
 			initial: S,
 		) -> Self {
 			use std::sync::Arc;
@@ -683,7 +681,7 @@ pub use inner::*;
 mod tests {
 	use {
 		super::*,
-		crate::types::step::Step,
+		core::ops::ControlFlow,
 		quickcheck_macros::quickcheck,
 	};
 
@@ -741,9 +739,9 @@ mod tests {
 			Trampoline::tail_rec_m(
 				|(n, acc)| {
 					if n <= 1 {
-						Trampoline::pure(Step::Done(acc))
+						Trampoline::pure(ControlFlow::Break(acc))
 					} else {
-						Trampoline::pure(Step::Loop((n - 1, n * acc)))
+						Trampoline::pure(ControlFlow::Continue((n - 1, n * acc)))
 					}
 				},
 				(n, 1u64),
@@ -795,9 +793,9 @@ mod tests {
 			move |n| {
 				counter_clone.fetch_add(1, Ordering::SeqCst);
 				if n == 0 {
-					Trampoline::pure(Step::Done(0))
+					Trampoline::pure(ControlFlow::Break(0))
 				} else {
-					Trampoline::pure(Step::Loop(n - 1))
+					Trampoline::pure(ControlFlow::Continue(n - 1))
 				}
 			},
 			10,
@@ -1010,9 +1008,9 @@ mod tests {
 		let task = Trampoline::tail_rec_m(
 			|(n, acc): (u64, Rc<u64>)| {
 				if n == 0 {
-					Trampoline::pure(Step::Done(acc))
+					Trampoline::pure(ControlFlow::Break(acc))
 				} else {
-					Trampoline::pure(Step::Loop((n - 1, Rc::new(*acc + n))))
+					Trampoline::pure(ControlFlow::Continue((n - 1, Rc::new(*acc + n))))
 				}
 			},
 			(100u64, Rc::new(0u64)),
@@ -1058,9 +1056,9 @@ mod tests {
 		let result = Trampoline::tail_rec_m(
 			move |acc: u64| {
 				if acc >= n {
-					Trampoline::pure(Step::Done(acc))
+					Trampoline::pure(ControlFlow::Break(acc))
 				} else {
-					Trampoline::pure(Step::Loop(acc + 1))
+					Trampoline::pure(ControlFlow::Continue(acc + 1))
 				}
 			},
 			0u64,
@@ -1077,9 +1075,9 @@ mod tests {
 		let result = Trampoline::arc_tail_rec_m(
 			move |acc: u64| {
 				if acc >= n {
-					Trampoline::pure(Step::Done(acc))
+					Trampoline::pure(ControlFlow::Break(acc))
 				} else {
-					Trampoline::pure(Step::Loop(acc + 1))
+					Trampoline::pure(ControlFlow::Continue(acc + 1))
 				}
 			},
 			0u64,

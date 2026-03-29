@@ -33,8 +33,8 @@ mod inner {
 			},
 			impl_kind,
 			kinds::*,
-			types::Step,
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 	};
 
@@ -905,8 +905,8 @@ mod inner {
 		///
 		/// Iteratively applies the step function. Each iteration produces a pair
 		/// whose first value is combined with the running accumulator via
-		/// [`Semigroup::append`]. If the step returns `Step::Loop(a)`, the loop
-		/// continues with the new state. If it returns `Step::Done(b)`, the
+		/// [`Semigroup::append`]. If the step returns `ControlFlow::Continue(a)`, the loop
+		/// continues with the new state. If it returns `ControlFlow::Break(b)`, the
 		/// computation completes with the accumulated first value and `b`.
 		#[document_signature]
 		///
@@ -923,18 +923,21 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
 		/// };
 		///
 		/// let result = tail_rec_m::<PairFirstAppliedBrand<String>, _, _>(
 		/// 	|n| {
 		/// 		if n < 3 {
-		/// 			Pair(format!("{n},"), Step::Loop(n + 1))
+		/// 			Pair(format!("{n},"), ControlFlow::Continue(n + 1))
 		/// 		} else {
-		/// 			Pair(format!("{n}"), Step::Done(n))
+		/// 			Pair(format!("{n}"), ControlFlow::Break(n))
 		/// 		}
 		/// 	},
 		/// 	0,
@@ -942,7 +945,10 @@ mod inner {
 		/// assert_eq!(result, Pair("0,1,2,3".to_string(), 3));
 		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a>(
-			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			func: impl Fn(
+				A,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
 			+ 'a,
 			initial: A,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -952,8 +958,8 @@ mod inner {
 				let Pair(first, step) = func(current);
 				acc = Semigroup::append(acc, first);
 				match step {
-					Step::Loop(next) => current = next,
-					Step::Done(b) => return Pair(acc, b),
+					ControlFlow::Continue(next) => current = next,
+					ControlFlow::Break(b) => return Pair(acc, b),
 				}
 			}
 		}
@@ -1416,8 +1422,8 @@ mod inner {
 		///
 		/// Iteratively applies the step function. Each iteration produces a pair
 		/// whose second value is combined with the running accumulator via
-		/// [`Semigroup::append`]. If the step returns `Step::Loop(a)`, the loop
-		/// continues with the new state. If it returns `Step::Done(b)`, the
+		/// [`Semigroup::append`]. If the step returns `ControlFlow::Continue(a)`, the loop
+		/// continues with the new state. If it returns `ControlFlow::Break(b)`, the
 		/// computation completes with `b` and the accumulated second value.
 		#[document_signature]
 		///
@@ -1434,18 +1440,21 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
 		/// };
 		///
 		/// let result = tail_rec_m::<PairSecondAppliedBrand<String>, _, _>(
 		/// 	|n| {
 		/// 		if n < 3 {
-		/// 			Pair(Step::Loop(n + 1), format!("{n},"))
+		/// 			Pair(ControlFlow::Continue(n + 1), format!("{n},"))
 		/// 		} else {
-		/// 			Pair(Step::Done(n), format!("{n}"))
+		/// 			Pair(ControlFlow::Break(n), format!("{n}"))
 		/// 		}
 		/// 	},
 		/// 	0,
@@ -1453,7 +1462,10 @@ mod inner {
 		/// assert_eq!(result, Pair(3, "0,1,2,3".to_string()));
 		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a>(
-			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			func: impl Fn(
+				A,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
 			+ 'a,
 			initial: A,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -1463,8 +1475,8 @@ mod inner {
 				let Pair(step, second) = func(current);
 				acc = Semigroup::append(acc, second);
 				match step {
-					Step::Loop(next) => current = next,
-					Step::Done(b) => return Pair(b, acc),
+					ControlFlow::Continue(next) => current = next,
+					ControlFlow::Break(b) => return Pair(b, acc),
 				}
 			}
 		}
@@ -1893,27 +1905,29 @@ mod tests {
 	/// Tests the MonadRec identity law: `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
 	#[quickcheck]
 	fn monad_rec_first_applied_identity(x: i32) -> bool {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
-		tail_rec_m::<PairFirstAppliedBrand<String>, _, _>(|a| Pair(String::new(), Step::Done(a)), x)
-			== Pair(String::new(), x)
+		tail_rec_m::<PairFirstAppliedBrand<String>, _, _>(
+			|a| Pair(String::new(), ControlFlow::Break(a)),
+			x,
+		) == Pair(String::new(), x)
 	}
 
 	/// Tests a recursive computation that accumulates the first value.
 	#[test]
 	fn monad_rec_first_applied_accumulation() {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
 		let result = tail_rec_m::<PairFirstAppliedBrand<String>, _, _>(
 			|n: i32| {
 				if n < 3 {
-					Pair(format!("{n},"), Step::Loop(n + 1))
+					Pair(format!("{n},"), ControlFlow::Continue(n + 1))
 				} else {
-					Pair(format!("{n}"), Step::Done(n))
+					Pair(format!("{n}"), ControlFlow::Break(n))
 				}
 			},
 			0,
@@ -1924,17 +1938,17 @@ mod tests {
 	/// Tests stack safety of MonadRec for PairFirstAppliedBrand.
 	#[test]
 	fn monad_rec_first_applied_stack_safety() {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
 		let iterations: i64 = 200_000;
 		let result = tail_rec_m::<PairFirstAppliedBrand<Vec<()>>, _, _>(
 			|acc| {
 				if acc < iterations {
-					Pair(vec![], Step::Loop(acc + 1))
+					Pair(vec![], ControlFlow::Continue(acc + 1))
 				} else {
-					Pair(vec![], Step::Done(acc))
+					Pair(vec![], ControlFlow::Break(acc))
 				}
 			},
 			0i64,
@@ -1947,12 +1961,12 @@ mod tests {
 	/// Tests the MonadRec identity law: `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
 	#[quickcheck]
 	fn monad_rec_second_applied_identity(x: i32) -> bool {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
 		tail_rec_m::<PairSecondAppliedBrand<String>, _, _>(
-			|a| Pair(Step::Done(a), String::new()),
+			|a| Pair(ControlFlow::Break(a), String::new()),
 			x,
 		) == Pair(x, String::new())
 	}
@@ -1960,16 +1974,16 @@ mod tests {
 	/// Tests a recursive computation that accumulates the second value.
 	#[test]
 	fn monad_rec_second_applied_accumulation() {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
 		let result = tail_rec_m::<PairSecondAppliedBrand<String>, _, _>(
 			|n: i32| {
 				if n < 3 {
-					Pair(Step::Loop(n + 1), format!("{n},"))
+					Pair(ControlFlow::Continue(n + 1), format!("{n},"))
 				} else {
-					Pair(Step::Done(n), format!("{n}"))
+					Pair(ControlFlow::Break(n), format!("{n}"))
 				}
 			},
 			0,
@@ -1980,17 +1994,17 @@ mod tests {
 	/// Tests stack safety of MonadRec for PairSecondAppliedBrand.
 	#[test]
 	fn monad_rec_second_applied_stack_safety() {
-		use crate::{
-			classes::monad_rec::tail_rec_m,
-			types::Step,
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
 		};
 		let iterations: i64 = 200_000;
 		let result = tail_rec_m::<PairSecondAppliedBrand<Vec<()>>, _, _>(
 			|acc| {
 				if acc < iterations {
-					Pair(Step::Loop(acc + 1), vec![])
+					Pair(ControlFlow::Continue(acc + 1), vec![])
 				} else {
-					Pair(Step::Done(acc), vec![])
+					Pair(ControlFlow::Break(acc), vec![])
 				}
 			},
 			0i64,
