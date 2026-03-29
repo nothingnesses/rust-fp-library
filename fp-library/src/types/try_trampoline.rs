@@ -46,6 +46,39 @@ mod inner {
 	/// For lightweight fallible deferred computation with HKT support, use
 	/// [`TryThunk`](crate::types::TryThunk). For memoized fallible computation, use
 	/// [`TryLazy`](crate::types::TryLazy).
+	///
+	/// ### Algebraic Properties
+	///
+	/// `TryTrampoline` forms a monad over the success type `A` (with `E` fixed):
+	/// - `TryTrampoline::ok(a).bind(f).evaluate() == f(a).evaluate()` (left identity).
+	/// - `task.bind(TryTrampoline::ok).evaluate() == task.evaluate()` (right identity).
+	/// - `task.bind(f).bind(g).evaluate() == task.bind(|a| f(a).bind(g)).evaluate()` (associativity).
+	///
+	/// On the error channel, `bind` short-circuits: if the computation produces `Err(e)`,
+	/// the continuation `f` is never called and the error propagates directly.
+	///
+	/// ### Limitations
+	///
+	/// **`'static` constraint**: Both `A` and `E` must be `'static` because the
+	/// underlying [`Trampoline`] uses [`Free<ThunkBrand, A>`](crate::types::Free),
+	/// which erases types via [`Box<dyn Any>`] and therefore requires `'static`.
+	/// For fallible deferred computation with borrowed references and lifetime
+	/// polymorphism, use [`TryThunk`](crate::types::TryThunk).
+	///
+	/// **No HKT brand**: `TryTrampoline` does not have a corresponding brand type.
+	/// The `'static` constraint inherited from `Free` makes it impossible to
+	/// implement the `Kind` trait, which requires lifetime polymorphism (`for<'a>`).
+	/// Use [`TryThunk`](crate::types::TryThunk) when HKT integration is needed.
+	///
+	/// **`!Send`**: `TryTrampoline` is not `Send` because the underlying
+	/// [`Thunk`](crate::types::Thunk) stores a `Box<dyn FnOnce()>` without a `Send`
+	/// bound. For thread-safe fallible deferred computation, use
+	/// [`TrySendThunk`](crate::types::TrySendThunk) (not stack-safe) or
+	/// [`ArcTryLazy`](crate::types::ArcTryLazy) (memoized).
+	///
+	/// **Not memoized**: Each call to [`evaluate`](TryTrampoline::evaluate) re-runs
+	/// the entire computation. For memoized fallible computation, wrap in
+	/// [`TryLazy`](crate::types::TryLazy).
 	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
 	///
 	pub struct TryTrampoline<A: 'static, E: 'static>(
