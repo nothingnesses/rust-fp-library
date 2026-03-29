@@ -28,7 +28,7 @@
 //!   - **Collections:** `Compactable`, `Filterable`, `Witherable`
 //!   - **Indexed:** `WithIndex`, `FunctorWithIndex`, `FoldableWithIndex`, `TraversableWithIndex`
 //!   - **Category Theory:** `Category`, `Semigroupoid`, `Profunctor`, `Strong`, `Choice`, `Closed`, `Cochoice`, `Costrong`, `Wander`
-//!   - **Laziness & Effects:** `RefFunctor`, `SendRefFunctor`, `Deferrable`, `SendDeferrable`
+//!   - **Laziness & Effects:** `RefFunctor`, `SendRefFunctor`, `Deferrable`, `SendDeferrable`, `LazyConfig`, `TryLazyConfig`
 //!   - **Parallel:** `ParFunctor`, `ParCompactable`, `ParFilterable`, `ParFoldable`, `ParFunctorWithIndex`, `ParFoldableWithIndex`
 //! - **Function & Pointer Abstractions:** Traits for abstracting over function wrappers and reference counting:
 //!   - **Functions:** `Function`, `CloneableFn`, `SendCloneableFn`, `UnsizedCoercible`, `SendUnsizedCoercible`
@@ -52,7 +52,7 @@
 //!   - `compose`, `constant`, `flip`, `identity`, `on`, `pipe`
 //! - **Data Types:** Implementations for standard and custom types:
 //!   - **Standard Library:** `Option`, `Result`, `Vec`, `String`
-//!   - **Laziness, Memoization & Stack Safety:** `Lazy` (`RcLazy`, `ArcLazy`), `Thunk`, `SendThunk`, `Trampoline`, `Free`
+//!   - **Laziness, Memoization & Stack Safety:** `Lazy` (`RcLazy`, `ArcLazy`), `Thunk`, `SendThunk`, `Trampoline`, `Free`, `FreeStep`
 //!   - **Fallible Variants:** `TryLazy` (`RcTryLazy`, `ArcTryLazy`), `TryThunk`, `TrySendThunk`, `TryTrampoline`
 //!   - **Generic Containers:** `Identity`, `Pair`, `CatList`
 //!   - **Function Wrappers:** `Endofunction`, `Endomorphism`

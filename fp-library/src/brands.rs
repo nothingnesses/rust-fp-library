@@ -47,6 +47,12 @@ pub struct ArcBrand;
 /// closures in a generic context.
 pub type ArcFnBrand = FnBrand<ArcBrand>;
 
+/// Brand for thread-safe [`ArcLazy`](crate::types::ArcLazy).
+pub type ArcLazyBrand = LazyBrand<ArcLazyConfig>;
+
+/// Brand for thread-safe [`ArcTryLazy`](crate::types::ArcTryLazy).
+pub type ArcTryLazyBrand<E> = TryLazyBrand<E, ArcLazyConfig>;
+
 /// An adapter that partially applies a `Bifunctor` to its first argument, creating a `Functor` over the second argument.
 ///
 /// ### Examples
@@ -94,6 +100,28 @@ pub struct CatListBrand;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ConstBrand<R>(PhantomData<R>);
 
+/// Brand for [`ControlFlow`](core::ops::ControlFlow).
+///
+/// The type parameters are swapped relative to `ControlFlow<B, C>` so that
+/// the first HKT parameter is the continue (loop/state) value and the second
+/// is the break (done/result) value, matching `tail_rec_m` conventions.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ControlFlowBrand;
+
+/// Brand for the partially-applied form of [`ControlFlow`](core::ops::ControlFlow) with the [`Break`](core::ops::ControlFlow::Break) type applied.
+///
+/// Fixes the `Break` (result) type, yielding a `Functor` over the `Continue`
+/// (continuation) type.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ControlFlowBreakAppliedBrand<B>(PhantomData<B>);
+
+/// Brand for the partially-applied form of [`ControlFlow`](core::ops::ControlFlow) with the [`Continue`](core::ops::ControlFlow::Continue) type applied.
+///
+/// Fixes the `Continue` (continuation) type, yielding a `Functor` over the `Break`
+/// (result) type.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ControlFlowContinueAppliedBrand<C>(PhantomData<C>);
+
 /// Generic function brand parameterized by reference-counted pointer choice.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FnBrand<PtrBrand: RefCountedPointer>(PhantomData<PtrBrand>);
@@ -111,12 +139,6 @@ pub struct IdentityBrand;
 ///   or [`ArcLazyConfig`] for thread-safe contexts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LazyBrand<Config: LazyConfig>(PhantomData<Config>);
-
-/// Brand for single-threaded [`RcLazy`](crate::types::RcLazy).
-pub type RcLazyBrand = LazyBrand<RcLazyConfig>;
-
-/// Brand for thread-safe [`ArcLazy`](crate::types::ArcLazy).
-pub type ArcLazyBrand = LazyBrand<ArcLazyConfig>;
 
 /// Brand for [`Option`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -186,6 +208,12 @@ pub struct RcBrand;
 /// closures in a generic context.
 pub type RcFnBrand = FnBrand<RcBrand>;
 
+/// Brand for single-threaded [`RcLazy`](crate::types::RcLazy).
+pub type RcLazyBrand = LazyBrand<RcLazyConfig>;
+
+/// Brand for single-threaded [`RcTryLazy`](crate::types::RcTryLazy).
+pub type RcTryLazyBrand<E> = TryLazyBrand<E, RcLazyConfig>;
+
 /// Brand for [`Result`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ResultBrand;
@@ -201,28 +229,6 @@ pub struct ResultErrAppliedBrand<E>(PhantomData<E>);
 /// This brand forms a [`crate::classes::Functor`] and [`crate::classes::Monad`] over the error ([`Err`]) type.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ResultOkAppliedBrand<T>(PhantomData<T>);
-
-/// Brand for [`ControlFlow`](core::ops::ControlFlow).
-///
-/// The type parameters are swapped relative to `ControlFlow<B, C>` so that
-/// the first HKT parameter is the continue (loop/state) value and the second
-/// is the break (done/result) value, matching `tail_rec_m` conventions.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ControlFlowBrand;
-
-/// Brand for the partially-applied form of [`ControlFlow`](core::ops::ControlFlow) with the [`Break`](core::ops::ControlFlow::Break) type applied.
-///
-/// Fixes the `Break` (result) type, yielding a `Functor` over the `Continue`
-/// (continuation) type.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ControlFlowBreakAppliedBrand<B>(PhantomData<B>);
-
-/// Brand for the partially-applied form of [`ControlFlow`](core::ops::ControlFlow) with the [`Continue`](core::ops::ControlFlow::Continue) type applied.
-///
-/// Fixes the `Continue` (continuation) type, yielding a `Functor` over the `Break`
-/// (result) type.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ControlFlowContinueAppliedBrand<C>(PhantomData<C>);
 
 /// Brand for [`SendThunk`](crate::types::SendThunk).
 ///
@@ -267,12 +273,6 @@ pub struct ThunkBrand;
 /// HKT contexts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryLazyBrand<E, Config: TryLazyConfig>(PhantomData<(E, Config)>);
-
-/// Brand for single-threaded [`RcTryLazy`](crate::types::RcTryLazy).
-pub type RcTryLazyBrand<E> = TryLazyBrand<E, RcLazyConfig>;
-
-/// Brand for thread-safe [`ArcTryLazy`](crate::types::ArcTryLazy).
-pub type ArcTryLazyBrand<E> = TryLazyBrand<E, ArcLazyConfig>;
 
 /// Brand for [`TryThunk`](crate::types::TryThunk) (Bifunctor).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

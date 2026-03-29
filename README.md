@@ -15,12 +15,13 @@ A functional programming library for Rust featuring your favourite higher-kinded
 - **Type Classes:** A comprehensive collection of standard type classes including:
   - **Core:** `Functor`, `Contravariant`, `Pointed`, `Applicative`, `Semiapplicative`, `Monad`, `Semimonad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`, `Alt`, `Plus`, `Alternative`
   - **Applicative Utilities:** `Lift`, `ApplyFirst`, `ApplySecond`
-  - **Monad Utilities:** `MonadRec`, `Evaluable`
+  - **Monad Utilities:** `MonadRec`, `Extract`
+  - **Comonads:** `Extend`, `Comonad`
   - **Bifunctors:** `Bifunctor`, `Bifoldable`, `Bitraversable`
   - **Collections:** `Compactable`, `Filterable`, `Witherable`
   - **Indexed:** `WithIndex`, `FunctorWithIndex`, `FoldableWithIndex`, `TraversableWithIndex`
   - **Category Theory:** `Category`, `Semigroupoid`, `Profunctor`, `Strong`, `Choice`, `Closed`, `Cochoice`, `Costrong`, `Wander`
-  - **Laziness & Effects:** `RefFunctor`, `Deferrable`, `SendDeferrable`
+  - **Laziness & Effects:** `RefFunctor`, `SendRefFunctor`, `Deferrable`, `SendDeferrable`, `LazyConfig`, `TryLazyConfig`
   - **Parallel:** `ParFunctor`, `ParCompactable`, `ParFilterable`, `ParFoldable`, `ParFunctorWithIndex`, `ParFoldableWithIndex`
 - **Function & Pointer Abstractions:** Traits for abstracting over function wrappers and reference counting:
   - **Functions:** `Function`, `CloneableFn`, `SendCloneableFn`, `UnsizedCoercible`, `SendUnsizedCoercible`
@@ -44,9 +45,9 @@ A functional programming library for Rust featuring your favourite higher-kinded
   - `compose`, `constant`, `flip`, `identity`, `on`, `pipe`
 - **Data Types:** Implementations for standard and custom types:
   - **Standard Library:** `Option`, `Result`, `Vec`, `String`
-  - **Laziness, Memoization & Stack Safety:** `Lazy` (`RcLazy`, `ArcLazy`), `Thunk`, `Trampoline`, `Free`
-  - **Fallible Variants:** `TryLazy` (`RcTryLazy`, `ArcTryLazy`), `TryThunk`, `TryTrampoline`
-  - **Generic Containers:** `Identity`, `Pair`, `Step`, `CatList`
+  - **Laziness, Memoization & Stack Safety:** `Lazy` (`RcLazy`, `ArcLazy`), `Thunk`, `SendThunk`, `Trampoline`, `Free`, `FreeStep`
+  - **Fallible Variants:** `TryLazy` (`RcTryLazy`, `ArcTryLazy`), `TryThunk`, `TrySendThunk`, `TryTrampoline`
+  - **Generic Containers:** `Identity`, `Pair`, `CatList`
   - **Function Wrappers:** `Endofunction`, `Endomorphism`
   - **Marker Types:** `RcBrand`, `ArcBrand`, `FnBrand`
 
@@ -182,7 +183,7 @@ Rust is an eagerly evaluated language. To enable functional patterns like deferr
 | Type                   | Primary Use Case                                                                                                            | Stack Safe?                    | Memoized? | Lifetimes?   | Send? | HKT Traits                           |
 | :--------------------- | :-------------------------------------------------------------------------------------------------------------------------- | :----------------------------- | :-------- | :----------- | :---- | :----------------------------------- |
 | **`Thunk<'a, A>`**     | **Glue Code & Borrowing.** Lightweight deferred computation. Best for short chains and working with references.             | ⚠️ Partial (`tail_rec_m` only) | ❌ No     | ✅ `'a`      | ❌    | ✅ `Functor`, `Applicative`, `Monad` |
-| **`SendThunk<'a, A>`** | **Thread-Safe Glue Code.** Like `Thunk`, but the closure is `Send`. Enables truly lazy `memoize_arc()`.                     | ❌ No                          | ❌ No     | ✅ `'a`      | ✅    | ❌ No                                |
+| **`SendThunk<'a, A>`** | **Thread-Safe Glue Code.** Like `Thunk`, but the closure is `Send`. Enables truly lazy `into_arc_lazy()`.                    | ❌ No                          | ❌ No     | ✅ `'a`      | ✅    | ❌ No                                |
 | **`Trampoline<A>`**    | **Deep Recursion & Pipelines.** Heavy-duty computation. Uses a trampoline to guarantee stack safety for infinite recursion. | ✅ Yes                         | ❌ No     | ❌ `'static` | ❌    | ❌ No                                |
 | **`Lazy<'a, A>`**      | **Caching.** Wraps a computation to ensure it runs at most once. `RcLazy` for single-threaded, `ArcLazy` for thread-safe.   | N/A                            | ✅ Yes    | ✅ `'a`      | ⚡    | ✅ `RefFunctor`, `Foldable`          |
 
@@ -202,7 +203,7 @@ Each of these has a fallible counterpart that wraps `Result<A, E>` with ergonomi
 Unlike lazy languages (e.g., Haskell) where the runtime handles everything, Rust requires us to choose our trade-offs:
 
 1. **`Thunk` vs `Trampoline`**: `Thunk` is faster and supports borrowing (`&'a T`). Its `tail_rec_m` is stack-safe, but deep `bind` chains will overflow the stack. `Trampoline` guarantees stack safety for all operations via a trampoline (the `Free` monad) but requires types to be `'static`. Note that `!Send` types like `Rc<T>` are fully supported. A key distinction is that `Thunk` implements `Functor`, `Applicative`, and `Monad` directly, making it suitable for generic programming, while `Trampoline` does not.
-2. **`Thunk` vs `SendThunk`**: `Thunk` wraps `Box<dyn FnOnce() -> A + 'a>` and is `!Send`. `SendThunk` wraps `Box<dyn FnOnce() -> A + Send + 'a>` and can cross thread boundaries. Use `SendThunk` when you need truly lazy `memoize_arc()` (converting to `ArcLazy` without eager evaluation), or when building deferred computation chains that will be consumed on another thread. `TrySendThunk` is the fallible counterpart.
+2. **`Thunk` vs `SendThunk`**: `Thunk` wraps `Box<dyn FnOnce() -> A + 'a>` and is `!Send`. `SendThunk` wraps `Box<dyn FnOnce() -> A + Send + 'a>` and can cross thread boundaries. Use `SendThunk` when you need truly lazy `into_arc_lazy()` (converting to `ArcLazy` without eager evaluation), or when building deferred computation chains that will be consumed on another thread. `TrySendThunk` is the fallible counterpart.
 3. **Computation vs Caching**: `Thunk` and `Trampoline` describe _computations_ that are not memoized. Each instance is consumed on `.evaluate()` (which takes `self` by value), so the computation runs exactly once per instance, but constructing a new instance re-executes the work. `Lazy`, by contrast, caches the result so that all clones share a single evaluation. If you have an expensive operation (like a DB call), convert it to a `Lazy` to guarantee it runs at most once.
 
 #### Workflow Example: Expression Evaluator
@@ -348,19 +349,19 @@ This project uses [Criterion.rs](https://github.com/criterion-rs/criterion.rs) f
 To run all benchmarks:
 
 ```sh
-cargo bench -p fp-library
+just bench -p fp-library
 ```
 
 To list available benchmarks:
 
 ```sh
-cargo bench -p fp-library --bench benchmarks -- --list
+just bench -p fp-library --bench benchmarks -- --list
 ```
 
 To run a specific benchmark (e.g., `Vec`):
 
 ```sh
-cargo bench -p fp-library --bench benchmarks -- Vec
+just bench -p fp-library --bench benchmarks -- Vec
 ```
 
 Benchmark reports are generated in `target/criterion/report/index.html`.

@@ -9,12 +9,12 @@ The hierarchy consists of infallible computation types, fallible counterparts, a
 | Type | Underlying | HKT | Stack Safe | Memoized | Lifetimes | Send |
 |------|-----------|-----|-----------|----------|-----------|------|
 | `Thunk<'a, A>` | `Box<dyn FnOnce() -> A + 'a>` | Yes (full) | Partial (`tail_rec_m` only) | No | `'a` | No |
-| `SendThunk<'a, A>` | `Box<dyn FnOnce() -> A + Send + 'a>` | No | No | No | `'a` | Yes |
+| `SendThunk<'a, A>` | `Box<dyn FnOnce() -> A + Send + 'a>` | No | Partial (`tail_rec_m` only) | No | `'a` | Yes |
 | `Trampoline<A>` | `Free<ThunkBrand, A>` | No | Yes | No | `'static` | No |
 | `RcLazy<'a, A>` | `Rc<LazyCell<A, ...>>` | Partial (`RefFunctor`) | N/A | Yes | `'a` | No |
 | `ArcLazy<'a, A>` | `Arc<LazyLock<A, ...>>` | Partial (`SendRefFunctor`) | N/A | Yes | `'a` | Yes |
 | `TryThunk<'a, A, E>` | `Thunk<'a, Result<A, E>>` | Yes (full) | Partial (`tail_rec_m` only) | No | `'a` | No |
-| `TrySendThunk<'a, A, E>` | `SendThunk<'a, Result<A, E>>` | No | No | No | `'a` | Yes |
+| `TrySendThunk<'a, A, E>` | `SendThunk<'a, Result<A, E>>` | No | Partial (`tail_rec_m` only) | No | `'a` | Yes |
 | `TryTrampoline<A, E>` | `Trampoline<Result<A, E>>` | No | Yes | No | `'static` | No |
 | `RcTryLazy<'a, A, E>` | `Rc<LazyCell<Result<A, E>, ...>>` | Partial (`RefFunctor`, `Foldable`) | N/A | Yes | `'a` | No |
 | `ArcTryLazy<'a, A, E>` | `Arc<LazyLock<Result<A, E>, ...>>` | Partial (`SendRefFunctor`, `Foldable`) | N/A | Yes | `'a` | Yes |
