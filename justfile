@@ -22,7 +22,7 @@ doc *args:
         echo "ERROR: Found emoji or unicode characters in source files. Use ASCII equivalents." >&2
         exit 1
     fi
-    RUSTDOCFLAGS="-D warnings" {{direnv_prefix}} cargo doc {{args}}
+    {{direnv_prefix}} RUSTDOCFLAGS="-D warnings" cargo doc {{args}}
 
 # Build the workspace.
 build *args:
