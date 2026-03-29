@@ -66,6 +66,7 @@ mod inner {
 		std::{
 			cmp::Ordering,
 			collections::VecDeque,
+			fmt,
 			hash::{
 				Hash,
 				Hasher,
@@ -2820,6 +2821,54 @@ mod inner {
 		}
 	}
 
+	// --- Display ---
+
+	#[document_type_parameters("The type of the elements in the list.")]
+	#[document_parameters("The list to display.")]
+	impl<A: fmt::Display> fmt::Display for CatList<A> {
+		/// Displays the list in bracket notation (e.g., `[1, 2, 3]`).
+		///
+		/// An empty list displays as `[]`.
+		#[document_signature]
+		///
+		#[document_parameters("The formatter.")]
+		///
+		#[document_returns("The formatting result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let empty: CatList<i32> = CatList::empty();
+		/// assert_eq!(format!("{}", empty), "[]");
+		///
+		/// let single = CatList::singleton(42);
+		/// assert_eq!(format!("{}", single), "[42]");
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// assert_eq!(format!("{}", list), "[1, 2, 3]");
+		/// ```
+		fn fmt(
+			&self,
+			f: &mut fmt::Formatter<'_>,
+		) -> fmt::Result {
+			f.write_str("[")?;
+			let mut first = true;
+			for item in self.iter() {
+				if first {
+					first = false;
+				} else {
+					f.write_str(", ")?;
+				}
+				fmt::Display::fmt(item, f)?;
+			}
+			f.write_str("]")
+		}
+	}
+
+	// --- Drop ---
+
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to drop.")]
 	impl<A> Drop for CatList<A> {
@@ -3795,5 +3844,44 @@ mod tests {
 		);
 		let vec: Vec<_> = result.into_iter().collect();
 		assert_eq!(vec, vec![iterations]);
+	}
+
+	// --- Display tests ---
+
+	/// Tests `Display` for an empty list.
+	#[test]
+	fn test_cat_list_display_empty() {
+		let list: CatList<i32> = CatList::empty();
+		assert_eq!(format!("{}", list), "[]");
+	}
+
+	/// Tests `Display` for a singleton list.
+	#[test]
+	fn test_cat_list_display_singleton() {
+		let list = CatList::singleton(42);
+		assert_eq!(format!("{}", list), "[42]");
+	}
+
+	/// Tests `Display` for a multi-element list.
+	#[test]
+	fn test_cat_list_display_multiple() {
+		let list = CatList::singleton(1).snoc(2).snoc(3);
+		assert_eq!(format!("{}", list), "[1, 2, 3]");
+	}
+
+	/// Tests `Display` for a list built by appending two lists.
+	#[test]
+	fn test_cat_list_display_appended() {
+		let left = CatList::singleton(1).snoc(2);
+		let right = CatList::singleton(3).snoc(4);
+		let list = left.append(right);
+		assert_eq!(format!("{}", list), "[1, 2, 3, 4]");
+	}
+
+	/// Tests `Display` for a list of strings.
+	#[test]
+	fn test_cat_list_display_strings() {
+		let list = CatList::singleton("hello".to_string()).snoc("world".to_string());
+		assert_eq!(format!("{}", list), "[hello, world]");
 	}
 }
