@@ -61,7 +61,7 @@ Foundational changes that unblock or simplify later phases.
 
   Reimplement all `Step`'s helper methods (`map_loop`/`map_done`/`bind`/`swap`/`bi_fold_*`/etc.) as static methods on `ControlFlowBrand`. Reimplement all type class instances (Bifunctor, Bifoldable, Bitraversable on the base brand; Functor through MonadRec on both applied brands).
 
-  Remove `Hash` and serde support (acceptable trade-off). Remove `From` conversions between `Step` and `ControlFlow` (no longer needed). Remove `Step`'s `Copy` derive (ControlFlow derives `Copy` when its fields do).
+  `Hash` and `Copy` are preserved (`ControlFlow` derives both when its fields do). Serde support (`Serialize`/`Deserialize` behind the `serde` feature flag) is lost because serde derives cannot be added to foreign types directly. If serde support is needed in the future, use `#[serde(remote = "ControlFlow")]` on a helper struct or implement `Serialize`/`Deserialize` manually. Remove `From` conversions between `Step` and `ControlFlow` (no longer needed).
 - **Why:** Uses a standard library type instead of a custom enum. Provides interop with Rust's `?` operator and `Try` trait. Eliminates `From` conversion boilerplate. The swapped-parameter `impl_kind!` preserves all HKT semantics.
 - **Dependencies:** None, but best done early since it touches many files.
 
@@ -95,13 +95,13 @@ Fills obvious gaps in the type class hierarchy. These are small, self-contained 
 - **Why:** `LazyBrand` has both traits; `TryLazyBrand` does not. Both are single-element containers where `Index = ()` is the natural choice.
 - **Dependencies:** None.
 
-### Task 2.2: Resolve `TrySendThunkBrand` (implement or remove)
+### Task 2.2: Remove `TrySendThunkBrand`
 
 - **Files to modify:**
-  - `fp-library/src/brands.rs` (potentially remove brand or add partially-applied brands)
-  - `fp-library/src/types/try_send_thunk.rs` (add type class impls if keeping the brand)
-- **What:** Investigate whether `Bifunctor`/`Bifoldable` can be implemented for `TrySendThunkBrand`. The bifunctor traits accept two separate mapping closures, so the `Send` constraint may be enforceable differently than for `Functor`. If implementable, add `Bifunctor`, `Bifoldable`, and `Bitraversable`. If blocked by `Send` constraints, remove the brand and document why.
-- **Why:** The brand currently has zero type class implementations, making it a dead definition.
+  - `fp-library/src/brands.rs` (remove `TrySendThunkBrand` definition and `impl_kind!`)
+  - `fp-library/src/types/try_send_thunk.rs` (remove any brand references, add a doc comment explaining why no brand exists)
+- **What:** Remove `TrySendThunkBrand` and its `impl_kind!`. The brand cannot soundly implement any closure-accepting HKT trait (`Bifunctor`, `Bifoldable`, `Functor`, etc.) because the trait signatures use `impl Fn(A) -> B + 'a` without a `Send` bound, but `TrySendThunk` internally stores a `Send` closure. Composing a non-`Send` closure from the trait with the internal `Send` closure would violate the `Send` invariant. Add a doc comment on `TrySendThunk` explaining this limitation.
+- **Why:** The brand has zero type class implementations and cannot gain any. It creates false expectations of HKT support.
 - **Dependencies:** None.
 
 ### Task 2.3: Add `From<TrySendThunk> for TryThunk`
@@ -275,15 +275,7 @@ Loosens overly broad type constraints on `Free`.
 
 Expands the hierarchy's utility.
 
-### Task 6.1: Add `Traversable` for `ThunkBrand`
-
-- **Files to modify:**
-  - `fp-library/src/types/thunk.rs`
-- **What:** Implement `Traversable` for `ThunkBrand`. For a single-element container, `traverse(f, thunk)` evaluates the thunk, applies `f`, and maps to wrap the result back in a `Thunk`. Investigate whether `Thunk`'s `!Clone` blocks this.
-- **Why:** Single-element `Traversable` is well-defined and useful for generic programming.
-- **Dependencies:** None.
-
-### Task 6.2: Add `Display` for `TryLazy`
+### Task 6.1: Add `Display` for `TryLazy`
 
 - **Files to modify:**
   - `fp-library/src/types/try_lazy.rs`
@@ -291,7 +283,7 @@ Expands the hierarchy's utility.
 - **Why:** Restores parity with `Lazy`.
 - **Dependencies:** None.
 
-### Task 6.3: Add `Display` for `CatList`
+### Task 6.2: Add `Display` for `CatList`
 
 - **Files to modify:**
   - `fp-library/src/types/cat_list.rs`
@@ -299,7 +291,7 @@ Expands the hierarchy's utility.
 - **Why:** Natural representation for a list type. Trivial to implement via `self.iter()`.
 - **Dependencies:** None.
 
-### Task 6.4: Add cross-config conversions for `TryLazy`
+### Task 6.3: Add cross-config conversions for `TryLazy`
 
 - **Files to modify:**
   - `fp-library/src/types/try_lazy.rs`
@@ -307,15 +299,7 @@ Expands the hierarchy's utility.
 - **Why:** Completes the conversion matrix.
 - **Dependencies:** None.
 
-### Task 6.5: Make `CatList::map` structure-preserving
-
-- **Files to modify:**
-  - `fp-library/src/types/cat_list.rs`
-- **What:** Replace the current `map` implementation (`self.into_iter().map(f).collect()`, which flattens the tree) with a recursive implementation that preserves the internal `VecDeque<CatList<A>>` branching structure. The HKT `Functor` impl (which uses `Fn`, not `FnMut`) is a natural fit since the closure can be shared across recursive calls. The inherent `map` method (which takes `FnMut`) can keep the flatten-and-collect approach for compatibility, or both can be unified if `FnMut` is not needed.
-- **Why:** Preserving structure avoids unnecessary flattening and reduces allocations for deeply nested lists built via repeated `append`.
-- **Dependencies:** None.
-
-### Task 6.6: Add `resume` method to `Trampoline` and `TryTrampoline`
+### Task 6.4: Add `resume` method to `Trampoline` and `TryTrampoline`
 
 - **Files to modify:**
   - `fp-library/src/types/trampoline.rs`
@@ -324,7 +308,7 @@ Expands the hierarchy's utility.
 - **Why:** `resume` is a fundamental Free monad operation that is currently available only on `Free` directly.
 - **Dependencies:** Task 1.3 (benefits from the CatList-paired refactor).
 
-### Task 6.7: Add derived `MonadRec` combinators
+### Task 6.5: Add derived `MonadRec` combinators
 
 - **Files to modify:**
   - `fp-library/src/classes/monad_rec.rs` (add free functions)
@@ -460,6 +444,18 @@ A `Send` variant of `Free` (and by extension `SendTrampoline`/`SendTryTrampoline
 
 `Extract` (formerly `Evaluable`) does not require `Functor`. The `extract` operation is purely "pull a value out." The map-extract law (`extract(map(f, fa)) == f(extract(fa))`) only applies when both `Extract` and `Functor` are present, so it belongs to `Comonad` (which gets `Functor` via its `Extend` supertrait). `Extend: Functor` is correct because `Extend`'s associativity law implies a lawful `Functor` must exist, mirroring how `Monad`'s laws imply `Functor`. `Free` uses `F: Extract + Functor` in its where clause for `evaluate`/`resume`, making the requirements explicit at the use site.
 
+### `Traversable` for `ThunkBrand` is infeasible
+
+`Traversable::traverse` requires `Apply!(Self::Of<'a, B>): Clone`, i.e., `Thunk<'a, B>: Clone`. `Thunk` wraps `Box<dyn FnOnce() -> A + 'a>`, which is inherently `!Clone` because `FnOnce` closures are consumed on invocation. This is true regardless of whether `A: Clone`. The `!Clone` is an intentional design choice: `Thunk` is a single-shot deferred computation. Cloning it would require either caching the result (becoming `Lazy`) or using `Fn` instead of `FnOnce` (losing move-only captures). This is already documented in `thunk.rs`.
+
+### `CatList::map` should flatten (not preserve structure)
+
+PureScript's `CatList` Functor instance also flattens during `map`: it calls `foldr link CatNil q` to collapse the internal queue before recursing. The Rust implementation's `into_iter().map(f).collect()` achieves the same flattening. Structure-preserving `map` would diverge from the reference implementation and the internal tree structure is an implementation detail of O(1) append, not something users should depend on. Flattening during `map` normalizes the structure, improving subsequent iteration performance.
+
+### `TrySendThunkBrand` cannot implement any HKT traits
+
+`Bifunctor::bimap`, `Bifoldable::bi_fold_*`, and all other closure-accepting HKT traits use `impl Fn(A) -> B + 'a` without a `Send` bound. `TrySendThunk` stores a `Send` closure internally. Composing a non-`Send` closure from the trait with the internal `Send` closure would produce a result that violates the `Send` invariant. This is the same fundamental blocker as `Functor` for `SendThunkBrand`. The brand should be removed.
+
 ### `Functor` should not require `Clone` on `A`
 
 Adding `A: Clone` to `Functor` would not enable `Lazy` types to implement `Functor`. The core issue is closure signature compatibility: `Functor::map` takes `Fn(A) -> B` (owned `A`), while `Lazy::evaluate` returns `&A`. Even with `A: Clone`, the implementation would need to silently clone, violating the library's zero-cost abstraction principle. It would also break code using non-`Clone` types and propagate unnecessarily to `Applicative`, `Monad`, etc. The `RefFunctor`/`SendRefFunctor` split correctly reflects genuinely different capabilities.
@@ -479,6 +475,6 @@ Adding `A: Clone` to `Functor` would not enable `Lazy` types to implement `Funct
 | 3 | `classes/evaluable.rs` (renamed to `classes/extract.rs`), `types/thunk.rs`, `types/free.rs`, `types/identity.rs`, `types/lazy.rs`, `classes.rs`, `functions.rs`, all files importing `Evaluable` | `classes/extend.rs`, `classes/comonad.rs` |
 | 4 | `classes/monad_rec.rs`, `classes/extract.rs`, `classes/deferrable.rs`, `types/try_trampoline.rs` | None |
 | 5 | `types/free.rs` | None |
-| 6 | `types/thunk.rs`, `types/try_lazy.rs`, `types/cat_list.rs`, `types/trampoline.rs`, `types/try_trampoline.rs`, `classes/monad_rec.rs`, `functions.rs` | None |
+| 6 | `types/try_lazy.rs`, `types/cat_list.rs`, `types/trampoline.rs`, `types/try_trampoline.rs`, `classes/monad_rec.rs`, `functions.rs` | None |
 | 7 | `types/lazy.rs`, `types/try_lazy.rs`, `types/free.rs`, `types/send_thunk.rs` | None |
 | 8 | Test files across the crate | None |
