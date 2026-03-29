@@ -57,158 +57,10 @@ mod inner {
 		},
 	};
 
-	/// Configuration for infallible memoization strategy.
-	///
-	/// This trait bundles together the choices for:
-	/// - Pointer type ([`Rc`] vs [`Arc`]).
-	/// - Lazy cell type ([`LazyCell`] vs [`LazyLock`]).
-	///
-	/// # Note on Standard Library Usage
-	///
-	/// This design leverages Rust 1.80's `LazyCell` and `LazyLock` types,
-	/// which encapsulate the initialization-once logic.
-	///
-	/// # Extensibility
-	///
-	/// This trait is open for third-party implementations. You can define a custom
-	/// `LazyConfig` to use alternative lazy cell or pointer types (for example,
-	/// `parking_lot`-based locks or async-aware cells). Implement the two associated
-	/// types ([`Lazy`](LazyConfig::Lazy), [`Thunk`](LazyConfig::Thunk)) and the
-	/// two methods ([`lazy_new`](LazyConfig::lazy_new),
-	/// [`evaluate`](LazyConfig::evaluate)), then use your config as the
-	/// `Config` parameter on [`Lazy`].
-	///
-	/// For fallible memoization, implement [`TryLazyConfig`] as well.
-	pub trait LazyConfig: 'static {
-		/// The pointer brand used by this configuration.
-		///
-		/// Links the lazy configuration to the pointer hierarchy, enabling
-		/// generic code to obtain the underlying pointer brand from a
-		/// `LazyConfig` without hard-coding `RcBrand` or `ArcBrand`.
-		type PointerBrand: crate::classes::RefCountedPointer;
-
-		/// The lazy cell type for infallible memoization.
-		type Lazy<'a, A: 'a>: Clone;
-
-		/// The type of the initializer thunk.
-		type Thunk<'a, A: 'a>: ?Sized;
-
-		/// Creates a new lazy cell from an initializer.
-		#[document_signature]
-		///
-		#[document_type_parameters("The lifetime of the computation.", "The type of the value.")]
-		///
-		#[document_parameters("The initializer thunk.")]
-		///
-		#[document_returns("A new lazy cell.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let lazy = RcLazyConfig::lazy_new(Box::new(|| 42));
-		/// assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);
-		/// ```
-		fn lazy_new<'a, A: 'a>(f: Box<Self::Thunk<'a, A>>) -> Self::Lazy<'a, A>;
-
-		/// Forces evaluation and returns a reference.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the computation.",
-			"The borrow lifetime.",
-			"The type of the value."
-		)]
-		///
-		#[document_parameters("The lazy cell to evaluate.")]
-		///
-		#[document_returns("A reference to the value.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let lazy = RcLazyConfig::lazy_new(Box::new(|| 42));
-		/// assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);
-		/// ```
-		fn evaluate<'a, 'b, A: 'a>(lazy: &'b Self::Lazy<'a, A>) -> &'b A;
-	}
-
-	/// Configuration for fallible memoization strategy.
-	///
-	/// This trait separates the fallible (error-producing) memoization types
-	/// from the infallible ones in [`LazyConfig`]. Third-party implementations
-	/// can choose to implement only `LazyConfig` when fallible memoization is
-	/// not needed, or both traits when it is.
-	///
-	/// # Extensibility
-	///
-	/// Implement the two associated types
-	/// ([`TryLazy`](TryLazyConfig::TryLazy), [`TryThunk`](TryLazyConfig::TryThunk))
-	/// and the two methods
-	/// ([`try_lazy_new`](TryLazyConfig::try_lazy_new),
-	/// [`try_evaluate`](TryLazyConfig::try_evaluate)), then use your config as
-	/// the `Config` parameter on [`TryLazy`](crate::types::TryLazy).
-	pub trait TryLazyConfig: LazyConfig {
-		/// The lazy cell type for fallible memoization.
-		type TryLazy<'a, A: 'a, E: 'a>: Clone;
-
-		/// The type of the fallible initializer thunk.
-		type TryThunk<'a, A: 'a, E: 'a>: ?Sized;
-
-		/// Creates a new fallible lazy cell from an initializer.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the computation.",
-			"The type of the value.",
-			"The type of the error."
-		)]
-		///
-		#[document_parameters("The initializer thunk.")]
-		///
-		#[document_returns("A new fallible lazy cell.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
-		/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
-		/// ```
-		fn try_lazy_new<'a, A: 'a, E: 'a>(
-			f: Box<Self::TryThunk<'a, A, E>>
-		) -> Self::TryLazy<'a, A, E>;
-
-		/// Forces evaluation and returns a reference to the result.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the computation.",
-			"The borrow lifetime.",
-			"The type of the value.",
-			"The type of the error."
-		)]
-		///
-		#[document_parameters("The fallible lazy cell to evaluate.")]
-		///
-		#[document_returns("A result containing a reference to the value or error.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
-		/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
-		/// ```
-		fn try_evaluate<'a, 'b, A: 'a, E: 'a>(
-			lazy: &'b Self::TryLazy<'a, A, E>
-		) -> Result<&'b A, &'b E>;
-	}
+	pub use crate::classes::{
+		LazyConfig,
+		TryLazyConfig,
+	};
 
 	/// Single-threaded memoization using [`Rc<LazyCell>`].
 	///
@@ -232,7 +84,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let lazy = RcLazyConfig::lazy_new(Box::new(|| 42));
 		/// assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);
@@ -257,7 +112,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let lazy = RcLazyConfig::lazy_new(Box::new(|| 42));
 		/// assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);
@@ -288,7 +146,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
 		/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
@@ -316,7 +177,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
 		/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
@@ -350,7 +214,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let lazy = ArcLazyConfig::lazy_new(Box::new(|| 42));
 		/// assert_eq!(*ArcLazyConfig::evaluate(&lazy), 42);
@@ -375,7 +242,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let lazy = ArcLazyConfig::lazy_new(Box::new(|| 42));
 		/// assert_eq!(*ArcLazyConfig::evaluate(&lazy), 42);
@@ -406,7 +276,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let lazy = ArcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
 		/// assert_eq!(ArcLazyConfig::try_evaluate(&lazy), Ok(&42));
@@ -434,7 +307,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let lazy = ArcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
 		/// assert_eq!(ArcLazyConfig::try_evaluate(&lazy), Ok(&42));
@@ -492,7 +368,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let memo = Lazy::<_, RcLazyConfig>::new(|| 5);
 		/// let shared = memo.clone();
@@ -526,7 +405,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let memo = Lazy::<_, RcLazyConfig>::new(|| 42);
 		/// assert_eq!(*memo.evaluate(), 42);
@@ -557,7 +439,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let memo = Lazy::<_, RcLazyConfig>::new(|| 42);
 		/// assert_eq!(*memo.evaluate(), 42);
@@ -579,7 +464,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let lazy = Lazy::<_, RcLazyConfig>::pure(42);
 		/// assert_eq!(*lazy.evaluate(), 42);
@@ -600,7 +488,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
 		/// let mapped = memo.ref_map(|x| *x * 2);
@@ -626,7 +517,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		/// let thunk = Thunk::new(|| 42);
 		/// let lazy: RcLazy<i32> = Lazy::from(thunk);
 		/// assert_eq!(*lazy.evaluate(), 42);
@@ -649,7 +543,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		/// let task = Trampoline::pure(42);
 		/// let lazy: RcLazy<i32> = Lazy::from(task);
 		/// assert_eq!(*lazy.evaluate(), 42);
@@ -674,7 +571,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		/// let thunk = Thunk::new(|| 42);
 		/// let lazy: ArcLazy<i32> = ArcLazy::from(thunk);
 		/// assert_eq!(*lazy.evaluate(), 42);
@@ -699,7 +599,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		/// let task = Trampoline::pure(42);
 		/// let lazy: ArcLazy<i32> = ArcLazy::from(task);
 		/// assert_eq!(*lazy.evaluate(), 42);
@@ -724,7 +627,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		/// let thunk = SendThunk::new(|| 42);
 		/// let lazy: ArcLazy<i32> = ArcLazy::from(thunk);
 		/// assert_eq!(*lazy.evaluate(), 42);
@@ -753,7 +659,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let rc_lazy = RcLazy::new(|| 42);
 		/// let arc_lazy: ArcLazy<i32> = ArcLazy::from(rc_lazy);
@@ -781,7 +690,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let arc_lazy = ArcLazy::new(|| 42);
 		/// let rc_lazy: RcLazy<i32> = RcLazy::from(arc_lazy);
@@ -811,7 +723,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let lazy = Lazy::<_, ArcLazyConfig>::new(|| 42);
 		/// assert_eq!(*lazy.evaluate(), 42);
@@ -834,7 +749,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let lazy = Lazy::<_, ArcLazyConfig>::pure(42);
 		/// assert_eq!(*lazy.evaluate(), 42);
@@ -869,7 +787,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let memo = ArcLazy::new(|| 10);
 		/// let mapped = memo.ref_map(|x| *x * 2);
@@ -1100,7 +1021,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let lazy = RcLazy::new(|| 42);
 		/// assert_eq!(format!("{}", lazy), "42");
@@ -1494,7 +1418,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let a = RcLazy::pure(42);
 		/// let b = RcLazy::pure(42);
@@ -1528,7 +1455,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let a = RcLazy::pure(1);
 		/// let b = RcLazy::pure(2);
@@ -1569,7 +1499,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let a = RcLazy::pure(1);
 		/// let b = RcLazy::pure(2);
@@ -1600,7 +1533,10 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::*;
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		/// let lazy = Lazy::<_, RcLazyConfig>::pure(42);
 		/// assert_eq!(format!("{:?}", lazy), "Lazy(..)");
 		/// ```

@@ -18,6 +18,7 @@ pub mod arc_ptr;
 pub mod cat_list;
 pub mod conjunctive;
 pub mod const_val;
+pub mod control_flow;
 pub mod disjunctive;
 pub mod dual;
 pub mod endofunction;
@@ -35,7 +36,6 @@ pub mod pair;
 pub mod rc_ptr;
 pub mod result;
 pub mod send_thunk;
-pub mod step;
 pub mod string;
 pub mod thunk;
 pub mod trampoline;
@@ -63,10 +63,8 @@ pub use {
 		ArcLazy,
 		ArcLazyConfig,
 		Lazy,
-		LazyConfig,
 		RcLazy,
 		RcLazyConfig,
-		TryLazyConfig,
 	},
 	multiplicative::Multiplicative,
 	optics::{
@@ -76,7 +74,6 @@ pub use {
 	},
 	pair::Pair,
 	send_thunk::SendThunk,
-	step::Step,
 	thunk::Thunk,
 	trampoline::Trampoline,
 	try_lazy::{

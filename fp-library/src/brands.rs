@@ -21,12 +21,14 @@
 
 use {
 	crate::{
-		classes::RefCountedPointer,
+		classes::{
+			LazyConfig,
+			RefCountedPointer,
+			TryLazyConfig,
+		},
 		types::{
 			ArcLazyConfig,
-			LazyConfig,
 			RcLazyConfig,
-			TryLazyConfig,
 		},
 	},
 	std::marker::PhantomData,
@@ -200,30 +202,27 @@ pub struct ResultErrAppliedBrand<E>(PhantomData<E>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ResultOkAppliedBrand<T>(PhantomData<T>);
 
-/// Brand for [`Step`](crate::types::Step).
+/// Brand for [`ControlFlow`](core::ops::ControlFlow).
 ///
-/// `Step` is the two-variant type (`Loop` / `Done`) used by
-/// [`MonadRec::tail_rec_m`](crate::classes::MonadRec::tail_rec_m) to signal
-/// whether a recursive computation should continue looping or return a final
-/// result.
+/// The type parameters are swapped relative to `ControlFlow<B, C>` so that
+/// the first HKT parameter is the continue (loop/state) value and the second
+/// is the break (done/result) value, matching `tail_rec_m` conventions.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StepBrand;
+pub struct ControlFlowBrand;
 
-/// Brand for the partially-applied form of [`Step`](crate::types::Step) with the [`Done`](crate::types::Step::Done) type applied.
+/// Brand for the partially-applied form of [`ControlFlow`](core::ops::ControlFlow) with the [`Break`](core::ops::ControlFlow::Break) type applied.
 ///
-/// Fixes the `Done` (result) type, yielding a `Functor` over the `Loop`
-/// (continuation) type. Used when `MonadRec` needs to map over the looping
-/// side of a `Step` value.
+/// Fixes the `Break` (result) type, yielding a `Functor` over the `Continue`
+/// (continuation) type.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StepDoneAppliedBrand<B>(PhantomData<B>);
+pub struct ControlFlowBreakAppliedBrand<B>(PhantomData<B>);
 
-/// Brand for the partially-applied form of [`Step`](crate::types::Step) with the [`Loop`](crate::types::Step::Loop) type applied.
+/// Brand for the partially-applied form of [`ControlFlow`](core::ops::ControlFlow) with the [`Continue`](core::ops::ControlFlow::Continue) type applied.
 ///
-/// Fixes the `Loop` (continuation) type, yielding a `Functor` over the `Done`
-/// (result) type. Used when `MonadRec` needs to map over the result side of a
-/// `Step` value.
+/// Fixes the `Continue` (continuation) type, yielding a `Functor` over the `Break`
+/// (result) type.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StepLoopAppliedBrand<A>(PhantomData<A>);
+pub struct ControlFlowContinueAppliedBrand<C>(PhantomData<C>);
 
 /// Brand for [`SendThunk`](crate::types::SendThunk).
 ///
