@@ -116,3 +116,80 @@ mod inner {
 }
 
 pub use inner::*;
+
+#[cfg(test)]
+mod tests {
+	use {
+		crate::{
+			functions::*,
+			types::*,
+		},
+		quickcheck_macros::quickcheck,
+	};
+
+	/// SendDeferrable transparency law for `SendThunk`: `send_defer(|| x).evaluate() == x`.
+	#[quickcheck]
+	fn prop_send_deferrable_transparency_send_thunk(x: i32) -> bool {
+		let deferred: SendThunk<i32> = send_defer(|| SendThunk::pure(x));
+		deferred.evaluate() == x
+	}
+
+	/// SendDeferrable nesting law for `SendThunk`:
+	/// `send_defer(|| send_defer(|| x)).evaluate() == send_defer(|| x).evaluate()`.
+	#[quickcheck]
+	fn prop_send_deferrable_nesting_send_thunk(x: i32) -> bool {
+		let nested: SendThunk<i32> = send_defer(|| send_defer(|| SendThunk::pure(x)));
+		let single: SendThunk<i32> = send_defer(|| SendThunk::pure(x));
+		nested.evaluate() == single.evaluate()
+	}
+
+	/// SendDeferrable transparency law for `ArcLazy`: `send_defer(|| x).evaluate() == x`.
+	#[quickcheck]
+	fn prop_send_deferrable_transparency_arc_lazy(x: i32) -> bool {
+		let deferred: ArcLazy<i32> = send_defer(|| ArcLazy::pure(x));
+		*deferred.evaluate() == x
+	}
+
+	/// SendDeferrable nesting law for `ArcLazy`:
+	/// `send_defer(|| send_defer(|| x)).evaluate() == send_defer(|| x).evaluate()`.
+	#[quickcheck]
+	fn prop_send_deferrable_nesting_arc_lazy(x: i32) -> bool {
+		let nested: ArcLazy<i32> = send_defer(|| send_defer(|| ArcLazy::pure(x)));
+		let single: ArcLazy<i32> = send_defer(|| ArcLazy::pure(x));
+		*nested.evaluate() == *single.evaluate()
+	}
+
+	/// SendDeferrable transparency law for `TrySendThunk`:
+	/// `send_defer(|| x).evaluate() == Ok(x)`.
+	#[quickcheck]
+	fn prop_send_deferrable_transparency_try_send_thunk(x: i32) -> bool {
+		let deferred: TrySendThunk<i32, String> = send_defer(|| TrySendThunk::pure(x));
+		deferred.evaluate() == Ok(x)
+	}
+
+	/// SendDeferrable nesting law for `TrySendThunk`:
+	/// `send_defer(|| send_defer(|| x)).evaluate() == send_defer(|| x).evaluate()`.
+	#[quickcheck]
+	fn prop_send_deferrable_nesting_try_send_thunk(x: i32) -> bool {
+		let nested: TrySendThunk<i32, String> = send_defer(|| send_defer(|| TrySendThunk::pure(x)));
+		let single: TrySendThunk<i32, String> = send_defer(|| TrySendThunk::pure(x));
+		nested.evaluate() == single.evaluate()
+	}
+
+	/// SendDeferrable transparency law for `ArcTryLazy`:
+	/// `send_defer(|| x).evaluate() == Ok(&x)`.
+	#[quickcheck]
+	fn prop_send_deferrable_transparency_arc_try_lazy(x: i32) -> bool {
+		let deferred: ArcTryLazy<i32, String> = send_defer(|| ArcTryLazy::ok(x));
+		deferred.evaluate() == Ok(&x)
+	}
+
+	/// SendDeferrable nesting law for `ArcTryLazy`:
+	/// `send_defer(|| send_defer(|| x)).evaluate() == send_defer(|| x).evaluate()`.
+	#[quickcheck]
+	fn prop_send_deferrable_nesting_arc_try_lazy(x: i32) -> bool {
+		let nested: ArcTryLazy<i32, String> = send_defer(|| send_defer(|| ArcTryLazy::ok(x)));
+		let single: ArcTryLazy<i32, String> = send_defer(|| ArcTryLazy::ok(x));
+		nested.evaluate() == single.evaluate()
+	}
+}

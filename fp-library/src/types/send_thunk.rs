@@ -761,6 +761,7 @@ mod tests {
 			monoid::empty,
 			semigroup::append,
 		},
+		quickcheck_macros::quickcheck,
 	};
 
 	#[test]
@@ -1032,5 +1033,53 @@ mod tests {
 			fold_map::<RcFnBrand, SendThunkBrand, _, _>(f, t1),
 			<SendThunkBrand as FoldableWithIndex>::fold_map_with_index(|_, a| f(a), t2),
 		);
+	}
+
+	// QuickCheck Law Tests
+
+	// Functor Laws
+
+	/// Functor identity: `send_thunk.map(identity).evaluate() == send_thunk.evaluate()`.
+	#[quickcheck]
+	fn functor_identity(x: i32) -> bool {
+		SendThunk::pure(x).map(|a| a).evaluate() == x
+	}
+
+	/// Functor composition: `send_thunk.map(f).map(g) == send_thunk.map(|x| g(f(x)))`.
+	#[quickcheck]
+	fn functor_composition(x: i32) -> bool {
+		let f = |a: i32| a.wrapping_add(1);
+		let g = |a: i32| a.wrapping_mul(2);
+		let lhs = SendThunk::pure(x).map(f).map(g).evaluate();
+		let rhs = SendThunk::pure(x).map(move |a| g(f(a))).evaluate();
+		lhs == rhs
+	}
+
+	// Monad Laws
+
+	/// Monad left identity: `SendThunk::pure(a).bind(f) == f(a)`.
+	#[quickcheck]
+	fn monad_left_identity(a: i32) -> bool {
+		let f = |x: i32| SendThunk::pure(x.wrapping_mul(2));
+		let lhs = SendThunk::pure(a).bind(f).evaluate();
+		let rhs = f(a).evaluate();
+		lhs == rhs
+	}
+
+	/// Monad right identity: `send_thunk.bind(SendThunk::pure) == send_thunk`.
+	#[quickcheck]
+	fn monad_right_identity(x: i32) -> bool {
+		let lhs = SendThunk::pure(x).bind(SendThunk::pure).evaluate();
+		lhs == x
+	}
+
+	/// Monad associativity: `m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))`.
+	#[quickcheck]
+	fn monad_associativity(x: i32) -> bool {
+		let f = |a: i32| SendThunk::pure(a.wrapping_add(1));
+		let g = |a: i32| SendThunk::pure(a.wrapping_mul(3));
+		let lhs = SendThunk::pure(x).bind(f).bind(g).evaluate();
+		let rhs = SendThunk::pure(x).bind(move |a| f(a).bind(g)).evaluate();
+		lhs == rhs
 	}
 }
