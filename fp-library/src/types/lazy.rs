@@ -1558,11 +1558,6 @@ mod inner {
 	///
 	/// # Caveats
 	///
-	/// **Memory leak if dropped without evaluation:** The returned `RcLazy` participates
-	/// in an `Rc` cycle (the lazy cell references itself through the `OnceCell`). This
-	/// cycle is broken when the lazy cell is first evaluated. If the `RcLazy` is dropped
-	/// without ever being forced, the cycle leaks.
-	///
 	/// **Panic on reentrant evaluation:** Forcing the self-reference inside `f` before
 	/// the outer cell has completed initialization causes a panic, because `LazyCell`
 	/// detects the reentrant access.
@@ -1593,18 +1588,25 @@ mod inner {
 	pub fn rc_lazy_fix<'a, A: Clone + 'a>(
 		f: impl FnOnce(RcLazy<'a, A>) -> A + 'a
 	) -> RcLazy<'a, A> {
-		use std::cell::OnceCell;
+		use std::{
+			cell::OnceCell,
+			rc::Weak,
+		};
 
-		let cell: Rc<OnceCell<RcLazy<'a, A>>> = Rc::new(OnceCell::new());
+		#[allow(clippy::type_complexity)]
+		let cell: Rc<OnceCell<Weak<LazyCell<A, Box<dyn FnOnce() -> A + 'a>>>>> = Rc::new(OnceCell::new());
 		let cell_clone = cell.clone();
 		let lazy = RcLazy::new(move || {
-			// INVARIANT: cell is always set on the line after this closure is created,
-			// before the lazy value is ever evaluated.
+			// INVARIANT: cell is always set on the line after this closure is
+			// created, and the outer RcLazy is still alive (we are inside its
+			// evaluation), so the Weak upgrade always succeeds.
 			#[allow(clippy::expect_used)]
-			let self_ref = cell_clone.get().expect("rc_lazy_fix: cell not initialized").clone();
+			let weak = cell_clone.get().expect("rc_lazy_fix: cell not initialized");
+			#[allow(clippy::expect_used)]
+			let self_ref = Lazy(weak.upgrade().expect("rc_lazy_fix: outer lazy was dropped"));
 			f(self_ref)
 		});
-		let _ = cell.set(lazy.clone());
+		let _ = cell.set(Rc::downgrade(&lazy.0));
 		lazy
 	}
 
@@ -1615,11 +1617,6 @@ mod inner {
 	/// depends on the lazy cell itself.
 	///
 	/// # Caveats
-	///
-	/// **Memory leak if dropped without evaluation:** The returned `ArcLazy` participates
-	/// in an `Arc` cycle (the lazy cell references itself through the `OnceLock`). This
-	/// cycle is broken when the lazy cell is first evaluated. If the `ArcLazy` is dropped
-	/// without ever being forced, the cycle leaks.
 	///
 	/// **Deadlock on reentrant evaluation:** Forcing the self-reference inside `f` before
 	/// the outer cell has completed initialization causes a deadlock, because `LazyLock`
@@ -1651,18 +1648,26 @@ mod inner {
 	pub fn arc_lazy_fix<'a, A: Clone + Send + Sync + 'a>(
 		f: impl FnOnce(ArcLazy<'a, A>) -> A + Send + 'a
 	) -> ArcLazy<'a, A> {
-		use std::sync::OnceLock;
+		use std::sync::{
+			OnceLock,
+			Weak,
+		};
 
-		let cell: Arc<OnceLock<ArcLazy<'a, A>>> = Arc::new(OnceLock::new());
+		#[allow(clippy::type_complexity)]
+		let cell: Arc<OnceLock<Weak<LazyLock<A, Box<dyn FnOnce() -> A + Send + 'a>>>>> =
+			Arc::new(OnceLock::new());
 		let cell_clone = cell.clone();
 		let lazy = ArcLazy::new(move || {
-			// INVARIANT: cell is always set on the line after this closure is created,
-			// before the lazy value is ever evaluated.
+			// INVARIANT: cell is always set on the line after this closure is
+			// created, and the outer ArcLazy is still alive (we are inside its
+			// evaluation), so the Weak upgrade always succeeds.
 			#[allow(clippy::expect_used)]
-			let self_ref = cell_clone.get().expect("arc_lazy_fix: cell not initialized").clone();
+			let weak = cell_clone.get().expect("arc_lazy_fix: cell not initialized");
+			#[allow(clippy::expect_used)]
+			let self_ref = Lazy(weak.upgrade().expect("arc_lazy_fix: outer lazy was dropped"));
 			f(self_ref)
 		});
-		let _ = cell.set(lazy.clone());
+		let _ = cell.set(Arc::downgrade(&lazy.0));
 		lazy
 	}
 }
