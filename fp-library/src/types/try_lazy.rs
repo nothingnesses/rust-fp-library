@@ -2159,6 +2159,147 @@ mod inner {
 			f.write_str("TryLazy(..)")
 		}
 	}
+
+	// --- Fix combinators ---
+
+	/// Computes a fixed point for `RcTryLazy`.
+	///
+	/// Constructs a self-referential `RcTryLazy` where the initializer receives a clone
+	/// of the resulting fallible lazy cell. This enables recursive definitions where the
+	/// result depends on the lazy cell itself.
+	///
+	/// # Caveats
+	///
+	/// **Panic on reentrant evaluation:** Forcing the self-reference inside `f` before
+	/// the outer cell has completed initialization causes a panic, because `LazyCell`
+	/// detects the reentrant access.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
+	///
+	#[document_parameters(
+		"The function that receives a fallible lazy self-reference and produces the result."
+	)]
+	///
+	#[document_returns("A new `RcTryLazy` instance.")]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::types::{
+	/// 	try_lazy::rc_try_lazy_fix,
+	/// 	*,
+	/// };
+	///
+	/// let lazy = rc_try_lazy_fix(|_self_ref: RcTryLazy<i32, ()>| Ok(42));
+	/// assert_eq!(lazy.evaluate(), Ok(&42));
+	/// ```
+	pub fn rc_try_lazy_fix<'a, A: Clone + 'a, E: Clone + 'a>(
+		f: impl FnOnce(RcTryLazy<'a, A, E>) -> Result<A, E> + 'a
+	) -> RcTryLazy<'a, A, E> {
+		use std::{
+			cell::OnceCell,
+			rc::{
+				Rc,
+				Weak,
+			},
+		};
+
+		#[allow(clippy::type_complexity)]
+		let cell: Rc<
+			OnceCell<
+				Weak<std::cell::LazyCell<Result<A, E>, Box<dyn FnOnce() -> Result<A, E> + 'a>>>,
+			>,
+		> = Rc::new(OnceCell::new());
+		let cell_clone = cell.clone();
+		let lazy = RcTryLazy::new(move || {
+			// INVARIANT: cell is always set on the line after this closure is
+			// created, and the outer RcTryLazy is still alive (we are inside its
+			// evaluation), so the Weak upgrade always succeeds.
+			#[allow(clippy::expect_used)]
+			let weak = cell_clone.get().expect("rc_try_lazy_fix: cell not initialized");
+			#[allow(clippy::expect_used)]
+			let self_ref = TryLazy(weak.upgrade().expect("rc_try_lazy_fix: outer lazy was dropped"));
+			f(self_ref)
+		});
+		let _ = cell.set(Rc::downgrade(&lazy.0));
+		lazy
+	}
+
+	/// Computes a fixed point for `ArcTryLazy`.
+	///
+	/// Constructs a self-referential `ArcTryLazy` where the initializer receives a clone
+	/// of the resulting fallible lazy cell. This enables recursive definitions where the
+	/// result depends on the lazy cell itself.
+	///
+	/// # Caveats
+	///
+	/// **Deadlock on reentrant evaluation:** Forcing the self-reference inside `f` before
+	/// the outer cell has completed initialization causes a deadlock, because `LazyLock`
+	/// blocks on the lock that the current thread already holds.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
+	///
+	#[document_parameters(
+		"The function that receives a fallible lazy self-reference and produces the result."
+	)]
+	///
+	#[document_returns("A new `ArcTryLazy` instance.")]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::types::{
+	/// 	try_lazy::arc_try_lazy_fix,
+	/// 	*,
+	/// };
+	///
+	/// let lazy = arc_try_lazy_fix(|_self_ref: ArcTryLazy<i32, ()>| Ok(42));
+	/// assert_eq!(lazy.evaluate(), Ok(&42));
+	/// ```
+	pub fn arc_try_lazy_fix<'a, A: Clone + Send + Sync + 'a, E: Clone + Send + Sync + 'a>(
+		f: impl FnOnce(ArcTryLazy<'a, A, E>) -> Result<A, E> + Send + 'a
+	) -> ArcTryLazy<'a, A, E> {
+		use std::sync::{
+			Arc,
+			OnceLock,
+			Weak,
+		};
+
+		#[allow(clippy::type_complexity)]
+		let cell: Arc<
+			OnceLock<
+				Weak<
+					std::sync::LazyLock<
+						Result<A, E>,
+						Box<dyn FnOnce() -> Result<A, E> + Send + 'a>,
+					>,
+				>,
+			>,
+		> = Arc::new(OnceLock::new());
+		let cell_clone = cell.clone();
+		let lazy = ArcTryLazy::new(move || {
+			// INVARIANT: cell is always set on the line after this closure is
+			// created, and the outer ArcTryLazy is still alive (we are inside its
+			// evaluation), so the Weak upgrade always succeeds.
+			#[allow(clippy::expect_used)]
+			let weak = cell_clone.get().expect("arc_try_lazy_fix: cell not initialized");
+			#[allow(clippy::expect_used)]
+			let self_ref = TryLazy(weak.upgrade().expect("arc_try_lazy_fix: outer lazy was dropped"));
+			f(self_ref)
+		});
+		let _ = cell.set(Arc::downgrade(&lazy.0));
+		lazy
+	}
 }
 pub use inner::*;
 
@@ -3466,5 +3607,172 @@ mod tests {
 		let arc_lazy = ArcTryLazy::<i32, String>::err("fail".to_string());
 		let rc_lazy: RcTryLazy<i32, String> = RcTryLazy::from(arc_lazy);
 		assert_eq!(rc_lazy.evaluate(), Err(&"fail".to_string()));
+	}
+
+	// --- rc_try_lazy_fix / arc_try_lazy_fix tests ---
+
+	/// Tests that `rc_try_lazy_fix` produces the correct `Ok` value when
+	/// the function ignores the self-reference.
+	#[test]
+	fn test_rc_try_lazy_fix_ok_constant() {
+		let fixed = rc_try_lazy_fix(|_self_ref: RcTryLazy<i32, ()>| Ok(42));
+		assert_eq!(fixed.evaluate(), Ok(&42));
+	}
+
+	/// Tests that `rc_try_lazy_fix` produces the correct `Err` value when
+	/// the function ignores the self-reference.
+	#[test]
+	fn test_rc_try_lazy_fix_err_constant() {
+		let fixed = rc_try_lazy_fix(|_self_ref: RcTryLazy<i32, String>| Err("fail".to_string()));
+		assert_eq!(fixed.evaluate(), Err(&"fail".to_string()));
+	}
+
+	/// Tests that `rc_try_lazy_fix` memoizes the result.
+	#[test]
+	fn test_rc_try_lazy_fix_memoization() {
+		let counter = Rc::new(RefCell::new(0));
+		let counter_clone = counter.clone();
+		let fixed = rc_try_lazy_fix(move |_self_ref: RcTryLazy<i32, ()>| {
+			*counter_clone.borrow_mut() += 1;
+			Ok(100)
+		});
+
+		assert_eq!(*counter.borrow(), 0);
+		assert_eq!(fixed.evaluate(), Ok(&100));
+		assert_eq!(*counter.borrow(), 1);
+		// Second evaluation should use cached value.
+		assert_eq!(fixed.evaluate(), Ok(&100));
+		assert_eq!(*counter.borrow(), 1);
+	}
+
+	/// Tests that `rc_try_lazy_fix` correctly threads the self-reference.
+	#[test]
+	fn test_rc_try_lazy_fix_self_reference() {
+		let fixed = rc_try_lazy_fix(|self_ref: RcTryLazy<Vec<i32>, ()>| {
+			// The self-reference is available but evaluating it here would recurse.
+			let _ = self_ref;
+			Ok(vec![1, 2, 3])
+		});
+		assert_eq!(fixed.evaluate(), Ok(&vec![1, 2, 3]));
+	}
+
+	/// Tests that `rc_try_lazy_fix` works with cloned results sharing the cache.
+	#[test]
+	fn test_rc_try_lazy_fix_clone_sharing() {
+		let fixed = rc_try_lazy_fix(|_self_ref: RcTryLazy<i32, ()>| Ok(55));
+		let cloned = fixed.clone();
+		assert_eq!(fixed.evaluate(), Ok(&55));
+		assert_eq!(cloned.evaluate(), Ok(&55));
+	}
+
+	/// Tests that `rc_try_lazy_fix` uses the self-reference after initial evaluation.
+	#[test]
+	fn test_rc_try_lazy_fix_uses_self_ref() {
+		let counter = Rc::new(RefCell::new(0));
+		let counter_clone = counter.clone();
+		let lazy = rc_try_lazy_fix(move |self_ref: RcTryLazy<i32, ()>| {
+			*counter_clone.borrow_mut() += 1;
+			let _ = self_ref;
+			Ok(42)
+		});
+		assert_eq!(lazy.evaluate(), Ok(&42));
+		assert_eq!(*counter.borrow(), 1);
+		// Verify memoization: second evaluate does not re-run.
+		assert_eq!(lazy.evaluate(), Ok(&42));
+		assert_eq!(*counter.borrow(), 1);
+	}
+
+	/// Tests that `arc_try_lazy_fix` produces the correct `Ok` value when
+	/// the function ignores the self-reference.
+	#[test]
+	fn test_arc_try_lazy_fix_ok_constant() {
+		let fixed = arc_try_lazy_fix(|_self_ref: ArcTryLazy<i32, ()>| Ok(42));
+		assert_eq!(fixed.evaluate(), Ok(&42));
+	}
+
+	/// Tests that `arc_try_lazy_fix` produces the correct `Err` value when
+	/// the function ignores the self-reference.
+	#[test]
+	fn test_arc_try_lazy_fix_err_constant() {
+		let fixed = arc_try_lazy_fix(|_self_ref: ArcTryLazy<i32, String>| Err("fail".to_string()));
+		assert_eq!(fixed.evaluate(), Err(&"fail".to_string()));
+	}
+
+	/// Tests that `arc_try_lazy_fix` memoizes the result.
+	#[test]
+	fn test_arc_try_lazy_fix_memoization() {
+		use std::sync::atomic::{
+			AtomicUsize,
+			Ordering,
+		};
+
+		let counter = Arc::new(AtomicUsize::new(0));
+		let counter_clone = counter.clone();
+		let fixed = arc_try_lazy_fix(move |_self_ref: ArcTryLazy<i32, ()>| {
+			counter_clone.fetch_add(1, Ordering::SeqCst);
+			Ok(100)
+		});
+
+		assert_eq!(counter.load(Ordering::SeqCst), 0);
+		assert_eq!(fixed.evaluate(), Ok(&100));
+		assert_eq!(counter.load(Ordering::SeqCst), 1);
+		// Second evaluation should use cached value.
+		assert_eq!(fixed.evaluate(), Ok(&100));
+		assert_eq!(counter.load(Ordering::SeqCst), 1);
+	}
+
+	/// Tests that `arc_try_lazy_fix` correctly threads the self-reference.
+	#[test]
+	fn test_arc_try_lazy_fix_self_reference() {
+		let fixed = arc_try_lazy_fix(|self_ref: ArcTryLazy<Vec<i32>, ()>| {
+			let _ = self_ref;
+			Ok(vec![1, 2, 3])
+		});
+		assert_eq!(fixed.evaluate(), Ok(&vec![1, 2, 3]));
+	}
+
+	/// Tests that `arc_try_lazy_fix` uses the self-reference after initial evaluation.
+	#[test]
+	fn test_arc_try_lazy_fix_uses_self_ref() {
+		use std::sync::atomic::{
+			AtomicUsize,
+			Ordering,
+		};
+
+		let counter = Arc::new(AtomicUsize::new(0));
+		let counter_clone = counter.clone();
+		let lazy = arc_try_lazy_fix(move |self_ref: ArcTryLazy<i32, ()>| {
+			counter_clone.fetch_add(1, Ordering::SeqCst);
+			let _ = self_ref;
+			Ok(42)
+		});
+		assert_eq!(lazy.evaluate(), Ok(&42));
+		assert_eq!(counter.load(Ordering::SeqCst), 1);
+		// Verify memoization: second evaluate does not re-run.
+		assert_eq!(lazy.evaluate(), Ok(&42));
+		assert_eq!(counter.load(Ordering::SeqCst), 1);
+	}
+
+	/// Tests that `arc_try_lazy_fix` is thread-safe.
+	#[test]
+	fn test_arc_try_lazy_fix_thread_safety() {
+		use std::thread;
+
+		let lazy = arc_try_lazy_fix(|self_ref: ArcTryLazy<i32, ()>| {
+			let _ = self_ref;
+			Ok(42)
+		});
+
+		let mut handles = vec![];
+		for _ in 0 .. 10 {
+			let lazy_clone = lazy.clone();
+			handles.push(thread::spawn(move || {
+				assert_eq!(lazy_clone.evaluate(), Ok(&42));
+			}));
+		}
+
+		for handle in handles {
+			handle.join().unwrap();
+		}
 	}
 }
