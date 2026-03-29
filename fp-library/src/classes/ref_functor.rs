@@ -25,6 +25,66 @@ mod inner {
 	///
 	/// This is a variant of `Functor` for types where `map` receives/returns references.
 	/// This is required for types like `Lazy` where `get()` returns `&A`, not `A`.
+	///
+	/// `RefFunctor` is intentionally independent from
+	/// [`SendRefFunctor`](crate::classes::SendRefFunctor). Although one might
+	/// expect `SendRefFunctor` to be a subtrait of `RefFunctor`, this is not the case because
+	/// `ArcLazy::new` requires `Send` on the closure, which a generic `RefFunctor` cannot
+	/// guarantee. As a result, `ArcLazy` implements only `SendRefFunctor`, not `RefFunctor`,
+	/// and `RcLazy` implements only `RefFunctor`, not `SendRefFunctor`.
+	///
+	/// ### Laws
+	///
+	/// `RefFunctor` instances must satisfy the following laws:
+	///
+	/// **Identity:** `ref_map(|x| x.clone(), fa)` is equivalent to `fa`, given `A: Clone`.
+	/// The `Clone` requirement arises because the mapping function receives `&A` but must
+	/// produce a value of type `A` to satisfy the identity law.
+	///
+	/// **Composition:** `ref_map(|x| g(&f(x)), fa)` is equivalent to
+	/// `ref_map(g, ref_map(f, fa))`.
+	#[document_examples]
+	///
+	/// RefFunctor laws for [`Lazy`](crate::types::Lazy):
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
+	///
+	/// // Identity: ref_map(|x| x.clone(), fa) evaluates to the same value as fa.
+	/// let fa = RcLazy::pure(5);
+	/// let mapped = ref_map::<LazyBrand<RcLazyConfig>, _, _>(|x: &i32| *x, fa.clone());
+	/// assert_eq!(*mapped.evaluate(), *fa.evaluate());
+	///
+	/// // Composition: ref_map(|x| g(&f(x)), fa) = ref_map(g, ref_map(f, fa))
+	/// let f = |x: &i32| *x * 2;
+	/// let g = |x: &i32| x + 1;
+	/// let fa = RcLazy::pure(5);
+	/// let composed = ref_map::<LazyBrand<RcLazyConfig>, _, _>(|x: &i32| g(&f(x)), fa.clone());
+	/// let sequential = ref_map::<LazyBrand<RcLazyConfig>, _, _>(
+	/// 	g,
+	/// 	ref_map::<LazyBrand<RcLazyConfig>, _, _>(f, fa),
+	/// );
+	/// assert_eq!(*composed.evaluate(), *sequential.evaluate());
+	/// ```
+	///
+	/// # Cache chain behavior
+	///
+	/// Chaining `ref_map` calls on memoized types like [`Lazy`](crate::types::Lazy) creates
+	/// a linked list of `Rc`/`Arc`-referenced cells. Each mapped value retains a reference to
+	/// its predecessor, so the entire chain of predecessor cells stays alive as long as any
+	/// downstream mapped value is reachable. Be aware that long chains can accumulate memory
+	/// that is only freed when the final value in the chain is dropped.
+	///
+	/// # Why `FnOnce`?
+	///
+	/// The `func` parameter uses `FnOnce` rather than `Fn` because memoized types like
+	/// `Lazy` create a new `Lazy` value capturing the closure. Since the resulting `Lazy`
+	/// will evaluate the closure at most once, `FnOnce` is sufficient and avoids imposing
+	/// unnecessary `Clone` or multi-call constraints on the caller.
 	#[kind(type Of<'a, A: 'a>: 'a;)]
 	pub trait RefFunctor {
 		/// Maps a function over the values in the functor context, where the function takes a reference.
@@ -103,3 +163,38 @@ mod inner {
 }
 
 pub use inner::*;
+
+#[cfg(test)]
+mod tests {
+	use {
+		crate::{
+			brands::*,
+			functions::*,
+			types::*,
+		},
+		quickcheck_macros::quickcheck,
+	};
+
+	/// RefFunctor identity law: ref_map(Clone::clone, lazy) evaluates to the same value as lazy.
+	#[quickcheck]
+	fn prop_ref_functor_identity(x: i32) -> bool {
+		let lazy = RcLazy::pure(x);
+		let mapped = ref_map::<LazyBrand<RcLazyConfig>, _, _>(|v: &i32| *v, lazy.clone());
+		*mapped.evaluate() == *lazy.evaluate()
+	}
+
+	/// RefFunctor composition law: ref_map(|x| g(&f(x)), lazy) == ref_map(g, ref_map(f, lazy)).
+	#[quickcheck]
+	fn prop_ref_functor_composition(x: i32) -> bool {
+		let f = |v: &i32| v.wrapping_mul(2);
+		let g = |v: &i32| v.wrapping_add(1);
+		let lazy1 = RcLazy::pure(x);
+		let lazy2 = RcLazy::pure(x);
+		let composed = ref_map::<LazyBrand<RcLazyConfig>, _, _>(|v: &i32| g(&f(v)), lazy1);
+		let sequential = ref_map::<LazyBrand<RcLazyConfig>, _, _>(
+			g,
+			ref_map::<LazyBrand<RcLazyConfig>, _, _>(f, lazy2),
+		);
+		*composed.evaluate() == *sequential.evaluate()
+	}
+}

@@ -1,5 +1,5 @@
 error: expected `;`
-  --> tests/ui/missing_semicolon.rs:13:5
+  --> tests/ui/missing_semicolon.rs:13:2
    |
 13 |     }
    |     ^

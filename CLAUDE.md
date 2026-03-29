@@ -10,132 +10,73 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Running Commands
 
-All shell commands must be prefixed with `eval "$(direnv export bash 2>/dev/null)"; ` to ensure the correct Nix development environment is loaded. This applies to every command — building, testing, formatting, linting, benchmarking, etc.
+All commands must be run via `just` recipes defined in the project's `justfile`. The `justfile` loads the Nix development environment via direnv automatically. Run `just --list` to see all available recipes.
+
+**Never run `cargo` directly.** Always use `just <recipe>` or `just cargo <subcommand>` for non-standard cargo commands.
 
 ## Development Commands
 
 ### Formatting & Linting
 
 ```bash
-# Format code (uses rustfmt.toml configuration)
-eval "$(direnv export bash 2>/dev/null)"; cargo fmt --all
-
-# Check formatting
-eval "$(direnv export bash 2>/dev/null)"; cargo fmt --all -- --check
-
-# Run clippy
-eval "$(direnv export bash 2>/dev/null)"; cargo clippy --workspace --all-features
+just fmt                                        # Format all files (Rust, Nix, Markdown, YAML, TOML)
+just clippy --workspace --all-features      # Run clippy
 ```
 
 ### Documentation
 
 ```bash
-# Check documentation (must produce zero warnings)
-eval "$(direnv export bash 2>/dev/null)"; cargo doc --workspace --all-features --no-deps
-
-# Build and open documentation
-eval "$(direnv export bash 2>/dev/null)"; cargo doc --workspace --all-features --open
+just doc --workspace --all-features --no-deps   # Check docs (must produce zero warnings)
+just doc --workspace --all-features --open       # Build and open docs
 ```
 
 ### Testing
 
+**Never run `cargo test` directly.** Use `just test` which caches output and only re-runs when source files change.
+
 ```bash
-# Run all tests in the workspace
-eval "$(direnv export bash 2>/dev/null)"; cargo test --workspace
-
-# Run tests for a specific package
-eval "$(direnv export bash 2>/dev/null)"; cargo test -p fp-library
-eval "$(direnv export bash 2>/dev/null)"; cargo test -p fp-macros
-
-# Run a specific test by name
-eval "$(direnv export bash 2>/dev/null)"; cargo test -p fp-library test_name
-
-# Run tests with all features enabled
-eval "$(direnv export bash 2>/dev/null)"; cargo test --workspace --all-features
-
-# Run property-based tests (QuickCheck)
-eval "$(direnv export bash 2>/dev/null)"; cargo test -p fp-library --test property
-
-# Run doc tests
-eval "$(direnv export bash 2>/dev/null)"; cargo test --doc -p fp-library
+just test --all-features                             # Run all tests with all features (cached)
+just test                                            # Run all tests, default features (cached)
+just test -p fp-library test_name                # Run a subset (no caching)
+just test -p fp-library --test property          # Run property-based tests
+just test --doc -p fp-library                    # Run doc tests
 ```
+
+Cache location: `.claude/test-cache/` (gitignored). Invalidated automatically when `.rs` files or `Cargo.toml` change. **Do not re-run `just test` if no source files have changed since the last run.** The cached output is printed automatically; check it instead of re-running. There is no command to bypass the cache.
 
 ### Building
 
 ```bash
-# Build the workspace
-eval "$(direnv export bash 2>/dev/null)"; cargo build --workspace
-
-# Build with specific features
-eval "$(direnv export bash 2>/dev/null)"; cargo build -p fp-library --features rayon
-eval "$(direnv export bash 2>/dev/null)"; cargo build -p fp-library --features serde
-eval "$(direnv export bash 2>/dev/null)"; cargo build -p fp-library --all-features
-
-# Check without building
-eval "$(direnv export bash 2>/dev/null)"; cargo check --workspace
+just build --workspace                           # Build the workspace
+just build -p fp-library --all-features          # Build with all features
+just check --workspace                           # Check without building
 ```
 
 ### Benchmarking
 
 ```bash
-# Run all benchmarks
-eval "$(direnv export bash 2>/dev/null)"; cargo bench -p fp-library
-
-# List available benchmarks
-eval "$(direnv export bash 2>/dev/null)"; cargo bench -p fp-library --bench benchmarks -- --list
-
-# Run specific benchmark (e.g., Vec)
-eval "$(direnv export bash 2>/dev/null)"; cargo bench -p fp-library --bench benchmarks -- Vec
-
-# Benchmark reports are generated in target/criterion/report/index.html
+just bench -p fp-library                                   # Run all benchmarks
+just bench -p fp-library --bench benchmarks -- --list      # List benchmarks
+just bench -p fp-library --bench benchmarks -- Vec         # Run specific benchmark
+# Benchmark reports: target/criterion/report/index.html
 ```
 
 ### Verification
 
-After making changes, always verify in this order: **fmt → clippy → doc → test**.
+After making changes, verify in this order: **fmt, clippy, doc, test**.
 
 ```bash
-eval "$(direnv export bash 2>/dev/null)"; cargo fmt --all
-eval "$(direnv export bash 2>/dev/null)"; cargo clippy --workspace --all-features
-eval "$(direnv export bash 2>/dev/null)"; cargo doc --workspace --all-features --no-deps
-eval "$(direnv export bash 2>/dev/null)"; cargo test --workspace --all-features
+just verify    # Runs all four steps in order
 ```
 
-### Test Output Caching
+Or individually:
 
-To avoid re-running expensive test suites when source files haven't changed, cache test outputs:
-
-**Cache file location:** `.claude/test-cache/` (gitignored)
-
-**After running tests**, save the output:
 ```bash
-mkdir -p .claude/test-cache
-eval "$(direnv export bash 2>/dev/null)"; cargo test --workspace --all-features 2>&1 | tee .claude/test-cache/test-output.txt
-# Record the timestamp of the newest source file at cache time
-find fp-library/src fp-macros/src -name '*.rs' -printf '%T@\n' | sort -rn | head -1 > .claude/test-cache/source-timestamp.txt
+just fmt
+just clippy --workspace --all-features
+just doc --workspace --all-features --no-deps
+just test --all-features
 ```
-
-**Before re-running tests**, check if cache is still valid:
-```bash
-# Get newest source file timestamp
-LATEST=$(find fp-library/src fp-macros/src -name '*.rs' -printf '%T@\n' | sort -rn | head -1)
-CACHED=$(cat .claude/test-cache/source-timestamp.txt 2>/dev/null || echo "0")
-if [ "$LATEST" = "$CACHED" ]; then
-  echo "=== CACHED TEST OUTPUT (no source changes) ==="
-  cat .claude/test-cache/test-output.txt
-else
-  echo "=== Source files changed, re-running tests ==="
-  eval "$(direnv export bash 2>/dev/null)"; cargo test --workspace --all-features 2>&1 | tee .claude/test-cache/test-output.txt
-  echo "$LATEST" > .claude/test-cache/source-timestamp.txt
-fi
-```
-
-**Always invalidate** (re-run tests) when:
-- Any `.rs` file under `fp-library/src/` or `fp-macros/src/` has been modified since the cached timestamp
-- `Cargo.toml` files have changed
-- Test files under `tests/` have changed
-
-**Use cached output** when you just need to re-check results (e.g., confirming a test name, reviewing output) and no source files have changed.
 
 ## Language Server & Code Intelligence
 
@@ -150,12 +91,14 @@ This repository has rust-analyzer configured via MCP (Model Context Protocol). C
 - **Call hierarchy** - Analyze caller/callee relationships with `operation: "prepareCallHierarchy"`, `"incomingCalls"`, `"outgoingCalls"`
 
 **When to use:** The LSP tool is especially valuable in this codebase due to:
+
 1. Complex HKT machinery with Brand types and associated types
 2. Heavy use of generic type parameters and trait bounds
 3. Profunctor encodings in the optics system
 4. Type-level programming that can be hard to trace manually
 
 **Example:**
+
 ```
 LSP with operation="hover", filePath="fp-library/src/types/optics/lens.rs", line=42, character=15
 ```
@@ -169,6 +112,7 @@ This provides rich type information that helps understand the library's complex 
 The library implements HKT using type-level defunctionalization. Each type constructor (e.g., `Option<T>`) has a corresponding `Brand` type (e.g., `OptionBrand`) that acts as a witness for the `Kind` trait mapping.
 
 **Example:**
+
 ```rust
 pub struct OptionBrand;
 impl_kind! {
@@ -179,6 +123,7 @@ impl_kind! {
 ```
 
 **Key Locations:**
+
 - `fp-library/src/brands.rs` - All brand types centralized here (leaf nodes in dependency graph)
 - `fp-library/src/kinds.rs` - `Kind` trait definitions and type application machinery
 - `fp-macros/src/hkt/` - Procedural macros (`trait_kind!`, `impl_kind!`, `Apply!`)
@@ -203,31 +148,53 @@ The library uses a unified pointer hierarchy to abstract over reference counting
 - `SendRefCountedPointer` - Adds `Send + Sync` (implemented by `ArcBrand` only)
 
 **Function Brands:**
+
 - `FnBrand<P>` is parameterized over a pointer brand `P`
 - `RcFnBrand` = `FnBrand<RcBrand>` (single-threaded, `!Send`)
 - `ArcFnBrand` = `FnBrand<ArcBrand>` (thread-safe, `Send + Sync`)
 
 **Thread Safety:** For parallel operations, use extension traits:
+
 - `SendCloneableFn` - Thread-safe function wrappers
 - `ParFoldable` - Parallel folding (enabled with `rayon` feature)
 
 ### Lazy Evaluation Types
 
-Three distinct types handle deferred computation:
+The hierarchy consists of infallible computation types, fallible counterparts, and the `Free` monad infrastructure. Each type makes different trade-offs around stack safety, memoization, lifetimes, and thread safety.
 
-| Type | Use Case | Stack Safe? | Memoized? | Lifetimes? | HKT Traits? |
-|------|----------|-------------|-----------|------------|-------------|
-| `Thunk<'a, A>` | Lightweight deferred computation, borrowing support | Partial | No | `'a` | Yes (Functor, Monad) |
-| `Trampoline<A>` | Deep recursion, guaranteed stack safety | Yes | No | `'static` | No |
-| `Lazy<'a, A>` | Caching expensive computations | N/A | Yes | `'a` | Partial (RefFunctor) |
+| Type                     | Underlying                                 | HKT                                    | Stack Safe                  | Memoized | Lifetimes | Send |
+| ------------------------ | ------------------------------------------ | -------------------------------------- | --------------------------- | -------- | --------- | ---- |
+| `Thunk<'a, A>`           | `Box<dyn FnOnce() -> A + 'a>`              | Yes (full)                             | Partial (`tail_rec_m` only) | No       | `'a`      | No   |
+| `SendThunk<'a, A>`       | `Box<dyn FnOnce() -> A + Send + 'a>`       | No                                     | No                          | No       | `'a`      | Yes  |
+| `Trampoline<A>`          | `Free<ThunkBrand, A>`                      | No                                     | Yes                         | No       | `'static` | No   |
+| `RcLazy<'a, A>`          | `Rc<LazyCell<A, ...>>`                     | Partial (`RefFunctor`)                 | N/A                         | Yes      | `'a`      | No   |
+| `ArcLazy<'a, A>`         | `Arc<LazyLock<A, ...>>`                    | Partial (`SendRefFunctor`)             | N/A                         | Yes      | `'a`      | Yes  |
+| `TryThunk<'a, A, E>`     | `Thunk<'a, Result<A, E>>`                  | Yes (full)                             | Partial (`tail_rec_m` only) | No       | `'a`      | No   |
+| `TrySendThunk<'a, A, E>` | `SendThunk<'a, Result<A, E>>`              | No                                     | No                          | No       | `'a`      | Yes  |
+| `TryTrampoline<A, E>`    | `Trampoline<Result<A, E>>`                 | No                                     | Yes                         | No       | `'static` | No   |
+| `RcTryLazy<'a, A, E>`    | `Rc<LazyCell<Result<A, E>, ...>>`          | Partial (`RefFunctor`, `Foldable`)     | N/A                         | Yes      | `'a`      | No   |
+| `ArcTryLazy<'a, A, E>`   | `Arc<LazyLock<Result<A, E>, ...>>`         | Partial (`SendRefFunctor`, `Foldable`) | N/A                         | Yes      | `'a`      | Yes  |
+| `Free<F, A>`             | CatList-based "Reflection without Remorse" | No                                     | Yes                         | No       | `'static` | No   |
 
-**Pattern:** Use `Trampoline` for stack-safe recursion, wrap in `Lazy` for memoization, use `Thunk` for lightweight views.
+Supporting traits:
+
+| Trait                | Purpose                                                 | Implementors in hierarchy                                                                                                             |
+| -------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `Deferrable<'a>`     | Lazy construction from thunk                            | `Thunk`, `SendThunk`, `Trampoline`, `RcLazy`, `ArcLazy`, `RcTryLazy`, `ArcTryLazy`, `TryThunk`, `TrySendThunk`, `Free<ThunkBrand, A>` |
+| `SendDeferrable<'a>` | Thread-safe lazy construction (extends `Deferrable`)    | `SendThunk`, `TrySendThunk`, `ArcLazy`, `ArcTryLazy`                                                                                  |
+| `RefFunctor`         | Mapping with `&A` input                                 | `LazyBrand<RcLazyConfig>`, `TryLazyBrand<E, RcLazyConfig>`                                                                            |
+| `SendRefFunctor`     | Thread-safe mapping with `&A` input                     | `LazyBrand<ArcLazyConfig>`, `TryLazyBrand<E, ArcLazyConfig>`                                                                          |
+| `LazyConfig`         | Infallible memoization strategy (pointer + cell choice) | `RcLazyConfig`, `ArcLazyConfig`                                                                                                       |
+| `TryLazyConfig`      | Fallible memoization strategy (extends `LazyConfig`)    | `RcLazyConfig`, `ArcLazyConfig`                                                                                                       |
+
+**Pattern:** Use `Trampoline` for stack-safe recursion, wrap in `Lazy` for memoization, use `Thunk` for lightweight views. Use `SendThunk` when the deferred computation must cross thread boundaries without eager evaluation.
 
 ### Optics System
 
 Optics are implemented using profunctor encoding for type-safe composition:
 
 **Key Files:**
+
 - `fp-library/src/types/optics/base.rs` - Core optic type definitions
 - `fp-library/src/types/optics/lens.rs` - Lens (fully polymorphic S→T, A→B)
 - `fp-library/src/types/optics/prism.rs` - Prism (sum type variants)
@@ -235,6 +202,7 @@ Optics are implemented using profunctor encoding for type-safe composition:
 - `fp-library/src/types/optics/traversal.rs` - Traversal (multiple foci)
 
 **Internal Profunctors:**
+
 - `Exchange` - For isomorphisms (forward/backward functions)
 - `Market` - For prisms (matching/construction)
 - `Forget` - For getters/folds
@@ -247,17 +215,28 @@ Optics are implemented using profunctor encoding for type-safe composition:
 ### Formatting
 
 The codebase uses custom rustfmt rules (`rustfmt.toml`):
+
 - Hard tabs (`\t`) for indentation
 - Vertical layout for function parameters and imports
 - Grouped imports by `StdExternalCrate`
 - Single import per line (`imports_granularity = "One"`)
 
-**Always run `cargo fmt` before committing.**
+**Always run `just fmt` before committing.** A pre-commit hook also runs treefmt automatically.
+
+### No Emoji or Unicode
+
+Never use emoji or unicode symbols in code, comments, or documentation. Use plain text and ASCII equivalents:
+
+- Status markers: `Yes`, `No`, `Partial`, `N/A` (not checkmarks or crosses).
+- Arrows: `->`, `<-`, `<->` (not unicode arrows).
+- Math: `>=`, `<=`, `!=` (not unicode math symbols).
+- Section dividers: `// -- Section name --` (not box-drawing characters).
 
 ### Documentation Standards
 
 Functions must include:
-```rust
+
+````rust
 /// Short description.
 ///
 /// Comprehensive explanation.
@@ -279,11 +258,12 @@ Functions must include:
 /// ```
 /// // Code showing function usage and containing assertions about expected outputs using assertion macros.
 /// ```
-```
+````
 
 ### Commit Message Style
 
 When creating commits:
+
 1. Use imperative mood ("Add feature" not "Added feature")
 2. Keep first line under 70 characters
 3. Follow existing commit message patterns in `git log`
@@ -311,6 +291,7 @@ When creating commits:
 ### Working with Optics
 
 When modifying optics code:
+
 - Optics use profunctor encoding - understand `Profunctor`, `Strong`, `Choice` traits
 - Internal profunctors (Exchange, Market, etc.) are in `types/optics/`
 - Many optics currently hard-code `Rc` usage - refactor to use `FnBrand<P>` for parameterization
@@ -319,6 +300,7 @@ When modifying optics code:
 ### Thread-Safe Operations
 
 For parallel/concurrent code:
+
 1. Use `ArcFnBrand` instead of `RcFnBrand`
 2. Use `SendCloneableFn` trait instead of `CloneableFn`
 3. Use `ParFoldable` trait for parallel folding (requires `rayon` feature)

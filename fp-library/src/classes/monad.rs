@@ -3,6 +3,8 @@
 //! A monad combines [`Pointed`][crate::classes::Pointed] (for lifting values with
 //! [`pure`][crate::functions::pure]) and [`Semimonad`][crate::classes::Semimonad]
 //! (for chaining computations with [`bind`][crate::functions::bind]).
+//! `Monad` is the dual of [`Comonad`](crate::classes::Comonad): where `Comonad` composes
+//! `Extract` + `Extend`, `Monad` composes `Pointed` + `Semimonad`.
 //! The [`m_do!`][fp_macros::m_do] macro provides do-notation for writing monadic code
 //! in a flat, readable style.
 //!

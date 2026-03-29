@@ -14,6 +14,14 @@
     };
     flake-parts.url = "github:hercules-ci/flake-parts";
     systems.url = "github:nix-systems/default";
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    git-hooks = {
+      url = "github:cachix/git-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -27,14 +35,8 @@
       }:
       {
         imports = [
-          # Optional: use external flake logic, e.g.
-          # inputs.foo.flakeModules.default
           inputs.flake-parts.flakeModules.easyOverlay
         ];
-        # flake = {
-        #   # Put your original flake attributes here.
-        # };
-        # systems for which you want to build the `perSystem` attributes
         systems = import inputs.systems;
         perSystem =
           {
@@ -46,16 +48,80 @@
             system,
             ...
           }:
+          let
+            rustToolchain =
+              with inputs.fenix.packages.${pkgs.stdenv.hostPlatform.system};
+              combine [
+                stable.clippy
+                stable.rustc
+                stable.cargo
+                inputs.fenix-monthly.packages.${pkgs.stdenv.hostPlatform.system}.latest.rustfmt
+                stable.rust-src
+              ];
+
+            treefmtEval = inputs.treefmt-nix.lib.evalModule pkgs {
+              # Cargo.toml lives at the repo root (one level above devenv/).
+              # This tells treefmt where the project root is so it formats the
+              # entire repository, not just the devenv/ subdirectory.
+              projectRootFile = "Cargo.toml";
+              programs = {
+                nixfmt.enable = true;
+                rustfmt = {
+                  enable = true;
+                  # Use the nightly rustfmt from fenix rather than the
+                  # nixpkgs rustfmt, so that unstable options in
+                  # rustfmt.toml are supported.
+                  package = rustToolchain;
+                };
+                prettier = {
+                  enable = true;
+                  includes = [
+                    "*.md"
+                    "*.yml"
+                    "*.yaml"
+                  ];
+                };
+              };
+              settings.formatter.tombi = {
+                command = "${inputs.nixpkgs-unstable.legacyPackages.${system}.tombi}/bin/tombi";
+                options = [
+                  "format"
+                  "--offline"
+                ];
+                includes = [ "*.toml" ];
+              };
+            };
+
+            pre-commit-check = inputs.git-hooks.lib.${system}.run {
+              src = ./..;
+              hooks = {
+                treefmt = {
+                  enable = true;
+                  package = treefmtEval.config.build.wrapper;
+                };
+                # clippy and doc delegate to just recipes (single source of
+                # truth for flags like -D warnings and the unicode check).
+                # They run on pre-push rather than pre-commit because
+                # pre-commit stashes unstaged changes, which breaks
+                # whole-project tools when only some files are staged.
+                clippy = {
+                  enable = true;
+                  entry = "${pkgs.just}/bin/just clippy --workspace --all-features";
+                  pass_filenames = false;
+                  always_run = true;
+                  stages = [ "pre-push" ];
+                };
+                cargo-doc = {
+                  enable = true;
+                  entry = "${pkgs.just}/bin/just doc --workspace --all-features --no-deps";
+                  pass_filenames = false;
+                  always_run = true;
+                  stages = [ "pre-push" ];
+                };
+              };
+            };
+          in
           {
-            # Recommended: move all package definitions here.
-            # e.g. (assuming you have a nixpkgs input)
-            # packages.foo = pkgs.callPackage ./foo/package.nix { };
-            # packages.bar = pkgs.callPackage ./bar/package.nix {
-            #   foo = config.packages.foo;
-            # };
-
-            formatter = pkgs.nixfmt;
-
             _module.args.pkgs = import inputs.nixpkgs {
               inherit system;
               config.allowUnfree = true;
@@ -73,19 +139,16 @@
               inherit (config.packages) rustToolchain;
             };
 
-            packages.rustToolchain =
-              with inputs.fenix.packages.${pkgs.stdenv.hostPlatform.system};
-              combine [
-                stable.clippy
-                stable.rustc
-                stable.cargo
-                inputs.fenix-monthly.packages.${pkgs.stdenv.hostPlatform.system}.latest.rustfmt
-                stable.rust-src
-              ];
+            packages.rustToolchain = rustToolchain;
+
+            formatter = treefmtEval.config.build.wrapper;
+
+            checks = {
+              formatting = treefmtEval.config.build.check self'.self;
+              inherit pre-commit-check;
+            };
 
             devShells.default = pkgs.mkShell {
-              # Alias for `nativeBuildInputs`
-              # https://discourse.nixos.org/t/difference-between-buildinputs-and-packages-in-mkshell/60598/10
               packages = [
                 pkgs.bashInteractive
                 config.packages.rustToolchain
@@ -106,6 +169,8 @@
                 # Required by rust-analyzer
                 RUST_SRC_PATH = "${config.packages.rustToolchain}/lib/rustlib/src/rust/library";
               };
+
+              inherit (pre-commit-check) shellHook;
             };
           };
       }

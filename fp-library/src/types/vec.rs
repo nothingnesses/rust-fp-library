@@ -1,6 +1,6 @@
 //! Functional programming trait implementations for the standard library [`Vec`] type.
 //!
-//! Extends `Vec` with [`Functor`](crate::classes::Functor), [`Monad`](crate::classes::semimonad::Semimonad), [`Foldable`](crate::classes::Foldable), [`Traversable`](crate::classes::Traversable), [`Filterable`](crate::classes::Filterable), [`Witherable`](crate::classes::Witherable), and parallel folding instances.
+//! Extends `Vec` with [`Functor`](crate::classes::Functor), [`Monad`](crate::classes::semimonad::Semimonad), [`Foldable`](crate::classes::Foldable), [`Traversable`](crate::classes::Traversable), [`Extend`](crate::classes::Extend), [`Filterable`](crate::classes::Filterable), [`Witherable`](crate::classes::Witherable), and parallel folding instances.
 
 #[fp_macros::document_module]
 mod inner {
@@ -18,10 +18,12 @@ mod inner {
 				ApplySecond,
 				CloneableFn,
 				Compactable,
+				Extend,
 				Filterable,
 				Foldable,
 				Functor,
 				Lift,
+				MonadRec,
 				Monoid,
 				ParCompactable,
 				ParFilterable,
@@ -44,6 +46,7 @@ mod inner {
 			impl_kind,
 			kinds::*,
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 	};
 
@@ -660,7 +663,7 @@ mod inner {
 		/// let s = <VecBrand as FoldableWithIndex>::fold_map_with_index(|i, x| format!("{}:{}", i, x), v);
 		/// assert_eq!(s, "0:101:202:30");
 		/// ```
-		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
+		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
 			f: impl Fn(usize, A) -> R + 'a,
 			fa: Vec<A>,
 		) -> R {
@@ -1751,6 +1754,127 @@ mod inner {
 			})
 		}
 	}
+
+	/// Cooperative extension for [`Vec`], ported from PureScript's `Extend Array` instance.
+	///
+	/// `extend(f, vec)` produces a new vector where each element at index `i` is
+	/// `f` applied to the suffix `vec[i..]`. This is the dual of [`Semimonad::bind`]:
+	/// where `bind` feeds each element into a function that produces a new context,
+	/// `extend` feeds each suffix (context) into a function that produces a single value.
+	///
+	/// Requires `A: Clone` because suffixes are materialized as owned vectors.
+	impl Extend for VecBrand {
+		/// Extends a local context-dependent computation to a global computation over
+		/// [`Vec`].
+		///
+		/// Applies `f` to every suffix of the input vector. For a vector
+		/// `[a, b, c]`, the result is `[f([a, b, c]), f([b, c]), f([c])]`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the elements in the vector.",
+			"The result type of the extension function."
+		)]
+		///
+		#[document_parameters(
+			"The function that consumes a suffix vector and produces a value.",
+			"The vector to extend over."
+		)]
+		///
+		#[document_returns(
+			"A new vector containing the results of applying the function to each suffix."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result = extend::<VecBrand, _, _>(|v: Vec<i32>| v.iter().sum::<i32>(), vec![1, 2, 3]);
+		/// assert_eq!(result, vec![6, 5, 3]);
+		/// ```
+		fn extend<'a, A: 'a + Clone, B: 'a>(
+			f: impl Fn(Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> B + 'a,
+			wa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			(0 .. wa.len()).map(|i| f(wa.get(i ..).unwrap_or_default().to_vec())).collect()
+		}
+	}
+
+	impl MonadRec for VecBrand {
+		/// Performs tail-recursive monadic computation over [`Vec`].
+		///
+		/// Since `Vec` represents nondeterminism, this performs a breadth-first
+		/// expansion: each iteration maps all current `Loop` states through the step
+		/// function, collecting `Done` results as they appear. The computation
+		/// terminates when no `Loop` values remain.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the initial value and loop state.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters("The step function.", "The initial value.")]
+		///
+		#[document_returns("A vector of all completed results.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
+		/// };
+		///
+		/// // Branch into two paths, each running until done
+		/// let result = tail_rec_m::<VecBrand, _, _>(
+		/// 	|n| {
+		/// 		if n < 3 {
+		/// 			vec![ControlFlow::Continue(n + 1), ControlFlow::Break(n * 10)]
+		/// 		} else {
+		/// 			vec![ControlFlow::Break(n * 10)]
+		/// 		}
+		/// 	},
+		/// 	0,
+		/// );
+		/// // Starting from 0: branches at 0,1,2; done at 3
+		/// assert_eq!(result, vec![0, 10, 20, 30]);
+		/// ```
+		fn tail_rec_m<'a, A: 'a, B: 'a>(
+			func: impl Fn(
+				A,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
+			+ 'a,
+			initial: A,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let mut done: Vec<B> = Vec::new();
+			let mut pending: Vec<A> = vec![initial];
+			while !pending.is_empty() {
+				let mut next_pending: Vec<A> = Vec::new();
+				for a in pending {
+					for step in func(a) {
+						match step {
+							ControlFlow::Continue(next) => next_pending.push(next),
+							ControlFlow::Break(b) => done.push(b),
+						}
+					}
+				}
+				pending = next_pending;
+			}
+			done
+		}
+	}
 }
 
 #[cfg(test)]
@@ -2367,5 +2491,116 @@ mod tests {
 		}
 		let par_res = par_fold_map::<VecBrand, _, _>(|x: i32| Additive(x as i64), xs);
 		par_res == empty::<Additive<i64>>()
+	}
+
+	// MonadRec tests
+
+	/// Tests the MonadRec identity law: `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
+	#[quickcheck]
+	fn monad_rec_identity(x: i32) -> bool {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		tail_rec_m::<VecBrand, _, _>(|a| vec![ControlFlow::Break(a)], x) == vec![x]
+	}
+
+	/// Tests a simple linear recursion via `tail_rec_m`.
+	#[test]
+	fn monad_rec_linear() {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		// Count up to 5
+		let result = tail_rec_m::<VecBrand, _, _>(
+			|n| {
+				if n < 5 { vec![ControlFlow::Continue(n + 1)] } else { vec![ControlFlow::Break(n)] }
+			},
+			0,
+		);
+		assert_eq!(result, vec![5]);
+	}
+
+	/// Tests branching nondeterminism via `tail_rec_m`.
+	#[test]
+	fn monad_rec_branching() {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		// Each step either finishes or continues
+		let result = tail_rec_m::<VecBrand, _, _>(
+			|n: i32| {
+				if n < 2 {
+					vec![ControlFlow::Continue(n + 1), ControlFlow::Break(n * 100)]
+				} else {
+					vec![ControlFlow::Break(n * 100)]
+				}
+			},
+			0,
+		);
+		// n=0: Loop(1), Done(0)
+		// n=1: Loop(2), Done(100)
+		// n=2: Done(200)
+		assert_eq!(result, vec![0, 100, 200]);
+	}
+
+	/// Tests that `tail_rec_m` handles an empty result from the step function.
+	#[test]
+	fn monad_rec_empty() {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		let result: Vec<i32> =
+			tail_rec_m::<VecBrand, _, _>(|_n| Vec::<ControlFlow<i32, i32>>::new(), 0);
+		assert_eq!(result, Vec::<i32>::new());
+	}
+
+	// Extend Laws
+
+	/// Tests basic `extend` on `Vec`: sum of suffixes.
+	#[test]
+	fn extend_sum_of_suffixes() {
+		use crate::classes::extend::extend;
+		let result = extend::<VecBrand, _, _>(|v: Vec<i32>| v.iter().sum::<i32>(), vec![1, 2, 3]);
+		assert_eq!(result, vec![6, 5, 3]);
+	}
+
+	/// Extend associativity: `extend(f, extend(g, w)) == extend(|w| f(extend(g, w)), w)`.
+	#[quickcheck]
+	fn extend_associativity(w: Vec<i32>) -> bool {
+		use crate::classes::extend::extend;
+		let g = |v: Vec<i32>| v.iter().fold(0i32, |a, b| a.wrapping_mul(2).wrapping_add(*b));
+		let f = |v: Vec<i32>| v.iter().fold(0i32, |a, b| a.wrapping_add(b.wrapping_add(1)));
+		let lhs = extend::<VecBrand, _, _>(f, extend::<VecBrand, _, _>(g, w.clone()));
+		let rhs = extend::<VecBrand, _, _>(|w: Vec<i32>| f(extend::<VecBrand, _, _>(g, w)), w);
+		lhs == rhs
+	}
+
+	/// Tests that `duplicate` produces suffixes.
+	#[test]
+	fn extend_duplicate_suffixes() {
+		use crate::classes::extend::duplicate;
+		let result = duplicate::<VecBrand, _>(vec![1, 2, 3]);
+		assert_eq!(result, vec![vec![1, 2, 3], vec![2, 3], vec![3]]);
+	}
+
+	/// Tests `extend` on an empty vector.
+	#[test]
+	fn extend_empty() {
+		use crate::classes::extend::extend;
+		let result =
+			extend::<VecBrand, _, _>(|v: Vec<i32>| v.iter().sum::<i32>(), Vec::<i32>::new());
+		assert_eq!(result, Vec::<i32>::new());
+	}
+
+	/// Tests `extend` on a singleton vector.
+	#[test]
+	fn extend_singleton() {
+		use crate::classes::extend::extend;
+		let result = extend::<VecBrand, _, _>(|v: Vec<i32>| v.iter().sum::<i32>(), vec![42]);
+		assert_eq!(result, vec![42]);
 	}
 }

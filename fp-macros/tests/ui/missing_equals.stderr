@@ -1,5 +1,5 @@
 error: expected `=`
-  --> tests/ui/missing_equals.rs:12:20
+  --> tests/ui/missing_equals.rs:12:14
    |
 12 |         type Of<A> Option<A>;
    |                    ^^^^^^

@@ -19,6 +19,7 @@ mod inner {
 				Foldable,
 				Functor,
 				Lift,
+				MonadRec,
 				Monoid,
 				Plus,
 				Pointed,
@@ -34,6 +35,7 @@ mod inner {
 			impl_kind,
 			kinds::*,
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 	};
 
@@ -575,7 +577,7 @@ mod inner {
 		/// let y = <OptionBrand as FoldableWithIndex>::fold_map_with_index(|_, i: i32| i.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
-		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
+		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
 			f: impl Fn((), A) -> R + 'a,
 			fa: Option<A>,
 		) -> R {
@@ -963,6 +965,66 @@ mod inner {
 			}
 		}
 	}
+
+	impl MonadRec for OptionBrand {
+		/// Performs tail-recursive monadic computation over [`Option`].
+		///
+		/// Iteratively applies the step function. If the function returns [`None`],
+		/// the computation short-circuits. If it returns `Some(ControlFlow::Continue(a))`, the
+		/// loop continues with the new state. If it returns `Some(ControlFlow::Break(b))`,
+		/// the computation completes with `Some(b)`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the initial value and loop state.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters("The step function.", "The initial value.")]
+		///
+		#[document_returns(
+			"The result of the computation, or `None` if the step function returned `None`."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
+		/// };
+		///
+		/// let result = tail_rec_m::<OptionBrand, _, _>(
+		/// 	|n| {
+		/// 		if n < 10 { Some(ControlFlow::Continue(n + 1)) } else { Some(ControlFlow::Break(n)) }
+		/// 	},
+		/// 	0,
+		/// );
+		/// assert_eq!(result, Some(10));
+		/// ```
+		fn tail_rec_m<'a, A: 'a, B: 'a>(
+			func: impl Fn(
+				A,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
+			+ 'a,
+			initial: A,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let mut current = initial;
+			loop {
+				match func(current) {
+					None => return None,
+					Some(ControlFlow::Continue(next)) => current = next,
+					Some(ControlFlow::Break(b)) => return Some(b),
+				}
+			}
+		}
+	}
 }
 
 #[cfg(test)]
@@ -1163,5 +1225,75 @@ mod tests {
 			),
 			None
 		);
+	}
+
+	// MonadRec tests
+
+	/// Tests the MonadRec identity law: `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
+	#[quickcheck]
+	fn monad_rec_identity(x: i32) -> bool {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		tail_rec_m::<OptionBrand, _, _>(|a| Some(ControlFlow::Break(a)), x) == Some(x)
+	}
+
+	/// Tests a recursive computation that sums a range via `tail_rec_m`.
+	#[test]
+	fn monad_rec_sum_range() {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		// Sum 1..=100 using tail_rec_m
+		let result = tail_rec_m::<OptionBrand, _, _>(
+			|(n, acc)| {
+				if n == 0 {
+					Some(ControlFlow::Break(acc))
+				} else {
+					Some(ControlFlow::Continue((n - 1, acc + n)))
+				}
+			},
+			(100i64, 0i64),
+		);
+		assert_eq!(result, Some(5050));
+	}
+
+	/// Tests that `tail_rec_m` short-circuits on `None`.
+	#[test]
+	fn monad_rec_short_circuit() {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		let result: Option<i32> = tail_rec_m::<OptionBrand, _, _>(
+			|n| {
+				if n == 5 { None } else { Some(ControlFlow::Continue(n + 1)) }
+			},
+			0,
+		);
+		assert_eq!(result, None);
+	}
+
+	/// Tests stack safety: `tail_rec_m` handles large iteration counts.
+	#[test]
+	fn monad_rec_stack_safety() {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		let iterations: i64 = 200_000;
+		let result = tail_rec_m::<OptionBrand, _, _>(
+			|acc| {
+				if acc < iterations {
+					Some(ControlFlow::Continue(acc + 1))
+				} else {
+					Some(ControlFlow::Break(acc))
+				}
+			},
+			0i64,
+		);
+		assert_eq!(result, Some(iterations));
 	}
 }

@@ -63,7 +63,7 @@ mod inner {
 		/// let result = VecBrand::fold_map_with_index(|i, x: i32| format!("{i}:{x}"), vec![10, 20, 30]);
 		/// assert_eq!(result, "0:101:202:30");
 		/// ```
-		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
+		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
 			f: impl Fn(Self::Index, A) -> R + 'a,
 			fa: Self::Of<'a, A>,
 		) -> R;

@@ -13,9 +13,12 @@ mod inner {
 				ApplyFirst,
 				ApplySecond,
 				CloneableFn,
+				Extend,
+				Extract,
 				Foldable,
 				Functor,
 				Lift,
+				MonadRec,
 				Monoid,
 				Pointed,
 				Semiapplicative,
@@ -25,6 +28,7 @@ mod inner {
 			impl_kind,
 			kinds::*,
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 	};
 
@@ -741,6 +745,142 @@ mod inner {
 			ta.traverse::<A, F>(|a| a)
 		}
 	}
+
+	impl MonadRec for IdentityBrand {
+		/// Performs tail-recursive monadic computation over [`Identity`].
+		///
+		/// Since `Identity` has no effect, this simply loops on the inner value
+		/// until the step function returns [`ControlFlow::Break`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the initial value and loop state.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters("The step function.", "The initial value.")]
+		///
+		#[document_returns("An identity containing the result of the computation.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
+		/// };
+		///
+		/// let result = tail_rec_m::<IdentityBrand, _, _>(
+		/// 	|n| {
+		/// 		if n < 10 {
+		/// 			Identity(ControlFlow::Continue(n + 1))
+		/// 		} else {
+		/// 			Identity(ControlFlow::Break(n))
+		/// 		}
+		/// 	},
+		/// 	0,
+		/// );
+		/// assert_eq!(result, Identity(10));
+		/// ```
+		fn tail_rec_m<'a, A: 'a, B: 'a>(
+			func: impl Fn(
+				A,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
+			+ 'a,
+			initial: A,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let mut current = initial;
+			loop {
+				match func(current).0 {
+					ControlFlow::Continue(next) => current = next,
+					ControlFlow::Break(b) => return Identity(b),
+				}
+			}
+		}
+	}
+
+	impl Extract for IdentityBrand {
+		/// Extracts the inner value from an `Identity` by unwrapping it.
+		///
+		/// Since `Identity` is a trivial wrapper, extraction simply returns the
+		/// contained value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type of the value inside the identity."
+		)]
+		///
+		#[document_parameters("The identity to extract from.")]
+		///
+		#[document_returns("The inner value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let id = Identity(42);
+		/// assert_eq!(extract::<IdentityBrand, _>(id), 42);
+		/// ```
+		fn extract<'a, A: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		) -> A {
+			fa.0
+		}
+	}
+
+	impl Extend for IdentityBrand {
+		/// Extends a local computation to the `Identity` context.
+		///
+		/// Applies the function to the entire `Identity` and wraps the result in
+		/// a new `Identity`. Since `Identity` contains exactly one value, extending
+		/// is equivalent to applying the function and re-wrapping.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the value inside the identity.",
+			"The result type of the extension function."
+		)]
+		///
+		#[document_parameters(
+			"The function that consumes an `Identity` and produces a value.",
+			"The identity to extend over."
+		)]
+		///
+		#[document_returns("A new identity containing the result of applying the function.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let id = Identity(5);
+		/// let result = extend::<IdentityBrand, _, _>(|w: Identity<i32>| w.0 * 2, id);
+		/// assert_eq!(result, Identity(10));
+		/// ```
+		fn extend<'a, A: 'a + Clone, B: 'a>(
+			f: impl Fn(Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> B + 'a,
+			wa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Identity(f(wa))
+		}
+	}
 }
 pub use inner::*;
 
@@ -930,5 +1070,129 @@ mod tests {
 			),
 			Some(Identity(2))
 		);
+	}
+
+	// MonadRec tests
+
+	/// Tests the MonadRec identity law: `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
+	#[quickcheck]
+	fn monad_rec_identity(x: i32) -> bool {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		tail_rec_m::<IdentityBrand, _, _>(|a| Identity(ControlFlow::Break(a)), x) == Identity(x)
+	}
+
+	/// Tests a recursive computation that sums a range via `tail_rec_m`.
+	#[test]
+	fn monad_rec_sum_range() {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		let result = tail_rec_m::<IdentityBrand, _, _>(
+			|(n, acc)| {
+				if n == 0 {
+					Identity(ControlFlow::Break(acc))
+				} else {
+					Identity(ControlFlow::Continue((n - 1, acc + n)))
+				}
+			},
+			(100i64, 0i64),
+		);
+		assert_eq!(result, Identity(5050));
+	}
+
+	/// Tests stack safety: `tail_rec_m` handles large iteration counts.
+	#[test]
+	fn monad_rec_stack_safety() {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		let iterations: i64 = 200_000;
+		let result = tail_rec_m::<IdentityBrand, _, _>(
+			|acc| {
+				if acc < iterations {
+					Identity(ControlFlow::Continue(acc + 1))
+				} else {
+					Identity(ControlFlow::Break(acc))
+				}
+			},
+			0i64,
+		);
+		assert_eq!(result, Identity(iterations));
+	}
+
+	// Extract / Extend / Comonad Laws
+
+	/// Extract pure-extract law: `extract(pure(x)) == x`.
+	#[quickcheck]
+	fn extract_pure(x: i32) -> bool {
+		use crate::classes::extract::extract;
+		extract::<IdentityBrand, _>(pure::<IdentityBrand, _>(x)) == x
+	}
+
+	/// Comonad left identity: `extract(extend(f, wa)) == f(wa)`.
+	#[quickcheck]
+	fn comonad_left_identity(x: i32) -> bool {
+		use crate::classes::{
+			extend::extend,
+			extract::extract,
+		};
+		let f = |w: Identity<i32>| w.0.wrapping_mul(3);
+		let wa = Identity(x);
+		extract::<IdentityBrand, _>(extend::<IdentityBrand, _, _>(f, wa)) == f(wa)
+	}
+
+	/// Comonad right identity: `extend(extract, wa) == wa`.
+	#[quickcheck]
+	fn comonad_right_identity(x: i32) -> bool {
+		use crate::classes::{
+			extend::extend,
+			extract::extract,
+		};
+		extend::<IdentityBrand, _, _>(extract::<IdentityBrand, _>, Identity(x)) == Identity(x)
+	}
+
+	/// Extend associativity: `extend(f, extend(g, w)) == extend(|w| f(extend(g, w)), w)`.
+	#[quickcheck]
+	fn extend_associativity(x: i32) -> bool {
+		use crate::classes::extend::extend;
+		let g = |w: Identity<i32>| w.0.wrapping_mul(2);
+		let f = |w: Identity<i32>| w.0.wrapping_add(1);
+		let wa = Identity(x);
+		let lhs = extend::<IdentityBrand, _, _>(f, extend::<IdentityBrand, _, _>(g, wa));
+		let rhs = extend::<IdentityBrand, _, _>(
+			|w: Identity<i32>| f(extend::<IdentityBrand, _, _>(g, w)),
+			wa,
+		);
+		lhs == rhs
+	}
+
+	/// Map-extract law: `extract(map(f, wa)) == f(extract(wa))`.
+	#[quickcheck]
+	fn comonad_map_extract(x: i32) -> bool {
+		use crate::classes::extract::extract;
+		let f = |a: i32| a.wrapping_mul(5);
+		let wa = Identity(x);
+		extract::<IdentityBrand, _>(map::<IdentityBrand, _, _>(f, wa))
+			== f(extract::<IdentityBrand, _>(wa))
+	}
+
+	/// Tests basic `extract` on `Identity`.
+	#[test]
+	fn extract_test() {
+		use crate::classes::extract::extract;
+		assert_eq!(extract::<IdentityBrand, _>(Identity(42)), 42);
+	}
+
+	/// Tests basic `extend` on `Identity`.
+	#[test]
+	fn extend_test() {
+		use crate::classes::extend::extend;
+		let result = extend::<IdentityBrand, _, _>(|w: Identity<i32>| w.0 * 2, Identity(21));
+		assert_eq!(result, Identity(42));
 	}
 }

@@ -23,6 +23,7 @@ mod inner {
 				Foldable,
 				Functor,
 				Lift,
+				MonadRec,
 				Monoid,
 				Pointed,
 				Semiapplicative,
@@ -32,6 +33,7 @@ mod inner {
 			impl_kind,
 			kinds::*,
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 	};
 
@@ -1317,6 +1319,130 @@ mod inner {
 			}
 		}
 	}
+
+	/// [`MonadRec`] implementation for [`ResultOkAppliedBrand`].
+	#[document_type_parameters("The success type.")]
+	impl<T: Clone + 'static> MonadRec for ResultOkAppliedBrand<T> {
+		/// Performs tail-recursive monadic computation over [`Result`] (error channel).
+		///
+		/// Iteratively applies the step function. If the function returns [`Ok`],
+		/// the computation short-circuits with that success value. If it returns
+		/// `Err(ControlFlow::Continue(a))`, the loop continues with the new state. If it returns
+		/// `Err(ControlFlow::Break(b))`, the computation completes with `Err(b)`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the initial value and loop state.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters("The step function.", "The initial value.")]
+		///
+		#[document_returns(
+			"The result of the computation, or a success if the step function returned `Ok`."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
+		/// };
+		///
+		/// let result = tail_rec_m::<ResultOkAppliedBrand<&str>, _, _>(
+		/// 	|n| {
+		/// 		if n < 10 { Err(ControlFlow::Continue(n + 1)) } else { Err(ControlFlow::Break(n)) }
+		/// 	},
+		/// 	0,
+		/// );
+		/// assert_eq!(result, Err(10));
+		/// ```
+		fn tail_rec_m<'a, A: 'a, B: 'a>(
+			func: impl Fn(
+				A,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
+			+ 'a,
+			initial: A,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let mut current = initial;
+			loop {
+				match func(current) {
+					Ok(t) => return Ok(t),
+					Err(ControlFlow::Continue(next)) => current = next,
+					Err(ControlFlow::Break(b)) => return Err(b),
+				}
+			}
+		}
+	}
+
+	/// [`MonadRec`] implementation for [`ResultErrAppliedBrand`].
+	#[document_type_parameters("The error type.")]
+	impl<E: Clone + 'static> MonadRec for ResultErrAppliedBrand<E> {
+		/// Performs tail-recursive monadic computation over [`Result`].
+		///
+		/// Iteratively applies the step function. If the function returns [`Err`],
+		/// the computation short-circuits with that error. If it returns
+		/// `Ok(ControlFlow::Continue(a))`, the loop continues with the new state. If it returns
+		/// `Ok(ControlFlow::Break(b))`, the computation completes with `Ok(b)`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the initial value and loop state.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters("The step function.", "The initial value.")]
+		///
+		#[document_returns(
+			"The result of the computation, or an error if the step function returned `Err`."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
+		/// };
+		///
+		/// let result = tail_rec_m::<ResultErrAppliedBrand<&str>, _, _>(
+		/// 	|n| {
+		/// 		if n < 10 { Ok(ControlFlow::Continue(n + 1)) } else { Ok(ControlFlow::Break(n)) }
+		/// 	},
+		/// 	0,
+		/// );
+		/// assert_eq!(result, Ok(10));
+		/// ```
+		fn tail_rec_m<'a, A: 'a, B: 'a>(
+			func: impl Fn(
+				A,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
+			+ 'a,
+			initial: A,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let mut current = initial;
+			loop {
+				match func(current) {
+					Err(e) => return Err(e),
+					Ok(ControlFlow::Continue(next)) => current = next,
+					Ok(ControlFlow::Break(b)) => return Ok(b),
+				}
+			}
+		}
+	}
 }
 
 #[cfg(test)]
@@ -1571,5 +1697,144 @@ mod tests {
 			),
 			None
 		);
+	}
+
+	// MonadRec tests
+
+	/// Tests the MonadRec identity law: `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
+	#[quickcheck]
+	fn monad_rec_identity(x: i32) -> bool {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		tail_rec_m::<ResultErrAppliedBrand<()>, _, _>(|a| Ok(ControlFlow::Break(a)), x) == Ok(x)
+	}
+
+	/// Tests a recursive computation that sums a range via `tail_rec_m`.
+	#[test]
+	fn monad_rec_sum_range() {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		let result = tail_rec_m::<ResultErrAppliedBrand<&str>, _, _>(
+			|(n, acc)| {
+				if n == 0 {
+					Ok(ControlFlow::Break(acc))
+				} else {
+					Ok(ControlFlow::Continue((n - 1, acc + n)))
+				}
+			},
+			(100i64, 0i64),
+		);
+		assert_eq!(result, Ok(5050));
+	}
+
+	/// Tests that `tail_rec_m` short-circuits on `Err`.
+	#[test]
+	fn monad_rec_short_circuit() {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		let result: Result<i32, &str> = tail_rec_m::<ResultErrAppliedBrand<&str>, _, _>(
+			|n| {
+				if n == 5 { Err("stopped") } else { Ok(ControlFlow::Continue(n + 1)) }
+			},
+			0,
+		);
+		assert_eq!(result, Err("stopped"));
+	}
+
+	/// Tests stack safety: `tail_rec_m` handles large iteration counts.
+	#[test]
+	fn monad_rec_stack_safety() {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		let iterations: i64 = 200_000;
+		let result = tail_rec_m::<ResultErrAppliedBrand<()>, _, _>(
+			|acc| {
+				if acc < iterations {
+					Ok(ControlFlow::Continue(acc + 1))
+				} else {
+					Ok(ControlFlow::Break(acc))
+				}
+			},
+			0i64,
+		);
+		assert_eq!(result, Ok(iterations));
+	}
+
+	// MonadRec tests for ResultOkAppliedBrand
+
+	/// Tests the MonadRec identity law for `ResultOkAppliedBrand`:
+	/// `tail_rec_m(|a| Err(Done(a)), x) == Err(x)`.
+	#[quickcheck]
+	fn monad_rec_ok_applied_identity(x: i32) -> bool {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		tail_rec_m::<ResultOkAppliedBrand<()>, _, _>(|a| Err(ControlFlow::Break(a)), x) == Err(x)
+	}
+
+	/// Tests a recursive computation that sums a range via `tail_rec_m` on the error channel.
+	#[test]
+	fn monad_rec_ok_applied_sum_range() {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		let result = tail_rec_m::<ResultOkAppliedBrand<&str>, _, _>(
+			|(n, acc)| {
+				if n == 0 {
+					Err(ControlFlow::Break(acc))
+				} else {
+					Err(ControlFlow::Continue((n - 1, acc + n)))
+				}
+			},
+			(100i64, 0i64),
+		);
+		assert_eq!(result, Err(5050));
+	}
+
+	/// Tests that `tail_rec_m` on `ResultOkAppliedBrand` short-circuits on `Ok`.
+	#[test]
+	fn monad_rec_ok_applied_short_circuit() {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		let result: Result<&str, i32> = tail_rec_m::<ResultOkAppliedBrand<&str>, _, _>(
+			|n| {
+				if n == 5 { Ok("stopped") } else { Err(ControlFlow::Continue(n + 1)) }
+			},
+			0,
+		);
+		assert_eq!(result, Ok("stopped"));
+	}
+
+	/// Tests stack safety: `tail_rec_m` on `ResultOkAppliedBrand` handles large iteration counts.
+	#[test]
+	fn monad_rec_ok_applied_stack_safety() {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		let iterations: i64 = 200_000;
+		let result = tail_rec_m::<ResultOkAppliedBrand<()>, _, _>(
+			|acc| {
+				if acc < iterations {
+					Err(ControlFlow::Continue(acc + 1))
+				} else {
+					Err(ControlFlow::Break(acc))
+				}
+			},
+			0i64,
+		);
+		assert_eq!(result, Err(iterations));
 	}
 }

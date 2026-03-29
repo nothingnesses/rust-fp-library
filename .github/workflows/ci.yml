@@ -8,25 +8,26 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  SKIP_DIRENV: "1"
 
 jobs:
   fmt:
     name: Formatting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - run: nix develop ./devenv/ --command cargo fmt --all -- --check
+      - run: cd devenv && nix fmt -- --ci
 
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - run: nix develop ./devenv/ --command cargo clippy --workspace --all-features -- -D warnings
+      - run: nix develop ./devenv/ --command just clippy --workspace --all-features
 
   test:
     name: Tests (${{ matrix.features }})
@@ -40,36 +41,34 @@ jobs:
           - "--features serde"
           - "--all-features"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - run: nix develop ./devenv/ --command cargo test --workspace ${{ matrix.features }}
+      - run: nix develop ./devenv/ --command just test ${{ matrix.features }}
 
   doc:
     name: Documentation
     runs-on: ubuntu-latest
-    env:
-      RUSTDOCFLAGS: -D warnings
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - run: nix develop ./devenv/ --command cargo doc --workspace --all-features --no-deps
+      - run: nix develop ./devenv/ --command just doc --workspace --all-features --no-deps
 
   bench:
     name: Benchmarks (compile check)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - run: nix develop ./devenv/ --command cargo bench --workspace --no-run
+      - run: nix develop ./devenv/ --command just bench --workspace --no-run
 
   deny:
     name: cargo-deny
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - run: nix develop ./devenv/ --command cargo deny check
+      - run: nix develop ./devenv/ --command just cargo deny check

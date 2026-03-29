@@ -113,14 +113,14 @@ let x = default::<u32>();  // T must be nameable
 
 ## Summary
 
-| Situation | Use | Reason |
-|---|---|---|
-| Closure/function passed once | `impl Fn(A) -> B` | Incidental type, matches PureScript convention |
-| Same type in multiple positions | Named generic | `impl Trait` creates independent types |
-| Input type = return type | Named generic | Preserves type identity |
-| Complex where clause relating types | Named generic | Must be nameable for cross-referencing |
-| Caller needs turbofish | Named generic | `impl Trait` params can't be specified |
-| Type appears once, simple bounds | `impl Trait` | Less noise, fewer type parameters |
+| Situation                           | Use               | Reason                                         |
+| ----------------------------------- | ----------------- | ---------------------------------------------- |
+| Closure/function passed once        | `impl Fn(A) -> B` | Incidental type, matches PureScript convention |
+| Same type in multiple positions     | Named generic     | `impl Trait` creates independent types         |
+| Input type = return type            | Named generic     | Preserves type identity                        |
+| Complex where clause relating types | Named generic     | Must be nameable for cross-referencing         |
+| Caller needs turbofish              | Named generic     | `impl Trait` params can't be specified         |
+| Type appears once, simple bounds    | `impl Trait`      | Less noise, fewer type parameters              |
 
 ## Application in `fp-library`
 

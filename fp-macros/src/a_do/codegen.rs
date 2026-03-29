@@ -22,9 +22,9 @@ use {
 /// Separates statements into binds (applicative computations) and let bindings,
 /// then desugars into the appropriate combinator:
 ///
-/// - 0 binds → `pure::<Brand, _>(final_expr)`
-/// - 1 bind  → `map::<Brand, _, _>(|pat| body, expr)`
-/// - N binds → `liftN::<Brand, _, …>(|pats…| body, exprs…)`
+/// - 0 binds -> `pure::<Brand, _>(final_expr)`
+/// - 1 bind  -> `map::<Brand, _, _>(|pat| body, expr)`
+/// - N binds -> `liftN::<Brand, _, ...>(|pats...| body, exprs...)`
 pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 	let brand = &input.brand;
 

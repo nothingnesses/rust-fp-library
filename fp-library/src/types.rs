@@ -18,6 +18,7 @@ pub mod arc_ptr;
 pub mod cat_list;
 pub mod conjunctive;
 pub mod const_val;
+pub mod control_flow;
 pub mod disjunctive;
 pub mod dual;
 pub mod endofunction;
@@ -34,11 +35,12 @@ pub mod option;
 pub mod pair;
 pub mod rc_ptr;
 pub mod result;
-pub mod step;
+pub mod send_thunk;
 pub mod string;
 pub mod thunk;
 pub mod trampoline;
 pub mod try_lazy;
+pub mod try_send_thunk;
 pub mod try_thunk;
 pub mod try_trampoline;
 pub mod tuple_1;
@@ -54,14 +56,16 @@ pub use {
 	endofunction::Endofunction,
 	endomorphism::Endomorphism,
 	first::First,
-	free::Free,
+	free::{
+		Free,
+		FreeStep,
+	},
 	identity::Identity,
 	last::Last,
 	lazy::{
 		ArcLazy,
 		ArcLazyConfig,
 		Lazy,
-		LazyConfig,
 		RcLazy,
 		RcLazyConfig,
 	},
@@ -72,7 +76,7 @@ pub use {
 		LensPrime,
 	},
 	pair::Pair,
-	step::Step,
+	send_thunk::SendThunk,
 	thunk::Thunk,
 	trampoline::Trampoline,
 	try_lazy::{
@@ -80,6 +84,7 @@ pub use {
 		RcTryLazy,
 		TryLazy,
 	},
+	try_send_thunk::TrySendThunk,
 	try_thunk::TryThunk,
 	try_trampoline::TryTrampoline,
 };

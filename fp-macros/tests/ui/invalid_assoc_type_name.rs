@@ -7,9 +7,9 @@ use fp_macros::impl_kind;
 struct MyBrand;
 
 impl_kind! {
-    for MyBrand {
-        type Foo<A> = Option<A>;
-    }
+	for MyBrand {
+		type Foo<A> = Option<A>;
+	}
 }
 
 fn main() {}

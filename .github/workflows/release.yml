@@ -14,7 +14,7 @@ jobs:
     name: Validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - run: nix develop ./devenv/ --command cargo test --workspace --all-features
@@ -27,7 +27,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/fp-macros-v')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - run: nix develop ./devenv/ --command cargo publish -p fp-macros
@@ -40,7 +40,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/fp-library-v')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
       # Wait for crates.io to index fp-macros if both tags were pushed together
@@ -59,7 +59,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}

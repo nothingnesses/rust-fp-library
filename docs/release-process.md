@@ -6,7 +6,7 @@ This document outlines the steps for releasing new versions of `fp-library` and 
 
 - Ensure you have the latest `main`: `git checkout main && git pull`
 - Ensure the working directory is clean: `git status`
-- Ensure all tests pass: `cargo test`
+- Ensure all tests pass: `just test`
 
 ## Release Steps
 
@@ -37,7 +37,6 @@ For each package being released, determine what has changed since the last relea
     Replace the tag with the appropriate one for `fp-macros` when reviewing that package.
 
 3.  **Categorize the changes** into the appropriate changelog headers:
-
     - **Added** - New features, new modules, new type class implementations.
     - **Changed** - Modifications to existing APIs, behavior changes, refactors that affect the public interface.
     - **Removed** - Removed features, deprecated items that have been deleted.
@@ -82,54 +81,17 @@ git checkout -b release/fp-library-vX.Y.Z
 Run the full suite of checks locally to catch issues before the PR:
 
 ```bash
-# Format code
-cargo fmt --all
-
-# Run linter
-cargo clippy --workspace --all-features
-
-# Verify documentation builds (must produce zero warnings)
-cargo doc --workspace --all-features --no-deps
-
-# Run all tests
-cargo test --workspace --all-features
+just verify
 ```
 
-#### Test Output Caching
+This runs formatting, clippy, documentation (including the unicode check), and tests in order. Alternatively, run each step individually:
 
-To avoid re-running expensive test suites when source files haven't changed, cache test outputs:
-
-**Cache file location:** `.claude/test-cache/` (gitignored)
-
-**After running tests**, save the output:
 ```bash
-mkdir -p .claude/test-cache
-cargo test --workspace --all-features 2>&1 | tee .claude/test-cache/test-output.txt
-# Record the timestamp of the newest source file at cache time
-find fp-library/src fp-macros/src -name '*.rs' -printf '%T@\n' | sort -rn | head -1 > .claude/test-cache/source-timestamp.txt
+just fmt                                        # Format all files (Rust, Nix, Markdown, YAML, TOML)
+just clippy --workspace --all-features          # Lint (warnings are errors)
+just doc --workspace --all-features --no-deps   # Doc check (warnings are errors, rejects unicode)
+just test                                       # Run tests (cached; only re-runs on source changes)
 ```
-
-**Before re-running tests**, check if cache is still valid:
-```bash
-# Get newest source file timestamp
-LATEST=$(find fp-library/src fp-macros/src -name '*.rs' -printf '%T@\n' | sort -rn | head -1)
-CACHED=$(cat .claude/test-cache/source-timestamp.txt 2>/dev/null || echo "0")
-if [ "$LATEST" = "$CACHED" ]; then
-  echo "=== CACHED TEST OUTPUT (no source changes) ==="
-  cat .claude/test-cache/test-output.txt
-else
-  echo "=== Source files changed, re-running tests ==="
-  cargo test --workspace --all-features 2>&1 | tee .claude/test-cache/test-output.txt
-  echo "$LATEST" > .claude/test-cache/source-timestamp.txt
-fi
-```
-
-**Always invalidate** (re-run tests) when:
-- Any `.rs` file under `fp-library/src/` or `fp-macros/src/` has been modified since the cached timestamp
-- `Cargo.toml` files have changed
-- Test files under `tests/` have changed
-
-**Use cached output** when you just need to re-check results (e.g., confirming a test name, reviewing output) and no source files have changed.
 
 ### 7. Commit and Open PR
 
@@ -147,7 +109,6 @@ fi
     ```
 
     Open a PR targeting `main`. All CI checks (tests, clippy, formatting, cargo-deny) must pass before merging. See `.github/workflows/ci.yml`.
-
     - **Squash and Merge** is preferred to keep the `main` branch history clean and linear.
     - **Conventional Commits** are encouraged for PR titles/squash commits (e.g., `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, etc.).
 
@@ -195,9 +156,9 @@ If the automated workflow fails or you need to publish manually:
 
 ```bash
 # Publish fp-macros first (if updated)
-cargo publish -p fp-macros
+just cargo publish -p fp-macros
 # Wait for crates.io to index it
-cargo publish -p fp-library
+just cargo publish -p fp-library
 ```
 
 ## Post-Release

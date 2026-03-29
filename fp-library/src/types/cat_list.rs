@@ -1,6 +1,6 @@
 //! Efficient queue-like structure with O(1) append and O(1) amortized uncons.
 //!
-//! Implements the ["Reflection without Remorse"](http://okmij.org/ftp/Haskell/zseq.pdf) data structure used to enable O(1) left-associated [`bind`](crate::functions::bind) operations in the [`Free`](crate::types::Free) monad.
+//! Implements the ["Reflection without Remorse"](http://okmij.org/ftp/Haskell/zseq.pdf) data structure used to enable O(1) left-associated [`bind`](crate::functions::bind) operations in the [`Free`](crate::types::Free) monad. In that context, `CatList` serves as the continuation queue: each `bind` appends a continuation in O(1), and [`Free::evaluate`](crate::types::Free::evaluate) pops continuations one at a time via `uncons`.
 //!
 //! ### Examples
 //!
@@ -34,12 +34,14 @@ mod inner {
 				ApplySecond,
 				CloneableFn,
 				Compactable,
+				Extend,
 				Filterable,
 				Foldable,
 				FoldableWithIndex,
 				Functor,
 				FunctorWithIndex,
 				Lift,
+				MonadRec,
 				Monoid,
 				ParCompactable,
 				ParFilterable,
@@ -60,16 +62,33 @@ mod inner {
 			impl_kind,
 			kinds::*,
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 		std::{
 			cmp::Ordering,
 			collections::VecDeque,
+			fmt,
 			hash::{
 				Hash,
 				Hasher,
 			},
 		},
 	};
+
+	/// Internal representation of a `CatList`.
+	///
+	/// This enum is private; the public type is the newtype wrapper [`CatList`].
+	/// Keeping `CatListInner` free of a custom `Drop` impl allows `uncons` to
+	/// destructure it by move, eliminating the need for unsafe code.
+	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+	#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	enum CatListInner<A> {
+		/// Empty list
+		#[default]
+		Nil,
+		/// Head element plus deque of sublists and total length
+		Cons(A, VecDeque<CatList<A>>, usize),
+	}
 
 	/// A catenable list with O(1) append and O(1) amortized uncons.
 	///
@@ -90,24 +109,40 @@ mod inner {
 	/// This implementation uses a [`VecDeque`] to store sublists, providing:
 	///
 	/// * **O(1) append**: Sublists are pushed to the back of the deque.
-	/// * **O(1) amortized uncons**: Elements are extracted by flattening the deque.
-	/// * **No reversal overhead**: Unlike two-stack queue implementations, `VecDeque`
-	///   provides true O(1) operations on both ends without periodic reversal.
+	/// * **O(1) amortized uncons**: Extracting the head is O(1) when the sublist deque
+	///   is empty. When non-empty, `uncons` calls `flatten_deque`, which performs a
+	///   right fold over the deque entries. Each entry is visited exactly once across
+	///   the full sequence of `uncons` calls, so the cost is O(1) amortized per element.
+	/// * **Low overhead deque operations**: The underlying `VecDeque` provides O(1)
+	///   push and pop on both ends. Unlike a two-stack queue, it does not require
+	///   periodic bulk reversal, though it may occasionally reallocate its backing
+	///   buffer when capacity is exceeded.
 	#[document_type_parameters("The type of the elements in the list.")]
 	///
 	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-	#[derive(Clone, Debug, Default)]
-	pub enum CatList<A> {
-		/// Empty list
-		#[default]
-		Nil,
-		/// Head element plus deque of sublists and total length
-		Cons(A, VecDeque<CatList<A>>, usize),
+	#[derive(Debug, Clone, Eq)]
+	pub struct CatList<A>(CatListInner<A>);
+
+	#[document_type_parameters("The type of the elements in the list.")]
+	impl<A> Default for CatList<A> {
+		#[document_signature]
+		#[document_returns("An empty `CatList`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list: CatList<i32> = Default::default();
+		/// assert!(list.is_empty());
+		/// ```
+		fn default() -> Self {
+			CatList::empty()
+		}
 	}
 
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to compare.")]
-	impl<A: PartialEq + Clone> PartialEq for CatList<A> {
+	impl<A: PartialEq> PartialEq for CatList<A> {
 		#[document_signature]
 		#[document_parameters("The other list to compare to.")]
 		#[document_returns("True if the values are equal, false otherwise.")]
@@ -126,16 +161,13 @@ mod inner {
 			if self.len() != other.len() {
 				return false;
 			}
-			(*self).clone().into_iter().eq(other.clone())
+			self.iter().eq(other.iter())
 		}
 	}
 
 	#[document_type_parameters("The type of the elements in the list.")]
-	impl<A: Eq + Clone> Eq for CatList<A> {}
-
-	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to hash.")]
-	impl<A: Hash + Clone> Hash for CatList<A> {
+	impl<A: Hash> Hash for CatList<A> {
 		#[document_signature]
 		#[document_type_parameters("The type of the hasher.")]
 		#[document_parameters("The hasher state to update.")]
@@ -163,7 +195,7 @@ mod inner {
 			state: &mut H,
 		) {
 			self.len().hash(state);
-			for a in (*self).clone() {
+			for a in self.iter() {
 				a.hash(state);
 			}
 		}
@@ -171,7 +203,7 @@ mod inner {
 
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to compare.")]
-	impl<A: PartialOrd + Clone> PartialOrd for CatList<A> {
+	impl<A: PartialOrd> PartialOrd for CatList<A> {
 		#[document_signature]
 		#[document_parameters("The other list to compare to.")]
 		#[document_returns("An ordering if the values can be compared, none otherwise.")]
@@ -188,13 +220,13 @@ mod inner {
 			&self,
 			other: &Self,
 		) -> Option<Ordering> {
-			(*self).clone().into_iter().partial_cmp((other).clone())
+			self.iter().partial_cmp(other.iter())
 		}
 	}
 
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to compare.")]
-	impl<A: Ord + Clone> Ord for CatList<A> {
+	impl<A: Ord> Ord for CatList<A> {
 		#[document_signature]
 		#[document_parameters("The other list to compare to.")]
 		#[document_returns("The ordering of the values.")]
@@ -214,7 +246,7 @@ mod inner {
 			&self,
 			other: &Self,
 		) -> Ordering {
-			(*self).clone().into_iter().cmp((other).clone())
+			self.iter().cmp(other.iter())
 		}
 	}
 
@@ -846,7 +878,7 @@ mod inner {
 		/// let result = CatListBrand::fold_map_with_index(|i, x: i32| format!("{i}:{x}"), list);
 		/// assert_eq!(result, "0:101:202:30");
 		/// ```
-		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
+		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
 			f: impl Fn(usize, A) -> R + 'a,
 			fa: CatList<A>,
 		) -> R {
@@ -1595,6 +1627,134 @@ mod inner {
 		}
 	}
 
+	/// Cooperative extension for [`CatList`], following the same suffix semantics
+	/// as the PureScript `Extend Array` instance.
+	///
+	/// `extend(f, list)` produces a new list where each element is `f` applied to
+	/// the suffix of the original list starting at that position. Requires
+	/// `A: Clone` because suffixes are materialized as owned lists.
+	impl Extend for CatListBrand {
+		/// Extends a local context-dependent computation to a global computation
+		/// over [`CatList`].
+		///
+		/// Applies `f` to every suffix of the input list. For a list `[a, b, c]`,
+		/// the result is `[f([a, b, c]), f([b, c]), f([c])]`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the elements in the list.",
+			"The result type of the extension function."
+		)]
+		///
+		#[document_parameters(
+			"The function that consumes a suffix list and produces a value.",
+			"The list to extend over."
+		)]
+		///
+		#[document_returns(
+			"A new list containing the results of applying the function to each suffix."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let result = extend::<CatListBrand, _, _>(|cl: CatList<i32>| cl.into_iter().sum::<i32>(), list);
+		/// let vec: Vec<_> = result.into_iter().collect();
+		/// assert_eq!(vec, vec![6, 5, 3]);
+		/// ```
+		fn extend<'a, A: 'a + Clone, B: 'a>(
+			f: impl Fn(Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> B + 'a,
+			wa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			// Collect to a Vec for indexed suffix access, then build the result
+			// as a CatList.
+			let elements: Vec<A> = wa.into_iter().collect();
+			(0 .. elements.len())
+				.map(|i| f(elements.get(i ..).unwrap_or_default().iter().cloned().collect()))
+				.collect()
+		}
+	}
+
+	impl MonadRec for CatListBrand {
+		/// Performs tail-recursive monadic computation over [`CatList`].
+		///
+		/// Since `CatList` represents nondeterminism, this performs a breadth-first
+		/// expansion: each iteration maps all current `Loop` states through the step
+		/// function, collecting `Done` results as they appear. The computation
+		/// terminates when no `Loop` values remain.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the initial value and loop state.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters("The step function.", "The initial value.")]
+		///
+		#[document_returns("A CatList of all completed results.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::*,
+		/// 	},
+		/// };
+		///
+		/// // Branch into two paths, each running until done
+		/// let result = tail_rec_m::<CatListBrand, _, _>(
+		/// 	|n| {
+		/// 		if n < 3 {
+		/// 			CatList::singleton(ControlFlow::Continue(n + 1)).snoc(ControlFlow::Break(n * 10))
+		/// 		} else {
+		/// 			CatList::singleton(ControlFlow::Break(n * 10))
+		/// 		}
+		/// 	},
+		/// 	0,
+		/// );
+		/// // Starting from 0: branches at 0,1,2; done at 3
+		/// let vec: Vec<_> = result.into_iter().collect();
+		/// assert_eq!(vec, vec![0, 10, 20, 30]);
+		/// ```
+		fn tail_rec_m<'a, A: 'a, B: 'a>(
+			func: impl Fn(
+				A,
+			)
+				-> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ControlFlow<B, A>>)
+			+ 'a,
+			initial: A,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let mut done: CatList<B> = CatList::empty();
+			let mut pending: CatList<A> = CatList::singleton(initial);
+			while !pending.is_empty() {
+				let mut next_pending: CatList<A> = CatList::empty();
+				for a in pending {
+					for step in func(a) {
+						match step {
+							ControlFlow::Continue(next) => next_pending = next_pending.snoc(next),
+							ControlFlow::Break(b) => done = done.snoc(b),
+						}
+					}
+				}
+				pending = next_pending;
+			}
+			done
+		}
+	}
+
 	#[document_type_parameters("The type of the elements in the list.")]
 	impl<A> Semigroup for CatList<A> {
 		/// Appends one list to another.
@@ -1671,7 +1831,7 @@ mod inner {
 		/// ```
 		#[inline]
 		pub const fn empty() -> Self {
-			CatList::Nil
+			CatList(CatListInner::Nil)
 		}
 
 		/// Returns `true` if the list is empty.
@@ -1691,7 +1851,7 @@ mod inner {
 		/// assert!(list.is_empty());
 		/// ```
 		pub fn is_empty(&self) -> bool {
-			matches!(self, CatList::Nil)
+			matches!(self.0, CatListInner::Nil)
 		}
 
 		/// Creates a CatList with a single element.
@@ -1711,7 +1871,7 @@ mod inner {
 		/// assert!(!list.is_empty());
 		/// ```
 		pub fn singleton(a: A) -> Self {
-			CatList::Cons(a, VecDeque::new(), 1)
+			CatList(CatListInner::Cons(a, VecDeque::new(), 1))
 		}
 
 		/// Appends an element to the front of the list.
@@ -1807,23 +1967,29 @@ mod inner {
 		/// assert_eq!(linked.len(), 2);
 		/// ```
 		fn link(
-			left: Self,
+			mut left: Self,
 			right: Self,
 		) -> Self {
-			match (left, right) {
-				(CatList::Nil, cat) => cat,
-				(cat, CatList::Nil) => cat,
-				(CatList::Cons(a, mut q, len), cat) => {
-					let new_len = len + cat.len();
-					q.push_back(cat);
-					CatList::Cons(a, q, new_len)
-				}
+			if left.is_empty() {
+				return right;
 			}
+			if right.is_empty() {
+				return left;
+			}
+			if let CatListInner::Cons(_, q, len) = &mut left.0 {
+				*len += right.len();
+				q.push_back(right);
+			}
+			left
 		}
 
 		/// Removes and returns the first element.
 		///
-		/// Returns `None` if the list is empty.
+		/// Returns `None` if the list is empty. When the internal sublist deque
+		/// is non-empty, this operation calls `flatten_deque` to restructure the
+		/// remaining elements, which may traverse multiple deque entries. However,
+		/// each entry is visited at most once across a full sequence of `uncons`
+		/// calls, yielding O(1) amortized cost per element.
 		#[document_signature]
 		///
 		#[document_parameters]
@@ -1842,18 +2008,20 @@ mod inner {
 		/// assert_eq!(a, 1);
 		/// assert!(list.is_empty());
 		/// ```
-		pub fn uncons(self) -> Option<(A, Self)> {
-			match self {
-				CatList::Nil => None,
-				CatList::Cons(a, q, _) => {
+		pub fn uncons(mut self) -> Option<(A, Self)> {
+			// Replace self.0 with Nil, taking ownership of the inner enum.
+			// CatListInner has no Drop impl, so we can destructure it by move.
+			let inner = std::mem::replace(&mut self.0, CatListInner::Nil);
+			// self.0 is now Nil, so forgetting self leaks nothing.
+			std::mem::forget(self);
+			match inner {
+				CatListInner::Nil => None,
+				CatListInner::Cons(a, q, _) =>
 					if q.is_empty() {
-						Some((a, CatList::Nil))
+						Some((a, CatList::empty()))
 					} else {
-						// Flatten the deque of sublists into a single CatList
-						let tail = Self::flatten_deque(q);
-						Some((a, tail))
-					}
-				}
+						Some((a, Self::flatten_deque(q)))
+					},
 			}
 		}
 
@@ -1861,7 +2029,7 @@ mod inner {
 		///
 		/// This is equivalent to `foldr link CatNil deque` in PureScript.
 		///
-		/// We use an iterative approach to avoid stack overflow on deeply nested structures.
+		/// Uses a stack-safe right fold (`rfold`) over the deque's `DoubleEndedIterator`.
 		#[document_signature]
 		///
 		#[document_parameters("The deque of sublists to flatten.")]
@@ -1885,7 +2053,7 @@ mod inner {
 		fn flatten_deque(deque: VecDeque<CatList<A>>) -> Self {
 			// Right fold: link(list[0], link(list[1], ... link(list[n-1], Nil)))
 			// We process from right to left using DoubleEndedIterator
-			deque.into_iter().rfold(CatList::Nil, |acc, list| Self::link(list, acc))
+			deque.into_iter().rfold(CatList::empty(), |acc, list| Self::link(list, acc))
 		}
 
 		/// Returns the number of elements.
@@ -1905,9 +2073,49 @@ mod inner {
 		/// assert_eq!(list.len(), 1);
 		/// ```
 		pub fn len(&self) -> usize {
-			match self {
-				CatList::Nil => 0,
-				CatList::Cons(_, _, len) => *len,
+			match &self.0 {
+				CatListInner::Nil => 0,
+				CatListInner::Cons(_, _, len) => *len,
+			}
+		}
+
+		/// Returns a borrowing iterator over the list's elements.
+		///
+		/// This iterator yields shared references without consuming the list,
+		/// using a stack-based depth-first traversal of the internal tree structure.
+		#[document_signature]
+		///
+		#[document_parameters]
+		///
+		#[document_returns("A borrowing iterator over the elements of the list.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let refs: Vec<_> = list.iter().collect();
+		/// assert_eq!(refs, vec![&1, &2, &3]);
+		/// ```
+		pub fn iter(&self) -> CatListIter<'_, A> {
+			match &self.0 {
+				CatListInner::Nil => CatListIter {
+					stack: Vec::new(),
+					current_head: None,
+					remaining: 0,
+				},
+				CatListInner::Cons(a, deque, len) => {
+					let mut stack = Vec::new();
+					if !deque.is_empty() {
+						stack.push(deque.iter());
+					}
+					CatListIter {
+						stack,
+						current_head: Some(a),
+						remaining: *len,
+					}
+				}
 			}
 		}
 
@@ -1999,7 +2207,7 @@ mod inner {
 			f: impl Fn(A, B) -> B,
 			initial: B,
 		) -> B {
-			self.into_iter().collect::<Vec<_>>().into_iter().rev().fold(initial, |acc, x| f(x, acc))
+			self.into_iter().collect::<Vec<_>>().into_iter().rfold(initial, |acc, x| f(x, acc))
 		}
 
 		/// Folds the list from the left.
@@ -2490,6 +2698,151 @@ mod inner {
 			self.0 = tail;
 			Some(head)
 		}
+
+		#[document_signature]
+		#[document_returns(
+			"A lower bound and optional exact upper bound on the number of remaining elements."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let mut iter = list.into_iter();
+		/// assert_eq!(iter.size_hint(), (3, Some(3)));
+		/// let _ = iter.next();
+		/// assert_eq!(iter.size_hint(), (2, Some(2)));
+		/// ```
+		fn size_hint(&self) -> (usize, Option<usize>) {
+			let len = self.0.len();
+			(len, Some(len))
+		}
+	}
+
+	#[document_type_parameters("The type of the elements in the list.")]
+	impl<A> ExactSizeIterator for CatListIterator<A> {}
+
+	/// A borrowing iterator over a `CatList`.
+	///
+	/// This iterator yields shared references to the elements without consuming
+	/// the list. It uses a stack-based depth-first traversal of the internal
+	/// tree structure.
+	#[document_type_parameters(
+		"The lifetime of the elements.",
+		"The type of the elements in the list."
+	)]
+	///
+	pub struct CatListIter<'a, A> {
+		/// Stack of deque iterators for depth-first traversal.
+		stack: Vec<std::collections::vec_deque::Iter<'a, CatList<A>>>,
+		/// The next head element to yield, if any.
+		current_head: Option<&'a A>,
+		/// The number of remaining elements.
+		remaining: usize,
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the elements.",
+		"The type of the elements in the list."
+	)]
+	#[document_parameters("The iterator state.")]
+	impl<'a, A> Iterator for CatListIter<'a, A> {
+		type Item = &'a A;
+
+		#[document_signature]
+		#[document_returns(
+			"A shared reference to the next element in the list, or `None` if the iterator is exhausted."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let mut iter = list.iter();
+		/// assert_eq!(iter.next(), Some(&1));
+		/// assert_eq!(iter.next(), Some(&2));
+		/// assert_eq!(iter.next(), Some(&3));
+		/// assert_eq!(iter.next(), None);
+		/// ```
+		fn next(&mut self) -> Option<Self::Item> {
+			// If we have a head element queued, yield it
+			if let Some(head) = self.current_head.take() {
+				self.remaining -= 1;
+				return Some(head);
+			}
+
+			// Otherwise, pop from the stack until we find a non-empty deque iterator
+			while let Some(deque_iter) = self.stack.last_mut() {
+				if let Some(sublist) = deque_iter.next() {
+					match &sublist.0 {
+						CatListInner::Nil => continue,
+						CatListInner::Cons(a, deque, _) => {
+							// Push the deque's children onto the stack for later traversal
+							if !deque.is_empty() {
+								self.stack.push(deque.iter());
+							}
+							self.remaining -= 1;
+							return Some(a);
+						}
+					}
+				} else {
+					self.stack.pop();
+				}
+			}
+
+			None
+		}
+
+		#[document_signature]
+		#[document_returns(
+			"A lower bound and optional exact upper bound on the number of remaining elements."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let mut iter = list.iter();
+		/// assert_eq!(iter.size_hint(), (3, Some(3)));
+		/// let _ = iter.next();
+		/// assert_eq!(iter.size_hint(), (2, Some(2)));
+		/// ```
+		fn size_hint(&self) -> (usize, Option<usize>) {
+			(self.remaining, Some(self.remaining))
+		}
+	}
+
+	#[document_type_parameters("The type of the elements in the list.")]
+	impl<A> ExactSizeIterator for CatListIter<'_, A> {}
+
+	#[document_type_parameters(
+		"The lifetime of the elements.",
+		"The type of the elements in the list."
+	)]
+	#[document_parameters("The list to borrow.")]
+	impl<'a, A> IntoIterator for &'a CatList<A> {
+		type IntoIter = CatListIter<'a, A>;
+		type Item = &'a A;
+
+		#[document_signature]
+		#[document_returns("A borrowing iterator over the list's elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let list = CatList::singleton(1).snoc(2);
+		/// let refs: Vec<_> = (&list).into_iter().collect();
+		/// assert_eq!(refs, vec![&1, &2]);
+		/// // list is still usable
+		/// assert_eq!(list.len(), 2);
+		/// ```
+		fn into_iter(self) -> Self::IntoIter {
+			self.iter()
+		}
 	}
 
 	// FromIterator for easy construction
@@ -2509,7 +2862,104 @@ mod inner {
 		/// assert_eq!(list.len(), 3);
 		/// ```
 		fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Self {
-			iter.into_iter().fold(CatList::Nil, |acc, a| acc.snoc(a))
+			let mut iter = iter.into_iter();
+			match iter.next() {
+				None => CatList::empty(),
+				Some(first) => {
+					let mut deque = VecDeque::new();
+					let mut count = 1usize;
+					for item in iter {
+						deque.push_back(CatList::singleton(item));
+						count += 1;
+					}
+					CatList(CatListInner::Cons(first, deque, count))
+				}
+			}
+		}
+	}
+
+	// --- Display ---
+
+	#[document_type_parameters("The type of the elements in the list.")]
+	#[document_parameters("The list to display.")]
+	impl<A: fmt::Display> fmt::Display for CatList<A> {
+		/// Displays the list in bracket notation (e.g., `[1, 2, 3]`).
+		///
+		/// An empty list displays as `[]`.
+		#[document_signature]
+		///
+		#[document_parameters("The formatter.")]
+		///
+		#[document_returns("The formatting result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		///
+		/// let empty: CatList<i32> = CatList::empty();
+		/// assert_eq!(format!("{}", empty), "[]");
+		///
+		/// let single = CatList::singleton(42);
+		/// assert_eq!(format!("{}", single), "[42]");
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// assert_eq!(format!("{}", list), "[1, 2, 3]");
+		/// ```
+		fn fmt(
+			&self,
+			f: &mut fmt::Formatter<'_>,
+		) -> fmt::Result {
+			f.write_str("[")?;
+			let mut first = true;
+			for item in self.iter() {
+				if first {
+					first = false;
+				} else {
+					f.write_str(", ")?;
+				}
+				fmt::Display::fmt(item, f)?;
+			}
+			f.write_str("]")
+		}
+	}
+
+	// --- Drop ---
+
+	#[document_type_parameters("The type of the elements in the list.")]
+	#[document_parameters("The list to drop.")]
+	impl<A> Drop for CatList<A> {
+		#[document_signature]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::cat_list::CatList;
+		/// {
+		/// 	let _list = CatList::singleton(1).snoc(2).snoc(3);
+		/// } // drop called here
+		/// assert!(true);
+		/// ```
+		fn drop(&mut self) {
+			let mut worklist: Vec<VecDeque<CatList<A>>> = Vec::new();
+
+			// Take the current node's children, if any.
+			if let CatListInner::Cons(_, deque, _) = &mut self.0
+				&& !deque.is_empty()
+			{
+				worklist.push(std::mem::take(deque));
+			}
+
+			while let Some(mut deque) = worklist.pop() {
+				for mut child in deque.drain(..) {
+					if let CatListInner::Cons(_, inner_deque, _) = &mut child.0
+						&& !inner_deque.is_empty()
+					{
+						worklist.push(std::mem::take(inner_deque));
+					}
+					// child is now Cons(a, empty_deque, _) or Nil,
+					// which drops without recursion.
+				}
+			}
 		}
 	}
 }
@@ -3310,5 +3760,248 @@ mod tests {
 				_ => return false,
 			}
 		}
+	}
+
+	/// Tests that the borrowing iterator yields the same elements as the consuming iterator.
+	#[test]
+	fn test_borrowing_iter_matches_consuming_iter() {
+		let list = CatList::singleton(1).snoc(2).snoc(3).append(CatList::singleton(4).snoc(5));
+		let borrowed: Vec<_> = list.iter().collect();
+		let owned: Vec<_> = list.clone().into_iter().collect();
+		assert_eq!(borrowed.len(), owned.len());
+		for (b, o) in borrowed.iter().zip(owned.iter()) {
+			assert_eq!(*b, o);
+		}
+	}
+
+	/// Tests the borrowing iterator on an empty list.
+	#[test]
+	fn test_borrowing_iter_empty() {
+		let list: CatList<i32> = CatList::empty();
+		let borrowed: Vec<_> = list.iter().collect();
+		assert!(borrowed.is_empty());
+	}
+
+	/// Tests the borrowing iterator on a singleton list.
+	#[test]
+	fn test_borrowing_iter_singleton() {
+		let list = CatList::singleton(42);
+		let borrowed: Vec<_> = list.iter().collect();
+		assert_eq!(borrowed, vec![&42]);
+	}
+
+	/// Tests ExactSizeIterator for the consuming iterator.
+	#[test]
+	fn test_consuming_iter_exact_size() {
+		let list: CatList<_> = (0 .. 5).collect();
+		let iter = list.into_iter();
+		assert_eq!(iter.len(), 5);
+	}
+
+	/// Tests ExactSizeIterator for the borrowing iterator.
+	#[test]
+	fn test_borrowing_iter_exact_size() {
+		let list: CatList<_> = (0 .. 5).collect();
+		let iter = list.iter();
+		assert_eq!(iter.len(), 5);
+	}
+
+	/// Property: borrowing iterator produces same elements as consuming iterator.
+	#[quickcheck]
+	fn prop_borrowing_iter_matches_consuming(xs: Vec<i32>) -> bool {
+		let list: CatList<_> = xs.into_iter().collect();
+		let borrowed: Vec<_> = list.iter().copied().collect();
+		let owned: Vec<_> = list.into_iter().collect();
+		borrowed == owned
+	}
+
+	/// Property: borrowing iterator size_hint is exact.
+	#[quickcheck]
+	fn prop_borrowing_iter_size_hint(xs: Vec<i32>) -> bool {
+		let list: CatList<_> = xs.into_iter().collect();
+		let iter = list.iter();
+		let (lo, hi) = iter.size_hint();
+		lo == list.len() && hi == Some(list.len())
+	}
+
+	/// Tests that dropping a deeply nested `CatList` does not overflow the stack.
+	///
+	/// A right-associated chain of appends creates deep nesting in the sublist
+	/// deques. Without the iterative `Drop` implementation, this would cause a
+	/// stack overflow from recursive destructor calls.
+	#[test]
+	fn test_deep_drop_does_not_overflow_stack() {
+		let depth = 100_000;
+		let mut list = CatList::singleton(0);
+		for i in 1 .. depth {
+			// Right-associated: each append nests the accumulator inside a new node's deque.
+			list = CatList::singleton(i).append(list);
+		}
+		assert_eq!(list.len(), depth);
+		// Dropping `list` here exercises the iterative Drop implementation.
+		drop(list);
+	}
+
+	// MonadRec tests
+
+	/// Tests the MonadRec identity law: `tail_rec_m(|a| pure(Done(a)), x) == pure(x)`.
+	#[quickcheck]
+	fn monad_rec_identity(x: i32) -> bool {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		let result: Vec<_> =
+			tail_rec_m::<CatListBrand, _, _>(|a| CatList::singleton(ControlFlow::Break(a)), x)
+				.into_iter()
+				.collect();
+		let expected: Vec<_> = CatList::singleton(x).into_iter().collect();
+		result == expected
+	}
+
+	/// Tests a recursive computation that sums a range via `tail_rec_m`.
+	#[test]
+	fn monad_rec_sum_range() {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		// Sum numbers from 1 to 100: tail_rec_m with accumulator
+		let result = tail_rec_m::<CatListBrand, _, _>(
+			|(n, acc)| {
+				if n > 100 {
+					CatList::singleton(ControlFlow::Break(acc))
+				} else {
+					CatList::singleton(ControlFlow::Continue((n + 1, acc + n)))
+				}
+			},
+			(1i64, 0i64),
+		);
+		let vec: Vec<_> = result.into_iter().collect();
+		assert_eq!(vec, vec![5050]);
+	}
+
+	/// Tests that `tail_rec_m` is stack-safe with 200,000 iterations.
+	#[test]
+	fn monad_rec_stack_safety() {
+		use {
+			crate::classes::monad_rec::tail_rec_m,
+			core::ops::ControlFlow,
+		};
+		let iterations = 200_000i64;
+		let result = tail_rec_m::<CatListBrand, _, _>(
+			|n| {
+				if n >= iterations {
+					CatList::singleton(ControlFlow::Break(n))
+				} else {
+					CatList::singleton(ControlFlow::Continue(n + 1))
+				}
+			},
+			0i64,
+		);
+		let vec: Vec<_> = result.into_iter().collect();
+		assert_eq!(vec, vec![iterations]);
+	}
+
+	// --- Display tests ---
+
+	/// Tests `Display` for an empty list.
+	#[test]
+	fn test_cat_list_display_empty() {
+		let list: CatList<i32> = CatList::empty();
+		assert_eq!(format!("{}", list), "[]");
+	}
+
+	/// Tests `Display` for a singleton list.
+	#[test]
+	fn test_cat_list_display_singleton() {
+		let list = CatList::singleton(42);
+		assert_eq!(format!("{}", list), "[42]");
+	}
+
+	/// Tests `Display` for a multi-element list.
+	#[test]
+	fn test_cat_list_display_multiple() {
+		let list = CatList::singleton(1).snoc(2).snoc(3);
+		assert_eq!(format!("{}", list), "[1, 2, 3]");
+	}
+
+	/// Tests `Display` for a list built by appending two lists.
+	#[test]
+	fn test_cat_list_display_appended() {
+		let left = CatList::singleton(1).snoc(2);
+		let right = CatList::singleton(3).snoc(4);
+		let list = left.append(right);
+		assert_eq!(format!("{}", list), "[1, 2, 3, 4]");
+	}
+
+	/// Tests `Display` for a list of strings.
+	#[test]
+	fn test_cat_list_display_strings() {
+		let list = CatList::singleton("hello".to_string()).snoc("world".to_string());
+		assert_eq!(format!("{}", list), "[hello, world]");
+	}
+
+	// --- Extend tests ---
+
+	/// Tests basic `extend` on `CatList`: sum of suffixes.
+	#[test]
+	fn extend_sum_of_suffixes() {
+		use crate::classes::extend::extend;
+		let list = CatList::singleton(1).snoc(2).snoc(3);
+		let result =
+			extend::<CatListBrand, _, _>(|cl: CatList<i32>| cl.into_iter().sum::<i32>(), list);
+		let vec: Vec<_> = result.into_iter().collect();
+		assert_eq!(vec, vec![6, 5, 3]);
+	}
+
+	/// Extend associativity: `extend(f, extend(g, w)) == extend(|w| f(extend(g, w)), w)`.
+	#[test]
+	fn extend_associativity() {
+		use crate::classes::extend::extend;
+		let g = |cl: CatList<i32>| cl.into_iter().map(|x| x * 2).sum::<i32>();
+		let f = |cl: CatList<i32>| cl.into_iter().map(|x| x + 1).sum::<i32>();
+		let w = CatList::singleton(1).snoc(2).snoc(3);
+		let lhs = extend::<CatListBrand, _, _>(f, extend::<CatListBrand, _, _>(g, w.clone()));
+		let rhs = extend::<CatListBrand, _, _>(
+			|w: CatList<i32>| f(extend::<CatListBrand, _, _>(g, w)),
+			w,
+		);
+		let lhs_vec: Vec<_> = lhs.into_iter().collect();
+		let rhs_vec: Vec<_> = rhs.into_iter().collect();
+		assert_eq!(lhs_vec, rhs_vec);
+	}
+
+	/// Tests that `duplicate` produces suffixes.
+	#[test]
+	fn extend_duplicate_suffixes() {
+		use crate::classes::extend::duplicate;
+		let list = CatList::singleton(1).snoc(2).snoc(3);
+		let result = duplicate::<CatListBrand, _>(list);
+		let vecs: Vec<Vec<_>> = result.into_iter().map(|cl| cl.into_iter().collect()).collect();
+		assert_eq!(vecs, vec![vec![1, 2, 3], vec![2, 3], vec![3]]);
+	}
+
+	/// Tests `extend` on an empty list.
+	#[test]
+	fn extend_empty() {
+		use crate::classes::extend::extend;
+		let result = extend::<CatListBrand, _, _>(
+			|cl: CatList<i32>| cl.into_iter().sum::<i32>(),
+			CatList::empty(),
+		);
+		assert!(result.is_empty());
+	}
+
+	/// Tests `extend` on a singleton list.
+	#[test]
+	fn extend_singleton() {
+		use crate::classes::extend::extend;
+		let result = extend::<CatListBrand, _, _>(
+			|cl: CatList<i32>| cl.into_iter().sum::<i32>(),
+			CatList::singleton(42),
+		);
+		let vec: Vec<_> = result.into_iter().collect();
+		assert_eq!(vec, vec![42]);
 	}
 }
