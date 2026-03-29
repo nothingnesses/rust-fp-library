@@ -84,7 +84,6 @@ mod inner {
 		std::{
 			any::Any,
 			marker::PhantomData,
-			mem::ManuallyDrop,
 		},
 	};
 
@@ -211,14 +210,12 @@ mod inner {
 		F: Evaluable + 'static,
 		A: 'static,
 	{
-		/// Consumes `self` by value and returns the view and continuations
-		/// without running the custom `Drop` implementation.
+		/// Extracts the view and continuations, leaving `self` in a consumed
+		/// state (view `None`, continuations empty).
 		///
-		/// Uses `ManuallyDrop` to suppress the destructor, then reads the
-		/// fields out via `std::ptr::read`. This is safe because:
-		/// 1. `ManuallyDrop` guarantees the destructor will not run.
-		/// 2. The fields are read exactly once and the `ManuallyDrop` wrapper
-		///    is never accessed again afterward.
+		/// Uses `Option::take` for the view and `std::mem::take` for the
+		/// continuations, both of which leave valid sentinel values behind.
+		/// The custom `Drop` implementation handles the consumed state correctly.
 		#[document_signature]
 		#[document_returns("A tuple of the view and continuation queue, moved out of this `Free`.")]
 		#[document_examples]
@@ -229,19 +226,14 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// // `into_parts` is internal; `evaluate` is the public API that uses it.
+		/// // `take_parts` is internal; `evaluate` is the public API that uses it.
 		/// let free = Free::<ThunkBrand, _>::pure(42);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
-		fn into_parts(self) -> (Option<FreeView<F>>, CatList<Continuation<F>>) {
-			let md = ManuallyDrop::new(self);
-			// SAFETY: We own the value (it was moved into ManuallyDrop), and we
-			// read each field exactly once. The ManuallyDrop prevents double-drop.
-			unsafe {
-				let view = std::ptr::read(&md.view);
-				let conts = std::ptr::read(&md.continuations);
-				(view, conts)
-			}
+		fn take_parts(&mut self) -> (Option<FreeView<F>>, CatList<Continuation<F>>) {
+			let view = self.view.take();
+			let conts = std::mem::take(&mut self.continuations);
+			(view, conts)
 		}
 
 		/// Changes the phantom type parameter without adding any continuations.
@@ -265,8 +257,8 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(42).bind(|x| Free::pure(x + 1));
 		/// assert_eq!(free.evaluate(), 43);
 		/// ```
-		fn cast_phantom<B: 'static>(self) -> Free<F, B> {
-			let (view, conts) = self.into_parts();
+		fn cast_phantom<B: 'static>(mut self) -> Free<F, B> {
+			let (view, conts) = self.take_parts();
 			Free {
 				view,
 				continuations: conts,
@@ -398,7 +390,7 @@ mod inner {
 		/// assert_eq!(free.evaluate(), 43);
 		/// ```
 		pub fn bind<B: 'static>(
-			self,
+			mut self,
 			f: impl FnOnce(A) -> Free<F, B> + 'static,
 		) -> Free<F, B> {
 			// Type-erase the continuation
@@ -416,7 +408,7 @@ mod inner {
 
 			// Uniformly O(1): just move the view and snoc the continuation.
 			// The view is already type-erased, so it can be moved directly.
-			let (view, conts) = self.into_parts();
+			let (view, conts) = self.take_parts();
 			Free {
 				view,
 				continuations: conts.snoc(erased_f),
@@ -486,9 +478,9 @@ mod inner {
 		/// ```
 		#[allow(clippy::expect_used)]
 		pub fn resume(
-			self
+			mut self
 		) -> Result<A, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)> {
-			let (view, continuations) = self.into_parts();
+			let (view, continuations) = self.take_parts();
 
 			// INVARIANT: Free values are used exactly once; double consumption indicates a bug
 			let mut current_view = view.expect("Free value already consumed");
@@ -499,8 +491,8 @@ mod inner {
 					FreeView::Return(val) => {
 						match conts.uncons() {
 							Some((continuation, rest)) => {
-								let next = continuation(val);
-								let (next_view, next_conts) = next.into_parts();
+								let mut next = continuation(val);
+								let (next_view, next_conts) = next.take_parts();
 								// INVARIANT: continuation returns a valid Free
 								current_view =
 									next_view.expect("Free value already consumed (continuation)");
@@ -536,12 +528,12 @@ mod inner {
 						// Use Cell to move the CatList into the Fn closure (called exactly once).
 						let remaining = std::cell::Cell::new(Some(all_conts));
 						let typed_fa = F::map(
-							move |inner_free: Free<F, TypeErasedValue>| {
+							move |mut inner_free: Free<F, TypeErasedValue>| {
 								// INVARIANT: functors call map exactly once per element
 								let conts_for_inner = remaining
 									.take()
 									.expect("Free::resume map called more than once");
-								let (v, c) = inner_free.into_parts();
+								let (v, c) = inner_free.take_parts();
 								Free {
 									view: v,
 									continuations: c.append(conts_for_inner),
@@ -725,8 +717,8 @@ mod inner {
 		/// let erased = free.erase_type();
 		/// assert!(erased.evaluate().is::<i32>());
 		/// ```
-		pub fn erase_type(self) -> Free<F, TypeErasedValue> {
-			let (view, conts) = self.into_parts();
+		pub fn erase_type(mut self) -> Free<F, TypeErasedValue> {
+			let (view, conts) = self.take_parts();
 			// Append a continuation that re-boxes the value so that the outer
 			// phantom type (TypeErasedValue = Box<dyn Any>) matches the stored
 			// type. Without this, evaluate would try to downcast Box<dyn Any>
@@ -781,8 +773,8 @@ mod inner {
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
 		#[allow(clippy::expect_used)]
-		pub fn evaluate(self) -> A {
-			let (view, continuations) = self.into_parts();
+		pub fn evaluate(mut self) -> A {
+			let (view, continuations) = self.take_parts();
 
 			// INVARIANT: Free values are used exactly once; double consumption indicates a bug
 			let mut current_view = view.expect("Free value already consumed");
@@ -793,8 +785,8 @@ mod inner {
 					FreeView::Return(val) => {
 						match conts.uncons() {
 							Some((continuation, rest)) => {
-								let next = continuation(val);
-								let (next_view, next_conts) = next.into_parts();
+								let mut next = continuation(val);
+								let (next_view, next_conts) = next.take_parts();
 								// INVARIANT: continuation returns a valid Free
 								current_view =
 									next_view.expect("Free value already consumed (continuation)");
@@ -813,8 +805,8 @@ mod inner {
 
 					FreeView::Suspend(fa) => {
 						// Run the effect to get the inner Free
-						let inner: Free<F, TypeErasedValue> = <F as Evaluable>::evaluate(fa);
-						let (inner_view, inner_conts) = inner.into_parts();
+						let mut inner: Free<F, TypeErasedValue> = <F as Evaluable>::evaluate(fa);
+						let (inner_view, inner_conts) = inner.take_parts();
 						// INVARIANT: evaluated Free is valid
 						current_view =
 							inner_view.expect("Free value already consumed (evaluate suspend)");
