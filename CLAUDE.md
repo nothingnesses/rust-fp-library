@@ -19,8 +19,7 @@ All commands must be run via `just` recipes defined in the project's `justfile`.
 ### Formatting & Linting
 
 ```bash
-just fmt --all                              # Format code (rustfmt)
-just fmt --all -- --check                   # Check formatting
+just fmt                                        # Format all files (Rust, Nix, Markdown, YAML, TOML)
 just clippy --workspace --all-features      # Run clippy
 ```
 
@@ -72,7 +71,7 @@ just verify    # Runs all four steps in order
 Or individually:
 
 ```bash
-just fmt --all
+just fmt
 just clippy --workspace --all-features
 just doc --workspace --all-features --no-deps
 just test
@@ -91,12 +90,14 @@ This repository has rust-analyzer configured via MCP (Model Context Protocol). C
 - **Call hierarchy** - Analyze caller/callee relationships with `operation: "prepareCallHierarchy"`, `"incomingCalls"`, `"outgoingCalls"`
 
 **When to use:** The LSP tool is especially valuable in this codebase due to:
+
 1. Complex HKT machinery with Brand types and associated types
 2. Heavy use of generic type parameters and trait bounds
 3. Profunctor encodings in the optics system
 4. Type-level programming that can be hard to trace manually
 
 **Example:**
+
 ```
 LSP with operation="hover", filePath="fp-library/src/types/optics/lens.rs", line=42, character=15
 ```
@@ -110,6 +111,7 @@ This provides rich type information that helps understand the library's complex 
 The library implements HKT using type-level defunctionalization. Each type constructor (e.g., `Option<T>`) has a corresponding `Brand` type (e.g., `OptionBrand`) that acts as a witness for the `Kind` trait mapping.
 
 **Example:**
+
 ```rust
 pub struct OptionBrand;
 impl_kind! {
@@ -120,6 +122,7 @@ impl_kind! {
 ```
 
 **Key Locations:**
+
 - `fp-library/src/brands.rs` - All brand types centralized here (leaf nodes in dependency graph)
 - `fp-library/src/kinds.rs` - `Kind` trait definitions and type application machinery
 - `fp-macros/src/hkt/` - Procedural macros (`trait_kind!`, `impl_kind!`, `Apply!`)
@@ -144,11 +147,13 @@ The library uses a unified pointer hierarchy to abstract over reference counting
 - `SendRefCountedPointer` - Adds `Send + Sync` (implemented by `ArcBrand` only)
 
 **Function Brands:**
+
 - `FnBrand<P>` is parameterized over a pointer brand `P`
 - `RcFnBrand` = `FnBrand<RcBrand>` (single-threaded, `!Send`)
 - `ArcFnBrand` = `FnBrand<ArcBrand>` (thread-safe, `Send + Sync`)
 
 **Thread Safety:** For parallel operations, use extension traits:
+
 - `SendCloneableFn` - Thread-safe function wrappers
 - `ParFoldable` - Parallel folding (enabled with `rayon` feature)
 
@@ -156,30 +161,30 @@ The library uses a unified pointer hierarchy to abstract over reference counting
 
 The hierarchy consists of infallible computation types, fallible counterparts, and the `Free` monad infrastructure. Each type makes different trade-offs around stack safety, memoization, lifetimes, and thread safety.
 
-| Type | Underlying | HKT | Stack Safe | Memoized | Lifetimes | Send |
-|------|-----------|-----|-----------|----------|-----------|------|
-| `Thunk<'a, A>` | `Box<dyn FnOnce() -> A + 'a>` | Yes (full) | Partial (`tail_rec_m` only) | No | `'a` | No |
-| `SendThunk<'a, A>` | `Box<dyn FnOnce() -> A + Send + 'a>` | No | No | No | `'a` | Yes |
-| `Trampoline<A>` | `Free<ThunkBrand, A>` | No | Yes | No | `'static` | No |
-| `RcLazy<'a, A>` | `Rc<LazyCell<A, ...>>` | Partial (`RefFunctor`) | N/A | Yes | `'a` | No |
-| `ArcLazy<'a, A>` | `Arc<LazyLock<A, ...>>` | Partial (`SendRefFunctor`) | N/A | Yes | `'a` | Yes |
-| `TryThunk<'a, A, E>` | `Thunk<'a, Result<A, E>>` | Yes (full) | Partial (`tail_rec_m` only) | No | `'a` | No |
-| `TrySendThunk<'a, A, E>` | `SendThunk<'a, Result<A, E>>` | No | No | No | `'a` | Yes |
-| `TryTrampoline<A, E>` | `Trampoline<Result<A, E>>` | No | Yes | No | `'static` | No |
-| `RcTryLazy<'a, A, E>` | `Rc<LazyCell<Result<A, E>, ...>>` | Partial (`RefFunctor`, `Foldable`) | N/A | Yes | `'a` | No |
-| `ArcTryLazy<'a, A, E>` | `Arc<LazyLock<Result<A, E>, ...>>` | Partial (`SendRefFunctor`, `Foldable`) | N/A | Yes | `'a` | Yes |
-| `Free<F, A>` | CatList-based "Reflection without Remorse" | No | Yes | No | `'static` | No |
+| Type                     | Underlying                                 | HKT                                    | Stack Safe                  | Memoized | Lifetimes | Send |
+| ------------------------ | ------------------------------------------ | -------------------------------------- | --------------------------- | -------- | --------- | ---- |
+| `Thunk<'a, A>`           | `Box<dyn FnOnce() -> A + 'a>`              | Yes (full)                             | Partial (`tail_rec_m` only) | No       | `'a`      | No   |
+| `SendThunk<'a, A>`       | `Box<dyn FnOnce() -> A + Send + 'a>`       | No                                     | No                          | No       | `'a`      | Yes  |
+| `Trampoline<A>`          | `Free<ThunkBrand, A>`                      | No                                     | Yes                         | No       | `'static` | No   |
+| `RcLazy<'a, A>`          | `Rc<LazyCell<A, ...>>`                     | Partial (`RefFunctor`)                 | N/A                         | Yes      | `'a`      | No   |
+| `ArcLazy<'a, A>`         | `Arc<LazyLock<A, ...>>`                    | Partial (`SendRefFunctor`)             | N/A                         | Yes      | `'a`      | Yes  |
+| `TryThunk<'a, A, E>`     | `Thunk<'a, Result<A, E>>`                  | Yes (full)                             | Partial (`tail_rec_m` only) | No       | `'a`      | No   |
+| `TrySendThunk<'a, A, E>` | `SendThunk<'a, Result<A, E>>`              | No                                     | No                          | No       | `'a`      | Yes  |
+| `TryTrampoline<A, E>`    | `Trampoline<Result<A, E>>`                 | No                                     | Yes                         | No       | `'static` | No   |
+| `RcTryLazy<'a, A, E>`    | `Rc<LazyCell<Result<A, E>, ...>>`          | Partial (`RefFunctor`, `Foldable`)     | N/A                         | Yes      | `'a`      | No   |
+| `ArcTryLazy<'a, A, E>`   | `Arc<LazyLock<Result<A, E>, ...>>`         | Partial (`SendRefFunctor`, `Foldable`) | N/A                         | Yes      | `'a`      | Yes  |
+| `Free<F, A>`             | CatList-based "Reflection without Remorse" | No                                     | Yes                         | No       | `'static` | No   |
 
 Supporting traits:
 
-| Trait | Purpose | Implementors in hierarchy |
-|-------|---------|--------------------------|
-| `Deferrable<'a>` | Lazy construction from thunk | `Thunk`, `SendThunk`, `Trampoline`, `RcLazy`, `ArcLazy`, `RcTryLazy`, `ArcTryLazy`, `TryThunk`, `TrySendThunk`, `Free<ThunkBrand, A>` |
-| `SendDeferrable<'a>` | Thread-safe lazy construction (extends `Deferrable`) | `SendThunk`, `TrySendThunk`, `ArcLazy`, `ArcTryLazy` |
-| `RefFunctor` | Mapping with `&A` input | `LazyBrand<RcLazyConfig>`, `TryLazyBrand<E, RcLazyConfig>` |
-| `SendRefFunctor` | Thread-safe mapping with `&A` input | `LazyBrand<ArcLazyConfig>`, `TryLazyBrand<E, ArcLazyConfig>` |
-| `LazyConfig` | Infallible memoization strategy (pointer + cell choice) | `RcLazyConfig`, `ArcLazyConfig` |
-| `TryLazyConfig` | Fallible memoization strategy (extends `LazyConfig`) | `RcLazyConfig`, `ArcLazyConfig` |
+| Trait                | Purpose                                                 | Implementors in hierarchy                                                                                                             |
+| -------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `Deferrable<'a>`     | Lazy construction from thunk                            | `Thunk`, `SendThunk`, `Trampoline`, `RcLazy`, `ArcLazy`, `RcTryLazy`, `ArcTryLazy`, `TryThunk`, `TrySendThunk`, `Free<ThunkBrand, A>` |
+| `SendDeferrable<'a>` | Thread-safe lazy construction (extends `Deferrable`)    | `SendThunk`, `TrySendThunk`, `ArcLazy`, `ArcTryLazy`                                                                                  |
+| `RefFunctor`         | Mapping with `&A` input                                 | `LazyBrand<RcLazyConfig>`, `TryLazyBrand<E, RcLazyConfig>`                                                                            |
+| `SendRefFunctor`     | Thread-safe mapping with `&A` input                     | `LazyBrand<ArcLazyConfig>`, `TryLazyBrand<E, ArcLazyConfig>`                                                                          |
+| `LazyConfig`         | Infallible memoization strategy (pointer + cell choice) | `RcLazyConfig`, `ArcLazyConfig`                                                                                                       |
+| `TryLazyConfig`      | Fallible memoization strategy (extends `LazyConfig`)    | `RcLazyConfig`, `ArcLazyConfig`                                                                                                       |
 
 **Pattern:** Use `Trampoline` for stack-safe recursion, wrap in `Lazy` for memoization, use `Thunk` for lightweight views. Use `SendThunk` when the deferred computation must cross thread boundaries without eager evaluation.
 
@@ -188,6 +193,7 @@ Supporting traits:
 Optics are implemented using profunctor encoding for type-safe composition:
 
 **Key Files:**
+
 - `fp-library/src/types/optics/base.rs` - Core optic type definitions
 - `fp-library/src/types/optics/lens.rs` - Lens (fully polymorphic S→T, A→B)
 - `fp-library/src/types/optics/prism.rs` - Prism (sum type variants)
@@ -195,6 +201,7 @@ Optics are implemented using profunctor encoding for type-safe composition:
 - `fp-library/src/types/optics/traversal.rs` - Traversal (multiple foci)
 
 **Internal Profunctors:**
+
 - `Exchange` - For isomorphisms (forward/backward functions)
 - `Market` - For prisms (matching/construction)
 - `Forget` - For getters/folds
@@ -207,17 +214,28 @@ Optics are implemented using profunctor encoding for type-safe composition:
 ### Formatting
 
 The codebase uses custom rustfmt rules (`rustfmt.toml`):
+
 - Hard tabs (`\t`) for indentation
 - Vertical layout for function parameters and imports
 - Grouped imports by `StdExternalCrate`
 - Single import per line (`imports_granularity = "One"`)
 
-**Always run `just fmt --all` before committing.**
+**Always run `just fmt` before committing.** A pre-commit hook also runs treefmt automatically.
+
+### No Emoji or Unicode
+
+Never use emoji or unicode symbols in code, comments, or documentation. Use plain text and ASCII equivalents:
+
+- Status markers: `Yes`, `No`, `Partial`, `N/A` (not checkmarks or crosses).
+- Arrows: `->`, `<-`, `<->` (not unicode arrows).
+- Math: `>=`, `<=`, `!=` (not unicode math symbols).
+- Section dividers: `// -- Section name --` (not box-drawing characters).
 
 ### Documentation Standards
 
 Functions must include:
-```rust
+
+````rust
 /// Short description.
 ///
 /// Comprehensive explanation.
@@ -239,11 +257,12 @@ Functions must include:
 /// ```
 /// // Code showing function usage and containing assertions about expected outputs using assertion macros.
 /// ```
-```
+````
 
 ### Commit Message Style
 
 When creating commits:
+
 1. Use imperative mood ("Add feature" not "Added feature")
 2. Keep first line under 70 characters
 3. Follow existing commit message patterns in `git log`
@@ -271,6 +290,7 @@ When creating commits:
 ### Working with Optics
 
 When modifying optics code:
+
 - Optics use profunctor encoding - understand `Profunctor`, `Strong`, `Choice` traits
 - Internal profunctors (Exchange, Market, etc.) are in `types/optics/`
 - Many optics currently hard-code `Rc` usage - refactor to use `FnBrand<P>` for parameterization
@@ -279,6 +299,7 @@ When modifying optics code:
 ### Thread-Safe Operations
 
 For parallel/concurrent code:
+
 1. Use `ArcFnBrand` instead of `RcFnBrand`
 2. Use `SendCloneableFn` trait instead of `CloneableFn`
 3. Use `ParFoldable` trait for parallel folding (requires `rayon` feature)

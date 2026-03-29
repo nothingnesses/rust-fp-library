@@ -20,7 +20,7 @@ name = "benchmarks"
 [dependencies]
 fp-macros = { path = "../fp-macros", version = "0.6" }
 rayon = { version = "1.11", optional = true }
-serde = { version = "1.0", optional = true, features = ["derive"] }
+serde = { version = "1.0", features = ["derive"], optional = true }
 thiserror = "2.0"
 
 [dev-dependencies]
@@ -29,12 +29,12 @@ quickcheck = "1.0"
 quickcheck_macros = "1.1"
 trybuild = "1.0"
 
-[lints]
-workspace = true
-
 [features]
 default = []
 # Enable parallel folding operations using Rayon
 rayon = ["dep:rayon"]
 # Enable serde serialization/deserialization for pure data types
 serde = ["dep:serde"]
+
+[lints]
+workspace = true

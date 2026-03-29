@@ -57,7 +57,7 @@
 //! 	types::*,
 //! };
 //!
-//! // ✅ CAN DO: Stack-safe recursion
+//! // Stack-safe recursion
 //! let free = Free::<ThunkBrand, _>::pure(42).bind(|x| Free::pure(x + 1));
 //! ```
 
@@ -228,7 +228,7 @@ mod inner {
 		_marker: PhantomData<A>,
 	}
 
-	// ── Construction and composition ──────────────────────────────────
+	// -- Construction and composition --
 	//
 	// Methods in this block only need `F: 'static` in principle; they
 	// never call `Functor::map` or `Extract::extract`. The `Extract +
@@ -472,7 +472,7 @@ mod inner {
 		}
 	}
 
-	// ── Functor-dependent operations ──────────────────────────────────
+	// -- Functor-dependent operations --
 	//
 	// Methods in this block call `Functor::map` (`F::map`) and thus
 	// require `F: Functor`. They do NOT call `Extract::extract`; the
@@ -921,7 +921,7 @@ mod inner {
 		}
 	}
 
-	// ── Evaluation (requires Extract) ─────────────────────────────────
+	// -- Evaluation (requires Extract) --
 	//
 	// This method calls `Extract::extract` and thus genuinely requires
 	// `F: Extract + Functor`. The `Drop` implementation also needs
@@ -1360,7 +1360,7 @@ mod tests {
 		assert_eq!(free.evaluate(), 10_000);
 	}
 
-	// ── Monad law tests (Task 6.2h) ──
+	// -- Monad law tests (Task 6.2h) --
 
 	/// Tests monad left identity law for `Free`.
 	///
@@ -1493,7 +1493,7 @@ mod tests {
 		assert_eq!(lhs, 19); // ((10 + 1) * 2) - 3
 	}
 
-	// ── Mixed deep chain tests (Task 6.2i) ──
+	// -- Mixed deep chain tests (Task 6.2i) --
 
 	/// Tests interleaved `bind` and `wrap` in a deep chain.
 	///
@@ -1634,7 +1634,7 @@ mod tests {
 		drop(free);
 	}
 
-	// ── hoist_free tests ──
+	// -- hoist_free tests --
 
 	/// An identity natural transformation from `ThunkBrand` to `ThunkBrand`.
 	///
@@ -1758,7 +1758,7 @@ mod tests {
 		assert_eq!(hoisted.evaluate(), 42);
 	}
 
-	// ── to_view tests ──
+	// -- to_view tests --
 
 	/// Tests `Free::to_view` on a pure value.
 	///
@@ -1866,7 +1866,7 @@ mod tests {
 		assert_eq!(free.evaluate(), 30);
 	}
 
-	// ── substitute_free tests ──
+	// -- substitute_free tests --
 
 	/// Tests `substitute_free` with an identity-like substitution.
 	///

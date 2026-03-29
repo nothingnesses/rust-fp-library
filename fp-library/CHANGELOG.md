@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.13.1] - 2026-03-14
 
 ### Changed
+
 - **`#[kind]` attribute migration**: All 15 type class traits migrated from raw `Kind_*` supertraits to `#[kind(type Of<'a, A: 'a>: 'a;)]` attribute annotations. The generated supertrait bounds are identical; this is a source-level readability improvement only.
 - **Rustdoc link improvements**: Doc comments updated to use `Kind!(...)` rustdoc links instead of raw `Kind_*` trait names for better documentation readability.
 - **Native field documentation**: Replaced all `#[document_fields]` usages with native `///` doc comments directly on struct fields and enum variants across 12 types (`CatListIterator`, `Endofunction`, `Endomorphism`, `Identity`, `Lazy`, `Pair`, `Thunk`, `Trampoline`, `TryLazy`, `TryThunk`, `TryTrampoline`, `FreeInner`).
@@ -17,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.13.0] - 2026-03-13
 
 ### Added
+
 - **`WithIndex` supertrait**: New trait encoding the functional dependency `f -> i` from PureScript, providing an associated `Index` type that uniquely determines the index type for a brand. Prevents inconsistent index types across `FunctorWithIndex`, `FoldableWithIndex`, and `TraversableWithIndex` for the same brand.
 - **Parallel trait hierarchy**: A full set of parallel type classes mirroring the sequential ones, all accepting plain `impl Fn + Send + Sync` closures with no wrapper types required:
   - `ParFunctor` with `par_map`.
@@ -29,11 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Inherent parallel methods** on `Vec` and `CatList`: `par_map`, `par_compact`, `par_separate`, `par_filter_map`, `par_filter`, `par_fold_map`, `par_map_with_index`, `par_fold_map_with_index`.
 
 ### Changed
+
 - **`ParFoldable` redesigned (API Breaking)**: The trait now accepts plain `impl Fn(A) -> M + Send + Sync` closures instead of requiring `SendCloneableFn` wrapper types and an `FnBrand` type parameter. The `A: Clone` bound has been removed, and `M: Sync` relaxed to `M: Send`. The `Foldable` supertrait requirement has been replaced with `Kind`.
 - **`*WithIndex` traits refactored (API Breaking)**: `FunctorWithIndex`, `FoldableWithIndex`, and `TraversableWithIndex` no longer take a generic index type parameter `<I>`. Instead, the index type is obtained from the `WithIndex` supertrait's associated `Index` type. Trait bounds like `Brand: FunctorWithIndex<usize>` become `Brand: FunctorWithIndex<Index = usize>`.
 - **Indexed optics trait bounds updated**: All indexed optic constructors updated from `FunctorWithIndex<I>` / `FoldableWithIndex<I>` / `TraversableWithIndex<I>` bounds to use associated type equality (e.g., `FoldableWithIndex<Index = I>`).
 
 ### Removed
+
 - **`par_fold_right` (API Breaking)**: Removed `ParFoldable::par_fold_right` method and its free function. The endofunction encoding required for a general right fold has a sequential application step, making it not genuinely parallel. Use `par_fold_map` with a commutative `Monoid` instead.
 - **`SendEndofunction` (API Breaking)**: Removed the thread-safe endofunction wrapper type and its module. This type was used internally by the removed `par_fold_right`.
 - **`ParFoldable` implementations for single-element types (API Breaking)**: Removed from `IdentityBrand`, `OptionBrand`, `PairFirstAppliedBrand`, `PairSecondAppliedBrand`, `ResultErrAppliedBrand`, `ResultOkAppliedBrand`, `Tuple1Brand`, `Tuple2FirstAppliedBrand`, `Tuple2SecondAppliedBrand`, `StepLoopAppliedBrand`, and `StepDoneAppliedBrand`, where parallelism provided no benefit.
@@ -41,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.12.0] - 2026-03-13
 
 ### Added
+
 - **`Alt` / `Plus` / `Alternative` type classes**: Associative choice (`alt`), identity for choice (`plus_empty`), and `Alternative` (blanket impl for `Applicative + Plus`). Implementations for `Option`, `Vec`, `CatList`.
 - **Numeric algebra hierarchy**: `Semiring`, `Ring`, `CommutativeRing`, `EuclideanRing` (with `gcd`/`lcm`), `DivisionRing`, `Field`, `HeytingAlgebra`. Instances for all Rust numeric primitives and `bool`. Integer instances use wrapping arithmetic.
 - **Monoid newtype wrappers**: `Additive`, `Multiplicative`, `Conjunctive`, `Disjunctive`, `First`, `Last`, `Dual` with `Semigroup`/`Monoid` instances.
@@ -53,15 +58,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Law-checking doc examples** across 22 type class traits: `Applicative`, `Bifunctor`, `Bifoldable`, `Bitraversable`, `Category`, `Choice`, `Compactable`, `Contravariant`, `Filterable`, `Foldable`, `FoldableWithIndex`, `Functor`, `FunctorWithIndex`, `Monad`, `Monoid`, `Semiapplicative`, `Semigroup`, `Semigroupoid`, `Strong`, `Traversable`, `TraversableWithIndex`, `Witherable`.
 
 ### Changed
+
 - Updated doc examples and imports to use renamed `m_do!`/`a_do!` macros (from `m!`/`ado!`).
 
 ### Fixed
+
 - Profunctor composition law: corrected `g` argument order.
 - 15 broken rustdoc links in newtype wrapper module docs.
 
 ## [0.11.1] - 2026-03-10
 
 ### Added
+
 - **`Pipe` trait**: Left-to-right function application via method syntax (`value.pipe(f)`), similar to PureScript's `#` or Haskell's `&` operator.
 - **`Bifoldable` implementations**: Added `Bifoldable` for `PairBrand` and `StepBrand`.
 - **`Bitraversable` implementations**: Added `Bitraversable` for `PairBrand` and `StepBrand`.
@@ -77,11 +85,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.11.0] - 2026-03-10
 
 ### Changed
+
 - **`ConstBrand` Location (API Breaking)**: Moved `ConstBrand` from `types::const_val` to the `brands` module, consistent with all other brand types. Import path changed from `fp_library::types::const_val::ConstBrand` to `fp_library::brands::ConstBrand`.
 - Updated feature listings in `lib.rs` and `README.md` to accurately reflect all type classes, optics, and data types in the codebase.
 - Expanded optics module documentation: complete comparison table with all optic types, corrected struct type parameter names (`P` → `PointerBrand`), and comprehensive module organization listing.
 
 ### Fixed
+
 - Incorrect turbofish arity for `map` in README (4 type parameters → 3).
 - Outdated dependency version in README (`0.9` → `0.10`).
 - Doc examples for `Const` type class implementations updated to use correct `ConstBrand` import path from `brands`.
@@ -89,6 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.10.0] - 2026-03-10
 
 ### Added
+
 - **Profunctor Optics System**: Full profunctor-encoded optics library with type-safe composition:
   - **Optic types**: `Lens`/`LensPrime`, `Prism`/`PrismPrime`, `Iso`/`IsoPrime`, `AffineTraversal`/`AffineTraversalPrime`, `Traversal`/`TraversalPrime`, `Fold`/`FoldPrime`, `Getter`/`GetterPrime`, `Setter`/`SetterPrime`, `Grate`/`GratePrime`, `Review`/`ReviewPrime`.
   - **Indexed optics**: `IndexedLens`/`IndexedLensPrime`, `IndexedTraversal`/`IndexedTraversalPrime`, `IndexedFold`/`IndexedFoldPrime`, `IndexedGetter`/`IndexedGetterPrime`, `IndexedSetter`/`IndexedSetterPrime`.
@@ -115,6 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Clippy configuration**: Workspace-level warnings for panicky code (`unwrap_used`, `expect_used`, `indexing_slicing`, `panic`, `todo`, `unimplemented`, `unreachable`).
 
 ### Changed
+
 - **Brand Renames (API Breaking)**: Partially-applied brands renamed to use "Applied" convention:
   - `PairWithFirstBrand` -> `PairFirstAppliedBrand`, `PairWithSecondBrand` -> `PairSecondAppliedBrand`.
   - `ResultWithErrBrand` -> `ResultErrAppliedBrand`, `ResultWithOkBrand` -> `ResultOkAppliedBrand`.
@@ -132,6 +144,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Documentation**: All `classes/` modules wrapped with `#[document_module]` for automated validation and generation.
 
 ### Fixed
+
 - Runtime panic when using Traversals as Folds (Forget profunctor now cloneable via `FnBrand`).
 - Indexed optics composition and evaluation issues.
 - Unnecessary `S: Clone` bound on `PrismPrime` trait implementations.
@@ -139,6 +152,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.9.0] - 2026-02-13
 
 ### Added
+
 - **Tuple Types**:
   - Added `Tuple1Brand` for 1-tuples `(A,)` with full type class implementations (`Functor`, `Applicative`, `Monad`, `Foldable`, `Traversable`, `ParFoldable`).
   - Added `Tuple2Brand` for 2-tuples `(A, B)` with Bifunctor over both positions.
@@ -148,6 +162,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added optional `serde` feature for serialization/deserialization support on pure data types.
 
 ### Changed
+
 - **API Breaking - Macro Exports**:
   - Updated re-export from `def_kind!` to `trait_kind!` to match the renamed macro in `fp-macros`.
 - **Documentation (Non-Breaking)**:
@@ -156,6 +171,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improved module-level documentation for better API discoverability.
 
 ### Removed
+
 - **Brand Types (API Breaking)**:
   - Removed `BoxBrand` (unused).
   - Removed `EndofunctionBrand` (internal implementation detail).
@@ -165,11 +181,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.0] - 2026-02-02
 
 ### Added
+
 - **Macros**: Exported `doc_type_params`, `doc_params`, and `hm_signature` from `fp_macros`.
 - **Evaluable**: Added `Evaluable` trait for types that can be evaluated to a value (replacing `Runnable`).
 - **Deferrable**: Implemented `Deferrable` for `Free`.
 
 ### Changed
+
 - **Free Monad (API Breaking)**:
   - Renamed `Free::run` to `Free::evaluate`.
   - Renamed `Free::roll` to `Free::wrap`.
@@ -177,11 +195,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Renamed internal types `Val` to `TypeErasedValue` and `Cont` to `Continuation`.
 
 ### Removed
+
 - **Runnable (API Breaking)**: Removed `Runnable` trait in favor of `Evaluable`.
 
 ## [0.7.0] - 2026-01-27
 
 ### Added
+
 - **Lazy Evaluation Revamp**:
   - **`Lazy` / `TryLazy`**: Added `Lazy` and `TryLazy` types for shared memoization (renamed from `Memo`/`TryMemo`). Supports `Rc` and `Arc` backing via `LazyConfig`.
   - **`Trampoline` / `TryTrampoline`**: Added `Trampoline` and `TryTrampoline` for stack-safe, non-memoized computations using `Free` monad (renamed from `Task`/`TryTask`).
@@ -196,6 +216,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Benchmarks**: Added benchmarks for `CatList` and missing trait methods.
 
 ### Changed
+
 - **Lazy Evaluation Revamp (API Breaking)**:
   - **Renaming**:
     - Renamed `Memo`/`TryMemo` to `Lazy`/`TryLazy` to align with industry-standard terminology for memoized lazy values.
@@ -215,6 +236,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `docs/architecture.md` and `README.md` to reflect the new distinction between `Lazy` (shared caching), `Trampoline` (stack-safe computation), and `Thunk` (HKT-compatible).
 
 ### Removed
+
 - **Lazy Evaluation Revamp (API Breaking)**:
   - Removed old `Lazy`, `OnceCell`, `OnceLock` types and their associated brands (replaced by new `Lazy` type).
   - Removed `TrySemigroup` and `TryMonoid` traits.
@@ -222,14 +244,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.6.1] - 2026-01-23
 
 ### Added
+
 - **Exports**: Exported `LazyConfig` from `fp_library::types` to allow users to implement custom lazy configurations.
 
 ### Changed
+
 - **Refactor**: Renamed internal type parameter `FnBrand_` to `FnBrand` in `LazyDefer` and `Defer` implementations for consistency.
 
 ## [0.6.0] - 2026-01-23
 
 ### Added
+
 - **Pointer Abstraction**:
   - Added `Pointer`, `RefCountedPointer`, and `SendRefCountedPointer` traits for abstracting over smart pointers (Rc/Arc).
   - Added `UnsizedCoercible` and `SendUnsizedCoercible` traits for function coercion.
@@ -245,6 +270,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added free function wrappers for `ThunkWrapper` and `UnsizedCoercible`.
 
 ### Changed
+
 - **Renames (API Breaking)**:
   - Renamed `clonable` to `cloneable` in all filenames and identifiers (e.g., `CloneableFn`, `SendCloneableFn`).
   - Renamed `coerce_fn_send` to `coerce_send_fn`.
@@ -264,16 +290,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated architecture documentation.
 
 ### Removed
+
 - **Legacy Types**:
   - Removed `RcFnBrand` and `ArcFnBrand` in favor of generic `FnBrand<P>`.
 
 ## [0.5.0] - 2026-01-19
 
 ### Added
+
 - **Architecture Documentation**: Added `docs/architecture.md` detailing module organization, type parameter ordering, and documentation standards.
 - **README**: Added `Function`, `CloneableFn`, `SendCloneableFn`, and `ParFoldable` to the features list.
 
 ### Changed
+
 - **Type Parameter Ordering (API Breaking)**:
   - Reordered type parameters across the entire library to prioritize uninferable types (e.g., return types) over inferable types (e.g., input types, function types). This improves ergonomics when using turbofish syntax.
   - **Functor**: `map<B, A, F>` (was `map<F, A, B>`).
@@ -307,17 +336,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.1]
 
 ### Documentation
+
 - **Brand Types**: Updated documentation for all Brand types in `src/brands.rs` to fix broken links and improve clarity.
 
 ## [0.4.0] - 2026-01-18
 
 ### Added
+
 - **Data Shrinking Typeclasses**:
   - Added `Compactable`, `Filterable` and `Witherable` typeclasses for discarding values in contexts.
   - Implemented `Compactable`, `Filterable`, and `Witherable` for `OptionBrand` and `VecBrand`.
   - Added property-based tests and edge case tests for `Compactable`, `Filterable`, and `Witherable` implementations for `Option` and `Vec`.
 
 ### Changed
+
 - **Data Shrinking API (API Breaking)**:
   - Updated `Compactable::separate`, `Filterable::partition_map`, and `Witherable::wilt` to return `Pair<Success, Failure>` (e.g., `Pair<Ok, Err>`), aligning with Rust's `Result` and `Iterator::partition` conventions.
   - Added default implementations for `Filterable` and `Witherable` methods.

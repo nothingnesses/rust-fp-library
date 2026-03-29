@@ -6,17 +6,23 @@ direnv_prefix := "direnv allow && eval \"$(direnv export bash)\" &&"
 default:
     @just --list
 
-# Format code (rustfmt).
-fmt *args:
-    {{direnv_prefix}} cargo fmt {{args}}
+# Format all files (Rust, Nix, Markdown, YAML, TOML) via treefmt.
+fmt:
+    cd devenv && nix fmt
 
-# Run clippy.
+# Run clippy (warnings are errors).
 clippy *args:
-    {{direnv_prefix}} cargo clippy {{args}}
+    {{direnv_prefix}} cargo clippy {{args}} -- -D warnings
 
-# Check documentation (must produce zero warnings).
+# Check documentation (warnings are errors) and reject emoji/unicode.
 doc *args:
-    {{direnv_prefix}} cargo doc {{args}}
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if grep -rn '[✅❌⚠⚡←→↔≥≤≠✓✗✘✔✖──━┃┏┓┗┛┣┫┳┻╋═║►▶◀◁▲△▼▽●○■□★☆♠♣♥♦]' fp-library/src/ fp-macros/src/ --include='*.rs' 2>/dev/null; then
+        echo "ERROR: Found emoji or unicode characters in source files. Use ASCII equivalents." >&2
+        exit 1
+    fi
+    RUSTDOCFLAGS="-D warnings" {{direnv_prefix}} cargo doc {{args}}
 
 # Build the workspace.
 build *args:
@@ -62,7 +68,7 @@ test *args:
 
 # Verify: fmt, clippy, doc, then test (in order).
 verify:
-    just fmt --all
+    just fmt
     just clippy --workspace --all-features
     just doc --workspace --all-features --no-deps
     just test

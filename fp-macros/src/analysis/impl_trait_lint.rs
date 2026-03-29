@@ -558,7 +558,7 @@ mod tests {
 	fn test_self_receiver_ignored() {
 		let sig = parse_sig("fn method<F: Fn()>(self_: &Self, f: F, f2: F)");
 		// Note: we can't use `&self` in a free fn parse, so we test with two typed params
-		// F appears in 2 positions → not a candidate
+		// F appears in 2 positions -> not a candidate
 		let candidates = find_impl_trait_candidates(&sig);
 		assert!(candidates.is_empty());
 	}
@@ -587,7 +587,7 @@ mod tests {
 		// Use a trait-like signature: &self should not count as a parameter position
 		let item: syn::TraitItemFn = parse_str("fn method<F: Fn()>(&self, f: F);").unwrap();
 		let candidates = find_impl_trait_candidates(&item.sig);
-		// F appears once (in `f`), self is skipped → candidate
+		// F appears once (in `f`), self is skipped -> candidate
 		assert_eq!(candidates.len(), 1);
 		assert_eq!(candidates[0].param_name, "F");
 	}
@@ -663,7 +663,7 @@ mod tests {
 
 	#[test]
 	fn test_nested_param_not_candidate() {
-		// F only appears nested in Option<F>, not at top level → not a candidate
+		// F only appears nested in Option<F>, not at top level -> not a candidate
 		let sig = parse_sig("fn foo<F: Clone>(x: Option<F>)");
 		let candidates = find_impl_trait_candidates(&sig);
 		assert!(candidates.is_empty());
@@ -671,7 +671,7 @@ mod tests {
 
 	#[test]
 	fn test_reference_param_is_candidate() {
-		// F appears as &F → top-level, valid for impl Trait
+		// F appears as &F -> top-level, valid for impl Trait
 		let sig = parse_sig("fn foo<F: Clone>(x: &F)");
 		let candidates = find_impl_trait_candidates(&sig);
 		assert_eq!(candidates.len(), 1);
@@ -680,7 +680,7 @@ mod tests {
 
 	#[test]
 	fn test_associated_type_projection_not_candidate() {
-		// F only appears in <F as Trait>::Assoc position → not top-level
+		// F only appears in <F as Trait>::Assoc position -> not top-level
 		let sig = parse_sig("fn foo<F: Iterator>(x: <F as Iterator>::Item)");
 		let candidates = find_impl_trait_candidates(&sig);
 		assert!(candidates.is_empty());

@@ -3,10 +3,10 @@ resolver = "3"
 members = ["fp-library", "fp-macros"]
 
 [workspace.lints.clippy]
+expect_used = "warn"
+indexing_slicing = "warn"
 panic = "warn"
 todo = "warn"
 unimplemented = "warn"
 unreachable = "warn"
 unwrap_used = "warn"
-expect_used = "warn"
-indexing_slicing = "warn"

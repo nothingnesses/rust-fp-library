@@ -13,7 +13,7 @@ This document tracks the coverage of `fp-library` against functionality provided
 | **`Arrow`**                          | `Fn(A) -> B`                                        | Abstraction for computation, allowing composition and tuple manipulation.                                    |                                                                                 |
 | **`Bifunctor`**                      | `Result::map_err`, Tuple operations                 | Allows mapping over two types independently. Essential for `Result<T, E>` and `Pair<A, B>`.                  |                                                                                 |
 | **`Category`**                       | N/A                                                 | Abstraction for composition (identity and composition).                                                      | `fp-library/src/classes/category.rs`                                            |
-| **`CloneableFn`**                     | `Clone + Fn`                                        | A function trait that requires `Clone`, allowing the function itself to be cloned.                           | `fp-library/src/classes/cloneable_fn.rs`                                         |
+| **`CloneableFn`**                    | `Clone + Fn`                                        | A function trait that requires `Clone`, allowing the function itself to be cloned.                           | `fp-library/src/classes/cloneable_fn.rs`                                        |
 | **`Comonad`**                        | `&` (References), `Box` (context access)            | The dual of Monad. Represents context-dependent computation where you can extract a value.                   |                                                                                 |
 | **`Contravariant`**                  | `cmp::Ordering`, Comparison functions               | Functors that map inputs rather than outputs. Crucial for composable comparison logic.                       |                                                                                 |
 | **`Defer`**                          | Lazy evaluation                                     | Abstraction for deferring execution.                                                                         | `fp-library/src/classes/defer.rs`                                               |
@@ -37,7 +37,7 @@ This document tracks the coverage of `fp-library` against functionality provided
 | **`Semigroup`**                      | `Add`                                               | Associative binary operation.                                                                                | `fp-library/src/classes/semigroup.rs`                                           |
 | **`Semigroupoid`**                   | N/A                                                 | Category without identity.                                                                                   | `fp-library/src/classes/semigroupoid.rs`                                        |
 | **`Semimonad`**                      | N/A                                                 | Monad without `pure` (Bind).                                                                                 | `fp-library/src/classes/semimonad.rs`                                           |
-| **`SendCloneableFn`**                 | `Clone + Fn + Send + Sync`                          | A function trait that requires `Clone + Send + Sync`.                                                        | `fp-library/src/classes/send_cloneable_fn.rs`                                    |
+| **`SendCloneableFn`**                | `Clone + Fn + Send + Sync`                          | A function trait that requires `Clone + Send + Sync`.                                                        | `fp-library/src/classes/send_cloneable_fn.rs`                                   |
 | **`SendDefer`**                      | Lazy evaluation (thread-safe)                       | Abstraction for deferring execution with `Send + Sync` bounds.                                               | `fp-library/src/classes/send_defer.rs`                                          |
 | **`SendRefCountedPointer`**          | `Arc`                                               | Extension for thread-safe reference-counted pointers.                                                        | `fp-library/src/classes/pointer.rs`                                             |
 | **`Show`**                           | `std::fmt::Display`, `std::fmt::Debug`              | Configurable string representation in FP contexts.                                                           |                                                                                 |
@@ -103,17 +103,17 @@ These are newtypes that provide specific `Semigroup` or `Monoid` implementations
 
 ## Free Functions
 
-| Function       | Rust `std` Equivalent    | Description                                             | Implementation Path           |
-| :------------- | :----------------------- | :------------------------------------------------------ | :---------------------------- |
-| **`compose`**  | N/A                      | Function composition (`f . g`).                         | `fp-library/src/functions.rs` |
-| **`constant`** | N/A                      | Returns a function that always returns the given value. | `fp-library/src/functions.rs` |
-| **`flip`**     | N/A                      | Returns a function with arguments flipped.              | `fp-library/src/functions.rs` |
-| **`identity`** | `std::convert::identity` | Returns its input.                                      | `fp-library/src/functions.rs` |
-| **`pointer_new`** | `Box::new`, `Rc::new`, `Arc::new` | Wraps a value in a pointer.                             | `fp-library/src/functions.rs` |
-| **`ref_counted_new`** | `Rc::new`, `Arc::new` | Wraps a value in a cloneable pointer.                    | `fp-library/src/functions.rs` |
-| **`send_ref_counted_new`** | `Arc::new` | Wraps a value in a thread-safe pointer.                 | `fp-library/src/functions.rs` |
-| **`try_append`** | N/A | Fallibly combines two values.                           | `fp-library/src/functions.rs` |
-| **`try_empty`** | N/A | Returns the empty value for a fallible monoid.          | `fp-library/src/functions.rs` |
+| Function                   | Rust `std` Equivalent             | Description                                             | Implementation Path           |
+| :------------------------- | :-------------------------------- | :------------------------------------------------------ | :---------------------------- |
+| **`compose`**              | N/A                               | Function composition (`f . g`).                         | `fp-library/src/functions.rs` |
+| **`constant`**             | N/A                               | Returns a function that always returns the given value. | `fp-library/src/functions.rs` |
+| **`flip`**                 | N/A                               | Returns a function with arguments flipped.              | `fp-library/src/functions.rs` |
+| **`identity`**             | `std::convert::identity`          | Returns its input.                                      | `fp-library/src/functions.rs` |
+| **`pointer_new`**          | `Box::new`, `Rc::new`, `Arc::new` | Wraps a value in a pointer.                             | `fp-library/src/functions.rs` |
+| **`ref_counted_new`**      | `Rc::new`, `Arc::new`             | Wraps a value in a cloneable pointer.                   | `fp-library/src/functions.rs` |
+| **`send_ref_counted_new`** | `Arc::new`                        | Wraps a value in a thread-safe pointer.                 | `fp-library/src/functions.rs` |
+| **`try_append`**           | N/A                               | Fallibly combines two values.                           | `fp-library/src/functions.rs` |
+| **`try_empty`**            | N/A                               | Returns the empty value for a fallible monoid.          | `fp-library/src/functions.rs` |
 
 ## Summary of Priorities
 

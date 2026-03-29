@@ -1,5 +1,7 @@
-use fp_library::brands::RcFnBrand;
-use fp_library::classes::send_cloneable_fn::SendCloneableFn;
+use fp_library::{
+	brands::RcFnBrand,
+	classes::send_cloneable_fn::SendCloneableFn,
+};
 
 fn main() {
 	// Should fail because RcFnBrand does not implement SendCloneableFn

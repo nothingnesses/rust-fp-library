@@ -3,11 +3,11 @@
 //! `Reverse<'a, InnerP, OuterP, S, T, A, B>` wraps a function `InnerP::Of<'a, B, A> -> InnerP::Of<'a, T, S>`.
 //! It "reverses" the profunctor structure of `InnerP`:
 //!
-//! - `InnerP: Profunctor` → `ReverseBrand<InnerP, OuterP, S, T>: Profunctor`
-//! - `InnerP: Choice` → `ReverseBrand<InnerP, OuterP, S, T>: Cochoice`
-//! - `InnerP: Cochoice` → `ReverseBrand<InnerP, OuterP, S, T>: Choice`
-//! - `InnerP: Strong` → `ReverseBrand<InnerP, OuterP, S, T>: Costrong`
-//! - `InnerP: Costrong` → `ReverseBrand<InnerP, OuterP, S, T>: Strong`
+//! - `InnerP: Profunctor` -> `ReverseBrand<InnerP, OuterP, S, T>: Profunctor`
+//! - `InnerP: Choice` -> `ReverseBrand<InnerP, OuterP, S, T>: Cochoice`
+//! - `InnerP: Cochoice` -> `ReverseBrand<InnerP, OuterP, S, T>: Choice`
+//! - `InnerP: Strong` -> `ReverseBrand<InnerP, OuterP, S, T>: Costrong`
+//! - `InnerP: Costrong` -> `ReverseBrand<InnerP, OuterP, S, T>: Strong`
 //!
 //! This is a port of PureScript's [`Data.Lens.Internal.Re`](https://pursuit.purescript.org/packages/purescript-profunctor-lenses/docs/Data.Lens.Internal.Re).
 
@@ -757,8 +757,8 @@ mod inner {
 	/// Corresponds to PureScript's `re :: Optic (Re p a b) s t a b -> Optic p b a t s`.
 	///
 	/// The reversed optic swaps the roles of source/target and focus types:
-	/// - An optic `S → T, A → B` becomes `B → A, T → S` (for review)
-	/// - A simple optic `S ↔ A` becomes `A ↔ S` (for getter/fold)
+	/// - An optic `S -> T, A -> B` becomes `B -> A, T -> S` (for review)
+	/// - A simple optic `S <-> A` becomes `A <-> S` (for getter/fold)
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The cloneable function pointer brand used by the `Reverse` profunctor.",
@@ -781,10 +781,10 @@ mod inner {
 
 	/// Reverses an optic using the `Reverse` profunctor.
 	///
-	/// Given an optic from `S → T` focusing on `A → B`, produces a reversed optic
+	/// Given an optic from `S -> T` focusing on `A -> B`, produces a reversed optic
 	/// that can be used as:
 	/// - An [`IsoOptic`] from `B, A` to `T, S` (when the inner optic implements [`IsoOptic`])
-	/// - A [`ReviewOptic`] from `B → A` focusing on `T → S` (when the inner optic
+	/// - A [`ReviewOptic`] from `B -> A` focusing on `T -> S` (when the inner optic
 	///   implements [`LensOptic`] - covers isos and lenses)
 	/// - A [`GetterOptic`] from `A` to `S` (when the inner optic implements [`PrismOptic`]
 	///   with simple types `S = T, A = B`)
@@ -849,7 +849,7 @@ mod inner {
 		}
 	}
 
-	/// `ReviewOptic` for `ReversedOptic` - reversing any optic ≥ `Lens`.
+	/// `ReviewOptic` for `ReversedOptic` - reversing any optic >= `Lens`.
 	///
 	/// `ReverseBrand<TaggedBrand>` has `Strong` (from `TaggedBrand: Costrong`),
 	/// satisfying the `P: Strong` bound required by [`LensOptic::evaluate`].
@@ -985,7 +985,7 @@ mod inner {
 			// wraps P::Of<B, A> -> P::Of<B, A> (identity)
 			let rev_identity = Reverse::<P, PointerBrand, A, B, A, B>::new(|x| x);
 			// Evaluate inner iso with ReverseBrand<P, PB, A, B>
-			// IsoOptic::evaluate needs Profunctor, and ReverseBrand<P>: Profunctor when P: Profunctor ✓
+			// IsoOptic::evaluate needs Profunctor, and ReverseBrand<P>: Profunctor when P: Profunctor
 			let result = self.inner.evaluate::<ReverseBrand<P, PointerBrand, A, B>>(rev_identity);
 			// Reverse<P, PB, A, B, S, T> wraps P::Of<T, S> -> P::Of<B, A>
 			(result.run)(pab)

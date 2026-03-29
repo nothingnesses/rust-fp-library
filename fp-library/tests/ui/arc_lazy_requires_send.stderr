@@ -1,21 +1,21 @@
 error[E0277]: `Rc<i32>` cannot be sent between threads safely
- --> tests/ui/arc_lazy_requires_send.rs:9:27
-  |
-9 |     let _lazy = ArcLazy::new(move || *rc);
-  |                 ------------ -------^^^^
-  |                 |            |
-  |                 |            `Rc<i32>` cannot be sent between threads safely
-  |                 |            within this `{closure@$DIR/tests/ui/arc_lazy_requires_send.rs:9:27: 9:34}`
-  |                 required by a bound introduced by this call
-  |
-  = help: within `{closure@$DIR/tests/ui/arc_lazy_requires_send.rs:9:27: 9:34}`, the trait `Send` is not implemented for `Rc<i32>`
+  --> tests/ui/arc_lazy_requires_send.rs:11:27
+   |
+11 |     let _lazy = ArcLazy::new(move || *rc);
+   |                 ------------ -------^^^^
+   |                 |            |
+   |                 |            `Rc<i32>` cannot be sent between threads safely
+   |                 |            within this `{closure@$DIR/tests/ui/arc_lazy_requires_send.rs:11:27: 11:34}`
+   |                 required by a bound introduced by this call
+   |
+   = help: within `{closure@$DIR/tests/ui/arc_lazy_requires_send.rs:11:27: 11:34}`, the trait `Send` is not implemented for `Rc<i32>`
 note: required because it's used within this closure
- --> tests/ui/arc_lazy_requires_send.rs:9:27
-  |
-9 |     let _lazy = ArcLazy::new(move || *rc);
-  |                              ^^^^^^^
+  --> tests/ui/arc_lazy_requires_send.rs:11:27
+   |
+11 |     let _lazy = ArcLazy::new(move || *rc);
+   |                              ^^^^^^^
 note: required by a bound in `Lazy::<'a, A, ArcLazyConfig>::new`
- --> src/types/lazy.rs
-  |
-  |         pub fn new(f: impl FnOnce() -> A + Send + 'a) -> Self {
-  |                                            ^^^^ required by this bound in `Lazy::<'a, A, ArcLazyConfig>::new`
+  --> src/types/lazy.rs
+   |
+   |         pub fn new(f: impl FnOnce() -> A + Send + 'a) -> Self {
+   |                                            ^^^^ required by this bound in `Lazy::<'a, A, ArcLazyConfig>::new`

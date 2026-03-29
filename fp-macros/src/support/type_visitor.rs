@@ -16,7 +16,7 @@ use syn::Type;
 ///
 /// **Why a custom trait instead of `syn::Visit`/`syn::VisitMut`?**
 /// - `syn::Visit` and `syn::VisitMut` only support traversal with no return values or in-place mutation
-/// - Many use cases require transforming types to different representations (e.g., `syn::Type` → `HMType`)
+/// - Many use cases require transforming types to different representations (e.g., `syn::Type` -> `HMType`)
 /// - The associated `Output` type enables flexible return values from each visitor method
 ///
 /// **Comparison with syn's visitor traits:**

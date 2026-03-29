@@ -936,8 +936,8 @@ pub fn document_examples(
 /// * `#[document_examples]` - always recommended
 ///
 /// Documentation attributes must not be duplicated and must appear in canonical order:
-/// `#[document_signature]` → `#[document_type_parameters]` → `#[document_parameters]` →
-/// `#[document_returns]` → `#[document_examples]`.
+/// `#[document_signature]` -> `#[document_type_parameters]` -> `#[document_parameters]` ->
+/// `#[document_returns]` -> `#[document_examples]`.
 ///
 /// Additionally, a lint warns when a named generic type parameter could be replaced with
 /// `impl Trait` (i.e., it has trait bounds, appears in exactly one parameter position, does

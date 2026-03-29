@@ -1,5 +1,5 @@
 error: expected `for`
-  --> tests/ui/missing_for_keyword.rs:11:5
+  --> tests/ui/missing_for_keyword.rs:11:2
    |
 11 |     MyBrand {
    |     ^^^^^^^

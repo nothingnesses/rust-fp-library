@@ -24,12 +24,10 @@ The library adopts an **uncurried** API design using **monomorphized** functions
 While the core API is uncurried, the library retains the ability to handle functions as data where necessary:
 
 1. **Zero-Cost Operations (Uncurried, `impl Fn`):**
-
    - Used for: `map`, `bind`, `fold`, `traverse`, `lift2`.
    - Characteristics: No heap allocation, static dispatch, full inlining.
 
 2. **Functions-as-Data (Dynamic, `dyn Fn`):**
-
    - Used for: `Semiapplicative::apply` (heterogeneous collections), `Lazy` (thunks), `Endofunction` (composition).
    - Characteristics: Requires `Rc`/`Arc` wrapping (via `FnBrand`), dynamic dispatch.
    - Justification: These operations fundamentally require storing functions of potentially different concrete types in the same structure, or cloning functions where the concrete type is anonymous.
@@ -49,13 +47,11 @@ The library uses a unified pointer hierarchy to abstract over reference counting
 **Patterns:**
 
 1. **Generic Function Brands:** `FnBrand<P>` is parameterized over a `RefCountedPointer` brand `P`.
-
    - `RcFnBrand` is a type alias for `FnBrand<RcBrand>`.
    - `ArcFnBrand` is a type alias for `FnBrand<ArcBrand>`.
    - This allows unified implementation of `CloneableFn` while `SendCloneableFn` is only implemented when `P: SendRefCountedPointer`.
 
 2. **Shared Memoization:** `Lazy` uses a configuration trait (`LazyConfig`) to abstract over the underlying storage and synchronization primitives, ensuring shared memoization semantics across clones.
-
    - `Lazy<'a, A, Config>` is parameterized by a `LazyConfig` which defines the storage type.
    - `RcLazy` uses `Rc<LazyCell>` for single-threaded, shared memoization.
    - `ArcLazy` uses `Arc<LazyLock>` for thread-safe, shared memoization.
@@ -65,7 +61,7 @@ The library uses a unified pointer hierarchy to abstract over reference counting
 
 - **Correctness:** Ensures `Lazy` behaves correctly as a shared thunk rather than a value that is re-evaluated per clone.
 - **Performance:** Leverages standard library types (`LazyCell`, `LazyLock`) for efficient, correct-by-construction memoization.
-- **Flexibility:** Separates the concern of *memoization* (`Lazy`) from *computation* (`Trampoline`/`Thunk`), allowing users to choose the right tool for the job (e.g., `Trampoline` for stack-safe recursion, `Lazy` for caching).
+- **Flexibility:** Separates the concern of _memoization_ (`Lazy`) from _computation_ (`Trampoline`/`Thunk`), allowing users to choose the right tool for the job (e.g., `Trampoline` for stack-safe recursion, `Lazy` for caching).
 
 ## 3. Granular Lazy Evaluation Types
 

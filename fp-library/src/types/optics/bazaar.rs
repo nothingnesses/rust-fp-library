@@ -44,7 +44,7 @@ mod inner {
 	/// Type alias to extract the pointer brand from a `CloneableFn` implementor.
 	type Ptr<FunctionBrand> = <FunctionBrand as CloneableFn>::PointerBrand;
 
-	// ── BazaarList ──────────────────────────────────────────────────────
+	// -- BazaarList --
 
 	/// A decomposed traversal structure: a list of foci paired with a rebuild function.
 	///
@@ -338,7 +338,7 @@ mod inner {
 	{
 	}
 
-	// ── Bazaar ──────────────────────────────────────────────────────────
+	// -- Bazaar --
 
 	/// The `Bazaar` profunctor, used to characterize traversals.
 	///
@@ -489,7 +489,7 @@ mod inner {
 		F::map(move |bs| (*rebuild)(bs), f_vec_b)
 	}
 
-	// ── BazaarBrand ─────────────────────────────────────────────────────
+	// -- BazaarBrand --
 
 	impl_kind! {
 		impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> for BazaarBrand<FunctionBrand, A, B> {

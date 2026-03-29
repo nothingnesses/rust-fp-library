@@ -62,8 +62,8 @@ mod inner {
 	///
 	/// | Aspect         | `Thunk<'a, A>`              | `Trampoline<A>`              |
 	/// |----------------|-----------------------------|------------------------------ |
-	/// | HKT compatible | ✅ Yes                      | ❌ No (requires `'static`)   |
-	/// | Stack-safe     | ⚠️ Partial (tail_rec_m only) | ✅ Yes (unlimited)           |
+	/// | HKT compatible | Yes                         | No (requires `'static`)      |
+	/// | Stack-safe     | Partial (tail_rec_m only)    | Yes (unlimited)              |
 	/// | Lifetime       | `'a` (can borrow)           | `'static` only               |
 	/// | Thread safety  | Not `Send`                  | Not `Send` (`A: 'static`)    |
 	/// | Use case       | Glue code, composition      | Deep recursion, pipelines    |
@@ -99,8 +99,8 @@ mod inner {
 	/// and lifetime flexibility over structural cloning.
 	///
 	/// Implemented typeclasses:
-	/// - ✅ [`Functor`], [`Foldable`], [`Semimonad`]/Monad, [`Semiapplicative`]/Applicative
-	/// - ❌ [`Traversable`](crate::classes::Traversable) (requires `Clone`)
+	/// - [`Functor`], [`Foldable`], [`Semimonad`]/Monad, [`Semiapplicative`]/Applicative
+	/// - Not [`Traversable`](crate::classes::Traversable) (requires `Clone`)
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value produced by the computation."

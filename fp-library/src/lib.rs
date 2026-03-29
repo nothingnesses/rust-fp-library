@@ -112,23 +112,23 @@
 //!
 //! Rust is an eagerly evaluated language. To enable functional patterns like deferred execution and safe recursion, `fp-library` provides a granular set of types that let you opt-in to specific behaviors without paying for unnecessary overhead.
 //!
-//! | Type                   | Primary Use Case                                                                                                            | Stack Safe?                    | Memoized? | Lifetimes?   | Send? | HKT Traits                           |
-//! | :--------------------- | :-------------------------------------------------------------------------------------------------------------------------- | :----------------------------- | :-------- | :----------- | :---- | :----------------------------------- |
-//! | **`Thunk<'a, A>`**     | **Glue Code & Borrowing.** Lightweight deferred computation. Best for short chains and working with references.             | ⚠️ Partial (`tail_rec_m` only) | ❌ No     | ✅ `'a`      | ❌    | ✅ `Functor`, `Applicative`, `Monad` |
-//! | **`SendThunk<'a, A>`** | **Thread-Safe Glue Code.** Like `Thunk`, but the closure is `Send`. Enables truly lazy `into_arc_lazy()`.                     | ❌ No                          | ❌ No     | ✅ `'a`      | ✅    | ❌ No                                |
-//! | **`Trampoline<A>`**    | **Deep Recursion & Pipelines.** Heavy-duty computation. Uses a trampoline to guarantee stack safety for infinite recursion. | ✅ Yes                         | ❌ No     | ❌ `'static` | ❌    | ❌ No                                |
-//! | **`Lazy<'a, A>`**      | **Caching.** Wraps a computation to ensure it runs at most once. `RcLazy` for single-threaded, `ArcLazy` for thread-safe.   | N/A                            | ✅ Yes    | ✅ `'a`      | ⚡    | ✅ `RefFunctor`, `Foldable`          |
+//! | Type                   | Primary Use Case                                                                                                            | Stack Safe?                  | Memoized? | Lifetimes  | Send?            | HKT Traits                           |
+//! | :--------------------- | :-------------------------------------------------------------------------------------------------------------------------- | :--------------------------- | :-------- | :--------- | :--------------- | :----------------------------------- |
+//! | **`Thunk<'a, A>`**     | **Glue Code & Borrowing.** Lightweight deferred computation. Best for short chains and working with references.             | Partial (`tail_rec_m` only)  | No        | `'a`       | No               | `Functor`, `Applicative`, `Monad`    |
+//! | **`SendThunk<'a, A>`** | **Thread-Safe Glue Code.** Like `Thunk`, but the closure is `Send`. Enables truly lazy `into_arc_lazy()`.                   | No                           | No        | `'a`       | Yes              | No                                   |
+//! | **`Trampoline<A>`**    | **Deep Recursion & Pipelines.** Heavy-duty computation. Uses a trampoline to guarantee stack safety for infinite recursion. | Yes                          | No        | `'static`  | No               | No                                   |
+//! | **`Lazy<'a, A>`**      | **Caching.** Wraps a computation to ensure it runs at most once. `RcLazy` for single-threaded, `ArcLazy` for thread-safe.   | N/A                          | Yes       | `'a`       | Config-dependent | `RefFunctor`, `Foldable`             |
 //!
 //! Each of these has a fallible counterpart that wraps `Result<A, E>` with ergonomic error-handling combinators:
 //!
-//! | Type                         | Primary Use Case                                                                                                    | Stack Safe?                    | Memoized? | Lifetimes?   | Send? | HKT Traits                                                    |
-//! | :--------------------------- | :------------------------------------------------------------------------------------------------------------------ | :----------------------------- | :-------- | :----------- | :---- | :------------------------------------------------------------ |
-//! | **`TryThunk<'a, A, E>`**     | **Fallible Glue Code.** Lightweight deferred computation that may fail. Best for short chains with error handling.  | ⚠️ Partial (`tail_rec_m` only) | ❌ No     | ✅ `'a`      | ❌    | ✅ `Functor`, `Applicative`, `Monad`, `Bifunctor`, `Foldable` |
-//! | **`TrySendThunk<'a, A, E>`** | **Thread-Safe Fallible Glue Code.** Like `TryThunk`, but the closure is `Send`.                                     | ❌ No                          | ❌ No     | ✅ `'a`      | ✅    | ❌ No                                                         |
-//! | **`TryTrampoline<A, E>`**    | **Fallible Deep Recursion.** Stack-safe computation that may fail. Uses a trampoline for unlimited recursion depth. | ✅ Yes                         | ❌ No     | ❌ `'static` | ❌    | ❌ No                                                         |
-//! | **`TryLazy<'a, A, E>`**      | **Fallible Caching.** Computes a `Result` at most once and caches either the success value or error.                | N/A                            | ✅ Yes    | ✅ `'a`      | ⚡    | ✅ `RefFunctor`, `Foldable`                                   |
+//! | Type                         | Primary Use Case                                                                                                    | Stack Safe?                  | Memoized? | Lifetimes  | Send?            | HKT Traits                                                |
+//! | :--------------------------- | :------------------------------------------------------------------------------------------------------------------ | :--------------------------- | :-------- | :--------- | :--------------- | :--------------------------------------------------------- |
+//! | **`TryThunk<'a, A, E>`**     | **Fallible Glue Code.** Lightweight deferred computation that may fail. Best for short chains with error handling.  | Partial (`tail_rec_m` only)  | No        | `'a`       | No               | `Functor`, `Applicative`, `Monad`, `Bifunctor`, `Foldable` |
+//! | **`TrySendThunk<'a, A, E>`** | **Thread-Safe Fallible Glue Code.** Like `TryThunk`, but the closure is `Send`.                                     | No                           | No        | `'a`       | Yes              | No                                                         |
+//! | **`TryTrampoline<A, E>`**    | **Fallible Deep Recursion.** Stack-safe computation that may fail. Uses a trampoline for unlimited recursion depth. | Yes                          | No        | `'static`  | No               | No                                                         |
+//! | **`TryLazy<'a, A, E>`**      | **Fallible Caching.** Computes a `Result` at most once and caches either the success value or error.                | N/A                          | Yes       | `'a`       | Config-dependent | `RefFunctor`, `Foldable`                                   |
 //!
-//! > ⚡ `Send` depends on configuration: `ArcLazy`/`ArcTryLazy` are `Send + Sync`; `RcLazy`/`RcTryLazy` are not.
+//! **Config-dependent Send:** `ArcLazy`/`ArcTryLazy` are `Send + Sync`; `RcLazy`/`RcTryLazy` are not.
 //!
 //! #### The "Why" of Multiple Types
 //!

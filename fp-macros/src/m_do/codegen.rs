@@ -86,7 +86,7 @@ impl VisitMut for PureRewriter<'_> {
 		// Visit children first
 		syn::visit_mut::visit_expr_mut(self, expr);
 
-		// Rewrite bare `pure(args)` → `pure::<Brand, _>(args)`
+		// Rewrite bare `pure(args)` -> `pure::<Brand, _>(args)`
 		if let Expr::Call(call) = expr
 			&& is_bare_pure_call(call)
 		{

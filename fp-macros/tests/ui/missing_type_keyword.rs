@@ -8,9 +8,9 @@ use fp_macros::impl_kind;
 struct MyBrand;
 
 impl_kind! {
-    for MyBrand {
-        Of<A> = Option<A>;
-    }
+	for MyBrand {
+		Of<A> = Option<A>;
+	}
 }
 
 fn main() {}

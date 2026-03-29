@@ -58,10 +58,10 @@ mod inner {
 	///
 	/// | Aspect         | `SendThunk<'a, A>`            | `Thunk<'a, A>`                | `Trampoline<A>`              | `ArcLazy<'a, A>`             |
 	/// |----------------|-------------------------------|-------------------------------|------------------------------|------------------------------|
-	/// | Thread safety  | ✅ `Send`                     | ❌ Not `Send`                 | ❌ Not `Send`                | ✅ `Send + Sync`             |
-	/// | HKT compatible | ❌ No (needs `Send` closures) | ✅ Yes                        | ❌ No (requires `'static`)   | ❌ Partial (`SendRefFunctor`)|
-	/// | Stack-safe     | ⚠️ Partial (`tail_rec_m` only)| ⚠️ Partial (`tail_rec_m` only)| ✅ Yes (unlimited)           | N/A (memoized)               |
-	/// | Memoized       | ❌ No                         | ❌ No                         | ❌ No                        | ✅ Yes                       |
+	/// | Thread safety  | `Send`                        | Not `Send`                    | Not `Send`                   | `Send + Sync`                |
+	/// | HKT compatible | No (needs `Send` closures)    | Yes                           | No (requires `'static`)      | Partial (`SendRefFunctor`)   |
+	/// | Stack-safe     | Partial (`tail_rec_m` only)   | Partial (`tail_rec_m` only)   | Yes (unlimited)              | N/A (memoized)               |
+	/// | Memoized       | No                            | No                            | No                           | Yes                          |
 	/// | Lifetime       | `'a` (can borrow)             | `'a` (can borrow)             | `'static` only               | `'a` (can borrow)            |
 	/// | Use case       | Cross-thread lazy pipelines   | Glue code, composition        | Deep recursion, pipelines    | Shared cached values          |
 	///

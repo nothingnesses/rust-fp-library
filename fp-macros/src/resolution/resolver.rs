@@ -22,7 +22,7 @@
 //! **Example:**
 //! ```rust,ignore
 //! impl MyBrand {
-//!     #[document_use = "Of"]  // ← Method-level override
+//!     #[document_use = "Of"]  // <- Method-level override
 //!     #[document_signature]
 //!     fn map<A, B>(self, f: impl Fn(A) -> B) -> Apply!(<Self as Kind>::Of<B>) {
 //!         // When resolving <Self as Kind>::Of, use "Of" association
@@ -41,7 +41,7 @@
 //!
 //! **Example:**
 //! ```rust,ignore
-//! #[document_use = "Of"]  // ← Impl-level override
+//! #[document_use = "Of"]  // <- Impl-level override
 //! impl Functor for MyBrand {
 //!     #[document_signature]
 //!     fn map<A, B>(self, f: impl Fn(A) -> B) -> Apply!(<Self as Kind>::Of<B>) {
@@ -64,7 +64,7 @@
 //! **Example:**
 //! ```rust,ignore
 //! impl Functor for MyBrand {
-//!     #[document_default]  // ← Scoped default for (MyBrand, Functor)
+//!     #[document_default]  // <- Scoped default for (MyBrand, Functor)
 //!     type Map = MyType<T>;
 //!     type Item = OtherType<T>;
 //!
@@ -88,7 +88,7 @@
 //! ```rust,ignore
 //! impl_kind! {
 //!     for MyBrand {
-//!         #[document_default]  // ← Module-level default for MyBrand
+//!         #[document_default]  // <- Module-level default for MyBrand
 //!         type Of<T> = MyType<T>;
 //!         type Other<T> = OtherType<T>;
 //!     }
@@ -138,7 +138,7 @@
 //!     }
 //! }
 //!
-//! #[document_use = "Other"]  // ← Override for this entire impl
+//! #[document_use = "Other"]  // <- Override for this entire impl
 //! impl Monad for MyBrand {
 //!     #[document_signature]
 //!     fn bind<A, B>(self, f: impl Fn(A) -> B) -> Apply!(<Self as Kind>::Other<B>) {
@@ -153,7 +153,7 @@
 //!
 //! ```rust,ignore
 //! impl Applicative for MyBrand {
-//!     #[document_use = "Other"]  // ← Method-level override
+//!     #[document_use = "Other"]  // <- Method-level override
 //!     #[document_signature]
 //!     fn apply<A, B>(self, f: impl Fn(A) -> B) -> Apply!(<Self as Kind>::Other<B>) {
 //!         // Resolves to: OtherType<B>
