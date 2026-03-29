@@ -13,6 +13,7 @@ mod inner {
 				ApplySecond,
 				CloneableFn,
 				Deferrable,
+				Extend,
 				Extract,
 				Foldable,
 				FoldableWithIndex,
@@ -756,6 +757,48 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		) -> A {
 			fa.evaluate()
+		}
+	}
+
+	impl Extend for ThunkBrand {
+		/// Extends a local computation to the `Thunk` context.
+		///
+		/// Wraps the application of `f` to the entire thunk in a new deferred
+		/// computation. The resulting `Thunk` captures both `f` and `thunk` by
+		/// move and calls `f(thunk)` when evaluated.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the value inside the thunk.",
+			"The result type of the extension function."
+		)]
+		///
+		#[document_parameters(
+			"The function that consumes a whole thunk and produces a value.",
+			"The thunk to extend over."
+		)]
+		///
+		#[document_returns("A new thunk containing the deferred result of applying the function.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let thunk = Thunk::new(|| 21);
+		/// let result = extend::<ThunkBrand, _, _>(|w: Thunk<i32>| w.evaluate() * 2, thunk);
+		/// assert_eq!(result.evaluate(), 42);
+		/// ```
+		fn extend<'a, A: 'a, B: 'a>(
+			f: impl Fn(Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> B + 'a,
+			wa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Thunk::new(move || f(wa))
 		}
 	}
 
@@ -1504,5 +1547,58 @@ mod tests {
 		let via_fold_map = fold_map::<RcFnBrand, ThunkBrand, _, _>(f, thunk1);
 		let via_fold_map_with_index: String = ThunkBrand::fold_map_with_index(|_, a| f(a), thunk2);
 		assert_eq!(via_fold_map, via_fold_map_with_index);
+	}
+
+	// Extract / Extend / Comonad Laws
+
+	/// Extract pure-extract law: `extract(pure(x)) == x`.
+	#[quickcheck]
+	fn extract_pure(x: i32) -> bool {
+		extract::<ThunkBrand, _>(pure::<ThunkBrand, _>(x)) == x
+	}
+
+	/// Comonad left identity: `extract(extend(f, wa)) == f(wa)`.
+	#[quickcheck]
+	fn comonad_left_identity(x: i32) -> bool {
+		use crate::classes::extend::extend;
+		let f = |w: Thunk<i32>| w.evaluate().wrapping_mul(3);
+		let wa = pure::<ThunkBrand, _>(x);
+		let wa2 = pure::<ThunkBrand, _>(x);
+		extract::<ThunkBrand, _>(extend::<ThunkBrand, _, _>(f, wa)) == f(wa2)
+	}
+
+	/// Comonad right identity: `extend(extract, wa)` produces the same value as `wa`.
+	#[quickcheck]
+	fn comonad_right_identity(x: i32) -> bool {
+		use crate::classes::extend::extend;
+		let wa = pure::<ThunkBrand, _>(x);
+		extract::<ThunkBrand, _>(extend::<ThunkBrand, _, _>(extract::<ThunkBrand, _>, wa)) == x
+	}
+
+	/// Extend associativity: `extend(f, extend(g, w))` equals
+	/// `extend(|w| f(extend(g, w)), w)`.
+	#[quickcheck]
+	fn extend_associativity(x: i32) -> bool {
+		use crate::classes::extend::extend;
+		let g = |w: Thunk<i32>| w.evaluate().wrapping_mul(2);
+		let f = |w: Thunk<i32>| w.evaluate().wrapping_add(1);
+		let lhs = extract::<ThunkBrand, _>(extend::<ThunkBrand, _, _>(
+			f,
+			extend::<ThunkBrand, _, _>(g, pure::<ThunkBrand, _>(x)),
+		));
+		let rhs = extract::<ThunkBrand, _>(extend::<ThunkBrand, _, _>(
+			|w: Thunk<i32>| f(extend::<ThunkBrand, _, _>(g, w)),
+			pure::<ThunkBrand, _>(x),
+		));
+		lhs == rhs
+	}
+
+	/// Tests basic `extend` on `Thunk`.
+	#[test]
+	fn extend_test() {
+		use crate::classes::extend::extend;
+		let thunk = Thunk::new(|| 21);
+		let result = extend::<ThunkBrand, _, _>(|w: Thunk<i32>| w.evaluate() * 2, thunk);
+		assert_eq!(result.evaluate(), 42);
 	}
 }
