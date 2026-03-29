@@ -9,15 +9,12 @@
 mod inner {
 	use {
 		crate::{
-			brands::TrySendThunkBrand,
 			classes::{
 				Deferrable,
 				Monoid,
 				Semigroup,
 				SendDeferrable,
 			},
-			impl_kind,
-			kinds::*,
 			types::{
 				ArcTryLazy,
 				SendThunk,
@@ -44,21 +41,19 @@ mod inner {
 	/// memoized). For memoized fallible thread-safe computation, use
 	/// [`ArcTryLazy`](crate::types::ArcTryLazy).
 	///
-	/// ### Higher-Kinded Type Representation
+	/// ### No Higher-Kinded Type Brand
 	///
-	/// The higher-kinded representation of this type constructor is
-	/// [`TrySendThunkBrand`](crate::brands::TrySendThunkBrand), which is fully
-	/// polymorphic over both error and success types.
-	///
-	/// ### HKT Trait Limitations
-	///
-	/// Standard HKT traits such as `Functor`, `Pointed`, `Semimonad`, and
-	/// `Semiapplicative` cannot be implemented for `TrySendThunk` brands
-	/// because their signatures do not require `Send` on the mapping or
-	/// binding functions. Since `TrySendThunk` stores a
-	/// `SendThunk<Result<A, E>>` (which wraps `Box<dyn FnOnce() -> Result<A, E> + Send>`),
-	/// composing it with a non-`Send` closure would violate the `Send`
-	/// invariant.
+	/// Unlike [`TryThunk`](crate::types::TryThunk) (which has
+	/// [`TryThunkBrand`](crate::brands::TryThunkBrand)), `TrySendThunk` does
+	/// not have a corresponding brand type. The HKT trait signatures use
+	/// `impl Fn(A) -> B + 'a` without a `Send` bound, but `TrySendThunk`
+	/// internally stores a `Send` closure
+	/// (`Box<dyn FnOnce() -> Result<A, E> + Send + 'a>`). Composing a
+	/// non-`Send` closure from the trait with the internal `Send` closure
+	/// would violate the `Send` invariant, making it unsound to implement
+	/// `Functor`, `Monad`, or any other HKT type-class trait. A brand that
+	/// cannot participate in any type class serves no purpose, so none is
+	/// provided.
 	///
 	/// Use the inherent methods ([`map`](TrySendThunk::map),
 	/// [`bind`](TrySendThunk::bind), [`map_err`](TrySendThunk::map_err),
@@ -778,17 +773,6 @@ mod inner {
 		/// ```
 		pub fn catch_unwind(f: impl FnOnce() -> A + Send + std::panic::UnwindSafe + 'a) -> Self {
 			Self::catch_unwind_with(f, crate::utils::panic_payload_to_string)
-		}
-	}
-
-	impl_kind! {
-		/// HKT branding for the `TrySendThunk` type.
-		///
-		/// The type parameters for `Of` are ordered `E`, then `A` (Error, then
-		/// Success). This follows the same convention as `TryThunkBrand` and
-		/// `ResultBrand`.
-		for TrySendThunkBrand {
-			type Of<'a, E: 'a, A: 'a>: 'a = TrySendThunk<'a, A, E>;
 		}
 	}
 
