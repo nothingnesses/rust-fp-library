@@ -17,11 +17,13 @@ mod inner {
 	use fp_macros::*;
 	/// A type class for types that can be constructed lazily.
 	///
-	/// `Deferrable` is the dual of [`Extract`](crate::classes::Extract): where
+	/// `Deferrable` is the inverse of [`Extract`](crate::classes::Extract): where
 	/// `Extract` forces/extracts the inner value, `Deferrable` constructs a value
-	/// lazily from a thunk. For types implementing both (like
-	/// [`Thunk`](crate::types::Thunk)), `extract(defer(|| x)) == x` forms a
-	/// round-trip.
+	/// lazily from a thunk. For types whose brand implements `Extract` (e.g.,
+	/// [`ThunkBrand`](crate::brands::ThunkBrand)), `extract(defer(|| x)) == x`
+	/// forms a round-trip. Note that `Deferrable` is a value-level trait
+	/// (implemented by concrete types like `Thunk`), while `Extract` is a
+	/// brand-level trait (implemented by `ThunkBrand`).
 	///
 	/// ### Laws
 	///

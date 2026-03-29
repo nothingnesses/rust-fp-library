@@ -1,10 +1,12 @@
 //! Types that hold exactly one value which can be extracted.
 //!
-//! [`Extract`] is the dual of [`Deferrable`](crate::classes::Deferrable): where
+//! [`Extract`] is the inverse of [`Deferrable`](crate::classes::Deferrable): where
 //! `Deferrable` constructs a value lazily from a thunk, `Extract` forces/extracts
-//! the inner value. For types implementing both (like
-//! [`Thunk`](crate::types::Thunk)), `extract(defer(|| x)) == x` forms a
-//! round-trip.
+//! the inner value. For types whose brand implements `Extract` (e.g.,
+//! [`ThunkBrand`](crate::brands::ThunkBrand)), `extract(defer(|| x)) == x`
+//! forms a round-trip. Note that `Extract` is a brand-level trait (implemented
+//! by `ThunkBrand`), while `Deferrable` is a value-level trait (implemented by
+//! concrete types like [`Thunk`](crate::types::Thunk)).
 //!
 //! This trait is used by [`Free::evaluate`](crate::types::Free::evaluate) to
 //! execute the effects in a [`Free`](crate::types::Free) monad.
@@ -37,11 +39,10 @@ mod inner {
 	/// [`Free::evaluate`](crate::types::Free::evaluate) to execute the effects in a
 	/// [`Free`](crate::types::Free) monad.
 	///
-	/// `Extract` is the dual of [`Deferrable`](crate::classes::Deferrable):
+	/// `Extract` is the inverse of [`Deferrable`](crate::classes::Deferrable):
 	/// `Deferrable` constructs lazy values from thunks, while `Extract` forces and
-	/// extracts them. For types implementing both (like
-	/// [`Thunk`](crate::types::Thunk)), the round-trip law
-	/// `extract(defer(|| x)) == x` holds.
+	/// extracts them. For types whose brand implements `Extract` (e.g.,
+	/// `ThunkBrand`), the round-trip law `extract(defer(|| x)) == x` holds.
 	///
 	/// Implemented by types that always contain exactly one value and can
 	/// surrender ownership of it. [`Lazy`](crate::types::Lazy) cannot implement

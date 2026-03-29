@@ -1,5 +1,10 @@
 //! Sequencing of computations where the structure depends on previous results, without an identity element.
 //!
+//! `Semimonad` is the dual of [`Extend`](crate::classes::Extend): where `extend` feeds an
+//! entire context into a function, `bind` extracts a value and feeds it into a function that
+//! produces a new context. Similarly, [`join`] is the dual of
+//! [`duplicate`](crate::functions::duplicate).
+//!
 //! ### Examples
 //!
 //! ```
