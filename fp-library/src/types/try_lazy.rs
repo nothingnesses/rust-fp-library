@@ -249,6 +249,31 @@ mod inner {
 			Self::new(move || Err(e))
 		}
 
+		/// Returns a clone of the memoized result, computing on first access.
+		///
+		/// This is a convenience wrapper around [`evaluate`](TryLazy::evaluate) for cases
+		/// where an owned `Result` is needed rather than a `Result` of references.
+		#[document_signature]
+		///
+		#[document_returns("An owned `Result` clone of the memoized value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = RcTryLazy::<i32, String>::ok(42);
+		/// let owned: Result<i32, String> = memo.evaluate_owned();
+		/// assert_eq!(owned, Ok(42));
+		/// ```
+		#[inline]
+		pub fn evaluate_owned(&self) -> Result<A, E>
+		where
+			A: Clone,
+			E: Clone, {
+			self.evaluate().cloned().map_err(|e| e.clone())
+		}
+
 		/// Transforms the success value by creating a new `TryLazy` cell.
 		///
 		/// The original cell is evaluated on first access of the new cell. The mapping
@@ -1057,6 +1082,32 @@ mod inner {
 			A: Send,
 			E: Send, {
 			Self::new(move || Err(e))
+		}
+
+		/// Returns a clone of the memoized result, computing on first access.
+		///
+		/// This is a convenience wrapper around [`evaluate`](TryLazy::evaluate) for cases
+		/// where an owned `Result` is needed rather than a `Result` of references.
+		/// Requires `Send + Sync` since `ArcTryLazy` is thread-safe.
+		#[document_signature]
+		///
+		#[document_returns("An owned `Result` clone of the memoized value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = ArcTryLazy::<i32, String>::ok(42);
+		/// let owned: Result<i32, String> = memo.evaluate_owned();
+		/// assert_eq!(owned, Ok(42));
+		/// ```
+		#[inline]
+		pub fn evaluate_owned(&self) -> Result<A, E>
+		where
+			A: Clone + Send + Sync,
+			E: Clone + Send + Sync, {
+			self.evaluate().cloned().map_err(|e| e.clone())
 		}
 
 		/// Transforms the success value by creating a new thread-safe `TryLazy` cell.

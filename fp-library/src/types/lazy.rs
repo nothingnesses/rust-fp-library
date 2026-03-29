@@ -476,6 +476,33 @@ mod inner {
 			Lazy(RcLazyConfig::lazy_new(Box::new(move || a)))
 		}
 
+		/// Returns a clone of the memoized value, computing on first access.
+		///
+		/// This is a convenience wrapper around [`evaluate`](Lazy::evaluate) for cases
+		/// where an owned value is needed rather than a reference.
+		#[document_signature]
+		///
+		#[document_returns("An owned clone of the memoized value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let memo = RcLazy::new(|| vec![1, 2, 3]);
+		/// let owned: Vec<i32> = memo.evaluate_owned();
+		/// assert_eq!(owned, vec![1, 2, 3]);
+		/// ```
+		#[inline]
+		pub fn evaluate_owned(&self) -> A
+		where
+			A: Clone, {
+			self.evaluate().clone()
+		}
+
 		/// Maps a function over the memoized value by reference.
 		///
 		/// This is the inherent method form of [`RefFunctor::ref_map`](crate::classes::ref_functor::RefFunctor::ref_map).
@@ -708,6 +735,7 @@ mod inner {
 		"The lifetime of the computation.",
 		"The type of the computed value."
 	)]
+	#[document_parameters("The lazy instance.")]
 	impl<'a, A> Lazy<'a, A, ArcLazyConfig>
 	where
 		A: 'a,
@@ -761,6 +789,34 @@ mod inner {
 		where
 			A: Send + Sync, {
 			Lazy(ArcLazyConfig::lazy_new(Box::new(move || a)))
+		}
+
+		/// Returns a clone of the memoized value, computing on first access.
+		///
+		/// This is a convenience wrapper around [`evaluate`](Lazy::evaluate) for cases
+		/// where an owned value is needed rather than a reference. Requires `Send + Sync`
+		/// since `ArcLazy` is thread-safe.
+		#[document_signature]
+		///
+		#[document_returns("An owned clone of the memoized value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let memo = ArcLazy::new(|| vec![1, 2, 3]);
+		/// let owned: Vec<i32> = memo.evaluate_owned();
+		/// assert_eq!(owned, vec![1, 2, 3]);
+		/// ```
+		#[inline]
+		pub fn evaluate_owned(&self) -> A
+		where
+			A: Clone + Send + Sync, {
+			self.evaluate().clone()
 		}
 	}
 
