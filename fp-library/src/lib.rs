@@ -23,6 +23,7 @@
 //!   - **Core:** `Functor`, `Contravariant`, `Pointed`, `Applicative`, `Semiapplicative`, `Monad`, `Semimonad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`, `Alt`, `Plus`, `Alternative`
 //!   - **Applicative Utilities:** `Lift`, `ApplyFirst`, `ApplySecond`
 //!   - **Monad Utilities:** `MonadRec`, `Extract`
+//!   - **Comonads:** `Extend`, `Comonad`
 //!   - **Bifunctors:** `Bifunctor`, `Bifoldable`, `Bitraversable`
 //!   - **Collections:** `Compactable`, `Filterable`, `Witherable`
 //!   - **Indexed:** `WithIndex`, `FunctorWithIndex`, `FoldableWithIndex`, `TraversableWithIndex`
