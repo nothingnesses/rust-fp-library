@@ -42,6 +42,7 @@ mod inner {
 				RcTryLazy,
 				Thunk,
 				TryLazy,
+				TrySendThunk,
 				TryTrampoline,
 			},
 		},
@@ -765,6 +766,34 @@ mod inner {
 		/// ```
 		fn from(tramp: TryTrampoline<A, E>) -> Self {
 			TryThunk::new(move || tramp.evaluate())
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the success value.",
+		"The type of the error value."
+	)]
+	impl<'a, A: 'a, E: 'a> From<TrySendThunk<'a, A, E>> for TryThunk<'a, A, E> {
+		/// Converts a [`TrySendThunk`] into a [`TryThunk`] by erasing the `Send` bound.
+		///
+		/// This delegates to the [`SendThunk`](crate::types::SendThunk) to
+		/// [`Thunk`] conversion, which is a zero-cost unsizing coercion: the inner
+		/// `Box<dyn FnOnce() -> Result<A, E> + Send + 'a>` is coerced to
+		/// `Box<dyn FnOnce() -> Result<A, E> + 'a>`.
+		#[document_signature]
+		#[document_parameters("The send try-thunk to convert.")]
+		#[document_returns("A `TryThunk` wrapping the same deferred computation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let send_thunk: TrySendThunk<i32, ()> = TrySendThunk::pure(42);
+		/// let thunk: TryThunk<i32, ()> = TryThunk::from(send_thunk);
+		/// assert_eq!(thunk.evaluate(), Ok(42));
+		/// ```
+		fn from(send_thunk: TrySendThunk<'a, A, E>) -> Self {
+			TryThunk(Thunk::from(send_thunk.into_inner()))
 		}
 	}
 
@@ -2585,6 +2614,28 @@ mod tests {
 	fn test_try_thunk_from_result_err() {
 		let try_thunk: TryThunk<i32, String> = TryThunk::from(Err("error".to_string()));
 		assert_eq!(try_thunk.evaluate(), Err("error".to_string()));
+	}
+
+	/// Tests `From<TrySendThunk>` with `Ok`.
+	///
+	/// Verifies that converting a successful `TrySendThunk` produces a successful `TryThunk`.
+	#[test]
+	fn test_try_thunk_from_try_send_thunk_ok() {
+		use crate::types::TrySendThunk;
+		let send: TrySendThunk<i32, ()> = TrySendThunk::pure(42);
+		let thunk: TryThunk<i32, ()> = TryThunk::from(send);
+		assert_eq!(thunk.evaluate(), Ok(42));
+	}
+
+	/// Tests `From<TrySendThunk>` with `Err`.
+	///
+	/// Verifies that converting a failed `TrySendThunk` produces a failed `TryThunk`.
+	#[test]
+	fn test_try_thunk_from_try_send_thunk_err() {
+		use crate::types::TrySendThunk;
+		let send: TrySendThunk<i32, String> = TrySendThunk::err("fail".to_string());
+		let thunk: TryThunk<i32, String> = TryThunk::from(send);
+		assert_eq!(thunk.evaluate(), Err("fail".to_string()));
 	}
 
 	// QuickCheck Law Tests
