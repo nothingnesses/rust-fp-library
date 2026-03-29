@@ -54,7 +54,7 @@
 //!   - **Standard Library:** `Option`, `Result`, `Vec`, `String`
 //!   - **Laziness, Memoization & Stack Safety:** `Lazy` (`RcLazy`, `ArcLazy`), `Thunk`, `SendThunk`, `Trampoline`, `Free`
 //!   - **Fallible Variants:** `TryLazy` (`RcTryLazy`, `ArcTryLazy`), `TryThunk`, `TrySendThunk`, `TryTrampoline`
-//!   - **Generic Containers:** `Identity`, `Pair`, `Step`, `CatList`
+//!   - **Generic Containers:** `Identity`, `Pair`, `CatList`
 //!   - **Function Wrappers:** `Endofunction`, `Endomorphism`
 //!   - **Marker Types:** `RcBrand`, `ArcBrand`, `FnBrand`
 //!

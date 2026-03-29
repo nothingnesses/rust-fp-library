@@ -143,15 +143,4 @@ mod tests {
 		let fa = Thunk::pure(x);
 		extract::<ThunkBrand, _>(fa) == x
 	}
-
-	/// Extract-map law: extract(map(f, fa)) == f(extract(fa)).
-	#[quickcheck]
-	fn prop_extract_map(x: i32) -> bool {
-		let f = |a: i32| a.wrapping_mul(3).wrapping_add(7);
-		let fa = Thunk::new(|| x);
-		let fa2 = Thunk::new(|| x);
-		let lhs = extract::<ThunkBrand, _>(map::<ThunkBrand, _, _>(f, fa));
-		let rhs = f(extract::<ThunkBrand, _>(fa2));
-		lhs == rhs
-	}
 }

@@ -65,6 +65,30 @@ mod inner {
 			f: impl Fn(Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> B + 'a,
 			wa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
+
+		/// Duplicates a comonadic context, wrapping it inside another layer of the same context.
+		///
+		/// `duplicate(wa)` is equivalent to `extend(identity, wa)`. It is the dual of
+		/// [`join`](crate::functions::join) for monads.
+		///
+		/// Produces `F<F<A>>` from `F<A>`, embedding the original context as the inner value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the value(s) inside the comonadic context."
+		)]
+		///
+		#[document_parameters("The comonadic context to duplicate.")]
+		///
+		#[document_returns("A doubly-wrapped comonadic context.")]
+		fn duplicate<'a, A: 'a>(
+			wa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
+		where
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): 'a, {
+			Self::extend(|w| w, wa)
+		}
 	}
 
 	/// Extends a local context-dependent computation to a global computation.

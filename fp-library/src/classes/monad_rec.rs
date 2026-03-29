@@ -58,6 +58,21 @@ mod inner {
 	///    Immediately wrapping a value in [`ControlFlow::Break`] must be equivalent
 	///    to [`pure`](crate::classes::Pointed::pure).
 	///
+	/// 2. **Equivalence/Unfolding**: `tail_rec_m(f, a)` is equivalent to
+	///    `f(a) >>= match { Continue(a') => tail_rec_m(f, a'), Break(b) => pure(b) }`.
+	///    That is, `tail_rec_m` must produce the same result as manually stepping
+	///    through the recursion with `bind`, but without consuming stack space.
+	///
+	/// ### Caveats
+	///
+	/// For multi-element containers ([`VecBrand`](crate::brands::VecBrand),
+	/// [`CatListBrand`](crate::brands::CatListBrand)), if the step function always
+	/// produces [`ControlFlow::Continue`] values, the computation never terminates
+	/// and consumes unbounded memory. Single-element containers
+	/// ([`ThunkBrand`](crate::brands::ThunkBrand),
+	/// [`IdentityBrand`](crate::brands::IdentityBrand), etc.) do not have this
+	/// issue because they process exactly one element per iteration.
+	///
 	/// ### Class Invariant
 	///
 	/// [`tail_rec_m`](MonadRec::tail_rec_m) must execute in constant stack space

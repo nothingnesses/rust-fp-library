@@ -1601,4 +1601,15 @@ mod tests {
 		let result = extend::<ThunkBrand, _, _>(|w: Thunk<i32>| w.evaluate() * 2, thunk);
 		assert_eq!(result.evaluate(), 42);
 	}
+
+	/// Comonad map-extract law: extract(map(f, fa)) == f(extract(fa)).
+	#[quickcheck]
+	fn comonad_map_extract(x: i32) -> bool {
+		let f = |a: i32| a.wrapping_mul(3).wrapping_add(7);
+		let fa = Thunk::new(|| x);
+		let fa2 = Thunk::new(|| x);
+		let lhs = extract::<ThunkBrand, _>(map::<ThunkBrand, _, _>(f, fa));
+		let rhs = f(extract::<ThunkBrand, _>(fa2));
+		lhs == rhs
+	}
 }
