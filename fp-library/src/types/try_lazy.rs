@@ -289,6 +289,47 @@ mod inner {
 			})
 		}
 
+		/// Maps a function over the memoized success value by reference.
+		///
+		/// This is the inherent method form of [`RefFunctor::ref_map`](crate::classes::ref_functor::RefFunctor::ref_map)
+		/// for `RcTryLazy`. Evaluates the lazy cell and, if `Ok`, applies `f` to the referenced
+		/// success value. If `Err`, clones the error into the new cell.
+		///
+		/// This is functionally identical to [`map`](TryLazy::map) but exists so that
+		/// the `RefFunctor` trait implementation can delegate to an inherent method,
+		/// matching the pattern used by [`RcLazy::ref_map`](crate::types::lazy::Lazy::ref_map).
+		///
+		/// ### Why `E: Clone`?
+		///
+		/// The inner cell holds `Result<A, E>`. Mapping the success side requires cloning
+		/// the error out of the `&E` reference when the result is `Err`, because the new
+		/// cell must own its own cached `Result<B, E>`.
+		#[document_signature]
+		#[document_type_parameters("The type of the mapped success value.")]
+		#[document_parameters("The function to apply to the success value.")]
+		#[document_returns("A new `RcTryLazy` that applies `f` to the success value of this cell.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = RcTryLazy::<i32, String>::ok(10);
+		/// let mapped = memo.ref_map(|x| *x * 2);
+		/// assert_eq!(mapped.evaluate(), Ok(&20));
+		/// ```
+		#[inline]
+		pub fn ref_map<B: 'a>(
+			self,
+			f: impl FnOnce(&A) -> B + 'a,
+		) -> RcTryLazy<'a, B, E>
+		where
+			E: Clone + 'a, {
+			RcTryLazy::new(move || match self.evaluate() {
+				Ok(a) => Ok(f(a)),
+				Err(e) => Err(e.clone()),
+			})
+		}
+
 		/// Transforms the error value by creating a new `TryLazy` cell.
 		///
 		/// The original cell is evaluated on first access of the new cell. The mapping
@@ -1056,6 +1097,55 @@ mod inner {
 			})
 		}
 
+		/// Maps a function over the memoized success value by reference.
+		///
+		/// This is the `ArcTryLazy` counterpart of [`RcTryLazy::ref_map`](TryLazy::ref_map).
+		/// Evaluates the lazy cell and, if `Ok`, applies `f` to the referenced success value.
+		/// If `Err`, clones the error into the new cell.
+		///
+		/// This is functionally identical to [`map`](TryLazy::map) but exists so that
+		/// the `SendRefFunctor` trait implementation can delegate to an inherent method,
+		/// matching the pattern used by [`ArcLazy::ref_map`](crate::types::lazy::Lazy::ref_map).
+		///
+		/// Note: A blanket `RefFunctor` trait impl is not provided for `TryLazyBrand<E, ArcLazyConfig>`
+		/// because the `RefFunctor` trait does not require `Send` on the mapping function, but
+		/// `ArcTryLazy::new` requires `Send`. This inherent method adds the necessary `Send` bounds
+		/// explicitly.
+		///
+		/// ### Why `E: Clone`?
+		///
+		/// The inner cell holds `Result<A, E>`. Mapping the success side requires cloning
+		/// the error out of the `&E` reference when the result is `Err`, because the new
+		/// cell must own its own cached `Result<B, E>`.
+		#[document_signature]
+		#[document_type_parameters("The type of the mapped success value.")]
+		#[document_parameters("The function to apply to the success value.")]
+		#[document_returns(
+			"A new `ArcTryLazy` that applies `f` to the success value of this cell."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = ArcTryLazy::<i32, String>::ok(10);
+		/// let mapped = memo.ref_map(|x| *x * 2);
+		/// assert_eq!(mapped.evaluate(), Ok(&20));
+		/// ```
+		#[inline]
+		pub fn ref_map<B: 'a>(
+			self,
+			f: impl FnOnce(&A) -> B + Send + 'a,
+		) -> ArcTryLazy<'a, B, E>
+		where
+			A: Send + Sync,
+			E: Clone + Send + Sync, {
+			ArcTryLazy::new(move || match self.evaluate() {
+				Ok(a) => Ok(f(a)),
+				Err(e) => Err(e.clone()),
+			})
+		}
+
 		/// Transforms the error value by creating a new thread-safe `TryLazy` cell.
 		///
 		/// The original cell is evaluated on first access of the new cell. The mapping
@@ -1713,10 +1803,7 @@ mod inner {
 			f: impl FnOnce(&A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			RcTryLazy::new(move || match fa.evaluate() {
-				Ok(a) => Ok(f(a)),
-				Err(e) => Err(e.clone()),
-			})
+			fa.ref_map(f)
 		}
 	}
 
@@ -1760,10 +1847,7 @@ mod inner {
 			f: impl FnOnce(&A) -> B + Send + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			ArcTryLazy::new(move || match fa.evaluate() {
-				Ok(a) => Ok(f(a)),
-				Err(e) => Err(e.clone()),
-			})
+			fa.ref_map(f)
 		}
 	}
 
@@ -2628,6 +2712,56 @@ mod tests {
 		let memo = ArcTryLazy::<i32, String>::err("fail".to_string());
 		let mapped = TryLazyBrand::<String, ArcLazyConfig>::send_ref_map(|x: &i32| *x * 3, memo);
 		assert_eq!(mapped.evaluate(), Err(&"fail".to_string()));
+	}
+
+	// --- Inherent ref_map tests ---
+
+	/// Tests `RcTryLazy::ref_map` with a successful value.
+	#[test]
+	fn test_rc_try_lazy_ref_map_ok() {
+		let memo = RcTryLazy::<i32, String>::ok(10);
+		let mapped = memo.ref_map(|x| *x * 2);
+		assert_eq!(mapped.evaluate(), Ok(&20));
+	}
+
+	/// Tests `RcTryLazy::ref_map` with an error value.
+	#[test]
+	fn test_rc_try_lazy_ref_map_err() {
+		let memo = RcTryLazy::<i32, String>::err("fail".to_string());
+		let mapped = memo.ref_map(|x| *x * 2);
+		assert_eq!(mapped.evaluate(), Err(&"fail".to_string()));
+	}
+
+	/// Tests `RcTryLazy::ref_map` identity law.
+	#[test]
+	fn test_rc_try_lazy_ref_map_identity() {
+		let memo = RcTryLazy::<i32, String>::ok(42);
+		let mapped = memo.ref_map(|x| *x);
+		assert_eq!(mapped.evaluate(), Ok(&42));
+	}
+
+	/// Tests `ArcTryLazy::ref_map` with a successful value.
+	#[test]
+	fn test_arc_try_lazy_ref_map_ok() {
+		let memo = ArcTryLazy::<i32, String>::ok(10);
+		let mapped = memo.ref_map(|x| *x * 2);
+		assert_eq!(mapped.evaluate(), Ok(&20));
+	}
+
+	/// Tests `ArcTryLazy::ref_map` with an error value.
+	#[test]
+	fn test_arc_try_lazy_ref_map_err() {
+		let memo = ArcTryLazy::<i32, String>::err("fail".to_string());
+		let mapped = memo.ref_map(|x| *x * 2);
+		assert_eq!(mapped.evaluate(), Err(&"fail".to_string()));
+	}
+
+	/// Tests `ArcTryLazy::ref_map` identity law.
+	#[test]
+	fn test_arc_try_lazy_ref_map_identity() {
+		let memo = ArcTryLazy::<i32, String>::ok(42);
+		let mapped = memo.ref_map(|x| *x);
+		assert_eq!(mapped.evaluate(), Ok(&42));
 	}
 
 	// --- Semigroup tests ---
