@@ -121,6 +121,15 @@ pub struct ControlFlowBreakAppliedBrand<B>(PhantomData<B>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ControlFlowContinueAppliedBrand<C>(PhantomData<C>);
 
+/// Brand for [`Coyoneda`](crate::types::Coyoneda), the free functor.
+///
+/// `CoyonedaBrand<F>` is a [`Functor`](crate::classes::Functor) for any type constructor
+/// `F` with the appropriate [`Kind`](crate::kinds) signature, even if `F` itself is not
+/// a `Functor`. The `Functor` constraint on `F` is only required when
+/// [`lower`](crate::types::Coyoneda::lower)ing back to `F`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CoyonedaBrand<F>(PhantomData<F>);
+
 /// Generic function brand parameterized by reference-counted pointer choice.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FnBrand<PtrBrand: RefCountedPointer>(PhantomData<PtrBrand>);

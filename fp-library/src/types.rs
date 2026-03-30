@@ -19,6 +19,7 @@ pub mod cat_list;
 pub mod conjunctive;
 pub mod const_val;
 pub mod control_flow;
+pub mod coyoneda;
 pub mod disjunctive;
 pub mod dual;
 pub mod endofunction;
@@ -51,6 +52,7 @@ pub use {
 	additive::Additive,
 	cat_list::CatList,
 	conjunctive::Conjunctive,
+	coyoneda::Coyoneda,
 	disjunctive::Disjunctive,
 	dual::Dual,
 	endofunction::Endofunction,
