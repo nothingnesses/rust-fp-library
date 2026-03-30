@@ -273,15 +273,11 @@ mod inner {
 		/// [`ControlFlow`]: `ControlFlow::Continue(next)` continues with `next`, while
 		/// `ControlFlow::Break(a)` breaks out and returns `a`.
 		///
-		/// # Clone Bound
+		/// # Step Function
 		///
-		/// The function `f` must implement `Clone` because each iteration
-		/// of the recursion may need its own copy. Most closures naturally
-		/// implement `Clone` when all their captures implement `Clone`.
-		///
-		/// For closures that do not implement `Clone`, use
-		/// [`arc_tail_rec_m`](SendThunk::arc_tail_rec_m), which wraps the
-		/// closure in `Arc` internally.
+		/// The function `f` is bounded by `Fn`, so it is callable multiple
+		/// times by shared reference. Each iteration of the loop calls `f`
+		/// without consuming it, so no `Clone` bound is needed.
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the loop state.")]
@@ -328,11 +324,11 @@ mod inner {
 			})
 		}
 
-		/// Arc-wrapped version of [`tail_rec_m`](SendThunk::tail_rec_m) for non-Clone closures.
+		/// Arc-wrapped version of [`tail_rec_m`](SendThunk::tail_rec_m).
 		///
-		/// Use this when your closure captures non-Clone state. The closure is
-		/// wrapped in [`Arc`] internally, which provides the required `Clone`
-		/// implementation.
+		/// Wraps the closure in [`Arc`] internally so it can be shared
+		/// across thread boundaries. The step function must be `Send + Sync`
+		/// (rather than just `Send` as in `tail_rec_m`).
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the loop state.")]

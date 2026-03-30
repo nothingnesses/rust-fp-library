@@ -2009,10 +2009,12 @@ mod inner {
 		/// assert!(list.is_empty());
 		/// ```
 		pub fn uncons(mut self) -> Option<(A, Self)> {
-			// Replace self.0 with Nil, taking ownership of the inner enum.
-			// CatListInner has no Drop impl, so we can destructure it by move.
 			let inner = std::mem::replace(&mut self.0, CatListInner::Nil);
-			// self.0 is now Nil, so forgetting self leaks nothing.
+			// SAFETY: `inner` now owns the original data, and `self.0` is `Nil`.
+			// `mem::forget` skips `CatList`'s custom `Drop` (which would
+			// redundantly walk the now-empty sentinel). This is sound because
+			// `CatListInner` has no `Drop` impl; if one is ever added, this
+			// code must be restructured to avoid skipping resource cleanup.
 			std::mem::forget(self);
 			match inner {
 				CatListInner::Nil => None,
