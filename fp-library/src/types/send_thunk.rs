@@ -402,7 +402,9 @@ mod inner {
 		/// assert_eq!(*lazy.evaluate(), 42);
 		/// ```
 		#[inline]
-		pub fn into_arc_lazy(self) -> ArcLazy<'a, A> {
+		pub fn into_arc_lazy(self) -> ArcLazy<'a, A>
+		where
+			A: Send + Sync, {
 			self.into()
 		}
 	}

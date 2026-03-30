@@ -1774,11 +1774,11 @@ mod inner {
 		///
 		/// # Evaluation strategy
 		///
-		/// This implementation uses **fail-last** semantics: both `fa` and `fb` are
-		/// evaluated before the results are inspected. If either side is `Ok`, the
-		/// `Ok` value is returned and the function is never called. This contrasts
-		/// with the monadic [`bind`](TryThunk::bind) path, which is **fail-fast**
-		/// and short-circuits on the first `Ok` without evaluating the second thunk.
+		/// This implementation uses **fail-fast** semantics, consistent with
+		/// [`bind`](TryThunk::bind): `fa` is evaluated first, and if it is `Ok`,
+		/// the result is returned immediately without evaluating `fb`. If `fa` is
+		/// `Err`, `fb` is evaluated next; if `fb` is `Ok`, that `Ok` is returned.
+		/// The function is only called when both sides are `Err`.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1820,10 +1820,12 @@ mod inner {
 			E1: Clone + 'a,
 			E2: Clone + 'a,
 			E3: 'a, {
-			TryThunk::new(move || match (fa.evaluate(), fb.evaluate()) {
-				(Err(e1), Err(e2)) => Err(func(e1, e2)),
-				(Ok(a), _) => Ok(a),
-				(_, Ok(a)) => Ok(a),
+			TryThunk::new(move || match fa.evaluate() {
+				Ok(a) => Ok(a),
+				Err(e1) => match fb.evaluate() {
+					Ok(a) => Ok(a),
+					Err(e2) => Err(func(e1, e2)),
+				},
 			})
 		}
 	}
@@ -1840,11 +1842,11 @@ mod inner {
 		///
 		/// # Evaluation strategy
 		///
-		/// This implementation uses **fail-last** semantics: both `ff` and `fa` are
-		/// evaluated before the results are inspected. If either side is `Ok`, the
-		/// `Ok` value is returned. This contrasts with the monadic
-		/// [`bind`](TryThunk::bind) path, which is **fail-fast** and short-circuits
-		/// on the first `Ok` without evaluating the second thunk.
+		/// This implementation uses **fail-fast** semantics, consistent with
+		/// [`bind`](TryThunk::bind): `ff` is evaluated first, and if it is `Ok`,
+		/// the result is returned immediately without evaluating `fa`. If `ff` is
+		/// `Err`, `fa` is evaluated next; if `fa` is `Ok`, that `Ok` is returned.
+		/// The function is only applied when both sides are `Err`.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1881,10 +1883,12 @@ mod inner {
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, E1, E2>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E1>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E2>) {
-			TryThunk::new(move || match (ff.evaluate(), fa.evaluate()) {
-				(Err(f), Err(e)) => Err(f(e)),
-				(Ok(a), _) => Ok(a),
-				(_, Ok(a)) => Ok(a),
+			TryThunk::new(move || match ff.evaluate() {
+				Ok(a) => Ok(a),
+				Err(f) => match fa.evaluate() {
+					Ok(a) => Ok(a),
+					Err(e) => Err(f(e)),
+				},
 			})
 		}
 	}

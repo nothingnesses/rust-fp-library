@@ -506,7 +506,7 @@ mod inner {
 		"The lifetime of the computation.",
 		"The type of the computed value."
 	)]
-	impl<'a, A: 'a> From<SendThunk<'a, A>> for Lazy<'a, A, ArcLazyConfig> {
+	impl<'a, A: Send + Sync + 'a> From<SendThunk<'a, A>> for Lazy<'a, A, ArcLazyConfig> {
 		/// Converts a [`SendThunk`] into an [`ArcLazy`] without eager evaluation.
 		///
 		/// Because `SendThunk` already satisfies `Send`, the inner closure can be
@@ -601,7 +601,7 @@ mod inner {
 	#[document_parameters("The lazy instance.")]
 	impl<'a, A> Lazy<'a, A, ArcLazyConfig>
 	where
-		A: 'a,
+		A: Send + Sync + 'a,
 	{
 		/// Creates a new Lazy that will run `f` on first access.
 		#[document_signature]
@@ -629,7 +629,7 @@ mod inner {
 		/// Creates a `Lazy` from an already-computed value.
 		///
 		/// The value is immediately available without any computation.
-		/// Requires `Send` since `ArcLazy` is thread-safe.
+		/// Requires `Send + Sync` since `ArcLazy` is thread-safe.
 		#[document_signature]
 		///
 		#[document_parameters("The pre-computed value to wrap.")]
@@ -648,9 +648,7 @@ mod inner {
 		/// let lazy = Lazy::<_, ArcLazyConfig>::pure(42);
 		/// assert_eq!(*lazy.evaluate(), 42);
 		/// ```
-		pub fn pure(a: A) -> Self
-		where
-			A: Send + Sync, {
+		pub fn pure(a: A) -> Self {
 			Lazy(ArcLazyConfig::lazy_new(Box::new(move || a)))
 		}
 
@@ -678,7 +676,7 @@ mod inner {
 		#[inline]
 		pub fn evaluate_owned(&self) -> A
 		where
-			A: Clone + Send + Sync, {
+			A: Clone, {
 			self.evaluate().clone()
 		}
 	}
@@ -688,7 +686,7 @@ mod inner {
 		"The type of the computed value."
 	)]
 	#[document_parameters("The lazy value to map over.")]
-	impl<'a, A: 'a> Lazy<'a, A, ArcLazyConfig> {
+	impl<'a, A: Send + Sync + 'a> Lazy<'a, A, ArcLazyConfig> {
 		/// Maps a function over the memoized value by reference.
 		///
 		/// This is the `ArcLazy` counterpart of [`RcLazy::ref_map`](Lazy::ref_map).
@@ -716,12 +714,10 @@ mod inner {
 		/// assert_eq!(*mapped.evaluate(), 20);
 		/// ```
 		#[inline]
-		pub fn ref_map<B: 'a>(
+		pub fn ref_map<B: Send + Sync + 'a>(
 			self,
 			f: impl FnOnce(&A) -> B + Send + 'a,
-		) -> Lazy<'a, B, ArcLazyConfig>
-		where
-			A: Send + Sync, {
+		) -> Lazy<'a, B, ArcLazyConfig> {
 			ArcLazy::new(move || f(self.evaluate()))
 		}
 	}

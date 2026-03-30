@@ -653,9 +653,8 @@ mod inner {
 	)]
 	impl<'a, A, E> From<Result<A, E>> for TryLazy<'a, A, E, ArcLazyConfig>
 	where
-		A: 'a,
-		E: 'a,
-		Result<A, E>: Send,
+		A: Send + Sync + 'a,
+		E: Send + Sync + 'a,
 	{
 		#[document_signature]
 		#[document_parameters("The result to convert.")]
@@ -959,8 +958,8 @@ mod inner {
 	#[document_parameters("The try-lazy cell instance.")]
 	impl<'a, A, E> TryLazy<'a, A, E, ArcLazyConfig>
 	where
-		A: 'a,
-		E: 'a,
+		A: Send + Sync + 'a,
+		E: Send + Sync + 'a,
 	{
 		/// Creates a new `TryLazy` that will run `f` on first access.
 		#[document_signature]
@@ -998,10 +997,7 @@ mod inner {
 		/// assert_eq!(memo.evaluate(), Ok(&42));
 		/// ```
 		#[inline]
-		pub fn ok(a: A) -> Self
-		where
-			A: Send,
-			E: Send, {
+		pub fn ok(a: A) -> Self {
 			Self::new(move || Ok(a))
 		}
 
@@ -1021,10 +1017,7 @@ mod inner {
 		/// assert_eq!(memo.evaluate(), Err(&"error".to_string()));
 		/// ```
 		#[inline]
-		pub fn err(e: E) -> Self
-		where
-			A: Send,
-			E: Send, {
+		pub fn err(e: E) -> Self {
 			Self::new(move || Err(e))
 		}
 
@@ -1049,8 +1042,8 @@ mod inner {
 		#[inline]
 		pub fn evaluate_owned(&self) -> Result<A, E>
 		where
-			A: Clone + Send + Sync,
-			E: Clone + Send + Sync, {
+			A: Clone,
+			E: Clone, {
 			self.evaluate().cloned().map_err(|e| e.clone())
 		}
 
@@ -1079,13 +1072,12 @@ mod inner {
 		/// assert_eq!(mapped.evaluate(), Ok(&20));
 		/// ```
 		#[inline]
-		pub fn map<B: 'a>(
+		pub fn map<B: Send + Sync + 'a>(
 			self,
 			f: impl FnOnce(&A) -> B + Send + 'a,
 		) -> ArcTryLazy<'a, B, E>
 		where
-			A: Send + Sync,
-			E: Clone + Send + Sync, {
+			E: Clone, {
 			ArcTryLazy::new(move || match self.evaluate() {
 				Ok(a) => Ok(f(a)),
 				Err(e) => Err(e.clone()),
@@ -1128,13 +1120,12 @@ mod inner {
 		/// assert_eq!(mapped.evaluate(), Ok(&20));
 		/// ```
 		#[inline]
-		pub fn ref_map<B: 'a>(
+		pub fn ref_map<B: Send + Sync + 'a>(
 			self,
 			f: impl FnOnce(&A) -> B + Send + 'a,
 		) -> ArcTryLazy<'a, B, E>
 		where
-			A: Send + Sync,
-			E: Clone + Send + Sync, {
+			E: Clone, {
 			ArcTryLazy::new(move || match self.evaluate() {
 				Ok(a) => Ok(f(a)),
 				Err(e) => Err(e.clone()),
@@ -1164,13 +1155,12 @@ mod inner {
 		/// assert_eq!(mapped.evaluate(), Err(&"wrapped: error".to_string()));
 		/// ```
 		#[inline]
-		pub fn map_err<E2: 'a>(
+		pub fn map_err<E2: Send + Sync + 'a>(
 			self,
 			f: impl FnOnce(&E) -> E2 + Send + 'a,
 		) -> ArcTryLazy<'a, A, E2>
 		where
-			A: Clone + Send + Sync,
-			E: Send + Sync, {
+			A: Clone, {
 			ArcTryLazy::new(move || match self.evaluate() {
 				Ok(a) => Ok(a.clone()),
 				Err(e) => Err(f(e)),
@@ -1215,14 +1205,11 @@ mod inner {
 		/// assert_eq!(mapped.evaluate(), Err(&5));
 		/// ```
 		#[inline]
-		pub fn bimap<B: 'a, F: 'a>(
+		pub fn bimap<B: Send + Sync + 'a, F: Send + Sync + 'a>(
 			self,
 			f: impl FnOnce(&A) -> B + Send + 'a,
 			g: impl FnOnce(&E) -> F + Send + 'a,
-		) -> ArcTryLazy<'a, B, F>
-		where
-			A: Send + Sync,
-			E: Send + Sync, {
+		) -> ArcTryLazy<'a, B, F> {
 			ArcTryLazy::new(move || match self.evaluate() {
 				Ok(a) => Ok(f(a)),
 				Err(e) => Err(g(e)),
@@ -1237,7 +1224,7 @@ mod inner {
 		"The type of the computed value.",
 		"The type of the error value."
 	)]
-	impl<'a, A: 'a, E: 'a> TryLazy<'a, A, E, ArcLazyConfig> {
+	impl<'a, A: Send + Sync + 'a, E: Send + Sync + 'a> TryLazy<'a, A, E, ArcLazyConfig> {
 		/// Creates a thread-safe `TryLazy` that catches unwinds (panics),
 		/// converting the panic payload using a custom conversion function.
 		///
@@ -1285,7 +1272,7 @@ mod inner {
 	)]
 	impl<'a, A> TryLazy<'a, A, String, ArcLazyConfig>
 	where
-		A: 'a,
+		A: Send + Sync + 'a,
 	{
 		/// Creates a thread-safe `TryLazy` that catches unwinds (panics).
 		///
