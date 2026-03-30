@@ -3757,4 +3757,150 @@ mod tests {
 			handle.join().unwrap();
 		}
 	}
+
+	// -- Knot-tying tests: self-reference is actually used after initialization --
+
+	/// Tests that `rc_try_lazy_fix` ties the knot: the self-reference captured
+	/// inside the closure points to the same `Rc` cell as the returned lazy.
+	/// After evaluation, querying the self-reference yields the cached `Ok` value.
+	#[test]
+	fn test_rc_try_lazy_fix_knot_tying_ptr_eq() {
+		let stash: Rc<RefCell<Option<RcTryLazy<i32, ()>>>> = Rc::new(RefCell::new(None));
+		let stash_clone = stash.clone();
+		let lazy = rc_try_lazy_fix(move |self_ref: RcTryLazy<i32, ()>| {
+			*stash_clone.borrow_mut() = Some(self_ref);
+			Ok(42)
+		});
+		assert_eq!(lazy.evaluate(), Ok(&42));
+		let self_ref = stash.borrow().clone().unwrap();
+		// The self-reference must point to the same underlying Rc cell.
+		assert!(Rc::ptr_eq(&lazy.0.0, &self_ref.0.0));
+		// Evaluating the self-reference yields the same cached value.
+		assert_eq!(self_ref.evaluate(), Ok(&42));
+	}
+
+	/// Tests that `rc_try_lazy_fix` knot-tying produces a shared cache: the
+	/// initializer runs exactly once even when accessed through the self-reference.
+	#[test]
+	fn test_rc_try_lazy_fix_knot_tying_shared_cache() {
+		let counter = Rc::new(RefCell::new(0));
+		let stash: Rc<RefCell<Option<RcTryLazy<i32, ()>>>> = Rc::new(RefCell::new(None));
+		let counter_clone = counter.clone();
+		let stash_clone = stash.clone();
+		let lazy = rc_try_lazy_fix(move |self_ref: RcTryLazy<i32, ()>| {
+			*stash_clone.borrow_mut() = Some(self_ref);
+			*counter_clone.borrow_mut() += 1;
+			Ok(100)
+		});
+		assert_eq!(*counter.borrow(), 0);
+		assert_eq!(lazy.evaluate(), Ok(&100));
+		assert_eq!(*counter.borrow(), 1);
+		// Access through the stashed self-reference.
+		let self_ref = stash.borrow().clone().unwrap();
+		assert_eq!(self_ref.evaluate(), Ok(&100));
+		// Counter must still be 1: the initializer was not re-run.
+		assert_eq!(*counter.borrow(), 1);
+	}
+
+	/// Tests that `rc_try_lazy_fix` knot-tying works with `Err` results: the
+	/// self-reference shares the cached error.
+	#[test]
+	fn test_rc_try_lazy_fix_knot_tying_err_shared() {
+		let stash: Rc<RefCell<Option<RcTryLazy<i32, String>>>> = Rc::new(RefCell::new(None));
+		let stash_clone = stash.clone();
+		let lazy = rc_try_lazy_fix(move |self_ref: RcTryLazy<i32, String>| {
+			*stash_clone.borrow_mut() = Some(self_ref);
+			Err("fail".to_string())
+		});
+		assert_eq!(lazy.evaluate(), Err(&"fail".to_string()));
+		let self_ref = stash.borrow().clone().unwrap();
+		// The self-reference also sees the cached error.
+		assert_eq!(self_ref.evaluate(), Err(&"fail".to_string()));
+		// Both point to the same Rc cell.
+		assert!(Rc::ptr_eq(&lazy.0.0, &self_ref.0.0));
+	}
+
+	/// Tests that `rc_try_lazy_fix` panics on reentrant evaluation.
+	///
+	/// Forcing the self-reference inside the initializer triggers a
+	/// `LazyCell` reentrant-init panic.
+	#[test]
+	#[should_panic]
+	fn test_rc_try_lazy_fix_reentrant_panics() {
+		let lazy = rc_try_lazy_fix(|self_ref: RcTryLazy<i32, ()>| {
+			// Forcing the self-reference during initialization is reentrant
+			// and must panic.
+			Ok(*self_ref.evaluate().unwrap() + 1)
+		});
+		let _ = lazy.evaluate();
+	}
+
+	/// Tests that `arc_try_lazy_fix` ties the knot: the self-reference captured
+	/// inside the closure points to the same `Arc` cell as the returned lazy.
+	#[test]
+	fn test_arc_try_lazy_fix_knot_tying_ptr_eq() {
+		use std::sync::Mutex;
+
+		let stash: Arc<Mutex<Option<ArcTryLazy<i32, ()>>>> = Arc::new(Mutex::new(None));
+		let stash_clone = stash.clone();
+		let lazy = arc_try_lazy_fix(move |self_ref: ArcTryLazy<i32, ()>| {
+			*stash_clone.lock().unwrap() = Some(self_ref);
+			Ok(42)
+		});
+		assert_eq!(lazy.evaluate(), Ok(&42));
+		let self_ref = stash.lock().unwrap().clone().unwrap();
+		assert!(Arc::ptr_eq(&lazy.0.0, &self_ref.0.0));
+		assert_eq!(self_ref.evaluate(), Ok(&42));
+	}
+
+	/// Tests that `arc_try_lazy_fix` knot-tying produces a shared cache: the
+	/// initializer runs exactly once even when accessed through the self-reference.
+	#[test]
+	fn test_arc_try_lazy_fix_knot_tying_shared_cache() {
+		use std::sync::{
+			Mutex,
+			atomic::{
+				AtomicUsize,
+				Ordering,
+			},
+		};
+
+		let counter = Arc::new(AtomicUsize::new(0));
+		let stash: Arc<Mutex<Option<ArcTryLazy<i32, ()>>>> = Arc::new(Mutex::new(None));
+		let counter_clone = counter.clone();
+		let stash_clone = stash.clone();
+		let lazy = arc_try_lazy_fix(move |self_ref: ArcTryLazy<i32, ()>| {
+			*stash_clone.lock().unwrap() = Some(self_ref);
+			counter_clone.fetch_add(1, Ordering::SeqCst);
+			Ok(100)
+		});
+		assert_eq!(counter.load(Ordering::SeqCst), 0);
+		assert_eq!(lazy.evaluate(), Ok(&100));
+		assert_eq!(counter.load(Ordering::SeqCst), 1);
+		let self_ref = stash.lock().unwrap().clone().unwrap();
+		assert_eq!(self_ref.evaluate(), Ok(&100));
+		assert_eq!(counter.load(Ordering::SeqCst), 1);
+	}
+
+	/// Tests that `arc_try_lazy_fix` knot-tying works across threads: the
+	/// self-reference can be evaluated from a different thread and still
+	/// returns the cached value.
+	#[test]
+	fn test_arc_try_lazy_fix_knot_tying_cross_thread() {
+		use std::{
+			sync::Mutex,
+			thread,
+		};
+
+		let stash: Arc<Mutex<Option<ArcTryLazy<i32, ()>>>> = Arc::new(Mutex::new(None));
+		let stash_clone = stash.clone();
+		let lazy = arc_try_lazy_fix(move |self_ref: ArcTryLazy<i32, ()>| {
+			*stash_clone.lock().unwrap() = Some(self_ref);
+			Ok(77)
+		});
+		assert_eq!(lazy.evaluate(), Ok(&77));
+		let self_ref = stash.lock().unwrap().clone().unwrap();
+		let handle = thread::spawn(move || self_ref.evaluate_owned());
+		assert_eq!(handle.join().unwrap(), Ok(77));
+	}
 }

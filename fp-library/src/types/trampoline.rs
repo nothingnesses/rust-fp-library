@@ -77,6 +77,13 @@ mod inner {
 	/// lazy.evaluate(); // Computes
 	/// lazy.evaluate(); // Returns cached
 	/// ```
+	///
+	/// # Drop behavior
+	///
+	/// Dropping a `Trampoline` dismantles its inner [`Free<ThunkBrand, A>`](Free)
+	/// chain iteratively. Each suspended thunk in the chain is evaluated during drop
+	/// to access the next node. Be aware that dropping a partially-evaluated
+	/// `Trampoline` may trigger deferred computations.
 	#[document_type_parameters("The type of the value produced by the task.")]
 	///
 	pub struct Trampoline<A: 'static>(
