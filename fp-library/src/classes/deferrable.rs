@@ -44,13 +44,9 @@ mod inner {
 	/// [`arc_lazy_fix`](crate::types::lazy::arc_lazy_fix) provide this capability for
 	/// `Lazy` specifically.
 	///
-	/// # Warning
-	///
-	/// Some implementations may evaluate the thunk eagerly when the produced type requires
-	/// `Send`. For example, `ArcLazy`'s `Deferrable` implementation evaluates the outer thunk
-	/// immediately because `ArcLazy::new` requires a `Send` closure, but the `Deferrable`
-	/// trait does not impose that bound. If you need guaranteed deferred evaluation with
-	/// thread-safe types, prefer [`SendDeferrable`](crate::classes::SendDeferrable) instead.
+	/// `Deferrable` is for single-threaded deferred construction. For thread-safe
+	/// deferred construction with `Send` closures, use
+	/// [`SendDeferrable`](crate::classes::SendDeferrable).
 	#[document_type_parameters("The lifetime of the computation.")]
 	#[document_examples]
 	///

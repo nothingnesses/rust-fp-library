@@ -1453,49 +1453,6 @@ mod inner {
 		"The type of the computed value.",
 		"The type of the error."
 	)]
-	impl<'a, A, E> Deferrable<'a> for TryLazy<'a, A, E, ArcLazyConfig>
-	where
-		A: Clone + Send + Sync + 'a,
-		E: Clone + Send + Sync + 'a,
-	{
-		/// Defers a computation that produces a thread-safe `TryLazy` value.
-		///
-		/// The thunk `f` is called eagerly to obtain the inner `ArcTryLazy`, which
-		/// is then returned directly. The inner `ArcTryLazy` retains its own lazy
-		/// semantics, so the underlying computation is still deferred. This eager
-		/// call to `f` is necessary because `Deferrable::defer` does not require
-		/// `Send` on the thunk, while `ArcTryLazy::new` does.
-		#[document_signature]
-		///
-		#[document_parameters("The thunk that produces the lazy value.")]
-		///
-		#[document_returns("A new `ArcTryLazy` value.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy: ArcTryLazy<i32, ()> = defer(|| ArcTryLazy::new(|| Ok(42)));
-		/// assert_eq!(lazy.evaluate(), Ok(&42));
-		/// ```
-		fn defer(f: impl FnOnce() -> Self + 'a) -> Self
-		where
-			Self: Sized, {
-			f()
-		}
-	}
-
-	#[document_type_parameters(
-		"The lifetime of the computation.",
-		"The type of the computed value.",
-		"The type of the error."
-	)]
 	impl<'a, A, E> SendDeferrable<'a> for TryLazy<'a, A, E, ArcLazyConfig>
 	where
 		A: Clone + Send + Sync + 'a,

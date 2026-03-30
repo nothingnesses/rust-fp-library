@@ -15,7 +15,6 @@ mod inner {
 			brands::SendThunkBrand,
 			classes::{
 				CloneableFn,
-				Deferrable,
 				Foldable,
 				FoldableWithIndex,
 				Monoid,
@@ -603,39 +602,6 @@ mod inner {
 		"The lifetime of the computation.",
 		"The type of the value produced by the computation."
 	)]
-	impl<'a, A: 'a> Deferrable<'a> for SendThunk<'a, A> {
-		/// Creates a `SendThunk` from a computation that produces it.
-		///
-		/// The thunk `f` is called eagerly because `Deferrable::defer` does not
-		/// require `Send` on the closure.
-		#[document_signature]
-		///
-		#[document_parameters("A thunk that produces the send thunk.")]
-		///
-		#[document_returns("The deferred send thunk.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	classes::Deferrable,
-		/// 	types::*,
-		/// };
-		///
-		/// let task: SendThunk<i32> = Deferrable::defer(|| SendThunk::pure(42));
-		/// assert_eq!(task.evaluate(), 42);
-		/// ```
-		fn defer(f: impl FnOnce() -> Self + 'a) -> Self
-		where
-			Self: Sized, {
-			f()
-		}
-	}
-
-	#[document_type_parameters(
-		"The lifetime of the computation.",
-		"The type of the value produced by the computation."
-	)]
 	impl<'a, A: Send + 'a> SendDeferrable<'a> for SendThunk<'a, A> {
 		/// Creates a `SendThunk` from a thread-safe computation that produces it.
 		#[document_signature]
@@ -830,13 +796,6 @@ mod tests {
 	fn test_send_thunk_is_send() {
 		fn assert_send<T: Send>() {}
 		assert_send::<SendThunk<'static, i32>>();
-	}
-
-	#[test]
-	fn test_send_thunk_deferrable() {
-		use crate::classes::Deferrable;
-		let task: SendThunk<i32> = Deferrable::defer(|| SendThunk::pure(42));
-		assert_eq!(task.evaluate(), 42);
 	}
 
 	#[test]
