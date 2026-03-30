@@ -57,10 +57,7 @@ mod inner {
 		},
 	};
 
-	pub use crate::classes::{
-		LazyConfig,
-		TryLazyConfig,
-	};
+	pub use crate::classes::LazyConfig;
 
 	/// Single-threaded memoization using [`Rc<LazyCell>`].
 	///
@@ -125,73 +122,6 @@ mod inner {
 		}
 	}
 
-	impl TryLazyConfig for RcLazyConfig {
-		type TryLazy<'a, A: 'a, E: 'a> =
-			Rc<LazyCell<Result<A, E>, Box<dyn FnOnce() -> Result<A, E> + 'a>>>;
-		type TryThunk<'a, A: 'a, E: 'a> = dyn FnOnce() -> Result<A, E> + 'a;
-
-		/// Creates a new fallible lazy cell from an initializer.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the computation.",
-			"The type of the value.",
-			"The type of the error."
-		)]
-		///
-		#[document_parameters("The initializer thunk.")]
-		///
-		#[document_returns("A new fallible lazy cell.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	classes::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
-		/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
-		/// ```
-		fn try_lazy_new<'a, A: 'a, E: 'a>(
-			f: Box<Self::TryThunk<'a, A, E>>
-		) -> Self::TryLazy<'a, A, E> {
-			Rc::new(LazyCell::new(f))
-		}
-
-		/// Forces evaluation and returns a reference to the result.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the computation.",
-			"The borrow lifetime.",
-			"The type of the value.",
-			"The type of the error."
-		)]
-		///
-		#[document_parameters("The fallible lazy cell to evaluate.")]
-		///
-		#[document_returns("A result containing a reference to the value or error.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	classes::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
-		/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
-		/// ```
-		fn try_evaluate<'a, 'b, A: 'a, E: 'a>(
-			lazy: &'b Self::TryLazy<'a, A, E>
-		) -> Result<&'b A, &'b E> {
-			LazyCell::force(lazy).as_ref()
-		}
-	}
-
 	/// Thread-safe memoization using [`Arc<LazyLock>`].
 	///
 	/// Requires `A: Send + Sync` for the value type.
@@ -252,73 +182,6 @@ mod inner {
 		/// ```
 		fn evaluate<'a, 'b, A: 'a>(lazy: &'b Self::Lazy<'a, A>) -> &'b A {
 			LazyLock::force(lazy)
-		}
-	}
-
-	impl TryLazyConfig for ArcLazyConfig {
-		type TryLazy<'a, A: 'a, E: 'a> =
-			Arc<LazyLock<Result<A, E>, Box<dyn FnOnce() -> Result<A, E> + Send + 'a>>>;
-		type TryThunk<'a, A: 'a, E: 'a> = dyn FnOnce() -> Result<A, E> + Send + 'a;
-
-		/// Creates a new fallible lazy cell from an initializer.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the computation.",
-			"The type of the value.",
-			"The type of the error."
-		)]
-		///
-		#[document_parameters("The initializer thunk.")]
-		///
-		#[document_returns("A new fallible lazy cell.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	classes::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy = ArcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
-		/// assert_eq!(ArcLazyConfig::try_evaluate(&lazy), Ok(&42));
-		/// ```
-		fn try_lazy_new<'a, A: 'a, E: 'a>(
-			f: Box<Self::TryThunk<'a, A, E>>
-		) -> Self::TryLazy<'a, A, E> {
-			Arc::new(LazyLock::new(f))
-		}
-
-		/// Forces evaluation and returns a reference to the result.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the computation.",
-			"The borrow lifetime.",
-			"The type of the value.",
-			"The type of the error."
-		)]
-		///
-		#[document_parameters("The fallible lazy cell to evaluate.")]
-		///
-		#[document_returns("A result containing a reference to the value or error.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	classes::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy = ArcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
-		/// assert_eq!(ArcLazyConfig::try_evaluate(&lazy), Ok(&42));
-		/// ```
-		fn try_evaluate<'a, 'b, A: 'a, E: 'a>(
-			lazy: &'b Self::TryLazy<'a, A, E>
-		) -> Result<&'b A, &'b E> {
-			LazyLock::force(lazy).as_ref()
 		}
 	}
 

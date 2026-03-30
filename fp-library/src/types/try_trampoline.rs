@@ -22,7 +22,6 @@ mod inner {
 				LazyConfig,
 				Monoid,
 				Semigroup,
-				TryLazyConfig,
 			},
 			types::{
 				Lazy,
@@ -918,7 +917,7 @@ mod inner {
 	where
 		A: Clone + 'static,
 		E: Clone + 'static,
-		Config: TryLazyConfig,
+		Config: LazyConfig,
 	{
 		/// Converts a [`TryLazy`] value into a [`TryTrampoline`] that defers evaluation.
 		///

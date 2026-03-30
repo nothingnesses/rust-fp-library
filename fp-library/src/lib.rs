@@ -28,7 +28,7 @@
 //!   - **Collections:** `Compactable`, `Filterable`, `Witherable`
 //!   - **Indexed:** `WithIndex`, `FunctorWithIndex`, `FoldableWithIndex`, `TraversableWithIndex`
 //!   - **Category Theory:** `Category`, `Semigroupoid`, `Profunctor`, `Strong`, `Choice`, `Closed`, `Cochoice`, `Costrong`, `Wander`
-//!   - **Laziness & Effects:** `RefFunctor`, `SendRefFunctor`, `Deferrable`, `SendDeferrable`, `LazyConfig`, `TryLazyConfig`
+//!   - **Laziness & Effects:** `RefFunctor`, `SendRefFunctor`, `Deferrable`, `SendDeferrable`, `LazyConfig`
 //!   - **Parallel:** `ParFunctor`, `ParCompactable`, `ParFilterable`, `ParFoldable`, `ParFunctorWithIndex`, `ParFoldableWithIndex`
 //! - **Function & Pointer Abstractions:** Traits for abstracting over function wrappers and reference counting:
 //!   - **Functions:** `Function`, `CloneableFn`, `SendCloneableFn`, `UnsizedCoercible`, `SendUnsizedCoercible`

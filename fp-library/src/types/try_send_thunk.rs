@@ -685,7 +685,7 @@ mod inner {
 		where
 			A: Send + Sync + 'a,
 			E: Send + Sync + 'a, {
-			TryLazy(self.0.into_arc_lazy().0)
+			TryLazy(self.0.into_arc_lazy())
 		}
 	}
 

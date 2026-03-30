@@ -79,7 +79,6 @@ pub mod send_ref_functor;
 pub mod send_unsized_coercible;
 pub mod traversable;
 pub mod traversable_with_index;
-pub mod try_lazy_config;
 pub mod unsized_coercible;
 pub mod with_index;
 pub mod witherable;

@@ -24,7 +24,6 @@ use {
 		classes::{
 			LazyConfig,
 			RefCountedPointer,
-			TryLazyConfig,
 		},
 		types::{
 			ArcLazyConfig,
@@ -259,7 +258,7 @@ pub struct ThunkBrand;
 /// # Type Parameters
 ///
 /// - `E`: The error type for the fallible computation.
-/// - `Config`: The memoization strategy, implementing [`TryLazyConfig`]. Use
+/// - `Config`: The memoization strategy, implementing [`LazyConfig`]. Use
 ///   [`RcLazyConfig`] for single-threaded contexts
 ///   or [`ArcLazyConfig`] for thread-safe contexts.
 ///
@@ -272,7 +271,7 @@ pub struct ThunkBrand;
 /// effectively requires `'static`. This prevents use with borrowed error types in
 /// HKT contexts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TryLazyBrand<E, Config: TryLazyConfig>(PhantomData<(E, Config)>);
+pub struct TryLazyBrand<E, Config: LazyConfig>(PhantomData<(E, Config)>);
 
 /// Brand for [`TryThunk`](crate::types::TryThunk) (Bifunctor).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

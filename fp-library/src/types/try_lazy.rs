@@ -4,6 +4,12 @@
 //! share the same cache. Available in both single-threaded [`RcTryLazy`] and thread-safe
 //! [`ArcTryLazy`] variants.
 //!
+//! # Implementation
+//!
+//! `TryLazy<'a, A, E, Config>` is a newtype over `Lazy<'a, Result<A, E>, Config>`. This
+//! delegates shared behavior (caching, cloning, hashing, ordering) to the inner `Lazy` while
+//! providing an error-aware combinator API (`map`, `map_err`, `and_then`, `or_else`).
+//!
 //! # `Foldable` and error discarding
 //!
 //! The [`Foldable`](crate::classes::Foldable) implementation for
@@ -43,12 +49,12 @@ mod inner {
 				Deferrable,
 				Foldable,
 				FoldableWithIndex,
+				LazyConfig,
 				Monoid,
 				RefFunctor,
 				Semigroup,
 				SendDeferrable,
 				SendRefFunctor,
-				TryLazyConfig,
 				WithIndex,
 			},
 			impl_kind,
@@ -101,14 +107,16 @@ mod inner {
 	/// ### Higher-Kinded Type Representation
 	///
 	/// The higher-kinded representation of this type constructor is [`TryLazyBrand<E, Config>`](crate::brands::TryLazyBrand),
-	/// which is parameterized by both the error type and the [`TryLazyConfig`], and is polymorphic over the success value type.
-	pub struct TryLazy<'a, A, E, Config: TryLazyConfig = RcLazyConfig>(
-		/// The internal lazy cell.
-		pub(crate) Config::TryLazy<'a, A, E>,
+	/// which is parameterized by both the error type and the [`LazyConfig`], and is polymorphic over the success value type.
+	pub struct TryLazy<'a, A, E, Config: LazyConfig = RcLazyConfig>(
+		/// The internal lazy cell wrapping a `Result<A, E>`.
+		pub(crate) Lazy<'a, Result<A, E>, Config>,
 	)
 	where
 		A: 'a,
 		E: 'a;
+
+	// -- Clone --
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
@@ -117,7 +125,7 @@ mod inner {
 		"The memoization configuration."
 	)]
 	#[document_parameters("The instance to clone.")]
-	impl<'a, A, E, Config: TryLazyConfig> Clone for TryLazy<'a, A, E, Config>
+	impl<'a, A, E, Config: LazyConfig> Clone for TryLazy<'a, A, E, Config>
 	where
 		A: 'a,
 		E: 'a,
@@ -139,6 +147,8 @@ mod inner {
 		}
 	}
 
+	// -- Generic evaluate --
+
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -146,7 +156,7 @@ mod inner {
 		"The memoization configuration."
 	)]
 	#[document_parameters("The `TryLazy` instance.")]
-	impl<'a, A, E, Config: TryLazyConfig> TryLazy<'a, A, E, Config>
+	impl<'a, A, E, Config: LazyConfig> TryLazy<'a, A, E, Config>
 	where
 		A: 'a,
 		E: 'a,
@@ -174,9 +184,11 @@ mod inner {
 		/// ```
 		#[inline]
 		pub fn evaluate(&self) -> Result<&A, &E> {
-			Config::try_evaluate(&self.0)
+			self.0.evaluate().as_ref()
 		}
 	}
+
+	// -- RcLazyConfig methods --
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
@@ -206,7 +218,7 @@ mod inner {
 		/// ```
 		#[inline]
 		pub fn new(f: impl FnOnce() -> Result<A, E> + 'a) -> Self {
-			TryLazy(RcLazyConfig::try_lazy_new(Box::new(f)))
+			TryLazy(Lazy::<'a, Result<A, E>, RcLazyConfig>::new(f))
 		}
 
 		/// Creates a `TryLazy` containing an already-computed success value.
@@ -444,6 +456,108 @@ mod inner {
 		}
 	}
 
+	// -- From conversions for RcTryLazy --
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
+	impl<'a, A, E> From<TryThunk<'a, A, E>> for TryLazy<'a, A, E, RcLazyConfig> {
+		#[document_signature]
+		#[document_parameters("The fallible thunk to convert.")]
+		#[document_returns(
+			"A new `TryLazy` instance that will evaluate the thunk on first access."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let thunk = TryThunk::new(|| Ok::<i32, ()>(42));
+		/// let memo: RcTryLazy<i32, ()> = TryLazy::from(thunk);
+		/// assert_eq!(memo.evaluate(), Ok(&42));
+		/// ```
+		fn from(eval: TryThunk<'a, A, E>) -> Self {
+			Self::new(move || eval.evaluate())
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
+	impl<'a, A, E> From<TryTrampoline<A, E>> for TryLazy<'a, A, E, RcLazyConfig> {
+		#[document_signature]
+		#[document_parameters("The fallible trampoline to convert.")]
+		#[document_returns(
+			"A new `TryLazy` instance that will evaluate the trampoline on first access."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let task = TryTrampoline::<_, ()>::ok(42);
+		/// let memo: RcTryLazy<i32, ()> = TryLazy::from(task);
+		/// assert_eq!(memo.evaluate(), Ok(&42));
+		/// ```
+		fn from(task: TryTrampoline<A, E>) -> Self {
+			Self::new(move || task.evaluate())
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
+	impl<'a, A, E> From<Lazy<'a, A, RcLazyConfig>> for TryLazy<'a, A, E, RcLazyConfig>
+	where
+		A: Clone + 'a,
+		E: 'a,
+	{
+		#[document_signature]
+		#[document_parameters("The lazy value to convert.")]
+		#[document_returns("A new `TryLazy` instance that wraps the lazy value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let lazy = Lazy::<_, RcLazyConfig>::pure(42);
+		/// let memo: TryLazy<_, (), _> = TryLazy::from(lazy);
+		/// assert_eq!(memo.evaluate(), Ok(&42));
+		/// ```
+		fn from(memo: Lazy<'a, A, RcLazyConfig>) -> Self {
+			Self::new(move || Ok(memo.evaluate().clone()))
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
+	impl<'a, A: 'a, E: 'a> From<Result<A, E>> for TryLazy<'a, A, E, RcLazyConfig> {
+		#[document_signature]
+		#[document_parameters("The result to convert.")]
+		#[document_returns("A new `TryLazy` instance that produces the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let ok_memo: RcTryLazy<i32, String> = RcTryLazy::from(Ok(42));
+		/// assert_eq!(ok_memo.evaluate(), Ok(&42));
+		///
+		/// let err_memo: RcTryLazy<i32, String> = RcTryLazy::from(Err("error".to_string()));
+		/// assert_eq!(err_memo.evaluate(), Err(&"error".to_string()));
+		/// ```
+		fn from(result: Result<A, E>) -> Self {
+			Self::new(move || result)
+		}
+	}
+
+	// -- From conversions for ArcTryLazy --
+
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -511,54 +625,6 @@ mod inner {
 		"The type of the computed value.",
 		"The type of the error."
 	)]
-	impl<'a, A, E> From<TryThunk<'a, A, E>> for TryLazy<'a, A, E, RcLazyConfig> {
-		#[document_signature]
-		#[document_parameters("The fallible thunk to convert.")]
-		#[document_returns(
-			"A new `TryLazy` instance that will evaluate the thunk on first access."
-		)]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::types::*;
-		/// let thunk = TryThunk::new(|| Ok::<i32, ()>(42));
-		/// let memo: RcTryLazy<i32, ()> = TryLazy::from(thunk);
-		/// assert_eq!(memo.evaluate(), Ok(&42));
-		/// ```
-		fn from(eval: TryThunk<'a, A, E>) -> Self {
-			Self::new(move || eval.evaluate())
-		}
-	}
-
-	#[document_type_parameters(
-		"The lifetime of the computation.",
-		"The type of the computed value.",
-		"The type of the error."
-	)]
-	impl<'a, A, E> From<TryTrampoline<A, E>> for TryLazy<'a, A, E, RcLazyConfig> {
-		#[document_signature]
-		#[document_parameters("The fallible trampoline to convert.")]
-		#[document_returns(
-			"A new `TryLazy` instance that will evaluate the trampoline on first access."
-		)]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::types::*;
-		/// let task = TryTrampoline::<_, ()>::ok(42);
-		/// let memo: RcTryLazy<i32, ()> = TryLazy::from(task);
-		/// assert_eq!(memo.evaluate(), Ok(&42));
-		/// ```
-		fn from(task: TryTrampoline<A, E>) -> Self {
-			Self::new(move || task.evaluate())
-		}
-	}
-
-	#[document_type_parameters(
-		"The lifetime of the computation.",
-		"The type of the computed value.",
-		"The type of the error."
-	)]
 	impl<'a, A, E> From<Lazy<'a, A, ArcLazyConfig>> for TryLazy<'a, A, E, ArcLazyConfig>
 	where
 		A: Clone + Send + Sync + 'a,
@@ -577,56 +643,6 @@ mod inner {
 		/// ```
 		fn from(memo: Lazy<'a, A, ArcLazyConfig>) -> Self {
 			Self::new(move || Ok(memo.evaluate().clone()))
-		}
-	}
-
-	#[document_type_parameters(
-		"The lifetime of the computation.",
-		"The type of the computed value.",
-		"The type of the error."
-	)]
-	impl<'a, A, E> From<Lazy<'a, A, RcLazyConfig>> for TryLazy<'a, A, E, RcLazyConfig>
-	where
-		A: Clone + 'a,
-		E: 'a,
-	{
-		#[document_signature]
-		#[document_parameters("The lazy value to convert.")]
-		#[document_returns("A new `TryLazy` instance that wraps the lazy value.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::types::*;
-		/// let lazy = Lazy::<_, RcLazyConfig>::pure(42);
-		/// let memo: TryLazy<_, (), _> = TryLazy::from(lazy);
-		/// assert_eq!(memo.evaluate(), Ok(&42));
-		/// ```
-		fn from(memo: Lazy<'a, A, RcLazyConfig>) -> Self {
-			Self::new(move || Ok(memo.evaluate().clone()))
-		}
-	}
-
-	#[document_type_parameters(
-		"The lifetime of the computation.",
-		"The type of the computed value.",
-		"The type of the error."
-	)]
-	impl<'a, A: 'a, E: 'a> From<Result<A, E>> for TryLazy<'a, A, E, RcLazyConfig> {
-		#[document_signature]
-		#[document_parameters("The result to convert.")]
-		#[document_returns("A new `TryLazy` instance that produces the result.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::types::*;
-		/// let ok_memo: RcTryLazy<i32, String> = RcTryLazy::from(Ok(42));
-		/// assert_eq!(ok_memo.evaluate(), Ok(&42));
-		///
-		/// let err_memo: RcTryLazy<i32, String> = RcTryLazy::from(Err("error".to_string()));
-		/// assert_eq!(err_memo.evaluate(), Err(&"error".to_string()));
-		/// ```
-		fn from(result: Result<A, E>) -> Self {
-			Self::new(move || result)
 		}
 	}
 
@@ -689,6 +705,8 @@ mod inner {
 			thunk.into_arc_try_lazy()
 		}
 	}
+
+	// -- Cross-config conversions --
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
@@ -763,6 +781,8 @@ mod inner {
 			Self::new(move || result)
 		}
 	}
+
+	// -- Rc catch_unwind --
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
@@ -847,6 +867,8 @@ mod inner {
 		}
 	}
 
+	// -- Rc and_then / or_else --
+
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -927,85 +949,7 @@ mod inner {
 		}
 	}
 
-	#[document_type_parameters(
-		"The lifetime of the computation.",
-		"The type of the computed value.",
-		"The type of the error."
-	)]
-	#[document_parameters("The `TryLazy` instance.")]
-	impl<'a, A, E> TryLazy<'a, A, E, ArcLazyConfig>
-	where
-		A: Clone + Send + Sync + 'a,
-		E: Clone + Send + Sync + 'a,
-	{
-		/// Chains a fallible operation on the success value (thread-safe variant).
-		///
-		/// If this `ArcTryLazy` succeeds, applies `f` to the cached `&A` and returns a
-		/// new `ArcTryLazy` that evaluates the result of `f`. If this `ArcTryLazy`
-		/// fails, the error is cloned into the new `ArcTryLazy`.
-		///
-		/// Note: unlike the typical Rust `and_then` signature where the callback takes
-		/// an owned `A`, this callback receives `&A` (a shared reference to the memoized
-		/// value) because `ArcTryLazy` caches its result behind a shared pointer.
-		#[document_signature]
-		///
-		#[document_type_parameters("The type of the new success value.")]
-		///
-		#[document_parameters("The fallible function to apply to the success value.")]
-		///
-		#[document_returns("A new `ArcTryLazy` containing the chained result.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let memo = ArcTryLazy::new(|| Ok::<i32, String>(21));
-		/// let chained = memo.and_then(|x| if *x > 0 { Ok(x * 2) } else { Err("negative".into()) });
-		/// assert_eq!(chained.evaluate(), Ok(&42));
-		/// ```
-		pub fn and_then<B: Send + Sync + 'a>(
-			self,
-			f: impl FnOnce(&A) -> Result<B, E> + Send + 'a,
-		) -> TryLazy<'a, B, E, ArcLazyConfig> {
-			let fa = self;
-			TryLazy::<'a, B, E, ArcLazyConfig>::new(move || match fa.evaluate() {
-				Ok(a) => f(a),
-				Err(e) => Err(e.clone()),
-			})
-		}
-
-		/// Provides a fallback on the error value (thread-safe variant).
-		///
-		/// If this `ArcTryLazy` fails, applies `f` to the cached `&E` and returns a
-		/// new `ArcTryLazy` that evaluates the result of `f`. If this `ArcTryLazy`
-		/// succeeds, the success value is cloned into the new `ArcTryLazy`.
-		#[document_signature]
-		///
-		#[document_parameters("The recovery function to apply to the error value.")]
-		///
-		#[document_returns("A new `ArcTryLazy` containing the recovered result.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let memo: ArcTryLazy<i32, String> = ArcTryLazy::new(|| Err("oops".into()));
-		/// let recovered = memo.or_else(|_| Ok(42));
-		/// assert_eq!(recovered.evaluate(), Ok(&42));
-		/// ```
-		pub fn or_else(
-			self,
-			f: impl FnOnce(&E) -> Result<A, E> + Send + 'a,
-		) -> TryLazy<'a, A, E, ArcLazyConfig> {
-			let fa = self;
-			TryLazy::<'a, A, E, ArcLazyConfig>::new(move || match fa.evaluate() {
-				Ok(a) => Ok(a.clone()),
-				Err(e) => f(e),
-			})
-		}
-	}
+	// -- ArcLazyConfig methods --
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
@@ -1035,7 +979,7 @@ mod inner {
 		/// ```
 		#[inline]
 		pub fn new(f: impl FnOnce() -> Result<A, E> + Send + 'a) -> Self {
-			TryLazy(ArcLazyConfig::try_lazy_new(Box::new(f)))
+			TryLazy(Lazy::<'a, Result<A, E>, ArcLazyConfig>::new(f))
 		}
 
 		/// Creates a thread-safe `TryLazy` containing an already-computed success value.
@@ -1286,6 +1230,8 @@ mod inner {
 		}
 	}
 
+	// -- Arc catch_unwind --
+
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -1375,6 +1321,90 @@ mod inner {
 		}
 	}
 
+	// -- Arc and_then / or_else --
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
+	#[document_parameters("The `TryLazy` instance.")]
+	impl<'a, A, E> TryLazy<'a, A, E, ArcLazyConfig>
+	where
+		A: Clone + Send + Sync + 'a,
+		E: Clone + Send + Sync + 'a,
+	{
+		/// Chains a fallible operation on the success value (thread-safe variant).
+		///
+		/// If this `ArcTryLazy` succeeds, applies `f` to the cached `&A` and returns a
+		/// new `ArcTryLazy` that evaluates the result of `f`. If this `ArcTryLazy`
+		/// fails, the error is cloned into the new `ArcTryLazy`.
+		///
+		/// Note: unlike the typical Rust `and_then` signature where the callback takes
+		/// an owned `A`, this callback receives `&A` (a shared reference to the memoized
+		/// value) because `ArcTryLazy` caches its result behind a shared pointer.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the new success value.")]
+		///
+		#[document_parameters("The fallible function to apply to the success value.")]
+		///
+		#[document_returns("A new `ArcTryLazy` containing the chained result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = ArcTryLazy::new(|| Ok::<i32, String>(21));
+		/// let chained = memo.and_then(|x| if *x > 0 { Ok(x * 2) } else { Err("negative".into()) });
+		/// assert_eq!(chained.evaluate(), Ok(&42));
+		/// ```
+		pub fn and_then<B: Send + Sync + 'a>(
+			self,
+			f: impl FnOnce(&A) -> Result<B, E> + Send + 'a,
+		) -> TryLazy<'a, B, E, ArcLazyConfig> {
+			let fa = self;
+			TryLazy::<'a, B, E, ArcLazyConfig>::new(move || match fa.evaluate() {
+				Ok(a) => f(a),
+				Err(e) => Err(e.clone()),
+			})
+		}
+
+		/// Provides a fallback on the error value (thread-safe variant).
+		///
+		/// If this `ArcTryLazy` fails, applies `f` to the cached `&E` and returns a
+		/// new `ArcTryLazy` that evaluates the result of `f`. If this `ArcTryLazy`
+		/// succeeds, the success value is cloned into the new `ArcTryLazy`.
+		#[document_signature]
+		///
+		#[document_parameters("The recovery function to apply to the error value.")]
+		///
+		#[document_returns("A new `ArcTryLazy` containing the recovered result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo: ArcTryLazy<i32, String> = ArcTryLazy::new(|| Err("oops".into()));
+		/// let recovered = memo.or_else(|_| Ok(42));
+		/// assert_eq!(recovered.evaluate(), Ok(&42));
+		/// ```
+		pub fn or_else(
+			self,
+			f: impl FnOnce(&E) -> Result<A, E> + Send + 'a,
+		) -> TryLazy<'a, A, E, ArcLazyConfig> {
+			let fa = self;
+			TryLazy::<'a, A, E, ArcLazyConfig>::new(move || match fa.evaluate() {
+				Ok(a) => Ok(a.clone()),
+				Err(e) => f(e),
+			})
+		}
+	}
+
+	// -- Deferrable --
+
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -1418,12 +1448,109 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
+	impl<'a, A, E> Deferrable<'a> for TryLazy<'a, A, E, ArcLazyConfig>
+	where
+		A: Clone + Send + Sync + 'a,
+		E: Clone + Send + Sync + 'a,
+	{
+		/// Defers a computation that produces a thread-safe `TryLazy` value.
+		///
+		/// The thunk `f` is called eagerly to obtain the inner `ArcTryLazy`, which
+		/// is then returned directly. The inner `ArcTryLazy` retains its own lazy
+		/// semantics, so the underlying computation is still deferred. This eager
+		/// call to `f` is necessary because `Deferrable::defer` does not require
+		/// `Send` on the thunk, while `ArcTryLazy::new` does.
+		#[document_signature]
+		///
+		#[document_parameters("The thunk that produces the lazy value.")]
+		///
+		#[document_returns("A new `ArcTryLazy` value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy: ArcTryLazy<i32, ()> = defer(|| ArcTryLazy::new(|| Ok(42)));
+		/// assert_eq!(lazy.evaluate(), Ok(&42));
+		/// ```
+		fn defer(f: impl FnOnce() -> Self + 'a) -> Self
+		where
+			Self: Sized, {
+			f()
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
+	impl<'a, A, E> SendDeferrable<'a> for TryLazy<'a, A, E, ArcLazyConfig>
+	where
+		A: Clone + Send + Sync + 'a,
+		E: Clone + Send + Sync + 'a,
+	{
+		/// Defers a computation that produces a thread-safe `TryLazy` value using a thread-safe thunk.
+		///
+		/// This flattens the nested structure: instead of `ArcTryLazy<ArcTryLazy<A, E>, E>`, we get `ArcTryLazy<A, E>`.
+		/// The inner `TryLazy` is computed only when the outer `TryLazy` is evaluated.
+		#[document_signature]
+		///
+		#[document_parameters("The thunk that produces the lazy value.")]
+		///
+		#[document_returns("A new `ArcTryLazy` value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy: ArcTryLazy<i32, ()> = ArcTryLazy::send_defer(|| ArcTryLazy::new(|| Ok(42)));
+		/// assert_eq!(lazy.evaluate(), Ok(&42));
+		/// ```
+		fn send_defer(f: impl FnOnce() -> Self + Send + 'a) -> Self
+		where
+			Self: Sized, {
+			Self::new(move || match f().evaluate() {
+				Ok(a) => Ok(a.clone()),
+				Err(e) => Err(e.clone()),
+			})
+		}
+	}
+
+	// -- Type aliases --
+
+	/// Single-threaded fallible memoization alias.
+	pub type RcTryLazy<'a, A, E> = TryLazy<'a, A, E, RcLazyConfig>;
+
+	/// Thread-safe fallible memoization alias.
+	pub type ArcTryLazy<'a, A, E> = TryLazy<'a, A, E, ArcLazyConfig>;
+
+	// -- HKT --
+
 	impl_kind! {
-		impl<E: 'static, Config: TryLazyConfig> for TryLazyBrand<E, Config> {
+		impl<E: 'static, Config: LazyConfig> for TryLazyBrand<E, Config> {
 			#[document_default]
 			type Of<'a, A: 'a>: 'a = TryLazy<'a, A, E, Config>;
 		}
 	}
+
+	// -- Semigroup --
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
@@ -1523,8 +1650,10 @@ mod inner {
 		}
 	}
 
+	// -- Foldable --
+
 	#[document_type_parameters("The error type.", "The memoization configuration.")]
-	impl<E: 'static, Config: TryLazyConfig> Foldable for TryLazyBrand<E, Config> {
+	impl<E: 'static, Config: LazyConfig> Foldable for TryLazyBrand<E, Config> {
 		/// Folds the `TryLazy` from the right.
 		///
 		/// If the computation succeeded, applies `func` to the success value and the
@@ -1666,17 +1795,17 @@ mod inner {
 		}
 	}
 
-	// --- WithIndex ---
+	// -- WithIndex --
 
 	#[document_type_parameters("The error type.", "The memoization configuration.")]
-	impl<E: 'static, Config: TryLazyConfig> WithIndex for TryLazyBrand<E, Config> {
+	impl<E: 'static, Config: LazyConfig> WithIndex for TryLazyBrand<E, Config> {
 		type Index = ();
 	}
 
-	// --- FoldableWithIndex ---
+	// -- FoldableWithIndex --
 
 	#[document_type_parameters("The error type.", "The memoization configuration.")]
-	impl<E: 'static, Config: TryLazyConfig> FoldableWithIndex for TryLazyBrand<E, Config> {
+	impl<E: 'static, Config: LazyConfig> FoldableWithIndex for TryLazyBrand<E, Config> {
 		/// Folds the `TryLazy` using a monoid, providing the index `()`.
 		///
 		/// Forces evaluation and, if the computation succeeded, maps the value with
@@ -1723,98 +1852,7 @@ mod inner {
 		}
 	}
 
-	#[document_type_parameters(
-		"The lifetime of the computation.",
-		"The type of the computed value.",
-		"The type of the error."
-	)]
-	impl<'a, A, E> Deferrable<'a> for TryLazy<'a, A, E, ArcLazyConfig>
-	where
-		A: Clone + Send + Sync + 'a,
-		E: Clone + Send + Sync + 'a,
-	{
-		/// Defers a computation that produces a thread-safe `TryLazy` value.
-		///
-		/// The thunk `f` is called eagerly to obtain the inner `ArcTryLazy`, which
-		/// is then returned directly. The inner `ArcTryLazy` retains its own lazy
-		/// semantics, so the underlying computation is still deferred. This eager
-		/// call to `f` is necessary because `Deferrable::defer` does not require
-		/// `Send` on the thunk, while `ArcTryLazy::new` does.
-		#[document_signature]
-		///
-		#[document_parameters("The thunk that produces the lazy value.")]
-		///
-		#[document_returns("A new `ArcTryLazy` value.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy: ArcTryLazy<i32, ()> = defer(|| ArcTryLazy::new(|| Ok(42)));
-		/// assert_eq!(lazy.evaluate(), Ok(&42));
-		/// ```
-		fn defer(f: impl FnOnce() -> Self + 'a) -> Self
-		where
-			Self: Sized, {
-			f()
-		}
-	}
-
-	#[document_type_parameters(
-		"The lifetime of the computation.",
-		"The type of the computed value.",
-		"The type of the error."
-	)]
-	impl<'a, A, E> SendDeferrable<'a> for TryLazy<'a, A, E, ArcLazyConfig>
-	where
-		A: Clone + Send + Sync + 'a,
-		E: Clone + Send + Sync + 'a,
-	{
-		/// Defers a computation that produces a thread-safe `TryLazy` value using a thread-safe thunk.
-		///
-		/// This flattens the nested structure: instead of `ArcTryLazy<ArcTryLazy<A, E>, E>`, we get `ArcTryLazy<A, E>`.
-		/// The inner `TryLazy` is computed only when the outer `TryLazy` is evaluated.
-		#[document_signature]
-		///
-		#[document_parameters("The thunk that produces the lazy value.")]
-		///
-		#[document_returns("A new `ArcTryLazy` value.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy: ArcTryLazy<i32, ()> = ArcTryLazy::send_defer(|| ArcTryLazy::new(|| Ok(42)));
-		/// assert_eq!(lazy.evaluate(), Ok(&42));
-		/// ```
-		fn send_defer(f: impl FnOnce() -> Self + Send + 'a) -> Self
-		where
-			Self: Sized, {
-			Self::new(move || match f().evaluate() {
-				Ok(a) => Ok(a.clone()),
-				Err(e) => Err(e.clone()),
-			})
-		}
-	}
-
-	/// Single-threaded fallible memoization alias.
-	pub type RcTryLazy<'a, A, E> = TryLazy<'a, A, E, RcLazyConfig>;
-
-	/// Thread-safe fallible memoization alias.
-	pub type ArcTryLazy<'a, A, E> = TryLazy<'a, A, E, ArcLazyConfig>;
-
-	// --- RefFunctor ---
+	// -- RefFunctor --
 
 	#[document_type_parameters("The type of the error.")]
 	impl<E: 'static + Clone> RefFunctor for TryLazyBrand<E, RcLazyConfig> {
@@ -1858,7 +1896,7 @@ mod inner {
 		}
 	}
 
-	// --- SendRefFunctor ---
+	// -- SendRefFunctor --
 
 	#[document_type_parameters("The type of the error.")]
 	impl<E: 'static + Clone + Send + Sync> SendRefFunctor for TryLazyBrand<E, ArcLazyConfig> {
@@ -1902,7 +1940,7 @@ mod inner {
 		}
 	}
 
-	// --- Monoid ---
+	// -- Monoid --
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
@@ -1960,7 +1998,7 @@ mod inner {
 		}
 	}
 
-	// --- Hash ---
+	// -- Hash --
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
@@ -1969,7 +2007,7 @@ mod inner {
 		"The memoization configuration."
 	)]
 	#[document_parameters("The try-lazy value to hash.")]
-	impl<'a, A: Hash + 'a, E: Hash + 'a, Config: TryLazyConfig> Hash for TryLazy<'a, A, E, Config> {
+	impl<'a, A: Hash + 'a, E: Hash + 'a, Config: LazyConfig> Hash for TryLazy<'a, A, E, Config> {
 		/// Forces evaluation and hashes the result.
 		#[document_signature]
 		#[document_type_parameters("The type of the hasher.")]
@@ -2012,11 +2050,11 @@ mod inner {
 			&self,
 			state: &mut H,
 		) {
-			self.evaluate().hash(state)
+			self.0.evaluate().hash(state)
 		}
 	}
 
-	// --- PartialEq ---
+	// -- PartialEq --
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
@@ -2025,7 +2063,7 @@ mod inner {
 		"The memoization configuration."
 	)]
 	#[document_parameters("The try-lazy value to compare.")]
-	impl<'a, A: PartialEq + 'a, E: PartialEq + 'a, Config: TryLazyConfig> PartialEq
+	impl<'a, A: PartialEq + 'a, E: PartialEq + 'a, Config: LazyConfig> PartialEq
 		for TryLazy<'a, A, E, Config>
 	{
 		/// Compares two `TryLazy` values for equality by forcing evaluation of both sides.
@@ -2047,11 +2085,21 @@ mod inner {
 			&self,
 			other: &Self,
 		) -> bool {
-			self.evaluate() == other.evaluate()
+			self.0.evaluate() == other.0.evaluate()
 		}
 	}
 
-	// --- PartialOrd ---
+	// -- Eq --
+
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error.",
+		"The memoization configuration."
+	)]
+	impl<'a, A: Eq + 'a, E: Eq + 'a, Config: LazyConfig> Eq for TryLazy<'a, A, E, Config> {}
+
+	// -- PartialOrd --
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
@@ -2060,7 +2108,7 @@ mod inner {
 		"The memoization configuration."
 	)]
 	#[document_parameters("The try-lazy value to compare.")]
-	impl<'a, A: PartialOrd + 'a, E: PartialOrd + 'a, Config: TryLazyConfig> PartialOrd
+	impl<'a, A: PartialOrd + 'a, E: PartialOrd + 'a, Config: LazyConfig> PartialOrd
 		for TryLazy<'a, A, E, Config>
 	{
 		/// Compares two `TryLazy` values for ordering by forcing evaluation of both sides.
@@ -2084,21 +2132,11 @@ mod inner {
 			&self,
 			other: &Self,
 		) -> Option<std::cmp::Ordering> {
-			self.evaluate().partial_cmp(&other.evaluate())
+			self.0.evaluate().partial_cmp(other.0.evaluate())
 		}
 	}
 
-	// --- Eq ---
-
-	#[document_type_parameters(
-		"The lifetime of the computation.",
-		"The type of the computed value.",
-		"The type of the error.",
-		"The memoization configuration."
-	)]
-	impl<'a, A: Eq + 'a, E: Eq + 'a, Config: TryLazyConfig> Eq for TryLazy<'a, A, E, Config> {}
-
-	// --- Ord ---
+	// -- Ord --
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
@@ -2107,7 +2145,7 @@ mod inner {
 		"The memoization configuration."
 	)]
 	#[document_parameters("The try-lazy value to compare.")]
-	impl<'a, A: Ord + 'a, E: Ord + 'a, Config: TryLazyConfig> Ord for TryLazy<'a, A, E, Config> {
+	impl<'a, A: Ord + 'a, E: Ord + 'a, Config: LazyConfig> Ord for TryLazy<'a, A, E, Config> {
 		/// Compares two `TryLazy` values for ordering by forcing evaluation of both sides.
 		///
 		/// Note: This will trigger computation if either value has not yet been evaluated.
@@ -2127,11 +2165,11 @@ mod inner {
 			&self,
 			other: &Self,
 		) -> std::cmp::Ordering {
-			self.evaluate().cmp(&other.evaluate())
+			self.0.evaluate().cmp(other.0.evaluate())
 		}
 	}
 
-	// --- Display ---
+	// -- Display --
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
@@ -2140,7 +2178,7 @@ mod inner {
 		"The memoization configuration."
 	)]
 	#[document_parameters("The try-lazy value to display.")]
-	impl<'a, A: fmt::Display + 'a, E: fmt::Display + 'a, Config: TryLazyConfig> fmt::Display
+	impl<'a, A: fmt::Display + 'a, E: fmt::Display + 'a, Config: LazyConfig> fmt::Display
 		for TryLazy<'a, A, E, Config>
 	{
 		/// Forces evaluation and displays `Ok(value)` or `Err(error)`.
@@ -2178,7 +2216,7 @@ mod inner {
 		}
 	}
 
-	// --- Debug ---
+	// -- Debug --
 
 	#[document_type_parameters(
 		"The lifetime of the computation.",
@@ -2187,7 +2225,7 @@ mod inner {
 		"The memoization configuration."
 	)]
 	#[document_parameters("The try-lazy value to format.")]
-	impl<'a, A, E, Config: TryLazyConfig> fmt::Debug for TryLazy<'a, A, E, Config>
+	impl<'a, A, E, Config: LazyConfig> fmt::Debug for TryLazy<'a, A, E, Config>
 	where
 		A: 'a,
 		E: 'a,
@@ -2211,7 +2249,7 @@ mod inner {
 		}
 	}
 
-	// --- Fix combinators ---
+	// -- Fix combinators --
 
 	/// Computes a fixed point for `RcTryLazy`.
 	///
@@ -2252,33 +2290,12 @@ mod inner {
 	pub fn rc_try_lazy_fix<'a, A: Clone + 'a, E: Clone + 'a>(
 		f: impl FnOnce(RcTryLazy<'a, A, E>) -> Result<A, E> + 'a
 	) -> RcTryLazy<'a, A, E> {
-		use std::{
-			cell::OnceCell,
-			rc::{
-				Rc,
-				Weak,
-			},
-		};
+		use crate::types::lazy::rc_lazy_fix;
 
-		#[allow(clippy::type_complexity)]
-		let cell: Rc<
-			OnceCell<
-				Weak<std::cell::LazyCell<Result<A, E>, Box<dyn FnOnce() -> Result<A, E> + 'a>>>,
-			>,
-		> = Rc::new(OnceCell::new());
-		let cell_clone = cell.clone();
-		let lazy = RcTryLazy::new(move || {
-			// INVARIANT: cell is always set on the line after this closure is
-			// created, and the outer RcTryLazy is still alive (we are inside its
-			// evaluation), so the Weak upgrade always succeeds.
-			#[allow(clippy::expect_used)]
-			let weak = cell_clone.get().expect("rc_try_lazy_fix: cell not initialized");
-			#[allow(clippy::expect_used)]
-			let self_ref = TryLazy(weak.upgrade().expect("rc_try_lazy_fix: outer lazy was dropped"));
+		TryLazy(rc_lazy_fix(move |inner| {
+			let self_ref = TryLazy(inner);
 			f(self_ref)
-		});
-		let _ = cell.set(Rc::downgrade(&lazy.0));
-		lazy
+		}))
 	}
 
 	/// Computes a fixed point for `ArcTryLazy`.
@@ -2320,36 +2337,12 @@ mod inner {
 	pub fn arc_try_lazy_fix<'a, A: Clone + Send + Sync + 'a, E: Clone + Send + Sync + 'a>(
 		f: impl FnOnce(ArcTryLazy<'a, A, E>) -> Result<A, E> + Send + 'a
 	) -> ArcTryLazy<'a, A, E> {
-		use std::sync::{
-			Arc,
-			OnceLock,
-			Weak,
-		};
+		use crate::types::lazy::arc_lazy_fix;
 
-		#[allow(clippy::type_complexity)]
-		let cell: Arc<
-			OnceLock<
-				Weak<
-					std::sync::LazyLock<
-						Result<A, E>,
-						Box<dyn FnOnce() -> Result<A, E> + Send + 'a>,
-					>,
-				>,
-			>,
-		> = Arc::new(OnceLock::new());
-		let cell_clone = cell.clone();
-		let lazy = ArcTryLazy::new(move || {
-			// INVARIANT: cell is always set on the line after this closure is
-			// created, and the outer ArcTryLazy is still alive (we are inside its
-			// evaluation), so the Weak upgrade always succeeds.
-			#[allow(clippy::expect_used)]
-			let weak = cell_clone.get().expect("arc_try_lazy_fix: cell not initialized");
-			#[allow(clippy::expect_used)]
-			let self_ref = TryLazy(weak.upgrade().expect("arc_try_lazy_fix: outer lazy was dropped"));
+		TryLazy(arc_lazy_fix(move |inner| {
+			let self_ref = TryLazy(inner);
 			f(self_ref)
-		});
-		let _ = cell.set(Arc::downgrade(&lazy.0));
-		lazy
+		}))
 	}
 }
 pub use inner::*;
@@ -2550,8 +2543,6 @@ mod tests {
 		assert_eq!(memo.evaluate(), Err(&"error".to_string()));
 	}
 
-	// SC-2: Panic poisoning test for TryLazy
-
 	/// Tests that a panicking initializer poisons the RcTryLazy.
 	///
 	/// Verifies that subsequent evaluate calls also panic after
@@ -2574,8 +2565,6 @@ mod tests {
 		}));
 		assert!(result2.is_err(), "Second evaluate should also panic (poisoned)");
 	}
-
-	// SC-2: Thread safety test for ArcTryLazy
 
 	/// Tests that ArcTryLazy is thread-safe.
 	///
@@ -2612,8 +2601,6 @@ mod tests {
 
 		assert_eq!(counter.load(Ordering::SeqCst), 1);
 	}
-
-	// QuickCheck Law Tests
 
 	/// Memoization: evaluating twice returns the same value.
 	#[quickcheck]
@@ -2842,7 +2829,7 @@ mod tests {
 		assert_eq!(mapped.evaluate(), Err(&5));
 	}
 
-	// --- RefFunctor tests ---
+	// -- RefFunctor tests --
 
 	/// Tests `RefFunctor::ref_map` on `RcTryLazy` with a successful value.
 	#[test]
@@ -2880,7 +2867,7 @@ mod tests {
 		assert_eq!(mapped.evaluate(), Ok(&42));
 	}
 
-	// --- SendRefFunctor tests ---
+	// -- SendRefFunctor tests --
 
 	/// Tests `SendRefFunctor::send_ref_map` on `ArcTryLazy` with a successful value.
 	#[test]
@@ -2906,7 +2893,7 @@ mod tests {
 		assert_eq!(mapped.evaluate(), Err(&"fail".to_string()));
 	}
 
-	// --- Inherent ref_map tests ---
+	// -- Inherent ref_map tests --
 
 	/// Tests `RcTryLazy::ref_map` with a successful value.
 	#[test]
@@ -2956,7 +2943,7 @@ mod tests {
 		assert_eq!(mapped.evaluate(), Ok(&42));
 	}
 
-	// --- Semigroup tests ---
+	// -- Semigroup tests --
 
 	/// Tests `Semigroup::append` for `RcTryLazy` when both are `Ok`.
 	#[test]
@@ -3008,7 +2995,7 @@ mod tests {
 		assert_eq!(c.evaluate(), Err(&"err1".to_string()));
 	}
 
-	// --- Monoid tests ---
+	// -- Monoid tests --
 
 	/// Tests `Monoid::empty` for `RcTryLazy`.
 	#[test]
@@ -3050,7 +3037,7 @@ mod tests {
 		assert_eq!(result.evaluate(), Ok(&"hello".to_string()));
 	}
 
-	// --- Foldable tests ---
+	// -- Foldable tests --
 
 	/// Tests `Foldable::fold_right` for `RcTryLazy` with `Ok`.
 	#[test]
@@ -3156,7 +3143,7 @@ mod tests {
 		assert_eq!(result, 5);
 	}
 
-	// --- FoldableWithIndex tests ---
+	// -- FoldableWithIndex tests --
 
 	/// Tests `fold_map_with_index` for `RcTryLazy` with `Ok`.
 	///
@@ -3447,7 +3434,7 @@ mod tests {
 		assert_eq!(lazy.evaluate(), Ok(&42));
 	}
 
-	// --- PartialEq tests ---
+	// -- PartialEq tests --
 
 	/// Tests `PartialEq` for equal `Ok` values.
 	#[test]
@@ -3489,7 +3476,7 @@ mod tests {
 		assert_eq!(a, b);
 	}
 
-	// --- Hash tests ---
+	// -- Hash tests --
 
 	/// Tests that equal `TryLazy` values produce equal hashes.
 	#[test]
@@ -3528,14 +3515,14 @@ mod tests {
 		let mut h1 = DefaultHasher::new();
 		lazy.hash(&mut h1);
 
-		let result: Result<&i32, &()> = Ok(&42);
+		let result: Result<i32, ()> = Ok(42);
 		let mut h2 = DefaultHasher::new();
 		result.hash(&mut h2);
 
 		assert_eq!(h1.finish(), h2.finish());
 	}
 
-	// --- PartialOrd tests ---
+	// -- PartialOrd tests --
 
 	/// Tests `PartialOrd` for `Ok` values.
 	#[test]
@@ -3555,7 +3542,7 @@ mod tests {
 		assert!(a >= b);
 	}
 
-	// --- Ord tests ---
+	// -- Ord tests --
 
 	/// Tests `Ord` for `Ok` values.
 	#[test]
@@ -3596,7 +3583,7 @@ mod tests {
 		assert_eq_impl(&a);
 	}
 
-	// --- Display tests ---
+	// -- Display tests --
 
 	/// Tests `Display` for `RcTryLazy` with `Ok` value.
 	#[test]
@@ -3626,7 +3613,7 @@ mod tests {
 		assert_eq!(format!("{}", lazy), "Err(oops)");
 	}
 
-	// --- Cross-config conversion tests ---
+	// -- Cross-config conversion tests --
 
 	/// Tests converting `RcTryLazy` to `ArcTryLazy` with `Ok` value.
 	#[test]
@@ -3660,7 +3647,7 @@ mod tests {
 		assert_eq!(rc_lazy.evaluate(), Err(&"fail".to_string()));
 	}
 
-	// --- rc_try_lazy_fix / arc_try_lazy_fix tests ---
+	// -- rc_try_lazy_fix / arc_try_lazy_fix tests --
 
 	/// Tests that `rc_try_lazy_fix` produces the correct `Ok` value when
 	/// the function ignores the self-reference.
