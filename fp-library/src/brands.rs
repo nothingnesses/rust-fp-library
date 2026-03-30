@@ -127,6 +127,11 @@ pub struct ControlFlowContinueAppliedBrand<C>(PhantomData<C>);
 /// `F` with the appropriate [`Kind`](crate::kinds) signature, even if `F` itself is not
 /// a `Functor`. The `Functor` constraint on `F` is only required when
 /// [`lower`](crate::types::Coyoneda::lower)ing back to `F`.
+///
+/// `F` must be `'static` because the [`Kind`](crate::kinds) trait's associated type
+/// `Of<'a, A>` introduces its own lifetime `'a`, so type parameters baked into the
+/// brand must outlive all possible `'a`. In practice this is not a restriction because
+/// all brands in the library are zero-sized marker types, which are inherently `'static`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CoyonedaBrand<F>(PhantomData<F>);
 

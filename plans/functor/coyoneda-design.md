@@ -639,3 +639,44 @@ For k chained maps on `VecBrand` with n elements:
 
 The benefit vs direct chaining is structural, not performance: deferred execution, HKT
 integration, and a clean abstraction boundary.
+
+### Review and Iteration (2026-03-30)
+
+Three independent code reviews identified the same issues. Changes applied:
+
+**Added:**
+
+- `Coyoneda::new(f, fb)`: general constructor (PureScript's `coyoneda`). Saves one box
+  allocation vs `lift(fb).map(f)`.
+- `Coyoneda::hoist(nat)`: natural transformation (PureScript's `hoistCoyoneda`). Requires
+  `F: Functor` because dyn-compatibility prevents applying the nat transform through the
+  existential boundary directly. Uses `impl NaturalTransformation<F, G>`.
+- `Pointed for CoyonedaBrand<F>` where `F: Pointed`: delegates to `F::pure` then lifts.
+- `'static` documentation on `CoyonedaBrand` in `brands.rs`.
+
+**Documentation:**
+
+- Module docs now lead with "free functor" (the categorical purpose) rather than
+  "deferred mapping" (the mechanical behavior).
+- "Map fusion" section renamed to "Performance characteristics" with explicit explanation
+  of why Rust's dyn-compatibility prevents eager function composition.
+- Foldable doc comment now explains the `F: Functor` requirement and why it diverges from
+  PureScript (which only needs `F: Foldable`).
+
+**Confirmed not actionable (dyn-compatibility):**
+
+- **Foldable without `F: Functor`**: PureScript composes the fold function with the
+  accumulated mapping function via `unCoyoneda`. This requires a `fold_map_inner` method
+  on `CoyonedaInner` that is generic over `M: Monoid` and `FnBrand: CloneableFn`, making
+  the trait not dyn-compatible. Same root cause as the map fusion limitation.
+- **Map fusion**: `map_inner<C>` is generic, not dyn-compatible.
+- **`hoist` without `F: Functor`**: `hoist_inner<G>` is generic, not dyn-compatible.
+- **`unCoyoneda` (rank-2 eliminator)**: Rust lacks rank-2 types for closures.
+
+**Not yet implemented (deferred):**
+
+- `Traversable`: requires `Coyoneda: Clone`, which needs Rc/Arc hybrid variant.
+- `Semiapplicative`/`Semimonad`: lower, operate, lift. Requires respective bounds on `F`.
+- `Eq`/`Ord`/`Debug`: via lowering.
+
+**Test count:** 23 unit tests + 9 doc tests, full suite 984 tests passing.

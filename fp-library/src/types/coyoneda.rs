@@ -1,19 +1,20 @@
-//! The free functor for any type constructor in the HKT/Brand system.
+//! The free functor, providing a [`Functor`](crate::classes::Functor) instance for any
+//! type constructor with the appropriate [`Kind`](crate::kinds) signature.
 //!
-//! `Coyoneda` wraps a value of type `F B` alongside an accumulated function `B -> A`,
-//! enabling deferred mapping. It provides a [`Functor`](crate::classes::Functor) instance
-//! for any type constructor `F` with the appropriate [`Kind`](crate::kinds) signature,
-//! even if `F` itself is not a `Functor`. The `Functor` bound on `F` is only required
-//! when calling [`lower`](Coyoneda::lower).
+//! `Coyoneda F` is a `Functor` even when `F` itself is not. The `Functor` bound on `F`
+//! is only required when calling [`lower`](Coyoneda::lower) to extract the underlying
+//! value. This is the defining property of the free functor construction.
 //!
-//! ## Map fusion
+//! ## Performance characteristics
 //!
 //! Each call to [`map`](Coyoneda::map) wraps the previous value in a new layer that
 //! stores the mapping function. At [`lower`](Coyoneda::lower) time, each layer applies
 //! its function via `F::map`. For k chained maps, `lower` makes k calls to `F::map`.
 //!
-//! For true single-pass fusion on eager brands like [`VecBrand`](crate::brands::VecBrand),
-//! compose functions before mapping:
+//! This is a consequence of Rust's dyn-compatibility rules: composing functions across
+//! an existential boundary requires generic methods on trait objects, which Rust does not
+//! support. For true single-pass fusion on eager brands like
+//! [`VecBrand`](crate::brands::VecBrand), compose functions before mapping:
 //!
 //! ```
 //! use fp_library::{
@@ -21,7 +22,7 @@
 //! 	functions::*,
 //! };
 //!
-//! // Single traversal: compose first, then map once
+//! // Single traversal: compose first, then map once.
 //! let result = map::<VecBrand, _, _>(
 //! 	compose(|x: i32| x.to_string(), compose(|x| x * 2, |x: i32| x + 1)),
 //! 	vec![1, 2, 3],
@@ -29,12 +30,62 @@
 //! assert_eq!(result, vec!["4", "6", "8"]);
 //! ```
 //!
+//! ## Limitations
+//!
+//! All limitations stem from a single root cause: Rust trait objects cannot have methods
+//! with generic type parameters (the vtable is fixed at compile time). This prevents
+//! "opening" the existential type `B` hidden inside each layer.
+//!
+//! - **No map fusion.** PureScript's Coyoneda composes `f <<< k` eagerly so that `lower`
+//!   calls `F::map` exactly once regardless of how many maps were chained. This Rust
+//!   implementation cannot compose functions across the trait-object boundary because the
+//!   required `map_inner<C>` method is generic over `C`. Each layer calls `F::map`
+//!   independently, so k chained maps produce k calls to `F::map` at `lower` time, the
+//!   same cost as chaining `F::map` directly.
+//!
+//! - **[`Foldable`](crate::classes::Foldable) requires `F: Functor`.** PureScript's
+//!   `Foldable` for `Coyoneda` only needs `Foldable f` because `unCoyoneda` opens the
+//!   existential to compose the fold function with the accumulated mapping function,
+//!   folding the original `F B` in a single pass. This implementation cannot add a
+//!   `fold_map_inner` method to the inner trait because it is generic over the monoid type
+//!   `M`, breaking dyn-compatibility. Instead, it lowers first (requiring `F: Functor`),
+//!   then folds.
+//!
+//! - **[`hoist`](Coyoneda::hoist) requires `F: Functor`.** PureScript's `hoistCoyoneda`
+//!   applies the natural transformation directly to the hidden `F B` via `unCoyoneda`. A
+//!   `hoist_inner<G>` method would be generic over the target brand `G`, so this
+//!   implementation lowers first, transforms, then re-lifts.
+//!
+//! - **No `unCoyoneda`.** PureScript's rank-2 eliminator
+//!   `(forall b. (b -> a) -> f b -> r) -> Coyoneda f a -> r` has no Rust equivalent
+//!   because closures cannot be polymorphic over type parameters. Operation-specific
+//!   methods on the inner trait are used instead.
+//!
+//! - **Not `Clone`.** The inner trait object `Box<dyn CoyonedaInner>` is not `Clone`.
+//!   This prevents implementing [`Traversable`](crate::classes::Traversable) (which
+//!   requires `Self::Of<'a, B>: Clone`) and
+//!   [`Semiapplicative`](crate::classes::Semiapplicative). An `Rc`/`Arc`-wrapped variant
+//!   would address this.
+//!
+//! - **Missing type class instances.** PureScript provides `Apply`, `Applicative`, `Bind`,
+//!   `Monad`, `Traversable`, `Extend`, `Comonad`, `Eq`, `Ord`, and others. This
+//!   implementation currently provides [`Functor`](crate::classes::Functor),
+//!   [`Pointed`](crate::classes::Pointed), and [`Foldable`](crate::classes::Foldable).
+//!
 //! ## Comparison with PureScript
 //!
 //! This implementation is based on PureScript's
 //! [`Data.Coyoneda`](https://github.com/purescript/purescript-free/blob/master/src/Data/Coyoneda.purs).
-//! PureScript uses `Exists` for existential quantification; Rust uses layered trait
-//! objects to hide the intermediate type at each mapping stage.
+//! PureScript uses `Exists` for existential quantification and composes functions eagerly
+//! (single `F::map` at `lower` time regardless of how many maps were chained). Rust uses
+//! layered trait objects because dyn-compatibility prevents the generic `map_inner<C>`
+//! method needed for eager composition.
+//!
+//! The PureScript API also provides `unCoyoneda` (a rank-2 eliminator), `coyoneda`
+//! (a general constructor), and `hoistCoyoneda` (natural transformation). This
+//! implementation provides [`Coyoneda::new`] (equivalent to `coyoneda`) and
+//! [`Coyoneda::hoist`] (equivalent to `hoistCoyoneda`, but requires `F: Functor`).
+//! A direct equivalent of `unCoyoneda` is not possible in Rust without rank-2 types.
 //!
 //! ### Examples
 //!
@@ -68,6 +119,8 @@ mod inner {
 				Foldable,
 				Functor,
 				Monoid,
+				NaturalTransformation,
+				Pointed,
 			},
 			impl_kind,
 			kinds::*,
@@ -204,7 +257,10 @@ mod inner {
 	/// appropriate [`Kind`](crate::kinds) signature, even if `F` itself does not implement
 	/// [`Functor`]. The `Functor` constraint is only needed when calling [`lower`](Coyoneda::lower).
 	///
-	/// See the [module documentation](self) for usage and performance notes.
+	/// This type is not `Clone`, `Send`, or `Sync`. It wraps a `Box<dyn CoyonedaInner>`,
+	/// so each value is single-owner and consumed by [`lower`](Coyoneda::lower).
+	///
+	/// See the [module documentation](crate::types::coyoneda) for limitations and performance notes.
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the underlying type constructor.",
@@ -224,9 +280,45 @@ mod inner {
 	where
 		F: Kind_cdc7cd43dac7585f + 'a,
 	{
+		/// Construct a `Coyoneda` from a function and a functor value.
+		///
+		/// This is the general constructor corresponding to PureScript's `coyoneda`.
+		/// It stores `fb` alongside `f` as a single deferred mapping step.
+		/// [`lift`](Coyoneda::lift) is equivalent to `new(|a| a, fa)`.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the values in the underlying functor.")]
+		///
+		#[document_parameters("The function to defer.", "The functor value.")]
+		///
+		#[document_returns("A `Coyoneda` wrapping the value with the deferred function.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<VecBrand, _>::new(|x: i32| x * 2, vec![1, 2, 3]);
+		/// assert_eq!(coyo.lower(), vec![2, 4, 6]);
+		/// ```
+		pub fn new<B: 'a>(
+			f: impl Fn(B) -> A + 'a,
+			fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
+		) -> Self {
+			Coyoneda(Box::new(CoyonedaMapLayer {
+				inner: Box::new(CoyonedaBase {
+					fa: fb,
+				}),
+				func: Box::new(f),
+			}))
+		}
+
 		/// Lift a value of `F A` into `Coyoneda F A`.
 		///
 		/// This wraps the value directly with no mapping. O(1).
+		/// Equivalent to `Coyoneda::new(|a| a, fa)`.
 		#[document_signature]
 		///
 		#[document_parameters("The functor value to lift.")]
@@ -252,6 +344,8 @@ mod inner {
 		/// Lower the `Coyoneda` back to the underlying functor `F`.
 		///
 		/// Applies accumulated mapping functions via `F::map`. Requires `F: Functor`.
+		/// For k chained maps, this makes k calls to `F::map` (one per layer).
+		/// See the [module-level performance notes](crate::types::coyoneda#performance-characteristics) for details.
 		#[document_signature]
 		///
 		#[document_returns("The underlying functor value with all accumulated functions applied.")]
@@ -306,6 +400,54 @@ mod inner {
 				func: Box::new(f),
 			}))
 		}
+
+		/// Apply a natural transformation to the underlying functor.
+		///
+		/// Transforms a `Coyoneda<F, A>` into a `Coyoneda<G, A>` by lowering to `F`,
+		/// applying the natural transformation `F ~> G`, then lifting back into
+		/// `Coyoneda<G, A>`. Requires `F: Functor` (for lowering).
+		///
+		/// Corresponds to PureScript's `hoistCoyoneda`. Note: the PureScript version
+		/// does not require `F: Functor` because it can open the existential directly
+		/// via `unCoyoneda`. In Rust, dyn-compatibility prevents this.
+		#[document_signature]
+		///
+		#[document_type_parameters("The brand of the target functor.")]
+		///
+		#[document_parameters("The natural transformation from `F` to `G`.")]
+		///
+		#[document_returns("A new `Coyoneda` over the target functor `G`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// struct VecToOption;
+		/// impl NaturalTransformation<VecBrand, OptionBrand> for VecToOption {
+		/// 	fn transform<'a, A: 'a>(
+		/// 		&self,
+		/// 		fa: Vec<A>,
+		/// 	) -> Option<A> {
+		/// 		fa.into_iter().next()
+		/// 	}
+		/// }
+		///
+		/// let coyo = Coyoneda::<VecBrand, _>::lift(vec![10, 20, 30]);
+		/// let hoisted: Coyoneda<OptionBrand, i32> = coyo.hoist(VecToOption);
+		/// assert_eq!(hoisted.lower(), Some(10));
+		/// ```
+		pub fn hoist<G: Kind_cdc7cd43dac7585f + 'a>(
+			self,
+			nat: impl NaturalTransformation<F, G>,
+		) -> Coyoneda<'a, G, A>
+		where
+			F: Functor, {
+			Coyoneda::lift(nat.transform(self.lower()))
+		}
 	}
 
 	// -- Brand --
@@ -356,6 +498,35 @@ mod inner {
 		}
 	}
 
+	// -- Pointed implementation --
+
+	#[document_type_parameters("The brand of the underlying pointed functor.")]
+	impl<F: Pointed + 'static> Pointed for CoyonedaBrand<F> {
+		/// Wraps a value in a `Coyoneda` context by delegating to `F::pure` and lifting.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		#[document_returns("A `Coyoneda` containing the pure value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo: Coyoneda<OptionBrand, i32> = pure::<CoyonedaBrand<OptionBrand>, _>(42);
+		/// assert_eq!(coyo.lower(), Some(42));
+		/// ```
+		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			Coyoneda::lift(F::pure(a))
+		}
+	}
+
 	// -- Foldable implementation --
 
 	#[document_type_parameters("The brand of the underlying foldable functor.")]
@@ -364,6 +535,11 @@ mod inner {
 		///
 		/// This first applies all accumulated mapping functions via [`lower`](Coyoneda::lower),
 		/// then folds the resulting `F A` using `F`'s [`Foldable`] instance.
+		///
+		/// Note: unlike PureScript's `Foldable` for `Coyoneda`, this requires `F: Functor`
+		/// because the layered trait-object encoding does not support composing fold functions
+		/// through the existential boundary (doing so would require generic methods on the
+		/// inner trait, which are not dyn-compatible).
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -411,6 +587,7 @@ pub use inner::*;
 mod tests {
 	use crate::{
 		brands::*,
+		classes::*,
 		functions::*,
 		types::*,
 	};
@@ -431,6 +608,23 @@ mod tests {
 	fn lift_lower_identity_vec() {
 		let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
 		assert_eq!(coyo.lower(), vec![1, 2, 3]);
+	}
+
+	#[test]
+	fn new_constructor() {
+		let coyo = Coyoneda::<VecBrand, _>::new(|x: i32| x * 2, vec![1, 2, 3]);
+		assert_eq!(coyo.lower(), vec![2, 4, 6]);
+	}
+
+	#[test]
+	fn new_is_equivalent_to_lift_then_map() {
+		let f = |x: i32| x.to_string();
+		let v = vec![1, 2, 3];
+
+		let via_new = Coyoneda::<VecBrand, _>::new(f, v.clone()).lower();
+		let via_lift_map = Coyoneda::<VecBrand, _>::lift(v).map(f).lower();
+
+		assert_eq!(via_new, via_lift_map);
 	}
 
 	#[test]
@@ -500,10 +694,56 @@ mod tests {
 
 	#[test]
 	fn lift_lower_roundtrip_preserves_value() {
-		// lift followed by lower should be the identity
 		let original = vec![10, 20, 30];
 		let roundtrip = Coyoneda::<VecBrand, _>::lift(original.clone()).lower();
 		assert_eq!(roundtrip, original);
+	}
+
+	// -- Pointed tests --
+
+	#[test]
+	fn pointed_pure_option() {
+		let coyo: Coyoneda<OptionBrand, i32> = pure::<CoyonedaBrand<OptionBrand>, _>(42);
+		assert_eq!(coyo.lower(), Some(42));
+	}
+
+	#[test]
+	fn pointed_pure_vec() {
+		let coyo: Coyoneda<VecBrand, i32> = pure::<CoyonedaBrand<VecBrand>, _>(42);
+		assert_eq!(coyo.lower(), vec![42]);
+	}
+
+	// -- Hoist tests --
+
+	struct VecToOption;
+	impl NaturalTransformation<VecBrand, OptionBrand> for VecToOption {
+		fn transform<'a, A: 'a>(
+			&self,
+			fa: Vec<A>,
+		) -> Option<A> {
+			fa.into_iter().next()
+		}
+	}
+
+	#[test]
+	fn hoist_vec_to_option() {
+		let coyo = Coyoneda::<VecBrand, _>::lift(vec![10, 20, 30]);
+		let hoisted: Coyoneda<OptionBrand, i32> = coyo.hoist(VecToOption);
+		assert_eq!(hoisted.lower(), Some(10));
+	}
+
+	#[test]
+	fn hoist_with_maps() {
+		let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x * 10);
+		let hoisted = coyo.hoist(VecToOption);
+		assert_eq!(hoisted.lower(), Some(10));
+	}
+
+	#[test]
+	fn hoist_then_map() {
+		let coyo = Coyoneda::<VecBrand, _>::lift(vec![5, 10, 15]);
+		let hoisted = coyo.hoist(VecToOption).map(|x: i32| x.to_string());
+		assert_eq!(hoisted.lower(), Some("5".to_string()));
 	}
 
 	// -- Foldable tests --
