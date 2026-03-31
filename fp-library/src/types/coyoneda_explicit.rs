@@ -59,6 +59,8 @@ mod inner {
 				Monoid,
 				NaturalTransformation,
 				Pointed,
+				Semiapplicative,
+				Semimonad,
 			},
 			functions::{
 				compose,
@@ -311,6 +313,92 @@ mod inner {
 		/// ```
 		pub fn into_coyoneda(self) -> crate::types::Coyoneda<'a, F, A> {
 			crate::types::Coyoneda::new(self.func, self.fb)
+		}
+
+		/// Apply a wrapped function to this value by lowering both sides, delegating to
+		/// `F::apply`, and re-lifting the result.
+		///
+		/// This is the `Semiapplicative` operation lifted to `CoyonedaExplicit` without
+		/// requiring a brand. After the operation the fusion pipeline is reset: the
+		/// result is a `CoyonedaExplicit` with the identity function and intermediate
+		/// type `C`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the cloneable function wrapper.",
+			"The intermediate type of the function container.",
+			"The output type after applying the function."
+		)]
+		///
+		#[document_parameters(
+			"The `CoyonedaExplicit` containing the wrapped function.",
+			"The `CoyonedaExplicit` containing the value."
+		)]
+		///
+		#[document_returns(
+			"A `CoyonedaExplicit` containing the result of applying the function to the value."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let ff = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(
+		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
+		/// ));
+		/// let fa = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(5i32));
+		/// let result = CoyonedaExplicit::apply::<RcFnBrand, _, _>(ff, fa).lower();
+		/// assert_eq!(result, Some(10));
+		/// ```
+		pub fn apply<FnBrand: CloneableFn + 'a, Bf: 'a, C: 'a>(
+			ff: CoyonedaExplicit<'a, F, Bf, <FnBrand as CloneableFn>::Of<'a, A, C>>,
+			fa: Self,
+		) -> CoyonedaExplicit<'a, F, C, C>
+		where
+			A: Clone,
+			F: Semiapplicative, {
+			CoyonedaExplicit::lift(F::apply::<FnBrand, A, C>(ff.lower(), fa.lower()))
+		}
+
+		/// Sequence a computation through a function that returns a `CoyonedaExplicit`.
+		///
+		/// Lowers this value to `F A`, binds via `F::bind` (where the closure lowers
+		/// each returned `CoyonedaExplicit` to `F C`), then re-lifts the result.
+		/// After the operation the fusion pipeline is reset: the result is a
+		/// `CoyonedaExplicit` with the identity function and intermediate type `C`.
+		#[document_signature]
+		///
+		#[document_type_parameters("The output type of the bound computation.")]
+		///
+		#[document_parameters(
+			"The function to apply to each value, returning a new `CoyonedaExplicit`."
+		)]
+		///
+		#[document_returns("A `CoyonedaExplicit` containing the bound result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let fa = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(5i32));
+		/// let result = fa.bind(|x| CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(x * 2))).lower();
+		/// assert_eq!(result, Some(10));
+		/// ```
+		pub fn bind<C: 'a>(
+			self,
+			f: impl Fn(A) -> CoyonedaExplicit<'a, F, C, C> + 'a,
+		) -> CoyonedaExplicit<'a, F, C, C>
+		where
+			F: Functor + Semimonad, {
+			CoyonedaExplicit::lift(F::bind(self.lower(), move |a| f(a).lower()))
 		}
 	}
 
@@ -578,5 +666,99 @@ mod tests {
 		let explicit = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(42));
 		let coyo: Coyoneda<OptionBrand, i32> = explicit.into_coyoneda();
 		assert_eq!(coyo.lower(), Some(42));
+	}
+
+	// -- Apply tests --
+
+	#[test]
+	fn apply_some_to_some() {
+		let ff =
+			CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(cloneable_fn_new::<RcFnBrand, _, _>(
+				|x: i32| x * 2,
+			)));
+		let fa = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(5i32));
+		let result = CoyonedaExplicit::apply::<RcFnBrand, _, _>(ff, fa).lower();
+		assert_eq!(result, Some(10));
+	}
+
+	#[test]
+	fn apply_none_fn_to_some() {
+		let ff = CoyonedaExplicit::<OptionBrand, _, _>::lift(
+			None::<<RcFnBrand as CloneableFn>::Of<'_, i32, i32>>,
+		);
+		let fa = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(5i32));
+		let result = CoyonedaExplicit::apply::<RcFnBrand, _, _>(ff, fa).lower();
+		assert_eq!(result, None);
+	}
+
+	#[test]
+	fn apply_some_fn_to_none() {
+		let ff =
+			CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(cloneable_fn_new::<RcFnBrand, _, _>(
+				|x: i32| x * 2,
+			)));
+		let fa = CoyonedaExplicit::<OptionBrand, i32, i32>::lift(None);
+		let result = CoyonedaExplicit::apply::<RcFnBrand, _, _>(ff, fa).lower();
+		assert_eq!(result, None);
+	}
+
+	#[test]
+	fn apply_vec_applies_each_fn_to_each_value() {
+		let ff = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![
+			cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
+			cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 10),
+		]);
+		let fa = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![2i32, 3]);
+		let result = CoyonedaExplicit::apply::<RcFnBrand, _, _>(ff, fa).lower();
+		assert_eq!(result, vec![3, 4, 20, 30]);
+	}
+
+	#[test]
+	fn apply_preserves_prior_maps_on_fa() {
+		let ff =
+			CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(cloneable_fn_new::<RcFnBrand, _, _>(
+				|x: i32| x + 1,
+			)));
+		// Prior map on fa is composed and applied before apply delegates to F.
+		let fa = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(5i32)).map(|x| x * 2);
+		let result = CoyonedaExplicit::apply::<RcFnBrand, _, _>(ff, fa).lower();
+		assert_eq!(result, Some(11)); // (5 * 2) + 1
+	}
+
+	// -- Bind tests --
+
+	#[test]
+	fn bind_some() {
+		let fa = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(5i32));
+		let result = fa.bind(|x| CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(x * 2))).lower();
+		assert_eq!(result, Some(10));
+	}
+
+	#[test]
+	fn bind_none_stays_none() {
+		let fa = CoyonedaExplicit::<OptionBrand, i32, i32>::lift(None);
+		let result = fa.bind(|x| CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(x * 2))).lower();
+		assert_eq!(result, None);
+	}
+
+	#[test]
+	fn bind_returning_none_gives_none() {
+		let fa = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(5i32));
+		let result = fa.bind(|_| CoyonedaExplicit::<OptionBrand, i32, i32>::lift(None)).lower();
+		assert_eq!(result, None);
+	}
+
+	#[test]
+	fn bind_vec_flat_maps() {
+		let fa = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1i32, 2, 3]);
+		let result = fa.bind(|x| CoyonedaExplicit::<VecBrand, _, _>::lift(vec![x, x * 10])).lower();
+		assert_eq!(result, vec![1, 10, 2, 20, 3, 30]);
+	}
+
+	#[test]
+	fn bind_uses_accumulated_maps() {
+		let fa = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(3i32)).map(|x| x * 2);
+		let result = fa.bind(|x| CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(x + 1))).lower();
+		assert_eq!(result, Some(7)); // (3 * 2) + 1
 	}
 }
