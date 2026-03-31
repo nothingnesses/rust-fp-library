@@ -235,33 +235,44 @@ just verify
 
 ---
 
-## Phase 6: map_then_bind Combinator
+## Phase 6: flat_map Combinator
 
 Add to `CoyonedaExplicit` in `coyoneda_explicit.rs` (after `bind`, around line 402):
 
 ```rust
-pub fn map_then_bind<C: 'a>(
+pub fn flat_map<C: 'a>(
     self,
-    f: impl Fn(A) -> CoyonedaExplicit<'a, F, C, C> + 'a,
+    f: impl Fn(A) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, C> + 'a,
 ) -> CoyonedaExplicit<'a, F, C, C>
 where
     F: Semimonad, {
     let func = self.func;
-    CoyonedaExplicit::lift(F::bind(self.fb, move |b| f(func(b)).lower()))
+    CoyonedaExplicit::lift(F::bind(self.fb, move |b| f(func(b))))
 }
 ```
 
+The callback `f` receives the mapped value (after the accumulated function is applied)
+and returns a raw `F::Of<'a, C>` directly, not a `CoyonedaExplicit`. This avoids
+needing `.lower()` inside the closure, which is what makes the `Semimonad`-only bound
+possible.
+
 Key advantages over `bind`:
 
-- Only requires `F: Semimonad` (not `F: Functor + Semimonad`).
+- Only requires `F: Semimonad` (not `F: Functor + Semimonad`), because the callback
+  returns raw functor values and no `.lower()` call is needed.
 - Skips the intermediate `F::map` call that `bind` performs via `self.lower()`.
+  For eager containers like `Vec`, this avoids allocating an intermediate mapped
+  container.
 - Composes the accumulated function directly into the bind callback.
+- More ergonomic for the common case: `coyo.flat_map(|a| vec![a, a * 10])` instead
+  of `coyo.bind(|a| CoyonedaExplicit::lift(vec![a, a * 10]))`.
 
 ### Tests
 
-- `map_then_bind_option`: basic correctness.
-- `map_then_bind_vec`: flatmap with pre-composed maps.
-- `map_then_bind_equivalent_to_bind`: verify same result as `bind` for all cases.
+- `flat_map_option`: basic correctness.
+- `flat_map_vec`: flatmap with pre-composed maps.
+- `flat_map_equivalent_to_bind`: verify same result as `bind` for all cases (where
+  `bind`'s callback does `CoyonedaExplicit::lift(f(a))`).
 
 ### Verification
 
@@ -299,8 +310,13 @@ pub struct CoyonedaExplicit<'a, F, B: 'a, A: 'a, Func: Fn(B) -> A + 'a>
 where F: Kind_cdc7cd43dac7585f + 'a {
     fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
     func: Func,
+    _phantom: PhantomData<A>,
 }
 ```
+
+`A` no longer appears in any field (only in the bound `Func: Fn(B) -> A`), so
+`PhantomData<A>` is required. This gives correct covariance in `A`. All struct
+literal construction sites must include `_phantom: PhantomData`.
 
 No default on `Func`. The type is always inferred from context.
 
@@ -318,7 +334,10 @@ pub type BoxedCoyonedaExplicit<'a, F, B, A> =
 
 - **`lift`**: returns `CoyonedaExplicit<'a, F, A, A, fn(A) -> A>`. The identity
   function is a function pointer (`fn(A) -> A`), which is `Copy + Send + Sync +
-'static` and zero-sized.
+'static` and pointer-sized (8 bytes on 64-bit). This is not zero-sized, but the
+  key win is avoiding the `Box` heap allocation. Using `fn(A) -> A` (rather than
+  an unnameable function item type via `impl Fn`) keeps the type nameable, which
+  is needed for `From` impls and explicit type annotations.
 - **`new`**: returns `CoyonedaExplicit<'a, F, B, A, impl Fn(B) -> A + 'a>`.
 - **`map`**: returns `CoyonedaExplicit<'a, F, B, C, impl Fn(B) -> C + 'a>`.
   Calls `compose(f, self.func)` without boxing.
@@ -326,10 +345,16 @@ pub type BoxedCoyonedaExplicit<'a, F, B, A> =
 - **`hoist`**: forwards `Func` unchanged since it only transforms `fb`.
 - **`fold_map`**: takes `self`, composes `func` with the fold function. Works for
   any `Func`.
-- **`apply`/`bind`**: lower both sides and re-lift, so they return the `fn(C) -> C`
-  identity form. Signatures become generic over the input `Func` types but the return
-  is concrete.
-- **`map_then_bind`** (Phase 6): same approach; return type uses identity.
+- **`apply`**: lowers both sides and re-lifts, returning the `fn(C) -> C` identity
+  form. Signature becomes generic over the input `Func` types but the return is
+  concrete.
+- **`bind`**: generic over the callback's `FuncOut` type parameter:
+  `f: impl Fn(A) -> CoyonedaExplicit<'a, F, C, C, FuncOut>`. Lowers the callback's
+  return value and re-lifts, so the result is `fn(C) -> C`. Within a single `bind`
+  call, the closure must return a uniform type; conditional branches that produce
+  different `Func` types require `.boxed()` on each arm (the same pattern as
+  `Iterator::map` or `FutureExt::boxed` with conditional branches).
+- **`flat_map`** (Phase 6): same approach; return type uses identity.
 - **`into_coyoneda`**: takes any `Func: Fn(B) -> A`, passes `self.func` to
   `Coyoneda::new` which accepts `impl Fn(B) -> A + 'a`.
 - **`pure`/`pointed`**: returns the `fn(A) -> A` form (same as `lift`).
@@ -343,6 +368,7 @@ where F: Kind_cdc7cd43dac7585f + 'a {
         CoyonedaExplicit {
             fb: self.fb,
             func: Box::new(self.func),
+            _phantom: PhantomData,
         }
     }
 
@@ -351,6 +377,7 @@ where F: Kind_cdc7cd43dac7585f + 'a {
         CoyonedaExplicit {
             fb: self.fb,
             func: Box::new(self.func),
+            _phantom: PhantomData,
         }
     }
 }
@@ -380,6 +407,11 @@ unboxed path. Update the module docs and comparison table to reflect the new des
 
 Document that `.boxed()` reintroduces one box per map and dynamic dispatch but
 enables storage, loops, and HKT integration via `BoxedCoyonedaExplicit`.
+
+Note on compile-time cost: deep `.map()` chains produce deeply nested generic types
+(e.g., `Compose<F10, Compose<F9, ...>>`). For chains deeper than ~20-30 maps,
+recommend inserting `.boxed()` periodically to bound compile-time type complexity.
+This mirrors standard ecosystem guidance for iterators and futures.
 
 ### 7g. Send/Sync
 
@@ -424,22 +456,27 @@ just verify
 
 Phases 1-3 form a natural first PR (docs + Semimonad + conversions).
 Phase 4 (benchmarks) is an independent second PR.
-Phases 5-6 are independent enhancements, each a separate PR.
+Phases 5 and 6 are independent enhancements, each a separate PR.
 Phase 7 is a larger redesign PR that supersedes Phase 1's doc fixes for
 `CoyonedaExplicit` (the "zero-cost" claims become accurate for the unboxed path).
 
-| Phase                | Depends on | Risk                                           |
-| -------------------- | ---------- | ---------------------------------------------- |
-| 1 (docs)             | None       | None (docs only)                               |
-| 2 (Semimonad)        | None       | Low                                            |
-| 3 (From conversions) | None       | Low                                            |
-| 4 (benchmarks)       | None       | None (additive)                                |
-| 5 (CoyonedaNewLayer) | None       | Low (internal refactor)                        |
-| 6 (map_then_bind)    | None       | Low (additive method)                          |
-| 7 (generic Func)     | 3, 6       | Medium (changes struct, all signatures, tests) |
+| Phase            | Depends on | Updates | Risk                                           |
+| ---------------- | ---------- | ------- | ---------------------------------------------- |
+| 1 (docs)         | None       |         | None (docs only)                               |
+| 2 (Semimonad)    | None       |         | Low                                            |
+| 3 (From)         | None       |         | Low                                            |
+| 4 (benchmarks)   | None       |         | None (additive)                                |
+| 5 (NewLayer)     | None       |         | Low (internal refactor)                        |
+| 6 (flat_map)     | None       |         | Low (additive method)                          |
+| 7 (generic Func) | None       | 1, 3, 6 | Medium (changes struct, all signatures, tests) |
 
-Phase 7 depends on Phases 3 and 6 being done first so it can update their
-signatures in one pass. Phase 4 benchmarks should run before and after Phase 7
-to measure the impact.
+Phase 7 does not depend on Phases 3 and 6 being done first; it updates their
+signatures if they have already landed. Landing 3 and 6 in earlier PRs is
+preferred for incremental review: the double-write cost (a few signature changes)
+is low, and if Phase 7 is delayed or cancelled, 3 and 6 still provide value.
+Phase 7 also supersedes Phase 1's doc fixes for `CoyonedaExplicit` (the
+"zero-cost" claims become accurate for the unboxed path).
+
+Phase 4 benchmarks should run before and after Phase 7 to measure the impact.
 
 After each phase: `just verify` (runs fmt, clippy, doc, test in order).
