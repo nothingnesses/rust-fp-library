@@ -124,6 +124,7 @@ mod inner {
 				Monoid,
 				NaturalTransformation,
 				Pointed,
+				Semimonad,
 			},
 			impl_kind,
 			kinds::*,
@@ -625,6 +626,51 @@ mod inner {
 			F::fold_map::<FnBrand, A, M>(func, fa.lower())
 		}
 	}
+
+	// -- Semimonad implementation --
+
+	#[document_type_parameters("The brand of the underlying type constructor.")]
+	impl<F: Functor + Semimonad + 'static> Semimonad for CoyonedaBrand<F> {
+		/// Chains `Coyoneda` computations by lowering to the underlying functor,
+		/// binding via `F::bind`, then re-lifting the result.
+		///
+		/// Requires `F: Functor` (for lowering) and `F: Semimonad` (for binding).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the value in the input `Coyoneda`.",
+			"The type of the value in the output `Coyoneda`."
+		)]
+		///
+		#[document_parameters(
+			"The input `Coyoneda` value.",
+			"The function to apply to the inner value, returning a new `Coyoneda`."
+		)]
+		///
+		#[document_returns("A new `Coyoneda` containing the bound result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<OptionBrand, _>::lift(Some(5));
+		/// let result = bind::<CoyonedaBrand<OptionBrand>, _, _>(coyo, |x| {
+		/// 	Coyoneda::<OptionBrand, _>::lift(Some(x * 2))
+		/// });
+		/// assert_eq!(result.lower(), Some(10));
+		/// ```
+		fn bind<'a, A: 'a, B: 'a>(
+			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Coyoneda::lift(F::bind(ma.lower(), move |a| func(a).lower()))
+		}
+	}
 }
 
 pub use inner::*;
@@ -835,5 +881,43 @@ mod tests {
 		let result =
 			fold_map::<RcFnBrand, CoyonedaBrand<OptionBrand>, _, _>(|x: i32| x.to_string(), coyo);
 		assert_eq!(result, String::new());
+	}
+
+	// -- Semimonad tests --
+
+	#[test]
+	fn bind_option_some() {
+		let coyo = Coyoneda::<OptionBrand, _>::lift(Some(5));
+		let result = bind::<CoyonedaBrand<OptionBrand>, _, _>(coyo, |x| {
+			Coyoneda::<OptionBrand, _>::lift(Some(x * 2))
+		});
+		assert_eq!(result.lower(), Some(10));
+	}
+
+	#[test]
+	fn bind_option_none() {
+		let coyo = Coyoneda::<OptionBrand, i32>::lift(None);
+		let result = bind::<CoyonedaBrand<OptionBrand>, _, _>(coyo, |x| {
+			Coyoneda::<OptionBrand, _>::lift(Some(x * 2))
+		});
+		assert_eq!(result.lower(), None);
+	}
+
+	#[test]
+	fn bind_vec() {
+		let coyo = Coyoneda::<VecBrand, _>::lift(vec![1i32, 2, 3]);
+		let result = bind::<CoyonedaBrand<VecBrand>, _, _>(coyo, |x| {
+			Coyoneda::<VecBrand, _>::lift(vec![x, x * 10])
+		});
+		assert_eq!(result.lower(), vec![1, 10, 2, 20, 3, 30]);
+	}
+
+	#[test]
+	fn bind_after_map() {
+		let coyo = Coyoneda::<OptionBrand, _>::lift(Some(3)).map(|x| x * 2);
+		let result = bind::<CoyonedaBrand<OptionBrand>, _, _>(coyo, |x| {
+			Coyoneda::<OptionBrand, _>::lift(Some(x + 1))
+		});
+		assert_eq!(result.lower(), Some(7)); // (3 * 2) + 1
 	}
 }
