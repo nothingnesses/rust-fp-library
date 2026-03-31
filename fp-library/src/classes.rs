@@ -39,6 +39,7 @@ pub mod extend;
 pub mod extract;
 pub mod field;
 pub mod filterable;
+pub mod filterable_with_index;
 pub mod foldable;
 pub mod foldable_with_index;
 pub mod function;
