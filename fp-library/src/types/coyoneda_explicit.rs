@@ -1,0 +1,582 @@
+//! Coyoneda with the intermediate type made explicit, enabling zero-cost map fusion.
+//!
+//! [`CoyonedaExplicit`] is the same construction as [`Coyoneda`](crate::types::Coyoneda)
+//! but without existential quantification over the intermediate type `B`. Where `Coyoneda`
+//! hides `B` behind a trait object (enabling HKT integration), `CoyonedaExplicit` exposes
+//! `B` as a type parameter (enabling compile-time function composition).
+//!
+//! ## Map fusion
+//!
+//! Each call to [`map`](CoyonedaExplicit::map) composes the new function with the
+//! accumulated function at the type level. No boxing, no dynamic dispatch, no heap
+//! allocation. At [`lower`](CoyonedaExplicit::lower) time, a single call to `F::map`
+//! applies the fully composed function regardless of how many maps were chained.
+//!
+//! ## Trade-offs vs `Coyoneda`
+//!
+//! | Property | `Coyoneda` | `CoyonedaExplicit` |
+//! | -------- | ---------- | ------------------ |
+//! | HKT integration | Yes (has a brand, implements `Functor`) | No |
+//! | Map fusion | No (k calls to `F::map`) | Yes (1 call to `F::map`) |
+//! | Heap allocation per map | 2 boxes | 0 |
+//! | Stack overflow risk | Yes (deep nesting) | No |
+//! | Foldable without Functor | No | Yes |
+//! | Hoist without Functor | No | Yes |
+//!
+//! ## When to use which
+//!
+//! Use `Coyoneda` when you need HKT polymorphism (e.g., writing code generic over any
+//! `Functor`). Use `CoyonedaExplicit` when you need zero-cost map fusion on a known
+//! type constructor, or when composing many maps in a performance-sensitive path.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! 	types::*,
+//! };
+//!
+//! let result = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1, 2, 3])
+//! 	.map(|x| x + 1)
+//! 	.map(|x| x * 2)
+//! 	.map(|x| x.to_string())
+//! 	.lower();
+//!
+//! // Only one call to Vec::map, applying the composed function x -> (x + 1) * 2 -> string.
+//! assert_eq!(result, vec!["4", "6", "8"]);
+//! ```
+
+#[fp_macros::document_module]
+mod inner {
+	use {
+		crate::{
+			classes::{
+				CloneableFn,
+				Foldable,
+				Functor,
+				Monoid,
+				NaturalTransformation,
+				Pointed,
+			},
+			functions::{
+				compose,
+				identity,
+			},
+			kinds::*,
+		},
+		fp_macros::*,
+	};
+
+	/// Coyoneda with an explicit intermediate type, enabling zero-cost map fusion.
+	///
+	/// Stores a value of type `F B` alongside a function `B -> A`. Each call to
+	/// [`map`](CoyonedaExplicit::map) composes the new function with the existing one
+	/// at the type level, producing a new `CoyonedaExplicit` with an updated function
+	/// type but the same underlying `F B`. At [`lower`](CoyonedaExplicit::lower) time,
+	/// a single `F::map` applies the fully composed function.
+	///
+	/// Unlike [`Coyoneda`](crate::types::Coyoneda), the intermediate type `B` is visible
+	/// as a type parameter rather than hidden behind a trait object. This prevents HKT
+	/// integration (no brand or `Functor` instance) but eliminates all boxing, dynamic
+	/// dispatch, and per-map heap allocation.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying type constructor.",
+		"The type of the values in the underlying functor (the input to the accumulated function).",
+		"The current output type (the output of the accumulated function)."
+	)]
+	pub struct CoyonedaExplicit<'a, F, B: 'a, A: 'a>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a, {
+		fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
+		func: Box<dyn Fn(B) -> A + 'a>,
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying type constructor.",
+		"The type of the values in the underlying functor.",
+		"The current output type."
+	)]
+	#[document_parameters("The `CoyonedaExplicit` instance.")]
+	impl<'a, F, B: 'a, A: 'a> CoyonedaExplicit<'a, F, B, A>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a,
+	{
+		/// Construct a `CoyonedaExplicit` from a function and a functor value.
+		///
+		/// Stores `fb` alongside `f` as a single deferred mapping step.
+		/// [`lift`](CoyonedaExplicit::lift) is equivalent to `new(|a| a, fa)`.
+		#[document_signature]
+		///
+		#[document_parameters("The function to defer.", "The functor value.")]
+		///
+		#[document_returns("A `CoyonedaExplicit` wrapping the value with the deferred function.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = CoyonedaExplicit::<VecBrand, _, _>::new(|x: i32| x * 2, vec![1, 2, 3]);
+		/// assert_eq!(coyo.lower(), vec![2, 4, 6]);
+		/// ```
+		pub fn new(
+			f: impl Fn(B) -> A + 'a,
+			fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
+		) -> Self {
+			CoyonedaExplicit {
+				fb,
+				func: Box::new(f),
+			}
+		}
+
+		/// Map a function over the value, composing it with the accumulated function.
+		///
+		/// This composes `f` with the stored function at the type level. No heap
+		/// allocation occurs for the composition itself (only the initial boxed
+		/// function is retained, replaced by a new box wrapping the composed result).
+		/// At [`lower`](CoyonedaExplicit::lower) time, a single `F::map` call applies
+		/// the fully composed function.
+		#[document_signature]
+		///
+		#[document_type_parameters("The new output type after applying the function.")]
+		///
+		#[document_parameters("The function to compose.")]
+		///
+		#[document_returns("A new `CoyonedaExplicit` with the composed function.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result =
+		/// 	CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(5)).map(|x| x * 2).map(|x| x + 1).lower();
+		///
+		/// assert_eq!(result, Some(11));
+		/// ```
+		pub fn map<C: 'a>(
+			self,
+			f: impl Fn(A) -> C + 'a,
+		) -> CoyonedaExplicit<'a, F, B, C> {
+			CoyonedaExplicit {
+				fb: self.fb,
+				func: Box::new(compose(f, self.func)),
+			}
+		}
+
+		/// Lower the `CoyonedaExplicit` back to the underlying functor `F`.
+		///
+		/// Applies the accumulated composed function in a single call to `F::map`.
+		/// Requires `F: Functor`.
+		#[document_signature]
+		///
+		#[document_returns("The underlying functor value with the composed function applied.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1, 2, 3])
+		/// 	.map(|x| x + 1)
+		/// 	.map(|x| x * 2)
+		/// 	.lower();
+		///
+		/// assert_eq!(result, vec![4, 6, 8]);
+		/// ```
+		pub fn lower(self) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
+		where
+			F: Functor, {
+			F::map(self.func, self.fb)
+		}
+
+		/// Apply a natural transformation to the underlying functor.
+		///
+		/// Transforms a `CoyonedaExplicit<F, B, A>` into a `CoyonedaExplicit<G, B, A>`
+		/// by applying the natural transformation directly to the stored `F B`. Unlike
+		/// [`Coyoneda::hoist`](crate::types::Coyoneda::hoist), this does not require
+		/// `F: Functor` because the intermediate type `B` is visible.
+		#[document_signature]
+		///
+		#[document_type_parameters("The brand of the target functor.")]
+		///
+		#[document_parameters("The natural transformation from `F` to `G`.")]
+		///
+		#[document_returns("A new `CoyonedaExplicit` over the target functor `G`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// struct VecToOption;
+		/// impl NaturalTransformation<VecBrand, OptionBrand> for VecToOption {
+		/// 	fn transform<'a, A: 'a>(
+		/// 		&self,
+		/// 		fa: Vec<A>,
+		/// 	) -> Option<A> {
+		/// 		fa.into_iter().next()
+		/// 	}
+		/// }
+		///
+		/// let coyo = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![10, 20, 30]).map(|x| x * 2);
+		/// let hoisted = coyo.hoist(VecToOption);
+		/// assert_eq!(hoisted.lower(), Some(20));
+		/// ```
+		pub fn hoist<G: Kind_cdc7cd43dac7585f + 'a>(
+			self,
+			nat: impl NaturalTransformation<F, G>,
+		) -> CoyonedaExplicit<'a, G, B, A> {
+			CoyonedaExplicit {
+				fb: nat.transform(self.fb),
+				func: self.func,
+			}
+		}
+
+		/// Fold the structure by composing the fold function with the accumulated
+		/// mapping function, then folding the original `F B` in a single pass.
+		///
+		/// Unlike [`Foldable for CoyonedaBrand`](crate::classes::Foldable), this does
+		/// not require `F: Functor`. It only requires `F: Foldable`, matching
+		/// PureScript's semantics. No intermediate `F A` is materialized.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the cloneable function to use.",
+			"The monoid type to fold into."
+		)]
+		///
+		#[document_parameters("The function mapping each element to a monoid value.")]
+		///
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1, 2, 3])
+		/// 	.map(|x| x * 10)
+		/// 	.fold_map::<RcFnBrand, _>(|x: i32| x.to_string());
+		///
+		/// assert_eq!(result, "102030".to_string());
+		/// ```
+		pub fn fold_map<FnBrand, M>(
+			self,
+			func: impl Fn(A) -> M + 'a,
+		) -> M
+		where
+			B: Clone,
+			M: Monoid + 'a,
+			F: Foldable,
+			FnBrand: CloneableFn + 'a, {
+			F::fold_map::<FnBrand, B, M>(compose(func, self.func), self.fb)
+		}
+
+		/// Convert this `CoyonedaExplicit` into a [`Coyoneda`](crate::types::Coyoneda),
+		/// hiding the intermediate type `B` behind a trait object.
+		///
+		/// This is useful when you have finished building a fusion pipeline and need
+		/// to pass the result into code that is generic over `Functor` via
+		/// `CoyonedaBrand`.
+		#[document_signature]
+		///
+		#[document_returns("A `Coyoneda` wrapping the same value with the accumulated function.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let explicit = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1, 2, 3]).map(|x| x + 1);
+		/// let coyo: Coyoneda<VecBrand, i32> = explicit.into_coyoneda();
+		/// assert_eq!(coyo.lower(), vec![2, 3, 4]);
+		/// ```
+		pub fn into_coyoneda(self) -> crate::types::Coyoneda<'a, F, A> {
+			crate::types::Coyoneda::new(self.func, self.fb)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying type constructor.",
+		"The type of the values in the functor."
+	)]
+	impl<'a, F, A: 'a> CoyonedaExplicit<'a, F, A, A>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a,
+	{
+		/// Lift a value of `F A` into `CoyonedaExplicit` with the identity function.
+		///
+		/// This is the starting point for building a fusion pipeline. The intermediate
+		/// type `B` and the output type `A` are the same.
+		#[document_signature]
+		///
+		#[document_parameters("The functor value to lift.")]
+		///
+		#[document_returns("A `CoyonedaExplicit` wrapping the value with the identity function.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(42));
+		/// assert_eq!(coyo.lower(), Some(42));
+		/// ```
+		pub fn lift(fa: <F as Kind_cdc7cd43dac7585f>::Of<'a, A>) -> Self {
+			CoyonedaExplicit {
+				fb: fa,
+				func: Box::new(identity),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying pointed functor.",
+		"The type of the value."
+	)]
+	impl<'a, F, A: 'a> CoyonedaExplicit<'a, F, A, A>
+	where
+		F: Pointed + 'a,
+	{
+		/// Wrap a pure value in a `CoyonedaExplicit` context.
+		///
+		/// Delegates to `F::pure` and wraps with the identity function.
+		#[document_signature]
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		#[document_returns("A `CoyonedaExplicit` containing the pure value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = CoyonedaExplicit::<OptionBrand, _, _>::pure(42);
+		/// assert_eq!(coyo.lower(), Some(42));
+		/// ```
+		pub fn pure(a: A) -> Self {
+			Self::lift(F::pure(a))
+		}
+	}
+}
+
+pub use inner::*;
+
+#[cfg(test)]
+mod tests {
+	use crate::{
+		brands::*,
+		classes::*,
+		functions::*,
+		types::*,
+	};
+
+	#[test]
+	fn lift_lower_identity_option() {
+		let coyo = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(42));
+		assert_eq!(coyo.lower(), Some(42));
+	}
+
+	#[test]
+	fn lift_lower_identity_none() {
+		let coyo = CoyonedaExplicit::<OptionBrand, i32, i32>::lift(None);
+		assert_eq!(coyo.lower(), None);
+	}
+
+	#[test]
+	fn lift_lower_identity_vec() {
+		let coyo = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1, 2, 3]);
+		assert_eq!(coyo.lower(), vec![1, 2, 3]);
+	}
+
+	#[test]
+	fn new_constructor() {
+		let coyo = CoyonedaExplicit::<VecBrand, _, _>::new(|x: i32| x * 2, vec![1, 2, 3]);
+		assert_eq!(coyo.lower(), vec![2, 4, 6]);
+	}
+
+	#[test]
+	fn new_is_equivalent_to_lift_then_map() {
+		let f = |x: i32| x.to_string();
+		let v = vec![1, 2, 3];
+
+		let via_new = CoyonedaExplicit::<VecBrand, _, _>::new(f, v.clone()).lower();
+		let via_lift_map = CoyonedaExplicit::<VecBrand, _, _>::lift(v).map(f).lower();
+
+		assert_eq!(via_new, via_lift_map);
+	}
+
+	#[test]
+	fn single_map_option() {
+		let result = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(5)).map(|x| x * 2).lower();
+		assert_eq!(result, Some(10));
+	}
+
+	#[test]
+	fn chained_maps_vec() {
+		let result = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1, 2, 3])
+			.map(|x| x + 1)
+			.map(|x| x * 2)
+			.map(|x| x.to_string())
+			.lower();
+		assert_eq!(result, vec!["4", "6", "8"]);
+	}
+
+	#[test]
+	fn functor_identity_law() {
+		let result = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1, 2, 3]).map(identity).lower();
+		assert_eq!(result, vec![1, 2, 3]);
+	}
+
+	#[test]
+	fn functor_composition_law() {
+		let f = |x: i32| x + 1;
+		let g = |x: i32| x * 2;
+
+		let left =
+			CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1, 2, 3]).map(compose(f, g)).lower();
+
+		let right = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1, 2, 3]).map(g).map(f).lower();
+
+		assert_eq!(left, right);
+	}
+
+	#[test]
+	fn many_chained_maps() {
+		let mut coyo = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![0i64]);
+		for _ in 0 .. 100 {
+			coyo = coyo.map(|x| x + 1);
+		}
+		assert_eq!(coyo.lower(), vec![100i64]);
+	}
+
+	#[test]
+	fn map_on_none_stays_none() {
+		let result = CoyonedaExplicit::<OptionBrand, _, _>::lift(None::<i32>)
+			.map(|x| x + 1)
+			.map(|x| x * 2)
+			.lower();
+		assert_eq!(result, None);
+	}
+
+	#[test]
+	fn lift_lower_roundtrip_preserves_value() {
+		let original = vec![10, 20, 30];
+		let roundtrip = CoyonedaExplicit::<VecBrand, _, _>::lift(original.clone()).lower();
+		assert_eq!(roundtrip, original);
+	}
+
+	// -- Pure tests --
+
+	#[test]
+	fn pure_option() {
+		let coyo = CoyonedaExplicit::<OptionBrand, _, _>::pure(42);
+		assert_eq!(coyo.lower(), Some(42));
+	}
+
+	#[test]
+	fn pure_vec() {
+		let coyo = CoyonedaExplicit::<VecBrand, _, _>::pure(42);
+		assert_eq!(coyo.lower(), vec![42]);
+	}
+
+	// -- Hoist tests --
+
+	struct VecToOption;
+	impl NaturalTransformation<VecBrand, OptionBrand> for VecToOption {
+		fn transform<'a, A: 'a>(
+			&self,
+			fa: Vec<A>,
+		) -> Option<A> {
+			fa.into_iter().next()
+		}
+	}
+
+	#[test]
+	fn hoist_vec_to_option() {
+		let coyo = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![10, 20, 30]);
+		let hoisted = coyo.hoist(VecToOption);
+		assert_eq!(hoisted.lower(), Some(10));
+	}
+
+	#[test]
+	fn hoist_preserves_accumulated_maps() {
+		let coyo = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1, 2, 3]).map(|x| x * 10);
+		let hoisted = coyo.hoist(VecToOption);
+		assert_eq!(hoisted.lower(), Some(10));
+	}
+
+	#[test]
+	fn hoist_then_map() {
+		let coyo = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![5, 10, 15]);
+		let hoisted = coyo.hoist(VecToOption).map(|x: i32| x.to_string());
+		assert_eq!(hoisted.lower(), Some("5".to_string()));
+	}
+
+	// -- Fold tests --
+
+	#[test]
+	fn fold_map_on_lifted_vec() {
+		let result = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1, 2, 3])
+			.fold_map::<RcFnBrand, _>(|x: i32| x.to_string());
+		assert_eq!(result, "123".to_string());
+	}
+
+	#[test]
+	fn fold_map_on_mapped_vec() {
+		let result = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1, 2, 3])
+			.map(|x| x * 10)
+			.fold_map::<RcFnBrand, _>(|x: i32| x.to_string());
+		assert_eq!(result, "102030".to_string());
+	}
+
+	#[test]
+	fn fold_map_on_none_is_empty() {
+		let result = CoyonedaExplicit::<OptionBrand, i32, i32>::lift(None)
+			.map(|x| x + 1)
+			.fold_map::<RcFnBrand, _>(|x: i32| x.to_string());
+		assert_eq!(result, String::new());
+	}
+
+	// -- Conversion tests --
+
+	#[test]
+	fn into_coyoneda_preserves_semantics() {
+		let explicit =
+			CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1, 2, 3]).map(|x| x + 1).map(|x| x * 2);
+		let coyo: Coyoneda<VecBrand, i32> = explicit.into_coyoneda();
+		assert_eq!(coyo.lower(), vec![4, 6, 8]);
+	}
+
+	#[test]
+	fn into_coyoneda_from_lift() {
+		let explicit = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(42));
+		let coyo: Coyoneda<OptionBrand, i32> = explicit.into_coyoneda();
+		assert_eq!(coyo.lower(), Some(42));
+	}
+}
