@@ -67,6 +67,7 @@ mod inner {
 				identity,
 			},
 			kinds::*,
+			types::Coyoneda,
 		},
 		fp_macros::*,
 	};
@@ -290,34 +291,6 @@ mod inner {
 			F::fold_map::<FnBrand, B, M>(compose(func, self.func), self.fb)
 		}
 
-		/// Convert this `CoyonedaExplicit` into a [`Coyoneda`](crate::types::Coyoneda),
-		/// hiding the intermediate type `B` behind a trait object.
-		///
-		/// This is useful when you have finished building a fusion pipeline and need
-		/// to pass the result into code that is generic over `Functor` via
-		/// `CoyonedaBrand`.
-		///
-		/// Note: further `map` calls on the resulting `Coyoneda` do not fuse with
-		/// the previously composed function; each adds a separate trait-object layer.
-		#[document_signature]
-		///
-		#[document_returns("A `Coyoneda` wrapping the same value with the accumulated function.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let explicit = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1, 2, 3]).map(|x| x + 1);
-		/// let coyo: Coyoneda<VecBrand, i32> = explicit.into_coyoneda();
-		/// assert_eq!(coyo.lower(), vec![2, 3, 4]);
-		/// ```
-		pub fn into_coyoneda(self) -> crate::types::Coyoneda<'a, F, A> {
-			crate::types::Coyoneda::new(self.func, self.fb)
-		}
-
 		/// Apply a wrapped function to this value by lowering both sides, delegating to
 		/// `F::apply`, and re-lifting the result.
 		///
@@ -519,6 +492,48 @@ mod inner {
 			Self::lift(F::pure(a))
 		}
 	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying type constructor.",
+		"The type of the values in the underlying functor.",
+		"The current output type."
+	)]
+	impl<'a, F, B: 'a, A: 'a> From<CoyonedaExplicit<'a, F, B, A>> for Coyoneda<'a, F, A>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a,
+	{
+		/// Convert a [`CoyonedaExplicit`] into a [`Coyoneda`] by hiding the
+		/// intermediate type `B` behind a trait object.
+		///
+		/// This is useful when you have finished building a fusion pipeline and
+		/// need to pass the result into code that is generic over `Functor` via
+		/// `CoyonedaBrand`.
+		///
+		/// Note: further `map` calls on the resulting `Coyoneda` do not fuse with
+		/// the previously composed function; each adds a separate trait-object
+		/// layer.
+		#[document_signature]
+		///
+		#[document_parameters("The `CoyonedaExplicit` to convert.")]
+		///
+		#[document_returns("A `Coyoneda` wrapping the same value with the accumulated function.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let explicit = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1, 2, 3]).map(|x| x + 1);
+		/// let coyo: Coyoneda<VecBrand, i32> = explicit.into();
+		/// assert_eq!(coyo.lower(), vec![2, 3, 4]);
+		/// ```
+		fn from(explicit: CoyonedaExplicit<'a, F, B, A>) -> Self {
+			Coyoneda::new(explicit.func, explicit.fb)
+		}
+	}
 }
 
 pub use inner::*;
@@ -705,14 +720,14 @@ mod tests {
 	fn into_coyoneda_preserves_semantics() {
 		let explicit =
 			CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1, 2, 3]).map(|x| x + 1).map(|x| x * 2);
-		let coyo: Coyoneda<VecBrand, i32> = explicit.into_coyoneda();
+		let coyo: Coyoneda<VecBrand, i32> = explicit.into();
 		assert_eq!(coyo.lower(), vec![4, 6, 8]);
 	}
 
 	#[test]
 	fn into_coyoneda_from_lift() {
 		let explicit = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(42));
-		let coyo: Coyoneda<OptionBrand, i32> = explicit.into_coyoneda();
+		let coyo: Coyoneda<OptionBrand, i32> = explicit.into();
 		assert_eq!(coyo.lower(), Some(42));
 	}
 
@@ -855,5 +870,22 @@ mod tests {
 		let fa = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(3i32)).map(|x| x * 2);
 		let result = fa.flat_map(|x| Some(x + 1)).lower();
 		assert_eq!(result, Some(7)); // (3 * 2) + 1
+	}
+
+	// -- From conversion tests --
+
+	#[test]
+	fn from_explicit_to_coyoneda() {
+		let explicit =
+			CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1, 2, 3]).map(|x| x + 1).map(|x| x * 2);
+		let coyo: Coyoneda<VecBrand, i32> = explicit.into();
+		assert_eq!(coyo.lower(), vec![4, 6, 8]);
+	}
+
+	#[test]
+	fn from_explicit_lift_only() {
+		let explicit = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(42));
+		let coyo: Coyoneda<OptionBrand, i32> = explicit.into();
+		assert_eq!(coyo.lower(), Some(42));
 	}
 }

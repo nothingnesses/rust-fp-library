@@ -128,6 +128,7 @@ mod inner {
 			},
 			impl_kind,
 			kinds::*,
+			types::CoyonedaExplicit,
 		},
 		fp_macros::*,
 	};
@@ -671,6 +672,48 @@ mod inner {
 			Coyoneda::lift(F::bind(ma.lower(), move |a| func(a).lower()))
 		}
 	}
+
+	// -- From<Coyoneda> for CoyonedaExplicit --
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying foldable functor.",
+		"The type of the values."
+	)]
+	impl<'a, F, A: 'a> From<Coyoneda<'a, F, A>> for CoyonedaExplicit<'a, F, A, A>
+	where
+		F: Kind_cdc7cd43dac7585f + Functor + 'a,
+	{
+		/// Convert a [`Coyoneda`] into a [`CoyonedaExplicit`] by lowering to the
+		/// underlying functor and re-lifting.
+		///
+		/// This calls [`lower()`](Coyoneda::lower), which applies all accumulated
+		/// mapping layers via `F::map`. For eager containers like `Vec`, this
+		/// allocates and traverses the full container. The cost is proportional to
+		/// the number of chained maps and the container size.
+		#[document_signature]
+		///
+		#[document_parameters("The `Coyoneda` to convert.")]
+		///
+		#[document_returns(
+			"A `CoyonedaExplicit` in identity position (B = A) wrapping the lowered value."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x + 1);
+		/// let explicit: CoyonedaExplicit<VecBrand, i32, i32> = coyo.into();
+		/// assert_eq!(explicit.lower(), vec![2, 3, 4]);
+		/// ```
+		fn from(coyo: Coyoneda<'a, F, A>) -> Self {
+			CoyonedaExplicit::lift(coyo.lower())
+		}
+	}
 }
 
 pub use inner::*;
@@ -919,5 +962,32 @@ mod tests {
 			Coyoneda::<OptionBrand, _>::lift(Some(x + 1))
 		});
 		assert_eq!(result.lower(), Some(7)); // (3 * 2) + 1
+	}
+
+	// -- From conversion tests --
+
+	#[test]
+	fn from_coyoneda_to_explicit() {
+		let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x + 1);
+		let explicit: CoyonedaExplicit<VecBrand, i32, i32> = coyo.into();
+		assert_eq!(explicit.lower(), vec![2, 3, 4]);
+	}
+
+	#[test]
+	fn from_coyoneda_then_map_lower() {
+		let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x + 1);
+		let result = CoyonedaExplicit::<VecBrand, i32, i32>::from(coyo).map(|x| x * 2).lower();
+		assert_eq!(result, vec![4, 6, 8]);
+	}
+
+	#[test]
+	fn from_roundtrip_preserves_semantics() {
+		let original = vec![1, 2, 3];
+
+		// CoyonedaExplicit -> Coyoneda -> CoyonedaExplicit
+		let explicit = CoyonedaExplicit::<VecBrand, _, _>::lift(original.clone()).map(|x| x + 1);
+		let coyo: Coyoneda<VecBrand, i32> = explicit.into();
+		let back: CoyonedaExplicit<VecBrand, i32, i32> = coyo.into();
+		assert_eq!(back.lower(), vec![2, 3, 4]);
 	}
 }
