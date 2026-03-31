@@ -30,6 +30,9 @@
 //! assert_eq!(result, vec!["4", "6", "8"]);
 //! ```
 //!
+//! For single-pass fusion that applies one `F::map` regardless of chain depth,
+//! see [`CoyonedaExplicit`](crate::types::CoyonedaExplicit).
+//!
 //! ## Limitations
 //!
 //! All limitations stem from a single root cause: Rust trait objects cannot have methods
@@ -249,6 +252,51 @@ mod inner {
 		}
 	}
 
+	// -- New layer: wraps F<B> and a function B -> A directly (used by Coyoneda::new) --
+
+	/// Layer created by [`Coyoneda::new`]. Stores the functor value and mapping
+	/// function directly, avoiding the extra box that wrapping a [`CoyonedaBase`]
+	/// inside a [`CoyonedaMapLayer`] would require.
+	struct CoyonedaNewLayer<'a, F, B: 'a, A: 'a>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a, {
+		fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
+		func: Box<dyn Fn(B) -> A + 'a>,
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying type constructor.",
+		"The type of the values in the underlying functor.",
+		"The output type of the mapping function."
+	)]
+	#[document_parameters("The new layer instance.")]
+	impl<'a, F, B: 'a, A: 'a> CoyonedaInner<'a, F, A> for CoyonedaNewLayer<'a, F, B, A>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a,
+	{
+		/// Applies the stored function to the stored functor value via `F::map`.
+		#[document_signature]
+		///
+		#[document_returns("The underlying functor value with the function applied.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<VecBrand, _>::new(|x: i32| x * 2, vec![1, 2, 3]);
+		/// assert_eq!(coyo.lower(), vec![2, 4, 6]);
+		/// ```
+		fn lower(self: Box<Self>) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
+		where
+			F: Functor, {
+			F::map(self.func, self.fb)
+		}
+	}
+
 	// -- Outer type --
 
 	/// The free functor over a type constructor `F`.
@@ -307,10 +355,8 @@ mod inner {
 			f: impl Fn(B) -> A + 'a,
 			fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
 		) -> Self {
-			Coyoneda(Box::new(CoyonedaMapLayer {
-				inner: Box::new(CoyonedaBase {
-					fa: fb,
-				}),
+			Coyoneda(Box::new(CoyonedaNewLayer {
+				fb,
 				func: Box::new(f),
 			}))
 		}

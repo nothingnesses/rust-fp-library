@@ -1,4 +1,4 @@
-//! Coyoneda with the intermediate type made explicit, enabling zero-cost map fusion.
+//! Coyoneda with the intermediate type made explicit, enabling single-pass map fusion.
 //!
 //! [`CoyonedaExplicit`] is the same construction as [`Coyoneda`](crate::types::Coyoneda)
 //! but without existential quantification over the intermediate type `B`. Where `Coyoneda`
@@ -7,10 +7,10 @@
 //!
 //! ## Map fusion
 //!
-//! Each call to [`map`](CoyonedaExplicit::map) composes the new function with the
-//! accumulated function at the type level. No boxing, no dynamic dispatch, no heap
-//! allocation. At [`lower`](CoyonedaExplicit::lower) time, a single call to `F::map`
-//! applies the fully composed function regardless of how many maps were chained.
+//! Each call to [`map`](CoyonedaExplicit::map) allocates one `Box<dyn Fn>` for the
+//! composed function. At [`lower`](CoyonedaExplicit::lower) time, a single call to
+//! `F::map` applies the fully composed function regardless of how many maps were
+//! chained.
 //!
 //! ## Trade-offs vs `Coyoneda`
 //!
@@ -18,15 +18,15 @@
 //! | -------- | ---------- | ------------------ |
 //! | HKT integration | Yes (has a brand, implements `Functor`) | No |
 //! | Map fusion | No (k calls to `F::map`) | Yes (1 call to `F::map`) |
-//! | Heap allocation per map | 2 boxes | 0 |
-//! | Stack overflow risk | Yes (deep nesting) | No |
+//! | Heap allocation per map | 2 boxes | 1 box |
+//! | Stack overflow risk | Yes (deep nesting) | Yes (deep closures) |
 //! | Foldable without Functor | No | Yes |
 //! | Hoist without Functor | No | Yes |
 //!
 //! ## When to use which
 //!
 //! Use `Coyoneda` when you need HKT polymorphism (e.g., writing code generic over any
-//! `Functor`). Use `CoyonedaExplicit` when you need zero-cost map fusion on a known
+//! `Functor`). Use `CoyonedaExplicit` when you need single-pass map fusion on a known
 //! type constructor, or when composing many maps in a performance-sensitive path.
 //!
 //! ### Examples
@@ -71,7 +71,7 @@ mod inner {
 		fp_macros::*,
 	};
 
-	/// Coyoneda with an explicit intermediate type, enabling zero-cost map fusion.
+	/// Coyoneda with an explicit intermediate type, enabling single-pass map fusion.
 	///
 	/// Stores a value of type `F B` alongside a function `B -> A`. Each call to
 	/// [`map`](CoyonedaExplicit::map) composes the new function with the existing one
@@ -81,8 +81,9 @@ mod inner {
 	///
 	/// Unlike [`Coyoneda`](crate::types::Coyoneda), the intermediate type `B` is visible
 	/// as a type parameter rather than hidden behind a trait object. This prevents HKT
-	/// integration (no brand or `Functor` instance) but eliminates all boxing, dynamic
-	/// dispatch, and per-map heap allocation.
+	/// integration (no brand or `Functor` instance) but reduces lowering to a single
+	/// `F::map` call, though each `map` allocates one `Box<dyn Fn>` for the composed
+	/// function.
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the underlying type constructor.",
@@ -139,9 +140,8 @@ mod inner {
 
 		/// Map a function over the value, composing it with the accumulated function.
 		///
-		/// This composes `f` with the stored function at the type level. No heap
-		/// allocation occurs for the composition itself (only the initial boxed
-		/// function is retained, replaced by a new box wrapping the composed result).
+		/// This composes `f` with the stored function. A new `Box<dyn Fn>` is allocated
+		/// wrapping the composition of the new function with the stored function.
 		/// At [`lower`](CoyonedaExplicit::lower) time, a single `F::map` call applies
 		/// the fully composed function.
 		#[document_signature]
@@ -296,6 +296,9 @@ mod inner {
 		/// This is useful when you have finished building a fusion pipeline and need
 		/// to pass the result into code that is generic over `Functor` via
 		/// `CoyonedaBrand`.
+		///
+		/// Note: further `map` calls on the resulting `Coyoneda` do not fuse with
+		/// the previously composed function; each adds a separate trait-object layer.
 		#[document_signature]
 		///
 		#[document_returns("A `Coyoneda` wrapping the same value with the accumulated function.")]
@@ -322,6 +325,9 @@ mod inner {
 		/// requiring a brand. After the operation the fusion pipeline is reset: the
 		/// result is a `CoyonedaExplicit` with the identity function and intermediate
 		/// type `C`.
+		///
+		/// This is a fusion barrier: it calls `lower()` on both arguments,
+		/// materializing all accumulated maps before delegating to `F::apply`.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -371,6 +377,10 @@ mod inner {
 		/// each returned `CoyonedaExplicit` to `F C`), then re-lifts the result.
 		/// After the operation the fusion pipeline is reset: the result is a
 		/// `CoyonedaExplicit` with the identity function and intermediate type `C`.
+		///
+		/// This is a fusion barrier: it calls `lower()` on `self`, materializing
+		/// all accumulated maps before delegating to `F::bind`. Each
+		/// `CoyonedaExplicit` returned by `f` is also lowered.
 		#[document_signature]
 		///
 		#[document_type_parameters("The output type of the bound computation.")]
@@ -399,6 +409,44 @@ mod inner {
 		where
 			F: Functor + Semimonad, {
 			CoyonedaExplicit::lift(F::bind(self.lower(), move |a| f(a).lower()))
+		}
+
+		/// Bind through the accumulated function directly, without an intermediate
+		/// `F::map` call.
+		///
+		/// Unlike [`bind`](CoyonedaExplicit::bind), the callback `f` receives the
+		/// mapped value (after the accumulated function is applied) and returns a
+		/// raw `F::Of<'a, C>` directly. This avoids needing `F: Functor` and skips
+		/// the intermediate traversal that `bind` performs via `self.lower()`.
+		#[document_signature]
+		///
+		#[document_type_parameters("The output type of the bound computation.")]
+		///
+		#[document_parameters(
+			"The function to apply to each mapped value, returning a raw functor value."
+		)]
+		///
+		#[document_returns("A `CoyonedaExplicit` containing the bound result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let fa = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(5i32)).map(|x| x * 2);
+		/// let result = fa.flat_map(|x| Some(x + 1)).lower();
+		/// assert_eq!(result, Some(11)); // (5 * 2) + 1
+		/// ```
+		pub fn flat_map<C: 'a>(
+			self,
+			f: impl Fn(A) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, C> + 'a,
+		) -> CoyonedaExplicit<'a, F, C, C>
+		where
+			F: Semimonad, {
+			let func = self.func;
+			CoyonedaExplicit::lift(F::bind(self.fb, move |b| f(func(b))))
 		}
 	}
 
@@ -759,6 +807,53 @@ mod tests {
 	fn bind_uses_accumulated_maps() {
 		let fa = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(3i32)).map(|x| x * 2);
 		let result = fa.bind(|x| CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(x + 1))).lower();
+		assert_eq!(result, Some(7)); // (3 * 2) + 1
+	}
+
+	// -- flat_map tests --
+
+	#[test]
+	fn flat_map_option_some() {
+		let fa = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(5i32));
+		let result = fa.flat_map(|x| Some(x * 2)).lower();
+		assert_eq!(result, Some(10));
+	}
+
+	#[test]
+	fn flat_map_option_none() {
+		let fa = CoyonedaExplicit::<OptionBrand, i32, i32>::lift(None);
+		let result = fa.flat_map(|x| Some(x * 2)).lower();
+		assert_eq!(result, None);
+	}
+
+	#[test]
+	fn flat_map_vec() {
+		let fa = CoyonedaExplicit::<VecBrand, _, _>::lift(vec![1i32, 2, 3]).map(|x| x * 2);
+		let result = fa.flat_map(|x| vec![x, x + 1]).lower();
+		assert_eq!(result, vec![2, 3, 4, 5, 6, 7]);
+	}
+
+	#[test]
+	fn flat_map_equivalent_to_bind() {
+		let v = vec![1i32, 2, 3];
+
+		let via_flat_map = CoyonedaExplicit::<VecBrand, _, _>::lift(v.clone())
+			.map(|x| x + 1)
+			.flat_map(|x| vec![x, x * 10])
+			.lower();
+
+		let via_bind = CoyonedaExplicit::<VecBrand, _, _>::lift(v)
+			.map(|x| x + 1)
+			.bind(|x| CoyonedaExplicit::<VecBrand, _, _>::lift(vec![x, x * 10]))
+			.lower();
+
+		assert_eq!(via_flat_map, via_bind);
+	}
+
+	#[test]
+	fn flat_map_uses_accumulated_maps() {
+		let fa = CoyonedaExplicit::<OptionBrand, _, _>::lift(Some(3i32)).map(|x| x * 2);
+		let result = fa.flat_map(|x| Some(x + 1)).lower();
 		assert_eq!(result, Some(7)); // (3 * 2) + 1
 	}
 }
