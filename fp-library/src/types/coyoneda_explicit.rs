@@ -64,6 +64,7 @@
 mod inner {
 	use {
 		crate::{
+			brands::CoyonedaExplicitBrand,
 			classes::{
 				CloneableFn,
 				Foldable,
@@ -78,6 +79,7 @@ mod inner {
 				compose,
 				identity,
 			},
+			impl_kind,
 			kinds::*,
 			types::Coyoneda,
 		},
@@ -639,6 +641,120 @@ mod inner {
 			Coyoneda::new(explicit.func, explicit.fb)
 		}
 	}
+
+	// -- Brand --
+
+	impl_kind! {
+		impl<F: Kind_cdc7cd43dac7585f + 'static, B: 'static> for CoyonedaExplicitBrand<F, B> {
+			type Of<'a, A: 'a>: 'a = BoxedCoyonedaExplicit<'a, F, B, A>;
+		}
+	}
+
+	// -- Functor for CoyonedaExplicitBrand --
+
+	#[document_type_parameters(
+		"The brand of the underlying type constructor.",
+		"The type of the values in the underlying functor."
+	)]
+	impl<F: Kind_cdc7cd43dac7585f + 'static, B: 'static> Functor for CoyonedaExplicitBrand<F, B> {
+		/// Maps a function over the `BoxedCoyonedaExplicit` by composing it with the
+		/// accumulated function, then re-boxing.
+		///
+		/// Does not require `F: Functor`. The function is composed at the type level
+		/// and a single `F::map` call applies the result at
+		/// [`lower`](CoyonedaExplicit::lower) time. This preserves single-pass fusion,
+		/// unlike [`CoyonedaBrand`](crate::brands::CoyonedaBrand) which adds a separate
+		/// layer per map.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the current output.",
+			"The type of the new output."
+		)]
+		///
+		#[document_parameters("The function to apply.", "The `BoxedCoyonedaExplicit` value.")]
+		///
+		#[document_returns("A new `BoxedCoyonedaExplicit` with the composed function.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
+		/// let mapped = map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(|x| x * 10, coyo);
+		/// assert_eq!(mapped.lower(), vec![10, 20, 30]);
+		/// ```
+		fn map<'a, A: 'a, C: 'a>(
+			func: impl Fn(A) -> C + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			fa.map(func).boxed()
+		}
+	}
+
+	// -- Foldable for CoyonedaExplicitBrand --
+
+	#[document_type_parameters(
+		"The brand of the underlying foldable type constructor.",
+		"The type of the values in the underlying functor."
+	)]
+	impl<F: Kind_cdc7cd43dac7585f + Foldable + 'static, B: Clone + 'static> Foldable
+		for CoyonedaExplicitBrand<F, B>
+	{
+		/// Folds the `BoxedCoyonedaExplicit` by composing the fold function with the
+		/// accumulated mapping function, then folding the original `F B` in a single
+		/// pass.
+		///
+		/// Unlike [`Foldable for CoyonedaBrand`](crate::classes::Foldable), this does
+		/// not require `F: Functor`. It only requires `F: Foldable`, matching
+		/// PureScript's semantics. No intermediate `F A` is materialized.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the monoid."
+		)]
+		///
+		#[document_parameters(
+			"The function to map each element to a monoid.",
+			"The `BoxedCoyonedaExplicit` structure to fold."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).map(|x| x * 10).boxed();
+		///
+		/// let result = fold_map::<RcFnBrand, CoyonedaExplicitBrand<VecBrand, i32>, _, _>(
+		/// 	|x: i32| x.to_string(),
+		/// 	coyo,
+		/// );
+		/// assert_eq!(result, "102030".to_string());
+		/// ```
+		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(A) -> M + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			M: Monoid + 'a,
+			FnBrand: CloneableFn + 'a, {
+			fa.fold_map::<FnBrand, M>(func)
+		}
+	}
 }
 
 pub use inner::*;
@@ -1033,5 +1149,87 @@ mod tests {
 		// fn(i32) -> i32 is Send, Vec<i32> is Send, so the whole thing is Send.
 		let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]);
 		assert_send(&coyo);
+	}
+
+	// -- Brand tests --
+
+	#[test]
+	fn brand_functor_map() {
+		let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
+		let mapped = map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(|x| x * 10, coyo);
+		assert_eq!(mapped.lower(), vec![10, 20, 30]);
+	}
+
+	#[test]
+	fn brand_functor_identity_law() {
+		let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
+		let result = map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(identity, coyo).lower();
+		assert_eq!(result, vec![1, 2, 3]);
+	}
+
+	#[test]
+	fn brand_functor_composition_law() {
+		let f = |x: i32| x + 1;
+		let g = |x: i32| x * 2;
+
+		let coyo1 = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
+		let left = map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(compose(f, g), coyo1).lower();
+
+		let coyo2 = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
+		let right = map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(
+			f,
+			map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(g, coyo2),
+		)
+		.lower();
+
+		assert_eq!(left, right);
+	}
+
+	#[test]
+	fn brand_functor_chained_maps_fuse() {
+		// Chaining through the brand still produces single-pass fusion.
+		let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
+		let result = map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(
+			|x: i32| x.to_string(),
+			map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(
+				|x| x * 2,
+				map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(|x| x + 1, coyo),
+			),
+		)
+		.lower();
+		assert_eq!(result, vec!["4", "6", "8"]);
+	}
+
+	#[test]
+	fn brand_foldable_fold_map() {
+		let coyo =
+			CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).map(|x| x * 10).boxed();
+		let result = fold_map::<RcFnBrand, CoyonedaExplicitBrand<VecBrand, i32>, _, _>(
+			|x: i32| x.to_string(),
+			coyo,
+		);
+		assert_eq!(result, "102030".to_string());
+	}
+
+	#[test]
+	fn brand_foldable_fold_right() {
+		let coyo =
+			CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).map(|x| x * 2).boxed();
+		let result = fold_right::<RcFnBrand, CoyonedaExplicitBrand<VecBrand, i32>, _, _>(
+			|a: i32, b: i32| a + b,
+			0,
+			coyo,
+		);
+		assert_eq!(result, 12); // (1*2) + (2*2) + (3*2)
+	}
+
+	#[test]
+	fn brand_foldable_on_none() {
+		let coyo = CoyonedaExplicit::<OptionBrand, i32, i32, _>::lift(None).map(|x| x + 1).boxed();
+		let result = fold_map::<RcFnBrand, CoyonedaExplicitBrand<OptionBrand, i32>, _, _>(
+			|x: i32| x.to_string(),
+			coyo,
+		);
+		assert_eq!(result, String::new());
 	}
 }

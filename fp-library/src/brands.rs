@@ -135,6 +135,22 @@ pub struct ControlFlowContinueAppliedBrand<C>(PhantomData<C>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CoyonedaBrand<F>(PhantomData<F>);
 
+/// Brand for [`BoxedCoyonedaExplicit`](crate::types::BoxedCoyonedaExplicit),
+/// the boxed variant of [`CoyonedaExplicit`](crate::types::CoyonedaExplicit).
+///
+/// Unlike [`CoyonedaBrand`], which hides the intermediate type `B` behind a
+/// trait object (producing k calls to `F::map` at lower time), this brand
+/// exposes `B` as a type parameter, enabling single-pass fusion (one `F::map`
+/// at lower time regardless of how many maps were chained). The trade-off is
+/// that `B` is fixed for a given brand instance, which prevents implementing
+/// `Pointed`, `Semiapplicative`, or `Semimonad`.
+///
+/// Implements [`Functor`](crate::classes::Functor) (without requiring
+/// `F: Functor`) and [`Foldable`](crate::classes::Foldable) (without requiring
+/// `F: Functor`, only `F: Foldable`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CoyonedaExplicitBrand<F, B>(PhantomData<(F, B)>);
+
 /// Generic function brand parameterized by reference-counted pointer choice.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FnBrand<PtrBrand: RefCountedPointer>(PhantomData<PtrBrand>);
