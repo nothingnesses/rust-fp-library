@@ -56,6 +56,7 @@ pub mod natural_transformation;
 pub mod optics;
 pub mod par_compactable;
 pub mod par_filterable;
+pub mod par_filterable_with_index;
 pub mod par_foldable;
 pub mod par_foldable_with_index;
 pub mod par_functor;

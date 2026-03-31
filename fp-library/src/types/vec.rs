@@ -39,6 +39,7 @@ mod inner {
 				filterable_with_index::FilterableWithIndex,
 				foldable_with_index::FoldableWithIndex,
 				functor_with_index::FunctorWithIndex,
+				par_filterable_with_index::ParFilterableWithIndex,
 				par_foldable_with_index::ParFoldableWithIndex,
 				par_functor_with_index::ParFunctorWithIndex,
 				traversable_with_index::TraversableWithIndex,
@@ -1101,6 +1102,87 @@ mod inner {
 				.map(|(i, a)| f(i, a))
 				.fold(M::empty(), |acc, m| M::append(acc, m))
 		}
+
+		/// Maps and filters a vector in parallel with the index, discarding elements where
+		/// `f` returns `None`.
+		///
+		/// When the `rayon` feature is enabled, elements are processed across multiple threads.
+		/// Otherwise falls back to sequential indexed filter-map.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The input element type.",
+			"The output element type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each index and element. Must be `Send + Sync`.",
+			"The vector to filter and map."
+		)]
+		///
+		#[document_returns("A new vector containing the `Some` results of applying `f`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::brands::VecBrand;
+		///
+		/// let result = VecBrand::par_filter_map_with_index(
+		/// 	|i, x: i32| if i < 3 { Some(x * 10) } else { None },
+		/// 	vec![1, 2, 3, 4, 5],
+		/// );
+		/// assert_eq!(result, vec![10, 20, 30]);
+		/// ```
+		pub fn par_filter_map_with_index<'a, A: 'a + Send, B: 'a + Send>(
+			f: impl Fn(usize, A) -> Option<B> + Send + Sync + 'a,
+			fa: Vec<A>,
+		) -> Vec<B> {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.into_par_iter().enumerate().filter_map(|(i, a)| f(i, a)).collect()
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.into_iter().enumerate().filter_map(|(i, a)| f(i, a)).collect()
+		}
+
+		/// Filters a vector in parallel with the index, retaining only elements satisfying `f`.
+		///
+		/// When the `rayon` feature is enabled, elements are processed across multiple threads.
+		/// Otherwise falls back to sequential indexed filtering.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
+		///
+		#[document_parameters(
+			"The predicate receiving the index and a reference to the element. Must be `Send + Sync`.",
+			"The vector to filter."
+		)]
+		///
+		#[document_returns("A new vector containing only the elements satisfying `f`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::brands::VecBrand;
+		///
+		/// let result =
+		/// 	VecBrand::par_filter_with_index(|i, x: &i32| i < 3 && x % 2 != 0, vec![1, 2, 3, 4, 5]);
+		/// assert_eq!(result, vec![1, 3]);
+		/// ```
+		pub fn par_filter_with_index<'a, A: 'a + Send>(
+			f: impl Fn(usize, &A) -> bool + Send + Sync + 'a,
+			fa: Vec<A>,
+		) -> Vec<A> {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.into_par_iter().enumerate().filter(|(i, a)| f(*i, a)).map(|(_, a)| a).collect()
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.into_iter().enumerate().filter(|(i, a)| f(*i, a)).map(|(_, a)| a).collect()
+		}
 	}
 
 	impl ParFunctor for VecBrand {
@@ -1794,6 +1876,87 @@ mod inner {
 				.filter(|(i, a)| func(*i, a.clone()))
 				.map(|(_, a)| a)
 				.collect()
+		}
+	}
+
+	impl ParFilterableWithIndex for VecBrand {
+		/// Maps and filters a vector in parallel with the index, discarding elements where
+		/// `f` returns `None`.
+		///
+		/// Single-pass implementation using rayon's `enumerate` + `filter_map`. Delegates to
+		/// [`VecBrand::par_filter_map_with_index`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The input element type.",
+			"The output element type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each index and element. Must be `Send + Sync`.",
+			"The vector to filter and map."
+		)]
+		///
+		#[document_returns("A new vector containing the `Some` results of applying `f`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_filterable_with_index::ParFilterableWithIndex,
+		/// };
+		///
+		/// let result = VecBrand::par_filter_map_with_index(
+		/// 	|i, x: i32| if i < 3 { Some(x * 10) } else { None },
+		/// 	vec![1, 2, 3, 4, 5],
+		/// );
+		/// assert_eq!(result, vec![10, 20, 30]);
+		/// ```
+		fn par_filter_map_with_index<'a, A: 'a + Send, B: 'a + Send>(
+			f: impl Fn(usize, A) -> Option<B> + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+		where
+			usize: Send + Sync + Copy + 'a, {
+			VecBrand::par_filter_map_with_index(f, fa)
+		}
+
+		/// Filters a vector in parallel with the index, retaining only elements satisfying `f`.
+		///
+		/// Single-pass implementation using rayon's `enumerate` + `filter`. Delegates to
+		/// [`VecBrand::par_filter_with_index`].
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
+		///
+		#[document_parameters(
+			"The predicate receiving the index and a reference to the element. Must be `Send + Sync`.",
+			"The vector to filter."
+		)]
+		///
+		#[document_returns("A new vector containing only the elements satisfying `f`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_filterable_with_index::ParFilterableWithIndex,
+		/// };
+		///
+		/// let result =
+		/// 	VecBrand::par_filter_with_index(|i, x: &i32| i < 3 && x % 2 != 0, vec![1, 2, 3, 4, 5]);
+		/// assert_eq!(result, vec![1, 3]);
+		/// ```
+		fn par_filter_with_index<'a, A: 'a + Send>(
+			f: impl Fn(usize, &A) -> bool + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		where
+			usize: Send + Sync + Copy + 'a, {
+			VecBrand::par_filter_with_index(f, fa)
 		}
 	}
 
