@@ -54,7 +54,10 @@ pub use {
 	cat_list::CatList,
 	conjunctive::Conjunctive,
 	coyoneda::Coyoneda,
-	coyoneda_explicit::CoyonedaExplicit,
+	coyoneda_explicit::{
+		BoxedCoyonedaExplicit,
+		CoyonedaExplicit,
+	},
 	disjunctive::Disjunctive,
 	dual::Dual,
 	endofunction::Endofunction,

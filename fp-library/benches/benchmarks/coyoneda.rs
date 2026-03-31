@@ -57,9 +57,9 @@ pub fn bench_coyoneda(c: &mut Criterion) {
 			b.iter_batched(
 				|| v_orig.clone(),
 				|v| {
-					let mut coyo = CoyonedaExplicit::<VecBrand, _, _>::lift(v);
+					let mut coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(v).boxed();
 					for _ in 0 .. k {
-						coyo = coyo.map(|x: i32| x + 1);
+						coyo = coyo.map(|x: i32| x + 1).boxed();
 					}
 					coyo.lower()
 				},

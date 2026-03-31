@@ -680,7 +680,7 @@ mod inner {
 		"The brand of the underlying foldable functor.",
 		"The type of the values."
 	)]
-	impl<'a, F, A: 'a> From<Coyoneda<'a, F, A>> for CoyonedaExplicit<'a, F, A, A>
+	impl<'a, F, A: 'a> From<Coyoneda<'a, F, A>> for CoyonedaExplicit<'a, F, A, A, fn(A) -> A>
 	where
 		F: Kind_cdc7cd43dac7585f + Functor + 'a,
 	{
@@ -707,7 +707,7 @@ mod inner {
 		/// };
 		///
 		/// let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x + 1);
-		/// let explicit: CoyonedaExplicit<VecBrand, i32, i32> = coyo.into();
+		/// let explicit: CoyonedaExplicit<VecBrand, i32, i32, fn(i32) -> i32> = coyo.into();
 		/// assert_eq!(explicit.lower(), vec![2, 3, 4]);
 		/// ```
 		fn from(coyo: Coyoneda<'a, F, A>) -> Self {
@@ -969,14 +969,16 @@ mod tests {
 	#[test]
 	fn from_coyoneda_to_explicit() {
 		let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x + 1);
-		let explicit: CoyonedaExplicit<VecBrand, i32, i32> = coyo.into();
+		let explicit: CoyonedaExplicit<VecBrand, i32, i32, fn(i32) -> i32> = coyo.into();
 		assert_eq!(explicit.lower(), vec![2, 3, 4]);
 	}
 
 	#[test]
 	fn from_coyoneda_then_map_lower() {
 		let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x + 1);
-		let result = CoyonedaExplicit::<VecBrand, i32, i32>::from(coyo).map(|x| x * 2).lower();
+		let result = CoyonedaExplicit::<VecBrand, i32, i32, fn(i32) -> i32>::from(coyo)
+			.map(|x| x * 2)
+			.lower();
 		assert_eq!(result, vec![4, 6, 8]);
 	}
 
@@ -985,9 +987,9 @@ mod tests {
 		let original = vec![1, 2, 3];
 
 		// CoyonedaExplicit -> Coyoneda -> CoyonedaExplicit
-		let explicit = CoyonedaExplicit::<VecBrand, _, _>::lift(original.clone()).map(|x| x + 1);
+		let explicit = CoyonedaExplicit::<VecBrand, _, _, _>::lift(original.clone()).map(|x| x + 1);
 		let coyo: Coyoneda<VecBrand, i32> = explicit.into();
-		let back: CoyonedaExplicit<VecBrand, i32, i32> = coyo.into();
+		let back: CoyonedaExplicit<VecBrand, i32, i32, fn(i32) -> i32> = coyo.into();
 		assert_eq!(back.lower(), vec![2, 3, 4]);
 	}
 }
