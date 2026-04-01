@@ -72,10 +72,13 @@
 //!   [`Semiapplicative`](crate::classes::Semiapplicative). An `Rc`/`Arc`-wrapped variant
 //!   would address this.
 //!
-//! - **Missing type class instances.** PureScript provides `Apply`, `Applicative`, `Bind`,
-//!   `Monad`, `Traversable`, `Extend`, `Comonad`, `Eq`, `Ord`, and others. This
-//!   implementation currently provides [`Functor`](crate::classes::Functor),
-//!   [`Pointed`](crate::classes::Pointed), and [`Foldable`](crate::classes::Foldable).
+//! - **Missing type class instances.** PureScript provides `Traversable`, `Extend`,
+//!   `Comonad`, `Eq`, `Ord`, and others. This implementation currently provides
+//!   [`Functor`](crate::classes::Functor), [`Pointed`](crate::classes::Pointed),
+//!   [`Foldable`](crate::classes::Foldable), [`Lift`](crate::classes::Lift),
+//!   [`Semiapplicative`](crate::classes::Semiapplicative),
+//!   [`Semimonad`](crate::classes::Semimonad), and [`Monad`](crate::classes::Monad)
+//!   (via blanket impl).
 //!
 //! ## Comparison with PureScript
 //!
@@ -120,12 +123,16 @@ mod inner {
 			Apply,
 			brands::CoyonedaBrand,
 			classes::{
+				ApplyFirst,
+				ApplySecond,
 				CloneableFn,
 				Foldable,
 				Functor,
+				Lift,
 				Monoid,
 				NaturalTransformation,
 				Pointed,
+				Semiapplicative,
 				Semimonad,
 			},
 			impl_kind,
@@ -642,6 +649,111 @@ mod inner {
 		}
 	}
 
+	// -- Lift implementation --
+
+	#[document_type_parameters("The brand of the underlying type constructor.")]
+	impl<F: Functor + Lift + 'static> Lift for CoyonedaBrand<F> {
+		/// Lifts a binary function into the `Coyoneda` context by lowering both
+		/// arguments and delegating to `F::lift2`.
+		///
+		/// Requires `F: Functor` (for lowering) and `F: Lift`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the first value.",
+			"The type of the second value.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters(
+			"The binary function to apply.",
+			"The first `Coyoneda` value.",
+			"The second `Coyoneda` value."
+		)]
+		///
+		#[document_returns("A `Coyoneda` containing the result of applying the function.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let a = Coyoneda::<OptionBrand, _>::lift(Some(3));
+		/// let b = Coyoneda::<OptionBrand, _>::lift(Some(4));
+		/// let result = lift2::<CoyonedaBrand<OptionBrand>, _, _, _>(|x, y| x + y, a, b);
+		/// assert_eq!(result.lower(), Some(7));
+		/// ```
+		fn lift2<'a, A, B, C>(
+			func: impl Fn(A, B) -> C + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
+		where
+			A: Clone + 'a,
+			B: Clone + 'a,
+			C: 'a, {
+			Coyoneda::lift(F::lift2(func, fa.lower(), fb.lower()))
+		}
+	}
+
+	// -- ApplyFirst / ApplySecond --
+
+	#[document_type_parameters("The brand of the underlying type constructor.")]
+	impl<F: Functor + Lift + 'static> ApplyFirst for CoyonedaBrand<F> {}
+	#[document_type_parameters("The brand of the underlying type constructor.")]
+	impl<F: Functor + Lift + 'static> ApplySecond for CoyonedaBrand<F> {}
+
+	// -- Semiapplicative implementation --
+
+	#[document_type_parameters("The brand of the underlying type constructor.")]
+	impl<F: Functor + Semiapplicative + 'static> Semiapplicative for CoyonedaBrand<F> {
+		/// Applies a `Coyoneda`-wrapped function to a `Coyoneda`-wrapped value by
+		/// lowering both and delegating to `F::apply`.
+		///
+		/// Requires `F: Functor` (for lowering) and `F: Semiapplicative`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the input value.",
+			"The type of the output value."
+		)]
+		///
+		#[document_parameters(
+			"The `Coyoneda` containing the function(s).",
+			"The `Coyoneda` containing the value(s)."
+		)]
+		///
+		#[document_returns("A `Coyoneda` containing the result(s) of applying the function(s).")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let ff =
+		/// 	Coyoneda::<OptionBrand, _>::lift(Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2)));
+		/// let fa = Coyoneda::<OptionBrand, _>::lift(Some(5));
+		/// let result = apply::<RcFnBrand, CoyonedaBrand<OptionBrand>, _, _>(ff, fa);
+		/// assert_eq!(result.lower(), Some(10));
+		/// ```
+		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Coyoneda::lift(F::apply::<FnBrand, A, B>(ff.lower(), fa.lower()))
+		}
+	}
+
 	// -- Semimonad implementation --
 
 	#[document_type_parameters("The brand of the underlying type constructor.")]
@@ -938,6 +1050,72 @@ mod tests {
 		let result =
 			fold_map::<RcFnBrand, CoyonedaBrand<OptionBrand>, _, _>(|x: i32| x.to_string(), coyo);
 		assert_eq!(result, String::new());
+	}
+
+	// -- Lift tests --
+
+	#[test]
+	fn lift2_option_both_some() {
+		let a = Coyoneda::<OptionBrand, _>::lift(Some(3));
+		let b = Coyoneda::<OptionBrand, _>::lift(Some(4));
+		let result = lift2::<CoyonedaBrand<OptionBrand>, _, _, _>(|x, y| x + y, a, b);
+		assert_eq!(result.lower(), Some(7));
+	}
+
+	#[test]
+	fn lift2_option_one_none() {
+		let a = Coyoneda::<OptionBrand, _>::lift(Some(3));
+		let b = Coyoneda::<OptionBrand, i32>::lift(None);
+		let result = lift2::<CoyonedaBrand<OptionBrand>, _, _, _>(|x, y| x + y, a, b);
+		assert_eq!(result.lower(), None);
+	}
+
+	#[test]
+	fn lift2_vec() {
+		let a = Coyoneda::<VecBrand, _>::lift(vec![1, 2]);
+		let b = Coyoneda::<VecBrand, _>::lift(vec![10, 20]);
+		let result = lift2::<CoyonedaBrand<VecBrand>, _, _, _>(|x, y| x + y, a, b);
+		assert_eq!(result.lower(), vec![11, 21, 12, 22]);
+	}
+
+	#[test]
+	fn lift2_with_prior_maps() {
+		let a = Coyoneda::<OptionBrand, _>::lift(Some(3)).map(|x| x * 2);
+		let b = Coyoneda::<OptionBrand, _>::lift(Some(4)).map(|x| x + 1);
+		let result = lift2::<CoyonedaBrand<OptionBrand>, _, _, _>(|x, y| x + y, a, b);
+		assert_eq!(result.lower(), Some(11)); // (3*2) + (4+1)
+	}
+
+	// -- Semiapplicative tests --
+
+	#[test]
+	fn apply_option_some() {
+		let ff = Coyoneda::<OptionBrand, _>::lift(Some(cloneable_fn_new::<RcFnBrand, _, _>(
+			|x: i32| x * 2,
+		)));
+		let fa = Coyoneda::<OptionBrand, _>::lift(Some(5));
+		let result = apply::<RcFnBrand, CoyonedaBrand<OptionBrand>, _, _>(ff, fa);
+		assert_eq!(result.lower(), Some(10));
+	}
+
+	#[test]
+	fn apply_option_none_fn() {
+		let ff =
+			Coyoneda::<OptionBrand, _>::lift(None::<<RcFnBrand as CloneableFn>::Of<'_, i32, i32>>);
+		let fa = Coyoneda::<OptionBrand, _>::lift(Some(5));
+		let result = apply::<RcFnBrand, CoyonedaBrand<OptionBrand>, _, _>(ff, fa);
+		assert_eq!(result.lower(), None);
+	}
+
+	#[test]
+	fn apply_vec() {
+		let ff = Coyoneda::<VecBrand, _>::lift(vec![
+			cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
+			cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 10),
+		]);
+		let fa = Coyoneda::<VecBrand, _>::lift(vec![2i32, 3]);
+		let result = apply::<RcFnBrand, CoyonedaBrand<VecBrand>, _, _>(ff, fa);
+		assert_eq!(result.lower(), vec![3, 4, 20, 30]);
 	}
 
 	// -- Semimonad tests --

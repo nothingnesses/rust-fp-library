@@ -30,10 +30,13 @@
 //! | -------- | ---------- | ------------------ |
 //! | HKT integration | Yes (has a brand, implements `Functor`) | No |
 //! | Map fusion | No (k calls to `F::map`) | Yes (1 call to `F::map`) |
-//! | Heap allocation per map | 2 boxes | 0 (1 box with `.boxed()`) |
+//! | Heap allocation per map | 1 box (function stored inline) | 0 (1 box with `.boxed()`) |
 //! | Stack overflow risk | Yes (deep nesting) | No (compiler inlines; use `.boxed()` for deep chains) |
 //! | Foldable without Functor | No | Yes |
 //! | Hoist without Functor | No | Yes |
+//! | Pointed via brand | Yes | No |
+//! | Semimonad via brand | Yes | No |
+//! | `B: 'static` required for brand | No | Yes |
 //!
 //! ## When to use which
 //!
