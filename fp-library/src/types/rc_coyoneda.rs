@@ -854,4 +854,93 @@ mod tests {
 			.lower_ref();
 		assert_eq!(result, None);
 	}
+
+	// -- Property-based tests --
+
+	mod property {
+		use {
+			crate::{
+				brands::*,
+				functions::*,
+				types::*,
+			},
+			quickcheck_macros::quickcheck,
+		};
+
+		#[quickcheck]
+		fn functor_identity_vec(v: Vec<i32>) -> bool {
+			let coyo = RcCoyoneda::<VecBrand, _>::lift(v.clone());
+			map::<RcCoyonedaBrand<VecBrand>, _, _>(identity, coyo).lower_ref() == v
+		}
+
+		#[quickcheck]
+		fn functor_identity_option(x: Option<i32>) -> bool {
+			let coyo = RcCoyoneda::<OptionBrand, _>::lift(x);
+			map::<RcCoyonedaBrand<OptionBrand>, _, _>(identity, coyo).lower_ref() == x
+		}
+
+		#[quickcheck]
+		fn functor_composition_vec(v: Vec<i32>) -> bool {
+			let f = |x: i32| x.wrapping_add(1);
+			let g = |x: i32| x.wrapping_mul(2);
+
+			let left = map::<RcCoyonedaBrand<VecBrand>, _, _>(
+				compose(f, g),
+				RcCoyoneda::<VecBrand, _>::lift(v.clone()),
+			)
+			.lower_ref();
+
+			let right = map::<RcCoyonedaBrand<VecBrand>, _, _>(
+				f,
+				map::<RcCoyonedaBrand<VecBrand>, _, _>(g, RcCoyoneda::<VecBrand, _>::lift(v)),
+			)
+			.lower_ref();
+
+			left == right
+		}
+
+		#[quickcheck]
+		fn functor_composition_option(x: Option<i32>) -> bool {
+			let f = |x: i32| x.wrapping_add(1);
+			let g = |x: i32| x.wrapping_mul(2);
+
+			let left = map::<RcCoyonedaBrand<OptionBrand>, _, _>(
+				compose(f, g),
+				RcCoyoneda::<OptionBrand, _>::lift(x),
+			)
+			.lower_ref();
+
+			let right = map::<RcCoyonedaBrand<OptionBrand>, _, _>(
+				f,
+				map::<RcCoyonedaBrand<OptionBrand>, _, _>(g, RcCoyoneda::<OptionBrand, _>::lift(x)),
+			)
+			.lower_ref();
+
+			left == right
+		}
+
+		#[quickcheck]
+		fn foldable_consistency_vec(v: Vec<i32>) -> bool {
+			let coyo = RcCoyoneda::<VecBrand, _>::lift(v.clone()).map(|x: i32| x.wrapping_add(1));
+			let via_coyoneda: String = fold_map::<RcFnBrand, RcCoyonedaBrand<VecBrand>, _, _>(
+				|x: i32| x.to_string(),
+				coyo,
+			);
+			let direct: String = fold_map::<RcFnBrand, VecBrand, _, _>(
+				|x: i32| x.to_string(),
+				v.iter().map(|x| x.wrapping_add(1)).collect::<Vec<_>>(),
+			);
+			via_coyoneda == direct
+		}
+
+		#[quickcheck]
+		fn collapse_preserves_value(v: Vec<i32>) -> bool {
+			let coyo = RcCoyoneda::<VecBrand, _>::lift(v)
+				.map(|x: i32| x.wrapping_add(1))
+				.map(|x: i32| x.wrapping_mul(2));
+			let before = coyo.lower_ref();
+			let after = coyo.collapse().lower_ref();
+			before == after
+		}
+	}
 }

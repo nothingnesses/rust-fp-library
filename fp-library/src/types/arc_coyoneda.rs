@@ -830,4 +830,59 @@ mod tests {
 		let result = ArcCoyoneda::<OptionBrand, _>::lift(None::<i32>).map(|x| x + 1).lower_ref();
 		assert_eq!(result, None);
 	}
+
+	// -- Property-based tests --
+
+	mod property {
+		use {
+			crate::{
+				brands::*,
+				functions::*,
+				types::*,
+			},
+			quickcheck_macros::quickcheck,
+		};
+
+		#[quickcheck]
+		fn functor_identity_vec(v: Vec<i32>) -> bool {
+			let coyo = ArcCoyoneda::<VecBrand, _>::lift(v.clone());
+			coyo.map(identity).lower_ref() == v
+		}
+
+		#[quickcheck]
+		fn functor_identity_option(x: Option<i32>) -> bool {
+			let coyo = ArcCoyoneda::<OptionBrand, _>::lift(x);
+			coyo.map(identity).lower_ref() == x
+		}
+
+		#[quickcheck]
+		fn functor_composition_vec(v: Vec<i32>) -> bool {
+			let f = |x: i32| x.wrapping_add(1);
+			let g = |x: i32| x.wrapping_mul(2);
+
+			let left = ArcCoyoneda::<VecBrand, _>::lift(v.clone()).map(compose(f, g)).lower_ref();
+			let right = ArcCoyoneda::<VecBrand, _>::lift(v).map(g).map(f).lower_ref();
+			left == right
+		}
+
+		#[quickcheck]
+		fn functor_composition_option(x: Option<i32>) -> bool {
+			let f = |x: i32| x.wrapping_add(1);
+			let g = |x: i32| x.wrapping_mul(2);
+
+			let left = ArcCoyoneda::<OptionBrand, _>::lift(x).map(compose(f, g)).lower_ref();
+			let right = ArcCoyoneda::<OptionBrand, _>::lift(x).map(g).map(f).lower_ref();
+			left == right
+		}
+
+		#[quickcheck]
+		fn collapse_preserves_value(v: Vec<i32>) -> bool {
+			let coyo = ArcCoyoneda::<VecBrand, _>::lift(v)
+				.map(|x: i32| x.wrapping_add(1))
+				.map(|x: i32| x.wrapping_mul(2));
+			let before = coyo.lower_ref();
+			let after = coyo.collapse().lower_ref();
+			before == after
+		}
+	}
 }
