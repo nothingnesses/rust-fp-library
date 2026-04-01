@@ -15,6 +15,20 @@
 //! - **Thread safety:** `RcCoyoneda` is `!Send`. Use
 //!   [`ArcCoyoneda`](crate::types::ArcCoyoneda) for thread-safe contexts.
 //!
+//! ## Stack safety
+//!
+//! Each chained [`map`](RcCoyoneda::map) adds a layer of recursion to
+//! [`lower_ref`](RcCoyoneda::lower_ref). Deep chains (thousands of maps) can overflow the stack.
+//! Three mitigations are available:
+//!
+//! 1. **`stacker` feature (automatic).** Enable the `stacker` feature flag to use
+//!    adaptive stack growth in `lower_ref`. This is transparent and handles arbitrarily
+//!    deep chains with near-zero overhead when the stack is sufficient.
+//! 2. **[`collapse`](RcCoyoneda::collapse) (manual).** Call `collapse()` periodically
+//!    to flatten accumulated layers. Requires `F: Functor`.
+//! 3. **[`CoyonedaExplicit`](crate::types::CoyonedaExplicit) with `.boxed()`.** An
+//!    alternative that accumulates maps without adding recursion depth.
+//!
 //! ### Examples
 //!
 //! ```
@@ -172,9 +186,20 @@ mod inner {
 		fn lower_ref(&self) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
 		where
 			F: Functor, {
-			let lowered = self.inner.lower_ref();
-			let func = self.func.clone();
-			F::map(move |b| (*func)(b), lowered)
+			#[cfg(feature = "stacker")]
+			{
+				stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
+					let lowered = self.inner.lower_ref();
+					let func = self.func.clone();
+					F::map(move |b| (*func)(b), lowered)
+				})
+			}
+			#[cfg(not(feature = "stacker"))]
+			{
+				let lowered = self.inner.lower_ref();
+				let func = self.func.clone();
+				F::map(move |b| (*func)(b), lowered)
+			}
 		}
 	}
 
@@ -291,6 +316,36 @@ mod inner {
 		where
 			F: Functor, {
 			self.0.lower_ref()
+		}
+
+		/// Flatten accumulated map layers into a single base layer.
+		///
+		/// Resets the recursion depth by lowering and re-lifting. Useful for
+		/// preventing stack overflow in deep chains when the `stacker` feature
+		/// is not enabled.
+		///
+		/// Requires `F: Functor` (for lowering) and `F::Of<'a, A>: Clone`
+		/// (for re-lifting).
+		#[document_signature]
+		///
+		#[document_returns("A new `RcCoyoneda` with a single base layer.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = RcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x + 1).map(|x| x * 2);
+		/// let collapsed = coyo.collapse();
+		/// assert_eq!(collapsed.lower_ref(), vec![4, 6, 8]);
+		/// ```
+		pub fn collapse(&self) -> RcCoyoneda<'a, F, A>
+		where
+			F: Functor,
+			<F as Kind_cdc7cd43dac7585f>::Of<'a, A>: Clone, {
+			RcCoyoneda::lift(self.lower_ref())
 		}
 
 		/// Map a function over the `RcCoyoneda` value.
