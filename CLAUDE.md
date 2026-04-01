@@ -107,108 +107,32 @@ This provides rich type information that helps understand the library's complex 
 
 ## Architecture
 
-### Higher-Kinded Types via the Brand Pattern
+For detailed design documentation, see the `docs/` directory:
 
-The library implements HKT using type-level defunctionalization. Each type constructor (e.g., `Option<T>`) has a corresponding `Brand` type (e.g., `OptionBrand`) that acts as a witness for the `Kind` trait mapping.
+- `docs/hkt.md` - Higher-Kinded Types and the Brand pattern
+- `docs/zero-cost.md` - Zero-cost abstractions and uncurried semantics
+- `docs/lazy-evaluation.md` - Lazy evaluation types, trade-offs, and decision guide
+- `docs/pointer-abstraction.md` - Pointer hierarchy, `FnBrand<P>`, and `LazyConfig`
+- `docs/coyoneda.md` - Free functor implementations and trade-offs
+- `docs/parallelism.md` - Thread safety and parallel trait hierarchy
+- `docs/features.md` - Full feature list with type class hierarchy
+- `docs/architecture.md` - Module organization and documentation conventions
+- `docs/optics-analysis.md` - Optics system design details
 
-**Example:**
-
-```rust
-pub struct OptionBrand;
-impl_kind! {
-    for OptionBrand {
-        type Of<'a, A: 'a>: 'a = Option<A>;
-    }
-}
-```
-
-**Key Locations:**
+### Key Locations
 
 - `fp-library/src/brands.rs` - All brand types centralized here (leaf nodes in dependency graph)
 - `fp-library/src/kinds.rs` - `Kind` trait definitions and type application machinery
 - `fp-macros/src/hkt/` - Procedural macros (`trait_kind!`, `impl_kind!`, `Apply!`)
+- `fp-library/src/types/optics/` - Profunctor-encoded optics (Lens, Prism, Iso, Traversal, etc.)
 
-### Module Organization
+### Module Dependency Ordering
 
-The codebase follows a specific dependency structure to prevent cycles:
+Respect the dependency graph: brands -> classes -> types -> functions. Never create cycles. Free functions (e.g., `map`, `pure`) are defined in their trait's module (e.g., `classes/functor.rs`) and re-exported in `functions.rs`.
 
-1. **Brands (`brands.rs`)**: Centralized leaf nodes with no dependencies
-2. **Type Classes (`classes/*.rs`)**: Trait definitions that depend on brands
-3. **Types (`types/*.rs`)**: Implementations that depend on both brands and classes
-4. **Functions (`functions.rs`)**: Facade that re-exports free function wrappers
+### Optics
 
-**Free functions** (e.g., `map`, `pure`) are defined in their trait's module (e.g., `classes/functor.rs`) and re-exported in `functions.rs`. This prevents circular dependencies.
-
-### Pointer Abstraction Hierarchy
-
-The library uses a unified pointer hierarchy to abstract over reference counting:
-
-- `Pointer` - Base trait for heap-allocated pointers (requires `Deref`)
-- `RefCountedPointer` - Adds `Clone` (implemented by `RcBrand`, `ArcBrand`)
-- `SendRefCountedPointer` - Adds `Send + Sync` (implemented by `ArcBrand` only)
-
-**Function Brands:**
-
-- `FnBrand<P>` is parameterized over a pointer brand `P`
-- `RcFnBrand` = `FnBrand<RcBrand>` (single-threaded, `!Send`)
-- `ArcFnBrand` = `FnBrand<ArcBrand>` (thread-safe, `Send + Sync`)
-
-**Thread Safety:** For parallel operations, use extension traits:
-
-- `SendCloneableFn` - Thread-safe function wrappers
-- `ParFoldable` - Parallel folding (enabled with `rayon` feature)
-
-### Lazy Evaluation Types
-
-The hierarchy consists of infallible computation types, fallible counterparts, and the `Free` monad infrastructure. Each type makes different trade-offs around stack safety, memoization, lifetimes, and thread safety.
-
-| Type                     | Underlying                                 | HKT                                    | Stack Safe                  | Memoized | Lifetimes | Send |
-| ------------------------ | ------------------------------------------ | -------------------------------------- | --------------------------- | -------- | --------- | ---- |
-| `Thunk<'a, A>`           | `Box<dyn FnOnce() -> A + 'a>`              | Yes (full)                             | Partial (`tail_rec_m` only) | No       | `'a`      | No   |
-| `SendThunk<'a, A>`       | `Box<dyn FnOnce() -> A + Send + 'a>`       | No                                     | No                          | No       | `'a`      | Yes  |
-| `Trampoline<A>`          | `Free<ThunkBrand, A>`                      | No                                     | Yes                         | No       | `'static` | No   |
-| `RcLazy<'a, A>`          | `Rc<LazyCell<A, ...>>`                     | Partial (`RefFunctor`)                 | N/A                         | Yes      | `'a`      | No   |
-| `ArcLazy<'a, A>`         | `Arc<LazyLock<A, ...>>`                    | Partial (`SendRefFunctor`)             | N/A                         | Yes      | `'a`      | Yes  |
-| `TryThunk<'a, A, E>`     | `Thunk<'a, Result<A, E>>`                  | Yes (full)                             | Partial (`tail_rec_m` only) | No       | `'a`      | No   |
-| `TrySendThunk<'a, A, E>` | `SendThunk<'a, Result<A, E>>`              | No                                     | No                          | No       | `'a`      | Yes  |
-| `TryTrampoline<A, E>`    | `Trampoline<Result<A, E>>`                 | No                                     | Yes                         | No       | `'static` | No   |
-| `RcTryLazy<'a, A, E>`    | `Rc<LazyCell<Result<A, E>, ...>>`          | Partial (`RefFunctor`, `Foldable`)     | N/A                         | Yes      | `'a`      | No   |
-| `ArcTryLazy<'a, A, E>`   | `Arc<LazyLock<Result<A, E>, ...>>`         | Partial (`SendRefFunctor`, `Foldable`) | N/A                         | Yes      | `'a`      | Yes  |
-| `Free<F, A>`             | CatList-based "Reflection without Remorse" | No                                     | Yes                         | No       | `'static` | No   |
-
-Supporting traits:
-
-| Trait                | Purpose                                                 | Implementors in hierarchy                                                                                                             |
-| -------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `Deferrable<'a>`     | Lazy construction from thunk                            | `Thunk`, `SendThunk`, `Trampoline`, `RcLazy`, `ArcLazy`, `RcTryLazy`, `ArcTryLazy`, `TryThunk`, `TrySendThunk`, `Free<ThunkBrand, A>` |
-| `SendDeferrable<'a>` | Thread-safe lazy construction (extends `Deferrable`)    | `SendThunk`, `TrySendThunk`, `ArcLazy`, `ArcTryLazy`                                                                                  |
-| `RefFunctor`         | Mapping with `&A` input                                 | `LazyBrand<RcLazyConfig>`, `TryLazyBrand<E, RcLazyConfig>`                                                                            |
-| `SendRefFunctor`     | Thread-safe mapping with `&A` input                     | `LazyBrand<ArcLazyConfig>`, `TryLazyBrand<E, ArcLazyConfig>`                                                                          |
-| `LazyConfig`         | Infallible memoization strategy (pointer + cell choice) | `RcLazyConfig`, `ArcLazyConfig`                                                                                                       |
-| `TryLazyConfig`      | Fallible memoization strategy (extends `LazyConfig`)    | `RcLazyConfig`, `ArcLazyConfig`                                                                                                       |
-
-**Pattern:** Use `Trampoline` for stack-safe recursion, wrap in `Lazy` for memoization, use `Thunk` for lightweight views. Use `SendThunk` when the deferred computation must cross thread boundaries without eager evaluation.
-
-### Optics System
-
-Optics are implemented using profunctor encoding for type-safe composition:
-
-**Key Files:**
-
-- `fp-library/src/types/optics/base.rs` - Core optic type definitions
-- `fp-library/src/types/optics/lens.rs` - Lens (fully polymorphic S→T, A→B)
-- `fp-library/src/types/optics/prism.rs` - Prism (sum type variants)
-- `fp-library/src/types/optics/iso.rs` - Isomorphism
-- `fp-library/src/types/optics/traversal.rs` - Traversal (multiple foci)
-
-**Internal Profunctors:**
-
-- `Exchange` - For isomorphisms (forward/backward functions)
-- `Market` - For prisms (matching/construction)
-- `Forget` - For getters/folds
-- `Shop` - For lenses (get/set pairs)
-
-**Current State:** Many optics are parameterized with `Rc` hard-coded. Per `docs/todo.md`, these should be refactored to use `FnBrand<P>` for flexible pointer choice.
+Optics use profunctor encoding. Internal profunctors: `Exchange` (isos), `Market` (prisms), `Forget` (getters/folds), `Shop` (lenses). Many optics currently hard-code `Rc`; per `docs/todo.md`, these should be refactored to use `FnBrand<P>`. See `docs/optics-analysis.md` for design details.
 
 ## Code Style & Documentation
 
@@ -272,6 +196,7 @@ When creating commits:
 
 - `rayon` - Enables parallel folding (`ParFoldable`) and `VecBrand` parallel execution
 - `serde` - Enables serialization/deserialization for pure data types
+- `stacker` - Enables adaptive stack growth for deep Coyoneda map chains
 
 ## Common Patterns
 

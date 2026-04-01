@@ -37,6 +37,7 @@ mod inner {
 	/// assert_eq!(append(Additive(2i32), Additive(3)), Additive(5));
 	/// assert_eq!(empty::<Additive<i32>>(), Additive(0));
 	/// ```
+	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 	#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 	pub struct Additive<A>(
 		/// The wrapped value.

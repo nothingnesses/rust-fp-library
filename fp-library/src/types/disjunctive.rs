@@ -37,6 +37,7 @@ mod inner {
 	/// assert_eq!(append(Disjunctive(false), Disjunctive(true)), Disjunctive(true));
 	/// assert_eq!(empty::<Disjunctive<bool>>(), Disjunctive(false));
 	/// ```
+	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 	#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 	pub struct Disjunctive<A>(
 		/// The wrapped value.

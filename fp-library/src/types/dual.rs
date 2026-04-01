@@ -39,6 +39,7 @@ mod inner {
 	/// let y = Dual("cd".to_string());
 	/// assert_eq!(append(x, y), Dual("cdab".to_string()));
 	/// ```
+	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 	#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 	pub struct Dual<A>(
 		/// The wrapped value.
