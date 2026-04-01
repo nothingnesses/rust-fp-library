@@ -121,6 +121,14 @@ pub struct ControlFlowBreakAppliedBrand<B>(PhantomData<B>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ControlFlowContinueAppliedBrand<C>(PhantomData<C>);
 
+/// Brand for [`ArcCoyoneda`](crate::types::ArcCoyoneda), the thread-safe
+/// reference-counted free functor.
+///
+/// Like [`CoyonedaBrand`], but the underlying `ArcCoyoneda` is `Clone`, `Send`,
+/// and `Sync`, enabling additional type class instances.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ArcCoyonedaBrand<F>(PhantomData<F>);
+
 /// Brand for [`Coyoneda`](crate::types::Coyoneda), the free functor.
 ///
 /// `CoyonedaBrand<F>` is a [`Functor`](crate::classes::Functor) for any type constructor
@@ -229,6 +237,14 @@ pub struct ProfunctorSecondAppliedBrand<Brand, B>(PhantomData<(Brand, B)>);
 /// Brand for [`Rc`](`std::rc::Rc`) reference-counted pointer.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RcBrand;
+
+/// Brand for [`RcCoyoneda`](crate::types::RcCoyoneda), the reference-counted
+/// free functor with `Clone` support.
+///
+/// Like [`CoyonedaBrand`], but the underlying `RcCoyoneda` is `Clone`, enabling
+/// additional type class instances such as [`Semiapplicative`](crate::classes::Semiapplicative).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RcCoyonedaBrand<F>(PhantomData<F>);
 
 /// Brand for [reference-counted][std::rc::Rc] [closures][Fn]
 /// (`Rc<dyn Fn(A) -> B>`).
