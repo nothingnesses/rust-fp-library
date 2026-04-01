@@ -35,6 +35,21 @@
 //! For single-pass fusion that applies one `F::map` regardless of chain depth,
 //! see [`CoyonedaExplicit`](crate::types::CoyonedaExplicit).
 //!
+//! ## Stack safety
+//!
+//! Each chained [`map`](Coyoneda::map) adds a layer of recursion to
+//! [`lower`](Coyoneda::lower). Deep chains (thousands of maps) can overflow the stack.
+//! Three mitigations are available:
+//!
+//! 1. **`stacker` feature (automatic).** Enable the `stacker` feature flag to use
+//!    adaptive stack growth in `lower`. This is transparent and handles arbitrarily
+//!    deep chains with near-zero overhead when the stack is sufficient.
+//! 2. **[`collapse`](Coyoneda::collapse) (manual).** Call `collapse()` periodically
+//!    to flatten accumulated layers. Requires `F: Functor`.
+//! 3. **[`CoyonedaExplicit`](crate::types::CoyonedaExplicit) with `.boxed()`.** An
+//!    alternative type that composes functions at the type level, producing a single
+//!    `F::map` call at lower time regardless of chain depth.
+//!
 //! ## Limitations
 //!
 //! All limitations stem from a single root cause: Rust trait objects cannot have methods
@@ -264,8 +279,18 @@ mod inner {
 		fn lower(self: Box<Self>) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
 		where
 			F: Functor, {
-			let lowered = self.inner.lower();
-			F::map(self.func, lowered)
+			#[cfg(feature = "stacker")]
+			{
+				stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
+					let lowered = self.inner.lower();
+					F::map(self.func, lowered)
+				})
+			}
+			#[cfg(not(feature = "stacker"))]
+			{
+				let lowered = self.inner.lower();
+				F::map(self.func, lowered)
+			}
 		}
 	}
 
@@ -435,6 +460,41 @@ mod inner {
 		where
 			F: Functor, {
 			self.0.lower()
+		}
+
+		/// Collapse accumulated mapping layers by lowering and re-lifting.
+		///
+		/// This applies all accumulated `map` layers via [`lower`](Coyoneda::lower),
+		/// producing a concrete `F A`, then wraps the result back in a single-layer
+		/// `Coyoneda`. Useful for bounding recursion depth in long chains:
+		/// insert `collapse()` periodically to prevent stack overflow without
+		/// switching to [`CoyonedaExplicit`](crate::types::CoyonedaExplicit).
+		///
+		/// Requires `F: Functor`. Cost: one full `lower` pass.
+		#[document_signature]
+		///
+		#[document_returns("A fresh `Coyoneda` with a single base layer.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let mut coyo = Coyoneda::<VecBrand, _>::lift(vec![0i64]);
+		/// for i in 0 .. 50 {
+		/// 	coyo = coyo.map(|x| x + 1);
+		/// 	if i % 25 == 24 {
+		/// 		coyo = coyo.collapse();
+		/// 	}
+		/// }
+		/// assert_eq!(coyo.lower(), vec![50i64]);
+		/// ```
+		pub fn collapse(self) -> Self
+		where
+			F: Functor, {
+			Coyoneda::lift(self.lower())
 		}
 
 		/// Map a function over the `Coyoneda` value.
@@ -936,6 +996,34 @@ mod tests {
 			coyo = coyo.map(|x| x + 1);
 		}
 		assert_eq!(coyo.lower(), vec![100i64]);
+	}
+
+	// -- Collapse tests --
+
+	#[test]
+	fn collapse_preserves_value() {
+		let coyo =
+			Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x + 1).map(|x| x * 2).collapse();
+		assert_eq!(coyo.lower(), vec![4, 6, 8]);
+	}
+
+	#[test]
+	fn collapse_then_map() {
+		let coyo =
+			Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x + 1).collapse().map(|x| x * 2);
+		assert_eq!(coyo.lower(), vec![4, 6, 8]);
+	}
+
+	#[test]
+	fn collapse_periodic_in_loop() {
+		let mut coyo = Coyoneda::<VecBrand, _>::lift(vec![0i64]);
+		for i in 0 .. 50 {
+			coyo = coyo.map(|x| x + 1);
+			if i % 25 == 24 {
+				coyo = coyo.collapse();
+			}
+		}
+		assert_eq!(coyo.lower(), vec![50i64]);
 	}
 
 	#[test]
