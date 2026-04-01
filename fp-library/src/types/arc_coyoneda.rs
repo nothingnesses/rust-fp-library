@@ -115,25 +115,8 @@ mod inner {
 	/// Clones the underlying value on each call to `lower_ref`.
 	struct ArcCoyonedaBase<'a, F, A: 'a>
 	where
-		F: Kind_cdc7cd43dac7585f + 'a, {
+		F: Kind_cdc7cd43dac7585f<Of<'a, A>: Send + Sync> + 'a, {
 		fa: <F as Kind_cdc7cd43dac7585f>::Of<'a, A>,
-	}
-
-	// SAFETY: The only field is `fa`, and we only implement ArcCoyonedaLowerRef
-	// (which requires Send + Sync) when `fa: Send + Sync`.
-	#[document_type_parameters("The lifetime.", "The brand.", "The value type.")]
-	unsafe impl<'a, F, A: 'a> Send for ArcCoyonedaBase<'a, F, A>
-	where
-		F: Kind_cdc7cd43dac7585f + 'a,
-		<F as Kind_cdc7cd43dac7585f>::Of<'a, A>: Send,
-	{
-	}
-	#[document_type_parameters("The lifetime.", "The brand.", "The value type.")]
-	unsafe impl<'a, F, A: 'a> Sync for ArcCoyonedaBase<'a, F, A>
-	where
-		F: Kind_cdc7cd43dac7585f + 'a,
-		<F as Kind_cdc7cd43dac7585f>::Of<'a, A>: Sync,
-	{
 	}
 
 	#[document_type_parameters(
@@ -180,45 +163,10 @@ mod inner {
 		func: Arc<dyn Fn(B) -> A + Send + Sync + 'a>,
 	}
 
-	// SAFETY: Both fields are `Arc<dyn ... + Send + Sync>`, which are unconditionally
-	// `Send + Sync` regardless of `F`. The compiler cannot auto-derive `Send`/`Sync`
-	// because the struct has `F: Kind` in its where clause, and `Kind`'s associated
-	// type `Of` has no `Send`/`Sync` bounds. The compiler conservatively blocks
-	// auto-derivation for any struct parameterized over a type whose associated types
-	// lack these bounds, even when the generic parameter only appears in type-level
-	// positions within trait object bounds and is never stored as data.
-	//
-	// Adding `Send + Sync` to `Kind::Of` is not feasible (breaks `Thunk`, `RcCoyoneda`,
-	// `FnBrand<RcBrand>`, etc.). A `SendKind` subtrait is not expressible on stable
-	// Rust (requires `for<'a, A: 'a>` quantification over types).
-	//
-	// Soundness depends on:
-	// - `inner`: `Arc<dyn ArcCoyonedaLowerRef + 'a>` where `ArcCoyonedaLowerRef: Send + Sync`.
-	// - `func`: `Arc<dyn Fn(B) -> A + Send + Sync + 'a>`, explicitly `Send + Sync`.
-	//
-	// Would break soundness: adding a non-`Send`/`Sync` field, or removing
-	// `Send + Sync` from `ArcCoyonedaLowerRef`'s supertraits or `func`'s bounds.
+	// Send + Sync auto-derived: both fields are `Arc<dyn ... + Send + Sync>`.
+	// `F` only appears inside erased trait object bounds, not as concrete field
+	// data, so the compiler does not need `F::Of` to be `Send`/`Sync`.
 	// Compile-time assertions at the bottom of this module guard against regressions.
-	#[document_type_parameters(
-		"The lifetime.",
-		"The brand.",
-		"The input type.",
-		"The output type."
-	)]
-	unsafe impl<'a, F, B: 'a, A: 'a> Send for ArcCoyonedaMapLayer<'a, F, B, A> where
-		F: Kind_cdc7cd43dac7585f + 'a
-	{
-	}
-	#[document_type_parameters(
-		"The lifetime.",
-		"The brand.",
-		"The input type.",
-		"The output type."
-	)]
-	unsafe impl<'a, F, B: 'a, A: 'a> Sync for ArcCoyonedaMapLayer<'a, F, B, A> where
-		F: Kind_cdc7cd43dac7585f + 'a
-	{
-	}
 
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -273,37 +221,9 @@ mod inner {
 	/// Arc allocation.
 	struct ArcCoyonedaNewLayer<'a, F, B: 'a, A: 'a>
 	where
-		F: Kind_cdc7cd43dac7585f + 'a, {
+		F: Kind_cdc7cd43dac7585f<Of<'a, B>: Send + Sync> + 'a, {
 		fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
 		func: Arc<dyn Fn(B) -> A + Send + Sync + 'a>,
-	}
-
-	// SAFETY: `fb` is `Send`/`Sync` when `F::Of<'a, B>: Send`/`Sync` (conditional bounds
-	// below, matching `ArcCoyonedaBase`). `func` is `Arc<dyn Fn(B) -> A + Send + Sync>`,
-	// which is unconditionally `Send + Sync`.
-	#[document_type_parameters(
-		"The lifetime.",
-		"The brand.",
-		"The input type.",
-		"The output type."
-	)]
-	unsafe impl<'a, F, B: 'a, A: 'a> Send for ArcCoyonedaNewLayer<'a, F, B, A>
-	where
-		F: Kind_cdc7cd43dac7585f + 'a,
-		<F as Kind_cdc7cd43dac7585f>::Of<'a, B>: Send,
-	{
-	}
-	#[document_type_parameters(
-		"The lifetime.",
-		"The brand.",
-		"The input type.",
-		"The output type."
-	)]
-	unsafe impl<'a, F, B: 'a, A: 'a> Sync for ArcCoyonedaNewLayer<'a, F, B, A>
-	where
-		F: Kind_cdc7cd43dac7585f + 'a,
-		<F as Kind_cdc7cd43dac7585f>::Of<'a, B>: Sync,
-	{
 	}
 
 	#[document_type_parameters(
@@ -928,19 +848,17 @@ mod inner {
 		}
 	}
 
-	// -- Compile-time assertions for Send/Sync soundness --
+	// -- Compile-time assertions for Send/Sync --
 
-	// These assertions verify that the unsafe Send/Sync implementations are
-	// correct. If any field type changes in a way that breaks Send/Sync,
-	// these assertions will fail at compile time.
+	// These assertions verify that the compiler auto-derives Send/Sync
+	// correctly for each layer type. If any field type changes in a way
+	// that breaks Send/Sync, these assertions will fail at compile time.
 	const _: () = {
 		fn _assert_send<T: Send>() {}
 		fn _assert_sync<T: Sync>() {}
 
-		// ArcCoyonedaBase: Send/Sync when Of<'a, A>: Send/Sync
-		fn _check_base<'a, F: Kind_cdc7cd43dac7585f + 'a, A: 'a>()
-		where
-			<F as Kind_cdc7cd43dac7585f>::Of<'a, A>: Send + Sync, {
+		// ArcCoyonedaBase: Send/Sync via associated type bounds on Kind
+		fn _check_base<'a, F: Kind_cdc7cd43dac7585f<Of<'a, A>: Send + Sync> + 'a, A: 'a>() {
 			_assert_send::<ArcCoyonedaBase<'a, F, A>>();
 			_assert_sync::<ArcCoyonedaBase<'a, F, A>>();
 		}
@@ -952,10 +870,13 @@ mod inner {
 			_assert_sync::<ArcCoyonedaMapLayer<'a, F, B, A>>();
 		}
 
-		// ArcCoyonedaNewLayer: Send/Sync when Of<'a, B>: Send/Sync
-		fn _check_new_layer<'a, F: Kind_cdc7cd43dac7585f + 'a, B: 'a, A: 'a>()
-		where
-			<F as Kind_cdc7cd43dac7585f>::Of<'a, B>: Send + Sync, {
+		// ArcCoyonedaNewLayer: Send/Sync via associated type bounds on Kind
+		fn _check_new_layer<
+			'a,
+			F: Kind_cdc7cd43dac7585f<Of<'a, B>: Send + Sync> + 'a,
+			B: 'a,
+			A: 'a,
+		>() {
 			_assert_send::<ArcCoyonedaNewLayer<'a, F, B, A>>();
 			_assert_sync::<ArcCoyonedaNewLayer<'a, F, B, A>>();
 		}
