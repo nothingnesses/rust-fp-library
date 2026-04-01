@@ -4,6 +4,10 @@ The library provides four Coyoneda implementations, each making different
 trade-offs around ownership, cloning, thread safety, HKT integration, and
 map fusion.
 
+**User story:** "I want to chain maps without calling `F::map` until later."
+Useful for map fusion, lazy mapping, and getting a `Functor` instance for
+any type constructor for free.
+
 All four implement the same core idea: wrap a functor value `F B` together
 with a deferred function `B -> A`, delaying the call to `F::map` until
 `lower` time. This lets you chain `map` calls in O(1) each, regardless of

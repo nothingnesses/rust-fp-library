@@ -2,6 +2,13 @@
 
 Rust is an eagerly evaluated language. To enable functional patterns like deferred execution and safe recursion, `fp-library` provides a granular set of types that let you opt-in to specific behaviors without paying for unnecessary overhead.
 
+**User stories:**
+
+- **Thunk / SendThunk:** "I want to defer a computation and evaluate it later."
+- **Trampoline (Free):** "I want to chain binds without blowing the stack."
+- **Lazy (RcLazy / ArcLazy):** "I want to compute a value at most once and cache it."
+- **Try\* variants:** "I want any of the above, but the computation may fail."
+
 ### Type Overview
 
 The hierarchy consists of infallible computation types, fallible counterparts, and the `Free` monad infrastructure. Each type makes different trade-offs around stack safety, memoization, lifetimes, and thread safety.

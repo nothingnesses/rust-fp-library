@@ -1,5 +1,8 @@
 //! Stack-safe Free monad over a functor with O(1) [`bind`](crate::functions::bind) operations.
 //!
+//! **User story:** "I want to chain binds without blowing the stack." Useful
+//! for deep recursion and embedded DSLs.
+//!
 //! Enables building computation chains without stack overflow by using a catenable list of continuations. Note: requires `'static` types and cannot implement the library's HKT traits due to type erasure.
 //!
 //! ## Comparison with PureScript
