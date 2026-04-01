@@ -163,44 +163,45 @@ fn test_deep_wrap_chain_evaluate() {
 
 /// Tests that `RcCoyoneda::collapse` resets the recursion depth.
 ///
-/// Builds a chain of 20 maps, collapses, then adds 20 more.
-/// Verifies that collapse flattens accumulated layers correctly.
-/// Uses a small depth to avoid stack overflow in debug builds.
+/// Builds a chain of 500 maps using `OptionBrand` (lighter stack frames than
+/// `VecBrand`), collapses, then adds 500 more. Without collapse, 1000 layers
+/// would risk stack overflow in debug builds. With collapse resetting the depth
+/// to 1, each segment of 500 is safe.
 #[test]
 fn test_rc_coyoneda_collapse_resets_depth() {
 	use fp_library::{
-		brands::VecBrand,
+		brands::OptionBrand,
 		types::RcCoyoneda,
 	};
 
-	let mut coyo = RcCoyoneda::<VecBrand, _>::lift(vec![0i32]);
-	for _ in 0 .. 20 {
+	let mut coyo = RcCoyoneda::<OptionBrand, _>::lift(Some(0i32));
+	for _ in 0 .. 500 {
 		coyo = coyo.map(|x| x + 1);
 	}
 	coyo = coyo.collapse();
-	for _ in 0 .. 20 {
+	for _ in 0 .. 500 {
 		coyo = coyo.map(|x| x + 1);
 	}
-	assert_eq!(coyo.lower_ref(), vec![40]);
+	assert_eq!(coyo.lower_ref(), Some(1000));
 }
 
 /// Tests that `ArcCoyoneda::collapse` resets the recursion depth.
 #[test]
 fn test_arc_coyoneda_collapse_resets_depth() {
 	use fp_library::{
-		brands::VecBrand,
+		brands::OptionBrand,
 		types::ArcCoyoneda,
 	};
 
-	let mut coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![0i32]);
-	for _ in 0 .. 20 {
+	let mut coyo = ArcCoyoneda::<OptionBrand, _>::lift(Some(0i32));
+	for _ in 0 .. 500 {
 		coyo = coyo.map(|x| x + 1);
 	}
 	coyo = coyo.collapse();
-	for _ in 0 .. 20 {
+	for _ in 0 .. 500 {
 		coyo = coyo.map(|x| x + 1);
 	}
-	assert_eq!(coyo.lower_ref(), vec![40]);
+	assert_eq!(coyo.lower_ref(), Some(1000));
 }
 
 /// Tests that `RcCoyoneda` with stacker handles deeper chains.

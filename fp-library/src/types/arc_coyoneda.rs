@@ -278,17 +278,19 @@ mod inner {
 		func: Arc<dyn Fn(B) -> A + Send + Sync + 'a>,
 	}
 
-	// SAFETY: Both fields satisfy Send + Sync:
-	// - `fb` is bounded `Send + Sync` via the ArcCoyonedaLowerRef impl's where clause.
-	// - `func` is `Arc<dyn Fn(B) -> A + Send + Sync>`, which is Send + Sync.
+	// SAFETY: `fb` is `Send`/`Sync` when `F::Of<'a, B>: Send`/`Sync` (conditional bounds
+	// below, matching `ArcCoyonedaBase`). `func` is `Arc<dyn Fn(B) -> A + Send + Sync>`,
+	// which is unconditionally `Send + Sync`.
 	#[document_type_parameters(
 		"The lifetime.",
 		"The brand.",
 		"The input type.",
 		"The output type."
 	)]
-	unsafe impl<'a, F, B: 'a, A: 'a> Send for ArcCoyonedaNewLayer<'a, F, B, A> where
-		F: Kind_cdc7cd43dac7585f + 'a
+	unsafe impl<'a, F, B: 'a, A: 'a> Send for ArcCoyonedaNewLayer<'a, F, B, A>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a,
+		<F as Kind_cdc7cd43dac7585f>::Of<'a, B>: Send,
 	{
 	}
 	#[document_type_parameters(
@@ -297,8 +299,10 @@ mod inner {
 		"The input type.",
 		"The output type."
 	)]
-	unsafe impl<'a, F, B: 'a, A: 'a> Sync for ArcCoyonedaNewLayer<'a, F, B, A> where
-		F: Kind_cdc7cd43dac7585f + 'a
+	unsafe impl<'a, F, B: 'a, A: 'a> Sync for ArcCoyonedaNewLayer<'a, F, B, A>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a,
+		<F as Kind_cdc7cd43dac7585f>::Of<'a, B>: Sync,
 	{
 	}
 
@@ -332,18 +336,8 @@ mod inner {
 		fn lower_ref(&self) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
 		where
 			F: Functor, {
-			#[cfg(feature = "stacker")]
-			{
-				stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
-					let func = self.func.clone();
-					F::map(move |b| (*func)(b), self.fb.clone())
-				})
-			}
-			#[cfg(not(feature = "stacker"))]
-			{
-				let func = self.func.clone();
-				F::map(move |b| (*func)(b), self.fb.clone())
-			}
+			let func = self.func.clone();
+			F::map(move |b| (*func)(b), self.fb.clone())
 		}
 	}
 
@@ -729,9 +723,10 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// // Use lift2 for a simpler thread-safe example. The apply method
-		/// // requires a CloneableFn brand whose Of type is Send + Sync,
-		/// // which is satisfied by ArcFnBrand's SendOf but not its Of.
+		/// // For thread-safe functors, prefer lift2 over apply.
+		/// // The apply method requires CloneableFn::Of to be Send + Sync,
+		/// // which standard FnBrands do not satisfy (CloneableFn::Of wraps
+		/// // dyn Fn without Send + Sync bounds). Use lift2 instead:
 		/// let a = ArcCoyoneda::<OptionBrand, _>::lift(Some(3));
 		/// let b = ArcCoyoneda::<OptionBrand, _>::lift(Some(4));
 		/// let result = a.lift2(|x, y| x + y, b);
@@ -957,9 +952,10 @@ mod inner {
 			_assert_sync::<ArcCoyonedaMapLayer<'a, F, B, A>>();
 		}
 
-		// ArcCoyonedaNewLayer: unconditionally Send + Sync
-		// (both fields satisfy Send + Sync when used through ArcCoyonedaLowerRef)
-		fn _check_new_layer<'a, F: Kind_cdc7cd43dac7585f + 'a, B: 'a, A: 'a>() {
+		// ArcCoyonedaNewLayer: Send/Sync when Of<'a, B>: Send/Sync
+		fn _check_new_layer<'a, F: Kind_cdc7cd43dac7585f + 'a, B: 'a, A: 'a>()
+		where
+			<F as Kind_cdc7cd43dac7585f>::Of<'a, B>: Send + Sync, {
 			_assert_send::<ArcCoyonedaNewLayer<'a, F, B, A>>();
 			_assert_sync::<ArcCoyonedaNewLayer<'a, F, B, A>>();
 		}
@@ -1072,6 +1068,20 @@ mod tests {
 			let before = coyo.lower_ref();
 			let after = coyo.collapse().lower_ref();
 			before == after
+		}
+
+		#[quickcheck]
+		fn foldable_consistency_vec(v: Vec<i32>) -> bool {
+			let coyo = ArcCoyoneda::<VecBrand, _>::lift(v.clone()).map(|x: i32| x.wrapping_add(1));
+			let via_coyoneda: String = fold_map::<RcFnBrand, ArcCoyonedaBrand<VecBrand>, _, _>(
+				|x: i32| x.to_string(),
+				coyo,
+			);
+			let direct: String = fold_map::<RcFnBrand, VecBrand, _, _>(
+				|x: i32| x.to_string(),
+				v.iter().map(|x| x.wrapping_add(1)).collect::<Vec<_>>(),
+			);
+			via_coyoneda == direct
 		}
 	}
 }

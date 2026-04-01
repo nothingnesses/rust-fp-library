@@ -117,6 +117,65 @@ pub fn bench_coyoneda(c: &mut Criterion) {
 				BatchSize::SmallInput,
 			)
 		});
+
+		// ArcCoyoneda repeated lower_ref: measures re-evaluation cost.
+		group.bench_with_input(BenchmarkId::new("ArcCoyoneda_3x_lower", depth), &depth, |b, &k| {
+			b.iter_batched(
+				|| {
+					let mut coyo = ArcCoyoneda::<VecBrand, _>::lift(v_orig.clone());
+					for _ in 0 .. k {
+						coyo = coyo.map(|x: i32| x + 1);
+					}
+					coyo
+				},
+				|coyo| {
+					let _ = coyo.lower_ref();
+					let _ = coyo.lower_ref();
+					coyo.lower_ref()
+				},
+				BatchSize::SmallInput,
+			)
+		});
+
+		// RcCoyoneda clone + map + lower_ref pattern.
+		group.bench_with_input(BenchmarkId::new("RcCoyoneda_clone_map", depth), &depth, |b, &k| {
+			b.iter_batched(
+				|| {
+					let mut coyo = RcCoyoneda::<VecBrand, _>::lift(v_orig.clone());
+					for _ in 0 .. k {
+						coyo = coyo.map(|x: i32| x + 1);
+					}
+					coyo
+				},
+				|coyo| {
+					let cloned = coyo.clone();
+					cloned.map(|x: i32| x * 2).lower_ref()
+				},
+				BatchSize::SmallInput,
+			)
+		});
+
+		// ArcCoyoneda clone + map + lower_ref pattern.
+		group.bench_with_input(
+			BenchmarkId::new("ArcCoyoneda_clone_map", depth),
+			&depth,
+			|b, &k| {
+				b.iter_batched(
+					|| {
+						let mut coyo = ArcCoyoneda::<VecBrand, _>::lift(v_orig.clone());
+						for _ in 0 .. k {
+							coyo = coyo.map(|x: i32| x + 1);
+						}
+						coyo
+					},
+					|coyo| {
+						let cloned = coyo.clone();
+						cloned.map(|x: i32| x * 2).lower_ref()
+					},
+					BatchSize::SmallInput,
+				)
+			},
+		);
 	}
 
 	group.finish();

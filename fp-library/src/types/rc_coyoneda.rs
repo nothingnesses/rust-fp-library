@@ -250,18 +250,8 @@ mod inner {
 		fn lower_ref(&self) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
 		where
 			F: Functor, {
-			#[cfg(feature = "stacker")]
-			{
-				stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
-					let func = self.func.clone();
-					F::map(move |b| (*func)(b), self.fb.clone())
-				})
-			}
-			#[cfg(not(feature = "stacker"))]
-			{
-				let func = self.func.clone();
-				F::map(move |b| (*func)(b), self.fb.clone())
-			}
+			let func = self.func.clone();
+			F::map(move |b| (*func)(b), self.fb.clone())
 		}
 	}
 

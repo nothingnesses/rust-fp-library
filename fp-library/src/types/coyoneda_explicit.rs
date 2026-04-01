@@ -830,6 +830,49 @@ mod inner {
 			fa.fold_map::<FnBrand, M>(func)
 		}
 	}
+
+	// -- Debug --
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying type constructor.",
+		"The type of the values in the underlying functor.",
+		"The current output type.",
+		"The type of the accumulated function."
+	)]
+	#[document_parameters("The `CoyonedaExplicit` instance.")]
+	impl<'a, F, B: 'a, A: 'a, Func> core::fmt::Debug for CoyonedaExplicit<'a, F, B, A, Func>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a,
+		Func: Fn(B) -> A + 'a,
+	{
+		/// Formats the `CoyonedaExplicit` as an opaque value.
+		///
+		/// The stored function cannot be inspected, so the output
+		/// is always `CoyonedaExplicit(<opaque>)`.
+		#[document_signature]
+		///
+		#[document_parameters("The formatter.")]
+		///
+		#[document_returns("The formatting result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]);
+		/// assert_eq!(format!("{:?}", coyo), "CoyonedaExplicit(<opaque>)");
+		/// ```
+		fn fmt(
+			&self,
+			f: &mut core::fmt::Formatter<'_>,
+		) -> core::fmt::Result {
+			f.write_str("CoyonedaExplicit(<opaque>)")
+		}
+	}
 }
 
 pub use inner::*;
@@ -1330,5 +1373,42 @@ mod tests {
 			coyo,
 		);
 		assert_eq!(result, String::new());
+	}
+
+	// -- Property-based tests --
+
+	mod property {
+		use {
+			crate::{
+				brands::*,
+				functions::*,
+				types::*,
+			},
+			quickcheck_macros::quickcheck,
+		};
+
+		#[quickcheck]
+		fn functor_identity_vec(v: Vec<i32>) -> bool {
+			let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(v.clone()).boxed();
+			map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(identity, coyo).lower() == v
+		}
+
+		#[quickcheck]
+		fn functor_identity_option(x: Option<i32>) -> bool {
+			let coyo = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(x).boxed();
+			map::<CoyonedaExplicitBrand<OptionBrand, i32>, _, _>(identity, coyo).lower() == x
+		}
+
+		#[quickcheck]
+		fn functor_composition_vec(v: Vec<i32>) -> bool {
+			let f = |x: i32| x.wrapping_add(1);
+			let g = |x: i32| x.wrapping_mul(2);
+
+			let left =
+				CoyonedaExplicit::<VecBrand, _, _, _>::lift(v.clone()).map(compose(f, g)).lower();
+			let right = CoyonedaExplicit::<VecBrand, _, _, _>::lift(v).map(g).map(f).lower();
+
+			left == right
+		}
 	}
 }
