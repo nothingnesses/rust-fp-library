@@ -53,7 +53,7 @@
 //! assert_eq!(coyo.lower_ref(), vec![4, 6, 8]);
 //! ```
 
-#[fp_macros::document_module(no_validation)]
+#[fp_macros::document_module]
 mod inner {
 	use {
 		crate::{
@@ -180,7 +180,25 @@ mod inner {
 		func: Arc<dyn Fn(B) -> A + Send + Sync + 'a>,
 	}
 
-	// SAFETY: Both fields are Arc<dyn ... + Send + Sync>, which are Send + Sync.
+	// SAFETY: Both fields are `Arc<dyn ... + Send + Sync>`, which are unconditionally
+	// `Send + Sync` regardless of `F`. The compiler cannot auto-derive `Send`/`Sync`
+	// because the struct has `F: Kind` in its where clause, and `Kind`'s associated
+	// type `Of` has no `Send`/`Sync` bounds. The compiler conservatively blocks
+	// auto-derivation for any struct parameterized over a type whose associated types
+	// lack these bounds, even when the generic parameter only appears in type-level
+	// positions within trait object bounds and is never stored as data.
+	//
+	// Adding `Send + Sync` to `Kind::Of` is not feasible (breaks `Thunk`, `RcCoyoneda`,
+	// `FnBrand<RcBrand>`, etc.). A `SendKind` subtrait is not expressible on stable
+	// Rust (requires `for<'a, A: 'a>` quantification over types).
+	//
+	// Soundness depends on:
+	// - `inner`: `Arc<dyn ArcCoyonedaLowerRef + 'a>` where `ArcCoyonedaLowerRef: Send + Sync`.
+	// - `func`: `Arc<dyn Fn(B) -> A + Send + Sync + 'a>`, explicitly `Send + Sync`.
+	//
+	// Would break soundness: adding a non-`Send`/`Sync` field, or removing
+	// `Send + Sync` from `ArcCoyonedaLowerRef`'s supertraits or `func`'s bounds.
+	// Compile-time assertions at the bottom of this module guard against regressions.
 	#[document_type_parameters(
 		"The lifetime.",
 		"The brand.",
@@ -263,10 +281,22 @@ mod inner {
 	// SAFETY: Both fields satisfy Send + Sync:
 	// - `fb` is bounded `Send + Sync` via the ArcCoyonedaLowerRef impl's where clause.
 	// - `func` is `Arc<dyn Fn(B) -> A + Send + Sync>`, which is Send + Sync.
+	#[document_type_parameters(
+		"The lifetime.",
+		"The brand.",
+		"The input type.",
+		"The output type."
+	)]
 	unsafe impl<'a, F, B: 'a, A: 'a> Send for ArcCoyonedaNewLayer<'a, F, B, A> where
 		F: Kind_cdc7cd43dac7585f + 'a
 	{
 	}
+	#[document_type_parameters(
+		"The lifetime.",
+		"The brand.",
+		"The input type.",
+		"The output type."
+	)]
 	unsafe impl<'a, F, B: 'a, A: 'a> Sync for ArcCoyonedaNewLayer<'a, F, B, A> where
 		F: Kind_cdc7cd43dac7585f + 'a
 	{
@@ -456,6 +486,45 @@ mod inner {
 			F: Functor,
 			<F as Kind_cdc7cd43dac7585f>::Of<'a, A>: Clone + Send + Sync, {
 			ArcCoyoneda::lift(self.lower_ref())
+		}
+
+		/// Fold the `ArcCoyoneda` by lowering and delegating to `F::fold_map`.
+		///
+		/// Non-consuming alternative to the `Foldable` trait method, which takes
+		/// the value by move. This borrows `&self` via `lower_ref`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the cloneable function to use.",
+			"The type of the monoid."
+		)]
+		///
+		#[document_parameters("The function to map each element to a monoid.")]
+		///
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x * 10);
+		/// let result = coyo.fold_map::<RcFnBrand, _>(|x: i32| x.to_string());
+		/// assert_eq!(result, "102030");
+		/// // Can still use coyo after folding.
+		/// assert_eq!(coyo.lower_ref(), vec![10, 20, 30]);
+		/// ```
+		pub fn fold_map<FnBrand: CloneableFn + 'a, M>(
+			&self,
+			func: impl Fn(A) -> M + 'a,
+		) -> M
+		where
+			F: Functor + Foldable,
+			A: Clone,
+			M: Monoid + 'a, {
+			F::fold_map::<FnBrand, A, M>(func, self.lower_ref())
 		}
 
 		/// Map a function over the `ArcCoyoneda` value.
@@ -723,11 +792,22 @@ mod inner {
 		}
 	}
 
-	// Note: ArcCoyonedaBrand does NOT implement Functor. The HKT trait signatures
-	// lack Send + Sync bounds on closure parameters, so there is no way to guarantee
-	// that closures passed to map are safe to store inside an Arc-wrapped layer.
-	// This is the same limitation as SendThunkBrand. Use RcCoyonedaBrand when HKT
-	// polymorphism is needed, or work with ArcCoyoneda directly via inherent methods.
+	// -- Brand-level type class instances --
+	//
+	// ArcCoyonedaBrand implements only Foldable. It does NOT implement Functor,
+	// Pointed, Lift, Semiapplicative, or Semimonad, for two independent reasons:
+	//
+	// 1. Functor: the HKT Functor::map signature lacks Send + Sync bounds on its
+	//    closure parameter, so closures passed to map cannot be stored inside
+	//    Arc-wrapped layers. This is the same limitation as SendThunkBrand.
+	//
+	// 2. Pointed, Lift, Semiapplicative, Semimonad: even if Functor were available,
+	//    these traits require constructing an ArcCoyoneda, which needs
+	//    F::Of<'a, A>: Clone + Send + Sync. This bound cannot be expressed in the
+	//    trait method signatures (same blocker as RcCoyonedaBrand; see rc_coyoneda.rs).
+	//
+	// Use RcCoyonedaBrand when HKT polymorphism is needed, or work with ArcCoyoneda
+	// directly via its inherent methods (pure, apply, bind, lift2).
 
 	// -- Foldable implementation --
 
@@ -775,6 +855,115 @@ mod inner {
 			F::fold_map::<FnBrand, A, M>(func, fa.lower_ref())
 		}
 	}
+
+	// -- Debug --
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying type constructor.",
+		"The current output type."
+	)]
+	#[document_parameters("The `ArcCoyoneda` instance.")]
+	impl<'a, F, A: 'a> core::fmt::Debug for ArcCoyoneda<'a, F, A>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a,
+	{
+		/// Formats the `ArcCoyoneda` as an opaque value.
+		///
+		/// The inner layers and functions cannot be inspected, so the output
+		/// is always `ArcCoyoneda(<opaque>)`.
+		#[document_signature]
+		///
+		#[document_parameters("The formatter.")]
+		///
+		#[document_returns("The formatting result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
+		/// assert_eq!(format!("{:?}", coyo), "ArcCoyoneda(<opaque>)");
+		/// ```
+		fn fmt(
+			&self,
+			f: &mut core::fmt::Formatter<'_>,
+		) -> core::fmt::Result {
+			f.write_str("ArcCoyoneda(<opaque>)")
+		}
+	}
+
+	// -- From<ArcCoyoneda> for Coyoneda --
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying functor.",
+		"The type of the values."
+	)]
+	impl<'a, F, A: 'a> From<ArcCoyoneda<'a, F, A>> for crate::types::Coyoneda<'a, F, A>
+	where
+		F: Kind_cdc7cd43dac7585f + Functor + 'a,
+	{
+		/// Convert an [`ArcCoyoneda`] into a [`Coyoneda`](crate::types::Coyoneda)
+		/// by lowering to the underlying functor and re-lifting.
+		///
+		/// This applies all accumulated maps via `F::map` and clones the base value.
+		#[document_signature]
+		///
+		#[document_parameters("The `ArcCoyoneda` to convert.")]
+		///
+		#[document_returns("A `Coyoneda` containing the lowered value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let arc_coyo = ArcCoyoneda::<OptionBrand, _>::lift(Some(5)).map(|x| x + 1);
+		/// let coyo: Coyoneda<OptionBrand, i32> = arc_coyo.into();
+		/// assert_eq!(coyo.lower(), Some(6));
+		/// ```
+		fn from(arc: ArcCoyoneda<'a, F, A>) -> Self {
+			crate::types::Coyoneda::lift(arc.lower_ref())
+		}
+	}
+
+	// -- Compile-time assertions for Send/Sync soundness --
+
+	// These assertions verify that the unsafe Send/Sync implementations are
+	// correct. If any field type changes in a way that breaks Send/Sync,
+	// these assertions will fail at compile time.
+	const _: () = {
+		fn _assert_send<T: Send>() {}
+		fn _assert_sync<T: Sync>() {}
+
+		// ArcCoyonedaBase: Send/Sync when Of<'a, A>: Send/Sync
+		fn _check_base<'a, F: Kind_cdc7cd43dac7585f + 'a, A: 'a>()
+		where
+			<F as Kind_cdc7cd43dac7585f>::Of<'a, A>: Send + Sync, {
+			_assert_send::<ArcCoyonedaBase<'a, F, A>>();
+			_assert_sync::<ArcCoyonedaBase<'a, F, A>>();
+		}
+
+		// ArcCoyonedaMapLayer: unconditionally Send + Sync
+		// (both fields are Arc<dyn ... + Send + Sync>)
+		fn _check_map_layer<'a, F: Kind_cdc7cd43dac7585f + 'a, B: 'a, A: 'a>() {
+			_assert_send::<ArcCoyonedaMapLayer<'a, F, B, A>>();
+			_assert_sync::<ArcCoyonedaMapLayer<'a, F, B, A>>();
+		}
+
+		// ArcCoyonedaNewLayer: unconditionally Send + Sync
+		// (both fields satisfy Send + Sync when used through ArcCoyonedaLowerRef)
+		fn _check_new_layer<'a, F: Kind_cdc7cd43dac7585f + 'a, B: 'a, A: 'a>() {
+			_assert_send::<ArcCoyonedaNewLayer<'a, F, B, A>>();
+			_assert_sync::<ArcCoyonedaNewLayer<'a, F, B, A>>();
+		}
+	};
 }
 
 pub use inner::*;

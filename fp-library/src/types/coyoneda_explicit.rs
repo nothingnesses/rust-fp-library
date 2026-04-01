@@ -379,6 +379,10 @@ mod inner {
 		/// accumulated mapping function, traversing the original `F B` in a
 		/// single pass, and wrapping the result in `CoyonedaExplicit`.
 		///
+		/// This is a fusion barrier: all accumulated maps are composed into the
+		/// traversal function and applied during the traversal. The resulting
+		/// `CoyonedaExplicit` starts fresh with the identity function.
+		///
 		/// This does not require `F: Functor` beyond what `F: Traversable`
 		/// already implies. Matches PureScript's `Traversable (Coyoneda f)`
 		/// semantics.
@@ -488,6 +492,10 @@ mod inner {
 		/// Bind through the accumulated function directly, composing the callback
 		/// with the accumulated mapping function and delegating to `F::bind`.
 		///
+		/// This is a fusion barrier: all accumulated maps are composed into the
+		/// bind callback and applied during the bind. The resulting
+		/// `CoyonedaExplicit` starts fresh with the identity function.
+		///
 		/// The callback `f` receives the mapped value (after the accumulated
 		/// function is applied) and returns a raw `F::Of<'a, C>` directly. This
 		/// avoids needing `F: Functor` and skips an intermediate `F::map` traversal.
@@ -529,6 +537,13 @@ mod inner {
 		/// This is the escape hatch for storing in struct fields, collections, or
 		/// loop accumulators where a uniform type is needed. Reintroduces one
 		/// `Box` allocation and dynamic dispatch.
+		///
+		/// When used in a loop (e.g., `coyo = coyo.map(f).boxed()` per iteration),
+		/// each iteration creates a closure that captures the previous boxed function.
+		/// The composed function chain has O(k) per-element overhead at `lower` time,
+		/// matching `Coyoneda`'s cost profile. The single-`F::map`-call advantage of
+		/// `CoyonedaExplicit` is fully realized only with static (compile-time)
+		/// composition where the compiler can inline the function chain.
 		#[document_signature]
 		///
 		#[document_returns("A `BoxedCoyonedaExplicit` with the function boxed.")]
@@ -720,6 +735,11 @@ mod inner {
 		/// [`lower`](CoyonedaExplicit::lower) time. This preserves single-pass fusion,
 		/// unlike [`CoyonedaBrand`](crate::brands::CoyonedaBrand) which adds a separate
 		/// layer per map.
+		///
+		/// Note: each call through this brand-level `map` allocates a `Box` for the
+		/// composed function (via `.boxed()`). Zero-cost fusion (no allocation per map)
+		/// is only available via the inherent [`CoyonedaExplicit::map`] method, which
+		/// uses compile-time function composition without boxing.
 		#[document_signature]
 		///
 		#[document_type_parameters(

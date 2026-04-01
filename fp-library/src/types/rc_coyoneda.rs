@@ -410,6 +410,45 @@ mod inner {
 			RcCoyoneda::lift(self.lower_ref())
 		}
 
+		/// Fold the `RcCoyoneda` by lowering and delegating to `F::fold_map`.
+		///
+		/// Non-consuming alternative to the `Foldable` trait method, which takes
+		/// the value by move. This borrows `&self` via `lower_ref`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the cloneable function to use.",
+			"The type of the monoid."
+		)]
+		///
+		#[document_parameters("The function to map each element to a monoid.")]
+		///
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = RcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x * 10);
+		/// let result = coyo.fold_map::<RcFnBrand, _>(|x: i32| x.to_string());
+		/// assert_eq!(result, "102030");
+		/// // Can still use coyo after folding.
+		/// assert_eq!(coyo.lower_ref(), vec![10, 20, 30]);
+		/// ```
+		pub fn fold_map<FnBrand: CloneableFn + 'a, M>(
+			&self,
+			func: impl Fn(A) -> M + 'a,
+		) -> M
+		where
+			F: Functor + Foldable,
+			A: Clone,
+			M: Monoid + 'a, {
+			F::fold_map::<FnBrand, A, M>(func, self.lower_ref())
+		}
+
 		/// Map a function over the `RcCoyoneda` value.
 		///
 		/// Wraps the function in [`Rc`] so it does not need to implement `Clone`.
@@ -675,6 +714,23 @@ mod inner {
 		}
 	}
 
+	// -- Brand-level type class instances --
+	//
+	// RcCoyonedaBrand implements Functor and Foldable but NOT Pointed, Lift,
+	// Semiapplicative, or Semimonad. The blocker is a Clone bound that cannot
+	// be expressed in the trait method signatures:
+	//
+	// - RcCoyoneda wraps Rc<dyn RcCoyonedaLowerRef>. Constructing this requires
+	//   F::Of<'a, A>: Clone because RcCoyonedaBase's RcCoyonedaLowerRef impl has
+	//   that bound, needed to coerce the struct to the trait object.
+	// - CoyonedaBrand avoids this because Coyoneda::lift has no Clone requirement;
+	//   CoyonedaBase::lower consumes self: Box<Self> (moving, not cloning).
+	// - Rust does not allow adding extra where clauses to trait method impls beyond
+	//   what the trait definition specifies, so the Clone bound cannot be expressed.
+	//
+	// Inherent methods (pure, apply, bind, lift2) are provided instead, with the
+	// Clone bound specified directly on each method.
+
 	// -- Functor implementation --
 
 	#[document_type_parameters("The brand of the underlying type constructor.")]
@@ -759,6 +815,83 @@ mod inner {
 			M: Monoid + 'a,
 			FnBrand: CloneableFn + 'a, {
 			F::fold_map::<FnBrand, A, M>(func, fa.lower_ref())
+		}
+	}
+
+	// -- Debug --
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying type constructor.",
+		"The current output type."
+	)]
+	#[document_parameters("The `RcCoyoneda` instance.")]
+	impl<'a, F, A: 'a> core::fmt::Debug for RcCoyoneda<'a, F, A>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a,
+	{
+		/// Formats the `RcCoyoneda` as an opaque value.
+		///
+		/// The inner layers and functions cannot be inspected, so the output
+		/// is always `RcCoyoneda(<opaque>)`.
+		#[document_signature]
+		///
+		#[document_parameters("The formatter.")]
+		///
+		#[document_returns("The formatting result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = RcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
+		/// assert_eq!(format!("{:?}", coyo), "RcCoyoneda(<opaque>)");
+		/// ```
+		fn fmt(
+			&self,
+			f: &mut core::fmt::Formatter<'_>,
+		) -> core::fmt::Result {
+			f.write_str("RcCoyoneda(<opaque>)")
+		}
+	}
+
+	// -- From<RcCoyoneda> for Coyoneda --
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying functor.",
+		"The type of the values."
+	)]
+	impl<'a, F, A: 'a> From<RcCoyoneda<'a, F, A>> for crate::types::Coyoneda<'a, F, A>
+	where
+		F: Kind_cdc7cd43dac7585f + Functor + 'a,
+	{
+		/// Convert an [`RcCoyoneda`] into a [`Coyoneda`](crate::types::Coyoneda)
+		/// by lowering to the underlying functor and re-lifting.
+		///
+		/// This applies all accumulated maps via `F::map` and clones the base value.
+		#[document_signature]
+		///
+		#[document_parameters("The `RcCoyoneda` to convert.")]
+		///
+		#[document_returns("A `Coyoneda` containing the lowered value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let rc_coyo = RcCoyoneda::<OptionBrand, _>::lift(Some(5)).map(|x| x + 1);
+		/// let coyo: Coyoneda<OptionBrand, i32> = rc_coyo.into();
+		/// assert_eq!(coyo.lower(), Some(6));
+		/// ```
+		fn from(rc: RcCoyoneda<'a, F, A>) -> Self {
+			crate::types::Coyoneda::lift(rc.lower_ref())
 		}
 	}
 }
