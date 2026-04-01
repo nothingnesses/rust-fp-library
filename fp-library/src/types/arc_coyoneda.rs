@@ -62,7 +62,12 @@ mod inner {
 				CloneableFn,
 				Foldable,
 				Functor,
+				Lift,
 				Monoid,
+				NaturalTransformation,
+				Pointed,
+				Semiapplicative,
+				Semimonad,
 			},
 			impl_kind,
 			kinds::*,
@@ -243,6 +248,75 @@ mod inner {
 		}
 	}
 
+	// -- New layer: wraps F<B> and an Arc-wrapped function (single allocation) --
+
+	/// New layer created by [`ArcCoyoneda::new`]. Stores the functor value and an
+	/// Arc-wrapped function, implementing `ArcCoyonedaLowerRef` directly in a single
+	/// Arc allocation.
+	struct ArcCoyonedaNewLayer<'a, F, B: 'a, A: 'a>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a, {
+		fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
+		func: Arc<dyn Fn(B) -> A + Send + Sync + 'a>,
+	}
+
+	// SAFETY: Both fields satisfy Send + Sync:
+	// - `fb` is bounded `Send + Sync` via the ArcCoyonedaLowerRef impl's where clause.
+	// - `func` is `Arc<dyn Fn(B) -> A + Send + Sync>`, which is Send + Sync.
+	unsafe impl<'a, F, B: 'a, A: 'a> Send for ArcCoyonedaNewLayer<'a, F, B, A> where
+		F: Kind_cdc7cd43dac7585f + 'a
+	{
+	}
+	unsafe impl<'a, F, B: 'a, A: 'a> Sync for ArcCoyonedaNewLayer<'a, F, B, A> where
+		F: Kind_cdc7cd43dac7585f + 'a
+	{
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying type constructor.",
+		"The input type of the stored function.",
+		"The output type of the stored function."
+	)]
+	#[document_parameters("The new layer instance.")]
+	impl<'a, F, B: 'a, A: 'a> ArcCoyonedaLowerRef<'a, F, A> for ArcCoyonedaNewLayer<'a, F, B, A>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a,
+		<F as Kind_cdc7cd43dac7585f>::Of<'a, B>: Clone + Send + Sync,
+	{
+		/// Applies the stored function to the stored functor value via `F::map`.
+		#[document_signature]
+		///
+		#[document_returns("The underlying functor value with the stored function applied.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = ArcCoyoneda::<VecBrand, _>::new(|x: i32| x * 2, vec![1, 2, 3]);
+		/// assert_eq!(coyo.lower_ref(), vec![2, 4, 6]);
+		/// ```
+		fn lower_ref(&self) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
+		where
+			F: Functor, {
+			#[cfg(feature = "stacker")]
+			{
+				stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
+					let func = self.func.clone();
+					F::map(move |b| (*func)(b), self.fb.clone())
+				})
+			}
+			#[cfg(not(feature = "stacker"))]
+			{
+				let func = self.func.clone();
+				F::map(move |b| (*func)(b), self.fb.clone())
+			}
+		}
+	}
+
 	// -- Outer type --
 
 	/// Thread-safe reference-counted free functor with `Clone` support.
@@ -416,6 +490,228 @@ mod inner {
 				inner: self.0,
 				func: Arc::new(f),
 			}))
+		}
+
+		/// Create an `ArcCoyoneda` from a function and a functor value.
+		///
+		/// This is more efficient than `lift(fb).map(f)` because it creates
+		/// a single layer instead of two.
+		#[document_signature]
+		///
+		#[document_type_parameters("The input type of the function.")]
+		///
+		#[document_parameters("The function to defer.", "The functor value.")]
+		///
+		#[document_returns("An `ArcCoyoneda` wrapping the value with the deferred function.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = ArcCoyoneda::<VecBrand, _>::new(|x: i32| x * 2, vec![1, 2, 3]);
+		/// assert_eq!(coyo.lower_ref(), vec![2, 4, 6]);
+		/// ```
+		pub fn new<B: 'a>(
+			f: impl Fn(B) -> A + Send + Sync + 'a,
+			fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
+		) -> Self
+		where
+			<F as Kind_cdc7cd43dac7585f>::Of<'a, B>: Clone + Send + Sync, {
+			ArcCoyoneda(Arc::new(ArcCoyonedaNewLayer {
+				fb,
+				func: Arc::new(f),
+			}))
+		}
+
+		/// Apply a natural transformation to change the underlying functor.
+		///
+		/// Lowers to `F A` (applying all accumulated maps), transforms via the
+		/// natural transformation, then re-lifts into `ArcCoyoneda G A`.
+		///
+		/// Requires `F: Functor` for lowering.
+		#[document_signature]
+		///
+		#[document_type_parameters("The target functor brand.")]
+		///
+		#[document_parameters("The natural transformation from `F` to `G`.")]
+		///
+		#[document_returns("A new `ArcCoyoneda` over the target functor `G`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// struct VecToOption;
+		/// impl NaturalTransformation<VecBrand, OptionBrand> for VecToOption {
+		/// 	fn transform<'a, A: 'a>(
+		/// 		&self,
+		/// 		fa: Vec<A>,
+		/// 	) -> Option<A> {
+		/// 		fa.into_iter().next()
+		/// 	}
+		/// }
+		///
+		/// let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![10, 20, 30]);
+		/// let hoisted = coyo.hoist(VecToOption);
+		/// assert_eq!(hoisted.lower_ref(), Some(10));
+		/// ```
+		pub fn hoist<G: Kind_cdc7cd43dac7585f + 'a>(
+			self,
+			nat: impl NaturalTransformation<F, G>,
+		) -> ArcCoyoneda<'a, G, A>
+		where
+			F: Functor,
+			<G as Kind_cdc7cd43dac7585f>::Of<'a, A>: Clone + Send + Sync, {
+			ArcCoyoneda::lift(nat.transform(self.lower_ref()))
+		}
+
+		/// Wrap a value in the `ArcCoyoneda` context by delegating to `F::pure`.
+		///
+		/// Requires `F::Of<'a, A>: Clone + Send + Sync` for the base layer.
+		#[document_signature]
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		#[document_returns("An `ArcCoyoneda` containing the pure value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = ArcCoyoneda::<OptionBrand, i32>::pure(42);
+		/// assert_eq!(coyo.lower_ref(), Some(42));
+		/// ```
+		pub fn pure(a: A) -> Self
+		where
+			F: Pointed,
+			<F as Kind_cdc7cd43dac7585f>::Of<'a, A>: Clone + Send + Sync, {
+			ArcCoyoneda::lift(F::pure(a))
+		}
+
+		/// Chain `ArcCoyoneda` computations by lowering, binding, and re-lifting.
+		///
+		/// This is a fusion barrier: all accumulated maps are applied before binding.
+		///
+		/// Requires `F: Functor` (for lowering) and `F: Semimonad` (for binding).
+		#[document_signature]
+		///
+		#[document_type_parameters("The output type of the bound computation.")]
+		///
+		#[document_parameters(
+			"The function to apply to the inner value, returning a new `ArcCoyoneda`."
+		)]
+		///
+		#[document_returns("A new `ArcCoyoneda` containing the bound result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = ArcCoyoneda::<OptionBrand, _>::lift(Some(5));
+		/// let result = coyo.bind(|x| ArcCoyoneda::<OptionBrand, _>::lift(Some(x * 2)));
+		/// assert_eq!(result.lower_ref(), Some(10));
+		/// ```
+		pub fn bind<B: 'a>(
+			self,
+			func: impl Fn(A) -> ArcCoyoneda<'a, F, B> + 'a,
+		) -> ArcCoyoneda<'a, F, B>
+		where
+			F: Functor + Semimonad,
+			<F as Kind_cdc7cd43dac7585f>::Of<'a, B>: Clone + Send + Sync, {
+			ArcCoyoneda::lift(F::bind(self.lower_ref(), move |a| func(a).lower_ref()))
+		}
+
+		/// Apply a function inside an `ArcCoyoneda` to a value inside another.
+		///
+		/// Both arguments are lowered and delegated to `F::apply`, then re-lifted.
+		/// This is a fusion barrier.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the cloneable function wrapper.",
+			"The type of the function input.",
+			"The type of the function output."
+		)]
+		///
+		#[document_parameters(
+			"The `ArcCoyoneda` containing the function(s).",
+			"The `ArcCoyoneda` containing the value(s)."
+		)]
+		///
+		#[document_returns("A new `ArcCoyoneda` containing the applied result(s).")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// // Use lift2 for a simpler thread-safe example. The apply method
+		/// // requires a CloneableFn brand whose Of type is Send + Sync,
+		/// // which is satisfied by ArcFnBrand's SendOf but not its Of.
+		/// let a = ArcCoyoneda::<OptionBrand, _>::lift(Some(3));
+		/// let b = ArcCoyoneda::<OptionBrand, _>::lift(Some(4));
+		/// let result = a.lift2(|x, y| x + y, b);
+		/// assert_eq!(result.lower_ref(), Some(7));
+		/// ```
+		pub fn apply<FnBrand: CloneableFn + 'a, B: Clone + 'a, C: 'a>(
+			ff: ArcCoyoneda<'a, F, <FnBrand as CloneableFn>::Of<'a, B, C>>,
+			fa: ArcCoyoneda<'a, F, B>,
+		) -> ArcCoyoneda<'a, F, C>
+		where
+			F: Functor + Semiapplicative,
+			<F as Kind_cdc7cd43dac7585f>::Of<'a, C>: Clone + Send + Sync, {
+			ArcCoyoneda::lift(F::apply::<FnBrand, B, C>(ff.lower_ref(), fa.lower_ref()))
+		}
+
+		/// Lift a binary function into the `ArcCoyoneda` context.
+		///
+		/// Both arguments are lowered and delegated to `F::lift2`, then re-lifted.
+		/// This is a fusion barrier.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the second value.", "The type of the result.")]
+		///
+		#[document_parameters("The binary function to apply.", "The second `ArcCoyoneda` value.")]
+		///
+		#[document_returns("An `ArcCoyoneda` containing the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let a = ArcCoyoneda::<OptionBrand, _>::lift(Some(3));
+		/// let b = ArcCoyoneda::<OptionBrand, _>::lift(Some(4));
+		/// let result = a.lift2(|x, y| x + y, b);
+		/// assert_eq!(result.lower_ref(), Some(7));
+		/// ```
+		pub fn lift2<B: Clone + 'a, C: 'a>(
+			self,
+			func: impl Fn(A, B) -> C + 'a,
+			fb: ArcCoyoneda<'a, F, B>,
+		) -> ArcCoyoneda<'a, F, C>
+		where
+			F: Functor + Lift,
+			A: Clone,
+			<F as Kind_cdc7cd43dac7585f>::Of<'a, C>: Clone + Send + Sync, {
+			ArcCoyoneda::lift(F::lift2(func, self.lower_ref(), fb.lower_ref()))
 		}
 	}
 

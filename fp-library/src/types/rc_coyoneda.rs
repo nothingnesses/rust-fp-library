@@ -56,7 +56,12 @@ mod inner {
 				CloneableFn,
 				Foldable,
 				Functor,
+				Lift,
 				Monoid,
+				NaturalTransformation,
+				Pointed,
+				Semiapplicative,
+				Semimonad,
 			},
 			impl_kind,
 			kinds::*,
@@ -199,6 +204,63 @@ mod inner {
 				let lowered = self.inner.lower_ref();
 				let func = self.func.clone();
 				F::map(move |b| (*func)(b), lowered)
+			}
+		}
+	}
+
+	// -- New layer: wraps F<B> and an Rc-wrapped function (single allocation) --
+
+	/// New layer created by [`RcCoyoneda::new`]. Stores the functor value and an
+	/// Rc-wrapped function, implementing `RcCoyonedaLowerRef` directly in a single
+	/// Rc allocation.
+	struct RcCoyonedaNewLayer<'a, F, B: 'a, A: 'a>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a, {
+		fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
+		func: Rc<dyn Fn(B) -> A + 'a>,
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying type constructor.",
+		"The input type of the stored function.",
+		"The output type of the stored function."
+	)]
+	#[document_parameters("The new layer instance.")]
+	impl<'a, F, B: 'a, A: 'a> RcCoyonedaLowerRef<'a, F, A> for RcCoyonedaNewLayer<'a, F, B, A>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a,
+		<F as Kind_cdc7cd43dac7585f>::Of<'a, B>: Clone,
+	{
+		/// Applies the stored function to the stored functor value via `F::map`.
+		#[document_signature]
+		///
+		#[document_returns("The underlying functor value with the stored function applied.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = RcCoyoneda::<VecBrand, _>::new(|x: i32| x * 2, vec![1, 2, 3]);
+		/// assert_eq!(coyo.lower_ref(), vec![2, 4, 6]);
+		/// ```
+		fn lower_ref(&self) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
+		where
+			F: Functor, {
+			#[cfg(feature = "stacker")]
+			{
+				stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
+					let func = self.func.clone();
+					F::map(move |b| (*func)(b), self.fb.clone())
+				})
+			}
+			#[cfg(not(feature = "stacker"))]
+			{
+				let func = self.func.clone();
+				F::map(move |b| (*func)(b), self.fb.clone())
 			}
 		}
 	}
@@ -378,6 +440,230 @@ mod inner {
 				inner: self.0,
 				func: Rc::new(f),
 			}))
+		}
+
+		/// Create an `RcCoyoneda` from a function and a functor value.
+		///
+		/// This is more efficient than `lift(fb).map(f)` because it creates
+		/// a single layer instead of two.
+		#[document_signature]
+		///
+		#[document_type_parameters("The input type of the function.")]
+		///
+		#[document_parameters("The function to defer.", "The functor value.")]
+		///
+		#[document_returns("An `RcCoyoneda` wrapping the value with the deferred function.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = RcCoyoneda::<VecBrand, _>::new(|x: i32| x * 2, vec![1, 2, 3]);
+		/// assert_eq!(coyo.lower_ref(), vec![2, 4, 6]);
+		/// ```
+		pub fn new<B: 'a>(
+			f: impl Fn(B) -> A + 'a,
+			fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
+		) -> Self
+		where
+			<F as Kind_cdc7cd43dac7585f>::Of<'a, B>: Clone, {
+			RcCoyoneda(Rc::new(RcCoyonedaNewLayer {
+				fb,
+				func: Rc::new(f),
+			}))
+		}
+
+		/// Apply a natural transformation to change the underlying functor.
+		///
+		/// Lowers to `F A` (applying all accumulated maps), transforms via the
+		/// natural transformation, then re-lifts into `RcCoyoneda G A`.
+		///
+		/// Requires `F: Functor` for lowering.
+		#[document_signature]
+		///
+		#[document_type_parameters("The target functor brand.")]
+		///
+		#[document_parameters("The natural transformation from `F` to `G`.")]
+		///
+		#[document_returns("A new `RcCoyoneda` over the target functor `G`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// struct VecToOption;
+		/// impl NaturalTransformation<VecBrand, OptionBrand> for VecToOption {
+		/// 	fn transform<'a, A: 'a>(
+		/// 		&self,
+		/// 		fa: Vec<A>,
+		/// 	) -> Option<A> {
+		/// 		fa.into_iter().next()
+		/// 	}
+		/// }
+		///
+		/// let coyo = RcCoyoneda::<VecBrand, _>::lift(vec![10, 20, 30]);
+		/// let hoisted = coyo.hoist(VecToOption);
+		/// assert_eq!(hoisted.lower_ref(), Some(10));
+		/// ```
+		pub fn hoist<G: Kind_cdc7cd43dac7585f + 'a>(
+			self,
+			nat: impl NaturalTransformation<F, G>,
+		) -> RcCoyoneda<'a, G, A>
+		where
+			F: Functor,
+			<G as Kind_cdc7cd43dac7585f>::Of<'a, A>: Clone, {
+			RcCoyoneda::lift(nat.transform(self.lower_ref()))
+		}
+
+		/// Wrap a value in the `RcCoyoneda` context by delegating to `F::pure`.
+		///
+		/// Requires `F::Of<'a, A>: Clone` for the base layer.
+		#[document_signature]
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		#[document_returns("An `RcCoyoneda` containing the pure value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = RcCoyoneda::<OptionBrand, i32>::pure(42);
+		/// assert_eq!(coyo.lower_ref(), Some(42));
+		/// ```
+		pub fn pure(a: A) -> Self
+		where
+			F: Pointed,
+			<F as Kind_cdc7cd43dac7585f>::Of<'a, A>: Clone, {
+			RcCoyoneda::lift(F::pure(a))
+		}
+
+		/// Chain `RcCoyoneda` computations by lowering, binding, and re-lifting.
+		///
+		/// This is a fusion barrier: all accumulated maps are applied before binding.
+		///
+		/// Requires `F: Functor` (for lowering) and `F: Semimonad` (for binding).
+		#[document_signature]
+		///
+		#[document_type_parameters("The output type of the bound computation.")]
+		///
+		#[document_parameters(
+			"The function to apply to the inner value, returning a new `RcCoyoneda`."
+		)]
+		///
+		#[document_returns("A new `RcCoyoneda` containing the bound result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = RcCoyoneda::<OptionBrand, _>::lift(Some(5));
+		/// let result = coyo.bind(|x| RcCoyoneda::<OptionBrand, _>::lift(Some(x * 2)));
+		/// assert_eq!(result.lower_ref(), Some(10));
+		/// ```
+		pub fn bind<B: 'a>(
+			self,
+			func: impl Fn(A) -> RcCoyoneda<'a, F, B> + 'a,
+		) -> RcCoyoneda<'a, F, B>
+		where
+			F: Functor + Semimonad,
+			<F as Kind_cdc7cd43dac7585f>::Of<'a, B>: Clone, {
+			RcCoyoneda::lift(F::bind(self.lower_ref(), move |a| func(a).lower_ref()))
+		}
+
+		/// Apply a function inside an `RcCoyoneda` to a value inside another.
+		///
+		/// Both arguments are lowered and delegated to `F::apply`, then re-lifted.
+		/// This is a fusion barrier.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the cloneable function wrapper.",
+			"The type of the function input.",
+			"The type of the function output."
+		)]
+		///
+		#[document_parameters(
+			"The `RcCoyoneda` containing the function(s).",
+			"The `RcCoyoneda` containing the value(s)."
+		)]
+		///
+		#[document_returns("A new `RcCoyoneda` containing the applied result(s).")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let ff =
+		/// 	RcCoyoneda::<OptionBrand, _>::lift(Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| {
+		/// 		x * 2
+		/// 	})));
+		/// let fa = RcCoyoneda::<OptionBrand, _>::lift(Some(5));
+		/// let result = RcCoyoneda::<OptionBrand, i32>::apply::<RcFnBrand, _, _>(ff, fa);
+		/// assert_eq!(result.lower_ref(), Some(10));
+		/// ```
+		pub fn apply<FnBrand: CloneableFn + 'a, B: Clone + 'a, C: 'a>(
+			ff: RcCoyoneda<'a, F, <FnBrand as CloneableFn>::Of<'a, B, C>>,
+			fa: RcCoyoneda<'a, F, B>,
+		) -> RcCoyoneda<'a, F, C>
+		where
+			F: Functor + Semiapplicative,
+			<F as Kind_cdc7cd43dac7585f>::Of<'a, C>: Clone, {
+			RcCoyoneda::lift(F::apply::<FnBrand, B, C>(ff.lower_ref(), fa.lower_ref()))
+		}
+
+		/// Lift a binary function into the `RcCoyoneda` context.
+		///
+		/// Both arguments are lowered and delegated to `F::lift2`, then re-lifted.
+		/// This is a fusion barrier.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the second value.", "The type of the result.")]
+		///
+		#[document_parameters("The binary function to apply.", "The second `RcCoyoneda` value.")]
+		///
+		#[document_returns("An `RcCoyoneda` containing the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let a = RcCoyoneda::<OptionBrand, _>::lift(Some(3));
+		/// let b = RcCoyoneda::<OptionBrand, _>::lift(Some(4));
+		/// let result = a.lift2(|x, y| x + y, b);
+		/// assert_eq!(result.lower_ref(), Some(7));
+		/// ```
+		pub fn lift2<B: Clone + 'a, C: 'a>(
+			self,
+			func: impl Fn(A, B) -> C + 'a,
+			fb: RcCoyoneda<'a, F, B>,
+		) -> RcCoyoneda<'a, F, C>
+		where
+			F: Functor + Lift,
+			A: Clone,
+			<F as Kind_cdc7cd43dac7585f>::Of<'a, C>: Clone, {
+			RcCoyoneda::lift(F::lift2(func, self.lower_ref(), fb.lower_ref()))
 		}
 	}
 
