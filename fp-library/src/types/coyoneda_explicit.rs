@@ -69,6 +69,7 @@ mod inner {
 		crate::{
 			brands::CoyonedaExplicitBrand,
 			classes::{
+				Applicative,
 				CloneableFn,
 				Foldable,
 				FoldableWithIndex,
@@ -78,6 +79,7 @@ mod inner {
 				Pointed,
 				Semiapplicative,
 				Semimonad,
+				Traversable,
 				WithIndex,
 			},
 			functions::{
@@ -371,6 +373,56 @@ mod inner {
 			F: FoldableWithIndex, {
 			let f = self.func;
 			F::fold_map_with_index(move |i, b| func(i, f(b)), self.fb)
+		}
+
+		/// Traverse the structure by composing the traversal function with the
+		/// accumulated mapping function, traversing the original `F B` in a
+		/// single pass, and wrapping the result in `CoyonedaExplicit`.
+		///
+		/// This does not require `F: Functor` beyond what `F: Traversable`
+		/// already implies. Matches PureScript's `Traversable (Coyoneda f)`
+		/// semantics.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The applicative context brand.",
+			"The output element type after traversal."
+		)]
+		///
+		#[document_parameters(
+			"The function mapping each element to a value in the applicative context."
+		)]
+		///
+		#[document_returns(
+			"The traversed result wrapped in the applicative context, containing a `CoyonedaExplicit` in identity position."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).map(|x| x * 10);
+		/// let result: Option<CoyonedaExplicit<VecBrand, _, _, _>> =
+		/// 	coyo.traverse::<OptionBrand, _>(|x| if x > 0 { Some(x) } else { None });
+		/// assert_eq!(result.map(|c| c.lower()), Some(vec![10, 20, 30]));
+		/// ```
+		#[allow(clippy::type_complexity)]
+		pub fn traverse<G: Applicative + 'a, C: 'a + Clone>(
+			self,
+			f: impl Fn(A) -> <G as Kind_cdc7cd43dac7585f>::Of<'a, C> + 'a,
+		) -> <G as Kind_cdc7cd43dac7585f>::Of<'a, CoyonedaExplicit<'a, F, C, C, fn(C) -> C>>
+		where
+			B: Clone,
+			F: Traversable,
+			<F as Kind_cdc7cd43dac7585f>::Of<'a, C>: Clone,
+			<G as Kind_cdc7cd43dac7585f>::Of<'a, C>: Clone, {
+			G::map(
+				|fc| CoyonedaExplicit::lift(fc),
+				F::traverse::<B, C, G>(compose(f, self.func), self.fb),
+			)
 		}
 
 		/// Apply a wrapped function to this value by lowering both sides, delegating to
@@ -938,6 +990,41 @@ mod tests {
 			.map(|x| x + 1)
 			.fold_map::<RcFnBrand, _>(|x: i32| x.to_string());
 		assert_eq!(result, String::new());
+	}
+
+	// -- Traverse tests --
+
+	#[test]
+	fn traverse_vec_to_option_all_pass() {
+		let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).map(|x| x * 10);
+		let result: Option<CoyonedaExplicit<VecBrand, _, _, _>> =
+			coyo.traverse::<OptionBrand, _>(|x| if x > 0 { Some(x) } else { None });
+		assert_eq!(result.map(|c| c.lower()), Some(vec![10, 20, 30]));
+	}
+
+	#[test]
+	fn traverse_vec_to_option_one_fails() {
+		let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, -2, 3]).map(|x| x * 10);
+		let result: Option<CoyonedaExplicit<VecBrand, _, _, _>> =
+			coyo.traverse::<OptionBrand, _>(|x| if x > 0 { Some(x) } else { None });
+		assert_eq!(result.map(|c| c.lower()), None);
+	}
+
+	#[test]
+	fn traverse_option_to_vec() {
+		let coyo = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(5)).map(|x| x * 2);
+		let result: Vec<CoyonedaExplicit<OptionBrand, _, _, _>> =
+			coyo.traverse::<VecBrand, _>(|x| vec![x, x + 1]);
+		let lowered: Vec<Option<i32>> = result.into_iter().map(|c| c.lower()).collect();
+		assert_eq!(lowered, vec![Some(10), Some(11)]);
+	}
+
+	#[test]
+	fn traverse_lifted_identity() {
+		let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]);
+		let result: Option<CoyonedaExplicit<VecBrand, _, _, _>> =
+			coyo.traverse::<OptionBrand, _>(|x| Some(x));
+		assert_eq!(result.map(|c| c.lower()), Some(vec![1, 2, 3]));
 	}
 
 	// -- FoldableWithIndex tests --
