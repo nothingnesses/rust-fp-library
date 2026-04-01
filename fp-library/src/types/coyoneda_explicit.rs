@@ -388,56 +388,14 @@ mod inner {
 			CoyonedaExplicit::lift(F::apply::<FnBrand, A, C>(ff.lower(), fa.lower()))
 		}
 
-		/// Sequence a computation through a function that returns a `CoyonedaExplicit`.
+		/// Bind through the accumulated function directly, composing the callback
+		/// with the accumulated mapping function and delegating to `F::bind`.
 		///
-		/// Lowers this value to `F A`, binds via `F::bind` (where the closure lowers
-		/// each returned `CoyonedaExplicit` to `F C`), then re-lifts the result.
+		/// The callback `f` receives the mapped value (after the accumulated
+		/// function is applied) and returns a raw `F::Of<'a, C>` directly. This
+		/// avoids needing `F: Functor` and skips an intermediate `F::map` traversal.
 		/// After the operation the fusion pipeline is reset: the result is a
 		/// `CoyonedaExplicit` with the identity function and intermediate type `C`.
-		///
-		/// This is a fusion barrier: it calls `lower()` on `self`, materializing
-		/// all accumulated maps before delegating to `F::bind`. Each
-		/// `CoyonedaExplicit` returned by `f` is also lowered.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The output type of the bound computation.",
-			"The type of the function in the returned `CoyonedaExplicit`."
-		)]
-		///
-		#[document_parameters(
-			"The function to apply to each value, returning a new `CoyonedaExplicit`."
-		)]
-		///
-		#[document_returns("A `CoyonedaExplicit` containing the bound result.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let fa = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(5i32));
-		/// let result = fa.bind(|x| CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(x * 2))).lower();
-		/// assert_eq!(result, Some(10));
-		/// ```
-		pub fn bind<C: 'a, FuncOut: Fn(C) -> C + 'a>(
-			self,
-			f: impl Fn(A) -> CoyonedaExplicit<'a, F, C, C, FuncOut> + 'a,
-		) -> CoyonedaExplicit<'a, F, C, C, fn(C) -> C>
-		where
-			F: Functor + Semimonad, {
-			CoyonedaExplicit::lift(F::bind(self.lower(), move |a| f(a).lower()))
-		}
-
-		/// Bind through the accumulated function directly, without an intermediate
-		/// `F::map` call.
-		///
-		/// Unlike [`bind`](CoyonedaExplicit::bind), the callback `f` receives the
-		/// mapped value (after the accumulated function is applied) and returns a
-		/// raw `F::Of<'a, C>` directly. This avoids needing `F: Functor` and skips
-		/// the intermediate traversal that `bind` performs via `self.lower()`.
 		#[document_signature]
 		///
 		#[document_type_parameters("The output type of the bound computation.")]
@@ -456,10 +414,10 @@ mod inner {
 		/// };
 		///
 		/// let fa = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(5i32)).map(|x| x * 2);
-		/// let result = fa.flat_map(|x| Some(x + 1)).lower();
+		/// let result = fa.bind(|x| Some(x + 1)).lower();
 		/// assert_eq!(result, Some(11)); // (5 * 2) + 1
 		/// ```
-		pub fn flat_map<C: 'a>(
+		pub fn bind<C: 'a>(
 			self,
 			f: impl Fn(A) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, C> + 'a,
 		) -> CoyonedaExplicit<'a, F, C, C, fn(C) -> C>
@@ -1017,87 +975,43 @@ mod tests {
 	#[test]
 	fn bind_some() {
 		let fa = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(5i32));
-		let result =
-			fa.bind(|x| CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(x * 2))).lower();
+		let result = fa.bind(|x| Some(x * 2)).lower();
 		assert_eq!(result, Some(10));
 	}
 
 	#[test]
 	fn bind_none_stays_none() {
 		let fa = CoyonedaExplicit::<OptionBrand, i32, i32, _>::lift(None);
-		let result =
-			fa.bind(|x| CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(x * 2))).lower();
+		let result = fa.bind(|x| Some(x * 2)).lower();
 		assert_eq!(result, None);
 	}
 
 	#[test]
 	fn bind_returning_none_gives_none() {
 		let fa = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(5i32));
-		let result = fa.bind(|_| CoyonedaExplicit::<OptionBrand, i32, i32, _>::lift(None)).lower();
+		let result = fa.bind(|_| None::<i32>).lower();
 		assert_eq!(result, None);
 	}
 
 	#[test]
-	fn bind_vec_flat_maps() {
+	fn bind_vec() {
 		let fa = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1i32, 2, 3]);
-		let result =
-			fa.bind(|x| CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![x, x * 10])).lower();
+		let result = fa.bind(|x| vec![x, x * 10]).lower();
 		assert_eq!(result, vec![1, 10, 2, 20, 3, 30]);
 	}
 
 	#[test]
 	fn bind_uses_accumulated_maps() {
 		let fa = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(3i32)).map(|x| x * 2);
-		let result =
-			fa.bind(|x| CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(x + 1))).lower();
+		let result = fa.bind(|x| Some(x + 1)).lower();
 		assert_eq!(result, Some(7)); // (3 * 2) + 1
 	}
 
-	// -- flat_map tests --
-
 	#[test]
-	fn flat_map_option_some() {
-		let fa = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(5i32));
-		let result = fa.flat_map(|x| Some(x * 2)).lower();
-		assert_eq!(result, Some(10));
-	}
-
-	#[test]
-	fn flat_map_option_none() {
-		let fa = CoyonedaExplicit::<OptionBrand, i32, i32, _>::lift(None);
-		let result = fa.flat_map(|x| Some(x * 2)).lower();
-		assert_eq!(result, None);
-	}
-
-	#[test]
-	fn flat_map_vec() {
+	fn bind_vec_with_maps() {
 		let fa = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1i32, 2, 3]).map(|x| x * 2);
-		let result = fa.flat_map(|x| vec![x, x + 1]).lower();
+		let result = fa.bind(|x| vec![x, x + 1]).lower();
 		assert_eq!(result, vec![2, 3, 4, 5, 6, 7]);
-	}
-
-	#[test]
-	fn flat_map_equivalent_to_bind() {
-		let v = vec![1i32, 2, 3];
-
-		let via_flat_map = CoyonedaExplicit::<VecBrand, _, _, _>::lift(v.clone())
-			.map(|x| x + 1)
-			.flat_map(|x| vec![x, x * 10])
-			.lower();
-
-		let via_bind = CoyonedaExplicit::<VecBrand, _, _, _>::lift(v)
-			.map(|x| x + 1)
-			.bind(|x| CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![x, x * 10]))
-			.lower();
-
-		assert_eq!(via_flat_map, via_bind);
-	}
-
-	#[test]
-	fn flat_map_uses_accumulated_maps() {
-		let fa = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(3i32)).map(|x| x * 2);
-		let result = fa.flat_map(|x| Some(x + 1)).lower();
-		assert_eq!(result, Some(7)); // (3 * 2) + 1
 	}
 
 	// -- From conversion tests --

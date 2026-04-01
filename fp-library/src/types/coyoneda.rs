@@ -8,8 +8,10 @@
 //! ## Performance characteristics
 //!
 //! Each call to [`map`](Coyoneda::map) wraps the previous value in a new layer that
-//! stores the mapping function. At [`lower`](Coyoneda::lower) time, each layer applies
-//! its function via `F::map`. For k chained maps, `lower` makes k calls to `F::map`.
+//! stores the mapping function inline (one heap allocation for the layer itself; the
+//! function is not separately boxed). At [`lower`](Coyoneda::lower) time, each layer
+//! applies its function via `F::map`. For k chained maps, `lower` makes k calls to
+//! `F::map`.
 //!
 //! This is a consequence of Rust's dyn-compatibility rules: composing functions across
 //! an existential boundary requires generic methods on trait objects, which Rust does not
@@ -213,21 +215,27 @@ mod inner {
 
 	/// Map layer created by [`Coyoneda::map`]. Stores the inner value and a function
 	/// to apply on top of it at [`lower`](Coyoneda::lower) time.
-	struct CoyonedaMapLayer<'a, F, B: 'a, A: 'a>
+	///
+	/// The function type `Func` is stored inline rather than boxed, eliminating one
+	/// heap allocation per [`map`](Coyoneda::map) call. The `Func` parameter is erased
+	/// by the outer `Box<dyn CoyonedaInner>` and does not appear in the public API.
+	struct CoyonedaMapLayer<'a, F, B: 'a, A: 'a, Func: Fn(B) -> A + 'a>
 	where
 		F: Kind_cdc7cd43dac7585f + 'a, {
 		inner: Box<dyn CoyonedaInner<'a, F, B> + 'a>,
-		func: Box<dyn Fn(B) -> A + 'a>,
+		func: Func,
 	}
 
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the underlying type constructor.",
 		"The input type of this layer's mapping function.",
-		"The output type of this layer's mapping function."
+		"The output type of this layer's mapping function.",
+		"The type of this layer's mapping function."
 	)]
 	#[document_parameters("The map layer instance.")]
-	impl<'a, F, B: 'a, A: 'a> CoyonedaInner<'a, F, A> for CoyonedaMapLayer<'a, F, B, A>
+	impl<'a, F, B: 'a, A: 'a, Func: Fn(B) -> A + 'a> CoyonedaInner<'a, F, A>
+		for CoyonedaMapLayer<'a, F, B, A, Func>
 	where
 		F: Kind_cdc7cd43dac7585f + 'a,
 	{
@@ -259,21 +267,27 @@ mod inner {
 	/// Layer created by [`Coyoneda::new`]. Stores the functor value and mapping
 	/// function directly, avoiding the extra box that wrapping a [`CoyonedaBase`]
 	/// inside a [`CoyonedaMapLayer`] would require.
-	struct CoyonedaNewLayer<'a, F, B: 'a, A: 'a>
+	///
+	/// The function type `Func` is stored inline rather than boxed, eliminating one
+	/// heap allocation per [`new`](Coyoneda::new) call. The `Func` parameter is erased
+	/// by the outer `Box<dyn CoyonedaInner>` and does not appear in the public API.
+	struct CoyonedaNewLayer<'a, F, B: 'a, A: 'a, Func: Fn(B) -> A + 'a>
 	where
 		F: Kind_cdc7cd43dac7585f + 'a, {
 		fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
-		func: Box<dyn Fn(B) -> A + 'a>,
+		func: Func,
 	}
 
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the underlying type constructor.",
 		"The type of the values in the underlying functor.",
-		"The output type of the mapping function."
+		"The output type of the mapping function.",
+		"The type of the mapping function."
 	)]
 	#[document_parameters("The new layer instance.")]
-	impl<'a, F, B: 'a, A: 'a> CoyonedaInner<'a, F, A> for CoyonedaNewLayer<'a, F, B, A>
+	impl<'a, F, B: 'a, A: 'a, Func: Fn(B) -> A + 'a> CoyonedaInner<'a, F, A>
+		for CoyonedaNewLayer<'a, F, B, A, Func>
 	where
 		F: Kind_cdc7cd43dac7585f + 'a,
 	{
@@ -359,7 +373,7 @@ mod inner {
 		) -> Self {
 			Coyoneda(Box::new(CoyonedaNewLayer {
 				fb,
-				func: Box::new(f),
+				func: f,
 			}))
 		}
 
@@ -445,7 +459,7 @@ mod inner {
 		) -> Coyoneda<'a, F, B> {
 			Coyoneda(Box::new(CoyonedaMapLayer {
 				inner: self.0,
-				func: Box::new(f),
+				func: f,
 			}))
 		}
 
