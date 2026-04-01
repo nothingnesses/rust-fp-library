@@ -114,11 +114,9 @@ The `unsafe impl Send/Sync` on `ArcCoyonedaBase` and `ArcCoyonedaMapLayer` are s
 
 Each `RcCoyoneda::map` creates two `Rc` allocations: one for the `RcCoyonedaMapLayer` (the layer struct) and one for the function (`Rc<dyn Fn(B) -> A>`). `Coyoneda::map` only creates one `Box` because it stores the function inline (monomorphized) and erases it through the outer `Box<dyn CoyonedaInner>`.
 
-The same inline-function technique could be applied to `RcCoyonedaMapLayer` and `ArcCoyonedaMapLayer`: make them generic over `Func: Fn(B) -> A`, store `func: Func` inline, and let the outer `Rc<dyn RcCoyonedaLowerRef>` erase the type. This would halve allocations per `map`.
-
 **Noted by:** Agents 2 and 5.
 
-**Trade-offs:** Reduces allocations from 2 to 1 per `map`. Changes the internal architecture but not the public API. Mirrors the proven `Coyoneda` pattern.
+**Feasibility assessment (post-review):** The inline-function technique is **not applicable** to Rc/Arc variants. `lower_ref(&self)` borrows `self`, so `self.func` cannot be moved into the closure passed to `F::map` (which requires `impl Fn(B) -> A + 'a`). The borrow lifetime is shorter than `'a`. `Coyoneda` avoids this because `CoyonedaMapLayer::lower` takes `self: Box<Self>` (consuming). Adding `Func: Clone` is theoretically possible but concrete closures generally aren't `Clone`, so `Rc`/`Arc` wrapping would still be needed. The 2-allocation-per-map cost is inherent to the borrowing design of Rc/Arc variants.
 
 ---
 

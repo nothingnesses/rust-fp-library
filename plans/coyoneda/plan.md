@@ -25,7 +25,7 @@ Same pattern as 1.1.
 **File:** `fp-library/src/types/rc_coyoneda.rs`
 
 ```rust
-pub fn collapse(self) -> RcCoyoneda<'a, F, A>
+pub fn collapse(&self) -> RcCoyoneda<'a, F, A>
 where
     F: Functor,
     <F as Kind>::Of<'a, A>: Clone,
@@ -34,13 +34,23 @@ where
 }
 ```
 
-This flattens accumulated layers into a single base layer, resetting the recursion depth. Document that it requires `F: Functor` and clones the base value.
+Takes `&self` rather than `self` since `RcCoyoneda` is cheaply `Clone`; the caller can drop the original afterward if desired, but does not have to clone before collapsing. Flattens accumulated layers into a single base layer, resetting the recursion depth. Document that it requires `F: Functor` and clones the base value.
 
 ### 1.4 Add `collapse` method to `ArcCoyoneda`
 
 **File:** `fp-library/src/types/arc_coyoneda.rs`
 
-Same pattern as 1.3, with the additional `Send + Sync` bounds on `F::Of<'a, A>`.
+Same pattern as 1.3, with `&self`, and the additional `Send + Sync` bounds on `F::Of<'a, A>`:
+
+```rust
+pub fn collapse(&self) -> ArcCoyoneda<'a, F, A>
+where
+    F: Functor,
+    <F as Kind>::Of<'a, A>: Clone + Send + Sync,
+{
+    ArcCoyoneda::lift(self.lower_ref())
+}
+```
 
 ### 1.5 Document stack overflow risk
 
@@ -56,13 +66,20 @@ These changes bring `RcCoyoneda`/`ArcCoyoneda` up to feature parity with `Coyone
 
 **File:** `fp-library/src/types/rc_coyoneda.rs`
 
-Creates a single-layer `RcCoyoneda` from a function and a functor value, matching `Coyoneda::new`.
+Creates a single-layer `RcCoyoneda` from a function and a functor value, matching `Coyoneda::new`. Requires `F::Of<'a, B>: Clone` on the base value (needed for `RcCoyonedaLowerRef` trait object coercion).
+
+**Architectural decision:** `Coyoneda::new` uses a dedicated `CoyonedaNewLayer` that stores the function inline (generic `Func`), erased by `Box<dyn CoyonedaInner>` (1 allocation). Two options for `RcCoyoneda`:
+
+- **(a) Compose existing layers:** Create an `RcCoyonedaBase` + `RcCoyonedaMapLayer`. Simple but 3 `Rc` allocations (base, map layer, function).
+- **(b) Dedicated `RcCoyonedaNewLayer`:** A new struct storing `fb` and `func: Rc<dyn Fn(B) -> A>`, implementing `RcCoyonedaLowerRef` directly. 1 `Rc` allocation (the layer itself), matching `Coyoneda::new`'s efficiency.
+
+**Recommendation:** Option (b) for allocation efficiency.
 
 ### 2.2 Add `new(f, fb)` constructor to `ArcCoyoneda`
 
 **File:** `fp-library/src/types/arc_coyoneda.rs`
 
-Same pattern, with `Send + Sync` bounds on the function.
+Same pattern as 2.1 with `Send + Sync` bounds on the function and `Clone + Send + Sync` on `F::Of<'a, B>`. Use a dedicated `ArcCoyonedaNewLayer` (option b).
 
 ### 2.3 Add `hoist` to `RcCoyoneda`
 
@@ -122,23 +139,22 @@ Bounds for each:
 
 ---
 
-## Phase 3: Performance Optimization (Medium Priority)
+## Phase 3: ~~Performance Optimization~~ (Removed)
 
-### 3.1 Store functions inline in Rc/Arc map layers
+### ~~3.1 Store functions inline in Rc/Arc map layers~~
 
-**Files:** `fp-library/src/types/rc_coyoneda.rs`, `fp-library/src/types/arc_coyoneda.rs`
+**Status: Infeasible. Removed from plan.**
 
-Currently, each `map` creates two reference-counted allocations: one for the layer struct and one for the function (`Rc<dyn Fn(B) -> A>`). `Coyoneda` avoids this by making `CoyonedaMapLayer` generic over `Func: Fn(B) -> A`, storing the function inline, and erasing the type through `Box<dyn CoyonedaInner>`.
+The original proposal was to make `RcCoyonedaMapLayer` generic over `Func: Fn(B) -> A`, storing the function inline and erasing `Func` through `Rc<dyn RcCoyonedaLowerRef>`, mirroring `Coyoneda`'s `CoyonedaMapLayer` pattern.
 
-Apply the same technique to `RcCoyonedaMapLayer` and `ArcCoyonedaMapLayer`:
+**Why it doesn't work:** `lower_ref(&self)` borrows `self`, so `self.func` cannot be moved into the closure passed to `F::map` (which requires `impl Fn(B) -> A + 'a`). The borrow lifetime of `&self.func` is shorter than `'a`, so a closure capturing `&self.func` fails to satisfy the `'a` bound. The only workarounds are:
 
-1. Make the map layer generic: `RcCoyonedaMapLayer<'a, F, B, A, Func: Fn(B) -> A>`.
-2. Store `func: Func` inline (not behind `Rc`).
-3. The outer `Rc<dyn RcCoyonedaLowerRef>` erases the `Func` type.
+- **`Func: Clone`**: Clone the function into the closure. But concrete closure types generally don't implement `Clone` (only when all captures are `Clone`), so `map` would still need to wrap the function in `Rc`/`Arc` to make it cloneable, eliminating the allocation savings.
+- **Restructure `Functor::map` to relax the `'a` bound**: Enormous blast radius across the entire library.
 
-This reduces allocations from 2 to 1 per `map` call.
+This is the fundamental difference from `Coyoneda`: `CoyonedaMapLayer::lower` takes `self: Box<Self>` (consuming), so it can move `self.func` into the closure with no lifetime constraint. `RcCoyonedaMapLayer::lower_ref` takes `&self` (borrowing), which prevents this.
 
-**Trade-offs:** Changes internal architecture but not public API. Mirrors the proven `Coyoneda` pattern. The function call in `lower_ref` becomes a direct (monomorphized) call through the outer trait object vtable, reducing indirection from two levels to one.
+The current approach (2 `Rc`/`Arc` allocations per `map`: one for the layer, one for `Rc<dyn Fn(B) -> A>`) is the correct design given the borrowing constraint.
 
 ---
 
@@ -194,9 +210,9 @@ Benchmark cases:
 
 Same cases as 5.1 with `ArcCoyoneda`.
 
-### 5.3 Benchmark inline-function optimization (Phase 3)
+### ~~5.3 Benchmark inline-function optimization (Phase 3)~~
 
-Before/after benchmarks for the inline-function change in Phase 3.
+Removed. Phase 3 (inline function optimization) was found to be infeasible.
 
 ---
 
@@ -247,23 +263,31 @@ Note that zero-cost fusion applies only via inherent methods; the brand-level `F
 
 Clarify that `.boxed()` in a loop creates a closure chain with O(k) per-element overhead, matching `Coyoneda`'s cost profile. The fusion advantage is realized only with static (compile-time) composition.
 
-### 6.8 Eliminate `unsafe impl Send/Sync` on `ArcCoyonedaBase`
+### 6.8 ~~Eliminate~~ Harden `unsafe impl Send/Sync` on `ArcCoyonedaBase`
 
 **File:** `fp-library/src/types/arc_coyoneda.rs`
 
-Add `Send + Sync` bounds to the struct's where clause:
+**Original proposal (infeasible):** Add `Send + Sync` bounds to the struct's where clause to let the compiler auto-derive. This does NOT work because Rust's auto-`Send/Sync` derivation requires ALL type parameters to be `Send/Sync`, not just fields. The `F` parameter blocks auto-derivation even though it only appears in where-clauses, never as stored data.
+
+**Alternative: Add `F: Send + Sync` to the struct's where clause.** Brand types are zero-sized marker structs, which are auto-`Send/Sync`. This would work but adds a bound that is always satisfied in practice yet clutters the API. It also doesn't help `ArcCoyonedaMapLayer` (see 6.9).
+
+**Revised approach:** Keep the `unsafe impl` but add a compile-time assertion (same approach as 6.9):
 
 ```rust
-struct ArcCoyonedaBase<'a, F, A: 'a>
-where
-    F: Kind_cdc7cd43dac7585f + 'a,
-    <F as Kind_cdc7cd43dac7585f>::Of<'a, A>: Send + Sync,
-{
-    fa: <F as Kind_cdc7cd43dac7585f>::Of<'a, A>,
-}
+const _: () = {
+    fn assert_send<T: Send>() {}
+    fn assert_sync<T: Sync>() {}
+    fn check<'a, F: Kind_cdc7cd43dac7585f + 'a, A: 'a>()
+    where
+        <F as Kind_cdc7cd43dac7585f>::Of<'a, A>: Send + Sync,
+    {
+        assert_send::<ArcCoyonedaBase<'a, F, A>>();
+        assert_sync::<ArcCoyonedaBase<'a, F, A>>();
+    }
+};
 ```
 
-This lets the compiler auto-derive `Send + Sync`, eliminating the `unsafe impl` blocks for `ArcCoyonedaBase`. The `lift` method already requires these bounds, so there is no impact on the public API.
+This verifies the `unsafe impl` at compile time and catches regressions if the struct's fields change.
 
 ### 6.9 Add compile-time assertion for `ArcCoyonedaMapLayer` Send/Sync
 
@@ -321,26 +345,34 @@ Add documentation (in the module docs and near the existing brand trait impls) e
 Phase 1 (Stack Safety)
   |
   v
-Phase 2 (API Parity)  --->  Phase 3 (Performance Optimization)
-  |                              |
-  v                              v
+Phase 2 (API Parity)
+  |
+  v
 Phase 4 (Testing)  <---  Phase 5 (Benchmarks)
   |
   v
 Phase 6 (Documentation and Polish)
 ```
 
-Phases 1 and 2 are independent of each other but should precede testing. Phase 3 (inline functions) can proceed in parallel with Phase 2 but should be benchmarked (Phase 5) before and after. Phase 6 can proceed at any time.
+Phase 1 and Phase 2 are independent of each other but should both precede testing. Phase 3 has been removed (infeasible). Phase 6 can proceed at any time.
+
+---
+
+## Deferred Items
+
+The following items from the summary are not addressed in this plan and are deferred for future consideration:
+
+- **Consuming `lower(self)` for Rc/Arc variants** (summary item 3.3): Would attempt `Rc::try_unwrap`/`Arc::try_unwrap` to avoid cloning when the refcount is 1. Deferred due to implementation complexity (the inner trait would need a `lower_owned(self: Box<Self>)` fallback method) and low priority.
 
 ---
 
 ## Estimated Scope
 
-| Phase            | Steps | Complexity                                                  |
-| ---------------- | ----- | ----------------------------------------------------------- |
-| 1. Stack Safety  | 5     | Low; mechanical changes mirroring existing patterns         |
-| 2. API Parity    | 6     | Medium; inherent methods (brand impls infeasible, see 2.5)  |
-| 3. Performance   | 1     | Medium; internal refactor, no API change                    |
-| 4. Testing       | 5     | Medium; test infrastructure setup                           |
-| 5. Benchmarks    | 3     | Low; extends existing benchmark file                        |
-| 6. Documentation | 11    | Low; documentation, unsafe refactoring, and small additions |
+| Phase              | Steps | Complexity                                                 |
+| ------------------ | ----- | ---------------------------------------------------------- |
+| 1. Stack Safety    | 5     | Low; mechanical changes mirroring existing patterns        |
+| 2. API Parity      | 6     | Medium; inherent methods (brand impls infeasible, see 2.5) |
+| ~~3. Performance~~ | ~~0~~ | ~~Removed; inline function optimization infeasible~~       |
+| 4. Testing         | 5     | Medium; test infrastructure setup                          |
+| 5. Benchmarks      | 2     | Low; extends existing benchmark file                       |
+| 6. Documentation   | 11    | Low; documentation, unsafe hardening, and small additions  |
