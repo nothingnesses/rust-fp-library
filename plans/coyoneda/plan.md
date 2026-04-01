@@ -86,35 +86,39 @@ Requires `F: Functor` (same limitation as `Coyoneda::hoist`).
 
 Same pattern with `Send + Sync` bounds.
 
-### 2.5 Implement `Pointed` for `RcCoyonedaBrand`
+### 2.5 Add inherent methods to `RcCoyoneda` (revised: brand-level impls infeasible)
 
 **File:** `fp-library/src/types/rc_coyoneda.rs`
 
-Delegate to `F::pure` and `RcCoyoneda::lift`.
+~~Originally planned as brand-level trait impls (`Pointed`, `Lift`, `Semiapplicative`, `Semimonad` for `RcCoyonedaBrand`).~~
 
-### 2.6 Implement `Lift` for `RcCoyonedaBrand`
+**Feasibility finding:** Brand-level trait impls are **not possible** due to a `Clone` bound that cannot be expressed in the trait method signatures. The root cause:
 
-**File:** `fp-library/src/types/rc_coyoneda.rs`
+- `RcCoyoneda` wraps `Rc<dyn RcCoyonedaLowerRef>`. Constructing this requires `F::Of<'a, A>: Clone` because `RcCoyonedaBase`'s `RcCoyonedaLowerRef` impl has that bound, and the bound must be satisfied to coerce the struct to the trait object.
+- `Coyoneda::lift` has no such requirement because `CoyonedaBase::lower` consumes `self: Box<Self>` (moving, no clone needed).
+- Trait method signatures (`Pointed::pure`, `Semimonad::bind`, `Lift::lift2`, `Semiapplicative::apply`) don't include `Clone` bounds on `F::Of<'a, A>`, and Rust doesn't allow adding extra where clauses to methods in trait impls beyond what the trait definition specifies.
 
-Lower both arguments via `lower_ref`, delegate to `F::lift2`, re-lift.
+**Revised approach:** Add inherent methods (`pure`, `apply`, `bind`, `lift2`) directly on `RcCoyoneda`, specifying the `Clone` bound freely. This matches the approach for `ArcCoyoneda` and follows the pattern established by `CoyonedaExplicit`'s inherent methods.
 
-### 2.7 Implement `Semiapplicative` for `RcCoyonedaBrand`
+Bounds for each:
 
-**File:** `fp-library/src/types/rc_coyoneda.rs`
+- `pure(a)`: `F: Pointed`, `F::Of<'a, A>: Clone`
+- `bind(self, f)`: `F: Functor + Semimonad`, `F::Of<'a, B>: Clone`
+- `apply(ff, fa)`: `F: Functor + Semiapplicative`, `F::Of<'a, B>: Clone`
+- `lift2(func, fa, fb)`: `F: Functor + Lift`, `F::Of<'a, C>: Clone`
 
-Lower both arguments, delegate to `F::apply`, re-lift.
-
-### 2.8 Implement `Semimonad` for `RcCoyonedaBrand`
-
-**File:** `fp-library/src/types/rc_coyoneda.rs`
-
-Lower the input, delegate to `F::bind` (lowering inside the callback), re-lift.
-
-### 2.9 Add inherent methods to `ArcCoyoneda`
+### 2.6 Add inherent methods to `ArcCoyoneda`
 
 **File:** `fp-library/src/types/arc_coyoneda.rs`
 
-Since `ArcCoyonedaBrand` cannot implement `Functor` (and therefore most other type classes), add inherent methods for `pure`, `apply`, `bind`, and `lift2` on `ArcCoyoneda` directly. Follow the pattern of `CoyonedaExplicit`'s inherent methods.
+Same approach as 2.5, with additional `Send + Sync` bounds on `F::Of<'a, A>`. Confirmed feasible: the "lower, delegate, re-lift" pattern works because the closures passed to `F`'s trait methods are plain `impl Fn + 'a` (no `Send + Sync` needed at the trait level); the `Send + Sync` constraint that blocks `Functor` for `ArcCoyonedaBrand` only applies to closures _stored_ inside Arc-wrapped layers.
+
+Bounds for each:
+
+- `pure(a)`: `F: Pointed`, `F::Of<'a, A>: Clone + Send + Sync`
+- `bind(self, f)`: `F: Functor + Semimonad`, `F::Of<'a, B>: Clone + Send + Sync`
+- `apply(ff, fa)`: `F: Functor + Semiapplicative`, `F::Of<'a, B>: Clone + Send + Sync`
+- `lift2(func, fa, fb)`: `F: Functor + Lift`, `F::Of<'a, C>: Clone + Send + Sync`
 
 ---
 
@@ -243,11 +247,71 @@ Note that zero-cost fusion applies only via inherent methods; the brand-level `F
 
 Clarify that `.boxed()` in a loop creates a closure chain with O(k) per-element overhead, matching `Coyoneda`'s cost profile. The fusion advantage is realized only with static (compile-time) composition.
 
-### 6.8 Improve unsafe impl safety comments
+### 6.8 Eliminate `unsafe impl Send/Sync` on `ArcCoyonedaBase`
 
 **File:** `fp-library/src/types/arc_coyoneda.rs`
 
-Make safety comments more explicit about the full invariant chain and what modifications would break soundness.
+Add `Send + Sync` bounds to the struct's where clause:
+
+```rust
+struct ArcCoyonedaBase<'a, F, A: 'a>
+where
+    F: Kind_cdc7cd43dac7585f + 'a,
+    <F as Kind_cdc7cd43dac7585f>::Of<'a, A>: Send + Sync,
+{
+    fa: <F as Kind_cdc7cd43dac7585f>::Of<'a, A>,
+}
+```
+
+This lets the compiler auto-derive `Send + Sync`, eliminating the `unsafe impl` blocks for `ArcCoyonedaBase`. The `lift` method already requires these bounds, so there is no impact on the public API.
+
+### 6.9 Add compile-time assertion for `ArcCoyonedaMapLayer` Send/Sync
+
+**File:** `fp-library/src/types/arc_coyoneda.rs`
+
+The `unsafe impl Send/Sync` on `ArcCoyonedaMapLayer` cannot be eliminated. Both fields are `Arc<dyn ... + Send + Sync>` (unconditionally `Send + Sync`), but the compiler cannot auto-derive because the struct carries `F: Kind` in its where clause, and the compiler conservatively assumes `F`'s associated types might be `!Send`, even though `F` only appears in type-level positions within trait object bounds, never as stored data. Approaches assessed and ruled out:
+
+- Adding `Send + Sync` to the `Kind` trait: enormous blast radius (breaks `Thunk`, `RcCoyoneda`, `FnBrand<RcBrand>`, etc.).
+- Separate `SendKind` trait: requires `for<'a, A: 'a>` quantification over types, not supported on stable Rust.
+- `Send + Sync` as supertraits of `ArcCoyonedaLowerRef`: already the case; not sufficient because the blocker is the `F` parameter, not the trait object.
+- Wrapper types, `PhantomData` tricks: do not address the root cause (the generic `F` in the where clause).
+
+Add a compile-time assertion as a regression guard:
+
+```rust
+const _: () = {
+    fn assert_send_sync<T: Send + Sync>() {}
+    fn check<'a, F: Kind_cdc7cd43dac7585f + 'a, B: 'a, A: 'a>() {
+        assert_send_sync::<Arc<dyn ArcCoyonedaLowerRef<'a, F, B> + 'a>>();
+        assert_send_sync::<Arc<dyn Fn(B) -> A + Send + Sync + 'a>>();
+    }
+};
+```
+
+### 6.10 Document why `unsafe impl Send/Sync` is needed on `ArcCoyonedaMapLayer`
+
+**File:** `fp-library/src/types/arc_coyoneda.rs`
+
+Replace the existing SAFETY comments on `ArcCoyonedaMapLayer`'s `unsafe impl Send/Sync` with a thorough explanation covering:
+
+- Both fields are `Arc<dyn ... + Send + Sync>`, which are unconditionally `Send + Sync` regardless of `F`.
+- The compiler cannot auto-derive because the struct has a `where F: Kind` clause, and `Kind`'s associated type `Of` has no `Send/Sync` bounds. The compiler conservatively blocks auto-derivation for any struct parameterized over a type whose associated types lack these bounds, even when the generic parameter only appears in type-level positions within trait object bounds and is never stored as data.
+- Adding `Send + Sync` to `Kind::Of` is not feasible because it would break all `!Send`/`!Sync` types in the library (`Thunk`, `RcCoyoneda`, `FnBrand<RcBrand>`, etc.).
+- A `SendKind` subtrait is not expressible on stable Rust (requires higher-ranked type quantification, not just lifetime quantification).
+- The compile-time assertion (step 6.9) guards against regressions if the struct's fields are modified.
+- List what would break soundness: adding a field that is not `Send + Sync`, or removing `Send + Sync` from `ArcCoyonedaLowerRef`'s supertraits or from the `func` field's trait object bounds.
+
+### 6.11 Document brand-level trait impl limitations in source code
+
+**Files:** `fp-library/src/types/rc_coyoneda.rs`, `fp-library/src/types/arc_coyoneda.rs`
+
+Add documentation (in the module docs and near the existing brand trait impls) explaining why `Pointed`, `Lift`, `Semiapplicative`, and `Semimonad` cannot be implemented for `RcCoyonedaBrand` or `ArcCoyonedaBrand`. The explanation should cover:
+
+- The `Clone` bound on `F::Of<'a, A>` required by `RcCoyonedaBase`'s `RcCoyonedaLowerRef` impl (needed to coerce to the trait object at construction time).
+- Why `CoyonedaBrand` avoids this: `Coyoneda::lift` has no `Clone` requirement because `CoyonedaBase::lower` consumes `self: Box<Self>`.
+- That Rust does not allow adding extra where clauses to trait method impls beyond what the trait definition specifies, so the `Clone` bound cannot be expressed.
+- For `ArcCoyonedaBrand`, the additional `Send + Sync` limitation on `Functor::map` closures (already documented).
+- That inherent methods (`pure`, `apply`, `bind`, `lift2`) are provided instead, with the `Clone` (and `Send + Sync` for Arc) bounds specified directly.
 
 ---
 
@@ -272,11 +336,11 @@ Phases 1 and 2 are independent of each other but should precede testing. Phase 3
 
 ## Estimated Scope
 
-| Phase            | Steps | Complexity                                                |
-| ---------------- | ----- | --------------------------------------------------------- |
-| 1. Stack Safety  | 5     | Low; mechanical changes mirroring existing patterns       |
-| 2. API Parity    | 9     | Medium; follows established patterns from `CoyonedaBrand` |
-| 3. Performance   | 1     | Medium; internal refactor, no API change                  |
-| 4. Testing       | 5     | Medium; test infrastructure setup                         |
-| 5. Benchmarks    | 3     | Low; extends existing benchmark file                      |
-| 6. Documentation | 8     | Low; documentation and small additions                    |
+| Phase            | Steps | Complexity                                                  |
+| ---------------- | ----- | ----------------------------------------------------------- |
+| 1. Stack Safety  | 5     | Low; mechanical changes mirroring existing patterns         |
+| 2. API Parity    | 6     | Medium; inherent methods (brand impls infeasible, see 2.5)  |
+| 3. Performance   | 1     | Medium; internal refactor, no API change                    |
+| 4. Testing       | 5     | Medium; test infrastructure setup                           |
+| 5. Benchmarks    | 3     | Low; extends existing benchmark file                        |
+| 6. Documentation | 11    | Low; documentation, unsafe refactoring, and small additions |

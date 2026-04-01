@@ -27,7 +27,7 @@ Since `RcCoyoneda`/`ArcCoyoneda` are `Clone`, users are more likely to build lon
 
 ### 1.2 Missing Type Class Instances for `RcCoyonedaBrand` (5/5)
 
-`CoyonedaBrand` implements `Functor`, `Pointed`, `Foldable`, `Lift`, `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`, and `Monad` (blanket). `RcCoyonedaBrand` only implements `Functor` and `Foldable`. There is no fundamental blocker preventing the remaining instances; they can all follow the "lower, delegate to F, re-lift" pattern.
+`CoyonedaBrand` implements `Functor`, `Pointed`, `Foldable`, `Lift`, `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`, and `Monad` (blanket). `RcCoyonedaBrand` only implements `Functor` and `Foldable`.
 
 | Type class        | `CoyonedaBrand` | `RcCoyonedaBrand` | `ArcCoyonedaBrand` |
 | ----------------- | --------------- | ----------------- | ------------------ |
@@ -40,9 +40,15 @@ Since `RcCoyoneda`/`ArcCoyoneda` are `Clone`, users are more likely to build lon
 | `Semiapplicative` | Yes             | **No**            | No                 |
 | `Semimonad`       | Yes             | **No**            | No                 |
 
-For `ArcCoyonedaBrand`, the absence of `Functor` is an inherent HKT limitation (closure parameters lack `Send + Sync` bounds), so additional instances depending on `Functor` cannot be added via the brand. Reviewers recommend inherent methods on `ArcCoyoneda` instead.
+**Feasibility assessment (post-review):** Brand-level trait impls for `RcCoyonedaBrand` are **not possible**. The blocker is a `Clone` bound that cannot be expressed in the trait method signatures:
 
-**Consensus recommendation:** Implement `Pointed`, `Lift`, `Semiapplicative`, and `Semimonad` for `RcCoyonedaBrand`. Add equivalent inherent methods to `ArcCoyoneda`.
+- `RcCoyoneda` wraps `Rc<dyn RcCoyonedaLowerRef>`. Constructing this requires `F::Of<'a, A>: Clone` because `RcCoyonedaBase`'s `RcCoyonedaLowerRef` impl has that bound, and the bound must be satisfied to coerce the struct into the trait object.
+- `CoyonedaBrand` avoids this because `Coyoneda::lift` has no `Clone` requirement; its `CoyonedaBase::lower` consumes `self: Box<Self>` (moving, not cloning).
+- The trait method signatures (`Pointed::pure`, `Semimonad::bind`, `Lift::lift2`, `Semiapplicative::apply`) don't include a `Clone` bound on `F::Of<'a, A>`, and Rust doesn't allow adding extra where clauses to methods in trait impls beyond what the trait definition specifies.
+
+For `ArcCoyonedaBrand`, the same `Clone` blocker applies, compounded by the existing `Send + Sync` limitation on `Functor::map` closures.
+
+**Revised recommendation:** Add inherent methods (`pure`, `apply`, `bind`, `lift2`) directly on both `RcCoyoneda` and `ArcCoyoneda`, where the `Clone` (and `Send + Sync` for Arc) bounds can be specified freely. This follows the pattern established by `CoyonedaExplicit`'s inherent methods.
 
 ---
 
