@@ -37,8 +37,6 @@ jobs:
       matrix:
         features:
           - ""
-          - "--features rayon"
-          - "--features serde"
           - "--all-features"
     steps:
       - uses: actions/checkout@v6

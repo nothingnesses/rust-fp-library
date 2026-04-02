@@ -1,6 +1,6 @@
 ### Tasks to do & ideas to look into
 
-- Optics: Implement missing functionality from [analysis](optics-analysis.md).
+- Optics: Implement missing functionality from [analysis](../fp-library/docs/optics-analysis.md).
 - Algebraic effects/effect system to implement extensible effects
   - [Analysis](plans/effects/effects.md)
   - [Eff](https://github.com/lexi-lambda/eff) [documentation](https://hasura.github.io/eff/Control-Effect.html)
@@ -18,7 +18,7 @@
   - **GitHub Pages with Criterion reports.** Push the full Criterion HTML output to a `gh-pages` branch via CI. Always up to date, interactive charts. More setup.
   - **Separate repo.** Prevents bloating the main repo. Downside: harder to keep in sync with code changes.
   - Regardless of hosting, regenerating graphs should be part of the release process.
-- Write user stories for all types, traits, and modules. Each should have a one-line "I want to..." description explaining when and why a user would reach for it. See `docs/coyoneda.md`, `docs/lazy-evaluation.md`, and `fp-library/src/types/free.rs` for the pattern. Prioritize types that are easy to confuse with each other (e.g., Thunk vs Trampoline vs Lazy, the four Coyoneda variants, Functor vs RefFunctor vs SendRefFunctor).
+- Write user stories for all types, traits, and modules. Each should have a one-line "I want to..." description explaining when and why a user would reach for it. See `fp-library/docs/coyoneda.md`, `fp-library/docs/lazy-evaluation.md`, and `fp-library/src/types/free.rs` for the pattern. Prioritize types that are easy to confuse with each other (e.g., Thunk vs Trampoline vs Lazy, the four Coyoneda variants, Functor vs RefFunctor vs SendRefFunctor).
 - Expand benchmark coverage per [benchmarking/coverage-gaps.md](plans/benchmarking/coverage-gaps.md). Priority order: optics, fallible lazy types, newtype wrappers (zero-cost verification), CatList type class ops, SendThunk/Identity, parallel operations.
 
 ### Parallel type classes
