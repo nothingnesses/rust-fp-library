@@ -180,51 +180,83 @@ pub fn bench_cat_list(c: &mut Criterion) {
 		group.finish();
 	}
 
-	// Left-Associated Append (The "Torture Test")
-	// This is the key benchmark demonstrating CatList's "Reflection without Remorse" advantage.
-	// Pattern: ((list ++ a) ++ b) ++ c ... (left-associated appends)
-	// CatList: O(n) total, Vec: O(n^2) total
+	// Append Two Lists of Size N
+	// The key benchmark for CatList's O(1) append vs Vec's O(n) extend.
+	// Pre-builds two lists of size N, then appends them.
 	{
-		let mut group = c.benchmark_group("CatList Left-Assoc Append");
+		let mut group = c.benchmark_group("CatList Append Two Lists");
 		for &size in sizes {
-			group.bench_with_input(BenchmarkId::new("CatList", size), &size, |b, &s| {
+			let cat1: CatList<i32> = (0 .. size).collect();
+			let cat2: CatList<i32> = (size .. size * 2).collect();
+			let vec1: Vec<i32> = (0 .. size).collect();
+			let vec2: Vec<i32> = (size .. size * 2).collect();
+
+			group.bench_with_input(BenchmarkId::new("CatList", size), &size, |b, &_| {
 				b.iter_batched(
-					|| CatList::singleton(0i32),
-					|mut list| {
-						for i in 1 .. s {
-							list = list.append(CatList::singleton(i));
-						}
-						list
+					|| (cat1.clone(), cat2.clone()),
+					|(l1, l2)| l1.append(l2),
+					BatchSize::SmallInput,
+				)
+			});
+			group.bench_with_input(BenchmarkId::new("Vec", size), &size, |b, &_| {
+				b.iter_batched(
+					|| (vec1.clone(), vec2.clone()),
+					|(mut v1, v2)| {
+						v1.extend(v2);
+						v1
 					},
 					BatchSize::SmallInput,
 				)
 			});
-			group.bench_with_input(BenchmarkId::new("Vec", size), &size, |b, &s| {
+		}
+		group.finish();
+	}
+
+	// Left-Associated Append then Consume
+	// Pattern: ((list ++ chunk) ++ chunk) ++ chunk ... then iterate the result.
+	// This demonstrates CatList's O(1) append + amortized O(1) uncons vs
+	// Vec's O(n) extend per step. Appends k chunks of size 10, then iterates.
+	// Total elements = k * 10. CatList: O(k) append + O(k*10) iterate = O(n).
+	// Vec: O(k * growing_size) append = O(n^2).
+	{
+		let chunk_counts: &[i32] = &[10, 50, 100, 200, 500];
+		let chunk_size = 10;
+		let mut group = c.benchmark_group("CatList Left-Assoc Append+Consume");
+		for &chunks in chunk_counts {
+			let cat_chunk: CatList<i32> = (0 .. chunk_size).collect();
+			let vec_chunk: Vec<i32> = (0 .. chunk_size).collect();
+			let label = chunks * chunk_size;
+
+			group.bench_with_input(BenchmarkId::new("CatList", label), &chunks, |b, &k| {
 				b.iter_batched(
-					|| vec![0i32],
-					|mut v| {
-						for i in 1 .. s {
-							v.extend(vec![i]);
+					|| cat_chunk.clone(),
+					|chunk| {
+						let mut list = chunk;
+						for _ in 1 .. k {
+							list = list.append(cat_chunk.clone());
 						}
-						v
+						let mut sum = 0i32;
+						for item in list {
+							sum = sum.wrapping_add(item);
+						}
+						black_box(sum)
 					},
 					BatchSize::SmallInput,
 				)
 			});
-			group.bench_with_input(BenchmarkId::new("LinkedList", size), &size, |b, &s| {
+			group.bench_with_input(BenchmarkId::new("Vec", label), &chunks, |b, &k| {
 				b.iter_batched(
-					|| {
-						let mut l = LinkedList::new();
-						l.push_back(0i32);
-						l
-					},
-					|mut l| {
-						for i in 1 .. s {
-							let mut other = LinkedList::new();
-							other.push_back(i);
-							l.append(&mut other);
+					|| vec_chunk.clone(),
+					|chunk| {
+						let mut v = chunk;
+						for _ in 1 .. k {
+							v.extend(vec_chunk.clone());
 						}
-						l
+						let mut sum = 0i32;
+						for item in &v {
+							sum = sum.wrapping_add(*item);
+						}
+						black_box(sum)
 					},
 					BatchSize::SmallInput,
 				)

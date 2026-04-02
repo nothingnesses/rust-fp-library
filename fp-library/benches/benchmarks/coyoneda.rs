@@ -52,19 +52,23 @@ pub fn bench_coyoneda(c: &mut Criterion) {
 				)
 			});
 
-			group.bench_with_input(BenchmarkId::new("CoyonedaExplicit", depth), &depth, |b, &k| {
-				b.iter_batched(
-					|| v_orig.clone(),
-					|v| {
-						let mut coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(v).boxed();
-						for _ in 0 .. k {
-							coyo = coyo.map(|x: i32| x + 1).boxed();
-						}
-						coyo.lower()
-					},
-					BatchSize::SmallInput,
-				)
-			});
+			group.bench_with_input(
+				BenchmarkId::new("CoyonedaExplicit (boxed)", depth),
+				&depth,
+				|b, &k| {
+					b.iter_batched(
+						|| v_orig.clone(),
+						|v| {
+							let mut coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(v).boxed();
+							for _ in 0 .. k {
+								coyo = coyo.map(|x: i32| x + 1).boxed();
+							}
+							coyo.lower()
+						},
+						BatchSize::SmallInput,
+					)
+				},
+			);
 
 			group.bench_with_input(BenchmarkId::new("RcCoyoneda", depth), &depth, |b, &k| {
 				b.iter_batched(
@@ -178,6 +182,112 @@ pub fn bench_coyoneda(c: &mut Criterion) {
 				)
 			});
 		}
+		group.finish();
+	}
+
+	// Map fusion: CoyonedaExplicit without boxing vs Direct.
+	// CoyonedaExplicit composes functions at the type level, so k maps result
+	// in a single call to F::map at lower time. Without boxing, the type grows
+	// with each map, so we use fixed depths via macro.
+	{
+		let mut group = c.benchmark_group("Coyoneda Fusion");
+
+		macro_rules! bench_fusion {
+			($depth:tt) => {
+				group.bench_with_input(
+					BenchmarkId::new("CoyonedaExplicit (fused)", $depth),
+					&$depth,
+					|b, &_| {
+						b.iter_batched(
+							|| v_orig.clone(),
+							|v| {
+								let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(v);
+								seq_apply!(coyo, $depth).lower()
+							},
+							BatchSize::SmallInput,
+						)
+					},
+				);
+				group.bench_with_input(BenchmarkId::new("Direct", $depth), &$depth, |b, &_| {
+					b.iter_batched(
+						|| v_orig.clone(),
+						|v| {
+							let mut result = v;
+							for _ in 0 .. $depth {
+								result = map::<VecBrand, _, _>(|x: i32| x + 1, result);
+							}
+							result
+						},
+						BatchSize::SmallInput,
+					)
+				});
+				group.bench_with_input(
+					BenchmarkId::new("CoyonedaExplicit (boxed)", $depth),
+					&$depth,
+					|b, &_| {
+						b.iter_batched(
+							|| v_orig.clone(),
+							|v| {
+								let mut coyo =
+									CoyonedaExplicit::<VecBrand, _, _, _>::lift(v).boxed();
+								for _ in 0 .. $depth {
+									coyo = coyo.map(|x: i32| x + 1).boxed();
+								}
+								coyo.lower()
+							},
+							BatchSize::SmallInput,
+						)
+					},
+				);
+			};
+		}
+
+		// Apply .map(|x| x + 1) N times without boxing, producing a nested closure type.
+		macro_rules! seq_apply {
+			($coyo:expr, 1) => {
+				$coyo.map(|x: i32| x + 1)
+			};
+			($coyo:expr, 5) => {
+				$coyo
+					.map(|x: i32| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+			};
+			($coyo:expr, 10) => {
+				seq_apply!($coyo, 5)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+			};
+			($coyo:expr, 25) => {
+				seq_apply!($coyo, 10)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+					.map(|x| x + 1)
+			};
+		}
+
+		bench_fusion!(1);
+		bench_fusion!(5);
+		bench_fusion!(10);
+		bench_fusion!(25);
+
 		group.finish();
 	}
 }
