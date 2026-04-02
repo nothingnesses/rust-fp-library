@@ -1,5 +1,143 @@
 # Limitations
 
+## The Brand Pattern (No Native HKT)
+
+### The Issue
+
+Rust does not support higher-kinded types natively. You cannot write `impl Functor for Option` because `Option` is a type constructor (`* -> *`), not a type (`*`), and Rust's trait system only operates on concrete types.
+
+The library works around this using the Brand pattern (lightweight higher-kinded polymorphism / type-level defunctionalization): each type constructor has a zero-sized marker type (e.g., `OptionBrand`) that implements `Kind` traits mapping it back to the concrete type.
+
+### Consequences
+
+- **Turbofish required.** The brand parameter is rarely inferable, so most calls require explicit annotation: `map::<OptionBrand, _, _>(|x| x + 1, Some(5))` instead of `Some(5).map(|x| x + 1)`.
+- **No method syntax.** Type class operations are free functions, not methods on the container. You write `bind::<OptionBrand, _, _>(f, x)` not `x.bind(f)`.
+- **Generated trait names in errors.** Compiler errors expose the macro-generated `Kind` trait names (e.g., `Kind_cdc7cd43dac7585f`) rather than human-readable names, making diagnostics harder to interpret.
+- **Wrapping/unwrapping overhead in generic code.** Generic functions must use `Apply!` macro invocations to convert between the `Kind` associated type and the concrete type, adding syntactic noise.
+
+### Mitigation
+
+The `m_do!` and `a_do!` macros provide ergonomic do-notation that hides the brand plumbing. The `Pipe` trait allows method-chaining syntax for some operations. The `impl_kind!` and `trait_kind!` macros automate the boilerplate of defining new brands and kind traits.
+
+## No Rank-N Types
+
+### The Issue
+
+Rust cannot express rank-2 (or higher) types. You cannot write a type alias or data type that is universally quantified over a trait-bounded type parameter. In PureScript/Haskell, rank-2 types are used pervasively in FP abstractions. Their absence in Rust forces workarounds throughout the library.
+
+### Consequences
+
+#### Profunctor optics
+
+In PureScript, an optic is a rank-2 polymorphic function:
+
+```purescript
+type Lens s t a b = forall p. Strong p => p a b -> p s t
+```
+
+Composition is ordinary function composition (`<<<`), and the profunctor is chosen at the use site. Rust cannot express this, so the library uses concrete structs (`Lens`, `Prism`, `Iso`, etc.) storing reified internal representations (equivalent to PureScript's `ALens`/`APrism`/`AnIso`), composed via a `Composed` struct with static dispatch rather than function composition. This results in deeply nested types for long composition chains, and generic code must be bounded by optic traits (e.g., `O: LensOptic`) rather than profunctor constraints.
+
+See [docs/optics-analysis.md](optics-analysis.md) and [docs/profunctor-analysis.md](profunctor-analysis.md) for detailed comparisons.
+
+#### `Wander` trait
+
+PureScript's `wander` takes `forall f. Applicative f => (a -> f b) -> s -> f t`. Rust encodes this via the `TraversalFunc` trait, which provides a concrete `apply` method that the `Wander` implementation calls with specific applicative functors.
+
+#### No `Yoneda` type
+
+PureScript's `Yoneda f a` is `forall b. (a -> b) -> f b`, which requires rank-2 quantification to store as a data type. This cannot be represented in Rust.
+
+#### No `unCoyoneda` eliminator
+
+In Haskell/PureScript, `unCoyoneda :: (forall b. (b -> a) -> f b -> r) -> Coyoneda f a -> r` provides access to the existential intermediate type `b` via a rank-2 continuation. Without this, `Coyoneda::hoist` must lower first (requiring `F: Functor`), transform, then re-lift. PureScript's `hoistCoyoneda` has no `Functor` constraint. `CoyonedaExplicit` avoids this because `B` is an explicit type parameter, not existential.
+
+## Unexpressible Bounds in Trait Method Signatures
+
+### The Issue
+
+Several types (`RcCoyoneda`, `ArcCoyoneda`) cannot implement type class traits at the brand level because their constructors require bounds (like `Clone` or `Send + Sync`) on the `Kind` associated type `F::Of<'a, A>` that cannot be expressed in the trait method signature.
+
+For example, `RcCoyoneda::lift` requires `F::Of<'a, A>: Clone` because the base layer must be clonable for `lower_ref` to work. But the `Pointed` trait's `pure` method has no way to express this:
+
+```rust
+// Pointed::pure signature - no Clone bound on the return type's contents
+fn pure<'a, A: 'a>(value: A) -> Self::Of<'a, A>;
+```
+
+The same problem affects `Semimonad::bind`, `Semiapplicative::apply`, and `Lift::lift2` for `RcCoyoneda` and `ArcCoyoneda`.
+
+For `ArcCoyoneda`, the problem is compounded: `Functor::map` also cannot be implemented because the HKT `map` signature lacks `Send + Sync` bounds on the closure parameter, so closures passed to `map` cannot be stored inside `Arc`-wrapped layers.
+
+### Consequences
+
+| Type          | Brand-level `Functor` | Brand-level `Pointed` | Brand-level `Semimonad` | Reason                                                         |
+| :------------ | :-------------------- | :-------------------- | :---------------------- | :------------------------------------------------------------- |
+| `Coyoneda`    | Yes                   | Yes                   | Yes                     | `Box<dyn FnOnce>` has no extra bounds.                         |
+| `RcCoyoneda`  | Yes                   | No                    | No                      | Needs `F::Of: Clone`.                                          |
+| `ArcCoyoneda` | No                    | No                    | No                      | Needs `F::Of: Clone + Send + Sync` and closures `Send + Sync`. |
+
+### Workaround: Inherent Methods
+
+All affected operations are available as inherent methods with the necessary bounds stated explicitly:
+
+```rust
+// RcCoyoneda - inherent pure with Clone bound
+impl<'a, F, A: 'a> RcCoyoneda<'a, F, A> {
+    pub fn pure(value: A) -> Self
+    where F::Of<'a, A>: Clone { ... }
+}
+
+// ArcCoyoneda - inherent map with Send + Sync on closure
+impl<'a, F, A: 'a> ArcCoyoneda<'a, F, A> {
+    pub fn map<B: 'a>(self, f: impl Fn(A) -> B + Send + Sync + 'a) -> ArcCoyoneda<'a, F, B> { ... }
+}
+```
+
+This means these types cannot be used generically (e.g., passed to a function expecting `F: Pointed`), but all operations work when used directly. See [docs/coyoneda.md](coyoneda.md) for the full comparison.
+
+### Root Cause
+
+Rust's trait system does not support conditional bounds on associated types. There is no way to write "when `A: Clone`, then `Self::Of<'a, A>` supports `pure`." Each trait method signature is fixed for all implementors. This is a fundamental Rust limitation, not a library design issue.
+
+## Memoized Types Cannot Implement `Functor`
+
+### The Issue
+
+`Lazy::evaluate()` returns `&A` (a reference to the cached value), not an owned `A`. The standard `Functor` trait expects `map` to consume an owned `A`:
+
+```rust
+fn map<'a, A: 'a, B: 'a>(f: impl Fn(A) -> B + 'a, fa: Self::Of<'a, A>) -> Self::Of<'a, B>;
+```
+
+Automatically cloning the inner value to satisfy this signature would violate the library's zero-cost abstraction principle, since `Clone` may be expensive and the caller has no control over when it happens.
+
+### Implemented Solution: `RefFunctor` and `SendRefFunctor`
+
+Separate traits that honestly represent what memoized types can do:
+
+- [`RefFunctor`](../fp-library/src/classes/ref_functor.rs): `ref_map(func: impl FnOnce(&A) -> B, fa)` takes the value by reference. Implemented by `RcLazy`.
+- [`SendRefFunctor`](../fp-library/src/classes/send_ref_functor.rs): Same but with `Send + Sync` bounds on `A`, `B`, and the closure. Implemented by `ArcLazy`.
+
+The two traits are independent (not in a sub/supertrait relationship) because `RcLazy` is `!Send` and `ArcLazy` requires `Send + Sync`. A single trait with optional `Send` bounds would either exclude `RcLazy` or fail to enforce thread safety for `ArcLazy`.
+
+## `Free` and `Trampoline` Require `'static`
+
+### The Issue
+
+`Free` uses `Box<dyn Any>` for type erasure of continuation values. Since `Any` requires `'static`, all types stored in `Free` must be `'static`. This applies to `Trampoline` as well, since `Trampoline<A>` is `Free<ThunkBrand, A>`.
+
+### Consequences
+
+- **No borrowed data.** You cannot create a `Trampoline` that captures a reference to a local variable. All data must be owned or `'static`.
+- **No HKT trait integration.** The library's HKT traits require lifetime polymorphism (`type Of<'a, A: 'a>: 'a`). Since `Free` is fixed to `'static`, it cannot implement `Functor`, `Monad`, or other HKT traits at the brand level. Operations like `map`, `bind`, and `pure` are provided as inherent methods instead.
+- **Composing with `Lazy` requires cloning.** To memoize a `Trampoline` result via `RcLazy`, you must evaluate first and cache the result, rather than wrapping the `Trampoline` itself (since `Lazy` supports arbitrary lifetimes but `Trampoline` does not).
+
+### Root Cause
+
+Rust's `Any` trait requires `'static` to ensure memory safety (preventing use-after-free of references through downcasting). There is no way to have a lifetime-polymorphic `Any` on stable Rust. `Thunk` and `Lazy` avoid this constraint because they use trait objects with explicit lifetime parameters (`Box<dyn FnOnce() -> A + 'a>`) rather than type erasure via `Any`.
+
+See [docs/lifetime-ablation-experiment.md](lifetime-ablation-experiment.md) for a detailed exploration of the trade-offs around lifetime parameters in the lazy evaluation types.
+
 ## Thread Safety and Parallelism
 
 ### `Foldable` and `CloneableFn`
