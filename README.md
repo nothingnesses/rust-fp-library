@@ -126,7 +126,7 @@ fn main() {
 
 ## Contributing
 
-We welcome contributions! Please feel free to submit a Pull Request.
+We welcome contributions! Please feel free to submit a [Pull Request](https://github.com/nothingnesses/rust-fp-library/compare).
 
 ### Development Environment
 
@@ -178,22 +178,10 @@ For maintainers, the release process is documented in [docs/release-process.md](
 
 This project uses [Criterion.rs](https://github.com/criterion-rs/criterion.rs) for benchmarking to ensure zero-cost abstractions and detect performance regressions.
 
-To run all benchmarks:
-
 ```sh
-just bench -p fp-library
-```
-
-To list available benchmarks:
-
-```sh
-just bench -p fp-library --bench benchmarks -- --list
-```
-
-To run a specific benchmark (e.g., `Vec`):
-
-```sh
-just bench -p fp-library --bench benchmarks -- Vec
+just bench -p fp-library                               # To run all benchmarks
+just bench -p fp-library --bench benchmarks -- --list  # To list available benchmarks
+just bench -p fp-library --bench benchmarks -- Vec     # To run a specific benchmark (e.g., `Vec`)
 ```
 
 Benchmark reports are generated in `target/criterion/report/index.html`.

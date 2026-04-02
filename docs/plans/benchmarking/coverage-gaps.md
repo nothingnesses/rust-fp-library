@@ -69,22 +69,12 @@ Needed benchmarks:
 These should confirm zero overhead via identical timings. If overhead exists,
 it indicates a missed optimization.
 
-## ~~Priority 4: CatList Missing Operations~~ (Done)
-
-Implemented: fold_map, fold_left, traverse (Option), filter, compact,
-all comparing CatList vs Vec (fp and std) across 6 input sizes.
-
-## Priority 5: SendThunk and Identity
+## Priority 4: SendThunk and Identity
 
 - **SendThunk**: Map/bind chains comparing vs Thunk to quantify the Send
   bound overhead (Box<dyn FnOnce + Send> vs Box<dyn FnOnce>).
 - **Identity**: Map, bind, fold comparing fp vs direct operation to verify
   zero-cost wrapper claim. Should show identical timings.
-
-## ~~Priority 6: Parallel Operations~~ (Done)
-
-Implemented: par_map, par_fold_map, par_filter_map, par_compact on Vec,
-each comparing parallel vs sequential at sizes [100, 1000, 10000, 100000].
 
 ## Not Worth Benchmarking
 
