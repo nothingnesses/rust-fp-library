@@ -121,7 +121,7 @@ fn main() {
 - [Profunctor Analysis](docs/profunctor-analysis.md): Profunctor class hierarchy comparison with PureScript.
 - [Std Library Coverage](docs/std-coverage-checklist.md): Type class coverage for standard library types.
 - [Architecture & Design](docs/architecture.md): Module organization and documentation conventions.
-- [Limitations](docs/limitations.md): Details all current limitations.
+- [Limitations and Workarounds](docs/limitations-and-workarounds.md): Rust type system constraints and how the library addresses them.
 
 ## Contributing
 

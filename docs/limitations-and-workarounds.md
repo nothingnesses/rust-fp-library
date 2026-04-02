@@ -1,4 +1,4 @@
-# Limitations
+# Limitations and Workarounds
 
 Sections are ordered from most fundamental (language-level constraints that shape the entire library) to most applied (specific implementation trade-offs with workarounds in place).
 
