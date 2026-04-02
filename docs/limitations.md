@@ -1,5 +1,7 @@
 # Limitations
 
+Sections are ordered from most fundamental (language-level constraints that shape the entire library) to most applied (specific implementation trade-offs with workarounds in place).
+
 ## The Brand Pattern (No Native HKT)
 
 ### The Issue
@@ -18,6 +20,22 @@ The library works around this using the Brand pattern (lightweight higher-kinded
 ### Mitigation
 
 The `m_do!` and `a_do!` macros provide ergonomic do-notation that hides the brand plumbing. The `Pipe` trait allows method-chaining syntax for some operations. The `impl_kind!` and `trait_kind!` macros automate the boilerplate of defining new brands and kind traits.
+
+## Uncurried Semantics (No Zero-Cost Currying)
+
+### The Issue
+
+Most FP languages and libraries use curried functions: `map(f)(fa)`. In Rust, returning a closure from a function requires either boxing it (`Box<dyn Fn>`) or wrapping it in a reference-counted pointer (`Rc<dyn Fn>`, `Arc<dyn Fn>`). Both involve heap allocation and dynamic dispatch, defeating the library's zero-cost abstraction goal.
+
+Every closure in Rust has a unique, anonymous type. A curried `map(f)` would need to return `impl Fn(F::Of<A>) -> F::Of<B>`, but `impl Trait` in return position captures the concrete closure type, making it impossible to store, pass around, or compose without type erasure.
+
+### Consequence
+
+The library uses uncurried semantics throughout: `map(f, fa)` instead of `map(f)(fa)`. This allows the compiler to monomorphize `f` at each call site, enabling inlining and zero heap allocation. The trade-off is that partial application is not directly supported; you must use explicit closures instead (e.g., `|fa| map(f, fa)`).
+
+### Potential Future Resolution
+
+The nightly feature `unboxed_closures` ([rust-lang/rust#29625](https://github.com/rust-lang/rust/issues/29625)) combined with `fn_traits` ([rust-lang/rust#29625](https://github.com/rust-lang/rust/issues/29625)) and particularly `impl_trait_in_fn_trait_return` ([rust-lang/rust#99697](https://github.com/rust-lang/rust/issues/99697)) could enable zero-cost currying by allowing functions to return `impl Fn` without boxing. If stabilized, the library could offer curried variants alongside the uncurried API.
 
 ## No Rank-N Types
 
