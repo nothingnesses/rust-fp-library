@@ -10,7 +10,7 @@ This document surveys every major strategy for implementing algebraic effects as
 
 ### How it works
 
-You represent an effectful computation as a data structure — a free monad — that records each effectful operation as a node in a tree. The tree is then _interpreted_ by a handler that walks the structure, pattern-matching on effect operations and producing concrete results.
+You represent an effectful computation as a data structure -a free monad -that records each effectful operation as a node in a tree. The tree is then _interpreted_ by a handler that walks the structure, pattern-matching on effect operations and producing concrete results.
 
 The core type of the standard free monad is:
 
@@ -28,7 +28,7 @@ data Freer f a
   | forall x. Impure (f x) (x -> Freer f a)
 ```
 
-This separates the effect operation (`f x`) from the continuation (`x -> Freer f a`), so individual effects no longer need to be functors — they are plain GADTs describing operations and their return types. PureScript's `Run` uses the standard free monad (with the Functor requirement), while `freer-simple` uses the freer encoding.
+This separates the effect operation (`f x`) from the continuation (`x -> Freer f a`), so individual effects no longer need to be functors -they are plain GADTs describing operations and their return types. PureScript's `Run` uses the standard free monad (with the Functor requirement), while `freer-simple` uses the freer encoding.
 
 To make effects extensible, `f` is an _open sum_ (extensible variant/coproduct) of individual effect types. PureScript's `Run` uses `VariantF` (a row-polymorphic variant of functors); Haskell libraries typically use a type-level list with membership constraints.
 
@@ -58,17 +58,17 @@ An interpreter peels one layer of the free monad at a time, matching on the effe
 
 ### Trade-offs
 
-| Advantage                                                                 | Disadvantage                                                                        |
-| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| No runtime/compiler modifications needed                                  | Overhead from allocating and interpreting the tree structure                        |
-| Portable across any language with the prerequisites                       | Performance degrades with effect-heavy code (every `bind` allocates)                |
-| Effects are first-class data — you can serialize, inspect, or replay them | Boilerplate for defining each effect's functor                                      |
-| Multi-shot continuations are trivial (just re-interpret the tree)         | Higher-order effects (like `local`, `catch`) are notoriously difficult to get right |
-| Easy to reason about — the semantics is just a fold                       | Stack safety requires explicit care                                                 |
+| Advantage                                                                | Disadvantage                                                                        |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| No runtime/compiler modifications needed                                 | Overhead from allocating and interpreting the tree structure                        |
+| Portable across any language with the prerequisites                      | Performance degrades with effect-heavy code (every `bind` allocates)                |
+| Effects are first-class data -you can serialize, inspect, or replay them | Boilerplate for defining each effect's functor                                      |
+| Multi-shot continuations are trivial (just re-interpret the tree)        | Higher-order effects (like `local`, `catch`) are notoriously difficult to get right |
+| Easy to reason about -the semantics is just a fold                       | Stack safety requires explicit care                                                 |
 
 ### Pitfall: Higher-order effects
 
-The free monad approach struggles with "scoped" or higher-order effects — operations that take effectful computations as arguments (e.g., `local` for Reader, `catchError` for exceptions). The problem is that the continuation in a free monad is _the rest of the computation_, not a delimited scope. Various workarounds exist (weaving/threading in `fused-effects`, Tactics in `polysemy`, the "hefty algebras" approach in `heftia`) but all add complexity. If your use cases are purely first-order/algebraic effects, this isn't an issue. If you need `bracket`, `local`, `mask`, etc., budget significant design effort here.
+The free monad approach struggles with "scoped" or higher-order effects -operations that take effectful computations as arguments (e.g., `local` for Reader, `catchError` for exceptions). The problem is that the continuation in a free monad is _the rest of the computation_, not a delimited scope. Various workarounds exist (weaving/threading in `fused-effects`, Tactics in `polysemy`, the "hefty algebras" approach in `heftia`) but all add complexity. If your use cases are purely first-order/algebraic effects, this isn't an issue. If you need `bracket`, `local`, `mask`, etc., budget significant design effort here.
 
 ---
 
@@ -82,13 +82,13 @@ The free monad approach struggles with "scoped" or higher-order effects — oper
 
 Instead of building a data structure, you run effects directly in IO (or your language's native side-effect mechanism), threading an _environment_ that maps effect labels to their current handler implementations. The `Eff` monad is essentially `ReaderT Env IO` where `Env` is a mutable, indexed collection of handler records.
 
-When you "perform" an effect, you look up the handler in the environment and call it directly — there's no intermediate data structure. When you install a handler, you push a new entry into the environment (shadowing the old one for that effect), run the inner computation, then pop it.
+When you "perform" an effect, you look up the handler in the environment and call it directly -there's no intermediate data structure. When you install a handler, you push a new entry into the environment (shadowing the old one for that effect), run the inner computation, then pop it.
 
 State effects are implemented by allocating an `IORef` (mutable reference) and storing read/write functions in the environment. Error effects are implemented as native exceptions. This means effects compose with IO naturally and have predictable semantics in the presence of concurrency and asynchronous exceptions.
 
 ### Prerequisites from the host language
 
-- **A native side-effect mechanism** (IO monad, mutable state, exceptions). This approach is fundamentally impure — you're using real mutation and exceptions under the hood, with a typed wrapper on top.
+- **A native side-effect mechanism** (IO monad, mutable state, exceptions). This approach is fundamentally impure -you're using real mutation and exceptions under the hood, with a typed wrapper on top.
 - **Mutable references** (IORef, Ref, AtomicReference, etc.) for state effects.
 - **An indexable, mutable environment.** Typically implemented as a mutable array or vector indexed by effect ID (often derived from a type-level list position). Fast random access is important.
 - **Native exceptions** for error effects (optional but strongly recommended for performance and correct interaction with IO).
@@ -96,13 +96,13 @@ State effects are implemented by allocating an `IORef` (mutable reference) and s
 
 ### Trade-offs
 
-| Advantage                                                                                                         | Disadvantage                                                                                                             |
-| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Extremely fast — effect dispatch is a direct function call via a mutable lookup, no data structure interpretation | Cannot support true algebraic effects (multi-shot continuations, nondeterminism) because you can't capture and replay IO |
-| Predictable semantics with concurrency, exceptions, and resource management                                       | You're effectively doing dependency injection with extra steps — philosophically less "algebraic"                        |
-| Natural interop with existing IO-based code                                                                       | Higher-order effects require `MonadUnliftIO`-style machinery, which has its own limitations                              |
-| Minimal allocations, GHC optimizes well                                                                           | Tied to a specific runtime (IO); pure interpretation (for testing) requires a separate code path                         |
-| The "ReaderT IO" pattern is already widely understood                                                             | Effect handlers can't inspect or transform the continuation — they're just functions                                     |
+| Advantage                                                                                                        | Disadvantage                                                                                                             |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Extremely fast -effect dispatch is a direct function call via a mutable lookup, no data structure interpretation | Cannot support true algebraic effects (multi-shot continuations, nondeterminism) because you can't capture and replay IO |
+| Predictable semantics with concurrency, exceptions, and resource management                                      | You're effectively doing dependency injection with extra steps -philosophically less "algebraic"                         |
+| Natural interop with existing IO-based code                                                                      | Higher-order effects require `MonadUnliftIO`-style machinery, which has its own limitations                              |
+| Minimal allocations, GHC optimizes well                                                                          | Tied to a specific runtime (IO); pure interpretation (for testing) requires a separate code path                         |
+| The "ReaderT IO" pattern is already widely understood                                                            | Effect handlers can't inspect or transform the continuation -they're just functions                                      |
 
 ### Key insight: What you give up
 
@@ -121,7 +121,7 @@ The language runtime provides primitives for capturing and reinstating slices of
 - **`perform`** (or `shift`): Capture the continuation from the current point up to the nearest enclosing handler (delimiter/`reset`), package it as a first-class value, and transfer control to the handler.
 - **`continue`** (or `resume`): Reinstate the captured continuation, splicing its stack frames back onto the current stack, and feed it a value.
 
-In OCaml 5, this is implemented with _fibers_ — heap-allocated, dynamically growing stack segments. The program stack is a linked list of fibers. Installing a handler allocates a new fiber. `perform` detaches everything above the handler's fiber and packages it as a continuation object. `continue` reattaches it. No stack frames are copied for one-shot continuations.
+In OCaml 5, this is implemented with _fibers_ -heap-allocated, dynamically growing stack segments. The program stack is a linked list of fibers. Installing a handler allocates a new fiber. `perform` detaches everything above the handler's fiber and packages it as a continuation object. `continue` reattaches it. No stack frames are copied for one-shot continuations.
 
 ### Prerequisites from the host language
 
@@ -130,18 +130,18 @@ In OCaml 5, this is implemented with _fibers_ — heap-allocated, dynamically gr
   - Using platform-specific tricks (like `setjmp`/`longjmp` combined with stack copying, as Koka's `libhandler` does in C)
   - Using OS-level fibers or green threads (e.g., Project Loom on the JVM)
   - CPS-transforming the entire program (a compiler approach, not a library approach)
-- **If one-shot only:** Much simpler — you can use coroutines or fibers without copying. OCaml enforces one-shot dynamically (`Continuation_already_resumed` exception).
+- **If one-shot only:** Much simpler -you can use coroutines or fibers without copying. OCaml enforces one-shot dynamically (`Continuation_already_resumed` exception).
 - **If multi-shot:** You need the ability to copy/clone stack frames, which is significantly more complex and expensive.
 
 ### Trade-offs
 
-| Advantage                                                                                            | Disadvantage                                                                                                           |
-| ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Highest performance for effect dispatch — no encoding overhead                                       | Requires runtime modifications or platform-specific tricks                                                             |
-| Supports true algebraic effects including suspension, resumption, and (if multi-shot) nondeterminism | Not implementable as a pure library in most languages                                                                  |
-| Direct-style code (no monadic wrapping, no CPS, no generators)                                       | One-shot restriction (OCaml, eff) precludes some effects                                                               |
-| Composable — multiple handlers compose naturally via nesting                                         | Continuation objects interact subtly with resources (file handles, locks) — must `discontinue` abandoned continuations |
-| Enables concurrency patterns (fibers, coroutines, schedulers) as user-space libraries                | Debugging stack traces can be confusing with captured continuations                                                    |
+| Advantage                                                                                            | Disadvantage                                                                                                          |
+| ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Highest performance for effect dispatch -no encoding overhead                                        | Requires runtime modifications or platform-specific tricks                                                            |
+| Supports true algebraic effects including suspension, resumption, and (if multi-shot) nondeterminism | Not implementable as a pure library in most languages                                                                 |
+| Direct-style code (no monadic wrapping, no CPS, no generators)                                       | One-shot restriction (OCaml, eff) precludes some effects                                                              |
+| Composable -multiple handlers compose naturally via nesting                                          | Continuation objects interact subtly with resources (file handles, locks) -must `discontinue` abandoned continuations |
+| Enables concurrency patterns (fibers, coroutines, schedulers) as user-space libraries                | Debugging stack traces can be confusing with captured continuations                                                   |
 
 ### Implementing without runtime modifications
 
@@ -168,25 +168,25 @@ The translation works as follows:
 2. When the computation performs an effect, it `yield`s the effect operation (tag + arguments) to the handler coroutine.
 3. The handler receives the yielded effect, inspects it, and decides what to do.
 4. To resume, the handler sends a value back into the coroutine via `resume(value)`.
-5. To abort (like an exception), the handler simply doesn't resume — the coroutine is abandoned.
+5. To abort (like an exception), the handler simply doesn't resume -the coroutine is abandoned.
 
 The handler dispatches by checking if the yielded effect matches its handled effect. If not, it re-yields the effect outward (forwarding to an outer handler), which naturally gives you the stack-search semantics of dynamic handler lookup.
 
 ### Prerequisites from the host language
 
-- **Stackful (asymmetric) coroutines.** The coroutine must be able to yield from _any depth_ in the call stack, not just from the top-level coroutine body. This rules out JavaScript generators (which are stackless — `yield` can only appear directly in the generator function body, not in functions it calls). Languages with stackful coroutines include: Lua, Ruby (Fibers), Kotlin (coroutines), Python (with greenlet or similar), Go (goroutines, though not directly usable this way).
-- **If you only have stackless generators** (JavaScript, Python native generators): You can still implement effects, but every intermediate function in the call chain must also be a generator and must `yield*` / `yield from` through the effects. This is the "coloring problem" — your entire call chain becomes infected with generator syntax. Some libraries (like `effects.js` in JavaScript) accept this cost and use generators as a "do-notation" for the effect monad.
+- **Stackful (asymmetric) coroutines.** The coroutine must be able to yield from _any depth_ in the call stack, not just from the top-level coroutine body. This rules out JavaScript generators (which are stackless -`yield` can only appear directly in the generator function body, not in functions it calls). Languages with stackful coroutines include: Lua, Ruby (Fibers), Kotlin (coroutines), Python (with greenlet or similar), Go (goroutines, though not directly usable this way).
+- **If you only have stackless generators** (JavaScript, Python native generators): You can still implement effects, but every intermediate function in the call chain must also be a generator and must `yield*` / `yield from` through the effects. This is the "coloring problem" -your entire call chain becomes infected with generator syntax. Some libraries (like `effects.js` in JavaScript) accept this cost and use generators as a "do-notation" for the effect monad.
 - **Some form of tagged values** for effect operations (objects, tagged tuples, etc.)
 
 ### Stackful vs. Stackless: A critical distinction
 
-| Feature                   | Stackful (Lua, Ruby Fiber, Kotlin)          | Stackless (JS generators, Python generators)           |
-| ------------------------- | ------------------------------------------- | ------------------------------------------------------ |
-| Yield from nested calls   | Yes — yield captures the full call chain    | No — yield only works at the generator's top level     |
-| Call chain "coloring"     | No — ordinary functions can perform effects | Yes — all intermediate functions must be generators    |
-| Implementation complexity | Lower for the library author                | Higher — must propagate yields manually                |
-| Performance               | Generally better                            | Overhead from generator allocation at each level       |
-| Multi-shot                | No (coroutine state can't be cloned)        | Possible with replay (re-run the generator from start) |
+| Feature                   | Stackful (Lua, Ruby Fiber, Kotlin)         | Stackless (JS generators, Python generators)           |
+| ------------------------- | ------------------------------------------ | ------------------------------------------------------ |
+| Yield from nested calls   | Yes -yield captures the full call chain    | No -yield only works at the generator's top level      |
+| Call chain "coloring"     | No -ordinary functions can perform effects | Yes -all intermediate functions must be generators     |
+| Implementation complexity | Lower for the library author               | Higher -must propagate yields manually                 |
+| Performance               | Generally better                           | Overhead from generator allocation at each level       |
+| Multi-shot                | No (coroutine state can't be cloned)       | Possible with replay (re-run the generator from start) |
 
 ### Trade-offs
 
@@ -196,7 +196,7 @@ The handler dispatches by checking if the yielded effect matches its handled eff
 | Simple implementation (the paper's Lua library is very small) | Stackless coroutines require "coloring" the entire call chain                                      |
 | Direct-style code (with stackful coroutines)                  | Performance overhead from coroutine creation and context switching                                 |
 | No compiler modifications needed                              | Effect forwarding (re-yielding unhandled effects) adds latency proportional to handler stack depth |
-| Natural fit for languages that already have coroutines        | Debugging can be confusing — stack traces go through coroutine boundaries                          |
+| Natural fit for languages that already have coroutines        | Debugging can be confusing -stack traces go through coroutine boundaries                           |
 
 ### Practical example (Lua sketch)
 
@@ -234,13 +234,13 @@ local result = eff.handler({
 
 ### How it works
 
-Continuation-Passing Style transforms direct-style code so that instead of returning a value, every function takes an extra argument — the continuation — representing "what to do next." An effect handler is then just a function that receives the continuation and decides whether/how to call it.
+Continuation-Passing Style transforms direct-style code so that instead of returning a value, every function takes an extra argument -the continuation -representing "what to do next." An effect handler is then just a function that receives the continuation and decides whether/how to call it.
 
-The key insight from Koka's design is that **you don't need to CPS-transform everything** — only code that actually uses resumable effects needs CPS. This is called _selective CPS transformation_. Code that only uses "tail-resumptive" effects (where the handler's last action is to resume) can be compiled to direct function calls with zero overhead.
+The key insight from Koka's design is that **you don't need to CPS-transform everything** -only code that actually uses resumable effects needs CPS. This is called _selective CPS transformation_. Code that only uses "tail-resumptive" effects (where the handler's last action is to resume) can be compiled to direct function calls with zero overhead.
 
 As a library approach (rather than a compiler approach), you can implement CPS effects using:
 
-1. **Monadic CPS:** Wrap computations in a continuation monad. The `Effekt` Scala library uses a _multi-prompt delimited continuation monad_ — each handler installs a "prompt" (delimiter), and performing an effect captures the continuation up to the matching prompt.
+1. **Monadic CPS:** Wrap computations in a continuation monad. The `Effekt` Scala library uses a _multi-prompt delimited continuation monad_ -each handler installs a "prompt" (delimiter), and performing an effect captures the continuation up to the matching prompt.
 
 2. **Callback-style:** In languages without monadic syntax, use callbacks explicitly. This is essentially what `async/await` does for a single effect (Promise), generalized to multiple effects.
 
@@ -254,7 +254,7 @@ As a library approach (rather than a compiler approach), you can implement CPS e
 
 The `Effekt` library (and the Effekt language) takes a distinctive approach:
 
-- Effect handlers are _capabilities_ — objects that are passed (often implicitly) to effectful functions.
+- Effect handlers are _capabilities_ -objects that are passed (often implicitly) to effectful functions.
 - Performing an effect = calling a method on the capability object.
 - The capability carries a reference to its handler's prompt, so **handler lookup is lexical, not dynamic.** This avoids the "handler hijacking" problem where a re-raised effect accidentally matches a different handler than intended.
 - Under the hood, calling an effect operation captures a multi-prompt delimited continuation using the capability's prompt marker.
@@ -269,7 +269,7 @@ The `Effekt` library (and the Effekt language) takes a distinctive approach:
 | Capability-passing gives lexical (predictable) handler resolution        | Implementation of multi-prompt delimited continuations is non-trivial                        |
 | Works as a library (Effekt in Scala proves this)                         | Performance of the continuation monad can be poor without optimization                       |
 | Avoids the "handler hijacking" problem (capability-passing variant)      | Interop with existing non-CPS code requires wrapping/lifting                                 |
-| Theoretically clean — backed by well-studied CPS semantics               | Implicit/contextual parameter passing is needed for ergonomic capability passing             |
+| Theoretically clean -backed by well-studied CPS semantics                | Implicit/contextual parameter passing is needed for ergonomic capability passing             |
 
 ---
 
@@ -279,7 +279,7 @@ The `Effekt` library (and the Effekt language) takes a distinctive approach:
 
 ### How it works
 
-This is Koka's signature compilation strategy, described in the paper "Generalized Evidence Passing for Effect Handlers." Instead of dynamically searching the stack for a handler at runtime, the compiler transforms effectful code to explicitly pass handler "evidence" as hidden function parameters. Each effect operation is dispatched by directly calling the corresponding handler via this evidence — O(1) dispatch with no runtime search.
+This is Koka's signature compilation strategy, described in the paper "Generalized Evidence Passing for Effect Handlers." Instead of dynamically searching the stack for a handler at runtime, the compiler transforms effectful code to explicitly pass handler "evidence" as hidden function parameters. Each effect operation is dispatched by directly calling the corresponding handler via this evidence -O(1) dispatch with no runtime search.
 
 The transformation works as follows:
 
@@ -298,11 +298,11 @@ The transformation works as follows:
 
 | Advantage                                                      | Disadvantage                                                           |
 | -------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| O(1) effect dispatch — no runtime search, no dynamic lookup    | Requires a compiler or preprocessor, not a pure library technique      |
+| O(1) effect dispatch -no runtime search, no dynamic lookup     | Requires a compiler or preprocessor, not a pure library technique      |
 | Amenable to aggressive optimization (inlining, specialization) | Adds complexity to the compilation pipeline                            |
 | Works well with strict/eager evaluation                        | The monadic transformation needed internally is complex                |
 | Interacts cleanly with type-level effect information           | Approximations (mutable environment) lose some theoretical guarantees  |
-| No runtime needed — compiles to plain C (in Koka's case)       | Higher-order effects require additional "evidence-threading" machinery |
+| No runtime needed -compiles to plain C (in Koka's case)        | Higher-order effects require additional "evidence-threading" machinery |
 
 ---
 
@@ -335,7 +335,7 @@ This is the oldest approach and predates algebraic effects. It's included here b
 
 ## Decision Matrix
 
-### "What does my host language have?" → "What approach should I use?"
+### "What does my host language have?" -> "What approach should I use?"
 
 | Host Language Features                                            | Best Approach                                        | Runner-up                         |
 | ----------------------------------------------------------------- | ---------------------------------------------------- | --------------------------------- |
@@ -343,22 +343,22 @@ This is the oldest approach and predates algebraic effects. It's included here b
 | **Stackless generators + HKTs** (PureScript, Haskell)             | Free monad (Approach 1)                              | ReaderT IO (Approach 2)           |
 | **Native IO + mutable refs + type-level tricks** (Haskell)        | ReaderT IO (Approach 2)                              | Free monad (Approach 1)           |
 | **Implicit parameters + delimited continuations monad** (Scala 3) | Capability-passing CPS (Approach 5)                  | Free monad (Approach 1)           |
-| **Runtime-level continuations** (OCaml 5, Scheme, Racket)         | Native delimited continuations (Approach 3)          | —                                 |
+| **Runtime-level continuations** (OCaml 5, Scheme, Racket)         | Native delimited continuations (Approach 3)          | -                                 |
 | **Only closures + basic types** (Python, Go, C)                   | Coroutines if available; otherwise CPS callbacks     | Free monad (with manual encoding) |
 | **JavaScript (generators only)**                                  | Generator-based CPS (Approach 5 + Approach 4 hybrid) | Free monad via generators         |
 
-### "What effects do I need?" → "What approaches support them?"
+### "What effects do I need?" -> "What approaches support them?"
 
-| Effect Pattern                        | Free Monad   | ReaderT IO     | Native Delimited Cont. | Coroutines    | CPS |
-| ------------------------------------- | ------------ | -------------- | ---------------------- | ------------- | --- |
-| State, Reader, Writer                 | ✅           | ✅ (best perf) | ✅                     | ✅            | ✅  |
-| Exceptions (non-resumable)            | ✅           | ✅ (native)    | ✅                     | ✅            | ✅  |
-| Resumable exceptions                  | ✅           | ❌             | ✅                     | ✅ (one-shot) | ✅  |
-| Generators / yield                    | ✅           | ❌             | ✅                     | ✅            | ✅  |
-| Cooperative concurrency               | ✅           | ❌             | ✅ (best)              | ✅            | ✅  |
-| Nondeterminism / backtracking         | ✅ (natural) | ❌             | ✅ (if multi-shot)     | ❌            | ✅  |
-| Async / await                         | ✅           | ✅ (native)    | ✅                     | ✅            | ✅  |
-| Higher-order effects (local, bracket) | ⚠️ (hard)    | ✅ (natural)   | ✅                     | ⚠️            | ✅  |
+| Effect Pattern                        | Free Monad     | ReaderT IO      | Native Delimited Cont. | Coroutines     | CPS |
+| ------------------------------------- | -------------- | --------------- | ---------------------- | -------------- | --- |
+| State, Reader, Writer                 | Yes            | Yes (best perf) | Yes                    | Yes            | Yes |
+| Exceptions (non-resumable)            | Yes            | Yes (native)    | Yes                    | Yes            | Yes |
+| Resumable exceptions                  | Yes            | No              | Yes                    | Yes (one-shot) | Yes |
+| Generators / yield                    | Yes            | No              | Yes                    | Yes            | Yes |
+| Cooperative concurrency               | Yes            | No              | Yes (best)             | Yes            | Yes |
+| Nondeterminism / backtracking         | Yes (natural)  | No              | Yes (if multi-shot)    | No             | Yes |
+| Async / await                         | Yes            | Yes (native)    | Yes                    | Yes            | Yes |
+| Higher-order effects (local, bracket) | Partial (hard) | Yes (natural)   | Yes                    | Partial        | Yes |
 
 ---
 
@@ -366,15 +366,15 @@ This is the oldest approach and predates algebraic effects. It's included here b
 
 ### Papers
 
-- **"An Introduction to Algebraic Effects and Handlers"** (Pretnar, 2015) — The best tutorial-style introduction. Start here.
-- **"Freer Monads, More Extensible Effects"** (Kiselyov & Ishii, 2015) — The freer monad approach that eliminates the Functor constraint.
-- **"Type Directed Compilation of Row-typed Algebraic Effects"** (Leijen, 2017) — Koka's selective CPS and evidence passing.
-- **"Generalized Evidence Passing for Effect Handlers"** (Xie, Brachthäuser, Hillerström, Schuster, Leijen, 2020) — The O(1) dispatch strategy.
-- **"One-shot Algebraic Effects as Coroutines"** (Kawahara & Kameyama, 2020) — The coroutine embedding.
-- **"Capability-passing Style for Zero-cost Effect Handlers"** (Schuster, Brachthäuser, Ostermann, ICFP 2020) — Effekt's approach.
-- **"Effects, Capabilities, and Boxes"** (Brachthäuser et al., OOPSLA 2022) — Extends capability passing with scope safety.
-- **"Efficient Compilation of Algebraic Effects"** (Pretnar et al., 2020) — Source-to-source optimization of effect handlers.
-- **"Effects for Less"** (Alexis King) — The blog post / talk that motivated Hasura's `eff` and GHC's delimited continuations proposal.
+- **"An Introduction to Algebraic Effects and Handlers"** (Pretnar, 2015) -The best tutorial-style introduction. Start here.
+- **"Freer Monads, More Extensible Effects"** (Kiselyov & Ishii, 2015) -The freer monad approach that eliminates the Functor constraint.
+- **"Type Directed Compilation of Row-typed Algebraic Effects"** (Leijen, 2017) -Koka's selective CPS and evidence passing.
+- **"Generalized Evidence Passing for Effect Handlers"** (Xie, Brachthäuser, Hillerström, Schuster, Leijen, 2020) -The O(1) dispatch strategy.
+- **"One-shot Algebraic Effects as Coroutines"** (Kawahara & Kameyama, 2020) -The coroutine embedding.
+- **"Capability-passing Style for Zero-cost Effect Handlers"** (Schuster, Brachthäuser, Ostermann, ICFP 2020) -Effekt's approach.
+- **"Effects, Capabilities, and Boxes"** (Brachthäuser et al., OOPSLA 2022) -Extends capability passing with scope safety.
+- **"Efficient Compilation of Algebraic Effects"** (Pretnar et al., 2020) -Source-to-source optimization of effect handlers.
+- **"Effects for Less"** (Alexis King) -The blog post / talk that motivated Hasura's `eff` and GHC's delimited continuations proposal.
 
 ### Implementations to study
 

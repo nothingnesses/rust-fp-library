@@ -8,7 +8,7 @@ This document compares the profunctor class hierarchy in `fp-library` against th
 
 | PureScript     | Rust                                 | Superclass        | Status                   |
 | -------------- | ------------------------------------ | ----------------- | ------------------------ |
-| `Profunctor p` | `Profunctor`                         | —                 | Complete                 |
+| `Profunctor p` | `Profunctor`                         | -                 | Complete                 |
 | `Strong p`     | `Strong`                             | `Profunctor`      | Complete                 |
 | `Choice p`     | `Choice`                             | `Profunctor`      | Complete                 |
 | `Closed p`     | `Closed<FunctionBrand: CloneableFn>` | `Profunctor`      | Complete (parameterized) |
@@ -27,10 +27,10 @@ The class hierarchy is faithfully reproduced. All superclass relationships match
 | PureScript                                        | Rust                                             | Notes                |
 | ------------------------------------------------- | ------------------------------------------------ | -------------------- |
 | `dimap :: (a -> b) -> (c -> d) -> p b c -> p a d` | `dimap<A, B, C, D, FuncAB, FuncCD>(ab, cd, pbc)` | Identical semantics  |
-| —                                                 | `lmap<A, B, C, FuncAB>(ab, pbc)` (default impl)  | Trait method in Rust |
-| —                                                 | `rmap<A, B, C, FuncBC>(bc, pab)` (default impl)  | Trait method in Rust |
+| -                                                 | `lmap<A, B, C, FuncAB>(ab, pbc)` (default impl)  | Trait method in Rust |
+| -                                                 | `rmap<A, B, C, FuncBC>(bc, pab)` (default impl)  | Trait method in Rust |
 
-PureScript defines only `dimap` as a class method. `lcmap` (PureScript's equivalent of `lmap`) and `rmap` are standalone free functions. Rust promotes both to trait methods with default implementations derived from `dimap`. This is a reasonable Rust idiom — it allows implementors to override with more efficient versions.
+PureScript defines only `dimap` as a class method. `lcmap` (PureScript's equivalent of `lmap`) and `rmap` are standalone free functions. Rust promotes both to trait methods with default implementations derived from `dimap`. This is a reasonable Rust idiom -it allows implementors to override with more efficient versions.
 
 ### 2.2 Strong
 
@@ -43,7 +43,7 @@ PureScript defines only `dimap` as a class method. `lcmap` (PureScript's equival
 
 | PureScript                                      | Rust                                                   | Notes                          |
 | ----------------------------------------------- | ------------------------------------------------------ | ------------------------------ |
-| `left :: p a b -> p (Either a c) (Either b c)`  | `left<A, B, C>(pab) -> ...Result<C, A>, Result<C, B>`  | `Either` → `Result` (see §3.1) |
+| `left :: p a b -> p (Either a c) (Either b c)`  | `left<A, B, C>(pab) -> ...Result<C, A>, Result<C, B>`  | `Either` ->`Result` (see §3.1) |
 | `right :: p b c -> p (Either a b) (Either a c)` | `right<A, B, C>(pab) -> ...Result<A, C>, Result<B, C>` | Same adaptation                |
 
 ### 2.4 Closed
@@ -56,7 +56,7 @@ PureScript defines only `dimap` as a class method. `lcmap` (PureScript's equival
 
 | PureScript                                        | Rust                    | Notes                                |
 | ------------------------------------------------- | ----------------------- | ------------------------------------ |
-| `unleft :: p (Either a c) (Either b c) -> p a b`  | `unleft<A, B, C>(pab)`  | Identical (with `Either` → `Result`) |
+| `unleft :: p (Either a c) (Either b c) -> p a b`  | `unleft<A, B, C>(pab)`  | Identical (with `Either` ->`Result`) |
 | `unright :: p (Either a b) (Either a c) -> p b c` | `unright<A, B, C>(pab)` | Identical                            |
 
 ### 2.6 Costrong
@@ -76,7 +76,7 @@ PureScript defines only `dimap` as a class method. `lcmap` (PureScript's equival
 
 ## 3. Rust-Specific Adaptations
 
-### 3.1 `Either` → `Result`
+### 3.1 `Either` ->`Result`
 
 PureScript's `Either a b` maps to Rust's `Result<B, A>` with reversed parameter order:
 
@@ -89,7 +89,7 @@ This means `Choice::left` acts on the `Err` variant and `Choice::right` acts on 
 
 ### 3.2 `Closed` parameterization
 
-PureScript's `Closed` uses bare function types `x -> a`. Rust cannot express this directly — closures must be wrapped in `Rc<dyn Fn>` or `Arc<dyn Fn>`. The Rust `Closed<FunctionBrand: CloneableFn>` trait takes an extra type parameter `FunctionBrand` to abstract over the function wrapping strategy.
+PureScript's `Closed` uses bare function types `x -> a`. Rust cannot express this directly -closures must be wrapped in `Rc<dyn Fn>` or `Arc<dyn Fn>`. The Rust `Closed<FunctionBrand: CloneableFn>` trait takes an extra type parameter `FunctionBrand` to abstract over the function wrapping strategy.
 
 ### 3.3 `fan_out` requires `A: Clone`
 
@@ -144,17 +144,17 @@ pub fn first<'a, Brand: Strong, ...>(...) { ... }
 pub fn closed<'a, Brand: Closed<FunctionBrand>, FunctionBrand: CloneableFn, ...>(...) { ... }
 ```
 
-This is consistent within the profunctor module. However, the optics code uses `P` for profunctor parameters (e.g., `Optic::evaluate<P: Profunctor>`). This is a minor naming difference between the two modules — `Brand` in profunctor classes vs `P` in optic traits — but both are single-concept identifiers and the bounds disambiguate.
+This is consistent within the profunctor module. However, the optics code uses `P` for profunctor parameters (e.g., `Optic::evaluate<P: Profunctor>`). This is a minor naming difference between the two modules -`Brand` in profunctor classes vs `P` in optic traits -but both are single-concept identifiers and the bounds disambiguate.
 
 ### 5.3 Type parameter conventions summary
 
 | Concept          | In profunctor classes              | In optic traits/structs | In optic free functions |
 | ---------------- | ---------------------------------- | ----------------------- | ----------------------- |
 | Profunctor brand | `Self` (trait) / `Brand` (free fn) | `P` (method-level)      | `P`                     |
-| Pointer brand    | —                                  | `PointerBrand`          | `PointerBrand`          |
+| Pointer brand    | -                                  | `PointerBrand`          | `PointerBrand`          |
 | Function brand   | `FunctionBrand` (`Closed` only)    | `FunctionBrand`         | `FunctionBrand`         |
 | Focus types      | `A, B`                             | `A, B`                  | `A, B`                  |
-| Structure types  | —                                  | `S, T`                  | `S, T`                  |
+| Structure types  | -                                  | `S, T`                  | `S, T`                  |
 | Auxiliary types  | `C` (passthrough), `X` (input)     | `R` (result/monoid)     | `R`                     |
 
 ---
@@ -164,7 +164,7 @@ This is consistent within the profunctor module. However, the optics code uses `
 ### What matches PureScript
 
 - All 7 profunctor classes present with correct superclass hierarchy
-- All method names identical (except `lcmap` → `lmap`, which matches Haskell convention)
+- All method names identical (except `lcmap` ->`lmap`, which matches Haskell convention)
 - Type parameter ordering within methods matches PureScript
 - `lmap`/`rmap` default implementations match PureScript's free function definitions
 
@@ -174,10 +174,10 @@ This is consistent within the profunctor module. However, the optics code uses `
 - `Result<C, A>` instead of `Either a c` (Rust lacks a standard `Either`)
 - `TFunc: TraversalFunc` instead of rank-2 types in `Wander`
 - `X: Clone` on `Closed::closed` (Rust needs explicit cloning in nested closures)
-- `A: Clone` on `fan_out` (same justification — Rust needs explicit cloning to duplicate input)
+- `A: Clone` on `fan_out` (same justification -Rust needs explicit cloning to duplicate input)
 - `arrow` is a free function with `Category + Profunctor` bounds (no `Arrow` trait)
 - `lmap`/`rmap` as trait methods instead of free functions
 
 ### Naming inconsistencies to consider
 
-1. **`Brand` in profunctor free functions vs `P` in optic traits** — different naming for profunctor type parameter (minor, both are clear from context)
+1. **`Brand` in profunctor free functions vs `P` in optic traits** -different naming for profunctor type parameter (minor, both are clear from context)

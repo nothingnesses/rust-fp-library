@@ -25,10 +25,10 @@
 
 The core parallel traits are implemented: `ParFunctor`, `ParFoldable`, `ParCompactable`, `ParFilterable`, `ParFunctorWithIndex`, `ParFoldableWithIndex`, `ParFilterableWithIndex`.
 
-**`ParTraversable`** (not yet implemented) — two distinct flavours with different feasibility:
+**`ParTraversable`** (not yet implemented) -two distinct flavours with different feasibility:
 
 - _Error accumulation_ (the `Validation` flavour): `par_traverse(f, ta)` runs all `f(a)` and accumulates all errors, rather than short-circuiting on the first `Err`. Implemented as `traverse::<T, ValidationBrand<E>, _, _>` using `Validation<E, A>`'s accumulating `Applicative`. Requires adding `Validation<E, A>` with its `Semiapplicative::apply` instance; no new HKT machinery beyond that. **Feasible.**
-- _CPU parallelism of effectful functions_: run `f: A -> Result<B, E>` on all elements across rayon threads simultaneously. Requires a concurrent execution type analogous to PureScript's `ParAff` — a deferred task type where `apply` uses `rayon::join`. This conflicts with fp-library's `impl Fn` (not `FnOnce`) applicative model and requires `'static` bounds. For pure `A -> B` functions this reduces to `par_map`, which already exists. **Not currently feasible without major infrastructure.**
+- _CPU parallelism of effectful functions_: run `f: A -> Result<B, E>` on all elements across rayon threads simultaneously. Requires a concurrent execution type analogous to PureScript's `ParAff` -a deferred task type where `apply` uses `rayon::join`. This conflicts with fp-library's `impl Fn` (not `FnOnce`) applicative model and requires `'static` bounds. For pure `A -> B` functions this reduces to `par_map`, which already exists. **Not currently feasible without major infrastructure.**
 - _Practical alternative_: `par_map(f, ta)` (CPU parallel) followed by `sequence_validation` (error accumulation) composes both behaviours without needing a unified `par_traverse`.
 
-**`ParWitherable`** — same two flavours as `ParTraversable`, since `Witherable: Traversable + Filterable`. The error-accumulation flavour (`wither` with `Validation<E, Option<B>>`) is feasible alongside `ParTraversable`. The CPU-parallel effectful flavour has the same obstacles.
+**`ParWitherable`** -same two flavours as `ParTraversable`, since `Witherable: Traversable + Filterable`. The error-accumulation flavour (`wither` with `Validation<E, Option<B>>`) is feasible alongside `ParTraversable`. The CPU-parallel effectful flavour has the same obstacles.
