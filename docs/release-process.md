@@ -4,7 +4,6 @@ This document outlines the steps for releasing new versions of `fp-library` and 
 
 ## Prerequisites
 
-- Ensure you have the latest `main`: `git checkout main && git pull`
 - Ensure the working directory is clean: `git status`
 - Ensure all tests pass: `just test`
 
@@ -55,6 +54,8 @@ Based on the changes identified above, follow [Semantic Versioning](https://semv
 - **Patch** (0.0.X): Backwards-compatible bug fixes or minor additions.
 
 ### 3. Create a Release Branch
+
+If the features for this release are on an existing branch, use that branch directly. Otherwise, create one from `main` (ensure it's up to date first with `git checkout main && git pull`):
 
 ```bash
 git checkout -b release/fp-library-vX.Y.Z

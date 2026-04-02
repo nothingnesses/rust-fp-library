@@ -50,10 +50,10 @@ To enable features:
 ```toml
 [dependencies]
 # Single feature
-fp-library = { version = "0.14", features = ["rayon"] }
+fp-library = { version = "0.15", features = ["rayon"] }
 
 # Multiple features
-fp-library = { version = "0.14", features = ["rayon", "serde"] }
+fp-library = { version = "0.15", features = ["rayon", "serde"] }
 ```
 
 ### Example: Using `Functor` with `Option`
