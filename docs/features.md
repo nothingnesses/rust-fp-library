@@ -14,7 +14,7 @@ automatically derive composite traits (`Applicative`, `Monad`, `Comonad`, `Alter
 `MonadPlus`) from their components.
 
 ```mermaid
-graph LR
+graph TD
     Functor --> Alt --> Plus
     Functor --> Extend
     Extend --> Comonad
@@ -43,13 +43,13 @@ graph LR
 ```
 
 ```mermaid
-graph LR
+graph TD
     Bifunctor --> Bitraversable
     Bifoldable --> Bitraversable
 ```
 
 ```mermaid
-graph LR
+graph TD
     Profunctor --> Strong --> Wander
     Profunctor --> Choice --> Wander
     Profunctor --> Closed
@@ -58,7 +58,7 @@ graph LR
 ```
 
 ```mermaid
-graph LR
+graph TD
     Semigroup --> Monoid
     Semigroupoid --> Category
 ```

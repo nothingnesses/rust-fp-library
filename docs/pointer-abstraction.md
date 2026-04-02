@@ -5,7 +5,7 @@ The library uses a unified pointer hierarchy to abstract over reference counting
 ## Pointer Hierarchy
 
 ```mermaid
-graph LR
+graph TD
     Pointer["Pointer (Deref)"] --> RefCountedPointer["RefCountedPointer (+ Clone)"]
     RefCountedPointer --> SendRefCountedPointer["SendRefCountedPointer (+ Send + Sync)"]
     RcBrand -.implements.-> RefCountedPointer

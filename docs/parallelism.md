@@ -5,7 +5,7 @@ All `par_*` free functions accept plain `impl Fn + Send + Sync` closures: no wra
 types required. Element types require `A: Send`; closures require `Send + Sync`.
 
 ```mermaid
-graph LR
+graph TD
     ParFunctor --> ParFilterable
     ParCompactable --> ParFilterable
     ParFunctor --> ParFunctorWithIndex
