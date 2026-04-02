@@ -1,15 +1,17 @@
 # Benchmark Coverage Gaps
 
-Audit of benchmark coverage as of 2026-04-01. Organized by priority.
+Audit of benchmark coverage. Organized by priority. Updated 2026-04-02.
 
 ## Current State
 
-Benchmarks exist for: Vec, Option, Result, Pair, String, CatList, Coyoneda
-(all 4 variants), Thunk, Trampoline, Free, RcLazy, ArcLazy, identity function.
+Benchmarks exist for: Vec (22 groups including 4 parallel), Option, Result,
+Pair, String, CatList (12 groups: 7 structural + 5 type class ops), Coyoneda
+(all 4 variants, 3 groups across 6 depths), Thunk, Trampoline, Free, RcLazy,
+ArcLazy, identity function.
 
-Vec has the most thorough coverage (18 benchmark groups comparing fp vs std).
-CatList compares against Vec and LinkedList across multiple input sizes.
-Coyoneda compares all 4 variants across varying map depths.
+All benchmarks use multiple input sizes for Criterion scaling graphs. Stack
+safety verified at all max depths/sizes via `scripts/stack_probe.rs`.
+Benchmark wall time verified under 30s via `scripts/bench_timing.sh`.
 
 ## Priority 1: Optics
 
@@ -67,21 +69,10 @@ Needed benchmarks:
 These should confirm zero overhead via identical timings. If overhead exists,
 it indicates a missed optimization.
 
-## Priority 4: CatList Missing Operations
+## ~~Priority 4: CatList Missing Operations~~ (Done)
 
-CatList benchmarks cover structural operations (cons, snoc, append, uncons,
-iteration) but miss type class operations.
-
-Needed benchmarks:
-
-- **Fold left/right** vs Vec fold. CatList iteration overhead on folding.
-- **Fold map** vs Vec fold_map.
-- **Traverse** (Result). CatList traverse vs Vec traverse.
-- **Filter/compact.** CatList filter vs Vec filter.
-
-These complete the CatList story: structural operations are already shown to
-be O(1), but iteration-heavy type class operations may show different
-characteristics due to the internal flattening cost.
+Implemented: fold_map, fold_left, traverse (Option), filter, compact,
+all comparing CatList vs Vec (fp and std) across 6 input sizes.
 
 ## Priority 5: SendThunk and Identity
 
@@ -90,21 +81,10 @@ characteristics due to the internal flattening cost.
 - **Identity**: Map, bind, fold comparing fp vs direct operation to verify
   zero-cost wrapper claim. Should show identical timings.
 
-## Priority 6: Parallel Operations
+## ~~Priority 6: Parallel Operations~~ (Done)
 
-Only `par_fold_map` on Vec is benchmarked.
-
-Needed benchmarks:
-
-- **par_map** on Vec at varying sizes (1000, 10000, 100000) to show crossover
-  point where rayon parallelism pays off.
-- **par_filter_map, par_compact** on Vec.
-- **par_fold_map** on CatList (if implemented).
-- **Sequential vs parallel comparison** for each operation to show speedup
-  factor.
-
-These require the `rayon` feature and are most meaningful on larger input
-sizes where parallelism overhead is amortized.
+Implemented: par_map, par_fold_map, par_filter_map, par_compact on Vec,
+each comparing parallel vs sequential at sizes [100, 1000, 10000, 100000].
 
 ## Not Worth Benchmarking
 
