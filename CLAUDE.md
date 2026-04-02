@@ -107,17 +107,17 @@ This provides rich type information that helps understand the library's complex 
 
 ## Architecture
 
-For detailed design documentation, see the `docs/` directory:
+For detailed design documentation, see the `fp-library/docs/` directory:
 
-- `docs/hkt.md` - Higher-Kinded Types and the Brand pattern
-- `docs/zero-cost.md` - Zero-cost abstractions and uncurried semantics
-- `docs/lazy-evaluation.md` - Lazy evaluation types, trade-offs, and decision guide
-- `docs/pointer-abstraction.md` - Pointer hierarchy, `FnBrand<P>`, and `LazyConfig`
-- `docs/coyoneda.md` - Free functor implementations and trade-offs
-- `docs/parallelism.md` - Thread safety and parallel trait hierarchy
-- `docs/features.md` - Full feature list with type class hierarchy
-- `docs/architecture.md` - Module organization and documentation conventions
-- `docs/optics-analysis.md` - Optics system design details
+- `fp-library/docs/hkt.md` - Higher-Kinded Types and the Brand pattern
+- `fp-library/docs/zero-cost.md` - Zero-cost abstractions and uncurried semantics
+- `fp-library/docs/lazy-evaluation.md` - Lazy evaluation types, trade-offs, and decision guide
+- `fp-library/docs/pointer-abstraction.md` - Pointer hierarchy, `FnBrand<P>`, and `LazyConfig`
+- `fp-library/docs/coyoneda.md` - Free functor implementations and trade-offs
+- `fp-library/docs/parallelism.md` - Thread safety and parallel trait hierarchy
+- `fp-library/docs/features.md` - Full feature list with type class hierarchy
+- `fp-library/docs/architecture.md` - Module organization and documentation conventions
+- `fp-library/docs/optics-analysis.md` - Optics system design details
 
 ### Key Locations
 
@@ -132,7 +132,7 @@ Respect the dependency graph: brands -> classes -> types -> functions. Never cre
 
 ### Optics
 
-Optics use profunctor encoding. Internal profunctors: `Exchange` (isos), `Market` (prisms), `Forget` (getters/folds), `Shop` (lenses). Many optics currently hard-code `Rc`; per `docs/todo.md`, these should be refactored to use `FnBrand<P>`. See `docs/optics-analysis.md` for design details.
+Optics use profunctor encoding. Internal profunctors: `Exchange` (isos), `Market` (prisms), `Forget` (getters/folds), `Shop` (lenses). Many optics currently hard-code `Rc`; per `docs/todo.md`, these should be refactored to use `FnBrand<P>`. See `fp-library/docs/optics-analysis.md` for design details.
 
 ## Code Style & Documentation
 
@@ -220,7 +220,7 @@ When modifying optics code:
 - Optics use profunctor encoding - understand `Profunctor`, `Strong`, `Choice` traits
 - Internal profunctors (Exchange, Market, etc.) are in `types/optics/`
 - Many optics currently hard-code `Rc` usage - refactor to use `FnBrand<P>` for parameterization
-- See `docs/optics-analysis.md` for design details
+- See `fp-library/docs/optics-analysis.md` for design details
 
 ### Thread-Safe Operations
 

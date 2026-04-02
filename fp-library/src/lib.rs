@@ -12,13 +12,13 @@
 //! 1.  A robust encoding of HKTs in stable Rust.
 //! 2.  A comprehensive set of standard type classes (`Functor`, `Monad`, `Traversable`, etc.).
 //! 3.  Zero-cost abstractions that respect Rust's performance characteristics.
-#![doc = include_str!("../../docs/features.md")]
+#![doc = include_str!("../docs/features.md")]
 //!
 //! ## How it Works
-#![doc = include_str!("../../docs/hkt.md")]
-#![doc = include_str!("../../docs/zero-cost.md")]
-#![doc = include_str!("../../docs/lazy-evaluation.md")]
-#![doc = include_str!("../../docs/parallelism.md")]
+#![doc = include_str!("../docs/hkt.md")]
+#![doc = include_str!("../docs/zero-cost.md")]
+#![doc = include_str!("../docs/lazy-evaluation.md")]
+#![doc = include_str!("../docs/parallelism.md")]
 //!
 //! ## Example: Using `Functor` with `Option`
 //!

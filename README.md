@@ -99,30 +99,30 @@ fn main() {
 
 ## How it Works
 
-**Higher-Kinded Types:** The library encodes HKTs using lightweight higher-kinded polymorphism (the "Brand" pattern). Each type constructor has a zero-sized brand type (e.g., `OptionBrand`) that implements `Kind` traits mapping brands back to concrete types. See [docs/hkt.md](docs/hkt.md).
+**Higher-Kinded Types:** The library encodes HKTs using lightweight higher-kinded polymorphism (the "Brand" pattern). Each type constructor has a zero-sized brand type (e.g., `OptionBrand`) that implements `Kind` traits mapping brands back to concrete types. See [docs/hkt.md](fp-library/docs/hkt.md).
 
-**Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where functions must be stored as data. See [docs/zero-cost.md](docs/zero-cost.md).
+**Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where functions must be stored as data. See [docs/zero-cost.md](fp-library/docs/zero-cost.md).
 
-**Lazy Evaluation:** A granular hierarchy of lazy types (`Thunk`, `Trampoline`, `Lazy`) lets you choose trade-offs between stack safety, memoization, lifetimes, and thread safety. Each has a fallible `Try*` counterpart. See [docs/lazy-evaluation.md](docs/lazy-evaluation.md).
+**Lazy Evaluation:** A granular hierarchy of lazy types (`Thunk`, `Trampoline`, `Lazy`) lets you choose trade-offs between stack safety, memoization, lifetimes, and thread safety. Each has a fallible `Try*` counterpart. See [docs/lazy-evaluation.md](fp-library/docs/lazy-evaluation.md).
 
-**Thread Safety & Parallelism:** A parallel trait hierarchy (`ParFunctor`, `ParFoldable`, etc.) mirrors the sequential one. When the `rayon` feature is enabled, `par_*` functions use true parallel execution. See [docs/parallelism.md](docs/parallelism.md).
+**Thread Safety & Parallelism:** A parallel trait hierarchy (`ParFunctor`, `ParFoldable`, etc.) mirrors the sequential one. When the `rayon` feature is enabled, `par_*` functions use true parallel execution. See [docs/parallelism.md](fp-library/docs/parallelism.md).
 
 ## Documentation
 
 - [API Documentation](https://docs.rs/fp-library): The complete API reference on docs.rs.
-- [Features & Type Class Hierarchy](docs/features.md): Full feature list with hierarchy diagrams.
-- [Higher-Kinded Types](docs/hkt.md): The Brand pattern and HKT encoding.
-- [Zero-Cost Abstractions](docs/zero-cost.md): Uncurried semantics and static dispatch.
-- [Lazy Evaluation](docs/lazy-evaluation.md): Guide to the lazy evaluation and memoization types.
-- [Pointer Abstraction](docs/pointer-abstraction.md): Pointer hierarchy, `FnBrand<P>`, and shared memoization.
-- [Coyoneda Implementations](docs/coyoneda.md): Trade-offs between the four free functor variants.
-- [Thread Safety & Parallelism](docs/parallelism.md): Parallel trait hierarchy and rayon support.
-- [Optics Analysis](docs/optics-analysis.md): Optics coverage comparison with PureScript.
-- [Profunctor Analysis](docs/profunctor-analysis.md): Profunctor class hierarchy comparison with PureScript.
-- [Std Library Coverage](docs/std-coverage-checklist.md): Type class coverage for standard library types.
-- [Architecture & Design](docs/architecture.md): Module organization and documentation conventions.
-- [Benchmarks](docs/benchmarking.md): Performance results, graphs, and benchmark coverage.
-- [Limitations and Workarounds](docs/limitations-and-workarounds.md): Rust type system constraints and how the library addresses them.
+- [Features & Type Class Hierarchy](fp-library/docs/features.md): Full feature list with hierarchy diagrams.
+- [Higher-Kinded Types](fp-library/docs/hkt.md): The Brand pattern and HKT encoding.
+- [Zero-Cost Abstractions](fp-library/docs/zero-cost.md): Uncurried semantics and static dispatch.
+- [Lazy Evaluation](fp-library/docs/lazy-evaluation.md): Guide to the lazy evaluation and memoization types.
+- [Pointer Abstraction](fp-library/docs/pointer-abstraction.md): Pointer hierarchy, `FnBrand<P>`, and shared memoization.
+- [Coyoneda Implementations](fp-library/docs/coyoneda.md): Trade-offs between the four free functor variants.
+- [Thread Safety & Parallelism](fp-library/docs/parallelism.md): Parallel trait hierarchy and rayon support.
+- [Optics Analysis](fp-library/docs/optics-analysis.md): Optics coverage comparison with PureScript.
+- [Profunctor Analysis](fp-library/docs/profunctor-analysis.md): Profunctor class hierarchy comparison with PureScript.
+- [Std Library Coverage](fp-library/docs/std-coverage-checklist.md): Type class coverage for standard library types.
+- [Architecture & Design](fp-library/docs/architecture.md): Module organization and documentation conventions.
+- [Benchmarks](fp-library/docs/benchmarking.md): Performance results, graphs, and benchmark coverage.
+- [Limitations and Workarounds](fp-library/docs/limitations-and-workarounds.md): Rust type system constraints and how the library addresses them.
 
 ## Contributing
 
@@ -172,7 +172,7 @@ Run `just --list` to see all available recipes.
 
 ### Release Process
 
-For maintainers, the release process is documented in [docs/release-process.md](docs/release-process.md).
+For maintainers, the release process is documented in [docs/release-process.md](fp-library/docs/release-process.md).
 
 ### Benchmarking
 

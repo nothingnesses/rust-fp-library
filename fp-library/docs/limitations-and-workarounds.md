@@ -133,8 +133,8 @@ Automatically cloning the inner value to satisfy this signature would violate th
 
 Separate traits that honestly represent what memoized types can do:
 
-- [`RefFunctor`](../fp-library/src/classes/ref_functor.rs): `ref_map(func: impl FnOnce(&A) -> B, fa)` takes the value by reference. Implemented by `RcLazy`.
-- [`SendRefFunctor`](../fp-library/src/classes/send_ref_functor.rs): Same but with `Send + Sync` bounds on `A`, `B`, and the closure. Implemented by `ArcLazy`.
+- [`RefFunctor`](../src/classes/ref_functor.rs): `ref_map(func: impl FnOnce(&A) -> B, fa)` takes the value by reference. Implemented by `RcLazy`.
+- [`SendRefFunctor`](../src/classes/send_ref_functor.rs): Same but with `Send + Sync` bounds on `A`, `B`, and the closure. Implemented by `ArcLazy`.
 
 The two traits are independent (not in a sub/supertrait relationship) because `RcLazy` is `!Send` and `ArcLazy` requires `Send + Sync`. A single trait with optional `Send` bounds would either exclude `RcLazy` or fail to enforce thread safety for `ArcLazy`.
 
@@ -195,7 +195,7 @@ This limitation stems from the design of the `Function` and `CloneableFn` traits
 
 The library addresses this with extension traits that provide thread-safe capabilities without breaking existing code:
 
-- [`SendCloneableFn`](../fp-library/src/classes/send_cloneable_fn.rs): Extends `CloneableFn` with a separate `SendOf` associated type that wraps `dyn Fn + Send + Sync`. Only implemented by `ArcFnBrand`.
-- [`ParFoldable`](../fp-library/src/classes/par_foldable.rs): Parallel fold operations using `impl Fn + Send + Sync` closures directly, bypassing the `CloneableFn` abstraction for parallel paths.
+- [`SendCloneableFn`](../src/classes/send_cloneable_fn.rs): Extends `CloneableFn` with a separate `SendOf` associated type that wraps `dyn Fn + Send + Sync`. Only implemented by `ArcFnBrand`.
+- [`ParFoldable`](../src/classes/par_foldable.rs): Parallel fold operations using `impl Fn + Send + Sync` closures directly, bypassing the `CloneableFn` abstraction for parallel paths.
 
 This approach keeps `Function` and `CloneableFn` unchanged, cleanly separates Send capabilities as additive traits, and provides compile-time safety (only brands that can actually provide thread safety implement `SendCloneableFn`).
