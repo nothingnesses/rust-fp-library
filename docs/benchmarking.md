@@ -8,31 +8,34 @@ We will compare the performance of the following `fp-library` abstractions again
 
 ### Vec
 
-| Feature | `fp-library`      | `std`                     | Status                                                     | [ ] |
-| :------ | :---------------- | :------------------------ | :--------------------------------------------------------- | --- |
-|         | **Map**           | `VecBrand::map`           | `iter().map().collect()`                                   | [x] |
-|         | **Fold Right**    | `VecBrand::fold_right`    | `iter().rev().fold()`                                      | [x] |
-|         | **Fold Left**     | `VecBrand::fold_left`     | `iter().fold()`                                            | [x] |
-|         | **Fold Map**      | `VecBrand::fold_map`      | `iter().map().fold()`                                      | [x] |
-|         | **Traverse**      | `VecBrand::traverse`      | `iter().map().collect::<Result<Vec<_>, _>>()` (for Result) | [x] |
-|         | **Sequence**      | `VecBrand::sequence`      | `iter().collect::<Result<Vec<_>, _>>()` (for Result)       | [x] |
-|         | **Bind**          | `VecBrand::bind`          | `iter().flat_map().collect()`                              | [x] |
-|         | **Append**        | `Semigroup::append`       | `[a, b].concat()`                                          | [x] |
-|         | **Empty**         | `Monoid::empty`           | `Vec::new()`                                               | [x] |
-|         | **Construct**     | `VecBrand::construct`     | `[vec![x], y].concat()`                                    | [x] |
-|         | **Deconstruct**   | `VecBrand::deconstruct`   | `slice.split_first()`                                      | [x] |
-|         | **Filter**        | `VecBrand::filter`        | `iter().filter().collect()`                                | [x] |
-|         | **Filter Map**    | `VecBrand::filter_map`    | `iter().filter_map().collect()`                            | [x] |
-|         | **Partition**     | `VecBrand::partition`     | `iter().partition()`                                       | [x] |
-|         | **Partition Map** | `VecBrand::partition_map` | Manual loop with two accumulators                          | [x] |
-|         | **Compact**       | `VecBrand::compact`       | `iter().flatten().collect()`                               | [x] |
-|         | **Separate**      | `VecBrand::separate`      | Manual loop splitting `Result`s                            | [x] |
-|         | **Wither**        | `VecBrand::wither`        | Manual loop with conditional push                          | [x] |
-|         | **Wilt**          | `VecBrand::wilt`          | Manual loop with two accumulators                          | [x] |
-|         | **Lift2**         | `VecBrand::lift2`         | `flat_map` + `map` combination                             | [x] |
-|         | **Pure**          | `VecBrand::pure`          | `vec![x]`                                                  | [x] |
-|         | **Apply**         | `VecBrand::apply`         | `flat_map` + `map` combination                             | [x] |
-|         | **Par Fold Map**  | `VecBrand::par_fold_map`  | (fp-only, no std equivalent)                               | [x] |
+| Feature | `fp-library`       | `std`                      | Status                                                     | [ ] |
+| :------ | :----------------- | :------------------------- | :--------------------------------------------------------- | --- |
+|         | **Map**            | `VecBrand::map`            | `iter().map().collect()`                                   | [x] |
+|         | **Fold Right**     | `VecBrand::fold_right`     | `iter().rev().fold()`                                      | [x] |
+|         | **Fold Left**      | `VecBrand::fold_left`      | `iter().fold()`                                            | [x] |
+|         | **Fold Map**       | `VecBrand::fold_map`       | `iter().map().fold()`                                      | [x] |
+|         | **Traverse**       | `VecBrand::traverse`       | `iter().map().collect::<Result<Vec<_>, _>>()` (for Result) | [x] |
+|         | **Sequence**       | `VecBrand::sequence`       | `iter().collect::<Result<Vec<_>, _>>()` (for Result)       | [x] |
+|         | **Bind**           | `VecBrand::bind`           | `iter().flat_map().collect()`                              | [x] |
+|         | **Append**         | `Semigroup::append`        | `[a, b].concat()`                                          | [x] |
+|         | **Empty**          | `Monoid::empty`            | `Vec::new()`                                               | [x] |
+|         | **Construct**      | `VecBrand::construct`      | `[vec![x], y].concat()`                                    | [x] |
+|         | **Deconstruct**    | `VecBrand::deconstruct`    | `slice.split_first()`                                      | [x] |
+|         | **Filter**         | `VecBrand::filter`         | `iter().filter().collect()`                                | [x] |
+|         | **Filter Map**     | `VecBrand::filter_map`     | `iter().filter_map().collect()`                            | [x] |
+|         | **Partition**      | `VecBrand::partition`      | `iter().partition()`                                       | [x] |
+|         | **Partition Map**  | `VecBrand::partition_map`  | Manual loop with two accumulators                          | [x] |
+|         | **Compact**        | `VecBrand::compact`        | `iter().flatten().collect()`                               | [x] |
+|         | **Separate**       | `VecBrand::separate`       | Manual loop splitting `Result`s                            | [x] |
+|         | **Wither**         | `VecBrand::wither`         | Manual loop with conditional push                          | [x] |
+|         | **Wilt**           | `VecBrand::wilt`           | Manual loop with two accumulators                          | [x] |
+|         | **Lift2**          | `VecBrand::lift2`          | `flat_map` + `map` combination                             | [x] |
+|         | **Pure**           | `VecBrand::pure`           | `vec![x]`                                                  | [x] |
+|         | **Apply**          | `VecBrand::apply`          | `flat_map` + `map` combination                             | [x] |
+|         | **Par Map**        | `VecBrand::par_map`        | Sequential `map` (100, 1K, 10K, 100K)                      | [x] |
+|         | **Par Fold Map**   | `VecBrand::par_fold_map`   | Sequential `fold_map` (100, 1K, 10K, 100K)                 | [x] |
+|         | **Par Filter Map** | `VecBrand::par_filter_map` | Sequential `filter_map` (100, 1K, 10K, 100K)               | [x] |
+|         | **Par Compact**    | `VecBrand::par_compact`    | Sequential `compact` (100, 1K, 10K, 100K)                  | [x] |
 
 ### Option
 
@@ -99,25 +102,25 @@ We will compare the performance of the following `fp-library` abstractions again
 
 ### Lazy Evaluation
 
-| Feature | `fp-library`                | Description                                         | Status                                             | [ ] |
-| :------ | :-------------------------- | :-------------------------------------------------- | :------------------------------------------------- | --- |
-|         | **Thunk Baseline**          | `Thunk::new` + `evaluate`                           | Baseline overhead                                  | [x] |
-|         | **Thunk Map Chain**         | `Thunk::map` chains (1, 10, 100)                    | Cost of chained maps                               | [x] |
-|         | **Thunk Bind Chain**        | `Thunk::bind` chains (1, 10, 100)                   | Cost of chained binds                              | [x] |
-|         | **Trampoline Baseline**     | `Trampoline::new` + `evaluate`                      | Baseline overhead                                  | [x] |
-|         | **Trampoline Bind Chain**   | `Trampoline::bind` chains (100, 1K, 10K)            | Stack-safe bind performance                        | [x] |
-|         | **Trampoline Map Chain**    | `Trampoline::map` chains (100, 1K, 10K)             | Stack-safe map performance                         | [x] |
-|         | **Trampoline tail_rec_m**   | Countdown from 10K via `ControlFlow`                | Monadic tail recursion                             | [x] |
-|         | **Trampoline vs Iterative** | `tail_rec_m` vs hand-written loop                   | Overhead vs imperative code                        | [x] |
-|         | **RcLazy First Access**     | `Lazy::<_, RcLazyConfig>::new` + first `evaluate`   | Memoization first-access cost                      | [x] |
-|         | **RcLazy Cached Access**    | Repeated `evaluate` on cached value                 | Memoization cache-hit cost                         | [x] |
-|         | **RcLazy ref_map Chain**    | `ref_map` chains (1, 10, 100)                       | Cost of chained ref-mapped lazy values             | [x] |
-|         | **ArcLazy First Access**    | `ArcLazy::new` + first `evaluate`                   | Thread-safe memoization first-access cost          | [x] |
-|         | **ArcLazy Cached Access**   | Repeated `evaluate` on cached value                 | Thread-safe memoization cache-hit cost             | [x] |
-|         | **ArcLazy ref_map Chain**   | `ref_map` chains (1, 10, 100)                       | Cost of chained ref-mapped thread-safe lazy values | [x] |
-|         | **Free Left-Assoc Bind**    | Left-associated `Free::bind` chains (100, 1K, 10K)  | CatList-backed O(1) bind reassociation             | [x] |
-|         | **Free Right-Assoc Bind**   | Right-associated `Free::bind` chains (100, 1K, 10K) | Nested right-bind performance                      | [x] |
-|         | **Free Evaluate**           | `Free::wrap` + `bind` chains (100, 1K, 10K)         | Evaluation of suspended computations               | [x] |
+| Feature | `fp-library`                | Description                                             | Status                                             | [ ] |
+| :------ | :-------------------------- | :------------------------------------------------------ | :------------------------------------------------- | --- |
+|         | **Thunk Baseline**          | `Thunk::new` + `evaluate`                               | Baseline overhead                                  | [x] |
+|         | **Thunk Map Chain**         | `Thunk::map` chains (1, 5, 10, 25, 50, 100)             | Cost of chained maps                               | [x] |
+|         | **Thunk Bind Chain**        | `Thunk::bind` chains (1, 5, 10, 25, 50, 100)            | Cost of chained binds                              | [x] |
+|         | **Trampoline Baseline**     | `Trampoline::new` + `evaluate`                          | Baseline overhead                                  | [x] |
+|         | **Trampoline Bind Chain**   | `Trampoline::bind` chains (100-10K, 6 sizes)            | Stack-safe bind performance                        | [x] |
+|         | **Trampoline Map Chain**    | `Trampoline::map` chains (100-10K, 6 sizes)             | Stack-safe map performance                         | [x] |
+|         | **Trampoline tail_rec_m**   | Countdown from 10K via `ControlFlow`                    | Monadic tail recursion                             | [x] |
+|         | **Trampoline vs Iterative** | `tail_rec_m` vs hand-written loop                       | Overhead vs imperative code                        | [x] |
+|         | **RcLazy First Access**     | `Lazy::<_, RcLazyConfig>::new` + first `evaluate`       | Memoization first-access cost                      | [x] |
+|         | **RcLazy Cached Access**    | Repeated `evaluate` on cached value                     | Memoization cache-hit cost                         | [x] |
+|         | **RcLazy ref_map Chain**    | `ref_map` chains (1, 5, 10, 25, 50, 100)                | Cost of chained ref-mapped lazy values             | [x] |
+|         | **ArcLazy First Access**    | `ArcLazy::new` + first `evaluate`                       | Thread-safe memoization first-access cost          | [x] |
+|         | **ArcLazy Cached Access**   | Repeated `evaluate` on cached value                     | Thread-safe memoization cache-hit cost             | [x] |
+|         | **ArcLazy ref_map Chain**   | `ref_map` chains (1, 5, 10, 25, 50, 100)                | Cost of chained ref-mapped thread-safe lazy values | [x] |
+|         | **Free Left-Assoc Bind**    | Left-associated `Free::bind` chains (100-10K, 6 sizes)  | CatList-backed O(1) bind reassociation             | [x] |
+|         | **Free Right-Assoc Bind**   | Right-associated `Free::bind` chains (100-10K, 6 sizes) | Nested right-bind performance                      | [x] |
+|         | **Free Evaluate**           | `Free::wrap` + `bind` chains (100-10K, 6 sizes)         | Evaluation of suspended computations               | [x] |
 
 ### CatList
 
@@ -130,3 +133,16 @@ We will compare the performance of the following `fp-library` abstractions again
 |         | **Left-Assoc Append** | CatList vs Vec vs LinkedList | Repeated left-associated appends (O(n) vs O(n^2)) | [x]    |
 |         | **Iteration**         | CatList vs Vec vs LinkedList | Full iteration overhead                           | [x]    |
 |         | **Nested Uncons**     | CatList (nested vs flat)     | Uncons on deeply nested structures                | [x]    |
+|         | **Fold Map**          | CatList vs Vec (fp + std)    | fold_map performance                              | [x]    |
+|         | **Fold Left**         | CatList vs Vec (fp + std)    | fold_left performance                             | [x]    |
+|         | **Traverse**          | CatList vs Vec (fp)          | traverse with Option                              | [x]    |
+|         | **Filter**            | CatList vs Vec (fp + std)    | filter performance                                | [x]    |
+|         | **Compact**           | CatList vs Vec (fp + std)    | compact performance                               | [x]    |
+
+### Coyoneda
+
+| Feature | `fp-library`           | Compared Against                      | Description                                    | Status | [ ] |
+| :------ | :--------------------- | :------------------------------------ | :--------------------------------------------- | :----- | --- |
+|         | **Direct vs Variants** | Direct map vs all 4 Coyoneda variants | Map chain cost at depths 1, 5, 10, 25, 50, 100 | [x]    |
+|         | **Repeated Lower**     | RcCoyoneda vs ArcCoyoneda             | Re-evaluation cost (3x lower_ref)              | [x]    |
+|         | **Clone Map**          | RcCoyoneda vs ArcCoyoneda             | Clone + map + lower_ref pattern                | [x]    |
