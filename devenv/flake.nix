@@ -160,6 +160,7 @@
                 pkgs.rust-analyzer
                 pkgs.gh
                 pkgs.just
+                pkgs.rust-script
                 pkgs.python3
                 # For criterion.rs
                 pkgs.gnuplot
