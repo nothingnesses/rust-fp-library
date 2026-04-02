@@ -4,9 +4,13 @@ The library uses a unified pointer hierarchy to abstract over reference counting
 
 ## Pointer Hierarchy
 
-- `Pointer`: Base trait for heap-allocated pointers (requires `Deref`).
-- `RefCountedPointer`: Extends `Pointer` with `CloneableOf` (requires `Clone + Deref`).
-- `SendRefCountedPointer`: Extends `RefCountedPointer` with `SendOf` (requires `Send + Sync`).
+```mermaid
+graph LR
+    Pointer["Pointer (Deref)"] --> RefCountedPointer["RefCountedPointer (+ Clone)"]
+    RefCountedPointer --> SendRefCountedPointer["SendRefCountedPointer (+ Send + Sync)"]
+    RcBrand -.implements.-> RefCountedPointer
+    ArcBrand -.implements.-> SendRefCountedPointer
+```
 
 ## Generic Function Brands
 

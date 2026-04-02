@@ -4,14 +4,25 @@ The library provides a parallel trait hierarchy that mirrors the sequential one.
 All `par_*` free functions accept plain `impl Fn + Send + Sync` closures: no wrapper
 types required. Element types require `A: Send`; closures require `Send + Sync`.
 
-| Parallel trait         | Operations                     | Supertraits                       |
-| ---------------------- | ------------------------------ | --------------------------------- |
-| `ParFunctor`           | `par_map`                      | `Kind`                            |
-| `ParCompactable`       | `par_compact`, `par_separate`  | `Kind`                            |
-| `ParFilterable`        | `par_filter_map`, `par_filter` | `ParFunctor + ParCompactable`     |
-| `ParFoldable`          | `par_fold_map`                 | `Kind`                            |
-| `ParFunctorWithIndex`  | `par_map_with_index`           | `ParFunctor + FunctorWithIndex`   |
-| `ParFoldableWithIndex` | `par_fold_map_with_index`      | `ParFoldable + FoldableWithIndex` |
+```mermaid
+graph LR
+    ParFunctor --> ParFilterable
+    ParCompactable --> ParFilterable
+    ParFunctor --> ParFunctorWithIndex
+    ParFoldable --> ParFoldableWithIndex
+    ParFilterable --> ParFilterableWithIndex
+    ParFoldableWithIndex --> ParFilterableWithIndex
+```
+
+| Parallel trait           | Operations                     | Supertraits                                        |
+| ------------------------ | ------------------------------ | -------------------------------------------------- |
+| `ParFunctor`             | `par_map`                      | `Kind`                                             |
+| `ParCompactable`         | `par_compact`, `par_separate`  | `Kind`                                             |
+| `ParFilterable`          | `par_filter_map`, `par_filter` | `ParFunctor + ParCompactable`                      |
+| `ParFoldable`            | `par_fold_map`                 | `Kind`                                             |
+| `ParFunctorWithIndex`    | `par_map_with_index`           | `ParFunctor + FunctorWithIndex`                    |
+| `ParFoldableWithIndex`   | `par_fold_map_with_index`      | `ParFoldable + FoldableWithIndex`                  |
+| `ParFilterableWithIndex` | `par_filter_map_with_index`    | `ParFilterable + ParFoldableWithIndex + WithIndex` |
 
 `ParFilterable` provides default implementations of `par_filter_map` and `par_filter`
 derived from `par_map` + `par_compact`; types can override them for single-pass efficiency.

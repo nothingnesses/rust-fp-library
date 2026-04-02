@@ -13,27 +13,54 @@ The library provides a comprehensive set of type classes. Blanket implementation
 automatically derive composite traits (`Applicative`, `Monad`, `Comonad`, `Alternative`,
 `MonadPlus`) from their components.
 
-```text
-Functor ---+--- Semiapplicative (+ Lift) ---+--- Applicative (+ Pointed) --- Monad (+ Semimonad)
-           |                                |                                  |
-           +--- Alt --- Plus ---------------+--- Alternative --------------- MonadPlus
-           |                                                                   |
-           +--- Extend --- Comonad (+ Extract)                               MonadRec
-           |
-           +--- Foldable --- Traversable (+ Functor)
-           |
-           +--- Filterable (+ Compactable) --- Witherable (+ Traversable)
+```mermaid
+graph LR
+    Functor --> Alt --> Plus
+    Functor --> Extend
+    Extend --> Comonad
+    Extract --> Comonad
+    Functor --> Semiapplicative
+    Lift --> Semiapplicative
+    Lift --> ApplyFirst
+    Lift --> ApplySecond
+    Semiapplicative --> Applicative
+    Pointed --> Applicative
+    ApplyFirst --> Applicative
+    ApplySecond --> Applicative
+    Applicative --> Alternative
+    Plus --> Alternative
+    Applicative --> Monad
+    Semimonad --> Monad
+    Monad --> MonadPlus
+    Alternative --> MonadPlus
+    Monad --> MonadRec
+    Foldable --> Traversable
+    Functor --> Traversable
+    Compactable --> Filterable
+    Functor --> Filterable
+    Filterable --> Witherable
+    Traversable --> Witherable
+```
 
-Bifunctor ---+--- Bitraversable (+ Bifoldable)
+```mermaid
+graph LR
+    Bifunctor --> Bitraversable
+    Bifoldable --> Bitraversable
+```
 
-Profunctor ---+--- Strong ---+--- Wander (+ Choice)
-              +--- Choice ---+
-              +--- Closed
-              +--- Costrong
-              +--- Cochoice
+```mermaid
+graph LR
+    Profunctor --> Strong --> Wander
+    Profunctor --> Choice --> Wander
+    Profunctor --> Closed
+    Profunctor --> Costrong
+    Profunctor --> Cochoice
+```
 
-Semigroup --- Monoid
-Semigroupoid --- Category
+```mermaid
+graph LR
+    Semigroup --> Monoid
+    Semigroupoid --> Category
 ```
 
 **Indexed variants:** `FunctorWithIndex`, `FoldableWithIndex`, `TraversableWithIndex`,
