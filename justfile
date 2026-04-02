@@ -35,7 +35,8 @@ build *args:
 check *args:
     {{direnv_prefix}} cargo check {{args}}
 
-# Run benchmarks.
+# Run benchmarks. Use regex dots for spaces in benchmark names, e.g.:
+#   just bench -p fp-library --bench benchmarks -- "CatList.Left-Assoc"
 bench *args:
     {{direnv_prefix}} cargo bench {{args}}
 

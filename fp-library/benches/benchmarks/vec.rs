@@ -557,7 +557,7 @@ pub fn bench_vec(c: &mut Criterion) {
 
 	// -- Parallel operations (varying sizes to show crossover point) --
 
-	let par_sizes: &[i32] = &[100, 1000, 10000, 100000];
+	let par_sizes: &[i32] = &[100, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000];
 
 	// Par Map vs sequential map
 	{
@@ -585,6 +585,10 @@ pub fn bench_vec(c: &mut Criterion) {
 	// Par Fold Map vs sequential fold_map
 	{
 		let mut group = c.benchmark_group("Vec Par Fold Map");
+		group.plot_config(
+			criterion::PlotConfiguration::default()
+				.summary_scale(criterion::AxisScale::Logarithmic),
+		);
 		for &sz in par_sizes {
 			let v: Vec<i32> = (0 .. sz).collect();
 			group.bench_with_input(BenchmarkId::new("par_fold_map", sz), &sz, |b, &_| {

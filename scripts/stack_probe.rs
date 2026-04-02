@@ -15,7 +15,7 @@
 //!   rust-script scripts/stack_probe.rs -- <probe_name> <depth>
 //!
 //! Probes: rc_lazy, arc_lazy, coyoneda, rc_coyoneda, arc_coyoneda,
-//! thunk_map, thunk_bind.
+//! thunk_map, thunk_bind, recursive.
 
 use {
 	fp_library::{
@@ -91,6 +91,16 @@ fn run_single(
 			}
 			let _ = thunk.evaluate();
 		}
+		"recursive" => {
+			fn count_up(
+				state: u64,
+				target: u64,
+			) -> u64 {
+				let next = std::hint::black_box(state + 1);
+				if next >= target { next } else { count_up(next, target) }
+			}
+			let _ = count_up(0, depth as u64);
+		}
 		_ => {
 			eprintln!("Unknown probe: {name}");
 			std::process::exit(2);
@@ -151,6 +161,7 @@ fn main() {
 		("arc_coyoneda", "ArcCoyoneda lower_ref"),
 		("thunk_map", "Thunk map chain"),
 		("thunk_bind", "Thunk bind chain"),
+		("recursive", "Plain recursion"),
 	];
 
 	for (probe_name, display_name) in probes {

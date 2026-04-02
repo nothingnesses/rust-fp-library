@@ -2,9 +2,43 @@
 
 This document outlines benchmarks implemented for the `fp-library` against Rust's standard library.
 
-## Comparisons
+## Key Results
 
-We will compare the performance of the following `fp-library` abstractions against their `std` equivalents.
+Results collected on: AMD Ryzen 9 7940HS (16 cores), Linux 6.12.77, rustc 1.93.1, bench profile.
+
+### CoyonedaExplicit Map Fusion
+
+CoyonedaExplicit composes maps at the type level, resulting in a single call to `F::map` at lower time regardless of chain depth. The fused line is flat while Direct scales linearly.
+
+![Coyoneda Fusion](../benchmarks/coyoneda-fusion.svg)
+
+### Coyoneda Variants
+
+Compares all Coyoneda variants across map chain depths (1-100). Direct and Box-Coyoneda are fastest; Rc/Arc variants pay per-map allocation costs.
+
+![Coyoneda Variants](../benchmarks/coyoneda-variants.svg)
+
+### CatList Cons
+
+CatList cons vs Vec insert(0) vs LinkedList push_front across sizes. Vec's O(n) insert(0) crosses over CatList at ~2000-2500 elements.
+
+![CatList Cons](../benchmarks/catlist-cons.svg)
+
+### Parallel vs Sequential Fold Map
+
+Vec par_fold_map vs sequential fold_map across sizes (100-100K) with string monoid. Rayon parallelism crosses over at ~3000-4000 elements. Log scale on both axes.
+
+![Vec Par Fold Map](../benchmarks/vec-par-fold-map.svg)
+
+### Trampoline vs Iterative Loop
+
+Cost of stack safety: Trampoline vs plain recursion vs a hand-written while loop, all doing equivalent work per step. Trampoline is ~230x slower than recursion but never overflows (recursion overflows at ~500K depth). Log scale on Y axis.
+
+![Trampoline vs Iterative](../benchmarks/trampoline-vs-iterative.svg)
+
+## Detailed Comparisons
+
+The following tables list all implemented benchmarks.
 
 ### Vec
 

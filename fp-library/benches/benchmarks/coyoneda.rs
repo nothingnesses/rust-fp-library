@@ -24,19 +24,23 @@ pub fn bench_coyoneda(c: &mut Criterion) {
 	{
 		let mut group = c.benchmark_group("Coyoneda");
 		for &depth in depths {
-			group.bench_with_input(BenchmarkId::new("Direct", depth), &depth, |b, &k| {
-				b.iter_batched(
-					|| v_orig.clone(),
-					|v| {
-						let mut result = v;
-						for _ in 0 .. k {
-							result = map::<VecBrand, _, _>(|x: i32| x + 1, result);
-						}
-						result
-					},
-					BatchSize::SmallInput,
-				)
-			});
+			group.bench_with_input(
+				BenchmarkId::new("Vec map (no Coyoneda)", depth),
+				&depth,
+				|b, &k| {
+					b.iter_batched(
+						|| v_orig.clone(),
+						|v| {
+							let mut result = v;
+							for _ in 0 .. k {
+								result = map::<VecBrand, _, _>(|x: i32| x + 1, result);
+							}
+							result
+						},
+						BatchSize::SmallInput,
+					)
+				},
+			);
 
 			group.bench_with_input(BenchmarkId::new("Coyoneda", depth), &depth, |b, &k| {
 				b.iter_batched(
@@ -208,19 +212,23 @@ pub fn bench_coyoneda(c: &mut Criterion) {
 						)
 					},
 				);
-				group.bench_with_input(BenchmarkId::new("Direct", $depth), &$depth, |b, &_| {
-					b.iter_batched(
-						|| v_orig.clone(),
-						|v| {
-							let mut result = v;
-							for _ in 0 .. $depth {
-								result = map::<VecBrand, _, _>(|x: i32| x + 1, result);
-							}
-							result
-						},
-						BatchSize::SmallInput,
-					)
-				});
+				group.bench_with_input(
+					BenchmarkId::new("Vec map (no Coyoneda)", $depth),
+					&$depth,
+					|b, &_| {
+						b.iter_batched(
+							|| v_orig.clone(),
+							|v| {
+								let mut result = v;
+								for _ in 0 .. $depth {
+									result = map::<VecBrand, _, _>(|x: i32| x + 1, result);
+								}
+								result
+							},
+							BatchSize::SmallInput,
+						)
+					},
+				);
 				group.bench_with_input(
 					BenchmarkId::new("CoyonedaExplicit (boxed)", $depth),
 					&$depth,
