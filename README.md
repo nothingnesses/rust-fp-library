@@ -110,10 +110,17 @@ fn main() {
 ## Documentation
 
 - [API Documentation](https://docs.rs/fp-library): The complete API reference on docs.rs.
-- [Architecture & Design](docs/architecture.md): Module organization and documentation conventions.
-- [Coyoneda Implementations](docs/coyoneda.md): Trade-offs between the four free functor variants.
+- [Features & Type Class Hierarchy](docs/features.md): Full feature list with hierarchy diagrams.
+- [Higher-Kinded Types](docs/hkt.md): The Brand pattern and HKT encoding.
+- [Zero-Cost Abstractions](docs/zero-cost.md): Uncurried semantics and static dispatch.
 - [Lazy Evaluation](docs/lazy-evaluation.md): Guide to the lazy evaluation and memoization types.
 - [Pointer Abstraction](docs/pointer-abstraction.md): Pointer hierarchy, `FnBrand<P>`, and shared memoization.
+- [Coyoneda Implementations](docs/coyoneda.md): Trade-offs between the four free functor variants.
+- [Thread Safety & Parallelism](docs/parallelism.md): Parallel trait hierarchy and rayon support.
+- [Optics Analysis](docs/optics-analysis.md): Optics coverage comparison with PureScript.
+- [Profunctor Analysis](docs/profunctor-analysis.md): Profunctor class hierarchy comparison with PureScript.
+- [Std Library Coverage](docs/std-coverage-checklist.md): Type class coverage for standard library types.
+- [Architecture & Design](docs/architecture.md): Module organization and documentation conventions.
 - [Limitations](docs/limitations.md): Details all current limitations.
 
 ## Contributing
