@@ -32,6 +32,7 @@ mod inner {
 		"The stored type.",
 		"The ignored type."
 	)]
+	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 	#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct Const<'a, R, A>(pub R, pub PhantomData<&'a A>);
 

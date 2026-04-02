@@ -1,5 +1,8 @@
 //! Stack-safe Free monad over a functor with O(1) [`bind`](crate::functions::bind) operations.
 //!
+//! **User story:** "I want to chain binds without blowing the stack." Useful
+//! for deep recursion and embedded DSLs.
+//!
 //! Enables building computation chains without stack overflow by using a catenable list of continuations. Note: requires `'static` types and cannot implement the library's HKT traits due to type erasure.
 //!
 //! ## Comparison with PureScript
@@ -211,6 +214,15 @@ mod inner {
 	///   into `G`, and the results are threaded together using [`MonadRec::tail_rec_m`] for
 	///   stack-safe iteration. Use this when you want to translate the free structure into
 	///   another effect (e.g., `Option`, `Result`, or a custom interpreter).
+	///
+	/// # Drop behavior
+	///
+	/// Dropping a `Free` value iteratively dismantles the computation chain to avoid
+	/// stack overflow. For `Suspend` nodes, this requires extracting the inner `Free`
+	/// from the functor layer via [`Extract::extract`]. For functors like
+	/// [`ThunkBrand`], this means the thunk is evaluated during drop. Be aware that
+	/// dropping a partially-constructed `Free` chain may trigger deferred computations
+	/// and their side effects.
 	#[document_type_parameters(
 		"The base functor (must implement [`Extract`] and [`Functor`]). Many construction methods (`pure`, `bind`, `map`) only need `F: 'static` in principle, and functor-dependent methods (`wrap`, `lift_f`, `resume`, `fold_free`, `hoist_free`) only need `Functor`. The `Extract` bound is required at the struct level because the custom `Drop` implementation calls [`Extract::extract`] to iteratively dismantle `Suspend` nodes without overflowing the stack.",
 		"The result type."

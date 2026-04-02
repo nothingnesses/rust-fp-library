@@ -31,7 +31,6 @@ mod inner {
 				Semiapplicative,
 				Semigroup,
 				Semimonad,
-				TryLazyConfig,
 				WithIndex,
 			},
 			impl_kind,
@@ -48,7 +47,10 @@ mod inner {
 		},
 		core::ops::ControlFlow,
 		fp_macros::*,
-		std::fmt,
+		std::{
+			fmt,
+			sync::Arc,
+		},
 	};
 
 	/// A deferred computation that may fail with error type `E`.
@@ -487,6 +489,130 @@ mod inner {
 			self.bind(move |_| other)
 		}
 
+		/// Performs tail-recursive monadic computation with error handling.
+		///
+		/// The step function `f` is called in a loop, avoiding stack growth.
+		/// Each iteration evaluates `f(state)` and inspects the resulting
+		/// [`Result`] and [`ControlFlow`]: `Ok(ControlFlow::Continue(next))` continues with
+		/// `next`, `Ok(ControlFlow::Break(a))` breaks out and returns `Ok(a)`, and
+		/// `Err(e)` short-circuits with `Err(e)`.
+		///
+		/// Unlike the [`MonadRec`] implementation for
+		/// [`TryThunkErrAppliedBrand<E>`](crate::brands::TryThunkErrAppliedBrand),
+		/// this method does not require `E: 'static`, so it works with
+		/// borrowed error types like `&'a str`.
+		///
+		/// # Step Function
+		///
+		/// The function `f` is bounded by `Fn`, so it is callable multiple
+		/// times by shared reference. Each iteration of the loop calls `f`
+		/// without consuming it.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the loop state.")]
+		///
+		#[document_parameters(
+			"The step function that produces the next state, the final result, or an error.",
+			"The initial state."
+		)]
+		///
+		#[document_returns("A `TryThunk` that, when evaluated, runs the tail-recursive loop.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::types::*,
+		/// };
+		///
+		/// let result: TryThunk<i32, &str> = TryThunk::tail_rec_m(
+		/// 	|x| {
+		/// 		TryThunk::ok(
+		/// 			if x < 1000 { ControlFlow::Continue(x + 1) } else { ControlFlow::Break(x) },
+		/// 		)
+		/// 	},
+		/// 	0,
+		/// );
+		/// assert_eq!(result.evaluate(), Ok(1000));
+		/// ```
+		pub fn tail_rec_m<S>(
+			f: impl Fn(S) -> TryThunk<'a, ControlFlow<A, S>, E> + 'a,
+			initial: S,
+		) -> Self
+		where
+			S: 'a, {
+			TryThunk::new(move || {
+				let mut state = initial;
+				loop {
+					match f(state).evaluate() {
+						Ok(ControlFlow::Continue(next)) => state = next,
+						Ok(ControlFlow::Break(a)) => break Ok(a),
+						Err(e) => break Err(e),
+					}
+				}
+			})
+		}
+
+		/// Arc-wrapped version of [`tail_rec_m`](TryThunk::tail_rec_m) for
+		/// non-Clone closures.
+		///
+		/// Use this when your closure captures non-Clone state. The closure is
+		/// wrapped in [`Arc`] internally, which provides the required `Clone`
+		/// implementation. The step function must be `Send + Sync` because
+		/// `Arc` requires these bounds.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type of the loop state.")]
+		///
+		#[document_parameters(
+			"The step function that produces the next state, the final result, or an error.",
+			"The initial state."
+		)]
+		///
+		#[document_returns("A `TryThunk` that, when evaluated, runs the tail-recursive loop.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::types::*,
+		/// 	std::sync::{
+		/// 		Arc,
+		/// 		atomic::{
+		/// 			AtomicUsize,
+		/// 			Ordering,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// let counter = Arc::new(AtomicUsize::new(0));
+		/// let counter_clone = Arc::clone(&counter);
+		/// let result: TryThunk<i32, ()> = TryThunk::arc_tail_rec_m(
+		/// 	move |x| {
+		/// 		counter_clone.fetch_add(1, Ordering::SeqCst);
+		/// 		TryThunk::ok(if x < 100 { ControlFlow::Continue(x + 1) } else { ControlFlow::Break(x) })
+		/// 	},
+		/// 	0,
+		/// );
+		/// assert_eq!(result.evaluate(), Ok(100));
+		/// assert_eq!(counter.load(Ordering::SeqCst), 101);
+		/// ```
+		pub fn arc_tail_rec_m<S>(
+			f: impl Fn(S) -> TryThunk<'a, ControlFlow<A, S>, E> + Send + Sync + 'a,
+			initial: S,
+		) -> Self
+		where
+			S: 'a, {
+			let f = Arc::new(f);
+			let wrapper = move |s: S| {
+				let f = Arc::clone(&f);
+				f(s)
+			};
+			Self::tail_rec_m(wrapper, initial)
+		}
+
 		/// Converts this `TryThunk` into a memoized [`RcTryLazy`].
 		///
 		/// The resulting `RcTryLazy` will evaluate the computation on first
@@ -679,7 +805,7 @@ mod inner {
 	where
 		A: Clone + 'a,
 		E: Clone + 'a,
-		Config: TryLazyConfig,
+		Config: LazyConfig,
 	{
 		/// Converts a [`TryLazy`] value into a [`TryThunk`] by cloning the memoized result.
 		///
@@ -1648,11 +1774,11 @@ mod inner {
 		///
 		/// # Evaluation strategy
 		///
-		/// This implementation uses **fail-last** semantics: both `fa` and `fb` are
-		/// evaluated before the results are inspected. If either side is `Ok`, the
-		/// `Ok` value is returned and the function is never called. This contrasts
-		/// with the monadic [`bind`](TryThunk::bind) path, which is **fail-fast**
-		/// and short-circuits on the first `Ok` without evaluating the second thunk.
+		/// This implementation uses **fail-fast** semantics, consistent with
+		/// [`bind`](TryThunk::bind): `fa` is evaluated first, and if it is `Ok`,
+		/// the result is returned immediately without evaluating `fb`. If `fa` is
+		/// `Err`, `fb` is evaluated next; if `fb` is `Ok`, that `Ok` is returned.
+		/// The function is only called when both sides are `Err`.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1694,10 +1820,12 @@ mod inner {
 			E1: Clone + 'a,
 			E2: Clone + 'a,
 			E3: 'a, {
-			TryThunk::new(move || match (fa.evaluate(), fb.evaluate()) {
-				(Err(e1), Err(e2)) => Err(func(e1, e2)),
-				(Ok(a), _) => Ok(a),
-				(_, Ok(a)) => Ok(a),
+			TryThunk::new(move || match fa.evaluate() {
+				Ok(a) => Ok(a),
+				Err(e1) => match fb.evaluate() {
+					Ok(a) => Ok(a),
+					Err(e2) => Err(func(e1, e2)),
+				},
 			})
 		}
 	}
@@ -1714,11 +1842,11 @@ mod inner {
 		///
 		/// # Evaluation strategy
 		///
-		/// This implementation uses **fail-last** semantics: both `ff` and `fa` are
-		/// evaluated before the results are inspected. If either side is `Ok`, the
-		/// `Ok` value is returned. This contrasts with the monadic
-		/// [`bind`](TryThunk::bind) path, which is **fail-fast** and short-circuits
-		/// on the first `Ok` without evaluating the second thunk.
+		/// This implementation uses **fail-fast** semantics, consistent with
+		/// [`bind`](TryThunk::bind): `ff` is evaluated first, and if it is `Ok`,
+		/// the result is returned immediately without evaluating `fa`. If `ff` is
+		/// `Err`, `fa` is evaluated next; if `fa` is `Ok`, that `Ok` is returned.
+		/// The function is only applied when both sides are `Err`.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1755,10 +1883,12 @@ mod inner {
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, E1, E2>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E1>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E2>) {
-			TryThunk::new(move || match (ff.evaluate(), fa.evaluate()) {
-				(Err(f), Err(e)) => Err(f(e)),
-				(Ok(a), _) => Ok(a),
-				(_, Ok(a)) => Ok(a),
+			TryThunk::new(move || match ff.evaluate() {
+				Ok(a) => Ok(a),
+				Err(f) => match fa.evaluate() {
+					Ok(a) => Ok(a),
+					Err(e) => Err(f(e)),
+				},
 			})
 		}
 	}
@@ -3149,5 +3279,137 @@ mod tests {
 		let t2: TryThunk<String, &str> = TryThunk::err("second failed");
 		let result = append(t1, t2);
 		assert_eq!(result.evaluate(), Err("second failed"));
+	}
+
+	/// Tests `TryThunk::tail_rec_m` computes a simple recursive sum.
+	///
+	/// Verifies that the loop accumulates correctly and terminates with `Break`.
+	#[test]
+	fn test_tail_rec_m_success() {
+		use core::ops::ControlFlow;
+		let result: TryThunk<i32, ()> = TryThunk::tail_rec_m(
+			|x| {
+				TryThunk::ok(
+					if x < 1000 { ControlFlow::Continue(x + 1) } else { ControlFlow::Break(x) },
+				)
+			},
+			0,
+		);
+		assert_eq!(result.evaluate(), Ok(1000));
+	}
+
+	/// Tests `TryThunk::tail_rec_m` short-circuits on error.
+	///
+	/// Verifies that when the step function returns `Err`, the loop terminates
+	/// immediately and propagates the error.
+	#[test]
+	fn test_tail_rec_m_early_error() {
+		use core::ops::ControlFlow;
+		let result: TryThunk<i32, &str> = TryThunk::tail_rec_m(
+			|x| {
+				if x == 5 {
+					TryThunk::err("stopped at 5")
+				} else {
+					TryThunk::ok(ControlFlow::Continue(x + 1))
+				}
+			},
+			0,
+		);
+		assert_eq!(result.evaluate(), Err("stopped at 5"));
+	}
+
+	/// Tests `TryThunk::tail_rec_m` stack safety with many iterations.
+	///
+	/// Verifies that the loop does not overflow the stack with 100,000 iterations.
+	#[test]
+	fn test_tail_rec_m_stack_safety() {
+		use core::ops::ControlFlow;
+		let iterations: i64 = 100_000;
+		let result: TryThunk<i64, ()> = TryThunk::tail_rec_m(
+			|acc| {
+				TryThunk::ok(
+					if acc < iterations {
+						ControlFlow::Continue(acc + 1)
+					} else {
+						ControlFlow::Break(acc)
+					},
+				)
+			},
+			0i64,
+		);
+		assert_eq!(result.evaluate(), Ok(iterations));
+	}
+
+	/// Tests `TryThunk::arc_tail_rec_m` computes correctly and tracks calls.
+	///
+	/// Verifies that the Arc-wrapped variant produces the same result as
+	/// `tail_rec_m` and that the step function is called the expected number
+	/// of times.
+	#[test]
+	fn test_arc_tail_rec_m_success() {
+		use {
+			core::ops::ControlFlow,
+			std::sync::{
+				Arc,
+				atomic::{
+					AtomicUsize,
+					Ordering,
+				},
+			},
+		};
+		let counter = Arc::new(AtomicUsize::new(0));
+		let counter_clone = Arc::clone(&counter);
+		let result: TryThunk<i32, ()> = TryThunk::arc_tail_rec_m(
+			move |x| {
+				counter_clone.fetch_add(1, Ordering::SeqCst);
+				TryThunk::ok(
+					if x < 100 { ControlFlow::Continue(x + 1) } else { ControlFlow::Break(x) },
+				)
+			},
+			0,
+		);
+		assert_eq!(result.evaluate(), Ok(100));
+		assert_eq!(counter.load(Ordering::SeqCst), 101);
+	}
+
+	/// Tests `TryThunk::arc_tail_rec_m` short-circuits on error.
+	///
+	/// Verifies that the Arc-wrapped variant propagates errors immediately.
+	#[test]
+	fn test_arc_tail_rec_m_early_error() {
+		use core::ops::ControlFlow;
+		let result: TryThunk<i32, &str> = TryThunk::arc_tail_rec_m(
+			|x| {
+				if x == 5 {
+					TryThunk::err("stopped at 5")
+				} else {
+					TryThunk::ok(ControlFlow::Continue(x + 1))
+				}
+			},
+			0,
+		);
+		assert_eq!(result.evaluate(), Err("stopped at 5"));
+	}
+
+	/// Tests `TryThunk::arc_tail_rec_m` stack safety with many iterations.
+	///
+	/// Verifies that the Arc-wrapped variant does not overflow the stack.
+	#[test]
+	fn test_arc_tail_rec_m_stack_safety() {
+		use core::ops::ControlFlow;
+		let iterations: i64 = 100_000;
+		let result: TryThunk<i64, ()> = TryThunk::arc_tail_rec_m(
+			|acc| {
+				TryThunk::ok(
+					if acc < iterations {
+						ControlFlow::Continue(acc + 1)
+					} else {
+						ControlFlow::Break(acc)
+					},
+				)
+			},
+			0i64,
+		);
+		assert_eq!(result.evaluate(), Ok(iterations));
 	}
 }

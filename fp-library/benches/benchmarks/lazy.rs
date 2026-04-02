@@ -21,7 +21,12 @@ use {
 };
 
 pub fn bench_lazy(c: &mut Criterion) {
-	// ── Thunk ────────────────────────────────────────────────────────────
+	// Shallow depths for types that are not stack-safe (Thunk, Lazy).
+	let shallow_depths: &[i64] = &[1, 5, 10, 25, 50, 100];
+	// Deep depths for stack-safe types (Trampoline, Free).
+	let deep_depths: &[i64] = &[100, 500, 1000, 2500, 5000, 10000];
+
+	// -- Thunk --
 
 	// Thunk: new + evaluate (baseline)
 	{
@@ -38,7 +43,7 @@ pub fn bench_lazy(c: &mut Criterion) {
 	// Thunk: map chains
 	{
 		let mut group = c.benchmark_group("Thunk Map Chain");
-		for &depth in &[1, 10, 100] {
+		for &depth in shallow_depths {
 			group.bench_with_input(BenchmarkId::new("depth", depth), &depth, |b, &d| {
 				b.iter(|| {
 					let mut thunk = Thunk::new(|| 0i64);
@@ -55,7 +60,7 @@ pub fn bench_lazy(c: &mut Criterion) {
 	// Thunk: bind chains
 	{
 		let mut group = c.benchmark_group("Thunk Bind Chain");
-		for &depth in &[1, 10, 100] {
+		for &depth in shallow_depths {
 			group.bench_with_input(BenchmarkId::new("depth", depth), &depth, |b, &d| {
 				b.iter(|| {
 					let mut thunk = Thunk::new(|| 0i64);
@@ -69,7 +74,7 @@ pub fn bench_lazy(c: &mut Criterion) {
 		group.finish();
 	}
 
-	// ── Trampoline ───────────────────────────────────────────────────────
+	// -- Trampoline --
 
 	// Trampoline: new + evaluate (baseline)
 	{
@@ -86,7 +91,7 @@ pub fn bench_lazy(c: &mut Criterion) {
 	// Trampoline: bind chains
 	{
 		let mut group = c.benchmark_group("Trampoline Bind Chain");
-		for &depth in &[100, 1000, 10000] {
+		for &depth in deep_depths {
 			group.bench_with_input(BenchmarkId::new("depth", depth), &depth, |b, &d| {
 				b.iter(|| {
 					let mut task = Trampoline::pure(0i64);
@@ -103,7 +108,7 @@ pub fn bench_lazy(c: &mut Criterion) {
 	// Trampoline: map chains
 	{
 		let mut group = c.benchmark_group("Trampoline Map Chain");
-		for &depth in &[100, 1000, 10000] {
+		for &depth in deep_depths {
 			group.bench_with_input(BenchmarkId::new("depth", depth), &depth, |b, &d| {
 				b.iter(|| {
 					let mut task = Trampoline::pure(0i64);
@@ -140,37 +145,62 @@ pub fn bench_lazy(c: &mut Criterion) {
 	}
 
 	// Trampoline vs hand-written iterative loop
+	// Both sides do real work per step (black_box prevents optimization).
+	// Measures the per-step overhead of Trampoline's CatList machinery.
 	{
-		let depth = 10000u64;
 		let mut group = c.benchmark_group("Trampoline vs Iterative");
-		group.bench_with_input(BenchmarkId::new("trampoline", depth), &depth, |b, &n| {
-			b.iter(|| {
-				Trampoline::tail_rec_m(
-					|state: u64| {
-						if state == 0 {
-							Trampoline::pure(ControlFlow::Break(0u64))
-						} else {
-							Trampoline::pure(ControlFlow::Continue(state - 1))
-						}
-					},
-					n,
-				)
-				.evaluate()
-			})
-		});
-		group.bench_with_input(BenchmarkId::new("iterative", depth), &depth, |b, &n| {
-			b.iter(|| {
-				let mut state = n;
-				while state > 0 {
-					state -= 1;
+		let plot_config = criterion::PlotConfiguration::default()
+			.summary_scale(criterion::AxisScale::Logarithmic);
+		group.plot_config(plot_config);
+		// Plain recursion overflows around 500K-1M depth. Safe at all deep_depths values.
+		for &depth in deep_depths {
+			let target = depth as u64;
+			group.bench_with_input(BenchmarkId::new("recursive", depth), &depth, |b, &_| {
+				fn count_up_recursive(
+					state: u64,
+					target: u64,
+				) -> u64 {
+					let next = black_box(state + 1);
+					if next >= target { next } else { count_up_recursive(next, target) }
 				}
-				black_box(state)
-			})
-		});
+				b.iter(|| count_up_recursive(0, target))
+			});
+		}
+
+		for &depth in deep_depths {
+			let target = depth as u64;
+			group.bench_with_input(BenchmarkId::new("trampoline", depth), &depth, |b, &_| {
+				b.iter(|| {
+					Trampoline::tail_rec_m(
+						move |state: u64| {
+							let next = black_box(state + 1);
+							if next >= target {
+								Trampoline::pure(ControlFlow::Break(next))
+							} else {
+								Trampoline::pure(ControlFlow::Continue(next))
+							}
+						},
+						0u64,
+					)
+					.evaluate()
+				})
+			});
+			group.bench_with_input(BenchmarkId::new("iterative", depth), &depth, |b, &_| {
+				b.iter(|| {
+					let mut state = 0u64;
+					loop {
+						state = black_box(state + 1);
+						if state >= target {
+							break black_box(state);
+						}
+					}
+				})
+			});
+		}
 		group.finish();
 	}
 
-	// ── Lazy (RcLazy) ────────────────────────────────────────────────────
+	// -- Lazy (RcLazy) --
 
 	// RcLazy: first-access time
 	{
@@ -200,7 +230,7 @@ pub fn bench_lazy(c: &mut Criterion) {
 	// RcLazy: ref_map chains
 	{
 		let mut group = c.benchmark_group("RcLazy ref_map Chain");
-		for &depth in &[1, 10, 100] {
+		for &depth in shallow_depths {
 			group.bench_with_input(BenchmarkId::new("depth", depth), &depth, |b, &d| {
 				b.iter_batched(
 					|| {
@@ -218,7 +248,7 @@ pub fn bench_lazy(c: &mut Criterion) {
 		group.finish();
 	}
 
-	// ── Lazy (ArcLazy) ──────────────────────────────────────────────────
+	// -- Lazy (ArcLazy) --
 
 	// ArcLazy: first-access time
 	{
@@ -247,7 +277,7 @@ pub fn bench_lazy(c: &mut Criterion) {
 	// ArcLazy: ref_map chains
 	{
 		let mut group = c.benchmark_group("ArcLazy ref_map Chain");
-		for &depth in &[1, 10, 100] {
+		for &depth in shallow_depths {
 			group.bench_with_input(BenchmarkId::new("depth", depth), &depth, |b, &d| {
 				b.iter_batched(
 					|| {
@@ -265,12 +295,12 @@ pub fn bench_lazy(c: &mut Criterion) {
 		group.finish();
 	}
 
-	// ── Free ─────────────────────────────────────────────────────────────
+	// -- Free --
 
 	// Free: left-associated bind chains
 	{
 		let mut group = c.benchmark_group("Free Left-Assoc Bind");
-		for &depth in &[100, 1000, 10000] {
+		for &depth in deep_depths {
 			group.bench_with_input(BenchmarkId::new("depth", depth), &depth, |b, &d| {
 				b.iter(|| {
 					let mut free = Free::<ThunkBrand, _>::pure(0i64);
@@ -287,7 +317,7 @@ pub fn bench_lazy(c: &mut Criterion) {
 	// Free: right-associated bind chains
 	{
 		let mut group = c.benchmark_group("Free Right-Assoc Bind");
-		for &depth in &[100, 1000, 10000] {
+		for &depth in deep_depths {
 			group.bench_with_input(BenchmarkId::new("depth", depth), &depth, |b, &d| {
 				b.iter(|| {
 					fn build_right(n: i64) -> Free<ThunkBrand, i64> {
@@ -308,7 +338,7 @@ pub fn bench_lazy(c: &mut Criterion) {
 	// Free: evaluate for various depths (pure + wrap)
 	{
 		let mut group = c.benchmark_group("Free Evaluate");
-		for &depth in &[100, 1000, 10000] {
+		for &depth in deep_depths {
 			group.bench_with_input(BenchmarkId::new("depth", depth), &depth, |b, &d| {
 				b.iter(|| {
 					let mut free = Free::<ThunkBrand, _>::pure(0i64);

@@ -15,18 +15,14 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use {
-		crate::classes::Deferrable,
-		fp_macros::*,
-	};
+	use fp_macros::*;
 	/// A trait for deferred lazy evaluation with thread-safe thunks.
 	///
-	/// This extends [`Deferrable`] with the additional requirement that the thunk
-	/// must be `Send`, following the same supertrait pattern used by
-	/// [`SendCloneableFn: CloneableFn`](crate::classes::SendCloneableFn).
-	///
-	/// Every `SendDeferrable` type is also `Deferrable`, so generic code written
-	/// against `Deferrable` accepts both single-threaded and thread-safe types.
+	/// `SendDeferrable` is the thread-safe counterpart of
+	/// [`Deferrable`](crate::classes::Deferrable). Where `Deferrable` accepts any
+	/// `FnOnce() -> Self + 'a`, this trait requires `FnOnce() -> Self + Send + 'a`,
+	/// ensuring the closure can be sent across thread boundaries. The two traits
+	/// are independent: implementing one does not require implementing the other.
 	///
 	/// Unlike [`SendCloneableFn`](crate::classes::SendCloneableFn), which wraps multi-use
 	/// `Fn` closures that are `Send + Sync`, this trait accepts a `FnOnce` closure that
@@ -61,7 +57,7 @@ mod inner {
 	/// let deferred: ArcLazy<i32> = send_defer(|| ArcLazy::pure(42));
 	/// assert_eq!(*deferred.evaluate(), *x.evaluate());
 	/// ```
-	pub trait SendDeferrable<'a>: Deferrable<'a> {
+	pub trait SendDeferrable<'a> {
 		/// Creates a deferred value from a thread-safe thunk.
 		#[document_signature]
 		///

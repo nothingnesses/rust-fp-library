@@ -10,7 +10,6 @@ mod inner {
 	use {
 		crate::{
 			classes::{
-				Deferrable,
 				Monoid,
 				Semigroup,
 				SendDeferrable,
@@ -685,7 +684,7 @@ mod inner {
 		where
 			A: Send + Sync + 'a,
 			E: Send + Sync + 'a, {
-			TryLazy(self.0.into_arc_lazy().0)
+			TryLazy(self.0.into_arc_lazy())
 		}
 	}
 
@@ -950,44 +949,6 @@ mod inner {
 		fn from(lazy: ArcTryLazy<'a, A, E>) -> Self {
 			let result = lazy.evaluate().cloned().map_err(Clone::clone);
 			TrySendThunk::new(move || result)
-		}
-	}
-
-	#[document_type_parameters(
-		"The lifetime of the computation.",
-		"The type of the success value.",
-		"The type of the error value."
-	)]
-	impl<'a, A, E> Deferrable<'a> for TrySendThunk<'a, A, E>
-	where
-		A: 'a,
-		E: 'a,
-	{
-		/// Creates a `TrySendThunk` from a computation that produces it.
-		///
-		/// The thunk `f` is called eagerly because `Deferrable::defer` does not
-		/// require `Send` on the closure.
-		#[document_signature]
-		///
-		#[document_parameters("A thunk that produces the try-send-thunk.")]
-		///
-		#[document_returns("The deferred try-send-thunk.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	classes::Deferrable,
-		/// 	types::*,
-		/// };
-		///
-		/// let task: TrySendThunk<i32, ()> = Deferrable::defer(|| TrySendThunk::ok(42));
-		/// assert_eq!(task.evaluate(), Ok(42));
-		/// ```
-		fn defer(f: impl FnOnce() -> Self + 'a) -> Self
-		where
-			Self: Sized, {
-			f()
 		}
 	}
 
@@ -1387,13 +1348,6 @@ mod tests {
 		let t: TrySendThunk<i32, ()> = TrySendThunk::ok(42);
 		let handle = std::thread::spawn(move || t.evaluate());
 		assert_eq!(handle.join().unwrap(), Ok(42));
-	}
-
-	#[test]
-	fn test_deferrable() {
-		use crate::classes::Deferrable;
-		let t: TrySendThunk<i32, ()> = Deferrable::defer(|| TrySendThunk::ok(42));
-		assert_eq!(t.evaluate(), Ok(42));
 	}
 
 	#[test]

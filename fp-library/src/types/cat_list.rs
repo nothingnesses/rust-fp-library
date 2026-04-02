@@ -36,6 +36,7 @@ mod inner {
 				Compactable,
 				Extend,
 				Filterable,
+				FilterableWithIndex,
 				Foldable,
 				FoldableWithIndex,
 				Functor,
@@ -45,6 +46,7 @@ mod inner {
 				Monoid,
 				ParCompactable,
 				ParFilterable,
+				ParFilterableWithIndex,
 				ParFoldable,
 				ParFoldableWithIndex,
 				ParFunctor,
@@ -1503,6 +1505,270 @@ mod inner {
 		}
 	}
 
+	impl FilterableWithIndex for CatListBrand {
+		/// Partitions a list based on a function that receives the index and returns a [`Result`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the input value.",
+			"The type of the error value.",
+			"The type of the success value."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element and its index.",
+			"The list to partition."
+		)]
+		///
+		#[document_returns("A pair of lists.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
+		/// let (errs, oks) = partition_map_with_index::<CatListBrand, _, _, _>(
+		/// 	|i, a: i32| if i < 2 { Ok(a) } else { Err(a) },
+		/// 	list,
+		/// );
+		/// let oks_vec: Vec<_> = oks.into_iter().collect();
+		/// let errs_vec: Vec<_> = errs.into_iter().collect();
+		/// assert_eq!(oks_vec, vec![1, 2]);
+		/// assert_eq!(errs_vec, vec![3, 4]);
+		/// ```
+		fn partition_map_with_index<'a, A: 'a, E: 'a, O: 'a>(
+			func: impl Fn(usize, A) -> Result<O, E> + 'a,
+			fa: CatList<A>,
+		) -> (CatList<E>, CatList<O>) {
+			let mut oks = CatList::empty();
+			let mut errs = CatList::empty();
+			for (i, a) in fa.into_iter().enumerate() {
+				match func(i, a) {
+					Ok(o) => oks = oks.snoc(o),
+					Err(e) => errs = errs.snoc(e),
+				}
+			}
+			(errs, oks)
+		}
+
+		/// Partitions a list based on a predicate that receives the index.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
+		///
+		#[document_parameters(
+			"The predicate receiving the index and element.",
+			"The list to partition."
+		)]
+		///
+		#[document_returns("A pair of lists.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
+		/// let (not_satisfied, satisfied) =
+		/// 	partition_with_index::<CatListBrand, _>(|i, _a: i32| i < 2, list);
+		/// let sat_vec: Vec<_> = satisfied.into_iter().collect();
+		/// let not_sat_vec: Vec<_> = not_satisfied.into_iter().collect();
+		/// assert_eq!(sat_vec, vec![1, 2]);
+		/// assert_eq!(not_sat_vec, vec![3, 4]);
+		/// ```
+		fn partition_with_index<'a, A: 'a + Clone>(
+			func: impl Fn(usize, A) -> bool + 'a,
+			fa: CatList<A>,
+		) -> (CatList<A>, CatList<A>) {
+			let mut satisfied = CatList::empty();
+			let mut not_satisfied = CatList::empty();
+			for (i, a) in fa.into_iter().enumerate() {
+				if func(i, a.clone()) {
+					satisfied = satisfied.snoc(a);
+				} else {
+					not_satisfied = not_satisfied.snoc(a);
+				}
+			}
+			(not_satisfied, satisfied)
+		}
+
+		/// Maps a function over a list with the index and filters out [`None`] results.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the input value.",
+			"The type of the result of applying the function."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element and its index.",
+			"The list to filter and map."
+		)]
+		///
+		#[document_returns("The filtered and mapped list.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
+		/// let filtered = filter_map_with_index::<CatListBrand, _, _>(
+		/// 	|i, a: i32| if i % 2 == 0 { Some(a * 2) } else { None },
+		/// 	list,
+		/// );
+		/// let vec: Vec<_> = filtered.into_iter().collect();
+		/// assert_eq!(vec, vec![2, 6]);
+		/// ```
+		fn filter_map_with_index<'a, A: 'a, B: 'a>(
+			func: impl Fn(usize, A) -> Option<B> + 'a,
+			fa: CatList<A>,
+		) -> CatList<B> {
+			fa.into_iter().enumerate().filter_map(|(i, a)| func(i, a)).collect()
+		}
+
+		/// Filters a list based on a predicate that receives the index.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
+		///
+		#[document_parameters(
+			"The predicate receiving the index and element.",
+			"The list to filter."
+		)]
+		///
+		#[document_returns("The filtered list.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
+		/// let filtered = filter_with_index::<CatListBrand, _>(|i, _a: i32| i < 2, list);
+		/// let vec: Vec<_> = filtered.into_iter().collect();
+		/// assert_eq!(vec, vec![1, 2]);
+		/// ```
+		fn filter_with_index<'a, A: 'a + Clone>(
+			func: impl Fn(usize, A) -> bool + 'a,
+			fa: CatList<A>,
+		) -> CatList<A> {
+			fa.into_iter()
+				.enumerate()
+				.filter(|(i, a)| func(*i, a.clone()))
+				.map(|(_, a)| a)
+				.collect()
+		}
+	}
+
+	impl ParFilterableWithIndex for CatListBrand {
+		/// Maps and filters a list in parallel with the index, discarding elements where
+		/// `f` returns `None`.
+		///
+		/// Single-pass implementation via Vec intermediary. Delegates to
+		/// [`CatList::par_filter_map_with_index`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The input element type.",
+			"The output element type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each index and element. Must be `Send + Sync`.",
+			"The list to filter and map."
+		)]
+		///
+		#[document_returns("A new list containing the `Some` results of applying `f`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_filterable_with_index::ParFilterableWithIndex,
+		/// 	types::CatList,
+		/// };
+		///
+		/// let list: CatList<i32> = vec![1, 2, 3, 4, 5].into_iter().collect();
+		/// let result: Vec<_> = CatListBrand::par_filter_map_with_index(
+		/// 	|i, x: i32| if i < 3 { Some(x * 10) } else { None },
+		/// 	list,
+		/// )
+		/// .into_iter()
+		/// .collect();
+		/// assert_eq!(result, vec![10, 20, 30]);
+		/// ```
+		fn par_filter_map_with_index<'a, A: 'a + Send, B: 'a + Send>(
+			f: impl Fn(usize, A) -> Option<B> + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+		where
+			usize: Send + Sync + Copy + 'a, {
+			fa.par_filter_map_with_index(f)
+		}
+
+		/// Filters a list in parallel with the index, retaining only elements satisfying `f`.
+		///
+		/// Single-pass implementation via Vec intermediary. Delegates to
+		/// [`CatList::par_filter_with_index`].
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
+		///
+		#[document_parameters(
+			"The predicate receiving the index and a reference to the element. Must be `Send + Sync`.",
+			"The list to filter."
+		)]
+		///
+		#[document_returns("A new list containing only the elements satisfying `f`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_filterable_with_index::ParFilterableWithIndex,
+		/// 	types::CatList,
+		/// };
+		///
+		/// let list: CatList<i32> = vec![1, 2, 3, 4, 5].into_iter().collect();
+		/// let result: Vec<_> =
+		/// 	CatListBrand::par_filter_with_index(|i, x: &i32| i < 3 && x % 2 != 0, list)
+		/// 		.into_iter()
+		/// 		.collect();
+		/// assert_eq!(result, vec![1, 3]);
+		/// ```
+		fn par_filter_with_index<'a, A: 'a + Send>(
+			f: impl Fn(usize, &A) -> bool + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		where
+			usize: Send + Sync + Copy + 'a, {
+			fa.par_filter_with_index(f)
+		}
+	}
+
 	impl Witherable for CatListBrand {
 		/// Partitions a list based on a function that returns a result in an applicative context.
 		///
@@ -2009,10 +2275,12 @@ mod inner {
 		/// assert!(list.is_empty());
 		/// ```
 		pub fn uncons(mut self) -> Option<(A, Self)> {
-			// Replace self.0 with Nil, taking ownership of the inner enum.
-			// CatListInner has no Drop impl, so we can destructure it by move.
 			let inner = std::mem::replace(&mut self.0, CatListInner::Nil);
-			// self.0 is now Nil, so forgetting self leaks nothing.
+			// SAFETY: `inner` now owns the original data, and `self.0` is `Nil`.
+			// `mem::forget` skips `CatList`'s custom `Drop` (which would
+			// redundantly walk the now-empty sentinel). This is sound because
+			// `CatListInner` has no `Drop` impl; if one is ever added, this
+			// code must be restructured to avoid skipping resource cleanup.
 			std::mem::forget(self);
 			match inner {
 				CatListInner::Nil => None,
@@ -2556,6 +2824,83 @@ mod inner {
 				.enumerate()
 				.map(|(i, a)| f(i, a))
 				.fold(M::empty(), |acc, m| M::append(acc, m))
+		}
+
+		/// Maps and filters a list in parallel with the index, discarding elements where
+		/// `f` returns `None`.
+		///
+		/// Collects to `Vec`, filters with index in parallel (or sequentially without rayon),
+		/// then reconstructs a `CatList`.
+		#[document_signature]
+		#[document_type_parameters("The type of the elements in the resulting list.")]
+		#[document_parameters(
+			"The function to apply to each index and element. Must be `Send + Sync`."
+		)]
+		#[document_returns("A new list containing the `Some` results of applying `f`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::CatList;
+		///
+		/// let list: CatList<i32> = vec![1, 2, 3, 4, 5].into_iter().collect();
+		/// let result: Vec<_> = list
+		/// 	.par_filter_map_with_index(|i, x: i32| if i < 3 { Some(x * 10) } else { None })
+		/// 	.into_iter()
+		/// 	.collect();
+		/// assert_eq!(result, vec![10, 20, 30]);
+		/// ```
+		pub fn par_filter_map_with_index<B: Send>(
+			self,
+			f: impl Fn(usize, A) -> Option<B> + Send + Sync,
+		) -> CatList<B>
+		where
+			A: Send, {
+			let v: Vec<A> = self.into_iter().collect();
+			#[cfg(feature = "rayon")]
+			let result: Vec<B> = {
+				use rayon::prelude::*;
+				v.into_par_iter().enumerate().filter_map(|(i, a)| f(i, a)).collect()
+			};
+			#[cfg(not(feature = "rayon"))]
+			let result: Vec<B> = v.into_iter().enumerate().filter_map(|(i, a)| f(i, a)).collect();
+			result.into_iter().collect()
+		}
+
+		/// Filters a list in parallel with the index, retaining only elements satisfying `f`.
+		///
+		/// Collects to `Vec`, filters with index in parallel (or sequentially without rayon),
+		/// then reconstructs a `CatList`.
+		#[document_signature]
+		#[document_parameters(
+			"The predicate receiving the index and a reference to the element. Must be `Send + Sync`."
+		)]
+		#[document_returns("A new list containing only the elements satisfying `f`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::CatList;
+		///
+		/// let list: CatList<i32> = vec![1, 2, 3, 4, 5].into_iter().collect();
+		/// let result: Vec<_> =
+		/// 	list.par_filter_with_index(|i, x: &i32| i < 3 && x % 2 != 0).into_iter().collect();
+		/// assert_eq!(result, vec![1, 3]);
+		/// ```
+		pub fn par_filter_with_index(
+			self,
+			f: impl Fn(usize, &A) -> bool + Send + Sync,
+		) -> CatList<A>
+		where
+			A: Send, {
+			let v: Vec<A> = self.into_iter().collect();
+			#[cfg(feature = "rayon")]
+			let result: Vec<A> = {
+				use rayon::prelude::*;
+				v.into_par_iter().enumerate().filter(|(i, a)| f(*i, a)).map(|(_, a)| a).collect()
+			};
+			#[cfg(not(feature = "rayon"))]
+			let result: Vec<A> =
+				v.into_iter().enumerate().filter(|(i, a)| f(*i, a)).map(|(_, a)| a).collect();
+			result.into_iter().collect()
 		}
 	}
 

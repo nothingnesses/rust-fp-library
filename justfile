@@ -21,8 +21,8 @@ clippy *args:
 doc *args:
     #!/usr/bin/env bash
     set -euo pipefail
-    if grep -rn '[✅❌⚠⚡←→↔≥≤≠✓✗✘✔✖──━┃┏┓┗┛┣┫┳┻╋═║►▶◀◁▲△▼▽●○■□★☆♠♣♥♦]' fp-library/src/ fp-macros/src/ --include='*.rs' 2>/dev/null; then
-        echo "ERROR: Found emoji or unicode characters in source files. Use ASCII equivalents." >&2
+    if grep -rn '[✅❌⚠⚡←→↔≥≤≠✓✗✘✔✖──━┃┏┓┗┛┣┫┳┻╋═║►▶◀◁▲△▼▽●○■□★☆♠♣♥♦]' fp-library/src/ fp-macros/src/ --include='*.rs' docs/ --include='*.md' 2>/dev/null; then
+        echo "ERROR: Found emoji or unicode characters in source or documentation files. Use ASCII equivalents." >&2
         exit 1
     fi
     {{direnv_prefix}} RUSTDOCFLAGS="-D warnings" cargo doc {{args}}
@@ -35,7 +35,8 @@ build *args:
 check *args:
     {{direnv_prefix}} cargo check {{args}}
 
-# Run benchmarks.
+# Run benchmarks. Use regex dots for spaces in benchmark names, e.g.:
+#   just bench -p fp-library --bench benchmarks -- "CatList.Left-Assoc"
 bench *args:
     {{direnv_prefix}} cargo bench {{args}}
 

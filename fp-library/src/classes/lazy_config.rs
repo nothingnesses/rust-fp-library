@@ -35,7 +35,8 @@ mod inner {
 	/// [`evaluate`](LazyConfig::evaluate)), then use your config as the
 	/// `Config` parameter on [`Lazy`](crate::types::Lazy).
 	///
-	/// For fallible memoization, implement [`TryLazyConfig`](crate::classes::TryLazyConfig) as well.
+	/// For fallible memoization, use [`TryLazy`](crate::types::TryLazy), which is
+	/// a newtype over `Lazy<Result<A, E>>` and requires only `LazyConfig`.
 	pub trait LazyConfig: 'static {
 		/// The pointer brand used by this configuration.
 		///

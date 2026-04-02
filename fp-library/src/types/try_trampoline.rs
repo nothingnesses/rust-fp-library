@@ -22,7 +22,6 @@ mod inner {
 				LazyConfig,
 				Monoid,
 				Semigroup,
-				TryLazyConfig,
 			},
 			types::{
 				Lazy,
@@ -80,6 +79,14 @@ mod inner {
 	/// **Not memoized**: Each call to [`evaluate`](TryTrampoline::evaluate) re-runs
 	/// the entire computation. For memoized fallible computation, wrap in
 	/// [`TryLazy`](crate::types::TryLazy).
+	///
+	/// # Drop behavior
+	///
+	/// Dropping a `TryTrampoline` dismantles its inner
+	/// [`Trampoline<Result<A, E>>`](Trampoline) chain iteratively. Each suspended
+	/// thunk in the chain is evaluated during drop to access the next node. Be aware
+	/// that dropping a partially-evaluated `TryTrampoline` may trigger deferred
+	/// computations.
 	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
 	///
 	pub struct TryTrampoline<A: 'static, E: 'static>(
@@ -918,7 +925,7 @@ mod inner {
 	where
 		A: Clone + 'static,
 		E: Clone + 'static,
-		Config: TryLazyConfig,
+		Config: LazyConfig,
 	{
 		/// Converts a [`TryLazy`] value into a [`TryTrampoline`] that defers evaluation.
 		///

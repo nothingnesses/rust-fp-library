@@ -15,7 +15,6 @@ mod inner {
 			brands::SendThunkBrand,
 			classes::{
 				CloneableFn,
-				Deferrable,
 				Foldable,
 				FoldableWithIndex,
 				Monoid,
@@ -273,15 +272,11 @@ mod inner {
 		/// [`ControlFlow`]: `ControlFlow::Continue(next)` continues with `next`, while
 		/// `ControlFlow::Break(a)` breaks out and returns `a`.
 		///
-		/// # Clone Bound
+		/// # Step Function
 		///
-		/// The function `f` must implement `Clone` because each iteration
-		/// of the recursion may need its own copy. Most closures naturally
-		/// implement `Clone` when all their captures implement `Clone`.
-		///
-		/// For closures that do not implement `Clone`, use
-		/// [`arc_tail_rec_m`](SendThunk::arc_tail_rec_m), which wraps the
-		/// closure in `Arc` internally.
+		/// The function `f` is bounded by `Fn`, so it is callable multiple
+		/// times by shared reference. Each iteration of the loop calls `f`
+		/// without consuming it, so no `Clone` bound is needed.
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the loop state.")]
@@ -328,11 +323,11 @@ mod inner {
 			})
 		}
 
-		/// Arc-wrapped version of [`tail_rec_m`](SendThunk::tail_rec_m) for non-Clone closures.
+		/// Arc-wrapped version of [`tail_rec_m`](SendThunk::tail_rec_m).
 		///
-		/// Use this when your closure captures non-Clone state. The closure is
-		/// wrapped in [`Arc`] internally, which provides the required `Clone`
-		/// implementation.
+		/// Wraps the closure in [`Arc`] internally so it can be shared
+		/// across thread boundaries. The step function must be `Send + Sync`
+		/// (rather than just `Send` as in `tail_rec_m`).
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the loop state.")]
@@ -407,7 +402,9 @@ mod inner {
 		/// assert_eq!(*lazy.evaluate(), 42);
 		/// ```
 		#[inline]
-		pub fn into_arc_lazy(self) -> ArcLazy<'a, A> {
+		pub fn into_arc_lazy(self) -> ArcLazy<'a, A>
+		where
+			A: Send + Sync, {
 			self.into()
 		}
 	}
@@ -600,39 +597,6 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> R {
 			f((), fa.evaluate())
-		}
-	}
-
-	#[document_type_parameters(
-		"The lifetime of the computation.",
-		"The type of the value produced by the computation."
-	)]
-	impl<'a, A: 'a> Deferrable<'a> for SendThunk<'a, A> {
-		/// Creates a `SendThunk` from a computation that produces it.
-		///
-		/// The thunk `f` is called eagerly because `Deferrable::defer` does not
-		/// require `Send` on the closure.
-		#[document_signature]
-		///
-		#[document_parameters("A thunk that produces the send thunk.")]
-		///
-		#[document_returns("The deferred send thunk.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	classes::Deferrable,
-		/// 	types::*,
-		/// };
-		///
-		/// let task: SendThunk<i32> = Deferrable::defer(|| SendThunk::pure(42));
-		/// assert_eq!(task.evaluate(), 42);
-		/// ```
-		fn defer(f: impl FnOnce() -> Self + 'a) -> Self
-		where
-			Self: Sized, {
-			f()
 		}
 	}
 
@@ -834,13 +798,6 @@ mod tests {
 	fn test_send_thunk_is_send() {
 		fn assert_send<T: Send>() {}
 		assert_send::<SendThunk<'static, i32>>();
-	}
-
-	#[test]
-	fn test_send_thunk_deferrable() {
-		use crate::classes::Deferrable;
-		let task: SendThunk<i32> = Deferrable::defer(|| SendThunk::pure(42));
-		assert_eq!(task.evaluate(), 42);
 	}
 
 	#[test]

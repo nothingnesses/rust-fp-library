@@ -8,48 +8,15 @@ A functional programming library for Rust featuring your favourite higher-kinded
 
 ## Features
 
-- **Higher-Kinded Types (HKT):** Implemented using lightweight higher-kinded polymorphism (type-level defunctionalization/brands).
-- **Macros:** Procedural macros for working with HKTs and monadic code:
-  - **HKT:** `trait_kind!`, `impl_kind!`, `Apply!`, `#[kind]` for defining and applying higher-kinded type encodings
-  - **Do-Notation:** `m_do!` for monadic do-notation, `a_do!` for applicative do-notation
-- **Type Classes:** A comprehensive collection of standard type classes including:
-  - **Core:** `Functor`, `Contravariant`, `Pointed`, `Applicative`, `Semiapplicative`, `Monad`, `Semimonad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`, `Alt`, `Plus`, `Alternative`
-  - **Applicative Utilities:** `Lift`, `ApplyFirst`, `ApplySecond`
-  - **Monad Utilities:** `MonadPlus`, `MonadRec`, `Extract`
-  - **Comonads:** `Extend`, `Comonad`
-  - **Bifunctors:** `Bifunctor`, `Bifoldable`, `Bitraversable`
-  - **Collections:** `Compactable`, `Filterable`, `Witherable`
-  - **Indexed:** `WithIndex`, `FunctorWithIndex`, `FoldableWithIndex`, `TraversableWithIndex`
-  - **Category Theory:** `Category`, `Semigroupoid`, `Profunctor`, `Strong`, `Choice`, `Closed`, `Cochoice`, `Costrong`, `Wander`
-  - **Laziness & Effects:** `RefFunctor`, `SendRefFunctor`, `Deferrable`, `SendDeferrable`, `LazyConfig`, `TryLazyConfig`
-  - **Parallel:** `ParFunctor`, `ParCompactable`, `ParFilterable`, `ParFoldable`, `ParFunctorWithIndex`, `ParFoldableWithIndex`
-- **Function & Pointer Abstractions:** Traits for abstracting over function wrappers and reference counting:
-  - **Functions:** `Function`, `CloneableFn`, `SendCloneableFn`, `UnsizedCoercible`, `SendUnsizedCoercible`
-  - **Pointers:** `Pointer`, `RefCountedPointer`, `SendRefCountedPointer`
-- **Optics:** Composable data accessors using profunctor encoding (port of PureScript's `purescript-profunctor-lenses`):
-  - **Iso / IsoPrime:** Isomorphism between two types
-  - **Lens / LensPrime:** Focus on a field within a product type
-  - **Prism / PrismPrime:** Focus on a variant within a sum type
-  - **AffineTraversal / AffineTraversalPrime:** Optional focusing (combines Lens + Prism)
-  - **Traversal / TraversalPrime:** Focus on multiple values
-  - **Getter / GetterPrime:** Read-only access
-  - **Setter / SetterPrime:** Write-only modification
-  - **Fold / FoldPrime:** Collecting multiple values (read-only)
-  - **Review / ReviewPrime:** Constructing values
-  - **Grate / GratePrime:** Closed/zipping optics
-  - **Indexed variants:** `IndexedLens`, `IndexedTraversal`, `IndexedGetter`, `IndexedFold`, `IndexedSetter`
-  - **Composition:** `Composed` struct and `optics_compose` for zero-cost optic composition
-- **Numeric Algebra:** `Semiring`, `Ring`, `CommutativeRing`, `EuclideanRing`, `DivisionRing`, `Field`, `HeytingAlgebra`
-- **Newtype Wrappers:** `Additive`, `Multiplicative`, `Conjunctive`, `Disjunctive`, `First`, `Last`, `Dual`
-- **Helper Functions:** Standard FP utilities:
-  - `compose`, `constant`, `flip`, `identity`, `on`, `pipe`
-- **Data Types:** Implementations for standard and custom types:
-  - **Standard Library:** `Option`, `Result`, `Vec`, `String`
-  - **Laziness, Memoization & Stack Safety:** `Lazy` (`RcLazy`, `ArcLazy`), `Thunk`, `SendThunk`, `Trampoline`, `Free`, `FreeStep`
-  - **Fallible Variants:** `TryLazy` (`RcTryLazy`, `ArcTryLazy`), `TryThunk`, `TrySendThunk`, `TryTrampoline`
-  - **Generic Containers:** `Identity`, `Pair`, `CatList`
-  - **Function Wrappers:** `Endofunction`, `Endomorphism`
-  - **Marker Types:** `RcBrand`, `ArcBrand`, `FnBrand`
+- **Higher-Kinded Types** via lightweight higher-kinded polymorphism (brand pattern). Write generic code over `Functor`, `Monad`, `Traversable`, etc. that works with `Option`, `Result`, `Vec`, or your own types.
+- **Type classes** covering the standard FP hierarchy: `Functor` through `Monad`, `Foldable`/`Traversable`, `Alt`/`Alternative`, `Comonad`, `Bifunctor`, `Filterable`/`Witherable`, indexed variants, and parallel counterparts.
+- **Profunctor optics** (Lens, Prism, Iso, Traversal, AffineTraversal, Getter, Setter, Fold, Review, Grate) with zero-cost composition and indexed variants. Port of PureScript's `purescript-profunctor-lenses`.
+- **Lazy evaluation types** with explicit trade-offs: `Thunk` (lightweight), `Trampoline` (stack-safe), `Lazy` (memoized), each with `Send` and fallible (`Try*`) variants.
+- **Free functors** (`Coyoneda`, `RcCoyoneda`, `ArcCoyoneda`, `CoyonedaExplicit`) for deferred mapping with different cloning, threading, and fusion trade-offs.
+- **Macros:** `trait_kind!`/`impl_kind!`/`Apply!` for HKT encoding, `m_do!` for monadic do-notation, `a_do!` for applicative do-notation.
+- **Numeric algebra:** `Semiring`, `Ring`, `EuclideanRing`, `Field`, `HeytingAlgebra`.
+- **Zero-cost abstractions:** Uncurried semantics with `impl Fn` for static dispatch. Dynamic dispatch reserved for functions-as-data.
+- **Thread safety:** Parallel trait hierarchy (`ParFunctor`, `ParFoldable`, etc.) with optional `rayon` support.
 
 ## Motivation
 
@@ -76,16 +43,17 @@ The library offers optional features that can be enabled in your `Cargo.toml`:
 
 - **`rayon`**: Enables true parallel execution for `par_*` functions using the [rayon](https://github.com/rayon-rs/rayon) library. Without this feature, `par_*` functions fall back to sequential equivalents.
 - **`serde`**: Enables serialization and deserialization support for pure data types using the [serde](https://github.com/serde-rs/serde) library.
+- **`stacker`**: Enables adaptive stack growth for deep `Coyoneda`, `RcCoyoneda`, and `ArcCoyoneda` map chains via the [stacker](https://github.com/rust-lang/stacker) crate. Without this feature, deeply chained maps can overflow the stack.
 
 To enable features:
 
 ```toml
 [dependencies]
 # Single feature
-fp-library = { version = "0.14", features = ["rayon"] }
+fp-library = { version = "0.15", features = ["rayon"] }
 
 # Multiple features
-fp-library = { version = "0.14", features = ["rayon", "serde"] }
+fp-library = { version = "0.15", features = ["rayon", "serde"] }
 ```
 
 ### Example: Using `Functor` with `Option`
@@ -131,184 +99,34 @@ fn main() {
 
 ## How it Works
 
-### Higher-Kinded Types (HKT)
+**Higher-Kinded Types:** The library encodes HKTs using lightweight higher-kinded polymorphism (the "Brand" pattern). Each type constructor has a zero-sized brand type (e.g., `OptionBrand`) that implements `Kind` traits mapping brands back to concrete types. See [docs/hkt.md](docs/hkt.md).
 
-Since Rust doesn't support HKTs directly (i.e., it's not possible to use `Option` in `impl Functor for Option`, instead of `Option<T>`), this library uses **Lightweight Higher-Kinded Polymorphism** (also known as the "Brand" pattern or type-level defunctionalization).
+**Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where functions must be stored as data. See [docs/zero-cost.md](docs/zero-cost.md).
 
-Each type constructor has a corresponding `Brand` type (e.g., `OptionBrand` for `Option`). These brands implement the `Kind` traits, which map the brand and generic arguments back to the concrete type. The library provides macros to simplify this process.
+**Lazy Evaluation:** A granular hierarchy of lazy types (`Thunk`, `Trampoline`, `Lazy`) lets you choose trade-offs between stack safety, memoization, lifetimes, and thread safety. Each has a fallible `Try*` counterpart. See [docs/lazy-evaluation.md](docs/lazy-evaluation.md).
 
-```rust
-use fp_library::{impl_kind, kinds::*};
-
-pub struct OptionBrand;
-
-impl_kind! {
-	for OptionBrand {
-		type Of<'a, A: 'a>: 'a = Option<A>;
-	}
-}
-```
-
-### Zero-Cost Abstractions & Uncurried Semantics
-
-Unlike many functional programming libraries that strictly adhere to curried functions (e.g., `map(f)(fa)`), `fp-library` adopts **uncurried semantics** (e.g., `map(f, fa)`) for its core abstractions.
-
-**Why?**
-Traditional currying in Rust often requires:
-
-- Creating intermediate closures for each partial application.
-- Heap-allocating these closures (boxing) or wrapping them in reference counters (`Rc`/`Arc`) to satisfy type system constraints.
-- Dynamic dispatch (`dyn Fn`), which inhibits compiler optimizations like inlining.
-
-By using uncurried functions with `impl Fn` or generic bounds, `fp-library` achieves **zero-cost abstractions**:
-
-- **No Heap Allocation:** Operations like `map` and `bind` do not allocate intermediate closures.
-- **Static Dispatch:** The compiler can fully monomorphize generic functions, enabling aggressive inlining and optimization.
-- **Ownership Friendly:** Better integration with Rust's ownership and borrowing system.
-
-This approach ensures that using high-level functional abstractions incurs no runtime penalty compared to hand-written imperative code.
-
-**Exceptions:**
-While the library strives for zero-cost abstractions, some operations inherently require dynamic dispatch or heap allocation due to Rust's type system:
-
-- **Functions as Data:** When functions are stored in data structures (e.g., inside a `Vec` for `Semiapplicative::apply`, or in `Lazy` thunks), they must often be "type-erased" (wrapped in `Rc<dyn Fn>` or `Arc<dyn Fn>`). This is because every closure in Rust has a unique, anonymous type. To store multiple different closures in the same container, or to compose functions dynamically (like in `Endofunction`), they must be coerced to a common trait object.
-- **Lazy Evaluation:** The `Lazy` type relies on storing a thunk that can be cloned and evaluated later, which typically requires reference counting and dynamic dispatch.
-
-For these specific cases, the library provides `Brand` types (like `RcFnBrand` and `ArcFnBrand`) to let you choose the appropriate wrapper (single-threaded vs. thread-safe) while keeping the rest of your code zero-cost. The library uses a unified `Pointer` hierarchy to abstract over these choices.
-
-### Lazy Evaluation & Effect System
-
-Rust is an eagerly evaluated language. To enable functional patterns like deferred execution and safe recursion, `fp-library` provides a granular set of types that let you opt-in to specific behaviors without paying for unnecessary overhead.
-
-| Type                   | Primary Use Case                                                                                                            | Stack Safe?                 | Memoized? | Lifetimes | Send?            | HKT Traits                        |
-| :--------------------- | :-------------------------------------------------------------------------------------------------------------------------- | :-------------------------- | :-------- | :-------- | :--------------- | :-------------------------------- |
-| **`Thunk<'a, A>`**     | **Glue Code & Borrowing.** Lightweight deferred computation. Best for short chains and working with references.             | Partial (`tail_rec_m` only) | No        | `'a`      | No               | `Functor`, `Applicative`, `Monad` |
-| **`SendThunk<'a, A>`** | **Thread-Safe Glue Code.** Like `Thunk`, but the closure is `Send`. Enables truly lazy `into_arc_lazy()`.                   | No                          | No        | `'a`      | Yes              | No                                |
-| **`Trampoline<A>`**    | **Deep Recursion & Pipelines.** Heavy-duty computation. Uses a trampoline to guarantee stack safety for infinite recursion. | Yes                         | No        | `'static` | No               | No                                |
-| **`Lazy<'a, A>`**      | **Caching.** Wraps a computation to ensure it runs at most once. `RcLazy` for single-threaded, `ArcLazy` for thread-safe.   | N/A                         | Yes       | `'a`      | Config-dependent | `RefFunctor`, `Foldable`          |
-
-Each of these has a fallible counterpart that wraps `Result<A, E>` with ergonomic error-handling combinators:
-
-| Type                         | Primary Use Case                                                                                                    | Stack Safe?                 | Memoized? | Lifetimes | Send?            | HKT Traits                                                 |
-| :--------------------------- | :------------------------------------------------------------------------------------------------------------------ | :-------------------------- | :-------- | :-------- | :--------------- | :--------------------------------------------------------- |
-| **`TryThunk<'a, A, E>`**     | **Fallible Glue Code.** Lightweight deferred computation that may fail. Best for short chains with error handling.  | Partial (`tail_rec_m` only) | No        | `'a`      | No               | `Functor`, `Applicative`, `Monad`, `Bifunctor`, `Foldable` |
-| **`TrySendThunk<'a, A, E>`** | **Thread-Safe Fallible Glue Code.** Like `TryThunk`, but the closure is `Send`.                                     | No                          | No        | `'a`      | Yes              | No                                                         |
-| **`TryTrampoline<A, E>`**    | **Fallible Deep Recursion.** Stack-safe computation that may fail. Uses a trampoline for unlimited recursion depth. | Yes                         | No        | `'static` | No               | No                                                         |
-| **`TryLazy<'a, A, E>`**      | **Fallible Caching.** Computes a `Result` at most once and caches either the success value or error.                | N/A                         | Yes       | `'a`      | Config-dependent | `RefFunctor`, `Foldable`                                   |
-
-**Config-dependent Send:** `ArcLazy`/`ArcTryLazy` are `Send + Sync`; `RcLazy`/`RcTryLazy` are not.
-
-#### The "Why" of Multiple Types
-
-Unlike lazy languages (e.g., Haskell) where the runtime handles everything, Rust requires us to choose our trade-offs:
-
-1. **`Thunk` vs `Trampoline`**: `Thunk` is faster and supports borrowing (`&'a T`). Its `tail_rec_m` is stack-safe, but deep `bind` chains will overflow the stack. `Trampoline` guarantees stack safety for all operations via a trampoline (the `Free` monad) but requires types to be `'static`. Note that `!Send` types like `Rc<T>` are fully supported. A key distinction is that `Thunk` implements `Functor`, `Applicative`, and `Monad` directly, making it suitable for generic programming, while `Trampoline` does not.
-2. **`Thunk` vs `SendThunk`**: `Thunk` wraps `Box<dyn FnOnce() -> A + 'a>` and is `!Send`. `SendThunk` wraps `Box<dyn FnOnce() -> A + Send + 'a>` and can cross thread boundaries. Use `SendThunk` when you need truly lazy `into_arc_lazy()` (converting to `ArcLazy` without eager evaluation), or when building deferred computation chains that will be consumed on another thread. `TrySendThunk` is the fallible counterpart.
-3. **Computation vs Caching**: `Thunk` and `Trampoline` describe _computations_ that are not memoized. Each instance is consumed on `.evaluate()` (which takes `self` by value), so the computation runs exactly once per instance, but constructing a new instance re-executes the work. `Lazy`, by contrast, caches the result so that all clones share a single evaluation. If you have an expensive operation (like a DB call), convert it to a `Lazy` to guarantee it runs at most once.
-
-#### Workflow Example: Expression Evaluator
-
-A robust pattern is to use `TryTrampoline` for stack-safe, fallible recursion, `TryLazy` to memoize expensive results, and `TryThunk` to create lightweight views.
-
-Consider an expression evaluator that handles division errors and deep recursion:
-
-```rust
-use fp_library::types::*;
-
-#[derive(Clone)]
-enum Expr {
-	Val(i32),
-	Add(Box<Expr>, Box<Expr>),
-	Div(Box<Expr>, Box<Expr>),
-}
-
-// 1. Stack-safe recursion with error handling (TryTrampoline)
-fn eval(expr: &Expr) -> TryTrampoline<i32, String> {
-	let expr = expr.clone(); // Capture owned data for 'static closure
-	TryTrampoline::defer(move || match expr {
-		Expr::Val(n) => TryTrampoline::ok(n),
-		Expr::Add(lhs, rhs) => {
-			eval(&lhs).bind(move |l| eval(&rhs).map(move |r| l + r))
-		}
-		Expr::Div(lhs, rhs) => {
-			eval(&lhs).bind(move |l| {
-				eval(&rhs).bind(move |r| {
-					if r == 0 {
-						TryTrampoline::err("Division by zero".to_string())
-					} else {
-						TryTrampoline::ok(l / r)
-					}
-				})
-			})
-		}
-	})
-}
-
-// Usage
-fn main() {
-	let expr = Expr::Div(Box::new(Expr::Val(100)), Box::new(Expr::Val(2)));
-
-	// 2. Memoize result (TryLazy)
-	// The evaluation runs at most once, even if accessed multiple times.
-	let result = RcTryLazy::new(move || eval(&expr).evaluate());
-
-	// 3. Create deferred view (TryThunk)
-	// Borrow the cached result to format it.
-	let view: TryThunk<String, String> = TryThunk::new(|| {
-		let val = result.evaluate().map_err(|e| e.clone())?;
-		Ok(format!("Result: {}", val))
-	});
-
-	assert_eq!(view.evaluate(), Ok("Result: 50".to_string()));
-}
-```
-
-### Thread Safety and Parallelism
-
-The library provides a parallel trait hierarchy that mirrors the sequential one.
-All `par_*` free functions accept plain `impl Fn + Send + Sync` closures: no wrapper
-types required. Element types require `A: Send`; closures require `Send + Sync`.
-
-| Parallel trait         | Operations                     | Supertraits                       |
-| ---------------------- | ------------------------------ | --------------------------------- |
-| `ParFunctor`           | `par_map`                      | `Kind`                            |
-| `ParCompactable`       | `par_compact`, `par_separate`  | `Kind`                            |
-| `ParFilterable`        | `par_filter_map`, `par_filter` | `ParFunctor + ParCompactable`     |
-| `ParFoldable`          | `par_fold_map`                 | `Kind`                            |
-| `ParFunctorWithIndex`  | `par_map_with_index`           | `ParFunctor + FunctorWithIndex`   |
-| `ParFoldableWithIndex` | `par_fold_map_with_index`      | `ParFoldable + FoldableWithIndex` |
-
-`ParFilterable` provides default implementations of `par_filter_map` and `par_filter`
-derived from `par_map` + `par_compact`; types can override them for single-pass efficiency.
-
-- **`SendCloneableFn`**: Extends `CloneableFn` to provide `Send + Sync` function wrappers. Implemented by `ArcFnBrand`.
-- **Rayon Support**: When the `rayon` feature is enabled, `par_*` functions use rayon for true parallel execution. Otherwise they fall back to sequential equivalents.
-
-```rust
-use fp_library::{brands::*, functions::*};
-
-let v = vec![1, 2, 3, 4, 5];
-// Map in parallel (uses rayon if feature is enabled)
-let doubled: Vec<i32> = par_map::<VecBrand, _, _>(|x: i32| x * 2, v.clone());
-assert_eq!(doubled, vec![2, 4, 6, 8, 10]);
-// Compact options in parallel
-let opts = vec![Some(1), None, Some(3), None, Some(5)];
-let compacted: Vec<i32> = par_compact::<VecBrand, _>(opts);
-assert_eq!(compacted, vec![1, 3, 5]);
-// Fold in parallel
-let result = par_fold_map::<VecBrand, _, _>(|x: i32| x.to_string(), v);
-assert_eq!(result, "12345".to_string());
-```
+**Thread Safety & Parallelism:** A parallel trait hierarchy (`ParFunctor`, `ParFoldable`, etc.) mirrors the sequential one. When the `rayon` feature is enabled, `par_*` functions use true parallel execution. See [docs/parallelism.md](docs/parallelism.md).
 
 ## Documentation
 
 - [API Documentation](https://docs.rs/fp-library): The complete API reference on docs.rs.
-- [Architecture & Design](docs/architecture.md): Details on design decisions like uncurried semantics and type parameter ordering.
-- [Limitations](docs/limitations.md): Details all current limitations.
+- [Features & Type Class Hierarchy](docs/features.md): Full feature list with hierarchy diagrams.
+- [Higher-Kinded Types](docs/hkt.md): The Brand pattern and HKT encoding.
+- [Zero-Cost Abstractions](docs/zero-cost.md): Uncurried semantics and static dispatch.
+- [Lazy Evaluation](docs/lazy-evaluation.md): Guide to the lazy evaluation and memoization types.
+- [Pointer Abstraction](docs/pointer-abstraction.md): Pointer hierarchy, `FnBrand<P>`, and shared memoization.
+- [Coyoneda Implementations](docs/coyoneda.md): Trade-offs between the four free functor variants.
+- [Thread Safety & Parallelism](docs/parallelism.md): Parallel trait hierarchy and rayon support.
+- [Optics Analysis](docs/optics-analysis.md): Optics coverage comparison with PureScript.
+- [Profunctor Analysis](docs/profunctor-analysis.md): Profunctor class hierarchy comparison with PureScript.
+- [Std Library Coverage](docs/std-coverage-checklist.md): Type class coverage for standard library types.
+- [Architecture & Design](docs/architecture.md): Module organization and documentation conventions.
+- [Benchmarks](docs/benchmarking.md): Performance results, graphs, and benchmark coverage.
+- [Limitations and Workarounds](docs/limitations-and-workarounds.md): Rust type system constraints and how the library addresses them.
 
 ## Contributing
 
-We welcome contributions! Please feel free to submit a Pull Request.
+We welcome contributions! Please feel free to submit a [Pull Request](https://github.com/nothingnesses/rust-fp-library/compare).
 
 ### Development Environment
 
@@ -329,6 +147,20 @@ nix develop
 
 This will provide a shell with the correct Rust version and dependencies.
 
+### Building and Testing
+
+All commands are run via [just](https://github.com/casey/just) recipes defined in the project's `justfile`. Never run `cargo` directly; the `justfile` handles Nix environment setup automatically.
+
+```sh
+just fmt                                       # Format all files (Rust, Nix, Markdown, YAML, TOML)
+just clippy --workspace --all-features         # Run clippy
+just test --all-features                       # Run all tests (cached; only re-runs when source changes)
+just doc --workspace --all-features --no-deps  # Build docs (must produce zero warnings)
+just verify                                    # Run fmt, clippy, doc, test in order
+```
+
+Run `just --list` to see all available recipes.
+
 ### Project Structure
 
 - `fp-library/src/classes`: Contains the definitions of type classes (traits).
@@ -346,22 +178,10 @@ For maintainers, the release process is documented in [docs/release-process.md](
 
 This project uses [Criterion.rs](https://github.com/criterion-rs/criterion.rs) for benchmarking to ensure zero-cost abstractions and detect performance regressions.
 
-To run all benchmarks:
-
 ```sh
-just bench -p fp-library
-```
-
-To list available benchmarks:
-
-```sh
-just bench -p fp-library --bench benchmarks -- --list
-```
-
-To run a specific benchmark (e.g., `Vec`):
-
-```sh
-just bench -p fp-library --bench benchmarks -- Vec
+just bench -p fp-library                               # To run all benchmarks
+just bench -p fp-library --bench benchmarks -- --list  # To list available benchmarks
+just bench -p fp-library --bench benchmarks -- Vec     # To run a specific benchmark (e.g., `Vec`)
 ```
 
 Benchmark reports are generated in `target/criterion/report/index.html`.

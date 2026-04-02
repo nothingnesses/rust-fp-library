@@ -36,8 +36,10 @@ mod inner {
 				Semimonad,
 				Traversable,
 				Witherable,
+				filterable_with_index::FilterableWithIndex,
 				foldable_with_index::FoldableWithIndex,
 				functor_with_index::FunctorWithIndex,
+				par_filterable_with_index::ParFilterableWithIndex,
 				par_foldable_with_index::ParFoldableWithIndex,
 				par_functor_with_index::ParFunctorWithIndex,
 				traversable_with_index::TraversableWithIndex,
@@ -1100,6 +1102,87 @@ mod inner {
 				.map(|(i, a)| f(i, a))
 				.fold(M::empty(), |acc, m| M::append(acc, m))
 		}
+
+		/// Maps and filters a vector in parallel with the index, discarding elements where
+		/// `f` returns `None`.
+		///
+		/// When the `rayon` feature is enabled, elements are processed across multiple threads.
+		/// Otherwise falls back to sequential indexed filter-map.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The input element type.",
+			"The output element type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each index and element. Must be `Send + Sync`.",
+			"The vector to filter and map."
+		)]
+		///
+		#[document_returns("A new vector containing the `Some` results of applying `f`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::brands::VecBrand;
+		///
+		/// let result = VecBrand::par_filter_map_with_index(
+		/// 	|i, x: i32| if i < 3 { Some(x * 10) } else { None },
+		/// 	vec![1, 2, 3, 4, 5],
+		/// );
+		/// assert_eq!(result, vec![10, 20, 30]);
+		/// ```
+		pub fn par_filter_map_with_index<'a, A: 'a + Send, B: 'a + Send>(
+			f: impl Fn(usize, A) -> Option<B> + Send + Sync + 'a,
+			fa: Vec<A>,
+		) -> Vec<B> {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.into_par_iter().enumerate().filter_map(|(i, a)| f(i, a)).collect()
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.into_iter().enumerate().filter_map(|(i, a)| f(i, a)).collect()
+		}
+
+		/// Filters a vector in parallel with the index, retaining only elements satisfying `f`.
+		///
+		/// When the `rayon` feature is enabled, elements are processed across multiple threads.
+		/// Otherwise falls back to sequential indexed filtering.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
+		///
+		#[document_parameters(
+			"The predicate receiving the index and a reference to the element. Must be `Send + Sync`.",
+			"The vector to filter."
+		)]
+		///
+		#[document_returns("A new vector containing only the elements satisfying `f`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::brands::VecBrand;
+		///
+		/// let result =
+		/// 	VecBrand::par_filter_with_index(|i, x: &i32| i < 3 && x % 2 != 0, vec![1, 2, 3, 4, 5]);
+		/// assert_eq!(result, vec![1, 3]);
+		/// ```
+		pub fn par_filter_with_index<'a, A: 'a + Send>(
+			f: impl Fn(usize, &A) -> bool + Send + Sync + 'a,
+			fa: Vec<A>,
+		) -> Vec<A> {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.into_par_iter().enumerate().filter(|(i, a)| f(*i, a)).map(|(_, a)| a).collect()
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.into_iter().enumerate().filter(|(i, a)| f(*i, a)).map(|(_, a)| a).collect()
+		}
 	}
 
 	impl ParFunctor for VecBrand {
@@ -1629,6 +1712,251 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			fa.into_iter().filter(|a| func(a.clone())).collect()
+		}
+	}
+
+	impl FilterableWithIndex for VecBrand {
+		/// Partitions a vector based on a function that receives the index and returns a [`Result`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the input value.",
+			"The type of the error value.",
+			"The type of the success value."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element and its index.",
+			"The vector to partition."
+		)]
+		///
+		#[document_returns("A pair of vectors.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let xs = vec![1, 2, 3, 4];
+		/// let (errs, oks) = partition_map_with_index::<VecBrand, _, _, _>(
+		/// 	|i, a: i32| if i < 2 { Ok(a) } else { Err(a) },
+		/// 	xs,
+		/// );
+		/// assert_eq!(oks, vec![1, 2]);
+		/// assert_eq!(errs, vec![3, 4]);
+		/// ```
+		fn partition_map_with_index<'a, A: 'a, E: 'a, O: 'a>(
+			func: impl Fn(usize, A) -> Result<O, E> + 'a,
+			fa: Vec<A>,
+		) -> (Vec<E>, Vec<O>) {
+			let mut oks = Vec::new();
+			let mut errs = Vec::new();
+			for (i, a) in fa.into_iter().enumerate() {
+				match func(i, a) {
+					Ok(o) => oks.push(o),
+					Err(e) => errs.push(e),
+				}
+			}
+			(errs, oks)
+		}
+
+		/// Partitions a vector based on a predicate that receives the index.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
+		///
+		#[document_parameters(
+			"The predicate receiving the index and element.",
+			"The vector to partition."
+		)]
+		///
+		#[document_returns("A pair of vectors.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let xs = vec![1, 2, 3, 4];
+		/// let (not_satisfied, satisfied) = partition_with_index::<VecBrand, _>(|i, _a: i32| i < 2, xs);
+		/// assert_eq!(satisfied, vec![1, 2]);
+		/// assert_eq!(not_satisfied, vec![3, 4]);
+		/// ```
+		fn partition_with_index<'a, A: 'a + Clone>(
+			func: impl Fn(usize, A) -> bool + 'a,
+			fa: Vec<A>,
+		) -> (Vec<A>, Vec<A>) {
+			let mut satisfied = Vec::new();
+			let mut not_satisfied = Vec::new();
+			for (i, a) in fa.into_iter().enumerate() {
+				if func(i, a.clone()) {
+					satisfied.push(a);
+				} else {
+					not_satisfied.push(a);
+				}
+			}
+			(not_satisfied, satisfied)
+		}
+
+		/// Maps a function over a vector with the index and filters out [`None`] results.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the input value.",
+			"The type of the result of applying the function."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element and its index.",
+			"The vector to filter and map."
+		)]
+		///
+		#[document_returns("The filtered and mapped vector.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let xs = vec![1, 2, 3, 4];
+		/// let result = filter_map_with_index::<VecBrand, _, _>(
+		/// 	|i, a: i32| if i % 2 == 0 { Some(a * 2) } else { None },
+		/// 	xs,
+		/// );
+		/// assert_eq!(result, vec![2, 6]);
+		/// ```
+		fn filter_map_with_index<'a, A: 'a, B: 'a>(
+			func: impl Fn(usize, A) -> Option<B> + 'a,
+			fa: Vec<A>,
+		) -> Vec<B> {
+			fa.into_iter().enumerate().filter_map(|(i, a)| func(i, a)).collect()
+		}
+
+		/// Filters a vector based on a predicate that receives the index.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
+		///
+		#[document_parameters(
+			"The predicate receiving the index and element.",
+			"The vector to filter."
+		)]
+		///
+		#[document_returns("The filtered vector.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let xs = vec![1, 2, 3, 4];
+		/// let result = filter_with_index::<VecBrand, _>(|i, _a: i32| i < 2, xs);
+		/// assert_eq!(result, vec![1, 2]);
+		/// ```
+		fn filter_with_index<'a, A: 'a + Clone>(
+			func: impl Fn(usize, A) -> bool + 'a,
+			fa: Vec<A>,
+		) -> Vec<A> {
+			fa.into_iter()
+				.enumerate()
+				.filter(|(i, a)| func(*i, a.clone()))
+				.map(|(_, a)| a)
+				.collect()
+		}
+	}
+
+	impl ParFilterableWithIndex for VecBrand {
+		/// Maps and filters a vector in parallel with the index, discarding elements where
+		/// `f` returns `None`.
+		///
+		/// Single-pass implementation using rayon's `enumerate` + `filter_map`. Delegates to
+		/// [`VecBrand::par_filter_map_with_index`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The input element type.",
+			"The output element type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each index and element. Must be `Send + Sync`.",
+			"The vector to filter and map."
+		)]
+		///
+		#[document_returns("A new vector containing the `Some` results of applying `f`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_filterable_with_index::ParFilterableWithIndex,
+		/// };
+		///
+		/// let result = VecBrand::par_filter_map_with_index(
+		/// 	|i, x: i32| if i < 3 { Some(x * 10) } else { None },
+		/// 	vec![1, 2, 3, 4, 5],
+		/// );
+		/// assert_eq!(result, vec![10, 20, 30]);
+		/// ```
+		fn par_filter_map_with_index<'a, A: 'a + Send, B: 'a + Send>(
+			f: impl Fn(usize, A) -> Option<B> + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+		where
+			usize: Send + Sync + Copy + 'a, {
+			VecBrand::par_filter_map_with_index(f, fa)
+		}
+
+		/// Filters a vector in parallel with the index, retaining only elements satisfying `f`.
+		///
+		/// Single-pass implementation using rayon's `enumerate` + `filter`. Delegates to
+		/// [`VecBrand::par_filter_with_index`].
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The element type.")]
+		///
+		#[document_parameters(
+			"The predicate receiving the index and a reference to the element. Must be `Send + Sync`.",
+			"The vector to filter."
+		)]
+		///
+		#[document_returns("A new vector containing only the elements satisfying `f`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_filterable_with_index::ParFilterableWithIndex,
+		/// };
+		///
+		/// let result =
+		/// 	VecBrand::par_filter_with_index(|i, x: &i32| i < 3 && x % 2 != 0, vec![1, 2, 3, 4, 5]);
+		/// assert_eq!(result, vec![1, 3]);
+		/// ```
+		fn par_filter_with_index<'a, A: 'a + Send>(
+			f: impl Fn(usize, &A) -> bool + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		where
+			usize: Send + Sync + Copy + 'a, {
+			VecBrand::par_filter_with_index(f, fa)
 		}
 	}
 

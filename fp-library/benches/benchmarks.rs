@@ -5,6 +5,8 @@ use criterion::{
 
 #[path = "benchmarks/cat_list.rs"]
 mod cat_list;
+#[path = "benchmarks/coyoneda.rs"]
+mod coyoneda;
 #[path = "benchmarks/functions.rs"]
 mod functions;
 #[path = "benchmarks/lazy.rs"]
@@ -22,6 +24,7 @@ mod vec;
 
 use {
 	cat_list::bench_cat_list,
+	coyoneda::bench_coyoneda,
 	functions::bench_functions,
 	lazy::bench_lazy,
 	option::bench_option,
@@ -40,6 +43,7 @@ criterion_group!(
 	bench_string,
 	bench_functions,
 	bench_cat_list,
-	bench_lazy
+	bench_lazy,
+	bench_coyoneda
 );
 criterion_main!(benches);

@@ -14,11 +14,14 @@
 //! ```
 
 pub mod additive;
+pub mod arc_coyoneda;
 pub mod arc_ptr;
 pub mod cat_list;
 pub mod conjunctive;
 pub mod const_val;
 pub mod control_flow;
+pub mod coyoneda;
+pub mod coyoneda_explicit;
 pub mod disjunctive;
 pub mod dual;
 pub mod endofunction;
@@ -33,6 +36,7 @@ pub mod multiplicative;
 pub mod optics;
 pub mod option;
 pub mod pair;
+pub mod rc_coyoneda;
 pub mod rc_ptr;
 pub mod result;
 pub mod send_thunk;
@@ -49,8 +53,14 @@ pub mod vec;
 
 pub use {
 	additive::Additive,
+	arc_coyoneda::ArcCoyoneda,
 	cat_list::CatList,
 	conjunctive::Conjunctive,
+	coyoneda::Coyoneda,
+	coyoneda_explicit::{
+		BoxedCoyonedaExplicit,
+		CoyonedaExplicit,
+	},
 	disjunctive::Disjunctive,
 	dual::Dual,
 	endofunction::Endofunction,
@@ -76,6 +86,7 @@ pub use {
 		LensPrime,
 	},
 	pair::Pair,
+	rc_coyoneda::RcCoyoneda,
 	send_thunk::SendThunk,
 	thunk::Thunk,
 	trampoline::Trampoline,

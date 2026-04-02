@@ -1,6 +1,6 @@
 [package]
 name = "fp-library"
-version = "0.14.0"
+version = "0.15.0"
 edition = "2024"
 description = "A functional programming library for Rust featuring your favourite higher-kinded types and type classes."
 readme = "../README.md"
@@ -21,6 +21,7 @@ name = "benchmarks"
 fp-macros = { path = "../fp-macros", version = "0.6" }
 rayon = { version = "1.11", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
+stacker = { version = "0.1", optional = true }
 thiserror = "2.0"
 
 [dev-dependencies]
@@ -35,6 +36,8 @@ default = []
 rayon = ["dep:rayon"]
 # Enable serde serialization/deserialization for pure data types
 serde = ["dep:serde"]
+# Enable adaptive stack growth for deep Coyoneda chains via the stacker crate
+stacker = ["dep:stacker"]
 
 [lints]
 workspace = true

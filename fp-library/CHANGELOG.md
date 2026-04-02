@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-04-02
+
+### Added
+
+- **`Coyoneda` free functor**: Box-based consuming implementation with full HKT type class coverage (Functor, Pointed, Foldable, Lift, Semiapplicative, Semimonad). Supports `new`, `lift`, `lower`, `collapse`, `hoist`, `map`, and stack overflow mitigation via the `stacker` feature.
+- **`CoyonedaExplicit`** with generic function type parameter for true zero-cost map fusion. Composes functions at the type level (single `F::map` call at lower time regardless of chain depth). Provides `boxed()` and `boxed_send()` escape hatches, plus inherent `traverse`, `apply`, `bind`, `fold_map`, `fold_map_with_index` methods. Brand-level `Functor` and `Foldable` instances.
+- **`RcCoyoneda`**: Rc-based cloneable free functor with `lower_ref(&self)` for non-consuming evaluation. Brand-level Functor and Foldable; inherent `pure`, `bind`, `apply`, `lift2`, `fold_map` with explicit Clone bounds.
+- **`ArcCoyoneda`**: Arc-based thread-safe free functor with `Send + Sync` guarantees. Brand-level Foldable; inherent methods with `Send + Sync + Clone` bounds.
+- **`FilterableWithIndex` type class**: Indexed filtering with `filter_map_with_index` and `filter_with_index`. Implementations for `VecBrand` and `CatListBrand`.
+- **`ParFilterableWithIndex` type class**: Parallel indexed filtering. Implementations for `VecBrand` and `CatListBrand`.
+- **`From` conversions** between `Coyoneda` and `CoyonedaExplicit` (both directions).
+- **`TryThunk::tail_rec_m`**: Stack-safe monadic tail recursion for fallible thunks.
+- **`serde` derives** for newtype wrappers: `Additive`, `Multiplicative`, `Dual`, `First`, `Last`, `Conjunctive`, `Disjunctive`, `Const`.
+- **`stacker` feature**: Adaptive stack growth for deep Coyoneda, RcCoyoneda, and ArcCoyoneda map chains.
+
+### Changed
+
+- **`SendDeferrable`** is now independent of `Deferrable` (not a supertrait).
+- **`TryLazy`** refactored as a newtype over `Lazy` rather than a separate implementation.
+- **`ArcLazy` constructors** now require `Send + Sync` bounds on the closure and value type.
+- **Coyoneda internal optimization**: `NewLayer` eliminates double allocation when constructing via `new`.
+- **Documentation overhaul**: Extracted inline lib.rs content into `docs/` files with `include_str!` for single-source-of-truth. Added Mermaid diagrams for type class hierarchies. Added user stories. Comprehensive limitations document covering HKT, rank-N types, uncurried semantics, unexpressible bounds, and thread safety.
+
+### Fixed
+
+- Compile-time `Send`/`Sync` assertions for `ArcCoyoneda` internal types.
+- Trivial issues in `Thunk`, `SendThunk`, and `CatList`.
+- `ArcLazy` error channel semantics aligned with `RcLazy`.
+
 ## [0.14.0] - 2026-03-29
 
 ### Added

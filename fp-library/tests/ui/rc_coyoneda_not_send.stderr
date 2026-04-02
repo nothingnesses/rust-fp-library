@@ -1,0 +1,19 @@
+error[E0277]: `Rc<dyn rc_coyoneda::inner::RcCoyonedaLowerRef<'_, VecBrand, {integer}>>` cannot be sent between threads safely
+  --> tests/ui/rc_coyoneda_not_send.rs:11:14
+   |
+11 |     assert_send(&coyo);
+   |     ----------- ^^^^^ `Rc<dyn rc_coyoneda::inner::RcCoyonedaLowerRef<'_, VecBrand, {integer}>>` cannot be sent between threads safely
+   |     |
+   |     required by a bound introduced by this call
+   |
+   = help: within `RcCoyoneda<'_, VecBrand, {integer}>`, the trait `Send` is not implemented for `Rc<dyn rc_coyoneda::inner::RcCoyonedaLowerRef<'_, VecBrand, {integer}>>`
+note: required because it appears within the type `RcCoyoneda<'_, VecBrand, {integer}>`
+  --> src/types/rc_coyoneda.rs
+   |
+   |     pub struct RcCoyoneda<'a, F, A: 'a>(Rc<dyn RcCoyonedaLowerRef<'a, F, A> + 'a>)
+   |                ^^^^^^^^^^
+note: required by a bound in `assert_send`
+  --> tests/ui/rc_coyoneda_not_send.rs:6:19
+   |
+ 6 | fn assert_send<T: Send>(_: &T) {}
+   |                   ^^^^ required by this bound in `assert_send`

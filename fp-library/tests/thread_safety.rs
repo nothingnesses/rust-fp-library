@@ -77,3 +77,44 @@ fn test_par_map_in_threaded_context() {
 	let handle = thread::spawn(move || par_map::<VecBrand, _, _>(|x: i32| x * 2, v));
 	assert_eq!(handle.join().unwrap(), vec![2, 4, 6, 8, 10]);
 }
+
+// -- ArcCoyoneda concurrent access --
+
+#[test]
+fn test_arc_coyoneda_concurrent_lower_ref() {
+	use fp_library::types::ArcCoyoneda;
+
+	let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x + 1).map(|x| x * 10);
+
+	let handles: Vec<_> = (0 .. 4)
+		.map(|_| {
+			let coyo = coyo.clone();
+			thread::spawn(move || coyo.lower_ref())
+		})
+		.collect();
+
+	for handle in handles {
+		assert_eq!(handle.join().unwrap(), vec![20, 30, 40]);
+	}
+}
+
+#[test]
+fn test_arc_coyoneda_shared_across_threads() {
+	use {
+		fp_library::types::ArcCoyoneda,
+		std::sync::Arc,
+	};
+
+	let coyo = Arc::new(ArcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x * 2));
+
+	let handles: Vec<_> = (0 .. 4)
+		.map(|_| {
+			let coyo = Arc::clone(&coyo);
+			thread::spawn(move || coyo.lower_ref())
+		})
+		.collect();
+
+	for handle in handles {
+		assert_eq!(handle.join().unwrap(), vec![2, 4, 6]);
+	}
+}

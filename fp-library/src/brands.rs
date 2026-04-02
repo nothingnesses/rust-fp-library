@@ -24,7 +24,6 @@ use {
 		classes::{
 			LazyConfig,
 			RefCountedPointer,
-			TryLazyConfig,
 		},
 		types::{
 			ArcLazyConfig,
@@ -122,6 +121,44 @@ pub struct ControlFlowBreakAppliedBrand<B>(PhantomData<B>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ControlFlowContinueAppliedBrand<C>(PhantomData<C>);
 
+/// Brand for [`ArcCoyoneda`](crate::types::ArcCoyoneda), the thread-safe
+/// reference-counted free functor.
+///
+/// Like [`CoyonedaBrand`], but the underlying `ArcCoyoneda` is `Clone`, `Send`,
+/// and `Sync`, enabling additional type class instances.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ArcCoyonedaBrand<F>(PhantomData<F>);
+
+/// Brand for [`Coyoneda`](crate::types::Coyoneda), the free functor.
+///
+/// `CoyonedaBrand<F>` is a [`Functor`](crate::classes::Functor) for any type constructor
+/// `F` with the appropriate [`Kind`](crate::kinds) signature, even if `F` itself is not
+/// a `Functor`. The `Functor` constraint on `F` is only required when
+/// [`lower`](crate::types::Coyoneda::lower)ing back to `F`.
+///
+/// `F` must be `'static` because the [`Kind`](crate::kinds) trait's associated type
+/// `Of<'a, A>` introduces its own lifetime `'a`, so type parameters baked into the
+/// brand must outlive all possible `'a`. In practice this is not a restriction because
+/// all brands in the library are zero-sized marker types, which are inherently `'static`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CoyonedaBrand<F>(PhantomData<F>);
+
+/// Brand for [`BoxedCoyonedaExplicit`](crate::types::BoxedCoyonedaExplicit),
+/// the boxed variant of [`CoyonedaExplicit`](crate::types::CoyonedaExplicit).
+///
+/// Unlike [`CoyonedaBrand`], which hides the intermediate type `B` behind a
+/// trait object (producing k calls to `F::map` at lower time), this brand
+/// exposes `B` as a type parameter, enabling single-pass fusion (one `F::map`
+/// at lower time regardless of how many maps were chained). The trade-off is
+/// that `B` is fixed for a given brand instance, which prevents implementing
+/// `Pointed`, `Semiapplicative`, or `Semimonad`.
+///
+/// Implements [`Functor`](crate::classes::Functor) (without requiring
+/// `F: Functor`) and [`Foldable`](crate::classes::Foldable) (without requiring
+/// `F: Functor`, only `F: Foldable`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CoyonedaExplicitBrand<F, B>(PhantomData<(F, B)>);
+
 /// Generic function brand parameterized by reference-counted pointer choice.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FnBrand<PtrBrand: RefCountedPointer>(PhantomData<PtrBrand>);
@@ -201,6 +238,14 @@ pub struct ProfunctorSecondAppliedBrand<Brand, B>(PhantomData<(Brand, B)>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RcBrand;
 
+/// Brand for [`RcCoyoneda`](crate::types::RcCoyoneda), the reference-counted
+/// free functor with `Clone` support.
+///
+/// Like [`CoyonedaBrand`], but the underlying `RcCoyoneda` is `Clone`, enabling
+/// additional type class instances such as [`Semiapplicative`](crate::classes::Semiapplicative).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RcCoyonedaBrand<F>(PhantomData<F>);
+
 /// Brand for [reference-counted][std::rc::Rc] [closures][Fn]
 /// (`Rc<dyn Fn(A) -> B>`).
 ///
@@ -259,7 +304,7 @@ pub struct ThunkBrand;
 /// # Type Parameters
 ///
 /// - `E`: The error type for the fallible computation.
-/// - `Config`: The memoization strategy, implementing [`TryLazyConfig`]. Use
+/// - `Config`: The memoization strategy, implementing [`LazyConfig`]. Use
 ///   [`RcLazyConfig`] for single-threaded contexts
 ///   or [`ArcLazyConfig`] for thread-safe contexts.
 ///
@@ -272,7 +317,7 @@ pub struct ThunkBrand;
 /// effectively requires `'static`. This prevents use with borrowed error types in
 /// HKT contexts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TryLazyBrand<E, Config: TryLazyConfig>(PhantomData<(E, Config)>);
+pub struct TryLazyBrand<E, Config: LazyConfig>(PhantomData<(E, Config)>);
 
 /// Brand for [`TryThunk`](crate::types::TryThunk) (Bifunctor).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

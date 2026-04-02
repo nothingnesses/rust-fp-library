@@ -37,6 +37,7 @@ mod inner {
 	/// assert_eq!(append(Multiplicative(2i32), Multiplicative(3)), Multiplicative(6));
 	/// assert_eq!(empty::<Multiplicative<i32>>(), Multiplicative(1));
 	/// ```
+	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 	#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 	pub struct Multiplicative<A>(
 		/// The wrapped value.

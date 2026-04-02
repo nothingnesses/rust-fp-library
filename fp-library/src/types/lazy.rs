@@ -57,10 +57,7 @@ mod inner {
 		},
 	};
 
-	pub use crate::classes::{
-		LazyConfig,
-		TryLazyConfig,
-	};
+	pub use crate::classes::LazyConfig;
 
 	/// Single-threaded memoization using [`Rc<LazyCell>`].
 	///
@@ -125,73 +122,6 @@ mod inner {
 		}
 	}
 
-	impl TryLazyConfig for RcLazyConfig {
-		type TryLazy<'a, A: 'a, E: 'a> =
-			Rc<LazyCell<Result<A, E>, Box<dyn FnOnce() -> Result<A, E> + 'a>>>;
-		type TryThunk<'a, A: 'a, E: 'a> = dyn FnOnce() -> Result<A, E> + 'a;
-
-		/// Creates a new fallible lazy cell from an initializer.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the computation.",
-			"The type of the value.",
-			"The type of the error."
-		)]
-		///
-		#[document_parameters("The initializer thunk.")]
-		///
-		#[document_returns("A new fallible lazy cell.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	classes::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
-		/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
-		/// ```
-		fn try_lazy_new<'a, A: 'a, E: 'a>(
-			f: Box<Self::TryThunk<'a, A, E>>
-		) -> Self::TryLazy<'a, A, E> {
-			Rc::new(LazyCell::new(f))
-		}
-
-		/// Forces evaluation and returns a reference to the result.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the computation.",
-			"The borrow lifetime.",
-			"The type of the value.",
-			"The type of the error."
-		)]
-		///
-		#[document_parameters("The fallible lazy cell to evaluate.")]
-		///
-		#[document_returns("A result containing a reference to the value or error.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	classes::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
-		/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
-		/// ```
-		fn try_evaluate<'a, 'b, A: 'a, E: 'a>(
-			lazy: &'b Self::TryLazy<'a, A, E>
-		) -> Result<&'b A, &'b E> {
-			LazyCell::force(lazy).as_ref()
-		}
-	}
-
 	/// Thread-safe memoization using [`Arc<LazyLock>`].
 	///
 	/// Requires `A: Send + Sync` for the value type.
@@ -252,73 +182,6 @@ mod inner {
 		/// ```
 		fn evaluate<'a, 'b, A: 'a>(lazy: &'b Self::Lazy<'a, A>) -> &'b A {
 			LazyLock::force(lazy)
-		}
-	}
-
-	impl TryLazyConfig for ArcLazyConfig {
-		type TryLazy<'a, A: 'a, E: 'a> =
-			Arc<LazyLock<Result<A, E>, Box<dyn FnOnce() -> Result<A, E> + Send + 'a>>>;
-		type TryThunk<'a, A: 'a, E: 'a> = dyn FnOnce() -> Result<A, E> + Send + 'a;
-
-		/// Creates a new fallible lazy cell from an initializer.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the computation.",
-			"The type of the value.",
-			"The type of the error."
-		)]
-		///
-		#[document_parameters("The initializer thunk.")]
-		///
-		#[document_returns("A new fallible lazy cell.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	classes::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy = ArcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
-		/// assert_eq!(ArcLazyConfig::try_evaluate(&lazy), Ok(&42));
-		/// ```
-		fn try_lazy_new<'a, A: 'a, E: 'a>(
-			f: Box<Self::TryThunk<'a, A, E>>
-		) -> Self::TryLazy<'a, A, E> {
-			Arc::new(LazyLock::new(f))
-		}
-
-		/// Forces evaluation and returns a reference to the result.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the computation.",
-			"The borrow lifetime.",
-			"The type of the value.",
-			"The type of the error."
-		)]
-		///
-		#[document_parameters("The fallible lazy cell to evaluate.")]
-		///
-		#[document_returns("A result containing a reference to the value or error.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	classes::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy = ArcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
-		/// assert_eq!(ArcLazyConfig::try_evaluate(&lazy), Ok(&42));
-		/// ```
-		fn try_evaluate<'a, 'b, A: 'a, E: 'a>(
-			lazy: &'b Self::TryLazy<'a, A, E>
-		) -> Result<&'b A, &'b E> {
-			LazyLock::force(lazy).as_ref()
 		}
 	}
 
@@ -643,7 +506,7 @@ mod inner {
 		"The lifetime of the computation.",
 		"The type of the computed value."
 	)]
-	impl<'a, A: 'a> From<SendThunk<'a, A>> for Lazy<'a, A, ArcLazyConfig> {
+	impl<'a, A: Send + Sync + 'a> From<SendThunk<'a, A>> for Lazy<'a, A, ArcLazyConfig> {
 		/// Converts a [`SendThunk`] into an [`ArcLazy`] without eager evaluation.
 		///
 		/// Because `SendThunk` already satisfies `Send`, the inner closure can be
@@ -738,7 +601,7 @@ mod inner {
 	#[document_parameters("The lazy instance.")]
 	impl<'a, A> Lazy<'a, A, ArcLazyConfig>
 	where
-		A: 'a,
+		A: Send + Sync + 'a,
 	{
 		/// Creates a new Lazy that will run `f` on first access.
 		#[document_signature]
@@ -766,7 +629,7 @@ mod inner {
 		/// Creates a `Lazy` from an already-computed value.
 		///
 		/// The value is immediately available without any computation.
-		/// Requires `Send` since `ArcLazy` is thread-safe.
+		/// Requires `Send + Sync` since `ArcLazy` is thread-safe.
 		#[document_signature]
 		///
 		#[document_parameters("The pre-computed value to wrap.")]
@@ -785,9 +648,7 @@ mod inner {
 		/// let lazy = Lazy::<_, ArcLazyConfig>::pure(42);
 		/// assert_eq!(*lazy.evaluate(), 42);
 		/// ```
-		pub fn pure(a: A) -> Self
-		where
-			A: Send + Sync, {
+		pub fn pure(a: A) -> Self {
 			Lazy(ArcLazyConfig::lazy_new(Box::new(move || a)))
 		}
 
@@ -815,7 +676,7 @@ mod inner {
 		#[inline]
 		pub fn evaluate_owned(&self) -> A
 		where
-			A: Clone + Send + Sync, {
+			A: Clone, {
 			self.evaluate().clone()
 		}
 	}
@@ -825,7 +686,7 @@ mod inner {
 		"The type of the computed value."
 	)]
 	#[document_parameters("The lazy value to map over.")]
-	impl<'a, A: 'a> Lazy<'a, A, ArcLazyConfig> {
+	impl<'a, A: Send + Sync + 'a> Lazy<'a, A, ArcLazyConfig> {
 		/// Maps a function over the memoized value by reference.
 		///
 		/// This is the `ArcLazy` counterpart of [`RcLazy::ref_map`](Lazy::ref_map).
@@ -853,12 +714,10 @@ mod inner {
 		/// assert_eq!(*mapped.evaluate(), 20);
 		/// ```
 		#[inline]
-		pub fn ref_map<B: 'a>(
+		pub fn ref_map<B: Send + Sync + 'a>(
 			self,
 			f: impl FnOnce(&A) -> B + Send + 'a,
-		) -> Lazy<'a, B, ArcLazyConfig>
-		where
-			A: Send + Sync, {
+		) -> Lazy<'a, B, ArcLazyConfig> {
 			ArcLazy::new(move || f(self.evaluate()))
 		}
 	}
@@ -910,44 +769,6 @@ mod inner {
 		where
 			Self: Sized, {
 			RcLazy::new(move || f().evaluate().clone())
-		}
-	}
-
-	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
-	impl<'a, A> Deferrable<'a> for Lazy<'a, A, ArcLazyConfig>
-	where
-		A: Send + Sync + 'a,
-	{
-		/// Defers a computation that produces a thread-safe `Lazy` value.
-		///
-		/// The thunk `f` is called eagerly to obtain the inner `ArcLazy`, which is
-		/// then returned directly. The inner `ArcLazy` retains its own lazy
-		/// semantics, so the underlying computation is still deferred. This eager
-		/// call to `f` is necessary because `Deferrable::defer` does not require
-		/// `Send` on the thunk, while `ArcLazy::new` does.
-		#[document_signature]
-		///
-		#[document_parameters("The thunk that produces the lazy value.")]
-		///
-		#[document_returns("A new `ArcLazy` value.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy: ArcLazy<i32> = defer(|| ArcLazy::pure(42));
-		/// assert_eq!(*lazy.evaluate(), 42);
-		/// ```
-		fn defer(f: impl FnOnce() -> Self + 'a) -> Self
-		where
-			Self: Sized, {
-			f()
 		}
 	}
 
@@ -2835,5 +2656,142 @@ mod tests {
 		// Clone should share the same cache.
 		let cloned = lazy.clone();
 		assert_eq!(*cloned.evaluate(), 100);
+	}
+
+	// -- Knot-tying tests: self-reference is actually used after initialization --
+
+	/// Tests that `rc_lazy_fix` ties the knot: the self-reference captured
+	/// inside the closure points to the same `Rc` cell as the returned lazy.
+	/// After evaluation, querying the self-reference yields the cached value.
+	#[test]
+	fn test_rc_lazy_fix_knot_tying_ptr_eq() {
+		let stash: Rc<RefCell<Option<RcLazy<i32>>>> = Rc::new(RefCell::new(None));
+		let stash_clone = stash.clone();
+		let lazy = rc_lazy_fix(move |self_ref: RcLazy<i32>| {
+			// Store the self-reference externally so we can inspect it later.
+			*stash_clone.borrow_mut() = Some(self_ref);
+			42
+		});
+		// Force evaluation.
+		assert_eq!(*lazy.evaluate(), 42);
+		// Retrieve the stashed self-reference.
+		let self_ref = stash.borrow().clone().unwrap();
+		// The self-reference must point to the same underlying Rc cell.
+		assert!(Rc::ptr_eq(&lazy.0, &self_ref.0));
+		// Evaluating the self-reference yields the same cached value.
+		assert_eq!(*self_ref.evaluate(), 42);
+	}
+
+	/// Tests that `rc_lazy_fix` knot-tying produces a shared cache: the
+	/// initializer runs exactly once even when accessed through the self-reference.
+	#[test]
+	fn test_rc_lazy_fix_knot_tying_shared_cache() {
+		let counter = Rc::new(RefCell::new(0));
+		let stash: Rc<RefCell<Option<RcLazy<i32>>>> = Rc::new(RefCell::new(None));
+		let counter_clone = counter.clone();
+		let stash_clone = stash.clone();
+		let lazy = rc_lazy_fix(move |self_ref: RcLazy<i32>| {
+			*stash_clone.borrow_mut() = Some(self_ref);
+			*counter_clone.borrow_mut() += 1;
+			100
+		});
+		assert_eq!(*counter.borrow(), 0);
+		// Force evaluation through the outer lazy.
+		assert_eq!(*lazy.evaluate(), 100);
+		assert_eq!(*counter.borrow(), 1);
+		// Force evaluation through the stashed self-reference.
+		let self_ref = stash.borrow().clone().unwrap();
+		assert_eq!(*self_ref.evaluate(), 100);
+		// Counter must still be 1: the initializer was not re-run.
+		assert_eq!(*counter.borrow(), 1);
+	}
+
+	/// Tests that `rc_lazy_fix` panics on reentrant evaluation.
+	///
+	/// Forcing the self-reference inside the initializer triggers a
+	/// `LazyCell` reentrant-init panic.
+	#[test]
+	#[should_panic]
+	fn test_rc_lazy_fix_reentrant_panics() {
+		let lazy = rc_lazy_fix(|self_ref: RcLazy<i32>| {
+			// Forcing the self-reference during initialization is reentrant
+			// and must panic.
+			*self_ref.evaluate() + 1
+		});
+		let _ = lazy.evaluate();
+	}
+
+	/// Tests that `arc_lazy_fix` ties the knot: the self-reference captured
+	/// inside the closure points to the same `Arc` cell as the returned lazy.
+	#[test]
+	fn test_arc_lazy_fix_knot_tying_ptr_eq() {
+		use std::sync::Mutex;
+
+		let stash: Arc<Mutex<Option<ArcLazy<i32>>>> = Arc::new(Mutex::new(None));
+		let stash_clone = stash.clone();
+		let lazy = arc_lazy_fix(move |self_ref: ArcLazy<i32>| {
+			*stash_clone.lock().unwrap() = Some(self_ref);
+			42
+		});
+		assert_eq!(*lazy.evaluate(), 42);
+		let self_ref = stash.lock().unwrap().clone().unwrap();
+		// The self-reference must point to the same underlying Arc cell.
+		assert!(Arc::ptr_eq(&lazy.0, &self_ref.0));
+		// Evaluating the self-reference yields the same cached value.
+		assert_eq!(*self_ref.evaluate(), 42);
+	}
+
+	/// Tests that `arc_lazy_fix` knot-tying produces a shared cache: the
+	/// initializer runs exactly once even when accessed through the self-reference.
+	#[test]
+	fn test_arc_lazy_fix_knot_tying_shared_cache() {
+		use std::sync::{
+			Mutex,
+			atomic::{
+				AtomicUsize,
+				Ordering,
+			},
+		};
+
+		let counter = Arc::new(AtomicUsize::new(0));
+		let stash: Arc<Mutex<Option<ArcLazy<i32>>>> = Arc::new(Mutex::new(None));
+		let counter_clone = counter.clone();
+		let stash_clone = stash.clone();
+		let lazy = arc_lazy_fix(move |self_ref: ArcLazy<i32>| {
+			*stash_clone.lock().unwrap() = Some(self_ref);
+			counter_clone.fetch_add(1, Ordering::SeqCst);
+			100
+		});
+		assert_eq!(counter.load(Ordering::SeqCst), 0);
+		assert_eq!(*lazy.evaluate(), 100);
+		assert_eq!(counter.load(Ordering::SeqCst), 1);
+		// Access through the stashed self-reference.
+		let self_ref = stash.lock().unwrap().clone().unwrap();
+		assert_eq!(*self_ref.evaluate(), 100);
+		// Counter must still be 1: the initializer was not re-run.
+		assert_eq!(counter.load(Ordering::SeqCst), 1);
+	}
+
+	/// Tests that `arc_lazy_fix` knot-tying works across threads: the
+	/// self-reference can be evaluated from a different thread and still
+	/// returns the cached value.
+	#[test]
+	fn test_arc_lazy_fix_knot_tying_cross_thread() {
+		use std::{
+			sync::Mutex,
+			thread,
+		};
+
+		let stash: Arc<Mutex<Option<ArcLazy<i32>>>> = Arc::new(Mutex::new(None));
+		let stash_clone = stash.clone();
+		let lazy = arc_lazy_fix(move |self_ref: ArcLazy<i32>| {
+			*stash_clone.lock().unwrap() = Some(self_ref);
+			77
+		});
+		assert_eq!(*lazy.evaluate(), 77);
+		let self_ref = stash.lock().unwrap().clone().unwrap();
+		// Evaluate the self-reference from a spawned thread.
+		let handle = thread::spawn(move || *self_ref.evaluate());
+		assert_eq!(handle.join().unwrap(), 77);
 	}
 }

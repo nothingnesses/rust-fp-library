@@ -157,9 +157,7 @@ mod inner {
 		/// assert_eq!(thunk.evaluate(), 42);
 		/// ```
 		#[inline]
-		pub fn pure(a: A) -> Self
-		where
-			A: 'a, {
+		pub fn pure(a: A) -> Self {
 			Thunk::new(move || a)
 		}
 

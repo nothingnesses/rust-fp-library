@@ -34,6 +34,7 @@ mod inner {
 	///
 	/// assert_eq!(append(First("hello"), First("world")), First("hello"));
 	/// ```
+	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 	#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 	pub struct First<A>(
 		/// The wrapped value.

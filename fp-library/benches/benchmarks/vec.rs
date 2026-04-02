@@ -30,7 +30,10 @@ use {
 			functor::map,
 			lift::lift2,
 			monoid::empty,
+			par_compactable::par_compact,
+			par_filterable::par_filter_map,
 			par_foldable::par_fold_map,
+			par_functor::par_map,
 			pointed::pure,
 			semiapplicative::apply,
 			semigroup::append,
@@ -552,16 +555,114 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.finish();
 	}
 
-	// Par Fold Map
+	// -- Parallel operations (varying sizes to show crossover point) --
+
+	let par_sizes: &[i32] = &[100, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000];
+
+	// Par Map vs sequential map
+	{
+		let mut group = c.benchmark_group("Vec Par Map");
+		for &sz in par_sizes {
+			let v: Vec<i32> = (0 .. sz).collect();
+			group.bench_with_input(BenchmarkId::new("par_map", sz), &sz, |b, &_| {
+				b.iter_batched(
+					|| v.clone(),
+					|v| par_map::<VecBrand, _, _>(|x: i32| x * 2, v),
+					BatchSize::SmallInput,
+				)
+			});
+			group.bench_with_input(BenchmarkId::new("map (sequential)", sz), &sz, |b, &_| {
+				b.iter_batched(
+					|| v.clone(),
+					|v| map::<VecBrand, _, _>(|x: i32| x * 2, v),
+					BatchSize::SmallInput,
+				)
+			});
+		}
+		group.finish();
+	}
+
+	// Par Fold Map vs sequential fold_map
 	{
 		let mut group = c.benchmark_group("Vec Par Fold Map");
-		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
-			b.iter_batched(
-				|| v_orig.clone(),
-				|v| par_fold_map::<VecBrand, _, _>(|x: i32| x.to_string(), v),
-				BatchSize::SmallInput,
-			)
-		});
+		group.plot_config(
+			criterion::PlotConfiguration::default()
+				.summary_scale(criterion::AxisScale::Logarithmic),
+		);
+		for &sz in par_sizes {
+			let v: Vec<i32> = (0 .. sz).collect();
+			group.bench_with_input(BenchmarkId::new("par_fold_map", sz), &sz, |b, &_| {
+				b.iter_batched(
+					|| v.clone(),
+					|v| par_fold_map::<VecBrand, _, _>(|x: i32| x.to_string(), v),
+					BatchSize::SmallInput,
+				)
+			});
+			group.bench_with_input(BenchmarkId::new("fold_map (sequential)", sz), &sz, |b, &_| {
+				b.iter_batched(
+					|| v.clone(),
+					|v| fold_map::<RcFnBrand, VecBrand, _, _>(|x: i32| x.to_string(), v),
+					BatchSize::SmallInput,
+				)
+			});
+		}
+		group.finish();
+	}
+
+	// Par Filter Map vs sequential filter_map
+	{
+		let mut group = c.benchmark_group("Vec Par Filter Map");
+		for &sz in par_sizes {
+			let v: Vec<i32> = (0 .. sz).collect();
+			group.bench_with_input(BenchmarkId::new("par_filter_map", sz), &sz, |b, &_| {
+				b.iter_batched(
+					|| v.clone(),
+					|v| {
+						par_filter_map::<VecBrand, _, _>(
+							|x: i32| if x % 2 == 0 { Some(x * 2) } else { None },
+							v,
+						)
+					},
+					BatchSize::SmallInput,
+				)
+			});
+			group.bench_with_input(
+				BenchmarkId::new("filter_map (sequential)", sz),
+				&sz,
+				|b, &_| {
+					b.iter_batched(
+						|| v.clone(),
+						|v| {
+							filter_map::<VecBrand, _, _>(
+								|x: i32| if x % 2 == 0 { Some(x * 2) } else { None },
+								v,
+							)
+						},
+						BatchSize::SmallInput,
+					)
+				},
+			);
+		}
+		group.finish();
+	}
+
+	// Par Compact vs sequential compact
+	{
+		let mut group = c.benchmark_group("Vec Par Compact");
+		for &sz in par_sizes {
+			let v: Vec<Option<i32>> =
+				(0 .. sz).map(|x| if x % 3 == 0 { None } else { Some(x) }).collect();
+			group.bench_with_input(BenchmarkId::new("par_compact", sz), &sz, |b, &_| {
+				b.iter_batched(
+					|| v.clone(),
+					|v| par_compact::<VecBrand, _>(v),
+					BatchSize::SmallInput,
+				)
+			});
+			group.bench_with_input(BenchmarkId::new("compact (sequential)", sz), &sz, |b, &_| {
+				b.iter_batched(|| v.clone(), |v| compact::<VecBrand, _>(v), BatchSize::SmallInput)
+			});
+		}
 		group.finish();
 	}
 }
