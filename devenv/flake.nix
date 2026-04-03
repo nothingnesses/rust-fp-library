@@ -164,6 +164,8 @@
                 pkgs.python3
                 # For criterion.rs
                 pkgs.gnuplot
+                # For link checking in markdown
+                pkgs.lychee
               ];
 
               env = {

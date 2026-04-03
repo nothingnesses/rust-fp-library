@@ -99,13 +99,13 @@ fn main() {
 
 ## How it Works
 
-**Higher-Kinded Types:** The library encodes HKTs using lightweight higher-kinded polymorphism (the "Brand" pattern). Each type constructor has a zero-sized brand type (e.g., `OptionBrand`) that implements `Kind` traits mapping brands back to concrete types. See [docs/hkt.md](fp-library/docs/hkt.md).
+**Higher-Kinded Types:** The library encodes HKTs using lightweight higher-kinded polymorphism (the "Brand" pattern). Each type constructor has a zero-sized brand type (e.g., `OptionBrand`) that implements `Kind` traits mapping brands back to concrete types. See [hkt.md](fp-library/docs/hkt.md).
 
-**Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where functions must be stored as data. See [docs/zero-cost.md](fp-library/docs/zero-cost.md).
+**Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where functions must be stored as data. See [zero-cost.md](fp-library/docs/zero-cost.md).
 
-**Lazy Evaluation:** A granular hierarchy of lazy types (`Thunk`, `Trampoline`, `Lazy`) lets you choose trade-offs between stack safety, memoization, lifetimes, and thread safety. Each has a fallible `Try*` counterpart. See [docs/lazy-evaluation.md](fp-library/docs/lazy-evaluation.md).
+**Lazy Evaluation:** A granular hierarchy of lazy types (`Thunk`, `Trampoline`, `Lazy`) lets you choose trade-offs between stack safety, memoization, lifetimes, and thread safety. Each has a fallible `Try*` counterpart. See [lazy-evaluation.md](fp-library/docs/lazy-evaluation.md).
 
-**Thread Safety & Parallelism:** A parallel trait hierarchy (`ParFunctor`, `ParFoldable`, etc.) mirrors the sequential one. When the `rayon` feature is enabled, `par_*` functions use true parallel execution. See [docs/parallelism.md](fp-library/docs/parallelism.md).
+**Thread Safety & Parallelism:** A parallel trait hierarchy (`ParFunctor`, `ParFoldable`, etc.) mirrors the sequential one. When the `rayon` feature is enabled, `par_*` functions use true parallel execution. See [parallelism.md](fp-library/docs/parallelism.md).
 
 ## Documentation
 
@@ -172,7 +172,7 @@ Run `just --list` to see all available recipes.
 
 ### Release Process
 
-For maintainers, the release process is documented in [docs/release-process.md](fp-library/docs/release-process.md).
+For maintainers, the release process is documented in [release-process.md](fp-library/docs/release-process.md).
 
 ### Benchmarking
 

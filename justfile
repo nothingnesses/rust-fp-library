@@ -21,11 +21,13 @@ clippy *args:
 doc *args:
     #!/usr/bin/env bash
     set -euo pipefail
-    if grep -rn '[✅❌⚠⚡←→↔≥≤≠✓✗✘✔✖──━┃┏┓┗┛┣┫┳┻╋═║►▶◀◁▲△▼▽●○■□★☆♠♣♥♦]' fp-library/src/ fp-macros/src/ --include='*.rs' docs/ --include='*.md' 2>/dev/null; then
+    {{direnv_prefix}} true
+    if grep -rn '[✅❌⚠⚡←→↔≥≤≠✓✗✘✔✖──━┃┏┓┗┛┣┫┳┻╋═║►▶◀◁▲△▼▽●○■□★☆♠♣♥♦]' fp-library/src/ fp-macros/src/ --include='*.rs' docs/ fp-library/docs/ --include='*.md' 2>/dev/null; then
         echo "ERROR: Found emoji or unicode characters in source or documentation files. Use ASCII equivalents." >&2
         exit 1
     fi
-    {{direnv_prefix}} RUSTDOCFLAGS="-D warnings" cargo doc {{args}}
+    lychee --offline --no-progress "README.md" "fp-library/docs/**/*.md" "docs/**/*.md"
+    RUSTDOCFLAGS="-D warnings" cargo doc {{args}}
 
 # Build the workspace.
 build *args:
