@@ -55,7 +55,7 @@ This applies to most function/closure parameters in the type class hierarchy: `m
 
 Benefits:
 
-- **Fewer type parameters** in turbofish: `map::<Brand, _, _>` vs `map::<Brand, _, _, _>`.
+- **Fewer type parameters** in turbofish: `map::<Brand, _, _, _>` vs `map::<Brand, _, _, _, _>`.
 - **Matches the PureScript/Haskell convention** where function types are not type variables.
 - **Simpler signatures** with less syntactic noise.
 

@@ -1024,7 +1024,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	map::<ControlFlowContinueAppliedBrand<i32>, _, _>(
+		/// 	map::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(
 		/// 		|x: i32| x * 2,
 		/// 		ControlFlow::<i32, i32>::Break(5)
 		/// 	),
@@ -1568,7 +1568,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	map::<ControlFlowBreakAppliedBrand<i32>, _, _>(
+		/// 	map::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(
 		/// 		|x: i32| x * 2,
 		/// 		ControlFlow::<i32, i32>::Continue(5)
 		/// 	),
@@ -2219,7 +2219,6 @@ mod tests {
 			classes::{
 				bifunctor::*,
 				foldable::*,
-				functor::*,
 				lift::*,
 				pointed::*,
 				semiapplicative::*,
@@ -2323,13 +2322,13 @@ mod tests {
 	fn test_functor_with_continue() {
 		let cf: ControlFlow<i32, i32> = ControlFlow::Break(5);
 		assert_eq!(
-			map::<ControlFlowContinueAppliedBrand<_>, _, _>(|x: i32| x * 2, cf),
+			map::<ControlFlowContinueAppliedBrand<_>, _, _, _>(|x: i32| x * 2, cf),
 			ControlFlow::Break(10)
 		);
 
 		let cont: ControlFlow<i32, i32> = ControlFlow::Continue(5);
 		assert_eq!(
-			map::<ControlFlowContinueAppliedBrand<_>, _, _>(|x: i32| x * 2, cont),
+			map::<ControlFlowContinueAppliedBrand<_>, _, _, _>(|x: i32| x * 2, cont),
 			ControlFlow::Continue(5)
 		);
 	}
@@ -2339,13 +2338,13 @@ mod tests {
 	fn test_functor_with_break() {
 		let cf: ControlFlow<i32, i32> = ControlFlow::Continue(5);
 		assert_eq!(
-			map::<ControlFlowBreakAppliedBrand<_>, _, _>(|x: i32| x * 2, cf),
+			map::<ControlFlowBreakAppliedBrand<_>, _, _, _>(|x: i32| x * 2, cf),
 			ControlFlow::Continue(10)
 		);
 
 		let brk: ControlFlow<i32, i32> = ControlFlow::Break(5);
 		assert_eq!(
-			map::<ControlFlowBreakAppliedBrand<_>, _, _>(|x: i32| x * 2, brk),
+			map::<ControlFlowBreakAppliedBrand<_>, _, _, _>(|x: i32| x * 2, brk),
 			ControlFlow::Break(5)
 		);
 	}
@@ -2371,7 +2370,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity_with_continue(x: ControlFlowWrapper<i32, i32>) -> bool {
 		let x = x.into_inner();
-		map::<ControlFlowContinueAppliedBrand<i32>, _, _>(identity, x) == x
+		map::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(identity, x) == x
 	}
 
 	#[quickcheck]
@@ -2379,10 +2378,10 @@ mod tests {
 		let x = x.into_inner();
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<ControlFlowContinueAppliedBrand<i32>, _, _>(compose(f, g), x)
-			== map::<ControlFlowContinueAppliedBrand<i32>, _, _>(
+		map::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(compose(f, g), x)
+			== map::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(
 				f,
-				map::<ControlFlowContinueAppliedBrand<i32>, _, _>(g, x),
+				map::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(g, x),
 			)
 	}
 
@@ -2391,7 +2390,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity_with_break(x: ControlFlowWrapper<i32, i32>) -> bool {
 		let x = x.into_inner();
-		map::<ControlFlowBreakAppliedBrand<i32>, _, _>(identity, x) == x
+		map::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(identity, x) == x
 	}
 
 	#[quickcheck]
@@ -2399,10 +2398,10 @@ mod tests {
 		let x = x.into_inner();
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<ControlFlowBreakAppliedBrand<i32>, _, _>(compose(f, g), x)
-			== map::<ControlFlowBreakAppliedBrand<i32>, _, _>(
+		map::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(compose(f, g), x)
+			== map::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(
 				f,
-				map::<ControlFlowBreakAppliedBrand<i32>, _, _>(g, x),
+				map::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(g, x),
 			)
 	}
 

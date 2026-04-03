@@ -67,7 +67,7 @@ mod inner {
 		/// };
 		///
 		/// let x = (5,);
-		/// let y = map::<Tuple1Brand, _, _>(|i| i * 2, x);
+		/// let y = map::<Tuple1Brand, _, _, _>(|i| i * 2, x);
 		/// assert_eq!(y, (10,));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -502,7 +502,7 @@ mod tests {
 			},
 			classes::{
 				CloneableFn,
-				functor::map,
+				functor_dispatch::map,
 				pointed::pure,
 				semiapplicative::apply,
 				semimonad::bind,
@@ -521,7 +521,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity(x: i32) -> bool {
 		let x = (x,);
-		map::<Tuple1Brand, _, _>(identity, x) == x
+		map::<Tuple1Brand, _, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -530,8 +530,8 @@ mod tests {
 		let x = (x,);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<Tuple1Brand, _, _>(compose(f, g), x)
-			== map::<Tuple1Brand, _, _>(f, map::<Tuple1Brand, _, _>(g, x))
+		map::<Tuple1Brand, _, _, _>(compose(f, g), x)
+			== map::<Tuple1Brand, _, _, _>(f, map::<Tuple1Brand, _, _, _>(g, x))
 	}
 
 	// Applicative Laws
@@ -630,7 +630,7 @@ mod tests {
 	/// Tests the `map` function.
 	#[test]
 	fn map_test() {
-		assert_eq!(map::<Tuple1Brand, _, _>(|x: i32| x + 1, (1,)), (2,));
+		assert_eq!(map::<Tuple1Brand, _, _, _>(|x: i32| x + 1, (1,)), (2,));
 	}
 
 	/// Tests the `bind` function.

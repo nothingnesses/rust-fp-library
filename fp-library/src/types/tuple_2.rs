@@ -337,7 +337,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(map::<Tuple2FirstAppliedBrand<_>, _, _>(|x: i32| x * 2, (1, 5)), (1, 10));
+		/// assert_eq!(map::<Tuple2FirstAppliedBrand<_>, _, _, _>(|x: i32| x * 2, (1, 5)), (1, 10));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> B + 'a,
@@ -843,7 +843,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(map::<Tuple2SecondAppliedBrand<_>, _, _>(|x: i32| x * 2, (5, 1)), (10, 1));
+		/// assert_eq!(map::<Tuple2SecondAppliedBrand<_>, _, _, _>(|x: i32| x * 2, (5, 1)), (10, 1));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> B + 'a,
@@ -1371,7 +1371,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let x = (first, second);
-		map::<Tuple2FirstAppliedBrand<String>, _, _>(identity, x.clone()) == x
+		map::<Tuple2FirstAppliedBrand<String>, _, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -1383,10 +1383,10 @@ mod tests {
 		let x = (first, second);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<Tuple2FirstAppliedBrand<String>, _, _>(compose(f, g), x.clone())
-			== map::<Tuple2FirstAppliedBrand<String>, _, _>(
+		map::<Tuple2FirstAppliedBrand<String>, _, _, _>(compose(f, g), x.clone())
+			== map::<Tuple2FirstAppliedBrand<String>, _, _, _>(
 				f,
-				map::<Tuple2FirstAppliedBrand<String>, _, _>(g, x),
+				map::<Tuple2FirstAppliedBrand<String>, _, _, _>(g, x),
 			)
 	}
 

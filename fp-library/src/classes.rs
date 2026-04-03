@@ -14,7 +14,7 @@
 //! };
 //!
 //! let x = Some(5);
-//! let y = map::<OptionBrand, _, _>(|i| i * 2, x);
+//! let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
 //! assert_eq!(y, Some(10));
 //! ```
 
@@ -44,6 +44,7 @@ pub mod foldable;
 pub mod foldable_with_index;
 pub mod function;
 pub mod functor;
+pub mod functor_dispatch;
 pub mod functor_with_index;
 pub mod heyting_algebra;
 pub mod lazy_config;

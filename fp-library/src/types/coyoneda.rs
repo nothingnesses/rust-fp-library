@@ -25,7 +25,7 @@
 //! };
 //!
 //! // Single traversal: compose first, then map once.
-//! let result = map::<VecBrand, _, _>(
+//! let result = map::<VecBrand, _, _, _>(
 //! 	compose(|x: i32| x.to_string(), compose(|x| x * 2, |x: i32| x + 1)),
 //! 	vec![1, 2, 3],
 //! );
@@ -187,7 +187,7 @@ mod inner {
 		/// let coyo = Coyoneda::<OptionBrand, _>::lift(Some(42));
 		/// assert_eq!(coyo.lower(), Some(42));
 		/// ```
-		fn lower(self: Box<Self>) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
+		fn lower(self: Box<Self>) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		where
 			F: Functor;
 	}
@@ -198,7 +198,7 @@ mod inner {
 	struct CoyonedaBase<'a, F, A: 'a>
 	where
 		F: Kind_cdc7cd43dac7585f + 'a, {
-		fa: <F as Kind_cdc7cd43dac7585f>::Of<'a, A>,
+		fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	}
 
 	#[document_type_parameters(
@@ -226,7 +226,7 @@ mod inner {
 		/// let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
 		/// assert_eq!(coyo.lower(), vec![1, 2, 3]);
 		/// ```
-		fn lower(self: Box<Self>) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
+		fn lower(self: Box<Self>) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		where
 			F: Functor, {
 			self.fa
@@ -276,7 +276,7 @@ mod inner {
 		/// let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x + 1);
 		/// assert_eq!(coyo.lower(), vec![2, 3, 4]);
 		/// ```
-		fn lower(self: Box<Self>) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
+		fn lower(self: Box<Self>) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		where
 			F: Functor, {
 			#[cfg(feature = "stacker")]
@@ -306,7 +306,7 @@ mod inner {
 	struct CoyonedaNewLayer<'a, F, B: 'a, A: 'a, Func: Fn(B) -> A + 'a>
 	where
 		F: Kind_cdc7cd43dac7585f + 'a, {
-		fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
+		fb: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		func: Func,
 	}
 
@@ -338,7 +338,7 @@ mod inner {
 		/// let coyo = Coyoneda::<VecBrand, _>::new(|x: i32| x * 2, vec![1, 2, 3]);
 		/// assert_eq!(coyo.lower(), vec![2, 4, 6]);
 		/// ```
-		fn lower(self: Box<Self>) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
+		fn lower(self: Box<Self>) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		where
 			F: Functor, {
 			F::map(self.func, self.fb)
@@ -401,7 +401,7 @@ mod inner {
 		/// ```
 		pub fn new<B: 'a>(
 			f: impl Fn(B) -> A + 'a,
-			fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
+			fb: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Self {
 			Coyoneda(Box::new(CoyonedaNewLayer {
 				fb,
@@ -429,7 +429,7 @@ mod inner {
 		/// let coyo = Coyoneda::<OptionBrand, _>::lift(Some(42));
 		/// assert_eq!(coyo.lower(), Some(42));
 		/// ```
-		pub fn lift(fa: <F as Kind_cdc7cd43dac7585f>::Of<'a, A>) -> Self {
+		pub fn lift(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> Self {
 			Coyoneda(Box::new(CoyonedaBase {
 				fa,
 			}))
@@ -456,7 +456,7 @@ mod inner {
 		///
 		/// assert_eq!(result, vec![2, 3, 4]);
 		/// ```
-		pub fn lower(self) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
+		pub fn lower(self) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		where
 			F: Functor, {
 			self.0.lower()
@@ -616,7 +616,7 @@ mod inner {
 		/// };
 		///
 		/// let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
-		/// let mapped = map::<CoyonedaBrand<VecBrand>, _, _>(|x| x * 10, coyo);
+		/// let mapped = map::<CoyonedaBrand<VecBrand>, _, _, _>(|x| x * 10, coyo);
 		/// assert_eq!(mapped.lower(), vec![10, 20, 30]);
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -1008,7 +1008,7 @@ mod tests {
 	fn functor_identity_law() {
 		// map(identity, fa) = fa
 		let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
-		let result = map::<CoyonedaBrand<VecBrand>, _, _>(identity, coyo).lower();
+		let result = map::<CoyonedaBrand<VecBrand>, _, _, _>(identity, coyo).lower();
 		assert_eq!(result, vec![1, 2, 3]);
 	}
 
@@ -1019,12 +1019,14 @@ mod tests {
 		let g = |x: i32| x * 2;
 
 		let coyo1 = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
-		let left = map::<CoyonedaBrand<VecBrand>, _, _>(compose(f, g), coyo1).lower();
+		let left = map::<CoyonedaBrand<VecBrand>, _, _, _>(compose(f, g), coyo1).lower();
 
 		let coyo2 = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
-		let right =
-			map::<CoyonedaBrand<VecBrand>, _, _>(f, map::<CoyonedaBrand<VecBrand>, _, _>(g, coyo2))
-				.lower();
+		let right = map::<CoyonedaBrand<VecBrand>, _, _, _>(
+			f,
+			map::<CoyonedaBrand<VecBrand>, _, _, _>(g, coyo2),
+		)
+		.lower();
 
 		assert_eq!(left, right);
 	}
@@ -1077,7 +1079,7 @@ mod tests {
 	fn map_free_function_dispatches_to_brand() {
 		let coyo = Coyoneda::<OptionBrand, _>::lift(Some(10));
 		let result: Coyoneda<OptionBrand, String> =
-			map::<CoyonedaBrand<OptionBrand>, _, _>(|x: i32| x.to_string(), coyo);
+			map::<CoyonedaBrand<OptionBrand>, _, _, _>(|x: i32| x.to_string(), coyo);
 		assert_eq!(result.lower(), Some("10".to_string()));
 	}
 
@@ -1328,13 +1330,13 @@ mod tests {
 		#[quickcheck]
 		fn functor_identity_vec(v: Vec<i32>) -> bool {
 			let coyo = Coyoneda::<VecBrand, _>::lift(v.clone());
-			map::<CoyonedaBrand<VecBrand>, _, _>(identity, coyo).lower() == v
+			map::<CoyonedaBrand<VecBrand>, _, _, _>(identity, coyo).lower() == v
 		}
 
 		#[quickcheck]
 		fn functor_identity_option(x: Option<i32>) -> bool {
 			let coyo = Coyoneda::<OptionBrand, _>::lift(x);
-			map::<CoyonedaBrand<OptionBrand>, _, _>(identity, coyo).lower() == x
+			map::<CoyonedaBrand<OptionBrand>, _, _, _>(identity, coyo).lower() == x
 		}
 
 		#[quickcheck]
@@ -1342,15 +1344,15 @@ mod tests {
 			let f = |x: i32| x.wrapping_add(1);
 			let g = |x: i32| x.wrapping_mul(2);
 
-			let left = map::<CoyonedaBrand<VecBrand>, _, _>(
+			let left = map::<CoyonedaBrand<VecBrand>, _, _, _>(
 				compose(f, g),
 				Coyoneda::<VecBrand, _>::lift(v.clone()),
 			)
 			.lower();
 
-			let right = map::<CoyonedaBrand<VecBrand>, _, _>(
+			let right = map::<CoyonedaBrand<VecBrand>, _, _, _>(
 				f,
-				map::<CoyonedaBrand<VecBrand>, _, _>(g, Coyoneda::<VecBrand, _>::lift(v)),
+				map::<CoyonedaBrand<VecBrand>, _, _, _>(g, Coyoneda::<VecBrand, _>::lift(v)),
 			)
 			.lower();
 

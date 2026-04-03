@@ -50,7 +50,7 @@ mod inner {
 	/// // traverse(f, xs) = sequence(map(f, xs))
 	/// assert_eq!(
 	/// 	traverse::<VecBrand, _, _, OptionBrand>(f, xs.clone()),
-	/// 	sequence::<VecBrand, _, OptionBrand>(map::<VecBrand, _, _>(f, xs.clone())),
+	/// 	sequence::<VecBrand, _, OptionBrand>(map::<VecBrand, _, _, _>(f, xs.clone())),
 	/// );
 	///
 	/// // Sequence/traverse consistency:

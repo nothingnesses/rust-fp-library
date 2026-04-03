@@ -8,8 +8,9 @@
 //! The standard [`Functor`](crate::classes::Functor) trait requires `A -> B`, which would
 //! need either cloning or consuming the cached value. Instead, `Lazy` implements
 //! [`RefFunctor`](crate::classes::RefFunctor) (and [`SendRefFunctor`](crate::classes::SendRefFunctor)
-//! for `ArcLazy`), whose `ref_map` takes `&A -> B`. Use [`ref_map`](crate::functions::ref_map) or
-//! [`send_ref_map`](crate::functions::send_ref_map) to map over lazy values.
+//! for `ArcLazy`), whose `ref_map` takes `&A -> B`. Use [`map`](crate::functions::map) with a
+//! closure that takes `&A` to map over lazy values, or [`send_ref_map`](crate::functions::send_ref_map)
+//! for thread-safe mapping.
 
 #[fp_macros::document_module]
 mod inner {

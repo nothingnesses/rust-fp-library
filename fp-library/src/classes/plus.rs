@@ -57,7 +57,7 @@ mod inner {
 	/// // Annihilation: map(f, empty) = empty
 	/// let f = |i: i32| i * 2;
 	/// assert_eq!(
-	/// 	map::<OptionBrand, _, _>(f, plus_empty::<OptionBrand, i32>()),
+	/// 	map::<OptionBrand, _, _, _>(f, plus_empty::<OptionBrand, i32>()),
 	/// 	plus_empty::<OptionBrand, i32>(),
 	/// );
 	/// ```

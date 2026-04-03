@@ -211,7 +211,7 @@ fn equivalent_to_manual_map() {
 		x <- Some(7);
 		x + 1
 	});
-	let manual_result = map::<OptionBrand, _, _>(|x| x + 1, Some(7));
+	let manual_result = map::<OptionBrand, _, _, _>(|x| x + 1, Some(7));
 	assert_eq!(ado_result, manual_result);
 }
 

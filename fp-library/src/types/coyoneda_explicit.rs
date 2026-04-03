@@ -126,7 +126,7 @@ mod inner {
 	>
 	where
 		F: Kind_cdc7cd43dac7585f + 'a, {
-		fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
+		fb: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		func: Func,
 		_phantom: PhantomData<A>,
 	}
@@ -170,7 +170,7 @@ mod inner {
 		/// ```
 		pub fn new(
 			f: Func,
-			fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
+			fb: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Self {
 			CoyonedaExplicit {
 				fb,
@@ -240,7 +240,7 @@ mod inner {
 		///
 		/// assert_eq!(result, vec![4, 6, 8]);
 		/// ```
-		pub fn lower(self) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
+		pub fn lower(self) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		where
 			F: Functor, {
 			F::map(self.func, self.fb)
@@ -416,13 +416,13 @@ mod inner {
 		#[allow(clippy::type_complexity)]
 		pub fn traverse<G: Applicative + 'a, C: 'a + Clone>(
 			self,
-			f: impl Fn(A) -> <G as Kind_cdc7cd43dac7585f>::Of<'a, C> + 'a,
-		) -> <G as Kind_cdc7cd43dac7585f>::Of<'a, CoyonedaExplicit<'a, F, C, C, fn(C) -> C>>
+			f: impl Fn(A) -> Apply!(<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
+		) -> Apply!(<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, CoyonedaExplicit<'a, F, C, C, fn(C) -> C>>)
 		where
 			B: Clone,
 			F: Traversable,
-			<F as Kind_cdc7cd43dac7585f>::Of<'a, C>: Clone,
-			<G as Kind_cdc7cd43dac7585f>::Of<'a, C>: Clone, {
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>): Clone,
+			Apply!(<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>): Clone, {
 			G::map(
 				|fc| CoyonedaExplicit::lift(fc),
 				F::traverse::<B, C, G>(compose(f, self.func), self.fb),
@@ -524,7 +524,7 @@ mod inner {
 		/// ```
 		pub fn bind<C: 'a>(
 			self,
-			f: impl Fn(A) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, C> + 'a,
+			f: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
 		) -> CoyonedaExplicit<'a, F, C, C, fn(C) -> C>
 		where
 			F: Semimonad, {
@@ -626,7 +626,7 @@ mod inner {
 		/// let coyo = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(42));
 		/// assert_eq!(coyo.lower(), Some(42));
 		/// ```
-		pub fn lift(fa: <F as Kind_cdc7cd43dac7585f>::Of<'a, A>) -> Self {
+		pub fn lift(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> Self {
 			CoyonedaExplicit {
 				fb: fa,
 				func: identity as fn(A) -> A,
@@ -761,7 +761,7 @@ mod inner {
 		/// };
 		///
 		/// let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
-		/// let mapped = map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(|x| x * 10, coyo);
+		/// let mapped = map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(|x| x * 10, coyo);
 		/// assert_eq!(mapped.lower(), vec![10, 20, 30]);
 		/// ```
 		fn map<'a, A: 'a, C: 'a>(
@@ -1298,14 +1298,14 @@ mod tests {
 	#[test]
 	fn brand_functor_map() {
 		let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
-		let mapped = map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(|x| x * 10, coyo);
+		let mapped = map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(|x| x * 10, coyo);
 		assert_eq!(mapped.lower(), vec![10, 20, 30]);
 	}
 
 	#[test]
 	fn brand_functor_identity_law() {
 		let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
-		let result = map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(identity, coyo).lower();
+		let result = map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(identity, coyo).lower();
 		assert_eq!(result, vec![1, 2, 3]);
 	}
 
@@ -1315,12 +1315,13 @@ mod tests {
 		let g = |x: i32| x * 2;
 
 		let coyo1 = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
-		let left = map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(compose(f, g), coyo1).lower();
+		let left =
+			map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(compose(f, g), coyo1).lower();
 
 		let coyo2 = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
-		let right = map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(
+		let right = map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(
 			f,
-			map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(g, coyo2),
+			map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(g, coyo2),
 		)
 		.lower();
 
@@ -1331,11 +1332,11 @@ mod tests {
 	fn brand_functor_chained_maps_fuse() {
 		// Chaining through the brand still produces single-pass fusion.
 		let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
-		let result = map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(
+		let result = map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(
 			|x: i32| x.to_string(),
-			map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(
+			map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(
 				|x| x * 2,
-				map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(|x| x + 1, coyo),
+				map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(|x| x + 1, coyo),
 			),
 		)
 		.lower();
@@ -1390,13 +1391,13 @@ mod tests {
 		#[quickcheck]
 		fn functor_identity_vec(v: Vec<i32>) -> bool {
 			let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(v.clone()).boxed();
-			map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _>(identity, coyo).lower() == v
+			map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(identity, coyo).lower() == v
 		}
 
 		#[quickcheck]
 		fn functor_identity_option(x: Option<i32>) -> bool {
 			let coyo = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(x).boxed();
-			map::<CoyonedaExplicitBrand<OptionBrand, i32>, _, _>(identity, coyo).lower() == x
+			map::<CoyonedaExplicitBrand<OptionBrand, i32>, _, _, _>(identity, coyo).lower() == x
 		}
 
 		#[quickcheck]

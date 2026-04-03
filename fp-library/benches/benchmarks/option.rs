@@ -4,41 +4,8 @@ use {
 		Criterion,
 	},
 	fp_library::{
-		brands::{
-			OptionBrand,
-			RcFnBrand,
-			ResultErrAppliedBrand,
-		},
-		classes::{
-			compactable::{
-				compact,
-				separate,
-			},
-			filterable::{
-				filter,
-				filter_map,
-				partition,
-				partition_map,
-			},
-			foldable::{
-				fold_left,
-				fold_right,
-			},
-			functor::map,
-			lift::lift2,
-			pointed::pure,
-			semiapplicative::apply,
-			semimonad::bind,
-			traversable::{
-				sequence,
-				traverse,
-			},
-			witherable::{
-				wilt,
-				wither,
-			},
-		},
-		functions::cloneable_fn_new,
+		brands::*,
+		functions::*,
 	},
 };
 
@@ -53,7 +20,7 @@ pub fn bench_option(c: &mut Criterion) {
 			b.iter(|| std::hint::black_box(val).map(|x| x * 2))
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
-			b.iter(|| map::<OptionBrand, _, _>(|x| x * 2, std::hint::black_box(val)))
+			b.iter(|| map::<OptionBrand, _, _, _>(|x| x * 2, std::hint::black_box(val)))
 		});
 		group.finish();
 	}

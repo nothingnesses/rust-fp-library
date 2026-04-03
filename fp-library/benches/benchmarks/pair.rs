@@ -4,27 +4,8 @@ use {
 		Criterion,
 	},
 	fp_library::{
-		brands::{
-			OptionBrand,
-			PairFirstAppliedBrand,
-			RcFnBrand,
-		},
-		classes::{
-			foldable::{
-				fold_left,
-				fold_right,
-			},
-			functor::map,
-			lift::lift2,
-			pointed::pure,
-			semiapplicative::apply,
-			semimonad::bind,
-			traversable::{
-				sequence,
-				traverse,
-			},
-		},
-		functions::cloneable_fn_new,
+		brands::*,
+		functions::*,
 		types::Pair,
 	},
 };
@@ -48,7 +29,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				map::<PairFirstAppliedBrand<String>, _, _>(
+				map::<PairFirstAppliedBrand<String>, _, _, _>(
 					|x| x * 2,
 					std::hint::black_box(val.clone()),
 				)

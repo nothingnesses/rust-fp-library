@@ -5,49 +5,8 @@ use {
 		Criterion,
 	},
 	fp_library::{
-		brands::{
-			OptionBrand,
-			RcFnBrand,
-			ResultErrAppliedBrand,
-			VecBrand,
-		},
-		classes::{
-			compactable::{
-				compact,
-				separate,
-			},
-			filterable::{
-				filter,
-				filter_map,
-				partition,
-				partition_map,
-			},
-			foldable::{
-				fold_left,
-				fold_map,
-				fold_right,
-			},
-			functor::map,
-			lift::lift2,
-			monoid::empty,
-			par_compactable::par_compact,
-			par_filterable::par_filter_map,
-			par_foldable::par_fold_map,
-			par_functor::par_map,
-			pointed::pure,
-			semiapplicative::apply,
-			semigroup::append,
-			semimonad::bind,
-			traversable::{
-				sequence,
-				traverse,
-			},
-			witherable::{
-				wilt,
-				wither,
-			},
-		},
-		functions::cloneable_fn_new,
+		brands::*,
+		functions::*,
 	},
 };
 
@@ -68,7 +27,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| map::<VecBrand, _, _>(|x| x * 2, v),
+				|v| map::<VecBrand, _, _, _>(|x| x * 2, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -574,7 +533,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			group.bench_with_input(BenchmarkId::new("map (sequential)", sz), &sz, |b, &_| {
 				b.iter_batched(
 					|| v.clone(),
-					|v| map::<VecBrand, _, _>(|x: i32| x * 2, v),
+					|v| map::<VecBrand, _, _, _>(|x: i32| x * 2, v),
 					BatchSize::SmallInput,
 				)
 			});

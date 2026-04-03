@@ -369,7 +369,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = map::<IdentityBrand, _, _>(|i| i * 2, x);
+		/// let y = map::<IdentityBrand, _, _, _>(|i| i * 2, x);
 		/// assert_eq!(y, Identity(10));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -896,7 +896,7 @@ mod tests {
 			},
 			classes::{
 				cloneable_fn::CloneableFn,
-				functor::map,
+				functor_dispatch::map,
 				pointed::pure,
 				semiapplicative::apply,
 				semimonad::bind,
@@ -915,7 +915,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity(x: i32) -> bool {
 		let x = Identity(x);
-		map::<IdentityBrand, _, _>(identity, x) == x
+		map::<IdentityBrand, _, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -924,8 +924,8 @@ mod tests {
 		let x = Identity(x);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<IdentityBrand, _, _>(compose(f, g), x)
-			== map::<IdentityBrand, _, _>(f, map::<IdentityBrand, _, _>(g, x))
+		map::<IdentityBrand, _, _, _>(compose(f, g), x)
+			== map::<IdentityBrand, _, _, _>(f, map::<IdentityBrand, _, _, _>(g, x))
 	}
 
 	// Applicative Laws
@@ -1025,7 +1025,7 @@ mod tests {
 	/// Tests the `map` function.
 	#[test]
 	fn map_test() {
-		assert_eq!(map::<IdentityBrand, _, _>(|x: i32| x + 1, Identity(1)), Identity(2));
+		assert_eq!(map::<IdentityBrand, _, _, _>(|x: i32| x + 1, Identity(1)), Identity(2));
 	}
 
 	/// Tests the `bind` function.
@@ -1177,7 +1177,7 @@ mod tests {
 		use crate::classes::extract::extract;
 		let f = |a: i32| a.wrapping_mul(5);
 		let wa = Identity(x);
-		extract::<IdentityBrand, _>(map::<IdentityBrand, _, _>(f, wa))
+		extract::<IdentityBrand, _>(map::<IdentityBrand, _, _, _>(f, wa))
 			== f(extract::<IdentityBrand, _>(wa))
 	}
 

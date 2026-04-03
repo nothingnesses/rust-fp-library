@@ -156,7 +156,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(map::<VecBrand, _, _>(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);
+		/// assert_eq!(map::<VecBrand, _, _, _>(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> B + 'a,
@@ -2222,7 +2222,7 @@ mod tests {
 	/// Tests the identity law for Functor.
 	#[quickcheck]
 	fn functor_identity(x: Vec<i32>) -> bool {
-		map::<VecBrand, _, _>(identity, x.clone()) == x
+		map::<VecBrand, _, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -2230,8 +2230,8 @@ mod tests {
 	fn functor_composition(x: Vec<i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<VecBrand, _, _>(compose(f, g), x.clone())
-			== map::<VecBrand, _, _>(f, map::<VecBrand, _, _>(g, x))
+		map::<VecBrand, _, _, _>(compose(f, g), x.clone())
+			== map::<VecBrand, _, _, _>(f, map::<VecBrand, _, _, _>(g, x))
 	}
 
 	// Applicative Laws
@@ -2365,7 +2365,10 @@ mod tests {
 	/// Tests `map` on an empty vector.
 	#[test]
 	fn map_empty() {
-		assert_eq!(map::<VecBrand, _, _>(|x: i32| x + 1, vec![] as Vec<i32>), vec![] as Vec<i32>);
+		assert_eq!(
+			map::<VecBrand, _, _, _>(|x: i32| x + 1, vec![] as Vec<i32>),
+			vec![] as Vec<i32>
+		);
 	}
 
 	/// Tests `bind` on an empty vector.
@@ -2607,7 +2610,7 @@ mod tests {
 		let p = |i: i32| Some(if i % 2 == 0 { Ok(i) } else { Err(i) });
 
 		let lhs = wilt::<VecBrand, OptionBrand, _, _, _>(p, x.clone());
-		let rhs = crate::classes::functor::map::<OptionBrand, _, _>(
+		let rhs = crate::classes::functor_dispatch::map::<OptionBrand, _, _, _>(
 			separate::<VecBrand, _, _>,
 			traverse::<VecBrand, _, _, OptionBrand>(p, x),
 		);
@@ -2621,7 +2624,7 @@ mod tests {
 		let p = |i: i32| Some(if i % 2 == 0 { Some(i) } else { None });
 
 		let lhs = wither::<VecBrand, OptionBrand, _, _>(p, x.clone());
-		let rhs = crate::classes::functor::map::<OptionBrand, _, _>(
+		let rhs = crate::classes::functor_dispatch::map::<OptionBrand, _, _, _>(
 			compact::<VecBrand, _>,
 			traverse::<VecBrand, _, _, OptionBrand>(p, x),
 		);
@@ -2649,8 +2652,8 @@ mod tests {
 		y: Vec<i32>,
 	) -> bool {
 		let f = |i: i32| i.wrapping_mul(2).wrapping_add(1);
-		map::<VecBrand, _, _>(f, alt::<VecBrand, _>(x.clone(), y.clone()))
-			== alt::<VecBrand, _>(map::<VecBrand, _, _>(f, x), map::<VecBrand, _, _>(f, y))
+		map::<VecBrand, _, _, _>(f, alt::<VecBrand, _>(x.clone(), y.clone()))
+			== alt::<VecBrand, _>(map::<VecBrand, _, _, _>(f, x), map::<VecBrand, _, _, _>(f, y))
 	}
 
 	// Plus Laws
@@ -2672,7 +2675,7 @@ mod tests {
 	fn plus_annihilation() {
 		let f = |i: i32| i.wrapping_mul(2);
 		assert_eq!(
-			map::<VecBrand, _, _>(f, plus_empty::<VecBrand, i32>()),
+			map::<VecBrand, _, _, _>(f, plus_empty::<VecBrand, i32>()),
 			plus_empty::<VecBrand, i32>(),
 		);
 	}
@@ -2682,7 +2685,7 @@ mod tests {
 	/// Tests the functor identity law for Compactable.
 	#[quickcheck]
 	fn compactable_functor_identity(fa: Vec<i32>) -> bool {
-		compact::<VecBrand, _>(map::<VecBrand, _, _>(Some, fa.clone())) == fa
+		compact::<VecBrand, _>(map::<VecBrand, _, _, _>(Some, fa.clone())) == fa
 	}
 
 	/// Tests the Plus annihilation (empty) law for Compactable.
@@ -2697,7 +2700,7 @@ mod tests {
 	/// Tests the Plus annihilation (map) law for Compactable.
 	#[quickcheck]
 	fn compactable_plus_annihilation_map(xs: Vec<i32>) -> bool {
-		compact::<VecBrand, _>(map::<VecBrand, _, _>(|_: i32| None::<i32>, xs))
+		compact::<VecBrand, _>(map::<VecBrand, _, _, _>(|_: i32| None::<i32>, xs))
 			== plus_empty::<VecBrand, i32>()
 	}
 
@@ -2790,7 +2793,7 @@ mod tests {
 	#[quickcheck]
 	fn prop_par_map_equals_map(xs: Vec<i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
-		let seq_res = map::<VecBrand, _, _>(f, xs.clone());
+		let seq_res = map::<VecBrand, _, _, _>(f, xs.clone());
 		let par_res = par_map::<VecBrand, _, _>(f, xs);
 		seq_res == par_res
 	}

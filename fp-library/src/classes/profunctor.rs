@@ -428,7 +428,7 @@ mod inner {
 		/// };
 		///
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-		/// let g = map::<ProfunctorFirstAppliedBrand<RcFnBrand, i32>, _, _>(|x: i32| x * 2, f);
+		/// let g = map::<ProfunctorFirstAppliedBrand<RcFnBrand, i32>, _, _, _>(|x: i32| x * 2, f);
 		/// assert_eq!(g(5), 12); // (5 + 1) * 2
 		/// ```
 		fn map<'a, B: 'a, C: 'a>(

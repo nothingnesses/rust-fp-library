@@ -50,8 +50,8 @@ mod inner {
 	/// };
 	///
 	/// // Functor Identity: compact(map(Some, fa)) = fa
-	/// assert_eq!(compact::<OptionBrand, _>(map::<OptionBrand, _, _>(Some, Some(5))), Some(5),);
-	/// assert_eq!(compact::<OptionBrand, _>(map::<OptionBrand, _, _>(Some, None::<i32>)), None,);
+	/// assert_eq!(compact::<OptionBrand, _>(map::<OptionBrand, _, _, _>(Some, Some(5))), Some(5),);
+	/// assert_eq!(compact::<OptionBrand, _>(map::<OptionBrand, _, _, _>(Some, None::<i32>)), None,);
 	///
 	/// // Plus Annihilation (empty): compact(empty) = empty
 	/// assert_eq!(
@@ -61,7 +61,7 @@ mod inner {
 	///
 	/// // Plus Annihilation (map): compact(map(|_| None, xs)) = empty
 	/// assert_eq!(
-	/// 	compact::<OptionBrand, _>(map::<OptionBrand, _, _>(|_: i32| None::<i32>, Some(5))),
+	/// 	compact::<OptionBrand, _>(map::<OptionBrand, _, _, _>(|_: i32| None::<i32>, Some(5))),
 	/// 	plus_empty::<OptionBrand, i32>(),
 	/// );
 	/// ```
@@ -75,7 +75,10 @@ mod inner {
 	/// };
 	///
 	/// // Functor Identity: compact(map(Some, fa)) = fa
-	/// assert_eq!(compact::<VecBrand, _>(map::<VecBrand, _, _>(Some, vec![1, 2, 3])), vec![1, 2, 3],);
+	/// assert_eq!(
+	/// 	compact::<VecBrand, _>(map::<VecBrand, _, _, _>(Some, vec![1, 2, 3])),
+	/// 	vec![1, 2, 3],
+	/// );
 	///
 	/// // Plus Annihilation (empty): compact(empty) = empty
 	/// assert_eq!(
@@ -85,7 +88,7 @@ mod inner {
 	///
 	/// // Plus Annihilation (map): compact(map(|_| None, xs)) = empty
 	/// assert_eq!(
-	/// 	compact::<VecBrand, _>(map::<VecBrand, _, _>(|_: i32| None::<i32>, vec![1, 2, 3])),
+	/// 	compact::<VecBrand, _>(map::<VecBrand, _, _, _>(|_: i32| None::<i32>, vec![1, 2, 3])),
 	/// 	plus_empty::<VecBrand, i32>(),
 	/// );
 	/// ```

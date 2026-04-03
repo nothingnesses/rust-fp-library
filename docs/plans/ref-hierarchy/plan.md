@@ -77,16 +77,16 @@ pub struct Ref;  // container passed by reference
 **Dispatch trait (for map):**
 
 ```rust
-pub trait MapDispatch<Brand, F, A, B, Ownership> {
+pub trait FunctorDispatch<Brand, F, A, B, Ownership> {
     fn dispatch_map(f: F, container: Self) -> Brand::Of<B>;
 }
 ```
 
 **Four impls:**
 
-1. `impl MapDispatch<..., Val> for Of<A>` where `Brand: Functor`
+1. `impl FunctorDispatch<..., Val> for Of<A>` where `Brand: Functor`
    -> calls `Functor::map`
-2. `impl MapDispatch<..., Ref> for &Of<A>` where `Brand: RefFunctor`
+2. `impl FunctorDispatch<..., Ref> for &Of<A>` where `Brand: RefFunctor`
    -> calls `RefFunctor::ref_map`
 
 (The closure `Fn(A) -> B` vs `Fn(&A) -> B` distinction could be a second
@@ -99,7 +99,7 @@ type is determined by the container ownership.)
 ```rust
 pub fn map<Brand, F, A, B, Ownership>(
     f: F,
-    container: impl MapDispatch<Brand, F, A, B, Ownership>,
+    container: impl FunctorDispatch<Brand, F, A, B, Ownership>,
 ) -> Brand::Of<B> {
     container.dispatch_map(f)
 }
@@ -167,35 +167,67 @@ Consider which other types could implement the by-ref hierarchy:
    doesn't unlock new generic programming capabilities the way `RefMonad`
    does. Revisit if a concrete use case emerges.
 
-## Open Question
+## Proof of Concept Results
 
-**Does the dispatch actually compile?** The `MapExt` pattern from
-haskell_bits relies on Rust's trait resolution picking the right impl
-based on owned vs reference arguments. This needs a proof-of-concept
-to verify it works with the fp-library's GAT-based Kind system and
-macro-generated trait names. Potential issues:
+The dispatch proof of concept is in `fp-library/src/classes/functor_dispatch.rs`.
+All concerns from the original open question have been resolved:
 
-- Type inference may fail to select the right impl.
-- Coherence rules may reject overlapping impls.
-- The `Apply!` macro expansion may not work inside dispatch trait bounds.
+- **Type inference works.** The compiler correctly infers the `Val` or `Ref`
+  marker from the closure's argument type. `|x: i32| x * 2` resolves to
+  `Val` (Functor::map); `|x: &i32| *x * 2` resolves to `Ref`
+  (RefFunctor::ref_map). No explicit marker annotation needed at call sites.
+- **No coherence issues.** `FunctorDispatch<..., Val>` and `FunctorDispatch<..., Ref>`
+  impls coexist without conflict.
+- **The `Apply!` macro is not needed.** The dispatch trait and unified
+  function use the raw `Kind_cdc7cd43dac7585f` trait name with its `Of`
+  associated type directly. This avoids the `Kind!(...)` / `Apply!(...)`
+  macro nesting that is only required in positions where the `#[kind(...)]`
+  attribute macro processes trait definitions.
 
-This is the first implementation step. If dispatch doesn't compile,
-the by-ref traits are still valuable on their own with separate free
-functions (`ref_map`, `ref_bind`, etc.).
+### Key finding
+
+Unlike `haskell_bits`, which dispatches on container ownership (owned `T`
+vs borrowed `&T`), this library's dispatch is on **closure argument type**
+(`Fn(A) -> B` vs `Fn(&A) -> B`). Both paths take the container by value.
+This works because the compiler resolves the `Marker` type parameter from
+the `Fn` impl of the closure, which is unambiguous: a closure taking `i32`
+can only satisfy `FunctorDispatch<..., Val>`, and a closure taking `&i32` can
+only satisfy `FunctorDispatch<..., Ref>`.
+
+### Rejected alternative: Mode-parameterized Functor
+
+A single `Functor<Mode>` trait (with `Mode` selecting owned vs borrowed
+element access) was investigated and rejected for three reasons:
+
+1. **Lifetime provenance.** `Mode::Apply<'a, A> = &'a A` requires the
+   reference to borrow from something that outlives the function body.
+   Types that are consumed by `map` (Vec, Option) cannot produce such
+   borrows. Only types with internal shared storage (Lazy) can.
+2. **Circular inference.** The compiler cannot infer `Mode` from the
+   closure type because the closure type depends on `Mode`.
+3. **Hierarchy contamination.** Every downstream trait (~30+) would need
+   to carry the `Mode` parameter or pin it, adding dead weight.
 
 ## Implementation Order
 
-1. **Proof of concept**: Implement `MapDispatch` with `Functor`
-   and `RefFunctor` routing. Verify compilation and type inference.
-2. **RefPointed, RefLift, RefSemiapplicative, RefSemimonad**:
-   Add the by-ref traits with Lazy implementations.
-3. **Blanket traits**: `RefApplicative`, `RefMonad`.
-4. **Unified dispatch for bind, apply, lift2**: Extend the
-   dispatch pattern.
+1. ~~**Proof of concept**: Implement `FunctorDispatch` with `Functor`
+   and `RefFunctor` routing. Verify compilation and type inference.~~ Done.
+2. ~~**Promote dispatch to production**: Replace the separate `map` and
+   `ref_map` free functions with a unified `map` that dispatches via
+   `FunctorDispatch`. Update all call sites (`map::<Brand, _, _>` ->
+   `map::<Brand, _, _, _>`), the `a_do!` macro, benchmark imports, and
+   doc examples. The `Marker` type parameter is hidden behind `impl` and
+   inferred by the compiler; callers never specify it.~~ Done.
+   Implementation: `fp-library/src/classes/functor_dispatch.rs`.
+3. **RefPointed, RefLift, RefSemiapplicative, RefSemimonad**:
+   Add the by-ref traits with Lazy implementations. Extend dispatch
+   for each as it's added.
+4. **Blanket traits**: `RefApplicative`, `RefMonad`.
 5. **SendRef variants**: Mirror for `ArcLazy`.
 6. **Documentation and tests**: Property tests for type class
    laws, doc examples, update limitations.md.
-7. **m_do! integration**: Make do-notation work with dispatch.
+7. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
+   generates `ref_bind` calls for by-ref monadic code.
 
 ## References
 
@@ -206,6 +238,7 @@ functions (`ref_map`, `ref_bind`, etc.).
   `Monad`/`LinearMonad` hierarchies showing the pattern extended to the
   full monadic stack. Key insight: dispatch uses `Val`/`Ref` phantom types
   resolved by trait resolution on owned `T` vs `&T` arguments.
-- Current RefFunctor: `fp-library/src/classes/ref_functor.rs`
-- Current SendRefFunctor: `fp-library/src/classes/send_ref_functor.rs`
+- Dispatch implementation: `fp-library/src/classes/functor_dispatch.rs`
+- RefFunctor trait: `fp-library/src/classes/ref_functor.rs`
+- SendRefFunctor trait: `fp-library/src/classes/send_ref_functor.rs`
 - Limitations doc: `fp-library/docs/limitations-and-workarounds.md` (section 5)

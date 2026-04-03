@@ -61,7 +61,7 @@ test *args:
     CACHE_KEY=$(echo "$ARGS" | md5sum | cut -c1-12)
     OUTPUT_FILE=".claude/test-cache/test-output-${CACHE_KEY}.txt"
     TIMESTAMP_FILE=".claude/test-cache/source-timestamp-${CACHE_KEY}.txt"
-    LATEST=$(find fp-library/src fp-macros/src tests -name '*.rs' -printf '%T@\n' 2>/dev/null | sort -rn | head -1; find . -maxdepth 2 -name 'Cargo.toml' -printf '%T@\n' | sort -rn | head -1)
+    LATEST=$(find fp-library/src fp-library/tests fp-library/benches fp-macros/src -name '*.rs' -printf '%T@\n' 2>/dev/null | sort -rn | head -1; find . -maxdepth 2 -name 'Cargo.toml' -printf '%T@\n' | sort -rn | head -1)
     CACHED=$(cat "$TIMESTAMP_FILE" 2>/dev/null || echo "0")
     if [ "$LATEST" = "$CACHED" ]; then
         echo "=== CACHED TEST OUTPUT (no source changes) ==="
@@ -72,9 +72,10 @@ test *args:
         echo "$LATEST" > "$TIMESTAMP_FILE"
     fi
 
-# Verify: fmt, clippy, doc, then test (in order).
+# Verify: fmt, clippy, doc, bench compile check, then test (in order).
 verify:
     just fmt
     just clippy --workspace --all-features
     just doc --workspace --all-features --no-deps
+    just bench --workspace --no-run
     just test --all-features

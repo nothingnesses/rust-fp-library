@@ -84,7 +84,7 @@ pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 		}
 		([param], [expr]) => {
 			quote! {
-				map::<#brand, _, _>(|#param| { #(#inner_lets)* #final_expr }, #expr)
+				map::<#brand, _, _, _>(|#param| { #(#inner_lets)* #final_expr }, #expr)
 			}
 		}
 		_ if n <= 5 => {

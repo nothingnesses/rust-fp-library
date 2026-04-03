@@ -72,7 +72,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = map::<OptionBrand, _, _>(|i| i * 2, x);
+		/// let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -1044,7 +1044,7 @@ mod tests {
 	/// Tests the identity law for Functor.
 	#[quickcheck]
 	fn functor_identity(x: Option<i32>) -> bool {
-		map::<OptionBrand, _, _>(identity, x) == x
+		map::<OptionBrand, _, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -1052,8 +1052,8 @@ mod tests {
 	fn functor_composition(x: Option<i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<OptionBrand, _, _>(compose(f, g), x)
-			== map::<OptionBrand, _, _>(f, map::<OptionBrand, _, _>(g, x))
+		map::<OptionBrand, _, _, _>(compose(f, g), x)
+			== map::<OptionBrand, _, _, _>(f, map::<OptionBrand, _, _, _>(g, x))
 	}
 
 	// Applicative Laws
@@ -1162,7 +1162,7 @@ mod tests {
 	/// Tests `map` on `None`.
 	#[test]
 	fn map_none() {
-		assert_eq!(map::<OptionBrand, _, _>(|x: i32| x + 1, None), None);
+		assert_eq!(map::<OptionBrand, _, _, _>(|x: i32| x + 1, None), None);
 	}
 
 	/// Tests `bind` on `None`.
