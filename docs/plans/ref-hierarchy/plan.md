@@ -232,9 +232,11 @@ element access) was investigated and rejected for three reasons:
 5. **Add `ClosureMode` trait and parameterize `CloneableFn`**: Define
    `ClosureMode` with `Val`/`Ref` impls. Add `Mode: ClosureMode`
    default parameter to `CloneableFn`. Remove `Function` supertrait.
-   Remove `new` method (use `coerce_fn`/`coerce_ref_fn` instead).
-   Implement `CloneableFn<Ref>` for `FnBrand<P>`. Apply same changes
-   to `SendCloneableFn`. Verify existing code compiles with defaults.
+   Split `new` method into a separate `LiftFn: CloneableFn<Val>`
+   trait. Update call sites that construct wrapped functions to use
+   `LiftFn` bound. Implement `CloneableFn<Ref>` for
+   `FnBrand<P>`. Apply same changes to `SendCloneableFn` /
+   `SendLiftFn`. Verify existing code compiles with defaults.
    If this approach fails due to GAT/`Deref` interactions, fall back
    to the `RefCloneableFn` approach on `backup/ref-cloneable-fn`.
 6. **RefSemiapplicative**: Define using `CloneableFn<Ref>`. Implement
@@ -322,12 +324,31 @@ code using `CloneableFn` (without `Mode`) defaults to `Val` and
 sees `Deref<Target = dyn Fn(A) -> B>` as before. Code using
 `CloneableFn<Ref>` sees `Deref<Target = dyn Fn(&A) -> B>`.
 
-The `new` method is removed from the trait. Construction goes through
-`UnsizedCoercible::coerce_fn` (for Val) and
-`UnsizedCoercible::coerce_ref_fn` (for Ref). The trait's purpose is
-to define the type and its bounds, not to construct values.
-`Semiapplicative` impls already know which mode they use and can
-call the right constructor.
+The `new` method cannot remain on `CloneableFn<Mode>` because its
+parameter type depends on the mode (`Fn(A) -> B` for Val vs
+`Fn(&A) -> B` for Ref), and a trait method has one fixed signature.
+This is the same situation as `pure`, which can't use brand
+inference because there's no container argument to infer from.
+
+The solution is to split construction into a separate trait:
+
+```rust
+/// Construction of Val-mode wrapped functions.
+trait LiftFn: CloneableFn<Val> {
+    fn new<'a, A: 'a, B: 'a>(
+        f: impl 'a + Fn(A) -> B,
+    ) -> <Self as CloneableFn>::Of<'a, A, B>;
+}
+```
+
+Generic code that needs to _construct_ wrapped functions (e.g.,
+`Foldable::fold_right`, some `Semiapplicative` impls) uses
+`FnBrand: LiftFn` instead of `FnBrand: CloneableFn`.
+Code that only needs the _type_ (e.g., `RefSemiapplicative`) uses
+`FnBrand: CloneableFn<Ref>`.
+
+The same pattern applies to the Send variants:
+`SendLiftFn: SendCloneableFn<Val>`.
 
 Similarly for `SendCloneableFn<Mode: ClosureMode = Val>` and
 `ArcFnBrand`.
@@ -337,8 +358,9 @@ Similarly for `SendCloneableFn<Mode: ClosureMode = Val>` and
 - `CloneableFn` no longer implies `Function`. Code that uses
   `Brand: CloneableFn` to access `Function`/`Category`/`Strong`
   methods adds `+ Function` explicitly.
-- `CloneableFn::new` is removed. Callers use `coerce_fn` /
-  `coerce_ref_fn` directly.
+- `CloneableFn::new` moves to `LiftFn`. Call sites that
+  construct wrapped functions change their bound from
+  `FnBrand: CloneableFn` to `FnBrand: LiftFn`.
 - `CloneableFn` gains a defaulted type parameter (`Mode`).
 
 **What this unblocks:**
@@ -354,17 +376,24 @@ Similarly for `SendCloneableFn<Mode: ClosureMode = Val>` and
 Once the ClosureMode approach is verified, the function wrapper
 traits will be renamed to better reflect their roles:
 
-| Current name      | New name                | Role                                             |
-| ----------------- | ----------------------- | ------------------------------------------------ |
-| (new)             | `Callable<Mode>`        | Base: wraps a closure, callable via Deref        |
-| `CloneableFn`     | `CloneableCallable`     | Base + Clone. Used by Semiapplicative.           |
-| `Function`        | `Arrow`                 | Base (Val only) + Category + Strong. For optics. |
-| `SendCloneableFn` | `SendCloneableCallable` | Send variant of CloneableCallable.               |
+| Pre-rename name   | Post-rename name | Role                                             |
+| ----------------- | ---------------- | ------------------------------------------------ |
+| `Callable<Mode>`  | `Function<Mode>` | Base: wraps a closure, callable via Deref        |
+| `CloneableFn`     | `CloneFn`        | Base + Clone. Used by Semiapplicative.           |
+| `LiftFn`          | `LiftFn`         | Construction for Val mode.                       |
+| `Function`        | `Arrow`          | Base (Val only) + Category + Strong. For optics. |
+| `SendCloneableFn` | `SendCloneFn`    | Send variant of CloneFn.                         |
+| `SendLiftFn`      | `SendLiftFn`     | Send variant of LiftFn.                          |
 
-`Callable<Mode>` extracts the shared `Deref` bound that both
-`CloneableCallable` and `Arrow` need. `Arrow` aligns with Haskell's
-`Arrow` type class (which bundles `arr` + `Category` + `first`/`second`,
-matching `Function::new` + `Category::compose` + `Strong::first`/`second`).
+Post-rename hierarchy:
+
+- `Function<Mode>` is the base callable wrapper (reclaims the name
+  for the more general concept).
+- `Arrow: Function<Val> + Category + Strong` is the composable
+  specialization (aligns with Haskell's `Arrow` type class:
+  `arr` + `Category` + `first`/`second`).
+- `CloneFn<Mode>: Function<Mode>` adds `Clone`.
+- `LiftFn: CloneFn<Val>` adds construction.
 
 The renames are deferred to Step 10 (after structural changes are
 verified) because they are mechanical and independent of the
