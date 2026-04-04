@@ -219,15 +219,82 @@ element access) was investigated and rejected for three reasons:
    doc examples. The `Marker` type parameter is hidden behind `impl` and
    inferred by the compiler; callers never specify it.~~ Done.
    Implementation: `fp-library/src/classes/functor_dispatch.rs`.
-3. **RefPointed, RefLift, RefSemiapplicative, RefSemimonad**:
-   Add the by-ref traits with Lazy implementations. Extend dispatch
-   for each as it's added.
-4. **Blanket traits**: `RefApplicative`, `RefMonad`.
-5. **SendRef variants**: Mirror for `ArcLazy`.
-6. **Documentation and tests**: Property tests for type class
+3. ~~**Change RefFunctor/SendRefFunctor from FnOnce to Fn.**~~ Done.
+   Breaking change: closures that move out of captures (FnOnce but not
+   Fn) no longer compile with ref_map. This enables types like Vec to
+   implement RefFunctor in the future.
+4. ~~**RefPointed, RefLift, RefSemimonad**: Add the by-ref traits with
+   RcLazy implementations.~~ Done. ArcLazy impls require SendRef variants
+   due to `Send + Sync` bounds on `ArcLazy::new`.
+   Implementation: `fp-library/src/classes/ref_pointed.rs`,
+   `fp-library/src/classes/ref_lift.rs`,
+   `fp-library/src/classes/ref_semimonad.rs`.
+5. **RefSemiapplicative**: Requires integration with `CloneableFn`/`FnBrand`
+   machinery. The `apply` operation wraps closures in `Rc<dyn Fn>`,
+   and the by-ref variant needs closures that take `&A`. See open
+   question below.
+6. **Blanket traits**: `RefApplicative = RefPointed + RefSemiapplicative`,
+   `RefMonad = RefApplicative + RefSemimonad`. Blocked on step 5.
+7. **SendRef variants**: `SendRefPointed`, `SendRefLift`,
+   `SendRefSemimonad`, `SendRefSemiapplicative` with `ArcLazy`
+   implementations. Follows the same pattern as existing
+   `SendRefFunctor` (adds `Send + Sync` bounds on closures and elements).
+8. **SendRef blanket traits**: `SendRefApplicative`, `SendRefMonad`.
+9. **Documentation and tests**: Property tests for type class
    laws, doc examples, update limitations.md.
-7. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
-   generates `ref_bind` calls for by-ref monadic code.
+10. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
+    generates `ref_bind` calls for by-ref monadic code.
+
+## Open Questions
+
+### RefSemiapplicative and CloneableFn
+
+The by-value `Semiapplicative::apply` takes
+`Of<CloneableFn::Of<'a, A, B>>`, where `CloneableFn` wraps functions
+in `Rc<dyn Fn(A) -> B>` (or `Arc` via `SendCloneableFn`). The by-ref
+variant needs closures that take `&A` instead of `A`.
+
+Options:
+
+- **(a) Reuse existing CloneableFn with `&A` as the input type.**
+  `CloneableFn::Of<'a, &A, B>` would wrap `Rc<dyn Fn(&A) -> B>`.
+  This may work but lifetime handling of `&A` inside `Rc<dyn Fn>`
+  is unclear.
+- **(b) Create a new `RefCloneableFn` trait** specifically for
+  `Rc<dyn Fn(&A) -> B>`. More explicit but adds another trait to
+  the already complex function wrapper hierarchy.
+- **(c) Defer RefSemiapplicative entirely.** `RefLift` covers the
+  main use case (combining two contexts with a function). `apply`
+  is needed for variadic extension beyond `lift2`, which is rare
+  for memoized types. `RefMonad` (via `RefSemimonad`) can be
+  defined without `RefSemiapplicative` by providing a direct
+  blanket impl.
+
+**Current recommendation:** Option (c). `RefLift` + `RefSemimonad`
+cover the practical use cases for `Lazy`. Defer `RefSemiapplicative`
+until a concrete need arises.
+
+### RefMonad without RefApplicative
+
+If `RefSemiapplicative` is deferred, `RefApplicative` cannot be
+defined (it requires `RefPointed + RefSemiapplicative`). The
+standard hierarchy is `RefMonad: RefApplicative: RefPointed`. But
+we could define `RefMonad` directly as `RefPointed + RefSemimonad`,
+bypassing `RefApplicative`. This is simpler and covers the main
+use case (monadic sequencing for Lazy). The downside is that
+generic code cannot use `RefApplicative` as a constraint, only
+`RefMonad` or individual traits. This is acceptable for now since
+`Lazy` is the only implementor.
+
+## Completed Changes
+
+- `RefFunctor` and `SendRefFunctor` closures changed from `FnOnce` to `Fn`.
+- `FunctorDispatch` Ref impl updated to match.
+- `RefPointed` trait and free function `ref_pure` added.
+- `RefLift` trait and free function `ref_lift2` added.
+- `RefSemimonad` trait and free function `ref_bind` added.
+- All three implemented for `LazyBrand<RcLazyConfig>` with doc examples.
+- All Lazy/TryLazy trait impls updated for `Fn` closure signatures.
 
 ## References
 
