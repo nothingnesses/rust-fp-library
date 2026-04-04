@@ -229,62 +229,81 @@ element access) was investigated and rejected for three reasons:
    Implementation: `fp-library/src/classes/ref_pointed.rs`,
    `fp-library/src/classes/ref_lift.rs`,
    `fp-library/src/classes/ref_semimonad.rs`.
-5. **RefSemiapplicative**: Requires integration with `CloneableFn`/`FnBrand`
-   machinery. The `apply` operation wraps closures in `Rc<dyn Fn>`,
-   and the by-ref variant needs closures that take `&A`. See open
-   question below.
-6. **Blanket traits**: `RefApplicative = RefPointed + RefSemiapplicative`,
-   `RefMonad = RefApplicative + RefSemimonad`. Blocked on step 5.
-7. **SendRef variants**: `SendRefPointed`, `SendRefLift`,
+5. **Add Mode parameter to CloneableFn and SendCloneableFn**: Add
+   `CloneableFn<Mode = Val>` default parameter. Implement
+   `CloneableFn<Ref>` for `RcFnBrand` and `SendCloneableFn<Ref>` for
+   `ArcFnBrand`. Verify existing code is unaffected by the default.
+6. **RefSemiapplicative**: Define using `CloneableFn<Ref>`. Implement
+   for `LazyBrand<RcLazyConfig>`.
+7. **Blanket traits**: `RefApplicative = RefPointed + RefSemiapplicative`,
+   `RefMonad = RefApplicative + RefSemimonad`.
+8. **SendRef variants**: `SendRefPointed`, `SendRefLift`,
    `SendRefSemimonad`, `SendRefSemiapplicative` with `ArcLazy`
    implementations. Follows the same pattern as existing
    `SendRefFunctor` (adds `Send + Sync` bounds on closures and elements).
-8. **SendRef blanket traits**: `SendRefApplicative`, `SendRefMonad`.
-9. **Documentation and tests**: Property tests for type class
-   laws, doc examples, update limitations.md.
-10. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
+   Uses `SendCloneableFn<Ref>` for `SendRefSemiapplicative`.
+9. **SendRef blanket traits**: `SendRefApplicative`, `SendRefMonad`.
+10. **Documentation and tests**: Property tests for type class
+    laws, doc examples, update limitations.md.
+11. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
     generates `ref_bind` calls for by-ref monadic code.
 
-## Open Questions
-
-### RefSemiapplicative and CloneableFn
+## Design Decision: CloneableFn with Mode Parameter
 
 The by-value `Semiapplicative::apply` takes
 `Of<CloneableFn::Of<'a, A, B>>`, where `CloneableFn` wraps functions
 in `Rc<dyn Fn(A) -> B>` (or `Arc` via `SendCloneableFn`). The by-ref
 variant needs closures that take `&A` instead of `A`.
 
-Options:
+### Resolved approach: Add a default Mode parameter to CloneableFn
 
-- **(a) Reuse existing CloneableFn with `&A` as the input type.**
-  `CloneableFn::Of<'a, &A, B>` would wrap `Rc<dyn Fn(&A) -> B>`.
-  This may work but lifetime handling of `&A` inside `Rc<dyn Fn>`
-  is unclear.
-- **(b) Create a new `RefCloneableFn` trait** specifically for
-  `Rc<dyn Fn(&A) -> B>`. More explicit but adds another trait to
-  the already complex function wrapper hierarchy.
-- **(c) Defer RefSemiapplicative entirely.** `RefLift` covers the
-  main use case (combining two contexts with a function). `apply`
-  is needed for variadic extension beyond `lift2`, which is rare
-  for memoized types. `RefMonad` (via `RefSemimonad`) can be
-  defined without `RefSemiapplicative` by providing a direct
-  blanket impl.
+Add a default marker parameter to `CloneableFn` using the same
+`Val`/`Ref` markers from `FunctorDispatch`:
 
-**Current recommendation:** Option (c). `RefLift` + `RefSemimonad`
-cover the practical use cases for `Lazy`. Defer `RefSemiapplicative`
-until a concrete need arises.
+```rust
+trait CloneableFn<Mode = Val> {
+    type Of<'a, A: 'a, B: 'a>: 'a;
+}
+```
 
-### RefMonad without RefApplicative
+`RcFnBrand` implements both modes:
 
-If `RefSemiapplicative` is deferred, `RefApplicative` cannot be
-defined (it requires `RefPointed + RefSemiapplicative`). The
-standard hierarchy is `RefMonad: RefApplicative: RefPointed`. But
-we could define `RefMonad` directly as `RefPointed + RefSemimonad`,
-bypassing `RefApplicative`. This is simpler and covers the main
-use case (monadic sequencing for Lazy). The downside is that
-generic code cannot use `RefApplicative` as a constraint, only
-`RefMonad` or individual traits. This is acceptable for now since
-`Lazy` is the only implementor.
+```rust
+// Existing (unchanged due to default parameter)
+impl CloneableFn for RcFnBrand {
+    type Of<'a, A: 'a, B: 'a> = Rc<dyn Fn(A) -> B + 'a>;
+}
+
+// New: by-ref mode
+impl CloneableFn<Ref> for RcFnBrand {
+    type Of<'a, A: 'a, B: 'a> = Rc<dyn Fn(&A) -> B + 'a>;
+}
+```
+
+Similarly for `SendCloneableFn<Mode = Val>` and `ArcFnBrand`.
+
+**Why this works:**
+
+- Default type parameters on traits are stable Rust (same pattern
+  as `Add<Rhs = Self>`).
+- Existing code using `CloneableFn` (without marker) defaults to
+  `CloneableFn<Val>` and is unchanged. Non-breaking.
+- No new function wrapper traits needed.
+- `RefSemiapplicative::ref_apply` uses `FnBrand: CloneableFn<Ref>`,
+  wrapping `Rc<dyn Fn(&A) -> B>`.
+- Follows the same marker-type pattern as `FunctorDispatch`.
+
+**What this unblocks:**
+
+- `RefSemiapplicative` can be defined using `CloneableFn<Ref>`.
+- `RefApplicative = RefPointed + RefSemiapplicative` follows the
+  standard hierarchy.
+- `RefMonad = RefApplicative + RefSemimonad` is the correct shape.
+- No need to defer or define non-standard blanket traits.
+
+## Open Questions
+
+None at this time. All design questions have been resolved.
 
 ## Completed Changes
 
