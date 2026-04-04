@@ -296,3 +296,88 @@ mod tests {
 		assert_eq!(result, None);
 	}
 }
+
+// -- Brand inference POC --
+//
+// Validates that a DefaultBrand trait can enable turbofish-free map calls
+// by inferring the Brand from the container's concrete type. This is a
+// temporary module; the trait and function will move to their own files
+// if the POC succeeds.
+
+#[cfg(test)]
+mod brand_inference_poc {
+	use crate::{
+		brands::*,
+		classes::functor_dispatch::inner::FunctorDispatch,
+		kinds::Kind_cdc7cd43dac7585f,
+		types::*,
+	};
+
+	/// Reverse mapping from a concrete type to its canonical brand.
+	trait DefaultBrand {
+		type Brand: Kind_cdc7cd43dac7585f;
+	}
+
+	impl<A> DefaultBrand for Option<A> {
+		type Brand = OptionBrand;
+	}
+
+	impl<A> DefaultBrand for Vec<A> {
+		type Brand = VecBrand;
+	}
+
+	impl<'a, A: 'a, Config: crate::classes::LazyConfig + 'a> DefaultBrand for Lazy<'a, A, Config> {
+		type Brand = LazyBrand<Config>;
+	}
+
+	/// Temporary inference-based map function for POC validation.
+	fn map_infer<'a, FA, A: 'a, B: 'a, Marker>(
+		f: impl FunctorDispatch<'a, <FA as DefaultBrand>::Brand, A, B, Marker>,
+		fa: FA,
+	) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>
+	where
+		FA: DefaultBrand + 'a,
+		<FA as DefaultBrand>::Brand: Kind_cdc7cd43dac7585f<Of<'a, A> = FA>, {
+		f.dispatch(fa)
+	}
+
+	// -- Val dispatch (Functor::map) --
+
+	#[test]
+	fn infer_option_val() {
+		let result = map_infer(|x: i32| x * 2, Some(5));
+		assert_eq!(result, Some(10));
+	}
+
+	#[test]
+	fn infer_option_none() {
+		let result = map_infer(|x: i32| x * 2, None::<i32>);
+		assert_eq!(result, None);
+	}
+
+	#[test]
+	fn infer_vec_val() {
+		let result = map_infer(|x: i32| x + 1, vec![1, 2, 3]);
+		assert_eq!(result, vec![2, 3, 4]);
+	}
+
+	#[test]
+	fn infer_vec_strings() {
+		let result = map_infer(|x: i32| x.to_string(), vec![1, 2]);
+		assert_eq!(result, vec!["1", "2"]);
+	}
+
+	// -- Ref dispatch (RefFunctor::ref_map) --
+
+	#[test]
+	fn infer_lazy_ref() {
+		let lazy = RcLazy::pure(10);
+		let result = map_infer(|x: &i32| *x * 2, lazy);
+		assert_eq!(*result.evaluate(), 20);
+	}
+
+	// Note: ArcLazy implements SendRefFunctor, not RefFunctor, so it
+	// cannot be dispatched via FunctorDispatch's Ref path. This will be
+	// resolved when the ref-hierarchy plan adds SendRefFunctor to the
+	// dispatch system.
+}
