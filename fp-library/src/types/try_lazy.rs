@@ -1833,7 +1833,7 @@ mod inner {
 		/// assert_eq!(mapped.evaluate(), Ok(&20));
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
-			f: impl FnOnce(&A) -> B + 'a,
+			f: impl Fn(&A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.ref_map(f)
@@ -1877,7 +1877,7 @@ mod inner {
 		/// assert_eq!(mapped.evaluate(), Ok(&20));
 		/// ```
 		fn send_ref_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
-			f: impl FnOnce(&A) -> B + Send + 'a,
+			f: impl Fn(&A) -> B + Send + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.ref_map(f)

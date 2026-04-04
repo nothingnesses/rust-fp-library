@@ -14,7 +14,7 @@
 //!
 //! - A closure `Fn(A) -> B` satisfies `FunctorDispatch<..., Val>`, which calls
 //!   [`Functor::map`](crate::classes::Functor::map).
-//! - A closure `FnOnce(&A) -> B` satisfies `FunctorDispatch<..., Ref>`, which calls
+//! - A closure `Fn(&A) -> B` satisfies `FunctorDispatch<..., Ref>`, which calls
 //!   [`RefFunctor::ref_map`](crate::classes::RefFunctor::ref_map).
 //!
 //! The `Marker` type parameter is inferred automatically. Callers write
@@ -153,9 +153,9 @@ mod inner {
 		}
 	}
 
-	// -- Ref: FnOnce(&A) -> B -> RefFunctor::ref_map --
+	// -- Ref: Fn(&A) -> B -> RefFunctor::ref_map --
 
-	/// Routes `FnOnce(&A) -> B` closures to [`RefFunctor::ref_map`].
+	/// Routes `Fn(&A) -> B` closures to [`RefFunctor::ref_map`].
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the functor.",
@@ -169,7 +169,7 @@ mod inner {
 		Brand: RefFunctor,
 		A: 'a,
 		B: 'a,
-		F: FnOnce(&A) -> B + 'a,
+		F: Fn(&A) -> B + 'a,
 	{
 		#[document_signature]
 		///
@@ -208,7 +208,7 @@ mod inner {
 	///
 	/// - If the closure takes owned values (`Fn(A) -> B`), dispatches to
 	///   [`Functor::map`].
-	/// - If the closure takes references (`FnOnce(&A) -> B`), dispatches to
+	/// - If the closure takes references (`Fn(&A) -> B`), dispatches to
 	///   [`RefFunctor::ref_map`].
 	///
 	/// The `Marker` type parameter is inferred automatically by the compiler

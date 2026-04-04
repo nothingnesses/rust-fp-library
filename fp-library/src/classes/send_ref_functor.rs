@@ -115,7 +115,7 @@ mod inner {
 		/// assert_eq!(*mapped.evaluate(), 20);
 		/// ```
 		fn send_ref_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
-			func: impl FnOnce(&A) -> B + Send + 'a,
+			func: impl Fn(&A) -> B + Send + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
 	}
@@ -152,7 +152,7 @@ mod inner {
 	/// assert_eq!(*mapped.evaluate(), 20);
 	/// ```
 	pub fn send_ref_map<'a, Brand: SendRefFunctor, A: Send + Sync + 'a, B: Send + Sync + 'a>(
-		func: impl FnOnce(&A) -> B + Send + 'a,
+		func: impl Fn(&A) -> B + Send + 'a,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		Brand::send_ref_map(func, fa)
