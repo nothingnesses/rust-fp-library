@@ -29,6 +29,9 @@ mod inner {
 				FoldableWithIndex,
 				Monoid,
 				RefFunctor,
+				RefLift,
+				RefPointed,
+				RefSemimonad,
 				Semigroup,
 				SendDeferrable,
 				SendRefFunctor,
@@ -877,6 +880,131 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.ref_map(f)
+		}
+	}
+
+	// -- RefPointed --
+
+	impl RefPointed for LazyBrand<RcLazyConfig> {
+		/// Wraps a cloned value in a new memoized context.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type of the value. Must be `Clone`."
+		)]
+		///
+		#[document_parameters("A reference to the value to wrap.")]
+		///
+		#[document_returns("A new memoized value containing a clone of the input.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let value = 42;
+		/// let lazy = LazyBrand::<RcLazyConfig>::ref_pure(&value);
+		/// assert_eq!(*lazy.evaluate(), 42);
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			let cloned = a.clone();
+			RcLazy::new(move || cloned)
+		}
+	}
+
+	// -- RefLift --
+
+	impl RefLift for LazyBrand<RcLazyConfig> {
+		/// Lifts a binary function over two memoized values using references.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the first value.",
+			"The type of the second value.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters(
+			"The function to lift.",
+			"The first memoized value.",
+			"The second memoized value."
+		)]
+		///
+		#[document_returns("A new memoized value containing the result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = RcLazy::pure(3);
+		/// let y = RcLazy::pure(4);
+		/// let z = LazyBrand::<RcLazyConfig>::ref_lift2(|a: &i32, b: &i32| *a + *b, x, y);
+		/// assert_eq!(*z.evaluate(), 7);
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			RcLazy::new(move || func(fa.evaluate(), fb.evaluate()))
+		}
+	}
+
+	// -- RefSemimonad --
+
+	impl RefSemimonad for LazyBrand<RcLazyConfig> {
+		/// Sequences a computation using a reference to the memoized value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the value inside the context.",
+			"The type of the value in the resulting context."
+		)]
+		///
+		#[document_parameters(
+			"The memoized value.",
+			"A function that receives a reference to the value and returns a new memoized value."
+		)]
+		///
+		#[document_returns("A new memoized value produced by the function.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = RcLazy::pure(5);
+		/// let result = LazyBrand::<RcLazyConfig>::ref_bind(lazy, |x: &i32| {
+		/// 	Lazy::<_, RcLazyConfig>::new({
+		/// 		let v = *x;
+		/// 		move || v * 2
+		/// 	})
+		/// });
+		/// assert_eq!(*result.evaluate(), 10);
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			f(fa.evaluate())
 		}
 	}
 
