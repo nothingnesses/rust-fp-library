@@ -247,9 +247,15 @@ element access) was investigated and rejected for three reasons:
    `SendRefFunctor` (adds `Send + Sync` bounds on closures and elements).
    Uses `SendCloneableFn<Ref>` for `SendRefSemiapplicative`.
 9. **SendRef blanket traits**: `SendRefApplicative`, `SendRefMonad`.
-10. **Documentation and tests**: Property tests for type class
+10. **Rename traits**: Extract `Callable<Mode>` base trait from the
+    shared `Deref` bound. Rename `CloneableFn` to `CloneableCallable`.
+    Rename `Function` to `Arrow`. Rename `SendCloneableFn` to
+    `SendCloneableCallable`. Update all references across the
+    codebase. This is a mechanical rename done after the structural
+    changes are verified.
+11. **Documentation and tests**: Property tests for type class
     laws, doc examples, update limitations.md.
-11. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
+12. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
     generates `ref_bind` calls for by-ref monadic code.
 
 ## Design Decision: CloneableFn with Mode Parameter
@@ -342,6 +348,28 @@ Similarly for `SendCloneableFn<Mode: ClosureMode = Val>` and
   standard hierarchy.
 - `RefMonad = RefApplicative + RefSemimonad` is the correct shape.
 - No new function wrapper traits needed.
+
+### Planned trait renames (after verification)
+
+Once the ClosureMode approach is verified, the function wrapper
+traits will be renamed to better reflect their roles:
+
+| Current name      | New name                | Role                                             |
+| ----------------- | ----------------------- | ------------------------------------------------ |
+| (new)             | `Callable<Mode>`        | Base: wraps a closure, callable via Deref        |
+| `CloneableFn`     | `CloneableCallable`     | Base + Clone. Used by Semiapplicative.           |
+| `Function`        | `Arrow`                 | Base (Val only) + Category + Strong. For optics. |
+| `SendCloneableFn` | `SendCloneableCallable` | Send variant of CloneableCallable.               |
+
+`Callable<Mode>` extracts the shared `Deref` bound that both
+`CloneableCallable` and `Arrow` need. `Arrow` aligns with Haskell's
+`Arrow` type class (which bundles `arr` + `Category` + `first`/`second`,
+matching `Function::new` + `Category::compose` + `Strong::first`/`second`).
+
+The renames are deferred to Step 10 (after structural changes are
+verified) because they are mechanical and independent of the
+ClosureMode design. If the ClosureMode approach fails, the rename
+scope may differ.
 
 ### Fallback approaches if A1 fails
 
