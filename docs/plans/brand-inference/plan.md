@@ -30,12 +30,13 @@ turbofish at all.
 ## Goals
 
 1. Allow users to omit the Brand turbofish for types with a single
-   unambiguous brand.
-2. Keep the turbofish available for types with multiple brands (Result,
-   Tuple2, Pair, ControlFlow) and for disambiguation when needed.
+   unambiguous brand. The inference-based calling convention should be
+   the primary, default API (`map`, `bind`, etc.).
+2. Keep explicit-brand functions available (with an `_explicit` suffix
+   like `map_explicit`) for types with multiple brands (Result, Tuple2,
+   Pair, ControlFlow) and for disambiguation when needed.
 3. Maintain zero-cost abstractions: no dynamic dispatch, no heap allocation.
-4. Make the change purely additive (no breaking changes to existing code).
-5. Enable proc-macro generation of the reverse mapping alongside
+4. Enable proc-macro generation of the reverse mapping alongside
    `impl_kind!`.
 
 ## Design
@@ -78,17 +79,31 @@ impl<'a, A> DefaultBrand for Thunk<'a, A> {
 // etc.
 ```
 
-### Wrapper Free Functions with Inference
+### Naming Convention
 
-The existing free functions keep their signatures unchanged. New wrapper
-functions use `DefaultBrand` to infer the brand:
+The inference-based functions get the clean names (`map`, `bind`, `apply`,
+etc.). The explicit-brand functions are renamed with a `_explicit` suffix
+(`map_explicit`, `bind_explicit`, `apply_explicit`). This makes the ergonomic path
+the default and the explicit path the escape hatch.
+
+Usage:
+
+```rust
+// Primary API: brand inferred from container type
+let y = map(|x| x + 1, Some(5));
+let y = bind(Some(5), |x| Some(x + 1));
+
+// Explicit brand: for ambiguous types or disambiguation
+let y = map_explicit::<ResultErrAppliedBrand<String>, _, _, _>(|x| x + 1, Ok(5));
+```
+
+### Inference-Based Free Functions
+
+The new `map` function uses `DefaultBrand` to infer the brand:
 
 ```rust
 /// Maps a function over a functor, inferring the brand from the container type.
-///
-/// This is a convenience wrapper around `map` that eliminates the need for
-/// a Brand turbofish when the container type has a single unambiguous brand.
-pub fn map_infer<'a, FA, A: 'a, B: 'a, Marker>(
+pub fn map<'a, FA, A: 'a, B: 'a, Marker>(
     f: impl FunctorDispatch<'a, <FA as DefaultBrand>::Brand, A, B, Marker>,
     fa: FA,
 ) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>
@@ -100,52 +115,35 @@ where
 }
 ```
 
-Usage:
-
-```rust
-// Before: turbofish required
-let y = map::<OptionBrand, _, _, _>(|x| x + 1, Some(5));
-
-// After: brand inferred from Option<i32>
-let y = map_infer(|x| x + 1, Some(5));
-
-// Turbofish still works for ambiguous types
-let y = map::<ResultErrAppliedBrand<String>, _, _, _>(|x| x + 1, Ok(5));
-```
-
-### Alternative: Overloading `map` Itself
-
-Instead of a separate `map_infer`, a single `map` function could accept
-either a Brand turbofish or infer it. This is harder in Rust because a
-function cannot have "optional" type parameters. Two approaches:
-
-**Approach A: Trait-based dispatch on the container.**
-Add a `MapInfer` trait that mirrors `FunctorDispatch` but resolves Brand
-from the container. The unified `map` function would need a different
-generic structure. This risks inference failures when both impls are
-available.
-
-**Approach B: Default type parameter on a newtype.**
-Rust does not support default type parameters on functions, only on structs
-and traits. This approach does not work directly.
-
-The recommended path is to start with separate `_infer` suffixed functions,
-then evaluate whether a unified signature is feasible once the trait is
-proven.
+The old `map` is renamed to `map_explicit` with its signature unchanged.
 
 ### Interaction with `FunctorDispatch`
 
-The `FunctorDispatch` trait in `functor_dispatch.rs` dispatches between
-`Functor::map` (Val marker) and `RefFunctor::ref_map` (Ref marker) based
-on the closure's argument type. Brand inference is orthogonal to this
-dispatch axis:
+The `FunctorDispatch` trait dispatches between `Functor::map` (Val marker)
+and `RefFunctor::ref_map` (Ref marker) based on the closure's argument type.
+Brand inference is orthogonal to this dispatch axis:
 
 - `FunctorDispatch` resolves the `Marker` parameter (Val vs Ref).
 - `DefaultBrand` resolves the `Brand` parameter.
 
-Both work via trait resolution at compile time. The `map_infer` wrapper
+Both work via trait resolution at compile time. The inferred `map` function
 uses `DefaultBrand` to fix Brand, then delegates to `FunctorDispatch`
 for the Marker dispatch, composing both inference mechanisms.
+
+### Interaction with Dispatch Extensions
+
+The ref-hierarchy plan (see `docs/plans/ref-hierarchy/plan.md`) extends
+dispatch to `bind`, `apply`, and `lift2` via `MonadDispatch`,
+`ApplicativeDispatch`, etc. Each dispatch trait gets a corresponding
+inference-based wrapper following the same `DefaultBrand` pattern:
+
+- `map` (inferred) / `map_explicit` (explicit) via `FunctorDispatch`
+- `bind` (inferred) / `bind_explicit` (explicit) via `MonadDispatch`
+- `apply` (inferred) / `apply_explicit` (explicit) via `ApplicativeDispatch`
+
+Each new dispatch trait added by the ref-hierarchy plan gets a
+corresponding inference-based wrapper following the same `DefaultBrand`
+pattern.
 
 ### Interaction with `m_do!` and `a_do!`
 
@@ -156,34 +154,36 @@ the first token:
 m_do!(OptionBrand { x <- Some(5); pure(x + 1) })
 ```
 
-Brand inference could allow an alternative syntax where the macro infers
+Brand inference allows an alternative syntax where the macro infers
 the brand from the first bind expression:
 
 ```rust
 m_do!({ x <- Some(5); pure(x + 1) })
 ```
 
-However, this is significantly more complex because the macro would need to
-either:
-
-- Defer brand resolution to the type checker (by generating code that uses
-  `DefaultBrand` internally), or
-- Require the first expression's type to be statically known at macro
-  expansion time (which proc macros cannot do).
-
-The `DefaultBrand`-based approach works: the macro could generate
-`bind_infer(expr, ...)` calls instead of `bind::<Brand, _, _>(expr, ...)`.
-This is a natural follow-on once the core `_infer` functions exist.
+The macro would generate `bind(expr, ...)` calls (which use `DefaultBrand`
+internally) instead of `bind_explicit::<Brand, _, _>(expr, ...)`. This is a
+natural follow-on once the core inference functions exist. The
+Brand-explicit syntax remains available for ambiguous types.
 
 ### Interaction with the `Apply!` Macro
 
-The `Apply!` macro expands `<Brand as Kind!(...)>::Of<'a, A>` into a
-concrete associated type projection. With `DefaultBrand`, the `Apply!`
-macro is not involved at call sites because the wrapper functions handle
-the projection internally. The trait bound
+The `Apply!` macro is used in function signatures to project
+`<Brand as Kind!(...)>::Of<'a, A>`. In the inference-based functions, the
+parameter type is `FA` (the concrete type) rather than a projection, so
+`Apply!` is not needed. The trait bound
 `<FA as DefaultBrand>::Brand: Kind_cdc7cd43dac7585f<Of<'a, A> = FA>` ties
 the concrete type back to the brand's `Of` associated type, ensuring
 type safety.
+
+### Why `pure` Cannot Use Brand Inference
+
+Unlike `map` and `bind`, `pure` takes only a value, not a container.
+There is no `FA` to resolve `DefaultBrand` from. The brand can only be
+inferred from the return type, which Rust can sometimes do via
+`let x: Option<i32> = pure(5)` but not always. Since a return-type
+annotation is no better than a turbofish, `pure` stays as-is with an
+explicit Brand parameter. No `pure_explicit` rename is needed.
 
 ## Types That CAN Implement `DefaultBrand`
 
@@ -205,11 +205,6 @@ These types have exactly one brand and an unambiguous reverse mapping:
 | `BoxedCoyonedaExplicit<'a, F, B, A>` | `CoyonedaExplicitBrand<F, B>` | Parameterized by F and B      |
 | `Const<'a, R, A>`                    | `ConstBrand<R>`               | Parameterized by R            |
 | `(A,)`                               | `Tuple1Brand`                 | Single-element tuple          |
-| `TryThunk<'a, A, E>`                 | Ambiguous                     | See below                     |
-
-Note: `TryThunk<'a, A, E>` maps to both `TryThunkErrAppliedBrand<E>` (functor
-over A) and `TryThunkOkAppliedBrand<A>` (functor over E), plus the bifunctor
-`TryThunkBrand`. It should NOT implement `DefaultBrand`.
 
 Types that do NOT have `impl_kind!` and therefore have no brand at all
 (no `DefaultBrand` needed): `Free`, `Trampoline`, `TryTrampoline`,
@@ -228,7 +223,7 @@ These types are reachable through multiple brands:
 | `ControlFlow<B, C>`   | `ControlFlowBreakAppliedBrand<B>`, `ControlFlowContinueAppliedBrand<C>`                                                                                                    | Break vs Continue functors                        |
 | `TryThunk<'a, A, E>`  | `TryThunkErrAppliedBrand<E>`, `TryThunkOkAppliedBrand<A>`                                                                                                                  | Success vs error functors                         |
 
-For these types, users must continue using the explicit Brand turbofish.
+For these types, users must use the `_explicit` suffixed functions.
 
 ## How `haskell_bits` Achieves This
 
@@ -279,20 +274,42 @@ defines a type that maps to an fp-library brand via `impl_kind!`, they would
 also want to implement `DefaultBrand`. This is valid under orphan rules as
 long as the user's type is local.
 
-### Type Inference Failures
+### Error Messages for Types Without `DefaultBrand`
+
+When a user writes `map(f, Ok(5))`, the compiler says
+"`DefaultBrand` is not implemented for `Result<i32, _>`." This is correct
+but doesn't tell them to use `map_explicit` instead. Use
+`#[diagnostic::on_unimplemented]` (stable since Rust 1.78) to provide a
+better message:
+
+```rust
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` has multiple brands and cannot use brand inference",
+    note = "use `map_explicit::<YourBrand, _, _, _>(f, x)` to specify the brand explicitly"
+)]
+pub trait DefaultBrand { ... }
+```
+
+### The GAT Equality Bound Must Be Verified
 
 The constraint `<FA as DefaultBrand>::Brand: Kind_cdc7cd43dac7585f<Of<'a, A> = FA>`
-requires the compiler to unify `FA` with the `Of` associated type. This
-should work when `FA` is a concrete type (e.g., `Option<i32>`) but may fail
-with generic `FA` because the compiler cannot determine which `DefaultBrand`
-impl applies.
+requires the compiler to unify `FA` with the brand's `Of` associated type.
+This should work when `FA` is a concrete type (e.g., `Option<i32>`) but may
+fail with generic `FA` because the compiler cannot determine which
+`DefaultBrand` impl applies. This is an unverified assumption that must be
+tested in the POC before proceeding.
 
-This means `map_infer` works at concrete call sites but not in generic
-functions. Generic code must still use the explicit-Brand versions:
+### Generic Code Still Requires Explicit Brands
+
+`DefaultBrand` resolves at concrete types only. Generic HKT functions
+must still parameterize over Brand explicitly. This is not a limitation
+to solve; it is inherent to how Rust resolves associated types. The
+inference benefit targets leaf-level application code, not library
+internals.
 
 ```rust
 // Works: concrete type
-let y = map_infer(|x| x + 1, Some(5));
+let y = map(|x| x + 1, Some(5));
 
 // Fails: generic FA, compiler cannot resolve DefaultBrand
 fn generic_map<FA: DefaultBrand>(fa: FA) { ... }
@@ -300,10 +317,6 @@ fn generic_map<FA: DefaultBrand>(fa: FA) { ... }
 // Still works: explicit Brand in generic context
 fn generic_map<Brand: Functor, A>(fa: Brand::Of<A>) { ... }
 ```
-
-This is acceptable because generic HKT code is inherently Brand-explicit.
-The inference benefit targets concrete call sites, which are the majority
-of user-facing code.
 
 ### Lifetime Complications
 
@@ -324,7 +337,7 @@ zero-sized marker types) and the lifetime only appears in the `Kind` trait's
 ### Interaction with `Apply!` Macro Type Projections
 
 The `Apply!` macro is used in function signatures to project
-`<Brand as Kind!(...)>::Of<'a, A>`. In the `_infer` wrappers, the function
+`<Brand as Kind!(...)>::Of<'a, A>`. In the inference-based functions, the
 parameter type is `FA` (the concrete type) rather than a projection, so
 `Apply!` is not needed. The trait bound ties `FA` to the brand's `Of` type,
 ensuring the two representations are equivalent.
@@ -341,7 +354,7 @@ impl_kind! {
 }
 ```
 
-It could optionally generate a `DefaultBrand` impl alongside the `Kind`
+`DefaultBrand` impls should be generated by default alongside the `Kind`
 impl:
 
 ```rust
@@ -351,19 +364,21 @@ impl<'a, A: 'a> DefaultBrand for Option<A> {
 }
 ```
 
-To control when this is generated, `impl_kind!` could accept an attribute:
+Types with multiple brands must opt out via a `#[no_default_brand]`
+attribute:
 
 ```rust
 impl_kind! {
-    #[default_brand]
-    for OptionBrand {
-        type Of<'a, A: 'a>: 'a = Option<A>;
+    #[no_default_brand]
+    for ResultErrAppliedBrand<E> {
+        type Of<'a, A: 'a>: 'a = Result<A, E>;
     }
 }
 ```
 
-Types with multiple brands would omit the attribute. This keeps the
-generation opt-in and avoids conflicting impls.
+This makes the common case (single brand) the default. Forgetting
+`#[no_default_brand]` on a multi-brand type results in a conflicting impl
+compiler error, which is a clear signal.
 
 **Complexity consideration:** The macro would need to extract the type
 parameters from the associated type definition and reconstruct them as
@@ -373,28 +388,13 @@ generic parameters on the `DefaultBrand` impl. For simple cases
 `impl` generics with the associated type generics. This is doable but
 requires careful handling of lifetime and type parameter ordering.
 
-## Whether This Is a Breaking Change
-
-This design is purely additive:
-
-- The `DefaultBrand` trait is new. No existing types or traits change.
-- The `_infer` wrapper functions are new. The existing `map`, `bind`,
-  `pure`, etc. keep their exact signatures.
-- The turbofish syntax continues to work everywhere.
-- Existing code compiles without modification.
-
-The only risk is if a future change tries to unify the `_infer` wrappers
-with the originals (e.g., overloading `map` to work both ways). That would
-require more careful design to avoid inference regressions.
-
 ## Design Decisions
 
-1. **Separate `_infer` functions rather than overloading the originals.**
-   Overloading `map` to accept either an explicit Brand or infer it would
-   require a dispatch trait with two impls (explicit vs inferred), risking
-   ambiguity when the compiler cannot tell which path to take. Separate
-   functions make the ergonomics/precision trade-off explicit at the call
-   site. Revisit unification after the trait is proven.
+1. **Inference-based functions get the clean names.**
+   `map`, `bind`, `apply`, etc. use `DefaultBrand` for inference. The
+   explicit-brand versions are renamed to `map_explicit`, `bind_explicit`, etc.
+   This makes the ergonomic path the default, since single-brand types
+   are the common case.
 
 2. **`DefaultBrand` on the concrete type, not a `TypeApp`-style witness.**
    `haskell_bits` uses `TypeApp<TCon, T>` on the concrete type, which is
@@ -405,11 +405,10 @@ require more careful design to avoid inference regressions.
    get inference. The simplicity avoids the `Is` type-equality machinery
    that `haskell_bits` requires.
 
-3. **Opt-in generation via `impl_kind!` attribute.**
-   Not all `impl_kind!` invocations should generate `DefaultBrand`. Types
-   with multiple brands, optics profunctors, and partially-applied bifunctor
-   adapters must not generate conflicting impls. An explicit `#[default_brand]`
-   attribute makes the intent clear and prevents accidental conflicts.
+3. **Default generation via `impl_kind!`, opt-out for exceptions.**
+   `impl_kind!` generates `DefaultBrand` by default. Types with multiple
+   brands use `#[no_default_brand]` to opt out. The conflicting impl error
+   serves as a safety net if the attribute is forgotten.
 
 4. **Generic code still requires explicit brands.**
    `DefaultBrand` resolves at concrete types only. Generic HKT functions
@@ -418,64 +417,88 @@ require more careful design to avoid inference regressions.
    inference benefit targets leaf-level application code, not library
    internals.
 
-5. **`pure` needs special handling.**
-   Unlike `map` and `bind`, `pure` takes only a value, not a container.
-   There is no `FA` to resolve `DefaultBrand` from. `pure_infer` would need
-   to infer the brand from the return type, which Rust can sometimes do
-   via `let x: Option<i32> = pure_infer(5)` but not always. The `_infer`
-   variant of `pure` may not be worth providing, or it could be provided
-   with the understanding that a return-type annotation is often needed.
+5. **`pure` keeps its current signature.**
+   `pure` takes only a value, not a container, so there is no `FA` to
+   resolve `DefaultBrand` from. Return-type inference is unreliable and
+   no better than turbofish. `pure` is not renamed.
+
+6. **Incremental scope for the `_explicit` rename.**
+   The `_explicit` rename happens per-function as inference support is
+   added. Functions that have not yet received inference support keep
+   their current names unchanged. This avoids a big-bang rename and
+   lets each function be validated independently. The core hierarchy
+   (`map`, `bind`, `apply`, `lift2`) is first. Other functions
+   (`fold_map`, `fold_right`, `traverse`, `filter_map`, `compact`,
+   `separate`, `extend`, `extract`, `contramap`, etc.) are extended
+   incrementally based on demand.
+
+7. **Parallel functions (`par_map`, etc.) are excluded initially.**
+   Parallel operations are niche and used in performance-conscious
+   code where explicitness is valued. They keep their current explicit-
+   brand signatures. Add inference later if users request it.
+
+8. **The POC function name `map_infer` is temporary.**
+   It exists only in the POC step to validate inference before
+   committing to the rename. It will not exist in the final API.
 
 ## Implementation Order
 
-1. **Define `DefaultBrand` trait** in `fp-library/src/classes/default_brand.rs`.
+1. **POC: Verify the GAT equality bound works.** Write a minimal test
+   with `DefaultBrand` and a `map_infer` function to confirm type inference
+   works with the real `Kind` machinery, `FunctorDispatch`, and both Val/Ref
+   markers. Test with `Option`, `Vec`, and `Lazy`. If this fails, the entire
+   plan needs rethinking.
+
+2. **Define `DefaultBrand` trait** in `fp-library/src/classes/default_brand.rs`.
    Simple trait with one associated type. Add module to `classes.rs`.
 
-2. **Implement `DefaultBrand` for core types.** Start with `Option`, `Vec`,
+3. **Implement `DefaultBrand` for core types.** Start with `Option`, `Vec`,
    `Identity`, `Thunk`, `SendThunk`, `CatList`, `Tuple1Brand`.
 
-3. **Implement `DefaultBrand` for parameterized types.** `Lazy`, `TryLazy`,
+4. **Implement `DefaultBrand` for parameterized types.** `Lazy`, `TryLazy`,
    `Coyoneda`, `RcCoyoneda`, `ArcCoyoneda`, `BoxedCoyonedaExplicit`, `Const`.
 
-4. **Add `map_infer` wrapper.** Verify that type inference works for
-   `Option`, `Vec`, `Identity`, and `Lazy` with both Val and Ref dispatch
-   markers.
+5. **Add inference-based `map` and rename the current `map` to `map_explicit`.**
+   The POC's temporary `map_infer` name is dropped; the inference-based
+   function takes the clean `map` name. Verify that type inference works
+   for `Option`, `Vec`, `Identity`, and `Lazy` with both Val and Ref
+   dispatch markers. Update all internal call sites that use single-brand
+   types to drop the turbofish.
 
-5. **Add `bind_infer`, `lift2_infer`, `apply_infer` wrappers.** Follow the
-   same pattern as `map_infer`.
+6. **Extend to `bind`, `lift2`, `apply`.** Rename current versions to
+   `_explicit` suffix, add inference-based versions following the same pattern.
 
-6. **Evaluate `pure_infer`.** Test whether return-type inference is
-   sufficient for common usage patterns. Add if practical, skip if not.
+7. **Add `#[no_default_brand]` support to `impl_kind!`.** Extend the proc
+   macro to generate `DefaultBrand` impls by default. Add opt-out attribute.
+   Migrate hand-written impls to use the macro.
 
-7. **Add `#[default_brand]` attribute to `impl_kind!`.** Extend the proc
-   macro to optionally generate `DefaultBrand` impls. Migrate hand-written
-   impls to use the attribute.
+8. **Extend `m_do!` and `a_do!`.** Add brand-free syntax that generates
+   inference-based function calls. The Brand-explicit syntax remains
+   available.
 
-8. **Extend `m_do!` and `a_do!`.** Add an optional brand-free syntax that
-   generates `bind_infer` / `map_infer` calls instead of explicit-Brand
-   versions.
-
-9. **Documentation.** Update crate docs, README examples, and the
-   `docs/features.md` file to show the inference-based calling convention
-   alongside the turbofish convention.
+9. **Documentation.** Update crate docs, README examples, and
+   `fp-library/docs/features.md` to show the inference-based calling
+   convention as the primary API, with `_explicit` suffixed functions as the
+   escape hatch for ambiguous types.
 
 10. **Tests.** Unit tests for each `DefaultBrand` impl. Compile-fail tests
     confirming that ambiguous types (Result, Tuple2, etc.) do not compile
-    with `_infer` functions. Doc tests showing both calling conventions.
+    with the inference-based functions. Doc tests showing both calling
+    conventions.
 
 ## References
 
-- `haskell_bits` crate: `/home/jessea/Documents/projects/haskell_bits/src/typeapp.rs`,
-  `/home/jessea/Documents/projects/haskell_bits/src/functor.rs`.
-  Demonstrates the `WithTypeArg`/`TypeApp`/`TypeAppParam` system for
-  full brand inference in Rust HKT encoding.
-- Current `FunctorDispatch` system:
-  `fp-library/src/classes/functor_dispatch.rs`.
+- `haskell_bits` crate: Demonstrates the `WithTypeArg`/`TypeApp`/`TypeAppParam`
+  system for full brand inference in Rust HKT encoding. Each type constructor
+  has a module-local `TypeCon` that uniquely identifies it, enabling the
+  compiler to infer the type constructor from the concrete type. Avoids the
+  multi-brand ambiguity problem by not supporting partial application of
+  bifunctors.
+- Current `FunctorDispatch` system: `fp-library/src/classes/functor_dispatch.rs`.
   Shows marker-type dispatch for Val/Ref; brand inference composes with this.
 - `Kind` trait definitions: `fp-library/src/kinds.rs`.
 - Brand definitions: `fp-library/src/brands.rs`.
 - `impl_kind!` macro: `fp-macros/src/hkt/impl_kind.rs`.
 - `Apply!` macro: `fp-macros/src/hkt/apply.rs`.
 - Ref-hierarchy plan: `docs/plans/ref-hierarchy/plan.md`.
-  Demonstrates the plan document format and the `FunctorDispatch` proof of
-  concept that this plan builds on.
+  The `FunctorDispatch` proof of concept that this plan builds on.
