@@ -33,14 +33,15 @@ doc *args:
 build *args:
     {{direnv_prefix}} cargo build {{args}}
 
-# Check without building.
-check *args:
-    {{direnv_prefix}} cargo check {{args}}
-
 # Run benchmarks. Use regex dots for spaces in benchmark names, e.g.:
 #   just bench -p fp-library --bench benchmarks -- "CatList.Left-Assoc"
 bench *args:
     {{direnv_prefix}} cargo bench {{args}}
+
+# Check without building.
+check *args:
+    just bench --workspace --no-run
+    {{direnv_prefix}} cargo check {{args}}
 
 # Run any cargo subcommand (except test; use `just test` for that).
 cargo *args:
@@ -75,7 +76,7 @@ test *args:
 # Verify: fmt, clippy, doc, bench compile check, then test (in order).
 verify:
     just fmt
+    just check
     just clippy --workspace --all-features
     just doc --workspace --all-features --no-deps
-    just bench --workspace --no-run
     just test --all-features

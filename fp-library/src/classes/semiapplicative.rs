@@ -9,7 +9,7 @@
 //! 	functions::*,
 //! };
 //!
-//! let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+//! let f = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 //! let x = Some(5);
 //! let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 //! assert_eq!(y, Some(10));
@@ -45,8 +45,8 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let u = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
-	/// let v = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+	/// let u = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
+	/// let v = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// let w = Some(5i32);
 	///
 	/// // Right side: apply(u, apply(v, w))
@@ -59,9 +59,9 @@ mod inner {
 	/// // Step 1: map the composition combinator over u
 	/// let compose_u = map::<OptionBrand, _, _, _>(
 	/// 	|u_fn: std::rc::Rc<dyn Fn(i32) -> i32>| {
-	/// 		cloneable_fn_new::<RcFnBrand, _, _>(move |v_fn: std::rc::Rc<dyn Fn(i32) -> i32>| {
+	/// 		lift_fn_new::<RcFnBrand, _, _>(move |v_fn: std::rc::Rc<dyn Fn(i32) -> i32>| {
 	/// 			let u_fn = u_fn.clone();
-	/// 			cloneable_fn_new::<RcFnBrand, _, _>(move |x: i32| u_fn(v_fn(x)))
+	/// 			lift_fn_new::<RcFnBrand, _, _>(move |x: i32| u_fn(v_fn(x)))
 	/// 		})
 	/// 	},
 	/// 	u,
@@ -108,7 +108,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let x = Some(5);
 		/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 		/// assert_eq!(y, Some(10));
@@ -149,7 +149,7 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+	/// let f = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// let x = Some(5);
 	/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 	/// assert_eq!(y, Some(10));

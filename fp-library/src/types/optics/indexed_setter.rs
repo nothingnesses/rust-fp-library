@@ -7,10 +7,9 @@ mod inner {
 			Apply,
 			brands::FnBrand,
 			classes::{
-				CloneableFn,
-				UnsizedCoercible,
 				functor_with_index::FunctorWithIndex,
 				optics::*,
+				*,
 			},
 			kinds::*,
 			types::optics::Indexed,
@@ -668,7 +667,7 @@ mod inner {
 			pab: Indexed<'a, FnBrand<Q>, I, A, A>,
 		) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>) {
 			let setter_fn = self.setter_fn.clone();
-			<FnBrand<Q> as CloneableFn>::new(move |s: S| {
+			<FnBrand<Q> as LiftFn>::new(move |s: S| {
 				let pab_fn = pab.inner.clone();
 				setter_fn.apply(Box::new(move |i, a| pab_fn((i, a))), s)
 			})
@@ -731,7 +730,7 @@ mod inner {
 			pab: Indexed<'a, FnBrand<Q>, I, A, B>,
 		) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, T>) {
 			let setter_fn = self.setter_fn.clone();
-			<FnBrand<Q> as CloneableFn>::new(move |s: S| {
+			<FnBrand<Q> as LiftFn>::new(move |s: S| {
 				let pab_fn = pab.inner.clone();
 				setter_fn.apply(Box::new(move |i, a| pab_fn((i, a))), s)
 			})

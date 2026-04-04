@@ -56,8 +56,8 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let p = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2 + 1);
-	/// let q = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 10);
+	/// let p = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2 + 1);
+	/// let q = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 10);
 	///
 	/// // Identity: first(identity) = identity
 	/// let id = category_identity::<RcFnBrand, i32>();
@@ -248,8 +248,8 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-	/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+	/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+	/// let g = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// let h = split_strong::<RcFnBrand, _, _, _, _>(f, g);
 	/// assert_eq!(h((10, 20)), (11, 40));
 	/// ```
@@ -294,8 +294,8 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-	/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+	/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+	/// let g = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// let h = fan_out::<RcFnBrand, _, _, _>(f, g);
 	/// assert_eq!(h(10), (11, 20));
 	/// ```

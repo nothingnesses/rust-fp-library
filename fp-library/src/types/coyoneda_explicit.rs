@@ -68,20 +68,7 @@ mod inner {
 	use {
 		crate::{
 			brands::CoyonedaExplicitBrand,
-			classes::{
-				Applicative,
-				CloneableFn,
-				Foldable,
-				FoldableWithIndex,
-				Functor,
-				Monoid,
-				NaturalTransformation,
-				Pointed,
-				Semiapplicative,
-				Semimonad,
-				Traversable,
-				WithIndex,
-			},
+			classes::*,
 			functions::{
 				compose,
 				identity,
@@ -331,7 +318,7 @@ mod inner {
 			B: Clone,
 			M: Monoid + 'a,
 			F: Foldable,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: LiftFn + 'a, {
 			F::fold_map::<FnBrand, B, M>(compose(func, self.func), self.fb)
 		}
 
@@ -466,16 +453,15 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let ff =
-		/// 	CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(cloneable_fn_new::<RcFnBrand, _, _>(
-		/// 		|x: i32| x * 2,
-		/// 	)));
+		/// let ff = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(lift_fn_new::<RcFnBrand, _, _>(
+		/// 	|x: i32| x * 2,
+		/// )));
 		/// let fa = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(5i32));
 		/// let result = CoyonedaExplicit::apply::<RcFnBrand, _, _, _>(ff, fa).lower();
 		/// assert_eq!(result, Some(10));
 		/// ```
 		pub fn apply<
-			FnBrand: CloneableFn + 'a,
+			FnBrand: LiftFn + 'a,
 			Bf: 'a,
 			C: 'a,
 			FuncF: Fn(Bf) -> <FnBrand as CloneableFn>::Of<'a, A, C> + 'a,
@@ -826,7 +812,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: LiftFn + 'a, {
 			fa.fold_map::<FnBrand, M>(func)
 		}
 	}
@@ -1145,10 +1131,9 @@ mod tests {
 
 	#[test]
 	fn apply_some_to_some() {
-		let ff =
-			CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(
-				cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
-			));
+		let ff = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(
+			lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
+		));
 		let fa = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(5i32));
 		let result = CoyonedaExplicit::apply::<RcFnBrand, _, _, _>(ff, fa).lower();
 		assert_eq!(result, Some(10));
@@ -1166,10 +1151,9 @@ mod tests {
 
 	#[test]
 	fn apply_some_fn_to_none() {
-		let ff =
-			CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(
-				cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
-			));
+		let ff = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(
+			lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
+		));
 		let fa = CoyonedaExplicit::<OptionBrand, i32, i32, _>::lift(None);
 		let result = CoyonedaExplicit::apply::<RcFnBrand, _, _, _>(ff, fa).lower();
 		assert_eq!(result, None);
@@ -1178,8 +1162,8 @@ mod tests {
 	#[test]
 	fn apply_vec_applies_each_fn_to_each_value() {
 		let ff = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![
-			cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
-			cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 10),
+			lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
+			lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 10),
 		]);
 		let fa = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![2i32, 3]);
 		let result = CoyonedaExplicit::apply::<RcFnBrand, _, _, _>(ff, fa).lower();
@@ -1188,10 +1172,9 @@ mod tests {
 
 	#[test]
 	fn apply_preserves_prior_maps_on_fa() {
-		let ff =
-			CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(
-				cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
-			));
+		let ff = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(
+			lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
+		));
 		// Prior map on fa is composed and applied before apply delegates to F.
 		let fa = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(5i32)).map(|x| x * 2);
 		let result = CoyonedaExplicit::apply::<RcFnBrand, _, _, _>(ff, fa).lower();

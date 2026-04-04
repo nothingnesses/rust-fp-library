@@ -10,11 +10,11 @@ mod inner {
 			Apply,
 			brands::optics::*,
 			classes::{
-				CloneableFn,
 				profunctor::{
 					Closed,
 					Profunctor,
 				},
+				*,
 			},
 			impl_kind,
 			kinds::*,
@@ -36,7 +36,7 @@ mod inner {
 		"The input type (contravariant).",
 		"The output type (covariant)."
 	)]
-	pub struct Zipping<'a, FunctionBrand: CloneableFn, S: 'a, T: 'a> {
+	pub struct Zipping<'a, FunctionBrand: LiftFn, S: 'a, T: 'a> {
 		/// The binary function that zips two `S` values (as a pair) into a `T`.
 		pub run: <FunctionBrand as CloneableFn>::Of<'a, (S, S), T>,
 	}
@@ -47,7 +47,7 @@ mod inner {
 		"The input type.",
 		"The output type."
 	)]
-	impl<'a, FunctionBrand: CloneableFn, S: 'a, T: 'a> Zipping<'a, FunctionBrand, S, T> {
+	impl<'a, FunctionBrand: LiftFn, S: 'a, T: 'a> Zipping<'a, FunctionBrand, S, T> {
 		/// Creates a new `Zipping` instance wrapping a binary function.
 		#[document_signature]
 		///
@@ -69,7 +69,7 @@ mod inner {
 		/// ```
 		pub fn new(f: impl Fn((S, S)) -> T + 'a) -> Self {
 			Zipping {
-				run: <FunctionBrand as CloneableFn>::new(f),
+				run: <FunctionBrand as LiftFn>::new(f),
 			}
 		}
 	}
@@ -81,7 +81,7 @@ mod inner {
 		"The output type."
 	)]
 	#[document_parameters("The zipping instance.")]
-	impl<'a, FunctionBrand: CloneableFn, S: 'a, T: 'a> Clone for Zipping<'a, FunctionBrand, S, T> {
+	impl<'a, FunctionBrand: LiftFn, S: 'a, T: 'a> Clone for Zipping<'a, FunctionBrand, S, T> {
 		#[document_signature]
 		#[document_returns("A new `Zipping` instance that is a copy of the original.")]
 		#[document_examples]
@@ -104,14 +104,14 @@ mod inner {
 	}
 
 	impl_kind! {
-		impl<FunctionBrand: CloneableFn + 'static> for ZippingBrand<FunctionBrand> {
+		impl<FunctionBrand: LiftFn + 'static> for ZippingBrand<FunctionBrand> {
 			#[document_default]
 			type Of<'a, S: 'a, T: 'a>: 'a = Zipping<'a, FunctionBrand, S, T>;
 		}
 	}
 
 	#[document_type_parameters("The cloneable function brand.")]
-	impl<FunctionBrand: CloneableFn + 'static> Profunctor for ZippingBrand<FunctionBrand> {
+	impl<FunctionBrand: LiftFn + 'static> Profunctor for ZippingBrand<FunctionBrand> {
 		/// Maps over both arguments of the `Zipping` profunctor.
 		///
 		/// Matches PureScript's `dimap f g (Zipping z) = Zipping \a1 a2 -> g (z (f a1) (f a2))`.
@@ -158,7 +158,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The cloneable function brand.")]
-	impl<FunctionBrand: CloneableFn + 'static> Closed<FunctionBrand> for ZippingBrand<FunctionBrand> {
+	impl<FunctionBrand: LiftFn + 'static> Closed<FunctionBrand> for ZippingBrand<FunctionBrand> {
 		/// Lifts `Zipping` to operate on functions.
 		///
 		/// Matches PureScript's `closed (Zipping z) = Zipping \f1 f2 x -> z (f1 x) (f2 x)`.
@@ -187,11 +187,11 @@ mod inner {
 		/// 		optics::*,
 		/// 	},
 		/// 	classes::{
-		/// 		CloneableFn,
 		/// 		profunctor::{
 		/// 			Closed,
 		/// 			Profunctor,
 		/// 		},
+		/// 		*,
 		/// 	},
 		/// 	types::optics::Zipping,
 		/// };
@@ -199,8 +199,8 @@ mod inner {
 		/// let z = Zipping::<RcFnBrand, i32, i32>::new(|(a, b)| a + b);
 		/// let zc = <ZippingBrand<RcFnBrand> as Closed<RcFnBrand>>::closed::<i32, i32, String>(z);
 		/// // (zc.run)(f1, f2)(x) = f1(x) + f2(x)
-		/// let f1 = <RcFnBrand as CloneableFn>::new(|s: String| s.len() as i32);
-		/// let f2 = <RcFnBrand as CloneableFn>::new(|s: String| s.len() as i32 * 2);
+		/// let f1 = <RcFnBrand as LiftFn>::new(|s: String| s.len() as i32);
+		/// let f2 = <RcFnBrand as LiftFn>::new(|s: String| s.len() as i32 * 2);
 		/// let result = (zc.run)((f1, f2));
 		/// assert_eq!(result("hi".to_string()), 6); // 2 + 4
 		/// ```
@@ -214,7 +214,7 @@ mod inner {
 					<FunctionBrand as CloneableFn>::Of<'a, X, S>,
 				)| {
 					let run = pab.run.clone();
-					<FunctionBrand as CloneableFn>::new(move |x: X| {
+					<FunctionBrand as LiftFn>::new(move |x: X| {
 						(*run)((f1(x.clone()), f2(x.clone())))
 					})
 				},

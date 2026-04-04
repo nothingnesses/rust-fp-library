@@ -8,27 +8,7 @@ mod inner {
 		crate::{
 			Apply,
 			brands::ThunkBrand,
-			classes::{
-				ApplyFirst,
-				ApplySecond,
-				CloneableFn,
-				Deferrable,
-				Extend,
-				Extract,
-				Foldable,
-				FoldableWithIndex,
-				Functor,
-				FunctorWithIndex,
-				LazyConfig,
-				Lift,
-				MonadRec,
-				Monoid,
-				Pointed,
-				Semiapplicative,
-				Semigroup,
-				Semimonad,
-				WithIndex,
-			},
+			classes::*,
 			impl_kind,
 			kinds::*,
 			types::{
@@ -609,7 +589,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let func = pure::<ThunkBrand, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let func = pure::<ThunkBrand, _>(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let val = pure::<ThunkBrand, _>(21);
 		/// let result = apply::<RcFnBrand, ThunkBrand, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), 42);
@@ -1080,10 +1060,6 @@ mod tests {
 		super::*,
 		crate::{
 			brands::*,
-			classes::{
-				monoid::empty,
-				semigroup::append,
-			},
 			functions::*,
 		},
 		quickcheck_macros::quickcheck,
@@ -1366,7 +1342,7 @@ mod tests {
 	/// Tests `Semiapplicative::apply` for `ThunkBrand` via the free function.
 	#[test]
 	fn test_apply_via_brand() {
-		let func = pure::<ThunkBrand, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		let func = pure::<ThunkBrand, _>(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		let val = pure::<ThunkBrand, _>(21);
 		let result = apply::<RcFnBrand, ThunkBrand, _, _>(func, val);
 		assert_eq!(result.evaluate(), 42);

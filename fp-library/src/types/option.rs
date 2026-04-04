@@ -8,30 +8,7 @@ mod inner {
 		crate::{
 			Apply,
 			brands::OptionBrand,
-			classes::{
-				Alt,
-				Applicative,
-				ApplyFirst,
-				ApplySecond,
-				CloneableFn,
-				Compactable,
-				Filterable,
-				Foldable,
-				Functor,
-				Lift,
-				MonadRec,
-				Monoid,
-				Plus,
-				Pointed,
-				Semiapplicative,
-				Semimonad,
-				Traversable,
-				Witherable,
-				foldable_with_index::FoldableWithIndex,
-				functor_with_index::FunctorWithIndex,
-				traversable_with_index::TraversableWithIndex,
-				with_index::WithIndex,
-			},
+			classes::*,
 			impl_kind,
 			kinds::*,
 		},
@@ -188,7 +165,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let x = Some(5);
 		/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 		/// assert_eq!(y, Some(10));
@@ -1033,7 +1010,7 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::CloneableFn,
+			classes::*,
 			functions::*,
 		},
 		quickcheck_macros::quickcheck,
@@ -1062,7 +1039,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_identity(v: Option<i32>) -> bool {
 		apply::<RcFnBrand, OptionBrand, _, _>(
-			pure::<OptionBrand, _>(<RcFnBrand as CloneableFn>::new(identity)),
+			pure::<OptionBrand, _>(<RcFnBrand as LiftFn>::new(identity)),
 			v,
 		) == v
 	}
@@ -1072,7 +1049,7 @@ mod tests {
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
 		apply::<RcFnBrand, OptionBrand, _, _>(
-			pure::<OptionBrand, _>(<RcFnBrand as CloneableFn>::new(f)),
+			pure::<OptionBrand, _>(<RcFnBrand as LiftFn>::new(f)),
 			pure::<OptionBrand, _>(x),
 		) == pure::<OptionBrand, _>(f(x))
 	}
@@ -1087,16 +1064,10 @@ mod tests {
 		let v_fn = |x: i32| x.wrapping_mul(2);
 		let u_fn = |x: i32| x.wrapping_add(1);
 
-		let v = if v_is_some {
-			pure::<OptionBrand, _>(<RcFnBrand as CloneableFn>::new(v_fn))
-		} else {
-			None
-		};
-		let u = if u_is_some {
-			pure::<OptionBrand, _>(<RcFnBrand as CloneableFn>::new(u_fn))
-		} else {
-			None
-		};
+		let v =
+			if v_is_some { pure::<OptionBrand, _>(<RcFnBrand as LiftFn>::new(v_fn)) } else { None };
+		let u =
+			if u_is_some { pure::<OptionBrand, _>(<RcFnBrand as LiftFn>::new(u_fn)) } else { None };
 
 		// RHS: u <*> (v <*> w)
 		let vw = apply::<RcFnBrand, OptionBrand, _, _>(v.clone(), w);
@@ -1107,7 +1078,7 @@ mod tests {
 		let uv = match (u, v) {
 			(Some(uf), Some(vf)) => {
 				let composed = move |x| uf(vf(x));
-				Some(<RcFnBrand as CloneableFn>::new(composed))
+				Some(<RcFnBrand as LiftFn>::new(composed))
 			}
 			_ => None,
 		};
@@ -1122,12 +1093,11 @@ mod tests {
 	fn applicative_interchange(y: i32) -> bool {
 		// u <*> pure y = pure ($ y) <*> u
 		let f = |x: i32| x.wrapping_mul(2);
-		let u = pure::<OptionBrand, _>(<RcFnBrand as CloneableFn>::new(f));
+		let u = pure::<OptionBrand, _>(<RcFnBrand as LiftFn>::new(f));
 
 		let lhs = apply::<RcFnBrand, OptionBrand, _, _>(u.clone(), pure::<OptionBrand, _>(y));
 
-		let rhs_fn =
-			<RcFnBrand as CloneableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
+		let rhs_fn = <RcFnBrand as LiftFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
 		let rhs = apply::<RcFnBrand, OptionBrand, _, _>(pure::<OptionBrand, _>(rhs_fn), u);
 
 		lhs == rhs

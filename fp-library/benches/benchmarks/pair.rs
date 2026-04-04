@@ -183,7 +183,7 @@ pub fn bench_pair(c: &mut Criterion) {
 
 	// Apply
 	{
-		let f = Pair("f".to_string(), cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		let f = Pair("f".to_string(), lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		let mut group = c.benchmark_group("Pair Apply");
 		group.bench_with_input(BenchmarkId::new("std", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {

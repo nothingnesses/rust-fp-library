@@ -12,10 +12,9 @@ mod inner {
 				optics::*,
 			},
 			classes::{
-				CloneableFn,
-				UnsizedCoercible,
 				monoid::Monoid,
 				optics::*,
+				*,
 			},
 			kinds::*,
 			types::optics::Forget,
@@ -123,7 +122,7 @@ mod inner {
 		/// ```
 		pub fn new(view: impl 'a + Fn(S) -> A) -> Self {
 			Getter {
-				view_fn: <FnBrand<PointerBrand> as CloneableFn>::new(view),
+				view_fn: <FnBrand<PointerBrand> as LiftFn>::new(view),
 				_phantom: PhantomData,
 			}
 		}
@@ -294,7 +293,7 @@ mod inner {
 		/// ```
 		pub fn new(view: impl 'a + Fn(S) -> A) -> Self {
 			GetterPrime {
-				view_fn: <FnBrand<PointerBrand> as CloneableFn>::new(view),
+				view_fn: <FnBrand<PointerBrand> as LiftFn>::new(view),
 				_phantom: PhantomData,
 			}
 		}

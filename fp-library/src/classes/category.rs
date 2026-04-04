@@ -49,7 +49,7 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let p = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2 + 1);
+	/// let p = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2 + 1);
 	/// let id = category_identity::<RcFnBrand, i32>();
 	///
 	/// // Left identity: compose(identity, p) = p

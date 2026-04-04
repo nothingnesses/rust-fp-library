@@ -23,21 +23,8 @@ mod inner {
 			Apply,
 			brands::FnBrand,
 			classes::{
-				Category,
-				CloneableFn,
-				Function,
-				RefCountedPointer,
-				Semigroupoid,
-				SendCloneableFn,
-				SendUnsizedCoercible,
-				UnsizedCoercible,
-				profunctor::{
-					Choice,
-					Closed,
-					Profunctor,
-					Strong,
-					Wander,
-				},
+				profunctor::*,
+				*,
 			},
 			impl_kind,
 			kinds::*,
@@ -92,7 +79,10 @@ mod inner {
 		type Of<'a, A: 'a, B: 'a> =
 			Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>);
 		type PointerBrand = P;
+	}
 
+	#[document_type_parameters("The reference-counted pointer type.")]
+	impl<P: UnsizedCoercible> LiftFn for FnBrand<P> {
 		/// Creates a new cloneable function wrapper.
 		///
 		/// This function wraps the provided closure `f` into a pointer-wrapped cloneable function.
@@ -116,7 +106,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
 		/// ```
 		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as CloneableFn>::Of<'a, A, B> {
@@ -153,8 +143,8 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let g = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 		/// assert_eq!(h(5), 12); // (5 + 1) * 2
 		/// ```
@@ -475,11 +465,7 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::{
-				category::Category,
-				cloneable_fn::CloneableFn,
-				semigroupoid::Semigroupoid,
-			},
+			classes::*,
 		},
 		quickcheck_macros::quickcheck,
 	};
@@ -489,9 +475,9 @@ mod tests {
 	/// Tests the associativity law for Semigroupoid.
 	#[quickcheck]
 	fn semigroupoid_associativity(x: i32) -> bool {
-		let f = <RcFnBrand as CloneableFn>::new(|x: i32| x.wrapping_add(1));
-		let g = <RcFnBrand as CloneableFn>::new(|x: i32| x.wrapping_mul(2));
-		let h = <RcFnBrand as CloneableFn>::new(|x: i32| x.wrapping_sub(3));
+		let f = <RcFnBrand as LiftFn>::new(|x: i32| x.wrapping_add(1));
+		let g = <RcFnBrand as LiftFn>::new(|x: i32| x.wrapping_mul(2));
+		let h = <RcFnBrand as LiftFn>::new(|x: i32| x.wrapping_sub(3));
 
 		let lhs = RcFnBrand::compose(f.clone(), RcFnBrand::compose(g.clone(), h.clone()));
 		let rhs = RcFnBrand::compose(RcFnBrand::compose(f, g), h);
@@ -504,7 +490,7 @@ mod tests {
 	/// Tests the left identity law for Category.
 	#[quickcheck]
 	fn category_left_identity(x: i32) -> bool {
-		let f = <RcFnBrand as CloneableFn>::new(|x: i32| x.wrapping_add(1));
+		let f = <RcFnBrand as LiftFn>::new(|x: i32| x.wrapping_add(1));
 		let id = RcFnBrand::identity::<i32>();
 
 		let lhs = RcFnBrand::compose(id, f.clone());
@@ -516,7 +502,7 @@ mod tests {
 	/// Tests the right identity law for Category.
 	#[quickcheck]
 	fn category_right_identity(x: i32) -> bool {
-		let f = <RcFnBrand as CloneableFn>::new(|x: i32| x.wrapping_add(1));
+		let f = <RcFnBrand as LiftFn>::new(|x: i32| x.wrapping_add(1));
 		let id = RcFnBrand::identity::<i32>();
 
 		let lhs = RcFnBrand::compose(f.clone(), id);

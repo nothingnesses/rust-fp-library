@@ -12,24 +12,7 @@ mod inner {
 				ResultErrAppliedBrand,
 				ResultOkAppliedBrand,
 			},
-			classes::{
-				Applicative,
-				ApplyFirst,
-				ApplySecond,
-				Bifoldable,
-				Bifunctor,
-				Bitraversable,
-				CloneableFn,
-				Foldable,
-				Functor,
-				Lift,
-				MonadRec,
-				Monoid,
-				Pointed,
-				Semiapplicative,
-				Semimonad,
-				Traversable,
-			},
+			classes::*,
 			impl_kind,
 			kinds::*,
 		},
@@ -533,9 +516,9 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f: Result<_, ()> = Ok(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f: Result<_, ()> = Ok(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(f, Ok(5)), Ok(10));
-		/// let f: Result<_, i32> = Ok(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f: Result<_, i32> = Ok(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(f, Err(1)), Err(1));
 		///
 		/// let f_err: Result<_, i32> = Err(1);
@@ -1017,9 +1000,9 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f: Result<(), _> = Err(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f: Result<(), _> = Err(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(f, Err(5)), Err(10));
-		/// let f: Result<i32, _> = Err(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f: Result<i32, _> = Err(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _>(f, Ok(1)), Ok(1));
 		///
 		/// let f_ok: Result<i32, _> = Ok(1);
@@ -1451,10 +1434,7 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::{
-				CloneableFn,
-				bifunctor::*,
-			},
+			classes::*,
 			functions::*,
 		},
 		quickcheck_macros::quickcheck,
@@ -1518,7 +1498,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_identity(v: Result<i32, i32>) -> bool {
 		apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
-			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as CloneableFn>::new(identity)),
+			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as LiftFn>::new(identity)),
 			v,
 		) == v
 	}
@@ -1528,7 +1508,7 @@ mod tests {
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
 		apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
-			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as CloneableFn>::new(f)),
+			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as LiftFn>::new(f)),
 			pure::<ResultErrAppliedBrand<i32>, _>(x),
 		) == pure::<ResultErrAppliedBrand<i32>, _>(f(x))
 	}
@@ -1544,12 +1524,12 @@ mod tests {
 		let u_fn = |x: i32| x.wrapping_add(1);
 
 		let v = if v_is_ok {
-			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as CloneableFn>::new(v_fn))
+			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as LiftFn>::new(v_fn))
 		} else {
 			Err(100)
 		};
 		let u = if u_is_ok {
-			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as CloneableFn>::new(u_fn))
+			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as LiftFn>::new(u_fn))
 		} else {
 			Err(200)
 		};
@@ -1563,7 +1543,7 @@ mod tests {
 		let uv = match (u, v) {
 			(Ok(uf), Ok(vf)) => {
 				let composed = move |x| uf(vf(x));
-				Ok(<RcFnBrand as CloneableFn>::new(composed))
+				Ok(<RcFnBrand as LiftFn>::new(composed))
 			}
 			(Err(e), _) => Err(e),
 			(_, Err(e)) => Err(e),
@@ -1579,15 +1559,14 @@ mod tests {
 	fn applicative_interchange(y: i32) -> bool {
 		// u <*> pure y = pure ($ y) <*> u
 		let f = |x: i32| x.wrapping_mul(2);
-		let u = pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as CloneableFn>::new(f));
+		let u = pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as LiftFn>::new(f));
 
 		let lhs = apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
 			u.clone(),
 			pure::<ResultErrAppliedBrand<i32>, _>(y),
 		);
 
-		let rhs_fn =
-			<RcFnBrand as CloneableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
+		let rhs_fn = <RcFnBrand as LiftFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
 		let rhs = apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
 			pure::<ResultErrAppliedBrand<i32>, _>(rhs_fn),
 			u,

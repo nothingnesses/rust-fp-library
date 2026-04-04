@@ -27,40 +27,7 @@ mod inner {
 				CatListBrand,
 				OptionBrand,
 			},
-			classes::{
-				Alt,
-				Applicative,
-				ApplyFirst,
-				ApplySecond,
-				CloneableFn,
-				Compactable,
-				Extend,
-				Filterable,
-				FilterableWithIndex,
-				Foldable,
-				FoldableWithIndex,
-				Functor,
-				FunctorWithIndex,
-				Lift,
-				MonadRec,
-				Monoid,
-				ParCompactable,
-				ParFilterable,
-				ParFilterableWithIndex,
-				ParFoldable,
-				ParFoldableWithIndex,
-				ParFunctor,
-				ParFunctorWithIndex,
-				Plus,
-				Pointed,
-				Semiapplicative,
-				Semigroup,
-				Semimonad,
-				Traversable,
-				TraversableWithIndex,
-				WithIndex,
-				Witherable,
-			},
+			classes::*,
 			impl_kind,
 			kinds::*,
 		},
@@ -484,8 +451,8 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let funcs = CatList::singleton(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1))
-		/// 	.snoc(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let funcs = CatList::singleton(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1))
+		/// 	.snoc(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let vals = CatList::singleton(1).snoc(2);
 		/// let applied = apply::<RcFnBrand, CatListBrand, _, _>(funcs, vals);
 		/// let vec: Vec<_> = applied.into_iter().collect();
@@ -3486,7 +3453,7 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::CloneableFn,
+			classes::*,
 			functions::*,
 		},
 		quickcheck_macros::quickcheck,
@@ -3518,7 +3485,7 @@ mod tests {
 	fn applicative_identity(v: Vec<i32>) -> bool {
 		let v: CatList<_> = v.into_iter().collect();
 		apply::<RcFnBrand, CatListBrand, _, _>(
-			pure::<CatListBrand, _>(<RcFnBrand as CloneableFn>::new(identity)),
+			pure::<CatListBrand, _>(<RcFnBrand as LiftFn>::new(identity)),
 			v.clone(),
 		) == v
 	}
@@ -3528,7 +3495,7 @@ mod tests {
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
 		apply::<RcFnBrand, CatListBrand, _, _>(
-			pure::<CatListBrand, _>(<RcFnBrand as CloneableFn>::new(f)),
+			pure::<CatListBrand, _>(<RcFnBrand as LiftFn>::new(f)),
 			pure::<CatListBrand, _>(x),
 		) == pure::<CatListBrand, _>(f(x))
 	}

@@ -69,8 +69,8 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let p = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2 + 1);
-	/// let q = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 10);
+	/// let p = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2 + 1);
+	/// let q = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 10);
 	///
 	/// // Identity: left(identity) = identity
 	/// let id = category_identity::<RcFnBrand, i32>();
@@ -281,8 +281,8 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-	/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+	/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+	/// let g = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// let h = split_choice::<RcFnBrand, _, _, _, _>(f, g);
 	/// assert_eq!(h(Err(10)), Err(11));
 	/// assert_eq!(h(Ok(10)), Ok(20));
@@ -329,8 +329,8 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-	/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+	/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+	/// let g = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// let h = fan_in::<RcFnBrand, _, _, _>(f, g);
 	/// assert_eq!(h(Err(10)), 11);
 	/// assert_eq!(h(Ok(10)), 20);

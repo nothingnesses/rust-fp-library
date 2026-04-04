@@ -59,15 +59,9 @@ mod inner {
 		crate::{
 			brands::ArcCoyonedaBrand,
 			classes::{
-				CloneableFn,
-				Foldable,
-				Functor,
 				Lift,
-				Monoid,
 				NaturalTransformation,
-				Pointed,
-				Semiapplicative,
-				Semimonad,
+				*,
 			},
 			impl_kind,
 			kinds::*,
@@ -430,7 +424,7 @@ mod inner {
 		/// // Can still use coyo after folding.
 		/// assert_eq!(coyo.lower_ref(), vec![10, 20, 30]);
 		/// ```
-		pub fn fold_map<FnBrand: CloneableFn + 'a, M>(
+		pub fn fold_map<FnBrand: LiftFn + 'a, M>(
 			&self,
 			func: impl Fn(A) -> M + 'a,
 		) -> M
@@ -652,7 +646,7 @@ mod inner {
 		/// let result = a.lift2(|x, y| x + y, b);
 		/// assert_eq!(result.lower_ref(), Some(7));
 		/// ```
-		pub fn apply<FnBrand: CloneableFn + 'a, B: Clone + 'a, C: 'a>(
+		pub fn apply<FnBrand: LiftFn + 'a, B: Clone + 'a, C: 'a>(
 			ff: ArcCoyoneda<'a, F, <FnBrand as CloneableFn>::Of<'a, B, C>>,
 			fa: ArcCoyoneda<'a, F, B>,
 		) -> ArcCoyoneda<'a, F, C>
@@ -766,7 +760,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: LiftFn + 'a, {
 			F::fold_map::<FnBrand, A, M>(func, fa.lower_ref())
 		}
 	}

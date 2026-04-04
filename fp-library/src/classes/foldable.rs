@@ -105,12 +105,12 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
-			let f = <FnBrand as CloneableFn>::new(move |(a, b)| func(a, b));
+			FnBrand: LiftFn + 'a, {
+			let f = <FnBrand as LiftFn>::new(move |(a, b)| func(a, b));
 			let m = Self::fold_map::<FnBrand, A, Endofunction<FnBrand, B>>(
 				move |a: A| {
 					let f = f.clone();
-					Endofunction::<FnBrand, B>::new(<FnBrand as CloneableFn>::new(move |b| {
+					Endofunction::<FnBrand, B>::new(<FnBrand as LiftFn>::new(move |b| {
 						f((a.clone(), b))
 					}))
 				},
@@ -156,8 +156,8 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
-			let f = <FnBrand as CloneableFn>::new(move |(b, a)| func(b, a));
+			FnBrand: LiftFn + 'a, {
+			let f = <FnBrand as LiftFn>::new(move |(b, a)| func(b, a));
 			let m = Self::fold_right::<FnBrand, A, Endofunction<FnBrand, B>>(
 				move |a: A, k: Endofunction<'a, FnBrand, B>| {
 					let f = f.clone();
@@ -167,7 +167,7 @@ mod inner {
 					// So we want k . current.
 					// append(k, current).
 					let current =
-						Endofunction::<FnBrand, B>::new(<FnBrand as CloneableFn>::new(move |b| {
+						Endofunction::<FnBrand, B>::new(<FnBrand as LiftFn>::new(move |b| {
 							f((b, a.clone()))
 						}));
 					Semigroup::append(k, current)
@@ -214,7 +214,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: LiftFn + 'a, {
 			Self::fold_right::<FnBrand, A, M>(move |a, m| M::append(func(a), m), M::empty(), fa)
 		}
 	}
@@ -257,7 +257,7 @@ mod inner {
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
-		FnBrand: CloneableFn + 'a, {
+		FnBrand: LiftFn + 'a, {
 		Brand::fold_right::<FnBrand, A, B>(func, initial, fa)
 	}
 
@@ -299,7 +299,7 @@ mod inner {
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
-		FnBrand: CloneableFn + 'a, {
+		FnBrand: LiftFn + 'a, {
 		Brand::fold_left::<FnBrand, A, B>(func, initial, fa)
 	}
 
@@ -340,7 +340,7 @@ mod inner {
 	) -> M
 	where
 		M: Monoid + 'a,
-		FnBrand: CloneableFn + 'a, {
+		FnBrand: LiftFn + 'a, {
 		Brand::fold_map::<FnBrand, A, M>(func, fa)
 	}
 }

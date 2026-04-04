@@ -152,7 +152,7 @@ pub fn bench_result(c: &mut Criterion) {
 
 	// Apply
 	{
-		let f: Result<_, i32> = Ok(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		let f: Result<_, i32> = Ok(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		let mut group = c.benchmark_group("Result Apply");
 		group.bench_with_input(BenchmarkId::new("std", input_desc), &input_desc, |b, &_| {
 			b.iter(|| match (std::hint::black_box(f.clone()), std::hint::black_box(val_ok)) {

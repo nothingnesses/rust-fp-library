@@ -65,7 +65,7 @@ mod inner {
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
 		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier =
 		/// 	<LensPrime<RcBrand, (i32, String), i32> as Optic<RcFnBrand, _, _, _, _>>::evaluate(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
@@ -108,7 +108,7 @@ mod inner {
 		/// };
 		///
 		/// let iso: IsoPrime<RcBrand, i32, i32> = IsoPrime::new(|x| x, |x| x);
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <IsoPrime<RcBrand, i32, i32> as IsoOptic<i32, i32, i32, i32>>::evaluate::<
 		/// 	RcFnBrand,
 		/// >(&iso, f);
@@ -153,7 +153,7 @@ mod inner {
 		///
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
 		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <LensPrime<RcBrand, (i32, String), i32> as LensOptic<
 		/// 	(i32, String),
 		/// 	(i32, String),
@@ -200,7 +200,7 @@ mod inner {
 		/// };
 		///
 		/// let p: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::from_option(|o| o, Some);
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <PrismPrime<RcBrand, Option<i32>, i32> as PrismOptic<
 		/// 	Option<i32>,
 		/// 	Option<i32>,
@@ -248,7 +248,7 @@ mod inner {
 		///
 		/// let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
 		/// 	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as AffineTraversalOptic<
 		/// 	(i32, String),
 		/// 	(i32, String),
@@ -296,7 +296,7 @@ mod inner {
 		///
 		/// // Use Vec's built-in optic support
 		/// let v = vec![1, 2, 3];
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let result = f(v[0]); // Simple example showing the concept
 		/// assert_eq!(result, 2);
 		/// ```
@@ -440,7 +440,7 @@ mod inner {
 		///
 		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
 		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <SetterPrime<RcBrand, (i32, String), i32> as SetterOptic<
 		/// 	RcBrand,
 		/// 	(i32, String),
@@ -531,7 +531,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![1, 2, 3];
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(v[0]), 2);
 		/// ```
 		fn evaluate<P: Wander>(
@@ -685,7 +685,7 @@ mod inner {
 		///
 		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
 		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <SetterPrime<RcBrand, (i32, String), i32> as SetterOptic<
 		/// 	RcBrand,
 		/// 	(i32, String),
@@ -735,7 +735,7 @@ mod inner {
 		///
 		/// // Simple example showing the grate concept
 		/// let pair = (21, 10);
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(pair.0), 42);
 		/// assert_eq!(f(pair.1), 20);
 		/// ```

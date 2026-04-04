@@ -12,8 +12,6 @@ mod inner {
 				optics::*,
 			},
 			classes::{
-				CloneableFn,
-				UnsizedCoercible,
 				monoid::Monoid,
 				profunctor::{
 					Choice,
@@ -22,6 +20,7 @@ mod inner {
 					Strong,
 					Wander,
 				},
+				*,
 			},
 			impl_kind,
 			kinds::*,
@@ -84,7 +83,7 @@ mod inner {
 		/// assert_eq!((forget.0)("hello".to_string()), 5);
 		/// ```
 		pub fn new(f: impl Fn(A) -> R + 'a) -> Self {
-			Forget(<FnBrand<PointerBrand> as CloneableFn>::new(f), PhantomData)
+			Forget(<FnBrand<PointerBrand> as LiftFn>::new(f), PhantomData)
 		}
 
 		/// Runs the `Forget` profunctor on an input.

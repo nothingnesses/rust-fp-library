@@ -21,9 +21,7 @@ mod inner {
 				optics::*,
 			},
 			classes::{
-				CloneableFn,
 				Monoid,
-				UnsizedCoercible,
 				optics::{
 					FoldOptic,
 					GetterOptic,
@@ -39,6 +37,7 @@ mod inner {
 					Profunctor,
 					Strong,
 				},
+				*,
 			},
 			impl_kind,
 			kinds::*,
@@ -127,7 +126,7 @@ mod inner {
 			) -> Apply!(<InnerP as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, T, S>)
 		) -> Self {
 			Reverse {
-				run: <FnBrand<PointerBrand> as CloneableFn>::new(f),
+				run: <FnBrand<PointerBrand> as LiftFn>::new(f),
 			}
 		}
 	}
@@ -261,8 +260,8 @@ mod inner {
 			pbc: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>) {
 			let r = pbc.run;
-			let ab = <FnBrand<PointerBrand> as CloneableFn>::new(ab);
-			let cd = <FnBrand<PointerBrand> as CloneableFn>::new(cd);
+			let ab = <FnBrand<PointerBrand> as LiftFn>::new(ab);
+			let cd = <FnBrand<PointerBrand> as LiftFn>::new(cd);
 			Reverse::new(move |pda| {
 				let ab = ab.clone();
 				let cd = cd.clone();
@@ -554,7 +553,7 @@ mod inner {
 		/// 		optics::*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as cloneable_fn_new,
+		/// 		cloneable_fn::new as lift_fn_new,
 		/// 		profunctor::Costrong,
 		/// 	},
 		/// 	types::optics::Reverse,
@@ -563,7 +562,7 @@ mod inner {
 		/// // rev.run: Rc<dyn Fn((i32, String)) -> (i32, String)> -> Rc<dyn Fn(i32) -> i32>
 		/// let rev = Reverse::<RcFnBrand, RcBrand, i32, i32, (i32, String), (i32, String)>::new(
 		/// 	|f: std::rc::Rc<dyn Fn((i32, String)) -> (i32, String)>| {
-		/// 		cloneable_fn_new::<RcFnBrand, _, _>(move |x: i32| f((x, String::new())).0)
+		/// 		lift_fn_new::<RcFnBrand, _, _>(move |x: i32| f((x, String::new())).0)
 		/// 	},
 		/// );
 		/// // unfirst(rev).run(g) = rev.run(RcFnBrand::first(g))
@@ -571,7 +570,7 @@ mod inner {
 		/// //   so rev.run(first(g))(x) = first(g)((x, "")).0 = g(x)
 		/// let result =
 		/// 	<ReverseBrand<RcFnBrand, RcBrand, i32, i32> as Costrong>::unfirst::<i32, i32, String>(rev);
-		/// let add_one = cloneable_fn_new::<RcFnBrand, i32, i32>(|x: i32| x + 1);
+		/// let add_one = lift_fn_new::<RcFnBrand, i32, i32>(|x: i32| x + 1);
 		/// assert_eq!(((result.run)(add_one))(41), 42);
 		/// ```
 		fn unfirst<'a, A: 'a, B: 'a, C: 'a>(
@@ -605,7 +604,7 @@ mod inner {
 		/// 		optics::*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as cloneable_fn_new,
+		/// 		cloneable_fn::new as lift_fn_new,
 		/// 		profunctor::Costrong,
 		/// 	},
 		/// 	types::optics::Reverse,
@@ -614,7 +613,7 @@ mod inner {
 		/// // rev.run: Rc<dyn Fn((String, i32)) -> (String, i32)> -> Rc<dyn Fn(i32) -> i32>
 		/// let rev = Reverse::<RcFnBrand, RcBrand, i32, i32, (String, i32), (String, i32)>::new(
 		/// 	|f: std::rc::Rc<dyn Fn((String, i32)) -> (String, i32)>| {
-		/// 		cloneable_fn_new::<RcFnBrand, _, _>(move |x: i32| f((String::new(), x)).1)
+		/// 		lift_fn_new::<RcFnBrand, _, _>(move |x: i32| f((String::new(), x)).1)
 		/// 	},
 		/// );
 		/// // unsecond(rev).run(g) = rev.run(RcFnBrand::second(g))
@@ -622,7 +621,7 @@ mod inner {
 		/// //   so rev.run(second(g))(x) = second(g)(("", x)).1 = g(x)
 		/// let result =
 		/// 	<ReverseBrand<RcFnBrand, RcBrand, i32, i32> as Costrong>::unsecond::<i32, i32, String>(rev);
-		/// let add_one = cloneable_fn_new::<RcFnBrand, i32, i32>(|x: i32| x + 1);
+		/// let add_one = lift_fn_new::<RcFnBrand, i32, i32>(|x: i32| x + 1);
 		/// assert_eq!(((result.run)(add_one))(41), 42);
 		/// ```
 		fn unsecond<'a, A: 'a, B: 'a, C: 'a>(
@@ -962,7 +961,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::optics::IsoOptic,
-		/// 	functions::cloneable_fn_new,
+		/// 	functions::lift_fn_new,
 		/// 	types::optics::{
 		/// 		IsoPrime,
 		/// 		reverse,
@@ -973,7 +972,7 @@ mod inner {
 		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
 		/// let reversed = reverse::<RcBrand, _, _, _, _, _>(iso);
 		/// // reverse(iso) is itself an iso from i32 to (i32,)
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|(x,): (i32,)| (x * 2,));
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|(x,): (i32,)| (x * 2,));
 		/// let modifier = IsoOptic::evaluate::<RcFnBrand>(&reversed, f);
 		/// assert_eq!(modifier(21), 42);
 		/// ```

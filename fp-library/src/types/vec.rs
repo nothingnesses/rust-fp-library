@@ -11,40 +11,7 @@ mod inner {
 				OptionBrand,
 				VecBrand,
 			},
-			classes::{
-				Alt,
-				Applicative,
-				ApplyFirst,
-				ApplySecond,
-				CloneableFn,
-				Compactable,
-				Extend,
-				Filterable,
-				Foldable,
-				Functor,
-				Lift,
-				MonadRec,
-				Monoid,
-				ParCompactable,
-				ParFilterable,
-				ParFoldable,
-				ParFunctor,
-				Plus,
-				Pointed,
-				Semiapplicative,
-				Semigroup,
-				Semimonad,
-				Traversable,
-				Witherable,
-				filterable_with_index::FilterableWithIndex,
-				foldable_with_index::FoldableWithIndex,
-				functor_with_index::FunctorWithIndex,
-				par_filterable_with_index::ParFilterableWithIndex,
-				par_foldable_with_index::ParFoldableWithIndex,
-				par_functor_with_index::ParFunctorWithIndex,
-				traversable_with_index::TraversableWithIndex,
-				with_index::WithIndex,
-			},
+			classes::*,
 			impl_kind,
 			kinds::*,
 		},
@@ -275,8 +242,8 @@ mod inner {
 		/// };
 		///
 		/// let funcs = vec![
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
 		/// ];
 		/// assert_eq!(apply::<RcFnBrand, VecBrand, _, _>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
 		/// ```
@@ -2211,7 +2178,7 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::CloneableFn,
+			classes::*,
 			functions::*,
 		},
 		quickcheck_macros::quickcheck,
@@ -2240,7 +2207,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_identity(v: Vec<i32>) -> bool {
 		apply::<RcFnBrand, VecBrand, _, _>(
-			pure::<VecBrand, _>(<RcFnBrand as CloneableFn>::new(identity)),
+			pure::<VecBrand, _>(<RcFnBrand as LiftFn>::new(identity)),
 			v.clone(),
 		) == v
 	}
@@ -2250,7 +2217,7 @@ mod tests {
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
 		apply::<RcFnBrand, VecBrand, _, _>(
-			pure::<VecBrand, _>(<RcFnBrand as CloneableFn>::new(f)),
+			pure::<VecBrand, _>(<RcFnBrand as LiftFn>::new(f)),
 			pure::<VecBrand, _>(x),
 		) == pure::<VecBrand, _>(f(x))
 	}
@@ -2264,11 +2231,11 @@ mod tests {
 	) -> bool {
 		let u_fns: Vec<_> = u_seeds
 			.iter()
-			.map(|&i| <RcFnBrand as CloneableFn>::new(move |x: i32| x.wrapping_add(i)))
+			.map(|&i| <RcFnBrand as LiftFn>::new(move |x: i32| x.wrapping_add(i)))
 			.collect();
 		let v_fns: Vec<_> = v_seeds
 			.iter()
-			.map(|&i| <RcFnBrand as CloneableFn>::new(move |x: i32| x.wrapping_mul(i)))
+			.map(|&i| <RcFnBrand as LiftFn>::new(move |x: i32| x.wrapping_mul(i)))
 			.collect();
 
 		// RHS: u <*> (v <*> w)
@@ -2284,7 +2251,7 @@ mod tests {
 				v_fns.iter().map(move |vf| {
 					let uf = uf.clone();
 					let vf = vf.clone();
-					<RcFnBrand as CloneableFn>::new(move |x| uf(vf(x)))
+					<RcFnBrand as LiftFn>::new(move |x| uf(vf(x)))
 				})
 			})
 			.collect();
@@ -2299,12 +2266,11 @@ mod tests {
 	fn applicative_interchange(y: i32) -> bool {
 		// u <*> pure y = pure ($ y) <*> u
 		let f = |x: i32| x.wrapping_mul(2);
-		let u = vec![<RcFnBrand as CloneableFn>::new(f)];
+		let u = vec![<RcFnBrand as LiftFn>::new(f)];
 
 		let lhs = apply::<RcFnBrand, VecBrand, _, _>(u.clone(), pure::<VecBrand, _>(y));
 
-		let rhs_fn =
-			<RcFnBrand as CloneableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
+		let rhs_fn = <RcFnBrand as LiftFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
 		let rhs = apply::<RcFnBrand, VecBrand, _, _>(pure::<VecBrand, _>(rhs_fn), u);
 
 		lhs == rhs

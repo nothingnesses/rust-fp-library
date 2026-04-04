@@ -26,24 +26,7 @@ mod inner {
 				ControlFlowBreakAppliedBrand,
 				ControlFlowContinueAppliedBrand,
 			},
-			classes::{
-				Applicative,
-				ApplyFirst,
-				ApplySecond,
-				Bifoldable,
-				Bifunctor,
-				Bitraversable,
-				CloneableFn,
-				Foldable,
-				Functor,
-				Lift,
-				MonadRec,
-				Monoid,
-				Pointed,
-				Semiapplicative,
-				Semimonad,
-				Traversable,
-			},
+			classes::*,
 			impl_kind,
 			kinds::*,
 		},
@@ -1180,8 +1163,7 @@ mod inner {
 		/// 	},
 		/// };
 		///
-		/// let f: ControlFlow<_, ()> =
-		/// 	ControlFlow::Break(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f: ControlFlow<_, ()> = ControlFlow::Break(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(
 		/// 	apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(f, ControlFlow::Break(5)),
 		/// 	ControlFlow::Break(10)
@@ -1724,7 +1706,7 @@ mod inner {
 		/// };
 		///
 		/// let f: ControlFlow<(), _> =
-		/// 	ControlFlow::Continue(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// 	ControlFlow::Continue(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(
 		/// 	apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(f, ControlFlow::Continue(5)),
 		/// 	ControlFlow::Continue(10)
@@ -2216,15 +2198,6 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::{
-				bifunctor::*,
-				foldable::*,
-				lift::*,
-				pointed::*,
-				semiapplicative::*,
-				semimonad::*,
-				traversable::*,
-			},
 			functions::*,
 		},
 		core::ops::ControlFlow,
@@ -2503,9 +2476,9 @@ mod tests {
 	/// handling `Break` and `Continue` variants.
 	#[test]
 	fn test_apply_with_continue() {
-		let f = pure::<ControlFlowContinueAppliedBrand<()>, _>(
-			cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
-		);
+		let f = pure::<ControlFlowContinueAppliedBrand<()>, _>(lift_fn_new::<RcFnBrand, _, _>(
+			|x: i32| x * 2,
+		));
 		let x = pure::<ControlFlowContinueAppliedBrand<()>, _>(5);
 		assert_eq!(
 			apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(f, x),
@@ -2513,10 +2486,9 @@ mod tests {
 		);
 
 		let cont: ControlFlow<_, i32> = ControlFlow::Continue(1);
-		let f_cont =
-			pure::<ControlFlowContinueAppliedBrand<i32>, _>(cloneable_fn_new::<RcFnBrand, _, _>(
-				|x: i32| x * 2,
-			));
+		let f_cont = pure::<ControlFlowContinueAppliedBrand<i32>, _>(
+			lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
+		);
 		assert_eq!(
 			apply::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _>(f_cont, cont),
 			ControlFlow::Continue(1)
@@ -2529,7 +2501,7 @@ mod tests {
 	/// handling `Break` and `Continue` variants.
 	#[test]
 	fn test_apply_with_break() {
-		let f = pure::<ControlFlowBreakAppliedBrand<()>, _>(cloneable_fn_new::<RcFnBrand, _, _>(
+		let f = pure::<ControlFlowBreakAppliedBrand<()>, _>(lift_fn_new::<RcFnBrand, _, _>(
 			|x: i32| x * 2,
 		));
 		let x = pure::<ControlFlowBreakAppliedBrand<()>, _>(5);
@@ -2539,9 +2511,9 @@ mod tests {
 		);
 
 		let brk: ControlFlow<i32, _> = ControlFlow::Break(1);
-		let f_brk = pure::<ControlFlowBreakAppliedBrand<i32>, _>(
-			cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
-		);
+		let f_brk = pure::<ControlFlowBreakAppliedBrand<i32>, _>(lift_fn_new::<RcFnBrand, _, _>(
+			|x: i32| x * 2,
+		));
 		assert_eq!(
 			apply::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _>(f_brk, brk),
 			ControlFlow::Break(1)

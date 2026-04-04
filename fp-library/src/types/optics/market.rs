@@ -9,11 +9,11 @@ mod inner {
 			Apply,
 			brands::optics::*,
 			classes::{
-				CloneableFn,
 				profunctor::{
 					Choice,
 					Profunctor,
 				},
+				*,
 			},
 			impl_kind,
 			kinds::*,
@@ -30,7 +30,7 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure."
 	)]
-	pub struct Market<'a, FunctionBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> {
+	pub struct Market<'a, FunctionBrand: LiftFn, A: 'a, B: 'a, S: 'a, T: 'a> {
 		/// Preview function: tries to extract the focus.
 		pub preview: <FunctionBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
 		/// Review function: constructs the structure.
@@ -45,9 +45,7 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure."
 	)]
-	impl<'a, FunctionBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a>
-		Market<'a, FunctionBrand, A, B, S, T>
-	{
+	impl<'a, FunctionBrand: LiftFn, A: 'a, B: 'a, S: 'a, T: 'a> Market<'a, FunctionBrand, A, B, S, T> {
 		/// Creates a new `Market` instance.
 		#[document_signature]
 		///
@@ -60,15 +58,15 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::RcFnBrand,
-		/// 	classes::cloneable_fn::new as cloneable_fn_new,
+		/// 	classes::cloneable_fn::new as lift_fn_new,
 		/// 	types::optics::Market,
 		/// };
 		///
 		/// let market = Market::<RcFnBrand, i32, i32, String, String>::new(
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: String| {
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|s: String| {
 		/// 		s.parse::<i32>().map_err(|_| "error".to_string())
 		/// 	}),
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|n: i32| n.to_string()),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|n: i32| n.to_string()),
 		/// );
 		/// assert_eq!((market.preview)("123".to_string()), Ok(123));
 		/// assert_eq!((market.review)(456), "456".to_string());
@@ -85,7 +83,7 @@ mod inner {
 	}
 
 	impl_kind! {
-		impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> for MarketBrand<FunctionBrand, A, B> {
+		impl<FunctionBrand: LiftFn + 'static, A: 'static, B: 'static> for MarketBrand<FunctionBrand, A, B> {
 			#[document_default]
 			type Of<'a, S: 'a, T: 'a>: 'a = Market<'a, FunctionBrand, A, B, S, T>;
 		}
@@ -96,7 +94,7 @@ mod inner {
 		"The type of the value produced by the preview function.",
 		"The type of the value consumed by the review function."
 	)]
-	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Profunctor
+	impl<FunctionBrand: LiftFn + 'static, A: 'static, B: 'static> Profunctor
 		for MarketBrand<FunctionBrand, A, B>
 	{
 		/// Maps functions over the input and output of the `Market` profunctor.
@@ -127,7 +125,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as cloneable_fn_new,
+		/// 		cloneable_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},
@@ -136,10 +134,10 @@ mod inner {
 		///
 		/// // Market is usually used internally by Prism optics
 		/// let market = Market::<RcFnBrand, i32, i32, String, String>::new(
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: String| {
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|s: String| {
 		/// 		s.parse::<i32>().map_err(|_| "error".to_string())
 		/// 	}),
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|n: i32| n.to_string()),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|n: i32| n.to_string()),
 		/// );
 		/// let transformed = <MarketBrand<RcFnBrand, i32, i32> as Profunctor>::dimap(
 		/// 	|s: String| s,
@@ -155,14 +153,14 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, V>) {
 			let preview = puv.preview;
 			let review = puv.review;
-			let st = <FunctionBrand as CloneableFn>::new(st);
-			let uv = <FunctionBrand as CloneableFn>::new(uv);
+			let st = <FunctionBrand as LiftFn>::new(st);
+			let uv = <FunctionBrand as LiftFn>::new(uv);
 			let uv_2 = uv.clone();
 			Market::new(
-				<FunctionBrand as CloneableFn>::new(move |s: S| {
+				<FunctionBrand as LiftFn>::new(move |s: S| {
 					(*preview)((*st)(s)).map_err(|u| (*uv)(u))
 				}),
-				<FunctionBrand as CloneableFn>::new(move |b: B| (*uv_2)((*review)(b))),
+				<FunctionBrand as LiftFn>::new(move |b: B| (*uv_2)((*review)(b))),
 			)
 		}
 	}
@@ -172,7 +170,7 @@ mod inner {
 		"The type of the value produced by the preview function.",
 		"The type of the value consumed by the review function."
 	)]
-	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Choice
+	impl<FunctionBrand: LiftFn + 'static, A: 'static, B: 'static> Choice
 		for MarketBrand<FunctionBrand, A, B>
 	{
 		/// Lifts the `Market` profunctor to operate on the left component of a `Result`.
@@ -198,7 +196,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as cloneable_fn_new,
+		/// 		cloneable_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},
@@ -206,8 +204,8 @@ mod inner {
 		/// };
 		///
 		/// let market = Market::<RcFnBrand, i32, i32, i32, i32>::new(
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s| Ok(s)),
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|b| b),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|s| Ok(s)),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|b| b),
 		/// );
 		/// let left_market = <MarketBrand<RcFnBrand, i32, i32> as Choice>::left::<i32, i32, i32>(market);
 		/// assert_eq!((left_market.preview)(Err(42)), Ok(42));
@@ -219,11 +217,11 @@ mod inner {
 			let preview = pab.preview;
 			let review = pab.review;
 			Market::new(
-				<FunctionBrand as CloneableFn>::new(move |r: Result<C, S>| match r {
+				<FunctionBrand as LiftFn>::new(move |r: Result<C, S>| match r {
 					Ok(c) => Err(Ok(c)),
 					Err(s) => (*preview)(s).map_err(Err),
 				}),
-				<FunctionBrand as CloneableFn>::new(move |b: B| Err((*review)(b))),
+				<FunctionBrand as LiftFn>::new(move |b: B| Err((*review)(b))),
 			)
 		}
 
@@ -250,7 +248,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as cloneable_fn_new,
+		/// 		cloneable_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},
@@ -258,8 +256,8 @@ mod inner {
 		/// };
 		///
 		/// let market = Market::<RcFnBrand, i32, i32, i32, i32>::new(
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s| Ok(s)),
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|b| b),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|s| Ok(s)),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|b| b),
 		/// );
 		/// let right_market = <MarketBrand<RcFnBrand, i32, i32> as Choice>::right::<i32, i32, i32>(market);
 		/// assert_eq!((right_market.preview)(Ok(42)), Ok(42));
@@ -271,11 +269,11 @@ mod inner {
 			let preview = pab.preview;
 			let review = pab.review;
 			Market::new(
-				<FunctionBrand as CloneableFn>::new(move |r: Result<S, C>| match r {
+				<FunctionBrand as LiftFn>::new(move |r: Result<S, C>| match r {
 					Ok(s) => (*preview)(s).map_err(Ok),
 					Err(c) => Err(Err(c)),
 				}),
-				<FunctionBrand as CloneableFn>::new(move |b: B| Ok((*review)(b))),
+				<FunctionBrand as LiftFn>::new(move |b: B| Ok((*review)(b))),
 			)
 		}
 	}

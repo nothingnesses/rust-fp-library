@@ -10,14 +10,13 @@ mod inner {
 				optics::*,
 			},
 			classes::{
-				CloneableFn,
-				UnsizedCoercible,
 				monoid::Monoid,
 				optics::*,
 				profunctor::{
 					Strong,
 					Wander,
 				},
+				*,
 			},
 			kinds::*,
 			types::optics::Indexed,
@@ -114,18 +113,18 @@ mod inner {
 		/// 		FnBrand,
 		/// 		RcBrand,
 		/// 	},
-		/// 	classes::CloneableFn,
+		/// 	classes::*,
 		/// 	types::optics::IndexedLens,
 		/// };
 		/// let l: IndexedLens<RcBrand, usize, i32, String, i32, String> =
-		/// 	IndexedLens::new(|x| ((0, x), <FnBrand<RcBrand> as CloneableFn>::new(|s| s)));
+		/// 	IndexedLens::new(|x| ((0, x), <FnBrand<RcBrand> as LiftFn>::new(|s| s)));
 		/// assert_eq!(l.iview(42), (0, 42));
 		/// ```
 		pub fn new(
 			to: impl 'a + Fn(S) -> ((I, A), <FnBrand<PointerBrand> as CloneableFn>::Of<'a, B, T>)
 		) -> Self {
 			IndexedLens {
-				to: <FnBrand<PointerBrand> as CloneableFn>::new(to),
+				to: <FnBrand<PointerBrand> as LiftFn>::new(to),
 			}
 		}
 
@@ -150,16 +149,16 @@ mod inner {
 		) -> Self
 		where
 			S: Clone, {
-			let iview_brand = <FnBrand<PointerBrand> as CloneableFn>::new(iview);
-			let set_brand = <FnBrand<PointerBrand> as CloneableFn>::new(set);
+			let iview_brand = <FnBrand<PointerBrand> as LiftFn>::new(iview);
+			let set_brand = <FnBrand<PointerBrand> as LiftFn>::new(set);
 
 			IndexedLens {
-				to: <FnBrand<PointerBrand> as CloneableFn>::new(move |s: S| {
+				to: <FnBrand<PointerBrand> as LiftFn>::new(move |s: S| {
 					let s_clone = s.clone();
 					let set_brand = set_brand.clone();
 					(
 						iview_brand(s),
-						<FnBrand<PointerBrand> as CloneableFn>::new(move |b| {
+						<FnBrand<PointerBrand> as LiftFn>::new(move |b| {
 							set_brand((s_clone.clone(), b))
 						}),
 					)
@@ -731,18 +730,18 @@ mod inner {
 		/// 		FnBrand,
 		/// 		RcBrand,
 		/// 	},
-		/// 	classes::CloneableFn,
+		/// 	classes::*,
 		/// 	types::optics::IndexedLensPrime,
 		/// };
 		/// let l: IndexedLensPrime<RcBrand, usize, i32, i32> =
-		/// 	IndexedLensPrime::new(|x| ((0, x), <FnBrand<RcBrand> as CloneableFn>::new(|s| s)));
+		/// 	IndexedLensPrime::new(|x| ((0, x), <FnBrand<RcBrand> as LiftFn>::new(|s| s)));
 		/// assert_eq!(l.iview(42), (0, 42));
 		/// ```
 		pub fn new(
 			to: impl 'a + Fn(S) -> ((I, A), <FnBrand<PointerBrand> as CloneableFn>::Of<'a, A, S>)
 		) -> Self {
 			IndexedLensPrime {
-				to: <FnBrand<PointerBrand> as CloneableFn>::new(to),
+				to: <FnBrand<PointerBrand> as LiftFn>::new(to),
 			}
 		}
 
@@ -767,16 +766,16 @@ mod inner {
 		) -> Self
 		where
 			S: Clone, {
-			let iview_brand = <FnBrand<PointerBrand> as CloneableFn>::new(iview);
-			let set_brand = <FnBrand<PointerBrand> as CloneableFn>::new(set);
+			let iview_brand = <FnBrand<PointerBrand> as LiftFn>::new(iview);
+			let set_brand = <FnBrand<PointerBrand> as LiftFn>::new(set);
 
 			IndexedLensPrime {
-				to: <FnBrand<PointerBrand> as CloneableFn>::new(move |s: S| {
+				to: <FnBrand<PointerBrand> as LiftFn>::new(move |s: S| {
 					let s_clone = s.clone();
 					let set_brand = set_brand.clone();
 					(
 						iview_brand(s),
-						<FnBrand<PointerBrand> as CloneableFn>::new(move |a| {
+						<FnBrand<PointerBrand> as LiftFn>::new(move |a| {
 							set_brand((s_clone.clone(), a))
 						}),
 					)

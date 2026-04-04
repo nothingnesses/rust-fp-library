@@ -491,8 +491,8 @@ pub fn bench_vec(c: &mut Criterion) {
 	// Apply
 	{
 		let f_vec = vec![
-			cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
-			cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
+			lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
+			lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
 		];
 		let mut group = c.benchmark_group("Vec Apply");
 		group.bench_with_input(BenchmarkId::new("std", size), &size, |b, &_| {

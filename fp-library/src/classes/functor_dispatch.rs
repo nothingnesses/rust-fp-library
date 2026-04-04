@@ -67,6 +67,28 @@ mod inner {
 	/// type is `&A`. Routes to [`RefFunctor::ref_map`](crate::classes::RefFunctor::ref_map).
 	pub struct Ref;
 
+	// -- Closure mode --
+
+	/// Trait that maps a closure mode marker ([`Val`] or [`Ref`]) to the
+	/// corresponding `dyn Fn` trait object type.
+	///
+	/// Used by [`CloneableFn`](crate::classes::CloneableFn) to parameterize
+	/// the `Deref` target of wrapped closures. `Val` produces
+	/// `dyn Fn(A) -> B` (by-value), `Ref` produces `dyn Fn(&A) -> B`
+	/// (by-reference).
+	pub trait ClosureMode {
+		/// The unsized closure trait object type for this mode.
+		type Target<'a, A: 'a, B: 'a>: ?Sized + 'a;
+	}
+
+	impl ClosureMode for Val {
+		type Target<'a, A: 'a, B: 'a> = dyn 'a + Fn(A) -> B;
+	}
+
+	impl ClosureMode for Ref {
+		type Target<'a, A: 'a, B: 'a> = dyn 'a + Fn(&A) -> B;
+	}
+
 	// -- Dispatch trait --
 
 	/// Trait that routes a map operation to the appropriate type class method.

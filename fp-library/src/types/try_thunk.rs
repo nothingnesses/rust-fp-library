@@ -1120,7 +1120,7 @@ mod inner {
 		/// };
 		///
 		/// let func: TryThunk<_, ()> =
-		/// 	pure::<TryThunkErrAppliedBrand<()>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// 	pure::<TryThunkErrAppliedBrand<()>, _>(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let val: TryThunk<_, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(21);
 		/// let result = apply::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Ok(42));
@@ -1874,7 +1874,7 @@ mod inner {
 		/// };
 		///
 		/// let func: TryThunk<i32, _> =
-		/// 	pure::<TryThunkOkAppliedBrand<i32>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// 	pure::<TryThunkOkAppliedBrand<i32>, _>(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let val: TryThunk<i32, _> = pure::<TryThunkOkAppliedBrand<i32>, _>(21);
 		/// let result = apply::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Err(42));

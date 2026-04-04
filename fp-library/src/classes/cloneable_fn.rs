@@ -1,5 +1,12 @@
 //! Cloneable wrappers over closures for generic handling of functions in higher-kinded contexts.
 //!
+//! The [`CloneableFn`] trait defines the type of the wrapper, parameterized by
+//! a [`ClosureMode`](crate::classes::functor_dispatch::ClosureMode) that determines whether the
+//! wrapped closure takes owned values ([`Val`](crate::classes::functor_dispatch::Val)) or
+//! references ([`Ref`](crate::classes::functor_dispatch::Ref)).
+//!
+//! The [`LiftFn`] trait provides construction of Val-mode wrapped functions.
+//!
 //! ### Examples
 //!
 //! ```
@@ -8,29 +15,42 @@
 //! 	functions::*,
 //! };
 //!
-//! let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+//! let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 //! assert_eq!(f(5), 10);
 //! ```
 
 #[fp_macros::document_module]
 mod inner {
 	use {
-		crate::classes::*,
+		crate::classes::{
+			RefCountedPointer,
+			functor_dispatch::{
+				ClosureMode,
+				Val,
+			},
+		},
 		fp_macros::*,
 		std::ops::Deref,
 	};
 
-	/// A trait for cloneable wrappers over closures, allowing for generic handling of cloneable functions in higher-kinded contexts.
+	/// A trait for cloneable wrappers over closures, parameterized by closure mode.
 	///
-	/// This trait is implemented by "Brand" types (like [`ArcFnBrand`][crate::brands::ArcFnBrand]
-	/// and [`RcFnBrand`][crate::brands::RcFnBrand]) to provide a way to construct
-	/// and type-check cloneable wrappers over closures (`Arc<dyn Fn...>` or
-	/// `Rc<dyn Fn...>`) in a generic context, allowing library users to choose
-	/// between implementations at function call sites.
+	/// This trait is implemented by "Brand" types (like [`RcFnBrand`][crate::brands::RcFnBrand])
+	/// to provide a way to type-check cloneable wrappers over closures (`Rc<dyn Fn...>` or
+	/// `Arc<dyn Fn...>`) in a generic context.
 	///
-	/// The lifetime `'a` ensures the function doesn't outlive referenced data,
-	/// while generic types `A` and `B` represent the input and output types, respectively.
-	pub trait CloneableFn: Function {
+	/// The `Mode` parameter determines the `Deref` target:
+	/// - [`Val`]: wraps `Fn(A) -> B` (by-value closures)
+	/// - [`Ref`]: wraps `Fn(&A) -> B` (by-reference closures)
+	///
+	/// The default mode is [`Val`], so existing code using `CloneableFn` without
+	/// a mode parameter is unchanged.
+	///
+	/// For construction of wrapped functions, see [`LiftFn`].
+	#[document_type_parameters(
+		"The closure mode. Either [`Val`] (by-value, default) or [`Ref`] (by-reference)."
+	)]
+	pub trait CloneableFn<Mode: ClosureMode = Val> {
 		/// The pointer brand backing this function wrapper.
 		///
 		/// Each `CloneableFn` implementor is backed by exactly one reference-counted
@@ -41,8 +61,17 @@ mod inner {
 		///
 		/// This associated type represents the concrete type of the wrapper (e.g., `Rc<dyn Fn(A) -> B>`)
 		/// that implements `Clone` and dereferences to the underlying closure.
-		type Of<'a, A: 'a, B: 'a>: 'a + Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
+		type Of<'a, A: 'a, B: 'a>: 'a + Clone + Deref<Target = Mode::Target<'a, A, B>>;
+	}
 
+	/// A trait for constructing cloneable function wrappers from closures.
+	///
+	/// This is separated from [`CloneableFn`] because the closure parameter type
+	/// (`Fn(A) -> B`) is specific to [`Val`] mode. By-reference mode
+	/// (`CloneableFn<Ref>`) uses
+	/// `coerce_ref_fn` for
+	/// construction instead.
+	pub trait LiftFn: CloneableFn<Val> {
 		/// Creates a new cloneable function wrapper.
 		///
 		/// This function wraps the provided closure `f` into a cloneable function.
@@ -64,7 +93,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
 		/// ```
 		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as CloneableFn>::Of<'a, A, B>;
@@ -72,7 +101,7 @@ mod inner {
 
 	/// Creates a new cloneable function wrapper.
 	///
-	/// Free function version that dispatches to [the type class' associated function][`CloneableFn::new`].
+	/// Free function version that dispatches to [the type class' associated function][`LiftFn::new`].
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -92,13 +121,13 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+	/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
 	pub fn new<'a, Brand, A, B>(f: impl 'a + Fn(A) -> B) -> <Brand as CloneableFn>::Of<'a, A, B>
 	where
-		Brand: CloneableFn, {
-		<Brand as CloneableFn>::new(f)
+		Brand: LiftFn, {
+		<Brand as LiftFn>::new(f)
 	}
 }
 

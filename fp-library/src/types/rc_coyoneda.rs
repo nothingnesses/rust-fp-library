@@ -53,15 +53,9 @@ mod inner {
 		crate::{
 			brands::RcCoyonedaBrand,
 			classes::{
-				CloneableFn,
-				Foldable,
-				Functor,
 				Lift,
-				Monoid,
 				NaturalTransformation,
-				Pointed,
-				Semiapplicative,
-				Semimonad,
+				*,
 			},
 			impl_kind,
 			kinds::*,
@@ -428,7 +422,7 @@ mod inner {
 		/// // Can still use coyo after folding.
 		/// assert_eq!(coyo.lower_ref(), vec![10, 20, 30]);
 		/// ```
-		pub fn fold_map<FnBrand: CloneableFn + 'a, M>(
+		pub fn fold_map<FnBrand: LiftFn + 'a, M>(
 			&self,
 			func: impl Fn(A) -> M + 'a,
 		) -> M
@@ -642,14 +636,12 @@ mod inner {
 		/// };
 		///
 		/// let ff =
-		/// 	RcCoyoneda::<OptionBrand, _>::lift(Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| {
-		/// 		x * 2
-		/// 	})));
+		/// 	RcCoyoneda::<OptionBrand, _>::lift(Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2)));
 		/// let fa = RcCoyoneda::<OptionBrand, _>::lift(Some(5));
 		/// let result = RcCoyoneda::<OptionBrand, i32>::apply::<RcFnBrand, _, _>(ff, fa);
 		/// assert_eq!(result.lower_ref(), Some(10));
 		/// ```
-		pub fn apply<FnBrand: CloneableFn + 'a, B: Clone + 'a, C: 'a>(
+		pub fn apply<FnBrand: LiftFn + 'a, B: Clone + 'a, C: 'a>(
 			ff: RcCoyoneda<'a, F, <FnBrand as CloneableFn>::Of<'a, B, C>>,
 			fa: RcCoyoneda<'a, F, B>,
 		) -> RcCoyoneda<'a, F, C>
@@ -803,7 +795,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: LiftFn + 'a, {
 			F::fold_map::<FnBrand, A, M>(func, fa.lower_ref())
 		}
 	}

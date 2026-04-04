@@ -9,8 +9,8 @@
 //! 	functions::*,
 //! };
 //!
-//! let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-//! let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+//! let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+//! let g = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 //! let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 //! assert_eq!(h(5), 12); // (5 + 1) * 2
 //! ```
@@ -49,9 +49,9 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-	/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-	/// let h = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x - 3);
+	/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+	/// let g = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+	/// let h = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x - 3);
 	///
 	/// // Associativity: compose(f, compose(g, h)) = compose(compose(f, g), h)
 	/// let left = semigroupoid_compose::<RcFnBrand, _, _, _>(
@@ -95,8 +95,8 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let g = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 		/// assert_eq!(h(5), 12); // (5 + 1) * 2
 		/// ```
@@ -134,8 +134,8 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-	/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+	/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+	/// let g = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 	/// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```

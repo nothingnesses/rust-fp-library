@@ -137,19 +137,7 @@ mod inner {
 		crate::{
 			Apply,
 			brands::CoyonedaBrand,
-			classes::{
-				ApplyFirst,
-				ApplySecond,
-				CloneableFn,
-				Foldable,
-				Functor,
-				Lift,
-				Monoid,
-				NaturalTransformation,
-				Pointed,
-				Semiapplicative,
-				Semimonad,
-			},
+			classes::*,
 			impl_kind,
 			kinds::*,
 			types::CoyonedaExplicit,
@@ -704,7 +692,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: LiftFn + 'a, {
 			F::fold_map::<FnBrand, A, M>(func, fa.lower())
 		}
 	}
@@ -800,8 +788,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let ff =
-		/// 	Coyoneda::<OptionBrand, _>::lift(Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2)));
+		/// let ff = Coyoneda::<OptionBrand, _>::lift(Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2)));
 		/// let fa = Coyoneda::<OptionBrand, _>::lift(Some(5));
 		/// let result = apply::<RcFnBrand, CoyonedaBrand<OptionBrand>, _, _>(ff, fa);
 		/// assert_eq!(result.lower(), Some(10));
@@ -1220,9 +1207,8 @@ mod tests {
 
 	#[test]
 	fn apply_option_some() {
-		let ff = Coyoneda::<OptionBrand, _>::lift(Some(cloneable_fn_new::<RcFnBrand, _, _>(
-			|x: i32| x * 2,
-		)));
+		let ff =
+			Coyoneda::<OptionBrand, _>::lift(Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2)));
 		let fa = Coyoneda::<OptionBrand, _>::lift(Some(5));
 		let result = apply::<RcFnBrand, CoyonedaBrand<OptionBrand>, _, _>(ff, fa);
 		assert_eq!(result.lower(), Some(10));
@@ -1240,8 +1226,8 @@ mod tests {
 	#[test]
 	fn apply_vec() {
 		let ff = Coyoneda::<VecBrand, _>::lift(vec![
-			cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
-			cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 10),
+			lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
+			lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 10),
 		]);
 		let fa = Coyoneda::<VecBrand, _>::lift(vec![2i32, 3]);
 		let result = apply::<RcFnBrand, CoyonedaBrand<VecBrand>, _, _>(ff, fa);

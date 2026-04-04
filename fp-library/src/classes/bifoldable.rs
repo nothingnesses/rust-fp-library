@@ -128,24 +128,24 @@ mod inner {
 		/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(|e, acc| acc - e, |s, acc| acc + s, 10, x);
 		/// assert_eq!(y, 7);
 		/// ```
-		fn bi_fold_right<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+		fn bi_fold_right<'a, FnBrand: LiftFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
 			f: impl Fn(A, C) -> C + 'a,
 			g: impl Fn(B, C) -> C + 'a,
 			z: C,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
 		) -> C {
-			let f = <FnBrand as CloneableFn>::new(move |(a, c)| f(a, c));
-			let g = <FnBrand as CloneableFn>::new(move |(b, c)| g(b, c));
+			let f = <FnBrand as LiftFn>::new(move |(a, c)| f(a, c));
+			let g = <FnBrand as LiftFn>::new(move |(b, c)| g(b, c));
 			let endo = Self::bi_fold_map::<FnBrand, A, B, Endofunction<'a, FnBrand, C>>(
 				move |a: A| {
 					let f = f.clone();
-					Endofunction::<FnBrand, C>::new(<FnBrand as CloneableFn>::new(move |c| {
+					Endofunction::<FnBrand, C>::new(<FnBrand as LiftFn>::new(move |c| {
 						f((a.clone(), c))
 					}))
 				},
 				move |b: B| {
 					let g = g.clone();
-					Endofunction::<FnBrand, C>::new(<FnBrand as CloneableFn>::new(move |c| {
+					Endofunction::<FnBrand, C>::new(<FnBrand as LiftFn>::new(move |c| {
 						g((b.clone(), c))
 					}))
 				},
@@ -189,33 +189,34 @@ mod inner {
 		/// 	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _>(|acc, e| acc - e, |acc, s| acc + s, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
-		fn bi_fold_left<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+		fn bi_fold_left<'a, FnBrand: LiftFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
 			f: impl Fn(C, A) -> C + 'a,
 			g: impl Fn(C, B) -> C + 'a,
 			z: C,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
 		) -> C {
-			let f = <FnBrand as CloneableFn>::new(move |(c, a)| f(c, a));
-			let g = <FnBrand as CloneableFn>::new(move |(c, b)| g(c, b));
-			let endo =
-				Self::bi_fold_right::<FnBrand, A, B, Endofunction<'a, FnBrand, C>>(
-					move |a: A, k: Endofunction<'a, FnBrand, C>| {
-						let f = f.clone();
-						let current = Endofunction::<FnBrand, C>::new(
-							<FnBrand as CloneableFn>::new(move |c| f((c, a.clone()))),
-						);
-						Semigroup::append(k, current)
-					},
-					move |b: B, k: Endofunction<'a, FnBrand, C>| {
-						let g = g.clone();
-						let current = Endofunction::<FnBrand, C>::new(
-							<FnBrand as CloneableFn>::new(move |c| g((c, b.clone()))),
-						);
-						Semigroup::append(k, current)
-					},
-					Endofunction::<FnBrand, C>::empty(),
-					p,
-				);
+			let f = <FnBrand as LiftFn>::new(move |(c, a)| f(c, a));
+			let g = <FnBrand as LiftFn>::new(move |(c, b)| g(c, b));
+			let endo = Self::bi_fold_right::<FnBrand, A, B, Endofunction<'a, FnBrand, C>>(
+				move |a: A, k: Endofunction<'a, FnBrand, C>| {
+					let f = f.clone();
+					let current =
+						Endofunction::<FnBrand, C>::new(<FnBrand as LiftFn>::new(move |c| {
+							f((c, a.clone()))
+						}));
+					Semigroup::append(k, current)
+				},
+				move |b: B, k: Endofunction<'a, FnBrand, C>| {
+					let g = g.clone();
+					let current =
+						Endofunction::<FnBrand, C>::new(<FnBrand as LiftFn>::new(move |c| {
+							g((c, b.clone()))
+						}));
+					Semigroup::append(k, current)
+				},
+				Endofunction::<FnBrand, C>::empty(),
+				p,
+			);
 			endo.0(z)
 		}
 
@@ -257,7 +258,7 @@ mod inner {
 		/// );
 		/// assert_eq!(y, "5".to_string());
 		/// ```
-		fn bi_fold_map<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, M>(
+		fn bi_fold_map<'a, FnBrand: LiftFn + 'a, A: 'a + Clone, B: 'a + Clone, M>(
 			f: impl Fn(A) -> M + 'a,
 			g: impl Fn(B) -> M + 'a,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
@@ -310,7 +311,7 @@ mod inner {
 	/// ```
 	pub fn bi_fold_right<
 		'a,
-		FnBrand: CloneableFn + 'a,
+		FnBrand: LiftFn + 'a,
 		Brand: Bifoldable,
 		A: 'a + Clone,
 		B: 'a + Clone,
@@ -361,7 +362,7 @@ mod inner {
 	/// ```
 	pub fn bi_fold_left<
 		'a,
-		FnBrand: CloneableFn + 'a,
+		FnBrand: LiftFn + 'a,
 		Brand: Bifoldable,
 		A: 'a + Clone,
 		B: 'a + Clone,
@@ -414,7 +415,7 @@ mod inner {
 	/// ```
 	pub fn bi_fold_map<
 		'a,
-		FnBrand: CloneableFn + 'a,
+		FnBrand: LiftFn + 'a,
 		Brand: Bifoldable,
 		A: 'a + Clone,
 		B: 'a + Clone,
