@@ -402,25 +402,10 @@ verified) because they are mechanical and independent of the
 ClosureMode design. If the ClosureMode approach fails, the rename
 scope may differ.
 
-### Fallback approaches if A1 fails
-
-**(B) Separate `RefCloneableFn` trait.** A standalone trait wrapping
-`Fn(&A) -> B` with no connection to `CloneableFn`. Simple and
-proven (implemented on `backup/ref-cloneable-fn` branch). Trade-off:
-adds a new trait instead of parameterizing the existing one.
-
-**(C) Remove `Deref` bound entirely.** `CloneableFn<Mode>` with
-`type Of: Clone` only (no `Deref`). Callers add their own `Deref`
-bound where needed. Trade-off: pushes complexity to every usage site.
-
 ## Open Questions
 
-### Does `ClosureMode` with unsized GAT compile?
-
-The `ClosureMode` trait uses `type Target<'a, A, B>: ?Sized`. GATs
-with `?Sized` bounds are stable since Rust 1.65, but the interaction
-with `Deref<Target = Mode::Target<...>>` on another trait's GAT
-is untested. This must be verified before proceeding.
+None at this time. The `ClosureMode` unsized GAT + `Deref` interaction
+was verified in Step 5 and works on stable Rust.
 
 ## Completed Changes
 
