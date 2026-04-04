@@ -229,35 +229,37 @@ element access) was investigated and rejected for three reasons:
    Implementation: `fp-library/src/classes/ref_pointed.rs`,
    `fp-library/src/classes/ref_lift.rs`,
    `fp-library/src/classes/ref_semimonad.rs`.
-5. **Add `ClosureMode` trait and parameterize `CloneableFn`**: Define
-   `ClosureMode` with `Val`/`Ref` impls. Add `Mode: ClosureMode`
-   default parameter to `CloneableFn`. Remove `Function` supertrait.
-   Split `new` method into a separate `LiftFn: CloneableFn<Val>`
-   trait. Update call sites that construct wrapped functions to use
-   `LiftFn` bound. Implement `CloneableFn<Ref>` for
-   `FnBrand<P>`. Apply same changes to `SendCloneableFn` /
-   `SendLiftFn`. Verify existing code compiles with defaults.
-   If this approach fails due to GAT/`Deref` interactions, fall back
-   to the `RefCloneableFn` approach on `backup/ref-cloneable-fn`.
-6. **RefSemiapplicative**: Define using `CloneableFn<Ref>`. Implement
+5. ~~**Add `ClosureMode` trait and parameterize `CloneableFn`**~~: Done.
+   Added `ClosureMode` with `Val`/`Ref` impls. Parameterized
+   `CloneableFn<Mode: ClosureMode = Val>`. Removed `Function`
+   supertrait. Split `new` into `LiftFn: CloneableFn<Val>`. Renamed
+   free function from `cloneable_fn_new` to `lift_fn_new`. Added
+   `coerce_ref_fn` to `UnsizedCoercible` for by-ref construction.
+   Converted many explicit class imports to wildcards.
+   Implementation: `ClosureMode` in `functor_dispatch.rs`,
+   `LiftFn` in `cloneable_fn.rs`.
+6. **Add `CloneableFn<Ref>` impl for `FnBrand<P>`**. Implement
+   using `coerce_ref_fn`. Apply same `ClosureMode` parameterization
+   to `SendCloneableFn` and split its `new` into `SendLiftFn`.
+7. **RefSemiapplicative**: Define using `CloneableFn<Ref>`. Implement
    for `LazyBrand<RcLazyConfig>`.
-7. **Blanket traits**: `RefApplicative = RefPointed + RefSemiapplicative`,
+8. **Blanket traits**: `RefApplicative = RefPointed + RefSemiapplicative`,
    `RefMonad = RefApplicative + RefSemimonad`.
-8. **SendRef variants**: `SendRefPointed`, `SendRefLift`,
+9. **SendRef variants**: `SendRefPointed`, `SendRefLift`,
    `SendRefSemimonad`, `SendRefSemiapplicative` with `ArcLazy`
    implementations. Follows the same pattern as existing
    `SendRefFunctor` (adds `Send + Sync` bounds on closures and elements).
    Uses `SendCloneableFn<Ref>` for `SendRefSemiapplicative`.
-9. **SendRef blanket traits**: `SendRefApplicative`, `SendRefMonad`.
-10. **Rename traits**: Extract `Callable<Mode>` base trait from the
+10. **SendRef blanket traits**: `SendRefApplicative`, `SendRefMonad`.
+11. **Rename traits**: Extract `Callable<Mode>` base trait from the
     shared `Deref` bound. Rename `CloneableFn` to `CloneableCallable`.
     Rename `Function` to `Arrow`. Rename `SendCloneableFn` to
     `SendCloneableCallable`. Update all references across the
     codebase. This is a mechanical rename done after the structural
     changes are verified.
-11. **Documentation and tests**: Property tests for type class
+12. **Documentation and tests**: Property tests for type class
     laws, doc examples, update limitations.md.
-12. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
+13. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
     generates `ref_bind` calls for by-ref monadic code.
 
 ## Design Decision: CloneableFn with Mode Parameter
@@ -429,6 +431,14 @@ is untested. This must be verified before proceeding.
 - `RefSemimonad` trait and free function `ref_bind` added.
 - All three implemented for `LazyBrand<RcLazyConfig>` with doc examples.
 - All Lazy/TryLazy trait impls updated for `Fn` closure signatures.
+- `ClosureMode` trait added with `Val`/`Ref` impls.
+- `CloneableFn` parameterized with `Mode: ClosureMode = Val`.
+- `Function` supertrait removed from `CloneableFn`.
+- `CloneableFn::new` split into `LiftFn: CloneableFn<Val>`.
+- Free function renamed from `cloneable_fn_new` to `lift_fn_new`.
+- `coerce_ref_fn` added to `UnsizedCoercible` with `RcBrand`/`ArcBrand` impls.
+- Many explicit class imports converted to wildcards.
+- All downstream bounds updated (`CloneableFn` -> `LiftFn` where `new` is called).
 
 ## References
 
