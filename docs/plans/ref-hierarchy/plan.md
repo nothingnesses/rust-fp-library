@@ -229,10 +229,14 @@ element access) was investigated and rejected for three reasons:
    Implementation: `fp-library/src/classes/ref_pointed.rs`,
    `fp-library/src/classes/ref_lift.rs`,
    `fp-library/src/classes/ref_semimonad.rs`.
-5. **Add Mode parameter to CloneableFn and SendCloneableFn**: Add
-   `CloneableFn<Mode = Val>` default parameter. Implement
-   `CloneableFn<Ref>` for `RcFnBrand` and `SendCloneableFn<Ref>` for
-   `ArcFnBrand`. Verify existing code is unaffected by the default.
+5. **Add `ClosureMode` trait and parameterize `CloneableFn`**: Define
+   `ClosureMode` with `Val`/`Ref` impls. Add `Mode: ClosureMode`
+   default parameter to `CloneableFn`. Remove `Function` supertrait.
+   Remove `new` method (use `coerce_fn`/`coerce_ref_fn` instead).
+   Implement `CloneableFn<Ref>` for `FnBrand<P>`. Apply same changes
+   to `SendCloneableFn`. Verify existing code compiles with defaults.
+   If this approach fails due to GAT/`Deref` interactions, fall back
+   to the `RefCloneableFn` approach on `backup/ref-cloneable-fn`.
 6. **RefSemiapplicative**: Define using `CloneableFn<Ref>`. Implement
    for `LazyBrand<RcLazyConfig>`.
 7. **Blanket traits**: `RefApplicative = RefPointed + RefSemiapplicative`,
@@ -255,43 +259,81 @@ The by-value `Semiapplicative::apply` takes
 in `Rc<dyn Fn(A) -> B>` (or `Arc` via `SendCloneableFn`). The by-ref
 variant needs closures that take `&A` instead of `A`.
 
-### Resolved approach: Add a default Mode parameter to CloneableFn
+### Obstacles to parameterizing CloneableFn
 
-Add a default marker parameter to `CloneableFn` using the same
-`Val`/`Ref` markers from `FunctorDispatch`:
+Two properties of the current `CloneableFn` trait make naive
+parameterization infeasible:
+
+1. **`Deref` bound on the associated type.** `CloneableFn` has
+   `type Of<'a, A, B>: Clone + Deref<Target = dyn Fn(A) -> B>`.
+   For `Mode = Ref`, the target would need to be `dyn Fn(&A) -> B`.
+   A fixed `Deref` bound in the trait definition cannot produce
+   different targets per mode.
+
+2. **`Function: Category + Strong` supertrait.** `CloneableFn: Function`,
+   and `Function` also has `Deref<Target = dyn Fn(A) -> B>` on its
+   `Of` type. `Category` and `Strong` define composition and pairing
+   operations that only apply to `Fn(A) -> B`, not `Fn(&A) -> B`.
+   A by-ref function `Fn(&A) -> B` is not composable in the `Category`
+   sense (the output `B` is owned, so you cannot chain
+   `Fn(&A) -> B` with `Fn(&B) -> C` generically).
+
+   The `Function` supertrait exists because `CloneableFn` "is-a"
+   `Function` (it adds `Clone`). But `Semiapplicative::apply` only
+   needs to _call_ and _clone_ the wrapped function, not compose it.
+   The `Category`/`Strong` capabilities are unused by `apply`.
+
+### Chosen approach: ClosureMode trait (Approach A1)
+
+Define a `ClosureMode` trait that parameterizes the closure target:
 
 ```rust
-trait CloneableFn<Mode = Val> {
-    type Of<'a, A: 'a, B: 'a>: 'a;
+trait ClosureMode {
+    type Target<'a, A: 'a, B: 'a>: ?Sized + 'a;
+}
+
+impl ClosureMode for Val {
+    type Target<'a, A: 'a, B: 'a> = dyn 'a + Fn(A) -> B;
+}
+
+impl ClosureMode for Ref {
+    type Target<'a, A: 'a, B: 'a> = dyn 'a + Fn(&A) -> B;
 }
 ```
 
-`RcFnBrand` implements both modes:
+Then `CloneableFn` becomes:
 
 ```rust
-// Existing (unchanged due to default parameter)
-impl CloneableFn for RcFnBrand {
-    type Of<'a, A: 'a, B: 'a> = Rc<dyn Fn(A) -> B + 'a>;
-}
-
-// New: by-ref mode
-impl CloneableFn<Ref> for RcFnBrand {
-    type Of<'a, A: 'a, B: 'a> = Rc<dyn Fn(&A) -> B + 'a>;
+trait CloneableFn<Mode: ClosureMode = Val> {
+    type PointerBrand: RefCountedPointer;
+    type Of<'a, A: 'a, B: 'a>: 'a + Clone
+        + Deref<Target = Mode::Target<'a, A, B>>;
 }
 ```
 
-Similarly for `SendCloneableFn<Mode = Val>` and `ArcFnBrand`.
+The `Deref` bound is preserved but parameterized by `Mode`. Existing
+code using `CloneableFn` (without `Mode`) defaults to `Val` and
+sees `Deref<Target = dyn Fn(A) -> B>` as before. Code using
+`CloneableFn<Ref>` sees `Deref<Target = dyn Fn(&A) -> B>`.
 
-**Why this works:**
+The `new` method is removed from the trait. Construction goes through
+`UnsizedCoercible::coerce_fn` (for Val) and
+`UnsizedCoercible::coerce_ref_fn` (for Ref). The trait's purpose is
+to define the type and its bounds, not to construct values.
+`Semiapplicative` impls already know which mode they use and can
+call the right constructor.
 
-- Default type parameters on traits are stable Rust (same pattern
-  as `Add<Rhs = Self>`).
-- Existing code using `CloneableFn` (without marker) defaults to
-  `CloneableFn<Val>` and is unchanged. Non-breaking.
-- No new function wrapper traits needed.
-- `RefSemiapplicative::ref_apply` uses `FnBrand: CloneableFn<Ref>`,
-  wrapping `Rc<dyn Fn(&A) -> B>`.
-- Follows the same marker-type pattern as `FunctorDispatch`.
+Similarly for `SendCloneableFn<Mode: ClosureMode = Val>` and
+`ArcFnBrand`.
+
+**Breaking changes:**
+
+- `CloneableFn` no longer implies `Function`. Code that uses
+  `Brand: CloneableFn` to access `Function`/`Category`/`Strong`
+  methods adds `+ Function` explicitly.
+- `CloneableFn::new` is removed. Callers use `coerce_fn` /
+  `coerce_ref_fn` directly.
+- `CloneableFn` gains a defaulted type parameter (`Mode`).
 
 **What this unblocks:**
 
@@ -299,11 +341,27 @@ Similarly for `SendCloneableFn<Mode = Val>` and `ArcFnBrand`.
 - `RefApplicative = RefPointed + RefSemiapplicative` follows the
   standard hierarchy.
 - `RefMonad = RefApplicative + RefSemimonad` is the correct shape.
-- No need to defer or define non-standard blanket traits.
+- No new function wrapper traits needed.
+
+### Fallback approaches if A1 fails
+
+**(B) Separate `RefCloneableFn` trait.** A standalone trait wrapping
+`Fn(&A) -> B` with no connection to `CloneableFn`. Simple and
+proven (implemented on `backup/ref-cloneable-fn` branch). Trade-off:
+adds a new trait instead of parameterizing the existing one.
+
+**(C) Remove `Deref` bound entirely.** `CloneableFn<Mode>` with
+`type Of: Clone` only (no `Deref`). Callers add their own `Deref`
+bound where needed. Trade-off: pushes complexity to every usage site.
 
 ## Open Questions
 
-None at this time. All design questions have been resolved.
+### Does `ClosureMode` with unsized GAT compile?
+
+The `ClosureMode` trait uses `type Target<'a, A, B>: ?Sized`. GATs
+with `?Sized` bounds are stable since Rust 1.65, but the interaction
+with `Deref<Target = Mode::Target<...>>` on another trait's GAT
+is untested. This must be verified before proceeding.
 
 ## Completed Changes
 
