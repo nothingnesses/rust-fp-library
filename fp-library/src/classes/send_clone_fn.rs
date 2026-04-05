@@ -23,7 +23,7 @@
 #[fp_macros::document_module]
 mod inner {
 	use {
-		crate::classes::functor_dispatch::{
+		crate::classes::dispatch::{
 			ClosureMode,
 			Val,
 		},

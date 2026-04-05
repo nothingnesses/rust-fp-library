@@ -2576,7 +2576,7 @@ mod tests {
 		let p = |i: i32| Some(if i % 2 == 0 { Ok(i) } else { Err(i) });
 
 		let lhs = wilt::<VecBrand, OptionBrand, _, _, _>(p, x.clone());
-		let rhs = crate::classes::functor_dispatch::map::<OptionBrand, _, _, _>(
+		let rhs = crate::classes::dispatch::map::<OptionBrand, _, _, _>(
 			separate::<VecBrand, _, _>,
 			traverse::<VecBrand, _, _, OptionBrand>(p, x),
 		);
@@ -2590,7 +2590,7 @@ mod tests {
 		let p = |i: i32| Some(if i % 2 == 0 { Some(i) } else { None });
 
 		let lhs = wither::<VecBrand, OptionBrand, _, _>(p, x.clone());
-		let rhs = crate::classes::functor_dispatch::map::<OptionBrand, _, _, _>(
+		let rhs = crate::classes::dispatch::map::<OptionBrand, _, _, _>(
 			compact::<VecBrand, _>,
 			traverse::<VecBrand, _, _, OptionBrand>(p, x),
 		);

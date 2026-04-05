@@ -1,9 +1,9 @@
 //! Cloneable wrappers over closures for generic handling of functions in higher-kinded contexts.
 //!
 //! The [`CloneFn`] trait defines the type of the wrapper, parameterized by
-//! a [`ClosureMode`](crate::classes::functor_dispatch::ClosureMode) that determines whether the
-//! wrapped closure takes owned values ([`Val`](crate::classes::functor_dispatch::Val)) or
-//! references ([`Ref`](crate::classes::functor_dispatch::Ref)).
+//! a [`ClosureMode`](crate::classes::dispatch::ClosureMode) that determines whether the
+//! wrapped closure takes owned values ([`Val`](crate::classes::dispatch::Val)) or
+//! references ([`Ref`](crate::classes::dispatch::Ref)).
 //!
 //! The [`LiftFn`] trait provides construction of Val-mode wrapped functions.
 //!
@@ -24,7 +24,7 @@ mod inner {
 	use {
 		crate::classes::{
 			RefCountedPointer,
-			functor_dispatch::{
+			dispatch::{
 				ClosureMode,
 				Val,
 			},

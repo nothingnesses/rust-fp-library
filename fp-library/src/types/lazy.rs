@@ -42,7 +42,7 @@ mod inner {
 				SendRefSemiapplicative,
 				SendRefSemimonad,
 				WithIndex,
-				functor_dispatch::Ref,
+				dispatch::Ref,
 			},
 			impl_kind,
 			kinds::*,

@@ -25,7 +25,7 @@ mod inner {
 	use {
 		crate::{
 			classes::{
-				functor_dispatch::Ref,
+				dispatch::Ref,
 				*,
 			},
 			kinds::*,

@@ -7,8 +7,8 @@ use {
 			ThunkBrand,
 		},
 		classes::{
+			dispatch::map,
 			foldable::Foldable,
-			functor_dispatch::map,
 			monad_rec::tail_rec_m,
 		},
 		types::{

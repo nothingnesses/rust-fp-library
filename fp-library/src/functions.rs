@@ -25,29 +25,40 @@ use fp_macros::*;
 fp_macros::generate_function_re_exports!("src/classes", {
 	"category::identity": category_identity,
 	"clone_fn::new": lift_fn_new,
-		"pointer::new": pointer_new,
+	"pointer::new": pointer_new,
 	"ref_counted_pointer::cloneable_new": ref_counted_pointer_new,
 	"send_ref_counted_pointer::send_new": send_ref_counted_pointer_new,
 	"plus::empty": plus_empty,
 	"semigroupoid::compose": semigroupoid_compose,
 	"send_clone_fn::new": send_lift_fn_new,
 });
-pub use crate::types::{
-	lazy::{
-		arc_lazy_fix,
-		rc_lazy_fix,
+// Dispatch free functions are in sub-modules not scanned by the macro.
+pub use crate::{
+	classes::dispatch::{
+		bind,
+		lift2,
+		lift3,
+		lift4,
+		lift5,
+		map,
 	},
-	optics::{
-		optics_as_index,
-		optics_compose,
-		optics_indexed_fold_map,
-		optics_indexed_over,
-		optics_indexed_preview,
-		optics_indexed_set,
-		optics_indexed_view,
-		optics_reindexed,
-		optics_un_index,
-		positions,
+	types::{
+		lazy::{
+			arc_lazy_fix,
+			rc_lazy_fix,
+		},
+		optics::{
+			optics_as_index,
+			optics_compose,
+			optics_indexed_fold_map,
+			optics_indexed_over,
+			optics_indexed_preview,
+			optics_indexed_set,
+			optics_indexed_view,
+			optics_reindexed,
+			optics_un_index,
+			positions,
+		},
 	},
 };
 
