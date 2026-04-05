@@ -12,11 +12,16 @@ mod inner {
 	/// This is the thread-safe counterpart of [`RefApplicative`].
 	/// Automatically implemented for any type implementing both
 	/// [`SendRefPointed`] and [`SendRefSemiapplicative`].
-	pub trait SendRefApplicative: SendRefPointed + SendRefSemiapplicative {}
+	pub trait SendRefApplicative:
+		SendRefPointed + SendRefSemiapplicative + SendRefApplyFirst + SendRefApplySecond {
+	}
 
 	/// Blanket implementation of [`SendRefApplicative`].
 	#[document_type_parameters("The brand type.")]
-	impl<Brand> SendRefApplicative for Brand where Brand: SendRefPointed + SendRefSemiapplicative {}
+	impl<Brand> SendRefApplicative for Brand where
+		Brand: SendRefPointed + SendRefSemiapplicative + SendRefApplyFirst + SendRefApplySecond
+	{
+	}
 }
 
 pub use inner::*;

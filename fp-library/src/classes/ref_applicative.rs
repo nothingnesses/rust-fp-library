@@ -42,11 +42,16 @@ mod inner {
 	/// 1. **Identity**: `ref_apply(ref_pure(&id), v) = v` (evaluated values equal).
 	/// 2. **Homomorphism**: `ref_apply(ref_pure(&f), ref_pure(&x)) = ref_pure(&f(&x))`.
 	/// 3. **Interchange**: `ref_apply(u, ref_pure(&y)) = ref_apply(ref_pure(&(|f| f(&y))), u)`.
-	pub trait RefApplicative: RefPointed + RefSemiapplicative {}
+	pub trait RefApplicative:
+		RefPointed + RefSemiapplicative + RefApplyFirst + RefApplySecond {
+	}
 
 	/// Blanket implementation of [`RefApplicative`].
 	#[document_type_parameters("The brand type.")]
-	impl<Brand> RefApplicative for Brand where Brand: RefPointed + RefSemiapplicative {}
+	impl<Brand> RefApplicative for Brand where
+		Brand: RefPointed + RefSemiapplicative + RefApplyFirst + RefApplySecond
+	{
+	}
 }
 
 pub use inner::*;

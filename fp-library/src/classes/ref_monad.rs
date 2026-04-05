@@ -26,7 +26,10 @@
 #[fp_macros::document_module]
 mod inner {
 	use {
-		crate::classes::*,
+		crate::{
+			classes::*,
+			kinds::*,
+		},
 		fp_macros::*,
 	};
 
@@ -98,6 +101,94 @@ mod inner {
 	/// Blanket implementation of [`RefMonad`].
 	#[document_type_parameters("The brand type.")]
 	impl<Brand> RefMonad for Brand where Brand: RefApplicative + RefSemimonad {}
+
+	/// Executes a monadic action conditionally, using by-ref bind.
+	///
+	/// Evaluates the monadic boolean condition by reference, then returns
+	/// one of the two branches depending on the result.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the computations.",
+		"The brand of the monad.",
+		"The type of the result."
+	)]
+	///
+	#[document_parameters(
+		"The monadic boolean condition.",
+		"The value if true.",
+		"The value if false."
+	)]
+	///
+	#[document_returns("The selected branch.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
+	///
+	/// let cond = RcLazy::pure(true);
+	/// let then_val = RcLazy::pure(1);
+	/// let else_val = RcLazy::pure(0);
+	/// let result = ref_if_m::<LazyBrand<RcLazyConfig>, _>(cond, then_val, else_val);
+	/// assert_eq!(*result.evaluate(), 1);
+	/// ```
+	pub fn ref_if_m<'a, Brand: RefMonad, A: 'a>(
+		cond: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, bool>),
+		then_branch: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		else_branch: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	where
+		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
+		Brand::ref_bind(
+			cond,
+			move |c: &bool| {
+				if *c { then_branch.clone() } else { else_branch.clone() }
+			},
+		)
+	}
+
+	/// Performs a monadic action when a by-ref condition is false.
+	///
+	/// Evaluates the monadic boolean condition by reference, then executes
+	/// the action if the result is `false`, otherwise returns `ref_pure(&())`.
+	#[document_signature]
+	///
+	#[document_type_parameters("The lifetime of the computations.", "The brand of the monad.")]
+	///
+	#[document_parameters("The monadic boolean condition.", "The action to execute if false.")]
+	///
+	#[document_returns("The action result, or a pure unit value.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
+	///
+	/// let cond = RcLazy::pure(false);
+	/// let action = RcLazy::pure(());
+	/// let result = ref_unless_m::<LazyBrand<RcLazyConfig>>(cond, action);
+	/// assert_eq!(*result.evaluate(), ());
+	/// ```
+	pub fn ref_unless_m<'a, Brand: RefMonad>(
+		cond: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, bool>),
+		action: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>),
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>)
+	where
+		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>): Clone, {
+		Brand::ref_bind(
+			cond,
+			move |c: &bool| {
+				if *c { Brand::ref_pure(&()) } else { action.clone() }
+			},
+		)
+	}
 }
 
 pub use inner::*;
