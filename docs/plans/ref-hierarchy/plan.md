@@ -251,15 +251,26 @@ element access) was investigated and rejected for three reasons:
    `SendRefFunctor` (adds `Send + Sync` bounds on closures and elements).
    Uses `SendCloneableFn<Ref>` for `SendRefSemiapplicative`.
 10. **SendRef blanket traits**: `SendRefApplicative`, `SendRefMonad`.
-11. **Rename traits**: Extract `Callable<Mode>` base trait from the
+11. **Ref parity traits**: Add by-ref equivalents for all convenience
+    traits and free functions that exist on the non-ref hierarchy:
+    - `RefApplyFirst`, `RefApplySecond` (or default methods on
+      `RefApplicative`). Require `Clone` on the kept value since the
+      closure receives references.
+    - `ref_monad_if`, `ref_monad_unless` free functions.
+    - Any other convenience methods added to non-ref traits in the
+      future should also get ref equivalents.
+      The same applies to SendRef variants if/when they are implemented:
+      `SendRefApplyFirst`, `SendRefApplySecond`, `send_ref_monad_if`,
+      `send_ref_monad_unless`, etc.
+12. **Rename traits**: Extract `Callable<Mode>` base trait from the
     shared `Deref` bound. Rename `CloneableFn` to `CloneableCallable`.
     Rename `Function` to `Arrow`. Rename `SendCloneableFn` to
     `SendCloneableCallable`. Update all references across the
     codebase. This is a mechanical rename done after the structural
     changes are verified.
-12. **Documentation and tests**: Property tests for type class
+13. **Documentation and tests**: Property tests for type class
     laws, doc examples, update limitations.md.
-13. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
+14. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
     generates `ref_bind` calls for by-ref monadic code.
 
 ## Design Decision: CloneableFn with Mode Parameter
