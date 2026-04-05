@@ -154,7 +154,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| bind::<VecBrand, _, _>(v, |x| vec![x, x * 2]),
+				|v| bind::<VecBrand, _, _, _>(v, |x| vec![x, x * 2]),
 				BatchSize::SmallInput,
 			)
 		});

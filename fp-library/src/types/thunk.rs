@@ -632,7 +632,7 @@ mod inner {
 		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
-		/// let result = bind::<ThunkBrand, _, _>(thunk, |x| pure::<ThunkBrand, _>(x * 2));
+		/// let result = bind::<ThunkBrand, _, _, _>(thunk, |x| pure::<ThunkBrand, _>(x * 2));
 		/// assert_eq!(result.evaluate(), 20);
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
@@ -1256,7 +1256,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| pure::<ThunkBrand, _>(x.wrapping_mul(2));
-		let lhs = bind::<ThunkBrand, _, _>(pure::<ThunkBrand, _>(a), f).evaluate();
+		let lhs = bind::<ThunkBrand, _, _, _>(pure::<ThunkBrand, _>(a), f).evaluate();
 		let rhs = f(a).evaluate();
 		lhs == rhs
 	}
@@ -1265,7 +1265,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_right_identity(x: i32) -> bool {
 		let lhs =
-			bind::<ThunkBrand, _, _>(pure::<ThunkBrand, _>(x), pure::<ThunkBrand, _>).evaluate();
+			bind::<ThunkBrand, _, _, _>(pure::<ThunkBrand, _>(x), pure::<ThunkBrand, _>).evaluate();
 		lhs == x
 	}
 
@@ -1276,9 +1276,9 @@ mod tests {
 		let g = |a: i32| pure::<ThunkBrand, _>(a.wrapping_mul(3));
 		let m = pure::<ThunkBrand, _>(x);
 		let m2 = pure::<ThunkBrand, _>(x);
-		let lhs = bind::<ThunkBrand, _, _>(bind::<ThunkBrand, _, _>(m, f), g).evaluate();
-		let rhs =
-			bind::<ThunkBrand, _, _>(m2, move |a| bind::<ThunkBrand, _, _>(f(a), g)).evaluate();
+		let lhs = bind::<ThunkBrand, _, _, _>(bind::<ThunkBrand, _, _, _>(m, f), g).evaluate();
+		let rhs = bind::<ThunkBrand, _, _, _>(m2, move |a| bind::<ThunkBrand, _, _, _>(f(a), g))
+			.evaluate();
 		lhs == rhs
 	}
 

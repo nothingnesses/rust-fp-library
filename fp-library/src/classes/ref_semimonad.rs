@@ -1,4 +1,4 @@
-//! Contexts supporting by-reference monadic sequencing via [`ref_bind`].
+//! Contexts supporting by-reference monadic sequencing via [`bind`].
 //!
 //! Like [`Semimonad::bind`](crate::classes::Semimonad::bind), but the closure
 //! receives `&A` instead of `A`. This enables memoized types like
@@ -74,49 +74,6 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
-	}
-
-	/// Sequences a computation using a reference to the contained value.
-	///
-	/// Free function version that dispatches to [the type class' associated function][`RefSemimonad::ref_bind`].
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the context.",
-		"The type of the value inside the context.",
-		"The type of the value in the resulting context."
-	)]
-	///
-	#[document_parameters(
-		"The context containing the value.",
-		"A function that receives a reference to the value and returns a new context."
-	)]
-	///
-	#[document_returns("A new context produced by the function.")]
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// 	types::*,
-	/// };
-	///
-	/// let lazy = RcLazy::pure(5);
-	/// let result = ref_bind::<LazyBrand<RcLazyConfig>, _, _>(lazy, |x: &i32| {
-	/// 	Lazy::<_, RcLazyConfig>::new({
-	/// 		let v = *x;
-	/// 		move || v * 2
-	/// 	})
-	/// });
-	/// assert_eq!(*result.evaluate(), 10);
-	/// ```
-	pub fn ref_bind<'a, Brand: RefSemimonad, A: 'a, B: 'a>(
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		f: impl Fn(&A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		Brand::ref_bind(fa, f)
 	}
 }
 

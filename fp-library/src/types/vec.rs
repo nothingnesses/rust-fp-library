@@ -281,7 +281,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(bind::<VecBrand, _, _>(vec![1, 2], |x| vec![x, x * 2]), vec![1, 2, 2, 4]);
+		/// assert_eq!(bind::<VecBrand, _, _, _>(vec![1, 2], |x| vec![x, x * 2]), vec![1, 2, 2, 4]);
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -2308,13 +2308,13 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| vec![x.wrapping_mul(2)];
-		bind::<VecBrand, _, _>(pure::<VecBrand, _>(a), f) == f(a)
+		bind::<VecBrand, _, _, _>(pure::<VecBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: Vec<i32>) -> bool {
-		bind::<VecBrand, _, _>(m.clone(), pure::<VecBrand, _>) == m
+		bind::<VecBrand, _, _, _>(m.clone(), pure::<VecBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -2322,8 +2322,8 @@ mod tests {
 	fn monad_associativity(m: Vec<i32>) -> bool {
 		let f = |x: i32| vec![x.wrapping_mul(2)];
 		let g = |x: i32| vec![x.wrapping_add(1)];
-		bind::<VecBrand, _, _>(bind::<VecBrand, _, _>(m.clone(), f), g)
-			== bind::<VecBrand, _, _>(m, |x| bind::<VecBrand, _, _>(f(x), g))
+		bind::<VecBrand, _, _, _>(bind::<VecBrand, _, _, _>(m.clone(), f), g)
+			== bind::<VecBrand, _, _, _>(m, |x| bind::<VecBrand, _, _, _>(f(x), g))
 	}
 
 	// Edge Cases
@@ -2341,7 +2341,7 @@ mod tests {
 	#[test]
 	fn bind_empty() {
 		assert_eq!(
-			bind::<VecBrand, _, _>(vec![] as Vec<i32>, |x: i32| vec![x + 1]),
+			bind::<VecBrand, _, _, _>(vec![] as Vec<i32>, |x: i32| vec![x + 1]),
 			vec![] as Vec<i32>
 		);
 	}
@@ -2350,7 +2350,7 @@ mod tests {
 	#[test]
 	fn bind_returning_empty() {
 		assert_eq!(
-			bind::<VecBrand, _, _>(vec![1, 2, 3], |_| vec![] as Vec<i32>),
+			bind::<VecBrand, _, _, _>(vec![1, 2, 3], |_| vec![] as Vec<i32>),
 			vec![] as Vec<i32>
 		);
 	}
@@ -2515,7 +2515,7 @@ mod tests {
 	fn filterable_filter_map_composition(x: Vec<i32>) -> bool {
 		let r = |i: i32| if i % 2 == 0 { Some(i) } else { None };
 		let l = |i: i32| if i > 5 { Some(i) } else { None };
-		let composed = |i| bind::<OptionBrand, _, _>(r(i), l);
+		let composed = |i| bind::<OptionBrand, _, _, _>(r(i), l);
 
 		filter_map::<VecBrand, _, _>(composed, x.clone())
 			== filter_map::<VecBrand, _, _>(l, filter_map::<VecBrand, _, _>(r, x))

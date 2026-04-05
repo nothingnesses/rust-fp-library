@@ -512,7 +512,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = bind::<IdentityBrand, _, _>(x, |i| Identity(i * 2));
+		/// let y = bind::<IdentityBrand, _, _, _>(x, |i| Identity(i * 2));
 		/// assert_eq!(y, Identity(10));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
@@ -974,14 +974,14 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| Identity(x.wrapping_mul(2));
-		bind::<IdentityBrand, _, _>(pure::<IdentityBrand, _>(a), f) == f(a)
+		bind::<IdentityBrand, _, _, _>(pure::<IdentityBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: i32) -> bool {
 		let m = Identity(m);
-		bind::<IdentityBrand, _, _>(m, pure::<IdentityBrand, _>) == m
+		bind::<IdentityBrand, _, _, _>(m, pure::<IdentityBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -990,8 +990,8 @@ mod tests {
 		let m = Identity(m);
 		let f = |x: i32| Identity(x.wrapping_mul(2));
 		let g = |x: i32| Identity(x.wrapping_add(1));
-		bind::<IdentityBrand, _, _>(bind::<IdentityBrand, _, _>(m, f), g)
-			== bind::<IdentityBrand, _, _>(m, |x| bind::<IdentityBrand, _, _>(f(x), g))
+		bind::<IdentityBrand, _, _, _>(bind::<IdentityBrand, _, _, _>(m, f), g)
+			== bind::<IdentityBrand, _, _, _>(m, |x| bind::<IdentityBrand, _, _, _>(f(x), g))
 	}
 
 	// Edge Cases
@@ -1005,7 +1005,7 @@ mod tests {
 	/// Tests the `bind` function.
 	#[test]
 	fn bind_test() {
-		assert_eq!(bind::<IdentityBrand, _, _>(Identity(1), |x| Identity(x + 1)), Identity(2));
+		assert_eq!(bind::<IdentityBrand, _, _, _>(Identity(1), |x| Identity(x + 1)), Identity(2));
 	}
 
 	/// Tests the `fold_right` function.

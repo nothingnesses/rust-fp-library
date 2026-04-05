@@ -862,7 +862,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<PairFirstAppliedBrand<String>, _, _>(Pair("a".to_string(), 5), |x| Pair(
+		/// 	bind::<PairFirstAppliedBrand<String>, _, _, _>(Pair("a".to_string(), 5), |x| Pair(
 		/// 		"b".to_string(),
 		/// 		x * 2
 		/// 	)),
@@ -1379,7 +1379,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<PairSecondAppliedBrand<String>, _, _>(Pair(5, "a".to_string()), |x| Pair(
+		/// 	bind::<PairSecondAppliedBrand<String>, _, _, _>(Pair(5, "a".to_string()), |x| Pair(
 		/// 		x * 2,
 		/// 		"b".to_string()
 		/// 	)),
@@ -1844,8 +1844,10 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| Pair("f".to_string(), x.wrapping_mul(2));
-		bind::<PairFirstAppliedBrand<String>, _, _>(pure::<PairFirstAppliedBrand<String>, _>(a), f)
-			== f(a)
+		bind::<PairFirstAppliedBrand<String>, _, _, _>(
+			pure::<PairFirstAppliedBrand<String>, _>(a),
+			f,
+		) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
@@ -1855,7 +1857,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let m = Pair(first, second);
-		bind::<PairFirstAppliedBrand<String>, _, _>(
+		bind::<PairFirstAppliedBrand<String>, _, _, _>(
 			m.clone(),
 			pure::<PairFirstAppliedBrand<String>, _>,
 		) == m
@@ -1870,11 +1872,11 @@ mod tests {
 		let m = Pair(first, second);
 		let f = |x: i32| Pair("f".to_string(), x.wrapping_mul(2));
 		let g = |x: i32| Pair("g".to_string(), x.wrapping_add(1));
-		bind::<PairFirstAppliedBrand<String>, _, _>(
-			bind::<PairFirstAppliedBrand<String>, _, _>(m.clone(), f),
+		bind::<PairFirstAppliedBrand<String>, _, _, _>(
+			bind::<PairFirstAppliedBrand<String>, _, _, _>(m.clone(), f),
 			g,
-		) == bind::<PairFirstAppliedBrand<String>, _, _>(m, |x| {
-			bind::<PairFirstAppliedBrand<String>, _, _>(f(x), g)
+		) == bind::<PairFirstAppliedBrand<String>, _, _, _>(m, |x| {
+			bind::<PairFirstAppliedBrand<String>, _, _, _>(f(x), g)
 		})
 	}
 

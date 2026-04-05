@@ -43,12 +43,12 @@ mod inner {
 	///
 	/// A lawful `RefMonad` must satisfy three laws:
 	///
-	/// 1. **Left identity**: `ref_bind(ref_pure(&a), f)` evaluates to the
+	/// 1. **Left identity**: `bind(ref_pure(&a), f)` evaluates to the
 	///    same value as `f(&a)`.
-	/// 2. **Right identity**: `ref_bind(m, |x| ref_pure(x))` evaluates to
+	/// 2. **Right identity**: `bind(m, |x| ref_pure(x))` evaluates to
 	///    the same value as `m`.
-	/// 3. **Associativity**: `ref_bind(ref_bind(m, f), g)` evaluates to the
-	///    same value as `ref_bind(m, |x| ref_bind(f(x), g))`.
+	/// 3. **Associativity**: `bind(bind(m, f), g)` evaluates to the
+	///    same value as `bind(m, |x| bind(f(x), g))`.
 	///
 	/// These are the standard monad laws expressed with by-ref operations.
 	/// Equality is by evaluated value, not structural identity, since
@@ -73,19 +73,19 @@ mod inner {
 	/// 	Lazy::<_, RcLazyConfig>::new(move || v)
 	/// };
 	///
-	/// // Left identity: ref_bind(ref_pure(&a), f) = f(&a)
+	/// // Left identity: bind(ref_pure(&a), f) = f(&a)
 	/// let left =
 	/// 	ref_bind::<LazyBrand<RcLazyConfig>, _, _>(ref_pure::<LazyBrand<RcLazyConfig>, _>(&5), f);
 	/// assert_eq!(*left.evaluate(), *f(&5).evaluate());
 	///
-	/// // Right identity: ref_bind(m, |x| ref_pure(x)) = m
+	/// // Right identity: bind(m, |x| ref_pure(x)) = m
 	/// let m = RcLazy::pure(42);
 	/// let right = ref_bind::<LazyBrand<RcLazyConfig>, _, _>(m.clone(), |x: &i32| {
 	/// 	ref_pure::<LazyBrand<RcLazyConfig>, _>(x)
 	/// });
 	/// assert_eq!(*right.evaluate(), *m.evaluate());
 	///
-	/// // Associativity: ref_bind(ref_bind(m, f), g) = ref_bind(m, |x| ref_bind(f(x), g))
+	/// // Associativity: bind(bind(m, f), g) = bind(m, |x| bind(f(x), g))
 	/// let m = RcLazy::pure(3);
 	/// let lhs = ref_bind::<LazyBrand<RcLazyConfig>, _, _>(
 	/// 	ref_bind::<LazyBrand<RcLazyConfig>, _, _>(m.clone(), f),

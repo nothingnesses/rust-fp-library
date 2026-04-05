@@ -553,7 +553,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2);
-		/// let bound = bind::<CatListBrand, _, _>(list, |x| CatList::singleton(x).snoc(x * 2));
+		/// let bound = bind::<CatListBrand, _, _, _>(list, |x| CatList::singleton(x).snoc(x * 2));
 		/// let vec: Vec<_> = bound.into_iter().collect();
 		/// assert_eq!(vec, vec![1, 2, 2, 4]);
 		/// ```
@@ -3537,14 +3537,14 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| CatList::singleton(x.wrapping_mul(2));
-		bind::<CatListBrand, _, _>(pure::<CatListBrand, _>(a), f) == f(a)
+		bind::<CatListBrand, _, _, _>(pure::<CatListBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: Vec<i32>) -> bool {
 		let m: CatList<_> = m.into_iter().collect();
-		bind::<CatListBrand, _, _>(m.clone(), pure::<CatListBrand, _>) == m
+		bind::<CatListBrand, _, _, _>(m.clone(), pure::<CatListBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -3553,8 +3553,8 @@ mod tests {
 		let m: CatList<_> = m.into_iter().collect();
 		let f = |x: i32| CatList::singleton(x.wrapping_mul(2));
 		let g = |x: i32| CatList::singleton(x.wrapping_add(1));
-		bind::<CatListBrand, _, _>(bind::<CatListBrand, _, _>(m.clone(), f), g)
-			== bind::<CatListBrand, _, _>(m, |x| bind::<CatListBrand, _, _>(f(x), g))
+		bind::<CatListBrand, _, _, _>(bind::<CatListBrand, _, _, _>(m.clone(), f), g)
+			== bind::<CatListBrand, _, _, _>(m, |x| bind::<CatListBrand, _, _, _>(f(x), g))
 	}
 
 	// Edge Cases
@@ -3572,7 +3572,7 @@ mod tests {
 	#[test]
 	fn bind_empty() {
 		assert_eq!(
-			bind::<CatListBrand, _, _>(CatList::empty() as CatList<i32>, |x: i32| {
+			bind::<CatListBrand, _, _, _>(CatList::empty() as CatList<i32>, |x: i32| {
 				CatList::singleton(x + 1)
 			}),
 			CatList::empty() as CatList<i32>
@@ -3584,7 +3584,7 @@ mod tests {
 	fn bind_returning_empty() {
 		let list: CatList<_> = vec![1, 2, 3].into_iter().collect();
 		assert_eq!(
-			bind::<CatListBrand, _, _>(list, |_| CatList::empty() as CatList<i32>),
+			bind::<CatListBrand, _, _, _>(list, |_| CatList::empty() as CatList<i32>),
 			CatList::empty() as CatList<i32>
 		);
 	}

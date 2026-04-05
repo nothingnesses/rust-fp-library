@@ -105,7 +105,7 @@ pub fn bench_option(c: &mut Criterion) {
 			b.iter(|| std::hint::black_box(val).and_then(|x| Some(x * 2)))
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
-			b.iter(|| bind::<OptionBrand, _, _>(std::hint::black_box(val), |x| Some(x * 2)))
+			b.iter(|| bind::<OptionBrand, _, _, _>(std::hint::black_box(val), |x| Some(x * 2)))
 		});
 		group.finish();
 	}

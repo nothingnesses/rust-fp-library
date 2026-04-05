@@ -497,7 +497,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<Tuple2FirstAppliedBrand<String>, _, _>(("a".to_string(), 5), |x| (
+		/// 	bind::<Tuple2FirstAppliedBrand<String>, _, _, _>(("a".to_string(), 5), |x| (
 		/// 		"b".to_string(),
 		/// 		x * 2
 		/// 	)),
@@ -1003,7 +1003,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<Tuple2SecondAppliedBrand<String>, _, _>((5, "a".to_string()), |x| (
+		/// 	bind::<Tuple2SecondAppliedBrand<String>, _, _, _>((5, "a".to_string()), |x| (
 		/// 		x * 2,
 		/// 		"b".to_string()
 		/// 	)),
@@ -1461,7 +1461,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| ("f".to_string(), x.wrapping_mul(2));
-		bind::<Tuple2FirstAppliedBrand<String>, _, _>(
+		bind::<Tuple2FirstAppliedBrand<String>, _, _, _>(
 			pure::<Tuple2FirstAppliedBrand<String>, _>(a),
 			f,
 		) == f(a)
@@ -1474,7 +1474,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let m = (first, second);
-		bind::<Tuple2FirstAppliedBrand<String>, _, _>(
+		bind::<Tuple2FirstAppliedBrand<String>, _, _, _>(
 			m.clone(),
 			pure::<Tuple2FirstAppliedBrand<String>, _>,
 		) == m
@@ -1489,11 +1489,11 @@ mod tests {
 		let m = (first, second);
 		let f = |x: i32| ("f".to_string(), x.wrapping_mul(2));
 		let g = |x: i32| ("g".to_string(), x.wrapping_add(1));
-		bind::<Tuple2FirstAppliedBrand<String>, _, _>(
-			bind::<Tuple2FirstAppliedBrand<String>, _, _>(m.clone(), f),
+		bind::<Tuple2FirstAppliedBrand<String>, _, _, _>(
+			bind::<Tuple2FirstAppliedBrand<String>, _, _, _>(m.clone(), f),
 			g,
-		) == bind::<Tuple2FirstAppliedBrand<String>, _, _>(m, |x| {
-			bind::<Tuple2FirstAppliedBrand<String>, _, _>(f(x), g)
+		) == bind::<Tuple2FirstAppliedBrand<String>, _, _, _>(m, |x| {
+			bind::<Tuple2FirstAppliedBrand<String>, _, _, _>(f(x), g)
 		})
 	}
 

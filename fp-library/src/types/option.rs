@@ -210,7 +210,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = bind::<OptionBrand, _, _>(x, |i| Some(i * 2));
+		/// let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
@@ -1109,13 +1109,13 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| Some(x.wrapping_mul(2));
-		bind::<OptionBrand, _, _>(pure::<OptionBrand, _>(a), f) == f(a)
+		bind::<OptionBrand, _, _, _>(pure::<OptionBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: Option<i32>) -> bool {
-		bind::<OptionBrand, _, _>(m, pure::<OptionBrand, _>) == m
+		bind::<OptionBrand, _, _, _>(m, pure::<OptionBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -1123,8 +1123,8 @@ mod tests {
 	fn monad_associativity(m: Option<i32>) -> bool {
 		let f = |x: i32| Some(x.wrapping_mul(2));
 		let g = |x: i32| Some(x.wrapping_add(1));
-		bind::<OptionBrand, _, _>(bind::<OptionBrand, _, _>(m, f), g)
-			== bind::<OptionBrand, _, _>(m, |x| bind::<OptionBrand, _, _>(f(x), g))
+		bind::<OptionBrand, _, _, _>(bind::<OptionBrand, _, _, _>(m, f), g)
+			== bind::<OptionBrand, _, _, _>(m, |x| bind::<OptionBrand, _, _, _>(f(x), g))
 	}
 
 	// Edge Cases
@@ -1138,13 +1138,13 @@ mod tests {
 	/// Tests `bind` on `None`.
 	#[test]
 	fn bind_none() {
-		assert_eq!(bind::<OptionBrand, _, _>(None, |x: i32| Some(x + 1)), None);
+		assert_eq!(bind::<OptionBrand, _, _, _>(None, |x: i32| Some(x + 1)), None);
 	}
 
 	/// Tests `bind` returning `None`.
 	#[test]
 	fn bind_returning_none() {
-		assert_eq!(bind::<OptionBrand, _, _>(Some(5), |_| None::<i32>), None);
+		assert_eq!(bind::<OptionBrand, _, _, _>(Some(5), |_| None::<i32>), None);
 	}
 
 	/// Tests `fold_right` on `None`.

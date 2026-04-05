@@ -108,10 +108,9 @@ pub fn bench_result(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				bind::<ResultErrAppliedBrand<i32>, _, _>(
-					std::hint::black_box(val_ok),
-					|x| Ok(x * 2),
-				)
+				bind::<ResultErrAppliedBrand<i32>, _, _, _>(std::hint::black_box(val_ok), |x| {
+					Ok(x * 2)
+				})
 			})
 		});
 		group.finish();

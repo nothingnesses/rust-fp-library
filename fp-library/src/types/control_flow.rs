@@ -1214,7 +1214,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<ControlFlowContinueAppliedBrand<()>, _, _>(ControlFlow::Break(5), |x| {
+		/// 	bind::<ControlFlowContinueAppliedBrand<()>, _, _, _>(ControlFlow::Break(5), |x| {
 		/// 		ControlFlow::Break(x * 2)
 		/// 	}),
 		/// 	ControlFlow::<_, ()>::Break(10)
@@ -1758,7 +1758,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<ControlFlowBreakAppliedBrand<()>, _, _>(ControlFlow::Continue(5), |x| {
+		/// 	bind::<ControlFlowBreakAppliedBrand<()>, _, _, _>(ControlFlow::Continue(5), |x| {
 		/// 		ControlFlow::Continue(x * 2)
 		/// 	}),
 		/// 	ControlFlow::<(), _>::Continue(10)
@@ -2529,7 +2529,7 @@ mod tests {
 	fn test_bind_with_continue() {
 		let x = pure::<ControlFlowContinueAppliedBrand<()>, _>(5);
 		assert_eq!(
-			bind::<ControlFlowContinueAppliedBrand<()>, _, _>(x, |i| pure::<
+			bind::<ControlFlowContinueAppliedBrand<()>, _, _, _>(x, |i| pure::<
 				ControlFlowContinueAppliedBrand<()>,
 				_,
 			>(i * 2)),
@@ -2538,7 +2538,7 @@ mod tests {
 
 		let cont: ControlFlow<i32, i32> = ControlFlow::Continue(1);
 		assert_eq!(
-			bind::<ControlFlowContinueAppliedBrand<i32>, _, _>(cont, |i| pure::<
+			bind::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(cont, |i| pure::<
 				ControlFlowContinueAppliedBrand<i32>,
 				_,
 			>(i * 2)),
@@ -2553,7 +2553,7 @@ mod tests {
 	fn test_bind_with_break() {
 		let x = pure::<ControlFlowBreakAppliedBrand<()>, _>(5);
 		assert_eq!(
-			bind::<ControlFlowBreakAppliedBrand<()>, _, _>(x, |i| pure::<
+			bind::<ControlFlowBreakAppliedBrand<()>, _, _, _>(x, |i| pure::<
 				ControlFlowBreakAppliedBrand<()>,
 				_,
 			>(i * 2)),
@@ -2562,7 +2562,7 @@ mod tests {
 
 		let brk: ControlFlow<i32, i32> = ControlFlow::Break(1);
 		assert_eq!(
-			bind::<ControlFlowBreakAppliedBrand<i32>, _, _>(brk, |i| pure::<
+			bind::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(brk, |i| pure::<
 				ControlFlowBreakAppliedBrand<i32>,
 				_,
 			>(i * 2)),
@@ -2681,7 +2681,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity_with_continue(a: i32) -> bool {
 		let f = |x: i32| pure::<ControlFlowContinueAppliedBrand<i32>, _>(x.wrapping_mul(2));
-		bind::<ControlFlowContinueAppliedBrand<i32>, _, _>(
+		bind::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(
 			pure::<ControlFlowContinueAppliedBrand<i32>, _>(a),
 			f,
 		) == f(a)
@@ -2691,7 +2691,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_right_identity_with_continue(x: ControlFlowWrapper<i32, i32>) -> bool {
 		let x = x.into_inner();
-		bind::<ControlFlowContinueAppliedBrand<i32>, _, _>(
+		bind::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(
 			x,
 			pure::<ControlFlowContinueAppliedBrand<i32>, _>,
 		) == x
@@ -2703,11 +2703,11 @@ mod tests {
 		let x = x.into_inner();
 		let f = |x: i32| pure::<ControlFlowContinueAppliedBrand<i32>, _>(x.wrapping_mul(2));
 		let g = |x: i32| pure::<ControlFlowContinueAppliedBrand<i32>, _>(x.wrapping_add(1));
-		bind::<ControlFlowContinueAppliedBrand<i32>, _, _>(
-			bind::<ControlFlowContinueAppliedBrand<i32>, _, _>(x, f),
+		bind::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(
+			bind::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(x, f),
 			g,
-		) == bind::<ControlFlowContinueAppliedBrand<i32>, _, _>(x, |a| {
-			bind::<ControlFlowContinueAppliedBrand<i32>, _, _>(f(a), g)
+		) == bind::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(x, |a| {
+			bind::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(f(a), g)
 		})
 	}
 
@@ -2717,7 +2717,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity_with_break(a: i32) -> bool {
 		let f = |x: i32| pure::<ControlFlowBreakAppliedBrand<i32>, _>(x.wrapping_mul(2));
-		bind::<ControlFlowBreakAppliedBrand<i32>, _, _>(
+		bind::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(
 			pure::<ControlFlowBreakAppliedBrand<i32>, _>(a),
 			f,
 		) == f(a)
@@ -2727,7 +2727,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_right_identity_with_break(x: ControlFlowWrapper<i32, i32>) -> bool {
 		let x = x.into_inner();
-		bind::<ControlFlowBreakAppliedBrand<i32>, _, _>(
+		bind::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(
 			x,
 			pure::<ControlFlowBreakAppliedBrand<i32>, _>,
 		) == x
@@ -2739,11 +2739,11 @@ mod tests {
 		let x = x.into_inner();
 		let f = |x: i32| pure::<ControlFlowBreakAppliedBrand<i32>, _>(x.wrapping_mul(2));
 		let g = |x: i32| pure::<ControlFlowBreakAppliedBrand<i32>, _>(x.wrapping_add(1));
-		bind::<ControlFlowBreakAppliedBrand<i32>, _, _>(
-			bind::<ControlFlowBreakAppliedBrand<i32>, _, _>(x, f),
+		bind::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(
+			bind::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(x, f),
 			g,
-		) == bind::<ControlFlowBreakAppliedBrand<i32>, _, _>(x, |a| {
-			bind::<ControlFlowBreakAppliedBrand<i32>, _, _>(f(a), g)
+		) == bind::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(x, |a| {
+			bind::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(f(a), g)
 		})
 	}
 

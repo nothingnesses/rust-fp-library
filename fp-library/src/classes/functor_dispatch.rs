@@ -337,7 +337,7 @@ mod inner {
 	///
 	/// Dispatches to either [`Semimonad::bind`] or [`RefSemimonad::ref_bind`]
 	/// based on the closure's argument type.
-	pub(crate) fn bind<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, Marker>(
+	pub fn bind<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, Marker>(
 		ma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		f: impl BindDispatch<'a, Brand, A, B, Marker>,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {

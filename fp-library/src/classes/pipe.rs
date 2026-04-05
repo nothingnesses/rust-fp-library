@@ -54,7 +54,7 @@ mod inner {
 		///
 		/// let result = Some(5)
 		/// 	.pipe(|x| map::<OptionBrand, _, _, _>(|n| n + 1, x))
-		/// 	.pipe(|x| bind::<OptionBrand, _, _>(x, |n| if n > 3 { Some(n) } else { None }));
+		/// 	.pipe(|x| bind::<OptionBrand, _, _, _>(x, |n| if n > 3 { Some(n) } else { None }));
 		///
 		/// assert_eq!(result, Some(6));
 		/// ```

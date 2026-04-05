@@ -35,7 +35,7 @@ pub fn m_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 					Some(ty) => quote! { #pattern: #ty },
 					None => quote! { #pattern },
 				};
-				quote! { bind::<#brand, _, _>(#expr, move |#closure_param| { #result }) }
+				quote! { bind::<#brand, _, _, _>(#expr, move |#closure_param| { #result }) }
 			}
 			DoStatement::Let {
 				pattern,

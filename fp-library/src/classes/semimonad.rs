@@ -14,7 +14,7 @@
 //! };
 //!
 //! let x = Some(5);
-//! let y = bind::<OptionBrand, _, _>(x, |i| Some(i * 2));
+//! let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
 //! assert_eq!(y, Some(10));
 //! ```
 
@@ -58,50 +58,13 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = bind::<OptionBrand, _, _>(x, |i| Some(i * 2));
+		/// let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
-	}
-
-	/// Sequences two computations, allowing the second to depend on the value computed by the first.
-	///
-	/// Free function version that dispatches to [the type class' associated function][`Semimonad::bind`].
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the computations.",
-		"The brand of the semimonad.",
-		"The type of the result of the first computation.",
-		"The type of the result of the second computation."
-	)]
-	///
-	#[document_parameters(
-		"The first computation.",
-		"The function to apply to the result of the first computation."
-	)]
-	///
-	#[document_returns("The result of the second computation.")]
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// let x = Some(5);
-	/// let y = bind::<OptionBrand, _, _>(x, |i| Some(i * 2));
-	/// assert_eq!(y, Some(10));
-	/// ```
-	pub fn bind<'a, Brand: Semimonad, A: 'a, B: 'a>(
-		ma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		f: impl Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		Brand::bind(ma, f)
 	}
 
 	/// Sequences two computations with flipped arguments, allowing the function to be provided first.
