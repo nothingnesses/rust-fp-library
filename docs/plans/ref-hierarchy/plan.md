@@ -264,18 +264,32 @@ element access) was investigated and rejected for three reasons:
     `Arrow::arrow`, free function `fn_new` to `arrow`. Rename
     files to match. See "Planned trait renames" section for full
     table.
-13. **Dispatch unification**: Create dispatch traits for `bind`,
-    `apply`, `lift2`, `apply_first`, `apply_second`, `if_m`,
-    `unless_m` following the `FunctorDispatch` pattern. Each
-    operation gets a single free function that routes to the
-    by-value or by-ref trait based on the closure's argument type.
-    This replaces the separate `ref_*` free functions. The remaining
-    free function parity items (`bind_flipped`, `join`,
-    `compose_kleisli`, `compose_kleisli_flipped`, `lift3`-`lift5`,
-    `when`, `unless`, `when_m`) are implemented as part of this
-    step, since each gets a dispatched version directly.
+13. **Dispatch unification**: Create dispatch traits following
+    the `FunctorDispatch` pattern. The compiler infers `Val`/`Ref`
+    from the closure's argument type. Single mode parameter for all
+    operations (both arguments must match for multi-argument closures
+    like `lift2`; mixed modes like `Fn(&A, B) -> C` are rejected).
+
+    **Closure-dispatched operations** (infer mode from closure args):
+    `bind`, `lift2`, `apply_first`, `apply_second`, `if_m`,
+    `unless_m`, `bind_flipped`, `join`, `compose_kleisli`,
+    `compose_kleisli_flipped`, `lift3`-`lift5`, `when`, `unless`,
+    `when_m`.
+
+    **Container-dispatched operations** (infer mode from wrapped
+    function type in the container): `apply`. The dispatch trait
+    differentiates `Of<CloneFn::Of<A, B>>` (Val, routes to
+    `Semiapplicative`) from `Of<CloneFn<Ref>::Of<A, B>>` (Ref,
+    routes to `RefSemiapplicative`). If the compiler cannot
+    differentiate these in practice, keep `apply` and `ref_apply`
+    as separate free functions (fallback).
+
+    **Not dispatched** (no closure or container to infer from):
+    `pure`, `ref_pure`. These remain separate free functions.
+
     The same applies to SendRef variants (`send_ref_*` free functions
     become part of their dispatched equivalents).
+
 14. **Documentation and tests**: Property tests for type class
     laws, doc examples, update limitations.md.
 15. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
