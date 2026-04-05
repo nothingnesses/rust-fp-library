@@ -192,7 +192,7 @@ This project is licensed under the [Blue Oak Model License 1.0.0](LICENSE).
 
 ## References
 
-- [Lightweight higher-kinded polymorphism](https://www.cl.cam.ac.uk/~jdy22/papers/lightweight-higher-kinded-polymorphism.pdf)
+- [Lightweight higher-kinded polymorphism](https://web.archive.org/web/20220104164033/https://www.lpw25.net/papers/flops2014.pdf)
 - [Typeclassopedia](https://wiki.haskell.org/Typeclassopedia)
 - [Lean Mathlib Prelude](https://leanprover-community.github.io/mathlib4_docs/Init/Prelude.html)
 - [PureScript Pursuit](https://pursuit.purescript.org/)
@@ -205,3 +205,4 @@ This project is licensed under the [Blue Oak Model License 1.0.0](LICENSE).
 - [Why not Pointed?](https://wiki.haskell.org/Why_not_Pointed%3F)
 - [Pluggable lifetimes](https://docs.rs/generic-std/latest/generic_std/plug/trait.PlugLifetime.html)
 - [Scala Cats](https://typelevel.org/cats/)
+- [haskell_bits](https://github.com/clintonmead/haskell_bits)

@@ -1,5 +1,6 @@
 ### Tasks to do & ideas to look into
 
+- Is it possible to use a combination of [PlugLifetime](https://github.com/Ereski/generic-std), [ForLifetime](https://github.com/danielhenrymantilla/higher-kinded-types.rs), nested curried application of a single `app` from the [LHKP paper](https://web.archive.org/web/20220104164033/https://www.lpw25.net/papers/flops2014.pdf) (would just be `Kind`, in our case), to obviate the need for having a family o `Kind_*` traits, and instead compose kinds from nested curried applications of lifetime and type parameter GAT primitives?
 - Optics: Implement missing functionality from [analysis](../fp-library/docs/optics-analysis.md).
 - Algebraic effects/effect system to implement extensible effects
   - [Analysis](plans/effects/effects.md)
