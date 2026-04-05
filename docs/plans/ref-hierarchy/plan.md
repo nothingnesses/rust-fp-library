@@ -238,39 +238,44 @@ element access) was investigated and rejected for three reasons:
    Converted many explicit class imports to wildcards.
    Implementation: `ClosureMode` in `functor_dispatch.rs`,
    `LiftFn` in `cloneable_fn.rs`.
-6. **Add `CloneableFn<Ref>` impl for `FnBrand<P>`**. Implement
-   using `coerce_ref_fn`. Apply same `ClosureMode` parameterization
-   to `SendCloneableFn` and split its `new` into `SendLiftFn`.
-7. **RefSemiapplicative**: Define using `CloneableFn<Ref>`. Implement
-   for `LazyBrand<RcLazyConfig>`.
-8. **Blanket traits**: `RefApplicative = RefPointed + RefSemiapplicative`,
-   `RefMonad = RefApplicative + RefSemimonad`.
-9. **SendRef variants**: `SendRefPointed`, `SendRefLift`,
-   `SendRefSemimonad`, `SendRefSemiapplicative` with `ArcLazy`
-   implementations. Follows the same pattern as existing
-   `SendRefFunctor` (adds `Send + Sync` bounds on closures and elements).
-   Uses `SendCloneableFn<Ref>` for `SendRefSemiapplicative`.
-10. **SendRef blanket traits**: `SendRefApplicative`, `SendRefMonad`.
-11. **Ref parity traits**: Add by-ref equivalents for all convenience
-    traits and free functions that exist on the non-ref hierarchy:
-    - `RefApplyFirst`, `RefApplySecond` (or default methods on
-      `RefApplicative`). Require `Clone` on the kept value since the
-      closure receives references.
-    - `ref_monad_if`, `ref_monad_unless` free functions.
-    - Any other convenience methods added to non-ref traits in the
-      future should also get ref equivalents.
-      The same applies to SendRef variants if/when they are implemented:
-      `SendRefApplyFirst`, `SendRefApplySecond`, `send_ref_monad_if`,
-      `send_ref_monad_unless`, etc.
+6. ~~**Add `CloneableFn<Ref>` impl for `FnBrand<P>`**~~. Done.
+   Added `CloneableFn<Ref>` and `SendCloneableFn<Ref>` impls for
+   `FnBrand<P>`. Parameterized `SendCloneableFn` with `ClosureMode`,
+   split `send_cloneable_fn_new` into `SendLiftFn::new`. Added
+   `SendTarget` GAT to `ClosureMode`.
+7. ~~**RefSemiapplicative**~~: Done. Defined using `CloneableFn<Ref>`.
+   Implemented for `LazyBrand<RcLazyConfig>`.
+8. ~~**Blanket traits**~~: Done. `RefApplicative` and `RefMonad` with
+   monad law examples. Updated `RefApplicative` to include
+   `RefApplyFirst + RefApplySecond` supertraits (matching `Applicative`).
+9. ~~**SendRef variants**~~: Done. `SendRefPointed`, `SendRefLift`,
+   `SendRefSemimonad`, `SendRefSemiapplicative` with `ArcLazy` impls.
+10. ~~**SendRef blanket traits**~~: Done. `SendRefApplicative` (including
+    `SendRefApplyFirst + SendRefApplySecond` supertraits),
+    `SendRefMonad` with monad law examples.
+11. ~~**Ref parity traits**~~: Done. Added `RefApplyFirst`,
+    `RefApplySecond`, `SendRefApplyFirst`, `SendRefApplySecond` with
+    blanket impls from `RefLift`/`SendRefLift`. Added `ref_if_m`,
+    `ref_unless_m` free functions.
 12. **Rename traits**: Extract `Callable<Mode>` base trait from the
-    shared `Deref` bound. Rename `CloneableFn` to `CloneableCallable`.
-    Rename `Function` to `Arrow`. Rename `SendCloneableFn` to
-    `SendCloneableCallable`. Update all references across the
-    codebase. This is a mechanical rename done after the structural
-    changes are verified.
-13. **Documentation and tests**: Property tests for type class
+    shared `Deref` bound. Rename per the table in the "Planned trait
+    renames" section. This is mechanical and independent of the
+    dispatch design.
+13. **Dispatch unification**: Create dispatch traits for `bind`,
+    `apply`, `lift2`, `apply_first`, `apply_second`, `if_m`,
+    `unless_m` following the `FunctorDispatch` pattern. Each
+    operation gets a single free function that routes to the
+    by-value or by-ref trait based on the closure's argument type.
+    This replaces the separate `ref_*` free functions. The remaining
+    free function parity items (`bind_flipped`, `join`,
+    `compose_kleisli`, `compose_kleisli_flipped`, `lift3`-`lift5`,
+    `when`, `unless`, `when_m`) are implemented as part of this
+    step, since each gets a dispatched version directly.
+    The same applies to SendRef variants (`send_ref_*` free functions
+    become part of their dispatched equivalents).
+14. **Documentation and tests**: Property tests for type class
     laws, doc examples, update limitations.md.
-14. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
+15. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
     generates `ref_bind` calls for by-ref monadic code.
 
 ## Design Decision: CloneableFn with Mode Parameter
@@ -427,14 +432,26 @@ was verified in Step 5 and works on stable Rust.
 - `RefSemimonad` trait and free function `ref_bind` added.
 - All three implemented for `LazyBrand<RcLazyConfig>` with doc examples.
 - All Lazy/TryLazy trait impls updated for `Fn` closure signatures.
-- `ClosureMode` trait added with `Val`/`Ref` impls.
+- `ClosureMode` trait added with `Val`/`Ref` impls, including `SendTarget` GAT.
 - `CloneableFn` parameterized with `Mode: ClosureMode = Val`.
 - `Function` supertrait removed from `CloneableFn`.
 - `CloneableFn::new` split into `LiftFn: CloneableFn<Val>`.
 - Free function renamed from `cloneable_fn_new` to `lift_fn_new`.
-- `coerce_ref_fn` added to `UnsizedCoercible` with `RcBrand`/`ArcBrand` impls.
 - Many explicit class imports converted to wildcards.
 - All downstream bounds updated (`CloneableFn` -> `LiftFn` where `new` is called).
+- `SendCloneableFn` parameterized with `Mode: ClosureMode = Val`.
+- `SendCloneableFn::send_cloneable_fn_new` split into `SendLiftFn::new`.
+- Free function renamed from `send_cloneable_fn_new` to `send_lift_fn_new`.
+- `CloneableFn<Ref>` and `SendCloneableFn<Ref>` impls added for `FnBrand<P>`.
+- `RefSemiapplicative` trait added using `CloneableFn<Ref>`, implemented for RcLazy.
+- `RefApplicative` blanket trait (RefPointed + RefSemiapplicative + RefApplyFirst + RefApplySecond).
+- `RefMonad` blanket trait (RefApplicative + RefSemimonad) with monad law examples.
+- `SendRefPointed`, `SendRefLift`, `SendRefSemimonad`, `SendRefSemiapplicative` added with ArcLazy impls.
+- `SendRefApplicative` blanket trait (including SendRefApplyFirst + SendRefApplySecond).
+- `SendRefMonad` blanket trait with monad law examples.
+- `RefApplyFirst`, `RefApplySecond` with blanket impls from `RefLift`.
+- `SendRefApplyFirst`, `SendRefApplySecond` with blanket impls from `SendRefLift`.
+- `ref_if_m`, `ref_unless_m` free functions added to `ref_monad`.
 
 ## References
 
