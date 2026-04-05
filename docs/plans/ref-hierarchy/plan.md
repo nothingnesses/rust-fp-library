@@ -257,10 +257,13 @@ element access) was investigated and rejected for three reasons:
     `RefApplySecond`, `SendRefApplyFirst`, `SendRefApplySecond` with
     blanket impls from `RefLift`/`SendRefLift`. Added `ref_if_m`,
     `ref_unless_m` free functions.
-12. **Rename traits**: Extract `Callable<Mode>` base trait from the
-    shared `Deref` bound. Rename per the table in the "Planned trait
-    renames" section. This is mechanical and independent of the
-    dispatch design.
+12. **Rename traits**: Rename `CloneableFn` to `CloneFn`,
+    `SendCloneableFn` to `SendCloneFn`, `Function` to `Arrow`.
+    Make `SendCloneFn` independent (remove `CloneFn` supertrait),
+    rename `SendOf` to `Of`. Rename `Function::new` to
+    `Arrow::arrow`, free function `fn_new` to `arrow`. Rename
+    files to match. See "Planned trait renames" section for full
+    table.
 13. **Dispatch unification**: Create dispatch traits for `bind`,
     `apply`, `lift2`, `apply_first`, `apply_second`, `if_m`,
     `unless_m` following the `FunctorDispatch` pattern. Each
@@ -389,39 +392,59 @@ Similarly for `SendCloneableFn<Mode: ClosureMode = Val>` and
 - `RefMonad = RefApplicative + RefSemimonad` is the correct shape.
 - No new function wrapper traits needed.
 
-### Planned trait renames (after verification)
+### Planned trait renames
 
-Once the ClosureMode approach is verified, the function wrapper
-traits will be renamed to better reflect their roles:
+The `Callable<Mode>` base trait extraction was investigated and
+rejected. Approach A (associated type bounds on supertrait GATs,
+`Callable<Mode, Of<'_, _, _>: Clone>`) is syntactically unsupported
+on stable Rust. Approach B (re-declare `Of` on the subtrait) creates
+non-interoperable types, no better than separate traits. Without a
+way to share a single `Of` across the hierarchy, the extraction
+doesn't achieve its goal. The traits remain independent with their
+own `Of` types, matching the current design.
 
-| Pre-rename name   | Post-rename name | Role                                             |
-| ----------------- | ---------------- | ------------------------------------------------ |
-| `Callable<Mode>`  | `Function<Mode>` | Base: wraps a closure, callable via Deref        |
-| `CloneableFn`     | `CloneFn`        | Base + Clone. Used by Semiapplicative.           |
-| `LiftFn`          | `LiftFn`         | Construction for Val mode.                       |
-| `Function`        | `Arrow`          | Base (Val only) + Category + Strong. For optics. |
-| `SendCloneableFn` | `SendCloneFn`    | Send variant of CloneFn.                         |
-| `SendLiftFn`      | `SendLiftFn`     | Send variant of LiftFn.                          |
+| Pre-rename name         | Post-rename name    | Role                                        |
+| ----------------------- | ------------------- | ------------------------------------------- |
+| `CloneableFn<Mode>`     | `CloneFn<Mode>`     | Clone + Deref. Used by Semiapplicative.     |
+| `LiftFn`                | `LiftFn`            | Construction for Val mode (no change).      |
+| `Function`              | `Arrow`             | Deref + Category + Strong. For optics.      |
+| `Function::new`         | `Arrow::arrow`      | Lifts a pure function into an arrow.        |
+| free fn `fn_new`        | free fn `arrow`     | Free function delegating to `Arrow::arrow`. |
+| `SendCloneableFn<Mode>` | `SendCloneFn<Mode>` | Send variant of CloneFn.                    |
+| `SendLiftFn`            | `SendLiftFn`        | Send variant of LiftFn (no change).         |
+
+Additional structural changes during the rename:
+
+- **`SendCloneFn` becomes independent.** Remove `CloneFn` supertrait
+  from `SendCloneFn`. The supertrait was logically sound (Send
+  capabilities are a superset) but practically unused, and it forces
+  `FnBrand<P>` to implement both traits even when only the Send
+  variant is needed.
+- **Rename `SendOf` to `Of` on `SendCloneFn`.** With the supertrait
+  removed, there is no name conflict. Both `CloneFn` and
+  `SendCloneFn` have their own `Of`, disambiguated by trait name.
+- **Rename files.** `cloneable_fn.rs` -> `clone_fn.rs`,
+  `send_cloneable_fn.rs` -> `send_clone_fn.rs`,
+  `function.rs` -> `arrow.rs`.
+- **Update `generate_function_re_exports!`** in `functions.rs` to
+  reflect new module and function names.
 
 Post-rename hierarchy:
 
-- `Function<Mode>` is the base callable wrapper (reclaims the name
-  for the more general concept).
-- `Arrow: Function<Val> + Category + Strong` is the composable
-  specialization (aligns with Haskell's `Arrow` type class:
-  `arr` + `Category` + `first`/`second`).
-- `CloneFn<Mode>: Function<Mode>` adds `Clone`.
-- `LiftFn: CloneFn<Val>` adds construction.
-
-The renames are deferred to Step 10 (after structural changes are
-verified) because they are mechanical and independent of the
-ClosureMode design. If the ClosureMode approach fails, the rename
-scope may differ.
+- `CloneFn<Mode>`: cloneable callable wrapper (Clone + Deref).
+- `LiftFn: CloneFn<Val>`: adds Val-mode construction.
+- `Arrow`: composable callable wrapper (Deref + Category + Strong).
+  Aligns with Haskell's `Arrow` type class (`arr` + `Category` +
+  `first`/`second`).
+- `SendCloneFn<Mode>`: independent Send variant of CloneFn
+  (Clone + Send + Sync + Deref).
+- `SendLiftFn: SendCloneFn<Val>`: adds Val-mode Send construction.
+- `Arrow` and `CloneFn` are independent traits, both implemented by
+  `FnBrand<P>` with the same concrete type but separate `Of` types.
 
 ## Open Questions
 
-None at this time. The `ClosureMode` unsized GAT + `Deref` interaction
-was verified in Step 5 and works on stable Rust.
+None at this time.
 
 ## Completed Changes
 
