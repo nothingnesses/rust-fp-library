@@ -46,7 +46,11 @@ mod inner {
 		crate::{
 			classes::{
 				Functor,
+				Lift,
 				RefFunctor,
+				RefLift,
+				RefSemimonad,
+				Semimonad,
 			},
 			kinds::*,
 		},
@@ -283,6 +287,121 @@ mod inner {
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		f.dispatch(fa)
+	}
+
+	// -- BindDispatch --
+
+	/// Trait that routes a bind operation to the appropriate type class method.
+	///
+	/// The `Marker` type parameter is inferred from the closure's argument type:
+	/// `Fn(A) -> Of<B>` resolves to [`Val`], `Fn(&A) -> Of<B>` resolves to [`Ref`].
+	pub trait BindDispatch<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, Marker> {
+		/// Perform the dispatched bind operation.
+		fn dispatch_bind(
+			self,
+			ma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
+	}
+
+	impl<'a, Brand, A, B, F> BindDispatch<'a, Brand, A, B, Val> for F
+	where
+		Brand: Semimonad,
+		A: 'a,
+		B: 'a,
+		F: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+	{
+		fn dispatch_bind(
+			self,
+			ma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Brand::bind(ma, self)
+		}
+	}
+
+	impl<'a, Brand, A, B, F> BindDispatch<'a, Brand, A, B, Ref> for F
+	where
+		Brand: RefSemimonad,
+		A: 'a,
+		B: 'a,
+		F: Fn(&A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+	{
+		fn dispatch_bind(
+			self,
+			ma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Brand::ref_bind(ma, self)
+		}
+	}
+
+	/// Sequences a monadic computation with a function that produces the next computation.
+	///
+	/// Dispatches to either [`Semimonad::bind`] or [`RefSemimonad::ref_bind`]
+	/// based on the closure's argument type.
+	pub(crate) fn bind<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, Marker>(
+		ma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		f: impl BindDispatch<'a, Brand, A, B, Marker>,
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		f.dispatch_bind(ma)
+	}
+
+	// -- Lift2Dispatch --
+
+	/// Trait that routes a lift2 operation to the appropriate type class method.
+	///
+	/// `Fn(A, B) -> C` resolves to [`Val`], `Fn(&A, &B) -> C` resolves to [`Ref`].
+	pub trait Lift2Dispatch<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, C: 'a, Marker> {
+		/// Perform the dispatched lift2 operation.
+		fn dispatch_lift2(
+			self,
+			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>);
+	}
+
+	impl<'a, Brand, A, B, C, F> Lift2Dispatch<'a, Brand, A, B, C, Val> for F
+	where
+		Brand: Lift,
+		A: Clone + 'a,
+		B: Clone + 'a,
+		C: 'a,
+		F: Fn(A, B) -> C + 'a,
+	{
+		fn dispatch_lift2(
+			self,
+			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			Brand::lift2(self, fa, fb)
+		}
+	}
+
+	impl<'a, Brand, A, B, C, F> Lift2Dispatch<'a, Brand, A, B, C, Ref> for F
+	where
+		Brand: RefLift,
+		A: 'a,
+		B: 'a,
+		C: 'a,
+		F: Fn(&A, &B) -> C + 'a,
+	{
+		fn dispatch_lift2(
+			self,
+			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			Brand::ref_lift2(self, fa, fb)
+		}
+	}
+
+	/// Lifts a binary function into a functor context.
+	///
+	/// Dispatches to either [`Lift::lift2`] or [`RefLift::ref_lift2`]
+	/// based on the closure's argument types.
+	pub(crate) fn lift2<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, C: 'a, Marker>(
+		f: impl Lift2Dispatch<'a, Brand, A, B, C, Marker>,
+		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+		f.dispatch_lift2(fa, fb)
 	}
 }
 
