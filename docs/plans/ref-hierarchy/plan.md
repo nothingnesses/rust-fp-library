@@ -273,20 +273,32 @@ element access) was investigated and rejected for three reasons:
     (uniform `n + 2` underscores for all liftN).
     All call sites updated.
 
-14. **Remaining dispatch operations**: Apply the same pattern to
-    the remaining operations.
+14. **Restructure dispatch module**: Rename `functor_dispatch.rs`
+    to `dispatch.rs` with shared types (`Val`, `Ref`, `ClosureMode`)
+    and re-exports. Move dispatch traits into a `dispatch/` directory
+    mirroring the `classes/` file structure:
+    - `dispatch/functor.rs` (FunctorDispatch + map)
+    - `dispatch/semimonad.rs` (BindDispatch + bind)
+    - `dispatch/lift.rs` (Lift2-5Dispatch + lift2-5)
+      Existing tests and brand inference POC move to appropriate
+      sub-modules or stay in `dispatch.rs`.
 
-    **Closure-dispatched** (not yet done): `apply_first`,
-    `apply_second`, `if_m`, `unless_m`, `bind_flipped`, `join`,
-    `compose_kleisli`, `compose_kleisli_flipped`, `when`, `unless`,
-    `when_m`.
+15. **Remaining dispatch operations**: Apply the same pattern to
+    the remaining operations, each in its own dispatch/ sub-module.
 
-    **Container-dispatched** (not yet done): `apply`. The dispatch
-    trait differentiates `Of<CloneFn::Of<A, B>>` (Val, routes to
-    `Semiapplicative`) from `Of<CloneFn<Ref>::Of<A, B>>` (Ref,
-    routes to `RefSemiapplicative`). If the compiler cannot
-    differentiate these in practice, keep `apply` and `ref_apply`
-    as separate free functions (fallback).
+    **Closure-dispatched** (not yet done):
+    - `dispatch/apply_first.rs` (apply_first)
+    - `dispatch/apply_second.rs` (apply_second)
+    - `dispatch/monad.rs` (if_m, unless_m, join, bind_flipped,
+      compose_kleisli, compose_kleisli_flipped, when, unless, when_m)
+
+    **Container-dispatched** (not yet done):
+    - `dispatch/semiapplicative.rs` (apply). The dispatch trait
+      differentiates `Of<CloneFn::Of<A, B>>` (Val, routes to
+      `Semiapplicative`) from `Of<CloneFn<Ref>::Of<A, B>>` (Ref,
+      routes to `RefSemiapplicative`). If the compiler cannot
+      differentiate these in practice, keep `apply` and `ref_apply`
+      as separate free functions (fallback).
 
     **Not dispatched** (no closure or container to infer from):
     `pure`, `ref_pure`. These remain separate free functions.
@@ -294,9 +306,9 @@ element access) was investigated and rejected for three reasons:
     The same applies to SendRef variants (`send_ref_*` free functions
     become part of their dispatched equivalents).
 
-15. **Documentation and tests**: Property tests for type class
+16. **Documentation and tests**: Property tests for type class
     laws, doc examples, update limitations.md.
-16. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
+17. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
     generates `ref_bind` calls for by-ref monadic code.
 
 ## Design Decision: CloneableFn with Mode Parameter
