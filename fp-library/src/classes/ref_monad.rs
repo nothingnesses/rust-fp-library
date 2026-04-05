@@ -1,4 +1,4 @@
-//! By-ref monads, combining [`RefApplicative`] and [`RefSemimonad`].
+//! By-ref monads, combining [`RefApplicative`](crate::classes::RefApplicative) and [`RefSemimonad`](crate::classes::RefSemimonad).
 //!
 //! This is the by-ref counterpart of [`Monad`](crate::classes::Monad).
 //! Enables monadic sequencing where the continuation receives `&A` instead

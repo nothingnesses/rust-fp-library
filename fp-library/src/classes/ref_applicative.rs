@@ -1,4 +1,4 @@
-//! By-ref applicative functors, combining [`RefPointed`] and [`RefSemiapplicative`].
+//! By-ref applicative functors, combining [`RefPointed`](crate::classes::RefPointed) and [`RefSemiapplicative`](crate::classes::RefSemiapplicative).
 //!
 //! This is the by-ref counterpart of [`Applicative`](crate::classes::Applicative).
 //!

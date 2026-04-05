@@ -34,8 +34,13 @@ mod inner {
 				RefSemiapplicative,
 				RefSemimonad,
 				Semigroup,
+				SendCloneableFn,
 				SendDeferrable,
 				SendRefFunctor,
+				SendRefLift,
+				SendRefPointed,
+				SendRefSemiapplicative,
+				SendRefSemimonad,
 				WithIndex,
 				functor_dispatch::Ref,
 			},
@@ -882,6 +887,172 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.ref_map(f)
+		}
+	}
+
+	// -- SendRefPointed --
+
+	impl SendRefPointed for LazyBrand<ArcLazyConfig> {
+		/// Wraps a cloned value in a new thread-safe memoized context.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type of the value.")]
+		///
+		#[document_parameters("A reference to the value to wrap.")]
+		///
+		#[document_returns("A new thread-safe memoized value containing a clone of the input.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let value = 42;
+		/// let lazy = LazyBrand::<ArcLazyConfig>::send_ref_pure(&value);
+		/// assert_eq!(*lazy.evaluate(), 42);
+		/// ```
+		fn send_ref_pure<'a, A: Clone + Send + Sync + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			let cloned = a.clone();
+			ArcLazy::new(move || cloned)
+		}
+	}
+
+	// -- SendRefLift --
+
+	impl SendRefLift for LazyBrand<ArcLazyConfig> {
+		/// Lifts a thread-safe binary function over two memoized values using references.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the first value.",
+			"The type of the second value.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters(
+			"The function to lift.",
+			"The first memoized value.",
+			"The second memoized value."
+		)]
+		///
+		#[document_returns("A new thread-safe memoized value containing the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = ArcLazy::new(|| 3);
+		/// let y = ArcLazy::new(|| 4);
+		/// let z = LazyBrand::<ArcLazyConfig>::send_ref_lift2(|a: &i32, b: &i32| *a + *b, x, y);
+		/// assert_eq!(*z.evaluate(), 7);
+		/// ```
+		fn send_ref_lift2<'a, A: Send + Sync + 'a, B: Send + Sync + 'a, C: Send + Sync + 'a>(
+			func: impl Fn(&A, &B) -> C + Send + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			ArcLazy::new(move || func(fa.evaluate(), fb.evaluate()))
+		}
+	}
+
+	// -- SendRefSemiapplicative --
+
+	impl SendRefSemiapplicative for LazyBrand<ArcLazyConfig> {
+		/// Applies a wrapped thread-safe by-ref function to a memoized value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the thread-safe cloneable function wrapper.",
+			"The type of the input value.",
+			"The type of the output value."
+		)]
+		///
+		#[document_parameters("The memoized wrapped by-ref function.", "The memoized value.")]
+		///
+		#[document_returns("A new thread-safe memoized value containing the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let f = ArcLazy::new(|| {
+		/// 	std::sync::Arc::new(|x: &i32| *x * 2) as std::sync::Arc<dyn Fn(&i32) -> i32 + Send + Sync>
+		/// });
+		/// let x = ArcLazy::new(|| 5);
+		/// let result = LazyBrand::<ArcLazyConfig>::send_ref_apply::<ArcFnBrand, _, _>(f, x);
+		/// assert_eq!(*result.evaluate(), 10);
+		/// ```
+		fn send_ref_apply<
+			'a,
+			FnBrand: 'a + SendCloneableFn<Ref>,
+			A: Send + Sync + 'a,
+			B: Send + Sync + 'a,
+		>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as SendCloneableFn<Ref>>::SendOf<'a, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			ArcLazy::new(move || {
+				let f = ff.evaluate();
+				let a = fa.evaluate();
+				(**f)(a)
+			})
+		}
+	}
+
+	// -- SendRefSemimonad --
+
+	impl SendRefSemimonad for LazyBrand<ArcLazyConfig> {
+		/// Sequences a thread-safe computation using a reference to the memoized value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the value inside the context.",
+			"The type of the value in the resulting context."
+		)]
+		///
+		#[document_parameters(
+			"The memoized value.",
+			"A thread-safe function that receives a reference and returns a new memoized value."
+		)]
+		///
+		#[document_returns("A new thread-safe memoized value produced by the function.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = ArcLazy::new(|| 5);
+		/// let result = LazyBrand::<ArcLazyConfig>::send_ref_bind(lazy, |x: &i32| {
+		/// 	let v = *x * 2;
+		/// 	ArcLazy::new(move || v)
+		/// });
+		/// assert_eq!(*result.evaluate(), 10);
+		/// ```
+		fn send_ref_bind<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + Send + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			f(ma.evaluate())
 		}
 	}
 
