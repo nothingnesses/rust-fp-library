@@ -264,21 +264,23 @@ element access) was investigated and rejected for three reasons:
     `Arrow::arrow`, free function `fn_new` to `arrow`. Rename
     files to match. See "Planned trait renames" section for full
     table.
-13. **Dispatch unification**: Create dispatch traits following
-    the `FunctorDispatch` pattern. The compiler infers `Val`/`Ref`
-    from the closure's argument type. Single mode parameter for all
-    operations (both arguments must match for multi-argument closures
-    like `lift2`; mixed modes like `Fn(&A, B) -> C` are rejected).
+13. ~~**Core dispatch unification**~~: Done. `BindDispatch` and
+    `Lift2Dispatch` added alongside existing `FunctorDispatch`.
+    Unified `bind` replaces separate `bind` and `ref_bind`. Unified
+    `lift2` replaces separate `lift2` and `ref_lift2`. Updated
+    `m_do!` and `a_do!` macros for new generic parameter counts.
+    All call sites updated from 3/4-generic turbofish to 4/5-generic.
 
-    **Closure-dispatched operations** (infer mode from closure args):
-    `bind`, `lift2`, `apply_first`, `apply_second`, `if_m`,
-    `unless_m`, `bind_flipped`, `join`, `compose_kleisli`,
-    `compose_kleisli_flipped`, `lift3`-`lift5`, `when`, `unless`,
-    `when_m`.
+14. **Remaining dispatch operations**: Apply the same pattern to
+    the remaining operations.
 
-    **Container-dispatched operations** (infer mode from wrapped
-    function type in the container): `apply`. The dispatch trait
-    differentiates `Of<CloneFn::Of<A, B>>` (Val, routes to
+    **Closure-dispatched** (not yet done): `apply_first`,
+    `apply_second`, `if_m`, `unless_m`, `bind_flipped`, `join`,
+    `compose_kleisli`, `compose_kleisli_flipped`, `lift3`-`lift5`,
+    `when`, `unless`, `when_m`.
+
+    **Container-dispatched** (not yet done): `apply`. The dispatch
+    trait differentiates `Of<CloneFn::Of<A, B>>` (Val, routes to
     `Semiapplicative`) from `Of<CloneFn<Ref>::Of<A, B>>` (Ref,
     routes to `RefSemiapplicative`). If the compiler cannot
     differentiate these in practice, keep `apply` and `ref_apply`
@@ -290,9 +292,9 @@ element access) was investigated and rejected for three reasons:
     The same applies to SendRef variants (`send_ref_*` free functions
     become part of their dispatched equivalents).
 
-14. **Documentation and tests**: Property tests for type class
+15. **Documentation and tests**: Property tests for type class
     laws, doc examples, update limitations.md.
-15. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
+16. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
     generates `ref_bind` calls for by-ref monadic code.
 
 ## Design Decision: CloneableFn with Mode Parameter
@@ -489,6 +491,14 @@ None at this time.
 - `RefApplyFirst`, `RefApplySecond` with blanket impls from `RefLift`.
 - `SendRefApplyFirst`, `SendRefApplySecond` with blanket impls from `SendRefLift`.
 - `ref_if_m`, `ref_unless_m` free functions added to `ref_monad`.
+- Traits renamed: `CloneableFn` -> `CloneFn`, `SendCloneableFn` -> `SendCloneFn`, `Function` -> `Arrow`.
+- `Arrow::new` renamed to `Arrow::arrow`. Free function `fn_new` removed (profunctor::arrow exists).
+- `SendCloneFn` made independent (removed `CloneFn` supertrait). `SendOf` renamed to `Of`.
+- Files renamed: `cloneable_fn.rs` -> `clone_fn.rs`, `send_cloneable_fn.rs` -> `send_clone_fn.rs`, `function.rs` -> `arrow.rs`.
+- `BindDispatch` added: unified `bind` replaces separate `bind` and `ref_bind` free functions.
+- `Lift2Dispatch` added: unified `lift2` replaces separate `lift2` and `ref_lift2` free functions.
+- `m_do!` and `a_do!` macros updated for new generic parameter counts.
+- All call sites updated for 4-generic `bind` and 5-generic `lift2` turbofish.
 
 ## References
 
