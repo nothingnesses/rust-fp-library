@@ -593,6 +593,639 @@ mod inner {
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
 		f.dispatch_lift2(fa, fb)
 	}
+
+	// -- Lift3Dispatch --
+
+	/// Trait that routes a lift3 operation to the appropriate type class method.
+	#[document_type_parameters(
+		"The lifetime.",
+		"The brand.",
+		"First type.",
+		"Second type.",
+		"Third type.",
+		"Result type.",
+		"Dispatch marker."
+	)]
+	#[document_parameters("The closure implementing this dispatch.")]
+	pub trait Lift3Dispatch<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, C: 'a, D: 'a, Marker> {
+		/// Perform the dispatched lift3 operation.
+		#[document_signature]
+		#[document_parameters("First context.", "Second context.", "Third context.")]
+		#[document_returns("A new context containing the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let r = lift3::<OptionBrand, _, _, _, _, _>(|a, b, c| a + b + c, Some(1), Some(2), Some(3));
+		/// assert_eq!(r, Some(6));
+		/// ```
+		fn dispatch_lift3(
+			self,
+			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+			fc: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>),
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>);
+	}
+
+	/// Routes `Fn(A, B, C) -> D` closures through [`Lift::lift2`].
+	#[document_type_parameters(
+		"The lifetime.",
+		"The brand.",
+		"First.",
+		"Second.",
+		"Third.",
+		"Result.",
+		"Closure."
+	)]
+	#[document_parameters("The closure that takes owned values.")]
+	impl<'a, Brand, A, B, C, D, F> Lift3Dispatch<'a, Brand, A, B, C, D, Val> for F
+	where
+		Brand: Lift,
+		A: Clone + 'a,
+		B: Clone + 'a,
+		C: Clone + 'a,
+		D: 'a,
+		F: Fn(A, B, C) -> D + 'a,
+	{
+		#[document_signature]
+		#[document_parameters("First context.", "Second context.", "Third context.")]
+		#[document_returns("A new context containing the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let r = lift3::<OptionBrand, _, _, _, _, _>(|a, b, c| a + b + c, Some(1), Some(2), Some(3));
+		/// assert_eq!(r, Some(6));
+		/// ```
+		fn dispatch_lift3(
+			self,
+			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+			fc: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>),
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) {
+			Brand::lift2(move |(a, b), c| self(a, b, c), Brand::lift2(|a, b| (a, b), fa, fb), fc)
+		}
+	}
+
+	/// Routes `Fn(&A, &B, &C) -> D` closures through [`RefLift::ref_lift2`].
+	#[document_type_parameters(
+		"The lifetime.",
+		"The brand.",
+		"First.",
+		"Second.",
+		"Third.",
+		"Result.",
+		"Closure."
+	)]
+	#[document_parameters("The closure that takes references.")]
+	impl<'a, Brand, A, B, C, D, F> Lift3Dispatch<'a, Brand, A, B, C, D, Ref> for F
+	where
+		Brand: RefLift,
+		A: Clone + 'a,
+		B: Clone + 'a,
+		C: 'a,
+		D: 'a,
+		F: Fn(&A, &B, &C) -> D + 'a,
+	{
+		#[document_signature]
+		#[document_parameters("First context.", "Second context.", "Third context.")]
+		#[document_returns("A new context containing the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let a = RcLazy::pure(1);
+		/// let b = RcLazy::pure(2);
+		/// let c = RcLazy::pure(3);
+		/// let r = lift3::<LazyBrand<RcLazyConfig>, _, _, _, _, _>(
+		/// 	|a: &i32, b: &i32, c: &i32| *a + *b + *c,
+		/// 	a,
+		/// 	b,
+		/// 	c,
+		/// );
+		/// assert_eq!(*r.evaluate(), 6);
+		/// ```
+		fn dispatch_lift3(
+			self,
+			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+			fc: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>),
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) {
+			Brand::ref_lift2(
+				move |(a, b): &(A, B), c: &C| self(a, b, c),
+				Brand::ref_lift2(|a: &A, b: &B| (a.clone(), b.clone()), fa, fb),
+				fc,
+			)
+		}
+	}
+
+	/// Lifts a ternary function into a functor context.
+	///
+	/// Dispatches to [`Lift::lift2`] or [`RefLift::ref_lift2`] based on the closure's argument types.
+	#[document_signature]
+	#[document_type_parameters(
+		"The lifetime.",
+		"The brand.",
+		"First type.",
+		"Second type.",
+		"Third type.",
+		"Result type.",
+		"Dispatch marker."
+	)]
+	#[document_parameters(
+		"The function to lift.",
+		"First context.",
+		"Second context.",
+		"Third context."
+	)]
+	#[document_returns("A new context containing the result.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	/// let r = lift3::<OptionBrand, _, _, _, _, _>(|a, b, c| a + b + c, Some(1), Some(2), Some(3));
+	/// assert_eq!(r, Some(6));
+	/// ```
+	pub fn lift3<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, C: 'a, D: 'a, Marker>(
+		f: impl Lift3Dispatch<'a, Brand, A, B, C, D, Marker>,
+		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		fc: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>),
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) {
+		f.dispatch_lift3(fa, fb, fc)
+	}
+
+	// -- Lift4Dispatch --
+
+	/// Trait that routes a lift4 operation to the appropriate type class method.
+	#[document_type_parameters(
+		"The lifetime.",
+		"The brand.",
+		"First.",
+		"Second.",
+		"Third.",
+		"Fourth.",
+		"Result.",
+		"Dispatch marker."
+	)]
+	#[document_parameters("The closure implementing this dispatch.")]
+	pub trait Lift4Dispatch<
+		'a,
+		Brand: Kind_cdc7cd43dac7585f,
+		A: 'a,
+		B: 'a,
+		C: 'a,
+		D: 'a,
+		E: 'a,
+		Marker,
+	> {
+		/// Perform the dispatched lift4 operation.
+		#[document_signature]
+		#[document_parameters("First.", "Second.", "Third.", "Fourth.")]
+		#[document_returns("Result context.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let r = lift4::<OptionBrand, _, _, _, _, _, _>(
+		/// 	|a, b, c, d| a + b + c + d,
+		/// 	Some(1),
+		/// 	Some(2),
+		/// 	Some(3),
+		/// 	Some(4),
+		/// );
+		/// assert_eq!(r, Some(10));
+		/// ```
+		fn dispatch_lift4(
+			self,
+			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+			fc: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>),
+			fd: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>),
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>);
+	}
+
+	/// Routes `Fn(A, B, C, D) -> E` closures through [`Lift::lift2`].
+	#[document_type_parameters(
+		"The lifetime.",
+		"The brand.",
+		"First.",
+		"Second.",
+		"Third.",
+		"Fourth.",
+		"Result.",
+		"Closure."
+	)]
+	#[document_parameters("The closure that takes owned values.")]
+	impl<'a, Brand, A, B, C, D, E, Func> Lift4Dispatch<'a, Brand, A, B, C, D, E, Val> for Func
+	where
+		Brand: Lift,
+		A: Clone + 'a,
+		B: Clone + 'a,
+		C: Clone + 'a,
+		D: Clone + 'a,
+		E: 'a,
+		Func: Fn(A, B, C, D) -> E + 'a,
+	{
+		#[document_signature]
+		#[document_parameters("First.", "Second.", "Third.", "Fourth.")]
+		#[document_returns("Result context.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let r = lift4::<OptionBrand, _, _, _, _, _, _>(
+		/// 	|a, b, c, d| a + b + c + d,
+		/// 	Some(1),
+		/// 	Some(2),
+		/// 	Some(3),
+		/// 	Some(4),
+		/// );
+		/// assert_eq!(r, Some(10));
+		/// ```
+		fn dispatch_lift4(
+			self,
+			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+			fc: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>),
+			fd: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>),
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>) {
+			Brand::lift2(
+				move |((a, b), c), d| self(a, b, c, d),
+				Brand::lift2(move |(a, b), c| ((a, b), c), Brand::lift2(|a, b| (a, b), fa, fb), fc),
+				fd,
+			)
+		}
+	}
+
+	/// Routes `Fn(&A, &B, &C, &D) -> E` closures through [`RefLift::ref_lift2`].
+	#[document_type_parameters(
+		"The lifetime.",
+		"The brand.",
+		"First.",
+		"Second.",
+		"Third.",
+		"Fourth.",
+		"Result.",
+		"Closure."
+	)]
+	#[document_parameters("The closure that takes references.")]
+	impl<'a, Brand, A, B, C, D, E, Func> Lift4Dispatch<'a, Brand, A, B, C, D, E, Ref> for Func
+	where
+		Brand: RefLift,
+		A: Clone + 'a,
+		B: Clone + 'a,
+		C: Clone + 'a,
+		D: 'a,
+		E: 'a,
+		Func: Fn(&A, &B, &C, &D) -> E + 'a,
+	{
+		#[document_signature]
+		#[document_parameters("First.", "Second.", "Third.", "Fourth.")]
+		#[document_returns("Result context.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let r = lift4::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _>(
+		/// 	|a: &i32, b: &i32, c: &i32, d: &i32| *a + *b + *c + *d,
+		/// 	RcLazy::pure(1),
+		/// 	RcLazy::pure(2),
+		/// 	RcLazy::pure(3),
+		/// 	RcLazy::pure(4),
+		/// );
+		/// assert_eq!(*r.evaluate(), 10);
+		/// ```
+		fn dispatch_lift4(
+			self,
+			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+			fc: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>),
+			fd: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>),
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>) {
+			Brand::ref_lift2(
+				move |((a, b), c): &((A, B), C), d: &D| self(a, b, c, d),
+				Brand::ref_lift2(
+					move |(a, b): &(A, B), c: &C| ((a.clone(), b.clone()), c.clone()),
+					Brand::ref_lift2(|a: &A, b: &B| (a.clone(), b.clone()), fa, fb),
+					fc,
+				),
+				fd,
+			)
+		}
+	}
+
+	/// Lifts a quaternary function into a functor context.
+	#[document_signature]
+	#[document_type_parameters(
+		"The lifetime.",
+		"The brand.",
+		"First.",
+		"Second.",
+		"Third.",
+		"Fourth.",
+		"Result.",
+		"Dispatch marker."
+	)]
+	#[document_parameters("The function to lift.", "First.", "Second.", "Third.", "Fourth.")]
+	#[document_returns("Result context.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	/// let r = lift4::<OptionBrand, _, _, _, _, _, _>(
+	/// 	|a, b, c, d| a + b + c + d,
+	/// 	Some(1),
+	/// 	Some(2),
+	/// 	Some(3),
+	/// 	Some(4),
+	/// );
+	/// assert_eq!(r, Some(10));
+	/// ```
+	pub fn lift4<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, C: 'a, D: 'a, E: 'a, Marker>(
+		f: impl Lift4Dispatch<'a, Brand, A, B, C, D, E, Marker>,
+		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		fc: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>),
+		fd: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>),
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>) {
+		f.dispatch_lift4(fa, fb, fc, fd)
+	}
+
+	// -- Lift5Dispatch --
+
+	/// Trait that routes a lift5 operation to the appropriate type class method.
+	#[document_type_parameters(
+		"The lifetime.",
+		"The brand.",
+		"1st.",
+		"2nd.",
+		"3rd.",
+		"4th.",
+		"5th.",
+		"Result.",
+		"Dispatch marker."
+	)]
+	#[document_parameters("The closure implementing this dispatch.")]
+	pub trait Lift5Dispatch<
+		'a,
+		Brand: Kind_cdc7cd43dac7585f,
+		A: 'a,
+		B: 'a,
+		C: 'a,
+		D: 'a,
+		E: 'a,
+		G: 'a,
+		Marker,
+	> {
+		/// Perform the dispatched lift5 operation.
+		#[document_signature]
+		#[document_parameters("1st.", "2nd.", "3rd.", "4th.", "5th.")]
+		#[document_returns("Result context.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let r = lift5::<OptionBrand, _, _, _, _, _, _, _>(
+		/// 	|a, b, c, d, e| a + b + c + d + e,
+		/// 	Some(1),
+		/// 	Some(2),
+		/// 	Some(3),
+		/// 	Some(4),
+		/// 	Some(5),
+		/// );
+		/// assert_eq!(r, Some(15));
+		/// ```
+		fn dispatch_lift5(
+			self,
+			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+			fc: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>),
+			fd: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>),
+			fe: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, G>);
+	}
+
+	/// Routes `Fn(A, B, C, D, E) -> G` closures through [`Lift::lift2`].
+	#[document_type_parameters(
+		"The lifetime.",
+		"The brand.",
+		"1st.",
+		"2nd.",
+		"3rd.",
+		"4th.",
+		"5th.",
+		"Result.",
+		"Closure."
+	)]
+	#[document_parameters("The closure that takes owned values.")]
+	impl<'a, Brand, A, B, C, D, E, G, Func> Lift5Dispatch<'a, Brand, A, B, C, D, E, G, Val> for Func
+	where
+		Brand: Lift,
+		A: Clone + 'a,
+		B: Clone + 'a,
+		C: Clone + 'a,
+		D: Clone + 'a,
+		E: Clone + 'a,
+		G: 'a,
+		Func: Fn(A, B, C, D, E) -> G + 'a,
+	{
+		#[document_signature]
+		#[document_parameters("1st.", "2nd.", "3rd.", "4th.", "5th.")]
+		#[document_returns("Result context.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let r = lift5::<OptionBrand, _, _, _, _, _, _, _>(
+		/// 	|a, b, c, d, e| a + b + c + d + e,
+		/// 	Some(1),
+		/// 	Some(2),
+		/// 	Some(3),
+		/// 	Some(4),
+		/// 	Some(5),
+		/// );
+		/// assert_eq!(r, Some(15));
+		/// ```
+		fn dispatch_lift5(
+			self,
+			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+			fc: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>),
+			fd: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>),
+			fe: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, G>) {
+			Brand::lift2(
+				move |(((a, b), c), d), e| self(a, b, c, d, e),
+				Brand::lift2(
+					move |((a, b), c), d| (((a, b), c), d),
+					Brand::lift2(
+						move |(a, b), c| ((a, b), c),
+						Brand::lift2(|a, b| (a, b), fa, fb),
+						fc,
+					),
+					fd,
+				),
+				fe,
+			)
+		}
+	}
+
+	/// Routes `Fn(&A, &B, &C, &D, &E) -> G` closures through [`RefLift::ref_lift2`].
+	#[document_type_parameters(
+		"The lifetime.",
+		"The brand.",
+		"1st.",
+		"2nd.",
+		"3rd.",
+		"4th.",
+		"5th.",
+		"Result.",
+		"Closure."
+	)]
+	#[document_parameters("The closure that takes references.")]
+	impl<'a, Brand, A, B, C, D, E, G, Func> Lift5Dispatch<'a, Brand, A, B, C, D, E, G, Ref> for Func
+	where
+		Brand: RefLift,
+		A: Clone + 'a,
+		B: Clone + 'a,
+		C: Clone + 'a,
+		D: Clone + 'a,
+		E: 'a,
+		G: 'a,
+		Func: Fn(&A, &B, &C, &D, &E) -> G + 'a,
+	{
+		#[document_signature]
+		#[document_parameters("1st.", "2nd.", "3rd.", "4th.", "5th.")]
+		#[document_returns("Result context.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let r = lift5::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _, _>(
+		/// 	|a: &i32, b: &i32, c: &i32, d: &i32, e: &i32| *a + *b + *c + *d + *e,
+		/// 	RcLazy::pure(1),
+		/// 	RcLazy::pure(2),
+		/// 	RcLazy::pure(3),
+		/// 	RcLazy::pure(4),
+		/// 	RcLazy::pure(5),
+		/// );
+		/// assert_eq!(*r.evaluate(), 15);
+		/// ```
+		fn dispatch_lift5(
+			self,
+			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+			fc: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>),
+			fd: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>),
+			fe: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, G>) {
+			Brand::ref_lift2(
+				move |(((a, b), c), d): &(((A, B), C), D), e: &E| self(a, b, c, d, e),
+				Brand::ref_lift2(
+					move |((a, b), c): &((A, B), C), d: &D| {
+						(((a.clone(), b.clone()), c.clone()), d.clone())
+					},
+					Brand::ref_lift2(
+						move |(a, b): &(A, B), c: &C| ((a.clone(), b.clone()), c.clone()),
+						Brand::ref_lift2(|a: &A, b: &B| (a.clone(), b.clone()), fa, fb),
+						fc,
+					),
+					fd,
+				),
+				fe,
+			)
+		}
+	}
+
+	/// Lifts a quinary function into a functor context.
+	#[document_signature]
+	#[document_type_parameters(
+		"The lifetime.",
+		"The brand.",
+		"1st.",
+		"2nd.",
+		"3rd.",
+		"4th.",
+		"5th.",
+		"Result.",
+		"Dispatch marker."
+	)]
+	#[document_parameters("The function to lift.", "1st.", "2nd.", "3rd.", "4th.", "5th.")]
+	#[document_returns("Result context.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	/// let r = lift5::<OptionBrand, _, _, _, _, _, _, _>(
+	/// 	|a, b, c, d, e| a + b + c + d + e,
+	/// 	Some(1),
+	/// 	Some(2),
+	/// 	Some(3),
+	/// 	Some(4),
+	/// 	Some(5),
+	/// );
+	/// assert_eq!(r, Some(15));
+	/// ```
+	pub fn lift5<
+		'a,
+		Brand: Kind_cdc7cd43dac7585f,
+		A: 'a,
+		B: 'a,
+		C: 'a,
+		D: 'a,
+		E: 'a,
+		G: 'a,
+		Marker,
+	>(
+		f: impl Lift5Dispatch<'a, Brand, A, B, C, D, E, G, Marker>,
+		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		fc: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>),
+		fd: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>),
+		fe: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, G>) {
+		f.dispatch_lift5(fa, fb, fc, fd, fe)
+	}
 }
 
 pub use inner::*;
