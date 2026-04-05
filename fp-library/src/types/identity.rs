@@ -395,7 +395,7 @@ mod inner {
 		///
 		/// let x = Identity(1);
 		/// let y = Identity(2);
-		/// let z = lift2::<IdentityBrand, _, _, _>(|a, b| a + b, x, y);
+		/// let z = lift2::<IdentityBrand, _, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, Identity(3));
 		/// ```
 		fn lift2<'a, A, B, C>(

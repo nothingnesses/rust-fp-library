@@ -418,19 +418,19 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<ResultErrAppliedBrand<()>, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
+		/// 	lift2::<ResultErrAppliedBrand<()>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
 		/// 	Ok(3)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
+		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
 		/// 	Err(2)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
+		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
 		/// 	Err(1)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
+		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
 		/// 	Err(1)
 		/// );
 		/// ```
@@ -900,19 +900,19 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
+		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
 		/// 	Err(3)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
+		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
 		/// 	Ok(2)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
+		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
 		/// 	Ok(1)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
+		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
 		/// 	Ok(1)
 		/// );
 		/// ```

@@ -723,7 +723,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<PairFirstAppliedBrand<String>, _, _, _>(
+		/// 	lift2::<PairFirstAppliedBrand<String>, _, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		Pair("a".to_string(), 1),
 		/// 		Pair("b".to_string(), 2)
@@ -1240,7 +1240,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<PairSecondAppliedBrand<String>, _, _, _>(
+		/// 	lift2::<PairSecondAppliedBrand<String>, _, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		Pair(1, "a".to_string()),
 		/// 		Pair(2, "b".to_string())

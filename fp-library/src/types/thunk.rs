@@ -543,7 +543,7 @@ mod inner {
 		///
 		/// let eval1 = pure::<ThunkBrand, _>(10);
 		/// let eval2 = pure::<ThunkBrand, _>(20);
-		/// let result = lift2::<ThunkBrand, _, _, _>(|a, b| a + b, eval1, eval2);
+		/// let result = lift2::<ThunkBrand, _, _, _, _>(|a, b| a + b, eval1, eval2);
 		/// assert_eq!(result.evaluate(), 30);
 		/// ```
 		fn lift2<'a, A, B, C>(
@@ -1335,7 +1335,7 @@ mod tests {
 	fn test_lift2_via_brand() {
 		let t1 = pure::<ThunkBrand, _>(10);
 		let t2 = pure::<ThunkBrand, _>(20);
-		let result = lift2::<ThunkBrand, _, _, _>(|a, b| a + b, t1, t2);
+		let result = lift2::<ThunkBrand, _, _, _, _>(|a, b| a + b, t1, t2);
 		assert_eq!(result.evaluate(), 30);
 	}
 

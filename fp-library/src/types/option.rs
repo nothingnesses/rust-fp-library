@@ -90,7 +90,7 @@ mod inner {
 		///
 		/// let x = Some(1);
 		/// let y = Some(2);
-		/// let z = lift2::<OptionBrand, _, _, _>(|a, b| a + b, x, y);
+		/// let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, Some(3));
 		/// ```
 		fn lift2<'a, A, B, C>(

@@ -364,7 +364,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<Tuple2FirstAppliedBrand<String>, _, _, _>(
+		/// 	lift2::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		("a".to_string(), 1),
 		/// 		("b".to_string(), 2)
@@ -870,7 +870,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<Tuple2SecondAppliedBrand<String>, _, _, _>(
+		/// 	lift2::<Tuple2SecondAppliedBrand<String>, _, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		(1, "a".to_string()),
 		/// 		(2, "b".to_string())

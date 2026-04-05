@@ -366,7 +366,7 @@ mod inner {
 		///
 		/// let list1 = CatList::singleton(1).snoc(2);
 		/// let list2 = CatList::singleton(10).snoc(20);
-		/// let lifted = lift2::<CatListBrand, _, _, _>(|x, y| x + y, list1, list2);
+		/// let lifted = lift2::<CatListBrand, _, _, _, _>(|x, y| x + y, list1, list2);
 		/// let vec: Vec<_> = lifted.into_iter().collect();
 		/// assert_eq!(vec, vec![11, 21, 12, 22]);
 		/// ```

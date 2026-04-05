@@ -15,7 +15,7 @@
 //!
 //! let x = RcLazy::pure(3);
 //! let y = RcLazy::pure(4);
-//! let z = ref_lift2::<LazyBrand<RcLazyConfig>, _, _, _>(|a: &i32, b: &i32| *a + *b, x, y);
+//! let z = lift2::<LazyBrand<RcLazyConfig>, _, _, _, _>(|a: &i32, b: &i32| *a + *b, x, y);
 //! assert_eq!(*z.evaluate(), 7);
 //! ```
 
@@ -65,44 +65,6 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>);
-	}
-
-	/// Lifts a binary function over two contexts using references.
-	///
-	/// Free function version that dispatches to [the type class' associated function][`RefLift::ref_lift2`].
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the context.",
-		"The type of the first value.",
-		"The type of the second value.",
-		"The type of the result."
-	)]
-	///
-	#[document_parameters("The function to lift.", "The first context.", "The second context.")]
-	///
-	#[document_returns("A new context containing the result of applying the function.")]
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// 	types::*,
-	/// };
-	///
-	/// let x = RcLazy::pure(3);
-	/// let y = RcLazy::pure(4);
-	/// let z = ref_lift2::<LazyBrand<RcLazyConfig>, _, _, _>(|a: &i32, b: &i32| *a + *b, x, y);
-	/// assert_eq!(*z.evaluate(), 7);
-	/// ```
-	pub fn ref_lift2<'a, Brand: RefLift, A: 'a, B: 'a, C: 'a>(
-		func: impl Fn(&A, &B) -> C + 'a,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
-		Brand::ref_lift2(func, fa, fb)
 	}
 }
 

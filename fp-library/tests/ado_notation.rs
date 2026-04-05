@@ -201,7 +201,7 @@ fn equivalent_to_manual_lift2() {
 		b <- Some(3);
 		a - b
 	});
-	let manual_result = lift2::<OptionBrand, _, _, _>(|a, b| a - b, Some(5), Some(3));
+	let manual_result = lift2::<OptionBrand, _, _, _, _>(|a, b| a - b, Some(5), Some(3));
 	assert_eq!(ado_result, manual_result);
 }
 

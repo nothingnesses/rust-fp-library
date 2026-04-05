@@ -127,7 +127,7 @@ pub fn bench_result(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				lift2::<ResultErrAppliedBrand<i32>, _, _, _>(
+				lift2::<ResultErrAppliedBrand<i32>, _, _, _, _>(
 					|x, y| x + y,
 					std::hint::black_box(val_ok),
 					std::hint::black_box(val2),

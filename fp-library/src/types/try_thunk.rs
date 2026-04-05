@@ -1068,7 +1068,7 @@ mod inner {
 		///
 		/// let eval1: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
 		/// let eval2: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(20);
-		/// let result = lift2::<TryThunkErrAppliedBrand<()>, _, _, _>(|a, b| a + b, eval1, eval2);
+		/// let result = lift2::<TryThunkErrAppliedBrand<()>, _, _, _, _>(|a, b| a + b, eval1, eval2);
 		/// assert_eq!(result.evaluate(), Ok(30));
 		/// ```
 		fn lift2<'a, A, B, C>(
@@ -1808,7 +1808,7 @@ mod inner {
 		///
 		/// let eval1: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
 		/// let eval2: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(20);
-		/// let result = lift2::<TryThunkOkAppliedBrand<i32>, _, _, _>(|a, b| a + b, eval1, eval2);
+		/// let result = lift2::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(|a, b| a + b, eval1, eval2);
 		/// assert_eq!(result.evaluate(), Err(30));
 		/// ```
 		fn lift2<'a, E1, E2, E3>(

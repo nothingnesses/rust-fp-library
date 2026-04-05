@@ -396,7 +396,7 @@ mod inner {
 	///
 	/// Dispatches to either [`Lift::lift2`] or [`RefLift::ref_lift2`]
 	/// based on the closure's argument types.
-	pub(crate) fn lift2<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, C: 'a, Marker>(
+	pub fn lift2<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, C: 'a, Marker>(
 		f: impl Lift2Dispatch<'a, Brand, A, B, C, Marker>,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),

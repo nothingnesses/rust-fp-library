@@ -1057,7 +1057,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<ControlFlowContinueAppliedBrand<()>, _, _, _>(
+		/// 	lift2::<ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		ControlFlow::Break(1),
 		/// 		ControlFlow::Break(2)
@@ -1065,7 +1065,7 @@ mod inner {
 		/// 	ControlFlow::Break(3)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(
+		/// 	lift2::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		ControlFlow::Break(1),
 		/// 		ControlFlow::Continue(2)
@@ -1600,7 +1600,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(
+		/// 	lift2::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		ControlFlow::Continue(1),
 		/// 		ControlFlow::Continue(2)
@@ -1608,7 +1608,7 @@ mod inner {
 		/// 	ControlFlow::Continue(3)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(
+		/// 	lift2::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		ControlFlow::Continue(1),
 		/// 		ControlFlow::Break(2)
@@ -2415,11 +2415,11 @@ mod tests {
 		let s3: ControlFlow<i32, i32> = ControlFlow::Continue(3);
 
 		assert_eq!(
-			lift2::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(|x, y| x + y, s1, s2),
+			lift2::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(|x, y| x + y, s1, s2),
 			ControlFlow::Break(3)
 		);
 		assert_eq!(
-			lift2::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(|x, y| x + y, s1, s3),
+			lift2::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(|x, y| x + y, s1, s3),
 			ControlFlow::Continue(3)
 		);
 	}
@@ -2435,11 +2435,11 @@ mod tests {
 		let s3: ControlFlow<i32, i32> = ControlFlow::Break(3);
 
 		assert_eq!(
-			lift2::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(|x, y| x + y, s1, s2),
+			lift2::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(|x, y| x + y, s1, s2),
 			ControlFlow::Continue(3)
 		);
 		assert_eq!(
-			lift2::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(|x, y| x + y, s1, s3),
+			lift2::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(|x, y| x + y, s1, s3),
 			ControlFlow::Break(3)
 		);
 	}

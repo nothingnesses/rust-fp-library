@@ -164,7 +164,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<VecBrand, _, _, _>(|x, y| x + y, vec![1, 2], vec![10, 20]),
+		/// 	lift2::<VecBrand, _, _, _, _>(|x, y| x + y, vec![1, 2], vec![10, 20]),
 		/// 	vec![11, 21, 12, 22]
 		/// );
 		/// ```

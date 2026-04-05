@@ -270,7 +270,7 @@ pub fn bench_option(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				lift2::<OptionBrand, _, _, _>(
+				lift2::<OptionBrand, _, _, _, _>(
 					|x, y| x + y,
 					std::hint::black_box(val),
 					std::hint::black_box(val2),

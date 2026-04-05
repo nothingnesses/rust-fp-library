@@ -94,7 +94,7 @@ mod inner {
 		///
 		/// let x = (1,);
 		/// let y = (2,);
-		/// let z = lift2::<Tuple1Brand, _, _, _>(|a, b| a + b, x, y);
+		/// let z = lift2::<Tuple1Brand, _, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, (3,));
 		/// ```
 		fn lift2<'a, A, B, C>(
