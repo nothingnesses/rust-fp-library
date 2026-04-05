@@ -5,5 +5,5 @@ use fp_library::{
 
 fn main() {
 	// Should fail because RcFnBrand does not implement SendCloneableFn
-	let _ = <RcFnBrand as SendCloneableFn>::send_cloneable_fn_new(|x: i32| x);
+	let _ = <RcFnBrand as SendLiftFn>::new(|x: i32| x);
 }

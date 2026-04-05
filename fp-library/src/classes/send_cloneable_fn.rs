@@ -11,7 +11,7 @@
 //! 	std::thread,
 //! };
 //!
-//! let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
+//! let f = send_lift_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 //!
 //! // Can be sent to another thread
 //! let handle = thread::spawn(move || {
@@ -23,7 +23,13 @@
 #[fp_macros::document_module]
 mod inner {
 	use {
-		crate::classes::*,
+		crate::classes::{
+			functor_dispatch::{
+				ClosureMode,
+				Val,
+			},
+			*,
+		},
 		fp_macros::*,
 		std::ops::Deref,
 	};
@@ -34,6 +40,9 @@ mod inner {
 	/// wrapped closure and the wrapper itself. This is implemented by types like
 	/// [`ArcFnBrand`][crate::brands::ArcFnBrand] but not [`RcFnBrand`][crate::brands::RcFnBrand].
 	///
+	/// The `Mode` parameter selects whether the wrapped closure takes its input
+	/// by value (`Val`, the default) or by reference (`Ref`).
+	///
 	/// The lifetime `'a` ensures the function doesn't outlive referenced data,
 	/// while generic types `A` and `B` represent the input and output types, respectively.
 	///
@@ -42,7 +51,10 @@ mod inner {
 	/// (like `dyn Fn`) commonly used in thread-safe function wrappers. This resolves potential
 	/// E0310 errors where the compiler cannot otherwise prove that captured variables in
 	/// closures satisfy the required lifetime bounds.
-	pub trait SendCloneableFn: CloneableFn {
+	#[document_type_parameters(
+		"Selects whether the wrapped closure takes its input by value (`Val`) or by reference (`Ref`). Defaults to `Val`."
+	)]
+	pub trait SendCloneableFn<Mode: ClosureMode = Val>: CloneableFn<Mode> {
 		/// The type of the thread-safe cloneable function wrapper.
 		///
 		/// This associated type represents the concrete type of the wrapper (e.g., `Arc<dyn Fn(A) -> B + Send + Sync>`)
@@ -50,8 +62,15 @@ mod inner {
 		type SendOf<'a, A: 'a, B: 'a>: Clone
 			+ Send
 			+ Sync
-			+ Deref<Target = dyn 'a + Fn(A) -> B + Send + Sync>;
+			+ Deref<Target = Mode::SendTarget<'a, A, B>>;
+	}
 
+	/// A trait for constructing thread-safe cloneable function wrappers from closures.
+	///
+	/// Separated from [`SendCloneableFn`] because the `new` method's parameter type
+	/// depends on the closure mode (`Fn(A) -> B + Send + Sync` for `Val`), and a single
+	/// trait method cannot have a mode-dependent signature.
+	pub trait SendLiftFn: SendCloneableFn<Val> {
 		/// Creates a new thread-safe cloneable function wrapper.
 		///
 		/// This method wraps a closure into a thread-safe cloneable function wrapper.
@@ -79,7 +98,7 @@ mod inner {
 		/// 	std::thread,
 		/// };
 		///
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = send_lift_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 		///
 		/// // Can be sent to another thread
 		/// let handle = thread::spawn(move || {
@@ -87,14 +106,14 @@ mod inner {
 		/// });
 		/// handle.join().unwrap();
 		/// ```
-		fn send_cloneable_fn_new<'a, A: 'a, B: 'a>(
+		fn new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(A) -> B + Send + Sync
 		) -> <Self as SendCloneableFn>::SendOf<'a, A, B>;
 	}
 
 	/// Creates a new thread-safe cloneable function wrapper.
 	///
-	/// Free function version that dispatches to [the type class' associated function][`SendCloneableFn::send_cloneable_fn_new`].
+	/// Free function version that dispatches to [the type class' associated function][`SendLiftFn::new`].
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -120,7 +139,7 @@ mod inner {
 	/// 	std::thread,
 	/// };
 	///
-	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
+	/// let f = send_lift_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 	///
 	/// // Can be sent to another thread
 	/// let handle = thread::spawn(move || {
@@ -132,8 +151,8 @@ mod inner {
 		f: impl 'a + Fn(A) -> B + Send + Sync
 	) -> <Brand as SendCloneableFn>::SendOf<'a, A, B>
 	where
-		Brand: SendCloneableFn, {
-		<Brand as SendCloneableFn>::send_cloneable_fn_new(f)
+		Brand: SendLiftFn, {
+		<Brand as SendLiftFn>::new(f)
 	}
 }
 

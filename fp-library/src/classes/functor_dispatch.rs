@@ -79,13 +79,18 @@ mod inner {
 	pub trait ClosureMode {
 		/// The unsized closure trait object type for this mode.
 		type Target<'a, A: 'a, B: 'a>: ?Sized + 'a;
+
+		/// The unsized closure trait object type for this mode with `Send + Sync` bounds.
+		type SendTarget<'a, A: 'a, B: 'a>: ?Sized + 'a;
 	}
 
 	impl ClosureMode for Val {
+		type SendTarget<'a, A: 'a, B: 'a> = dyn 'a + Fn(A) -> B + Send + Sync;
 		type Target<'a, A: 'a, B: 'a> = dyn 'a + Fn(A) -> B;
 	}
 
 	impl ClosureMode for Ref {
+		type SendTarget<'a, A: 'a, B: 'a> = dyn 'a + Fn(&A) -> B + Send + Sync;
 		type Target<'a, A: 'a, B: 'a> = dyn 'a + Fn(&A) -> B;
 	}
 

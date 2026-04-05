@@ -31,7 +31,7 @@ fp_macros::generate_function_re_exports!("src/classes", {
 	"send_ref_counted_pointer::send_new": send_ref_counted_pointer_new,
 	"plus::empty": plus_empty,
 	"semigroupoid::compose": semigroupoid_compose,
-	"send_cloneable_fn::new": send_cloneable_fn_new,
+	"send_cloneable_fn::new": send_lift_fn_new,
 });
 pub use crate::types::{
 	lazy::{

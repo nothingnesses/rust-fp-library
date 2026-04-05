@@ -9,7 +9,7 @@ use {
 fn main() {
 	let cell = RefCell::new(42);
 	// Should fail because cell is not Sync, so the closure is not Sync
-	let _ = <ArcFnBrand as SendCloneableFn>::send_cloneable_fn_new(move |_: ()| {
+	let _ = <ArcFnBrand as SendLiftFn>::new(move |_: ()| {
 		println!("{:?}", cell);
 	});
 }

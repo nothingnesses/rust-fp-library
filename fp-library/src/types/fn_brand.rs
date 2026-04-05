@@ -23,6 +23,7 @@ mod inner {
 			Apply,
 			brands::FnBrand,
 			classes::{
+				functor_dispatch::Ref,
 				profunctor::*,
 				*,
 			},
@@ -78,6 +79,12 @@ mod inner {
 	impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
 		type Of<'a, A: 'a, B: 'a> =
 			Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>);
+		type PointerBrand = P;
+	}
+
+	#[document_type_parameters("The reference-counted pointer type.")]
+	impl<P: UnsizedCoercible> CloneableFn<Ref> for FnBrand<P> {
+		type Of<'a, A: 'a, B: 'a> = P::CloneableOf<'a, dyn 'a + Fn(&A) -> B>;
 		type PointerBrand = P;
 	}
 
@@ -425,7 +432,15 @@ mod inner {
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 		type SendOf<'a, A: 'a, B: 'a> = P::SendOf<'a, dyn 'a + Fn(A) -> B + Send + Sync>;
+	}
 
+	#[document_type_parameters("The reference-counted pointer type.")]
+	impl<P: SendUnsizedCoercible> SendCloneableFn<Ref> for FnBrand<P> {
+		type SendOf<'a, A: 'a, B: 'a> = P::SendOf<'a, dyn 'a + Fn(&A) -> B + Send + Sync>;
+	}
+
+	#[document_type_parameters("The reference-counted pointer type.")]
+	impl<P: SendUnsizedCoercible> SendLiftFn for FnBrand<P> {
 		/// Creates a new thread-safe cloneable function wrapper.
 		///
 		/// This function wraps the provided closure `f` into a pointer-wrapped thread-safe cloneable function.
@@ -437,7 +452,7 @@ mod inner {
 			"The output type of the function."
 		)]
 		///
-		#[document_parameters("The closure to wrap.")]
+		#[document_parameters("The closure to wrap.", "The input value to the function.")]
 		///
 		#[document_returns("The wrapped thread-safe cloneable function.")]
 		///
@@ -449,12 +464,12 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = send_lift_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
 		/// ```
-		fn send_cloneable_fn_new<'a, A: 'a, B: 'a>(
+		fn new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(A) -> B + Send + Sync
-		) -> Self::SendOf<'a, A, B> {
+		) -> <Self as SendCloneableFn>::SendOf<'a, A, B> {
 			P::coerce_send_fn(f)
 		}
 	}
