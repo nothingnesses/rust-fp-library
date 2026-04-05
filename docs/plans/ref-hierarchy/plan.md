@@ -264,20 +264,22 @@ element access) was investigated and rejected for three reasons:
     `Arrow::arrow`, free function `fn_new` to `arrow`. Rename
     files to match. See "Planned trait renames" section for full
     table.
-13. ~~**Core dispatch unification**~~: Done. `BindDispatch` and
-    `Lift2Dispatch` added alongside existing `FunctorDispatch`.
+13. ~~**Core dispatch unification**~~: Done. `BindDispatch`,
+    `Lift2Dispatch`, `Lift3Dispatch`, `Lift4Dispatch`,
+    `Lift5Dispatch` added alongside existing `FunctorDispatch`.
     Unified `bind` replaces separate `bind` and `ref_bind`. Unified
-    `lift2` replaces separate `lift2` and `ref_lift2`. Updated
-    `m_do!` and `a_do!` macros for new generic parameter counts.
-    All call sites updated from 3/4-generic turbofish to 4/5-generic.
+    `lift2`-`lift5` replace separate `liftN` and `ref_liftN`. Updated
+    `m_do!` and `a_do!` macros for new generic parameter counts
+    (uniform `n + 2` underscores for all liftN).
+    All call sites updated.
 
 14. **Remaining dispatch operations**: Apply the same pattern to
     the remaining operations.
 
     **Closure-dispatched** (not yet done): `apply_first`,
     `apply_second`, `if_m`, `unless_m`, `bind_flipped`, `join`,
-    `compose_kleisli`, `compose_kleisli_flipped`, `lift3`-`lift5`,
-    `when`, `unless`, `when_m`.
+    `compose_kleisli`, `compose_kleisli_flipped`, `when`, `unless`,
+    `when_m`.
 
     **Container-dispatched** (not yet done): `apply`. The dispatch
     trait differentiates `Of<CloneFn::Of<A, B>>` (Val, routes to
@@ -496,9 +498,9 @@ None at this time.
 - `SendCloneFn` made independent (removed `CloneFn` supertrait). `SendOf` renamed to `Of`.
 - Files renamed: `cloneable_fn.rs` -> `clone_fn.rs`, `send_cloneable_fn.rs` -> `send_clone_fn.rs`, `function.rs` -> `arrow.rs`.
 - `BindDispatch` added: unified `bind` replaces separate `bind` and `ref_bind` free functions.
-- `Lift2Dispatch` added: unified `lift2` replaces separate `lift2` and `ref_lift2` free functions.
-- `m_do!` and `a_do!` macros updated for new generic parameter counts.
-- All call sites updated for 4-generic `bind` and 5-generic `lift2` turbofish.
+- `Lift2Dispatch`, `Lift3Dispatch`, `Lift4Dispatch`, `Lift5Dispatch` added: unified `liftN` replaces separate `liftN` and `ref_liftN` free functions.
+- `m_do!` and `a_do!` macros updated for new generic parameter counts (uniform `n + 2` for all liftN).
+- All call sites updated for dispatched turbofish generic counts.
 
 ## References
 
