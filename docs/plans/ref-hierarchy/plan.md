@@ -273,15 +273,14 @@ element access) was investigated and rejected for three reasons:
     (uniform `n + 2` underscores for all liftN).
     All call sites updated.
 
-14. **Restructure dispatch module**: Rename `functor_dispatch.rs`
-    to `dispatch.rs` with shared types (`Val`, `Ref`, `ClosureMode`)
-    and re-exports. Move dispatch traits into a `dispatch/` directory
-    mirroring the `classes/` file structure:
+14. ~~**Restructure dispatch module**~~: Done. Replaced
+    `functor_dispatch.rs` with `dispatch.rs` (shared types, tests,
+    brand inference POC) and `dispatch/` directory:
     - `dispatch/functor.rs` (FunctorDispatch + map)
     - `dispatch/semimonad.rs` (BindDispatch + bind)
     - `dispatch/lift.rs` (Lift2-5Dispatch + lift2-5)
-      Existing tests and brand inference POC move to appropriate
-      sub-modules or stay in `dispatch.rs`.
+      Explicit re-exports added to `functions.rs` since the macro
+      scanner does not traverse sub-directories.
 
 15. **Remaining dispatch operations**: Apply the same pattern to
     the remaining operations, each in its own dispatch/ sub-module.
@@ -513,6 +512,7 @@ None at this time.
 - `Lift2Dispatch`, `Lift3Dispatch`, `Lift4Dispatch`, `Lift5Dispatch` added: unified `liftN` replaces separate `liftN` and `ref_liftN` free functions.
 - `m_do!` and `a_do!` macros updated for new generic parameter counts (uniform `n + 2` for all liftN).
 - All call sites updated for dispatched turbofish generic counts.
+- Dispatch module restructured: `functor_dispatch.rs` replaced with `dispatch.rs` + `dispatch/` directory (`dispatch/functor.rs`, `dispatch/semimonad.rs`, `dispatch/lift.rs`).
 
 ## References
 
