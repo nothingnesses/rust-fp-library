@@ -17,7 +17,7 @@ mod inner {
 				ApplySecond,
 				Bifoldable,
 				Bifunctor,
-				CloneableFn,
+				CloneFn,
 				Deferrable,
 				Foldable,
 				FoldableWithIndex,
@@ -1125,8 +1125,8 @@ mod inner {
 		/// let result = apply::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Ok(42));
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			ff.bind(move |f| {
@@ -1276,7 +1276,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa.evaluate() {
 				Ok(a) => func(a, initial),
 				Err(_) => initial,
@@ -1320,7 +1320,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa.evaluate() {
 				Ok(a) => func(initial, a),
 				Err(_) => initial,
@@ -1361,7 +1361,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa.evaluate() {
 				Ok(a) => func(a),
 				Err(_) => M::empty(),
@@ -1548,7 +1548,7 @@ mod inner {
 		/// 	15
 		/// );
 		/// ```
-		fn bi_fold_right<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+		fn bi_fold_right<'a, FnBrand: CloneFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
 			f: impl Fn(A, C) -> C + 'a,
 			g: impl Fn(B, C) -> C + 'a,
 			z: C,
@@ -1610,7 +1610,7 @@ mod inner {
 		/// 	15
 		/// );
 		/// ```
-		fn bi_fold_left<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+		fn bi_fold_left<'a, FnBrand: CloneFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
 			f: impl Fn(C, A) -> C + 'a,
 			g: impl Fn(C, B) -> C + 'a,
 			z: C,
@@ -1669,7 +1669,7 @@ mod inner {
 		/// 	"5".to_string()
 		/// );
 		/// ```
-		fn bi_fold_map<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, M>(
+		fn bi_fold_map<'a, FnBrand: CloneFn + 'a, A: 'a + Clone, B: 'a + Clone, M>(
 			f: impl Fn(A) -> M + 'a,
 			g: impl Fn(B) -> M + 'a,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
@@ -1879,8 +1879,8 @@ mod inner {
 		/// let result = apply::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Err(42));
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, E1: 'a + Clone, E2: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, E1, E2>>),
+		fn apply<'a, FnBrand: 'a + CloneFn, E1: 'a + Clone, E2: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, E1, E2>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E1>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E2>) {
 			TryThunk::new(move || match ff.evaluate() {
@@ -2038,7 +2038,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa.evaluate() {
 				Err(e) => func(e, initial),
 				Ok(_) => initial,
@@ -2082,7 +2082,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa.evaluate() {
 				Err(e) => func(initial, e),
 				Ok(_) => initial,
@@ -2123,7 +2123,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa.evaluate() {
 				Err(e) => func(e),
 				Ok(_) => M::empty(),

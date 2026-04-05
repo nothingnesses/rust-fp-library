@@ -638,8 +638,8 @@ mod inner {
 		/// };
 		///
 		/// // For thread-safe functors, prefer lift2 over apply.
-		/// // The apply method requires CloneableFn::Of to be Send + Sync,
-		/// // which standard FnBrands do not satisfy (CloneableFn::Of wraps
+		/// // The apply method requires CloneFn::Of to be Send + Sync,
+		/// // which standard FnBrands do not satisfy (CloneFn::Of wraps
 		/// // dyn Fn without Send + Sync bounds). Use lift2 instead:
 		/// let a = ArcCoyoneda::<OptionBrand, _>::lift(Some(3));
 		/// let b = ArcCoyoneda::<OptionBrand, _>::lift(Some(4));
@@ -647,7 +647,7 @@ mod inner {
 		/// assert_eq!(result.lower_ref(), Some(7));
 		/// ```
 		pub fn apply<FnBrand: LiftFn + 'a, B: Clone + 'a, C: 'a>(
-			ff: ArcCoyoneda<'a, F, <FnBrand as CloneableFn>::Of<'a, B, C>>,
+			ff: ArcCoyoneda<'a, F, <FnBrand as CloneFn>::Of<'a, B, C>>,
 			fa: ArcCoyoneda<'a, F, B>,
 		) -> ArcCoyoneda<'a, F, C>
 		where

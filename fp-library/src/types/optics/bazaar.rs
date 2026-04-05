@@ -36,8 +36,8 @@ mod inner {
 		fp_macros::*,
 	};
 
-	/// Type alias to extract the pointer brand from a `CloneableFn` implementor.
-	type Ptr<FunctionBrand> = <FunctionBrand as CloneableFn>::PointerBrand;
+	/// Type alias to extract the pointer brand from a `CloneFn` implementor.
+	type Ptr<FunctionBrand> = <FunctionBrand as CloneFn>::PointerBrand;
 
 	// -- BazaarList --
 
@@ -57,7 +57,7 @@ mod inner {
 		/// The list of focus values extracted from the source.
 		pub foci: Vec<A>,
 		/// A function that reconstructs the target from a list of replacement values.
-		pub rebuild: <FunctionBrand as CloneableFn>::Of<'a, Vec<B>, T>,
+		pub rebuild: <FunctionBrand as CloneFn>::Of<'a, Vec<B>, T>,
 	}
 
 	impl_kind! {
@@ -293,8 +293,8 @@ mod inner {
 		/// let result = apply::<RcFnBrand, BazaarListBrand<RcFnBrand, i32, i32>, _, _>(bl_f, bl_a);
 		/// assert_eq!((result.rebuild)(vec![7]), 14);
 		/// ```
-		fn apply<'a, FnB: 'a + CloneableFn, T: 'a + Clone, U: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnB as CloneableFn>::Of<'a, T, U>>),
+		fn apply<'a, FnB: 'a + CloneFn, T: 'a + Clone, U: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnB as CloneFn>::Of<'a, T, U>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, T>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, U>) {
 			let split_at = ff.foci.len();
@@ -351,7 +351,7 @@ mod inner {
 	)]
 	pub struct Bazaar<'a, FunctionBrand: LiftFn + 'a, A: 'a, B: 'a, S: 'a, T: 'a> {
 		/// Decomposes a source into a [`BazaarList`] of foci and a rebuild function.
-		pub run: <FunctionBrand as CloneableFn>::Of<'a, S, BazaarList<'a, FunctionBrand, A, B, T>>,
+		pub run: <FunctionBrand as CloneFn>::Of<'a, S, BazaarList<'a, FunctionBrand, A, B, T>>,
 	}
 
 	#[document_type_parameters(
@@ -394,7 +394,7 @@ mod inner {
 		/// assert_eq!((bl.rebuild)(vec![100]), 100);
 		/// ```
 		pub fn new(
-			run: <FunctionBrand as CloneableFn>::Of<'a, S, BazaarList<'a, FunctionBrand, A, B, T>>
+			run: <FunctionBrand as CloneFn>::Of<'a, S, BazaarList<'a, FunctionBrand, A, B, T>>
 		) -> Self {
 			Bazaar {
 				run,
@@ -962,10 +962,10 @@ mod inner {
 }
 pub use inner::*;
 
-impl<'a, FB: crate::classes::cloneable_fn::LiftFn + 'static, A: Clone + 'a, B: 'a, T: 'a> Clone
+impl<'a, FB: crate::classes::clone_fn::LiftFn + 'static, A: Clone + 'a, B: 'a, T: 'a> Clone
 	for BazaarList<'a, FB, A, B, T>
 where
-	<FB as crate::classes::cloneable_fn::CloneableFn>::Of<'a, Vec<B>, T>: Clone,
+	<FB as crate::classes::clone_fn::CloneFn>::Of<'a, Vec<B>, T>: Clone,
 {
 	fn clone(&self) -> Self {
 		BazaarList {

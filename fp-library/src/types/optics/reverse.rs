@@ -71,7 +71,7 @@ mod inner {
 		B: 'a,
 	> {
 		/// The wrapped function `InnerP::Of<B, A> -> InnerP::Of<T, S>`.
-		pub run: <FnBrand<PointerBrand> as CloneableFn>::Of<
+		pub run: <FnBrand<PointerBrand> as CloneFn>::Of<
 			'a,
 			Apply!(<InnerP as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, B, A>),
 			Apply!(<InnerP as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, T, S>),
@@ -553,7 +553,7 @@ mod inner {
 		/// 		optics::*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as lift_fn_new,
+		/// 		clone_fn::new as lift_fn_new,
 		/// 		profunctor::Costrong,
 		/// 	},
 		/// 	types::optics::Reverse,
@@ -604,7 +604,7 @@ mod inner {
 		/// 		optics::*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as lift_fn_new,
+		/// 		clone_fn::new as lift_fn_new,
 		/// 		profunctor::Costrong,
 		/// 	},
 		/// 	types::optics::Reverse,

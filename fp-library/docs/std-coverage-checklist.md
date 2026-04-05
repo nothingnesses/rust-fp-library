@@ -16,7 +16,7 @@ This document tracks the coverage of `fp-library` against functionality provided
 | **`Bitraversable`**          | N/A                                      | `classes/bitraversable.rs`             |
 | **`Category`**               | N/A                                      | `classes/category.rs`                  |
 | **`Choice`**                 | N/A                                      | `classes/profunctor/choice.rs`         |
-| **`CloneableFn`**            | `Clone + Fn`                             | `classes/cloneable_fn.rs`              |
+| **`CloneFn`**                | `Clone + Fn`                             | `classes/clone_fn.rs`                  |
 | **`Closed`**                 | N/A                                      | `classes/profunctor/closed.rs`         |
 | **`Cochoice`**               | N/A                                      | `classes/profunctor/cochoice.rs`       |
 | **`CommutativeRing`**        | N/A                                      | `classes/commutative_ring.rs`          |
@@ -65,7 +65,7 @@ This document tracks the coverage of `fp-library` against functionality provided
 | **`Semigroupoid`**           | N/A                                      | `classes/semigroupoid.rs`              |
 | **`Semimonad`**              | N/A                                      | `classes/semimonad.rs`                 |
 | **`Semiring`**               | N/A                                      | `classes/semiring.rs`                  |
-| **`SendCloneableFn`**        | `Clone + Fn + Send + Sync`               | `classes/send_cloneable_fn.rs`         |
+| **`SendCloneFn`**            | `Clone + Fn + Send + Sync`               | `classes/send_clone_fn.rs`             |
 | **`SendDeferrable`**         | Lazy evaluation (thread-safe)            | `classes/send_deferrable.rs`           |
 | **`SendRefCountedPointer`**  | `Arc`                                    | `classes/send_ref_counted_pointer.rs`  |
 | **`SendRefFunctor`**         | N/A                                      | `classes/send_ref_functor.rs`          |

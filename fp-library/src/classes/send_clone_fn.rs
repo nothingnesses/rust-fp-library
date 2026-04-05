@@ -23,12 +23,9 @@
 #[fp_macros::document_module]
 mod inner {
 	use {
-		crate::classes::{
-			functor_dispatch::{
-				ClosureMode,
-				Val,
-			},
-			*,
+		crate::classes::functor_dispatch::{
+			ClosureMode,
+			Val,
 		},
 		fp_macros::*,
 		std::ops::Deref,
@@ -36,7 +33,7 @@ mod inner {
 
 	/// Abstraction for thread-safe cloneable wrappers over closures.
 	///
-	/// This trait extends [`CloneableFn`] to enforce `Send + Sync` bounds on the
+	/// This trait extends [`CloneFn`] to enforce `Send + Sync` bounds on the
 	/// wrapped closure and the wrapper itself. This is implemented by types like
 	/// [`ArcFnBrand`][crate::brands::ArcFnBrand] but not [`RcFnBrand`][crate::brands::RcFnBrand].
 	///
@@ -54,23 +51,20 @@ mod inner {
 	#[document_type_parameters(
 		"Selects whether the wrapped closure takes its input by value (`Val`) or by reference (`Ref`). Defaults to `Val`."
 	)]
-	pub trait SendCloneableFn<Mode: ClosureMode = Val>: CloneableFn<Mode> {
+	pub trait SendCloneFn<Mode: ClosureMode = Val> {
 		/// The type of the thread-safe cloneable function wrapper.
 		///
 		/// This associated type represents the concrete type of the wrapper (e.g., `Arc<dyn Fn(A) -> B + Send + Sync>`)
 		/// that implements `Clone`, `Send`, `Sync` and dereferences to the underlying closure.
-		type SendOf<'a, A: 'a, B: 'a>: Clone
-			+ Send
-			+ Sync
-			+ Deref<Target = Mode::SendTarget<'a, A, B>>;
+		type Of<'a, A: 'a, B: 'a>: Clone + Send + Sync + Deref<Target = Mode::SendTarget<'a, A, B>>;
 	}
 
 	/// A trait for constructing thread-safe cloneable function wrappers from closures.
 	///
-	/// Separated from [`SendCloneableFn`] because the `new` method's parameter type
+	/// Separated from [`SendCloneFn`] because the `new` method's parameter type
 	/// depends on the closure mode (`Fn(A) -> B + Send + Sync` for `Val`), and a single
 	/// trait method cannot have a mode-dependent signature.
-	pub trait SendLiftFn: SendCloneableFn<Val> {
+	pub trait SendLiftFn: SendCloneFn<Val> {
 		/// Creates a new thread-safe cloneable function wrapper.
 		///
 		/// This method wraps a closure into a thread-safe cloneable function wrapper.
@@ -82,10 +76,7 @@ mod inner {
 			"The output type of the function."
 		)]
 		///
-		#[document_parameters(
-			"The closure to wrap. Must be `Send + Sync`.",
-			"The input value to the function."
-		)]
+		#[document_parameters("The closure to wrap. Must be `Send + Sync`.")]
 		#[document_returns("The wrapped thread-safe cloneable function.")]
 		#[document_examples]
 		///
@@ -108,7 +99,7 @@ mod inner {
 		/// ```
 		fn new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(A) -> B + Send + Sync
-		) -> <Self as SendCloneableFn>::SendOf<'a, A, B>;
+		) -> <Self as SendCloneFn>::Of<'a, A, B>;
 	}
 
 	/// Creates a new thread-safe cloneable function wrapper.
@@ -123,10 +114,7 @@ mod inner {
 		"The output type of the function."
 	)]
 	///
-	#[document_parameters(
-		"The closure to wrap. Must be `Send + Sync`.",
-		"The input value to the function."
-	)]
+	#[document_parameters("The closure to wrap. Must be `Send + Sync`.")]
 	#[document_returns("The wrapped thread-safe cloneable function.")]
 	#[document_examples]
 	///
@@ -149,7 +137,7 @@ mod inner {
 	/// ```
 	pub fn new<'a, Brand, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
-	) -> <Brand as SendCloneableFn>::SendOf<'a, A, B>
+	) -> <Brand as SendCloneFn>::Of<'a, A, B>
 	where
 		Brand: SendLiftFn, {
 		<Brand as SendLiftFn>::new(f)

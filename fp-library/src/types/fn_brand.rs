@@ -40,7 +40,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> Function for FnBrand<P> {
+	impl<P: UnsizedCoercible> Arrow for FnBrand<P> {
 		type Of<'a, A: 'a, B: 'a> =
 			Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>);
 
@@ -55,7 +55,7 @@ mod inner {
 			"The output type of the function."
 		)]
 		///
-		#[document_parameters("The closure to wrap.", "The input value.")]
+		#[document_parameters("The closure to lift into an arrow.")]
 		///
 		#[document_returns("The wrapped function.")]
 		///
@@ -67,23 +67,23 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = arrow::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
 		/// ```
-		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as Function>::Of<'a, A, B> {
+		fn arrow<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as Arrow>::Of<'a, A, B> {
 			P::coerce_fn(f)
 		}
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
+	impl<P: UnsizedCoercible> CloneFn for FnBrand<P> {
 		type Of<'a, A: 'a, B: 'a> =
 			Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>);
 		type PointerBrand = P;
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> CloneableFn<Ref> for FnBrand<P> {
+	impl<P: UnsizedCoercible> CloneFn<Ref> for FnBrand<P> {
 		type Of<'a, A: 'a, B: 'a> = P::CloneableOf<'a, dyn 'a + Fn(&A) -> B>;
 		type PointerBrand = P;
 	}
@@ -101,7 +101,7 @@ mod inner {
 			"The output type of the function."
 		)]
 		///
-		#[document_parameters("The closure to wrap.", "The input value.")]
+		#[document_parameters("The closure to wrap.")]
 		///
 		#[document_returns("The wrapped cloneable function.")]
 		///
@@ -116,7 +116,7 @@ mod inner {
 		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
 		/// ```
-		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as CloneableFn>::Of<'a, A, B> {
+		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as CloneFn>::Of<'a, A, B> {
 			P::coerce_fn(f)
 		}
 	}
@@ -356,9 +356,9 @@ mod inner {
 		/// ```
 		fn closed<'a, A: 'a, B: 'a, X: 'a + Clone>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FnBrand<P> as CloneableFn>::Of<'a, X, A>, <FnBrand<P> as CloneableFn>::Of<'a, X, B>>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FnBrand<P> as CloneFn>::Of<'a, X, A>, <FnBrand<P> as CloneFn>::Of<'a, X, B>>)
 		{
-			P::coerce_fn(move |f: <FnBrand<P> as CloneableFn>::Of<'a, X, A>| -> <FnBrand<P> as CloneableFn>::Of<'a, X, B> {
+			P::coerce_fn(move |f: <FnBrand<P> as CloneFn>::Of<'a, X, A>| -> <FnBrand<P> as CloneFn>::Of<'a, X, B> {
 				let pab = pab.clone();
 				P::coerce_fn(move |x: X| pab(f(x)))
 			})
@@ -430,13 +430,13 @@ mod inner {
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
-		type SendOf<'a, A: 'a, B: 'a> = P::SendOf<'a, dyn 'a + Fn(A) -> B + Send + Sync>;
+	impl<P: SendUnsizedCoercible> SendCloneFn for FnBrand<P> {
+		type Of<'a, A: 'a, B: 'a> = P::SendOf<'a, dyn 'a + Fn(A) -> B + Send + Sync>;
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: SendUnsizedCoercible> SendCloneableFn<Ref> for FnBrand<P> {
-		type SendOf<'a, A: 'a, B: 'a> = P::SendOf<'a, dyn 'a + Fn(&A) -> B + Send + Sync>;
+	impl<P: SendUnsizedCoercible> SendCloneFn<Ref> for FnBrand<P> {
+		type Of<'a, A: 'a, B: 'a> = P::SendOf<'a, dyn 'a + Fn(&A) -> B + Send + Sync>;
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
@@ -452,7 +452,7 @@ mod inner {
 			"The output type of the function."
 		)]
 		///
-		#[document_parameters("The closure to wrap.", "The input value to the function.")]
+		#[document_parameters("The closure to wrap.")]
 		///
 		#[document_returns("The wrapped thread-safe cloneable function.")]
 		///
@@ -469,7 +469,7 @@ mod inner {
 		/// ```
 		fn new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(A) -> B + Send + Sync
-		) -> <Self as SendCloneableFn>::SendOf<'a, A, B> {
+		) -> <Self as SendCloneFn>::Of<'a, A, B> {
 			P::coerce_send_fn(f)
 		}
 	}

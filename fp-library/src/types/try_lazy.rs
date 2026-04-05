@@ -45,7 +45,7 @@ mod inner {
 			Apply,
 			brands::TryLazyBrand,
 			classes::{
-				CloneableFn,
+				CloneFn,
 				Deferrable,
 				Foldable,
 				FoldableWithIndex,
@@ -1639,7 +1639,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa.evaluate() {
 				Ok(a) => func(a.clone(), initial),
 				Err(_) => initial,
@@ -1687,7 +1687,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa.evaluate() {
 				Ok(a) => func(initial, a.clone()),
 				Err(_) => initial,
@@ -1731,7 +1731,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> R
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa.evaluate() {
 				Ok(a) => func(a.clone()),
 				Err(_) => Monoid::empty(),

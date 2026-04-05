@@ -44,7 +44,7 @@ mod inner {
 		A: 'a,
 		B: 'a, {
 		/// Internal storage.
-		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, (A, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, B, T>)>),
+		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, (A, <FnBrand<PointerBrand> as CloneFn>::Of<'a, B, T>)>),
 	}
 
 	#[document_type_parameters(
@@ -125,7 +125,7 @@ mod inner {
 		/// assert_eq!(l.view(42), 42);
 		/// ```
 		pub fn new(
-			to: impl 'a + Fn(S) -> (A, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, B, T>)
+			to: impl 'a + Fn(S) -> (A, <FnBrand<PointerBrand> as CloneFn>::Of<'a, B, T>)
 		) -> Self {
 			Lens {
 				to: <FnBrand<PointerBrand> as LiftFn>::new(to),
@@ -280,7 +280,7 @@ mod inner {
 
 			Q::dimap(
 				move |s: S| to(s),
-				move |(b, f): (B, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, B, T>)| f(b),
+				move |(b, f): (B, <FnBrand<PointerBrand> as CloneFn>::Of<'a, B, T>)| f(b),
 				Q::first(pab),
 			)
 		}
@@ -593,7 +593,7 @@ mod inner {
 		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a, {
-		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, (A, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, A, S>)>),
+		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, (A, <FnBrand<PointerBrand> as CloneFn>::Of<'a, A, S>)>),
 	}
 
 	#[document_type_parameters(
@@ -666,7 +666,7 @@ mod inner {
 		/// assert_eq!(l.view(42), 42);
 		/// ```
 		pub fn new(
-			to: impl 'a + Fn(S) -> (A, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, A, S>)
+			to: impl 'a + Fn(S) -> (A, <FnBrand<PointerBrand> as CloneFn>::Of<'a, A, S>)
 		) -> Self {
 			LensPrime {
 				to: <FnBrand<PointerBrand> as LiftFn>::new(to),
@@ -847,7 +847,7 @@ mod inner {
 			// lens get set = dimap (\s -> (get s, s)) (\(b, s) -> set s b) . first
 			Q::dimap(
 				move |s: S| to(s),
-				move |(a, f): (A, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, A, S>)| f(a),
+				move |(a, f): (A, <FnBrand<PointerBrand> as CloneFn>::Of<'a, A, S>)| f(a),
 				Q::first(pab),
 			)
 		}

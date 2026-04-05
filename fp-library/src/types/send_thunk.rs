@@ -14,7 +14,7 @@ mod inner {
 		crate::{
 			brands::SendThunkBrand,
 			classes::{
-				CloneableFn,
+				CloneFn,
 				Foldable,
 				FoldableWithIndex,
 				Monoid,
@@ -477,7 +477,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			func(fa.evaluate(), initial)
 		}
 
@@ -517,7 +517,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			func(initial, fa.evaluate())
 		}
 
@@ -554,7 +554,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			func(fa.evaluate())
 		}
 	}

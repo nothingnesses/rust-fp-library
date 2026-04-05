@@ -196,7 +196,7 @@ mod inner {
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, T>) {
 			let over = self.over_fn.clone();
-			<FnBrand<Q> as Function>::new(move |s: S| {
+			<FnBrand<Q> as Arrow>::arrow(move |s: S| {
 				let pab_clone = pab.clone();
 				over((s, Box::new(move |a| pab_clone(a))))
 			})
@@ -421,7 +421,7 @@ mod inner {
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>) {
 			let over = self.over_fn.clone();
-			<FnBrand<Q> as Function>::new(move |s: S| {
+			<FnBrand<Q> as Arrow>::arrow(move |s: S| {
 				let pab_clone = pab.clone();
 				over((s, Box::new(move |a| pab_clone(a))))
 			})

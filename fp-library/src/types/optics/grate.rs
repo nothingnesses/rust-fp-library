@@ -39,11 +39,11 @@ mod inner {
 		A: 'a,
 		B: 'a, {
 		/// Grating function.
-		pub grate: <FnBrand<PointerBrand> as CloneableFn>::Of<
+		pub grate: <FnBrand<PointerBrand> as CloneFn>::Of<
 			'a,
-			<FnBrand<PointerBrand> as CloneableFn>::Of<
+			<FnBrand<PointerBrand> as CloneFn>::Of<
 				'a,
-				<FnBrand<PointerBrand> as CloneableFn>::Of<
+				<FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
 					<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 					A,
@@ -145,9 +145,9 @@ mod inner {
 		/// ```
 		pub fn new(
 			grate: impl Fn(
-				<FnBrand<PointerBrand> as CloneableFn>::Of<
+				<FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
-					<FnBrand<PointerBrand> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
 						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,
@@ -272,7 +272,7 @@ mod inner {
 				move |s: S| {
 					let s_ptr = <PointerBrand as RefCountedPointer>::cloneable_new(s);
 					<FnBrand<PointerBrand> as LiftFn>::new(
-						move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
+						move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 							'a,
 							<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 							A,
@@ -280,9 +280,9 @@ mod inner {
 						      -> A { (f)(Clone::clone(&s_ptr)) },
 					)
 				},
-				move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
+				move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
-					<FnBrand<PointerBrand> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
 						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,
@@ -358,7 +358,7 @@ mod inner {
 				move |s: S| {
 					let s_ptr = <PointerBrand as RefCountedPointer>::cloneable_new(s);
 					<FnBrand<PointerBrand> as LiftFn>::new(
-						move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
+						move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 							'a,
 							<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 							A,
@@ -366,9 +366,9 @@ mod inner {
 						      -> A { (f)(Clone::clone(&s_ptr)) },
 					)
 				},
-				move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
+				move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
-					<FnBrand<PointerBrand> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
 						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,
@@ -456,11 +456,11 @@ mod inner {
 		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a, {
-		pub(crate) grate_fn: <FnBrand<PointerBrand> as CloneableFn>::Of<
+		pub(crate) grate_fn: <FnBrand<PointerBrand> as CloneFn>::Of<
 			'a,
-			<FnBrand<PointerBrand> as CloneableFn>::Of<
+			<FnBrand<PointerBrand> as CloneFn>::Of<
 				'a,
-				<FnBrand<PointerBrand> as CloneableFn>::Of<
+				<FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
 					<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 					A,
@@ -559,9 +559,9 @@ mod inner {
 		/// ```
 		pub fn new(
 			grate: impl Fn(
-				<FnBrand<PointerBrand> as CloneableFn>::Of<
+				<FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
-					<FnBrand<PointerBrand> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
 						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,
@@ -697,16 +697,16 @@ mod inner {
 				move |s: S| {
 					let s_ptr = <PointerBrand as RefCountedPointer>::cloneable_new(s);
 					<FnBrand<PointerBrand> as LiftFn>::new(
-						move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
+						move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 							'a,
 							<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 							A,
 						>| { (f)(Clone::clone(&s_ptr)) },
 					)
 				},
-				move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
+				move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
-					<FnBrand<PointerBrand> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
 						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,
@@ -777,16 +777,16 @@ mod inner {
 				move |s: S| {
 					let s_ptr = <PointerBrand as RefCountedPointer>::cloneable_new(s);
 					<FnBrand<PointerBrand> as LiftFn>::new(
-						move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
+						move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 							'a,
 							<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 							A,
 						>| { (f)(Clone::clone(&s_ptr)) },
 					)
 				},
-				move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
+				move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
-					<FnBrand<PointerBrand> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
 						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,

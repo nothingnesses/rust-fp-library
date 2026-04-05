@@ -32,9 +32,9 @@ mod inner {
 	)]
 	pub struct Shop<'a, FunctionBrand: LiftFn, A: 'a, B: 'a, S: 'a, T: 'a> {
 		/// Getter function.
-		pub get: <FunctionBrand as CloneableFn>::Of<'a, S, A>,
+		pub get: <FunctionBrand as CloneFn>::Of<'a, S, A>,
 		/// Setter function.
-		pub set: <FunctionBrand as CloneableFn>::Of<'a, (S, B), T>,
+		pub set: <FunctionBrand as CloneFn>::Of<'a, (S, B), T>,
 	}
 
 	#[document_type_parameters(
@@ -58,7 +58,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::RcFnBrand,
-		/// 	classes::cloneable_fn::new as lift_fn_new,
+		/// 	classes::clone_fn::new as lift_fn_new,
 		/// 	types::optics::Shop,
 		/// };
 		///
@@ -70,8 +70,8 @@ mod inner {
 		/// assert_eq!((shop.set)(((10, 20), 30)), (30, 20));
 		/// ```
 		pub fn new(
-			get: <FunctionBrand as CloneableFn>::Of<'a, S, A>,
-			set: <FunctionBrand as CloneableFn>::Of<'a, (S, B), T>,
+			get: <FunctionBrand as CloneFn>::Of<'a, S, A>,
+			set: <FunctionBrand as CloneFn>::Of<'a, (S, B), T>,
 		) -> Self {
 			Shop {
 				get,
@@ -122,7 +122,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as lift_fn_new,
+		/// 		clone_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},
@@ -190,7 +190,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as lift_fn_new,
+		/// 		clone_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},

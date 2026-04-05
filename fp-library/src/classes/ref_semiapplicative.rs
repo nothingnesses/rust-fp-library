@@ -2,7 +2,7 @@
 //!
 //! Like [`Semiapplicative::apply`](crate::classes::Semiapplicative::apply), but the
 //! wrapped functions receive `&A` instead of owned values. Uses
-//! [`CloneableFn<Ref>`](crate::classes::CloneableFn) for the function wrappers.
+//! [`CloneFn<Ref>`](crate::classes::CloneFn) for the function wrappers.
 //!
 //! ### Examples
 //!
@@ -35,7 +35,7 @@ mod inner {
 
 	/// A type class for applying wrapped by-ref functions within contexts.
 	///
-	/// The wrapped functions have type `Fn(&A) -> B` (via [`CloneableFn<Ref>`]),
+	/// The wrapped functions have type `Fn(&A) -> B` (via [`CloneFn<Ref>`]),
 	/// so no `Clone` bound on `A` is needed. The function receives a reference
 	/// and produces an owned result.
 	#[kind(type Of<'a, A: 'a>: 'a;)]
@@ -73,8 +73,8 @@ mod inner {
 		/// let result = LazyBrand::<RcLazyConfig>::ref_apply::<RcFnBrand, _, _>(f, x);
 		/// assert_eq!(*result.evaluate(), 10);
 		/// ```
-		fn ref_apply<'a, FnBrand: 'a + CloneableFn<Ref>, A: 'a, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn<Ref>>::Of<'a, A, B>>),
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
 	}
@@ -115,14 +115,8 @@ mod inner {
 	/// let result = ref_apply::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(f, x);
 	/// assert_eq!(*result.evaluate(), 10);
 	/// ```
-	pub fn ref_apply<
-		'a,
-		FnBrand: 'a + CloneableFn<Ref>,
-		Brand: RefSemiapplicative,
-		A: 'a,
-		B: 'a,
-	>(
-		ff: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn<Ref>>::Of<'a, A, B>>),
+	pub fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, Brand: RefSemiapplicative, A: 'a, B: 'a>(
+		ff: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		Brand::ref_apply::<FnBrand, A, B>(ff, fa)

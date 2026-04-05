@@ -43,7 +43,7 @@ mod inner {
 		A: 'a,
 		B: 'a, {
 		/// Internal storage: S -> ((I, A), B -> T)
-		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, ((I, A), <FnBrand<PointerBrand> as CloneableFn>::Of<'a, B, T>)>),
+		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, ((I, A), <FnBrand<PointerBrand> as CloneFn>::Of<'a, B, T>)>),
 	}
 
 	#[document_type_parameters(
@@ -121,7 +121,7 @@ mod inner {
 		/// assert_eq!(l.iview(42), (0, 42));
 		/// ```
 		pub fn new(
-			to: impl 'a + Fn(S) -> ((I, A), <FnBrand<PointerBrand> as CloneableFn>::Of<'a, B, T>)
+			to: impl 'a + Fn(S) -> ((I, A), <FnBrand<PointerBrand> as CloneFn>::Of<'a, B, T>)
 		) -> Self {
 			IndexedLens {
 				to: <FnBrand<PointerBrand> as LiftFn>::new(to),
@@ -464,7 +464,7 @@ mod inner {
 			let to = self.to.clone();
 			Q::dimap(
 				move |s: S| to(s),
-				move |(b, f): (B, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, B, T>)| f(b),
+				move |(b, f): (B, <FnBrand<PointerBrand> as CloneFn>::Of<'a, B, T>)| f(b),
 				Q::first(pab.inner),
 			)
 		}
@@ -667,7 +667,7 @@ mod inner {
 		I: 'a,
 		S: 'a,
 		A: 'a, {
-		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, ((I, A), <FnBrand<PointerBrand> as CloneableFn>::Of<'a, A, S>)>),
+		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, ((I, A), <FnBrand<PointerBrand> as CloneFn>::Of<'a, A, S>)>),
 	}
 
 	#[document_type_parameters(
@@ -738,7 +738,7 @@ mod inner {
 		/// assert_eq!(l.iview(42), (0, 42));
 		/// ```
 		pub fn new(
-			to: impl 'a + Fn(S) -> ((I, A), <FnBrand<PointerBrand> as CloneableFn>::Of<'a, A, S>)
+			to: impl 'a + Fn(S) -> ((I, A), <FnBrand<PointerBrand> as CloneFn>::Of<'a, A, S>)
 		) -> Self {
 			IndexedLensPrime {
 				to: <FnBrand<PointerBrand> as LiftFn>::new(to),

@@ -9,7 +9,7 @@ mod inner {
 			classes::{
 				apply_first::ApplyFirst,
 				apply_second::ApplySecond,
-				cloneable_fn::CloneableFn,
+				clone_fn::CloneFn,
 				functor::Functor,
 				lift::Lift,
 				monoid::Monoid,
@@ -290,7 +290,7 @@ mod inner {
 		/// 		RcFnBrand,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::CloneableFn,
+		/// 		clone_fn::CloneFn,
 		/// 		semiapplicative::Semiapplicative,
 		/// 	},
 		/// 	types::const_val::Const,
@@ -301,8 +301,8 @@ mod inner {
 		/// let applied = ConstBrand::<String>::apply::<RcFnBrand, i32, i32>(c1, c2);
 		/// assert_eq!(applied.0, "Hello World");
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, B>) {
 			Const::new(R::append(ff.0, fa.0))

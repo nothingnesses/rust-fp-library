@@ -32,9 +32,9 @@ mod inner {
 	)]
 	pub struct Grating<'a, FunctionBrand: LiftFn, A: 'a, B: 'a, S: 'a, T: 'a> {
 		/// Grating function.
-		pub run: <FunctionBrand as CloneableFn>::Of<
+		pub run: <FunctionBrand as CloneFn>::Of<
 			'a,
-			<FunctionBrand as CloneableFn>::Of<'a, <FunctionBrand as CloneableFn>::Of<'a, S, A>, B>,
+			<FunctionBrand as CloneFn>::Of<'a, <FunctionBrand as CloneFn>::Of<'a, S, A>, B>,
 			T,
 		>,
 	}
@@ -78,13 +78,9 @@ mod inner {
 		/// assert_eq!(result, 30);
 		/// ```
 		pub fn new(
-			run: <FunctionBrand as CloneableFn>::Of<
+			run: <FunctionBrand as CloneFn>::Of<
 				'a,
-				<FunctionBrand as CloneableFn>::Of<
-					'a,
-					<FunctionBrand as CloneableFn>::Of<'a, S, A>,
-					B,
-				>,
+				<FunctionBrand as CloneFn>::Of<'a, <FunctionBrand as CloneFn>::Of<'a, S, A>, B>,
 				T,
 			>
 		) -> Self {
@@ -137,7 +133,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as lift_fn_new,
+		/// 		clone_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},
@@ -172,15 +168,15 @@ mod inner {
 			let st = <FunctionBrand as LiftFn>::new(st);
 			let uv = <FunctionBrand as LiftFn>::new(uv);
 			Grating::<FunctionBrand, A, B, S, V>::new(<FunctionBrand as LiftFn>::new(
-				move |f: <FunctionBrand as CloneableFn>::Of<
+				move |f: <FunctionBrand as CloneFn>::Of<
 					'a,
-					<FunctionBrand as CloneableFn>::Of<'a, S, A>,
+					<FunctionBrand as CloneFn>::Of<'a, S, A>,
 					B,
 				>| {
 					let st = st.clone();
 					let uv = uv.clone();
 					(*uv)((*run)(<FunctionBrand as LiftFn>::new(
-						move |g: <FunctionBrand as CloneableFn>::Of<'a, T, A>| {
+						move |g: <FunctionBrand as CloneFn>::Of<'a, T, A>| {
 							let st = st.clone();
 							f(<FunctionBrand as LiftFn>::new(move |s| g((*st)(s))))
 						},
@@ -256,23 +252,19 @@ mod inner {
 		/// ```
 		fn closed<'a, S: 'a, T: 'a, X: 'a + Clone>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneableFn>::Of<'a, X, S>, <FunctionBrand as CloneableFn>::Of<'a, X, T>>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneFn>::Of<'a, X, S>, <FunctionBrand as CloneFn>::Of<'a, X, T>>)
 		{
 			let run = pab.run;
 			Grating::<
 				FunctionBrand,
 				A,
 				B,
-				<FunctionBrand as CloneableFn>::Of<'a, X, S>,
-				<FunctionBrand as CloneableFn>::Of<'a, X, T>,
+				<FunctionBrand as CloneFn>::Of<'a, X, S>,
+				<FunctionBrand as CloneFn>::Of<'a, X, T>,
 			>::new(<FunctionBrand as LiftFn>::new(
-				move |g: <FunctionBrand as CloneableFn>::Of<
+				move |g: <FunctionBrand as CloneFn>::Of<
 					'a,
-					<FunctionBrand as CloneableFn>::Of<
-						'a,
-						<FunctionBrand as CloneableFn>::Of<'a, X, S>,
-						A,
-					>,
+					<FunctionBrand as CloneFn>::Of<'a, <FunctionBrand as CloneFn>::Of<'a, X, S>, A>,
 					B,
 				>| {
 					let run = run.clone();
@@ -280,10 +272,10 @@ mod inner {
 						let g = g.clone();
 						let x = x.clone();
 						(*run)(<FunctionBrand as LiftFn>::new(
-							move |h: <FunctionBrand as CloneableFn>::Of<'a, S, A>| {
+							move |h: <FunctionBrand as CloneFn>::Of<'a, S, A>| {
 								let x = x.clone();
 								g(<FunctionBrand as LiftFn>::new(
-									move |k: <FunctionBrand as CloneableFn>::Of<'a, X, S>| {
+									move |k: <FunctionBrand as CloneFn>::Of<'a, X, S>| {
 										h(k(x.clone()))
 									},
 								))

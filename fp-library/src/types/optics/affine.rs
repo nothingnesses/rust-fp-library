@@ -47,7 +47,7 @@ mod inner {
 		A: 'a,
 		B: 'a, {
 		/// Internal storage avoiding S: Clone.
-		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<(A, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, B, T>), T>>),
+		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<(A, <FnBrand<PointerBrand> as CloneFn>::Of<'a, B, T>), T>>),
 	}
 
 	#[document_type_parameters(
@@ -129,7 +129,7 @@ mod inner {
 		/// assert_eq!(at.preview((42, "hi".to_string())), Ok(42));
 		/// ```
 		pub fn new(
-			to: impl 'a + Fn(S) -> Result<(A, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, B, T>), T>
+			to: impl 'a + Fn(S) -> Result<(A, <FnBrand<PointerBrand> as CloneFn>::Of<'a, B, T>), T>
 		) -> Self {
 			AffineTraversal {
 				to: <FnBrand<PointerBrand> as LiftFn>::new(to),
@@ -297,10 +297,7 @@ mod inner {
 
 			Q::dimap(
 				move |s: S| to(s),
-				move |result: Result<
-					(B, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, B, T>),
-					T,
-				>| {
+				move |result: Result<(B, <FnBrand<PointerBrand> as CloneFn>::Of<'a, B, T>), T>| {
 					match result {
 						Ok((b, f)) => f(b),
 						Err(t) => t,
@@ -539,7 +536,7 @@ mod inner {
 		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a, {
-		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<(A, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, A, S>), S>>),
+		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<(A, <FnBrand<PointerBrand> as CloneFn>::Of<'a, A, S>), S>>),
 	}
 
 	#[document_type_parameters(
@@ -615,7 +612,7 @@ mod inner {
 		/// assert_eq!(at.preview((42, "hi".to_string())), Some(42));
 		/// ```
 		pub fn new(
-			to: impl 'a + Fn(S) -> Result<(A, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, A, S>), S>
+			to: impl 'a + Fn(S) -> Result<(A, <FnBrand<PointerBrand> as CloneFn>::Of<'a, A, S>), S>
 		) -> Self {
 			AffineTraversalPrime {
 				to: <FnBrand<PointerBrand> as LiftFn>::new(to),
@@ -808,10 +805,7 @@ mod inner {
 
 			Q::dimap(
 				move |s: S| to(s),
-				move |result: Result<
-					(A, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, A, S>),
-					S,
-				>| {
+				move |result: Result<(A, <FnBrand<PointerBrand> as CloneFn>::Of<'a, A, S>), S>| {
 					match result {
 						Ok((a, f)) => f(a),
 						Err(s) => s,

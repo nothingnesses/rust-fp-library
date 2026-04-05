@@ -123,7 +123,7 @@ mod inner {
 		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a + Clone, {
-		let f = <FnBrand<PointerBrand> as Function>::new(move |_| a.clone());
+		let f = <FnBrand<PointerBrand> as Arrow>::arrow(move |_| a.clone());
 		(optic.evaluate(f))(s)
 	}
 
@@ -176,7 +176,7 @@ mod inner {
 		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a, {
-		let f = <FnBrand<PointerBrand> as Function>::new(f);
+		let f = <FnBrand<PointerBrand> as Arrow>::arrow(f);
 		(optic.evaluate(f))(s)
 	}
 
@@ -468,7 +468,7 @@ mod inner {
 	/// 			RcFnBrand,
 	/// 			optics::*,
 	/// 		},
-	/// 		classes::CloneableFn,
+	/// 		classes::CloneFn,
 	/// 		types::optics::{
 	/// 			GratePrime,
 	/// 			zip_with_of,

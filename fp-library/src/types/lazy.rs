@@ -23,7 +23,7 @@ mod inner {
 				RcBrand,
 			},
 			classes::{
-				CloneableFn,
+				CloneFn,
 				Deferrable,
 				Foldable,
 				FoldableWithIndex,
@@ -34,7 +34,7 @@ mod inner {
 				RefSemiapplicative,
 				RefSemimonad,
 				Semigroup,
-				SendCloneableFn,
+				SendCloneFn,
 				SendDeferrable,
 				SendRefFunctor,
 				SendRefLift,
@@ -999,11 +999,11 @@ mod inner {
 		/// ```
 		fn send_ref_apply<
 			'a,
-			FnBrand: 'a + SendCloneableFn<Ref>,
+			FnBrand: 'a + SendCloneFn<Ref>,
 			A: Send + Sync + 'a,
 			B: Send + Sync + 'a,
 		>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as SendCloneableFn<Ref>>::SendOf<'a, A, B>>),
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as SendCloneFn<Ref>>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			ArcLazy::new(move || {
@@ -1167,8 +1167,8 @@ mod inner {
 		/// let result = LazyBrand::<RcLazyConfig>::ref_apply::<RcFnBrand, _, _>(f, x);
 		/// assert_eq!(*result.evaluate(), 10);
 		/// ```
-		fn ref_apply<'a, FnBrand: 'a + CloneableFn<Ref>, A: 'a, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn<Ref>>::Of<'a, A, B>>),
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			RcLazy::new(move || {
@@ -1485,7 +1485,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			func(fa.evaluate().clone(), initial)
 		}
 
@@ -1527,7 +1527,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			func(initial, fa.evaluate().clone())
 		}
 
@@ -1565,7 +1565,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> R
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			func(fa.evaluate().clone())
 		}
 	}

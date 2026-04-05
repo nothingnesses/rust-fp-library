@@ -642,7 +642,7 @@ mod inner {
 		/// assert_eq!(result.lower_ref(), Some(10));
 		/// ```
 		pub fn apply<FnBrand: LiftFn + 'a, B: Clone + 'a, C: 'a>(
-			ff: RcCoyoneda<'a, F, <FnBrand as CloneableFn>::Of<'a, B, C>>,
+			ff: RcCoyoneda<'a, F, <FnBrand as CloneFn>::Of<'a, B, C>>,
 			fa: RcCoyoneda<'a, F, B>,
 		) -> RcCoyoneda<'a, F, C>
 		where

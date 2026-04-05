@@ -29,9 +29,9 @@ mod inner {
 	)]
 	pub struct Exchange<'a, FunctionBrand: LiftFn, A: 'a, B: 'a, S: 'a, T: 'a> {
 		/// Forward function.
-		pub get: <FunctionBrand as CloneableFn>::Of<'a, S, A>,
+		pub get: <FunctionBrand as CloneFn>::Of<'a, S, A>,
 		/// Backward function.
-		pub set: <FunctionBrand as CloneableFn>::Of<'a, B, T>,
+		pub set: <FunctionBrand as CloneFn>::Of<'a, B, T>,
 	}
 
 	#[document_type_parameters(
@@ -57,7 +57,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::RcFnBrand,
-		/// 	classes::cloneable_fn::new as lift_fn_new,
+		/// 	classes::clone_fn::new as lift_fn_new,
 		/// 	types::optics::Exchange,
 		/// };
 		///
@@ -69,8 +69,8 @@ mod inner {
 		/// assert_eq!((exchange.set)(10), "10".to_string());
 		/// ```
 		pub fn new(
-			get: <FunctionBrand as CloneableFn>::Of<'a, S, A>,
-			set: <FunctionBrand as CloneableFn>::Of<'a, B, T>,
+			get: <FunctionBrand as CloneFn>::Of<'a, S, A>,
+			set: <FunctionBrand as CloneFn>::Of<'a, B, T>,
 		) -> Self {
 			Exchange {
 				get,

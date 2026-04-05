@@ -9,10 +9,10 @@ help: consider importing this trait
  1 + use fp_library::classes::SendLiftFn;
    |
 
-warning: unused import: `classes::send_cloneable_fn::SendCloneableFn`
+warning: unused import: `classes::send_clone_fn::SendCloneFn`
  --> tests/ui/new_send_not_send.rs:4:3
   |
-4 |         classes::send_cloneable_fn::SendCloneableFn,
-  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+4 |         classes::send_clone_fn::SendCloneFn,
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default

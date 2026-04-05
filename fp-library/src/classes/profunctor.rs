@@ -10,7 +10,7 @@
 //! 	functions::*,
 //! };
 //!
-//! // Function is a profunctor
+//! // Arrow is a profunctor
 //! let f = |x: i32| x + 1;
 //! let g = dimap::<RcFnBrand, _, _, _, _>(
 //! 	|x: i32| x * 2,

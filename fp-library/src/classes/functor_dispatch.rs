@@ -72,7 +72,7 @@ mod inner {
 	/// Trait that maps a closure mode marker ([`Val`] or [`Ref`]) to the
 	/// corresponding `dyn Fn` trait object type.
 	///
-	/// Used by [`CloneableFn`](crate::classes::CloneableFn) to parameterize
+	/// Used by [`CloneFn`](crate::classes::CloneFn) to parameterize
 	/// the `Deref` target of wrapped closures. `Val` produces
 	/// `dyn Fn(A) -> B` (by-value), `Ref` produces `dyn Fn(&A) -> B`
 	/// (by-reference).

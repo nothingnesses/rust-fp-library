@@ -38,7 +38,7 @@ mod inner {
 	)]
 	pub struct Zipping<'a, FunctionBrand: LiftFn, S: 'a, T: 'a> {
 		/// The binary function that zips two `S` values (as a pair) into a `T`.
-		pub run: <FunctionBrand as CloneableFn>::Of<'a, (S, S), T>,
+		pub run: <FunctionBrand as CloneFn>::Of<'a, (S, S), T>,
 	}
 
 	#[document_type_parameters(
@@ -206,12 +206,12 @@ mod inner {
 		/// ```
 		fn closed<'a, S: 'a, T: 'a, X: 'a + Clone>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneableFn>::Of<'a, X, S>, <FunctionBrand as CloneableFn>::Of<'a, X, T>>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneFn>::Of<'a, X, S>, <FunctionBrand as CloneFn>::Of<'a, X, T>>)
 		{
 			Zipping::new(
 				move |(f1, f2): (
-					<FunctionBrand as CloneableFn>::Of<'a, X, S>,
-					<FunctionBrand as CloneableFn>::Of<'a, X, S>,
+					<FunctionBrand as CloneFn>::Of<'a, X, S>,
+					<FunctionBrand as CloneFn>::Of<'a, X, S>,
 				)| {
 					let run = pab.run.clone();
 					<FunctionBrand as LiftFn>::new(move |x: X| {

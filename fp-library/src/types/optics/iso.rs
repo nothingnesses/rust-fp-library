@@ -345,7 +345,7 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The iso instance.")]
-	impl<'a, FunctionBrand: CloneableFn, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a>
+	impl<'a, FunctionBrand: CloneFn, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a>
 		GrateOptic<'a, FunctionBrand, S, T, A, B> for Iso<'a, PointerBrand, S, T, A, B>
 	where
 		PointerBrand: UnsizedCoercible,
@@ -967,7 +967,7 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic iso instance.")]
-	impl<'a, FunctionBrand: CloneableFn, PointerBrand, S: 'a, A: 'a>
+	impl<'a, FunctionBrand: CloneFn, PointerBrand, S: 'a, A: 'a>
 		GrateOptic<'a, FunctionBrand, S, S, A, A> for IsoPrime<'a, PointerBrand, S, A>
 	where
 		PointerBrand: UnsizedCoercible,

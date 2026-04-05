@@ -320,7 +320,7 @@ mod inner {
 		/// ```
 		fn closed<'a, A: 'a, B: 'a + Clone, X: 'a + Clone>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneableFn>::Of<'a, X, A>, <FunctionBrand as CloneableFn>::Of<'a, X, B>>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneFn>::Of<'a, X, A>, <FunctionBrand as CloneFn>::Of<'a, X, B>>)
 		{
 			let b = pab.0;
 			Tagged::new(<FunctionBrand as LiftFn>::new(move |_: X| b.clone()))

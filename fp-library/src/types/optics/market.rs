@@ -32,9 +32,9 @@ mod inner {
 	)]
 	pub struct Market<'a, FunctionBrand: LiftFn, A: 'a, B: 'a, S: 'a, T: 'a> {
 		/// Preview function: tries to extract the focus.
-		pub preview: <FunctionBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
+		pub preview: <FunctionBrand as CloneFn>::Of<'a, S, Result<A, T>>,
 		/// Review function: constructs the structure.
-		pub review: <FunctionBrand as CloneableFn>::Of<'a, B, T>,
+		pub review: <FunctionBrand as CloneFn>::Of<'a, B, T>,
 	}
 
 	#[document_type_parameters(
@@ -58,7 +58,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::RcFnBrand,
-		/// 	classes::cloneable_fn::new as lift_fn_new,
+		/// 	classes::clone_fn::new as lift_fn_new,
 		/// 	types::optics::Market,
 		/// };
 		///
@@ -72,8 +72,8 @@ mod inner {
 		/// assert_eq!((market.review)(456), "456".to_string());
 		/// ```
 		pub fn new(
-			preview: <FunctionBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
-			review: <FunctionBrand as CloneableFn>::Of<'a, B, T>,
+			preview: <FunctionBrand as CloneFn>::Of<'a, S, Result<A, T>>,
+			review: <FunctionBrand as CloneFn>::Of<'a, B, T>,
 		) -> Self {
 			Market {
 				preview,
@@ -125,7 +125,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as lift_fn_new,
+		/// 		clone_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},
@@ -196,7 +196,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as lift_fn_new,
+		/// 		clone_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},
@@ -248,7 +248,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as lift_fn_new,
+		/// 		clone_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},

@@ -1,7 +1,7 @@
 use {
 	fp_library::{
 		brands::ArcFnBrand,
-		classes::send_cloneable_fn::SendCloneableFn,
+		classes::send_clone_fn::SendCloneFn,
 	},
 	std::cell::RefCell,
 };

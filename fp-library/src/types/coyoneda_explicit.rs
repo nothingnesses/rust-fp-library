@@ -464,9 +464,9 @@ mod inner {
 			FnBrand: LiftFn + 'a,
 			Bf: 'a,
 			C: 'a,
-			FuncF: Fn(Bf) -> <FnBrand as CloneableFn>::Of<'a, A, C> + 'a,
+			FuncF: Fn(Bf) -> <FnBrand as CloneFn>::Of<'a, A, C> + 'a,
 		>(
-			ff: CoyonedaExplicit<'a, F, Bf, <FnBrand as CloneableFn>::Of<'a, A, C>, FuncF>,
+			ff: CoyonedaExplicit<'a, F, Bf, <FnBrand as CloneFn>::Of<'a, A, C>, FuncF>,
 			fa: Self,
 		) -> CoyonedaExplicit<'a, F, C, C, fn(C) -> C>
 		where
@@ -1142,7 +1142,7 @@ mod tests {
 	#[test]
 	fn apply_none_fn_to_some() {
 		let ff = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(
-			None::<<RcFnBrand as CloneableFn>::Of<'_, i32, i32>>,
+			None::<<RcFnBrand as CloneFn>::Of<'_, i32, i32>>,
 		);
 		let fa = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(5i32));
 		let result = CoyonedaExplicit::apply::<RcFnBrand, _, _, _>(ff, fa).lower();

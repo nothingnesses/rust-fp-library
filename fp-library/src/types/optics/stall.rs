@@ -33,9 +33,9 @@ mod inner {
 	)]
 	pub struct Stall<'a, FunctionBrand: LiftFn, A: 'a, B: 'a, S: 'a, T: 'a> {
 		/// Preview function: tries to extract the focus.
-		pub get: <FunctionBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
+		pub get: <FunctionBrand as CloneFn>::Of<'a, S, Result<A, T>>,
 		/// Setter function.
-		pub set: <FunctionBrand as CloneableFn>::Of<'a, (S, B), T>,
+		pub set: <FunctionBrand as CloneFn>::Of<'a, (S, B), T>,
 	}
 
 	#[document_type_parameters(
@@ -59,7 +59,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::RcFnBrand,
-		/// 	classes::cloneable_fn::new as lift_fn_new,
+		/// 	classes::clone_fn::new as lift_fn_new,
 		/// 	types::optics::Stall,
 		/// };
 		///
@@ -71,8 +71,8 @@ mod inner {
 		/// assert_eq!((stall.set)(((10, 20), 30)), (30, 20));
 		/// ```
 		pub fn new(
-			get: <FunctionBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
-			set: <FunctionBrand as CloneableFn>::Of<'a, (S, B), T>,
+			get: <FunctionBrand as CloneFn>::Of<'a, S, Result<A, T>>,
+			set: <FunctionBrand as CloneFn>::Of<'a, (S, B), T>,
 		) -> Self {
 			Stall {
 				get,
@@ -122,7 +122,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as lift_fn_new,
+		/// 		clone_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},
@@ -190,7 +190,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as lift_fn_new,
+		/// 		clone_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},
@@ -247,7 +247,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as lift_fn_new,
+		/// 		clone_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},
@@ -302,7 +302,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as lift_fn_new,
+		/// 		clone_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},

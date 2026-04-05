@@ -793,8 +793,8 @@ mod inner {
 		/// let result = apply::<RcFnBrand, CoyonedaBrand<OptionBrand>, _, _>(ff, fa);
 		/// assert_eq!(result.lower(), Some(10));
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			Coyoneda::lift(F::apply::<FnBrand, A, B>(ff.lower(), fa.lower()))
@@ -1216,8 +1216,7 @@ mod tests {
 
 	#[test]
 	fn apply_option_none_fn() {
-		let ff =
-			Coyoneda::<OptionBrand, _>::lift(None::<<RcFnBrand as CloneableFn>::Of<'_, i32, i32>>);
+		let ff = Coyoneda::<OptionBrand, _>::lift(None::<<RcFnBrand as CloneFn>::Of<'_, i32, i32>>);
 		let fa = Coyoneda::<OptionBrand, _>::lift(Some(5));
 		let result = apply::<RcFnBrand, CoyonedaBrand<OptionBrand>, _, _>(ff, fa);
 		assert_eq!(result.lower(), None);

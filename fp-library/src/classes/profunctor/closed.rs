@@ -25,7 +25,7 @@ mod inner {
 	///
 	/// This trait inherits from [`Profunctor`].
 	#[document_type_parameters("The cloneable function brand.")]
-	pub trait Closed<FunctionBrand: CloneableFn>: Profunctor {
+	pub trait Closed<FunctionBrand: CloneFn>: Profunctor {
 		/// Lift a profunctor to operate on functions.
 		///
 		/// This method takes a profunctor `P A B` and returns
@@ -66,7 +66,7 @@ mod inner {
 		/// ```
 		fn closed<'a, A: 'a, B: 'a + Clone, X: 'a + Clone>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneableFn>::Of<'a, X, A>, <FunctionBrand as CloneableFn>::Of<'a, X, B>>);
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneFn>::Of<'a, X, A>, <FunctionBrand as CloneFn>::Of<'a, X, B>>);
 	}
 
 	/// Lift a profunctor to operate on functions.
@@ -104,13 +104,13 @@ mod inner {
 	pub fn closed<
 		'a,
 		Brand: Closed<FunctionBrand>,
-		FunctionBrand: CloneableFn,
+		FunctionBrand: CloneFn,
 		A: 'a,
 		B: 'a + Clone,
 		X: 'a + Clone,
 	>(
 		pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneableFn>::Of<'a, X, A>, <FunctionBrand as CloneableFn>::Of<'a, X, B>>)
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneFn>::Of<'a, X, A>, <FunctionBrand as CloneFn>::Of<'a, X, B>>)
 	{
 		Brand::closed::<A, B, X>(pab)
 	}

@@ -8,7 +8,7 @@ use {
 			optics::*,
 		},
 		classes::{
-			CloneableFn,
+			CloneFn,
 			UnsizedCoercible,
 			monoid::Monoid,
 			optics::*,
@@ -765,7 +765,7 @@ mod inner {
 		"The second optic."
 	)]
 	#[document_parameters("The composed optic instance.")]
-	impl<'a, FunctionBrand: CloneableFn, S, T, M, N, A, B, O1, O2>
+	impl<'a, FunctionBrand: CloneFn, S, T, M, N, A, B, O1, O2>
 		GrateOptic<'a, FunctionBrand, S, T, A, B> for Composed<'a, S, T, M, N, A, B, O1, O2>
 	where
 		O1: GrateOptic<'a, FunctionBrand, S, T, M, N>,

@@ -22,7 +22,7 @@ mod inner {
 
 	/// Extension trait for thread-safe reference-counted pointers.
 	///
-	/// This follows the same pattern as `SendCloneableFn` extends `CloneableFn`,
+	/// This follows the same pattern as `SendCloneFn` extends `CloneFn`,
 	/// adding a `SendOf` associated type with explicit `Send + Sync` bounds.
 	pub trait SendRefCountedPointer: RefCountedPointer {
 		/// The thread-safe pointer type constructor.

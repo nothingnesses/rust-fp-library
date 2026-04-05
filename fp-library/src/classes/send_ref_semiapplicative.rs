@@ -1,7 +1,7 @@
 //! Thread-safe by-ref function application within contexts with [`send_ref_apply`].
 //!
 //! Like [`RefSemiapplicative::ref_apply`](crate::classes::RefSemiapplicative::ref_apply),
-//! but uses [`SendCloneableFn<Ref>`](crate::classes::SendCloneableFn) for thread-safe
+//! but uses [`SendCloneFn<Ref>`](crate::classes::SendCloneFn) for thread-safe
 //! function wrappers and requires element types to be `Send + Sync`.
 //!
 //! ### Examples
@@ -38,7 +38,7 @@ mod inner {
 	/// A type class for applying wrapped thread-safe by-ref functions within contexts.
 	///
 	/// The wrapped functions have type `Fn(&A) -> B + Send + Sync` (via
-	/// [`SendCloneableFn<Ref>`]). No `Clone` bound on `A` is needed; the
+	/// [`SendCloneFn<Ref>`]). No `Clone` bound on `A` is needed; the
 	/// function receives a reference and produces an owned result.
 	///
 	/// This is the thread-safe counterpart of [`RefSemiapplicative`].
@@ -78,11 +78,11 @@ mod inner {
 		/// ```
 		fn send_ref_apply<
 			'a,
-			FnBrand: 'a + SendCloneableFn<Ref>,
+			FnBrand: 'a + SendCloneFn<Ref>,
 			A: Send + Sync + 'a,
 			B: Send + Sync + 'a,
 		>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as SendCloneableFn<Ref>>::SendOf<'a, A, B>>),
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as SendCloneFn<Ref>>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
 	}
@@ -124,12 +124,12 @@ mod inner {
 	/// ```
 	pub fn send_ref_apply<
 		'a,
-		FnBrand: 'a + SendCloneableFn<Ref>,
+		FnBrand: 'a + SendCloneFn<Ref>,
 		Brand: SendRefSemiapplicative,
 		A: Send + Sync + 'a,
 		B: Send + Sync + 'a,
 	>(
-		ff: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as SendCloneableFn<Ref>>::SendOf<'a, A, B>>),
+		ff: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as SendCloneFn<Ref>>::Of<'a, A, B>>),
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		Brand::send_ref_apply::<FnBrand, A, B>(ff, fa)
