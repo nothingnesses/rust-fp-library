@@ -31,11 +31,13 @@ mod inner {
 				RefFunctor,
 				RefLift,
 				RefPointed,
+				RefSemiapplicative,
 				RefSemimonad,
 				Semigroup,
 				SendDeferrable,
 				SendRefFunctor,
 				WithIndex,
+				functor_dispatch::Ref,
 			},
 			impl_kind,
 			kinds::*,
@@ -960,6 +962,49 @@ mod inner {
 			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
 			RcLazy::new(move || func(fa.evaluate(), fb.evaluate()))
+		}
+	}
+
+	// -- RefSemiapplicative --
+
+	impl RefSemiapplicative for LazyBrand<RcLazyConfig> {
+		/// Applies a wrapped by-ref function within a memoized context to a memoized value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the input value.",
+			"The type of the output value."
+		)]
+		///
+		#[document_parameters("The memoized wrapped by-ref function.", "The memoized value.")]
+		///
+		#[document_returns("A new memoized value containing the result of applying the function.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let f = RcLazy::pure(std::rc::Rc::new(|x: &i32| *x * 2) as std::rc::Rc<dyn Fn(&i32) -> i32>);
+		/// let x = RcLazy::pure(5);
+		/// let result = LazyBrand::<RcLazyConfig>::ref_apply::<RcFnBrand, _, _>(f, x);
+		/// assert_eq!(*result.evaluate(), 10);
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneableFn<Ref>, A: 'a, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn<Ref>>::Of<'a, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			RcLazy::new(move || {
+				let f = ff.evaluate();
+				let a = fa.evaluate();
+				(**f)(a)
+			})
 		}
 	}
 

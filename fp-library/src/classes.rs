@@ -71,6 +71,7 @@ pub mod ref_counted_pointer;
 pub mod ref_functor;
 pub mod ref_lift;
 pub mod ref_pointed;
+pub mod ref_semiapplicative;
 pub mod ref_semimonad;
 pub mod ring;
 pub mod semiapplicative;
