@@ -89,7 +89,9 @@ pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 		}
 		_ if n <= 5 => {
 			let fn_name = format_ident!("lift{}", n);
-			let underscores: Vec<TokenStream> = (0 ..= n).map(|_| quote! { _ }).collect();
+			// lift2 has an extra Marker type parameter for dispatch
+			let extra = if n == 2 { 1 } else { 0 };
+			let underscores: Vec<TokenStream> = (0 ..= n + extra).map(|_| quote! { _ }).collect();
 			quote! {
 				#fn_name::<#brand, #(#underscores),*>(
 					|#(#bind_params),*| { #(#inner_lets)* #final_expr },

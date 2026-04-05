@@ -1,4 +1,4 @@
-//! Lifting binary functions into contexts via references with [`ref_lift2`].
+//! Lifting binary functions into contexts via references with [`lift2`](crate::functions::lift2).
 //!
 //! Like [`Lift::lift2`](crate::classes::Lift::lift2), but the function receives
 //! `&A` and `&B` instead of owned values. No `Clone` bound is needed because the

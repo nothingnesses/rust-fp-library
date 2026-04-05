@@ -52,7 +52,7 @@ pub fn m_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 				expr,
 			} => {
 				let expr = rewrite_pure(brand, expr);
-				quote! { bind::<#brand, _, _>(#expr, move |_| { #result }) }
+				quote! { bind::<#brand, _, _, _>(#expr, move |_| { #result }) }
 			}
 		};
 	}

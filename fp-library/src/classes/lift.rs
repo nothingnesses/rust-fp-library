@@ -1,7 +1,7 @@
 //! Lifting of functions to operate on values within a context.
 //!
-//! Provides [`lift2`] through [`lift5`] for lifting multi-argument functions
-//! into a context. Higher-arity lifts are built from [`lift2`] using tuple
+//! Provides [`lift2`](crate::functions::lift2) through [`lift5`] for lifting multi-argument functions
+//! into a context. Higher-arity lifts are built from [`lift2`](crate::functions::lift2) using tuple
 //! intermediaries.
 //!
 //! ### Examples

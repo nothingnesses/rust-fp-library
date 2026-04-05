@@ -69,7 +69,7 @@ mod inner {
 
 	/// Sequences two computations with flipped arguments, allowing the function to be provided first.
 	///
-	/// This is [`bind`] with its arguments reversed. Useful for pipelines where the function
+	/// This is [`bind`](crate::functions::bind) with its arguments reversed. Useful for pipelines where the function
 	/// is known before the computation it should be applied to.
 	#[document_signature]
 	///
@@ -145,7 +145,7 @@ mod inner {
 	/// Forwards Kleisli composition.
 	///
 	/// Composes two monadic functions left-to-right: first applies `f`, then passes the
-	/// result to `g` via [`bind`]. Equivalent to Haskell's `>=>` operator.
+	/// result to `g` via [`bind`](crate::functions::bind). Equivalent to Haskell's `>=>` operator.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -191,7 +191,7 @@ mod inner {
 	/// Backwards Kleisli composition.
 	///
 	/// Composes two monadic functions right-to-left: first applies `g`, then passes the
-	/// result to `f` via [`bind`]. Equivalent to Haskell's `<=<` operator.
+	/// result to `f` via [`bind`](crate::functions::bind). Equivalent to Haskell's `<=<` operator.
 	#[document_signature]
 	///
 	#[document_type_parameters(

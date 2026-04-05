@@ -166,7 +166,7 @@ fn typed_bind() {
 #[test]
 fn complex_expressions_in_bind() {
 	let result = m_do!(OptionBrand {
-		x <- Some(vec![1, 2, 3]);
+		x: Vec<i32> <- Some(vec![1, 2, 3]);
 		let sum: i32 = x.iter().sum();
 		pure(sum)
 	});

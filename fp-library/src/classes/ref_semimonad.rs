@@ -1,4 +1,4 @@
-//! Contexts supporting by-reference monadic sequencing via [`bind`].
+//! Contexts supporting by-reference monadic sequencing via [`bind`](crate::functions::bind).
 //!
 //! Like [`Semimonad::bind`](crate::classes::Semimonad::bind), but the closure
 //! receives `&A` instead of `A`. This enables memoized types like
