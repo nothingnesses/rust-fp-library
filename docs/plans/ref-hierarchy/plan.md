@@ -290,20 +290,17 @@ element access) was investigated and rejected for three reasons:
     compiler to infer `Val`/`Ref` from. These remain as separate
     `apply_first` / `ref_apply_first` free functions.
 
-16. **Add `Ref*` foldable and indexed traits, remove `Lazy`'s
-    by-value impls**: Add the following traits with `Lazy` impls
-    (all using `Index = ()` for WithIndex variants):
+16. ~~**Add `Ref*` foldable and indexed traits, remove `Lazy`'s
+    by-value impls**~~: Done. Added:
     - `RefFoldable` (ref_fold_map, ref_fold_right, ref_fold_left)
     - `SendRefFoldable`
     - `RefFoldableWithIndex: RefFoldable + WithIndex`
     - `SendRefFoldableWithIndex: SendRefFoldable + WithIndex`
-    - `RefFunctorWithIndex: RefFunctor + WithIndex`
-    - `SendRefFunctorWithIndex: SendRefFunctor + WithIndex`
-      Remove `Lazy`'s by-value `Foldable` and `FoldableWithIndex`
-      impls (breaking change). Keep `WithIndex` impl since `Index = ()`
-      is still valid for the Ref variants. Also remove from `TryLazy`.
-      Memoized types should only implement `Ref*` traits, following
-      the precedent set by `RefFunctor`.
+    - `RefFunctorWithIndex: RefFunctor + WithIndex` (RcLazy only)
+    - `SendRefFunctorWithIndex: SendRefFunctor + WithIndex` (ArcLazy)
+      Removed `Lazy`'s by-value `Foldable` and `FoldableWithIndex`
+      impls (breaking change). Kept `WithIndex` impl (`Index = ()`).
+      Same migration for `TryLazy`.
 
     **Deferred Ref variants** (no memoized type currently needs them):
     - `RefFilterableWithIndex` (needs `RefFilterable` + `RefCompactable`)
@@ -536,6 +533,14 @@ None at this time.
 - `m_do!` and `a_do!` macros updated for new generic parameter counts (uniform `n + 2` for all liftN).
 - All call sites updated for dispatched turbofish generic counts.
 - Dispatch module restructured: `functor_dispatch.rs` replaced with `dispatch.rs` + `dispatch/` directory (`dispatch/functor.rs`, `dispatch/semimonad.rs`, `dispatch/lift.rs`).
+- Incorrect `dispatch/apply_first.rs` removed (no closure parameter to infer from).
+- `RefFoldable` trait added with `ref_fold_map`, `ref_fold_right`, `ref_fold_left`. Default impls for right/left use `Endofunction` with `A: Clone`.
+- `RefFoldableWithIndex: RefFoldable + WithIndex` trait added.
+- `RefFunctorWithIndex: RefFunctor + WithIndex` trait added (RcLazy impl).
+- `SendRefFoldable`, `SendRefFoldableWithIndex`, `SendRefFunctorWithIndex` added with ArcLazy impls.
+- Lazy's by-value `Foldable` and `FoldableWithIndex` impls removed (breaking change). Replaced by `RefFoldable` and `RefFoldableWithIndex`. `WithIndex` impl kept (`Index = ()`).
+- TryLazy's by-value `Foldable` and `FoldableWithIndex` impls replaced similarly.
+- All Lazy/TryLazy foldable tests updated to use `ref_fold_*` free functions.
 
 ## References
 
