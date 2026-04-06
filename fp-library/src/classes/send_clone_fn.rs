@@ -25,7 +25,6 @@ mod inner {
 	use {
 		crate::classes::dispatch::{
 			ClosureMode,
-			Ref,
 			Val,
 		},
 		fp_macros::*,
@@ -142,86 +141,6 @@ mod inner {
 	where
 		Brand: SendLiftFn, {
 		<Brand as SendLiftFn>::new(f)
-	}
-
-	/// A trait for constructing thread-safe by-reference cloneable function wrappers.
-	///
-	/// This is the `Ref`-mode counterpart of [`SendLiftFn`]. While `SendLiftFn` wraps
-	/// `Fn(A) -> B + Send + Sync` closures, `SendLiftRefFn` wraps
-	/// `Fn(&A) -> B + Send + Sync` closures.
-	pub trait SendLiftRefFn: SendCloneFn<Ref> {
-		/// Creates a new thread-safe cloneable by-reference function wrapper.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the function and its captured data.",
-			"The input type (received by reference).",
-			"The output type of the function."
-		)]
-		///
-		#[document_parameters("The closure to wrap. Must be `Send + Sync`.")]
-		#[document_returns("The wrapped thread-safe cloneable by-reference function.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		functions::*,
-		/// 	},
-		/// 	std::thread,
-		/// };
-		///
-		/// let f = send_lift_ref_fn_new::<ArcFnBrand, _, _>(|x: &i32| *x * 2);
-		///
-		/// let handle = thread::spawn(move || {
-		/// 	assert_eq!(f(&5), 10);
-		/// });
-		/// handle.join().unwrap();
-		/// ```
-		fn new<'a, A: 'a, B: 'a>(
-			f: impl 'a + Fn(&A) -> B + Send + Sync
-		) -> <Self as SendCloneFn<Ref>>::Of<'a, A, B>;
-	}
-
-	/// Creates a new thread-safe cloneable by-reference function wrapper.
-	///
-	/// Free function version that dispatches to [the type class' associated function][`SendLiftRefFn::new`].
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
-		"The brand of the thread-safe cloneable function wrapper.",
-		"The input type (received by reference).",
-		"The output type of the function."
-	)]
-	///
-	#[document_parameters("The closure to wrap. Must be `Send + Sync`.")]
-	#[document_returns("The wrapped thread-safe cloneable by-reference function.")]
-	#[document_examples]
-	///
-	/// ```
-	/// use {
-	/// 	fp_library::{
-	/// 		brands::*,
-	/// 		functions::*,
-	/// 	},
-	/// 	std::thread,
-	/// };
-	///
-	/// let f = send_lift_ref_fn_new::<ArcFnBrand, _, _>(|x: &i32| *x * 2);
-	///
-	/// let handle = thread::spawn(move || {
-	/// 	assert_eq!(f(&5), 10);
-	/// });
-	/// handle.join().unwrap();
-	/// ```
-	pub fn send_lift_ref_fn_new<'a, Brand, A, B>(
-		f: impl 'a + Fn(&A) -> B + Send + Sync
-	) -> <Brand as SendCloneFn<Ref>>::Of<'a, A, B>
-	where
-		Brand: SendLiftRefFn, {
-		<Brand as SendLiftRefFn>::new(f)
 	}
 }
 
