@@ -11,7 +11,10 @@ mod inner {
 				OptionBrand,
 				VecBrand,
 			},
-			classes::*,
+			classes::{
+				dispatch::Ref,
+				*,
+			},
 			impl_kind,
 			kinds::*,
 		},
@@ -2484,6 +2487,160 @@ mod inner {
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			Self::traverse_with_index::<A, B, M>(move |i, a: A| f(i, &a), ta)
+		}
+	}
+
+	// -- By-reference monadic trait implementations --
+
+	impl RefPointed for VecBrand {
+		/// Creates a singleton vector from a reference by cloning.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type of the value.")]
+		///
+		#[document_parameters("The reference to the value to wrap.")]
+		///
+		#[document_returns("A singleton vector containing a clone of the value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = 42;
+		/// let v: Vec<i32> = ref_pure::<VecBrand, _>(&x);
+		/// assert_eq!(v, vec![42]);
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			vec![a.clone()]
+		}
+	}
+
+	impl RefLift for VecBrand {
+		/// Combines two vectors with a by-reference binary function (Cartesian product).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the first input.",
+			"The type of the second input.",
+			"The type of the output."
+		)]
+		///
+		#[document_parameters(
+			"The binary function receiving references.",
+			"The first vector.",
+			"The second vector."
+		)]
+		///
+		#[document_returns("A new vector with the combined results.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let v = lift2::<VecBrand, _, _, _, _>(
+		/// 	|a: &i32, b: &str| format!("{}{}", a, b),
+		/// 	vec![1, 2],
+		/// 	vec!["a".to_string(), "b".to_string()],
+		/// );
+		/// assert_eq!(v, vec!["1a".to_string(), "1b".to_string(), "2a".to_string(), "2b".to_string()]);
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			let func = &func;
+			fa.iter().flat_map(|a| fb.iter().map(move |b| func(a, b))).collect()
+		}
+	}
+
+	impl RefSemiapplicative for VecBrand {
+		/// Applies wrapped by-ref functions to values (Cartesian product).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the input values.",
+			"The type of the output values."
+		)]
+		///
+		#[document_parameters(
+			"The vector containing the by-ref functions.",
+			"The vector containing the values."
+		)]
+		///
+		#[document_returns("A new vector with each function applied to each value by reference.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let funcs: Vec<std::rc::Rc<dyn Fn(&i32) -> i32>> = vec![
+		/// 	coerce_fn::<RcBrand, _, _>(|x: &i32| *x + 1),
+		/// 	coerce_fn::<RcBrand, _, _>(|x: &i32| *x * 2),
+		/// ];
+		/// let result = ref_apply::<RcFnBrand, VecBrand, _, _>(funcs, vec![10, 20]);
+		/// assert_eq!(result, vec![11, 21, 20, 40]);
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			ff.iter().flat_map(|f| fa.iter().map(move |a| (**f)(a))).collect()
+		}
+	}
+
+	impl RefSemimonad for VecBrand {
+		/// Chains vector computations by reference (`flat_map` with `&A`).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the input values.",
+			"The type of the output values."
+		)]
+		///
+		#[document_parameters(
+			"The input vector.",
+			"The function to apply to each element by reference."
+		)]
+		///
+		#[document_returns("A new vector with the results flattened.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let v = vec![1, 2, 3];
+		/// let result: Vec<i32> = bind::<VecBrand, _, _, _>(v, |x: &i32| vec![*x, *x * 10]);
+		/// assert_eq!(result, vec![1, 10, 2, 20, 3, 30]);
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.iter().flat_map(|a| f(a)).collect()
 		}
 	}
 }

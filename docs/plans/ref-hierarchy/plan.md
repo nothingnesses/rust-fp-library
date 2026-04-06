@@ -364,18 +364,46 @@ element access) was investigated and rejected for three reasons:
     - `compose_kleisli` / `ref_compose_kleisli`
     - `compose_kleisli_flipped` / `ref_compose_kleisli_flipped`
 
-21. **Add RefFilterable hierarchy** (deferred until needed):
-    - `RefCompactable` (ref_compact, ref_separate)
-    - `RefFilterable: RefFunctor + RefCompactable`
-      (ref_filter_map, ref_filter, ref_partition_map, ref_partition)
-    - `RefFilterableWithIndex: RefFilterable + WithIndex`
-    - `RefWitherable: RefFilterable + RefFoldable`
-      (ref_wilt, ref_wither)
-    - SendRef variants for all of the above.
-    - Dispatch unification for filter_map, partition_map, filter,
-      partition, wilt, wither once ref variants exist.
-      These are deferred because no memoized type currently
-      implements Filterable/Witherable.
+21. ~~**Add RefFilterable hierarchy**~~: Done. Added:
+    - `RefFilterable: RefFunctor + Compactable` (not `RefCompactable`,
+      since compact/separate are structural and mode-independent)
+    - `RefTraversable: RefFunctor + RefFoldable`
+    - `RefWitherable: RefFilterable + RefTraversable`
+    - `RefFilterableWithIndex: RefFilterable + RefFunctorWithIndex`
+    - `RefTraversableWithIndex: RefTraversable + RefFunctorWithIndex`
+    - Doc examples marked `ignore` until collection impls.
+    - SendRef variants deferred (no thread-safe memoized type needs
+      filtering/traversal).
+    - Design principle: traits whose methods take only containers
+      (no closures) don't need Ref variants. Compound traits use the
+      non-Ref version of structural supertraits and the Ref version
+      of element-accessing supertraits.
+
+22. ~~**Ref trait impls for collection types**~~: Done.
+    Vec, Option, CatList, Identity all implement:
+    - RefFunctor, RefFoldable, RefTraversable (+ WithIndex variants)
+    - RefFilterable, RefFilterableWithIndex, RefWitherable (Vec/Option/CatList)
+    - RefPointed, RefLift, RefSemiapplicative, RefSemimonad
+    - RefApplicative, RefMonad (blanket, auto-derived)
+    - Identity: WithIndex, FunctorWithIndex, FoldableWithIndex,
+      TraversableWithIndex and their Ref variants added.
+
+23. **Foldable mutual derivation parity**: Add `FnBrand` parameter
+    and `fold_right_with_index`/`fold_left_with_index` methods with
+    default impls (via Endofunction) to the following traits,
+    matching PureScript's FoldableWithIndex design and the existing
+    `Foldable`/`RefFoldable` mutual derivation pattern:
+    - `FoldableWithIndex`: add `FnBrand`, add
+      `fold_right_with_index`/`fold_left_with_index` with defaults
+    - `RefFoldableWithIndex`: add `FnBrand`, add
+      `ref_fold_right_with_index`/`ref_fold_left_with_index`
+    - `SendRefFoldable`: add `FnBrand`, add
+      `send_ref_fold_right`/`send_ref_fold_left` with defaults
+    - `SendRefFoldableWithIndex`: add `FnBrand`, add
+      `send_ref_fold_right_with_index`/`send_ref_fold_left_with_index`
+    - `ParFoldable`/`ParFoldableWithIndex`: skip (parallel folds are
+      reduction-only; fold_right/fold_left are sequential)
+    - Update all impls for new signatures.
 
     **Not dispatchable** (no closure or container to infer from):
     - `pure`, `ref_pure`, `send_ref_pure`
@@ -388,28 +416,18 @@ element access) was investigated and rejected for three reasons:
     - `compact`, `separate`
       These remain as separate free functions.
 
-22. **Ref trait impls for collection types**: Implement Ref traits
-    for Vec, Option, Result, CatList, Identity:
-    - `RefFunctor`, `RefFoldable`, `RefFunctorWithIndex`,
-      `RefFoldableWithIndex`
-    - `RefFilterable`, `RefFilterableWithIndex` (after step 21)
-    - `RefWitherable` (after step 21)
-      These types keep their by-value impls. Both paths coexist;
-      dispatch unification selects the right one from the closure
-      argument type.
-
-23. **Par-Ref traits**: Add parallel by-reference trait variants
+24. **Par-Ref traits**: Add parallel by-reference trait variants
     for collection types:
     - `ParRefFunctor` (par_ref_map)
     - `ParRefFoldable` (par_ref_fold_map)
     - `ParRefFunctorWithIndex` (par_ref_map_with_index)
     - `ParRefFoldableWithIndex` (par_ref_fold_map_with_index)
-    - `ParRefFilterable`, `ParRefFilterableWithIndex` (after step 21)
+    - `ParRefFilterable`, `ParRefFilterableWithIndex`
       Implement for Vec, CatList. Requires rayon feature.
 
-24. **Documentation and tests**: Property tests for type class
+25. **Documentation and tests**: Property tests for type class
     laws, doc examples, update limitations.md.
-25. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
+26. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
     generates `ref_bind` calls for by-ref monadic code.
 
 ## Design Decision: CloneableFn with Mode Parameter
@@ -628,6 +646,11 @@ None at this time.
 - `dispatch/foldable.rs` added: unifies `fold_right`/`ref_fold_right`, `fold_left`/`ref_fold_left`, `fold_map`/`ref_fold_map`.
 - `RefFoldable::ref_fold_map` given `FnBrand` parameter and default impl (derives from `ref_fold_right`), making all three RefFoldable methods mutually derivable.
 - `#[document_module]` macro fixed to emit module items even when inner documentation attributes fail, preventing cascading import errors.
+- `RefFilterable`, `RefTraversable`, `RefWitherable`, `RefFilterableWithIndex`, `RefTraversableWithIndex` traits added.
+- Design principle documented: structural traits (compact/separate) don't need Ref variants; compound traits use non-Ref structural supertraits + Ref element-accessing supertraits.
+- Vec, Option, CatList: RefFilterable, RefFilterableWithIndex, RefTraversable, RefTraversableWithIndex, RefWitherable impls added.
+- Vec, Option, CatList, Identity: RefPointed, RefLift, RefSemiapplicative, RefSemimonad impls added (RefApplicative/RefMonad auto-derived via blankets).
+- Identity: WithIndex (Index = ()), FunctorWithIndex, FoldableWithIndex, TraversableWithIndex and their Ref variants added.
 - Test cache improved: content hashing via `git ls-files` + `md5sum`, SIGPIPE handling, `just clean` recipe added.
 
 ## References

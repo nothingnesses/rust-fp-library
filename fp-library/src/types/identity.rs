@@ -8,7 +8,10 @@ mod inner {
 		crate::{
 			Apply,
 			brands::IdentityBrand,
-			classes::*,
+			classes::{
+				dispatch::Ref,
+				*,
+			},
 			impl_kind,
 			kinds::*,
 		},
@@ -989,6 +992,320 @@ mod inner {
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			Self::traverse::<A, B, F>(move |a: A| func(&a), ta)
+		}
+	}
+
+	// -- WithIndex trait implementations --
+
+	impl WithIndex for IdentityBrand {
+		type Index = ();
+	}
+
+	impl FunctorWithIndex for IdentityBrand {
+		/// Maps with index over Identity (index is always `()`).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function to apply with index.", "The Identity value.")]
+		#[document_returns("The transformed Identity value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let result = map_with_index::<IdentityBrand, _, _>(|(), x| x * 2, Identity(5));
+		/// assert_eq!(result, Identity(10));
+		/// ```
+		fn map_with_index<'a, A: 'a, B: 'a>(
+			func: impl Fn((), A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Identity(func((), fa.0))
+		}
+	}
+
+	impl FoldableWithIndex for IdentityBrand {
+		/// Folds with index over Identity (index is always `()`).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The element type.", "The monoid type.")]
+		#[document_parameters("The function to apply with index.", "The Identity value.")]
+		#[document_returns("The monoid result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let result: String =
+		/// 	fold_map_with_index::<RcFnBrand, IdentityBrand, _, _>(|(), x| x.to_string(), Identity(42));
+		/// assert_eq!(result, "42");
+		/// ```
+		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
+			func: impl Fn((), A) -> R + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R {
+			func((), fa.0)
+		}
+	}
+
+	impl TraversableWithIndex for IdentityBrand {
+		/// Traverses with index over Identity (index is always `()`).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The element type.",
+			"The output type.",
+			"The applicative brand."
+		)]
+		#[document_parameters("The function to apply with index.", "The Identity value.")]
+		#[document_returns("The result in the applicative context.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let result: Option<Identity<String>> = traverse_with_index::<IdentityBrand, _, _, OptionBrand>(
+		/// 	|(), x| Some(x.to_string()),
+		/// 	Identity(42),
+		/// );
+		/// assert_eq!(result, Some(Identity("42".to_string())));
+		/// ```
+		fn traverse_with_index<'a, A: 'a, B: 'a + Clone, M: Applicative>(
+			func: impl Fn((), A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			M::map::<B, Identity<B>>(Identity, func((), ta.0))
+		}
+	}
+
+	// -- By-reference WithIndex implementations --
+
+	impl RefFunctorWithIndex for IdentityBrand {
+		/// Maps with index over Identity by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function to apply with index.", "The Identity value.")]
+		#[document_returns("The transformed Identity value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let result = ref_map_with_index::<IdentityBrand, _, _>(|(), x: &i32| *x * 2, Identity(5));
+		/// assert_eq!(result, Identity(10));
+		/// ```
+		fn ref_map_with_index<'a, A: 'a, B: 'a>(
+			func: impl Fn((), &A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Identity(func((), &fa.0))
+		}
+	}
+
+	impl RefFoldableWithIndex for IdentityBrand {
+		/// Folds with index over Identity by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The element type.", "The monoid type.")]
+		#[document_parameters("The function to apply with index.", "The Identity value.")]
+		#[document_returns("The monoid result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let result: String = ref_fold_map_with_index::<RcFnBrand, IdentityBrand, _, _>(
+		/// 	|(), x: &i32| x.to_string(),
+		/// 	Identity(42),
+		/// );
+		/// assert_eq!(result, "42");
+		/// ```
+		fn ref_fold_map_with_index<'a, A: 'a, R: Monoid>(
+			func: impl Fn((), &A) -> R + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R {
+			func((), &fa.0)
+		}
+	}
+
+	impl RefTraversableWithIndex for IdentityBrand {
+		/// Traverses with index over Identity by reference.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The element type.",
+			"The output type.",
+			"The applicative brand."
+		)]
+		#[document_parameters("The function to apply with index.", "The Identity value.")]
+		#[document_returns("The result in the applicative context.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let result: Option<Identity<String>> =
+		/// 	ref_traverse_with_index::<IdentityBrand, _, _, OptionBrand>(
+		/// 		|(), x: &i32| Some(x.to_string()),
+		/// 		Identity(42),
+		/// 	);
+		/// assert_eq!(result, Some(Identity("42".to_string())));
+		/// ```
+		fn ref_traverse_with_index<'a, A: 'a + Clone, B: 'a + Clone, M: Applicative>(
+			f: impl Fn((), &A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			Self::traverse_with_index::<A, B, M>(move |(), a: A| f((), &a), ta)
+		}
+	}
+
+	// -- By-reference monadic trait implementations --
+
+	impl RefPointed for IdentityBrand {
+		/// Creates an Identity from a reference by cloning.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The value type.")]
+		#[document_parameters("The reference to wrap.")]
+		#[document_returns("An Identity containing a clone of the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let x = 42;
+		/// let result: Identity<i32> = ref_pure::<IdentityBrand, _>(&x);
+		/// assert_eq!(result, Identity(42));
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			Identity(a.clone())
+		}
+	}
+
+	impl RefLift for IdentityBrand {
+		/// Combines two Identity values with a by-reference binary function.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "First input.", "Second input.", "Output.")]
+		#[document_parameters(
+			"The binary function.",
+			"The first Identity.",
+			"The second Identity."
+		)]
+		#[document_returns("The combined Identity.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let result =
+		/// 	lift2::<IdentityBrand, _, _, _, _>(|a: &i32, b: &i32| *a + *b, Identity(1), Identity(2));
+		/// assert_eq!(result, Identity(3));
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			Identity(func(&fa.0, &fb.0))
+		}
+	}
+
+	impl RefSemiapplicative for IdentityBrand {
+		/// Applies a wrapped by-ref function within Identity.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The function brand.",
+			"The input type.",
+			"The output type."
+		)]
+		#[document_parameters(
+			"The Identity containing the function.",
+			"The Identity containing the value."
+		)]
+		#[document_returns("The Identity containing the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let f = Identity(coerce_fn::<RcBrand, _, _>(|x: &i32| *x + 1));
+		/// let result = ref_apply::<RcFnBrand, IdentityBrand, _, _>(f, Identity(5));
+		/// assert_eq!(result, Identity(6));
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Identity((*ff.0)(&fa.0))
+		}
+	}
+
+	impl RefSemimonad for IdentityBrand {
+		/// Chains Identity computations by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The input Identity.", "The function to apply by reference.")]
+		#[document_returns("The resulting Identity.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let result: Identity<String> =
+		/// 	bind::<IdentityBrand, _, _, _>(Identity(42), |x: &i32| Identity(x.to_string()));
+		/// assert_eq!(result, Identity("42".to_string()));
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			f(&fa.0)
 		}
 	}
 }

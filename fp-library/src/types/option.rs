@@ -8,7 +8,10 @@ mod inner {
 		crate::{
 			Apply,
 			brands::OptionBrand,
-			classes::*,
+			classes::{
+				dispatch::Ref,
+				*,
+			},
 			impl_kind,
 			kinds::*,
 		},
@@ -1211,6 +1214,132 @@ mod inner {
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			Self::traverse_with_index::<A, B, M>(move |(), a: A| f((), &a), ta)
+		}
+	}
+
+	// -- By-reference monadic trait implementations --
+
+	impl RefPointed for OptionBrand {
+		/// Creates a `Some` from a reference by cloning.
+		#[document_signature]
+		#[document_type_parameters("The lifetime of the value.", "The type of the value.")]
+		#[document_parameters("The reference to the value to wrap.")]
+		#[document_returns("A `Some` containing a clone of the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = 42;
+		/// let result: Option<i32> = ref_pure::<OptionBrand, _>(&x);
+		/// assert_eq!(result, Some(42));
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			Some(a.clone())
+		}
+	}
+
+	impl RefLift for OptionBrand {
+		/// Combines two `Option` values with a by-reference binary function.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"First input type.",
+			"Second input type.",
+			"Output type."
+		)]
+		#[document_parameters("The binary function.", "The first option.", "The second option.")]
+		#[document_returns("The combined result, or `None` if either input is `None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result = lift2::<OptionBrand, _, _, _, _>(|a: &i32, b: &i32| *a + *b, Some(1), Some(2));
+		/// assert_eq!(result, Some(3));
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			match (fa.as_ref(), fb.as_ref()) {
+				(Some(a), Some(b)) => Some(func(a, b)),
+				_ => None,
+			}
+		}
+	}
+
+	impl RefSemiapplicative for OptionBrand {
+		/// Applies a wrapped by-ref function to an `Option` value.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The function brand.",
+			"The input type.",
+			"The output type."
+		)]
+		#[document_parameters(
+			"The option containing the by-ref function.",
+			"The option containing the value."
+		)]
+		#[document_returns("The result of applying the function, or `None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f: Option<std::rc::Rc<dyn Fn(&i32) -> i32>> =
+		/// 	Some(coerce_fn::<RcBrand, _, _>(|x: &i32| *x + 1));
+		/// let result = ref_apply::<RcFnBrand, OptionBrand, _, _>(f, Some(5));
+		/// assert_eq!(result, Some(6));
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match (ff, fa.as_ref()) {
+				(Some(f), Some(a)) => Some((*f)(a)),
+				_ => None,
+			}
+		}
+	}
+
+	impl RefSemimonad for OptionBrand {
+		/// Chains `Option` computations by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The input option.", "The function to apply by reference.")]
+		#[document_returns("The result of applying the function, or `None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result: Option<String> =
+		/// 	bind::<OptionBrand, _, _, _>(Some(42), |x: &i32| Some(x.to_string()));
+		/// assert_eq!(result, Some("42".to_string()));
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.as_ref().and_then(|a| f(a))
 		}
 	}
 }

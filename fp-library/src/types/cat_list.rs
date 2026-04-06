@@ -27,7 +27,10 @@ mod inner {
 				CatListBrand,
 				OptionBrand,
 			},
-			classes::*,
+			classes::{
+				dispatch::Ref,
+				*,
+			},
 			impl_kind,
 			kinds::*,
 		},
@@ -3603,6 +3606,135 @@ mod inner {
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			Self::traverse_with_index::<A, B, M>(move |i, a: A| f(i, &a), ta)
+		}
+	}
+
+	// -- By-reference monadic trait implementations --
+
+	impl RefPointed for CatListBrand {
+		/// Creates a singleton `CatList` from a reference by cloning.
+		#[document_signature]
+		#[document_type_parameters("The lifetime of the value.", "The type of the value.")]
+		#[document_parameters("The reference to the value to wrap.")]
+		#[document_returns("A singleton CatList containing a clone of the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::CatList,
+		/// };
+		///
+		/// let x = 42;
+		/// let cl: CatList<i32> = ref_pure::<CatListBrand, _>(&x);
+		/// assert_eq!(cl.uncons().map(|(h, _)| h), Some(42));
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			CatList::singleton(a.clone())
+		}
+	}
+
+	impl RefLift for CatListBrand {
+		/// Combines two `CatList` values with a by-reference binary function.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"First input type.",
+			"Second input type.",
+			"Output type."
+		)]
+		#[document_parameters("The binary function.", "The first CatList.", "The second CatList.")]
+		#[document_returns("The combined CatList.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::CatList,
+		/// };
+		///
+		/// let a: CatList<i32> = vec![1, 2].into_iter().collect();
+		/// let b: CatList<i32> = vec![10, 20].into_iter().collect();
+		/// let result: CatList<i32> = lift2::<CatListBrand, _, _, _, _>(|x: &i32, y: &i32| *x + *y, a, b);
+		/// let v: Vec<i32> = result.into_iter().collect();
+		/// assert_eq!(v, vec![11, 21, 12, 22]);
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			let func = &func;
+			fa.iter().flat_map(|a| fb.iter().map(move |b| func(a, b))).collect()
+		}
+	}
+
+	impl RefSemiapplicative for CatListBrand {
+		/// Applies wrapped by-ref functions to a CatList (Cartesian product).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The function brand.",
+			"The input type.",
+			"The output type."
+		)]
+		#[document_parameters("The CatList of by-ref functions.", "The CatList of values.")]
+		#[document_returns("The CatList of results.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::CatList,
+		/// };
+		///
+		/// let funcs: CatList<std::rc::Rc<dyn Fn(&i32) -> i32>> =
+		/// 	vec![coerce_fn::<RcBrand, _, _>(|x: &i32| *x + 1)].into_iter().collect();
+		/// let vals: CatList<i32> = vec![10, 20].into_iter().collect();
+		/// let result: Vec<i32> =
+		/// 	ref_apply::<RcFnBrand, CatListBrand, _, _>(funcs, vals).into_iter().collect();
+		/// assert_eq!(result, vec![11, 21]);
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			ff.iter().flat_map(|f| fa.iter().map(move |a| (**f)(a))).collect()
+		}
+	}
+
+	impl RefSemimonad for CatListBrand {
+		/// Chains CatList computations by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The input CatList.", "The function to apply by reference.")]
+		#[document_returns("The flattened CatList of results.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::CatList,
+		/// };
+		///
+		/// let cl: CatList<i32> = vec![1, 2].into_iter().collect();
+		/// let result: CatList<i32> =
+		/// 	bind::<CatListBrand, _, _, _>(cl, |x: &i32| CatList::singleton(*x * 10));
+		/// let v: Vec<i32> = result.into_iter().collect();
+		/// assert_eq!(v, vec![10, 20]);
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.iter().flat_map(|a| f(a)).collect()
 		}
 	}
 }
