@@ -51,7 +51,7 @@ mod inner {
 		#[document_returns("The combined result in the applicative context.")]
 		#[document_examples]
 		///
-		/// ```ignore
+		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
 		/// 	functions::*,
@@ -63,7 +63,7 @@ mod inner {
 		/// 	v,
 		/// );
 		/// assert_eq!(result, Some(vec!["0:10".to_string(), "1:20".to_string(), "2:30".to_string()]));
-		/// ```ignore
+		/// ```
 		fn ref_traverse_with_index<'a, A: 'a + Clone, B: 'a + Clone, M: Applicative>(
 			f: impl Fn(Self::Index, &A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 			+ 'a,
@@ -96,7 +96,7 @@ mod inner {
 	#[document_returns("The combined result in the applicative context.")]
 	#[document_examples]
 	///
-	/// ```ignore
+	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
 	/// 	functions::*,
@@ -108,7 +108,7 @@ mod inner {
 	/// 	v,
 	/// );
 	/// assert_eq!(result, Some(vec!["0:10".to_string(), "1:20".to_string(), "2:30".to_string()]));
-	/// ```ignore
+	/// ```
 	pub fn ref_traverse_with_index<
 		'a,
 		Brand: RefTraversableWithIndex,

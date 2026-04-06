@@ -49,7 +49,7 @@ mod inner {
 		#[document_returns("The filtered structure.")]
 		#[document_examples]
 		///
-		/// ```ignore
+		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
 		/// 	functions::*,
@@ -61,7 +61,7 @@ mod inner {
 		/// 	v,
 		/// );
 		/// assert_eq!(result, vec![30, 40, 50]);
-		/// ```ignore
+		/// ```
 		fn ref_filter_map_with_index<'a, A: 'a, B: 'a>(
 			func: impl Fn(Self::Index, &A) -> Option<B> + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -77,7 +77,7 @@ mod inner {
 		#[document_returns("The filtered structure.")]
 		#[document_examples]
 		///
-		/// ```ignore
+		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
 		/// 	functions::*,
@@ -86,7 +86,7 @@ mod inner {
 		/// let v = vec![10, 20, 30, 40, 50];
 		/// let result = ref_filter_with_index::<VecBrand, _>(|i, _x: &i32| i >= 2, v);
 		/// assert_eq!(result, vec![30, 40, 50]);
-		/// ```ignore
+		/// ```
 		fn ref_filter_with_index<'a, A: 'a + Clone>(
 			func: impl Fn(Self::Index, &A) -> bool + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -114,7 +114,7 @@ mod inner {
 		#[document_returns("A pair of (errors, successes).")]
 		#[document_examples]
 		///
-		/// ```ignore
+		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
 		/// 	functions::*,
@@ -127,7 +127,7 @@ mod inner {
 		/// );
 		/// assert_eq!(left, vec![10, 20]);
 		/// assert_eq!(right, vec![30, 40, 50]);
-		/// ```ignore
+		/// ```
 		fn ref_partition_map_with_index<'a, A: 'a, E: 'a, O: 'a>(
 			func: impl Fn(Self::Index, &A) -> Result<O, E> + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -148,7 +148,7 @@ mod inner {
 		#[document_returns("A pair of (not satisfied, satisfied).")]
 		#[document_examples]
 		///
-		/// ```ignore
+		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
 		/// 	functions::*,
@@ -158,7 +158,7 @@ mod inner {
 		/// let (left, right) = ref_partition_with_index::<VecBrand, _>(|i, _x: &i32| i >= 2, v);
 		/// assert_eq!(left, vec![10, 20]);
 		/// assert_eq!(right, vec![30, 40, 50]);
-		/// ```ignore
+		/// ```
 		fn ref_partition_with_index<'a, A: 'a + Clone>(
 			func: impl Fn(Self::Index, &A) -> bool + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -192,7 +192,7 @@ mod inner {
 	#[document_returns("The filtered structure.")]
 	#[document_examples]
 	///
-	/// ```ignore
+	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
 	/// 	functions::*,
@@ -204,7 +204,7 @@ mod inner {
 	/// 	v,
 	/// );
 	/// assert_eq!(result, vec![30, 40, 50]);
-	/// ```ignore
+	/// ```
 	pub fn ref_filter_map_with_index<'a, Brand: RefFilterableWithIndex, A: 'a, B: 'a>(
 		func: impl Fn(Brand::Index, &A) -> Option<B> + 'a,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -228,7 +228,7 @@ mod inner {
 	#[document_returns("The filtered structure.")]
 	#[document_examples]
 	///
-	/// ```ignore
+	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
 	/// 	functions::*,
@@ -237,7 +237,7 @@ mod inner {
 	/// let v = vec![10, 20, 30, 40, 50];
 	/// let result = ref_filter_with_index::<VecBrand, _>(|i, _x: &i32| i >= 2, v);
 	/// assert_eq!(result, vec![30, 40, 50]);
-	/// ```ignore
+	/// ```
 	pub fn ref_filter_with_index<'a, Brand: RefFilterableWithIndex, A: 'a + Clone>(
 		func: impl Fn(Brand::Index, &A) -> bool + 'a,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -263,7 +263,7 @@ mod inner {
 	#[document_returns("A pair of (errors, successes).")]
 	#[document_examples]
 	///
-	/// ```ignore
+	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
 	/// 	functions::*,
@@ -276,7 +276,7 @@ mod inner {
 	/// );
 	/// assert_eq!(left, vec![10, 20]);
 	/// assert_eq!(right, vec![30, 40, 50]);
-	/// ```ignore
+	/// ```
 	pub fn ref_partition_map_with_index<'a, Brand: RefFilterableWithIndex, A: 'a, E: 'a, O: 'a>(
 		func: impl Fn(Brand::Index, &A) -> Result<O, E> + 'a,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -303,7 +303,7 @@ mod inner {
 	#[document_returns("A pair of (not satisfied, satisfied).")]
 	#[document_examples]
 	///
-	/// ```ignore
+	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
 	/// 	functions::*,
@@ -313,7 +313,7 @@ mod inner {
 	/// let (left, right) = ref_partition_with_index::<VecBrand, _>(|i, _x: &i32| i >= 2, v);
 	/// assert_eq!(left, vec![10, 20]);
 	/// assert_eq!(right, vec![30, 40, 50]);
-	/// ```ignore
+	/// ```
 	pub fn ref_partition_with_index<'a, Brand: RefFilterableWithIndex, A: 'a + Clone>(
 		func: impl Fn(Brand::Index, &A) -> bool + 'a,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),

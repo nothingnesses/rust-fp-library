@@ -9,7 +9,7 @@
 //! };
 //!
 //! let v = vec![1, 2, 3, 4, 5];
-//! let result: Option<Vec<i32>> = ref_wither::<VecBrand, OptionBrand, _, _>(
+//! let result: Option<Vec<i32>> = ref_wither::<VecBrand, RcFnBrand, OptionBrand, _, _>(
 //! 	|x: &i32| if *x > 3 { Some(Some(*x)) } else { Some(None) },
 //! 	v,
 //! );
@@ -59,19 +59,19 @@ mod inner {
 		#[document_returns("The partitioned structure in the applicative context.")]
 		#[document_examples]
 		///
-		/// ```ignore
+		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
 		///
 		/// let v = vec![1, 2, 3, 4, 5];
-		/// let result: Option<(Vec<i32>, Vec<i32>)> = ref_wilt::<VecBrand, _, OptionBrand, _, _, _>(
+		/// let result: Option<(Vec<i32>, Vec<i32>)> = ref_wilt::<VecBrand, RcFnBrand, OptionBrand, _, _, _>(
 		/// 	|x: &i32| Some(if *x > 3 { Ok(*x) } else { Err(*x) }),
 		/// 	v,
 		/// );
 		/// assert_eq!(result, Some((vec![1, 2, 3], vec![4, 5])));
-		/// ```ignore
+		/// ```
 		fn ref_wilt<'a, FnBrand, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone>(
 			func: impl Fn(&A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
 			+ 'a,
@@ -115,19 +115,19 @@ mod inner {
 		#[document_returns("The filtered structure in the applicative context.")]
 		#[document_examples]
 		///
-		/// ```ignore
+		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
 		///
 		/// let v = vec![1, 2, 3, 4, 5];
-		/// let result: Option<Vec<i32>> = ref_wither::<VecBrand, _, OptionBrand, _, _>(
+		/// let result: Option<Vec<i32>> = ref_wither::<VecBrand, RcFnBrand, OptionBrand, _, _>(
 		/// 	|x: &i32| if *x > 3 { Some(Some(*x)) } else { Some(None) },
 		/// 	v,
 		/// );
 		/// assert_eq!(result, Some(vec![4, 5]));
-		/// ```ignore
+		/// ```
 		fn ref_wither<'a, FnBrand, M: Applicative, A: 'a + Clone, B: 'a + Clone>(
 			func: impl Fn(&A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -169,19 +169,19 @@ mod inner {
 	#[document_returns("The partitioned structure in the applicative context.")]
 	#[document_examples]
 	///
-	/// ```ignore
+	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
 	/// 	functions::*,
 	/// };
 	///
 	/// let v = vec![1, 2, 3, 4, 5];
-	/// let result: Option<(Vec<i32>, Vec<i32>)> = ref_wilt::<VecBrand, _, OptionBrand, _, _, _>(
+	/// let result: Option<(Vec<i32>, Vec<i32>)> = ref_wilt::<VecBrand, RcFnBrand, OptionBrand, _, _, _>(
 	/// 	|x: &i32| Some(if *x > 3 { Ok(*x) } else { Err(*x) }),
 	/// 	v,
 	/// );
 	/// assert_eq!(result, Some((vec![1, 2, 3], vec![4, 5])));
-	/// ```ignore
+	/// ```
 	pub fn ref_wilt<
 		'a,
 		Brand: RefWitherable,
@@ -229,19 +229,19 @@ mod inner {
 	#[document_returns("The filtered structure in the applicative context.")]
 	#[document_examples]
 	///
-	/// ```ignore
+	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
 	/// 	functions::*,
 	/// };
 	///
 	/// let v = vec![1, 2, 3, 4, 5];
-	/// let result: Option<Vec<i32>> = ref_wither::<VecBrand, _, OptionBrand, _, _>(
+	/// let result: Option<Vec<i32>> = ref_wither::<VecBrand, RcFnBrand, OptionBrand, _, _>(
 	/// 	|x: &i32| if *x > 3 { Some(Some(*x)) } else { Some(None) },
 	/// 	v,
 	/// );
 	/// assert_eq!(result, Some(vec![4, 5]));
-	/// ```ignore
+	/// ```
 	pub fn ref_wither<
 		'a,
 		Brand: RefWitherable,

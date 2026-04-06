@@ -10,7 +10,7 @@
 //!
 //! let v = vec![1, 2, 3];
 //! let result: Option<Vec<String>> =
-//! 	ref_traverse::<VecBrand, _, _, OptionBrand>(|x: &i32| Some(x.to_string()), v);
+//! 	ref_traverse::<VecBrand, RcFnBrand, _, _, OptionBrand>(|x: &i32| Some(x.to_string()), v);
 //! assert_eq!(result, Some(vec!["1".to_string(), "2".to_string(), "3".to_string()]));
 //! ```
 
@@ -54,7 +54,7 @@ mod inner {
 		#[document_returns("The combined result in the applicative context.")]
 		#[document_examples]
 		///
-		/// ```ignore
+		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
 		/// 	functions::*,
@@ -62,9 +62,9 @@ mod inner {
 		///
 		/// let v = vec![1, 2, 3];
 		/// let result: Option<Vec<String>> =
-		/// 	ref_traverse::<VecBrand, _, _, OptionBrand>(|x: &i32| Some(x.to_string()), v);
+		/// 	ref_traverse::<VecBrand, RcFnBrand, _, _, OptionBrand>(|x: &i32| Some(x.to_string()), v);
 		/// assert_eq!(result, Some(vec!["1".to_string(), "2".to_string(), "3".to_string()]));
-		/// ```ignore
+		/// ```
 		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
 			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -98,7 +98,7 @@ mod inner {
 	#[document_returns("The combined result in the applicative context.")]
 	#[document_examples]
 	///
-	/// ```ignore
+	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
 	/// 	functions::*,
@@ -106,9 +106,9 @@ mod inner {
 	///
 	/// let v = vec![1, 2, 3];
 	/// let result: Option<Vec<String>> =
-	/// 	ref_traverse::<VecBrand, _, _, OptionBrand>(|x: &i32| Some(x.to_string()), v);
+	/// 	ref_traverse::<VecBrand, RcFnBrand, _, _, OptionBrand>(|x: &i32| Some(x.to_string()), v);
 	/// assert_eq!(result, Some(vec!["1".to_string(), "2".to_string(), "3".to_string()]));
-	/// ```ignore
+	/// ```
 	pub fn ref_traverse<
 		'a,
 		Brand: RefTraversable,
