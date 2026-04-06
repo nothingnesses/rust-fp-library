@@ -111,7 +111,12 @@ pub use {
 		lift4,
 		lift5,
 	},
-	semimonad::bind,
+	semimonad::{
+		bind,
+		bind_flipped,
+		compose_kleisli,
+		compose_kleisli_flipped,
+	},
 };
 
 #[cfg(test)]

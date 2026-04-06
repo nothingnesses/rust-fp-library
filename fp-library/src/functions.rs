@@ -36,6 +36,9 @@ fp_macros::generate_function_re_exports!("src/classes", {
 pub use crate::{
 	classes::dispatch::{
 		bind,
+		bind_flipped,
+		compose_kleisli,
+		compose_kleisli_flipped,
 		fold_left,
 		fold_map,
 		fold_right,
