@@ -126,13 +126,38 @@ For `ArcLazyBrand`:
 - Implement `SendRefLift`, `SendRefSemiapplicative`, `SendRefSemimonad`.
 - Blanket `SendRefApplicative`, `SendRefMonad`.
 
-### Phase 4: Other Types
+### Phase 4: Collection Types
 
-Consider which other types could implement the by-ref hierarchy:
+Implement Ref trait variants for collection types (`Vec`, `Option`,
+`Result`, `CatList`, `Identity`). Unlike memoized types (Lazy) where
+Ref traits replace by-value traits, collection types implement both:
+by-value consumes the container, by-ref borrows it.
 
-- **Vec, Option, Result**: Could implement `RefFunctor` (iterate by
-  reference) but the by-value path is almost always preferred. Low
-  priority.
+**Ref traits for collections:**
+
+- `RefFunctor`: `ref_map(f: Fn(&A) -> B, fa) -> F<B>` (iterate by
+  reference, produce new container).
+- `RefFoldable`: `ref_fold_map(f: Fn(&A) -> M, fa) -> M` (fold by
+  reference without consuming).
+- `RefFunctorWithIndex`, `RefFoldableWithIndex`: indexed variants.
+- `RefFilterable`, `RefFilterableWithIndex`: filter by reference.
+- `RefWitherable`: effectful filter by reference.
+
+**Par-Ref traits for collections:**
+Once collection types implement Ref traits, parallel by-ref variants
+become meaningful:
+
+- `ParRefFunctor`: `par_ref_map(f: Fn(&A) -> B + Send + Sync, fa)`
+  Parallel map over borrowed elements (rayon `par_iter().map()`).
+- `ParRefFoldable`: `par_ref_fold_map` (parallel fold by reference).
+- `ParRefFunctorWithIndex`, `ParRefFoldableWithIndex`: indexed.
+- `ParRefFilterable`, `ParRefFilterableWithIndex`: parallel filter
+  by reference.
+
+These are deferred until collection Ref impls exist.
+
+**Other types:**
+
 - **Coyoneda variants**: `RcCoyoneda` and `ArcCoyoneda` already use
   `lower_ref` (by-reference lowering). They could implement `RefFunctor`
   to map over the lowered result by reference. Medium priority.
@@ -364,9 +389,28 @@ element access) was investigated and rejected for three reasons:
     - `compact`, `separate`
       These remain as separate free functions.
 
-22. **Documentation and tests**: Property tests for type class
+22. **Ref trait impls for collection types**: Implement Ref traits
+    for Vec, Option, Result, CatList, Identity:
+    - `RefFunctor`, `RefFoldable`, `RefFunctorWithIndex`,
+      `RefFoldableWithIndex`
+    - `RefFilterable`, `RefFilterableWithIndex` (after step 21)
+    - `RefWitherable` (after step 21)
+      These types keep their by-value impls. Both paths coexist;
+      dispatch unification selects the right one from the closure
+      argument type.
+
+23. **Par-Ref traits**: Add parallel by-reference trait variants
+    for collection types:
+    - `ParRefFunctor` (par_ref_map)
+    - `ParRefFoldable` (par_ref_fold_map)
+    - `ParRefFunctorWithIndex` (par_ref_map_with_index)
+    - `ParRefFoldableWithIndex` (par_ref_fold_map_with_index)
+    - `ParRefFilterable`, `ParRefFilterableWithIndex` (after step 21)
+      Implement for Vec, CatList. Requires rayon feature.
+
+24. **Documentation and tests**: Property tests for type class
     laws, doc examples, update limitations.md.
-23. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
+25. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
     generates `ref_bind` calls for by-ref monadic code.
 
 ## Design Decision: CloneableFn with Mode Parameter
