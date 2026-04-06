@@ -59,19 +59,22 @@ test *args:
     set -euo pipefail
     mkdir -p .claude/test-cache
     ARGS="{{ args }}"
-    CACHE_KEY=$(echo "$ARGS" | md5sum | cut -c1-12)
+    CONTENT_HASH=$(git ls-files -z | xargs -0 md5sum 2>/dev/null | md5sum | cut -c1-32)
+    CACHE_KEY=$(echo "${ARGS}:${CONTENT_HASH}" | md5sum | cut -c1-12)
     OUTPUT_FILE=".claude/test-cache/test-output-${CACHE_KEY}.txt"
-    TIMESTAMP_FILE=".claude/test-cache/source-timestamp-${CACHE_KEY}.txt"
-    LATEST=$(find fp-library/src fp-library/tests fp-library/benches fp-macros/src -name '*.rs' -printf '%T@\n' 2>/dev/null | sort -rn | head -1; find . -maxdepth 2 -name 'Cargo.toml' -printf '%T@\n' | sort -rn | head -1)
-    CACHED=$(cat "$TIMESTAMP_FILE" 2>/dev/null || echo "0")
-    if [ "$LATEST" = "$CACHED" ]; then
+    if [ -s "$OUTPUT_FILE" ]; then
         echo "=== CACHED TEST OUTPUT (no source changes) ==="
-        cat "$OUTPUT_FILE"
+        (trap '' PIPE; cat "$OUTPUT_FILE")
     else
         echo "=== Running tests ==="
-        {{direnv_prefix}} cargo test --workspace $ARGS 2>&1 | tee "$OUTPUT_FILE"
-        echo "$LATEST" > "$TIMESTAMP_FILE"
+        {{direnv_prefix}} cargo test --workspace $ARGS > "$OUTPUT_FILE" 2>&1 || { (trap '' PIPE; cat "$OUTPUT_FILE"); rm -f "$OUTPUT_FILE"; exit 1; }
+        (trap '' PIPE; cat "$OUTPUT_FILE")
     fi
+
+# Remove build artifacts and test cache.
+clean:
+    {{direnv_prefix}} cargo clean
+    rm -rf .claude/test-cache/
 
 # Verify: fmt, clippy, doc, bench compile check, then test (in order).
 verify:

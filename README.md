@@ -154,9 +154,10 @@ All commands are run via [just](https://github.com/casey/just) recipes defined i
 ```sh
 just fmt                                       # Format all files (Rust, Nix, Markdown, YAML, TOML)
 just clippy --workspace --all-features         # Run clippy
-just test --all-features                       # Run all tests (cached; only re-runs when source changes)
+just test --all-features                       # Run all tests (cached; only re-runs when content changes)
 just doc --workspace --all-features --no-deps  # Build docs (must produce zero warnings)
 just verify                                    # Run fmt, clippy, doc, test in order
+just clean                                     # Remove build artifacts and test cache
 ```
 
 Run `just --list` to see all available recipes.

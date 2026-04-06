@@ -42,7 +42,7 @@ just test -p fp-library --test property          # Run property-based tests
 just test --doc -p fp-library                    # Run doc tests
 ```
 
-Cache location: `.claude/test-cache/` (gitignored). Invalidated automatically when `.rs` files or `Cargo.toml` change. **Do not re-run `just test` if no source files have changed since the last run.** The cached output is printed automatically; check it instead of re-running. There is no command to bypass the cache.
+Cache location: `.claude/test-cache/` (gitignored). Uses content hashing (`git ls-files` + `md5sum`) so the cache is invalidated only when tracked file contents change, not when timestamps change (e.g., from formatting or git operations). Re-running `just test` with no content changes is instant and prints cached output. Use `just clean` to clear the cache and build artifacts.
 
 ### Building
 
