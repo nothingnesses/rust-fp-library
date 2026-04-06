@@ -865,6 +865,132 @@ mod inner {
 			Identity(f(wa))
 		}
 	}
+	// -- By-reference trait implementations --
+
+	impl RefFunctor for IdentityBrand {
+		/// Maps a function over the identity by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type of the wrapped value.",
+			"The type of the resulting value."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the value reference.",
+			"The identity to map over."
+		)]
+		///
+		#[document_returns("A new identity containing the result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(map::<IdentityBrand, _, _, _>(|x: &i32| *x * 2, Identity(5)), Identity(10));
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Identity(func(&fa.0))
+		}
+	}
+
+	impl RefFoldable for IdentityBrand {
+		/// Folds the identity by reference using a monoid.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the wrapped value.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function to map the value reference to a monoid.",
+			"The identity to fold."
+		)]
+		///
+		#[document_returns("The monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result =
+		/// 	fold_map::<RcFnBrand, IdentityBrand, _, _, _>(|x: &i32| x.to_string(), Identity(5));
+		/// assert_eq!(result, "5");
+		/// ```
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			func(&fa.0)
+		}
+	}
+
+	impl RefTraversable for IdentityBrand {
+		/// Traverses the identity by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the wrapped value.",
+			"The type of the resulting value.",
+			"The applicative functor brand."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the value reference.",
+			"The identity to traverse."
+		)]
+		///
+		#[document_returns("The result in the applicative context.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result: Option<Identity<String>> =
+		/// 	ref_traverse::<IdentityBrand, RcFnBrand, _, _, OptionBrand>(
+		/// 		|x: &i32| Some(x.to_string()),
+		/// 		Identity(42),
+		/// 	);
+		/// assert_eq!(result, Some(Identity("42".to_string())));
+		/// ```
+		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			Self::traverse::<A, B, F>(move |a: A| func(&a), ta)
+		}
+	}
 }
 pub use inner::*;
 

@@ -3274,6 +3274,337 @@ mod inner {
 			}
 		}
 	}
+	// -- By-reference trait implementations --
+
+	impl RefFunctor for CatListBrand {
+		/// Maps a function over the list by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the elements in the list.",
+			"The type of the elements in the resulting list."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element reference.",
+			"The list to map over."
+		)]
+		///
+		#[document_returns("A new list containing the results.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let result: Vec<_> = map::<CatListBrand, _, _, _>(|x: &i32| *x * 2, list).into_iter().collect();
+		/// assert_eq!(result, vec![2, 4, 6]);
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.iter().map(func).collect()
+		}
+	}
+
+	impl RefFoldable for CatListBrand {
+		/// Folds the list by reference using a monoid.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the elements.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function to map each element reference to a monoid.",
+			"The list to fold."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let result = fold_map::<RcFnBrand, CatListBrand, _, _, _>(|x: &i32| x.to_string(), list);
+		/// assert_eq!(result, "123");
+		/// ```
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			fa.iter().fold(Monoid::empty(), |acc, a| Semigroup::append(acc, func(a)))
+		}
+	}
+
+	impl RefFilterable for CatListBrand {
+		/// Filters and maps the list by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the input elements.",
+			"The type of the output elements."
+		)]
+		///
+		#[document_parameters("The filter-map function.", "The list to filter.")]
+		///
+		#[document_returns("The filtered list.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4).snoc(5);
+		/// let result: Vec<_> =
+		/// 	ref_filter_map::<CatListBrand, _, _>(|x: &i32| if *x > 3 { Some(*x) } else { None }, list)
+		/// 		.into_iter()
+		/// 		.collect();
+		/// assert_eq!(result, vec![4, 5]);
+		/// ```
+		fn ref_filter_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> Option<B> + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.iter().filter_map(func).collect()
+		}
+	}
+
+	impl RefTraversable for CatListBrand {
+		/// Traverses the list by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the input elements.",
+			"The type of the output elements.",
+			"The applicative functor brand."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element reference.",
+			"The list to traverse."
+		)]
+		///
+		#[document_returns("The combined result in the applicative context.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let result: Option<CatList<String>> = ref_traverse::<CatListBrand, RcFnBrand, _, _, OptionBrand>(
+		/// 	|x: &i32| Some(x.to_string()),
+		/// 	list,
+		/// );
+		/// let vec: Vec<_> = result.unwrap().into_iter().collect();
+		/// assert_eq!(vec, vec!["1".to_string(), "2".to_string(), "3".to_string()]);
+		/// ```
+		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			Self::traverse::<A, B, F>(move |a: A| func(&a), ta)
+		}
+	}
+
+	impl RefWitherable for CatListBrand {}
+
+	impl RefFunctorWithIndex for CatListBrand {
+		/// Maps a function with index over the list by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the input elements.",
+			"The type of the output elements."
+		)]
+		///
+		#[document_parameters("The function to apply.", "The list to map over.")]
+		///
+		#[document_returns("The mapped list.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(10).snoc(20).snoc(30);
+		/// let result: Vec<_> =
+		/// 	ref_map_with_index::<CatListBrand, _, _>(|i, x: &i32| format!("{}:{}", i, x), list)
+		/// 		.into_iter()
+		/// 		.collect();
+		/// assert_eq!(result, vec!["0:10", "1:20", "2:30"]);
+		/// ```
+		fn ref_map_with_index<'a, A: 'a, B: 'a>(
+			func: impl Fn(usize, &A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.iter().enumerate().map(|(i, a)| func(i, a)).collect()
+		}
+	}
+
+	impl RefFoldableWithIndex for CatListBrand {
+		/// Folds the list by reference with index using a monoid.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the elements.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function to map each (index, element reference) pair.",
+			"The list to fold."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(10).snoc(20).snoc(30);
+		/// let result =
+		/// 	ref_fold_map_with_index::<CatListBrand, _, _>(|i, x: &i32| format!("{}:{}", i, x), list);
+		/// assert_eq!(result, "0:101:202:30");
+		/// ```
+		fn ref_fold_map_with_index<'a, A: 'a, R: Monoid>(
+			func: impl Fn(usize, &A) -> R + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R {
+			fa.iter()
+				.enumerate()
+				.fold(Monoid::empty(), |acc, (i, a)| Semigroup::append(acc, func(i, a)))
+		}
+	}
+
+	impl RefFilterableWithIndex for CatListBrand {
+		/// Filters and maps the list by reference with index.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the input elements.",
+			"The type of the output elements."
+		)]
+		///
+		#[document_parameters("The filter-map function.", "The list to filter.")]
+		///
+		#[document_returns("The filtered list.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(10).snoc(20).snoc(30).snoc(40).snoc(50);
+		/// let result: Vec<_> = ref_filter_map_with_index::<CatListBrand, _, _>(
+		/// 	|i, x: &i32| if i >= 2 { Some(*x) } else { None },
+		/// 	list,
+		/// )
+		/// .into_iter()
+		/// .collect();
+		/// assert_eq!(result, vec![30, 40, 50]);
+		/// ```
+		fn ref_filter_map_with_index<'a, A: 'a, B: 'a>(
+			func: impl Fn(usize, &A) -> Option<B> + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.iter().enumerate().filter_map(|(i, a)| func(i, a)).collect()
+		}
+	}
+
+	impl RefTraversableWithIndex for CatListBrand {
+		/// Traverses the list by reference with index.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the input elements.",
+			"The type of the output elements.",
+			"The applicative functor brand."
+		)]
+		///
+		#[document_parameters("The function to apply.", "The list to traverse.")]
+		///
+		#[document_returns("The combined result in the applicative context.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::ref_traversable_with_index::ref_traverse_with_index,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(10).snoc(20).snoc(30);
+		/// let result: Option<CatList<String>> = ref_traverse_with_index::<CatListBrand, _, _, OptionBrand>(
+		/// 	|i, x: &i32| Some(format!("{}:{}", i, x)),
+		/// 	list,
+		/// );
+		/// let vec: Vec<_> = result.unwrap().into_iter().collect();
+		/// assert_eq!(vec, vec!["0:10".to_string(), "1:20".to_string(), "2:30".to_string()]);
+		/// ```
+		fn ref_traverse_with_index<'a, A: 'a + Clone, B: 'a + Clone, M: Applicative>(
+			f: impl Fn(usize, &A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			Self::traverse_with_index::<A, B, M>(move |i, a: A| f(i, &a), ta)
+		}
+	}
 }
 pub use inner::*;
 

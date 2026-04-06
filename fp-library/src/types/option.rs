@@ -1002,6 +1002,217 @@ mod inner {
 			}
 		}
 	}
+
+	// -- By-reference trait implementations --
+
+	impl RefFunctor for OptionBrand {
+		/// Maps a function over the option by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function.", "The option.")]
+		#[document_returns("The mapped option.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// assert_eq!(map::<OptionBrand, _, _, _>(|x: &i32| *x * 2, Some(5)), Some(10));
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.as_ref().map(func)
+		}
+	}
+
+	impl RefFoldable for OptionBrand {
+		/// Folds the option by reference.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The element type.",
+			"The monoid type."
+		)]
+		#[document_parameters("The mapping function.", "The option.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result = fold_map::<RcFnBrand, OptionBrand, _, _, _>(|x: &i32| x.to_string(), Some(5));
+		/// assert_eq!(result, "5");
+		/// ```
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			match fa {
+				Some(a) => func(&a),
+				None => Monoid::empty(),
+			}
+		}
+	}
+
+	impl RefFilterable for OptionBrand {
+		/// Filters and maps the option by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function.", "The option.")]
+		#[document_returns("The filtered option.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result = ref_filter_map::<OptionBrand, _, _>(
+		/// 	|x: &i32| if *x > 3 { Some(*x) } else { None },
+		/// 	Some(5),
+		/// );
+		/// assert_eq!(result, Some(5));
+		/// ```
+		fn ref_filter_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> Option<B> + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.as_ref().and_then(func)
+		}
+	}
+
+	impl RefTraversable for OptionBrand {
+		/// Traverses the option by reference.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The input type.",
+			"The output type.",
+			"The applicative."
+		)]
+		#[document_parameters("The function.", "The option.")]
+		#[document_returns("The traversed result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result: Vec<Option<String>> = ref_traverse::<OptionBrand, RcFnBrand, _, _, VecBrand>(
+		/// 	|x: &i32| vec![x.to_string()],
+		/// 	Some(5),
+		/// );
+		/// assert_eq!(result, vec![Some("5".to_string())]);
+		/// ```
+		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			Self::traverse::<A, B, F>(move |a: A| func(&a), ta)
+		}
+	}
+
+	impl RefWitherable for OptionBrand {}
+
+	impl RefFunctorWithIndex for OptionBrand {
+		/// Maps by reference with index (always `()`).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function.", "The option.")]
+		#[document_returns("The mapped option.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// assert_eq!(ref_map_with_index::<OptionBrand, _, _>(|(), x: &i32| *x * 2, Some(5)), Some(10));
+		/// ```
+		fn ref_map_with_index<'a, A: 'a, B: 'a>(
+			func: impl Fn((), &A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.as_ref().map(|a| func((), a))
+		}
+	}
+
+	impl RefFoldableWithIndex for OptionBrand {
+		/// Folds by reference with index (always `()`).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The element type.", "The monoid type.")]
+		#[document_parameters("The function.", "The option.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result = ref_fold_map_with_index::<OptionBrand, _, _>(|(), x: &i32| x.to_string(), Some(5));
+		/// assert_eq!(result, "5");
+		/// ```
+		fn ref_fold_map_with_index<'a, A: 'a, R: Monoid>(
+			func: impl Fn((), &A) -> R + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R {
+			match fa {
+				Some(a) => func((), &a),
+				None => Monoid::empty(),
+			}
+		}
+	}
+
+	impl RefTraversableWithIndex for OptionBrand {
+		/// Traverses by reference with index (always `()`).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The input type.",
+			"The output type.",
+			"The applicative."
+		)]
+		#[document_parameters("The function.", "The option.")]
+		#[document_returns("The traversed result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result: Vec<Option<String>> = ref_traverse_with_index::<OptionBrand, _, _, VecBrand>(
+		/// 	|(), x: &i32| vec![x.to_string()],
+		/// 	Some(5),
+		/// );
+		/// assert_eq!(result, vec![Some("5".to_string())]);
+		/// ```
+		fn ref_traverse_with_index<'a, A: 'a + Clone, B: 'a + Clone, M: Applicative>(
+			f: impl Fn((), &A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			Self::traverse_with_index::<A, B, M>(move |(), a: A| f((), &a), ta)
+		}
+	}
 }
 
 #[cfg(test)]
