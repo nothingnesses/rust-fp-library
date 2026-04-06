@@ -389,12 +389,15 @@ element access) was investigated and rejected for three reasons:
       TraversableWithIndex and their Ref variants added.
 
 23. **Foldable mutual derivation parity**: Add `FnBrand` parameter
-    and `fold_right_with_index`/`fold_left_with_index` methods with
-    default impls (via Endofunction) to the following traits,
-    matching PureScript's FoldableWithIndex design and the existing
-    `Foldable`/`RefFoldable` mutual derivation pattern:
-    - `FoldableWithIndex`: add `FnBrand`, add
-      `fold_right_with_index`/`fold_left_with_index` with defaults
+    and `fold_right`/`fold_left` (with index) methods with default
+    impls (via Endofunction) to foldable traits, matching PureScript's
+    FoldableWithIndex design and the existing `Foldable`/`RefFoldable`
+    mutual derivation pattern.
+    - ~~`FoldableWithIndex`~~: Done. Added `FnBrand`, added
+      `fold_right_with_index`/`fold_left_with_index` with defaults.
+      Added `Clone` bound to `WithIndex::Index`. Added `FnBrand` to
+      `IndexedFoldFunc` trait (defaulted to `RcFnBrand`). Updated
+      all impls, call sites, and doc examples.
     - `RefFoldableWithIndex`: add `FnBrand`, add
       `ref_fold_right_with_index`/`ref_fold_left_with_index`
     - `SendRefFoldable`: add `FnBrand`, add
@@ -652,6 +655,11 @@ None at this time.
 - Vec, Option, CatList, Identity: RefPointed, RefLift, RefSemiapplicative, RefSemimonad impls added (RefApplicative/RefMonad auto-derived via blankets).
 - Identity: WithIndex (Index = ()), FunctorWithIndex, FoldableWithIndex, TraversableWithIndex and their Ref variants added.
 - Test cache improved: content hashing via `git ls-files` + `md5sum`, SIGPIPE handling, `just clean` recipe added.
+- `FoldableWithIndex::fold_map_with_index` given `FnBrand` parameter and default impl. Added `fold_right_with_index`/`fold_left_with_index` with mutual derivation via `Endofunction`.
+- `WithIndex::Index` given `Clone` bound to support endofunction composition.
+- `IndexedFoldFunc` trait given `FnBrand` parameter (defaulted to `RcFnBrand`).
+- All `FoldableWithIndex` impls, call sites, and doc examples updated for new `FnBrand` parameter.
+- `ref_apply` doc examples fixed: use `Rc::new` directly instead of `coerce_fn` to avoid HRTB lifetime mismatch.
 
 ## References
 
