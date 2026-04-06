@@ -882,7 +882,7 @@ mod inner {
 		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
-		/// let result = fold_map::<RcFnBrand, ThunkBrand, _, _, _>(|a| a.to_string(), thunk);
+		/// let result = fold_map::<RcFnBrand, ThunkBrand, _, _, _>(|a: i32| a.to_string(), thunk);
 		/// assert_eq!(result, "10");
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(

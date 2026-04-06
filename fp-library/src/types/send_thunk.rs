@@ -545,7 +545,7 @@ mod inner {
 		/// };
 		///
 		/// let thunk = SendThunk::pure(10);
-		/// let result = fold_map::<RcFnBrand, SendThunkBrand, _, _, _>(|a| a.to_string(), thunk);
+		/// let result = fold_map::<RcFnBrand, SendThunkBrand, _, _, _>(|a: i32| a.to_string(), thunk);
 		/// assert_eq!(result, "10");
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(

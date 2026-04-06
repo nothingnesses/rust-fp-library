@@ -106,7 +106,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, Tuple2Brand, _, _, _, _>(
+		/// 	bi_fold_right::<RcFnBrand, Tuple2Brand, _, _, _>(
 		/// 		|a: i32, acc| acc - a,
 		/// 		|b: i32, acc| acc + b,
 		/// 		0,
@@ -156,7 +156,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, Tuple2Brand, _, _, _, _>(
+		/// 	bi_fold_left::<RcFnBrand, Tuple2Brand, _, _, _>(
 		/// 		|acc, a: i32| acc - a,
 		/// 		|acc, b: i32| acc + b,
 		/// 		0,
@@ -204,7 +204,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, Tuple2Brand, _, _, _, _>(
+		/// 	bi_fold_map::<RcFnBrand, Tuple2Brand, _, _, _>(
 		/// 		|a: i32| a.to_string(),
 		/// 		|b: i32| b.to_string(),
 		/// 		(3, 5),

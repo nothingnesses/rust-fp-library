@@ -472,7 +472,7 @@ mod inner {
 		///
 		/// let x = Pair(3, 5);
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, PairBrand, _, _, _, _>(|a, acc| acc - a, |b, acc| acc + b, 0, x,),
+		/// 	bi_fold_right::<RcFnBrand, PairBrand, _, _, _>(|a, acc| acc - a, |b, acc| acc + b, 0, x,),
 		/// 	2
 		/// );
 		/// ```
@@ -517,7 +517,7 @@ mod inner {
 		///
 		/// let x = Pair(3, 5);
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, PairBrand, _, _, _, _>(|acc, a| acc - a, |acc, b| acc + b, 0, x,),
+		/// 	bi_fold_left::<RcFnBrand, PairBrand, _, _, _>(|acc, a| acc - a, |acc, b| acc + b, 0, x,),
 		/// 	2
 		/// );
 		/// ```
@@ -560,7 +560,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, PairBrand, _, _, _, _>(
+		/// 	bi_fold_map::<RcFnBrand, PairBrand, _, _, _>(
 		/// 		|a: i32| a.to_string(),
 		/// 		|b: i32| b.to_string(),
 		/// 		Pair(3, 5),

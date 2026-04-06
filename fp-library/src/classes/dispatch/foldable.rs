@@ -234,7 +234,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_left::<RcFnBrand, VecBrand, _, _>(|b, a| b + a, 0, vec![1, 2, 3]);
+		/// let result = fold_left::<RcFnBrand, VecBrand, _, _, _>(|b, a| b + a, 0, vec![1, 2, 3]);
 		/// assert_eq!(result, 6);
 		/// ```
 		fn dispatch(
@@ -356,13 +356,13 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // By-value
-	/// let result = fold_left::<RcFnBrand, VecBrand, _, _>(|b, a| b + a, 0, vec![1, 2, 3]);
+	/// let result = fold_left::<RcFnBrand, VecBrand, _, _, _>(|b, a| b + a, 0, vec![1, 2, 3]);
 	/// assert_eq!(result, 6);
 	///
 	/// // By-ref
 	/// let lazy = RcLazy::new(|| 10);
 	/// let result =
-	/// 	fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(|b, a: &i32| b + *a, 5, lazy);
+	/// 	fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|b, a: &i32| b + *a, 5, lazy);
 	/// assert_eq!(result, 15);
 	/// ```
 	pub fn fold_left<'a, FnBrand, Brand: Kind_cdc7cd43dac7585f, A: 'a + Clone, B: 'a, Marker>(
@@ -399,7 +399,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map::<RcFnBrand, VecBrand, _, _>(|a: i32| a.to_string(), vec![1, 2, 3]);
+		/// let result = fold_map::<RcFnBrand, VecBrand, _, _, _>(|a: i32| a.to_string(), vec![1, 2, 3]);
 		/// assert_eq!(result, "123");
 		/// ```
 		fn dispatch(
@@ -513,13 +513,13 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // By-value
-	/// let result = fold_map::<RcFnBrand, VecBrand, _, _>(|a: i32| a.to_string(), vec![1, 2, 3]);
+	/// let result = fold_map::<RcFnBrand, VecBrand, _, _, _>(|a: i32| a.to_string(), vec![1, 2, 3]);
 	/// assert_eq!(result, "123");
 	///
 	/// // By-ref
 	/// let lazy = RcLazy::new(|| 10);
 	/// let result =
-	/// 	fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(|a: &i32| a.to_string(), lazy);
+	/// 	fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|a: &i32| a.to_string(), lazy);
 	/// assert_eq!(result, "10");
 	/// ```
 	pub fn fold_map<'a, FnBrand, Brand: Kind_cdc7cd43dac7585f, A: 'a, M: Monoid + 'a, Marker>(

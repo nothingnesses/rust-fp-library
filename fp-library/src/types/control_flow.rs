@@ -782,7 +782,7 @@ mod inner {
 		///
 		/// let x: ControlFlow<i32, i32> = ControlFlow::Continue(3);
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, ControlFlowBrand, _, _, _, _>(
+		/// 	bi_fold_right::<RcFnBrand, ControlFlowBrand, _, _, _>(
 		/// 		|c, acc| acc - c,
 		/// 		|b, acc| acc + b,
 		/// 		10,
@@ -834,7 +834,7 @@ mod inner {
 		///
 		/// let x: ControlFlow<i32, i32> = ControlFlow::Break(5);
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, ControlFlowBrand, _, _, _, _>(
+		/// 	bi_fold_left::<RcFnBrand, ControlFlowBrand, _, _, _>(
 		/// 		|acc, c| acc - c,
 		/// 		|acc, b| acc + b,
 		/// 		10,
@@ -885,7 +885,7 @@ mod inner {
 		///
 		/// let x: ControlFlow<i32, i32> = ControlFlow::Continue(3);
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, ControlFlowBrand, _, _, _, _>(
+		/// 	bi_fold_map::<RcFnBrand, ControlFlowBrand, _, _, _>(
 		/// 		|c: i32| c.to_string(),
 		/// 		|b: i32| b.to_string(),
 		/// 		x,
