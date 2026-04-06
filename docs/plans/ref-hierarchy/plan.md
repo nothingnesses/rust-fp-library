@@ -290,14 +290,17 @@ element access) was investigated and rejected for three reasons:
     compiler to infer `Val`/`Ref` from. These remain as separate
     `apply_first` / `ref_apply_first` free functions.
 
-16. **Add `RefFoldable` and `SendRefFoldable`**: The current
-    `Foldable` impl for `Lazy` is semantically dishonest: it takes
-    `self` (by value, moving the `Rc`/`Arc`) but internally calls
-    `evaluate()` which returns `&A`. Callers who clone before
-    folding are paying for a pointless `Rc::clone`. `RefFoldable`
-    fixes this by honestly taking `&self`, matching the pattern
-    already established by `RefFunctor`. Implement for
-    `LazyBrand<RcLazyConfig>` and `LazyBrand<ArcLazyConfig>`.
+16. **Add `RefFoldable` and `SendRefFoldable`, remove `Lazy`'s
+    `Foldable` impl**: The current `Foldable` impl for `Lazy` is
+    semantically dishonest: it takes `self` (by value, moving the
+    `Rc`/`Arc`) but internally calls `evaluate()` which returns
+    `&A`. Callers who clone before folding are paying for a pointless
+    `Rc::clone`. `RefFoldable` fixes this by honestly taking `&self`,
+    matching the pattern already established by `RefFunctor`.
+    Implement for `LazyBrand<RcLazyConfig>` and
+    `LazyBrand<ArcLazyConfig>`. Remove `Lazy`'s by-value `Foldable`
+    impl (breaking change). Memoized types should only implement
+    `Ref*` traits, following the precedent set by `RefFunctor`.
 
 17. **Remaining dispatch operations**: Apply the dispatch pattern
     to operations that take closures (inference works).
