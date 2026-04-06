@@ -938,6 +938,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters(
 			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
 			"The type of the value inside the thunk.",
 			"The monoid type."
 		)]
@@ -950,19 +951,23 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::ThunkBrand,
+		/// 	brands::*,
 		/// 	classes::foldable_with_index::FoldableWithIndex,
 		/// };
 		///
 		/// let thunk = fp_library::types::Thunk::pure(5);
-		/// let result =
-		/// 	<ThunkBrand as FoldableWithIndex>::fold_map_with_index(|_, x: i32| x.to_string(), thunk);
+		/// let result = <ThunkBrand as FoldableWithIndex>::fold_map_with_index::<RcFnBrand, _, _>(
+		/// 	|_, x: i32| x.to_string(),
+		/// 	thunk,
+		/// );
 		/// assert_eq!(result, "5");
 		/// ```
-		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
+		fn fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid>(
 			f: impl Fn((), A) -> R + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			f((), fa.evaluate())
 		}
 	}
@@ -1498,7 +1503,8 @@ mod tests {
 		};
 
 		let thunk = pure::<ThunkBrand, _>(42);
-		let result: String = ThunkBrand::fold_map_with_index(|(), a: i32| a.to_string(), thunk);
+		let result: String =
+			ThunkBrand::fold_map_with_index::<RcFnBrand, _, _>(|(), a: i32| a.to_string(), thunk);
 		assert_eq!(result, "42");
 	}
 
@@ -1520,7 +1526,8 @@ mod tests {
 		let thunk1 = pure::<ThunkBrand, _>(99);
 		let thunk2 = pure::<ThunkBrand, _>(99);
 		let via_fold_map = fold_map::<RcFnBrand, ThunkBrand, _, _, _>(f, thunk1);
-		let via_fold_map_with_index: String = ThunkBrand::fold_map_with_index(|_, a| f(a), thunk2);
+		let via_fold_map_with_index: String =
+			ThunkBrand::fold_map_with_index::<RcFnBrand, _, _>(|_, a| f(a), thunk2);
 		assert_eq!(via_fold_map, via_fold_map_with_index);
 	}
 

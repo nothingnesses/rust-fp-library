@@ -1030,7 +1030,12 @@ mod inner {
 	impl FoldableWithIndex for IdentityBrand {
 		/// Folds with index over Identity (index is always `()`).
 		#[document_signature]
-		#[document_type_parameters("The lifetime.", "The element type.", "The monoid type.")]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand of the cloneable function to use.",
+			"The element type.",
+			"The monoid type."
+		)]
 		#[document_parameters("The function to apply with index.", "The Identity value.")]
 		#[document_returns("The monoid result.")]
 		#[document_examples]
@@ -1046,10 +1051,12 @@ mod inner {
 		/// 	fold_map_with_index::<RcFnBrand, IdentityBrand, _, _>(|(), x| x.to_string(), Identity(42));
 		/// assert_eq!(result, "42");
 		/// ```
-		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
+		fn fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
 			func: impl Fn((), A) -> R + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			func((), fa.0)
 		}
 	}
@@ -1134,10 +1141,8 @@ mod inner {
 		/// 	types::Identity,
 		/// };
 		///
-		/// let result: String = ref_fold_map_with_index::<RcFnBrand, IdentityBrand, _, _>(
-		/// 	|(), x: &i32| x.to_string(),
-		/// 	Identity(42),
-		/// );
+		/// let result: String =
+		/// 	ref_fold_map_with_index::<IdentityBrand, _, _>(|(), x: &i32| x.to_string(), Identity(42));
 		/// assert_eq!(result, "42");
 		/// ```
 		fn ref_fold_map_with_index<'a, A: 'a, R: Monoid>(
@@ -1270,8 +1275,8 @@ mod inner {
 		/// 	types::Identity,
 		/// };
 		///
-		/// let f = Identity(coerce_fn::<RcBrand, _, _>(|x: &i32| *x + 1));
-		/// let result = ref_apply::<RcFnBrand, IdentityBrand, _, _>(f, Identity(5));
+		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x + 1);
+		/// let result = ref_apply::<RcFnBrand, IdentityBrand, _, _>(Identity(f), Identity(5));
 		/// assert_eq!(result, Identity(6));
 		/// ```
 		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(

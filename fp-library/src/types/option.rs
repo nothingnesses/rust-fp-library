@@ -537,6 +537,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters(
 			"The lifetime of the value.",
+			"The brand of the cloneable function to use.",
 			"The type of the value inside the option.",
 			"The monoid type."
 		)]
@@ -549,18 +550,23 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::OptionBrand,
+		/// 	brands::*,
 		/// 	classes::foldable_with_index::FoldableWithIndex,
 		/// 	functions::*,
 		/// };
 		/// let x = Some(5);
-		/// let y = <OptionBrand as FoldableWithIndex>::fold_map_with_index(|_, i: i32| i.to_string(), x);
+		/// let y = <OptionBrand as FoldableWithIndex>::fold_map_with_index::<RcFnBrand, _, _>(
+		/// 	|_, i: i32| i.to_string(),
+		/// 	x,
+		/// );
 		/// assert_eq!(y, "5".to_string());
 		/// ```
-		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
+		fn fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
 			f: impl Fn((), A) -> R + 'a,
 			fa: Option<A>,
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			match fa {
 				Some(a) => f((), a),
 				None => R::empty(),
@@ -1301,9 +1307,8 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f: Option<std::rc::Rc<dyn Fn(&i32) -> i32>> =
-		/// 	Some(coerce_fn::<RcBrand, _, _>(|x: &i32| *x + 1));
-		/// let result = ref_apply::<RcFnBrand, OptionBrand, _, _>(f, Some(5));
+		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x + 1);
+		/// let result = ref_apply::<RcFnBrand, OptionBrand, _, _>(Some(f), Some(5));
 		/// assert_eq!(result, Some(6));
 		/// ```
 		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
@@ -1339,7 +1344,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			fa.as_ref().and_then(|a| f(a))
+			fa.as_ref().and_then(f)
 		}
 	}
 }

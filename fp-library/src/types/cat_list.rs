@@ -827,6 +827,7 @@ mod inner {
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
+			"The brand of the cloneable function to use.",
 			"The type of the elements in the list.",
 			"The monoid type."
 		)]
@@ -847,13 +848,16 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(10).snoc(20).snoc(30);
-		/// let result = CatListBrand::fold_map_with_index(|i, x: i32| format!("{i}:{x}"), list);
+		/// let result =
+		/// 	CatListBrand::fold_map_with_index::<RcFnBrand, _, _>(|i, x: i32| format!("{i}:{x}"), list);
 		/// assert_eq!(result, "0:101:202:30");
 		/// ```
-		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
+		fn fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
 			f: impl Fn(usize, A) -> R + 'a,
 			fa: CatList<A>,
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			fa.fold_map_with_index(f)
 		}
 	}
@@ -3694,8 +3698,8 @@ mod inner {
 		/// 	types::CatList,
 		/// };
 		///
-		/// let funcs: CatList<std::rc::Rc<dyn Fn(&i32) -> i32>> =
-		/// 	vec![coerce_fn::<RcBrand, _, _>(|x: &i32| *x + 1)].into_iter().collect();
+		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x + 1);
+		/// let funcs: CatList<std::rc::Rc<dyn Fn(&i32) -> i32>> = vec![f].into_iter().collect();
 		/// let vals: CatList<i32> = vec![10, 20].into_iter().collect();
 		/// let result: Vec<i32> =
 		/// 	ref_apply::<RcFnBrand, CatListBrand, _, _>(funcs, vals).into_iter().collect();
@@ -3734,7 +3738,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			fa.iter().flat_map(|a| f(a)).collect()
+			fa.iter().flat_map(f).collect()
 		}
 	}
 }

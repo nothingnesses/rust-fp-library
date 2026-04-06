@@ -25,6 +25,7 @@ mod inner {
 				FunctorWithIndex,
 				LazyConfig,
 				Lift,
+				LiftFn,
 				MonadRec,
 				Monoid,
 				Pointed,
@@ -2209,6 +2210,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters(
 			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
 			"The type of the success value inside the `TryThunk`.",
 			"The monoid type."
 		)]
@@ -2221,22 +2223,25 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::TryThunkErrAppliedBrand,
+		/// 	brands::*,
 		/// 	classes::foldable_with_index::FoldableWithIndex,
 		/// 	types::*,
 		/// };
 		///
 		/// let x: TryThunk<i32, ()> = TryThunk::pure(5);
-		/// let y = <TryThunkErrAppliedBrand<()> as FoldableWithIndex>::fold_map_with_index(
-		/// 	|_, i: i32| i.to_string(),
-		/// 	x,
-		/// );
+		/// let y = <TryThunkErrAppliedBrand<()> as FoldableWithIndex>::fold_map_with_index::<
+		/// 	RcFnBrand,
+		/// 	_,
+		/// 	_,
+		/// >(|_, i: i32| i.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
-		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
+		fn fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid>(
 			f: impl Fn((), A) -> R + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			match fa.evaluate() {
 				Ok(a) => f((), a),
 				Err(_) => R::empty(),
@@ -2292,6 +2297,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters(
 			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
 			"The type of the error value inside the `TryThunk`.",
 			"The monoid type."
 		)]
@@ -2304,22 +2310,25 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::TryThunkOkAppliedBrand,
+		/// 	brands::*,
 		/// 	classes::foldable_with_index::FoldableWithIndex,
 		/// 	types::*,
 		/// };
 		///
 		/// let x: TryThunk<i32, i32> = TryThunk::err(5);
-		/// let y = <TryThunkOkAppliedBrand<i32> as FoldableWithIndex>::fold_map_with_index(
-		/// 	|_, e: i32| e.to_string(),
-		/// 	x,
-		/// );
+		/// let y = <TryThunkOkAppliedBrand<i32> as FoldableWithIndex>::fold_map_with_index::<
+		/// 	RcFnBrand,
+		/// 	_,
+		/// 	_,
+		/// >(|_, e: i32| e.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
-		fn fold_map_with_index<'a, E: 'a + Clone, R: Monoid>(
+		fn fold_map_with_index<'a, FnBrand, E: 'a + Clone, R: Monoid>(
 			f: impl Fn((), E) -> R + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			match fa.evaluate() {
 				Err(e) => f((), e),
 				Ok(_) => R::empty(),

@@ -331,7 +331,10 @@ mod inner {
 		/// The index comes from `F`'s `FoldableWithIndex` instance.
 		#[document_signature]
 		///
-		#[document_type_parameters("The monoid type to fold into.")]
+		#[document_type_parameters(
+			"The brand of the cloneable function to use.",
+			"The monoid type to fold into."
+		)]
 		///
 		#[document_parameters("The function mapping each index and element to a monoid value.")]
 		///
@@ -346,20 +349,22 @@ mod inner {
 		///
 		/// let result = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3])
 		/// 	.map(|x| x * 10)
-		/// 	.fold_map_with_index(|i: usize, x: i32| format!("{i}:{x}"));
+		/// 	.fold_map_with_index::<RcFnBrand, _>(|i: usize, x: i32| format!("{i}:{x}"));
 		///
 		/// assert_eq!(result, "0:101:202:30".to_string());
 		/// ```
-		pub fn fold_map_with_index<M>(
+		pub fn fold_map_with_index<FnBrand, M>(
 			self,
 			func: impl Fn(<F as WithIndex>::Index, A) -> M + 'a,
 		) -> M
 		where
 			B: Clone,
 			M: Monoid + 'a,
-			F: FoldableWithIndex, {
+			F: FoldableWithIndex,
+			FnBrand: LiftFn + 'a,
+			<F as WithIndex>::Index: 'a, {
 			let f = self.func;
-			F::fold_map_with_index(move |i, b| func(i, f(b)), self.fb)
+			F::fold_map_with_index::<FnBrand, _, _>(move |i, b| func(i, f(b)), self.fb)
 		}
 
 		/// Traverse the structure by composing the traversal function with the
@@ -1082,14 +1087,14 @@ mod tests {
 	fn fold_map_with_index_on_vec() {
 		let result = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3])
 			.map(|x| x * 10)
-			.fold_map_with_index(|i: usize, x: i32| format!("{i}:{x}"));
+			.fold_map_with_index::<RcFnBrand, _>(|i: usize, x: i32| format!("{i}:{x}"));
 		assert_eq!(result, "0:101:202:30".to_string());
 	}
 
 	#[test]
 	fn fold_map_with_index_on_lifted_vec() {
 		let result = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![10, 20, 30])
-			.fold_map_with_index(|i: usize, x: i32| format!("{i}:{x}"));
+			.fold_map_with_index::<RcFnBrand, _>(|i: usize, x: i32| format!("{i}:{x}"));
 		assert_eq!(result, "0:101:202:30".to_string());
 	}
 
@@ -1097,7 +1102,7 @@ mod tests {
 	fn fold_map_with_index_on_option() {
 		let result = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(Some(42))
 			.map(|x| x + 1)
-			.fold_map_with_index(|_: (), x: i32| x.to_string());
+			.fold_map_with_index::<RcFnBrand, _>(|_: (), x: i32| x.to_string());
 		assert_eq!(result, "43".to_string());
 	}
 
@@ -1105,7 +1110,7 @@ mod tests {
 	fn fold_map_with_index_on_none() {
 		let result = CoyonedaExplicit::<OptionBrand, i32, i32, _>::lift(None)
 			.map(|x| x + 1)
-			.fold_map_with_index(|_: (), x: i32| x.to_string());
+			.fold_map_with_index::<RcFnBrand, _>(|_: (), x: i32| x.to_string());
 		assert_eq!(result, String::new());
 	}
 

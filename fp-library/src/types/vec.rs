@@ -621,6 +621,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters(
 			"The lifetime of the elements.",
+			"The brand of the cloneable function to use.",
 			"The type of the elements in the vector.",
 			"The monoid type."
 		)]
@@ -633,18 +634,23 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::VecBrand,
+		/// 	brands::*,
 		/// 	classes::foldable_with_index::FoldableWithIndex,
 		/// 	functions::*,
 		/// };
 		/// let v = vec![10, 20, 30];
-		/// let s = <VecBrand as FoldableWithIndex>::fold_map_with_index(|i, x| format!("{}:{}", i, x), v);
+		/// let s = <VecBrand as FoldableWithIndex>::fold_map_with_index::<RcFnBrand, _, _>(
+		/// 	|i, x| format!("{}:{}", i, x),
+		/// 	v,
+		/// );
 		/// assert_eq!(s, "0:101:202:30");
 		/// ```
-		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
+		fn fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
 			f: impl Fn(usize, A) -> R + 'a,
 			fa: Vec<A>,
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			fa.into_iter()
 				.enumerate()
 				.map(|(i, a)| f(i, a))
@@ -2549,7 +2555,7 @@ mod inner {
 		/// };
 		///
 		/// let v = lift2::<VecBrand, _, _, _, _>(
-		/// 	|a: &i32, b: &str| format!("{}{}", a, b),
+		/// 	|a: &i32, b: &String| format!("{}{}", a, b),
 		/// 	vec![1, 2],
 		/// 	vec!["a".to_string(), "b".to_string()],
 		/// );
@@ -2592,11 +2598,9 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let funcs: Vec<std::rc::Rc<dyn Fn(&i32) -> i32>> = vec![
-		/// 	coerce_fn::<RcBrand, _, _>(|x: &i32| *x + 1),
-		/// 	coerce_fn::<RcBrand, _, _>(|x: &i32| *x * 2),
-		/// ];
-		/// let result = ref_apply::<RcFnBrand, VecBrand, _, _>(funcs, vec![10, 20]);
+		/// let f1: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x + 1);
+		/// let f2: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x * 2);
+		/// let result = ref_apply::<RcFnBrand, VecBrand, _, _>(vec![f1, f2], vec![10, 20]);
 		/// assert_eq!(result, vec![11, 21, 20, 40]);
 		/// ```
 		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
@@ -2640,7 +2644,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			fa.iter().flat_map(|a| f(a)).collect()
+			fa.iter().flat_map(f).collect()
 		}
 	}
 }
