@@ -218,10 +218,19 @@ pub fn document_module_worker(
 	};
 
 	// Pass 2: Documentation Generation (handles both top-level and nested)
-	generate_documentation(&mut items, &config)?;
+	// Collect errors instead of failing fast, so the module's items are still
+	// emitted even when an inner attribute macro fails. This prevents cascading
+	// "unresolved import" errors that obscure the real issue.
+	let mut doc_errors: Vec<proc_macro2::TokenStream> = Vec::new();
+
+	if let Err(e) = generate_documentation(&mut items, &config) {
+		doc_errors.push(e.to_compile_error());
+	}
 
 	// Also recursively generate docs for nested modules (immutable config)
-	apply_to_nested_modules_immut(&mut items, generate_documentation, &config)?;
+	if let Err(e) = apply_to_nested_modules_immut(&mut items, generate_documentation, &config) {
+		doc_errors.push(e.to_compile_error());
+	}
 
 	// Reconstruct module wrapper if needed (outer attribute case)
 	let items_output = if let Some((mut module, brace)) = module_wrapper {
@@ -231,11 +240,13 @@ pub fn document_module_worker(
 		quote!(#(#items)*)
 	};
 
-	// Combine warnings with output if validation is enabled
-	// Warnings are emitted first so they appear in the compiler output
-	let output = if !warning_tokens.is_empty() {
+	// Combine warnings, errors, and output. Errors and warnings are emitted
+	// alongside the module output so that items (traits, impls, etc.) are
+	// still visible to the compiler even when documentation attributes fail.
+	let output = if !warning_tokens.is_empty() || !doc_errors.is_empty() {
 		quote! {
 			#(#warning_tokens)*
+			#(#doc_errors)*
 			#items_output
 		}
 	} else {
