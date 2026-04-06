@@ -290,17 +290,25 @@ element access) was investigated and rejected for three reasons:
     compiler to infer `Val`/`Ref` from. These remain as separate
     `apply_first` / `ref_apply_first` free functions.
 
-16. **Add `RefFoldable` and `SendRefFoldable`, remove `Lazy`'s
-    `Foldable` impl**: The current `Foldable` impl for `Lazy` is
-    semantically dishonest: it takes `self` (by value, moving the
-    `Rc`/`Arc`) but internally calls `evaluate()` which returns
-    `&A`. Callers who clone before folding are paying for a pointless
-    `Rc::clone`. `RefFoldable` fixes this by honestly taking `&self`,
-    matching the pattern already established by `RefFunctor`.
-    Implement for `LazyBrand<RcLazyConfig>` and
-    `LazyBrand<ArcLazyConfig>`. Remove `Lazy`'s by-value `Foldable`
-    impl (breaking change). Memoized types should only implement
-    `Ref*` traits, following the precedent set by `RefFunctor`.
+16. **Add `Ref*` foldable and indexed traits, remove `Lazy`'s
+    by-value impls**: Add the following traits with `Lazy` impls
+    (all using `Index = ()` for WithIndex variants):
+    - `RefFoldable` (ref_fold_map, ref_fold_right, ref_fold_left)
+    - `SendRefFoldable`
+    - `RefFoldableWithIndex: RefFoldable + WithIndex`
+    - `SendRefFoldableWithIndex: SendRefFoldable + WithIndex`
+    - `RefFunctorWithIndex: RefFunctor + WithIndex`
+    - `SendRefFunctorWithIndex: SendRefFunctor + WithIndex`
+      Remove `Lazy`'s by-value `Foldable` and `FoldableWithIndex`
+      impls (breaking change). Keep `WithIndex` impl since `Index = ()`
+      is still valid for the Ref variants. Also remove from `TryLazy`.
+      Memoized types should only implement `Ref*` traits, following
+      the precedent set by `RefFunctor`.
+
+    **Deferred Ref variants** (no memoized type currently needs them):
+    - `RefFilterableWithIndex` (needs `RefFilterable` + `RefCompactable`)
+    - `RefBifunctor`, `RefBifoldable`, `RefBitraversable` and their
+      WithIndex variants (no memoized bifunctor type exists).
 
 17. **Remaining dispatch operations**: Apply the dispatch pattern
     to operations that take closures (inference works).
