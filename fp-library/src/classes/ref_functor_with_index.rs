@@ -69,6 +69,42 @@ mod inner {
 			fa: Self::Of<'a, A>,
 		) -> Self::Of<'a, B>;
 	}
+
+	/// Maps a function over a structure by reference with access to the index.
+	///
+	/// Free function version that dispatches to [the type class' associated function][`RefFunctorWithIndex::ref_map_with_index`].
+	#[document_signature]
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the structure.",
+		"The type of the elements.",
+		"The type of the result."
+	)]
+	#[document_parameters(
+		"The function to apply to each element's index and reference.",
+		"The structure to map over."
+	)]
+	#[document_returns("The mapped structure.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
+	///
+	/// let lazy = RcLazy::new(|| 42);
+	/// let mapped =
+	/// 	ref_map_with_index::<LazyBrand<RcLazyConfig>, _, _>(|_, x: &i32| x.to_string(), lazy);
+	/// assert_eq!(*mapped.evaluate(), "42");
+	/// ```
+	pub fn ref_map_with_index<'a, Brand: RefFunctorWithIndex, A: 'a, B: 'a>(
+		f: impl Fn(Brand::Index, &A) -> B + 'a,
+		fa: Brand::Of<'a, A>,
+	) -> Brand::Of<'a, B> {
+		Brand::ref_map_with_index(f, fa)
+	}
 }
 
 pub use inner::*;

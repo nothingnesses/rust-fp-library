@@ -68,6 +68,40 @@ mod inner {
 			fa: Self::Of<'a, A>,
 		) -> R;
 	}
+
+	/// Maps each element to a monoid with its index and combines the results.
+	///
+	/// Free function version that dispatches to [the type class' associated function][`FoldableWithIndex::fold_map_with_index`].
+	#[document_signature]
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the structure.",
+		"The type of the elements.",
+		"The monoid type."
+	)]
+	#[document_parameters(
+		"The function to apply to each element and its index.",
+		"The structure to fold over."
+	)]
+	#[document_returns("The combined result.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::VecBrand,
+	/// 	functions::*,
+	/// };
+	///
+	/// let result =
+	/// 	fold_map_with_index::<VecBrand, _, _>(|i, x: i32| format!("{i}:{x}"), vec![10, 20, 30]);
+	/// assert_eq!(result, "0:101:202:30");
+	/// ```
+	pub fn fold_map_with_index<'a, Brand: FoldableWithIndex, A: 'a + Clone, R: Monoid>(
+		f: impl Fn(Brand::Index, A) -> R + 'a,
+		fa: Brand::Of<'a, A>,
+	) -> R {
+		Brand::fold_map_with_index(f, fa)
+	}
 }
 
 pub use inner::*;

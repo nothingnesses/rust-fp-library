@@ -67,6 +67,47 @@ mod inner {
 			fa: Self::Of<'a, A>,
 		) -> Self::Of<'a, B>;
 	}
+
+	/// Maps a function over a structure by reference with index (thread-safe).
+	///
+	/// Free function version that dispatches to [the type class' associated function][`SendRefFunctorWithIndex::send_ref_map_with_index`].
+	#[document_signature]
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the structure.",
+		"The type of the elements.",
+		"The type of the result."
+	)]
+	#[document_parameters(
+		"The function to apply to each element's index and reference.",
+		"The structure to map over."
+	)]
+	#[document_returns("The mapped structure.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
+	///
+	/// let lazy = ArcLazy::new(|| 42);
+	/// let mapped =
+	/// 	send_ref_map_with_index::<LazyBrand<ArcLazyConfig>, _, _>(|_, x: &i32| x.to_string(), lazy);
+	/// assert_eq!(*mapped.evaluate(), "42");
+	/// ```
+	pub fn send_ref_map_with_index<
+		'a,
+		Brand: SendRefFunctorWithIndex,
+		A: Send + Sync + 'a,
+		B: Send + Sync + 'a,
+	>(
+		f: impl Fn(Brand::Index, &A) -> B + Send + Sync + 'a,
+		fa: Brand::Of<'a, A>,
+	) -> Brand::Of<'a, B> {
+		Brand::send_ref_map_with_index(f, fa)
+	}
 }
 
 pub use inner::*;

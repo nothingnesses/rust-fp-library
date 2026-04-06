@@ -68,6 +68,39 @@ mod inner {
 			fa: Self::Of<'a, A>,
 		) -> Self::Of<'a, B>;
 	}
+
+	/// Maps a function over a structure with access to the index of each element.
+	///
+	/// Free function version that dispatches to [the type class' associated function][`FunctorWithIndex::map_with_index`].
+	#[document_signature]
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the structure.",
+		"The type of the elements.",
+		"The type of the result."
+	)]
+	#[document_parameters(
+		"The function to apply to each element and its index.",
+		"The structure to map over."
+	)]
+	#[document_returns("The mapped structure.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::VecBrand,
+	/// 	functions::*,
+	/// };
+	///
+	/// let result = map_with_index::<VecBrand, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
+	/// assert_eq!(result, vec![10, 21, 32]);
+	/// ```
+	pub fn map_with_index<'a, Brand: FunctorWithIndex, A: 'a, B: 'a>(
+		f: impl Fn(Brand::Index, A) -> B + 'a,
+		fa: Brand::Of<'a, A>,
+	) -> Brand::Of<'a, B> {
+		Brand::map_with_index(f, fa)
+	}
 }
 
 pub use inner::*;

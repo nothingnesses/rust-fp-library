@@ -69,6 +69,49 @@ mod inner {
 			fa: Self::Of<'a, A>,
 		) -> R;
 	}
+
+	/// Maps each element to a monoid by reference with its index (thread-safe).
+	///
+	/// Free function version that dispatches to [the type class' associated function][`SendRefFoldableWithIndex::send_ref_fold_map_with_index`].
+	#[document_signature]
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the structure.",
+		"The type of the elements.",
+		"The monoid type."
+	)]
+	#[document_parameters(
+		"The function to apply to each element's index and reference.",
+		"The structure to fold over."
+	)]
+	#[document_returns("The combined result.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
+	///
+	/// let lazy = ArcLazy::new(|| 42);
+	/// let result = send_ref_fold_map_with_index::<LazyBrand<ArcLazyConfig>, _, _>(
+	/// 	|_, x: &i32| x.to_string(),
+	/// 	lazy,
+	/// );
+	/// assert_eq!(result, "42");
+	/// ```
+	pub fn send_ref_fold_map_with_index<
+		'a,
+		Brand: SendRefFoldableWithIndex,
+		A: Send + Sync + 'a,
+		R: Monoid,
+	>(
+		f: impl Fn(Brand::Index, &A) -> R + Send + Sync + 'a,
+		fa: Brand::Of<'a, A>,
+	) -> R {
+		Brand::send_ref_fold_map_with_index(f, fa)
+	}
 }
 
 pub use inner::*;
