@@ -25,10 +25,12 @@ mod inner {
 			classes::{
 				CloneFn,
 				Deferrable,
-				Foldable,
-				FoldableWithIndex,
+				LiftFn,
 				Monoid,
+				RefFoldable,
+				RefFoldableWithIndex,
 				RefFunctor,
+				RefFunctorWithIndex,
 				RefLift,
 				RefPointed,
 				RefSemiapplicative,
@@ -36,7 +38,10 @@ mod inner {
 				Semigroup,
 				SendCloneFn,
 				SendDeferrable,
+				SendRefFoldable,
+				SendRefFoldableWithIndex,
 				SendRefFunctor,
+				SendRefFunctorWithIndex,
 				SendRefLift,
 				SendRefPointed,
 				SendRefSemiapplicative,
@@ -1056,6 +1061,114 @@ mod inner {
 		}
 	}
 
+	// --- SendRefFoldable ---
+
+	impl SendRefFoldable for LazyBrand<ArcLazyConfig> {
+		/// Maps the value to a monoid by reference (thread-safe).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the computed value.",
+			"The monoid type."
+		)]
+		#[document_parameters("The mapping function.", "The Lazy to fold.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::send_ref_foldable::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = ArcLazy::new(|| 5);
+		/// let result = send_ref_fold_map::<LazyBrand<ArcLazyConfig>, _, _>(|a: &i32| a.to_string(), lazy);
+		/// assert_eq!(result, "5");
+		/// ```
+		fn send_ref_fold_map<'a, A: Send + Sync + 'a, M>(
+			func: impl Fn(&A) -> M + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			M: Monoid + 'a, {
+			func(fa.evaluate())
+		}
+	}
+
+	// --- SendRefFoldableWithIndex ---
+
+	impl SendRefFoldableWithIndex for LazyBrand<ArcLazyConfig> {
+		/// Maps the value to a monoid by reference with the unit index (thread-safe).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the computed value.",
+			"The monoid type."
+		)]
+		#[document_parameters("The function to apply.", "The Lazy to fold.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::send_ref_foldable_with_index::SendRefFoldableWithIndex,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = ArcLazy::new(|| 42);
+		/// let result =
+		/// 	<LazyBrand<ArcLazyConfig> as SendRefFoldableWithIndex>::send_ref_fold_map_with_index(
+		/// 		|_, x: &i32| x.to_string(),
+		/// 		lazy,
+		/// 	);
+		/// assert_eq!(result, "42");
+		/// ```
+		fn send_ref_fold_map_with_index<'a, A: Send + Sync + 'a, R: Monoid>(
+			f: impl Fn((), &A) -> R + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R {
+			f((), fa.evaluate())
+		}
+	}
+
+	// --- SendRefFunctorWithIndex ---
+
+	impl SendRefFunctorWithIndex for LazyBrand<ArcLazyConfig> {
+		/// Maps a function over the `ArcLazy` by reference with the unit index (thread-safe).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the input value.",
+			"The type of the output value."
+		)]
+		#[document_parameters("The function to apply.", "The Lazy to map over.")]
+		#[document_returns("A new Lazy containing the mapped value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::send_ref_functor_with_index::SendRefFunctorWithIndex,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = ArcLazy::new(|| 42);
+		/// let mapped = <LazyBrand<ArcLazyConfig> as SendRefFunctorWithIndex>::send_ref_map_with_index(
+		/// 	|_, x: &i32| x.to_string(),
+		/// 	lazy,
+		/// );
+		/// assert_eq!(*mapped.evaluate(), "42");
+		/// ```
+		fn send_ref_map_with_index<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+			f: impl Fn((), &A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Self::send_ref_map(move |a| f((), a), fa)
+		}
+	}
+
 	// -- RefPointed --
 
 	impl RefPointed for LazyBrand<RcLazyConfig> {
@@ -1443,102 +1556,18 @@ mod inner {
 		}
 	}
 
-	// --- Foldable ---
+	// --- RefFoldable ---
 
 	#[document_type_parameters("The memoization configuration (determines Rc vs Arc).")]
-	impl<Config: LazyConfig> Foldable for LazyBrand<Config> {
-		/// Folds the `Lazy` from the right.
+	impl<Config: LazyConfig> RefFoldable for LazyBrand<Config> {
+		/// Maps the value to a monoid by reference and returns it.
 		///
-		/// Forces evaluation and folds the single contained value.
+		/// Forces evaluation and maps the single contained value by reference.
+		/// No cloning is required since the closure receives `&A` directly.
 		#[document_signature]
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
-			"The brand of the cloneable function to use.",
-			"The type of the elements in the structure.",
-			"The type of the accumulator."
-		)]
-		///
-		#[document_parameters(
-			"The function to apply to each element and the accumulator.",
-			"The initial value of the accumulator.",
-			"The `Lazy` to fold."
-		)]
-		///
-		#[document_returns("The final accumulator value.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy = RcLazy::new(|| 10);
-		/// let result = fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(|a, b| a + b, 5, lazy);
-		/// assert_eq!(result, 15);
-		/// ```
-		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
-			func: impl Fn(A, B) -> B + 'a,
-			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> B
-		where
-			FnBrand: CloneFn + 'a, {
-			func(fa.evaluate().clone(), initial)
-		}
-
-		/// Folds the `Lazy` from the left.
-		///
-		/// Forces evaluation and folds the single contained value.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the computation.",
-			"The brand of the cloneable function to use.",
-			"The type of the elements in the structure.",
-			"The type of the accumulator."
-		)]
-		///
-		#[document_parameters(
-			"The function to apply to the accumulator and each element.",
-			"The initial value of the accumulator.",
-			"The `Lazy` to fold."
-		)]
-		///
-		#[document_returns("The final accumulator value.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy = RcLazy::new(|| 10);
-		/// let result = fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(|b, a| b + a, 5, lazy);
-		/// assert_eq!(result, 15);
-		/// ```
-		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
-			func: impl Fn(B, A) -> B + 'a,
-			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> B
-		where
-			FnBrand: CloneFn + 'a, {
-			func(initial, fa.evaluate().clone())
-		}
-
-		/// Maps the value to a monoid and returns it.
-		///
-		/// Forces evaluation and maps the single contained value.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the computation.",
-			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
 			"The type of the monoid."
 		)]
@@ -1556,17 +1585,102 @@ mod inner {
 		/// };
 		///
 		/// let lazy = RcLazy::new(|| 10);
-		/// let result =
-		/// 	fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, String>(|a: i32| a.to_string(), lazy);
+		/// let result = ref_fold_map::<LazyBrand<RcLazyConfig>, _, _>(|a: &i32| a.to_string(), lazy);
 		/// assert_eq!(result, "10");
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a + Clone, R: Monoid>(
-			func: impl Fn(A) -> R + 'a,
+		fn ref_fold_map<'a, A: 'a, M>(
+			func: impl Fn(&A) -> M + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> R
+		) -> M
 		where
-			FnBrand: CloneFn + 'a, {
-			func(fa.evaluate().clone())
+			M: Monoid + 'a, {
+			func(fa.evaluate())
+		}
+
+		/// Folds the `Lazy` from the right by reference.
+		///
+		/// Forces evaluation and folds the single contained value by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the accumulator."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element reference and the accumulator.",
+			"The initial value of the accumulator.",
+			"The `Lazy` to fold."
+		)]
+		///
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = RcLazy::new(|| 10);
+		/// let result =
+		/// 	ref_fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(|a: &i32, b| *a + b, 5, lazy);
+		/// assert_eq!(result, 15);
+		/// ```
+		fn ref_fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(&A, B) -> B + 'a,
+			initial: B,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> B
+		where
+			FnBrand: LiftFn + 'a, {
+			func(fa.evaluate(), initial)
+		}
+
+		/// Folds the `Lazy` from the left by reference.
+		///
+		/// Forces evaluation and folds the single contained value by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the accumulator."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the accumulator and each element reference.",
+			"The initial value of the accumulator.",
+			"The `Lazy` to fold."
+		)]
+		///
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = RcLazy::new(|| 10);
+		/// let result =
+		/// 	ref_fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(|b, a: &i32| b + *a, 5, lazy);
+		/// assert_eq!(result, 15);
+		/// ```
+		fn ref_fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(B, &A) -> B + 'a,
+			initial: B,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> B
+		where
+			FnBrand: LiftFn + 'a, {
+			func(initial, fa.evaluate())
 		}
 	}
 
@@ -1577,13 +1691,14 @@ mod inner {
 		type Index = ();
 	}
 
-	// --- FoldableWithIndex ---
+	// --- RefFoldableWithIndex ---
 
 	#[document_type_parameters("The memoization configuration (determines Rc vs Arc).")]
-	impl<Config: LazyConfig> FoldableWithIndex for LazyBrand<Config> {
-		/// Folds the `Lazy` using a monoid, providing the index `()`.
+	impl<Config: LazyConfig> RefFoldableWithIndex for LazyBrand<Config> {
+		/// Maps the value to a monoid by reference with the unit index.
 		///
-		/// Forces evaluation and maps the single contained value with the unit index.
+		/// Forces evaluation and maps the single contained value by reference,
+		/// providing `()` as the index.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1593,8 +1708,8 @@ mod inner {
 		)]
 		///
 		#[document_parameters(
-			"The function to apply to the index and the value.",
-			"The `Lazy` to fold."
+			"The function to apply to the index and value reference.",
+			"The Lazy to fold."
 		)]
 		///
 		#[document_returns("The monoid value.")]
@@ -1603,22 +1718,67 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::foldable_with_index::FoldableWithIndex,
+		/// 	classes::ref_foldable_with_index::RefFoldableWithIndex,
 		/// 	types::*,
 		/// };
 		///
-		/// let lazy = RcLazy::new(|| 10);
-		/// let result = <LazyBrand<RcLazyConfig> as FoldableWithIndex>::fold_map_with_index(
-		/// 	|_, x: i32| x.to_string(),
+		/// let lazy = RcLazy::new(|| 42);
+		/// let result = <LazyBrand<RcLazyConfig> as RefFoldableWithIndex>::ref_fold_map_with_index(
+		/// 	|_, x: &i32| x.to_string(),
 		/// 	lazy,
 		/// );
-		/// assert_eq!(result, "10");
+		/// assert_eq!(result, "42");
 		/// ```
-		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
-			f: impl Fn((), A) -> R + 'a,
+		fn ref_fold_map_with_index<'a, A: 'a, R: Monoid>(
+			f: impl Fn((), &A) -> R + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> R {
-			f((), fa.evaluate().clone())
+			f((), fa.evaluate())
+		}
+	}
+
+	// --- RefFunctorWithIndex ---
+
+	impl RefFunctorWithIndex for LazyBrand<RcLazyConfig> {
+		/// Maps a function over the `Lazy` by reference with the unit index.
+		///
+		/// Forces evaluation and maps the single contained value by reference,
+		/// providing `()` as the index. Returns a new `Lazy` wrapping the result.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the input value.",
+			"The type of the output value."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the index and value reference.",
+			"The Lazy to map over."
+		)]
+		///
+		#[document_returns("A new Lazy containing the mapped value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::ref_functor_with_index::RefFunctorWithIndex,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = RcLazy::new(|| 42);
+		/// let mapped = <LazyBrand<RcLazyConfig> as RefFunctorWithIndex>::ref_map_with_index(
+		/// 	|_, x: &i32| x.to_string(),
+		/// 	lazy,
+		/// );
+		/// assert_eq!(*mapped.evaluate(), "42");
+		/// ```
+		fn ref_map_with_index<'a, A: 'a, B: 'a>(
+			f: impl Fn((), &A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Self::ref_map(move |a| f((), a), fa)
 		}
 	}
 
@@ -2347,49 +2507,48 @@ mod tests {
 		assert_eq!(*right.evaluate(), *a.evaluate());
 	}
 
-	// --- Tests for Foldable ---
+	// --- Tests for RefFoldable ---
 
-	/// Tests `fold_right` for `RcLazy`.
+	/// Tests `ref_fold_right` for `RcLazy`.
 	#[test]
-	fn test_rc_lazy_fold_right() {
+	fn test_rc_lazy_ref_fold_right() {
 		use crate::functions::*;
 
 		let lazy = RcLazy::pure(10);
-		let result = fold_right::<
+		let result = ref_fold_right::<
 			crate::brands::RcFnBrand,
 			crate::brands::LazyBrand<RcLazyConfig>,
 			_,
 			_,
-		>(|a, b| a + b, 5, lazy);
+		>(|a: &i32, b| *a + b, 5, lazy);
 		assert_eq!(result, 15);
 	}
 
-	/// Tests `fold_left` for `RcLazy`.
+	/// Tests `ref_fold_left` for `RcLazy`.
 	#[test]
-	fn test_rc_lazy_fold_left() {
+	fn test_rc_lazy_ref_fold_left() {
 		use crate::functions::*;
 
 		let lazy = RcLazy::pure(10);
-		let result = fold_left::<
+		let result = ref_fold_left::<
 			crate::brands::RcFnBrand,
 			crate::brands::LazyBrand<RcLazyConfig>,
 			_,
 			_,
-		>(|b, a| b + a, 5, lazy);
+		>(|b, a: &i32| b + *a, 5, lazy);
 		assert_eq!(result, 15);
 	}
 
-	/// Tests `fold_map` for `RcLazy`.
+	/// Tests `ref_fold_map` for `RcLazy`.
 	#[test]
-	fn test_rc_lazy_fold_map() {
+	fn test_rc_lazy_ref_fold_map() {
 		use crate::functions::*;
 
 		let lazy = RcLazy::pure(10);
-		let result =
-			fold_map::<crate::brands::RcFnBrand, crate::brands::LazyBrand<RcLazyConfig>, _, _>(
-				|a: i32| a.to_string(),
-				lazy,
-			);
+		let result = ref_fold_map::<crate::brands::LazyBrand<RcLazyConfig>, _, _>(
+			|a: &i32| a.to_string(),
+			lazy,
+		);
 		assert_eq!(result, "10");
 	}
 
@@ -2559,53 +2718,58 @@ mod tests {
 		assert_eq!(counter.load(Ordering::SeqCst), 1);
 	}
 
-	// --- ArcLazy Foldable tests ---
+	// --- ArcLazy RefFoldable tests ---
 
-	/// Tests `fold_right` on `ArcLazy`.
+	/// Tests `ref_fold_right` on `ArcLazy`.
 	#[test]
-	fn test_arc_lazy_fold_right() {
+	fn test_arc_lazy_ref_fold_right() {
 		use crate::{
 			brands::*,
 			functions::*,
 		};
 
 		let lazy = ArcLazy::new(|| 10);
-		let result = fold_right::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(|a, b| a + b, 5, lazy);
-		assert_eq!(result, 15);
-	}
-
-	/// Tests `fold_left` on `ArcLazy`.
-	#[test]
-	fn test_arc_lazy_fold_left() {
-		use crate::{
-			brands::*,
-			functions::*,
-		};
-
-		let lazy = ArcLazy::new(|| 10);
-		let result = fold_left::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(|b, a| b + a, 5, lazy);
-		assert_eq!(result, 15);
-	}
-
-	/// Tests `fold_map` on `ArcLazy`.
-	#[test]
-	fn test_arc_lazy_fold_map() {
-		use crate::{
-			brands::*,
-			functions::*,
-		};
-
-		let lazy = ArcLazy::new(|| 10);
-		let result = fold_map::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, String>(
-			|a: i32| a.to_string(),
+		let result = ref_fold_right::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(
+			|a: &i32, b| *a + b,
+			5,
 			lazy,
 		);
+		assert_eq!(result, 15);
+	}
+
+	/// Tests `ref_fold_left` on `ArcLazy`.
+	#[test]
+	fn test_arc_lazy_ref_fold_left() {
+		use crate::{
+			brands::*,
+			functions::*,
+		};
+
+		let lazy = ArcLazy::new(|| 10);
+		let result = ref_fold_left::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(
+			|b, a: &i32| b + *a,
+			5,
+			lazy,
+		);
+		assert_eq!(result, 15);
+	}
+
+	/// Tests `ref_fold_map` on `ArcLazy`.
+	#[test]
+	fn test_arc_lazy_ref_fold_map() {
+		use crate::{
+			brands::*,
+			functions::*,
+		};
+
+		let lazy = ArcLazy::new(|| 10);
+		let result = ref_fold_map::<LazyBrand<ArcLazyConfig>, _, _>(|a: &i32| a.to_string(), lazy);
 		assert_eq!(result, "10");
 	}
 
-	/// Property: ArcLazy fold_right is consistent with RcLazy fold_right.
+	/// Property: ArcLazy ref_fold_right is consistent with RcLazy ref_fold_right.
 	#[quickcheck]
-	fn prop_arc_lazy_fold_right(x: i32) -> bool {
+	fn prop_arc_lazy_ref_fold_right(x: i32) -> bool {
 		use crate::{
 			brands::*,
 			functions::*,
@@ -2613,70 +2777,17 @@ mod tests {
 
 		let rc_lazy = RcLazy::new(move || x);
 		let arc_lazy = ArcLazy::new(move || x);
-		let rc_result =
-			fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(|a, b| a + b, 0, rc_lazy);
-		let arc_result =
-			fold_right::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(|a, b| a + b, 0, arc_lazy);
+		let rc_result = ref_fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(
+			|a: &i32, b| *a + b,
+			0,
+			rc_lazy,
+		);
+		let arc_result = ref_fold_right::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(
+			|a: &i32, b| *a + b,
+			0,
+			arc_lazy,
+		);
 		rc_result == arc_result
-	}
-
-	// --- FoldableWithIndex tests ---
-
-	/// Tests `fold_map_with_index` for `RcLazy`.
-	///
-	/// Verifies that the index is `()` and the value is folded correctly.
-	#[test]
-	fn test_rc_lazy_fold_map_with_index() {
-		use crate::{
-			brands::*,
-			classes::foldable_with_index::FoldableWithIndex,
-		};
-
-		let lazy = RcLazy::new(|| 42);
-		let result = <LazyBrand<RcLazyConfig> as FoldableWithIndex>::fold_map_with_index(
-			|_, x: i32| x.to_string(),
-			lazy,
-		);
-		assert_eq!(result, "42");
-	}
-
-	/// Tests `fold_map_with_index` for `ArcLazy`.
-	///
-	/// Verifies that the index is `()` and the value is folded correctly.
-	#[test]
-	fn test_arc_lazy_fold_map_with_index() {
-		use crate::{
-			brands::*,
-			classes::foldable_with_index::FoldableWithIndex,
-		};
-
-		let lazy = ArcLazy::new(|| 10);
-		let result = <LazyBrand<ArcLazyConfig> as FoldableWithIndex>::fold_map_with_index(
-			|_, x: i32| x.to_string(),
-			lazy,
-		);
-		assert_eq!(result, "10");
-	}
-
-	/// Tests compatibility of `FoldableWithIndex` with `Foldable`.
-	///
-	/// Verifies that `fold_map(f, fa) = fold_map_with_index(|_, a| f(a), fa)`.
-	#[test]
-	fn test_rc_lazy_foldable_with_index_compatibility() {
-		use crate::{
-			brands::*,
-			classes::foldable_with_index::FoldableWithIndex,
-			functions::*,
-		};
-
-		let lazy1 = RcLazy::new(|| 7);
-		let lazy2 = RcLazy::new(|| 7);
-		let f = |a: i32| a.to_string();
-
-		let fold_result = fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, String>(f, lazy1);
-		let fold_with_index_result =
-			<LazyBrand<RcLazyConfig> as FoldableWithIndex>::fold_map_with_index(|_, a| f(a), lazy2);
-		assert_eq!(fold_result, fold_with_index_result);
 	}
 
 	// --- SendRefFunctor (ArcLazy ref_map) law tests ---
