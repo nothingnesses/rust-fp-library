@@ -22,6 +22,14 @@
 - Write user stories for all types, traits, and modules. Each should have a one-line "I want to..." description explaining when and why a user would reach for it. See `fp-library/docs/coyoneda.md`, `fp-library/docs/lazy-evaluation.md`, and `fp-library/src/types/free.rs` for the pattern. Prioritize types that are easy to confuse with each other (e.g., Thunk vs Trampoline vs Lazy, the four Coyoneda variants, Functor vs RefFunctor vs SendRefFunctor).
 - Expand benchmark coverage per [benchmarking/coverage-gaps.md](plans/benchmarking/coverage-gaps.md). Priority order: optics, fallible lazy types, newtype wrappers (zero-cost verification), CatList type class ops, SendThunk/Identity, parallel operations.
 
+### Deferred Ref-hierarchy items
+
+- **SendRef variants for filterable/traversable/witherable**: `SendRefFilterable`, `SendRefTraversable`, `SendRefWitherable`, `SendRefFilterableWithIndex`, `SendRefTraversableWithIndex`. Not needed until a thread-safe memoized type implements filtering or traversal.
+- **Ref impls for collection types** (Vec, Option, CatList, etc.): Implement `RefFunctor`, `RefFoldable`, `RefFilterable`, `RefTraversable`, `RefWitherable` and their WithIndex variants. Enables by-reference iteration without consuming the container. See [ref-hierarchy plan](plans/ref-hierarchy/plan.md) step 22.
+- **Par-Ref traits**: Parallel by-reference trait variants (`ParRefFunctor`, `ParRefFoldable`, etc.). Combine rayon parallelism with by-reference element access. Needs collection Ref impls first.
+- **Dispatch unification for filterable/traversable/witherable**: Once Ref impls exist, unify `filter_map`/`ref_filter_map`, `traverse`/`ref_traverse`, `wilt`/`ref_wilt` etc. via dispatch traits.
+- **RefBifunctor, RefBifoldable, RefBitraversable**: By-reference variants for bifunctor traits. Deferred: no memoized bifunctor type exists.
+
 ### Parallel type classes
 
 The core parallel traits are implemented: `ParFunctor`, `ParFoldable`, `ParCompactable`, `ParFilterable`, `ParFunctorWithIndex`, `ParFoldableWithIndex`, `ParFilterableWithIndex`.
