@@ -309,11 +309,12 @@ element access) was investigated and rejected for three reasons:
       Explicit re-exports added to `functions.rs` since the macro
       scanner does not traverse sub-directories.
 
-15. **Remove `dispatch/apply_first.rs`**: Delete the incorrectly
-    created dispatch file. `apply_first` and `apply_second` take
-    two containers and no closure, so there is no argument for the
-    compiler to infer `Val`/`Ref` from. These remain as separate
-    `apply_first` / `ref_apply_first` free functions.
+15. ~~**Remove `dispatch/apply_first.rs`**~~: Done. Deleted the
+    incorrectly created dispatch file. `apply_first` and
+    `apply_second` take two containers and no closure, so there is
+    no argument for the compiler to infer `Val`/`Ref` from. These
+    remain as separate `apply_first` / `ref_apply_first` free
+    functions.
 
 16. ~~**Add `Ref*` foldable and indexed traits, remove `Lazy`'s
     by-value impls**~~: Done. Added:
@@ -332,9 +333,8 @@ element access) was investigated and rejected for three reasons:
     - `RefBifunctor`, `RefBifoldable`, `RefBitraversable` and their
       WithIndex variants (no memoized bifunctor type exists).
 
-17. **Add missing free functions for WithIndex traits**: Several
-    WithIndex traits define trait methods but no free functions.
-    Add free functions for:
+17. ~~**Add missing free functions for WithIndex traits**~~: Done.
+    Added free functions for:
     - `FunctorWithIndex`: `map_with_index`
     - `FoldableWithIndex`: `fold_map_with_index`
     - `TraversableWithIndex`: `traverse_with_index`
@@ -343,21 +343,20 @@ element access) was investigated and rejected for three reasons:
     - `SendRefFoldableWithIndex`: `send_ref_fold_map_with_index`
     - `SendRefFunctorWithIndex`: `send_ref_map_with_index`
 
-18. **Add ref semimonad helpers**: Add ref variants for semimonad
-    convenience functions:
+18. ~~**Add ref semimonad helpers**~~: Done. Added ref variants:
     - `ref_bind_flipped` in `ref_semimonad.rs`
     - `ref_compose_kleisli` in `ref_semimonad.rs`
     - `ref_compose_kleisli_flipped` in `ref_semimonad.rs`
-    - `ref_join` is not dispatchable (no closure), keep separate.
-      Add SendRef variants for ArcLazy where applicable.
+    - `ref_join` in `ref_semimonad.rs` (not dispatchable, separate)
 
-19. **Dispatch foldable operations**: Add `dispatch/foldable.rs`
-    unifying:
+19. ~~**Dispatch foldable operations**~~: Done. Added
+    `dispatch/foldable.rs` unifying:
     - `fold_right` / `ref_fold_right`
     - `fold_left` / `ref_fold_left`
     - `fold_map` / `ref_fold_map`
-      Note: both paths take `FnBrand` parameter, unlike other
-      dispatch traits.
+      Both paths take `FnBrand` parameter. Added `FnBrand` parameter
+      and default impl to `RefFoldable::ref_fold_map`, making all
+      three methods mutually derivable (matching `Foldable`'s design).
 
 20. **Dispatch semimonad helpers**: Extend `dispatch/semimonad.rs`
     to unify:
@@ -624,6 +623,12 @@ None at this time.
 - Lazy's by-value `Foldable` and `FoldableWithIndex` impls removed (breaking change). Replaced by `RefFoldable` and `RefFoldableWithIndex`. `WithIndex` impl kept (`Index = ()`).
 - TryLazy's by-value `Foldable` and `FoldableWithIndex` impls replaced similarly.
 - All Lazy/TryLazy foldable tests updated to use `ref_fold_*` free functions.
+- Free functions added for all WithIndex traits (map_with_index, fold_map_with_index, traverse_with_index, and Ref/SendRef variants).
+- `ref_bind_flipped`, `ref_compose_kleisli`, `ref_compose_kleisli_flipped`, `ref_join` added to `ref_semimonad.rs`.
+- `dispatch/foldable.rs` added: unifies `fold_right`/`ref_fold_right`, `fold_left`/`ref_fold_left`, `fold_map`/`ref_fold_map`.
+- `RefFoldable::ref_fold_map` given `FnBrand` parameter and default impl (derives from `ref_fold_right`), making all three RefFoldable methods mutually derivable.
+- `#[document_module]` macro fixed to emit module items even when inner documentation attributes fail, preventing cascading import errors.
+- Test cache improved: content hashing via `git ls-files` + `md5sum`, SIGPIPE handling, `just clean` recipe added.
 
 ## References
 
@@ -634,7 +639,7 @@ None at this time.
   `Monad`/`LinearMonad` hierarchies showing the pattern extended to the
   full monadic stack. Key insight: dispatch uses `Val`/`Ref` phantom types
   resolved by trait resolution on owned `T` vs `&T` arguments.
-- Dispatch implementation: `fp-library/src/classes/functor_dispatch.rs`
+- Dispatch implementation: `fp-library/src/classes/dispatch.rs` and `fp-library/src/classes/dispatch/`
 - RefFunctor trait: `fp-library/src/classes/ref_functor.rs`
 - SendRefFunctor trait: `fp-library/src/classes/send_ref_functor.rs`
 - Limitations doc: `fp-library/docs/limitations-and-workarounds.md` (section 5)
