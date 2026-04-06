@@ -26,6 +26,7 @@ mod inner {
 			RefCountedPointer,
 			dispatch::{
 				ClosureMode,
+				Ref,
 				Val,
 			},
 		},
@@ -128,6 +129,72 @@ mod inner {
 	where
 		Brand: LiftFn, {
 		<Brand as LiftFn>::new(f)
+	}
+
+	/// A trait for constructing by-reference cloneable function wrappers from closures.
+	///
+	/// This is the `Ref`-mode counterpart of [`LiftFn`]. While `LiftFn` wraps
+	/// `Fn(A) -> B` closures, `LiftRefFn` wraps `Fn(&A) -> B` closures.
+	pub trait LiftRefFn: CloneFn<Ref> {
+		/// Creates a new cloneable by-reference function wrapper.
+		///
+		/// This function wraps the provided closure `f` into a cloneable function
+		/// that takes its input by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the function and its captured data.",
+			"The input type (received by reference).",
+			"The output type of the function."
+		)]
+		///
+		#[document_parameters("The closure to wrap.")]
+		#[document_returns("The wrapped cloneable by-reference function.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f = lift_ref_fn_new::<RcFnBrand, _, _>(|x: &i32| *x * 2);
+		/// assert_eq!(f(&5), 10);
+		/// ```
+		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(&A) -> B) -> <Self as CloneFn<Ref>>::Of<'a, A, B>;
+	}
+
+	/// Creates a new cloneable by-reference function wrapper.
+	///
+	/// Free function version that dispatches to [the type class' associated function][`LiftRefFn::new`].
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The brand of the cloneable function wrapper.",
+		"The input type (received by reference).",
+		"The output type of the function."
+	)]
+	///
+	#[document_parameters("The closure to wrap.")]
+	#[document_returns("The wrapped cloneable by-reference function.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let f = lift_ref_fn_new::<RcFnBrand, _, _>(|x: &i32| *x * 2);
+	/// assert_eq!(f(&5), 10);
+	/// ```
+	pub fn lift_ref_fn_new<'a, Brand, A, B>(
+		f: impl 'a + Fn(&A) -> B
+	) -> <Brand as CloneFn<Ref>>::Of<'a, A, B>
+	where
+		Brand: LiftRefFn, {
+		<Brand as LiftRefFn>::new(f)
 	}
 }
 

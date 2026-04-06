@@ -193,6 +193,34 @@ mod inner {
 		fn coerce_fn<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Rc<dyn 'a + Fn(A) -> B> {
 			Rc::new(f)
 		}
+
+		/// Coerces a sized by-reference closure to a `dyn Fn(&A) -> B` wrapped in an `Rc`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the closure.",
+			"The input type (received by reference).",
+			"The output type of the function."
+		)]
+		///
+		#[document_parameters("The closure to coerce.")]
+		///
+		#[document_returns("The closure wrapped in an `Rc` as a trait object.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::unsized_coercible::*,
+		/// };
+		///
+		/// let f = coerce_ref_fn::<RcBrand, _, _>(|x: &i32| *x + 1);
+		/// assert_eq!(f(&1), 2);
+		/// ```
+		fn coerce_ref_fn<'a, A: 'a, B: 'a>(f: impl 'a + Fn(&A) -> B) -> Rc<dyn 'a + Fn(&A) -> B> {
+			Rc::new(f)
+		}
 	}
 }
 

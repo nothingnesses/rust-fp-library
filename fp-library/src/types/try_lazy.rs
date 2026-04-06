@@ -1605,6 +1605,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters(
 			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
 			"The type of the elements.",
 			"The monoid type."
 		)]
@@ -1626,11 +1627,12 @@ mod inner {
 		/// );
 		/// assert_eq!(result, "10");
 		/// ```
-		fn ref_fold_map<'a, A: 'a, M>(
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
 			func: impl Fn(&A) -> M + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
+			FnBrand: LiftFn + 'a,
 			M: Monoid + 'a, {
 			match fa.evaluate() {
 				Ok(a) => func(a),

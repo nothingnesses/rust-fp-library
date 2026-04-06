@@ -122,6 +122,40 @@ mod inner {
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
+	impl<P: UnsizedCoercible> LiftRefFn for FnBrand<P> {
+		/// Creates a new cloneable by-reference function wrapper.
+		///
+		/// This function wraps the provided closure `f` into a pointer-wrapped
+		/// cloneable function that takes its input by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the function and its captured data.",
+			"The input type (received by reference).",
+			"The output type of the function."
+		)]
+		///
+		#[document_parameters("The closure to wrap.")]
+		///
+		#[document_returns("The wrapped cloneable by-reference function.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f = lift_ref_fn_new::<RcFnBrand, _, _>(|x: &i32| *x * 2);
+		/// assert_eq!(f(&5), 10);
+		/// ```
+		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(&A) -> B) -> <Self as CloneFn<Ref>>::Of<'a, A, B> {
+			P::coerce_ref_fn(f)
+		}
+	}
+
+	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
 		/// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
 		///
@@ -471,6 +505,39 @@ mod inner {
 			f: impl 'a + Fn(A) -> B + Send + Sync
 		) -> <Self as SendCloneFn>::Of<'a, A, B> {
 			P::coerce_send_fn(f)
+		}
+	}
+
+	#[document_type_parameters("The reference-counted pointer type.")]
+	impl<P: SendUnsizedCoercible> SendLiftRefFn for FnBrand<P> {
+		/// Creates a new thread-safe cloneable by-reference function wrapper.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the function and its captured data.",
+			"The input type (received by reference).",
+			"The output type of the function."
+		)]
+		///
+		#[document_parameters("The closure to wrap.")]
+		///
+		#[document_returns("The wrapped thread-safe cloneable by-reference function.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f = send_lift_ref_fn_new::<ArcFnBrand, _, _>(|x: &i32| *x * 2);
+		/// assert_eq!(f(&5), 10);
+		/// ```
+		fn new<'a, A: 'a, B: 'a>(
+			f: impl 'a + Fn(&A) -> B + Send + Sync
+		) -> <Self as SendCloneFn<Ref>>::Of<'a, A, B> {
+			P::coerce_send_ref_fn(f)
 		}
 	}
 }

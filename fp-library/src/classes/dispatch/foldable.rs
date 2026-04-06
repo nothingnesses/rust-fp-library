@@ -460,7 +460,8 @@ pub(crate) mod inner {
 	impl<'a, FnBrand, Brand, A, M, F> FoldMapDispatch<'a, FnBrand, Brand, A, M, Ref> for F
 	where
 		Brand: RefFoldable,
-		A: 'a,
+		FnBrand: LiftFn + 'a,
+		A: Clone + 'a,
 		M: Monoid + 'a,
 		F: Fn(&A) -> M + 'a,
 	{
@@ -484,7 +485,7 @@ pub(crate) mod inner {
 			self,
 			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M {
-			Brand::ref_fold_map(self, fa)
+			Brand::ref_fold_map::<FnBrand, A, M>(self, fa)
 		}
 	}
 

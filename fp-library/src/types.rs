@@ -38,6 +38,8 @@ pub mod option;
 pub mod pair;
 pub mod rc_coyoneda;
 pub mod rc_ptr;
+/// By-reference endofunction wrapper with `Semigroup` and `Monoid` instances.
+pub mod ref_endofunction;
 pub mod result;
 pub mod send_thunk;
 pub mod string;
@@ -87,6 +89,7 @@ pub use {
 	},
 	pair::Pair,
 	rc_coyoneda::RcCoyoneda,
+	ref_endofunction::RefEndofunction,
 	send_thunk::SendThunk,
 	thunk::Thunk,
 	trampoline::Trampoline,

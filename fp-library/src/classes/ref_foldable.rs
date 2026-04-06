@@ -39,8 +39,9 @@ mod inner {
 	/// that internally hold a cached `&A` and would otherwise force a clone
 	/// to satisfy the by-value `Foldable` signature.
 	///
-	/// `fold_map` is the minimal complete definition. `fold_right` and
-	/// `fold_left` have default implementations derived from `fold_map`.
+	/// All three methods (`ref_fold_map`, `ref_fold_right`, `ref_fold_left`)
+	/// have default implementations in terms of each other, so implementors
+	/// only need to provide one.
 	#[kind(type Of<'a, A: 'a>: 'a;)]
 	pub trait RefFoldable {
 		/// Maps values to a monoid by reference and combines them.
@@ -48,6 +49,7 @@ mod inner {
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
+			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
 			"The monoid type."
 		)]
@@ -72,12 +74,19 @@ mod inner {
 		/// 	fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|a: &i32| a.to_string(), lazy);
 		/// assert_eq!(result, "5");
 		/// ```
-		fn ref_fold_map<'a, A: 'a, M>(
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
 			func: impl Fn(&A) -> M + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
-			M: Monoid + 'a;
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			Self::ref_fold_right::<FnBrand, A, M>(
+				move |a: &A, acc| Semigroup::append(func(a), acc),
+				Monoid::empty(),
+				fa,
+			)
+		}
 
 		/// Folds the structure from the right by reference.
 		#[document_signature]
@@ -118,7 +127,7 @@ mod inner {
 		where
 			FnBrand: LiftFn + 'a, {
 			let f = <FnBrand as LiftFn>::new(move |(a, b): (A, B)| func(&a, b));
-			let m = Self::ref_fold_map::<A, Endofunction<FnBrand, B>>(
+			let m = Self::ref_fold_map::<FnBrand, A, Endofunction<FnBrand, B>>(
 				move |a: &A| {
 					let a = a.clone();
 					let f = f.clone();

@@ -225,6 +225,34 @@ mod inner {
 		fn coerce_fn<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Arc<dyn 'a + Fn(A) -> B> {
 			Arc::new(f)
 		}
+
+		/// Coerces a sized by-reference closure to a `dyn Fn(&A) -> B` wrapped in an `Arc`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the closure.",
+			"The input type (received by reference).",
+			"The output type of the function."
+		)]
+		///
+		#[document_parameters("The closure to coerce.")]
+		///
+		#[document_returns("The closure wrapped in an `Arc` as a trait object.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::unsized_coercible::*,
+		/// };
+		///
+		/// let f = coerce_ref_fn::<ArcBrand, _, _>(|x: &i32| *x + 1);
+		/// assert_eq!(f(&1), 2);
+		/// ```
+		fn coerce_ref_fn<'a, A: 'a, B: 'a>(f: impl 'a + Fn(&A) -> B) -> Arc<dyn 'a + Fn(&A) -> B> {
+			Arc::new(f)
+		}
 	}
 
 	impl SendUnsizedCoercible for ArcBrand {
@@ -255,6 +283,36 @@ mod inner {
 		fn coerce_send_fn<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(A) -> B + Send + Sync
 		) -> Arc<dyn 'a + Fn(A) -> B + Send + Sync> {
+			Arc::new(f)
+		}
+
+		/// Coerces a sized Send+Sync by-reference closure to a `dyn Fn(&A) -> B + Send + Sync` wrapped in an `Arc`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the closure.",
+			"The input type (received by reference).",
+			"The output type of the function."
+		)]
+		///
+		#[document_parameters("The closure to coerce.")]
+		///
+		#[document_returns("The closure wrapped in an `Arc` as a thread-safe trait object.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::send_unsized_coercible::*,
+		/// };
+		///
+		/// let f = coerce_send_ref_fn::<ArcBrand, _, _>(|x: &i32| *x + 1);
+		/// assert_eq!(f(&1), 2);
+		/// ```
+		fn coerce_send_ref_fn<'a, A: 'a, B: 'a>(
+			f: impl 'a + Fn(&A) -> B + Send + Sync
+		) -> Arc<dyn 'a + Fn(&A) -> B + Send + Sync> {
 			Arc::new(f)
 		}
 	}
