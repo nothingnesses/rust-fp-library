@@ -1083,7 +1083,10 @@ mod inner {
 		/// };
 		///
 		/// let lazy = ArcLazy::new(|| 5);
-		/// let result = send_ref_fold_map::<LazyBrand<ArcLazyConfig>, _, _>(|a: &i32| a.to_string(), lazy);
+		/// let result = send_ref_fold_map::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _>(
+		/// 	|a: &i32| a.to_string(),
+		/// 	lazy,
+		/// );
 		/// assert_eq!(result, "5");
 		/// ```
 		fn send_ref_fold_map<'a, A: Send + Sync + 'a, M>(
@@ -1585,7 +1588,8 @@ mod inner {
 		/// };
 		///
 		/// let lazy = RcLazy::new(|| 10);
-		/// let result = ref_fold_map::<LazyBrand<RcLazyConfig>, _, _>(|a: &i32| a.to_string(), lazy);
+		/// let result =
+		/// 	fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|a: &i32| a.to_string(), lazy);
 		/// assert_eq!(result, "10");
 		/// ```
 		fn ref_fold_map<'a, A: 'a, M>(
@@ -1627,7 +1631,7 @@ mod inner {
 		///
 		/// let lazy = RcLazy::new(|| 10);
 		/// let result =
-		/// 	ref_fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(|a: &i32, b| *a + b, 5, lazy);
+		/// 	fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|a: &i32, b| *a + b, 5, lazy);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn ref_fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -1670,7 +1674,7 @@ mod inner {
 		///
 		/// let lazy = RcLazy::new(|| 10);
 		/// let result =
-		/// 	ref_fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(|b, a: &i32| b + *a, 5, lazy);
+		/// 	fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|b, a: &i32| b + *a, 5, lazy);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn ref_fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -2509,46 +2513,48 @@ mod tests {
 
 	// --- Tests for RefFoldable ---
 
-	/// Tests `ref_fold_right` for `RcLazy`.
+	/// Tests `fold_right` for `RcLazy`.
 	#[test]
 	fn test_rc_lazy_ref_fold_right() {
 		use crate::functions::*;
 
 		let lazy = RcLazy::pure(10);
-		let result = ref_fold_right::<
+		let result = fold_right::<
 			crate::brands::RcFnBrand,
 			crate::brands::LazyBrand<RcLazyConfig>,
+			_,
 			_,
 			_,
 		>(|a: &i32, b| *a + b, 5, lazy);
 		assert_eq!(result, 15);
 	}
 
-	/// Tests `ref_fold_left` for `RcLazy`.
+	/// Tests `fold_left` for `RcLazy`.
 	#[test]
 	fn test_rc_lazy_ref_fold_left() {
 		use crate::functions::*;
 
 		let lazy = RcLazy::pure(10);
-		let result = ref_fold_left::<
-			crate::brands::RcFnBrand,
-			crate::brands::LazyBrand<RcLazyConfig>,
-			_,
-			_,
-		>(|b, a: &i32| b + *a, 5, lazy);
+		let result =
+			fold_left::<crate::brands::RcFnBrand, crate::brands::LazyBrand<RcLazyConfig>, _, _, _>(
+				|b, a: &i32| b + *a,
+				5,
+				lazy,
+			);
 		assert_eq!(result, 15);
 	}
 
-	/// Tests `ref_fold_map` for `RcLazy`.
+	/// Tests `fold_map` for `RcLazy`.
 	#[test]
 	fn test_rc_lazy_ref_fold_map() {
 		use crate::functions::*;
 
 		let lazy = RcLazy::pure(10);
-		let result = ref_fold_map::<crate::brands::LazyBrand<RcLazyConfig>, _, _>(
-			|a: &i32| a.to_string(),
-			lazy,
-		);
+		let result =
+			fold_map::<crate::brands::RcFnBrand, crate::brands::LazyBrand<RcLazyConfig>, _, _, _>(
+				|a: &i32| a.to_string(),
+				lazy,
+			);
 		assert_eq!(result, "10");
 	}
 
@@ -2720,7 +2726,7 @@ mod tests {
 
 	// --- ArcLazy RefFoldable tests ---
 
-	/// Tests `ref_fold_right` on `ArcLazy`.
+	/// Tests `fold_right` on `ArcLazy`.
 	#[test]
 	fn test_arc_lazy_ref_fold_right() {
 		use crate::{
@@ -2729,7 +2735,7 @@ mod tests {
 		};
 
 		let lazy = ArcLazy::new(|| 10);
-		let result = ref_fold_right::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(
+		let result = fold_right::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _>(
 			|a: &i32, b| *a + b,
 			5,
 			lazy,
@@ -2737,7 +2743,7 @@ mod tests {
 		assert_eq!(result, 15);
 	}
 
-	/// Tests `ref_fold_left` on `ArcLazy`.
+	/// Tests `fold_left` on `ArcLazy`.
 	#[test]
 	fn test_arc_lazy_ref_fold_left() {
 		use crate::{
@@ -2746,15 +2752,12 @@ mod tests {
 		};
 
 		let lazy = ArcLazy::new(|| 10);
-		let result = ref_fold_left::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(
-			|b, a: &i32| b + *a,
-			5,
-			lazy,
-		);
+		let result =
+			fold_left::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _>(|b, a: &i32| b + *a, 5, lazy);
 		assert_eq!(result, 15);
 	}
 
-	/// Tests `ref_fold_map` on `ArcLazy`.
+	/// Tests `fold_map` on `ArcLazy`.
 	#[test]
 	fn test_arc_lazy_ref_fold_map() {
 		use crate::{
@@ -2763,11 +2766,14 @@ mod tests {
 		};
 
 		let lazy = ArcLazy::new(|| 10);
-		let result = ref_fold_map::<LazyBrand<ArcLazyConfig>, _, _>(|a: &i32| a.to_string(), lazy);
+		let result = fold_map::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _>(
+			|a: &i32| a.to_string(),
+			lazy,
+		);
 		assert_eq!(result, "10");
 	}
 
-	/// Property: ArcLazy ref_fold_right is consistent with RcLazy ref_fold_right.
+	/// Property: ArcLazy fold_right is consistent with RcLazy fold_right.
 	#[quickcheck]
 	fn prop_arc_lazy_ref_fold_right(x: i32) -> bool {
 		use crate::{
@@ -2777,12 +2783,12 @@ mod tests {
 
 		let rc_lazy = RcLazy::new(move || x);
 		let arc_lazy = ArcLazy::new(move || x);
-		let rc_result = ref_fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(
+		let rc_result = fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(
 			|a: &i32, b| *a + b,
 			0,
 			rc_lazy,
 		);
-		let arc_result = ref_fold_right::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(
+		let arc_result = fold_right::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _>(
 			|a: &i32, b| *a + b,
 			0,
 			arc_lazy,

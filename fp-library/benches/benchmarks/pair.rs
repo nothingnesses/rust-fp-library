@@ -49,7 +49,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_right::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
+				fold_right::<RcFnBrand, PairFirstAppliedBrand<String>, _, _, _>(
 					|x, acc| x + acc,
 					0,
 					std::hint::black_box(val.clone()),
@@ -70,7 +70,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_left::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
+				fold_left::<RcFnBrand, PairFirstAppliedBrand<String>, _, _, _>(
 					|acc, x| acc + x,
 					0,
 					std::hint::black_box(val.clone()),

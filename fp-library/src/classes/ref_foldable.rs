@@ -16,7 +16,8 @@
 //! };
 //!
 //! let lazy = RcLazy::new(|| 10);
-//! let result = ref_fold_map::<LazyBrand<RcLazyConfig>, _, _>(|a: &i32| a.to_string(), lazy);
+//! let result =
+//! 	ref_fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|a: &i32| a.to_string(), lazy);
 //! assert_eq!(result, "10");
 //! ```
 
@@ -67,7 +68,8 @@ mod inner {
 		/// };
 		///
 		/// let lazy = RcLazy::new(|| 5);
-		/// let result = ref_fold_map::<LazyBrand<RcLazyConfig>, _, _>(|a: &i32| a.to_string(), lazy);
+		/// let result =
+		/// 	ref_fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|a: &i32| a.to_string(), lazy);
 		/// assert_eq!(result, "5");
 		/// ```
 		fn ref_fold_map<'a, A: 'a, M>(
@@ -183,130 +185,6 @@ mod inner {
 			);
 			m.0(initial)
 		}
-	}
-
-	/// Maps values to a monoid by reference and combines them.
-	///
-	/// Free function version that dispatches to [the type class' associated function][`RefFoldable::ref_fold_map`].
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the elements.",
-		"The brand of the structure.",
-		"The type of the elements.",
-		"The monoid type."
-	)]
-	///
-	#[document_parameters(
-		"The function to map each element reference to a monoid.",
-		"The structure to fold."
-	)]
-	///
-	#[document_returns("The combined monoid value.")]
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// 	types::*,
-	/// };
-	///
-	/// let lazy = RcLazy::new(|| 5);
-	/// let result = ref_fold_map::<LazyBrand<RcLazyConfig>, _, _>(|a: &i32| a.to_string(), lazy);
-	/// assert_eq!(result, "5");
-	/// ```
-	pub fn ref_fold_map<'a, Brand: RefFoldable, A: 'a, M>(
-		func: impl Fn(&A) -> M + 'a,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> M
-	where
-		M: Monoid + 'a, {
-		Brand::ref_fold_map(func, fa)
-	}
-
-	/// Folds the structure from the right by reference.
-	///
-	/// Free function version that dispatches to [the type class' associated function][`RefFoldable::ref_fold_right`].
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the elements.",
-		"The brand of the cloneable function to use.",
-		"The brand of the structure.",
-		"The type of the elements.",
-		"The type of the accumulator."
-	)]
-	///
-	#[document_parameters(
-		"The function to apply to each element reference and the accumulator.",
-		"The initial value of the accumulator.",
-		"The structure to fold."
-	)]
-	///
-	#[document_returns("The final accumulator value.")]
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// 	types::*,
-	/// };
-	///
-	/// let lazy = RcLazy::new(|| 10);
-	/// let result =
-	/// 	ref_fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(|a: &i32, b| *a + b, 5, lazy);
-	/// assert_eq!(result, 15);
-	/// ```
-	pub fn ref_fold_right<'a, FnBrand: LiftFn + 'a, Brand: RefFoldable, A: 'a + Clone, B: 'a>(
-		func: impl Fn(&A, B) -> B + 'a,
-		initial: B,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> B {
-		Brand::ref_fold_right::<FnBrand, A, B>(func, initial, fa)
-	}
-
-	/// Folds the structure from the left by reference.
-	///
-	/// Free function version that dispatches to [the type class' associated function][`RefFoldable::ref_fold_left`].
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the elements.",
-		"The brand of the cloneable function to use.",
-		"The brand of the structure.",
-		"The type of the elements.",
-		"The type of the accumulator."
-	)]
-	///
-	#[document_parameters(
-		"The function to apply to the accumulator and each element reference.",
-		"The initial value of the accumulator.",
-		"The structure to fold."
-	)]
-	///
-	#[document_returns("The final accumulator value.")]
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// 	types::*,
-	/// };
-	///
-	/// let lazy = RcLazy::new(|| 10);
-	/// let result =
-	/// 	ref_fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(|b, a: &i32| b + *a, 5, lazy);
-	/// assert_eq!(result, 15);
-	/// ```
-	pub fn ref_fold_left<'a, FnBrand: LiftFn + 'a, Brand: RefFoldable, A: 'a + Clone, B: 'a>(
-		func: impl Fn(B, &A) -> B + 'a,
-		initial: B,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> B {
-		Brand::ref_fold_left::<FnBrand, A, B>(func, initial, fa)
 	}
 }
 

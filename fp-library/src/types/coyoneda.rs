@@ -683,7 +683,8 @@ mod inner {
 		///
 		/// let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x * 10);
 		///
-		/// let result = fold_map::<RcFnBrand, CoyonedaBrand<VecBrand>, _, _>(|x: i32| x.to_string(), coyo);
+		/// let result =
+		/// 	fold_map::<RcFnBrand, CoyonedaBrand<VecBrand>, _, _, _>(|x: i32| x.to_string(), coyo);
 		/// assert_eq!(result, "102030".to_string());
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -1130,7 +1131,7 @@ mod tests {
 	fn fold_map_on_lifted_vec() {
 		let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
 		let result =
-			fold_map::<RcFnBrand, CoyonedaBrand<VecBrand>, _, _>(|x: i32| x.to_string(), coyo);
+			fold_map::<RcFnBrand, CoyonedaBrand<VecBrand>, _, _, _>(|x: i32| x.to_string(), coyo);
 		assert_eq!(result, "123".to_string());
 	}
 
@@ -1138,22 +1139,25 @@ mod tests {
 	fn fold_map_on_mapped_coyoneda() {
 		let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x * 10);
 		let result =
-			fold_map::<RcFnBrand, CoyonedaBrand<VecBrand>, _, _>(|x: i32| x.to_string(), coyo);
+			fold_map::<RcFnBrand, CoyonedaBrand<VecBrand>, _, _, _>(|x: i32| x.to_string(), coyo);
 		assert_eq!(result, "102030".to_string());
 	}
 
 	#[test]
 	fn fold_right_on_coyoneda() {
 		let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x * 2);
-		let result =
-			fold_right::<RcFnBrand, CoyonedaBrand<VecBrand>, _, _>(|a: i32, b: i32| a + b, 0, coyo);
+		let result = fold_right::<RcFnBrand, CoyonedaBrand<VecBrand>, _, _, _>(
+			|a: i32, b: i32| a + b,
+			0,
+			coyo,
+		);
 		assert_eq!(result, 12); // (1*2) + (2*2) + (3*2) = 2 + 4 + 6 = 12
 	}
 
 	#[test]
 	fn fold_left_on_coyoneda() {
 		let coyo = Coyoneda::<OptionBrand, _>::lift(Some(5)).map(|x| x + 1);
-		let result = fold_left::<RcFnBrand, CoyonedaBrand<OptionBrand>, _, _>(
+		let result = fold_left::<RcFnBrand, CoyonedaBrand<OptionBrand>, _, _, _>(
 			|acc: i32, a: i32| acc + a,
 			10,
 			coyo,
@@ -1164,8 +1168,10 @@ mod tests {
 	#[test]
 	fn fold_map_on_none_is_empty() {
 		let coyo = Coyoneda::<OptionBrand, i32>::lift(None).map(|x| x + 1);
-		let result =
-			fold_map::<RcFnBrand, CoyonedaBrand<OptionBrand>, _, _>(|x: i32| x.to_string(), coyo);
+		let result = fold_map::<RcFnBrand, CoyonedaBrand<OptionBrand>, _, _, _>(
+			|x: i32| x.to_string(),
+			coyo,
+		);
 		assert_eq!(result, String::new());
 	}
 

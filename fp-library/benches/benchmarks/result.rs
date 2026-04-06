@@ -35,7 +35,7 @@ pub fn bench_result(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
+				fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(
 					|x, acc| x + acc,
 					0,
 					std::hint::black_box(val_ok),
@@ -53,7 +53,7 @@ pub fn bench_result(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
+				fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(
 					|acc, x| acc + x,
 					0,
 					std::hint::black_box(val_ok),

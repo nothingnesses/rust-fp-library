@@ -374,7 +374,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(fold_right::<RcFnBrand, VecBrand, _, _>(|x: i32, acc| x + acc, 0, vec![1, 2, 3]), 6);
+		/// assert_eq!(
+		/// 	fold_right::<RcFnBrand, VecBrand, _, _, _>(|x: i32, acc| x + acc, 0, vec![1, 2, 3]),
+		/// 	6
+		/// );
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
 			func: impl Fn(A, B) -> B + 'a,
@@ -413,7 +416,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(fold_left::<RcFnBrand, VecBrand, _, _>(|acc, x: i32| acc + x, 0, vec![1, 2, 3]), 6);
+		/// assert_eq!(
+		/// 	fold_left::<RcFnBrand, VecBrand, _, _, _>(|acc, x: i32| acc + x, 0, vec![1, 2, 3]),
+		/// 	6
+		/// );
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
 			func: impl Fn(B, A) -> B + 'a,
@@ -450,7 +456,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, VecBrand, _, _>(|x: i32| x.to_string(), vec![1, 2, 3]),
+		/// 	fold_map::<RcFnBrand, VecBrand, _, _, _>(|x: i32| x.to_string(), vec![1, 2, 3]),
 		/// 	"123".to_string()
 		/// );
 		/// ```
@@ -2359,7 +2365,7 @@ mod tests {
 	#[test]
 	fn fold_right_empty() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<RcFnBrand, VecBrand, _, _>(
+			crate::functions::fold_right::<RcFnBrand, VecBrand, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				vec![]
@@ -2372,7 +2378,7 @@ mod tests {
 	#[test]
 	fn fold_left_empty() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<RcFnBrand, VecBrand, _, _>(
+			crate::functions::fold_left::<RcFnBrand, VecBrand, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				vec![]
@@ -2770,7 +2776,7 @@ mod tests {
 		use crate::types::Additive;
 
 		let f = |x: i32| Additive(x as i64);
-		let seq_res = crate::classes::foldable::fold_map::<crate::brands::RcFnBrand, VecBrand, _, _>(
+		let seq_res = crate::functions::fold_map::<crate::brands::RcFnBrand, VecBrand, _, _, _>(
 			f,
 			xs.clone(),
 		);

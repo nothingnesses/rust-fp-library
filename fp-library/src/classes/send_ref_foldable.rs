@@ -12,7 +12,10 @@
 //! };
 //!
 //! let lazy = ArcLazy::new(|| 10);
-//! let result = send_ref_fold_map::<LazyBrand<ArcLazyConfig>, _, _>(|a: &i32| a.to_string(), lazy);
+//! let result = send_ref_fold_map::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _>(
+//! 	|a: &i32| a.to_string(),
+//! 	lazy,
+//! );
 //! assert_eq!(result, "10");
 //! ```
 
@@ -53,7 +56,10 @@ mod inner {
 		/// };
 		///
 		/// let lazy = ArcLazy::new(|| 5);
-		/// let result = send_ref_fold_map::<LazyBrand<ArcLazyConfig>, _, _>(|a: &i32| a.to_string(), lazy);
+		/// let result = send_ref_fold_map::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _>(
+		/// 	|a: &i32| a.to_string(),
+		/// 	lazy,
+		/// );
 		/// assert_eq!(result, "5");
 		/// ```
 		fn send_ref_fold_map<'a, A: Send + Sync + 'a, M>(
@@ -89,7 +95,10 @@ mod inner {
 	/// };
 	///
 	/// let lazy = ArcLazy::new(|| 5);
-	/// let result = send_ref_fold_map::<LazyBrand<ArcLazyConfig>, _, _>(|a: &i32| a.to_string(), lazy);
+	/// let result = send_ref_fold_map::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _>(
+	/// 	|a: &i32| a.to_string(),
+	/// 	lazy,
+	/// );
 	/// assert_eq!(result, "5");
 	/// ```
 	pub fn send_ref_fold_map<'a, Brand: SendRefFoldable, A: Send + Sync + 'a, M>(

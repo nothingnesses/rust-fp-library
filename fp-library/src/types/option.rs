@@ -302,7 +302,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_right::<RcFnBrand, OptionBrand, _, _>(|a, b| a + b, 10, x);
+		/// let y = fold_right::<RcFnBrand, OptionBrand, _, _, _>(|a, b| a + b, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -346,7 +346,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_left::<RcFnBrand, OptionBrand, _, _>(|b, a| b + a, 10, x);
+		/// let y = fold_left::<RcFnBrand, OptionBrand, _, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -387,7 +387,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_map::<RcFnBrand, OptionBrand, _, _>(|a: i32| a.to_string(), x);
+		/// let y = fold_map::<RcFnBrand, OptionBrand, _, _, _>(|a: i32| a.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -1151,7 +1151,7 @@ mod tests {
 	#[test]
 	fn fold_right_none() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<RcFnBrand, OptionBrand, _, _>(
+			crate::functions::fold_right::<RcFnBrand, OptionBrand, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				None
@@ -1164,7 +1164,7 @@ mod tests {
 	#[test]
 	fn fold_left_none() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<RcFnBrand, OptionBrand, _, _>(
+			crate::functions::fold_left::<RcFnBrand, OptionBrand, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				None

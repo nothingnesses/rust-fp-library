@@ -751,7 +751,7 @@ mod inner {
 		///
 		/// let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x * 10);
 		/// let result =
-		/// 	fold_map::<RcFnBrand, ArcCoyonedaBrand<VecBrand>, _, _>(|x: i32| x.to_string(), coyo);
+		/// 	fold_map::<RcFnBrand, ArcCoyonedaBrand<VecBrand>, _, _, _>(|x: i32| x.to_string(), coyo);
 		/// assert_eq!(result, "102030".to_string());
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -920,8 +920,10 @@ mod tests {
 	#[test]
 	fn fold_map_on_mapped() {
 		let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x * 10);
-		let result =
-			fold_map::<RcFnBrand, ArcCoyonedaBrand<VecBrand>, _, _>(|x: i32| x.to_string(), coyo);
+		let result = fold_map::<RcFnBrand, ArcCoyonedaBrand<VecBrand>, _, _, _>(
+			|x: i32| x.to_string(),
+			coyo,
+		);
 		assert_eq!(result, "102030".to_string());
 	}
 
@@ -988,11 +990,11 @@ mod tests {
 		#[quickcheck]
 		fn foldable_consistency_vec(v: Vec<i32>) -> bool {
 			let coyo = ArcCoyoneda::<VecBrand, _>::lift(v.clone()).map(|x: i32| x.wrapping_add(1));
-			let via_coyoneda: String = fold_map::<RcFnBrand, ArcCoyonedaBrand<VecBrand>, _, _>(
+			let via_coyoneda: String = fold_map::<RcFnBrand, ArcCoyonedaBrand<VecBrand>, _, _, _>(
 				|x: i32| x.to_string(),
 				coyo,
 			);
-			let direct: String = fold_map::<RcFnBrand, VecBrand, _, _>(
+			let direct: String = fold_map::<RcFnBrand, VecBrand, _, _, _>(
 				|x: i32| x.to_string(),
 				v.iter().map(|x| x.wrapping_add(1)).collect::<Vec<_>>(),
 			);

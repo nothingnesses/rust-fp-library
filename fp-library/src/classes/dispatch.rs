@@ -20,6 +20,7 @@
 //! - [`functor`]: `FunctorDispatch` + `map`
 //! - [`semimonad`]: `BindDispatch` + `bind`
 //! - [`lift`]: `Lift2Dispatch`-`Lift5Dispatch` + `lift2`-`lift5`
+//! - [`foldable`]: `FoldRightDispatch`, `FoldLeftDispatch`, `FoldMapDispatch` + `fold_right`, `fold_left`, `fold_map`
 //!
 //! ### Examples
 //!
@@ -90,6 +91,7 @@ mod inner {
 
 pub use inner::*;
 
+pub mod foldable;
 pub mod functor;
 pub mod lift;
 pub mod semimonad;
@@ -97,6 +99,11 @@ pub mod semimonad;
 // Re-export dispatch free functions at the dispatch module level
 // so they're accessible via `crate::classes::dispatch::map` etc.
 pub use {
+	foldable::{
+		fold_left,
+		fold_map,
+		fold_right,
+	},
 	functor::map,
 	lift::{
 		lift2,

@@ -106,7 +106,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, Tuple2Brand, _, _, _>(
+		/// 	bi_fold_right::<RcFnBrand, Tuple2Brand, _, _, _, _>(
 		/// 		|a: i32, acc| acc - a,
 		/// 		|b: i32, acc| acc + b,
 		/// 		0,
@@ -156,7 +156,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, Tuple2Brand, _, _, _>(
+		/// 	bi_fold_left::<RcFnBrand, Tuple2Brand, _, _, _, _>(
 		/// 		|acc, a: i32| acc - a,
 		/// 		|acc, b: i32| acc + b,
 		/// 		0,
@@ -204,7 +204,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, Tuple2Brand, _, _, _>(
+		/// 	bi_fold_map::<RcFnBrand, Tuple2Brand, _, _, _, _>(
 		/// 		|a: i32| a.to_string(),
 		/// 		|b: i32| b.to_string(),
 		/// 		(3, 5),
@@ -610,7 +610,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _>(|x, acc| x + acc, 0, ((), 5)),
+		/// 	fold_right::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _>(|x, acc| x + acc, 0, ((), 5)),
 		/// 	5
 		/// );
 		/// ```
@@ -652,7 +652,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _>(|acc, x| acc + x, 0, ((), 5)),
+		/// 	fold_left::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _>(|acc, x| acc + x, 0, ((), 5)),
 		/// 	5
 		/// );
 		/// ```
@@ -691,7 +691,10 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _>(|x: i32| x.to_string(), ((), 5)),
+		/// 	fold_map::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _>(
+		/// 		|x: i32| x.to_string(),
+		/// 		((), 5)
+		/// 	),
 		/// 	"5".to_string()
 		/// );
 		/// ```
@@ -1116,7 +1119,11 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _>(|x, acc| x + acc, 0, (5, ())),
+		/// 	fold_right::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _>(
+		/// 		|x, acc| x + acc,
+		/// 		0,
+		/// 		(5, ())
+		/// 	),
 		/// 	5
 		/// );
 		/// ```
@@ -1155,7 +1162,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _>(|acc, x| acc + x, 0, (5, ())),
+		/// 	fold_left::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _>(|acc, x| acc + x, 0, (5, ())),
 		/// 	5
 		/// );
 		/// ```
@@ -1194,7 +1201,10 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _>(|x: i32| x.to_string(), (5, ())),
+		/// 	fold_map::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _>(
+		/// 		|x: i32| x.to_string(),
+		/// 		(5, ())
+		/// 	),
 		/// 	"5".to_string()
 		/// );
 		/// ```

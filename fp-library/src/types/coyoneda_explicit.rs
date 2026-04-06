@@ -800,7 +800,7 @@ mod inner {
 		///
 		/// let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).map(|x| x * 10).boxed();
 		///
-		/// let result = fold_map::<RcFnBrand, CoyonedaExplicitBrand<VecBrand, i32>, _, _>(
+		/// let result = fold_map::<RcFnBrand, CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(
 		/// 	|x: i32| x.to_string(),
 		/// 	coyo,
 		/// );
@@ -1330,7 +1330,7 @@ mod tests {
 	fn brand_foldable_fold_map() {
 		let coyo =
 			CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).map(|x| x * 10).boxed();
-		let result = fold_map::<RcFnBrand, CoyonedaExplicitBrand<VecBrand, i32>, _, _>(
+		let result = fold_map::<RcFnBrand, CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(
 			|x: i32| x.to_string(),
 			coyo,
 		);
@@ -1341,7 +1341,7 @@ mod tests {
 	fn brand_foldable_fold_right() {
 		let coyo =
 			CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).map(|x| x * 2).boxed();
-		let result = fold_right::<RcFnBrand, CoyonedaExplicitBrand<VecBrand, i32>, _, _>(
+		let result = fold_right::<RcFnBrand, CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(
 			|a: i32, b: i32| a + b,
 			0,
 			coyo,
@@ -1352,7 +1352,7 @@ mod tests {
 	#[test]
 	fn brand_foldable_on_none() {
 		let coyo = CoyonedaExplicit::<OptionBrand, i32, i32, _>::lift(None).map(|x| x + 1).boxed();
-		let result = fold_map::<RcFnBrand, CoyonedaExplicitBrand<OptionBrand, i32>, _, _>(
+		let result = fold_map::<RcFnBrand, CoyonedaExplicitBrand<OptionBrand, i32>, _, _, _>(
 			|x: i32| x.to_string(),
 			coyo,
 		);
