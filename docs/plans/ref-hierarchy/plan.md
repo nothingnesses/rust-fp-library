@@ -162,10 +162,12 @@ Consider which other types could implement the by-ref hierarchy:
    generates `ref_bind` calls. `m_do!(VecBrand { ... })` generates `bind`
    calls as before. One macro, explicit ownership mode at the block level.
 
-5. **Skip RefFoldable and RefTraversable initially.** `Lazy` already
-   implements `Foldable` in the by-value hierarchy. Adding by-ref variants
-   doesn't unlock new generic programming capabilities the way `RefMonad`
-   does. Revisit if a concrete use case emerges.
+5. **Add `RefFoldable`, skip `RefTraversable` initially.** `Lazy`'s
+   by-value `Foldable` impl is semantically dishonest: it takes `self`
+   but internally borrows via `evaluate()`. `RefFoldable` fixes this by
+   honestly taking `&self`, matching the `RefFunctor` pattern.
+   `RefTraversable` is deferred (complex interaction with the applicative
+   used for the output context). Revisit if a concrete use case emerges.
 
 ## Proof of Concept Results
 
@@ -282,32 +284,42 @@ element access) was investigated and rejected for three reasons:
       Explicit re-exports added to `functions.rs` since the macro
       scanner does not traverse sub-directories.
 
-15. **Remaining dispatch operations**: Apply the same pattern to
-    the remaining operations, each in its own dispatch/ sub-module.
+15. **Remove `dispatch/apply_first.rs`**: Delete the incorrectly
+    created dispatch file. `apply_first` and `apply_second` take
+    two containers and no closure, so there is no argument for the
+    compiler to infer `Val`/`Ref` from. These remain as separate
+    `apply_first` / `ref_apply_first` free functions.
 
-    **Closure-dispatched** (not yet done):
-    - `dispatch/apply_first.rs` (apply_first)
-    - `dispatch/apply_second.rs` (apply_second)
-    - `dispatch/monad.rs` (if_m, unless_m, join, bind_flipped,
-      compose_kleisli, compose_kleisli_flipped, when, unless, when_m)
+16. **Add `RefFoldable` and `SendRefFoldable`**: The current
+    `Foldable` impl for `Lazy` is semantically dishonest: it takes
+    `self` (by value, moving the `Rc`/`Arc`) but internally calls
+    `evaluate()` which returns `&A`. Callers who clone before
+    folding are paying for a pointless `Rc::clone`. `RefFoldable`
+    fixes this by honestly taking `&self`, matching the pattern
+    already established by `RefFunctor`. Implement for
+    `LazyBrand<RcLazyConfig>` and `LazyBrand<ArcLazyConfig>`.
 
-    **Container-dispatched** (not yet done):
-    - `dispatch/semiapplicative.rs` (apply). The dispatch trait
-      differentiates `Of<CloneFn::Of<A, B>>` (Val, routes to
-      `Semiapplicative`) from `Of<CloneFn<Ref>::Of<A, B>>` (Ref,
-      routes to `RefSemiapplicative`). If the compiler cannot
-      differentiate these in practice, keep `apply` and `ref_apply`
-      as separate free functions (fallback).
+17. **Remaining dispatch operations**: Apply the dispatch pattern
+    to operations that take closures (inference works).
 
-    **Not dispatched** (no closure or container to infer from):
-    `pure`, `ref_pure`. These remain separate free functions.
+    **Closure-dispatched:**
+    - `dispatch/monad.rs` (if_m, unless_m)
 
-    The same applies to SendRef variants (`send_ref_*` free functions
-    become part of their dispatched equivalents).
+    **Needs ref variants first, then dispatch:**
+    - `ref_join`, `ref_bind_flipped`, `ref_compose_kleisli`,
+      `ref_compose_kleisli_flipped` added to `ref_semimonad.rs`,
+      then dispatched in `dispatch/semimonad.rs`.
 
-16. **Documentation and tests**: Property tests for type class
+    **Not dispatchable** (no closure or container to infer from):
+    - `pure`, `ref_pure`, `send_ref_pure`
+    - `apply_first`, `ref_apply_first`, `send_ref_apply_first`
+    - `apply_second`, `ref_apply_second`, `send_ref_apply_second`
+    - `apply`, `ref_apply`, `send_ref_apply`
+      These remain as separate free functions.
+
+18. **Documentation and tests**: Property tests for type class
     laws, doc examples, update limitations.md.
-17. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
+19. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
     generates `ref_bind` calls for by-ref monadic code.
 
 ## Design Decision: CloneableFn with Mode Parameter
