@@ -307,27 +307,66 @@ element access) was investigated and rejected for three reasons:
     - `RefBifunctor`, `RefBifoldable`, `RefBitraversable` and their
       WithIndex variants (no memoized bifunctor type exists).
 
-17. **Remaining dispatch operations**: Apply the dispatch pattern
-    to operations that take closures (inference works).
+17. **Add missing free functions for WithIndex traits**: Several
+    WithIndex traits define trait methods but no free functions.
+    Add free functions for:
+    - `FunctorWithIndex`: `map_with_index`
+    - `FoldableWithIndex`: `fold_map_with_index`
+    - `TraversableWithIndex`: `traverse_with_index`
+    - `RefFoldableWithIndex`: `ref_fold_map_with_index`
+    - `RefFunctorWithIndex`: `ref_map_with_index`
+    - `SendRefFoldableWithIndex`: `send_ref_fold_map_with_index`
+    - `SendRefFunctorWithIndex`: `send_ref_map_with_index`
 
-    **Closure-dispatched:**
-    - `dispatch/monad.rs` (if_m, unless_m)
+18. **Add ref semimonad helpers**: Add ref variants for semimonad
+    convenience functions:
+    - `ref_bind_flipped` in `ref_semimonad.rs`
+    - `ref_compose_kleisli` in `ref_semimonad.rs`
+    - `ref_compose_kleisli_flipped` in `ref_semimonad.rs`
+    - `ref_join` is not dispatchable (no closure), keep separate.
+      Add SendRef variants for ArcLazy where applicable.
 
-    **Needs ref variants first, then dispatch:**
-    - `ref_join`, `ref_bind_flipped`, `ref_compose_kleisli`,
-      `ref_compose_kleisli_flipped` added to `ref_semimonad.rs`,
-      then dispatched in `dispatch/semimonad.rs`.
+19. **Dispatch foldable operations**: Add `dispatch/foldable.rs`
+    unifying:
+    - `fold_right` / `ref_fold_right`
+    - `fold_left` / `ref_fold_left`
+    - `fold_map` / `ref_fold_map`
+      Note: both paths take `FnBrand` parameter, unlike other
+      dispatch traits.
+
+20. **Dispatch semimonad helpers**: Extend `dispatch/semimonad.rs`
+    to unify:
+    - `bind_flipped` / `ref_bind_flipped`
+    - `compose_kleisli` / `ref_compose_kleisli`
+    - `compose_kleisli_flipped` / `ref_compose_kleisli_flipped`
+
+21. **Add RefFilterable hierarchy** (deferred until needed):
+    - `RefCompactable` (ref_compact, ref_separate)
+    - `RefFilterable: RefFunctor + RefCompactable`
+      (ref_filter_map, ref_filter, ref_partition_map, ref_partition)
+    - `RefFilterableWithIndex: RefFilterable + WithIndex`
+    - `RefWitherable: RefFilterable + RefFoldable`
+      (ref_wilt, ref_wither)
+    - SendRef variants for all of the above.
+    - Dispatch unification for filter_map, partition_map, filter,
+      partition, wilt, wither once ref variants exist.
+      These are deferred because no memoized type currently
+      implements Filterable/Witherable.
 
     **Not dispatchable** (no closure or container to infer from):
     - `pure`, `ref_pure`, `send_ref_pure`
     - `apply_first`, `ref_apply_first`, `send_ref_apply_first`
     - `apply_second`, `ref_apply_second`, `send_ref_apply_second`
     - `apply`, `ref_apply`, `send_ref_apply`
+    - `if_m`, `ref_if_m` (takes containers, not closures)
+    - `unless_m`, `when_m`, `when`, `unless`
+    - `join`, `ref_join`
+    - `compact`, `separate`
       These remain as separate free functions.
 
-18. **Documentation and tests**: Property tests for type class
+22. **Documentation and tests**: Property tests for type class
     laws, doc examples, update limitations.md.
-19. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
+23. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
     generates `ref_bind` calls for by-ref monadic code.
 
 ## Design Decision: CloneableFn with Mode Parameter
