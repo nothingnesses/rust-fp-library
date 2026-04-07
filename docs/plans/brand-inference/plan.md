@@ -211,6 +211,12 @@ internally) instead of `bind_explicit::<Brand, _, _>(expr, ...)`. This is a
 natural follow-on once the core inference functions exist. The
 Brand-explicit syntax remains available for ambiguous types.
 
+Both macros now also support a `ref` qualifier (`m_do!(ref Brand { ... })`
+and `a_do!(ref Brand { ... })`) for by-reference dispatch to
+`RefSemimonad`/`RefLift`. Brand inference should work with ref mode as
+well: `m_do!(ref { a <- lazy_a; pure(*a * 2) })` would infer the brand
+from `lazy_a`'s type.
+
 ### Interaction with the `Apply!` Macro
 
 The `Apply!` macro is used in function signatures to project
@@ -471,7 +477,7 @@ requires careful handling of lifetime and type parameter ordering.
 
 ## POC Results
 
-The POC is implemented in `fp-library/src/classes/functor_dispatch.rs`
+The POC is implemented in `fp-library/src/classes/dispatch.rs`
 under `#[cfg(test)] mod brand_inference_poc`. All 5 tests pass.
 
 ### What works
@@ -602,7 +608,8 @@ interference.
 
 10. **Extend `m_do!` and `a_do!`.** Add brand-free syntax that generates
     inference-based function calls. The Brand-explicit syntax remains
-    available.
+    available. Support both val and ref modes: `m_do!({ ... })` for
+    val inference, `m_do!(ref { ... })` for ref inference.
 
 11. **Documentation.** Update crate docs, README examples, and
     `fp-library/docs/features.md` to show the inference-based calling
@@ -622,7 +629,7 @@ interference.
   compiler to infer the type constructor from the concrete type. Avoids the
   multi-brand ambiguity problem by not supporting partial application of
   bifunctors.
-- Current `FunctorDispatch` system: `fp-library/src/classes/functor_dispatch.rs`.
+- Current `FunctorDispatch` system: `fp-library/src/classes/dispatch.rs`.
   Shows marker-type dispatch for Val/Ref; brand inference composes with this.
 - `Kind` trait definitions: `fp-library/src/kinds.rs`.
 - Brand definitions: `fp-library/src/brands.rs`.
