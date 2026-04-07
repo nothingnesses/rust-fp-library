@@ -428,9 +428,51 @@ element access) was investigated and rejected for three reasons:
       `par_ref_filter_with_index`. All implemented for Vec and CatList.
       Elements require `Send + Sync` for rayon's `par_iter()`.
 
-25. **Documentation and tests**: Property tests for type class
-    laws, doc examples, update limitations.md.
-26. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
+25. **Documentation updates**: Fix stale trait name references and
+    add missing documentation for new trait families.
+
+    **Stale trait name references to fix:**
+    - `CLAUDE.md` line 230: `SendCloneableFn`, `CloneableFn` -> `SendCloneFn`, `CloneFn`
+    - `parallelism.md` line 30: `SendCloneableFn`, `CloneableFn` -> `SendCloneFn`, `CloneFn`
+    - `pointer-abstraction.md` line 22: `CloneableFn`, `SendCloneableFn` -> `CloneFn`, `SendCloneFn`
+    - `optics-analysis.md` line 408: `CloneableFn` -> `CloneFn`
+    - `profunctor-analysis.md` lines 14, 92, 144: `CloneableFn` -> `CloneFn`
+    - `std-coverage-checklist.md` line 37: `Function` -> `Arrow`
+    - `CHANGELOG.md`: historical references, leave as-is
+
+    **Missing documentation to add:**
+    - `parallelism.md`: add ParRef trait family table
+    - `pointer-abstraction.md`: add ClosureMode, CloneFn/Arrow hierarchy
+    - `features.md`: add Ref, SendRef, ParRef trait families
+    - `std-coverage-checklist.md`: add all Ref/SendRef/ParRef traits
+    - `limitations-and-workarounds.md`: add section on Ref hierarchy as
+      workaround for memoized types
+
+26. **Tests**: Add property-based and unit tests for Ref trait impls.
+
+    **Property tests needed (quickcheck):**
+    - Vec: RefFunctor identity/composition, RefFoldable consistency,
+      RefSemimonad associativity/identity, ParRefFunctor equivalence
+    - Option: same as Vec + None edge cases
+    - CatList: same as Vec
+    - Identity: RefFunctor, RefFoldable, RefSemimonad
+    - Lazy: RefFunctor, RefFoldable, RefPointed, RefSemimonad,
+      RefApplicative, RefMonad law tests
+    - TryLazy: RefFunctor, RefFoldable for Ok/Err paths
+
+    **Unit tests needed:**
+    - Empty containers (Vec::new(), None, CatList::empty())
+    - Single elements
+    - Multiple elements
+    - RefTraversable, RefFilterable, RefWitherable for each type
+    - ParRef equivalence with sequential Ref ops
+
+    **Current coverage:**
+    - Lazy: 5 unit tests (basic fold ops)
+    - TryLazy: 12 unit tests (Ok/Err cases, identity laws)
+    - Vec, Option, CatList, Identity: zero Ref-specific tests
+
+27. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
     generates `ref_bind` calls for by-ref monadic code.
 
 ## Design Decision: CloneableFn with Mode Parameter
