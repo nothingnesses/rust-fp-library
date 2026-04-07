@@ -38,6 +38,7 @@ mod inner {
 				Semigroup,
 				SendCloneFn,
 				SendDeferrable,
+				SendLiftFn,
 				SendRefFoldable,
 				SendRefFoldableWithIndex,
 				SendRefFunctor,
@@ -1068,6 +1069,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters(
 			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
 			"The type of the computed value.",
 			"The monoid type."
 		)]
@@ -1083,15 +1085,19 @@ mod inner {
 		/// };
 		///
 		/// let lazy = ArcLazy::new(|| 5);
-		/// let result = send_ref_fold_map::<LazyBrand<ArcLazyConfig>, _, _>(|a: &i32| a.to_string(), lazy);
+		/// let result = send_ref_fold_map::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(
+		/// 	|a: &i32| a.to_string(),
+		/// 	lazy,
+		/// );
 		/// assert_eq!(result, "5");
 		/// ```
-		fn send_ref_fold_map<'a, A: Send + Sync + 'a, M>(
+		fn send_ref_fold_map<'a, FnBrand, A: Send + Sync + 'a + Clone, M>(
 			func: impl Fn(&A) -> M + Send + Sync + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
-			M: Monoid + 'a, {
+			FnBrand: SendLiftFn + 'a,
+			M: Monoid + Send + Sync + 'a, {
 			func(fa.evaluate())
 		}
 	}
@@ -1103,6 +1109,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters(
 			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
 			"The type of the computed value.",
 			"The monoid type."
 		)]
@@ -1119,16 +1126,24 @@ mod inner {
 		///
 		/// let lazy = ArcLazy::new(|| 42);
 		/// let result =
-		/// 	<LazyBrand<ArcLazyConfig> as SendRefFoldableWithIndex>::send_ref_fold_map_with_index(
-		/// 		|_, x: &i32| x.to_string(),
-		/// 		lazy,
-		/// 	);
+		/// 	<LazyBrand<ArcLazyConfig> as SendRefFoldableWithIndex>::send_ref_fold_map_with_index::<
+		/// 		ArcFnBrand,
+		/// 		_,
+		/// 		_,
+		/// 	>(|_, x: &i32| x.to_string(), lazy);
 		/// assert_eq!(result, "42");
 		/// ```
-		fn send_ref_fold_map_with_index<'a, A: Send + Sync + 'a, R: Monoid>(
+		fn send_ref_fold_map_with_index<
+			'a,
+			FnBrand,
+			A: Send + Sync + 'a + Clone,
+			R: Monoid + Send + Sync + 'a,
+		>(
 			f: impl Fn((), &A) -> R + Send + Sync + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> R {
+		) -> R
+		where
+			FnBrand: SendLiftFn + 'a, {
 			f((), fa.evaluate())
 		}
 	}
