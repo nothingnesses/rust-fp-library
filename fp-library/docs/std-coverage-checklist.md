@@ -34,7 +34,7 @@ This document tracks the coverage of `fp-library` against functionality provided
 | **`FilterableWithIndex`**    | `Iterator::enumerate + filter`           | `classes/filterable_with_index.rs`     |
 | **`Foldable`**               | `Iterator::fold`                         | `classes/foldable.rs`                  |
 | **`FoldableWithIndex`**      | `Iterator::enumerate + fold`             | `classes/foldable_with_index.rs`       |
-| **`Function`**               | `Fn`                                     | `classes/function.rs`                  |
+| **`Arrow`**                  | `Fn` (composable)                        | `classes/arrow.rs`                     |
 | **`Functor`**                | `Iterator::map`, `Option::map`           | `classes/functor.rs`                   |
 | **`FunctorWithIndex`**       | `Iterator::enumerate + map`              | `classes/functor_with_index.rs`        |
 | **`HeytingAlgebra`**         | `bool` operations                        | `classes/heyting_algebra.rs`           |

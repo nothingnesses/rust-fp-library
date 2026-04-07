@@ -19,7 +19,7 @@ graph TD
 - `RcFnBrand` is a type alias for `FnBrand<RcBrand>`.
 - `ArcFnBrand` is a type alias for `FnBrand<ArcBrand>`.
 
-This allows a unified implementation of `CloneableFn` while `SendCloneableFn` is only implemented when `P: SendRefCountedPointer`. Code that is generic over the pointer brand can work with either `Rc` or `Arc` without duplication.
+This allows a unified implementation of `CloneFn` while `SendCloneFn` is only implemented when `P: SendRefCountedPointer`. Both traits are parameterized by `ClosureMode` (`Val` or `Ref`), controlling whether the wrapped closure takes its input by value (`Fn(A) -> B`) or by reference (`Fn(&A) -> B`). The composable variant `Arrow` (for optics) adds `Category + Strong` supertraits. Code that is generic over the pointer brand can work with either `Rc` or `Arc` without duplication.
 
 ## Shared Memoization
 

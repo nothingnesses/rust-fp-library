@@ -6,15 +6,15 @@ This document compares the profunctor class hierarchy in `fp-library` against th
 
 ## 1. Class Hierarchy Comparison
 
-| PureScript     | Rust                                 | Superclass        | Status                   |
-| -------------- | ------------------------------------ | ----------------- | ------------------------ |
-| `Profunctor p` | `Profunctor`                         | -                 | Complete                 |
-| `Strong p`     | `Strong`                             | `Profunctor`      | Complete                 |
-| `Choice p`     | `Choice`                             | `Profunctor`      | Complete                 |
-| `Closed p`     | `Closed<FunctionBrand: CloneableFn>` | `Profunctor`      | Complete (parameterized) |
-| `Cochoice p`   | `Cochoice`                           | `Profunctor`      | Complete                 |
-| `Costrong p`   | `Costrong`                           | `Profunctor`      | Complete                 |
-| `Wander p`     | `Wander`                             | `Strong + Choice` | Complete                 |
+| PureScript     | Rust                             | Superclass        | Status                   |
+| -------------- | -------------------------------- | ----------------- | ------------------------ |
+| `Profunctor p` | `Profunctor`                     | -                 | Complete                 |
+| `Strong p`     | `Strong`                         | `Profunctor`      | Complete                 |
+| `Choice p`     | `Choice`                         | `Profunctor`      | Complete                 |
+| `Closed p`     | `Closed<FunctionBrand: CloneFn>` | `Profunctor`      | Complete (parameterized) |
+| `Cochoice p`   | `Cochoice`                       | `Profunctor`      | Complete                 |
+| `Costrong p`   | `Costrong`                       | `Profunctor`      | Complete                 |
+| `Wander p`     | `Wander`                         | `Strong + Choice` | Complete                 |
 
 The class hierarchy is faithfully reproduced. All superclass relationships match.
 
@@ -89,7 +89,7 @@ This means `Choice::left` acts on the `Err` variant and `Choice::right` acts on 
 
 ### 3.2 `Closed` parameterization
 
-PureScript's `Closed` uses bare function types `x -> a`. Rust cannot express this directly -closures must be wrapped in `Rc<dyn Fn>` or `Arc<dyn Fn>`. The Rust `Closed<FunctionBrand: CloneableFn>` trait takes an extra type parameter `FunctionBrand` to abstract over the function wrapping strategy.
+PureScript's `Closed` uses bare function types `x -> a`. Rust cannot express this directly -closures must be wrapped in `Rc<dyn Fn>` or `Arc<dyn Fn>`. The Rust `Closed<FunctionBrand: CloneFn>` trait takes an extra type parameter `FunctionBrand` to abstract over the function wrapping strategy.
 
 ### 3.3 `fan_out` requires `A: Clone`
 
@@ -141,7 +141,7 @@ All profunctor free functions consistently use `Brand` for the profunctor type p
 ```rust
 pub fn dimap<'a, Brand: Profunctor, ...>(...) { ... }
 pub fn first<'a, Brand: Strong, ...>(...) { ... }
-pub fn closed<'a, Brand: Closed<FunctionBrand>, FunctionBrand: CloneableFn, ...>(...) { ... }
+pub fn closed<'a, Brand: Closed<FunctionBrand>, FunctionBrand: CloneFn, ...>(...) { ... }
 ```
 
 This is consistent within the profunctor module. However, the optics code uses `P` for profunctor parameters (e.g., `Optic::evaluate<P: Profunctor>`). This is a minor naming difference between the two modules -`Brand` in profunctor classes vs `P` in optic traits -but both are single-concept identifiers and the bounds disambiguate.

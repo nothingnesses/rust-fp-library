@@ -227,7 +227,7 @@ When modifying optics code:
 For parallel/concurrent code:
 
 1. Use `ArcFnBrand` instead of `RcFnBrand`
-2. Use `SendCloneableFn` trait instead of `CloneableFn`
+2. Use `SendCloneFn` trait instead of `CloneFn`
 3. Use `ParFoldable` trait for parallel folding (requires `rayon` feature)
 4. Ensure all captured data is `Send + Sync`
 

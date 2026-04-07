@@ -27,7 +27,7 @@ graph TD
 `ParFilterable` provides default implementations of `par_filter_map` and `par_filter`
 derived from `par_map` + `par_compact`; types can override them for single-pass efficiency.
 
-- **`SendCloneableFn`**: Extends `CloneableFn` to provide `Send + Sync` function wrappers. Implemented by `ArcFnBrand`.
+- **`SendCloneFn`**: Thread-safe cloneable function wrappers with `Send + Sync` bounds. Implemented by `ArcFnBrand`.
 - **Rayon Support**: When the `rayon` feature is enabled, `par_*` functions use rayon for true parallel execution. Otherwise they fall back to sequential equivalents.
 
 ```
