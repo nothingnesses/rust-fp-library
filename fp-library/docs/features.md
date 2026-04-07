@@ -70,9 +70,25 @@ graph TD
 `ParFunctorWithIndex`, `ParFoldableWithIndex`, `ParFilterableWithIndex` mirror the sequential
 hierarchy with `Send + Sync` bounds. Enable the `rayon` feature for true parallel execution.
 
-**Laziness and effects:** `RefFunctor`, `SendRefFunctor` for mapping over memoized types.
-`Deferrable`, `SendDeferrable` for lazy construction. `LazyConfig`, `TryLazyConfig` for
-memoization strategy abstraction.
+**By-reference hierarchy:** A full by-ref type class stack for memoized types and
+by-reference iteration over collections:
+
+- `RefFunctor`, `RefPointed`, `RefLift`, `RefSemiapplicative`, `RefSemimonad`,
+  `RefApplicative`, `RefMonad`, `RefApplyFirst`, `RefApplySecond`
+- `RefFoldable`, `RefTraversable`, `RefFilterable`, `RefWitherable`
+- `RefFunctorWithIndex`, `RefFoldableWithIndex`, `RefFilterableWithIndex`,
+  `RefTraversableWithIndex`
+
+**Thread-safe by-reference:** `SendRefFunctor`, `SendRefPointed`, `SendRefLift`,
+`SendRefSemiapplicative`, `SendRefSemimonad`, `SendRefApplicative`, `SendRefMonad`,
+`SendRefFoldable`, `SendRefFoldableWithIndex`, `SendRefFunctorWithIndex`,
+`SendRefApplyFirst`, `SendRefApplySecond`.
+
+**Parallel by-reference:** `ParRefFunctor`, `ParRefFoldable`, `ParRefFilterable`,
+`ParRefFunctorWithIndex`, `ParRefFoldableWithIndex`, `ParRefFilterableWithIndex`.
+
+**Laziness and effects:** `Deferrable`, `SendDeferrable` for lazy construction.
+`LazyConfig` for memoization strategy abstraction.
 
 ### Optics
 
