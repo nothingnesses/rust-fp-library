@@ -4,6 +4,24 @@ This plan addresses all issues identified across the seven analysis
 documents. Issues are grouped by priority, with alternatives and
 trade-offs noted where applicable.
 
+## Status
+
+Phases 1 and 2 are complete. Phase 3 is next.
+
+| Item                                   | Status | Deviations                                                                                                                                                                                                                                                                                     |
+| -------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.1 Fix broken UI tests                | Done   | As planned.                                                                                                                                                                                                                                                                                    |
+| 1.2 Fix stale FnOnce docs              | Done   | As planned.                                                                                                                                                                                                                                                                                    |
+| 1.3 Fix phantom ref_sequence doc       | Done   | Approach A (remove false claim).                                                                                                                                                                                                                                                               |
+| 1.4 Fix stale turbofish                | Done   | As planned.                                                                                                                                                                                                                                                                                    |
+| 2.1 Add RefLiftFn trait                | Done   | Combined Approaches A and B: added both `RefLiftFn`/`SendRefLiftFn` traits and `coerce_ref_fn`/`coerce_send_ref_fn` on `UnsizedCoercible`/`SendUnsizedCoercible`. Method name `ref_new` (not `new_ref`), free functions `ref_lift_fn_new`/`send_ref_lift_fn_new`.                              |
+| 2.2 Standardize dispatch imports       | Done   | As planned.                                                                                                                                                                                                                                                                                    |
+| 2.3 Remove BindFlippedDispatch         | Done   | `bind_flipped` delegates to `BindDispatch`. `compose_kleisli_flipped` swaps the tuple and delegates to `ComposeKleisliDispatch` with explicit `F, G` type params and `(G, F): ComposeKleisliDispatch` bound. This changes the turbofish from 5 to 7 underscores for `compose_kleisli_flipped`. |
+| 2.4 Resolve SendRefFoldable supertrait | Done   | Approach A: removed `RefFoldable` supertrait. Approach B (add Ref traits to ArcLazy) was investigated and found infeasible; `ArcLazy::new` requires `Send` on closures, which `Ref` trait signatures cannot guarantee.                                                                         |
+| 2.5 Unify Setter/IndexedSetter         | Done   | As planned.                                                                                                                                                                                                                                                                                    |
+| 2.6 Add 'a to SendCloneFn::Of          | Done   | As planned.                                                                                                                                                                                                                                                                                    |
+| 2.7 Tighten Closed to LiftFn           | Done   | 6 source sites + 2 doc files updated. Also required updating `composed.rs` import from `CloneFn` to `LiftFn`.                                                                                                                                                                                  |
+
 ## Priority 1: Correctness Fixes
 
 These items affect correctness, produce misleading test results, or
@@ -451,40 +469,22 @@ plan step 22 is marked done. Update or remove the entry.
 
 ## Implementation Order
 
-The recommended implementation order, grouping items that can be done
-together:
+**Phase 1: Correctness fixes (Priority 1)** -- Done.
 
-**Phase 1: Correctness fixes (Priority 1)**
+**Phase 2: API consistency (Priority 2)** -- Done.
 
-All four items can be done in parallel:
+**Phase 3: Coverage gaps (Priority 3)** -- Next.
 
-- 1.1 Fix UI tests
-- 1.2 Fix stale FnOnce docs
-- 1.3 Fix phantom ref_sequence doc
-- 1.4 Fix stale turbofish
-
-**Phase 2: API consistency (Priority 2)**
-
-Items 2.2, 2.3, 2.5, 2.6, 2.7 are independent and can be parallelized.
-Items 2.1 and 2.4 are more involved and should be done sequentially.
-
-- 2.2 Standardize dispatch imports
-- 2.3 Remove BindFlippedDispatch
-- 2.5 Unify Setter/IndexedSetter
-- 2.6 Add 'a to SendCloneFn::Of
-- 2.7 Tighten Closed to require LiftFn
-- 2.1 Add LiftRefFn trait
-- 2.4 Remove RefFoldable supertrait from SendRefFoldable, add docs
-
-**Phase 3: Coverage gaps (Priority 3)**
+Items 3.1, 3.2, 3.4, 3.6 are independent and can be parallelized.
+Items 3.3 and 3.5 are larger and can be done sequentially or in
+parallel with worktree isolation.
 
 - 3.1 Result Ref impls
 - 3.2 Pair/Tuple Ref impls
-- 3.3 Test coverage
-- 3.4 Macro docs
+- 3.3 Test coverage (macro ref-mode tests, law property tests,
+  dispatch benchmarks)
+- 3.4 Macro docs (multi-bind limitation)
 - 3.5 Dispatch for filter_map/traverse
 - 3.6 Document lift3-5 Clone requirements
 
-**Phase 4: Improvements (Priority 4)**
-
-Address opportunistically or as follow-up work.
+**Phase 4: Improvements (Priority 4)** -- Address opportunistically.

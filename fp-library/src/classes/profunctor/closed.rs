@@ -25,7 +25,7 @@ mod inner {
 	///
 	/// This trait inherits from [`Profunctor`].
 	#[document_type_parameters("The cloneable function brand.")]
-	pub trait Closed<FunctionBrand: CloneFn>: Profunctor {
+	pub trait Closed<FunctionBrand: LiftFn>: Profunctor {
 		/// Lift a profunctor to operate on functions.
 		///
 		/// This method takes a profunctor `P A B` and returns
@@ -104,7 +104,7 @@ mod inner {
 	pub fn closed<
 		'a,
 		Brand: Closed<FunctionBrand>,
-		FunctionBrand: CloneFn,
+		FunctionBrand: LiftFn,
 		A: 'a,
 		B: 'a + Clone,
 		X: 'a + Clone,

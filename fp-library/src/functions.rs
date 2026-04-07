@@ -25,12 +25,14 @@ use fp_macros::*;
 fp_macros::generate_function_re_exports!("src/classes", {
 	"category::identity": category_identity,
 	"clone_fn::new": lift_fn_new,
+	"clone_fn::ref_new": ref_lift_fn_new,
 	"pointer::new": pointer_new,
 	"ref_counted_pointer::cloneable_new": ref_counted_pointer_new,
 	"send_ref_counted_pointer::send_new": send_ref_counted_pointer_new,
 	"plus::empty": plus_empty,
 	"semigroupoid::compose": semigroupoid_compose,
 	"send_clone_fn::new": send_lift_fn_new,
+	"send_clone_fn::ref_new": send_ref_lift_fn_new,
 });
 // Dispatch free functions are in sub-modules not scanned by the macro.
 pub use crate::{

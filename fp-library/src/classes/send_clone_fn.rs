@@ -25,6 +25,7 @@ mod inner {
 	use {
 		crate::classes::dispatch::{
 			ClosureMode,
+			Ref,
 			Val,
 		},
 		fp_macros::*,
@@ -56,7 +57,11 @@ mod inner {
 		///
 		/// This associated type represents the concrete type of the wrapper (e.g., `Arc<dyn Fn(A) -> B + Send + Sync>`)
 		/// that implements `Clone`, `Send`, `Sync` and dereferences to the underlying closure.
-		type Of<'a, A: 'a, B: 'a>: Clone + Send + Sync + Deref<Target = Mode::SendTarget<'a, A, B>>;
+		type Of<'a, A: 'a, B: 'a>: 'a
+			+ Clone
+			+ Send
+			+ Sync
+			+ Deref<Target = Mode::SendTarget<'a, A, B>>;
 	}
 
 	/// A trait for constructing thread-safe cloneable function wrappers from closures.
@@ -141,6 +146,70 @@ mod inner {
 	where
 		Brand: SendLiftFn, {
 		<Brand as SendLiftFn>::new(f)
+	}
+
+	/// A trait for constructing thread-safe Ref-mode cloneable function wrappers.
+	///
+	/// This mirrors [`SendLiftFn`] but for by-reference closures (`Fn(&A) -> B + Send + Sync`).
+	pub trait SendRefLiftFn: SendCloneFn<Ref> {
+		/// Creates a new thread-safe cloneable by-reference function wrapper.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the function and its captured data.",
+			"The input type (the closure receives `&A`).",
+			"The output type of the function."
+		)]
+		///
+		#[document_parameters("The by-reference closure to wrap. Must be `Send + Sync`.")]
+		#[document_returns("The wrapped thread-safe cloneable by-reference function.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f = send_ref_lift_fn_new::<ArcFnBrand, _, _>(|x: &i32| *x * 2);
+		/// assert_eq!(f(&5), 10);
+		/// ```
+		fn ref_new<'a, A: 'a, B: 'a>(
+			f: impl 'a + Fn(&A) -> B + Send + Sync
+		) -> <Self as SendCloneFn<Ref>>::Of<'a, A, B>;
+	}
+
+	/// Creates a new thread-safe cloneable by-reference function wrapper.
+	///
+	/// Free function version that dispatches to [`SendRefLiftFn::ref_new`].
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The brand of the thread-safe cloneable function wrapper.",
+		"The input type (the closure receives `&A`).",
+		"The output type of the function."
+	)]
+	///
+	#[document_parameters("The by-reference closure to wrap. Must be `Send + Sync`.")]
+	#[document_returns("The wrapped thread-safe cloneable by-reference function.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let f = send_ref_lift_fn_new::<ArcFnBrand, _, _>(|x: &i32| *x * 2);
+	/// assert_eq!(f(&5), 10);
+	/// ```
+	pub fn ref_new<'a, Brand, A, B>(
+		f: impl 'a + Fn(&A) -> B + Send + Sync
+	) -> <Brand as SendCloneFn<Ref>>::Of<'a, A, B>
+	where
+		Brand: SendRefLiftFn, {
+		<Brand as SendRefLiftFn>::ref_new(f)
 	}
 }
 

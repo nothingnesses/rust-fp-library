@@ -30,8 +30,7 @@ mod inner {
 	/// This enables traversing collections by reference without consuming elements,
 	/// or traversing memoized types that only provide `&A` access.
 	///
-	/// `ref_traverse` is the required method. `ref_sequence` has a default
-	/// implementation derived from `ref_traverse` using the identity function.
+	/// `ref_traverse` is the required method.
 	#[kind(type Of<'a, A: 'a>: 'a;)]
 	pub trait RefTraversable: RefFunctor + RefFoldable {
 		/// Maps each element by reference to a computation, evaluates them,

@@ -1,18 +1,53 @@
-error[E0405]: cannot find trait `SendLiftFn` in this scope
-  --> tests/ui/new_send_not_send.rs:12:25
+error[E0277]: `Rc<i32>` cannot be sent between threads safely
+  --> tests/ui/new_send_not_send.rs:12:42
+   |
+12 |       let _ = <ArcFnBrand as SendLiftFn>::new(move |_: ()| {
+   |               ------------------------------- ^-----------
+   |               |                               |
+   |  _____________|_______________________________within this `{closure@$DIR/tests/ui/new_send_not_send.rs:12:42: 12:54}`
+   | |             |
+   | |             required by a bound introduced by this call
+13 | |         println!("{}", rc);
+14 | |     });
+   | |_____^ `Rc<i32>` cannot be sent between threads safely
+   |
+   = help: within `{closure@$DIR/tests/ui/new_send_not_send.rs:12:42: 12:54}`, the trait `Send` is not implemented for `Rc<i32>`
+note: required because it's used within this closure
+  --> tests/ui/new_send_not_send.rs:12:42
    |
 12 |     let _ = <ArcFnBrand as SendLiftFn>::new(move |_: ()| {
-   |                            ^^^^^^^^^^ not found in this scope
+   |                                             ^^^^^^^^^^^^
+note: required by a bound in `fp_library::classes::SendLiftFn::new`
+  --> src/classes/send_clone_fn.rs
    |
-help: consider importing this trait
-   |
- 1 + use fp_library::classes::SendLiftFn;
-   |
+   |         fn new<'a, A: 'a, B: 'a>(
+   |            --- required by a bound in this associated function
+   |             f: impl 'a + Fn(A) -> B + Send + Sync
+   |                                       ^^^^ required by this bound in `SendLiftFn::new`
 
-warning: unused import: `classes::send_clone_fn::SendCloneFn`
- --> tests/ui/new_send_not_send.rs:4:3
-  |
-4 |         classes::send_clone_fn::SendCloneFn,
-  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+error[E0277]: `Rc<i32>` cannot be shared between threads safely
+  --> tests/ui/new_send_not_send.rs:12:42
+   |
+12 |       let _ = <ArcFnBrand as SendLiftFn>::new(move |_: ()| {
+   |               ------------------------------- ^-----------
+   |               |                               |
+   |  _____________|_______________________________within this `{closure@$DIR/tests/ui/new_send_not_send.rs:12:42: 12:54}`
+   | |             |
+   | |             required by a bound introduced by this call
+13 | |         println!("{}", rc);
+14 | |     });
+   | |_____^ `Rc<i32>` cannot be shared between threads safely
+   |
+   = help: within `{closure@$DIR/tests/ui/new_send_not_send.rs:12:42: 12:54}`, the trait `Sync` is not implemented for `Rc<i32>`
+note: required because it's used within this closure
+  --> tests/ui/new_send_not_send.rs:12:42
+   |
+12 |     let _ = <ArcFnBrand as SendLiftFn>::new(move |_: ()| {
+   |                                             ^^^^^^^^^^^^
+note: required by a bound in `fp_library::classes::SendLiftFn::new`
+  --> src/classes/send_clone_fn.rs
+   |
+   |         fn new<'a, A: 'a, B: 'a>(
+   |            --- required by a bound in this associated function
+   |             f: impl 'a + Fn(A) -> B + Send + Sync
+   |                                              ^^^^ required by this bound in `SendLiftFn::new`

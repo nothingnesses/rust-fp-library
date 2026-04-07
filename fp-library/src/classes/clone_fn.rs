@@ -26,6 +26,7 @@ mod inner {
 			RefCountedPointer,
 			dispatch::{
 				ClosureMode,
+				Ref,
 				Val,
 			},
 		},
@@ -64,13 +65,11 @@ mod inner {
 		type Of<'a, A: 'a, B: 'a>: 'a + Clone + Deref<Target = Mode::Target<'a, A, B>>;
 	}
 
-	/// A trait for constructing cloneable function wrappers from closures.
+	/// A trait for constructing Val-mode cloneable function wrappers from closures.
 	///
 	/// This is separated from [`CloneFn`] because the closure parameter type
-	/// (`Fn(A) -> B`) is specific to [`Val`] mode. By-reference mode
-	/// (`CloneFn<Ref>`) uses
-	/// `coerce_ref_fn` for
-	/// construction instead.
+	/// (`Fn(A) -> B`) is specific to [`Val`] mode. For by-reference mode
+	/// construction, see [`RefLiftFn`].
 	pub trait LiftFn: CloneFn<Val> {
 		/// Creates a new cloneable function wrapper.
 		///
@@ -128,6 +127,73 @@ mod inner {
 	where
 		Brand: LiftFn, {
 		<Brand as LiftFn>::new(f)
+	}
+
+	/// A trait for constructing Ref-mode cloneable function wrappers from closures.
+	///
+	/// This mirrors [`LiftFn`] but for by-reference closures (`Fn(&A) -> B`).
+	pub trait RefLiftFn: CloneFn<Ref> {
+		/// Creates a new cloneable by-reference function wrapper.
+		///
+		/// This function wraps the provided closure `f` (which takes `&A`)
+		/// into a cloneable function.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the function and its captured data.",
+			"The input type (the closure receives `&A`).",
+			"The output type of the function."
+		)]
+		///
+		#[document_parameters("The by-reference closure to wrap.")]
+		#[document_returns("The wrapped cloneable by-reference function.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f = ref_lift_fn_new::<RcFnBrand, _, _>(|x: &i32| *x * 2);
+		/// assert_eq!(f(&5), 10);
+		/// ```
+		fn ref_new<'a, A: 'a, B: 'a>(
+			f: impl 'a + Fn(&A) -> B
+		) -> <Self as CloneFn<Ref>>::Of<'a, A, B>;
+	}
+
+	/// Creates a new cloneable by-reference function wrapper.
+	///
+	/// Free function version that dispatches to [`RefLiftFn::ref_new`].
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The brand of the cloneable function wrapper.",
+		"The input type (the closure receives `&A`).",
+		"The output type of the function."
+	)]
+	///
+	#[document_parameters("The by-reference closure to wrap.")]
+	#[document_returns("The wrapped cloneable by-reference function.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let f = ref_lift_fn_new::<RcFnBrand, _, _>(|x: &i32| *x * 2);
+	/// assert_eq!(f(&5), 10);
+	/// ```
+	pub fn ref_new<'a, Brand, A, B>(
+		f: impl 'a + Fn(&A) -> B
+	) -> <Brand as CloneFn<Ref>>::Of<'a, A, B>
+	where
+		Brand: RefLiftFn, {
+		<Brand as RefLiftFn>::ref_new(f)
 	}
 }
 

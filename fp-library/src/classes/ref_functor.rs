@@ -77,12 +77,14 @@ mod inner {
 	/// downstream mapped value is reachable. Be aware that long chains can accumulate memory
 	/// that is only freed when the final value in the chain is dropped.
 	///
-	/// # Why `FnOnce`?
+	/// # Why `Fn` (not `FnOnce`)?
 	///
-	/// The `func` parameter uses `FnOnce` rather than `Fn` because memoized types like
-	/// `Lazy` create a new `Lazy` value capturing the closure. Since the resulting `Lazy`
-	/// will evaluate the closure at most once, `FnOnce` is sufficient and avoids imposing
-	/// unnecessary `Clone` or multi-call constraints on the caller.
+	/// The `func` parameter uses `Fn` rather than `FnOnce` because multi-element
+	/// containers like `Vec` call the closure once per element. `FnOnce` would
+	/// restrict `RefFunctor` to single-element containers. Closures that move
+	/// out of their captures (`FnOnce` but not `Fn`) cannot be used with
+	/// `ref_map`; these are rare and can be restructured by extracting the
+	/// move into a surrounding scope.
 	#[kind(type Of<'a, A: 'a>: 'a;)]
 	pub trait RefFunctor {
 		/// Maps a function over the values in the functor context, where the function takes a reference.

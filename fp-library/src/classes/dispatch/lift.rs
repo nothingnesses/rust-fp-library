@@ -30,6 +30,10 @@ pub(crate) mod inner {
 			classes::{
 				Lift,
 				RefLift,
+				dispatch::{
+					Ref,
+					Val,
+				},
 			},
 			kinds::*,
 		},
@@ -82,7 +86,7 @@ pub(crate) mod inner {
 		"The closure type."
 	)]
 	#[document_parameters("The closure that takes owned values.")]
-	impl<'a, Brand, A, B, C, F> Lift2Dispatch<'a, Brand, A, B, C, super::super::Val> for F
+	impl<'a, Brand, A, B, C, F> Lift2Dispatch<'a, Brand, A, B, C, Val> for F
 	where
 		Brand: Lift,
 		A: Clone + 'a,
@@ -122,7 +126,7 @@ pub(crate) mod inner {
 		"The closure type."
 	)]
 	#[document_parameters("The closure that takes references.")]
-	impl<'a, Brand, A, B, C, F> Lift2Dispatch<'a, Brand, A, B, C, super::super::Ref> for F
+	impl<'a, Brand, A, B, C, F> Lift2Dispatch<'a, Brand, A, B, C, Ref> for F
 	where
 		Brand: RefLift,
 		A: 'a,
@@ -238,7 +242,7 @@ pub(crate) mod inner {
 		"Closure."
 	)]
 	#[document_parameters("The closure that takes owned values.")]
-	impl<'a, Brand, A, B, C, D, F> Lift3Dispatch<'a, Brand, A, B, C, D, super::super::Val> for F
+	impl<'a, Brand, A, B, C, D, F> Lift3Dispatch<'a, Brand, A, B, C, D, Val> for F
 	where
 		Brand: Lift,
 		A: Clone + 'a,
@@ -281,7 +285,7 @@ pub(crate) mod inner {
 		"Closure."
 	)]
 	#[document_parameters("The closure that takes references.")]
-	impl<'a, Brand, A, B, C, D, F> Lift3Dispatch<'a, Brand, A, B, C, D, super::super::Ref> for F
+	impl<'a, Brand, A, B, C, D, F> Lift3Dispatch<'a, Brand, A, B, C, D, Ref> for F
 	where
 		Brand: RefLift,
 		A: Clone + 'a,
@@ -430,8 +434,7 @@ pub(crate) mod inner {
 		"Closure."
 	)]
 	#[document_parameters("The closure that takes owned values.")]
-	impl<'a, Brand, A, B, C, D, E, Func> Lift4Dispatch<'a, Brand, A, B, C, D, E, super::super::Val>
-		for Func
+	impl<'a, Brand, A, B, C, D, E, Func> Lift4Dispatch<'a, Brand, A, B, C, D, E, Val> for Func
 	where
 		Brand: Lift,
 		A: Clone + 'a,
@@ -487,8 +490,7 @@ pub(crate) mod inner {
 		"Closure."
 	)]
 	#[document_parameters("The closure that takes references.")]
-	impl<'a, Brand, A, B, C, D, E, Func> Lift4Dispatch<'a, Brand, A, B, C, D, E, super::super::Ref>
-		for Func
+	impl<'a, Brand, A, B, C, D, E, Func> Lift4Dispatch<'a, Brand, A, B, C, D, E, Ref> for Func
 	where
 		Brand: RefLift,
 		A: Clone + 'a,
@@ -647,8 +649,7 @@ pub(crate) mod inner {
 		"Closure."
 	)]
 	#[document_parameters("The closure that takes owned values.")]
-	impl<'a, Brand, A, B, C, D, E, G, Func>
-		Lift5Dispatch<'a, Brand, A, B, C, D, E, G, super::super::Val> for Func
+	impl<'a, Brand, A, B, C, D, E, G, Func> Lift5Dispatch<'a, Brand, A, B, C, D, E, G, Val> for Func
 	where
 		Brand: Lift,
 		A: Clone + 'a,
@@ -716,8 +717,7 @@ pub(crate) mod inner {
 		"Closure."
 	)]
 	#[document_parameters("The closure that takes references.")]
-	impl<'a, Brand, A, B, C, D, E, G, Func>
-		Lift5Dispatch<'a, Brand, A, B, C, D, E, G, super::super::Ref> for Func
+	impl<'a, Brand, A, B, C, D, E, G, Func> Lift5Dispatch<'a, Brand, A, B, C, D, E, G, Ref> for Func
 	where
 		Brand: RefLift,
 		A: Clone + 'a,

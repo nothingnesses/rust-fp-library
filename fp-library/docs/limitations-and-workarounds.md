@@ -13,7 +13,7 @@ The library works around this using the Brand pattern (lightweight higher-kinded
 ### Consequences
 
 - **Turbofish required.** The brand parameter is rarely inferable, so most calls require explicit annotation: `map::<OptionBrand, _, _, _>(|x| x + 1, Some(5))` instead of `Some(5).map(|x| x + 1)`.
-- **No method syntax.** Type class operations are free functions, not methods on the container. You write `bind::<OptionBrand, _, _>(f, x)` not `x.bind(f)`.
+- **No method syntax.** Type class operations are free functions, not methods on the container. You write `bind::<OptionBrand, _, _, _>(f, x)` not `x.bind(f)`.
 - **Generated trait names in errors.** Compiler errors expose the macro-generated `Kind` trait names (e.g., `Kind_cdc7cd43dac7585f`) rather than human-readable names, making diagnostics harder to interpret.
 - **Wrapping/unwrapping overhead in generic code.** Generic functions must use `Apply!` macro invocations to convert between the `Kind` associated type and the concrete type, adding syntactic noise.
 

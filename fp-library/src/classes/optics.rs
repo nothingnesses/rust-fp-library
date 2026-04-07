@@ -711,7 +711,7 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The optic instance.")]
-	pub trait GrateOptic<'a, FunctionBrand: CloneFn, S: 'a, T: 'a, A: 'a, B: 'a> {
+	pub trait GrateOptic<'a, FunctionBrand: LiftFn, S: 'a, T: 'a, A: 'a, B: 'a> {
 		/// Evaluate the optic with a closed profunctor.
 		#[document_signature]
 		///

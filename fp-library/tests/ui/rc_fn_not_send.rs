@@ -1,6 +1,6 @@
 use fp_library::{
 	brands::RcFnBrand,
-	classes::send_clone_fn::SendCloneFn,
+	classes::SendLiftFn,
 };
 
 fn main() {

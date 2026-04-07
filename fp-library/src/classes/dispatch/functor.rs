@@ -31,6 +31,10 @@ pub(crate) mod inner {
 			classes::{
 				Functor,
 				RefFunctor,
+				dispatch::{
+					Ref,
+					Val,
+				},
 			},
 			kinds::*,
 		},
@@ -88,7 +92,7 @@ pub(crate) mod inner {
 		"The closure type."
 	)]
 	#[document_parameters("The closure that takes owned values.")]
-	impl<'a, Brand, A, B, F> FunctorDispatch<'a, Brand, A, B, super::super::Val> for F
+	impl<'a, Brand, A, B, F> FunctorDispatch<'a, Brand, A, B, Val> for F
 	where
 		Brand: Functor,
 		A: 'a,
@@ -132,7 +136,7 @@ pub(crate) mod inner {
 		"The closure type."
 	)]
 	#[document_parameters("The closure that takes references.")]
-	impl<'a, Brand, A, B, F> FunctorDispatch<'a, Brand, A, B, super::super::Ref> for F
+	impl<'a, Brand, A, B, F> FunctorDispatch<'a, Brand, A, B, Ref> for F
 	where
 		Brand: RefFunctor,
 		A: 'a,

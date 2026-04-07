@@ -39,12 +39,18 @@ mod inner {
 	/// Thread-safe by-reference folding over a structure.
 	///
 	/// Similar to [`RefFoldable`], but closures and elements must be `Send + Sync`.
+	/// Unlike [`ParRefFunctor`](crate::classes::ParRefFunctor) (which requires
+	/// [`RefFunctor`](crate::classes::RefFunctor) as a supertrait), `SendRefFoldable`
+	/// does not require `RefFoldable`. This is because the SendRef monadic traits
+	/// (functor, pointed, lift, applicative) construct new containers internally,
+	/// and `ArcLazy::new` requires `Send` on closures, which `Ref` trait signatures
+	/// do not guarantee. The SendRef and Ref hierarchies are therefore independent.
 	///
 	/// All three methods (`send_ref_fold_map`, `send_ref_fold_right`, `send_ref_fold_left`)
 	/// have default implementations in terms of each other, so implementors
 	/// only need to provide one.
 	#[kind(type Of<'a, A: 'a>: 'a;)]
-	pub trait SendRefFoldable: RefFoldable {
+	pub trait SendRefFoldable {
 		/// Maps values to a monoid by reference and combines them (thread-safe).
 		#[document_signature]
 		#[document_type_parameters(

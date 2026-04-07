@@ -36,6 +36,10 @@ pub(crate) mod inner {
 			classes::{
 				RefSemimonad,
 				Semimonad,
+				dispatch::{
+					Ref,
+					Val,
+				},
 			},
 			kinds::*,
 		},
@@ -85,7 +89,7 @@ pub(crate) mod inner {
 		"The closure type."
 	)]
 	#[document_parameters("The closure that takes owned values.")]
-	impl<'a, Brand, A, B, F> BindDispatch<'a, Brand, A, B, super::super::Val> for F
+	impl<'a, Brand, A, B, F> BindDispatch<'a, Brand, A, B, Val> for F
 	where
 		Brand: Semimonad,
 		A: 'a,
@@ -122,7 +126,7 @@ pub(crate) mod inner {
 		"The closure type."
 	)]
 	#[document_parameters("The closure that takes references.")]
-	impl<'a, Brand, A, B, F> BindDispatch<'a, Brand, A, B, super::super::Ref> for F
+	impl<'a, Brand, A, B, F> BindDispatch<'a, Brand, A, B, Ref> for F
 	where
 		Brand: RefSemimonad,
 		A: 'a,
@@ -191,125 +195,13 @@ pub(crate) mod inner {
 		f.dispatch_bind(ma)
 	}
 
-	// -- BindFlippedDispatch --
-
-	/// Dispatch trait for `bind_flipped` (flipped argument order).
-	///
-	/// Routes `Fn(A) -> Of<B>` closures to [`Semimonad::bind`] and
-	/// `Fn(&A) -> Of<B>` closures to [`RefSemimonad::ref_bind`].
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The higher-kinded type brand.",
-		"The input element type.",
-		"The output element type.",
-		"Marker type (`Val` or `Ref`), inferred from the closure."
-	)]
-	#[document_parameters("The closure implementing this dispatch.")]
-	pub trait BindFlippedDispatch<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, Marker> {
-		/// Performs the dispatched bind_flipped operation.
-		#[document_signature]
-		#[document_parameters("The monadic value to bind over.")]
-		#[document_returns("The result of binding the closure over the value.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		/// let result = bind_flipped::<OptionBrand, _, _, _>(|x: i32| Some(x * 2), Some(5));
-		/// assert_eq!(result, Some(10));
-		/// ```
-		fn dispatch(
-			self,
-			ma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
-	}
-
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The higher-kinded type brand.",
-		"The input element type.",
-		"The output element type.",
-		"The closure type."
-	)]
-	#[document_parameters("The closure.")]
-	impl<'a, Brand, A, B, F> BindFlippedDispatch<'a, Brand, A, B, super::super::Val> for F
-	where
-		Brand: Semimonad,
-		A: 'a,
-		B: 'a,
-		F: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-	{
-		#[document_signature]
-		#[document_parameters("The monadic value.")]
-		#[document_returns("The bound result.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		/// let result = bind_flipped::<OptionBrand, _, _, _>(|x: i32| Some(x * 2), Some(5));
-		/// assert_eq!(result, Some(10));
-		/// ```
-		fn dispatch(
-			self,
-			ma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			Brand::bind(ma, self)
-		}
-	}
-
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The higher-kinded type brand.",
-		"The input element type.",
-		"The output element type.",
-		"The closure type."
-	)]
-	#[document_parameters("The closure.")]
-	impl<'a, Brand, A, B, F> BindFlippedDispatch<'a, Brand, A, B, super::super::Ref> for F
-	where
-		Brand: RefSemimonad,
-		A: 'a,
-		B: 'a,
-		F: Fn(&A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-	{
-		#[document_signature]
-		#[document_parameters("The monadic value.")]
-		#[document_returns("The bound result.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		/// let lazy = RcLazy::new(|| 5);
-		/// let result = bind_flipped::<LazyBrand<RcLazyConfig>, _, _, _>(
-		/// 	|x: &i32| {
-		/// 		let v = *x * 2;
-		/// 		RcLazy::new(move || v)
-		/// 	},
-		/// 	lazy,
-		/// );
-		/// assert_eq!(*result.evaluate(), 10);
-		/// ```
-		fn dispatch(
-			self,
-			ma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			Brand::ref_bind(ma, self)
-		}
-	}
+	// -- bind_flipped --
 
 	/// Binds a monadic value to a function (flipped argument order).
 	///
 	/// Dispatches to [`Semimonad::bind`] or [`RefSemimonad::ref_bind`]
-	/// based on whether the closure takes `A` or `&A`.
+	/// based on whether the closure takes `A` or `&A`. Delegates to
+	/// [`BindDispatch`] internally.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -339,10 +231,10 @@ pub(crate) mod inner {
 	/// assert_eq!(result, Some(10));
 	/// ```
 	pub fn bind_flipped<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, Marker>(
-		f: impl BindFlippedDispatch<'a, Brand, A, B, Marker>,
+		f: impl BindDispatch<'a, Brand, A, B, Marker>,
 		ma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		f.dispatch(ma)
+		f.dispatch_bind(ma)
 	}
 
 	// -- ComposeKleisliDispatch --
@@ -393,8 +285,7 @@ pub(crate) mod inner {
 		"The second closure type."
 	)]
 	#[document_parameters("The closure pair.")]
-	impl<'a, Brand, A, B, C, F, G> ComposeKleisliDispatch<'a, Brand, A, B, C, super::super::Val>
-		for (F, G)
+	impl<'a, Brand, A, B, C, F, G> ComposeKleisliDispatch<'a, Brand, A, B, C, Val> for (F, G)
 	where
 		Brand: Semimonad,
 		A: 'a,
@@ -435,8 +326,7 @@ pub(crate) mod inner {
 		"The second closure type."
 	)]
 	#[document_parameters("The closure pair.")]
-	impl<'a, Brand, A, B, C, F, G> ComposeKleisliDispatch<'a, Brand, A, B, C, super::super::Ref>
-		for (F, G)
+	impl<'a, Brand, A, B, C, F, G> ComposeKleisliDispatch<'a, Brand, A, B, C, Ref> for (F, G)
 	where
 		Brand: RefSemimonad,
 		A: 'a,
@@ -520,6 +410,8 @@ pub(crate) mod inner {
 	///
 	/// Dispatches to [`Semimonad::bind`] or [`RefSemimonad::ref_bind`]
 	/// based on whether the closures take `B`/`A` or `&B`/`&A`.
+	/// Delegates to [`ComposeKleisliDispatch`] by swapping the tuple
+	/// elements.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -528,6 +420,8 @@ pub(crate) mod inner {
 		"The input type.",
 		"The intermediate type.",
 		"The output type.",
+		"The second arrow type (`B -> Of<C>`).",
+		"The first arrow type (`A -> Of<B>`).",
 		"Marker type, inferred from the closures."
 	)]
 	///
@@ -542,7 +436,7 @@ pub(crate) mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let result = compose_kleisli_flipped::<OptionBrand, _, _, _, _>(
+	/// let result = compose_kleisli_flipped::<OptionBrand, _, _, _, _, _, _>(
 	/// 	(|y: i32| Some(y * 2), |x: i32| Some(x + 1)),
 	/// 	5,
 	/// );
@@ -554,153 +448,16 @@ pub(crate) mod inner {
 		A: 'a,
 		B: 'a,
 		C: 'a,
+		F,
+		G,
 		Marker,
 	>(
-		gf: impl ComposeKleisliFlippedDispatch<'a, Brand, A, B, C, Marker>,
+		gf: (F, G),
 		a: A,
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
-		gf.dispatch(a)
-	}
-
-	// -- ComposeKleisliFlippedDispatch --
-
-	/// Dispatch trait for flipped Kleisli composition.
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The higher-kinded type brand.",
-		"The input type.",
-		"The intermediate type.",
-		"The output type.",
-		"Marker type (`Val` or `Ref`), inferred from the closures."
-	)]
-	#[document_parameters("The closure pair implementing this dispatch.")]
-	pub trait ComposeKleisliFlippedDispatch<
-		'a,
-		Brand: Kind_cdc7cd43dac7585f,
-		A: 'a,
-		B: 'a,
-		C: 'a,
-		Marker,
-	> {
-		/// Performs the dispatched flipped Kleisli composition.
-		#[document_signature]
-		#[document_parameters("The input value.")]
-		#[document_returns("The result of composing g then f applied to the input.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		/// let result = compose_kleisli_flipped::<OptionBrand, _, _, _, _>(
-		/// 	(|y: i32| Some(y * 2), |x: i32| Some(x + 1)),
-		/// 	5,
-		/// );
-		/// assert_eq!(result, Some(12));
-		/// ```
-		fn dispatch(
-			self,
-			a: A,
-		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>);
-	}
-
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The higher-kinded type brand.",
-		"The input type.",
-		"The intermediate type.",
-		"The output type.",
-		"The first closure type (g -> f order).",
-		"The second closure type."
-	)]
-	#[document_parameters("The closure pair.")]
-	impl<'a, Brand, A, B, C, F, G>
-		ComposeKleisliFlippedDispatch<'a, Brand, A, B, C, super::super::Val> for (F, G)
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
-		Brand: Semimonad,
-		A: 'a,
-		B: 'a,
-		C: 'a,
-		F: Fn(B) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
-		G: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-	{
-		#[document_signature]
-		#[document_parameters("The input value.")]
-		#[document_returns("The composed result.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		/// let result = compose_kleisli_flipped::<OptionBrand, _, _, _, _>(
-		/// 	(|y: i32| Some(y * 2), |x: i32| Some(x + 1)),
-		/// 	5,
-		/// );
-		/// assert_eq!(result, Some(12));
-		/// ```
-		fn dispatch(
-			self,
-			a: A,
-		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
-			Brand::bind(self.1(a), self.0)
-		}
-	}
-
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The higher-kinded type brand.",
-		"The input type.",
-		"The intermediate type.",
-		"The output type.",
-		"The first closure type (g -> f order).",
-		"The second closure type."
-	)]
-	#[document_parameters("The closure pair.")]
-	impl<'a, Brand, A, B, C, F, G>
-		ComposeKleisliFlippedDispatch<'a, Brand, A, B, C, super::super::Ref> for (F, G)
-	where
-		Brand: RefSemimonad,
-		A: 'a,
-		B: 'a,
-		C: 'a,
-		F: Fn(&B) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
-		G: Fn(&A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-	{
-		#[document_signature]
-		#[document_parameters("The input value.")]
-		#[document_returns("The composed result.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		/// let result = compose_kleisli_flipped::<LazyBrand<RcLazyConfig>, _, _, _, _>(
-		/// 	(
-		/// 		|y: &i32| {
-		/// 			let v = *y * 2;
-		/// 			RcLazy::new(move || v)
-		/// 		},
-		/// 		|x: &i32| {
-		/// 			let v = *x + 1;
-		/// 			RcLazy::new(move || v)
-		/// 		},
-		/// 	),
-		/// 	5,
-		/// );
-		/// assert_eq!(*result.evaluate(), 12);
-		/// ```
-		fn dispatch(
-			self,
-			a: A,
-		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
-			Brand::ref_bind(self.1(&a), self.0)
-		}
+		(G, F): ComposeKleisliDispatch<'a, Brand, A, B, C, Marker>, {
+		(gf.1, gf.0).dispatch(a)
 	}
 }
 

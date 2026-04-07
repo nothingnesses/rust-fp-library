@@ -405,7 +405,7 @@ The Rust-specific brand parameters (pointer brand, fn brand) are placed at the t
 | `GetterOptic<'a, S, A>`                                       | method         | `evaluate<R, PointerBrand: UnsizedCoercible>(...)`         |
 | `FoldOptic<'a, S, A>`                                         | method         | `evaluate<R: Monoid, PointerBrand: UnsizedCoercible>(...)` |
 | `SetterOptic<'a, PointerBrand: UnsizedCoercible, S, T, A, B>` | trait          | `evaluate(...)`                                            |
-| `GrateOptic<'a, FunctionBrand: CloneFn, S, T, A, B>`          | trait          | `evaluate<Z: Profunctor>(...)`                             |
+| `GrateOptic<'a, FunctionBrand: LiftFn, S, T, A, B>`           | trait          | `evaluate<Z: Profunctor>(...)`                             |
 | `ReviewOptic<'a, S, T, A, B>`                                 | neither        | `evaluate(...)` (fixed to `TaggedBrand`)                   |
 
 The first group (`IsoOptic` through `TraversalOptic`) places the profunctor at method level - these traits express "this optic works with _any_ profunctor satisfying the constraint", and the method-level parameter captures that universality.
