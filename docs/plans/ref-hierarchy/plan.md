@@ -448,8 +448,15 @@ element access) was investigated and rejected for three reasons:
       left identity)
     - Lazy: 5 existing unit tests + TryLazy: 12 existing unit tests
 
-27. **m_do! integration**: Add `ref` qualifier to `m_do!` so it
-    generates `ref_bind` calls for by-ref monadic code.
+27. ~~**m_do! and a_do! integration**~~: Done. Added `ref` qualifier
+    to both macros. `m_do!(ref Brand { ... })` generates closures with
+    `&_` type annotations for dispatch to `RefSemimonad::ref_bind`.
+    `a_do!(ref Brand { ... })` dispatches to `RefLift::ref_lift2`.
+    `pure(x)` is rewritten to `ref_pure(&x)` in ref mode.
+    Typed binds use the user's type as-is (user includes `&`).
+    Multi-bind limitation: inner closures can't capture references
+    from outer binds; use `let` to clone the value.
+    Tests: 5 integration tests + 2 parser tests.
 
 ## Design Decision: CloneableFn with Mode Parameter
 
@@ -678,6 +685,18 @@ None at this time.
 - `IndexedFoldFunc` trait given `FnBrand` parameter (defaulted to `RcFnBrand`).
 - All `FoldableWithIndex` impls, call sites, and doc examples updated for new `FnBrand` parameter.
 - `ref_apply` doc examples fixed: use `Rc::new` directly instead of `coerce_fn` to avoid HRTB lifetime mismatch.
+- `RefFoldableWithIndex` given `FnBrand` + mutual derivation (`ref_fold_right_with_index`, `ref_fold_left_with_index`).
+- `SendRefFoldable` given `FnBrand` + mutual derivation (`send_ref_fold_right`, `send_ref_fold_left`) via `SendEndofunction`.
+- `SendRefFoldableWithIndex` given `FnBrand` + mutual derivation via `SendEndofunction`. `Self::Index: Send + Sync`.
+- `SendEndofunction` type added (Arc-based Endofunction) with `Semigroup`/`Monoid` impls and property tests.
+- `RefFilterable`, `RefTraversable`, `RefWitherable`, `RefFilterableWithIndex`, `RefTraversableWithIndex` traits added.
+- `ParRefFunctor`, `ParRefFoldable`, `ParRefFilterable`, `ParRefFunctorWithIndex`, `ParRefFoldableWithIndex`, `ParRefFilterableWithIndex` traits added. Implemented for Vec and CatList.
+- Stale trait name references fixed in CLAUDE.md, parallelism.md, pointer-abstraction.md, optics-analysis.md, profunctor-analysis.md, std-coverage-checklist.md.
+- Ref/SendRef/ParRef trait families added to features.md and std-coverage-checklist.md.
+- ParRef traits added to parallelism.md with Mermaid diagram.
+- Ref hierarchy workaround section expanded in limitations-and-workarounds.md.
+- Property tests added for RefFunctor, RefFoldable, RefSemimonad, ParRefFunctor across Vec, Option, CatList, Identity (18 quickcheck tests).
+- `m_do!` and `a_do!` macros updated with `ref` qualifier for by-reference dispatch. `pure` rewritten to `ref_pure` in ref mode.
 
 ## References
 
