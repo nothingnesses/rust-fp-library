@@ -129,14 +129,21 @@ fn map<'a, A: 'a, B: 'a>(f: impl Fn(A) -> B + 'a, fa: Self::Of<'a, A>) -> Self::
 
 Automatically cloning the inner value to satisfy this signature would violate the library's zero-cost abstraction principle, since `Clone` may be expensive and the caller has no control over when it happens.
 
-### Implemented Solution: `RefFunctor` and `SendRefFunctor`
+### Implemented Solution: By-Reference Trait Hierarchy
 
-Separate traits that honestly represent what memoized types can do:
+A complete by-reference type class stack mirrors the by-value hierarchy. Each `Ref*` trait's closures receive `&A` instead of consuming `A`, making the ownership semantics honest for memoized types.
 
-- [`RefFunctor`](../src/classes/ref_functor.rs): `ref_map(func: impl FnOnce(&A) -> B, fa)` takes the value by reference. Implemented by `RcLazy`.
-- [`SendRefFunctor`](../src/classes/send_ref_functor.rs): Same but with `Send + Sync` bounds on `A`, `B`, and the closure. Implemented by `ArcLazy`.
+**Core hierarchy:** `RefFunctor`, `RefPointed`, `RefLift`, `RefSemiapplicative`, `RefSemimonad`, `RefApplicative`, `RefMonad`, `RefApplyFirst`, `RefApplySecond`.
 
-The two traits are independent (not in a sub/supertrait relationship) because `RcLazy` is `!Send` and `ArcLazy` requires `Send + Sync`. A single trait with optional `Send` bounds would either exclude `RcLazy` or fail to enforce thread safety for `ArcLazy`.
+**Foldable/Traversable/Filterable:** `RefFoldable`, `RefTraversable`, `RefFilterable`, `RefWitherable`, plus `WithIndex` variants for all.
+
+**Thread-safe:** `SendRefFunctor`, `SendRefPointed`, `SendRefLift`, `SendRefSemiapplicative`, `SendRefSemimonad`, `SendRefApplicative`, `SendRefMonad`, `SendRefFoldable`, etc. These add `Send + Sync` bounds on closures and elements.
+
+**Parallel:** `ParRefFunctor`, `ParRefFoldable`, `ParRefFilterable`, plus `WithIndex` variants. These use rayon for parallel by-reference iteration.
+
+The by-value and by-ref traits are independent (not in a sub/supertrait relationship). A unified `map` free function dispatches to the correct variant based on the closure's argument type (`Fn(A) -> B` routes to `Functor`, `Fn(&A) -> B` routes to `RefFunctor`). The same dispatch pattern extends to `bind`, `lift2`-`lift5`, `fold_map`, `fold_right`, `fold_left`, and semimonad helpers.
+
+Collection types (Vec, Option, CatList, Identity) implement both hierarchies: the by-value traits consume elements, the by-ref traits iterate by reference. `Lazy` only implements the Ref hierarchy since it caches values and can only lend references.
 
 ## `Free` and `Trampoline` Require `'static`
 

@@ -30,6 +30,35 @@ derived from `par_map` + `par_compact`; types can override them for single-pass 
 - **`SendCloneFn`**: Thread-safe cloneable function wrappers with `Send + Sync` bounds. Implemented by `ArcFnBrand`.
 - **Rayon Support**: When the `rayon` feature is enabled, `par_*` functions use rayon for true parallel execution. Otherwise they fall back to sequential equivalents.
 
+### Parallel By-Reference Traits
+
+A parallel by-reference hierarchy mirrors the parallel one but closures receive `&A`
+instead of consuming `A`. Elements require `A: Send + Sync` (for rayon's `par_iter()`
+which needs `&A: Send`, equivalent to `A: Sync`).
+
+```mermaid
+graph TD
+    ParRefFunctor --> ParRefFilterable
+    ParCompactable --> ParRefFilterable
+    ParRefFunctor --> ParRefFunctorWithIndex
+    ParRefFoldable --> ParRefFoldableWithIndex
+    ParRefFilterable --> ParRefFilterableWithIndex
+    ParRefFoldableWithIndex --> ParRefFilterableWithIndex
+```
+
+| Par-Ref trait               | Operations                                                   | Supertraits                                 |
+| --------------------------- | ------------------------------------------------------------ | ------------------------------------------- |
+| `ParRefFunctor`             | `par_ref_map`                                                | `RefFunctor`                                |
+| `ParRefFoldable`            | `par_ref_fold_map`                                           | `RefFoldable`                               |
+| `ParRefFilterable`          | `par_ref_filter_map`, `par_ref_filter`                       | `ParRefFunctor + ParCompactable`            |
+| `ParRefFunctorWithIndex`    | `par_ref_map_with_index`                                     | `ParRefFunctor + RefFunctorWithIndex`       |
+| `ParRefFoldableWithIndex`   | `par_ref_fold_map_with_index`                                | `ParRefFoldable + RefFoldableWithIndex`     |
+| `ParRefFilterableWithIndex` | `par_ref_filter_map_with_index`, `par_ref_filter_with_index` | `ParRefFilterable + RefFilterableWithIndex` |
+
+Key benefit: `par_ref_filter_map(|x: &A| ...)` avoids consuming elements that get
+filtered out. Only elements that survive the filter are transformed. Implemented for
+`Vec` (using `par_iter()`) and `CatList` (collecting to Vec for rayon).
+
 ```
 use fp_library::{
 	brands::*,
