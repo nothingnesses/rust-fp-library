@@ -388,25 +388,23 @@ element access) was investigated and rejected for three reasons:
     - Identity: WithIndex, FunctorWithIndex, FoldableWithIndex,
       TraversableWithIndex and their Ref variants added.
 
-23. **Foldable mutual derivation parity**: Add `FnBrand` parameter
-    and `fold_right`/`fold_left` (with index) methods with default
-    impls (via Endofunction) to foldable traits, matching PureScript's
-    FoldableWithIndex design and the existing `Foldable`/`RefFoldable`
-    mutual derivation pattern.
-    - ~~`FoldableWithIndex`~~: Done. Added `FnBrand`, added
-      `fold_right_with_index`/`fold_left_with_index` with defaults.
-      Added `Clone` bound to `WithIndex::Index`. Added `FnBrand` to
-      `IndexedFoldFunc` trait (defaulted to `RcFnBrand`). Updated
-      all impls, call sites, and doc examples.
-    - `RefFoldableWithIndex`: add `FnBrand`, add
-      `ref_fold_right_with_index`/`ref_fold_left_with_index`
-    - `SendRefFoldable`: add `FnBrand`, add
-      `send_ref_fold_right`/`send_ref_fold_left` with defaults
-    - `SendRefFoldableWithIndex`: add `FnBrand`, add
-      `send_ref_fold_right_with_index`/`send_ref_fold_left_with_index`
-    - `ParFoldable`/`ParFoldableWithIndex`: skip (parallel folds are
-      reduction-only; fold_right/fold_left are sequential)
-    - Update all impls for new signatures.
+23. ~~**Foldable mutual derivation parity**~~: Done. Added `FnBrand`
+    parameter and mutual derivation to all foldable trait variants:
+    - `FoldableWithIndex`: `FnBrand`, `fold_right_with_index`,
+      `fold_left_with_index`. `Clone` bound on `WithIndex::Index`.
+      `FnBrand` on `IndexedFoldFunc` (defaulted to `RcFnBrand`).
+    - `RefFoldableWithIndex`: `FnBrand`, `ref_fold_right_with_index`,
+      `ref_fold_left_with_index` via `Endofunction`.
+    - `SendRefFoldable`: `FnBrand`, `send_ref_fold_right`,
+      `send_ref_fold_left` via `SendEndofunction`. `M: Send + Sync`.
+    - `SendRefFoldableWithIndex`: `FnBrand`,
+      `send_ref_fold_right_with_index`,
+      `send_ref_fold_left_with_index` via `SendEndofunction`.
+      `Self::Index: Send + Sync`.
+    - Added `SendEndofunction` type (Arc-based Endofunction) with
+      `Semigroup`/`Monoid` impls and property tests.
+    - `ParFoldable`/`ParFoldableWithIndex`: skipped (parallel folds
+      are reduction-only; fold_right/fold_left are sequential).
 
     **Not dispatchable** (no closure or container to infer from):
     - `pure`, `ref_pure`, `send_ref_pure`
