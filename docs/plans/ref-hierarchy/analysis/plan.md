@@ -191,28 +191,44 @@ requires its Ref counterpart. The mutual derivation code in
 `SendRefFoldable` would need to be self-contained rather than
 delegating to `RefFoldable` methods.
 
-**Approach B: Add `RefFunctor` (and other Ref traits) to `ArcLazy`.**
+**Approach B: Add `RefFunctor` (and other Ref traits) to `ArcLazy`,
+then add Ref supertraits to all SendRef traits.**
 
-This would require `ArcLazy`'s Ref impls to accept non-`Send`
-closures. Since `ArcLazy` stores its value in `Arc<OnceCell<A>>`, the
-`ref_map` implementation can call the closure on the current thread
-(no `Send` needed). The `Send` bound is only needed for the `new`
-constructor (the closure goes into the `Arc`). So `RefFunctor::ref_map`
-could be implemented for `ArcLazy` without requiring `Send` on the
-mapping closure.
+Investigation revealed this is **not feasible**. `RefFunctor::ref_map`
+for `ArcLazy` must construct a new `ArcLazy` internally (via
+`ArcLazy::new`). `ArcLazy::new` requires the closure to be `Send`
+because the closure is stored inside `Arc<LazyLock<...>>`, which must
+be `Send + Sync`. But `RefFunctor::ref_map`'s signature only requires
+`impl Fn(&A) -> B + 'a`, with no `Send` bound. So `ArcLazy` literally
+cannot implement `RefFunctor`.
 
-This would enable `SendRefFunctor: RefFunctor` and make the hierarchy
-more principled, at the cost of adding many more trait impls for
-`ArcLazy`.
+The same obstacle blocks `RefPointed`, `RefLift`,
+`RefSemiapplicative`, and `RefFunctorWithIndex` for `ArcLazy`; all
+of these construct new `ArcLazy` values internally.
+
+The distinction is between traits that **construct** new containers
+(functor, pointed, lift, applicative) and traits that **only consume**
+containers (foldable, semimonad). Only the latter can have the
+supertrait relationship.
+
+This also explains why `ParRefFunctor: RefFunctor` works: `Vec` and
+`CatList` constructors have no `Send` requirements, so they can
+implement `RefFunctor` freely.
 
 **Approach C: Document the inconsistency and leave it.**
 
 The inconsistency does not cause bugs. Add a doc comment explaining
-why `SendRefFoldable` has a `RefFoldable` supertrait (historical:
-mutual derivation) and others do not (ArcLazy constraint).
+why `SendRefFoldable` has a `RefFoldable` supertrait (it only
+consumes, never constructs) and other SendRef traits do not
+(`ArcLazy::new` needs `Send` closures that `Ref` trait signatures
+cannot guarantee).
 
-**Recommendation:** Approach A for minimal disruption, with Approach B
-as a follow-up if users need `ArcLazy` to work in non-Send contexts.
+**Recommendation:** Approach A, with documentation from Approach C.
+Remove the `RefFoldable` supertrait from `SendRefFoldable` for
+internal consistency, and add a doc note explaining why SendRef and
+Ref hierarchies are independent (unlike ParRef and Ref, which can
+share supertraits because collection constructors have no `Send`
+requirements).
 
 ### 2.5 Unify Setter/IndexedSetter construction method
 
@@ -246,9 +262,20 @@ type Of<'a, A: 'a, B: 'a>: 'a + Clone + Send + Sync
     + Deref<Target = Mode::SendTarget<'a, A, B>>;
 ```
 
-This is a minor breaking change if downstream code has custom
-`SendCloneFn` impls, but since `FnBrand<P>` is the only implementor,
-the practical impact is nil.
+Breaking change: any custom `SendCloneFn` impls must add the `'a`
+bound. Since `FnBrand<P>` is the only implementor, this is
+straightforward.
+
+### 2.7 Tighten Closed trait to require LiftFn
+
+**Source:** [optics.md](optics.md), section 2.4
+
+**Problem:** `Closed` accepts `CloneFn` but all implementations need
+`LiftFn` because `Closed::closed` constructs wrapped functions.
+
+**Fix:** Change `Closed<FunctionBrand: CloneFn>` to
+`Closed<FunctionBrand: LiftFn>`. This is a breaking change but makes
+the trait bound honest and prevents confusing error messages.
 
 ## Priority 3: Coverage Gaps
 
@@ -387,16 +414,7 @@ These types have `lower_ref` for by-reference lowering. RefFunctor
 could map over the lowered result by reference, but this loses the
 fusion benefit. Document the trade-off and add if demand emerges.
 
-### 4.3 Consider tightening Closed trait to require LiftFn
-
-**Source:** [optics.md](optics.md), section 2.4
-
-`Closed` accepts `CloneFn` but all implementations need `LiftFn`.
-Tightening would prevent confusing error messages when someone tries
-to implement `Closed` with only `CloneFn`. However, this is a
-breaking change to the public API.
-
-### 4.4 Validate Arc-based optics with tests
+### 4.3 Validate Arc-based optics with tests
 
 **Source:** [optics.md](optics.md), section 4
 
@@ -404,7 +422,7 @@ Despite full `PointerBrand` parameterization, no tests validate
 `ArcFnBrand`-based optics. Add test cases to verify thread-safe
 optics work correctly.
 
-### 4.5 Add CatList ParRef size threshold
+### 4.4 Add CatList ParRef size threshold
 
 **Source:** [sendref-and-parref-traits.md](sendref-and-parref-traits.md),
 section 5.2
@@ -413,7 +431,7 @@ CatList ParRef operations collect to Vec first, potentially negating
 parallelism benefits for small collections. A size threshold fallback
 to sequential Ref operations would avoid this overhead.
 
-### 4.6 Document RefTraversable naming ambiguity
+### 4.5 Document RefTraversable naming ambiguity
 
 **Source:** [type-implementations.md](type-implementations.md),
 section 5.2
@@ -423,7 +441,7 @@ reference), not to how the container is held (it is still consumed).
 This should be clarified in the trait documentation to prevent
 confusion.
 
-### 4.7 Clarify todo.md staleness
+### 4.6 Clarify todo.md staleness
 
 **Source:** [documentation-and-tests.md](documentation-and-tests.md),
 section 1.7
@@ -447,15 +465,16 @@ All four items can be done in parallel:
 
 **Phase 2: API consistency (Priority 2)**
 
-Items 2.2, 2.3, 2.5, 2.6 are independent and can be parallelized.
+Items 2.2, 2.3, 2.5, 2.6, 2.7 are independent and can be parallelized.
 Items 2.1 and 2.4 are more involved and should be done sequentially.
 
 - 2.2 Standardize dispatch imports
 - 2.3 Remove BindFlippedDispatch
 - 2.5 Unify Setter/IndexedSetter
 - 2.6 Add 'a to SendCloneFn::Of
-- 2.1 Add LiftRefFn trait (depends on design review)
-- 2.4 Resolve SendRefFoldable supertrait (depends on design review)
+- 2.7 Tighten Closed to require LiftFn
+- 2.1 Add LiftRefFn trait
+- 2.4 Remove RefFoldable supertrait from SendRefFoldable, add docs
 
 **Phase 3: Coverage gaps (Priority 3)**
 
