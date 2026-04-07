@@ -3578,4 +3578,68 @@ mod tests {
 		let result = extend::<VecBrand, _, _>(|v: Vec<i32>| v.iter().sum::<i32>(), vec![42]);
 		assert_eq!(result, vec![42]);
 	}
+
+	// -- Ref trait laws --
+
+	/// Tests the identity law for RefFunctor: ref_map(deref, v) == v.
+	#[quickcheck]
+	fn ref_functor_identity(v: Vec<i32>) -> bool {
+		use crate::classes::ref_functor::RefFunctor;
+		VecBrand::ref_map(|x: &i32| *x, v.clone()) == v
+	}
+
+	/// Tests the composition law for RefFunctor:
+	/// ref_map(|x| g(&f(x)), v) == ref_map(g, ref_map(f, v)).
+	#[quickcheck]
+	fn ref_functor_composition(v: Vec<i32>) -> bool {
+		use crate::classes::ref_functor::RefFunctor;
+		let f = |x: &i32| x.wrapping_add(1);
+		let g = |x: &i32| x.wrapping_mul(2);
+		VecBrand::ref_map(|x: &i32| g(&f(x)), v.clone())
+			== VecBrand::ref_map(g, VecBrand::ref_map(f, v))
+	}
+
+	/// Tests RefFoldable with Additive monoid: ref_fold_map matches iter().sum().
+	#[quickcheck]
+	fn ref_foldable_additive(v: Vec<i32>) -> bool {
+		use crate::{
+			brands::RcFnBrand,
+			classes::ref_foldable::RefFoldable,
+			types::Additive,
+		};
+		let result: Additive<i32> =
+			VecBrand::ref_fold_map::<RcFnBrand, _, _>(|x: &i32| Additive(*x), v.clone());
+		result.0 == v.iter().copied().fold(0i32, |a, b| a.wrapping_add(b))
+	}
+
+	/// Tests the left identity law for RefSemimonad:
+	/// ref_bind(vec![x], |a| vec![*a]) == vec![x].
+	#[quickcheck]
+	fn ref_semimonad_left_identity(x: i32) -> bool {
+		use crate::classes::ref_semimonad::RefSemimonad;
+		VecBrand::ref_bind(vec![x], |a: &i32| vec![*a]) == vec![x]
+	}
+
+	/// Tests the associativity law for RefSemimonad:
+	/// ref_bind(ref_bind(v, f), g) == ref_bind(v, |a| ref_bind(f(a), g)).
+	#[quickcheck]
+	fn ref_semimonad_associativity(v: Vec<i32>) -> bool {
+		use crate::classes::ref_semimonad::RefSemimonad;
+		let f = |a: &i32| vec![a.wrapping_add(1), a.wrapping_mul(2)];
+		let g = |b: &i32| vec![b.wrapping_add(10)];
+		let lhs = VecBrand::ref_bind(VecBrand::ref_bind(v.clone(), f), g);
+		let rhs = VecBrand::ref_bind(v, |a: &i32| VecBrand::ref_bind(f(a), g));
+		lhs == rhs
+	}
+
+	/// Tests ParRefFunctor equivalence: par_ref_map(f, v) == ref_map(f, v).
+	#[quickcheck]
+	fn par_ref_functor_equivalence(v: Vec<i32>) -> bool {
+		use crate::classes::{
+			par_ref_functor::ParRefFunctor,
+			ref_functor::RefFunctor,
+		};
+		let f = |x: &i32| x.wrapping_mul(3).wrapping_add(7);
+		VecBrand::par_ref_map(f, v.clone()) == VecBrand::ref_map(f, v)
+	}
 }

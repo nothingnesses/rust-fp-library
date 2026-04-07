@@ -1626,4 +1626,32 @@ mod tests {
 		let result = extend::<IdentityBrand, _, _>(|w: Identity<i32>| w.0 * 2, Identity(21));
 		assert_eq!(result, Identity(42));
 	}
+
+	// RefFunctor Laws
+
+	/// Tests the identity law for RefFunctor: `ref_map(|x| *x, Identity(v)) == Identity(v)`.
+	#[quickcheck]
+	fn ref_functor_identity(v: i32) -> bool {
+		use crate::classes::ref_functor::RefFunctor;
+		IdentityBrand::ref_map(|x: &i32| *x, Identity(v)) == Identity(v)
+	}
+
+	/// Tests the composition law for RefFunctor.
+	#[quickcheck]
+	fn ref_functor_composition(v: i32) -> bool {
+		use crate::classes::ref_functor::RefFunctor;
+		let f = |x: &i32| x.wrapping_add(1);
+		let g = |x: &i32| x.wrapping_mul(2);
+		IdentityBrand::ref_map(|x: &i32| f(&g(x)), Identity(v))
+			== IdentityBrand::ref_map(f, IdentityBrand::ref_map(g, Identity(v)))
+	}
+
+	// RefSemimonad Laws
+
+	/// Tests the left identity law for RefSemimonad: `ref_bind(Identity(x), |a| Identity(*a)) == Identity(x)`.
+	#[quickcheck]
+	fn ref_semimonad_left_identity(x: i32) -> bool {
+		use crate::classes::ref_semimonad::RefSemimonad;
+		IdentityBrand::ref_bind(Identity(x), |a: &i32| Identity(*a)) == Identity(x)
+	}
 }

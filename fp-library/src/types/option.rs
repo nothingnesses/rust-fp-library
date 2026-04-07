@@ -1621,4 +1621,49 @@ mod tests {
 		);
 		assert_eq!(result, Some(iterations));
 	}
+
+	// RefFunctor Laws
+
+	/// Tests the identity law for RefFunctor: `ref_map(|x| *x, opt) == opt`.
+	#[quickcheck]
+	fn ref_functor_identity(opt: Option<i32>) -> bool {
+		use crate::classes::ref_functor::RefFunctor;
+		OptionBrand::ref_map(|x: &i32| *x, opt) == opt
+	}
+
+	/// Tests the composition law for RefFunctor.
+	#[quickcheck]
+	fn ref_functor_composition(opt: Option<i32>) -> bool {
+		use crate::classes::ref_functor::RefFunctor;
+		let f = |x: &i32| x.wrapping_add(1);
+		let g = |x: &i32| x.wrapping_mul(2);
+		OptionBrand::ref_map(|x: &i32| f(&g(x)), opt)
+			== OptionBrand::ref_map(f, OptionBrand::ref_map(g, opt))
+	}
+
+	// RefSemimonad Laws
+
+	/// Tests the left identity law for RefSemimonad: `ref_bind(Some(x), |a| Some(*a)) == Some(x)`.
+	#[quickcheck]
+	fn ref_semimonad_left_identity(x: i32) -> bool {
+		use crate::classes::ref_semimonad::RefSemimonad;
+		OptionBrand::ref_bind(Some(x), |a: &i32| Some(*a)) == Some(x)
+	}
+
+	// RefFoldable Laws
+
+	/// Tests RefFoldable fold_map on Option with Additive monoid.
+	#[quickcheck]
+	fn ref_foldable_fold_map(opt: Option<i32>) -> bool {
+		use crate::{
+			classes::ref_foldable::RefFoldable,
+			types::Additive,
+		};
+		let result = OptionBrand::ref_fold_map::<RcFnBrand, _, _>(|x: &i32| Additive(*x), opt);
+		let expected = match opt {
+			Some(v) => Additive(v),
+			None => Additive(0),
+		};
+		result == expected
+	}
 }

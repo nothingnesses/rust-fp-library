@@ -5000,4 +5000,54 @@ mod tests {
 		let vec: Vec<_> = result.into_iter().collect();
 		assert_eq!(vec, vec![42]);
 	}
+
+	// -- Ref trait property tests --
+
+	#[quickcheck]
+	fn ref_functor_identity(v: Vec<i32>) -> bool {
+		let list: CatList<i32> = v.iter().copied().collect();
+		let mapped: Vec<i32> = CatListBrand::ref_map(|x: &i32| *x, list).into_iter().collect();
+		mapped == v
+	}
+
+	#[quickcheck]
+	fn ref_functor_composition(v: Vec<i32>) -> bool {
+		let f = |x: &i32| x.wrapping_add(1);
+		let g = |x: &i32| x.wrapping_mul(2);
+		let list1: CatList<i32> = v.iter().copied().collect();
+		let list2: CatList<i32> = v.iter().copied().collect();
+		let composed: Vec<i32> =
+			CatListBrand::ref_map(|x: &i32| g(&f(x)), list1).into_iter().collect();
+		let sequential: Vec<i32> =
+			CatListBrand::ref_map(g, CatListBrand::ref_map(f, list2)).into_iter().collect();
+		composed == sequential
+	}
+
+	#[quickcheck]
+	fn ref_foldable_additive(v: Vec<i32>) -> bool {
+		use crate::types::Additive;
+		let list: CatList<i32> = v.iter().copied().collect();
+		let result = CatListBrand::ref_fold_map::<RcFnBrand, _, _>(|x: &i32| Additive(*x), list);
+		let expected = v.iter().copied().fold(0i32, |a, b| a.wrapping_add(b));
+		result.0 == expected
+	}
+
+	#[quickcheck]
+	fn ref_semimonad_left_identity(x: i32) -> bool {
+		let result: Vec<i32> =
+			CatListBrand::ref_bind(CatList::singleton(x), |a: &i32| CatList::singleton(*a))
+				.into_iter()
+				.collect();
+		result == vec![x]
+	}
+
+	#[quickcheck]
+	fn par_ref_functor_equivalence(v: Vec<i32>) -> bool {
+		let f = |x: &i32| x.wrapping_add(1);
+		let list1: CatList<i32> = v.iter().copied().collect();
+		let list2: CatList<i32> = v.iter().copied().collect();
+		let par_result: Vec<i32> = CatListBrand::par_ref_map(f, list1).into_iter().collect();
+		let seq_result: Vec<i32> = CatListBrand::ref_map(f, list2).into_iter().collect();
+		par_result == seq_result
+	}
 }
