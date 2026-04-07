@@ -1706,6 +1706,7 @@ mod inner {
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
 			"The type of the computed value.",
 			"The monoid type."
 		)]
@@ -1726,16 +1727,19 @@ mod inner {
 		/// };
 		///
 		/// let lazy = RcLazy::new(|| 42);
-		/// let result = <LazyBrand<RcLazyConfig> as RefFoldableWithIndex>::ref_fold_map_with_index(
-		/// 	|_, x: &i32| x.to_string(),
-		/// 	lazy,
-		/// );
+		/// let result = <LazyBrand<RcLazyConfig> as RefFoldableWithIndex>::ref_fold_map_with_index::<
+		/// 	RcFnBrand,
+		/// 	_,
+		/// 	_,
+		/// >(|_, x: &i32| x.to_string(), lazy);
 		/// assert_eq!(result, "42");
 		/// ```
-		fn ref_fold_map_with_index<'a, A: 'a, R: Monoid>(
+		fn ref_fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
 			f: impl Fn((), &A) -> R + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			f((), fa.evaluate())
 		}
 	}

@@ -1744,6 +1744,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters(
 			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
 			"The type of the computed value.",
 			"The monoid type."
 		)]
@@ -1762,16 +1763,19 @@ mod inner {
 		/// };
 		///
 		/// let lazy: RcTryLazy<i32, ()> = RcTryLazy::new(|| Ok(10));
-		/// let result = <TryLazyBrand<(), RcLazyConfig> as RefFoldableWithIndex>::ref_fold_map_with_index(
-		/// 	|_, x: &i32| x.to_string(),
-		/// 	lazy,
-		/// );
+		/// let result = <TryLazyBrand<(), RcLazyConfig> as RefFoldableWithIndex>::ref_fold_map_with_index::<
+		/// 	RcFnBrand,
+		/// 	_,
+		/// 	_,
+		/// >(|_, x: &i32| x.to_string(), lazy);
 		/// assert_eq!(result, "10");
 		/// ```
-		fn ref_fold_map_with_index<'a, A: 'a, R: Monoid>(
+		fn ref_fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
 			f: impl Fn((), &A) -> R + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			match fa.evaluate() {
 				Ok(a) => f((), a),
 				Err(_) => Monoid::empty(),
@@ -2279,7 +2283,10 @@ mod tests {
 	use {
 		super::*,
 		crate::{
-			brands::TryLazyBrand,
+			brands::{
+				RcFnBrand,
+				TryLazyBrand,
+			},
 			types::{
 				ArcLazyConfig,
 				RcLazy,
@@ -3117,10 +3124,11 @@ mod tests {
 
 		let lazy = RcTryLazy::<i32, ()>::ok(42);
 		let result =
-			<TryLazyBrand<(), RcLazyConfig> as RefFoldableWithIndex>::ref_fold_map_with_index(
-				|_, x: &i32| x.to_string(),
-				lazy,
-			);
+			<TryLazyBrand<(), RcLazyConfig> as RefFoldableWithIndex>::ref_fold_map_with_index::<
+				RcFnBrand,
+				_,
+				_,
+			>(|_, x: &i32| x.to_string(), lazy);
 		assert_eq!(result, "42");
 	}
 
@@ -3133,10 +3141,11 @@ mod tests {
 
 		let lazy = RcTryLazy::<i32, String>::err("fail".to_string());
 		let result =
-			<TryLazyBrand<String, RcLazyConfig> as RefFoldableWithIndex>::ref_fold_map_with_index(
-				|_, x: &i32| x.to_string(),
-				lazy,
-			);
+			<TryLazyBrand<String, RcLazyConfig> as RefFoldableWithIndex>::ref_fold_map_with_index::<
+				RcFnBrand,
+				_,
+				_,
+			>(|_, x: &i32| x.to_string(), lazy);
 		assert_eq!(result, "");
 	}
 
@@ -3149,10 +3158,11 @@ mod tests {
 
 		let lazy = ArcTryLazy::<i32, ()>::ok(10);
 		let result =
-			<TryLazyBrand<(), ArcLazyConfig> as RefFoldableWithIndex>::ref_fold_map_with_index(
-				|_, x: &i32| x.to_string(),
-				lazy,
-			);
+			<TryLazyBrand<(), ArcLazyConfig> as RefFoldableWithIndex>::ref_fold_map_with_index::<
+				RcFnBrand,
+				_,
+				_,
+			>(|_, x: &i32| x.to_string(), lazy);
 		assert_eq!(result, "10");
 	}
 
@@ -3165,10 +3175,11 @@ mod tests {
 
 		let lazy = ArcTryLazy::<i32, String>::err("fail".to_string());
 		let result =
-			<TryLazyBrand<String, ArcLazyConfig> as RefFoldableWithIndex>::ref_fold_map_with_index(
-				|_, x: &i32| x.to_string(),
-				lazy,
-			);
+			<TryLazyBrand<String, ArcLazyConfig> as RefFoldableWithIndex>::ref_fold_map_with_index::<
+				RcFnBrand,
+				_,
+				_,
+			>(|_, x: &i32| x.to_string(), lazy);
 		assert_eq!(result, "");
 	}
 
@@ -3189,10 +3200,11 @@ mod tests {
 
 		let fold_result = fold_map::<RcFnBrand, TryLazyBrand<(), RcLazyConfig>, _, _, _>(f, lazy1);
 		let fold_with_index_result =
-			<TryLazyBrand<(), RcLazyConfig> as RefFoldableWithIndex>::ref_fold_map_with_index(
-				|_, a| f(a),
-				lazy2,
-			);
+			<TryLazyBrand<(), RcLazyConfig> as RefFoldableWithIndex>::ref_fold_map_with_index::<
+				RcFnBrand,
+				_,
+				_,
+			>(|_, a| f(a), lazy2);
 		assert_eq!(fold_result, fold_with_index_result);
 	}
 

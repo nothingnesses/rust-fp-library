@@ -1164,7 +1164,12 @@ mod inner {
 	impl RefFoldableWithIndex for OptionBrand {
 		/// Folds by reference with index (always `()`).
 		#[document_signature]
-		#[document_type_parameters("The lifetime.", "The element type.", "The monoid type.")]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand of the cloneable function.",
+			"The element type.",
+			"The monoid type."
+		)]
 		#[document_parameters("The function.", "The option.")]
 		#[document_returns("The monoid value.")]
 		#[document_examples]
@@ -1174,13 +1179,18 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = ref_fold_map_with_index::<OptionBrand, _, _>(|(), x: &i32| x.to_string(), Some(5));
+		/// let result = ref_fold_map_with_index::<RcFnBrand, OptionBrand, _, _>(
+		/// 	|(), x: &i32| x.to_string(),
+		/// 	Some(5),
+		/// );
 		/// assert_eq!(result, "5");
 		/// ```
-		fn ref_fold_map_with_index<'a, A: 'a, R: Monoid>(
+		fn ref_fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
 			func: impl Fn((), &A) -> R + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			match fa {
 				Some(a) => func((), &a),
 				None => Monoid::empty(),

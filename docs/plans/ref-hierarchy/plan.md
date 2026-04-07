@@ -358,8 +358,8 @@ element access) was investigated and rejected for three reasons:
       and default impl to `RefFoldable::ref_fold_map`, making all
       three methods mutually derivable (matching `Foldable`'s design).
 
-20. **Dispatch semimonad helpers**: Extend `dispatch/semimonad.rs`
-    to unify:
+20. ~~**Dispatch semimonad helpers**~~: Done. Extended
+    `dispatch/semimonad.rs` to unify:
     - `bind_flipped` / `ref_bind_flipped`
     - `compose_kleisli` / `ref_compose_kleisli`
     - `compose_kleisli_flipped` / `ref_compose_kleisli_flipped`

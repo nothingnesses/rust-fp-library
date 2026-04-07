@@ -3495,6 +3495,7 @@ mod inner {
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
+			"The brand of the cloneable function to use.",
 			"The type of the elements.",
 			"The monoid type."
 		)]
@@ -3516,14 +3517,18 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(10).snoc(20).snoc(30);
-		/// let result =
-		/// 	ref_fold_map_with_index::<CatListBrand, _, _>(|i, x: &i32| format!("{}:{}", i, x), list);
+		/// let result = ref_fold_map_with_index::<RcFnBrand, CatListBrand, _, _>(
+		/// 	|i, x: &i32| format!("{}:{}", i, x),
+		/// 	list,
+		/// );
 		/// assert_eq!(result, "0:101:202:30");
 		/// ```
-		fn ref_fold_map_with_index<'a, A: 'a, R: Monoid>(
+		fn ref_fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
 			func: impl Fn(usize, &A) -> R + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			fa.iter()
 				.enumerate()
 				.fold(Monoid::empty(), |acc, (i, a)| Semigroup::append(acc, func(i, a)))
