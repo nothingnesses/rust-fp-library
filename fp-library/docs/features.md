@@ -5,7 +5,8 @@
 Implemented using lightweight higher-kinded polymorphism (type-level defunctionalization/brands).
 Procedural macros (`trait_kind!`, `impl_kind!`, `Apply!`, `#[kind]`) simplify defining and
 applying HKT encodings. `m_do!` provides monadic do-notation; `a_do!` provides applicative
-do-notation.
+do-notation. Both support a `ref` qualifier (`m_do!(ref Brand { ... })`) for by-reference
+dispatch to `RefSemimonad`/`RefLift` traits.
 
 ### Type Class Hierarchy
 

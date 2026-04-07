@@ -1086,15 +1086,26 @@ pub fn document_module(
 ///     let w: Type = expr;   // Typed let binding
 ///     expr                  // Final expression: no semicolon, returned as-is
 /// })
+///
+/// // By-reference mode (for memoized types like Lazy):
+/// m_do!(ref Brand {
+///     a: &i32 <- lazy_expr; // Closure receives &i32 via RefSemimonad
+///     pure(*a * 2)          // pure is rewritten to ref_pure
+/// })
 /// ```
 ///
 /// * `Brand`: The monad brand type (e.g., `OptionBrand`, `VecBrand`).
+/// * `ref` (optional): Enables by-reference dispatch. Closures receive `&A`
+///   instead of `A`, routing through `RefSemimonad::ref_bind`. Typed binds
+///   use the type as-is (include `&` in the type annotation). Untyped binds
+///   get `: &_` added automatically. `pure(x)` is rewritten to `ref_pure(&x)`.
 /// * `x <- expr;`: Binds the result of a monadic expression to a pattern.
 /// * `let z = expr;`: A pure let binding (not monadic).
 /// * `expr;`: Sequences a monadic expression, discarding the result.
 /// * `expr` (final): The return expression, emitted as-is.
 ///
-/// Bare `pure(args)` calls are automatically rewritten to `pure::<Brand, _>(args)`.
+/// Bare `pure(args)` calls are automatically rewritten to `pure::<Brand, _>(args)`
+/// (or `ref_pure::<Brand, _>(&args)` in ref mode).
 ///
 /// ### Statement Forms
 ///
@@ -1172,13 +1183,25 @@ pub fn m_do(input: TokenStream) -> TokenStream {
 ///     let w: Type = expr;   // Typed let binding
 ///     expr                  // Final expression: the combining body
 /// })
+///
+/// // By-reference mode (for memoized types like Lazy):
+/// a_do!(ref Brand {
+///     a: &i32 <- lazy_a;    // Closure receives &i32 via RefLift
+///     b: &i32 <- lazy_b;
+///     *a + *b
+/// })
 /// ```
 ///
 /// * `Brand`: The applicative brand type (e.g., `OptionBrand`, `VecBrand`).
+/// * `ref` (optional): Enables by-reference dispatch. The combining closure
+///   receives references (`&A`, `&B`, etc.) via `RefLift::ref_lift2`. Typed
+///   binds use the type as-is (include `&`). Untyped binds get `: &_`.
+///   Zero-bind blocks use `ref_pure` instead of `pure`.
 /// * Bind expressions are evaluated independently (applicative, not monadic).
 /// * `let` bindings before any `<-` are hoisted outside the combinator call.
 /// * `let` bindings after a `<-` are placed inside the combining closure.
-/// * Bare `pure(args)` calls in bind expressions are rewritten to `pure::<Brand, _>(args)`.
+/// * Bare `pure(args)` calls in bind expressions are rewritten to `pure::<Brand, _>(args)`
+///   (or `ref_pure::<Brand, _>(&args)` in ref mode).
 ///
 /// ### Desugaring
 ///
