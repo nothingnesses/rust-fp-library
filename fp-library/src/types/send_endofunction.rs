@@ -227,10 +227,7 @@ mod tests {
 		super::*,
 		crate::{
 			brands::ArcFnBrand,
-			classes::{
-				send_clone_fn::SendLiftFn,
-				*,
-			},
+			classes::send_clone_fn::SendLiftFn,
 			functions::*,
 		},
 		quickcheck_macros::quickcheck,

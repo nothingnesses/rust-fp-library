@@ -3746,6 +3746,217 @@ mod inner {
 			fa.iter().flat_map(f).collect()
 		}
 	}
+
+	// -- Parallel by-reference trait implementations --
+
+	impl ParRefFunctor for CatListBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function. Must be `Send + Sync`.", "The list.")]
+		#[document_returns("A new list with mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_ref_functor::ParRefFunctor,
+		/// 	types::*,
+		/// };
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let result = CatListBrand::par_ref_map(|x: &i32| x * 2, list);
+		/// assert_eq!(result.into_iter().collect::<Vec<_>>(), vec![2, 4, 6]);
+		/// ```
+		fn par_ref_map<'a, A: Send + Sync + 'a, B: Send + 'a>(
+			f: impl Fn(&A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let v: Vec<&A> = fa.iter().collect();
+			#[cfg(feature = "rayon")]
+			let result: Vec<B> = {
+				use rayon::prelude::*;
+				v.into_par_iter().map(f).collect()
+			};
+			#[cfg(not(feature = "rayon"))]
+			let result: Vec<B> = v.into_iter().map(f).collect();
+			result.into_iter().collect()
+		}
+	}
+
+	impl ParRefFoldable for CatListBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The element type.", "The monoid type.")]
+		#[document_parameters("The function. Must be `Send + Sync`.", "The list.")]
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_ref_foldable::ParRefFoldable,
+		/// 	types::*,
+		/// };
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let result = CatListBrand::par_ref_fold_map(|x: &i32| x.to_string(), list);
+		/// assert_eq!(result, "123");
+		/// ```
+		fn par_ref_fold_map<'a, A: Send + Sync + 'a, M: Monoid + Send + 'a>(
+			f: impl Fn(&A) -> M + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M {
+			let v: Vec<&A> = fa.iter().collect();
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				v.into_par_iter().map(f).reduce(Monoid::empty, Semigroup::append)
+			}
+			#[cfg(not(feature = "rayon"))]
+			v.into_iter().map(f).fold(Monoid::empty(), |acc, m| Semigroup::append(acc, m))
+		}
+	}
+
+	impl ParRefFilterable for CatListBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function. Must be `Send + Sync`.", "The list.")]
+		#[document_returns("A new list with filtered and mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_ref_filterable::ParRefFilterable,
+		/// 	types::*,
+		/// };
+		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
+		/// let result = CatListBrand::par_ref_filter_map(
+		/// 	|x: &i32| if *x > 2 { Some(x.to_string()) } else { None },
+		/// 	list,
+		/// );
+		/// assert_eq!(result.into_iter().collect::<Vec<_>>(), vec!["3", "4"]);
+		/// ```
+		fn par_ref_filter_map<'a, A: Send + Sync + 'a, B: Send + 'a>(
+			f: impl Fn(&A) -> Option<B> + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let v: Vec<&A> = fa.iter().collect();
+			#[cfg(feature = "rayon")]
+			let result: Vec<B> = {
+				use rayon::prelude::*;
+				v.into_par_iter().filter_map(f).collect()
+			};
+			#[cfg(not(feature = "rayon"))]
+			let result: Vec<B> = v.into_iter().filter_map(f).collect();
+			result.into_iter().collect()
+		}
+	}
+
+	impl ParRefFunctorWithIndex for CatListBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function with index. Must be `Send + Sync`.", "The list.")]
+		#[document_returns("A new list with mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_ref_functor_with_index::ParRefFunctorWithIndex,
+		/// 	types::*,
+		/// };
+		/// let list = CatList::singleton(10).snoc(20);
+		/// let result = CatListBrand::par_ref_map_with_index(|i, x: &i32| format!("{}:{}", i, x), list);
+		/// assert_eq!(result.into_iter().collect::<Vec<_>>(), vec!["0:10", "1:20"]);
+		/// ```
+		fn par_ref_map_with_index<'a, A: Send + Sync + 'a, B: Send + 'a>(
+			f: impl Fn(usize, &A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let v: Vec<&A> = fa.iter().collect();
+			#[cfg(feature = "rayon")]
+			let result: Vec<B> = {
+				use rayon::prelude::*;
+				v.into_par_iter().enumerate().map(|(i, a)| f(i, a)).collect()
+			};
+			#[cfg(not(feature = "rayon"))]
+			let result: Vec<B> = v.into_iter().enumerate().map(|(i, a)| f(i, a)).collect();
+			result.into_iter().collect()
+		}
+	}
+
+	impl ParRefFoldableWithIndex for CatListBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The element type.", "The monoid type.")]
+		#[document_parameters("The function with index. Must be `Send + Sync`.", "The list.")]
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_ref_foldable_with_index::ParRefFoldableWithIndex,
+		/// 	types::*,
+		/// };
+		/// let list = CatList::singleton(10).snoc(20);
+		/// let result =
+		/// 	CatListBrand::par_ref_fold_map_with_index(|i, x: &i32| format!("{}:{}", i, x), list);
+		/// assert_eq!(result, "0:101:20");
+		/// ```
+		fn par_ref_fold_map_with_index<'a, A: Send + Sync + 'a, M: Monoid + Send + 'a>(
+			f: impl Fn(usize, &A) -> M + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M {
+			let v: Vec<&A> = fa.iter().collect();
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				v.into_par_iter()
+					.enumerate()
+					.map(|(i, a)| f(i, a))
+					.reduce(Monoid::empty, Semigroup::append)
+			}
+			#[cfg(not(feature = "rayon"))]
+			v.into_iter()
+				.enumerate()
+				.map(|(i, a)| f(i, a))
+				.fold(Monoid::empty(), |acc, m| Semigroup::append(acc, m))
+		}
+	}
+
+	impl ParRefFilterableWithIndex for CatListBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function with index. Must be `Send + Sync`.", "The list.")]
+		#[document_returns("A new list with filtered and mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_ref_filterable_with_index::ParRefFilterableWithIndex,
+		/// 	types::*,
+		/// };
+		/// let list = CatList::singleton(10).snoc(20).snoc(30).snoc(40).snoc(50);
+		/// let result = CatListBrand::par_ref_filter_map_with_index(
+		/// 	|i, x: &i32| if i % 2 == 0 { Some(x.to_string()) } else { None },
+		/// 	list,
+		/// );
+		/// assert_eq!(result.into_iter().collect::<Vec<_>>(), vec!["10", "30", "50"]);
+		/// ```
+		fn par_ref_filter_map_with_index<'a, A: Send + Sync + 'a, B: Send + 'a>(
+			f: impl Fn(usize, &A) -> Option<B> + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let v: Vec<&A> = fa.iter().collect();
+			#[cfg(feature = "rayon")]
+			let result: Vec<B> = {
+				use rayon::prelude::*;
+				v.into_par_iter().enumerate().filter_map(|(i, a)| f(i, a)).collect()
+			};
+			#[cfg(not(feature = "rayon"))]
+			let result: Vec<B> = v.into_iter().enumerate().filter_map(|(i, a)| f(i, a)).collect();
+			result.into_iter().collect()
+		}
+	}
 }
 pub use inner::*;
 

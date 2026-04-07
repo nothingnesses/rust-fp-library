@@ -2653,6 +2653,201 @@ mod inner {
 			fa.iter().flat_map(f).collect()
 		}
 	}
+
+	// -- Parallel by-reference trait implementations --
+
+	impl ParRefFunctor for VecBrand {
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The input element type.",
+			"The output element type."
+		)]
+		#[document_parameters("The function. Must be `Send + Sync`.", "The vector.")]
+		#[document_returns("A new vector with mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_ref_functor::ParRefFunctor,
+		/// };
+		/// let result = VecBrand::par_ref_map(|x: &i32| x * 2, vec![1, 2, 3]);
+		/// assert_eq!(result, vec![2, 4, 6]);
+		/// ```
+		fn par_ref_map<'a, A: Send + Sync + 'a, B: Send + 'a>(
+			f: impl Fn(&A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.par_iter().map(f).collect()
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.iter().map(f).collect()
+		}
+	}
+
+	impl ParRefFoldable for VecBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The element type.", "The monoid type.")]
+		#[document_parameters("The function. Must be `Send + Sync`.", "The vector.")]
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_ref_foldable::ParRefFoldable,
+		/// };
+		/// let result = VecBrand::par_ref_fold_map(|x: &i32| x.to_string(), vec![1, 2, 3]);
+		/// assert_eq!(result, "123");
+		/// ```
+		fn par_ref_fold_map<'a, A: Send + Sync + 'a, M: Monoid + Send + 'a>(
+			f: impl Fn(&A) -> M + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.par_iter().map(f).reduce(Monoid::empty, Semigroup::append)
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.iter().map(f).fold(Monoid::empty(), |acc, m| Semigroup::append(acc, m))
+		}
+	}
+
+	impl ParRefFilterable for VecBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function. Must be `Send + Sync`.", "The vector.")]
+		#[document_returns("A new vector with filtered and mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_ref_filterable::ParRefFilterable,
+		/// };
+		/// let result = VecBrand::par_ref_filter_map(
+		/// 	|x: &i32| if *x > 2 { Some(x.to_string()) } else { None },
+		/// 	vec![1, 2, 3, 4],
+		/// );
+		/// assert_eq!(result, vec!["3", "4"]);
+		/// ```
+		fn par_ref_filter_map<'a, A: Send + Sync + 'a, B: Send + 'a>(
+			f: impl Fn(&A) -> Option<B> + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.par_iter().filter_map(f).collect()
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.iter().filter_map(f).collect()
+		}
+	}
+
+	impl ParRefFunctorWithIndex for VecBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function with index. Must be `Send + Sync`.", "The vector.")]
+		#[document_returns("A new vector with mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_ref_functor_with_index::ParRefFunctorWithIndex,
+		/// };
+		/// let result =
+		/// 	VecBrand::par_ref_map_with_index(|i, x: &i32| format!("{}:{}", i, x), vec![10, 20]);
+		/// assert_eq!(result, vec!["0:10", "1:20"]);
+		/// ```
+		fn par_ref_map_with_index<'a, A: Send + Sync + 'a, B: Send + 'a>(
+			f: impl Fn(usize, &A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.par_iter().enumerate().map(|(i, a)| f(i, a)).collect()
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.iter().enumerate().map(|(i, a)| f(i, a)).collect()
+		}
+	}
+
+	impl ParRefFoldableWithIndex for VecBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The element type.", "The monoid type.")]
+		#[document_parameters("The function with index. Must be `Send + Sync`.", "The vector.")]
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_ref_foldable_with_index::ParRefFoldableWithIndex,
+		/// };
+		/// let result =
+		/// 	VecBrand::par_ref_fold_map_with_index(|i, x: &i32| format!("{}:{}", i, x), vec![10, 20]);
+		/// assert_eq!(result, "0:101:20");
+		/// ```
+		fn par_ref_fold_map_with_index<'a, A: Send + Sync + 'a, M: Monoid + Send + 'a>(
+			f: impl Fn(usize, &A) -> M + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.par_iter()
+					.enumerate()
+					.map(|(i, a)| f(i, a))
+					.reduce(Monoid::empty, Semigroup::append)
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.iter()
+				.enumerate()
+				.map(|(i, a)| f(i, a))
+				.fold(Monoid::empty(), |acc, m| Semigroup::append(acc, m))
+		}
+	}
+
+	impl ParRefFilterableWithIndex for VecBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function with index. Must be `Send + Sync`.", "The vector.")]
+		#[document_returns("A new vector with filtered and mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_ref_filterable_with_index::ParRefFilterableWithIndex,
+		/// };
+		/// let v = vec![10, 20, 30, 40, 50];
+		/// let result = VecBrand::par_ref_filter_map_with_index(
+		/// 	|i, x: &i32| if i % 2 == 0 { Some(x.to_string()) } else { None },
+		/// 	v,
+		/// );
+		/// assert_eq!(result, vec!["10", "30", "50"]);
+		/// ```
+		fn par_ref_filter_map_with_index<'a, A: Send + Sync + 'a, B: Send + 'a>(
+			f: impl Fn(usize, &A) -> Option<B> + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.par_iter().enumerate().filter_map(|(i, a)| f(i, a)).collect()
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.iter().enumerate().filter_map(|(i, a)| f(i, a)).collect()
+		}
+	}
 }
 
 #[cfg(test)]
