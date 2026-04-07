@@ -419,12 +419,14 @@ element access) was investigated and rejected for three reasons:
 
 24. **Par-Ref traits**: Add parallel by-reference trait variants
     for collection types:
-    - `ParRefFunctor` (par_ref_map)
-    - `ParRefFoldable` (par_ref_fold_map)
-    - `ParRefFunctorWithIndex` (par_ref_map_with_index)
-    - `ParRefFoldableWithIndex` (par_ref_fold_map_with_index)
-    - `ParRefFilterable`, `ParRefFilterableWithIndex`
-      Implement for Vec, CatList. Requires rayon feature.
+    - ~~`ParRefFunctor`~~: Done. `par_ref_map` for Vec, CatList.
+    - ~~`ParRefFoldable`~~: Done. `par_ref_fold_map` for Vec, CatList.
+    - ~~`ParRefFilterable`~~: Done. `par_ref_filter_map`, `par_ref_filter`.
+    - ~~`ParRefFunctorWithIndex`~~: Done. `par_ref_map_with_index`.
+    - ~~`ParRefFoldableWithIndex`~~: Done. `par_ref_fold_map_with_index`.
+    - ~~`ParRefFilterableWithIndex`~~: Done. `par_ref_filter_map_with_index`,
+      `par_ref_filter_with_index`. All implemented for Vec and CatList.
+      Elements require `Send + Sync` for rayon's `par_iter()`.
 
 25. **Documentation and tests**: Property tests for type class
     laws, doc examples, update limitations.md.
