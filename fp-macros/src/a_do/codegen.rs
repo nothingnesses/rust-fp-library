@@ -27,6 +27,7 @@ use {
 /// - N binds -> `liftN::<Brand, _, ...>(|pats...| body, exprs...)`
 pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 	let brand = &input.brand;
+	let ref_mode = input.ref_mode;
 
 	let mut leading_lets: Vec<TokenStream> = vec![];
 	let mut inner_lets: Vec<TokenStream> = vec![];
@@ -42,10 +43,16 @@ pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 				expr,
 			} => {
 				seen_bind = true;
-				let expr = rewrite_pure(brand, expr);
-				let param = match ty {
-					Some(ty) => quote! { #pattern: #ty },
-					None => quote! { #pattern },
+				let expr = rewrite_pure(brand, expr, ref_mode);
+				let param = match (ref_mode, ty) {
+					// Ref mode, untyped: add &_ for dispatch inference
+					(true, None) => quote! { #pattern: &_ },
+					// Ref mode, typed: user wrote the full type (including &)
+					(true, Some(ty)) => quote! { #pattern: #ty },
+					// Val mode, typed
+					(false, Some(ty)) => quote! { #pattern: #ty },
+					// Val mode, untyped
+					(false, None) => quote! { #pattern },
 				};
 				bind_params.push(param);
 				bind_exprs.push(expr);
@@ -69,8 +76,13 @@ pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 				expr,
 			} => {
 				seen_bind = true;
-				let expr = rewrite_pure(brand, expr);
-				bind_params.push(quote! { _ });
+				let expr = rewrite_pure(brand, expr, ref_mode);
+				let discard = if ref_mode {
+					quote! { _: &_ }
+				} else {
+					quote! { _ }
+				};
+				bind_params.push(discard);
 				bind_exprs.push(expr);
 			}
 		}
@@ -79,9 +91,12 @@ pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 	let final_expr = &input.final_expr;
 	let n = bind_params.len();
 	let result = match (bind_params.as_slice(), bind_exprs.as_slice()) {
-		([], _) => {
-			quote! { pure::<#brand, _>(#final_expr) }
-		}
+		([], _) =>
+			if ref_mode {
+				quote! { ref_pure::<#brand, _>(&(#final_expr)) }
+			} else {
+				quote! { pure::<#brand, _>(#final_expr) }
+			},
 		([param], [expr]) => {
 			quote! {
 				map::<#brand, _, _, _>(|#param| { #(#inner_lets)* #final_expr }, #expr)

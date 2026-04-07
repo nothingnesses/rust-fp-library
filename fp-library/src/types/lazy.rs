@@ -3274,4 +3274,111 @@ mod tests {
 		let handle = thread::spawn(move || *self_ref.evaluate());
 		assert_eq!(handle.join().unwrap(), 77);
 	}
+
+	#[test]
+	fn m_do_ref_lazy_manual() {
+		// Manual expansion of what m_do!(ref ...) should generate
+		use crate::{
+			brands::LazyBrand,
+			functions::*,
+		};
+
+		let lazy_a = RcLazy::new(|| 10i32);
+
+		let result = bind::<LazyBrand<RcLazyConfig>, _, _, _>(lazy_a, move |a: &i32| {
+			ref_pure::<LazyBrand<RcLazyConfig>, _>(&(*a * 2))
+		});
+
+		assert_eq!(*result.evaluate(), 20);
+	}
+
+	#[test]
+	fn m_do_ref_lazy_macro() {
+		use {
+			crate::{
+				brands::LazyBrand,
+				functions::*,
+			},
+			fp_macros::m_do,
+		};
+
+		let lazy_a = RcLazy::new(|| 10i32);
+
+		let result = m_do!(ref LazyBrand<RcLazyConfig> {
+			a: &i32 <- lazy_a;
+			pure(*a * 2)
+		});
+
+		assert_eq!(*result.evaluate(), 20);
+	}
+
+	#[test]
+	fn m_do_ref_lazy_multi_bind() {
+		use {
+			crate::{
+				brands::LazyBrand,
+				functions::*,
+			},
+			fp_macros::m_do,
+		};
+
+		let lazy_a = RcLazy::new(|| 10i32);
+		let lazy_b = RcLazy::new(|| 20i32);
+
+		// Multi-bind in ref mode: each bind receives &A, but inner closures
+		// can't capture references from outer binds (lifetime issue). Use
+		// let bindings to clone the referenced value for use in later binds.
+		let result = m_do!(ref LazyBrand<RcLazyConfig> {
+			a: &i32 <- lazy_a;
+			let a_val = *a;
+			b: &i32 <- lazy_b.clone();
+			pure(a_val + *b)
+		});
+
+		assert_eq!(*result.evaluate(), 30);
+	}
+
+	#[test]
+	fn m_do_ref_lazy_untyped() {
+		use {
+			crate::{
+				brands::LazyBrand,
+				functions::*,
+			},
+			fp_macros::m_do,
+		};
+
+		let lazy_a = RcLazy::new(|| 10i32);
+
+		let result = m_do!(ref LazyBrand<RcLazyConfig> {
+			a <- lazy_a;
+			pure(*a * 3)
+		});
+
+		assert_eq!(*result.evaluate(), 30);
+	}
+
+	#[test]
+	fn a_do_ref_lazy() {
+		use {
+			crate::{
+				brands::LazyBrand,
+				functions::*,
+			},
+			fp_macros::a_do,
+		};
+
+		let lazy_a = RcLazy::new(|| 10i32);
+		let lazy_b = RcLazy::new(|| 20i32);
+
+		// a_do uses lift2, which doesn't have the FnOnce issue since
+		// applicative binds are independent (no nesting).
+		let result = a_do!(ref LazyBrand<RcLazyConfig> {
+			a: &i32 <- lazy_a;
+			b: &i32 <- lazy_b;
+			*a + *b
+		});
+
+		assert_eq!(*result.evaluate(), 30);
+	}
 }

@@ -20,8 +20,10 @@ use {
 
 /// The parsed input to the `m_do!` macro.
 ///
-/// Represents `Brand { statements... final_expr }`.
+/// Represents `[ref] Brand { statements... final_expr }`.
 pub struct DoInput {
+	/// Whether the `ref` qualifier is present, selecting by-reference dispatch.
+	pub ref_mode: bool,
 	/// The brand type (e.g., `OptionBrand`).
 	pub brand: Type,
 	/// The statements preceding the final expression.
@@ -59,6 +61,10 @@ pub enum DoStatement {
 
 impl Parse for DoInput {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
+		let ref_mode = input.peek(Token![ref]);
+		if ref_mode {
+			input.parse::<Token![ref]>()?;
+		}
 		let brand: Type = input.parse()?;
 
 		let content;
@@ -103,6 +109,7 @@ impl Parse for DoInput {
 			}
 
 			return Ok(DoInput {
+				ref_mode,
 				brand,
 				statements,
 				final_expr: expr,
@@ -391,5 +398,32 @@ mod tests {
 	fn parse_empty_block_fails() {
 		let result = parse_str::<DoInput>("OptionBrand {}");
 		assert!(result.is_err());
+	}
+
+	#[test]
+	fn parse_ref_mode() {
+		let input: DoInput = parse_str(
+			"ref OptionBrand {
+				x <- Some(5);
+				pure(x)
+			}",
+		)
+		.expect("failed to parse");
+
+		assert!(input.ref_mode);
+		assert!(matches!(input.statements[0], DoStatement::Bind { .. }));
+	}
+
+	#[test]
+	fn parse_non_ref_mode() {
+		let input: DoInput = parse_str(
+			"OptionBrand {
+				x <- Some(5);
+				pure(x)
+			}",
+		)
+		.expect("failed to parse");
+
+		assert!(!input.ref_mode);
 	}
 }
