@@ -1429,14 +1429,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<ControlFlowContinueAppliedBrand<()>, _, _, OptionBrand>(
+		/// 	traverse::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, OptionBrand, _>(
 		/// 		|x| Some(x * 2),
 		/// 		ControlFlow::Break(5)
 		/// 	),
 		/// 	Some(ControlFlow::Break(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<ControlFlowContinueAppliedBrand<i32>, _, _, OptionBrand>(
+		/// 	traverse::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _, OptionBrand, _>(
 		/// 		|x: i32| Some(x * 2),
 		/// 		ControlFlow::Continue(1)
 		/// 	),
@@ -1982,14 +1982,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<ControlFlowBreakAppliedBrand<()>, _, _, OptionBrand>(
+		/// 	traverse::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, OptionBrand, _>(
 		/// 		|x| Some(x * 2),
 		/// 		ControlFlow::Continue(5)
 		/// 	),
 		/// 	Some(ControlFlow::Continue(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<ControlFlowBreakAppliedBrand<i32>, _, _, OptionBrand>(
+		/// 	traverse::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, OptionBrand, _>(
 		/// 		|x: i32| Some(x * 2),
 		/// 		ControlFlow::Break(1)
 		/// 	),
@@ -2655,13 +2655,16 @@ mod tests {
 	fn test_traversable_with_continue() {
 		let x = pure::<ControlFlowContinueAppliedBrand<()>, _>(5);
 		assert_eq!(
-			traverse::<ControlFlowContinueAppliedBrand<()>, _, _, OptionBrand>(|a| Some(a * 2), x),
+			traverse::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, OptionBrand, _>(
+				|a| Some(a * 2),
+				x
+			),
 			Some(ControlFlow::Break(10))
 		);
 
 		let cont: ControlFlow<i32, i32> = ControlFlow::Continue(1);
 		assert_eq!(
-			traverse::<ControlFlowContinueAppliedBrand<i32>, _, _, OptionBrand>(
+			traverse::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _, OptionBrand, _>(
 				|a| Some(a * 2),
 				cont
 			),
@@ -2676,13 +2679,19 @@ mod tests {
 	fn test_traversable_with_break() {
 		let x = pure::<ControlFlowBreakAppliedBrand<()>, _>(5);
 		assert_eq!(
-			traverse::<ControlFlowBreakAppliedBrand<()>, _, _, OptionBrand>(|a| Some(a * 2), x),
+			traverse::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, OptionBrand, _>(
+				|a| Some(a * 2),
+				x
+			),
 			Some(ControlFlow::Continue(10))
 		);
 
 		let brk: ControlFlow<i32, i32> = ControlFlow::Break(1);
 		assert_eq!(
-			traverse::<ControlFlowBreakAppliedBrand<i32>, _, _, OptionBrand>(|a| Some(a * 2), brk),
+			traverse::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, OptionBrand, _>(
+				|a| Some(a * 2),
+				brk
+			),
 			Some(ControlFlow::Break(1))
 		);
 	}

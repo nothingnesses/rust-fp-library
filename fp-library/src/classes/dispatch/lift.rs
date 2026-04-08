@@ -333,6 +333,11 @@ pub(crate) mod inner {
 	/// Lifts a ternary function into a functor context.
 	///
 	/// Dispatches to [`Lift::lift2`] or [`RefLift::ref_lift2`] based on the closure's argument types.
+	///
+	/// When dispatched through the Ref path (`Fn(&A, &B, &C) -> D`), the intermediate
+	/// types `A` and `B` must implement [`Clone`] because the implementation builds
+	/// the ternary lift from nested binary `ref_lift2` calls, which requires
+	/// constructing intermediate tuples.
 	#[document_signature]
 	#[document_type_parameters(
 		"The lifetime.",
@@ -540,6 +545,11 @@ pub(crate) mod inner {
 	}
 
 	/// Lifts a quaternary function into a functor context.
+	///
+	/// When dispatched through the Ref path (`Fn(&A, &B, &C, &D) -> E`), the
+	/// intermediate types `A`, `B`, and `C` must implement [`Clone`] because
+	/// the implementation builds the quaternary lift from nested binary
+	/// `ref_lift2` calls, which requires constructing intermediate tuples.
 	#[document_signature]
 	#[document_type_parameters(
 		"The lifetime.",
@@ -776,6 +786,11 @@ pub(crate) mod inner {
 	}
 
 	/// Lifts a quinary function into a functor context.
+	///
+	/// When dispatched through the Ref path (`Fn(&A, &B, &C, &D, &E) -> G`),
+	/// the intermediate types `A`, `B`, `C`, and `D` must implement [`Clone`]
+	/// because the implementation builds the quinary lift from nested binary
+	/// `ref_lift2` calls, which requires constructing intermediate tuples.
 	#[document_signature]
 	#[document_type_parameters(
 		"The lifetime.",

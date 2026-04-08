@@ -497,15 +497,12 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		OptionBrand,
-		/// 		VecBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	functions::*,
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<VecBrand, _, _, OptionBrand>(|x| Some(x * 2), vec![1, 2, 3]),
+		/// 	traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _>(|x| Some(x * 2), vec![1, 2, 3]),
 		/// 	Some(vec![2, 4, 6])
 		/// );
 		/// ```
@@ -1656,7 +1653,7 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let y = filter_map::<VecBrand, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, x);
+		/// let y = filter_map::<VecBrand, _, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, x);
 		/// assert_eq!(y, vec![4, 8]);
 		/// ```
 		fn filter_map<'a, A: 'a, B: 'a>(
@@ -3179,13 +3176,13 @@ mod tests {
 	/// Tests `filterMap identity ≡ compact`.
 	#[quickcheck]
 	fn filterable_filter_map_identity(x: Vec<Option<i32>>) -> bool {
-		filter_map::<VecBrand, _, _>(identity, x.clone()) == compact::<VecBrand, _>(x)
+		filter_map::<VecBrand, _, _, _>(identity, x.clone()) == compact::<VecBrand, _>(x)
 	}
 
 	/// Tests `filterMap Just ≡ identity`.
 	#[quickcheck]
 	fn filterable_filter_map_just(x: Vec<i32>) -> bool {
-		filter_map::<VecBrand, _, _>(Some, x.clone()) == x
+		filter_map::<VecBrand, _, _, _>(Some, x.clone()) == x
 	}
 
 	/// Tests `filterMap (l <=< r) ≡ filterMap l <<< filterMap r`.
@@ -3195,8 +3192,8 @@ mod tests {
 		let l = |i: i32| if i > 5 { Some(i) } else { None };
 		let composed = |i| bind::<OptionBrand, _, _, _>(r(i), l);
 
-		filter_map::<VecBrand, _, _>(composed, x.clone())
-			== filter_map::<VecBrand, _, _>(l, filter_map::<VecBrand, _, _>(r, x))
+		filter_map::<VecBrand, _, _, _>(composed, x.clone())
+			== filter_map::<VecBrand, _, _, _>(l, filter_map::<VecBrand, _, _, _>(r, x))
 	}
 
 	/// Tests `filter ≡ filterMap <<< maybeBool`.
@@ -3205,7 +3202,7 @@ mod tests {
 		let p = |i: i32| i % 2 == 0;
 		let maybe_bool = |i| if p(i) { Some(i) } else { None };
 
-		filter::<VecBrand, _>(p, x.clone()) == filter_map::<VecBrand, _, _>(maybe_bool, x)
+		filter::<VecBrand, _>(p, x.clone()) == filter_map::<VecBrand, _, _, _>(maybe_bool, x)
 	}
 
 	/// Tests `partitionMap identity ≡ separate`.
@@ -3256,7 +3253,7 @@ mod tests {
 		let lhs = wilt::<VecBrand, OptionBrand, _, _, _>(p, x.clone());
 		let rhs = crate::classes::dispatch::map::<OptionBrand, _, _, _>(
 			separate::<VecBrand, _, _>,
-			traverse::<VecBrand, _, _, OptionBrand>(p, x),
+			traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _>(p, x),
 		);
 
 		lhs == rhs
@@ -3270,7 +3267,7 @@ mod tests {
 		let lhs = wither::<VecBrand, OptionBrand, _, _>(p, x.clone());
 		let rhs = crate::classes::dispatch::map::<OptionBrand, _, _, _>(
 			compact::<VecBrand, _>,
-			traverse::<VecBrand, _, _, OptionBrand>(p, x),
+			traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _>(p, x),
 		);
 
 		lhs == rhs
@@ -3398,7 +3395,7 @@ mod tests {
 	/// Tests `filter_map` on an empty vector.
 	#[test]
 	fn filter_map_empty() {
-		assert_eq!(filter_map::<VecBrand, i32, _>(|x: i32| Some(x), vec![]), vec![] as Vec<i32>);
+		assert_eq!(filter_map::<VecBrand, i32, _, _>(|x: i32| Some(x), vec![]), vec![] as Vec<i32>);
 	}
 
 	/// Tests `filter` on an empty vector.
@@ -3641,5 +3638,62 @@ mod tests {
 		};
 		let f = |x: &i32| x.wrapping_mul(3).wrapping_add(7);
 		VecBrand::par_ref_map(f, v.clone()) == VecBrand::ref_map(f, v)
+	}
+
+	// RefSemimonad Laws (continued)
+
+	/// Tests the right identity law for RefSemimonad:
+	/// `ref_bind(v, |a| ref_pure(a)) == v`.
+	#[quickcheck]
+	fn ref_semimonad_right_identity(v: Vec<i32>) -> bool {
+		use crate::classes::{
+			ref_pointed::RefPointed,
+			ref_semimonad::RefSemimonad,
+		};
+		VecBrand::ref_bind(v.clone(), |a: &i32| VecBrand::ref_pure(a)) == v
+	}
+
+	// RefLift Laws
+
+	/// Tests the identity law for RefLift:
+	/// `ref_lift2(|_, b| *b, pure(unit), fa) == fa`.
+	#[quickcheck]
+	fn ref_lift_identity(v: Vec<i32>) -> bool {
+		use crate::classes::ref_lift::RefLift;
+		VecBrand::ref_lift2(|_: &(), b: &i32| *b, vec![()], v.clone()) == v
+	}
+
+	// RefTraversable Laws
+
+	/// Tests the identity law for RefTraversable:
+	/// `ref_traverse(|a| Identity(*a), ta) == Identity(ta)`.
+	#[quickcheck]
+	fn ref_traversable_identity(v: Vec<i32>) -> bool {
+		use crate::{
+			classes::ref_traversable::RefTraversable,
+			types::Identity,
+		};
+		let result: Identity<Vec<i32>> = VecBrand::ref_traverse::<RcFnBrand, _, _, IdentityBrand>(
+			|a: &i32| Identity(*a),
+			v.clone(),
+		);
+		result == Identity(v)
+	}
+
+	/// Tests RefTraversable naturality: ref_traverse(f, ta) produces
+	/// the same result as traverse(|a| f(&a), ta).
+	#[quickcheck]
+	fn ref_traversable_consistent_with_traverse(v: Vec<i32>) -> bool {
+		use crate::classes::{
+			ref_traversable::RefTraversable,
+			traversable::Traversable,
+		};
+		let ref_result: Option<Vec<String>> = VecBrand::ref_traverse::<RcFnBrand, _, _, OptionBrand>(
+			|a: &i32| Some(a.to_string()),
+			v.clone(),
+		);
+		let val_result: Option<Vec<String>> =
+			VecBrand::traverse::<i32, String, OptionBrand>(|a: i32| Some(a.to_string()), v);
+		ref_result == val_result
 	}
 }

@@ -15,6 +15,8 @@ mod lazy;
 mod option;
 #[path = "benchmarks/pair.rs"]
 mod pair;
+#[path = "benchmarks/ref_dispatch.rs"]
+mod ref_dispatch;
 #[path = "benchmarks/result.rs"]
 mod result;
 #[path = "benchmarks/string.rs"]
@@ -29,6 +31,7 @@ use {
 	lazy::bench_lazy,
 	option::bench_option,
 	pair::bench_pair,
+	ref_dispatch::bench_ref_dispatch,
 	result::bench_result,
 	string::bench_string,
 	vec::bench_vec,
@@ -44,6 +47,7 @@ criterion_group!(
 	bench_functions,
 	bench_cat_list,
 	bench_lazy,
-	bench_coyoneda
+	bench_coyoneda,
+	bench_ref_dispatch
 );
 criterion_main!(benches);

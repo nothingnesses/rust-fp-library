@@ -12,7 +12,10 @@ mod inner {
 				ResultErrAppliedBrand,
 				ResultOkAppliedBrand,
 			},
-			classes::*,
+			classes::{
+				dispatch::Ref,
+				*,
+			},
 			impl_kind,
 			kinds::*,
 		},
@@ -748,23 +751,29 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		OptionBrand,
-		/// 		ResultErrAppliedBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	functions::*,
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<ResultErrAppliedBrand<()>, _, _, OptionBrand>(|x| Some(x * 2), Ok(5)),
+		/// 	traverse::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, OptionBrand, _>(
+		/// 		|x| Some(x * 2),
+		/// 		Ok(5)
+		/// 	),
 		/// 	Some(Ok(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<ResultErrAppliedBrand<i32>, _, _, OptionBrand>(|x: i32| Some(x * 2), Err(1)),
+		/// 	traverse::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, OptionBrand, _>(
+		/// 		|x: i32| Some(x * 2),
+		/// 		Err(1)
+		/// 	),
 		/// 	Some(Err(1))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<ResultErrAppliedBrand<()>, _, _, OptionBrand>(|_| None::<i32>, Ok(5)),
+		/// 	traverse::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, OptionBrand, _>(
+		/// 		|_| None::<i32>,
+		/// 		Ok(5)
+		/// 	),
 		/// 	None
 		/// );
 		/// ```
@@ -1241,23 +1250,29 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		OptionBrand,
-		/// 		ResultOkAppliedBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	functions::*,
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<ResultOkAppliedBrand<()>, _, _, OptionBrand>(|x| Some(x * 2), Err(5)),
+		/// 	traverse::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, OptionBrand, _>(
+		/// 		|x| Some(x * 2),
+		/// 		Err(5)
+		/// 	),
 		/// 	Some(Err(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<ResultOkAppliedBrand<i32>, _, _, OptionBrand>(|x: i32| Some(x * 2), Ok(1)),
+		/// 	traverse::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, OptionBrand, _>(
+		/// 		|x: i32| Some(x * 2),
+		/// 		Ok(1)
+		/// 	),
 		/// 	Some(Ok(1))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<ResultOkAppliedBrand<()>, _, _, OptionBrand>(|_| None::<i32>, Err(5)),
+		/// 	traverse::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, OptionBrand, _>(
+		/// 		|_| None::<i32>,
+		/// 		Err(5)
+		/// 	),
 		/// 	None
 		/// );
 		/// ```
@@ -1377,6 +1392,487 @@ mod inner {
 					Err(ControlFlow::Continue(next)) => current = next,
 					Err(ControlFlow::Break(b)) => return Err(b),
 				}
+			}
+		}
+	}
+
+	// -- By-reference trait implementations for ResultErrAppliedBrand --
+
+	#[document_type_parameters("The error type.")]
+	impl<E: 'static> RefFunctor for ResultErrAppliedBrand<E> {
+		/// Maps a function over the result by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function.", "The result.")]
+		#[document_returns("The mapped result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// assert_eq!(map::<ResultErrAppliedBrand<()>, _, _, _>(|x: &i32| *x * 2, Ok(5)), Ok(10));
+		/// assert_eq!(
+		/// 	map::<ResultErrAppliedBrand<i32>, _, _, _>(|x: &i32| *x * 2, Err::<i32, _>(1)),
+		/// 	Err(1)
+		/// );
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match fa {
+				Ok(a) => Ok(func(&a)),
+				Err(e) => Err(e),
+			}
+		}
+	}
+
+	#[document_type_parameters("The error type.")]
+	impl<E: 'static> RefFoldable for ResultErrAppliedBrand<E> {
+		/// Folds the result by reference.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The element type.",
+			"The monoid type."
+		)]
+		#[document_parameters("The mapping function.", "The result.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result =
+		/// 	fold_map::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _>(|x: &i32| x.to_string(), Ok(5));
+		/// assert_eq!(result, "5");
+		/// ```
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			match fa {
+				Ok(a) => func(&a),
+				Err(_) => Monoid::empty(),
+			}
+		}
+	}
+
+	#[document_type_parameters("The error type.")]
+	impl<E: Clone + 'static> RefTraversable for ResultErrAppliedBrand<E> {
+		/// Traverses the result by reference.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The input type.",
+			"The output type.",
+			"The applicative."
+		)]
+		#[document_parameters("The function.", "The result.")]
+		#[document_returns("The traversed result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result: Vec<Result<String, ()>> =
+		/// 	ref_traverse::<ResultErrAppliedBrand<()>, RcFnBrand, _, _, VecBrand>(
+		/// 		|x: &i32| vec![x.to_string()],
+		/// 		Ok(5),
+		/// 	);
+		/// assert_eq!(result, vec![Ok("5".to_string())]);
+		/// ```
+		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			Self::traverse::<A, B, F>(move |a: A| func(&a), ta)
+		}
+	}
+
+	#[document_type_parameters("The error type.")]
+	impl<E: 'static> RefPointed for ResultErrAppliedBrand<E> {
+		/// Creates an `Ok` from a reference by cloning.
+		#[document_signature]
+		#[document_type_parameters("The lifetime of the value.", "The type of the value.")]
+		#[document_parameters("The reference to the value to wrap.")]
+		#[document_returns("An `Ok` containing a clone of the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = 42;
+		/// let result: Result<i32, ()> = ref_pure::<ResultErrAppliedBrand<()>, _>(&x);
+		/// assert_eq!(result, Ok(42));
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			Ok(a.clone())
+		}
+	}
+
+	#[document_type_parameters("The error type.")]
+	impl<E: Clone + 'static> RefLift for ResultErrAppliedBrand<E> {
+		/// Combines two `Result` values with a by-reference binary function.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"First input type.",
+			"Second input type.",
+			"Output type."
+		)]
+		#[document_parameters("The binary function.", "The first result.", "The second result.")]
+		#[document_returns("The combined result, or the first error encountered.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result =
+		/// 	lift2::<ResultErrAppliedBrand<()>, _, _, _, _>(|a: &i32, b: &i32| *a + *b, Ok(1), Ok(2));
+		/// assert_eq!(result, Ok(3));
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			match (fa, fb) {
+				(Ok(a), Ok(b)) => Ok(func(&a, &b)),
+				(Err(e), _) => Err(e),
+				(_, Err(e)) => Err(e),
+			}
+		}
+	}
+
+	#[document_type_parameters("The error type.")]
+	impl<E: Clone + 'static> RefSemiapplicative for ResultErrAppliedBrand<E> {
+		/// Applies a wrapped by-ref function to a `Result` value.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The function brand.",
+			"The input type.",
+			"The output type."
+		)]
+		#[document_parameters(
+			"The result containing the by-ref function.",
+			"The result containing the value."
+		)]
+		#[document_returns("The result of applying the function, or the first error.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f: Result<std::rc::Rc<dyn Fn(&i32) -> i32>, ()> = Ok(std::rc::Rc::new(|x: &i32| *x + 1));
+		/// let result = ref_apply::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(f, Ok(5));
+		/// assert_eq!(result, Ok(6));
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match (ff, fa) {
+				(Ok(f), Ok(a)) => Ok((*f)(&a)),
+				(Err(e), _) => Err(e),
+				(_, Err(e)) => Err(e),
+			}
+		}
+	}
+
+	#[document_type_parameters("The error type.")]
+	impl<E: Clone + 'static> RefSemimonad for ResultErrAppliedBrand<E> {
+		/// Chains `Result` computations by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The input result.", "The function to apply by reference.")]
+		#[document_returns("The result of applying the function, or the original error.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result: Result<String, ()> =
+		/// 	bind::<ResultErrAppliedBrand<()>, _, _, _>(Ok(42), |x: &i32| Ok(x.to_string()));
+		/// assert_eq!(result, Ok("42".to_string()));
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match fa {
+				Ok(a) => f(&a),
+				Err(e) => Err(e),
+			}
+		}
+	}
+
+	// -- By-reference trait implementations for ResultOkAppliedBrand --
+
+	#[document_type_parameters("The success type.")]
+	impl<T: 'static> RefFunctor for ResultOkAppliedBrand<T> {
+		/// Maps a function over the error value in the result by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function.", "The result.")]
+		#[document_returns("The mapped result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _>(|x: &i32| *x * 2, Err(5)), Err(10));
+		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _>(|x: &i32| *x * 2, Ok::<_, i32>(1)), Ok(1));
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match fa {
+				Err(e) => Err(func(&e)),
+				Ok(t) => Ok(t),
+			}
+		}
+	}
+
+	#[document_type_parameters("The success type.")]
+	impl<T: 'static> RefFoldable for ResultOkAppliedBrand<T> {
+		/// Folds the result by reference (over error).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The element type.",
+			"The monoid type."
+		)]
+		#[document_parameters("The mapping function.", "The result.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result =
+		/// 	fold_map::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _>(|x: &i32| x.to_string(), Err(5));
+		/// assert_eq!(result, "5");
+		/// ```
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			match fa {
+				Err(e) => func(&e),
+				Ok(_) => Monoid::empty(),
+			}
+		}
+	}
+
+	#[document_type_parameters("The success type.")]
+	impl<T: Clone + 'static> RefTraversable for ResultOkAppliedBrand<T> {
+		/// Traverses the result by reference (over error).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The input type.",
+			"The output type.",
+			"The applicative."
+		)]
+		#[document_parameters("The function.", "The result.")]
+		#[document_returns("The traversed result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result: Vec<Result<(), String>> =
+		/// 	ref_traverse::<ResultOkAppliedBrand<()>, RcFnBrand, _, _, VecBrand>(
+		/// 		|x: &i32| vec![x.to_string()],
+		/// 		Err(5),
+		/// 	);
+		/// assert_eq!(result, vec![Err("5".to_string())]);
+		/// ```
+		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			Self::traverse::<A, B, F>(move |a: A| func(&a), ta)
+		}
+	}
+
+	#[document_type_parameters("The success type.")]
+	impl<T: 'static> RefPointed for ResultOkAppliedBrand<T> {
+		/// Creates an `Err` from a reference by cloning.
+		#[document_signature]
+		#[document_type_parameters("The lifetime of the value.", "The type of the value.")]
+		#[document_parameters("The reference to the value to wrap.")]
+		#[document_returns("An `Err` containing a clone of the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = 42;
+		/// let result: Result<(), i32> = ref_pure::<ResultOkAppliedBrand<()>, _>(&x);
+		/// assert_eq!(result, Err(42));
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			Err(a.clone())
+		}
+	}
+
+	#[document_type_parameters("The success type.")]
+	impl<T: Clone + 'static> RefLift for ResultOkAppliedBrand<T> {
+		/// Combines two `Result` values with a by-reference binary function (over error).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"First input type.",
+			"Second input type.",
+			"Output type."
+		)]
+		#[document_parameters("The binary function.", "The first result.", "The second result.")]
+		#[document_returns("The combined result, or the first success encountered.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result =
+		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|a: &i32, b: &i32| *a + *b, Err(1), Err(2));
+		/// assert_eq!(result, Err(3));
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			match (fa, fb) {
+				(Err(a), Err(b)) => Err(func(&a, &b)),
+				(Ok(t), _) => Ok(t),
+				(_, Ok(t)) => Ok(t),
+			}
+		}
+	}
+
+	#[document_type_parameters("The success type.")]
+	impl<T: Clone + 'static> RefSemiapplicative for ResultOkAppliedBrand<T> {
+		/// Applies a wrapped by-ref function to a `Result` value (over error).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The function brand.",
+			"The input type.",
+			"The output type."
+		)]
+		#[document_parameters(
+			"The result containing the by-ref function (in Err).",
+			"The result containing the value (in Err)."
+		)]
+		#[document_returns("The result of applying the function, or the first success.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f: Result<(), std::rc::Rc<dyn Fn(&i32) -> i32>> = Err(std::rc::Rc::new(|x: &i32| *x + 1));
+		/// let result = ref_apply::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(f, Err(5));
+		/// assert_eq!(result, Err(6));
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match (ff, fa) {
+				(Err(f), Err(a)) => Err((*f)(&a)),
+				(Ok(t), _) => Ok(t),
+				(_, Ok(t)) => Ok(t),
+			}
+		}
+	}
+
+	#[document_type_parameters("The success type.")]
+	impl<T: Clone + 'static> RefSemimonad for ResultOkAppliedBrand<T> {
+		/// Chains `Result` computations by reference (over error).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The input result.", "The function to apply by reference.")]
+		#[document_returns("The result of applying the function, or the original success.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result: Result<(), String> =
+		/// 	bind::<ResultOkAppliedBrand<()>, _, _, _>(Err(42), |x: &i32| Err(x.to_string()));
+		/// assert_eq!(result, Err("42".to_string()));
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match fa {
+				Err(e) => f(&e),
+				Ok(t) => Ok(t),
 			}
 		}
 	}

@@ -26,6 +26,7 @@ fp_macros::generate_function_re_exports!("src/classes", {
 	"category::identity": category_identity,
 	"clone_fn::new": lift_fn_new,
 	"clone_fn::ref_new": ref_lift_fn_new,
+	"filterable::filter_map": filterable_filter_map,
 	"pointer::new": pointer_new,
 	"ref_counted_pointer::cloneable_new": ref_counted_pointer_new,
 	"send_ref_counted_pointer::send_new": send_ref_counted_pointer_new,
@@ -33,6 +34,7 @@ fp_macros::generate_function_re_exports!("src/classes", {
 	"semigroupoid::compose": semigroupoid_compose,
 	"send_clone_fn::new": send_lift_fn_new,
 	"send_clone_fn::ref_new": send_ref_lift_fn_new,
+	"traversable::traverse": traversable_traverse,
 });
 // Dispatch free functions are in sub-modules not scanned by the macro.
 pub use crate::{
@@ -41,6 +43,7 @@ pub use crate::{
 		bind_flipped,
 		compose_kleisli,
 		compose_kleisli_flipped,
+		filter_map,
 		fold_left,
 		fold_map,
 		fold_right,
@@ -49,6 +52,7 @@ pub use crate::{
 		lift4,
 		lift5,
 		map,
+		traverse,
 	},
 	types::{
 		lazy::{

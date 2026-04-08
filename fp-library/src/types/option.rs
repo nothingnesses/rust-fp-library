@@ -430,12 +430,12 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::OptionBrand,
+		/// 	brands::*,
 		/// 	functions::*,
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = traverse::<OptionBrand, _, _, OptionBrand>(|a| Some(a * 2), x);
+		/// let y = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some(Some(10)));
 		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
@@ -802,7 +802,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = filter_map::<OptionBrand, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
+		/// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn filter_map<'a, A: 'a, B: 'a>(
@@ -1665,5 +1665,88 @@ mod tests {
 			None => Additive(0),
 		};
 		result == expected
+	}
+
+	// RefSemimonad Laws (continued)
+
+	/// Tests the right identity law for RefSemimonad:
+	/// `ref_bind(m, |a| ref_pure(a)) == m`.
+	#[quickcheck]
+	fn ref_semimonad_right_identity(opt: Option<i32>) -> bool {
+		use crate::classes::{
+			ref_pointed::RefPointed,
+			ref_semimonad::RefSemimonad,
+		};
+		OptionBrand::ref_bind(opt, |a: &i32| OptionBrand::ref_pure(a)) == opt
+	}
+
+	/// Tests the associativity law for RefSemimonad.
+	#[quickcheck]
+	fn ref_semimonad_associativity(opt: Option<i32>) -> bool {
+		use crate::classes::ref_semimonad::RefSemimonad;
+		let f = |a: &i32| if *a > 0 { Some(a.wrapping_mul(2)) } else { None };
+		let g = |b: &i32| Some(b.wrapping_add(10));
+		let lhs = OptionBrand::ref_bind(OptionBrand::ref_bind(opt, f), g);
+		let rhs = OptionBrand::ref_bind(opt, |a: &i32| OptionBrand::ref_bind(f(a), g));
+		lhs == rhs
+	}
+
+	// RefLift Laws
+
+	/// Tests the identity law for RefLift:
+	/// `ref_lift2(|_, b| *b, pure(unit), fa) == fa`.
+	#[quickcheck]
+	fn ref_lift_identity(opt: Option<i32>) -> bool {
+		use crate::classes::ref_lift::RefLift;
+		OptionBrand::ref_lift2(|_: &(), b: &i32| *b, Some(()), opt) == opt
+	}
+
+	/// Tests commutativity of ref_lift2 (for Option specifically):
+	/// `ref_lift2(f, a, b) == ref_lift2(|b, a| f(a, b), b, a)`.
+	#[quickcheck]
+	fn ref_lift2_commutativity(
+		a: Option<i32>,
+		b: Option<i32>,
+	) -> bool {
+		use crate::classes::ref_lift::RefLift;
+		let lhs = OptionBrand::ref_lift2(|x: &i32, y: &i32| x.wrapping_add(*y), a, b);
+		let rhs = OptionBrand::ref_lift2(|y: &i32, x: &i32| x.wrapping_add(*y), b, a);
+		lhs == rhs
+	}
+
+	// RefTraversable Laws
+
+	/// Tests the identity law for RefTraversable:
+	/// `ref_traverse(|a| Identity(*a), ta) == Identity(ta)`.
+	#[quickcheck]
+	fn ref_traversable_identity(opt: Option<i32>) -> bool {
+		use crate::{
+			classes::ref_traversable::RefTraversable,
+			types::Identity,
+		};
+		let result: Identity<Option<i32>> =
+			OptionBrand::ref_traverse::<RcFnBrand, _, _, IdentityBrand>(
+				|a: &i32| Identity(*a),
+				opt,
+			);
+		result == Identity(opt)
+	}
+
+	/// Tests RefTraversable naturality: ref_traverse(f, ta) produces
+	/// the same result as traverse(|a| f(&a), ta).
+	#[quickcheck]
+	fn ref_traversable_consistent_with_traverse(opt: Option<i32>) -> bool {
+		use crate::classes::{
+			ref_traversable::RefTraversable,
+			traversable::Traversable,
+		};
+		let ref_result: Option<Option<String>> =
+			OptionBrand::ref_traverse::<RcFnBrand, _, _, OptionBrand>(
+				|a: &i32| Some(a.to_string()),
+				opt,
+			);
+		let val_result: Option<Option<String>> =
+			OptionBrand::traverse::<i32, String, OptionBrand>(|a: i32| Some(a.to_string()), opt);
+		ref_result == val_result
 	}
 }

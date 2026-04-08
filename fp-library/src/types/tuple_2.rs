@@ -12,7 +12,10 @@ mod inner {
 				Tuple2FirstAppliedBrand,
 				Tuple2SecondAppliedBrand,
 			},
-			classes::*,
+			classes::{
+				dispatch::Ref,
+				*,
+			},
 			impl_kind,
 			kinds::*,
 		},
@@ -738,7 +741,10 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<Tuple2FirstAppliedBrand<()>, _, _, OptionBrand>(|x| Some(x * 2), ((), 5)),
+		/// 	traverse::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, OptionBrand, _>(
+		/// 		|x| Some(x * 2),
+		/// 		((), 5)
+		/// 	),
 		/// 	Some(((), 10))
 		/// );
 		/// ```
@@ -788,6 +794,245 @@ mod inner {
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 			let (first, second) = ta;
 			F::map(move |a| (first.clone(), a), second)
+		}
+	}
+
+	// -- By-reference trait implementations for Tuple2FirstAppliedBrand --
+
+	#[document_type_parameters("The type of the first value in the tuple.")]
+	impl<First: 'static> RefFunctor for Tuple2FirstAppliedBrand<First> {
+		/// Maps a function over the second value in the tuple by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function.", "The tuple.")]
+		#[document_returns("A new tuple with the mapped second value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// assert_eq!(map::<Tuple2FirstAppliedBrand<_>, _, _, _>(|x: &i32| *x * 2, (1, 5)), (1, 10));
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			(fa.0, func(&fa.1))
+		}
+	}
+
+	#[document_type_parameters("The type of the first value in the tuple.")]
+	impl<First: 'static> RefFoldable for Tuple2FirstAppliedBrand<First> {
+		/// Folds the tuple by reference (over second).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The element type.",
+			"The monoid type."
+		)]
+		#[document_parameters("The mapping function.", "The tuple.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result = fold_map::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _>(
+		/// 	|x: &i32| x.to_string(),
+		/// 	((), 5),
+		/// );
+		/// assert_eq!(result, "5");
+		/// ```
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			func(&fa.1)
+		}
+	}
+
+	#[document_type_parameters("The type of the first value in the tuple.")]
+	impl<First: Clone + 'static> RefTraversable for Tuple2FirstAppliedBrand<First> {
+		/// Traverses the tuple by reference (over second).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The input type.",
+			"The output type.",
+			"The applicative."
+		)]
+		#[document_parameters("The function.", "The tuple.")]
+		#[document_returns("The traversed result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result: Option<((), String)> =
+		/// 	ref_traverse::<Tuple2FirstAppliedBrand<()>, RcFnBrand, _, _, OptionBrand>(
+		/// 		|x: &i32| Some(x.to_string()),
+		/// 		((), 42),
+		/// 	);
+		/// assert_eq!(result, Some(((), "42".to_string())));
+		/// ```
+		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			Self::traverse::<A, B, F>(move |a: A| func(&a), ta)
+		}
+	}
+
+	#[document_type_parameters("The type of the first value in the tuple.")]
+	impl<First: Clone + 'static> RefPointed for Tuple2FirstAppliedBrand<First>
+	where
+		First: Monoid,
+	{
+		/// Creates a tuple from a reference by cloning (with empty first).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The value type.")]
+		#[document_parameters("The reference to wrap.")]
+		#[document_returns("A tuple containing `Monoid::empty()` and a clone of the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = 42;
+		/// let result: (String, i32) = ref_pure::<Tuple2FirstAppliedBrand<String>, _>(&x);
+		/// assert_eq!(result, ("".to_string(), 42));
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			(Monoid::empty(), a.clone())
+		}
+	}
+
+	#[document_type_parameters("The type of the first value in the tuple.")]
+	impl<First: Clone + 'static> RefLift for Tuple2FirstAppliedBrand<First>
+	where
+		First: Semigroup,
+	{
+		/// Combines two tuples with a by-reference binary function (over second).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "First input.", "Second input.", "Output.")]
+		#[document_parameters("The binary function.", "The first tuple.", "The second tuple.")]
+		#[document_returns("A tuple with combined first values and the function result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result = lift2::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
+		/// 	|a: &i32, b: &i32| *a + *b,
+		/// 	("a".to_string(), 1),
+		/// 	("b".to_string(), 2),
+		/// );
+		/// assert_eq!(result, ("ab".to_string(), 3));
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			(Semigroup::append(fa.0, fb.0), func(&fa.1, &fb.1))
+		}
+	}
+
+	#[document_type_parameters("The type of the first value in the tuple.")]
+	impl<First: Clone + 'static> RefSemiapplicative for Tuple2FirstAppliedBrand<First>
+	where
+		First: Semigroup,
+	{
+		/// Applies a wrapped by-ref function to a tuple value (over second).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The function brand.",
+			"The input type.",
+			"The output type."
+		)]
+		#[document_parameters(
+			"The tuple containing the function.",
+			"The tuple containing the value."
+		)]
+		#[document_returns("A tuple with combined first values and the function result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x * 2);
+		/// let result = ref_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
+		/// 	("a".to_string(), f),
+		/// 	("b".to_string(), 5),
+		/// );
+		/// assert_eq!(result, ("ab".to_string(), 10));
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			(Semigroup::append(ff.0, fa.0), (*ff.1)(&fa.1))
+		}
+	}
+
+	#[document_type_parameters("The type of the first value in the tuple.")]
+	impl<First: Clone + 'static> RefSemimonad for Tuple2FirstAppliedBrand<First>
+	where
+		First: Semigroup,
+	{
+		/// Chains tuple computations by reference (over second).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The input tuple.", "The function to apply by reference.")]
+		#[document_returns("A tuple with combined first values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result: (String, String) =
+		/// 	bind::<Tuple2FirstAppliedBrand<String>, _, _, _>(("a".to_string(), 42), |x: &i32| {
+		/// 		("b".to_string(), x.to_string())
+		/// 	});
+		/// assert_eq!(result, ("ab".to_string(), "42".to_string()));
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let (first, second) = fa;
+			let (next_first, next_second) = f(&second);
+			(Semigroup::append(first, next_first), next_second)
 		}
 	}
 
@@ -1246,7 +1491,10 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<Tuple2SecondAppliedBrand<()>, _, _, OptionBrand>(|x| Some(x * 2), (5, ())),
+		/// 	traverse::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, OptionBrand, _>(
+		/// 		|x| Some(x * 2),
+		/// 		(5, ())
+		/// 	),
 		/// 	Some((10, ()))
 		/// );
 		/// ```
@@ -1296,6 +1544,244 @@ mod inner {
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 			let (first, second) = ta;
 			F::map(move |a| (a, second.clone()), first)
+		}
+	}
+	// -- By-reference trait implementations for Tuple2SecondAppliedBrand --
+
+	#[document_type_parameters("The type of the second value in the tuple.")]
+	impl<Second: 'static> RefFunctor for Tuple2SecondAppliedBrand<Second> {
+		/// Maps a function over the first value in the tuple by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function.", "The tuple.")]
+		#[document_returns("A new tuple with the mapped first value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// assert_eq!(map::<Tuple2SecondAppliedBrand<_>, _, _, _>(|x: &i32| *x * 2, (5, 1)), (10, 1));
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			(func(&fa.0), fa.1)
+		}
+	}
+
+	#[document_type_parameters("The type of the second value in the tuple.")]
+	impl<Second: 'static> RefFoldable for Tuple2SecondAppliedBrand<Second> {
+		/// Folds the tuple by reference (over first).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The element type.",
+			"The monoid type."
+		)]
+		#[document_parameters("The mapping function.", "The tuple.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result = fold_map::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _>(
+		/// 	|x: &i32| x.to_string(),
+		/// 	(5, ()),
+		/// );
+		/// assert_eq!(result, "5");
+		/// ```
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			func(&fa.0)
+		}
+	}
+
+	#[document_type_parameters("The type of the second value in the tuple.")]
+	impl<Second: Clone + 'static> RefTraversable for Tuple2SecondAppliedBrand<Second> {
+		/// Traverses the tuple by reference (over first).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The input type.",
+			"The output type.",
+			"The applicative."
+		)]
+		#[document_parameters("The function.", "The tuple.")]
+		#[document_returns("The traversed result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result: Option<(String, ())> =
+		/// 	ref_traverse::<Tuple2SecondAppliedBrand<()>, RcFnBrand, _, _, OptionBrand>(
+		/// 		|x: &i32| Some(x.to_string()),
+		/// 		(42, ()),
+		/// 	);
+		/// assert_eq!(result, Some(("42".to_string(), ())));
+		/// ```
+		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			Self::traverse::<A, B, F>(move |a: A| func(&a), ta)
+		}
+	}
+
+	#[document_type_parameters("The type of the second value in the tuple.")]
+	impl<Second: Clone + 'static> RefPointed for Tuple2SecondAppliedBrand<Second>
+	where
+		Second: Monoid,
+	{
+		/// Creates a tuple from a reference by cloning (with empty second).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The value type.")]
+		#[document_parameters("The reference to wrap.")]
+		#[document_returns("A tuple containing a clone of the value and `Monoid::empty()`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = 42;
+		/// let result: (i32, String) = ref_pure::<Tuple2SecondAppliedBrand<String>, _>(&x);
+		/// assert_eq!(result, (42, "".to_string()));
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			(a.clone(), Monoid::empty())
+		}
+	}
+
+	#[document_type_parameters("The type of the second value in the tuple.")]
+	impl<Second: Clone + 'static> RefLift for Tuple2SecondAppliedBrand<Second>
+	where
+		Second: Semigroup,
+	{
+		/// Combines two tuples with a by-reference binary function (over first).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "First input.", "Second input.", "Output.")]
+		#[document_parameters("The binary function.", "The first tuple.", "The second tuple.")]
+		#[document_returns("A tuple with the function result and combined second values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result = lift2::<Tuple2SecondAppliedBrand<String>, _, _, _, _>(
+		/// 	|a: &i32, b: &i32| *a + *b,
+		/// 	(1, "a".to_string()),
+		/// 	(2, "b".to_string()),
+		/// );
+		/// assert_eq!(result, (3, "ab".to_string()));
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			(func(&fa.0, &fb.0), Semigroup::append(fa.1, fb.1))
+		}
+	}
+
+	#[document_type_parameters("The type of the second value in the tuple.")]
+	impl<Second: Clone + 'static> RefSemiapplicative for Tuple2SecondAppliedBrand<Second>
+	where
+		Second: Semigroup,
+	{
+		/// Applies a wrapped by-ref function to a tuple value (over first).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The function brand.",
+			"The input type.",
+			"The output type."
+		)]
+		#[document_parameters(
+			"The tuple containing the function.",
+			"The tuple containing the value."
+		)]
+		#[document_returns("A tuple with the function result and combined second values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x * 2);
+		/// let result = ref_apply::<RcFnBrand, Tuple2SecondAppliedBrand<String>, _, _>(
+		/// 	(f, "a".to_string()),
+		/// 	(5, "b".to_string()),
+		/// );
+		/// assert_eq!(result, (10, "ab".to_string()));
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			((*ff.0)(&fa.0), Semigroup::append(ff.1, fa.1))
+		}
+	}
+
+	#[document_type_parameters("The type of the second value in the tuple.")]
+	impl<Second: Clone + 'static> RefSemimonad for Tuple2SecondAppliedBrand<Second>
+	where
+		Second: Semigroup,
+	{
+		/// Chains tuple computations by reference (over first).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The input tuple.", "The function to apply by reference.")]
+		#[document_returns("A tuple with combined second values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result: (String, String) =
+		/// 	bind::<Tuple2SecondAppliedBrand<String>, _, _, _>((42, "a".to_string()), |x: &i32| {
+		/// 		(x.to_string(), "b".to_string())
+		/// 	});
+		/// assert_eq!(result, ("42".to_string(), "ab".to_string()));
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let (first, second) = fa;
+			let (next_first, next_second) = f(&first);
+			(next_first, Semigroup::append(second, next_second))
 		}
 	}
 }

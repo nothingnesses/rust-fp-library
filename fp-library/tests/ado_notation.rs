@@ -221,3 +221,132 @@ fn equivalent_to_manual_pure() {
 	let manual_result = pure::<OptionBrand, _>(99);
 	assert_eq!(ado_result, manual_result);
 }
+
+// -- Ref mode tests --
+
+#[test]
+fn ref_mode_zero_binds() {
+	let result: Option<i32> = a_do!(ref OptionBrand { 42 });
+	assert_eq!(result, Some(42));
+}
+
+#[test]
+fn ref_mode_single_bind_typed() {
+	let result = a_do!(ref OptionBrand {
+		x: &i32 <- Some(5);
+		*x * 2
+	});
+	assert_eq!(result, Some(10));
+}
+
+#[test]
+fn ref_mode_single_bind_untyped() {
+	let result = a_do!(ref OptionBrand {
+		x <- Some(5);
+		*x * 3
+	});
+	assert_eq!(result, Some(15));
+}
+
+#[test]
+fn ref_mode_two_binds() {
+	let result = a_do!(ref OptionBrand {
+		x: &i32 <- Some(3);
+		y: &i32 <- Some(4);
+		*x + *y
+	});
+	assert_eq!(result, Some(7));
+}
+
+#[test]
+fn ref_mode_three_binds() {
+	let result = a_do!(ref OptionBrand {
+		a: &i32 <- Some(1);
+		b: &i32 <- Some(2);
+		c: &i32 <- Some(3);
+		*a + *b + *c
+	});
+	assert_eq!(result, Some(6));
+}
+
+#[test]
+fn ref_mode_none_short_circuits() {
+	let result = a_do!(ref OptionBrand {
+		x: &i32 <- Some(3);
+		y: &i32 <- None;
+		*x + *y
+	});
+	assert_eq!(result, None);
+}
+
+#[test]
+fn ref_mode_sequence() {
+	let result = a_do!(ref OptionBrand {
+		Some(());
+		x: &i32 <- Some(42);
+		*x
+	});
+	assert_eq!(result, Some(42));
+}
+
+#[test]
+fn ref_mode_vec_two_binds() {
+	let result = a_do!(ref VecBrand {
+		x: &i32 <- vec![1, 2];
+		y: &i32 <- vec![10, 20];
+		*x + *y
+	});
+	assert_eq!(result, vec![11, 21, 12, 22]);
+}
+
+#[test]
+fn ref_mode_vec_single_bind() {
+	let result = a_do!(ref VecBrand {
+		x: &i32 <- vec![1, 2, 3];
+		*x * 10
+	});
+	assert_eq!(result, vec![10, 20, 30]);
+}
+
+#[test]
+fn ref_mode_let_binding() {
+	let result = a_do!(ref OptionBrand {
+		x: &i32 <- Some(5);
+		y: &i32 <- Some(3);
+		let z = *x + *y;
+		z * 2
+	});
+	assert_eq!(result, Some(16));
+}
+
+#[test]
+fn ref_mode_leading_let() {
+	let result = a_do!(ref OptionBrand {
+		let factor = 10;
+		x: &i32 <- Some(3);
+		*x * factor
+	});
+	assert_eq!(result, Some(30));
+}
+
+#[test]
+fn ref_mode_equivalent_to_manual_ref_lift2() {
+	let ado_result = a_do!(ref OptionBrand {
+		a: &i32 <- Some(5);
+		b: &i32 <- Some(3);
+		*a - *b
+	});
+	let manual_result =
+		lift2::<OptionBrand, _, _, _, _>(|a: &i32, b: &i32| *a - *b, Some(5), Some(3));
+	assert_eq!(ado_result, manual_result);
+}
+
+#[test]
+fn ref_mode_equivalent_to_manual_ref_map() {
+	let ado_result = a_do!(ref OptionBrand {
+		x: &i32 <- Some(7);
+		*x + 1
+	});
+	let manual_result = map::<OptionBrand, _, _, _>(|x: &i32| *x + 1, Some(7));
+	assert_eq!(ado_result, manual_result);
+}

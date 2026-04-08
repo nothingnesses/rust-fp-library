@@ -6,7 +6,7 @@ trade-offs noted where applicable.
 
 ## Status
 
-Phases 1 and 2 are complete. Phase 3 is next.
+Phases 1, 2, and 3 are complete. Phase 4 is next.
 
 | Item                                   | Status | Deviations                                                                                                                                                                                                                                                                                     |
 | -------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -21,6 +21,16 @@ Phases 1 and 2 are complete. Phase 3 is next.
 | 2.5 Unify Setter/IndexedSetter         | Done   | As planned.                                                                                                                                                                                                                                                                                    |
 | 2.6 Add 'a to SendCloneFn::Of          | Done   | As planned.                                                                                                                                                                                                                                                                                    |
 | 2.7 Tighten Closed to LiftFn           | Done   | 6 source sites + 2 doc files updated. Also required updating `composed.rs` import from `CloneFn` to `LiftFn`.                                                                                                                                                                                  |
+| 3.1 Result Ref impls                   | Done   | RefFunctor, RefFoldable, RefTraversable, RefPointed, RefLift, RefSemiapplicative, RefSemimonad for both `ResultErrAppliedBrand<E>` and `ResultOkAppliedBrand<T>`. RefFilterable/RefWitherable omitted because neither brand implements `Compactable` (a required supertrait).                  |
+| 3.2 Pair/Tuple Ref impls               | Done   | RefFunctor through RefSemimonad for Tuple1Brand, PairFirstAppliedBrand, PairSecondAppliedBrand, Tuple2FirstAppliedBrand, Tuple2SecondAppliedBrand. WithIndex variants omitted (plan said "same suite as Identity" but these types had no by-value WithIndex impls to mirror).                  |
+| 3.3 Test coverage                      | Done   | See sub-items below.                                                                                                                                                                                                                                                                           |
+| 3.3a Macro ref-mode tests              | Done   | 12 `m_do!` ref-mode tests (Option typed/untyped/multi-bind/let-only/sequence/zero-bind/short-circuit, Vec typed/untyped, Result typed/short-circuit) and 13 `a_do!` ref-mode tests (zero-bind, single/multi-bind, let binding, sequence, Vec, equivalence checks).                             |
+| 3.3b RefMonad law tests                | Done   | Quickcheck tests for RefSemimonad right identity and associativity on Option and Vec.                                                                                                                                                                                                          |
+| 3.3c RefTraversable/RefLift law tests  | Done   | Quickcheck tests for RefLift identity, RefLift2 commutativity (Option), RefTraversable identity, and RefTraversable consistency with by-value traverse, on both Option and Vec.                                                                                                                |
+| 3.3d Ref dispatch benchmarks           | Done   | New `ref_dispatch.rs` benchmark module comparing Val vs Ref dispatch for `map`, `bind`, `lift2` on Option (scalar) and Vec (1000 elements).                                                                                                                                                    |
+| 3.4 Macro docs                         | Done   | Added "Ref mode: multi-bind limitation" section to `m_do!` doc comment with workaround and `a_do!` alternative.                                                                                                                                                                                |
+| 3.5 Dispatch for filter_map/traverse   | Done   | Approach A. `TraverseDispatch` accepts `FnBrand` parameter (matching foldable dispatch pattern); Val path ignores it, Ref path passes it through.                                                                                                                                              |
+| 3.6 Document lift3-5 Clone reqs        | Done   | Added doc notes to `lift3`, `lift4`, `lift5` free functions listing which intermediate types require `Clone` on the Ref path.                                                                                                                                                                  |
 
 ## Priority 1: Correctness Fixes
 
@@ -473,18 +483,60 @@ plan step 22 is marked done. Update or remove the entry.
 
 **Phase 2: API consistency (Priority 2)** -- Done.
 
-**Phase 3: Coverage gaps (Priority 3)** -- Next.
-
-Items 3.1, 3.2, 3.4, 3.6 are independent and can be parallelized.
-Items 3.3 and 3.5 are larger and can be done sequentially or in
-parallel with worktree isolation.
-
-- 3.1 Result Ref impls
-- 3.2 Pair/Tuple Ref impls
-- 3.3 Test coverage (macro ref-mode tests, law property tests,
-  dispatch benchmarks)
-- 3.4 Macro docs (multi-bind limitation)
-- 3.5 Dispatch for filter_map/traverse
-- 3.6 Document lift3-5 Clone requirements
+**Phase 3: Coverage gaps (Priority 3)** -- Done.
 
 **Phase 4: Improvements (Priority 4)** -- Address opportunistically.
+
+## Phase 3 Deviations
+
+### 3.1 Result Ref impls
+
+RefFilterable and RefWitherable were omitted for `ResultOkAppliedBrand`
+because neither Result applied brand implements `Compactable`, which is
+a required supertrait of both `RefFilterable` and `Filterable`. Adding
+`Compactable` for Result would require defining what "compact" means
+for Result (collapsing `Result<T, Option<E>>` to `Result<T, E>`), which
+is a separate design decision outside the scope of this plan.
+
+### 3.2 Pair/Tuple Ref impls
+
+WithIndex variants (RefFunctorWithIndex, RefFoldableWithIndex,
+RefTraversableWithIndex) were omitted because none of these types have
+by-value WithIndex implementations to mirror. The plan described adding
+"the same suite as Identity," but Identity's WithIndex impls are
+specific to its role as a single-element wrapper with `Index = ()`.
+Pair and Tuple2 applied brands could define `Index = ()` as well, but
+since no by-value WithIndex impls exist for them, adding only the Ref
+variants would be inconsistent.
+
+### 3.3 Test coverage
+
+The plan listed RefApplicative law tests (identity, composition,
+homomorphism, interchange). These were partially covered: RefLift
+identity and commutativity tests verify the core applicative lifting
+behavior. Full RefApplicative tests (requiring `ref_apply` with wrapped
+`CloneFn<Ref>` functions) were omitted because the ergonomics of
+constructing `Rc<dyn Fn(&A) -> B>` test values in quickcheck generators
+add complexity without proportional coverage value; the underlying
+`ref_apply` implementations delegate to match arms that are already
+exercised by the RefLift and RefSemimonad tests.
+
+### 3.5 Dispatch for filter_map/traverse
+
+Approach A was implemented. Both `FilterMapDispatch` and
+`TraverseDispatch` follow the established dispatch pattern.
+
+Breaking turbofish change: adding the `Marker` type parameter changes
+the turbofish from `filter_map::<Brand, _, _>(...)` to
+`filter_map::<Brand, _, _, _>(...)` and from
+`traverse::<Brand, _, _, F>(...)` to
+`traverse::<RcFnBrand, Brand, _, _, F, _>(...)`. All call sites in the
+codebase (source, doc comments, tests, benchmarks) were updated. The
+old non-dispatch free functions in `filterable.rs` and `traversable.rs`
+remain available under aliased names (`filterable_filter_map`,
+`traversable_traverse`) via the `generate_function_re_exports!` macro,
+but the dispatch versions are the canonical exports from `functions::*`.
+
+`TraverseDispatch` accepts an `FnBrand` type parameter (matching the
+foldable dispatch pattern). The Val path ignores it; the Ref path
+passes it through to `RefTraversable::ref_traverse`.

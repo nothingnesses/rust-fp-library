@@ -680,7 +680,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = traverse::<IdentityBrand, _, _, OptionBrand>(|a| Some(a * 2), x);
+		/// let y = traverse::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some(Identity(10)));
 		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(

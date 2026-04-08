@@ -12,7 +12,10 @@ mod inner {
 				PairFirstAppliedBrand,
 				PairSecondAppliedBrand,
 			},
-			classes::*,
+			classes::{
+				dispatch::Ref,
+				*,
+			},
 			impl_kind,
 			kinds::*,
 		},
@@ -1114,7 +1117,10 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<PairFirstAppliedBrand<()>, _, _, OptionBrand>(|x| Some(x * 2), Pair((), 5)),
+		/// 	traverse::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, OptionBrand, _>(
+		/// 		|x| Some(x * 2),
+		/// 		Pair((), 5)
+		/// 	),
 		/// 	Some(Pair((), 10))
 		/// );
 		/// ```
@@ -1165,6 +1171,252 @@ mod inner {
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 			let Pair(first, second) = ta;
 			F::map(move |a| Pair(first.clone(), a), second)
+		}
+	}
+
+	// -- By-reference trait implementations for PairFirstAppliedBrand --
+
+	#[document_type_parameters("The type of the first value in the pair.")]
+	impl<First: 'static> RefFunctor for PairFirstAppliedBrand<First> {
+		/// Maps a function over the second value in the pair by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function.", "The pair.")]
+		#[document_returns("A new pair with the mapped second value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// assert_eq!(map::<PairFirstAppliedBrand<_>, _, _, _>(|x: &i32| *x * 2, Pair(1, 5)), Pair(1, 10));
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Pair(fa.0, func(&fa.1))
+		}
+	}
+
+	#[document_type_parameters("The type of the first value in the pair.")]
+	impl<First: 'static> RefFoldable for PairFirstAppliedBrand<First> {
+		/// Folds the pair by reference (over second).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The element type.",
+			"The monoid type."
+		)]
+		#[document_parameters("The mapping function.", "The pair.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let result = fold_map::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _>(
+		/// 	|x: &i32| x.to_string(),
+		/// 	Pair((), 5),
+		/// );
+		/// assert_eq!(result, "5");
+		/// ```
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			func(&fa.1)
+		}
+	}
+
+	#[document_type_parameters("The type of the first value in the pair.")]
+	impl<First: Clone + 'static> RefTraversable for PairFirstAppliedBrand<First> {
+		/// Traverses the pair by reference (over second).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The input type.",
+			"The output type.",
+			"The applicative."
+		)]
+		#[document_parameters("The function.", "The pair.")]
+		#[document_returns("The traversed result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let result: Option<Pair<(), String>> =
+		/// 	ref_traverse::<PairFirstAppliedBrand<()>, RcFnBrand, _, _, OptionBrand>(
+		/// 		|x: &i32| Some(x.to_string()),
+		/// 		Pair((), 42),
+		/// 	);
+		/// assert_eq!(result, Some(Pair((), "42".to_string())));
+		/// ```
+		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			Self::traverse::<A, B, F>(move |a: A| func(&a), ta)
+		}
+	}
+
+	#[document_type_parameters("The type of the first value in the pair.")]
+	impl<First: Clone + 'static> RefPointed for PairFirstAppliedBrand<First>
+	where
+		First: Monoid,
+	{
+		/// Creates a pair from a reference by cloning (with empty first).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The value type.")]
+		#[document_parameters("The reference to wrap.")]
+		#[document_returns("A pair containing `Monoid::empty()` and a clone of the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = 42;
+		/// let result: Pair<String, i32> = ref_pure::<PairFirstAppliedBrand<String>, _>(&x);
+		/// assert_eq!(result, Pair("".to_string(), 42));
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			Pair(Monoid::empty(), a.clone())
+		}
+	}
+
+	#[document_type_parameters("The type of the first value in the pair.")]
+	impl<First: Clone + 'static> RefLift for PairFirstAppliedBrand<First>
+	where
+		First: Semigroup,
+	{
+		/// Combines two pairs with a by-reference binary function (over second).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "First input.", "Second input.", "Output.")]
+		#[document_parameters("The binary function.", "The first pair.", "The second pair.")]
+		#[document_returns("A pair with combined first values and the function result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result = lift2::<PairFirstAppliedBrand<String>, _, _, _, _>(
+		/// 	|a: &i32, b: &i32| *a + *b,
+		/// 	Pair("a".to_string(), 1),
+		/// 	Pair("b".to_string(), 2),
+		/// );
+		/// assert_eq!(result, Pair("ab".to_string(), 3));
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			Pair(Semigroup::append(fa.0, fb.0), func(&fa.1, &fb.1))
+		}
+	}
+
+	#[document_type_parameters("The type of the first value in the pair.")]
+	impl<First: Clone + 'static> RefSemiapplicative for PairFirstAppliedBrand<First>
+	where
+		First: Semigroup,
+	{
+		/// Applies a wrapped by-ref function to a pair value (over second).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The function brand.",
+			"The input type.",
+			"The output type."
+		)]
+		#[document_parameters(
+			"The pair containing the function.",
+			"The pair containing the value."
+		)]
+		#[document_returns("A pair with combined first values and the function result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x * 2);
+		/// let result = ref_apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
+		/// 	Pair("a".to_string(), f),
+		/// 	Pair("b".to_string(), 5),
+		/// );
+		/// assert_eq!(result, Pair("ab".to_string(), 10));
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Pair(Semigroup::append(ff.0, fa.0), (*ff.1)(&fa.1))
+		}
+	}
+
+	#[document_type_parameters("The type of the first value in the pair.")]
+	impl<First: Clone + 'static> RefSemimonad for PairFirstAppliedBrand<First>
+	where
+		First: Semigroup,
+	{
+		/// Chains pair computations by reference (over second).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The input pair.", "The function to apply by reference.")]
+		#[document_returns("A pair with combined first values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result: Pair<String, String> =
+		/// 	bind::<PairFirstAppliedBrand<String>, _, _, _>(Pair("a".to_string(), 42), |x: &i32| {
+		/// 		Pair("b".to_string(), x.to_string())
+		/// 	});
+		/// assert_eq!(result, Pair("ab".to_string(), "42".to_string()));
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let Pair(first, second) = fa;
+			let Pair(next_first, next_second) = f(&second);
+			Pair(Semigroup::append(first, next_first), next_second)
 		}
 	}
 
@@ -1637,7 +1889,10 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<PairSecondAppliedBrand<()>, _, _, OptionBrand>(|x| Some(x * 2), Pair(5, ())),
+		/// 	traverse::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, OptionBrand, _>(
+		/// 		|x| Some(x * 2),
+		/// 		Pair(5, ())
+		/// 	),
 		/// 	Some(Pair(10, ()))
 		/// );
 		/// ```
@@ -1688,6 +1943,254 @@ mod inner {
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 			let Pair(first, second) = ta;
 			F::map(move |a| Pair(a, second.clone()), first)
+		}
+	}
+	// -- By-reference trait implementations for PairSecondAppliedBrand --
+
+	#[document_type_parameters("The type of the second value in the pair.")]
+	impl<Second: 'static> RefFunctor for PairSecondAppliedBrand<Second> {
+		/// Maps a function over the first value in the pair by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function.", "The pair.")]
+		#[document_returns("A new pair with the mapped first value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// assert_eq!(
+		/// 	map::<PairSecondAppliedBrand<_>, _, _, _>(|x: &i32| *x * 2, Pair(5, 1)),
+		/// 	Pair(10, 1)
+		/// );
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Pair(func(&fa.0), fa.1)
+		}
+	}
+
+	#[document_type_parameters("The type of the second value in the pair.")]
+	impl<Second: 'static> RefFoldable for PairSecondAppliedBrand<Second> {
+		/// Folds the pair by reference (over first).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The element type.",
+			"The monoid type."
+		)]
+		#[document_parameters("The mapping function.", "The pair.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let result = fold_map::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _>(
+		/// 	|x: &i32| x.to_string(),
+		/// 	Pair(5, ()),
+		/// );
+		/// assert_eq!(result, "5");
+		/// ```
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			func(&fa.0)
+		}
+	}
+
+	#[document_type_parameters("The type of the second value in the pair.")]
+	impl<Second: Clone + 'static> RefTraversable for PairSecondAppliedBrand<Second> {
+		/// Traverses the pair by reference (over first).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The input type.",
+			"The output type.",
+			"The applicative."
+		)]
+		#[document_parameters("The function.", "The pair.")]
+		#[document_returns("The traversed result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let result: Option<Pair<String, ()>> =
+		/// 	ref_traverse::<PairSecondAppliedBrand<()>, RcFnBrand, _, _, OptionBrand>(
+		/// 		|x: &i32| Some(x.to_string()),
+		/// 		Pair(42, ()),
+		/// 	);
+		/// assert_eq!(result, Some(Pair("42".to_string(), ())));
+		/// ```
+		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			Self::traverse::<A, B, F>(move |a: A| func(&a), ta)
+		}
+	}
+
+	#[document_type_parameters("The type of the second value in the pair.")]
+	impl<Second: Clone + 'static> RefPointed for PairSecondAppliedBrand<Second>
+	where
+		Second: Monoid,
+	{
+		/// Creates a pair from a reference by cloning (with empty second).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The value type.")]
+		#[document_parameters("The reference to wrap.")]
+		#[document_returns("A pair containing a clone of the value and `Monoid::empty()`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = 42;
+		/// let result: Pair<i32, String> = ref_pure::<PairSecondAppliedBrand<String>, _>(&x);
+		/// assert_eq!(result, Pair(42, "".to_string()));
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			Pair(a.clone(), Monoid::empty())
+		}
+	}
+
+	#[document_type_parameters("The type of the second value in the pair.")]
+	impl<Second: Clone + 'static> RefLift for PairSecondAppliedBrand<Second>
+	where
+		Second: Semigroup,
+	{
+		/// Combines two pairs with a by-reference binary function (over first).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "First input.", "Second input.", "Output.")]
+		#[document_parameters("The binary function.", "The first pair.", "The second pair.")]
+		#[document_returns("A pair with the function result and combined second values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result = lift2::<PairSecondAppliedBrand<String>, _, _, _, _>(
+		/// 	|a: &i32, b: &i32| *a + *b,
+		/// 	Pair(1, "a".to_string()),
+		/// 	Pair(2, "b".to_string()),
+		/// );
+		/// assert_eq!(result, Pair(3, "ab".to_string()));
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			Pair(func(&fa.0, &fb.0), Semigroup::append(fa.1, fb.1))
+		}
+	}
+
+	#[document_type_parameters("The type of the second value in the pair.")]
+	impl<Second: Clone + 'static> RefSemiapplicative for PairSecondAppliedBrand<Second>
+	where
+		Second: Semigroup,
+	{
+		/// Applies a wrapped by-ref function to a pair value (over first).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The function brand.",
+			"The input type.",
+			"The output type."
+		)]
+		#[document_parameters(
+			"The pair containing the function.",
+			"The pair containing the value."
+		)]
+		#[document_returns("A pair with the function result and combined second values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x * 2);
+		/// let result = ref_apply::<RcFnBrand, PairSecondAppliedBrand<String>, _, _>(
+		/// 	Pair(f, "a".to_string()),
+		/// 	Pair(5, "b".to_string()),
+		/// );
+		/// assert_eq!(result, Pair(10, "ab".to_string()));
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Pair((*ff.0)(&fa.0), Semigroup::append(ff.1, fa.1))
+		}
+	}
+
+	#[document_type_parameters("The type of the second value in the pair.")]
+	impl<Second: Clone + 'static> RefSemimonad for PairSecondAppliedBrand<Second>
+	where
+		Second: Semigroup,
+	{
+		/// Chains pair computations by reference (over first).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The input pair.", "The function to apply by reference.")]
+		#[document_returns("A pair with combined second values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result: Pair<String, String> =
+		/// 	bind::<PairSecondAppliedBrand<String>, _, _, _>(Pair(42, "a".to_string()), |x: &i32| {
+		/// 		Pair(x.to_string(), "b".to_string())
+		/// 	});
+		/// assert_eq!(result, Pair("42".to_string(), "ab".to_string()));
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let Pair(first, second) = fa;
+			let Pair(next_first, next_second) = f(&first);
+			Pair(next_first, Semigroup::append(second, next_second))
 		}
 	}
 }

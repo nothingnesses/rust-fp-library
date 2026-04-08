@@ -1156,6 +1156,30 @@ pub fn document_module(
 /// });
 /// assert_eq!(result, vec![11, 21, 12, 22]);
 /// ```
+///
+/// ### Ref mode: multi-bind limitation
+///
+/// In ref mode, each bind generates a `move` closure that receives `&A`.
+/// Inner closures cannot capture references from outer binds because the
+/// reference lifetime is scoped to the outer closure. Attempting to use a
+/// ref-bound variable in a later bind produces a lifetime error.
+///
+/// **Workaround:** use `let` bindings to dereference or clone values so
+/// they become owned and can be captured by later closures:
+///
+/// ```ignore
+/// m_do!(ref LazyBrand {
+///     x: &i32 <- lazy_a;
+///     let x_val = *x;          // dereference into owned value
+///     y: &i32 <- lazy_b;
+///     pure(x_val + *y)         // x_val is owned, safe to use here
+/// })
+/// ```
+///
+/// When all binds are independent (no bind uses the result of another),
+/// prefer [`a_do!`] instead. Applicative do-notation evaluates all
+/// expressions independently, so there is no closure nesting and no
+/// capture issue.
 #[proc_macro]
 pub fn m_do(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as DoInput);

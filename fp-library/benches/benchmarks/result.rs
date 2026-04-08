@@ -71,7 +71,7 @@ pub fn bench_result(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				traverse::<ResultErrAppliedBrand<i32>, _, _, OptionBrand>(
+				traverse::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, OptionBrand, _>(
 					|x| Some(x * 2),
 					std::hint::black_box(val_ok),
 				)

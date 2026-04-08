@@ -719,7 +719,8 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// let traversed = traverse::<CatListBrand, _, _, OptionBrand>(|x| Some(x * 2), list);
+		/// let traversed =
+		/// 	traverse::<RcFnBrand, CatListBrand, _, _, OptionBrand, _>(|x| Some(x * 2), list);
 		/// let vec: Vec<_> = traversed.unwrap().into_iter().collect();
 		/// assert_eq!(vec, vec![2, 4, 6]);
 		/// ```
@@ -1435,7 +1436,7 @@ mod inner {
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
 		/// let filtered =
-		/// 	filter_map::<CatListBrand, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, list);
+		/// 	filter_map::<CatListBrand, _, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, list);
 		/// let vec: Vec<_> = filtered.into_iter().collect();
 		/// assert_eq!(vec, vec![4, 8]);
 		/// ```
@@ -4425,14 +4426,14 @@ mod tests {
 	#[quickcheck]
 	fn filterable_filter_map_identity(x: Vec<Option<i32>>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
-		filter_map::<CatListBrand, _, _>(identity, x.clone()) == compact::<CatListBrand, _>(x)
+		filter_map::<CatListBrand, _, _, _>(identity, x.clone()) == compact::<CatListBrand, _>(x)
 	}
 
 	/// Tests `filterMap Just ≡ identity`.
 	#[quickcheck]
 	fn filterable_filter_map_just(x: Vec<i32>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
-		filter_map::<CatListBrand, _, _>(Some, x.clone()) == x
+		filter_map::<CatListBrand, _, _, _>(Some, x.clone()) == x
 	}
 
 	/// Tests `partitionMap identity ≡ separate`.

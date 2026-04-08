@@ -91,7 +91,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				traverse::<PairFirstAppliedBrand<String>, _, _, OptionBrand>(
+				traverse::<RcFnBrand, PairFirstAppliedBrand<String>, _, _, OptionBrand, _>(
 					|x| Some(x * 2),
 					std::hint::black_box(val.clone()),
 				)

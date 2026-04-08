@@ -91,14 +91,17 @@ mod inner {
 
 pub use inner::*;
 
+pub mod filterable;
 pub mod foldable;
 pub mod functor;
 pub mod lift;
 pub mod semimonad;
+pub mod traversable;
 
 // Re-export dispatch free functions at the dispatch module level
 // so they're accessible via `crate::classes::dispatch::map` etc.
 pub use {
+	filterable::filter_map,
 	foldable::{
 		fold_left,
 		fold_map,
@@ -117,6 +120,7 @@ pub use {
 		compose_kleisli,
 		compose_kleisli_flipped,
 	},
+	traversable::traverse,
 };
 
 #[cfg(test)]
@@ -168,6 +172,106 @@ mod tests {
 	fn test_val_option_lift2() {
 		let result = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
 		assert_eq!(result, Some(3));
+	}
+
+	// -- FilterMapDispatch tests --
+
+	#[test]
+	fn test_val_option_filter_map() {
+		use super::filterable::filter_map;
+		let result = filter_map::<OptionBrand, _, _, _>(
+			|x: i32| if x > 3 { Some(x * 2) } else { None },
+			Some(5),
+		);
+		assert_eq!(result, Some(10));
+	}
+
+	#[test]
+	fn test_val_option_filter_map_none() {
+		use super::filterable::filter_map;
+		let result = filter_map::<OptionBrand, _, _, _>(
+			|x: i32| if x > 10 { Some(x) } else { None },
+			Some(5),
+		);
+		assert_eq!(result, None);
+	}
+
+	#[test]
+	fn test_ref_option_filter_map() {
+		use super::filterable::filter_map;
+		let result = filter_map::<OptionBrand, _, _, _>(
+			|x: &i32| if *x > 3 { Some(*x * 2) } else { None },
+			Some(5),
+		);
+		assert_eq!(result, Some(10));
+	}
+
+	#[test]
+	fn test_val_vec_filter_map() {
+		use super::filterable::filter_map;
+		let result = filter_map::<VecBrand, _, _, _>(
+			|x: i32| if x > 2 { Some(x * 10) } else { None },
+			vec![1, 2, 3, 4],
+		);
+		assert_eq!(result, vec![30, 40]);
+	}
+
+	#[test]
+	fn test_ref_vec_filter_map() {
+		use super::filterable::filter_map;
+		let result = filter_map::<VecBrand, _, _, _>(
+			|x: &i32| if *x > 2 { Some(*x * 10) } else { None },
+			vec![1, 2, 3, 4],
+		);
+		assert_eq!(result, vec![30, 40]);
+	}
+
+	// -- TraverseDispatch tests --
+
+	#[test]
+	fn test_val_option_traverse() {
+		use super::traversable::traverse;
+		let result =
+			traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Some(5));
+		assert_eq!(result, Some(Some(10)));
+	}
+
+	#[test]
+	fn test_val_option_traverse_none() {
+		use super::traversable::traverse;
+		let result =
+			traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _>(|_: i32| None::<i32>, Some(5));
+		assert_eq!(result, None);
+	}
+
+	#[test]
+	fn test_ref_option_traverse() {
+		use super::traversable::traverse;
+		let result = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _>(
+			|x: &i32| Some(*x * 2),
+			Some(5),
+		);
+		assert_eq!(result, Some(Some(10)));
+	}
+
+	#[test]
+	fn test_val_vec_traverse() {
+		use super::traversable::traverse;
+		let result: Option<Vec<i32>> = traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _>(
+			|x: i32| Some(x * 2),
+			vec![1, 2, 3],
+		);
+		assert_eq!(result, Some(vec![2, 4, 6]));
+	}
+
+	#[test]
+	fn test_ref_vec_traverse() {
+		use super::traversable::traverse;
+		let result: Option<Vec<i32>> = traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _>(
+			|x: &i32| Some(*x * 2),
+			vec![1, 2, 3],
+		);
+		assert_eq!(result, Some(vec![2, 4, 6]));
 	}
 }
 

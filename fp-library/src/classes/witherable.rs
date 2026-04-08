@@ -66,7 +66,7 @@ mod inner {
 	/// 	wither::<OptionBrand, OptionBrand, _, _>(p, Some(5)),
 	/// 	map::<OptionBrand, _, _, _>(
 	/// 		|r| compact::<OptionBrand, _>(r),
-	/// 		traverse::<OptionBrand, _, _, OptionBrand>(p, Some(5)),
+	/// 		traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _>(p, Some(5)),
 	/// 	),
 	/// );
 	///
@@ -76,7 +76,7 @@ mod inner {
 	/// 	wilt::<OptionBrand, OptionBrand, _, _, _>(p, Some(5)),
 	/// 	map::<OptionBrand, _, _, _>(
 	/// 		|r| separate::<OptionBrand, _, _>(r),
-	/// 		traverse::<OptionBrand, _, _, OptionBrand>(p, Some(5)),
+	/// 		traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _>(p, Some(5)),
 	/// 	),
 	/// );
 	/// ```
@@ -101,7 +101,7 @@ mod inner {
 	/// 	wither::<VecBrand, OptionBrand, _, _>(p, vec![1, 2, 3, 4, 5]),
 	/// 	map::<OptionBrand, _, _, _>(
 	/// 		|r| compact::<VecBrand, _>(r),
-	/// 		traverse::<VecBrand, _, _, OptionBrand>(p, vec![1, 2, 3, 4, 5]),
+	/// 		traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _>(p, vec![1, 2, 3, 4, 5]),
 	/// 	),
 	/// );
 	/// ```

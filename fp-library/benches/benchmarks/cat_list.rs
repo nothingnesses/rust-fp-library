@@ -447,14 +447,24 @@ pub fn bench_cat_list(c: &mut Criterion) {
 			group.bench_with_input(BenchmarkId::new("CatList (fp)", size), &size, |b, &_| {
 				b.iter_batched(
 					|| cat_list.clone(),
-					|list| traverse::<CatListBrand, _, _, OptionBrand>(|x: i32| Some(x + 1), list),
+					|list| {
+						traverse::<RcFnBrand, CatListBrand, _, _, OptionBrand, _>(
+							|x: i32| Some(x + 1),
+							list,
+						)
+					},
 					BatchSize::SmallInput,
 				)
 			});
 			group.bench_with_input(BenchmarkId::new("Vec (fp)", size), &size, |b, &_| {
 				b.iter_batched(
 					|| vec_list.clone(),
-					|v| traverse::<VecBrand, _, _, OptionBrand>(|x: i32| Some(x + 1), v),
+					|v| {
+						traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _>(
+							|x: i32| Some(x + 1),
+							v,
+						)
+					},
 					BatchSize::SmallInput,
 				)
 			});

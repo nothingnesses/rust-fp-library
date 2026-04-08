@@ -36,7 +36,7 @@ mod inner {
 	/// // filter_map(f, fa) = filter_map_with_index(|_, a| f(a), fa)
 	/// let f = |a: i32| if a > 3 { Some(a * 10) } else { None };
 	/// assert_eq!(
-	/// 	filter_map::<VecBrand, _, _>(f, xs.clone()),
+	/// 	filter_map::<VecBrand, _, _, _>(f, xs.clone()),
 	/// 	VecBrand::filter_map_with_index(|_, a| f(a), xs.clone()),
 	/// );
 	///

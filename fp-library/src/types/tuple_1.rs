@@ -8,7 +8,10 @@ mod inner {
 		crate::{
 			Apply,
 			brands::Tuple1Brand,
-			classes::*,
+			classes::{
+				dispatch::Ref,
+				*,
+			},
 			impl_kind,
 			kinds::*,
 		},
@@ -371,7 +374,7 @@ mod inner {
 		/// };
 		///
 		/// let x = (5,);
-		/// let y = traverse::<Tuple1Brand, _, _, OptionBrand>(|a| Some(a * 2), x);
+		/// let y = traverse::<RcFnBrand, Tuple1Brand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some((10,)));
 		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
@@ -417,6 +420,211 @@ mod inner {
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 			F::map(|a| (a,), ta.0)
+		}
+	}
+
+	// -- By-reference trait implementations --
+
+	impl RefFunctor for Tuple1Brand {
+		/// Maps a function over the 1-tuple by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function.", "The tuple.")]
+		#[document_returns("A new 1-tuple containing the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// assert_eq!(map::<Tuple1Brand, _, _, _>(|x: &i32| *x * 2, (5,)), (10,));
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			(func(&fa.0),)
+		}
+	}
+
+	impl RefFoldable for Tuple1Brand {
+		/// Folds the 1-tuple by reference.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The element type.",
+			"The monoid type."
+		)]
+		#[document_parameters("The mapping function.", "The tuple.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result = fold_map::<RcFnBrand, Tuple1Brand, _, _, _>(|x: &i32| x.to_string(), (5,));
+		/// assert_eq!(result, "5");
+		/// ```
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			func(&fa.0)
+		}
+	}
+
+	impl RefTraversable for Tuple1Brand {
+		/// Traverses the 1-tuple by reference.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The input type.",
+			"The output type.",
+			"The applicative."
+		)]
+		#[document_parameters("The function.", "The tuple.")]
+		#[document_returns("The traversed result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result: Option<(String,)> = ref_traverse::<Tuple1Brand, RcFnBrand, _, _, OptionBrand>(
+		/// 	|x: &i32| Some(x.to_string()),
+		/// 	(42,),
+		/// );
+		/// assert_eq!(result, Some(("42".to_string(),)));
+		/// ```
+		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			Self::traverse::<A, B, F>(move |a: A| func(&a), ta)
+		}
+	}
+
+	impl RefPointed for Tuple1Brand {
+		/// Creates a 1-tuple from a reference by cloning.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The value type.")]
+		#[document_parameters("The reference to wrap.")]
+		#[document_returns("A 1-tuple containing a clone of the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = 42;
+		/// let result: (i32,) = ref_pure::<Tuple1Brand, _>(&x);
+		/// assert_eq!(result, (42,));
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			(a.clone(),)
+		}
+	}
+
+	impl RefLift for Tuple1Brand {
+		/// Combines two 1-tuples with a by-reference binary function.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "First input.", "Second input.", "Output.")]
+		#[document_parameters("The binary function.", "The first tuple.", "The second tuple.")]
+		#[document_returns("The combined 1-tuple.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result = lift2::<Tuple1Brand, _, _, _, _>(|a: &i32, b: &i32| *a + *b, (1,), (2,));
+		/// assert_eq!(result, (3,));
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			(func(&fa.0, &fb.0),)
+		}
+	}
+
+	impl RefSemiapplicative for Tuple1Brand {
+		/// Applies a wrapped by-ref function within a 1-tuple.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The function brand.",
+			"The input type.",
+			"The output type."
+		)]
+		#[document_parameters(
+			"The tuple containing the function.",
+			"The tuple containing the value."
+		)]
+		#[document_returns("A 1-tuple containing the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x + 1);
+		/// let result = ref_apply::<RcFnBrand, Tuple1Brand, _, _>((f,), (5,));
+		/// assert_eq!(result, (6,));
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			((*ff.0)(&fa.0),)
+		}
+	}
+
+	impl RefSemimonad for Tuple1Brand {
+		/// Chains 1-tuple computations by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The input tuple.", "The function to apply by reference.")]
+		#[document_returns("The resulting 1-tuple.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result: (String,) = bind::<Tuple1Brand, _, _, _>((42,), |x: &i32| (x.to_string(),));
+		/// assert_eq!(result, ("42".to_string(),));
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			f(&fa.0)
 		}
 	}
 
