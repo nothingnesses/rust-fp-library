@@ -67,19 +67,19 @@ This means `ResultErrAppliedBrand<E>` only implements `RefFunctor` when
 `E: Clone`. This is a narrowing of the impl scope, but it's the correct
 trade-off: producing `Err(e)` from `&Err(e)` inherently requires cloning.
 
-### RefTraversable uses `ta.clone()` delegation (Approach B)
+### RefTraversable initially used `ta.clone()` delegation (temporary)
 
-The plan recommended Approach A (rewrite to iterate by reference) for Vec,
-CatList, Option, etc. In practice, all RefTraversable impls initially used
-Approach B (`Self::traverse(move |a: A| func(&a), ta.clone())`). Step 2a
-will replace these with direct by-reference iteration (Approach A), which
-has been validated by 11 tests in `ref_traverse_direct.rs`.
+The plan recommended Approach A (direct by-reference iteration). The initial
+implementation used Approach B (`Self::traverse(move |a: A| func(&a),
+ta.clone())`) as a temporary measure to get the library compiling. Step 2a
+replaces these with direct by-reference iteration, validated by 11 tests in
+`ref_traverse_direct.rs`.
 
-### Dispatch adapter approach (temporary, not two-impl)
+### Dispatch initially used adapter approach (temporary)
 
-The dispatch Ref impls currently use the adapter approach: they take `fa` by
-value and pass `&fa` to the trait method. Step 3 will replace this with the
-two-impl `FA` type parameter design.
+The dispatch Ref impls currently take `fa` by value and pass `&fa` to the
+trait method. Step 3 replaces this with the two-impl `FA` type parameter
+design (decision D6).
 
 ## Decisions
 
@@ -340,12 +340,13 @@ Add `Clone` bounds on passthrough fields where missing:
 These bounds already exist on RefLift, RefSemiapplicative, RefSemimonad for
 these types. Only RefFunctor (and RefFoldable for Result) is affected.
 
-### D3: RefTraversable delegation
+### D3: RefTraversable uses direct by-reference iteration
 
 Rewrite RefTraversable implementations to iterate by reference instead of
-delegating to owned `Self::traverse`. For types where the rewrite is trivial
-(Vec, CatList, Option, Identity, Tuple1), write a direct implementation. For
-Pair/Tuple2/Result, clone the fixed field and construct directly.
+delegating to owned `Self::traverse`. Use the fold-based pattern validated
+in `ref_traverse_direct.rs`. For single-element types (Option, Identity,
+Tuple1), use `F::map`. For bifunctorial types (Pair, Tuple2, Result), clone
+the fixed field and use `F::map`. See also D7 for the implementation details.
 
 ### D4: Lazy inherent methods
 
@@ -362,14 +363,16 @@ allocate new containers via `.collect()`.
 
 ### Execution strategy
 
-The critical path is: Step 1 (Ref traits + impls) -> Step 2 (verify) ->
-Step 3 (dispatch) -> Step 4 (macros) -> Step 5 (verify) -> Step 6
-(SendRef + ParRef) -> Step 7 (tests + docs).
+**Original plan:** Step 1 -> Step 2 -> Step 3 -> Step 4 -> Step 5 -> Step 6
+-> Step 7.
 
-**Do not** change all trait definitions first and then all implementations.
-Instead, change each trait and its implementations together, verify it
-compiles with `just check --workspace`, then move to the next. This catches
-issues early and keeps the blast radius small.
+**Actual execution:** Steps 1 and 6 were done together using parallel agents.
+The remaining path is: Step 2a (RefTraversable optimization) -> Step 3
+(dispatch two-impl) -> Step 4 (macros) -> Step 7 (tests + docs).
+
+Steps 1 and 6 are complete. The library compiles (`cargo check --lib` passes).
+Steps 2 and 5 (verification) will be done after all code changes, not as
+separate gates.
 
 ### Step 1: Ref traits + implementations (together, one trait at a time)
 
@@ -473,10 +476,11 @@ Blanket impl. Free functions: `ref_join`, `ref_if_m`, `ref_unless_m`.
 
 - `ref_join(&mma)`: calls `Brand::ref_bind(&mma, |ma| ma.clone())`. Works
   because `Of<A>: Clone` is already required.
-- `ref_if_m(&cond, &then_branch, &else_branch)`: captures `&then_branch`
-  and `&else_branch` in bind closure, clones inside. Works because
-  `Of<A>: Clone` is already required.
-- `ref_unless_m`: same pattern.
+- `ref_if_m(&cond, &then_branch, &else_branch)`: clones branches eagerly
+  before the closure (borrows cannot be captured into a `move` closure that
+  outlives them). The cloned values are then cloned again inside the closure.
+  Requires `Of<A>: Clone` (already present).
+- `ref_unless_m`: same eager cloning pattern.
 
 Verify: `just check --workspace`
 
@@ -648,10 +652,9 @@ Verify: `just check --workspace`, then run macro tests.
 Run `just verify` to catch any issues from Steps 3-4 before replicating
 the pattern across SendRef/ParRef.
 
-### Step 6: SendRef + ParRef (can be parallelized)
+### Step 6: SendRef + ParRef (done)
 
-Mechanical replication of the Step 1 pattern. SendRef and ParRef are
-independent and can be done in parallel.
+Completed in parallel with Step 1 using agents. See Deviations section.
 
 **Step 6a: SendRef traits and implementations**
 
@@ -741,16 +744,14 @@ Verify: `just verify` (final full verification).
 
 ## Estimated Scope
 
-| Step                        | Files                                 | Difficulty                                                                 |
-| --------------------------- | ------------------------------------- | -------------------------------------------------------------------------- |
-| Step 1 (Ref traits + impls) | ~17 trait files + ~10 type files      | Mostly mechanical. RefTraversable (1.12) is the hardest.                   |
-| Step 2 (verify)             | 0                                     | Just run `just verify`.                                                    |
-| Step 3 (dispatch)           | ~7 dispatch files                     | Architecturally novel (two-impl + FA). Prototype on FunctorDispatch first. |
-| Step 4 (macros)             | ~2 macro codegen files                | Small, focused change.                                                     |
-| Step 5 (verify)             | 0                                     | Just run `just verify`.                                                    |
-| Step 6a (SendRef)           | ~12 trait files + lazy.rs             | Mechanical replication of Step 1 pattern.                                  |
-| Step 6b (ParRef)            | ~6 trait files + vec.rs + cat_list.rs | Mechanical replication. Impls already borrow internally.                   |
-| Step 7 (tests + docs)       | ~6 test files + ~5 doc files          | Mostly adding `&` to call sites and examples.                              |
+| Step                        | Files                            | Difficulty                                                                 | Status |
+| --------------------------- | -------------------------------- | -------------------------------------------------------------------------- | ------ |
+| Step 1 (Ref traits + impls) | ~17 trait files + ~10 type files | Mostly mechanical.                                                         | Done   |
+| Step 2a (RefTraversable)    | ~10 type files                   | Direct by-ref iteration. Validated by tests.                               | Next   |
+| Step 3 (dispatch)           | ~7 dispatch files                | Architecturally novel (two-impl + FA). Prototype on FunctorDispatch first. | Next   |
+| Step 4 (macros)             | ~2 macro codegen files           | Small, focused change.                                                     | Next   |
+| Step 6 (SendRef + ParRef)   | ~18 trait files + type files     | Mechanical replication.                                                    | Done   |
+| Step 7 (tests + docs)       | ~6 test files + ~5 doc files     | Adding `&` to call sites. Agent-per-file.                                  | Next   |
 
-Total: ~65+ files. The critical items are Step 1.12 (RefTraversable rewrites)
-and Step 3 (dispatch two-impl pattern). Everything else is mechanical.
+Total: ~65+ files. 46 done. The critical remaining items are Step 2a
+(RefTraversable direct iteration) and Step 3 (dispatch two-impl pattern).
