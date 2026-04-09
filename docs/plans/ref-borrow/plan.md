@@ -7,19 +7,20 @@ public API, not just the trait methods.
 
 ## Status
 
-Steps 1 and 6 are complete (all trait definitions, implementations, dispatch
-adapters, and SendRef/ParRef trait definitions). The library compiles cleanly.
-Steps 3 (dispatch two-impl pattern), 4 (macros), and 7 (tests/docs) remain.
+Steps 1 and 6 are complete. The library compiles cleanly (`cargo check --lib`
+passes). Remaining: Step 2a (RefTraversable optimization), Step 3 (dispatch
+two-impl), Step 4 (macros), Step 7 (tests/docs).
 
-| Step                               | Status      | Notes                                                                                                                        |
-| ---------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Step 1.1-1.13 (Ref traits + impls) | Done        | 46 files changed. Library compiles.                                                                                          |
-| Step 2 (verify Ref hierarchy)      | Partial     | `cargo check --lib` passes. Inline tests and doc examples still fail (59 errors).                                            |
-| Step 3 (dispatch two-impl pattern) | Not started | Dispatch currently uses the adapter approach (takes by-value, borrows internally). Two-impl `FA` parameter redesign is next. |
-| Step 4 (macros)                    | Not started | Depends on Step 3.                                                                                                           |
-| Step 5 (verify dispatch + macros)  | Not started |                                                                                                                              |
-| Step 6 (SendRef + ParRef)          | Done        | Done in parallel with Step 1, not sequentially as originally planned.                                                        |
-| Step 7 (tests + docs)              | Not started | 59 remaining errors in inline tests and doc examples.                                                                        |
+| Step                                  | Status      | Notes                                                                                                                   |
+| ------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Step 1.1-1.13 (Ref traits + impls)    | Done        | 46 files changed. Library compiles.                                                                                     |
+| Step 2 (verify Ref hierarchy)         | Partial     | `cargo check --lib` passes. 59 errors remain in inline tests and doc examples.                                          |
+| Step 2a (RefTraversable optimization) | Not started | Replace `ta.clone()` delegation with direct by-reference iteration. Validated by 11 tests in `ref_traverse_direct.rs`.  |
+| Step 3 (dispatch two-impl pattern)    | Not started | Add `FA` type parameter. Two impls: Val+owned, Ref+borrowed. Validated by 28 tests in `dispatch_borrow_feasibility.rs`. |
+| Step 4 (macros)                       | Not started | Generate `&(expr)` in ref mode. Depends on Step 3.                                                                      |
+| Step 5 (verify dispatch + macros)     | Not started |                                                                                                                         |
+| Step 6 (SendRef + ParRef)             | Done        | Done in parallel with Step 1.                                                                                           |
+| Step 7 (tests + docs)                 | Not started | 59 remaining errors in inline tests and doc examples. Agent-per-file approach.                                          |
 
 ## Deviations from Plan
 
@@ -69,20 +70,70 @@ trade-off: producing `Err(e)` from `&Err(e)` inherently requires cloning.
 ### RefTraversable uses `ta.clone()` delegation (Approach B)
 
 The plan recommended Approach A (rewrite to iterate by reference) for Vec,
-CatList, Option, etc. In practice, all RefTraversable impls use Approach B
-(`Self::traverse(move |a: A| func(&a), ta.clone())`) for now. This is
-correct and compiles, but clones the entire container unnecessarily. A
-follow-up optimization can replace this with direct by-reference iteration.
+CatList, Option, etc. In practice, all RefTraversable impls initially used
+Approach B (`Self::traverse(move |a: A| func(&a), ta.clone())`). Step 2a
+will replace these with direct by-reference iteration (Approach A), which
+has been validated by 11 tests in `ref_traverse_direct.rs`.
 
 ### Dispatch adapter approach (temporary, not two-impl)
 
 The dispatch Ref impls currently use the adapter approach: they take `fa` by
-value and pass `&fa` to the trait method. The two-impl `FA` type parameter
-redesign (Step 3) has not been done yet. The current adapter approach works
-correctly but means dispatch users still consume the container, while direct
-trait method users borrow. Step 3 will unify this.
+value and pass `&fa` to the trait method. Step 3 will replace this with the
+two-impl `FA` type parameter design.
+
+## Decisions
+
+### D6: Dispatch uses the two-impl `FA` pattern (not adapter)
+
+The adapter approach (dispatch takes by-value, borrows internally) was
+considered but rejected in favor of the two-impl pattern. Rationale: the
+adapter means `map(|x: &i32| ..., vec)` silently consumes the container,
+which is inconsistent with the borrow semantics of the Ref hierarchy. The
+two-impl pattern rejects this at compile time, requiring `map(|x: &i32| ...,
+&vec)` and making the `&` on the closure and on the container consistent.
+
+### D7: RefTraversable uses direct by-reference iteration (not `ta.clone()`)
+
+Validated by 11 tests in `ref_traverse_direct.rs`. The fold-based pattern
+`ta.iter().fold(F::pure(Vec::new()), |acc, a| F::lift2(..., acc, func(a)))`
+works identically with borrowed iteration as with owned iteration. Explicit
+type annotations are needed on the fold closure (the compiler cannot infer
+the applicative type from context).
+
+### D8: Test/doc fixes use agent-per-file approach
+
+59 remaining compilation errors are all mechanical `&` additions at call
+sites. Each type file's inline tests and doc examples will be handled by a
+separate agent, preventing file conflicts.
 
 ## Next Steps
+
+### Step 2a: RefTraversable optimization
+
+Replace `ta.clone()` delegation with direct by-reference iteration in:
+Vec, Option, CatList, Identity, Tuple1, Pair (2 brands), Tuple2 (2 brands),
+Result (2 brands). Follow the validated pattern from `ref_traverse_direct.rs`.
+
+The Vec pattern (which all collection types follow):
+
+```rust
+fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+    func: impl Fn(&A) -> F::Of<'a, B> + 'a,
+    ta: &Vec<A>,
+) -> F::Of<'a, Vec<B>>
+where
+    Vec<B>: Clone,
+    F::Of<'a, B>: Clone,
+{
+    let len = ta.len();
+    ta.iter().fold(
+        F::pure::<Vec<B>>(Vec::with_capacity(len)),
+        |acc: F::Of<'a, Vec<B>>, a| {
+            F::lift2(|mut v: Vec<B>, b: B| { v.push(b); v }, acc, func(a))
+        },
+    )
+}
+```
 
 ### Step 3: Dispatch two-impl pattern
 
