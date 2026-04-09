@@ -14,12 +14,15 @@
 //! };
 //!
 //! // Owned: dispatches to Traversable::traverse
-//! let y = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Some(5));
+//! let y =
+//! 	traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(|x: i32| Some(x * 2), Some(5));
 //! assert_eq!(y, Some(Some(10)));
 //!
 //! // By-ref: dispatches to RefTraversable::ref_traverse
-//! let y =
-//! 	traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _>(|x: &i32| Some(*x * 2), Some(5));
+//! let y = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(
+//! 	|x: &i32| Some(*x * 2),
+//! 	&Some(5),
+//! );
 //! assert_eq!(y, Some(Some(10)));
 //! ```
 
@@ -46,7 +49,8 @@ pub(crate) mod inner {
 	///
 	/// The `Marker` type parameter is an implementation detail resolved by
 	/// the compiler from the closure's argument type; callers never specify
-	/// it directly.
+	/// it directly. The `FTA` type parameter is inferred from the container
+	/// argument: owned for Val dispatch, borrowed for Ref dispatch.
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
@@ -54,6 +58,7 @@ pub(crate) mod inner {
 		"The type of the elements in the input structure.",
 		"The type of the elements in the output structure.",
 		"The applicative functor brand for the computation.",
+		"The container type (owned or borrowed), inferred from the argument.",
 		"Dispatch marker type, inferred automatically. Either [`Val`](crate::classes::dispatch::Val) or [`Ref`](crate::classes::dispatch::Ref)."
 	)]
 	#[document_parameters("The closure implementing this dispatch.")]
@@ -64,6 +69,7 @@ pub(crate) mod inner {
 		A: 'a,
 		B: 'a,
 		F: Kind_cdc7cd43dac7585f,
+		FTA,
 		Marker,
 	> {
 		/// Perform the dispatched traverse operation.
@@ -81,12 +87,12 @@ pub(crate) mod inner {
 		/// };
 		///
 		/// let result =
-		/// 	traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Some(5));
+		/// 	traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(|x: i32| Some(x * 2), Some(5));
 		/// assert_eq!(result, Some(Some(10)));
 		/// ```
 		fn dispatch_traverse(
 			self,
-			ta: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			ta: FTA,
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>);
 	}
 
@@ -106,7 +112,17 @@ pub(crate) mod inner {
 		"The closure type."
 	)]
 	#[document_parameters("The closure that takes owned values.")]
-	impl<'a, FnBrand, Brand, A, B, F, Func> TraverseDispatch<'a, FnBrand, Brand, A, B, F, Val> for Func
+	impl<'a, FnBrand, Brand, A, B, F, Func>
+		TraverseDispatch<
+			'a,
+			FnBrand,
+			Brand,
+			A,
+			B,
+			F,
+			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			Val,
+		> for Func
 	where
 		Brand: Traversable,
 		A: 'a + Clone,
@@ -130,7 +146,7 @@ pub(crate) mod inner {
 		/// };
 		///
 		/// let result =
-		/// 	traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Some(5));
+		/// 	traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(|x: i32| Some(x * 2), Some(5));
 		/// assert_eq!(result, Some(Some(10)));
 		/// ```
 		fn dispatch_traverse(
@@ -150,8 +166,11 @@ pub(crate) mod inner {
 	/// [`ref_traverse`](RefTraversable::ref_traverse) call, allowing callers
 	/// to choose between [`RcFnBrand`](crate::brands::RcFnBrand) and
 	/// [`ArcFnBrand`](crate::brands::ArcFnBrand).
+	///
+	/// The container must be passed by reference (`&ta`).
 	#[document_type_parameters(
 		"The lifetime of the values.",
+		"The borrow lifetime.",
 		"The cloneable function brand.",
 		"The brand of the traversable structure.",
 		"The type of the elements in the input structure.",
@@ -160,7 +179,17 @@ pub(crate) mod inner {
 		"The closure type."
 	)]
 	#[document_parameters("The closure that takes references.")]
-	impl<'a, FnBrand, Brand, A, B, F, Func> TraverseDispatch<'a, FnBrand, Brand, A, B, F, Ref> for Func
+	impl<'a, 'b, FnBrand, Brand, A, B, F, Func>
+		TraverseDispatch<
+			'a,
+			FnBrand,
+			Brand,
+			A,
+			B,
+			F,
+			&'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			Ref,
+		> for Func
 	where
 		Brand: RefTraversable,
 		FnBrand: LiftFn + 'a,
@@ -173,7 +202,7 @@ pub(crate) mod inner {
 	{
 		#[document_signature]
 		///
-		#[document_parameters("The structure to traverse.")]
+		#[document_parameters("A reference to the structure to traverse.")]
 		///
 		#[document_returns("The combined result in the applicative context.")]
 		#[document_examples]
@@ -184,16 +213,18 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result =
-		/// 	traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _>(|x: &i32| Some(*x * 2), Some(5));
+		/// let result = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(
+		/// 	|x: &i32| Some(*x * 2),
+		/// 	&Some(5),
+		/// );
 		/// assert_eq!(result, Some(Some(10)));
 		/// ```
 		fn dispatch_traverse(
 			self,
-			ta: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			ta: &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		{
-			Brand::ref_traverse::<FnBrand, A, B, F>(self, &ta)
+			Brand::ref_traverse::<FnBrand, A, B, F>(self, ta)
 		}
 	}
 
@@ -204,17 +235,19 @@ pub(crate) mod inner {
 	/// Dispatches to either [`Traversable::traverse`] or
 	/// [`RefTraversable::ref_traverse`] based on the closure's argument type:
 	///
-	/// - If the closure takes owned values (`Fn(A) -> F::Of<B>`), dispatches to
-	///   [`Traversable::traverse`]. The `FnBrand` parameter is unused but must
-	///   be specified for uniformity.
-	/// - If the closure takes references (`Fn(&A) -> F::Of<B>`), dispatches to
+	/// - If the closure takes owned values (`Fn(A) -> F::Of<B>`) and the
+	///   container is owned, dispatches to [`Traversable::traverse`]. The
+	///   `FnBrand` parameter is unused but must be specified for uniformity.
+	/// - If the closure takes references (`Fn(&A) -> F::Of<B>`) and the
+	///   container is borrowed (`&ta`), dispatches to
 	///   [`RefTraversable::ref_traverse`]. The `FnBrand` parameter is passed
 	///   through as the function brand.
 	///
-	/// The `Marker` type parameter is inferred automatically by the compiler
-	/// from the closure's argument type. Callers write
-	/// `traverse::<FnBrand, Brand, _, _, F, _>(...)` and never need to specify
-	/// `Marker` explicitly.
+	/// The `Marker` and `FTA` type parameters are inferred automatically by
+	/// the compiler from the closure's argument type and the container
+	/// argument. Callers write
+	/// `traverse::<FnBrand, Brand, _, _, F, _, _>(...)` and never need to
+	/// specify `Marker` or `FTA` explicitly.
 	///
 	/// The dispatch is resolved at compile time with no runtime cost.
 	#[document_signature]
@@ -226,12 +259,13 @@ pub(crate) mod inner {
 		"The type of the elements in the input structure.",
 		"The type of the elements in the output structure.",
 		"The applicative functor brand.",
+		"The container type (owned or borrowed), inferred from the argument.",
 		"Dispatch marker type, inferred automatically."
 	)]
 	///
 	#[document_parameters(
 		"The function to apply to each element, returning a value in an applicative context.",
-		"The traversable structure."
+		"The traversable structure (owned for Val, borrowed for Ref)."
 	)]
 	///
 	#[document_returns("The structure wrapped in the applicative context.")]
@@ -245,12 +279,15 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // Owned: dispatches to Traversable::traverse
-	/// let y = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Some(5));
+	/// let y =
+	/// 	traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(|x: i32| Some(x * 2), Some(5));
 	/// assert_eq!(y, Some(Some(10)));
 	///
 	/// // By-ref: dispatches to RefTraversable::ref_traverse
-	/// let y =
-	/// 	traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _>(|x: &i32| Some(*x * 2), Some(5));
+	/// let y = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(
+	/// 	|x: &i32| Some(*x * 2),
+	/// 	&Some(5),
+	/// );
 	/// assert_eq!(y, Some(Some(10)));
 	/// ```
 	pub fn traverse<
@@ -260,10 +297,11 @@ pub(crate) mod inner {
 		A: 'a,
 		B: 'a,
 		F: Kind_cdc7cd43dac7585f,
+		FTA,
 		Marker,
 	>(
-		func: impl TraverseDispatch<'a, FnBrand, Brand, A, B, F, Marker>,
-		ta: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		func: impl TraverseDispatch<'a, FnBrand, Brand, A, B, F, FTA, Marker>,
+		ta: FTA,
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 	{
 		func.dispatch_traverse(ta)

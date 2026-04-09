@@ -13,13 +13,13 @@
 //! };
 //!
 //! // By-value fold_right (Vec)
-//! let result = fold_right::<RcFnBrand, VecBrand, _, _, _>(|a, b| a + b, 0, vec![1, 2, 3]);
+//! let result = fold_right::<RcFnBrand, VecBrand, _, _, _, _>(|a, b| a + b, 0, vec![1, 2, 3]);
 //! assert_eq!(result, 6);
 //!
 //! // By-ref fold_right (Lazy, closure receives &A)
 //! let lazy = RcLazy::new(|| 10);
 //! let result =
-//! 	fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|a: &i32, b| *a + b, 5, lazy);
+//! 	fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|a: &i32, b| *a + b, 5, &lazy);
 //! assert_eq!(result, 15);
 //! ```
 
@@ -48,16 +48,20 @@ pub(crate) mod inner {
 	/// Trait that routes a fold_right operation to the appropriate type class method.
 	///
 	/// `Fn(A, B) -> B` resolves to [`Val`], `Fn(&A, B) -> B` resolves to [`Ref`].
+	/// The `FA` type parameter is inferred from the container argument: owned
+	/// for Val dispatch, borrowed for Ref dispatch.
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The brand of the foldable structure.",
 		"The type of the elements.",
 		"The type of the accumulator.",
+		"The container type (owned or borrowed), inferred from the argument.",
 		"Dispatch marker type, inferred automatically."
 	)]
 	#[document_parameters("The closure implementing this dispatch.")]
-	pub trait FoldRightDispatch<'a, FnBrand, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, Marker> {
+	pub trait FoldRightDispatch<'a, FnBrand, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker>
+	{
 		/// Perform the dispatched fold_right operation.
 		#[document_signature]
 		#[document_parameters("The initial accumulator value.", "The structure to fold.")]
@@ -69,13 +73,13 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_right::<RcFnBrand, VecBrand, _, _, _>(|a, b| a + b, 0, vec![1, 2, 3]);
+		/// let result = fold_right::<RcFnBrand, VecBrand, _, _, _, _>(|a, b| a + b, 0, vec![1, 2, 3]);
 		/// assert_eq!(result, 6);
 		/// ```
 		fn dispatch(
 			self,
 			initial: B,
-			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: FA,
 		) -> B;
 	}
 
@@ -89,7 +93,16 @@ pub(crate) mod inner {
 		"The closure type."
 	)]
 	#[document_parameters("The closure.")]
-	impl<'a, FnBrand, Brand, A, B, F> FoldRightDispatch<'a, FnBrand, Brand, A, B, Val> for F
+	impl<'a, FnBrand, Brand, A, B, F>
+		FoldRightDispatch<
+			'a,
+			FnBrand,
+			Brand,
+			A,
+			B,
+			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			Val,
+		> for F
 	where
 		Brand: Foldable,
 		FnBrand: LiftFn + 'a,
@@ -107,7 +120,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_right::<RcFnBrand, VecBrand, _, _, _>(|a, b| a + b, 0, vec![1, 2, 3]);
+		/// let result = fold_right::<RcFnBrand, VecBrand, _, _, _, _>(|a, b| a + b, 0, vec![1, 2, 3]);
 		/// assert_eq!(result, 6);
 		/// ```
 		fn dispatch(
@@ -120,8 +133,11 @@ pub(crate) mod inner {
 	}
 
 	/// Routes `Fn(&A, B) -> B` closures to [`RefFoldable::ref_fold_right`].
+	///
+	/// The container must be passed by reference (`&fa`).
 	#[document_type_parameters(
 		"The lifetime.",
+		"The borrow lifetime.",
 		"The cloneable function brand.",
 		"The foldable brand.",
 		"The element type.",
@@ -129,7 +145,16 @@ pub(crate) mod inner {
 		"The closure type."
 	)]
 	#[document_parameters("The closure.")]
-	impl<'a, FnBrand, Brand, A, B, F> FoldRightDispatch<'a, FnBrand, Brand, A, B, Ref> for F
+	impl<'a, 'b, FnBrand, Brand, A, B, F>
+		FoldRightDispatch<
+			'a,
+			FnBrand,
+			Brand,
+			A,
+			B,
+			&'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			Ref,
+		> for F
 	where
 		Brand: RefFoldable,
 		FnBrand: LiftFn + 'a,
@@ -138,7 +163,10 @@ pub(crate) mod inner {
 		F: Fn(&A, B) -> B + 'a,
 	{
 		#[document_signature]
-		#[document_parameters("The initial accumulator value.", "The structure to fold.")]
+		#[document_parameters(
+			"The initial accumulator value.",
+			"A reference to the structure to fold."
+		)]
 		#[document_returns("The final accumulator value.")]
 		#[document_examples]
 		///
@@ -150,15 +178,15 @@ pub(crate) mod inner {
 		/// };
 		/// let lazy = RcLazy::new(|| 10);
 		/// let result =
-		/// 	fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|a: &i32, b| *a + b, 5, lazy);
+		/// 	fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|a: &i32, b| *a + b, 5, &lazy);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn dispatch(
 			self,
 			initial: B,
-			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B {
-			Brand::ref_fold_right::<FnBrand, A, B>(self, initial, &fa)
+			Brand::ref_fold_right::<FnBrand, A, B>(self, initial, fa)
 		}
 	}
 
@@ -166,6 +194,9 @@ pub(crate) mod inner {
 	///
 	/// Dispatches to [`Foldable::fold_right`] or [`RefFoldable::ref_fold_right`]
 	/// based on whether the closure takes `A` or `&A`.
+	///
+	/// The `Marker` and `FA` type parameters are inferred automatically by the
+	/// compiler from the closure's argument type and the container argument.
 	#[document_signature]
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -173,12 +204,13 @@ pub(crate) mod inner {
 		"The brand of the foldable structure.",
 		"The type of the elements.",
 		"The type of the accumulator.",
+		"The container type (owned or borrowed), inferred from the argument.",
 		"Dispatch marker type, inferred automatically."
 	)]
 	#[document_parameters(
 		"The folding function.",
 		"The initial accumulator value.",
-		"The structure to fold."
+		"The structure to fold (owned for Val, borrowed for Ref)."
 	)]
 	#[document_returns("The final accumulator value.")]
 	#[document_examples]
@@ -191,19 +223,27 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // By-value
-	/// let result = fold_right::<RcFnBrand, VecBrand, _, _, _>(|a, b| a + b, 0, vec![1, 2, 3]);
+	/// let result = fold_right::<RcFnBrand, VecBrand, _, _, _, _>(|a, b| a + b, 0, vec![1, 2, 3]);
 	/// assert_eq!(result, 6);
 	///
 	/// // By-ref
 	/// let lazy = RcLazy::new(|| 10);
 	/// let result =
-	/// 	fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|a: &i32, b| *a + b, 5, lazy);
+	/// 	fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|a: &i32, b| *a + b, 5, &lazy);
 	/// assert_eq!(result, 15);
 	/// ```
-	pub fn fold_right<'a, FnBrand, Brand: Kind_cdc7cd43dac7585f, A: 'a + Clone, B: 'a, Marker>(
-		func: impl FoldRightDispatch<'a, FnBrand, Brand, A, B, Marker>,
+	pub fn fold_right<
+		'a,
+		FnBrand,
+		Brand: Kind_cdc7cd43dac7585f,
+		A: 'a + Clone,
+		B: 'a,
+		FA,
+		Marker,
+	>(
+		func: impl FoldRightDispatch<'a, FnBrand, Brand, A, B, FA, Marker>,
 		initial: B,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fa: FA,
 	) -> B {
 		func.dispatch(initial, fa)
 	}
@@ -213,16 +253,20 @@ pub(crate) mod inner {
 	/// Trait that routes a fold_left operation to the appropriate type class method.
 	///
 	/// `Fn(B, A) -> B` resolves to [`Val`], `Fn(B, &A) -> B` resolves to [`Ref`].
+	/// The `FA` type parameter is inferred from the container argument: owned
+	/// for Val dispatch, borrowed for Ref dispatch.
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The brand of the foldable structure.",
 		"The type of the elements.",
 		"The type of the accumulator.",
+		"The container type (owned or borrowed), inferred from the argument.",
 		"Dispatch marker type, inferred automatically."
 	)]
 	#[document_parameters("The closure implementing this dispatch.")]
-	pub trait FoldLeftDispatch<'a, FnBrand, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, Marker> {
+	pub trait FoldLeftDispatch<'a, FnBrand, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker>
+	{
 		/// Perform the dispatched fold_left operation.
 		#[document_signature]
 		#[document_parameters("The initial accumulator value.", "The structure to fold.")]
@@ -234,13 +278,13 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_left::<RcFnBrand, VecBrand, _, _, _>(|b, a| b + a, 0, vec![1, 2, 3]);
+		/// let result = fold_left::<RcFnBrand, VecBrand, _, _, _, _>(|b, a| b + a, 0, vec![1, 2, 3]);
 		/// assert_eq!(result, 6);
 		/// ```
 		fn dispatch(
 			self,
 			initial: B,
-			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: FA,
 		) -> B;
 	}
 
@@ -254,7 +298,16 @@ pub(crate) mod inner {
 		"The closure type."
 	)]
 	#[document_parameters("The closure.")]
-	impl<'a, FnBrand, Brand, A, B, F> FoldLeftDispatch<'a, FnBrand, Brand, A, B, Val> for F
+	impl<'a, FnBrand, Brand, A, B, F>
+		FoldLeftDispatch<
+			'a,
+			FnBrand,
+			Brand,
+			A,
+			B,
+			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			Val,
+		> for F
 	where
 		Brand: Foldable,
 		FnBrand: LiftFn + 'a,
@@ -272,7 +325,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_left::<RcFnBrand, VecBrand, _, _, _>(|b, a| b + a, 0, vec![1, 2, 3]);
+		/// let result = fold_left::<RcFnBrand, VecBrand, _, _, _, _>(|b, a| b + a, 0, vec![1, 2, 3]);
 		/// assert_eq!(result, 6);
 		/// ```
 		fn dispatch(
@@ -285,8 +338,11 @@ pub(crate) mod inner {
 	}
 
 	/// Routes `Fn(B, &A) -> B` closures to [`RefFoldable::ref_fold_left`].
+	///
+	/// The container must be passed by reference (`&fa`).
 	#[document_type_parameters(
 		"The lifetime.",
+		"The borrow lifetime.",
 		"The cloneable function brand.",
 		"The foldable brand.",
 		"The element type.",
@@ -294,7 +350,16 @@ pub(crate) mod inner {
 		"The closure type."
 	)]
 	#[document_parameters("The closure.")]
-	impl<'a, FnBrand, Brand, A, B, F> FoldLeftDispatch<'a, FnBrand, Brand, A, B, Ref> for F
+	impl<'a, 'b, FnBrand, Brand, A, B, F>
+		FoldLeftDispatch<
+			'a,
+			FnBrand,
+			Brand,
+			A,
+			B,
+			&'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			Ref,
+		> for F
 	where
 		Brand: RefFoldable,
 		FnBrand: LiftFn + 'a,
@@ -303,7 +368,10 @@ pub(crate) mod inner {
 		F: Fn(B, &A) -> B + 'a,
 	{
 		#[document_signature]
-		#[document_parameters("The initial accumulator value.", "The structure to fold.")]
+		#[document_parameters(
+			"The initial accumulator value.",
+			"A reference to the structure to fold."
+		)]
 		#[document_returns("The final accumulator value.")]
 		#[document_examples]
 		///
@@ -315,15 +383,15 @@ pub(crate) mod inner {
 		/// };
 		/// let lazy = RcLazy::new(|| 10);
 		/// let result =
-		/// 	fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|b, a: &i32| b + *a, 5, lazy);
+		/// 	fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|b, a: &i32| b + *a, 5, &lazy);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn dispatch(
 			self,
 			initial: B,
-			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B {
-			Brand::ref_fold_left::<FnBrand, A, B>(self, initial, &fa)
+			Brand::ref_fold_left::<FnBrand, A, B>(self, initial, fa)
 		}
 	}
 
@@ -331,6 +399,9 @@ pub(crate) mod inner {
 	///
 	/// Dispatches to [`Foldable::fold_left`] or [`RefFoldable::ref_fold_left`]
 	/// based on whether the closure takes `A` or `&A`.
+	///
+	/// The `Marker` and `FA` type parameters are inferred automatically by the
+	/// compiler from the closure's argument type and the container argument.
 	#[document_signature]
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -338,12 +409,13 @@ pub(crate) mod inner {
 		"The brand of the foldable structure.",
 		"The type of the elements.",
 		"The type of the accumulator.",
+		"The container type (owned or borrowed), inferred from the argument.",
 		"Dispatch marker type, inferred automatically."
 	)]
 	#[document_parameters(
 		"The folding function.",
 		"The initial accumulator value.",
-		"The structure to fold."
+		"The structure to fold (owned for Val, borrowed for Ref)."
 	)]
 	#[document_returns("The final accumulator value.")]
 	#[document_examples]
@@ -356,19 +428,27 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // By-value
-	/// let result = fold_left::<RcFnBrand, VecBrand, _, _, _>(|b, a| b + a, 0, vec![1, 2, 3]);
+	/// let result = fold_left::<RcFnBrand, VecBrand, _, _, _, _>(|b, a| b + a, 0, vec![1, 2, 3]);
 	/// assert_eq!(result, 6);
 	///
 	/// // By-ref
 	/// let lazy = RcLazy::new(|| 10);
 	/// let result =
-	/// 	fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|b, a: &i32| b + *a, 5, lazy);
+	/// 	fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|b, a: &i32| b + *a, 5, &lazy);
 	/// assert_eq!(result, 15);
 	/// ```
-	pub fn fold_left<'a, FnBrand, Brand: Kind_cdc7cd43dac7585f, A: 'a + Clone, B: 'a, Marker>(
-		func: impl FoldLeftDispatch<'a, FnBrand, Brand, A, B, Marker>,
+	pub fn fold_left<
+		'a,
+		FnBrand,
+		Brand: Kind_cdc7cd43dac7585f,
+		A: 'a + Clone,
+		B: 'a,
+		FA,
+		Marker,
+	>(
+		func: impl FoldLeftDispatch<'a, FnBrand, Brand, A, B, FA, Marker>,
 		initial: B,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fa: FA,
 	) -> B {
 		func.dispatch(initial, fa)
 	}
@@ -378,16 +458,19 @@ pub(crate) mod inner {
 	/// Trait that routes a fold_map operation to the appropriate type class method.
 	///
 	/// `Fn(A) -> M` resolves to [`Val`], `Fn(&A) -> M` resolves to [`Ref`].
+	/// The `FA` type parameter is inferred from the container argument: owned
+	/// for Val dispatch, borrowed for Ref dispatch.
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The brand of the foldable structure.",
 		"The type of the elements.",
 		"The monoid type.",
+		"The container type (owned or borrowed), inferred from the argument.",
 		"Dispatch marker type, inferred automatically."
 	)]
 	#[document_parameters("The closure implementing this dispatch.")]
-	pub trait FoldMapDispatch<'a, FnBrand, Brand: Kind_cdc7cd43dac7585f, A: 'a, M, Marker> {
+	pub trait FoldMapDispatch<'a, FnBrand, Brand: Kind_cdc7cd43dac7585f, A: 'a, M, FA, Marker> {
 		/// Perform the dispatched fold_map operation.
 		#[document_signature]
 		#[document_parameters("The structure to fold.")]
@@ -399,12 +482,12 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map::<RcFnBrand, VecBrand, _, _, _>(|a: i32| a.to_string(), vec![1, 2, 3]);
+		/// let result = fold_map::<RcFnBrand, VecBrand, _, _, _, _>(|a: i32| a.to_string(), vec![1, 2, 3]);
 		/// assert_eq!(result, "123");
 		/// ```
 		fn dispatch(
 			self,
-			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: FA,
 		) -> M;
 	}
 
@@ -418,7 +501,16 @@ pub(crate) mod inner {
 		"The closure type."
 	)]
 	#[document_parameters("The closure.")]
-	impl<'a, FnBrand, Brand, A, M, F> FoldMapDispatch<'a, FnBrand, Brand, A, M, Val> for F
+	impl<'a, FnBrand, Brand, A, M, F>
+		FoldMapDispatch<
+			'a,
+			FnBrand,
+			Brand,
+			A,
+			M,
+			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			Val,
+		> for F
 	where
 		Brand: Foldable,
 		FnBrand: LiftFn + 'a,
@@ -436,7 +528,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map::<RcFnBrand, VecBrand, _, _, _>(|a: i32| a.to_string(), vec![1, 2, 3]);
+		/// let result = fold_map::<RcFnBrand, VecBrand, _, _, _, _>(|a: i32| a.to_string(), vec![1, 2, 3]);
 		/// assert_eq!(result, "123");
 		/// ```
 		fn dispatch(
@@ -448,8 +540,11 @@ pub(crate) mod inner {
 	}
 
 	/// Routes `Fn(&A) -> M` closures to [`RefFoldable::ref_fold_map`].
+	///
+	/// The container must be passed by reference (`&fa`).
 	#[document_type_parameters(
 		"The lifetime.",
+		"The borrow lifetime.",
 		"The cloneable function brand.",
 		"The foldable brand.",
 		"The element type.",
@@ -457,7 +552,16 @@ pub(crate) mod inner {
 		"The closure type."
 	)]
 	#[document_parameters("The closure.")]
-	impl<'a, FnBrand, Brand, A, M, F> FoldMapDispatch<'a, FnBrand, Brand, A, M, Ref> for F
+	impl<'a, 'b, FnBrand, Brand, A, M, F>
+		FoldMapDispatch<
+			'a,
+			FnBrand,
+			Brand,
+			A,
+			M,
+			&'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			Ref,
+		> for F
 	where
 		Brand: RefFoldable,
 		FnBrand: LiftFn + 'a,
@@ -466,7 +570,7 @@ pub(crate) mod inner {
 		F: Fn(&A) -> M + 'a,
 	{
 		#[document_signature]
-		#[document_parameters("The structure to fold.")]
+		#[document_parameters("A reference to the structure to fold.")]
 		#[document_returns("The combined monoid value.")]
 		#[document_examples]
 		///
@@ -478,14 +582,14 @@ pub(crate) mod inner {
 		/// };
 		/// let lazy = RcLazy::new(|| 10);
 		/// let result =
-		/// 	fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|a: &i32| a.to_string(), lazy);
+		/// 	fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|a: &i32| a.to_string(), &lazy);
 		/// assert_eq!(result, "10");
 		/// ```
 		fn dispatch(
 			self,
-			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M {
-			Brand::ref_fold_map::<FnBrand, A, M>(self, &fa)
+			Brand::ref_fold_map::<FnBrand, A, M>(self, fa)
 		}
 	}
 
@@ -493,6 +597,9 @@ pub(crate) mod inner {
 	///
 	/// Dispatches to [`Foldable::fold_map`] or [`RefFoldable::ref_fold_map`]
 	/// based on whether the closure takes `A` or `&A`.
+	///
+	/// The `Marker` and `FA` type parameters are inferred automatically by the
+	/// compiler from the closure's argument type and the container argument.
 	#[document_signature]
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -500,9 +607,13 @@ pub(crate) mod inner {
 		"The brand of the foldable structure.",
 		"The type of the elements.",
 		"The monoid type.",
+		"The container type (owned or borrowed), inferred from the argument.",
 		"Dispatch marker type, inferred automatically."
 	)]
-	#[document_parameters("The mapping function.", "The structure to fold.")]
+	#[document_parameters(
+		"The mapping function.",
+		"The structure to fold (owned for Val, borrowed for Ref)."
+	)]
 	#[document_returns("The combined monoid value.")]
 	#[document_examples]
 	///
@@ -514,18 +625,26 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // By-value
-	/// let result = fold_map::<RcFnBrand, VecBrand, _, _, _>(|a: i32| a.to_string(), vec![1, 2, 3]);
+	/// let result = fold_map::<RcFnBrand, VecBrand, _, _, _, _>(|a: i32| a.to_string(), vec![1, 2, 3]);
 	/// assert_eq!(result, "123");
 	///
 	/// // By-ref
 	/// let lazy = RcLazy::new(|| 10);
 	/// let result =
-	/// 	fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|a: &i32| a.to_string(), lazy);
+	/// 	fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|a: &i32| a.to_string(), &lazy);
 	/// assert_eq!(result, "10");
 	/// ```
-	pub fn fold_map<'a, FnBrand, Brand: Kind_cdc7cd43dac7585f, A: 'a, M: Monoid + 'a, Marker>(
-		func: impl FoldMapDispatch<'a, FnBrand, Brand, A, M, Marker>,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	pub fn fold_map<
+		'a,
+		FnBrand,
+		Brand: Kind_cdc7cd43dac7585f,
+		A: 'a,
+		M: Monoid + 'a,
+		FA,
+		Marker,
+	>(
+		func: impl FoldMapDispatch<'a, FnBrand, Brand, A, M, FA, Marker>,
+		fa: FA,
 	) -> M {
 		func.dispatch(fa)
 	}
