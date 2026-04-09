@@ -60,7 +60,7 @@ mod inner {
 		/// ```
 		fn par_ref_filter_map_with_index<'a, A: Send + Sync + 'a, B: Send + 'a>(
 			f: impl Fn(Self::Index, &A) -> Option<B> + Send + Sync + 'a,
-			fa: Self::Of<'a, A>,
+			fa: &Self::Of<'a, A>,
 		) -> Self::Of<'a, B>;
 
 		/// Filters elements by reference with index in parallel.
@@ -85,7 +85,7 @@ mod inner {
 		/// ```
 		fn par_ref_filter_with_index<'a, A: Send + Sync + Clone + 'a>(
 			f: impl Fn(Self::Index, &A) -> bool + Send + Sync + 'a,
-			fa: Self::Of<'a, A>,
+			fa: &Self::Of<'a, A>,
 		) -> Self::Of<'a, A> {
 			Self::par_ref_filter_map_with_index(
 				move |i, a| {
@@ -133,7 +133,7 @@ mod inner {
 		B: Send + 'a,
 	>(
 		f: impl Fn(Brand::Index, &A) -> Option<B> + Send + Sync + 'a,
-		fa: Brand::Of<'a, A>,
+		fa: &Brand::Of<'a, A>,
 	) -> Brand::Of<'a, B> {
 		Brand::par_ref_filter_map_with_index(f, fa)
 	}
@@ -170,7 +170,7 @@ mod inner {
 		A: Send + Sync + Clone + 'a,
 	>(
 		f: impl Fn(Brand::Index, &A) -> bool + Send + Sync + 'a,
-		fa: Brand::Of<'a, A>,
+		fa: &Brand::Of<'a, A>,
 	) -> Brand::Of<'a, A> {
 		Brand::par_ref_filter_with_index(f, fa)
 	}

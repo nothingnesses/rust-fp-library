@@ -57,8 +57,8 @@ mod inner {
 		/// assert_eq!(*result.evaluate(), 4);
 		/// ```
 		fn ref_apply_second<'a, A: 'a, B: Clone + 'a>(
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			Self::ref_lift2(|_: &A, b: &B| b.clone(), fa, fb)
 		}
@@ -98,8 +98,8 @@ mod inner {
 	/// assert_eq!(*result.evaluate(), 4);
 	/// ```
 	pub fn ref_apply_second<'a, Brand: RefApplySecond, A: 'a, B: Clone + 'a>(
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		fa: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fb: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		Brand::ref_apply_second(fa, fb)
 	}

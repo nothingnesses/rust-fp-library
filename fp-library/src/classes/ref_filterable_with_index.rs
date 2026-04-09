@@ -64,7 +64,7 @@ mod inner {
 		/// ```
 		fn ref_filter_map_with_index<'a, A: 'a, B: 'a>(
 			func: impl Fn(Self::Index, &A) -> Option<B> + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
 
 		/// Filters by reference with index using a predicate.
@@ -89,7 +89,7 @@ mod inner {
 		/// ```
 		fn ref_filter_with_index<'a, A: 'a + Clone>(
 			func: impl Fn(Self::Index, &A) -> bool + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Self::ref_filter_map_with_index(
 				move |i, a: &A| {
@@ -130,7 +130,7 @@ mod inner {
 		/// ```
 		fn ref_partition_map_with_index<'a, A: 'a, E: 'a, O: 'a>(
 			func: impl Fn(Self::Index, &A) -> Result<O, E> + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> (
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
@@ -161,7 +161,7 @@ mod inner {
 		/// ```
 		fn ref_partition_with_index<'a, A: 'a + Clone>(
 			func: impl Fn(Self::Index, &A) -> bool + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> (
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -207,7 +207,7 @@ mod inner {
 	/// ```
 	pub fn ref_filter_map_with_index<'a, Brand: RefFilterableWithIndex, A: 'a, B: 'a>(
 		func: impl Fn(Brand::Index, &A) -> Option<B> + 'a,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fa: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		Brand::ref_filter_map_with_index(func, fa)
 	}
@@ -240,7 +240,7 @@ mod inner {
 	/// ```
 	pub fn ref_filter_with_index<'a, Brand: RefFilterableWithIndex, A: 'a + Clone>(
 		func: impl Fn(Brand::Index, &A) -> bool + 'a,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fa: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 		Brand::ref_filter_with_index(func, fa)
 	}
@@ -279,7 +279,7 @@ mod inner {
 	/// ```
 	pub fn ref_partition_map_with_index<'a, Brand: RefFilterableWithIndex, A: 'a, E: 'a, O: 'a>(
 		func: impl Fn(Brand::Index, &A) -> Result<O, E> + 'a,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fa: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> (
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
@@ -316,7 +316,7 @@ mod inner {
 	/// ```
 	pub fn ref_partition_with_index<'a, Brand: RefFilterableWithIndex, A: 'a + Clone>(
 		func: impl Fn(Brand::Index, &A) -> bool + 'a,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fa: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> (
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),

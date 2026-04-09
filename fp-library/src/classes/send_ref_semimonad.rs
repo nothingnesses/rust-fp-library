@@ -65,7 +65,7 @@ mod inner {
 		/// assert_eq!(*result.evaluate(), 10);
 		/// ```
 		fn send_ref_bind<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
-			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			ma: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + Send + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
 	}
@@ -105,7 +105,7 @@ mod inner {
 	/// assert_eq!(*result.evaluate(), 10);
 	/// ```
 	pub fn send_ref_bind<'a, Brand: SendRefSemimonad, A: Send + Sync + 'a, B: Send + Sync + 'a>(
-		ma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		ma: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		f: impl Fn(&A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + Send + 'a,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		Brand::send_ref_bind(ma, f)

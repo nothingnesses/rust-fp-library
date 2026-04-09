@@ -133,16 +133,18 @@ mod inner {
 	/// let cond = RcLazy::pure(true);
 	/// let then_val = RcLazy::pure(1);
 	/// let else_val = RcLazy::pure(0);
-	/// let result = ref_if_m::<LazyBrand<RcLazyConfig>, _>(cond, then_val, else_val);
+	/// let result = ref_if_m::<LazyBrand<RcLazyConfig>, _>(&cond, &then_val, &else_val);
 	/// assert_eq!(*result.evaluate(), 1);
 	/// ```
 	pub fn ref_if_m<'a, Brand: RefMonad, A: 'a>(
-		cond: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, bool>),
-		then_branch: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		else_branch: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		cond: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, bool>),
+		then_branch: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		else_branch: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 	where
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
+		let then_branch = then_branch.clone();
+		let else_branch = else_branch.clone();
 		Brand::ref_bind(
 			cond,
 			move |c: &bool| {
@@ -173,15 +175,16 @@ mod inner {
 	///
 	/// let cond = RcLazy::pure(false);
 	/// let action = RcLazy::pure(());
-	/// let result = ref_unless_m::<LazyBrand<RcLazyConfig>>(cond, action);
+	/// let result = ref_unless_m::<LazyBrand<RcLazyConfig>>(&cond, &action);
 	/// assert_eq!(*result.evaluate(), ());
 	/// ```
 	pub fn ref_unless_m<'a, Brand: RefMonad>(
-		cond: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, bool>),
-		action: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>),
+		cond: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, bool>),
+		action: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>)
 	where
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>): Clone, {
+		let action = action.clone();
 		Brand::ref_bind(
 			cond,
 			move |c: &bool| {

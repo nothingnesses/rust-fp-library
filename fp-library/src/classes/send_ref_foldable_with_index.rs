@@ -89,7 +89,7 @@ mod inner {
 			R: Monoid + Send + Sync + 'a,
 		>(
 			f: impl Fn(Self::Index, &A) -> R + Send + Sync + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> R
 		where
 			FnBrand: SendLiftFn + 'a,
@@ -141,7 +141,7 @@ mod inner {
 		>(
 			func: impl Fn(Self::Index, &A, B) -> B + Send + Sync + 'a,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
 			FnBrand: SendLiftFn + 'a,
@@ -203,7 +203,7 @@ mod inner {
 		>(
 			func: impl Fn(B, Self::Index, &A) -> B + Send + Sync + 'a,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
 			FnBrand: SendLiftFn + 'a,
@@ -272,7 +272,7 @@ mod inner {
 		R: Monoid + Send + Sync + 'a,
 	>(
 		f: impl Fn(Brand::Index, &A) -> R + Send + Sync + 'a,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fa: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> R
 	where
 		Brand::Index: Send + Sync + 'a, {

@@ -82,7 +82,7 @@ mod inner {
 		/// ```
 		fn send_ref_fold_map<'a, FnBrand, A: Send + Sync + 'a + Clone, M>(
 			func: impl Fn(&A) -> M + Send + Sync + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			FnBrand: SendLiftFn + 'a,
@@ -128,7 +128,7 @@ mod inner {
 		fn send_ref_fold_right<'a, FnBrand, A: Send + Sync + 'a + Clone, B: Send + Sync + 'a>(
 			func: impl Fn(&A, B) -> B + Send + Sync + 'a,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
 			FnBrand: SendLiftFn + 'a, {
@@ -181,7 +181,7 @@ mod inner {
 		fn send_ref_fold_left<'a, FnBrand, A: Send + Sync + 'a + Clone, B: Send + Sync + 'a>(
 			func: impl Fn(B, &A) -> B + Send + Sync + 'a,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
 			FnBrand: SendLiftFn + 'a, {
@@ -243,7 +243,7 @@ mod inner {
 		M,
 	>(
 		func: impl Fn(&A) -> M + Send + Sync + 'a,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fa: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
 		M: Monoid + Send + Sync + 'a, {

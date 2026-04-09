@@ -66,7 +66,7 @@ mod inner {
 		/// ```
 		fn par_ref_filter_map<'a, A: Send + Sync + 'a, B: Send + 'a>(
 			f: impl Fn(&A) -> Option<B> + Send + Sync + 'a,
-			fa: Self::Of<'a, A>,
+			fa: &Self::Of<'a, A>,
 		) -> Self::Of<'a, B> {
 			Self::par_compact(Self::par_ref_map(f, fa))
 		}
@@ -96,7 +96,7 @@ mod inner {
 		/// ```
 		fn par_ref_filter<'a, A: Send + Sync + Clone + 'a>(
 			f: impl Fn(&A) -> bool + Send + Sync + 'a,
-			fa: Self::Of<'a, A>,
+			fa: &Self::Of<'a, A>,
 		) -> Self::Of<'a, A> {
 			Self::par_ref_filter_map(move |a| if f(a) { Some(a.clone()) } else { None }, fa)
 		}
@@ -134,7 +134,7 @@ mod inner {
 	/// ```
 	pub fn par_ref_filter_map<'a, Brand: ParRefFilterable, A: Send + Sync + 'a, B: Send + 'a>(
 		f: impl Fn(&A) -> Option<B> + Send + Sync + 'a,
-		fa: Brand::Of<'a, A>,
+		fa: &Brand::Of<'a, A>,
 	) -> Brand::Of<'a, B> {
 		Brand::par_ref_filter_map(f, fa)
 	}
@@ -167,7 +167,7 @@ mod inner {
 	/// ```
 	pub fn par_ref_filter<'a, Brand: ParRefFilterable, A: Send + Sync + Clone + 'a>(
 		f: impl Fn(&A) -> bool + Send + Sync + 'a,
-		fa: Brand::Of<'a, A>,
+		fa: &Brand::Of<'a, A>,
 	) -> Brand::Of<'a, A> {
 		Brand::par_ref_filter(f, fa)
 	}

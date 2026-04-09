@@ -158,7 +158,7 @@ pub(crate) mod inner {
 			initial: B,
 			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B {
-			Brand::ref_fold_right::<FnBrand, A, B>(self, initial, fa)
+			Brand::ref_fold_right::<FnBrand, A, B>(self, initial, &fa)
 		}
 	}
 
@@ -323,7 +323,7 @@ pub(crate) mod inner {
 			initial: B,
 			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B {
-			Brand::ref_fold_left::<FnBrand, A, B>(self, initial, fa)
+			Brand::ref_fold_left::<FnBrand, A, B>(self, initial, &fa)
 		}
 	}
 
@@ -485,7 +485,7 @@ pub(crate) mod inner {
 			self,
 			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M {
-			Brand::ref_fold_map::<FnBrand, A, M>(self, fa)
+			Brand::ref_fold_map::<FnBrand, A, M>(self, &fa)
 		}
 	}
 

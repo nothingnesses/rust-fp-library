@@ -800,7 +800,7 @@ mod inner {
 	// -- By-reference trait implementations for Tuple2FirstAppliedBrand --
 
 	#[document_type_parameters("The type of the first value in the tuple.")]
-	impl<First: 'static> RefFunctor for Tuple2FirstAppliedBrand<First> {
+	impl<First: Clone + 'static> RefFunctor for Tuple2FirstAppliedBrand<First> {
 		/// Maps a function over the second value in the tuple by reference.
 		#[document_signature]
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
@@ -817,14 +817,14 @@ mod inner {
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
 			func: impl Fn(&A) -> B + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			(fa.0, func(&fa.1))
+			(fa.0.clone(), func(&fa.1))
 		}
 	}
 
 	#[document_type_parameters("The type of the first value in the tuple.")]
-	impl<First: 'static> RefFoldable for Tuple2FirstAppliedBrand<First> {
+	impl<First: Clone + 'static> RefFoldable for Tuple2FirstAppliedBrand<First> {
 		/// Folds the tuple by reference (over second).
 		#[document_signature]
 		#[document_type_parameters(
@@ -850,7 +850,7 @@ mod inner {
 		/// ```
 		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
 			func: impl Fn(&A) -> M + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			FnBrand: LiftFn + 'a,
@@ -888,13 +888,13 @@ mod inner {
 		/// ```
 		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
 			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			ta: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
 			FnBrand: LiftFn + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
-			Self::traverse::<A, B, F>(move |a: A| func(&a), ta)
+			Self::traverse::<A, B, F>(move |a: A| func(&a), ta.clone())
 		}
 	}
 
@@ -954,10 +954,10 @@ mod inner {
 		/// ```
 		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
 			func: impl Fn(&A, &B) -> C + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
-			(Semigroup::append(fa.0, fb.0), func(&fa.1, &fb.1))
+			(Semigroup::append(fa.0.clone(), fb.0.clone()), func(&fa.1, &fb.1))
 		}
 	}
 
@@ -995,10 +995,10 @@ mod inner {
 		/// assert_eq!(result, ("ab".to_string(), 10));
 		/// ```
 		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			ff: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			(Semigroup::append(ff.0, fa.0), (*ff.1)(&fa.1))
+			(Semigroup::append(ff.0.clone(), fa.0.clone()), (*ff.1)(&fa.1))
 		}
 	}
 
@@ -1027,12 +1027,11 @@ mod inner {
 		/// assert_eq!(result, ("ab".to_string(), "42".to_string()));
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			let (first, second) = fa;
-			let (next_first, next_second) = f(&second);
-			(Semigroup::append(first, next_first), next_second)
+			let (next_first, next_second) = f(&fa.1);
+			(Semigroup::append(fa.0.clone(), next_first), next_second)
 		}
 	}
 
@@ -1549,7 +1548,7 @@ mod inner {
 	// -- By-reference trait implementations for Tuple2SecondAppliedBrand --
 
 	#[document_type_parameters("The type of the second value in the tuple.")]
-	impl<Second: 'static> RefFunctor for Tuple2SecondAppliedBrand<Second> {
+	impl<Second: Clone + 'static> RefFunctor for Tuple2SecondAppliedBrand<Second> {
 		/// Maps a function over the first value in the tuple by reference.
 		#[document_signature]
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
@@ -1566,14 +1565,14 @@ mod inner {
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
 			func: impl Fn(&A) -> B + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			(func(&fa.0), fa.1)
+			(func(&fa.0), fa.1.clone())
 		}
 	}
 
 	#[document_type_parameters("The type of the second value in the tuple.")]
-	impl<Second: 'static> RefFoldable for Tuple2SecondAppliedBrand<Second> {
+	impl<Second: Clone + 'static> RefFoldable for Tuple2SecondAppliedBrand<Second> {
 		/// Folds the tuple by reference (over first).
 		#[document_signature]
 		#[document_type_parameters(
@@ -1599,7 +1598,7 @@ mod inner {
 		/// ```
 		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
 			func: impl Fn(&A) -> M + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			FnBrand: LiftFn + 'a,
@@ -1637,13 +1636,13 @@ mod inner {
 		/// ```
 		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
 			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			ta: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
 			FnBrand: LiftFn + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
-			Self::traverse::<A, B, F>(move |a: A| func(&a), ta)
+			Self::traverse::<A, B, F>(move |a: A| func(&a), ta.clone())
 		}
 	}
 
@@ -1703,10 +1702,10 @@ mod inner {
 		/// ```
 		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
 			func: impl Fn(&A, &B) -> C + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
-			(func(&fa.0, &fb.0), Semigroup::append(fa.1, fb.1))
+			(func(&fa.0, &fb.0), Semigroup::append(fa.1.clone(), fb.1.clone()))
 		}
 	}
 
@@ -1744,10 +1743,10 @@ mod inner {
 		/// assert_eq!(result, (10, "ab".to_string()));
 		/// ```
 		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			ff: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			((*ff.0)(&fa.0), Semigroup::append(ff.1, fa.1))
+			((*ff.0)(&fa.0), Semigroup::append(ff.1.clone(), fa.1.clone()))
 		}
 	}
 
@@ -1776,12 +1775,11 @@ mod inner {
 		/// assert_eq!(result, ("42".to_string(), "ab".to_string()));
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			let (first, second) = fa;
-			let (next_first, next_second) = f(&first);
-			(next_first, Semigroup::append(second, next_second))
+			let (next_first, next_second) = f(&fa.0);
+			(next_first, Semigroup::append(fa.1.clone(), next_second))
 		}
 	}
 }

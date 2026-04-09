@@ -54,7 +54,7 @@ mod inner {
 		/// ```
 		fn par_ref_fold_map_with_index<'a, A: Send + Sync + 'a, M: Monoid + Send + 'a>(
 			f: impl Fn(Self::Index, &A) -> M + Send + Sync + 'a,
-			fa: Self::Of<'a, A>,
+			fa: &Self::Of<'a, A>,
 		) -> M;
 	}
 
@@ -93,7 +93,7 @@ mod inner {
 		M: Monoid + Send + 'a,
 	>(
 		f: impl Fn(Brand::Index, &A) -> M + Send + Sync + 'a,
-		fa: Brand::Of<'a, A>,
+		fa: &Brand::Of<'a, A>,
 	) -> M {
 		Brand::par_ref_fold_map_with_index(f, fa)
 	}

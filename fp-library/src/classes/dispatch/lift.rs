@@ -155,7 +155,7 @@ pub(crate) mod inner {
 			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
-			Brand::ref_lift2(self, fa, fb)
+			Brand::ref_lift2(self, &fa, &fb)
 		}
 	}
 
@@ -324,8 +324,8 @@ pub(crate) mod inner {
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) {
 			Brand::ref_lift2(
 				move |(a, b): &(A, B), c: &C| self(a, b, c),
-				Brand::ref_lift2(|a: &A, b: &B| (a.clone(), b.clone()), fa, fb),
-				fc,
+				&Brand::ref_lift2(|a: &A, b: &B| (a.clone(), b.clone()), &fa, &fb),
+				&fc,
 			)
 		}
 	}
@@ -534,12 +534,12 @@ pub(crate) mod inner {
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>) {
 			Brand::ref_lift2(
 				move |((a, b), c): &((A, B), C), d: &D| self(a, b, c, d),
-				Brand::ref_lift2(
+				&Brand::ref_lift2(
 					move |(a, b): &(A, B), c: &C| ((a.clone(), b.clone()), c.clone()),
-					Brand::ref_lift2(|a: &A, b: &B| (a.clone(), b.clone()), fa, fb),
-					fc,
+					&Brand::ref_lift2(|a: &A, b: &B| (a.clone(), b.clone()), &fa, &fb),
+					&fc,
 				),
-				fd,
+				&fd,
 			)
 		}
 	}
@@ -769,18 +769,18 @@ pub(crate) mod inner {
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, G>) {
 			Brand::ref_lift2(
 				move |(((a, b), c), d): &(((A, B), C), D), e: &E| self(a, b, c, d, e),
-				Brand::ref_lift2(
+				&Brand::ref_lift2(
 					move |((a, b), c): &((A, B), C), d: &D| {
 						(((a.clone(), b.clone()), c.clone()), d.clone())
 					},
-					Brand::ref_lift2(
+					&Brand::ref_lift2(
 						move |(a, b): &(A, B), c: &C| ((a.clone(), b.clone()), c.clone()),
-						Brand::ref_lift2(|a: &A, b: &B| (a.clone(), b.clone()), fa, fb),
-						fc,
+						&Brand::ref_lift2(|a: &A, b: &B| (a.clone(), b.clone()), &fa, &fb),
+						&fc,
 					),
-					fd,
+					&fd,
 				),
-				fe,
+				&fe,
 			)
 		}
 	}

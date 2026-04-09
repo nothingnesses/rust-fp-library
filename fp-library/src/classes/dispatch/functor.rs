@@ -167,7 +167,7 @@ pub(crate) mod inner {
 			self,
 			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			Brand::ref_map(self, fa)
+			Brand::ref_map(self, &fa)
 		}
 	}
 

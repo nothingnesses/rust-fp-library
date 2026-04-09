@@ -54,7 +54,7 @@ mod inner {
 		/// ```
 		fn par_ref_map_with_index<'a, A: Send + Sync + 'a, B: Send + 'a>(
 			f: impl Fn(Self::Index, &A) -> B + Send + Sync + 'a,
-			fa: Self::Of<'a, A>,
+			fa: &Self::Of<'a, A>,
 		) -> Self::Of<'a, B>;
 	}
 
@@ -92,7 +92,7 @@ mod inner {
 		B: Send + 'a,
 	>(
 		f: impl Fn(Brand::Index, &A) -> B + Send + Sync + 'a,
-		fa: Brand::Of<'a, A>,
+		fa: &Brand::Of<'a, A>,
 	) -> Brand::Of<'a, B> {
 		Brand::par_ref_map_with_index(f, fa)
 	}

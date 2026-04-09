@@ -63,7 +63,7 @@ mod inner {
 		/// ```
 		fn par_ref_map<'a, A: Send + Sync + 'a, B: Send + 'a>(
 			f: impl Fn(&A) -> B + Send + Sync + 'a,
-			fa: Self::Of<'a, A>,
+			fa: &Self::Of<'a, A>,
 		) -> Self::Of<'a, B>;
 	}
 
@@ -96,7 +96,7 @@ mod inner {
 	/// ```
 	pub fn par_ref_map<'a, Brand: ParRefFunctor, A: Send + Sync + 'a, B: Send + 'a>(
 		f: impl Fn(&A) -> B + Send + Sync + 'a,
-		fa: Brand::Of<'a, A>,
+		fa: &Brand::Of<'a, A>,
 	) -> Brand::Of<'a, B> {
 		Brand::par_ref_map(f, fa)
 	}

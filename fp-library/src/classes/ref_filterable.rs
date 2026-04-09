@@ -69,7 +69,7 @@ mod inner {
 		/// ```
 		fn ref_partition_map<'a, A: 'a, E: 'a, O: 'a>(
 			func: impl Fn(&A) -> Result<O, E> + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> (
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
@@ -105,7 +105,7 @@ mod inner {
 		/// ```
 		fn ref_partition<'a, A: 'a + Clone>(
 			func: impl Fn(&A) -> bool + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> (
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -148,7 +148,7 @@ mod inner {
 		/// ```
 		fn ref_filter_map<'a, A: 'a, B: 'a>(
 			func: impl Fn(&A) -> Option<B> + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			Self::compact::<B>(Self::ref_map::<A, Option<B>>(func, fa))
 		}
@@ -178,7 +178,7 @@ mod inner {
 		/// ```
 		fn ref_filter<'a, A: 'a + Clone>(
 			func: impl Fn(&A) -> bool + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Self::ref_filter_map(move |a: &A| if func(a) { Some(a.clone()) } else { None }, fa)
 		}
@@ -216,7 +216,7 @@ mod inner {
 	/// ```
 	pub fn ref_partition_map<'a, Brand: RefFilterable, A: 'a, E: 'a, O: 'a>(
 		func: impl Fn(&A) -> Result<O, E> + 'a,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fa: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> (
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
@@ -253,7 +253,7 @@ mod inner {
 	/// ```
 	pub fn ref_partition<'a, Brand: RefFilterable, A: 'a + Clone>(
 		func: impl Fn(&A) -> bool + 'a,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fa: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> (
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -291,7 +291,7 @@ mod inner {
 	/// ```
 	pub fn ref_filter_map<'a, Brand: RefFilterable, A: 'a, B: 'a>(
 		func: impl Fn(&A) -> Option<B> + 'a,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fa: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		Brand::ref_filter_map(func, fa)
 	}
@@ -324,7 +324,7 @@ mod inner {
 	/// ```
 	pub fn ref_filter<'a, Brand: RefFilterable, A: 'a + Clone>(
 		func: impl Fn(&A) -> bool + 'a,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fa: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 		Brand::ref_filter(func, fa)
 	}

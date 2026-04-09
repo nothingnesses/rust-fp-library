@@ -82,8 +82,8 @@ mod inner {
 			A: Send + Sync + 'a,
 			B: Send + Sync + 'a,
 		>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as SendCloneFn<Ref>>::Of<'a, A, B>>),
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			ff: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as SendCloneFn<Ref>>::Of<'a, A, B>>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
 	}
 
@@ -129,8 +129,8 @@ mod inner {
 		A: Send + Sync + 'a,
 		B: Send + Sync + 'a,
 	>(
-		ff: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as SendCloneFn<Ref>>::Of<'a, A, B>>),
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		ff: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as SendCloneFn<Ref>>::Of<'a, A, B>>),
+		fa: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		Brand::send_ref_apply::<FnBrand, A, B>(ff, fa)
 	}

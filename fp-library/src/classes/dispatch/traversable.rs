@@ -193,7 +193,7 @@ pub(crate) mod inner {
 			ta: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		{
-			Brand::ref_traverse::<FnBrand, A, B, F>(self, ta)
+			Brand::ref_traverse::<FnBrand, A, B, F>(self, &ta)
 		}
 	}
 

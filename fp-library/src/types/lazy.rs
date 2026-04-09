@@ -406,10 +406,11 @@ mod inner {
 		/// ```
 		#[inline]
 		pub fn ref_map<B: 'a>(
-			self,
-			f: impl FnOnce(&A) -> B + 'a,
+			&self,
+			f: impl Fn(&A) -> B + 'a,
 		) -> Lazy<'a, B, RcLazyConfig> {
-			RcLazy::new(move || f(self.evaluate()))
+			let this = self.clone();
+			RcLazy::new(move || f(this.evaluate()))
 		}
 	}
 
@@ -732,10 +733,11 @@ mod inner {
 		/// ```
 		#[inline]
 		pub fn ref_map<B: Send + Sync + 'a>(
-			self,
-			f: impl FnOnce(&A) -> B + Send + 'a,
+			&self,
+			f: impl Fn(&A) -> B + Send + 'a,
 		) -> Lazy<'a, B, ArcLazyConfig> {
-			ArcLazy::new(move || f(self.evaluate()))
+			let this = self.clone();
+			ArcLazy::new(move || f(this.evaluate()))
 		}
 	}
 
@@ -855,7 +857,7 @@ mod inner {
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
 			f: impl Fn(&A) -> B + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.ref_map(f)
 		}
@@ -890,7 +892,7 @@ mod inner {
 		/// ```
 		fn send_ref_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
 			f: impl Fn(&A) -> B + Send + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.ref_map(f)
 		}
@@ -964,9 +966,11 @@ mod inner {
 		/// ```
 		fn send_ref_lift2<'a, A: Send + Sync + 'a, B: Send + Sync + 'a, C: Send + Sync + 'a>(
 			func: impl Fn(&A, &B) -> C + Send + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			let fa = fa.clone();
+			let fb = fb.clone();
 			ArcLazy::new(move || func(fa.evaluate(), fb.evaluate()))
 		}
 	}
@@ -1009,9 +1013,11 @@ mod inner {
 			A: Send + Sync + 'a,
 			B: Send + Sync + 'a,
 		>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as SendCloneFn<Ref>>::Of<'a, A, B>>),
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			ff: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as SendCloneFn<Ref>>::Of<'a, A, B>>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let ff = ff.clone();
+			let fa = fa.clone();
 			ArcLazy::new(move || {
 				let f = ff.evaluate();
 				let a = fa.evaluate();
@@ -1055,7 +1061,7 @@ mod inner {
 		/// assert_eq!(*result.evaluate(), 10);
 		/// ```
 		fn send_ref_bind<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
-			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			ma: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + Send + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			f(ma.evaluate())
@@ -1093,7 +1099,7 @@ mod inner {
 		/// ```
 		fn send_ref_fold_map<'a, FnBrand, A: Send + Sync + 'a + Clone, M>(
 			func: impl Fn(&A) -> M + Send + Sync + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			FnBrand: SendLiftFn + 'a,
@@ -1140,7 +1146,7 @@ mod inner {
 			R: Monoid + Send + Sync + 'a,
 		>(
 			f: impl Fn((), &A) -> R + Send + Sync + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> R
 		where
 			FnBrand: SendLiftFn + 'a, {
@@ -1178,7 +1184,7 @@ mod inner {
 		/// ```
 		fn send_ref_map_with_index<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
 			f: impl Fn((), &A) -> B + Send + Sync + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			Self::send_ref_map(move |a| f((), a), fa)
 		}
@@ -1257,9 +1263,11 @@ mod inner {
 		/// ```
 		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
 			func: impl Fn(&A, &B) -> C + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			let fa = fa.clone();
+			let fb = fb.clone();
 			RcLazy::new(move || func(fa.evaluate(), fb.evaluate()))
 		}
 	}
@@ -1296,9 +1304,11 @@ mod inner {
 		/// assert_eq!(*result.evaluate(), 10);
 		/// ```
 		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			ff: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let ff = ff.clone();
+			let fa = fa.clone();
 			RcLazy::new(move || {
 				let f = ff.evaluate();
 				let a = fa.evaluate();
@@ -1345,7 +1355,7 @@ mod inner {
 		/// assert_eq!(*result.evaluate(), 10);
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			f(fa.evaluate())
@@ -1607,7 +1617,7 @@ mod inner {
 		/// ```
 		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
 			func: impl Fn(&A) -> M + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			FnBrand: LiftFn + 'a,
@@ -1651,7 +1661,7 @@ mod inner {
 		fn ref_fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
 			func: impl Fn(&A, B) -> B + 'a,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
 			FnBrand: LiftFn + 'a, {
@@ -1694,7 +1704,7 @@ mod inner {
 		fn ref_fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
 			func: impl Fn(B, &A) -> B + 'a,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
 			FnBrand: LiftFn + 'a, {
@@ -1751,7 +1761,7 @@ mod inner {
 		/// ```
 		fn ref_fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
 			f: impl Fn((), &A) -> R + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> R
 		where
 			FnBrand: LiftFn + 'a, {
@@ -1798,7 +1808,7 @@ mod inner {
 		/// ```
 		fn ref_map_with_index<'a, A: 'a, B: 'a>(
 			f: impl Fn((), &A) -> B + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			Self::ref_map(move |a| f((), a), fa)
 		}

@@ -1399,7 +1399,7 @@ mod inner {
 	// -- By-reference trait implementations for ResultErrAppliedBrand --
 
 	#[document_type_parameters("The error type.")]
-	impl<E: 'static> RefFunctor for ResultErrAppliedBrand<E> {
+	impl<E: Clone + 'static> RefFunctor for ResultErrAppliedBrand<E> {
 		/// Maps a function over the result by reference.
 		#[document_signature]
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
@@ -1420,17 +1420,17 @@ mod inner {
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
 			func: impl Fn(&A) -> B + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			match fa {
-				Ok(a) => Ok(func(&a)),
-				Err(e) => Err(e),
+				Ok(a) => Ok(func(a)),
+				Err(e) => Err(e.clone()),
 			}
 		}
 	}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: 'static> RefFoldable for ResultErrAppliedBrand<E> {
+	impl<E: Clone + 'static> RefFoldable for ResultErrAppliedBrand<E> {
 		/// Folds the result by reference.
 		#[document_signature]
 		#[document_type_parameters(
@@ -1454,13 +1454,13 @@ mod inner {
 		/// ```
 		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
 			func: impl Fn(&A) -> M + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			FnBrand: LiftFn + 'a,
 			M: Monoid + 'a, {
 			match fa {
-				Ok(a) => func(&a),
+				Ok(a) => func(a),
 				Err(_) => Monoid::empty(),
 			}
 		}
@@ -1495,13 +1495,13 @@ mod inner {
 		/// ```
 		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
 			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			ta: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
 			FnBrand: LiftFn + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
-			Self::traverse::<A, B, F>(move |a: A| func(&a), ta)
+			Self::traverse::<A, B, F>(move |a: A| func(&a), ta.clone())
 		}
 	}
 
@@ -1557,13 +1557,13 @@ mod inner {
 		/// ```
 		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
 			func: impl Fn(&A, &B) -> C + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
 			match (fa, fb) {
-				(Ok(a), Ok(b)) => Ok(func(&a, &b)),
-				(Err(e), _) => Err(e),
-				(_, Err(e)) => Err(e),
+				(Ok(a), Ok(b)) => Ok(func(a, b)),
+				(Err(e), _) => Err(e.clone()),
+				(_, Err(e)) => Err(e.clone()),
 			}
 		}
 	}
@@ -1597,13 +1597,13 @@ mod inner {
 		/// assert_eq!(result, Ok(6));
 		/// ```
 		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			ff: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			match (ff, fa) {
-				(Ok(f), Ok(a)) => Ok((*f)(&a)),
-				(Err(e), _) => Err(e),
-				(_, Err(e)) => Err(e),
+				(Ok(f), Ok(a)) => Ok((**f)(a)),
+				(Err(e), _) => Err(e.clone()),
+				(_, Err(e)) => Err(e.clone()),
 			}
 		}
 	}
@@ -1628,12 +1628,12 @@ mod inner {
 		/// assert_eq!(result, Ok("42".to_string()));
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			match fa {
-				Ok(a) => f(&a),
-				Err(e) => Err(e),
+				Ok(a) => f(a),
+				Err(e) => Err(e.clone()),
 			}
 		}
 	}
@@ -1641,7 +1641,7 @@ mod inner {
 	// -- By-reference trait implementations for ResultOkAppliedBrand --
 
 	#[document_type_parameters("The success type.")]
-	impl<T: 'static> RefFunctor for ResultOkAppliedBrand<T> {
+	impl<T: Clone + 'static> RefFunctor for ResultOkAppliedBrand<T> {
 		/// Maps a function over the error value in the result by reference.
 		#[document_signature]
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
@@ -1659,17 +1659,17 @@ mod inner {
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
 			func: impl Fn(&A) -> B + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			match fa {
-				Err(e) => Err(func(&e)),
-				Ok(t) => Ok(t),
+				Err(e) => Err(func(e)),
+				Ok(t) => Ok(t.clone()),
 			}
 		}
 	}
 
 	#[document_type_parameters("The success type.")]
-	impl<T: 'static> RefFoldable for ResultOkAppliedBrand<T> {
+	impl<T: Clone + 'static> RefFoldable for ResultOkAppliedBrand<T> {
 		/// Folds the result by reference (over error).
 		#[document_signature]
 		#[document_type_parameters(
@@ -1693,13 +1693,13 @@ mod inner {
 		/// ```
 		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
 			func: impl Fn(&A) -> M + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			FnBrand: LiftFn + 'a,
 			M: Monoid + 'a, {
 			match fa {
-				Err(e) => func(&e),
+				Err(e) => func(e),
 				Ok(_) => Monoid::empty(),
 			}
 		}
@@ -1734,13 +1734,13 @@ mod inner {
 		/// ```
 		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
 			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			ta: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
 			FnBrand: LiftFn + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
-			Self::traverse::<A, B, F>(move |a: A| func(&a), ta)
+			Self::traverse::<A, B, F>(move |a: A| func(&a), ta.clone())
 		}
 	}
 
@@ -1796,13 +1796,13 @@ mod inner {
 		/// ```
 		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
 			func: impl Fn(&A, &B) -> C + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
 			match (fa, fb) {
-				(Err(a), Err(b)) => Err(func(&a, &b)),
-				(Ok(t), _) => Ok(t),
-				(_, Ok(t)) => Ok(t),
+				(Err(a), Err(b)) => Err(func(a, b)),
+				(Ok(t), _) => Ok(t.clone()),
+				(_, Ok(t)) => Ok(t.clone()),
 			}
 		}
 	}
@@ -1836,13 +1836,13 @@ mod inner {
 		/// assert_eq!(result, Err(6));
 		/// ```
 		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			ff: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			match (ff, fa) {
-				(Err(f), Err(a)) => Err((*f)(&a)),
-				(Ok(t), _) => Ok(t),
-				(_, Ok(t)) => Ok(t),
+				(Err(f), Err(a)) => Err((**f)(a)),
+				(Ok(t), _) => Ok(t.clone()),
+				(_, Ok(t)) => Ok(t.clone()),
 			}
 		}
 	}
@@ -1867,12 +1867,12 @@ mod inner {
 		/// assert_eq!(result, Err("42".to_string()));
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			match fa {
-				Err(e) => f(&e),
-				Ok(t) => Ok(t),
+				Err(e) => f(e),
+				Ok(t) => Ok(t.clone()),
 			}
 		}
 	}

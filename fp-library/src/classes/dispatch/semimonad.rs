@@ -157,7 +157,7 @@ pub(crate) mod inner {
 			self,
 			ma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			Brand::ref_bind(ma, self)
+			Brand::ref_bind(&ma, self)
 		}
 	}
 
@@ -365,7 +365,7 @@ pub(crate) mod inner {
 			self,
 			a: A,
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
-			Brand::ref_bind(self.0(&a), self.1)
+			Brand::ref_bind(&(self.0(&a)), self.1)
 		}
 	}
 

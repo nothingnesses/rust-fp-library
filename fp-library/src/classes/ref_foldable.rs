@@ -76,7 +76,7 @@ mod inner {
 		/// ```
 		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
 			func: impl Fn(&A) -> M + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			FnBrand: LiftFn + 'a,
@@ -122,7 +122,7 @@ mod inner {
 		fn ref_fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
 			func: impl Fn(&A, B) -> B + 'a,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
 			FnBrand: LiftFn + 'a, {
@@ -174,7 +174,7 @@ mod inner {
 		fn ref_fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
 			func: impl Fn(B, &A) -> B + 'a,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
 			FnBrand: LiftFn + 'a, {

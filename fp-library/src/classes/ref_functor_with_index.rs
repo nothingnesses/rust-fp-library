@@ -66,7 +66,7 @@ mod inner {
 		/// ```
 		fn ref_map_with_index<'a, A: 'a, B: 'a>(
 			f: impl Fn(Self::Index, &A) -> B + 'a,
-			fa: Self::Of<'a, A>,
+			fa: &Self::Of<'a, A>,
 		) -> Self::Of<'a, B>;
 	}
 
@@ -101,7 +101,7 @@ mod inner {
 	/// ```
 	pub fn ref_map_with_index<'a, Brand: RefFunctorWithIndex, A: 'a, B: 'a>(
 		f: impl Fn(Brand::Index, &A) -> B + 'a,
-		fa: Brand::Of<'a, A>,
+		fa: &Brand::Of<'a, A>,
 	) -> Brand::Of<'a, B> {
 		Brand::ref_map_with_index(f, fa)
 	}
