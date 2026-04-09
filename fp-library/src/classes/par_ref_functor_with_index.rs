@@ -11,7 +11,7 @@
 //! };
 //!
 //! let v = vec![10, 20, 30];
-//! let result = VecBrand::par_ref_map_with_index(|i, x: &i32| format!("{}:{}", i, x), v);
+//! let result = VecBrand::par_ref_map_with_index(|i, x: &i32| format!("{}:{}", i, x), &v);
 //! assert_eq!(result, vec!["0:10", "1:20", "2:30"]);
 //! ```
 
@@ -49,7 +49,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30];
-		/// let result = VecBrand::par_ref_map_with_index(|i, x: &i32| format!("{}:{}", i, x), v);
+		/// let result = VecBrand::par_ref_map_with_index(|i, x: &i32| format!("{}:{}", i, x), &v);
 		/// assert_eq!(result, vec!["0:10", "1:20", "2:30"]);
 		/// ```
 		fn par_ref_map_with_index<'a, A: Send + Sync + 'a, B: Send + 'a>(
@@ -82,7 +82,7 @@ mod inner {
 	/// };
 	///
 	/// let v = vec![10, 20, 30];
-	/// let result = par_ref_map_with_index::<VecBrand, _, _>(|i, x: &i32| format!("{}:{}", i, x), v);
+	/// let result = par_ref_map_with_index::<VecBrand, _, _>(|i, x: &i32| format!("{}:{}", i, x), &v);
 	/// assert_eq!(result, vec!["0:10", "1:20", "2:30"]);
 	/// ```
 	pub fn par_ref_map_with_index<

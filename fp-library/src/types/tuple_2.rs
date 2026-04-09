@@ -322,7 +322,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(map::<Tuple2FirstAppliedBrand<_>, _, _, _>(|x: i32| x * 2, (1, 5)), (1, 10));
+		/// assert_eq!(map::<Tuple2FirstAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, (1, 5)), (1, 10));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> B + 'a,
@@ -367,7 +367,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
+		/// 	lift2::<Tuple2FirstAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		("a".to_string(), 1),
 		/// 		("b".to_string(), 2)
@@ -500,7 +500,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<Tuple2FirstAppliedBrand<String>, _, _, _>(("a".to_string(), 5), |x| (
+		/// 	bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(("a".to_string(), 5), |x| (
 		/// 		"b".to_string(),
 		/// 		x * 2
 		/// 	)),
@@ -613,7 +613,11 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _>(|x, acc| x + acc, 0, ((), 5)),
+		/// 	fold_right::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
+		/// 		|x, acc| x + acc,
+		/// 		0,
+		/// 		((), 5)
+		/// 	),
 		/// 	5
 		/// );
 		/// ```
@@ -655,7 +659,11 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _>(|acc, x| acc + x, 0, ((), 5)),
+		/// 	fold_left::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
+		/// 		|acc, x| acc + x,
+		/// 		0,
+		/// 		((), 5)
+		/// 	),
 		/// 	5
 		/// );
 		/// ```
@@ -694,7 +702,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _>(
+		/// 	fold_map::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		((), 5)
 		/// 	),
@@ -741,7 +749,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, OptionBrand, _>(
+		/// 	traverse::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		((), 5)
 		/// 	),
@@ -813,7 +821,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// assert_eq!(map::<Tuple2FirstAppliedBrand<_>, _, _, _>(|x: &i32| *x * 2, (1, 5)), (1, 10));
+		/// assert_eq!(map::<Tuple2FirstAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &(1, 5)), (1, 10));
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
 			func: impl Fn(&A) -> B + 'a,
@@ -842,9 +850,9 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _>(
+		/// let result = fold_map::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
-		/// 	((), 5),
+		/// 	&((), 5),
 		/// );
 		/// assert_eq!(result, "5");
 		/// ```
@@ -882,7 +890,7 @@ mod inner {
 		/// let result: Option<((), String)> =
 		/// 	ref_traverse::<Tuple2FirstAppliedBrand<()>, RcFnBrand, _, _, OptionBrand>(
 		/// 		|x: &i32| Some(x.to_string()),
-		/// 		((), 42),
+		/// 		&((), 42),
 		/// 	);
 		/// assert_eq!(result, Some(((), "42".to_string())));
 		/// ```
@@ -946,10 +954,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = lift2::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
+		/// let result = lift2::<Tuple2FirstAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
-		/// 	("a".to_string(), 1),
-		/// 	("b".to_string(), 2),
+		/// 	&("a".to_string(), 1),
+		/// 	&("b".to_string(), 2),
 		/// );
 		/// assert_eq!(result, ("ab".to_string(), 3));
 		/// ```
@@ -1022,7 +1030,7 @@ mod inner {
 		/// };
 		///
 		/// let result: (String, String) =
-		/// 	bind::<Tuple2FirstAppliedBrand<String>, _, _, _>(("a".to_string(), 42), |x: &i32| {
+		/// 	bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(&("a".to_string(), 42), |x: &i32| {
 		/// 		("b".to_string(), x.to_string())
 		/// 	});
 		/// assert_eq!(result, ("ab".to_string(), "42".to_string()));
@@ -1073,7 +1081,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(map::<Tuple2SecondAppliedBrand<_>, _, _, _>(|x: i32| x * 2, (5, 1)), (10, 1));
+		/// assert_eq!(map::<Tuple2SecondAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, (5, 1)), (10, 1));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> B + 'a,
@@ -1118,7 +1126,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<Tuple2SecondAppliedBrand<String>, _, _, _, _>(
+		/// 	lift2::<Tuple2SecondAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		(1, "a".to_string()),
 		/// 		(2, "b".to_string())
@@ -1251,7 +1259,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<Tuple2SecondAppliedBrand<String>, _, _, _>((5, "a".to_string()), |x| (
+		/// 	bind::<Tuple2SecondAppliedBrand<String>, _, _, _, _>((5, "a".to_string()), |x| (
 		/// 		x * 2,
 		/// 		"b".to_string()
 		/// 	)),
@@ -1364,7 +1372,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _>(
+		/// 	fold_right::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
 		/// 		|x, acc| x + acc,
 		/// 		0,
 		/// 		(5, ())
@@ -1407,7 +1415,11 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _>(|acc, x| acc + x, 0, (5, ())),
+		/// 	fold_left::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
+		/// 		|acc, x| acc + x,
+		/// 		0,
+		/// 		(5, ())
+		/// 	),
 		/// 	5
 		/// );
 		/// ```
@@ -1446,7 +1458,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _>(
+		/// 	fold_map::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		(5, ())
 		/// 	),
@@ -1491,7 +1503,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, OptionBrand, _>(
+		/// 	traverse::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		(5, ())
 		/// 	),
@@ -1562,7 +1574,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// assert_eq!(map::<Tuple2SecondAppliedBrand<_>, _, _, _>(|x: &i32| *x * 2, (5, 1)), (10, 1));
+		/// assert_eq!(map::<Tuple2SecondAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &(5, 1)), (10, 1));
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
 			func: impl Fn(&A) -> B + 'a,
@@ -1591,9 +1603,9 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _>(
+		/// let result = fold_map::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
-		/// 	(5, ()),
+		/// 	&(5, ()),
 		/// );
 		/// assert_eq!(result, "5");
 		/// ```
@@ -1631,7 +1643,7 @@ mod inner {
 		/// let result: Option<(String, ())> =
 		/// 	ref_traverse::<Tuple2SecondAppliedBrand<()>, RcFnBrand, _, _, OptionBrand>(
 		/// 		|x: &i32| Some(x.to_string()),
-		/// 		(42, ()),
+		/// 		&(42, ()),
 		/// 	);
 		/// assert_eq!(result, Some(("42".to_string(), ())));
 		/// ```
@@ -1695,10 +1707,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = lift2::<Tuple2SecondAppliedBrand<String>, _, _, _, _>(
+		/// let result = lift2::<Tuple2SecondAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
-		/// 	(1, "a".to_string()),
-		/// 	(2, "b".to_string()),
+		/// 	&(1, "a".to_string()),
+		/// 	&(2, "b".to_string()),
 		/// );
 		/// assert_eq!(result, (3, "ab".to_string()));
 		/// ```
@@ -1771,7 +1783,7 @@ mod inner {
 		/// };
 		///
 		/// let result: (String, String) =
-		/// 	bind::<Tuple2SecondAppliedBrand<String>, _, _, _>((42, "a".to_string()), |x: &i32| {
+		/// 	bind::<Tuple2SecondAppliedBrand<String>, _, _, _, _>(&(42, "a".to_string()), |x: &i32| {
 		/// 		(x.to_string(), "b".to_string())
 		/// 	});
 		/// assert_eq!(result, ("42".to_string(), "ab".to_string()));
@@ -1845,7 +1857,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let x = (first, second);
-		map::<Tuple2FirstAppliedBrand<String>, _, _, _>(identity, x.clone()) == x
+		map::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -1857,10 +1869,10 @@ mod tests {
 		let x = (first, second);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<Tuple2FirstAppliedBrand<String>, _, _, _>(compose(f, g), x.clone())
-			== map::<Tuple2FirstAppliedBrand<String>, _, _, _>(
+		map::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(compose(f, g), x.clone())
+			== map::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
 				f,
-				map::<Tuple2FirstAppliedBrand<String>, _, _, _>(g, x),
+				map::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(g, x),
 			)
 	}
 
@@ -1957,7 +1969,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| ("f".to_string(), x.wrapping_mul(2));
-		bind::<Tuple2FirstAppliedBrand<String>, _, _, _>(
+		bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
 			pure::<Tuple2FirstAppliedBrand<String>, _>(a),
 			f,
 		) == f(a)
@@ -1970,7 +1982,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let m = (first, second);
-		bind::<Tuple2FirstAppliedBrand<String>, _, _, _>(
+		bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
 			m.clone(),
 			pure::<Tuple2FirstAppliedBrand<String>, _>,
 		) == m
@@ -1985,11 +1997,11 @@ mod tests {
 		let m = (first, second);
 		let f = |x: i32| ("f".to_string(), x.wrapping_mul(2));
 		let g = |x: i32| ("g".to_string(), x.wrapping_add(1));
-		bind::<Tuple2FirstAppliedBrand<String>, _, _, _>(
-			bind::<Tuple2FirstAppliedBrand<String>, _, _, _>(m.clone(), f),
+		bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
+			bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(m.clone(), f),
 			g,
-		) == bind::<Tuple2FirstAppliedBrand<String>, _, _, _>(m, |x| {
-			bind::<Tuple2FirstAppliedBrand<String>, _, _, _>(f(x), g)
+		) == bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(m, |x| {
+			bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(f(x), g)
 		})
 	}
 

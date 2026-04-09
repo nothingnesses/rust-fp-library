@@ -17,7 +17,7 @@
 //! let g = |x: i32| x * 2;
 //! let h = compose(f, g);
 //!
-//! assert_eq!(map::<OptionBrand, _, _, _>(h, Some(5)), Some(11));
+//! assert_eq!(map::<OptionBrand, _, _, _, _>(h, Some(5)), Some(11));
 //! ```
 
 use fp_macros::*;

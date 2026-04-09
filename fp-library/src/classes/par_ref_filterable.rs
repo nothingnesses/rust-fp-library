@@ -15,7 +15,7 @@
 //!
 //! let v = vec![1, 2, 3, 4, 5];
 //! let result =
-//! 	VecBrand::par_ref_filter_map(|x: &i32| if *x > 2 { Some(x.to_string()) } else { None }, v);
+//! 	VecBrand::par_ref_filter_map(|x: &i32| if *x > 2 { Some(x.to_string()) } else { None }, &v);
 //! assert_eq!(result, vec!["3", "4", "5"]);
 //! ```
 
@@ -61,7 +61,7 @@ mod inner {
 		///
 		/// let v = vec![1, 2, 3, 4, 5];
 		/// let result =
-		/// 	VecBrand::par_ref_filter_map(|x: &i32| if *x % 2 == 0 { Some(*x * 10) } else { None }, v);
+		/// 	VecBrand::par_ref_filter_map(|x: &i32| if *x % 2 == 0 { Some(*x * 10) } else { None }, &v);
 		/// assert_eq!(result, vec![20, 40]);
 		/// ```
 		fn par_ref_filter_map<'a, A: Send + Sync + 'a, B: Send + 'a>(
@@ -91,7 +91,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![1, 2, 3, 4, 5];
-		/// let result = VecBrand::par_ref_filter(|x: &i32| *x > 3, v);
+		/// let result = VecBrand::par_ref_filter(|x: &i32| *x > 3, &v);
 		/// assert_eq!(result, vec![4, 5]);
 		/// ```
 		fn par_ref_filter<'a, A: Send + Sync + Clone + 'a>(
@@ -128,7 +128,7 @@ mod inner {
 	/// let v = vec![1, 2, 3, 4, 5];
 	/// let result = par_ref_filter_map::<VecBrand, _, _>(
 	/// 	|x: &i32| if *x % 2 == 0 { Some(*x * 10) } else { None },
-	/// 	v,
+	/// 	&v,
 	/// );
 	/// assert_eq!(result, vec![20, 40]);
 	/// ```
@@ -162,7 +162,7 @@ mod inner {
 	/// };
 	///
 	/// let v = vec![1, 2, 3, 4, 5];
-	/// let result = par_ref_filter::<VecBrand, _>(|x: &i32| *x > 3, v);
+	/// let result = par_ref_filter::<VecBrand, _>(|x: &i32| *x > 3, &v);
 	/// assert_eq!(result, vec![4, 5]);
 	/// ```
 	pub fn par_ref_filter<'a, Brand: ParRefFilterable, A: Send + Sync + Clone + 'a>(

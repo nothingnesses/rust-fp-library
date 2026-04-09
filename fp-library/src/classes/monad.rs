@@ -149,7 +149,7 @@ mod inner {
 	///
 	/// // Left identity: bind(pure(a), f) ≡ f(a)
 	/// assert_eq!(
-	/// 	bind::<OptionBrand, _, _, _>(pure::<OptionBrand, _>(5), f),
+	/// 	bind::<OptionBrand, _, _, _, _>(pure::<OptionBrand, _>(5), f),
 	/// 	f(5),
 	/// );
 	/// // With m_do!: wrapping in pure then binding is the same as calling f
@@ -160,7 +160,7 @@ mod inner {
 	///
 	/// // Right identity: bind(m, pure) ≡ m
 	/// assert_eq!(
-	/// 	bind::<OptionBrand, _, _, _>(Some(42), pure::<OptionBrand, _>),
+	/// 	bind::<OptionBrand, _, _, _, _>(Some(42), pure::<OptionBrand, _>),
 	/// 	Some(42),
 	/// );
 	/// // With m_do!: extracting and re-wrapping is a no-op
@@ -171,11 +171,11 @@ mod inner {
 	///
 	/// // Associativity: bind(bind(m, f), g) ≡ bind(m, |x| bind(f(x), g))
 	/// assert_eq!(
-	/// 	bind::<OptionBrand, _, _, _>(
-	/// 		bind::<OptionBrand, _, _, _>(Some(5), f),
+	/// 	bind::<OptionBrand, _, _, _, _>(
+	/// 		bind::<OptionBrand, _, _, _, _>(Some(5), f),
 	/// 		g,
 	/// 	),
-	/// 	bind::<OptionBrand, _, _, _>(Some(5), |x| bind::<OptionBrand, _, _, _>(f(x), g)),
+	/// 	bind::<OptionBrand, _, _, _, _>(Some(5), |x| bind::<OptionBrand, _, _, _, _>(f(x), g)),
 	/// );
 	/// // With m_do!: sequential binds compose naturally
 	/// assert_eq!(
@@ -196,16 +196,16 @@ mod inner {
 	/// let g = |x: i32| vec![x * 10];
 	///
 	/// // Left identity: bind(pure(a), f) ≡ f(a)
-	/// assert_eq!(bind::<VecBrand, _, _, _>(pure::<VecBrand, _>(3), f), f(3),);
+	/// assert_eq!(bind::<VecBrand, _, _, _, _>(pure::<VecBrand, _>(3), f), f(3),);
 	///
 	/// // Right identity: bind(m, pure) ≡ m
-	/// assert_eq!(bind::<VecBrand, _, _, _>(vec![1, 2, 3], pure::<VecBrand, _>), vec![1, 2, 3],);
+	/// assert_eq!(bind::<VecBrand, _, _, _, _>(vec![1, 2, 3], pure::<VecBrand, _>), vec![1, 2, 3],);
 	///
 	/// // Associativity: bind(bind(m, f), g) ≡ bind(m, |x| bind(f(x), g))
 	/// let m = vec![1, 2];
 	/// assert_eq!(
-	/// 	bind::<VecBrand, _, _, _>(bind::<VecBrand, _, _, _>(m.clone(), f), g,),
-	/// 	bind::<VecBrand, _, _, _>(m, |x| bind::<VecBrand, _, _, _>(f(x), g)),
+	/// 	bind::<VecBrand, _, _, _, _>(bind::<VecBrand, _, _, _, _>(m.clone(), f), g,),
+	/// 	bind::<VecBrand, _, _, _, _>(m, |x| bind::<VecBrand, _, _, _, _>(f(x), g)),
 	/// );
 	/// ```
 	pub trait Monad: Applicative + Semimonad {}

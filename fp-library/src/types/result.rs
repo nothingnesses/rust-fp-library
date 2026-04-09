@@ -378,8 +378,8 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(map::<ResultErrAppliedBrand<()>, _, _, _>(|x: i32| x * 2, Ok(5)), Ok(10));
-		/// assert_eq!(map::<ResultErrAppliedBrand<i32>, _, _, _>(|x: i32| x * 2, Err(1)), Err(1));
+		/// assert_eq!(map::<ResultErrAppliedBrand<()>, _, _, _, _>(|x: i32| x * 2, Ok(5)), Ok(10));
+		/// assert_eq!(map::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Err(1)), Err(1));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> B + 'a,
@@ -421,19 +421,31 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<ResultErrAppliedBrand<()>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
+		/// 	lift2::<ResultErrAppliedBrand<()>, _, _, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
 		/// 	Ok(3)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
+		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 		|x: i32, y: i32| x + y,
+		/// 		Ok(1),
+		/// 		Err(2)
+		/// 	),
 		/// 	Err(2)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
+		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 		|x: i32, y: i32| x + y,
+		/// 		Err(1),
+		/// 		Ok(2)
+		/// 	),
 		/// 	Err(1)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
+		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 		|x: i32, y: i32| x + y,
+		/// 		Err(1),
+		/// 		Err(2)
+		/// 	),
 		/// 	Err(1)
 		/// );
 		/// ```
@@ -568,9 +580,9 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(bind::<ResultErrAppliedBrand<()>, _, _, _>(Ok(5), |x| Ok(x * 2)), Ok(10));
-		/// assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _, _>(Ok(5), |_| Err::<i32, _>(1)), Err(1));
-		/// assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _, _>(Err(1), |x: i32| Ok(x * 2)), Err(1));
+		/// assert_eq!(bind::<ResultErrAppliedBrand<()>, _, _, _, _>(Ok(5), |x| Ok(x * 2)), Ok(10));
+		/// assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(Ok(5), |_| Err::<i32, _>(1)), Err(1));
+		/// assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(Err(1), |x: i32| Ok(x * 2)), Err(1));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -607,11 +619,11 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _>(|x, acc| x + acc, 0, Ok(5)),
+		/// 	fold_right::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(|x, acc| x + acc, 0, Ok(5)),
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(
+		/// 	fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		Err(1)
@@ -657,11 +669,11 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _>(|acc, x| acc + x, 0, Ok(5)),
+		/// 	fold_left::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(|acc, x| acc + x, 0, Ok(5)),
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(
+		/// 	fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
 		/// 		|acc, x: i32| acc + x,
 		/// 		0,
 		/// 		Err(1)
@@ -707,11 +719,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _>(|x: i32| x.to_string(), Ok(5)),
+		/// 	fold_map::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(|x: i32| x.to_string(), Ok(5)),
 		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(|x: i32| x.to_string(), Err(1)),
+		/// 	fold_map::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
+		/// 		|x: i32| x.to_string(),
+		/// 		Err(1)
+		/// 	),
 		/// 	"".to_string()
 		/// );
 		/// ```
@@ -756,21 +771,21 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, OptionBrand, _>(
+		/// 	traverse::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		Ok(5)
 		/// 	),
 		/// 	Some(Ok(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, OptionBrand, _>(
+		/// 	traverse::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, OptionBrand, _, _>(
 		/// 		|x: i32| Some(x * 2),
 		/// 		Err(1)
 		/// 	),
 		/// 	Some(Err(1))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, OptionBrand, _>(
+		/// 	traverse::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|_| None::<i32>,
 		/// 		Ok(5)
 		/// 	),
@@ -871,8 +886,8 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32| x * 2, Err(5)), Err(10));
-		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32| x * 2, Ok(1)), Ok(1));
+		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Err(5)), Err(10));
+		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Ok(1)), Ok(1));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> B + 'a,
@@ -917,19 +932,23 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
+		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 		|x: i32, y: i32| x + y,
+		/// 		Err(1),
+		/// 		Err(2)
+		/// 	),
 		/// 	Err(3)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
+		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
 		/// 	Ok(2)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
+		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
 		/// 	Ok(1)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
+		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
 		/// 	Ok(1)
 		/// );
 		/// ```
@@ -1064,9 +1083,9 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(bind::<ResultOkAppliedBrand<()>, _, _, _>(Err(5), |x| Err(x * 2)), Err(10));
-		/// assert_eq!(bind::<ResultOkAppliedBrand<i32>, _, _, _>(Err(5), |_| Ok::<_, i32>(1)), Ok(1));
-		/// assert_eq!(bind::<ResultOkAppliedBrand<i32>, _, _, _>(Ok(1), |x: i32| Err(x * 2)), Ok(1));
+		/// assert_eq!(bind::<ResultOkAppliedBrand<()>, _, _, _, _>(Err(5), |x| Err(x * 2)), Err(10));
+		/// assert_eq!(bind::<ResultOkAppliedBrand<i32>, _, _, _, _>(Err(5), |_| Ok::<_, i32>(1)), Ok(1));
+		/// assert_eq!(bind::<ResultOkAppliedBrand<i32>, _, _, _, _>(Ok(1), |x: i32| Err(x * 2)), Ok(1));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1106,7 +1125,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _>(
+		/// 	fold_right::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		Err(1)
@@ -1114,7 +1133,7 @@ mod inner {
 		/// 	1
 		/// );
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _>(
+		/// 	fold_right::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		Ok(())
@@ -1160,11 +1179,19 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _>(|acc, x: i32| acc + x, 0, Err(5)),
+		/// 	fold_left::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
+		/// 		|acc, x: i32| acc + x,
+		/// 		0,
+		/// 		Err(5)
+		/// 	),
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Ok(1)),
+		/// 	fold_left::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(
+		/// 		|acc, x: i32| acc + x,
+		/// 		0,
+		/// 		Ok(1)
+		/// 	),
 		/// 	0
 		/// );
 		/// ```
@@ -1206,11 +1233,11 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _>(|x: i32| x.to_string(), Err(5)),
+		/// 	fold_map::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(|x: i32| x.to_string(), Err(5)),
 		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _>(|x: i32| x.to_string(), Ok(1)),
+		/// 	fold_map::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32| x.to_string(), Ok(1)),
 		/// 	"".to_string()
 		/// );
 		/// ```
@@ -1255,21 +1282,21 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, OptionBrand, _>(
+		/// 	traverse::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		Err(5)
 		/// 	),
 		/// 	Some(Err(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, OptionBrand, _>(
+		/// 	traverse::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, OptionBrand, _, _>(
 		/// 		|x: i32| Some(x * 2),
 		/// 		Ok(1)
 		/// 	),
 		/// 	Some(Ok(1))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, OptionBrand, _>(
+		/// 	traverse::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|_| None::<i32>,
 		/// 		Err(5)
 		/// 	),
@@ -1412,9 +1439,9 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// assert_eq!(map::<ResultErrAppliedBrand<()>, _, _, _>(|x: &i32| *x * 2, Ok(5)), Ok(10));
+		/// assert_eq!(map::<ResultErrAppliedBrand<()>, _, _, _, _>(|x: &i32| *x * 2, &Ok(5)), Ok(10));
 		/// assert_eq!(
-		/// 	map::<ResultErrAppliedBrand<i32>, _, _, _>(|x: &i32| *x * 2, Err::<i32, _>(1)),
+		/// 	map::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: &i32| *x * 2, &Err::<i32, _>(1)),
 		/// 	Err(1)
 		/// );
 		/// ```
@@ -1448,8 +1475,10 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result =
-		/// 	fold_map::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _>(|x: &i32| x.to_string(), Ok(5));
+		/// let result = fold_map::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
+		/// 	|x: &i32| x.to_string(),
+		/// 	&Ok(5),
+		/// );
 		/// assert_eq!(result, "5");
 		/// ```
 		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -1489,7 +1518,7 @@ mod inner {
 		/// let result: Vec<Result<String, ()>> =
 		/// 	ref_traverse::<ResultErrAppliedBrand<()>, RcFnBrand, _, _, VecBrand>(
 		/// 		|x: &i32| vec![x.to_string()],
-		/// 		Ok(5),
+		/// 		&Ok(5),
 		/// 	);
 		/// assert_eq!(result, vec![Ok("5".to_string())]);
 		/// ```
@@ -1554,8 +1583,11 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result =
-		/// 	lift2::<ResultErrAppliedBrand<()>, _, _, _, _>(|a: &i32, b: &i32| *a + *b, Ok(1), Ok(2));
+		/// let result = lift2::<ResultErrAppliedBrand<()>, _, _, _, _, _, _>(
+		/// 	|a: &i32, b: &i32| *a + *b,
+		/// 	&Ok(1),
+		/// 	&Ok(2),
+		/// );
 		/// assert_eq!(result, Ok(3));
 		/// ```
 		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
@@ -1596,7 +1628,7 @@ mod inner {
 		/// };
 		///
 		/// let f: Result<std::rc::Rc<dyn Fn(&i32) -> i32>, ()> = Ok(std::rc::Rc::new(|x: &i32| *x + 1));
-		/// let result = ref_apply::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(f, Ok(5));
+		/// let result = ref_apply::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(&f, &Ok(5));
 		/// assert_eq!(result, Ok(6));
 		/// ```
 		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
@@ -1627,7 +1659,7 @@ mod inner {
 		/// };
 		///
 		/// let result: Result<String, ()> =
-		/// 	bind::<ResultErrAppliedBrand<()>, _, _, _>(Ok(42), |x: &i32| Ok(x.to_string()));
+		/// 	bind::<ResultErrAppliedBrand<()>, _, _, _, _>(&Ok(42), |x: &i32| Ok(x.to_string()));
 		/// assert_eq!(result, Ok("42".to_string()));
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
@@ -1657,8 +1689,11 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _>(|x: &i32| *x * 2, Err(5)), Err(10));
-		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _>(|x: &i32| *x * 2, Ok::<_, i32>(1)), Ok(1));
+		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: &i32| *x * 2, &Err(5)), Err(10));
+		/// assert_eq!(
+		/// 	map::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: &i32| *x * 2, &Ok::<_, i32>(1)),
+		/// 	Ok(1)
+		/// );
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
 			func: impl Fn(&A) -> B + 'a,
@@ -1690,8 +1725,10 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result =
-		/// 	fold_map::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _>(|x: &i32| x.to_string(), Err(5));
+		/// let result = fold_map::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
+		/// 	|x: &i32| x.to_string(),
+		/// 	&Err(5),
+		/// );
 		/// assert_eq!(result, "5");
 		/// ```
 		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -1731,7 +1768,7 @@ mod inner {
 		/// let result: Vec<Result<(), String>> =
 		/// 	ref_traverse::<ResultOkAppliedBrand<()>, RcFnBrand, _, _, VecBrand>(
 		/// 		|x: &i32| vec![x.to_string()],
-		/// 		Err(5),
+		/// 		&Err(5),
 		/// 	);
 		/// assert_eq!(result, vec![Err("5".to_string())]);
 		/// ```
@@ -1796,8 +1833,11 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result =
-		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|a: &i32, b: &i32| *a + *b, Err(1), Err(2));
+		/// let result = lift2::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 	|a: &i32, b: &i32| *a + *b,
+		/// 	&Err(1),
+		/// 	&Err(2),
+		/// );
 		/// assert_eq!(result, Err(3));
 		/// ```
 		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
@@ -1838,7 +1878,7 @@ mod inner {
 		/// };
 		///
 		/// let f: Result<(), std::rc::Rc<dyn Fn(&i32) -> i32>> = Err(std::rc::Rc::new(|x: &i32| *x + 1));
-		/// let result = ref_apply::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(f, Err(5));
+		/// let result = ref_apply::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(&f, &Err(5));
 		/// assert_eq!(result, Err(6));
 		/// ```
 		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
@@ -1869,7 +1909,7 @@ mod inner {
 		/// };
 		///
 		/// let result: Result<(), String> =
-		/// 	bind::<ResultOkAppliedBrand<()>, _, _, _>(Err(42), |x: &i32| Err(x.to_string()));
+		/// 	bind::<ResultOkAppliedBrand<()>, _, _, _, _>(&Err(42), |x: &i32| Err(x.to_string()));
 		/// assert_eq!(result, Err("42".to_string()));
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
@@ -1995,7 +2035,7 @@ mod tests {
 	/// Tests the identity law for Functor.
 	#[quickcheck]
 	fn functor_identity(x: Result<i32, i32>) -> bool {
-		map::<ResultErrAppliedBrand<i32>, _, _, _>(identity, x) == x
+		map::<ResultErrAppliedBrand<i32>, _, _, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -2003,10 +2043,10 @@ mod tests {
 	fn functor_composition(x: Result<i32, i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<ResultErrAppliedBrand<i32>, _, _, _>(compose(f, g), x)
-			== map::<ResultErrAppliedBrand<i32>, _, _, _>(
+		map::<ResultErrAppliedBrand<i32>, _, _, _, _>(compose(f, g), x)
+			== map::<ResultErrAppliedBrand<i32>, _, _, _, _>(
 				f,
-				map::<ResultErrAppliedBrand<i32>, _, _, _>(g, x),
+				map::<ResultErrAppliedBrand<i32>, _, _, _, _>(g, x),
 			)
 	}
 
@@ -2099,14 +2139,15 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| -> Result<i32, i32> { Err(x.wrapping_mul(2)) };
-		bind::<ResultErrAppliedBrand<i32>, _, _, _>(pure::<ResultErrAppliedBrand<i32>, _>(a), f)
+		bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(pure::<ResultErrAppliedBrand<i32>, _>(a), f)
 			== f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: Result<i32, i32>) -> bool {
-		bind::<ResultErrAppliedBrand<i32>, _, _, _>(m, pure::<ResultErrAppliedBrand<i32>, _>) == m
+		bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(m, pure::<ResultErrAppliedBrand<i32>, _>)
+			== m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -2114,11 +2155,11 @@ mod tests {
 	fn monad_associativity(m: Result<i32, i32>) -> bool {
 		let f = |x: i32| -> Result<i32, i32> { Err(x.wrapping_mul(2)) };
 		let g = |x: i32| -> Result<i32, i32> { Err(x.wrapping_add(1)) };
-		bind::<ResultErrAppliedBrand<i32>, _, _, _>(
-			bind::<ResultErrAppliedBrand<i32>, _, _, _>(m, f),
+		bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(
+			bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(m, f),
 			g,
-		) == bind::<ResultErrAppliedBrand<i32>, _, _, _>(m, |x| {
-			bind::<ResultErrAppliedBrand<i32>, _, _, _>(f(x), g)
+		) == bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(m, |x| {
+			bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(f(x), g)
 		})
 	}
 
@@ -2128,7 +2169,7 @@ mod tests {
 	#[test]
 	fn map_err() {
 		assert_eq!(
-			map::<ResultErrAppliedBrand<i32>, _, _, _>(|x: i32| x + 1, Err::<i32, i32>(1)),
+			map::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32| x + 1, Err::<i32, i32>(1)),
 			Err(1)
 		);
 	}
@@ -2137,7 +2178,7 @@ mod tests {
 	#[test]
 	fn bind_err() {
 		assert_eq!(
-			bind::<ResultErrAppliedBrand<i32>, _, _, _>(Err::<i32, i32>(1), |x: i32| Ok(x + 1)),
+			bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(Err::<i32, i32>(1), |x: i32| Ok(x + 1)),
 			Err(1)
 		);
 	}
@@ -2146,7 +2187,7 @@ mod tests {
 	#[test]
 	fn bind_returning_err() {
 		assert_eq!(
-			bind::<ResultErrAppliedBrand<i32>, _, _, _>(Ok(1), |_| Err::<i32, i32>(2)),
+			bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(Ok(1), |_| Err::<i32, i32>(2)),
 			Err(2)
 		);
 	}
@@ -2155,7 +2196,7 @@ mod tests {
 	#[test]
 	fn fold_right_err() {
 		assert_eq!(
-			crate::functions::fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(
+			crate::functions::fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				Err(1)
@@ -2168,7 +2209,7 @@ mod tests {
 	#[test]
 	fn fold_left_err() {
 		assert_eq!(
-			crate::functions::fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(
+			crate::functions::fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				Err(1)

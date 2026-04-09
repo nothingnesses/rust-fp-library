@@ -680,7 +680,10 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// assert_eq!(map::<PairFirstAppliedBrand<_>, _, _, _>(|x: i32| x * 2, Pair(1, 5)), Pair(1, 10));
+		/// assert_eq!(
+		/// 	map::<PairFirstAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, Pair(1, 5)),
+		/// 	Pair(1, 10)
+		/// );
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> B + 'a,
@@ -726,7 +729,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<PairFirstAppliedBrand<String>, _, _, _, _>(
+		/// 	lift2::<PairFirstAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		Pair("a".to_string(), 1),
 		/// 		Pair("b".to_string(), 2)
@@ -865,7 +868,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<PairFirstAppliedBrand<String>, _, _, _>(Pair("a".to_string(), 5), |x| Pair(
+		/// 	bind::<PairFirstAppliedBrand<String>, _, _, _, _>(Pair("a".to_string(), 5), |x| Pair(
 		/// 		"b".to_string(),
 		/// 		x * 2
 		/// 	)),
@@ -978,7 +981,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _>(
+		/// 	fold_right::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
 		/// 		|x, acc| x + acc,
 		/// 		0,
 		/// 		Pair((), 5)
@@ -1025,7 +1028,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _>(
+		/// 	fold_left::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
 		/// 		|acc, x| acc + x,
 		/// 		0,
 		/// 		Pair((), 5)
@@ -1069,7 +1072,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _>(
+		/// 	fold_map::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		Pair((), 5)
 		/// 	),
@@ -1117,7 +1120,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, OptionBrand, _>(
+		/// 	traverse::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		Pair((), 5)
 		/// 	),
@@ -1192,7 +1195,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		/// assert_eq!(
-		/// 	map::<PairFirstAppliedBrand<_>, _, _, _>(|x: &i32| *x * 2, &Pair(1, 5)),
+		/// 	map::<PairFirstAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &Pair(1, 5)),
 		/// 	Pair(1, 10)
 		/// );
 		/// ```
@@ -1224,7 +1227,7 @@ mod inner {
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
-		/// let result = fold_map::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _>(
+		/// let result = fold_map::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
 		/// 	Pair((), 5),
 		/// );
@@ -1331,7 +1334,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result = lift2::<PairFirstAppliedBrand<String>, _, _, _, _>(
+		/// let result = lift2::<PairFirstAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
 		/// 	Pair("a".to_string(), 1),
 		/// 	Pair("b".to_string(), 2),
@@ -1409,7 +1412,7 @@ mod inner {
 		/// };
 		///
 		/// let result: Pair<String, String> =
-		/// 	bind::<PairFirstAppliedBrand<String>, _, _, _>(Pair("a".to_string(), 42), |x: &i32| {
+		/// 	bind::<PairFirstAppliedBrand<String>, _, _, _, _>(Pair("a".to_string(), 42), |x: &i32| {
 		/// 		Pair("b".to_string(), x.to_string())
 		/// 	});
 		/// assert_eq!(result, Pair("ab".to_string(), "42".to_string()));
@@ -1460,7 +1463,10 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// assert_eq!(map::<PairSecondAppliedBrand<_>, _, _, _>(|x: i32| x * 2, Pair(5, 1)), Pair(10, 1));
+		/// assert_eq!(
+		/// 	map::<PairSecondAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, Pair(5, 1)),
+		/// 	Pair(10, 1)
+		/// );
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> B + 'a,
@@ -1506,7 +1512,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<PairSecondAppliedBrand<String>, _, _, _, _>(
+		/// 	lift2::<PairSecondAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		Pair(1, "a".to_string()),
 		/// 		Pair(2, "b".to_string())
@@ -1645,7 +1651,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<PairSecondAppliedBrand<String>, _, _, _>(Pair(5, "a".to_string()), |x| Pair(
+		/// 	bind::<PairSecondAppliedBrand<String>, _, _, _, _>(Pair(5, "a".to_string()), |x| Pair(
 		/// 		x * 2,
 		/// 		"b".to_string()
 		/// 	)),
@@ -1758,7 +1764,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _>(
+		/// 	fold_right::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
 		/// 		|x, acc| x + acc,
 		/// 		0,
 		/// 		Pair(5, ())
@@ -1802,7 +1808,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _>(
+		/// 	fold_left::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
 		/// 		|acc, x| acc + x,
 		/// 		0,
 		/// 		Pair(5, ())
@@ -1846,7 +1852,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _>(
+		/// 	fold_map::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		Pair(5, ())
 		/// 	),
@@ -1892,7 +1898,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, OptionBrand, _>(
+		/// 	traverse::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		Pair(5, ())
 		/// 	),
@@ -1966,7 +1972,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		/// assert_eq!(
-		/// 	map::<PairSecondAppliedBrand<_>, _, _, _>(|x: &i32| *x * 2, Pair(5, 1)),
+		/// 	map::<PairSecondAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, Pair(5, 1)),
 		/// 	Pair(10, 1)
 		/// );
 		/// ```
@@ -1998,7 +2004,7 @@ mod inner {
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
-		/// let result = fold_map::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _>(
+		/// let result = fold_map::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
 		/// 	Pair(5, ()),
 		/// );
@@ -2105,7 +2111,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result = lift2::<PairSecondAppliedBrand<String>, _, _, _, _>(
+		/// let result = lift2::<PairSecondAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
 		/// 	Pair(1, "a".to_string()),
 		/// 	Pair(2, "b".to_string()),
@@ -2183,7 +2189,7 @@ mod inner {
 		/// };
 		///
 		/// let result: Pair<String, String> =
-		/// 	bind::<PairSecondAppliedBrand<String>, _, _, _>(Pair(42, "a".to_string()), |x: &i32| {
+		/// 	bind::<PairSecondAppliedBrand<String>, _, _, _, _>(Pair(42, "a".to_string()), |x: &i32| {
 		/// 		Pair(x.to_string(), "b".to_string())
 		/// 	});
 		/// assert_eq!(result, Pair("42".to_string(), "ab".to_string()));
@@ -2257,7 +2263,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let x = Pair(first, second);
-		map::<PairFirstAppliedBrand<String>, _, _, _>(identity, x.clone()) == x
+		map::<PairFirstAppliedBrand<String>, _, _, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -2269,10 +2275,10 @@ mod tests {
 		let x = Pair(first, second);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<PairFirstAppliedBrand<String>, _, _, _>(compose(f, g), x.clone())
-			== map::<PairFirstAppliedBrand<String>, _, _, _>(
+		map::<PairFirstAppliedBrand<String>, _, _, _, _>(compose(f, g), x.clone())
+			== map::<PairFirstAppliedBrand<String>, _, _, _, _>(
 				f,
-				map::<PairFirstAppliedBrand<String>, _, _, _>(g, x),
+				map::<PairFirstAppliedBrand<String>, _, _, _, _>(g, x),
 			)
 	}
 
@@ -2369,7 +2375,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| Pair("f".to_string(), x.wrapping_mul(2));
-		bind::<PairFirstAppliedBrand<String>, _, _, _>(
+		bind::<PairFirstAppliedBrand<String>, _, _, _, _>(
 			pure::<PairFirstAppliedBrand<String>, _>(a),
 			f,
 		) == f(a)
@@ -2382,7 +2388,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let m = Pair(first, second);
-		bind::<PairFirstAppliedBrand<String>, _, _, _>(
+		bind::<PairFirstAppliedBrand<String>, _, _, _, _>(
 			m.clone(),
 			pure::<PairFirstAppliedBrand<String>, _>,
 		) == m
@@ -2397,11 +2403,11 @@ mod tests {
 		let m = Pair(first, second);
 		let f = |x: i32| Pair("f".to_string(), x.wrapping_mul(2));
 		let g = |x: i32| Pair("g".to_string(), x.wrapping_add(1));
-		bind::<PairFirstAppliedBrand<String>, _, _, _>(
-			bind::<PairFirstAppliedBrand<String>, _, _, _>(m.clone(), f),
+		bind::<PairFirstAppliedBrand<String>, _, _, _, _>(
+			bind::<PairFirstAppliedBrand<String>, _, _, _, _>(m.clone(), f),
 			g,
-		) == bind::<PairFirstAppliedBrand<String>, _, _, _>(m, |x| {
-			bind::<PairFirstAppliedBrand<String>, _, _, _>(f(x), g)
+		) == bind::<PairFirstAppliedBrand<String>, _, _, _, _>(m, |x| {
+			bind::<PairFirstAppliedBrand<String>, _, _, _, _>(f(x), g)
 		})
 	}
 

@@ -52,7 +52,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
+		/// let y = map::<OptionBrand, _, _, _, _>(|i| i * 2, x);
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -93,7 +93,7 @@ mod inner {
 		///
 		/// let x = Some(1);
 		/// let y = Some(2);
-		/// let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
+		/// let z = lift2::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, Some(3));
 		/// ```
 		fn lift2<'a, A, B, C>(
@@ -213,7 +213,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
+		/// let y = bind::<OptionBrand, _, _, _, _>(x, |i| Some(i * 2));
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
@@ -305,7 +305,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_right::<RcFnBrand, OptionBrand, _, _, _>(|a, b| a + b, 10, x);
+		/// let y = fold_right::<RcFnBrand, OptionBrand, _, _, _, _>(|a, b| a + b, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -349,7 +349,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_left::<RcFnBrand, OptionBrand, _, _, _>(|b, a| b + a, 10, x);
+		/// let y = fold_left::<RcFnBrand, OptionBrand, _, _, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -390,7 +390,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_map::<RcFnBrand, OptionBrand, _, _, _>(|a: i32| a.to_string(), x);
+		/// let y = fold_map::<RcFnBrand, OptionBrand, _, _, _, _>(|a: i32| a.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -435,7 +435,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
+		/// let y = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some(Some(10)));
 		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
@@ -716,7 +716,7 @@ mod inner {
 		///
 		/// let x = Some(5);
 		/// let (errs, oks) =
-		/// 	partition_map::<OptionBrand, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+		/// 	partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
 		/// assert_eq!(oks, Some(5));
 		/// assert_eq!(errs, None);
 		/// ```
@@ -802,7 +802,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
+		/// let y = filter_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn filter_map<'a, A: 'a, B: 'a>(
@@ -1027,7 +1027,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// assert_eq!(map::<OptionBrand, _, _, _>(|x: &i32| *x * 2, Some(5)), Some(10));
+		/// assert_eq!(map::<OptionBrand, _, _, _, _>(|x: &i32| *x * 2, &Some(5)), Some(10));
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
 			func: impl Fn(&A) -> B + 'a,
@@ -1055,7 +1055,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map::<RcFnBrand, OptionBrand, _, _, _>(|x: &i32| x.to_string(), Some(5));
+		/// let result = fold_map::<RcFnBrand, OptionBrand, _, _, _, _>(|x: &i32| x.to_string(), &Some(5));
 		/// assert_eq!(result, "5");
 		/// ```
 		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -1087,7 +1087,7 @@ mod inner {
 		/// };
 		/// let result = ref_filter_map::<OptionBrand, _, _>(
 		/// 	|x: &i32| if *x > 3 { Some(*x) } else { None },
-		/// 	Some(5),
+		/// 	&Some(5),
 		/// );
 		/// assert_eq!(result, Some(5));
 		/// ```
@@ -1120,7 +1120,7 @@ mod inner {
 		/// };
 		/// let result: Vec<Option<String>> = ref_traverse::<OptionBrand, RcFnBrand, _, _, VecBrand>(
 		/// 	|x: &i32| vec![x.to_string()],
-		/// 	Some(5),
+		/// 	&Some(5),
 		/// );
 		/// assert_eq!(result, vec![Some("5".to_string())]);
 		/// ```
@@ -1285,7 +1285,8 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = lift2::<OptionBrand, _, _, _, _>(|a: &i32, b: &i32| *a + *b, Some(1), Some(2));
+		/// let result =
+		/// 	lift2::<OptionBrand, _, _, _, _, _, _>(|a: &i32, b: &i32| *a + *b, &Some(1), &Some(2));
 		/// assert_eq!(result, Some(3));
 		/// ```
 		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
@@ -1324,7 +1325,7 @@ mod inner {
 		/// };
 		///
 		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x + 1);
-		/// let result = ref_apply::<RcFnBrand, OptionBrand, _, _>(Some(f), Some(5));
+		/// let result = ref_apply::<RcFnBrand, OptionBrand, _, _>(&Some(f), &Some(5));
 		/// assert_eq!(result, Some(6));
 		/// ```
 		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
@@ -1353,7 +1354,7 @@ mod inner {
 		/// };
 		///
 		/// let result: Option<String> =
-		/// 	bind::<OptionBrand, _, _, _>(Some(42), |x: &i32| Some(x.to_string()));
+		/// 	bind::<OptionBrand, _, _, _, _>(&Some(42), |x: &i32| Some(x.to_string()));
 		/// assert_eq!(result, Some("42".to_string()));
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
@@ -1382,7 +1383,7 @@ mod tests {
 	/// Tests the identity law for Functor.
 	#[quickcheck]
 	fn functor_identity(x: Option<i32>) -> bool {
-		map::<OptionBrand, _, _, _>(identity, x) == x
+		map::<OptionBrand, _, _, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -1390,8 +1391,8 @@ mod tests {
 	fn functor_composition(x: Option<i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<OptionBrand, _, _, _>(compose(f, g), x)
-			== map::<OptionBrand, _, _, _>(f, map::<OptionBrand, _, _, _>(g, x))
+		map::<OptionBrand, _, _, _, _>(compose(f, g), x)
+			== map::<OptionBrand, _, _, _, _>(f, map::<OptionBrand, _, _, _, _>(g, x))
 	}
 
 	// Applicative Laws
@@ -1470,13 +1471,13 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| Some(x.wrapping_mul(2));
-		bind::<OptionBrand, _, _, _>(pure::<OptionBrand, _>(a), f) == f(a)
+		bind::<OptionBrand, _, _, _, _>(pure::<OptionBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: Option<i32>) -> bool {
-		bind::<OptionBrand, _, _, _>(m, pure::<OptionBrand, _>) == m
+		bind::<OptionBrand, _, _, _, _>(m, pure::<OptionBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -1484,8 +1485,8 @@ mod tests {
 	fn monad_associativity(m: Option<i32>) -> bool {
 		let f = |x: i32| Some(x.wrapping_mul(2));
 		let g = |x: i32| Some(x.wrapping_add(1));
-		bind::<OptionBrand, _, _, _>(bind::<OptionBrand, _, _, _>(m, f), g)
-			== bind::<OptionBrand, _, _, _>(m, |x| bind::<OptionBrand, _, _, _>(f(x), g))
+		bind::<OptionBrand, _, _, _, _>(bind::<OptionBrand, _, _, _, _>(m, f), g)
+			== bind::<OptionBrand, _, _, _, _>(m, |x| bind::<OptionBrand, _, _, _, _>(f(x), g))
 	}
 
 	// Edge Cases
@@ -1493,26 +1494,26 @@ mod tests {
 	/// Tests `map` on `None`.
 	#[test]
 	fn map_none() {
-		assert_eq!(map::<OptionBrand, _, _, _>(|x: i32| x + 1, None), None);
+		assert_eq!(map::<OptionBrand, _, _, _, _>(|x: i32| x + 1, None), None);
 	}
 
 	/// Tests `bind` on `None`.
 	#[test]
 	fn bind_none() {
-		assert_eq!(bind::<OptionBrand, _, _, _>(None, |x: i32| Some(x + 1)), None);
+		assert_eq!(bind::<OptionBrand, _, _, _, _>(None, |x: i32| Some(x + 1)), None);
 	}
 
 	/// Tests `bind` returning `None`.
 	#[test]
 	fn bind_returning_none() {
-		assert_eq!(bind::<OptionBrand, _, _, _>(Some(5), |_| None::<i32>), None);
+		assert_eq!(bind::<OptionBrand, _, _, _, _>(Some(5), |_| None::<i32>), None);
 	}
 
 	/// Tests `fold_right` on `None`.
 	#[test]
 	fn fold_right_none() {
 		assert_eq!(
-			crate::functions::fold_right::<RcFnBrand, OptionBrand, _, _, _>(
+			crate::functions::fold_right::<RcFnBrand, OptionBrand, _, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				None
@@ -1525,7 +1526,7 @@ mod tests {
 	#[test]
 	fn fold_left_none() {
 		assert_eq!(
-			crate::functions::fold_left::<RcFnBrand, OptionBrand, _, _, _>(
+			crate::functions::fold_left::<RcFnBrand, OptionBrand, _, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				None
@@ -1634,7 +1635,7 @@ mod tests {
 	#[quickcheck]
 	fn ref_functor_identity(opt: Option<i32>) -> bool {
 		use crate::classes::ref_functor::RefFunctor;
-		OptionBrand::ref_map(|x: &i32| *x, opt) == opt
+		OptionBrand::ref_map(|x: &i32| *x, &opt) == opt
 	}
 
 	/// Tests the composition law for RefFunctor.
@@ -1643,8 +1644,8 @@ mod tests {
 		use crate::classes::ref_functor::RefFunctor;
 		let f = |x: &i32| x.wrapping_add(1);
 		let g = |x: &i32| x.wrapping_mul(2);
-		OptionBrand::ref_map(|x: &i32| f(&g(x)), opt)
-			== OptionBrand::ref_map(f, OptionBrand::ref_map(g, opt))
+		OptionBrand::ref_map(|x: &i32| f(&g(x)), &opt)
+			== OptionBrand::ref_map(f, &OptionBrand::ref_map(g, &opt))
 	}
 
 	// RefSemimonad Laws
@@ -1653,7 +1654,7 @@ mod tests {
 	#[quickcheck]
 	fn ref_semimonad_left_identity(x: i32) -> bool {
 		use crate::classes::ref_semimonad::RefSemimonad;
-		OptionBrand::ref_bind(Some(x), |a: &i32| Some(*a)) == Some(x)
+		OptionBrand::ref_bind(&Some(x), |a: &i32| Some(*a)) == Some(x)
 	}
 
 	// RefFoldable Laws
@@ -1665,7 +1666,7 @@ mod tests {
 			classes::ref_foldable::RefFoldable,
 			types::Additive,
 		};
-		let result = OptionBrand::ref_fold_map::<RcFnBrand, _, _>(|x: &i32| Additive(*x), opt);
+		let result = OptionBrand::ref_fold_map::<RcFnBrand, _, _>(|x: &i32| Additive(*x), &opt);
 		let expected = match opt {
 			Some(v) => Additive(v),
 			None => Additive(0),
@@ -1683,7 +1684,7 @@ mod tests {
 			ref_pointed::RefPointed,
 			ref_semimonad::RefSemimonad,
 		};
-		OptionBrand::ref_bind(opt, |a: &i32| OptionBrand::ref_pure(a)) == opt
+		OptionBrand::ref_bind(&opt, |a: &i32| OptionBrand::ref_pure(a)) == opt
 	}
 
 	/// Tests the associativity law for RefSemimonad.
@@ -1692,8 +1693,8 @@ mod tests {
 		use crate::classes::ref_semimonad::RefSemimonad;
 		let f = |a: &i32| if *a > 0 { Some(a.wrapping_mul(2)) } else { None };
 		let g = |b: &i32| Some(b.wrapping_add(10));
-		let lhs = OptionBrand::ref_bind(OptionBrand::ref_bind(opt, f), g);
-		let rhs = OptionBrand::ref_bind(opt, |a: &i32| OptionBrand::ref_bind(f(a), g));
+		let lhs = OptionBrand::ref_bind(&OptionBrand::ref_bind(&opt, f), g);
+		let rhs = OptionBrand::ref_bind(&opt, |a: &i32| OptionBrand::ref_bind(&f(a), g));
 		lhs == rhs
 	}
 
@@ -1704,7 +1705,7 @@ mod tests {
 	#[quickcheck]
 	fn ref_lift_identity(opt: Option<i32>) -> bool {
 		use crate::classes::ref_lift::RefLift;
-		OptionBrand::ref_lift2(|_: &(), b: &i32| *b, Some(()), opt) == opt
+		OptionBrand::ref_lift2(|_: &(), b: &i32| *b, &Some(()), &opt) == opt
 	}
 
 	/// Tests commutativity of ref_lift2 (for Option specifically):
@@ -1715,8 +1716,8 @@ mod tests {
 		b: Option<i32>,
 	) -> bool {
 		use crate::classes::ref_lift::RefLift;
-		let lhs = OptionBrand::ref_lift2(|x: &i32, y: &i32| x.wrapping_add(*y), a, b);
-		let rhs = OptionBrand::ref_lift2(|y: &i32, x: &i32| x.wrapping_add(*y), b, a);
+		let lhs = OptionBrand::ref_lift2(|x: &i32, y: &i32| x.wrapping_add(*y), &a, &b);
+		let rhs = OptionBrand::ref_lift2(|y: &i32, x: &i32| x.wrapping_add(*y), &b, &a);
 		lhs == rhs
 	}
 
@@ -1733,7 +1734,7 @@ mod tests {
 		let result: Identity<Option<i32>> =
 			OptionBrand::ref_traverse::<RcFnBrand, _, _, IdentityBrand>(
 				|a: &i32| Identity(*a),
-				opt,
+				&opt,
 			);
 		result == Identity(opt)
 	}
@@ -1749,7 +1750,7 @@ mod tests {
 		let ref_result: Option<Option<String>> =
 			OptionBrand::ref_traverse::<RcFnBrand, _, _, OptionBrand>(
 				|a: &i32| Some(a.to_string()),
-				opt,
+				&opt,
 			);
 		let val_result: Option<Option<String>> =
 			OptionBrand::traverse::<i32, String, OptionBrand>(|a: i32| Some(a.to_string()), opt);

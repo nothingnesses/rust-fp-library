@@ -20,7 +20,7 @@
 //! 	RcFnBrand,
 //! 	_,
 //! 	_,
-//! >(|_, x: &i32| x.to_string(), lazy);
+//! >(|_, x: &i32| x.to_string(), &lazy);
 //! assert_eq!(result, "42");
 //! ```
 
@@ -77,7 +77,7 @@ mod inner {
 		/// 	RcFnBrand,
 		/// 	_,
 		/// 	_,
-		/// >(|_, x: &i32| x.to_string(), lazy);
+		/// >(|_, x: &i32| x.to_string(), &lazy);
 		/// assert_eq!(result, "42");
 		/// ```
 		fn ref_fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
@@ -122,7 +122,7 @@ mod inner {
 		/// 	RcFnBrand,
 		/// 	_,
 		/// 	_,
-		/// >(|_, x: &i32, acc: i32| acc + *x, 0, lazy);
+		/// >(|_, x: &i32, acc: i32| acc + *x, 0, &lazy);
 		/// assert_eq!(result, 10);
 		/// ```
 		fn ref_fold_right_with_index<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -177,7 +177,7 @@ mod inner {
 		/// 	RcFnBrand,
 		/// 	_,
 		/// 	_,
-		/// >(|acc: i32, _, x: &i32| acc + *x, 0, lazy);
+		/// >(|acc: i32, _, x: &i32| acc + *x, 0, &lazy);
 		/// assert_eq!(result, 10);
 		/// ```
 		fn ref_fold_left_with_index<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -233,7 +233,7 @@ mod inner {
 	/// let lazy = RcLazy::new(|| 42);
 	/// let result = ref_fold_map_with_index::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(
 	/// 	|_, x: &i32| x.to_string(),
-	/// 	lazy,
+	/// 	&lazy,
 	/// );
 	/// assert_eq!(result, "42");
 	/// ```

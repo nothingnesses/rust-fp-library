@@ -17,7 +17,7 @@
 //!
 //! let lazy = RcLazy::new(|| 10);
 //! let result =
-//! 	fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|a: &i32| a.to_string(), lazy);
+//! 	fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|a: &i32| a.to_string(), &lazy);
 //! assert_eq!(result, "10");
 //! ```
 
@@ -71,7 +71,7 @@ mod inner {
 		///
 		/// let lazy = RcLazy::new(|| 5);
 		/// let result =
-		/// 	fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|a: &i32| a.to_string(), lazy);
+		/// 	fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|a: &i32| a.to_string(), &lazy);
 		/// assert_eq!(result, "5");
 		/// ```
 		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -116,7 +116,7 @@ mod inner {
 		///
 		/// let lazy = RcLazy::new(|| 10);
 		/// let result =
-		/// 	fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|a: &i32, b| *a + b, 5, lazy);
+		/// 	fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|a: &i32, b| *a + b, 5, &lazy);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn ref_fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -168,7 +168,7 @@ mod inner {
 		///
 		/// let lazy = RcLazy::new(|| 10);
 		/// let result =
-		/// 	fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _>(|b, a: &i32| b + *a, 5, lazy);
+		/// 	fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|b, a: &i32| b + *a, 5, &lazy);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn ref_fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(

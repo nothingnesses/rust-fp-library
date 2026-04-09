@@ -15,7 +15,7 @@
 //!
 //! let x = ArcLazy::new(|| 3);
 //! let y = ArcLazy::new(|| 4);
-//! let z = send_ref_lift2::<LazyBrand<ArcLazyConfig>, _, _, _>(|a: &i32, b: &i32| *a + *b, x, y);
+//! let z = send_ref_lift2::<LazyBrand<ArcLazyConfig>, _, _, _>(|a: &i32, b: &i32| *a + *b, &x, &y);
 //! assert_eq!(*z.evaluate(), 7);
 //! ```
 
@@ -56,7 +56,7 @@ mod inner {
 		///
 		/// let x = ArcLazy::new(|| 3);
 		/// let y = ArcLazy::new(|| 4);
-		/// let z = LazyBrand::<ArcLazyConfig>::send_ref_lift2(|a: &i32, b: &i32| *a + *b, x, y);
+		/// let z = LazyBrand::<ArcLazyConfig>::send_ref_lift2(|a: &i32, b: &i32| *a + *b, &x, &y);
 		/// assert_eq!(*z.evaluate(), 7);
 		/// ```
 		fn send_ref_lift2<'a, A: Send + Sync + 'a, B: Send + Sync + 'a, C: Send + Sync + 'a>(
@@ -93,7 +93,7 @@ mod inner {
 	///
 	/// let x = ArcLazy::new(|| 3);
 	/// let y = ArcLazy::new(|| 4);
-	/// let z = send_ref_lift2::<LazyBrand<ArcLazyConfig>, _, _, _>(|a: &i32, b: &i32| *a + *b, x, y);
+	/// let z = send_ref_lift2::<LazyBrand<ArcLazyConfig>, _, _, _>(|a: &i32, b: &i32| *a + *b, &x, &y);
 	/// assert_eq!(*z.evaluate(), 7);
 	/// ```
 	pub fn send_ref_lift2<

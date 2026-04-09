@@ -34,7 +34,7 @@ mod inner {
 	/// // Compatibility with Traversable:
 	/// // traverse(f, fa) = traverse_with_index(|_, a| f(a), fa)
 	/// assert_eq!(
-	/// 	traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _>(f, xs.clone()),
+	/// 	traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(f, xs.clone()),
 	/// 	VecBrand::traverse_with_index::<i32, i32, OptionBrand>(|_, a| f(a), xs),
 	/// );
 	/// ```

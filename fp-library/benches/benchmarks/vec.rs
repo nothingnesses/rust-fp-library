@@ -27,7 +27,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| map::<VecBrand, _, _, _>(|x| x * 2, v),
+				|v| map::<VecBrand, _, _, _, _>(|x| x * 2, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -48,7 +48,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| fold_right::<RcFnBrand, VecBrand, _, _, _>(|x, acc| x + acc, 0, v),
+				|v| fold_right::<RcFnBrand, VecBrand, _, _, _, _>(|x, acc| x + acc, 0, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -69,7 +69,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| fold_left::<RcFnBrand, VecBrand, _, _, _>(|acc, x| acc + x, 0, v),
+				|v| fold_left::<RcFnBrand, VecBrand, _, _, _, _>(|acc, x| acc + x, 0, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -90,7 +90,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| fold_map::<RcFnBrand, VecBrand, _, _, _>(|x: i32| x.to_string(), v),
+				|v| fold_map::<RcFnBrand, VecBrand, _, _, _, _>(|x: i32| x.to_string(), v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -113,7 +113,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			b.iter_batched(
 				|| v_orig.clone(),
 				|v| {
-					traverse::<RcFnBrand, VecBrand, _, _, ResultErrAppliedBrand<i32>, _>(
+					traverse::<RcFnBrand, VecBrand, _, _, ResultErrAppliedBrand<i32>, _, _>(
 						|x| Ok(x * 2),
 						v,
 					)
@@ -159,7 +159,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| bind::<VecBrand, _, _, _>(v, |x| vec![x, x * 2]),
+				|v| bind::<VecBrand, _, _, _, _>(v, |x| vec![x, x * 2]),
 				BatchSize::SmallInput,
 			)
 		});
@@ -273,7 +273,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			b.iter_batched(
 				|| v_orig.clone(),
 				|v| {
-					filter_map::<VecBrand, _, _, _>(
+					filter_map::<VecBrand, _, _, _, _>(
 						|x| if x % 2 == 0 { Some(x * 2) } else { None },
 						v,
 					)
@@ -479,7 +479,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| (v_orig.clone(), v2.clone()),
-				|(v1, v2)| lift2::<VecBrand, _, _, _, _>(|x, y| x + y, v1, v2),
+				|(v1, v2)| lift2::<VecBrand, _, _, _, _, _, _>(|x, y| x + y, v1, v2),
 				BatchSize::SmallInput,
 			)
 		});
@@ -541,7 +541,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			group.bench_with_input(BenchmarkId::new("map (sequential)", sz), &sz, |b, &_| {
 				b.iter_batched(
 					|| v.clone(),
-					|v| map::<VecBrand, _, _, _>(|x: i32| x * 2, v),
+					|v| map::<VecBrand, _, _, _, _>(|x: i32| x * 2, v),
 					BatchSize::SmallInput,
 				)
 			});
@@ -568,7 +568,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			group.bench_with_input(BenchmarkId::new("fold_map (sequential)", sz), &sz, |b, &_| {
 				b.iter_batched(
 					|| v.clone(),
-					|v| fold_map::<RcFnBrand, VecBrand, _, _, _>(|x: i32| x.to_string(), v),
+					|v| fold_map::<RcFnBrand, VecBrand, _, _, _, _>(|x: i32| x.to_string(), v),
 					BatchSize::SmallInput,
 				)
 			});
@@ -600,7 +600,7 @@ pub fn bench_vec(c: &mut Criterion) {
 					b.iter_batched(
 						|| v.clone(),
 						|v| {
-							filter_map::<VecBrand, _, _, _>(
+							filter_map::<VecBrand, _, _, _, _>(
 								|x: i32| if x % 2 == 0 { Some(x * 2) } else { None },
 								v,
 							)

@@ -15,7 +15,7 @@
 //! };
 //!
 //! let lazy = RcLazy::pure(5);
-//! let result = LazyBrand::<RcLazyConfig>::ref_bind(lazy, |x: &i32| {
+//! let result = LazyBrand::<RcLazyConfig>::ref_bind(&lazy, |x: &i32| {
 //! 	Lazy::<_, RcLazyConfig>::new({
 //! 		let v = *x;
 //! 		move || v * 2
@@ -62,7 +62,7 @@ mod inner {
 		/// };
 		///
 		/// let lazy = RcLazy::pure(5);
-		/// let result = LazyBrand::<RcLazyConfig>::ref_bind(lazy, |x: &i32| {
+		/// let result = LazyBrand::<RcLazyConfig>::ref_bind(&lazy, |x: &i32| {
 		/// 	Lazy::<_, RcLazyConfig>::new({
 		/// 		let v = *x;
 		/// 		move || v * 2
@@ -102,7 +102,7 @@ mod inner {
 	/// 	let inner = inner.clone();
 	/// 	move || inner.clone()
 	/// });
-	/// let result = ref_join::<LazyBrand<RcLazyConfig>, _>(outer);
+	/// let result = ref_join::<LazyBrand<RcLazyConfig>, _>(&outer);
 	/// assert_eq!(*result.evaluate(), 5);
 	/// ```
 	pub fn ref_join<'a, Brand: RefSemimonad, A: 'a>(

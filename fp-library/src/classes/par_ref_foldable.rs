@@ -11,7 +11,7 @@
 //! };
 //!
 //! let v = vec![1, 2, 3];
-//! let result = VecBrand::par_ref_fold_map(|x: &i32| x.to_string(), v);
+//! let result = VecBrand::par_ref_fold_map(|x: &i32| x.to_string(), &v);
 //! assert_eq!(result, "123");
 //! ```
 
@@ -53,7 +53,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![1, 2, 3];
-		/// let result = VecBrand::par_ref_fold_map(|x: &i32| x.to_string(), v);
+		/// let result = VecBrand::par_ref_fold_map(|x: &i32| x.to_string(), &v);
 		/// assert_eq!(result, "123");
 		/// ```
 		fn par_ref_fold_map<'a, A: Send + Sync + 'a, M: Monoid + Send + 'a>(
@@ -86,7 +86,7 @@ mod inner {
 	/// };
 	///
 	/// let v = vec![1, 2, 3];
-	/// let result = par_ref_fold_map::<VecBrand, _, _>(|x: &i32| x.to_string(), v);
+	/// let result = par_ref_fold_map::<VecBrand, _, _>(|x: &i32| x.to_string(), &v);
 	/// assert_eq!(result, "123");
 	/// ```
 	pub fn par_ref_fold_map<

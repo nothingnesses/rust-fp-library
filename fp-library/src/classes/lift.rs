@@ -14,10 +14,15 @@
 //!
 //! let x = Some(1);
 //! let y = Some(2);
-//! let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
+//! let z = lift2::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, x, y);
 //! assert_eq!(z, Some(3));
 //!
-//! let w = lift3::<OptionBrand, _, _, _, _, _>(|a, b, c| a + b + c, Some(1), Some(2), Some(3));
+//! let w = lift3::<OptionBrand, _, _, _, _, _, _, _, _>(
+//! 	|a, b, c| a + b + c,
+//! 	Some(1),
+//! 	Some(2),
+//! 	Some(3),
+//! );
 //! assert_eq!(w, Some(6));
 //! ```
 
@@ -60,7 +65,7 @@ mod inner {
 		///
 		/// let x = Some(1);
 		/// let y = Some(2);
-		/// let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
+		/// let z = lift2::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, Some(3));
 		/// ```
 		fn lift2<'a, A, B, C>(

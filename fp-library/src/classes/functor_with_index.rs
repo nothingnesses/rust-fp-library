@@ -37,7 +37,10 @@ mod inner {
 	///
 	/// // Compatibility with Functor: map(f, fa) = map_with_index(|_, a| f(a), fa)
 	/// let f = |a: i32| a * 2;
-	/// assert_eq!(map::<VecBrand, _, _, _>(f, xs.clone()), VecBrand::map_with_index(|_, a| f(a), xs),);
+	/// assert_eq!(
+	/// 	map::<VecBrand, _, _, _, _>(f, xs.clone()),
+	/// 	VecBrand::map_with_index(|_, a| f(a), xs),
+	/// );
 	/// ```
 	pub trait FunctorWithIndex: Functor + WithIndex {
 		/// Map a function over the structure, providing the index of each element.

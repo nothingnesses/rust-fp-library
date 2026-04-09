@@ -13,7 +13,7 @@
 //!
 //! let x = ArcLazy::new(|| 3);
 //! let y = ArcLazy::new(|| 4);
-//! let result = send_ref_apply_first::<LazyBrand<ArcLazyConfig>, _, _>(x, y);
+//! let result = send_ref_apply_first::<LazyBrand<ArcLazyConfig>, _, _>(&x, &y);
 //! assert_eq!(*result.evaluate(), 3);
 //! ```
 
@@ -53,7 +53,7 @@ mod inner {
 		///
 		/// let x = ArcLazy::new(|| 3);
 		/// let y = ArcLazy::new(|| 4);
-		/// let result = LazyBrand::<ArcLazyConfig>::send_ref_apply_first(x, y);
+		/// let result = LazyBrand::<ArcLazyConfig>::send_ref_apply_first(&x, &y);
 		/// assert_eq!(*result.evaluate(), 3);
 		/// ```
 		fn send_ref_apply_first<'a, A: Clone + Send + Sync + 'a, B: Send + Sync + 'a>(
@@ -94,7 +94,7 @@ mod inner {
 	///
 	/// let x = ArcLazy::new(|| 3);
 	/// let y = ArcLazy::new(|| 4);
-	/// let result = send_ref_apply_first::<LazyBrand<ArcLazyConfig>, _, _>(x, y);
+	/// let result = send_ref_apply_first::<LazyBrand<ArcLazyConfig>, _, _>(&x, &y);
 	/// assert_eq!(*result.evaluate(), 3);
 	/// ```
 	pub fn send_ref_apply_first<

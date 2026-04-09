@@ -80,7 +80,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30, 40, 50];
-		/// let result = VecBrand::par_ref_filter_with_index(|i, _: &i32| i >= 2, v);
+		/// let result = VecBrand::par_ref_filter_with_index(|i, _: &i32| i >= 2, &v);
 		/// assert_eq!(result, vec![30, 40, 50]);
 		/// ```
 		fn par_ref_filter_with_index<'a, A: Send + Sync + Clone + 'a>(
@@ -161,7 +161,7 @@ mod inner {
 	/// };
 	///
 	/// let v = vec![10, 20, 30, 40, 50];
-	/// let result = par_ref_filter_with_index::<VecBrand, _>(|i, _: &i32| i >= 2, v);
+	/// let result = par_ref_filter_with_index::<VecBrand, _>(|i, _: &i32| i >= 2, &v);
 	/// assert_eq!(result, vec![30, 40, 50]);
 	/// ```
 	pub fn par_ref_filter_with_index<

@@ -15,7 +15,7 @@
 //!
 //! let x = RcLazy::pure(3);
 //! let y = RcLazy::pure(4);
-//! let z = lift2::<LazyBrand<RcLazyConfig>, _, _, _, _>(|a: &i32, b: &i32| *a + *b, x, y);
+//! let z = lift2::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _>(|a: &i32, b: &i32| *a + *b, &x, &y);
 //! assert_eq!(*z.evaluate(), 7);
 //! ```
 
@@ -57,7 +57,7 @@ mod inner {
 		///
 		/// let x = RcLazy::pure(3);
 		/// let y = RcLazy::pure(4);
-		/// let z = LazyBrand::<RcLazyConfig>::ref_lift2(|a: &i32, b: &i32| *a + *b, x, y);
+		/// let z = LazyBrand::<RcLazyConfig>::ref_lift2(|a: &i32, b: &i32| *a + *b, &x, &y);
 		/// assert_eq!(*z.evaluate(), 7);
 		/// ```
 		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(

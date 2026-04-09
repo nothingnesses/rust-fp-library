@@ -37,7 +37,7 @@ mod inner {
 	/// // Compatibility with Foldable:
 	/// // fold_map(f, fa) = fold_map_with_index(|_, a| f(a), fa)
 	/// assert_eq!(
-	/// 	fold_map::<RcFnBrand, VecBrand, _, _, _>(f, xs.clone()),
+	/// 	fold_map::<RcFnBrand, VecBrand, _, _, _, _>(f, xs.clone()),
 	/// 	VecBrand::fold_map_with_index::<RcFnBrand, _, _>(|_, a| f(a), xs),
 	/// );
 	/// ```

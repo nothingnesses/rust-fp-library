@@ -13,7 +13,7 @@
 //!
 //! let x = RcLazy::pure(3);
 //! let y = RcLazy::pure(4);
-//! let result = ref_apply_first::<LazyBrand<RcLazyConfig>, _, _>(x, y);
+//! let result = ref_apply_first::<LazyBrand<RcLazyConfig>, _, _>(&x, &y);
 //! assert_eq!(*result.evaluate(), 3);
 //! ```
 
@@ -53,7 +53,7 @@ mod inner {
 		///
 		/// let x = RcLazy::pure(3);
 		/// let y = RcLazy::pure(4);
-		/// let result = LazyBrand::<RcLazyConfig>::ref_apply_first(x, y);
+		/// let result = LazyBrand::<RcLazyConfig>::ref_apply_first(&x, &y);
 		/// assert_eq!(*result.evaluate(), 3);
 		/// ```
 		fn ref_apply_first<'a, A: Clone + 'a, B: 'a>(
@@ -94,7 +94,7 @@ mod inner {
 	///
 	/// let x = RcLazy::pure(3);
 	/// let y = RcLazy::pure(4);
-	/// let result = ref_apply_first::<LazyBrand<RcLazyConfig>, _, _>(x, y);
+	/// let result = ref_apply_first::<LazyBrand<RcLazyConfig>, _, _>(&x, &y);
 	/// assert_eq!(*result.evaluate(), 3);
 	/// ```
 	pub fn ref_apply_first<'a, Brand: RefApplyFirst, A: Clone + 'a, B: 'a>(

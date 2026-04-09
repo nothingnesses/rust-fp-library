@@ -356,7 +356,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = map::<IdentityBrand, _, _, _>(|i| i * 2, x);
+		/// let y = map::<IdentityBrand, _, _, _, _>(|i| i * 2, x);
 		/// assert_eq!(y, Identity(10));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -398,7 +398,7 @@ mod inner {
 		///
 		/// let x = Identity(1);
 		/// let y = Identity(2);
-		/// let z = lift2::<IdentityBrand, _, _, _, _>(|a, b| a + b, x, y);
+		/// let z = lift2::<IdentityBrand, _, _, _, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, Identity(3));
 		/// ```
 		fn lift2<'a, A, B, C>(
@@ -515,7 +515,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = bind::<IdentityBrand, _, _, _>(x, |i| Identity(i * 2));
+		/// let y = bind::<IdentityBrand, _, _, _, _>(x, |i| Identity(i * 2));
 		/// assert_eq!(y, Identity(10));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
@@ -556,7 +556,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = fold_right::<RcFnBrand, IdentityBrand, _, _, _>(|a, b| a + b, 10, x);
+		/// let y = fold_right::<RcFnBrand, IdentityBrand, _, _, _, _>(|a, b| a + b, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a>(
@@ -598,7 +598,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = fold_left::<RcFnBrand, IdentityBrand, _, _, _>(|b, a| b + a, 10, x);
+		/// let y = fold_left::<RcFnBrand, IdentityBrand, _, _, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a>(
@@ -637,7 +637,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = fold_map::<RcFnBrand, IdentityBrand, _, _, _>(|a: i32| a.to_string(), x);
+		/// let y = fold_map::<RcFnBrand, IdentityBrand, _, _, _, _>(|a: i32| a.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a, M>(
@@ -680,7 +680,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = traverse::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
+		/// let y = traverse::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _, _>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some(Identity(10)));
 		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
@@ -896,7 +896,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// assert_eq!(map::<IdentityBrand, _, _, _>(|x: &i32| *x * 2, Identity(5)), Identity(10));
+		/// assert_eq!(map::<IdentityBrand, _, _, _, _>(|x: &i32| *x * 2, &Identity(5)), Identity(10));
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
 			func: impl Fn(&A) -> B + 'a,
@@ -934,7 +934,7 @@ mod inner {
 		/// };
 		///
 		/// let result =
-		/// 	fold_map::<RcFnBrand, IdentityBrand, _, _, _>(|x: &i32| x.to_string(), Identity(5));
+		/// 	fold_map::<RcFnBrand, IdentityBrand, _, _, _, _>(|x: &i32| x.to_string(), &Identity(5));
 		/// assert_eq!(result, "5");
 		/// ```
 		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -979,7 +979,7 @@ mod inner {
 		/// let result: Option<Identity<String>> =
 		/// 	ref_traverse::<IdentityBrand, RcFnBrand, _, _, OptionBrand>(
 		/// 		|x: &i32| Some(x.to_string()),
-		/// 		Identity(42),
+		/// 		&Identity(42),
 		/// 	);
 		/// assert_eq!(result, Some(Identity("42".to_string())));
 		/// ```
@@ -1247,8 +1247,11 @@ mod inner {
 		/// 	types::Identity,
 		/// };
 		///
-		/// let result =
-		/// 	lift2::<IdentityBrand, _, _, _, _>(|a: &i32, b: &i32| *a + *b, Identity(1), Identity(2));
+		/// let result = lift2::<IdentityBrand, _, _, _, _, _, _>(
+		/// 	|a: &i32, b: &i32| *a + *b,
+		/// 	&Identity(1),
+		/// 	&Identity(2),
+		/// );
 		/// assert_eq!(result, Identity(3));
 		/// ```
 		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
@@ -1285,7 +1288,7 @@ mod inner {
 		/// };
 		///
 		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x + 1);
-		/// let result = ref_apply::<RcFnBrand, IdentityBrand, _, _>(Identity(f), Identity(5));
+		/// let result = ref_apply::<RcFnBrand, IdentityBrand, _, _>(&Identity(f), &Identity(5));
 		/// assert_eq!(result, Identity(6));
 		/// ```
 		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
@@ -1312,7 +1315,7 @@ mod inner {
 		/// };
 		///
 		/// let result: Identity<String> =
-		/// 	bind::<IdentityBrand, _, _, _>(Identity(42), |x: &i32| Identity(x.to_string()));
+		/// 	bind::<IdentityBrand, _, _, _, _>(&Identity(42), |x: &i32| Identity(x.to_string()));
 		/// assert_eq!(result, Identity("42".to_string()));
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
@@ -1347,7 +1350,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity(x: i32) -> bool {
 		let x = Identity(x);
-		map::<IdentityBrand, _, _, _>(identity, x) == x
+		map::<IdentityBrand, _, _, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -1356,8 +1359,8 @@ mod tests {
 		let x = Identity(x);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<IdentityBrand, _, _, _>(compose(f, g), x)
-			== map::<IdentityBrand, _, _, _>(f, map::<IdentityBrand, _, _, _>(g, x))
+		map::<IdentityBrand, _, _, _, _>(compose(f, g), x)
+			== map::<IdentityBrand, _, _, _, _>(f, map::<IdentityBrand, _, _, _, _>(g, x))
 	}
 
 	// Applicative Laws
@@ -1431,14 +1434,14 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| Identity(x.wrapping_mul(2));
-		bind::<IdentityBrand, _, _, _>(pure::<IdentityBrand, _>(a), f) == f(a)
+		bind::<IdentityBrand, _, _, _, _>(pure::<IdentityBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: i32) -> bool {
 		let m = Identity(m);
-		bind::<IdentityBrand, _, _, _>(m, pure::<IdentityBrand, _>) == m
+		bind::<IdentityBrand, _, _, _, _>(m, pure::<IdentityBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -1447,8 +1450,8 @@ mod tests {
 		let m = Identity(m);
 		let f = |x: i32| Identity(x.wrapping_mul(2));
 		let g = |x: i32| Identity(x.wrapping_add(1));
-		bind::<IdentityBrand, _, _, _>(bind::<IdentityBrand, _, _, _>(m, f), g)
-			== bind::<IdentityBrand, _, _, _>(m, |x| bind::<IdentityBrand, _, _, _>(f(x), g))
+		bind::<IdentityBrand, _, _, _, _>(bind::<IdentityBrand, _, _, _, _>(m, f), g)
+			== bind::<IdentityBrand, _, _, _, _>(m, |x| bind::<IdentityBrand, _, _, _, _>(f(x), g))
 	}
 
 	// Edge Cases
@@ -1456,20 +1459,23 @@ mod tests {
 	/// Tests the `map` function.
 	#[test]
 	fn map_test() {
-		assert_eq!(map::<IdentityBrand, _, _, _>(|x: i32| x + 1, Identity(1)), Identity(2));
+		assert_eq!(map::<IdentityBrand, _, _, _, _>(|x: i32| x + 1, Identity(1)), Identity(2));
 	}
 
 	/// Tests the `bind` function.
 	#[test]
 	fn bind_test() {
-		assert_eq!(bind::<IdentityBrand, _, _, _>(Identity(1), |x| Identity(x + 1)), Identity(2));
+		assert_eq!(
+			bind::<IdentityBrand, _, _, _, _>(Identity(1), |x| Identity(x + 1)),
+			Identity(2)
+		);
 	}
 
 	/// Tests the `fold_right` function.
 	#[test]
 	fn fold_right_test() {
 		assert_eq!(
-			crate::functions::fold_right::<RcFnBrand, IdentityBrand, _, _, _>(
+			crate::functions::fold_right::<RcFnBrand, IdentityBrand, _, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				Identity(1)
@@ -1482,7 +1488,7 @@ mod tests {
 	#[test]
 	fn fold_left_test() {
 		assert_eq!(
-			crate::functions::fold_left::<RcFnBrand, IdentityBrand, _, _, _>(
+			crate::functions::fold_left::<RcFnBrand, IdentityBrand, _, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				Identity(1)
@@ -1608,7 +1614,7 @@ mod tests {
 		use crate::classes::extract::extract;
 		let f = |a: i32| a.wrapping_mul(5);
 		let wa = Identity(x);
-		extract::<IdentityBrand, _>(map::<IdentityBrand, _, _, _>(f, wa))
+		extract::<IdentityBrand, _>(map::<IdentityBrand, _, _, _, _>(f, wa))
 			== f(extract::<IdentityBrand, _>(wa))
 	}
 
@@ -1633,7 +1639,7 @@ mod tests {
 	#[quickcheck]
 	fn ref_functor_identity(v: i32) -> bool {
 		use crate::classes::ref_functor::RefFunctor;
-		IdentityBrand::ref_map(|x: &i32| *x, Identity(v)) == Identity(v)
+		IdentityBrand::ref_map(|x: &i32| *x, &Identity(v)) == Identity(v)
 	}
 
 	/// Tests the composition law for RefFunctor.
@@ -1642,8 +1648,8 @@ mod tests {
 		use crate::classes::ref_functor::RefFunctor;
 		let f = |x: &i32| x.wrapping_add(1);
 		let g = |x: &i32| x.wrapping_mul(2);
-		IdentityBrand::ref_map(|x: &i32| f(&g(x)), Identity(v))
-			== IdentityBrand::ref_map(f, IdentityBrand::ref_map(g, Identity(v)))
+		IdentityBrand::ref_map(|x: &i32| f(&g(x)), &Identity(v))
+			== IdentityBrand::ref_map(f, &IdentityBrand::ref_map(g, &Identity(v)))
 	}
 
 	// RefSemimonad Laws
@@ -1652,6 +1658,6 @@ mod tests {
 	#[quickcheck]
 	fn ref_semimonad_left_identity(x: i32) -> bool {
 		use crate::classes::ref_semimonad::RefSemimonad;
-		IdentityBrand::ref_bind(Identity(x), |a: &i32| Identity(*a)) == Identity(x)
+		IdentityBrand::ref_bind(&Identity(x), |a: &i32| Identity(*a)) == Identity(x)
 	}
 }

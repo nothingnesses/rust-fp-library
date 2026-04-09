@@ -11,7 +11,7 @@
 //! };
 //!
 //! let v = vec![10, 20, 30];
-//! let result = VecBrand::par_ref_fold_map_with_index(|i, x: &i32| format!("{}:{}", i, x), v);
+//! let result = VecBrand::par_ref_fold_map_with_index(|i, x: &i32| format!("{}:{}", i, x), &v);
 //! assert_eq!(result, "0:101:202:30");
 //! ```
 
@@ -49,7 +49,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30];
-		/// let result = VecBrand::par_ref_fold_map_with_index(|i, x: &i32| format!("{}:{}", i, x), v);
+		/// let result = VecBrand::par_ref_fold_map_with_index(|i, x: &i32| format!("{}:{}", i, x), &v);
 		/// assert_eq!(result, "0:101:202:30");
 		/// ```
 		fn par_ref_fold_map_with_index<'a, A: Send + Sync + 'a, M: Monoid + Send + 'a>(
@@ -83,7 +83,7 @@ mod inner {
 	///
 	/// let v = vec![10, 20, 30];
 	/// let result =
-	/// 	par_ref_fold_map_with_index::<VecBrand, _, _>(|i, x: &i32| format!("{}:{}", i, x), v);
+	/// 	par_ref_fold_map_with_index::<VecBrand, _, _>(|i, x: &i32| format!("{}:{}", i, x), &v);
 	/// assert_eq!(result, "0:101:202:30");
 	/// ```
 	pub fn par_ref_fold_map_with_index<

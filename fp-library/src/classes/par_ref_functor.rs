@@ -16,7 +16,7 @@
 //! };
 //!
 //! let v = vec![1, 2, 3];
-//! let result = VecBrand::par_ref_map(|x: &i32| x.to_string(), v);
+//! let result = VecBrand::par_ref_map(|x: &i32| x.to_string(), &v);
 //! assert_eq!(result, vec!["1", "2", "3"]);
 //! ```
 
@@ -58,7 +58,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![1, 2, 3];
-		/// let result = VecBrand::par_ref_map(|x: &i32| x * 2, v);
+		/// let result = VecBrand::par_ref_map(|x: &i32| x * 2, &v);
 		/// assert_eq!(result, vec![2, 4, 6]);
 		/// ```
 		fn par_ref_map<'a, A: Send + Sync + 'a, B: Send + 'a>(
@@ -91,7 +91,7 @@ mod inner {
 	/// };
 	///
 	/// let v = vec![1, 2, 3];
-	/// let result = par_ref_map::<VecBrand, _, _>(|x: &i32| x * 2, v);
+	/// let result = par_ref_map::<VecBrand, _, _>(|x: &i32| x * 2, &v);
 	/// assert_eq!(result, vec![2, 4, 6]);
 	/// ```
 	pub fn par_ref_map<'a, Brand: ParRefFunctor, A: Send + Sync + 'a, B: Send + 'a>(

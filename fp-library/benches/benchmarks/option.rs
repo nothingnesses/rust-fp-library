@@ -20,7 +20,7 @@ pub fn bench_option(c: &mut Criterion) {
 			b.iter(|| std::hint::black_box(val).map(|x| x * 2))
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
-			b.iter(|| map::<OptionBrand, _, _, _>(|x| x * 2, std::hint::black_box(val)))
+			b.iter(|| map::<OptionBrand, _, _, _, _>(|x| x * 2, std::hint::black_box(val)))
 		});
 		group.finish();
 	}
@@ -33,7 +33,7 @@ pub fn bench_option(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_right::<RcFnBrand, OptionBrand, _, _, _>(
+				fold_right::<RcFnBrand, OptionBrand, _, _, _, _>(
 					|x, acc| x + acc,
 					0,
 					std::hint::black_box(val),
@@ -51,7 +51,7 @@ pub fn bench_option(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_left::<RcFnBrand, OptionBrand, _, _, _>(
+				fold_left::<RcFnBrand, OptionBrand, _, _, _, _>(
 					|acc, x| acc + x,
 					0,
 					std::hint::black_box(val),
@@ -69,7 +69,7 @@ pub fn bench_option(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				traverse::<RcFnBrand, OptionBrand, _, _, ResultErrAppliedBrand<i32>, _>(
+				traverse::<RcFnBrand, OptionBrand, _, _, ResultErrAppliedBrand<i32>, _, _>(
 					|x| Ok(x * 2),
 					std::hint::black_box(val),
 				)
@@ -105,7 +105,7 @@ pub fn bench_option(c: &mut Criterion) {
 			b.iter(|| std::hint::black_box(val).and_then(|x| Some(x * 2)))
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
-			b.iter(|| bind::<OptionBrand, _, _, _>(std::hint::black_box(val), |x| Some(x * 2)))
+			b.iter(|| bind::<OptionBrand, _, _, _, _>(std::hint::black_box(val), |x| Some(x * 2)))
 		});
 		group.finish();
 	}
@@ -132,7 +132,7 @@ pub fn bench_option(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				filter_map::<OptionBrand, _, _, _>(
+				filter_map::<OptionBrand, _, _, _, _>(
 					|x| if x % 2 == 0 { Some(x * 2) } else { None },
 					std::hint::black_box(val),
 				)
@@ -270,7 +270,7 @@ pub fn bench_option(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				lift2::<OptionBrand, _, _, _, _>(
+				lift2::<OptionBrand, _, _, _, _, _, _>(
 					|x, y| x + y,
 					std::hint::black_box(val),
 					std::hint::black_box(val2),
