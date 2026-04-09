@@ -42,7 +42,12 @@ pub fn m_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 					// Val mode, untyped
 					(false, None) => quote! { #pattern },
 				};
-				quote! { bind::<#brand, _, _, _>(#expr, move |#closure_param| { #result }) }
+				let container = if ref_mode {
+					quote! { &(#expr) }
+				} else {
+					quote! { #expr }
+				};
+				quote! { bind::<#brand, _, _, _, _>(#container, move |#closure_param| { #result }) }
 			}
 			DoStatement::Let {
 				pattern,
@@ -64,7 +69,12 @@ pub fn m_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 				} else {
 					quote! { _ }
 				};
-				quote! { bind::<#brand, _, _, _>(#expr, move |#discard| { #result }) }
+				let container = if ref_mode {
+					quote! { &(#expr) }
+				} else {
+					quote! { #expr }
+				};
+				quote! { bind::<#brand, _, _, _, _>(#container, move |#discard| { #result }) }
 			}
 		};
 	}

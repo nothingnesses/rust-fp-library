@@ -23,7 +23,7 @@ use {
 /// then desugars into the appropriate combinator:
 ///
 /// - 0 binds -> `pure::<Brand, _>(final_expr)`
-/// - 1 bind  -> `map::<Brand, _, _>(|pat| body, expr)`
+/// - 1 bind  -> `map::<Brand, _, _, _, _>(|pat| body, expr)`
 /// - N binds -> `liftN::<Brand, _, ...>(|pats...| body, exprs...)`
 pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 	let brand = &input.brand;
@@ -55,7 +55,11 @@ pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 					(false, None) => quote! { #pattern },
 				};
 				bind_params.push(param);
-				bind_exprs.push(expr);
+				if ref_mode {
+					bind_exprs.push(quote! { &(#expr) });
+				} else {
+					bind_exprs.push(expr);
+				}
 			}
 			DoStatement::Let {
 				pattern,
@@ -83,7 +87,11 @@ pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 					quote! { _ }
 				};
 				bind_params.push(discard);
-				bind_exprs.push(expr);
+				if ref_mode {
+					bind_exprs.push(quote! { &(#expr) });
+				} else {
+					bind_exprs.push(expr);
+				}
 			}
 		}
 	}
@@ -98,15 +106,17 @@ pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 				quote! { pure::<#brand, _>(#final_expr) }
 			},
 		([param], [expr]) => {
+			// map has type params: Brand, A, B, FA, Marker = 5 total, 4 underscores
 			quote! {
-				map::<#brand, _, _, _>(|#param| { #(#inner_lets)* #final_expr }, #expr)
+				map::<#brand, _, _, _, _>(|#param| { #(#inner_lets)* #final_expr }, #expr)
 			}
 		}
 		_ if n <= 5 => {
 			let fn_name = format_ident!("lift{}", n);
-			// All dispatched liftN functions have an extra Marker type parameter.
-			// Total type params: Brand + N value types + result type + Marker = n + 2.
-			let underscores: Vec<TokenStream> = (0 ..= n + 1).map(|_| quote! { _ }).collect();
+			// Dispatched liftN functions have type params:
+			// Brand + N value types + result type + N container types (FA, FB, ...) + Marker
+			// Total underscores: n + 1 + n + 1 = 2n + 2
+			let underscores: Vec<TokenStream> = (0 .. 2 * n + 2).map(|_| quote! { _ }).collect();
 			quote! {
 				#fn_name::<#brand, #(#underscores),*>(
 					|#(#bind_params),*| { #(#inner_lets)* #final_expr },
