@@ -1342,10 +1342,8 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let (errs, oks) = partition_map::<CatListBrand, _, _, _, _>(
-		/// 	|a| if a % 2 == 0 { Ok(a) } else { Err(a) },
-		/// 	list,
-		/// );
+		/// let (errs, oks) =
+		/// 	partition_map::<CatListBrand, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, list);
 		/// let oks_vec: Vec<_> = oks.into_iter().collect();
 		/// let errs_vec: Vec<_> = errs.into_iter().collect();
 		/// assert_eq!(oks_vec, vec![2, 4]);
@@ -3575,7 +3573,7 @@ mod inner {
 		/// let list = CatList::singleton(10).snoc(20).snoc(30).snoc(40).snoc(50);
 		/// let result: Vec<_> = ref_filter_map_with_index::<CatListBrand, _, _>(
 		/// 	|i, x: &i32| if i >= 2 { Some(*x) } else { None },
-		/// 	list,
+		/// 	&list,
 		/// )
 		/// .into_iter()
 		/// .collect();
@@ -3616,7 +3614,7 @@ mod inner {
 		/// let list = CatList::singleton(10).snoc(20).snoc(30);
 		/// let result: Option<CatList<String>> = ref_traverse_with_index::<CatListBrand, _, _, OptionBrand>(
 		/// 	|i, x: &i32| Some(format!("{}:{}", i, x)),
-		/// 	list,
+		/// 	&list,
 		/// );
 		/// let vec: Vec<_> = result.unwrap().into_iter().collect();
 		/// assert_eq!(vec, vec!["0:10".to_string(), "1:20".to_string(), "2:30".to_string()]);
@@ -3849,7 +3847,7 @@ mod inner {
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
 		/// let result = CatListBrand::par_ref_filter_map(
 		/// 	|x: &i32| if *x > 2 { Some(x.to_string()) } else { None },
-		/// 	list,
+		/// 	&list,
 		/// );
 		/// assert_eq!(result.into_iter().collect::<Vec<_>>(), vec!["3", "4"]);
 		/// ```
@@ -3957,7 +3955,7 @@ mod inner {
 		/// let list = CatList::singleton(10).snoc(20).snoc(30).snoc(40).snoc(50);
 		/// let result = CatListBrand::par_ref_filter_map_with_index(
 		/// 	|i, x: &i32| if i % 2 == 0 { Some(x.to_string()) } else { None },
-		/// 	list,
+		/// 	&list,
 		/// );
 		/// assert_eq!(result.into_iter().collect::<Vec<_>>(), vec!["10", "30", "50"]);
 		/// ```

@@ -46,14 +46,14 @@ mod inner {
 	///
 	/// // Left identity
 	/// let left = send_ref_bind::<LazyBrand<ArcLazyConfig>, _, _>(
-	/// 	send_ref_pure::<LazyBrand<ArcLazyConfig>, _>(&5),
+	/// 	&send_ref_pure::<LazyBrand<ArcLazyConfig>, _>(&5),
 	/// 	f,
 	/// );
 	/// assert_eq!(*left.evaluate(), *f(&5).evaluate());
 	///
 	/// // Right identity
 	/// let m = ArcLazy::new(|| 42);
-	/// let right = send_ref_bind::<LazyBrand<ArcLazyConfig>, _, _>(m.clone(), |x: &i32| {
+	/// let right = send_ref_bind::<LazyBrand<ArcLazyConfig>, _, _>(&m.clone(), |x: &i32| {
 	/// 	send_ref_pure::<LazyBrand<ArcLazyConfig>, _>(x)
 	/// });
 	/// assert_eq!(*right.evaluate(), *m.evaluate());
@@ -61,11 +61,11 @@ mod inner {
 	/// // Associativity
 	/// let m = ArcLazy::new(|| 3);
 	/// let lhs = send_ref_bind::<LazyBrand<ArcLazyConfig>, _, _>(
-	/// 	send_ref_bind::<LazyBrand<ArcLazyConfig>, _, _>(m.clone(), f),
+	/// 	&send_ref_bind::<LazyBrand<ArcLazyConfig>, _, _>(&m.clone(), f),
 	/// 	g,
 	/// );
-	/// let rhs = send_ref_bind::<LazyBrand<ArcLazyConfig>, _, _>(m, |x: &i32| {
-	/// 	send_ref_bind::<LazyBrand<ArcLazyConfig>, _, _>(f(x), g)
+	/// let rhs = send_ref_bind::<LazyBrand<ArcLazyConfig>, _, _>(&m, |x: &i32| {
+	/// 	send_ref_bind::<LazyBrand<ArcLazyConfig>, _, _>(&f(x), g)
 	/// });
 	/// assert_eq!(*lhs.evaluate(), *rhs.evaluate());
 	/// ```

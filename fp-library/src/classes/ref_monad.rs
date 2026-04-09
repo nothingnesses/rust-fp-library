@@ -16,7 +16,7 @@
 //!
 //! // Chain computations on memoized values by reference
 //! let lazy = ref_pure::<LazyBrand<RcLazyConfig>, _>(&5);
-//! let result = bind::<LazyBrand<RcLazyConfig>, _, _, _>(lazy, |x: &i32| {
+//! let result = bind::<LazyBrand<RcLazyConfig>, _, _, _, _>(&lazy, |x: &i32| {
 //! 	let v = *x * 2;
 //! 	ref_pure::<LazyBrand<RcLazyConfig>, _>(&v)
 //! });
@@ -75,24 +75,24 @@ mod inner {
 	///
 	/// // Left identity: bind(ref_pure(&a), f) = f(&a)
 	/// let left =
-	/// 	bind::<LazyBrand<RcLazyConfig>, _, _, _>(ref_pure::<LazyBrand<RcLazyConfig>, _>(&5), f);
+	/// 	bind::<LazyBrand<RcLazyConfig>, _, _, _, _>(&ref_pure::<LazyBrand<RcLazyConfig>, _>(&5), f);
 	/// assert_eq!(*left.evaluate(), *f(&5).evaluate());
 	///
 	/// // Right identity: bind(m, |x| ref_pure(x)) = m
 	/// let m = RcLazy::pure(42);
-	/// let right = bind::<LazyBrand<RcLazyConfig>, _, _, _>(m.clone(), |x: &i32| {
+	/// let right = bind::<LazyBrand<RcLazyConfig>, _, _, _, _>(&m, |x: &i32| {
 	/// 	ref_pure::<LazyBrand<RcLazyConfig>, _>(x)
 	/// });
 	/// assert_eq!(*right.evaluate(), *m.evaluate());
 	///
 	/// // Associativity: bind(bind(m, f), g) = bind(m, |x| bind(f(x), g))
 	/// let m = RcLazy::pure(3);
-	/// let lhs = bind::<LazyBrand<RcLazyConfig>, _, _, _>(
-	/// 	bind::<LazyBrand<RcLazyConfig>, _, _, _>(m.clone(), f),
+	/// let lhs = bind::<LazyBrand<RcLazyConfig>, _, _, _, _>(
+	/// 	&bind::<LazyBrand<RcLazyConfig>, _, _, _, _>(&m, f),
 	/// 	g,
 	/// );
-	/// let rhs = bind::<LazyBrand<RcLazyConfig>, _, _, _>(m, |x: &i32| {
-	/// 	bind::<LazyBrand<RcLazyConfig>, _, _, _>(f(x), g)
+	/// let rhs = bind::<LazyBrand<RcLazyConfig>, _, _, _, _>(&m, |x: &i32| {
+	/// 	bind::<LazyBrand<RcLazyConfig>, _, _, _, _>(&f(x), g)
 	/// });
 	/// assert_eq!(*lhs.evaluate(), *rhs.evaluate());
 	/// ```

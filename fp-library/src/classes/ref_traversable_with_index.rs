@@ -11,7 +11,7 @@
 //! let v = vec![10, 20, 30];
 //! let result: Option<Vec<String>> = ref_traverse_with_index::<VecBrand, _, _, OptionBrand>(
 //! 	|i, x: &i32| Some(format!("{}:{}", i, x)),
-//! 	v,
+//! 	&v,
 //! );
 //! assert_eq!(result, Some(vec!["0:10".to_string(), "1:20".to_string(), "2:30".to_string()]));
 //! ```
@@ -60,7 +60,7 @@ mod inner {
 		/// let v = vec![10, 20, 30];
 		/// let result: Option<Vec<String>> = ref_traverse_with_index::<VecBrand, _, _, OptionBrand>(
 		/// 	|i, x: &i32| Some(format!("{}:{}", i, x)),
-		/// 	v,
+		/// 	&v,
 		/// );
 		/// assert_eq!(result, Some(vec!["0:10".to_string(), "1:20".to_string(), "2:30".to_string()]));
 		/// ```
@@ -105,7 +105,7 @@ mod inner {
 	/// let v = vec![10, 20, 30];
 	/// let result: Option<Vec<String>> = ref_traverse_with_index::<VecBrand, _, _, OptionBrand>(
 	/// 	|i, x: &i32| Some(format!("{}:{}", i, x)),
-	/// 	v,
+	/// 	&v,
 	/// );
 	/// assert_eq!(result, Some(vec!["0:10".to_string(), "1:20".to_string(), "2:30".to_string()]));
 	/// ```

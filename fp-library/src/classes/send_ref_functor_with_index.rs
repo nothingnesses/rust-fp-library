@@ -14,7 +14,7 @@
 //! let lazy = ArcLazy::new(|| 42);
 //! let mapped = <LazyBrand<ArcLazyConfig> as SendRefFunctorWithIndex>::send_ref_map_with_index(
 //! 	|_, x: &i32| x.to_string(),
-//! 	lazy,
+//! 	&lazy,
 //! );
 //! assert_eq!(*mapped.evaluate(), "42");
 //! ```
@@ -58,7 +58,7 @@ mod inner {
 		/// let lazy = ArcLazy::new(|| 42);
 		/// let mapped = <LazyBrand<ArcLazyConfig> as SendRefFunctorWithIndex>::send_ref_map_with_index(
 		/// 	|_, x: &i32| x.to_string(),
-		/// 	lazy,
+		/// 	&lazy,
 		/// );
 		/// assert_eq!(*mapped.evaluate(), "42");
 		/// ```
@@ -93,8 +93,10 @@ mod inner {
 	/// };
 	///
 	/// let lazy = ArcLazy::new(|| 42);
-	/// let mapped =
-	/// 	send_ref_map_with_index::<LazyBrand<ArcLazyConfig>, _, _>(|_, x: &i32| x.to_string(), lazy);
+	/// let mapped = send_ref_map_with_index::<LazyBrand<ArcLazyConfig>, _, _>(
+	/// 	|_, x: &i32| x.to_string(),
+	/// 	&lazy,
+	/// );
 	/// assert_eq!(*mapped.evaluate(), "42");
 	/// ```
 	pub fn send_ref_map_with_index<

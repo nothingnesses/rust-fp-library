@@ -14,7 +14,7 @@
 //! };
 //!
 //! let lazy = ArcLazy::new(|| 5);
-//! let result = send_ref_bind::<LazyBrand<ArcLazyConfig>, _, _>(lazy, |x: &i32| {
+//! let result = send_ref_bind::<LazyBrand<ArcLazyConfig>, _, _>(&lazy, |x: &i32| {
 //! 	let v = *x * 2;
 //! 	ArcLazy::new(move || v)
 //! });
@@ -58,7 +58,7 @@ mod inner {
 		/// };
 		///
 		/// let lazy = ArcLazy::new(|| 5);
-		/// let result = LazyBrand::<ArcLazyConfig>::send_ref_bind(lazy, |x: &i32| {
+		/// let result = LazyBrand::<ArcLazyConfig>::send_ref_bind(&lazy, |x: &i32| {
 		/// 	let v = *x * 2;
 		/// 	ArcLazy::new(move || v)
 		/// });
@@ -98,7 +98,7 @@ mod inner {
 	/// };
 	///
 	/// let lazy = ArcLazy::new(|| 5);
-	/// let result = send_ref_bind::<LazyBrand<ArcLazyConfig>, _, _>(lazy, |x: &i32| {
+	/// let result = send_ref_bind::<LazyBrand<ArcLazyConfig>, _, _>(&lazy, |x: &i32| {
 	/// 	let v = *x * 2;
 	/// 	ArcLazy::new(move || v)
 	/// });

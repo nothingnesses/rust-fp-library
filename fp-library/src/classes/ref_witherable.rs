@@ -11,7 +11,7 @@
 //! let v = vec![1, 2, 3, 4, 5];
 //! let result: Option<Vec<i32>> = ref_wither::<VecBrand, RcFnBrand, OptionBrand, _, _>(
 //! 	|x: &i32| if *x > 3 { Some(Some(*x)) } else { Some(None) },
-//! 	v,
+//! 	&v,
 //! );
 //! assert_eq!(result, Some(vec![4, 5]));
 //! ```
@@ -68,7 +68,7 @@ mod inner {
 		/// let v = vec![1, 2, 3, 4, 5];
 		/// let result: Option<(Vec<i32>, Vec<i32>)> = ref_wilt::<VecBrand, RcFnBrand, OptionBrand, _, _, _>(
 		/// 	|x: &i32| Some(if *x > 3 { Ok(*x) } else { Err(*x) }),
-		/// 	v,
+		/// 	&v,
 		/// );
 		/// assert_eq!(result, Some((vec![1, 2, 3], vec![4, 5])));
 		/// ```
@@ -124,7 +124,7 @@ mod inner {
 		/// let v = vec![1, 2, 3, 4, 5];
 		/// let result: Option<Vec<i32>> = ref_wither::<VecBrand, RcFnBrand, OptionBrand, _, _>(
 		/// 	|x: &i32| if *x > 3 { Some(Some(*x)) } else { Some(None) },
-		/// 	v,
+		/// 	&v,
 		/// );
 		/// assert_eq!(result, Some(vec![4, 5]));
 		/// ```
@@ -178,7 +178,7 @@ mod inner {
 	/// let v = vec![1, 2, 3, 4, 5];
 	/// let result: Option<(Vec<i32>, Vec<i32>)> = ref_wilt::<VecBrand, RcFnBrand, OptionBrand, _, _, _>(
 	/// 	|x: &i32| Some(if *x > 3 { Ok(*x) } else { Err(*x) }),
-	/// 	v,
+	/// 	&v,
 	/// );
 	/// assert_eq!(result, Some((vec![1, 2, 3], vec![4, 5])));
 	/// ```
@@ -238,7 +238,7 @@ mod inner {
 	/// let v = vec![1, 2, 3, 4, 5];
 	/// let result: Option<Vec<i32>> = ref_wither::<VecBrand, RcFnBrand, OptionBrand, _, _>(
 	/// 	|x: &i32| if *x > 3 { Some(Some(*x)) } else { Some(None) },
-	/// 	v,
+	/// 	&v,
 	/// );
 	/// assert_eq!(result, Some(vec![4, 5]));
 	/// ```

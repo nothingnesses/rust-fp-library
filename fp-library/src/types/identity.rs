@@ -1115,7 +1115,7 @@ mod inner {
 		/// 	types::Identity,
 		/// };
 		///
-		/// let result = ref_map_with_index::<IdentityBrand, _, _>(|(), x: &i32| *x * 2, Identity(5));
+		/// let result = ref_map_with_index::<IdentityBrand, _, _>(|(), x: &i32| *x * 2, &Identity(5));
 		/// assert_eq!(result, Identity(10));
 		/// ```
 		fn ref_map_with_index<'a, A: 'a, B: 'a>(
@@ -1148,7 +1148,7 @@ mod inner {
 		///
 		/// let result: String = ref_fold_map_with_index::<RcFnBrand, IdentityBrand, _, _>(
 		/// 	|(), x: &i32| x.to_string(),
-		/// 	Identity(42),
+		/// 	&Identity(42),
 		/// );
 		/// assert_eq!(result, "42");
 		/// ```
@@ -1185,7 +1185,7 @@ mod inner {
 		/// let result: Option<Identity<String>> =
 		/// 	ref_traverse_with_index::<IdentityBrand, _, _, OptionBrand>(
 		/// 		|(), x: &i32| Some(x.to_string()),
-		/// 		Identity(42),
+		/// 		&Identity(42),
 		/// 	);
 		/// assert_eq!(result, Some(Identity("42".to_string())));
 		/// ```

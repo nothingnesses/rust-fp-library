@@ -103,7 +103,7 @@ mod inner {
 		/// 	foci: vec![1, 2],
 		/// 	rebuild: lift_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs.iter().sum()),
 		/// };
-		/// let mapped = map::<BazaarListBrand<RcFnBrand, i32, i32>, _, _, _>(|t: i32| t * 10, bl);
+		/// let mapped = map::<BazaarListBrand<RcFnBrand, i32, i32>, _, _, _, _>(|t: i32| t * 10, bl);
 		/// assert_eq!((mapped.rebuild)(vec![3, 4]), 70);
 		/// ```
 		fn map<'a, T: 'a, U: 'a>(
@@ -216,7 +216,7 @@ mod inner {
 		/// 	rebuild: lift_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
 		/// };
 		/// let combined =
-		/// 	lift2::<BazaarListBrand<RcFnBrand, i32, i32>, _, _, _, _>(|a, b| a + b, bl1, bl2);
+		/// 	lift2::<BazaarListBrand<RcFnBrand, i32, i32>, _, _, _, _, _, _>(|a, b| a + b, bl1, bl2);
 		/// assert_eq!(combined.foci, vec![1, 2]);
 		/// assert_eq!((combined.rebuild)(vec![10, 20]), 30);
 		/// ```

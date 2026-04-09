@@ -13,7 +13,7 @@
 //! let v = vec![10, 20, 30, 40, 50];
 //! let result = VecBrand::par_ref_filter_map_with_index(
 //! 	|i, x: &i32| if i % 2 == 0 { Some(x.to_string()) } else { None },
-//! 	v,
+//! 	&v,
 //! );
 //! assert_eq!(result, vec!["10", "30", "50"]);
 //! ```
@@ -54,7 +54,7 @@ mod inner {
 		/// let v = vec![10, 20, 30, 40, 50];
 		/// let result = VecBrand::par_ref_filter_map_with_index(
 		/// 	|i, x: &i32| if i % 2 == 0 { Some(x.to_string()) } else { None },
-		/// 	v,
+		/// 	&v,
 		/// );
 		/// assert_eq!(result, vec!["10", "30", "50"]);
 		/// ```
@@ -122,7 +122,7 @@ mod inner {
 	/// let v = vec![10, 20, 30, 40, 50];
 	/// let result = par_ref_filter_map_with_index::<VecBrand, _, _>(
 	/// 	|i, x: &i32| if i % 2 == 0 { Some(x.to_string()) } else { None },
-	/// 	v,
+	/// 	&v,
 	/// );
 	/// assert_eq!(result, vec!["10", "30", "50"]);
 	/// ```

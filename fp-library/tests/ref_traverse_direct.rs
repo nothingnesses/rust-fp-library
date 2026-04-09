@@ -5,7 +5,6 @@
 use fp_library::{
 	brands::*,
 	classes::*,
-	functions::*,
 	kinds::*,
 	types::*,
 };

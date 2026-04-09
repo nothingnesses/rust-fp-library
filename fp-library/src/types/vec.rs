@@ -1571,7 +1571,7 @@ mod inner {
 		///
 		/// let x = vec![1, 2, 3, 4];
 		/// let (errs, oks) =
-		/// 	partition_map::<VecBrand, _, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, x);
+		/// 	partition_map::<VecBrand, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, x);
 		/// assert_eq!(oks, vec![2, 4]);
 		/// assert_eq!(errs, vec![1, 3]);
 		/// ```
@@ -2378,7 +2378,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30];
-		/// let result = ref_map_with_index::<VecBrand, _, _>(|i, x: &i32| format!("{}:{}", i, x), v);
+		/// let result = ref_map_with_index::<VecBrand, _, _>(|i, x: &i32| format!("{}:{}", i, x), &v);
 		/// assert_eq!(result, vec!["0:10", "1:20", "2:30"]);
 		/// ```
 		fn ref_map_with_index<'a, A: 'a, B: 'a>(
@@ -2418,7 +2418,7 @@ mod inner {
 		/// let v = vec![10, 20, 30];
 		/// let result = ref_fold_map_with_index::<RcFnBrand, VecBrand, _, _>(
 		/// 	|i, x: &i32| format!("{}:{}", i, x),
-		/// 	v,
+		/// 	&v,
 		/// );
 		/// assert_eq!(result, "0:101:202:30");
 		/// ```
@@ -2459,7 +2459,7 @@ mod inner {
 		/// let v = vec![10, 20, 30, 40, 50];
 		/// let result = ref_filter_map_with_index::<VecBrand, _, _>(
 		/// 	|i, x: &i32| if i >= 2 { Some(*x) } else { None },
-		/// 	v,
+		/// 	&v,
 		/// );
 		/// assert_eq!(result, vec![30, 40, 50]);
 		/// ```
@@ -2497,7 +2497,7 @@ mod inner {
 		/// let v = vec![10, 20, 30];
 		/// let result: Option<Vec<String>> = ref_traverse_with_index::<VecBrand, _, _, OptionBrand>(
 		/// 	|i, x: &i32| Some(format!("{}:{}", i, x)),
-		/// 	v,
+		/// 	&v,
 		/// );
 		/// assert_eq!(result, Some(vec!["0:10".to_string(), "1:20".to_string(), "2:30".to_string()]));
 		/// ```
@@ -2629,7 +2629,7 @@ mod inner {
 		///
 		/// let f1: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x + 1);
 		/// let f2: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x * 2);
-		/// let result = ref_apply::<RcFnBrand, VecBrand, _, _>(vec![f1, f2], vec![10, 20]);
+		/// let result = ref_apply::<RcFnBrand, VecBrand, _, _>(&vec![f1, f2], &vec![10, 20]);
 		/// assert_eq!(result, vec![11, 21, 20, 40]);
 		/// ```
 		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(

@@ -18,7 +18,7 @@
 //! 	std::sync::Arc::new(|x: &i32| *x * 2) as std::sync::Arc<dyn Fn(&i32) -> i32 + Send + Sync>
 //! });
 //! let x = ArcLazy::new(|| 5);
-//! let result = send_ref_apply::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(f, x);
+//! let result = send_ref_apply::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(&f, &x);
 //! assert_eq!(*result.evaluate(), 10);
 //! ```
 
@@ -73,7 +73,7 @@ mod inner {
 		/// 	std::sync::Arc::new(|x: &i32| *x * 2) as std::sync::Arc<dyn Fn(&i32) -> i32 + Send + Sync>
 		/// });
 		/// let x = ArcLazy::new(|| 5);
-		/// let result = LazyBrand::<ArcLazyConfig>::send_ref_apply::<ArcFnBrand, _, _>(f, x);
+		/// let result = LazyBrand::<ArcLazyConfig>::send_ref_apply::<ArcFnBrand, _, _>(&f, &x);
 		/// assert_eq!(*result.evaluate(), 10);
 		/// ```
 		fn send_ref_apply<
@@ -119,7 +119,7 @@ mod inner {
 	/// 	std::sync::Arc::new(|x: &i32| *x * 2) as std::sync::Arc<dyn Fn(&i32) -> i32 + Send + Sync>
 	/// });
 	/// let x = ArcLazy::new(|| 5);
-	/// let result = send_ref_apply::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(f, x);
+	/// let result = send_ref_apply::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(&f, &x);
 	/// assert_eq!(*result.evaluate(), 10);
 	/// ```
 	pub fn send_ref_apply<

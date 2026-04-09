@@ -1229,7 +1229,7 @@ mod inner {
 		/// };
 		/// let result = fold_map::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
-		/// 	Pair((), 5),
+		/// 	&Pair((), 5),
 		/// );
 		/// assert_eq!(result, "5");
 		/// ```
@@ -1268,7 +1268,7 @@ mod inner {
 		/// let result: Option<Pair<(), String>> =
 		/// 	ref_traverse::<PairFirstAppliedBrand<()>, RcFnBrand, _, _, OptionBrand>(
 		/// 		|x: &i32| Some(x.to_string()),
-		/// 		Pair((), 42),
+		/// 		&Pair((), 42),
 		/// 	);
 		/// assert_eq!(result, Some(Pair((), "42".to_string())));
 		/// ```
@@ -1336,8 +1336,8 @@ mod inner {
 		///
 		/// let result = lift2::<PairFirstAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
-		/// 	Pair("a".to_string(), 1),
-		/// 	Pair("b".to_string(), 2),
+		/// 	&Pair("a".to_string(), 1),
+		/// 	&Pair("b".to_string(), 2),
 		/// );
 		/// assert_eq!(result, Pair("ab".to_string(), 3));
 		/// ```
@@ -1379,8 +1379,8 @@ mod inner {
 		///
 		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x * 2);
 		/// let result = ref_apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
-		/// 	Pair("a".to_string(), f),
-		/// 	Pair("b".to_string(), 5),
+		/// 	&Pair("a".to_string(), f),
+		/// 	&Pair("b".to_string(), 5),
 		/// );
 		/// assert_eq!(result, Pair("ab".to_string(), 10));
 		/// ```
@@ -1412,7 +1412,7 @@ mod inner {
 		/// };
 		///
 		/// let result: Pair<String, String> =
-		/// 	bind::<PairFirstAppliedBrand<String>, _, _, _, _>(Pair("a".to_string(), 42), |x: &i32| {
+		/// 	bind::<PairFirstAppliedBrand<String>, _, _, _, _>(&Pair("a".to_string(), 42), |x: &i32| {
 		/// 		Pair("b".to_string(), x.to_string())
 		/// 	});
 		/// assert_eq!(result, Pair("ab".to_string(), "42".to_string()));
@@ -1972,7 +1972,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		/// assert_eq!(
-		/// 	map::<PairSecondAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, Pair(5, 1)),
+		/// 	map::<PairSecondAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &Pair(5, 1)),
 		/// 	Pair(10, 1)
 		/// );
 		/// ```
@@ -2006,7 +2006,7 @@ mod inner {
 		/// };
 		/// let result = fold_map::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
-		/// 	Pair(5, ()),
+		/// 	&Pair(5, ()),
 		/// );
 		/// assert_eq!(result, "5");
 		/// ```
@@ -2045,7 +2045,7 @@ mod inner {
 		/// let result: Option<Pair<String, ()>> =
 		/// 	ref_traverse::<PairSecondAppliedBrand<()>, RcFnBrand, _, _, OptionBrand>(
 		/// 		|x: &i32| Some(x.to_string()),
-		/// 		Pair(42, ()),
+		/// 		&Pair(42, ()),
 		/// 	);
 		/// assert_eq!(result, Some(Pair("42".to_string(), ())));
 		/// ```
@@ -2113,8 +2113,8 @@ mod inner {
 		///
 		/// let result = lift2::<PairSecondAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
-		/// 	Pair(1, "a".to_string()),
-		/// 	Pair(2, "b".to_string()),
+		/// 	&Pair(1, "a".to_string()),
+		/// 	&Pair(2, "b".to_string()),
 		/// );
 		/// assert_eq!(result, Pair(3, "ab".to_string()));
 		/// ```
@@ -2156,8 +2156,8 @@ mod inner {
 		///
 		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x * 2);
 		/// let result = ref_apply::<RcFnBrand, PairSecondAppliedBrand<String>, _, _>(
-		/// 	Pair(f, "a".to_string()),
-		/// 	Pair(5, "b".to_string()),
+		/// 	&Pair(f, "a".to_string()),
+		/// 	&Pair(5, "b".to_string()),
 		/// );
 		/// assert_eq!(result, Pair(10, "ab".to_string()));
 		/// ```
@@ -2188,10 +2188,10 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result: Pair<String, String> =
-		/// 	bind::<PairSecondAppliedBrand<String>, _, _, _, _>(Pair(42, "a".to_string()), |x: &i32| {
-		/// 		Pair(x.to_string(), "b".to_string())
-		/// 	});
+		/// let result: Pair<String, String> = bind::<PairSecondAppliedBrand<String>, _, _, _, _>(
+		/// 	&Pair(42, "a".to_string()),
+		/// 	|x: &i32| Pair(x.to_string(), "b".to_string()),
+		/// );
 		/// assert_eq!(result, Pair("42".to_string(), "ab".to_string()));
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(

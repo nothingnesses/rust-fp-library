@@ -16,7 +16,7 @@
 //!
 //! let f = RcLazy::pure(std::rc::Rc::new(|x: &i32| *x * 2) as std::rc::Rc<dyn Fn(&i32) -> i32>);
 //! let x = RcLazy::pure(5);
-//! let result = ref_apply::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(f, x);
+//! let result = ref_apply::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(&f, &x);
 //! assert_eq!(*result.evaluate(), 10);
 //! ```
 
@@ -70,7 +70,7 @@ mod inner {
 		///
 		/// let f = RcLazy::pure(std::rc::Rc::new(|x: &i32| *x * 2) as std::rc::Rc<dyn Fn(&i32) -> i32>);
 		/// let x = RcLazy::pure(5);
-		/// let result = LazyBrand::<RcLazyConfig>::ref_apply::<RcFnBrand, _, _>(f, x);
+		/// let result = LazyBrand::<RcLazyConfig>::ref_apply::<RcFnBrand, _, _>(&f, &x);
 		/// assert_eq!(*result.evaluate(), 10);
 		/// ```
 		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
@@ -112,7 +112,7 @@ mod inner {
 	///
 	/// let f = RcLazy::pure(std::rc::Rc::new(|x: &i32| *x * 2) as std::rc::Rc<dyn Fn(&i32) -> i32>);
 	/// let x = RcLazy::pure(5);
-	/// let result = ref_apply::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(f, x);
+	/// let result = ref_apply::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(&f, &x);
 	/// assert_eq!(*result.evaluate(), 10);
 	/// ```
 	pub fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, Brand: RefSemiapplicative, A: 'a, B: 'a>(

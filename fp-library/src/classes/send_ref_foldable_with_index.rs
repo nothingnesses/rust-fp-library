@@ -21,7 +21,7 @@
 //! 		ArcFnBrand,
 //! 		_,
 //! 		_,
-//! 	>(|_, x: &i32| x.to_string(), lazy);
+//! 	>(|_, x: &i32| x.to_string(), &lazy);
 //! assert_eq!(result, "42");
 //! ```
 
@@ -79,7 +79,7 @@ mod inner {
 		/// 		ArcFnBrand,
 		/// 		_,
 		/// 		_,
-		/// 	>(|_, x: &i32| x.to_string(), lazy);
+		/// 	>(|_, x: &i32| x.to_string(), &lazy);
 		/// assert_eq!(result, "42");
 		/// ```
 		fn send_ref_fold_map_with_index<
@@ -130,7 +130,7 @@ mod inner {
 		/// 		ArcFnBrand,
 		/// 		_,
 		/// 		_,
-		/// 	>(|_, x: &i32, acc: i32| acc + *x, 0, lazy);
+		/// 	>(|_, x: &i32, acc: i32| acc + *x, 0, &lazy);
 		/// assert_eq!(result, 10);
 		/// ```
 		fn send_ref_fold_right_with_index<
@@ -192,7 +192,7 @@ mod inner {
 		/// 		ArcFnBrand,
 		/// 		_,
 		/// 		_,
-		/// 	>(|acc: i32, _, x: &i32| acc + *x, 0, lazy);
+		/// 	>(|acc: i32, _, x: &i32| acc + *x, 0, &lazy);
 		/// assert_eq!(result, 10);
 		/// ```
 		fn send_ref_fold_left_with_index<
@@ -260,7 +260,7 @@ mod inner {
 	/// let lazy = ArcLazy::new(|| 42);
 	/// let result = send_ref_fold_map_with_index::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(
 	/// 	|_, x: &i32| x.to_string(),
-	/// 	lazy,
+	/// 	&lazy,
 	/// );
 	/// assert_eq!(result, "42");
 	/// ```

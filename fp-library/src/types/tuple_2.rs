@@ -998,8 +998,8 @@ mod inner {
 		///
 		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x * 2);
 		/// let result = ref_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
-		/// 	("a".to_string(), f),
-		/// 	("b".to_string(), 5),
+		/// 	&("a".to_string(), f),
+		/// 	&("b".to_string(), 5),
 		/// );
 		/// assert_eq!(result, ("ab".to_string(), 10));
 		/// ```
@@ -1751,8 +1751,8 @@ mod inner {
 		///
 		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x * 2);
 		/// let result = ref_apply::<RcFnBrand, Tuple2SecondAppliedBrand<String>, _, _>(
-		/// 	(f, "a".to_string()),
-		/// 	(5, "b".to_string()),
+		/// 	&(f, "a".to_string()),
+		/// 	&(5, "b".to_string()),
 		/// );
 		/// assert_eq!(result, (10, "ab".to_string()));
 		/// ```

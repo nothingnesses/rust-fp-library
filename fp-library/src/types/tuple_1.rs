@@ -592,7 +592,7 @@ mod inner {
 		/// };
 		///
 		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x + 1);
-		/// let result = ref_apply::<RcFnBrand, Tuple1Brand, _, _>((f,), (5,));
+		/// let result = ref_apply::<RcFnBrand, Tuple1Brand, _, _>(&(f,), &(5,));
 		/// assert_eq!(result, (6,));
 		/// ```
 		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(

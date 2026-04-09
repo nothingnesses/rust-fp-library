@@ -716,7 +716,7 @@ mod inner {
 		///
 		/// let x = Some(5);
 		/// let (errs, oks) =
-		/// 	partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+		/// 	partition_map::<OptionBrand, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
 		/// assert_eq!(oks, Some(5));
 		/// assert_eq!(errs, None);
 		/// ```
@@ -1154,7 +1154,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// assert_eq!(ref_map_with_index::<OptionBrand, _, _>(|(), x: &i32| *x * 2, Some(5)), Some(10));
+		/// assert_eq!(ref_map_with_index::<OptionBrand, _, _>(|(), x: &i32| *x * 2, &Some(5)), Some(10));
 		/// ```
 		fn ref_map_with_index<'a, A: 'a, B: 'a>(
 			func: impl Fn((), &A) -> B + 'a,
@@ -1184,7 +1184,7 @@ mod inner {
 		/// };
 		/// let result = ref_fold_map_with_index::<RcFnBrand, OptionBrand, _, _>(
 		/// 	|(), x: &i32| x.to_string(),
-		/// 	Some(5),
+		/// 	&Some(5),
 		/// );
 		/// assert_eq!(result, "5");
 		/// ```
@@ -1221,7 +1221,7 @@ mod inner {
 		/// };
 		/// let result: Vec<Option<String>> = ref_traverse_with_index::<OptionBrand, _, _, VecBrand>(
 		/// 	|(), x: &i32| vec![x.to_string()],
-		/// 	Some(5),
+		/// 	&Some(5),
 		/// );
 		/// assert_eq!(result, vec![Some("5".to_string())]);
 		/// ```

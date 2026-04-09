@@ -18,7 +18,7 @@
 //!
 //! // ref_apply applies a wrapped by-ref function
 //! let f = RcLazy::pure(std::rc::Rc::new(|x: &i32| *x + 1) as std::rc::Rc<dyn Fn(&i32) -> i32>);
-//! let result = ref_apply::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(f, x);
+//! let result = ref_apply::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(&f, &x);
 //! assert_eq!(*result.evaluate(), 43);
 //! ```
 

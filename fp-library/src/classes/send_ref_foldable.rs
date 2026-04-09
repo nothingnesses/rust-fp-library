@@ -14,7 +14,7 @@
 //! let lazy = ArcLazy::new(|| 10);
 //! let result = send_ref_fold_map::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(
 //! 	|a: &i32| a.to_string(),
-//! 	lazy,
+//! 	&lazy,
 //! );
 //! assert_eq!(result, "10");
 //! ```
@@ -76,7 +76,7 @@ mod inner {
 		/// let lazy = ArcLazy::new(|| 5);
 		/// let result = send_ref_fold_map::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(
 		/// 	|a: &i32| a.to_string(),
-		/// 	lazy,
+		/// 	&lazy,
 		/// );
 		/// assert_eq!(result, "5");
 		/// ```
@@ -122,7 +122,7 @@ mod inner {
 		/// 	ArcFnBrand,
 		/// 	_,
 		/// 	_,
-		/// >(|a: &i32, acc: i32| acc + *a, 0, lazy);
+		/// >(|a: &i32, acc: i32| acc + *a, 0, &lazy);
 		/// assert_eq!(result, 10);
 		/// ```
 		fn send_ref_fold_right<'a, FnBrand, A: Send + Sync + 'a + Clone, B: Send + Sync + 'a>(
@@ -175,7 +175,7 @@ mod inner {
 		/// 	ArcFnBrand,
 		/// 	_,
 		/// 	_,
-		/// >(|acc: i32, a: &i32| acc + *a, 0, lazy);
+		/// >(|acc: i32, a: &i32| acc + *a, 0, &lazy);
 		/// assert_eq!(result, 10);
 		/// ```
 		fn send_ref_fold_left<'a, FnBrand, A: Send + Sync + 'a + Clone, B: Send + Sync + 'a>(
@@ -231,7 +231,7 @@ mod inner {
 	/// let lazy = ArcLazy::new(|| 5);
 	/// let result = send_ref_fold_map::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(
 	/// 	|a: &i32| a.to_string(),
-	/// 	lazy,
+	/// 	&lazy,
 	/// );
 	/// assert_eq!(result, "5");
 	/// ```
