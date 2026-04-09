@@ -2336,7 +2336,20 @@ mod inner {
 			FnBrand: LiftFn + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
-			Self::traverse::<A, B, F>(move |a: A| func(&a), ta.clone())
+			let len = ta.len();
+			ta.iter().fold(
+				F::pure::<Vec<B>>(Vec::with_capacity(len)),
+				|acc: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Vec<B>>), a| {
+					F::lift2(
+						|mut v: Vec<B>, b: B| {
+							v.push(b);
+							v
+						},
+						acc,
+						func(a),
+					)
+				},
+			)
 		}
 	}
 
@@ -2495,7 +2508,20 @@ mod inner {
 		where
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
-			Self::traverse_with_index::<A, B, M>(move |i, a: A| f(i, &a), ta.clone())
+			let len = ta.len();
+			ta.iter().enumerate().fold(
+				M::pure::<Vec<B>>(Vec::with_capacity(len)),
+				|acc: Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Vec<B>>), (i, a)| {
+					M::lift2(
+						|mut v: Vec<B>, b: B| {
+							v.push(b);
+							v
+						},
+						acc,
+						f(i, a),
+					)
+				},
+			)
 		}
 	}
 

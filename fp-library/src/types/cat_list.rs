@@ -3446,7 +3446,12 @@ mod inner {
 			FnBrand: LiftFn + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
-			Self::traverse::<A, B, F>(move |a: A| func(&a), ta.clone())
+			ta.iter().fold(
+				F::pure::<CatList<B>>(CatList::empty()),
+				|acc: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, CatList<B>>), a| {
+					F::lift2(|list: CatList<B>, b: B| list.snoc(b), acc, func(a))
+				},
+			)
 		}
 	}
 
@@ -3615,7 +3620,11 @@ mod inner {
 		where
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
-			Self::traverse_with_index::<A, B, M>(move |i, a: A| f(i, &a), ta.clone())
+			ta.iter().enumerate().fold(
+				M::pure::<CatList<B>>(CatList::empty()),
+				|acc: Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, CatList<B>>),
+				 (i, a)| { M::lift2(|list: CatList<B>, b: B| list.snoc(b), acc, f(i, a)) },
+			)
 		}
 	}
 

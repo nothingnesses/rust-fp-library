@@ -991,7 +991,7 @@ mod inner {
 			FnBrand: LiftFn + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
-			Self::traverse::<A, B, F>(move |a: A| func(&a), ta.clone())
+			F::map(Identity, func(&ta.0))
 		}
 	}
 
@@ -1196,7 +1196,7 @@ mod inner {
 		where
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
-			Self::traverse_with_index::<A, B, M>(move |(), a: A| f((), &a), ta.clone())
+			M::map(Identity, f((), &ta.0))
 		}
 	}
 
