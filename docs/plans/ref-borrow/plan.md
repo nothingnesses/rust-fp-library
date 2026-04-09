@@ -5,6 +5,105 @@ from consuming containers (`fa: Self::Of<'a, A>`) to borrowing them
 (`fa: &Self::Of<'a, A>`). This is a full borrow change across the entire
 public API, not just the trait methods.
 
+## Status
+
+Steps 1 and 6 are complete (all trait definitions, implementations, dispatch
+adapters, and SendRef/ParRef trait definitions). The library compiles cleanly.
+Steps 3 (dispatch two-impl pattern), 4 (macros), and 7 (tests/docs) remain.
+
+| Step                               | Status      | Notes                                                                                                                        |
+| ---------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Step 1.1-1.13 (Ref traits + impls) | Done        | 46 files changed. Library compiles.                                                                                          |
+| Step 2 (verify Ref hierarchy)      | Partial     | `cargo check --lib` passes. Inline tests and doc examples still fail (59 errors).                                            |
+| Step 3 (dispatch two-impl pattern) | Not started | Dispatch currently uses the adapter approach (takes by-value, borrows internally). Two-impl `FA` parameter redesign is next. |
+| Step 4 (macros)                    | Not started | Depends on Step 3.                                                                                                           |
+| Step 5 (verify dispatch + macros)  | Not started |                                                                                                                              |
+| Step 6 (SendRef + ParRef)          | Done        | Done in parallel with Step 1, not sequentially as originally planned.                                                        |
+| Step 7 (tests + docs)              | Not started | 59 remaining errors in inline tests and doc examples.                                                                        |
+
+## Deviations from Plan
+
+### Steps 1 and 6 were done together, not sequentially
+
+The plan called for Steps 1-2 (Ref traits), then verify, then Step 6
+(SendRef + ParRef). In practice, the SendRef and ParRef trait definitions and
+implementations were changed in parallel with the Ref traits using 8 agents
+(6 in the first wave, 2 more for SendRef/ParRef trait definitions). This was
+more efficient because the agents didn't touch overlapping files.
+
+### `ref_if_m` and `ref_unless_m` require eager cloning
+
+The plan didn't anticipate a lifetime issue with these free functions. When
+`then_branch` and `else_branch` change from owned to `&Of<A>`, capturing the
+borrows in a `move` closure for `ref_bind` causes E0621 (lifetime too short).
+The fix is to clone the branches eagerly before the closure:
+
+```rust
+let then_branch = then_branch.clone();
+let else_branch = else_branch.clone();
+Brand::ref_bind(cond, move |c: &bool| {
+    if *c { then_branch.clone() } else { else_branch.clone() }
+})
+```
+
+This adds one extra clone per call compared to the previous design (which
+moved the branches into the closure without cloning). The `Of<A>: Clone`
+bound was already required, so no new bounds are needed.
+
+### Bifunctorial `Clone` bounds go on the `impl` block, not the method
+
+The plan said to add `E: Clone` / `First: Clone` to the method's `where`
+clause. Rust does not allow impl methods to have stricter bounds than the
+trait definition (E0276). The fix is to add `Clone` to the impl block's
+generic bounds:
+
+```rust
+// Before: impl<E: 'static> RefFunctor for ResultErrAppliedBrand<E>
+// After:  impl<E: Clone + 'static> RefFunctor for ResultErrAppliedBrand<E>
+```
+
+This means `ResultErrAppliedBrand<E>` only implements `RefFunctor` when
+`E: Clone`. This is a narrowing of the impl scope, but it's the correct
+trade-off: producing `Err(e)` from `&Err(e)` inherently requires cloning.
+
+### RefTraversable uses `ta.clone()` delegation (Approach B)
+
+The plan recommended Approach A (rewrite to iterate by reference) for Vec,
+CatList, Option, etc. In practice, all RefTraversable impls use Approach B
+(`Self::traverse(move |a: A| func(&a), ta.clone())`) for now. This is
+correct and compiles, but clones the entire container unnecessarily. A
+follow-up optimization can replace this with direct by-reference iteration.
+
+### Dispatch adapter approach (temporary, not two-impl)
+
+The dispatch Ref impls currently use the adapter approach: they take `fa` by
+value and pass `&fa` to the trait method. The two-impl `FA` type parameter
+redesign (Step 3) has not been done yet. The current adapter approach works
+correctly but means dispatch users still consume the container, while direct
+trait method users borrow. Step 3 will unify this.
+
+## Next Steps
+
+### Step 3: Dispatch two-impl pattern
+
+Add `FA` type parameter to each dispatch trait. Create two impls per trait:
+Val (owned) and Ref (borrowed). Remove the current Ref+owned adapter impls.
+Prototype on `FunctorDispatch` first, then replicate.
+
+This is the most architecturally novel remaining change. See the "Phase 5"
+section below for the full design.
+
+### Step 4: Macros
+
+Update `m_do!` and `a_do!` codegen to generate `&(expr)` in ref mode and
+update turbofish underscore counts.
+
+### Step 7: Tests and docs
+
+Fix all 59 remaining compilation errors in inline tests and doc examples by
+adding `&` to container arguments. Add compile-fail tests for
+`map(|x: &i32| ..., vec)` rejection. Update documentation prose.
+
 ## Motivation
 
 The Ref hierarchy's closures receive `&A` (element references), so the
