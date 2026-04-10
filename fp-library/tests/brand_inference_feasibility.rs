@@ -8,7 +8,6 @@ use fp_library::{
 	brands::*,
 	classes::{
 		Pointed,
-		RefPointed,
 		dispatch::{
 			functor::FunctorDispatch,
 			semimonad::BindDispatch,
@@ -167,6 +166,7 @@ where
 
 // -- Inference-based pure function (no brand turbofish) --
 
+#[allow(unused)]
 fn pure_infer<Brand: Pointed, A>(a: A) -> <Brand as Kind_cdc7cd43dac7585f>::Of<'static, A>
 where
 	A: 'static, {
