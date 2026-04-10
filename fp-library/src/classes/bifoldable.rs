@@ -9,9 +9,8 @@
 //! };
 //!
 //! let x: Result<i32, i32> = Ok(5);
-//! let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(
-//! 	|e: i32| e.to_string(),
-//! 	|s: i32| s.to_string(),
+//! let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+//! 	(|e: i32| e.to_string(), |s: i32| s.to_string()),
 //! 	x,
 //! );
 //! assert_eq!(y, "5".to_string());
@@ -71,10 +70,9 @@ mod inner {
 	///
 	/// // bi_fold_map/bi_fold_right consistency (Ok case):
 	/// assert_eq!(
-	/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(f, g, ok.clone()),
-	/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
-	/// 		|a: String, c: String| append(f(a), c),
-	/// 		|b: i32, c: String| append(g(b), c),
+	/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>((f, g), ok.clone()),
+	/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// 		(|a: String, c: String| append(f(a), c), |b: i32, c: String| append(g(b), c)),
 	/// 		empty::<String>(),
 	/// 		ok,
 	/// 	),
@@ -82,10 +80,9 @@ mod inner {
 	///
 	/// // bi_fold_map/bi_fold_right consistency (Err case):
 	/// assert_eq!(
-	/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(f, g, err.clone()),
-	/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
-	/// 		|a: String, c: String| append(f(a), c),
-	/// 		|b: i32, c: String| append(g(b), c),
+	/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>((f, g), err.clone()),
+	/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// 		(|a: String, c: String| append(f(a), c), |b: i32, c: String| append(g(b), c)),
 	/// 		empty::<String>(),
 	/// 		err,
 	/// 	),
@@ -124,8 +121,11 @@ mod inner {
 		/// };
 		///
 		/// let x: Result<i32, i32> = Err(3);
-		/// let y =
-		/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(|e, acc| acc - e, |s, acc| acc + s, 10, x);
+		/// let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	(|e, acc| acc - e, |s, acc| acc + s),
+		/// 	10,
+		/// 	x,
+		/// );
 		/// assert_eq!(y, 7);
 		/// ```
 		fn bi_fold_right<'a, FnBrand: LiftFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
@@ -185,8 +185,11 @@ mod inner {
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y =
-		/// 	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _>(|acc, e| acc - e, |acc, s| acc + s, 10, x);
+		/// let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	(|acc, e| acc - e, |acc, s| acc + s),
+		/// 	10,
+		/// 	x,
+		/// );
 		/// assert_eq!(y, 15);
 		/// ```
 		fn bi_fold_left<'a, FnBrand: LiftFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
@@ -251,9 +254,8 @@ mod inner {
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 	|e: i32| e.to_string(),
-		/// 	|s: i32| s.to_string(),
+		/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 	x,
 		/// );
 		/// assert_eq!(y, "5".to_string());
@@ -305,8 +307,11 @@ mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Err(3);
-	/// let y =
-	/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(|e, acc| acc - e, |s, acc| acc + s, 10, x);
+	/// let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// 	(|e, acc| acc - e, |s, acc| acc + s),
+	/// 	10,
+	/// 	x,
+	/// );
 	/// assert_eq!(y, 7);
 	/// ```
 	pub fn bi_fold_right<
@@ -356,8 +361,11 @@ mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y =
-	/// 	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _>(|acc, e| acc - e, |acc, s| acc + s, 10, x);
+	/// let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// 	(|acc, e| acc - e, |acc, s| acc + s),
+	/// 	10,
+	/// 	x,
+	/// );
 	/// assert_eq!(y, 15);
 	/// ```
 	pub fn bi_fold_left<
@@ -406,9 +414,8 @@ mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(
-	/// 	|e: i32| e.to_string(),
-	/// 	|s: i32| s.to_string(),
+	/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// 	(|e: i32| e.to_string(), |s: i32| s.to_string()),
 	/// 	x,
 	/// );
 	/// assert_eq!(y, "5".to_string());

@@ -9,7 +9,7 @@
 //! };
 //!
 //! let x = Result::<i32, i32>::Ok(5);
-//! let y = ref_bimap::<ResultBrand, _, _, _, _>(|e| *e + 1, |s| *s * 2, &x);
+//! let y = bimap::<ResultBrand, _, _, _, _, _, _>((|e: &i32| *e + 1, |s: &i32| *s * 2), &x);
 //! assert_eq!(y, Ok(10));
 //! ```
 
@@ -57,21 +57,20 @@ mod inner {
 	/// let err: Result<i32, i32> = Err(3);
 	///
 	/// // Identity: ref_bimap(Clone::clone, Clone::clone, &p) == p.clone()
-	/// assert_eq!(ref_bimap::<ResultBrand, _, _, _, _>(|x: &i32| *x, |x: &i32| *x, &ok), ok,);
-	/// assert_eq!(ref_bimap::<ResultBrand, _, _, _, _>(|x: &i32| *x, |x: &i32| *x, &err), err,);
+	/// assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>((|x: &i32| *x, |x: &i32| *x), &ok), ok,);
+	/// assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>((|x: &i32| *x, |x: &i32| *x), &err), err,);
 	///
-	/// // Composition: ref_bimap(compose(f1, f2), compose(g1, g2), &p)
-	/// //            = ref_bimap(f2, g2, &ref_bimap(f1, g1, &p))
+	/// // Composition: bimap((compose(f1, f2), compose(g1, g2)), &p)
+	/// //            = bimap((f2, g2), &bimap((f1, g1), &p))
 	/// let f1 = |x: &i32| *x + 1;
 	/// let f2 = |x: &i32| *x * 2;
 	/// let g1 = |x: &i32| *x + 10;
 	/// let g2 = |x: &i32| *x * 3;
 	/// assert_eq!(
-	/// 	ref_bimap::<ResultBrand, _, _, _, _>(|x: &i32| f2(&f1(x)), |x: &i32| g2(&g1(x)), &ok),
-	/// 	ref_bimap::<ResultBrand, _, _, _, _>(
-	/// 		f2,
-	/// 		g2,
-	/// 		&ref_bimap::<ResultBrand, _, _, _, _>(f1, g1, &ok),
+	/// 	bimap::<ResultBrand, _, _, _, _, _, _>((|x: &i32| f2(&f1(x)), |x: &i32| g2(&g1(x))), &ok),
+	/// 	bimap::<ResultBrand, _, _, _, _, _, _>(
+	/// 		(f2, g2),
+	/// 		&bimap::<ResultBrand, _, _, _, _, _, _>((f1, g1), &ok),
 	/// 	),
 	/// );
 	/// ```
@@ -151,7 +150,7 @@ mod inner {
 	/// };
 	///
 	/// let x = Result::<i32, i32>::Ok(5);
-	/// let y = ref_bimap::<ResultBrand, _, _, _, _>(|e| *e + 1, |s| *s * 2, &x);
+	/// let y = bimap::<ResultBrand, _, _, _, _, _, _>((|e: &i32| *e + 1, |s: &i32| *s * 2), &x);
 	/// assert_eq!(y, Ok(10));
 	/// ```
 	pub fn ref_bimap<'a, Brand: RefBifunctor, A: 'a, B: 'a, C: 'a, D: 'a>(
@@ -253,7 +252,7 @@ mod tests {
 		quickcheck_macros::quickcheck,
 	};
 
-	/// RefBifunctor identity law: ref_bimap(Clone::clone, Clone::clone, &p) == p.
+	/// RefBifunctor identity law: bimap((Clone::clone, Clone::clone), &p) == p.
 	#[quickcheck]
 	fn prop_ref_bifunctor_identity(
 		a: i32,
@@ -261,8 +260,8 @@ mod tests {
 	) -> bool {
 		let ok: Result<i32, i32> = Ok(c);
 		let err: Result<i32, i32> = Err(a);
-		ref_bimap::<ResultBrand, _, _, _, _>(|x: &i32| *x, |x: &i32| *x, &ok) == ok
-			&& ref_bimap::<ResultBrand, _, _, _, _>(|x: &i32| *x, |x: &i32| *x, &err) == err
+		bimap::<ResultBrand, _, _, _, _, _, _>((|x: &i32| *x, |x: &i32| *x), &ok) == ok
+			&& bimap::<ResultBrand, _, _, _, _, _, _>((|x: &i32| *x, |x: &i32| *x), &err) == err
 	}
 
 	/// RefBifunctor composition law.
@@ -279,20 +278,22 @@ mod tests {
 		let ok: Result<i32, i32> = Ok(c);
 		let err: Result<i32, i32> = Err(a);
 
-		let composed_ok =
-			ref_bimap::<ResultBrand, _, _, _, _>(|x: &i32| f2(&f1(x)), |x: &i32| g2(&g1(x)), &ok);
-		let sequential_ok = ref_bimap::<ResultBrand, _, _, _, _>(
-			f2,
-			g2,
-			&ref_bimap::<ResultBrand, _, _, _, _>(f1, g1, &ok),
+		let composed_ok = bimap::<ResultBrand, _, _, _, _, _, _>(
+			(|x: &i32| f2(&f1(x)), |x: &i32| g2(&g1(x))),
+			&ok,
+		);
+		let sequential_ok = bimap::<ResultBrand, _, _, _, _, _, _>(
+			(f2, g2),
+			&bimap::<ResultBrand, _, _, _, _, _, _>((f1, g1), &ok),
 		);
 
-		let composed_err =
-			ref_bimap::<ResultBrand, _, _, _, _>(|x: &i32| f2(&f1(x)), |x: &i32| g2(&g1(x)), &err);
-		let sequential_err = ref_bimap::<ResultBrand, _, _, _, _>(
-			f2,
-			g2,
-			&ref_bimap::<ResultBrand, _, _, _, _>(f1, g1, &err),
+		let composed_err = bimap::<ResultBrand, _, _, _, _, _, _>(
+			(|x: &i32| f2(&f1(x)), |x: &i32| g2(&g1(x))),
+			&err,
+		);
+		let sequential_err = bimap::<ResultBrand, _, _, _, _, _, _>(
+			(f2, g2),
+			&bimap::<ResultBrand, _, _, _, _, _, _>((f1, g1), &err),
 		);
 
 		composed_ok == sequential_ok && composed_err == sequential_err

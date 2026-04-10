@@ -16,9 +16,8 @@
 //! };
 //!
 //! let x: Result<i32, i32> = Ok(5);
-//! let y = ref_bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(
-//! 	|e: &i32| e.to_string(),
-//! 	|s: &i32| s.to_string(),
+//! let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+//! 	(|e: &i32| e.to_string(), |s: &i32| s.to_string()),
 //! 	&x,
 //! );
 //! assert_eq!(y, "5".to_string());
@@ -79,23 +78,21 @@ mod inner {
 	/// let f = |e: &String| format!("err:{e}");
 	/// let g = |a: &i32| a.to_string();
 	///
-	/// // ref_bi_fold_map/ref_bi_fold_right consistency (Ok case):
+	/// // bi_fold_map/bi_fold_right consistency with ref closures (Ok case):
 	/// assert_eq!(
-	/// 	ref_bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(f, g, &ok),
-	/// 	ref_bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
-	/// 		|a: &String, c: String| append(f(a), c),
-	/// 		|b: &i32, c: String| append(g(b), c),
+	/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>((f, g), &ok),
+	/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// 		(|a: &String, c: String| append(f(a), c), |b: &i32, c: String| append(g(b), c)),
 	/// 		empty::<String>(),
 	/// 		&ok,
 	/// 	),
 	/// );
 	///
-	/// // ref_bi_fold_map/ref_bi_fold_right consistency (Err case):
+	/// // bi_fold_map/bi_fold_right consistency with ref closures (Err case):
 	/// assert_eq!(
-	/// 	ref_bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(f, g, &err),
-	/// 	ref_bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
-	/// 		|a: &String, c: String| append(f(a), c),
-	/// 		|b: &i32, c: String| append(g(b), c),
+	/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>((f, g), &err),
+	/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// 		(|a: &String, c: String| append(f(a), c), |b: &i32, c: String| append(g(b), c)),
 	/// 		empty::<String>(),
 	/// 		&err,
 	/// 	),
@@ -135,9 +132,8 @@ mod inner {
 		/// };
 		///
 		/// let x: Result<i32, i32> = Err(3);
-		/// let y = ref_bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 	|e: &i32, acc| acc - *e,
-		/// 	|s: &i32, acc| acc + *s,
+		/// let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	(|e: &i32, acc| acc - *e, |s: &i32, acc| acc + *s),
 		/// 	10,
 		/// 	&x,
 		/// );
@@ -203,9 +199,8 @@ mod inner {
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = ref_bi_fold_left::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 	|acc, e: &i32| acc - *e,
-		/// 	|acc, s: &i32| acc + *s,
+		/// let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	(|acc, e: &i32| acc - *e, |acc, s: &i32| acc + *s),
 		/// 	10,
 		/// 	&x,
 		/// );
@@ -275,9 +270,8 @@ mod inner {
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = ref_bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 	|e: &i32| e.to_string(),
-		/// 	|s: &i32| s.to_string(),
+		/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	(|e: &i32| e.to_string(), |s: &i32| s.to_string()),
 		/// 	&x,
 		/// );
 		/// assert_eq!(y, "5".to_string());
@@ -329,9 +323,8 @@ mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Err(3);
-	/// let y = ref_bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
-	/// 	|e: &i32, acc| acc - *e,
-	/// 	|s: &i32, acc| acc + *s,
+	/// let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// 	(|e: &i32, acc| acc - *e, |s: &i32, acc| acc + *s),
 	/// 	10,
 	/// 	&x,
 	/// );
@@ -384,9 +377,8 @@ mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = ref_bi_fold_left::<RcFnBrand, ResultBrand, _, _, _>(
-	/// 	|acc, e: &i32| acc - *e,
-	/// 	|acc, s: &i32| acc + *s,
+	/// let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// 	(|acc, e: &i32| acc - *e, |acc, s: &i32| acc + *s),
 	/// 	10,
 	/// 	&x,
 	/// );
@@ -438,9 +430,8 @@ mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = ref_bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(
-	/// 	|e: &i32| e.to_string(),
-	/// 	|s: &i32| s.to_string(),
+	/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// 	(|e: &i32| e.to_string(), |s: &i32| s.to_string()),
 	/// 	&x,
 	/// );
 	/// assert_eq!(y, "5".to_string());

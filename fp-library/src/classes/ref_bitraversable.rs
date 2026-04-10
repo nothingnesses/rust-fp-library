@@ -9,9 +9,8 @@
 //! };
 //!
 //! let x: Result<i32, i32> = Ok(5);
-//! let y = ref_bi_traverse::<ResultBrand, RcFnBrand, _, _, _, _, OptionBrand>(
-//! 	|e: &i32| Some(e + 1),
-//! 	|s: &i32| Some(s * 2),
+//! let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+//! 	(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
 //! 	&x,
 //! );
 //! assert_eq!(y, Some(Ok(10)));
@@ -59,30 +58,34 @@ mod inner {
 	/// let g = |a: &i32| if *a > 0 { Some(a * 2) } else { None };
 	///
 	/// // Traverse/sequence consistency (Ok case):
-	/// // ref_bi_traverse(f, g, x) = ref_bi_sequence(ref_bimap(f, g, x))
+	/// // bi_traverse((f, g), &x) = ref_bi_sequence(&bimap((f, g), &x))
 	/// let ok: Result<i32, String> = Ok(5);
 	/// assert_eq!(
-	/// 	ref_bi_traverse::<ResultBrand, RcFnBrand, _, _, _, _, OptionBrand>(&f, &g, &ok),
-	/// 	ref_bi_sequence::<ResultBrand, RcFnBrand, _, _, OptionBrand>(&ref_bimap::<
+	/// 	bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>((&f, &g), &ok),
+	/// 	ref_bi_sequence::<ResultBrand, RcFnBrand, _, _, OptionBrand>(&bimap::<
 	/// 		ResultBrand,
 	/// 		_,
 	/// 		_,
 	/// 		_,
 	/// 		_,
-	/// 	>(&f, &g, &ok),),
+	/// 		_,
+	/// 		_,
+	/// 	>((&f, &g), &ok),),
 	/// );
 	///
 	/// // Traverse/sequence consistency (Err case):
 	/// let err: Result<i32, String> = Err("hello".to_string());
 	/// assert_eq!(
-	/// 	ref_bi_traverse::<ResultBrand, RcFnBrand, _, _, _, _, OptionBrand>(&f, &g, &err),
-	/// 	ref_bi_sequence::<ResultBrand, RcFnBrand, _, _, OptionBrand>(&ref_bimap::<
+	/// 	bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>((&f, &g), &err),
+	/// 	ref_bi_sequence::<ResultBrand, RcFnBrand, _, _, OptionBrand>(&bimap::<
 	/// 		ResultBrand,
 	/// 		_,
 	/// 		_,
 	/// 		_,
 	/// 		_,
-	/// 	>(&f, &g, &err),),
+	/// 		_,
+	/// 		_,
+	/// 	>((&f, &g), &err),),
 	/// );
 	/// ```
 	#[kind(type Of<'a, A: 'a, B: 'a>: 'a;)]
@@ -119,9 +122,8 @@ mod inner {
 		/// };
 		///
 		/// let x: Result<i32, i32> = Err(3);
-		/// let y = ref_bi_traverse::<ResultBrand, RcFnBrand, _, _, _, _, OptionBrand>(
-		/// 	|e: &i32| Some(e + 1),
-		/// 	|s: &i32| Some(s * 2),
+		/// let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 	(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
 		/// 	&x,
 		/// );
 		/// assert_eq!(y, Some(Err(4)));
@@ -225,9 +227,8 @@ mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = ref_bi_traverse::<ResultBrand, RcFnBrand, _, _, _, _, OptionBrand>(
-	/// 	|e: &i32| Some(e + 1),
-	/// 	|s: &i32| Some(s * 2),
+	/// let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+	/// 	(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
 	/// 	&x,
 	/// );
 	/// assert_eq!(y, Some(Ok(10)));

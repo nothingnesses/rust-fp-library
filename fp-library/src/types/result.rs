@@ -70,15 +70,14 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::bifunctor::*,
 		/// 	functions::*,
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// assert_eq!(bimap::<ResultBrand, _, _, _, _>(|e| e + 1, |s| s * 2, x), Ok(10));
+		/// assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x), Ok(10));
 		///
 		/// let y: Result<i32, i32> = Err(5);
-		/// assert_eq!(bimap::<ResultBrand, _, _, _, _>(|e| e + 1, |s| s * 2, y), Err(6));
+		/// assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), y), Err(6));
 		/// ```
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
 			f: impl Fn(A) -> B + 'a,
@@ -176,9 +175,8 @@ mod inner {
 		///
 		/// let err: Result<i32, i32> = Err(3);
 		/// assert_eq!(
-		/// 	ref_bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 		|e: &i32, acc| acc - *e,
-		/// 		|s: &i32, acc| acc + *s,
+		/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		(|e: &i32, acc| acc - *e, |s: &i32, acc| acc + *s),
 		/// 		10,
 		/// 		&err,
 		/// 	),
@@ -187,9 +185,8 @@ mod inner {
 		///
 		/// let ok: Result<i32, i32> = Ok(5);
 		/// assert_eq!(
-		/// 	ref_bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 		|e: &i32, acc| acc - *e,
-		/// 		|s: &i32, acc| acc + *s,
+		/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		(|e: &i32, acc| acc - *e, |s: &i32, acc| acc + *s),
 		/// 		10,
 		/// 		&ok,
 		/// 	),
@@ -246,9 +243,8 @@ mod inner {
 		///
 		/// let err: Result<i32, i32> = Err(3);
 		/// assert_eq!(
-		/// 	ref_bi_traverse::<ResultBrand, RcFnBrand, _, _, _, _, OptionBrand>(
-		/// 		|e: &i32| Some(e + 1),
-		/// 		|s: &i32| Some(s * 2),
+		/// 	bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 		(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
 		/// 		&err,
 		/// 	),
 		/// 	Some(Err(4))
@@ -256,9 +252,8 @@ mod inner {
 		///
 		/// let ok: Result<i32, i32> = Ok(5);
 		/// assert_eq!(
-		/// 	ref_bi_traverse::<ResultBrand, RcFnBrand, _, _, _, _, OptionBrand>(
-		/// 		|e: &i32| Some(e + 1),
-		/// 		|s: &i32| Some(s * 2),
+		/// 	bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 		(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
 		/// 		&ok,
 		/// 	),
 		/// 	Some(Ok(10))
@@ -320,18 +315,16 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 		|e: i32, acc| acc - e,
-		/// 		|s: i32, acc| acc + s,
+		/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 		/// 		10,
 		/// 		Err(3),
 		/// 	),
 		/// 	7
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 		|e: i32, acc| acc - e,
-		/// 		|s: i32, acc| acc + s,
+		/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 		/// 		10,
 		/// 		Ok(5),
 		/// 	),
@@ -380,18 +373,16 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 		|acc, e: i32| acc - e,
-		/// 		|acc, s: i32| acc + s,
+		/// 	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 		/// 		10,
 		/// 		Err(3),
 		/// 	),
 		/// 	7
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 		|acc, e: i32| acc - e,
-		/// 		|acc, s: i32| acc + s,
+		/// 	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 		/// 		10,
 		/// 		Ok(5),
 		/// 	),
@@ -439,17 +430,15 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 		|e: i32| e.to_string(),
-		/// 		|s: i32| s.to_string(),
+		/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 		Err::<i32, i32>(3),
 		/// 	),
 		/// 	"3".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 		|e: i32| e.to_string(),
-		/// 		|s: i32| s.to_string(),
+		/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 		Ok::<i32, i32>(5),
 		/// 	),
 		/// 	"5".to_string()
@@ -503,17 +492,15 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand>(
-		/// 		|e: i32| Some(e + 1),
-		/// 		|s: i32| Some(s * 2),
+		/// 	bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 		(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
 		/// 		Err::<i32, i32>(3),
 		/// 	),
 		/// 	Some(Err(4))
 		/// );
 		/// assert_eq!(
-		/// 	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand>(
-		/// 		|e: i32| Some(e + 1),
-		/// 		|s: i32| Some(s * 2),
+		/// 	bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 		(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
 		/// 		Ok::<i32, i32>(5),
 		/// 	),
 		/// 	Some(Ok(10))
@@ -2201,10 +2188,10 @@ mod tests {
 	#[test]
 	fn test_bimap() {
 		let x: Result<i32, i32> = Ok(5);
-		assert_eq!(bimap::<ResultBrand, _, _, _, _>(|e| e + 1, |s| s * 2, x), Ok(10));
+		assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x), Ok(10));
 
 		let y: Result<i32, i32> = Err(5);
-		assert_eq!(bimap::<ResultBrand, _, _, _, _>(|e| e + 1, |s| s * 2, y), Err(6));
+		assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), y), Err(6));
 	}
 
 	// Bifunctor Laws
@@ -2212,7 +2199,7 @@ mod tests {
 	/// Tests the identity law for Bifunctor.
 	#[quickcheck]
 	fn bifunctor_identity(x: Result<i32, i32>) -> bool {
-		bimap::<ResultBrand, _, _, _, _>(identity, identity, x) == x
+		bimap::<ResultBrand, _, _, _, _, _, _>((identity, identity), x) == x
 	}
 
 	/// Tests the composition law for Bifunctor.
@@ -2223,8 +2210,11 @@ mod tests {
 		let h = |x: i32| x.wrapping_sub(1);
 		let i = |x: i32| if x == 0 { 0 } else { x.wrapping_div(2) };
 
-		bimap::<ResultBrand, _, _, _, _>(compose(f, g), compose(h, i), x)
-			== bimap::<ResultBrand, _, _, _, _>(f, h, bimap::<ResultBrand, _, _, _, _>(g, i, x))
+		bimap::<ResultBrand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), x)
+			== bimap::<ResultBrand, _, _, _, _, _, _>(
+				(f, h),
+				bimap::<ResultBrand, _, _, _, _, _, _>((g, i), x),
+			)
 	}
 
 	// Functor Laws
@@ -2580,10 +2570,10 @@ mod tests {
 
 	// -- RefBifunctor --
 
-	/// RefBifunctor identity: ref_bimap(Clone::clone, Clone::clone, &p) == p
+	/// RefBifunctor identity: bimap((Clone::clone, Clone::clone), &p) == p
 	#[quickcheck]
 	fn ref_bifunctor_identity(x: Result<i32, i32>) -> bool {
-		ref_bimap::<ResultBrand, _, _, _, _>(|a: &i32| *a, |c: &i32| *c, &x) == x
+		bimap::<ResultBrand, _, _, _, _, _, _>((|a: &i32| *a, |c: &i32| *c), &x) == x
 	}
 
 	/// RefBifunctor composition
@@ -2593,22 +2583,20 @@ mod tests {
 		let f2 = |a: &i32| a.wrapping_mul(2);
 		let g1 = |c: &i32| c.wrapping_add(10);
 		let g2 = |c: &i32| c.wrapping_mul(3);
-		ref_bimap::<ResultBrand, _, _, _, _>(|a: &i32| f2(&f1(a)), |c: &i32| g2(&g1(c)), &x)
-			== ref_bimap::<ResultBrand, _, _, _, _>(
-				f2,
-				g2,
-				&ref_bimap::<ResultBrand, _, _, _, _>(f1, g1, &x),
+		bimap::<ResultBrand, _, _, _, _, _, _>((|a: &i32| f2(&f1(a)), |c: &i32| g2(&g1(c))), &x)
+			== bimap::<ResultBrand, _, _, _, _, _, _>(
+				(f2, g2),
+				&bimap::<ResultBrand, _, _, _, _, _, _>((f1, g1), &x),
 			)
 	}
 
 	// -- RefBifoldable --
 
-	/// RefBifoldable: ref_bi_fold_map produces same result as manual fold
+	/// RefBifoldable: bi_fold_map with ref closures produces same result as manual fold
 	#[quickcheck]
 	fn ref_bifoldable_fold_map(x: Result<i32, i32>) -> bool {
-		let result = ref_bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(
-			|a: &i32| a.to_string(),
-			|b: &i32| b.to_string(),
+		let result = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+			(|a: &i32| a.to_string(), |b: &i32| b.to_string()),
 			&x,
 		);
 		let expected = match &x {
@@ -2620,21 +2608,23 @@ mod tests {
 
 	// -- RefBitraversable --
 
-	/// RefBitraversable: ref_bi_traverse consistent with ref_bi_sequence . ref_bimap
+	/// RefBitraversable: bi_traverse with ref closures consistent with ref_bi_sequence . bimap ref
 	#[quickcheck]
 	fn ref_bitraversable_consistency(x: Result<i32, i32>) -> bool {
 		let f = |a: &i32| Some(a.wrapping_add(1));
 		let g = |c: &i32| Some(c.wrapping_mul(2));
 		let traversed =
-			ref_bi_traverse::<ResultBrand, RcFnBrand, _, _, _, _, OptionBrand>(f, g, &x);
+			bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>((f, g), &x);
 		let mapped_then_sequenced =
-			ref_bi_sequence::<ResultBrand, RcFnBrand, _, _, OptionBrand>(&ref_bimap::<
+			ref_bi_sequence::<ResultBrand, RcFnBrand, _, _, OptionBrand>(&bimap::<
 				ResultBrand,
 				_,
 				_,
 				_,
 				_,
-			>(f, g, &x));
+				_,
+				_,
+			>((f, g), &x));
 		traversed == mapped_then_sequenced
 	}
 }

@@ -61,12 +61,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::bifunctor::*,
 		/// 	functions::*,
 		/// };
 		///
 		/// let x = (1, 5);
-		/// assert_eq!(bimap::<Tuple2Brand, _, _, _, _>(|a| a + 1, |b| b * 2, x), (2, 10));
+		/// assert_eq!(bimap::<Tuple2Brand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x), (2, 10));
 		/// ```
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
 			f: impl Fn(A) -> B + 'a,
@@ -154,9 +153,8 @@ mod inner {
 		///
 		/// let x = (3, 5);
 		/// assert_eq!(
-		/// 	ref_bi_fold_right::<RcFnBrand, Tuple2Brand, _, _, _>(
-		/// 		|a: &i32, acc| acc - *a,
-		/// 		|b: &i32, acc| acc + *b,
+		/// 	bi_fold_right::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
+		/// 		(|a: &i32, acc| acc - *a, |b: &i32, acc| acc + *b),
 		/// 		0,
 		/// 		&x,
 		/// 	),
@@ -207,9 +205,8 @@ mod inner {
 		///
 		/// let x = (3, 5);
 		/// assert_eq!(
-		/// 	ref_bi_traverse::<Tuple2Brand, RcFnBrand, _, _, _, _, OptionBrand>(
-		/// 		|a: &i32| Some(a + 1),
-		/// 		|b: &i32| Some(b * 2),
+		/// 	bi_traverse::<RcFnBrand, Tuple2Brand, _, _, _, _, OptionBrand, _, _>(
+		/// 		(|a: &i32| Some(a + 1), |b: &i32| Some(b * 2)),
 		/// 		&x,
 		/// 	),
 		/// 	Some((4, 10))
@@ -269,9 +266,8 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, Tuple2Brand, _, _, _>(
-		/// 		|a: i32, acc| acc - a,
-		/// 		|b: i32, acc| acc + b,
+		/// 	bi_fold_right::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
+		/// 		(|a: i32, acc| acc - a, |b: i32, acc| acc + b),
 		/// 		0,
 		/// 		(3, 5),
 		/// 	),
@@ -319,9 +315,8 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, Tuple2Brand, _, _, _>(
-		/// 		|acc, a: i32| acc - a,
-		/// 		|acc, b: i32| acc + b,
+		/// 	bi_fold_left::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
+		/// 		(|acc, a: i32| acc - a, |acc, b: i32| acc + b),
 		/// 		0,
 		/// 		(3, 5),
 		/// 	),
@@ -367,9 +362,8 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, Tuple2Brand, _, _, _>(
-		/// 		|a: i32| a.to_string(),
-		/// 		|b: i32| b.to_string(),
+		/// 	bi_fold_map::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
+		/// 		(|a: i32| a.to_string(), |b: i32| b.to_string()),
 		/// 		(3, 5),
 		/// 	),
 		/// 	"35".to_string()
@@ -419,9 +413,8 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_traverse::<Tuple2Brand, _, _, _, _, OptionBrand>(
-		/// 		|a: i32| Some(a + 1),
-		/// 		|b: i32| Some(b * 2),
+		/// 	bi_traverse::<RcFnBrand, Tuple2Brand, _, _, _, _, OptionBrand, _, _>(
+		/// 		(|a: i32| Some(a + 1), |b: i32| Some(b * 2)),
 		/// 		(3, 5),
 		/// 	),
 		/// 	Some((4, 10))
@@ -1977,7 +1970,7 @@ mod tests {
 	#[test]
 	fn test_bimap() {
 		let x = (1, 5);
-		assert_eq!(bimap::<Tuple2Brand, _, _, _, _>(|a| a + 1, |b| b * 2, x), (2, 10));
+		assert_eq!(bimap::<Tuple2Brand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x), (2, 10));
 	}
 
 	// Bifunctor Laws
@@ -1989,7 +1982,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let x = (first, second);
-		bimap::<Tuple2Brand, _, _, _, _>(identity, identity, x.clone()) == x
+		bimap::<Tuple2Brand, _, _, _, _, _, _>((identity, identity), x.clone()) == x
 	}
 
 	/// Tests the composition law for Bifunctor.
@@ -2004,8 +1997,11 @@ mod tests {
 		let h = |x: i32| x.wrapping_sub(1);
 		let i = |x: i32| if x == 0 { 0 } else { x.wrapping_div(2) };
 
-		bimap::<Tuple2Brand, _, _, _, _>(compose(f, g), compose(h, i), x)
-			== bimap::<Tuple2Brand, _, _, _, _>(f, h, bimap::<Tuple2Brand, _, _, _, _>(g, i, x))
+		bimap::<Tuple2Brand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), x)
+			== bimap::<Tuple2Brand, _, _, _, _, _, _>(
+				(f, h),
+				bimap::<Tuple2Brand, _, _, _, _, _, _>((g, i), x),
+			)
 	}
 
 	// Functor Laws

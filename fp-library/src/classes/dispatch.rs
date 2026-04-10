@@ -91,6 +91,11 @@ mod inner {
 
 pub use inner::*;
 
+pub mod bi_fold_left;
+pub mod bi_fold_map;
+pub mod bi_fold_right;
+pub mod bi_traverse;
+pub mod bimap;
 pub mod filter;
 pub mod filter_map_with_index;
 pub mod filter_with_index;
@@ -115,6 +120,11 @@ pub mod wither;
 // Re-export dispatch free functions at the dispatch module level
 // so they're accessible via `crate::classes::dispatch::map` etc.
 pub use {
+	bi_fold_left::bi_fold_left,
+	bi_fold_map::bi_fold_map,
+	bi_fold_right::bi_fold_right,
+	bi_traverse::bi_traverse,
+	bimap::bimap,
 	filter::filter,
 	filter_map_with_index::filter_map_with_index,
 	filter_with_index::filter_with_index,

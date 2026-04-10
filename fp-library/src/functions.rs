@@ -23,6 +23,11 @@
 use fp_macros::*;
 // Auto-generate re-exports, passing in aliases for conflicting names.
 fp_macros::generate_function_re_exports!("src/classes", {
+	"bifoldable::bi_fold_left": bifoldable_bi_fold_left,
+	"bifoldable::bi_fold_map": bifoldable_bi_fold_map,
+	"bifoldable::bi_fold_right": bifoldable_bi_fold_right,
+	"bifunctor::bimap": bifunctor_bimap,
+	"bitraversable::bi_traverse": bitraversable_bi_traverse,
 	"category::identity": category_identity,
 	"clone_fn::new": lift_fn_new,
 	"clone_fn::ref_new": ref_lift_fn_new,
@@ -37,6 +42,11 @@ fp_macros::generate_function_re_exports!("src/classes", {
 	"functor_with_index::map_with_index": functor_with_index_map_with_index,
 	"pointer::new": pointer_new,
 	"ref_counted_pointer::cloneable_new": ref_counted_pointer_new,
+	"ref_bifoldable::ref_bi_fold_left": ref_bifoldable_ref_bi_fold_left,
+	"ref_bifoldable::ref_bi_fold_map": ref_bifoldable_ref_bi_fold_map,
+	"ref_bifoldable::ref_bi_fold_right": ref_bifoldable_ref_bi_fold_right,
+	"ref_bifunctor::ref_bimap": ref_bifunctor_ref_bimap,
+	"ref_bitraversable::ref_bi_traverse": ref_bitraversable_ref_bi_traverse,
 	"send_ref_counted_pointer::send_new": send_ref_counted_pointer_new,
 	"plus::empty": plus_empty,
 	"semigroupoid::compose": semigroupoid_compose,
@@ -53,6 +63,11 @@ fp_macros::generate_function_re_exports!("src/classes", {
 // Dispatch free functions are in sub-modules not scanned by the macro.
 pub use crate::{
 	classes::dispatch::{
+		bi_fold_left,
+		bi_fold_map,
+		bi_fold_right,
+		bi_traverse,
+		bimap,
 		bind,
 		bind_flipped,
 		compose_kleisli,
