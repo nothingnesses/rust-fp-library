@@ -6,7 +6,10 @@ use {
 	proc_macro2::TokenStream,
 	quote::quote,
 	std::{
-		collections::HashMap,
+		collections::{
+			HashMap,
+			HashSet,
+		},
 		fs,
 		path::Path,
 	},
@@ -131,13 +134,16 @@ impl ReExportFormatter for TraitFormatter {
 pub struct ReExportInput {
 	path: LitStr,
 	aliases: HashMap<String, Ident>,
+	exclusions: HashSet<String>,
 }
 
 impl Parse for ReExportInput {
 	fn parse(input: ParseStream) -> Result<Self> {
 		let path: LitStr = input.parse()?;
 		let mut aliases = HashMap::new();
+		let mut exclusions = HashSet::new();
 
+		// Parse optional alias map: { "module::name": alias, ... }
 		if input.peek(Token![,]) {
 			input.parse::<Token![,]>()?;
 			let content;
@@ -160,9 +166,34 @@ impl Parse for ReExportInput {
 			}
 		}
 
+		// Parse optional exclusion list: exclude { "module::name", ... }
+		if input.peek(Token![,]) {
+			input.parse::<Token![,]>()?;
+			let exclude_kw: Ident = input.parse()?;
+			if exclude_kw != "exclude" {
+				return Err(syn::Error::new(exclude_kw.span(), "expected `exclude`"));
+			}
+			let content;
+			braced!(content in input);
+			while !content.is_empty() {
+				let key_str = if content.peek(LitStr) {
+					let s: LitStr = content.parse()?;
+					s.value()
+				} else {
+					let i: Ident = content.parse()?;
+					i.to_string()
+				};
+				exclusions.insert(key_str);
+				if content.peek(Token![,]) {
+					content.parse::<Token![,]>()?;
+				}
+			}
+		}
+
 		Ok(ReExportInput {
 			path,
 			aliases,
+			exclusions,
 		})
 	}
 }
@@ -294,11 +325,18 @@ fn scan_directory_and_collect(
 
 					// Generate re-export tokens for each item
 					for item_name in items {
+						// Check exclusions (both qualified and unqualified)
+						let full_name = format!("{file_stem}::{item_name}");
+						if input.exclusions.contains(&full_name)
+							|| input.exclusions.contains(&item_name)
+						{
+							continue;
+						}
+
 						let item_ident = Ident::new(&item_name, proc_macro2::Span::call_site());
 						let module_name = Ident::new(file_stem, proc_macro2::Span::call_site());
 
 						// Determine alias (functions support full qualified names)
-						let full_name = format!("{file_stem}::{item_name}");
 						let alias =
 							input.aliases.get(&full_name).or_else(|| input.aliases.get(&item_name));
 
