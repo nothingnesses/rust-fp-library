@@ -408,17 +408,21 @@ before attempting to parse a type identifier.
 
 **`pure` limitation in inferred mode:** In inferred mode, the macro
 cannot rewrite `pure(expr)` because `pure` has no container argument
-and cannot infer the brand. Users must write concrete constructors
-in inferred mode (e.g., `Some(expr)` instead of `pure(expr)`), or use
-the explicit-brand macro syntax when `pure` is needed. This is the
-recommended approach because `pure` inside `bind` closures is already
-constrained by the closure's return type, making the concrete constructor
-natural.
+and cannot infer the brand. When the `PureRewriter` encounters a bare
+`pure(...)` call in inferred mode, it should emit a `compile_error!`
+with an actionable message (e.g., "pure() requires an explicit brand;
+use m_do!(Brand { ... }) or write the concrete constructor"). This is
+better than leaving the bare `pure` call unrewritten, which would
+produce an unhelpful downstream error.
+
+Users must write concrete constructors in inferred mode (e.g.,
+`Some(expr)` instead of `pure(expr)`), or use the explicit-brand
+macro syntax when `pure` is needed.
 
 **0-bind `a_do!` in inferred mode:** `a_do!({ 42 })` generates
-`pure(42)`, which requires a brand. This combination is not supported
-in inferred mode. Users should write `Some(42)` directly or use
-explicit-brand syntax.
+`pure(42)`, which requires a brand. This combination should emit a
+`compile_error!` in inferred mode. Users should write `Some(42)`
+directly or use explicit-brand syntax.
 
 ### Interaction with the `Apply!` Macro
 
@@ -686,6 +690,32 @@ generic parameters on the `DefaultBrand` impl. For simple cases
 `impl` generics with the associated type generics. This is doable but
 requires careful handling of lifetime and type parameter ordering.
 
+**Auto-skip for projection target types:** Some `impl_kind!` invocations
+use `Apply!(...)` projections as the target type (e.g.,
+`BifunctorFirstAppliedBrand`, `ProfunctorFirstAppliedBrand`). Rust does
+not allow trait impls for associated type projections, so the macro
+should detect when the target type contains `::` or `Apply!` and
+automatically skip DefaultBrand generation for those invocations.
+
+**Only single-associated-type blocks supported initially.** All existing
+`impl_kind!` invocations define exactly one associated type. If a future
+block defines multiple associated types, the macro should skip
+DefaultBrand generation (the "primary" type is ambiguous) and suggest
+`#[no_default_brand]`.
+
+**Inventory of `impl_kind!` invocations:**
+
+- ~15 invocations generate DefaultBrand normally (core container types).
+- 10 invocations need `#[no_default_brand]` (multi-brand arity-1 types:
+  Result, Pair, Tuple2, ControlFlow, TryThunk applied brands).
+- 4 invocations auto-skipped (projection target types:
+  BifunctorFirst/Second, ProfunctorFirst/Second).
+- ~13 optics/profunctor invocations are harmless either way (no two
+  optics brands map to the same concrete type). Generate by default.
+
+See `docs/plans/brand-inference/analysis/open-questions-3.md` for the
+complete per-invocation list.
+
 ## POC Results
 
 The POC is implemented in `fp-library/tests/brand_inference_feasibility.rs`.
@@ -782,25 +812,44 @@ module) is outdated and should be removed during implementation.
    dispatch works with brand inference. The blanket follows the standard
    Rust pattern and is coherence-safe.
 
-8. **Incremental scope for the `_explicit` rename.**
-   The `_explicit` rename happens per-function as inference support is
-   added. Functions that have not yet received inference support keep
-   their current names unchanged. This avoids a big-bang rename and
-   lets each function be validated independently. The implementation
-   is organized in tiers:
-   - **Tier 1 (core):** `map`, `bind`, `bind_flipped`, `lift2`-`lift5`,
-     `filter_map` (dispatch-based, full inference).
-   - **Tier 2 (common non-dispatch):** `alt`, `compact`, `separate`,
-     `join`, `extract`, `extend`, `extend_flipped`, `duplicate`,
-     `contramap`, `if_m`, `when_m`, `unless_m`, `filter`, `partition`,
-     `partition_map`, `apply_first`, `apply_second`, `map_with_index`,
-     and their `ref_*` counterparts.
-   - **Tier 3 (partial inference):** `fold_right`, `fold_left`,
+8. **Front-loaded `_explicit` rename, then tiered inference addition.**
+   The rename of ALL dispatch functions to `_explicit` is done in one
+   mechanical pass before any inference wrappers are added. This avoids
+   touching the same files multiple times across tiers and eliminates
+   the confusing intermediate state where some functions use inference
+   and others don't. The rename affects approximately 1,600 call sites
+   and is scriptable (`sed 's/map::</map_explicit::</g'` etc.).
+
+   After the rename, inference wrappers are added tier by tier. Each
+   tier adds the clean name (e.g., `map`) as the inference-based
+   function, with no further renames needed. The tiers are:
+   - **Tier 1 (core dispatch):** `map`, `bind`, `bind_flipped`,
+     `lift2`-`lift5`, `filter_map` (dispatch-based, full inference).
+   - **Tier 2 (expanded dispatch):** `filter`, `partition`,
+     `partition_map`, `map_with_index`, `filter_with_index`,
+     `filter_map_with_index`, `partition_with_index`,
+     `partition_map_with_index` (dispatch-based after dispatch
+     expansion, full inference).
+   - **Tier 3 (closureless):** `alt`, `compact`, `separate`, `join`,
+     `if_m`, `when_m`, `unless_m`, `apply_first`, `apply_second`,
+     `contramap`, and their `ref_*` counterparts. These have no
+     dispatch; the inference wrapper constrains `FA: DefaultBrand`
+     directly. Separate val/ref inference functions.
+   - **Tier 4 (partial inference):** `fold_right`, `fold_left`,
      `fold_map`, `traverse`, `apply` (semiapplicative), `wilt`,
      `wither`, indexed folds, bifunctor folds/traversals, and their
      `ref_*` / `send_ref_*` counterparts.
-   - **Tier 4 (bifunctor):** `bimap` and bifunctor traversals (use
+   - **Tier 5 (bifunctor):** `bimap` and bifunctor traversals (use
      arity-2 `DefaultBrand`).
+
+   Note: the tier tables above assume the dispatch-expansion plan is
+   complete. Functions listed as dispatch-based in Tiers 1-2 have
+   their `ref_*` counterparts absorbed into the dispatch function.
+
+   Non-dispatch free functions (trait method wrappers like
+   `filterable::filter_map`) keep their original names and are not
+   renamed to `_explicit`. Only dispatch-based functions and closureless
+   functions that get inference wrappers are renamed.
 
 9. **Parallel functions (`par_map`, etc.) are excluded initially.**
    Parallel operations are niche and used in performance-conscious
@@ -898,13 +947,17 @@ brand `F`/`M`, or both remain explicit: - Foldable: `fold_right`, `fold_left`, `
    Add `#[no_default_brand]` opt-out attribute for types with multiple
    brands. Migrate hand-written impls to use the macro.
 
-9. **Tier 4: Bifunctor inference.** Implement the two-parameter
+9. **Tier 5: Bifunctor inference.** Implement the two-parameter
    DefaultBrand trait for Result, Tuple2, Pair, ControlFlow, TryThunk.
    Add inference-based `bimap` (renaming the current to `bimap_explicit`).
    Also add inference-based versions of bifunctor traversal functions
-   (`bi_traverse`, `bi_sequence`, `traverse_left`, `traverse_right`,
-   `bi_for`, `for_left`, `for_right`) using the arity-2 DefaultBrand;
-   `FnBrand` and effect brand `F` remain explicit for these.
+   (`bi_traverse`, `bi_sequence`, `bi_traverse_left`, `bi_traverse_right`,
+   `bi_for`, `bi_for_left`, `bi_for_right`) using the arity-2
+   DefaultBrand; `FnBrand` and effect brand `F` remain explicit for these.
+   Document that `bimap`'s parameter order follows the Kind convention
+   (for Result: first closure maps the error type, second maps the
+   success type), which becomes more visible now that users can write
+   `bimap((f, g), Ok(5))` without a turbofish.
 
 10. **Extend `m_do!` and `a_do!`.** Add brand-free syntax that generates
     inference-based function calls. The Brand-explicit syntax remains

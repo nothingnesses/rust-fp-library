@@ -14,13 +14,18 @@ found that 5 of these are worth implementing and 2 should be skipped.
 
 ### Implement (5 traits)
 
-| Trait            | Implementors                                | Has closures   | Notes                                                                         |
-| ---------------- | ------------------------------------------- | -------------- | ----------------------------------------------------------------------------- |
-| RefBifunctor     | Result, Pair, Tuple2, ControlFlow, TryThunk | Yes (`f`, `g`) | No Clone needed; both closures handle their respective types.                 |
-| RefBifoldable    | Result, Pair, Tuple2, ControlFlow, TryThunk | Yes (`f`, `g`) | Clone bounds already present in by-value trait (Endofunction defaults).       |
-| RefBitraversable | Result, Pair, Tuple2, ControlFlow           | Yes (`f`, `g`) | TryThunk excluded (not Bitraversable). Requires RefBifunctor + RefBifoldable. |
-| RefCompactable   | Option, Vec, CatList                        | No             | Requires `A: Clone` on methods (cloning out of `&Option<A>`).                 |
-| RefAlt           | Option, Vec, CatList                        | No             | Requires `A: Clone`. Both args borrowed.                                      |
+| Trait            | Implementors                      | Has closures   | Notes                                                                   |
+| ---------------- | --------------------------------- | -------------- | ----------------------------------------------------------------------- |
+| RefBifunctor     | Result, Pair, Tuple2, ControlFlow | Yes (`f`, `g`) | No Clone needed; both closures handle their respective types.           |
+| RefBifoldable    | Result, Pair, Tuple2, ControlFlow | Yes (`f`, `g`) | Clone bounds already present in by-value trait (Endofunction defaults). |
+| RefBitraversable | Result, Pair, Tuple2, ControlFlow | Yes (`f`, `g`) | Requires RefBifunctor + RefBifoldable as supertraits.                   |
+| RefCompactable   | Option, Vec, CatList              | No             | Requires `A: Clone` on methods (cloning out of `&Option<A>`).           |
+| RefAlt           | Option, Vec, CatList              | No             | Requires `A: Clone`. Both args borrowed.                                |
+
+TryThunk is excluded from ALL Ref bi-traits (not just RefBitraversable).
+TryThunk wraps `Box<dyn FnOnce>` via Thunk, which cannot be evaluated
+or chained from a shared reference. This matches how ThunkBrand lacks
+RefFunctor.
 
 ### Skip (2 traits)
 
@@ -114,8 +119,14 @@ require RefBifunctor + RefBifoldable, so all three must be implemented
 together for each concrete type.
 
 Free function variants: `ref_bi_traverse`, `ref_bi_sequence`,
-`ref_traverse_left`, `ref_traverse_right`, `ref_bi_for`, `ref_for_left`,
-`ref_for_right`.
+`ref_bi_traverse_left`, `ref_bi_traverse_right`, `ref_bi_for`,
+`ref_bi_for_left`, `ref_bi_for_right`. The `bi` prefix is retained in
+all names to avoid confusion with single-parameter traversal functions.
+
+Note: these free function names are temporary canonical names. After the
+dispatch-expansion plan adds bifunctorial dispatch, these names will be
+demoted to module-prefixed aliases (e.g., `ref_bitraversable_ref_bi_traverse`)
+and the dispatch version will take the canonical name.
 
 ### RefCompactable
 
@@ -183,27 +194,54 @@ go in `types/`. All dependency arrows point in the correct direction
 
 ## Implementation Order
 
-1. **RefBifunctor** trait definition and impls for all 5 bifunctorial types.
-   Also add derived RefFunctor impls for applied brands
-   (`BifunctorFirstAppliedBrand`, `BifunctorSecondAppliedBrand`).
+Steps 1-3 MUST be sequential: derived applied-brand impls chain across
+steps (RefTraversable for applied brands requires RefFunctor from step 1
+and RefFoldable from step 2). Steps 4-5 are independent of steps 1-3
+and of each other.
 
-2. **RefBifoldable** trait definition and impls for all 5 bifunctorial
+Documentation (all five `#[document_*]` attributes) must be applied to
+every public method and free function from the start, not deferred.
+The zero-warnings policy for `just doc` requires this.
+
+1. **RefBifunctor** trait definition and impls for 4 bifunctorial types
+   (Result, Pair, Tuple2, ControlFlow). Also add derived RefFunctor
+   impls for applied brands (`BifunctorFirstAppliedBrand`,
+   `BifunctorSecondAppliedBrand`) with `Brand: Bifunctor + RefBifunctor`
+   and `A: Clone + 'static` bounds.
+
+2. **RefBifoldable** trait definition and impls for 4 bifunctorial
    types. Also add derived RefFoldable impls for applied brands.
 
-3. **RefBitraversable** trait definition and impls for 4 types
-   (TryThunk excluded). Also add derived RefTraversable impls for
-   applied brands.
+3. **RefBitraversable** trait definition and impls for 4 types.
+   Also add derived RefTraversable impls for applied brands.
 
 4. **RefCompactable** trait definition and impls for Option, Vec, CatList.
 
 5. **RefAlt** trait definition and impls for Option, Vec, CatList.
 
-6. **Tests.** Unit tests for each new trait. Property-based tests for
-   RefBifunctor bimap identity and composition. Compile-fail tests if
-   applicable.
+6. **Tests.** Property-based quickcheck tests in type files following
+   the established pattern. Also add equivalence tests between generic
+   applied brands and specific applied brands (e.g., verify
+   `BifunctorFirstAppliedBrand<ResultBrand, E>` and
+   `ResultErrAppliedBrand<E>` produce the same `ref_map` results).
 
-7. **Documentation.** Doc comments on all new traits and methods following
-   the existing documentation standards.
+   Existing gap: `result.rs` has Ref trait impls (RefFunctor, RefFoldable,
+   RefTraversable) but zero quickcheck tests for them. This should be
+   addressed alongside or before this plan.
+
+   Laws to test per trait:
+   - **RefBifunctor:** Identity (`ref_bimap(Clone::clone, Clone::clone, &p)
+== p.clone()` given `A: Clone, C: Clone`). Composition.
+   - **RefBifoldable:** Consistency between `ref_bi_fold_map` and
+     `ref_bi_fold_right`.
+   - **RefBitraversable:** `ref_bi_traverse(f, g, &p) ==
+ref_bi_sequence(&ref_bimap(f, g, &p))`.
+   - **RefCompactable:** `ref_compact(&ref_map(Some, &fa))` preserves
+     values given `A: Clone`.
+   - **RefAlt:** Associativity. Distributivity with RefFunctor.
+
+   Compile-fail tests: RefCompactable and RefAlt with non-Clone element
+   types should produce clear errors.
 
 ## Verification
 

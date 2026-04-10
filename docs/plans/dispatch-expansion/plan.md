@@ -95,7 +95,7 @@ Each dispatch trait follows the established two-impl pattern:
 
 ```
 pub trait FilterDispatch<'a, Brand: Kind_..., A: 'a, FA, Marker> {
-    fn dispatch(self, fa: FA) -> Apply!(Brand::Of<'a, A>);
+    fn dispatch_filter(self, fa: FA) -> Apply!(Brand::Of<'a, A>);
 }
 
 // Val impl: FA = Apply!(Of<A>), closure Fn(A) -> bool
@@ -146,10 +146,46 @@ parameter (unused in Val, passed through in Ref). Include `M`
 pub trait WiltDispatch<'a, FnBrand, Brand: Kind_..., M: Applicative,
     A: 'a, E: 'a, O: 'a, FA, Marker>
 {
-    fn dispatch(self, fa: FA)
+    fn dispatch_wilt(self, fa: FA)
         -> Apply!(M::Of<'a, (Apply!(Brand::Of<'a, E>), Apply!(Brand::Of<'a, O>))>);
 }
 ```
+
+### Method naming convention
+
+Use qualified `dispatch_*` names for all new traits (e.g.,
+`dispatch_filter`, `dispatch_partition`, `dispatch_map_with_index`,
+`dispatch_wilt`). This is consistent with the majority of existing
+dispatch traits (`dispatch_bind`, `dispatch_filter_map`,
+`dispatch_traverse`, `dispatch_lift2`-`dispatch_lift5`). The bare
+`dispatch` name used by foldable dispatch traits is a minor existing
+inconsistency.
+
+### Clone bounds on FilterDispatch and PartitionDispatch
+
+`FilterDispatch` and `PartitionDispatch` must include `A: Clone` in
+their trait bounds, matching the underlying `Filterable::filter` and
+`Filterable::partition` methods. The predicate `Fn(A) -> bool` consumes
+the element, but the element may need to be kept. The existing
+`FilterMapDispatch` does NOT require `A: Clone` (the closure returns
+`Option<B>`, a new value). This distinction must be preserved.
+
+### Bifunctorial dispatch uses two-parameter Kind hash
+
+`BimapDispatch` and other bi-\* dispatch traits use `Kind_266801a817966495`
+(two type parameters: `type Of<'a, A: 'a, B: 'a>: 'a`) instead of the
+standard `Kind_cdc7cd43dac7585f` (one type parameter). The `Apply!` macro
+invocations must use the two-param form. Model on the existing `bimap`
+free function in `bifunctor.rs`.
+
+### `ref_*` function handling
+
+When dispatch unifies two functions, the `ref_*` free function should be
+removed from the public API, with the dispatch version fully replacing
+it. This follows the precedent of `ref_map`, which was removed when
+`FunctorDispatch` was added. Note: `ref_filter_map` and `ref_traverse`
+were inconsistently kept when their dispatch versions were added; this
+should be cleaned up during dispatch expansion.
 
 ### Partition return types
 
@@ -209,14 +245,19 @@ signature `Fn(Self::Index, B, A) -> B`. The PureScript convention is
 must be fixed to `Fn(Self::Index, B, &A) -> B` before adding dispatch,
 so that the only difference between Val and Ref closures is `A` vs `&A`.
 
-This is a breaking change to `RefFoldableWithIndex::ref_fold_left_with_index`.
-All concrete implementations and call sites must be updated.
+This is a breaking change to both `RefFoldableWithIndex::ref_fold_left_with_index`
+and `SendRefFoldableWithIndex::send_ref_fold_left_with_index`. All trait
+definitions, default impl bodies, doc tests, concrete implementations,
+and call sites must be updated. The blast radius is small: 2 trait
+definitions, 2 default impl bodies, 2 doc tests, 0 concrete overrides,
+0 external call sites.
 
 ## Implementation Order
 
 0. **Prerequisite: Fix `ref_fold_left_with_index` argument order.**
    Change `Fn(B, Self::Index, &A) -> B` to `Fn(Self::Index, B, &A) -> B`
-   in the trait definition, all impls, and all call sites.
+   in both `RefFoldableWithIndex` and `SendRefFoldableWithIndex` trait
+   definitions, default impl bodies, and doc tests.
 
 1. **Simple group:** `FilterDispatch`, `PartitionDispatch`,
    `PartitionMapDispatch`. These follow the FilterMapDispatch pattern
