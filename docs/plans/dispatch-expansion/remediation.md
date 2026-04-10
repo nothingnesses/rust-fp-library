@@ -11,11 +11,11 @@ complete and all tests pass.
 | Item                                       | Status                                                        |
 | ------------------------------------------ | ------------------------------------------------------------- |
 | 1. Routing tests                           | Open                                                          |
-| 2. Migrate ref\_\* call sites              | Open                                                          |
+| 2. Migrate ref\_\* call sites              | Done (44 doc tests migrated to dispatch form)                 |
 | 3. Hide ref\_\* from public API            | Done (exclusion feature added, 20 ref\_\* functions excluded) |
-| 4. Fix traverse_with_index doc imports     | Open                                                          |
-| 5. Fix plan turbofish table                | Open                                                          |
-| 6. Exclude by-value non-dispatch functions | Open (new, see below)                                         |
+| 4. Fix traverse_with_index doc imports     | Done                                                          |
+| 5. Fix plan turbofish table                | Done                                                          |
+| 6. Exclude by-value non-dispatch functions | Done (21 by-value functions excluded)                         |
 
 ## 1. Add dedicated dispatch routing tests
 
