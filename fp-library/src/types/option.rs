@@ -256,6 +256,40 @@ mod inner {
 		}
 	}
 
+	impl RefAlt for OptionBrand {
+		/// Chooses between two options by reference.
+		///
+		/// Returns the first `Some` value (cloned), or `None` if both are `None`.
+		/// This is the by-reference counterpart of [`Alt::alt`] for `Option`,
+		/// borrowing both arguments and cloning the inner value as needed.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the values.", "The type of the value.")]
+		///
+		#[document_parameters("The first option.", "The second option.")]
+		///
+		#[document_returns("The first `Some` value (cloned), or `None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(ref_alt::<OptionBrand, _>(&None, &Some(5)), Some(5));
+		/// assert_eq!(ref_alt::<OptionBrand, _>(&Some(3), &Some(5)), Some(3));
+		/// assert_eq!(ref_alt::<OptionBrand, _>(&None::<i32>, &None), None);
+		/// ```
+		fn ref_alt<'a, A: 'a + Clone>(
+			fa1: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa2: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			fa1.as_ref().or(fa2.as_ref()).cloned()
+		}
+	}
+
 	impl Plus for OptionBrand {
 		/// Returns `None`, the identity element for [`alt`](Alt::alt).
 		#[document_signature]
@@ -684,6 +718,98 @@ mod inner {
 			match fa {
 				Some(Ok(o)) => (None, Some(o)),
 				Some(Err(e)) => (Some(e), None),
+				None => (None, None),
+			}
+		}
+	}
+
+	impl RefCompactable for OptionBrand {
+		/// Compacts a borrowed nested option by reference.
+		///
+		/// Flattens a borrowed `Option<Option<A>>` into an `Option<A>`,
+		/// cloning the inner value if present.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the elements. Must be [`Clone`] because elements are extracted from a borrowed container."
+		)]
+		///
+		#[document_parameters("A reference to the nested option.")]
+		///
+		#[document_returns("The flattened option with the inner value cloned, or [`None`].")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(Some(5));
+		/// let y = ref_compact::<OptionBrand, _>(&x);
+		/// assert_eq!(y, Some(5));
+		///
+		/// let z: Option<Option<i32>> = Some(None);
+		/// let w = ref_compact::<OptionBrand, _>(&z);
+		/// assert_eq!(w, None);
+		/// ```
+		fn ref_compact<'a, A: 'a + Clone>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<A>>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			match fa {
+				Some(Some(a)) => Some(a.clone()),
+				_ => None,
+			}
+		}
+
+		/// Separates a borrowed option of result by reference.
+		///
+		/// Splits a borrowed `Option<Result<O, E>>` into a pair of options,
+		/// cloning the inner value. The first element contains the error if
+		/// present, the second contains the success value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the error value. Must be [`Clone`] because elements are extracted from a borrowed container.",
+			"The type of the success value. Must be [`Clone`] because elements are extracted from a borrowed container."
+		)]
+		///
+		#[document_parameters("A reference to the option of result.")]
+		///
+		#[document_returns(
+			"A pair of options: the first containing the cloned error, the second containing the cloned success value."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x: Option<Result<i32, &str>> = Some(Ok(5));
+		/// let (errs, oks) = ref_separate::<OptionBrand, _, _>(&x);
+		/// assert_eq!(oks, Some(5));
+		/// assert_eq!(errs, None);
+		///
+		/// let y: Option<Result<i32, &str>> = Some(Err("bad"));
+		/// let (errs, oks) = ref_separate::<OptionBrand, _, _>(&y);
+		/// assert_eq!(oks, None);
+		/// assert_eq!(errs, Some("bad"));
+		/// ```
+		fn ref_separate<'a, E: 'a + Clone, O: 'a + Clone>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
+		) -> (
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		) {
+			match fa {
+				Some(Ok(o)) => (None, Some(o.clone())),
+				Some(Err(e)) => (Some(e.clone()), None),
 				None => (None, None),
 			}
 		}

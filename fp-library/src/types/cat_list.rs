@@ -504,6 +504,44 @@ mod inner {
 		}
 	}
 
+	impl RefAlt for CatListBrand {
+		/// Concatenates two lists by reference.
+		///
+		/// Both input lists are borrowed and cloned before appending. Because
+		/// `CatList` is backed by `Rc`-based structural sharing, cloning is O(1),
+		/// and the subsequent `append` is also O(1). The `A: Clone` bound is
+		/// required by the trait signature but is not exercised in this
+		/// implementation.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
+		///
+		#[document_parameters("The first list.", "The second list.")]
+		///
+		#[document_returns("The concatenated list.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = CatList::singleton(1).snoc(2);
+		/// let y = CatList::singleton(3).snoc(4);
+		/// let result: Vec<_> = ref_alt::<CatListBrand, _>(&x, &y).into_iter().collect();
+		/// assert_eq!(result, vec![1, 2, 3, 4]);
+		/// ```
+		fn ref_alt<'a, A: 'a + Clone>(
+			fa1: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa2: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			fa1.clone().append(fa2.clone())
+		}
+	}
+
 	impl Plus for CatListBrand {
 		/// Returns an empty list, the identity element for [`alt`](Alt::alt).
 		#[document_signature]
@@ -1312,6 +1350,98 @@ mod inner {
 				}
 			}
 			(errs, oks)
+		}
+	}
+
+	impl RefCompactable for CatListBrand {
+		/// Compacts a borrowed list of options by reference.
+		///
+		/// Iterates over a borrowed [`CatList`] of [`Option`] values, discarding
+		/// [`None`] values and cloning the inner values from [`Some`] variants
+		/// into a new [`CatList`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the elements in the [`Option`]. Must be [`Clone`] because elements are extracted from a borrowed container."
+		)]
+		///
+		#[document_parameters("A reference to the list of [`Option`] values.")]
+		///
+		#[document_returns(
+			"A new list containing only the cloned values from the [`Some`] variants."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(Some(1)).snoc(None).snoc(Some(2));
+		/// let compacted = ref_compact::<CatListBrand, _>(&list);
+		/// let vec: Vec<_> = compacted.into_iter().collect();
+		/// assert_eq!(vec, vec![1, 2]);
+		/// ```
+		fn ref_compact<'a, A: 'a + Clone>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<A>>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			fa.iter().filter_map(|opt| opt.as_ref().cloned()).collect()
+		}
+
+		/// Separates a borrowed list of results by reference.
+		///
+		/// Iterates over a borrowed [`CatList`] of [`Result`] values, cloning each
+		/// value and partitioning them into a pair of [`CatList`]s: one for the
+		/// [`Err`] values and one for the [`Ok`] values.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the error values. Must be [`Clone`] because elements are extracted from a borrowed container.",
+			"The type of the success values. Must be [`Clone`] because elements are extracted from a borrowed container."
+		)]
+		///
+		#[document_parameters("A reference to the list of [`Result`] values.")]
+		///
+		#[document_returns(
+			"A pair of lists: the first containing the cloned [`Err`] values, and the second containing the cloned [`Ok`] values."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(Ok(1)).snoc(Err("error")).snoc(Ok(2));
+		/// let (errs, oks) = ref_separate::<CatListBrand, _, _>(&list);
+		/// let oks_vec: Vec<_> = oks.into_iter().collect();
+		/// let errs_vec: Vec<_> = errs.into_iter().collect();
+		/// assert_eq!(oks_vec, vec![1, 2]);
+		/// assert_eq!(errs_vec, vec!["error"]);
+		/// ```
+		fn ref_separate<'a, E: 'a + Clone, O: 'a + Clone>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
+		) -> (
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		) {
+			let mut errs = Vec::new();
+			let mut oks = Vec::new();
+			for result in fa.iter() {
+				match result {
+					Ok(o) => oks.push(o.clone()),
+					Err(e) => errs.push(e.clone()),
+				}
+			}
+			(errs.into_iter().collect(), oks.into_iter().collect())
 		}
 	}
 

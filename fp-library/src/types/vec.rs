@@ -329,6 +329,40 @@ mod inner {
 		}
 	}
 
+	impl RefAlt for VecBrand {
+		/// Concatenates two vectors by reference.
+		///
+		/// Both input vectors are borrowed and their elements are cloned to
+		/// construct a new vector containing all elements from both inputs.
+		/// This is the by-reference counterpart of [`Alt::alt`] for `Vec`.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
+		///
+		#[document_parameters("The first vector.", "The second vector.")]
+		///
+		#[document_returns("A new vector containing cloned elements from both inputs.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = vec![1, 2];
+		/// let y = vec![3, 4];
+		/// assert_eq!(ref_alt::<VecBrand, _>(&x, &y), vec![1, 2, 3, 4]);
+		/// ```
+		fn ref_alt<'a, A: 'a + Clone>(
+			fa1: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa2: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			fa1.iter().chain(fa2.iter()).cloned().collect()
+		}
+	}
+
 	impl Plus for VecBrand {
 		/// Returns an empty vector, the identity element for [`alt`](Alt::alt).
 		#[document_signature]
@@ -1538,6 +1572,91 @@ mod inner {
 				match result {
 					Ok(o) => oks.push(o),
 					Err(e) => errs.push(e),
+				}
+			}
+			(errs, oks)
+		}
+	}
+
+	impl RefCompactable for VecBrand {
+		/// Compacts a borrowed vector of options, discarding [`None`] values and cloning [`Some`] values.
+		///
+		/// This method iterates over a borrowed vector of options, keeping only the [`Some`] values
+		/// by cloning them into a new vector.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the elements in the [`Option`]. Must be [`Clone`] because elements are extracted from a borrowed container."
+		)]
+		///
+		#[document_parameters("A reference to the vector containing [`Option`] values.")]
+		///
+		#[document_returns(
+			"A new vector containing only the cloned values from the [`Some`] variants."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let v = vec![Some(1), None, Some(3)];
+		/// let result = ref_compact::<VecBrand, _>(&v);
+		/// assert_eq!(result, vec![1, 3]);
+		/// ```
+		fn ref_compact<'a, A: 'a + Clone>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<A>>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			fa.iter().filter_map(|opt| opt.as_ref().cloned()).collect()
+		}
+
+		/// Separates a borrowed vector of results into two vectors: one containing the cloned [`Err`] values and one containing the cloned [`Ok`] values.
+		///
+		/// This method iterates over a borrowed vector of results, cloning each value into the
+		/// appropriate output vector.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the error values. Must be [`Clone`] because elements are extracted from a borrowed container.",
+			"The type of the success values. Must be [`Clone`] because elements are extracted from a borrowed container."
+		)]
+		///
+		#[document_parameters("A reference to the vector containing [`Result`] values.")]
+		///
+		#[document_returns(
+			"A pair of vectors: the first containing the cloned [`Err`] values, and the second containing the cloned [`Ok`] values."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let v: Vec<Result<i32, &str>> = vec![Ok(1), Err("bad"), Ok(3)];
+		/// let (errs, oks) = ref_separate::<VecBrand, _, _>(&v);
+		/// assert_eq!(oks, vec![1, 3]);
+		/// assert_eq!(errs, vec!["bad"]);
+		/// ```
+		fn ref_separate<'a, E: 'a + Clone, O: 'a + Clone>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
+		) -> (
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		) {
+			let mut errs = Vec::new();
+			let mut oks = Vec::new();
+			for result in fa.iter() {
+				match result {
+					Ok(o) => oks.push(o.clone()),
+					Err(e) => errs.push(e.clone()),
 				}
 			}
 			(errs, oks)
