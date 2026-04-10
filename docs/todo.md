@@ -25,10 +25,10 @@
 ### Deferred Ref-hierarchy items
 
 - **SendRef variants for filterable/traversable/witherable**: `SendRefFilterable`, `SendRefTraversable`, `SendRefWitherable`, `SendRefFilterableWithIndex`, `SendRefTraversableWithIndex`. Not needed until a thread-safe memoized type implements filtering or traversal.
-- **Ref impls for collection types** (Vec, Option, CatList, etc.): Implement `RefFunctor`, `RefFoldable`, `RefFilterable`, `RefTraversable`, `RefWitherable` and their WithIndex variants. Enables by-reference iteration without consuming the container. See [ref-hierarchy plan](plans/ref-hierarchy/plan.md) step 22.
+- **Ref impls for collection types**: Done. Implemented in the ref-hierarchy remediation and ref-borrow refactor.
 - **Par-Ref traits**: Parallel by-reference trait variants (`ParRefFunctor`, `ParRefFoldable`, etc.). Combine rayon parallelism with by-reference element access. Needs collection Ref impls first.
-- **Dispatch unification for filterable/traversable/witherable**: Once Ref impls exist, unify `filter_map`/`ref_filter_map`, `traverse`/`ref_traverse`, `wilt`/`ref_wilt` etc. via dispatch traits.
-- **RefBifunctor, RefBifoldable, RefBitraversable**: By-reference variants for bifunctor traits. Deferred: no memoized bifunctor type exists.
+- **Dispatch unification for filterable/traversable/witherable**: Covered by the dispatch-expansion plan (`docs/plans/dispatch-expansion/plan.md`).
+- **RefBifunctor, RefBifoldable, RefBitraversable**: Covered by the ref-expansion plan (`docs/plans/ref-expansion/plan.md`).
 
 ### Parallel type classes
 
