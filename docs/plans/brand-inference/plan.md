@@ -2,17 +2,18 @@
 
 ## Prerequisites
 
-This plan depends on two prior plans being implemented:
+This plan depends on two prior plans, both now implemented:
 
-1. **Ref trait expansion** (`docs/plans/ref-expansion/plan.md`): Adds
-   RefBifunctor, RefBifoldable, RefBitraversable, RefCompactable, and
-   RefAlt. These create the Val/Ref pairs that dispatch and brand
-   inference operate on.
+1. **Ref trait expansion** (`docs/plans/ref-expansion/plan.md`): Done.
+   Added RefBifunctor, RefBifoldable, RefBitraversable, RefCompactable,
+   and RefAlt.
 
-2. **Dispatch expansion** (`docs/plans/dispatch-expansion/plan.md`): Adds
-   dispatch traits for all remaining closure-taking Val/Ref pairs. This
-   ensures brand inference creates one wrapper per function (via dispatch)
-   rather than separate wrappers for val and ref.
+2. **Dispatch expansion** (`docs/plans/dispatch-expansion/plan.md`): Done.
+   Added 19 dispatch traits covering all closure-taking Val/Ref pairs.
+   Non-dispatch free functions (both by-value and by-ref) are excluded
+   from the `functions::*` re-export; only dispatch versions are public.
+   This means brand inference only needs to wrap dispatch functions
+   (one per operation), not separate val/ref functions.
 
 ## Motivation
 
@@ -823,33 +824,36 @@ module) is outdated and should be removed during implementation.
    After the rename, inference wrappers are added tier by tier. Each
    tier adds the clean name (e.g., `map`) as the inference-based
    function, with no further renames needed. The tiers are:
-   - **Tier 1 (core dispatch):** `map`, `bind`, `bind_flipped`,
-     `lift2`-`lift5`, `filter_map` (dispatch-based, full inference).
-   - **Tier 2 (expanded dispatch):** `filter`, `partition`,
-     `partition_map`, `map_with_index`, `filter_with_index`,
-     `filter_map_with_index`, `partition_with_index`,
-     `partition_map_with_index` (dispatch-based after dispatch
-     expansion, full inference).
-   - **Tier 3 (closureless):** `alt`, `compact`, `separate`, `join`,
-     `if_m`, `when_m`, `unless_m`, `apply_first`, `apply_second`,
-     `contramap`, and their `ref_*` counterparts. These have no
-     dispatch; the inference wrapper constrains `FA: DefaultBrand`
-     directly. Separate val/ref inference functions.
-   - **Tier 4 (partial inference):** `fold_right`, `fold_left`,
-     `fold_map`, `traverse`, `apply` (semiapplicative), `wilt`,
-     `wither`, indexed folds, bifunctor folds/traversals, and their
-     `ref_*` / `send_ref_*` counterparts.
-   - **Tier 5 (bifunctor):** `bimap` and bifunctor traversals (use
-     arity-2 `DefaultBrand`).
+   - **Tier 1 (full inference, dispatch):** All dispatch functions
+     where Brand is the only explicit type parameter. These get
+     complete turbofish elimination. Includes: `map`, `bind`,
+     `bind_flipped`, `lift2`-`lift5`, `filter_map`, `filter`,
+     `partition`, `partition_map`, `map_with_index`,
+     `filter_with_index`, `filter_map_with_index`,
+     `partition_with_index`, `partition_map_with_index`, `bimap`.
+   - **Tier 2 (partial inference, dispatch):** Dispatch functions
+     where Brand is inferred but other params (FnBrand, F, M) remain
+     explicit. Turbofish reduced by one position. Includes:
+     `fold_right`, `fold_left`, `fold_map`, `traverse`,
+     `fold_map_with_index`, `fold_right_with_index`,
+     `fold_left_with_index`, `traverse_with_index`, `wilt`, `wither`,
+     `bi_fold_right`, `bi_fold_left`, `bi_fold_map`, `bi_traverse`.
+   - **Tier 3 (full inference, closureless):** Non-dispatch functions
+     that take containers but no closures. The inference wrapper
+     constrains `FA: DefaultBrand` directly. Since these have no
+     dispatch (no closure to drive Val/Ref selection), the container
+     type alone determines the brand. Includes: `alt`, `compact`,
+     `separate`, `join`, `apply_first`, `apply_second`, `if_m`,
+     `when_m`, `unless_m`, `contramap`.
+   - **Tier 4 (bifunctor arity-2):** `bimap` and bifunctor traversals
+     use the arity-2 `DefaultBrand` trait. `bimap` is in Tier 1 for
+     the dispatch wrapper; the arity-2 DefaultBrand impl is a
+     separate step.
 
-   Note: the tier tables above assume the dispatch-expansion plan is
-   complete. Functions listed as dispatch-based in Tiers 1-2 have
-   their `ref_*` counterparts absorbed into the dispatch function.
-
-   Non-dispatch free functions (trait method wrappers like
-   `filterable::filter_map`) keep their original names and are not
-   renamed to `_explicit`. Only dispatch-based functions and closureless
-   functions that get inference wrappers are renamed.
+   Non-dispatch free functions are already excluded from the public
+   API (see dispatch-expansion remediation). Only dispatch functions
+   and the closureless functions listed in Tier 3 are renamed to
+   `_explicit`.
 
 9. **Parallel functions (`par_map`, etc.) are excluded initially.**
    Parallel operations are niche and used in performance-conscious
@@ -906,36 +910,44 @@ to finish on its own; it will not.
    types to drop the turbofish. Remove the old `brand_inference_poc` module
    from `dispatch.rs`.
 
-6. **Tier 1: Dispatch-based functions with full inference.** Extend to
-   `bind`, `bind_flipped`, `lift2`-`lift5`, `filter_map`. Rename current
-   versions to `_explicit` suffix, add inference-based versions following
-   the same `map` pattern. These all have container arguments and support
-   full brand inference (no turbofish needed). `compose_kleisli` and
-   `compose_kleisli_flipped` are excluded (no container argument).
+6. **Tier 1: Full inference for dispatch functions.** Extend to all
+   dispatch functions where Brand is the only explicit type parameter:
+   `bind`, `bind_flipped`, `lift2`-`lift5`, `filter_map`, `filter`,
+   `partition`, `partition_map`, `map_with_index`, `filter_with_index`,
+   `filter_map_with_index`, `partition_with_index`,
+   `partition_map_with_index`, `bimap`. Rename current versions to
+   `_explicit` suffix, add inference-based versions following the same
+   `map` pattern. `compose_kleisli` and `compose_kleisli_flipped` are
+   excluded (no container argument).
 
-6a. **Tier 2: Common non-dispatch functions with full inference.** Add
-inference-based versions of non-dispatch functions that take
-containers and have no extra non-inferrable Brand params: - Monad/comonad: `join`, `if_m`, `when_m`, `unless_m`, `extract`,
-`extend`, `extend_flipped`, `duplicate`. - Filterable: `filter`, `partition`, `partition_map`. - Alt/Compactable: `alt`, `compact`, `separate`. - Applicative: `apply_first`, `apply_second`. - Contravariant: `contramap`. - Indexed: `map_with_index`, `filter_with_index`,
-`filter_map_with_index`, `partition_with_index`,
-`partition_map_with_index`. - Ref counterparts: `ref_join`, `ref_apply_first`,
-`ref_apply_second`, `ref_filter_map`, `ref_filter`,
-`ref_partition_map`, `ref_partition`, `ref_map_with_index`,
-`ref_if_m`, `ref_unless_m`, and ref indexed filterable variants.
+   Since dispatch already unifies Val/Ref, each inference wrapper is a
+   single function that handles both owned and borrowed containers.
+   No separate `ref_*` inference wrappers needed.
 
-    These do not use the dispatch trait system; the inference-based
-    version constrains `FA: DefaultBrand` and delegates to the trait
-    method via `<FA as DefaultBrand>::Brand`. Rename current versions
-    to `_explicit`.
-
-6b. **Tier 3: Functions with partial inference.** Add inference-based
-versions of functions where Brand is inferred but `FnBrand`, effect
-brand `F`/`M`, or both remain explicit: - Foldable: `fold_right`, `fold_left`, `fold_map`. - Traversable: `traverse`, `ref_traverse`. - Applicative: `apply` (semiapplicative), `ref_apply`. - Witherable: `wilt`, `wither`, `ref_wilt`, `ref_wither`. - Indexed folds: `fold_map_with_index`, `fold_right_with_index`,
-`fold_left_with_index`, `ref_fold_map_with_index`. - SendRef: `send_ref_fold_map`, `send_ref_apply`,
-`send_ref_bind`, `send_ref_lift2`. - Bifunctor folds: `bi_fold_right`, `bi_fold_left`, `bi_fold_map`.
+6a. **Tier 2: Partial inference for dispatch functions.** Extend to
+dispatch functions where Brand is inferred but other params
+(FnBrand, F, M) remain explicit: `fold_right`, `fold_left`,
+`fold_map`, `traverse`, `fold_map_with_index`,
+`fold_right_with_index`, `fold_left_with_index`,
+`traverse_with_index`, `wilt`, `wither`, `bi_fold_right`,
+`bi_fold_left`, `bi_fold_map`, `bi_traverse`.
 
     The turbofish is reduced by one position (Brand inferred, remaining
     params explicit). Rename current versions to `_explicit`.
+
+6b. **Tier 3: Full inference for closureless functions.** Add
+inference-based versions of non-dispatch functions that take
+containers but no closures: `alt`, `compact`, `separate`, `join`,
+`apply_first`, `apply_second`, `if_m`, `when_m`, `unless_m`,
+`contramap`.
+
+    These have no dispatch (no closure to drive Val/Ref selection).
+    The inference wrapper constrains `FA: DefaultBrand` and delegates
+    to the trait method. For types that also have Ref variants (e.g.,
+    `ref_alt`, `ref_compact`), the Ref functions are not in the public
+    API (excluded from `functions::*`), so no `_explicit` rename is
+    needed for them. The inference wrapper uses the container type
+    alone to determine the brand.
 
 7. **Extend `trait_kind!` to also generate `DefaultBrand_{hash}` traits.**
    When `trait_kind!` creates a `Kind_{hash}` trait, it also creates the
@@ -947,7 +959,7 @@ brand `F`/`M`, or both remain explicit: - Foldable: `fold_right`, `fold_left`, `
    Add `#[no_default_brand]` opt-out attribute for types with multiple
    brands. Migrate hand-written impls to use the macro.
 
-9. **Tier 5: Bifunctor inference.** Implement the two-parameter
+9. **Tier 4: Bifunctor arity-2 DefaultBrand.** Implement the two-parameter
    DefaultBrand trait for Result, Tuple2, Pair, ControlFlow, TryThunk.
    Add inference-based `bimap` (renaming the current to `bimap_explicit`).
    Also add inference-based versions of bifunctor traversal functions
