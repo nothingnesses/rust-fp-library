@@ -73,7 +73,7 @@ pub(crate) mod inner {
 		/// let z = lift2::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
 		/// assert_eq!(z, Some(3));
 		/// ```
-		fn dispatch_lift2(
+		fn dispatch(
 			self,
 			fa: FA,
 			fb: FB,
@@ -121,7 +121,7 @@ pub(crate) mod inner {
 		/// let z = lift2::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
 		/// assert_eq!(z, Some(3));
 		/// ```
-		fn dispatch_lift2(
+		fn dispatch(
 			self,
 			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
@@ -180,7 +180,7 @@ pub(crate) mod inner {
 		/// let z = lift2::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _>(|a: &i32, b: &i32| *a + *b, &x, &y);
 		/// assert_eq!(*z.evaluate(), 7);
 		/// ```
-		fn dispatch_lift2(
+		fn dispatch(
 			self,
 			fa: &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
@@ -232,7 +232,7 @@ pub(crate) mod inner {
 		fa: FA,
 		fb: FB,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
-		f.dispatch_lift2(fa, fb)
+		f.dispatch(fa, fb)
 	}
 
 	// -- Lift3Dispatch --
@@ -282,7 +282,7 @@ pub(crate) mod inner {
 		/// );
 		/// assert_eq!(r, Some(6));
 		/// ```
-		fn dispatch_lift3(
+		fn dispatch(
 			self,
 			fa: FA,
 			fb: FB,
@@ -340,7 +340,7 @@ pub(crate) mod inner {
 		/// );
 		/// assert_eq!(r, Some(6));
 		/// ```
-		fn dispatch_lift3(
+		fn dispatch(
 			self,
 			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
@@ -407,7 +407,7 @@ pub(crate) mod inner {
 		/// );
 		/// assert_eq!(*r.evaluate(), 6);
 		/// ```
-		fn dispatch_lift3(
+		fn dispatch(
 			self,
 			fa: &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
@@ -481,7 +481,7 @@ pub(crate) mod inner {
 		fb: FB,
 		fc: FC,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) {
-		f.dispatch_lift3(fa, fb, fc)
+		f.dispatch(fa, fb, fc)
 	}
 
 	// -- Lift4Dispatch --
@@ -536,7 +536,7 @@ pub(crate) mod inner {
 		/// );
 		/// assert_eq!(r, Some(10));
 		/// ```
-		fn dispatch_lift4(
+		fn dispatch(
 			self,
 			fa: FA,
 			fb: FB,
@@ -600,7 +600,7 @@ pub(crate) mod inner {
 		/// );
 		/// assert_eq!(r, Some(10));
 		/// ```
-		fn dispatch_lift4(
+		fn dispatch(
 			self,
 			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
@@ -678,7 +678,7 @@ pub(crate) mod inner {
 		/// );
 		/// assert_eq!(*r.evaluate(), 10);
 		/// ```
-		fn dispatch_lift4(
+		fn dispatch(
 			self,
 			fa: &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
@@ -762,7 +762,7 @@ pub(crate) mod inner {
 		fc: FC,
 		fd: FD,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>) {
-		f.dispatch_lift4(fa, fb, fc, fd)
+		f.dispatch(fa, fb, fc, fd)
 	}
 
 	// -- Lift5Dispatch --
@@ -822,7 +822,7 @@ pub(crate) mod inner {
 		/// );
 		/// assert_eq!(r, Some(15));
 		/// ```
-		fn dispatch_lift5(
+		fn dispatch(
 			self,
 			fa: FA,
 			fb: FB,
@@ -892,7 +892,7 @@ pub(crate) mod inner {
 		/// );
 		/// assert_eq!(r, Some(15));
 		/// ```
-		fn dispatch_lift5(
+		fn dispatch(
 			self,
 			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
@@ -985,7 +985,7 @@ pub(crate) mod inner {
 		/// );
 		/// assert_eq!(*r.evaluate(), 15);
 		/// ```
-		fn dispatch_lift5(
+		fn dispatch(
 			self,
 			fa: &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
@@ -1083,7 +1083,7 @@ pub(crate) mod inner {
 		fd: FD,
 		fe: FE,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, G>) {
-		f.dispatch_lift5(fa, fb, fc, fd, fe)
+		f.dispatch(fa, fb, fc, fd, fe)
 	}
 }
 

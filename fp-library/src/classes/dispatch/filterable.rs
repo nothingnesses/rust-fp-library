@@ -81,7 +81,7 @@ pub(crate) mod inner {
 		/// );
 		/// assert_eq!(result, Some(10));
 		/// ```
-		fn dispatch_filter_map(
+		fn dispatch(
 			self,
 			fa: FA,
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
@@ -134,7 +134,7 @@ pub(crate) mod inner {
 		/// );
 		/// assert_eq!(result, Some(10));
 		/// ```
-		fn dispatch_filter_map(
+		fn dispatch(
 			self,
 			fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -192,7 +192,7 @@ pub(crate) mod inner {
 		/// );
 		/// assert_eq!(result, Some(10));
 		/// ```
-		fn dispatch_filter_map(
+		fn dispatch(
 			self,
 			fa: &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -263,7 +263,7 @@ pub(crate) mod inner {
 		f: impl FilterMapDispatch<'a, Brand, A, B, FA, Marker>,
 		fa: FA,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		f.dispatch_filter_map(fa)
+		f.dispatch(fa)
 	}
 }
 

@@ -90,7 +90,7 @@ pub(crate) mod inner {
 		/// 	traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(|x: i32| Some(x * 2), Some(5));
 		/// assert_eq!(result, Some(Some(10)));
 		/// ```
-		fn dispatch_traverse(
+		fn dispatch(
 			self,
 			ta: FTA,
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>);
@@ -149,7 +149,7 @@ pub(crate) mod inner {
 		/// 	traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(|x: i32| Some(x * 2), Some(5));
 		/// assert_eq!(result, Some(Some(10)));
 		/// ```
-		fn dispatch_traverse(
+		fn dispatch(
 			self,
 			ta: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -219,7 +219,7 @@ pub(crate) mod inner {
 		/// );
 		/// assert_eq!(result, Some(Some(10)));
 		/// ```
-		fn dispatch_traverse(
+		fn dispatch(
 			self,
 			ta: &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -304,7 +304,7 @@ pub(crate) mod inner {
 		ta: FTA,
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 	{
-		func.dispatch_traverse(ta)
+		func.dispatch(ta)
 	}
 }
 

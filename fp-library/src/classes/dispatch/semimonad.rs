@@ -77,7 +77,7 @@ pub(crate) mod inner {
 		/// let result = bind::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
 		/// assert_eq!(result, Some(10));
 		/// ```
-		fn dispatch_bind(
+		fn dispatch(
 			self,
 			ma: FA,
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
@@ -120,7 +120,7 @@ pub(crate) mod inner {
 		/// let result = bind::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
 		/// assert_eq!(result, Some(10));
 		/// ```
-		fn dispatch_bind(
+		fn dispatch(
 			self,
 			ma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -175,7 +175,7 @@ pub(crate) mod inner {
 		/// });
 		/// assert_eq!(*result.evaluate(), 10);
 		/// ```
-		fn dispatch_bind(
+		fn dispatch(
 			self,
 			ma: &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -223,7 +223,7 @@ pub(crate) mod inner {
 		ma: FA,
 		f: impl BindDispatch<'a, Brand, A, B, FA, Marker>,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		f.dispatch_bind(ma)
+		f.dispatch(ma)
 	}
 
 	// -- bind_flipped --
@@ -266,7 +266,7 @@ pub(crate) mod inner {
 		f: impl BindDispatch<'a, Brand, A, B, FA, Marker>,
 		ma: FA,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		f.dispatch_bind(ma)
+		f.dispatch(ma)
 	}
 
 	// -- ComposeKleisliDispatch --
