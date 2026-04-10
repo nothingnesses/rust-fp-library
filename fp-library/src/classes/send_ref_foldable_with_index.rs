@@ -192,7 +192,7 @@ mod inner {
 		/// 		ArcFnBrand,
 		/// 		_,
 		/// 		_,
-		/// 	>(|acc: i32, _, x: &i32| acc + *x, 0, &lazy);
+		/// 	>(|_, acc: i32, x: &i32| acc + *x, 0, &lazy);
 		/// assert_eq!(result, 10);
 		/// ```
 		fn send_ref_fold_left_with_index<
@@ -201,7 +201,7 @@ mod inner {
 			A: Send + Sync + 'a + Clone,
 			B: Send + Sync + 'a,
 		>(
-			func: impl Fn(B, Self::Index, &A) -> B + Send + Sync + 'a,
+			func: impl Fn(Self::Index, B, &A) -> B + Send + Sync + 'a,
 			initial: B,
 			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
@@ -209,7 +209,7 @@ mod inner {
 			FnBrand: SendLiftFn + 'a,
 			Self::Index: Send + Sync + 'a, {
 			let f =
-				<FnBrand as SendLiftFn>::new(move |(b, i, a): (B, Self::Index, A)| func(b, i, &a));
+				<FnBrand as SendLiftFn>::new(move |(i, b, a): (Self::Index, B, A)| func(i, b, &a));
 			let m = Self::send_ref_fold_map_with_index::<
 				FnBrand,
 				A,
@@ -222,7 +222,7 @@ mod inner {
 						move |b| {
 							let a = a.clone();
 							let i = i.clone();
-							f((b, i, a))
+							f((i, b, a))
 						},
 					)))
 				},

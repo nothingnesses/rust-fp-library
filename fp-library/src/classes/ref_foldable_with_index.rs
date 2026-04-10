@@ -177,18 +177,18 @@ mod inner {
 		/// 	RcFnBrand,
 		/// 	_,
 		/// 	_,
-		/// >(|acc: i32, _, x: &i32| acc + *x, 0, &lazy);
+		/// >(|_, acc: i32, x: &i32| acc + *x, 0, &lazy);
 		/// assert_eq!(result, 10);
 		/// ```
 		fn ref_fold_left_with_index<'a, FnBrand, A: 'a + Clone, B: 'a>(
-			func: impl Fn(B, Self::Index, &A) -> B + 'a,
+			func: impl Fn(Self::Index, B, &A) -> B + 'a,
 			initial: B,
 			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
 			FnBrand: LiftFn + 'a,
 			Self::Index: 'a, {
-			let f = <FnBrand as LiftFn>::new(move |(b, i, a): (B, Self::Index, A)| func(b, i, &a));
+			let f = <FnBrand as LiftFn>::new(move |(i, b, a): (Self::Index, B, A)| func(i, b, &a));
 			let m = Self::ref_fold_map_with_index::<FnBrand, A, Dual<Endofunction<FnBrand, B>>>(
 				move |i, a: &A| {
 					let a = a.clone();
@@ -196,7 +196,7 @@ mod inner {
 					Dual(Endofunction::<FnBrand, B>::new(<FnBrand as LiftFn>::new(move |b| {
 						let a = a.clone();
 						let i = i.clone();
-						f((b, i, a))
+						f((i, b, a))
 					})))
 				},
 				fa,
