@@ -416,7 +416,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			b.iter_batched(
 				|| v_orig.clone(),
 				|v| {
-					wither::<VecBrand, OptionBrand, _, _>(
+					wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
 						|x| Some(if x % 2 == 0 { Some(x * 2) } else { None }),
 						v,
 					)
@@ -452,7 +452,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			b.iter_batched(
 				|| v_orig.clone(),
 				|v| {
-					wilt::<VecBrand, OptionBrand, _, _, _>(
+					wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
 						|x| Some(if x % 2 == 0 { Ok(x * 2) } else { Err(x) }),
 						v,
 					)

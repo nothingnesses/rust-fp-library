@@ -219,7 +219,7 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let result = fold_map_with_index::<RcFnBrand, VecBrand, _, _>(
+	/// let result = fold_map_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
 	/// 	|i, x: i32| format!("{i}:{x}"),
 	/// 	vec![10, 20, 30],
 	/// );
@@ -265,7 +265,7 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let result = fold_right_with_index::<RcFnBrand, VecBrand, _, _>(
+	/// let result = fold_right_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
 	/// 	|i, x: i32, acc: String| format!("{acc}{i}:{x},"),
 	/// 	String::new(),
 	/// 	vec![10, 20, 30],
@@ -313,7 +313,7 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let result = fold_left_with_index::<RcFnBrand, VecBrand, _, _>(
+	/// let result = fold_left_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
 	/// 	|i, acc: String, x: i32| format!("{acc}{i}:{x},"),
 	/// 	String::new(),
 	/// 	vec![10, 20, 30],

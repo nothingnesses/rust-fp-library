@@ -1909,7 +1909,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let wilted = wilt::<CatListBrand, OptionBrand, _, _, _>(
+		/// let wilted = wilt::<RcFnBrand, CatListBrand, OptionBrand, _, _, _, _, _>(
 		/// 	|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }),
 		/// 	list,
 		/// );
@@ -1976,7 +1976,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let withered = wither::<CatListBrand, OptionBrand, _, _>(
+		/// let withered = wither::<RcFnBrand, CatListBrand, OptionBrand, _, _, _, _>(
 		/// 	|a| Some(if a % 2 == 0 { Some(a * 2) } else { None }),
 		/// 	list,
 		/// );
@@ -4599,7 +4599,8 @@ mod tests {
 	#[quickcheck]
 	fn witherable_identity(x: Vec<i32>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
-		wither::<CatListBrand, OptionBrand, _, _>(|i| Some(Some(i)), x.clone()) == Some(x)
+		wither::<RcFnBrand, CatListBrand, OptionBrand, _, _, _, _>(|i| Some(Some(i)), x.clone())
+			== Some(x)
 	}
 
 	// Alt Laws

@@ -998,8 +998,10 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y =
-		/// 	wilt::<OptionBrand, OptionBrand, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
+		/// let y = wilt::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
+		/// 	|a| Some(if a > 2 { Ok(a) } else { Err(a) }),
+		/// 	x,
+		/// );
 		/// assert_eq!(y, Some((None, Some(5))));
 		/// ```
 		fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone>(
@@ -1055,7 +1057,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = wither::<OptionBrand, OptionBrand, _, _>(
+		/// let y = wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
 		/// 	|a| Some(if a > 2 { Some(a * 2) } else { None }),
 		/// 	x,
 		/// );

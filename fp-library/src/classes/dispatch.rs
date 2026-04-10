@@ -95,6 +95,9 @@ pub mod filter;
 pub mod filter_map_with_index;
 pub mod filter_with_index;
 pub mod filterable;
+pub mod fold_left_with_index;
+pub mod fold_map_with_index;
+pub mod fold_right_with_index;
 pub mod foldable;
 pub mod functor;
 pub mod lift;
@@ -105,6 +108,9 @@ pub mod partition_map_with_index;
 pub mod partition_with_index;
 pub mod semimonad;
 pub mod traversable;
+pub mod traverse_with_index;
+pub mod wilt;
+pub mod wither;
 
 // Re-export dispatch free functions at the dispatch module level
 // so they're accessible via `crate::classes::dispatch::map` etc.
@@ -113,6 +119,9 @@ pub use {
 	filter_map_with_index::filter_map_with_index,
 	filter_with_index::filter_with_index,
 	filterable::filter_map,
+	fold_left_with_index::fold_left_with_index,
+	fold_map_with_index::fold_map_with_index,
+	fold_right_with_index::fold_right_with_index,
 	foldable::{
 		fold_left,
 		fold_map,
@@ -137,6 +146,9 @@ pub use {
 		compose_kleisli_flipped,
 	},
 	traversable::traverse,
+	traverse_with_index::traverse_with_index,
+	wilt::wilt,
+	wither::wither,
 };
 
 #[cfg(test)]

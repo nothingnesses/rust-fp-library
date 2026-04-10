@@ -99,12 +99,13 @@ mod inner {
 	/// use fp_library::{
 	/// 	brands::{
 	/// 		OptionBrand,
+	/// 		RcFnBrand,
 	/// 		VecBrand,
 	/// 	},
 	/// 	functions::*,
 	/// };
 	///
-	/// let result = traverse_with_index::<VecBrand, _, _, OptionBrand>(
+	/// let result = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 	/// 	|_i, x: i32| if x > 0 { Some(x * 2) } else { None },
 	/// 	vec![1, 2, 3],
 	/// );

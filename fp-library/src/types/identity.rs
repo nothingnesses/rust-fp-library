@@ -1047,8 +1047,10 @@ mod inner {
 		/// 	types::Identity,
 		/// };
 		///
-		/// let result: String =
-		/// 	fold_map_with_index::<RcFnBrand, IdentityBrand, _, _>(|(), x| x.to_string(), Identity(42));
+		/// let result: String = fold_map_with_index::<RcFnBrand, IdentityBrand, _, _, _, _>(
+		/// 	|(), x: i32| x.to_string(),
+		/// 	Identity(42),
+		/// );
 		/// assert_eq!(result, "42");
 		/// ```
 		fn fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
@@ -1081,10 +1083,11 @@ mod inner {
 		/// 	types::Identity,
 		/// };
 		///
-		/// let result: Option<Identity<String>> = traverse_with_index::<IdentityBrand, _, _, OptionBrand>(
-		/// 	|(), x| Some(x.to_string()),
-		/// 	Identity(42),
-		/// );
+		/// let result: Option<Identity<String>> =
+		/// 	traverse_with_index::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _, _>(
+		/// 		|(), x: i32| Some(x.to_string()),
+		/// 		Identity(42),
+		/// 	);
 		/// assert_eq!(result, Some(Identity("42".to_string())));
 		/// ```
 		fn traverse_with_index<'a, A: 'a, B: 'a + Clone, M: Applicative>(

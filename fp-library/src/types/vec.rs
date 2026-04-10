@@ -2086,7 +2086,7 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let y = wilt::<VecBrand, OptionBrand, _, _, _>(
+		/// let y = wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
 		/// 	|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }),
 		/// 	x,
 		/// );
@@ -2143,15 +2143,12 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		OptionBrand,
-		/// 		VecBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	functions::*,
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let y = wither::<VecBrand, OptionBrand, _, _>(
+		/// let y = wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
 		/// 	|a| Some(if a % 2 == 0 { Some(a * 2) } else { None }),
 		/// 	x,
 		/// );
@@ -3390,7 +3387,8 @@ mod tests {
 	/// Tests `wither (pure <<< Just) ≡ pure`.
 	#[quickcheck]
 	fn witherable_identity(x: Vec<i32>) -> bool {
-		wither::<VecBrand, OptionBrand, _, _>(|i| Some(Some(i)), x.clone()) == Some(x)
+		wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(|i| Some(Some(i)), x.clone())
+			== Some(x)
 	}
 
 	/// Tests `wilt p ≡ map separate <<< traverse p`.
@@ -3398,7 +3396,7 @@ mod tests {
 	fn witherable_wilt_consistency(x: Vec<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Ok(i) } else { Err(i) });
 
-		let lhs = wilt::<VecBrand, OptionBrand, _, _, _>(p, x.clone());
+		let lhs = wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(p, x.clone());
 		let rhs = crate::classes::dispatch::map::<OptionBrand, _, _, _, _>(
 			separate::<VecBrand, _, _>,
 			traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(p, x),
@@ -3412,7 +3410,7 @@ mod tests {
 	fn witherable_wither_consistency(x: Vec<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Some(i) } else { None });
 
-		let lhs = wither::<VecBrand, OptionBrand, _, _>(p, x.clone());
+		let lhs = wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(p, x.clone());
 		let rhs = crate::classes::dispatch::map::<OptionBrand, _, _, _, _>(
 			compact::<VecBrand, _>,
 			traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(p, x),
@@ -3561,14 +3559,18 @@ mod tests {
 	/// Tests `wilt` on an empty vector.
 	#[test]
 	fn wilt_empty() {
-		let res = wilt::<VecBrand, OptionBrand, _, _, _>(|x: i32| Some(Ok::<i32, i32>(x)), vec![]);
+		let res = wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
+			|x: i32| Some(Ok::<i32, i32>(x)),
+			vec![],
+		);
 		assert_eq!(res, Some((vec![], vec![])));
 	}
 
 	/// Tests `wither` on an empty vector.
 	#[test]
 	fn wither_empty() {
-		let res = wither::<VecBrand, OptionBrand, _, _>(|x: i32| Some(Some(x)), vec![]);
+		let res =
+			wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(|x: i32| Some(Some(x)), vec![]);
 		assert_eq!(res, Some(vec![]));
 	}
 

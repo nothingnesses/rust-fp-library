@@ -42,7 +42,13 @@ fp_macros::generate_function_re_exports!("src/classes", {
 	"semigroupoid::compose": semigroupoid_compose,
 	"send_clone_fn::new": send_lift_fn_new,
 	"send_clone_fn::ref_new": send_ref_lift_fn_new,
+	"foldable_with_index::fold_left_with_index": foldable_with_index_fold_left_with_index,
+	"foldable_with_index::fold_map_with_index": foldable_with_index_fold_map_with_index,
+	"foldable_with_index::fold_right_with_index": foldable_with_index_fold_right_with_index,
 	"traversable::traverse": traversable_traverse,
+	"traversable_with_index::traverse_with_index": traversable_with_index_traverse_with_index,
+	"witherable::wilt": witherable_wilt,
+	"witherable::wither": witherable_wither,
 });
 // Dispatch free functions are in sub-modules not scanned by the macro.
 pub use crate::{
@@ -56,8 +62,11 @@ pub use crate::{
 		filter_map_with_index,
 		filter_with_index,
 		fold_left,
+		fold_left_with_index,
 		fold_map,
+		fold_map_with_index,
 		fold_right,
+		fold_right_with_index,
 		lift2,
 		lift3,
 		lift4,
@@ -69,6 +78,9 @@ pub use crate::{
 		partition_map_with_index,
 		partition_with_index,
 		traverse,
+		traverse_with_index,
+		wilt,
+		wither,
 	},
 	types::{
 		lazy::{
