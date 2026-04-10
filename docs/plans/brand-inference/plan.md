@@ -7,8 +7,8 @@ Every free function in fp-library (`map`, `bind`, `pure`, `lift2`, `apply`,
 turbofish:
 
 ```rust
-map::<OptionBrand, _, _, _>(|x| x + 1, Some(5))
-bind::<OptionBrand, _, _>(Some(5), |x| Some(x + 1))
+map::<OptionBrand, _, _, _, _>(|x| x + 1, Some(5))
+bind::<OptionBrand, _, _, _, _>(Some(5), |x| Some(x + 1))
 pure::<OptionBrand, _>(5)
 ```
 
@@ -98,6 +98,39 @@ impl<'a, A> DefaultBrand_cdc7cd43dac7585f for Thunk<'a, A> {
 // etc.
 ```
 
+### Blanket `DefaultBrand` for References
+
+A blanket impl enables brand inference for borrowed containers, which is
+required for Ref dispatch:
+
+```rust
+impl<'a, T: DefaultBrand_cdc7cd43dac7585f + ?Sized> DefaultBrand_cdc7cd43dac7585f for &'a T {
+    type Brand = T::Brand;
+}
+```
+
+This follows the standard Rust pattern (cf. `impl<T: Display> Display for &T`)
+and is coherence-safe. When Val dispatch passes `Option<i32>`, the owned
+impl resolves the brand. When Ref dispatch passes `&Option<i32>`, the
+blanket delegates to the owned impl and resolves to the same brand.
+
+Key properties:
+
+- **Parameterized types work:** `&Lazy<'a, A, Config>` resolves to
+  `LazyBrand<Config>` through delegation. The reference lifetime does
+  not leak into the brand (brands are `'static` marker types).
+- **Multi-brand exclusion preserved:** `&Result<A, E>` does not implement
+  `DefaultBrand` because `Result<A, E>` does not, so the blanket's
+  `T: DefaultBrand` bound is unsatisfied.
+- **Double references:** `&&Option<A>` resolves to `OptionBrand` through
+  two blanket layers, but the `Kind` equality constraint rejects it
+  downstream since `Kind::Of<'a, A> = Option<A>`, not `&&Option<A>`.
+  This is harmless.
+- **Only owned-type impls need generation.** The blanket covers all
+  reference forms, simplifying `impl_kind!` codegen.
+- **Mutable references:** Not needed. No `MutRef` dispatch path exists.
+  Can be added later without breaking changes if needed.
+
 ### Multi-Arity Inference: `bimap` and Beyond
 
 The DefaultBrand family enables brand inference for operations at every
@@ -131,6 +164,14 @@ etc.). The explicit-brand functions are renamed with a `_explicit` suffix
 (`map_explicit`, `bind_explicit`, `apply_explicit`). This makes the ergonomic path
 the default and the explicit path the escape hatch.
 
+Functions that cannot use brand inference (no container argument, or
+non-container input) keep their current names and are NOT renamed to
+`_explicit`:
+
+- `pure` - takes only a value, not a container (see below).
+- `compose_kleisli` / `compose_kleisli_flipped` - input is a plain
+  value `A`, not a container.
+
 Usage:
 
 ```rust
@@ -139,56 +180,104 @@ let y = map(|x| x + 1, Some(5));
 let y = bind(Some(5), |x| Some(x + 1));
 
 // Explicit brand: for ambiguous types or disambiguation
-let y = map_explicit::<ResultErrAppliedBrand<String>, _, _, _>(|x| x + 1, Ok(5));
+let y = map_explicit::<ResultErrAppliedBrand<String>, _, _, _, _>(|x| x + 1, Ok(5));
 ```
 
 ### Inference-Based Free Functions
 
-The new `map` function uses `DefaultBrand` to infer the brand:
+The new `map` function uses `DefaultBrand` to infer the brand. The `FA`
+type parameter flows into both `DefaultBrand` (to resolve Brand) and
+`FunctorDispatch` (to resolve Marker via Val/Ref impl selection):
 
 ```rust
 /// Maps a function over a functor, inferring the brand from the container type.
 pub fn map<'a, FA, A: 'a, B: 'a, Marker>(
-    f: impl FunctorDispatch<'a, <FA as DefaultBrand>::Brand, A, B, Marker>,
+    f: impl FunctorDispatch<'a, <FA as DefaultBrand>::Brand, A, B, FA, Marker>,
     fa: FA,
 ) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>
 where
-    FA: DefaultBrand + 'a,
-    <FA as DefaultBrand>::Brand: Kind_cdc7cd43dac7585f<Of<'a, A> = FA>,
+    FA: DefaultBrand,
 {
     f.dispatch(fa)
 }
 ```
+
+Key differences from the original POC signature:
+
+- **`FA` appears in `FunctorDispatch`.** The ref-borrow refactor added
+  `FA` as a type parameter to all dispatch traits. This lets the dispatch
+  impl selection handle type unification directly, so the `Into` bound
+  from the original POC is no longer needed.
+- **No GAT equality bound (preferred).** The constraint
+  `<FA as DefaultBrand>::Brand: Kind<Of<'a, A> = FA>` is likely unnecessary
+  because the dispatch impl selection already constrains `FA` to the
+  correct projection type. Removing it is preferred to keep signatures
+  minimal; verify during implementation and only add it back if removal
+  causes inference failures.
+- **No `'a` bound on `FA`.** The dispatch trait's own bounds handle this.
 
 The old `map` is renamed to `map_explicit` with its signature unchanged.
 
 ### Interaction with `FunctorDispatch`
 
 The `FunctorDispatch` trait dispatches between `Functor::map` (Val marker)
-and `RefFunctor::ref_map` (Ref marker) based on the closure's argument type.
-Brand inference is orthogonal to this dispatch axis:
+and `RefFunctor::ref_map` (Ref marker) based on both the closure's argument
+type and the container argument type (`FA`). Brand inference composes with
+this dispatch through the shared `FA` type parameter:
 
-- `FunctorDispatch` resolves the `Marker` parameter (Val vs Ref).
-- `DefaultBrand` resolves the `Brand` parameter.
+- `DefaultBrand` resolves the `Brand` parameter from `FA`.
+- `FunctorDispatch` resolves the `Marker` parameter (Val vs Ref) from `FA`.
+  - Val impl: `FA = Apply!(Of<A>)` (owned container).
+  - Ref impl: `FA = &'b Apply!(Of<A>)` (borrowed container).
 
-Both work via trait resolution at compile time. The inferred `map` function
-uses `DefaultBrand` to fix Brand, then delegates to `FunctorDispatch`
-for the Marker dispatch, composing both inference mechanisms.
+Both inferences flow from the same `FA` source. The compiler unifies `FA`
+with the dispatch impl's constraint and simultaneously resolves `Brand`
+via `DefaultBrand`. A single `map` function handles both Val and Ref
+dispatch with brand inference, with no separate function needed for Ref.
+
+The blanket `impl DefaultBrand for &T` is essential here: when `FA = &Vec<i32>`,
+it delegates to `Vec<i32>`'s impl and resolves `Brand = VecBrand`, which
+the Ref dispatch impl then uses to call `RefFunctor::ref_map`.
 
 ### Interaction with Dispatch Extensions
 
-The ref-hierarchy plan (see `docs/plans/ref-hierarchy/plan.md`) extends
-dispatch to `bind`, `apply`, and `lift2` via `MonadDispatch`,
-`ApplicativeDispatch`, etc. Each dispatch trait gets a corresponding
-inference-based wrapper following the same `DefaultBrand` pattern:
+The ref-hierarchy and ref-borrow refactors extended dispatch to all major
+operations. Each dispatch trait has `FA` as a type parameter, making
+brand inference straightforward for functions that take a container. The
+per-trait analysis:
 
-- `map` (inferred) / `map_explicit` (explicit) via `FunctorDispatch`
-- `bind` (inferred) / `bind_explicit` (explicit) via `MonadDispatch`
-- `apply` (inferred) / `apply_explicit` (explicit) via `ApplicativeDispatch`
+**Full inference (Brand fully eliminated, no turbofish needed):**
 
-Each new dispatch trait added by the ref-hierarchy plan gets a
-corresponding inference-based wrapper following the same `DefaultBrand`
-pattern.
+| Function          | Dispatch trait      | Why it works                  |
+| ----------------- | ------------------- | ----------------------------- |
+| `map`             | `FunctorDispatch`   | `FA` is the container.        |
+| `bind`            | `BindDispatch`      | `FA` is the container.        |
+| `bind_flipped`    | `BindDispatch`      | Same as `bind`, args flipped. |
+| `filter_map`      | `FilterMapDispatch` | `FA` is the container.        |
+| `lift2`           | `Lift2Dispatch`     | Any container arg suffices.   |
+| `lift3` - `lift5` | `Lift3-5Dispatch`   | Same as `lift2`.              |
+
+**Partial inference (Brand inferred, other params remain explicit):**
+
+| Function     | Dispatch trait      | Remaining explicit | Reason                        |
+| ------------ | ------------------- | ------------------ | ----------------------------- |
+| `fold_right` | `FoldRightDispatch` | `FnBrand`          | Pointer strategy, no source.  |
+| `fold_left`  | `FoldLeftDispatch`  | `FnBrand`          | Same.                         |
+| `fold_map`   | `FoldMapDispatch`   | `FnBrand`          | Same.                         |
+| `traverse`   | `TraverseDispatch`  | `FnBrand`, `F`     | Both are independent configs. |
+
+**No inference (Brand must stay explicit):**
+
+| Function                  | Dispatch trait                  | Reason                                |
+| ------------------------- | ------------------------------- | ------------------------------------- |
+| `compose_kleisli`         | `ComposeKleisliDispatch`        | Input is a plain value, not container |
+| `compose_kleisli_flipped` | `ComposeKleisliFlippedDispatch` | Same                                  |
+
+`FnBrand` (the pointer strategy, `RcFnBrand` vs `ArcFnBrand`) has no
+natural inference source; it is a configuration parameter orthogonal to
+the data type. The effect brand `F` in `traverse` could theoretically
+be inferred from the closure's return type, but Rust's type inference
+does not propagate from closure return types during trait resolution.
 
 ### Interaction with `m_do!` and `a_do!`
 
@@ -203,38 +292,64 @@ Brand inference allows an alternative syntax where the macro infers
 the brand from the first bind expression:
 
 ```rust
-m_do!({ x <- Some(5); pure(x + 1) })
+m_do!({ x <- Some(5); Some(x + 1) })
 ```
 
-The macro would generate `bind(expr, ...)` calls (which use `DefaultBrand`
-internally) instead of `bind_explicit::<Brand, _, _>(expr, ...)`. This is a
-natural follow-on once the core inference functions exist. The
-Brand-explicit syntax remains available for ambiguous types.
+The macro generates `bind(expr, ...)` calls (which use `DefaultBrand`
+internally) instead of `bind_explicit::<Brand, _, _, _, _>(expr, ...)`.
+The Brand-explicit syntax remains available for ambiguous types.
 
-Both macros now also support a `ref` qualifier (`m_do!(ref Brand { ... })`
+Both macros also support a `ref` qualifier (`m_do!(ref Brand { ... })`
 and `a_do!(ref Brand { ... })`) for by-reference dispatch to
-`RefSemimonad`/`RefLift`. Brand inference should work with ref mode as
-well: `m_do!(ref { a <- lazy_a; pure(*a * 2) })` would infer the brand
-from `lazy_a`'s type.
+`RefSemimonad`/`RefLift`. Brand inference works with ref mode via the
+blanket `impl DefaultBrand for &T`: `m_do!(ref { a <- lazy_a; ... })`
+infers the brand from `&lazy_a`'s type.
+
+Four syntax combinations are supported:
+
+- `m_do!(Brand { ... })` / `a_do!(Brand { ... })` - explicit, val mode
+- `m_do!(ref Brand { ... })` / `a_do!(ref Brand { ... })` - explicit, ref mode
+- `m_do!({ ... })` / `a_do!({ ... })` - inferred, val mode
+- `m_do!(ref { ... })` / `a_do!(ref { ... })` - inferred, ref mode
+
+The parser distinguishes inferred from explicit mode by peeking for `{`
+before attempting to parse a type identifier.
+
+**`pure` limitation in inferred mode:** In inferred mode, the macro
+cannot rewrite `pure(expr)` because `pure` has no container argument
+and cannot infer the brand. Users must write concrete constructors
+in inferred mode (e.g., `Some(expr)` instead of `pure(expr)`), or use
+the explicit-brand macro syntax when `pure` is needed. This is the
+recommended approach because `pure` inside `bind` closures is already
+constrained by the closure's return type, making the concrete constructor
+natural.
+
+**0-bind `a_do!` in inferred mode:** `a_do!({ 42 })` generates
+`pure(42)`, which requires a brand. This combination is not supported
+in inferred mode. Users should write `Some(42)` directly or use
+explicit-brand syntax.
 
 ### Interaction with the `Apply!` Macro
 
 The `Apply!` macro is used in function signatures to project
 `<Brand as Kind!(...)>::Of<'a, A>`. In the inference-based functions, the
 parameter type is `FA` (the concrete type) rather than a projection, so
-`Apply!` is not needed. The trait bound
-`<FA as DefaultBrand>::Brand: Kind_cdc7cd43dac7585f<Of<'a, A> = FA>` ties
-the concrete type back to the brand's `Of` associated type, ensuring
-type safety.
+`Apply!` is not needed. The dispatch trait's impl selection constrains
+`FA` to the correct projection type, ensuring type safety without an
+explicit GAT equality bound.
 
 ### Why `pure` Cannot Use Brand Inference
 
 Unlike `map` and `bind`, `pure` takes only a value, not a container.
-There is no `FA` to resolve `DefaultBrand` from. The brand can only be
-inferred from the return type, which Rust can sometimes do via
-`let x: Option<i32> = pure(5)` but not always. Since a return-type
-annotation is no better than a turbofish, `pure` stays as-is with an
-explicit Brand parameter. No `pure_explicit` rename is needed.
+There is no `FA` to resolve `DefaultBrand` from. Return-type inference
+does not work: even inside a `bind` closure where the return type is
+fully constrained, Rust's trait resolver cannot propagate the expected
+return type back through `DefaultBrand` to determine the Brand. This
+was confirmed by POC testing (E0283: type annotations needed).
+
+`pure` stays as-is with an explicit Brand parameter. No `pure_explicit`
+rename is needed. This also means `pure` cannot participate in
+inferred-mode macros; see the `m_do!`/`a_do!` interaction section.
 
 ## Types That CAN Implement `DefaultBrand`
 
@@ -356,14 +471,19 @@ better message:
 pub trait DefaultBrand { ... }
 ```
 
-### The GAT Equality Bound Must Be Verified
+### The GAT Equality Bound (Verified, Likely Unnecessary)
 
 The constraint `<FA as DefaultBrand>::Brand: Kind_cdc7cd43dac7585f<Of<'a, A> = FA>`
-requires the compiler to unify `FA` with the brand's `Of` associated type.
-This should work when `FA` is a concrete type (e.g., `Option<i32>`) but may
-fail with generic `FA` because the compiler cannot determine which
-`DefaultBrand` impl applies. This is an unverified assumption that must be
-tested in the POC before proceeding.
+was verified to work correctly on stable Rust. The compiler unifies the
+concrete type with the brand's associated type.
+
+However, this bound is likely unnecessary. With `FA` as a dispatch trait
+parameter, the dispatch impl selection already constrains `FA` to the
+correct projection type. POC testing confirmed that the `map_infer`
+function works without the GAT equality bound. Removing it is preferred
+to keep signatures minimal. During implementation, omit it by default
+and only add it back for specific functions where removal causes
+inference failures.
 
 ### Generic Code Still Requires Explicit Brands
 
@@ -477,8 +597,9 @@ requires careful handling of lifetime and type parameter ordering.
 
 ## POC Results
 
-The POC is implemented in `fp-library/src/classes/dispatch.rs`
-under `#[cfg(test)] mod brand_inference_poc`. All 5 tests pass.
+The POC is implemented in `fp-library/tests/brand_inference_feasibility.rs`.
+All 18 tests pass. The original POC in `dispatch.rs` (`brand_inference_poc`
+module) is outdated and should be removed during implementation.
 
 ### What works
 
@@ -491,25 +612,39 @@ under `#[cfg(test)] mod brand_inference_poc`. All 5 tests pass.
   brand).
 - **Different input/output types:** `map_infer(|x: i32| x.to_string(), vec![1, 2])`
   correctly produces `Vec<String>`.
-- **Ref dispatch with RcLazy:** `map_infer(|x: &i32| *x * 2, lazy)`
-  infers `LazyBrand<RcLazyConfig>` and routes to `RefFunctor::ref_map`.
+- **Ref dispatch with borrowed Option:** `map_infer(|x: &i32| *x * 2, &Some(5))`
+  infers `OptionBrand` via the blanket `&T` impl and routes to
+  `RefFunctor::ref_map`.
+- **Ref dispatch with borrowed Vec:** `map_infer(|x: &i32| *x + 10, &v)`
+  infers `VecBrand` and maps by reference.
+- **Ref dispatch with RcLazy:** `map_infer(|x: &i32| *x * 2, &lazy)`
+  infers `LazyBrand<RcLazyConfig>` via the blanket impl.
+- **Temporary borrows:** `map_infer(|x: &i32| *x + 1, &vec![1, 2, 3])`
+  works; the temporary is extended to the enclosing statement.
+- **Container reuse after ref map:** After `map_infer(f, &v)`, `v` is
+  still usable (borrow is released).
+- **Mixed Val/Ref in same scope:** Val and Ref dispatch calls can
+  coexist without interference.
 
-### What doesn't work (known limitations)
+### What doesn't work (confirmed limitations)
 
-- **ArcLazy:** `LazyBrand<ArcLazyConfig>` implements `SendRefFunctor`,
-  not `RefFunctor`. The current `FunctorDispatch` only dispatches to
-  `Functor::map` (Val) and `RefFunctor::ref_map` (Ref). ArcLazy will
-  work once the ref-hierarchy plan adds `SendRefFunctor` to the dispatch
-  system.
+- **`pure` inference (E0283):** Return-type inference does not work for
+  `pure`, even inside `bind` closures. Brand must be explicit.
+- **ArcLazy Val dispatch:** `LazyBrand<ArcLazyConfig>` does not implement
+  `Functor` (only `SendRefFunctor`). ArcLazy can only be used via Ref
+  dispatch with brand inference. (This is not a brand-inference limitation
+  but a trait hierarchy property.)
 
-### Key finding
+### Key findings
 
-The GAT equality bound
-`<FA as DefaultBrand>::Brand: Kind_cdc7cd43dac7585f<Of<'a, A> = FA>`
-works correctly on stable Rust. The compiler unifies the concrete type
-with the brand's associated type and selects the correct FunctorDispatch
-impl. Brand inference composes with the Val/Ref marker dispatch without
-interference.
+1. The `Into` bound from the original POC is unnecessary. The ref-borrow
+   refactor's `FA` type parameter on `FunctorDispatch` lets the compiler
+   unify `FA` directly with either the owned or borrowed dispatch impl.
+2. The blanket `impl DefaultBrand for &T` composes correctly with the Ref
+   dispatch impl, so a single `map_infer` function handles both Val and
+   Ref without separate functions.
+3. The GAT equality bound is likely unnecessary (works without it);
+   prefer omitting it unless removal causes inference failures.
 
 ## Design Decisions
 
@@ -540,12 +675,23 @@ interference.
    inference benefit targets leaf-level application code, not library
    internals.
 
-5. **`pure` keeps its current signature.**
+5. **`pure` keeps its current signature (confirmed by POC).**
    `pure` takes only a value, not a container, so there is no `FA` to
-   resolve `DefaultBrand` from. Return-type inference is unreliable and
-   no better than turbofish. `pure` is not renamed.
+   resolve `DefaultBrand` from. Return-type inference was tested and
+   confirmed to fail (E0283) even in constrained contexts like `bind`
+   closures. `pure` is not renamed.
 
-6. **Incremental scope for the `_explicit` rename.**
+6. **`compose_kleisli` variants keep their current signatures.**
+   `compose_kleisli` and `compose_kleisli_flipped` take a plain value
+   `A` as input, not a container. There is no `FA` to resolve
+   `DefaultBrand` from. These functions are not renamed.
+
+7. **Blanket `impl DefaultBrand for &T` is part of the core design.**
+   Required for Ref dispatch brand inference. Without it, only Val
+   dispatch works with brand inference. The blanket follows the standard
+   Rust pattern and is coherence-safe.
+
+8. **Incremental scope for the `_explicit` rename.**
    The `_explicit` rename happens per-function as inference support is
    added. Functions that have not yet received inference support keep
    their current names unchanged. This avoids a big-bang rename and
@@ -555,25 +701,45 @@ interference.
    `separate`, `extend`, `extract`, `contramap`, etc.) are extended
    incrementally based on demand.
 
-7. **Parallel functions (`par_map`, etc.) are excluded initially.**
+9. **Parallel functions (`par_map`, etc.) are excluded initially.**
    Parallel operations are niche and used in performance-conscious
    code where explicitness is valued. They keep their current explicit-
    brand signatures. Add inference later if users request it.
 
-8. **The POC function name `map_infer` is temporary.**
-   It exists only in the POC step to validate inference before
-   committing to the rename. It will not exist in the final API.
+10. **The POC function name `map_infer` is temporary.**
+    It exists only in the POC step to validate inference before
+    committing to the rename. It will not exist in the final API.
+
+## Implementation Notes
+
+### Verification timeouts
+
+Changes to trait bounds, `DefaultBrand` impls, and dispatch signatures
+can trigger infinite loops in rustc's trait solver during bounds
+checking. When running verification steps (`just clippy`, `just test`,
+`just doc`, `just check`, `just verify`) after modifications that
+affect inference or trait resolution, apply a 90-second timeout to each
+command. A clean `just verify` run (full rebuild with all steps) takes
+approximately 75 seconds; anything significantly beyond that indicates
+the solver is diverging. If a command does not complete within the
+timeout, treat it as an inference failure: the bound configuration is
+causing the solver to loop and must be revised. Do not wait for rustc
+to finish on its own; it will not.
 
 ## Implementation Order
 
 1. **[Done] POC: Verify the GAT equality bound works.** Confirmed that
    `DefaultBrand` + `FunctorDispatch` composes correctly. Inference works
-   for Option, Vec (Val dispatch), and RcLazy (Ref dispatch). ArcLazy is
-   blocked on SendRefFunctor dispatch (ref-hierarchy plan). See POC
-   Results section above.
+   for Option, Vec (Val dispatch), and Option, Vec, RcLazy (Ref dispatch
+   via blanket `&T` impl). `pure` inference confirmed to fail (E0283).
+   See POC Results section above and
+   `fp-library/tests/brand_inference_feasibility.rs` (18 passing tests).
 
 2. **Define `DefaultBrand` trait** in `fp-library/src/classes/default_brand.rs`.
-   Simple trait with one associated type. Add module to `classes.rs`.
+   Simple trait with one associated type. Include the blanket
+   `impl<'a, T: DefaultBrand + ?Sized> DefaultBrand for &'a T`
+   in the same module. Add `#[diagnostic::on_unimplemented]` for error
+   messages. Add module to `classes.rs`.
 
 3. **Implement `DefaultBrand` for core types.** Start with `Option`, `Vec`,
    `Identity`, `Thunk`, `SendThunk`, `CatList`, `Tuple1Brand`.
@@ -583,13 +749,24 @@ interference.
 
 5. **Add inference-based `map` and rename the current `map` to `map_explicit`.**
    The POC's temporary `map_infer` name is dropped; the inference-based
-   function takes the clean `map` name. Verify that type inference works
-   for `Option`, `Vec`, `Identity`, and `Lazy` with both Val and Ref
+   function takes the clean `map` name using the validated signature (with
+   `FA` in `FunctorDispatch`, no `Into` bound). Verify that type inference
+   works for `Option`, `Vec`, `Identity`, and `Lazy` with both Val and Ref
    dispatch markers. Update all internal call sites that use single-brand
-   types to drop the turbofish.
+   types to drop the turbofish. Remove the old `brand_inference_poc` module
+   from `dispatch.rs`.
 
-6. **Extend to `bind`, `lift2`, `apply`.** Rename current versions to
-   `_explicit` suffix, add inference-based versions following the same pattern.
+6. **Extend to `bind`, `bind_flipped`, `lift2`-`lift5`, `apply`,
+   `filter_map`.** Rename current versions to `_explicit` suffix, add
+   inference-based versions following the same pattern. These all have
+   container arguments and support full brand inference (no turbofish
+   needed). `compose_kleisli` and `compose_kleisli_flipped` are excluded
+   (no container argument).
+
+6a. **Extend to `fold_right`, `fold_left`, `fold_map`, `traverse`.**
+These get partial inference: Brand is inferred from the container,
+but `FnBrand` (and `F` for traverse) remain explicit. The turbofish
+is reduced by one position. Rename current versions to `_explicit`.
 
 7. **Extend `trait_kind!` to also generate `DefaultBrand_{hash}` traits.**
    When `trait_kind!` creates a `Kind_{hash}` trait, it also creates the
@@ -608,8 +785,12 @@ interference.
 
 10. **Extend `m_do!` and `a_do!`.** Add brand-free syntax that generates
     inference-based function calls. The Brand-explicit syntax remains
-    available. Support both val and ref modes: `m_do!({ ... })` for
-    val inference, `m_do!(ref { ... })` for ref inference.
+    available. Support all four combinations: `m_do!({ ... })` for val
+    inference, `m_do!(ref { ... })` for ref inference, plus the existing
+    explicit forms. Parser detects inferred mode by peeking for `{`.
+    In inferred mode, `pure(expr)` is NOT rewritten; users must write
+    concrete constructors (e.g., `Some(expr)`) or use explicit-brand
+    syntax. 0-bind `a_do!` in inferred mode is not supported.
 
 11. **Documentation.** Update crate docs, README examples, and
     `fp-library/docs/features.md` to show the inference-based calling
@@ -629,11 +810,16 @@ interference.
   compiler to infer the type constructor from the concrete type. Avoids the
   multi-brand ambiguity problem by not supporting partial application of
   bifunctors.
-- Current `FunctorDispatch` system: `fp-library/src/classes/dispatch.rs`.
-  Shows marker-type dispatch for Val/Ref; brand inference composes with this.
+- Current dispatch system: `fp-library/src/classes/dispatch/`. Two-impl
+  pattern with `FA` type parameter; brand inference composes with this.
 - `Kind` trait definitions: `fp-library/src/kinds.rs`.
 - Brand definitions: `fp-library/src/brands.rs`.
 - `impl_kind!` macro: `fp-macros/src/hkt/impl_kind.rs`.
 - `Apply!` macro: `fp-macros/src/hkt/apply.rs`.
-- Ref-hierarchy plan: `docs/plans/ref-hierarchy/plan.md`.
-  The `FunctorDispatch` proof of concept that this plan builds on.
+- Ref-hierarchy plan: `docs/plans/ref-hierarchy/analysis/plan.md`.
+- Ref-borrow plan: `docs/plans/ref-borrow/plan.md`.
+- Feasibility tests: `fp-library/tests/brand_inference_feasibility.rs`
+  (18 tests validating brand inference with the current dispatch system).
+- Analysis documents: `docs/plans/brand-inference/analysis/`
+  (`defaultbrand-for-refs.md`, `dispatch-compatibility.md`,
+  `macro-interaction.md`, `plan-delta.md`, `poc-validation.md`).
