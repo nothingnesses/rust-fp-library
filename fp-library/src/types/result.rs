@@ -209,6 +209,86 @@ mod inner {
 		}
 	}
 
+	impl RefBitraversable for ResultBrand {
+		/// Traverses a result by reference with two effectful functions.
+		///
+		/// Dispatches to `f` for `Err(a)` values and `g` for `Ok(b)` values,
+		/// passing references to the contained value rather than owned values.
+		/// The result is wrapped in the applicative context `F`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function wrapper.",
+			"The error type (first position).",
+			"The success type (second position).",
+			"The output error type.",
+			"The output success type.",
+			"The applicative context."
+		)]
+		///
+		#[document_parameters(
+			"The function applied to a reference of the error value.",
+			"The function applied to a reference of the success value.",
+			"The result to traverse by reference."
+		)]
+		///
+		#[document_returns(
+			"`f(&a)` wrapped in context for `Err(a)`, or `g(&b)` wrapped in context for `Ok(b)`."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let err: Result<i32, i32> = Err(3);
+		/// assert_eq!(
+		/// 	ref_bi_traverse::<ResultBrand, RcFnBrand, _, _, _, _, OptionBrand>(
+		/// 		|e: &i32| Some(e + 1),
+		/// 		|s: &i32| Some(s * 2),
+		/// 		&err,
+		/// 	),
+		/// 	Some(Err(4))
+		/// );
+		///
+		/// let ok: Result<i32, i32> = Ok(5);
+		/// assert_eq!(
+		/// 	ref_bi_traverse::<ResultBrand, RcFnBrand, _, _, _, _, OptionBrand>(
+		/// 		|e: &i32| Some(e + 1),
+		/// 		|s: &i32| Some(s * 2),
+		/// 		&ok,
+		/// 	),
+		/// 	Some(Ok(10))
+		/// );
+		/// ```
+		fn ref_bi_traverse<
+			'a,
+			FnBrand,
+			A: 'a + Clone,
+			B: 'a + Clone,
+			C: 'a + Clone,
+			D: 'a + Clone,
+			F: Applicative,
+		>(
+			f: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
+			g: impl Fn(&B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>): Clone, {
+			match p {
+				Err(a) => F::map(|c| Err(c), f(a)),
+				Ok(b) => F::map(|d| Ok(d), g(b)),
+			}
+		}
+	}
+
 	impl Bifoldable for ResultBrand {
 		/// Folds a result using two step functions, right-associatively.
 		///

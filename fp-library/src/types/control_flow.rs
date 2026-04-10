@@ -875,6 +875,88 @@ mod inner {
 		}
 	}
 
+	impl RefBitraversable for ControlFlowBrand {
+		/// Traverses a control flow by reference with two effectful functions.
+		///
+		/// Applies `f` to a reference of the Continue value or `g` to a reference of
+		/// the Break value, wrapping the result in the applicative context `F`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the Continue value.",
+			"The type of the Break value.",
+			"The output type for Continue.",
+			"The output type for Break.",
+			"The applicative context."
+		)]
+		///
+		#[document_parameters(
+			"The function applied to a reference of the Continue value.",
+			"The function applied to a reference of the Break value.",
+			"The control flow to traverse by reference."
+		)]
+		///
+		#[document_returns(
+			"`f(&a)` wrapped in context for `Continue(a)`, or `g(&b)` wrapped in context for `Break(b)`."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 	},
+		/// };
+		///
+		/// let x: ControlFlow<i32, i32> = ControlFlow::Continue(3);
+		/// assert_eq!(
+		/// 	ref_bi_traverse::<ControlFlowBrand, RcFnBrand, _, _, _, _, OptionBrand>(
+		/// 		|c: &i32| Some(c + 1),
+		/// 		|b: &i32| Some(b * 2),
+		/// 		&x,
+		/// 	),
+		/// 	Some(ControlFlow::Continue(4))
+		/// );
+		///
+		/// let y: ControlFlow<i32, i32> = ControlFlow::Break(5);
+		/// assert_eq!(
+		/// 	ref_bi_traverse::<ControlFlowBrand, RcFnBrand, _, _, _, _, OptionBrand>(
+		/// 		|c: &i32| Some(c + 1),
+		/// 		|b: &i32| Some(b * 2),
+		/// 		&y,
+		/// 	),
+		/// 	Some(ControlFlow::Break(10))
+		/// );
+		/// ```
+		fn ref_bi_traverse<
+			'a,
+			FnBrand,
+			A: 'a + Clone,
+			B: 'a + Clone,
+			C: 'a + Clone,
+			D: 'a + Clone,
+			F: Applicative,
+		>(
+			f: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
+			g: impl Fn(&B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>): Clone, {
+			match p {
+				ControlFlow::Continue(a) => F::map(|c| ControlFlow::Continue(c), f(a)),
+				ControlFlow::Break(b) => F::map(|d| ControlFlow::Break(d), g(b)),
+			}
+		}
+	}
+
 	impl Bifoldable for ControlFlowBrand {
 		/// Folds the control flow from right to left using two step functions.
 		///

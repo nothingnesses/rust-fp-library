@@ -538,6 +538,71 @@ mod inner {
 		}
 	}
 
+	impl RefBitraversable for PairBrand {
+		/// Traverses the pair by reference with two effectful functions.
+		///
+		/// Applies `f` to a reference to the first value and `g` to a reference to the second
+		/// value, combining the effects via `lift2` without consuming the pair.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the first value.",
+			"The type of the second value.",
+			"The output type for the first value.",
+			"The output type for the second value.",
+			"The applicative context."
+		)]
+		///
+		#[document_parameters(
+			"The function applied to a reference to the first value.",
+			"The function applied to a reference to the second value.",
+			"The pair to traverse by reference."
+		)]
+		///
+		#[document_returns("`lift2(Pair, f(&a), g(&b))`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::ref_bitraversable::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = Pair(3, 5);
+		/// assert_eq!(
+		/// 	ref_bi_traverse::<PairBrand, RcFnBrand, _, _, _, _, OptionBrand>(
+		/// 		|a: &i32| Some(a + 1),
+		/// 		|b: &i32| Some(b * 2),
+		/// 		&x,
+		/// 	),
+		/// 	Some(Pair(4, 10))
+		/// );
+		/// ```
+		fn ref_bi_traverse<
+			'a,
+			FnBrand,
+			A: 'a + Clone,
+			B: 'a + Clone,
+			C: 'a + Clone,
+			D: 'a + Clone,
+			F: Applicative,
+		>(
+			f: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
+			g: impl Fn(&B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>): Clone, {
+			F::lift2(|c, d| Pair(c, d), f(&p.0), g(&p.1))
+		}
+	}
+
 	impl Bifoldable for PairBrand {
 		/// Folds the pair from right to left using two step functions.
 		///

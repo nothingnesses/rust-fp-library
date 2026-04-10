@@ -173,6 +173,70 @@ mod inner {
 		}
 	}
 
+	impl RefBitraversable for Tuple2Brand {
+		/// Traverses a tuple by reference with two effectful functions.
+		///
+		/// Applies `f` to a reference of the first element and `g` to a reference
+		/// of the second element, combining the effects via `lift2`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the first element.",
+			"The type of the second element.",
+			"The output type for the first element.",
+			"The output type for the second element.",
+			"The applicative context."
+		)]
+		///
+		#[document_parameters(
+			"The function applied to a reference of the first element.",
+			"The function applied to a reference of the second element.",
+			"The tuple to traverse by reference."
+		)]
+		///
+		#[document_returns("`lift2(|c, d| (c, d), f(&a), g(&b))`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = (3, 5);
+		/// assert_eq!(
+		/// 	ref_bi_traverse::<Tuple2Brand, RcFnBrand, _, _, _, _, OptionBrand>(
+		/// 		|a: &i32| Some(a + 1),
+		/// 		|b: &i32| Some(b * 2),
+		/// 		&x,
+		/// 	),
+		/// 	Some((4, 10))
+		/// );
+		/// ```
+		fn ref_bi_traverse<
+			'a,
+			FnBrand,
+			A: 'a + Clone,
+			B: 'a + Clone,
+			C: 'a + Clone,
+			D: 'a + Clone,
+			F: Applicative,
+		>(
+			f: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
+			g: impl Fn(&B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>): Clone, {
+			F::lift2(|c, d| (c, d), f(&p.0), g(&p.1))
+		}
+	}
+
 	impl Bifoldable for Tuple2Brand {
 		/// Folds a tuple using two step functions, right-associatively.
 		///
