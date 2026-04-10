@@ -747,6 +747,65 @@ mod inner {
 		}
 	}
 
+	impl RefBifunctor for ControlFlowBrand {
+		/// Maps functions over the values in the control flow by reference.
+		///
+		/// This method applies one function to a reference of the continue value and another
+		/// to a reference of the break value, producing a new control flow with mapped values.
+		/// The original control flow is borrowed, not consumed.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the continue value.",
+			"The type of the mapped continue value.",
+			"The type of the break value.",
+			"The type of the mapped break value."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to a reference of the continue value.",
+			"The function to apply to a reference of the break value.",
+			"The control flow to map over by reference."
+		)]
+		///
+		#[document_returns("A new control flow containing the mapped values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::ref_bifunctor::*,
+		/// 		functions::*,
+		/// 	},
+		/// };
+		///
+		/// let x = ControlFlow::<i32, i32>::Continue(1);
+		/// assert_eq!(
+		/// 	ref_bimap::<ControlFlowBrand, _, _, _, _>(|c| *c + 1, |b: &i32| *b * 2, &x),
+		/// 	ControlFlow::Continue(2)
+		/// );
+		///
+		/// let y = ControlFlow::<i32, i32>::Break(3);
+		/// assert_eq!(
+		/// 	ref_bimap::<ControlFlowBrand, _, _, _, _>(|c| *c + 1, |b: &i32| *b * 2, &y),
+		/// 	ControlFlow::Break(6)
+		/// );
+		/// ```
+		fn ref_bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
+			f: impl Fn(&A) -> B + 'a,
+			g: impl Fn(&C) -> D + 'a,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
+		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>) {
+			match p {
+				ControlFlow::Continue(a) => ControlFlow::Continue(f(a)),
+				ControlFlow::Break(c) => ControlFlow::Break(g(c)),
+			}
+		}
+	}
+
 	impl Bifoldable for ControlFlowBrand {
 		/// Folds the control flow from right to left using two step functions.
 		///

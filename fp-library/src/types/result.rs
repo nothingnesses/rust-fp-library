@@ -92,6 +92,56 @@ mod inner {
 		}
 	}
 
+	impl RefBifunctor for ResultBrand {
+		/// Maps functions over the values in the result by reference.
+		///
+		/// This method applies one function to a reference of the error value and another
+		/// to a reference of the success value, producing a new result with mapped values.
+		/// The original result is borrowed, not consumed.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the error value.",
+			"The type of the mapped error value.",
+			"The type of the success value.",
+			"The type of the mapped success value."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to a reference of the error.",
+			"The function to apply to a reference of the success.",
+			"The result to map over by reference."
+		)]
+		///
+		#[document_returns("A new result containing the mapped values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::ref_bifunctor::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let ok: Result<i32, i32> = Ok(5);
+		/// assert_eq!(ref_bimap::<ResultBrand, _, _, _, _>(|e| *e + 1, |s| *s * 2, &ok), Ok(10));
+		///
+		/// let err: Result<i32, i32> = Err(5);
+		/// assert_eq!(ref_bimap::<ResultBrand, _, _, _, _>(|e| *e + 1, |s| *s * 2, &err), Err(6));
+		/// ```
+		fn ref_bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
+			f: impl Fn(&A) -> B + 'a,
+			g: impl Fn(&C) -> D + 'a,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
+		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>) {
+			match p {
+				Ok(c) => Ok(g(c)),
+				Err(a) => Err(f(a)),
+			}
+		}
+	}
+
 	impl Bifoldable for ResultBrand {
 		/// Folds a result using two step functions, right-associatively.
 		///

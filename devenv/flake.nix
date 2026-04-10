@@ -98,16 +98,6 @@
                 treefmt = {
                   enable = true;
                   package = treefmtEval.config.build.wrapper;
-                  # Format in-place and re-stage, so commits succeed in
-                  # one pass instead of requiring a double-commit.
-                  entry =
-                    let
-                      script = pkgs.writeShellScript "treefmt-and-stage" ''
-                        ${treefmtEval.config.build.wrapper}/bin/treefmt --no-cache "$@"
-                        git add "$@"
-                      '';
-                    in
-                    "${script}";
                 };
                 # clippy and doc delegate to just recipes (single source of
                 # truth for flags like -D warnings and the unicode check).

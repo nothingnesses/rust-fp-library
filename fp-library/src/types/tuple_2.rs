@@ -77,6 +77,50 @@ mod inner {
 		}
 	}
 
+	impl RefBifunctor for Tuple2Brand {
+		/// Maps functions over references to the values in the tuple.
+		///
+		/// This method applies one function to a reference of the first value and another
+		/// to a reference of the second value, producing a new tuple with mapped values.
+		/// The original tuple is borrowed, not consumed.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the first value.",
+			"The type of the mapped first value.",
+			"The type of the second value.",
+			"The type of the mapped second value."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to a reference of the first value.",
+			"The function to apply to a reference of the second value.",
+			"The tuple to map over by reference."
+		)]
+		///
+		#[document_returns("A new tuple containing the mapped values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::ref_bifunctor::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = (1, 5);
+		/// assert_eq!(ref_bimap::<Tuple2Brand, _, _, _, _>(|a| *a + 1, |b| *b * 2, &x), (2, 10));
+		/// ```
+		fn ref_bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
+			f: impl Fn(&A) -> B + 'a,
+			g: impl Fn(&C) -> D + 'a,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
+		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>) {
+			(f(&p.0), g(&p.1))
+		}
+	}
+
 	impl Bifoldable for Tuple2Brand {
 		/// Folds a tuple using two step functions, right-associatively.
 		///
