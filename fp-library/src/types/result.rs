@@ -142,6 +142,73 @@ mod inner {
 		}
 	}
 
+	impl RefBifoldable for ResultBrand {
+		/// Folds a result by reference using two step functions, right-associatively.
+		///
+		/// Dispatches to `f` for `Err(a)` values and `g` for `Ok(b)` values,
+		/// passing references to the contained value rather than owned values.
+		/// Since `Result` contains at most one element, no cloning is needed.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The error type (first position).",
+			"The success type (second position).",
+			"The accumulator type."
+		)]
+		///
+		#[document_parameters(
+			"The step function applied to a reference of the error value.",
+			"The step function applied to a reference of the success value.",
+			"The initial accumulator.",
+			"The result to fold by reference."
+		)]
+		///
+		#[document_returns("`f(&a, z)` for `Err(a)`, or `g(&b, z)` for `Ok(b)`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let err: Result<i32, i32> = Err(3);
+		/// assert_eq!(
+		/// 	ref_bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
+		/// 		|e: &i32, acc| acc - *e,
+		/// 		|s: &i32, acc| acc + *s,
+		/// 		10,
+		/// 		&err,
+		/// 	),
+		/// 	7
+		/// );
+		///
+		/// let ok: Result<i32, i32> = Ok(5);
+		/// assert_eq!(
+		/// 	ref_bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
+		/// 		|e: &i32, acc| acc - *e,
+		/// 		|s: &i32, acc| acc + *s,
+		/// 		10,
+		/// 		&ok,
+		/// 	),
+		/// 	15
+		/// );
+		/// ```
+		fn ref_bi_fold_right<'a, FnBrand: LiftFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+			f: impl Fn(&A, C) -> C + 'a,
+			g: impl Fn(&B, C) -> C + 'a,
+			z: C,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> C {
+			match p {
+				Err(a) => f(a, z),
+				Ok(b) => g(b, z),
+			}
+		}
+	}
+
 	impl Bifoldable for ResultBrand {
 		/// Folds a result using two step functions, right-associatively.
 		///

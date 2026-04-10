@@ -76,6 +76,7 @@ pub mod profunctor;
 pub mod ref_applicative;
 pub mod ref_apply_first;
 pub mod ref_apply_second;
+pub mod ref_bifoldable;
 pub mod ref_bifunctor;
 pub mod ref_counted_pointer;
 pub mod ref_filterable;

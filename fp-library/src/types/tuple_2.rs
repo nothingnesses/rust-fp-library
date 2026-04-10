@@ -121,6 +121,58 @@ mod inner {
 		}
 	}
 
+	impl RefBifoldable for Tuple2Brand {
+		/// Folds a tuple from right to left by reference using two step functions.
+		///
+		/// Applies `f` to a reference of the first value and `g` to a reference of
+		/// the second value, folding `(a, b)` as `f(&a, g(&b, z))`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the first element.",
+			"The type of the second element.",
+			"The accumulator type."
+		)]
+		///
+		#[document_parameters(
+			"The step function applied to a reference of the first element.",
+			"The step function applied to a reference of the second element.",
+			"The initial accumulator.",
+			"The tuple to fold by reference."
+		)]
+		///
+		#[document_returns("`f(&a, g(&b, z))`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = (3, 5);
+		/// assert_eq!(
+		/// 	ref_bi_fold_right::<RcFnBrand, Tuple2Brand, _, _, _>(
+		/// 		|a: &i32, acc| acc - *a,
+		/// 		|b: &i32, acc| acc + *b,
+		/// 		0,
+		/// 		&x,
+		/// 	),
+		/// 	2
+		/// );
+		/// ```
+		fn ref_bi_fold_right<'a, FnBrand: LiftFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+			f: impl Fn(&A, C) -> C + 'a,
+			g: impl Fn(&B, C) -> C + 'a,
+			z: C,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> C {
+			f(&p.0, g(&p.1, z))
+		}
+	}
+
 	impl Bifoldable for Tuple2Brand {
 		/// Folds a tuple using two step functions, right-associatively.
 		///

@@ -486,6 +486,58 @@ mod inner {
 		}
 	}
 
+	impl RefBifoldable for PairBrand {
+		/// Folds the pair from right to left by reference using two step functions.
+		///
+		/// Folds `Pair(a, b)` as `f(&a, g(&b, z))` without consuming the pair.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the first value.",
+			"The type of the second value.",
+			"The accumulator type."
+		)]
+		///
+		#[document_parameters(
+			"The step function for a reference to the first value.",
+			"The step function for a reference to the second value.",
+			"The initial accumulator.",
+			"The pair to fold by reference."
+		)]
+		///
+		#[document_returns("`f(&a, g(&b, z))`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::ref_bifoldable::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = Pair(3, 5);
+		/// assert_eq!(
+		/// 	ref_bi_fold_right::<RcFnBrand, PairBrand, _, _, _>(
+		/// 		|a: &i32, acc| acc - *a,
+		/// 		|b: &i32, acc| acc + *b,
+		/// 		0,
+		/// 		&x,
+		/// 	),
+		/// 	2
+		/// );
+		/// ```
+		fn ref_bi_fold_right<'a, FnBrand: LiftFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+			f: impl Fn(&A, C) -> C + 'a,
+			g: impl Fn(&B, C) -> C + 'a,
+			z: C,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> C {
+			f(&p.0, g(&p.1, z))
+		}
+	}
+
 	impl Bifoldable for PairBrand {
 		/// Folds the pair from right to left using two step functions.
 		///

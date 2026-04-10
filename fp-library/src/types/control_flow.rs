@@ -806,6 +806,75 @@ mod inner {
 		}
 	}
 
+	impl RefBifoldable for ControlFlowBrand {
+		/// Folds the control flow from right to left by reference using two step functions.
+		///
+		/// Applies `f` to a reference of the Continue value or `g` to a reference of the
+		/// Break value, returning the folded result without consuming the control flow.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the Continue value.",
+			"The type of the Break value.",
+			"The accumulator type."
+		)]
+		///
+		#[document_parameters(
+			"The step function for a reference to the Continue variant.",
+			"The step function for a reference to the Break variant.",
+			"The initial accumulator.",
+			"The control flow to fold by reference."
+		)]
+		///
+		#[document_returns("The folded result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 	},
+		/// };
+		///
+		/// let x: ControlFlow<i32, i32> = ControlFlow::Continue(3);
+		/// assert_eq!(
+		/// 	ref_bi_fold_right::<RcFnBrand, ControlFlowBrand, _, _, _>(
+		/// 		|c: &i32, acc| acc - *c,
+		/// 		|b: &i32, acc| acc + *b,
+		/// 		10,
+		/// 		&x,
+		/// 	),
+		/// 	7
+		/// );
+		///
+		/// let y: ControlFlow<i32, i32> = ControlFlow::Break(5);
+		/// assert_eq!(
+		/// 	ref_bi_fold_right::<RcFnBrand, ControlFlowBrand, _, _, _>(
+		/// 		|c: &i32, acc| acc - *c,
+		/// 		|b: &i32, acc| acc + *b,
+		/// 		10,
+		/// 		&y,
+		/// 	),
+		/// 	15
+		/// );
+		/// ```
+		fn ref_bi_fold_right<'a, FnBrand: LiftFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+			f: impl Fn(&A, C) -> C + 'a,
+			g: impl Fn(&B, C) -> C + 'a,
+			z: C,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> C {
+			match p {
+				ControlFlow::Continue(a) => f(a, z),
+				ControlFlow::Break(b) => g(b, z),
+			}
+		}
+	}
+
 	impl Bifoldable for ControlFlowBrand {
 		/// Folds the control flow from right to left using two step functions.
 		///
