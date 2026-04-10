@@ -33,6 +33,8 @@ pub mod commutative_ring;
 pub mod comonad;
 pub mod compactable;
 pub mod contravariant;
+pub mod default_brand;
+mod default_brand_impls;
 pub mod deferrable;
 pub mod dispatch;
 pub mod division_ring;
