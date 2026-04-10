@@ -485,14 +485,14 @@ pub fn bench_cat_list(c: &mut Criterion) {
 			group.bench_with_input(BenchmarkId::new("CatList (fp)", size), &size, |b, &_| {
 				b.iter_batched(
 					|| cat_list.clone(),
-					|list| filter::<CatListBrand, _>(|x: i32| x % 2 == 0, list),
+					|list| filter::<CatListBrand, _, _, _>(|x: i32| x % 2 == 0, list),
 					BatchSize::SmallInput,
 				)
 			});
 			group.bench_with_input(BenchmarkId::new("Vec (fp)", size), &size, |b, &_| {
 				b.iter_batched(
 					|| vec_list.clone(),
-					|v| filter::<VecBrand, _>(|x: i32| x % 2 == 0, v),
+					|v| filter::<VecBrand, _, _, _>(|x: i32| x % 2 == 0, v),
 					BatchSize::SmallInput,
 				)
 			});

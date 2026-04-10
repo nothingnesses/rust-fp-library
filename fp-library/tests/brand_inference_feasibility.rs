@@ -161,7 +161,7 @@ fn bind_infer<'a, FA, A: 'a, B: 'a, Marker>(
 ) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>
 where
 	FA: DefaultBrand, {
-	f.dispatch_bind(fa)
+	f.dispatch(fa)
 }
 
 // -- Inference-based pure function (no brand turbofish) --

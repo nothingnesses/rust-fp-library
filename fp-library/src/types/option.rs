@@ -842,7 +842,7 @@ mod inner {
 		///
 		/// let x = Some(5);
 		/// let (errs, oks) =
-		/// 	partition_map::<OptionBrand, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+		/// 	partition_map::<OptionBrand, _, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
 		/// assert_eq!(oks, Some(5));
 		/// assert_eq!(errs, None);
 		/// ```
@@ -882,7 +882,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let (not_satisfied, satisfied) = partition::<OptionBrand, _>(|a| a > 2, x);
+		/// let (not_satisfied, satisfied) = partition::<OptionBrand, _, _, _>(|a| a > 2, x);
 		/// assert_eq!(satisfied, Some(5));
 		/// assert_eq!(not_satisfied, None);
 		/// ```
@@ -958,7 +958,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = filter::<OptionBrand, _>(|a| a > 2, x);
+		/// let y = filter::<OptionBrand, _, _, _>(|a| a > 2, x);
 		/// assert_eq!(y, Some(5));
 		/// ```
 		fn filter<'a, A: 'a + Clone>(

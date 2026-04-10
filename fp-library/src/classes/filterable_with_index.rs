@@ -44,7 +44,7 @@ mod inner {
 	/// // partition_map(f, fa) = partition_map_with_index(|_, a| f(a), fa)
 	/// let g = |a: i32| if a > 3 { Ok(a) } else { Err(a) };
 	/// assert_eq!(
-	/// 	partition_map::<VecBrand, _, _, _>(g, xs.clone()),
+	/// 	partition_map::<VecBrand, _, _, _, _, _>(g, xs.clone()),
 	/// 	VecBrand::partition_map_with_index(|_, a| g(a), xs),
 	/// );
 	/// ```

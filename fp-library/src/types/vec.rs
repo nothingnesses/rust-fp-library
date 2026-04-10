@@ -1690,7 +1690,7 @@ mod inner {
 		///
 		/// let x = vec![1, 2, 3, 4];
 		/// let (errs, oks) =
-		/// 	partition_map::<VecBrand, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, x);
+		/// 	partition_map::<VecBrand, _, _, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, x);
 		/// assert_eq!(oks, vec![2, 4]);
 		/// assert_eq!(errs, vec![1, 3]);
 		/// ```
@@ -1732,7 +1732,7 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let (not_satisfied, satisfied) = partition::<VecBrand, _>(|a| a % 2 == 0, x);
+		/// let (not_satisfied, satisfied) = partition::<VecBrand, _, _, _>(|a| a % 2 == 0, x);
 		/// assert_eq!(satisfied, vec![2, 4]);
 		/// assert_eq!(not_satisfied, vec![1, 3]);
 		/// ```
@@ -1802,7 +1802,7 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let y = filter::<VecBrand, _>(|a| a % 2 == 0, x);
+		/// let y = filter::<VecBrand, _, _, _>(|a| a % 2 == 0, x);
 		/// assert_eq!(y, vec![2, 4]);
 		/// ```
 		fn filter<'a, A: 'a + Clone>(
@@ -3347,26 +3347,28 @@ mod tests {
 		let p = |i: i32| i % 2 == 0;
 		let maybe_bool = |i| if p(i) { Some(i) } else { None };
 
-		filter::<VecBrand, _>(p, x.clone()) == filter_map::<VecBrand, _, _, _, _>(maybe_bool, x)
+		filter::<VecBrand, _, _, _>(p, x.clone())
+			== filter_map::<VecBrand, _, _, _, _>(maybe_bool, x)
 	}
 
 	/// Tests `partitionMap identity ≡ separate`.
 	#[quickcheck]
 	fn filterable_partition_map_identity(x: Vec<Result<i32, i32>>) -> bool {
-		partition_map::<VecBrand, _, _, _>(identity, x.clone()) == separate::<VecBrand, _, _>(x)
+		partition_map::<VecBrand, _, _, _, _, _>(identity, x.clone())
+			== separate::<VecBrand, _, _>(x)
 	}
 
 	/// Tests `partitionMap Right ≡ identity` (on the right side).
 	#[quickcheck]
 	fn filterable_partition_map_right_identity(x: Vec<i32>) -> bool {
-		let (_, oks) = partition_map::<VecBrand, _, _, _>(Ok::<_, i32>, x.clone());
+		let (_, oks) = partition_map::<VecBrand, _, _, _, _, _>(Ok::<_, i32>, x.clone());
 		oks == x
 	}
 
 	/// Tests `partitionMap Left ≡ identity` (on the left side).
 	#[quickcheck]
 	fn filterable_partition_map_left_identity(x: Vec<i32>) -> bool {
-		let (errs, _) = partition_map::<VecBrand, _, _, _>(Err::<i32, _>, x.clone());
+		let (errs, _) = partition_map::<VecBrand, _, _, _, _, _>(Err::<i32, _>, x.clone());
 		errs == x
 	}
 
@@ -3376,8 +3378,8 @@ mod tests {
 		let p = |i: i32| i % 2 == 0;
 		let either_bool = |i| if p(i) { Ok(i) } else { Err(i) };
 
-		let (not_satisfied, satisfied) = partition::<VecBrand, _>(p, x.clone());
-		let (errs, oks) = partition_map::<VecBrand, _, _, _>(either_bool, x);
+		let (not_satisfied, satisfied) = partition::<VecBrand, _, _, _>(p, x.clone());
+		let (errs, oks) = partition_map::<VecBrand, _, _, _, _, _>(either_bool, x);
 
 		satisfied == oks && not_satisfied == errs
 	}
@@ -3527,7 +3529,7 @@ mod tests {
 	#[test]
 	fn partition_map_empty() {
 		let (errs, oks) =
-			partition_map::<VecBrand, i32, i32, _>(|x: i32| Ok::<i32, i32>(x), vec![]);
+			partition_map::<VecBrand, _, _, _, _, _>(|x: i32| Ok::<i32, i32>(x), vec![]);
 		assert_eq!(oks, vec![] as Vec<i32>);
 		assert_eq!(errs, vec![] as Vec<i32>);
 	}
@@ -3535,7 +3537,7 @@ mod tests {
 	/// Tests `partition` on an empty vector.
 	#[test]
 	fn partition_empty() {
-		let (not_satisfied, satisfied) = partition::<VecBrand, i32>(|x: i32| x > 0, vec![]);
+		let (not_satisfied, satisfied) = partition::<VecBrand, _, _, _>(|x: i32| x > 0, vec![]);
 		assert_eq!(satisfied, vec![] as Vec<i32>);
 		assert_eq!(not_satisfied, vec![] as Vec<i32>);
 	}
@@ -3552,7 +3554,7 @@ mod tests {
 	/// Tests `filter` on an empty vector.
 	#[test]
 	fn filter_empty() {
-		assert_eq!(filter::<VecBrand, i32>(|x: i32| x > 0, vec![]), vec![] as Vec<i32>);
+		assert_eq!(filter::<VecBrand, _, _, _>(|x: i32| x > 0, vec![]), vec![] as Vec<i32>);
 	}
 
 	/// Tests `wilt` on an empty vector.

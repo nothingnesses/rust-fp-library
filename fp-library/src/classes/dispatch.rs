@@ -91,16 +91,20 @@ mod inner {
 
 pub use inner::*;
 
+pub mod filter;
 pub mod filterable;
 pub mod foldable;
 pub mod functor;
 pub mod lift;
+pub mod partition;
+pub mod partition_map;
 pub mod semimonad;
 pub mod traversable;
 
 // Re-export dispatch free functions at the dispatch module level
 // so they're accessible via `crate::classes::dispatch::map` etc.
 pub use {
+	filter::filter,
 	filterable::filter_map,
 	foldable::{
 		fold_left,
@@ -114,6 +118,8 @@ pub use {
 		lift4,
 		lift5,
 	},
+	partition::partition,
+	partition_map::partition_map,
 	semimonad::{
 		bind,
 		bind_flipped,

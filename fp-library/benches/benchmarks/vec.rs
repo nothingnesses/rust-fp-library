@@ -248,7 +248,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| filter::<VecBrand, _>(|x| x % 2 == 0, v),
+				|v| filter::<VecBrand, _, _, _>(|x| x % 2 == 0, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -297,7 +297,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| partition::<VecBrand, _>(|x| x % 2 == 0, v),
+				|v| partition::<VecBrand, _, _, _>(|x| x % 2 == 0, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -329,7 +329,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			b.iter_batched(
 				|| v_orig.clone(),
 				|v| {
-					partition_map::<VecBrand, _, _, _>(
+					partition_map::<VecBrand, _, _, _, _, _>(
 						|x| if x % 2 == 0 { Ok(x * 2) } else { Err(x) },
 						v,
 					)

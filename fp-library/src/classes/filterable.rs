@@ -9,7 +9,7 @@
 //! };
 //!
 //! let x = Some(5);
-//! let y = filter::<OptionBrand, _>(|a| a > 2, x);
+//! let y = filter::<OptionBrand, _, _, _>(|a| a > 2, x);
 //! assert_eq!(y, Some(5));
 //! ```
 
@@ -60,7 +60,7 @@ mod inner {
 	/// // Distributivity: partition_map(identity, fa) = separate(fa)
 	/// let fa: Option<Result<i32, &str>> = Some(Ok(5));
 	/// assert_eq!(
-	/// 	partition_map::<OptionBrand, _, _, _>(identity, fa),
+	/// 	partition_map::<OptionBrand, _, _, _, _, _>(identity, fa),
 	/// 	separate::<OptionBrand, _, _>(fa),
 	/// );
 	///
@@ -79,7 +79,7 @@ mod inner {
 	/// // Consistency (filter/filter_map): filter(p, fa) = filter_map(|a| if p(a) { Some(a) } else { None }, fa)
 	/// let p = |x: i32| x > 3;
 	/// assert_eq!(
-	/// 	filter::<OptionBrand, _>(p, Some(5)),
+	/// 	filter::<OptionBrand, _, _, _>(p, Some(5)),
 	/// 	filter_map::<OptionBrand, _, _, _, _>(|a: i32| if p(a) { Some(a) } else { None }, Some(5)),
 	/// );
 	/// ```
@@ -116,7 +116,7 @@ mod inner {
 	/// // Consistency (filter/filter_map): filter(p, fa) = filter_map(|a| if p(a) { Some(a) } else { None }, fa)
 	/// let p = |x: i32| x > 3;
 	/// assert_eq!(
-	/// 	filter::<VecBrand, _>(p, vec![1, 2, 3, 4, 5]),
+	/// 	filter::<VecBrand, _, _, _>(p, vec![1, 2, 3, 4, 5]),
 	/// 	filter_map::<VecBrand, _, _, _, _>(|a: i32| if p(a) { Some(a) } else { None }, vec![1, 2, 3, 4, 5]),
 	/// );
 	/// ```
@@ -160,7 +160,7 @@ mod inner {
 		///
 		/// let x = Some(5);
 		/// let (errs, oks) =
-		/// 	partition_map::<OptionBrand, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+		/// 	partition_map::<OptionBrand, _, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
 		/// assert_eq!(oks, Some(5));
 		/// assert_eq!(errs, None);
 		/// ```
@@ -202,7 +202,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let (not_satisfied, satisfied) = partition::<OptionBrand, _>(|a| a > 2, x);
+		/// let (not_satisfied, satisfied) = partition::<OptionBrand, _, _, _>(|a| a > 2, x);
 		/// assert_eq!(satisfied, Some(5));
 		/// assert_eq!(not_satisfied, None);
 		/// ```
@@ -276,7 +276,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = filter::<OptionBrand, _>(|a| a > 2, x);
+		/// let y = filter::<OptionBrand, _, _, _>(|a| a > 2, x);
 		/// assert_eq!(y, Some(5));
 		/// ```
 		fn filter<'a, A: 'a + Clone>(
@@ -318,7 +318,7 @@ mod inner {
 	///
 	/// let x = Some(5);
 	/// let (errs, oks) =
-	/// 	partition_map::<OptionBrand, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+	/// 	partition_map::<OptionBrand, _, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
 	/// assert_eq!(oks, Some(5));
 	/// assert_eq!(errs, None);
 	/// ```
@@ -359,7 +359,7 @@ mod inner {
 	/// };
 	///
 	/// let x = Some(5);
-	/// let (not_satisfied, satisfied) = partition::<OptionBrand, _>(|a| a > 2, x);
+	/// let (not_satisfied, satisfied) = partition::<OptionBrand, _, _, _>(|a| a > 2, x);
 	/// assert_eq!(satisfied, Some(5));
 	/// assert_eq!(not_satisfied, None);
 	/// ```
@@ -437,7 +437,7 @@ mod inner {
 	/// };
 	///
 	/// let x = Some(5);
-	/// let y = filter::<OptionBrand, _>(|a| a > 2, x);
+	/// let y = filter::<OptionBrand, _, _, _>(|a| a > 2, x);
 	/// assert_eq!(y, Some(5));
 	/// ```
 	pub fn filter<'a, Brand: Filterable, A: 'a + Clone>(
