@@ -38,7 +38,7 @@ mod inner {
 	/// // Compatibility with Functor: map(f, fa) = map_with_index(|_, a| f(a), fa)
 	/// let f = |a: i32| a * 2;
 	/// assert_eq!(
-	/// 	map::<VecBrand, _, _, _, _>(f, xs.clone()),
+	/// 	map_explicit::<VecBrand, _, _, _, _>(f, xs.clone()),
 	/// 	VecBrand::map_with_index(|_, a| f(a), xs),
 	/// );
 	/// ```

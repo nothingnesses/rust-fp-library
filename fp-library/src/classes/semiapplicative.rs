@@ -57,7 +57,7 @@ mod inner {
 	///
 	/// // Left side: apply(apply(map(|f| |g| compose(f, g), u), v), w)
 	/// // Step 1: map the composition combinator over u
-	/// let compose_u = map::<OptionBrand, _, _, _, _>(
+	/// let compose_u = map_explicit::<OptionBrand, _, _, _, _>(
 	/// 	|u_fn: std::rc::Rc<dyn Fn(i32) -> i32>| {
 	/// 		lift_fn_new::<RcFnBrand, _, _>(move |v_fn: std::rc::Rc<dyn Fn(i32) -> i32>| {
 	/// 			let u_fn = u_fn.clone();

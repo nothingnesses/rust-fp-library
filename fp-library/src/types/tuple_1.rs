@@ -56,7 +56,7 @@ mod inner {
 		/// };
 		///
 		/// let x = (5,);
-		/// let y = map::<Tuple1Brand, _, _, _, _>(|i| i * 2, x);
+		/// let y = map_explicit::<Tuple1Brand, _, _, _, _>(|i| i * 2, x);
 		/// assert_eq!(y, (10,));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -438,7 +438,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// assert_eq!(map::<Tuple1Brand, _, _, _, _>(|x: &i32| *x * 2, &(5,)), (10,));
+		/// assert_eq!(map_explicit::<Tuple1Brand, _, _, _, _>(|x: &i32| *x * 2, &(5,)), (10,));
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
 			func: impl Fn(&A) -> B + 'a,
@@ -702,7 +702,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity(x: i32) -> bool {
 		let x = (x,);
-		map::<Tuple1Brand, _, _, _, _>(identity, x) == x
+		map_explicit::<Tuple1Brand, _, _, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -711,8 +711,11 @@ mod tests {
 		let x = (x,);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<Tuple1Brand, _, _, _, _>(compose(f, g), x)
-			== map::<Tuple1Brand, _, _, _, _>(f, map::<Tuple1Brand, _, _, _, _>(g, x))
+		map_explicit::<Tuple1Brand, _, _, _, _>(compose(f, g), x)
+			== map_explicit::<Tuple1Brand, _, _, _, _>(
+				f,
+				map_explicit::<Tuple1Brand, _, _, _, _>(g, x),
+			)
 	}
 
 	// Applicative Laws
@@ -810,7 +813,7 @@ mod tests {
 	/// Tests the `map` function.
 	#[test]
 	fn map_test() {
-		assert_eq!(map::<Tuple1Brand, _, _, _, _>(|x: i32| x + 1, (1,)), (2,));
+		assert_eq!(map_explicit::<Tuple1Brand, _, _, _, _>(|x: i32| x + 1, (1,)), (2,));
 	}
 
 	/// Tests the `bind` function.

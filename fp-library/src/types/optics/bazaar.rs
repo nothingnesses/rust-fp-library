@@ -103,7 +103,8 @@ mod inner {
 		/// 	foci: vec![1, 2],
 		/// 	rebuild: lift_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs.iter().sum()),
 		/// };
-		/// let mapped = map::<BazaarListBrand<RcFnBrand, i32, i32>, _, _, _, _>(|t: i32| t * 10, bl);
+		/// let mapped =
+		/// 	map_explicit::<BazaarListBrand<RcFnBrand, i32, i32>, _, _, _, _>(|t: i32| t * 10, bl);
 		/// assert_eq!((mapped.rebuild)(vec![3, 4]), 70);
 		/// ```
 		fn map<'a, T: 'a, U: 'a>(

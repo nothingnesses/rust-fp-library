@@ -25,7 +25,7 @@
 //! };
 //!
 //! // Single traversal: compose first, then map once.
-//! let result = map::<VecBrand, _, _, _, _>(
+//! let result = map_explicit::<VecBrand, _, _, _, _>(
 //! 	compose(|x: i32| x.to_string(), compose(|x| x * 2, |x: i32| x + 1)),
 //! 	vec![1, 2, 3],
 //! );
@@ -604,7 +604,7 @@ mod inner {
 		/// };
 		///
 		/// let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
-		/// let mapped = map::<CoyonedaBrand<VecBrand>, _, _, _, _>(|x| x * 10, coyo);
+		/// let mapped = map_explicit::<CoyonedaBrand<VecBrand>, _, _, _, _>(|x| x * 10, coyo);
 		/// assert_eq!(mapped.lower(), vec![10, 20, 30]);
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -996,7 +996,7 @@ mod tests {
 	fn functor_identity_law() {
 		// map(identity, fa) = fa
 		let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
-		let result = map::<CoyonedaBrand<VecBrand>, _, _, _, _>(identity, coyo).lower();
+		let result = map_explicit::<CoyonedaBrand<VecBrand>, _, _, _, _>(identity, coyo).lower();
 		assert_eq!(result, vec![1, 2, 3]);
 	}
 
@@ -1007,12 +1007,13 @@ mod tests {
 		let g = |x: i32| x * 2;
 
 		let coyo1 = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
-		let left = map::<CoyonedaBrand<VecBrand>, _, _, _, _>(compose(f, g), coyo1).lower();
+		let left =
+			map_explicit::<CoyonedaBrand<VecBrand>, _, _, _, _>(compose(f, g), coyo1).lower();
 
 		let coyo2 = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
-		let right = map::<CoyonedaBrand<VecBrand>, _, _, _, _>(
+		let right = map_explicit::<CoyonedaBrand<VecBrand>, _, _, _, _>(
 			f,
-			map::<CoyonedaBrand<VecBrand>, _, _, _, _>(g, coyo2),
+			map_explicit::<CoyonedaBrand<VecBrand>, _, _, _, _>(g, coyo2),
 		)
 		.lower();
 
@@ -1067,7 +1068,7 @@ mod tests {
 	fn map_free_function_dispatches_to_brand() {
 		let coyo = Coyoneda::<OptionBrand, _>::lift(Some(10));
 		let result: Coyoneda<OptionBrand, String> =
-			map::<CoyonedaBrand<OptionBrand>, _, _, _, _>(|x: i32| x.to_string(), coyo);
+			map_explicit::<CoyonedaBrand<OptionBrand>, _, _, _, _>(|x: i32| x.to_string(), coyo);
 		assert_eq!(result.lower(), Some("10".to_string()));
 	}
 
@@ -1325,13 +1326,13 @@ mod tests {
 		#[quickcheck]
 		fn functor_identity_vec(v: Vec<i32>) -> bool {
 			let coyo = Coyoneda::<VecBrand, _>::lift(v.clone());
-			map::<CoyonedaBrand<VecBrand>, _, _, _, _>(identity, coyo).lower() == v
+			map_explicit::<CoyonedaBrand<VecBrand>, _, _, _, _>(identity, coyo).lower() == v
 		}
 
 		#[quickcheck]
 		fn functor_identity_option(x: Option<i32>) -> bool {
 			let coyo = Coyoneda::<OptionBrand, _>::lift(x);
-			map::<CoyonedaBrand<OptionBrand>, _, _, _, _>(identity, coyo).lower() == x
+			map_explicit::<CoyonedaBrand<OptionBrand>, _, _, _, _>(identity, coyo).lower() == x
 		}
 
 		#[quickcheck]
@@ -1339,15 +1340,18 @@ mod tests {
 			let f = |x: i32| x.wrapping_add(1);
 			let g = |x: i32| x.wrapping_mul(2);
 
-			let left = map::<CoyonedaBrand<VecBrand>, _, _, _, _>(
+			let left = map_explicit::<CoyonedaBrand<VecBrand>, _, _, _, _>(
 				compose(f, g),
 				Coyoneda::<VecBrand, _>::lift(v.clone()),
 			)
 			.lower();
 
-			let right = map::<CoyonedaBrand<VecBrand>, _, _, _, _>(
+			let right = map_explicit::<CoyonedaBrand<VecBrand>, _, _, _, _>(
 				f,
-				map::<CoyonedaBrand<VecBrand>, _, _, _, _>(g, Coyoneda::<VecBrand, _>::lift(v)),
+				map_explicit::<CoyonedaBrand<VecBrand>, _, _, _, _>(
+					g,
+					Coyoneda::<VecBrand, _>::lift(v),
+				),
 			)
 			.lower();
 

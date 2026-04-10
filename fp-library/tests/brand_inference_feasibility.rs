@@ -241,3 +241,30 @@ fn bind_ref_lazy_infer() {
 //     let result: Vec<i32> = bind_infer(vec![1, 2], |x: i32| pure_infer(x * 10));
 //     // E0283: same error
 // }
+
+// -- Tests using the real inference map from dispatch::inference --
+
+#[test]
+fn real_infer_val_option() {
+	use fp_library::functions::map_infer;
+	assert_eq!(map_infer(|x: i32| x * 2, Some(5)), Some(10));
+}
+
+#[test]
+fn real_infer_val_vec() {
+	use fp_library::functions::map_infer;
+	assert_eq!(map_infer(|x: i32| x + 1, vec![1, 2, 3]), vec![2, 3, 4]);
+}
+
+#[test]
+fn real_infer_ref_option() {
+	use fp_library::functions::map_infer;
+	assert_eq!(map_infer(|x: &i32| *x * 2, &Some(5)), Some(10));
+}
+
+#[test]
+fn real_infer_ref_vec() {
+	use fp_library::functions::map_infer;
+	let v = vec![1, 2, 3];
+	assert_eq!(map_infer(|x: &i32| *x + 10, &v), vec![11, 12, 13]);
+}

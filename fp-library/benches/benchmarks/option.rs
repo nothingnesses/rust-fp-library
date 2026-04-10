@@ -20,7 +20,7 @@ pub fn bench_option(c: &mut Criterion) {
 			b.iter(|| std::hint::black_box(val).map(|x| x * 2))
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
-			b.iter(|| map::<OptionBrand, _, _, _, _>(|x| x * 2, std::hint::black_box(val)))
+			b.iter(|| map_explicit::<OptionBrand, _, _, _, _>(|x| x * 2, std::hint::black_box(val)))
 		});
 		group.finish();
 	}

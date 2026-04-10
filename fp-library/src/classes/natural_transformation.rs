@@ -84,8 +84,10 @@ mod inner {
 	/// let f = |x: i32| x * 3;
 	///
 	/// // Naturality: nt(map(f, fa)) == map(f, nt(fa))
-	/// let lhs: Option<i32> = nt.transform(map::<ThunkBrand, _, _, _, _>(f, Thunk::new(|| 7)));
-	/// let rhs: Option<i32> = map::<OptionBrand, _, _, _, _>(f, nt.transform(Thunk::new(|| 7)));
+	/// let lhs: Option<i32> =
+	/// 	nt.transform(map_explicit::<ThunkBrand, _, _, _, _>(f, Thunk::new(|| 7)));
+	/// let rhs: Option<i32> =
+	/// 	map_explicit::<OptionBrand, _, _, _, _>(f, nt.transform(Thunk::new(|| 7)));
 	/// assert_eq!(lhs, rhs);
 	/// assert_eq!(lhs, Some(21));
 	/// ```

@@ -324,7 +324,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// let mapped = map::<CatListBrand, _, _, _, _>(|x: i32| x * 2, list);
+		/// let mapped = map_explicit::<CatListBrand, _, _, _, _>(|x: i32| x * 2, list);
 		/// let vec: Vec<_> = mapped.into_iter().collect();
 		/// assert_eq!(vec, vec![2, 4, 6]);
 		/// ```
@@ -3449,7 +3449,7 @@ mod inner {
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
 		/// let result: Vec<_> =
-		/// 	map::<CatListBrand, _, _, _, _>(|x: &i32| *x * 2, &list).into_iter().collect();
+		/// 	map_explicit::<CatListBrand, _, _, _, _>(|x: &i32| *x * 2, &list).into_iter().collect();
 		/// assert_eq!(result, vec![2, 4, 6]);
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
@@ -4299,7 +4299,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity(x: Vec<i32>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
-		map::<CatListBrand, _, _, _, _>(identity, x.clone()) == x
+		map_explicit::<CatListBrand, _, _, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -4308,8 +4308,11 @@ mod tests {
 		let x: CatList<_> = x.into_iter().collect();
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<CatListBrand, _, _, _, _>(compose(f, g), x.clone())
-			== map::<CatListBrand, _, _, _, _>(f, map::<CatListBrand, _, _, _, _>(g, x))
+		map_explicit::<CatListBrand, _, _, _, _>(compose(f, g), x.clone())
+			== map_explicit::<CatListBrand, _, _, _, _>(
+				f,
+				map_explicit::<CatListBrand, _, _, _, _>(g, x),
+			)
 	}
 
 	// Applicative Laws
@@ -4397,7 +4400,10 @@ mod tests {
 	#[test]
 	fn map_empty() {
 		assert_eq!(
-			map::<CatListBrand, _, _, _, _>(|x: i32| x + 1, CatList::empty() as CatList<i32>),
+			map_explicit::<CatListBrand, _, _, _, _>(
+				|x: i32| x + 1,
+				CatList::empty() as CatList<i32>
+			),
 			CatList::empty() as CatList<i32>
 		);
 	}
@@ -4550,7 +4556,7 @@ mod tests {
 	fn prop_par_map_equals_map(xs: Vec<i32>) -> bool {
 		let xs: CatList<_> = xs.into_iter().collect();
 		let f = |x: i32| x.wrapping_add(1);
-		let seq_res: CatList<_> = map::<CatListBrand, _, _, _, _>(f, xs.clone());
+		let seq_res: CatList<_> = map_explicit::<CatListBrand, _, _, _, _>(f, xs.clone());
 		let par_res: CatList<_> = par_map::<CatListBrand, _, _>(f, xs);
 		seq_res == par_res
 	}
@@ -4635,13 +4641,15 @@ mod tests {
 		let cx: CatList<_> = x.into_iter().collect();
 		let cy: CatList<_> = y.into_iter().collect();
 		let f = |i: i32| i.wrapping_mul(2).wrapping_add(1);
-		let lhs: Vec<_> =
-			map::<CatListBrand, _, _, _, _>(f, alt::<CatListBrand, _>(cx.clone(), cy.clone()))
-				.into_iter()
-				.collect();
+		let lhs: Vec<_> = map_explicit::<CatListBrand, _, _, _, _>(
+			f,
+			alt::<CatListBrand, _>(cx.clone(), cy.clone()),
+		)
+		.into_iter()
+		.collect();
 		let rhs: Vec<_> = alt::<CatListBrand, _>(
-			map::<CatListBrand, _, _, _, _>(f, cx),
-			map::<CatListBrand, _, _, _, _>(f, cy),
+			map_explicit::<CatListBrand, _, _, _, _>(f, cx),
+			map_explicit::<CatListBrand, _, _, _, _>(f, cy),
 		)
 		.into_iter()
 		.collect();
@@ -4676,9 +4684,10 @@ mod tests {
 	#[test]
 	fn plus_annihilation() {
 		let f = |i: i32| i.wrapping_mul(2);
-		let lhs: Vec<_> = map::<CatListBrand, _, _, _, _>(f, plus_empty::<CatListBrand, i32>())
-			.into_iter()
-			.collect();
+		let lhs: Vec<_> =
+			map_explicit::<CatListBrand, _, _, _, _>(f, plus_empty::<CatListBrand, i32>())
+				.into_iter()
+				.collect();
 		let rhs: Vec<_> = plus_empty::<CatListBrand, i32>().into_iter().collect();
 		assert_eq!(lhs, rhs);
 	}
@@ -4690,7 +4699,7 @@ mod tests {
 	fn compactable_functor_identity(x: Vec<i32>) -> bool {
 		let cx: CatList<_> = x.into_iter().collect();
 		let lhs: Vec<_> =
-			compact::<CatListBrand, _>(map::<CatListBrand, _, _, _, _>(Some, cx.clone()))
+			compact::<CatListBrand, _>(map_explicit::<CatListBrand, _, _, _, _>(Some, cx.clone()))
 				.into_iter()
 				.collect();
 		let rhs: Vec<_> = cx.into_iter().collect();

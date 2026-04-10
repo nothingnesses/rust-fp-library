@@ -847,7 +847,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	map::<PairFirstAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, Pair(1, 5)),
+		/// 	map_explicit::<PairFirstAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, Pair(1, 5)),
 		/// 	Pair(1, 10)
 		/// );
 		/// ```
@@ -1361,7 +1361,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		/// assert_eq!(
-		/// 	map::<PairFirstAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &Pair(1, 5)),
+		/// 	map_explicit::<PairFirstAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &Pair(1, 5)),
 		/// 	Pair(1, 10)
 		/// );
 		/// ```
@@ -1630,7 +1630,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	map::<PairSecondAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, Pair(5, 1)),
+		/// 	map_explicit::<PairSecondAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, Pair(5, 1)),
 		/// 	Pair(10, 1)
 		/// );
 		/// ```
@@ -2138,7 +2138,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		/// assert_eq!(
-		/// 	map::<PairSecondAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &Pair(5, 1)),
+		/// 	map_explicit::<PairSecondAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &Pair(5, 1)),
 		/// 	Pair(10, 1)
 		/// );
 		/// ```
@@ -2432,7 +2432,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let x = Pair(first, second);
-		map::<PairFirstAppliedBrand<String>, _, _, _, _>(identity, x.clone()) == x
+		map_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -2444,10 +2444,10 @@ mod tests {
 		let x = Pair(first, second);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<PairFirstAppliedBrand<String>, _, _, _, _>(compose(f, g), x.clone())
-			== map::<PairFirstAppliedBrand<String>, _, _, _, _>(
+		map_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(compose(f, g), x.clone())
+			== map_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(
 				f,
-				map::<PairFirstAppliedBrand<String>, _, _, _, _>(g, x),
+				map_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(g, x),
 			)
 	}
 

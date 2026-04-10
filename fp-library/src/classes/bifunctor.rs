@@ -199,7 +199,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Result::<i32, i32>::Ok(5);
-		/// let y = map::<BifunctorFirstAppliedBrand<ResultBrand, i32>, _, _, _, _>(|s| s * 2, x);
+		/// let y = map_explicit::<BifunctorFirstAppliedBrand<ResultBrand, i32>, _, _, _, _>(|s| s * 2, x);
 		/// assert_eq!(y, Ok(10));
 		/// ```
 		fn map<'a, B: 'a, C: 'a>(
@@ -240,7 +240,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Result::<i32, i32>::Err(5);
-		/// let y = map::<BifunctorSecondAppliedBrand<ResultBrand, i32>, _, _, _, _>(|e| e * 2, x);
+		/// let y = map_explicit::<BifunctorSecondAppliedBrand<ResultBrand, i32>, _, _, _, _>(|e| e * 2, x);
 		/// assert_eq!(y, Err(10));
 		/// ```
 		fn map<'a, A: 'a, C: 'a>(

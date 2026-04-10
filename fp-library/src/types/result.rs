@@ -562,8 +562,14 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(map::<ResultErrAppliedBrand<()>, _, _, _, _>(|x: i32| x * 2, Ok(5)), Ok(10));
-		/// assert_eq!(map::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Err(1)), Err(1));
+		/// assert_eq!(
+		/// 	map_explicit::<ResultErrAppliedBrand<()>, _, _, _, _>(|x: i32| x * 2, Ok(5)),
+		/// 	Ok(10)
+		/// );
+		/// assert_eq!(
+		/// 	map_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Err(1)),
+		/// 	Err(1)
+		/// );
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> B + 'a,
@@ -1070,8 +1076,11 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Err(5)), Err(10));
-		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Ok(1)), Ok(1));
+		/// assert_eq!(
+		/// 	map_explicit::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Err(5)),
+		/// 	Err(10)
+		/// );
+		/// assert_eq!(map_explicit::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Ok(1)), Ok(1));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> B + 'a,
@@ -1623,9 +1632,12 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// assert_eq!(map::<ResultErrAppliedBrand<()>, _, _, _, _>(|x: &i32| *x * 2, &Ok(5)), Ok(10));
 		/// assert_eq!(
-		/// 	map::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: &i32| *x * 2, &Err::<i32, _>(1)),
+		/// 	map_explicit::<ResultErrAppliedBrand<()>, _, _, _, _>(|x: &i32| *x * 2, &Ok(5)),
+		/// 	Ok(10)
+		/// );
+		/// assert_eq!(
+		/// 	map_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: &i32| *x * 2, &Err::<i32, _>(1)),
 		/// 	Err(1)
 		/// );
 		/// ```
@@ -1873,9 +1885,12 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: &i32| *x * 2, &Err(5)), Err(10));
 		/// assert_eq!(
-		/// 	map::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: &i32| *x * 2, &Ok::<_, i32>(1)),
+		/// 	map_explicit::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: &i32| *x * 2, &Err(5)),
+		/// 	Err(10)
+		/// );
+		/// assert_eq!(
+		/// 	map_explicit::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: &i32| *x * 2, &Ok::<_, i32>(1)),
 		/// 	Ok(1)
 		/// );
 		/// ```
@@ -2222,7 +2237,7 @@ mod tests {
 	/// Tests the identity law for Functor.
 	#[quickcheck]
 	fn functor_identity(x: Result<i32, i32>) -> bool {
-		map::<ResultErrAppliedBrand<i32>, _, _, _, _>(identity, x) == x
+		map_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -2230,10 +2245,10 @@ mod tests {
 	fn functor_composition(x: Result<i32, i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<ResultErrAppliedBrand<i32>, _, _, _, _>(compose(f, g), x)
-			== map::<ResultErrAppliedBrand<i32>, _, _, _, _>(
+		map_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(compose(f, g), x)
+			== map_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(
 				f,
-				map::<ResultErrAppliedBrand<i32>, _, _, _, _>(g, x),
+				map_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(g, x),
 			)
 	}
 
@@ -2356,7 +2371,10 @@ mod tests {
 	#[test]
 	fn map_err() {
 		assert_eq!(
-			map::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32| x + 1, Err::<i32, i32>(1)),
+			map_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(
+				|x: i32| x + 1,
+				Err::<i32, i32>(1)
+			),
 			Err(1)
 		);
 	}

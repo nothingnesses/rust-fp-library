@@ -9,7 +9,7 @@
 //! };
 //!
 //! let x = Some(5);
-//! let y = map::<OptionBrand, _, _, _, _>(|i| i * 2, x);
+//! let y = map_explicit::<OptionBrand, _, _, _, _>(|i| i * 2, x);
 //! assert_eq!(y, Some(10));
 //! ```
 
@@ -53,15 +53,18 @@ mod inner {
 	/// };
 	///
 	/// // Identity: map(identity, fa) = fa
-	/// assert_eq!(map::<OptionBrand, _, _, _, _>(identity, Some(5)), Some(5));
-	/// assert_eq!(map::<OptionBrand, _, _, _, _>(identity, None::<i32>), None);
+	/// assert_eq!(map_explicit::<OptionBrand, _, _, _, _>(identity, Some(5)), Some(5));
+	/// assert_eq!(map_explicit::<OptionBrand, _, _, _, _>(identity, None::<i32>), None);
 	///
 	/// // Composition: map(compose(f, g), fa) = map(f, map(g, fa))
 	/// let f = |x: i32| x + 1;
 	/// let g = |x: i32| x * 2;
 	/// assert_eq!(
-	/// 	map::<OptionBrand, _, _, _, _>(compose(f, g), Some(5)),
-	/// 	map::<OptionBrand, _, _, _, _>(f, map::<OptionBrand, _, _, _, _>(g, Some(5))),
+	/// 	map_explicit::<OptionBrand, _, _, _, _>(compose(f, g), Some(5)),
+	/// 	map_explicit::<OptionBrand, _, _, _, _>(
+	/// 		f,
+	/// 		map_explicit::<OptionBrand, _, _, _, _>(g, Some(5))
+	/// 	),
 	/// );
 	/// ```
 	///
@@ -74,14 +77,17 @@ mod inner {
 	/// };
 	///
 	/// // Identity: map(identity, fa) = fa
-	/// assert_eq!(map::<VecBrand, _, _, _, _>(identity, vec![1, 2, 3]), vec![1, 2, 3]);
+	/// assert_eq!(map_explicit::<VecBrand, _, _, _, _>(identity, vec![1, 2, 3]), vec![1, 2, 3]);
 	///
 	/// // Composition: map(compose(f, g), fa) = map(f, map(g, fa))
 	/// let f = |x: i32| x + 1;
 	/// let g = |x: i32| x * 2;
 	/// assert_eq!(
-	/// 	map::<VecBrand, _, _, _, _>(compose(f, g), vec![1, 2, 3]),
-	/// 	map::<VecBrand, _, _, _, _>(f, map::<VecBrand, _, _, _, _>(g, vec![1, 2, 3])),
+	/// 	map_explicit::<VecBrand, _, _, _, _>(compose(f, g), vec![1, 2, 3]),
+	/// 	map_explicit::<VecBrand, _, _, _, _>(
+	/// 		f,
+	/// 		map_explicit::<VecBrand, _, _, _, _>(g, vec![1, 2, 3])
+	/// 	),
 	/// );
 	/// ```
 	#[kind(type Of<'a, A: 'a>: 'a;)]
@@ -115,7 +121,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = map::<OptionBrand, _, _, _, _>(|i| i * 2, x);
+		/// let y = map_explicit::<OptionBrand, _, _, _, _>(|i| i * 2, x);
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(

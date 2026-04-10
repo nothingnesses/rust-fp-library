@@ -105,6 +105,7 @@ pub mod fold_map_with_index;
 pub mod fold_right_with_index;
 pub mod foldable;
 pub mod functor;
+pub mod inference;
 pub mod lift;
 pub mod map_with_index;
 pub mod partition;

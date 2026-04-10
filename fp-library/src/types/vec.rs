@@ -126,7 +126,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(map::<VecBrand, _, _, _, _>(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);
+		/// assert_eq!(map_explicit::<VecBrand, _, _, _, _>(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> B + 'a,
@@ -2327,7 +2327,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(map::<VecBrand, _, _, _, _>(|x: &i32| *x * 2, &vec![1, 2, 3]), vec![2, 4, 6]);
+		/// assert_eq!(
+		/// 	map_explicit::<VecBrand, _, _, _, _>(|x: &i32| *x * 2, &vec![1, 2, 3]),
+		/// 	vec![2, 4, 6]
+		/// );
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
 			func: impl Fn(&A) -> B + 'a,
@@ -3008,7 +3011,7 @@ mod tests {
 	/// Tests the identity law for Functor.
 	#[quickcheck]
 	fn functor_identity(x: Vec<i32>) -> bool {
-		map::<VecBrand, _, _, _, _>(identity, x.clone()) == x
+		map_explicit::<VecBrand, _, _, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -3016,8 +3019,8 @@ mod tests {
 	fn functor_composition(x: Vec<i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<VecBrand, _, _, _, _>(compose(f, g), x.clone())
-			== map::<VecBrand, _, _, _, _>(f, map::<VecBrand, _, _, _, _>(g, x))
+		map_explicit::<VecBrand, _, _, _, _>(compose(f, g), x.clone())
+			== map_explicit::<VecBrand, _, _, _, _>(f, map_explicit::<VecBrand, _, _, _, _>(g, x))
 	}
 
 	// Applicative Laws
@@ -3151,7 +3154,7 @@ mod tests {
 	#[test]
 	fn map_empty() {
 		assert_eq!(
-			map::<VecBrand, _, _, _, _>(|x: i32| x + 1, vec![] as Vec<i32>),
+			map_explicit::<VecBrand, _, _, _, _>(|x: i32| x + 1, vec![] as Vec<i32>),
 			vec![] as Vec<i32>
 		);
 	}
@@ -3440,10 +3443,10 @@ mod tests {
 		y: Vec<i32>,
 	) -> bool {
 		let f = |i: i32| i.wrapping_mul(2).wrapping_add(1);
-		map::<VecBrand, _, _, _, _>(f, alt::<VecBrand, _>(x.clone(), y.clone()))
+		map_explicit::<VecBrand, _, _, _, _>(f, alt::<VecBrand, _>(x.clone(), y.clone()))
 			== alt::<VecBrand, _>(
-				map::<VecBrand, _, _, _, _>(f, x),
-				map::<VecBrand, _, _, _, _>(f, y),
+				map_explicit::<VecBrand, _, _, _, _>(f, x),
+				map_explicit::<VecBrand, _, _, _, _>(f, y),
 			)
 	}
 
@@ -3466,7 +3469,7 @@ mod tests {
 	fn plus_annihilation() {
 		let f = |i: i32| i.wrapping_mul(2);
 		assert_eq!(
-			map::<VecBrand, _, _, _, _>(f, plus_empty::<VecBrand, i32>()),
+			map_explicit::<VecBrand, _, _, _, _>(f, plus_empty::<VecBrand, i32>()),
 			plus_empty::<VecBrand, i32>(),
 		);
 	}
@@ -3476,7 +3479,7 @@ mod tests {
 	/// Tests the functor identity law for Compactable.
 	#[quickcheck]
 	fn compactable_functor_identity(fa: Vec<i32>) -> bool {
-		compact::<VecBrand, _>(map::<VecBrand, _, _, _, _>(Some, fa.clone())) == fa
+		compact::<VecBrand, _>(map_explicit::<VecBrand, _, _, _, _>(Some, fa.clone())) == fa
 	}
 
 	/// Tests the Plus annihilation (empty) law for Compactable.
@@ -3491,7 +3494,7 @@ mod tests {
 	/// Tests the Plus annihilation (map) law for Compactable.
 	#[quickcheck]
 	fn compactable_plus_annihilation_map(xs: Vec<i32>) -> bool {
-		compact::<VecBrand, _>(map::<VecBrand, _, _, _, _>(|_: i32| None::<i32>, xs))
+		compact::<VecBrand, _>(map_explicit::<VecBrand, _, _, _, _>(|_: i32| None::<i32>, xs))
 			== plus_empty::<VecBrand, i32>()
 	}
 
@@ -3591,7 +3594,7 @@ mod tests {
 	#[quickcheck]
 	fn prop_par_map_equals_map(xs: Vec<i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
-		let seq_res = map::<VecBrand, _, _, _, _>(f, xs.clone());
+		let seq_res = map_explicit::<VecBrand, _, _, _, _>(f, xs.clone());
 		let par_res = par_map::<VecBrand, _, _>(f, xs);
 		seq_res == par_res
 	}
@@ -3883,10 +3886,10 @@ mod tests {
 	) -> bool {
 		use crate::classes::ref_alt::ref_alt;
 		let f = |a: &i32| a.wrapping_mul(2);
-		map::<VecBrand, _, _, _, _>(f, &ref_alt::<VecBrand, _>(&x, &y))
+		map_explicit::<VecBrand, _, _, _, _>(f, &ref_alt::<VecBrand, _>(&x, &y))
 			== ref_alt::<VecBrand, _>(
-				&map::<VecBrand, _, _, _, _>(f, &x),
-				&map::<VecBrand, _, _, _, _>(f, &y),
+				&map_explicit::<VecBrand, _, _, _, _>(f, &x),
+				&map_explicit::<VecBrand, _, _, _, _>(f, &y),
 			)
 	}
 }

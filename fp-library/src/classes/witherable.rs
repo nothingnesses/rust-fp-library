@@ -67,7 +67,7 @@ mod inner {
 	/// let p = |a: i32| Some(if a > 2 { Some(a * 2) } else { None });
 	/// assert_eq!(
 	/// 	wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(p, Some(5)),
-	/// 	map::<OptionBrand, _, _, _, _>(
+	/// 	map_explicit::<OptionBrand, _, _, _, _>(
 	/// 		|r| compact::<OptionBrand, _>(r),
 	/// 		traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(p, Some(5)),
 	/// 	),
@@ -77,7 +77,7 @@ mod inner {
 	/// let p = |a: i32| Some(if a > 2 { Ok(a) } else { Err(a) });
 	/// assert_eq!(
 	/// 	wilt::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(p, Some(5)),
-	/// 	map::<OptionBrand, _, _, _, _>(
+	/// 	map_explicit::<OptionBrand, _, _, _, _>(
 	/// 		|r| separate::<OptionBrand, _, _>(r),
 	/// 		traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(p, Some(5)),
 	/// 	),
@@ -102,7 +102,7 @@ mod inner {
 	/// let p = |a: i32| Some(if a > 2 { Some(a * 2) } else { None });
 	/// assert_eq!(
 	/// 	wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(p, vec![1, 2, 3, 4, 5]),
-	/// 	map::<OptionBrand, _, _, _, _>(
+	/// 	map_explicit::<OptionBrand, _, _, _, _>(
 	/// 		|r| compact::<VecBrand, _>(r),
 	/// 		traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(p, vec![1, 2, 3, 4, 5]),
 	/// 	),

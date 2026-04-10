@@ -27,7 +27,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| map::<VecBrand, _, _, _, _>(|x| x * 2, v),
+				|v| map_explicit::<VecBrand, _, _, _, _>(|x| x * 2, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -541,7 +541,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			group.bench_with_input(BenchmarkId::new("map (sequential)", sz), &sz, |b, &_| {
 				b.iter_batched(
 					|| v.clone(),
-					|v| map::<VecBrand, _, _, _, _>(|x: i32| x * 2, v),
+					|v| map_explicit::<VecBrand, _, _, _, _>(|x: i32| x * 2, v),
 					BatchSize::SmallInput,
 				)
 			});
