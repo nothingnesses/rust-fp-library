@@ -226,7 +226,7 @@ Follow the established pattern in `functions.rs`:
 | `fold_map_with_index`      | 4             | 4             | 6        | +2    |
 | `fold_right_with_index`    | 4             | 4             | 6        | +2    |
 | `fold_left_with_index`     | 4             | 4             | 6        | +2    |
-| `traverse_with_index`      | 5             | 6             | 8        | +3    |
+| `traverse_with_index`      | 5             | 6             | 7        | +2    |
 | `wilt`                     | 5             | 6             | 8        | +3    |
 | `wither`                   | 4             | 5             | 7        | +3    |
 

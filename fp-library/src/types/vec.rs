@@ -2402,7 +2402,7 @@ mod inner {
 		///
 		/// let v = vec![1, 2, 3, 4, 5];
 		/// let result =
-		/// 	ref_filter_map::<VecBrand, _, _>(|x: &i32| if *x > 3 { Some(*x) } else { None }, &v);
+		/// 	filter_map::<VecBrand, _, _, _, _>(|x: &i32| if *x > 3 { Some(*x) } else { None }, &v);
 		/// assert_eq!(result, vec![4, 5]);
 		/// ```
 		fn ref_filter_map<'a, A: 'a, B: 'a>(
@@ -2495,7 +2495,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30];
-		/// let result = ref_map_with_index::<VecBrand, _, _>(|i, x: &i32| format!("{}:{}", i, x), &v);
+		/// let result = map_with_index::<VecBrand, _, _, _, _>(|i, x: &i32| format!("{}:{}", i, x), &v);
 		/// assert_eq!(result, vec!["0:10", "1:20", "2:30"]);
 		/// ```
 		fn ref_map_with_index<'a, A: 'a, B: 'a>(
@@ -2533,7 +2533,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30];
-		/// let result = ref_fold_map_with_index::<RcFnBrand, VecBrand, _, _>(
+		/// let result = fold_map_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
 		/// 	|i, x: &i32| format!("{}:{}", i, x),
 		/// 	&v,
 		/// );
@@ -2574,7 +2574,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30, 40, 50];
-		/// let result = ref_filter_map_with_index::<VecBrand, _, _>(
+		/// let result = filter_map_with_index::<VecBrand, _, _, _, _>(
 		/// 	|i, x: &i32| if i >= 2 { Some(*x) } else { None },
 		/// 	&v,
 		/// );
@@ -2612,10 +2612,11 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30];
-		/// let result: Option<Vec<String>> = ref_traverse_with_index::<VecBrand, _, _, OptionBrand>(
-		/// 	|i, x: &i32| Some(format!("{}:{}", i, x)),
-		/// 	&v,
-		/// );
+		/// let result: Option<Vec<String>> =
+		/// 	traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+		/// 		|i, x: &i32| Some(format!("{}:{}", i, x)),
+		/// 		&v,
+		/// 	);
 		/// assert_eq!(result, Some(vec!["0:10".to_string(), "1:20".to_string(), "2:30".to_string()]));
 		/// ```
 		fn ref_traverse_with_index<'a, A: 'a + Clone, B: 'a + Clone, M: Applicative>(

@@ -10,7 +10,7 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	classes::dispatch::traverse_with_index,
+//! 	functions::*,
 //! };
 //!
 //! // Owned: dispatches to TraversableWithIndex::traverse_with_index
@@ -87,7 +87,7 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::dispatch::traverse_with_index,
+		/// 	functions::*,
 		/// };
 		///
 		/// let result = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
@@ -151,7 +151,7 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::dispatch::traverse_with_index,
+		/// 	functions::*,
 		/// };
 		///
 		/// let result = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
@@ -222,7 +222,7 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::dispatch::traverse_with_index,
+		/// 	functions::*,
 		/// };
 		///
 		/// let v = vec![1, 2, 3];
@@ -288,7 +288,7 @@ pub(crate) mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	classes::dispatch::traverse_with_index,
+	/// 	functions::*,
 	/// };
 	///
 	/// // Owned: dispatches to TraversableWithIndex::traverse_with_index

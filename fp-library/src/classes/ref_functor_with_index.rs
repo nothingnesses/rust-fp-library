@@ -96,7 +96,7 @@ mod inner {
 	///
 	/// let lazy = RcLazy::new(|| 42);
 	/// let mapped =
-	/// 	ref_map_with_index::<LazyBrand<RcLazyConfig>, _, _>(|_, x: &i32| x.to_string(), &lazy);
+	/// 	map_with_index::<LazyBrand<RcLazyConfig>, _, _, _, _>(|_, x: &i32| x.to_string(), &lazy);
 	/// assert_eq!(*mapped.evaluate(), "42");
 	/// ```
 	pub fn ref_map_with_index<'a, Brand: RefFunctorWithIndex, A: 'a, B: 'a>(

@@ -3526,10 +3526,12 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4).snoc(5);
-		/// let result: Vec<_> =
-		/// 	ref_filter_map::<CatListBrand, _, _>(|x: &i32| if *x > 3 { Some(*x) } else { None }, &list)
-		/// 		.into_iter()
-		/// 		.collect();
+		/// let result: Vec<_> = filter_map::<CatListBrand, _, _, _, _>(
+		/// 	|x: &i32| if *x > 3 { Some(*x) } else { None },
+		/// 	&list,
+		/// )
+		/// .into_iter()
+		/// .collect();
 		/// assert_eq!(result, vec![4, 5]);
 		/// ```
 		fn ref_filter_map<'a, A: 'a, B: 'a>(
@@ -3620,7 +3622,7 @@ mod inner {
 		///
 		/// let list = CatList::singleton(10).snoc(20).snoc(30);
 		/// let result: Vec<_> =
-		/// 	ref_map_with_index::<CatListBrand, _, _>(|i, x: &i32| format!("{}:{}", i, x), &list)
+		/// 	map_with_index::<CatListBrand, _, _, _, _>(|i, x: &i32| format!("{}:{}", i, x), &list)
 		/// 		.into_iter()
 		/// 		.collect();
 		/// assert_eq!(result, vec!["0:10", "1:20", "2:30"]);
@@ -3661,7 +3663,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(10).snoc(20).snoc(30);
-		/// let result = ref_fold_map_with_index::<RcFnBrand, CatListBrand, _, _>(
+		/// let result = fold_map_with_index::<RcFnBrand, CatListBrand, _, _, _, _>(
 		/// 	|i, x: &i32| format!("{}:{}", i, x),
 		/// 	&list,
 		/// );
@@ -3703,7 +3705,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(10).snoc(20).snoc(30).snoc(40).snoc(50);
-		/// let result: Vec<_> = ref_filter_map_with_index::<CatListBrand, _, _>(
+		/// let result: Vec<_> = filter_map_with_index::<CatListBrand, _, _, _, _>(
 		/// 	|i, x: &i32| if i >= 2 { Some(*x) } else { None },
 		/// 	&list,
 		/// )

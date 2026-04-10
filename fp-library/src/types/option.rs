@@ -1213,7 +1213,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = ref_filter_map::<OptionBrand, _, _>(
+		/// let result = filter_map::<OptionBrand, _, _, _, _>(
 		/// 	|x: &i32| if *x > 3 { Some(*x) } else { None },
 		/// 	&Some(5),
 		/// );
@@ -1282,7 +1282,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// assert_eq!(ref_map_with_index::<OptionBrand, _, _>(|(), x: &i32| *x * 2, &Some(5)), Some(10));
+		/// assert_eq!(map_with_index::<OptionBrand, _, _, _, _>(|(), x: &i32| *x * 2, &Some(5)), Some(10),);
 		/// ```
 		fn ref_map_with_index<'a, A: 'a, B: 'a>(
 			func: impl Fn((), &A) -> B + 'a,
@@ -1310,7 +1310,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = ref_fold_map_with_index::<RcFnBrand, OptionBrand, _, _>(
+		/// let result = fold_map_with_index::<RcFnBrand, OptionBrand, _, _, _, _>(
 		/// 	|(), x: &i32| x.to_string(),
 		/// 	&Some(5),
 		/// );
@@ -1347,10 +1347,11 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result: Vec<Option<String>> = ref_traverse_with_index::<OptionBrand, _, _, VecBrand>(
-		/// 	|(), x: &i32| vec![x.to_string()],
-		/// 	&Some(5),
-		/// );
+		/// let result: Vec<Option<String>> =
+		/// 	traverse_with_index::<RcFnBrand, OptionBrand, _, _, VecBrand, _, _>(
+		/// 		|(), x: &i32| vec![x.to_string()],
+		/// 		&Some(5),
+		/// 	);
 		/// assert_eq!(result, vec![Some("5".to_string())]);
 		/// ```
 		fn ref_traverse_with_index<'a, A: 'a + Clone, B: 'a + Clone, M: Applicative>(

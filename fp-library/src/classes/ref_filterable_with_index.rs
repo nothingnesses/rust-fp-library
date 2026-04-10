@@ -9,7 +9,7 @@
 //! };
 //!
 //! let v = vec![10, 20, 30, 40, 50];
-//! let result = ref_filter_map_with_index::<VecBrand, _, _>(
+//! let result = filter_map_with_index::<VecBrand, _, _, _, _>(
 //! 	|i, x: &i32| if i >= 2 { Some(*x) } else { None },
 //! 	&v,
 //! );
@@ -56,7 +56,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30, 40, 50];
-		/// let result = ref_filter_map_with_index::<VecBrand, _, _>(
+		/// let result = filter_map_with_index::<VecBrand, _, _, _, _>(
 		/// 	|i, x: &i32| if i >= 2 { Some(*x) } else { None },
 		/// 	&v,
 		/// );
@@ -84,7 +84,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30, 40, 50];
-		/// let result = ref_filter_with_index::<VecBrand, _>(|i, _x: &i32| i >= 2, &v);
+		/// let result = filter_with_index::<VecBrand, _, _, _>(|i, _x: &i32| i >= 2, &v);
 		/// assert_eq!(result, vec![30, 40, 50]);
 		/// ```
 		fn ref_filter_with_index<'a, A: 'a + Clone>(
@@ -121,7 +121,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30, 40, 50];
-		/// let (left, right) = ref_partition_map_with_index::<VecBrand, _, _, _>(
+		/// let (left, right) = partition_map_with_index::<VecBrand, _, _, _, _, _>(
 		/// 	|i, x: &i32| if i >= 2 { Ok(*x) } else { Err(*x) },
 		/// 	&v,
 		/// );
@@ -155,7 +155,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30, 40, 50];
-		/// let (left, right) = ref_partition_with_index::<VecBrand, _>(|i, _x: &i32| i >= 2, &v);
+		/// let (left, right) = partition_with_index::<VecBrand, _, _, _>(|i, _x: &i32| i >= 2, &v);
 		/// assert_eq!(left, vec![10, 20]);
 		/// assert_eq!(right, vec![30, 40, 50]);
 		/// ```
@@ -199,7 +199,7 @@ mod inner {
 	/// };
 	///
 	/// let v = vec![10, 20, 30, 40, 50];
-	/// let result = ref_filter_map_with_index::<VecBrand, _, _>(
+	/// let result = filter_map_with_index::<VecBrand, _, _, _, _>(
 	/// 	|i, x: &i32| if i >= 2 { Some(*x) } else { None },
 	/// 	&v,
 	/// );
@@ -235,7 +235,7 @@ mod inner {
 	/// };
 	///
 	/// let v = vec![10, 20, 30, 40, 50];
-	/// let result = ref_filter_with_index::<VecBrand, _>(|i, _x: &i32| i >= 2, &v);
+	/// let result = filter_with_index::<VecBrand, _, _, _>(|i, _x: &i32| i >= 2, &v);
 	/// assert_eq!(result, vec![30, 40, 50]);
 	/// ```
 	pub fn ref_filter_with_index<'a, Brand: RefFilterableWithIndex, A: 'a + Clone>(
@@ -270,7 +270,7 @@ mod inner {
 	/// };
 	///
 	/// let v = vec![10, 20, 30, 40, 50];
-	/// let (left, right) = ref_partition_map_with_index::<VecBrand, _, _, _>(
+	/// let (left, right) = partition_map_with_index::<VecBrand, _, _, _, _, _>(
 	/// 	|i, x: &i32| if i >= 2 { Ok(*x) } else { Err(*x) },
 	/// 	&v,
 	/// );
@@ -310,7 +310,7 @@ mod inner {
 	/// };
 	///
 	/// let v = vec![10, 20, 30, 40, 50];
-	/// let (left, right) = ref_partition_with_index::<VecBrand, _>(|i, _x: &i32| i >= 2, &v);
+	/// let (left, right) = partition_with_index::<VecBrand, _, _, _>(|i, _x: &i32| i >= 2, &v);
 	/// assert_eq!(left, vec![10, 20]);
 	/// assert_eq!(right, vec![30, 40, 50]);
 	/// ```
