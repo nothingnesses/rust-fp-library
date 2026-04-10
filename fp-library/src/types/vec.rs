@@ -3844,4 +3844,43 @@ mod tests {
 			VecBrand::traverse::<i32, String, OptionBrand>(|a: i32| Some(a.to_string()), v);
 		ref_result == val_result
 	}
+
+	// RefCompactable Laws
+
+	/// RefCompactable identity: ref_compact of ref_map(Some, &v) preserves values
+	#[quickcheck]
+	fn ref_compactable_identity(v: Vec<i32>) -> bool {
+		use crate::classes::ref_compactable::ref_compact;
+		let mapped: Vec<Option<i32>> = v.iter().map(|a| Some(*a)).collect();
+		ref_compact::<VecBrand, _>(&mapped) == v
+	}
+
+	// RefAlt Laws
+
+	/// RefAlt associativity
+	#[quickcheck]
+	fn ref_alt_associativity(
+		x: Vec<i32>,
+		y: Vec<i32>,
+		z: Vec<i32>,
+	) -> bool {
+		use crate::classes::ref_alt::ref_alt;
+		ref_alt::<VecBrand, _>(&ref_alt::<VecBrand, _>(&x, &y), &z)
+			== ref_alt::<VecBrand, _>(&x, &ref_alt::<VecBrand, _>(&y, &z))
+	}
+
+	/// RefAlt distributivity with RefFunctor
+	#[quickcheck]
+	fn ref_alt_distributivity(
+		x: Vec<i32>,
+		y: Vec<i32>,
+	) -> bool {
+		use crate::classes::ref_alt::ref_alt;
+		let f = |a: &i32| a.wrapping_mul(2);
+		map::<VecBrand, _, _, _, _>(f, &ref_alt::<VecBrand, _>(&x, &y))
+			== ref_alt::<VecBrand, _>(
+				&map::<VecBrand, _, _, _, _>(f, &x),
+				&map::<VecBrand, _, _, _, _>(f, &y),
+			)
+	}
 }

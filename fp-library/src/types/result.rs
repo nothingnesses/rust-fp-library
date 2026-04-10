@@ -2577,4 +2577,64 @@ mod tests {
 		);
 		assert_eq!(result, Err(iterations));
 	}
+
+	// -- RefBifunctor --
+
+	/// RefBifunctor identity: ref_bimap(Clone::clone, Clone::clone, &p) == p
+	#[quickcheck]
+	fn ref_bifunctor_identity(x: Result<i32, i32>) -> bool {
+		ref_bimap::<ResultBrand, _, _, _, _>(|a: &i32| *a, |c: &i32| *c, &x) == x
+	}
+
+	/// RefBifunctor composition
+	#[quickcheck]
+	fn ref_bifunctor_composition(x: Result<i32, i32>) -> bool {
+		let f1 = |a: &i32| a.wrapping_add(1);
+		let f2 = |a: &i32| a.wrapping_mul(2);
+		let g1 = |c: &i32| c.wrapping_add(10);
+		let g2 = |c: &i32| c.wrapping_mul(3);
+		ref_bimap::<ResultBrand, _, _, _, _>(|a: &i32| f2(&f1(a)), |c: &i32| g2(&g1(c)), &x)
+			== ref_bimap::<ResultBrand, _, _, _, _>(
+				f2,
+				g2,
+				&ref_bimap::<ResultBrand, _, _, _, _>(f1, g1, &x),
+			)
+	}
+
+	// -- RefBifoldable --
+
+	/// RefBifoldable: ref_bi_fold_map produces same result as manual fold
+	#[quickcheck]
+	fn ref_bifoldable_fold_map(x: Result<i32, i32>) -> bool {
+		let result = ref_bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(
+			|a: &i32| a.to_string(),
+			|b: &i32| b.to_string(),
+			&x,
+		);
+		let expected = match &x {
+			Err(a) => a.to_string(),
+			Ok(b) => b.to_string(),
+		};
+		result == expected
+	}
+
+	// -- RefBitraversable --
+
+	/// RefBitraversable: ref_bi_traverse consistent with ref_bi_sequence . ref_bimap
+	#[quickcheck]
+	fn ref_bitraversable_consistency(x: Result<i32, i32>) -> bool {
+		let f = |a: &i32| Some(a.wrapping_add(1));
+		let g = |c: &i32| Some(c.wrapping_mul(2));
+		let traversed =
+			ref_bi_traverse::<ResultBrand, RcFnBrand, _, _, _, _, OptionBrand>(f, g, &x);
+		let mapped_then_sequenced =
+			ref_bi_sequence::<ResultBrand, RcFnBrand, _, _, OptionBrand>(&ref_bimap::<
+				ResultBrand,
+				_,
+				_,
+				_,
+				_,
+			>(f, g, &x));
+		traversed == mapped_then_sequenced
+	}
 }

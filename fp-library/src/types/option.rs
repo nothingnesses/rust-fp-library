@@ -1882,4 +1882,28 @@ mod tests {
 			OptionBrand::traverse::<i32, String, OptionBrand>(|a: i32| Some(a.to_string()), opt);
 		ref_result == val_result
 	}
+
+	// RefCompactable Laws
+
+	/// RefCompactable identity: ref_compact(ref_map(Some, &fa)) == fa.clone()
+	#[quickcheck]
+	fn ref_compactable_identity(x: Option<i32>) -> bool {
+		use crate::classes::ref_compactable::ref_compact;
+		let mapped: Option<Option<i32>> = x.as_ref().map(|a| Some(*a));
+		ref_compact::<OptionBrand, _>(&mapped) == x
+	}
+
+	// RefAlt Laws
+
+	/// RefAlt associativity
+	#[quickcheck]
+	fn ref_alt_associativity(
+		x: Option<i32>,
+		y: Option<i32>,
+		z: Option<i32>,
+	) -> bool {
+		use crate::classes::ref_alt::ref_alt;
+		ref_alt::<OptionBrand, _>(&ref_alt::<OptionBrand, _>(&x, &y), &z)
+			== ref_alt::<OptionBrand, _>(&x, &ref_alt::<OptionBrand, _>(&y, &z))
+	}
 }

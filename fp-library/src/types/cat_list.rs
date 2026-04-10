@@ -5198,4 +5198,26 @@ mod tests {
 		let seq_result: Vec<i32> = CatListBrand::ref_map(f, &list2).into_iter().collect();
 		par_result == seq_result
 	}
+
+	// RefAlt Laws
+
+	/// RefAlt associativity
+	#[quickcheck]
+	fn ref_alt_associativity(
+		xv: Vec<i32>,
+		yv: Vec<i32>,
+		zv: Vec<i32>,
+	) -> bool {
+		use crate::classes::ref_alt::ref_alt;
+		let x: CatList<i32> = xv.into_iter().collect();
+		let y: CatList<i32> = yv.into_iter().collect();
+		let z: CatList<i32> = zv.into_iter().collect();
+		let lhs: Vec<i32> = ref_alt::<CatListBrand, _>(&ref_alt::<CatListBrand, _>(&x, &y), &z)
+			.into_iter()
+			.collect();
+		let rhs: Vec<i32> = ref_alt::<CatListBrand, _>(&x, &ref_alt::<CatListBrand, _>(&y, &z))
+			.into_iter()
+			.collect();
+		lhs == rhs
+	}
 }

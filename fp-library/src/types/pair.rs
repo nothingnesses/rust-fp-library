@@ -2683,4 +2683,75 @@ mod tests {
 		);
 		assert_eq!(result, Pair(iterations, vec![]));
 	}
+
+	// RefBifunctor Laws
+
+	/// RefBifunctor identity
+	#[quickcheck]
+	fn ref_bifunctor_identity(
+		a: i32,
+		b: i32,
+	) -> bool {
+		let p = Pair(a, b);
+		ref_bimap::<PairBrand, _, _, _, _>(|x: &i32| *x, |x: &i32| *x, &p) == p
+	}
+
+	/// RefBifunctor composition
+	#[quickcheck]
+	fn ref_bifunctor_composition(
+		a: i32,
+		b: i32,
+	) -> bool {
+		let p = Pair(a, b);
+		let f1 = |x: &i32| x.wrapping_add(1);
+		let f2 = |x: &i32| x.wrapping_mul(2);
+		let g1 = |x: &i32| x.wrapping_add(10);
+		let g2 = |x: &i32| x.wrapping_mul(3);
+		ref_bimap::<PairBrand, _, _, _, _>(|x: &i32| f2(&f1(x)), |x: &i32| g2(&g1(x)), &p)
+			== ref_bimap::<PairBrand, _, _, _, _>(
+				f2,
+				g2,
+				&ref_bimap::<PairBrand, _, _, _, _>(f1, g1, &p),
+			)
+	}
+
+	// RefBifoldable Laws
+
+	/// RefBifoldable fold_map correctness
+	#[quickcheck]
+	fn ref_bifoldable_fold_map(
+		a: i32,
+		b: i32,
+	) -> bool {
+		let p = Pair(a, b);
+		let result = ref_bi_fold_map::<RcFnBrand, PairBrand, _, _, _>(
+			|x: &i32| x.to_string(),
+			|x: &i32| x.to_string(),
+			&p,
+		);
+		result == format!("{}{}", a, b)
+	}
+
+	// RefBitraversable Laws
+
+	/// RefBitraversable consistency
+	#[quickcheck]
+	fn ref_bitraversable_consistency(
+		a: i32,
+		b: i32,
+	) -> bool {
+		let p = Pair(a, b);
+		let f = |x: &i32| Some(x.wrapping_add(1));
+		let g = |x: &i32| Some(x.wrapping_mul(2));
+		let traversed = ref_bi_traverse::<PairBrand, RcFnBrand, _, _, _, _, OptionBrand>(f, g, &p);
+		let mapped_then_sequenced =
+			ref_bi_sequence::<PairBrand, RcFnBrand, _, _, OptionBrand>(&ref_bimap::<
+				PairBrand,
+				_,
+				_,
+				_,
+				_,
+			>(f, g, &p));
+		traversed == mapped_then_sequenced
+	}
 }
