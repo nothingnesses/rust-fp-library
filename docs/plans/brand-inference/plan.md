@@ -838,11 +838,11 @@ module) is outdated and should be removed during implementation.
      `fold_map_with_index`, `fold_right_with_index`,
      `fold_left_with_index`, `traverse_with_index`, `wilt`, `wither`,
      `bi_fold_right`, `bi_fold_left`, `bi_fold_map`, `bi_traverse`.
-   - **Tier 3 (full inference, closureless):** Non-dispatch functions
-     that take containers but no closures. The inference wrapper
-     constrains `FA: DefaultBrand` directly. Since these have no
-     dispatch (no closure to drive Val/Ref selection), the container
-     type alone determines the brand. Includes: `alt`, `compact`,
+   - **Tier 3 (full inference, closureless):** Functions that take
+     containers but no closures. Use container-type-driven dispatch
+     (`OwnedMarker`/`BorrowedMarker`) to select by-value or by-ref
+     trait method based on whether the container is owned or borrowed.
+     Single unified function per operation. Includes: `alt`, `compact`,
      `separate`, `join`, `apply_first`, `apply_second`, `if_m`,
      `when_m`, `unless_m`, `contramap`.
    - **Tier 4 (bifunctor arity-2):** `bimap` and bifunctor traversals
@@ -941,13 +941,18 @@ containers but no closures: `alt`, `compact`, `separate`, `join`,
 `apply_first`, `apply_second`, `if_m`, `when_m`, `unless_m`,
 `contramap`.
 
-    These have no dispatch (no closure to drive Val/Ref selection).
-    The inference wrapper constrains `FA: DefaultBrand` and delegates
-    to the trait method. For types that also have Ref variants (e.g.,
-    `ref_alt`, `ref_compact`), the Ref functions are not in the public
-    API (excluded from `functions::*`), so no `_explicit` rename is
-    needed for them. The inference wrapper uses the container type
-    alone to determine the brand.
+    These use a container-type-driven dispatch mechanism (validated
+    by POC in `fp-library/tests/closureless_dispatch_poc.rs`). A
+    dispatch trait with `OwnedMarker`/`BorrowedMarker` impls selects
+    the by-value or by-ref trait method based on whether the container
+    is owned (`Brand::Of<A>`) or borrowed (`&Brand::Of<A>`). This
+    gives a single unified function per operation, matching the
+    closure-based dispatch pattern. Brand inference composes with this
+    via `DefaultBrand`.
+
+    The closureless dispatch traits should be added to
+    `fp-library/src/classes/dispatch/` following the same module
+    pattern as the closure-based traits.
 
 7. **Extend `trait_kind!` to also generate `DefaultBrand_{hash}` traits.**
    When `trait_kind!` creates a `Kind_{hash}` trait, it also creates the
