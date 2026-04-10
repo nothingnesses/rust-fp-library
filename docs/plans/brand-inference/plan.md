@@ -813,17 +813,24 @@ module) is outdated and should be removed during implementation.
    dispatch works with brand inference. The blanket follows the standard
    Rust pattern and is coherence-safe.
 
-8. **Front-loaded `_explicit` rename, then tiered inference addition.**
-   The rename of ALL dispatch functions to `_explicit` is done in one
-   mechanical pass before any inference wrappers are added. This avoids
-   touching the same files multiple times across tiers and eliminates
-   the confusing intermediate state where some functions use inference
-   and others don't. The rename affects approximately 1,600 call sites
-   and is scriptable (`sed 's/map::</map_explicit::</g'` etc.).
+8. **Per-function rename at the re-export level, then tiered inference.**
+   The rename is handled at the `functions.rs` re-export level, not by
+   renaming dispatch source files. The dispatch modules keep their
+   original function names internally (e.g., `dispatch::functor::map`
+   stays unchanged). The re-export swaps the names:
+   - `functions::map` -> the inference wrapper (from `dispatch::inference`)
+   - `functions::map_explicit` -> the dispatch function (via `as` rename)
 
-   After the rename, inference wrappers are added tier by tier. Each
-   tier adds the clean name (e.g., `map`) as the inference-based
-   function, with no further renames needed. The tiers are:
+   Internal code that imports from `crate::classes::dispatch::*` or
+   calls trait methods directly is unaffected. Only call sites that
+   import from `crate::functions::*` and use turbofish need updating
+   to `map_explicit::<Brand, ...>`.
+
+   Inference wrappers live in `fp-library/src/classes/dispatch/inference.rs`.
+   Each wrapper constrains `FA: DefaultBrand` and delegates to the
+   corresponding dispatch trait's `dispatch` method.
+
+   The tiers are:
    - **Tier 1 (full inference, dispatch):** All dispatch functions
      where Brand is the only explicit type parameter. These get
      complete turbofish elimination. Includes: `map`, `bind`,
@@ -889,36 +896,36 @@ to finish on its own; it will not.
    See POC Results section above and
    `fp-library/tests/brand_inference_feasibility.rs` (18 passing tests).
 
-2. **Define `DefaultBrand` trait** in `fp-library/src/classes/default_brand.rs`.
-   Simple trait with one associated type. Include the blanket
-   `impl<'a, T: DefaultBrand + ?Sized> DefaultBrand for &'a T`
-   in the same module. Add `#[diagnostic::on_unimplemented]` for error
-   messages. Add module to `classes.rs`.
+2. **[Done] Define `DefaultBrand` trait** in
+   `fp-library/src/classes/default_brand.rs`. Includes blanket
+   `impl DefaultBrand for &T` and `#[diagnostic::on_unimplemented]`.
 
-3. **Implement `DefaultBrand` for core types.** Start with `Option`, `Vec`,
-   `Identity`, `Thunk`, `SendThunk`, `CatList`, `Tuple1Brand`.
+3. **[Done] Implement `DefaultBrand` for core types.** Option, Vec,
+   Identity, Thunk, SendThunk, CatList, (A,).
 
-4. **Implement `DefaultBrand` for parameterized types.** `Lazy`, `TryLazy`,
-   `Coyoneda`, `RcCoyoneda`, `ArcCoyoneda`, `BoxedCoyonedaExplicit`, `Const`.
+4. **[Done] Implement `DefaultBrand` for parameterized types.** Lazy,
+   TryLazy, Coyoneda, RcCoyoneda, ArcCoyoneda, BoxedCoyonedaExplicit,
+   Const. Impls in `default_brand_impls.rs`.
 
-5. **Add inference-based `map` and rename the current `map` to `map_explicit`.**
-   The POC's temporary `map_infer` name is dropped; the inference-based
-   function takes the clean `map` name using the validated signature (with
-   `FA` in `FunctorDispatch`, no `Into` bound). Verify that type inference
-   works for `Option`, `Vec`, `Identity`, and `Lazy` with both Val and Ref
-   dispatch markers. Update all internal call sites that use single-brand
-   types to drop the turbofish. Remove the old `brand_inference_poc` module
-   from `dispatch.rs`.
+5. **[In progress] Add inference-based `map` and rename `map` to
+   `map_explicit`.** The inference wrapper is in
+   `fp-library/src/classes/dispatch/inference.rs`. The rename is
+   handled at the `functions.rs` re-export level: `dispatch::map` is
+   re-exported as `map_explicit`, and `dispatch::inference::map` is
+   re-exported as `map`. Call sites using `map::<Brand, ...>` turbofish
+   via `functions::*` must be updated to `map_explicit::<Brand, ...>`.
+   The dispatch source file is unchanged.
 
-6. **Tier 1: Full inference for dispatch functions.** Extend to all
-   dispatch functions where Brand is the only explicit type parameter:
-   `bind`, `bind_flipped`, `lift2`-`lift5`, `filter_map`, `filter`,
+6. **Tier 1: Full inference for remaining dispatch functions.** Add
+   inference wrappers in `dispatch/inference.rs` for: `bind`,
+   `bind_flipped`, `lift2`-`lift5`, `filter_map`, `filter`,
    `partition`, `partition_map`, `map_with_index`, `filter_with_index`,
    `filter_map_with_index`, `partition_with_index`,
-   `partition_map_with_index`, `bimap`. Rename current versions to
-   `_explicit` suffix, add inference-based versions following the same
-   `map` pattern. `compose_kleisli` and `compose_kleisli_flipped` are
-   excluded (no container argument).
+   `partition_map_with_index`, `bimap`. For each, re-export the
+   dispatch version as `_explicit` and the inference version as the
+   clean name in `functions.rs`. Update call sites with turbofish.
+   `compose_kleisli` and `compose_kleisli_flipped` are excluded
+   (no container argument).
 
    Since dispatch already unifies Val/Ref, each inference wrapper is a
    single function that handles both owned and borrowed containers.
