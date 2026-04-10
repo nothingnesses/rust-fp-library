@@ -95,7 +95,7 @@ Each dispatch trait follows the established two-impl pattern:
 
 ```
 pub trait FilterDispatch<'a, Brand: Kind_..., A: 'a, FA, Marker> {
-    fn dispatch_filter(self, fa: FA) -> Apply!(Brand::Of<'a, A>);
+    fn dispatch(self, fa: FA) -> Apply!(Brand::Of<'a, A>);
 }
 
 // Val impl: FA = Apply!(Of<A>), closure Fn(A) -> bool
@@ -146,20 +146,20 @@ parameter (unused in Val, passed through in Ref). Include `M`
 pub trait WiltDispatch<'a, FnBrand, Brand: Kind_..., M: Applicative,
     A: 'a, E: 'a, O: 'a, FA, Marker>
 {
-    fn dispatch_wilt(self, fa: FA)
+    fn dispatch(self, fa: FA)
         -> Apply!(M::Of<'a, (Apply!(Brand::Of<'a, E>), Apply!(Brand::Of<'a, O>))>);
 }
 ```
 
 ### Method naming convention
 
-Use qualified `dispatch_*` names for all new traits (e.g.,
-`dispatch_filter`, `dispatch_partition`, `dispatch_map_with_index`,
-`dispatch_wilt`). This is consistent with the majority of existing
-dispatch traits (`dispatch_bind`, `dispatch_filter_map`,
-`dispatch_traverse`, `dispatch_lift2`-`dispatch_lift5`). The bare
-`dispatch` name used by foldable dispatch traits is a minor existing
-inconsistency.
+Use bare `dispatch` for all new dispatch traits. Each dispatch trait has
+exactly one method, and the method is only ever called from inside the
+unified free function (never by users directly), so there is no
+ambiguity. As part of this plan, also rename the existing qualified
+methods (`dispatch_bind`, `dispatch_filter_map`, `dispatch_traverse`,
+`dispatch_lift2`-`dispatch_lift5`) to bare `dispatch` for consistency
+with the foldable and functor dispatch traits that already use it.
 
 ### Clone bounds on FilterDispatch and PartitionDispatch
 
@@ -258,6 +258,12 @@ definitions, 2 default impl bodies, 2 doc tests, 0 concrete overrides,
    Change `Fn(B, Self::Index, &A) -> B` to `Fn(Self::Index, B, &A) -> B`
    in both `RefFoldableWithIndex` and `SendRefFoldableWithIndex` trait
    definitions, default impl bodies, and doc tests.
+
+0b. **Prerequisite: Rename existing dispatch methods to bare `dispatch`.**
+Rename `dispatch_bind`, `dispatch_filter_map`, `dispatch_traverse`,
+`dispatch_lift2`-`dispatch_lift5` to `dispatch` in the trait
+definitions, all impls, and all free function call sites. This is a
+mechanical rename within `fp-library/src/classes/dispatch/`.
 
 1. **Simple group:** `FilterDispatch`, `PartitionDispatch`,
    `PartitionMapDispatch`. These follow the FilterMapDispatch pattern
