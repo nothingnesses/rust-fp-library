@@ -428,37 +428,48 @@ pub fn kind(
 /// Generates re-exports for all public free functions in a directory.
 ///
 /// This macro scans the specified directory for Rust files, parses them to find public free functions,
-/// and generates `pub use` statements for them. It supports aliasing to resolve name conflicts.
+/// and generates `pub use` statements for them. It supports aliasing to resolve name conflicts
+/// and exclusions to suppress specific functions from being re-exported.
 ///
 /// ### Syntax
 ///
 /// ```ignore
 /// generate_function_re_exports!("path/to/directory", {
-///     original_name: aliased_name,
+///     "module::name": aliased_name,
+///     ...
+/// }, exclude {
+///     "module::name",
 ///     ...
 /// })
 /// ```
 ///
 /// * `path/to/directory`: The path to the directory containing the modules, relative to the crate root.
-/// * `aliases`: A map of function names to their desired aliases.
+/// * `aliases` (optional): A map of function names to their desired aliases. Keys can be
+///   qualified (`"module::function"`) or unqualified (`"function"`). When aliased, the function
+///   is exported under the alias name only.
+/// * `exclude` (optional): A set of function names to suppress entirely. Keys use the same
+///   qualified/unqualified format as aliases. Excluded functions are not re-exported at all,
+///   but remain available in their original modules.
 ///
 /// ### Generates
 ///
-/// `pub use` statements for each public function found in the directory.
+/// `pub use` statements for each public function found in the directory, except those
+/// listed in the `exclude` block.
 ///
 /// ### Examples
 ///
 /// ```ignore
-/// // Invocation
 /// generate_function_re_exports!("src/classes", {
-///     identity: category_identity,
-///     new: fn_new,
+///     "category::identity": category_identity,
+///     "filterable::filter": filterable_filter,
+/// }, exclude {
+///     "ref_filterable::ref_filter",
+///     "ref_filterable::ref_filter_map",
 /// });
 ///
-/// // Expanded code
-/// pub use src::classes::category::identity as category_identity;
-/// pub use src::classes::function::new as fn_new;
-/// // ... other re-exports
+/// // Expanded: re-exports all public functions except ref_filter and ref_filter_map.
+/// // category::identity is exported as category_identity.
+/// // filterable::filter is exported as filterable_filter.
 /// ```
 #[proc_macro]
 pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
@@ -469,28 +480,33 @@ pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
 /// Generates re-exports for all public traits in a directory.
 ///
 /// This macro scans the specified directory for Rust files, parses them to find public traits,
-/// and generates `pub use` statements for them.
+/// and generates `pub use` statements for them. Supports the same aliasing and exclusion
+/// syntax as [`generate_function_re_exports!`].
 ///
 /// ### Syntax
 ///
 /// ```ignore
 /// generate_trait_re_exports!("path/to/directory", {
-///     original_name: aliased_name,
+///     "module::TraitName": AliasedName,
+///     ...
+/// }, exclude {
+///     "module::TraitName",
 ///     ...
 /// })
 /// ```
 ///
 /// * `path/to/directory`: The path to the directory containing the modules, relative to the crate root.
-/// * `aliases`: A map of trait names to their desired aliases (optional).
+/// * `aliases` (optional): A map of trait names to their desired aliases.
+/// * `exclude` (optional): A set of trait names to suppress from re-export.
 ///
 /// ### Generates
 ///
-/// `pub use` statements for each public trait found in the directory.
+/// `pub use` statements for each public trait found in the directory, except those
+/// listed in the `exclude` block.
 ///
 /// ### Examples
 ///
 /// ```ignore
-/// // Invocation
 /// generate_trait_re_exports!("src/classes", {});
 ///
 /// // Expanded code
