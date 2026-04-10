@@ -6,6 +6,17 @@ Follow-up items identified by the implementation review (see
 None of these are blocking; the dispatch expansion is functionally
 complete and all tests pass.
 
+## Status
+
+| Item                                       | Status                                                        |
+| ------------------------------------------ | ------------------------------------------------------------- |
+| 1. Routing tests                           | Open                                                          |
+| 2. Migrate ref\_\* call sites              | Open                                                          |
+| 3. Hide ref\_\* from public API            | Done (exclusion feature added, 20 ref\_\* functions excluded) |
+| 4. Fix traverse_with_index doc imports     | Open                                                          |
+| 5. Fix plan turbofish table                | Open                                                          |
+| 6. Exclude by-value non-dispatch functions | Open (new, see below)                                         |
+
 ## 1. Add dedicated dispatch routing tests
 
 **Issue:** Doc tests in each dispatch module verify basic compilation and
@@ -21,82 +32,37 @@ test should verify:
 - At least two types per trait (e.g., Option + Vec for filterable,
   Result + Pair for bifunctorial).
 
-Scope: ~40 new test functions. Mechanical; follow the existing test
-patterns in `dispatch.rs` (tests for map, bind, lift2, filter_map,
-traverse are already there).
+Scope: ~40 new test functions.
 
 ## 2. Migrate remaining `ref_*` call sites to dispatch form
 
 **Issue:** ~40+ `ref_*` free function call sites remain in type file doc
-examples and tests (e.g., `ref_bimap::<ResultBrand, ...>(f, g, &x)`
-instead of `bimap::<ResultBrand, ...>((f, g), &x)`). These are not
-bugs but are inconsistent with migrated call sites.
+examples and tests. These are not bugs but are inconsistent with
+migrated call sites.
 
 **Action:** Replace all `ref_*` free function calls in type files with
-the corresponding dispatch function call. The transformation is:
-
-- `ref_bimap::<Brand, A, B, C, D>(f, g, &x)` becomes
-  `bimap::<Brand, A, B, C, D, _, _>((|a: &_| f(a), |c: &_| g(c)), &x)`
-
-Actually, since the dispatch function infers the Ref marker from `&x`
-and the closure arg type, the simpler transformation is:
+the corresponding dispatch function call:
 
 - `ref_bimap::<Brand, _, _, _, _>(f, g, &x)` becomes
-  `bimap::<Brand, _, _, _, _, _, _>((f, g), &x)` (for bi-\* functions)
+  `bimap::<Brand, _, _, _, _, _, _>((f, g), &x)`
 - `ref_filter_map::<Brand, _, _, _>(f, &x)` becomes
-  `filter_map::<Brand, _, _, _, _>(f, &x)` (for single-closure functions)
+  `filter_map::<Brand, _, _, _, _>(f, &x)`
 - `ref_traverse::<Brand, FnBrand, _, _, F>(f, &x)` becomes
   `traverse::<FnBrand, Brand, _, _, F, _, _>(f, &x)`
 
-Files affected (non-exhaustive): result.rs, pair.rs, tuple_2.rs,
-control_flow.rs, identity.rs, option.rs, vec.rs, cat_list.rs.
+Files affected: result.rs, pair.rs, tuple_2.rs, control_flow.rs,
+identity.rs, option.rs, vec.rs, cat_list.rs.
 
 Scope: ~40 call sites across ~8 files. Mechanical.
 
 ## 3. Hide `ref_*` free functions from public API
 
-**Issue:** `ref_*` free functions that are fully superseded by dispatch
-versions are still publicly exported. The plan says they should be
-removed from the public API.
+**Status: Done.**
 
-**Action:** Add exclusion entries to `generate_function_re_exports!` in
-`functions.rs` for all `ref_*` free functions whose functionality is
-covered by a dispatch function. This includes:
-
-Bifunctorial:
-
-- `ref_bifunctor::ref_bimap`
-- `ref_bifoldable::ref_bi_fold_right`
-- `ref_bifoldable::ref_bi_fold_left`
-- `ref_bifoldable::ref_bi_fold_map`
-- `ref_bitraversable::ref_bi_traverse`
-
-Non-bifunctorial (already not re-exported, but verify):
-
-- `ref_filterable::ref_filter`
-- `ref_filterable::ref_filter_map`
-- `ref_filterable::ref_partition`
-- `ref_filterable::ref_partition_map`
-- `ref_functor_with_index::ref_map_with_index`
-- `ref_filterable_with_index::ref_filter_with_index`
-- `ref_filterable_with_index::ref_filter_map_with_index`
-- `ref_filterable_with_index::ref_partition_with_index`
-- `ref_filterable_with_index::ref_partition_map_with_index`
-- `ref_foldable_with_index::ref_fold_map_with_index`
-- `ref_foldable_with_index::ref_fold_right_with_index`
-- `ref_foldable_with_index::ref_fold_left_with_index`
-- `ref_traversable_with_index::ref_traverse_with_index`
-- `ref_witherable::ref_wilt`
-- `ref_witherable::ref_wither`
-
-The free functions themselves remain in their trait modules (needed as
-dispatch targets and for trait doc examples) but are not re-exported
-in `functions.rs`.
-
-Note: check whether the `generate_function_re_exports!` macro supports
-exclusion (suppressing auto-export without providing an alias). If not,
-alias them with long module-prefixed names (the existing approach) and
-consider adding `#[doc(hidden)]` to the aliased re-exports.
+Added exclusion support to `generate_function_re_exports!` macro
+(commit `e3353bc`). 20 `ref_*` free functions are now excluded from
+`functions::*` re-export. They remain in their trait modules as
+dispatch targets.
 
 ## 4. Fix `traverse_with_index.rs` doc example imports
 
@@ -104,8 +70,7 @@ consider adding `#[doc(hidden)]` to the aliased re-exports.
 `fp_library::classes::dispatch::traverse_with_index` instead of
 `fp_library::functions::*`, inconsistent with all other dispatch files.
 
-**Action:** Update the doc examples to use `use fp_library::functions::*;`
-and `use fp_library::brands::*;`.
+**Action:** Update the doc examples to use `use fp_library::functions::*;`.
 
 Scope: 1 file, ~3 doc examples.
 
@@ -116,18 +81,64 @@ Scope: 1 file, ~3 doc examples.
 implementation has 7 (`FnBrand, Brand, A, B, F, FTA, Marker`).
 
 **Action:** Update the table entry in `docs/plans/dispatch-expansion/plan.md`
-from 8 to 7, and update the delta from +3 to +3 (delta is correct;
-original was 4, dispatch is 7, so +3).
+from 8 to 7.
 
 Scope: 1 line in plan.md.
+
+## 6. Exclude by-value non-dispatch free functions from public API
+
+**Issue:** The by-value non-dispatch free functions (e.g.,
+`filterable::filter`, `bifunctor::bimap`, `witherable::wilt`) are
+currently aliased to long names (`filterable_filter`,
+`bifunctor_bimap`, etc.) in `functions.rs`. These aliases exist only
+to avoid name conflicts with the dispatch versions, but they clutter
+the public API surface with functions nobody should call directly.
+
+The `ref_*` functions were already excluded (item 3). The by-value
+non-dispatch functions are equally superseded by dispatch and should
+receive the same treatment for consistency.
+
+**Action:** Move the by-value non-dispatch aliases from the alias map
+to the exclusion list. The functions remain in their trait modules
+(needed as dispatch targets and for trait doc examples) but are not
+re-exported via `functions::*`.
+
+Functions to exclude:
+
+- `bifunctor::bimap`
+- `bifoldable::bi_fold_left`
+- `bifoldable::bi_fold_map`
+- `bifoldable::bi_fold_right`
+- `bitraversable::bi_traverse`
+- `filterable::filter`
+- `filterable::filter_map`
+- `filterable::partition`
+- `filterable::partition_map`
+- `filterable_with_index::filter_map_with_index`
+- `filterable_with_index::filter_with_index`
+- `filterable_with_index::partition_map_with_index`
+- `filterable_with_index::partition_with_index`
+- `foldable_with_index::fold_left_with_index`
+- `foldable_with_index::fold_map_with_index`
+- `foldable_with_index::fold_right_with_index`
+- `functor_with_index::map_with_index`
+- `traversable::traverse`
+- `traversable_with_index::traverse_with_index`
+- `witherable::wilt`
+- `witherable::wither`
+
+Note: the pre-existing aliases for `filterable::filter_map` and
+`traversable::traverse` (which predated this plan) should also move
+to the exclusion list.
+
+Scope: ~21 entries moved from alias map to exclusion list in
+`functions.rs`.
 
 ## Implementation Order
 
 Items are independent and can be done in any order or in parallel.
 
-1. Fix plan table (item 5) - trivial, do first.
-2. Fix doc example imports (item 4) - trivial.
-3. Add routing tests (item 1) - medium effort.
-4. Migrate ref\_\* call sites (item 2) - medium effort, mechanical.
-5. Hide ref*\* from public API (item 3) - low effort, depends on item 2
-   (call sites should use dispatch form before hiding the ref*\* exports).
+1. Fix plan table (item 5) and doc imports (item 4) - trivial.
+2. Exclude by-value non-dispatch functions (item 6) - low effort.
+3. Migrate ref\_\* call sites (item 2) - medium effort, mechanical.
+4. Add routing tests (item 1) - medium effort.
