@@ -1645,7 +1645,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let (errs, oks) = partition_map_with_index::<CatListBrand, _, _, _>(
+		/// let (errs, oks) = partition_map_with_index::<CatListBrand, _, _, _, _, _>(
 		/// 	|i, a: i32| if i < 2 { Ok(a) } else { Err(a) },
 		/// 	list,
 		/// );
@@ -1692,7 +1692,7 @@ mod inner {
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
 		/// let (not_satisfied, satisfied) =
-		/// 	partition_with_index::<CatListBrand, _>(|i, _a: i32| i < 2, list);
+		/// 	partition_with_index::<CatListBrand, _, _, _>(|i, _a: i32| i < 2, list);
 		/// let sat_vec: Vec<_> = satisfied.into_iter().collect();
 		/// let not_sat_vec: Vec<_> = not_satisfied.into_iter().collect();
 		/// assert_eq!(sat_vec, vec![1, 2]);
@@ -1740,7 +1740,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let filtered = filter_map_with_index::<CatListBrand, _, _>(
+		/// let filtered = filter_map_with_index::<CatListBrand, _, _, _, _>(
 		/// 	|i, a: i32| if i % 2 == 0 { Some(a * 2) } else { None },
 		/// 	list,
 		/// );
@@ -1776,7 +1776,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let filtered = filter_with_index::<CatListBrand, _>(|i, _a: i32| i < 2, list);
+		/// let filtered = filter_with_index::<CatListBrand, _, _, _>(|i, _a: i32| i < 2, list);
 		/// let vec: Vec<_> = filtered.into_iter().collect();
 		/// assert_eq!(vec, vec![1, 2]);
 		/// ```

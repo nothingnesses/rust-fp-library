@@ -1016,7 +1016,7 @@ mod inner {
 		/// 	types::Identity,
 		/// };
 		///
-		/// let result = map_with_index::<IdentityBrand, _, _>(|(), x| x * 2, Identity(5));
+		/// let result = map_with_index::<IdentityBrand, _, _, _, _>(|(), x| x * 2, Identity(5));
 		/// assert_eq!(result, Identity(10));
 		/// ```
 		fn map_with_index<'a, A: 'a, B: 'a>(

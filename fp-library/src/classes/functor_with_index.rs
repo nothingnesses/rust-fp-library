@@ -95,7 +95,7 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let result = map_with_index::<VecBrand, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
+	/// let result = map_with_index::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
 	/// assert_eq!(result, vec![10, 21, 32]);
 	/// ```
 	pub fn map_with_index<'a, Brand: FunctorWithIndex, A: 'a, B: 'a>(

@@ -271,7 +271,7 @@ mod inner {
 	/// };
 	///
 	/// let xs = vec![10, 20, 30, 40];
-	/// let (errs, oks) = partition_map_with_index::<VecBrand, _, _, _>(
+	/// let (errs, oks) = partition_map_with_index::<VecBrand, _, _, _, _, _>(
 	/// 	|i, a: i32| if i < 2 { Ok(a) } else { Err(a) },
 	/// 	xs,
 	/// );
@@ -317,7 +317,8 @@ mod inner {
 	/// };
 	///
 	/// let xs = vec![10, 20, 30, 40];
-	/// let (not_satisfied, satisfied) = partition_with_index::<VecBrand, _>(|i, _a: i32| i < 2, xs);
+	/// let (not_satisfied, satisfied) =
+	/// 	partition_with_index::<VecBrand, _, _, _>(|i, _a: i32| i < 2, xs);
 	/// assert_eq!(satisfied, vec![10, 20]);
 	/// assert_eq!(not_satisfied, vec![30, 40]);
 	/// ```
@@ -358,7 +359,7 @@ mod inner {
 	/// };
 	///
 	/// let xs = vec![10, 20, 30, 40];
-	/// let result = filter_map_with_index::<VecBrand, _, _>(
+	/// let result = filter_map_with_index::<VecBrand, _, _, _, _>(
 	/// 	|i, a: i32| if i % 2 == 0 { Some(a * 2) } else { None },
 	/// 	xs,
 	/// );
@@ -400,7 +401,7 @@ mod inner {
 	/// };
 	///
 	/// let xs = vec![10, 20, 30, 40];
-	/// let result = filter_with_index::<VecBrand, _>(|i, _a: i32| i < 2, xs);
+	/// let result = filter_with_index::<VecBrand, _, _, _>(|i, _a: i32| i < 2, xs);
 	/// assert_eq!(result, vec![10, 20]);
 	/// ```
 	pub fn filter_with_index<'a, Brand: FilterableWithIndex, A: 'a + Clone>(

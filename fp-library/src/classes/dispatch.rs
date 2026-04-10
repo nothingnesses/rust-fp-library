@@ -92,12 +92,17 @@ mod inner {
 pub use inner::*;
 
 pub mod filter;
+pub mod filter_map_with_index;
+pub mod filter_with_index;
 pub mod filterable;
 pub mod foldable;
 pub mod functor;
 pub mod lift;
+pub mod map_with_index;
 pub mod partition;
 pub mod partition_map;
+pub mod partition_map_with_index;
+pub mod partition_with_index;
 pub mod semimonad;
 pub mod traversable;
 
@@ -105,6 +110,8 @@ pub mod traversable;
 // so they're accessible via `crate::classes::dispatch::map` etc.
 pub use {
 	filter::filter,
+	filter_map_with_index::filter_map_with_index,
+	filter_with_index::filter_with_index,
 	filterable::filter_map,
 	foldable::{
 		fold_left,
@@ -118,8 +125,11 @@ pub use {
 		lift4,
 		lift5,
 	},
+	map_with_index::map_with_index,
 	partition::partition,
 	partition_map::partition_map,
+	partition_map_with_index::partition_map_with_index,
+	partition_with_index::partition_with_index,
 	semimonad::{
 		bind,
 		bind_flipped,
