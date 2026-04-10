@@ -48,11 +48,15 @@ from references. For Result: `Ok(c)` calls `g(&c)`, `Err(a)` calls
 `f(&a)`. For Pair/Tuple2: calls both `f` and `g` on the two fields.
 
 **Derived RefFunctor for applied brands:** After RefBifunctor is
-implemented, the existing `BifunctorFirstAppliedBrand` and
-`BifunctorSecondAppliedBrand` can derive RefFunctor by delegating to
-`ref_bimap` with `Clone::clone` on the fixed side (requires Clone on
-the fixed type parameter, matching the existing pattern for
-`ResultErrAppliedBrand<E: Clone>` etc.).
+implemented, `BifunctorFirstAppliedBrand<Brand, A>` and
+`BifunctorSecondAppliedBrand<Brand, B>` should get generic RefFunctor
+impls that delegate to `ref_bimap` with `Clone::clone` on the fixed
+side (requires Clone on the fixed type parameter). These coexist with
+the existing manually-written RefFunctor impls for specific applied
+brands (`ResultErrAppliedBrand`, `PairFirstAppliedBrand`, etc.)
+because they are different types; no E0119 conflict. This matches the
+by-value side where both specific and generic applied brands have
+Functor impls.
 
 ### RefBifoldable
 

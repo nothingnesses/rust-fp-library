@@ -40,6 +40,22 @@ plan adds dispatch for all of them.
 | `partition_with_index` / `ref_partition_with_index`         | `Fn(Idx, A) -> bool`         | `Fn(Idx, &A) -> bool`         |
 | `partition_map_with_index` / `ref_partition_map_with_index` | `Fn(Idx, A) -> Result<O, E>` | `Fn(Idx, &A) -> Result<O, E>` |
 
+**WithIndex + FnBrand group (indexed folds and traversals):**
+
+| Pair                                                  | Val closure              | Ref closure               | Extra params   |
+| ----------------------------------------------------- | ------------------------ | ------------------------- | -------------- |
+| `fold_map_with_index` / `ref_fold_map_with_index`     | `Fn(Idx, A) -> M`        | `Fn(Idx, &A) -> M`        | `FnBrand`      |
+| `fold_right_with_index` / `ref_fold_right_with_index` | `Fn(Idx, A, B) -> B`     | `Fn(Idx, &A, B) -> B`     | `FnBrand`      |
+| `fold_left_with_index` / `ref_fold_left_with_index`   | `Fn(Idx, B, A) -> B`     | `Fn(Idx, B, &A) -> B`     | `FnBrand`      |
+| `traverse_with_index` / `ref_traverse_with_index`     | `Fn(Idx, A) -> F::Of<B>` | `Fn(Idx, &A) -> F::Of<B>` | `FnBrand`, `F` |
+
+Note: `ref_fold_left_with_index` currently uses `Fn(B, Idx, &A) -> B`,
+which does not match the Val ordering `Fn(Idx, B, A) -> B` or the
+PureScript convention `(i -> b -> a -> b)`. The Ref signature must be
+fixed to `Fn(Idx, B, &A) -> B` before adding dispatch, so that the
+only difference between Val and Ref closures is `A` vs `&A`. See the
+prerequisite fix section below.
+
 **Complex group (multiple brand parameters, follows TraverseDispatch):**
 
 | Pair                    | Val closure                    | Ref closure                     | Extra params   |
@@ -52,13 +68,13 @@ plan adds dispatch for all of them.
 After the ref-expansion plan adds new Ref traits, these additional
 pairs become candidates for dispatch:
 
-| Pair                                  | Group   | Notes                                                                       |
-| ------------------------------------- | ------- | --------------------------------------------------------------------------- |
-| `bimap` / `ref_bimap`                 | Simple  | Two closures (`f`, `g`), but dispatch on first closure's arg type suffices. |
-| `bi_fold_right` / `ref_bi_fold_right` | Complex | Has `FnBrand`.                                                              |
-| `bi_fold_left` / `ref_bi_fold_left`   | Complex | Has `FnBrand`.                                                              |
-| `bi_fold_map` / `ref_bi_fold_map`     | Complex | Has `FnBrand`.                                                              |
-| `bi_traverse` / `ref_bi_traverse`     | Complex | Has `FnBrand` + effect brand `F`.                                           |
+| Pair                                  | Group   | Notes                                                           |
+| ------------------------------------- | ------- | --------------------------------------------------------------- |
+| `bimap` / `ref_bimap`                 | Simple  | Dispatch on closure tuple `(f, g)`. Both must agree on Val/Ref. |
+| `bi_fold_right` / `ref_bi_fold_right` | Complex | Has `FnBrand`.                                                  |
+| `bi_fold_left` / `ref_bi_fold_left`   | Complex | Has `FnBrand`.                                                  |
+| `bi_fold_map` / `ref_bi_fold_map`     | Complex | Has `FnBrand`.                                                  |
+| `bi_traverse` / `ref_bi_traverse`     | Complex | Has `FnBrand` + effect brand `F`.                               |
 
 These will be added as part of this plan after the ref-expansion plan
 is implemented.
@@ -171,42 +187,99 @@ Follow the established pattern in `functions.rs`:
 | `filter_map_with_index`    | 3             | 3             | 5        | +2    |
 | `partition_with_index`     | 2             | 2             | 4        | +2    |
 | `partition_map_with_index` | 4             | 4             | 6        | +2    |
+| `fold_map_with_index`      | 4             | 4             | 6        | +2    |
+| `fold_right_with_index`    | 4             | 4             | 6        | +2    |
+| `fold_left_with_index`     | 4             | 4             | 6        | +2    |
+| `traverse_with_index`      | 5             | 6             | 8        | +3    |
 | `wilt`                     | 5             | 6             | 8        | +3    |
 | `wither`                   | 4             | 5             | 7        | +3    |
 
 The consistent +2 (FA + Marker) matches existing dispatch traits.
-Wilt/wither have +3 because the Val path gains `FnBrand` (unused but
+Functions with `FnBrand` (foldable/traversable with index, wilt, wither)
+have +3 on the Val side because the Val path gains `FnBrand` (unused but
 required for uniformity with the Ref path), matching TraverseDispatch.
 
+## Prerequisite Fix
+
+### `ref_fold_left_with_index` argument order
+
+The Ref signature `Fn(B, Self::Index, &A) -> B` does not match the Val
+signature `Fn(Self::Index, B, A) -> B`. The PureScript convention is
+`(i -> b -> a -> b)`, which matches the Val ordering. The Ref signature
+must be fixed to `Fn(Self::Index, B, &A) -> B` before adding dispatch,
+so that the only difference between Val and Ref closures is `A` vs `&A`.
+
+This is a breaking change to `RefFoldableWithIndex::ref_fold_left_with_index`.
+All concrete implementations and call sites must be updated.
+
 ## Implementation Order
+
+0. **Prerequisite: Fix `ref_fold_left_with_index` argument order.**
+   Change `Fn(B, Self::Index, &A) -> B` to `Fn(Self::Index, B, &A) -> B`
+   in the trait definition, all impls, and all call sites.
 
 1. **Simple group:** `FilterDispatch`, `PartitionDispatch`,
    `PartitionMapDispatch`. These follow the FilterMapDispatch pattern
    directly with minimal variation.
 
-2. **WithIndex group:** `MapWithIndexDispatch`,
+2. **WithIndex group (filterable/functor):** `MapWithIndexDispatch`,
    `FilterWithIndexDispatch`, `FilterMapWithIndexDispatch`,
    `PartitionWithIndexDispatch`, `PartitionMapWithIndexDispatch`.
    These add `Brand: WithIndex` bound and use `Brand::Index` in the
    closure type.
 
-3. **Complex group:** `WiltDispatch`, `WitherDispatch`. These follow
+3. **WithIndex group (foldable/traversable):**
+   `FoldMapWithIndexDispatch`, `FoldRightWithIndexDispatch`,
+   `FoldLeftWithIndexDispatch`, `TraverseWithIndexDispatch`. These
+   combine the WithIndex pattern with the FnBrand parameter from the
+   existing foldable/traversable dispatch traits.
+
+4. **Complex group:** `WiltDispatch`, `WitherDispatch`. These follow
    the TraverseDispatch pattern with `FnBrand` + `M` parameters.
 
-4. **Bifunctorial dispatch** (after ref-expansion plan): `BimapDispatch`,
-   `BiFoldRightDispatch`, `BiFoldLeftDispatch`, `BiFoldMapDispatch`,
-   `BiTraverseDispatch`. Added after RefBifunctor/RefBifoldable/
-   RefBitraversable are available.
+5. **Bifunctorial dispatch** (after ref-expansion plan):
+   `BimapDispatch`, `BiFoldRightDispatch`, `BiFoldLeftDispatch`,
+   `BiFoldMapDispatch`, `BiTraverseDispatch`. Added after
+   RefBifunctor/RefBifoldable/RefBitraversable are available.
+   All bi-\* dispatch traits use the closure-tuple pattern: the trait
+   is implemented for `(F, G)`, enforcing that both closures agree on
+   Val (both owned) or Ref (both borrowed). Calling convention is
+   `bimap((f, g), p)`.
 
-5. **Update `functions.rs`:** Add canonical dispatch exports and alias
+6. **Update `functions.rs`:** Add canonical dispatch exports and alias
    the non-dispatch free functions for each new dispatch trait.
 
-6. **Update call sites:** Update all turbofish counts in source, doc
+7. **Update call sites:** Update all turbofish counts in source, doc
    comments, tests, and benchmarks.
 
-7. **Tests.** Verify dispatch routing for each new trait (Val closure
+8. **Tests.** Verify dispatch routing for each new trait (Val closure
    routes to by-value, Ref closure routes to by-reference). Property
    tests confirming Val and Ref paths produce identical results.
+
+## Design Decisions
+
+### Bimap dispatch: closure-tuple pattern
+
+`bimap` has two closure parameters. The dispatch trait is implemented
+for `(F, G)` as a unit, with exactly two impls:
+
+```
+// Val: both closures take owned args
+impl BimapDispatch<..., FA, Val> for (F, G)
+where F: Fn(A) -> B, G: Fn(C) -> D { ... }
+
+// Ref: both closures take borrowed args
+impl BimapDispatch<..., &FA, Ref> for (F, G)
+where F: Fn(&A) -> B, G: Fn(&C) -> D { ... }
+```
+
+Mixed combinations (one owned, one borrowed) do not match either impl
+and fail to compile. The calling convention is `bimap((f, g), p)`.
+
+This pattern also applies to `bi_fold_*` and `bi_traverse`, which
+similarly have two closures that must agree on Val/Ref. It follows the
+precedent of `compose_kleisli`, which already dispatches on a closure
+tuple `(f, g)`.
 
 ## Verification
 
