@@ -808,6 +808,7 @@ mod inner {
 	// PairFirstAppliedBrand<First> (Functor over Second)
 
 	impl_kind! {
+		#[no_inferable_brand]
 		#[document_type_parameters("The type of the first value in the pair.")]
 		impl<First: 'static> for PairFirstAppliedBrand<First> {
 			type Of<'a, A: 'a>: 'a = Pair<First, A>;
@@ -1592,6 +1593,7 @@ mod inner {
 	// PairSecondAppliedBrand<Second> (Functor over First)
 
 	impl_kind! {
+		#[no_inferable_brand]
 		#[document_type_parameters("The type of the second value in the pair.")]
 		impl<Second: 'static> for PairSecondAppliedBrand<Second> {
 			type Of<'a, A: 'a>: 'a = Pair<A, Second>;

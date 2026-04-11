@@ -1169,6 +1169,7 @@ mod inner {
 	// ControlFlowContinueAppliedBrand<ContinueType> (Functor over B, the Break type)
 
 	impl_kind! {
+		#[no_inferable_brand]
 		impl<ContinueType: 'static> for ControlFlowContinueAppliedBrand<ContinueType> {
 			type Of<'a, B: 'a>: 'a = ControlFlow<B, ContinueType>;
 		}
@@ -1713,6 +1714,7 @@ mod inner {
 	// ControlFlowBreakAppliedBrand<BreakType> (Functor over C, the Continue type)
 
 	impl_kind! {
+		#[no_inferable_brand]
 		impl<BreakType: 'static> for ControlFlowBreakAppliedBrand<BreakType> {
 			type Of<'a, C: 'a>: 'a = ControlFlow<BreakType, C>;
 		}

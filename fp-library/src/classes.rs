@@ -46,7 +46,6 @@ pub mod foldable_with_index;
 pub mod functor;
 pub mod functor_with_index;
 pub mod heyting_algebra;
-mod inferable_brand_impls;
 pub mod lazy_config;
 pub mod lift;
 pub mod monad;

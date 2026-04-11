@@ -967,7 +967,7 @@ apply_second.rs, join in semimonad.rs) that missed step 0b: - Rename qualified m
    `generate_hash()` from `generate_name()` so both `Kind_` and
    `InferableBrand_` prefixes derive from the same hash value.
 
-9. **Extend `impl_kind!` to generate `InferableBrand` impls by default.**
+9. **[Done] Extend `impl_kind!` to generate `InferableBrand` impls by default.**
    Add `#[no_inferable_brand]` opt-out attribute for types with multiple
    brands. Migrate hand-written impls to use the macro.
 
@@ -1000,7 +1000,7 @@ apply_second.rs, join in semimonad.rs) that missed step 0b: - Rename qualified m
 
 ## Current Progress
 
-Steps 1-8 are complete. The codebase has:
+Steps 1-9 are complete. The codebase has:
 
 **Module structure (step 7):**
 
@@ -1035,11 +1035,18 @@ been removed. All 32 inference wrappers in `functions/` now use
 enabling readable signatures like:
 `Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!(...)>::Of<'a, B>)`.
 
-Hand-written `InferableBrand` impls for 15 types remain in
-`classes/inferable_brand_impls.rs` until step 9 (`impl_kind!`
-auto-generation).
-
 The old brand inference POC in `dispatch.rs` has been removed.
+
+**Auto-generated InferableBrand impls (step 9):**
+
+`impl_kind!` now auto-generates `InferableBrand_{hash}` impls alongside
+`Kind_{hash}` impls. The macro extracts generic parameters from the
+target type, applies bounds from both the associated type and impl
+block generics, and strips lifetime bounds for lifetimes not present
+in the target type. `#[no_inferable_brand]` suppresses generation for
+multi-brand types. Auto-skip applies to projection target types
+(containing `Apply!` or `::`). The hand-written
+`classes/inferable_brand_impls.rs` has been removed.
 
 **Brand inference (steps 2-6b):**
 
@@ -1122,20 +1129,23 @@ BoxedCoyonedaExplicit, Const).
    that resolves `InferableBrand!(SIG)` to the hash identifier before
    parsing, enabling readable brand projections inside `Apply!`.
 
+9. **Doctest `impl_kind!` examples need `#[no_inferable_brand]`.**
+   Doctests compile as separate crates, so the auto-generated
+   `InferableBrand` impl for a foreign type like `Option<A>` violates
+   Rust's orphan rules (E0117). Doc examples that use `impl_kind!`
+   with foreign target types must add `#[no_inferable_brand]`.
+
 ## Next Steps
 
-1. **Step 9: Extend `impl_kind!`.** Auto-generate `InferableBrand` impls.
-   Add `#[no_inferable_brand]` opt-out. Migrate hand-written impls.
-
-2. **Step 10: Tier 4 (bifunctor arity-2).** Define the arity-2
+1. **Step 10: Tier 4 (bifunctor arity-2).** Define the arity-2
    InferableBrand trait, implement it for 5 bifunctor types, add
    inference wrappers for `bimap`, `bi_fold_right`, `bi_fold_left`,
    `bi_fold_map`, `bi_traverse`.
 
-3. **Step 11: m_do!/a_do! inferred mode.** Add `m_do!({ ... })` and
+2. **Step 11: m_do!/a_do! inferred mode.** Add `m_do!({ ... })` and
    `a_do!({ ... })` syntax that generates inference-based calls.
 
-4. **Step 12-13: Documentation and tests.** Update all docs to show
+3. **Step 12-13: Documentation and tests.** Update all docs to show
    inference as the primary API. Add compile-fail tests for multi-brand
    types.
 

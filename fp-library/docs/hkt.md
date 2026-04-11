@@ -13,6 +13,7 @@ use fp_library::{
 pub struct OptionBrand;
 
 impl_kind! {
+	#[no_inferable_brand]
 	for OptionBrand {
 		type Of<'a, A: 'a>: 'a = Option<A>;
 	}

@@ -439,6 +439,7 @@ mod inner {
 	// Tuple2FirstAppliedBrand<First> (Functor over Second)
 
 	impl_kind! {
+		#[no_inferable_brand]
 		impl<First: 'static> for Tuple2FirstAppliedBrand<First> {
 			type Of<'a, A: 'a>: 'a = (First, A);
 		}
@@ -1204,6 +1205,7 @@ mod inner {
 	// Tuple2SecondAppliedBrand<Second> (Functor over First)
 
 	impl_kind! {
+		#[no_inferable_brand]
 		impl<Second: 'static> for Tuple2SecondAppliedBrand<Second> {
 			type Of<'a, A: 'a>: 'a = (A, Second);
 		}

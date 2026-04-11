@@ -86,6 +86,7 @@ mod test_collision {
 
 		#[cfg(feature = "sync")]
 		impl_kind! {
+			#[no_inferable_brand]
 			for Brand {
 				type Of<T> = SyncType<T>;
 			}
@@ -93,6 +94,7 @@ mod test_collision {
 
 		#[cfg(not(feature = "sync"))]
 		impl_kind! {
+			#[no_inferable_brand]
 			for Brand {
 				type Of<T> = AsyncType<T>;
 			}
