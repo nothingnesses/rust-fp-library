@@ -20,12 +20,16 @@ use {
 
 /// The parsed input to the `m_do!` macro.
 ///
-/// Represents `[ref] Brand { statements... final_expr }`.
+/// Represents `[ref] [Brand] { statements... final_expr }`.
+///
+/// In explicit mode, `brand` is `Some(Brand)` and the macro generates
+/// `bind_explicit::<Brand, ...>` calls. In inferred mode (brand omitted),
+/// `brand` is `None` and the macro generates inference-based `bind` calls.
 pub struct DoInput {
 	/// Whether the `ref` qualifier is present, selecting by-reference dispatch.
 	pub ref_mode: bool,
-	/// The brand type (e.g., `OptionBrand`).
-	pub brand: Type,
+	/// The brand type, or `None` for inferred mode.
+	pub brand: Option<Type>,
 	/// The statements preceding the final expression.
 	pub statements: Vec<DoStatement>,
 	/// The final expression (returned as-is, no trailing `;`).
@@ -65,7 +69,11 @@ impl Parse for DoInput {
 		if ref_mode {
 			input.parse::<Token![ref]>()?;
 		}
-		let brand: Type = input.parse()?;
+
+		// Inferred mode: `{ ... }` or `ref { ... }` (no brand before brace)
+		// Explicit mode: `Brand { ... }` or `ref Brand { ... }`
+		let brand: Option<Type> =
+			if input.peek(syn::token::Brace) { None } else { Some(input.parse()?) };
 
 		let content;
 		braced!(content in input);
@@ -431,5 +439,36 @@ mod tests {
 		.expect("failed to parse");
 
 		assert!(!input.ref_mode);
+		assert!(input.brand.is_some());
+	}
+
+	#[test]
+	fn parse_inferred_mode() {
+		let input: DoInput = parse_str(
+			"{
+				x <- Some(5);
+				Some(x + 1)
+			}",
+		)
+		.expect("failed to parse");
+
+		assert!(!input.ref_mode);
+		assert!(input.brand.is_none());
+		assert_eq!(input.statements.len(), 1);
+		assert!(matches!(input.statements[0], DoStatement::Bind { .. }));
+	}
+
+	#[test]
+	fn parse_inferred_ref_mode() {
+		let input: DoInput = parse_str(
+			"ref {
+				x <- Some(5);
+				Some(x + 1)
+			}",
+		)
+		.expect("failed to parse");
+
+		assert!(input.ref_mode);
+		assert!(input.brand.is_none());
 	}
 }

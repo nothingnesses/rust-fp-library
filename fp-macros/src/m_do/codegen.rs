@@ -20,7 +20,7 @@ use {
 
 /// Generates the expanded token stream for a `m_do!` invocation.
 pub fn m_do_worker(input: DoInput) -> syn::Result<TokenStream> {
-	let brand = &input.brand;
+	let brand = input.brand.as_ref();
 	let ref_mode = input.ref_mode;
 	let mut result = rewrite_pure(brand, &input.final_expr, ref_mode);
 
@@ -47,7 +47,11 @@ pub fn m_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 				} else {
 					quote! { #expr }
 				};
-				quote! { bind_explicit::<#brand, _, _, _, _>(#container, move |#closure_param| { #result }) }
+				if let Some(brand) = brand {
+					quote! { bind_explicit::<#brand, _, _, _, _>(#container, move |#closure_param| { #result }) }
+				} else {
+					quote! { bind(#container, move |#closure_param| { #result }) }
+				}
 			}
 			DoStatement::Let {
 				pattern,
@@ -74,7 +78,11 @@ pub fn m_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 				} else {
 					quote! { #expr }
 				};
-				quote! { bind_explicit::<#brand, _, _, _, _>(#container, move |#discard| { #result }) }
+				if let Some(brand) = brand {
+					quote! { bind_explicit::<#brand, _, _, _, _>(#container, move |#discard| { #result }) }
+				} else {
+					quote! { bind(#container, move |#discard| { #result }) }
+				}
 			}
 		};
 	}
@@ -84,10 +92,15 @@ pub fn m_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 
 /// Rewrites bare `pure(args)` calls within an expression.
 ///
-/// In normal mode: `pure(args)` -> `pure::<Brand, _>(args)`.
-/// In ref mode: `pure(args)` -> `ref_pure::<Brand, _>(&(args))`.
+/// In explicit mode:
+/// - Normal: `pure(args)` -> `pure::<Brand, _>(args)`.
+/// - Ref: `pure(args)` -> `ref_pure::<Brand, _>(&(args))`.
+///
+/// In inferred mode (brand is `None`):
+/// - Emits `compile_error!` because `pure` has no container argument
+///   and cannot infer the brand.
 pub(crate) fn rewrite_pure(
-	brand: &Type,
+	brand: Option<&Type>,
 	expr: &Expr,
 	ref_mode: bool,
 ) -> TokenStream {
@@ -102,7 +115,7 @@ pub(crate) fn rewrite_pure(
 
 /// AST visitor that rewrites bare `pure(...)` calls.
 struct PureRewriter<'a> {
-	brand: &'a Type,
+	brand: Option<&'a Type>,
 	ref_mode: bool,
 }
 
@@ -117,12 +130,18 @@ impl VisitMut for PureRewriter<'_> {
 		if let Expr::Call(call) = expr
 			&& is_bare_pure_call(call)
 		{
-			let brand = self.brand;
-			let args = &call.args;
-			if self.ref_mode {
-				*expr = syn::parse_quote! { ref_pure::<#brand, _>(&(#args)) };
+			if let Some(brand) = self.brand {
+				let args = &call.args;
+				if self.ref_mode {
+					*expr = syn::parse_quote! { ref_pure::<#brand, _>(&(#args)) };
+				} else {
+					*expr = syn::parse_quote! { pure::<#brand, _>(#args) };
+				}
 			} else {
-				*expr = syn::parse_quote! { pure::<#brand, _>(#args) };
+				// Inferred mode: pure cannot infer the brand
+				*expr = syn::parse_quote! {
+					compile_error!("pure() requires an explicit brand; use m_do!(Brand { ... }) or write the concrete constructor (e.g., Some(x) instead of pure(x))")
+				};
 			}
 		}
 	}

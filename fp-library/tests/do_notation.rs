@@ -280,3 +280,57 @@ fn ref_mode_result_short_circuit() {
 	});
 	assert_eq!(result, Err("oops"));
 }
+
+// -- Inferred mode tests --
+
+#[test]
+fn inferred_basic_bind() {
+	let result = m_do!({
+		x <- Some(5);
+		y <- Some(x + 1);
+		Some(x + y)
+	});
+	assert_eq!(result, Some(11));
+}
+
+#[test]
+fn inferred_vec_bind() {
+	let result: Vec<i32> = m_do!({
+		x <- vec![1, 2];
+		y <- vec![10, 20];
+		vec![x + y]
+	});
+	assert_eq!(result, vec![11, 21, 12, 22]);
+}
+
+#[test]
+fn inferred_let_binding() {
+	let result = m_do!({
+		x <- Some(5);
+		let z = x * 2;
+		Some(z)
+	});
+	assert_eq!(result, Some(10));
+}
+
+#[test]
+fn inferred_none_short_circuit() {
+	let result: Option<i32> = m_do!({
+		x <- Some(5);
+		_ <- None::<i32>;
+		Some(x)
+	});
+	assert_eq!(result, None);
+}
+
+#[test]
+fn inferred_ref_mode() {
+	let opt_a = Some(5);
+	let opt_b = Some(10);
+	let result = m_do!(ref {
+		x: &i32 <- opt_a;
+		y: &i32 <- opt_b;
+		Some(*x + *y)
+	});
+	assert_eq!(result, Some(15));
+}

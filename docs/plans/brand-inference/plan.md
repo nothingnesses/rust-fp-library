@@ -979,7 +979,7 @@ apply_second.rs, join in semimonad.rs) that missed step 0b: - Rename qualified m
     (partial inference, FnBrand/F remain explicit). Document the bimap
     parameter ordering for Result.
 
-11. **Extend `m_do!` and `a_do!`.** Add brand-free syntax that generates
+11. **[Done] Extend `m_do!` and `a_do!`.** Add brand-free syntax that generates
     inference-based function calls. The Brand-explicit syntax remains
     available. Support all four combinations: `m_do!({ ... })` for val
     inference, `m_do!(ref { ... })` for ref inference, plus the existing
@@ -1000,7 +1000,7 @@ apply_second.rs, join in semimonad.rs) that missed step 0b: - Rename qualified m
 
 ## Current Progress
 
-Steps 1-10 are complete. The codebase has:
+Steps 1-11 are complete. The codebase has:
 
 **Module structure (step 7):**
 
@@ -1138,16 +1138,13 @@ BoxedCoyonedaExplicit, Const).
 
 ## Next Steps
 
-1. **Step 11: m_do!/a_do! inferred mode.** Add `m_do!({ ... })` and
-   `a_do!({ ... })` syntax that generates inference-based calls.
-
-2. **Step 12-13: Documentation and tests.** Update all docs to show
+1. **Step 12-13: Documentation and tests.** Update all docs to show
    inference as the primary API. Add compile-fail tests for multi-brand
    types.
 
 ## Blockers
 
-No blockers. Steps 11-13 are independent of each other.
+No blockers.
 
 ## References
 

@@ -354,3 +354,43 @@ fn ref_mode_equivalent_to_manual_ref_map() {
 	let manual_result = map_explicit::<OptionBrand, _, _, _, _>(|x: &i32| *x + 1, &Some(7));
 	assert_eq!(ado_result, manual_result);
 }
+
+// -- Inferred mode tests --
+
+#[test]
+fn inferred_single_bind() {
+	let result = a_do!({
+		x <- Some(5);
+		x * 2
+	});
+	assert_eq!(result, Some(10));
+}
+
+#[test]
+fn inferred_two_binds() {
+	let result = a_do!({
+		x <- Some(5);
+		y <- Some(10);
+		x + y
+	});
+	assert_eq!(result, Some(15));
+}
+
+#[test]
+fn inferred_vec_single_bind() {
+	let result: Vec<i32> = a_do!({
+		x <- vec![1, 2, 3];
+		x * 10
+	});
+	assert_eq!(result, vec![10, 20, 30]);
+}
+
+#[test]
+fn inferred_with_let() {
+	let result = a_do!({
+		let base = 100;
+		x <- Some(5);
+		base + x
+	});
+	assert_eq!(result, Some(105));
+}
