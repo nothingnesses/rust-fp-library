@@ -47,7 +47,7 @@ pub fn compact<'a, FA, A: 'a, Marker>(
 ) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
 where
 	FA: DefaultBrand + CompactDispatch<'a, <FA as DefaultBrand>::Brand, A, Marker>, {
-	fa.dispatch_compact()
+	fa.dispatch()
 }
 
 // -- separate --
@@ -90,5 +90,5 @@ pub fn separate<'a, FA, E: 'a, O: 'a, Marker>(
 )
 where
 	FA: DefaultBrand + SeparateDispatch<'a, <FA as DefaultBrand>::Brand, E, O, Marker>, {
-	fa.dispatch_separate()
+	fa.dispatch()
 }

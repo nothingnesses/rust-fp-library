@@ -447,6 +447,11 @@ pub(super) fn generate_documentation(
 		match item {
 			Item::Impl(item_impl) => process_impl_block(item_impl, config, &mut errors),
 			Item::Trait(item_trait) => process_trait_block(item_trait, config, &mut errors),
+			Item::Fn(item_fn) => {
+				// Strip #[allow_named_generics] - consumed during lint pass, must not remain
+				// in output
+				item_fn.attrs.retain(|attr| !attr.path().is_ident(ALLOW_NAMED_GENERICS));
+			}
 			_ => {}
 		}
 	}

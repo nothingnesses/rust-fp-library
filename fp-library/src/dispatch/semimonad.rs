@@ -495,7 +495,7 @@ pub(crate) mod inner {
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
 		(G, F): ComposeKleisliDispatch<'a, Brand, A, B, C, Marker>, {
-		(gf.1, gf.0).dispatch(a)
+		ComposeKleisliDispatch::dispatch((gf.1, gf.0), a)
 	}
 
 	// -- JoinDispatch --
@@ -525,10 +525,10 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = join_explicit::<OptionBrand, _, _, _>(Some(Some(5)));
+		/// let result = join_explicit::<OptionBrand, _, _>(Some(Some(5)));
 		/// assert_eq!(result, Some(5));
 		/// ```
-		fn dispatch_join(self) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		fn dispatch(self) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
 	}
 
 	// -- Val: owned container -> Semimonad::bind(id) --
@@ -552,10 +552,10 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = join_explicit::<OptionBrand, _, _, _>(Some(Some(5)));
+		/// let result = join_explicit::<OptionBrand, _, _>(Some(Some(5)));
 		/// assert_eq!(result, Some(5));
 		/// ```
-		fn dispatch_join(self) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+		fn dispatch(self) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Brand::bind(self, |ma| ma)
 		}
 	}
@@ -583,10 +583,10 @@ pub(crate) mod inner {
 		/// };
 		///
 		/// let x = Some(Some(5));
-		/// let result = join_explicit::<OptionBrand, _, _, _>(&x);
+		/// let result = join_explicit::<OptionBrand, _, _>(&x);
 		/// assert_eq!(result, Some(5));
 		/// ```
-		fn dispatch_join(self) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+		fn dispatch(self) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Brand::ref_bind(self, |ma| ma.clone())
 		}
 	}
@@ -626,18 +626,18 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // Owned: dispatches via Semimonad::bind(id)
-	/// let y = join_explicit::<OptionBrand, _, _, _>(Some(Some(5)));
+	/// let y = join_explicit::<OptionBrand, _, _>(Some(Some(5)));
 	/// assert_eq!(y, Some(5));
 	///
 	/// // By-ref: dispatches via RefSemimonad::ref_bind(clone)
 	/// let x = Some(Some(5));
-	/// let y = join_explicit::<OptionBrand, _, _, _>(&x);
+	/// let y = join_explicit::<OptionBrand, _, _>(&x);
 	/// assert_eq!(y, Some(5));
 	/// ```
 	pub fn join<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, Marker>(
 		mma: impl JoinDispatch<'a, Brand, A, Marker>
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
-		mma.dispatch_join()
+		mma.dispatch()
 	}
 }
 

@@ -131,5 +131,5 @@ pub fn join<'a, FA, A: 'a, Marker>(
 ) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
 where
 	FA: DefaultBrand + JoinDispatch<'a, <FA as DefaultBrand>::Brand, A, Marker>, {
-	mma.dispatch_join()
+	mma.dispatch()
 }

@@ -28,6 +28,7 @@
 //! assert_eq!(errs, vec![2]);
 //! ```
 
+#[fp_macros::document_module]
 pub(crate) mod inner {
 	use {
 		crate::{
@@ -77,32 +78,72 @@ pub(crate) mod inner {
 		/// let result = compact_explicit::<VecBrand, _, _, _>(vec![Some(1), None, Some(3)]);
 		/// assert_eq!(result, vec![1, 3]);
 		/// ```
-		fn dispatch_compact(self)
-		-> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		fn dispatch(self) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
 	}
 
 	/// Routes owned containers to [`Compactable::compact`].
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the compactable.",
+		"The type of the value(s) inside the `Option` wrappers."
+	)]
+	#[document_parameters("The owned container of `Option` values.")]
 	impl<'a, Brand, A> CompactDispatch<'a, Brand, A, Val> for Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<OptionBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
 		Brand: Compactable,
 		A: 'a,
 	{
-		fn dispatch_compact(
-			self
-		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+		#[document_signature]
+		///
+		#[document_returns(
+			"A new container with `None` values removed and `Some` values unwrapped."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result = compact_explicit::<VecBrand, _, _, _>(vec![Some(1), None, Some(3)]);
+		/// assert_eq!(result, vec![1, 3]);
+		/// ```
+		fn dispatch(self) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Brand::compact(self)
 		}
 	}
 
 	/// Routes borrowed containers to [`RefCompactable::ref_compact`].
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the compactable.",
+		"The type of the value(s) inside the `Option` wrappers."
+	)]
+	#[document_parameters("The borrowed container of `Option` values.")]
 	impl<'a, Brand, A> CompactDispatch<'a, Brand, A, Ref> for &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<OptionBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
 		Brand: RefCompactable,
 		A: 'a + Clone,
 	{
-		fn dispatch_compact(
-			self
-		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+		#[document_signature]
+		///
+		#[document_returns(
+			"A new container with `None` values removed and `Some` values unwrapped."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let v = vec![Some(1), None, Some(3)];
+		/// let result = compact_explicit::<VecBrand, _, _, _>(&v);
+		/// assert_eq!(result, vec![1, 3]);
+		/// ```
+		fn dispatch(self) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Brand::ref_compact(self)
 		}
 	}
@@ -144,12 +185,13 @@ pub(crate) mod inner {
 	/// let y = compact_explicit::<VecBrand, _, _, _>(&v);
 	/// assert_eq!(y, vec![1, 3]);
 	/// ```
+	#[allow_named_generics]
 	pub fn compact<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, FA, Marker>(
 		fa: FA
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 	where
 		FA: CompactDispatch<'a, Brand, A, Marker>, {
-		fa.dispatch_compact()
+		fa.dispatch()
 	}
 
 	// -- SeparateDispatch --
@@ -184,7 +226,7 @@ pub(crate) mod inner {
 		/// assert_eq!(oks, vec![1, 3]);
 		/// assert_eq!(errs, vec![2]);
 		/// ```
-		fn dispatch_separate(
+		fn dispatch(
 			self
 		) -> (
 			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
@@ -193,13 +235,35 @@ pub(crate) mod inner {
 	}
 
 	/// Routes owned containers to [`Compactable::separate`].
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the compactable.",
+		"The error type inside the `Result` wrappers.",
+		"The success type inside the `Result` wrappers."
+	)]
+	#[document_parameters("The owned container of `Result` values.")]
 	impl<'a, Brand, E, O> SeparateDispatch<'a, Brand, E, O, Val> for Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
 	where
 		Brand: Compactable,
 		E: 'a,
 		O: 'a,
 	{
-		fn dispatch_separate(
+		#[document_signature]
+		///
+		#[document_returns("A tuple of two containers: `Err` values and `Ok` values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let (errs, oks) = separate_explicit::<VecBrand, _, _, _, _>(vec![Ok(1), Err(2), Ok(3)]);
+		/// assert_eq!(oks, vec![1, 3]);
+		/// assert_eq!(errs, vec![2]);
+		/// ```
+		fn dispatch(
 			self
 		) -> (
 			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
@@ -210,13 +274,36 @@ pub(crate) mod inner {
 	}
 
 	/// Routes borrowed containers to [`RefCompactable::ref_separate`].
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the compactable.",
+		"The error type inside the `Result` wrappers.",
+		"The success type inside the `Result` wrappers."
+	)]
+	#[document_parameters("The borrowed container of `Result` values.")]
 	impl<'a, Brand, E, O> SeparateDispatch<'a, Brand, E, O, Ref> for &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
 	where
 		Brand: RefCompactable,
 		E: 'a + Clone,
 		O: 'a + Clone,
 	{
-		fn dispatch_separate(
+		#[document_signature]
+		///
+		#[document_returns("A tuple of two containers: `Err` values and `Ok` values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let v: Vec<Result<i32, i32>> = vec![Ok(1), Err(2), Ok(3)];
+		/// let (errs, oks) = separate_explicit::<VecBrand, _, _, _, _>(&v);
+		/// assert_eq!(oks, vec![1, 3]);
+		/// assert_eq!(errs, vec![2]);
+		/// ```
+		fn dispatch(
 			self
 		) -> (
 			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
@@ -266,6 +353,7 @@ pub(crate) mod inner {
 	/// assert_eq!(oks, vec![1, 3]);
 	/// assert_eq!(errs, vec![2]);
 	/// ```
+	#[allow_named_generics]
 	pub fn separate<'a, Brand: Kind_cdc7cd43dac7585f, E: 'a, O: 'a, FA, Marker>(
 		fa: FA
 	) -> (
@@ -274,7 +362,7 @@ pub(crate) mod inner {
 	)
 	where
 		FA: SeparateDispatch<'a, Brand, E, O, Marker>, {
-		fa.dispatch_separate()
+		fa.dispatch()
 	}
 }
 

@@ -50,5 +50,5 @@ pub fn apply_second<'a, FA, A: 'a, B: 'a, Marker>(
 ) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>
 where
 	FA: DefaultBrand + ApplySecondDispatch<'a, <FA as DefaultBrand>::Brand, A, B, Marker>, {
-	fa.dispatch_apply_second(fb)
+	fa.dispatch(fb)
 }

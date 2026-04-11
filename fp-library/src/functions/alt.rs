@@ -48,5 +48,5 @@ pub fn alt<'a, FA, A: 'a + Clone, Marker>(
 ) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
 where
 	FA: DefaultBrand + AltDispatch<'a, <FA as DefaultBrand>::Brand, A, Marker>, {
-	fa1.dispatch_alt(fa2)
+	fa1.dispatch(fa2)
 }

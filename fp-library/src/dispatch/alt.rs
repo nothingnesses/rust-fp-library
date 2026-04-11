@@ -22,6 +22,7 @@
 //! assert_eq!(y, Some(5));
 //! ```
 
+#[fp_macros::document_module]
 pub(crate) mod inner {
 	use {
 		crate::{
@@ -68,7 +69,7 @@ pub(crate) mod inner {
 		/// let result = alt_explicit::<OptionBrand, _, _, _>(None, Some(5));
 		/// assert_eq!(result, Some(5));
 		/// ```
-		fn dispatch_alt(
+		fn dispatch(
 			self,
 			other: Self,
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
@@ -77,14 +78,36 @@ pub(crate) mod inner {
 	// -- Val: owned container -> Alt::alt --
 
 	/// Routes owned containers to [`Alt::alt`].
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the functor.",
+		"The type of the value(s) inside the functor."
+	)]
+	#[document_parameters("The owned container.")]
 	impl<'a, Brand, A> AltDispatch<'a, Brand, A, Val> for Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 	where
 		Brand: Alt,
 		A: 'a + Clone,
 	{
-		fn dispatch_alt(
+		#[document_signature]
+		///
+		#[document_parameters("The other container to combine with.")]
+		///
+		#[document_returns("A new container from the combination of both inputs.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result = alt_explicit::<OptionBrand, _, _, _>(None, Some(5));
+		/// assert_eq!(result, Some(5));
+		/// ```
+		fn dispatch(
 			self,
-			other: Self,
+			other: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Brand::alt(self, other)
 		}
@@ -93,14 +116,38 @@ pub(crate) mod inner {
 	// -- Ref: borrowed container -> RefAlt::ref_alt --
 
 	/// Routes borrowed containers to [`RefAlt::ref_alt`].
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the functor.",
+		"The type of the value(s) inside the functor."
+	)]
+	#[document_parameters("The borrowed container.")]
 	impl<'a, Brand, A> AltDispatch<'a, Brand, A, Ref> for &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 	where
 		Brand: RefAlt,
 		A: 'a + Clone,
 	{
-		fn dispatch_alt(
+		#[document_signature]
+		///
+		#[document_parameters("The other borrowed container to combine with.")]
+		///
+		#[document_returns("A new container from the combination of both inputs.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x: Option<i32> = None;
+		/// let y = Some(5);
+		/// let result = alt_explicit::<OptionBrand, _, _, _>(&x, &y);
+		/// assert_eq!(result, Some(5));
+		/// ```
+		fn dispatch(
 			self,
-			other: Self,
+			other: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Brand::ref_alt(self, other)
 		}
@@ -156,7 +203,7 @@ pub(crate) mod inner {
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 	where
 		FA: AltDispatch<'a, Brand, A, Marker>, {
-		fa1.dispatch_alt(fa2)
+		fa1.dispatch(fa2)
 	}
 }
 

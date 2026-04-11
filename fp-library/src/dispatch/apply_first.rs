@@ -24,6 +24,7 @@
 //! assert_eq!(y, Some(5));
 //! ```
 
+#[fp_macros::document_module]
 pub(crate) mod inner {
 	use {
 		crate::{
@@ -74,7 +75,7 @@ pub(crate) mod inner {
 		/// let result = apply_first_explicit::<OptionBrand, _, _, _, _>(Some(5), Some(10));
 		/// assert_eq!(result, Some(5));
 		/// ```
-		fn dispatch_apply_first(
+		fn dispatch(
 			self,
 			fb: Self::FB,
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
@@ -83,6 +84,13 @@ pub(crate) mod inner {
 	// -- Val: owned containers -> ApplyFirst::apply_first --
 
 	/// Routes owned containers to [`ApplyFirst::apply_first`].
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the applicative.",
+		"The type of the value(s) inside the first container.",
+		"The type of the value(s) inside the second container."
+	)]
+	#[document_parameters("The owned first container.")]
 	impl<'a, Brand, A, B> ApplyFirstDispatch<'a, Brand, A, B, Val> for Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 	where
 		Brand: ApplyFirst,
@@ -91,7 +99,23 @@ pub(crate) mod inner {
 	{
 		type FB = Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
 
-		fn dispatch_apply_first(
+		#[document_signature]
+		///
+		#[document_parameters("The second container (its result is discarded).")]
+		///
+		#[document_returns("A container preserving the values from the first input.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result = apply_first_explicit::<OptionBrand, _, _, _, _>(Some(5), Some(10));
+		/// assert_eq!(result, Some(5));
+		/// ```
+		fn dispatch(
 			self,
 			fb: Self::FB,
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
@@ -102,6 +126,14 @@ pub(crate) mod inner {
 	// -- Ref: borrowed containers -> RefApplyFirst::ref_apply_first --
 
 	/// Routes borrowed containers to [`RefApplyFirst::ref_apply_first`].
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The borrow lifetime.",
+		"The brand of the applicative.",
+		"The type of the value(s) inside the first container.",
+		"The type of the value(s) inside the second container."
+	)]
+	#[document_parameters("The borrowed first container.")]
 	impl<'a, 'b, Brand, A, B> ApplyFirstDispatch<'a, Brand, A, B, Ref> for &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 	where
 		'a: 'b,
@@ -111,7 +143,25 @@ pub(crate) mod inner {
 	{
 		type FB = &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
 
-		fn dispatch_apply_first(
+		#[document_signature]
+		///
+		#[document_parameters("The second borrowed container (its result is discarded).")]
+		///
+		#[document_returns("A container preserving the values from the first input.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let a = Some(5);
+		/// let b = Some(10);
+		/// let result = apply_first_explicit::<OptionBrand, _, _, _, _>(&a, &b);
+		/// assert_eq!(result, Some(5));
+		/// ```
+		fn dispatch(
 			self,
 			fb: Self::FB,
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
@@ -175,7 +225,7 @@ pub(crate) mod inner {
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 	where
 		FA: ApplyFirstDispatch<'a, Brand, A, B, Marker>, {
-		fa.dispatch_apply_first(fb)
+		fa.dispatch(fb)
 	}
 }
 

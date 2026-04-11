@@ -50,5 +50,5 @@ pub fn apply_first<'a, FA, A: 'a, B: 'a, Marker>(
 ) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
 where
 	FA: DefaultBrand + ApplyFirstDispatch<'a, <FA as DefaultBrand>::Brand, A, B, Marker>, {
-	fa.dispatch_apply_first(fb)
+	fa.dispatch(fb)
 }
