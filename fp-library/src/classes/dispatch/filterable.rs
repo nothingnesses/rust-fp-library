@@ -14,12 +14,14 @@
 //! };
 //!
 //! // Owned: dispatches to Filterable::filter_map
-//! let y =
-//! 	filter_map::<OptionBrand, _, _, _, _>(|x: i32| if x > 3 { Some(x) } else { None }, Some(5));
+//! let y = filter_map_explicit::<OptionBrand, _, _, _, _>(
+//! 	|x: i32| if x > 3 { Some(x) } else { None },
+//! 	Some(5),
+//! );
 //! assert_eq!(y, Some(5));
 //!
 //! // By-ref: dispatches to RefFilterable::ref_filter_map
-//! let y = filter_map::<OptionBrand, _, _, _, _>(
+//! let y = filter_map_explicit::<OptionBrand, _, _, _, _>(
 //! 	|x: &i32| if *x > 3 { Some(*x) } else { None },
 //! 	&Some(5),
 //! );
@@ -75,7 +77,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = filter_map::<OptionBrand, _, _, _, _>(
+		/// let result = filter_map_explicit::<OptionBrand, _, _, _, _>(
 		/// 	|x: i32| if x > 3 { Some(x * 2) } else { None },
 		/// 	Some(5),
 		/// );
@@ -128,7 +130,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = filter_map::<OptionBrand, _, _, _, _>(
+		/// let result = filter_map_explicit::<OptionBrand, _, _, _, _>(
 		/// 	|x: i32| if x > 3 { Some(x * 2) } else { None },
 		/// 	Some(5),
 		/// );
@@ -186,7 +188,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = filter_map::<OptionBrand, _, _, _, _>(
+		/// let result = filter_map_explicit::<OptionBrand, _, _, _, _>(
 		/// 	|x: &i32| if *x > 3 { Some(*x * 2) } else { None },
 		/// 	&Some(5),
 		/// );
@@ -215,7 +217,7 @@ pub(crate) mod inner {
 	///
 	/// The `Marker` and `FA` type parameters are inferred automatically by the
 	/// compiler from the closure's argument type and the container argument.
-	/// Callers write `filter_map::<Brand, _, _, _, _>(...)` and never need to
+	/// Callers write `filter_map_explicit::<Brand, _, _, _, _>(...)` and never need to
 	/// specify `Marker` or `FA` explicitly.
 	///
 	/// The dispatch is resolved at compile time with no runtime cost.
@@ -248,12 +250,14 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // Owned: dispatches to Filterable::filter_map
-	/// let y =
-	/// 	filter_map::<OptionBrand, _, _, _, _>(|x: i32| if x > 3 { Some(x) } else { None }, Some(5));
+	/// let y = filter_map_explicit::<OptionBrand, _, _, _, _>(
+	/// 	|x: i32| if x > 3 { Some(x) } else { None },
+	/// 	Some(5),
+	/// );
 	/// assert_eq!(y, Some(5));
 	///
 	/// // By-ref: dispatches to RefFilterable::ref_filter_map
-	/// let y = filter_map::<OptionBrand, _, _, _, _>(
+	/// let y = filter_map_explicit::<OptionBrand, _, _, _, _>(
 	/// 	|x: &i32| if *x > 3 { Some(*x) } else { None },
 	/// 	&Some(5),
 	/// );

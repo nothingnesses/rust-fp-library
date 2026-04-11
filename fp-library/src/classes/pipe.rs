@@ -52,9 +52,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = Some(5)
-		/// 	.pipe(|x| map_explicit::<OptionBrand, _, _, _, _>(|n| n + 1, x))
-		/// 	.pipe(|x| bind::<OptionBrand, _, _, _, _>(x, |n| if n > 3 { Some(n) } else { None }));
+		/// let result =
+		/// 	Some(5).pipe(|x| map_explicit::<OptionBrand, _, _, _, _>(|n| n + 1, x)).pipe(|x| {
+		/// 		bind_explicit::<OptionBrand, _, _, _, _>(x, |n| if n > 3 { Some(n) } else { None })
+		/// 	});
 		///
 		/// assert_eq!(result, Some(6));
 		/// ```

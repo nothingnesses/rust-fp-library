@@ -14,7 +14,7 @@
 //! };
 //!
 //! // Owned: dispatches to FilterableWithIndex::filter_map_with_index
-//! let y = filter_map_with_index::<VecBrand, _, _, _, _>(
+//! let y = filter_map_with_index_explicit::<VecBrand, _, _, _, _>(
 //! 	|i, x: i32| if i % 2 == 0 { Some(x * 2) } else { None },
 //! 	vec![10, 20, 30, 40],
 //! );
@@ -22,7 +22,7 @@
 //!
 //! // By-ref: dispatches to RefFilterableWithIndex::ref_filter_map_with_index
 //! let v = vec![10, 20, 30, 40];
-//! let y = filter_map_with_index::<VecBrand, _, _, _, _>(
+//! let y = filter_map_with_index_explicit::<VecBrand, _, _, _, _>(
 //! 	|i, x: &i32| if i % 2 == 0 { Some(*x * 2) } else { None },
 //! 	&v,
 //! );
@@ -86,7 +86,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = filter_map_with_index::<VecBrand, _, _, _, _>(
+		/// let result = filter_map_with_index_explicit::<VecBrand, _, _, _, _>(
 		/// 	|i, x: i32| if i % 2 == 0 { Some(x * 2) } else { None },
 		/// 	vec![10, 20, 30, 40],
 		/// );
@@ -140,7 +140,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = filter_map_with_index::<VecBrand, _, _, _, _>(
+		/// let result = filter_map_with_index_explicit::<VecBrand, _, _, _, _>(
 		/// 	|i, x: i32| if i % 2 == 0 { Some(x * 2) } else { None },
 		/// 	vec![10, 20, 30, 40],
 		/// );
@@ -200,7 +200,7 @@ pub(crate) mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30, 40];
-		/// let result = filter_map_with_index::<VecBrand, _, _, _, _>(
+		/// let result = filter_map_with_index_explicit::<VecBrand, _, _, _, _>(
 		/// 	|i, x: &i32| if i % 2 == 0 { Some(*x * 2) } else { None },
 		/// 	&v,
 		/// );
@@ -229,7 +229,7 @@ pub(crate) mod inner {
 	///
 	/// The `Marker` and `FA` type parameters are inferred automatically by the
 	/// compiler from the closure's argument type and the container argument.
-	/// Callers write `filter_map_with_index::<Brand, _, _, _, _>(...)` and never need to
+	/// Callers write `filter_map_with_index_explicit::<Brand, _, _, _, _>(...)` and never need to
 	/// specify `Marker` or `FA` explicitly.
 	///
 	/// The dispatch is resolved at compile time with no runtime cost.
@@ -262,7 +262,7 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // Owned: dispatches to FilterableWithIndex::filter_map_with_index
-	/// let y = filter_map_with_index::<VecBrand, _, _, _, _>(
+	/// let y = filter_map_with_index_explicit::<VecBrand, _, _, _, _>(
 	/// 	|i, x: i32| if i % 2 == 0 { Some(x * 2) } else { None },
 	/// 	vec![10, 20, 30, 40],
 	/// );
@@ -270,7 +270,7 @@ pub(crate) mod inner {
 	///
 	/// // By-ref: dispatches to RefFilterableWithIndex::ref_filter_map_with_index
 	/// let v = vec![10, 20, 30, 40];
-	/// let y = filter_map_with_index::<VecBrand, _, _, _, _>(
+	/// let y = filter_map_with_index_explicit::<VecBrand, _, _, _, _>(
 	/// 	|i, x: &i32| if i % 2 == 0 { Some(*x * 2) } else { None },
 	/// 	&v,
 	/// );

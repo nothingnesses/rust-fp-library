@@ -15,12 +15,12 @@
 //! };
 //!
 //! // Owned: dispatches to Semimonad::bind
-//! let result = bind::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
+//! let result = bind_explicit::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
 //! assert_eq!(result, Some(10));
 //!
 //! // By-ref: dispatches to RefSemimonad::ref_bind
 //! let lazy = RcLazy::pure(5);
-//! let result = bind::<LazyBrand<RcLazyConfig>, _, _, _, _>(&lazy, |x: &i32| {
+//! let result = bind_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(&lazy, |x: &i32| {
 //! 	Lazy::<_, RcLazyConfig>::new({
 //! 		let v = *x;
 //! 		move || v * 2
@@ -74,7 +74,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = bind::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
+		/// let result = bind_explicit::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
 		/// assert_eq!(result, Some(10));
 		/// ```
 		fn dispatch(
@@ -117,7 +117,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = bind::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
+		/// let result = bind_explicit::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
 		/// assert_eq!(result, Some(10));
 		/// ```
 		fn dispatch(
@@ -167,7 +167,7 @@ pub(crate) mod inner {
 		/// 	types::*,
 		/// };
 		/// let lazy = RcLazy::pure(5);
-		/// let result = bind::<LazyBrand<RcLazyConfig>, _, _, _, _>(&lazy, |x: &i32| {
+		/// let result = bind_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(&lazy, |x: &i32| {
 		/// 	Lazy::<_, RcLazyConfig>::new({
 		/// 		let v = *x;
 		/// 		move || v * 2
@@ -190,7 +190,7 @@ pub(crate) mod inner {
 	///
 	/// The `Marker` and `FA` type parameters are inferred automatically by the
 	/// compiler from the closure's argument type and the container argument.
-	/// Callers write `bind::<Brand, _, _, _, _>(...)` and never need to specify
+	/// Callers write `bind_explicit::<Brand, _, _, _, _>(...)` and never need to specify
 	/// `Marker` or `FA` explicitly.
 	#[document_signature]
 	///
@@ -216,7 +216,7 @@ pub(crate) mod inner {
 	/// 	brands::*,
 	/// 	functions::*,
 	/// };
-	/// let result = bind::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
+	/// let result = bind_explicit::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
 	/// assert_eq!(result, Some(10));
 	/// ```
 	pub fn bind<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker>(
@@ -259,7 +259,7 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // By-value
-	/// let result = bind_flipped::<OptionBrand, _, _, _, _>(|x: i32| Some(x * 2), Some(5));
+	/// let result = bind_flipped_explicit::<OptionBrand, _, _, _, _>(|x: i32| Some(x * 2), Some(5));
 	/// assert_eq!(result, Some(10));
 	/// ```
 	pub fn bind_flipped<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker>(

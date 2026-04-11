@@ -132,8 +132,8 @@ fn equivalent_to_manual_bind() {
 		pure(z)
 	});
 
-	let manual_result = bind::<OptionBrand, _, _, _, _>(Some(5), move |x| {
-		bind::<OptionBrand, _, _, _, _>(Some(x + 1), move |y| {
+	let manual_result = bind_explicit::<OptionBrand, _, _, _, _>(Some(5), move |x| {
+		bind_explicit::<OptionBrand, _, _, _, _>(Some(x + 1), move |y| {
 			let z = x * y;
 			pure::<OptionBrand, _>(z)
 		})

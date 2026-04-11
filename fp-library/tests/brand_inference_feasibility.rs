@@ -42,7 +42,7 @@ impl<T: DefaultBrand + ?Sized> DefaultBrand for &T {
 
 // -- Inference-based map function --
 
-fn map_infer<'a, FA, A: 'a, B: 'a, Marker>(
+fn map<'a, FA, A: 'a, B: 'a, Marker>(
 	f: impl FunctorDispatch<'a, <FA as DefaultBrand>::Brand, A, B, FA, Marker>,
 	fa: FA,
 ) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>
@@ -55,31 +55,31 @@ where
 
 #[test]
 fn val_option_infer() {
-	let result: Option<i32> = map_infer(|x: i32| x * 2, Some(5));
+	let result: Option<i32> = map(|x: i32| x * 2, Some(5));
 	assert_eq!(result, Some(10));
 }
 
 #[test]
 fn val_vec_infer() {
-	let result: Vec<i32> = map_infer(|x: i32| x + 1, vec![1, 2, 3]);
+	let result: Vec<i32> = map(|x: i32| x + 1, vec![1, 2, 3]);
 	assert_eq!(result, vec![2, 3, 4]);
 }
 
 #[test]
 fn val_none_infer() {
-	let result: Option<i32> = map_infer(|x: i32| x * 2, None::<i32>);
+	let result: Option<i32> = map(|x: i32| x * 2, None::<i32>);
 	assert_eq!(result, None);
 }
 
 #[test]
 fn val_different_output_type() {
-	let result: Vec<String> = map_infer(|x: i32| x.to_string(), vec![1, 2]);
+	let result: Vec<String> = map(|x: i32| x.to_string(), vec![1, 2]);
 	assert_eq!(result, vec!["1", "2"]);
 }
 
 #[test]
 fn val_option_different_output_type() {
-	let result = map_infer(|x: i32| x.to_string(), Some(5));
+	let result = map(|x: i32| x.to_string(), Some(5));
 	assert_eq!(result, Some("5".to_string()));
 }
 
@@ -88,29 +88,29 @@ fn val_option_different_output_type() {
 #[test]
 fn ref_option_infer() {
 	let opt = Some(5);
-	let result: Option<i32> = map_infer(|x: &i32| *x * 2, &opt);
+	let result: Option<i32> = map(|x: &i32| *x * 2, &opt);
 	assert_eq!(result, Some(10));
 }
 
 #[test]
 fn ref_vec_infer() {
 	let v = vec![1, 2, 3];
-	let result: Vec<i32> = map_infer(|x: &i32| *x + 1, &v);
+	let result: Vec<i32> = map(|x: &i32| *x + 1, &v);
 	assert_eq!(result, vec![2, 3, 4]);
 }
 
 #[test]
 fn ref_lazy_infer() {
 	let lazy = RcLazy::pure(10);
-	let result = map_infer(|x: &i32| *x * 2, &lazy);
+	let result = map(|x: &i32| *x * 2, &lazy);
 	assert_eq!(*result.evaluate(), 20);
 }
 
 #[test]
 fn ref_option_reuse_after_map() {
 	let opt = Some(5);
-	let r1 = map_infer(|x: &i32| *x * 2, &opt);
-	let r2 = map_infer(|x: &i32| *x + 1, &opt);
+	let r1 = map(|x: &i32| *x * 2, &opt);
+	let r2 = map(|x: &i32| *x + 1, &opt);
 	assert_eq!(r1, Some(10));
 	assert_eq!(r2, Some(6));
 }
@@ -118,8 +118,8 @@ fn ref_option_reuse_after_map() {
 #[test]
 fn ref_vec_reuse_after_map() {
 	let v = vec![1, 2, 3];
-	let r1: Vec<i32> = map_infer(|x: &i32| *x * 10, &v);
-	let r2: Vec<i32> = map_infer(|x: &i32| *x + 100, &v);
+	let r1: Vec<i32> = map(|x: &i32| *x * 10, &v);
+	let r2: Vec<i32> = map(|x: &i32| *x + 100, &v);
 	assert_eq!(r1, vec![10, 20, 30]);
 	assert_eq!(r2, vec![101, 102, 103]);
 }
@@ -128,13 +128,13 @@ fn ref_vec_reuse_after_map() {
 
 #[test]
 fn ref_temporary_borrow() {
-	let result: Vec<i32> = map_infer(|x: &i32| *x + 1, &vec![1, 2, 3]);
+	let result: Vec<i32> = map(|x: &i32| *x + 1, &vec![1, 2, 3]);
 	assert_eq!(result, vec![2, 3, 4]);
 }
 
 #[test]
 fn ref_temporary_option() {
-	let result: Option<i32> = map_infer(|x: &i32| *x * 3, &Some(7));
+	let result: Option<i32> = map(|x: &i32| *x * 3, &Some(7));
 	assert_eq!(result, Some(21));
 }
 
@@ -143,15 +143,15 @@ fn ref_temporary_option() {
 #[test]
 fn mixed_val_then_ref() {
 	let v = vec![1, 2, 3];
-	let ref_result: Vec<i32> = map_infer(|x: &i32| *x * 10, &v);
-	let val_result: Vec<i32> = map_infer(|x: i32| x + 1, v);
+	let ref_result: Vec<i32> = map(|x: &i32| *x * 10, &v);
+	let val_result: Vec<i32> = map(|x: i32| x + 1, v);
 	assert_eq!(ref_result, vec![10, 20, 30]);
 	assert_eq!(val_result, vec![2, 3, 4]);
 }
 
 // Note: the following should NOT compile because Result has no DefaultBrand
 // (multiple brands make it ambiguous):
-// let _ = map_infer(|x: &i32| *x, &Ok::<i32, String>(5));
+// let _ = map(|x: &i32| *x, &Ok::<i32, String>(5));
 
 // -- Inference-based bind function --
 
@@ -246,25 +246,25 @@ fn bind_ref_lazy_infer() {
 
 #[test]
 fn real_infer_val_option() {
-	use fp_library::functions::map_infer;
-	assert_eq!(map_infer(|x: i32| x * 2, Some(5)), Some(10));
+	use fp_library::functions::map;
+	assert_eq!(map(|x: i32| x * 2, Some(5)), Some(10));
 }
 
 #[test]
 fn real_infer_val_vec() {
-	use fp_library::functions::map_infer;
-	assert_eq!(map_infer(|x: i32| x + 1, vec![1, 2, 3]), vec![2, 3, 4]);
+	use fp_library::functions::map;
+	assert_eq!(map(|x: i32| x + 1, vec![1, 2, 3]), vec![2, 3, 4]);
 }
 
 #[test]
 fn real_infer_ref_option() {
-	use fp_library::functions::map_infer;
-	assert_eq!(map_infer(|x: &i32| *x * 2, &Some(5)), Some(10));
+	use fp_library::functions::map;
+	assert_eq!(map(|x: &i32| *x * 2, &Some(5)), Some(10));
 }
 
 #[test]
 fn real_infer_ref_vec() {
-	use fp_library::functions::map_infer;
+	use fp_library::functions::map;
 	let v = vec![1, 2, 3];
-	assert_eq!(map_infer(|x: &i32| *x + 10, &v), vec![11, 12, 13]);
+	assert_eq!(map(|x: &i32| *x + 10, &v), vec![11, 12, 13]);
 }

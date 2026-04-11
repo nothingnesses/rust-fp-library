@@ -895,7 +895,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<PairFirstAppliedBrand<String>, _, _, _, _, _, _>(
+		/// 	lift2_explicit::<PairFirstAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		Pair("a".to_string(), 1),
 		/// 		Pair("b".to_string(), 2)
@@ -1034,10 +1034,9 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<PairFirstAppliedBrand<String>, _, _, _, _>(Pair("a".to_string(), 5), |x| Pair(
-		/// 		"b".to_string(),
-		/// 		x * 2
-		/// 	)),
+		/// 	bind_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(Pair("a".to_string(), 5), |x| {
+		/// 		Pair("b".to_string(), x * 2)
+		/// 	}),
 		/// 	Pair("ab".to_string(), 10)
 		/// );
 		/// ```
@@ -1500,7 +1499,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result = lift2::<PairFirstAppliedBrand<String>, _, _, _, _, _, _>(
+		/// let result = lift2_explicit::<PairFirstAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
 		/// 	&Pair("a".to_string(), 1),
 		/// 	&Pair("b".to_string(), 2),
@@ -1577,10 +1576,10 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result: Pair<String, String> =
-		/// 	bind::<PairFirstAppliedBrand<String>, _, _, _, _>(&Pair("a".to_string(), 42), |x: &i32| {
-		/// 		Pair("b".to_string(), x.to_string())
-		/// 	});
+		/// let result: Pair<String, String> = bind_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(
+		/// 	&Pair("a".to_string(), 42),
+		/// 	|x: &i32| Pair("b".to_string(), x.to_string()),
+		/// );
 		/// assert_eq!(result, Pair("ab".to_string(), "42".to_string()));
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
@@ -1678,7 +1677,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<PairSecondAppliedBrand<String>, _, _, _, _, _, _>(
+		/// 	lift2_explicit::<PairSecondAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		Pair(1, "a".to_string()),
 		/// 		Pair(2, "b".to_string())
@@ -1817,10 +1816,10 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<PairSecondAppliedBrand<String>, _, _, _, _>(Pair(5, "a".to_string()), |x| Pair(
-		/// 		x * 2,
-		/// 		"b".to_string()
-		/// 	)),
+		/// 	bind_explicit::<PairSecondAppliedBrand<String>, _, _, _, _>(
+		/// 		Pair(5, "a".to_string()),
+		/// 		|x| Pair(x * 2, "b".to_string())
+		/// 	),
 		/// 	Pair(10, "ab".to_string())
 		/// );
 		/// ```
@@ -2277,7 +2276,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result = lift2::<PairSecondAppliedBrand<String>, _, _, _, _, _, _>(
+		/// let result = lift2_explicit::<PairSecondAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
 		/// 	&Pair(1, "a".to_string()),
 		/// 	&Pair(2, "b".to_string()),
@@ -2354,7 +2353,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result: Pair<String, String> = bind::<PairSecondAppliedBrand<String>, _, _, _, _>(
+		/// let result: Pair<String, String> = bind_explicit::<PairSecondAppliedBrand<String>, _, _, _, _>(
 		/// 	&Pair(42, "a".to_string()),
 		/// 	|x: &i32| Pair(x.to_string(), "b".to_string()),
 		/// );
@@ -2544,7 +2543,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| Pair("f".to_string(), x.wrapping_mul(2));
-		bind::<PairFirstAppliedBrand<String>, _, _, _, _>(
+		bind_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(
 			pure::<PairFirstAppliedBrand<String>, _>(a),
 			f,
 		) == f(a)
@@ -2557,7 +2556,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let m = Pair(first, second);
-		bind::<PairFirstAppliedBrand<String>, _, _, _, _>(
+		bind_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(
 			m.clone(),
 			pure::<PairFirstAppliedBrand<String>, _>,
 		) == m
@@ -2572,11 +2571,11 @@ mod tests {
 		let m = Pair(first, second);
 		let f = |x: i32| Pair("f".to_string(), x.wrapping_mul(2));
 		let g = |x: i32| Pair("g".to_string(), x.wrapping_add(1));
-		bind::<PairFirstAppliedBrand<String>, _, _, _, _>(
-			bind::<PairFirstAppliedBrand<String>, _, _, _, _>(m.clone(), f),
+		bind_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(
+			bind_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(m.clone(), f),
 			g,
-		) == bind::<PairFirstAppliedBrand<String>, _, _, _, _>(m, |x| {
-			bind::<PairFirstAppliedBrand<String>, _, _, _, _>(f(x), g)
+		) == bind_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(m, |x| {
+			bind_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(f(x), g)
 		})
 	}
 

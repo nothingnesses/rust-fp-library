@@ -14,7 +14,7 @@
 //! };
 //!
 //! let x = Some(5);
-//! let y = bind::<OptionBrand, _, _, _, _>(x, |i| Some(i * 2));
+//! let y = bind_explicit::<OptionBrand, _, _, _, _>(x, |i| Some(i * 2));
 //! assert_eq!(y, Some(10));
 //! ```
 
@@ -58,7 +58,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = bind::<OptionBrand, _, _, _, _>(x, |i| Some(i * 2));
+		/// let y = bind_explicit::<OptionBrand, _, _, _, _>(x, |i| Some(i * 2));
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(

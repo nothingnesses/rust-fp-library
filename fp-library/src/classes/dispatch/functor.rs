@@ -15,12 +15,12 @@
 //! };
 //!
 //! // Owned: dispatches to Functor::map
-//! let y = map::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
+//! let y = map_explicit::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
 //! assert_eq!(y, Some(10));
 //!
 //! // By-ref: dispatches to RefFunctor::ref_map
 //! let lazy = RcLazy::pure(10);
-//! let mapped = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
+//! let mapped = map_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
 //! assert_eq!(*mapped.evaluate(), 20);
 //! ```
 
@@ -74,7 +74,7 @@ pub(crate) mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result = map::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
+		/// let result = map_explicit::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
 		/// assert_eq!(result, Some(10));
 		/// ```
 		fn dispatch(
@@ -124,7 +124,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = map::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
+		/// let result = map_explicit::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
 		/// assert_eq!(result, Some(10));
 		/// ```
 		fn dispatch(
@@ -181,7 +181,7 @@ pub(crate) mod inner {
 		/// };
 		///
 		/// let lazy = RcLazy::pure(10);
-		/// let result = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
+		/// let result = map_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
 		/// assert_eq!(*result.evaluate(), 20);
 		/// ```
 		fn dispatch(
@@ -206,7 +206,7 @@ pub(crate) mod inner {
 	///
 	/// The `Marker` and `FA` type parameters are inferred automatically by the
 	/// compiler from the closure's argument type and the container argument.
-	/// Callers write `map::<Brand, _, _, _, _>(...)` and never need to specify
+	/// Callers write `map_explicit::<Brand, _, _, _, _>(...)` and never need to specify
 	/// `Marker` or `FA` explicitly.
 	///
 	/// The dispatch is resolved at compile time with no runtime cost.
@@ -238,12 +238,12 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // Owned: dispatches to Functor::map
-	/// let y = map::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
+	/// let y = map_explicit::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
 	/// assert_eq!(y, Some(10));
 	///
 	/// // By-ref: dispatches to RefFunctor::ref_map
 	/// let lazy = RcLazy::pure(10);
-	/// let mapped = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
+	/// let mapped = map_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
 	/// assert_eq!(*mapped.evaluate(), 20);
 	/// ```
 	pub fn map<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker>(

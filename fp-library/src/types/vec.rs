@@ -167,7 +167,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<VecBrand, _, _, _, _, _, _>(|x, y| x + y, vec![1, 2], vec![10, 20]),
+		/// 	lift2_explicit::<VecBrand, _, _, _, _, _, _>(|x, y| x + y, vec![1, 2], vec![10, 20]),
 		/// 	vec![11, 21, 12, 22]
 		/// );
 		/// ```
@@ -284,7 +284,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(bind::<VecBrand, _, _, _, _>(vec![1, 2], |x| vec![x, x * 2]), vec![1, 2, 2, 4]);
+		/// assert_eq!(
+		/// 	bind_explicit::<VecBrand, _, _, _, _>(vec![1, 2], |x| vec![x, x * 2]),
+		/// 	vec![1, 2, 2, 4]
+		/// );
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1689,8 +1692,10 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let (errs, oks) =
-		/// 	partition_map::<VecBrand, _, _, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, x);
+		/// let (errs, oks) = partition_map_explicit::<VecBrand, _, _, _, _, _>(
+		/// 	|a| if a % 2 == 0 { Ok(a) } else { Err(a) },
+		/// 	x,
+		/// );
 		/// assert_eq!(oks, vec![2, 4]);
 		/// assert_eq!(errs, vec![1, 3]);
 		/// ```
@@ -1732,7 +1737,7 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let (not_satisfied, satisfied) = partition::<VecBrand, _, _, _>(|a| a % 2 == 0, x);
+		/// let (not_satisfied, satisfied) = partition_explicit::<VecBrand, _, _, _>(|a| a % 2 == 0, x);
 		/// assert_eq!(satisfied, vec![2, 4]);
 		/// assert_eq!(not_satisfied, vec![1, 3]);
 		/// ```
@@ -1772,7 +1777,10 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let y = filter_map::<VecBrand, _, _, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, x);
+		/// let y = filter_map_explicit::<VecBrand, _, _, _, _>(
+		/// 	|a| if a % 2 == 0 { Some(a * 2) } else { None },
+		/// 	x,
+		/// );
 		/// assert_eq!(y, vec![4, 8]);
 		/// ```
 		fn filter_map<'a, A: 'a, B: 'a>(
@@ -1802,7 +1810,7 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let y = filter::<VecBrand, _, _, _>(|a| a % 2 == 0, x);
+		/// let y = filter_explicit::<VecBrand, _, _, _>(|a| a % 2 == 0, x);
 		/// assert_eq!(y, vec![2, 4]);
 		/// ```
 		fn filter<'a, A: 'a + Clone>(
@@ -1840,7 +1848,7 @@ mod inner {
 		/// };
 		///
 		/// let xs = vec![1, 2, 3, 4];
-		/// let (errs, oks) = partition_map_with_index::<VecBrand, _, _, _, _, _>(
+		/// let (errs, oks) = partition_map_with_index_explicit::<VecBrand, _, _, _, _, _>(
 		/// 	|i, a: i32| if i < 2 { Ok(a) } else { Err(a) },
 		/// 	xs,
 		/// );
@@ -1884,7 +1892,7 @@ mod inner {
 		///
 		/// let xs = vec![1, 2, 3, 4];
 		/// let (not_satisfied, satisfied) =
-		/// 	partition_with_index::<VecBrand, _, _, _>(|i, _a: i32| i < 2, xs);
+		/// 	partition_with_index_explicit::<VecBrand, _, _, _>(|i, _a: i32| i < 2, xs);
 		/// assert_eq!(satisfied, vec![1, 2]);
 		/// assert_eq!(not_satisfied, vec![3, 4]);
 		/// ```
@@ -1929,7 +1937,7 @@ mod inner {
 		/// };
 		///
 		/// let xs = vec![1, 2, 3, 4];
-		/// let result = filter_map_with_index::<VecBrand, _, _, _, _>(
+		/// let result = filter_map_with_index_explicit::<VecBrand, _, _, _, _>(
 		/// 	|i, a: i32| if i % 2 == 0 { Some(a * 2) } else { None },
 		/// 	xs,
 		/// );
@@ -1963,7 +1971,7 @@ mod inner {
 		/// };
 		///
 		/// let xs = vec![1, 2, 3, 4];
-		/// let result = filter_with_index::<VecBrand, _, _, _>(|i, _a: i32| i < 2, xs);
+		/// let result = filter_with_index_explicit::<VecBrand, _, _, _>(|i, _a: i32| i < 2, xs);
 		/// assert_eq!(result, vec![1, 2]);
 		/// ```
 		fn filter_with_index<'a, A: 'a + Clone>(
@@ -2404,8 +2412,10 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![1, 2, 3, 4, 5];
-		/// let result =
-		/// 	filter_map::<VecBrand, _, _, _, _>(|x: &i32| if *x > 3 { Some(*x) } else { None }, &v);
+		/// let result = filter_map_explicit::<VecBrand, _, _, _, _>(
+		/// 	|x: &i32| if *x > 3 { Some(*x) } else { None },
+		/// 	&v,
+		/// );
 		/// assert_eq!(result, vec![4, 5]);
 		/// ```
 		fn ref_filter_map<'a, A: 'a, B: 'a>(
@@ -2498,7 +2508,8 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30];
-		/// let result = map_with_index::<VecBrand, _, _, _, _>(|i, x: &i32| format!("{}:{}", i, x), &v);
+		/// let result =
+		/// 	map_with_index_explicit::<VecBrand, _, _, _, _>(|i, x: &i32| format!("{}:{}", i, x), &v);
 		/// assert_eq!(result, vec!["0:10", "1:20", "2:30"]);
 		/// ```
 		fn ref_map_with_index<'a, A: 'a, B: 'a>(
@@ -2577,7 +2588,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30, 40, 50];
-		/// let result = filter_map_with_index::<VecBrand, _, _, _, _>(
+		/// let result = filter_map_with_index_explicit::<VecBrand, _, _, _, _>(
 		/// 	|i, x: &i32| if i >= 2 { Some(*x) } else { None },
 		/// 	&v,
 		/// );
@@ -2704,7 +2715,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let v = lift2::<VecBrand, _, _, _, _, _, _>(
+		/// let v = lift2_explicit::<VecBrand, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &String| format!("{}{}", a, b),
 		/// 	&vec![1, 2],
 		/// 	&vec!["a".to_string(), "b".to_string()],
@@ -2787,7 +2798,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![1, 2, 3];
-		/// let result: Vec<i32> = bind::<VecBrand, _, _, _, _>(&v, |x: &i32| vec![*x, *x * 10]);
+		/// let result: Vec<i32> = bind_explicit::<VecBrand, _, _, _, _>(&v, |x: &i32| vec![*x, *x * 10]);
 		/// assert_eq!(result, vec![1, 10, 2, 20, 3, 30]);
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
@@ -3130,13 +3141,13 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| vec![x.wrapping_mul(2)];
-		bind::<VecBrand, _, _, _, _>(pure::<VecBrand, _>(a), f) == f(a)
+		bind_explicit::<VecBrand, _, _, _, _>(pure::<VecBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: Vec<i32>) -> bool {
-		bind::<VecBrand, _, _, _, _>(m.clone(), pure::<VecBrand, _>) == m
+		bind_explicit::<VecBrand, _, _, _, _>(m.clone(), pure::<VecBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -3144,8 +3155,12 @@ mod tests {
 	fn monad_associativity(m: Vec<i32>) -> bool {
 		let f = |x: i32| vec![x.wrapping_mul(2)];
 		let g = |x: i32| vec![x.wrapping_add(1)];
-		bind::<VecBrand, _, _, _, _>(bind::<VecBrand, _, _, _, _>(m.clone(), f), g)
-			== bind::<VecBrand, _, _, _, _>(m, |x| bind::<VecBrand, _, _, _, _>(f(x), g))
+		bind_explicit::<VecBrand, _, _, _, _>(
+			bind_explicit::<VecBrand, _, _, _, _>(m.clone(), f),
+			g,
+		) == bind_explicit::<VecBrand, _, _, _, _>(m, |x| {
+			bind_explicit::<VecBrand, _, _, _, _>(f(x), g)
+		})
 	}
 
 	// Edge Cases
@@ -3163,7 +3178,7 @@ mod tests {
 	#[test]
 	fn bind_empty() {
 		assert_eq!(
-			bind::<VecBrand, _, _, _, _>(vec![] as Vec<i32>, |x: i32| vec![x + 1]),
+			bind_explicit::<VecBrand, _, _, _, _>(vec![] as Vec<i32>, |x: i32| vec![x + 1]),
 			vec![] as Vec<i32>
 		);
 	}
@@ -3172,7 +3187,7 @@ mod tests {
 	#[test]
 	fn bind_returning_empty() {
 		assert_eq!(
-			bind::<VecBrand, _, _, _, _>(vec![1, 2, 3], |_| vec![] as Vec<i32>),
+			bind_explicit::<VecBrand, _, _, _, _>(vec![1, 2, 3], |_| vec![] as Vec<i32>),
 			vec![] as Vec<i32>
 		);
 	}
@@ -3323,13 +3338,14 @@ mod tests {
 	/// Tests `filterMap identity ≡ compact`.
 	#[quickcheck]
 	fn filterable_filter_map_identity(x: Vec<Option<i32>>) -> bool {
-		filter_map::<VecBrand, _, _, _, _>(identity, x.clone()) == compact::<VecBrand, _>(x)
+		filter_map_explicit::<VecBrand, _, _, _, _>(identity, x.clone())
+			== compact::<VecBrand, _>(x)
 	}
 
 	/// Tests `filterMap Just ≡ identity`.
 	#[quickcheck]
 	fn filterable_filter_map_just(x: Vec<i32>) -> bool {
-		filter_map::<VecBrand, _, _, _, _>(Some, x.clone()) == x
+		filter_map_explicit::<VecBrand, _, _, _, _>(Some, x.clone()) == x
 	}
 
 	/// Tests `filterMap (l <=< r) ≡ filterMap l <<< filterMap r`.
@@ -3337,10 +3353,13 @@ mod tests {
 	fn filterable_filter_map_composition(x: Vec<i32>) -> bool {
 		let r = |i: i32| if i % 2 == 0 { Some(i) } else { None };
 		let l = |i: i32| if i > 5 { Some(i) } else { None };
-		let composed = |i| bind::<OptionBrand, _, _, _, _>(r(i), l);
+		let composed = |i| bind_explicit::<OptionBrand, _, _, _, _>(r(i), l);
 
-		filter_map::<VecBrand, _, _, _, _>(composed, x.clone())
-			== filter_map::<VecBrand, _, _, _, _>(l, filter_map::<VecBrand, _, _, _, _>(r, x))
+		filter_map_explicit::<VecBrand, _, _, _, _>(composed, x.clone())
+			== filter_map_explicit::<VecBrand, _, _, _, _>(
+				l,
+				filter_map_explicit::<VecBrand, _, _, _, _>(r, x),
+			)
 	}
 
 	/// Tests `filter ≡ filterMap <<< maybeBool`.
@@ -3349,28 +3368,28 @@ mod tests {
 		let p = |i: i32| i % 2 == 0;
 		let maybe_bool = |i| if p(i) { Some(i) } else { None };
 
-		filter::<VecBrand, _, _, _>(p, x.clone())
-			== filter_map::<VecBrand, _, _, _, _>(maybe_bool, x)
+		filter_explicit::<VecBrand, _, _, _>(p, x.clone())
+			== filter_map_explicit::<VecBrand, _, _, _, _>(maybe_bool, x)
 	}
 
 	/// Tests `partitionMap identity ≡ separate`.
 	#[quickcheck]
 	fn filterable_partition_map_identity(x: Vec<Result<i32, i32>>) -> bool {
-		partition_map::<VecBrand, _, _, _, _, _>(identity, x.clone())
+		partition_map_explicit::<VecBrand, _, _, _, _, _>(identity, x.clone())
 			== separate::<VecBrand, _, _>(x)
 	}
 
 	/// Tests `partitionMap Right ≡ identity` (on the right side).
 	#[quickcheck]
 	fn filterable_partition_map_right_identity(x: Vec<i32>) -> bool {
-		let (_, oks) = partition_map::<VecBrand, _, _, _, _, _>(Ok::<_, i32>, x.clone());
+		let (_, oks) = partition_map_explicit::<VecBrand, _, _, _, _, _>(Ok::<_, i32>, x.clone());
 		oks == x
 	}
 
 	/// Tests `partitionMap Left ≡ identity` (on the left side).
 	#[quickcheck]
 	fn filterable_partition_map_left_identity(x: Vec<i32>) -> bool {
-		let (errs, _) = partition_map::<VecBrand, _, _, _, _, _>(Err::<i32, _>, x.clone());
+		let (errs, _) = partition_map_explicit::<VecBrand, _, _, _, _, _>(Err::<i32, _>, x.clone());
 		errs == x
 	}
 
@@ -3380,8 +3399,8 @@ mod tests {
 		let p = |i: i32| i % 2 == 0;
 		let either_bool = |i| if p(i) { Ok(i) } else { Err(i) };
 
-		let (not_satisfied, satisfied) = partition::<VecBrand, _, _, _>(p, x.clone());
-		let (errs, oks) = partition_map::<VecBrand, _, _, _, _, _>(either_bool, x);
+		let (not_satisfied, satisfied) = partition_explicit::<VecBrand, _, _, _>(p, x.clone());
+		let (errs, oks) = partition_map_explicit::<VecBrand, _, _, _, _, _>(either_bool, x);
 
 		satisfied == oks && not_satisfied == errs
 	}
@@ -3532,7 +3551,7 @@ mod tests {
 	#[test]
 	fn partition_map_empty() {
 		let (errs, oks) =
-			partition_map::<VecBrand, _, _, _, _, _>(|x: i32| Ok::<i32, i32>(x), vec![]);
+			partition_map_explicit::<VecBrand, _, _, _, _, _>(|x: i32| Ok::<i32, i32>(x), vec![]);
 		assert_eq!(oks, vec![] as Vec<i32>);
 		assert_eq!(errs, vec![] as Vec<i32>);
 	}
@@ -3540,7 +3559,8 @@ mod tests {
 	/// Tests `partition` on an empty vector.
 	#[test]
 	fn partition_empty() {
-		let (not_satisfied, satisfied) = partition::<VecBrand, _, _, _>(|x: i32| x > 0, vec![]);
+		let (not_satisfied, satisfied) =
+			partition_explicit::<VecBrand, _, _, _>(|x: i32| x > 0, vec![]);
 		assert_eq!(satisfied, vec![] as Vec<i32>);
 		assert_eq!(not_satisfied, vec![] as Vec<i32>);
 	}
@@ -3549,7 +3569,7 @@ mod tests {
 	#[test]
 	fn filter_map_empty() {
 		assert_eq!(
-			filter_map::<VecBrand, i32, _, _, _>(|x: i32| Some(x), vec![]),
+			filter_map_explicit::<VecBrand, i32, _, _, _>(|x: i32| Some(x), vec![]),
 			vec![] as Vec<i32>
 		);
 	}
@@ -3557,7 +3577,10 @@ mod tests {
 	/// Tests `filter` on an empty vector.
 	#[test]
 	fn filter_empty() {
-		assert_eq!(filter::<VecBrand, _, _, _>(|x: i32| x > 0, vec![]), vec![] as Vec<i32>);
+		assert_eq!(
+			filter_explicit::<VecBrand, _, _, _>(|x: i32| x > 0, vec![]),
+			vec![] as Vec<i32>
+		);
 	}
 
 	/// Tests `wilt` on an empty vector.

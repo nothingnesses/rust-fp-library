@@ -97,7 +97,7 @@ mod inner {
 		///
 		/// let x = (1,);
 		/// let y = (2,);
-		/// let z = lift2::<Tuple1Brand, _, _, _, _, _, _>(|a, b| a + b, x, y);
+		/// let z = lift2_explicit::<Tuple1Brand, _, _, _, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, (3,));
 		/// ```
 		fn lift2<'a, A, B, C>(
@@ -211,7 +211,7 @@ mod inner {
 		/// };
 		///
 		/// let x = (5,);
-		/// let y = bind::<Tuple1Brand, _, _, _, _>(x, |i| (i * 2,));
+		/// let y = bind_explicit::<Tuple1Brand, _, _, _, _>(x, |i| (i * 2,));
 		/// assert_eq!(y, (10,));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
@@ -556,7 +556,8 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = lift2::<Tuple1Brand, _, _, _, _, _, _>(|a: &i32, b: &i32| *a + *b, &(1,), &(2,));
+		/// let result =
+		/// 	lift2_explicit::<Tuple1Brand, _, _, _, _, _, _>(|a: &i32, b: &i32| *a + *b, &(1,), &(2,));
 		/// assert_eq!(result, (3,));
 		/// ```
 		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
@@ -617,7 +618,8 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result: (String,) = bind::<Tuple1Brand, _, _, _, _>(&(42,), |x: &i32| (x.to_string(),));
+		/// let result: (String,) =
+		/// 	bind_explicit::<Tuple1Brand, _, _, _, _>(&(42,), |x: &i32| (x.to_string(),));
 		/// assert_eq!(result, ("42".to_string(),));
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
@@ -788,14 +790,14 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| (x.wrapping_mul(2),);
-		bind::<Tuple1Brand, _, _, _, _>(pure::<Tuple1Brand, _>(a), f) == f(a)
+		bind_explicit::<Tuple1Brand, _, _, _, _>(pure::<Tuple1Brand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: i32) -> bool {
 		let m = (m,);
-		bind::<Tuple1Brand, _, _, _, _>(m, pure::<Tuple1Brand, _>) == m
+		bind_explicit::<Tuple1Brand, _, _, _, _>(m, pure::<Tuple1Brand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -804,8 +806,10 @@ mod tests {
 		let m = (m,);
 		let f = |x: i32| (x.wrapping_mul(2),);
 		let g = |x: i32| (x.wrapping_add(1),);
-		bind::<Tuple1Brand, _, _, _, _>(bind::<Tuple1Brand, _, _, _, _>(m, f), g)
-			== bind::<Tuple1Brand, _, _, _, _>(m, |x| bind::<Tuple1Brand, _, _, _, _>(f(x), g))
+		bind_explicit::<Tuple1Brand, _, _, _, _>(bind_explicit::<Tuple1Brand, _, _, _, _>(m, f), g)
+			== bind_explicit::<Tuple1Brand, _, _, _, _>(m, |x| {
+				bind_explicit::<Tuple1Brand, _, _, _, _>(f(x), g)
+			})
 	}
 
 	// Edge Cases
@@ -819,7 +823,7 @@ mod tests {
 	/// Tests the `bind` function.
 	#[test]
 	fn bind_test() {
-		assert_eq!(bind::<Tuple1Brand, _, _, _, _>((1,), |x| (x + 1,)), (2,));
+		assert_eq!(bind_explicit::<Tuple1Brand, _, _, _, _>((1,), |x| (x + 1,)), (2,));
 	}
 
 	/// Tests the `fold_right` function.

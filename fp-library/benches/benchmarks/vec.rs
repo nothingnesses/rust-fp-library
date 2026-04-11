@@ -159,7 +159,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| bind::<VecBrand, _, _, _, _>(v, |x| vec![x, x * 2]),
+				|v| bind_explicit::<VecBrand, _, _, _, _>(v, |x| vec![x, x * 2]),
 				BatchSize::SmallInput,
 			)
 		});
@@ -248,7 +248,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| filter::<VecBrand, _, _, _>(|x| x % 2 == 0, v),
+				|v| filter_explicit::<VecBrand, _, _, _>(|x| x % 2 == 0, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -273,7 +273,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			b.iter_batched(
 				|| v_orig.clone(),
 				|v| {
-					filter_map::<VecBrand, _, _, _, _>(
+					filter_map_explicit::<VecBrand, _, _, _, _>(
 						|x| if x % 2 == 0 { Some(x * 2) } else { None },
 						v,
 					)
@@ -297,7 +297,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| partition::<VecBrand, _, _, _>(|x| x % 2 == 0, v),
+				|v| partition_explicit::<VecBrand, _, _, _>(|x| x % 2 == 0, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -329,7 +329,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			b.iter_batched(
 				|| v_orig.clone(),
 				|v| {
-					partition_map::<VecBrand, _, _, _, _, _>(
+					partition_map_explicit::<VecBrand, _, _, _, _, _>(
 						|x| if x % 2 == 0 { Ok(x * 2) } else { Err(x) },
 						v,
 					)
@@ -479,7 +479,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| (v_orig.clone(), v2.clone()),
-				|(v1, v2)| lift2::<VecBrand, _, _, _, _, _, _>(|x, y| x + y, v1, v2),
+				|(v1, v2)| lift2_explicit::<VecBrand, _, _, _, _, _, _>(|x, y| x + y, v1, v2),
 				BatchSize::SmallInput,
 			)
 		});
@@ -600,7 +600,7 @@ pub fn bench_vec(c: &mut Criterion) {
 					b.iter_batched(
 						|| v.clone(),
 						|v| {
-							filter_map::<VecBrand, _, _, _, _>(
+							filter_map_explicit::<VecBrand, _, _, _, _>(
 								|x: i32| if x % 2 == 0 { Some(x * 2) } else { None },
 								v,
 							)

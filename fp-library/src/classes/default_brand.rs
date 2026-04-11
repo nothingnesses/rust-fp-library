@@ -22,10 +22,7 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use {
-		crate::kinds::*,
-		fp_macros::*,
-	};
+	use crate::kinds::*;
 
 	/// Maps a concrete type back to its canonical brand.
 	///
@@ -57,7 +54,8 @@ mod inner {
 	/// Delegates to the underlying type's `DefaultBrand` implementation,
 	/// enabling brand inference for borrowed containers (`&Vec<A>`, `&Option<A>`,
 	/// etc.) via the same mechanism as owned containers.
-	impl<'a, T: DefaultBrand + ?Sized> DefaultBrand for &'a T {
+	#[document_type_parameters("The underlying type.")]
+	impl<T: DefaultBrand + ?Sized> DefaultBrand for &T {
 		type Brand = T::Brand;
 	}
 }

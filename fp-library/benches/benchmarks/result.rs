@@ -111,9 +111,10 @@ pub fn bench_result(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(std::hint::black_box(val_ok), |x| {
-					Ok(x * 2)
-				})
+				bind_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(
+					std::hint::black_box(val_ok),
+					|x| Ok(x * 2),
+				)
 			})
 		});
 		group.finish();
@@ -130,7 +131,7 @@ pub fn bench_result(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				lift2::<ResultErrAppliedBrand<i32>, _, _, _, _, _, _>(
+				lift2_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _, _, _>(
 					|x, y| x + y,
 					std::hint::black_box(val_ok),
 					std::hint::black_box(val2),

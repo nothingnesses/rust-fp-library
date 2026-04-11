@@ -32,12 +32,12 @@
 //! };
 //!
 //! // Closure takes i32 -> dispatches to Functor::map
-//! let y = map::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
+//! let y = map_explicit::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
 //! assert_eq!(y, Some(10));
 //!
 //! // Closure takes &i32 -> dispatches to RefFunctor::ref_map
 //! let lazy = RcLazy::pure(10);
-//! let mapped = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
+//! let mapped = map_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
 //! assert_eq!(*mapped.evaluate(), 20);
 //! ```
 

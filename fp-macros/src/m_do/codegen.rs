@@ -47,7 +47,7 @@ pub fn m_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 				} else {
 					quote! { #expr }
 				};
-				quote! { bind::<#brand, _, _, _, _>(#container, move |#closure_param| { #result }) }
+				quote! { bind_explicit::<#brand, _, _, _, _>(#container, move |#closure_param| { #result }) }
 			}
 			DoStatement::Let {
 				pattern,
@@ -74,7 +74,7 @@ pub fn m_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 				} else {
 					quote! { #expr }
 				};
-				quote! { bind::<#brand, _, _, _, _>(#container, move |#discard| { #result }) }
+				quote! { bind_explicit::<#brand, _, _, _, _>(#container, move |#discard| { #result }) }
 			}
 		};
 	}

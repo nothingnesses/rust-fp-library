@@ -9,8 +9,10 @@
 //! };
 //!
 //! let v = vec![1, 2, 3, 4, 5];
-//! let result =
-//! 	filter_map::<VecBrand, _, _, _, _>(|x: &i32| if *x > 3 { Some(*x) } else { None }, &v);
+//! let result = filter_map_explicit::<VecBrand, _, _, _, _>(
+//! 	|x: &i32| if *x > 3 { Some(*x) } else { None },
+//! 	&v,
+//! );
 //! assert_eq!(result, vec![4, 5]);
 //! ```
 
@@ -62,7 +64,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![1, 2, 3, 4, 5];
-		/// let (small, big) = partition_map::<VecBrand, _, _, _, _, _>(
+		/// let (small, big) = partition_map_explicit::<VecBrand, _, _, _, _, _>(
 		/// 	|x: &i32| if *x > 3 { Ok(*x) } else { Err(*x) },
 		/// 	&v,
 		/// );
@@ -101,7 +103,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![1, 2, 3, 4, 5];
-		/// let (small, big) = partition::<VecBrand, _, _, _>(|x: &i32| *x > 3, &v);
+		/// let (small, big) = partition_explicit::<VecBrand, _, _, _>(|x: &i32| *x > 3, &v);
 		/// assert_eq!(big, vec![4, 5]);
 		/// assert_eq!(small, vec![1, 2, 3]);
 		/// ```
@@ -144,8 +146,10 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![1, 2, 3, 4, 5];
-		/// let result =
-		/// 	filter_map::<VecBrand, _, _, _, _>(|x: &i32| if *x > 3 { Some(*x) } else { None }, &v);
+		/// let result = filter_map_explicit::<VecBrand, _, _, _, _>(
+		/// 	|x: &i32| if *x > 3 { Some(*x) } else { None },
+		/// 	&v,
+		/// );
 		/// assert_eq!(result, vec![4, 5]);
 		/// ```
 		fn ref_filter_map<'a, A: 'a, B: 'a>(
@@ -175,7 +179,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![1, 2, 3, 4, 5];
-		/// let result = filter::<VecBrand, _, _, _>(|x: &i32| *x > 3, &v);
+		/// let result = filter_explicit::<VecBrand, _, _, _>(|x: &i32| *x > 3, &v);
 		/// assert_eq!(result, vec![4, 5]);
 		/// ```
 		fn ref_filter<'a, A: 'a + Clone>(
@@ -211,7 +215,7 @@ mod inner {
 	/// };
 	///
 	/// let v = vec![1, 2, 3, 4, 5];
-	/// let (small, big) = partition_map::<VecBrand, _, _, _, _, _>(
+	/// let (small, big) = partition_map_explicit::<VecBrand, _, _, _, _, _>(
 	/// 	|x: &i32| if *x > 3 { Ok(*x) } else { Err(*x) },
 	/// 	&v,
 	/// );
@@ -251,7 +255,7 @@ mod inner {
 	/// };
 	///
 	/// let v = vec![1, 2, 3, 4, 5];
-	/// let (small, big) = partition::<VecBrand, _, _, _>(|x: &i32| *x > 3, &v);
+	/// let (small, big) = partition_explicit::<VecBrand, _, _, _>(|x: &i32| *x > 3, &v);
 	/// assert_eq!(big, vec![4, 5]);
 	/// assert_eq!(small, vec![1, 2, 3]);
 	/// ```
@@ -289,8 +293,10 @@ mod inner {
 	/// };
 	///
 	/// let v = vec![1, 2, 3, 4, 5];
-	/// let result =
-	/// 	filter_map::<VecBrand, _, _, _, _>(|x: &i32| if *x > 3 { Some(*x) } else { None }, &v);
+	/// let result = filter_map_explicit::<VecBrand, _, _, _, _>(
+	/// 	|x: &i32| if *x > 3 { Some(*x) } else { None },
+	/// 	&v,
+	/// );
 	/// assert_eq!(result, vec![4, 5]);
 	/// ```
 	pub fn ref_filter_map<'a, Brand: RefFilterable, A: 'a, B: 'a>(
@@ -323,7 +329,7 @@ mod inner {
 	/// };
 	///
 	/// let v = vec![1, 2, 3, 4, 5];
-	/// let result = filter::<VecBrand, _, _, _>(|x: &i32| *x > 3, &v);
+	/// let result = filter_explicit::<VecBrand, _, _, _>(|x: &i32| *x > 3, &v);
 	/// assert_eq!(result, vec![4, 5]);
 	/// ```
 	pub fn ref_filter<'a, Brand: RefFilterable, A: 'a + Clone>(

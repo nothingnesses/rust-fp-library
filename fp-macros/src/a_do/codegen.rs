@@ -108,11 +108,11 @@ pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 		([param], [expr]) => {
 			// map has type params: Brand, A, B, FA, Marker = 5 total, 4 underscores
 			quote! {
-				map::<#brand, _, _, _, _>(|#param| { #(#inner_lets)* #final_expr }, #expr)
+				map_explicit::<#brand, _, _, _, _>(|#param| { #(#inner_lets)* #final_expr }, #expr)
 			}
 		}
 		_ if n <= 5 => {
-			let fn_name = format_ident!("lift{}", n);
+			let fn_name = format_ident!("lift{}_explicit", n);
 			// Dispatched liftN functions have type params:
 			// Brand + N value types + result type + N container types (FA, FB, ...) + Marker
 			// Total underscores: n + 1 + n + 1 = 2n + 2

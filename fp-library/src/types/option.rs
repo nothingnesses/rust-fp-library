@@ -93,7 +93,7 @@ mod inner {
 		///
 		/// let x = Some(1);
 		/// let y = Some(2);
-		/// let z = lift2::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, x, y);
+		/// let z = lift2_explicit::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, Some(3));
 		/// ```
 		fn lift2<'a, A, B, C>(
@@ -213,7 +213,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = bind::<OptionBrand, _, _, _, _>(x, |i| Some(i * 2));
+		/// let y = bind_explicit::<OptionBrand, _, _, _, _>(x, |i| Some(i * 2));
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
@@ -841,8 +841,10 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let (errs, oks) =
-		/// 	partition_map::<OptionBrand, _, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+		/// let (errs, oks) = partition_map_explicit::<OptionBrand, _, _, _, _, _>(
+		/// 	|a| if a > 2 { Ok(a) } else { Err(a) },
+		/// 	x,
+		/// );
 		/// assert_eq!(oks, Some(5));
 		/// assert_eq!(errs, None);
 		/// ```
@@ -882,7 +884,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let (not_satisfied, satisfied) = partition::<OptionBrand, _, _, _>(|a| a > 2, x);
+		/// let (not_satisfied, satisfied) = partition_explicit::<OptionBrand, _, _, _>(|a| a > 2, x);
 		/// assert_eq!(satisfied, Some(5));
 		/// assert_eq!(not_satisfied, None);
 		/// ```
@@ -928,7 +930,10 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = filter_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
+		/// let y = filter_map_explicit::<OptionBrand, _, _, _, _>(
+		/// 	|a| if a > 2 { Some(a * 2) } else { None },
+		/// 	x,
+		/// );
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn filter_map<'a, A: 'a, B: 'a>(
@@ -958,7 +963,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = filter::<OptionBrand, _, _, _>(|a| a > 2, x);
+		/// let y = filter_explicit::<OptionBrand, _, _, _>(|a| a > 2, x);
 		/// assert_eq!(y, Some(5));
 		/// ```
 		fn filter<'a, A: 'a + Clone>(
@@ -1213,7 +1218,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = filter_map::<OptionBrand, _, _, _, _>(
+		/// let result = filter_map_explicit::<OptionBrand, _, _, _, _>(
 		/// 	|x: &i32| if *x > 3 { Some(*x) } else { None },
 		/// 	&Some(5),
 		/// );
@@ -1282,7 +1287,10 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// assert_eq!(map_with_index::<OptionBrand, _, _, _, _>(|(), x: &i32| *x * 2, &Some(5)), Some(10),);
+		/// assert_eq!(
+		/// 	map_with_index_explicit::<OptionBrand, _, _, _, _>(|(), x: &i32| *x * 2, &Some(5)),
+		/// 	Some(10),
+		/// );
 		/// ```
 		fn ref_map_with_index<'a, A: 'a, B: 'a>(
 			func: impl Fn((), &A) -> B + 'a,
@@ -1414,8 +1422,11 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result =
-		/// 	lift2::<OptionBrand, _, _, _, _, _, _>(|a: &i32, b: &i32| *a + *b, &Some(1), &Some(2));
+		/// let result = lift2_explicit::<OptionBrand, _, _, _, _, _, _>(
+		/// 	|a: &i32, b: &i32| *a + *b,
+		/// 	&Some(1),
+		/// 	&Some(2),
+		/// );
 		/// assert_eq!(result, Some(3));
 		/// ```
 		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
@@ -1483,7 +1494,7 @@ mod inner {
 		/// };
 		///
 		/// let result: Option<String> =
-		/// 	bind::<OptionBrand, _, _, _, _>(&Some(42), |x: &i32| Some(x.to_string()));
+		/// 	bind_explicit::<OptionBrand, _, _, _, _>(&Some(42), |x: &i32| Some(x.to_string()));
 		/// assert_eq!(result, Some("42".to_string()));
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
@@ -1603,13 +1614,13 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| Some(x.wrapping_mul(2));
-		bind::<OptionBrand, _, _, _, _>(pure::<OptionBrand, _>(a), f) == f(a)
+		bind_explicit::<OptionBrand, _, _, _, _>(pure::<OptionBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: Option<i32>) -> bool {
-		bind::<OptionBrand, _, _, _, _>(m, pure::<OptionBrand, _>) == m
+		bind_explicit::<OptionBrand, _, _, _, _>(m, pure::<OptionBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -1617,8 +1628,10 @@ mod tests {
 	fn monad_associativity(m: Option<i32>) -> bool {
 		let f = |x: i32| Some(x.wrapping_mul(2));
 		let g = |x: i32| Some(x.wrapping_add(1));
-		bind::<OptionBrand, _, _, _, _>(bind::<OptionBrand, _, _, _, _>(m, f), g)
-			== bind::<OptionBrand, _, _, _, _>(m, |x| bind::<OptionBrand, _, _, _, _>(f(x), g))
+		bind_explicit::<OptionBrand, _, _, _, _>(bind_explicit::<OptionBrand, _, _, _, _>(m, f), g)
+			== bind_explicit::<OptionBrand, _, _, _, _>(m, |x| {
+				bind_explicit::<OptionBrand, _, _, _, _>(f(x), g)
+			})
 	}
 
 	// Edge Cases
@@ -1632,13 +1645,13 @@ mod tests {
 	/// Tests `bind` on `None`.
 	#[test]
 	fn bind_none() {
-		assert_eq!(bind::<OptionBrand, _, _, _, _>(None, |x: i32| Some(x + 1)), None);
+		assert_eq!(bind_explicit::<OptionBrand, _, _, _, _>(None, |x: i32| Some(x + 1)), None);
 	}
 
 	/// Tests `bind` returning `None`.
 	#[test]
 	fn bind_returning_none() {
-		assert_eq!(bind::<OptionBrand, _, _, _, _>(Some(5), |_| None::<i32>), None);
+		assert_eq!(bind_explicit::<OptionBrand, _, _, _, _>(Some(5), |_| None::<i32>), None);
 	}
 
 	/// Tests `fold_right` on `None`.

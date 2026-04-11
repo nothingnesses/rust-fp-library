@@ -137,7 +137,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				bind::<PairFirstAppliedBrand<String>, _, _, _, _>(
+				bind_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(
 					std::hint::black_box(val.clone()),
 					|x| Pair("second".to_string(), x * 2),
 				)
@@ -159,7 +159,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				lift2::<PairFirstAppliedBrand<String>, _, _, _, _, _, _>(
+				lift2_explicit::<PairFirstAppliedBrand<String>, _, _, _, _, _, _>(
 					|x, y| x + y,
 					std::hint::black_box(val.clone()),
 					std::hint::black_box(val2.clone()),

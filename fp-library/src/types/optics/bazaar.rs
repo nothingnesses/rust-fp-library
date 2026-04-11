@@ -216,8 +216,11 @@ mod inner {
 		/// 	foci: vec![2],
 		/// 	rebuild: lift_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
 		/// };
-		/// let combined =
-		/// 	lift2::<BazaarListBrand<RcFnBrand, i32, i32>, _, _, _, _, _, _>(|a, b| a + b, bl1, bl2);
+		/// let combined = lift2_explicit::<BazaarListBrand<RcFnBrand, i32, i32>, _, _, _, _, _, _>(
+		/// 	|a, b| a + b,
+		/// 	bl1,
+		/// 	bl2,
+		/// );
 		/// assert_eq!(combined.foci, vec![1, 2]);
 		/// assert_eq!((combined.rebuild)(vec![10, 20]), 30);
 		/// ```

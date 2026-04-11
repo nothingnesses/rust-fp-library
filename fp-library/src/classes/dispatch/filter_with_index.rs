@@ -14,12 +14,13 @@
 //! };
 //!
 //! // Owned: dispatches to FilterableWithIndex::filter_with_index
-//! let y = filter_with_index::<VecBrand, _, _, _>(|i, _x: i32| i < 2, vec![10, 20, 30, 40]);
+//! let y =
+//! 	filter_with_index_explicit::<VecBrand, _, _, _>(|i, _x: i32| i < 2, vec![10, 20, 30, 40]);
 //! assert_eq!(y, vec![10, 20]);
 //!
 //! // By-ref: dispatches to RefFilterableWithIndex::ref_filter_with_index
 //! let v = vec![10, 20, 30, 40];
-//! let y = filter_with_index::<VecBrand, _, _, _>(|i, _x: &i32| i < 2, &v);
+//! let y = filter_with_index_explicit::<VecBrand, _, _, _>(|i, _x: &i32| i < 2, &v);
 //! assert_eq!(y, vec![10, 20]);
 //! ```
 
@@ -78,7 +79,8 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = filter_with_index::<VecBrand, _, _, _>(|i, _x: i32| i < 2, vec![10, 20, 30, 40]);
+		/// let result =
+		/// 	filter_with_index_explicit::<VecBrand, _, _, _>(|i, _x: i32| i < 2, vec![10, 20, 30, 40]);
 		/// assert_eq!(result, vec![10, 20]);
 		/// ```
 		fn dispatch(
@@ -126,7 +128,8 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = filter_with_index::<VecBrand, _, _, _>(|i, _x: i32| i < 2, vec![10, 20, 30, 40]);
+		/// let result =
+		/// 	filter_with_index_explicit::<VecBrand, _, _, _>(|i, _x: i32| i < 2, vec![10, 20, 30, 40]);
 		/// assert_eq!(result, vec![10, 20]);
 		/// ```
 		fn dispatch(
@@ -180,7 +183,7 @@ pub(crate) mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30, 40];
-		/// let result = filter_with_index::<VecBrand, _, _, _>(|i, _x: &i32| i < 2, &v);
+		/// let result = filter_with_index_explicit::<VecBrand, _, _, _>(|i, _x: &i32| i < 2, &v);
 		/// assert_eq!(result, vec![10, 20]);
 		/// ```
 		fn dispatch(
@@ -206,7 +209,7 @@ pub(crate) mod inner {
 	///
 	/// The `Marker` and `FA` type parameters are inferred automatically by the
 	/// compiler from the closure's argument type and the container argument.
-	/// Callers write `filter_with_index::<Brand, _, _, _>(...)` and never need to
+	/// Callers write `filter_with_index_explicit::<Brand, _, _, _>(...)` and never need to
 	/// specify `Marker` or `FA` explicitly.
 	///
 	/// The dispatch is resolved at compile time with no runtime cost.
@@ -238,12 +241,13 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // Owned: dispatches to FilterableWithIndex::filter_with_index
-	/// let y = filter_with_index::<VecBrand, _, _, _>(|i, _x: i32| i < 2, vec![10, 20, 30, 40]);
+	/// let y =
+	/// 	filter_with_index_explicit::<VecBrand, _, _, _>(|i, _x: i32| i < 2, vec![10, 20, 30, 40]);
 	/// assert_eq!(y, vec![10, 20]);
 	///
 	/// // By-ref: dispatches to RefFilterableWithIndex::ref_filter_with_index
 	/// let v = vec![10, 20, 30, 40];
-	/// let y = filter_with_index::<VecBrand, _, _, _>(|i, _x: &i32| i < 2, &v);
+	/// let y = filter_with_index_explicit::<VecBrand, _, _, _>(|i, _x: &i32| i < 2, &v);
 	/// assert_eq!(y, vec![10, 20]);
 	/// ```
 	pub fn filter_with_index<

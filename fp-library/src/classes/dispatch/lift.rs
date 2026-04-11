@@ -14,12 +14,16 @@
 //! 	types::*,
 //! };
 //!
-//! let z = lift2::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
+//! let z = lift2_explicit::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
 //! assert_eq!(z, Some(3));
 //!
 //! let x = RcLazy::pure(3);
 //! let y = RcLazy::pure(4);
-//! let z = lift2::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _>(|a: &i32, b: &i32| *a + *b, &x, &y);
+//! let z = lift2_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _>(
+//! 	|a: &i32, b: &i32| *a + *b,
+//! 	&x,
+//! 	&y,
+//! );
 //! assert_eq!(*z.evaluate(), 7);
 //! ```
 
@@ -70,7 +74,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let z = lift2::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
+		/// let z = lift2_explicit::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
 		/// assert_eq!(z, Some(3));
 		/// ```
 		fn dispatch(
@@ -118,7 +122,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let z = lift2::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
+		/// let z = lift2_explicit::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
 		/// assert_eq!(z, Some(3));
 		/// ```
 		fn dispatch(
@@ -177,7 +181,11 @@ pub(crate) mod inner {
 		/// };
 		/// let x = RcLazy::pure(3);
 		/// let y = RcLazy::pure(4);
-		/// let z = lift2::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _>(|a: &i32, b: &i32| *a + *b, &x, &y);
+		/// let z = lift2_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _>(
+		/// 	|a: &i32, b: &i32| *a + *b,
+		/// 	&x,
+		/// 	&y,
+		/// );
 		/// assert_eq!(*z.evaluate(), 7);
 		/// ```
 		fn dispatch(
@@ -224,7 +232,7 @@ pub(crate) mod inner {
 	/// 	brands::*,
 	/// 	functions::*,
 	/// };
-	/// let z = lift2::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
+	/// let z = lift2_explicit::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
 	/// assert_eq!(z, Some(3));
 	/// ```
 	pub fn lift2<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, C: 'a, FA, FB, Marker>(
@@ -274,7 +282,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let r = lift3::<OptionBrand, _, _, _, _, _, _, _, _>(
+		/// let r = lift3_explicit::<OptionBrand, _, _, _, _, _, _, _, _>(
 		/// 	|a, b, c| a + b + c,
 		/// 	Some(1),
 		/// 	Some(2),
@@ -332,7 +340,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let r = lift3::<OptionBrand, _, _, _, _, _, _, _, _>(
+		/// let r = lift3_explicit::<OptionBrand, _, _, _, _, _, _, _, _>(
 		/// 	|a, b, c| a + b + c,
 		/// 	Some(1),
 		/// 	Some(2),
@@ -399,7 +407,7 @@ pub(crate) mod inner {
 		/// let a = RcLazy::pure(1);
 		/// let b = RcLazy::pure(2);
 		/// let c = RcLazy::pure(3);
-		/// let r = lift3::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _, _, _>(
+		/// let r = lift3_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32, c: &i32| *a + *b + *c,
 		/// 	&a,
 		/// 	&b,
@@ -456,7 +464,7 @@ pub(crate) mod inner {
 	/// 	brands::*,
 	/// 	functions::*,
 	/// };
-	/// let r = lift3::<OptionBrand, _, _, _, _, _, _, _, _>(
+	/// let r = lift3_explicit::<OptionBrand, _, _, _, _, _, _, _, _>(
 	/// 	|a, b, c| a + b + c,
 	/// 	Some(1),
 	/// 	Some(2),
@@ -527,7 +535,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let r = lift4::<OptionBrand, _, _, _, _, _, _, _, _, _, _>(
+		/// let r = lift4_explicit::<OptionBrand, _, _, _, _, _, _, _, _, _, _>(
 		/// 	|a, b, c, d| a + b + c + d,
 		/// 	Some(1),
 		/// 	Some(2),
@@ -591,7 +599,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let r = lift4::<OptionBrand, _, _, _, _, _, _, _, _, _, _>(
+		/// let r = lift4_explicit::<OptionBrand, _, _, _, _, _, _, _, _, _, _>(
 		/// 	|a, b, c, d| a + b + c + d,
 		/// 	Some(1),
 		/// 	Some(2),
@@ -669,7 +677,7 @@ pub(crate) mod inner {
 		/// let b = RcLazy::pure(2);
 		/// let c = RcLazy::pure(3);
 		/// let d = RcLazy::pure(4);
-		/// let r = lift4::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _, _, _, _, _>(
+		/// let r = lift4_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32, c: &i32, d: &i32| *a + *b + *c + *d,
 		/// 	&a,
 		/// 	&b,
@@ -733,7 +741,7 @@ pub(crate) mod inner {
 	/// 	brands::*,
 	/// 	functions::*,
 	/// };
-	/// let r = lift4::<OptionBrand, _, _, _, _, _, _, _, _, _, _>(
+	/// let r = lift4_explicit::<OptionBrand, _, _, _, _, _, _, _, _, _, _>(
 	/// 	|a, b, c, d| a + b + c + d,
 	/// 	Some(1),
 	/// 	Some(2),
@@ -812,7 +820,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let r = lift5::<OptionBrand, _, _, _, _, _, _, _, _, _, _, _, _>(
+		/// let r = lift5_explicit::<OptionBrand, _, _, _, _, _, _, _, _, _, _, _, _>(
 		/// 	|a, b, c, d, e| a + b + c + d + e,
 		/// 	Some(1),
 		/// 	Some(2),
@@ -882,7 +890,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let r = lift5::<OptionBrand, _, _, _, _, _, _, _, _, _, _, _, _>(
+		/// let r = lift5_explicit::<OptionBrand, _, _, _, _, _, _, _, _, _, _, _, _>(
 		/// 	|a, b, c, d, e| a + b + c + d + e,
 		/// 	Some(1),
 		/// 	Some(2),
@@ -975,7 +983,7 @@ pub(crate) mod inner {
 		/// let c = RcLazy::pure(3);
 		/// let d = RcLazy::pure(4);
 		/// let e = RcLazy::pure(5);
-		/// let r = lift5::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _, _, _, _, _, _, _>(
+		/// let r = lift5_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32, c: &i32, d: &i32, e: &i32| *a + *b + *c + *d + *e,
 		/// 	&a,
 		/// 	&b,
@@ -1050,7 +1058,7 @@ pub(crate) mod inner {
 	/// 	brands::*,
 	/// 	functions::*,
 	/// };
-	/// let r = lift5::<OptionBrand, _, _, _, _, _, _, _, _, _, _, _, _>(
+	/// let r = lift5_explicit::<OptionBrand, _, _, _, _, _, _, _, _, _, _, _, _>(
 	/// 	|a, b, c, d, e| a + b + c + d + e,
 	/// 	Some(1),
 	/// 	Some(2),

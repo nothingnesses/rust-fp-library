@@ -1069,7 +1069,8 @@ mod inner {
 		///
 		/// let eval1: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
 		/// let eval2: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(20);
-		/// let result = lift2::<TryThunkErrAppliedBrand<()>, _, _, _, _, _, _>(|a, b| a + b, eval1, eval2);
+		/// let result =
+		/// 	lift2_explicit::<TryThunkErrAppliedBrand<()>, _, _, _, _, _, _>(|a, b| a + b, eval1, eval2);
 		/// assert_eq!(result.evaluate(), Ok(30));
 		/// ```
 		fn lift2<'a, A, B, C>(
@@ -1166,7 +1167,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-		/// let result = bind::<TryThunkErrAppliedBrand<()>, _, _, _, _>(try_thunk, |x| {
+		/// let result = bind_explicit::<TryThunkErrAppliedBrand<()>, _, _, _, _>(try_thunk, |x| {
 		/// 	pure::<TryThunkErrAppliedBrand<()>, _>(x * 2)
 		/// });
 		/// assert_eq!(result.evaluate(), Ok(20));
@@ -1813,7 +1814,8 @@ mod inner {
 		///
 		/// let eval1: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
 		/// let eval2: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(20);
-		/// let result = lift2::<TryThunkOkAppliedBrand<i32>, _, _, _, _, _, _>(|a, b| a + b, eval1, eval2);
+		/// let result =
+		/// 	lift2_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _, _, _>(|a, b| a + b, eval1, eval2);
 		/// assert_eq!(result.evaluate(), Err(30));
 		/// ```
 		fn lift2<'a, E1, E2, E3>(
@@ -1925,7 +1927,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-		/// let result = bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(try_thunk, |x| {
+		/// let result = bind_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(try_thunk, |x| {
 		/// 	pure::<TryThunkOkAppliedBrand<i32>, _>(x * 2)
 		/// });
 		/// assert_eq!(result.evaluate(), Err(20));
@@ -2516,7 +2518,7 @@ mod tests {
 
 		// Semimonad (bind over success)
 		let try_thunk: TryThunk<i32, ()> = TryThunk::ok(10);
-		let bound = bind::<TryThunkErrAppliedBrand<()>, _, _, _, _>(try_thunk, |x| {
+		let bound = bind_explicit::<TryThunkErrAppliedBrand<()>, _, _, _, _>(try_thunk, |x| {
 			pure::<TryThunkErrAppliedBrand<()>, _>(x * 2)
 		});
 		assert_eq!(bound.evaluate(), Ok(20));
@@ -2725,7 +2727,7 @@ mod tests {
 
 		// Semimonad (bind over error)
 		let try_thunk: TryThunk<i32, i32> = TryThunk::err(10);
-		let bound = bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(try_thunk, |x| {
+		let bound = bind_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(try_thunk, |x| {
 			pure::<TryThunkOkAppliedBrand<i32>, _>(x * 2)
 		});
 		assert_eq!(bound.evaluate(), Err(20));
@@ -2827,7 +2829,7 @@ mod tests {
 			functions::*,
 		};
 		let f = |x: i32| pure::<TryThunkErrAppliedBrand<i32>, _>(x.wrapping_mul(2));
-		let lhs = bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
+		let lhs = bind_explicit::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
 			pure::<TryThunkErrAppliedBrand<i32>, _>(a),
 			f,
 		)
@@ -2843,7 +2845,7 @@ mod tests {
 			brands::*,
 			functions::*,
 		};
-		let lhs = bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
+		let lhs = bind_explicit::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
 			pure::<TryThunkErrAppliedBrand<i32>, _>(x),
 			pure::<TryThunkErrAppliedBrand<i32>, _>,
 		)
@@ -2862,13 +2864,13 @@ mod tests {
 		let g = |a: i32| pure::<TryThunkErrAppliedBrand<i32>, _>(a.wrapping_mul(3));
 		let m: TryThunk<i32, i32> = TryThunk::ok(x);
 		let m2: TryThunk<i32, i32> = TryThunk::ok(x);
-		let lhs = bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
-			bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(m, f),
+		let lhs = bind_explicit::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
+			bind_explicit::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(m, f),
 			g,
 		)
 		.evaluate();
-		let rhs = bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(m2, move |a| {
-			bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(f(a), g)
+		let rhs = bind_explicit::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(m2, move |a| {
+			bind_explicit::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(f(a), g)
 		})
 		.evaluate();
 		lhs == rhs
@@ -3125,7 +3127,7 @@ mod tests {
 			functions::*,
 		};
 		let f = |x: i32| pure::<TryThunkOkAppliedBrand<i32>, _>(x.wrapping_mul(2));
-		let lhs = bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+		let lhs = bind_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(
 			pure::<TryThunkOkAppliedBrand<i32>, _>(a),
 			f,
 		)
@@ -3141,7 +3143,7 @@ mod tests {
 			brands::*,
 			functions::*,
 		};
-		let lhs = bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+		let lhs = bind_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(
 			pure::<TryThunkOkAppliedBrand<i32>, _>(x),
 			pure::<TryThunkOkAppliedBrand<i32>, _>,
 		)
@@ -3160,13 +3162,13 @@ mod tests {
 		let g = |a: i32| pure::<TryThunkOkAppliedBrand<i32>, _>(a.wrapping_mul(3));
 		let m: TryThunk<i32, i32> = TryThunk::err(x);
 		let m2: TryThunk<i32, i32> = TryThunk::err(x);
-		let lhs = bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(
-			bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(m, f),
+		let lhs = bind_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+			bind_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(m, f),
 			g,
 		)
 		.evaluate();
-		let rhs = bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(m2, move |a| {
-			bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(f(a), g)
+		let rhs = bind_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(m2, move |a| {
+			bind_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(f(a), g)
 		})
 		.evaluate();
 		lhs == rhs

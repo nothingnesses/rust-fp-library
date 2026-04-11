@@ -14,12 +14,13 @@
 //! };
 //!
 //! // Owned: dispatches to FunctorWithIndex::map_with_index
-//! let y = map_with_index::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
+//! let y =
+//! 	map_with_index_explicit::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
 //! assert_eq!(y, vec![10, 21, 32]);
 //!
 //! // By-ref: dispatches to RefFunctorWithIndex::ref_map_with_index
 //! let v = vec![10, 20, 30];
-//! let y = map_with_index::<VecBrand, _, _, _, _>(|i, x: &i32| *x + i as i32, &v);
+//! let y = map_with_index_explicit::<VecBrand, _, _, _, _>(|i, x: &i32| *x + i as i32, &v);
 //! assert_eq!(y, vec![10, 21, 32]);
 //! ```
 
@@ -80,7 +81,8 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = map_with_index::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
+		/// let result =
+		/// 	map_with_index_explicit::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
 		/// assert_eq!(result, vec![10, 21, 32]);
 		/// ```
 		fn dispatch(
@@ -131,7 +133,8 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = map_with_index::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
+		/// let result =
+		/// 	map_with_index_explicit::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
 		/// assert_eq!(result, vec![10, 21, 32]);
 		/// ```
 		fn dispatch(
@@ -188,7 +191,7 @@ pub(crate) mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30];
-		/// let result = map_with_index::<VecBrand, _, _, _, _>(|i, x: &i32| *x + i as i32, &v);
+		/// let result = map_with_index_explicit::<VecBrand, _, _, _, _>(|i, x: &i32| *x + i as i32, &v);
 		/// assert_eq!(result, vec![10, 21, 32]);
 		/// ```
 		fn dispatch(
@@ -213,7 +216,7 @@ pub(crate) mod inner {
 	///
 	/// The `Marker` and `FA` type parameters are inferred automatically by the
 	/// compiler from the closure's argument type and the container argument.
-	/// Callers write `map_with_index::<Brand, _, _, _, _>(...)` and never need to
+	/// Callers write `map_with_index_explicit::<Brand, _, _, _, _>(...)` and never need to
 	/// specify `Marker` or `FA` explicitly.
 	///
 	/// The dispatch is resolved at compile time with no runtime cost.
@@ -246,12 +249,13 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // Owned: dispatches to FunctorWithIndex::map_with_index
-	/// let y = map_with_index::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
+	/// let y =
+	/// 	map_with_index_explicit::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
 	/// assert_eq!(y, vec![10, 21, 32]);
 	///
 	/// // By-ref: dispatches to RefFunctorWithIndex::ref_map_with_index
 	/// let v = vec![10, 20, 30];
-	/// let y = map_with_index::<VecBrand, _, _, _, _>(|i, x: &i32| *x + i as i32, &v);
+	/// let y = map_with_index_explicit::<VecBrand, _, _, _, _>(|i, x: &i32| *x + i as i32, &v);
 	/// assert_eq!(y, vec![10, 21, 32]);
 	/// ```
 	pub fn map_with_index<

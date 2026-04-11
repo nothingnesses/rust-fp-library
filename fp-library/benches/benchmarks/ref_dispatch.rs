@@ -40,14 +40,17 @@ pub fn bench_ref_dispatch(c: &mut Criterion) {
 		let mut group = c.benchmark_group("Dispatch Bind Option");
 		group.bench_with_input(BenchmarkId::new("val", opt_desc), &opt_desc, |b, &_| {
 			b.iter(|| {
-				bind::<OptionBrand, _, _, _, _>(std::hint::black_box(opt_val), |x| Some(x * 2))
+				bind_explicit::<OptionBrand, _, _, _, _>(std::hint::black_box(opt_val), |x| {
+					Some(x * 2)
+				})
 			})
 		});
 		group.bench_with_input(BenchmarkId::new("ref", opt_desc), &opt_desc, |b, &_| {
 			b.iter(|| {
-				bind::<OptionBrand, _, _, _, _>(std::hint::black_box(&opt_val), |x: &i32| {
-					Some(*x * 2)
-				})
+				bind_explicit::<OptionBrand, _, _, _, _>(
+					std::hint::black_box(&opt_val),
+					|x: &i32| Some(*x * 2),
+				)
 			})
 		});
 		group.finish();
@@ -60,7 +63,7 @@ pub fn bench_ref_dispatch(c: &mut Criterion) {
 		let mut group = c.benchmark_group("Dispatch Lift2 Option");
 		group.bench_with_input(BenchmarkId::new("val", opt_desc), &opt_desc, |b, &_| {
 			b.iter(|| {
-				lift2::<OptionBrand, _, _, _, _, _, _>(
+				lift2_explicit::<OptionBrand, _, _, _, _, _, _>(
 					|x, y| x + y,
 					std::hint::black_box(opt_a),
 					std::hint::black_box(opt_b),
@@ -69,7 +72,7 @@ pub fn bench_ref_dispatch(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("ref", opt_desc), &opt_desc, |b, &_| {
 			b.iter(|| {
-				lift2::<OptionBrand, _, _, _, _, _, _>(
+				lift2_explicit::<OptionBrand, _, _, _, _, _, _>(
 					|x: &i32, y: &i32| *x + *y,
 					std::hint::black_box(&opt_a),
 					std::hint::black_box(&opt_b),
@@ -110,14 +113,14 @@ pub fn bench_ref_dispatch(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("val", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| bind::<VecBrand, _, _, _, _>(v, |x| vec![x, x * 2]),
+				|v| bind_explicit::<VecBrand, _, _, _, _>(v, |x| vec![x, x * 2]),
 				BatchSize::SmallInput,
 			)
 		});
 		group.bench_with_input(BenchmarkId::new("ref", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| bind::<VecBrand, _, _, _, _>(&v, |x: &i32| vec![*x, *x * 2]),
+				|v| bind_explicit::<VecBrand, _, _, _, _>(&v, |x: &i32| vec![*x, *x * 2]),
 				BatchSize::SmallInput,
 			)
 		});
@@ -133,14 +136,16 @@ pub fn bench_ref_dispatch(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("val", lift_size), &lift_size, |b, &_| {
 			b.iter_batched(
 				|| (v_a.clone(), v_b.clone()),
-				|(a, b)| lift2::<VecBrand, _, _, _, _, _, _>(|x, y| x + y, a, b),
+				|(a, b)| lift2_explicit::<VecBrand, _, _, _, _, _, _>(|x, y| x + y, a, b),
 				BatchSize::SmallInput,
 			)
 		});
 		group.bench_with_input(BenchmarkId::new("ref", lift_size), &lift_size, |b, &_| {
 			b.iter_batched(
 				|| (v_a.clone(), v_b.clone()),
-				|(a, b)| lift2::<VecBrand, _, _, _, _, _, _>(|x: &i32, y: &i32| *x + *y, &a, &b),
+				|(a, b)| {
+					lift2_explicit::<VecBrand, _, _, _, _, _, _>(|x: &i32, y: &i32| *x + *y, &a, &b)
+				},
 				BatchSize::SmallInput,
 			)
 		});

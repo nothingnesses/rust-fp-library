@@ -398,7 +398,7 @@ mod inner {
 		///
 		/// let x = Identity(1);
 		/// let y = Identity(2);
-		/// let z = lift2::<IdentityBrand, _, _, _, _, _, _>(|a, b| a + b, x, y);
+		/// let z = lift2_explicit::<IdentityBrand, _, _, _, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, Identity(3));
 		/// ```
 		fn lift2<'a, A, B, C>(
@@ -515,7 +515,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = bind::<IdentityBrand, _, _, _, _>(x, |i| Identity(i * 2));
+		/// let y = bind_explicit::<IdentityBrand, _, _, _, _>(x, |i| Identity(i * 2));
 		/// assert_eq!(y, Identity(10));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
@@ -1019,7 +1019,7 @@ mod inner {
 		/// 	types::Identity,
 		/// };
 		///
-		/// let result = map_with_index::<IdentityBrand, _, _, _, _>(|(), x| x * 2, Identity(5));
+		/// let result = map_with_index_explicit::<IdentityBrand, _, _, _, _>(|(), x| x * 2, Identity(5));
 		/// assert_eq!(result, Identity(10));
 		/// ```
 		fn map_with_index<'a, A: 'a, B: 'a>(
@@ -1121,7 +1121,8 @@ mod inner {
 		/// 	types::Identity,
 		/// };
 		///
-		/// let result = map_with_index::<IdentityBrand, _, _, _, _>(|(), x: &i32| *x * 2, &Identity(5));
+		/// let result =
+		/// 	map_with_index_explicit::<IdentityBrand, _, _, _, _>(|(), x: &i32| *x * 2, &Identity(5));
 		/// assert_eq!(result, Identity(10));
 		/// ```
 		fn ref_map_with_index<'a, A: 'a, B: 'a>(
@@ -1253,7 +1254,7 @@ mod inner {
 		/// 	types::Identity,
 		/// };
 		///
-		/// let result = lift2::<IdentityBrand, _, _, _, _, _, _>(
+		/// let result = lift2_explicit::<IdentityBrand, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
 		/// 	&Identity(1),
 		/// 	&Identity(2),
@@ -1321,7 +1322,9 @@ mod inner {
 		/// };
 		///
 		/// let result: Identity<String> =
-		/// 	bind::<IdentityBrand, _, _, _, _>(&Identity(42), |x: &i32| Identity(x.to_string()));
+		/// 	bind_explicit::<IdentityBrand, _, _, _, _>(&Identity(42), |x: &i32| {
+		/// 		Identity(x.to_string())
+		/// 	});
 		/// assert_eq!(result, Identity("42".to_string()));
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
@@ -1443,14 +1446,14 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| Identity(x.wrapping_mul(2));
-		bind::<IdentityBrand, _, _, _, _>(pure::<IdentityBrand, _>(a), f) == f(a)
+		bind_explicit::<IdentityBrand, _, _, _, _>(pure::<IdentityBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: i32) -> bool {
 		let m = Identity(m);
-		bind::<IdentityBrand, _, _, _, _>(m, pure::<IdentityBrand, _>) == m
+		bind_explicit::<IdentityBrand, _, _, _, _>(m, pure::<IdentityBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -1459,8 +1462,12 @@ mod tests {
 		let m = Identity(m);
 		let f = |x: i32| Identity(x.wrapping_mul(2));
 		let g = |x: i32| Identity(x.wrapping_add(1));
-		bind::<IdentityBrand, _, _, _, _>(bind::<IdentityBrand, _, _, _, _>(m, f), g)
-			== bind::<IdentityBrand, _, _, _, _>(m, |x| bind::<IdentityBrand, _, _, _, _>(f(x), g))
+		bind_explicit::<IdentityBrand, _, _, _, _>(
+			bind_explicit::<IdentityBrand, _, _, _, _>(m, f),
+			g,
+		) == bind_explicit::<IdentityBrand, _, _, _, _>(m, |x| {
+			bind_explicit::<IdentityBrand, _, _, _, _>(f(x), g)
+		})
 	}
 
 	// Edge Cases
@@ -1478,7 +1485,7 @@ mod tests {
 	#[test]
 	fn bind_test() {
 		assert_eq!(
-			bind::<IdentityBrand, _, _, _, _>(Identity(1), |x| Identity(x + 1)),
+			bind_explicit::<IdentityBrand, _, _, _, _>(Identity(1), |x| Identity(x + 1)),
 			Identity(2)
 		);
 	}

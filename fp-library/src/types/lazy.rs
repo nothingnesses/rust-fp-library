@@ -3304,9 +3304,10 @@ mod tests {
 
 		let lazy_a = RcLazy::new(|| 10i32);
 
-		let result = bind::<LazyBrand<RcLazyConfig>, _, _, _, _>(&lazy_a, move |a: &i32| {
-			ref_pure::<LazyBrand<RcLazyConfig>, _>(&(*a * 2))
-		});
+		let result =
+			bind_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(&lazy_a, move |a: &i32| {
+				ref_pure::<LazyBrand<RcLazyConfig>, _>(&(*a * 2))
+			});
 
 		assert_eq!(*result.evaluate(), 20);
 	}

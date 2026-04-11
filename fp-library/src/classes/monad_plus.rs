@@ -71,8 +71,11 @@ mod inner {
 	/// let f = |n: i32| vec![n * 10, n * 100];
 	///
 	/// assert_eq!(
-	/// 	bind::<VecBrand, _, _, _, _>(alt::<VecBrand, _>(x.clone(), y.clone()), f),
-	/// 	alt::<VecBrand, _>(bind::<VecBrand, _, _, _, _>(x, f), bind::<VecBrand, _, _, _, _>(y, f)),
+	/// 	bind_explicit::<VecBrand, _, _, _, _>(alt::<VecBrand, _>(x.clone(), y.clone()), f),
+	/// 	alt::<VecBrand, _>(
+	/// 		bind_explicit::<VecBrand, _, _, _, _>(x, f),
+	/// 		bind_explicit::<VecBrand, _, _, _, _>(y, f)
+	/// 	),
 	/// );
 	/// ```
 	///
@@ -87,7 +90,7 @@ mod inner {
 	/// let f = |n: i32| vec![n * 2];
 	///
 	/// assert_eq!(
-	/// 	bind::<VecBrand, _, _, _, _>(plus_empty::<VecBrand, i32>(), f),
+	/// 	bind_explicit::<VecBrand, _, _, _, _>(plus_empty::<VecBrand, i32>(), f),
 	/// 	plus_empty::<VecBrand, i32>(),
 	/// );
 	/// ```
@@ -136,10 +139,10 @@ mod tests {
 		let f = |n: i32| {
 			if n > 0 { vec![n.wrapping_mul(2)] } else { vec![] }
 		};
-		bind::<VecBrand, _, _, _, _>(alt::<VecBrand, _>(x.clone(), y.clone()), f)
+		bind_explicit::<VecBrand, _, _, _, _>(alt::<VecBrand, _>(x.clone(), y.clone()), f)
 			== alt::<VecBrand, _>(
-				bind::<VecBrand, _, _, _, _>(x, f),
-				bind::<VecBrand, _, _, _, _>(y, f),
+				bind_explicit::<VecBrand, _, _, _, _>(x, f),
+				bind_explicit::<VecBrand, _, _, _, _>(y, f),
 			)
 	}
 
@@ -154,10 +157,10 @@ mod tests {
 		let f = |n: i32| -> CatList<i32> {
 			if n > 0 { CatList::singleton(n.wrapping_mul(2)) } else { CatList::empty() }
 		};
-		bind::<CatListBrand, _, _, _, _>(alt::<CatListBrand, _>(x.clone(), y.clone()), f)
+		bind_explicit::<CatListBrand, _, _, _, _>(alt::<CatListBrand, _>(x.clone(), y.clone()), f)
 			== alt::<CatListBrand, _>(
-				bind::<CatListBrand, _, _, _, _>(x, f),
-				bind::<CatListBrand, _, _, _, _>(y, f),
+				bind_explicit::<CatListBrand, _, _, _, _>(x, f),
+				bind_explicit::<CatListBrand, _, _, _, _>(y, f),
 			)
 	}
 
@@ -168,7 +171,7 @@ mod tests {
 	fn left_zero_option() {
 		let f = |n: i32| if n > 0 { Some(n * 2) } else { None };
 		assert_eq!(
-			bind::<OptionBrand, _, _, _, _>(plus_empty::<OptionBrand, i32>(), f),
+			bind_explicit::<OptionBrand, _, _, _, _>(plus_empty::<OptionBrand, i32>(), f),
 			plus_empty::<OptionBrand, i32>(),
 		);
 	}
@@ -178,7 +181,7 @@ mod tests {
 	fn left_zero_vec() {
 		let f = |n: i32| if n > 0 { vec![n * 2] } else { vec![] };
 		assert_eq!(
-			bind::<VecBrand, _, _, _, _>(plus_empty::<VecBrand, i32>(), f),
+			bind_explicit::<VecBrand, _, _, _, _>(plus_empty::<VecBrand, i32>(), f),
 			plus_empty::<VecBrand, i32>(),
 		);
 	}
@@ -190,7 +193,7 @@ mod tests {
 			if n > 0 { CatList::singleton(n * 2) } else { CatList::empty() }
 		};
 		assert_eq!(
-			bind::<CatListBrand, _, _, _, _>(plus_empty::<CatListBrand, i32>(), f),
+			bind_explicit::<CatListBrand, _, _, _, _>(plus_empty::<CatListBrand, i32>(), f),
 			plus_empty::<CatListBrand, i32>(),
 		);
 	}

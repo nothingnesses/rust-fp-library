@@ -14,14 +14,18 @@
 //! };
 //!
 //! // Owned: dispatches to Filterable::partition_map
-//! let (errs, oks) =
-//! 	partition_map::<OptionBrand, _, _, _, _, _>(|x: i32| Ok::<i32, i32>(x * 2), Some(5));
+//! let (errs, oks) = partition_map_explicit::<OptionBrand, _, _, _, _, _>(
+//! 	|x: i32| Ok::<i32, i32>(x * 2),
+//! 	Some(5),
+//! );
 //! assert_eq!(errs, None);
 //! assert_eq!(oks, Some(10));
 //!
 //! // By-ref: dispatches to RefFilterable::ref_partition_map
-//! let (errs, oks) =
-//! 	partition_map::<OptionBrand, _, _, _, _, _>(|x: &i32| Ok::<i32, i32>(*x * 2), &Some(5));
+//! let (errs, oks) = partition_map_explicit::<OptionBrand, _, _, _, _, _>(
+//! 	|x: &i32| Ok::<i32, i32>(*x * 2),
+//! 	&Some(5),
+//! );
 //! assert_eq!(errs, None);
 //! assert_eq!(oks, Some(10));
 //! ```
@@ -84,8 +88,10 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let (errs, oks) =
-		/// 	partition_map::<OptionBrand, _, _, _, _, _>(|x: i32| Ok::<i32, i32>(x * 2), Some(5));
+		/// let (errs, oks) = partition_map_explicit::<OptionBrand, _, _, _, _, _>(
+		/// 	|x: i32| Ok::<i32, i32>(x * 2),
+		/// 	Some(5),
+		/// );
 		/// assert_eq!(errs, None);
 		/// assert_eq!(oks, Some(10));
 		/// ```
@@ -142,8 +148,10 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let (errs, oks) =
-		/// 	partition_map::<OptionBrand, _, _, _, _, _>(|x: i32| Ok::<i32, i32>(x * 2), Some(5));
+		/// let (errs, oks) = partition_map_explicit::<OptionBrand, _, _, _, _, _>(
+		/// 	|x: i32| Ok::<i32, i32>(x * 2),
+		/// 	Some(5),
+		/// );
 		/// assert_eq!(errs, None);
 		/// assert_eq!(oks, Some(10));
 		/// ```
@@ -205,8 +213,10 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let (errs, oks) =
-		/// 	partition_map::<OptionBrand, _, _, _, _, _>(|x: &i32| Ok::<i32, i32>(*x * 2), &Some(5));
+		/// let (errs, oks) = partition_map_explicit::<OptionBrand, _, _, _, _, _>(
+		/// 	|x: &i32| Ok::<i32, i32>(*x * 2),
+		/// 	&Some(5),
+		/// );
 		/// assert_eq!(errs, None);
 		/// assert_eq!(oks, Some(10));
 		/// ```
@@ -236,7 +246,7 @@ pub(crate) mod inner {
 	///
 	/// The `Marker` and `FA` type parameters are inferred automatically by the
 	/// compiler from the closure's argument type and the container argument.
-	/// Callers write `partition_map::<Brand, _, _, _, _, _>(...)` and never need to
+	/// Callers write `partition_map_explicit::<Brand, _, _, _, _, _>(...)` and never need to
 	/// specify `Marker` or `FA` explicitly.
 	///
 	/// The dispatch is resolved at compile time with no runtime cost.
@@ -270,14 +280,18 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // Owned: dispatches to Filterable::partition_map
-	/// let (errs, oks) =
-	/// 	partition_map::<OptionBrand, _, _, _, _, _>(|x: i32| Ok::<i32, i32>(x * 2), Some(5));
+	/// let (errs, oks) = partition_map_explicit::<OptionBrand, _, _, _, _, _>(
+	/// 	|x: i32| Ok::<i32, i32>(x * 2),
+	/// 	Some(5),
+	/// );
 	/// assert_eq!(errs, None);
 	/// assert_eq!(oks, Some(10));
 	///
 	/// // By-ref: dispatches to RefFilterable::ref_partition_map
-	/// let (errs, oks) =
-	/// 	partition_map::<OptionBrand, _, _, _, _, _>(|x: &i32| Ok::<i32, i32>(*x * 2), &Some(5));
+	/// let (errs, oks) = partition_map_explicit::<OptionBrand, _, _, _, _, _>(
+	/// 	|x: &i32| Ok::<i32, i32>(*x * 2),
+	/// 	&Some(5),
+	/// );
 	/// assert_eq!(errs, None);
 	/// assert_eq!(oks, Some(10));
 	/// ```

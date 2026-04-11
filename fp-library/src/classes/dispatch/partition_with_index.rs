@@ -14,15 +14,17 @@
 //! };
 //!
 //! // Owned: dispatches to FilterableWithIndex::partition_with_index
-//! let (not_satisfied, satisfied) =
-//! 	partition_with_index::<VecBrand, _, _, _>(|i, _x: i32| i < 2, vec![10, 20, 30, 40]);
+//! let (not_satisfied, satisfied) = partition_with_index_explicit::<VecBrand, _, _, _>(
+//! 	|i, _x: i32| i < 2,
+//! 	vec![10, 20, 30, 40],
+//! );
 //! assert_eq!(satisfied, vec![10, 20]);
 //! assert_eq!(not_satisfied, vec![30, 40]);
 //!
 //! // By-ref: dispatches to RefFilterableWithIndex::ref_partition_with_index
 //! let v = vec![10, 20, 30, 40];
 //! let (not_satisfied, satisfied) =
-//! 	partition_with_index::<VecBrand, _, _, _>(|i, _x: &i32| i < 2, &v);
+//! 	partition_with_index_explicit::<VecBrand, _, _, _>(|i, _x: &i32| i < 2, &v);
 //! assert_eq!(satisfied, vec![10, 20]);
 //! assert_eq!(not_satisfied, vec![30, 40]);
 //! ```
@@ -82,8 +84,10 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let (not_satisfied, satisfied) =
-		/// 	partition_with_index::<VecBrand, _, _, _>(|i, _x: i32| i < 2, vec![10, 20, 30, 40]);
+		/// let (not_satisfied, satisfied) = partition_with_index_explicit::<VecBrand, _, _, _>(
+		/// 	|i, _x: i32| i < 2,
+		/// 	vec![10, 20, 30, 40],
+		/// );
 		/// assert_eq!(satisfied, vec![10, 20]);
 		/// assert_eq!(not_satisfied, vec![30, 40]);
 		/// ```
@@ -135,8 +139,10 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let (not_satisfied, satisfied) =
-		/// 	partition_with_index::<VecBrand, _, _, _>(|i, _x: i32| i < 2, vec![10, 20, 30, 40]);
+		/// let (not_satisfied, satisfied) = partition_with_index_explicit::<VecBrand, _, _, _>(
+		/// 	|i, _x: i32| i < 2,
+		/// 	vec![10, 20, 30, 40],
+		/// );
 		/// assert_eq!(satisfied, vec![10, 20]);
 		/// assert_eq!(not_satisfied, vec![30, 40]);
 		/// ```
@@ -195,7 +201,7 @@ pub(crate) mod inner {
 		///
 		/// let v = vec![10, 20, 30, 40];
 		/// let (not_satisfied, satisfied) =
-		/// 	partition_with_index::<VecBrand, _, _, _>(|i, _x: &i32| i < 2, &v);
+		/// 	partition_with_index_explicit::<VecBrand, _, _, _>(|i, _x: &i32| i < 2, &v);
 		/// assert_eq!(satisfied, vec![10, 20]);
 		/// assert_eq!(not_satisfied, vec![30, 40]);
 		/// ```
@@ -225,7 +231,7 @@ pub(crate) mod inner {
 	///
 	/// The `Marker` and `FA` type parameters are inferred automatically by the
 	/// compiler from the closure's argument type and the container argument.
-	/// Callers write `partition_with_index::<Brand, _, _, _>(...)` and never need to
+	/// Callers write `partition_with_index_explicit::<Brand, _, _, _>(...)` and never need to
 	/// specify `Marker` or `FA` explicitly.
 	///
 	/// The dispatch is resolved at compile time with no runtime cost.
@@ -257,15 +263,17 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // Owned: dispatches to FilterableWithIndex::partition_with_index
-	/// let (not_satisfied, satisfied) =
-	/// 	partition_with_index::<VecBrand, _, _, _>(|i, _x: i32| i < 2, vec![10, 20, 30, 40]);
+	/// let (not_satisfied, satisfied) = partition_with_index_explicit::<VecBrand, _, _, _>(
+	/// 	|i, _x: i32| i < 2,
+	/// 	vec![10, 20, 30, 40],
+	/// );
 	/// assert_eq!(satisfied, vec![10, 20]);
 	/// assert_eq!(not_satisfied, vec![30, 40]);
 	///
 	/// // By-ref: dispatches to RefFilterableWithIndex::ref_partition_with_index
 	/// let v = vec![10, 20, 30, 40];
 	/// let (not_satisfied, satisfied) =
-	/// 	partition_with_index::<VecBrand, _, _, _>(|i, _x: &i32| i < 2, &v);
+	/// 	partition_with_index_explicit::<VecBrand, _, _, _>(|i, _x: &i32| i < 2, &v);
 	/// assert_eq!(satisfied, vec![10, 20]);
 	/// assert_eq!(not_satisfied, vec![30, 40]);
 	/// ```

@@ -14,7 +14,7 @@
 //! };
 //!
 //! // Owned: dispatches to FilterableWithIndex::partition_map_with_index
-//! let (errs, oks) = partition_map_with_index::<VecBrand, _, _, _, _, _>(
+//! let (errs, oks) = partition_map_with_index_explicit::<VecBrand, _, _, _, _, _>(
 //! 	|i, x: i32| if i < 2 { Ok(x) } else { Err(x) },
 //! 	vec![10, 20, 30, 40],
 //! );
@@ -23,7 +23,7 @@
 //!
 //! // By-ref: dispatches to RefFilterableWithIndex::ref_partition_map_with_index
 //! let v = vec![10, 20, 30, 40];
-//! let (errs, oks) = partition_map_with_index::<VecBrand, _, _, _, _, _>(
+//! let (errs, oks) = partition_map_with_index_explicit::<VecBrand, _, _, _, _, _>(
 //! 	|i, x: &i32| if i < 2 { Ok(*x) } else { Err(*x) },
 //! 	&v,
 //! );
@@ -90,7 +90,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let (errs, oks) = partition_map_with_index::<VecBrand, _, _, _, _, _>(
+		/// let (errs, oks) = partition_map_with_index_explicit::<VecBrand, _, _, _, _, _>(
 		/// 	|i, x: i32| if i < 2 { Ok(x) } else { Err(x) },
 		/// 	vec![10, 20, 30, 40],
 		/// );
@@ -151,7 +151,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let (errs, oks) = partition_map_with_index::<VecBrand, _, _, _, _, _>(
+		/// let (errs, oks) = partition_map_with_index_explicit::<VecBrand, _, _, _, _, _>(
 		/// 	|i, x: i32| if i < 2 { Ok(x) } else { Err(x) },
 		/// 	vec![10, 20, 30, 40],
 		/// );
@@ -218,7 +218,7 @@ pub(crate) mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30, 40];
-		/// let (errs, oks) = partition_map_with_index::<VecBrand, _, _, _, _, _>(
+		/// let (errs, oks) = partition_map_with_index_explicit::<VecBrand, _, _, _, _, _>(
 		/// 	|i, x: &i32| if i < 2 { Ok(*x) } else { Err(*x) },
 		/// 	&v,
 		/// );
@@ -251,7 +251,7 @@ pub(crate) mod inner {
 	///
 	/// The `Marker` and `FA` type parameters are inferred automatically by the
 	/// compiler from the closure's argument type and the container argument.
-	/// Callers write `partition_map_with_index::<Brand, _, _, _, _, _>(...)` and never need to
+	/// Callers write `partition_map_with_index_explicit::<Brand, _, _, _, _, _>(...)` and never need to
 	/// specify `Marker` or `FA` explicitly.
 	///
 	/// The dispatch is resolved at compile time with no runtime cost.
@@ -285,7 +285,7 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // Owned: dispatches to FilterableWithIndex::partition_map_with_index
-	/// let (errs, oks) = partition_map_with_index::<VecBrand, _, _, _, _, _>(
+	/// let (errs, oks) = partition_map_with_index_explicit::<VecBrand, _, _, _, _, _>(
 	/// 	|i, x: i32| if i < 2 { Ok(x) } else { Err(x) },
 	/// 	vec![10, 20, 30, 40],
 	/// );
@@ -294,7 +294,7 @@ pub(crate) mod inner {
 	///
 	/// // By-ref: dispatches to RefFilterableWithIndex::ref_partition_map_with_index
 	/// let v = vec![10, 20, 30, 40];
-	/// let (errs, oks) = partition_map_with_index::<VecBrand, _, _, _, _, _>(
+	/// let (errs, oks) = partition_map_with_index_explicit::<VecBrand, _, _, _, _, _>(
 	/// 	|i, x: &i32| if i < 2 { Ok(*x) } else { Err(*x) },
 	/// 	&v,
 	/// );

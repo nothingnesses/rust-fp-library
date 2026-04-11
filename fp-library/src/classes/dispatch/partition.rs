@@ -14,12 +14,12 @@
 //! };
 //!
 //! // Owned: dispatches to Filterable::partition
-//! let (no, yes) = partition::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
+//! let (no, yes) = partition_explicit::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
 //! assert_eq!(yes, Some(5));
 //! assert_eq!(no, None);
 //!
 //! // By-ref: dispatches to RefFilterable::ref_partition
-//! let (no, yes) = partition::<OptionBrand, _, _, _>(|x: &i32| *x > 3, &Some(5));
+//! let (no, yes) = partition_explicit::<OptionBrand, _, _, _>(|x: &i32| *x > 3, &Some(5));
 //! assert_eq!(yes, Some(5));
 //! assert_eq!(no, None);
 //! ```
@@ -72,7 +72,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let (no, yes) = partition::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
+		/// let (no, yes) = partition_explicit::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
 		/// assert_eq!(yes, Some(5));
 		/// assert_eq!(no, None);
 		/// ```
@@ -123,7 +123,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let (no, yes) = partition::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
+		/// let (no, yes) = partition_explicit::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
 		/// assert_eq!(yes, Some(5));
 		/// assert_eq!(no, None);
 		/// ```
@@ -179,7 +179,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let (no, yes) = partition::<OptionBrand, _, _, _>(|x: &i32| *x > 3, &Some(5));
+		/// let (no, yes) = partition_explicit::<OptionBrand, _, _, _>(|x: &i32| *x > 3, &Some(5));
 		/// assert_eq!(yes, Some(5));
 		/// assert_eq!(no, None);
 		/// ```
@@ -209,7 +209,7 @@ pub(crate) mod inner {
 	///
 	/// The `Marker` and `FA` type parameters are inferred automatically by the
 	/// compiler from the closure's argument type and the container argument.
-	/// Callers write `partition::<Brand, _, _, _>(...)` and never need to
+	/// Callers write `partition_explicit::<Brand, _, _, _>(...)` and never need to
 	/// specify `Marker` or `FA` explicitly.
 	///
 	/// The dispatch is resolved at compile time with no runtime cost.
@@ -241,12 +241,12 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // Owned: dispatches to Filterable::partition
-	/// let (no, yes) = partition::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
+	/// let (no, yes) = partition_explicit::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
 	/// assert_eq!(yes, Some(5));
 	/// assert_eq!(no, None);
 	///
 	/// // By-ref: dispatches to RefFilterable::ref_partition
-	/// let (no, yes) = partition::<OptionBrand, _, _, _>(|x: &i32| *x > 3, &Some(5));
+	/// let (no, yes) = partition_explicit::<OptionBrand, _, _, _>(|x: &i32| *x > 3, &Some(5));
 	/// assert_eq!(yes, Some(5));
 	/// assert_eq!(no, None);
 	/// ```

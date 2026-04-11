@@ -733,7 +733,7 @@ mod inner {
 		///
 		/// let a = Coyoneda::<OptionBrand, _>::lift(Some(3));
 		/// let b = Coyoneda::<OptionBrand, _>::lift(Some(4));
-		/// let result = lift2::<CoyonedaBrand<OptionBrand>, _, _, _, _, _, _>(|x, y| x + y, a, b);
+		/// let result = lift2_explicit::<CoyonedaBrand<OptionBrand>, _, _, _, _, _, _>(|x, y| x + y, a, b);
 		/// assert_eq!(result.lower(), Some(7));
 		/// ```
 		fn lift2<'a, A, B, C>(
@@ -834,7 +834,7 @@ mod inner {
 		/// };
 		///
 		/// let coyo = Coyoneda::<OptionBrand, _>::lift(Some(5));
-		/// let result = bind::<CoyonedaBrand<OptionBrand>, _, _, _, _>(coyo, |x| {
+		/// let result = bind_explicit::<CoyonedaBrand<OptionBrand>, _, _, _, _>(coyo, |x| {
 		/// 	Coyoneda::<OptionBrand, _>::lift(Some(x * 2))
 		/// });
 		/// assert_eq!(result.lower(), Some(10));
@@ -1186,7 +1186,8 @@ mod tests {
 	fn lift2_option_both_some() {
 		let a = Coyoneda::<OptionBrand, _>::lift(Some(3));
 		let b = Coyoneda::<OptionBrand, _>::lift(Some(4));
-		let result = lift2::<CoyonedaBrand<OptionBrand>, _, _, _, _, _, _>(|x, y| x + y, a, b);
+		let result =
+			lift2_explicit::<CoyonedaBrand<OptionBrand>, _, _, _, _, _, _>(|x, y| x + y, a, b);
 		assert_eq!(result.lower(), Some(7));
 	}
 
@@ -1194,7 +1195,8 @@ mod tests {
 	fn lift2_option_one_none() {
 		let a = Coyoneda::<OptionBrand, _>::lift(Some(3));
 		let b = Coyoneda::<OptionBrand, i32>::lift(None);
-		let result = lift2::<CoyonedaBrand<OptionBrand>, _, _, _, _, _, _>(|x, y| x + y, a, b);
+		let result =
+			lift2_explicit::<CoyonedaBrand<OptionBrand>, _, _, _, _, _, _>(|x, y| x + y, a, b);
 		assert_eq!(result.lower(), None);
 	}
 
@@ -1202,7 +1204,8 @@ mod tests {
 	fn lift2_vec() {
 		let a = Coyoneda::<VecBrand, _>::lift(vec![1, 2]);
 		let b = Coyoneda::<VecBrand, _>::lift(vec![10, 20]);
-		let result = lift2::<CoyonedaBrand<VecBrand>, _, _, _, _, _, _>(|x, y| x + y, a, b);
+		let result =
+			lift2_explicit::<CoyonedaBrand<VecBrand>, _, _, _, _, _, _>(|x, y| x + y, a, b);
 		assert_eq!(result.lower(), vec![11, 21, 12, 22]);
 	}
 
@@ -1210,7 +1213,8 @@ mod tests {
 	fn lift2_with_prior_maps() {
 		let a = Coyoneda::<OptionBrand, _>::lift(Some(3)).map(|x| x * 2);
 		let b = Coyoneda::<OptionBrand, _>::lift(Some(4)).map(|x| x + 1);
-		let result = lift2::<CoyonedaBrand<OptionBrand>, _, _, _, _, _, _>(|x, y| x + y, a, b);
+		let result =
+			lift2_explicit::<CoyonedaBrand<OptionBrand>, _, _, _, _, _, _>(|x, y| x + y, a, b);
 		assert_eq!(result.lower(), Some(11)); // (3*2) + (4+1)
 	}
 
@@ -1249,7 +1253,7 @@ mod tests {
 	#[test]
 	fn bind_option_some() {
 		let coyo = Coyoneda::<OptionBrand, _>::lift(Some(5));
-		let result = bind::<CoyonedaBrand<OptionBrand>, _, _, _, _>(coyo, |x| {
+		let result = bind_explicit::<CoyonedaBrand<OptionBrand>, _, _, _, _>(coyo, |x| {
 			Coyoneda::<OptionBrand, _>::lift(Some(x * 2))
 		});
 		assert_eq!(result.lower(), Some(10));
@@ -1258,7 +1262,7 @@ mod tests {
 	#[test]
 	fn bind_option_none() {
 		let coyo = Coyoneda::<OptionBrand, i32>::lift(None);
-		let result = bind::<CoyonedaBrand<OptionBrand>, _, _, _, _>(coyo, |x| {
+		let result = bind_explicit::<CoyonedaBrand<OptionBrand>, _, _, _, _>(coyo, |x| {
 			Coyoneda::<OptionBrand, _>::lift(Some(x * 2))
 		});
 		assert_eq!(result.lower(), None);
@@ -1267,7 +1271,7 @@ mod tests {
 	#[test]
 	fn bind_vec() {
 		let coyo = Coyoneda::<VecBrand, _>::lift(vec![1i32, 2, 3]);
-		let result = bind::<CoyonedaBrand<VecBrand>, _, _, _, _>(coyo, |x| {
+		let result = bind_explicit::<CoyonedaBrand<VecBrand>, _, _, _, _>(coyo, |x| {
 			Coyoneda::<VecBrand, _>::lift(vec![x, x * 10])
 		});
 		assert_eq!(result.lower(), vec![1, 10, 2, 20, 3, 30]);
@@ -1276,7 +1280,7 @@ mod tests {
 	#[test]
 	fn bind_after_map() {
 		let coyo = Coyoneda::<OptionBrand, _>::lift(Some(3)).map(|x| x * 2);
-		let result = bind::<CoyonedaBrand<OptionBrand>, _, _, _, _>(coyo, |x| {
+		let result = bind_explicit::<CoyonedaBrand<OptionBrand>, _, _, _, _>(coyo, |x| {
 			Coyoneda::<OptionBrand, _>::lift(Some(x + 1))
 		});
 		assert_eq!(result.lower(), Some(7)); // (3 * 2) + 1

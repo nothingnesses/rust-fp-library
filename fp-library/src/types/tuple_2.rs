@@ -523,7 +523,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<Tuple2FirstAppliedBrand<String>, _, _, _, _, _, _>(
+		/// 	lift2_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		("a".to_string(), 1),
 		/// 		("b".to_string(), 2)
@@ -656,7 +656,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(("a".to_string(), 5), |x| (
+		/// 	bind_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(("a".to_string(), 5), |x| (
 		/// 		"b".to_string(),
 		/// 		x * 2
 		/// 	)),
@@ -1113,7 +1113,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = lift2::<Tuple2FirstAppliedBrand<String>, _, _, _, _, _, _>(
+		/// let result = lift2_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
 		/// 	&("a".to_string(), 1),
 		/// 	&("b".to_string(), 2),
@@ -1188,10 +1188,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result: (String, String) =
-		/// 	bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(&("a".to_string(), 42), |x: &i32| {
-		/// 		("b".to_string(), x.to_string())
-		/// 	});
+		/// let result: (String, String) = bind_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
+		/// 	&("a".to_string(), 42),
+		/// 	|x: &i32| ("b".to_string(), x.to_string()),
+		/// );
 		/// assert_eq!(result, ("ab".to_string(), "42".to_string()));
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
@@ -1288,7 +1288,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<Tuple2SecondAppliedBrand<String>, _, _, _, _, _, _>(
+		/// 	lift2_explicit::<Tuple2SecondAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		(1, "a".to_string()),
 		/// 		(2, "b".to_string())
@@ -1421,7 +1421,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<Tuple2SecondAppliedBrand<String>, _, _, _, _>((5, "a".to_string()), |x| (
+		/// 	bind_explicit::<Tuple2SecondAppliedBrand<String>, _, _, _, _>((5, "a".to_string()), |x| (
 		/// 		x * 2,
 		/// 		"b".to_string()
 		/// 	)),
@@ -1872,7 +1872,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = lift2::<Tuple2SecondAppliedBrand<String>, _, _, _, _, _, _>(
+		/// let result = lift2_explicit::<Tuple2SecondAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
 		/// 	&(1, "a".to_string()),
 		/// 	&(2, "b".to_string()),
@@ -1947,10 +1947,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result: (String, String) =
-		/// 	bind::<Tuple2SecondAppliedBrand<String>, _, _, _, _>(&(42, "a".to_string()), |x: &i32| {
-		/// 		(x.to_string(), "b".to_string())
-		/// 	});
+		/// let result: (String, String) = bind_explicit::<Tuple2SecondAppliedBrand<String>, _, _, _, _>(
+		/// 	&(42, "a".to_string()),
+		/// 	|x: &i32| (x.to_string(), "b".to_string()),
+		/// );
 		/// assert_eq!(result, ("42".to_string(), "ab".to_string()));
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
@@ -2137,7 +2137,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| ("f".to_string(), x.wrapping_mul(2));
-		bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
+		bind_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
 			pure::<Tuple2FirstAppliedBrand<String>, _>(a),
 			f,
 		) == f(a)
@@ -2150,7 +2150,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let m = (first, second);
-		bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
+		bind_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
 			m.clone(),
 			pure::<Tuple2FirstAppliedBrand<String>, _>,
 		) == m
@@ -2165,11 +2165,11 @@ mod tests {
 		let m = (first, second);
 		let f = |x: i32| ("f".to_string(), x.wrapping_mul(2));
 		let g = |x: i32| ("g".to_string(), x.wrapping_add(1));
-		bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
-			bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(m.clone(), f),
+		bind_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
+			bind_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(m.clone(), f),
 			g,
-		) == bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(m, |x| {
-			bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(f(x), g)
+		) == bind_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(m, |x| {
+			bind_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(f(x), g)
 		})
 	}
 
