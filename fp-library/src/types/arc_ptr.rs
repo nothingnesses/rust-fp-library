@@ -164,7 +164,10 @@ mod inner {
 		/// ```
 		fn take_cell_take<'a, T: 'a>(cell: &Arc<Mutex<Option<T>>>) -> Option<T> {
 			// SAFETY: lock only fails on poisoning, which cannot occur here
-			#[allow(clippy::unwrap_used)]
+			#[expect(
+				clippy::unwrap_used,
+				reason = "Lock only fails on poisoning, which cannot occur here"
+			)]
 			cell.lock().unwrap().take()
 		}
 	}

@@ -539,7 +539,7 @@ impl<'a> VisitMut for SelfSubstitutor<'a> {
 			{
 				// Resolve Self::AssocType<Args>
 				// SAFETY: segments.len() > 1 checked above
-				#[allow(clippy::indexing_slicing)]
+				#[expect(clippy::indexing_slicing, reason = "segments.len() > 1 checked above")]
 				let segment = &tp.path.segments[1];
 				*i = self.resolve_self_assoc_type(tp, segment);
 			}

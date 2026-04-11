@@ -78,7 +78,7 @@ fn insert_signature_docs(
 ///
 /// Performs Self-type substitution and generics merging before delegating
 /// to [`insert_signature_docs`] for the shared doc comment insertion.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "Documentation generation requires many parameters")]
 pub(super) fn process_document_signature(
 	method: &mut syn::ImplItemFn,
 	attr_pos: usize,
@@ -213,7 +213,7 @@ pub(super) fn process_document_type_parameters(
 }
 
 /// Process method-level documentation (signatures and type parameters).
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "Documentation generation requires many parameters")]
 fn process_method_documentation(
 	method: &mut syn::ImplItemFn,
 	self_ty: &syn::Type,

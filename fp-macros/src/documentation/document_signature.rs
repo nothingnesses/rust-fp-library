@@ -104,7 +104,7 @@ impl std::fmt::Display for SignatureData {
 		if !self.constraints.is_empty() {
 			let s = if self.constraints.len() == 1 {
 				// SAFETY: constraints checked non-empty above
-				#[allow(clippy::indexing_slicing)]
+				#[expect(clippy::indexing_slicing, reason = "Length checked to be exactly 1 above")]
 				self.constraints[0].clone()
 			} else {
 				format!("({})", self.constraints.join(", "))
@@ -118,7 +118,7 @@ impl std::fmt::Display for SignatureData {
 		} else {
 			let input_type = if self.params.len() == 1 {
 				// SAFETY: params.len() == 1 checked above
-				#[allow(clippy::indexing_slicing)]
+				#[expect(clippy::indexing_slicing, reason = "Length checked to be exactly 1 above")]
 				self.params[0].clone()
 			} else {
 				HmAst::Tuple(self.params.clone())

@@ -382,7 +382,11 @@ fn validate_no_duplicate_doc_attrs(
 /// document_signature -> document_type_parameters -> document_parameters ->
 /// document_returns -> document_examples.
 // SAFETY: all indices are bounded by DOCUMENT_ATTR_ORDER.len() and names come from DOCUMENT_ATTR_ORDER itself
-#[allow(clippy::indexing_slicing, clippy::unwrap_used)]
+#[expect(
+	clippy::indexing_slicing,
+	clippy::unwrap_used,
+	reason = "Indices bounded by DOCUMENT_ATTR_ORDER"
+)]
 fn validate_doc_attr_order(
 	attrs: &[syn::Attribute],
 	item_span: proc_macro2::Span,

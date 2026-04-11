@@ -224,7 +224,7 @@ pub fn parse_unique_attribute_value(
 ///     // Handle inline attribute
 /// }
 /// ```
-#[allow(dead_code)]
+#[allow(dead_code, reason = "API kept for completeness")]
 pub trait AttributeExt {
 	/// Find, remove, and parse an attribute in one operation.
 	///

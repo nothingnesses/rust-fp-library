@@ -3,7 +3,7 @@
 //! Feasibility tests for adding a container type parameter to dispatch traits,
 //! enabling dispatch free functions to accept both owned and borrowed containers.
 
-#[allow(unused)]
+#[expect(unused, reason = "Feasibility test helpers used only within module")]
 #[cfg(test)]
 mod tests {
 	// ================================================================

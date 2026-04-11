@@ -74,7 +74,7 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 				HmAst::Unit
 			} else if input_hm_types.len() == 1 {
 				// SAFETY: length checked to be 1 above
-				#[allow(clippy::indexing_slicing)]
+				#[expect(clippy::indexing_slicing, reason = "Length checked above")]
 				input_hm_types[0].clone()
 			} else {
 				HmAst::Tuple(input_hm_types)
@@ -126,7 +126,7 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 
 			if type_path.path.segments.len() >= 2 {
 				// SAFETY: segments.len() >= 2 checked above
-				#[allow(clippy::indexing_slicing)]
+				#[expect(clippy::indexing_slicing, reason = "Length checked above")]
 				let first = &type_path.path.segments[0];
 				let Some(last) = last_path_segment(&type_path.path) else {
 					// Should be unreachable given the len() >= 2 check, but handle defensively
@@ -309,7 +309,7 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 			HmAst::TraitObject(Box::new(HmAst::Variable("_".to_string())))
 		} else {
 			// SAFETY: bounds checked non-empty above
-			#[allow(clippy::indexing_slicing)]
+			#[expect(clippy::indexing_slicing, reason = "Length checked above")]
 			let inner = if bounds.len() == 1 { bounds[0].clone() } else { HmAst::Tuple(bounds) };
 			HmAst::TraitObject(Box::new(inner))
 		}
@@ -343,7 +343,7 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 			ReturnType::Type(_, ty) => self.visit(ty),
 		};
 		// SAFETY: inputs.len() == 1 checked in condition
-		#[allow(clippy::indexing_slicing)]
+		#[expect(clippy::indexing_slicing, reason = "Length checked above")]
 		let input_ty = if inputs.len() == 1 { inputs[0].clone() } else { HmAst::Tuple(inputs) };
 		HmAst::Arrow(Box::new(input_ty), Box::new(output))
 	}
@@ -362,7 +362,7 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 			HmAst::Unit
 		} else if types.len() == 1 {
 			// SAFETY: types.len() == 1 checked above
-			#[allow(clippy::indexing_slicing)]
+			#[expect(clippy::indexing_slicing, reason = "Length checked above")]
 			types[0].clone()
 		} else {
 			HmAst::Tuple(types)

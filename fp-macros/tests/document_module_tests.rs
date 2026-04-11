@@ -14,9 +14,9 @@ mod test_mod {
 		type Of<T>;
 	);
 
-	#[allow(dead_code)]
+	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	pub struct MyBrand;
-	#[allow(dead_code)]
+	#[allow(dead_code, reason = "Test fixture exists to exercise document_module macro")]
 	pub struct MyType<T>(T);
 
 	impl_kind! {
@@ -26,7 +26,7 @@ mod test_mod {
 		}
 	}
 
-	#[allow(dead_code)]
+	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	pub trait Functor {
 		fn map<A, B>(
 			self,
@@ -65,9 +65,9 @@ mod test_collision {
 	trait_kind!(
 		type Of<T>;
 	);
-	#[allow(dead_code)]
+	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	pub struct Brand;
-	#[allow(dead_code)]
+	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	pub struct MyType<T>(T);
 	impl_kind! {
 		for Brand {
@@ -76,14 +76,14 @@ mod test_collision {
 	}
 
 	#[fp_macros::document_module]
-	#[allow(unexpected_cfgs)]
+	#[expect(unexpected_cfgs, reason = "Testing cfg-gated items in document_module")]
 	mod test_cfg_no_conflict {
 		use fp_macros::impl_kind;
-		#[allow(dead_code)]
+		#[expect(dead_code, reason = "Test fixture for document_module macro")]
 		pub struct Brand;
-		#[allow(dead_code)]
+		#[expect(dead_code, reason = "Test fixture for document_module macro")]
 		pub struct SyncType<T>(T);
-		#[allow(dead_code)]
+		#[expect(dead_code, reason = "Test fixture for document_module macro")]
 		pub struct AsyncType<T>(T);
 
 		#[cfg(feature = "sync")]
@@ -104,7 +104,11 @@ mod test_collision {
 
 		// Add a manual impl of the Kind trait to satisfy the compiler
 		// This allows document_module to scan it without erroring on missing trait
-		#[allow(dead_code, non_camel_case_types)]
+		#[allow(
+			dead_code,
+			non_camel_case_types,
+			reason = "Test fixture exists to exercise document_module macro"
+		)]
 		trait Kind_ad6c20556a82a1f0 {
 			type Of<T>;
 		}
@@ -112,13 +116,13 @@ mod test_collision {
 
 	#[fp_macros::document_module]
 	mod test_dyn_formatting {
-		#[allow(dead_code)]
+		#[allow(dead_code, reason = "Test fixture exists to exercise document_module macro")]
 		pub trait MyTrait {}
 
-		#[allow(dead_code)]
+		#[expect(dead_code, reason = "Test fixture for document_module macro")]
 		pub struct Brand;
 
-		#[allow(dead_code)]
+		#[expect(dead_code, reason = "Test fixture for document_module macro")]
 		pub trait TestTrait {
 			#[document_signature]
 			fn foo() -> Box<dyn MyTrait>;
@@ -133,12 +137,15 @@ mod test_collision {
 
 #[document_module(no_validation)]
 mod test_erasure {
-	#[allow(dead_code)]
+	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	pub struct Brand;
-	#[allow(dead_code)]
+	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	pub trait MyTrait {
 		#[document_signature]
-		#[allow(clippy::needless_lifetimes)]
+		#[expect(
+			clippy::needless_lifetimes,
+			reason = "Testing lifetime handling in document_module macro"
+		)]
 		unsafe fn foo<'a, T: ?Sized>(x: &'a T) -> &'a T;
 	}
 }
@@ -147,28 +154,28 @@ mod test_erasure {
 mod test_impl_level_document_parameters {
 	use fp_macros::document_parameters;
 
-	#[allow(dead_code)]
+	#[allow(dead_code, reason = "Test fixture exists to exercise document_module macro")]
 	pub struct MyList<T>(Vec<T>);
 
 	/// Test impl-level document_parameters with receiver-only method
 	#[document_type_parameters("The type of elements in the list")]
 	#[document_parameters("The list instance")]
 	impl<T> MyList<T> {
-		#[allow(dead_code)]
+		#[expect(dead_code, reason = "Test fixture for document_module macro")]
 		#[document_signature]
 		#[document_parameters]
 		pub fn len(&self) -> usize {
 			self.0.len()
 		}
 
-		#[allow(dead_code)]
+		#[expect(dead_code, reason = "Test fixture for document_module macro")]
 		#[document_signature]
 		#[document_parameters]
 		pub fn is_empty(&self) -> bool {
 			self.0.is_empty()
 		}
 
-		#[allow(dead_code)]
+		#[expect(dead_code, reason = "Test fixture for document_module macro")]
 		#[document_signature]
 		#[document_parameters("The element to append")]
 		pub fn push(
@@ -178,7 +185,7 @@ mod test_impl_level_document_parameters {
 			self.0.push(item)
 		}
 
-		#[allow(dead_code)]
+		#[expect(dead_code, reason = "Test fixture for document_module macro")]
 		#[document_signature]
 		#[document_parameters("The element to prepend")]
 		pub fn cons(
@@ -191,7 +198,7 @@ mod test_impl_level_document_parameters {
 		}
 
 		// Static method (no receiver) should work without impl-level receiver doc
-		#[allow(dead_code)]
+		#[expect(dead_code, reason = "Test fixture for document_module macro")]
 		#[document_signature]
 		#[document_parameters("The initial capacity")]
 		pub fn with_capacity(capacity: usize) -> Self {
@@ -202,7 +209,7 @@ mod test_impl_level_document_parameters {
 	/// Test multiple impl blocks for the same type
 	#[document_parameters("The list to operate on")]
 	impl<T: Clone> MyList<T> {
-		#[allow(dead_code)]
+		#[expect(dead_code, reason = "Test fixture for document_module macro")]
 		#[document_signature]
 		#[document_parameters]
 		pub fn clone_list(&self) -> Self {
@@ -227,7 +234,7 @@ mod test_trait_fully_documented {
 		document_returns,
 	};
 
-	#[allow(dead_code)]
+	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	#[fp_macros::document_type_parameters("The element type.")]
 	#[document_parameters("The collection instance.")]
 	pub trait MyCollection<T> {
@@ -261,7 +268,7 @@ mod test_trait_fully_documented {
 /// Marker trait (no methods) - no validation warnings expected.
 #[document_module]
 mod test_marker_trait {
-	#[allow(dead_code)]
+	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	pub trait Marker {}
 }
 
@@ -270,13 +277,13 @@ mod test_marker_trait {
 mod test_trait_and_impl_together {
 	use fp_macros::document_parameters;
 
-	#[allow(dead_code)]
+	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	pub trait Greet {
 		#[document_signature]
 		fn greet(&self) -> String;
 	}
 
-	#[allow(dead_code)]
+	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	pub struct Greeter;
 
 	#[document_parameters("The greeter instance.")]
@@ -294,7 +301,7 @@ mod test_trait_and_impl_together {
 mod test_trait_level_document_parameters {
 	use fp_macros::document_parameters;
 
-	#[allow(dead_code)]
+	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	#[document_parameters("The stack instance.")]
 	pub trait Stack<T> {
 		#[document_parameters("The element to push.")]
@@ -326,7 +333,7 @@ mod test_trait_signature_with_examples {
 		document_returns,
 	};
 
-	#[allow(dead_code)]
+	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	/// A test trait with examples.
 	#[document_examples]
 	///

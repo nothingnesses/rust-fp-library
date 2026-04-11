@@ -294,7 +294,7 @@ fn scan_directory_and_collect(
 	formatter: &dyn ReExportFormatter,
 ) -> Vec<TokenStream> {
 	// SAFETY: CARGO_MANIFEST_DIR is always set by Cargo during compilation
-	#[allow(clippy::expect_used)]
+	#[expect(clippy::expect_used, reason = "CARGO_MANIFEST_DIR is always set by Cargo")]
 	let manifest_dir =
 		std::env::var(configuration::CARGO_MANIFEST_DIR).expect("CARGO_MANIFEST_DIR not set");
 	let base_path = Path::new(&manifest_dir).join(input.path.value());

@@ -454,7 +454,10 @@ mod inner {
 			P::coerce_fn(move |s| {
 				let pab = pab.clone();
 				// SAFETY: traversal contract guarantees Some when applying through OptionBrand
-				#[allow(clippy::unwrap_used)]
+				#[expect(
+					clippy::unwrap_used,
+					reason = "Traversal contract guarantees Some when applying through OptionBrand"
+				)]
 				traversal
 					.apply::<crate::brands::OptionBrand>(Box::new(move |a| Some(pab(a))), s)
 					.unwrap()

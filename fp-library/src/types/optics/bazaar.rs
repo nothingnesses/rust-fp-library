@@ -157,7 +157,10 @@ mod inner {
 				foci: vec![],
 				rebuild: <FunctionBrand as LiftFn>::new(move |_: Vec<B>| {
 					// SAFETY: take_cell_take is called exactly once per the optics rebuild contract
-					#[allow(clippy::expect_used)]
+					#[expect(
+						clippy::expect_used,
+						reason = "Called exactly once per optics rebuild contract"
+					)]
 					Ptr::<FunctionBrand>::take_cell_take(&a)
 						.expect("BazaarList::pure rebuild called more than once")
 				}),
@@ -635,7 +638,10 @@ mod inner {
 					foci: bl.foci,
 					rebuild: <FunctionBrand as LiftFn>::new(move |bs: Vec<B>| {
 						// SAFETY: take_cell_take is called exactly once per the optics rebuild contract
-						#[allow(clippy::expect_used)]
+						#[expect(
+							clippy::expect_used,
+							reason = "Called exactly once per optics rebuild contract"
+						)]
 						let c = Ptr::<FunctionBrand>::take_cell_take(&c)
 							.expect("BazaarList rebuild called more than once");
 						((*rebuild)(bs), c)
@@ -697,7 +703,10 @@ mod inner {
 					foci: bl.foci,
 					rebuild: <FunctionBrand as LiftFn>::new(move |bs: Vec<B>| {
 						// SAFETY: take_cell_take is called exactly once per the optics rebuild contract
-						#[allow(clippy::expect_used)]
+						#[expect(
+							clippy::expect_used,
+							reason = "Called exactly once per optics rebuild contract"
+						)]
 						let c = Ptr::<FunctionBrand>::take_cell_take(&c)
 							.expect("BazaarList rebuild called more than once");
 						(c, (*rebuild)(bs))
@@ -781,7 +790,10 @@ mod inner {
 						foci: vec![],
 						rebuild: <FunctionBrand as LiftFn>::new(move |_: Vec<B>| {
 							// SAFETY: take_cell_take is called exactly once per the optics rebuild contract
-							#[allow(clippy::expect_used)]
+							#[expect(
+								clippy::expect_used,
+								reason = "Called exactly once per optics rebuild contract"
+							)]
 							Ok(Ptr::<FunctionBrand>::take_cell_take(&c)
 								.expect("BazaarList rebuild called more than once"))
 						}),
@@ -856,7 +868,10 @@ mod inner {
 						foci: vec![],
 						rebuild: <FunctionBrand as LiftFn>::new(move |_: Vec<B>| {
 							// SAFETY: take_cell_take is called exactly once per the optics rebuild contract
-							#[allow(clippy::expect_used)]
+							#[expect(
+								clippy::expect_used,
+								reason = "Called exactly once per optics rebuild contract"
+							)]
 							Err(Ptr::<FunctionBrand>::take_cell_take(&c)
 								.expect("BazaarList rebuild called more than once"))
 						}),

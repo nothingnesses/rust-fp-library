@@ -378,7 +378,7 @@ mod inner {
 			// Type-erase the continuation
 			let erased_f: Continuation<F> = Box::new(move |val: TypeErasedValue| {
 				// INVARIANT: type is maintained by internal invariant; mismatch indicates a bug
-				#[allow(clippy::expect_used)]
+				#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
 				let a: A = *val.downcast().expect("Type mismatch in Free::bind");
 				let free_b: Free<F, B> = f(a);
 				// Use cast_phantom (not erase_type) to avoid adding a rebox
@@ -606,7 +606,10 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::wrap(Thunk::new(|| Free::pure(99)));
 		/// assert!(matches!(free.to_view(), FreeStep::Suspended(_)));
 		/// ```
-		#[allow(clippy::expect_used)]
+		#[expect(
+			clippy::expect_used,
+			reason = "Free values consumed exactly once; double consumption is a bug"
+		)]
 		pub fn to_view(mut self) -> FreeStep<F, A> {
 			let (view, continuations) = self.take_parts();
 

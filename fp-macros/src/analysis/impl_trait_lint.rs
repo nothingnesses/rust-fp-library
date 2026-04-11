@@ -101,7 +101,7 @@ fn has_trait_bounds(bounds: &[&TypeParamBound]) -> bool {
 /// `impl Trait` can only appear as the entire type of a function parameter (or behind
 /// `&`/`&mut`). It cannot be nested inside generic types like `Option<F>` or `Apply!(...)`.
 // SAFETY: matching.len() == 1 checked on the return expression
-#[allow(clippy::indexing_slicing)]
+#[expect(clippy::indexing_slicing, reason = "matching.len() == 1 checked on return")]
 fn appears_once_at_top_level(
 	sig: &Signature,
 	name: &str,

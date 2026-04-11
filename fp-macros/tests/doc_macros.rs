@@ -20,7 +20,7 @@ pub fn test_fn<T: Clone, ERR>(x: T) -> impl Fn(i32) -> T {
 
 #[document_module(no_validation)]
 mod test_mod {
-	#[allow(dead_code)]
+	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	pub trait MyTrait<T> {
 		fn foo(
 			&self,
@@ -28,7 +28,7 @@ mod test_mod {
 		) -> T;
 	}
 
-	#[allow(dead_code)]
+	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	pub struct MyType<T>(T);
 
 	impl<T: Clone> MyTrait<T> for MyType<T> {

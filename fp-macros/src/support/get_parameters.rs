@@ -36,7 +36,7 @@ pub enum Parameter {
 	/// Note: The `syn::Type` field is currently not accessed during matching, but is preserved
 	/// for potential future use in generating more detailed documentation. This causes a
 	/// compiler warning about unused fields, which is expected and acceptable.
-	#[allow(dead_code)]
+	#[expect(dead_code, reason = "Stored for potential future use in documentation generation")]
 	Implicit(syn::Type),
 }
 

@@ -24,7 +24,7 @@ mod test_no_validation {
 			Self
 		}
 
-		#[allow(dead_code)]
+		#[expect(dead_code, reason = "Test fixture for document_module macro")]
 		pub fn process<T>(
 			&self,
 			_value: T,
@@ -98,7 +98,7 @@ mod test_impl_trait_lint_suppressed {
 	pub struct MyType;
 
 	impl MyType {
-		#[allow(dead_code)]
+		#[allow(dead_code, reason = "Test fixture exists to exercise document_module macro")]
 		#[allow_named_generics]
 		pub fn apply<F: Fn(i32) -> i32>(
 			f: F,
@@ -121,7 +121,7 @@ mod test_no_validation_mode_skips_lint {
 	pub struct MyType;
 
 	impl MyType {
-		#[allow(dead_code)]
+		#[allow(dead_code, reason = "Test fixture exists to exercise document_module macro")]
 		pub fn apply<F: Fn(i32) -> i32>(
 			f: F,
 			x: i32,
@@ -148,7 +148,7 @@ mod test_allow_named_generics_stripped {
 	pub struct MyType;
 
 	impl MyType {
-		#[allow(dead_code)]
+		#[allow(dead_code, reason = "Test fixture exists to exercise document_module macro")]
 		#[allow_named_generics]
 		pub fn transform<F: Fn(i32) -> i32>(
 			f: F,

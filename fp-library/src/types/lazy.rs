@@ -2015,16 +2015,25 @@ mod inner {
 			rc::Weak,
 		};
 
-		#[allow(clippy::type_complexity)]
+		#[expect(
+			clippy::type_complexity,
+			reason = "Nested smart pointers are inherent to the fix-point construction"
+		)]
 		let cell: Rc<OnceCell<Weak<LazyCell<A, Box<dyn FnOnce() -> A + 'a>>>>> = Rc::new(OnceCell::new());
 		let cell_clone = cell.clone();
 		let lazy = RcLazy::new(move || {
 			// INVARIANT: cell is always set on the line after this closure is
 			// created, and the outer RcLazy is still alive (we are inside its
 			// evaluation), so the Weak upgrade always succeeds.
-			#[allow(clippy::expect_used)]
+			#[expect(
+				clippy::expect_used,
+				reason = "Invariant: cell set immediately after closure creation, Weak upgrade always succeeds"
+			)]
 			let weak = cell_clone.get().expect("rc_lazy_fix: cell not initialized");
-			#[allow(clippy::expect_used)]
+			#[expect(
+				clippy::expect_used,
+				reason = "Invariant: cell set immediately after closure creation, Weak upgrade always succeeds"
+			)]
 			let self_ref = Lazy(weak.upgrade().expect("rc_lazy_fix: outer lazy was dropped"));
 			f(self_ref)
 		});
@@ -2075,7 +2084,10 @@ mod inner {
 			Weak,
 		};
 
-		#[allow(clippy::type_complexity)]
+		#[expect(
+			clippy::type_complexity,
+			reason = "Nested smart pointers are inherent to the fix-point construction"
+		)]
 		let cell: Arc<OnceLock<Weak<LazyLock<A, Box<dyn FnOnce() -> A + Send + 'a>>>>> =
 			Arc::new(OnceLock::new());
 		let cell_clone = cell.clone();
@@ -2083,9 +2095,15 @@ mod inner {
 			// INVARIANT: cell is always set on the line after this closure is
 			// created, and the outer ArcLazy is still alive (we are inside its
 			// evaluation), so the Weak upgrade always succeeds.
-			#[allow(clippy::expect_used)]
+			#[expect(
+				clippy::expect_used,
+				reason = "Invariant: cell set immediately after closure creation, Weak upgrade always succeeds"
+			)]
 			let weak = cell_clone.get().expect("arc_lazy_fix: cell not initialized");
-			#[allow(clippy::expect_used)]
+			#[expect(
+				clippy::expect_used,
+				reason = "Invariant: cell set immediately after closure creation, Weak upgrade always succeeds"
+			)]
 			let self_ref = Lazy(weak.upgrade().expect("arc_lazy_fix: outer lazy was dropped"));
 			f(self_ref)
 		});

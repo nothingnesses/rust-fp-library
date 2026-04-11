@@ -405,7 +405,10 @@ mod inner {
 		/// 	coyo.traverse::<OptionBrand, _>(|x| if x > 0 { Some(x) } else { None });
 		/// assert_eq!(result.map(|c| c.lower()), Some(vec![10, 20, 30]));
 		/// ```
-		#[allow(clippy::type_complexity)]
+		#[allow(
+			clippy::type_complexity,
+			reason = "HKT return type with nested Apply! is inherently complex"
+		)]
 		pub fn traverse<G: Applicative + 'a, C: 'a + Clone>(
 			self,
 			f: impl Fn(A) -> Apply!(<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,

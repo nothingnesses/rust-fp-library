@@ -58,14 +58,14 @@ pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 
 	Ok(quote! {
 		#[doc = #doc_string]
-		#[allow(non_camel_case_types)]
+		#[expect(non_camel_case_types, reason = "Generated name uses hash suffix for uniqueness")]
 		pub trait #name {
 			#(#assoc_types_tokens)*
 		}
 
 		#[doc = #ib_doc_summary]
 		#[doc = #ib_doc_detail]
-		#[allow(non_camel_case_types)]
+		#[expect(non_camel_case_types, reason = "Generated name uses hash suffix for uniqueness")]
 		#[diagnostic::on_unimplemented(
 			message = "`{Self}` does not have a unique brand and cannot use brand inference",
 			note = "use the `_explicit` variant with a turbofish to specify the brand manually"

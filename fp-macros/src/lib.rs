@@ -127,7 +127,7 @@ use {
 ///
 /// For other positions, you must use the generated name directly (e.g., `Kind_...`).
 #[proc_macro]
-#[allow(non_snake_case)]
+#[expect(non_snake_case, reason = "Matches the PascalCase type-level concept it represents")]
 pub fn Kind(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as AssociatedTypes);
 	let name = match generate_name(&input) {
@@ -185,7 +185,7 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 /// In these positions, use the generated name directly (e.g., `InferableBrand_cdc7cd43dac7585f`).
 /// Inside `Apply!()`, the macro is supported and resolved automatically via preprocessing.
 #[proc_macro]
-#[allow(non_snake_case)]
+#[expect(non_snake_case, reason = "Matches the PascalCase type-level concept it represents")]
 pub fn InferableBrand(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as AssociatedTypes);
 	let name = match generate_inferable_brand_name(&input) {
@@ -428,7 +428,7 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 /// type Concrete = <MyBrand as Kind_...>::SendOf<T>;
 /// ```
 #[proc_macro]
-#[allow(non_snake_case)]
+#[expect(non_snake_case, reason = "Matches the PascalCase type-level concept it represents")]
 pub fn Apply(input: TokenStream) -> TokenStream {
 	// Resolve any InferableBrand!(SIG) invocations before parsing.
 	let preprocessed: proc_macro2::TokenStream = input.into();
