@@ -23,10 +23,10 @@ mod inner {
 			Apply,
 			brands::FnBrand,
 			classes::{
-				dispatch::Ref,
 				profunctor::*,
 				*,
 			},
+			dispatch::Ref,
 			impl_kind,
 			kinds::*,
 		},

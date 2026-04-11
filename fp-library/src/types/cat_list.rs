@@ -27,10 +27,8 @@ mod inner {
 				CatListBrand,
 				OptionBrand,
 			},
-			classes::{
-				dispatch::Ref,
-				*,
-			},
+			classes::*,
+			dispatch::Ref,
 			impl_kind,
 			kinds::*,
 		},

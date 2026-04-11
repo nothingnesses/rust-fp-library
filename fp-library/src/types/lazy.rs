@@ -48,8 +48,8 @@ mod inner {
 				SendRefSemiapplicative,
 				SendRefSemimonad,
 				WithIndex,
-				dispatch::Ref,
 			},
+			dispatch::Ref,
 			impl_kind,
 			kinds::*,
 			types::{

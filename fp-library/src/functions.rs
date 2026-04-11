@@ -93,7 +93,7 @@ fp_macros::generate_function_re_exports!("src/classes", {
 });
 // Dispatch free functions are in sub-modules not scanned by the macro.
 pub use crate::{
-	classes::dispatch::{
+	dispatch::{
 		alt::alt as alt_explicit,
 		apply_first::apply_first as apply_first_explicit,
 		apply_second::apply_second as apply_second_explicit,

@@ -8,10 +8,8 @@ mod inner {
 		crate::{
 			Apply,
 			brands::Tuple1Brand,
-			classes::{
-				dispatch::Ref,
-				*,
-			},
+			classes::*,
+			dispatch::Ref,
 			impl_kind,
 			kinds::*,
 		},

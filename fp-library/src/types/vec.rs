@@ -11,10 +11,8 @@ mod inner {
 				OptionBrand,
 				VecBrand,
 			},
-			classes::{
-				dispatch::Ref,
-				*,
-			},
+			classes::*,
+			dispatch::Ref,
 			impl_kind,
 			kinds::*,
 		},
@@ -3433,7 +3431,7 @@ mod tests {
 		let p = |i: i32| Some(if i % 2 == 0 { Ok(i) } else { Err(i) });
 
 		let lhs = wilt_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(p, x.clone());
-		let rhs = crate::classes::dispatch::map::<OptionBrand, _, _, _, _>(
+		let rhs = crate::dispatch::map::<OptionBrand, _, _, _, _>(
 			separate_explicit::<VecBrand, _, _, _, _>,
 			traverse_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(p, x),
 		);
@@ -3447,7 +3445,7 @@ mod tests {
 		let p = |i: i32| Some(if i % 2 == 0 { Some(i) } else { None });
 
 		let lhs = wither_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(p, x.clone());
-		let rhs = crate::classes::dispatch::map::<OptionBrand, _, _, _, _>(
+		let rhs = crate::dispatch::map::<OptionBrand, _, _, _, _>(
 			compact_explicit::<VecBrand, _, _, _>,
 			traverse_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(p, x),
 		);

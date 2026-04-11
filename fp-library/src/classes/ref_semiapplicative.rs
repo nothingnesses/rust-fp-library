@@ -24,10 +24,8 @@
 mod inner {
 	use {
 		crate::{
-			classes::{
-				dispatch::Ref,
-				*,
-			},
+			classes::*,
+			dispatch::Ref,
 			kinds::*,
 		},
 		fp_macros::*,

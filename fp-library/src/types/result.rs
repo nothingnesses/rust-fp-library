@@ -12,10 +12,8 @@ mod inner {
 				ResultErrAppliedBrand,
 				ResultOkAppliedBrand,
 			},
-			classes::{
-				dispatch::Ref,
-				*,
-			},
+			classes::*,
+			dispatch::Ref,
 			impl_kind,
 			kinds::*,
 		},

@@ -71,6 +71,7 @@ extern crate fp_macros;
 
 pub mod brands;
 pub mod classes;
+pub mod dispatch;
 pub mod functions;
 pub mod kinds;
 pub mod types;

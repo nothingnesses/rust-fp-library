@@ -12,10 +12,8 @@ mod inner {
 				Tuple2FirstAppliedBrand,
 				Tuple2SecondAppliedBrand,
 			},
-			classes::{
-				dispatch::Ref,
-				*,
-			},
+			classes::*,
+			dispatch::Ref,
 			impl_kind,
 			kinds::*,
 		},

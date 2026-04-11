@@ -36,7 +36,6 @@ pub mod contravariant;
 pub mod default_brand;
 mod default_brand_impls;
 pub mod deferrable;
-pub mod dispatch;
 pub mod division_ring;
 pub mod euclidean_ring;
 pub mod extend;
