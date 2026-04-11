@@ -6,18 +6,15 @@
 
 A functional programming library for Rust featuring your favourite higher-kinded types and type classes.
 
-## Features
+## At a Glance
 
-- **Higher-Kinded Types** via lightweight higher-kinded polymorphism (brand pattern). Write generic code over `Functor`, `Monad`, `Traversable`, etc. that works with `Option`, `Result`, `Vec`, or your own types.
-- **Type classes** covering the standard FP hierarchy: `Functor` through `Monad`, `Foldable`/`Traversable`, `Alt`/`Alternative`, `Comonad`, `Bifunctor`, `Filterable`/`Witherable`, indexed variants, and parallel counterparts.
-- **Profunctor optics** (Lens, Prism, Iso, Traversal, AffineTraversal, Getter, Setter, Fold, Review, Grate) with zero-cost composition and indexed variants. Port of PureScript's `purescript-profunctor-lenses`.
-- **Lazy evaluation types** with explicit trade-offs: `Thunk` (lightweight), `Trampoline` (stack-safe), `Lazy` (memoized), each with `Send` and fallible (`Try*`) variants.
-- **Free functors** (`Coyoneda`, `RcCoyoneda`, `ArcCoyoneda`, `CoyonedaExplicit`) for deferred mapping with different cloning, threading, and fusion trade-offs.
-- **Brand inference:** For types with a single brand (Option, Vec, etc.), the brand is inferred automatically. No turbofish needed: `map(f, Some(5))`. Types with multiple brands use `_explicit` variants.
-- **Macros:** `trait_kind!`/`impl_kind!`/`Apply!` for HKT encoding, `m_do!`/`a_do!` for monadic/applicative do-notation (with inferred and explicit brand modes).
-- **Numeric algebra:** `Semiring`, `Ring`, `EuclideanRing`, `Field`, `HeytingAlgebra`.
-- **Zero-cost abstractions:** Uncurried semantics with `impl Fn` for static dispatch. Dynamic dispatch reserved for functions-as-data.
-- **Thread safety:** Parallel trait hierarchy (`ParFunctor`, `ParFoldable`, etc.) with optional `rayon` support.
+- HKT emulation in stable Rust via the Brand pattern.
+- Type class hierarchy inspired by Haskell / PureScript.
+- Brand inference: `map(|x| x + 1, Some(5))` with no turbofish needed.
+- Val/Ref dispatch: one function handles both owned and borrowed containers.
+- Zero-cost abstractions (no runtime overhead).
+- Works with `std` types (`Option`, `Result`, `Vec`, etc.).
+- Advanced features: optics, lazy evaluation, parallel traits.
 
 ## Motivation
 
@@ -29,35 +26,9 @@ Rust is a multi-paradigm language with strong functional programming features li
 2.  A comprehensive set of standard type classes (`Functor`, `Monad`, `Traversable`, etc.).
 3.  Zero-cost abstractions that respect Rust's performance characteristics.
 
-## Usage
+## Examples
 
-Add `fp-library` to your `Cargo.toml`:
-
-```toml
-[dependencies]
-fp-library = "0.14"
-```
-
-### Crate Features
-
-The library offers optional features that can be enabled in your `Cargo.toml`:
-
-- **`rayon`**: Enables true parallel execution for `par_*` functions using the [rayon](https://github.com/rayon-rs/rayon) library. Without this feature, `par_*` functions fall back to sequential equivalents.
-- **`serde`**: Enables serialization and deserialization support for pure data types using the [serde](https://github.com/serde-rs/serde) library.
-- **`stacker`**: Enables adaptive stack growth for deep `Coyoneda`, `RcCoyoneda`, and `ArcCoyoneda` map chains via the [stacker](https://github.com/rust-lang/stacker) crate. Without this feature, deeply chained maps can overflow the stack.
-
-To enable features:
-
-```toml
-[dependencies]
-# Single feature
-fp-library = { version = "0.15", features = ["rayon"] }
-
-# Multiple features
-fp-library = { version = "0.15", features = ["rayon", "serde"] }
-```
-
-### Example: Using `Functor` with `Option`
+### Using `Functor` with `Option`
 
 The brand is inferred automatically from the container type:
 
@@ -87,7 +58,7 @@ fn main() {
 }
 ```
 
-### Example: Monadic Do-Notation with `m_do!`
+### Monadic Do-Notation with `m_do!`
 
 The `m_do!` macro provides Haskell/PureScript-style do-notation for flat monadic code.
 It desugars `<-` binds into nested `bind` calls.
@@ -115,11 +86,46 @@ fn main() {
 }
 ```
 
+## Usage
+
+Add `fp-library` to your `Cargo.toml`:
+
+```toml
+[dependencies]
+fp-library = "0.15"
+```
+
+## Features
+
+For a detailed breakdown of all features, type class hierarchies (with Mermaid diagrams),
+data types, and macros, see the [Features documentation](fp-library/docs/features.md).
+
+### Crate Features
+
+The library offers optional features that can be enabled in your `Cargo.toml`:
+
+- **`rayon`**: Enables true parallel execution for `par_*` functions using the [rayon](https://github.com/rayon-rs/rayon) library. Without this feature, `par_*` functions fall back to sequential equivalents.
+- **`serde`**: Enables serialization and deserialization support for pure data types using the [serde](https://github.com/serde-rs/serde) library.
+- **`stacker`**: Enables adaptive stack growth for deep `Coyoneda`, `RcCoyoneda`, and `ArcCoyoneda` map chains via the [stacker](https://github.com/rust-lang/stacker) crate. Without this feature, deeply chained maps can overflow the stack.
+
+To enable features:
+
+```toml
+[dependencies]
+# Single feature
+fp-library = { version = "0.15", features = ["rayon"] }
+
+# Multiple features
+fp-library = { version = "0.15", features = ["rayon", "serde"] }
+```
+
 ## How it Works
 
 **Higher-Kinded Types:** The library encodes HKTs using lightweight higher-kinded polymorphism (the "Brand" pattern). Each type constructor has a zero-sized brand type (e.g., `OptionBrand`) that implements `Kind` traits mapping brands back to concrete types. See [hkt.md](fp-library/docs/hkt.md).
 
 **Brand Inference:** `InferableBrand` traits provide the reverse mapping (concrete type -> brand), letting the compiler infer brands automatically. `trait_kind!` and `impl_kind!` generate both mappings. See [brand-inference.md](fp-library/docs/brand-inference.md).
+
+**Val/Ref Dispatch:** Each free function routes to either a by-value or by-reference trait method based on the closure's argument type (or container ownership for closureless operations). Dispatch and brand inference compose through the shared `FA` type parameter. See [dispatch.md](fp-library/docs/dispatch.md).
 
 **Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where functions must be stored as data. See [zero-cost.md](fp-library/docs/zero-cost.md).
 
@@ -133,81 +139,31 @@ fn main() {
 - [Features & Type Class Hierarchy](fp-library/docs/features.md): Full feature list with hierarchy diagrams.
 - [Higher-Kinded Types](fp-library/docs/hkt.md): The Brand pattern and HKT encoding.
 - [Brand Inference](fp-library/docs/brand-inference.md): How InferableBrand eliminates turbofish for common types.
+- [Val/Ref Dispatch](fp-library/docs/dispatch.md): How unified free functions route to by-value or by-reference trait methods.
 - [Zero-Cost Abstractions](fp-library/docs/zero-cost.md): Uncurried semantics and static dispatch.
-- [Lazy Evaluation](fp-library/docs/lazy-evaluation.md): Guide to the lazy evaluation and memoization types.
 - [Pointer Abstraction](fp-library/docs/pointer-abstraction.md): Pointer hierarchy, `FnBrand<P>`, and shared memoization.
+- [Lazy Evaluation](fp-library/docs/lazy-evaluation.md): Guide to the lazy evaluation and memoization types.
 - [Coyoneda Implementations](fp-library/docs/coyoneda.md): Trade-offs between the four free functor variants.
 - [Thread Safety & Parallelism](fp-library/docs/parallelism.md): Parallel trait hierarchy and rayon support.
+- [Limitations and Workarounds](fp-library/docs/limitations-and-workarounds.md): Rust type system constraints and how the library addresses them.
+- [Project Structure](fp-library/docs/project-structure.md): Module layout and dependency graph.
+- [Architecture & Design](fp-library/docs/architecture.md): Design decisions and documentation conventions.
 - [Optics Analysis](fp-library/docs/optics-analysis.md): Optics coverage comparison with PureScript.
 - [Profunctor Analysis](fp-library/docs/profunctor-analysis.md): Profunctor class hierarchy comparison with PureScript.
 - [Std Library Coverage](fp-library/docs/std-coverage-checklist.md): Type class coverage for standard library types.
-- [Architecture & Design](fp-library/docs/architecture.md): Module organization and documentation conventions.
 - [Benchmarks](fp-library/docs/benchmarking.md): Performance results, graphs, and benchmark coverage.
-- [Limitations and Workarounds](fp-library/docs/limitations-and-workarounds.md): Rust type system constraints and how the library addresses them.
 
 ## Contributing
 
-We welcome contributions! Please feel free to submit a [Pull Request](https://github.com/nothingnesses/rust-fp-library/compare).
+We welcome contributions!
 
-### Development Environment
+To get started:
 
-This project uses [Nix](https://nixos.org/) to manage the development environment.
+- Check out our [Contributing Guide](CONTRIBUTING.md) for environment setup and development workflows.
+- Read the [documentation files](#documentation) to get a high-level understanding of the project.
+- Join the conversation in [GitHub Issues](https://github.com/nothingnesses/rust-fp-library/issues).
 
-1.  Install [Nix Package Manager](https://nixos.org/download/).
-2.  Install [nix-direnv](https://github.com/nix-community/nix-direnv) (recommended) for automatic environment loading.
-
-To set up the environment:
-
-```sh
-# If using direnv
-direnv allow
-
-# Or manually enter the shell
-nix develop
-```
-
-This will provide a shell with the correct Rust version and dependencies.
-
-### Building and Testing
-
-All commands are run via [just](https://github.com/casey/just) recipes defined in the project's `justfile`. Never run `cargo` directly; the `justfile` handles Nix environment setup automatically.
-
-```sh
-just fmt     # Format all files (Rust, Nix, Markdown, YAML, TOML)
-just clippy  # Run clippy
-just test    # Run all tests (cached; only re-runs when content changes)
-just doc     # Build docs (must produce zero warnings)
-just verify  # Run fmt, check, clippy, doc, test in order
-just clean   # Remove build artifacts and test cache
-```
-
-Run `just --list` to see all available recipes.
-
-### Project Structure
-
-- `fp-library/src/brands`: Zero-sized brand marker types for HKT encoding.
-- `fp-library/src/kinds`: Kind traits, InferableBrand traits, and type application machinery.
-- `fp-library/src/classes`: Type class trait definitions (Functor, Monad, Foldable, etc.).
-- `fp-library/src/dispatch`: Val/Ref dispatch traits routing to by-value or by-reference trait methods.
-- `fp-library/src/functions`: Inference-based free function wrappers (the primary user API).
-- `fp-library/src/types`: Concrete type implementations of type classes.
-- `fp-macros`: Procedural macros for HKT traits, do-notation, and documentation generation.
-
-### Release Process
-
-For maintainers, the release process is documented in [release-process.md](fp-library/docs/release-process.md).
-
-### Benchmarking
-
-This project uses [Criterion.rs](https://github.com/criterion-rs/criterion.rs) for benchmarking to ensure zero-cost abstractions and detect performance regressions.
-
-```sh
-just bench -p fp-library                               # To run all benchmarks
-just bench -p fp-library --bench benchmarks -- --list  # To list available benchmarks
-just bench -p fp-library --bench benchmarks -- Vec     # To run a specific benchmark (e.g., `Vec`)
-```
-
-Benchmark reports are generated in `target/criterion/report/index.html`.
+Please ensure all PRs pass `just verify` before submission.
 
 ## License
 

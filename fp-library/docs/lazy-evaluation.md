@@ -27,7 +27,7 @@ The hierarchy consists of infallible computation types, fallible counterparts, a
 | `ArcTryLazy<'a, A, E>`   | `Arc<LazyLock<Result<A, E>, ...>>`         | Partial (`SendRefFunctor`, `Foldable`) | N/A                         | Yes      | `'a`      | Yes  |
 | `Free<F, A>`             | CatList-based "Reflection without Remorse" | No                                     | Yes                         | No       | `'static` | No   |
 
-**Config-dependent Send:** `ArcLazy`/`ArcTryLazy` are `Send + Sync`; `RcLazy`/`RcTryLazy` are not.
+**Config-dependent Send:** `ArcLazy`/`ArcTryLazy` are `Send + Sync`; `RcLazy`/`RcTryLazy` are not. The `LazyConfig` trait abstracts over the underlying pointer and cell types; see [Pointer Abstraction](./pointer-abstraction.md) for how `FnBrand<P>` and `LazyConfig` generalize over `Rc`/`Arc`.
 
 At a glance, the primary use cases are:
 

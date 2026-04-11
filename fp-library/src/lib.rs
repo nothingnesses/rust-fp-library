@@ -2,6 +2,8 @@
 #![warn(missing_docs)]
 #![allow(clippy::tabs_in_doc_comments)]
 
+//! # fp-library
+//!
 //! A functional programming library for Rust featuring your favourite higher-kinded types and type classes.
 //!
 //! ## Motivation
@@ -13,16 +15,10 @@
 //! 1.  A robust encoding of HKTs in stable Rust.
 //! 2.  A comprehensive set of standard type classes (`Functor`, `Monad`, `Traversable`, etc.).
 //! 3.  Zero-cost abstractions that respect Rust's performance characteristics.
-#![doc = include_str!("../docs/features.md")]
 //!
-//! ## How it Works
-#![doc = include_str!("../docs/hkt.md")]
-#![doc = include_str!("../docs/brand-inference.md")]
-#![doc = include_str!("../docs/zero-cost.md")]
-#![doc = include_str!("../docs/lazy-evaluation.md")]
-#![doc = include_str!("../docs/parallelism.md")]
+//! ## Examples
 //!
-//! ## Example: Using `Functor` with `Option`
+//! ### Using `Functor` with `Option`
 //!
 //! The brand is inferred automatically from the container type:
 //!
@@ -51,7 +47,7 @@
 //! assert_eq!(y, Ok(10));
 //! ```
 //!
-//! ## Example: Monadic Do-Notation with `m_do!`
+//! ### Monadic Do-Notation with `m_do!`
 //!
 //! The `m_do!` macro provides Haskell/PureScript-style do-notation for flat monadic code.
 //! It desugars `<-` binds into nested [`bind`](functions::bind) calls.
@@ -76,6 +72,16 @@
 //! });
 //! assert_eq!(result, vec![11, 21, 12, 22]);
 //! ```
+#![doc = include_str!("../docs/features.md")]
+//!
+//! ## How it Works
+#![doc = include_str!("../docs/hkt.md")]
+#![doc = include_str!("../docs/brand-inference.md")]
+#![doc = include_str!("../docs/dispatch.md")]
+#![doc = include_str!("../docs/zero-cost.md")]
+#![doc = include_str!("../docs/pointer-abstraction.md")]
+#![doc = include_str!("../docs/lazy-evaluation.md")]
+#![doc = include_str!("../docs/parallelism.md")]
 //!
 //! ## Crate Features
 //!

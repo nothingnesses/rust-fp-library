@@ -105,13 +105,13 @@ All affected operations are available as inherent methods with the necessary bou
 ```rust
 // RcCoyoneda - inherent pure with Clone bound
 impl<'a, F, A: 'a> RcCoyoneda<'a, F, A> {
-    pub fn pure(value: A) -> Self
-    where F::Of<'a, A>: Clone { ... }
+	pub fn pure(value: A) -> Self
+	where F::Of<'a, A>: Clone { ... }
 }
 
 // ArcCoyoneda - inherent map with Send + Sync on closure
 impl<'a, F, A: 'a> ArcCoyoneda<'a, F, A> {
-    pub fn map<B: 'a>(self, f: impl Fn(A) -> B + Send + Sync + 'a) -> ArcCoyoneda<'a, F, B> { ... }
+	pub fn map<B: 'a>(self, f: impl Fn(A) -> B + Send + Sync + 'a) -> ArcCoyoneda<'a, F, B> { ... }
 }
 ```
 

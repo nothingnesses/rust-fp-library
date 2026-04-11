@@ -52,7 +52,7 @@ pub type ArcLazyBrand = LazyBrand<ArcLazyConfig>;
 /// Brand for thread-safe [`ArcTryLazy`](crate::types::ArcTryLazy).
 pub type ArcTryLazyBrand<E> = TryLazyBrand<E, ArcLazyConfig>;
 
-/// An adapter that partially applies a `Bifunctor` to its first argument, creating a `Functor` over the second argument.
+/// An adapter that partially applies a [`Bifunctor`](crate::classes::Bifunctor) to its first argument, creating a [`Functor`](crate::classes::Functor) over the second argument.
 ///
 /// ### Examples
 ///
@@ -69,7 +69,7 @@ pub type ArcTryLazyBrand<E> = TryLazyBrand<E, ArcLazyConfig>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BifunctorFirstAppliedBrand<Brand, A>(PhantomData<(Brand, A)>);
 
-/// An adapter that partially applies a `Bifunctor` to its second argument, creating a `Functor` over the first argument.
+/// An adapter that partially applies a [`Bifunctor`](crate::classes::Bifunctor) to its second argument, creating a [`Functor`](crate::classes::Functor) over the first argument.
 ///
 /// ### Examples
 ///
@@ -193,7 +193,7 @@ pub struct PairFirstAppliedBrand<First>(PhantomData<First>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PairSecondAppliedBrand<Second>(PhantomData<Second>);
 
-/// An adapter that partially applies a `Profunctor` to its first argument, creating a `Functor`.
+/// An adapter that partially applies a [`Profunctor`](crate::classes::Profunctor) to its first argument, creating a [`Functor`](crate::classes::Functor).
 ///
 /// ### Examples
 ///
@@ -213,7 +213,7 @@ pub struct PairSecondAppliedBrand<Second>(PhantomData<Second>);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ProfunctorFirstAppliedBrand<Brand, A>(PhantomData<(Brand, A)>);
 
-/// An adapter that partially applies a `Profunctor` to its second argument, creating a `Contravariant` functor.
+/// An adapter that partially applies a [`Profunctor`](crate::classes::Profunctor) to its second argument, creating a [`Contravariant`](crate::classes::Contravariant) functor.
 ///
 /// ### Examples
 ///
@@ -239,7 +239,7 @@ pub struct ProfunctorSecondAppliedBrand<Brand, B>(PhantomData<(Brand, B)>);
 pub struct RcBrand;
 
 /// Brand for [`RcCoyoneda`](crate::types::RcCoyoneda), the reference-counted
-/// free functor with `Clone` support.
+/// free functor with [`Clone`] support.
 ///
 /// Like [`CoyonedaBrand`], but the underlying `RcCoyoneda` is `Clone`, enabling
 /// additional type class instances such as [`Semiapplicative`](crate::classes::Semiapplicative).

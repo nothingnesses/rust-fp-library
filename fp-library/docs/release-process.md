@@ -4,8 +4,8 @@ This document outlines the steps for releasing new versions of `fp-library` and 
 
 ## Prerequisites
 
-- Ensure the working directory is clean: `git status`
-- Ensure all tests pass: `just test`
+- Ensure the working directory is clean: `git status`.
+- Ensure all verification steps pass: `just verify`.
 
 ## Release Steps
 
