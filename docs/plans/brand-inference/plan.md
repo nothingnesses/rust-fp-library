@@ -942,7 +942,7 @@ wrappers: `alt`, `compact`, `separate`, `join`, `apply_first`,
 `if_m`, `when_m`, `unless_m` deferred (complex condition-container
 pattern).
 
-7. **Module restructure.** Move `dispatch/` from `classes/` to a
+7. **[Done] Module restructure.** Move `dispatch/` from `classes/` to a
    top-level module. Consolidate dispatch files to mirror `classes/`
    exactly (one-to-one file mapping). Split inference wrappers from
    `dispatch/inference.rs` into per-module files under `functions/`,
@@ -990,6 +990,12 @@ pattern).
     calling conventions. Tests for `bimap` inference on bifunctor types.
 
 ## Current Progress
+
+Step 7 (module restructure) is complete. The codebase now has:
+
+- `classes/` - type class traits
+- `dispatch/` - Val/Ref routing (mirrors classes/ one-to-one)
+- `functions/` - inference wrappers (mirrors classes/ one-to-one)
 
 32 functions now have brand inference:
 
