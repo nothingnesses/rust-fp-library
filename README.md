@@ -119,6 +119,8 @@ fn main() {
 
 **Higher-Kinded Types:** The library encodes HKTs using lightweight higher-kinded polymorphism (the "Brand" pattern). Each type constructor has a zero-sized brand type (e.g., `OptionBrand`) that implements `Kind` traits mapping brands back to concrete types. See [hkt.md](fp-library/docs/hkt.md).
 
+**Brand Inference:** `InferableBrand` traits provide the reverse mapping (concrete type -> brand), letting the compiler infer brands automatically. `trait_kind!` and `impl_kind!` generate both mappings. See [brand-inference.md](fp-library/docs/brand-inference.md).
+
 **Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where functions must be stored as data. See [zero-cost.md](fp-library/docs/zero-cost.md).
 
 **Lazy Evaluation:** A granular hierarchy of lazy types (`Thunk`, `Trampoline`, `Lazy`) lets you choose trade-offs between stack safety, memoization, lifetimes, and thread safety. Each has a fallible `Try*` counterpart. See [lazy-evaluation.md](fp-library/docs/lazy-evaluation.md).
@@ -130,6 +132,7 @@ fn main() {
 - [API Documentation](https://docs.rs/fp-library): The complete API reference on docs.rs.
 - [Features & Type Class Hierarchy](fp-library/docs/features.md): Full feature list with hierarchy diagrams.
 - [Higher-Kinded Types](fp-library/docs/hkt.md): The Brand pattern and HKT encoding.
+- [Brand Inference](fp-library/docs/brand-inference.md): How InferableBrand eliminates turbofish for common types.
 - [Zero-Cost Abstractions](fp-library/docs/zero-cost.md): Uncurried semantics and static dispatch.
 - [Lazy Evaluation](fp-library/docs/lazy-evaluation.md): Guide to the lazy evaluation and memoization types.
 - [Pointer Abstraction](fp-library/docs/pointer-abstraction.md): Pointer hierarchy, `FnBrand<P>`, and shared memoization.

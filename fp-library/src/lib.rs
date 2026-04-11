@@ -17,6 +17,7 @@
 //!
 //! ## How it Works
 #![doc = include_str!("../docs/hkt.md")]
+#![doc = include_str!("../docs/brand-inference.md")]
 #![doc = include_str!("../docs/zero-cost.md")]
 #![doc = include_str!("../docs/lazy-evaluation.md")]
 #![doc = include_str!("../docs/parallelism.md")]
