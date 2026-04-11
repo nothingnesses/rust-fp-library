@@ -5252,7 +5252,6 @@ mod tests {
 		yv: Vec<i32>,
 		zv: Vec<i32>,
 	) -> bool {
-		use crate::classes::ref_alt::ref_alt;
 		let x: CatList<i32> = xv.into_iter().collect();
 		let y: CatList<i32> = yv.into_iter().collect();
 		let z: CatList<i32> = zv.into_iter().collect();

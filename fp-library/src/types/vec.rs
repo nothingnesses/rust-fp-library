@@ -3912,7 +3912,6 @@ mod tests {
 	/// RefCompactable identity: ref_compact of ref_map(Some, &v) preserves values
 	#[quickcheck]
 	fn ref_compactable_identity(v: Vec<i32>) -> bool {
-		use crate::classes::ref_compactable::ref_compact;
 		let mapped: Vec<Option<i32>> = v.iter().map(|a| Some(*a)).collect();
 		compact_explicit::<VecBrand, _, _, _>(&mapped) == v
 	}
@@ -3926,7 +3925,6 @@ mod tests {
 		y: Vec<i32>,
 		z: Vec<i32>,
 	) -> bool {
-		use crate::classes::ref_alt::ref_alt;
 		alt_explicit::<VecBrand, _, _, _>(&alt_explicit::<VecBrand, _, _, _>(&x, &y), &z)
 			== alt_explicit::<VecBrand, _, _, _>(&x, &alt_explicit::<VecBrand, _, _, _>(&y, &z))
 	}
@@ -3937,7 +3935,6 @@ mod tests {
 		x: Vec<i32>,
 		y: Vec<i32>,
 	) -> bool {
-		use crate::classes::ref_alt::ref_alt;
 		let f = |a: &i32| a.wrapping_mul(2);
 		map_explicit::<VecBrand, _, _, _, _>(f, &alt_explicit::<VecBrand, _, _, _>(&x, &y))
 			== alt_explicit::<VecBrand, _, _, _>(

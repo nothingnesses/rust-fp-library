@@ -630,10 +630,7 @@ mod tests {
 	/// Tests the identity law for Contravariant.
 	#[quickcheck]
 	fn contravariant_identity(input: i32) -> bool {
-		use crate::{
-			classes::contravariant::contramap,
-			functions::identity,
-		};
+		use crate::functions::identity;
 		let fa = std::rc::Rc::new(|x: i32| x.wrapping_mul(2).wrapping_add(3))
 			as std::rc::Rc<dyn Fn(i32) -> i32>;
 		let result = contramap_explicit::<ProfunctorSecondAppliedBrand<RcFnBrand, i32>, _, _>(
@@ -646,10 +643,7 @@ mod tests {
 	/// Tests the composition law for Contravariant.
 	#[quickcheck]
 	fn contravariant_composition(input: i32) -> bool {
-		use crate::{
-			classes::contravariant::contramap,
-			functions::compose,
-		};
+		use crate::functions::compose;
 		type Contra = ProfunctorSecondAppliedBrand<RcFnBrand, i32>;
 		let fa = std::rc::Rc::new(|x: i32| x.wrapping_mul(2).wrapping_add(3))
 			as std::rc::Rc<dyn Fn(i32) -> i32>;
