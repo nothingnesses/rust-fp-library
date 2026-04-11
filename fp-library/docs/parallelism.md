@@ -1,4 +1,4 @@
-## Thread Safety and Parallelism
+### Thread Safety and Parallelism
 
 The library provides a parallel trait hierarchy that mirrors the sequential one.
 All `par_*` free functions accept plain `impl Fn + Send + Sync` closures: no wrapper
@@ -30,7 +30,7 @@ derived from `par_map` + `par_compact`; types can override them for single-pass 
 - **`SendCloneFn`**: Thread-safe cloneable function wrappers with `Send + Sync` bounds. Implemented by `ArcFnBrand`.
 - **Rayon Support**: When the `rayon` feature is enabled, `par_*` functions use rayon for true parallel execution. Otherwise they fall back to sequential equivalents.
 
-### Parallel By-Reference Traits
+#### Parallel By-Reference Traits
 
 A parallel by-reference hierarchy mirrors the parallel one but closures receive `&A`
 instead of consuming `A`. Elements require `A: Send + Sync` (for rayon's `par_iter()`

@@ -1,4 +1,4 @@
-## Lazy Evaluation & Effect System
+### Lazy Evaluation & Effect System
 
 Rust is an eagerly evaluated language. To enable functional patterns like deferred execution and safe recursion, `fp-library` provides a granular set of types that let you opt-in to specific behaviors without paying for unnecessary overhead.
 
@@ -9,7 +9,7 @@ Rust is an eagerly evaluated language. To enable functional patterns like deferr
 - **Lazy (RcLazy / ArcLazy):** "I want to compute a value at most once and cache it."
 - **Try\* variants:** "I want any of the above, but the computation may fail."
 
-### Type Overview
+#### Type Overview
 
 The hierarchy consists of infallible computation types, fallible counterparts, and the `Free` monad infrastructure. Each type makes different trade-offs around stack safety, memoization, lifetimes, and thread safety.
 
@@ -40,7 +40,7 @@ At a glance, the primary use cases are:
 
 Each of these has a fallible counterpart that wraps `Result<A, E>` with ergonomic error-handling combinators (`TryThunk`, `TrySendThunk`, `TryTrampoline`, `TryLazy`).
 
-### Supporting Traits
+#### Supporting Traits
 
 | Trait                | Purpose                                                 | Implementors in hierarchy                                                                                                             |
 | -------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -51,7 +51,7 @@ Each of these has a fallible counterpart that wraps `Result<A, E>` with ergonomi
 | `LazyConfig`         | Infallible memoization strategy (pointer + cell choice) | `RcLazyConfig`, `ArcLazyConfig`                                                                                                       |
 | `TryLazyConfig`      | Fallible memoization strategy (extends `LazyConfig`)    | `RcLazyConfig`, `ArcLazyConfig`                                                                                                       |
 
-### The "Why" of Multiple Types
+#### The "Why" of Multiple Types
 
 Unlike lazy languages (e.g., Haskell) where the runtime handles everything, Rust requires us to choose our trade-offs:
 
@@ -65,7 +65,7 @@ Unlike lazy languages (e.g., Haskell) where the runtime handles everything, Rust
 
 5. **`LazyConfig` vs `TryLazyConfig`**: The memoization strategy is split into two traits. `LazyConfig` covers infallible memoization (pointer type, lazy cell, thunk type). `TryLazyConfig` extends it with fallible variants (`TryLazy`, `TryThunk`). Third-party implementations can choose to implement only `LazyConfig` when fallible memoization is not needed.
 
-### Quick Decision Guide
+#### Quick Decision Guide
 
 - **Short deferred computation chains**: Use `Thunk`.
 - **Deep recursion or long pipelines**: Use `Trampoline`.
@@ -75,7 +75,7 @@ Unlike lazy languages (e.g., Haskell) where the runtime handles everything, Rust
 - **Any of the above, but fallible**: Use the `Try*` counterpart.
 - **Generic programming over lazy types**: Use `Deferrable` / `SendDeferrable` trait bounds.
 
-### Workflow Example: Expression Evaluator
+#### Workflow Example: Expression Evaluator
 
 A robust pattern is to use `TryTrampoline` for stack-safe, fallible recursion, `TryLazy` to memoize expensive results, and `TryThunk` to create lightweight views.
 
