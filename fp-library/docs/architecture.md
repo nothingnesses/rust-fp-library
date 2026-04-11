@@ -49,3 +49,34 @@ Examples should demonstrate the library's intended usage patterns:
 - Use free-function versions of trait methods with as many turbofish holes as possible (`map::<OptionBrand, _, _, _>(|x| x * 2, Some(5))`) instead of calling trait methods directly (`OptionBrand::map(...)`).
 
 **Reasoning:** The library is designed to be used via free functions with partial type inference. Examples must demonstrate this pattern to educate users on the ergonomic benefits.
+
+## 3. Lint Policy
+
+### 3.1. Restriction Lints
+
+The workspace enables several clippy restriction lints as warnings (promoted to errors by `-D warnings` in CI):
+
+- `clippy::unwrap_used`, `clippy::expect_used` - panicking unwrap/expect
+- `clippy::indexing_slicing` - panicking index/slice
+- `clippy::panic`, `clippy::todo`, `clippy::unimplemented`, `clippy::unreachable` - explicit panics
+
+These lints are appropriate for production library code but overly strict for test and benchmark code. Test code suppresses them with `#[expect(...)]` rather than `#[allow(...)]`.
+
+### 3.2. `#[expect]` vs `#[allow]`
+
+**Decision:** Use `#[expect(...)]` everywhere the suppressed lint is known to fire. Reserve `#[allow(...)]` only where the lint does not currently fire but suppression is kept for correctness (e.g., `dead_code` on items consumed by macro expansion, `deprecated` on modules testing deprecation-based warnings).
+
+**Reasoning:** `#[expect]` warns when the suppression becomes unnecessary (the lint no longer fires), preventing stale attributes from accumulating. `#[allow]` is silent when unused, so stale `#[allow]` attributes persist undetected.
+
+### 3.3. Reasons on All Lint Attributes
+
+**Decision:** Every `#[expect(...)]` and `#[allow(...)]` attribute must include a `reason = "..."` string.
+
+**Reasoning:** Reasons make the intent self-documenting. Without them, a reader must infer why the lint was suppressed, which is error-prone for restriction lints where the suppression could be masking a real bug.
+
+### 3.4. Suppression Scope
+
+- **Inline test modules** (`#[cfg(test)] mod tests`): Place `#[expect(...)]` on the `mod tests` block, listing only the restriction lints that actually fire within that module.
+- **Integration test files** (`tests/*.rs`): Use `#![expect(...)]` as an inner attribute at the file top.
+- **Benchmark modules**: Use `#[expect(...)]` on the module declaration in `benchmarks.rs`. Benchmarks that intentionally use identity operations or `and_then` instead of `map` (for fair std-vs-fp comparison) suppress `identity_op`, `bind_instead_of_map`, etc.
+- **Production code**: Suppress on the narrowest scope possible (individual statement or function), with a comment or reason explaining the safety invariant.
