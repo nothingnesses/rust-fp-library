@@ -37,7 +37,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 		for &size in sizes {
 			group.bench_with_input(BenchmarkId::new("CatList", size), &size, |b, &s| {
 				b.iter_batched(
-					|| CatList::empty(),
+					CatList::empty,
 					|mut list| {
 						for i in 0 .. s {
 							list = list.cons(i);
@@ -49,7 +49,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 			});
 			group.bench_with_input(BenchmarkId::new("LinkedList", size), &size, |b, &s| {
 				b.iter_batched(
-					|| LinkedList::new(),
+					LinkedList::new,
 					|mut list| {
 						for i in 0 .. s {
 							list.push_front(i);
@@ -61,7 +61,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 			});
 			group.bench_with_input(BenchmarkId::new("Vec", size), &size, |b, &s| {
 				b.iter_batched(
-					|| Vec::new(),
+					Vec::new,
 					|mut list| {
 						for i in 0 .. s {
 							list.insert(0, i);
@@ -81,7 +81,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 		for &size in sizes {
 			group.bench_with_input(BenchmarkId::new("CatList", size), &size, |b, &s| {
 				b.iter_batched(
-					|| CatList::empty(),
+					CatList::empty,
 					|mut list| {
 						for i in 0 .. s {
 							list = list.snoc(i);
@@ -93,7 +93,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 			});
 			group.bench_with_input(BenchmarkId::new("Vec", size), &size, |b, &s| {
 				b.iter_batched(
-					|| Vec::new(),
+					Vec::new,
 					|mut list| {
 						for i in 0 .. s {
 							list.push(i);
@@ -524,14 +524,14 @@ pub fn bench_cat_list(c: &mut Criterion) {
 			group.bench_with_input(BenchmarkId::new("CatList (fp)", size), &size, |b, &_| {
 				b.iter_batched(
 					|| cat_opts.clone(),
-					|list| compact_explicit::<CatListBrand, _, _, _>(list),
+					compact_explicit::<CatListBrand, _, _, _>,
 					BatchSize::SmallInput,
 				)
 			});
 			group.bench_with_input(BenchmarkId::new("Vec (fp)", size), &size, |b, &_| {
 				b.iter_batched(
 					|| vec_opts.clone(),
-					|v| compact_explicit::<VecBrand, _, _, _>(v),
+					compact_explicit::<VecBrand, _, _, _>,
 					BatchSize::SmallInput,
 				)
 			});

@@ -357,6 +357,11 @@ fn trait_bound_contains_type_param(
 }
 
 #[cfg(test)]
+#[expect(
+	clippy::unwrap_used,
+	clippy::indexing_slicing,
+	reason = "Tests use panicking operations for brevity and clarity"
+)]
 mod tests {
 	use {
 		super::*,

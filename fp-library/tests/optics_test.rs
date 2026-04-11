@@ -317,7 +317,7 @@ fn test_polymorphic_set_composed() {
 #[test]
 fn test_polymorphic_preview_prism() {
 	let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+		PrismPrime::from_option(|r: Result<i32, String>| r.ok(), Ok);
 
 	assert_eq!(optics_preview::<RcBrand, _, _>(&ok_prism, Ok(42)), Some(42));
 	assert_eq!(optics_preview::<RcBrand, _, _>(&ok_prism, Err("error".to_string())), None);

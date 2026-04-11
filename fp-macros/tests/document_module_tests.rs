@@ -1,3 +1,5 @@
+#![expect(clippy::todo, reason = "Tests use panicking operations for brevity and clarity")]
+
 use fp_macros::{
 	document_module,
 	impl_kind,
@@ -242,7 +244,6 @@ mod test_trait_fully_documented {
 
 		/// Adds an element.
 		#[fp_macros::document_signature]
-		#[fp_macros::document_type_parameters("The lifetime of the value.")]
 		#[document_parameters("The element to add.")]
 		#[document_returns("Whether the element was added.")]
 		#[document_examples]
@@ -250,7 +251,7 @@ mod test_trait_fully_documented {
 		/// ```
 		/// assert!(true);
 		/// ```
-		fn add<'a>(
+		fn add(
 			&mut self,
 			item: T,
 		) -> bool;

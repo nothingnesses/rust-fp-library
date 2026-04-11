@@ -415,6 +415,11 @@ pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 }
 
 #[cfg(test)]
+#[expect(
+	clippy::indexing_slicing,
+	clippy::expect_used,
+	reason = "Tests use panicking operations for brevity and clarity"
+)]
 mod tests {
 	use super::*;
 

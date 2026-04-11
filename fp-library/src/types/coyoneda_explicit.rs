@@ -1077,7 +1077,7 @@ mod tests {
 	fn traverse_lifted_identity() {
 		let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]);
 		let result: Option<CoyonedaExplicit<VecBrand, _, _, _>> =
-			coyo.traverse::<OptionBrand, _>(|x| Some(x));
+			coyo.traverse::<OptionBrand, _>(Some);
 		assert_eq!(result.map(|c| c.lower()), Some(vec![1, 2, 3]));
 	}
 

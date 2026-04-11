@@ -328,7 +328,7 @@ pub fn bench_lazy(c: &mut Criterion) {
 								.bind(move |x| build_right(x - 1).bind(|y| Free::pure(y + 1)))
 						}
 					}
-					build_right(d as i64).evaluate()
+					build_right(d).evaluate()
 				})
 			});
 		}

@@ -1,3 +1,5 @@
+#![expect(clippy::unwrap_used, reason = "Tests use panicking operations for brevity and clarity")]
+
 //! Integration tests for the pointer abstraction.
 
 use {

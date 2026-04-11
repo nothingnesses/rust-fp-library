@@ -65,6 +65,13 @@ pub use self::{
 	alt::alt,
 	apply_first::apply_first,
 	apply_second::apply_second,
+	bifoldable::{
+		bi_fold_left,
+		bi_fold_map,
+		bi_fold_right,
+	},
+	bifunctor::bimap,
+	bitraversable::bi_traverse,
 	compactable::{
 		compact,
 		separate,

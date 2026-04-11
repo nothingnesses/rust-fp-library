@@ -50,6 +50,11 @@ pub fn document_type_parameters_worker(
 }
 
 #[cfg(test)]
+#[expect(
+	clippy::unwrap_used,
+	clippy::indexing_slicing,
+	reason = "Tests use panicking operations for brevity and clarity"
+)]
 mod doc_type_params_tests {
 	use {
 		super::*,

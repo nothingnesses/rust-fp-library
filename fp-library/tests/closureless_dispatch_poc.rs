@@ -47,8 +47,8 @@ where
 }
 
 // Ref impl: FA = &Brand::Of<A> (borrowed)
-impl<'a, 'b, Brand, A> AltDispatch<'a, Brand, A, BorrowedMarker>
-	for &'b <Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
+impl<'a, Brand, A> AltDispatch<'a, Brand, A, BorrowedMarker>
+	for &<Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
 where
 	Brand: RefAlt + Kind_cdc7cd43dac7585f,
 	A: 'a + Clone,
@@ -172,8 +172,8 @@ where
 	}
 }
 
-impl<'a, 'b, Brand, A> CompactDispatch<'a, Brand, A, BorrowedMarker>
-	for &'b <Brand as Kind_cdc7cd43dac7585f>::Of<'a, Option<A>>
+impl<'a, Brand, A> CompactDispatch<'a, Brand, A, BorrowedMarker>
+	for &<Brand as Kind_cdc7cd43dac7585f>::Of<'a, Option<A>>
 where
 	Brand: fp_library::classes::RefCompactable + Kind_cdc7cd43dac7585f,
 	A: 'a + Clone,

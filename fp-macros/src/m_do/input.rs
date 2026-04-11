@@ -263,6 +263,12 @@ fn collect_type_before_arrow(input: ParseStream) -> Option<Type> {
 }
 
 #[cfg(test)]
+#[expect(
+	clippy::indexing_slicing,
+	clippy::expect_used,
+	clippy::panic,
+	reason = "Tests use panicking operations for brevity and clarity"
+)]
 mod tests {
 	use {
 		super::*,

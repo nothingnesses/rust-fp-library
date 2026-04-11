@@ -882,6 +882,7 @@ mod inner {
 pub use inner::*;
 
 #[cfg(test)]
+#[expect(clippy::unwrap_used, reason = "Tests use panicking operations for brevity and clarity")]
 mod tests {
 	use crate::{
 		brands::*,

@@ -138,7 +138,7 @@ mod tests {
 	#[test]
 	fn vec_ref_map_from_borrow() {
 		fn ref_map(
-			fa: &Vec<i32>,
+			fa: &[i32],
 			f: impl Fn(&i32) -> String,
 		) -> Vec<String> {
 			fa.iter().map(f).collect()
@@ -153,7 +153,7 @@ mod tests {
 	#[test]
 	fn vec_ref_bind_from_borrow() {
 		fn ref_bind(
-			fa: &Vec<i32>,
+			fa: &[i32],
 			f: impl Fn(&i32) -> Vec<i32>,
 		) -> Vec<i32> {
 			fa.iter().flat_map(f).collect()
@@ -225,7 +225,7 @@ mod tests {
 	trait RefFunctorBorrowed {
 		fn ref_map(
 			f: impl Fn(&i32) -> String,
-			fa: &Vec<i32>,
+			fa: &[i32],
 		) -> Vec<String>;
 	}
 
@@ -233,7 +233,7 @@ mod tests {
 	impl RefFunctorBorrowed for VecBrand {
 		fn ref_map(
 			f: impl Fn(&i32) -> String,
-			fa: &Vec<i32>,
+			fa: &[i32],
 		) -> Vec<String> {
 			fa.iter().map(f).collect()
 		}
@@ -276,7 +276,7 @@ mod tests {
 	fn fully_borrowed_dispatch() {
 		fn map_ref(
 			f: impl Fn(&i32) -> String,
-			fa: &Vec<i32>,
+			fa: &[i32],
 		) -> Vec<String> {
 			VecBrand::ref_map(f, fa)
 		}
@@ -300,7 +300,7 @@ mod tests {
 	fn temporary_lifetime_in_argument() {
 		fn ref_map(
 			f: impl Fn(&i32) -> i32,
-			fa: &Vec<i32>,
+			fa: &[i32],
 		) -> Vec<i32> {
 			fa.iter().map(f).collect()
 		}
@@ -316,7 +316,7 @@ mod tests {
 	#[test]
 	fn nested_borrowed_bind() {
 		fn ref_bind(
-			fa: &Vec<i32>,
+			fa: &[i32],
 			f: impl Fn(&i32) -> Vec<i32>,
 		) -> Vec<i32> {
 			fa.iter().flat_map(f).collect()
@@ -420,7 +420,7 @@ mod tests {
 		}
 
 		fn ref_pure(a: &i32) -> Option<i32> {
-			Some(a.clone())
+			Some(*a)
 		}
 
 		// Simulating: m_do!(ref { x <- Some(5); y <- Some(10); pure(x + y) })

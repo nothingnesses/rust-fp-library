@@ -1130,6 +1130,11 @@ mod inner {
 pub use inner::*;
 
 #[cfg(test)]
+#[expect(
+	clippy::unwrap_used,
+	clippy::panic,
+	reason = "Tests use panicking operations for brevity and clarity"
+)]
 mod tests {
 	use {
 		super::*,
@@ -1891,7 +1896,7 @@ mod tests {
 		for i in 1 .. n {
 			task = task.catch_with(move |_| TryTrampoline::err(i));
 		}
-		task = task.catch_with(|e| TryTrampoline::ok(e));
+		task = task.catch_with(TryTrampoline::ok);
 		assert_eq!(task.evaluate(), Ok(n - 1));
 	}
 

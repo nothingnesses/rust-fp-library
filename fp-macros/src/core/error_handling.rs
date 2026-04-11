@@ -549,6 +549,7 @@ impl ToCompileError for Error {
 }
 
 #[cfg(test)]
+#[expect(clippy::unwrap_used, reason = "Tests use panicking operations for brevity and clarity")]
 mod tests {
 	use super::*;
 

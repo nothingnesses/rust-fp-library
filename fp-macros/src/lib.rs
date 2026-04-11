@@ -17,6 +17,11 @@ pub(crate) mod resolution; // Type resolution
 pub(crate) mod support; // Support utilities (attributes, syntax, validation, errors)
 
 #[cfg(test)]
+#[expect(
+	clippy::unwrap_used,
+	clippy::indexing_slicing,
+	reason = "Tests use panicking operations for brevity and clarity"
+)]
 mod property_tests;
 
 use {

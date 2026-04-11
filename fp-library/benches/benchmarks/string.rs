@@ -35,10 +35,10 @@ pub fn bench_string(c: &mut Criterion) {
 	{
 		let mut group = c.benchmark_group("String Empty");
 		group.bench_with_input(BenchmarkId::new("std", input_desc), &input_desc, |b, &_| {
-			b.iter(|| String::new())
+			b.iter(String::new)
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
-			b.iter(|| empty::<String>())
+			b.iter(empty::<String>)
 		});
 		group.finish();
 	}

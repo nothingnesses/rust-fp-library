@@ -83,6 +83,7 @@ pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 }
 
 #[cfg(test)]
+#[expect(clippy::expect_used, reason = "Tests use panicking operations for brevity and clarity")]
 mod tests {
 	use super::*;
 

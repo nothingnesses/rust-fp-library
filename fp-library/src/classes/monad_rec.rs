@@ -533,6 +533,10 @@ mod inner {
 pub use inner::*;
 
 #[cfg(test)]
+#[expect(
+	clippy::indexing_slicing,
+	reason = "Tests use panicking operations for brevity and clarity"
+)]
 mod tests {
 	use {
 		crate::{
@@ -596,7 +600,7 @@ mod tests {
 	#[test]
 	fn test_while_some_option() {
 		let items =
-			vec![Some("hello".to_string()), Some(" ".to_string()), Some("world".to_string()), None];
+			[Some("hello".to_string()), Some(" ".to_string()), Some("world".to_string()), None];
 		let idx = Cell::new(0usize);
 		let result = while_some::<OptionBrand, _>(|| {
 			let i = idx.get();

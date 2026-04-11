@@ -13,7 +13,7 @@ use fp_library::{
 
 fn vec_ref_traverse_direct<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
 	func: impl Fn(&A) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, B> + 'a,
-	ta: &Vec<A>,
+	ta: &[A],
 ) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, Vec<B>>
 where
 	Vec<B>: Clone,

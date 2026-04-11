@@ -70,6 +70,10 @@ impl Default for WarningEmitter {
 }
 
 #[cfg(test)]
+#[expect(
+	clippy::indexing_slicing,
+	reason = "Tests use panicking operations for brevity and clarity"
+)]
 mod tests {
 	use super::*;
 

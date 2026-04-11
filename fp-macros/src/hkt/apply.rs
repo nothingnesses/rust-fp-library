@@ -157,6 +157,11 @@ pub fn apply_worker(input: ApplyInput) -> Result<TokenStream> {
 }
 
 #[cfg(test)]
+#[expect(
+	clippy::unwrap_used,
+	clippy::expect_used,
+	reason = "Tests use panicking operations for brevity and clarity"
+)]
 mod tests {
 	use {
 		super::*,

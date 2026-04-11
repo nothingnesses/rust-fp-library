@@ -1,3 +1,5 @@
+#![expect(clippy::todo, reason = "Tests use panicking operations for brevity and clarity")]
+
 use fp_macros::document_module;
 
 #[document_module(no_validation)]

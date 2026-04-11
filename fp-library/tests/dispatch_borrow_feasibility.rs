@@ -1,3 +1,5 @@
+#![expect(clippy::unimplemented, reason = "Tests use panicking operations for brevity and clarity")]
+
 //! Feasibility tests for adding a container type parameter to dispatch traits,
 //! enabling dispatch free functions to accept both owned and borrowed containers.
 
