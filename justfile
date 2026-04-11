@@ -67,7 +67,10 @@ test *args:
         (trap '' PIPE; cat "$OUTPUT_FILE")
     else
         echo "=== Running tests ==="
-        {{direnv_prefix}} cargo test --workspace $ARGS > "$OUTPUT_FILE" 2>&1 || { (trap '' PIPE; cat "$OUTPUT_FILE"); rm -f "$OUTPUT_FILE"; exit 1; }
+        TEMP_FILE="${OUTPUT_FILE}.tmp"
+        rm -f "$TEMP_FILE"
+        {{direnv_prefix}} cargo test --workspace $ARGS > "$TEMP_FILE" 2>&1 || { (trap '' PIPE; cat "$TEMP_FILE"); rm -f "$TEMP_FILE"; exit 1; }
+        mv "$TEMP_FILE" "$OUTPUT_FILE"
         (trap '' PIPE; cat "$OUTPUT_FILE")
     fi
 
