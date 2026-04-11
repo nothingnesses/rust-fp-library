@@ -952,6 +952,11 @@ pattern).
    steps. Do this before steps 8-13 to avoid building more code
    against the old paths.
 
+7a. **Fix closureless dispatch files.** Standardize the 6 closureless
+dispatch files (alt.rs, compactable.rs, apply*first.rs,
+apply_second.rs, join in semimonad.rs) that missed step 0b: - Rename qualified method names (`dispatch_alt`, etc.) to bare
+`dispatch`. - Add `#[fp_macros::document_module]` to each file. - Add missing `#[document*\*]` attributes on impl blocks and methods.
+
 8. **Extend `trait_kind!` to also generate `DefaultBrand_{hash}` traits.**
    When `trait_kind!` creates a `Kind_{hash}` trait, it also creates the
    corresponding `DefaultBrand_{hash}` trait using the same content hash.
@@ -1081,21 +1086,32 @@ BoxedCoyonedaExplicit, Const).
 
 ## Next Steps
 
-1. **Step 8: Extend `trait_kind!`.** Auto-generate `DefaultBrand_{hash}`
+1. **Step 7a: Fix closureless dispatch files.** Three issues to
+   address in the 6 closureless dispatch files (alt.rs, compactable.rs,
+   apply_first.rs, apply_second.rs, join section of semimonad.rs):
+   - Rename qualified method names (`dispatch_alt`, `dispatch_compact`,
+     `dispatch_separate`, `dispatch_join`, `dispatch_apply_first`,
+     `dispatch_apply_second`) to bare `dispatch`, matching step 0b.
+   - Add `#[fp_macros::document_module]` to each file.
+   - Add missing `#[document_*]` attributes on impl blocks and methods
+     (the `document_module` macro warns about these).
+     Small scope, mechanical.
+
+2. **Step 8: Extend `trait_kind!`.** Auto-generate `DefaultBrand_{hash}`
    traits alongside `Kind_{hash}` traits. Add `DefaultBrand!` macro.
 
-2. **Step 9: Extend `impl_kind!`.** Auto-generate `DefaultBrand` impls.
+3. **Step 9: Extend `impl_kind!`.** Auto-generate `DefaultBrand` impls.
    Add `#[no_default_brand]` opt-out. Migrate hand-written impls.
 
-3. **Step 10: Tier 4 (bifunctor arity-2).** Define the arity-2
+4. **Step 10: Tier 4 (bifunctor arity-2).** Define the arity-2
    DefaultBrand trait, implement it for 5 bifunctor types, add
    inference wrappers for `bimap`, `bi_fold_right`, `bi_fold_left`,
    `bi_fold_map`, `bi_traverse`.
 
-4. **Step 11: m_do!/a_do! inferred mode.** Add `m_do!({ ... })` and
+5. **Step 11: m_do!/a_do! inferred mode.** Add `m_do!({ ... })` and
    `a_do!({ ... })` syntax that generates inference-based calls.
 
-5. **Step 12-13: Documentation and tests.** Update all docs to show
+6. **Step 12-13: Documentation and tests.** Update all docs to show
    inference as the primary API. Add compile-fail tests for multi-brand
    types.
 
