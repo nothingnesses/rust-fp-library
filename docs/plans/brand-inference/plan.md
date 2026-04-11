@@ -1038,40 +1038,59 @@ and a_do! macros generate `_explicit` variants.
 ## Next Steps
 
 1. **Step 6c: Module restructure.** Move `dispatch/` from `classes/`
-   to a top-level module, and split inference wrappers from
-   `classes/dispatch/inference.rs` into `functions/` as submodules.
+   to a top-level module, consolidate dispatch files to mirror
+   `classes/` exactly, and split inference wrappers into `functions/`
+   as submodules.
 
    The target structure:
 
    ```
-   brands/           - zero-sized marker types
-   kinds/            - Kind trait (type application)
-   classes/          - type class traits (Functor, Foldable, etc.)
-   dispatch/         - Val/Ref routing traits (FunctorDispatch, etc.)
-   functions/        - user-facing API (inference wrappers)
-     functor.rs      - map
-     semimonad.rs    - bind, bind_flipped
-     lift.rs         - lift2-lift5
-     filterable.rs   - filter, filter_map, partition, partition_map
-     foldable.rs     - fold_right, fold_left, fold_map
-     traversable.rs  - traverse
-     ...             - (one file per classes/ module)
-   types/            - concrete implementations
+   brands/                       - zero-sized marker types
+   kinds/                        - Kind trait (type application)
+   classes/                      - type class traits
+     functor.rs                  - Functor trait
+     foldable.rs                 - Foldable trait (fold_right, fold_left, fold_map)
+     foldable_with_index.rs      - FoldableWithIndex trait
+     ...
+   dispatch/                     - Val/Ref routing traits
+     functor.rs                  - FunctorDispatch
+     foldable.rs                 - FoldRightDispatch, FoldLeftDispatch, FoldMapDispatch
+     foldable_with_index.rs      - FoldRightWithIndexDispatch, etc.
+     semimonad.rs                - BindDispatch, ComposeKleisliDispatch, JoinDispatch
+     ...                         - (mirrors classes/ one-to-one)
+   functions/                    - user-facing API (inference wrappers)
+     functor.rs                  - map
+     foldable.rs                 - fold_right, fold_left, fold_map
+     foldable_with_index.rs      - fold_right_with_index, etc.
+     semimonad.rs                - bind, bind_flipped, join
+     ...                         - (mirrors classes/ one-to-one)
+   types/                        - concrete implementations
    ```
 
-   Each `functions/` file mirrors a `classes/` module. The dependency
-   flow is linear: `brands -> kinds -> classes -> dispatch -> functions`.
+   All three directories (`classes/`, `dispatch/`, `functions/`) have
+   the same file names, mirroring one-to-one. If the trait is in
+   `classes/foldable_with_index.rs`, the dispatch is in
+   `dispatch/foldable_with_index.rs`, and the inference wrapper is in
+   `functions/foldable_with_index.rs`.
+
+   The dependency flow is linear:
+   `brands -> kinds -> classes -> dispatch -> functions`.
 
    This is a mechanical restructure:
    - Move `fp-library/src/classes/dispatch/` to `fp-library/src/dispatch/`.
+   - Consolidate dispatch files to mirror `classes/`: merge individual
+     WithIndex dispatch files into per-class files (e.g.,
+     `fold_left_with_index.rs`, `fold_map_with_index.rs`,
+     `fold_right_with_index.rs` merge into
+     `foldable_with_index.rs`). Similarly merge `compact.rs` and
+     `separate.rs` into `compactable.rs`, `apply_first.rs` and
+     `apply_second.rs` into their respective files, etc.
    - Update all `crate::classes::dispatch::` import paths to
      `crate::dispatch::`.
    - Split `dispatch/inference.rs` into per-module files under
-     `functions/`.
+     `functions/`, mirroring `classes/`.
    - Update `functions.rs` to re-export from its submodules instead
      of from `dispatch::inference::*`.
-   - Remove the manual `pub use crate::classes::dispatch::{...}` block
-     from `functions.rs`; the inference submodules handle this.
    - The `_explicit` re-exports stay in `functions.rs` (one line per
      function, re-exporting from `crate::dispatch::*`).
 
