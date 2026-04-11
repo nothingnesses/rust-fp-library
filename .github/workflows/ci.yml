@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - run: nix develop ./devenv/ --command just clippy --workspace --all-features
+      - run: nix develop ./devenv/ --command just clippy
 
   test:
     name: Tests (${{ matrix.features }})
@@ -36,8 +36,8 @@ jobs:
       fail-fast: false
       matrix:
         features:
-          - ""
-          - "--all-features"
+          - "--workspace"
+          - "--workspace --all-features"
     steps:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
@@ -51,16 +51,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - run: nix develop ./devenv/ --command just doc --workspace --all-features --no-deps
-
-  bench:
-    name: Benchmarks (compile check)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
-      - run: nix develop ./devenv/ --command just bench --workspace --no-run
+      - run: nix develop ./devenv/ --command just doc
 
   deny:
     name: cargo-deny

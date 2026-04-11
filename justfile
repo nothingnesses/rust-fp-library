@@ -15,7 +15,7 @@ fmt:
 
 # Run clippy (warnings are errors).
 clippy *args:
-    {{direnv_prefix}} cargo clippy {{args}} -- -D warnings
+    {{direnv_prefix}} cargo clippy {{ if args == "" { "--workspace --all-targets --all-features" } else { args } }} -- -D warnings
 
 # Check documentation (warnings are errors) and reject emoji/unicode.
 doc *args:
@@ -27,21 +27,20 @@ doc *args:
         exit 1
     fi
     lychee --offline --no-progress "README.md" "fp-library/docs/**/*.md" "docs/**/*.md"
-    RUSTDOCFLAGS="-D warnings" cargo doc {{args}}
+    RUSTDOCFLAGS="-D warnings" cargo doc {{ if args == "" { "--workspace --all-features --no-deps" } else { args } }}
 
 # Build the workspace.
 build *args:
-    {{direnv_prefix}} cargo build {{args}}
+    {{direnv_prefix}} cargo build {{ if args == "" { "--workspace --all-targets --all-features" } else { args } }}
 
 # Run benchmarks. Use regex dots for spaces in benchmark names, e.g.:
 #   just bench -p fp-library --bench benchmarks -- "CatList.Left-Assoc"
 bench *args:
-    {{direnv_prefix}} cargo bench {{args}}
+    {{direnv_prefix}} cargo bench {{ if args == "" { "--workspace --all-targets --all-features" } else { args } }}
 
 # Check without building.
 check *args:
-    just bench --workspace --no-run
-    {{direnv_prefix}} cargo check {{args}}
+    {{direnv_prefix}} cargo check {{ if args == "" { "--workspace --all-targets --all-features" } else { args } }}
 
 # Run any cargo subcommand (except test; use `just test` for that).
 cargo *args:
@@ -59,7 +58,7 @@ test *args:
     set -euo pipefail
     mkdir -p .claude/test-cache
     ARGS="{{ args }}"
-    CONTENT_HASH=$(git ls-files -z | xargs -0 md5sum 2>/dev/null | md5sum | cut -c1-32)
+    CONTENT_HASH=$(git ls-files -z | xargs -0 md5sum 2>/dev/null | md5sum | cut -c1-32 || true)
     CACHE_KEY=$(echo "${ARGS}:${CONTENT_HASH}" | md5sum | cut -c1-12)
     OUTPUT_FILE=".claude/test-cache/test-output-${CACHE_KEY}.txt"
     if [ -s "$OUTPUT_FILE" ]; then
@@ -69,9 +68,16 @@ test *args:
         echo "=== Running tests ==="
         TEMP_FILE="${OUTPUT_FILE}.tmp"
         rm -f "$TEMP_FILE"
-        {{direnv_prefix}} cargo test --workspace $ARGS > "$TEMP_FILE" 2>&1 || { (trap '' PIPE; cat "$TEMP_FILE"); rm -f "$TEMP_FILE"; exit 1; }
+        trap 'rm -f "$TEMP_FILE"' INT TERM HUP
+        RC=0
+        {{direnv_prefix}} cargo test {{ if args == "" { "--workspace --all-features" } else { args } }} > "$TEMP_FILE" 2>&1 || RC=$?
+        if [ ! -s "$TEMP_FILE" ]; then
+            rm -f "$TEMP_FILE"
+            exit "${RC:-1}"
+        fi
         mv "$TEMP_FILE" "$OUTPUT_FILE"
         (trap '' PIPE; cat "$OUTPUT_FILE")
+        exit "$RC"
     fi
 
 # Remove build artifacts and test cache.
@@ -83,6 +89,6 @@ clean:
 verify:
     just fmt
     just check
-    just clippy --workspace --all-features
-    just doc --workspace --all-features --no-deps
-    just test --all-features
+    just clippy
+    just doc
+    just test

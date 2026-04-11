@@ -19,15 +19,15 @@ All commands must be run via `just` recipes defined in the project's `justfile`.
 ### Formatting & Linting
 
 ```bash
-just fmt                                        # Format all files (Rust, Nix, Markdown, YAML, TOML)
-just clippy --workspace --all-features      # Run clippy
+just fmt     # Format all files (Rust, Nix, Markdown, YAML, TOML)
+just clippy  # Run clippy (--workspace --all-targets --all-features by default)
 ```
 
 ### Documentation
 
 ```bash
-just doc --workspace --all-features --no-deps   # Check docs (must produce zero warnings)
-just doc --workspace --all-features --open       # Build and open docs
+just doc                                    # Check docs (--workspace --all-features --no-deps by default)
+just doc --workspace --all-features --open  # Build and open docs
 ```
 
 ### Testing
@@ -35,11 +35,10 @@ just doc --workspace --all-features --open       # Build and open docs
 **Never run `cargo test` directly.** Use `just test` which caches output and only re-runs when source files change.
 
 ```bash
-just test --all-features                             # Run all tests with all features (cached)
-just test                                            # Run all tests, default features (cached)
-just test -p fp-library test_name                # Run a subset (no caching)
-just test -p fp-library --test property          # Run property-based tests
-just test --doc -p fp-library                    # Run doc tests
+just test                                # Run all tests (--workspace --all-features by default, cached)
+just test -p fp-library test_name        # Run a subset (no caching)
+just test -p fp-library --test property  # Run property-based tests
+just test --doc -p fp-library            # Run doc tests
 ```
 
 Cache location: `.claude/test-cache/` (gitignored). Uses content hashing (`git ls-files` + `md5sum`) so the cache is invalidated only when tracked file contents change, not when timestamps change (e.g., from formatting or git operations). Re-running `just test` with no content changes is instant and prints cached output. Use `just clean` to clear the cache and build artifacts.
@@ -47,35 +46,35 @@ Cache location: `.claude/test-cache/` (gitignored). Uses content hashing (`git l
 ### Building
 
 ```bash
-just build --workspace                           # Build the workspace
-just build -p fp-library --all-features          # Build with all features
-just check --workspace                           # Check without building
+just build  # Build (--workspace --all-targets --all-features by default)
+just check  # Check without building (--workspace --all-targets --all-features by default)
 ```
 
 ### Benchmarking
 
 ```bash
-just bench -p fp-library                                   # Run all benchmarks
-just bench -p fp-library --bench benchmarks -- --list      # List benchmarks
-just bench -p fp-library --bench benchmarks -- Vec         # Run specific benchmark
+just bench                                             # Run all benchmarks
+just bench -p fp-library --bench benchmarks -- --list  # List benchmarks
+just bench -p fp-library --bench benchmarks -- Vec     # Run specific benchmark
 # Benchmark reports: target/criterion/report/index.html
 ```
 
 ### Verification
 
-After making changes, verify in this order: **fmt, clippy, doc, test**.
+After making changes, verify in this order: **fmt, check, clippy, doc, test**.
 
 ```bash
-just verify    # Runs all four steps in order
+just verify  # Runs all five steps in order
 ```
 
 Or individually:
 
 ```bash
 just fmt
-just clippy --workspace --all-features
-just doc --workspace --all-features --no-deps
-just test --all-features
+just check
+just clippy
+just doc
+just test
 ```
 
 ## Language Server & Code Intelligence

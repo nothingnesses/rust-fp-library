@@ -152,12 +152,12 @@ This will provide a shell with the correct Rust version and dependencies.
 All commands are run via [just](https://github.com/casey/just) recipes defined in the project's `justfile`. Never run `cargo` directly; the `justfile` handles Nix environment setup automatically.
 
 ```sh
-just fmt                                       # Format all files (Rust, Nix, Markdown, YAML, TOML)
-just clippy --workspace --all-features         # Run clippy
-just test --all-features                       # Run all tests (cached; only re-runs when content changes)
-just doc --workspace --all-features --no-deps  # Build docs (must produce zero warnings)
-just verify                                    # Run fmt, clippy, doc, test in order
-just clean                                     # Remove build artifacts and test cache
+just fmt     # Format all files (Rust, Nix, Markdown, YAML, TOML)
+just clippy  # Run clippy
+just test    # Run all tests (cached; only re-runs when content changes)
+just doc     # Build docs (must produce zero warnings)
+just verify  # Run fmt, check, clippy, doc, test in order
+just clean   # Remove build artifacts and test cache
 ```
 
 Run `just --list` to see all available recipes.
