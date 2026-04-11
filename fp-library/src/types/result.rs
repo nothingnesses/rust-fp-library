@@ -822,11 +822,15 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(|x, acc| x + acc, 0, Ok(5)),
+		/// 	fold_right_explicit::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
+		/// 		|x, acc| x + acc,
+		/// 		0,
+		/// 		Ok(5)
+		/// 	),
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
+		/// 	fold_right_explicit::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		Err(1)
@@ -872,11 +876,15 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(|acc, x| acc + x, 0, Ok(5)),
+		/// 	fold_left_explicit::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
+		/// 		|acc, x| acc + x,
+		/// 		0,
+		/// 		Ok(5)
+		/// 	),
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
+		/// 	fold_left_explicit::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
 		/// 		|acc, x: i32| acc + x,
 		/// 		0,
 		/// 		Err(1)
@@ -922,11 +930,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(|x: i32| x.to_string(), Ok(5)),
+		/// 	fold_map_explicit::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
+		/// 		|x: i32| x.to_string(),
+		/// 		Ok(5)
+		/// 	),
 		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
+		/// 	fold_map_explicit::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		Err(1)
 		/// 	),
@@ -974,21 +985,21 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	traverse_explicit::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		Ok(5)
 		/// 	),
 		/// 	Some(Ok(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, OptionBrand, _, _>(
+		/// 	traverse_explicit::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, OptionBrand, _, _>(
 		/// 		|x: i32| Some(x * 2),
 		/// 		Err(1)
 		/// 	),
 		/// 	Some(Err(1))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	traverse_explicit::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|_| None::<i32>,
 		/// 		Ok(5)
 		/// 	),
@@ -1352,7 +1363,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(
+		/// 	fold_right_explicit::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		Err(1)
@@ -1360,7 +1371,7 @@ mod inner {
 		/// 	1
 		/// );
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_right_explicit::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		Ok(())
@@ -1406,7 +1417,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_left_explicit::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
 		/// 		|acc, x: i32| acc + x,
 		/// 		0,
 		/// 		Err(5)
@@ -1414,7 +1425,7 @@ mod inner {
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(
+		/// 	fold_left_explicit::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(
 		/// 		|acc, x: i32| acc + x,
 		/// 		0,
 		/// 		Ok(1)
@@ -1460,11 +1471,17 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(|x: i32| x.to_string(), Err(5)),
+		/// 	fold_map_explicit::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
+		/// 		|x: i32| x.to_string(),
+		/// 		Err(5)
+		/// 	),
 		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32| x.to_string(), Ok(1)),
+		/// 	fold_map_explicit::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(
+		/// 		|x: i32| x.to_string(),
+		/// 		Ok(1)
+		/// 	),
 		/// 	"".to_string()
 		/// );
 		/// ```
@@ -1509,21 +1526,21 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	traverse_explicit::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		Err(5)
 		/// 	),
 		/// 	Some(Err(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, OptionBrand, _, _>(
+		/// 	traverse_explicit::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, OptionBrand, _, _>(
 		/// 		|x: i32| Some(x * 2),
 		/// 		Ok(1)
 		/// 	),
 		/// 	Some(Ok(1))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	traverse_explicit::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|_| None::<i32>,
 		/// 		Err(5)
 		/// 	),
@@ -1705,7 +1722,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
+		/// let result = fold_map_explicit::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
 		/// 	&Ok(5),
 		/// );
@@ -1960,7 +1977,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
+		/// let result = fold_map_explicit::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
 		/// 	&Err(5),
 		/// );
@@ -2446,11 +2463,14 @@ mod tests {
 	#[test]
 	fn fold_right_err() {
 		assert_eq!(
-			crate::functions::fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
-				|x: i32, acc| x + acc,
-				0,
-				Err(1)
-			),
+			crate::functions::fold_right_explicit::<
+				RcFnBrand,
+				ResultErrAppliedBrand<i32>,
+				_,
+				_,
+				_,
+				_,
+			>(|x: i32, acc| x + acc, 0, Err(1)),
 			0
 		);
 	}
@@ -2459,7 +2479,7 @@ mod tests {
 	#[test]
 	fn fold_left_err() {
 		assert_eq!(
-			crate::functions::fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
+			crate::functions::fold_left_explicit::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				Err(1)

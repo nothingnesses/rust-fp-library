@@ -34,7 +34,7 @@ mod inner {
 	/// // Compatibility with Traversable:
 	/// // traverse(f, fa) = traverse_with_index(|_, a| f(a), fa)
 	/// assert_eq!(
-	/// 	traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(f, xs.clone()),
+	/// 	traverse_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(f, xs.clone()),
 	/// 	VecBrand::traverse_with_index::<i32, i32, OptionBrand>(|_, a| f(a), xs),
 	/// );
 	/// ```
@@ -105,7 +105,7 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let result = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+	/// let result = traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 	/// 	|_i, x: i32| if x > 0 { Some(x * 2) } else { None },
 	/// 	vec![1, 2, 3],
 	/// );

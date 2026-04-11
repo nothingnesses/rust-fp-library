@@ -1146,7 +1146,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_right_explicit::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
 		/// 		|x, acc| x + acc,
 		/// 		0,
 		/// 		Pair((), 5)
@@ -1193,7 +1193,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_left_explicit::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
 		/// 		|acc, x| acc + x,
 		/// 		0,
 		/// 		Pair((), 5)
@@ -1237,7 +1237,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_map_explicit::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		Pair((), 5)
 		/// 	),
@@ -1285,7 +1285,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	traverse_explicit::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		Pair((), 5)
 		/// 	),
@@ -1392,7 +1392,7 @@ mod inner {
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
-		/// let result = fold_map::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
+		/// let result = fold_map_explicit::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
 		/// 	&Pair((), 5),
 		/// );
@@ -1929,7 +1929,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_right_explicit::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
 		/// 		|x, acc| x + acc,
 		/// 		0,
 		/// 		Pair(5, ())
@@ -1973,7 +1973,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_left_explicit::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
 		/// 		|acc, x| acc + x,
 		/// 		0,
 		/// 		Pair(5, ())
@@ -2017,7 +2017,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_map_explicit::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		Pair(5, ())
 		/// 	),
@@ -2063,7 +2063,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	traverse_explicit::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		Pair(5, ())
 		/// 	),
@@ -2169,7 +2169,7 @@ mod inner {
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
-		/// let result = fold_map::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
+		/// let result = fold_map_explicit::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
 		/// 	&Pair(5, ()),
 		/// );

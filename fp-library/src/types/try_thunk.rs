@@ -1268,7 +1268,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-		/// let result = fold_right::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
+		/// let result = fold_right_explicit::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
 		/// 	|a, b| a + b,
 		/// 	5,
 		/// 	try_thunk,
@@ -1315,8 +1315,11 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-		/// let result =
-		/// 	fold_left::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(|b, a| b + a, 5, try_thunk);
+		/// let result = fold_left_explicit::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
+		/// 	|b, a| b + a,
+		/// 	5,
+		/// 	try_thunk,
+		/// );
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -1356,7 +1359,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-		/// let result = fold_map::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
+		/// let result = fold_map_explicit::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
 		/// 	|a: i32| a.to_string(),
 		/// 	try_thunk,
 		/// );
@@ -2035,7 +2038,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-		/// let result = fold_right::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+		/// let result = fold_right_explicit::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
 		/// 	|a, b| a + b,
 		/// 	5,
 		/// 	try_thunk,
@@ -2082,8 +2085,11 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-		/// let result =
-		/// 	fold_left::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(|b, a| b + a, 5, try_thunk);
+		/// let result = fold_left_explicit::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+		/// 	|b, a| b + a,
+		/// 	5,
+		/// 	try_thunk,
+		/// );
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, E: 'a + Clone, B: 'a>(
@@ -2123,7 +2129,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-		/// let result = fold_map::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+		/// let result = fold_map_explicit::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
 		/// 	|a: i32| a.to_string(),
 		/// 	try_thunk,
 		/// );
@@ -2525,7 +2531,7 @@ mod tests {
 
 		// Foldable (fold over success)
 		let try_thunk: TryThunk<i32, ()> = TryThunk::ok(10);
-		let folded = fold_right::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
+		let folded = fold_right_explicit::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
 			|x, acc| x + acc,
 			5,
 			try_thunk,
@@ -2734,7 +2740,7 @@ mod tests {
 
 		// Foldable (fold over error)
 		let try_thunk: TryThunk<i32, i32> = TryThunk::err(10);
-		let folded = fold_right::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+		let folded = fold_right_explicit::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
 			|x, acc| x + acc,
 			5,
 			try_thunk,

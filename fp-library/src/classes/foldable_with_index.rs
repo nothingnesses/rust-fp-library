@@ -37,7 +37,7 @@ mod inner {
 	/// // Compatibility with Foldable:
 	/// // fold_map(f, fa) = fold_map_with_index(|_, a| f(a), fa)
 	/// assert_eq!(
-	/// 	fold_map::<RcFnBrand, VecBrand, _, _, _, _>(f, xs.clone()),
+	/// 	fold_map_explicit::<RcFnBrand, VecBrand, _, _, _, _>(f, xs.clone()),
 	/// 	VecBrand::fold_map_with_index::<RcFnBrand, _, _>(|_, a| f(a), xs),
 	/// );
 	/// ```
@@ -219,7 +219,7 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let result = fold_map_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
+	/// let result = fold_map_with_index_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
 	/// 	|i, x: i32| format!("{i}:{x}"),
 	/// 	vec![10, 20, 30],
 	/// );
@@ -265,7 +265,7 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let result = fold_right_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
+	/// let result = fold_right_with_index_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
 	/// 	|i, x: i32, acc: String| format!("{acc}{i}:{x},"),
 	/// 	String::new(),
 	/// 	vec![10, 20, 30],
@@ -313,7 +313,7 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let result = fold_left_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
+	/// let result = fold_left_with_index_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
 	/// 	|i, acc: String, x: i32| format!("{acc}{i}:{x},"),
 	/// 	String::new(),
 	/// 	vec![10, 20, 30],

@@ -49,7 +49,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_right::<RcFnBrand, PairFirstAppliedBrand<String>, _, _, _, _>(
+				fold_right_explicit::<RcFnBrand, PairFirstAppliedBrand<String>, _, _, _, _>(
 					|x, acc| x + acc,
 					0,
 					std::hint::black_box(val.clone()),
@@ -70,7 +70,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_left::<RcFnBrand, PairFirstAppliedBrand<String>, _, _, _, _>(
+				fold_left_explicit::<RcFnBrand, PairFirstAppliedBrand<String>, _, _, _, _>(
 					|acc, x| acc + x,
 					0,
 					std::hint::black_box(val.clone()),
@@ -91,7 +91,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				traverse::<RcFnBrand, PairFirstAppliedBrand<String>, _, _, OptionBrand, _, _>(
+				traverse_explicit::<RcFnBrand, PairFirstAppliedBrand<String>, _, _, OptionBrand, _, _>(
 					|x| Some(x * 2),
 					std::hint::black_box(val.clone()),
 				)

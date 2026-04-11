@@ -15,7 +15,7 @@
 //! };
 //!
 //! // By-value fold_map_with_index (Vec)
-//! let result = fold_map_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
+//! let result = fold_map_with_index_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
 //! 	|i, x: i32| format!("{i}:{x}"),
 //! 	vec![10, 20, 30],
 //! );
@@ -23,7 +23,7 @@
 //!
 //! // By-ref fold_map_with_index (Lazy, closure receives &A)
 //! let lazy = RcLazy::new(|| 42);
-//! let result = fold_map_with_index::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+//! let result = fold_map_with_index_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
 //! 	|_, x: &i32| x.to_string(),
 //! 	&lazy,
 //! );
@@ -88,7 +88,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
+		/// let result = fold_map_with_index_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
 		/// 	|i, x: i32| format!("{i}:{x}"),
 		/// 	vec![10, 20, 30],
 		/// );
@@ -138,7 +138,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
+		/// let result = fold_map_with_index_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
 		/// 	|i, x: i32| format!("{i}:{x}"),
 		/// 	vec![10, 20, 30],
 		/// );
@@ -195,7 +195,7 @@ pub(crate) mod inner {
 		/// 	types::*,
 		/// };
 		/// let lazy = RcLazy::new(|| 42);
-		/// let result = fold_map_with_index::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+		/// let result = fold_map_with_index_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
 		/// 	|_, x: &i32| x.to_string(),
 		/// 	&lazy,
 		/// );
@@ -242,7 +242,7 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // By-value
-	/// let result = fold_map_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
+	/// let result = fold_map_with_index_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
 	/// 	|i, x: i32| format!("{i}:{x}"),
 	/// 	vec![10, 20, 30],
 	/// );
@@ -250,7 +250,7 @@ pub(crate) mod inner {
 	///
 	/// // By-ref
 	/// let lazy = RcLazy::new(|| 42);
-	/// let result = fold_map_with_index::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+	/// let result = fold_map_with_index_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
 	/// 	|_, x: &i32| x.to_string(),
 	/// 	&lazy,
 	/// );

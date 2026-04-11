@@ -10,7 +10,7 @@
 //!
 //! let v = vec![10, 20, 30];
 //! let result: Option<Vec<String>> =
-//! 	traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+//! 	traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 //! 		|i, x: &i32| Some(format!("{}:{}", i, x)),
 //! 		&v,
 //! 	);
@@ -60,7 +60,7 @@ mod inner {
 		///
 		/// let v = vec![10, 20, 30];
 		/// let result: Option<Vec<String>> =
-		/// 	traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+		/// 	traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 		/// 		|i, x: &i32| Some(format!("{}:{}", i, x)),
 		/// 		&v,
 		/// 	);
@@ -106,7 +106,7 @@ mod inner {
 	///
 	/// let v = vec![10, 20, 30];
 	/// let result: Option<Vec<String>> =
-	/// 	traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+	/// 	traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 	/// 		|i, x: &i32| Some(format!("{}:{}", i, x)),
 	/// 		&v,
 	/// 	);

@@ -231,7 +231,7 @@ mod inner {
 	/// };
 	///
 	/// let lazy = RcLazy::new(|| 42);
-	/// let result = fold_map_with_index::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+	/// let result = fold_map_with_index_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
 	/// 	|_, x: &i32| x.to_string(),
 	/// 	&lazy,
 	/// );

@@ -24,6 +24,7 @@ pub(crate) mod inner {
 	use {
 		crate::{
 			classes::{
+				Monoid,
 				WithIndex,
 				default_brand::DefaultBrand,
 				dispatch::{
@@ -31,6 +32,14 @@ pub(crate) mod inner {
 					filter_map_with_index::FilterMapWithIndexDispatch,
 					filter_with_index::FilterWithIndexDispatch,
 					filterable::FilterMapDispatch,
+					fold_left_with_index::FoldLeftWithIndexDispatch,
+					fold_map_with_index::FoldMapWithIndexDispatch,
+					fold_right_with_index::FoldRightWithIndexDispatch,
+					foldable::{
+						FoldLeftDispatch,
+						FoldMapDispatch,
+						FoldRightDispatch,
+					},
 					functor::FunctorDispatch,
 					lift::{
 						Lift2Dispatch,
@@ -44,6 +53,10 @@ pub(crate) mod inner {
 					partition_map_with_index::PartitionMapWithIndexDispatch,
 					partition_with_index::PartitionWithIndexDispatch,
 					semimonad::BindDispatch,
+					traversable::TraverseDispatch,
+					traverse_with_index::TraverseWithIndexDispatch,
+					wilt::WiltDispatch,
+					wither::WitherDispatch,
 				},
 			},
 			kinds::*,
@@ -829,6 +842,549 @@ pub(crate) mod inner {
 		FA: DefaultBrand,
 		<FA as DefaultBrand>::Brand: WithIndex, {
 		f.dispatch(fa)
+	}
+
+	// -- Tier 2: partial inference (Brand inferred, FnBrand and/or F/M explicit) --
+
+	// -- fold_right --
+
+	/// Folds a structure from the right, inferring the brand from the container type.
+	///
+	/// The `Brand` type parameter is inferred from the concrete type of `fa`
+	/// via [`DefaultBrand`]. `FnBrand` must still be specified explicitly.
+	/// Both owned and borrowed containers are supported.
+	///
+	/// For types with multiple brands, use
+	/// [`fold_right_explicit`](crate::functions::fold_right_explicit) with a turbofish.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use (must be specified explicitly).",
+		"The container type (owned or borrowed). Brand is inferred from this.",
+		"The type of the elements.",
+		"The type of the accumulator.",
+		"Dispatch marker type, inferred automatically."
+	)]
+	///
+	#[document_parameters(
+		"The folding function.",
+		"The initial accumulator value.",
+		"The structure to fold (owned for Val, borrowed for Ref)."
+	)]
+	///
+	#[document_returns("The final accumulator value.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let result = fold_right::<RcFnBrand, _, _, _, _>(|a, b| a + b, 0, vec![1, 2, 3]);
+	/// assert_eq!(result, 6);
+	/// ```
+	pub fn fold_right<'a, FnBrand, FA, A: 'a + Clone, B: 'a, Marker>(
+		func: impl FoldRightDispatch<'a, FnBrand, <FA as DefaultBrand>::Brand, A, B, FA, Marker>,
+		initial: B,
+		fa: FA,
+	) -> B
+	where
+		FA: DefaultBrand, {
+		func.dispatch(initial, fa)
+	}
+
+	// -- fold_left --
+
+	/// Folds a structure from the left, inferring the brand from the container type.
+	///
+	/// The `Brand` type parameter is inferred from the concrete type of `fa`
+	/// via [`DefaultBrand`]. `FnBrand` must still be specified explicitly.
+	/// Both owned and borrowed containers are supported.
+	///
+	/// For types with multiple brands, use
+	/// [`fold_left_explicit`](crate::functions::fold_left_explicit) with a turbofish.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use (must be specified explicitly).",
+		"The container type (owned or borrowed). Brand is inferred from this.",
+		"The type of the elements.",
+		"The type of the accumulator.",
+		"Dispatch marker type, inferred automatically."
+	)]
+	///
+	#[document_parameters(
+		"The folding function.",
+		"The initial accumulator value.",
+		"The structure to fold (owned for Val, borrowed for Ref)."
+	)]
+	///
+	#[document_returns("The final accumulator value.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let result = fold_left::<RcFnBrand, _, _, _, _>(|b, a| b + a, 0, vec![1, 2, 3]);
+	/// assert_eq!(result, 6);
+	/// ```
+	pub fn fold_left<'a, FnBrand, FA, A: 'a + Clone, B: 'a, Marker>(
+		func: impl FoldLeftDispatch<'a, FnBrand, <FA as DefaultBrand>::Brand, A, B, FA, Marker>,
+		initial: B,
+		fa: FA,
+	) -> B
+	where
+		FA: DefaultBrand, {
+		func.dispatch(initial, fa)
+	}
+
+	// -- fold_map --
+
+	/// Maps values to a monoid and combines them, inferring the brand from the container type.
+	///
+	/// The `Brand` type parameter is inferred from the concrete type of `fa`
+	/// via [`DefaultBrand`]. `FnBrand` must still be specified explicitly.
+	/// Both owned and borrowed containers are supported.
+	///
+	/// For types with multiple brands, use
+	/// [`fold_map_explicit`](crate::functions::fold_map_explicit) with a turbofish.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use (must be specified explicitly).",
+		"The container type (owned or borrowed). Brand is inferred from this.",
+		"The type of the elements.",
+		"The monoid type.",
+		"Dispatch marker type, inferred automatically."
+	)]
+	///
+	#[document_parameters(
+		"The mapping function.",
+		"The structure to fold (owned for Val, borrowed for Ref)."
+	)]
+	///
+	#[document_returns("The combined monoid value.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let result = fold_map::<RcFnBrand, _, _, _, _>(|a: i32| a.to_string(), vec![1, 2, 3]);
+	/// assert_eq!(result, "123");
+	/// ```
+	pub fn fold_map<'a, FnBrand, FA, A: 'a, M: Monoid + 'a, Marker>(
+		func: impl FoldMapDispatch<'a, FnBrand, <FA as DefaultBrand>::Brand, A, M, FA, Marker>,
+		fa: FA,
+	) -> M
+	where
+		FA: DefaultBrand, {
+		func.dispatch(fa)
+	}
+
+	// -- traverse --
+
+	/// Traverses a structure, inferring the brand from the container type.
+	///
+	/// The `Brand` type parameter is inferred from the concrete type of `ta`
+	/// via [`DefaultBrand`]. `FnBrand` and `F` (the applicative brand) must
+	/// still be specified explicitly.
+	/// Both owned and borrowed containers are supported.
+	///
+	/// For types with multiple brands, use
+	/// [`traverse_explicit`](crate::functions::traverse_explicit) with a turbofish.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use (must be specified explicitly).",
+		"The container type (owned or borrowed). Brand is inferred from this.",
+		"The type of the elements in the input structure.",
+		"The type of the elements in the output structure.",
+		"The applicative functor brand (must be specified explicitly).",
+		"Dispatch marker type, inferred automatically."
+	)]
+	///
+	#[document_parameters(
+		"The function to apply to each element, returning a value in an applicative context.",
+		"The traversable structure (owned for Val, borrowed for Ref)."
+	)]
+	///
+	#[document_returns("The structure wrapped in the applicative context.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let y = traverse::<RcFnBrand, _, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Some(5));
+	/// assert_eq!(y, Some(Some(10)));
+	/// ```
+	pub fn traverse<'a, FnBrand, FA, A: 'a, B: 'a, F: Kind_cdc7cd43dac7585f, Marker>(
+		func: impl TraverseDispatch<'a, FnBrand, <FA as DefaultBrand>::Brand, A, B, F, FA, Marker>,
+		ta: FA,
+	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+	where
+		FA: DefaultBrand, {
+		func.dispatch(ta)
+	}
+
+	// -- fold_map_with_index --
+
+	/// Maps values with their index to a monoid and combines them, inferring the brand
+	/// from the container type.
+	///
+	/// The `Brand` type parameter is inferred from the concrete type of `fa`
+	/// via [`DefaultBrand`]. `FnBrand` must still be specified explicitly.
+	/// Both owned and borrowed containers are supported.
+	///
+	/// For types with multiple brands, use
+	/// [`fold_map_with_index_explicit`](crate::functions::fold_map_with_index_explicit()) with a turbofish.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use (must be specified explicitly).",
+		"The container type (owned or borrowed). Brand is inferred from this.",
+		"The type of the elements.",
+		"The monoid type.",
+		"Dispatch marker type, inferred automatically."
+	)]
+	///
+	#[document_parameters(
+		"The mapping function that receives an index and element.",
+		"The structure to fold (owned for Val, borrowed for Ref)."
+	)]
+	///
+	#[document_returns("The combined monoid value.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let result = fold_map_with_index::<RcFnBrand, _, _, _, _>(
+	/// 	|i, x: i32| format!("{i}:{x}"),
+	/// 	vec![10, 20, 30],
+	/// );
+	/// assert_eq!(result, "0:101:202:30");
+	/// ```
+	pub fn fold_map_with_index<'a, FnBrand, FA, A: 'a, M: Monoid + 'a, Marker>(
+		func: impl FoldMapWithIndexDispatch<'a, FnBrand, <FA as DefaultBrand>::Brand, A, M, FA, Marker>,
+		fa: FA,
+	) -> M
+	where
+		FA: DefaultBrand,
+		<FA as DefaultBrand>::Brand: WithIndex, {
+		func.dispatch(fa)
+	}
+
+	// -- fold_right_with_index --
+
+	/// Folds a structure from the right with index, inferring the brand from the container type.
+	///
+	/// The `Brand` type parameter is inferred from the concrete type of `fa`
+	/// via [`DefaultBrand`]. `FnBrand` must still be specified explicitly.
+	/// Both owned and borrowed containers are supported.
+	///
+	/// For types with multiple brands, use
+	/// [`fold_right_with_index_explicit`](crate::functions::fold_right_with_index_explicit()) with a turbofish.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use (must be specified explicitly).",
+		"The container type (owned or borrowed). Brand is inferred from this.",
+		"The type of the elements.",
+		"The type of the accumulator.",
+		"Dispatch marker type, inferred automatically."
+	)]
+	///
+	#[document_parameters(
+		"The folding function that receives an index, element, and accumulator.",
+		"The initial accumulator value.",
+		"The structure to fold (owned for Val, borrowed for Ref)."
+	)]
+	///
+	#[document_returns("The final accumulator value.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let result = fold_right_with_index::<RcFnBrand, _, _, _, _>(
+	/// 	|i, x: i32, acc: String| format!("{acc}{i}:{x},"),
+	/// 	String::new(),
+	/// 	vec![10, 20, 30],
+	/// );
+	/// assert_eq!(result, "2:30,1:20,0:10,");
+	/// ```
+	pub fn fold_right_with_index<'a, FnBrand, FA, A: 'a + Clone, B: 'a, Marker>(
+		func: impl FoldRightWithIndexDispatch<
+			'a,
+			FnBrand,
+			<FA as DefaultBrand>::Brand,
+			A,
+			B,
+			FA,
+			Marker,
+		>,
+		initial: B,
+		fa: FA,
+	) -> B
+	where
+		FA: DefaultBrand,
+		<FA as DefaultBrand>::Brand: WithIndex, {
+		func.dispatch(initial, fa)
+	}
+
+	// -- fold_left_with_index --
+
+	/// Folds a structure from the left with index, inferring the brand from the container type.
+	///
+	/// The `Brand` type parameter is inferred from the concrete type of `fa`
+	/// via [`DefaultBrand`]. `FnBrand` must still be specified explicitly.
+	/// Both owned and borrowed containers are supported.
+	///
+	/// For types with multiple brands, use
+	/// [`fold_left_with_index_explicit`](crate::functions::fold_left_with_index_explicit()) with a turbofish.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use (must be specified explicitly).",
+		"The container type (owned or borrowed). Brand is inferred from this.",
+		"The type of the elements.",
+		"The type of the accumulator.",
+		"Dispatch marker type, inferred automatically."
+	)]
+	///
+	#[document_parameters(
+		"The folding function that receives an index, accumulator, and element.",
+		"The initial accumulator value.",
+		"The structure to fold (owned for Val, borrowed for Ref)."
+	)]
+	///
+	#[document_returns("The final accumulator value.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let result = fold_left_with_index::<RcFnBrand, _, _, _, _>(
+	/// 	|i, acc: String, x: i32| format!("{acc}{i}:{x},"),
+	/// 	String::new(),
+	/// 	vec![10, 20, 30],
+	/// );
+	/// assert_eq!(result, "0:10,1:20,2:30,");
+	/// ```
+	pub fn fold_left_with_index<'a, FnBrand, FA, A: 'a + Clone, B: 'a, Marker>(
+		func: impl FoldLeftWithIndexDispatch<'a, FnBrand, <FA as DefaultBrand>::Brand, A, B, FA, Marker>,
+		initial: B,
+		fa: FA,
+	) -> B
+	where
+		FA: DefaultBrand,
+		<FA as DefaultBrand>::Brand: WithIndex, {
+		func.dispatch(initial, fa)
+	}
+
+	// -- traverse_with_index --
+
+	/// Traverses a structure with an indexed effectful function, inferring the brand
+	/// from the container type.
+	///
+	/// The `Brand` type parameter is inferred from the concrete type of `ta`
+	/// via [`DefaultBrand`]. `FnBrand` and `F` (the applicative brand) must
+	/// still be specified explicitly.
+	/// Both owned and borrowed containers are supported.
+	///
+	/// For types with multiple brands, use
+	/// [`traverse_with_index_explicit`](crate::functions::traverse_with_index_explicit()) with a turbofish.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use (must be specified explicitly).",
+		"The container type (owned or borrowed). Brand is inferred from this.",
+		"The type of the elements in the input structure.",
+		"The type of the elements in the output structure.",
+		"The applicative functor brand (must be specified explicitly).",
+		"Dispatch marker type, inferred automatically."
+	)]
+	///
+	#[document_parameters(
+		"The indexed function to apply to each element, returning a value in an applicative context.",
+		"The traversable structure (owned for Val, borrowed for Ref)."
+	)]
+	///
+	#[document_returns("The structure wrapped in the applicative context.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let y = traverse_with_index::<RcFnBrand, _, _, _, OptionBrand, _>(
+	/// 	|_i, x: i32| Some(x * 2),
+	/// 	vec![1, 2, 3],
+	/// );
+	/// assert_eq!(y, Some(vec![2, 4, 6]));
+	/// ```
+	pub fn traverse_with_index<'a, FnBrand, FA, A: 'a, B: 'a, F: Kind_cdc7cd43dac7585f, Marker>(
+		func: impl TraverseWithIndexDispatch<
+			'a,
+			FnBrand,
+			<FA as DefaultBrand>::Brand,
+			A,
+			B,
+			F,
+			FA,
+			Marker,
+		>,
+		ta: FA,
+	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+	where
+		FA: DefaultBrand,
+		<FA as DefaultBrand>::Brand: WithIndex, {
+		func.dispatch(ta)
+	}
+
+	// -- wilt --
+
+	/// Partitions a structure based on a function returning a Result in an applicative context,
+	/// inferring the brand from the container type.
+	///
+	/// The `Brand` type parameter is inferred from the concrete type of `ta`
+	/// via [`DefaultBrand`]. `FnBrand` and `M` (the applicative brand) must
+	/// still be specified explicitly.
+	/// Both owned and borrowed containers are supported.
+	///
+	/// For types with multiple brands, use
+	/// [`wilt_explicit`](crate::functions::wilt_explicit()) with a turbofish.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use (must be specified explicitly).",
+		"The container type (owned or borrowed). Brand is inferred from this.",
+		"The applicative functor brand (must be specified explicitly).",
+		"The type of the elements in the input structure.",
+		"The error type.",
+		"The success type.",
+		"Dispatch marker type, inferred automatically."
+	)]
+	///
+	#[document_parameters(
+		"The function to apply to each element, returning a Result in an applicative context.",
+		"The witherable structure (owned for Val, borrowed for Ref)."
+	)]
+	///
+	#[document_returns("The partitioned structure wrapped in the applicative context.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let y = wilt::<RcFnBrand, _, OptionBrand, _, _, _, _>(
+	/// 	|a: i32| Some(if a > 2 { Ok(a) } else { Err(a) }),
+	/// 	Some(5),
+	/// );
+	/// assert_eq!(y, Some((None, Some(5))));
+	/// ```
+	pub fn wilt<'a, FnBrand, FA, M: Kind_cdc7cd43dac7585f, A: 'a, E: 'a, O: 'a, Marker>(
+		func: impl WiltDispatch<'a, FnBrand, <FA as DefaultBrand>::Brand, M, A, E, O, FA, Marker>,
+		ta: FA,
+	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+		'a,
+		(
+			Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+			Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		),
+	>)
+	where
+		FA: DefaultBrand, {
+		func.dispatch(ta)
+	}
+
+	// -- wither --
+
+	/// Maps a function over a data structure and filters out None results in an applicative context,
+	/// inferring the brand from the container type.
+	///
+	/// The `Brand` type parameter is inferred from the concrete type of `ta`
+	/// via [`DefaultBrand`]. `FnBrand` and `M` (the applicative brand) must
+	/// still be specified explicitly.
+	/// Both owned and borrowed containers are supported.
+	///
+	/// For types with multiple brands, use
+	/// [`wither_explicit`](crate::functions::wither_explicit()) with a turbofish.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use (must be specified explicitly).",
+		"The container type (owned or borrowed). Brand is inferred from this.",
+		"The applicative functor brand (must be specified explicitly).",
+		"The type of the elements in the input structure.",
+		"The type of the elements in the output structure.",
+		"Dispatch marker type, inferred automatically."
+	)]
+	///
+	#[document_parameters(
+		"The function to apply to each element, returning an Option in an applicative context.",
+		"The witherable structure (owned for Val, borrowed for Ref)."
+	)]
+	///
+	#[document_returns("The filtered structure wrapped in the applicative context.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// let y = wither::<RcFnBrand, _, OptionBrand, _, _, _>(
+	/// 	|a: i32| Some(if a > 2 { Some(a * 2) } else { None }),
+	/// 	Some(5),
+	/// );
+	/// assert_eq!(y, Some(Some(10)));
+	/// ```
+	pub fn wither<'a, FnBrand, FA, M: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, Marker>(
+		func: impl WitherDispatch<'a, FnBrand, <FA as DefaultBrand>::Brand, M, A, B, FA, Marker>,
+		ta: FA,
+	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+		'a,
+		Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+	>)
+	where
+		FA: DefaultBrand, {
+		func.dispatch(ta)
 	}
 }
 

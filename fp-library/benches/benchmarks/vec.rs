@@ -48,7 +48,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| fold_right::<RcFnBrand, VecBrand, _, _, _, _>(|x, acc| x + acc, 0, v),
+				|v| fold_right_explicit::<RcFnBrand, VecBrand, _, _, _, _>(|x, acc| x + acc, 0, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -69,7 +69,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| fold_left::<RcFnBrand, VecBrand, _, _, _, _>(|acc, x| acc + x, 0, v),
+				|v| fold_left_explicit::<RcFnBrand, VecBrand, _, _, _, _>(|acc, x| acc + x, 0, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -90,7 +90,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| fold_map::<RcFnBrand, VecBrand, _, _, _, _>(|x: i32| x.to_string(), v),
+				|v| fold_map_explicit::<RcFnBrand, VecBrand, _, _, _, _>(|x: i32| x.to_string(), v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -113,7 +113,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			b.iter_batched(
 				|| v_orig.clone(),
 				|v| {
-					traverse::<RcFnBrand, VecBrand, _, _, ResultErrAppliedBrand<i32>, _, _>(
+					traverse_explicit::<RcFnBrand, VecBrand, _, _, ResultErrAppliedBrand<i32>, _, _>(
 						|x| Ok(x * 2),
 						v,
 					)
@@ -416,7 +416,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			b.iter_batched(
 				|| v_orig.clone(),
 				|v| {
-					wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
+					wither_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
 						|x| Some(if x % 2 == 0 { Some(x * 2) } else { None }),
 						v,
 					)
@@ -452,7 +452,7 @@ pub fn bench_vec(c: &mut Criterion) {
 			b.iter_batched(
 				|| v_orig.clone(),
 				|v| {
-					wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
+					wilt_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
 						|x| Some(if x % 2 == 0 { Ok(x * 2) } else { Err(x) }),
 						v,
 					)
@@ -568,7 +568,12 @@ pub fn bench_vec(c: &mut Criterion) {
 			group.bench_with_input(BenchmarkId::new("fold_map (sequential)", sz), &sz, |b, &_| {
 				b.iter_batched(
 					|| v.clone(),
-					|v| fold_map::<RcFnBrand, VecBrand, _, _, _, _>(|x: i32| x.to_string(), v),
+					|v| {
+						fold_map_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
+							|x: i32| x.to_string(),
+							v,
+						)
+					},
 					BatchSize::SmallInput,
 				)
 			});

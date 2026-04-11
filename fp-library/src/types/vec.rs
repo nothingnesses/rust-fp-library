@@ -415,7 +415,11 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, VecBrand, _, _, _, _>(|x: i32, acc| x + acc, 0, vec![1, 2, 3]),
+		/// 	fold_right_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
+		/// 		|x: i32, acc| x + acc,
+		/// 		0,
+		/// 		vec![1, 2, 3]
+		/// 	),
 		/// 	6
 		/// );
 		/// ```
@@ -457,7 +461,11 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, VecBrand, _, _, _, _>(|acc, x: i32| acc + x, 0, vec![1, 2, 3]),
+		/// 	fold_left_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
+		/// 		|acc, x: i32| acc + x,
+		/// 		0,
+		/// 		vec![1, 2, 3]
+		/// 	),
 		/// 	6
 		/// );
 		/// ```
@@ -496,7 +504,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, VecBrand, _, _, _, _>(|x: i32| x.to_string(), vec![1, 2, 3]),
+		/// 	fold_map_explicit::<RcFnBrand, VecBrand, _, _, _, _>(|x: i32| x.to_string(), vec![1, 2, 3]),
 		/// 	"123".to_string()
 		/// );
 		/// ```
@@ -539,7 +547,10 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(|x| Some(x * 2), vec![1, 2, 3]),
+		/// 	traverse_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+		/// 		|x| Some(x * 2),
+		/// 		vec![1, 2, 3]
+		/// 	),
 		/// 	Some(vec![2, 4, 6])
 		/// );
 		/// ```
@@ -2094,7 +2105,7 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let y = wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
+		/// let y = wilt_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
 		/// 	|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }),
 		/// 	x,
 		/// );
@@ -2156,7 +2167,7 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let y = wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
+		/// let y = wither_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
 		/// 	|a| Some(if a % 2 == 0 { Some(a * 2) } else { None }),
 		/// 	x,
 		/// );
@@ -2375,7 +2386,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![1, 2, 3];
-		/// let result = fold_map::<RcFnBrand, VecBrand, _, _, _, _>(|x: &i32| x.to_string(), &v);
+		/// let result = fold_map_explicit::<RcFnBrand, VecBrand, _, _, _, _>(|x: &i32| x.to_string(), &v);
 		/// assert_eq!(result, "123");
 		/// ```
 		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -2547,7 +2558,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![10, 20, 30];
-		/// let result = fold_map_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
+		/// let result = fold_map_with_index_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
 		/// 	|i, x: &i32| format!("{}:{}", i, x),
 		/// 	&v,
 		/// );
@@ -2627,7 +2638,7 @@ mod inner {
 		///
 		/// let v = vec![10, 20, 30];
 		/// let result: Option<Vec<String>> =
-		/// 	traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+		/// 	traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 		/// 		|i, x: &i32| Some(format!("{}:{}", i, x)),
 		/// 		&v,
 		/// 	);
@@ -3196,7 +3207,7 @@ mod tests {
 	#[test]
 	fn fold_right_empty() {
 		assert_eq!(
-			crate::functions::fold_right::<RcFnBrand, VecBrand, _, _, _, _>(
+			crate::functions::fold_right_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				vec![]
@@ -3209,7 +3220,7 @@ mod tests {
 	#[test]
 	fn fold_left_empty() {
 		assert_eq!(
-			crate::functions::fold_left::<RcFnBrand, VecBrand, _, _, _, _>(
+			crate::functions::fold_left_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				vec![]
@@ -3410,8 +3421,10 @@ mod tests {
 	/// Tests `wither (pure <<< Just) ≡ pure`.
 	#[quickcheck]
 	fn witherable_identity(x: Vec<i32>) -> bool {
-		wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(|i| Some(Some(i)), x.clone())
-			== Some(x)
+		wither_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
+			|i| Some(Some(i)),
+			x.clone(),
+		) == Some(x)
 	}
 
 	/// Tests `wilt p ≡ map separate <<< traverse p`.
@@ -3419,10 +3432,10 @@ mod tests {
 	fn witherable_wilt_consistency(x: Vec<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Ok(i) } else { Err(i) });
 
-		let lhs = wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(p, x.clone());
+		let lhs = wilt_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(p, x.clone());
 		let rhs = crate::classes::dispatch::map::<OptionBrand, _, _, _, _>(
 			separate::<VecBrand, _, _>,
-			traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(p, x),
+			traverse_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(p, x),
 		);
 
 		lhs == rhs
@@ -3433,10 +3446,10 @@ mod tests {
 	fn witherable_wither_consistency(x: Vec<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Some(i) } else { None });
 
-		let lhs = wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(p, x.clone());
+		let lhs = wither_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(p, x.clone());
 		let rhs = crate::classes::dispatch::map::<OptionBrand, _, _, _, _>(
 			compact::<VecBrand, _>,
-			traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(p, x),
+			traverse_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(p, x),
 		);
 
 		lhs == rhs
@@ -3586,7 +3599,7 @@ mod tests {
 	/// Tests `wilt` on an empty vector.
 	#[test]
 	fn wilt_empty() {
-		let res = wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
+		let res = wilt_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
 			|x: i32| Some(Ok::<i32, i32>(x)),
 			vec![],
 		);
@@ -3596,8 +3609,10 @@ mod tests {
 	/// Tests `wither` on an empty vector.
 	#[test]
 	fn wither_empty() {
-		let res =
-			wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(|x: i32| Some(Some(x)), vec![]);
+		let res = wither_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
+			|x: i32| Some(Some(x)),
+			vec![],
+		);
 		assert_eq!(res, Some(vec![]));
 	}
 
@@ -3628,10 +3643,11 @@ mod tests {
 		use crate::types::Additive;
 
 		let f = |x: i32| Additive(x as i64);
-		let seq_res = crate::functions::fold_map::<crate::brands::RcFnBrand, VecBrand, _, _, _, _>(
-			f,
-			xs.clone(),
-		);
+		let seq_res =
+			crate::functions::fold_map_explicit::<crate::brands::RcFnBrand, VecBrand, _, _, _, _>(
+				f,
+				xs.clone(),
+			);
 		let par_res = par_fold_map::<VecBrand, _, _>(f, xs);
 		seq_res == par_res
 	}

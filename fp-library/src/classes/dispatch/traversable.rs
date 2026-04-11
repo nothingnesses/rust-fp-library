@@ -14,12 +14,14 @@
 //! };
 //!
 //! // Owned: dispatches to Traversable::traverse
-//! let y =
-//! 	traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(|x: i32| Some(x * 2), Some(5));
+//! let y = traverse_explicit::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(
+//! 	|x: i32| Some(x * 2),
+//! 	Some(5),
+//! );
 //! assert_eq!(y, Some(Some(10)));
 //!
 //! // By-ref: dispatches to RefTraversable::ref_traverse
-//! let y = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(
+//! let y = traverse_explicit::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(
 //! 	|x: &i32| Some(*x * 2),
 //! 	&Some(5),
 //! );
@@ -86,8 +88,10 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result =
-		/// 	traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(|x: i32| Some(x * 2), Some(5));
+		/// let result = traverse_explicit::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(
+		/// 	|x: i32| Some(x * 2),
+		/// 	Some(5),
+		/// );
 		/// assert_eq!(result, Some(Some(10)));
 		/// ```
 		fn dispatch(
@@ -145,8 +149,10 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result =
-		/// 	traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(|x: i32| Some(x * 2), Some(5));
+		/// let result = traverse_explicit::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(
+		/// 	|x: i32| Some(x * 2),
+		/// 	Some(5),
+		/// );
 		/// assert_eq!(result, Some(Some(10)));
 		/// ```
 		fn dispatch(
@@ -213,7 +219,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(
+		/// let result = traverse_explicit::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(
 		/// 	|x: &i32| Some(*x * 2),
 		/// 	&Some(5),
 		/// );
@@ -246,7 +252,7 @@ pub(crate) mod inner {
 	/// The `Marker` and `FTA` type parameters are inferred automatically by
 	/// the compiler from the closure's argument type and the container
 	/// argument. Callers write
-	/// `traverse::<FnBrand, Brand, _, _, F, _, _>(...)` and never need to
+	/// `traverse_explicit::<FnBrand, Brand, _, _, F, _, _>(...)` and never need to
 	/// specify `Marker` or `FTA` explicitly.
 	///
 	/// The dispatch is resolved at compile time with no runtime cost.
@@ -279,12 +285,14 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // Owned: dispatches to Traversable::traverse
-	/// let y =
-	/// 	traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(|x: i32| Some(x * 2), Some(5));
+	/// let y = traverse_explicit::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(
+	/// 	|x: i32| Some(x * 2),
+	/// 	Some(5),
+	/// );
 	/// assert_eq!(y, Some(Some(10)));
 	///
 	/// // By-ref: dispatches to RefTraversable::ref_traverse
-	/// let y = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(
+	/// let y = traverse_explicit::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(
 	/// 	|x: &i32| Some(*x * 2),
 	/// 	&Some(5),
 	/// );

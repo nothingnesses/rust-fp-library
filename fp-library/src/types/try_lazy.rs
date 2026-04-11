@@ -1623,7 +1623,7 @@ mod inner {
 		/// };
 		///
 		/// let memo: RcTryLazy<i32, ()> = RcTryLazy::new(|| Ok(10));
-		/// let result = fold_map::<RcFnBrand, TryLazyBrand<(), RcLazyConfig>, _, _, _, _>(
+		/// let result = fold_map_explicit::<RcFnBrand, TryLazyBrand<(), RcLazyConfig>, _, _, _, _>(
 		/// 	|a: &i32| a.to_string(),
 		/// 	&memo,
 		/// );
@@ -1666,7 +1666,7 @@ mod inner {
 		/// };
 		///
 		/// let memo: RcTryLazy<i32, ()> = RcTryLazy::new(|| Ok(10));
-		/// let result = fold_right::<RcFnBrand, TryLazyBrand<(), RcLazyConfig>, _, _, _, _>(
+		/// let result = fold_right_explicit::<RcFnBrand, TryLazyBrand<(), RcLazyConfig>, _, _, _, _>(
 		/// 	|a: &i32, b| *a + b,
 		/// 	5,
 		/// 	&memo,
@@ -1710,7 +1710,7 @@ mod inner {
 		/// };
 		///
 		/// let memo: RcTryLazy<i32, ()> = RcTryLazy::new(|| Ok(10));
-		/// let result = fold_left::<RcFnBrand, TryLazyBrand<(), RcLazyConfig>, _, _, _, _>(
+		/// let result = fold_left_explicit::<RcFnBrand, TryLazyBrand<(), RcLazyConfig>, _, _, _, _>(
 		/// 	|b, a: &i32| b + *a,
 		/// 	5,
 		/// 	&memo,
@@ -2984,12 +2984,14 @@ mod tests {
 		};
 
 		let lazy = RcTryLazy::<i32, String>::ok(10);
-		let result =
-			fold_right::<crate::brands::RcFnBrand, TryLazyBrand<String, RcLazyConfig>, _, _, _, _>(
-				|a: &i32, b| *a + b,
-				5,
-				&lazy,
-			);
+		let result = fold_right_explicit::<
+			crate::brands::RcFnBrand,
+			TryLazyBrand<String, RcLazyConfig>,
+			_,
+			_,
+			_,
+			_,
+		>(|a: &i32, b| *a + b, 5, &lazy);
 		assert_eq!(result, 15);
 	}
 
@@ -3002,12 +3004,14 @@ mod tests {
 		};
 
 		let lazy = RcTryLazy::<i32, String>::err("fail".to_string());
-		let result =
-			fold_right::<crate::brands::RcFnBrand, TryLazyBrand<String, RcLazyConfig>, _, _, _, _>(
-				|a: &i32, b| *a + b,
-				5,
-				&lazy,
-			);
+		let result = fold_right_explicit::<
+			crate::brands::RcFnBrand,
+			TryLazyBrand<String, RcLazyConfig>,
+			_,
+			_,
+			_,
+			_,
+		>(|a: &i32, b| *a + b, 5, &lazy);
 		assert_eq!(result, 5);
 	}
 
@@ -3020,12 +3024,14 @@ mod tests {
 		};
 
 		let lazy = RcTryLazy::<i32, String>::ok(10);
-		let result =
-			fold_left::<crate::brands::RcFnBrand, TryLazyBrand<String, RcLazyConfig>, _, _, _, _>(
-				|b, a: &i32| b + *a,
-				5,
-				&lazy,
-			);
+		let result = fold_left_explicit::<
+			crate::brands::RcFnBrand,
+			TryLazyBrand<String, RcLazyConfig>,
+			_,
+			_,
+			_,
+			_,
+		>(|b, a: &i32| b + *a, 5, &lazy);
 		assert_eq!(result, 15);
 	}
 
@@ -3038,12 +3044,14 @@ mod tests {
 		};
 
 		let lazy = RcTryLazy::<i32, String>::err("fail".to_string());
-		let result =
-			fold_left::<crate::brands::RcFnBrand, TryLazyBrand<String, RcLazyConfig>, _, _, _, _>(
-				|b, a: &i32| b + *a,
-				5,
-				&lazy,
-			);
+		let result = fold_left_explicit::<
+			crate::brands::RcFnBrand,
+			TryLazyBrand<String, RcLazyConfig>,
+			_,
+			_,
+			_,
+			_,
+		>(|b, a: &i32| b + *a, 5, &lazy);
 		assert_eq!(result, 5);
 	}
 
@@ -3056,7 +3064,7 @@ mod tests {
 		};
 
 		let lazy = RcTryLazy::<i32, String>::ok(10);
-		let result = fold_map::<RcFnBrand, TryLazyBrand<String, RcLazyConfig>, _, _, _, _>(
+		let result = fold_map_explicit::<RcFnBrand, TryLazyBrand<String, RcLazyConfig>, _, _, _, _>(
 			|a: &i32| a.to_string(),
 			&lazy,
 		);
@@ -3072,7 +3080,7 @@ mod tests {
 		};
 
 		let lazy = RcTryLazy::<i32, String>::err("fail".to_string());
-		let result = fold_map::<RcFnBrand, TryLazyBrand<String, RcLazyConfig>, _, _, _, _>(
+		let result = fold_map_explicit::<RcFnBrand, TryLazyBrand<String, RcLazyConfig>, _, _, _, _>(
 			|a: &i32| a.to_string(),
 			&lazy,
 		);
@@ -3088,7 +3096,7 @@ mod tests {
 		};
 
 		let lazy = ArcTryLazy::<i32, String>::ok(10);
-		let result = fold_right::<
+		let result = fold_right_explicit::<
 			crate::brands::ArcFnBrand,
 			TryLazyBrand<String, ArcLazyConfig>,
 			_,
@@ -3108,7 +3116,7 @@ mod tests {
 		};
 
 		let lazy = ArcTryLazy::<i32, String>::err("fail".to_string());
-		let result = fold_right::<
+		let result = fold_right_explicit::<
 			crate::brands::ArcFnBrand,
 			TryLazyBrand<String, ArcLazyConfig>,
 			_,
@@ -3203,7 +3211,7 @@ mod tests {
 		let lazy1 = RcTryLazy::<i32, ()>::ok(7);
 		let lazy2 = RcTryLazy::<i32, ()>::ok(7);
 
-		let fold_result = fold_map::<RcFnBrand, TryLazyBrand<(), RcLazyConfig>, _, _, _, _>(
+		let fold_result = fold_map_explicit::<RcFnBrand, TryLazyBrand<(), RcLazyConfig>, _, _, _, _>(
 			|a: &i32| a.to_string(),
 			&lazy1,
 		);
@@ -3355,7 +3363,7 @@ mod tests {
 		};
 
 		let memo: RcTryLazy<i32, ()> = RcTryLazy::new(|| Ok(10));
-		let result = fold_right::<RcFnBrand, TryLazyBrand<(), RcLazyConfig>, _, _, _, _>(
+		let result = fold_right_explicit::<RcFnBrand, TryLazyBrand<(), RcLazyConfig>, _, _, _, _>(
 			|a: &i32, b| *a + b,
 			5,
 			&memo,
@@ -3372,7 +3380,7 @@ mod tests {
 		};
 
 		let memo: RcTryLazy<i32, String> = RcTryLazy::new(|| Err("oops".into()));
-		let result = fold_right::<RcFnBrand, TryLazyBrand<String, RcLazyConfig>, _, _, _, _>(
+		let result = fold_right_explicit::<RcFnBrand, TryLazyBrand<String, RcLazyConfig>, _, _, _, _>(
 			|a: &i32, b| *a + b,
 			5,
 			&memo,

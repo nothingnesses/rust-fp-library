@@ -769,7 +769,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_right_explicit::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
 		/// 		|x, acc| x + acc,
 		/// 		0,
 		/// 		((), 5)
@@ -815,7 +815,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_left_explicit::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
 		/// 		|acc, x| acc + x,
 		/// 		0,
 		/// 		((), 5)
@@ -858,7 +858,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_map_explicit::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		((), 5)
 		/// 	),
@@ -905,7 +905,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	traverse_explicit::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		((), 5)
 		/// 	),
@@ -1009,7 +1009,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
+		/// let result = fold_map_explicit::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
 		/// 	&((), 5),
 		/// );
@@ -1534,7 +1534,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_right_explicit::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
 		/// 		|x, acc| x + acc,
 		/// 		0,
 		/// 		(5, ())
@@ -1577,7 +1577,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_left_explicit::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
 		/// 		|acc, x| acc + x,
 		/// 		0,
 		/// 		(5, ())
@@ -1620,7 +1620,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_map_explicit::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		(5, ())
 		/// 	),
@@ -1665,7 +1665,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	traverse_explicit::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		(5, ())
 		/// 	),
@@ -1768,7 +1768,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
+		/// let result = fold_map_explicit::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
 		/// 	&(5, ()),
 		/// );

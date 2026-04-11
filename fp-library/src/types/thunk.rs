@@ -807,7 +807,7 @@ mod inner {
 		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
-		/// let result = fold_right::<RcFnBrand, ThunkBrand, _, _, _, _>(|a, b| a + b, 5, thunk);
+		/// let result = fold_right_explicit::<RcFnBrand, ThunkBrand, _, _, _, _>(|a, b| a + b, 5, thunk);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -846,7 +846,7 @@ mod inner {
 		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
-		/// let result = fold_left::<RcFnBrand, ThunkBrand, _, _, _, _>(|b, a| b + a, 5, thunk);
+		/// let result = fold_left_explicit::<RcFnBrand, ThunkBrand, _, _, _, _>(|b, a| b + a, 5, thunk);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -882,7 +882,8 @@ mod inner {
 		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
-		/// let result = fold_map::<RcFnBrand, ThunkBrand, _, _, _, _>(|a: i32| a.to_string(), thunk);
+		/// let result =
+		/// 	fold_map_explicit::<RcFnBrand, ThunkBrand, _, _, _, _>(|a: i32| a.to_string(), thunk);
 		/// assert_eq!(result, "10");
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -1344,7 +1345,8 @@ mod tests {
 	#[test]
 	fn test_foldable_via_brand() {
 		let thunk = pure::<ThunkBrand, _>(10);
-		let result = fold_right::<RcFnBrand, ThunkBrand, _, _, _, _>(|x, acc| x + acc, 5, thunk);
+		let result =
+			fold_right_explicit::<RcFnBrand, ThunkBrand, _, _, _, _>(|x, acc| x + acc, 5, thunk);
 		assert_eq!(result, 15);
 	}
 
@@ -1530,7 +1532,7 @@ mod tests {
 			brands::*,
 			classes::foldable_with_index::FoldableWithIndex,
 			functions::{
-				fold_map,
+				fold_map_explicit,
 				pure,
 			},
 		};
@@ -1538,7 +1540,7 @@ mod tests {
 		let f = |a: i32| a.to_string();
 		let thunk1 = pure::<ThunkBrand, _>(99);
 		let thunk2 = pure::<ThunkBrand, _>(99);
-		let via_fold_map = fold_map::<RcFnBrand, ThunkBrand, _, _, _, _>(f, thunk1);
+		let via_fold_map = fold_map_explicit::<RcFnBrand, ThunkBrand, _, _, _, _>(f, thunk1);
 		let via_fold_map_with_index: String =
 			ThunkBrand::fold_map_with_index::<RcFnBrand, _, _>(|_, a| f(a), thunk2);
 		assert_eq!(via_fold_map, via_fold_map_with_index);

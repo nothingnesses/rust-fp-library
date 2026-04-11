@@ -13,13 +13,17 @@
 //! };
 //!
 //! // By-value fold_right (Vec)
-//! let result = fold_right::<RcFnBrand, VecBrand, _, _, _, _>(|a, b| a + b, 0, vec![1, 2, 3]);
+//! let result =
+//! 	fold_right_explicit::<RcFnBrand, VecBrand, _, _, _, _>(|a, b| a + b, 0, vec![1, 2, 3]);
 //! assert_eq!(result, 6);
 //!
 //! // By-ref fold_right (Lazy, closure receives &A)
 //! let lazy = RcLazy::new(|| 10);
-//! let result =
-//! 	fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|a: &i32, b| *a + b, 5, &lazy);
+//! let result = fold_right_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+//! 	|a: &i32, b| *a + b,
+//! 	5,
+//! 	&lazy,
+//! );
 //! assert_eq!(result, 15);
 //! ```
 
@@ -73,7 +77,8 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_right::<RcFnBrand, VecBrand, _, _, _, _>(|a, b| a + b, 0, vec![1, 2, 3]);
+		/// let result =
+		/// 	fold_right_explicit::<RcFnBrand, VecBrand, _, _, _, _>(|a, b| a + b, 0, vec![1, 2, 3]);
 		/// assert_eq!(result, 6);
 		/// ```
 		fn dispatch(
@@ -120,7 +125,8 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_right::<RcFnBrand, VecBrand, _, _, _, _>(|a, b| a + b, 0, vec![1, 2, 3]);
+		/// let result =
+		/// 	fold_right_explicit::<RcFnBrand, VecBrand, _, _, _, _>(|a, b| a + b, 0, vec![1, 2, 3]);
 		/// assert_eq!(result, 6);
 		/// ```
 		fn dispatch(
@@ -177,8 +183,11 @@ pub(crate) mod inner {
 		/// 	types::*,
 		/// };
 		/// let lazy = RcLazy::new(|| 10);
-		/// let result =
-		/// 	fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|a: &i32, b| *a + b, 5, &lazy);
+		/// let result = fold_right_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+		/// 	|a: &i32, b| *a + b,
+		/// 	5,
+		/// 	&lazy,
+		/// );
 		/// assert_eq!(result, 15);
 		/// ```
 		fn dispatch(
@@ -223,13 +232,17 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // By-value
-	/// let result = fold_right::<RcFnBrand, VecBrand, _, _, _, _>(|a, b| a + b, 0, vec![1, 2, 3]);
+	/// let result =
+	/// 	fold_right_explicit::<RcFnBrand, VecBrand, _, _, _, _>(|a, b| a + b, 0, vec![1, 2, 3]);
 	/// assert_eq!(result, 6);
 	///
 	/// // By-ref
 	/// let lazy = RcLazy::new(|| 10);
-	/// let result =
-	/// 	fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|a: &i32, b| *a + b, 5, &lazy);
+	/// let result = fold_right_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+	/// 	|a: &i32, b| *a + b,
+	/// 	5,
+	/// 	&lazy,
+	/// );
 	/// assert_eq!(result, 15);
 	/// ```
 	pub fn fold_right<
@@ -278,7 +291,8 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_left::<RcFnBrand, VecBrand, _, _, _, _>(|b, a| b + a, 0, vec![1, 2, 3]);
+		/// let result =
+		/// 	fold_left_explicit::<RcFnBrand, VecBrand, _, _, _, _>(|b, a| b + a, 0, vec![1, 2, 3]);
 		/// assert_eq!(result, 6);
 		/// ```
 		fn dispatch(
@@ -325,7 +339,8 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_left::<RcFnBrand, VecBrand, _, _, _, _>(|b, a| b + a, 0, vec![1, 2, 3]);
+		/// let result =
+		/// 	fold_left_explicit::<RcFnBrand, VecBrand, _, _, _, _>(|b, a| b + a, 0, vec![1, 2, 3]);
 		/// assert_eq!(result, 6);
 		/// ```
 		fn dispatch(
@@ -382,8 +397,11 @@ pub(crate) mod inner {
 		/// 	types::*,
 		/// };
 		/// let lazy = RcLazy::new(|| 10);
-		/// let result =
-		/// 	fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|b, a: &i32| b + *a, 5, &lazy);
+		/// let result = fold_left_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+		/// 	|b, a: &i32| b + *a,
+		/// 	5,
+		/// 	&lazy,
+		/// );
 		/// assert_eq!(result, 15);
 		/// ```
 		fn dispatch(
@@ -428,13 +446,17 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // By-value
-	/// let result = fold_left::<RcFnBrand, VecBrand, _, _, _, _>(|b, a| b + a, 0, vec![1, 2, 3]);
+	/// let result =
+	/// 	fold_left_explicit::<RcFnBrand, VecBrand, _, _, _, _>(|b, a| b + a, 0, vec![1, 2, 3]);
 	/// assert_eq!(result, 6);
 	///
 	/// // By-ref
 	/// let lazy = RcLazy::new(|| 10);
-	/// let result =
-	/// 	fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|b, a: &i32| b + *a, 5, &lazy);
+	/// let result = fold_left_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+	/// 	|b, a: &i32| b + *a,
+	/// 	5,
+	/// 	&lazy,
+	/// );
 	/// assert_eq!(result, 15);
 	/// ```
 	pub fn fold_left<
@@ -482,7 +504,8 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map::<RcFnBrand, VecBrand, _, _, _, _>(|a: i32| a.to_string(), vec![1, 2, 3]);
+		/// let result =
+		/// 	fold_map_explicit::<RcFnBrand, VecBrand, _, _, _, _>(|a: i32| a.to_string(), vec![1, 2, 3]);
 		/// assert_eq!(result, "123");
 		/// ```
 		fn dispatch(
@@ -528,7 +551,8 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map::<RcFnBrand, VecBrand, _, _, _, _>(|a: i32| a.to_string(), vec![1, 2, 3]);
+		/// let result =
+		/// 	fold_map_explicit::<RcFnBrand, VecBrand, _, _, _, _>(|a: i32| a.to_string(), vec![1, 2, 3]);
 		/// assert_eq!(result, "123");
 		/// ```
 		fn dispatch(
@@ -581,8 +605,10 @@ pub(crate) mod inner {
 		/// 	types::*,
 		/// };
 		/// let lazy = RcLazy::new(|| 10);
-		/// let result =
-		/// 	fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|a: &i32| a.to_string(), &lazy);
+		/// let result = fold_map_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+		/// 	|a: &i32| a.to_string(),
+		/// 	&lazy,
+		/// );
 		/// assert_eq!(result, "10");
 		/// ```
 		fn dispatch(
@@ -625,13 +651,16 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // By-value
-	/// let result = fold_map::<RcFnBrand, VecBrand, _, _, _, _>(|a: i32| a.to_string(), vec![1, 2, 3]);
+	/// let result =
+	/// 	fold_map_explicit::<RcFnBrand, VecBrand, _, _, _, _>(|a: i32| a.to_string(), vec![1, 2, 3]);
 	/// assert_eq!(result, "123");
 	///
 	/// // By-ref
 	/// let lazy = RcLazy::new(|| 10);
-	/// let result =
-	/// 	fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(|a: &i32| a.to_string(), &lazy);
+	/// let result = fold_map_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+	/// 	|a: &i32| a.to_string(),
+	/// 	&lazy,
+	/// );
 	/// assert_eq!(result, "10");
 	/// ```
 	pub fn fold_map<

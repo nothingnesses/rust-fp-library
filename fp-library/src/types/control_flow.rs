@@ -1464,7 +1464,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_right_explicit::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
 		/// 		|x, acc| x + acc,
 		/// 		0,
 		/// 		ControlFlow::Break(5)
@@ -1472,7 +1472,7 @@ mod inner {
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
+		/// 	fold_right_explicit::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		ControlFlow::Continue(1)
@@ -1522,7 +1522,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_left_explicit::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
 		/// 		|acc, x| acc + x,
 		/// 		0,
 		/// 		ControlFlow::Break(5)
@@ -1530,7 +1530,7 @@ mod inner {
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
+		/// 	fold_left_explicit::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
 		/// 		|acc, x: i32| acc + x,
 		/// 		0,
 		/// 		ControlFlow::Continue(1)
@@ -1576,14 +1576,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_map_explicit::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		ControlFlow::Break(5)
 		/// 	),
 		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
+		/// 	fold_map_explicit::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		ControlFlow::Continue(1)
 		/// 	),
@@ -1631,14 +1631,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	traverse_explicit::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		ControlFlow::Break(5)
 		/// 	),
 		/// 	Some(ControlFlow::Break(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _, OptionBrand, _, _>(
+		/// 	traverse_explicit::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _, OptionBrand, _, _>(
 		/// 		|x: i32| Some(x * 2),
 		/// 		ControlFlow::Continue(1)
 		/// 	),
@@ -2009,7 +2009,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
+		/// 	fold_right_explicit::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		ControlFlow::Continue(1)
@@ -2017,7 +2017,7 @@ mod inner {
 		/// 	1
 		/// );
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_right_explicit::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		ControlFlow::Break(())
@@ -2070,7 +2070,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_left_explicit::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
 		/// 		|acc, x: i32| acc + x,
 		/// 		0,
 		/// 		ControlFlow::Continue(5)
@@ -2078,7 +2078,7 @@ mod inner {
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
+		/// 	fold_left_explicit::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
 		/// 		|acc, x: i32| acc + x,
 		/// 		0,
 		/// 		ControlFlow::Break(1)
@@ -2127,14 +2127,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
+		/// 	fold_map_explicit::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		ControlFlow::Continue(5)
 		/// 	),
 		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
+		/// 	fold_map_explicit::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		ControlFlow::Break(1)
 		/// 	),
@@ -2185,14 +2185,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	traverse_explicit::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		ControlFlow::Continue(5)
 		/// 	),
 		/// 	Some(ControlFlow::Continue(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, OptionBrand, _, _>(
+		/// 	traverse_explicit::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, OptionBrand, _, _>(
 		/// 		|x: i32| Some(x * 2),
 		/// 		ControlFlow::Break(1)
 		/// 	),
@@ -2797,7 +2797,7 @@ mod tests {
 	fn test_foldable_with_continue() {
 		let x = pure::<ControlFlowContinueAppliedBrand<()>, _>(5);
 		assert_eq!(
-			fold_right::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
+			fold_right_explicit::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
 				|a, b| a + b,
 				10,
 				x
@@ -2805,7 +2805,7 @@ mod tests {
 			15
 		);
 		assert_eq!(
-			fold_left::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
+			fold_left_explicit::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
 				|b, a| b + a,
 				10,
 				x
@@ -2813,7 +2813,7 @@ mod tests {
 			15
 		);
 		assert_eq!(
-			fold_map::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
+			fold_map_explicit::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
 				|a: i32| a.to_string(),
 				x
 			),
@@ -2822,7 +2822,7 @@ mod tests {
 
 		let cont: ControlFlow<i32, i32> = ControlFlow::Continue(1);
 		assert_eq!(
-			fold_right::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
+			fold_right_explicit::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
 				|a, b| a + b,
 				10,
 				cont
@@ -2838,7 +2838,7 @@ mod tests {
 	fn test_foldable_with_break() {
 		let x = pure::<ControlFlowBreakAppliedBrand<()>, _>(5);
 		assert_eq!(
-			fold_right::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
+			fold_right_explicit::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
 				|a, b| a + b,
 				10,
 				x
@@ -2846,7 +2846,7 @@ mod tests {
 			15
 		);
 		assert_eq!(
-			fold_left::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
+			fold_left_explicit::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
 				|b, a| b + a,
 				10,
 				x
@@ -2854,7 +2854,7 @@ mod tests {
 			15
 		);
 		assert_eq!(
-			fold_map::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
+			fold_map_explicit::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
 				|a: i32| a.to_string(),
 				x
 			),
@@ -2863,7 +2863,7 @@ mod tests {
 
 		let brk: ControlFlow<i32, i32> = ControlFlow::Break(1);
 		assert_eq!(
-			fold_right::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
+			fold_right_explicit::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
 				|a, b| a + b,
 				10,
 				brk
@@ -2881,19 +2881,29 @@ mod tests {
 	fn test_traversable_with_continue() {
 		let x = pure::<ControlFlowContinueAppliedBrand<()>, _>(5);
 		assert_eq!(
-			traverse::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, OptionBrand, _, _>(
-				|a| Some(a * 2),
-				x
-			),
+			traverse_explicit::<
+				RcFnBrand,
+				ControlFlowContinueAppliedBrand<()>,
+				_,
+				_,
+				OptionBrand,
+				_,
+				_,
+			>(|a| Some(a * 2), x),
 			Some(ControlFlow::Break(10))
 		);
 
 		let cont: ControlFlow<i32, i32> = ControlFlow::Continue(1);
 		assert_eq!(
-			traverse::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _, OptionBrand, _, _>(
-				|a| Some(a * 2),
-				cont
-			),
+			traverse_explicit::<
+				RcFnBrand,
+				ControlFlowContinueAppliedBrand<i32>,
+				_,
+				_,
+				OptionBrand,
+				_,
+				_,
+			>(|a| Some(a * 2), cont),
 			Some(ControlFlow::Continue(1))
 		);
 	}
@@ -2905,7 +2915,7 @@ mod tests {
 	fn test_traversable_with_break() {
 		let x = pure::<ControlFlowBreakAppliedBrand<()>, _>(5);
 		assert_eq!(
-			traverse::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, OptionBrand, _, _>(
+			traverse_explicit::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, OptionBrand, _, _>(
 				|a| Some(a * 2),
 				x
 			),
@@ -2914,10 +2924,15 @@ mod tests {
 
 		let brk: ControlFlow<i32, i32> = ControlFlow::Break(1);
 		assert_eq!(
-			traverse::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, OptionBrand, _, _>(
-				|a| Some(a * 2),
-				brk
-			),
+			traverse_explicit::<
+				RcFnBrand,
+				ControlFlowBreakAppliedBrand<i32>,
+				_,
+				_,
+				OptionBrand,
+				_,
+				_,
+			>(|a| Some(a * 2), brk),
 			Some(ControlFlow::Break(1))
 		);
 	}

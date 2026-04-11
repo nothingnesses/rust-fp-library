@@ -15,7 +15,7 @@
 //! };
 //!
 //! // By-value fold_left_with_index (Vec)
-//! let result = fold_left_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
+//! let result = fold_left_with_index_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
 //! 	|i, acc: String, x: i32| format!("{acc}{i}:{x},"),
 //! 	String::new(),
 //! 	vec![10, 20, 30],
@@ -24,7 +24,7 @@
 //!
 //! // By-ref fold_left_with_index (Lazy, closure receives &A)
 //! let lazy = RcLazy::new(|| 10);
-//! let result = fold_left_with_index::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+//! let result = fold_left_with_index_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
 //! 	|_, acc, x: &i32| acc + *x,
 //! 	0,
 //! 	&lazy,
@@ -89,7 +89,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_left_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
+		/// let result = fold_left_with_index_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
 		/// 	|i, acc: String, x: i32| format!("{acc}{i}:{x},"),
 		/// 	String::new(),
 		/// 	vec![10, 20, 30],
@@ -141,7 +141,7 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_left_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
+		/// let result = fold_left_with_index_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
 		/// 	|i, acc: String, x: i32| format!("{acc}{i}:{x},"),
 		/// 	String::new(),
 		/// 	vec![10, 20, 30],
@@ -203,7 +203,7 @@ pub(crate) mod inner {
 		/// 	types::*,
 		/// };
 		/// let lazy = RcLazy::new(|| 10);
-		/// let result = fold_left_with_index::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+		/// let result = fold_left_with_index_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
 		/// 	|_, acc, x: &i32| acc + *x,
 		/// 	0,
 		/// 	&lazy,
@@ -253,7 +253,7 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // By-value
-	/// let result = fold_left_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
+	/// let result = fold_left_with_index_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
 	/// 	|i, acc: String, x: i32| format!("{acc}{i}:{x},"),
 	/// 	String::new(),
 	/// 	vec![10, 20, 30],
@@ -262,7 +262,7 @@ pub(crate) mod inner {
 	///
 	/// // By-ref
 	/// let lazy = RcLazy::new(|| 10);
-	/// let result = fold_left_with_index::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+	/// let result = fold_left_with_index_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
 	/// 	|_, acc, x: &i32| acc + *x,
 	/// 	0,
 	/// 	&lazy,

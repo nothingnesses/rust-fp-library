@@ -14,7 +14,7 @@
 //! };
 //!
 //! // Owned: dispatches to TraversableWithIndex::traverse_with_index
-//! let y = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+//! let y = traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 //! 	|_i, x: i32| Some(x * 2),
 //! 	vec![1, 2, 3],
 //! );
@@ -22,7 +22,7 @@
 //!
 //! // By-ref: dispatches to RefTraversableWithIndex::ref_traverse_with_index
 //! let v = vec![1, 2, 3];
-//! let y = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+//! let y = traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 //! 	|_i, x: &i32| Some(*x * 2),
 //! 	&v,
 //! );
@@ -90,7 +90,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+		/// let result = traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 		/// 	|_i, x: i32| Some(x * 2),
 		/// 	vec![1, 2, 3],
 		/// );
@@ -154,7 +154,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+		/// let result = traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 		/// 	|_i, x: i32| Some(x * 2),
 		/// 	vec![1, 2, 3],
 		/// );
@@ -226,7 +226,7 @@ pub(crate) mod inner {
 		/// };
 		///
 		/// let v = vec![1, 2, 3];
-		/// let result = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+		/// let result = traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 		/// 	|_i, x: &i32| Some(*x * 2),
 		/// 	&v,
 		/// );
@@ -259,7 +259,7 @@ pub(crate) mod inner {
 	/// The `Marker` and `FTA` type parameters are inferred automatically by
 	/// the compiler from the closure's argument type and the container
 	/// argument. Callers write
-	/// `traverse_with_index::<FnBrand, Brand, _, _, F, _, _>(...)` and never need to
+	/// `traverse_with_index_explicit::<FnBrand, Brand, _, _, F, _, _>(...)` and never need to
 	/// specify `Marker` or `FTA` explicitly.
 	///
 	/// The dispatch is resolved at compile time with no runtime cost.
@@ -292,7 +292,7 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // Owned: dispatches to TraversableWithIndex::traverse_with_index
-	/// let y = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+	/// let y = traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 	/// 	|_i, x: i32| Some(x * 2),
 	/// 	vec![1, 2, 3],
 	/// );
@@ -300,7 +300,7 @@ pub(crate) mod inner {
 	///
 	/// // By-ref: dispatches to RefTraversableWithIndex::ref_traverse_with_index
 	/// let v = vec![1, 2, 3];
-	/// let y = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+	/// let y = traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 	/// 	|_i, x: &i32| Some(*x * 2),
 	/// 	&v,
 	/// );

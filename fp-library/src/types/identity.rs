@@ -556,7 +556,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = fold_right::<RcFnBrand, IdentityBrand, _, _, _, _>(|a, b| a + b, 10, x);
+		/// let y = fold_right_explicit::<RcFnBrand, IdentityBrand, _, _, _, _>(|a, b| a + b, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a>(
@@ -598,7 +598,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = fold_left::<RcFnBrand, IdentityBrand, _, _, _, _>(|b, a| b + a, 10, x);
+		/// let y = fold_left_explicit::<RcFnBrand, IdentityBrand, _, _, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a>(
@@ -637,7 +637,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = fold_map::<RcFnBrand, IdentityBrand, _, _, _, _>(|a: i32| a.to_string(), x);
+		/// let y = fold_map_explicit::<RcFnBrand, IdentityBrand, _, _, _, _>(|a: i32| a.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a, M>(
@@ -680,7 +680,8 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = traverse::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _, _>(|a| Some(a * 2), x);
+		/// let y =
+		/// 	traverse_explicit::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _, _>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some(Identity(10)));
 		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
@@ -936,8 +937,10 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result =
-		/// 	fold_map::<RcFnBrand, IdentityBrand, _, _, _, _>(|x: &i32| x.to_string(), &Identity(5));
+		/// let result = fold_map_explicit::<RcFnBrand, IdentityBrand, _, _, _, _>(
+		/// 	|x: &i32| x.to_string(),
+		/// 	&Identity(5),
+		/// );
 		/// assert_eq!(result, "5");
 		/// ```
 		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -1050,7 +1053,7 @@ mod inner {
 		/// 	types::Identity,
 		/// };
 		///
-		/// let result: String = fold_map_with_index::<RcFnBrand, IdentityBrand, _, _, _, _>(
+		/// let result: String = fold_map_with_index_explicit::<RcFnBrand, IdentityBrand, _, _, _, _>(
 		/// 	|(), x: i32| x.to_string(),
 		/// 	Identity(42),
 		/// );
@@ -1087,7 +1090,7 @@ mod inner {
 		/// };
 		///
 		/// let result: Option<Identity<String>> =
-		/// 	traverse_with_index::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _, _>(
+		/// 	traverse_with_index_explicit::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _, _>(
 		/// 		|(), x: i32| Some(x.to_string()),
 		/// 		Identity(42),
 		/// 	);
@@ -1153,7 +1156,7 @@ mod inner {
 		/// 	types::Identity,
 		/// };
 		///
-		/// let result: String = fold_map_with_index::<RcFnBrand, IdentityBrand, _, _, _, _>(
+		/// let result: String = fold_map_with_index_explicit::<RcFnBrand, IdentityBrand, _, _, _, _>(
 		/// 	|(), x: &i32| x.to_string(),
 		/// 	&Identity(42),
 		/// );
@@ -1190,7 +1193,7 @@ mod inner {
 		/// };
 		///
 		/// let result: Option<Identity<String>> =
-		/// 	traverse_with_index::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _, _>(
+		/// 	traverse_with_index_explicit::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _, _>(
 		/// 		|(), x: &i32| Some(x.to_string()),
 		/// 		&Identity(42),
 		/// 	);
@@ -1494,7 +1497,7 @@ mod tests {
 	#[test]
 	fn fold_right_test() {
 		assert_eq!(
-			crate::functions::fold_right::<RcFnBrand, IdentityBrand, _, _, _, _>(
+			crate::functions::fold_right_explicit::<RcFnBrand, IdentityBrand, _, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				Identity(1)
@@ -1507,7 +1510,7 @@ mod tests {
 	#[test]
 	fn fold_left_test() {
 		assert_eq!(
-			crate::functions::fold_left::<RcFnBrand, IdentityBrand, _, _, _, _>(
+			crate::functions::fold_left_explicit::<RcFnBrand, IdentityBrand, _, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				Identity(1)

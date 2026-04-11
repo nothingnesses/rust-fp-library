@@ -15,7 +15,7 @@
 //! };
 //!
 //! // Owned: dispatches to Witherable::wilt
-//! let y = wilt::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
+//! let y = wilt_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
 //! 	|a: i32| Some(if a > 2 { Ok(a) } else { Err(a) }),
 //! 	Some(5),
 //! );
@@ -24,7 +24,7 @@
 //! // By-ref: dispatches to RefWitherable::ref_wilt
 //! let v = vec![1, 2, 3, 4, 5];
 //! let result: Option<(Vec<i32>, Vec<i32>)> =
-//! 	wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
+//! 	wilt_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
 //! 		|x: &i32| Some(if *x > 3 { Ok(*x) } else { Err(*x) }),
 //! 		&v,
 //! 	);
@@ -94,7 +94,7 @@ pub(crate) mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result = wilt::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
+		/// let result = wilt_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
 		/// 	|a: i32| Some(if a > 2 { Ok(a) } else { Err(a) }),
 		/// 	Some(5),
 		/// );
@@ -165,7 +165,7 @@ pub(crate) mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result = wilt::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
+		/// let result = wilt_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
 		/// 	|a: i32| Some(if a > 2 { Ok(a) } else { Err(a) }),
 		/// 	Some(5),
 		/// );
@@ -246,7 +246,7 @@ pub(crate) mod inner {
 		///
 		/// let v = vec![1, 2, 3, 4, 5];
 		/// let result: Option<(Vec<i32>, Vec<i32>)> =
-		/// 	wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
+		/// 	wilt_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
 		/// 		|x: &i32| Some(if *x > 3 { Ok(*x) } else { Err(*x) }),
 		/// 		&v,
 		/// 	);
@@ -284,7 +284,7 @@ pub(crate) mod inner {
 	/// The `Marker` and `FA` type parameters are inferred automatically by
 	/// the compiler from the closure's argument type and the container
 	/// argument. Callers write
-	/// `wilt::<FnBrand, Brand, M, _, _, _, _, _>(...)` and never need to
+	/// `wilt_explicit::<FnBrand, Brand, M, _, _, _, _, _>(...)` and never need to
 	/// specify `Marker` or `FA` explicitly.
 	///
 	/// The dispatch is resolved at compile time with no runtime cost.
@@ -319,7 +319,7 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // Owned: dispatches to Witherable::wilt
-	/// let y = wilt::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
+	/// let y = wilt_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
 	/// 	|a: i32| Some(if a > 2 { Ok(a) } else { Err(a) }),
 	/// 	Some(5),
 	/// );
@@ -328,7 +328,7 @@ pub(crate) mod inner {
 	/// // By-ref: dispatches to RefWitherable::ref_wilt
 	/// let v = vec![1, 2, 3, 4, 5];
 	/// let result: Option<(Vec<i32>, Vec<i32>)> =
-	/// 	wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
+	/// 	wilt_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
 	/// 		|x: &i32| Some(if *x > 3 { Ok(*x) } else { Err(*x) }),
 	/// 		&v,
 	/// 	);

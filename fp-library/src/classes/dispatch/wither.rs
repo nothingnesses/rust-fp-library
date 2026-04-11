@@ -14,7 +14,7 @@
 //! };
 //!
 //! // Owned: dispatches to Witherable::wither
-//! let y = wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
+//! let y = wither_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
 //! 	|a: i32| Some(if a > 2 { Some(a * 2) } else { None }),
 //! 	Some(5),
 //! );
@@ -22,7 +22,7 @@
 //!
 //! // By-ref: dispatches to RefWitherable::ref_wither
 //! let v = vec![1, 2, 3, 4, 5];
-//! let result: Option<Vec<i32>> = wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
+//! let result: Option<Vec<i32>> = wither_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
 //! 	|x: &i32| if *x > 3 { Some(Some(*x)) } else { Some(None) },
 //! 	&v,
 //! );
@@ -89,7 +89,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
+		/// let result = wither_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
 		/// 	|a: i32| Some(if a > 2 { Some(a * 2) } else { None }),
 		/// 	Some(5),
 		/// );
@@ -153,7 +153,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
+		/// let result = wither_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
 		/// 	|a: i32| Some(if a > 2 { Some(a * 2) } else { None }),
 		/// 	Some(5),
 		/// );
@@ -226,7 +226,7 @@ pub(crate) mod inner {
 		/// };
 		///
 		/// let v = vec![1, 2, 3, 4, 5];
-		/// let result: Option<Vec<i32>> = wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
+		/// let result: Option<Vec<i32>> = wither_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
 		/// 	|x: &i32| if *x > 3 { Some(Some(*x)) } else { Some(None) },
 		/// 	&v,
 		/// );
@@ -261,7 +261,7 @@ pub(crate) mod inner {
 	/// The `Marker` and `FA` type parameters are inferred automatically by
 	/// the compiler from the closure's argument type and the container
 	/// argument. Callers write
-	/// `wither::<FnBrand, Brand, M, _, _, _, _>(...)` and never need to
+	/// `wither_explicit::<FnBrand, Brand, M, _, _, _, _>(...)` and never need to
 	/// specify `Marker` or `FA` explicitly.
 	///
 	/// The dispatch is resolved at compile time with no runtime cost.
@@ -294,7 +294,7 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// // Owned: dispatches to Witherable::wither
-	/// let y = wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
+	/// let y = wither_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
 	/// 	|a: i32| Some(if a > 2 { Some(a * 2) } else { None }),
 	/// 	Some(5),
 	/// );
@@ -302,7 +302,7 @@ pub(crate) mod inner {
 	///
 	/// // By-ref: dispatches to RefWitherable::ref_wither
 	/// let v = vec![1, 2, 3, 4, 5];
-	/// let result: Option<Vec<i32>> = wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
+	/// let result: Option<Vec<i32>> = wither_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
 	/// 	|x: &i32| if *x > 3 { Some(Some(*x)) } else { Some(None) },
 	/// 	&v,
 	/// );

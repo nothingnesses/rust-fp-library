@@ -635,7 +635,7 @@ mod inner {
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, CatListBrand, _, _, _, _>(|x: i32, acc| x + acc, 0, list),
+		/// 	fold_right_explicit::<RcFnBrand, CatListBrand, _, _, _, _>(|x: i32, acc| x + acc, 0, list),
 		/// 	6
 		/// );
 		/// ```
@@ -678,7 +678,10 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// assert_eq!(fold_left::<RcFnBrand, CatListBrand, _, _, _, _>(|acc, x: i32| acc + x, 0, list), 6);
+		/// assert_eq!(
+		/// 	fold_left_explicit::<RcFnBrand, CatListBrand, _, _, _, _>(|acc, x: i32| acc + x, 0, list),
+		/// 	6
+		/// );
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
 			func: impl Fn(B, A) -> B + 'a,
@@ -717,7 +720,7 @@ mod inner {
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, CatListBrand, _, _, _, _>(|x: i32| x.to_string(), list),
+		/// 	fold_map_explicit::<RcFnBrand, CatListBrand, _, _, _, _>(|x: i32| x.to_string(), list),
 		/// 	"123".to_string()
 		/// );
 		/// ```
@@ -761,8 +764,10 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// let traversed =
-		/// 	traverse::<RcFnBrand, CatListBrand, _, _, OptionBrand, _, _>(|x| Some(x * 2), list);
+		/// let traversed = traverse_explicit::<RcFnBrand, CatListBrand, _, _, OptionBrand, _, _>(
+		/// 	|x| Some(x * 2),
+		/// 	list,
+		/// );
 		/// let vec: Vec<_> = traversed.unwrap().into_iter().collect();
 		/// assert_eq!(vec, vec![2, 4, 6]);
 		/// ```
@@ -1911,7 +1916,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let wilted = wilt::<RcFnBrand, CatListBrand, OptionBrand, _, _, _, _, _>(
+		/// let wilted = wilt_explicit::<RcFnBrand, CatListBrand, OptionBrand, _, _, _, _, _>(
 		/// 	|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }),
 		/// 	list,
 		/// );
@@ -1978,7 +1983,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let withered = wither::<RcFnBrand, CatListBrand, OptionBrand, _, _, _, _>(
+		/// let withered = wither_explicit::<RcFnBrand, CatListBrand, OptionBrand, _, _, _, _>(
 		/// 	|a| Some(if a % 2 == 0 { Some(a * 2) } else { None }),
 		/// 	list,
 		/// );
@@ -3490,7 +3495,8 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// let result = fold_map::<RcFnBrand, CatListBrand, _, _, _, _>(|x: &i32| x.to_string(), &list);
+		/// let result =
+		/// 	fold_map_explicit::<RcFnBrand, CatListBrand, _, _, _, _>(|x: &i32| x.to_string(), &list);
 		/// assert_eq!(result, "123");
 		/// ```
 		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -3667,7 +3673,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(10).snoc(20).snoc(30);
-		/// let result = fold_map_with_index::<RcFnBrand, CatListBrand, _, _, _, _>(
+		/// let result = fold_map_with_index_explicit::<RcFnBrand, CatListBrand, _, _, _, _>(
 		/// 	|i, x: &i32| format!("{}:{}", i, x),
 		/// 	&list,
 		/// );
@@ -4442,7 +4448,7 @@ mod tests {
 	#[test]
 	fn fold_right_empty() {
 		assert_eq!(
-			crate::functions::fold_right::<RcFnBrand, CatListBrand, _, _, _, _>(
+			crate::functions::fold_right_explicit::<RcFnBrand, CatListBrand, _, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				CatList::empty()
@@ -4455,7 +4461,7 @@ mod tests {
 	#[test]
 	fn fold_left_empty() {
 		assert_eq!(
-			crate::functions::fold_left::<RcFnBrand, CatListBrand, _, _, _, _>(
+			crate::functions::fold_left_explicit::<RcFnBrand, CatListBrand, _, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				CatList::empty()
@@ -4577,11 +4583,14 @@ mod tests {
 
 		let xs: CatList<_> = xs.into_iter().collect();
 		let f = |x: i32| Additive(x as i64);
-		let seq_res =
-			crate::functions::fold_map::<crate::brands::RcFnBrand, CatListBrand, _, _, _, _>(
-				f,
-				xs.clone(),
-			);
+		let seq_res = crate::functions::fold_map_explicit::<
+			crate::brands::RcFnBrand,
+			CatListBrand,
+			_,
+			_,
+			_,
+			_,
+		>(f, xs.clone());
 		let par_res = par_fold_map::<CatListBrand, _, _>(f, xs);
 		seq_res == par_res
 	}
@@ -4617,8 +4626,10 @@ mod tests {
 	#[quickcheck]
 	fn witherable_identity(x: Vec<i32>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
-		wither::<RcFnBrand, CatListBrand, OptionBrand, _, _, _, _>(|i| Some(Some(i)), x.clone())
-			== Some(x)
+		wither_explicit::<RcFnBrand, CatListBrand, OptionBrand, _, _, _, _>(
+			|i| Some(Some(i)),
+			x.clone(),
+		) == Some(x)
 	}
 
 	// Alt Laws
