@@ -957,7 +957,7 @@ dispatch files (alt.rs, compactable.rs, apply*first.rs,
 apply_second.rs, join in semimonad.rs) that missed step 0b: - Rename qualified method names (`dispatch_alt`, etc.) to bare
 `dispatch`. - Add `#[fp_macros::document_module]` to each file. - Add missing `#[document*\*]` attributes on impl blocks and methods.
 
-8. **Extend `trait_kind!` to also generate `InferableBrand_{hash}` traits.**
+8. **[Done] Extend `trait_kind!` to also generate `InferableBrand_{hash}` traits.**
    When `trait_kind!` creates a `Kind_{hash}` trait, it also creates the
    corresponding `InferableBrand_{hash}` trait using the same content hash.
    Add `InferableBrand!` macro (analogous to `Kind!`) to resolve the trait
@@ -1000,13 +1000,13 @@ apply_second.rs, join in semimonad.rs) that missed step 0b: - Rename qualified m
 
 ## Current Progress
 
-Steps 1-7 are complete. The codebase has:
+Steps 1-8 are complete. The codebase has:
 
 **Module structure (step 7):**
 
 ```
 brands/       - zero-sized marker types
-kinds/        - Kind trait (type application)
+kinds/        - Kind trait (type application) + InferableBrand traits
 classes/      - type class traits (Functor, Foldable, etc.)
 dispatch/     - Val/Ref routing traits (mirrors classes/ one-to-one)
 functions/    - inference wrappers (mirrors classes/ one-to-one)
@@ -1016,6 +1016,30 @@ types/        - concrete implementations
 All three directories (`classes/`, `dispatch/`, `functions/`) have
 matching file names. Dependency flow: `brands -> kinds -> classes ->
 dispatch -> functions`.
+
+**InferableBrand trait generation (step 8):**
+
+`trait_kind!` now generates both `Kind_{hash}` and
+`InferableBrand_{hash}` traits from each signature invocation in
+`kinds.rs`. Each `InferableBrand_{hash}` trait includes a
+`#[diagnostic::on_unimplemented]` attribute and a blanket `impl for &T`.
+The `InferableBrand!` proc macro resolves trait names from signatures,
+analogous to `Kind!`. `generate_hash()` was extracted from
+`generate_name()` as the shared foundation for both name generators.
+
+The hand-written `DefaultBrand` trait (`classes/default_brand.rs`) has
+been removed. All 32 inference wrappers in `functions/` now use
+`InferableBrand_cdc7cd43dac7585f` directly (the hash for
+`type Of<'a, A: 'a>: 'a;`). The `Apply!` macro preprocesses
+`InferableBrand!(SIG)` invocations via `resolve_inferable_brand()`,
+enabling readable signatures like:
+`Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!(...)>::Of<'a, B>)`.
+
+Hand-written `InferableBrand` impls for 15 types remain in
+`classes/inferable_brand_impls.rs` until step 9 (`impl_kind!`
+auto-generation).
+
+The old brand inference POC in `dispatch.rs` has been removed.
 
 **Brand inference (steps 2-6b):**
 
@@ -1088,23 +1112,30 @@ BoxedCoyonedaExplicit, Const).
    files into 16 mirroring classes/, and splitting inference.rs into
    16 functions/ submodules.
 
+8. **`Apply!` preprocesses `InferableBrand!` invocations.** The plan
+   did not specify that `Apply!` would need modification. However,
+   since Rust's parser does not accept macro invocations in trait
+   bound positions (`FA: Macro!(...)`) or qualified path trait
+   positions (`<FA as Macro!(...)>::Assoc`), the `InferableBrand!`
+   macro can only be used inside other proc macros. `Apply!` was
+   extended with a `resolve_inferable_brand()` preprocessing step
+   that resolves `InferableBrand!(SIG)` to the hash identifier before
+   parsing, enabling readable brand projections inside `Apply!`.
+
 ## Next Steps
 
-1. **Step 8: Extend `trait_kind!`.** Auto-generate `InferableBrand_{hash}`
-   traits alongside `Kind_{hash}` traits. Add `InferableBrand!` macro.
-
-2. **Step 9: Extend `impl_kind!`.** Auto-generate `InferableBrand` impls.
+1. **Step 9: Extend `impl_kind!`.** Auto-generate `InferableBrand` impls.
    Add `#[no_inferable_brand]` opt-out. Migrate hand-written impls.
 
-3. **Step 10: Tier 4 (bifunctor arity-2).** Define the arity-2
+2. **Step 10: Tier 4 (bifunctor arity-2).** Define the arity-2
    InferableBrand trait, implement it for 5 bifunctor types, add
    inference wrappers for `bimap`, `bi_fold_right`, `bi_fold_left`,
    `bi_fold_map`, `bi_traverse`.
 
-4. **Step 11: m_do!/a_do! inferred mode.** Add `m_do!({ ... })` and
+3. **Step 11: m_do!/a_do! inferred mode.** Add `m_do!({ ... })` and
    `a_do!({ ... })` syntax that generates inference-based calls.
 
-5. **Step 12-13: Documentation and tests.** Update all docs to show
+4. **Step 12-13: Documentation and tests.** Update all docs to show
    inference as the primary API. Add compile-fail tests for multi-brand
    types.
 

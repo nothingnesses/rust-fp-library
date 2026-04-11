@@ -1,6 +1,5 @@
 use {
 	crate::{
-		classes::default_brand::DefaultBrand,
 		dispatch::filterable::{
 			FilterDispatch,
 			FilterMapDispatch,
@@ -18,7 +17,7 @@ use {
 /// from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `fa`
-/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
 /// [`filter_explicit`](crate::functions::filter_explicit()) with a turbofish.
@@ -48,11 +47,11 @@ use {
 /// assert_eq!(y, Some(5));
 /// ```
 pub fn filter<'a, FA, A: 'a + Clone, Marker>(
-	f: impl FilterDispatch<'a, <FA as DefaultBrand>::Brand, A, FA, Marker>,
+	f: impl FilterDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, A, FA, Marker>,
 	fa: FA,
-) -> Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+) -> Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 where
-	FA: DefaultBrand, {
+	FA: InferableBrand_cdc7cd43dac7585f, {
 	f.dispatch(fa)
 }
 
@@ -62,7 +61,7 @@ where
 /// from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `fa`
-/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
 /// [`filter_map_explicit`](crate::functions::filter_map_explicit) with a turbofish.
@@ -91,11 +90,11 @@ where
 /// assert_eq!(y, Some(5));
 /// ```
 pub fn filter_map<'a, FA, A: 'a, B: 'a, Marker>(
-	f: impl FilterMapDispatch<'a, <FA as DefaultBrand>::Brand, A, B, FA, Marker>,
+	f: impl FilterMapDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, A, B, FA, Marker>,
 	fa: FA,
-) -> Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+) -> Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
-	FA: DefaultBrand, {
+	FA: InferableBrand_cdc7cd43dac7585f, {
 	f.dispatch(fa)
 }
 
@@ -105,7 +104,7 @@ where
 /// from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `fa`
-/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
 /// [`partition_explicit`](crate::functions::partition_explicit()) with a turbofish.
@@ -134,14 +133,14 @@ where
 /// assert_eq!(no, None);
 /// ```
 pub fn partition<'a, FA, A: 'a + Clone, Marker>(
-	f: impl PartitionDispatch<'a, <FA as DefaultBrand>::Brand, A, FA, Marker>,
+	f: impl PartitionDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, A, FA, Marker>,
 	fa: FA,
 ) -> (
-	Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 )
 where
-	FA: DefaultBrand, {
+	FA: InferableBrand_cdc7cd43dac7585f, {
 	f.dispatch(fa)
 }
 
@@ -151,7 +150,7 @@ where
 /// from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `fa`
-/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
 /// [`partition_map_explicit`](crate::functions::partition_map_explicit()) with a turbofish.
@@ -182,13 +181,21 @@ where
 /// assert_eq!(oks, Some(10));
 /// ```
 pub fn partition_map<'a, FA, A: 'a, E: 'a, O: 'a, Marker>(
-	f: impl PartitionMapDispatch<'a, <FA as DefaultBrand>::Brand, A, E, O, FA, Marker>,
+	f: impl PartitionMapDispatch<
+		'a,
+		<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+		A,
+		E,
+		O,
+		FA,
+		Marker,
+	>,
 	fa: FA,
 ) -> (
-	Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-	Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+	Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
 )
 where
-	FA: DefaultBrand, {
+	FA: InferableBrand_cdc7cd43dac7585f, {
 	f.dispatch(fa)
 }

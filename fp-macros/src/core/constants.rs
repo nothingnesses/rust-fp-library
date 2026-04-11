@@ -65,6 +65,8 @@ pub mod macros {
 	pub const APPLY_MACRO: &str = "Apply";
 	/// The `Kind` macro/trait
 	pub const KIND_MACRO: &str = "Kind";
+	/// The `InferableBrand` macro/trait
+	pub const INFERABLE_BRAND_MACRO: &str = "InferableBrand";
 	/// The `trait_kind!` macro
 	pub const TRAIT_KIND_MACRO: &str = "trait_kind";
 	/// The `impl_kind!` macro
@@ -92,6 +94,8 @@ pub mod markers {
 	pub const BRAND_SUFFIX: &str = "Brand";
 	/// Prefix for generated Kind trait names (e.g., `Kind_cdc7cd43dac7585f`)
 	pub const KIND_PREFIX: &str = "Kind_";
+	/// Prefix for generated InferableBrand trait names (e.g., `InferableBrand_cdc7cd43dac7585f`)
+	pub const INFERABLE_BRAND_PREFIX: &str = "InferableBrand_";
 }
 
 /// Known attribute names used by the documentation macros

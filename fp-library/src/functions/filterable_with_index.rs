@@ -1,9 +1,6 @@
 use {
 	crate::{
-		classes::{
-			WithIndex,
-			default_brand::DefaultBrand,
-		},
+		classes::WithIndex,
 		dispatch::filterable_with_index::{
 			FilterMapWithIndexDispatch,
 			FilterWithIndexDispatch,
@@ -21,7 +18,7 @@ use {
 /// from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `fa`
-/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
 /// [`filter_with_index_explicit`](crate::functions::filter_with_index_explicit()) with a turbofish.
@@ -51,12 +48,12 @@ use {
 /// assert_eq!(y, vec![10, 20]);
 /// ```
 pub fn filter_with_index<'a, FA, A: 'a + Clone, Marker>(
-	f: impl FilterWithIndexDispatch<'a, <FA as DefaultBrand>::Brand, A, FA, Marker>,
+	f: impl FilterWithIndexDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, A, FA, Marker>,
 	fa: FA,
-) -> Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+) -> Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 where
-	FA: DefaultBrand,
-	<FA as DefaultBrand>::Brand: WithIndex, {
+	FA: InferableBrand_cdc7cd43dac7585f,
+	<FA as InferableBrand_cdc7cd43dac7585f>::Brand: WithIndex, {
 	f.dispatch(fa)
 }
 
@@ -65,7 +62,7 @@ where
 /// Filters and maps the values with index, inferring the brand from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `fa`
-/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
 /// [`filter_map_with_index_explicit`](crate::functions::filter_map_with_index_explicit()) with a turbofish.
@@ -97,12 +94,19 @@ where
 /// assert_eq!(y, vec![20, 60]);
 /// ```
 pub fn filter_map_with_index<'a, FA, A: 'a, B: 'a, Marker>(
-	f: impl FilterMapWithIndexDispatch<'a, <FA as DefaultBrand>::Brand, A, B, FA, Marker>,
+	f: impl FilterMapWithIndexDispatch<
+		'a,
+		<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+		A,
+		B,
+		FA,
+		Marker,
+	>,
 	fa: FA,
-) -> Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+) -> Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
-	FA: DefaultBrand,
-	<FA as DefaultBrand>::Brand: WithIndex, {
+	FA: InferableBrand_cdc7cd43dac7585f,
+	<FA as InferableBrand_cdc7cd43dac7585f>::Brand: WithIndex, {
 	f.dispatch(fa)
 }
 
@@ -112,7 +116,7 @@ where
 /// from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `fa`
-/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
 /// [`partition_with_index_explicit`](crate::functions::partition_with_index_explicit()) with a turbofish.
@@ -141,15 +145,21 @@ where
 /// assert_eq!(not_sat, vec![30, 40]);
 /// ```
 pub fn partition_with_index<'a, FA, A: 'a + Clone, Marker>(
-	f: impl PartitionWithIndexDispatch<'a, <FA as DefaultBrand>::Brand, A, FA, Marker>,
+	f: impl PartitionWithIndexDispatch<
+		'a,
+		<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+		A,
+		FA,
+		Marker,
+	>,
 	fa: FA,
 ) -> (
-	Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 )
 where
-	FA: DefaultBrand,
-	<FA as DefaultBrand>::Brand: WithIndex, {
+	FA: InferableBrand_cdc7cd43dac7585f,
+	<FA as InferableBrand_cdc7cd43dac7585f>::Brand: WithIndex, {
 	f.dispatch(fa)
 }
 
@@ -159,7 +169,7 @@ where
 /// inferring the brand from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `fa`
-/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
 /// [`partition_map_with_index_explicit`](crate::functions::partition_map_with_index_explicit()) with a turbofish.
@@ -193,14 +203,22 @@ where
 /// assert_eq!(errs, vec![30, 40]);
 /// ```
 pub fn partition_map_with_index<'a, FA, A: 'a, E: 'a, O: 'a, Marker>(
-	f: impl PartitionMapWithIndexDispatch<'a, <FA as DefaultBrand>::Brand, A, E, O, FA, Marker>,
+	f: impl PartitionMapWithIndexDispatch<
+		'a,
+		<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+		A,
+		E,
+		O,
+		FA,
+		Marker,
+	>,
 	fa: FA,
 ) -> (
-	Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-	Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+	Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
 )
 where
-	FA: DefaultBrand,
-	<FA as DefaultBrand>::Brand: WithIndex, {
+	FA: InferableBrand_cdc7cd43dac7585f,
+	<FA as InferableBrand_cdc7cd43dac7585f>::Brand: WithIndex, {
 	f.dispatch(fa)
 }

@@ -1,6 +1,5 @@
 use {
 	crate::{
-		classes::default_brand::DefaultBrand,
 		dispatch::apply_second::ApplySecondDispatch,
 		kinds::*,
 	},
@@ -13,7 +12,7 @@ use {
 /// inferring the brand from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `fa`
-/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
 /// [`apply_second_explicit`](crate::functions::apply_second_explicit) with a turbofish.
@@ -46,9 +45,16 @@ use {
 /// ```
 pub fn apply_second<'a, FA, A: 'a, B: 'a, Marker>(
 	fa: FA,
-	fb: <FA as ApplySecondDispatch<'a, <FA as DefaultBrand>::Brand, A, B, Marker>>::FB,
-) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>
+	fb: <FA as ApplySecondDispatch<
+		'a,
+		<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+		A,
+		B,
+		Marker,
+	>>::FB,
+) -> <<FA as InferableBrand_cdc7cd43dac7585f>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>
 where
-	FA: DefaultBrand + ApplySecondDispatch<'a, <FA as DefaultBrand>::Brand, A, B, Marker>, {
+	FA: InferableBrand_cdc7cd43dac7585f
+		+ ApplySecondDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, A, B, Marker>, {
 	fa.dispatch(fb)
 }

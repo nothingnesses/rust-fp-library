@@ -1,6 +1,5 @@
 use {
 	crate::{
-		classes::default_brand::DefaultBrand,
 		dispatch::compactable::{
 			CompactDispatch,
 			SeparateDispatch,
@@ -16,7 +15,7 @@ use {
 /// from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `fa`
-/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
 /// [`compact_explicit`](crate::functions::compact_explicit) with a turbofish.
@@ -44,9 +43,10 @@ use {
 /// ```
 pub fn compact<'a, FA, A: 'a, Marker>(
 	fa: FA
-) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
+) -> <<FA as InferableBrand_cdc7cd43dac7585f>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
 where
-	FA: DefaultBrand + CompactDispatch<'a, <FA as DefaultBrand>::Brand, A, Marker>, {
+	FA: InferableBrand_cdc7cd43dac7585f
+		+ CompactDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, A, Marker>, {
 	fa.dispatch()
 }
 
@@ -56,7 +56,7 @@ where
 /// the brand from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `fa`
-/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
 /// [`separate_explicit`](crate::functions::separate_explicit) with a turbofish.
@@ -85,10 +85,11 @@ where
 pub fn separate<'a, FA, E: 'a, O: 'a, Marker>(
 	fa: FA
 ) -> (
-	<<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, E>,
-	<<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, O>,
+	<<FA as InferableBrand_cdc7cd43dac7585f>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, E>,
+	<<FA as InferableBrand_cdc7cd43dac7585f>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, O>,
 )
 where
-	FA: DefaultBrand + SeparateDispatch<'a, <FA as DefaultBrand>::Brand, E, O, Marker>, {
+	FA: InferableBrand_cdc7cd43dac7585f
+		+ SeparateDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, E, O, Marker>, {
 	fa.dispatch()
 }

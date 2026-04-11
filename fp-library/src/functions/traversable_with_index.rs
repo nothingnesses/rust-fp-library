@@ -1,9 +1,6 @@
 use {
 	crate::{
-		classes::{
-			WithIndex,
-			default_brand::DefaultBrand,
-		},
+		classes::WithIndex,
 		dispatch::traversable_with_index::TraverseWithIndexDispatch,
 		kinds::*,
 	},
@@ -16,7 +13,7 @@ use {
 /// from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `ta`
-/// via [`DefaultBrand`]. `FnBrand` and `F` (the applicative brand) must
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). `FnBrand` and `F` (the applicative brand) must
 /// still be specified explicitly.
 /// Both owned and borrowed containers are supported.
 ///
@@ -55,11 +52,20 @@ use {
 /// assert_eq!(y, Some(vec![2, 4, 6]));
 /// ```
 pub fn traverse_with_index<'a, FnBrand, FA, A: 'a, B: 'a, F: Kind_cdc7cd43dac7585f, Marker>(
-	func: impl TraverseWithIndexDispatch<'a, FnBrand, <FA as DefaultBrand>::Brand, A, B, F, FA, Marker>,
+	func: impl TraverseWithIndexDispatch<
+		'a,
+		FnBrand,
+		<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+		A,
+		B,
+		F,
+		FA,
+		Marker,
+	>,
 	ta: FA,
-) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 where
-	FA: DefaultBrand,
-	<FA as DefaultBrand>::Brand: WithIndex, {
+	FA: InferableBrand_cdc7cd43dac7585f,
+	<FA as InferableBrand_cdc7cd43dac7585f>::Brand: WithIndex, {
 	func.dispatch(ta)
 }

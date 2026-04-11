@@ -1,51 +1,30 @@
 // Feasibility tests for brand inference with the post-ref-borrow dispatch system.
 //
-// Validates that a `DefaultBrand` trait + blanket `impl for &T` enables
+// Validates that the `InferableBrand` trait + blanket `impl for &T` enables
 // turbofish-free map/bind calls that compose with the two-impl FA dispatch
 // pattern for both Val and Ref dispatch.
 
 use fp_library::{
-	brands::*,
 	classes::Pointed,
 	dispatch::{
 		functor::FunctorDispatch,
 		semimonad::BindDispatch,
 	},
-	kinds::Kind_cdc7cd43dac7585f,
+	kinds::{
+		InferableBrand_cdc7cd43dac7585f,
+		Kind_cdc7cd43dac7585f,
+	},
 	types::*,
 };
-
-// -- DefaultBrand trait (local POC version) --
-
-trait DefaultBrand {
-	type Brand: Kind_cdc7cd43dac7585f;
-}
-
-impl<A> DefaultBrand for Option<A> {
-	type Brand = OptionBrand;
-}
-
-impl<A> DefaultBrand for Vec<A> {
-	type Brand = VecBrand;
-}
-
-impl<'a, A: 'a, Config: fp_library::classes::LazyConfig + 'a> DefaultBrand for Lazy<'a, A, Config> {
-	type Brand = LazyBrand<Config>;
-}
-
-// Blanket impl for references: enables Ref dispatch brand inference
-impl<T: DefaultBrand + ?Sized> DefaultBrand for &T {
-	type Brand = T::Brand;
-}
 
 // -- Inference-based map function --
 
 fn map<'a, FA, A: 'a, B: 'a, Marker>(
-	f: impl FunctorDispatch<'a, <FA as DefaultBrand>::Brand, A, B, FA, Marker>,
+	f: impl FunctorDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, A, B, FA, Marker>,
 	fa: FA,
-) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>
+) -> <<FA as InferableBrand_cdc7cd43dac7585f>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>
 where
-	FA: DefaultBrand, {
+	FA: InferableBrand_cdc7cd43dac7585f, {
 	f.dispatch(fa)
 }
 
@@ -147,7 +126,7 @@ fn mixed_val_then_ref() {
 	assert_eq!(val_result, vec![2, 3, 4]);
 }
 
-// Note: the following should NOT compile because Result has no DefaultBrand
+// Note: the following should NOT compile because Result has no InferableBrand
 // (multiple brands make it ambiguous):
 // let _ = map(|x: &i32| *x, &Ok::<i32, String>(5));
 
@@ -155,10 +134,10 @@ fn mixed_val_then_ref() {
 
 fn bind_infer<'a, FA, A: 'a, B: 'a, Marker>(
 	fa: FA,
-	f: impl BindDispatch<'a, <FA as DefaultBrand>::Brand, A, B, FA, Marker>,
-) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>
+	f: impl BindDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, A, B, FA, Marker>,
+) -> <<FA as InferableBrand_cdc7cd43dac7585f>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>
 where
-	FA: DefaultBrand, {
+	FA: InferableBrand_cdc7cd43dac7585f, {
 	f.dispatch(fa)
 }
 

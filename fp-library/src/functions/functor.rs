@@ -1,6 +1,5 @@
 use {
 	crate::{
-		classes::default_brand::DefaultBrand,
 		dispatch::functor::FunctorDispatch,
 		kinds::*,
 	},
@@ -12,12 +11,12 @@ use {
 /// Maps a function over a functor, inferring the brand from the container type.
 ///
 /// This is the primary API for mapping. The `Brand` type parameter is
-/// inferred from the concrete type of `fa` via [`DefaultBrand`]. Both
+/// inferred from the concrete type of `fa` via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both
 /// owned and borrowed containers are supported:
 ///
 /// - Owned: `map(|x: i32| x + 1, Some(5))` infers `OptionBrand`.
 /// - Borrowed: `map(|x: &i32| *x + 1, &Some(5))` infers `OptionBrand`
-///   via the blanket `impl DefaultBrand for &T`.
+///   via the blanket `impl InferableBrand for &T`.
 ///
 /// For types with multiple brands (e.g., `Result`), use
 /// [`map_explicit`](crate::functions::map_explicit) with a turbofish.
@@ -50,10 +49,10 @@ use {
 /// assert_eq!(map(|x: &i32| *x + 10, &v), vec![11, 12, 13]);
 /// ```
 pub fn map<'a, FA, A: 'a, B: 'a, Marker>(
-	f: impl FunctorDispatch<'a, <FA as DefaultBrand>::Brand, A, B, FA, Marker>,
+	f: impl FunctorDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, A, B, FA, Marker>,
 	fa: FA,
-) -> Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+) -> Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
-	FA: DefaultBrand, {
+	FA: InferableBrand_cdc7cd43dac7585f, {
 	f.dispatch(fa)
 }

@@ -12,7 +12,10 @@ use fp_library::{
 		Alt,
 		RefAlt,
 	},
-	kinds::Kind_cdc7cd43dac7585f,
+	kinds::{
+		InferableBrand_cdc7cd43dac7585f,
+		Kind_cdc7cd43dac7585f,
+	},
 };
 
 // -- Dispatch trait for closureless alt --
@@ -68,32 +71,15 @@ where
 	fa1.dispatch_alt(fa2)
 }
 
-// -- DefaultBrand (reuse from feasibility tests) --
-
-trait DefaultBrand {
-	type Brand: Kind_cdc7cd43dac7585f;
-}
-
-impl<A> DefaultBrand for Option<A> {
-	type Brand = OptionBrand;
-}
-
-impl<A> DefaultBrand for Vec<A> {
-	type Brand = VecBrand;
-}
-
-impl<'a, T: DefaultBrand + ?Sized> DefaultBrand for &'a T {
-	type Brand = T::Brand;
-}
-
 // -- Inference-based alt --
 
 fn alt_infer<'a, FA, A: 'a + Clone, Marker>(
 	fa1: FA,
 	fa2: FA,
-) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
+) -> <<FA as InferableBrand_cdc7cd43dac7585f>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
 where
-	FA: DefaultBrand + AltDispatch<'a, <FA as DefaultBrand>::Brand, A, Marker>, {
+	FA: InferableBrand_cdc7cd43dac7585f
+		+ AltDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, A, Marker>, {
 	fa1.dispatch_alt(fa2)
 }
 
@@ -199,13 +185,14 @@ where
 
 fn compact_infer<'a, FA, A: 'a, Marker>(
 	fa: FA
-) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
+) -> <<FA as InferableBrand_cdc7cd43dac7585f>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
 where
-	FA: DefaultBrand + CompactDispatch<'a, <FA as DefaultBrand>::Brand, A, Marker>, {
+	FA: InferableBrand_cdc7cd43dac7585f
+		+ CompactDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, A, Marker>, {
 	fa.dispatch_compact()
 }
 
-// DefaultBrand for Vec<Option<A>> resolves to VecBrand (since Vec<T>: DefaultBrand)
+// InferableBrand for Vec<Option<A>> resolves to VecBrand (since Vec<T>: InferableBrand)
 
 #[test]
 fn infer_val_vec_compact() {

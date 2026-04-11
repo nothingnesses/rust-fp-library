@@ -1,6 +1,5 @@
 use {
 	crate::{
-		classes::default_brand::DefaultBrand,
 		dispatch::witherable::{
 			WiltDispatch,
 			WitherDispatch,
@@ -16,7 +15,7 @@ use {
 /// inferring the brand from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `ta`
-/// via [`DefaultBrand`]. `FnBrand` and `M` (the applicative brand) must
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). `FnBrand` and `M` (the applicative brand) must
 /// still be specified explicitly.
 /// Both owned and borrowed containers are supported.
 ///
@@ -56,17 +55,27 @@ use {
 /// assert_eq!(y, Some((None, Some(5))));
 /// ```
 pub fn wilt<'a, FnBrand, FA, M: Kind_cdc7cd43dac7585f, A: 'a, E: 'a, O: 'a, Marker>(
-	func: impl WiltDispatch<'a, FnBrand, <FA as DefaultBrand>::Brand, M, A, E, O, FA, Marker>,
+	func: impl WiltDispatch<
+		'a,
+		FnBrand,
+		<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+		M,
+		A,
+		E,
+		O,
+		FA,
+		Marker,
+	>,
 	ta: FA,
 ) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 	'a,
 	(
-		Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-		Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+		Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
 	),
 >)
 where
-	FA: DefaultBrand, {
+	FA: InferableBrand_cdc7cd43dac7585f, {
 	func.dispatch(ta)
 }
 
@@ -76,7 +85,7 @@ where
 /// inferring the brand from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `ta`
-/// via [`DefaultBrand`]. `FnBrand` and `M` (the applicative brand) must
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). `FnBrand` and `M` (the applicative brand) must
 /// still be specified explicitly.
 /// Both owned and borrowed containers are supported.
 ///
@@ -115,13 +124,22 @@ where
 /// assert_eq!(y, Some(Some(10)));
 /// ```
 pub fn wither<'a, FnBrand, FA, M: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, Marker>(
-	func: impl WitherDispatch<'a, FnBrand, <FA as DefaultBrand>::Brand, M, A, B, FA, Marker>,
+	func: impl WitherDispatch<
+		'a,
+		FnBrand,
+		<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+		M,
+		A,
+		B,
+		FA,
+		Marker,
+	>,
 	ta: FA,
 ) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 	'a,
-	Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+	Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 >)
 where
-	FA: DefaultBrand, {
+	FA: InferableBrand_cdc7cd43dac7585f, {
 	func.dispatch(ta)
 }

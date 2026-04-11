@@ -41,9 +41,11 @@ use {
 		AssociatedTypes,
 		ImplKindInput,
 		apply_worker,
+		generate_inferable_brand_name,
 		generate_name,
 		impl_kind_worker,
 		kind_attr_worker,
+		resolve_inferable_brand,
 		trait_kind_worker,
 	},
 	m_do::{
@@ -124,6 +126,64 @@ use {
 pub fn Kind(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as AssociatedTypes);
 	let name = match generate_name(&input) {
+		Ok(name) => name,
+		Err(e) => return e.to_compile_error().into(),
+	};
+	quote!(#name).into()
+}
+
+/// Generates the name of an `InferableBrand` trait based on its signature.
+///
+/// This macro is analogous to [`Kind!`] but produces `InferableBrand_{hash}`
+/// identifiers instead of `Kind_{hash}`. Both macros use the same content
+/// hash, so a `Kind` trait and its corresponding `InferableBrand` trait
+/// always share the same hash suffix.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// InferableBrand!(
+///     type AssocName<Params>: Bounds;
+///     // ...
+/// )
+/// ```
+///
+/// * `Associated Types`: A list of associated type definitions (e.g., `type Of<T>;`) that define the signature of the InferableBrand.
+///
+/// ### Generates
+///
+/// The name of the generated `InferableBrand` trait (e.g., `InferableBrand_0123456789abcdef`).
+/// The name is deterministic and based on the same hash as the corresponding `Kind` trait.
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// let name = InferableBrand!(type Of<'a, A: 'a>: 'a;);
+///
+/// // Expanded code
+/// let name = InferableBrand_...; // e.g., InferableBrand_cdc7cd43dac7585f
+/// ```
+///
+/// ```ignore
+/// // Inside Apply! (the primary use case)
+/// Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>)
+/// ```
+///
+/// ### Limitations
+///
+/// Due to Rust syntax restrictions, this macro cannot be used directly in positions where a
+/// concrete path is expected by the parser, such as:
+/// * Trait bounds: `FA: InferableBrand!(...) {}` (Invalid)
+/// * Qualified paths: `<FA as InferableBrand!(...)>::Brand` (Invalid)
+///
+/// In these positions, use the generated name directly (e.g., `InferableBrand_cdc7cd43dac7585f`).
+/// Inside `Apply!()`, the macro is supported and resolved automatically via preprocessing.
+#[proc_macro]
+#[allow(non_snake_case)]
+pub fn InferableBrand(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as AssociatedTypes);
+	let name = match generate_inferable_brand_name(&input) {
 		Ok(name) => name,
 		Err(e) => return e.to_compile_error().into(),
 	};
@@ -365,7 +425,16 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 #[proc_macro]
 #[allow(non_snake_case)]
 pub fn Apply(input: TokenStream) -> TokenStream {
-	let input = parse_macro_input!(input as ApplyInput);
+	// Resolve any InferableBrand!(SIG) invocations before parsing.
+	let preprocessed: proc_macro2::TokenStream = input.into();
+	let preprocessed = match resolve_inferable_brand(preprocessed) {
+		Ok(ts) => ts,
+		Err(e) => return e.to_compile_error().into(),
+	};
+	let input = match syn::parse2::<ApplyInput>(preprocessed) {
+		Ok(input) => input,
+		Err(e) => return e.to_compile_error().into(),
+	};
 	match apply_worker(input) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),

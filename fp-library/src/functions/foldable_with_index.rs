@@ -3,13 +3,13 @@ use {
 		classes::{
 			Monoid,
 			WithIndex,
-			default_brand::DefaultBrand,
 		},
 		dispatch::foldable_with_index::{
 			FoldLeftWithIndexDispatch,
 			FoldMapWithIndexDispatch,
 			FoldRightWithIndexDispatch,
 		},
+		kinds::*,
 	},
 	fp_macros::*,
 };
@@ -20,7 +20,7 @@ use {
 /// from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `fa`
-/// via [`DefaultBrand`]. `FnBrand` must still be specified explicitly.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). `FnBrand` must still be specified explicitly.
 /// Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
@@ -57,12 +57,20 @@ use {
 /// assert_eq!(result, "0:101:202:30");
 /// ```
 pub fn fold_map_with_index<'a, FnBrand, FA, A: 'a, M: Monoid + 'a, Marker>(
-	func: impl FoldMapWithIndexDispatch<'a, FnBrand, <FA as DefaultBrand>::Brand, A, M, FA, Marker>,
+	func: impl FoldMapWithIndexDispatch<
+		'a,
+		FnBrand,
+		<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+		A,
+		M,
+		FA,
+		Marker,
+	>,
 	fa: FA,
 ) -> M
 where
-	FA: DefaultBrand,
-	<FA as DefaultBrand>::Brand: WithIndex, {
+	FA: InferableBrand_cdc7cd43dac7585f,
+	<FA as InferableBrand_cdc7cd43dac7585f>::Brand: WithIndex, {
 	func.dispatch(fa)
 }
 
@@ -71,7 +79,7 @@ where
 /// Folds a structure from the right with index, inferring the brand from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `fa`
-/// via [`DefaultBrand`]. `FnBrand` must still be specified explicitly.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). `FnBrand` must still be specified explicitly.
 /// Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
@@ -110,13 +118,21 @@ where
 /// assert_eq!(result, "2:30,1:20,0:10,");
 /// ```
 pub fn fold_right_with_index<'a, FnBrand, FA, A: 'a + Clone, B: 'a, Marker>(
-	func: impl FoldRightWithIndexDispatch<'a, FnBrand, <FA as DefaultBrand>::Brand, A, B, FA, Marker>,
+	func: impl FoldRightWithIndexDispatch<
+		'a,
+		FnBrand,
+		<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+		A,
+		B,
+		FA,
+		Marker,
+	>,
 	initial: B,
 	fa: FA,
 ) -> B
 where
-	FA: DefaultBrand,
-	<FA as DefaultBrand>::Brand: WithIndex, {
+	FA: InferableBrand_cdc7cd43dac7585f,
+	<FA as InferableBrand_cdc7cd43dac7585f>::Brand: WithIndex, {
 	func.dispatch(initial, fa)
 }
 
@@ -125,7 +141,7 @@ where
 /// Folds a structure from the left with index, inferring the brand from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `fa`
-/// via [`DefaultBrand`]. `FnBrand` must still be specified explicitly.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). `FnBrand` must still be specified explicitly.
 /// Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
@@ -164,12 +180,20 @@ where
 /// assert_eq!(result, "0:10,1:20,2:30,");
 /// ```
 pub fn fold_left_with_index<'a, FnBrand, FA, A: 'a + Clone, B: 'a, Marker>(
-	func: impl FoldLeftWithIndexDispatch<'a, FnBrand, <FA as DefaultBrand>::Brand, A, B, FA, Marker>,
+	func: impl FoldLeftWithIndexDispatch<
+		'a,
+		FnBrand,
+		<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+		A,
+		B,
+		FA,
+		Marker,
+	>,
 	initial: B,
 	fa: FA,
 ) -> B
 where
-	FA: DefaultBrand,
-	<FA as DefaultBrand>::Brand: WithIndex, {
+	FA: InferableBrand_cdc7cd43dac7585f,
+	<FA as InferableBrand_cdc7cd43dac7585f>::Brand: WithIndex, {
 	func.dispatch(initial, fa)
 }

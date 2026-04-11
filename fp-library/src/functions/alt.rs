@@ -1,6 +1,5 @@
 use {
 	crate::{
-		classes::default_brand::DefaultBrand,
 		dispatch::alt::AltDispatch,
 		kinds::*,
 	},
@@ -12,7 +11,7 @@ use {
 /// Combines two values in a context, inferring the brand from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `fa1`
-/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
 /// [`alt_explicit`](crate::functions::alt_explicit) with a turbofish.
@@ -45,8 +44,9 @@ use {
 pub fn alt<'a, FA, A: 'a + Clone, Marker>(
 	fa1: FA,
 	fa2: FA,
-) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
+) -> <<FA as InferableBrand_cdc7cd43dac7585f>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
 where
-	FA: DefaultBrand + AltDispatch<'a, <FA as DefaultBrand>::Brand, A, Marker>, {
+	FA: InferableBrand_cdc7cd43dac7585f
+		+ AltDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, A, Marker>, {
 	fa1.dispatch(fa2)
 }

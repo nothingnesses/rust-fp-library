@@ -1,6 +1,5 @@
 use {
 	crate::{
-		classes::default_brand::DefaultBrand,
 		dispatch::traversable::TraverseDispatch,
 		kinds::*,
 	},
@@ -12,7 +11,7 @@ use {
 /// Traverses a structure, inferring the brand from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `ta`
-/// via [`DefaultBrand`]. `FnBrand` and `F` (the applicative brand) must
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). `FnBrand` and `F` (the applicative brand) must
 /// still be specified explicitly.
 /// Both owned and borrowed containers are supported.
 ///
@@ -48,10 +47,19 @@ use {
 /// assert_eq!(y, Some(Some(10)));
 /// ```
 pub fn traverse<'a, FnBrand, FA, A: 'a, B: 'a, F: Kind_cdc7cd43dac7585f, Marker>(
-	func: impl TraverseDispatch<'a, FnBrand, <FA as DefaultBrand>::Brand, A, B, F, FA, Marker>,
+	func: impl TraverseDispatch<
+		'a,
+		FnBrand,
+		<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+		A,
+		B,
+		F,
+		FA,
+		Marker,
+	>,
 	ta: FA,
-) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 where
-	FA: DefaultBrand, {
+	FA: InferableBrand_cdc7cd43dac7585f, {
 	func.dispatch(ta)
 }

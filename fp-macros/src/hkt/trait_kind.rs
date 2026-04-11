@@ -7,6 +7,7 @@ use {
 	crate::{
 		core::Result,
 		documentation::templates::DocumentationBuilder,
+		generate_inferable_brand_name,
 		generate_name,
 	},
 	proc_macro2::TokenStream,
@@ -19,6 +20,7 @@ use {
 /// for a Higher-Kinded Type signature with multiple associated types.
 pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 	let name = generate_name(&input)?;
+	let ib_name = generate_inferable_brand_name(&input)?;
 
 	let assoc_types_tokens = input.associated_types.iter().map(|assoc| {
 		let ident = &assoc.signature.name;
@@ -37,11 +39,45 @@ pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 	// Build documentation using the DocumentationBuilder
 	let doc_string = DocumentationBuilder::new(&name, &input.associated_types).build();
 
+	// Build InferableBrand documentation
+	let ib_doc_summary = format!("Maps a concrete type back to its canonical brand for `{name}`.",);
+	let ib_doc_detail = "\n\nOnly implemented for types where the brand is unambiguous (one brand\n\
+		 per concrete type). Types reachable through multiple brands (e.g.,\n\
+		 `Result<A, E>` at arity 1) do not implement this trait and require\n\
+		 explicit brand specification via turbofish.\n\
+		 \n\
+		 A blanket implementation for references (`&T`) delegates to `T`'s\n\
+		 implementation, enabling brand inference for both owned and borrowed\n\
+		 containers.";
+	let ib_blanket_doc = format!(
+		"Blanket implementation delegating brand inference through references.\n\
+		 \n\
+		 Enables brand inference for borrowed containers (`&Vec<A>`, `&Option<A>`,\n\
+		 etc.) by delegating to the underlying type's `{ib_name}` implementation.",
+	);
+
 	Ok(quote! {
 		#[doc = #doc_string]
 		#[allow(non_camel_case_types)]
 		pub trait #name {
 			#(#assoc_types_tokens)*
+		}
+
+		#[doc = #ib_doc_summary]
+		#[doc = #ib_doc_detail]
+		#[allow(non_camel_case_types)]
+		#[diagnostic::on_unimplemented(
+			message = "`{Self}` does not have a unique brand and cannot use brand inference",
+			note = "use the `_explicit` variant with a turbofish to specify the brand manually"
+		)]
+		pub trait #ib_name {
+			/// The canonical brand for this type.
+			type Brand: #name;
+		}
+
+		#[doc = #ib_blanket_doc]
+		impl<__IB_T: #ib_name + ?Sized> #ib_name for &__IB_T {
+			type Brand = __IB_T::Brand;
 		}
 	})
 }

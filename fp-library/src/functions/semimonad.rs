@@ -1,6 +1,5 @@
 use {
 	crate::{
-		classes::default_brand::DefaultBrand,
 		dispatch::semimonad::{
 			BindDispatch,
 			JoinDispatch,
@@ -15,7 +14,7 @@ use {
 /// Sequences a monadic computation, inferring the brand from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `ma`
-/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
 /// [`bind_explicit`](crate::functions::bind_explicit) with a turbofish.
@@ -45,10 +44,10 @@ use {
 /// ```
 pub fn bind<'a, FA, A: 'a, B: 'a, Marker>(
 	ma: FA,
-	f: impl BindDispatch<'a, <FA as DefaultBrand>::Brand, A, B, FA, Marker>,
-) -> Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+	f: impl BindDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, A, B, FA, Marker>,
+) -> Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
-	FA: DefaultBrand, {
+	FA: InferableBrand_cdc7cd43dac7585f, {
 	f.dispatch(ma)
 }
 
@@ -58,7 +57,7 @@ where
 /// from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `ma`
-/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
 /// [`bind_flipped_explicit`](crate::functions::bind_flipped_explicit) with a turbofish.
@@ -87,11 +86,11 @@ where
 /// assert_eq!(result, Some(10));
 /// ```
 pub fn bind_flipped<'a, FA, A: 'a, B: 'a, Marker>(
-	f: impl BindDispatch<'a, <FA as DefaultBrand>::Brand, A, B, FA, Marker>,
+	f: impl BindDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, A, B, FA, Marker>,
 	ma: FA,
-) -> Apply!(<<FA as DefaultBrand>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+) -> Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
-	FA: DefaultBrand, {
+	FA: InferableBrand_cdc7cd43dac7585f, {
 	f.dispatch(ma)
 }
 
@@ -100,7 +99,7 @@ where
 /// Removes one layer of monadic nesting, inferring the brand from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `mma`
-/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 ///
 /// For types with multiple brands, use
 /// [`join_explicit`](crate::functions::join_explicit) with a turbofish.
@@ -128,8 +127,9 @@ where
 /// ```
 pub fn join<'a, FA, A: 'a, Marker>(
 	mma: FA
-) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
+) -> <<FA as InferableBrand_cdc7cd43dac7585f>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
 where
-	FA: DefaultBrand + JoinDispatch<'a, <FA as DefaultBrand>::Brand, A, Marker>, {
+	FA: InferableBrand_cdc7cd43dac7585f
+		+ JoinDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, A, Marker>, {
 	mma.dispatch()
 }

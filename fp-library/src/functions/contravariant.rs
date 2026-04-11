@@ -1,8 +1,5 @@
 use {
-	crate::{
-		classes::default_brand::DefaultBrand,
-		kinds::*,
-	},
+	crate::kinds::*,
 	fp_macros::*,
 };
 
@@ -11,7 +8,7 @@ use {
 /// Contravariantly maps a function over a value, inferring the brand from the container type.
 ///
 /// The `Brand` type parameter is inferred from the concrete type of `fa`
-/// via [`DefaultBrand`]. Only owned containers are supported; there is no
+/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Only owned containers are supported; there is no
 /// `RefContravariant` trait because the Ref pattern is about closures
 /// receiving element references (`&A`), but `contramap`'s closure
 /// produces elements (`Fn(B) -> A`), not consumes them. The
@@ -43,18 +40,21 @@ use {
 /// 	functions::*,
 /// };
 ///
-/// // contramap requires DefaultBrand on the container type.
-/// // Most profunctor-based types do not implement DefaultBrand,
+/// // contramap requires InferableBrand on the container type.
+/// // Most profunctor-based types do not implement InferableBrand,
 /// // so use contramap_explicit for those.
 /// assert!(true);
 /// ```
 pub fn contramap<'a, FA, A: 'a, B: 'a>(
 	f: impl Fn(B) -> A + 'a,
 	fa: FA,
-) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>
+) -> <<FA as InferableBrand_cdc7cd43dac7585f>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>
 where
-	FA: DefaultBrand,
-	<FA as DefaultBrand>::Brand: crate::classes::Contravariant,
-	FA: Into<<<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>>, {
-	<<FA as DefaultBrand>::Brand as crate::classes::Contravariant>::contramap(f, fa.into())
+	FA: InferableBrand_cdc7cd43dac7585f,
+	<FA as InferableBrand_cdc7cd43dac7585f>::Brand: crate::classes::Contravariant,
+	FA: Into<<<FA as InferableBrand_cdc7cd43dac7585f>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>>, {
+	<<FA as InferableBrand_cdc7cd43dac7585f>::Brand as crate::classes::Contravariant>::contramap(
+		f,
+		fa.into(),
+	)
 }
