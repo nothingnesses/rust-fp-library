@@ -988,19 +988,19 @@ apply_second.rs, join in semimonad.rs) that missed step 0b: - Rename qualified m
     an actionable message. 0-bind `a_do!` in inferred mode is not
     supported.
 
-12. **Documentation.** Update crate docs, README examples, and
+12. **[Done] Documentation.** Update crate docs, README examples, and
     `fp-library/docs/features.md` to show the inference-based calling
     convention as the primary API, with `_explicit` suffixed functions as
     the escape hatch for ambiguous types.
 
-13. **Tests.** Unit tests for each `InferableBrand` impl. Compile-fail tests
+13. **[Done] Tests.** Unit tests for each `InferableBrand` impl. Compile-fail tests
     confirming that one-parameter ambiguous types (Result, Tuple2, etc.)
     do not compile with inference-based `map`. Doc tests showing both
     calling conventions. Tests for `bimap` inference on bifunctor types.
 
 ## Current Progress
 
-Steps 1-11 are complete. The codebase has:
+All steps (1-13) are complete. The codebase has:
 
 **Module structure (step 7):**
 
@@ -1138,13 +1138,11 @@ BoxedCoyonedaExplicit, Const).
 
 ## Next Steps
 
-1. **Step 12-13: Documentation and tests.** Update all docs to show
-   inference as the primary API. Add compile-fail tests for multi-brand
-   types.
+All steps are complete. No remaining work items.
 
 ## Blockers
 
-No blockers.
+None.
 
 ## References
 

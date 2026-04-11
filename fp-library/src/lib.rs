@@ -23,16 +23,31 @@
 //!
 //! ## Example: Using `Functor` with `Option`
 //!
+//! The brand is inferred automatically from the container type:
+//!
+//! ```
+//! use fp_library::functions::*;
+//!
+//! // Brand inferred from Option<i32>
+//! let y = map(|i: i32| i * 2, Some(5));
+//! assert_eq!(y, Some(10));
+//!
+//! // Brand inferred from &Vec<i32> (by-reference dispatch)
+//! let v = vec![1, 2, 3];
+//! let y = map(|i: &i32| *i + 10, &v);
+//! assert_eq!(y, vec![11, 12, 13]);
+//! ```
+//!
+//! For types with multiple brands (e.g., `Result`), use the `_explicit` variant:
+//!
 //! ```
 //! use fp_library::{
 //! 	brands::*,
 //! 	functions::*,
 //! };
 //!
-//! let x = Some(5);
-//! // Map a function over the `Option` using the `Functor` type class
-//! let y = map_explicit::<OptionBrand, _, _, _, _>(|i| i * 2, x);
-//! assert_eq!(y, Some(10));
+//! let y = map_explicit::<ResultErrAppliedBrand<&str>, _, _, _, _>(|i| i * 2, Ok::<i32, &str>(5));
+//! assert_eq!(y, Ok(10));
 //! ```
 //!
 //! ## Example: Monadic Do-Notation with `m_do!`
@@ -41,18 +56,18 @@
 //! It desugars `<-` binds into nested [`bind`](functions::bind) calls.
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
-//! use fp_macros::m_do;
+//! use fp_library::{brands::*, functions::*, m_do};
 //!
-//! let result = m_do!(OptionBrand {
+//! // Inferred mode: brand inferred from container types
+//! let result = m_do!({
 //! 	x <- Some(5);
 //! 	y <- Some(x + 1);
 //! 	let z = x * y;
-//! 	pure(z)
+//! 	Some(z)
 //! });
 //! assert_eq!(result, Some(30));
 //!
-//! // Works with any monad brand
+//! // Explicit mode: for ambiguous types or when pure() is needed
 //! let result = m_do!(VecBrand {
 //! 	x <- vec![1, 2];
 //! 	y <- vec![10, 20];
