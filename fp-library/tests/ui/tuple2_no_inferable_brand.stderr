@@ -19,11 +19,11 @@ help: the trait `InferableBrand_cdc7cd43dac7585f` is implemented for `(A,)`
 note: required by a bound in `fp_library::functions::map`
  --> src/functions/functor.rs
   |
-  | pub fn map<'a, FA, A: 'a, B: 'a, Marker>(
-  |        --- required by a bound in this function
+  |     pub fn map<'a, FA, A: 'a, B: 'a, Marker>(
+  |            --- required by a bound in this function
 ...
-  |     FA: InferableBrand_cdc7cd43dac7585f, {
-  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `map`
+  |         FA: InferableBrand_cdc7cd43dac7585f, {
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `map`
   = note: this error originates in the macro `impl_kind` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: use a unary tuple instead
   |

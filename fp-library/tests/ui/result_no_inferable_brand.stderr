@@ -20,11 +20,11 @@ error[E0277]: `Result<i32, String>` does not have a unique brand and cannot use 
 note: required by a bound in `fp_library::functions::map`
  --> src/functions/functor.rs
   |
-  | pub fn map<'a, FA, A: 'a, B: 'a, Marker>(
-  |        --- required by a bound in this function
+  |     pub fn map<'a, FA, A: 'a, B: 'a, Marker>(
+  |            --- required by a bound in this function
 ...
-  |     FA: InferableBrand_cdc7cd43dac7585f, {
-  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `map`
+  |         FA: InferableBrand_cdc7cd43dac7585f, {
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `map`
 help: use a unary tuple instead
   |
 9 |     let _ = map(|x: i32| x + 1, (Ok::<i32, String>(5),));
