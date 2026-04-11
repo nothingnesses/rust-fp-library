@@ -1658,8 +1658,12 @@ pub(crate) mod inner {
 	/// Contravariantly maps a function over a value, inferring the brand from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via [`DefaultBrand`]. Only owned containers are supported (there is no
-	/// `RefContravariant` trait).
+	/// via [`DefaultBrand`]. Only owned containers are supported; there is no
+	/// `RefContravariant` trait because the Ref pattern is about closures
+	/// receiving element references (`&A`), but `contramap`'s closure
+	/// produces elements (`Fn(B) -> A`), not consumes them. The
+	/// directionality is reversed compared to [`Functor`](crate::classes::Functor),
+	/// so the `&A` convention does not apply.
 	///
 	/// For types with multiple brands, use
 	/// [`contramap_explicit`](crate::functions::contramap_explicit) with a turbofish.
