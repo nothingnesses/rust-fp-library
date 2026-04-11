@@ -894,7 +894,7 @@ to finish on its own; it will not.
    for Option, Vec (Val dispatch), and Option, Vec, RcLazy (Ref dispatch
    via blanket `&T` impl). `pure` inference confirmed to fail (E0283).
    See POC Results section above and
-   `fp-library/tests/brand_inference_feasibility.rs` (18 passing tests).
+   `fp-library/tests/brand_inference_feasibility.rs`.
 
 2. **[Done] Define `DefaultBrand` trait** in
    `fp-library/src/classes/default_brand.rs`. Includes blanket
@@ -907,59 +907,40 @@ to finish on its own; it will not.
    TryLazy, Coyoneda, RcCoyoneda, ArcCoyoneda, BoxedCoyonedaExplicit,
    Const. Impls in `default_brand_impls.rs`.
 
-5. **[In progress] Add inference-based `map` and rename `map` to
+5. **[Done] Add inference-based `map` and rename `map` to
    `map_explicit`.** The inference wrapper is in
    `fp-library/src/classes/dispatch/inference.rs`. The rename is
    handled at the `functions.rs` re-export level: `dispatch::map` is
    re-exported as `map_explicit`, and `dispatch::inference::map` is
-   re-exported as `map`. Call sites using `map::<Brand, ...>` turbofish
-   via `functions::*` must be updated to `map_explicit::<Brand, ...>`.
-   The dispatch source file is unchanged.
+   re-exported as `map`. Dispatch source files are unchanged.
 
-6. **Tier 1: Full inference for remaining dispatch functions.** Add
-   inference wrappers in `dispatch/inference.rs` for: `bind`,
-   `bind_flipped`, `lift2`-`lift5`, `filter_map`, `filter`,
-   `partition`, `partition_map`, `map_with_index`, `filter_with_index`,
+6. **[Done] Tier 1: Full inference for dispatch functions.** 15 inference
+   wrappers in `dispatch/inference.rs`: `map`, `bind`, `bind_flipped`,
+   `lift2`-`lift5`, `filter_map`, `filter`, `partition`,
+   `partition_map`, `map_with_index`, `filter_with_index`,
    `filter_map_with_index`, `partition_with_index`,
-   `partition_map_with_index`, `bimap`. For each, re-export the
-   dispatch version as `_explicit` and the inference version as the
-   clean name in `functions.rs`. Update call sites with turbofish.
-   `compose_kleisli` and `compose_kleisli_flipped` are excluded
-   (no container argument).
+   `partition_map_with_index`. Each re-exported as the clean name in
+   `functions.rs`, dispatch versions as `_explicit`. `compose_kleisli`
+   and `compose_kleisli_flipped` excluded (no container argument).
+   `bimap` deferred to Tier 4 (needs arity-2 DefaultBrand).
 
-   Since dispatch already unifies Val/Ref, each inference wrapper is a
-   single function that handles both owned and borrowed containers.
-   No separate `ref_*` inference wrappers needed.
+6a. **[Done] Tier 2: Partial inference for dispatch functions.** 10
+inference wrappers: `fold_right`, `fold_left`, `fold_map`,
+`traverse`, `fold_map_with_index`, `fold_right_with_index`,
+`fold_left_with_index`, `traverse_with_index`, `wilt`, `wither`.
+Brand inferred, FnBrand/F/M remain explicit. Turbofish reduced by
+one position. `bi_fold_right`, `bi_fold_left`, `bi_fold_map`,
+`bi_traverse` deferred to Tier 4.
 
-6a. **Tier 2: Partial inference for dispatch functions.** Extend to
-dispatch functions where Brand is inferred but other params
-(FnBrand, F, M) remain explicit: `fold_right`, `fold_left`,
-`fold_map`, `traverse`, `fold_map_with_index`,
-`fold_right_with_index`, `fold_left_with_index`,
-`traverse_with_index`, `wilt`, `wither`, `bi_fold_right`,
-`bi_fold_left`, `bi_fold_map`, `bi_traverse`.
-
-    The turbofish is reduced by one position (Brand inferred, remaining
-    params explicit). Rename current versions to `_explicit`.
-
-6b. **Tier 3: Full inference for closureless functions.** Add
-inference-based versions of non-dispatch functions that take
-containers but no closures: `alt`, `compact`, `separate`, `join`,
-`apply_first`, `apply_second`, `if_m`, `when_m`, `unless_m`,
-`contramap`.
-
-    These use a container-type-driven dispatch mechanism (validated
-    by POC in `fp-library/tests/closureless_dispatch_poc.rs`). A
-    dispatch trait with `OwnedMarker`/`BorrowedMarker` impls selects
-    the by-value or by-ref trait method based on whether the container
-    is owned (`Brand::Of<A>`) or borrowed (`&Brand::Of<A>`). This
-    gives a single unified function per operation, matching the
-    closure-based dispatch pattern. Brand inference composes with this
-    via `DefaultBrand`.
-
-    The closureless dispatch traits should be added to
-    `fp-library/src/classes/dispatch/` following the same module
-    pattern as the closure-based traits.
+6b. **[Done] Tier 3: Closureless functions with dispatch.** 6 new
+dispatch traits in `dispatch/`: `AltDispatch`, `CompactDispatch`,
+`SeparateDispatch`, `JoinDispatch`, `ApplyFirstDispatch`,
+`ApplySecondDispatch`. Uses existing `Val`/`Ref` markers with
+container-type-driven dispatch (owned vs borrowed). 7 inference
+wrappers: `alt`, `compact`, `separate`, `join`, `apply_first`,
+`apply_second`, `contramap` (val-only, no RefContravariant).
+`if_m`, `when_m`, `unless_m` deferred (complex condition-container
+pattern).
 
 7. **Extend `trait_kind!` to also generate `DefaultBrand_{hash}` traits.**
    When `trait_kind!` creates a `Kind_{hash}` trait, it also creates the
@@ -974,23 +955,18 @@ containers but no closures: `alt`, `compact`, `separate`, `join`,
 9. **Tier 4: Bifunctor arity-2 DefaultBrand.** Implement the two-parameter
    DefaultBrand trait for Result, Tuple2, Pair, ControlFlow, TryThunk.
    Add inference-based `bimap` (renaming the current to `bimap_explicit`).
-   Also add inference-based versions of bifunctor traversal functions
-   (`bi_traverse`, `bi_sequence`, `bi_traverse_left`, `bi_traverse_right`,
-   `bi_for`, `bi_for_left`, `bi_for_right`) using the arity-2
-   DefaultBrand; `FnBrand` and effect brand `F` remain explicit for these.
-   Document that `bimap`'s parameter order follows the Kind convention
-   (for Result: first closure maps the error type, second maps the
-   success type), which becomes more visible now that users can write
-   `bimap((f, g), Ok(5))` without a turbofish.
+   Also add inference wrappers for `bi_fold_right`, `bi_fold_left`,
+   `bi_fold_map`, `bi_traverse` (partial inference, FnBrand/F remain
+   explicit). Document the bimap parameter ordering for Result.
 
 10. **Extend `m_do!` and `a_do!`.** Add brand-free syntax that generates
     inference-based function calls. The Brand-explicit syntax remains
     available. Support all four combinations: `m_do!({ ... })` for val
     inference, `m_do!(ref { ... })` for ref inference, plus the existing
     explicit forms. Parser detects inferred mode by peeking for `{`.
-    In inferred mode, `pure(expr)` is NOT rewritten; users must write
-    concrete constructors (e.g., `Some(expr)`) or use explicit-brand
-    syntax. 0-bind `a_do!` in inferred mode is not supported.
+    In inferred mode, `pure(expr)` should emit `compile_error!` with
+    an actionable message. 0-bind `a_do!` in inferred mode is not
+    supported.
 
 11. **Documentation.** Update crate docs, README examples, and
     `fp-library/docs/features.md` to show the inference-based calling
@@ -1001,6 +977,92 @@ containers but no closures: `alt`, `compact`, `separate`, `join`,
     confirming that one-parameter ambiguous types (Result, Tuple2, etc.) do
     not compile with inference-based `map`. Doc tests showing both calling
     conventions. Tests for `bimap` inference on bifunctor types.
+
+## Current Progress
+
+32 functions now have brand inference:
+
+- **Tier 1 (full inference):** 15 dispatch functions (map, bind,
+  bind_flipped, filter_map, filter, partition, partition_map,
+  lift2-lift5, map_with_index, filter_with_index,
+  filter_map_with_index, partition_with_index,
+  partition_map_with_index).
+- **Tier 2 (partial inference):** 10 dispatch functions (fold_right,
+  fold_left, fold_map, traverse, fold_map_with_index,
+  fold_right_with_index, fold_left_with_index, traverse_with_index,
+  wilt, wither).
+- **Tier 3 (closureless):** 7 functions (alt, compact, separate, join,
+  apply_first, apply_second, contramap).
+
+All inference wrappers live in `dispatch/inference.rs`. Dispatch
+versions are re-exported as `_explicit` in `functions.rs`. The m_do!
+and a_do! macros generate `_explicit` variants.
+
+`just verify` passes with all tests.
+
+## Deviations from the Plan
+
+1. **Re-export-level rename instead of source-level rename.** The plan
+   originally said to rename ALL dispatch functions to `_explicit` in
+   their source files. Instead, the dispatch source files keep their
+   original names (e.g., `dispatch::functor::map`), and the rename is
+   handled at the `functions.rs` re-export level via `map as map_explicit`.
+   Internal code using `crate::classes::dispatch::map` directly is
+   unaffected. This eliminated the need to touch ~500 internal trait
+   impl call sites.
+
+2. **Closureless dispatch uses `Val`/`Ref` markers (not
+   `OwnedMarker`/`BorrowedMarker`).** The POC used custom marker types
+   but the implementation reuses the existing `Val`/`Ref` markers from
+   `dispatch::{Val, Ref}` since they serve the same purpose.
+
+3. **`if_m`, `when_m`, `unless_m` deferred.** These take a condition
+   container (`Brand::Of<bool>`) and action containers. The pattern is
+   more complex because multiple container args with different element
+   types are involved. Deferred to a follow-up.
+
+4. **`contramap` is val-only.** No `RefContravariant` trait exists, so
+   `contramap` has an inference wrapper but no dispatch trait. It
+   delegates directly to `Contravariant::contramap`.
+
+5. **`bimap` and bi-fold/traverse deferred to Tier 4.** These use the
+   arity-2 Kind (`Kind_266801a817966495`), which requires a separate
+   `DefaultBrand` trait for the two-parameter Kind. This is step 9.
+
+6. **`#[fp_macros::document_module]` removed from closureless dispatch
+   files.** The proc macro's `Self` resolution does not work correctly
+   with dispatch methods that take `Self` (the container type) rather
+   than a closure. The doc attributes still work; only the module-level
+   attribute was removed.
+
+## Next Steps
+
+1. **Step 7-8: Proc-macro generation.** Extend `trait_kind!` and
+   `impl_kind!` to auto-generate DefaultBrand traits and impls. This
+   replaces the hand-written impls in `default_brand_impls.rs` and
+   enables downstream crates to get DefaultBrand automatically.
+
+2. **Step 9: Tier 4 (bifunctor arity-2).** Define the arity-2
+   DefaultBrand trait, implement it for 5 bifunctor types, and add
+   inference wrappers for `bimap`, `bi_fold_right`, `bi_fold_left`,
+   `bi_fold_map`, `bi_traverse`.
+
+3. **Step 10: m_do!/a_do! inferred mode.** Add `m_do!({ ... })` and
+   `a_do!({ ... })` syntax that generates inference-based calls.
+
+4. **Step 11-12: Documentation and tests.** Update all docs to show
+   inference as the primary API. Add compile-fail tests for multi-brand
+   types.
+
+## Blockers
+
+No blockers. Steps 7-12 are independent of each other except:
+
+- Step 9 (bifunctor arity-2) depends on step 7 (trait_kind! generates
+  the arity-2 DefaultBrand trait), OR the arity-2 trait can be
+  hand-written like the arity-1 trait.
+- Step 10 (macro inferred mode) depends on steps 5-6b being done
+  (already complete).
 
 ## References
 
