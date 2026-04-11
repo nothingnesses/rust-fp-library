@@ -15,7 +15,7 @@
 //!
 //! // Owned: dispatches to Bitraversable::bi_traverse
 //! let x: Result<i32, i32> = Ok(5);
-//! let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+//! let y = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 //! 	(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
 //! 	x,
 //! );
@@ -23,7 +23,7 @@
 //!
 //! // By-ref: dispatches to RefBitraversable::ref_bi_traverse
 //! let x: Result<i32, i32> = Ok(5);
-//! let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+//! let y = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 //! 	(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
 //! 	&x,
 //! );
@@ -95,7 +95,7 @@ pub(crate) mod inner {
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let result = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// let result = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 		/// 	(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
 		/// 	x,
 		/// );
@@ -163,7 +163,7 @@ pub(crate) mod inner {
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let result = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// let result = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 		/// 	(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
 		/// 	x,
 		/// );
@@ -241,7 +241,7 @@ pub(crate) mod inner {
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let result = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// let result = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 		/// 	(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
 		/// 	&x,
 		/// );
@@ -307,7 +307,7 @@ pub(crate) mod inner {
 	///
 	/// // Owned: dispatches to Bitraversable::bi_traverse
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+	/// let y = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 	/// 	(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
 	/// 	x,
 	/// );
@@ -315,7 +315,7 @@ pub(crate) mod inner {
 	///
 	/// // By-ref: dispatches to RefBitraversable::ref_bi_traverse
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+	/// let y = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 	/// 	(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
 	/// 	&x,
 	/// );

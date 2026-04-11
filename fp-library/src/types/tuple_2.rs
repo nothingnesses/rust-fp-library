@@ -63,7 +63,7 @@ mod inner {
 		/// };
 		///
 		/// let x = (1, 5);
-		/// assert_eq!(bimap::<Tuple2Brand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x), (2, 10));
+		/// assert_eq!(bimap_explicit::<Tuple2Brand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x), (2, 10));
 		/// ```
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
 			f: impl Fn(A) -> B + 'a,
@@ -151,7 +151,7 @@ mod inner {
 		///
 		/// let x = (3, 5);
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
+		/// 	bi_fold_right_explicit::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
 		/// 		(|a: &i32, acc| acc - *a, |b: &i32, acc| acc + *b),
 		/// 		0,
 		/// 		&x,
@@ -203,7 +203,7 @@ mod inner {
 		///
 		/// let x = (3, 5);
 		/// assert_eq!(
-		/// 	bi_traverse::<RcFnBrand, Tuple2Brand, _, _, _, _, OptionBrand, _, _>(
+		/// 	bi_traverse_explicit::<RcFnBrand, Tuple2Brand, _, _, _, _, OptionBrand, _, _>(
 		/// 		(|a: &i32| Some(a + 1), |b: &i32| Some(b * 2)),
 		/// 		&x,
 		/// 	),
@@ -264,7 +264,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
+		/// 	bi_fold_right_explicit::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
 		/// 		(|a: i32, acc| acc - a, |b: i32, acc| acc + b),
 		/// 		0,
 		/// 		(3, 5),
@@ -313,7 +313,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
+		/// 	bi_fold_left_explicit::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
 		/// 		(|acc, a: i32| acc - a, |acc, b: i32| acc + b),
 		/// 		0,
 		/// 		(3, 5),
@@ -360,7 +360,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
+		/// 	bi_fold_map_explicit::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
 		/// 		(|a: i32| a.to_string(), |b: i32| b.to_string()),
 		/// 		(3, 5),
 		/// 	),
@@ -411,7 +411,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_traverse::<RcFnBrand, Tuple2Brand, _, _, _, _, OptionBrand, _, _>(
+		/// 	bi_traverse_explicit::<RcFnBrand, Tuple2Brand, _, _, _, _, OptionBrand, _, _>(
 		/// 		(|a: i32| Some(a + 1), |b: i32| Some(b * 2)),
 		/// 		(3, 5),
 		/// 	),
@@ -1982,7 +1982,10 @@ mod tests {
 	#[test]
 	fn test_bimap() {
 		let x = (1, 5);
-		assert_eq!(bimap::<Tuple2Brand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x), (2, 10));
+		assert_eq!(
+			bimap_explicit::<Tuple2Brand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x),
+			(2, 10)
+		);
 	}
 
 	// Bifunctor Laws
@@ -1994,7 +1997,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let x = (first, second);
-		bimap::<Tuple2Brand, _, _, _, _, _, _>((identity, identity), x.clone()) == x
+		bimap_explicit::<Tuple2Brand, _, _, _, _, _, _>((identity, identity), x.clone()) == x
 	}
 
 	/// Tests the composition law for Bifunctor.
@@ -2009,10 +2012,10 @@ mod tests {
 		let h = |x: i32| x.wrapping_sub(1);
 		let i = |x: i32| if x == 0 { 0 } else { x.wrapping_div(2) };
 
-		bimap::<Tuple2Brand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), x)
-			== bimap::<Tuple2Brand, _, _, _, _, _, _>(
+		bimap_explicit::<Tuple2Brand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), x)
+			== bimap_explicit::<Tuple2Brand, _, _, _, _, _, _>(
 				(f, h),
-				bimap::<Tuple2Brand, _, _, _, _, _, _>((g, i), x),
+				bimap_explicit::<Tuple2Brand, _, _, _, _, _, _>((g, i), x),
 			)
 	}
 

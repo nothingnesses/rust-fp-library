@@ -971,7 +971,7 @@ apply_second.rs, join in semimonad.rs) that missed step 0b: - Rename qualified m
    Add `#[no_inferable_brand]` opt-out attribute for types with multiple
    brands. Migrate hand-written impls to use the macro.
 
-10. **Tier 4: Bifunctor arity-2 InferableBrand.** Implement the
+10. **[Done] Tier 4: Bifunctor arity-2 InferableBrand.** Implement the
     two-parameter InferableBrand trait for Result, Tuple2, Pair,
     ControlFlow, TryThunk. Add inference-based `bimap` (renaming the
     current to `bimap_explicit`). Also add inference wrappers for
@@ -1000,7 +1000,7 @@ apply_second.rs, join in semimonad.rs) that missed step 0b: - Rename qualified m
 
 ## Current Progress
 
-Steps 1-9 are complete. The codebase has:
+Steps 1-10 are complete. The codebase has:
 
 **Module structure (step 7):**
 
@@ -1050,17 +1050,18 @@ multi-brand types. Auto-skip applies to projection target types
 
 **Brand inference (steps 2-6b):**
 
-32 functions have brand inference via `InferableBrand`:
+37 functions have brand inference via `InferableBrand`:
 
-- **Tier 1 (full inference, 15 functions):** `map`, `bind`,
+- **Tier 1 (full inference, 16 functions):** `map`, `bind`,
   `bind_flipped`, `filter_map`, `filter`, `partition`,
   `partition_map`, `lift2`-`lift5`, `map_with_index`,
   `filter_with_index`, `filter_map_with_index`,
-  `partition_with_index`, `partition_map_with_index`.
-- **Tier 2 (partial inference, 10 functions):** `fold_right`,
+  `partition_with_index`, `partition_map_with_index`, `bimap`.
+- **Tier 2 (partial inference, 14 functions):** `fold_right`,
   `fold_left`, `fold_map`, `traverse`, `fold_map_with_index`,
   `fold_right_with_index`, `fold_left_with_index`,
-  `traverse_with_index`, `wilt`, `wither`.
+  `traverse_with_index`, `wilt`, `wither`, `bi_fold_left`,
+  `bi_fold_right`, `bi_fold_map`, `bi_traverse`.
 - **Tier 3 (closureless, 7 functions):** `alt`, `compact`, `separate`,
   `join`, `apply_first`, `apply_second`, `contramap`.
 
@@ -1137,27 +1138,16 @@ BoxedCoyonedaExplicit, Const).
 
 ## Next Steps
 
-1. **Step 10: Tier 4 (bifunctor arity-2).** Define the arity-2
-   InferableBrand trait, implement it for 5 bifunctor types, add
-   inference wrappers for `bimap`, `bi_fold_right`, `bi_fold_left`,
-   `bi_fold_map`, `bi_traverse`.
-
-2. **Step 11: m_do!/a_do! inferred mode.** Add `m_do!({ ... })` and
+1. **Step 11: m_do!/a_do! inferred mode.** Add `m_do!({ ... })` and
    `a_do!({ ... })` syntax that generates inference-based calls.
 
-3. **Step 12-13: Documentation and tests.** Update all docs to show
+2. **Step 12-13: Documentation and tests.** Update all docs to show
    inference as the primary API. Add compile-fail tests for multi-brand
    types.
 
 ## Blockers
 
-No blockers. Steps 8-13 are independent of each other except:
-
-- Step 10 (bifunctor arity-2) depends on step 8 (trait_kind! generates
-  the arity-2 InferableBrand trait), OR the arity-2 trait can be
-  hand-written like the arity-1 trait.
-- Step 11 (macro inferred mode) depends on steps 5-6b being done
-  (already complete).
+No blockers. Steps 11-13 are independent of each other.
 
 ## References
 

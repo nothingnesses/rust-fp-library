@@ -428,7 +428,10 @@ mod inner {
 		/// };
 		///
 		/// let x = Pair(1, 5);
-		/// assert_eq!(bimap::<PairBrand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x), Pair(2, 10));
+		/// assert_eq!(
+		/// 	bimap_explicit::<PairBrand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x),
+		/// 	Pair(2, 10)
+		/// );
 		/// ```
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
 			f: impl Fn(A) -> B + 'a,
@@ -633,7 +636,7 @@ mod inner {
 		///
 		/// let x = Pair(3, 5);
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, PairBrand, _, _, _, _, _>(
+		/// 	bi_fold_right_explicit::<RcFnBrand, PairBrand, _, _, _, _, _>(
 		/// 		(|a, acc| acc - a, |b, acc| acc + b),
 		/// 		0,
 		/// 		x
@@ -682,7 +685,7 @@ mod inner {
 		///
 		/// let x = Pair(3, 5);
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, PairBrand, _, _, _, _, _>(
+		/// 	bi_fold_left_explicit::<RcFnBrand, PairBrand, _, _, _, _, _>(
 		/// 		(|acc, a| acc - a, |acc, b| acc + b),
 		/// 		0,
 		/// 		x
@@ -729,7 +732,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, PairBrand, _, _, _, _, _>(
+		/// 	bi_fold_map_explicit::<RcFnBrand, PairBrand, _, _, _, _, _>(
 		/// 		(|a: i32| a.to_string(), |b: i32| b.to_string()),
 		/// 		Pair(3, 5),
 		/// 	),
@@ -781,7 +784,7 @@ mod inner {
 		///
 		/// let x = Pair(3, 5);
 		/// assert_eq!(
-		/// 	bi_traverse::<RcFnBrand, PairBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 	bi_traverse_explicit::<RcFnBrand, PairBrand, _, _, _, _, OptionBrand, _, _>(
 		/// 		(|a: i32| Some(a + 1), |b: i32| Some(b * 2)),
 		/// 		x,
 		/// 	),
@@ -2388,7 +2391,10 @@ mod tests {
 	#[test]
 	fn test_bimap() {
 		let x = Pair(1, 5);
-		assert_eq!(bimap::<PairBrand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x), Pair(2, 10));
+		assert_eq!(
+			bimap_explicit::<PairBrand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x),
+			Pair(2, 10)
+		);
 	}
 
 	// Bifunctor Laws
@@ -2400,7 +2406,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let x = Pair(first, second);
-		bimap::<PairBrand, _, _, _, _, _, _>((identity, identity), x.clone()) == x
+		bimap_explicit::<PairBrand, _, _, _, _, _, _>((identity, identity), x.clone()) == x
 	}
 
 	/// Tests the composition law for Bifunctor.
@@ -2415,10 +2421,10 @@ mod tests {
 		let h = |x: i32| x.wrapping_sub(1);
 		let i = |x: i32| if x == 0 { 0 } else { x.wrapping_div(2) };
 
-		bimap::<PairBrand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), x)
-			== bimap::<PairBrand, _, _, _, _, _, _>(
+		bimap_explicit::<PairBrand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), x)
+			== bimap_explicit::<PairBrand, _, _, _, _, _, _>(
 				(f, h),
-				bimap::<PairBrand, _, _, _, _, _, _>((g, i), x),
+				bimap_explicit::<PairBrand, _, _, _, _, _, _>((g, i), x),
 			)
 	}
 
@@ -2700,7 +2706,7 @@ mod tests {
 		b: i32,
 	) -> bool {
 		let p = Pair(a, b);
-		bimap::<PairBrand, _, _, _, _, _, _>((|x: &i32| *x, |x: &i32| *x), &p) == p
+		bimap_explicit::<PairBrand, _, _, _, _, _, _>((|x: &i32| *x, |x: &i32| *x), &p) == p
 	}
 
 	/// RefBifunctor composition
@@ -2714,11 +2720,13 @@ mod tests {
 		let f2 = |x: &i32| x.wrapping_mul(2);
 		let g1 = |x: &i32| x.wrapping_add(10);
 		let g2 = |x: &i32| x.wrapping_mul(3);
-		bimap::<PairBrand, _, _, _, _, _, _>((|x: &i32| f2(&f1(x)), |x: &i32| g2(&g1(x))), &p)
-			== bimap::<PairBrand, _, _, _, _, _, _>(
-				(f2, g2),
-				&bimap::<PairBrand, _, _, _, _, _, _>((f1, g1), &p),
-			)
+		bimap_explicit::<PairBrand, _, _, _, _, _, _>(
+			(|x: &i32| f2(&f1(x)), |x: &i32| g2(&g1(x))),
+			&p,
+		) == bimap_explicit::<PairBrand, _, _, _, _, _, _>(
+			(f2, g2),
+			&bimap_explicit::<PairBrand, _, _, _, _, _, _>((f1, g1), &p),
+		)
 	}
 
 	// RefBifoldable Laws
@@ -2730,7 +2738,7 @@ mod tests {
 		b: i32,
 	) -> bool {
 		let p = Pair(a, b);
-		let result = bi_fold_map::<RcFnBrand, PairBrand, _, _, _, _, _>(
+		let result = bi_fold_map_explicit::<RcFnBrand, PairBrand, _, _, _, _, _>(
 			(|x: &i32| x.to_string(), |x: &i32| x.to_string()),
 			&p,
 		);
@@ -2749,9 +2757,9 @@ mod tests {
 		let f = |x: &i32| Some(x.wrapping_add(1));
 		let g = |x: &i32| Some(x.wrapping_mul(2));
 		let traversed =
-			bi_traverse::<RcFnBrand, PairBrand, _, _, _, _, OptionBrand, _, _>((f, g), &p);
+			bi_traverse_explicit::<RcFnBrand, PairBrand, _, _, _, _, OptionBrand, _, _>((f, g), &p);
 		let mapped_then_sequenced =
-			ref_bi_sequence::<PairBrand, RcFnBrand, _, _, OptionBrand>(&bimap::<
+			ref_bi_sequence::<PairBrand, RcFnBrand, _, _, OptionBrand>(&bimap_explicit::<
 				PairBrand,
 				_,
 				_,

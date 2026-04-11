@@ -1491,13 +1491,13 @@ mod inner {
 		///
 		/// let x: TryThunk<i32, i32> = TryThunk::ok(5);
 		/// assert_eq!(
-		/// 	bimap::<TryThunkBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x).evaluate(),
+		/// 	bimap_explicit::<TryThunkBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x).evaluate(),
 		/// 	Ok(10)
 		/// );
 		///
 		/// let y: TryThunk<i32, i32> = TryThunk::err(5);
 		/// assert_eq!(
-		/// 	bimap::<TryThunkBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), y).evaluate(),
+		/// 	bimap_explicit::<TryThunkBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), y).evaluate(),
 		/// 	Err(6)
 		/// );
 		/// ```
@@ -1546,7 +1546,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 	bi_fold_right_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 		/// 		(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 		/// 		10,
 		/// 		TryThunk::err(3),
@@ -1554,7 +1554,7 @@ mod inner {
 		/// 	7
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 	bi_fold_right_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 		/// 		(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 		/// 		10,
 		/// 		TryThunk::ok(5),
@@ -1606,7 +1606,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 	bi_fold_left_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 		/// 		(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 		/// 		10,
 		/// 		TryThunk::err(3),
@@ -1614,7 +1614,7 @@ mod inner {
 		/// 	7
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 	bi_fold_left_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 		/// 		(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 		/// 		10,
 		/// 		TryThunk::ok(5),
@@ -1665,14 +1665,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 	bi_fold_map_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 		/// 		(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 		TryThunk::err(3),
 		/// 	),
 		/// 	"3".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 	bi_fold_map_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 		/// 		(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 		TryThunk::ok(5),
 		/// 	),
@@ -2568,7 +2568,7 @@ mod tests {
 
 		// Error case: f(3, 10) = 10 - 3 = 7
 		assert_eq!(
-			bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+			bi_fold_right_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 				(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 				10,
 				TryThunk::err(3),
@@ -2578,7 +2578,7 @@ mod tests {
 
 		// Success case: g(5, 10) = 10 + 5 = 15
 		assert_eq!(
-			bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+			bi_fold_right_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 				(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 				10,
 				TryThunk::ok(5),
@@ -2598,7 +2598,7 @@ mod tests {
 		};
 
 		assert_eq!(
-			bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+			bi_fold_left_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 				(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 				10,
 				TryThunk::err(3),
@@ -2607,7 +2607,7 @@ mod tests {
 		);
 
 		assert_eq!(
-			bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+			bi_fold_left_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 				(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 				10,
 				TryThunk::ok(5),
@@ -2627,7 +2627,7 @@ mod tests {
 		};
 
 		assert_eq!(
-			bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+			bi_fold_map_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 				(|e: i32| e.to_string(), |s: i32| s.to_string()),
 				TryThunk::err(3),
 			),
@@ -2635,7 +2635,7 @@ mod tests {
 		);
 
 		assert_eq!(
-			bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+			bi_fold_map_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 				(|e: i32| e.to_string(), |s: i32| s.to_string()),
 				TryThunk::ok(5),
 			),

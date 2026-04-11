@@ -26,6 +26,12 @@ pub mod alt;
 pub mod apply_first;
 /// Brand-inference wrapper for [`apply_second`](mod@crate::dispatch::apply_second).
 pub mod apply_second;
+/// Brand-inference wrappers for [`Bifoldable`](crate::classes::Bifoldable) operations.
+pub mod bifoldable;
+/// Brand-inference wrapper for [`Bifunctor::bimap`](crate::classes::Bifunctor::bimap).
+pub mod bifunctor;
+/// Brand-inference wrapper for [`Bitraversable::bi_traverse`](crate::classes::Bitraversable::bi_traverse).
+pub mod bitraversable;
 /// Brand-inference wrappers for [`Compactable`](crate::classes::Compactable) operations.
 pub mod compactable;
 /// Brand-inference wrapper for [`Contravariant::contramap`](crate::classes::Contravariant::contramap).
@@ -182,11 +188,11 @@ pub use crate::{
 		alt::alt as alt_explicit,
 		apply_first::apply_first as apply_first_explicit,
 		apply_second::apply_second as apply_second_explicit,
-		bi_fold_left,
-		bi_fold_map,
-		bi_fold_right,
-		bi_traverse,
-		bimap,
+		bi_fold_left as bi_fold_left_explicit,
+		bi_fold_map as bi_fold_map_explicit,
+		bi_fold_right as bi_fold_right_explicit,
+		bi_traverse as bi_traverse_explicit,
+		bimap as bimap_explicit,
 		bind as bind_explicit,
 		bind_flipped as bind_flipped_explicit,
 		compactable::{

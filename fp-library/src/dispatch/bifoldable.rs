@@ -21,7 +21,7 @@
 //!
 //! // bi_fold_left
 //! let x: Result<i32, i32> = Ok(5);
-//! let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+//! let y = bi_fold_left_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 //! 	(|acc, e| acc - e, |acc, s| acc + s),
 //! 	10,
 //! 	x,
@@ -30,7 +30,7 @@
 //!
 //! // bi_fold_right
 //! let x: Result<i32, i32> = Err(3);
-//! let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+//! let y = bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 //! 	(|e, acc| acc - e, |s, acc| acc + s),
 //! 	10,
 //! 	x,
@@ -39,7 +39,7 @@
 //!
 //! // bi_fold_map
 //! let x: Result<i32, i32> = Ok(5);
-//! let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+//! let y = bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 //! 	(|e: i32| e.to_string(), |s: i32| s.to_string()),
 //! 	x,
 //! );
@@ -104,7 +104,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_left_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|acc, e| acc - e, |acc, s| acc + s),
 		/// 	10,
 		/// 	x,
@@ -161,7 +161,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_left_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|acc, e| acc - e, |acc, s| acc + s),
 		/// 	10,
 		/// 	x,
@@ -226,7 +226,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_left_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|acc, e: &i32| acc - *e, |acc, s: &i32| acc + *s),
 		/// 	10,
 		/// 	&x,
@@ -272,7 +272,7 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// let y = bi_fold_left_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 	/// 	(|acc, e| acc - e, |acc, s| acc + s),
 	/// 	10,
 	/// 	x,
@@ -335,7 +335,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		/// let x: Result<i32, i32> = Err(3);
-		/// let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|e, acc| acc - e, |s, acc| acc + s),
 		/// 	10,
 		/// 	x,
@@ -392,7 +392,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		/// let x: Result<i32, i32> = Err(3);
-		/// let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|e, acc| acc - e, |s, acc| acc + s),
 		/// 	10,
 		/// 	x,
@@ -457,7 +457,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		/// let x: Result<i32, i32> = Err(3);
-		/// let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|e: &i32, acc| acc - *e, |s: &i32, acc| acc + *s),
 		/// 	10,
 		/// 	&x,
@@ -503,7 +503,7 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Err(3);
-	/// let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// let y = bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 	/// 	(|e, acc| acc - e, |s, acc| acc + s),
 	/// 	10,
 	/// 	x,
@@ -566,7 +566,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 	x,
 		/// );
@@ -621,7 +621,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 	x,
 		/// );
@@ -681,7 +681,7 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|e: &i32| e.to_string(), |s: &i32| s.to_string()),
 		/// 	&x,
 		/// );
@@ -724,7 +724,7 @@ pub(crate) mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// let y = bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 	/// 	(|e: i32| e.to_string(), |s: i32| s.to_string()),
 	/// 	x,
 	/// );

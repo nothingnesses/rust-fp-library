@@ -37,7 +37,7 @@ just doc --workspace --all-features --open  # Build and open docs
 ```bash
 just test                                # Run all tests (--workspace --all-features by default, cached)
 just test -p fp-library test_name        # Run a subset (no caching)
-just test -p fp-library --test property  # Run property-based tests
+just test -p fp-library -- prop_          # Run property-based tests (by name filter)
 just test --doc -p fp-library            # Run doc tests
 ```
 

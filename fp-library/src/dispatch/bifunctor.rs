@@ -15,12 +15,13 @@
 //!
 //! // Owned: dispatches to Bifunctor::bimap
 //! let x = Result::<i32, i32>::Ok(5);
-//! let y = bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x);
+//! let y = bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x);
 //! assert_eq!(y, Ok(10));
 //!
 //! // By-ref: dispatches to RefBifunctor::ref_bimap
 //! let x = Result::<i32, i32>::Ok(5);
-//! let y = bimap::<ResultBrand, _, _, _, _, _, _>((|e: &i32| *e + 1, |s: &i32| *s * 2), &x);
+//! let y =
+//! 	bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|e: &i32| *e + 1, |s: &i32| *s * 2), &x);
 //! assert_eq!(y, Ok(10));
 //! ```
 
@@ -80,8 +81,10 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result =
-		/// 	bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s: i32| s * 2), Ok::<i32, i32>(5));
+		/// let result = bimap_explicit::<ResultBrand, _, _, _, _, _, _>(
+		/// 	(|e| e + 1, |s: i32| s * 2),
+		/// 	Ok::<i32, i32>(5),
+		/// );
 		/// assert_eq!(result, Ok(10));
 		/// ```
 		fn dispatch(
@@ -132,8 +135,10 @@ pub(crate) mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result =
-		/// 	bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s: i32| s * 2), Ok::<i32, i32>(5));
+		/// let result = bimap_explicit::<ResultBrand, _, _, _, _, _, _>(
+		/// 	(|e| e + 1, |s: i32| s * 2),
+		/// 	Ok::<i32, i32>(5),
+		/// );
 		/// assert_eq!(result, Ok(10));
 		/// ```
 		fn dispatch(
@@ -190,7 +195,8 @@ pub(crate) mod inner {
 		/// 	functions::*,
 		/// };
 		/// let x = Result::<i32, i32>::Ok(5);
-		/// let result = bimap::<ResultBrand, _, _, _, _, _, _>((|e: &i32| *e + 1, |s: &i32| *s * 2), &x);
+		/// let result =
+		/// 	bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|e: &i32| *e + 1, |s: &i32| *s * 2), &x);
 		/// assert_eq!(result, Ok(10));
 		/// ```
 		fn dispatch(
@@ -241,12 +247,13 @@ pub(crate) mod inner {
 	///
 	/// // Owned
 	/// let x = Result::<i32, i32>::Ok(5);
-	/// let y = bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x);
+	/// let y = bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x);
 	/// assert_eq!(y, Ok(10));
 	///
 	/// // By-ref
 	/// let x = Result::<i32, i32>::Ok(5);
-	/// let y = bimap::<ResultBrand, _, _, _, _, _, _>((|e: &i32| *e + 1, |s: &i32| *s * 2), &x);
+	/// let y =
+	/// 	bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|e: &i32| *e + 1, |s: &i32| *s * 2), &x);
 	/// assert_eq!(y, Ok(10));
 	/// ```
 	pub fn bimap<'a, Brand: Kind_266801a817966495, A: 'a, B: 'a, C: 'a, D: 'a, FA, Marker>(

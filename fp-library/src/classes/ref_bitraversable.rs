@@ -9,7 +9,7 @@
 //! };
 //!
 //! let x: Result<i32, i32> = Ok(5);
-//! let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+//! let y = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 //! 	(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
 //! 	&x,
 //! );
@@ -61,8 +61,11 @@ mod inner {
 	/// // bi_traverse((f, g), &x) = ref_bi_sequence(&bimap((f, g), &x))
 	/// let ok: Result<i32, String> = Ok(5);
 	/// assert_eq!(
-	/// 	bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>((&f, &g), &ok),
-	/// 	ref_bi_sequence::<ResultBrand, RcFnBrand, _, _, OptionBrand>(&bimap::<
+	/// 	bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+	/// 		(&f, &g),
+	/// 		&ok
+	/// 	),
+	/// 	ref_bi_sequence::<ResultBrand, RcFnBrand, _, _, OptionBrand>(&bimap_explicit::<
 	/// 		ResultBrand,
 	/// 		_,
 	/// 		_,
@@ -76,8 +79,11 @@ mod inner {
 	/// // Traverse/sequence consistency (Err case):
 	/// let err: Result<i32, String> = Err("hello".to_string());
 	/// assert_eq!(
-	/// 	bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>((&f, &g), &err),
-	/// 	ref_bi_sequence::<ResultBrand, RcFnBrand, _, _, OptionBrand>(&bimap::<
+	/// 	bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+	/// 		(&f, &g),
+	/// 		&err
+	/// 	),
+	/// 	ref_bi_sequence::<ResultBrand, RcFnBrand, _, _, OptionBrand>(&bimap_explicit::<
 	/// 		ResultBrand,
 	/// 		_,
 	/// 		_,
@@ -122,7 +128,7 @@ mod inner {
 		/// };
 		///
 		/// let x: Result<i32, i32> = Err(3);
-		/// let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// let y = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 		/// 	(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
 		/// 	&x,
 		/// );
@@ -227,7 +233,7 @@ mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+	/// let y = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 	/// 	(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
 	/// 	&x,
 	/// );

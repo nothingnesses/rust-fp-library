@@ -733,7 +733,7 @@ mod inner {
 		///
 		/// let x = ControlFlow::<i32, i32>::Continue(1);
 		/// assert_eq!(
-		/// 	bimap::<ControlFlowBrand, _, _, _, _, _, _>((|c| c + 1, |b: i32| b * 2), x),
+		/// 	bimap_explicit::<ControlFlowBrand, _, _, _, _, _, _>((|c| c + 1, |b: i32| b * 2), x),
 		/// 	ControlFlow::Continue(2)
 		/// );
 		/// ```
@@ -841,7 +841,7 @@ mod inner {
 		///
 		/// let x: ControlFlow<i32, i32> = ControlFlow::Continue(3);
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, ControlFlowBrand, _, _, _, _, _>(
+		/// 	bi_fold_right_explicit::<RcFnBrand, ControlFlowBrand, _, _, _, _, _>(
 		/// 		(|c: &i32, acc| acc - *c, |b: &i32, acc| acc + *b),
 		/// 		10,
 		/// 		&x,
@@ -851,7 +851,7 @@ mod inner {
 		///
 		/// let y: ControlFlow<i32, i32> = ControlFlow::Break(5);
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, ControlFlowBrand, _, _, _, _, _>(
+		/// 	bi_fold_right_explicit::<RcFnBrand, ControlFlowBrand, _, _, _, _, _>(
 		/// 		(|c: &i32, acc| acc - *c, |b: &i32, acc| acc + *b),
 		/// 		10,
 		/// 		&y,
@@ -911,7 +911,7 @@ mod inner {
 		///
 		/// let x: ControlFlow<i32, i32> = ControlFlow::Continue(3);
 		/// assert_eq!(
-		/// 	bi_traverse::<RcFnBrand, ControlFlowBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 	bi_traverse_explicit::<RcFnBrand, ControlFlowBrand, _, _, _, _, OptionBrand, _, _>(
 		/// 		(|c: &i32| Some(c + 1), |b: &i32| Some(b * 2)),
 		/// 		&x,
 		/// 	),
@@ -920,7 +920,7 @@ mod inner {
 		///
 		/// let y: ControlFlow<i32, i32> = ControlFlow::Break(5);
 		/// assert_eq!(
-		/// 	bi_traverse::<RcFnBrand, ControlFlowBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 	bi_traverse_explicit::<RcFnBrand, ControlFlowBrand, _, _, _, _, OptionBrand, _, _>(
 		/// 		(|c: &i32| Some(c + 1), |b: &i32| Some(b * 2)),
 		/// 		&y,
 		/// 	),
@@ -987,7 +987,7 @@ mod inner {
 		///
 		/// let x: ControlFlow<i32, i32> = ControlFlow::Continue(3);
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, ControlFlowBrand, _, _, _, _, _>(
+		/// 	bi_fold_right_explicit::<RcFnBrand, ControlFlowBrand, _, _, _, _, _>(
 		/// 		(|c, acc| acc - c, |b, acc| acc + b),
 		/// 		10,
 		/// 		x,
@@ -1038,7 +1038,7 @@ mod inner {
 		///
 		/// let x: ControlFlow<i32, i32> = ControlFlow::Break(5);
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, ControlFlowBrand, _, _, _, _, _>(
+		/// 	bi_fold_left_explicit::<RcFnBrand, ControlFlowBrand, _, _, _, _, _>(
 		/// 		(|acc, c| acc - c, |acc, b| acc + b),
 		/// 		10,
 		/// 		x,
@@ -1088,7 +1088,7 @@ mod inner {
 		///
 		/// let x: ControlFlow<i32, i32> = ControlFlow::Continue(3);
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, ControlFlowBrand, _, _, _, _, _>(
+		/// 	bi_fold_map_explicit::<RcFnBrand, ControlFlowBrand, _, _, _, _, _>(
 		/// 		(|c: i32| c.to_string(), |b: i32| b.to_string()),
 		/// 		x,
 		/// 	),
@@ -1142,7 +1142,7 @@ mod inner {
 		///
 		/// let x: ControlFlow<i32, i32> = ControlFlow::Continue(3);
 		/// assert_eq!(
-		/// 	bi_traverse::<RcFnBrand, ControlFlowBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 	bi_traverse_explicit::<RcFnBrand, ControlFlowBrand, _, _, _, _, OptionBrand, _, _>(
 		/// 		(|c: i32| Some(c + 1), |b: i32| Some(b * 2)),
 		/// 		x,
 		/// 	),
@@ -2532,13 +2532,13 @@ mod tests {
 	fn test_bifunctor() {
 		let cf: ControlFlow<i32, i32> = ControlFlow::Continue(5);
 		assert_eq!(
-			bimap::<ControlFlowBrand, _, _, _, _, _, _>((|c| c + 1, |b| b * 2), cf),
+			bimap_explicit::<ControlFlowBrand, _, _, _, _, _, _>((|c| c + 1, |b| b * 2), cf),
 			ControlFlow::Continue(6)
 		);
 
 		let brk: ControlFlow<i32, i32> = ControlFlow::Break(5);
 		assert_eq!(
-			bimap::<ControlFlowBrand, _, _, _, _, _, _>((|c| c + 1, |b| b * 2), brk),
+			bimap_explicit::<ControlFlowBrand, _, _, _, _, _, _>((|c| c + 1, |b| b * 2), brk),
 			ControlFlow::Break(10)
 		);
 	}
@@ -2588,7 +2588,7 @@ mod tests {
 	#[quickcheck]
 	fn bifunctor_identity(x: ControlFlowWrapper<i32, i32>) -> bool {
 		let x = x.into_inner();
-		bimap::<ControlFlowBrand, _, _, _, _, _, _>((identity, identity), x) == x
+		bimap_explicit::<ControlFlowBrand, _, _, _, _, _, _>((identity, identity), x) == x
 	}
 
 	#[quickcheck]
@@ -2599,10 +2599,10 @@ mod tests {
 		let h = |x: i32| x.wrapping_sub(1);
 		let i = |x: i32| if x == 0 { 0 } else { x.wrapping_div(2) };
 
-		bimap::<ControlFlowBrand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), x)
-			== bimap::<ControlFlowBrand, _, _, _, _, _, _>(
+		bimap_explicit::<ControlFlowBrand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), x)
+			== bimap_explicit::<ControlFlowBrand, _, _, _, _, _, _>(
 				(f, h),
-				bimap::<ControlFlowBrand, _, _, _, _, _, _>((g, i), x),
+				bimap_explicit::<ControlFlowBrand, _, _, _, _, _, _>((g, i), x),
 			)
 	}
 
