@@ -942,24 +942,35 @@ wrappers: `alt`, `compact`, `separate`, `join`, `apply_first`,
 `if_m`, `when_m`, `unless_m` deferred (complex condition-container
 pattern).
 
-7. **Extend `trait_kind!` to also generate `DefaultBrand_{hash}` traits.**
+7. **Module restructure.** Move `dispatch/` from `classes/` to a
+   top-level module. Consolidate dispatch files to mirror `classes/`
+   exactly (one-to-one file mapping). Split inference wrappers from
+   `dispatch/inference.rs` into per-module files under `functions/`,
+   also mirroring `classes/`. All three directories (`classes/`,
+   `dispatch/`, `functions/`) have the same file names. See the
+   "Next Steps" section for the full target structure and detailed
+   steps. Do this before steps 8-13 to avoid building more code
+   against the old paths.
+
+8. **Extend `trait_kind!` to also generate `DefaultBrand_{hash}` traits.**
    When `trait_kind!` creates a `Kind_{hash}` trait, it also creates the
    corresponding `DefaultBrand_{hash}` trait using the same content hash.
    Add `DefaultBrand!` macro (analogous to `Kind!`) to resolve the trait
    name from the signature.
 
-8. **Extend `impl_kind!` to generate `DefaultBrand` impls by default.**
+9. **Extend `impl_kind!` to generate `DefaultBrand` impls by default.**
    Add `#[no_default_brand]` opt-out attribute for types with multiple
    brands. Migrate hand-written impls to use the macro.
 
-9. **Tier 4: Bifunctor arity-2 DefaultBrand.** Implement the two-parameter
-   DefaultBrand trait for Result, Tuple2, Pair, ControlFlow, TryThunk.
-   Add inference-based `bimap` (renaming the current to `bimap_explicit`).
-   Also add inference wrappers for `bi_fold_right`, `bi_fold_left`,
-   `bi_fold_map`, `bi_traverse` (partial inference, FnBrand/F remain
-   explicit). Document the bimap parameter ordering for Result.
+10. **Tier 4: Bifunctor arity-2 DefaultBrand.** Implement the
+    two-parameter DefaultBrand trait for Result, Tuple2, Pair,
+    ControlFlow, TryThunk. Add inference-based `bimap` (renaming the
+    current to `bimap_explicit`). Also add inference wrappers for
+    `bi_fold_right`, `bi_fold_left`, `bi_fold_map`, `bi_traverse`
+    (partial inference, FnBrand/F remain explicit). Document the bimap
+    parameter ordering for Result.
 
-10. **Extend `m_do!` and `a_do!`.** Add brand-free syntax that generates
+11. **Extend `m_do!` and `a_do!`.** Add brand-free syntax that generates
     inference-based function calls. The Brand-explicit syntax remains
     available. Support all four combinations: `m_do!({ ... })` for val
     inference, `m_do!(ref { ... })` for ref inference, plus the existing
@@ -968,15 +979,15 @@ pattern).
     an actionable message. 0-bind `a_do!` in inferred mode is not
     supported.
 
-11. **Documentation.** Update crate docs, README examples, and
+12. **Documentation.** Update crate docs, README examples, and
     `fp-library/docs/features.md` to show the inference-based calling
     convention as the primary API, with `_explicit` suffixed functions as
     the escape hatch for ambiguous types.
 
-12. **Tests.** Unit tests for each `DefaultBrand` impl. Compile-fail tests
-    confirming that one-parameter ambiguous types (Result, Tuple2, etc.) do
-    not compile with inference-based `map`. Doc tests showing both calling
-    conventions. Tests for `bimap` inference on bifunctor types.
+13. **Tests.** Unit tests for each `DefaultBrand` impl. Compile-fail tests
+    confirming that one-parameter ambiguous types (Result, Tuple2, etc.)
+    do not compile with inference-based `map`. Doc tests showing both
+    calling conventions. Tests for `bimap` inference on bifunctor types.
 
 ## Current Progress
 
@@ -1094,36 +1105,36 @@ and a_do! macros generate `_explicit` variants.
    - The `_explicit` re-exports stay in `functions.rs` (one line per
      function, re-exporting from `crate::dispatch::*`).
 
-   Do this step BEFORE steps 7-9 to avoid building more code against
+   Do this step BEFORE steps 8-13 to avoid building more code against
    the old paths.
 
-2. **Step 7-8: Proc-macro generation.** Extend `trait_kind!` and
+2. **Step 8-9: Proc-macro generation.** Extend `trait_kind!` and
    `impl_kind!` to auto-generate DefaultBrand traits and impls. This
    replaces the hand-written impls in `default_brand_impls.rs` and
    enables downstream crates to get DefaultBrand automatically.
 
-3. **Step 9: Tier 4 (bifunctor arity-2).** Define the arity-2
+3. **Step 10: Tier 4 (bifunctor arity-2).** Define the arity-2
    DefaultBrand trait, implement it for 5 bifunctor types, and add
    inference wrappers for `bimap`, `bi_fold_right`, `bi_fold_left`,
    `bi_fold_map`, `bi_traverse`.
 
-4. **Step 10: m_do!/a_do! inferred mode.** Add `m_do!({ ... })` and
+4. **Step 11: m_do!/a_do! inferred mode.** Add `m_do!({ ... })` and
    `a_do!({ ... })` syntax that generates inference-based calls.
 
-5. **Step 11-12: Documentation and tests.** Update all docs to show
+5. **Step 12-13: Documentation and tests.** Update all docs to show
    inference as the primary API. Add compile-fail tests for multi-brand
    types.
 
 ## Blockers
 
-No blockers. Steps 6c-12 are independent of each other except:
+No blockers. Steps 7-13 are independent of each other except:
 
-- Step 6c (module restructure) should be done first to avoid building
+- Step 7 (module restructure) should be done first to avoid building
   more code against the old paths.
-- Step 9 (bifunctor arity-2) depends on step 7 (trait_kind! generates
+- Step 10 (bifunctor arity-2) depends on step 8 (trait_kind! generates
   the arity-2 DefaultBrand trait), OR the arity-2 trait can be
   hand-written like the arity-1 trait.
-- Step 10 (macro inferred mode) depends on steps 5-6b being done
+- Step 11 (macro inferred mode) depends on steps 5-6b being done
   (already complete).
 
 ## References
