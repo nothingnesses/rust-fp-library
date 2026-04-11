@@ -355,7 +355,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_nested.clone(),
-				|v| compact::<VecBrand, _>(v),
+				|v| compact_explicit::<VecBrand, _, _, _>(v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -387,7 +387,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_res_sep.clone(),
-				|v| separate::<VecBrand, _, _>(v),
+				|v| separate_explicit::<VecBrand, _, _, _, _>(v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -632,7 +632,11 @@ pub fn bench_vec(c: &mut Criterion) {
 				)
 			});
 			group.bench_with_input(BenchmarkId::new("compact (sequential)", sz), &sz, |b, &_| {
-				b.iter_batched(|| v.clone(), |v| compact::<VecBrand, _>(v), BatchSize::SmallInput)
+				b.iter_batched(
+					|| v.clone(),
+					|v| compact_explicit::<VecBrand, _, _, _>(v),
+					BatchSize::SmallInput,
+				)
 			});
 		}
 		group.finish();

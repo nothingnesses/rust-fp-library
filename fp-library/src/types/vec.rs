@@ -320,7 +320,7 @@ mod inner {
 		///
 		/// let x = vec![1, 2];
 		/// let y = vec![3, 4];
-		/// assert_eq!(alt::<VecBrand, _>(x, y), vec![1, 2, 3, 4]);
+		/// assert_eq!(alt_explicit::<VecBrand, _, _, _>(x, y), vec![1, 2, 3, 4]);
 		/// ```
 		fn alt<'a, A: 'a>(
 			fa1: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -356,7 +356,7 @@ mod inner {
 		///
 		/// let x = vec![1, 2];
 		/// let y = vec![3, 4];
-		/// assert_eq!(ref_alt::<VecBrand, _>(&x, &y), vec![1, 2, 3, 4]);
+		/// assert_eq!(alt_explicit::<VecBrand, _, _, _>(&x, &y), vec![1, 2, 3, 4]);
 		/// ```
 		fn ref_alt<'a, A: 'a + Clone>(
 			fa1: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1534,7 +1534,7 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![Some(1), None, Some(2)];
-		/// let y = compact::<VecBrand, _>(x);
+		/// let y = compact_explicit::<VecBrand, _, _, _>(x);
 		/// assert_eq!(y, vec![1, 2]);
 		/// ```
 		fn compact<'a, A: 'a>(
@@ -1570,7 +1570,7 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![Ok(1), Err("error"), Ok(2)];
-		/// let (errs, oks) = separate::<VecBrand, _, _>(x);
+		/// let (errs, oks) = separate_explicit::<VecBrand, _, _, _, _>(x);
 		/// assert_eq!(oks, vec![1, 2]);
 		/// assert_eq!(errs, vec!["error"]);
 		/// ```
@@ -1619,7 +1619,7 @@ mod inner {
 		/// };
 		///
 		/// let v = vec![Some(1), None, Some(3)];
-		/// let result = ref_compact::<VecBrand, _>(&v);
+		/// let result = compact_explicit::<VecBrand, _, _, _>(&v);
 		/// assert_eq!(result, vec![1, 3]);
 		/// ```
 		fn ref_compact<'a, A: 'a + Clone>(
@@ -1655,7 +1655,7 @@ mod inner {
 		/// };
 		///
 		/// let v: Vec<Result<i32, &str>> = vec![Ok(1), Err("bad"), Ok(3)];
-		/// let (errs, oks) = ref_separate::<VecBrand, _, _>(&v);
+		/// let (errs, oks) = separate_explicit::<VecBrand, _, _, _, _>(&v);
 		/// assert_eq!(oks, vec![1, 3]);
 		/// assert_eq!(errs, vec!["bad"]);
 		/// ```
@@ -3350,7 +3350,7 @@ mod tests {
 	#[quickcheck]
 	fn filterable_filter_map_identity(x: Vec<Option<i32>>) -> bool {
 		filter_map_explicit::<VecBrand, _, _, _, _>(identity, x.clone())
-			== compact::<VecBrand, _>(x)
+			== compact_explicit::<VecBrand, _, _, _>(x)
 	}
 
 	/// Tests `filterMap Just ≡ identity`.
@@ -3387,7 +3387,7 @@ mod tests {
 	#[quickcheck]
 	fn filterable_partition_map_identity(x: Vec<Result<i32, i32>>) -> bool {
 		partition_map_explicit::<VecBrand, _, _, _, _, _>(identity, x.clone())
-			== separate::<VecBrand, _, _>(x)
+			== separate_explicit::<VecBrand, _, _, _, _>(x)
 	}
 
 	/// Tests `partitionMap Right ≡ identity` (on the right side).
@@ -3434,7 +3434,7 @@ mod tests {
 
 		let lhs = wilt_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(p, x.clone());
 		let rhs = crate::classes::dispatch::map::<OptionBrand, _, _, _, _>(
-			separate::<VecBrand, _, _>,
+			separate_explicit::<VecBrand, _, _, _, _>,
 			traverse_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(p, x),
 		);
 
@@ -3448,7 +3448,7 @@ mod tests {
 
 		let lhs = wither_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(p, x.clone());
 		let rhs = crate::classes::dispatch::map::<OptionBrand, _, _, _, _>(
-			compact::<VecBrand, _>,
+			compact_explicit::<VecBrand, _, _, _>,
 			traverse_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(p, x),
 		);
 
@@ -3464,8 +3464,10 @@ mod tests {
 		y: Vec<i32>,
 		z: Vec<i32>,
 	) -> bool {
-		alt::<VecBrand, _>(alt::<VecBrand, _>(x.clone(), y.clone()), z.clone())
-			== alt::<VecBrand, _>(x, alt::<VecBrand, _>(y, z))
+		alt_explicit::<VecBrand, _, _, _>(
+			alt_explicit::<VecBrand, _, _, _>(x.clone(), y.clone()),
+			z.clone(),
+		) == alt_explicit::<VecBrand, _, _, _>(x, alt_explicit::<VecBrand, _, _, _>(y, z))
 	}
 
 	/// Tests the distributivity law for Alt.
@@ -3475,11 +3477,13 @@ mod tests {
 		y: Vec<i32>,
 	) -> bool {
 		let f = |i: i32| i.wrapping_mul(2).wrapping_add(1);
-		map_explicit::<VecBrand, _, _, _, _>(f, alt::<VecBrand, _>(x.clone(), y.clone()))
-			== alt::<VecBrand, _>(
-				map_explicit::<VecBrand, _, _, _, _>(f, x),
-				map_explicit::<VecBrand, _, _, _, _>(f, y),
-			)
+		map_explicit::<VecBrand, _, _, _, _>(
+			f,
+			alt_explicit::<VecBrand, _, _, _>(x.clone(), y.clone()),
+		) == alt_explicit::<VecBrand, _, _, _>(
+			map_explicit::<VecBrand, _, _, _, _>(f, x),
+			map_explicit::<VecBrand, _, _, _, _>(f, y),
+		)
 	}
 
 	// Plus Laws
@@ -3487,13 +3491,13 @@ mod tests {
 	/// Tests the left identity law for Plus.
 	#[quickcheck]
 	fn plus_left_identity(x: Vec<i32>) -> bool {
-		alt::<VecBrand, _>(plus_empty::<VecBrand, i32>(), x.clone()) == x
+		alt_explicit::<VecBrand, _, _, _>(plus_empty::<VecBrand, i32>(), x.clone()) == x
 	}
 
 	/// Tests the right identity law for Plus.
 	#[quickcheck]
 	fn plus_right_identity(x: Vec<i32>) -> bool {
-		alt::<VecBrand, _>(x.clone(), plus_empty::<VecBrand, i32>()) == x
+		alt_explicit::<VecBrand, _, _, _>(x.clone(), plus_empty::<VecBrand, i32>()) == x
 	}
 
 	/// Tests the annihilation law for Plus.
@@ -3511,14 +3515,17 @@ mod tests {
 	/// Tests the functor identity law for Compactable.
 	#[quickcheck]
 	fn compactable_functor_identity(fa: Vec<i32>) -> bool {
-		compact::<VecBrand, _>(map_explicit::<VecBrand, _, _, _, _>(Some, fa.clone())) == fa
+		compact_explicit::<VecBrand, _, _, _>(map_explicit::<VecBrand, _, _, _, _>(
+			Some,
+			fa.clone(),
+		)) == fa
 	}
 
 	/// Tests the Plus annihilation (empty) law for Compactable.
 	#[test]
 	fn compactable_plus_annihilation_empty() {
 		assert_eq!(
-			compact::<VecBrand, _>(plus_empty::<VecBrand, Option<i32>>()),
+			compact_explicit::<VecBrand, _, _, _>(plus_empty::<VecBrand, Option<i32>>()),
 			plus_empty::<VecBrand, i32>(),
 		);
 	}
@@ -3526,8 +3533,10 @@ mod tests {
 	/// Tests the Plus annihilation (map) law for Compactable.
 	#[quickcheck]
 	fn compactable_plus_annihilation_map(xs: Vec<i32>) -> bool {
-		compact::<VecBrand, _>(map_explicit::<VecBrand, _, _, _, _>(|_: i32| None::<i32>, xs))
-			== plus_empty::<VecBrand, i32>()
+		compact_explicit::<VecBrand, _, _, _>(map_explicit::<VecBrand, _, _, _, _>(
+			|_: i32| None::<i32>,
+			xs,
+		)) == plus_empty::<VecBrand, i32>()
 	}
 
 	// Edge Cases
@@ -3535,19 +3544,26 @@ mod tests {
 	/// Tests `compact` on an empty vector.
 	#[test]
 	fn compact_empty() {
-		assert_eq!(compact::<VecBrand, i32>(vec![] as Vec<Option<i32>>), vec![] as Vec<i32>);
+		assert_eq!(
+			compact_explicit::<VecBrand, i32, _, _>(vec![] as Vec<Option<i32>>),
+			vec![] as Vec<i32>
+		);
 	}
 
 	/// Tests `compact` on a vector with `None`.
 	#[test]
 	fn compact_with_none() {
-		assert_eq!(compact::<VecBrand, i32>(vec![Some(1), None, Some(2)]), vec![1, 2]);
+		assert_eq!(
+			compact_explicit::<VecBrand, i32, _, _>(vec![Some(1), None, Some(2)]),
+			vec![1, 2]
+		);
 	}
 
 	/// Tests `separate` on an empty vector.
 	#[test]
 	fn separate_empty() {
-		let (errs, oks) = separate::<VecBrand, i32, i32>(vec![] as Vec<Result<i32, i32>>);
+		let (errs, oks) =
+			separate_explicit::<VecBrand, i32, i32, _, _>(vec![] as Vec<Result<i32, i32>>);
 		assert_eq!(oks, vec![] as Vec<i32>);
 		assert_eq!(errs, vec![] as Vec<i32>);
 	}
@@ -3555,7 +3571,7 @@ mod tests {
 	/// Tests `separate` on a vector with `Ok` and `Err`.
 	#[test]
 	fn separate_mixed() {
-		let (errs, oks) = separate::<VecBrand, i32, i32>(vec![Ok(1), Err(2), Ok(3)]);
+		let (errs, oks) = separate_explicit::<VecBrand, i32, i32, _, _>(vec![Ok(1), Err(2), Ok(3)]);
 		assert_eq!(oks, vec![1, 3]);
 		assert_eq!(errs, vec![2]);
 	}
@@ -3900,7 +3916,7 @@ mod tests {
 	fn ref_compactable_identity(v: Vec<i32>) -> bool {
 		use crate::classes::ref_compactable::ref_compact;
 		let mapped: Vec<Option<i32>> = v.iter().map(|a| Some(*a)).collect();
-		ref_compact::<VecBrand, _>(&mapped) == v
+		compact_explicit::<VecBrand, _, _, _>(&mapped) == v
 	}
 
 	// RefAlt Laws
@@ -3913,8 +3929,8 @@ mod tests {
 		z: Vec<i32>,
 	) -> bool {
 		use crate::classes::ref_alt::ref_alt;
-		ref_alt::<VecBrand, _>(&ref_alt::<VecBrand, _>(&x, &y), &z)
-			== ref_alt::<VecBrand, _>(&x, &ref_alt::<VecBrand, _>(&y, &z))
+		alt_explicit::<VecBrand, _, _, _>(&alt_explicit::<VecBrand, _, _, _>(&x, &y), &z)
+			== alt_explicit::<VecBrand, _, _, _>(&x, &alt_explicit::<VecBrand, _, _, _>(&y, &z))
 	}
 
 	/// RefAlt distributivity with RefFunctor
@@ -3925,8 +3941,8 @@ mod tests {
 	) -> bool {
 		use crate::classes::ref_alt::ref_alt;
 		let f = |a: &i32| a.wrapping_mul(2);
-		map_explicit::<VecBrand, _, _, _, _>(f, &ref_alt::<VecBrand, _>(&x, &y))
-			== ref_alt::<VecBrand, _>(
+		map_explicit::<VecBrand, _, _, _, _>(f, &alt_explicit::<VecBrand, _, _, _>(&x, &y))
+			== alt_explicit::<VecBrand, _, _, _>(
 				&map_explicit::<VecBrand, _, _, _, _>(f, &x),
 				&map_explicit::<VecBrand, _, _, _, _>(f, &y),
 			)

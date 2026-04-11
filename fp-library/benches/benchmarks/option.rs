@@ -199,7 +199,11 @@ pub fn bench_option(c: &mut Criterion) {
 		group.bench_with_input(
 			BenchmarkId::new("fp", input_desc_nested),
 			&input_desc_nested,
-			|b, &_| b.iter(|| compact::<OptionBrand, _>(std::hint::black_box(val_nested))),
+			|b, &_| {
+				b.iter(|| {
+					compact_explicit::<OptionBrand, _, _, _>(std::hint::black_box(val_nested))
+				})
+			},
 		);
 		group.finish();
 	}
@@ -223,7 +227,11 @@ pub fn bench_option(c: &mut Criterion) {
 		group.bench_with_input(
 			BenchmarkId::new("fp", input_desc_res_sep),
 			&input_desc_res_sep,
-			|b, &_| b.iter(|| separate::<OptionBrand, _, _>(std::hint::black_box(val_res_sep))),
+			|b, &_| {
+				b.iter(|| {
+					separate_explicit::<OptionBrand, _, _, _, _>(std::hint::black_box(val_res_sep))
+				})
+			},
 		);
 		group.finish();
 	}

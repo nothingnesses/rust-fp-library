@@ -11,7 +11,7 @@
 //! 	functions::*,
 //! };
 //!
-//! let x = alt::<OptionBrand, _>(plus_empty::<OptionBrand, i32>(), Some(5));
+//! let x = alt_explicit::<OptionBrand, _, _, _>(plus_empty::<OptionBrand, i32>(), Some(5));
 //! assert_eq!(x, Some(5));
 //! ```
 
@@ -49,10 +49,10 @@ mod inner {
 	///
 	/// // Left identity: alt(empty, x) = x
 	/// let x = Some(5);
-	/// assert_eq!(alt::<OptionBrand, _>(plus_empty::<OptionBrand, i32>(), x), x,);
+	/// assert_eq!(alt_explicit::<OptionBrand, _, _, _>(plus_empty::<OptionBrand, i32>(), x), x,);
 	///
 	/// // Right identity: alt(x, empty) = x
-	/// assert_eq!(alt::<OptionBrand, _>(x, plus_empty::<OptionBrand, i32>()), x,);
+	/// assert_eq!(alt_explicit::<OptionBrand, _, _, _>(x, plus_empty::<OptionBrand, i32>()), x,);
 	///
 	/// // Annihilation: map(f, empty) = empty
 	/// let f = |i: i32| i * 2;

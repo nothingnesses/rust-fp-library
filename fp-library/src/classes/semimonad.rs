@@ -91,11 +91,11 @@ mod inner {
 	/// };
 	///
 	/// let x = Some(Some(5));
-	/// let y = join::<OptionBrand, _>(x);
+	/// let y = join_explicit::<OptionBrand, _, _, _>(x);
 	/// assert_eq!(y, Some(5));
 	///
 	/// let z: Option<Option<i32>> = Some(None);
-	/// assert_eq!(join::<OptionBrand, _>(z), None);
+	/// assert_eq!(join_explicit::<OptionBrand, _, _, _>(z), None);
 	/// ```
 	pub fn join<'a, Brand: Semimonad, A: 'a>(
 		mma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)

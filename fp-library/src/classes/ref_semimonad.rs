@@ -102,7 +102,7 @@ mod inner {
 	/// 	let inner = inner.clone();
 	/// 	move || inner.clone()
 	/// });
-	/// let result = ref_join::<LazyBrand<RcLazyConfig>, _>(&outer);
+	/// let result = join_explicit::<LazyBrand<RcLazyConfig>, _, _, _>(&outer);
 	/// assert_eq!(*result.evaluate(), 5);
 	/// ```
 	pub fn ref_join<'a, Brand: RefSemimonad, A: 'a>(

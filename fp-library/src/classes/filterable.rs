@@ -54,14 +54,14 @@ mod inner {
 	/// let fa: Option<Option<i32>> = Some(Some(5));
 	/// assert_eq!(
 	/// 	filter_map_explicit::<OptionBrand, _, _, _, _>(identity, fa),
-	/// 	compact::<OptionBrand, _>(fa),
+	/// 	compact_explicit::<OptionBrand, _, _, _>(fa),
 	/// );
 	///
 	/// // Distributivity: partition_map(identity, fa) = separate(fa)
 	/// let fa: Option<Result<i32, &str>> = Some(Ok(5));
 	/// assert_eq!(
 	/// 	partition_map_explicit::<OptionBrand, _, _, _, _, _>(identity, fa),
-	/// 	separate::<OptionBrand, _, _>(fa),
+	/// 	separate_explicit::<OptionBrand, _, _, _, _>(fa),
 	/// );
 	///
 	/// // Identity: filter_map(Some, fa) = fa
@@ -96,7 +96,7 @@ mod inner {
 	/// let fa: Vec<Option<i32>> = vec![Some(1), None, Some(3)];
 	/// assert_eq!(
 	/// 	filter_map_explicit::<VecBrand, _, _, _, _>(identity, fa.clone()),
-	/// 	compact::<VecBrand, _>(fa),
+	/// 	compact_explicit::<VecBrand, _, _, _>(fa),
 	/// );
 	///
 	/// // Identity: filter_map(Some, fa) = fa

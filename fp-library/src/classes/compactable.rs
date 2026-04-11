@@ -9,7 +9,7 @@
 //! };
 //!
 //! let x = Some(Some(5));
-//! let y = compact::<OptionBrand, _>(x);
+//! let y = compact_explicit::<OptionBrand, _, _, _>(x);
 //! assert_eq!(y, Some(5));
 //! ```
 
@@ -51,23 +51,29 @@ mod inner {
 	///
 	/// // Functor Identity: compact(map(Some, fa)) = fa
 	/// assert_eq!(
-	/// 	compact::<OptionBrand, _>(map_explicit::<OptionBrand, _, _, _, _>(Some, Some(5))),
+	/// 	compact_explicit::<OptionBrand, _, _, _>(map_explicit::<OptionBrand, _, _, _, _>(
+	/// 		Some,
+	/// 		Some(5)
+	/// 	)),
 	/// 	Some(5),
 	/// );
 	/// assert_eq!(
-	/// 	compact::<OptionBrand, _>(map_explicit::<OptionBrand, _, _, _, _>(Some, None::<i32>)),
+	/// 	compact_explicit::<OptionBrand, _, _, _>(map_explicit::<OptionBrand, _, _, _, _>(
+	/// 		Some,
+	/// 		None::<i32>
+	/// 	)),
 	/// 	None,
 	/// );
 	///
 	/// // Plus Annihilation (empty): compact(empty) = empty
 	/// assert_eq!(
-	/// 	compact::<OptionBrand, _>(plus_empty::<OptionBrand, Option<i32>>()),
+	/// 	compact_explicit::<OptionBrand, _, _, _>(plus_empty::<OptionBrand, Option<i32>>()),
 	/// 	plus_empty::<OptionBrand, i32>(),
 	/// );
 	///
 	/// // Plus Annihilation (map): compact(map(|_| None, xs)) = empty
 	/// assert_eq!(
-	/// 	compact::<OptionBrand, _>(map_explicit::<OptionBrand, _, _, _, _>(
+	/// 	compact_explicit::<OptionBrand, _, _, _>(map_explicit::<OptionBrand, _, _, _, _>(
 	/// 		|_: i32| None::<i32>,
 	/// 		Some(5)
 	/// 	)),
@@ -85,19 +91,22 @@ mod inner {
 	///
 	/// // Functor Identity: compact(map(Some, fa)) = fa
 	/// assert_eq!(
-	/// 	compact::<VecBrand, _>(map_explicit::<VecBrand, _, _, _, _>(Some, vec![1, 2, 3])),
+	/// 	compact_explicit::<VecBrand, _, _, _>(map_explicit::<VecBrand, _, _, _, _>(
+	/// 		Some,
+	/// 		vec![1, 2, 3]
+	/// 	)),
 	/// 	vec![1, 2, 3],
 	/// );
 	///
 	/// // Plus Annihilation (empty): compact(empty) = empty
 	/// assert_eq!(
-	/// 	compact::<VecBrand, _>(plus_empty::<VecBrand, Option<i32>>()),
+	/// 	compact_explicit::<VecBrand, _, _, _>(plus_empty::<VecBrand, Option<i32>>()),
 	/// 	plus_empty::<VecBrand, i32>(),
 	/// );
 	///
 	/// // Plus Annihilation (map): compact(map(|_| None, xs)) = empty
 	/// assert_eq!(
-	/// 	compact::<VecBrand, _>(map_explicit::<VecBrand, _, _, _, _>(
+	/// 	compact_explicit::<VecBrand, _, _, _>(map_explicit::<VecBrand, _, _, _, _>(
 	/// 		|_: i32| None::<i32>,
 	/// 		vec![1, 2, 3]
 	/// 	)),
@@ -128,11 +137,11 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(Some(5));
-		/// let y = compact::<OptionBrand, _>(x);
+		/// let y = compact_explicit::<OptionBrand, _, _, _>(x);
 		/// assert_eq!(y, Some(5));
 		///
 		/// let z = Some(None::<i32>);
-		/// let w = compact::<OptionBrand, _>(z);
+		/// let w = compact_explicit::<OptionBrand, _, _, _>(z);
 		/// assert_eq!(w, None);
 		/// ```
 		fn compact<'a, A: 'a>(
@@ -165,12 +174,12 @@ mod inner {
 		/// };
 		///
 		/// let x: Option<Result<i32, &str>> = Some(Ok(5));
-		/// let (errs, oks) = separate::<OptionBrand, _, _>(x);
+		/// let (errs, oks) = separate_explicit::<OptionBrand, _, _, _, _>(x);
 		/// assert_eq!(oks, Some(5));
 		/// assert_eq!(errs, None);
 		///
 		/// let y: Option<Result<i32, &str>> = Some(Err("error"));
-		/// let (errs2, oks2) = separate::<OptionBrand, _, _>(y);
+		/// let (errs2, oks2) = separate_explicit::<OptionBrand, _, _, _, _>(y);
 		/// assert_eq!(oks2, None);
 		/// assert_eq!(errs2, Some("error"));
 		/// ```
@@ -207,7 +216,7 @@ mod inner {
 	/// };
 	///
 	/// let x = Some(Some(5));
-	/// let y = compact::<OptionBrand, _>(x);
+	/// let y = compact_explicit::<OptionBrand, _, _, _>(x);
 	/// assert_eq!(y, Some(5));
 	/// ```
 	pub fn compact<'a, Brand: Compactable, A: 'a>(
@@ -245,7 +254,7 @@ mod inner {
 	/// };
 	///
 	/// let x: Option<Result<i32, &str>> = Some(Ok(5));
-	/// let (errs, oks) = separate::<OptionBrand, _, _>(x);
+	/// let (errs, oks) = separate_explicit::<OptionBrand, _, _, _, _>(x);
 	/// assert_eq!(oks, Some(5));
 	/// assert_eq!(errs, None);
 	/// ```

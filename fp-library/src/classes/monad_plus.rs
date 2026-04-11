@@ -71,8 +71,11 @@ mod inner {
 	/// let f = |n: i32| vec![n * 10, n * 100];
 	///
 	/// assert_eq!(
-	/// 	bind_explicit::<VecBrand, _, _, _, _>(alt::<VecBrand, _>(x.clone(), y.clone()), f),
-	/// 	alt::<VecBrand, _>(
+	/// 	bind_explicit::<VecBrand, _, _, _, _>(
+	/// 		alt_explicit::<VecBrand, _, _, _>(x.clone(), y.clone()),
+	/// 		f
+	/// 	),
+	/// 	alt_explicit::<VecBrand, _, _, _>(
 	/// 		bind_explicit::<VecBrand, _, _, _, _>(x, f),
 	/// 		bind_explicit::<VecBrand, _, _, _, _>(y, f)
 	/// 	),
@@ -139,11 +142,13 @@ mod tests {
 		let f = |n: i32| {
 			if n > 0 { vec![n.wrapping_mul(2)] } else { vec![] }
 		};
-		bind_explicit::<VecBrand, _, _, _, _>(alt::<VecBrand, _>(x.clone(), y.clone()), f)
-			== alt::<VecBrand, _>(
-				bind_explicit::<VecBrand, _, _, _, _>(x, f),
-				bind_explicit::<VecBrand, _, _, _, _>(y, f),
-			)
+		bind_explicit::<VecBrand, _, _, _, _>(
+			alt_explicit::<VecBrand, _, _, _>(x.clone(), y.clone()),
+			f,
+		) == alt_explicit::<VecBrand, _, _, _>(
+			bind_explicit::<VecBrand, _, _, _, _>(x, f),
+			bind_explicit::<VecBrand, _, _, _, _>(y, f),
+		)
 	}
 
 	/// Tests the distributivity law for MonadPlus with CatListBrand.
@@ -157,11 +162,13 @@ mod tests {
 		let f = |n: i32| -> CatList<i32> {
 			if n > 0 { CatList::singleton(n.wrapping_mul(2)) } else { CatList::empty() }
 		};
-		bind_explicit::<CatListBrand, _, _, _, _>(alt::<CatListBrand, _>(x.clone(), y.clone()), f)
-			== alt::<CatListBrand, _>(
-				bind_explicit::<CatListBrand, _, _, _, _>(x, f),
-				bind_explicit::<CatListBrand, _, _, _, _>(y, f),
-			)
+		bind_explicit::<CatListBrand, _, _, _, _>(
+			alt_explicit::<CatListBrand, _, _, _>(x.clone(), y.clone()),
+			f,
+		) == alt_explicit::<CatListBrand, _, _, _>(
+			bind_explicit::<CatListBrand, _, _, _, _>(x, f),
+			bind_explicit::<CatListBrand, _, _, _, _>(y, f),
+		)
 	}
 
 	// -- Left zero: bind(empty(), f) == empty() --

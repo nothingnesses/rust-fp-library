@@ -91,11 +91,15 @@ mod inner {
 
 pub use inner::*;
 
+pub mod alt;
+pub mod apply_first;
+pub mod apply_second;
 pub mod bi_fold_left;
 pub mod bi_fold_map;
 pub mod bi_fold_right;
 pub mod bi_traverse;
 pub mod bimap;
+pub mod compact;
 pub mod filter;
 pub mod filter_map_with_index;
 pub mod filter_with_index;
@@ -106,6 +110,7 @@ pub mod fold_right_with_index;
 pub mod foldable;
 pub mod functor;
 pub mod inference;
+pub mod join;
 pub mod lift;
 pub mod map_with_index;
 pub mod partition;
@@ -113,6 +118,7 @@ pub mod partition_map;
 pub mod partition_map_with_index;
 pub mod partition_with_index;
 pub mod semimonad;
+pub mod separate;
 pub mod traversable;
 pub mod traverse_with_index;
 pub mod wilt;
@@ -121,11 +127,15 @@ pub mod wither;
 // Re-export dispatch free functions at the dispatch module level
 // so they're accessible via `crate::classes::dispatch::map` etc.
 pub use {
+	alt::alt,
+	apply_first::apply_first,
+	apply_second::apply_second,
 	bi_fold_left::bi_fold_left,
 	bi_fold_map::bi_fold_map,
 	bi_fold_right::bi_fold_right,
 	bi_traverse::bi_traverse,
 	bimap::bimap,
+	compact::compact,
 	filter::filter,
 	filter_map_with_index::filter_map_with_index,
 	filter_with_index::filter_with_index,
@@ -139,6 +149,7 @@ pub use {
 		fold_right,
 	},
 	functor::map,
+	join::join,
 	lift::{
 		lift2,
 		lift3,
@@ -156,6 +167,7 @@ pub use {
 		compose_kleisli,
 		compose_kleisli_flipped,
 	},
+	separate::separate,
 	traversable::traverse,
 	traverse_with_index::traverse_with_index,
 	wilt::wilt,

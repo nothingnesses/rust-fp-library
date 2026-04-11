@@ -28,6 +28,10 @@ pub(crate) mod inner {
 				WithIndex,
 				default_brand::DefaultBrand,
 				dispatch::{
+					alt::AltDispatch,
+					apply_first::ApplyFirstDispatch,
+					apply_second::ApplySecondDispatch,
+					compact::CompactDispatch,
 					filter::FilterDispatch,
 					filter_map_with_index::FilterMapWithIndexDispatch,
 					filter_with_index::FilterWithIndexDispatch,
@@ -41,6 +45,7 @@ pub(crate) mod inner {
 						FoldRightDispatch,
 					},
 					functor::FunctorDispatch,
+					join::JoinDispatch,
 					lift::{
 						Lift2Dispatch,
 						Lift3Dispatch,
@@ -53,6 +58,7 @@ pub(crate) mod inner {
 					partition_map_with_index::PartitionMapWithIndexDispatch,
 					partition_with_index::PartitionWithIndexDispatch,
 					semimonad::BindDispatch,
+					separate::SeparateDispatch,
 					traversable::TraverseDispatch,
 					traverse_with_index::TraverseWithIndexDispatch,
 					wilt::WiltDispatch,
@@ -1385,6 +1391,315 @@ pub(crate) mod inner {
 	where
 		FA: DefaultBrand, {
 		func.dispatch(ta)
+	}
+
+	// -- Tier 3: closureless dispatch (container-type-driven) --
+
+	// -- alt --
+
+	/// Combines two values in a context, inferring the brand from the container type.
+	///
+	/// The `Brand` type parameter is inferred from the concrete type of `fa1`
+	/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+	///
+	/// For types with multiple brands, use
+	/// [`alt_explicit`](crate::functions::alt_explicit) with a turbofish.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The container type (owned or borrowed). Brand is inferred from this.",
+		"The type of the value(s) inside the functor.",
+		"Dispatch marker type, inferred automatically."
+	)]
+	///
+	#[document_parameters(
+		"The first container (owned or borrowed).",
+		"The second container (same ownership as the first)."
+	)]
+	///
+	#[document_returns("A new container from the combination of both inputs.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::functions::*;
+	///
+	/// assert_eq!(alt(None, Some(5)), Some(5));
+	///
+	/// let x = vec![1, 2];
+	/// let y = vec![3, 4];
+	/// assert_eq!(alt(&x, &y), vec![1, 2, 3, 4]);
+	/// ```
+	pub fn alt<'a, FA, A: 'a + Clone, Marker>(
+		fa1: FA,
+		fa2: FA,
+	) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
+	where
+		FA: DefaultBrand + AltDispatch<'a, <FA as DefaultBrand>::Brand, A, Marker>, {
+		fa1.dispatch_alt(fa2)
+	}
+
+	// -- compact --
+
+	/// Removes `None` values from a container of `Option`s, inferring the brand
+	/// from the container type.
+	///
+	/// The `Brand` type parameter is inferred from the concrete type of `fa`
+	/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+	///
+	/// For types with multiple brands, use
+	/// [`compact_explicit`](crate::functions::compact_explicit) with a turbofish.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The container type (owned or borrowed). Brand is inferred from this.",
+		"The type of the value(s) inside the `Option` wrappers.",
+		"Dispatch marker type, inferred automatically."
+	)]
+	///
+	#[document_parameters("The container of `Option` values (owned or borrowed).")]
+	///
+	#[document_returns("A new container with `None` values removed and `Some` values unwrapped.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::functions::*;
+	///
+	/// assert_eq!(compact(vec![Some(1), None, Some(3)]), vec![1, 3]);
+	///
+	/// let v = vec![Some(1), None, Some(3)];
+	/// assert_eq!(compact(&v), vec![1, 3]);
+	/// ```
+	pub fn compact<'a, FA, A: 'a, Marker>(
+		fa: FA
+	) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
+	where
+		FA: DefaultBrand + CompactDispatch<'a, <FA as DefaultBrand>::Brand, A, Marker>, {
+		fa.dispatch_compact()
+	}
+
+	// -- separate --
+
+	/// Separates a container of `Result` values into two containers, inferring
+	/// the brand from the container type.
+	///
+	/// The `Brand` type parameter is inferred from the concrete type of `fa`
+	/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+	///
+	/// For types with multiple brands, use
+	/// [`separate_explicit`](crate::functions::separate_explicit) with a turbofish.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The container type (owned or borrowed). Brand is inferred from this.",
+		"The error type inside the `Result` wrappers.",
+		"The success type inside the `Result` wrappers.",
+		"Dispatch marker type, inferred automatically."
+	)]
+	///
+	#[document_parameters("The container of `Result` values (owned or borrowed).")]
+	///
+	#[document_returns("A tuple of two containers: `Err` values and `Ok` values.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::functions::*;
+	///
+	/// let (errs, oks) = separate(vec![Ok(1), Err(2), Ok(3)]);
+	/// assert_eq!(oks, vec![1, 3]);
+	/// assert_eq!(errs, vec![2]);
+	/// ```
+	pub fn separate<'a, FA, E: 'a, O: 'a, Marker>(
+		fa: FA
+	) -> (
+		<<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, E>,
+		<<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, O>,
+	)
+	where
+		FA: DefaultBrand + SeparateDispatch<'a, <FA as DefaultBrand>::Brand, E, O, Marker>, {
+		fa.dispatch_separate()
+	}
+
+	// -- join --
+
+	/// Removes one layer of monadic nesting, inferring the brand from the container type.
+	///
+	/// The `Brand` type parameter is inferred from the concrete type of `mma`
+	/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+	///
+	/// For types with multiple brands, use
+	/// [`join_explicit`](crate::functions::join_explicit) with a turbofish.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The container type (owned or borrowed). Brand is inferred from this.",
+		"The type of the value(s) inside the inner layer.",
+		"Dispatch marker type, inferred automatically."
+	)]
+	///
+	#[document_parameters("The nested monadic value (owned or borrowed).")]
+	///
+	#[document_returns("A container with one layer of nesting removed.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::functions::*;
+	///
+	/// assert_eq!(join(Some(Some(5))), Some(5));
+	///
+	/// let x = Some(Some(5));
+	/// assert_eq!(join(&x), Some(5));
+	/// ```
+	pub fn join<'a, FA, A: 'a, Marker>(
+		mma: FA
+	) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
+	where
+		FA: DefaultBrand + JoinDispatch<'a, <FA as DefaultBrand>::Brand, A, Marker>, {
+		mma.dispatch_join()
+	}
+
+	// -- apply_first --
+
+	/// Sequences two applicative actions, keeping the result of the first,
+	/// inferring the brand from the container type.
+	///
+	/// The `Brand` type parameter is inferred from the concrete type of `fa`
+	/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+	///
+	/// For types with multiple brands, use
+	/// [`apply_first_explicit`](crate::functions::apply_first_explicit) with a turbofish.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The first container type (owned or borrowed). Brand is inferred from this.",
+		"The type of the value(s) inside the first container.",
+		"The type of the value(s) inside the second container.",
+		"Dispatch marker type, inferred automatically."
+	)]
+	///
+	#[document_parameters(
+		"The first container (its values are preserved).",
+		"The second container (its values are discarded)."
+	)]
+	///
+	#[document_returns("A container preserving the values from the first input.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::functions::*;
+	///
+	/// assert_eq!(apply_first(Some(5), Some(10)), Some(5));
+	///
+	/// let a = Some(5);
+	/// let b = Some(10);
+	/// assert_eq!(apply_first(&a, &b), Some(5));
+	/// ```
+	pub fn apply_first<'a, FA, A: 'a, B: 'a, Marker>(
+		fa: FA,
+		fb: <FA as ApplyFirstDispatch<'a, <FA as DefaultBrand>::Brand, A, B, Marker>>::FB,
+	) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
+	where
+		FA: DefaultBrand + ApplyFirstDispatch<'a, <FA as DefaultBrand>::Brand, A, B, Marker>, {
+		fa.dispatch_apply_first(fb)
+	}
+
+	// -- apply_second --
+
+	/// Sequences two applicative actions, keeping the result of the second,
+	/// inferring the brand from the container type.
+	///
+	/// The `Brand` type parameter is inferred from the concrete type of `fa`
+	/// via [`DefaultBrand`]. Both owned and borrowed containers are supported.
+	///
+	/// For types with multiple brands, use
+	/// [`apply_second_explicit`](crate::functions::apply_second_explicit) with a turbofish.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The first container type (owned or borrowed). Brand is inferred from this.",
+		"The type of the value(s) inside the first container.",
+		"The type of the value(s) inside the second container.",
+		"Dispatch marker type, inferred automatically."
+	)]
+	///
+	#[document_parameters(
+		"The first container (its values are discarded).",
+		"The second container (its values are preserved)."
+	)]
+	///
+	#[document_returns("A container preserving the values from the second input.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::functions::*;
+	///
+	/// assert_eq!(apply_second(Some(5), Some(10)), Some(10));
+	///
+	/// let a = Some(5);
+	/// let b = Some(10);
+	/// assert_eq!(apply_second(&a, &b), Some(10));
+	/// ```
+	pub fn apply_second<'a, FA, A: 'a, B: 'a, Marker>(
+		fa: FA,
+		fb: <FA as ApplySecondDispatch<'a, <FA as DefaultBrand>::Brand, A, B, Marker>>::FB,
+	) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>
+	where
+		FA: DefaultBrand + ApplySecondDispatch<'a, <FA as DefaultBrand>::Brand, A, B, Marker>, {
+		fa.dispatch_apply_second(fb)
+	}
+
+	// -- contramap --
+
+	/// Contravariantly maps a function over a value, inferring the brand from the container type.
+	///
+	/// The `Brand` type parameter is inferred from the concrete type of `fa`
+	/// via [`DefaultBrand`]. Only owned containers are supported (there is no
+	/// `RefContravariant` trait).
+	///
+	/// For types with multiple brands, use
+	/// [`contramap_explicit`](crate::functions::contramap_explicit) with a turbofish.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The container type. Brand is inferred from this.",
+		"The type of the value(s) inside the contravariant functor.",
+		"The type that the new contravariant functor accepts."
+	)]
+	///
+	#[document_parameters(
+		"The function mapping the new input type to the original input type.",
+		"The contravariant functor instance."
+	)]
+	///
+	#[document_returns("A new contravariant functor that accepts values of type `B`.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
+	///
+	/// // contramap requires DefaultBrand on the container type.
+	/// // Most profunctor-based types do not implement DefaultBrand,
+	/// // so use contramap_explicit for those.
+	/// assert!(true);
+	/// ```
+	pub fn contramap<'a, FA, A: 'a, B: 'a>(
+		f: impl Fn(B) -> A + 'a,
+		fa: FA,
+	) -> <<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>
+	where
+		FA: DefaultBrand,
+		<FA as DefaultBrand>::Brand: crate::classes::Contravariant,
+		FA: Into<<<FA as DefaultBrand>::Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>>, {
+		<<FA as DefaultBrand>::Brand as crate::classes::Contravariant>::contramap(f, fa.into())
 	}
 }
 

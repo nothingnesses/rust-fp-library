@@ -13,7 +13,7 @@
 //!
 //! let x = RcLazy::pure(3);
 //! let y = RcLazy::pure(4);
-//! let result = ref_apply_second::<LazyBrand<RcLazyConfig>, _, _>(&x, &y);
+//! let result = apply_second_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(&x, &y);
 //! assert_eq!(*result.evaluate(), 4);
 //! ```
 
@@ -94,7 +94,7 @@ mod inner {
 	///
 	/// let x = RcLazy::pure(3);
 	/// let y = RcLazy::pure(4);
-	/// let result = ref_apply_second::<LazyBrand<RcLazyConfig>, _, _>(&x, &y);
+	/// let result = apply_second_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(&x, &y);
 	/// assert_eq!(*result.evaluate(), 4);
 	/// ```
 	pub fn ref_apply_second<'a, Brand: RefApplySecond, A: 'a, B: Clone + 'a>(

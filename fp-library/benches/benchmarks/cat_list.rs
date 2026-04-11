@@ -524,14 +524,14 @@ pub fn bench_cat_list(c: &mut Criterion) {
 			group.bench_with_input(BenchmarkId::new("CatList (fp)", size), &size, |b, &_| {
 				b.iter_batched(
 					|| cat_opts.clone(),
-					|list| compact::<CatListBrand, _>(list),
+					|list| compact_explicit::<CatListBrand, _, _, _>(list),
 					BatchSize::SmallInput,
 				)
 			});
 			group.bench_with_input(BenchmarkId::new("Vec (fp)", size), &size, |b, &_| {
 				b.iter_batched(
 					|| vec_opts.clone(),
-					|v| compact::<VecBrand, _>(v),
+					|v| compact_explicit::<VecBrand, _, _, _>(v),
 					BatchSize::SmallInput,
 				)
 			});

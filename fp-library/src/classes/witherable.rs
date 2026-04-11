@@ -74,7 +74,7 @@ mod inner {
 	/// assert_eq!(
 	/// 	wither_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(p, Some(5)),
 	/// 	map_explicit::<OptionBrand, _, _, _, _>(
-	/// 		|r| compact::<OptionBrand, _>(r),
+	/// 		|r| compact_explicit::<OptionBrand, _, _, _>(r),
 	/// 		traverse_explicit::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(p, Some(5)),
 	/// 	),
 	/// );
@@ -84,7 +84,7 @@ mod inner {
 	/// assert_eq!(
 	/// 	wilt_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(p, Some(5)),
 	/// 	map_explicit::<OptionBrand, _, _, _, _>(
-	/// 		|r| separate::<OptionBrand, _, _>(r),
+	/// 		|r| separate_explicit::<OptionBrand, _, _, _, _>(r),
 	/// 		traverse_explicit::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(p, Some(5)),
 	/// 	),
 	/// );
@@ -112,7 +112,7 @@ mod inner {
 	/// assert_eq!(
 	/// 	wither_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(p, vec![1, 2, 3, 4, 5]),
 	/// 	map_explicit::<OptionBrand, _, _, _, _>(
-	/// 		|r| compact::<VecBrand, _>(r),
+	/// 		|r| compact_explicit::<VecBrand, _, _, _>(r),
 	/// 		traverse_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 	/// 			p,
 	/// 			vec![1, 2, 3, 4, 5]

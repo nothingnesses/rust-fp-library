@@ -493,7 +493,7 @@ mod inner {
 		///
 		/// let x = CatList::singleton(1).snoc(2);
 		/// let y = CatList::singleton(3).snoc(4);
-		/// let result: Vec<_> = alt::<CatListBrand, _>(x, y).into_iter().collect();
+		/// let result: Vec<_> = alt_explicit::<CatListBrand, _, _, _>(x, y).into_iter().collect();
 		/// assert_eq!(result, vec![1, 2, 3, 4]);
 		/// ```
 		fn alt<'a, A: 'a>(
@@ -531,7 +531,7 @@ mod inner {
 		///
 		/// let x = CatList::singleton(1).snoc(2);
 		/// let y = CatList::singleton(3).snoc(4);
-		/// let result: Vec<_> = ref_alt::<CatListBrand, _>(&x, &y).into_iter().collect();
+		/// let result: Vec<_> = alt_explicit::<CatListBrand, _, _, _>(&x, &y).into_iter().collect();
 		/// assert_eq!(result, vec![1, 2, 3, 4]);
 		/// ```
 		fn ref_alt<'a, A: 'a + Clone>(
@@ -1297,7 +1297,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(Some(1)).snoc(None).snoc(Some(2));
-		/// let compacted = compact::<CatListBrand, _>(list);
+		/// let compacted = compact_explicit::<CatListBrand, _, _, _>(list);
 		/// let vec: Vec<_> = compacted.into_iter().collect();
 		/// assert_eq!(vec, vec![1, 2]);
 		/// ```
@@ -1335,7 +1335,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(Ok(1)).snoc(Err("error")).snoc(Ok(2));
-		/// let (errs, oks) = separate::<CatListBrand, _, _>(list);
+		/// let (errs, oks) = separate_explicit::<CatListBrand, _, _, _, _>(list);
 		/// let oks_vec: Vec<_> = oks.into_iter().collect();
 		/// let errs_vec: Vec<_> = errs.into_iter().collect();
 		/// assert_eq!(oks_vec, vec![1, 2]);
@@ -1388,7 +1388,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(Some(1)).snoc(None).snoc(Some(2));
-		/// let compacted = ref_compact::<CatListBrand, _>(&list);
+		/// let compacted = compact_explicit::<CatListBrand, _, _, _>(&list);
 		/// let vec: Vec<_> = compacted.into_iter().collect();
 		/// assert_eq!(vec, vec![1, 2]);
 		/// ```
@@ -1427,7 +1427,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(Ok(1)).snoc(Err("error")).snoc(Ok(2));
-		/// let (errs, oks) = ref_separate::<CatListBrand, _, _>(&list);
+		/// let (errs, oks) = separate_explicit::<CatListBrand, _, _, _, _>(&list);
 		/// let oks_vec: Vec<_> = oks.into_iter().collect();
 		/// let errs_vec: Vec<_> = errs.into_iter().collect();
 		/// assert_eq!(oks_vec, vec![1, 2]);
@@ -4602,7 +4602,7 @@ mod tests {
 	fn filterable_filter_map_identity(x: Vec<Option<i32>>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
 		filter_map_explicit::<CatListBrand, _, _, _, _>(identity, x.clone())
-			== compact::<CatListBrand, _>(x)
+			== compact_explicit::<CatListBrand, _, _, _>(x)
 	}
 
 	/// Tests `filterMap Just ≡ identity`.
@@ -4617,7 +4617,7 @@ mod tests {
 	fn filterable_partition_map_identity(x: Vec<Result<i32, i32>>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
 		partition_map_explicit::<CatListBrand, _, _, _, _, _>(identity, x.clone())
-			== separate::<CatListBrand, _, _>(x)
+			== separate_explicit::<CatListBrand, _, _, _, _>(x)
 	}
 
 	// Witherable Laws
@@ -4644,12 +4644,18 @@ mod tests {
 		let cx: CatList<_> = x.into_iter().collect();
 		let cy: CatList<_> = y.into_iter().collect();
 		let cz: CatList<_> = z.into_iter().collect();
-		let lhs: Vec<_> =
-			alt::<CatListBrand, _>(alt::<CatListBrand, _>(cx.clone(), cy.clone()), cz.clone())
-				.into_iter()
-				.collect();
-		let rhs: Vec<_> =
-			alt::<CatListBrand, _>(cx, alt::<CatListBrand, _>(cy, cz)).into_iter().collect();
+		let lhs: Vec<_> = alt_explicit::<CatListBrand, _, _, _>(
+			alt_explicit::<CatListBrand, _, _, _>(cx.clone(), cy.clone()),
+			cz.clone(),
+		)
+		.into_iter()
+		.collect();
+		let rhs: Vec<_> = alt_explicit::<CatListBrand, _, _, _>(
+			cx,
+			alt_explicit::<CatListBrand, _, _, _>(cy, cz),
+		)
+		.into_iter()
+		.collect();
 		lhs == rhs
 	}
 
@@ -4664,11 +4670,11 @@ mod tests {
 		let f = |i: i32| i.wrapping_mul(2).wrapping_add(1);
 		let lhs: Vec<_> = map_explicit::<CatListBrand, _, _, _, _>(
 			f,
-			alt::<CatListBrand, _>(cx.clone(), cy.clone()),
+			alt_explicit::<CatListBrand, _, _, _>(cx.clone(), cy.clone()),
 		)
 		.into_iter()
 		.collect();
-		let rhs: Vec<_> = alt::<CatListBrand, _>(
+		let rhs: Vec<_> = alt_explicit::<CatListBrand, _, _, _>(
 			map_explicit::<CatListBrand, _, _, _, _>(f, cx),
 			map_explicit::<CatListBrand, _, _, _, _>(f, cy),
 		)
@@ -4683,9 +4689,10 @@ mod tests {
 	#[quickcheck]
 	fn plus_left_identity(x: Vec<i32>) -> bool {
 		let cx: CatList<_> = x.into_iter().collect();
-		let lhs: Vec<_> = alt::<CatListBrand, _>(plus_empty::<CatListBrand, i32>(), cx.clone())
-			.into_iter()
-			.collect();
+		let lhs: Vec<_> =
+			alt_explicit::<CatListBrand, _, _, _>(plus_empty::<CatListBrand, i32>(), cx.clone())
+				.into_iter()
+				.collect();
 		let rhs: Vec<_> = cx.into_iter().collect();
 		lhs == rhs
 	}
@@ -4694,9 +4701,10 @@ mod tests {
 	#[quickcheck]
 	fn plus_right_identity(x: Vec<i32>) -> bool {
 		let cx: CatList<_> = x.into_iter().collect();
-		let lhs: Vec<_> = alt::<CatListBrand, _>(cx.clone(), plus_empty::<CatListBrand, i32>())
-			.into_iter()
-			.collect();
+		let lhs: Vec<_> =
+			alt_explicit::<CatListBrand, _, _, _>(cx.clone(), plus_empty::<CatListBrand, i32>())
+				.into_iter()
+				.collect();
 		let rhs: Vec<_> = cx.into_iter().collect();
 		lhs == rhs
 	}
@@ -4720,9 +4728,12 @@ mod tests {
 	fn compactable_functor_identity(x: Vec<i32>) -> bool {
 		let cx: CatList<_> = x.into_iter().collect();
 		let lhs: Vec<_> =
-			compact::<CatListBrand, _>(map_explicit::<CatListBrand, _, _, _, _>(Some, cx.clone()))
-				.into_iter()
-				.collect();
+			compact_explicit::<CatListBrand, _, _, _>(map_explicit::<CatListBrand, _, _, _, _>(
+				Some,
+				cx.clone(),
+			))
+			.into_iter()
+			.collect();
 		let rhs: Vec<_> = cx.into_iter().collect();
 		lhs == rhs
 	}
@@ -5247,12 +5258,18 @@ mod tests {
 		let x: CatList<i32> = xv.into_iter().collect();
 		let y: CatList<i32> = yv.into_iter().collect();
 		let z: CatList<i32> = zv.into_iter().collect();
-		let lhs: Vec<i32> = ref_alt::<CatListBrand, _>(&ref_alt::<CatListBrand, _>(&x, &y), &z)
-			.into_iter()
-			.collect();
-		let rhs: Vec<i32> = ref_alt::<CatListBrand, _>(&x, &ref_alt::<CatListBrand, _>(&y, &z))
-			.into_iter()
-			.collect();
+		let lhs: Vec<i32> = alt_explicit::<CatListBrand, _, _, _>(
+			&alt_explicit::<CatListBrand, _, _, _>(&x, &y),
+			&z,
+		)
+		.into_iter()
+		.collect();
+		let rhs: Vec<i32> = alt_explicit::<CatListBrand, _, _, _>(
+			&x,
+			&alt_explicit::<CatListBrand, _, _, _>(&y, &z),
+		)
+		.into_iter()
+		.collect();
 		lhs == rhs
 	}
 }

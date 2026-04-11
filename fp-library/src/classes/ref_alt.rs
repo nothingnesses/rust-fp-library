@@ -16,7 +16,7 @@
 //!
 //! let x: Option<i32> = None;
 //! let y = Some(5);
-//! let z = ref_alt::<OptionBrand, _>(&x, &y);
+//! let z = alt_explicit::<OptionBrand, _, _, _>(&x, &y);
 //! assert_eq!(z, Some(5));
 //! ```
 
@@ -57,8 +57,8 @@ mod inner {
 	/// let y = Some(1);
 	/// let z = Some(2);
 	/// assert_eq!(
-	/// 	ref_alt::<OptionBrand, _>(&ref_alt::<OptionBrand, _>(&x, &y), &z),
-	/// 	ref_alt::<OptionBrand, _>(&x, &ref_alt::<OptionBrand, _>(&y, &z)),
+	/// 	alt_explicit::<OptionBrand, _, _, _>(&alt_explicit::<OptionBrand, _, _, _>(&x, &y), &z),
+	/// 	alt_explicit::<OptionBrand, _, _, _>(&x, &alt_explicit::<OptionBrand, _, _, _>(&y, &z)),
 	/// );
 	/// ```
 	#[kind(type Of<'a, A: 'a>: 'a;)]
@@ -88,7 +88,7 @@ mod inner {
 		///
 		/// let x: Option<i32> = None;
 		/// let y = Some(5);
-		/// let z = ref_alt::<OptionBrand, _>(&x, &y);
+		/// let z = alt_explicit::<OptionBrand, _, _, _>(&x, &y);
 		/// assert_eq!(z, Some(5));
 		/// ```
 		fn ref_alt<'a, A: 'a + Clone>(
@@ -122,7 +122,7 @@ mod inner {
 	///
 	/// let x: Option<i32> = None;
 	/// let y = Some(5);
-	/// let z = ref_alt::<OptionBrand, _>(&x, &y);
+	/// let z = alt_explicit::<OptionBrand, _, _, _>(&x, &y);
 	/// assert_eq!(z, Some(5));
 	/// ```
 	pub fn ref_alt<'a, Brand: RefAlt, A: 'a + Clone>(

@@ -244,9 +244,9 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(alt::<OptionBrand, _>(None, Some(5)), Some(5));
-		/// assert_eq!(alt::<OptionBrand, _>(Some(3), Some(5)), Some(3));
-		/// assert_eq!(alt::<OptionBrand, _>(None::<i32>, None), None);
+		/// assert_eq!(alt_explicit::<OptionBrand, _, _, _>(None, Some(5)), Some(5));
+		/// assert_eq!(alt_explicit::<OptionBrand, _, _, _>(Some(3), Some(5)), Some(3));
+		/// assert_eq!(alt_explicit::<OptionBrand, _, _, _>(None::<i32>, None), None);
 		/// ```
 		fn alt<'a, A: 'a>(
 			fa1: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -278,9 +278,9 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(ref_alt::<OptionBrand, _>(&None, &Some(5)), Some(5));
-		/// assert_eq!(ref_alt::<OptionBrand, _>(&Some(3), &Some(5)), Some(3));
-		/// assert_eq!(ref_alt::<OptionBrand, _>(&None::<i32>, &None), None);
+		/// assert_eq!(alt_explicit::<OptionBrand, _, _, _>(&None, &Some(5)), Some(5));
+		/// assert_eq!(alt_explicit::<OptionBrand, _, _, _>(&Some(3), &Some(5)), Some(3));
+		/// assert_eq!(alt_explicit::<OptionBrand, _, _, _>(&None::<i32>, &None), None);
 		/// ```
 		fn ref_alt<'a, A: 'a + Clone>(
 			fa1: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -670,7 +670,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(Some(5));
-		/// let y = compact::<OptionBrand, _>(x);
+		/// let y = compact_explicit::<OptionBrand, _, _, _>(x);
 		/// assert_eq!(y, Some(5));
 		/// ```
 		fn compact<'a, A: 'a>(
@@ -706,7 +706,7 @@ mod inner {
 		/// };
 		///
 		/// let x: Option<Result<i32, &str>> = Some(Ok(5));
-		/// let (errs, oks) = separate::<OptionBrand, _, _>(x);
+		/// let (errs, oks) = separate_explicit::<OptionBrand, _, _, _, _>(x);
 		/// assert_eq!(oks, Some(5));
 		/// assert_eq!(errs, None);
 		/// ```
@@ -749,11 +749,11 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(Some(5));
-		/// let y = ref_compact::<OptionBrand, _>(&x);
+		/// let y = compact_explicit::<OptionBrand, _, _, _>(&x);
 		/// assert_eq!(y, Some(5));
 		///
 		/// let z: Option<Option<i32>> = Some(None);
-		/// let w = ref_compact::<OptionBrand, _>(&z);
+		/// let w = compact_explicit::<OptionBrand, _, _, _>(&z);
 		/// assert_eq!(w, None);
 		/// ```
 		fn ref_compact<'a, A: 'a + Clone>(
@@ -793,12 +793,12 @@ mod inner {
 		/// };
 		///
 		/// let x: Option<Result<i32, &str>> = Some(Ok(5));
-		/// let (errs, oks) = ref_separate::<OptionBrand, _, _>(&x);
+		/// let (errs, oks) = separate_explicit::<OptionBrand, _, _, _, _>(&x);
 		/// assert_eq!(oks, Some(5));
 		/// assert_eq!(errs, None);
 		///
 		/// let y: Option<Result<i32, &str>> = Some(Err("bad"));
-		/// let (errs, oks) = ref_separate::<OptionBrand, _, _>(&y);
+		/// let (errs, oks) = separate_explicit::<OptionBrand, _, _, _, _>(&y);
 		/// assert_eq!(oks, None);
 		/// assert_eq!(errs, Some("bad"));
 		/// ```
