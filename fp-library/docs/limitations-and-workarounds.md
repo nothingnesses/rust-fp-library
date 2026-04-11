@@ -12,14 +12,18 @@ The library works around this using the Brand pattern (lightweight higher-kinded
 
 ### Consequences
 
-- **Turbofish required.** The brand parameter is rarely inferable, so most calls require explicit annotation: `map::<OptionBrand, _, _, _>(|x| x + 1, Some(5))` instead of `Some(5).map(|x| x + 1)`.
-- **No method syntax.** Type class operations are free functions, not methods on the container. You write `bind::<OptionBrand, _, _, _>(f, x)` not `x.bind(f)`.
+- **No method syntax.** Type class operations are free functions, not methods on the container. You write `bind(x, f)` not `x.bind(f)`.
 - **Generated trait names in errors.** Compiler errors expose the macro-generated `Kind` trait names (e.g., `Kind_cdc7cd43dac7585f`) rather than human-readable names, making diagnostics harder to interpret.
 - **Wrapping/unwrapping overhead in generic code.** Generic functions must use `Apply!` macro invocations to convert between the `Kind` associated type and the concrete type, adding syntactic noise.
+- **Turbofish for ambiguous types.** Types reachable through multiple brands at a given arity (e.g., `Result` at arity 1) cannot use brand inference and require `_explicit` variants with turbofish: `map_explicit::<ResultErrAppliedBrand<E>, _, _, _, _>(f, x)`.
 
 ### Mitigation
 
-The `m_do!` and `a_do!` macros provide ergonomic do-notation that hides the brand plumbing. The `Pipe` trait allows method-chaining syntax for some operations. The `impl_kind!` and `trait_kind!` macros automate the boilerplate of defining new brands and kind traits.
+**Brand inference:** For types with a single unambiguous brand (Option, Vec, Identity, Thunk, Lazy, etc.), the `InferableBrand` trait enables the compiler to infer the brand from the container type. No turbofish needed: `map(|x| x + 1, Some(5))`. At arity 2 (bifunctor operations), types like `Result` that are ambiguous at arity 1 become unambiguous: `bimap((f, g), Ok(5))`.
+
+**Do-notation:** The `m_do!` and `a_do!` macros provide ergonomic do-notation. In inferred mode (`m_do!({ ... })`), the brand is inferred from container types. In explicit mode (`m_do!(Brand { ... })`), the brand is specified for ambiguous types or to use `pure()`.
+
+The `Pipe` trait allows method-chaining syntax for some operations. The `impl_kind!` and `trait_kind!` macros automate the boilerplate of defining new brands and kind traits.
 
 ## Uncurried Semantics (No Zero-Cost Currying)
 

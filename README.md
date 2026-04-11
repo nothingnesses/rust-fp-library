@@ -13,7 +13,8 @@ A functional programming library for Rust featuring your favourite higher-kinded
 - **Profunctor optics** (Lens, Prism, Iso, Traversal, AffineTraversal, Getter, Setter, Fold, Review, Grate) with zero-cost composition and indexed variants. Port of PureScript's `purescript-profunctor-lenses`.
 - **Lazy evaluation types** with explicit trade-offs: `Thunk` (lightweight), `Trampoline` (stack-safe), `Lazy` (memoized), each with `Send` and fallible (`Try*`) variants.
 - **Free functors** (`Coyoneda`, `RcCoyoneda`, `ArcCoyoneda`, `CoyonedaExplicit`) for deferred mapping with different cloning, threading, and fusion trade-offs.
-- **Macros:** `trait_kind!`/`impl_kind!`/`Apply!` for HKT encoding, `m_do!` for monadic do-notation, `a_do!` for applicative do-notation.
+- **Brand inference:** For types with a single brand (Option, Vec, etc.), the brand is inferred automatically. No turbofish needed: `map(f, Some(5))`. Types with multiple brands use `_explicit` variants.
+- **Macros:** `trait_kind!`/`impl_kind!`/`Apply!` for HKT encoding, `m_do!`/`a_do!` for monadic/applicative do-notation (with inferred and explicit brand modes).
 - **Numeric algebra:** `Semiring`, `Ring`, `EuclideanRing`, `Field`, `HeytingAlgebra`.
 - **Zero-cost abstractions:** Uncurried semantics with `impl Fn` for static dispatch. Dynamic dispatch reserved for functions-as-data.
 - **Thread safety:** Parallel trait hierarchy (`ParFunctor`, `ParFoldable`, etc.) with optional `rayon` support.
@@ -58,14 +59,31 @@ fp-library = { version = "0.15", features = ["rayon", "serde"] }
 
 ### Example: Using `Functor` with `Option`
 
+The brand is inferred automatically from the container type:
+
+```rust
+use fp_library::functions::*;
+
+fn main() {
+	// Brand inferred from Option<i32>
+	let y = map(|i: i32| i * 2, Some(5));
+	assert_eq!(y, Some(10));
+
+	// Brand inferred from &Vec<i32> (by-reference dispatch)
+	let v = vec![1, 2, 3];
+	let y = map(|i: &i32| *i + 10, &v);
+	assert_eq!(y, vec![11, 12, 13]);
+}
+```
+
+For types with multiple brands (e.g., `Result`), use the `_explicit` variant:
+
 ```rust
 use fp_library::{brands::*, functions::*};
 
 fn main() {
-	let x = Some(5);
-	// Map a function over the `Option` using the `Functor` type class
-	let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
-	assert_eq!(y, Some(10));
+	let y = map_explicit::<ResultErrAppliedBrand<&str>, _, _, _, _>(|i| i * 2, Ok::<i32, &str>(5));
+	assert_eq!(y, Ok(10));
 }
 ```
 
@@ -75,19 +93,19 @@ The `m_do!` macro provides Haskell/PureScript-style do-notation for flat monadic
 It desugars `<-` binds into nested `bind` calls.
 
 ```rust
-use fp_library::{brands::*, functions::*};
-use fp_macros::m_do;
+use fp_library::{brands::*, functions::*, m_do};
 
 fn main() {
-	let result = m_do!(OptionBrand {
+	// Inferred mode: brand inferred from container types
+	let result = m_do!({
 		x <- Some(5);
 		y <- Some(x + 1);
 		let z = x * y;
-		pure(z)
+		Some(z)
 	});
 	assert_eq!(result, Some(30));
 
-	// Works with any monad brand
+	// Explicit mode: for ambiguous types or when pure() is needed
 	let result = m_do!(VecBrand {
 		x <- vec![1, 2];
 		y <- vec![10, 20];
@@ -164,12 +182,13 @@ Run `just --list` to see all available recipes.
 
 ### Project Structure
 
-- `fp-library/src/classes`: Contains the definitions of type classes (traits).
-- `fp-library/src/types`: Contains implementations of type classes for various data types.
-- `fp-library/src/kinds`: Contains the machinery for higher-kinded types.
-- `fp-library/src/brands`: Contains type brands used for HKT encoding.
-- `fp-library/src/functions`: Contains general helper functions.
-- `fp-macros`: Procedural macros for generating HKT traits and implementations.
+- `fp-library/src/brands`: Zero-sized brand marker types for HKT encoding.
+- `fp-library/src/kinds`: Kind traits, InferableBrand traits, and type application machinery.
+- `fp-library/src/classes`: Type class trait definitions (Functor, Monad, Foldable, etc.).
+- `fp-library/src/dispatch`: Val/Ref dispatch traits routing to by-value or by-reference trait methods.
+- `fp-library/src/functions`: Inference-based free function wrappers (the primary user API).
+- `fp-library/src/types`: Concrete type implementations of type classes.
+- `fp-macros`: Procedural macros for HKT traits, do-notation, and documentation generation.
 
 ### Release Process
 
