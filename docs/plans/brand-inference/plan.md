@@ -961,7 +961,11 @@ apply_second.rs, join in semimonad.rs) that missed step 0b: - Rename qualified m
    When `trait_kind!` creates a `Kind_{hash}` trait, it also creates the
    corresponding `DefaultBrand_{hash}` trait using the same content hash.
    Add `DefaultBrand!` macro (analogous to `Kind!`) to resolve the trait
-   name from the signature.
+   name from the signature. Factor out shared logic between the `Kind!`
+   and `DefaultBrand!` macro implementations (hash computation,
+   canonical signature parsing) to avoid duplication. Extract
+   `generate_hash()` from `generate_name()` so both `Kind_` and
+   `DefaultBrand_` prefixes derive from the same hash value.
 
 9. **Extend `impl_kind!` to generate `DefaultBrand` impls by default.**
    Add `#[no_default_brand]` opt-out attribute for types with multiple
