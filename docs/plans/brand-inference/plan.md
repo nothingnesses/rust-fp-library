@@ -1064,11 +1064,14 @@ BoxedCoyonedaExplicit, Const).
    arity-2 Kind (`Kind_266801a817966495`), which requires a separate
    `DefaultBrand` trait for the two-parameter Kind. This is step 10.
 
-6. **`#[fp_macros::document_module]` removed from closureless dispatch
-   files.** The proc macro's `Self` resolution does not work correctly
-   with dispatch methods that take `Self` (the container type) rather
-   than a closure. The doc attributes still work; only the module-level
-   attribute was removed.
+6. **`#[fp_macros::document_module]` missing from closureless dispatch
+   files.** Originally reported as a macro limitation, but testing
+   confirmed the macro works fine on these files. The attribute was
+   omitted unnecessarily. Follow-up: add `#[document_module]` back
+   and add the required `#[document_*]` attributes on impl blocks.
+   Also standardize the method names to bare `dispatch` (the
+   closureless files use qualified names like `dispatch_alt` because
+   they were created after step 0b).
 
 7. **Module restructure was step 7 (not step 6c).** The restructure
    was added as a full step rather than a sub-step, reflecting its
