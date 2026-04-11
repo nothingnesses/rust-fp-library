@@ -1037,27 +1037,70 @@ and a_do! macros generate `_explicit` variants.
 
 ## Next Steps
 
-1. **Step 7-8: Proc-macro generation.** Extend `trait_kind!` and
+1. **Step 6c: Module restructure.** Move `dispatch/` from `classes/`
+   to a top-level module, and split inference wrappers from
+   `classes/dispatch/inference.rs` into `functions/` as submodules.
+
+   The target structure:
+
+   ```
+   brands/           - zero-sized marker types
+   kinds/            - Kind trait (type application)
+   classes/          - type class traits (Functor, Foldable, etc.)
+   dispatch/         - Val/Ref routing traits (FunctorDispatch, etc.)
+   functions/        - user-facing API (inference wrappers)
+     functor.rs      - map
+     semimonad.rs    - bind, bind_flipped
+     lift.rs         - lift2-lift5
+     filterable.rs   - filter, filter_map, partition, partition_map
+     foldable.rs     - fold_right, fold_left, fold_map
+     traversable.rs  - traverse
+     ...             - (one file per classes/ module)
+   types/            - concrete implementations
+   ```
+
+   Each `functions/` file mirrors a `classes/` module. The dependency
+   flow is linear: `brands -> kinds -> classes -> dispatch -> functions`.
+
+   This is a mechanical restructure:
+   - Move `fp-library/src/classes/dispatch/` to `fp-library/src/dispatch/`.
+   - Update all `crate::classes::dispatch::` import paths to
+     `crate::dispatch::`.
+   - Split `dispatch/inference.rs` into per-module files under
+     `functions/`.
+   - Update `functions.rs` to re-export from its submodules instead
+     of from `dispatch::inference::*`.
+   - Remove the manual `pub use crate::classes::dispatch::{...}` block
+     from `functions.rs`; the inference submodules handle this.
+   - The `_explicit` re-exports stay in `functions.rs` (one line per
+     function, re-exporting from `crate::dispatch::*`).
+
+   Do this step BEFORE steps 7-9 to avoid building more code against
+   the old paths.
+
+2. **Step 7-8: Proc-macro generation.** Extend `trait_kind!` and
    `impl_kind!` to auto-generate DefaultBrand traits and impls. This
    replaces the hand-written impls in `default_brand_impls.rs` and
    enables downstream crates to get DefaultBrand automatically.
 
-2. **Step 9: Tier 4 (bifunctor arity-2).** Define the arity-2
+3. **Step 9: Tier 4 (bifunctor arity-2).** Define the arity-2
    DefaultBrand trait, implement it for 5 bifunctor types, and add
    inference wrappers for `bimap`, `bi_fold_right`, `bi_fold_left`,
    `bi_fold_map`, `bi_traverse`.
 
-3. **Step 10: m_do!/a_do! inferred mode.** Add `m_do!({ ... })` and
+4. **Step 10: m_do!/a_do! inferred mode.** Add `m_do!({ ... })` and
    `a_do!({ ... })` syntax that generates inference-based calls.
 
-4. **Step 11-12: Documentation and tests.** Update all docs to show
+5. **Step 11-12: Documentation and tests.** Update all docs to show
    inference as the primary API. Add compile-fail tests for multi-brand
    types.
 
 ## Blockers
 
-No blockers. Steps 7-12 are independent of each other except:
+No blockers. Steps 6c-12 are independent of each other except:
 
+- Step 6c (module restructure) should be done first to avoid building
+  more code against the old paths.
 - Step 9 (bifunctor arity-2) depends on step 7 (trait_kind! generates
   the arity-2 DefaultBrand trait), OR the arity-2 trait can be
   hand-written like the arity-1 trait.
