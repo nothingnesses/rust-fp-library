@@ -7,10 +7,10 @@ use {
 			ThunkBrand,
 		},
 		classes::{
-			dispatch::map,
 			foldable::Foldable,
 			monad_rec::tail_rec_m,
 		},
+		dispatch::map,
 		types::{
 			Lazy,
 			RcLazyConfig,

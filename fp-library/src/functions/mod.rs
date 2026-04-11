@@ -20,7 +20,92 @@
 //! assert_eq!(map_explicit::<OptionBrand, _, _, _, _>(h, Some(5)), Some(11));
 //! ```
 
+/// Brand-inference wrappers for [`Alt`](crate::classes::Alt) operations.
+pub mod alt;
+/// Brand-inference wrapper for [`apply_first`](mod@crate::dispatch::apply_first).
+pub mod apply_first;
+/// Brand-inference wrapper for [`apply_second`](mod@crate::dispatch::apply_second).
+pub mod apply_second;
+/// Brand-inference wrappers for [`Compactable`](crate::classes::Compactable) operations.
+pub mod compactable;
+/// Brand-inference wrapper for [`Contravariant::contramap`](crate::classes::Contravariant::contramap).
+pub mod contravariant;
+/// Brand-inference wrappers for [`Filterable`](crate::classes::Filterable) operations.
+pub mod filterable;
+/// Brand-inference wrappers for [`FilterableWithIndex`](crate::classes::FilterableWithIndex) operations.
+pub mod filterable_with_index;
+/// Brand-inference wrappers for [`Foldable`](crate::classes::Foldable) operations.
+pub mod foldable;
+/// Brand-inference wrappers for [`FoldableWithIndex`](crate::classes::FoldableWithIndex) operations.
+pub mod foldable_with_index;
+/// Brand-inference wrapper for [`Functor::map`](crate::classes::Functor::map).
+pub mod functor;
+/// Brand-inference wrapper for [`FunctorWithIndex::map_with_index`](crate::classes::FunctorWithIndex::map_with_index).
+pub mod functor_with_index;
+/// Brand-inference wrappers for [`lift2`](crate::dispatch::lift::lift2) through [`lift5`](crate::dispatch::lift::lift5).
+pub mod lift;
+/// Brand-inference wrappers for [`Semimonad`](crate::classes::Semimonad) operations.
+pub mod semimonad;
+/// Brand-inference wrapper for [`Traversable::traverse`](crate::classes::Traversable::traverse).
+pub mod traversable;
+/// Brand-inference wrapper for [`TraversableWithIndex::traverse_with_index`](crate::classes::TraversableWithIndex::traverse_with_index).
+pub mod traversable_with_index;
+/// Brand-inference wrappers for [`Witherable`](crate::classes::Witherable) operations.
+pub mod witherable;
+
 use fp_macros::*;
+
+pub use self::{
+	alt::alt,
+	apply_first::apply_first,
+	apply_second::apply_second,
+	compactable::{
+		compact,
+		separate,
+	},
+	contravariant::contramap,
+	filterable::{
+		filter,
+		filter_map,
+		partition,
+		partition_map,
+	},
+	filterable_with_index::{
+		filter_map_with_index,
+		filter_with_index,
+		partition_map_with_index,
+		partition_with_index,
+	},
+	foldable::{
+		fold_left,
+		fold_map,
+		fold_right,
+	},
+	foldable_with_index::{
+		fold_left_with_index,
+		fold_map_with_index,
+		fold_right_with_index,
+	},
+	functor::map,
+	functor_with_index::map_with_index,
+	lift::{
+		lift2,
+		lift3,
+		lift4,
+		lift5,
+	},
+	semimonad::{
+		bind,
+		bind_flipped,
+		join,
+	},
+	traversable::traverse,
+	traversable_with_index::traverse_with_index,
+	witherable::{
+		wilt,
+		wither,
+	},
+};
 // Auto-generate re-exports, passing in aliases for conflicting names.
 fp_macros::generate_function_re_exports!("src/classes", {
 	"category::identity": category_identity,
@@ -120,41 +205,6 @@ pub use crate::{
 		fold_map_with_index as fold_map_with_index_explicit,
 		fold_right as fold_right_explicit,
 		fold_right_with_index as fold_right_with_index_explicit,
-		inference::{
-			alt,
-			apply_first,
-			apply_second,
-			bind,
-			bind_flipped,
-			compact,
-			contramap,
-			filter,
-			filter_map,
-			filter_map_with_index,
-			filter_with_index,
-			fold_left,
-			fold_left_with_index,
-			fold_map,
-			fold_map_with_index,
-			fold_right,
-			fold_right_with_index,
-			join,
-			lift2,
-			lift3,
-			lift4,
-			lift5,
-			map,
-			map_with_index,
-			partition,
-			partition_map,
-			partition_map_with_index,
-			partition_with_index,
-			separate,
-			traverse,
-			traverse_with_index,
-			wilt,
-			wither,
-		},
 		lift2 as lift2_explicit,
 		lift3 as lift3_explicit,
 		lift4 as lift4_explicit,

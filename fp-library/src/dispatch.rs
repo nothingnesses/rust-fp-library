@@ -104,7 +104,6 @@ pub mod foldable;
 pub mod foldable_with_index;
 pub mod functor;
 pub mod functor_with_index;
-pub mod inference;
 pub mod lift;
 pub mod semimonad;
 pub mod traversable;

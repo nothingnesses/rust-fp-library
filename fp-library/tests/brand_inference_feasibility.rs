@@ -6,12 +6,10 @@
 
 use fp_library::{
 	brands::*,
-	classes::{
-		Pointed,
-		dispatch::{
-			functor::FunctorDispatch,
-			semimonad::BindDispatch,
-		},
+	classes::Pointed,
+	dispatch::{
+		functor::FunctorDispatch,
+		semimonad::BindDispatch,
 	},
 	kinds::Kind_cdc7cd43dac7585f,
 	types::*,
