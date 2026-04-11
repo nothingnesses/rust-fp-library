@@ -991,29 +991,45 @@ pattern).
 
 ## Current Progress
 
-Step 7 (module restructure) is complete. The codebase now has:
+Steps 1-7 are complete. The codebase has:
 
-- `classes/` - type class traits
-- `dispatch/` - Val/Ref routing (mirrors classes/ one-to-one)
-- `functions/` - inference wrappers (mirrors classes/ one-to-one)
+**Module structure (step 7):**
 
-32 functions now have brand inference:
+```
+brands/       - zero-sized marker types
+kinds/        - Kind trait (type application)
+classes/      - type class traits (Functor, Foldable, etc.)
+dispatch/     - Val/Ref routing traits (mirrors classes/ one-to-one)
+functions/    - inference wrappers (mirrors classes/ one-to-one)
+types/        - concrete implementations
+```
 
-- **Tier 1 (full inference):** 15 dispatch functions (map, bind,
-  bind_flipped, filter_map, filter, partition, partition_map,
-  lift2-lift5, map_with_index, filter_with_index,
-  filter_map_with_index, partition_with_index,
-  partition_map_with_index).
-- **Tier 2 (partial inference):** 10 dispatch functions (fold_right,
-  fold_left, fold_map, traverse, fold_map_with_index,
-  fold_right_with_index, fold_left_with_index, traverse_with_index,
-  wilt, wither).
-- **Tier 3 (closureless):** 7 functions (alt, compact, separate, join,
-  apply_first, apply_second, contramap).
+All three directories (`classes/`, `dispatch/`, `functions/`) have
+matching file names. Dependency flow: `brands -> kinds -> classes ->
+dispatch -> functions`.
 
-All inference wrappers live in `dispatch/inference.rs`. Dispatch
-versions are re-exported as `_explicit` in `functions.rs`. The m_do!
-and a_do! macros generate `_explicit` variants.
+**Brand inference (steps 2-6b):**
+
+32 functions have brand inference via `DefaultBrand`:
+
+- **Tier 1 (full inference, 15 functions):** `map`, `bind`,
+  `bind_flipped`, `filter_map`, `filter`, `partition`,
+  `partition_map`, `lift2`-`lift5`, `map_with_index`,
+  `filter_with_index`, `filter_map_with_index`,
+  `partition_with_index`, `partition_map_with_index`.
+- **Tier 2 (partial inference, 10 functions):** `fold_right`,
+  `fold_left`, `fold_map`, `traverse`, `fold_map_with_index`,
+  `fold_right_with_index`, `fold_left_with_index`,
+  `traverse_with_index`, `wilt`, `wither`.
+- **Tier 3 (closureless, 7 functions):** `alt`, `compact`, `separate`,
+  `join`, `apply_first`, `apply_second`, `contramap`.
+
+Inference wrappers are in `functions/*.rs`. Dispatch versions are
+re-exported as `_explicit` in `functions/mod.rs`. The m_do!/a_do!
+macros generate `_explicit` variants. `DefaultBrand` is implemented
+for 15 types (Option, Vec, Identity, Thunk, SendThunk, CatList,
+(A,), Lazy, TryLazy, Coyoneda, RcCoyoneda, ArcCoyoneda,
+BoxedCoyonedaExplicit, Const).
 
 `just verify` passes with all tests.
 
@@ -1023,10 +1039,9 @@ and a_do! macros generate `_explicit` variants.
    originally said to rename ALL dispatch functions to `_explicit` in
    their source files. Instead, the dispatch source files keep their
    original names (e.g., `dispatch::functor::map`), and the rename is
-   handled at the `functions.rs` re-export level via `map as map_explicit`.
-   Internal code using `crate::classes::dispatch::map` directly is
-   unaffected. This eliminated the need to touch ~500 internal trait
-   impl call sites.
+   handled at the `functions/mod.rs` re-export level via
+   `dispatch::map as map_explicit`. Internal code using
+   `crate::dispatch::map` directly is unaffected.
 
 2. **Closureless dispatch uses `Val`/`Ref` markers (not
    `OwnedMarker`/`BorrowedMarker`).** The POC used custom marker types
@@ -1038,13 +1053,16 @@ and a_do! macros generate `_explicit` variants.
    more complex because multiple container args with different element
    types are involved. Deferred to a follow-up.
 
-4. **`contramap` is val-only.** No `RefContravariant` trait exists, so
-   `contramap` has an inference wrapper but no dispatch trait. It
-   delegates directly to `Contravariant::contramap`.
+4. **`contramap` is val-only.** No `RefContravariant` trait exists
+   because the Ref pattern is about closures receiving element
+   references (`&A`), but `contramap`'s closure produces elements
+   (`Fn(B) -> A`), not consumes them. The directionality is reversed
+   compared to Functor. `contramap` has an inference wrapper but no
+   dispatch trait; it delegates directly to `Contravariant::contramap`.
 
 5. **`bimap` and bi-fold/traverse deferred to Tier 4.** These use the
    arity-2 Kind (`Kind_266801a817966495`), which requires a separate
-   `DefaultBrand` trait for the two-parameter Kind. This is step 9.
+   `DefaultBrand` trait for the two-parameter Kind. This is step 10.
 
 6. **`#[fp_macros::document_module]` removed from closureless dispatch
    files.** The proc macro's `Self` resolution does not work correctly
@@ -1052,75 +1070,22 @@ and a_do! macros generate `_explicit` variants.
    than a closure. The doc attributes still work; only the module-level
    attribute was removed.
 
+7. **Module restructure was step 7 (not step 6c).** The restructure
+   was added as a full step rather than a sub-step, reflecting its
+   scope: moving dispatch to top-level, consolidating 31 dispatch
+   files into 16 mirroring classes/, and splitting inference.rs into
+   16 functions/ submodules.
+
 ## Next Steps
 
-1. **Step 6c: Module restructure.** Move `dispatch/` from `classes/`
-   to a top-level module, consolidate dispatch files to mirror
-   `classes/` exactly, and split inference wrappers into `functions/`
-   as submodules.
+1. **Step 8: Extend `trait_kind!`.** Auto-generate `DefaultBrand_{hash}`
+   traits alongside `Kind_{hash}` traits. Add `DefaultBrand!` macro.
 
-   The target structure:
-
-   ```
-   brands/                       - zero-sized marker types
-   kinds/                        - Kind trait (type application)
-   classes/                      - type class traits
-     functor.rs                  - Functor trait
-     foldable.rs                 - Foldable trait (fold_right, fold_left, fold_map)
-     foldable_with_index.rs      - FoldableWithIndex trait
-     ...
-   dispatch/                     - Val/Ref routing traits
-     functor.rs                  - FunctorDispatch
-     foldable.rs                 - FoldRightDispatch, FoldLeftDispatch, FoldMapDispatch
-     foldable_with_index.rs      - FoldRightWithIndexDispatch, etc.
-     semimonad.rs                - BindDispatch, ComposeKleisliDispatch, JoinDispatch
-     ...                         - (mirrors classes/ one-to-one)
-   functions/                    - user-facing API (inference wrappers)
-     functor.rs                  - map
-     foldable.rs                 - fold_right, fold_left, fold_map
-     foldable_with_index.rs      - fold_right_with_index, etc.
-     semimonad.rs                - bind, bind_flipped, join
-     ...                         - (mirrors classes/ one-to-one)
-   types/                        - concrete implementations
-   ```
-
-   All three directories (`classes/`, `dispatch/`, `functions/`) have
-   the same file names, mirroring one-to-one. If the trait is in
-   `classes/foldable_with_index.rs`, the dispatch is in
-   `dispatch/foldable_with_index.rs`, and the inference wrapper is in
-   `functions/foldable_with_index.rs`.
-
-   The dependency flow is linear:
-   `brands -> kinds -> classes -> dispatch -> functions`.
-
-   This is a mechanical restructure:
-   - Move `fp-library/src/classes/dispatch/` to `fp-library/src/dispatch/`.
-   - Consolidate dispatch files to mirror `classes/`: merge individual
-     WithIndex dispatch files into per-class files (e.g.,
-     `fold_left_with_index.rs`, `fold_map_with_index.rs`,
-     `fold_right_with_index.rs` merge into
-     `foldable_with_index.rs`). Similarly merge `compact.rs` and
-     `separate.rs` into `compactable.rs`, `apply_first.rs` and
-     `apply_second.rs` into their respective files, etc.
-   - Update all `crate::classes::dispatch::` import paths to
-     `crate::dispatch::`.
-   - Split `dispatch/inference.rs` into per-module files under
-     `functions/`, mirroring `classes/`.
-   - Update `functions.rs` to re-export from its submodules instead
-     of from `dispatch::inference::*`.
-   - The `_explicit` re-exports stay in `functions.rs` (one line per
-     function, re-exporting from `crate::dispatch::*`).
-
-   Do this step BEFORE steps 8-13 to avoid building more code against
-   the old paths.
-
-2. **Step 8-9: Proc-macro generation.** Extend `trait_kind!` and
-   `impl_kind!` to auto-generate DefaultBrand traits and impls. This
-   replaces the hand-written impls in `default_brand_impls.rs` and
-   enables downstream crates to get DefaultBrand automatically.
+2. **Step 9: Extend `impl_kind!`.** Auto-generate `DefaultBrand` impls.
+   Add `#[no_default_brand]` opt-out. Migrate hand-written impls.
 
 3. **Step 10: Tier 4 (bifunctor arity-2).** Define the arity-2
-   DefaultBrand trait, implement it for 5 bifunctor types, and add
+   DefaultBrand trait, implement it for 5 bifunctor types, add
    inference wrappers for `bimap`, `bi_fold_right`, `bi_fold_left`,
    `bi_fold_map`, `bi_traverse`.
 
@@ -1133,10 +1098,8 @@ and a_do! macros generate `_explicit` variants.
 
 ## Blockers
 
-No blockers. Steps 7-13 are independent of each other except:
+No blockers. Steps 8-13 are independent of each other except:
 
-- Step 7 (module restructure) should be done first to avoid building
-  more code against the old paths.
 - Step 10 (bifunctor arity-2) depends on step 8 (trait_kind! generates
   the arity-2 DefaultBrand trait), OR the arity-2 trait can be
   hand-written like the arity-1 trait.
