@@ -47,13 +47,13 @@ fn main() {
 }
 ```
 
-For types with multiple brands (e.g., `Result`), use the `_explicit` variant:
+For types with multiple brands (e.g., `Result`), use the `explicit` variant:
 
 ```rust
-use fp_library::{brands::*, functions::*};
+use fp_library::{brands::*, functions::explicit::*};
 
 fn main() {
-	let y = map_explicit::<ResultErrAppliedBrand<&str>, _, _, _, _>(|i| i * 2, Ok::<i32, &str>(5));
+	let y = map::<ResultErrAppliedBrand<&str>, _, _, _, _>(|i| i * 2, Ok::<i32, &str>(5));
 	assert_eq!(y, Ok(10));
 }
 ```

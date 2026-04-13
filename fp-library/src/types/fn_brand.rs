@@ -636,7 +636,7 @@ mod tests {
 		use crate::functions::identity;
 		let fa = std::rc::Rc::new(|x: i32| x.wrapping_mul(2).wrapping_add(3))
 			as std::rc::Rc<dyn Fn(i32) -> i32>;
-		let result = contramap_explicit::<ProfunctorSecondAppliedBrand<RcFnBrand, i32>, _, _>(
+		let result = explicit::contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, i32>, _, _>(
 			identity,
 			fa.clone(),
 		);
@@ -652,8 +652,9 @@ mod tests {
 			as std::rc::Rc<dyn Fn(i32) -> i32>;
 		let f = |x: i32| x.wrapping_add(10);
 		let g = |x: i32| x.wrapping_mul(3);
-		let lhs = contramap_explicit::<Contra, _, _>(compose(f, g), fa.clone());
-		let rhs = contramap_explicit::<Contra, _, _>(g, contramap_explicit::<Contra, _, _>(f, fa));
+		let lhs = explicit::contramap::<Contra, _, _>(compose(f, g), fa.clone());
+		let rhs =
+			explicit::contramap::<Contra, _, _>(g, explicit::contramap::<Contra, _, _>(f, fa));
 		lhs(input) == rhs(input)
 	}
 }

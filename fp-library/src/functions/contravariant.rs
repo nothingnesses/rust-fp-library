@@ -18,7 +18,7 @@ mod inner {
 	/// so the `&A` convention does not apply.
 	///
 	/// For types with multiple brands, use
-	/// [`contramap_explicit`](crate::functions::contramap_explicit) with a turbofish.
+	/// [`explicit::contramap`](crate::functions::explicit::contramap) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -44,7 +44,7 @@ mod inner {
 	///
 	/// // contramap requires InferableBrand on the container type.
 	/// // Most profunctor-based types do not implement InferableBrand,
-	/// // so use contramap_explicit for those.
+	/// // so use explicit::contramap for those.
 	/// assert!(true);
 	/// ```
 	pub fn contramap<'a, FA, A: 'a, B: 'a>(

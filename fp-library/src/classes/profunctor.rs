@@ -464,12 +464,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::contramap,
 		/// };
 		///
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-		/// let g =
-		/// 	contramap_explicit::<ProfunctorSecondAppliedBrand<RcFnBrand, i32>, _, _>(|x: i32| x * 2, f);
+		/// let g = contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, i32>, _, _>(|x: i32| x * 2, f);
 		/// assert_eq!(g(5), 11); // (5 * 2) + 1
 		/// ```
 		fn contramap<'a, A: 'a, C: 'a>(
