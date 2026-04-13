@@ -6,10 +6,10 @@ The HKT encoding above provides a **forward mapping** from brands to concrete ty
 every free function call would require a turbofish annotation:
 
 ```rust
-use fp_library::{brands::*, functions::*};
+use fp_library::{brands::*, functions::explicit::*};
 
 // Without brand inference, the brand must be specified explicitly
-let y = map_explicit::<OptionBrand, _, _, _, _>(|x: i32| x + 1, Some(5));
+let y = map::<OptionBrand, _, _, _, _>(|x: i32| x + 1, Some(5));
 ```
 
 Brand inference adds the **reverse mapping** (concrete type -> brand), letting the
@@ -109,7 +109,7 @@ an actionable diagnostic:
 
 ```text
 error: `Result<i32, String>` does not have a unique brand and cannot use brand inference
-  = note: use the `_explicit` variant with a turbofish to specify the brand manually
+  = note: use the `explicit::` variant with a turbofish to specify the brand manually
 ```
 
 However, at arity 2, `Result` has exactly one brand (`ResultBrand`), so

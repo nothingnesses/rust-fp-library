@@ -1,26 +1,26 @@
 //! Dispatch for [`ApplyFirst::apply_first`](crate::classes::ApplyFirst::apply_first) and
 //! [`RefApplyFirst::ref_apply_first`](crate::classes::RefApplyFirst::ref_apply_first).
 //!
-//! Provides the [`ApplyFirstDispatch`] trait and a unified [`apply_first`] free function
-//! that routes to the appropriate trait method based on whether the containers
-//! are owned or borrowed.
+//! Provides the [`ApplyFirstDispatch`] trait and a unified
+//! [`explicit::apply_first`] free function that routes to the appropriate trait
+//! method based on whether the containers are owned or borrowed.
 //!
 //! ### Examples
 //!
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! // Owned: dispatches to ApplyFirst::apply_first
-//! let y = apply_first_explicit::<OptionBrand, _, _, _, _>(Some(5), Some(10));
+//! let y = apply_first::<OptionBrand, _, _, _, _>(Some(5), Some(10));
 //! assert_eq!(y, Some(5));
 //!
 //! // By-ref: dispatches to RefApplyFirst::ref_apply_first
 //! let a = Some(5);
 //! let b = Some(10);
-//! let y = apply_first_explicit::<OptionBrand, _, _, _, _>(&a, &b);
+//! let y = apply_first::<OptionBrand, _, _, _, _>(&a, &b);
 //! assert_eq!(y, Some(5));
 //! ```
 
@@ -69,10 +69,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = apply_first_explicit::<OptionBrand, _, _, _, _>(Some(5), Some(10));
+		/// let result = apply_first::<OptionBrand, _, _, _, _>(Some(5), Some(10));
 		/// assert_eq!(result, Some(5));
 		/// ```
 		fn dispatch(
@@ -109,10 +109,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = apply_first_explicit::<OptionBrand, _, _, _, _>(Some(5), Some(10));
+		/// let result = apply_first::<OptionBrand, _, _, _, _>(Some(5), Some(10));
 		/// assert_eq!(result, Some(5));
 		/// ```
 		fn dispatch(
@@ -153,12 +153,12 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let a = Some(5);
 		/// let b = Some(10);
-		/// let result = apply_first_explicit::<OptionBrand, _, _, _, _>(&a, &b);
+		/// let result = apply_first::<OptionBrand, _, _, _, _>(&a, &b);
 		/// assert_eq!(result, Some(5));
 		/// ```
 		fn dispatch(
@@ -169,63 +169,71 @@ pub(crate) mod inner {
 		}
 	}
 
-	// -- Unified free function --
+	// -- Explicit dispatch free function --
 
-	/// Sequences two applicative actions, keeping the result of the first.
+	/// Explicit dispatch functions requiring a Brand turbofish.
 	///
-	/// Dispatches to either [`ApplyFirst::apply_first`] or
-	/// [`RefApplyFirst::ref_apply_first`] based on whether the containers
-	/// are owned or borrowed.
-	///
-	/// The `Marker` type parameter is inferred automatically by the
-	/// compiler from the container arguments. Callers write
-	/// `apply_first_explicit::<Brand, _, _>(...)` and never need to specify
-	/// `Marker` explicitly.
-	///
-	/// The dispatch is resolved at compile time with no runtime cost.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the applicative.",
-		"The type of the value(s) inside the first container.",
-		"The type of the value(s) inside the second container.",
-		"The first container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters(
-		"The first container (its values are preserved).",
-		"The second container (its values are discarded)."
-	)]
-	///
-	#[document_returns("A container preserving the values from the first input.")]
-	///
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// // Owned: dispatches to ApplyFirst::apply_first
-	/// let y = apply_first_explicit::<OptionBrand, _, _, _, _>(Some(5), Some(10));
-	/// assert_eq!(y, Some(5));
-	///
-	/// // By-ref: dispatches to RefApplyFirst::ref_apply_first
-	/// let a = Some(5);
-	/// let b = Some(10);
-	/// let y = apply_first_explicit::<OptionBrand, _, _, _, _>(&a, &b);
-	/// assert_eq!(y, Some(5));
-	/// ```
-	pub fn apply_first<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker>(
-		fa: FA,
-		fb: <FA as ApplyFirstDispatch<'a, Brand, A, B, Marker>>::FB,
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
-	where
-		FA: ApplyFirstDispatch<'a, Brand, A, B, Marker>, {
-		fa.dispatch(fb)
+	/// For most use cases, prefer the inference-enabled wrappers from
+	/// [`functions`](crate::functions).
+	pub mod explicit {
+		use super::*;
+
+		/// Sequences two applicative actions, keeping the result of the first.
+		///
+		/// Dispatches to either [`ApplyFirst::apply_first`] or
+		/// [`RefApplyFirst::ref_apply_first`] based on whether the containers
+		/// are owned or borrowed.
+		///
+		/// The `Marker` type parameter is inferred automatically by the
+		/// compiler from the container arguments. Callers write
+		/// `apply_first::<Brand, _, _>(...)` and never need to specify
+		/// `Marker` explicitly.
+		///
+		/// The dispatch is resolved at compile time with no runtime cost.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the applicative.",
+			"The type of the value(s) inside the first container.",
+			"The type of the value(s) inside the second container.",
+			"The first container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters(
+			"The first container (its values are preserved).",
+			"The second container (its values are discarded)."
+		)]
+		///
+		#[document_returns("A container preserving the values from the first input.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// // Owned: dispatches to ApplyFirst::apply_first
+		/// let y = apply_first::<OptionBrand, _, _, _, _>(Some(5), Some(10));
+		/// assert_eq!(y, Some(5));
+		///
+		/// // By-ref: dispatches to RefApplyFirst::ref_apply_first
+		/// let a = Some(5);
+		/// let b = Some(10);
+		/// let y = apply_first::<OptionBrand, _, _, _, _>(&a, &b);
+		/// assert_eq!(y, Some(5));
+		/// ```
+		pub fn apply_first<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker>(
+			fa: FA,
+			fb: <FA as ApplyFirstDispatch<'a, Brand, A, B, Marker>>::FB,
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		where
+			FA: ApplyFirstDispatch<'a, Brand, A, B, Marker>, {
+			fa.dispatch(fb)
+		}
 	}
 }
 

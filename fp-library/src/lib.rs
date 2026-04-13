@@ -35,15 +35,15 @@
 //! assert_eq!(y, vec![11, 12, 13]);
 //! ```
 //!
-//! For types with multiple brands (e.g., `Result`), use the `_explicit` variant:
+//! For types with multiple brands (e.g., `Result`), use the `explicit` variant:
 //!
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
-//! let y = map_explicit::<ResultErrAppliedBrand<&str>, _, _, _, _>(|i| i * 2, Ok::<i32, &str>(5));
+//! let y = map::<ResultErrAppliedBrand<&str>, _, _, _, _>(|i| i * 2, Ok::<i32, &str>(5));
 //! assert_eq!(y, Ok(10));
 //! ```
 //!

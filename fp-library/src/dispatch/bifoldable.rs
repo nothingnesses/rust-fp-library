@@ -4,9 +4,9 @@
 //!
 //! Provides the following dispatch traits and unified free functions:
 //!
-//! - [`BiFoldLeftDispatch`] + [`bi_fold_left`]
-//! - [`BiFoldRightDispatch`] + [`bi_fold_right`]
-//! - [`BiFoldMapDispatch`] + [`bi_fold_map`]
+//! - [`BiFoldLeftDispatch`] + [`explicit::bi_fold_left`]
+//! - [`BiFoldRightDispatch`] + [`explicit::bi_fold_right`]
+//! - [`BiFoldMapDispatch`] + [`explicit::bi_fold_map`]
 //!
 //! Each routes to the appropriate trait method based on the closures' argument
 //! types.
@@ -16,12 +16,12 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! // bi_fold_left
 //! let x: Result<i32, i32> = Ok(5);
-//! let y = bi_fold_left_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+//! let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 //! 	(|acc, e| acc - e, |acc, s| acc + s),
 //! 	10,
 //! 	x,
@@ -30,7 +30,7 @@
 //!
 //! // bi_fold_right
 //! let x: Result<i32, i32> = Err(3);
-//! let y = bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+//! let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 //! 	(|e, acc| acc - e, |s, acc| acc + s),
 //! 	10,
 //! 	x,
@@ -39,7 +39,7 @@
 //!
 //! // bi_fold_map
 //! let x: Result<i32, i32> = Ok(5);
-//! let y = bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+//! let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 //! 	(|e: i32| e.to_string(), |s: i32| s.to_string()),
 //! 	x,
 //! );
@@ -101,10 +101,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = bi_fold_left_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|acc, e| acc - e, |acc, s| acc + s),
 		/// 	10,
 		/// 	x,
@@ -158,10 +158,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = bi_fold_left_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|acc, e| acc - e, |acc, s| acc + s),
 		/// 	10,
 		/// 	x,
@@ -223,10 +223,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = bi_fold_left_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|acc, e: &i32| acc - *e, |acc, s: &i32| acc + *s),
 		/// 	10,
 		/// 	&x,
@@ -240,60 +240,6 @@ pub(crate) mod inner {
 		) -> C {
 			Brand::ref_bi_fold_left::<FnBrand, A, B, C>(self.0, self.1, z, fa)
 		}
-	}
-
-	/// Folds a bifoldable structure from the left.
-	///
-	/// Dispatches to [`Bifoldable::bi_fold_left`] or [`RefBifoldable::ref_bi_fold_left`]
-	/// based on whether the closures take owned or reference arguments.
-	#[document_signature]
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the cloneable function to use.",
-		"The brand of the bifoldable structure.",
-		"The type of the first-position elements.",
-		"The type of the second-position elements.",
-		"The type of the accumulator.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	#[document_parameters(
-		"A tuple of (first step function, second step function).",
-		"The initial accumulator value.",
-		"The structure to fold (owned for Val, borrowed for Ref)."
-	)]
-	#[document_returns("The final accumulator value.")]
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = bi_fold_left_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
-	/// 	(|acc, e| acc - e, |acc, s| acc + s),
-	/// 	10,
-	/// 	x,
-	/// );
-	/// assert_eq!(y, 15);
-	/// ```
-	pub fn bi_fold_left<
-		'a,
-		FnBrand,
-		Brand: Kind_266801a817966495,
-		A: 'a,
-		B: 'a,
-		C: 'a,
-		FA,
-		Marker,
-	>(
-		fg: impl BiFoldLeftDispatch<'a, FnBrand, Brand, A, B, C, FA, Marker>,
-		z: C,
-		fa: FA,
-	) -> C {
-		fg.dispatch(z, fa)
 	}
 
 	// -- BiFoldRightDispatch --
@@ -332,10 +278,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		/// let x: Result<i32, i32> = Err(3);
-		/// let y = bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|e, acc| acc - e, |s, acc| acc + s),
 		/// 	10,
 		/// 	x,
@@ -389,10 +335,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		/// let x: Result<i32, i32> = Err(3);
-		/// let y = bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|e, acc| acc - e, |s, acc| acc + s),
 		/// 	10,
 		/// 	x,
@@ -454,10 +400,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		/// let x: Result<i32, i32> = Err(3);
-		/// let y = bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|e: &i32, acc| acc - *e, |s: &i32, acc| acc + *s),
 		/// 	10,
 		/// 	&x,
@@ -471,60 +417,6 @@ pub(crate) mod inner {
 		) -> C {
 			Brand::ref_bi_fold_right::<FnBrand, A, B, C>(self.0, self.1, z, fa)
 		}
-	}
-
-	/// Folds a bifoldable structure from the right.
-	///
-	/// Dispatches to [`Bifoldable::bi_fold_right`] or [`RefBifoldable::ref_bi_fold_right`]
-	/// based on whether the closures take owned or reference arguments.
-	#[document_signature]
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the cloneable function to use.",
-		"The brand of the bifoldable structure.",
-		"The type of the first-position elements.",
-		"The type of the second-position elements.",
-		"The type of the accumulator.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	#[document_parameters(
-		"A tuple of (first step function, second step function).",
-		"The initial accumulator value.",
-		"The structure to fold (owned for Val, borrowed for Ref)."
-	)]
-	#[document_returns("The final accumulator value.")]
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// let x: Result<i32, i32> = Err(3);
-	/// let y = bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
-	/// 	(|e, acc| acc - e, |s, acc| acc + s),
-	/// 	10,
-	/// 	x,
-	/// );
-	/// assert_eq!(y, 7);
-	/// ```
-	pub fn bi_fold_right<
-		'a,
-		FnBrand,
-		Brand: Kind_266801a817966495,
-		A: 'a,
-		B: 'a,
-		C: 'a,
-		FA,
-		Marker,
-	>(
-		fg: impl BiFoldRightDispatch<'a, FnBrand, Brand, A, B, C, FA, Marker>,
-		z: C,
-		fa: FA,
-	) -> C {
-		fg.dispatch(z, fa)
 	}
 
 	// -- BiFoldMapDispatch --
@@ -563,10 +455,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 	x,
 		/// );
@@ -618,10 +510,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 	x,
 		/// );
@@ -678,10 +570,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|e: &i32| e.to_string(), |s: &i32| s.to_string()),
 		/// 	&x,
 		/// );
@@ -695,55 +587,173 @@ pub(crate) mod inner {
 		}
 	}
 
-	/// Maps elements of both types to a monoid and combines them.
+	// -- Explicit dispatch free functions --
+
+	/// Explicit dispatch functions requiring a Brand turbofish.
 	///
-	/// Dispatches to [`Bifoldable::bi_fold_map`] or [`RefBifoldable::ref_bi_fold_map`]
-	/// based on whether the closures take owned or reference arguments.
-	#[document_signature]
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the cloneable function to use.",
-		"The brand of the bifoldable structure.",
-		"The type of the first-position elements.",
-		"The type of the second-position elements.",
-		"The monoid type.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	#[document_parameters(
-		"A tuple of (first mapping function, second mapping function).",
-		"The structure to fold (owned for Val, borrowed for Ref)."
-	)]
-	#[document_returns("The combined monoid value.")]
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
-	/// 	(|e: i32| e.to_string(), |s: i32| s.to_string()),
-	/// 	x,
-	/// );
-	/// assert_eq!(y, "5".to_string());
-	/// ```
-	pub fn bi_fold_map<
-		'a,
-		FnBrand,
-		Brand: Kind_266801a817966495,
-		A: 'a,
-		B: 'a,
-		M: Monoid + 'a,
-		FA,
-		Marker,
-	>(
-		fg: impl BiFoldMapDispatch<'a, FnBrand, Brand, A, B, M, FA, Marker>,
-		fa: FA,
-	) -> M {
-		fg.dispatch(fa)
+	/// For most use cases, prefer the inference-enabled wrappers from
+	/// [`functions`](crate::functions).
+	pub mod explicit {
+		use super::*;
+
+		/// Folds a bifoldable structure from the left.
+		///
+		/// Dispatches to [`Bifoldable::bi_fold_left`] or [`RefBifoldable::ref_bi_fold_left`]
+		/// based on whether the closures take owned or reference arguments.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The brand of the bifoldable structure.",
+			"The type of the first-position elements.",
+			"The type of the second-position elements.",
+			"The type of the accumulator.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		#[document_parameters(
+			"A tuple of (first step function, second step function).",
+			"The initial accumulator value.",
+			"The structure to fold (owned for Val, borrowed for Ref)."
+		)]
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// let x: Result<i32, i32> = Ok(5);
+		/// let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	(|acc, e| acc - e, |acc, s| acc + s),
+		/// 	10,
+		/// 	x,
+		/// );
+		/// assert_eq!(y, 15);
+		/// ```
+		pub fn bi_fold_left<
+			'a,
+			FnBrand,
+			Brand: Kind_266801a817966495,
+			A: 'a,
+			B: 'a,
+			C: 'a,
+			FA,
+			Marker,
+		>(
+			fg: impl BiFoldLeftDispatch<'a, FnBrand, Brand, A, B, C, FA, Marker>,
+			z: C,
+			fa: FA,
+		) -> C {
+			fg.dispatch(z, fa)
+		}
+
+		/// Folds a bifoldable structure from the right.
+		///
+		/// Dispatches to [`Bifoldable::bi_fold_right`] or [`RefBifoldable::ref_bi_fold_right`]
+		/// based on whether the closures take owned or reference arguments.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The brand of the bifoldable structure.",
+			"The type of the first-position elements.",
+			"The type of the second-position elements.",
+			"The type of the accumulator.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		#[document_parameters(
+			"A tuple of (first step function, second step function).",
+			"The initial accumulator value.",
+			"The structure to fold (owned for Val, borrowed for Ref)."
+		)]
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// let x: Result<i32, i32> = Err(3);
+		/// let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	(|e, acc| acc - e, |s, acc| acc + s),
+		/// 	10,
+		/// 	x,
+		/// );
+		/// assert_eq!(y, 7);
+		/// ```
+		pub fn bi_fold_right<
+			'a,
+			FnBrand,
+			Brand: Kind_266801a817966495,
+			A: 'a,
+			B: 'a,
+			C: 'a,
+			FA,
+			Marker,
+		>(
+			fg: impl BiFoldRightDispatch<'a, FnBrand, Brand, A, B, C, FA, Marker>,
+			z: C,
+			fa: FA,
+		) -> C {
+			fg.dispatch(z, fa)
+		}
+
+		/// Maps elements of both types to a monoid and combines them.
+		///
+		/// Dispatches to [`Bifoldable::bi_fold_map`] or [`RefBifoldable::ref_bi_fold_map`]
+		/// based on whether the closures take owned or reference arguments.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The brand of the bifoldable structure.",
+			"The type of the first-position elements.",
+			"The type of the second-position elements.",
+			"The monoid type.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		#[document_parameters(
+			"A tuple of (first mapping function, second mapping function).",
+			"The structure to fold (owned for Val, borrowed for Ref)."
+		)]
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// let x: Result<i32, i32> = Ok(5);
+		/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	(|e: i32| e.to_string(), |s: i32| s.to_string()),
+		/// 	x,
+		/// );
+		/// assert_eq!(y, "5".to_string());
+		/// ```
+		pub fn bi_fold_map<
+			'a,
+			FnBrand,
+			Brand: Kind_266801a817966495,
+			A: 'a,
+			B: 'a,
+			M: Monoid + 'a,
+			FA,
+			Marker,
+		>(
+			fg: impl BiFoldMapDispatch<'a, FnBrand, Brand, A, B, M, FA, Marker>,
+			fa: FA,
+		) -> M {
+			fg.dispatch(fa)
+		}
 	}
 }
 

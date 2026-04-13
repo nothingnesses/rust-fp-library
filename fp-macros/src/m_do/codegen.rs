@@ -48,7 +48,7 @@ pub fn m_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 					quote! { #expr }
 				};
 				if let Some(brand) = brand {
-					quote! { bind_explicit::<#brand, _, _, _, _>(#container, move |#closure_param| { #result }) }
+					quote! { explicit::bind::<#brand, _, _, _, _>(#container, move |#closure_param| { #result }) }
 				} else {
 					quote! { bind(#container, move |#closure_param| { #result }) }
 				}
@@ -79,7 +79,7 @@ pub fn m_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 					quote! { #expr }
 				};
 				if let Some(brand) = brand {
-					quote! { bind_explicit::<#brand, _, _, _, _>(#container, move |#discard| { #result }) }
+					quote! { explicit::bind::<#brand, _, _, _, _>(#container, move |#discard| { #result }) }
 				} else {
 					quote! { bind(#container, move |#discard| { #result }) }
 				}

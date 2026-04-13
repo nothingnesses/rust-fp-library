@@ -370,7 +370,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 				b.iter_batched(
 					|| cat_list.clone(),
 					|list| {
-						fold_map_explicit::<RcFnBrand, CatListBrand, _, _, _, _>(
+						explicit::fold_map::<RcFnBrand, CatListBrand, _, _, _, _>(
 							|x: i32| x.to_string(),
 							list,
 						)
@@ -382,7 +382,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 				b.iter_batched(
 					|| vec_list.clone(),
 					|v| {
-						fold_map_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
+						explicit::fold_map::<RcFnBrand, VecBrand, _, _, _, _>(
 							|x: i32| x.to_string(),
 							v,
 						)
@@ -412,7 +412,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 				b.iter_batched(
 					|| cat_list.clone(),
 					|list| {
-						fold_left_explicit::<RcFnBrand, CatListBrand, _, _, _, _>(
+						explicit::fold_left::<RcFnBrand, CatListBrand, _, _, _, _>(
 							|acc, x: i32| acc + x as i64,
 							0i64,
 							list,
@@ -425,7 +425,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 				b.iter_batched(
 					|| vec_list.clone(),
 					|v| {
-						fold_left_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
+						explicit::fold_left::<RcFnBrand, VecBrand, _, _, _, _>(
 							|acc, x: i32| acc + x as i64,
 							0i64,
 							v,
@@ -456,7 +456,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 				b.iter_batched(
 					|| cat_list.clone(),
 					|list| {
-						traverse_explicit::<RcFnBrand, CatListBrand, _, _, OptionBrand, _, _>(
+						explicit::traverse::<RcFnBrand, CatListBrand, _, _, OptionBrand, _, _>(
 							|x: i32| Some(x + 1),
 							list,
 						)
@@ -468,7 +468,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 				b.iter_batched(
 					|| vec_list.clone(),
 					|v| {
-						traverse_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+						explicit::traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 							|x: i32| Some(x + 1),
 							v,
 						)
@@ -490,14 +490,14 @@ pub fn bench_cat_list(c: &mut Criterion) {
 			group.bench_with_input(BenchmarkId::new("CatList (fp)", size), &size, |b, &_| {
 				b.iter_batched(
 					|| cat_list.clone(),
-					|list| filter_explicit::<CatListBrand, _, _, _>(|x: i32| x % 2 == 0, list),
+					|list| explicit::filter::<CatListBrand, _, _, _>(|x: i32| x % 2 == 0, list),
 					BatchSize::SmallInput,
 				)
 			});
 			group.bench_with_input(BenchmarkId::new("Vec (fp)", size), &size, |b, &_| {
 				b.iter_batched(
 					|| vec_list.clone(),
-					|v| filter_explicit::<VecBrand, _, _, _>(|x: i32| x % 2 == 0, v),
+					|v| explicit::filter::<VecBrand, _, _, _>(|x: i32| x % 2 == 0, v),
 					BatchSize::SmallInput,
 				)
 			});
@@ -524,14 +524,14 @@ pub fn bench_cat_list(c: &mut Criterion) {
 			group.bench_with_input(BenchmarkId::new("CatList (fp)", size), &size, |b, &_| {
 				b.iter_batched(
 					|| cat_opts.clone(),
-					compact_explicit::<CatListBrand, _, _, _>,
+					explicit::compact::<CatListBrand, _, _, _>,
 					BatchSize::SmallInput,
 				)
 			});
 			group.bench_with_input(BenchmarkId::new("Vec (fp)", size), &size, |b, &_| {
 				b.iter_batched(
 					|| vec_opts.clone(),
-					compact_explicit::<VecBrand, _, _, _>,
+					explicit::compact::<VecBrand, _, _, _>,
 					BatchSize::SmallInput,
 				)
 			});

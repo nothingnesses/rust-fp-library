@@ -8,11 +8,11 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! let v = vec![Some(1), None, Some(3)];
-//! let result = compact_explicit::<VecBrand, _, _, _>(&v);
+//! let result = compact::<VecBrand, _, _, _>(&v);
 //! assert_eq!(result, vec![1, 3]);
 //! ```
 
@@ -39,15 +39,15 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let v = vec![Some(1), None, Some(3)];
-	/// let result = compact_explicit::<VecBrand, _, _, _>(&v);
+	/// let result = compact::<VecBrand, _, _, _>(&v);
 	/// assert_eq!(result, vec![1, 3]);
 	///
 	/// let v2: Vec<Result<i32, &str>> = vec![Ok(1), Err("bad"), Ok(3)];
-	/// let (errs, oks) = separate_explicit::<VecBrand, _, _, _, _>(&v2);
+	/// let (errs, oks) = separate::<VecBrand, _, _, _, _>(&v2);
 	/// assert_eq!(oks, vec![1, 3]);
 	/// assert_eq!(errs, vec!["bad"]);
 	/// ```
@@ -71,15 +71,15 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let v = vec![Some(1), None, Some(3)];
-		/// let result = compact_explicit::<VecBrand, _, _, _>(&v);
+		/// let result = compact::<VecBrand, _, _, _>(&v);
 		/// assert_eq!(result, vec![1, 3]);
 		///
 		/// let v2 = vec![None::<i32>, None, None];
-		/// let result2 = compact_explicit::<VecBrand, _, _, _>(&v2);
+		/// let result2 = compact::<VecBrand, _, _, _>(&v2);
 		/// assert_eq!(result2, Vec::<i32>::new());
 		/// ```
 		fn ref_compact<'a, A: 'a + Clone>(
@@ -105,11 +105,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let v: Vec<Result<i32, &str>> = vec![Ok(1), Err("bad"), Ok(3)];
-		/// let (errs, oks) = separate_explicit::<VecBrand, _, _, _, _>(&v);
+		/// let (errs, oks) = separate::<VecBrand, _, _, _, _>(&v);
 		/// assert_eq!(oks, vec![1, 3]);
 		/// assert_eq!(errs, vec!["bad"]);
 		/// ```
@@ -142,11 +142,11 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let v = vec![Some(1), None, Some(3)];
-	/// let result = compact_explicit::<VecBrand, _, _, _>(&v);
+	/// let result = compact::<VecBrand, _, _, _>(&v);
 	/// assert_eq!(result, vec![1, 3]);
 	/// ```
 	pub fn ref_compact<'a, Brand: RefCompactable, A: 'a + Clone>(
@@ -177,11 +177,11 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let v: Vec<Result<i32, &str>> = vec![Ok(1), Err("bad"), Ok(3)];
-	/// let (errs, oks) = separate_explicit::<VecBrand, _, _, _, _>(&v);
+	/// let (errs, oks) = separate::<VecBrand, _, _, _, _>(&v);
 	/// assert_eq!(oks, vec![1, 3]);
 	/// assert_eq!(errs, vec!["bad"]);
 	/// ```

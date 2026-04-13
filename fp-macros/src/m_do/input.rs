@@ -23,7 +23,7 @@ use {
 /// Represents `[ref] [Brand] { statements... final_expr }`.
 ///
 /// In explicit mode, `brand` is `Some(Brand)` and the macro generates
-/// `bind_explicit::<Brand, ...>` calls. In inferred mode (brand omitted),
+/// `explicit::bind::<Brand, ...>` calls. In inferred mode (brand omitted),
 /// `brand` is `None` and the macro generates inference-based `bind` calls.
 pub struct DoInput {
 	/// Whether the `ref` qualifier is present, selecting by-reference dispatch.

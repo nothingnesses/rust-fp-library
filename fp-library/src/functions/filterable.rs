@@ -22,7 +22,7 @@ mod inner {
 	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
-	/// [`filter_explicit`](crate::functions::filter_explicit()) with a turbofish.
+	/// [`explicit::filter`](crate::functions::explicit::filter) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -66,7 +66,7 @@ mod inner {
 	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
-	/// [`filter_map_explicit`](crate::functions::filter_map_explicit) with a turbofish.
+	/// [`explicit::filter_map`](crate::functions::explicit::filter_map) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -109,7 +109,7 @@ mod inner {
 	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
-	/// [`partition_explicit`](crate::functions::partition_explicit()) with a turbofish.
+	/// [`explicit::partition`](crate::functions::explicit::partition) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -155,7 +155,7 @@ mod inner {
 	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
-	/// [`partition_map_explicit`](crate::functions::partition_map_explicit()) with a turbofish.
+	/// [`explicit::partition_map`](crate::functions::explicit::partition_map) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(

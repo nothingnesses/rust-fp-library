@@ -20,7 +20,7 @@ mod inner {
 	/// Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
-	/// [`traverse_with_index_explicit`](crate::functions::traverse_with_index_explicit()) with a turbofish.
+	/// [`explicit::traverse_with_index`](crate::functions::explicit::traverse_with_index) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(

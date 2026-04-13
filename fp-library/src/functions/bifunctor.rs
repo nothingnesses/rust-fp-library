@@ -19,7 +19,7 @@ mod inner {
 	/// owned and borrowed containers are supported.
 	///
 	/// For types that need an explicit brand, use
-	/// [`bimap_explicit`](crate::functions::bimap_explicit) with a turbofish.
+	/// [`explicit::bimap`](crate::functions::explicit::bimap) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(

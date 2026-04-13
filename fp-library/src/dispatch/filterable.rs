@@ -4,10 +4,10 @@
 //!
 //! Provides the following dispatch traits and unified free functions:
 //!
-//! - [`FilterMapDispatch`] + [`filter_map`]
-//! - [`FilterDispatch`] + [`filter`]
-//! - [`PartitionDispatch`] + [`partition`]
-//! - [`PartitionMapDispatch`] + [`partition_map`]
+//! - [`FilterMapDispatch`] + [`explicit::filter_map`]
+//! - [`FilterDispatch`] + [`explicit::filter`]
+//! - [`PartitionDispatch`] + [`explicit::partition`]
+//! - [`PartitionMapDispatch`] + [`explicit::partition_map`]
 //!
 //! Each routes to the appropriate trait method based on the closure's argument
 //! type.
@@ -17,30 +17,26 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! // filter_map: Owned
-//! let y = filter_map_explicit::<OptionBrand, _, _, _, _>(
-//! 	|x: i32| if x > 3 { Some(x) } else { None },
-//! 	Some(5),
-//! );
+//! let y =
+//! 	filter_map::<OptionBrand, _, _, _, _>(|x: i32| if x > 3 { Some(x) } else { None }, Some(5));
 //! assert_eq!(y, Some(5));
 //!
 //! // filter: Owned
-//! let y = filter_explicit::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
+//! let y = filter::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
 //! assert_eq!(y, Some(5));
 //!
 //! // partition: Owned
-//! let (no, yes) = partition_explicit::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
+//! let (no, yes) = partition::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
 //! assert_eq!(yes, Some(5));
 //! assert_eq!(no, None);
 //!
 //! // partition_map: Owned
-//! let (errs, oks) = partition_map_explicit::<OptionBrand, _, _, _, _, _>(
-//! 	|x: i32| Ok::<i32, i32>(x * 2),
-//! 	Some(5),
-//! );
+//! let (errs, oks) =
+//! 	partition_map::<OptionBrand, _, _, _, _, _>(|x: i32| Ok::<i32, i32>(x * 2), Some(5));
 //! assert_eq!(errs, None);
 //! assert_eq!(oks, Some(10));
 //! ```
@@ -93,10 +89,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = filter_map_explicit::<OptionBrand, _, _, _, _>(
+		/// let result = filter_map::<OptionBrand, _, _, _, _>(
 		/// 	|x: i32| if x > 3 { Some(x * 2) } else { None },
 		/// 	Some(5),
 		/// );
@@ -146,10 +142,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = filter_map_explicit::<OptionBrand, _, _, _, _>(
+		/// let result = filter_map::<OptionBrand, _, _, _, _>(
 		/// 	|x: i32| if x > 3 { Some(x * 2) } else { None },
 		/// 	Some(5),
 		/// );
@@ -204,10 +200,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = filter_map_explicit::<OptionBrand, _, _, _, _>(
+		/// let result = filter_map::<OptionBrand, _, _, _, _>(
 		/// 	|x: &i32| if *x > 3 { Some(*x * 2) } else { None },
 		/// 	&Some(5),
 		/// );
@@ -219,72 +215,6 @@ pub(crate) mod inner {
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			Brand::ref_filter_map(self, fa)
 		}
-	}
-
-	/// Filters and maps the values in a filterable context.
-	///
-	/// Dispatches to either [`Filterable::filter_map`] or
-	/// [`RefFilterable::ref_filter_map`] based on the closure's argument type:
-	///
-	/// - If the closure takes owned values (`Fn(A) -> Option<B>`) and the
-	///   container is owned, dispatches to [`Filterable::filter_map`].
-	/// - If the closure takes references (`Fn(&A) -> Option<B>`) and the
-	///   container is borrowed (`&fa`), dispatches to
-	///   [`RefFilterable::ref_filter_map`].
-	///
-	/// The `Marker` and `FA` type parameters are inferred automatically by the
-	/// compiler from the closure's argument type and the container argument.
-	/// Callers write `filter_map_explicit::<Brand, _, _, _, _>(...)` and never need to
-	/// specify `Marker` or `FA` explicitly.
-	///
-	/// The dispatch is resolved at compile time with no runtime cost.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the filterable.",
-		"The type of the value(s) inside the filterable.",
-		"The type of the result(s) of applying the function.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters(
-		"The function to apply to each value. Returns `Some(b)` to keep the value or `None` to discard it.",
-		"The filterable instance (owned for Val, borrowed for Ref)."
-	)]
-	///
-	#[document_returns(
-		"A new filterable instance containing only the values for which the function returned `Some`."
-	)]
-	///
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// // Owned: dispatches to Filterable::filter_map
-	/// let y = filter_map_explicit::<OptionBrand, _, _, _, _>(
-	/// 	|x: i32| if x > 3 { Some(x) } else { None },
-	/// 	Some(5),
-	/// );
-	/// assert_eq!(y, Some(5));
-	///
-	/// // By-ref: dispatches to RefFilterable::ref_filter_map
-	/// let y = filter_map_explicit::<OptionBrand, _, _, _, _>(
-	/// 	|x: &i32| if *x > 3 { Some(*x) } else { None },
-	/// 	&Some(5),
-	/// );
-	/// assert_eq!(y, Some(5));
-	/// ```
-	pub fn filter_map<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker>(
-		f: impl FilterMapDispatch<'a, Brand, A, B, FA, Marker>,
-		fa: FA,
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		f.dispatch(fa)
 	}
 
 	// -- FilterDispatch --
@@ -317,10 +247,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = filter_explicit::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
+		/// let result = filter::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
 		/// assert_eq!(result, Some(5));
 		/// ```
 		fn dispatch(
@@ -364,10 +294,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = filter_explicit::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
+		/// let result = filter::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
 		/// assert_eq!(result, Some(5));
 		/// ```
 		fn dispatch(
@@ -416,10 +346,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = filter_explicit::<OptionBrand, _, _, _>(|x: &i32| *x > 3, &Some(5));
+		/// let result = filter::<OptionBrand, _, _, _>(|x: &i32| *x > 3, &Some(5));
 		/// assert_eq!(result, Some(5));
 		/// ```
 		fn dispatch(
@@ -428,65 +358,6 @@ pub(crate) mod inner {
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Brand::ref_filter(self, fa)
 		}
-	}
-
-	/// Filters the values in a filterable context using a predicate.
-	///
-	/// Dispatches to either [`Filterable::filter`] or
-	/// [`RefFilterable::ref_filter`] based on the closure's argument type:
-	///
-	/// - If the closure takes owned values (`Fn(A) -> bool`) and the
-	///   container is owned, dispatches to [`Filterable::filter`].
-	/// - If the closure takes references (`Fn(&A) -> bool`) and the
-	///   container is borrowed (`&fa`), dispatches to
-	///   [`RefFilterable::ref_filter`].
-	///
-	/// The `Marker` and `FA` type parameters are inferred automatically by the
-	/// compiler from the closure's argument type and the container argument.
-	/// Callers write `filter_explicit::<Brand, _, _, _>(...)` and never need to
-	/// specify `Marker` or `FA` explicitly.
-	///
-	/// The dispatch is resolved at compile time with no runtime cost.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the filterable.",
-		"The type of the value(s) inside the filterable.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters(
-		"The predicate to apply to each value. Returns `true` to keep the value or `false` to discard it.",
-		"The filterable instance (owned for Val, borrowed for Ref)."
-	)]
-	///
-	#[document_returns(
-		"A new filterable instance containing only the values for which the predicate returned `true`."
-	)]
-	///
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// // Owned: dispatches to Filterable::filter
-	/// let y = filter_explicit::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
-	/// assert_eq!(y, Some(5));
-	///
-	/// // By-ref: dispatches to RefFilterable::ref_filter
-	/// let y = filter_explicit::<OptionBrand, _, _, _>(|x: &i32| *x > 3, &Some(5));
-	/// assert_eq!(y, Some(5));
-	/// ```
-	pub fn filter<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a + Clone, FA, Marker>(
-		f: impl FilterDispatch<'a, Brand, A, FA, Marker>,
-		fa: FA,
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
-		f.dispatch(fa)
 	}
 
 	// -- PartitionDispatch --
@@ -519,10 +390,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let (no, yes) = partition_explicit::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
+		/// let (no, yes) = partition::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
 		/// assert_eq!(yes, Some(5));
 		/// assert_eq!(no, None);
 		/// ```
@@ -570,10 +441,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let (no, yes) = partition_explicit::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
+		/// let (no, yes) = partition::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
 		/// assert_eq!(yes, Some(5));
 		/// assert_eq!(no, None);
 		/// ```
@@ -626,10 +497,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let (no, yes) = partition_explicit::<OptionBrand, _, _, _>(|x: &i32| *x > 3, &Some(5));
+		/// let (no, yes) = partition::<OptionBrand, _, _, _>(|x: &i32| *x > 3, &Some(5));
 		/// assert_eq!(yes, Some(5));
 		/// assert_eq!(no, None);
 		/// ```
@@ -642,70 +513,6 @@ pub(crate) mod inner {
 		) {
 			Brand::ref_partition(self, fa)
 		}
-	}
-
-	/// Partitions the values in a filterable context using a predicate.
-	///
-	/// Dispatches to either [`Filterable::partition`] or
-	/// [`RefFilterable::ref_partition`] based on the closure's argument type:
-	///
-	/// - If the closure takes owned values (`Fn(A) -> bool`) and the
-	///   container is owned, dispatches to [`Filterable::partition`].
-	/// - If the closure takes references (`Fn(&A) -> bool`) and the
-	///   container is borrowed (`&fa`), dispatches to
-	///   [`RefFilterable::ref_partition`].
-	///
-	/// The `Marker` and `FA` type parameters are inferred automatically by the
-	/// compiler from the closure's argument type and the container argument.
-	/// Callers write `partition_explicit::<Brand, _, _, _>(...)` and never need to
-	/// specify `Marker` or `FA` explicitly.
-	///
-	/// The dispatch is resolved at compile time with no runtime cost.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the filterable.",
-		"The type of the value(s) inside the filterable.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters(
-		"The predicate to apply to each value. Returns `true` for the first partition or `false` for the second.",
-		"The filterable instance (owned for Val, borrowed for Ref)."
-	)]
-	///
-	#[document_returns(
-		"A tuple of two filterable instances: the first contains elements satisfying the predicate, the second contains the rest."
-	)]
-	///
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// // Owned: dispatches to Filterable::partition
-	/// let (no, yes) = partition_explicit::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
-	/// assert_eq!(yes, Some(5));
-	/// assert_eq!(no, None);
-	///
-	/// // By-ref: dispatches to RefFilterable::ref_partition
-	/// let (no, yes) = partition_explicit::<OptionBrand, _, _, _>(|x: &i32| *x > 3, &Some(5));
-	/// assert_eq!(yes, Some(5));
-	/// assert_eq!(no, None);
-	/// ```
-	pub fn partition<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a + Clone, FA, Marker>(
-		f: impl PartitionDispatch<'a, Brand, A, FA, Marker>,
-		fa: FA,
-	) -> (
-		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) {
-		f.dispatch(fa)
 	}
 
 	// -- PartitionMapDispatch --
@@ -748,13 +555,11 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let (errs, oks) = partition_map_explicit::<OptionBrand, _, _, _, _, _>(
-		/// 	|x: i32| Ok::<i32, i32>(x * 2),
-		/// 	Some(5),
-		/// );
+		/// let (errs, oks) =
+		/// 	partition_map::<OptionBrand, _, _, _, _, _>(|x: i32| Ok::<i32, i32>(x * 2), Some(5));
 		/// assert_eq!(errs, None);
 		/// assert_eq!(oks, Some(10));
 		/// ```
@@ -808,13 +613,11 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let (errs, oks) = partition_map_explicit::<OptionBrand, _, _, _, _, _>(
-		/// 	|x: i32| Ok::<i32, i32>(x * 2),
-		/// 	Some(5),
-		/// );
+		/// let (errs, oks) =
+		/// 	partition_map::<OptionBrand, _, _, _, _, _>(|x: i32| Ok::<i32, i32>(x * 2), Some(5));
 		/// assert_eq!(errs, None);
 		/// assert_eq!(oks, Some(10));
 		/// ```
@@ -873,13 +676,11 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let (errs, oks) = partition_map_explicit::<OptionBrand, _, _, _, _, _>(
-		/// 	|x: &i32| Ok::<i32, i32>(*x * 2),
-		/// 	&Some(5),
-		/// );
+		/// let (errs, oks) =
+		/// 	partition_map::<OptionBrand, _, _, _, _, _>(|x: &i32| Ok::<i32, i32>(*x * 2), &Some(5));
 		/// assert_eq!(errs, None);
 		/// assert_eq!(oks, Some(10));
 		/// ```
@@ -894,76 +695,269 @@ pub(crate) mod inner {
 		}
 	}
 
-	/// Partitions the values in a filterable context using a function that returns `Result`.
+	// -- Explicit dispatch free functions --
+
+	/// Explicit dispatch functions requiring a Brand turbofish.
 	///
-	/// Dispatches to either [`Filterable::partition_map`] or
-	/// [`RefFilterable::ref_partition_map`] based on the closure's argument type:
-	///
-	/// - If the closure takes owned values (`Fn(A) -> Result<O, E>`) and the
-	///   container is owned, dispatches to [`Filterable::partition_map`].
-	/// - If the closure takes references (`Fn(&A) -> Result<O, E>`) and the
-	///   container is borrowed (`&fa`), dispatches to
-	///   [`RefFilterable::ref_partition_map`].
-	///
-	/// The `Marker` and `FA` type parameters are inferred automatically by the
-	/// compiler from the closure's argument type and the container argument.
-	/// Callers write `partition_map_explicit::<Brand, _, _, _, _, _>(...)` and never need to
-	/// specify `Marker` or `FA` explicitly.
-	///
-	/// The dispatch is resolved at compile time with no runtime cost.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the filterable.",
-		"The type of the value(s) inside the filterable.",
-		"The error type produced by the partitioning function.",
-		"The success type produced by the partitioning function.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters(
-		"The function to apply to each value. Returns `Ok(o)` for the success partition or `Err(e)` for the error partition.",
-		"The filterable instance (owned for Val, borrowed for Ref)."
-	)]
-	///
-	#[document_returns(
-		"A tuple of two filterable instances: the first contains the `Err` values, the second contains the `Ok` values."
-	)]
-	///
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// // Owned: dispatches to Filterable::partition_map
-	/// let (errs, oks) = partition_map_explicit::<OptionBrand, _, _, _, _, _>(
-	/// 	|x: i32| Ok::<i32, i32>(x * 2),
-	/// 	Some(5),
-	/// );
-	/// assert_eq!(errs, None);
-	/// assert_eq!(oks, Some(10));
-	///
-	/// // By-ref: dispatches to RefFilterable::ref_partition_map
-	/// let (errs, oks) = partition_map_explicit::<OptionBrand, _, _, _, _, _>(
-	/// 	|x: &i32| Ok::<i32, i32>(*x * 2),
-	/// 	&Some(5),
-	/// );
-	/// assert_eq!(errs, None);
-	/// assert_eq!(oks, Some(10));
-	/// ```
-	pub fn partition_map<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, E: 'a, O: 'a, FA, Marker>(
-		f: impl PartitionMapDispatch<'a, Brand, A, E, O, FA, Marker>,
-		fa: FA,
-	) -> (
-		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
-	) {
-		f.dispatch(fa)
+	/// For most use cases, prefer the inference-enabled wrappers from
+	/// [`functions`](crate::functions).
+	pub mod explicit {
+		use super::*;
+
+		/// Filters and maps the values in a filterable context.
+		///
+		/// Dispatches to either [`Filterable::filter_map`] or
+		/// [`RefFilterable::ref_filter_map`] based on the closure's argument type:
+		///
+		/// - If the closure takes owned values (`Fn(A) -> Option<B>`) and the
+		///   container is owned, dispatches to [`Filterable::filter_map`].
+		/// - If the closure takes references (`Fn(&A) -> Option<B>`) and the
+		///   container is borrowed (`&fa`), dispatches to
+		///   [`RefFilterable::ref_filter_map`].
+		///
+		/// The `Marker` and `FA` type parameters are inferred automatically by the
+		/// compiler from the closure's argument type and the container argument.
+		/// Callers write `filter_map::<Brand, _, _, _, _>(...)` and never need to
+		/// specify `Marker` or `FA` explicitly.
+		///
+		/// The dispatch is resolved at compile time with no runtime cost.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the filterable.",
+			"The type of the value(s) inside the filterable.",
+			"The type of the result(s) of applying the function.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each value. Returns `Some(b)` to keep the value or `None` to discard it.",
+			"The filterable instance (owned for Val, borrowed for Ref)."
+		)]
+		///
+		#[document_returns(
+			"A new filterable instance containing only the values for which the function returned `Some`."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// // Owned: dispatches to Filterable::filter_map
+		/// let y =
+		/// 	filter_map::<OptionBrand, _, _, _, _>(|x: i32| if x > 3 { Some(x) } else { None }, Some(5));
+		/// assert_eq!(y, Some(5));
+		///
+		/// // By-ref: dispatches to RefFilterable::ref_filter_map
+		/// let y = filter_map::<OptionBrand, _, _, _, _>(
+		/// 	|x: &i32| if *x > 3 { Some(*x) } else { None },
+		/// 	&Some(5),
+		/// );
+		/// assert_eq!(y, Some(5));
+		/// ```
+		pub fn filter_map<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker>(
+			f: impl FilterMapDispatch<'a, Brand, A, B, FA, Marker>,
+			fa: FA,
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			f.dispatch(fa)
+		}
+
+		/// Filters the values in a filterable context using a predicate.
+		///
+		/// Dispatches to either [`Filterable::filter`] or
+		/// [`RefFilterable::ref_filter`] based on the closure's argument type:
+		///
+		/// - If the closure takes owned values (`Fn(A) -> bool`) and the
+		///   container is owned, dispatches to [`Filterable::filter`].
+		/// - If the closure takes references (`Fn(&A) -> bool`) and the
+		///   container is borrowed (`&fa`), dispatches to
+		///   [`RefFilterable::ref_filter`].
+		///
+		/// The `Marker` and `FA` type parameters are inferred automatically by the
+		/// compiler from the closure's argument type and the container argument.
+		/// Callers write `filter::<Brand, _, _, _>(...)` and never need to
+		/// specify `Marker` or `FA` explicitly.
+		///
+		/// The dispatch is resolved at compile time with no runtime cost.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the filterable.",
+			"The type of the value(s) inside the filterable.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters(
+			"The predicate to apply to each value. Returns `true` to keep the value or `false` to discard it.",
+			"The filterable instance (owned for Val, borrowed for Ref)."
+		)]
+		///
+		#[document_returns(
+			"A new filterable instance containing only the values for which the predicate returned `true`."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// // Owned: dispatches to Filterable::filter
+		/// let y = filter::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
+		/// assert_eq!(y, Some(5));
+		///
+		/// // By-ref: dispatches to RefFilterable::ref_filter
+		/// let y = filter::<OptionBrand, _, _, _>(|x: &i32| *x > 3, &Some(5));
+		/// assert_eq!(y, Some(5));
+		/// ```
+		pub fn filter<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a + Clone, FA, Marker>(
+			f: impl FilterDispatch<'a, Brand, A, FA, Marker>,
+			fa: FA,
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			f.dispatch(fa)
+		}
+
+		/// Partitions the values in a filterable context using a predicate.
+		///
+		/// Dispatches to either [`Filterable::partition`] or
+		/// [`RefFilterable::ref_partition`] based on the closure's argument type:
+		///
+		/// - If the closure takes owned values (`Fn(A) -> bool`) and the
+		///   container is owned, dispatches to [`Filterable::partition`].
+		/// - If the closure takes references (`Fn(&A) -> bool`) and the
+		///   container is borrowed (`&fa`), dispatches to
+		///   [`RefFilterable::ref_partition`].
+		///
+		/// The `Marker` and `FA` type parameters are inferred automatically by the
+		/// compiler from the closure's argument type and the container argument.
+		/// Callers write `partition::<Brand, _, _, _>(...)` and never need to
+		/// specify `Marker` or `FA` explicitly.
+		///
+		/// The dispatch is resolved at compile time with no runtime cost.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the filterable.",
+			"The type of the value(s) inside the filterable.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters(
+			"The predicate to apply to each value. Returns `true` for the first partition or `false` for the second.",
+			"The filterable instance (owned for Val, borrowed for Ref)."
+		)]
+		///
+		#[document_returns(
+			"A tuple of two filterable instances: the first contains elements satisfying the predicate, the second contains the rest."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// // Owned: dispatches to Filterable::partition
+		/// let (no, yes) = partition::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
+		/// assert_eq!(yes, Some(5));
+		/// assert_eq!(no, None);
+		///
+		/// // By-ref: dispatches to RefFilterable::ref_partition
+		/// let (no, yes) = partition::<OptionBrand, _, _, _>(|x: &i32| *x > 3, &Some(5));
+		/// assert_eq!(yes, Some(5));
+		/// assert_eq!(no, None);
+		/// ```
+		pub fn partition<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a + Clone, FA, Marker>(
+			f: impl PartitionDispatch<'a, Brand, A, FA, Marker>,
+			fa: FA,
+		) -> (
+			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) {
+			f.dispatch(fa)
+		}
+
+		/// Partitions the values in a filterable context using a function that returns `Result`.
+		///
+		/// Dispatches to either [`Filterable::partition_map`] or
+		/// [`RefFilterable::ref_partition_map`] based on the closure's argument type:
+		///
+		/// - If the closure takes owned values (`Fn(A) -> Result<O, E>`) and the
+		///   container is owned, dispatches to [`Filterable::partition_map`].
+		/// - If the closure takes references (`Fn(&A) -> Result<O, E>`) and the
+		///   container is borrowed (`&fa`), dispatches to
+		///   [`RefFilterable::ref_partition_map`].
+		///
+		/// The `Marker` and `FA` type parameters are inferred automatically by the
+		/// compiler from the closure's argument type and the container argument.
+		/// Callers write `partition_map::<Brand, _, _, _, _, _>(...)` and never need to
+		/// specify `Marker` or `FA` explicitly.
+		///
+		/// The dispatch is resolved at compile time with no runtime cost.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the filterable.",
+			"The type of the value(s) inside the filterable.",
+			"The error type produced by the partitioning function.",
+			"The success type produced by the partitioning function.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each value. Returns `Ok(o)` for the success partition or `Err(e)` for the error partition.",
+			"The filterable instance (owned for Val, borrowed for Ref)."
+		)]
+		///
+		#[document_returns(
+			"A tuple of two filterable instances: the first contains the `Err` values, the second contains the `Ok` values."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// // Owned: dispatches to Filterable::partition_map
+		/// let (errs, oks) =
+		/// 	partition_map::<OptionBrand, _, _, _, _, _>(|x: i32| Ok::<i32, i32>(x * 2), Some(5));
+		/// assert_eq!(errs, None);
+		/// assert_eq!(oks, Some(10));
+		///
+		/// // By-ref: dispatches to RefFilterable::ref_partition_map
+		/// let (errs, oks) =
+		/// 	partition_map::<OptionBrand, _, _, _, _, _>(|x: &i32| Ok::<i32, i32>(*x * 2), &Some(5));
+		/// assert_eq!(errs, None);
+		/// assert_eq!(oks, Some(10));
+		/// ```
+		pub fn partition_map<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, E: 'a, O: 'a, FA, Marker>(
+			f: impl PartitionMapDispatch<'a, Brand, A, E, O, FA, Marker>,
+			fa: FA,
+		) -> (
+			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		) {
+			f.dispatch(fa)
+		}
 	}
 }
 

@@ -68,7 +68,7 @@ pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 		#[expect(non_camel_case_types, reason = "Generated name uses hash suffix for uniqueness")]
 		#[diagnostic::on_unimplemented(
 			message = "`{Self}` does not have a unique brand and cannot use brand inference",
-			note = "use the `_explicit` variant with a turbofish to specify the brand manually"
+			note = "use the `explicit::` variant with a turbofish to specify the brand manually"
 		)]
 		pub trait #ib_name {
 			/// The canonical brand for this type.

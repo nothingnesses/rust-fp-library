@@ -1,27 +1,26 @@
 //! Dispatch for [`Bifunctor::bimap`](crate::classes::Bifunctor::bimap) and
 //! [`RefBifunctor::ref_bimap`](crate::classes::RefBifunctor::ref_bimap).
 //!
-//! Provides the [`BimapDispatch`] trait and a unified [`bimap`] free function
-//! that routes to the appropriate trait method based on the closures' argument
-//! types.
+//! Provides the [`BimapDispatch`] trait and a unified [`explicit::bimap`] free
+//! function that routes to the appropriate trait method based on the closures'
+//! argument types.
 //!
 //! ### Examples
 //!
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! // Owned: dispatches to Bifunctor::bimap
 //! let x = Result::<i32, i32>::Ok(5);
-//! let y = bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x);
+//! let y = bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x);
 //! assert_eq!(y, Ok(10));
 //!
 //! // By-ref: dispatches to RefBifunctor::ref_bimap
 //! let x = Result::<i32, i32>::Ok(5);
-//! let y =
-//! 	bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|e: &i32| *e + 1, |s: &i32| *s * 2), &x);
+//! let y = bimap::<ResultBrand, _, _, _, _, _, _>((|e: &i32| *e + 1, |s: &i32| *s * 2), &x);
 //! assert_eq!(y, Ok(10));
 //! ```
 
@@ -79,12 +78,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
-		/// let result = bimap_explicit::<ResultBrand, _, _, _, _, _, _>(
-		/// 	(|e| e + 1, |s: i32| s * 2),
-		/// 	Ok::<i32, i32>(5),
-		/// );
+		/// let result =
+		/// 	bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s: i32| s * 2), Ok::<i32, i32>(5));
 		/// assert_eq!(result, Ok(10));
 		/// ```
 		fn dispatch(
@@ -133,12 +130,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
-		/// let result = bimap_explicit::<ResultBrand, _, _, _, _, _, _>(
-		/// 	(|e| e + 1, |s: i32| s * 2),
-		/// 	Ok::<i32, i32>(5),
-		/// );
+		/// let result =
+		/// 	bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s: i32| s * 2), Ok::<i32, i32>(5));
 		/// assert_eq!(result, Ok(10));
 		/// ```
 		fn dispatch(
@@ -192,11 +187,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		/// let x = Result::<i32, i32>::Ok(5);
-		/// let result =
-		/// 	bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|e: &i32| *e + 1, |s: &i32| *s * 2), &x);
+		/// let result = bimap::<ResultBrand, _, _, _, _, _, _>((|e: &i32| *e + 1, |s: &i32| *s * 2), &x);
 		/// assert_eq!(result, Ok(10));
 		/// ```
 		fn dispatch(
@@ -207,60 +201,69 @@ pub(crate) mod inner {
 		}
 	}
 
-	/// Maps two functions over the values in a bifunctor context.
+	// -- Explicit dispatch free function --
+
+	/// Explicit dispatch functions requiring a Brand turbofish.
 	///
-	/// Dispatches to either [`Bifunctor::bimap`] or [`RefBifunctor::ref_bimap`]
-	/// based on the closures' argument types.
-	///
-	/// The `Marker` and `FA` type parameters are inferred automatically by the
-	/// compiler from the closures' argument types and the container argument.
-	/// Callers write `bimap::<Brand, _, _, _, _, _, _>(...)` and never need to
-	/// specify `Marker` or `FA` explicitly.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the bifunctor.",
-		"The type of the first value.",
-		"The type of the first result.",
-		"The type of the second value.",
-		"The type of the second result.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters(
-		"A tuple of (first function, second function).",
-		"The bifunctor value (owned for Val, borrowed for Ref)."
-	)]
-	///
-	#[document_returns(
-		"A new bifunctor instance containing the results of applying the functions."
-	)]
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// // Owned
-	/// let x = Result::<i32, i32>::Ok(5);
-	/// let y = bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x);
-	/// assert_eq!(y, Ok(10));
-	///
-	/// // By-ref
-	/// let x = Result::<i32, i32>::Ok(5);
-	/// let y =
-	/// 	bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|e: &i32| *e + 1, |s: &i32| *s * 2), &x);
-	/// assert_eq!(y, Ok(10));
-	/// ```
-	pub fn bimap<'a, Brand: Kind_266801a817966495, A: 'a, B: 'a, C: 'a, D: 'a, FA, Marker>(
-		fg: impl BimapDispatch<'a, Brand, A, B, C, D, FA, Marker>,
-		p: FA,
-	) -> Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>) {
-		fg.dispatch(p)
+	/// For most use cases, prefer the inference-enabled wrappers from
+	/// [`functions`](crate::functions).
+	pub mod explicit {
+		use super::*;
+
+		/// Maps two functions over the values in a bifunctor context.
+		///
+		/// Dispatches to either [`Bifunctor::bimap`] or [`RefBifunctor::ref_bimap`]
+		/// based on the closures' argument types.
+		///
+		/// The `Marker` and `FA` type parameters are inferred automatically by the
+		/// compiler from the closures' argument types and the container argument.
+		/// Callers write `bimap::<Brand, _, _, _, _, _, _>(...)` and never need to
+		/// specify `Marker` or `FA` explicitly.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the bifunctor.",
+			"The type of the first value.",
+			"The type of the first result.",
+			"The type of the second value.",
+			"The type of the second result.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters(
+			"A tuple of (first function, second function).",
+			"The bifunctor value (owned for Val, borrowed for Ref)."
+		)]
+		///
+		#[document_returns(
+			"A new bifunctor instance containing the results of applying the functions."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// // Owned
+		/// let x = Result::<i32, i32>::Ok(5);
+		/// let y = bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x);
+		/// assert_eq!(y, Ok(10));
+		///
+		/// // By-ref
+		/// let x = Result::<i32, i32>::Ok(5);
+		/// let y = bimap::<ResultBrand, _, _, _, _, _, _>((|e: &i32| *e + 1, |s: &i32| *s * 2), &x);
+		/// assert_eq!(y, Ok(10));
+		/// ```
+		pub fn bimap<'a, Brand: Kind_266801a817966495, A: 'a, B: 'a, C: 'a, D: 'a, FA, Marker>(
+			fg: impl BimapDispatch<'a, Brand, A, B, C, D, FA, Marker>,
+			p: FA,
+		) -> Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>) {
+			fg.dispatch(p)
+		}
 	}
 }
 

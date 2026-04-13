@@ -1,24 +1,24 @@
 //! Dispatch for [`Alt::alt`](crate::classes::Alt::alt) and
 //! [`RefAlt::ref_alt`](crate::classes::RefAlt::ref_alt).
 //!
-//! Provides the [`AltDispatch`] trait and a unified [`alt`] free function
-//! that routes to the appropriate trait method based on whether the container
-//! is owned or borrowed.
+//! Provides the [`AltDispatch`] trait and a unified [`explicit::alt`] free
+//! function that routes to the appropriate trait method based on whether the
+//! container is owned or borrowed.
 //!
 //! ### Examples
 //!
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! // Owned: dispatches to Alt::alt
-//! let y = alt_explicit::<OptionBrand, _, _, _>(None, Some(5));
+//! let y = alt::<OptionBrand, _, _, _>(None, Some(5));
 //! assert_eq!(y, Some(5));
 //!
 //! // By-ref: dispatches to RefAlt::ref_alt
-//! let y = alt_explicit::<OptionBrand, _, _, _>(&None, &Some(5));
+//! let y = alt::<OptionBrand, _, _, _>(&None, &Some(5));
 //! assert_eq!(y, Some(5));
 //! ```
 
@@ -63,10 +63,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = alt_explicit::<OptionBrand, _, _, _>(None, Some(5));
+		/// let result = alt::<OptionBrand, _, _, _>(None, Some(5));
 		/// assert_eq!(result, Some(5));
 		/// ```
 		fn dispatch(
@@ -99,10 +99,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = alt_explicit::<OptionBrand, _, _, _>(None, Some(5));
+		/// let result = alt::<OptionBrand, _, _, _>(None, Some(5));
 		/// assert_eq!(result, Some(5));
 		/// ```
 		fn dispatch(
@@ -137,12 +137,12 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x: Option<i32> = None;
 		/// let y = Some(5);
-		/// let result = alt_explicit::<OptionBrand, _, _, _>(&x, &y);
+		/// let result = alt::<OptionBrand, _, _, _>(&x, &y);
 		/// assert_eq!(result, Some(5));
 		/// ```
 		fn dispatch(
@@ -153,57 +153,65 @@ pub(crate) mod inner {
 		}
 	}
 
-	// -- Unified free function --
+	// -- Explicit dispatch free function --
 
-	/// Combines two values in a context, choosing associatively.
+	/// Explicit dispatch functions requiring a Brand turbofish.
 	///
-	/// Dispatches to either [`Alt::alt`] or [`RefAlt::ref_alt`]
-	/// based on whether the containers are owned or borrowed.
-	///
-	/// The `Marker` type parameter is inferred automatically by the
-	/// compiler from the container argument. Callers write
-	/// `alt_explicit::<Brand, _>(...)` and never need to specify `Marker` explicitly.
-	///
-	/// The dispatch is resolved at compile time with no runtime cost.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the functor.",
-		"The type of the value(s) inside the functor.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters("The first container.", "The second container.")]
-	///
-	#[document_returns("A new container from the combination of both inputs.")]
-	///
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// // Owned: dispatches to Alt::alt
-	/// let y = alt_explicit::<OptionBrand, _, _, _>(None, Some(5));
-	/// assert_eq!(y, Some(5));
-	///
-	/// // By-ref: dispatches to RefAlt::ref_alt
-	/// let x: Option<i32> = None;
-	/// let y = Some(5);
-	/// let z = alt_explicit::<OptionBrand, _, _, _>(&x, &y);
-	/// assert_eq!(z, Some(5));
-	/// ```
-	pub fn alt<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a + Clone, FA, Marker>(
-		fa1: FA,
-		fa2: FA,
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
-	where
-		FA: AltDispatch<'a, Brand, A, Marker>, {
-		fa1.dispatch(fa2)
+	/// For most use cases, prefer the inference-enabled wrappers from
+	/// [`functions`](crate::functions).
+	pub mod explicit {
+		use super::*;
+
+		/// Combines two values in a context, choosing associatively.
+		///
+		/// Dispatches to either [`Alt::alt`] or [`RefAlt::ref_alt`]
+		/// based on whether the containers are owned or borrowed.
+		///
+		/// The `Marker` type parameter is inferred automatically by the
+		/// compiler from the container argument. Callers write
+		/// `alt::<Brand, _>(...)` and never need to specify `Marker` explicitly.
+		///
+		/// The dispatch is resolved at compile time with no runtime cost.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the functor.",
+			"The type of the value(s) inside the functor.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters("The first container.", "The second container.")]
+		///
+		#[document_returns("A new container from the combination of both inputs.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// // Owned: dispatches to Alt::alt
+		/// let y = alt::<OptionBrand, _, _, _>(None, Some(5));
+		/// assert_eq!(y, Some(5));
+		///
+		/// // By-ref: dispatches to RefAlt::ref_alt
+		/// let x: Option<i32> = None;
+		/// let y = Some(5);
+		/// let z = alt::<OptionBrand, _, _, _>(&x, &y);
+		/// assert_eq!(z, Some(5));
+		/// ```
+		pub fn alt<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a + Clone, FA, Marker>(
+			fa1: FA,
+			fa2: FA,
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		where
+			FA: AltDispatch<'a, Brand, A, Marker>, {
+			fa1.dispatch(fa2)
+		}
 	}
 }
 

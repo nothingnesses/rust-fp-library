@@ -1,7 +1,7 @@
 //! Dispatch for [`FunctorWithIndex::map_with_index`](crate::classes::FunctorWithIndex::map_with_index) and
 //! [`RefFunctorWithIndex::ref_map_with_index`](crate::classes::RefFunctorWithIndex::ref_map_with_index).
 //!
-//! Provides the [`MapWithIndexDispatch`] trait and a unified [`map_with_index`] free function
+//! Provides the [`MapWithIndexDispatch`] trait and a unified [`explicit::map_with_index`] free function
 //! that routes to the appropriate trait method based on the closure's argument
 //! type.
 //!
@@ -10,17 +10,16 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! // Owned: dispatches to FunctorWithIndex::map_with_index
-//! let y =
-//! 	map_with_index_explicit::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
+//! let y = map_with_index::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
 //! assert_eq!(y, vec![10, 21, 32]);
 //!
 //! // By-ref: dispatches to RefFunctorWithIndex::ref_map_with_index
 //! let v = vec![10, 20, 30];
-//! let y = map_with_index_explicit::<VecBrand, _, _, _, _>(|i, x: &i32| *x + i as i32, &v);
+//! let y = map_with_index::<VecBrand, _, _, _, _>(|i, x: &i32| *x + i as i32, &v);
 //! assert_eq!(y, vec![10, 21, 32]);
 //! ```
 
@@ -78,11 +77,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result =
-		/// 	map_with_index_explicit::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
+		/// let result = map_with_index::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
 		/// assert_eq!(result, vec![10, 21, 32]);
 		/// ```
 		fn dispatch(
@@ -130,11 +128,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result =
-		/// 	map_with_index_explicit::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
+		/// let result = map_with_index::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
 		/// assert_eq!(result, vec![10, 21, 32]);
 		/// ```
 		fn dispatch(
@@ -187,11 +184,11 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let v = vec![10, 20, 30];
-		/// let result = map_with_index_explicit::<VecBrand, _, _, _, _>(|i, x: &i32| *x + i as i32, &v);
+		/// let result = map_with_index::<VecBrand, _, _, _, _>(|i, x: &i32| *x + i as i32, &v);
 		/// assert_eq!(result, vec![10, 21, 32]);
 		/// ```
 		fn dispatch(
@@ -202,74 +199,81 @@ pub(crate) mod inner {
 		}
 	}
 
-	// -- Unified free function --
+	// -- Explicit dispatch free function --
 
-	/// Maps a function with index over the values in a functor context.
+	/// Explicit dispatch functions requiring a Brand turbofish.
 	///
-	/// Dispatches to either [`FunctorWithIndex::map_with_index`] or
-	/// [`RefFunctorWithIndex::ref_map_with_index`] based on the closure's argument type:
-	///
-	/// - If the closure takes owned values (`Fn(Index, A) -> B`) and the container is
-	///   owned, dispatches to [`FunctorWithIndex::map_with_index`].
-	/// - If the closure takes references (`Fn(Index, &A) -> B`) and the container is
-	///   borrowed (`&fa`), dispatches to [`RefFunctorWithIndex::ref_map_with_index`].
-	///
-	/// The `Marker` and `FA` type parameters are inferred automatically by the
-	/// compiler from the closure's argument type and the container argument.
-	/// Callers write `map_with_index_explicit::<Brand, _, _, _, _>(...)` and never need to
-	/// specify `Marker` or `FA` explicitly.
-	///
-	/// The dispatch is resolved at compile time with no runtime cost.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the functor.",
-		"The type of the value(s) inside the functor.",
-		"The type of the result(s) of applying the function.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters(
-		"The function to apply to each value and its index.",
-		"The functor instance (owned for Val, borrowed for Ref)."
-	)]
-	///
-	#[document_returns(
-		"A new functor instance containing the result(s) of applying the function with index."
-	)]
-	///
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// // Owned: dispatches to FunctorWithIndex::map_with_index
-	/// let y =
-	/// 	map_with_index_explicit::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
-	/// assert_eq!(y, vec![10, 21, 32]);
-	///
-	/// // By-ref: dispatches to RefFunctorWithIndex::ref_map_with_index
-	/// let v = vec![10, 20, 30];
-	/// let y = map_with_index_explicit::<VecBrand, _, _, _, _>(|i, x: &i32| *x + i as i32, &v);
-	/// assert_eq!(y, vec![10, 21, 32]);
-	/// ```
-	pub fn map_with_index<
-		'a,
-		Brand: Kind_cdc7cd43dac7585f + WithIndex,
-		A: 'a,
-		B: 'a,
-		FA,
-		Marker,
-	>(
-		f: impl MapWithIndexDispatch<'a, Brand, A, B, FA, Marker>,
-		fa: FA,
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		f.dispatch(fa)
+	/// For most use cases, prefer the inference-enabled wrappers from
+	/// [`functions`](crate::functions).
+	pub mod explicit {
+		use super::*;
+
+		/// Maps a function with index over the values in a functor context.
+		///
+		/// Dispatches to either [`FunctorWithIndex::map_with_index`] or
+		/// [`RefFunctorWithIndex::ref_map_with_index`] based on the closure's argument type:
+		///
+		/// - If the closure takes owned values (`Fn(Index, A) -> B`) and the container is
+		///   owned, dispatches to [`FunctorWithIndex::map_with_index`].
+		/// - If the closure takes references (`Fn(Index, &A) -> B`) and the container is
+		///   borrowed (`&fa`), dispatches to [`RefFunctorWithIndex::ref_map_with_index`].
+		///
+		/// The `Marker` and `FA` type parameters are inferred automatically by the
+		/// compiler from the closure's argument type and the container argument.
+		/// Callers write `map_with_index::<Brand, _, _, _, _>(...)` and never need to
+		/// specify `Marker` or `FA` explicitly.
+		///
+		/// The dispatch is resolved at compile time with no runtime cost.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the functor.",
+			"The type of the value(s) inside the functor.",
+			"The type of the result(s) of applying the function.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each value and its index.",
+			"The functor instance (owned for Val, borrowed for Ref)."
+		)]
+		///
+		#[document_returns(
+			"A new functor instance containing the result(s) of applying the function with index."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// // Owned: dispatches to FunctorWithIndex::map_with_index
+		/// let y = map_with_index::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
+		/// assert_eq!(y, vec![10, 21, 32]);
+		///
+		/// // By-ref: dispatches to RefFunctorWithIndex::ref_map_with_index
+		/// let v = vec![10, 20, 30];
+		/// let y = map_with_index::<VecBrand, _, _, _, _>(|i, x: &i32| *x + i as i32, &v);
+		/// assert_eq!(y, vec![10, 21, 32]);
+		/// ```
+		pub fn map_with_index<
+			'a,
+			Brand: Kind_cdc7cd43dac7585f + WithIndex,
+			A: 'a,
+			B: 'a,
+			FA,
+			Marker,
+		>(
+			f: impl MapWithIndexDispatch<'a, Brand, A, B, FA, Marker>,
+			fa: FA,
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			f.dispatch(fa)
+		}
 	}
 }
 

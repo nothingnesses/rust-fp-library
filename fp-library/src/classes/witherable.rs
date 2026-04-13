@@ -5,11 +5,11 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! let x = Some(5);
-//! let y = wither_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
+//! let y = wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
 //! 	|a| Some(if a > 2 { Some(a * 2) } else { None }),
 //! 	x,
 //! );
@@ -50,42 +50,46 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::{
+	/// 		explicit::{
+	/// 			compact,
+	/// 			map,
+	/// 			separate,
+	/// 			traverse,
+	/// 			wilt,
+	/// 			wither,
+	/// 		},
+	/// 		*,
+	/// 	},
 	/// };
 	///
 	/// // Identity: wither(|a| pure(Some(a)), fa) = pure(fa)
 	/// assert_eq!(
-	/// 	wither_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
-	/// 		|a| Some(Some(a)),
-	/// 		Some(5)
-	/// 	),
+	/// 	wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(|a| Some(Some(a)), Some(5)),
 	/// 	Some(Some(5)),
 	/// );
 	/// assert_eq!(
-	/// 	wither_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
-	/// 		|a| Some(Some(a)),
-	/// 		None::<i32>
-	/// 	),
+	/// 	wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(|a| Some(Some(a)), None::<i32>),
 	/// 	Some(None),
 	/// );
 	///
 	/// // Multipass (filter): wither(p, fa) = map(|r| compact(r), traverse(p, fa))
 	/// let p = |a: i32| Some(if a > 2 { Some(a * 2) } else { None });
 	/// assert_eq!(
-	/// 	wither_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(p, Some(5)),
-	/// 	map_explicit::<OptionBrand, _, _, _, _>(
-	/// 		|r| compact_explicit::<OptionBrand, _, _, _>(r),
-	/// 		traverse_explicit::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(p, Some(5)),
+	/// 	wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(p, Some(5)),
+	/// 	map::<OptionBrand, _, _, _, _>(
+	/// 		|r| compact::<OptionBrand, _, _, _>(r),
+	/// 		traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(p, Some(5)),
 	/// 	),
 	/// );
 	///
 	/// // Multipass (partition): wilt(p, fa) = map(|r| separate(r), traverse(p, fa))
 	/// let p = |a: i32| Some(if a > 2 { Ok(a) } else { Err(a) });
 	/// assert_eq!(
-	/// 	wilt_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(p, Some(5)),
-	/// 	map_explicit::<OptionBrand, _, _, _, _>(
-	/// 		|r| separate_explicit::<OptionBrand, _, _, _, _>(r),
-	/// 		traverse_explicit::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(p, Some(5)),
+	/// 	wilt::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(p, Some(5)),
+	/// 	map::<OptionBrand, _, _, _, _>(
+	/// 		|r| separate::<OptionBrand, _, _, _, _>(r),
+	/// 		traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(p, Some(5)),
 	/// 	),
 	/// );
 	/// ```
@@ -95,28 +99,30 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::{
+	/// 		explicit::{
+	/// 			compact,
+	/// 			map,
+	/// 			traverse,
+	/// 			wither,
+	/// 		},
+	/// 		*,
+	/// 	},
 	/// };
 	///
 	/// // Identity: wither(|a| pure(Some(a)), fa) = pure(fa)
 	/// assert_eq!(
-	/// 	wither_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
-	/// 		|a| Some(Some(a)),
-	/// 		vec![1, 2, 3]
-	/// 	),
+	/// 	wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(|a| Some(Some(a)), vec![1, 2, 3]),
 	/// 	Some(vec![1, 2, 3]),
 	/// );
 	///
 	/// // Multipass (filter): wither(p, fa) = map(|r| compact(r), traverse(p, fa))
 	/// let p = |a: i32| Some(if a > 2 { Some(a * 2) } else { None });
 	/// assert_eq!(
-	/// 	wither_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(p, vec![1, 2, 3, 4, 5]),
-	/// 	map_explicit::<OptionBrand, _, _, _, _>(
-	/// 		|r| compact_explicit::<VecBrand, _, _, _>(r),
-	/// 		traverse_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
-	/// 			p,
-	/// 			vec![1, 2, 3, 4, 5]
-	/// 		),
+	/// 	wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(p, vec![1, 2, 3, 4, 5]),
+	/// 	map::<OptionBrand, _, _, _, _>(
+	/// 		|r| compact::<VecBrand, _, _, _>(r),
+	/// 		traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(p, vec![1, 2, 3, 4, 5]),
 	/// 	),
 	/// );
 	/// ```
@@ -151,12 +157,12 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// 	types::*,
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = wilt_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
+		/// let y = wilt::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
 		/// 	|a| Some(if a > 2 { Ok(a) } else { Err(a) }),
 		/// 	x,
 		/// );
@@ -207,11 +213,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = wither_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
+		/// let y = wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
 		/// 	|a| Some(if a > 2 { Some(a * 2) } else { None }),
 		/// 	x,
 		/// );
@@ -256,12 +262,12 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// 	types::*,
 	/// };
 	///
 	/// let x = Some(5);
-	/// let y = wilt_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
+	/// let y = wilt::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
 	/// 	|a| Some(if a > 2 { Ok(a) } else { Err(a) }),
 	/// 	x,
 	/// );
@@ -309,11 +315,11 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let x = Some(5);
-	/// let y = wither_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
+	/// let y = wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
 	/// 	|a| Some(if a > 2 { Some(a * 2) } else { None }),
 	/// 	x,
 	/// );

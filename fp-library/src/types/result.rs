@@ -72,10 +72,10 @@ mod inner {
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// assert_eq!(bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x), Ok(10));
+		/// assert_eq!(explicit::bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x), Ok(10));
 		///
 		/// let y: Result<i32, i32> = Err(5);
-		/// assert_eq!(bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), y), Err(6));
+		/// assert_eq!(explicit::bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), y), Err(6));
 		/// ```
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
 			f: impl Fn(A) -> B + 'a,
@@ -173,7 +173,7 @@ mod inner {
 		///
 		/// let err: Result<i32, i32> = Err(3);
 		/// assert_eq!(
-		/// 	bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 		(|e: &i32, acc| acc - *e, |s: &i32, acc| acc + *s),
 		/// 		10,
 		/// 		&err,
@@ -183,7 +183,7 @@ mod inner {
 		///
 		/// let ok: Result<i32, i32> = Ok(5);
 		/// assert_eq!(
-		/// 	bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 		(|e: &i32, acc| acc - *e, |s: &i32, acc| acc + *s),
 		/// 		10,
 		/// 		&ok,
@@ -241,7 +241,7 @@ mod inner {
 		///
 		/// let err: Result<i32, i32> = Err(3);
 		/// assert_eq!(
-		/// 	bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 	explicit::bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 		/// 		(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
 		/// 		&err,
 		/// 	),
@@ -250,7 +250,7 @@ mod inner {
 		///
 		/// let ok: Result<i32, i32> = Ok(5);
 		/// assert_eq!(
-		/// 	bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 	explicit::bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 		/// 		(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
 		/// 		&ok,
 		/// 	),
@@ -313,7 +313,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 		(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 		/// 		10,
 		/// 		Err(3),
@@ -321,7 +321,7 @@ mod inner {
 		/// 	7
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 		(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 		/// 		10,
 		/// 		Ok(5),
@@ -371,7 +371,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_left_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 		(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 		/// 		10,
 		/// 		Err(3),
@@ -379,7 +379,7 @@ mod inner {
 		/// 	7
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_left_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 		(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 		/// 		10,
 		/// 		Ok(5),
@@ -428,14 +428,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 		(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 		Err::<i32, i32>(3),
 		/// 	),
 		/// 	"3".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 		(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 		Ok::<i32, i32>(5),
 		/// 	),
@@ -490,14 +490,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 	explicit::bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 		/// 		(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
 		/// 		Err::<i32, i32>(3),
 		/// 	),
 		/// 	Some(Err(4))
 		/// );
 		/// assert_eq!(
-		/// 	bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 	explicit::bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 		/// 		(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
 		/// 		Ok::<i32, i32>(5),
 		/// 	),
@@ -562,11 +562,11 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	map_explicit::<ResultErrAppliedBrand<()>, _, _, _, _>(|x: i32| x * 2, Ok(5)),
+		/// 	explicit::map::<ResultErrAppliedBrand<()>, _, _, _, _>(|x: i32| x * 2, Ok(5)),
 		/// 	Ok(10)
 		/// );
 		/// assert_eq!(
-		/// 	map_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Err(1)),
+		/// 	explicit::map::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Err(1)),
 		/// 	Err(1)
 		/// );
 		/// ```
@@ -610,7 +610,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2_explicit::<ResultErrAppliedBrand<()>, _, _, _, _, _, _>(
+		/// 	explicit::lift2::<ResultErrAppliedBrand<()>, _, _, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		Ok(1),
 		/// 		Ok(2)
@@ -618,7 +618,7 @@ mod inner {
 		/// 	Ok(3)
 		/// );
 		/// assert_eq!(
-		/// 	lift2_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 	explicit::lift2::<ResultErrAppliedBrand<i32>, _, _, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		Ok(1),
 		/// 		Err(2)
@@ -626,7 +626,7 @@ mod inner {
 		/// 	Err(2)
 		/// );
 		/// assert_eq!(
-		/// 	lift2_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 	explicit::lift2::<ResultErrAppliedBrand<i32>, _, _, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		Err(1),
 		/// 		Ok(2)
@@ -634,7 +634,7 @@ mod inner {
 		/// 	Err(1)
 		/// );
 		/// assert_eq!(
-		/// 	lift2_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 	explicit::lift2::<ResultErrAppliedBrand<i32>, _, _, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		Err(1),
 		/// 		Err(2)
@@ -774,15 +774,15 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind_explicit::<ResultErrAppliedBrand<()>, _, _, _, _>(Ok(5), |x| Ok(x * 2)),
+		/// 	explicit::bind::<ResultErrAppliedBrand<()>, _, _, _, _>(Ok(5), |x| Ok(x * 2)),
 		/// 	Ok(10)
 		/// );
 		/// assert_eq!(
-		/// 	bind_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(Ok(5), |_| Err::<i32, _>(1)),
+		/// 	explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(Ok(5), |_| Err::<i32, _>(1)),
 		/// 	Err(1)
 		/// );
 		/// assert_eq!(
-		/// 	bind_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(Err(1), |x: i32| Ok(x * 2)),
+		/// 	explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(Err(1), |x: i32| Ok(x * 2)),
 		/// 	Err(1)
 		/// );
 		/// ```
@@ -821,7 +821,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right_explicit::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_right::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
 		/// 		|x, acc| x + acc,
 		/// 		0,
 		/// 		Ok(5)
@@ -829,7 +829,7 @@ mod inner {
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_right_explicit::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
+		/// 	explicit::fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		Err(1)
@@ -875,7 +875,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left_explicit::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_left::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
 		/// 		|acc, x| acc + x,
 		/// 		0,
 		/// 		Ok(5)
@@ -883,7 +883,7 @@ mod inner {
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_left_explicit::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
+		/// 	explicit::fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
 		/// 		|acc, x: i32| acc + x,
 		/// 		0,
 		/// 		Err(1)
@@ -929,14 +929,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map_explicit::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_map::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		Ok(5)
 		/// 	),
 		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	fold_map_explicit::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
+		/// 	explicit::fold_map::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		Err(1)
 		/// 	),
@@ -984,21 +984,21 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse_explicit::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	explicit::traverse::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		Ok(5)
 		/// 	),
 		/// 	Some(Ok(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse_explicit::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, OptionBrand, _, _>(
+		/// 	explicit::traverse::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, OptionBrand, _, _>(
 		/// 		|x: i32| Some(x * 2),
 		/// 		Err(1)
 		/// 	),
 		/// 	Some(Err(1))
 		/// );
 		/// assert_eq!(
-		/// 	traverse_explicit::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	explicit::traverse::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|_| None::<i32>,
 		/// 		Ok(5)
 		/// 	),
@@ -1101,10 +1101,13 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	map_explicit::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Err(5)),
+		/// 	explicit::map::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Err(5)),
 		/// 	Err(10)
 		/// );
-		/// assert_eq!(map_explicit::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Ok(1)), Ok(1));
+		/// assert_eq!(
+		/// 	explicit::map::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Ok(1)),
+		/// 	Ok(1)
+		/// );
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> B + 'a,
@@ -1149,7 +1152,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2_explicit::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 	explicit::lift2::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		Err(1),
 		/// 		Err(2)
@@ -1157,7 +1160,7 @@ mod inner {
 		/// 	Err(3)
 		/// );
 		/// assert_eq!(
-		/// 	lift2_explicit::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 	explicit::lift2::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		Err(1),
 		/// 		Ok(2)
@@ -1165,7 +1168,7 @@ mod inner {
 		/// 	Ok(2)
 		/// );
 		/// assert_eq!(
-		/// 	lift2_explicit::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 	explicit::lift2::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		Ok(1),
 		/// 		Err(2)
@@ -1173,7 +1176,7 @@ mod inner {
 		/// 	Ok(1)
 		/// );
 		/// assert_eq!(
-		/// 	lift2_explicit::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 	explicit::lift2::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		Ok(1),
 		/// 		Ok(2)
@@ -1313,15 +1316,15 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind_explicit::<ResultOkAppliedBrand<()>, _, _, _, _>(Err(5), |x| Err(x * 2)),
+		/// 	explicit::bind::<ResultOkAppliedBrand<()>, _, _, _, _>(Err(5), |x| Err(x * 2)),
 		/// 	Err(10)
 		/// );
 		/// assert_eq!(
-		/// 	bind_explicit::<ResultOkAppliedBrand<i32>, _, _, _, _>(Err(5), |_| Ok::<_, i32>(1)),
+		/// 	explicit::bind::<ResultOkAppliedBrand<i32>, _, _, _, _>(Err(5), |_| Ok::<_, i32>(1)),
 		/// 	Ok(1)
 		/// );
 		/// assert_eq!(
-		/// 	bind_explicit::<ResultOkAppliedBrand<i32>, _, _, _, _>(Ok(1), |x: i32| Err(x * 2)),
+		/// 	explicit::bind::<ResultOkAppliedBrand<i32>, _, _, _, _>(Ok(1), |x: i32| Err(x * 2)),
 		/// 	Ok(1)
 		/// );
 		/// ```
@@ -1363,7 +1366,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right_explicit::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(
+		/// 	explicit::fold_right::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		Err(1)
@@ -1371,7 +1374,7 @@ mod inner {
 		/// 	1
 		/// );
 		/// assert_eq!(
-		/// 	fold_right_explicit::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_right::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		Ok(())
@@ -1417,7 +1420,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left_explicit::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_left::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
 		/// 		|acc, x: i32| acc + x,
 		/// 		0,
 		/// 		Err(5)
@@ -1425,7 +1428,7 @@ mod inner {
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_left_explicit::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(
+		/// 	explicit::fold_left::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(
 		/// 		|acc, x: i32| acc + x,
 		/// 		0,
 		/// 		Ok(1)
@@ -1471,14 +1474,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map_explicit::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_map::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		Err(5)
 		/// 	),
 		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	fold_map_explicit::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(
+		/// 	explicit::fold_map::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		Ok(1)
 		/// 	),
@@ -1526,21 +1529,21 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse_explicit::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	explicit::traverse::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		Err(5)
 		/// 	),
 		/// 	Some(Err(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse_explicit::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, OptionBrand, _, _>(
+		/// 	explicit::traverse::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, OptionBrand, _, _>(
 		/// 		|x: i32| Some(x * 2),
 		/// 		Ok(1)
 		/// 	),
 		/// 	Some(Ok(1))
 		/// );
 		/// assert_eq!(
-		/// 	traverse_explicit::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	explicit::traverse::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|_| None::<i32>,
 		/// 		Err(5)
 		/// 	),
@@ -1684,11 +1687,14 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		/// assert_eq!(
-		/// 	map_explicit::<ResultErrAppliedBrand<()>, _, _, _, _>(|x: &i32| *x * 2, &Ok(5)),
+		/// 	explicit::map::<ResultErrAppliedBrand<()>, _, _, _, _>(|x: &i32| *x * 2, &Ok(5)),
 		/// 	Ok(10)
 		/// );
 		/// assert_eq!(
-		/// 	map_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: &i32| *x * 2, &Err::<i32, _>(1)),
+		/// 	explicit::map::<ResultErrAppliedBrand<i32>, _, _, _, _>(
+		/// 		|x: &i32| *x * 2,
+		/// 		&Err::<i32, _>(1)
+		/// 	),
 		/// 	Err(1)
 		/// );
 		/// ```
@@ -1722,7 +1728,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map_explicit::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
+		/// let result = explicit::fold_map::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
 		/// 	&Ok(5),
 		/// );
@@ -1830,7 +1836,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = lift2_explicit::<ResultErrAppliedBrand<()>, _, _, _, _, _, _>(
+		/// let result = explicit::lift2::<ResultErrAppliedBrand<()>, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
 		/// 	&Ok(1),
 		/// 	&Ok(2),
@@ -1905,10 +1911,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result: Result<String, ()> = bind_explicit::<ResultErrAppliedBrand<()>, _, _, _, _>(
-		/// 	&Ok(42),
-		/// 	|x: &i32| Ok(x.to_string()),
-		/// );
+		/// let result: Result<String, ()> =
+		/// 	explicit::bind::<ResultErrAppliedBrand<()>, _, _, _, _>(&Ok(42), |x: &i32| {
+		/// 		Ok(x.to_string())
+		/// 	});
 		/// assert_eq!(result, Ok("42".to_string()));
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
@@ -1939,11 +1945,11 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		/// assert_eq!(
-		/// 	map_explicit::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: &i32| *x * 2, &Err(5)),
+		/// 	explicit::map::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: &i32| *x * 2, &Err(5)),
 		/// 	Err(10)
 		/// );
 		/// assert_eq!(
-		/// 	map_explicit::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: &i32| *x * 2, &Ok::<_, i32>(1)),
+		/// 	explicit::map::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: &i32| *x * 2, &Ok::<_, i32>(1)),
 		/// 	Ok(1)
 		/// );
 		/// ```
@@ -1977,7 +1983,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map_explicit::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
+		/// let result = explicit::fold_map::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
 		/// 	&Err(5),
 		/// );
@@ -2085,7 +2091,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = lift2_explicit::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// let result = explicit::lift2::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
 		/// 	&Err(1),
 		/// 	&Err(2),
@@ -2161,7 +2167,7 @@ mod inner {
 		/// };
 		///
 		/// let result: Result<(), String> =
-		/// 	bind_explicit::<ResultOkAppliedBrand<()>, _, _, _, _>(&Err(42), |x: &i32| {
+		/// 	explicit::bind::<ResultOkAppliedBrand<()>, _, _, _, _>(&Err(42), |x: &i32| {
 		/// 		Err(x.to_string())
 		/// 	});
 		/// assert_eq!(result, Err("42".to_string()));
@@ -2259,13 +2265,13 @@ mod tests {
 	fn test_bimap() {
 		let x: Result<i32, i32> = Ok(5);
 		assert_eq!(
-			bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x),
+			explicit::bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x),
 			Ok(10)
 		);
 
 		let y: Result<i32, i32> = Err(5);
 		assert_eq!(
-			bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), y),
+			explicit::bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), y),
 			Err(6)
 		);
 	}
@@ -2275,7 +2281,7 @@ mod tests {
 	/// Tests the identity law for Bifunctor.
 	#[quickcheck]
 	fn bifunctor_identity(x: Result<i32, i32>) -> bool {
-		bimap_explicit::<ResultBrand, _, _, _, _, _, _>((identity, identity), x) == x
+		explicit::bimap::<ResultBrand, _, _, _, _, _, _>((identity, identity), x) == x
 	}
 
 	/// Tests the composition law for Bifunctor.
@@ -2286,10 +2292,10 @@ mod tests {
 		let h = |x: i32| x.wrapping_sub(1);
 		let i = |x: i32| if x == 0 { 0 } else { x.wrapping_div(2) };
 
-		bimap_explicit::<ResultBrand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), x)
-			== bimap_explicit::<ResultBrand, _, _, _, _, _, _>(
+		explicit::bimap::<ResultBrand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), x)
+			== explicit::bimap::<ResultBrand, _, _, _, _, _, _>(
 				(f, h),
-				bimap_explicit::<ResultBrand, _, _, _, _, _, _>((g, i), x),
+				explicit::bimap::<ResultBrand, _, _, _, _, _, _>((g, i), x),
 			)
 	}
 
@@ -2298,7 +2304,7 @@ mod tests {
 	/// Tests the identity law for Functor.
 	#[quickcheck]
 	fn functor_identity(x: Result<i32, i32>) -> bool {
-		map_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(identity, x) == x
+		explicit::map::<ResultErrAppliedBrand<i32>, _, _, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -2306,10 +2312,10 @@ mod tests {
 	fn functor_composition(x: Result<i32, i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(compose(f, g), x)
-			== map_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(
+		explicit::map::<ResultErrAppliedBrand<i32>, _, _, _, _>(compose(f, g), x)
+			== explicit::map::<ResultErrAppliedBrand<i32>, _, _, _, _>(
 				f,
-				map_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(g, x),
+				explicit::map::<ResultErrAppliedBrand<i32>, _, _, _, _>(g, x),
 			)
 	}
 
@@ -2402,7 +2408,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| -> Result<i32, i32> { Err(x.wrapping_mul(2)) };
-		bind_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(
+		explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(
 			pure::<ResultErrAppliedBrand<i32>, _>(a),
 			f,
 		) == f(a)
@@ -2411,7 +2417,7 @@ mod tests {
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: Result<i32, i32>) -> bool {
-		bind_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(
+		explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(
 			m,
 			pure::<ResultErrAppliedBrand<i32>, _>,
 		) == m
@@ -2422,11 +2428,11 @@ mod tests {
 	fn monad_associativity(m: Result<i32, i32>) -> bool {
 		let f = |x: i32| -> Result<i32, i32> { Err(x.wrapping_mul(2)) };
 		let g = |x: i32| -> Result<i32, i32> { Err(x.wrapping_add(1)) };
-		bind_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(
-			bind_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(m, f),
+		explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(
+			explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(m, f),
 			g,
-		) == bind_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(m, |x| {
-			bind_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(f(x), g)
+		) == explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(m, |x| {
+			explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(f(x), g)
 		})
 	}
 
@@ -2436,7 +2442,7 @@ mod tests {
 	#[test]
 	fn map_err() {
 		assert_eq!(
-			map_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(
+			explicit::map::<ResultErrAppliedBrand<i32>, _, _, _, _>(
 				|x: i32| x + 1,
 				Err::<i32, i32>(1)
 			),
@@ -2448,7 +2454,7 @@ mod tests {
 	#[test]
 	fn bind_err() {
 		assert_eq!(
-			bind_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(
+			explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(
 				Err::<i32, i32>(1),
 				|x: i32| Ok(x + 1)
 			),
@@ -2460,7 +2466,7 @@ mod tests {
 	#[test]
 	fn bind_returning_err() {
 		assert_eq!(
-			bind_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(Ok(1), |_| Err::<i32, i32>(2)),
+			explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(Ok(1), |_| Err::<i32, i32>(2)),
 			Err(2)
 		);
 	}
@@ -2469,7 +2475,7 @@ mod tests {
 	#[test]
 	fn fold_right_err() {
 		assert_eq!(
-			crate::functions::fold_right_explicit::<
+			crate::functions::explicit::fold_right::<
 				RcFnBrand,
 				ResultErrAppliedBrand<i32>,
 				_,
@@ -2485,11 +2491,14 @@ mod tests {
 	#[test]
 	fn fold_left_err() {
 		assert_eq!(
-			crate::functions::fold_left_explicit::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
-				|acc, x: i32| acc + x,
-				0,
-				Err(1)
-			),
+			crate::functions::explicit::fold_left::<
+				RcFnBrand,
+				ResultErrAppliedBrand<i32>,
+				_,
+				_,
+				_,
+				_,
+			>(|acc, x: i32| acc + x, 0, Err(1)),
 			0
 		);
 	}
@@ -2662,7 +2671,7 @@ mod tests {
 	/// RefBifunctor identity: bimap((Clone::clone, Clone::clone), &p) == p
 	#[quickcheck]
 	fn ref_bifunctor_identity(x: Result<i32, i32>) -> bool {
-		bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|a: &i32| *a, |c: &i32| *c), &x) == x
+		explicit::bimap::<ResultBrand, _, _, _, _, _, _>((|a: &i32| *a, |c: &i32| *c), &x) == x
 	}
 
 	/// RefBifunctor composition
@@ -2672,12 +2681,12 @@ mod tests {
 		let f2 = |a: &i32| a.wrapping_mul(2);
 		let g1 = |c: &i32| c.wrapping_add(10);
 		let g2 = |c: &i32| c.wrapping_mul(3);
-		bimap_explicit::<ResultBrand, _, _, _, _, _, _>(
+		explicit::bimap::<ResultBrand, _, _, _, _, _, _>(
 			(|a: &i32| f2(&f1(a)), |c: &i32| g2(&g1(c))),
 			&x,
-		) == bimap_explicit::<ResultBrand, _, _, _, _, _, _>(
+		) == explicit::bimap::<ResultBrand, _, _, _, _, _, _>(
 			(f2, g2),
-			&bimap_explicit::<ResultBrand, _, _, _, _, _, _>((f1, g1), &x),
+			&explicit::bimap::<ResultBrand, _, _, _, _, _, _>((f1, g1), &x),
 		)
 	}
 
@@ -2686,7 +2695,7 @@ mod tests {
 	/// RefBifoldable: bi_fold_map with ref closures produces same result as manual fold
 	#[quickcheck]
 	fn ref_bifoldable_fold_map(x: Result<i32, i32>) -> bool {
-		let result = bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		let result = explicit::bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 			(|a: &i32| a.to_string(), |b: &i32| b.to_string()),
 			&x,
 		);
@@ -2704,12 +2713,13 @@ mod tests {
 	fn ref_bitraversable_consistency(x: Result<i32, i32>) -> bool {
 		let f = |a: &i32| Some(a.wrapping_add(1));
 		let g = |c: &i32| Some(c.wrapping_mul(2));
-		let traversed = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
-			(f, g),
-			&x,
-		);
+		let traversed =
+			explicit::bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+				(f, g),
+				&x,
+			);
 		let mapped_then_sequenced =
-			ref_bi_sequence::<ResultBrand, RcFnBrand, _, _, OptionBrand>(&bimap_explicit::<
+			ref_bi_sequence::<ResultBrand, RcFnBrand, _, _, OptionBrand>(&explicit::bimap::<
 				ResultBrand,
 				_,
 				_,

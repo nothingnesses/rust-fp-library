@@ -6,7 +6,7 @@ error[E0277]: `Result<i32, String>` does not have a unique brand and cannot use 
   |             |
   |             required by a bound introduced by this call
   |
-  = note: use the `_explicit` variant with a turbofish to specify the brand manually
+  = note: use the `explicit::` variant with a turbofish to specify the brand manually
   = help: the following other types implement trait `InferableBrand_cdc7cd43dac7585f`:
             &__IB_T
             (A,)
@@ -36,7 +36,7 @@ error[E0277]: `Result<i32, String>` does not have a unique brand and cannot use 
 9 |     let _ = map(|x: i32| x + 1, Ok::<i32, String>(5));
   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `InferableBrand_cdc7cd43dac7585f` is not implemented for `Result<i32, String>`
   |
-  = note: use the `_explicit` variant with a turbofish to specify the brand manually
+  = note: use the `explicit::` variant with a turbofish to specify the brand manually
   = help: the following other types implement trait `InferableBrand_cdc7cd43dac7585f`:
             &__IB_T
             (A,)

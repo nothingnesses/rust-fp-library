@@ -17,7 +17,7 @@ mod inner {
 	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
-	/// [`apply_second_explicit`](crate::functions::apply_second_explicit) with a turbofish.
+	/// [`explicit::apply_second`](crate::functions::explicit::apply_second) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(

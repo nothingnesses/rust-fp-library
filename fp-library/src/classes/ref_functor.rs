@@ -5,12 +5,12 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! 	types::*,
 //! };
 //!
 //! let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
-//! let mapped = map_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &memo);
+//! let mapped = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &memo);
 //! assert_eq!(*mapped.evaluate(), 20);
 //! ```
 
@@ -50,23 +50,23 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// 	types::*,
 	/// };
 	///
 	/// // Identity: ref_map(|x| x.clone(), fa) evaluates to the same value as fa.
 	/// let fa = RcLazy::pure(5);
-	/// let mapped = map_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x, &fa);
+	/// let mapped = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x, &fa);
 	/// assert_eq!(*mapped.evaluate(), *fa.evaluate());
 	///
 	/// // Composition: ref_map(|x| g(&f(x)), fa) = ref_map(g, ref_map(f, fa))
 	/// let f = |x: &i32| *x * 2;
 	/// let g = |x: &i32| x + 1;
 	/// let fa = RcLazy::pure(5);
-	/// let composed = map_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| g(&f(x)), &fa);
-	/// let sequential = map_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(
+	/// let composed = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| g(&f(x)), &fa);
+	/// let sequential = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(
 	/// 	g,
-	/// 	&map_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(f, &fa),
+	/// 	&map::<LazyBrand<RcLazyConfig>, _, _, _, _>(f, &fa),
 	/// );
 	/// assert_eq!(*composed.evaluate(), *sequential.evaluate());
 	/// ```
@@ -133,7 +133,7 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			functions::*,
+			functions::explicit,
 			types::*,
 		},
 		quickcheck_macros::quickcheck,
@@ -143,7 +143,7 @@ mod tests {
 	#[quickcheck]
 	fn prop_ref_functor_identity(x: i32) -> bool {
 		let lazy = RcLazy::pure(x);
-		let mapped = map_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(|v: &i32| *v, &lazy);
+		let mapped = explicit::map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|v: &i32| *v, &lazy);
 		*mapped.evaluate() == *lazy.evaluate()
 	}
 
@@ -155,10 +155,10 @@ mod tests {
 		let lazy1 = RcLazy::pure(x);
 		let lazy2 = RcLazy::pure(x);
 		let composed =
-			map_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(|v: &i32| g(&f(v)), &lazy1);
-		let sequential = map_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(
+			explicit::map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|v: &i32| g(&f(v)), &lazy1);
+		let sequential = explicit::map::<LazyBrand<RcLazyConfig>, _, _, _, _>(
 			g,
-			&map_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(f, &lazy2),
+			&explicit::map::<LazyBrand<RcLazyConfig>, _, _, _, _>(f, &lazy2),
 		);
 		*composed.evaluate() == *sequential.evaluate()
 	}

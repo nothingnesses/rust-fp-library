@@ -4,8 +4,8 @@
 //!
 //! Provides the following dispatch traits and unified free functions:
 //!
-//! - [`CompactDispatch`] + [`compact`]
-//! - [`SeparateDispatch`] + [`separate`]
+//! - [`CompactDispatch`] + [`explicit::compact`]
+//! - [`SeparateDispatch`] + [`explicit::separate`]
 //!
 //! Each routes to the appropriate trait method based on whether the container
 //! is owned or borrowed.
@@ -15,15 +15,15 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! // compact
-//! let y = compact_explicit::<VecBrand, _, _, _>(vec![Some(1), None, Some(3)]);
+//! let y = compact::<VecBrand, _, _, _>(vec![Some(1), None, Some(3)]);
 //! assert_eq!(y, vec![1, 3]);
 //!
 //! // separate
-//! let (errs, oks) = separate_explicit::<VecBrand, _, _, _, _>(vec![Ok(1), Err(2), Ok(3)]);
+//! let (errs, oks) = separate::<VecBrand, _, _, _, _>(vec![Ok(1), Err(2), Ok(3)]);
 //! assert_eq!(oks, vec![1, 3]);
 //! assert_eq!(errs, vec![2]);
 //! ```
@@ -72,10 +72,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = compact_explicit::<VecBrand, _, _, _>(vec![Some(1), None, Some(3)]);
+		/// let result = compact::<VecBrand, _, _, _>(vec![Some(1), None, Some(3)]);
 		/// assert_eq!(result, vec![1, 3]);
 		/// ```
 		fn dispatch(self) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
@@ -103,10 +103,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = compact_explicit::<VecBrand, _, _, _>(vec![Some(1), None, Some(3)]);
+		/// let result = compact::<VecBrand, _, _, _>(vec![Some(1), None, Some(3)]);
 		/// assert_eq!(result, vec![1, 3]);
 		/// ```
 		fn dispatch(self) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
@@ -136,62 +136,16 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let v = vec![Some(1), None, Some(3)];
-		/// let result = compact_explicit::<VecBrand, _, _, _>(&v);
+		/// let result = compact::<VecBrand, _, _, _>(&v);
 		/// assert_eq!(result, vec![1, 3]);
 		/// ```
 		fn dispatch(self) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Brand::ref_compact(self)
 		}
-	}
-
-	/// Removes `None` values from a container of `Option`s, unwrapping the `Some` values.
-	///
-	/// Dispatches to either [`Compactable::compact`] or [`RefCompactable::ref_compact`]
-	/// based on whether the container is owned or borrowed.
-	///
-	/// The dispatch is resolved at compile time with no runtime cost.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the compactable.",
-		"The type of the value(s) inside the `Option` wrappers.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters("The container of `Option` values (owned or borrowed).")]
-	///
-	#[document_returns("A new container with `None` values removed and `Some` values unwrapped.")]
-	///
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// // Owned
-	/// let y = compact_explicit::<VecBrand, _, _, _>(vec![Some(1), None, Some(3)]);
-	/// assert_eq!(y, vec![1, 3]);
-	///
-	/// // By-ref
-	/// let v = vec![Some(1), None, Some(3)];
-	/// let y = compact_explicit::<VecBrand, _, _, _>(&v);
-	/// assert_eq!(y, vec![1, 3]);
-	/// ```
-	#[allow_named_generics]
-	pub fn compact<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, FA, Marker>(
-		fa: FA
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
-	where
-		FA: CompactDispatch<'a, Brand, A, Marker>, {
-		fa.dispatch()
 	}
 
 	// -- SeparateDispatch --
@@ -219,10 +173,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let (errs, oks) = separate_explicit::<VecBrand, _, _, _, _>(vec![Ok(1), Err(2), Ok(3)]);
+		/// let (errs, oks) = separate::<VecBrand, _, _, _, _>(vec![Ok(1), Err(2), Ok(3)]);
 		/// assert_eq!(oks, vec![1, 3]);
 		/// assert_eq!(errs, vec![2]);
 		/// ```
@@ -256,10 +210,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let (errs, oks) = separate_explicit::<VecBrand, _, _, _, _>(vec![Ok(1), Err(2), Ok(3)]);
+		/// let (errs, oks) = separate::<VecBrand, _, _, _, _>(vec![Ok(1), Err(2), Ok(3)]);
 		/// assert_eq!(oks, vec![1, 3]);
 		/// assert_eq!(errs, vec![2]);
 		/// ```
@@ -295,11 +249,11 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let v: Vec<Result<i32, i32>> = vec![Ok(1), Err(2), Ok(3)];
-		/// let (errs, oks) = separate_explicit::<VecBrand, _, _, _, _>(&v);
+		/// let (errs, oks) = separate::<VecBrand, _, _, _, _>(&v);
 		/// assert_eq!(oks, vec![1, 3]);
 		/// assert_eq!(errs, vec![2]);
 		/// ```
@@ -313,56 +267,114 @@ pub(crate) mod inner {
 		}
 	}
 
-	/// Separates a container of `Result` values into two containers.
+	// -- Explicit dispatch free functions --
+
+	/// Explicit dispatch functions requiring a Brand turbofish.
 	///
-	/// Dispatches to either [`Compactable::separate`] or [`RefCompactable::ref_separate`]
-	/// based on whether the container is owned or borrowed.
-	///
-	/// The dispatch is resolved at compile time with no runtime cost.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the compactable.",
-		"The error type inside the `Result` wrappers.",
-		"The success type inside the `Result` wrappers.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters("The container of `Result` values (owned or borrowed).")]
-	///
-	#[document_returns("A tuple of two containers: `Err` values and `Ok` values.")]
-	///
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// // Owned
-	/// let (errs, oks) = separate_explicit::<VecBrand, _, _, _, _>(vec![Ok(1), Err(2), Ok(3)]);
-	/// assert_eq!(oks, vec![1, 3]);
-	/// assert_eq!(errs, vec![2]);
-	///
-	/// // By-ref
-	/// let v: Vec<Result<i32, i32>> = vec![Ok(1), Err(2), Ok(3)];
-	/// let (errs, oks) = separate_explicit::<VecBrand, _, _, _, _>(&v);
-	/// assert_eq!(oks, vec![1, 3]);
-	/// assert_eq!(errs, vec![2]);
-	/// ```
-	#[allow_named_generics]
-	pub fn separate<'a, Brand: Kind_cdc7cd43dac7585f, E: 'a, O: 'a, FA, Marker>(
-		fa: FA
-	) -> (
-		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
-	)
-	where
-		FA: SeparateDispatch<'a, Brand, E, O, Marker>, {
-		fa.dispatch()
+	/// For most use cases, prefer the inference-enabled wrappers from
+	/// [`functions`](crate::functions).
+	pub mod explicit {
+		use super::*;
+
+		/// Removes `None` values from a container of `Option`s, unwrapping the `Some` values.
+		///
+		/// Dispatches to either [`Compactable::compact`] or [`RefCompactable::ref_compact`]
+		/// based on whether the container is owned or borrowed.
+		///
+		/// The dispatch is resolved at compile time with no runtime cost.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the compactable.",
+			"The type of the value(s) inside the `Option` wrappers.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters("The container of `Option` values (owned or borrowed).")]
+		///
+		#[document_returns(
+			"A new container with `None` values removed and `Some` values unwrapped."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// // Owned
+		/// let y = compact::<VecBrand, _, _, _>(vec![Some(1), None, Some(3)]);
+		/// assert_eq!(y, vec![1, 3]);
+		///
+		/// // By-ref
+		/// let v = vec![Some(1), None, Some(3)];
+		/// let y = compact::<VecBrand, _, _, _>(&v);
+		/// assert_eq!(y, vec![1, 3]);
+		/// ```
+		#[allow_named_generics]
+		pub fn compact<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, FA, Marker>(
+			fa: FA
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		where
+			FA: CompactDispatch<'a, Brand, A, Marker>, {
+			fa.dispatch()
+		}
+
+		/// Separates a container of `Result` values into two containers.
+		///
+		/// Dispatches to either [`Compactable::separate`] or [`RefCompactable::ref_separate`]
+		/// based on whether the container is owned or borrowed.
+		///
+		/// The dispatch is resolved at compile time with no runtime cost.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the compactable.",
+			"The error type inside the `Result` wrappers.",
+			"The success type inside the `Result` wrappers.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters("The container of `Result` values (owned or borrowed).")]
+		///
+		#[document_returns("A tuple of two containers: `Err` values and `Ok` values.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// // Owned
+		/// let (errs, oks) = separate::<VecBrand, _, _, _, _>(vec![Ok(1), Err(2), Ok(3)]);
+		/// assert_eq!(oks, vec![1, 3]);
+		/// assert_eq!(errs, vec![2]);
+		///
+		/// // By-ref
+		/// let v: Vec<Result<i32, i32>> = vec![Ok(1), Err(2), Ok(3)];
+		/// let (errs, oks) = separate::<VecBrand, _, _, _, _>(&v);
+		/// assert_eq!(oks, vec![1, 3]);
+		/// assert_eq!(errs, vec![2]);
+		/// ```
+		#[allow_named_generics]
+		pub fn separate<'a, Brand: Kind_cdc7cd43dac7585f, E: 'a, O: 'a, FA, Marker>(
+			fa: FA
+		) -> (
+			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		)
+		where
+			FA: SeparateDispatch<'a, Brand, E, O, Marker>, {
+			fa.dispatch()
+		}
 	}
 }
 

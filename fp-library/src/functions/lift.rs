@@ -22,7 +22,7 @@ mod inner {
 	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). The dispatch trait constrains `fb` to the same brand.
 	///
 	/// For types with multiple brands, use
-	/// [`lift2_explicit`](crate::functions::lift2_explicit) with a turbofish.
+	/// [`explicit::lift2`](crate::functions::explicit::lift2) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -79,7 +79,7 @@ mod inner {
 	/// to the same brand.
 	///
 	/// For types with multiple brands, use
-	/// [`lift3_explicit`](crate::functions::lift3_explicit) with a turbofish.
+	/// [`explicit::lift3`](crate::functions::explicit::lift3) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -142,7 +142,7 @@ mod inner {
 	/// to the same brand.
 	///
 	/// For types with multiple brands, use
-	/// [`lift4_explicit`](crate::functions::lift4_explicit) with a turbofish.
+	/// [`explicit::lift4`](crate::functions::explicit::lift4) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -211,7 +211,7 @@ mod inner {
 	/// to the same brand.
 	///
 	/// For types with multiple brands, use
-	/// [`lift5_explicit`](crate::functions::lift5_explicit) with a turbofish.
+	/// [`explicit::lift5`](crate::functions::explicit::lift5) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(

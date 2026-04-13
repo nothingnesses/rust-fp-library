@@ -5,11 +5,11 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! let v = vec![1, 2, 3, 4, 5];
-//! let result: Option<Vec<i32>> = wither_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
+//! let result: Option<Vec<i32>> = wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
 //! 	|x: &i32| if *x > 3 { Some(Some(*x)) } else { Some(None) },
 //! 	&v,
 //! );
@@ -62,12 +62,12 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let v = vec![1, 2, 3, 4, 5];
 		/// let result: Option<(Vec<i32>, Vec<i32>)> =
-		/// 	wilt_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
+		/// 	wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
 		/// 		|x: &i32| Some(if *x > 3 { Ok(*x) } else { Err(*x) }),
 		/// 		&v,
 		/// 	);
@@ -119,11 +119,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let v = vec![1, 2, 3, 4, 5];
-		/// let result: Option<Vec<i32>> = wither_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
+		/// let result: Option<Vec<i32>> = wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
 		/// 	|x: &i32| if *x > 3 { Some(Some(*x)) } else { Some(None) },
 		/// 	&v,
 		/// );
@@ -173,12 +173,12 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let v = vec![1, 2, 3, 4, 5];
 	/// let result: Option<(Vec<i32>, Vec<i32>)> =
-	/// 	wilt_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
+	/// 	wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
 	/// 		|x: &i32| Some(if *x > 3 { Ok(*x) } else { Err(*x) }),
 	/// 		&v,
 	/// 	);
@@ -234,11 +234,11 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let v = vec![1, 2, 3, 4, 5];
-	/// let result: Option<Vec<i32>> = wither_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
+	/// let result: Option<Vec<i32>> = wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
 	/// 	|x: &i32| if *x > 3 { Some(Some(*x)) } else { Some(None) },
 	/// 	&v,
 	/// );

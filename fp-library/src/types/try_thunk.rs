@@ -996,7 +996,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-		/// let mapped = map_explicit::<TryThunkErrAppliedBrand<()>, _, _, _, _>(|x| x * 2, try_thunk);
+		/// let mapped = explicit::map::<TryThunkErrAppliedBrand<()>, _, _, _, _>(|x| x * 2, try_thunk);
 		/// assert_eq!(mapped.evaluate(), Ok(20));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -1070,8 +1070,11 @@ mod inner {
 		///
 		/// let eval1: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
 		/// let eval2: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(20);
-		/// let result =
-		/// 	lift2_explicit::<TryThunkErrAppliedBrand<()>, _, _, _, _, _, _>(|a, b| a + b, eval1, eval2);
+		/// let result = explicit::lift2::<TryThunkErrAppliedBrand<()>, _, _, _, _, _, _>(
+		/// 	|a, b| a + b,
+		/// 	eval1,
+		/// 	eval2,
+		/// );
 		/// assert_eq!(result.evaluate(), Ok(30));
 		/// ```
 		fn lift2<'a, A, B, C>(
@@ -1168,7 +1171,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-		/// let result = bind_explicit::<TryThunkErrAppliedBrand<()>, _, _, _, _>(try_thunk, |x| {
+		/// let result = explicit::bind::<TryThunkErrAppliedBrand<()>, _, _, _, _>(try_thunk, |x| {
 		/// 	pure::<TryThunkErrAppliedBrand<()>, _>(x * 2)
 		/// });
 		/// assert_eq!(result.evaluate(), Ok(20));
@@ -1269,7 +1272,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-		/// let result = fold_right_explicit::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
+		/// let result = explicit::fold_right::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
 		/// 	|a, b| a + b,
 		/// 	5,
 		/// 	try_thunk,
@@ -1316,7 +1319,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-		/// let result = fold_left_explicit::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
+		/// let result = explicit::fold_left::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
 		/// 	|b, a| b + a,
 		/// 	5,
 		/// 	try_thunk,
@@ -1360,7 +1363,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-		/// let result = fold_map_explicit::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
+		/// let result = explicit::fold_map::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
 		/// 	|a: i32| a.to_string(),
 		/// 	try_thunk,
 		/// );
@@ -1491,13 +1494,13 @@ mod inner {
 		///
 		/// let x: TryThunk<i32, i32> = TryThunk::ok(5);
 		/// assert_eq!(
-		/// 	bimap_explicit::<TryThunkBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x).evaluate(),
+		/// 	explicit::bimap::<TryThunkBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x).evaluate(),
 		/// 	Ok(10)
 		/// );
 		///
 		/// let y: TryThunk<i32, i32> = TryThunk::err(5);
 		/// assert_eq!(
-		/// 	bimap_explicit::<TryThunkBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), y).evaluate(),
+		/// 	explicit::bimap::<TryThunkBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), y).evaluate(),
 		/// 	Err(6)
 		/// );
 		/// ```
@@ -1546,7 +1549,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_right_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 		/// 		(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 		/// 		10,
 		/// 		TryThunk::err(3),
@@ -1554,7 +1557,7 @@ mod inner {
 		/// 	7
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_right_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 		/// 		(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 		/// 		10,
 		/// 		TryThunk::ok(5),
@@ -1606,7 +1609,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_left_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 		/// 		(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 		/// 		10,
 		/// 		TryThunk::err(3),
@@ -1614,7 +1617,7 @@ mod inner {
 		/// 	7
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_left_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 		/// 		(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 		/// 		10,
 		/// 		TryThunk::ok(5),
@@ -1665,14 +1668,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_map_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 		/// 		(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 		TryThunk::err(3),
 		/// 	),
 		/// 	"3".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_map_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 		/// 		(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 		TryThunk::ok(5),
 		/// 	),
@@ -1737,7 +1740,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-		/// let mapped = map_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(|x| x * 2, try_thunk);
+		/// let mapped = explicit::map::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(|x| x * 2, try_thunk);
 		/// assert_eq!(mapped.evaluate(), Err(20));
 		/// ```
 		fn map<'a, E: 'a, E2: 'a>(
@@ -1819,8 +1822,11 @@ mod inner {
 		///
 		/// let eval1: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
 		/// let eval2: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(20);
-		/// let result =
-		/// 	lift2_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _, _, _>(|a, b| a + b, eval1, eval2);
+		/// let result = explicit::lift2::<TryThunkOkAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 	|a, b| a + b,
+		/// 	eval1,
+		/// 	eval2,
+		/// );
 		/// assert_eq!(result.evaluate(), Err(30));
 		/// ```
 		fn lift2<'a, E1, E2, E3>(
@@ -1932,7 +1938,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-		/// let result = bind_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(try_thunk, |x| {
+		/// let result = explicit::bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(try_thunk, |x| {
 		/// 	pure::<TryThunkOkAppliedBrand<i32>, _>(x * 2)
 		/// });
 		/// assert_eq!(result.evaluate(), Err(20));
@@ -2040,7 +2046,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-		/// let result = fold_right_explicit::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+		/// let result = explicit::fold_right::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
 		/// 	|a, b| a + b,
 		/// 	5,
 		/// 	try_thunk,
@@ -2087,7 +2093,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-		/// let result = fold_left_explicit::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+		/// let result = explicit::fold_left::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
 		/// 	|b, a| b + a,
 		/// 	5,
 		/// 	try_thunk,
@@ -2131,7 +2137,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-		/// let result = fold_map_explicit::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+		/// let result = explicit::fold_map::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
 		/// 	|a: i32| a.to_string(),
 		/// 	try_thunk,
 		/// );
@@ -2522,7 +2528,7 @@ mod tests {
 
 		// Functor (map over success)
 		let try_thunk: TryThunk<i32, ()> = TryThunk::ok(10);
-		let mapped = map_explicit::<TryThunkErrAppliedBrand<()>, _, _, _, _>(|x| x * 2, try_thunk);
+		let mapped = explicit::map::<TryThunkErrAppliedBrand<()>, _, _, _, _>(|x| x * 2, try_thunk);
 		assert_eq!(mapped.evaluate(), Ok(20));
 
 		// Pointed (pure -> ok)
@@ -2531,14 +2537,14 @@ mod tests {
 
 		// Semimonad (bind over success)
 		let try_thunk: TryThunk<i32, ()> = TryThunk::ok(10);
-		let bound = bind_explicit::<TryThunkErrAppliedBrand<()>, _, _, _, _>(try_thunk, |x| {
+		let bound = explicit::bind::<TryThunkErrAppliedBrand<()>, _, _, _, _>(try_thunk, |x| {
 			pure::<TryThunkErrAppliedBrand<()>, _>(x * 2)
 		});
 		assert_eq!(bound.evaluate(), Ok(20));
 
 		// Foldable (fold over success)
 		let try_thunk: TryThunk<i32, ()> = TryThunk::ok(10);
-		let folded = fold_right_explicit::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
+		let folded = explicit::fold_right::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
 			|x, acc| x + acc,
 			5,
 			try_thunk,
@@ -2573,7 +2579,7 @@ mod tests {
 
 		// Error case: f(3, 10) = 10 - 3 = 7
 		assert_eq!(
-			bi_fold_right_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+			explicit::bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 				(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 				10,
 				TryThunk::err(3),
@@ -2583,7 +2589,7 @@ mod tests {
 
 		// Success case: g(5, 10) = 10 + 5 = 15
 		assert_eq!(
-			bi_fold_right_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+			explicit::bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 				(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 				10,
 				TryThunk::ok(5),
@@ -2603,7 +2609,7 @@ mod tests {
 		};
 
 		assert_eq!(
-			bi_fold_left_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+			explicit::bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 				(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 				10,
 				TryThunk::err(3),
@@ -2612,7 +2618,7 @@ mod tests {
 		);
 
 		assert_eq!(
-			bi_fold_left_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+			explicit::bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 				(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 				10,
 				TryThunk::ok(5),
@@ -2632,7 +2638,7 @@ mod tests {
 		};
 
 		assert_eq!(
-			bi_fold_map_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+			explicit::bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 				(|e: i32| e.to_string(), |s: i32| s.to_string()),
 				TryThunk::err(3),
 			),
@@ -2640,7 +2646,7 @@ mod tests {
 		);
 
 		assert_eq!(
-			bi_fold_map_explicit::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+			explicit::bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
 				(|e: i32| e.to_string(), |s: i32| s.to_string()),
 				TryThunk::ok(5),
 			),
@@ -2731,7 +2737,7 @@ mod tests {
 
 		// Functor (map over error)
 		let try_thunk: TryThunk<i32, i32> = TryThunk::err(10);
-		let mapped = map_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(|x| x * 2, try_thunk);
+		let mapped = explicit::map::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(|x| x * 2, try_thunk);
 		assert_eq!(mapped.evaluate(), Err(20));
 
 		// Pointed (pure -> err)
@@ -2740,14 +2746,14 @@ mod tests {
 
 		// Semimonad (bind over error)
 		let try_thunk: TryThunk<i32, i32> = TryThunk::err(10);
-		let bound = bind_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(try_thunk, |x| {
+		let bound = explicit::bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(try_thunk, |x| {
 			pure::<TryThunkOkAppliedBrand<i32>, _>(x * 2)
 		});
 		assert_eq!(bound.evaluate(), Err(20));
 
 		// Foldable (fold over error)
 		let try_thunk: TryThunk<i32, i32> = TryThunk::err(10);
-		let folded = fold_right_explicit::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+		let folded = explicit::fold_right::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
 			|x, acc| x + acc,
 			5,
 			try_thunk,
@@ -2807,7 +2813,7 @@ mod tests {
 			functions::*,
 		};
 		let t: TryThunk<i32, i32> = TryThunk::ok(x);
-		map_explicit::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(|a| a, t).evaluate() == Ok(x)
+		explicit::map::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(|a| a, t).evaluate() == Ok(x)
 	}
 
 	/// Functor composition: `map(f . g, t) == map(f, map(g, t))`.
@@ -2819,14 +2825,14 @@ mod tests {
 		};
 		let f = |a: i32| a.wrapping_add(1);
 		let g = |a: i32| a.wrapping_mul(2);
-		let lhs = map_explicit::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
+		let lhs = explicit::map::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
 			move |a| f(g(a)),
 			TryThunk::ok(x),
 		)
 		.evaluate();
-		let rhs = map_explicit::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
+		let rhs = explicit::map::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
 			f,
-			map_explicit::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(g, TryThunk::ok(x)),
+			explicit::map::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(g, TryThunk::ok(x)),
 		)
 		.evaluate();
 		lhs == rhs
@@ -2842,7 +2848,7 @@ mod tests {
 			functions::*,
 		};
 		let f = |x: i32| pure::<TryThunkErrAppliedBrand<i32>, _>(x.wrapping_mul(2));
-		let lhs = bind_explicit::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
+		let lhs = explicit::bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
 			pure::<TryThunkErrAppliedBrand<i32>, _>(a),
 			f,
 		)
@@ -2858,7 +2864,7 @@ mod tests {
 			brands::*,
 			functions::*,
 		};
-		let lhs = bind_explicit::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
+		let lhs = explicit::bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
 			pure::<TryThunkErrAppliedBrand<i32>, _>(x),
 			pure::<TryThunkErrAppliedBrand<i32>, _>,
 		)
@@ -2877,13 +2883,13 @@ mod tests {
 		let g = |a: i32| pure::<TryThunkErrAppliedBrand<i32>, _>(a.wrapping_mul(3));
 		let m: TryThunk<i32, i32> = TryThunk::ok(x);
 		let m2: TryThunk<i32, i32> = TryThunk::ok(x);
-		let lhs = bind_explicit::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
-			bind_explicit::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(m, f),
+		let lhs = explicit::bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
+			explicit::bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(m, f),
 			g,
 		)
 		.evaluate();
-		let rhs = bind_explicit::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(m2, move |a| {
-			bind_explicit::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(f(a), g)
+		let rhs = explicit::bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(m2, move |a| {
+			explicit::bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(f(a), g)
 		})
 		.evaluate();
 		lhs == rhs
@@ -3140,7 +3146,7 @@ mod tests {
 			functions::*,
 		};
 		let f = |x: i32| pure::<TryThunkOkAppliedBrand<i32>, _>(x.wrapping_mul(2));
-		let lhs = bind_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+		let lhs = explicit::bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(
 			pure::<TryThunkOkAppliedBrand<i32>, _>(a),
 			f,
 		)
@@ -3156,7 +3162,7 @@ mod tests {
 			brands::*,
 			functions::*,
 		};
-		let lhs = bind_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+		let lhs = explicit::bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(
 			pure::<TryThunkOkAppliedBrand<i32>, _>(x),
 			pure::<TryThunkOkAppliedBrand<i32>, _>,
 		)
@@ -3175,13 +3181,13 @@ mod tests {
 		let g = |a: i32| pure::<TryThunkOkAppliedBrand<i32>, _>(a.wrapping_mul(3));
 		let m: TryThunk<i32, i32> = TryThunk::err(x);
 		let m2: TryThunk<i32, i32> = TryThunk::err(x);
-		let lhs = bind_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(
-			bind_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(m, f),
+		let lhs = explicit::bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+			explicit::bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(m, f),
 			g,
 		)
 		.evaluate();
-		let rhs = bind_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(m2, move |a| {
-			bind_explicit::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(f(a), g)
+		let rhs = explicit::bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(m2, move |a| {
+			explicit::bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(f(a), g)
 		})
 		.evaluate();
 		lhs == rhs

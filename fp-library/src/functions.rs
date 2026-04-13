@@ -10,14 +10,17 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::{
+//! 		compose,
+//! 		explicit::*,
+//! 	},
 //! };
 //!
 //! let f = |x: i32| x + 1;
 //! let g = |x: i32| x * 2;
 //! let h = compose(f, g);
 //!
-//! assert_eq!(map_explicit::<OptionBrand, _, _, _, _>(h, Some(5)), Some(11));
+//! assert_eq!(map::<OptionBrand, _, _, _, _>(h, Some(5)), Some(11));
 //! ```
 
 /// Brand-inference wrappers for [`Alt`](crate::classes::Alt) operations.
@@ -48,7 +51,7 @@ pub mod foldable_with_index;
 pub mod functor;
 /// Brand-inference wrapper for [`FunctorWithIndex::map_with_index`](crate::classes::FunctorWithIndex::map_with_index).
 pub mod functor_with_index;
-/// Brand-inference wrappers for [`lift2`](crate::dispatch::lift::lift2) through [`lift5`](crate::dispatch::lift::lift5).
+/// Brand-inference wrappers for [`lift2`](crate::dispatch::lift::explicit::lift2) through [`lift5`](crate::dispatch::lift::explicit::lift5).
 pub mod lift;
 /// Brand-inference wrappers for [`Semimonad`](crate::classes::Semimonad) operations.
 pub mod semimonad;
@@ -189,68 +192,92 @@ fp_macros::generate_function_re_exports!("src/classes", {
 	"ref_witherable::ref_wilt",
 	"ref_witherable::ref_wither",
 });
-// Dispatch free functions are in sub-modules not scanned by the macro.
-pub use crate::{
-	dispatch::{
-		alt::alt as alt_explicit,
-		apply_first::apply_first as apply_first_explicit,
-		apply_second::apply_second as apply_second_explicit,
-		bi_fold_left as bi_fold_left_explicit,
-		bi_fold_map as bi_fold_map_explicit,
-		bi_fold_right as bi_fold_right_explicit,
-		bi_traverse as bi_traverse_explicit,
-		bimap as bimap_explicit,
-		bind as bind_explicit,
-		bind_flipped as bind_flipped_explicit,
-		compactable::{
-			compact as compact_explicit,
-			separate as separate_explicit,
+/// Explicit dispatch functions requiring a Brand turbofish.
+///
+/// For most use cases, prefer the inference-enabled wrappers from the parent
+/// [`functions`](crate::functions) module.
+pub mod explicit {
+	pub use crate::dispatch::{
+		alt::explicit::alt,
+		apply_first::explicit::apply_first,
+		apply_second::explicit::apply_second,
+		bifoldable::explicit::{
+			bi_fold_left,
+			bi_fold_map,
+			bi_fold_right,
 		},
-		compose_kleisli,
-		compose_kleisli_flipped,
-		filter as filter_explicit,
-		filter_map as filter_map_explicit,
-		filter_map_with_index as filter_map_with_index_explicit,
-		filter_with_index as filter_with_index_explicit,
-		fold_left as fold_left_explicit,
-		fold_left_with_index as fold_left_with_index_explicit,
-		fold_map as fold_map_explicit,
-		fold_map_with_index as fold_map_with_index_explicit,
-		fold_right as fold_right_explicit,
-		fold_right_with_index as fold_right_with_index_explicit,
-		lift2 as lift2_explicit,
-		lift3 as lift3_explicit,
-		lift4 as lift4_explicit,
-		lift5 as lift5_explicit,
-		map as map_explicit,
-		map_with_index as map_with_index_explicit,
-		partition as partition_explicit,
-		partition_map as partition_map_explicit,
-		partition_map_with_index as partition_map_with_index_explicit,
-		partition_with_index as partition_with_index_explicit,
-		semimonad::join as join_explicit,
-		traverse as traverse_explicit,
-		traverse_with_index as traverse_with_index_explicit,
-		wilt as wilt_explicit,
-		wither as wither_explicit,
+		bifunctor::explicit::bimap,
+		bitraversable::explicit::bi_traverse,
+		compactable::explicit::{
+			compact,
+			separate,
+		},
+		filterable::explicit::{
+			filter,
+			filter_map,
+			partition,
+			partition_map,
+		},
+		filterable_with_index::explicit::{
+			filter_map_with_index,
+			filter_with_index,
+			partition_map_with_index,
+			partition_with_index,
+		},
+		foldable::explicit::{
+			fold_left,
+			fold_map,
+			fold_right,
+		},
+		foldable_with_index::explicit::{
+			fold_left_with_index,
+			fold_map_with_index,
+			fold_right_with_index,
+		},
+		functor::explicit::map,
+		functor_with_index::explicit::map_with_index,
+		lift::explicit::{
+			lift2,
+			lift3,
+			lift4,
+			lift5,
+		},
+		semimonad::explicit::{
+			bind,
+			bind_flipped,
+			join,
+		},
+		traversable::explicit::traverse,
+		traversable_with_index::explicit::traverse_with_index,
+		witherable::explicit::{
+			wilt,
+			wither,
+		},
+	};
+}
+
+// Functions without dispatch wrappers.
+pub use crate::dispatch::semimonad::{
+	compose_kleisli,
+	compose_kleisli_flipped,
+};
+// Re-exports from other modules.
+pub use crate::types::{
+	lazy::{
+		arc_lazy_fix,
+		rc_lazy_fix,
 	},
-	types::{
-		lazy::{
-			arc_lazy_fix,
-			rc_lazy_fix,
-		},
-		optics::{
-			optics_as_index,
-			optics_compose,
-			optics_indexed_fold_map,
-			optics_indexed_over,
-			optics_indexed_preview,
-			optics_indexed_set,
-			optics_indexed_view,
-			optics_reindexed,
-			optics_un_index,
-			positions,
-		},
+	optics::{
+		optics_as_index,
+		optics_compose,
+		optics_indexed_fold_map,
+		optics_indexed_over,
+		optics_indexed_preview,
+		optics_indexed_set,
+		optics_indexed_view,
+		optics_reindexed,
+		optics_un_index,
+		positions,
 	},
 };
 

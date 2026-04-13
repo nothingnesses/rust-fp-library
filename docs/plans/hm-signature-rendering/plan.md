@@ -3,7 +3,14 @@
 ## Current Progress
 
 - Steps 1-3: Done. Phase 1 complete.
-- Steps 4-12: Not started.
+- Step 4: Done. All 18 dispatch modules have `explicit` submodules. Flat
+  re-exports removed from `dispatch.rs`. `functions.rs` has `pub mod explicit`
+  with nested path re-exports. Old `_explicit` alias block removed. All ~85
+  internal call sites, doc examples, benchmark files, test files, macro codegen,
+  and diagnostic messages updated. `compose_kleisli` and `compose_kleisli_flipped`
+  remain at dispatch module top level (no inference wrappers). `contramap_explicit`
+  left as-is (special case, no dispatch trait).
+- Steps 5-12: Not started.
 
 ## Prerequisites
 

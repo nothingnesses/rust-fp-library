@@ -93,7 +93,10 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::{
+	/// 		explicit::join,
+	/// 		*,
+	/// 	},
 	/// 	types::*,
 	/// };
 	///
@@ -102,7 +105,7 @@ mod inner {
 	/// 	let inner = inner.clone();
 	/// 	move || inner.clone()
 	/// });
-	/// let result = join_explicit::<LazyBrand<RcLazyConfig>, _, _>(&outer);
+	/// let result = join::<LazyBrand<RcLazyConfig>, _, _>(&outer);
 	/// assert_eq!(*result.evaluate(), 5);
 	/// ```
 	pub fn ref_join<'a, Brand: RefSemimonad, A: 'a>(

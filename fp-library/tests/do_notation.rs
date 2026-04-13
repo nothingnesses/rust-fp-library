@@ -1,7 +1,10 @@
 use {
 	fp_library::{
 		brands::*,
-		functions::*,
+		functions::{
+			explicit,
+			*,
+		},
 	},
 	fp_macros::m_do,
 };
@@ -132,8 +135,8 @@ fn equivalent_to_manual_bind() {
 		pure(z)
 	});
 
-	let manual_result = bind_explicit::<OptionBrand, _, _, _, _>(Some(5), move |x| {
-		bind_explicit::<OptionBrand, _, _, _, _>(Some(x + 1), move |y| {
+	let manual_result = explicit::bind::<OptionBrand, _, _, _, _>(Some(5), move |x| {
+		explicit::bind::<OptionBrand, _, _, _, _>(Some(x + 1), move |y| {
 			let z = x * y;
 			pure::<OptionBrand, _>(z)
 		})

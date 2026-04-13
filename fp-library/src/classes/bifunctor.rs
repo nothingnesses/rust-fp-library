@@ -5,11 +5,11 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! let x = Result::<i32, i32>::Ok(5);
-//! let y = bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x);
+//! let y = bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x);
 //! assert_eq!(y, Ok(10));
 //! ```
 #[fp_macros::document_module]
@@ -52,15 +52,18 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::{
+	/// 		explicit::bimap,
+	/// 		*,
+	/// 	},
 	/// };
 	///
 	/// let ok: Result<i32, i32> = Ok(5);
 	/// let err: Result<i32, i32> = Err(3);
 	///
 	/// // Identity: bimap((identity, identity), p) = p
-	/// assert_eq!(bimap_explicit::<ResultBrand, _, _, _, _, _, _>((identity, identity), ok), ok);
-	/// assert_eq!(bimap_explicit::<ResultBrand, _, _, _, _, _, _>((identity, identity), err), err);
+	/// assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>((identity, identity), ok), ok);
+	/// assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>((identity, identity), err), err);
 	///
 	/// // Composition: bimap((compose(f, g), compose(h, i)), p)
 	/// //            = bimap((f, h), bimap((g, i), p))
@@ -69,17 +72,17 @@ mod inner {
 	/// let h = |x: i32| x + 10;
 	/// let i = |x: i32| x * 3;
 	/// assert_eq!(
-	/// 	bimap_explicit::<ResultBrand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), ok),
-	/// 	bimap_explicit::<ResultBrand, _, _, _, _, _, _>(
+	/// 	bimap::<ResultBrand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), ok),
+	/// 	bimap::<ResultBrand, _, _, _, _, _, _>(
 	/// 		(f, h),
-	/// 		bimap_explicit::<ResultBrand, _, _, _, _, _, _>((g, i), ok)
+	/// 		bimap::<ResultBrand, _, _, _, _, _, _>((g, i), ok)
 	/// 	),
 	/// );
 	/// assert_eq!(
-	/// 	bimap_explicit::<ResultBrand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), err),
-	/// 	bimap_explicit::<ResultBrand, _, _, _, _, _, _>(
+	/// 	bimap::<ResultBrand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), err),
+	/// 	bimap::<ResultBrand, _, _, _, _, _, _>(
 	/// 		(f, h),
-	/// 		bimap_explicit::<ResultBrand, _, _, _, _, _, _>((g, i), err)
+	/// 		bimap::<ResultBrand, _, _, _, _, _, _>((g, i), err)
 	/// 	),
 	/// );
 	/// ```
@@ -112,11 +115,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x = Result::<i32, i32>::Ok(5);
-		/// let y = bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x);
+		/// let y = bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x);
 		/// assert_eq!(y, Ok(10));
 		/// ```
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
@@ -154,11 +157,11 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let x = Result::<i32, i32>::Ok(5);
-	/// let y = bimap_explicit::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x);
+	/// let y = bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x);
 	/// assert_eq!(y, Ok(10));
 	/// ```
 	pub fn bimap<'a, Brand: Bifunctor, A: 'a, B: 'a, C: 'a, D: 'a>(
@@ -195,11 +198,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x = Result::<i32, i32>::Ok(5);
-		/// let y = map_explicit::<BifunctorFirstAppliedBrand<ResultBrand, i32>, _, _, _, _>(|s| s * 2, x);
+		/// let y = map::<BifunctorFirstAppliedBrand<ResultBrand, i32>, _, _, _, _>(|s| s * 2, x);
 		/// assert_eq!(y, Ok(10));
 		/// ```
 		fn map<'a, B: 'a, C: 'a>(
@@ -236,11 +239,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x = Result::<i32, i32>::Err(5);
-		/// let y = map_explicit::<BifunctorSecondAppliedBrand<ResultBrand, i32>, _, _, _, _>(|e| e * 2, x);
+		/// let y = map::<BifunctorSecondAppliedBrand<ResultBrand, i32>, _, _, _, _>(|e| e * 2, x);
 		/// assert_eq!(y, Err(10));
 		/// ```
 		fn map<'a, A: 'a, C: 'a>(

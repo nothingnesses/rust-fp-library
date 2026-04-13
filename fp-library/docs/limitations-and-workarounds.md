@@ -15,7 +15,7 @@ The library works around this using the Brand pattern (lightweight higher-kinded
 - **No method syntax.** Type class operations are free functions, not methods on the container. You write `bind(x, f)` not `x.bind(f)`.
 - **Generated trait names in errors.** Compiler errors expose the macro-generated `Kind` trait names (e.g., `Kind_cdc7cd43dac7585f`) rather than human-readable names, making diagnostics harder to interpret.
 - **Wrapping/unwrapping overhead in generic code.** Generic functions must use `Apply!` macro invocations to convert between the `Kind` associated type and the concrete type, adding syntactic noise.
-- **Turbofish for ambiguous types.** Types reachable through multiple brands at a given arity (e.g., `Result` at arity 1) cannot use brand inference and require `_explicit` variants with turbofish: `map_explicit::<ResultErrAppliedBrand<E>, _, _, _, _>(f, x)`.
+- **Turbofish for ambiguous types.** Types reachable through multiple brands at a given arity (e.g., `Result` at arity 1) cannot use brand inference and require `explicit::` variants with turbofish: `explicit::map::<ResultErrAppliedBrand<E>, _, _, _, _>(f, x)`.
 
 ### Mitigation
 

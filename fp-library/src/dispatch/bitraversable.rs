@@ -1,21 +1,21 @@
 //! Dispatch for [`Bitraversable::bi_traverse`](crate::classes::Bitraversable::bi_traverse) and
 //! [`RefBitraversable::ref_bi_traverse`](crate::classes::RefBitraversable::ref_bi_traverse).
 //!
-//! Provides the [`BiTraverseDispatch`] trait and a unified [`bi_traverse`] free function
-//! that routes to the appropriate trait method based on the closures' argument
-//! types.
+//! Provides the [`BiTraverseDispatch`] trait and a unified
+//! [`explicit::bi_traverse`] free function that routes to the appropriate trait
+//! method based on the closures' argument types.
 //!
 //! ### Examples
 //!
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! // Owned: dispatches to Bitraversable::bi_traverse
 //! let x: Result<i32, i32> = Ok(5);
-//! let y = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+//! let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 //! 	(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
 //! 	x,
 //! );
@@ -23,7 +23,7 @@
 //!
 //! // By-ref: dispatches to RefBitraversable::ref_bi_traverse
 //! let x: Result<i32, i32> = Ok(5);
-//! let y = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+//! let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 //! 	(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
 //! 	&x,
 //! );
@@ -91,11 +91,11 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let result = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// let result = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 		/// 	(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
 		/// 	x,
 		/// );
@@ -159,11 +159,11 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let result = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// let result = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 		/// 	(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
 		/// 	x,
 		/// );
@@ -237,11 +237,11 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let result = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// let result = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 		/// 	(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
 		/// 	&x,
 		/// );
@@ -256,88 +256,96 @@ pub(crate) mod inner {
 		}
 	}
 
-	// -- Unified free function --
+	// -- Explicit dispatch free function --
 
-	/// Traverses a bitraversable structure, mapping each element to a computation and combining the results.
+	/// Explicit dispatch functions requiring a Brand turbofish.
 	///
-	/// Dispatches to either [`Bitraversable::bi_traverse`] or
-	/// [`RefBitraversable::ref_bi_traverse`] based on the closures' argument types:
-	///
-	/// - If the closures take owned values and the container is owned,
-	///   dispatches to [`Bitraversable::bi_traverse`]. The `FnBrand` parameter
-	///   is unused but must be specified for uniformity.
-	/// - If the closures take references and the container is borrowed,
-	///   dispatches to [`RefBitraversable::ref_bi_traverse`]. The `FnBrand`
-	///   parameter is passed through as the function brand.
-	///
-	/// The `Marker` and `FA` type parameters are inferred automatically by
-	/// the compiler from the closures' argument types and the container
-	/// argument.
-	///
-	/// The dispatch is resolved at compile time with no runtime cost.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the cloneable function to use.",
-		"The brand of the bitraversable structure.",
-		"The type of the first-position elements.",
-		"The type of the second-position elements.",
-		"The output type for first-position elements.",
-		"The output type for second-position elements.",
-		"The applicative functor brand.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters(
-		"A tuple of (first function, second function), each returning a value in an applicative context.",
-		"The bitraversable structure (owned for Val, borrowed for Ref)."
-	)]
-	///
-	#[document_returns("The structure wrapped in the applicative context.")]
-	///
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// // Owned: dispatches to Bitraversable::bi_traverse
-	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
-	/// 	(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
-	/// 	x,
-	/// );
-	/// assert_eq!(y, Some(Ok(10)));
-	///
-	/// // By-ref: dispatches to RefBitraversable::ref_bi_traverse
-	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = bi_traverse_explicit::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
-	/// 	(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
-	/// 	&x,
-	/// );
-	/// assert_eq!(y, Some(Ok(10)));
-	/// ```
-	pub fn bi_traverse<
-		'a,
-		FnBrand,
-		Brand: Kind_266801a817966495,
-		A: 'a,
-		B: 'a,
-		C: 'a,
-		D: 'a,
-		F: Kind_cdc7cd43dac7585f,
-		FA,
-		Marker,
-	>(
-		fg: impl BiTraverseDispatch<'a, FnBrand, Brand, A, B, C, D, F, FA, Marker>,
-		fa: FA,
-	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
-	{
-		fg.dispatch(fa)
+	/// For most use cases, prefer the inference-enabled wrappers from
+	/// [`functions`](crate::functions).
+	pub mod explicit {
+		use super::*;
+
+		/// Traverses a bitraversable structure, mapping each element to a computation and combining the results.
+		///
+		/// Dispatches to either [`Bitraversable::bi_traverse`] or
+		/// [`RefBitraversable::ref_bi_traverse`] based on the closures' argument types:
+		///
+		/// - If the closures take owned values and the container is owned,
+		///   dispatches to [`Bitraversable::bi_traverse`]. The `FnBrand` parameter
+		///   is unused but must be specified for uniformity.
+		/// - If the closures take references and the container is borrowed,
+		///   dispatches to [`RefBitraversable::ref_bi_traverse`]. The `FnBrand`
+		///   parameter is passed through as the function brand.
+		///
+		/// The `Marker` and `FA` type parameters are inferred automatically by
+		/// the compiler from the closures' argument types and the container
+		/// argument.
+		///
+		/// The dispatch is resolved at compile time with no runtime cost.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The brand of the bitraversable structure.",
+			"The type of the first-position elements.",
+			"The type of the second-position elements.",
+			"The output type for first-position elements.",
+			"The output type for second-position elements.",
+			"The applicative functor brand.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters(
+			"A tuple of (first function, second function), each returning a value in an applicative context.",
+			"The bitraversable structure (owned for Val, borrowed for Ref)."
+		)]
+		///
+		#[document_returns("The structure wrapped in the applicative context.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// // Owned: dispatches to Bitraversable::bi_traverse
+		/// let x: Result<i32, i32> = Ok(5);
+		/// let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 	(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
+		/// 	x,
+		/// );
+		/// assert_eq!(y, Some(Ok(10)));
+		///
+		/// // By-ref: dispatches to RefBitraversable::ref_bi_traverse
+		/// let x: Result<i32, i32> = Ok(5);
+		/// let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 	(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
+		/// 	&x,
+		/// );
+		/// assert_eq!(y, Some(Ok(10)));
+		/// ```
+		pub fn bi_traverse<
+			'a,
+			FnBrand,
+			Brand: Kind_266801a817966495,
+			A: 'a,
+			B: 'a,
+			C: 'a,
+			D: 'a,
+			F: Kind_cdc7cd43dac7585f,
+			FA,
+			Marker,
+		>(
+			fg: impl BiTraverseDispatch<'a, FnBrand, Brand, A, B, C, D, F, FA, Marker>,
+			fa: FA,
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
+		{
+			fg.dispatch(fa)
+		}
 	}
 }
 

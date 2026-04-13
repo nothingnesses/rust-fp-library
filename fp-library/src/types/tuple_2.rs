@@ -63,7 +63,10 @@ mod inner {
 		/// };
 		///
 		/// let x = (1, 5);
-		/// assert_eq!(bimap_explicit::<Tuple2Brand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x), (2, 10));
+		/// assert_eq!(
+		/// 	explicit::bimap::<Tuple2Brand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x),
+		/// 	(2, 10)
+		/// );
 		/// ```
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
 			f: impl Fn(A) -> B + 'a,
@@ -151,7 +154,7 @@ mod inner {
 		///
 		/// let x = (3, 5);
 		/// assert_eq!(
-		/// 	bi_fold_right_explicit::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_right::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
 		/// 		(|a: &i32, acc| acc - *a, |b: &i32, acc| acc + *b),
 		/// 		0,
 		/// 		&x,
@@ -203,7 +206,7 @@ mod inner {
 		///
 		/// let x = (3, 5);
 		/// assert_eq!(
-		/// 	bi_traverse_explicit::<RcFnBrand, Tuple2Brand, _, _, _, _, OptionBrand, _, _>(
+		/// 	explicit::bi_traverse::<RcFnBrand, Tuple2Brand, _, _, _, _, OptionBrand, _, _>(
 		/// 		(|a: &i32| Some(a + 1), |b: &i32| Some(b * 2)),
 		/// 		&x,
 		/// 	),
@@ -264,7 +267,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_right_explicit::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_right::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
 		/// 		(|a: i32, acc| acc - a, |b: i32, acc| acc + b),
 		/// 		0,
 		/// 		(3, 5),
@@ -313,7 +316,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_left_explicit::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_left::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
 		/// 		(|acc, a: i32| acc - a, |acc, b: i32| acc + b),
 		/// 		0,
 		/// 		(3, 5),
@@ -360,7 +363,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_map_explicit::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_map::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
 		/// 		(|a: i32| a.to_string(), |b: i32| b.to_string()),
 		/// 		(3, 5),
 		/// 	),
@@ -411,7 +414,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_traverse_explicit::<RcFnBrand, Tuple2Brand, _, _, _, _, OptionBrand, _, _>(
+		/// 	explicit::bi_traverse::<RcFnBrand, Tuple2Brand, _, _, _, _, OptionBrand, _, _>(
 		/// 		(|a: i32| Some(a + 1), |b: i32| Some(b * 2)),
 		/// 		(3, 5),
 		/// 	),
@@ -475,7 +478,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	map_explicit::<Tuple2FirstAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, (1, 5)),
+		/// 	explicit::map::<Tuple2FirstAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, (1, 5)),
 		/// 	(1, 10)
 		/// );
 		/// ```
@@ -522,7 +525,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _, _, _>(
+		/// 	explicit::lift2::<Tuple2FirstAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		("a".to_string(), 1),
 		/// 		("b".to_string(), 2)
@@ -655,7 +658,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(("a".to_string(), 5), |x| (
+		/// 	explicit::bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(("a".to_string(), 5), |x| (
 		/// 		"b".to_string(),
 		/// 		x * 2
 		/// 	)),
@@ -768,7 +771,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right_explicit::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_right::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
 		/// 		|x, acc| x + acc,
 		/// 		0,
 		/// 		((), 5)
@@ -814,7 +817,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left_explicit::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_left::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
 		/// 		|acc, x| acc + x,
 		/// 		0,
 		/// 		((), 5)
@@ -857,7 +860,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map_explicit::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_map::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		((), 5)
 		/// 	),
@@ -904,7 +907,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse_explicit::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	explicit::traverse::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		((), 5)
 		/// 	),
@@ -977,7 +980,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		/// assert_eq!(
-		/// 	map_explicit::<Tuple2FirstAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &(1, 5)),
+		/// 	explicit::map::<Tuple2FirstAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &(1, 5)),
 		/// 	(1, 10)
 		/// );
 		/// ```
@@ -1008,7 +1011,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map_explicit::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
+		/// let result = explicit::fold_map::<RcFnBrand, Tuple2FirstAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
 		/// 	&((), 5),
 		/// );
@@ -1112,7 +1115,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = lift2_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _, _, _>(
+		/// let result = explicit::lift2::<Tuple2FirstAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
 		/// 	&("a".to_string(), 1),
 		/// 	&("b".to_string(), 2),
@@ -1187,7 +1190,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result: (String, String) = bind_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
+		/// let result: (String, String) = explicit::bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
 		/// 	&("a".to_string(), 42),
 		/// 	|x: &i32| ("b".to_string(), x.to_string()),
 		/// );
@@ -1241,7 +1244,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	map_explicit::<Tuple2SecondAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, (5, 1)),
+		/// 	explicit::map::<Tuple2SecondAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, (5, 1)),
 		/// 	(10, 1)
 		/// );
 		/// ```
@@ -1288,7 +1291,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2_explicit::<Tuple2SecondAppliedBrand<String>, _, _, _, _, _, _>(
+		/// 	explicit::lift2::<Tuple2SecondAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		(1, "a".to_string()),
 		/// 		(2, "b".to_string())
@@ -1421,7 +1424,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind_explicit::<Tuple2SecondAppliedBrand<String>, _, _, _, _>((5, "a".to_string()), |x| (
+		/// 	explicit::bind::<Tuple2SecondAppliedBrand<String>, _, _, _, _>((5, "a".to_string()), |x| (
 		/// 		x * 2,
 		/// 		"b".to_string()
 		/// 	)),
@@ -1534,7 +1537,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right_explicit::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_right::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
 		/// 		|x, acc| x + acc,
 		/// 		0,
 		/// 		(5, ())
@@ -1577,7 +1580,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left_explicit::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_left::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
 		/// 		|acc, x| acc + x,
 		/// 		0,
 		/// 		(5, ())
@@ -1620,7 +1623,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map_explicit::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_map::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		(5, ())
 		/// 	),
@@ -1665,7 +1668,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse_explicit::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	explicit::traverse::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		(5, ())
 		/// 	),
@@ -1737,7 +1740,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		/// assert_eq!(
-		/// 	map_explicit::<Tuple2SecondAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &(5, 1)),
+		/// 	explicit::map::<Tuple2SecondAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &(5, 1)),
 		/// 	(10, 1)
 		/// );
 		/// ```
@@ -1768,7 +1771,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map_explicit::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
+		/// let result = explicit::fold_map::<RcFnBrand, Tuple2SecondAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
 		/// 	&(5, ()),
 		/// );
@@ -1872,7 +1875,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = lift2_explicit::<Tuple2SecondAppliedBrand<String>, _, _, _, _, _, _>(
+		/// let result = explicit::lift2::<Tuple2SecondAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
 		/// 	&(1, "a".to_string()),
 		/// 	&(2, "b".to_string()),
@@ -1947,7 +1950,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result: (String, String) = bind_explicit::<Tuple2SecondAppliedBrand<String>, _, _, _, _>(
+		/// let result: (String, String) = explicit::bind::<Tuple2SecondAppliedBrand<String>, _, _, _, _>(
 		/// 	&(42, "a".to_string()),
 		/// 	|x: &i32| (x.to_string(), "b".to_string()),
 		/// );
@@ -1983,7 +1986,7 @@ mod tests {
 	fn test_bimap() {
 		let x = (1, 5);
 		assert_eq!(
-			bimap_explicit::<Tuple2Brand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x),
+			explicit::bimap::<Tuple2Brand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x),
 			(2, 10)
 		);
 	}
@@ -1997,7 +2000,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let x = (first, second);
-		bimap_explicit::<Tuple2Brand, _, _, _, _, _, _>((identity, identity), x.clone()) == x
+		explicit::bimap::<Tuple2Brand, _, _, _, _, _, _>((identity, identity), x.clone()) == x
 	}
 
 	/// Tests the composition law for Bifunctor.
@@ -2012,10 +2015,10 @@ mod tests {
 		let h = |x: i32| x.wrapping_sub(1);
 		let i = |x: i32| if x == 0 { 0 } else { x.wrapping_div(2) };
 
-		bimap_explicit::<Tuple2Brand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), x)
-			== bimap_explicit::<Tuple2Brand, _, _, _, _, _, _>(
+		explicit::bimap::<Tuple2Brand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), x)
+			== explicit::bimap::<Tuple2Brand, _, _, _, _, _, _>(
 				(f, h),
-				bimap_explicit::<Tuple2Brand, _, _, _, _, _, _>((g, i), x),
+				explicit::bimap::<Tuple2Brand, _, _, _, _, _, _>((g, i), x),
 			)
 	}
 
@@ -2028,7 +2031,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let x = (first, second);
-		map_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(identity, x.clone()) == x
+		explicit::map::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -2040,10 +2043,10 @@ mod tests {
 		let x = (first, second);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(compose(f, g), x.clone())
-			== map_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
+		explicit::map::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(compose(f, g), x.clone())
+			== explicit::map::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
 				f,
-				map_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(g, x),
+				explicit::map::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(g, x),
 			)
 	}
 
@@ -2140,7 +2143,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| ("f".to_string(), x.wrapping_mul(2));
-		bind_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
+		explicit::bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
 			pure::<Tuple2FirstAppliedBrand<String>, _>(a),
 			f,
 		) == f(a)
@@ -2153,7 +2156,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let m = (first, second);
-		bind_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
+		explicit::bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
 			m.clone(),
 			pure::<Tuple2FirstAppliedBrand<String>, _>,
 		) == m
@@ -2168,11 +2171,11 @@ mod tests {
 		let m = (first, second);
 		let f = |x: i32| ("f".to_string(), x.wrapping_mul(2));
 		let g = |x: i32| ("g".to_string(), x.wrapping_add(1));
-		bind_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
-			bind_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(m.clone(), f),
+		explicit::bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
+			explicit::bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(m.clone(), f),
 			g,
-		) == bind_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(m, |x| {
-			bind_explicit::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(f(x), g)
+		) == explicit::bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(m, |x| {
+			explicit::bind::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(f(x), g)
 		})
 	}
 

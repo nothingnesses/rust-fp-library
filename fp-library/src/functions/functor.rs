@@ -21,7 +21,7 @@ mod inner {
 	///   via the blanket `impl InferableBrand for &T`.
 	///
 	/// For types with multiple brands (e.g., `Result`), use
-	/// [`map_explicit`](crate::functions::map_explicit) with a turbofish.
+	/// [`explicit::map`](crate::functions::explicit::map) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(

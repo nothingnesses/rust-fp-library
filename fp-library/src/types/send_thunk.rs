@@ -470,7 +470,7 @@ mod inner {
 		///
 		/// let thunk = SendThunk::pure(10);
 		/// let result =
-		/// 	fold_right_explicit::<RcFnBrand, SendThunkBrand, _, _, _, _>(|a, b| a + b, 5, thunk);
+		/// 	explicit::fold_right::<RcFnBrand, SendThunkBrand, _, _, _, _>(|a, b| a + b, 5, thunk);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -511,7 +511,7 @@ mod inner {
 		///
 		/// let thunk = SendThunk::pure(10);
 		/// let result =
-		/// 	fold_left_explicit::<RcFnBrand, SendThunkBrand, _, _, _, _>(|b, a| b + a, 5, thunk);
+		/// 	explicit::fold_left::<RcFnBrand, SendThunkBrand, _, _, _, _>(|b, a| b + a, 5, thunk);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -549,7 +549,7 @@ mod inner {
 		///
 		/// let thunk = SendThunk::pure(10);
 		/// let result =
-		/// 	fold_map_explicit::<RcFnBrand, SendThunkBrand, _, _, _, _>(|a: i32| a.to_string(), thunk);
+		/// 	explicit::fold_map::<RcFnBrand, SendThunkBrand, _, _, _, _>(|a: i32| a.to_string(), thunk);
 		/// assert_eq!(result, "10");
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -912,11 +912,11 @@ mod tests {
 				RcFnBrand,
 				SendThunkBrand,
 			},
-			functions::fold_right_explicit,
+			functions::explicit,
 		};
 		let thunk = SendThunk::pure(10);
 		let result =
-			fold_right_explicit::<RcFnBrand, SendThunkBrand, _, _, _, _>(|a, b| a + b, 5, thunk);
+			explicit::fold_right::<RcFnBrand, SendThunkBrand, _, _, _, _>(|a, b| a + b, 5, thunk);
 		assert_eq!(result, 15);
 	}
 
@@ -927,11 +927,11 @@ mod tests {
 				RcFnBrand,
 				SendThunkBrand,
 			},
-			functions::fold_left_explicit,
+			functions::explicit,
 		};
 		let thunk = SendThunk::pure(10);
 		let result =
-			fold_left_explicit::<RcFnBrand, SendThunkBrand, _, _, _, _>(|b, a| b + a, 5, thunk);
+			explicit::fold_left::<RcFnBrand, SendThunkBrand, _, _, _, _>(|b, a| b + a, 5, thunk);
 		assert_eq!(result, 15);
 	}
 
@@ -942,10 +942,10 @@ mod tests {
 				RcFnBrand,
 				SendThunkBrand,
 			},
-			functions::fold_map_explicit,
+			functions::explicit,
 		};
 		let thunk = SendThunk::pure(10);
-		let result = fold_map_explicit::<RcFnBrand, SendThunkBrand, _, _, _, _>(
+		let result = explicit::fold_map::<RcFnBrand, SendThunkBrand, _, _, _, _>(
 			|a: i32| a.to_string(),
 			thunk,
 		);
@@ -997,14 +997,14 @@ mod tests {
 				SendThunkBrand,
 			},
 			classes::foldable_with_index::FoldableWithIndex,
-			functions::fold_map_explicit,
+			functions::explicit,
 		};
 		let f = |a: i32| a.to_string();
 		let t1 = SendThunk::pure(7);
 		let t2 = SendThunk::pure(7);
 		// fold_map(f, fa) = fold_map_with_index(|_, a| f(a), fa)
 		assert_eq!(
-			fold_map_explicit::<RcFnBrand, SendThunkBrand, _, _, _, _>(f, t1),
+			explicit::fold_map::<RcFnBrand, SendThunkBrand, _, _, _, _>(f, t1),
 			<SendThunkBrand as FoldableWithIndex>::fold_map_with_index::<RcFnBrand, _, _>(
 				|_, a| f(a),
 				t2

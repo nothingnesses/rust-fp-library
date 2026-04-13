@@ -5,11 +5,11 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! let x = Some(5);
-//! let y = fold_right_explicit::<RcFnBrand, OptionBrand, _, _, _, _>(|a, b| a + b, 10, x);
+//! let y = fold_right::<RcFnBrand, OptionBrand, _, _, _, _>(|a, b| a + b, 10, x);
 //! assert_eq!(y, 15);
 //! ```
 
@@ -49,7 +49,13 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::{
+	/// 		explicit::{
+	/// 			fold_map,
+	/// 			fold_right,
+	/// 		},
+	/// 		*,
+	/// 	},
 	/// };
 	///
 	/// let xs = vec![1, 2, 3];
@@ -58,8 +64,8 @@ mod inner {
 	/// // fold_map/fold_right consistency:
 	/// // fold_map(f, fa) = fold_right(|a, m| append(f(a), m), empty(), fa)
 	/// assert_eq!(
-	/// 	fold_map_explicit::<RcFnBrand, VecBrand, _, _, _, _>(f, xs.clone()),
-	/// 	fold_right_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
+	/// 	fold_map::<RcFnBrand, VecBrand, _, _, _, _>(f, xs.clone()),
+	/// 	fold_right::<RcFnBrand, VecBrand, _, _, _, _>(
 	/// 		|a: i32, m: String| append(f(a), m),
 	/// 		empty::<String>(),
 	/// 		xs,
@@ -92,11 +98,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_right_explicit::<RcFnBrand, OptionBrand, _, _, _, _>(|a, b| a + b, 10, x);
+		/// let y = fold_right::<RcFnBrand, OptionBrand, _, _, _, _>(|a, b| a + b, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -143,11 +149,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_left_explicit::<RcFnBrand, OptionBrand, _, _, _, _>(|b, a| b + a, 10, x);
+		/// let y = fold_left::<RcFnBrand, OptionBrand, _, _, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -201,11 +207,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_map_explicit::<RcFnBrand, OptionBrand, _, _, _, _>(|a: i32| a.to_string(), x);
+		/// let y = fold_map::<RcFnBrand, OptionBrand, _, _, _, _>(|a: i32| a.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(

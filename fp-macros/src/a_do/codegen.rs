@@ -23,8 +23,8 @@ use {
 /// then desugars into the appropriate combinator:
 ///
 /// - 0 binds -> `pure::<Brand, _>(final_expr)` (explicit) or `compile_error!` (inferred)
-/// - 1 bind  -> `map_explicit::<Brand, ...>(...)` (explicit) or `map(...)` (inferred)
-/// - N binds -> `liftN_explicit::<Brand, ...>(...)` (explicit) or `liftN(...)` (inferred)
+/// - 1 bind  -> `explicit::map::<Brand, ...>(...)` (explicit) or `map(...)` (inferred)
+/// - N binds -> `explicit::liftN::<Brand, ...>(...)` (explicit) or `liftN(...)` (inferred)
 pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 	let brand = input.brand.as_ref();
 	let ref_mode = input.ref_mode;
@@ -118,7 +118,7 @@ pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 		([param], [expr]) =>
 			if let Some(brand) = brand {
 				quote! {
-					map_explicit::<#brand, _, _, _, _>(|#param| { #(#inner_lets)* #final_expr }, #expr)
+					explicit::map::<#brand, _, _, _, _>(|#param| { #(#inner_lets)* #final_expr }, #expr)
 				}
 			} else {
 				quote! {
@@ -128,14 +128,14 @@ pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 		// 2-5 binds: liftN
 		_ if n <= 5 => {
 			if let Some(brand) = brand {
-				let fn_name = format_ident!("lift{}_explicit", n);
+				let fn_name = format_ident!("lift{}", n);
 				// Dispatched liftN functions have type params:
 				// Brand + N value types + result type + N container types (FA, FB, ...) + Marker
 				// Total underscores: n + 1 + n + 1 = 2n + 2
 				let underscores: Vec<TokenStream> =
 					(0 .. 2 * n + 2).map(|_| quote! { _ }).collect();
 				quote! {
-					#fn_name::<#brand, #(#underscores),*>(
+					explicit::#fn_name::<#brand, #(#underscores),*>(
 						|#(#bind_params),*| { #(#inner_lets)* #final_expr },
 						#(#bind_exprs),*
 					)

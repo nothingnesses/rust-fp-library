@@ -429,7 +429,7 @@ mod inner {
 		///
 		/// let x = Pair(1, 5);
 		/// assert_eq!(
-		/// 	bimap_explicit::<PairBrand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x),
+		/// 	explicit::bimap::<PairBrand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x),
 		/// 	Pair(2, 10)
 		/// );
 		/// ```
@@ -636,7 +636,7 @@ mod inner {
 		///
 		/// let x = Pair(3, 5);
 		/// assert_eq!(
-		/// 	bi_fold_right_explicit::<RcFnBrand, PairBrand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_right::<RcFnBrand, PairBrand, _, _, _, _, _>(
 		/// 		(|a, acc| acc - a, |b, acc| acc + b),
 		/// 		0,
 		/// 		x
@@ -685,7 +685,7 @@ mod inner {
 		///
 		/// let x = Pair(3, 5);
 		/// assert_eq!(
-		/// 	bi_fold_left_explicit::<RcFnBrand, PairBrand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_left::<RcFnBrand, PairBrand, _, _, _, _, _>(
 		/// 		(|acc, a| acc - a, |acc, b| acc + b),
 		/// 		0,
 		/// 		x
@@ -732,7 +732,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_map_explicit::<RcFnBrand, PairBrand, _, _, _, _, _>(
+		/// 	explicit::bi_fold_map::<RcFnBrand, PairBrand, _, _, _, _, _>(
 		/// 		(|a: i32| a.to_string(), |b: i32| b.to_string()),
 		/// 		Pair(3, 5),
 		/// 	),
@@ -784,7 +784,7 @@ mod inner {
 		///
 		/// let x = Pair(3, 5);
 		/// assert_eq!(
-		/// 	bi_traverse_explicit::<RcFnBrand, PairBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 	explicit::bi_traverse::<RcFnBrand, PairBrand, _, _, _, _, OptionBrand, _, _>(
 		/// 		(|a: i32| Some(a + 1), |b: i32| Some(b * 2)),
 		/// 		x,
 		/// 	),
@@ -849,7 +849,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	map_explicit::<PairFirstAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, Pair(1, 5)),
+		/// 	explicit::map::<PairFirstAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, Pair(1, 5)),
 		/// 	Pair(1, 10)
 		/// );
 		/// ```
@@ -897,7 +897,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2_explicit::<PairFirstAppliedBrand<String>, _, _, _, _, _, _>(
+		/// 	explicit::lift2::<PairFirstAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		Pair("a".to_string(), 1),
 		/// 		Pair("b".to_string(), 2)
@@ -1036,9 +1036,10 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(Pair("a".to_string(), 5), |x| {
-		/// 		Pair("b".to_string(), x * 2)
-		/// 	}),
+		/// 	explicit::bind::<PairFirstAppliedBrand<String>, _, _, _, _>(
+		/// 		Pair("a".to_string(), 5),
+		/// 		|x| { Pair("b".to_string(), x * 2) }
+		/// 	),
 		/// 	Pair("ab".to_string(), 10)
 		/// );
 		/// ```
@@ -1148,7 +1149,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right_explicit::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_right::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
 		/// 		|x, acc| x + acc,
 		/// 		0,
 		/// 		Pair((), 5)
@@ -1195,7 +1196,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left_explicit::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_left::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
 		/// 		|acc, x| acc + x,
 		/// 		0,
 		/// 		Pair((), 5)
@@ -1239,7 +1240,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map_explicit::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_map::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		Pair((), 5)
 		/// 	),
@@ -1287,7 +1288,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse_explicit::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	explicit::traverse::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		Pair((), 5)
 		/// 	),
@@ -1362,7 +1363,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		/// assert_eq!(
-		/// 	map_explicit::<PairFirstAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &Pair(1, 5)),
+		/// 	explicit::map::<PairFirstAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &Pair(1, 5)),
 		/// 	Pair(1, 10)
 		/// );
 		/// ```
@@ -1394,7 +1395,7 @@ mod inner {
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
-		/// let result = fold_map_explicit::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
+		/// let result = explicit::fold_map::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
 		/// 	&Pair((), 5),
 		/// );
@@ -1501,7 +1502,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result = lift2_explicit::<PairFirstAppliedBrand<String>, _, _, _, _, _, _>(
+		/// let result = explicit::lift2::<PairFirstAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
 		/// 	&Pair("a".to_string(), 1),
 		/// 	&Pair("b".to_string(), 2),
@@ -1578,7 +1579,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result: Pair<String, String> = bind_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(
+		/// let result: Pair<String, String> = explicit::bind::<PairFirstAppliedBrand<String>, _, _, _, _>(
 		/// 	&Pair("a".to_string(), 42),
 		/// 	|x: &i32| Pair("b".to_string(), x.to_string()),
 		/// );
@@ -1632,7 +1633,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	map_explicit::<PairSecondAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, Pair(5, 1)),
+		/// 	explicit::map::<PairSecondAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, Pair(5, 1)),
 		/// 	Pair(10, 1)
 		/// );
 		/// ```
@@ -1680,7 +1681,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2_explicit::<PairSecondAppliedBrand<String>, _, _, _, _, _, _>(
+		/// 	explicit::lift2::<PairSecondAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		Pair(1, "a".to_string()),
 		/// 		Pair(2, "b".to_string())
@@ -1819,7 +1820,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind_explicit::<PairSecondAppliedBrand<String>, _, _, _, _>(
+		/// 	explicit::bind::<PairSecondAppliedBrand<String>, _, _, _, _>(
 		/// 		Pair(5, "a".to_string()),
 		/// 		|x| Pair(x * 2, "b".to_string())
 		/// 	),
@@ -1932,7 +1933,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right_explicit::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_right::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
 		/// 		|x, acc| x + acc,
 		/// 		0,
 		/// 		Pair(5, ())
@@ -1976,7 +1977,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left_explicit::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_left::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
 		/// 		|acc, x| acc + x,
 		/// 		0,
 		/// 		Pair(5, ())
@@ -2020,7 +2021,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map_explicit::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
+		/// 	explicit::fold_map::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		Pair(5, ())
 		/// 	),
@@ -2066,7 +2067,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse_explicit::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 	explicit::traverse::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		Pair(5, ())
 		/// 	),
@@ -2140,7 +2141,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		/// assert_eq!(
-		/// 	map_explicit::<PairSecondAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &Pair(5, 1)),
+		/// 	explicit::map::<PairSecondAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &Pair(5, 1)),
 		/// 	Pair(10, 1)
 		/// );
 		/// ```
@@ -2172,7 +2173,7 @@ mod inner {
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
-		/// let result = fold_map_explicit::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
+		/// let result = explicit::fold_map::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
 		/// 	&Pair(5, ()),
 		/// );
@@ -2279,7 +2280,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result = lift2_explicit::<PairSecondAppliedBrand<String>, _, _, _, _, _, _>(
+		/// let result = explicit::lift2::<PairSecondAppliedBrand<String>, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
 		/// 	&Pair(1, "a".to_string()),
 		/// 	&Pair(2, "b".to_string()),
@@ -2356,7 +2357,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result: Pair<String, String> = bind_explicit::<PairSecondAppliedBrand<String>, _, _, _, _>(
+		/// let result: Pair<String, String> = explicit::bind::<PairSecondAppliedBrand<String>, _, _, _, _>(
 		/// 	&Pair(42, "a".to_string()),
 		/// 	|x: &i32| Pair(x.to_string(), "b".to_string()),
 		/// );
@@ -2392,7 +2393,7 @@ mod tests {
 	fn test_bimap() {
 		let x = Pair(1, 5);
 		assert_eq!(
-			bimap_explicit::<PairBrand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x),
+			explicit::bimap::<PairBrand, _, _, _, _, _, _>((|a| a + 1, |b| b * 2), x),
 			Pair(2, 10)
 		);
 	}
@@ -2406,7 +2407,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let x = Pair(first, second);
-		bimap_explicit::<PairBrand, _, _, _, _, _, _>((identity, identity), x.clone()) == x
+		explicit::bimap::<PairBrand, _, _, _, _, _, _>((identity, identity), x.clone()) == x
 	}
 
 	/// Tests the composition law for Bifunctor.
@@ -2421,10 +2422,10 @@ mod tests {
 		let h = |x: i32| x.wrapping_sub(1);
 		let i = |x: i32| if x == 0 { 0 } else { x.wrapping_div(2) };
 
-		bimap_explicit::<PairBrand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), x)
-			== bimap_explicit::<PairBrand, _, _, _, _, _, _>(
+		explicit::bimap::<PairBrand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), x)
+			== explicit::bimap::<PairBrand, _, _, _, _, _, _>(
 				(f, h),
-				bimap_explicit::<PairBrand, _, _, _, _, _, _>((g, i), x),
+				explicit::bimap::<PairBrand, _, _, _, _, _, _>((g, i), x),
 			)
 	}
 
@@ -2437,7 +2438,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let x = Pair(first, second);
-		map_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(identity, x.clone()) == x
+		explicit::map::<PairFirstAppliedBrand<String>, _, _, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -2449,10 +2450,10 @@ mod tests {
 		let x = Pair(first, second);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(compose(f, g), x.clone())
-			== map_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(
+		explicit::map::<PairFirstAppliedBrand<String>, _, _, _, _>(compose(f, g), x.clone())
+			== explicit::map::<PairFirstAppliedBrand<String>, _, _, _, _>(
 				f,
-				map_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(g, x),
+				explicit::map::<PairFirstAppliedBrand<String>, _, _, _, _>(g, x),
 			)
 	}
 
@@ -2549,7 +2550,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| Pair("f".to_string(), x.wrapping_mul(2));
-		bind_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(
+		explicit::bind::<PairFirstAppliedBrand<String>, _, _, _, _>(
 			pure::<PairFirstAppliedBrand<String>, _>(a),
 			f,
 		) == f(a)
@@ -2562,7 +2563,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let m = Pair(first, second);
-		bind_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(
+		explicit::bind::<PairFirstAppliedBrand<String>, _, _, _, _>(
 			m.clone(),
 			pure::<PairFirstAppliedBrand<String>, _>,
 		) == m
@@ -2577,11 +2578,11 @@ mod tests {
 		let m = Pair(first, second);
 		let f = |x: i32| Pair("f".to_string(), x.wrapping_mul(2));
 		let g = |x: i32| Pair("g".to_string(), x.wrapping_add(1));
-		bind_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(
-			bind_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(m.clone(), f),
+		explicit::bind::<PairFirstAppliedBrand<String>, _, _, _, _>(
+			explicit::bind::<PairFirstAppliedBrand<String>, _, _, _, _>(m.clone(), f),
 			g,
-		) == bind_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(m, |x| {
-			bind_explicit::<PairFirstAppliedBrand<String>, _, _, _, _>(f(x), g)
+		) == explicit::bind::<PairFirstAppliedBrand<String>, _, _, _, _>(m, |x| {
+			explicit::bind::<PairFirstAppliedBrand<String>, _, _, _, _>(f(x), g)
 		})
 	}
 
@@ -2706,7 +2707,7 @@ mod tests {
 		b: i32,
 	) -> bool {
 		let p = Pair(a, b);
-		bimap_explicit::<PairBrand, _, _, _, _, _, _>((|x: &i32| *x, |x: &i32| *x), &p) == p
+		explicit::bimap::<PairBrand, _, _, _, _, _, _>((|x: &i32| *x, |x: &i32| *x), &p) == p
 	}
 
 	/// RefBifunctor composition
@@ -2720,12 +2721,12 @@ mod tests {
 		let f2 = |x: &i32| x.wrapping_mul(2);
 		let g1 = |x: &i32| x.wrapping_add(10);
 		let g2 = |x: &i32| x.wrapping_mul(3);
-		bimap_explicit::<PairBrand, _, _, _, _, _, _>(
+		explicit::bimap::<PairBrand, _, _, _, _, _, _>(
 			(|x: &i32| f2(&f1(x)), |x: &i32| g2(&g1(x))),
 			&p,
-		) == bimap_explicit::<PairBrand, _, _, _, _, _, _>(
+		) == explicit::bimap::<PairBrand, _, _, _, _, _, _>(
 			(f2, g2),
-			&bimap_explicit::<PairBrand, _, _, _, _, _, _>((f1, g1), &p),
+			&explicit::bimap::<PairBrand, _, _, _, _, _, _>((f1, g1), &p),
 		)
 	}
 
@@ -2738,7 +2739,7 @@ mod tests {
 		b: i32,
 	) -> bool {
 		let p = Pair(a, b);
-		let result = bi_fold_map_explicit::<RcFnBrand, PairBrand, _, _, _, _, _>(
+		let result = explicit::bi_fold_map::<RcFnBrand, PairBrand, _, _, _, _, _>(
 			(|x: &i32| x.to_string(), |x: &i32| x.to_string()),
 			&p,
 		);
@@ -2756,10 +2757,12 @@ mod tests {
 		let p = Pair(a, b);
 		let f = |x: &i32| Some(x.wrapping_add(1));
 		let g = |x: &i32| Some(x.wrapping_mul(2));
-		let traversed =
-			bi_traverse_explicit::<RcFnBrand, PairBrand, _, _, _, _, OptionBrand, _, _>((f, g), &p);
+		let traversed = explicit::bi_traverse::<RcFnBrand, PairBrand, _, _, _, _, OptionBrand, _, _>(
+			(f, g),
+			&p,
+		);
 		let mapped_then_sequenced =
-			ref_bi_sequence::<PairBrand, RcFnBrand, _, _, OptionBrand>(&bimap_explicit::<
+			ref_bi_sequence::<PairBrand, RcFnBrand, _, _, OptionBrand>(&explicit::bimap::<
 				PairBrand,
 				_,
 				_,

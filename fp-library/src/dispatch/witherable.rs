@@ -4,8 +4,8 @@
 //!
 //! Provides the following dispatch traits and unified free functions:
 //!
-//! - [`WiltDispatch`] + [`wilt`]
-//! - [`WitherDispatch`] + [`wither`]
+//! - [`WiltDispatch`] + [`explicit::wilt`]
+//! - [`WitherDispatch`] + [`explicit::wither`]
 //!
 //! Each routes to the appropriate trait method based on the closure's argument
 //! type.
@@ -15,19 +15,19 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! 	types::*,
 //! };
 //!
 //! // wilt
-//! let y = wilt_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
+//! let y = wilt::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
 //! 	|a: i32| Some(if a > 2 { Ok(a) } else { Err(a) }),
 //! 	Some(5),
 //! );
 //! assert_eq!(y, Some((None, Some(5))));
 //!
 //! // wither
-//! let y = wither_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
+//! let y = wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
 //! 	|a: i32| Some(if a > 2 { Some(a * 2) } else { None }),
 //! 	Some(5),
 //! );
@@ -95,11 +95,11 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// 	types::*,
 		/// };
 		///
-		/// let result = wilt_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
+		/// let result = wilt::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
 		/// 	|a: i32| Some(if a > 2 { Ok(a) } else { Err(a) }),
 		/// 	Some(5),
 		/// );
@@ -161,11 +161,11 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// 	types::*,
 		/// };
 		///
-		/// let result = wilt_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
+		/// let result = wilt::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
 		/// 	|a: i32| Some(if a > 2 { Ok(a) } else { Err(a) }),
 		/// 	Some(5),
 		/// );
@@ -233,13 +233,13 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// 	types::*,
 		/// };
 		///
 		/// let v = vec![1, 2, 3, 4, 5];
 		/// let result: Option<(Vec<i32>, Vec<i32>)> =
-		/// 	wilt_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
+		/// 	wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
 		/// 		|x: &i32| Some(if *x > 3 { Ok(*x) } else { Err(*x) }),
 		/// 		&v,
 		/// 	);
@@ -257,71 +257,6 @@ pub(crate) mod inner {
 		>) {
 			Brand::ref_wilt::<FnBrand, M, A, E, O>(self, ta)
 		}
-	}
-
-	/// Partitions a structure based on a function returning a Result in an applicative context.
-	///
-	/// Dispatches to either [`Witherable::wilt`] or
-	/// [`RefWitherable::ref_wilt`] based on the closure's argument type.
-	///
-	/// The dispatch is resolved at compile time with no runtime cost.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the cloneable function to use.",
-		"The brand of the witherable structure.",
-		"The applicative functor brand for the computation.",
-		"The type of the elements in the input structure.",
-		"The error type.",
-		"The success type.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters(
-		"The function to apply to each element, returning a Result in an applicative context.",
-		"The witherable structure (owned for Val, borrowed for Ref)."
-	)]
-	///
-	#[document_returns("The partitioned structure wrapped in the applicative context.")]
-	///
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// 	types::*,
-	/// };
-	///
-	/// let y = wilt_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
-	/// 	|a: i32| Some(if a > 2 { Ok(a) } else { Err(a) }),
-	/// 	Some(5),
-	/// );
-	/// assert_eq!(y, Some((None, Some(5))));
-	/// ```
-	pub fn wilt<
-		'a,
-		FnBrand,
-		Brand: Kind_cdc7cd43dac7585f,
-		M: Kind_cdc7cd43dac7585f,
-		A: 'a,
-		E: 'a,
-		O: 'a,
-		FA,
-		Marker,
-	>(
-		func: impl WiltDispatch<'a, FnBrand, Brand, M, A, E, O, FA, Marker>,
-		ta: FA,
-	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-		'a,
-		(
-			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
-		),
-	>) {
-		func.dispatch(ta)
 	}
 
 	// -- WitherDispatch --
@@ -364,10 +299,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = wither_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
+		/// let result = wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
 		/// 	|a: i32| Some(if a > 2 { Some(a * 2) } else { None }),
 		/// 	Some(5),
 		/// );
@@ -423,10 +358,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = wither_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
+		/// let result = wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
 		/// 	|a: i32| Some(if a > 2 { Some(a * 2) } else { None }),
 		/// 	Some(5),
 		/// );
@@ -488,11 +423,11 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let v = vec![1, 2, 3, 4, 5];
-		/// let result: Option<Vec<i32>> = wither_explicit::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
+		/// let result: Option<Vec<i32>> = wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
 		/// 	|x: &i32| if *x > 3 { Some(Some(*x)) } else { Some(None) },
 		/// 	&v,
 		/// );
@@ -509,63 +444,138 @@ pub(crate) mod inner {
 		}
 	}
 
-	/// Maps a function over a data structure and filters out None results in an applicative context.
+	// -- Explicit dispatch free functions --
+
+	/// Explicit dispatch functions requiring a Brand turbofish.
 	///
-	/// Dispatches to either [`Witherable::wither`] or
-	/// [`RefWitherable::ref_wither`] based on the closure's argument type.
-	///
-	/// The dispatch is resolved at compile time with no runtime cost.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the cloneable function to use.",
-		"The brand of the witherable structure.",
-		"The applicative functor brand for the computation.",
-		"The type of the elements in the input structure.",
-		"The type of the elements in the output structure.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters(
-		"The function to apply to each element, returning an Option in an applicative context.",
-		"The witherable structure (owned for Val, borrowed for Ref)."
-	)]
-	///
-	#[document_returns("The filtered structure wrapped in the applicative context.")]
-	///
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// let y = wither_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
-	/// 	|a: i32| Some(if a > 2 { Some(a * 2) } else { None }),
-	/// 	Some(5),
-	/// );
-	/// assert_eq!(y, Some(Some(10)));
-	/// ```
-	pub fn wither<
-		'a,
-		FnBrand,
-		Brand: Kind_cdc7cd43dac7585f,
-		M: Kind_cdc7cd43dac7585f,
-		A: 'a,
-		B: 'a,
-		FA,
-		Marker,
-	>(
-		func: impl WitherDispatch<'a, FnBrand, Brand, M, A, B, FA, Marker>,
-		ta: FA,
-	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-		'a,
-		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
-	>) {
-		func.dispatch(ta)
+	/// For most use cases, prefer the inference-enabled wrappers from
+	/// [`functions`](crate::functions).
+	pub mod explicit {
+		use super::*;
+
+		/// Partitions a structure based on a function returning a Result in an applicative context.
+		///
+		/// Dispatches to either [`Witherable::wilt`] or
+		/// [`RefWitherable::ref_wilt`] based on the closure's argument type.
+		///
+		/// The dispatch is resolved at compile time with no runtime cost.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The brand of the witherable structure.",
+			"The applicative functor brand for the computation.",
+			"The type of the elements in the input structure.",
+			"The error type.",
+			"The success type.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element, returning a Result in an applicative context.",
+			"The witherable structure (owned for Val, borrowed for Ref)."
+		)]
+		///
+		#[document_returns("The partitioned structure wrapped in the applicative context.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let y = wilt::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
+		/// 	|a: i32| Some(if a > 2 { Ok(a) } else { Err(a) }),
+		/// 	Some(5),
+		/// );
+		/// assert_eq!(y, Some((None, Some(5))));
+		/// ```
+		pub fn wilt<
+			'a,
+			FnBrand,
+			Brand: Kind_cdc7cd43dac7585f,
+			M: Kind_cdc7cd43dac7585f,
+			A: 'a,
+			E: 'a,
+			O: 'a,
+			FA,
+			Marker,
+		>(
+			func: impl WiltDispatch<'a, FnBrand, Brand, M, A, E, O, FA, Marker>,
+			ta: FA,
+		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			(
+				Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+				Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+			),
+		>) {
+			func.dispatch(ta)
+		}
+
+		/// Maps a function over a data structure and filters out None results in an applicative context.
+		///
+		/// Dispatches to either [`Witherable::wither`] or
+		/// [`RefWitherable::ref_wither`] based on the closure's argument type.
+		///
+		/// The dispatch is resolved at compile time with no runtime cost.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The brand of the witherable structure.",
+			"The applicative functor brand for the computation.",
+			"The type of the elements in the input structure.",
+			"The type of the elements in the output structure.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element, returning an Option in an applicative context.",
+			"The witherable structure (owned for Val, borrowed for Ref)."
+		)]
+		///
+		#[document_returns("The filtered structure wrapped in the applicative context.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// let y = wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
+		/// 	|a: i32| Some(if a > 2 { Some(a * 2) } else { None }),
+		/// 	Some(5),
+		/// );
+		/// assert_eq!(y, Some(Some(10)));
+		/// ```
+		pub fn wither<
+			'a,
+			FnBrand,
+			Brand: Kind_cdc7cd43dac7585f,
+			M: Kind_cdc7cd43dac7585f,
+			A: 'a,
+			B: 'a,
+			FA,
+			Marker,
+		>(
+			func: impl WitherDispatch<'a, FnBrand, Brand, M, A, B, FA, Marker>,
+			ta: FA,
+		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		>) {
+			func.dispatch(ta)
+		}
 	}
 }
 

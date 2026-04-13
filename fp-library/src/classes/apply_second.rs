@@ -5,12 +5,12 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! let x = Some(5);
 //! let y = Some(10);
-//! let z = apply_second_explicit::<OptionBrand, _, _, _, _>(x, y);
+//! let z = apply_second::<OptionBrand, _, _, _, _>(x, y);
 //! assert_eq!(z, Some(10));
 //! ```
 
@@ -48,12 +48,12 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x = Some(5);
 		/// let y = Some(10);
-		/// let z = apply_second_explicit::<OptionBrand, _, _, _, _>(x, y);
+		/// let z = apply_second::<OptionBrand, _, _, _, _>(x, y);
 		/// assert_eq!(z, Some(10));
 		/// ```
 		fn apply_second<'a, A: 'a + Clone, B: 'a + Clone>(
@@ -84,12 +84,12 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let x = Some(5);
 	/// let y = Some(10);
-	/// let z = apply_second_explicit::<OptionBrand, _, _, _, _>(x, y);
+	/// let z = apply_second::<OptionBrand, _, _, _, _>(x, y);
 	/// assert_eq!(z, Some(10));
 	/// ```
 	pub fn apply_second<'a, Brand: ApplySecond, A: 'a + Clone, B: 'a + Clone>(

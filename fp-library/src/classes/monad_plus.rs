@@ -63,7 +63,7 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let x: Vec<i32> = vec![1, 2];
@@ -71,13 +71,10 @@ mod inner {
 	/// let f = |n: i32| vec![n * 10, n * 100];
 	///
 	/// assert_eq!(
-	/// 	bind_explicit::<VecBrand, _, _, _, _>(
-	/// 		alt_explicit::<VecBrand, _, _, _>(x.clone(), y.clone()),
-	/// 		f
-	/// 	),
-	/// 	alt_explicit::<VecBrand, _, _, _>(
-	/// 		bind_explicit::<VecBrand, _, _, _, _>(x, f),
-	/// 		bind_explicit::<VecBrand, _, _, _, _>(y, f)
+	/// 	bind::<VecBrand, _, _, _, _>(alt::<VecBrand, _, _, _>(x.clone(), y.clone()), f),
+	/// 	alt::<VecBrand, _, _, _>(
+	/// 		bind::<VecBrand, _, _, _, _>(x, f),
+	/// 		bind::<VecBrand, _, _, _, _>(y, f)
 	/// 	),
 	/// );
 	/// ```
@@ -87,13 +84,16 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::{
+	/// 		explicit::bind,
+	/// 		*,
+	/// 	},
 	/// };
 	///
 	/// let f = |n: i32| vec![n * 2];
 	///
 	/// assert_eq!(
-	/// 	bind_explicit::<VecBrand, _, _, _, _>(plus_empty::<VecBrand, i32>(), f),
+	/// 	bind::<VecBrand, _, _, _, _>(plus_empty::<VecBrand, i32>(), f),
 	/// 	plus_empty::<VecBrand, i32>(),
 	/// );
 	/// ```
@@ -125,7 +125,13 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			functions::*,
+			functions::{
+				explicit::{
+					alt,
+					bind,
+				},
+				*,
+			},
 			types::cat_list::CatList,
 		},
 		quickcheck_macros::quickcheck,
@@ -142,13 +148,11 @@ mod tests {
 		let f = |n: i32| {
 			if n > 0 { vec![n.wrapping_mul(2)] } else { vec![] }
 		};
-		bind_explicit::<VecBrand, _, _, _, _>(
-			alt_explicit::<VecBrand, _, _, _>(x.clone(), y.clone()),
-			f,
-		) == alt_explicit::<VecBrand, _, _, _>(
-			bind_explicit::<VecBrand, _, _, _, _>(x, f),
-			bind_explicit::<VecBrand, _, _, _, _>(y, f),
-		)
+		bind::<VecBrand, _, _, _, _>(alt::<VecBrand, _, _, _>(x.clone(), y.clone()), f)
+			== alt::<VecBrand, _, _, _>(
+				bind::<VecBrand, _, _, _, _>(x, f),
+				bind::<VecBrand, _, _, _, _>(y, f),
+			)
 	}
 
 	/// Tests the distributivity law for MonadPlus with CatListBrand.
@@ -162,13 +166,11 @@ mod tests {
 		let f = |n: i32| -> CatList<i32> {
 			if n > 0 { CatList::singleton(n.wrapping_mul(2)) } else { CatList::empty() }
 		};
-		bind_explicit::<CatListBrand, _, _, _, _>(
-			alt_explicit::<CatListBrand, _, _, _>(x.clone(), y.clone()),
-			f,
-		) == alt_explicit::<CatListBrand, _, _, _>(
-			bind_explicit::<CatListBrand, _, _, _, _>(x, f),
-			bind_explicit::<CatListBrand, _, _, _, _>(y, f),
-		)
+		bind::<CatListBrand, _, _, _, _>(alt::<CatListBrand, _, _, _>(x.clone(), y.clone()), f)
+			== alt::<CatListBrand, _, _, _>(
+				bind::<CatListBrand, _, _, _, _>(x, f),
+				bind::<CatListBrand, _, _, _, _>(y, f),
+			)
 	}
 
 	// -- Left zero: bind(empty(), f) == empty() --
@@ -178,7 +180,7 @@ mod tests {
 	fn left_zero_option() {
 		let f = |n: i32| if n > 0 { Some(n * 2) } else { None };
 		assert_eq!(
-			bind_explicit::<OptionBrand, _, _, _, _>(plus_empty::<OptionBrand, i32>(), f),
+			bind::<OptionBrand, _, _, _, _>(plus_empty::<OptionBrand, i32>(), f),
 			plus_empty::<OptionBrand, i32>(),
 		);
 	}
@@ -188,7 +190,7 @@ mod tests {
 	fn left_zero_vec() {
 		let f = |n: i32| if n > 0 { vec![n * 2] } else { vec![] };
 		assert_eq!(
-			bind_explicit::<VecBrand, _, _, _, _>(plus_empty::<VecBrand, i32>(), f),
+			bind::<VecBrand, _, _, _, _>(plus_empty::<VecBrand, i32>(), f),
 			plus_empty::<VecBrand, i32>(),
 		);
 	}
@@ -200,7 +202,7 @@ mod tests {
 			if n > 0 { CatList::singleton(n * 2) } else { CatList::empty() }
 		};
 		assert_eq!(
-			bind_explicit::<CatListBrand, _, _, _, _>(plus_empty::<CatListBrand, i32>(), f),
+			bind::<CatListBrand, _, _, _, _>(plus_empty::<CatListBrand, i32>(), f),
 			plus_empty::<CatListBrand, i32>(),
 		);
 	}

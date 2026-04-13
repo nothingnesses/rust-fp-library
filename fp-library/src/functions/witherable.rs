@@ -22,7 +22,7 @@ mod inner {
 	/// Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
-	/// [`wilt_explicit`](crate::functions::wilt_explicit()) with a turbofish.
+	/// [`explicit::wilt`](crate::functions::explicit::wilt) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -92,7 +92,7 @@ mod inner {
 	/// Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
-	/// [`wither_explicit`](crate::functions::wither_explicit()) with a turbofish.
+	/// [`explicit::wither`](crate::functions::explicit::wither) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(

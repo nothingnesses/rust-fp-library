@@ -6,7 +6,7 @@ use {
 	},
 	fp_library::{
 		brands::VecBrand,
-		functions::map_explicit,
+		functions::explicit::map,
 		types::{
 			ArcCoyoneda,
 			Coyoneda,
@@ -33,8 +33,7 @@ pub fn bench_coyoneda(c: &mut Criterion) {
 						|v| {
 							let mut result = v;
 							for _ in 0 .. k {
-								result =
-									map_explicit::<VecBrand, _, _, _, _>(|x: i32| x + 1, result);
+								result = map::<VecBrand, _, _, _, _>(|x: i32| x + 1, result);
 							}
 							result
 						},
@@ -222,10 +221,7 @@ pub fn bench_coyoneda(c: &mut Criterion) {
 							|v| {
 								let mut result = v;
 								for _ in 0 .. $depth {
-									result = map_explicit::<VecBrand, _, _, _, _>(
-										|x: i32| x + 1,
-										result,
-									);
+									result = map::<VecBrand, _, _, _, _>(|x: i32| x + 1, result);
 								}
 								result
 							},

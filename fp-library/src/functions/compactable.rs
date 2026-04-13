@@ -20,7 +20,7 @@ mod inner {
 	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
-	/// [`compact_explicit`](crate::functions::compact_explicit) with a turbofish.
+	/// [`explicit::compact`](crate::functions::explicit::compact) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -61,7 +61,7 @@ mod inner {
 	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
-	/// [`separate_explicit`](crate::functions::separate_explicit) with a turbofish.
+	/// [`explicit::separate`](crate::functions::explicit::separate) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(

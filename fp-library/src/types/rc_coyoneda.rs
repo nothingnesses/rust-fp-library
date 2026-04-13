@@ -742,7 +742,7 @@ mod inner {
 		/// };
 		///
 		/// let coyo = RcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
-		/// let mapped = map_explicit::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(|x| x * 10, coyo);
+		/// let mapped = explicit::map::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(|x| x * 10, coyo);
 		/// assert_eq!(mapped.lower_ref(), vec![10, 20, 30]);
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -785,7 +785,7 @@ mod inner {
 		/// };
 		///
 		/// let coyo = RcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x * 10);
-		/// let result = fold_map_explicit::<RcFnBrand, RcCoyonedaBrand<VecBrand>, _, _, _, _>(
+		/// let result = explicit::fold_map::<RcFnBrand, RcCoyonedaBrand<VecBrand>, _, _, _, _>(
 		/// 	|x: i32| x.to_string(),
 		/// 	coyo,
 		/// );
@@ -924,7 +924,7 @@ mod tests {
 	fn functor_identity_law() {
 		let coyo = RcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
 		let result =
-			map_explicit::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(identity, coyo).lower_ref();
+			explicit::map::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(identity, coyo).lower_ref();
 		assert_eq!(result, vec![1, 2, 3]);
 	}
 
@@ -934,13 +934,13 @@ mod tests {
 		let g = |x: i32| x * 2;
 
 		let coyo1 = RcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
-		let left =
-			map_explicit::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(compose(f, g), coyo1).lower_ref();
+		let left = explicit::map::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(compose(f, g), coyo1)
+			.lower_ref();
 
 		let coyo2 = RcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
-		let right = map_explicit::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(
+		let right = explicit::map::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(
 			f,
-			map_explicit::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(g, coyo2),
+			explicit::map::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(g, coyo2),
 		)
 		.lower_ref();
 
@@ -952,7 +952,7 @@ mod tests {
 	#[test]
 	fn fold_map_on_mapped() {
 		let coyo = RcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x * 10);
-		let result = fold_map_explicit::<RcFnBrand, RcCoyonedaBrand<VecBrand>, _, _, _, _>(
+		let result = explicit::fold_map::<RcFnBrand, RcCoyonedaBrand<VecBrand>, _, _, _, _>(
 			|x: i32| x.to_string(),
 			coyo,
 		);
@@ -991,13 +991,13 @@ mod tests {
 		#[quickcheck]
 		fn functor_identity_vec(v: Vec<i32>) -> bool {
 			let coyo = RcCoyoneda::<VecBrand, _>::lift(v.clone());
-			map_explicit::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(identity, coyo).lower_ref() == v
+			explicit::map::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(identity, coyo).lower_ref() == v
 		}
 
 		#[quickcheck]
 		fn functor_identity_option(x: Option<i32>) -> bool {
 			let coyo = RcCoyoneda::<OptionBrand, _>::lift(x);
-			map_explicit::<RcCoyonedaBrand<OptionBrand>, _, _, _, _>(identity, coyo).lower_ref()
+			explicit::map::<RcCoyonedaBrand<OptionBrand>, _, _, _, _>(identity, coyo).lower_ref()
 				== x
 		}
 
@@ -1006,15 +1006,15 @@ mod tests {
 			let f = |x: i32| x.wrapping_add(1);
 			let g = |x: i32| x.wrapping_mul(2);
 
-			let left = map_explicit::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(
+			let left = explicit::map::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(
 				compose(f, g),
 				RcCoyoneda::<VecBrand, _>::lift(v.clone()),
 			)
 			.lower_ref();
 
-			let right = map_explicit::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(
+			let right = explicit::map::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(
 				f,
-				map_explicit::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(
+				explicit::map::<RcCoyonedaBrand<VecBrand>, _, _, _, _>(
 					g,
 					RcCoyoneda::<VecBrand, _>::lift(v),
 				),
@@ -1029,15 +1029,15 @@ mod tests {
 			let f = |x: i32| x.wrapping_add(1);
 			let g = |x: i32| x.wrapping_mul(2);
 
-			let left = map_explicit::<RcCoyonedaBrand<OptionBrand>, _, _, _, _>(
+			let left = explicit::map::<RcCoyonedaBrand<OptionBrand>, _, _, _, _>(
 				compose(f, g),
 				RcCoyoneda::<OptionBrand, _>::lift(x),
 			)
 			.lower_ref();
 
-			let right = map_explicit::<RcCoyonedaBrand<OptionBrand>, _, _, _, _>(
+			let right = explicit::map::<RcCoyonedaBrand<OptionBrand>, _, _, _, _>(
 				f,
-				map_explicit::<RcCoyonedaBrand<OptionBrand>, _, _, _, _>(
+				explicit::map::<RcCoyonedaBrand<OptionBrand>, _, _, _, _>(
 					g,
 					RcCoyoneda::<OptionBrand, _>::lift(x),
 				),
@@ -1051,11 +1051,11 @@ mod tests {
 		fn foldable_consistency_vec(v: Vec<i32>) -> bool {
 			let coyo = RcCoyoneda::<VecBrand, _>::lift(v.clone()).map(|x: i32| x.wrapping_add(1));
 			let via_coyoneda: String =
-				fold_map_explicit::<RcFnBrand, RcCoyonedaBrand<VecBrand>, _, _, _, _>(
+				explicit::fold_map::<RcFnBrand, RcCoyonedaBrand<VecBrand>, _, _, _, _>(
 					|x: i32| x.to_string(),
 					coyo,
 				);
-			let direct: String = fold_map_explicit::<RcFnBrand, VecBrand, _, _, _, _>(
+			let direct: String = explicit::fold_map::<RcFnBrand, VecBrand, _, _, _, _>(
 				|x: i32| x.to_string(),
 				v.iter().map(|x| x.wrapping_add(1)).collect::<Vec<_>>(),
 			);

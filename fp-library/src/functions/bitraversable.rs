@@ -18,7 +18,7 @@ mod inner {
 	/// and `F` (the applicative brand) must still be specified explicitly.
 	///
 	/// For types that need an explicit brand, use
-	/// [`bi_traverse_explicit`](crate::functions::bi_traverse_explicit).
+	/// [`explicit::bi_traverse`](crate::functions::explicit::bi_traverse).
 	#[document_signature]
 	///
 	#[document_type_parameters(

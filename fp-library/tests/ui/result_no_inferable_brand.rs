@@ -1,7 +1,7 @@
 // Verifies that Result<A, E> cannot use brand inference with `map`,
 // because it has multiple arity-1 brands (ResultErrAppliedBrand,
 // ResultOkAppliedBrand, etc.).
-// Users must use `map_explicit` with an explicit brand.
+// Users must use `explicit::map` with an explicit brand.
 
 use fp_library::functions::map;
 

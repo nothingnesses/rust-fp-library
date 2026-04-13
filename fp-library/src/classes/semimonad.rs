@@ -10,11 +10,11 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! let x = Some(5);
-//! let y = bind_explicit::<OptionBrand, _, _, _, _>(x, |i| Some(i * 2));
+//! let y = bind::<OptionBrand, _, _, _, _>(x, |i| Some(i * 2));
 //! assert_eq!(y, Some(10));
 //! ```
 
@@ -54,11 +54,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = bind_explicit::<OptionBrand, _, _, _, _>(x, |i| Some(i * 2));
+		/// let y = bind::<OptionBrand, _, _, _, _>(x, |i| Some(i * 2));
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
@@ -87,15 +87,15 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let x = Some(Some(5));
-	/// let y = join_explicit::<OptionBrand, _, _>(x);
+	/// let y = join::<OptionBrand, _, _>(x);
 	/// assert_eq!(y, Some(5));
 	///
 	/// let z: Option<Option<i32>> = Some(None);
-	/// assert_eq!(join_explicit::<OptionBrand, _, _>(z), None);
+	/// assert_eq!(join::<OptionBrand, _, _>(z), None);
 	/// ```
 	pub fn join<'a, Brand: Semimonad, A: 'a>(
 		mma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)

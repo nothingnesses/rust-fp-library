@@ -7,13 +7,16 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::{
+//! 		explicit::apply_second,
+//! 		*,
+//! 	},
 //! 	types::*,
 //! };
 //!
 //! let x = RcLazy::pure(3);
 //! let y = RcLazy::pure(4);
-//! let result = apply_second_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(&x, &y);
+//! let result = apply_second::<LazyBrand<RcLazyConfig>, _, _, _, _>(&x, &y);
 //! assert_eq!(*result.evaluate(), 4);
 //! ```
 
@@ -88,13 +91,16 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::{
+	/// 		explicit::apply_second,
+	/// 		*,
+	/// 	},
 	/// 	types::*,
 	/// };
 	///
 	/// let x = RcLazy::pure(3);
 	/// let y = RcLazy::pure(4);
-	/// let result = apply_second_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(&x, &y);
+	/// let result = apply_second::<LazyBrand<RcLazyConfig>, _, _, _, _>(&x, &y);
 	/// assert_eq!(*result.evaluate(), 4);
 	/// ```
 	pub fn ref_apply_second<'a, Brand: RefApplySecond, A: 'a, B: Clone + 'a>(

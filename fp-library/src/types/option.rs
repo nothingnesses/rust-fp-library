@@ -50,7 +50,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = map_explicit::<OptionBrand, _, _, _, _>(|i| i * 2, x);
+		/// let y = explicit::map::<OptionBrand, _, _, _, _>(|i| i * 2, x);
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -91,7 +91,7 @@ mod inner {
 		///
 		/// let x = Some(1);
 		/// let y = Some(2);
-		/// let z = lift2_explicit::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, x, y);
+		/// let z = explicit::lift2::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, Some(3));
 		/// ```
 		fn lift2<'a, A, B, C>(
@@ -211,7 +211,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = bind_explicit::<OptionBrand, _, _, _, _>(x, |i| Some(i * 2));
+		/// let y = explicit::bind::<OptionBrand, _, _, _, _>(x, |i| Some(i * 2));
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
@@ -242,9 +242,9 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(alt_explicit::<OptionBrand, _, _, _>(None, Some(5)), Some(5));
-		/// assert_eq!(alt_explicit::<OptionBrand, _, _, _>(Some(3), Some(5)), Some(3));
-		/// assert_eq!(alt_explicit::<OptionBrand, _, _, _>(None::<i32>, None), None);
+		/// assert_eq!(explicit::alt::<OptionBrand, _, _, _>(None, Some(5)), Some(5));
+		/// assert_eq!(explicit::alt::<OptionBrand, _, _, _>(Some(3), Some(5)), Some(3));
+		/// assert_eq!(explicit::alt::<OptionBrand, _, _, _>(None::<i32>, None), None);
 		/// ```
 		fn alt<'a, A: 'a>(
 			fa1: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -276,9 +276,9 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(alt_explicit::<OptionBrand, _, _, _>(&None, &Some(5)), Some(5));
-		/// assert_eq!(alt_explicit::<OptionBrand, _, _, _>(&Some(3), &Some(5)), Some(3));
-		/// assert_eq!(alt_explicit::<OptionBrand, _, _, _>(&None::<i32>, &None), None);
+		/// assert_eq!(explicit::alt::<OptionBrand, _, _, _>(&None, &Some(5)), Some(5));
+		/// assert_eq!(explicit::alt::<OptionBrand, _, _, _>(&Some(3), &Some(5)), Some(3));
+		/// assert_eq!(explicit::alt::<OptionBrand, _, _, _>(&None::<i32>, &None), None);
 		/// ```
 		fn ref_alt<'a, A: 'a + Clone>(
 			fa1: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -337,7 +337,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_right_explicit::<RcFnBrand, OptionBrand, _, _, _, _>(|a, b| a + b, 10, x);
+		/// let y = explicit::fold_right::<RcFnBrand, OptionBrand, _, _, _, _>(|a, b| a + b, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -381,7 +381,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_left_explicit::<RcFnBrand, OptionBrand, _, _, _, _>(|b, a| b + a, 10, x);
+		/// let y = explicit::fold_left::<RcFnBrand, OptionBrand, _, _, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -422,7 +422,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_map_explicit::<RcFnBrand, OptionBrand, _, _, _, _>(|a: i32| a.to_string(), x);
+		/// let y = explicit::fold_map::<RcFnBrand, OptionBrand, _, _, _, _>(|a: i32| a.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -468,7 +468,7 @@ mod inner {
 		///
 		/// let x = Some(5);
 		/// let y =
-		/// 	traverse_explicit::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(|a| Some(a * 2), x);
+		/// 	explicit::traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some(Some(10)));
 		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
@@ -668,7 +668,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(Some(5));
-		/// let y = compact_explicit::<OptionBrand, _, _, _>(x);
+		/// let y = explicit::compact::<OptionBrand, _, _, _>(x);
 		/// assert_eq!(y, Some(5));
 		/// ```
 		fn compact<'a, A: 'a>(
@@ -704,7 +704,7 @@ mod inner {
 		/// };
 		///
 		/// let x: Option<Result<i32, &str>> = Some(Ok(5));
-		/// let (errs, oks) = separate_explicit::<OptionBrand, _, _, _, _>(x);
+		/// let (errs, oks) = explicit::separate::<OptionBrand, _, _, _, _>(x);
 		/// assert_eq!(oks, Some(5));
 		/// assert_eq!(errs, None);
 		/// ```
@@ -747,11 +747,11 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(Some(5));
-		/// let y = compact_explicit::<OptionBrand, _, _, _>(&x);
+		/// let y = explicit::compact::<OptionBrand, _, _, _>(&x);
 		/// assert_eq!(y, Some(5));
 		///
 		/// let z: Option<Option<i32>> = Some(None);
-		/// let w = compact_explicit::<OptionBrand, _, _, _>(&z);
+		/// let w = explicit::compact::<OptionBrand, _, _, _>(&z);
 		/// assert_eq!(w, None);
 		/// ```
 		fn ref_compact<'a, A: 'a + Clone>(
@@ -791,12 +791,12 @@ mod inner {
 		/// };
 		///
 		/// let x: Option<Result<i32, &str>> = Some(Ok(5));
-		/// let (errs, oks) = separate_explicit::<OptionBrand, _, _, _, _>(&x);
+		/// let (errs, oks) = explicit::separate::<OptionBrand, _, _, _, _>(&x);
 		/// assert_eq!(oks, Some(5));
 		/// assert_eq!(errs, None);
 		///
 		/// let y: Option<Result<i32, &str>> = Some(Err("bad"));
-		/// let (errs, oks) = separate_explicit::<OptionBrand, _, _, _, _>(&y);
+		/// let (errs, oks) = explicit::separate::<OptionBrand, _, _, _, _>(&y);
 		/// assert_eq!(oks, None);
 		/// assert_eq!(errs, Some("bad"));
 		/// ```
@@ -840,7 +840,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let (errs, oks) = partition_map_explicit::<OptionBrand, _, _, _, _, _>(
+		/// let (errs, oks) = explicit::partition_map::<OptionBrand, _, _, _, _, _>(
 		/// 	|a| if a > 2 { Ok(a) } else { Err(a) },
 		/// 	x,
 		/// );
@@ -883,7 +883,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let (not_satisfied, satisfied) = partition_explicit::<OptionBrand, _, _, _>(|a| a > 2, x);
+		/// let (not_satisfied, satisfied) = explicit::partition::<OptionBrand, _, _, _>(|a| a > 2, x);
 		/// assert_eq!(satisfied, Some(5));
 		/// assert_eq!(not_satisfied, None);
 		/// ```
@@ -929,7 +929,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = filter_map_explicit::<OptionBrand, _, _, _, _>(
+		/// let y = explicit::filter_map::<OptionBrand, _, _, _, _>(
 		/// 	|a| if a > 2 { Some(a * 2) } else { None },
 		/// 	x,
 		/// );
@@ -962,7 +962,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = filter_explicit::<OptionBrand, _, _, _>(|a| a > 2, x);
+		/// let y = explicit::filter::<OptionBrand, _, _, _>(|a| a > 2, x);
 		/// assert_eq!(y, Some(5));
 		/// ```
 		fn filter<'a, A: 'a + Clone>(
@@ -1002,7 +1002,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = wilt_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
+		/// let y = explicit::wilt::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
 		/// 	|a| Some(if a > 2 { Ok(a) } else { Err(a) }),
 		/// 	x,
 		/// );
@@ -1061,7 +1061,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = wither_explicit::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
+		/// let y = explicit::wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
 		/// 	|a| Some(if a > 2 { Some(a * 2) } else { None }),
 		/// 	x,
 		/// );
@@ -1159,7 +1159,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// assert_eq!(map_explicit::<OptionBrand, _, _, _, _>(|x: &i32| *x * 2, &Some(5)), Some(10));
+		/// assert_eq!(explicit::map::<OptionBrand, _, _, _, _>(|x: &i32| *x * 2, &Some(5)), Some(10));
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
 			func: impl Fn(&A) -> B + 'a,
@@ -1188,7 +1188,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		/// let result =
-		/// 	fold_map_explicit::<RcFnBrand, OptionBrand, _, _, _, _>(|x: &i32| x.to_string(), &Some(5));
+		/// 	explicit::fold_map::<RcFnBrand, OptionBrand, _, _, _, _>(|x: &i32| x.to_string(), &Some(5));
 		/// assert_eq!(result, "5");
 		/// ```
 		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -1218,7 +1218,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = filter_map_explicit::<OptionBrand, _, _, _, _>(
+		/// let result = explicit::filter_map::<OptionBrand, _, _, _, _>(
 		/// 	|x: &i32| if *x > 3 { Some(*x) } else { None },
 		/// 	&Some(5),
 		/// );
@@ -1288,7 +1288,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		/// assert_eq!(
-		/// 	map_with_index_explicit::<OptionBrand, _, _, _, _>(|(), x: &i32| *x * 2, &Some(5)),
+		/// 	explicit::map_with_index::<OptionBrand, _, _, _, _>(|(), x: &i32| *x * 2, &Some(5)),
 		/// 	Some(10),
 		/// );
 		/// ```
@@ -1318,7 +1318,7 @@ mod inner {
 		/// 	brands::*,
 		/// 	functions::*,
 		/// };
-		/// let result = fold_map_with_index_explicit::<RcFnBrand, OptionBrand, _, _, _, _>(
+		/// let result = explicit::fold_map_with_index::<RcFnBrand, OptionBrand, _, _, _, _>(
 		/// 	|(), x: &i32| x.to_string(),
 		/// 	&Some(5),
 		/// );
@@ -1356,7 +1356,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		/// let result: Vec<Option<String>> =
-		/// 	traverse_with_index_explicit::<RcFnBrand, OptionBrand, _, _, VecBrand, _, _>(
+		/// 	explicit::traverse_with_index::<RcFnBrand, OptionBrand, _, _, VecBrand, _, _>(
 		/// 		|(), x: &i32| vec![x.to_string()],
 		/// 		&Some(5),
 		/// 	);
@@ -1422,7 +1422,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let result = lift2_explicit::<OptionBrand, _, _, _, _, _, _>(
+		/// let result = explicit::lift2::<OptionBrand, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
 		/// 	&Some(1),
 		/// 	&Some(2),
@@ -1494,7 +1494,7 @@ mod inner {
 		/// };
 		///
 		/// let result: Option<String> =
-		/// 	bind_explicit::<OptionBrand, _, _, _, _>(&Some(42), |x: &i32| Some(x.to_string()));
+		/// 	explicit::bind::<OptionBrand, _, _, _, _>(&Some(42), |x: &i32| Some(x.to_string()));
 		/// assert_eq!(result, Some("42".to_string()));
 		/// ```
 		fn ref_bind<'a, A: 'a, B: 'a>(
@@ -1523,7 +1523,7 @@ mod tests {
 	/// Tests the identity law for Functor.
 	#[quickcheck]
 	fn functor_identity(x: Option<i32>) -> bool {
-		map_explicit::<OptionBrand, _, _, _, _>(identity, x) == x
+		explicit::map::<OptionBrand, _, _, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -1531,10 +1531,10 @@ mod tests {
 	fn functor_composition(x: Option<i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map_explicit::<OptionBrand, _, _, _, _>(compose(f, g), x)
-			== map_explicit::<OptionBrand, _, _, _, _>(
+		explicit::map::<OptionBrand, _, _, _, _>(compose(f, g), x)
+			== explicit::map::<OptionBrand, _, _, _, _>(
 				f,
-				map_explicit::<OptionBrand, _, _, _, _>(g, x),
+				explicit::map::<OptionBrand, _, _, _, _>(g, x),
 			)
 	}
 
@@ -1614,13 +1614,13 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| Some(x.wrapping_mul(2));
-		bind_explicit::<OptionBrand, _, _, _, _>(pure::<OptionBrand, _>(a), f) == f(a)
+		explicit::bind::<OptionBrand, _, _, _, _>(pure::<OptionBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: Option<i32>) -> bool {
-		bind_explicit::<OptionBrand, _, _, _, _>(m, pure::<OptionBrand, _>) == m
+		explicit::bind::<OptionBrand, _, _, _, _>(m, pure::<OptionBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -1628,10 +1628,12 @@ mod tests {
 	fn monad_associativity(m: Option<i32>) -> bool {
 		let f = |x: i32| Some(x.wrapping_mul(2));
 		let g = |x: i32| Some(x.wrapping_add(1));
-		bind_explicit::<OptionBrand, _, _, _, _>(bind_explicit::<OptionBrand, _, _, _, _>(m, f), g)
-			== bind_explicit::<OptionBrand, _, _, _, _>(m, |x| {
-				bind_explicit::<OptionBrand, _, _, _, _>(f(x), g)
-			})
+		explicit::bind::<OptionBrand, _, _, _, _>(
+			explicit::bind::<OptionBrand, _, _, _, _>(m, f),
+			g,
+		) == explicit::bind::<OptionBrand, _, _, _, _>(m, |x| {
+			explicit::bind::<OptionBrand, _, _, _, _>(f(x), g)
+		})
 	}
 
 	// Edge Cases
@@ -1639,26 +1641,26 @@ mod tests {
 	/// Tests `map` on `None`.
 	#[test]
 	fn map_none() {
-		assert_eq!(map_explicit::<OptionBrand, _, _, _, _>(|x: i32| x + 1, None), None);
+		assert_eq!(explicit::map::<OptionBrand, _, _, _, _>(|x: i32| x + 1, None), None);
 	}
 
 	/// Tests `bind` on `None`.
 	#[test]
 	fn bind_none() {
-		assert_eq!(bind_explicit::<OptionBrand, _, _, _, _>(None, |x: i32| Some(x + 1)), None);
+		assert_eq!(explicit::bind::<OptionBrand, _, _, _, _>(None, |x: i32| Some(x + 1)), None);
 	}
 
 	/// Tests `bind` returning `None`.
 	#[test]
 	fn bind_returning_none() {
-		assert_eq!(bind_explicit::<OptionBrand, _, _, _, _>(Some(5), |_| None::<i32>), None);
+		assert_eq!(explicit::bind::<OptionBrand, _, _, _, _>(Some(5), |_| None::<i32>), None);
 	}
 
 	/// Tests `fold_right` on `None`.
 	#[test]
 	fn fold_right_none() {
 		assert_eq!(
-			crate::functions::fold_right_explicit::<RcFnBrand, OptionBrand, _, _, _, _>(
+			crate::functions::explicit::fold_right::<RcFnBrand, OptionBrand, _, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				None
@@ -1671,7 +1673,7 @@ mod tests {
 	#[test]
 	fn fold_left_none() {
 		assert_eq!(
-			crate::functions::fold_left_explicit::<RcFnBrand, OptionBrand, _, _, _, _>(
+			crate::functions::explicit::fold_left::<RcFnBrand, OptionBrand, _, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				None

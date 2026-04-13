@@ -4,9 +4,9 @@
 //!
 //! Provides the following dispatch traits and unified free functions:
 //!
-//! - [`BindDispatch`] + [`bind`], [`bind_flipped`]
+//! - [`BindDispatch`] + [`explicit::bind`], [`explicit::bind_flipped`]
 //! - [`ComposeKleisliDispatch`] + [`compose_kleisli`], [`compose_kleisli_flipped`]
-//! - [`JoinDispatch`] + [`join`]
+//! - [`JoinDispatch`] + [`explicit::join`]
 //!
 //! Each routes to the appropriate trait method based on the closure's argument
 //! type.
@@ -16,17 +16,17 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! 	types::*,
 //! };
 //!
 //! // Owned: dispatches to Semimonad::bind
-//! let result = bind_explicit::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
+//! let result = bind::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
 //! assert_eq!(result, Some(10));
 //!
 //! // By-ref: dispatches to RefSemimonad::ref_bind
 //! let lazy = RcLazy::pure(5);
-//! let result = bind_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(&lazy, |x: &i32| {
+//! let result = bind::<LazyBrand<RcLazyConfig>, _, _, _, _>(&lazy, |x: &i32| {
 //! 	Lazy::<_, RcLazyConfig>::new({
 //! 		let v = *x;
 //! 		move || v * 2
@@ -78,9 +78,9 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
-		/// let result = bind_explicit::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
+		/// let result = bind::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
 		/// assert_eq!(result, Some(10));
 		/// ```
 		fn dispatch(
@@ -121,9 +121,9 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
-		/// let result = bind_explicit::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
+		/// let result = bind::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
 		/// assert_eq!(result, Some(10));
 		/// ```
 		fn dispatch(
@@ -169,11 +169,11 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// 	types::*,
 		/// };
 		/// let lazy = RcLazy::pure(5);
-		/// let result = bind_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(&lazy, |x: &i32| {
+		/// let result = bind::<LazyBrand<RcLazyConfig>, _, _, _, _>(&lazy, |x: &i32| {
 		/// 	Lazy::<_, RcLazyConfig>::new({
 		/// 		let v = *x;
 		/// 		move || v * 2
@@ -187,92 +187,6 @@ pub(crate) mod inner {
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			Brand::ref_bind(ma, self)
 		}
-	}
-
-	/// Sequences a monadic computation with a function that produces the next computation.
-	///
-	/// Dispatches to either [`Semimonad::bind`] or [`RefSemimonad::ref_bind`]
-	/// based on the closure's argument type.
-	///
-	/// The `Marker` and `FA` type parameters are inferred automatically by the
-	/// compiler from the closure's argument type and the container argument.
-	/// Callers write `bind_explicit::<Brand, _, _, _, _>(...)` and never need to specify
-	/// `Marker` or `FA` explicitly.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the monad.",
-		"The type of the value inside the monad.",
-		"The type of the result.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters(
-		"The monadic value (owned for Val, borrowed for Ref).",
-		"The function to apply to the value."
-	)]
-	///
-	#[document_returns("The result of sequencing the computation.")]
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	/// let result = bind_explicit::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
-	/// assert_eq!(result, Some(10));
-	/// ```
-	pub fn bind<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker>(
-		ma: FA,
-		f: impl BindDispatch<'a, Brand, A, B, FA, Marker>,
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		f.dispatch(ma)
-	}
-
-	// -- bind_flipped --
-
-	/// Binds a monadic value to a function (flipped argument order).
-	///
-	/// Dispatches to [`Semimonad::bind`] or [`RefSemimonad::ref_bind`]
-	/// based on whether the closure takes `A` or `&A`. Delegates to
-	/// [`BindDispatch`] internally.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The higher-kinded type brand.",
-		"The input element type.",
-		"The output element type.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Marker type, inferred from the closure."
-	)]
-	///
-	#[document_parameters(
-		"The function to apply to each element.",
-		"The monadic value to bind over (owned for Val, borrowed for Ref)."
-	)]
-	///
-	#[document_returns("The result of binding the function over the value.")]
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// // By-value
-	/// let result = bind_flipped_explicit::<OptionBrand, _, _, _, _>(|x: i32| Some(x * 2), Some(5));
-	/// assert_eq!(result, Some(10));
-	/// ```
-	pub fn bind_flipped<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker>(
-		f: impl BindDispatch<'a, Brand, A, B, FA, Marker>,
-		ma: FA,
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		f.dispatch(ma)
 	}
 
 	// -- ComposeKleisliDispatch --
@@ -522,10 +436,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = join_explicit::<OptionBrand, _, _>(Some(Some(5)));
+		/// let result = join::<OptionBrand, _, _>(Some(Some(5)));
 		/// assert_eq!(result, Some(5));
 		/// ```
 		fn dispatch(self) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
@@ -549,10 +463,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = join_explicit::<OptionBrand, _, _>(Some(Some(5)));
+		/// let result = join::<OptionBrand, _, _>(Some(Some(5)));
 		/// assert_eq!(result, Some(5));
 		/// ```
 		fn dispatch(self) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
@@ -579,11 +493,11 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x = Some(Some(5));
-		/// let result = join_explicit::<OptionBrand, _, _>(&x);
+		/// let result = join::<OptionBrand, _, _>(&x);
 		/// assert_eq!(result, Some(5));
 		/// ```
 		fn dispatch(self) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
@@ -591,53 +505,145 @@ pub(crate) mod inner {
 		}
 	}
 
-	// -- Unified free function --
+	// -- Explicit dispatch free functions --
 
-	/// Removes one layer of monadic nesting.
+	/// Explicit dispatch functions requiring a Brand turbofish.
 	///
-	/// Dispatches to either [`Semimonad::bind`] with identity or
-	/// [`RefSemimonad::ref_bind`] with clone, based on whether the
-	/// container is owned or borrowed.
-	///
-	/// The `Marker` type parameter is inferred automatically by the
-	/// compiler from the container argument. Callers write
-	/// `join_explicit::<Brand, _>(...)` and never need to specify `Marker` explicitly.
-	///
-	/// The dispatch is resolved at compile time with no runtime cost.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the monad.",
-		"The type of the value(s) inside the inner layer.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters("The nested monadic value (owned or borrowed).")]
-	///
-	#[document_returns("A container with one layer of nesting removed.")]
-	///
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// // Owned: dispatches via Semimonad::bind(id)
-	/// let y = join_explicit::<OptionBrand, _, _>(Some(Some(5)));
-	/// assert_eq!(y, Some(5));
-	///
-	/// // By-ref: dispatches via RefSemimonad::ref_bind(clone)
-	/// let x = Some(Some(5));
-	/// let y = join_explicit::<OptionBrand, _, _>(&x);
-	/// assert_eq!(y, Some(5));
-	/// ```
-	pub fn join<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, Marker>(
-		mma: impl JoinDispatch<'a, Brand, A, Marker>
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
-		mma.dispatch()
+	/// For most use cases, prefer the inference-enabled wrappers from
+	/// [`functions`](crate::functions).
+	pub mod explicit {
+		use super::*;
+
+		/// Sequences a monadic computation with a function that produces the next computation.
+		///
+		/// Dispatches to either [`Semimonad::bind`] or [`RefSemimonad::ref_bind`]
+		/// based on the closure's argument type.
+		///
+		/// The `Marker` and `FA` type parameters are inferred automatically by the
+		/// compiler from the closure's argument type and the container argument.
+		/// Callers write `bind::<Brand, _, _, _, _>(...)` and never need to specify
+		/// `Marker` or `FA` explicitly.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the monad.",
+			"The type of the value inside the monad.",
+			"The type of the result.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters(
+			"The monadic value (owned for Val, borrowed for Ref).",
+			"The function to apply to the value."
+		)]
+		///
+		#[document_returns("The result of sequencing the computation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		/// let result = bind::<OptionBrand, _, _, _, _>(Some(5), |x: i32| Some(x * 2));
+		/// assert_eq!(result, Some(10));
+		/// ```
+		pub fn bind<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker>(
+			ma: FA,
+			f: impl BindDispatch<'a, Brand, A, B, FA, Marker>,
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			f.dispatch(ma)
+		}
+
+		/// Binds a monadic value to a function (flipped argument order).
+		///
+		/// Dispatches to [`Semimonad::bind`] or [`RefSemimonad::ref_bind`]
+		/// based on whether the closure takes `A` or `&A`. Delegates to
+		/// [`BindDispatch`] internally.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The higher-kinded type brand.",
+			"The input element type.",
+			"The output element type.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Marker type, inferred from the closure."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element.",
+			"The monadic value to bind over (owned for Val, borrowed for Ref)."
+		)]
+		///
+		#[document_returns("The result of binding the function over the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// // By-value
+		/// let result = bind_flipped::<OptionBrand, _, _, _, _>(|x: i32| Some(x * 2), Some(5));
+		/// assert_eq!(result, Some(10));
+		/// ```
+		pub fn bind_flipped<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker>(
+			f: impl BindDispatch<'a, Brand, A, B, FA, Marker>,
+			ma: FA,
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			f.dispatch(ma)
+		}
+
+		/// Removes one layer of monadic nesting.
+		///
+		/// Dispatches to either [`Semimonad::bind`] with identity or
+		/// [`RefSemimonad::ref_bind`] with clone, based on whether the
+		/// container is owned or borrowed.
+		///
+		/// The `Marker` type parameter is inferred automatically by the
+		/// compiler from the container argument. Callers write
+		/// `join::<Brand, _>(...)` and never need to specify `Marker` explicitly.
+		///
+		/// The dispatch is resolved at compile time with no runtime cost.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the monad.",
+			"The type of the value(s) inside the inner layer.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters("The nested monadic value (owned or borrowed).")]
+		///
+		#[document_returns("A container with one layer of nesting removed.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// // Owned: dispatches via Semimonad::bind(id)
+		/// let y = join::<OptionBrand, _, _>(Some(Some(5)));
+		/// assert_eq!(y, Some(5));
+		///
+		/// // By-ref: dispatches via RefSemimonad::ref_bind(clone)
+		/// let x = Some(Some(5));
+		/// let y = join::<OptionBrand, _, _>(&x);
+		/// assert_eq!(y, Some(5));
+		/// ```
+		pub fn join<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, Marker>(
+			mma: impl JoinDispatch<'a, Brand, A, Marker>
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			mma.dispatch()
+		}
 	}
 }
 

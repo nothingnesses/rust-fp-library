@@ -27,17 +27,17 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! 	types::*,
 //! };
 //!
 //! // Closure takes i32 -> dispatches to Functor::map
-//! let y = map_explicit::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
+//! let y = map::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
 //! assert_eq!(y, Some(10));
 //!
 //! // Closure takes &i32 -> dispatches to RefFunctor::ref_map
 //! let lazy = RcLazy::pure(10);
-//! let mapped = map_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
+//! let mapped = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
 //! assert_eq!(*mapped.evaluate(), 20);
 //! ```
 
@@ -110,75 +110,13 @@ pub mod traversable;
 pub mod traversable_with_index;
 pub mod witherable;
 
-// Re-export dispatch free functions at the dispatch module level
-// so they're accessible via `crate::dispatch::map` etc.
-pub use {
-	alt::alt,
-	apply_first::apply_first,
-	apply_second::apply_second,
-	bifoldable::{
-		bi_fold_left,
-		bi_fold_map,
-		bi_fold_right,
-	},
-	bifunctor::bimap,
-	bitraversable::bi_traverse,
-	compactable::{
-		compact,
-		separate,
-	},
-	filterable::{
-		filter,
-		filter_map,
-		partition,
-		partition_map,
-	},
-	filterable_with_index::{
-		filter_map_with_index,
-		filter_with_index,
-		partition_map_with_index,
-		partition_with_index,
-	},
-	foldable::{
-		fold_left,
-		fold_map,
-		fold_right,
-	},
-	foldable_with_index::{
-		fold_left_with_index,
-		fold_map_with_index,
-		fold_right_with_index,
-	},
-	functor::map,
-	functor_with_index::map_with_index,
-	lift::{
-		lift2,
-		lift3,
-		lift4,
-		lift5,
-	},
-	semimonad::{
-		bind,
-		bind_flipped,
-		compose_kleisli,
-		compose_kleisli_flipped,
-		join,
-	},
-	traversable::traverse,
-	traversable_with_index::traverse_with_index,
-	witherable::{
-		wilt,
-		wither,
-	},
-};
-
 #[cfg(test)]
 mod tests {
 	use {
 		super::{
-			functor::map,
-			lift::lift2,
-			semimonad::bind,
+			functor::explicit::map,
+			lift::explicit::lift2,
+			semimonad::explicit::bind,
 		},
 		crate::{
 			brands::*,
@@ -227,7 +165,7 @@ mod tests {
 
 	#[test]
 	fn test_val_option_filter_map() {
-		use super::filterable::filter_map;
+		use super::filterable::explicit::filter_map;
 		let result = filter_map::<OptionBrand, _, _, _, _>(
 			|x: i32| if x > 3 { Some(x * 2) } else { None },
 			Some(5),
@@ -237,7 +175,7 @@ mod tests {
 
 	#[test]
 	fn test_val_option_filter_map_none() {
-		use super::filterable::filter_map;
+		use super::filterable::explicit::filter_map;
 		let result = filter_map::<OptionBrand, _, _, _, _>(
 			|x: i32| if x > 10 { Some(x) } else { None },
 			Some(5),
@@ -247,7 +185,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_option_filter_map() {
-		use super::filterable::filter_map;
+		use super::filterable::explicit::filter_map;
 		let result = filter_map::<OptionBrand, _, _, _, _>(
 			|x: &i32| if *x > 3 { Some(*x * 2) } else { None },
 			&Some(5),
@@ -257,7 +195,7 @@ mod tests {
 
 	#[test]
 	fn test_val_vec_filter_map() {
-		use super::filterable::filter_map;
+		use super::filterable::explicit::filter_map;
 		let result = filter_map::<VecBrand, _, _, _, _>(
 			|x: i32| if x > 2 { Some(x * 10) } else { None },
 			vec![1, 2, 3, 4],
@@ -267,7 +205,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_vec_filter_map() {
-		use super::filterable::filter_map;
+		use super::filterable::explicit::filter_map;
 		let v = vec![1, 2, 3, 4];
 		let result = filter_map::<VecBrand, _, _, _, _>(
 			|x: &i32| if *x > 2 { Some(*x * 10) } else { None },
@@ -280,7 +218,7 @@ mod tests {
 
 	#[test]
 	fn test_val_option_traverse() {
-		use super::traversable::traverse;
+		use super::traversable::explicit::traverse;
 		let result = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(
 			|x: i32| Some(x * 2),
 			Some(5),
@@ -290,7 +228,7 @@ mod tests {
 
 	#[test]
 	fn test_val_option_traverse_none() {
-		use super::traversable::traverse;
+		use super::traversable::explicit::traverse;
 		let result = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(
 			|_: i32| None::<i32>,
 			Some(5),
@@ -300,7 +238,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_option_traverse() {
-		use super::traversable::traverse;
+		use super::traversable::explicit::traverse;
 		let result = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(
 			|x: &i32| Some(*x * 2),
 			&Some(5),
@@ -310,7 +248,7 @@ mod tests {
 
 	#[test]
 	fn test_val_vec_traverse() {
-		use super::traversable::traverse;
+		use super::traversable::explicit::traverse;
 		let result: Option<Vec<i32>> = traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 			|x: i32| Some(x * 2),
 			vec![1, 2, 3],
@@ -320,7 +258,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_vec_traverse() {
-		use super::traversable::traverse;
+		use super::traversable::explicit::traverse;
 		let v = vec![1, 2, 3];
 		let result: Option<Vec<i32>> =
 			traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(|x: &i32| Some(*x * 2), &v);
@@ -331,28 +269,28 @@ mod tests {
 
 	#[test]
 	fn test_val_option_filter() {
-		use super::filterable::filter;
+		use super::filterable::explicit::filter;
 		let result = filter::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
 		assert_eq!(result, Some(5));
 	}
 
 	#[test]
 	fn test_ref_option_filter() {
-		use super::filterable::filter;
+		use super::filterable::explicit::filter;
 		let result = filter::<OptionBrand, _, _, _>(|x: &i32| *x > 3, &Some(5));
 		assert_eq!(result, Some(5));
 	}
 
 	#[test]
 	fn test_val_vec_filter() {
-		use super::filterable::filter;
+		use super::filterable::explicit::filter;
 		let result = filter::<VecBrand, _, _, _>(|x: i32| x > 3, vec![1, 2, 3, 4, 5]);
 		assert_eq!(result, vec![4, 5]);
 	}
 
 	#[test]
 	fn test_ref_vec_filter() {
-		use super::filterable::filter;
+		use super::filterable::explicit::filter;
 		let v = vec![1, 2, 3, 4, 5];
 		let result = filter::<VecBrand, _, _, _>(|x: &i32| *x > 3, &v);
 		assert_eq!(result, vec![4, 5]);
@@ -362,7 +300,7 @@ mod tests {
 
 	#[test]
 	fn test_val_option_partition() {
-		use super::filterable::partition;
+		use super::filterable::explicit::partition;
 		let (no, yes) = partition::<OptionBrand, _, _, _>(|x: i32| x > 3, Some(5));
 		assert_eq!(yes, Some(5));
 		assert_eq!(no, None);
@@ -370,7 +308,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_option_partition() {
-		use super::filterable::partition;
+		use super::filterable::explicit::partition;
 		let (no, yes) = partition::<OptionBrand, _, _, _>(|x: &i32| *x > 3, &Some(5));
 		assert_eq!(yes, Some(5));
 		assert_eq!(no, None);
@@ -380,7 +318,7 @@ mod tests {
 
 	#[test]
 	fn test_val_option_partition_map() {
-		use super::filterable::partition_map;
+		use super::filterable::explicit::partition_map;
 		let (errs, oks) =
 			partition_map::<OptionBrand, _, _, _, _, _>(|x: i32| Ok::<i32, i32>(x * 2), Some(5));
 		assert_eq!(errs, None);
@@ -389,7 +327,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_option_partition_map() {
-		use super::filterable::partition_map;
+		use super::filterable::explicit::partition_map;
 		let (errs, oks) =
 			partition_map::<OptionBrand, _, _, _, _, _>(|x: &i32| Ok::<i32, i32>(*x * 2), &Some(5));
 		assert_eq!(errs, None);
@@ -400,7 +338,7 @@ mod tests {
 
 	#[test]
 	fn test_val_vec_map_with_index() {
-		use super::functor_with_index::map_with_index;
+		use super::functor_with_index::explicit::map_with_index;
 		let result =
 			map_with_index::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
 		assert_eq!(result, vec![10, 21, 32]);
@@ -408,7 +346,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_vec_map_with_index() {
-		use super::functor_with_index::map_with_index;
+		use super::functor_with_index::explicit::map_with_index;
 		let v = vec![10, 20, 30];
 		let result = map_with_index::<VecBrand, _, _, _, _>(|i, x: &i32| *x + i as i32, &v);
 		assert_eq!(result, vec![10, 21, 32]);
@@ -418,7 +356,7 @@ mod tests {
 
 	#[test]
 	fn test_val_vec_filter_with_index() {
-		use super::filterable_with_index::filter_with_index;
+		use super::filterable_with_index::explicit::filter_with_index;
 		let result =
 			filter_with_index::<VecBrand, _, _, _>(|i, _x: i32| i < 2, vec![10, 20, 30, 40]);
 		assert_eq!(result, vec![10, 20]);
@@ -426,7 +364,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_vec_filter_with_index() {
-		use super::filterable_with_index::filter_with_index;
+		use super::filterable_with_index::explicit::filter_with_index;
 		let v = vec![10, 20, 30, 40];
 		let result = filter_with_index::<VecBrand, _, _, _>(|i, _x: &i32| i < 2, &v);
 		assert_eq!(result, vec![10, 20]);
@@ -436,7 +374,7 @@ mod tests {
 
 	#[test]
 	fn test_val_vec_filter_map_with_index() {
-		use super::filterable_with_index::filter_map_with_index;
+		use super::filterable_with_index::explicit::filter_map_with_index;
 		let result = filter_map_with_index::<VecBrand, _, _, _, _>(
 			|i, x: i32| if i % 2 == 0 { Some(x * 2) } else { None },
 			vec![10, 20, 30, 40],
@@ -446,7 +384,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_vec_filter_map_with_index() {
-		use super::filterable_with_index::filter_map_with_index;
+		use super::filterable_with_index::explicit::filter_map_with_index;
 		let v = vec![10, 20, 30, 40];
 		let result = filter_map_with_index::<VecBrand, _, _, _, _>(
 			|i, x: &i32| if i % 2 == 0 { Some(*x * 2) } else { None },
@@ -459,7 +397,7 @@ mod tests {
 
 	#[test]
 	fn test_val_vec_partition_with_index() {
-		use super::filterable_with_index::partition_with_index;
+		use super::filterable_with_index::explicit::partition_with_index;
 		let (not_satisfied, satisfied) =
 			partition_with_index::<VecBrand, _, _, _>(|i, _x: i32| i < 2, vec![10, 20, 30, 40]);
 		assert_eq!(satisfied, vec![10, 20]);
@@ -468,7 +406,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_vec_partition_with_index() {
-		use super::filterable_with_index::partition_with_index;
+		use super::filterable_with_index::explicit::partition_with_index;
 		let v = vec![10, 20, 30, 40];
 		let (not_satisfied, satisfied) =
 			partition_with_index::<VecBrand, _, _, _>(|i, _x: &i32| i < 2, &v);
@@ -480,7 +418,7 @@ mod tests {
 
 	#[test]
 	fn test_val_vec_partition_map_with_index() {
-		use super::filterable_with_index::partition_map_with_index;
+		use super::filterable_with_index::explicit::partition_map_with_index;
 		let (errs, oks) = partition_map_with_index::<VecBrand, _, _, _, _, _>(
 			|i, x: i32| if i < 2 { Ok(x) } else { Err(x) },
 			vec![10, 20, 30, 40],
@@ -491,7 +429,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_vec_partition_map_with_index() {
-		use super::filterable_with_index::partition_map_with_index;
+		use super::filterable_with_index::explicit::partition_map_with_index;
 		let v = vec![10, 20, 30, 40];
 		let (errs, oks) = partition_map_with_index::<VecBrand, _, _, _, _, _>(
 			|i, x: &i32| if i < 2 { Ok(*x) } else { Err(*x) },
@@ -505,7 +443,7 @@ mod tests {
 
 	#[test]
 	fn test_val_vec_fold_map_with_index() {
-		use super::foldable_with_index::fold_map_with_index;
+		use super::foldable_with_index::explicit::fold_map_with_index;
 		let result = fold_map_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
 			|i, x: i32| format!("{i}:{x}"),
 			vec![10, 20, 30],
@@ -515,7 +453,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_vec_fold_map_with_index() {
-		use super::foldable_with_index::fold_map_with_index;
+		use super::foldable_with_index::explicit::fold_map_with_index;
 		let v = vec![10, 20, 30];
 		let result = fold_map_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
 			|i, x: &i32| format!("{i}:{x}"),
@@ -528,7 +466,7 @@ mod tests {
 
 	#[test]
 	fn test_val_vec_fold_right_with_index() {
-		use super::foldable_with_index::fold_right_with_index;
+		use super::foldable_with_index::explicit::fold_right_with_index;
 		let result = fold_right_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
 			|i, x: i32, acc: String| format!("{acc}{i}:{x},"),
 			String::new(),
@@ -539,7 +477,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_vec_fold_right_with_index() {
-		use super::foldable_with_index::fold_right_with_index;
+		use super::foldable_with_index::explicit::fold_right_with_index;
 		let v = vec![10, 20, 30];
 		let result = fold_right_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
 			|i, x: &i32, acc: String| format!("{acc}{i}:{x},"),
@@ -553,7 +491,7 @@ mod tests {
 
 	#[test]
 	fn test_val_vec_fold_left_with_index() {
-		use super::foldable_with_index::fold_left_with_index;
+		use super::foldable_with_index::explicit::fold_left_with_index;
 		let result = fold_left_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
 			|i, acc: String, x: i32| format!("{acc}{i}:{x},"),
 			String::new(),
@@ -564,7 +502,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_vec_fold_left_with_index() {
-		use super::foldable_with_index::fold_left_with_index;
+		use super::foldable_with_index::explicit::fold_left_with_index;
 		let v = vec![10, 20, 30];
 		let result = fold_left_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
 			|i, acc: String, x: &i32| format!("{acc}{i}:{x},"),
@@ -578,7 +516,7 @@ mod tests {
 
 	#[test]
 	fn test_val_vec_traverse_with_index() {
-		use super::traversable_with_index::traverse_with_index;
+		use super::traversable_with_index::explicit::traverse_with_index;
 		let result = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 			|_i, x: i32| Some(x * 2),
 			vec![1, 2, 3],
@@ -588,7 +526,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_vec_traverse_with_index() {
-		use super::traversable_with_index::traverse_with_index;
+		use super::traversable_with_index::explicit::traverse_with_index;
 		let v = vec![1, 2, 3];
 		let result = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 			|_i, x: &i32| Some(*x * 2),
@@ -601,7 +539,7 @@ mod tests {
 
 	#[test]
 	fn test_val_option_wilt() {
-		use super::witherable::wilt;
+		use super::witherable::explicit::wilt;
 		let result = wilt::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
 			|a: i32| Some(if a > 2 { Ok(a) } else { Err(a) }),
 			Some(5),
@@ -611,7 +549,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_vec_wilt() {
-		use super::witherable::wilt;
+		use super::witherable::explicit::wilt;
 		let v = vec![1, 2, 3, 4, 5];
 		let result: Option<(Vec<i32>, Vec<i32>)> =
 			wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
@@ -625,7 +563,7 @@ mod tests {
 
 	#[test]
 	fn test_val_option_wither() {
-		use super::witherable::wither;
+		use super::witherable::explicit::wither;
 		let result = wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
 			|a: i32| Some(if a > 2 { Some(a * 2) } else { None }),
 			Some(5),
@@ -635,7 +573,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_vec_wither() {
-		use super::witherable::wither;
+		use super::witherable::explicit::wither;
 		let v = vec![1, 2, 3, 4, 5];
 		let result: Option<Vec<i32>> = wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
 			|x: &i32| if *x > 3 { Some(Some(*x)) } else { Some(None) },
@@ -648,7 +586,7 @@ mod tests {
 
 	#[test]
 	fn test_val_result_bimap() {
-		use super::bifunctor::bimap;
+		use super::bifunctor::explicit::bimap;
 		let x = Result::<i32, i32>::Ok(5);
 		let y = bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x);
 		assert_eq!(y, Ok(10));
@@ -656,7 +594,7 @@ mod tests {
 
 	#[test]
 	fn test_val_result_bimap_err() {
-		use super::bifunctor::bimap;
+		use super::bifunctor::explicit::bimap;
 		let x = Result::<i32, i32>::Err(3);
 		let y = bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x);
 		assert_eq!(y, Err(4));
@@ -664,7 +602,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_result_bimap() {
-		use super::bifunctor::bimap;
+		use super::bifunctor::explicit::bimap;
 		let x = Result::<i32, i32>::Ok(5);
 		let y = bimap::<ResultBrand, _, _, _, _, _, _>((|e: &i32| *e + 1, |s: &i32| *s * 2), &x);
 		assert_eq!(y, Ok(10));
@@ -674,7 +612,7 @@ mod tests {
 
 	#[test]
 	fn test_val_result_bi_fold_right() {
-		use super::bifoldable::bi_fold_right;
+		use super::bifoldable::explicit::bi_fold_right;
 		let x: Result<i32, i32> = Err(3);
 		let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 			(|e, acc| acc - e, |s, acc| acc + s),
@@ -686,7 +624,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_result_bi_fold_right() {
-		use super::bifoldable::bi_fold_right;
+		use super::bifoldable::explicit::bi_fold_right;
 		let x: Result<i32, i32> = Err(3);
 		let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 			(|e: &i32, acc| acc - *e, |s: &i32, acc| acc + *s),
@@ -700,7 +638,7 @@ mod tests {
 
 	#[test]
 	fn test_val_result_bi_fold_left() {
-		use super::bifoldable::bi_fold_left;
+		use super::bifoldable::explicit::bi_fold_left;
 		let x: Result<i32, i32> = Ok(5);
 		let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 			(|acc, e| acc - e, |acc, s| acc + s),
@@ -712,7 +650,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_result_bi_fold_left() {
-		use super::bifoldable::bi_fold_left;
+		use super::bifoldable::explicit::bi_fold_left;
 		let x: Result<i32, i32> = Ok(5);
 		let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 			(|acc, e: &i32| acc - *e, |acc, s: &i32| acc + *s),
@@ -726,7 +664,7 @@ mod tests {
 
 	#[test]
 	fn test_val_result_bi_fold_map() {
-		use super::bifoldable::bi_fold_map;
+		use super::bifoldable::explicit::bi_fold_map;
 		let x: Result<i32, i32> = Ok(5);
 		let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 			(|e: i32| e.to_string(), |s: i32| s.to_string()),
@@ -737,7 +675,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_result_bi_fold_map() {
-		use super::bifoldable::bi_fold_map;
+		use super::bifoldable::explicit::bi_fold_map;
 		let x: Result<i32, i32> = Ok(5);
 		let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 			(|e: &i32| e.to_string(), |s: &i32| s.to_string()),
@@ -750,7 +688,7 @@ mod tests {
 
 	#[test]
 	fn test_val_result_bi_traverse() {
-		use super::bitraversable::bi_traverse;
+		use super::bitraversable::explicit::bi_traverse;
 		let x: Result<i32, i32> = Ok(5);
 		let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 			(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
@@ -761,7 +699,7 @@ mod tests {
 
 	#[test]
 	fn test_ref_result_bi_traverse() {
-		use super::bitraversable::bi_traverse;
+		use super::bitraversable::explicit::bi_traverse;
 		let x: Result<i32, i32> = Ok(5);
 		let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
 			(|e: &i32| Some(*e + 1), |s: &i32| Some(*s * 2)),

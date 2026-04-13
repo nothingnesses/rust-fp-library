@@ -10,7 +10,7 @@ use {
 			foldable::Foldable,
 			monad_rec::tail_rec_m,
 		},
-		dispatch::map,
+		dispatch::functor::explicit::map,
 		types::{
 			Lazy,
 			RcLazyConfig,

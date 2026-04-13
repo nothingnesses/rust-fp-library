@@ -354,7 +354,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = map_explicit::<IdentityBrand, _, _, _, _>(|i| i * 2, x);
+		/// let y = explicit::map::<IdentityBrand, _, _, _, _>(|i| i * 2, x);
 		/// assert_eq!(y, Identity(10));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -396,7 +396,7 @@ mod inner {
 		///
 		/// let x = Identity(1);
 		/// let y = Identity(2);
-		/// let z = lift2_explicit::<IdentityBrand, _, _, _, _, _, _>(|a, b| a + b, x, y);
+		/// let z = explicit::lift2::<IdentityBrand, _, _, _, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, Identity(3));
 		/// ```
 		fn lift2<'a, A, B, C>(
@@ -513,7 +513,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = bind_explicit::<IdentityBrand, _, _, _, _>(x, |i| Identity(i * 2));
+		/// let y = explicit::bind::<IdentityBrand, _, _, _, _>(x, |i| Identity(i * 2));
 		/// assert_eq!(y, Identity(10));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
@@ -554,7 +554,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = fold_right_explicit::<RcFnBrand, IdentityBrand, _, _, _, _>(|a, b| a + b, 10, x);
+		/// let y = explicit::fold_right::<RcFnBrand, IdentityBrand, _, _, _, _>(|a, b| a + b, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a>(
@@ -596,7 +596,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = fold_left_explicit::<RcFnBrand, IdentityBrand, _, _, _, _>(|b, a| b + a, 10, x);
+		/// let y = explicit::fold_left::<RcFnBrand, IdentityBrand, _, _, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a>(
@@ -635,7 +635,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = fold_map_explicit::<RcFnBrand, IdentityBrand, _, _, _, _>(|a: i32| a.to_string(), x);
+		/// let y = explicit::fold_map::<RcFnBrand, IdentityBrand, _, _, _, _>(|a: i32| a.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a, M>(
@@ -679,7 +679,7 @@ mod inner {
 		///
 		/// let x = Identity(5);
 		/// let y =
-		/// 	traverse_explicit::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _, _>(|a| Some(a * 2), x);
+		/// 	explicit::traverse::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _, _>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some(Identity(10)));
 		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
@@ -896,7 +896,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	map_explicit::<IdentityBrand, _, _, _, _>(|x: &i32| *x * 2, &Identity(5)),
+		/// 	explicit::map::<IdentityBrand, _, _, _, _>(|x: &i32| *x * 2, &Identity(5)),
 		/// 	Identity(10)
 		/// );
 		/// ```
@@ -935,7 +935,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result = fold_map_explicit::<RcFnBrand, IdentityBrand, _, _, _, _>(
+		/// let result = explicit::fold_map::<RcFnBrand, IdentityBrand, _, _, _, _>(
 		/// 	|x: &i32| x.to_string(),
 		/// 	&Identity(5),
 		/// );
@@ -1020,7 +1020,7 @@ mod inner {
 		/// 	types::Identity,
 		/// };
 		///
-		/// let result = map_with_index_explicit::<IdentityBrand, _, _, _, _>(|(), x| x * 2, Identity(5));
+		/// let result = explicit::map_with_index::<IdentityBrand, _, _, _, _>(|(), x| x * 2, Identity(5));
 		/// assert_eq!(result, Identity(10));
 		/// ```
 		fn map_with_index<'a, A: 'a, B: 'a>(
@@ -1051,7 +1051,7 @@ mod inner {
 		/// 	types::Identity,
 		/// };
 		///
-		/// let result: String = fold_map_with_index_explicit::<RcFnBrand, IdentityBrand, _, _, _, _>(
+		/// let result: String = explicit::fold_map_with_index::<RcFnBrand, IdentityBrand, _, _, _, _>(
 		/// 	|(), x: i32| x.to_string(),
 		/// 	Identity(42),
 		/// );
@@ -1088,7 +1088,7 @@ mod inner {
 		/// };
 		///
 		/// let result: Option<Identity<String>> =
-		/// 	traverse_with_index_explicit::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _, _>(
+		/// 	explicit::traverse_with_index::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _, _>(
 		/// 		|(), x: i32| Some(x.to_string()),
 		/// 		Identity(42),
 		/// 	);
@@ -1123,7 +1123,7 @@ mod inner {
 		/// };
 		///
 		/// let result =
-		/// 	map_with_index_explicit::<IdentityBrand, _, _, _, _>(|(), x: &i32| *x * 2, &Identity(5));
+		/// 	explicit::map_with_index::<IdentityBrand, _, _, _, _>(|(), x: &i32| *x * 2, &Identity(5));
 		/// assert_eq!(result, Identity(10));
 		/// ```
 		fn ref_map_with_index<'a, A: 'a, B: 'a>(
@@ -1154,7 +1154,7 @@ mod inner {
 		/// 	types::Identity,
 		/// };
 		///
-		/// let result: String = fold_map_with_index_explicit::<RcFnBrand, IdentityBrand, _, _, _, _>(
+		/// let result: String = explicit::fold_map_with_index::<RcFnBrand, IdentityBrand, _, _, _, _>(
 		/// 	|(), x: &i32| x.to_string(),
 		/// 	&Identity(42),
 		/// );
@@ -1191,7 +1191,7 @@ mod inner {
 		/// };
 		///
 		/// let result: Option<Identity<String>> =
-		/// 	traverse_with_index_explicit::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _, _>(
+		/// 	explicit::traverse_with_index::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _, _>(
 		/// 		|(), x: &i32| Some(x.to_string()),
 		/// 		&Identity(42),
 		/// 	);
@@ -1255,7 +1255,7 @@ mod inner {
 		/// 	types::Identity,
 		/// };
 		///
-		/// let result = lift2_explicit::<IdentityBrand, _, _, _, _, _, _>(
+		/// let result = explicit::lift2::<IdentityBrand, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32| *a + *b,
 		/// 	&Identity(1),
 		/// 	&Identity(2),
@@ -1323,7 +1323,7 @@ mod inner {
 		/// };
 		///
 		/// let result: Identity<String> =
-		/// 	bind_explicit::<IdentityBrand, _, _, _, _>(&Identity(42), |x: &i32| {
+		/// 	explicit::bind::<IdentityBrand, _, _, _, _>(&Identity(42), |x: &i32| {
 		/// 		Identity(x.to_string())
 		/// 	});
 		/// assert_eq!(result, Identity("42".to_string()));
@@ -1360,7 +1360,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity(x: i32) -> bool {
 		let x = Identity(x);
-		map_explicit::<IdentityBrand, _, _, _, _>(identity, x) == x
+		explicit::map::<IdentityBrand, _, _, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -1369,10 +1369,10 @@ mod tests {
 		let x = Identity(x);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map_explicit::<IdentityBrand, _, _, _, _>(compose(f, g), x)
-			== map_explicit::<IdentityBrand, _, _, _, _>(
+		explicit::map::<IdentityBrand, _, _, _, _>(compose(f, g), x)
+			== explicit::map::<IdentityBrand, _, _, _, _>(
 				f,
-				map_explicit::<IdentityBrand, _, _, _, _>(g, x),
+				explicit::map::<IdentityBrand, _, _, _, _>(g, x),
 			)
 	}
 
@@ -1447,14 +1447,14 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| Identity(x.wrapping_mul(2));
-		bind_explicit::<IdentityBrand, _, _, _, _>(pure::<IdentityBrand, _>(a), f) == f(a)
+		explicit::bind::<IdentityBrand, _, _, _, _>(pure::<IdentityBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: i32) -> bool {
 		let m = Identity(m);
-		bind_explicit::<IdentityBrand, _, _, _, _>(m, pure::<IdentityBrand, _>) == m
+		explicit::bind::<IdentityBrand, _, _, _, _>(m, pure::<IdentityBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -1463,11 +1463,11 @@ mod tests {
 		let m = Identity(m);
 		let f = |x: i32| Identity(x.wrapping_mul(2));
 		let g = |x: i32| Identity(x.wrapping_add(1));
-		bind_explicit::<IdentityBrand, _, _, _, _>(
-			bind_explicit::<IdentityBrand, _, _, _, _>(m, f),
+		explicit::bind::<IdentityBrand, _, _, _, _>(
+			explicit::bind::<IdentityBrand, _, _, _, _>(m, f),
 			g,
-		) == bind_explicit::<IdentityBrand, _, _, _, _>(m, |x| {
-			bind_explicit::<IdentityBrand, _, _, _, _>(f(x), g)
+		) == explicit::bind::<IdentityBrand, _, _, _, _>(m, |x| {
+			explicit::bind::<IdentityBrand, _, _, _, _>(f(x), g)
 		})
 	}
 
@@ -1477,7 +1477,7 @@ mod tests {
 	#[test]
 	fn map_test() {
 		assert_eq!(
-			map_explicit::<IdentityBrand, _, _, _, _>(|x: i32| x + 1, Identity(1)),
+			explicit::map::<IdentityBrand, _, _, _, _>(|x: i32| x + 1, Identity(1)),
 			Identity(2)
 		);
 	}
@@ -1486,7 +1486,7 @@ mod tests {
 	#[test]
 	fn bind_test() {
 		assert_eq!(
-			bind_explicit::<IdentityBrand, _, _, _, _>(Identity(1), |x| Identity(x + 1)),
+			explicit::bind::<IdentityBrand, _, _, _, _>(Identity(1), |x| Identity(x + 1)),
 			Identity(2)
 		);
 	}
@@ -1495,7 +1495,7 @@ mod tests {
 	#[test]
 	fn fold_right_test() {
 		assert_eq!(
-			crate::functions::fold_right_explicit::<RcFnBrand, IdentityBrand, _, _, _, _>(
+			crate::functions::explicit::fold_right::<RcFnBrand, IdentityBrand, _, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				Identity(1)
@@ -1508,7 +1508,7 @@ mod tests {
 	#[test]
 	fn fold_left_test() {
 		assert_eq!(
-			crate::functions::fold_left_explicit::<RcFnBrand, IdentityBrand, _, _, _, _>(
+			crate::functions::explicit::fold_left::<RcFnBrand, IdentityBrand, _, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				Identity(1)
@@ -1634,7 +1634,7 @@ mod tests {
 		use crate::classes::extract::extract;
 		let f = |a: i32| a.wrapping_mul(5);
 		let wa = Identity(x);
-		extract::<IdentityBrand, _>(map_explicit::<IdentityBrand, _, _, _, _>(f, wa))
+		extract::<IdentityBrand, _>(explicit::map::<IdentityBrand, _, _, _, _>(f, wa))
 			== f(extract::<IdentityBrand, _>(wa))
 	}
 

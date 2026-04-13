@@ -27,7 +27,7 @@ mod inner {
 	/// use fp_library::{
 	/// 	brands::VecBrand,
 	/// 	classes::functor_with_index::FunctorWithIndex,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let xs = vec![10, 20, 30];
@@ -38,7 +38,7 @@ mod inner {
 	/// // Compatibility with Functor: map(f, fa) = map_with_index(|_, a| f(a), fa)
 	/// let f = |a: i32| a * 2;
 	/// assert_eq!(
-	/// 	map_explicit::<VecBrand, _, _, _, _>(f, xs.clone()),
+	/// 	map::<VecBrand, _, _, _, _>(f, xs.clone()),
 	/// 	VecBrand::map_with_index(|_, a| f(a), xs),
 	/// );
 	/// ```
@@ -92,11 +92,10 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::VecBrand,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
-	/// let result =
-	/// 	map_with_index_explicit::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
+	/// let result = map_with_index::<VecBrand, _, _, _, _>(|i, x: i32| x + i as i32, vec![10, 20, 30]);
 	/// assert_eq!(result, vec![10, 21, 32]);
 	/// ```
 	pub fn map_with_index<'a, Brand: FunctorWithIndex, A: 'a, B: 'a>(

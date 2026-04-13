@@ -1,7 +1,7 @@
 // Verifies that (A, B) tuples cannot use brand inference with `map`,
 // because they have multiple arity-1 brands (Tuple2FirstAppliedBrand,
 // Tuple2SecondAppliedBrand, etc.).
-// Users must use `map_explicit` with an explicit brand.
+// Users must use `explicit::map` with an explicit brand.
 
 use fp_library::functions::map;
 

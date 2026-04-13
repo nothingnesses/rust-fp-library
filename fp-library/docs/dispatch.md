@@ -101,14 +101,14 @@ assert_eq!(y, vec![1, 2, 3, 4]);
 The dispatch system lives in `fp-library/src/dispatch/`, with one file per
 type class operation mirroring `classes/`. The inference wrappers in
 `functions/` delegate to dispatch traits, and the dispatch functions are
-re-exported as `_explicit` variants:
+re-exported in the `explicit` sub-module:
 
 ```text
 classes/functor.rs      -> Functor trait (by-value map)
 classes/ref_functor.rs  -> RefFunctor trait (by-ref map)
 dispatch/functor.rs     -> FunctorDispatch trait + unified map (Val/Ref routing)
 functions/functor.rs    -> Inference wrapper map (InferableBrand + dispatch)
-functions.rs            -> Re-exports: map (inference), map_explicit (dispatch)
+functions.rs            -> Re-exports: map (inference), explicit::map (dispatch)
 ```
 
 #### Relationship to thread safety and parallelism

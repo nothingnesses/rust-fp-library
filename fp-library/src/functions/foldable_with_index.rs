@@ -26,7 +26,7 @@ mod inner {
 	/// Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
-	/// [`fold_map_with_index_explicit`](crate::functions::fold_map_with_index_explicit()) with a turbofish.
+	/// [`explicit::fold_map_with_index`](crate::functions::explicit::fold_map_with_index) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -85,7 +85,7 @@ mod inner {
 	/// Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
-	/// [`fold_right_with_index_explicit`](crate::functions::fold_right_with_index_explicit()) with a turbofish.
+	/// [`explicit::fold_right_with_index`](crate::functions::explicit::fold_right_with_index) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -147,7 +147,7 @@ mod inner {
 	/// Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
-	/// [`fold_left_with_index_explicit`](crate::functions::fold_left_with_index_explicit()) with a turbofish.
+	/// [`explicit::fold_left_with_index`](crate::functions::explicit::fold_left_with_index) with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(

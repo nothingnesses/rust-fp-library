@@ -1,20 +1,20 @@
 //! Dispatch for [`TraversableWithIndex::traverse_with_index`](crate::classes::TraversableWithIndex::traverse_with_index) and
 //! [`RefTraversableWithIndex::ref_traverse_with_index`](crate::classes::RefTraversableWithIndex::ref_traverse_with_index).
 //!
-//! Provides the [`TraverseWithIndexDispatch`] trait and a unified [`traverse_with_index`] free function
-//! that routes to the appropriate trait method based on the closure's argument
-//! type.
+//! Provides the [`TraverseWithIndexDispatch`] trait and a unified
+//! [`explicit::traverse_with_index`] free function that routes to the
+//! appropriate trait method based on the closure's argument type.
 //!
 //! ### Examples
 //!
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! // Owned: dispatches to TraversableWithIndex::traverse_with_index
-//! let y = traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+//! let y = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 //! 	|_i, x: i32| Some(x * 2),
 //! 	vec![1, 2, 3],
 //! );
@@ -22,7 +22,7 @@
 //!
 //! // By-ref: dispatches to RefTraversableWithIndex::ref_traverse_with_index
 //! let v = vec![1, 2, 3];
-//! let y = traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+//! let y = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 //! 	|_i, x: &i32| Some(*x * 2),
 //! 	&v,
 //! );
@@ -87,10 +87,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+		/// let result = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 		/// 	|_i, x: i32| Some(x * 2),
 		/// 	vec![1, 2, 3],
 		/// );
@@ -151,10 +151,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+		/// let result = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 		/// 	|_i, x: i32| Some(x * 2),
 		/// 	vec![1, 2, 3],
 		/// );
@@ -222,11 +222,11 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let v = vec![1, 2, 3];
-		/// let result = traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+		/// let result = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
 		/// 	|_i, x: &i32| Some(*x * 2),
 		/// 	&v,
 		/// );
@@ -241,86 +241,94 @@ pub(crate) mod inner {
 		}
 	}
 
-	// -- Unified free function --
+	// -- Explicit dispatch free function --
 
-	/// Traverses a structure with an indexed effectful function, combining the results.
+	/// Explicit dispatch functions requiring a Brand turbofish.
 	///
-	/// Dispatches to either [`TraversableWithIndex::traverse_with_index`] or
-	/// [`RefTraversableWithIndex::ref_traverse_with_index`] based on the closure's argument type:
-	///
-	/// - If the closure takes owned values (`Fn(Index, A) -> F::Of<B>`) and the
-	///   container is owned, dispatches to [`TraversableWithIndex::traverse_with_index`].
-	///   The `FnBrand` parameter is unused but must be specified for uniformity.
-	/// - If the closure takes references (`Fn(Index, &A) -> F::Of<B>`) and the
-	///   container is borrowed (`&ta`), dispatches to
-	///   [`RefTraversableWithIndex::ref_traverse_with_index`]. The `FnBrand`
-	///   parameter is accepted for uniformity but is not passed through.
-	///
-	/// The `Marker` and `FTA` type parameters are inferred automatically by
-	/// the compiler from the closure's argument type and the container
-	/// argument. Callers write
-	/// `traverse_with_index_explicit::<FnBrand, Brand, _, _, F, _, _>(...)` and never need to
-	/// specify `Marker` or `FTA` explicitly.
-	///
-	/// The dispatch is resolved at compile time with no runtime cost.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the cloneable function to use.",
-		"The brand of the traversable structure.",
-		"The type of the elements in the input structure.",
-		"The type of the elements in the output structure.",
-		"The applicative functor brand.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters(
-		"The indexed function to apply to each element, returning a value in an applicative context.",
-		"The traversable structure (owned for Val, borrowed for Ref)."
-	)]
-	///
-	#[document_returns("The structure wrapped in the applicative context.")]
-	///
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	///
-	/// // Owned: dispatches to TraversableWithIndex::traverse_with_index
-	/// let y = traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
-	/// 	|_i, x: i32| Some(x * 2),
-	/// 	vec![1, 2, 3],
-	/// );
-	/// assert_eq!(y, Some(vec![2, 4, 6]));
-	///
-	/// // By-ref: dispatches to RefTraversableWithIndex::ref_traverse_with_index
-	/// let v = vec![1, 2, 3];
-	/// let y = traverse_with_index_explicit::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
-	/// 	|_i, x: &i32| Some(*x * 2),
-	/// 	&v,
-	/// );
-	/// assert_eq!(y, Some(vec![2, 4, 6]));
-	/// ```
-	pub fn traverse_with_index<
-		'a,
-		FnBrand,
-		Brand: Kind_cdc7cd43dac7585f + WithIndex,
-		A: 'a,
-		B: 'a,
-		F: Kind_cdc7cd43dac7585f,
-		FTA,
-		Marker,
-	>(
-		func: impl TraverseWithIndexDispatch<'a, FnBrand, Brand, A, B, F, FTA, Marker>,
-		ta: FTA,
-	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
-	{
-		func.dispatch(ta)
+	/// For most use cases, prefer the inference-enabled wrappers from
+	/// [`functions`](crate::functions).
+	pub mod explicit {
+		use super::*;
+
+		/// Traverses a structure with an indexed effectful function, combining the results.
+		///
+		/// Dispatches to either [`TraversableWithIndex::traverse_with_index`] or
+		/// [`RefTraversableWithIndex::ref_traverse_with_index`] based on the closure's argument type:
+		///
+		/// - If the closure takes owned values (`Fn(Index, A) -> F::Of<B>`) and the
+		///   container is owned, dispatches to [`TraversableWithIndex::traverse_with_index`].
+		///   The `FnBrand` parameter is unused but must be specified for uniformity.
+		/// - If the closure takes references (`Fn(Index, &A) -> F::Of<B>`) and the
+		///   container is borrowed (`&ta`), dispatches to
+		///   [`RefTraversableWithIndex::ref_traverse_with_index`]. The `FnBrand`
+		///   parameter is accepted for uniformity but is not passed through.
+		///
+		/// The `Marker` and `FTA` type parameters are inferred automatically by
+		/// the compiler from the closure's argument type and the container
+		/// argument. Callers write
+		/// `traverse_with_index::<FnBrand, Brand, _, _, F, _, _>(...)` and never need to
+		/// specify `Marker` or `FTA` explicitly.
+		///
+		/// The dispatch is resolved at compile time with no runtime cost.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The brand of the traversable structure.",
+			"The type of the elements in the input structure.",
+			"The type of the elements in the output structure.",
+			"The applicative functor brand.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters(
+			"The indexed function to apply to each element, returning a value in an applicative context.",
+			"The traversable structure (owned for Val, borrowed for Ref)."
+		)]
+		///
+		#[document_returns("The structure wrapped in the applicative context.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// // Owned: dispatches to TraversableWithIndex::traverse_with_index
+		/// let y = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+		/// 	|_i, x: i32| Some(x * 2),
+		/// 	vec![1, 2, 3],
+		/// );
+		/// assert_eq!(y, Some(vec![2, 4, 6]));
+		///
+		/// // By-ref: dispatches to RefTraversableWithIndex::ref_traverse_with_index
+		/// let v = vec![1, 2, 3];
+		/// let y = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+		/// 	|_i, x: &i32| Some(*x * 2),
+		/// 	&v,
+		/// );
+		/// assert_eq!(y, Some(vec![2, 4, 6]));
+		/// ```
+		pub fn traverse_with_index<
+			'a,
+			FnBrand,
+			Brand: Kind_cdc7cd43dac7585f + WithIndex,
+			A: 'a,
+			B: 'a,
+			F: Kind_cdc7cd43dac7585f,
+			FTA,
+			Marker,
+		>(
+			func: impl TraverseWithIndexDispatch<'a, FnBrand, Brand, A, B, F, FTA, Marker>,
+			ta: FTA,
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		{
+			func.dispatch(ta)
+		}
 	}
 }
 

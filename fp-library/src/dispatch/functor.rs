@@ -1,26 +1,26 @@
 //! Dispatch for [`Functor::map`](crate::classes::Functor::map) and
 //! [`RefFunctor::ref_map`](crate::classes::RefFunctor::ref_map).
 //!
-//! Provides the [`FunctorDispatch`] trait and a unified [`map`] free function
-//! that routes to the appropriate trait method based on the closure's argument
-//! type.
+//! Provides the [`FunctorDispatch`] trait and a unified [`explicit::map`] free
+//! function that routes to the appropriate trait method based on the closure's
+//! argument type.
 //!
 //! ### Examples
 //!
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! 	types::*,
 //! };
 //!
 //! // Owned: dispatches to Functor::map
-//! let y = map_explicit::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
+//! let y = map::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
 //! assert_eq!(y, Some(10));
 //!
 //! // By-ref: dispatches to RefFunctor::ref_map
 //! let lazy = RcLazy::pure(10);
-//! let mapped = map_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
+//! let mapped = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
 //! assert_eq!(*mapped.evaluate(), 20);
 //! ```
 
@@ -70,11 +70,11 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// 	types::*,
 		/// };
 		///
-		/// let result = map_explicit::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
+		/// let result = map::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
 		/// assert_eq!(result, Some(10));
 		/// ```
 		fn dispatch(
@@ -121,10 +121,10 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = map_explicit::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
+		/// let result = map::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
 		/// assert_eq!(result, Some(10));
 		/// ```
 		fn dispatch(
@@ -176,12 +176,12 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// 	types::*,
 		/// };
 		///
 		/// let lazy = RcLazy::pure(10);
-		/// let result = map_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
+		/// let result = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
 		/// assert_eq!(*result.evaluate(), 20);
 		/// ```
 		fn dispatch(
@@ -192,65 +192,75 @@ pub(crate) mod inner {
 		}
 	}
 
-	// -- Unified free function --
+	// -- Explicit dispatch free function --
 
-	/// Maps a function over the values in a functor context.
+	/// Explicit dispatch functions requiring a Brand turbofish.
 	///
-	/// Dispatches to either [`Functor::map`] or [`RefFunctor::ref_map`]
-	/// based on the closure's argument type:
-	///
-	/// - If the closure takes owned values (`Fn(A) -> B`) and the container is
-	///   owned, dispatches to [`Functor::map`].
-	/// - If the closure takes references (`Fn(&A) -> B`) and the container is
-	///   borrowed (`&fa`), dispatches to [`RefFunctor::ref_map`].
-	///
-	/// The `Marker` and `FA` type parameters are inferred automatically by the
-	/// compiler from the closure's argument type and the container argument.
-	/// Callers write `map_explicit::<Brand, _, _, _, _>(...)` and never need to specify
-	/// `Marker` or `FA` explicitly.
-	///
-	/// The dispatch is resolved at compile time with no runtime cost.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the functor.",
-		"The type of the value(s) inside the functor.",
-		"The type of the result(s) of applying the function.",
-		"The container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters(
-		"The function to apply to the value(s) inside the functor.",
-		"The functor instance (owned for Val, borrowed for Ref)."
-	)]
-	///
-	#[document_returns("A new functor instance containing the result(s) of applying the function.")]
-	///
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// 	types::*,
-	/// };
-	///
-	/// // Owned: dispatches to Functor::map
-	/// let y = map_explicit::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
-	/// assert_eq!(y, Some(10));
-	///
-	/// // By-ref: dispatches to RefFunctor::ref_map
-	/// let lazy = RcLazy::pure(10);
-	/// let mapped = map_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
-	/// assert_eq!(*mapped.evaluate(), 20);
-	/// ```
-	pub fn map<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker>(
-		f: impl FunctorDispatch<'a, Brand, A, B, FA, Marker>,
-		fa: FA,
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		f.dispatch(fa)
+	/// For most use cases, prefer the inference-enabled wrappers from
+	/// [`functions`](crate::functions).
+	pub mod explicit {
+		use super::*;
+
+		/// Maps a function over the values in a functor context.
+		///
+		/// Dispatches to either [`Functor::map`] or [`RefFunctor::ref_map`]
+		/// based on the closure's argument type:
+		///
+		/// - If the closure takes owned values (`Fn(A) -> B`) and the container is
+		///   owned, dispatches to [`Functor::map`].
+		/// - If the closure takes references (`Fn(&A) -> B`) and the container is
+		///   borrowed (`&fa`), dispatches to [`RefFunctor::ref_map`].
+		///
+		/// The `Marker` and `FA` type parameters are inferred automatically by the
+		/// compiler from the closure's argument type and the container argument.
+		/// Callers write `map::<Brand, _, _, _, _>(...)` and never need to specify
+		/// `Marker` or `FA` explicitly.
+		///
+		/// The dispatch is resolved at compile time with no runtime cost.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the functor.",
+			"The type of the value(s) inside the functor.",
+			"The type of the result(s) of applying the function.",
+			"The container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the value(s) inside the functor.",
+			"The functor instance (owned for Val, borrowed for Ref)."
+		)]
+		///
+		#[document_returns(
+			"A new functor instance containing the result(s) of applying the function."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// 	types::*,
+		/// };
+		///
+		/// // Owned: dispatches to Functor::map
+		/// let y = map::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
+		/// assert_eq!(y, Some(10));
+		///
+		/// // By-ref: dispatches to RefFunctor::ref_map
+		/// let lazy = RcLazy::pure(10);
+		/// let mapped = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
+		/// assert_eq!(*mapped.evaluate(), 20);
+		/// ```
+		pub fn map<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker>(
+			f: impl FunctorDispatch<'a, Brand, A, B, FA, Marker>,
+			fa: FA,
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			f.dispatch(fa)
+		}
 	}
 }
 

@@ -1,29 +1,25 @@
 //! Dispatch for [`Lift::lift2`](crate::classes::Lift::lift2) through
-//! [`lift5`], and their by-reference counterparts
+//! [`explicit::lift5`], and their by-reference counterparts
 //! [`RefLift::ref_lift2`](crate::classes::RefLift::ref_lift2) etc.
 //!
 //! Provides `Lift2Dispatch` through `Lift5Dispatch` traits and unified
-//! `lift2` through `lift5` free functions.
+//! [`explicit::lift2`] through [`explicit::lift5`] free functions.
 //!
 //! ### Examples
 //!
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! 	types::*,
 //! };
 //!
-//! let z = lift2_explicit::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
+//! let z = lift2::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
 //! assert_eq!(z, Some(3));
 //!
 //! let x = RcLazy::pure(3);
 //! let y = RcLazy::pure(4);
-//! let z = lift2_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _>(
-//! 	|a: &i32, b: &i32| *a + *b,
-//! 	&x,
-//! 	&y,
-//! );
+//! let z = lift2::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _>(|a: &i32, b: &i32| *a + *b, &x, &y);
 //! assert_eq!(*z.evaluate(), 7);
 //! ```
 
@@ -72,9 +68,9 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
-		/// let z = lift2_explicit::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
+		/// let z = lift2::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
 		/// assert_eq!(z, Some(3));
 		/// ```
 		fn dispatch(
@@ -120,9 +116,9 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
-		/// let z = lift2_explicit::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
+		/// let z = lift2::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
 		/// assert_eq!(z, Some(3));
 		/// ```
 		fn dispatch(
@@ -176,16 +172,12 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// 	types::*,
 		/// };
 		/// let x = RcLazy::pure(3);
 		/// let y = RcLazy::pure(4);
-		/// let z = lift2_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _>(
-		/// 	|a: &i32, b: &i32| *a + *b,
-		/// 	&x,
-		/// 	&y,
-		/// );
+		/// let z = lift2::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _>(|a: &i32, b: &i32| *a + *b, &x, &y);
 		/// assert_eq!(*z.evaluate(), 7);
 		/// ```
 		fn dispatch(
@@ -195,52 +187,6 @@ pub(crate) mod inner {
 		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
 			Brand::ref_lift2(self, fa, fb)
 		}
-	}
-
-	/// Lifts a binary function into a functor context.
-	///
-	/// Dispatches to either [`Lift::lift2`] or [`RefLift::ref_lift2`]
-	/// based on the closure's argument types.
-	///
-	/// The `Marker`, `FA`, and `FB` type parameters are inferred automatically
-	/// by the compiler from the closure's argument types and the container
-	/// arguments.
-	#[document_signature]
-	///
-	#[document_type_parameters(
-		"The lifetime of the values.",
-		"The brand of the context.",
-		"The type of the first value.",
-		"The type of the second value.",
-		"The type of the result.",
-		"The first container type (owned or borrowed), inferred from the argument.",
-		"The second container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker type, inferred automatically."
-	)]
-	///
-	#[document_parameters(
-		"The function to lift.",
-		"The first context (owned for Val, borrowed for Ref).",
-		"The second context (owned for Val, borrowed for Ref)."
-	)]
-	///
-	#[document_returns("A new context containing the result of applying the function.")]
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	/// let z = lift2_explicit::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
-	/// assert_eq!(z, Some(3));
-	/// ```
-	pub fn lift2<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, C: 'a, FA, FB, Marker>(
-		f: impl Lift2Dispatch<'a, Brand, A, B, C, FA, FB, Marker>,
-		fa: FA,
-		fb: FB,
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
-		f.dispatch(fa, fb)
 	}
 
 	// -- Lift3Dispatch --
@@ -280,9 +226,9 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
-		/// let r = lift3_explicit::<OptionBrand, _, _, _, _, _, _, _, _>(
+		/// let r = lift3::<OptionBrand, _, _, _, _, _, _, _, _>(
 		/// 	|a, b, c| a + b + c,
 		/// 	Some(1),
 		/// 	Some(2),
@@ -338,9 +284,9 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
-		/// let r = lift3_explicit::<OptionBrand, _, _, _, _, _, _, _, _>(
+		/// let r = lift3::<OptionBrand, _, _, _, _, _, _, _, _>(
 		/// 	|a, b, c| a + b + c,
 		/// 	Some(1),
 		/// 	Some(2),
@@ -401,13 +347,13 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// 	types::*,
 		/// };
 		/// let a = RcLazy::pure(1);
 		/// let b = RcLazy::pure(2);
 		/// let c = RcLazy::pure(3);
-		/// let r = lift3_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _, _, _>(
+		/// let r = lift3::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32, c: &i32| *a + *b + *c,
 		/// 	&a,
 		/// 	&b,
@@ -427,69 +373,6 @@ pub(crate) mod inner {
 				fc,
 			)
 		}
-	}
-
-	/// Lifts a ternary function into a functor context.
-	///
-	/// Dispatches to [`Lift::lift2`] or [`RefLift::ref_lift2`] based on the closure's argument types.
-	///
-	/// When dispatched through the Ref path (`Fn(&A, &B, &C) -> D`), the intermediate
-	/// types `A` and `B` must implement [`Clone`] because the implementation builds
-	/// the ternary lift from nested binary `ref_lift2` calls, which requires
-	/// constructing intermediate tuples.
-	#[document_signature]
-	#[document_type_parameters(
-		"The lifetime.",
-		"The brand.",
-		"First type.",
-		"Second type.",
-		"Third type.",
-		"Result type.",
-		"The first container type (owned or borrowed), inferred from the argument.",
-		"The second container type (owned or borrowed), inferred from the argument.",
-		"The third container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker."
-	)]
-	#[document_parameters(
-		"The function to lift.",
-		"First context (owned for Val, borrowed for Ref).",
-		"Second context (owned for Val, borrowed for Ref).",
-		"Third context (owned for Val, borrowed for Ref)."
-	)]
-	#[document_returns("A new context containing the result.")]
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	/// let r = lift3_explicit::<OptionBrand, _, _, _, _, _, _, _, _>(
-	/// 	|a, b, c| a + b + c,
-	/// 	Some(1),
-	/// 	Some(2),
-	/// 	Some(3),
-	/// );
-	/// assert_eq!(r, Some(6));
-	/// ```
-	pub fn lift3<
-		'a,
-		Brand: Kind_cdc7cd43dac7585f,
-		A: 'a,
-		B: 'a,
-		C: 'a,
-		D: 'a,
-		FA,
-		FB,
-		FC,
-		Marker,
-	>(
-		f: impl Lift3Dispatch<'a, Brand, A, B, C, D, FA, FB, FC, Marker>,
-		fa: FA,
-		fb: FB,
-		fc: FC,
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) {
-		f.dispatch(fa, fb, fc)
 	}
 
 	// -- Lift4Dispatch --
@@ -533,9 +416,9 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
-		/// let r = lift4_explicit::<OptionBrand, _, _, _, _, _, _, _, _, _, _>(
+		/// let r = lift4::<OptionBrand, _, _, _, _, _, _, _, _, _, _>(
 		/// 	|a, b, c, d| a + b + c + d,
 		/// 	Some(1),
 		/// 	Some(2),
@@ -597,9 +480,9 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
-		/// let r = lift4_explicit::<OptionBrand, _, _, _, _, _, _, _, _, _, _>(
+		/// let r = lift4::<OptionBrand, _, _, _, _, _, _, _, _, _, _>(
 		/// 	|a, b, c, d| a + b + c + d,
 		/// 	Some(1),
 		/// 	Some(2),
@@ -670,14 +553,14 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// 	types::*,
 		/// };
 		/// let a = RcLazy::pure(1);
 		/// let b = RcLazy::pure(2);
 		/// let c = RcLazy::pure(3);
 		/// let d = RcLazy::pure(4);
-		/// let r = lift4_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _, _, _, _, _>(
+		/// let r = lift4::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32, c: &i32, d: &i32| *a + *b + *c + *d,
 		/// 	&a,
 		/// 	&b,
@@ -703,74 +586,6 @@ pub(crate) mod inner {
 				fd,
 			)
 		}
-	}
-
-	/// Lifts a quaternary function into a functor context.
-	///
-	/// When dispatched through the Ref path (`Fn(&A, &B, &C, &D) -> E`), the
-	/// intermediate types `A`, `B`, and `C` must implement [`Clone`] because
-	/// the implementation builds the quaternary lift from nested binary
-	/// `ref_lift2` calls, which requires constructing intermediate tuples.
-	#[document_signature]
-	#[document_type_parameters(
-		"The lifetime.",
-		"The brand.",
-		"First.",
-		"Second.",
-		"Third.",
-		"Fourth.",
-		"Result.",
-		"The first container type (owned or borrowed), inferred from the argument.",
-		"The second container type (owned or borrowed), inferred from the argument.",
-		"The third container type (owned or borrowed), inferred from the argument.",
-		"The fourth container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker."
-	)]
-	#[document_parameters(
-		"The function to lift.",
-		"First (owned for Val, borrowed for Ref).",
-		"Second (owned for Val, borrowed for Ref).",
-		"Third (owned for Val, borrowed for Ref).",
-		"Fourth (owned for Val, borrowed for Ref)."
-	)]
-	#[document_returns("Result context.")]
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	/// let r = lift4_explicit::<OptionBrand, _, _, _, _, _, _, _, _, _, _>(
-	/// 	|a, b, c, d| a + b + c + d,
-	/// 	Some(1),
-	/// 	Some(2),
-	/// 	Some(3),
-	/// 	Some(4),
-	/// );
-	/// assert_eq!(r, Some(10));
-	/// ```
-	pub fn lift4<
-		'a,
-		Brand: Kind_cdc7cd43dac7585f,
-		A: 'a,
-		B: 'a,
-		C: 'a,
-		D: 'a,
-		E: 'a,
-		FA,
-		FB,
-		FC,
-		FD,
-		Marker,
-	>(
-		f: impl Lift4Dispatch<'a, Brand, A, B, C, D, E, FA, FB, FC, FD, Marker>,
-		fa: FA,
-		fb: FB,
-		fc: FC,
-		fd: FD,
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>) {
-		f.dispatch(fa, fb, fc, fd)
 	}
 
 	// -- Lift5Dispatch --
@@ -818,9 +633,9 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
-		/// let r = lift5_explicit::<OptionBrand, _, _, _, _, _, _, _, _, _, _, _, _>(
+		/// let r = lift5::<OptionBrand, _, _, _, _, _, _, _, _, _, _, _, _>(
 		/// 	|a, b, c, d, e| a + b + c + d + e,
 		/// 	Some(1),
 		/// 	Some(2),
@@ -888,9 +703,9 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
-		/// let r = lift5_explicit::<OptionBrand, _, _, _, _, _, _, _, _, _, _, _, _>(
+		/// let r = lift5::<OptionBrand, _, _, _, _, _, _, _, _, _, _, _, _>(
 		/// 	|a, b, c, d, e| a + b + c + d + e,
 		/// 	Some(1),
 		/// 	Some(2),
@@ -975,7 +790,7 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// 	types::*,
 		/// };
 		/// let a = RcLazy::pure(1);
@@ -983,7 +798,7 @@ pub(crate) mod inner {
 		/// let c = RcLazy::pure(3);
 		/// let d = RcLazy::pure(4);
 		/// let e = RcLazy::pure(5);
-		/// let r = lift5_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _, _, _, _, _, _, _>(
+		/// let r = lift5::<LazyBrand<RcLazyConfig>, _, _, _, _, _, _, _, _, _, _, _, _>(
 		/// 	|a: &i32, b: &i32, c: &i32, d: &i32, e: &i32| *a + *b + *c + *d + *e,
 		/// 	&a,
 		/// 	&b,
@@ -1019,79 +834,266 @@ pub(crate) mod inner {
 		}
 	}
 
-	/// Lifts a quinary function into a functor context.
+	// -- Explicit dispatch free functions --
+
+	/// Explicit dispatch functions requiring a Brand turbofish.
 	///
-	/// When dispatched through the Ref path (`Fn(&A, &B, &C, &D, &E) -> G`),
-	/// the intermediate types `A`, `B`, `C`, and `D` must implement [`Clone`]
-	/// because the implementation builds the quinary lift from nested binary
-	/// `ref_lift2` calls, which requires constructing intermediate tuples.
-	#[document_signature]
-	#[document_type_parameters(
-		"The lifetime.",
-		"The brand.",
-		"1st.",
-		"2nd.",
-		"3rd.",
-		"4th.",
-		"5th.",
-		"Result.",
-		"The first container type (owned or borrowed), inferred from the argument.",
-		"The second container type (owned or borrowed), inferred from the argument.",
-		"The third container type (owned or borrowed), inferred from the argument.",
-		"The fourth container type (owned or borrowed), inferred from the argument.",
-		"The fifth container type (owned or borrowed), inferred from the argument.",
-		"Dispatch marker."
-	)]
-	#[document_parameters(
-		"The function to lift.",
-		"1st (owned for Val, borrowed for Ref).",
-		"2nd (owned for Val, borrowed for Ref).",
-		"3rd (owned for Val, borrowed for Ref).",
-		"4th (owned for Val, borrowed for Ref).",
-		"5th (owned for Val, borrowed for Ref)."
-	)]
-	#[document_returns("Result context.")]
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// };
-	/// let r = lift5_explicit::<OptionBrand, _, _, _, _, _, _, _, _, _, _, _, _>(
-	/// 	|a, b, c, d, e| a + b + c + d + e,
-	/// 	Some(1),
-	/// 	Some(2),
-	/// 	Some(3),
-	/// 	Some(4),
-	/// 	Some(5),
-	/// );
-	/// assert_eq!(r, Some(15));
-	/// ```
-	pub fn lift5<
-		'a,
-		Brand: Kind_cdc7cd43dac7585f,
-		A: 'a,
-		B: 'a,
-		C: 'a,
-		D: 'a,
-		E: 'a,
-		G: 'a,
-		FA,
-		FB,
-		FC,
-		FD,
-		FE,
-		Marker,
-	>(
-		f: impl Lift5Dispatch<'a, Brand, A, B, C, D, E, G, FA, FB, FC, FD, FE, Marker>,
-		fa: FA,
-		fb: FB,
-		fc: FC,
-		fd: FD,
-		fe: FE,
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, G>) {
-		f.dispatch(fa, fb, fc, fd, fe)
+	/// For most use cases, prefer the inference-enabled wrappers from
+	/// [`functions`](crate::functions).
+	pub mod explicit {
+		use super::*;
+
+		/// Lifts a binary function into a functor context.
+		///
+		/// Dispatches to either [`Lift::lift2`] or [`RefLift::ref_lift2`]
+		/// based on the closure's argument types.
+		///
+		/// The `Marker`, `FA`, and `FB` type parameters are inferred automatically
+		/// by the compiler from the closure's argument types and the container
+		/// arguments.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the context.",
+			"The type of the first value.",
+			"The type of the second value.",
+			"The type of the result.",
+			"The first container type (owned or borrowed), inferred from the argument.",
+			"The second container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker type, inferred automatically."
+		)]
+		///
+		#[document_parameters(
+			"The function to lift.",
+			"The first context (owned for Val, borrowed for Ref).",
+			"The second context (owned for Val, borrowed for Ref)."
+		)]
+		///
+		#[document_returns("A new context containing the result of applying the function.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		/// let z = lift2::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, Some(1), Some(2));
+		/// assert_eq!(z, Some(3));
+		/// ```
+		pub fn lift2<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, C: 'a, FA, FB, Marker>(
+			f: impl Lift2Dispatch<'a, Brand, A, B, C, FA, FB, Marker>,
+			fa: FA,
+			fb: FB,
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			f.dispatch(fa, fb)
+		}
+
+		/// Lifts a ternary function into a functor context.
+		///
+		/// Dispatches to [`Lift::lift2`] or [`RefLift::ref_lift2`] based on the closure's argument types.
+		///
+		/// When dispatched through the Ref path (`Fn(&A, &B, &C) -> D`), the intermediate
+		/// types `A` and `B` must implement [`Clone`] because the implementation builds
+		/// the ternary lift from nested binary `ref_lift2` calls, which requires
+		/// constructing intermediate tuples.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"First type.",
+			"Second type.",
+			"Third type.",
+			"Result type.",
+			"The first container type (owned or borrowed), inferred from the argument.",
+			"The second container type (owned or borrowed), inferred from the argument.",
+			"The third container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker."
+		)]
+		#[document_parameters(
+			"The function to lift.",
+			"First context (owned for Val, borrowed for Ref).",
+			"Second context (owned for Val, borrowed for Ref).",
+			"Third context (owned for Val, borrowed for Ref)."
+		)]
+		#[document_returns("A new context containing the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		/// let r = lift3::<OptionBrand, _, _, _, _, _, _, _, _>(
+		/// 	|a, b, c| a + b + c,
+		/// 	Some(1),
+		/// 	Some(2),
+		/// 	Some(3),
+		/// );
+		/// assert_eq!(r, Some(6));
+		/// ```
+		pub fn lift3<
+			'a,
+			Brand: Kind_cdc7cd43dac7585f,
+			A: 'a,
+			B: 'a,
+			C: 'a,
+			D: 'a,
+			FA,
+			FB,
+			FC,
+			Marker,
+		>(
+			f: impl Lift3Dispatch<'a, Brand, A, B, C, D, FA, FB, FC, Marker>,
+			fa: FA,
+			fb: FB,
+			fc: FC,
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) {
+			f.dispatch(fa, fb, fc)
+		}
+
+		/// Lifts a quaternary function into a functor context.
+		///
+		/// When dispatched through the Ref path (`Fn(&A, &B, &C, &D) -> E`), the
+		/// intermediate types `A`, `B`, and `C` must implement [`Clone`] because
+		/// the implementation builds the quaternary lift from nested binary
+		/// `ref_lift2` calls, which requires constructing intermediate tuples.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"First.",
+			"Second.",
+			"Third.",
+			"Fourth.",
+			"Result.",
+			"The first container type (owned or borrowed), inferred from the argument.",
+			"The second container type (owned or borrowed), inferred from the argument.",
+			"The third container type (owned or borrowed), inferred from the argument.",
+			"The fourth container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker."
+		)]
+		#[document_parameters(
+			"The function to lift.",
+			"First (owned for Val, borrowed for Ref).",
+			"Second (owned for Val, borrowed for Ref).",
+			"Third (owned for Val, borrowed for Ref).",
+			"Fourth (owned for Val, borrowed for Ref)."
+		)]
+		#[document_returns("Result context.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		/// let r = lift4::<OptionBrand, _, _, _, _, _, _, _, _, _, _>(
+		/// 	|a, b, c, d| a + b + c + d,
+		/// 	Some(1),
+		/// 	Some(2),
+		/// 	Some(3),
+		/// 	Some(4),
+		/// );
+		/// assert_eq!(r, Some(10));
+		/// ```
+		pub fn lift4<
+			'a,
+			Brand: Kind_cdc7cd43dac7585f,
+			A: 'a,
+			B: 'a,
+			C: 'a,
+			D: 'a,
+			E: 'a,
+			FA,
+			FB,
+			FC,
+			FD,
+			Marker,
+		>(
+			f: impl Lift4Dispatch<'a, Brand, A, B, C, D, E, FA, FB, FC, FD, Marker>,
+			fa: FA,
+			fb: FB,
+			fc: FC,
+			fd: FD,
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>) {
+			f.dispatch(fa, fb, fc, fd)
+		}
+
+		/// Lifts a quinary function into a functor context.
+		///
+		/// When dispatched through the Ref path (`Fn(&A, &B, &C, &D, &E) -> G`),
+		/// the intermediate types `A`, `B`, `C`, and `D` must implement [`Clone`]
+		/// because the implementation builds the quinary lift from nested binary
+		/// `ref_lift2` calls, which requires constructing intermediate tuples.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"1st.",
+			"2nd.",
+			"3rd.",
+			"4th.",
+			"5th.",
+			"Result.",
+			"The first container type (owned or borrowed), inferred from the argument.",
+			"The second container type (owned or borrowed), inferred from the argument.",
+			"The third container type (owned or borrowed), inferred from the argument.",
+			"The fourth container type (owned or borrowed), inferred from the argument.",
+			"The fifth container type (owned or borrowed), inferred from the argument.",
+			"Dispatch marker."
+		)]
+		#[document_parameters(
+			"The function to lift.",
+			"1st (owned for Val, borrowed for Ref).",
+			"2nd (owned for Val, borrowed for Ref).",
+			"3rd (owned for Val, borrowed for Ref).",
+			"4th (owned for Val, borrowed for Ref).",
+			"5th (owned for Val, borrowed for Ref)."
+		)]
+		#[document_returns("Result context.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		/// let r = lift5::<OptionBrand, _, _, _, _, _, _, _, _, _, _, _, _>(
+		/// 	|a, b, c, d, e| a + b + c + d + e,
+		/// 	Some(1),
+		/// 	Some(2),
+		/// 	Some(3),
+		/// 	Some(4),
+		/// 	Some(5),
+		/// );
+		/// assert_eq!(r, Some(15));
+		/// ```
+		pub fn lift5<
+			'a,
+			Brand: Kind_cdc7cd43dac7585f,
+			A: 'a,
+			B: 'a,
+			C: 'a,
+			D: 'a,
+			E: 'a,
+			G: 'a,
+			FA,
+			FB,
+			FC,
+			FD,
+			FE,
+			Marker,
+		>(
+			f: impl Lift5Dispatch<'a, Brand, A, B, C, D, E, G, FA, FB, FC, FD, FE, Marker>,
+			fa: FA,
+			fb: FB,
+			fc: FC,
+			fd: FD,
+			fe: FE,
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, G>) {
+			f.dispatch(fa, fb, fc, fd, fe)
+		}
 	}
 }
 

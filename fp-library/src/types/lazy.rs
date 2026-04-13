@@ -1611,7 +1611,7 @@ mod inner {
 		/// };
 		///
 		/// let lazy = RcLazy::new(|| 10);
-		/// let result = fold_map_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+		/// let result = explicit::fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
 		/// 	|a: &i32| a.to_string(),
 		/// 	&lazy,
 		/// );
@@ -1656,7 +1656,7 @@ mod inner {
 		/// };
 		///
 		/// let lazy = RcLazy::new(|| 10);
-		/// let result = fold_right_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+		/// let result = explicit::fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
 		/// 	|a: &i32, b| *a + b,
 		/// 	5,
 		/// 	&lazy,
@@ -1702,7 +1702,7 @@ mod inner {
 		/// };
 		///
 		/// let lazy = RcLazy::new(|| 10);
-		/// let result = fold_left_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+		/// let result = explicit::fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
 		/// 	|b, a: &i32| b + *a,
 		/// 	5,
 		/// 	&lazy,
@@ -2578,7 +2578,7 @@ mod tests {
 		use crate::functions::*;
 
 		let lazy = RcLazy::pure(10);
-		let result = fold_right_explicit::<
+		let result = explicit::fold_right::<
 			crate::brands::RcFnBrand,
 			crate::brands::LazyBrand<RcLazyConfig>,
 			_,
@@ -2595,7 +2595,7 @@ mod tests {
 		use crate::functions::*;
 
 		let lazy = RcLazy::pure(10);
-		let result = fold_left_explicit::<
+		let result = explicit::fold_left::<
 			crate::brands::RcFnBrand,
 			crate::brands::LazyBrand<RcLazyConfig>,
 			_,
@@ -2612,7 +2612,7 @@ mod tests {
 		use crate::functions::*;
 
 		let lazy = RcLazy::pure(10);
-		let result = fold_map_explicit::<
+		let result = explicit::fold_map::<
 			crate::brands::RcFnBrand,
 			crate::brands::LazyBrand<RcLazyConfig>,
 			_,
@@ -2800,7 +2800,7 @@ mod tests {
 		};
 
 		let lazy = ArcLazy::new(|| 10);
-		let result = fold_right_explicit::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _, _>(
+		let result = explicit::fold_right::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _, _>(
 			|a: &i32, b| *a + b,
 			5,
 			&lazy,
@@ -2817,7 +2817,7 @@ mod tests {
 		};
 
 		let lazy = ArcLazy::new(|| 10);
-		let result = fold_left_explicit::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _, _>(
+		let result = explicit::fold_left::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _, _>(
 			|b, a: &i32| b + *a,
 			5,
 			&lazy,
@@ -2834,7 +2834,7 @@ mod tests {
 		};
 
 		let lazy = ArcLazy::new(|| 10);
-		let result = fold_map_explicit::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _, _>(
+		let result = explicit::fold_map::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _, _>(
 			|a: &i32| a.to_string(),
 			&lazy,
 		);
@@ -2851,12 +2851,12 @@ mod tests {
 
 		let rc_lazy = RcLazy::new(move || x);
 		let arc_lazy = ArcLazy::new(move || x);
-		let rc_result = fold_right_explicit::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+		let rc_result = explicit::fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
 			|a: &i32, b| *a + b,
 			0,
 			&rc_lazy,
 		);
-		let arc_result = fold_right_explicit::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _, _>(
+		let arc_result = explicit::fold_right::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _, _>(
 			|a: &i32, b| *a + b,
 			0,
 			&arc_lazy,
@@ -3336,7 +3336,7 @@ mod tests {
 		let lazy_a = RcLazy::new(|| 10i32);
 
 		let result =
-			bind_explicit::<LazyBrand<RcLazyConfig>, _, _, _, _>(&lazy_a, move |a: &i32| {
+			explicit::bind::<LazyBrand<RcLazyConfig>, _, _, _, _>(&lazy_a, move |a: &i32| {
 				ref_pure::<LazyBrand<RcLazyConfig>, _>(&(*a * 2))
 			});
 

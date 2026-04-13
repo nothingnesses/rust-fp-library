@@ -26,7 +26,7 @@ Free functions exist in three layers, each adding a level of inference:
 
 1. **`classes/`**: Brand-explicit functions with no dispatch. Defined in
    their trait's module (e.g., `classes/functor.rs` defines
-   `map_explicit`). Callers specify the brand via turbofish.
+   `explicit::map`). Callers specify the brand via turbofish.
 2. **`dispatch/`**: Brand-explicit functions with Val/Ref dispatch.
    Defined in `dispatch/functor.rs` etc. The closure's argument type
    (owned vs borrowed) selects the by-value or by-reference trait.
@@ -35,13 +35,13 @@ Free functions exist in three layers, each adding a level of inference:
    type via `InferableBrand`. These are the primary user-facing API.
 
 `functions.rs` acts as a **facade**, re-exporting inference wrappers as
-the bare names (`map`, `bind`, etc.) and dispatch functions as `_explicit`
-variants (`map_explicit`, `bind_explicit`, etc.).
+the bare names (`map`, `bind`, etc.) and dispatch functions in the
+`explicit` sub-module (`explicit::map`, `explicit::bind`, etc.).
 
 **Reasoning:**
 
 - **Primary API is inference-based:** Users write `map(f, Some(5))`
-  with no turbofish. The `_explicit` variants are the escape hatch for
+  with no turbofish. The `explicit::` variants are the escape hatch for
   multi-brand types like `Result`.
 - **Downstream dependencies:** Each layer depends on the one below it
   (`functions/ -> dispatch/ -> classes/`), matching the module
@@ -194,10 +194,10 @@ Examples should demonstrate the library's intended usage patterns:
 
 - Import items using grouped wildcards (`use fp_library::{brands::*, functions::*}`) instead of individually by name.
 - For types with a single unambiguous brand (Option, Vec, Identity, etc.), use inference-based free functions without turbofish: `map(|x| x * 2, Some(5))`.
-- For types with multiple brands (Result at arity 1, Tuple2, Pair), use `_explicit` variants with turbofish: `map_explicit::<ResultErrAppliedBrand<E>, _, _, _, _>(f, x)`.
+- For types with multiple brands (Result at arity 1, Tuple2, Pair), use `explicit::` variants with turbofish: `explicit::map::<ResultErrAppliedBrand<E>, _, _, _, _>(f, x)`.
 - Prefer free functions over trait method calls (`OptionBrand::map(...)`).
 
-**Reasoning:** The library is designed to be used via free functions with brand inference for the common single-brand case. The `_explicit` variants are the escape hatch for ambiguous types. Examples should demonstrate the inference-based API as the primary path.
+**Reasoning:** The library is designed to be used via free functions with brand inference for the common single-brand case. The `explicit::` variants are the escape hatch for ambiguous types. Examples should demonstrate the inference-based API as the primary path.
 
 ## 4. Lint Policy
 

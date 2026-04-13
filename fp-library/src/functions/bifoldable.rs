@@ -23,7 +23,7 @@ mod inner {
 	/// must still be specified explicitly.
 	///
 	/// For types that need an explicit brand, use
-	/// [`bi_fold_left_explicit`](crate::functions::bi_fold_left_explicit).
+	/// [`explicit::bi_fold_left`](crate::functions::explicit::bi_fold_left).
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -84,7 +84,7 @@ mod inner {
 	/// must still be specified explicitly.
 	///
 	/// For types that need an explicit brand, use
-	/// [`bi_fold_right_explicit`](crate::functions::bi_fold_right_explicit).
+	/// [`explicit::bi_fold_right`](crate::functions::explicit::bi_fold_right).
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -145,7 +145,7 @@ mod inner {
 	/// must still be specified explicitly.
 	///
 	/// For types that need an explicit brand, use
-	/// [`bi_fold_map_explicit`](crate::functions::bi_fold_map_explicit).
+	/// [`explicit::bi_fold_map`](crate::functions::explicit::bi_fold_map).
 	#[document_signature]
 	///
 	#[document_type_parameters(

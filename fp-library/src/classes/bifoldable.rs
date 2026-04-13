@@ -5,11 +5,11 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! let x: Result<i32, i32> = Ok(5);
-//! let y = bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+//! let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 //! 	(|e: i32| e.to_string(), |s: i32| s.to_string()),
 //! 	x,
 //! );
@@ -58,7 +58,13 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::{
+	/// 		explicit::{
+	/// 			bi_fold_map,
+	/// 			bi_fold_right,
+	/// 		},
+	/// 		*,
+	/// 	},
 	/// };
 	///
 	/// // ResultBrand has Of<E, A> = Result<A, E>, so the first function handles errors
@@ -70,8 +76,8 @@ mod inner {
 	///
 	/// // bi_fold_map/bi_fold_right consistency (Ok case):
 	/// assert_eq!(
-	/// 	bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>((f, g), ok.clone()),
-	/// 	bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>((f, g), ok.clone()),
+	/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 	/// 		(|a: String, c: String| append(f(a), c), |b: i32, c: String| append(g(b), c)),
 	/// 		empty::<String>(),
 	/// 		ok,
@@ -80,8 +86,8 @@ mod inner {
 	///
 	/// // bi_fold_map/bi_fold_right consistency (Err case):
 	/// assert_eq!(
-	/// 	bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>((f, g), err.clone()),
-	/// 	bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>((f, g), err.clone()),
+	/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 	/// 		(|a: String, c: String| append(f(a), c), |b: i32, c: String| append(g(b), c)),
 	/// 		empty::<String>(),
 	/// 		err,
@@ -117,11 +123,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x: Result<i32, i32> = Err(3);
-		/// let y = bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|e, acc| acc - e, |s, acc| acc + s),
 		/// 	10,
 		/// 	x,
@@ -181,11 +187,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = bi_fold_left_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|acc, e| acc - e, |acc, s| acc + s),
 		/// 	10,
 		/// 	x,
@@ -250,11 +256,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 		/// 	(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 	x,
 		/// );
@@ -303,11 +309,11 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let x: Result<i32, i32> = Err(3);
-	/// let y = bi_fold_right_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 	/// 	(|e, acc| acc - e, |s, acc| acc + s),
 	/// 	10,
 	/// 	x,
@@ -357,11 +363,11 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = bi_fold_left_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 	/// 	(|acc, e| acc - e, |acc, s| acc + s),
 	/// 	10,
 	/// 	x,
@@ -410,11 +416,11 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = bi_fold_map_explicit::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
 	/// 	(|e: i32| e.to_string(), |s: i32| s.to_string()),
 	/// 	x,
 	/// );

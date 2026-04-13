@@ -8,12 +8,12 @@
 //! use fp_library::{
 //! 	brands::*,
 //! 	classes::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! let x: Option<i32> = None;
 //! let y = Some(5);
-//! let z = alt_explicit::<OptionBrand, _, _, _>(x, y);
+//! let z = alt::<OptionBrand, _, _, _>(x, y);
 //! assert_eq!(z, Some(5));
 //! ```
 
@@ -49,7 +49,7 @@ mod inner {
 	/// use fp_library::{
 	/// 	brands::*,
 	/// 	classes::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// // Associativity: alt(alt(x, y), z) = alt(x, alt(y, z))
@@ -57,8 +57,8 @@ mod inner {
 	/// let y = Some(1);
 	/// let z = Some(2);
 	/// assert_eq!(
-	/// 	alt_explicit::<OptionBrand, _, _, _>(alt_explicit::<OptionBrand, _, _, _>(x, y), z),
-	/// 	alt_explicit::<OptionBrand, _, _, _>(x, alt_explicit::<OptionBrand, _, _, _>(y, z)),
+	/// 	alt::<OptionBrand, _, _, _>(alt::<OptionBrand, _, _, _>(x, y), z),
+	/// 	alt::<OptionBrand, _, _, _>(x, alt::<OptionBrand, _, _, _>(y, z)),
 	/// );
 	///
 	/// // Distributivity: map(f, alt(x, y)) = alt(map(f, x), map(f, y))
@@ -66,10 +66,10 @@ mod inner {
 	/// let x = Some(3);
 	/// let y: Option<i32> = None;
 	/// assert_eq!(
-	/// 	map_explicit::<OptionBrand, _, _, _, _>(f, alt_explicit::<OptionBrand, _, _, _>(x, y)),
-	/// 	alt_explicit::<OptionBrand, _, _, _>(
-	/// 		map_explicit::<OptionBrand, _, _, _, _>(f, x),
-	/// 		map_explicit::<OptionBrand, _, _, _, _>(f, y)
+	/// 	map::<OptionBrand, _, _, _, _>(f, alt::<OptionBrand, _, _, _>(x, y)),
+	/// 	alt::<OptionBrand, _, _, _>(
+	/// 		map::<OptionBrand, _, _, _, _>(f, x),
+	/// 		map::<OptionBrand, _, _, _, _>(f, y)
 	/// 	),
 	/// );
 	/// ```
@@ -95,12 +95,12 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::*,
 		/// 	classes::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x: Option<i32> = None;
 		/// let y = Some(5);
-		/// let z = alt_explicit::<OptionBrand, _, _, _>(x, y);
+		/// let z = alt::<OptionBrand, _, _, _>(x, y);
 		/// assert_eq!(z, Some(5));
 		/// ```
 		fn alt<'a, A: 'a>(
@@ -129,12 +129,12 @@ mod inner {
 	/// use fp_library::{
 	/// 	brands::*,
 	/// 	classes::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let x: Option<i32> = None;
 	/// let y = Some(5);
-	/// let z = alt_explicit::<OptionBrand, _, _, _>(x, y);
+	/// let z = alt::<OptionBrand, _, _, _>(x, y);
 	/// assert_eq!(z, Some(5));
 	/// ```
 	pub fn alt<'a, Brand: Alt, A: 'a>(

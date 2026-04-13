@@ -11,12 +11,12 @@
 //! use fp_library::{
 //! 	brands::*,
 //! 	classes::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! let x: Option<i32> = None;
 //! let y = Some(5);
-//! let z = alt_explicit::<OptionBrand, _, _, _>(&x, &y);
+//! let z = alt::<OptionBrand, _, _, _>(&x, &y);
 //! assert_eq!(z, Some(5));
 //! ```
 
@@ -49,7 +49,7 @@ mod inner {
 	/// use fp_library::{
 	/// 	brands::*,
 	/// 	classes::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// // Associativity: ref_alt(&ref_alt(&x, &y), &z) = ref_alt(&x, &ref_alt(&y, &z))
@@ -57,8 +57,8 @@ mod inner {
 	/// let y = Some(1);
 	/// let z = Some(2);
 	/// assert_eq!(
-	/// 	alt_explicit::<OptionBrand, _, _, _>(&alt_explicit::<OptionBrand, _, _, _>(&x, &y), &z),
-	/// 	alt_explicit::<OptionBrand, _, _, _>(&x, &alt_explicit::<OptionBrand, _, _, _>(&y, &z)),
+	/// 	alt::<OptionBrand, _, _, _>(&alt::<OptionBrand, _, _, _>(&x, &y), &z),
+	/// 	alt::<OptionBrand, _, _, _>(&x, &alt::<OptionBrand, _, _, _>(&y, &z)),
 	/// );
 	/// ```
 	#[kind(type Of<'a, A: 'a>: 'a;)]
@@ -83,12 +83,12 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::*,
 		/// 	classes::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x: Option<i32> = None;
 		/// let y = Some(5);
-		/// let z = alt_explicit::<OptionBrand, _, _, _>(&x, &y);
+		/// let z = alt::<OptionBrand, _, _, _>(&x, &y);
 		/// assert_eq!(z, Some(5));
 		/// ```
 		fn ref_alt<'a, A: 'a + Clone>(
@@ -117,12 +117,12 @@ mod inner {
 	/// use fp_library::{
 	/// 	brands::*,
 	/// 	classes::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let x: Option<i32> = None;
 	/// let y = Some(5);
-	/// let z = alt_explicit::<OptionBrand, _, _, _>(&x, &y);
+	/// let z = alt::<OptionBrand, _, _, _>(&x, &y);
 	/// assert_eq!(z, Some(5));
 	/// ```
 	pub fn ref_alt<'a, Brand: RefAlt, A: 'a + Clone>(
