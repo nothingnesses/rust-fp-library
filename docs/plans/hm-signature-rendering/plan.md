@@ -8,9 +8,34 @@
   with nested path re-exports. Old `_explicit` alias block removed. All ~85
   internal call sites, doc examples, benchmark files, test files, macro codegen,
   and diagnostic messages updated. `compose_kleisli` and `compose_kleisli_flipped`
-  remain at dispatch module top level (no inference wrappers). `contramap_explicit`
-  left as-is (special case, no dispatch trait).
+  remain at dispatch module top level (no inference wrappers).
+  `contramap_explicit` moved to `explicit::contramap` for consistency (follow-up
+  commit).
 - Steps 5-12: Not started.
+
+## Deviations
+
+### Step 4
+
+1. **`contramap` added to `explicit` module.** The plan originally said
+   `contramap_explicit` would be handled in Phase 3. Instead, it was moved to
+   `functions::explicit::contramap` immediately for API consistency, re-exporting
+   from `classes::contravariant::contramap`. The `generate_function_re_exports!`
+   macro's alias entry was replaced with an exclude entry.
+
+2. **Additional affected areas not mentioned in plan:**
+   - Macro codegen in `m_do!/a_do!` (`fp-macros/src/m_do/codegen.rs`,
+     `fp-macros/src/a_do/codegen.rs`) emitted `bind_explicit::` and
+     `map_explicit::` in generated code. Updated to `explicit::bind::` and
+     `explicit::map::`.
+   - `#[diagnostic::on_unimplemented]` note text in
+     `fp-macros/src/hkt/trait_kind.rs` referenced `_explicit` suffix. Updated.
+   - `.stderr` golden files for compile-fail tests
+     (`tests/ui/result_no_inferable_brand.stderr`,
+     `tests/ui/tuple2_no_inferable_brand.stderr`) contained the diagnostic
+     note text and needed updating.
+   - `generate_function_re_exports!` macro in `functions.rs` had a
+     `contravariant::contramap` alias entry that needed migration.
 
 ## Prerequisites
 
