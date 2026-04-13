@@ -73,7 +73,7 @@ Extracts from the function signature:
 Function-typed bounds are detected by `get_fn_type_from_bound()`, which calls
 `classify_trait()` to check if a bound is `Fn*` or `FnBrand`:
 
-```rust
+```rust,ignore
 match classify_trait(&name, config) {
     TraitCategory::FnTrait => Some(trait_bound_to_hm_arrow(...)),
     TraitCategory::FnBrand => Some(HmAst::Variable(FN_BRAND_MARKER)),
@@ -93,7 +93,7 @@ Processes all type parameters and where-clause predicates:
 - Extracts trait constraints using `classify_trait()` and `format_trait_bound()`
 - Filters constraints by category:
 
-```rust
+```rust,ignore
 match classify_trait(&trait_name, config) {
     TraitCategory::FnTrait | TraitCategory::FnBrand | TraitCategory::Kind => None,
     TraitCategory::Other(name) => {
@@ -149,7 +149,9 @@ Proc macros operate on token streams only. They cannot:
 - Access module structure or crate graph
 
 All intelligence must be derived from naming conventions, structural patterns
-in the token stream, or explicit configuration.
+in the token stream, or explicit configuration. However, `#[document_module]`
+processes entire modules and can perform cross-item analysis within a single
+module (see Approach G).
 
 ## Automatic Detectability Assessment
 
@@ -169,12 +171,12 @@ across all 37 functions shows:
 
 ### Requires structural analysis
 
-| Pattern                                | What needs analyzing                       | Feasibility |
-| -------------------------------------- | ------------------------------------------ | ----------- |
-| Dispatch trait -> semantic type class  | Strip `Dispatch` suffix                    | High        |
-| Dispatch trait -> arrow type           | Extract Fn bounds from the dispatch `impl` | Medium      |
-| `Apply!` with nested `InferableBrand!` | Token stream pattern matching              | Medium      |
-| `FA` -> `F A` substitution             | Cross-reference InferableBrand + dispatch  | Medium      |
+| Pattern                                | What needs analyzing                      | Feasibility |
+| -------------------------------------- | ----------------------------------------- | ----------- |
+| Dispatch trait -> semantic type class  | Strip `Dispatch` suffix                   | High        |
+| Dispatch trait -> arrow type           | Extract Fn bounds from the dispatch impl  | Medium      |
+| `Apply!` with nested `InferableBrand!` | Token stream pattern matching             | Medium      |
+| `FA` -> `F A` substitution             | Cross-reference InferableBrand + dispatch | Medium      |
 
 ### Dispatch trait naming is deterministic
 
@@ -211,8 +213,9 @@ maps directly to a type class:
 | etc.                            |                     |                  |
 
 The dispatch trait name alone is sufficient to derive the semantic type class.
-However, deriving the **arrow type** (the closure signature) requires knowing
-the parameter layout of each dispatch trait, which varies.
+However, deriving the **arrow type** (the closure signature) varies per dispatch
+trait and cannot be derived from the name alone. It can be derived from the
+dispatch trait's `impl` block (see Approach G).
 
 ### Apply! patterns are highly consistent
 
@@ -228,9 +231,24 @@ structural patterns:
 
 The inner structure is always
 `<<FA as InferableBrand!(...)>::Brand as Kind!(...)>::Of<'a, B>`.
-The `InferableBrand!` resolution always resolves to the concrete container's
-brand; the `Kind!(...)` is always the matching arity. This consistency makes
-pattern-based extraction feasible.
+
+### Dispatch trait impl block patterns
+
+All 18 dispatch files follow one of 6 consistent patterns. Extraction
+reliability is 98%+. No higher-ranked trait bounds, no GATs, no ambiguous
+syntax. Key findings:
+
+- **Fn bounds** are always directly on closure type parameters in the where
+  clause, in the form `F: Fn(A) -> B + 'a`.
+- **Semantic type class** is always `Brand: TypeClass` in the where clause.
+- **Val/Ref discrimination** is always via the last generic argument to the
+  trait (`Val` or `Ref`).
+- **Closureless dispatch** has no `Fn` bound; the container itself is `self`.
+- **Multiple semantic constraints** occur in traverse/witherable (e.g.,
+  `Brand: Traversable` + `F: Applicative`).
+- **Tuple closures** (bimap, bi*fold*\*) have separate `Fn` bounds on each
+  generic parameter (`F` and `G`).
+- **With-index variants** include `Brand::Index` in the `Fn` signature.
 
 ## Issues
 
@@ -239,48 +257,32 @@ pattern-based extraction feasible.
 **Symptom:** The HM signature shows `InferableBrand_cdc7cd43dac7585f FA =>` as a
 constraint.
 
-**Root cause:** `classify_trait()` in `fp-macros/src/analysis/traits.rs` checks
-for the `Kind_` prefix to filter generated Kind traits, but does not check for
-the `InferableBrand_` prefix. The constant `INFERABLE_BRAND_PREFIX` exists in
-`constants.rs` but is not used in `classify_trait()`. The trait falls through to
-`TraitCategory::Other(name)` and is rendered as a visible constraint.
+**Root cause:** `classify_trait()` checks for the `Kind_` prefix to filter
+generated Kind traits, but does not check for the `InferableBrand_` prefix. The
+constant `INFERABLE_BRAND_PREFIX` exists in `constants.rs` but is not used in
+`classify_trait()`.
 
 **Scope:** All 37 functions.
 
-**Automatic fix feasibility:** 100%. Add one line to `classify_trait()`:
-`n if n.starts_with(markers::INFERABLE_BRAND_PREFIX) => TraitCategory::Kind`.
+**Automatic fix feasibility:** 100%. Add one line to `classify_trait()`.
 
 ### Issue 2: Dispatch traits rendered as type constructors
 
 **Symptom:** `FunctorDispatch FA A B FA Marker` appears where `A -> B` should.
 
-**Root cause:** The `impl FunctorDispatch<...>` parameter is handled by
-`visit_impl_trait()` in `ast_builder.rs`, which extracts the first trait bound
-and converts it via `trait_bound_to_hm_type()`. Since `FunctorDispatch` is not
-recognized as an `Fn`-like trait (it is classified as `Other`), it is rendered as
-a constructor application with all its type arguments, rather than being
-converted to an arrow type.
-
-The dispatch traits serve the same semantic role as `Fn(A) -> B` (they represent
-a callable that maps from input types to an output type), but their argument
-structure is different: the type arguments include the brand, the container type
-`FA`, and the dispatch marker, none of which are part of the user-visible
-function signature.
+**Root cause:** `impl FunctorDispatch<...>` is handled by `visit_impl_trait()`
+which treats it as a regular type constructor. The dispatch trait's semantic
+role (representing a callable) is not recognized.
 
 **Scope:** 36 of 37 functions (all except `contramap`).
 
-**Automatic fix feasibility:** The dispatch trait _name_ is automatically
-detectable (suffix `Dispatch`). The semantic type class name is derivable by
-stripping the suffix. However, the closure's arrow type (which parameters are
-inputs, which is the output) varies per dispatch trait and cannot be derived
-from the name alone. Two sub-issues:
+**Two sub-problems:**
 
 1. **Constraint emission** (which type class to show): Fully automatic via
-   suffix stripping plus a mapping from operation name to type class.
-2. **Arrow type construction** (the closure signature): Requires knowing which
-   of the dispatch trait's type parameters are the meaningful input/output types.
-   This requires either (a) structural analysis of the dispatch trait's `impl`
-   bounds, (b) configuration, or (c) annotation.
+   suffix stripping. `FunctorDispatch` -> `Functor`.
+2. **Arrow type construction** (the closure signature): Varies per dispatch
+   trait. Requires either heuristic analysis of the function signature, or
+   access to the dispatch trait's `impl` block (see Approach G).
 
 **Sub-patterns:**
 
@@ -309,23 +311,14 @@ from the name alone. Two sub-issues:
 **Symptom:** Return types containing `Apply!` with nested `InferableBrand!`
 render as `macro` instead of the actual type.
 
-**Root cause:** `visit_macro()` in `ast_builder.rs` calls
-`get_apply_macro_parameters()` from `patterns.rs` to extract the brand and type
-arguments from an `Apply!` invocation. When the `Apply!` input contains a nested
-`InferableBrand!` macro inside the qualified path (e.g.,
-`<<FA as InferableBrand!(...)>::Brand as Kind!(...)>::Of<'a, B>`), the parser
-fails to extract the brand because the token stream contains an unexpanded
-macro invocation where it expects a type path. The fallback is to render the
-entire thing as the literal string `macro`.
+**Root cause:** `visit_macro()` calls `get_apply_macro_parameters()` which fails
+to parse the token stream when it contains a nested `InferableBrand!` macro
+inside the qualified path.
 
 **Scope:** 20 of 37 functions.
 
 **Automatic fix feasibility:** High. The `InferableBrand!(...)` and `Kind!(...)`
-macros in the token stream follow a fixed syntactic pattern. The HM pipeline
-can detect `InferableBrand!` by name, extract the `FA` type variable from the
-`<<FA as InferableBrand!(...)>` position, and use it to construct the return
-type without fully expanding the macro. This is similar to how
-`resolve_inferable_brand()` in `apply.rs` works.
+macros follow a fixed syntactic pattern that can be detected and simplified.
 
 **Nesting patterns:**
 
@@ -338,592 +331,350 @@ type without fully expanding the macro. This is similar to how
 
 ### Issue 4: `Marker` type parameter in `forall`
 
-**Symptom:** `Marker` appears as a user-visible type variable in `forall FA A B Marker`.
+**Symptom:** `Marker` appears as a user-visible type variable.
 
-**Root cause:** `Marker` is a regular type parameter in the Rust signature with
-no `Fn*` bound. The `format_generics()` function includes all type parameters
-in `forall` unless they have an `Fn*` bound that was expanded into `fn_bounds`.
-Since `Marker` has no such bound (it is constrained only implicitly through the
-dispatch trait), it appears in `forall`.
+**Root cause:** `Marker` has no `Fn*` bound, so it is not filtered by
+`format_generics()`.
 
 **Scope:** 35 of 37 functions.
 
-**Automatic fix feasibility:** 100%. The parameter is always named `Marker`.
-It can be filtered by exact name match or by recognizing that it only appears
-as a type argument of a dispatch trait (never in parameters or return type
-independently).
+**Automatic fix feasibility:** 100%. Filter by exact name match.
 
 ### Issue 5: `FnBrand` type parameter in `forall`
 
-**Symptom:** `FnBrand` appears as a user-visible type variable in `forall`.
+**Symptom:** `FnBrand` appears as a user-visible type variable.
 
-**Root cause:** Same as Issue 4. `FnBrand` is a type parameter that controls
-whether the dispatch uses `CloneFn`-wrapped closures or bare closures. It is
-an implementation detail the user never specifies.
+**Root cause:** Same as Issue 4.
 
-**Scope:** Functions with foldable, traversable, or witherable dispatch (those
-that need closure-wrapping): `fold_right`, `fold_left`, `fold_map`,
-`fold_map_with_index`, `fold_right_with_index`, `fold_left_with_index`,
-`traverse`, `traverse_with_index`, `wilt`, `wither`, `bi_fold_left`,
-`bi_fold_right`, `bi_fold_map`, `bi_traverse` (14 functions).
+**Scope:** 14 functions (foldable, traversable, witherable dispatch).
 
-**Automatic fix feasibility:** 100%. Same approach as Issue 4. The parameter
-is always named `FnBrand`.
+**Automatic fix feasibility:** 100%. Filter by exact name match.
 
 ### Issue 6: `FA`/`FB`/`FC` container variables not simplified
 
-**Symptom:** The HM signature shows `forall FA FB A B C` and parameter types
-like `(... FA, FB)` instead of the more natural `forall F A B C` with
-`(... F A, F B)`.
+**Symptom:** The HM signature shows `forall FA FB A B C` instead of the more
+natural `forall F A B C` with `F A`, `F B` notation.
 
-**Root cause:** `FA`, `FB`, etc. are Rust type parameters that represent the
-concrete container types (e.g., `Option<i32>`, `&Vec<String>`). They are not
-the same as the higher-kinded `F A` in Haskell. In the Rust encoding, the
-relationship `FA = Brand::Of<A>` is expressed through trait bounds, not through
-the type parameter name. The HM pipeline has no mechanism to recognize this
-relationship and substitute `FA` with `F A`.
+**Root cause:** `FA` is a Rust type parameter representing the concrete container
+(e.g., `Option<i32>`). The HM pipeline has no mechanism to recognize the
+`FA = Brand::Of<A>` relationship and substitute `FA` with `F A`.
 
 **Scope:** All 37 functions.
 
-**Automatic fix feasibility:** Medium. The substitution requires knowing:
-
-1. Which type parameters have `InferableBrand` bounds (detectable).
-2. What the element type is for each container (requires cross-referencing with
-   the dispatch trait's type parameters).
-3. Whether the container is borrowed (`&FA` -> `F A` or `&(F A)`).
-
-A naming-convention approach (`FA` -> `F A` when `FA` has an `InferableBrand`
-bound) gets 90% of the way there without cross-referencing.
-
-**Note:** This is arguably the most impactful issue for readability, but also the
-hardest to fix correctly.
+**Automatic fix feasibility:** Medium. A naming-convention approach (`FA` with
+`InferableBrand` bound -> `F A`) gets 90% of the way there. Full accuracy
+requires cross-referencing with the dispatch trait's type parameters.
 
 ## Approaches
 
 ### Approach A: Targeted filtering (Issues 1, 4, 5)
 
 Add `InferableBrand_*` to the set of filtered traits in `classify_trait()`, and
-add `Marker` and `FnBrand` to the set of hidden type parameters.
+filter `Marker` and `FnBrand` type parameters from the `forall` clause.
 
 **Changes:**
 
-1. In `classify_trait()`: add a check for `INFERABLE_BRAND_PREFIX` that returns
-   `TraitCategory::Kind` (or a new `TraitCategory::InferableBrand` variant).
-
-2. In `format_generics()`: filter out type parameters named `Marker` and
-   `FnBrand` from the `forall` list. This could be done via:
-   - A hardcoded list of hidden parameter names (simplest; only two names).
-   - A configuration option (`hidden_type_parameters`).
-   - A naming convention (parameters starting with a specific prefix).
+1. In `classify_trait()`: add
+   `n if n.starts_with(markers::INFERABLE_BRAND_PREFIX) => TraitCategory::Kind`.
+2. In `format_generics()`: filter type parameters named `Marker` and `FnBrand`.
 
 **Trade-offs:**
 
-- Pro: Simple, low-risk changes. Each is independent and can be tested in
-  isolation.
+- Pro: Trivial changes. Each is independent and testable in isolation.
 - Pro: No changes to the HM AST or type conversion logic.
-- Con: Does not address issues 2, 3, or 6. The HM signature would go from
-  broken to partially cleaned up, but still not ideal.
-- Con: Hardcoding parameter names is fragile; a naming convention or config
-  option is more robust but requires more design work.
+- Con: Does not address issues 2, 3, or 6.
 
-**Effort estimate:** Small. A few lines in `classify_trait()` and
-`format_generics()`, plus config if desired.
+**Effort:** Small. A few lines of code.
 
-### Approach B: Dispatch trait recognition (Issue 2)
+**Manual configuration required:** None.
 
-Teach the HM pipeline to recognize dispatch traits as function-like, converting
-`impl DispatchTrait<Brand, A, B, FA, Marker>` to an arrow type and emitting
-the semantic type class as a constraint.
+### Approach B: Automatic dispatch trait recognition (Issue 2, partial)
 
-**Sub-approaches:**
+Detect dispatch traits by the `Dispatch` suffix in `classify_trait()` and emit
+the semantic type class name as a constraint. This addresses the **constraint
+emission** sub-problem of Issue 2 but not the **arrow type construction**.
 
-#### B1: Automatic suffix-based detection with structural analysis
+**Changes:**
 
-Add `TraitCategory::DispatchTrait` to `classify_trait()`, detected by the
-`Dispatch` suffix. When a dispatch trait is encountered in `visit_impl_trait()`:
+1. Add `TraitCategory::DispatchTrait(String)` variant, detected by
+   `name.ends_with("Dispatch")`.
+2. In `format_generics()`, when a dispatch trait is detected on a type variable,
+   emit the semantic type class name (stripped suffix) as a constraint on the
+   `InferableBrand`-bounded variable.
+3. Suppress the dispatch-trait-bounded variable from `forall` (similar to how
+   `Fn*`-bounded variables are suppressed).
 
-1. Extract the semantic type class name by stripping the `Dispatch` suffix.
-2. Emit the type class name as a constraint on the inferred brand variable
-   (e.g., `Functor FA`).
-3. For the arrow type, analyze which of the dispatch trait's type arguments
-   also appear as standalone function type parameters (these are the "semantic"
-   parameters) vs those that only appear as dispatch infrastructure.
+**Arrow type challenge:** The arrow type (e.g., `A -> B` for map, `(A, B) -> B`
+for fold_right) cannot be derived from the dispatch trait name alone. Two paths:
 
-**Heuristic for arrow type extraction:** The dispatch trait's type parameters
-fall into predictable categories:
-
-- Parameters that appear as the function's own generic parameters and are NOT
-  `Brand`, `FA`/`FB`/`FC`, `Marker`, or `FnBrand` -> these are semantic
-  (input/output types like `A`, `B`).
-- The output type is determinable from the function's return type.
-- Parameters matching `InferableBrand`-bounded variables -> container/brand.
-- `Marker` -> always last, always infrastructure.
-
-**Challenge:** While the semantic parameters can be identified by elimination,
-determining which are inputs and which is the output requires either positional
-conventions or return type analysis. For closureless dispatch traits, there is
-no arrow type at all.
+- **Heuristic elimination:** Identify semantic type parameters by excluding known
+  infrastructure (`Brand`, `FA`/`FB`, `Marker`, `FnBrand`). The remaining
+  parameters are inputs/output. The output is derivable from the function's
+  return type. This works for simple cases but may produce incorrect results for
+  complex dispatch layouts.
+- **Cross-item analysis via Approach G:** Extract the arrow type from the
+  dispatch trait's `impl` block, which contains the ground truth `Fn(A) -> B`
+  bound.
 
 **Trade-offs:**
 
-- Pro: Fully automatic; no per-function configuration.
+- Pro: Fully automatic. No per-function configuration.
 - Pro: Self-maintaining; new dispatch traits are recognized automatically.
-- Con: Heuristic may produce incorrect arrows for unusual dispatch layouts.
-- Con: Medium complexity; needs careful handling of all sub-patterns.
+- Con: Without Approach G, the arrow type relies on heuristics that may fail for
+  complex patterns (wilt, bi_traverse, lift3+).
 
-#### B2: Annotation-driven dispatch recognition
+**Effort:** Medium. Suffix detection is trivial; heuristic arrow extraction is
+moderate; integration with Approach G is the full solution.
 
-Add an attribute (e.g., `#[document_dispatch(A -> B)]`) that tells the HM
-pipeline how to render the dispatch trait:
-
-```rust
-pub fn map<'a, FA, A: 'a, B: 'a, Marker>(
-    #[document_dispatch(A -> B)]
-    f: impl FunctorDispatch<...>,
-    fa: FA,
-) -> ...
-```
-
-The attribute provides the arrow type directly. The semantic type class name
-can still be derived automatically from the trait suffix.
-
-**Note:** Attributes on function parameters are unstable in Rust
-(`#![feature(param_attrs)]`). However, proc macros can parse and strip them
-before the compiler sees them, so this works in practice.
-
-**Trade-offs:**
-
-- Pro: Precise control; no heuristic errors.
-- Pro: Self-documenting; the annotation shows the intended semantics.
-- Con: 36 functions need manual annotation.
-- Con: Maintenance burden; annotation must stay in sync with the dispatch trait.
-
-#### B3: Configuration-driven mapping
-
-Add a mapping in `Cargo.toml` metadata (where config already lives) that maps
-dispatch trait names to their arrow type templates:
-
-```toml
-[package.metadata.document_signature.dispatch_traits]
-FunctorDispatch = { arrow = "(A) -> B", constraint = "Functor" }
-BindDispatch = { arrow = "(A) -> F B", constraint = "Semimonad" }
-FoldRightDispatch = { arrow = "(A, B) -> B", constraint = "Foldable" }
-```
-
-**Trade-offs:**
-
-- Pro: Central configuration; easy to audit and maintain.
-- Pro: Precise control without touching function code.
-- Con: Requires upfront work to write all 25+ mappings.
-- Con: Must be kept in sync when dispatch traits are added/modified.
-
-#### B4: Hybrid automatic + override
-
-Use B1 (automatic suffix-based detection) as the default, with B2 or B3 as an
-override mechanism for cases where the heuristic fails. This gives the best of
-both worlds: most dispatch traits work automatically, and edge cases get manual
-correction.
-
-**Trade-offs:**
-
-- Pro: Minimal manual work (only annotate the exceptions).
-- Pro: Self-maintaining for the common cases.
-- Con: Two systems to understand (automatic + override).
-- Con: Users must know when to apply the override.
-
-**Effort estimate:** B1 medium, B2 small-medium (plus annotation), B3 medium,
-B4 medium.
+**Manual configuration required:** None.
 
 ### Approach C: Apply!/InferableBrand! resolution (Issue 3)
 
-Fix the `visit_macro()` and `get_apply_macro_parameters()` functions to handle
-nested `InferableBrand!` macros inside `Apply!` invocations.
+Fix `visit_macro()` and `get_apply_macro_parameters()` to handle nested
+`InferableBrand!` macros inside `Apply!` invocations.
 
-**Sub-approaches:**
+**Two sub-approaches (both fully automatic):**
 
 #### C1: Pre-expand InferableBrand! before Apply! parsing
 
-Before passing the `Apply!` token stream to `get_apply_macro_parameters()`,
-scan for `InferableBrand!` invocations and replace them with a placeholder
-type (e.g., the brand type variable from the enclosing function's generics).
-
-This mirrors what `resolve_inferable_brand()` in `apply.rs` does for the
-`Apply!` macro itself, but at the documentation level.
-
-**Implementation sketch:**
-
-1. In `visit_macro()`, before calling `get_apply_macro_parameters()`, scan the
-   token stream for `InferableBrand` followed by `!`.
-2. Replace the entire `InferableBrand!(...)` invocation with a synthetic
-   identifier (e.g., `__Brand`).
-3. The resulting token stream is now parseable by the existing Apply! logic.
-4. In the HM output, map `__Brand` back to the brand variable.
+Scan the `Apply!` token stream for `InferableBrand!` invocations and replace
+them with a synthetic identifier before passing to `get_apply_macro_parameters()`.
+Mirrors `resolve_inferable_brand()` in `apply.rs`.
 
 #### C2: Pattern-based return type simplification
 
-Instead of parsing the full `Apply!` invocation, recognize the overall pattern
-and simplify directly:
-
-- Detect `<<FA as InferableBrand!(...)>::Brand as Kind!(...)>::Of<'a, B>` in the
-  token stream.
-- Extract `FA` as the container variable and `B` (or `B, D`, etc.) as the type
-  arguments.
-- Construct `Constructor("FA", [Variable("B")])` directly.
-
-This is a pattern-matching approach that skips the intermediate macro expansion
-step entirely.
-
-**Implementation sketch:**
-
-1. In `visit_macro()`, after detecting an `Apply!` invocation, scan for the
-   double-qualified-self pattern: `<< {ident} as InferableBrand! ... >`.
-2. Extract the `ident` (e.g., `FA`) and the final `::Of<...>` arguments.
-3. Build the HM constructor directly.
-
-#### C3: Replace Apply! in return types with a type alias
-
-Replace the `Apply!` macro in function return types with a type alias
-(e.g., `type Mapped<FA, B> = ...`) and use that in the signature. The HM
-pipeline would then see a simple type alias instead of a macro.
+Recognize the double-qualified-self pattern
+`<<FA as InferableBrand!(...)>::Brand as Kind!(...)>::Of<'a, B>` directly and
+build `Constructor("FA", [Variable("B")])` without intermediate expansion.
 
 **Trade-offs:**
 
-- C1 is closest to the existing architecture and reuses patterns from
-  `resolve_inferable_brand()`. Moderate complexity; adds a pre-processing step.
-- C2 produces the cleanest output and is the most direct. It is pattern-specific
-  and would need updating if the Apply!/InferableBrand! pattern changes, but
-  the pattern has been stable.
-- C3 avoids macro parsing entirely but changes the actual Rust signature,
-  which may have downstream effects on type inference and error messages.
-  It also doesn't solve the problem for new functions that use the Apply! pattern
-  directly.
+- C1 reuses existing patterns and is closer to the architecture.
+- C2 is more direct but pattern-specific.
+- Both are fully automatic with no configuration.
 
-**Effort estimate:** C1 medium, C2 medium, C3 medium (different trade-offs).
+**Effort:** Medium.
 
-### Approach D: FA -> F A substitution (Issue 6)
+**Manual configuration required:** None.
 
-Replace concrete container variables (`FA`, `FB`, etc.) with higher-kinded
-applications (`F A`, `F B`, etc.) in the HM output.
+### Approach D: FA -> F A naming convention (Issue 6)
 
-**Sub-approaches:**
-
-#### D1: Naming convention
-
-If a type parameter name matches the pattern `F[A-Z]` (a single uppercase
-letter following `F`), and the function has an `InferableBrand` bound on that
-parameter, substitute it with `F <second-letter>` in the HM output.
-
-Example: `FA` with `InferableBrand` bound -> `F A`.
-
-**Challenge:** This breaks for multi-letter names (`FB` -> `F B` is fine, but
-what about `FC`, `FD` in lift functions?). It also doesn't handle the reference
-case (`&FA` should be `&(F A)` or just `F A` with a note about borrowing).
-
-#### D2: InferableBrand-driven substitution
-
-When a type parameter has an `InferableBrand` bound, the pipeline knows that
-`FA::Brand` is the brand and `FA` is `Brand::Of<A>`. Use this to construct
-`F A` where `F` is the brand variable and `A` is the element type.
-
-**Challenge:** The element type `A` is not directly derivable from the
-`InferableBrand` bound alone. The pipeline would need to also inspect the
-dispatch trait bound to find which type parameter is the element type.
-
-#### D3: Leave FA as-is, add a legend
-
-Instead of substituting, add a note to the documentation explaining that `FA`
-represents `F A` (a container of type `F` holding elements of type `A`). This
-could be a one-time explanation in the module docs or a per-function note.
-
-#### D4: Rename Rust type parameters
-
-Instead of post-hoc substitution in the HM pipeline, rename the actual Rust
-type parameters from `FA` to `F` (or `T`, `M`, etc.) in the source code, and
-use explicit where-clause bounds to express the container relationship. The HM
-pipeline would then naturally produce `F` instead of `FA`.
-
-**Challenge:** This changes the Rust API surface and error messages. It may also
-conflict with how brand inference works (the `FA` name is conventional in the
-dispatch trait definitions).
+If a type parameter matches `F[A-Z]` (single uppercase letter after `F`) and has
+an `InferableBrand` bound, substitute it with `F <second-letter>` in the HM
+output. For arity-2 brands, the variable name is used directly as the
+constructor (e.g., `FA` with arity-2 brand -> `FA B D`).
 
 **Trade-offs:**
 
-- D1 is simple but relies on naming conventions that may not hold for all cases.
-  Handles the common case (`FA`, `FB`) well.
-- D2 produces the most accurate output but is very complex and requires
-  cross-referencing multiple bounds.
-- D3 is zero-effort in the macro but adds documentation burden and doesn't
-  produce the clean Haskell-like signatures that FP users expect.
-- D4 is the most "correct" approach but has the widest blast radius.
+- Pro: Simple pattern matching on the existing `InferableBrand` bound detection.
+- Pro: Handles the common cases (`FA`, `FB`) well.
+- Con: Does not handle borrowed containers (`&FA`).
+- Con: Relies on naming conventions.
 
-**Effort estimate:** D1 small, D2 large, D3 zero (doc-only), D4 medium-large.
+**Effort:** Small.
 
-### Approach E: Attribute-driven signature override
+**Manual configuration required:** None.
 
-Add an attribute that specifies the complete HM signature directly, bypassing
-the generation pipeline entirely.
+### Approach E: Manual signature override (safety net)
 
-```rust
+Allow `#[document_signature]` to accept an optional string argument that
+overrides the generated signature entirely:
+
+```rust,ignore
 #[document_signature("forall F A B. Functor F => (A -> B, F A) -> F B")]
 pub fn map<'a, FA, A: 'a, B: 'a, Marker>(...) -> ... { ... }
 ```
 
 **Trade-offs:**
 
-- Pro: Guarantees correct output. No inference errors.
-- Pro: Simple implementation (just emit the provided string).
-- Pro: Each function author controls exactly what appears.
-- Con: Manual maintenance. If the function signature changes, the doc string
-  must be updated separately. This is a source of staleness.
-- Con: 37 functions need manual annotation.
-- Con: Doesn't compose with `#[document_type_parameters]` (the type parameter
-  names in the override may not match the Rust names).
+- Pro: Guarantees correct output for any edge case.
+- Pro: Simple implementation.
+- Con: **Requires manual input per function.** 37 functions need annotation.
+- Con: Manual maintenance; annotation can go stale if the signature changes.
 
-**Effort estimate:** Small for implementation, medium for annotating all 37
-functions.
+**Effort:** Small for implementation, medium for annotating 37 functions.
+
+**Manual configuration required:** Yes, per function. This is a fallback for
+cases that resist automatic handling, not a primary strategy.
 
 ### Approach G: Co-location via `#[document_module]` (Issues 2, 3, 6)
 
 Place dispatch trait definitions and inference wrapper functions in the same
 module processed by `#[document_module]`, so the macro can extract arrow type
-and semantic constraint information from dispatch trait `impl` blocks and use
-it when generating HM signatures for wrappers.
+and semantic constraint information from dispatch trait `impl` blocks.
 
-**Core insight:** `#[document_module]` processes the entire module token stream
-in multiple passes. If the dispatch trait `impl` blocks (which contain the
-ground truth: `Brand: Functor` for the semantic constraint, `F: Fn(A) -> B` for
-the arrow type) are in the same module as the wrapper function, the macro can
-extract this information during Pass 1 (context extraction) and use it during
-Pass 2 (documentation generation).
+**Core insight:** `#[document_module]` processes entire module token streams in
+multiple passes. If the dispatch trait `impl` blocks (which contain the ground
+truth: `Brand: Functor`, `F: Fn(A) -> B`) are in the same module as the wrapper
+function, the macro can extract this during Pass 1 and use it during Pass 2.
 
-**Feasibility assessment (from impl block analysis):** All 18 dispatch files
-follow one of 6 consistent patterns. The Fn bounds are always directly on
-closure type parameters in the where clause, never higher-ranked. The semantic
-type class is always `Brand: TypeClass`. Extraction reliability is 98%+.
+**`#[document_module]` already supports cross-item analysis:** It uses a `Config`
+struct to pass state between passes (self-type resolution, projection maps from
+`impl_kind!`, scoped defaults). Adding dispatch trait analysis requires new
+fields in `Config` and a new analysis pass, following the same pattern.
 
-**`#[document_module]` capabilities:** The macro already performs cross-item
-analysis (self-type resolution, projection maps from `impl_kind!`, scoped
-defaults). It uses a `Config` struct to pass state between passes. Adding
-dispatch trait analysis requires new fields in `Config` and a new analysis
-pass, but follows the existing architectural pattern.
+#### G1: Rename dispatch functions to `_explicit`, merge wrapper functions in
 
-**Sub-approaches for co-location:**
+Rename dispatch free functions at their definition site (e.g., `map` becomes
+`map_explicit` in `dispatch/functor.rs`), then move the inference wrapper `map`
+from `functions/functor.rs` into `dispatch/functor.rs`. Both functions coexist
+in the same `#[document_module]` module.
 
-#### G1: Move inference wrappers into dispatch modules
+**Why the `_explicit` rename is needed:** Currently, both the dispatch module and
+the function module export a function named `map`. The `_explicit` suffix is
+applied during re-export in `functions.rs` via aliasing. Moving the suffix to
+the definition site eliminates the naming collision, allowing both `map_explicit`
+(dispatch) and `map` (inference) to coexist in one module.
 
-Move the wrapper functions from `functions/*.rs` into the corresponding
-`dispatch/*.rs` files. The dispatch module becomes the single source of both
-the trait and the wrapper, processed by one `#[document_module]` invocation.
+**This resolves the original 5 blocking issues:**
 
-**Blocking issues found:**
+1. **Name collision** -> Solved. `map_explicit` and `map` are different names.
+2. **Nested `#[document_module]`** -> Solved. One module, one macro invocation.
+3. **Signature incompatibility** -> No longer a problem; different names.
+4. **Self-referential imports** -> Solved. Same scope, no import needed.
+5. **Contravariant exception** -> Stays in `functions/contravariant.rs`.
 
-1. **Name collision.** Each dispatch module already exports a unified free
-   function (e.g., `dispatch::functor::map`). Moving the inference wrapper
-   `map` into the same module creates two identically-named functions with
-   different signatures. Rust does not allow this.
+**Remaining issues (none blocking):**
 
-2. **Nested `#[document_module]`.** Both dispatch and function files use
-   `#[document_module]` on inner modules. Merging creates nested
-   `#[document_module]` invocations with undefined behavior.
+| Severity    | Issue                                        | Resolution                                                             |
+| ----------- | -------------------------------------------- | ---------------------------------------------------------------------- |
+| Medium-High | Module doc comments need merging             | Write unified narrative covering dispatch + inference                  |
+| Medium      | `compose_kleisli` lacks inference wrapper    | Suffix it for consistency, or document why it has no inference variant |
+| Medium      | `crate::dispatch::map` path changes (semver) | Pre-1.0; treat as intentional. Update 2 call sites in `vec.rs`         |
+| Medium      | `cargo doc` sidebar changes                  | Verify after merge                                                     |
+| Low         | Remove redundant self-imports after merge    | Mechanical cleanup                                                     |
 
-3. **Self-referential imports.** Wrapper functions import dispatch traits from
-   `crate::dispatch::functor::FunctorDispatch`. If both are in the same module,
-   this becomes a self-referential import.
+**Blast radius of the rename:**
 
-4. **Visibility mismatch.** Dispatch modules use `pub(crate) mod inner`;
-   function modules use `mod inner`. Merging requires reconciling visibility.
+- 23 files to modify
+- 37 function definitions to rename
+- ~80 re-export lines to update
+- ~52 test calls to update
+- ~170-200 total line changes (mechanical find-and-replace)
 
-5. **Contravariant exception.** `functions/contravariant.rs` has no
-   corresponding dispatch module. It cannot be moved.
+**`#[document_module]` changes needed:**
 
-6. **Module size.** Merged files would reach 800-900 lines for foldable and
-   semimonad, reducing readability.
+1. New `dispatch_trait_info` field in `Config` to store extracted trait metadata.
+2. New Pass 1 analysis: iterate module items, find dispatch traits and their
+   `impl` blocks, extract `Fn` bounds and semantic type class bounds.
+3. In Pass 2: when processing a function with `impl *Dispatch<...>` parameter,
+   look up the pre-analyzed trait info to generate the correct arrow type and
+   semantic constraint.
 
-**Verdict:** Blocked by naming collisions and structural conflicts.
+**Trade-offs:**
 
-#### G2: Move dispatch traits into function modules (reverse merge)
+- Pro: Uses ground truth from `impl` blocks. No heuristics.
+- Pro: Self-maintaining; new dispatch traits are automatically analyzed.
+- Pro: Solves issues 2, 3, and 6 simultaneously.
+- Pro: The `_explicit` rename aligns implementation with documented API (docs
+  already use `_explicit` names everywhere).
+- Con: Requires a one-time codebase reorganization (~200 line changes).
+- Con: Merged modules are larger (dispatch/foldable.rs grows to ~900 lines).
+- Con: `#[document_module]` needs new analysis logic (medium complexity).
 
-Move the dispatch trait definitions from `dispatch/*.rs` into
-`functions/*.rs`. The dispatch module becomes re-exports only.
+**Effort:** Medium-large (rename + merge + new analysis pass).
 
-**Advantages over G1:**
-
-- Avoids the naming collision: only the inference wrapper `map` lives here;
-  the explicit `map_explicit` is a re-export alias.
-- Functions are the user-facing module; having the implementation details
-  alongside is less surprising than the reverse.
-
-**Disadvantages:**
-
-- Functions modules grow substantially.
-- Conceptual separation between "how to route" (dispatch) and "how to infer"
-  (functions) is lost.
-- Same import restructuring issues as G1.
-- Same contravariant exception.
-
-**Verdict:** Feasible but organizationally messy.
+**Manual configuration required:** None. The `_explicit` rename and file merge
+are one-time mechanical changes.
 
 #### G3: Generate wrapper functions from dispatch trait definitions
 
 Apply a macro (e.g., `#[derive_inference_wrapper]`) to the dispatch trait that
-generates the wrapper function in the same expansion context. Both trait and
-generated function exist in the same `#[document_module]` token stream.
+generates the wrapper function in the same expansion context.
 
-```rust
-#[derive_inference_wrapper]
-pub trait FunctorDispatch<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker> {
-    fn dispatch(self, fa: FA) -> Apply!(...);
-}
-```
+**Trade-offs:**
 
-The macro:
-
-1. Analyzes the trait's Val `impl` block to extract the `Fn` bound and semantic
-   type class.
-2. Generates the inference wrapper function with the correct signature.
-3. `#[document_module]` sees both and generates the correct HM signature.
-
-**Advantages:**
-
-- Solves the token stream isolation problem without file reorganization.
-- Eliminates duplication: wrappers are derived, not hand-written.
-- Self-maintaining: changes to the dispatch trait automatically update the
-  wrapper and its HM signature.
-- Idiomatic Rust (standard derive/attribute macro pattern).
-- No naming collisions: generated function has a different name.
-
-**Disadvantages:**
-
-- Requires a new proc macro with sophisticated code generation.
-- Generated code is implicit; harder to read and debug.
-- Must handle all dispatch patterns correctly (closure-based, closureless,
+- Pro: Eliminates 37 hand-written wrapper functions entirely.
+- Pro: Same ground-truth extraction as G1.
+- Pro: No file reorganization needed.
+- Con: Requires a new proc macro with sophisticated code generation.
+- Con: Generated code is implicit; harder to read and debug.
+- Con: Must handle all dispatch patterns (closure-based, closureless,
   multi-closure, with-index, bifunctor).
-- The `impl` blocks must also be visible to the macro (they're in the same
-  module, so this works).
 
-**Open questions:**
+**Effort:** Large (new proc macro + integration).
 
-- How does the generated function get re-exported to `functions.rs`?
-- How does the macro handle closureless dispatch (no `Fn` bound)?
-- How does the macro handle `contramap` (no dispatch trait)?
-- Does the macro generate both the function and its `#[document_signature]`,
-  or does `#[document_module]` do the HM generation as a separate step?
+**Manual configuration required:** None.
 
-**Verdict:** Most promising approach. Solves the fundamental problem without
-reorganization.
+### Rejected approaches
 
-#### G4: Build script metadata extraction
+The following approaches were investigated and rejected:
 
-A `build.rs` script parses dispatch trait source files using syn, extracts
-arrow types and semantic constraints, writes a metadata file that
-`#[document_signature]` reads via `include_str!` or env vars.
-
-**Verdict:** Technically feasible but non-idiomatic. Synchronization between
-metadata and source code is fragile. Build scripts cannot set env vars that
-proc macros read reliably. Not recommended.
-
-#### G5: `include!` for cross-file token stream merging
-
-Use `include!("../functions/functor_impl.rs")` inside the dispatch module to
-pull the wrapper function into the same file before `#[document_module]`
-processes it.
-
-**Verdict:** Does not work. Proc macros expand before `include!` is resolved
-by the compiler. The included file remains invisible to the macro.
-
-**Overall trade-offs for Approach G:**
-
-- Pro: G3 solves issues 2, 3, and 6 simultaneously using ground truth from
-  the dispatch trait `impl` blocks, with no heuristics or configuration.
-- Pro: Self-maintaining; new dispatch traits automatically get correct wrappers
-  and HM signatures.
-- Con: G3 requires significant macro development. The macro must understand all
-  dispatch patterns and generate correct Rust code.
-- Con: G1 and G2 are blocked or organizationally messy. G4 and G5 are
-  non-starters.
-
-**Effort estimate:** G3 is large (new proc macro + integration with
-`#[document_module]`). G1/G2 are medium but blocked. G4 is medium but fragile.
-
-### Approach F: Incremental hybrid
-
-Combine approaches to get the best coverage with manageable effort. This is
-the pragmatic near-term path using B4 for dispatch recognition:
-
-1. **Approach A** (filtering): Fix issues 1, 4, 5. Quick wins, fully automatic.
-2. **Approach C1 or C2** (Apply! resolution): Fix issue 3. Medium effort,
-   fully automatic.
-3. **Approach B4** (hybrid dispatch recognition): Fix issue 2. Medium effort,
-   mostly automatic with optional overrides.
-4. **Approach D1** (naming convention): Fix issue 6. Small effort, mostly
-   automatic.
-5. **Approach E** (manual override): Fallback for any remaining edge cases.
-
-This produces the progression:
-
-```text
-Current:    forall FA A B Marker. InferableBrand_cdc7cd43dac7585f FA => (FunctorDispatch FA A B FA Marker, FA) -> macro
-After A:    forall FA A B. (FunctorDispatch FA A B FA, FA) -> macro
-After A+C:  forall FA A B. (FunctorDispatch FA A B FA, FA) -> FA B
-After A+B+C: forall FA A B. Functor FA => (A -> B, FA) -> FA B
-After A+B+C+D: forall F A B. Functor F => (A -> B, F A) -> F B
-```
-
-Each step is independently valuable and can be shipped incrementally.
-
-Alternatively, if the long-term investment in G3 (generate wrappers from
-dispatch traits) is pursued, it would subsume steps 2-4 in a single
-architectural change. In that case, step 1 (Approach A) should still be done
-first as a quick win, and G3 replaces the rest of the pipeline.
+- **`include!` for cross-file token streams:** Proc macros expand before
+  `include!` is resolved by the compiler. The included file remains invisible
+  to the macro.
+- **Build script metadata extraction:** Non-idiomatic. Synchronization between
+  metadata and source code is fragile. Build scripts cannot reliably set env
+  vars that proc macros read.
+- **Shared metadata file:** Same synchronization problems as build script.
+- **Move dispatch traits into functions/ (reverse merge):** Feasible but
+  organizationally messy and strictly inferior to G1.
+- **Configuration-driven dispatch mapping (TOML):** Requires manual mapping of
+  ~25 dispatch traits to arrow types. Must stay in sync. Superseded by G1/G3
+  which extract the same information automatically.
+- **Annotation-driven dispatch (`#[document_dispatch(A -> B)]`):** Requires
+  manual annotation on 36 functions. Must stay in sync. Superseded by G1/G3.
+- **InferableBrand-driven FA substitution:** Too complex for the benefit.
+  D1 (naming convention) gets 90% of the way there.
+- **Rename Rust type parameters (FA -> F):** Changes the Rust API surface and
+  error messages. Too wide a blast radius for a documentation improvement.
 
 ## Recommendation
 
-**Tier 1 (do first, low risk):**
+### Tier 1: Quick wins (do first)
 
-- Approach A: Filter `InferableBrand_*` and hide `Marker`/`FnBrand` from
-  `forall`. This is a few lines of code and immediately improves every
-  function's HM signature.
+**Approach A:** Filter `InferableBrand_*` and hide `Marker`/`FnBrand`. A few
+lines of code, immediately improves every function's HM signature. No risk.
 
-**Tier 2 (high impact, medium risk):**
+### Tier 2: Core fix
 
-- Approach C (Apply! resolution): Fix the `-> macro` return type. This is the
-  second most impactful issue after issue 2.
-- Approach B (dispatch recognition): Fix the dispatch trait rendering. Two
-  paths are viable:
-  - **B4** (hybrid automatic + override): Automatic suffix detection handles
-    common cases, with B2-style annotations for edge cases. Lower effort,
-    heuristic-based.
-  - **G3** (generate wrappers from dispatch traits): Uses ground truth from
-    `impl` blocks, no heuristics. Higher effort (new proc macro), but solves
-    issues 2, 3, and 6 simultaneously and is self-maintaining.
+Two paths are viable for the arrow type and return type resolution:
 
-**Tier 3 (polish, low risk):**
+**Path 1: Incremental (A + B + C + D)**
 
-- Approach D1 (FA -> F A naming convention): Small change, big readability win.
-  If G3 is implemented, D1 may be superseded (the macro can derive the correct
-  variable names from the dispatch trait's type parameters).
-- Approach E (manual override): Safety net for edge cases that resist automatic
-  handling.
+Apply approaches independently:
 
-**Not recommended:**
+1. A: Filtering (issues 1, 4, 5)
+2. B: Suffix-based dispatch recognition with heuristic arrows (issue 2)
+3. C1 or C2: Apply!/InferableBrand! resolution (issue 3)
+4. D1: FA -> F A naming convention (issue 6)
 
-- Approach D2 (InferableBrand-driven substitution): Too complex for the
-  benefit. D1 gets 90% of the way there.
-- Approach D4 (rename Rust type parameters): Too wide a blast radius for a
-  documentation improvement.
-- Approach G1 (move functions into dispatch): Blocked by naming collisions.
-- Approach G4 (build script metadata): Non-idiomatic, fragile synchronization.
-- Approach G5 (include! macro): Does not work; proc macros expand first.
+Each step is independently shippable. Total effort: medium. Uses heuristics
+for arrow types, which may produce incorrect results for complex patterns.
 
-**Strategic choice: B4 vs G3**
+**Path 2: Architectural (A + G1)**
 
-B4 (hybrid suffix detection) is the pragmatic near-term choice: lower effort,
-incrementally shippable, and produces good-enough results for most functions.
-G3 (generate wrappers from dispatch traits) is the architecturally superior
-long-term choice: it eliminates 37 hand-written wrapper functions, ensures
-wrappers and HM signatures stay in sync with dispatch trait definitions, and
-provides ground-truth arrow types. However, G3 is a larger investment and should
-be validated with a prototype before committing to full implementation.
+Apply Approach A first, then do the `_explicit` rename + merge (G1). The
+`#[document_module]` cross-item analysis extracts ground-truth arrow types from
+dispatch trait `impl` blocks, solving issues 2, 3, and 6 simultaneously.
+
+Higher upfront effort (rename + merge + analysis pass), but produces correct
+results for all patterns and is self-maintaining. D1 may still be useful for
+the `contramap` edge case that stays in `functions/`.
+
+**Path 3: Generative (A + G3)**
+
+Apply Approach A first, then implement `#[derive_inference_wrapper]` (G3) to
+generate wrapper functions from dispatch traits. Highest upfront effort, but
+eliminates hand-written wrappers entirely and provides the same ground-truth
+extraction as G1.
+
+### Tier 3: Safety net
+
+**Approach E:** Manual signature override for any remaining edge cases.
+
+### Progression examples
+
+```text
+Current:       forall FA A B Marker. InferableBrand_cdc7cd43dac7585f FA => (FunctorDispatch FA A B FA Marker, FA) -> macro
+After Tier 1:  forall FA A B. (FunctorDispatch FA A B FA, FA) -> macro
+After Path 1:  forall F A B. Functor F => (A -> B, F A) -> F B
+After Path 2:  forall F A B. Functor F => (A -> B, F A) -> F B
+After Path 3:  forall F A B. Functor F => (A -> B, F A) -> F B
+```
+
+All three paths reach the same end state. The difference is in maintenance
+burden, correctness guarantees, and upfront investment.
 
 ## Appendix: Current vs ideal HM signatures
 
@@ -933,8 +684,7 @@ be validated with a prototype before committing to full implementation.
 | ------------ | ------------------------------------------------------------------------------------------------------------- |
 | Current      | `forall FA A B Marker. InferableBrand_cdc7cd43dac7585f FA => (FunctorDispatch FA A B FA Marker, FA) -> macro` |
 | After Tier 1 | `forall FA A B. (FunctorDispatch FA A B FA, FA) -> macro`                                                     |
-| After Tier 2 | `forall FA A B. Functor FA => (A -> B, FA) -> FA B`                                                           |
-| After Tier 3 | `forall F A B. Functor F => (A -> B, F A) -> F B`                                                             |
+| After Tier 2 | `forall F A B. Functor F => (A -> B, F A) -> F B`                                                             |
 
 ### Traverse (traversable.rs)
 
@@ -942,8 +692,7 @@ be validated with a prototype before committing to full implementation.
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
 | Current      | `forall FnBrand FA A B F Marker. InferableBrand_cdc7cd43dac7585f FA => (TraverseDispatch FnBrand FA A B F FA Marker, FA) -> macro` |
 | After Tier 1 | `forall FA A B F. (TraverseDispatch FA A B F FA, FA) -> macro`                                                                     |
-| After Tier 2 | `forall FA A B F. (Applicative F, Traversable FA) => (A -> F B, FA) -> F (FA B)`                                                   |
-| After Tier 3 | `forall T A B F. (Applicative F, Traversable T) => (A -> F B, T A) -> F (T B)`                                                     |
+| After Tier 2 | `forall T A B F. (Applicative F, Traversable T) => (A -> F B, T A) -> F (T B)`                                                     |
 
 ### Closureless alt (alt.rs)
 
@@ -951,8 +700,7 @@ be validated with a prototype before committing to full implementation.
 | ------------ | -------------------------------------------------------------------------------------------------------- |
 | Current      | `forall FA A Marker. (InferableBrand_cdc7cd43dac7585f FA, AltDispatch FA A Marker) => (FA, FA) -> macro` |
 | After Tier 1 | `forall FA A. AltDispatch FA A => (FA, FA) -> macro`                                                     |
-| After Tier 2 | `forall FA A. Alt FA => (FA, FA) -> FA A`                                                                |
-| After Tier 3 | `forall F A. Alt F => (F A, F A) -> F A`                                                                 |
+| After Tier 2 | `forall F A. Alt F => (F A, F A) -> F A`                                                                 |
 
 ### Bifunctor bimap (bifunctor.rs)
 
@@ -960,8 +708,7 @@ be validated with a prototype before committing to full implementation.
 | ------------ | ------------------------------------------------------------------------------------------------------------------- |
 | Current      | `forall FA A B C D Marker. InferableBrand_266801a817966495 FA => (BimapDispatch FA A B C D FA Marker, FA) -> macro` |
 | After Tier 1 | `forall FA A B C D. (BimapDispatch FA A B C D FA, FA) -> macro`                                                     |
-| After Tier 2 | `forall FA A B C D. Bifunctor FA => ((A -> B, C -> D), FA) -> FA B D`                                               |
-| After Tier 3 | `forall P A B C D. Bifunctor P => ((A -> B, C -> D), P A C) -> P B D`                                               |
+| After Tier 2 | `forall P A B C D. Bifunctor P => ((A -> B, C -> D), P A C) -> P B D`                                               |
 
 ### Fold right (foldable.rs)
 
@@ -969,8 +716,7 @@ be validated with a prototype before committing to full implementation.
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
 | Current      | `forall FnBrand FA A B Marker. InferableBrand_cdc7cd43dac7585f FA => (FoldRightDispatch FnBrand FA A B FA Marker, B, FA) -> macro` |
 | After Tier 1 | `forall FA A B. (FoldRightDispatch FA A B FA, B, FA) -> macro`                                                                     |
-| After Tier 2 | `forall FA A B. Foldable FA => ((A, B) -> B, B, FA) -> B`                                                                          |
-| After Tier 3 | `forall F A B. Foldable F => ((A, B) -> B, B, F A) -> B`                                                                           |
+| After Tier 2 | `forall F A B. Foldable F => ((A, B) -> B, B, F A) -> B`                                                                           |
 
 ### Lift2 (lift.rs)
 
@@ -978,8 +724,7 @@ be validated with a prototype before committing to full implementation.
 | ------------ | ------------------------------------------------------------------------------------------------------------------------- |
 | Current      | `forall FA FB A B C Marker. InferableBrand_cdc7cd43dac7585f FA => (Lift2Dispatch FA A B C FA FB Marker, FA, FB) -> macro` |
 | After Tier 1 | `forall FA FB A B C. (Lift2Dispatch FA A B C FA FB, FA, FB) -> macro`                                                     |
-| After Tier 2 | `forall FA FB A B C. Semiapplicative FA => ((A, B) -> C, FA, FB) -> FA C`                                                 |
-| After Tier 3 | `forall F A B C. Semiapplicative F => ((A, B) -> C, F A, F B) -> F C`                                                     |
+| After Tier 2 | `forall F A B C. Semiapplicative F => ((A, B) -> C, F A, F B) -> F C`                                                     |
 
 ### Wilt (witherable.rs)
 
@@ -987,5 +732,4 @@ be validated with a prototype before committing to full implementation.
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
 | Current      | `forall FnBrand FA M A E O Marker. InferableBrand_cdc7cd43dac7585f FA => (WiltDispatch FnBrand FA M A E O FA Marker, FA) -> macro` |
 | After Tier 1 | `forall FA M A E O. (WiltDispatch FA M A E O FA, FA) -> macro`                                                                     |
-| After Tier 2 | `forall FA M A E O. (Applicative M, Witherable FA) => (A -> M (Either E O), FA) -> M (FA E, FA O)`                                 |
-| After Tier 3 | `forall T M A E O. (Applicative M, Witherable T) => (A -> M (Either E O), T A) -> M (T E, T O)`                                    |
+| After Tier 2 | `forall T M A E O. (Applicative M, Witherable T) => (A -> M (Either E O), T A) -> M (T E, T O)`                                    |
