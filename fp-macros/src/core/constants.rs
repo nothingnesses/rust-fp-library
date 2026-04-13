@@ -96,6 +96,9 @@ pub mod markers {
 	pub const KIND_PREFIX: &str = "Kind_";
 	/// Prefix for generated InferableBrand trait names (e.g., `InferableBrand_cdc7cd43dac7585f`)
 	pub const INFERABLE_BRAND_PREFIX: &str = "InferableBrand_";
+	/// Type parameter names that are dispatch infrastructure and should be
+	/// hidden from HM signature `forall` clauses.
+	pub const HIDDEN_TYPE_PARAMS: &[&str] = &["Marker", "FnBrand"];
 }
 
 /// Known attribute names used by the documentation macros

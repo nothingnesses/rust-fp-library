@@ -3,7 +3,8 @@
 ## Current Progress
 
 - Step 1: Done.
-- Steps 2-12: Not started.
+- Step 2: Done.
+- Steps 3-12: Not started.
 
 ## Prerequisites
 

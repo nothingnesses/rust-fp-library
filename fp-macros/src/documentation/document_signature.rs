@@ -13,7 +13,10 @@ use {
 				Config,
 				get_config,
 			},
-			constants::attributes::DOCUMENT_SIGNATURE,
+			constants::{
+				attributes::DOCUMENT_SIGNATURE,
+				markers,
+			},
 		},
 		hm::{
 			HmAst,
@@ -183,8 +186,11 @@ fn format_generics(
 		if let GenericParam::Type(type_param) = param {
 			let name = type_param.ident.to_string();
 
-			// Only include in forall if it's not a function type variable that we are expanding
-			if !fn_bounds.contains_key(&name) {
+			// Only include in forall if it's not a function type variable that
+			// we are expanding or a hidden infrastructure type parameter
+			if !fn_bounds.contains_key(&name)
+				&& !markers::HIDDEN_TYPE_PARAMS.contains(&name.as_str())
+			{
 				// Keep type parameters in original case (uppercase)
 				type_vars.push(name.clone());
 			}
