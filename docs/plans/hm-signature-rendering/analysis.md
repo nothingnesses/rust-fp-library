@@ -682,14 +682,178 @@ pub fn map<'a, FA, A: 'a, B: 'a, Marker>(...) -> ... { ... }
 **Effort estimate:** Small for implementation, medium for annotating all 37
 functions.
 
-### Approach F: Hybrid (recommended)
+### Approach G: Co-location via `#[document_module]` (Issues 2, 3, 6)
 
-Combine approaches to get the best coverage with manageable effort:
+Place dispatch trait definitions and inference wrapper functions in the same
+module processed by `#[document_module]`, so the macro can extract arrow type
+and semantic constraint information from dispatch trait `impl` blocks and use
+it when generating HM signatures for wrappers.
+
+**Core insight:** `#[document_module]` processes the entire module token stream
+in multiple passes. If the dispatch trait `impl` blocks (which contain the
+ground truth: `Brand: Functor` for the semantic constraint, `F: Fn(A) -> B` for
+the arrow type) are in the same module as the wrapper function, the macro can
+extract this information during Pass 1 (context extraction) and use it during
+Pass 2 (documentation generation).
+
+**Feasibility assessment (from impl block analysis):** All 18 dispatch files
+follow one of 6 consistent patterns. The Fn bounds are always directly on
+closure type parameters in the where clause, never higher-ranked. The semantic
+type class is always `Brand: TypeClass`. Extraction reliability is 98%+.
+
+**`#[document_module]` capabilities:** The macro already performs cross-item
+analysis (self-type resolution, projection maps from `impl_kind!`, scoped
+defaults). It uses a `Config` struct to pass state between passes. Adding
+dispatch trait analysis requires new fields in `Config` and a new analysis
+pass, but follows the existing architectural pattern.
+
+**Sub-approaches for co-location:**
+
+#### G1: Move inference wrappers into dispatch modules
+
+Move the wrapper functions from `functions/*.rs` into the corresponding
+`dispatch/*.rs` files. The dispatch module becomes the single source of both
+the trait and the wrapper, processed by one `#[document_module]` invocation.
+
+**Blocking issues found:**
+
+1. **Name collision.** Each dispatch module already exports a unified free
+   function (e.g., `dispatch::functor::map`). Moving the inference wrapper
+   `map` into the same module creates two identically-named functions with
+   different signatures. Rust does not allow this.
+
+2. **Nested `#[document_module]`.** Both dispatch and function files use
+   `#[document_module]` on inner modules. Merging creates nested
+   `#[document_module]` invocations with undefined behavior.
+
+3. **Self-referential imports.** Wrapper functions import dispatch traits from
+   `crate::dispatch::functor::FunctorDispatch`. If both are in the same module,
+   this becomes a self-referential import.
+
+4. **Visibility mismatch.** Dispatch modules use `pub(crate) mod inner`;
+   function modules use `mod inner`. Merging requires reconciling visibility.
+
+5. **Contravariant exception.** `functions/contravariant.rs` has no
+   corresponding dispatch module. It cannot be moved.
+
+6. **Module size.** Merged files would reach 800-900 lines for foldable and
+   semimonad, reducing readability.
+
+**Verdict:** Blocked by naming collisions and structural conflicts.
+
+#### G2: Move dispatch traits into function modules (reverse merge)
+
+Move the dispatch trait definitions from `dispatch/*.rs` into
+`functions/*.rs`. The dispatch module becomes re-exports only.
+
+**Advantages over G1:**
+
+- Avoids the naming collision: only the inference wrapper `map` lives here;
+  the explicit `map_explicit` is a re-export alias.
+- Functions are the user-facing module; having the implementation details
+  alongside is less surprising than the reverse.
+
+**Disadvantages:**
+
+- Functions modules grow substantially.
+- Conceptual separation between "how to route" (dispatch) and "how to infer"
+  (functions) is lost.
+- Same import restructuring issues as G1.
+- Same contravariant exception.
+
+**Verdict:** Feasible but organizationally messy.
+
+#### G3: Generate wrapper functions from dispatch trait definitions
+
+Apply a macro (e.g., `#[derive_inference_wrapper]`) to the dispatch trait that
+generates the wrapper function in the same expansion context. Both trait and
+generated function exist in the same `#[document_module]` token stream.
+
+```rust
+#[derive_inference_wrapper]
+pub trait FunctorDispatch<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker> {
+    fn dispatch(self, fa: FA) -> Apply!(...);
+}
+```
+
+The macro:
+
+1. Analyzes the trait's Val `impl` block to extract the `Fn` bound and semantic
+   type class.
+2. Generates the inference wrapper function with the correct signature.
+3. `#[document_module]` sees both and generates the correct HM signature.
+
+**Advantages:**
+
+- Solves the token stream isolation problem without file reorganization.
+- Eliminates duplication: wrappers are derived, not hand-written.
+- Self-maintaining: changes to the dispatch trait automatically update the
+  wrapper and its HM signature.
+- Idiomatic Rust (standard derive/attribute macro pattern).
+- No naming collisions: generated function has a different name.
+
+**Disadvantages:**
+
+- Requires a new proc macro with sophisticated code generation.
+- Generated code is implicit; harder to read and debug.
+- Must handle all dispatch patterns correctly (closure-based, closureless,
+  multi-closure, with-index, bifunctor).
+- The `impl` blocks must also be visible to the macro (they're in the same
+  module, so this works).
+
+**Open questions:**
+
+- How does the generated function get re-exported to `functions.rs`?
+- How does the macro handle closureless dispatch (no `Fn` bound)?
+- How does the macro handle `contramap` (no dispatch trait)?
+- Does the macro generate both the function and its `#[document_signature]`,
+  or does `#[document_module]` do the HM generation as a separate step?
+
+**Verdict:** Most promising approach. Solves the fundamental problem without
+reorganization.
+
+#### G4: Build script metadata extraction
+
+A `build.rs` script parses dispatch trait source files using syn, extracts
+arrow types and semantic constraints, writes a metadata file that
+`#[document_signature]` reads via `include_str!` or env vars.
+
+**Verdict:** Technically feasible but non-idiomatic. Synchronization between
+metadata and source code is fragile. Build scripts cannot set env vars that
+proc macros read reliably. Not recommended.
+
+#### G5: `include!` for cross-file token stream merging
+
+Use `include!("../functions/functor_impl.rs")` inside the dispatch module to
+pull the wrapper function into the same file before `#[document_module]`
+processes it.
+
+**Verdict:** Does not work. Proc macros expand before `include!` is resolved
+by the compiler. The included file remains invisible to the macro.
+
+**Overall trade-offs for Approach G:**
+
+- Pro: G3 solves issues 2, 3, and 6 simultaneously using ground truth from
+  the dispatch trait `impl` blocks, with no heuristics or configuration.
+- Pro: Self-maintaining; new dispatch traits automatically get correct wrappers
+  and HM signatures.
+- Con: G3 requires significant macro development. The macro must understand all
+  dispatch patterns and generate correct Rust code.
+- Con: G1 and G2 are blocked or organizationally messy. G4 and G5 are
+  non-starters.
+
+**Effort estimate:** G3 is large (new proc macro + integration with
+`#[document_module]`). G1/G2 are medium but blocked. G4 is medium but fragile.
+
+### Approach F: Incremental hybrid
+
+Combine approaches to get the best coverage with manageable effort. This is
+the pragmatic near-term path using B4 for dispatch recognition:
 
 1. **Approach A** (filtering): Fix issues 1, 4, 5. Quick wins, fully automatic.
 2. **Approach C1 or C2** (Apply! resolution): Fix issue 3. Medium effort,
    fully automatic.
-3. **Approach B1 or B4** (dispatch recognition): Fix issue 2. Medium effort,
+3. **Approach B4** (hybrid dispatch recognition): Fix issue 2. Medium effort,
    mostly automatic with optional overrides.
 4. **Approach D1** (naming convention): Fix issue 6. Small effort, mostly
    automatic.
@@ -707,6 +871,11 @@ After A+B+C+D: forall F A B. Functor F => (A -> B, F A) -> F B
 
 Each step is independently valuable and can be shipped incrementally.
 
+Alternatively, if the long-term investment in G3 (generate wrappers from
+dispatch traits) is pursued, it would subsume steps 2-4 in a single
+architectural change. In that case, step 1 (Approach A) should still be done
+first as a quick win, and G3 replaces the rest of the pipeline.
+
 ## Recommendation
 
 **Tier 1 (do first, low risk):**
@@ -719,13 +888,20 @@ Each step is independently valuable and can be shipped incrementally.
 
 - Approach C (Apply! resolution): Fix the `-> macro` return type. This is the
   second most impactful issue after issue 2.
-- Approach B (dispatch recognition): Fix the dispatch trait rendering. B4
-  (hybrid automatic + override) is recommended: automatic suffix detection
-  handles common cases, with B2-style annotations for edge cases.
+- Approach B (dispatch recognition): Fix the dispatch trait rendering. Two
+  paths are viable:
+  - **B4** (hybrid automatic + override): Automatic suffix detection handles
+    common cases, with B2-style annotations for edge cases. Lower effort,
+    heuristic-based.
+  - **G3** (generate wrappers from dispatch traits): Uses ground truth from
+    `impl` blocks, no heuristics. Higher effort (new proc macro), but solves
+    issues 2, 3, and 6 simultaneously and is self-maintaining.
 
 **Tier 3 (polish, low risk):**
 
 - Approach D1 (FA -> F A naming convention): Small change, big readability win.
+  If G3 is implemented, D1 may be superseded (the macro can derive the correct
+  variable names from the dispatch trait's type parameters).
 - Approach E (manual override): Safety net for edge cases that resist automatic
   handling.
 
@@ -735,6 +911,19 @@ Each step is independently valuable and can be shipped incrementally.
   benefit. D1 gets 90% of the way there.
 - Approach D4 (rename Rust type parameters): Too wide a blast radius for a
   documentation improvement.
+- Approach G1 (move functions into dispatch): Blocked by naming collisions.
+- Approach G4 (build script metadata): Non-idiomatic, fragile synchronization.
+- Approach G5 (include! macro): Does not work; proc macros expand first.
+
+**Strategic choice: B4 vs G3**
+
+B4 (hybrid suffix detection) is the pragmatic near-term choice: lower effort,
+incrementally shippable, and produces good-enough results for most functions.
+G3 (generate wrappers from dispatch traits) is the architecturally superior
+long-term choice: it eliminates 37 hand-written wrapper functions, ensures
+wrappers and HM signatures stay in sync with dispatch trait definitions, and
+provides ground-truth arrow types. However, G3 is a larger investment and should
+be validated with a prototype before committing to full implementation.
 
 ## Appendix: Current vs ideal HM signatures
 
