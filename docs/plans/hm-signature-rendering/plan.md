@@ -1,5 +1,10 @@
 # Plan: HM Signature Rendering Fix
 
+## Current Progress
+
+- Step 1: Done.
+- Steps 2-12: Not started.
+
 ## Prerequisites
 
 - Analysis document: `docs/plans/hm-signature-rendering/analysis.md`
