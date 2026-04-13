@@ -640,4 +640,58 @@ mod tests {
 		let sig = generate_signature(&input.sig, &Config::default()).to_string();
 		assert_eq!(sig, "forall A. () -> CatList A");
 	}
+
+	// -- Phase 1: InferableBrand filtering and hidden type params --
+
+	#[test]
+	fn test_inferable_brand_filtered_from_constraints() {
+		let input: ItemFn = parse_quote! {
+			fn map<FA, A, B>(f: FA, a: A) -> B
+			where
+				FA: InferableBrand_cdc7cd43dac7585f
+			{ todo!() }
+		};
+		let sig = generate_signature(&input.sig, &Config::default()).to_string();
+		// InferableBrand_* should be suppressed from constraints
+		assert_eq!(sig, "forall FA A B. (FA, A) -> B");
+	}
+
+	#[test]
+	fn test_marker_hidden_from_forall() {
+		let input: ItemFn = parse_quote! {
+			fn map<FA, A, B, Marker>(f: FA, a: A) -> B { todo!() }
+		};
+		let sig = generate_signature(&input.sig, &Config::default()).to_string();
+		// Marker should not appear in forall
+		assert_eq!(sig, "forall FA A B. (FA, A) -> B");
+	}
+
+	#[test]
+	fn test_fn_brand_hidden_from_forall() {
+		let input: ItemFn = parse_quote! {
+			fn fold<FnBrand, FA, A, B>(f: FA, a: A) -> B { todo!() }
+		};
+		let sig = generate_signature(&input.sig, &Config::default()).to_string();
+		// FnBrand should not appear in forall
+		assert_eq!(sig, "forall FA A B. (FA, A) -> B");
+	}
+
+	#[test]
+	fn test_both_marker_and_fn_brand_hidden() {
+		let input: ItemFn = parse_quote! {
+			fn fold<FnBrand, FA, A, B, Marker>(f: FA, a: A) -> B { todo!() }
+		};
+		let sig = generate_signature(&input.sig, &Config::default()).to_string();
+		assert_eq!(sig, "forall FA A B. (FA, A) -> B");
+	}
+
+	#[test]
+	fn test_non_infrastructure_marker_name_not_filtered() {
+		// A user type called MarkerTrait should NOT be filtered
+		let input: ItemFn = parse_quote! {
+			fn foo<MarkerTrait, A>(x: A) -> A { todo!() }
+		};
+		let sig = generate_signature(&input.sig, &Config::default()).to_string();
+		assert_eq!(sig, "forall MarkerTrait A. A -> A");
+	}
 }
