@@ -24,17 +24,177 @@
   Added `dispatch_traits` field to `Config`. 4 unit tests passing.
   The dispatch info is populated but not yet consumed by signature
   generation (steps 7-8).
-- Steps 7-8: In progress. Dispatch-aware HM signature generation is
-  functional but has output quality issues (see below). The pipeline
-  intercepts `#[document_signature]` on `Item::Fn` during Pass 2,
-  looks up dispatch trait info, and generates signatures with semantic
-  constraints, arrow types, and FA -> F A substitution. `ReturnStructure`
-  enum added to `DispatchTraitInfo` (extracted from the dispatch trait's
-  `dispatch()` method return type) to avoid parsing Apply!/InferableBrand!
-  macros in wrapper function return types.
+- Steps 7-8: In progress. Initial approach (custom `SignatureData`
+  construction from scratch) proved fragile due to string-based return
+  type parsing and hardcoded brand variable names. Revised to use
+  **synthetic signature rewriting**: construct a synthetic `syn::Signature`
+  that replaces dispatch machinery with semantic equivalents, then feed
+  it to the existing `generate_signature()` pipeline. This reuses the
+  battle-tested HM conversion (Apply! simplification, brand name
+  formatting, constraint rendering) without reimplementing it.
+  See "Revised approach" section below for details.
 - Steps 9-12: Not started.
 
-### Steps 7-8 output quality issues
+### Steps 7-8 revised approach: synthetic signature rewriting
+
+The initial approach (building a custom `SignatureData` from scratch in
+`generate_dispatch_signature()`) proved fragile:
+
+- String-based `Of` counting in return types was unreliable (macro
+  argument text inflates the count).
+- Hardcoded brand variable name `"F"` caused collisions (e.g., traverse
+  has an explicit `F: Applicative` param).
+- Multi-container params (`FB`, `FC` in lift) weren't handled.
+- Arrow output types containing `Apply!(...)` weren't simplified.
+
+**Revised approach:** Instead of building `SignatureData` from scratch,
+construct a **synthetic `syn::Signature`** that replaces dispatch
+machinery with semantic equivalents, then call the existing
+`generate_signature()` pipeline. The existing pipeline already handles
+Apply! simplification, qualified path resolution, brand name formatting,
+and constraint rendering correctly (as proven by the trait method
+signatures in `classes/`).
+
+**How it works for each function pattern:**
+
+Simple (map):
+
+- Original: `map<FA, A, B, Marker>(f: impl FunctorDispatch<...>, fa: FA) -> Apply!(<<FA as IB!>::Brand ...>::Of<B>)`
+- Synthetic: `map<Brand: Functor, A, B>(f: impl Fn(A) -> B, fa: <Brand as Kind_hash>::Of<A>) -> <Brand as Kind_hash>::Of<B>`
+- Pipeline output: `forall Brand A B. Functor Brand => (A -> B, Brand A) -> Brand B`
+
+Traverse:
+
+- Original: `traverse<FnBrand, FA, A, B, F: Kind, Marker>(func: impl TraverseDispatch<...>, ta: FA) -> Apply!(...)`
+- Synthetic: `traverse<Brand: Traversable, A, B, F: Applicative>(func: impl Fn(A) -> <F as Kind_hash>::Of<B>, ta: <Brand as Kind_hash>::Of<A>) -> <F as Kind_hash>::Of<<Brand as Kind_hash>::Of<B>>`
+- Pipeline output: `forall Brand A B F. (Traversable Brand, Applicative F) => (A -> F B, Brand A) -> F (Brand B)`
+
+Lift2:
+
+- Original: `lift2<FA, FB, A, B, C, Marker>(f: impl Lift2Dispatch<...>, fa: FA, fb: FB) -> Apply!(...)`
+- Synthetic: `lift2<Brand: Lift, A, B, C>(f: impl Fn(A, B) -> C, fa: <Brand as Kind_hash>::Of<A>, fb: <Brand as Kind_hash>::Of<B>) -> <Brand as Kind_hash>::Of<C>`
+- Pipeline output: `forall Brand A B C. Lift Brand => ((A, B) -> C, Brand A, Brand B) -> Brand C`
+
+### Decisions
+
+**Decision 1: Brand variable name (DECIDED)**
+
+Use `Brand` as the type parameter name in the synthetic signature.
+This matches the existing convention in non-dispatch free functions
+(e.g., `join<'a, Brand: Semimonad, A>` renders as
+`forall Brand A. Semimonad Brand => Brand (Brand A) -> Brand A`).
+
+Requires a fix to `format_brand_name()`: currently `strip_suffix("Brand")`
+on `"Brand"` produces `Some("")` (empty string). Add a guard so that
+stripping is skipped when the result would be empty:
+
+```rust
+if let Some(stripped) = name.strip_suffix(BRAND_SUFFIX) {
+    if stripped.is_empty() { name.to_string() } else { stripped.to_string() }
+} else {
+    name.to_string()
+}
+```
+
+Secondary brand params (e.g., `F: Applicative` in traverse,
+`M: Applicative` in witherable) keep their original names from the
+dispatch trait definition.
+
+**Decision 2: Kind hash fallback (DECIDED)**
+
+The `Kind_*` hash is extracted from the Brand parameter's bounds in
+the dispatch trait definition. Currently always directly visible
+(convention, not enforced). If the Kind hash is not found (e.g., if a
+future trait uses a supertrait instead of a direct Kind bound), skip
+synthetic signature generation and leave `#[document_signature]` for
+the standalone macro to handle. This graceful fallback means the system
+never produces incorrect output; it just produces the less-clean
+Phase 1 output (InferableBrand and Marker already filtered).
+
+**Decision 3: Replace initial approach entirely (DECIDED)**
+
+Replace `generate_dispatch_signature()` and all its helper functions
+with `build_synthetic_signature()`. The initial approach's code is
+removed entirely. Manual override (step 9) provides a safety net for
+any remaining edge cases.
+
+### Open Questions
+
+**Open Question 1: Multi-container param handling (lift2-5)**
+
+`lift2` has `fa: FA` and `fb: FB`. Both are containers of the same
+brand. In the synthetic signature, both must become
+`<Brand as Kind_hash>::Of<A>` and `<Brand as Kind_hash>::Of<B>`.
+
+The problem: how does the builder know which element type each container
+param maps to?
+
+| Option                                          | Approach                                                                                                                                                                                                                                                                                                 | Pros                                                     | Cons                                                                            |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| A: Name convention                              | `FA` -> applied to `A` (strip `F` prefix, rest is element type). `FB` -> applied to `B`.                                                                                                                                                                                                                 | Simple string manipulation                               | Fragile if naming convention changes; assumes F-prefix                          |
+| B: Position-based from dispatch trait type args | The dispatch trait definition `Lift2Dispatch<'a, Brand, A, B, C, FA, FB, Marker>` establishes a positional mapping. Extract which trait type param is `Brand`, which are element types, and which are container types. Map by position: container params appear after element types and before `Marker`. | Robust; doesn't depend on names; correct by construction | More complex extraction logic; must understand the trait's generic param layout |
+| C: Detect by absence of own bounds              | Params that have no bounds of their own (only appear as dispatch trait type args) are containers. Derive their element type from the dispatch trait's type arg ordering.                                                                                                                                 | Doesn't depend on names                                  | Could misidentify params; still needs position info for element type mapping    |
+
+Recommendation: Option B is the most robust. The dispatch trait's type
+param list is the ground truth for the mapping.
+
+**Open Question 2: Complex arrow output types (bind, traverse closures)**
+
+The closure in `bind` returns `Apply!(<Brand as Kind!(...)>::Of<'a, B>)`.
+In the synthetic signature, this should become
+`<Brand as Kind_hash>::Of<'a, B>` (which the pipeline simplifies to
+`Brand B`).
+
+The arrow output is currently stored as a raw string in `DispatchArrow`.
+It needs to become a structured representation.
+
+| Option                                                          | Approach                                                                                                                                                                                                                                                                                                                                                                                | Pros                                                                                           | Cons                                                                                                                                                                    |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A: Detect Apply!/Brand in raw string, substitute                | String-match or token-match the arrow output. Replace `Brand` with the brand variable name and construct a qualified path.                                                                                                                                                                                                                                                              | Straightforward for common patterns                                                            | String parsing; could be fragile with nested patterns                                                                                                                   |
+| B: Store arrow output as structured data                        | During extraction, classify each arrow output as: plain type variable (e.g., `B`), brand-applied (e.g., `Brand B`), other-brand-applied (e.g., `F B` for traverse). Store as an enum. Construct the synthetic `syn::Type` from the structured data.                                                                                                                                     | Clean; no string parsing at generation time; parallels `ReturnStructure`                       | More complex `DispatchArrow` data structure; extraction logic must handle Apply! macro tokens                                                                           |
+| C: Extract from trait method signature instead of impl Fn bound | The dispatch trait's `dispatch()` method already has parameter types expressed in terms of `Brand`, `A`, `B` etc. Instead of extracting the arrow from the impl block's `Fn(A) -> R` bound, extract it from the trait method's non-self parameter types and return type. The method params (minus `self` and `fa`) define the closure's inputs, and the return type defines the output. | Uses well-formed syn::Type values; no string parsing; directly reusable in synthetic signature | Different extraction source than current; the method params include `fa` which must be identified and excluded; closureless dispatch has no closure param in the method |
+
+Recommendation: Option B provides the best balance. It keeps the current
+extraction source (impl block Fn bounds, which are reliable) while
+avoiding string manipulation at generation time. The structured
+representation directly maps to syn::Type construction.
+
+**Data required from `DispatchTraitInfo`:**
+
+- `kind_trait_name: Option<String>` - the `Kind_*` hash from the Brand
+  param's bound (e.g., `"Kind_cdc7cd43dac7585f"`). `None` if not found
+  (triggers fallback to standalone macro).
+
+- `return_structure: ReturnStructure` - already implemented. Classification
+  of the dispatch method's return type (Plain, Applied, Nested).
+  Needs a `Tuple` variant added (for separate, partition, wilt).
+
+- Arrow type info - already stored as `DispatchArrow`. The `output`
+  field (currently a raw `String`) should become structured data
+  (pending open question 2 decision).
+
+- Secondary constraints and type param names - already stored.
+
+- Brand param name - already stored implicitly (always `"Brand"`
+  currently). Used as the synthetic signature's brand type param name.
+
+**Implementation changes (after open questions are resolved):**
+
+Replace `generate_dispatch_signature()` and all its helper functions
+(`type_to_param_hm`, `inferable_param_to_hm`, `build_dispatch_return_type`,
+`find_inferable_brand_params`, `dispatch_arrow_to_hm`) with a single
+`build_synthetic_signature()` function that:
+
+1. Creates a new `syn::Signature` with `Brand` as a type param bounded
+   by the semantic constraint and Kind hash.
+2. Replaces the `impl *Dispatch<...>` parameter with `impl Fn(...) -> R`
+   using the extracted arrow type (pending structured arrow output).
+3. Replaces container parameters with `<Brand as Kind_hash>::Of<X>`
+   qualified paths (pending multi-container mapping decision).
+4. Constructs the return type from `ReturnStructure`.
+5. Calls `generate_signature()` on this synthetic signature.
+
+### Steps 7-8 output quality issues (initial approach, superseded)
 
 The generated signatures are structurally correct but have refinement
 issues. Current output vs ideal for representative functions:
