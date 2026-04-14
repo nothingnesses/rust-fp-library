@@ -1,38 +1,130 @@
-# Plan: HM Signature Snapshot Tests (Step 7-8g)
+# Plan: HM Signature Snapshot Tests and Robustness (Step 7-8g)
 
 ## Goal
 
-Add regression tests that assert the exact HM output string for every
-inference wrapper function. Uses insta snapshot testing against the
-real `dispatch.rs` module run through `document_module_worker`.
+1. Replace remaining heuristics in dispatch analysis and signature
+   generation with direct information sources.
+2. Add regression tests that assert the exact HM output string for
+   every inference wrapper function.
+3. Add edge case tests for robustness.
+
+## Current progress
+
+### Heuristic replacement: Done
+
+All three heuristic replacements have been implemented and verified
+(production docs produce correct output for all 37 functions).
+
+**1a. `build_container_map` positional alignment (done).** Replaced
+"next unmatched multi-letter ident" scanning with direct positional
+lookup. Introduced `ContainerParam` struct with `name`, `position`,
+and `element_types` fields. `extract_container_params` stores the
+trait param index; `build_container_map` uses
+`fn_type_args[position]` directly. Also extracted
+`extract_dispatch_type_args` and `extract_dispatch_trait_args`
+helpers to eliminate duplicated dispatch trait detection code.
+
+**1b. `find_brand_param` from trait definition (done).** Added
+`find_brand_param_from_trait_def` that finds the type param with a
+`Kind_*` bound in the trait definition (direct source). Used as
+primary in `extract_dispatch_info`, with the Val impl where-clause
+scan as fallback.
+
+**1c. InferableBrand fallback from `type_param_order` (done).** Added
+a step in the InferableBrand fallback chain between
+`self_type_elements` and return structure that extracts single-letter
+element types from `type_param_order` (the dispatch trait's generic
+params).
+
+### Snapshot test infrastructure: Partially done
+
+The test module and 18 per-file tests are implemented. The
+infrastructure works: `document_module_worker` processes each dispatch
+file's `mod inner` body and generates signatures.
+
+**Status by dispatch pattern:**
+
+- Closure-based dispatch (31 functions): All produce correct
+  signatures in the per-file test context. These include map,
+  fold_left/right, fold_map, filter, filter_map, partition,
+  partition_map, bind, bind_flipped, compose_kleisli,
+  compose_kleisli_flipped, lift2-5, bimap, bi_fold_left/right/map,
+  bi_traverse, traverse, wither, wilt, all WithIndex variants.
+
+- Closureless dispatch (6 functions): Produce `FA` instead of the
+  correct branded type (e.g., `Brand A`) when processed in per-file
+  isolation. Affected: alt, compact, separate, join, apply_first,
+  apply_second.
+
+**Root cause of closureless dispatch issue:** In production, each
+dispatch file's `mod inner` is annotated with `#[document_module]`
+and processed independently by rustc. The production output IS
+correct. In the test context, `document_module_worker` is called
+with the same token stream and the dispatch traits ARE found (verified
+with debug logging), yet the InferableBrand parameter substitution
+does not trigger. The exact failure point within `build_synthetic_signature`
+needs to be traced. The `is_inferable_brand_param` function checks
+the original function signature's where clause for `InferableBrand_*`
+bounds; this check may behave differently when the tokens come from
+`include_str!` + `str::parse::<TokenStream>()` vs rustc's own
+token stream.
+
+**Note on module structure:** Each dispatch file (e.g., `alt.rs`) has
+its own `#[fp_macros::document_module] pub(crate) mod inner { ... }`.
+The parent `dispatch.rs` has a separate `#[document_module] mod inner`
+that only contains `Val`, `Ref`, and `ClosureMode`. The submodule
+files are `pub mod alt;` declarations outside that inner module. This
+means per-file processing IS the correct production model (each file
+processes its own `mod inner` independently), not the full-module
+approach initially assumed.
+
+### Edge case tests: Not started
+
+### Remaining steps
+
+1. **Debug closureless dispatch in test context.** Trace
+   `build_synthetic_signature` for alt to find where InferableBrand
+   substitution fails. The function has a where clause
+   `FA: InferableBrand_cdc7cd43dac7585f + AltDispatch<...>`. Check
+   whether `is_inferable_brand_param("FA", sig)` returns true when
+   the signature comes from `str::parse::<TokenStream>()`.
+
+2. **Accept snapshots.** Once all 37 produce correct output in the
+   test context, run `cargo insta review` to accept initial snapshots.
+
+3. **Edge case tests.** Add synthetic-code unit tests for unusual
+   inputs (see specification below).
 
 ## Approach
 
-Read the full `fp-library/src/dispatch.rs` file via `include_str!`,
-run it through `document_module_worker` (the full proc macro
-pipeline), extract the generated `#[doc]` attributes containing HM
-signatures from all dispatch submodules, and assert them with insta's
-`assert_snapshot!`.
+### Per-file snapshot tests
 
-### Why the full dispatch module (not per-file)
+Each test reads one dispatch submodule file via `include_str!`,
+extracts the `mod inner { ... }` body using brace counting, passes
+it to `document_module_worker`, and extracts HM signatures from the
+generated `#[doc]` attributes. Uses `insta::assert_snapshot!` for
+assertion.
 
-In production, `#[document_module]` is applied to the entire
-`mod inner { ... }` in `dispatch.rs`, which includes all dispatch
-submodules inline. The dispatch analysis pass (Pass 1b) runs on all
-items in this module at once, so all dispatch traits are in
-`Config.dispatch_traits` when any function's signature is generated.
+A `dispatch_test!` macro reduces boilerplate:
 
-Processing individual dispatch files in isolation does not work
-because the `document_module_worker` pipeline expects the full module
-context. Specifically, the `build_synthetic_signature` function relies
-on the function's where clause referencing dispatch traits that were
-analyzed in Pass 1b. When a single file is processed, its dispatch
-trait IS found, but the InferableBrand parameter substitution depends
-on context that is only fully populated when all submodules are
-processed together.
-
-Using the full dispatch module mirrors production exactly and avoids
-false divergences between test and production behavior.
+```rust
+macro_rules! dispatch_test {
+    ($name:ident, $file:expr) => {
+        #[test]
+        fn $name() {
+            let source = include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../fp-library/src/dispatch/",
+                $file,
+            ));
+            let sigs = extract_signatures(source);
+            assert!(!sigs.is_empty(), concat!("No HM signatures found in ", $file));
+            let output = format_signatures(&sigs);
+            insta::assert_snapshot!(output);
+        }
+    };
+}
+```
 
 ### Why in-crate (not integration tests)
 
@@ -41,186 +133,18 @@ Integration tests in `fp-macros/tests/` cannot access
 `document_module_worker`. The tests must live inside the crate as a
 `#[cfg(test)]` module.
 
-## Steps
-
-### 1. Add insta dev-dependency
-
-Add to `fp-macros/Cargo.toml`:
-
-```toml
-[dev-dependencies]
-insta = "1"
-```
-
-No feature flags needed (plain string snapshots only).
-
-### 2. Create the test module
-
-Create `fp-macros/src/documentation/signature_snapshot_tests.rs`.
-Wire it from `fp-macros/src/documentation.rs`:
-
-```rust
-#[cfg(test)]
-mod signature_snapshot_tests;
-```
-
-### 3. Write helpers
-
-**Inner module extraction:** The `dispatch.rs` file has
-`#[fp_macros::document_module] mod inner { ... }` wrapping all
-content. Extract the body of `mod inner` as raw text using brace
-matching, then tokenize and pass to `document_module_worker`.
-
-**Signature extraction:** Walk the output token tree recursively,
-descending into submodules (each dispatch type has its own
-`mod alt { ... }`, `mod functor { ... }`, etc.). For each
-`Item::Fn`, check `#[doc]` attributes for the `forall` keyword.
-Collect into a `BTreeMap<String, String>` for deterministic ordering.
-
-**Signature formatting:** One line per function, sorted by name.
-This becomes the snapshot content.
-
-### 4. Single test function covering all 37 signatures
-
-One test reads the full dispatch module and snapshots all signatures
-as a single multi-line string:
-
-```rust
-#[test]
-fn dispatch_signatures() {
-    let source = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../fp-library/src/dispatch.rs"
-    ));
-    let sigs = extract_signatures(source);
-    let output = format_signatures(&sigs);
-    insta::assert_snapshot!(output);
-}
-```
-
-All 37 signatures are visible together in one snapshot file. If any
-signature changes, the diff shows exactly which one.
-
-### 5. Initial snapshot creation
-
-Run `just test` (test fails, no snapshot yet), then
-`cargo insta review` to accept the initial snapshot. Verify it
-matches the known-correct output before committing.
-
-### 6. Commit snapshot files
-
-The snapshot file lands in
-`fp-macros/src/documentation/snapshots/signature_snapshot_tests__dispatch_signatures.snap`.
-Commit `.snap` files to git. Do not commit `.snap.new` files
-(pending reviews).
-
 ## File inventory
 
-| File                                                      | Purpose                                          |
-| --------------------------------------------------------- | ------------------------------------------------ |
-| `fp-macros/Cargo.toml`                                    | Add `insta` dev-dependency                       |
-| `fp-macros/src/documentation.rs`                          | Add `#[cfg(test)] mod signature_snapshot_tests;` |
-| `fp-macros/src/documentation/signature_snapshot_tests.rs` | Test module: helpers + 1 test function           |
-| `fp-macros/src/documentation/snapshots/*.snap`            | Generated snapshot file                          |
+| File                                                      | Purpose                                                              |
+| --------------------------------------------------------- | -------------------------------------------------------------------- |
+| `fp-macros/Cargo.toml`                                    | Add `insta` dev-dependency (done)                                    |
+| `fp-macros/src/documentation.rs`                          | Add `#[cfg(test)] mod signature_snapshot_tests;` (done)              |
+| `fp-macros/src/documentation/signature_snapshot_tests.rs` | Test module: helpers + 18 test functions (done)                      |
+| `fp-macros/src/documentation/snapshots/*.snap`            | Generated snapshot files (pending)                                   |
+| `fp-macros/src/analysis/dispatch.rs`                      | `ContainerParam`, `find_brand_param_from_trait_def` (done)           |
+| `fp-macros/src/documentation/generation.rs`               | Positional `build_container_map`, `type_param_order` fallback (done) |
 
-## Test coverage
-
-One test function (`dispatch_signatures`) covers all 37 inference
-wrapper functions across all 18 dispatch submodules:
-
-alt, apply_first, apply_second, bi_fold_left, bi_fold_map,
-bi_fold_right, bi_traverse, bimap, bind, bind_flipped, compact,
-compose_kleisli, compose_kleisli_flipped, filter, filter_map,
-filter_map_with_index, filter_with_index, fold_left,
-fold_left_with_index, fold_map, fold_map_with_index, fold_right,
-fold_right_with_index, join, lift2, lift3, lift4, lift5, map,
-map_with_index, partition, partition_map, partition_map_with_index,
-partition_with_index, separate, traverse, traverse_with_index,
-wilt, wither.
-
-## Risks and mitigations
-
-**Large input size.** The full `dispatch.rs` inner module is large
-(all 18 dispatch submodules inline). Processing it through
-`document_module_worker` in a test is slower than processing individual
-files but mirrors production exactly. Expected test time: under 1
-second for token processing (no compilation involved).
-
-**`include_str!` path.** Uses
-`concat!(env!("CARGO_MANIFEST_DIR"), "/../fp-library/src/dispatch.rs")`
-for robust compile-time path resolution.
-
-**Validation warnings.** Pass 1.5 may emit warning tokens in the
-output. These are not `Item::Fn` items and are ignored by the
-signature extraction helper.
-
-**Trait/impl method signatures.** Dispatch modules also have
-`#[document_signature]` on trait methods and impl methods. The
-extraction helper filters to `Item::Fn` items only (not trait methods
-or impl methods), avoiding non-dispatch signatures in the output.
-
-**Snapshot maintenance.** When dispatch modules are added or
-signatures change, the single snapshot file needs updating via
-`cargo insta review`.
-
-## Heuristic replacement (robustness)
-
-Before implementing the snapshot tests, replace remaining heuristics
-in the dispatch analysis and signature generation with direct
-information sources. This makes the macro more robust and less
-dependent on naming conventions or extraction ordering.
-
-### 1a. `build_container_map` positional alignment
-
-**Current:** `build_container_map` in `generation.rs` scans the
-function's dispatch trait type args for "next unmatched multi-letter
-ident" to match container params. This is fragile and depends on
-naming conventions.
-
-**Fix:** Add a `position` field to `container_params` entries in
-`DispatchTraitInfo`. `extract_container_params` already iterates by
-position; store the index alongside the name and element types. In
-`build_container_map`, use `fn_type_args[position]` directly instead
-of scanning for idents.
-
-**Files:** `dispatch.rs` (add position to container_params),
-`generation.rs` (rewrite `build_container_map`).
-
-### 1b. `find_brand_param` from trait definition
-
-**Current:** `find_brand_param` scans the Val impl's where clause for
-the first param with a semantic type class bound. This is a heuristic
-that could fail if a non-brand param has a semantic bound listed first.
-
-**Fix:** Add `find_brand_param_from_trait_def` that finds the type
-param with a `Kind_*` bound in the trait definition (the direct
-source). Use it as the primary source, falling back to the Val impl
-when the trait definition is unavailable.
-
-**Files:** `dispatch.rs` (add `find_brand_param_from_trait_def`,
-update `extract_dispatch_info`).
-
-### 1c. InferableBrand fallback from type_param_order
-
-**Current:** For closureless dispatch with `()` self type (e.g., alt),
-the input container element types are derived from the return
-structure. This is indirect; the return structure describes the output,
-not the input.
-
-**Fix:** In the InferableBrand fallback chain, add a step between
-`self_type_elements` and return structure that extracts single-letter
-element types from `type_param_order` (the dispatch trait's generic
-params). For alt, this gives `["A"]` directly from the trait
-definition.
-
-**Files:** `generation.rs` (add type_param_order fallback in
-InferableBrand chain).
-
-## Edge case tests (robustness)
-
-Add unit tests that verify the signature generation handles unusual
-inputs gracefully. These use synthetic code snippets (like the
-existing `dispatch.rs` tests with `make_items`).
+## Edge case test specification
 
 ### Dispatch analysis edge cases (`dispatch.rs`)
 
@@ -246,20 +170,24 @@ existing `dispatch.rs` tests with `make_items`).
 - Function with `#[document_signature]` but no dispatch trait
   reference (should be left for standalone macro).
 
-## Implementation order
+## Deviations
 
-1. **Heuristic replacement (1a, 1b, 1c):** Makes the macro robust
-   before pinning behavior in snapshots.
-2. **Snapshot tests:** Captures the correct, robust output as the
-   baseline.
-3. **Edge case tests:** Verifies robustness for unusual inputs.
+1. **Per-file tests instead of full-module test.** The original plan
+   (first revision) proposed processing the full `dispatch.rs` module
+   as one unit. Investigation revealed that `dispatch.rs`'s
+   `mod inner` only contains marker types (`Val`, `Ref`,
+   `ClosureMode`), not the dispatch submodules. Each submodule file
+   has its own `#[document_module]`. Per-file processing is correct.
 
-## Deviation from original plan
+2. **18 tests instead of 1.** Per-file processing means one test per
+   dispatch file. This is better for isolation (a failure pinpoints
+   the exact module) and matches production behavior.
 
-The original plan proposed 18 test functions, one per dispatch file,
-each processing an individual file in isolation. This approach was
-abandoned because `document_module_worker` relies on the full module
-context for correct signature generation. Processing individual files
-produces incorrect output (InferableBrand parameters not substituted)
-because the pipeline expects all dispatch traits and marker types to
-be available at the same module level, as they are in production.
+3. **Heuristic replacement done before snapshots accepted.** Tasks 1a,
+   1b, 1c were completed first per the plan's recommended order. The
+   snapshot tests were implemented concurrently to validate output.
+
+4. **Closureless dispatch issue blocks snapshot acceptance.** 6 of 37
+   functions produce incorrect output in the test context but correct
+   output in production. This is a test infrastructure issue, not a
+   macro bug. Needs investigation before snapshots can be accepted.
