@@ -826,47 +826,9 @@ fn classify_arrow_output(
 		}
 	}
 
-	// Plain type
-	ArrowOutput::Plain(simplify_type_for_hm(ty))
-}
-
-fn simplify_type_for_hm(ty: &Type) -> String {
-	match ty {
-		Type::Path(type_path) => {
-			let name =
-				type_path.path.segments.last().map(|s| s.ident.to_string()).unwrap_or_default();
-			// Check for Option<X> and Result<X, Y> patterns
-			if let Some(last) = type_path.path.segments.last()
-				&& let PathArguments::AngleBracketed(args) = &last.arguments
-			{
-				let type_args: Vec<String> = args
-					.args
-					.iter()
-					.filter_map(|a| {
-						if let GenericArgument::Type(t) = a {
-							Some(simplify_type_for_hm(t))
-						} else {
-							None
-						}
-					})
-					.collect();
-				if type_args.is_empty() {
-					return name;
-				}
-				return format!("{} {}", name, type_args.join(" "));
-			}
-			name
-		}
-		Type::Tuple(tuple) => {
-			let elems: Vec<String> = tuple.elems.iter().map(simplify_type_for_hm).collect();
-			format!("({})", elems.join(", "))
-		}
-		Type::Reference(reference) => {
-			let inner = simplify_type_for_hm(&reference.elem);
-			format!("&{inner}")
-		}
-		_ => quote::quote!(#ty).to_string(),
-	}
+	// Plain type: store as valid Rust token text (not HM-simplified)
+	// so it can be parsed back to syn::Type in the synthetic signature builder
+	ArrowOutput::Plain(quote::quote!(#ty).to_string())
 }
 
 /// Format a DispatchArrow as a string for embedding in tuple closures.
