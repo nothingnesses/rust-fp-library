@@ -23,48 +23,14 @@
 //! assert_eq!(map::<OptionBrand, _, _, _, _>(h, Some(5)), Some(11));
 //! ```
 
-/// Brand-inference wrappers for [`Alt`](crate::classes::Alt) operations.
-pub mod alt;
-/// Brand-inference wrapper for [`apply_first`](mod@crate::dispatch::apply_first).
-pub mod apply_first;
-/// Brand-inference wrapper for [`apply_second`](mod@crate::dispatch::apply_second).
-pub mod apply_second;
-/// Brand-inference wrappers for [`Bifoldable`](crate::classes::Bifoldable) operations.
-pub mod bifoldable;
-/// Brand-inference wrapper for [`Bifunctor::bimap`](crate::classes::Bifunctor::bimap).
-pub mod bifunctor;
-/// Brand-inference wrapper for [`Bitraversable::bi_traverse`](crate::classes::Bitraversable::bi_traverse).
-pub mod bitraversable;
-/// Brand-inference wrappers for [`Compactable`](crate::classes::Compactable) operations.
-pub mod compactable;
 /// Brand-inference wrapper for [`Contravariant::contramap`](crate::classes::Contravariant::contramap).
 pub mod contravariant;
-/// Brand-inference wrappers for [`Filterable`](crate::classes::Filterable) operations.
-pub mod filterable;
-/// Brand-inference wrappers for [`FilterableWithIndex`](crate::classes::FilterableWithIndex) operations.
-pub mod filterable_with_index;
-/// Brand-inference wrappers for [`Foldable`](crate::classes::Foldable) operations.
-pub mod foldable;
-/// Brand-inference wrappers for [`FoldableWithIndex`](crate::classes::FoldableWithIndex) operations.
-pub mod foldable_with_index;
-/// Brand-inference wrapper for [`Functor::map`](crate::classes::Functor::map).
-pub mod functor;
-/// Brand-inference wrapper for [`FunctorWithIndex::map_with_index`](crate::classes::FunctorWithIndex::map_with_index).
-pub mod functor_with_index;
-/// Brand-inference wrappers for [`lift2`](crate::dispatch::lift::explicit::lift2) through [`lift5`](crate::dispatch::lift::explicit::lift5).
-pub mod lift;
-/// Brand-inference wrappers for [`Semimonad`](crate::classes::Semimonad) operations.
-pub mod semimonad;
-/// Brand-inference wrapper for [`Traversable::traverse`](crate::classes::Traversable::traverse).
-pub mod traversable;
-/// Brand-inference wrapper for [`TraversableWithIndex::traverse_with_index`](crate::classes::TraversableWithIndex::traverse_with_index).
-pub mod traversable_with_index;
-/// Brand-inference wrappers for [`Witherable`](crate::classes::Witherable) operations.
-pub mod witherable;
 
 use fp_macros::*;
 
-pub use self::{
+pub use self::contravariant::contramap;
+// Inference wrappers (from dispatch modules, top-level of each).
+pub use crate::dispatch::{
 	alt::alt,
 	apply_first::apply_first,
 	apply_second::apply_second,
@@ -79,7 +45,6 @@ pub use self::{
 		compact,
 		separate,
 	},
-	contravariant::contramap,
 	filterable::{
 		filter,
 		filter_map,
