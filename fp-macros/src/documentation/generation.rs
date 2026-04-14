@@ -642,21 +642,58 @@ fn build_synthetic_signature(
 			},
 	}
 
-	// Build function parameters
+	// Build function parameters by transforming the original signature's params.
+	// - impl *Dispatch<...> -> impl Fn(inputs) -> output (from arrow type)
+	// - Container types (FA, FB) -> <Brand as Kind_hash>::Of<'a, ElementType>
+	// - Other params -> keep as-is
+	let container_map: std::collections::HashMap<String, &Vec<String>> =
+		dispatch_info.container_params.iter().map(|(name, elems)| (name.clone(), elems)).collect();
+
 	let mut fn_params: Vec<syn::FnArg> = Vec::new();
 
-	// Closure parameter (if not closureless)
-	if let Some(ref arrow) = dispatch_info.arrow_type {
-		let closure_param =
-			build_closure_param(arrow, dispatch_info.tuple_closure, &brand_ident, &kind_ident)?;
-		fn_params.push(closure_param);
-	}
+	for input in &_original_sig.inputs {
+		let FnArg::Typed(pat_type) = input else {
+			continue;
+		};
 
-	// Container parameters
-	for (container_name, elements) in &dispatch_info.container_params {
-		let pat_ident: syn::Ident = syn::parse_str(&container_name.to_lowercase()).ok()?;
-		let container_type = build_applied_type(&brand_ident, &kind_ident, elements)?;
-		fn_params.push(parse_quote!(#pat_ident: #container_type));
+		// Check if this is the impl Dispatch parameter -> replace with Fn closure
+		if matches!(&*pat_type.ty, Type::ImplTrait(_))
+			&& let Some(ref arrow) = dispatch_info.arrow_type
+			&& let Some(closure_param) =
+				build_closure_param(arrow, dispatch_info.tuple_closure, &brand_ident, &kind_ident)
+		{
+			fn_params.push(closure_param);
+			continue;
+		}
+		// Skip impl Trait params that didn't produce a closure (e.g., placeholder)
+		if matches!(&*pat_type.ty, Type::ImplTrait(_)) {
+			continue;
+		}
+
+		// Check if this is a container type param -> replace with <Brand as Kind>::Of<...>
+		let ty = &pat_type.ty;
+		let type_str = quote!(#ty).to_string().replace(' ', "");
+		if let Some(elements) = container_map.get(&type_str) {
+			let pat = &pat_type.pat;
+			let container_type = build_applied_type(&brand_ident, &kind_ident, elements)?;
+			fn_params.push(parse_quote!(#pat: #container_type));
+			continue;
+		}
+
+		// For closureless dispatch: if the type is an InferableBrand-bounded param,
+		// it's a container. Use the return structure's element types.
+		if is_inferable_brand_param(&type_str, _original_sig)
+			&& let crate::analysis::dispatch::ReturnStructure::Applied(ref ret_args) =
+				dispatch_info.return_structure
+		{
+			let pat = &pat_type.pat;
+			let container_type = build_applied_type(&brand_ident, &kind_ident, ret_args)?;
+			fn_params.push(parse_quote!(#pat: #container_type));
+			continue;
+		}
+
+		// Keep other params as-is
+		fn_params.push(input.clone());
 	}
 
 	// Build return type
@@ -684,6 +721,37 @@ fn build_synthetic_signature(
 		variadic: None,
 		output: syn::ReturnType::Type(Default::default(), Box::new(return_type)),
 	})
+}
+
+/// Check if a type name is an InferableBrand-bounded param in the signature's where clause.
+fn is_inferable_brand_param(
+	type_name: &str,
+	sig: &syn::Signature,
+) -> bool {
+	if let Some(where_clause) = &sig.generics.where_clause {
+		for predicate in &where_clause.predicates {
+			if let syn::WherePredicate::Type(pred_type) = predicate {
+				let bounded_ty = &pred_type.bounded_ty;
+				let param_name = quote!(#bounded_ty).to_string().replace(' ', "");
+				if param_name == type_name {
+					for bound in &pred_type.bounds {
+						if let TypeParamBound::Trait(trait_bound) = bound {
+							let name = trait_bound
+								.path
+								.segments
+								.last()
+								.map(|s| s.ident.to_string())
+								.unwrap_or_default();
+							if name.starts_with("InferableBrand_") {
+								return true;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	false
 }
 
 /// Build a `<Brand as Kind_hash>::Of<'a, A, B, ...>` qualified path type.

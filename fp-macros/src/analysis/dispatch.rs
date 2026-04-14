@@ -214,14 +214,8 @@ fn extract_dispatch_info(
 		.and_then(|td| extract_return_structure(td, brand_param.as_deref()))
 		.unwrap_or(ReturnStructure::Plain("?".to_string()));
 
-	let container_params = trait_def
-		.map(|td| {
-			extract_container_params(
-				td,
-				brand_param.as_deref().unwrap_or(markers::DEFAULT_BRAND_PARAM),
-			)
-		})
-		.unwrap_or_default();
+	let container_params =
+		trait_def.map(|td| extract_container_params(td, val_impl)).unwrap_or_default();
 
 	DispatchTraitInfo {
 		trait_name: trait_name.to_string(),
@@ -291,17 +285,18 @@ fn extract_kind_trait_name(
 	None
 }
 
-/// Extract container parameter mappings from a dispatch trait definition.
+/// Extract container parameter mappings from the Val impl block.
 ///
-/// Uses position-based analysis of the dispatch trait's generic params.
-/// Container params are those that appear after the element type params
-/// and before the Marker param, and whose names are not `Brand`, `Marker`,
-/// `FnBrand`, or single-letter element types.
+/// Aligns the trait definition's type param names with the Val impl's
+/// trait type arguments. Container params are those whose corresponding
+/// impl argument is an `Apply!` macro invocation. The element types
+/// are extracted from the `Of<'a, ElementType>` pattern in the Apply.
 fn extract_container_params(
 	trait_def: &syn::ItemTrait,
-	brand_param_name: &str,
+	val_impl: &syn::ItemImpl,
 ) -> Vec<(String, Vec<String>)> {
-	let params: Vec<String> = trait_def
+	// Get trait type param names (excluding lifetimes)
+	let trait_params: Vec<String> = trait_def
 		.generics
 		.params
 		.iter()
@@ -310,63 +305,47 @@ fn extract_container_params(
 		})
 		.collect();
 
-	// The dispatch trait param order is typically:
-	// Brand, [FnBrand], ElementTypes..., ContainerTypes..., Marker
-	// Where element types are single letters (A, B, C, etc.)
-	// and container types start with F (FA, FB, FC, etc.)
-
-	// Find the Brand and Marker positions
-	let brand_pos = params.iter().position(|p| p == brand_param_name);
-	let marker_pos = params.iter().position(|p| p == "Marker");
-
-	let Some(bp) = brand_pos else {
+	// Get Val impl's trait type arguments (excluding lifetimes and the marker)
+	let Some((_, trait_path, _)) = &val_impl.trait_ else {
 		return Vec::new();
 	};
-	let end = marker_pos.unwrap_or(params.len());
-
-	// Params between Brand+1 and Marker, skipping FnBrand and single-letter element types
-	let mut element_types = Vec::new();
-	let mut container_mappings = Vec::new();
-
-	for param in params.iter().take(end).skip(bp + 1) {
-		if param == markers::FN_BRAND_PARAM || param == markers::MARKER_PARAM {
-			continue;
-		}
-		// Heuristic: container params have multi-char names starting with uppercase
-		// that contain at least one letter after the first
-		// Element types are single uppercase letters or well-known names like M
-		if param.len() == 1 || param == markers::FN_BRAND_PARAM {
-			element_types.push(param.clone());
-		} else {
-			// This is a container param. Map it to its element types by
-			// looking at the naming convention: FA -> [A], FTA -> [A]
-			// For bifunctor: the element types come from the trait's type args
-			// For now, use position: the Nth container param maps to the Nth
-			// subset of element types based on the brand's arity.
-			container_mappings.push(param.clone());
-		}
-	}
-
-	// Map each container to its element type(s) by position
-	// For arity-1: FA maps to element_types[0], FB to element_types[1], etc.
-	// For arity-2: FA maps to (element_types[0], element_types[1]), etc.
-	// Determine arity from the number of element types per container
-	let arity = if container_mappings.is_empty() {
-		1
-	} else {
-		// If there are more element types than containers, it's likely arity > 1
-		let ratio = element_types.len().checked_div(container_mappings.len()).unwrap_or(1);
-		ratio.max(1)
+	let Some(last_seg) = trait_path.segments.last() else {
+		return Vec::new();
+	};
+	let PathArguments::AngleBracketed(impl_args) = &last_seg.arguments else {
+		return Vec::new();
 	};
 
+	// Collect type arguments (skip lifetime args)
+	let impl_type_args: Vec<&Type> = impl_args
+		.args
+		.iter()
+		.filter_map(|arg| if let GenericArgument::Type(ty) = arg { Some(ty) } else { None })
+		.collect();
+
+	// Align: trait_params[i] corresponds to impl_type_args[i]
+	// (both lists exclude lifetimes, so they should align)
 	let mut result = Vec::new();
-	for (i, container) in container_mappings.iter().enumerate() {
-		let start = i * arity;
-		let end = (start + arity).min(element_types.len());
-		let mapped_elements: Vec<String> =
-			element_types.get(start .. end).unwrap_or_default().to_vec();
-		if !mapped_elements.is_empty() {
-			result.push((container.clone(), mapped_elements));
+
+	for (i, param_name) in trait_params.iter().enumerate() {
+		// Skip Brand, FnBrand, Marker, and single-letter element types
+		if param_name == markers::DEFAULT_BRAND_PARAM
+			|| param_name == markers::FN_BRAND_PARAM
+			|| param_name == markers::MARKER_PARAM
+			|| param_name.len() == 1
+		{
+			continue;
+		}
+
+		// Check if the corresponding impl arg is an Apply! macro (container type)
+		if let Some(Type::Macro(type_macro)) = impl_type_args.get(i) {
+			// This is an Apply! macro invocation. Extract element types from
+			// the Of<'a, ElementType, ...> pattern in the macro text.
+			let macro_str = quote::quote!(#type_macro).to_string();
+			let element_types = extract_last_of_type_args_clean(&macro_str);
+			if !element_types.is_empty() {
+				result.push((param_name.clone(), element_types));
+			}
 		}
 	}
 
@@ -399,10 +378,9 @@ fn extract_return_structure(
 			return Some(ReturnStructure::Plain(clean));
 		}
 
-		// Count Of< applications in the trait's return type.
-		// The trait definition uses Brand directly, not InferableBrand, so
-		// counting Of< is reliable here.
-		let of_count = ret_str.matches("Of <").count() + ret_str.matches("Of<").count();
+		// Count actual type applications (>::Of pattern) rather than all Of occurrences.
+		// This avoids counting Of inside Kind!(type Of<...>) macro argument text.
+		let of_count = ret_str.matches("> :: Of").count() + ret_str.matches(">::Of").count();
 
 		if of_count >= 2 {
 			// Nested: outer brand is a different param than Brand
