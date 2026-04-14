@@ -127,5 +127,5 @@ The Val/Ref split is orthogonal to thread safety. The library has separate
 `Send*` and `Par*` trait hierarchies that add `Send + Sync` bounds for
 concurrent use. These axes combine independently: a type can implement
 `RefFunctor` (by-ref, thread-local), `SendRefFunctor` (by-ref, thread-safe),
-`ParRefFunctor` (by-ref, parallel), etc. See [parallelism.md](./parallelism.md)
+`ParRefFunctor` (by-ref, parallel), etc. See [Thread Safety and Parallelism](./parallelism.md)
 for details on the thread-safe and parallel trait hierarchies.

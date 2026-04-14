@@ -59,7 +59,7 @@ type Lens s t a b = forall p. Strong p => p a b -> p s t
 
 Composition is ordinary function composition (`<<<`), and the profunctor is chosen at the use site. Rust cannot express this, so the library uses concrete structs (`Lens`, `Prism`, `Iso`, etc.) storing reified internal representations (equivalent to PureScript's `ALens`/`APrism`/`AnIso`), composed via a `Composed` struct with static dispatch rather than function composition. This results in deeply nested types for long composition chains, and generic code must be bounded by optic traits (e.g., `O: LensOptic`) rather than profunctor constraints.
 
-See [docs/optics-analysis.md](optics-analysis.md) and [docs/profunctor-analysis.md](profunctor-analysis.md) for detailed comparisons.
+See [Optics Comparison](optics-analysis.md) and [Profunctor Classes Analysis](profunctor-analysis.md) for detailed comparisons.
 
 #### `Wander` trait
 
@@ -115,7 +115,7 @@ impl<'a, F, A: 'a> ArcCoyoneda<'a, F, A> {
 }
 ```
 
-This means these types cannot be used generically (e.g., passed to a function expecting `F: Pointed`), but all operations work when used directly. See [docs/coyoneda.md](coyoneda.md) for the full comparison.
+This means these types cannot be used generically (e.g., passed to a function expecting `F: Pointed`), but all operations work when used directly. See [Coyoneda Implementations](coyoneda.md) for the full comparison.
 
 ### Root Cause
 
@@ -165,7 +165,7 @@ Collection types (Vec, Option, CatList, Identity) implement both hierarchies: th
 
 Rust's `Any` trait requires `'static` to ensure memory safety (preventing use-after-free of references through downcasting). There is no way to have a lifetime-polymorphic `Any` on stable Rust. `Thunk` and `Lazy` avoid this constraint because they use trait objects with explicit lifetime parameters (`Box<dyn FnOnce() -> A + 'a>`) rather than type erasure via `Any`.
 
-See [docs/lifetime-ablation-experiment.md](lifetime-ablation-experiment.md) for a detailed exploration of the trade-offs around lifetime parameters in the lazy evaluation types.
+See [Lifetime Ablation Experiment](lifetime-ablation-experiment.md) for a detailed exploration of the trade-offs around lifetime parameters in the lazy evaluation types.
 
 ## Thread Safety and Parallelism
 
