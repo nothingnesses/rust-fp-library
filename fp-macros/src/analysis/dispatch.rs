@@ -50,10 +50,11 @@ pub struct DispatchTraitInfo {
 	pub tuple_closure: bool,
 	/// Return type structure of the dispatch method.
 	pub return_structure: ReturnStructure,
-	/// Container param mapping: maps function type params to their element
-	/// types. E.g., for lift2: [("FA", "A"), ("FB", "B")]. Derived from
-	/// the dispatch trait's generic parameter positions.
-	pub container_params: Vec<(String, Vec<String>)>,
+	/// Container param mapping: maps trait type param names to their element
+	/// types and position in the trait's generic param list.
+	/// E.g., for lift2: [ContainerParam { name: "FA", position: 4, elements: ["A"] }].
+	/// Derived from the dispatch trait's generic parameter positions.
+	pub container_params: Vec<ContainerParam>,
 	/// Associated type definitions from the Val impl block.
 	/// Maps associated type names to their element types extracted from Apply!.
 	/// E.g., for ApplyFirstDispatch: [("FB", ["B"])].
@@ -67,6 +68,18 @@ pub struct DispatchTraitInfo {
 	/// Used to order the forall type variables in the HM signature.
 	/// E.g., for TraverseDispatch: ["Brand", "A", "B", "F"].
 	pub type_param_order: Vec<String>,
+}
+
+/// A container type parameter from the dispatch trait definition.
+#[derive(Debug, Clone)]
+pub struct ContainerParam {
+	/// The trait param name (e.g., "FA", "FB").
+	pub name: String,
+	/// Position index among type params in the trait definition (excluding lifetimes).
+	pub position: usize,
+	/// The element types extracted from the Apply! macro in the Val impl
+	/// (e.g., ["A"] for FA, ["B"] for FB).
+	pub element_types: Vec<String>,
 }
 
 /// Describes the HM return type structure of a dispatch trait.
@@ -234,7 +247,10 @@ fn extract_dispatch_info(
 	val_impl: &syn::ItemImpl,
 	trait_def: Option<&syn::ItemTrait>,
 ) -> DispatchTraitInfo {
-	let brand_param = find_brand_param(val_impl);
+	// Prefer the trait definition for brand_param (direct source: the param with a Kind_* bound).
+	// Fall back to scanning the Val impl's where clause (indirect: finds param with semantic bound).
+	let brand_param =
+		trait_def.and_then(find_brand_param_from_trait_def).or_else(|| find_brand_param(val_impl));
 	let kind_trait_name = trait_def.and_then(|td| {
 		extract_kind_trait_name(td, brand_param.as_deref().unwrap_or(markers::DEFAULT_BRAND_PARAM))
 	});
@@ -345,7 +361,7 @@ fn extract_kind_trait_name(
 fn extract_container_params(
 	trait_def: &syn::ItemTrait,
 	val_impl: &syn::ItemImpl,
-) -> Vec<(String, Vec<String>)> {
+) -> Vec<ContainerParam> {
 	// Get trait type param names (excluding lifetimes)
 	let trait_params: Vec<String> = trait_def
 		.generics
@@ -393,7 +409,11 @@ fn extract_container_params(
 			&& let Some(element_types) = extract_apply_type_args(impl_arg)
 			&& !element_types.is_empty()
 		{
-			result.push((param_name.clone(), element_types));
+			result.push(ContainerParam {
+				name: param_name.clone(),
+				position: i,
+				element_types,
+			});
 		}
 	}
 
@@ -509,6 +529,48 @@ fn classify_return_type(
 	// Not a macro or tuple; treat as plain type
 	let ret_str = quote::quote!(#ty).to_string().replace(' ', "");
 	ReturnStructure::Plain(ret_str)
+}
+
+/// Find the Brand type parameter from the trait definition by looking for
+/// the type param with a `Kind_*` bound. This is the direct/authoritative source.
+fn find_brand_param_from_trait_def(trait_def: &syn::ItemTrait) -> Option<String> {
+	// Check inline bounds on generic params
+	for param in &trait_def.generics.params {
+		if let syn::GenericParam::Type(type_param) = param {
+			for bound in &type_param.bounds {
+				if let syn::TypeParamBound::Trait(trait_bound) = bound
+					&& trait_bound
+						.path
+						.segments
+						.last()
+						.is_some_and(|s| s.ident.to_string().starts_with(markers::KIND_PREFIX))
+				{
+					return Some(type_param.ident.to_string());
+				}
+			}
+		}
+	}
+
+	// Check where clause
+	if let Some(where_clause) = &trait_def.generics.where_clause {
+		for predicate in &where_clause.predicates {
+			if let WherePredicate::Type(pred_type) = predicate {
+				for bound in &pred_type.bounds {
+					if let syn::TypeParamBound::Trait(trait_bound) = bound
+						&& trait_bound
+							.path
+							.segments
+							.last()
+							.is_some_and(|s| s.ident.to_string().starts_with(markers::KIND_PREFIX))
+					{
+						return Some(type_to_string(&pred_type.bounded_ty));
+					}
+				}
+			}
+		}
+	}
+
+	None
 }
 
 /// Find the Brand type parameter name by looking for a non-infrastructure,
@@ -869,10 +931,9 @@ fn classify_arrow_output(
 /// ordering for the HM forall clause.
 fn extract_type_param_order(
 	trait_def: &syn::ItemTrait,
-	container_params: &[(String, Vec<String>)],
+	container_params: &[ContainerParam],
 ) -> Vec<String> {
-	let container_names: Vec<&str> =
-		container_params.iter().map(|(name, _)| name.as_str()).collect();
+	let container_names: Vec<&str> = container_params.iter().map(|cp| cp.name.as_str()).collect();
 
 	trait_def
 		.generics
@@ -1133,8 +1194,8 @@ mod tests {
 			"Expected 1 container param, got {:?}",
 			info.container_params
 		);
-		assert_eq!(info.container_params[0].0, "FA");
-		assert_eq!(info.container_params[0].1, vec!["A".to_string()]);
+		assert_eq!(info.container_params[0].name, "FA");
+		assert_eq!(info.container_params[0].element_types, vec!["A".to_string()]);
 
 		// Return structure should be Applied(["B"])
 		assert!(

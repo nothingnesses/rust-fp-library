@@ -690,14 +690,33 @@ fn build_synthetic_signature(
 
 		// For closureless dispatch or unrecognized container params:
 		// if the type is an InferableBrand-bounded param, it's a container.
-		// Use self_type_elements (the direct source from the Val impl's self type)
-		// when available, otherwise fall back to the return structure.
+		// Fallback chain (most direct source first):
+		// 1. self_type_elements: from the Val impl's self type (e.g., separate, compact)
+		// 2. type_param_order: single-letter element types from the trait definition (e.g., alt)
+		// 3. return structure: from the dispatch method's return type (last resort)
 		if is_inferable_brand_param(&type_str, _original_sig) {
 			use crate::analysis::dispatch::ReturnStructure;
 
 			let element_types: Option<Vec<String>> = dispatch_info
 				.self_type_elements
 				.clone()
+				.or_else(|| {
+					// Extract single-letter element types from trait definition params,
+					// excluding Brand and secondary constraint params.
+					let elems: Vec<String> = dispatch_info
+						.type_param_order
+						.iter()
+						.filter(|p| {
+							*p != brand_param
+								&& p.len() == 1 && !dispatch_info
+								.secondary_constraints
+								.iter()
+								.any(|(sc, _)| sc == *p)
+						})
+						.cloned()
+						.collect();
+					if elems.is_empty() { None } else { Some(elems) }
+				})
 				.or_else(|| match &dispatch_info.return_structure {
 					ReturnStructure::Applied(args) => Some(args.clone()),
 					ReturnStructure::Nested {
@@ -750,157 +769,90 @@ fn build_synthetic_signature(
 
 /// Build a container map from the function's dispatch trait type args.
 ///
-/// The dispatch_info.container_params uses TRAIT param names (e.g., "FTA" for traverse).
-/// The FUNCTION may use different names (e.g., "FA"). This function matches them
-/// by finding the `impl *Dispatch<...>` parameter and aligning its type args with
-/// the trait's params.
+/// Uses the container_params' stored position indices to do a direct positional
+/// lookup into the function's dispatch trait type args, avoiding heuristic scanning.
 fn build_container_map(
 	sig: &syn::Signature,
 	dispatch_info: &DispatchTraitInfo,
 ) -> std::collections::HashMap<String, Vec<String>> {
-	// If no container_params, return empty
 	if dispatch_info.container_params.is_empty() {
 		return std::collections::HashMap::new();
 	}
 
-	// Find the impl *Dispatch<...> parameter and extract its type args
+	// Extract dispatch trait type args from whichever location has them:
+	// either `impl *Dispatch<...>` parameter or where-clause bound.
+	let fn_type_args = extract_dispatch_type_args(sig);
+	if fn_type_args.is_empty() {
+		return std::collections::HashMap::new();
+	}
+
+	// Use each container param's stored position to directly look up the
+	// corresponding function type arg.
+	let mut result = std::collections::HashMap::new();
+	for cp in &dispatch_info.container_params {
+		if let Some(fn_arg) = fn_type_args.get(cp.position) {
+			result.insert(fn_arg.clone(), cp.element_types.clone());
+		}
+	}
+	result
+}
+
+/// Extract the dispatch trait's type args from a function signature.
+///
+/// Checks both `impl *Dispatch<...>` parameters and where-clause bounds.
+/// Returns the type args as stringified tokens (excluding lifetimes).
+fn extract_dispatch_type_args(sig: &syn::Signature) -> Vec<String> {
+	// Check impl Trait parameters
 	for input in &sig.inputs {
 		let FnArg::Typed(pat_type) = input else { continue };
 		let Type::ImplTrait(impl_trait) = &*pat_type.ty else { continue };
-
 		for bound in &impl_trait.bounds {
-			let TypeParamBound::Trait(trait_bound) = bound else { continue };
-			let Some(segment) = trait_bound.path.segments.last() else { continue };
-			let name = segment.ident.to_string();
-
-			// Check if this is the dispatch trait
-			if !name.ends_with(crate::core::constants::markers::DISPATCH_SUFFIX) {
-				continue;
+			if let Some(args) = extract_dispatch_trait_args(bound) {
+				return args;
 			}
-
-			// Extract type args from the dispatch trait invocation
-			let syn::PathArguments::AngleBracketed(args) = &segment.arguments else { continue };
-			let fn_type_args: Vec<String> = args
-				.args
-				.iter()
-				.filter_map(|arg| {
-					if let syn::GenericArgument::Type(ty) = arg {
-						Some(quote!(#ty).to_string().replace(' ', ""))
-					} else {
-						None
-					}
-				})
-				.collect();
-
-			// Now match: for each container_param (trait_name, element_types),
-			// find the function's type arg at the same position
-			// The trait param order and fn type arg order should align
-			// (both exclude lifetimes)
-			let mut result = std::collections::HashMap::new();
-			for (_trait_param_name, element_types) in &dispatch_info.container_params {
-				// Find the position of this trait param in dispatch_info
-				// by looking for it in the fn_type_args at the corresponding position
-				// We need the trait's param list to find the position
-				// But we don't have it here. Instead, use a simpler approach:
-				// the container_params index corresponds to the fn_type_args index
-				// where the Apply! macro appears.
-				// Actually, we can just look for any fn_type_arg that is a simple
-				// ident (like "FA") and hasn't been matched yet.
-				// The container_params were extracted from positions where Apply!
-				// macros appeared. We need to find those same positions in fn_type_args.
-
-				// For now, use the trait param name to find the position in
-				// dispatch_info, then map to the fn_type_arg at the same position.
-				// This works because container_params stores the trait param name
-				// and the fn_type_args align with the trait params.
-
-				// But we don't have the trait param list here. Let me use a
-				// different approach: find fn_type_args that are simple idents
-				// matching known patterns (not Brand, not single-letter, not
-				// FnBrand, not Marker).
-				for fn_arg in &fn_type_args {
-					// Skip complex types (qualified paths, macro invocations)
-					if fn_arg.contains('<') || fn_arg.contains(':') || fn_arg.contains('!') {
-						continue;
-					}
-					// Skip known infrastructure and single-letter params
-					if fn_arg == crate::core::constants::markers::DEFAULT_BRAND_PARAM
-						|| fn_arg == crate::core::constants::markers::FN_BRAND_PARAM
-						|| fn_arg == crate::core::constants::markers::MARKER_PARAM
-						|| fn_arg.len() == 1
-					{
-						continue;
-					}
-					// This is a potential container param. If not already mapped, map it.
-					if !result.contains_key(fn_arg) {
-						result.insert(fn_arg.clone(), element_types.clone());
-						break;
-					}
-				}
-			}
-
-			return result;
 		}
 	}
 
-	// Fallback: also check where-clause bounds for closureless dispatch
-	// (the container type is in the where clause, not in impl Dispatch<...>)
+	// Check where-clause bounds
 	if let Some(where_clause) = &sig.generics.where_clause {
 		for predicate in &where_clause.predicates {
 			if let syn::WherePredicate::Type(pred_type) = predicate {
 				for bound in &pred_type.bounds {
-					if let TypeParamBound::Trait(trait_bound) = bound {
-						let Some(segment) = trait_bound.path.segments.last() else { continue };
-						let name = segment.ident.to_string();
-						if name.ends_with(crate::core::constants::markers::DISPATCH_SUFFIX) {
-							// Found dispatch trait in where clause
-							let syn::PathArguments::AngleBracketed(args) = &segment.arguments
-							else {
-								continue;
-							};
-							let fn_type_args: Vec<String> = args
-								.args
-								.iter()
-								.filter_map(|arg| {
-									if let syn::GenericArgument::Type(ty) = arg {
-										Some(quote!(#ty).to_string().replace(' ', ""))
-									} else {
-										None
-									}
-								})
-								.collect();
-
-							let mut result = std::collections::HashMap::new();
-							for (_, element_types) in &dispatch_info.container_params {
-								for fn_arg in &fn_type_args {
-									if fn_arg.contains('<')
-										|| fn_arg.contains(':') || fn_arg.contains('!')
-									{
-										continue;
-									}
-									if fn_arg
-										== crate::core::constants::markers::DEFAULT_BRAND_PARAM
-										|| fn_arg == crate::core::constants::markers::FN_BRAND_PARAM
-										|| fn_arg == crate::core::constants::markers::MARKER_PARAM
-										|| fn_arg.len() == 1
-									{
-										continue;
-									}
-									if !result.contains_key(fn_arg) {
-										result.insert(fn_arg.clone(), element_types.clone());
-										break;
-									}
-								}
-							}
-							return result;
-						}
+					if let Some(args) = extract_dispatch_trait_args(bound) {
+						return args;
 					}
 				}
 			}
 		}
 	}
 
-	std::collections::HashMap::new()
+	Vec::new()
+}
+
+/// If a type param bound is a `*Dispatch<...>` trait, extract its type args.
+fn extract_dispatch_trait_args(bound: &TypeParamBound) -> Option<Vec<String>> {
+	let TypeParamBound::Trait(trait_bound) = bound else {
+		return None;
+	};
+	let segment = trait_bound.path.segments.last()?;
+	if !segment.ident.to_string().ends_with(crate::core::constants::markers::DISPATCH_SUFFIX) {
+		return None;
+	}
+	let syn::PathArguments::AngleBracketed(args) = &segment.arguments else {
+		return None;
+	};
+	Some(
+		args.args
+			.iter()
+			.filter_map(|arg| {
+				if let syn::GenericArgument::Type(ty) = arg {
+					Some(quote!(#ty).to_string().replace(' ', ""))
+				} else {
+					None
+				}
+			})
+			.collect(),
+	)
 }
 
 /// Check if a type name is an InferableBrand-bounded param in the signature's where clause.
