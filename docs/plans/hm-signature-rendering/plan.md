@@ -24,16 +24,55 @@
   Added `dispatch_traits` field to `Config`. 4 unit tests passing.
   The dispatch info is populated but not yet consumed by signature
   generation (steps 7-8).
-- Steps 7-8: In progress. Initial approach (custom `SignatureData`
-  construction from scratch) proved fragile due to string-based return
-  type parsing and hardcoded brand variable names. Revised to use
-  **synthetic signature rewriting**: construct a synthetic `syn::Signature`
-  that replaces dispatch machinery with semantic equivalents, then feed
-  it to the existing `generate_signature()` pipeline. This reuses the
-  battle-tested HM conversion (Apply! simplification, brand name
-  formatting, constraint rendering) without reimplementing it.
-  See "Revised approach" section below for details.
+- Steps 7-8: In progress.
+  - 7-8a: Done. Fixed `format_brand_name()` to not strip "Brand" suffix
+    when result would be empty.
+  - 7-8b: Done. Added `brand_param`, `kind_trait_name` (extracted from
+    Brand's `Kind_*` bound on the trait definition), and `container_params`
+    (position-based mapping of container type params to element types) to
+    `DispatchTraitInfo`.
+  - 7-8c: Done. Replaced raw `String` arrow output with structured
+    `ArrowOutput` enum (Plain, BrandApplied, OtherApplied). Added
+    `classify_arrow_output()` function.
+  - 7-8d: Done. Added `extract_container_params()` with position-based
+    analysis of dispatch trait generic params. Detects element types
+    (single-letter params) vs container types (multi-letter params
+    between Brand and Marker).
+  - 7-8e: Not started. Core remaining work: replace
+    `generate_dispatch_signature()` and its helpers with
+    `build_synthetic_signature()` that constructs a `syn::Signature`
+    and calls the existing `generate_signature()` pipeline.
+  - 7-8f: Not started. Verify output across all 37 functions.
+  - Constants: Moved hardcoded "Brand", "Marker", "FnBrand", "Dispatch"
+    strings to `core/constants.rs`.
+  - Initial approach code (custom `SignatureData` construction) still
+    present in `generation.rs`; will be replaced in step 7-8e.
 - Steps 9-12: Not started.
+
+### Steps 7-8 remaining work
+
+Step 7-8e (`build_synthetic_signature`) is the core remaining work.
+It must construct a `syn::Signature` from `DispatchTraitInfo` data:
+
+1. Create a `Brand` type param bounded by the semantic constraint
+   (e.g., `Brand: Functor`) and the Kind hash (e.g.,
+   `Brand: Kind_cdc7cd43dac7585f`). If `kind_trait_name` is `None`,
+   skip synthetic generation (fallback to standalone macro).
+2. For each container param in `container_params`, construct
+   `<Brand as Kind_hash>::Of<'a, ElementType>` qualified paths.
+3. For the closure parameter, construct `impl Fn(inputs) -> output`
+   using the `DispatchArrow` data. For `ArrowOutput::BrandApplied`,
+   the output becomes `<Brand as Kind_hash>::Of<'a, B>`. For
+   `ArrowOutput::OtherApplied`, it becomes `<F as Kind_hash>::Of<'a, B>`.
+4. Construct the return type from `ReturnStructure`, similarly using
+   qualified paths.
+5. Keep secondary constraint params (e.g., `F: Applicative`) with
+   their original names.
+6. Remove `Marker`, `FnBrand`, and inferable params from generics.
+7. Call `generate_signature()` on the synthetic signature.
+
+All data structures needed are in place. The work is syn AST
+construction using `syn::parse_quote!` or manual `syn` type building.
 
 ### Steps 7-8 revised approach: synthetic signature rewriting
 
@@ -354,6 +393,20 @@ list.
 4. **`#[expect(dead_code)]` on `trait_name` field.** After steps 7-8
    consume most `DispatchTraitInfo` fields, `trait_name` remains unused
    (stored for diagnostics). Kept with `#[expect(dead_code)]`.
+
+5. **Open questions resolved: position-based container mapping and
+   structured arrow output.** Both recommended approaches adopted.
+   `extract_container_params()` uses position-based analysis of the
+   dispatch trait's generic param list to map container params to element
+   types. `ArrowOutput` enum replaces raw string storage. Both
+   integrated into `DispatchTraitInfo` with `#[expect(dead_code)]`
+   until consumed by `build_synthetic_signature()`.
+
+6. **Hardcoded strings moved to constants.** `"Brand"`, `"Marker"`,
+   `"FnBrand"`, `"Dispatch"` moved to `core/constants.rs` as
+   `DEFAULT_BRAND_PARAM`, `MARKER_PARAM`, `FN_BRAND_PARAM`,
+   `DISPATCH_SUFFIX`. All usages in `dispatch.rs` and `generation.rs`
+   updated.
 
 ## Prerequisites
 
