@@ -45,6 +45,7 @@ check *args:
 # Run any cargo subcommand (except test; use `just test` for that).
 cargo *args:
     #!/usr/bin/env bash
+    set -- {{args}}
     if [ "$1" = "test" ]; then
         echo "ERROR: Use 'just test' instead of 'just cargo test'." >&2
         exit 1
