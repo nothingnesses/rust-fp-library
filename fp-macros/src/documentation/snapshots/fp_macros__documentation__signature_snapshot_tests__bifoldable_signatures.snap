@@ -1,0 +1,8 @@
+---
+source: fp-macros/src/documentation/signature_snapshot_tests.rs
+assertion_line: 134
+expression: output
+---
+bi_fold_left: forall Brand A B C. Bifoldable Brand => (((C, A) -> C, (C, B) -> C), C, Brand A B) -> C
+bi_fold_map: forall Brand A B M. (Bifoldable Brand, Monoid M) => ((A -> M, B -> M), Brand A B) -> M
+bi_fold_right: forall Brand A B C. Bifoldable Brand => (((A, C) -> C, (B, C) -> C), C, Brand A B) -> C

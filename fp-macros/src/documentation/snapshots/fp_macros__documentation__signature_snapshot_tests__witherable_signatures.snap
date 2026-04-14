@@ -1,0 +1,7 @@
+---
+source: fp-macros/src/documentation/signature_snapshot_tests.rs
+assertion_line: 148
+expression: output
+---
+wilt: forall Brand M A E O. (Witherable Brand, Applicative M) => (A -> M (Result O E), Brand A) -> M (Brand E, Brand O)
+wither: forall Brand M A B. (Witherable Brand, Applicative M) => (A -> M (Option B), Brand A) -> M (Brand B)

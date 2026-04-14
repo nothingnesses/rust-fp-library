@@ -89,10 +89,15 @@ fn collect_fn_signatures(
 					}
 				}
 			}
-			syn::Item::Mod(item_mod) =>
+			syn::Item::Mod(item_mod) => {
+				// Skip the `explicit` submodule; we only want inference wrapper signatures
+				if item_mod.ident == "explicit" {
+					continue;
+				}
 				if let Some((_, inner_items)) = &item_mod.content {
 					collect_fn_signatures(inner_items, signatures);
-				},
+				}
+			}
 			_ => {}
 		}
 	}

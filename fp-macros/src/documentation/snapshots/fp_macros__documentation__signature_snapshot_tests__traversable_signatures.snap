@@ -1,0 +1,6 @@
+---
+source: fp-macros/src/documentation/signature_snapshot_tests.rs
+assertion_line: 146
+expression: output
+---
+traverse: forall Brand A B F. (Traversable Brand, Applicative F) => (A -> F B, Brand A) -> F (Brand B)

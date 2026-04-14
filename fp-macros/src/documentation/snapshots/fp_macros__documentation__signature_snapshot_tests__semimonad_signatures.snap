@@ -1,0 +1,10 @@
+---
+source: fp-macros/src/documentation/signature_snapshot_tests.rs
+assertion_line: 145
+expression: output
+---
+bind: forall Brand A B. Semimonad Brand => (Brand A, A -> Brand B) -> Brand B
+bind_flipped: forall Brand A B. Semimonad Brand => (A -> Brand B, Brand A) -> Brand B
+compose_kleisli: forall Brand A B C. Semimonad Brand => ((A -> Brand B, B -> Brand C), A) -> Brand C
+compose_kleisli_flipped: forall Brand A B C. Semimonad Brand => ((A -> Brand B, B -> Brand C), A) -> Brand C
+join: forall Brand A. Semimonad Brand => Brand (Brand A) -> Brand A

@@ -1,0 +1,9 @@
+---
+source: fp-macros/src/documentation/signature_snapshot_tests.rs
+assertion_line: 139
+expression: output
+---
+filter_map_with_index: forall Brand A B. FilterableWithIndex Brand => ((Index, A) -> Option B, Brand A) -> Brand B
+filter_with_index: forall Brand A. FilterableWithIndex Brand => ((Index, A) -> bool, Brand A) -> Brand A
+partition_map_with_index: forall Brand A E O. FilterableWithIndex Brand => ((Index, A) -> Result O E, Brand A) -> (Brand E, Brand O)
+partition_with_index: forall Brand A. FilterableWithIndex Brand => ((Index, A) -> bool, Brand A) -> (Brand A, Brand A)

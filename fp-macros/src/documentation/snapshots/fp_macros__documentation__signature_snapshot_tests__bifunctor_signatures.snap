@@ -1,0 +1,6 @@
+---
+source: fp-macros/src/documentation/signature_snapshot_tests.rs
+assertion_line: 135
+expression: output
+---
+bimap: forall Brand A B C D. Bifunctor Brand => ((A -> B, C -> D), Brand A C) -> Brand B D

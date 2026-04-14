@@ -1,0 +1,6 @@
+---
+source: fp-macros/src/documentation/signature_snapshot_tests.rs
+assertion_line: 133
+expression: output
+---
+apply_second: forall Brand A B. ApplySecond Brand => (Brand A, Brand B) -> Brand B

@@ -1,0 +1,9 @@
+---
+source: fp-macros/src/documentation/signature_snapshot_tests.rs
+assertion_line: 144
+expression: output
+---
+lift2: forall Brand A B C. Lift Brand => ((A, B) -> C, Brand A, Brand B) -> Brand C
+lift3: forall Brand A B C D. Lift Brand => ((A, B, C) -> D, Brand A, Brand B, Brand C) -> Brand D
+lift4: forall Brand A B C D E. Lift Brand => ((A, B, C, D) -> E, Brand A, Brand B, Brand C, Brand D) -> Brand E
+lift5: forall Brand A B C D E G. Lift Brand => ((A, B, C, D, E) -> G, Brand A, Brand B, Brand C, Brand D, Brand E) -> Brand G
