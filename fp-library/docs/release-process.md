@@ -66,16 +66,28 @@ git checkout -b release/fp-library-vX.Y.Z
 1.  Rename the `[Unreleased]` section to the new version number and date (e.g., `[0.3.0] - 2026-01-16`).
 2.  Create a new empty `[Unreleased]` section at the top.
 
-### 5. Update Cargo.toml
+### 5. Update Versions
+
+Search **all** files listed below for version references and update
+them. Version strings may appear in multiple formats (short `"0.6"`,
+long `{ version = "0.6", ... }`, prose, badges, etc.). Use grep to
+find all occurrences:
+
+```bash
+grep -rn '0\.OLD_MINOR' fp-macros/Cargo.toml fp-macros/README.md \
+    fp-library/Cargo.toml README.md
+```
 
 #### fp-macros (if changed)
 
-1.  Update `version` in `fp-macros/Cargo.toml` and in `fp-macros/README.md`.
+- `fp-macros/Cargo.toml`: `version` field.
+- `fp-macros/README.md`: dependency snippet in the Installation section.
 
 #### fp-library
 
-1.  Update `version` in `fp-library/Cargo.toml` and in `README.md`.
-2.  If `fp-macros` was updated, ensure the `fp-macros` dependency in `fp-library/Cargo.toml` matches the new version.
+- `fp-library/Cargo.toml`: `version` field, and `fp-macros` dependency
+  version (if fp-macros was updated).
+- `README.md` (repo root): all dependency snippets (there are multiple).
 
 ### 6. Verification
 
