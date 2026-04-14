@@ -11,7 +11,13 @@
   remain at dispatch module top level (no inference wrappers).
   `contramap_explicit` moved to `explicit::contramap` for consistency (follow-up
   commit).
-- Steps 5-12: Not started.
+- Step 5: Done. All 37 inference wrapper functions moved from
+  `functions/*.rs` into their corresponding `dispatch/*.rs` modules.
+  18 function files deleted. `functions.rs` re-exports from
+  `crate::dispatch::*` instead of `self::*`. Compile-fail `.stderr`
+  golden files updated (map path changed to `src/dispatch/functor.rs`).
+  `functions/contravariant.rs` kept as-is.
+- Steps 6-12: Not started.
 
 ## Deviations
 

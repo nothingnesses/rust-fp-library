@@ -205,6 +205,10 @@ pub fn document_module_worker(
 	// Also recursively extract from nested modules
 	apply_to_nested_modules(&mut items, get_context, &mut config)?;
 
+	// Pass 1b: Dispatch trait analysis
+	let dispatch_info = crate::analysis::dispatch::analyze_dispatch_traits(&items);
+	config.dispatch_traits.extend(dispatch_info);
+
 	// Pass 1.5: Validation (emit warnings for missing documentation attributes)
 	let warning_tokens: Vec<TokenStream> = if validation_mode != ValidationMode::Off {
 		let mut emitter = WarningEmitter::new();

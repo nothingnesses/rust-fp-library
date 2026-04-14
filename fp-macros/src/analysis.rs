@@ -5,6 +5,7 @@
 //! - Pattern detection (FnBrand, Apply!)
 //! - Trait bounds and classifications
 
+pub mod dispatch;
 pub mod generics;
 pub mod impl_trait_lint;
 pub mod patterns;

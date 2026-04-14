@@ -96,6 +96,10 @@ pub struct Config {
 	/// Signature hash tracking: Hash -> (BrandPath, AssocName, CanonicalSignature)
 	/// Used to detect extremely rare hash collisions between different signatures
 	pub signature_hashes: HashMap<u64, (String, String, String)>,
+
+	/// Dispatch trait info: TraitName -> DispatchTraitInfo
+	/// Populated by scanning dispatch trait impl blocks in `#[document_module]`
+	pub dispatch_traits: HashMap<String, crate::analysis::dispatch::DispatchTraitInfo>,
 }
 
 /// Accessor methods for backward compatibility
@@ -127,6 +131,7 @@ impl From<UserConfig> for Config {
 			self_type_name: None,
 			impl_type_param_docs: HashMap::new(),
 			signature_hashes: HashMap::new(),
+			dispatch_traits: HashMap::new(),
 		}
 	}
 }
