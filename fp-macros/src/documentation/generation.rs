@@ -1,6 +1,9 @@
 use {
 	crate::{
-		analysis::get_all_parameters,
+		analysis::{
+			dispatch::DispatchTraitInfo,
+			get_all_parameters,
+		},
 		core::{
 			config::Config,
 			constants::attributes::{
@@ -14,7 +17,11 @@ use {
 				ErrorCollector,
 			},
 		},
-		documentation::document_signature::generate_signature,
+		documentation::document_signature::{
+			SignatureData,
+			generate_signature,
+		},
+		hm::HmAst,
 		resolution::{
 			ImplKey,
 			resolver::{
@@ -43,10 +50,14 @@ use {
 	},
 	quote::quote,
 	syn::{
+		FnArg,
+		GenericParam,
 		ImplItem,
 		Item,
 		Result,
 		TraitItem,
+		Type,
+		TypeParamBound,
 		parse_quote,
 		spanned::Spanned,
 		visit_mut::VisitMut,
@@ -451,10 +462,321 @@ pub(super) fn generate_documentation(
 				// Strip #[allow_named_generics] - consumed during lint pass, must not remain
 				// in output
 				item_fn.attrs.retain(|attr| !attr.path().is_ident(ALLOW_NAMED_GENERICS));
+
+				// If this function has #[document_signature] and references a dispatch trait,
+				// generate a dispatch-aware HM signature and remove the attribute so the
+				// standalone macro does not also process it.
+				process_fn_dispatch_signature(item_fn, config);
 			}
 			_ => {}
 		}
 	}
 
 	errors.finish()
+}
+
+// -- Dispatch-aware free function signature generation --
+
+/// Process `#[document_signature]` on a free function if it references a dispatch trait.
+///
+/// If the function has `#[document_signature]` and an `impl *Dispatch<...>` parameter,
+/// removes the attribute and inserts a dispatch-aware HM signature as doc comments.
+/// If no dispatch trait is found, the attribute is left for the standalone macro.
+fn process_fn_dispatch_signature(
+	item_fn: &mut syn::ItemFn,
+	config: &Config,
+) {
+	let Some(attr_pos) = find_attribute(&item_fn.attrs, DOCUMENT_SIGNATURE) else {
+		return;
+	};
+
+	let Some(dispatch_info) = find_dispatch_trait_in_sig(&item_fn.sig, config) else {
+		// No dispatch trait found; leave #[document_signature] for the standalone macro
+		return;
+	};
+
+	// Remove the attribute so the standalone macro does not also process it
+	item_fn.attrs.remove(attr_pos);
+
+	// Generate dispatch-aware signature
+	let sig_data = generate_dispatch_signature(&item_fn.sig, &dispatch_info, config);
+
+	let doc_comment = format!("`{sig_data}`");
+	let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
+	item_fn.attrs.insert(attr_pos, doc_attr);
+
+	let header_attr: syn::Attribute = parse_quote!(#[doc = r#"### Type Signature
+"#]);
+	item_fn.attrs.insert(attr_pos, header_attr);
+}
+
+/// Find a dispatch trait referenced in a function's parameters via `impl *Dispatch<...>`.
+fn find_dispatch_trait_in_sig(
+	sig: &syn::Signature,
+	config: &Config,
+) -> Option<DispatchTraitInfo> {
+	for input in &sig.inputs {
+		let FnArg::Typed(pat_type) = input else {
+			continue;
+		};
+		let Type::ImplTrait(impl_trait) = &*pat_type.ty else {
+			continue;
+		};
+		for bound in &impl_trait.bounds {
+			let TypeParamBound::Trait(trait_bound) = bound else {
+				continue;
+			};
+			let Some(segment) = trait_bound.path.segments.last() else {
+				continue;
+			};
+			let name = segment.ident.to_string();
+			if let Some(info) = config.dispatch_traits.get(&name) {
+				return Some(info.clone());
+			}
+		}
+	}
+
+	// Also check where-clause bounds for closureless dispatch
+	// (the container type itself has a *Dispatch bound)
+	if let Some(where_clause) = &sig.generics.where_clause {
+		for predicate in &where_clause.predicates {
+			if let syn::WherePredicate::Type(pred_type) = predicate {
+				for bound in &pred_type.bounds {
+					if let TypeParamBound::Trait(trait_bound) = bound {
+						let Some(segment) = trait_bound.path.segments.last() else {
+							continue;
+						};
+						let name = segment.ident.to_string();
+						if let Some(info) = config.dispatch_traits.get(&name) {
+							return Some(info.clone());
+						}
+					}
+				}
+			}
+		}
+	}
+
+	None
+}
+
+/// Generate a dispatch-aware HM signature from the function signature and dispatch info.
+fn generate_dispatch_signature(
+	sig: &syn::Signature,
+	dispatch_info: &DispatchTraitInfo,
+	_config: &Config,
+) -> SignatureData {
+	// Collect type parameters, excluding infrastructure ones (Marker, FnBrand)
+	// and container params with InferableBrand bounds (these become F A in the output)
+	let inferable_params = find_inferable_brand_params(sig);
+	let mut forall = Vec::new();
+	let brand_var = "F".to_string();
+
+	for param in &sig.generics.params {
+		if let GenericParam::Type(type_param) = param {
+			let name = type_param.ident.to_string();
+			// Skip infrastructure params
+			if name == "Marker" || name == "FnBrand" {
+				continue;
+			}
+			// Skip InferableBrand-bound params (they become F A)
+			if inferable_params.contains(&name) {
+				// Use the first inferable param's name to derive the brand variable
+				if forall.iter().all(|v: &String| v != &brand_var) {
+					forall.push(brand_var.clone());
+				}
+				continue;
+			}
+			forall.push(name);
+		}
+	}
+
+	// Build constraints
+	let mut constraints = Vec::new();
+	if let Some(ref semantic) = dispatch_info.semantic_constraint {
+		constraints.push(format!("{semantic} {brand_var}"));
+	}
+	for (param, constraint) in &dispatch_info.secondary_constraints {
+		constraints.push(format!("{constraint} {param}"));
+	}
+
+	// Build parameters
+	let mut params = Vec::new();
+
+	// Add the arrow type (if not closureless)
+	if let Some(ref arrow) = dispatch_info.arrow_type {
+		let arrow_hm = dispatch_arrow_to_hm(arrow, dispatch_info.tuple_closure);
+		params.push(arrow_hm);
+	}
+
+	// Add non-dispatch, non-infrastructure parameters
+	for input in &sig.inputs {
+		let FnArg::Typed(pat_type) = input else {
+			continue;
+		};
+		// Skip the impl Dispatch parameter (already handled via arrow_type)
+		if matches!(&*pat_type.ty, Type::ImplTrait(_)) {
+			continue;
+		}
+		let ty = &pat_type.ty;
+		let type_str = quote!(#ty).to_string();
+		// Skip PhantomData-like params
+		if type_str.contains("PhantomData") {
+			continue;
+		}
+		params.push(type_to_param_hm(&pat_type.ty, &inferable_params, &brand_var));
+	}
+
+	// Build return type from dispatch trait's ReturnStructure
+	let return_type = build_dispatch_return_type(dispatch_info, &brand_var);
+
+	SignatureData {
+		forall,
+		constraints,
+		params,
+		return_type,
+	}
+}
+
+/// Find all type parameters that have an InferableBrand bound.
+fn find_inferable_brand_params(sig: &syn::Signature) -> Vec<String> {
+	let mut result = Vec::new();
+
+	if let Some(where_clause) = &sig.generics.where_clause {
+		for predicate in &where_clause.predicates {
+			if let syn::WherePredicate::Type(pred_type) = predicate {
+				let bounded_ty = &pred_type.bounded_ty;
+				for bound in &pred_type.bounds {
+					if let TypeParamBound::Trait(trait_bound) = bound {
+						let name = trait_bound
+							.path
+							.segments
+							.last()
+							.map(|s| s.ident.to_string())
+							.unwrap_or_default();
+						if name.starts_with("InferableBrand_") {
+							let clean_name = quote!(#bounded_ty).to_string().replace(' ', "");
+							result.push(clean_name);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Also check inline bounds
+	for param in &sig.generics.params {
+		if let GenericParam::Type(type_param) = param {
+			for bound in &type_param.bounds {
+				if let TypeParamBound::Trait(trait_bound) = bound {
+					let name = trait_bound
+						.path
+						.segments
+						.last()
+						.map(|s| s.ident.to_string())
+						.unwrap_or_default();
+					if name.starts_with("InferableBrand_") {
+						result.push(type_param.ident.to_string());
+					}
+				}
+			}
+		}
+	}
+
+	result
+}
+
+/// Convert a DispatchArrow to an HmAst.
+fn dispatch_arrow_to_hm(
+	arrow: &crate::analysis::dispatch::DispatchArrow,
+	tuple_closure: bool,
+) -> HmAst {
+	use crate::analysis::dispatch::DispatchArrowParam;
+
+	if tuple_closure {
+		// For tuple closures (bimap, etc.), the inputs are sub-arrows
+		let sub_arrows: Vec<HmAst> = arrow
+			.inputs
+			.iter()
+			.map(|p| match p {
+				DispatchArrowParam::TypeParam(s) => HmAst::Variable(s.clone()),
+				DispatchArrowParam::AssociatedType {
+					assoc_name,
+				} => HmAst::Variable(assoc_name.clone()),
+			})
+			.collect();
+		HmAst::Tuple(sub_arrows)
+	} else {
+		let inputs: Vec<HmAst> = arrow
+			.inputs
+			.iter()
+			.map(|p| match p {
+				DispatchArrowParam::TypeParam(s) => HmAst::Variable(s.clone()),
+				DispatchArrowParam::AssociatedType {
+					assoc_name,
+				} => HmAst::Variable(assoc_name.clone()),
+			})
+			.collect();
+
+		let input = if inputs.len() == 1 {
+			inputs.into_iter().next().unwrap_or(HmAst::Unit)
+		} else {
+			HmAst::Tuple(inputs)
+		};
+
+		let output = HmAst::Variable(arrow.output.clone());
+		HmAst::Arrow(Box::new(input), Box::new(output))
+	}
+}
+
+/// Convert a parameter type to an HmAst, substituting InferableBrand params with F A.
+fn type_to_param_hm(
+	ty: &Type,
+	inferable_params: &[String],
+	brand_var: &str,
+) -> HmAst {
+	let type_str = quote!(#ty).to_string().replace(' ', "");
+
+	// Check if this is an InferableBrand-bound type param
+	for param in inferable_params {
+		if type_str == *param {
+			return inferable_param_to_hm(param, brand_var);
+		}
+	}
+
+	HmAst::Variable(type_str)
+}
+
+/// Convert an InferableBrand-bound param name to F A (or P A C for arity-2).
+fn inferable_param_to_hm(
+	param: &str,
+	brand_var: &str,
+) -> HmAst {
+	// FA -> F A, FB -> F B, FTA -> F A (strip the F prefix, keep the rest)
+	let element = if param.starts_with('F') && param.len() >= 2 { &param[1 ..] } else { param };
+	HmAst::Constructor(brand_var.to_string(), vec![HmAst::Variable(element.to_string())])
+}
+
+/// Build the HM return type using the dispatch trait's `ReturnStructure`.
+fn build_dispatch_return_type(
+	dispatch_info: &DispatchTraitInfo,
+	brand_var: &str,
+) -> HmAst {
+	use crate::analysis::dispatch::ReturnStructure;
+
+	match &dispatch_info.return_structure {
+		ReturnStructure::Plain(var) => HmAst::Variable(var.clone()),
+		ReturnStructure::Applied(args) => {
+			let hm_args: Vec<HmAst> = args.iter().map(|a| HmAst::Variable(a.clone())).collect();
+			HmAst::Constructor(brand_var.to_string(), hm_args)
+		}
+		ReturnStructure::Nested {
+			outer_param,
+			inner_args,
+		} => {
+			let inner_hm_args: Vec<HmAst> =
+				inner_args.iter().map(|a| HmAst::Variable(a.clone())).collect();
+			let inner = HmAst::Constructor(brand_var.to_string(), inner_hm_args);
+			HmAst::Constructor(outer_param.clone(), vec![inner])
+		}
+	}
 }

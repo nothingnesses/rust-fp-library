@@ -21,9 +21,9 @@ use {
 
 /// Information extracted from a dispatch trait's Val impl block.
 #[derive(Debug, Clone)]
-#[expect(dead_code, reason = "Fields used in upcoming steps 7-8 for HM signature generation")]
 pub struct DispatchTraitInfo {
 	/// The dispatch trait name (e.g., "FunctorDispatch").
+	#[expect(dead_code, reason = "Stored for diagnostics and future use")]
 	pub trait_name: String,
 	/// The primary semantic type class constraint (e.g., "Functor").
 	/// Extracted from `Brand: Functor` in the Val impl's where clause.
@@ -35,6 +35,19 @@ pub struct DispatchTraitInfo {
 	pub arrow_type: Option<DispatchArrow>,
 	/// Whether the closure is a tuple (bimap, bi_fold, etc.).
 	pub tuple_closure: bool,
+	/// Return type structure of the dispatch method.
+	pub return_structure: ReturnStructure,
+}
+
+/// Describes the HM return type structure of a dispatch trait.
+#[derive(Debug, Clone)]
+pub enum ReturnStructure {
+	/// Returns a simple type variable (e.g., `B` for fold_right, `M` for fold_map).
+	Plain(String),
+	/// Returns the brand applied to type args (e.g., `F B` for map, `F B D` for bimap).
+	Applied(Vec<String>),
+	/// Returns a nested application (e.g., `G (F B)` for traverse, `M (F B)` for wither).
+	Nested { outer_param: String, inner_args: Vec<String> },
 }
 
 /// Arrow type information extracted from a dispatch impl's Fn bound.
@@ -87,10 +100,18 @@ pub fn analyze_dispatch_traits(items: &[Item]) -> HashMap<String, DispatchTraitI
 		})
 		.collect();
 
-	// For each dispatch trait, find its Val impl and extract info
+	// For each dispatch trait, find its Val impl and trait definition, then extract info
 	for trait_name in &dispatch_trait_names {
 		if let Some(val_impl) = find_val_impl(items, trait_name) {
-			let info = extract_dispatch_info(trait_name, val_impl);
+			let trait_def = items.iter().find_map(|item| {
+				if let Item::Trait(item_trait) = item
+					&& item_trait.ident == trait_name.as_str()
+				{
+					return Some(item_trait);
+				}
+				None
+			});
+			let info = extract_dispatch_info(trait_name, val_impl, trait_def);
 			result.insert(trait_name.clone(), info);
 		}
 	}
@@ -147,10 +168,11 @@ fn has_marker_type_arg(
 
 // -- Info extraction --
 
-/// Extract dispatch trait info from a Val impl block.
+/// Extract dispatch trait info from a Val impl block and the trait definition.
 fn extract_dispatch_info(
 	trait_name: &str,
 	val_impl: &syn::ItemImpl,
+	trait_def: Option<&syn::ItemTrait>,
 ) -> DispatchTraitInfo {
 	let brand_param = find_brand_param(val_impl);
 	let semantic_constraint =
@@ -168,13 +190,124 @@ fn extract_dispatch_info(
 		.map(|bp| extract_secondary_constraints(val_impl, bp))
 		.unwrap_or_default();
 
+	let return_structure = trait_def
+		.and_then(|td| extract_return_structure(td, brand_param.as_deref()))
+		.unwrap_or(ReturnStructure::Plain("?".to_string()));
+
 	DispatchTraitInfo {
 		trait_name: trait_name.to_string(),
 		semantic_constraint,
 		secondary_constraints,
 		arrow_type,
 		tuple_closure,
+		return_structure,
 	}
+}
+
+/// Extract the return type structure from the dispatch trait's `dispatch` method.
+fn extract_return_structure(
+	trait_def: &syn::ItemTrait,
+	brand_param: Option<&str>,
+) -> Option<ReturnStructure> {
+	// Find the dispatch method
+	for item in &trait_def.items {
+		let syn::TraitItem::Fn(method) = item else {
+			continue;
+		};
+		if method.sig.ident != "dispatch" {
+			continue;
+		}
+
+		let syn::ReturnType::Type(_, return_ty) = &method.sig.output else {
+			return Some(ReturnStructure::Plain("()".to_string()));
+		};
+
+		let ret_str = quote::quote!(#return_ty).to_string();
+
+		// Check if it's a simple type (no Apply!, no Kind_)
+		if !ret_str.contains("Apply") && !ret_str.contains("Kind_") {
+			let clean = ret_str.replace(' ', "");
+			return Some(ReturnStructure::Plain(clean));
+		}
+
+		// Count Of< applications in the trait's return type.
+		// The trait definition uses Brand directly, not InferableBrand, so
+		// counting Of< is reliable here.
+		let of_count = ret_str.matches("Of <").count() + ret_str.matches("Of<").count();
+
+		if of_count >= 2 {
+			// Nested: outer brand is a different param than Brand
+			let outer = extract_non_brand_param(&ret_str, brand_param);
+			let inner_args = extract_last_of_type_args_clean(&ret_str);
+			return Some(ReturnStructure::Nested {
+				outer_param: outer.unwrap_or_else(|| "G".to_string()),
+				inner_args,
+			});
+		}
+
+		// Simple Apply: Brand applied to type args
+		let type_args = extract_last_of_type_args_clean(&ret_str);
+		return Some(ReturnStructure::Applied(type_args));
+	}
+
+	None
+}
+
+/// Extract type args from the last Of<...> in a clean trait return type string.
+fn extract_last_of_type_args_clean(ret_str: &str) -> Vec<String> {
+	let Some(of_pos) = ret_str.rfind("Of") else {
+		return Vec::new();
+	};
+	let after_of = &ret_str[of_pos ..];
+
+	let Some(start) = after_of.find('<') else {
+		return Vec::new();
+	};
+	let inner = &after_of[start + 1 ..];
+
+	let mut depth = 1;
+	let mut end = 0;
+	for (i, c) in inner.char_indices() {
+		match c {
+			'<' | '(' => depth += 1,
+			'>' | ')' => {
+				depth -= 1;
+				if depth == 0 {
+					end = i;
+					break;
+				}
+			}
+			_ => {}
+		}
+	}
+
+	let args_str = &inner[.. end];
+	args_str
+		.split(',')
+		.map(|s| s.trim().to_string())
+		.filter(|s| !s.is_empty() && !s.starts_with('\''))
+		.collect()
+}
+
+/// Extract a non-Brand type parameter from a return type string.
+fn extract_non_brand_param(
+	ret_str: &str,
+	brand_param: Option<&str>,
+) -> Option<String> {
+	for part in ret_str.split("as") {
+		let trimmed = part.trim();
+		if let Some(bracket_pos) = trimmed.rfind('<') {
+			let candidate = trimmed[bracket_pos + 1 ..].trim();
+			if candidate.chars().all(|c| c.is_alphanumeric() || c == '_')
+				&& !candidate.is_empty()
+				&& !candidate.starts_with("Kind")
+				&& brand_param.is_none_or(|bp| candidate != bp)
+			{
+				return Some(candidate.to_string());
+			}
+		}
+	}
+	None
 }
 
 /// Find the Brand type parameter name by looking for a non-infrastructure,
