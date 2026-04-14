@@ -135,6 +135,7 @@ dispatch_test!(bifoldable_signatures, "bifoldable.rs");
 dispatch_test!(bifunctor_signatures, "bifunctor.rs");
 dispatch_test!(bitraversable_signatures, "bitraversable.rs");
 dispatch_test!(compactable_signatures, "compactable.rs");
+dispatch_test!(contravariant_signatures, "contravariant.rs");
 dispatch_test!(filterable_signatures, "filterable.rs");
 dispatch_test!(filterable_with_index_signatures, "filterable_with_index.rs");
 dispatch_test!(foldable_signatures, "foldable.rs");

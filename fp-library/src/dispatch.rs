@@ -98,6 +98,7 @@ pub mod bifoldable;
 pub mod bifunctor;
 pub mod bitraversable;
 pub mod compactable;
+pub mod contravariant;
 pub mod filterable;
 pub mod filterable_with_index;
 pub mod foldable;
