@@ -70,40 +70,83 @@
 
 ### Steps 7-8f current output status
 
-18+ functions produce correct or near-correct signatures. The synthetic
-signature builder + existing pipeline handles single containers,
-multi-containers (lift), closureless dispatch, fold accumulators,
-secondary constraints (traverse), and nested returns (traverse) correctly.
+30 of 37 functions produce correct signatures. All string-based Apply!
+macro parsing has been replaced with the proper token-stream parser
+(`get_apply_macro_parameters`).
 
-**Functions producing correct signatures (18+):**
+**Functions producing correct signatures (30):**
 
-| Function        | Current output                                                                                 | Status                    |
-| --------------- | ---------------------------------------------------------------------------------------------- | ------------------------- |
-| `map`           | `forall Brand A B. Functor Brand => (A -> B, Brand A) -> Brand B`                              | Correct                   |
-| `fold_right`    | `forall Brand A B. Foldable Brand => ((A, B) -> B, B, Brand A) -> B`                           | Correct                   |
-| `fold_left`     | `forall Brand A B. Foldable Brand => ((B, A) -> B, B, Brand A) -> B`                           | Correct                   |
-| `fold_map`      | `forall Brand A M. (Foldable Brand, Monoid M) => (A -> M, Brand A) -> M`                       | Correct                   |
-| `alt`           | `forall Brand A. Alt Brand => (Brand A, Brand A) -> Brand A`                                   | Correct                   |
-| `compact`       | `forall Brand A. Compactable Brand => Brand A -> Brand A`                                      | Correct                   |
-| `join`          | `forall Brand A. Semimonad Brand => Brand A -> Brand A`                                        | Correct                   |
-| `bind`          | `forall Brand A B. Semimonad Brand => (Brand A, A -> Brand B) -> Brand B`                      | Correct                   |
-| `bind_flipped`  | `forall Brand A B. Semimonad Brand => (A -> Brand B, Brand A) -> Brand B`                      | Correct                   |
-| `filter`        | `forall Brand A. Filterable Brand => (A -> bool, Brand A) -> Brand A`                          | Correct                   |
-| `filter_map`    | `forall Brand A B. Filterable Brand => (A -> Option B, Brand A) -> Brand B`                    | Correct                   |
-| `lift2`-`lift5` | All correct (e.g., `((A, B) -> C, Brand A, Brand B) -> Brand C`)                               | Correct                   |
-| `traverse`      | `forall Brand A F B. (Traversable Brand, Applicative F) => (A -> F B, Brand A) -> F (Brand B)` | Correct                   |
-| `wilt`          | `forall Brand A M O. (Witherable Brand, Applicative M) => Brand A -> M (Brand O)`              | Partial (missing closure) |
-| `wither`        | `forall Brand A M B. (Witherable Brand, Applicative M) => Brand A -> M (Brand B)`              | Partial (missing closure) |
+| Function                   | Signature                                                                                                                |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `map`                      | `forall Brand A B. Functor Brand => (A -> B, Brand A) -> Brand B`                                                        |
+| `fold_right`               | `forall Brand A B. Foldable Brand => ((A, B) -> B, B, Brand A) -> B`                                                     |
+| `fold_left`                | `forall Brand A B. Foldable Brand => ((B, A) -> B, B, Brand A) -> B`                                                     |
+| `fold_map`                 | `forall Brand A M. (Foldable Brand, Monoid M) => (A -> M, Brand A) -> M`                                                 |
+| `alt`                      | `forall Brand A. Alt Brand => (Brand A, Brand A) -> Brand A`                                                             |
+| `compact`                  | `forall Brand A. Compactable Brand => Brand A -> Brand A`                                                                |
+| `join`                     | `forall Brand A. Semimonad Brand => Brand A -> Brand A`                                                                  |
+| `bind`                     | `forall Brand A B. Semimonad Brand => (Brand A, A -> Brand B) -> Brand B`                                                |
+| `bind_flipped`             | `forall Brand A B. Semimonad Brand => (A -> Brand B, Brand A) -> Brand B`                                                |
+| `filter`                   | `forall Brand A. Filterable Brand => (A -> bool, Brand A) -> Brand A`                                                    |
+| `filter_map`               | `forall Brand A B. Filterable Brand => (A -> Option B, Brand A) -> Brand B`                                              |
+| `partition`                | `forall Brand A. Filterable Brand => (A -> bool, Brand A) -> (Brand A, Brand A)`                                         |
+| `partition_map`            | `forall Brand A E O. Filterable Brand => (A -> Result O E, Brand A) -> (Brand E, Brand O)`                               |
+| `lift2`                    | `forall Brand A B C. Lift Brand => ((A, B) -> C, Brand A, Brand B) -> Brand C`                                           |
+| `lift3`                    | `forall Brand A B C D. Lift Brand => ((A, B, C) -> D, Brand A, Brand B, Brand C) -> Brand D`                             |
+| `lift4`                    | `forall Brand A B C D E. Lift Brand => ((A, B, C, D) -> E, Brand A, Brand B, Brand C, Brand D) -> Brand E`               |
+| `lift5`                    | `forall Brand A B C D E G. Lift Brand => ((A, B, C, D, E) -> G, Brand A, Brand B, Brand C, Brand D, Brand E) -> Brand G` |
+| `bimap`                    | `forall Brand A C B D. Bifunctor Brand => ((A -> B, C -> D), Brand A C) -> Brand B D`                                    |
+| `bi_fold_left`             | `forall Brand A B C. Bifoldable Brand => (((C, A) -> C, (C, B) -> C), C, Brand A B) -> C`                                |
+| `bi_fold_right`            | `forall Brand A B C. Bifoldable Brand => (((A, C) -> C, (B, C) -> C), C, Brand A B) -> C`                                |
+| `bi_fold_map`              | `forall Brand A B M. (Bifoldable Brand, Monoid M) => ((A -> M, B -> M), Brand A B) -> M`                                 |
+| `wither`                   | `forall Brand A M B. (Witherable Brand, Applicative M) => Brand A -> M (Brand B)`                                        |
+| `map_with_index`           | `forall Brand A B. FunctorWithIndex Brand => ((Index, A) -> B, Brand A) -> Brand B`                                      |
+| `fold_left_with_index`     | `forall Brand A B. FoldableWithIndex Brand => ((Index, B, A) -> B, B, Brand A) -> B`                                     |
+| `fold_right_with_index`    | `forall Brand A B. FoldableWithIndex Brand => ((Index, A, B) -> B, B, Brand A) -> B`                                     |
+| `fold_map_with_index`      | `forall Brand A M. (FoldableWithIndex Brand, Monoid M) => ((Index, A) -> M, Brand A) -> M`                               |
+| `filter_with_index`        | `forall Brand A. FilterableWithIndex Brand => ((Index, A) -> bool, Brand A) -> Brand A`                                  |
+| `filter_map_with_index`    | `forall Brand A B. FilterableWithIndex Brand => ((Index, A) -> Option B, Brand A) -> Brand B`                            |
+| `partition_with_index`     | `forall Brand A. FilterableWithIndex Brand => ((Index, A) -> bool, Brand A) -> (Brand A, Brand A)`                       |
+| `partition_map_with_index` | `forall Brand A E O. FilterableWithIndex Brand => ((Index, A) -> Result O E, Brand A) -> (Brand E, Brand O)`             |
 
-**Remaining issues:**
+**Remaining issues (7 functions):**
 
-| Issue                                | Functions                                       | Status       | Approach                                                                                                                                                                                                   |
-| ------------------------------------ | ----------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tuple closures show `()`             | bimap, bi*fold*\*, bi_traverse, compose_kleisli | Open         | Parse sub-arrow strings into `impl Fn` types, combine in tuple. Data already in `arrow.inputs`.                                                                                                            |
-| Tuple returns show `G (Brand A)`     | partition, partition_map, separate              | Open         | Add `Tuple(Vec<Vec<String>>)` variant to `ReturnStructure`. Detect via `syn::Type::Tuple` in trait method return type. For wilt (nested tuple inside applicative), use `NestedTuple` sub-variant.          |
-| WithIndex `Brand` as `Index`         | \*\_with_index (10 functions)                   | Open         | Fix in `ast_builder.rs`: detect 2-segment path where first is a generic name, treat second as associated type variable. `Brand::Index` -> `HmAst::Variable("Index")`. One-line fix in HM conversion layer. |
-| apply_first/second second param `FA` | apply_first, apply_second                       | Open         | Extend `DispatchTraitInfo` with associated type resolution (extract `type FB = Apply!(...)` from Val impl). Resolve qualified path projections during synthetic signature building.                        |
-| traverse `FA` for second param       | traverse, traverse_with_index                   | **Resolved** | Fixed by container_map from Val impl type args in commit 6244d6e.                                                                                                                                          |
+| Issue                                      | Functions                                             | Root cause                                                                                                                                                                                                                                                                             | Approach                                                                                                                        |
+| ------------------------------------------ | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Container shows `Brand B` not `Brand A`    | traverse, traverse_with_index                         | `extract_container_params` extracts element type `B` from Apply! args when it should extract `A`. The Apply! in the Val impl's type args for the container param IS `Apply!(<Brand>::Of<A>)` which should give `A`, but the parser may be picking up a different arg. Needs debugging. | Debug `extract_apply_type_args` output for traverse's container param.                                                          |
+| Arrow output `()` for Apply! returns       | compose_kleisli, compose_kleisli_flipped, bi_traverse | Sub-arrow output types are `Apply!(<Brand>::Of<B>)` which `classify_arrow_output` should classify as `BrandApplied`. The parser may fail on the inner Apply! inside the Fn bound's return type (Apply! inside a parenthesized Fn arg context).                                         | Debug `classify_arrow_output` for these cases.                                                                                  |
+| Second param `FA` not substituted          | apply_first, apply_second                             | Second param type is `<FA as ApplyFirstDispatch<...>>::FB` (associated type projection), not in container_map.                                                                                                                                                                         | Extract `type FB = Apply!(...)` from Val impl's associated type items. Resolve projections during synthetic signature building. |
+| Missing closure param                      | wilt                                                  | Falls through to standalone macro entirely. Complex: FnBrand + Applicative secondary + tuple-inside-applicative return.                                                                                                                                                                | Debug why `find_dispatch_trait_in_sig` fails or `build_synthetic_signature` returns None.                                       |
+| Container shows `Brand E` not correct type | separate                                              | InferableBrand fallback uses Tuple return's first element (`[E]`) as container element types, but the actual input container holds `Result<O, E>` not just `E`.                                                                                                                        | The container_map should have the correct mapping from `extract_container_params`. Check why it's not matching.                 |
+
+### Step 7-8g: Regression tests for all 37 signatures
+
+After all functions produce correct signatures, add regression tests
+that assert on the exact HM output for every inference wrapper function.
+These tests ensure future changes to the dispatch analysis, synthetic
+signature builder, or HM pipeline do not silently break any signatures.
+
+Approach: add test cases in `fp-macros/src/documentation/document_signature.rs`
+(or a new test module) that:
+
+1. Construct a minimal module containing a dispatch trait, its Val/Ref
+   impls, and the inference wrapper function.
+2. Run `document_module_worker` on it.
+3. Extract the generated doc comment containing the HM signature.
+4. Assert it matches the expected string exactly.
+
+Alternatively, use `trybuild` or snapshot tests on the actual dispatch
+module files, comparing the generated doc output against golden files.
+
+The test should cover all 37 functions to catch regressions in:
+
+- Brand variable naming
+- Container param substitution
+- Arrow type extraction (single, tuple, closureless)
+- Return type structure (Plain, Applied, Nested, Tuple)
+- Secondary constraints
+- Associated type rendering (Index)
+- Nested Apply! resolution
 
 ### Steps 7-8 revised approach: synthetic signature rewriting
 
