@@ -99,17 +99,27 @@ assert_eq!(y, vec![1, 2, 3, 4]);
 #### Module structure
 
 The dispatch system lives in `fp-library/src/dispatch/`, with one file per
-type class operation mirroring `classes/`. The inference wrappers in
-`functions/` delegate to dispatch traits, and the dispatch functions are
-re-exported in the `explicit` sub-module:
+type class operation mirroring `classes/`. Each dispatch module contains
+the dispatch trait, Val/Ref impl blocks, the inference wrapper function,
+and an `explicit` submodule with the brand-explicit variant:
 
 ```text
 classes/functor.rs      -> Functor trait (by-value map)
 classes/ref_functor.rs  -> RefFunctor trait (by-ref map)
-dispatch/functor.rs     -> FunctorDispatch trait + unified map (Val/Ref routing)
-functions/functor.rs    -> Inference wrapper map (InferableBrand + dispatch)
+dispatch/functor.rs     -> pub(crate) mod inner {
+                              FunctorDispatch trait,
+                              Val impl (Fn(A) -> B -> Functor::map),
+                              Ref impl (Fn(&A) -> B -> RefFunctor::ref_map),
+                              pub fn map (inference wrapper),
+                              pub mod explicit { pub fn map (Brand turbofish) },
+                           }
 functions.rs            -> Re-exports: map (inference), explicit::map (dispatch)
 ```
+
+The `functions.rs` module re-exports inference wrappers from
+`crate::dispatch::*` and explicit functions from
+`crate::dispatch::*/explicit::*`. There are no intermediate
+`functions/*.rs` source files.
 
 #### Relationship to thread safety and parallelism
 

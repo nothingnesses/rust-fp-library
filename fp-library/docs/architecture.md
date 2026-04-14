@@ -18,39 +18,43 @@ Brand structs (e.g., `OptionBrand`) are **centralized** in `src/brands.rs`.
 - **Leaf Nodes:** In the dependency graph, Brand structs are **leaf nodes**; they have no outgoing edges (dependencies) to other modules in the crate.
 - **Graph Stability:** Centralizing these leaf nodes in `brands.rs` creates a stable foundation. Higher-level modules (like `types/*.rs`) can import from this common sink without creating back-edges or cycles.
 
-### 1.2. Free Functions (Three Layers)
+### 1.2. Free Functions (Two Layers + Facade)
 
 **Decision:**
 
-Free functions exist in three layers, each adding a level of inference:
+Free functions exist in two layers, each adding a level of inference:
 
-1. **`classes/`**: Brand-explicit functions with no dispatch. Defined in
-   their trait's module (e.g., `classes/functor.rs` defines
-   `explicit::map`). Callers specify the brand via turbofish.
-2. **`dispatch/`**: Brand-explicit functions with Val/Ref dispatch.
-   Defined in `dispatch/functor.rs` etc. The closure's argument type
-   (owned vs borrowed) selects the by-value or by-reference trait.
-3. **`functions/`**: Brand-inference wrappers. Defined in
-   `functions/functor.rs` etc. The brand is inferred from the container
-   type via `InferableBrand`. These are the primary user-facing API.
+1. **`classes/`**: Trait definitions and brand-explicit free functions
+   without dispatch. Defined in their trait's module (e.g.,
+   `classes/functor.rs` defines `Functor::map`).
+2. **`dispatch/`**: Each dispatch module (e.g., `dispatch/functor.rs`)
+   contains the complete dispatch system in a `pub(crate) mod inner`:
+   - The dispatch trait (e.g., `FunctorDispatch`) with Val/Ref impls
+     that route by closure argument type.
+   - The inference wrapper (e.g., `pub fn map`) that infers the brand
+     from the container type via `InferableBrand`.
+   - A `pub mod explicit` submodule with the brand-explicit dispatch
+     variant (requires Brand turbofish).
 
 `functions.rs` acts as a **facade**, re-exporting inference wrappers as
 the bare names (`map`, `bind`, etc.) and dispatch functions in the
-`explicit` sub-module (`explicit::map`, `explicit::bind`, etc.).
+`explicit` sub-module (`explicit::map`, `explicit::bind`, etc.). All
+re-exports come from `crate::dispatch::*`.
 
 **Reasoning:**
 
 - **Primary API is inference-based:** Users write `map(f, Some(5))`
   with no turbofish. The `explicit::` variants are the escape hatch for
   multi-brand types like `Result`.
-- **Downstream dependencies:** Each layer depends on the one below it
-  (`functions/ -> dispatch/ -> classes/`), matching the module
-  dependency graph without creating cycles.
-- **Cycle prevention:** `functions.rs` also contains generic helpers
-  (like `compose`) which are leaf nodes. Defining the downstream
-  wrappers directly in `functions.rs` would create bidirectional
-  dependencies if a trait module ever needed to import a helper.
-- **Facade pattern:** `functions.rs` re-exports from all three layers
+- **Colocation:** The dispatch trait, its impls, and the inference
+  wrapper live in the same module. This keeps related code together
+  and enables the `#[document_module]` proc macro to analyze dispatch
+  traits and generate HM type signatures for the inference wrappers
+  in a single pass.
+- **Downstream dependencies:** The dependency graph is
+  `dispatch/ -> classes/`, and `functions.rs` re-exports from
+  `dispatch/` without adding a layer.
+- **Facade pattern:** `functions.rs` re-exports from `dispatch/` modules
   to provide a unified API surface without coupling the underlying
   definition graph.
 

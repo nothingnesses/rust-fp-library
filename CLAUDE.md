@@ -123,11 +123,13 @@ For detailed design documentation, see the `fp-library/docs/` directory:
 - `fp-library/src/brands.rs` - All brand types centralized here (leaf nodes in dependency graph)
 - `fp-library/src/kinds.rs` - `Kind` trait definitions and type application machinery
 - `fp-macros/src/hkt/` - Procedural macros (`trait_kind!`, `impl_kind!`, `Apply!`)
+- `fp-library/src/dispatch/` - Val/Ref dispatch traits, inference wrappers, and explicit functions
+- `fp-macros/src/analysis/dispatch.rs` - Dispatch trait analysis for HM signature generation
 - `fp-library/src/types/optics/` - Profunctor-encoded optics (Lens, Prism, Iso, Traversal, etc.)
 
 ### Module Dependency Ordering
 
-Respect the dependency graph: brands -> classes -> types -> functions. Never create cycles. Free functions (e.g., `map`, `pure`) are defined in their trait's module (e.g., `classes/functor.rs`) and re-exported in `functions.rs`.
+Respect the dependency graph: brands -> classes -> types -> dispatch -> functions. Never create cycles. Dispatch modules (e.g., `dispatch/functor.rs`) contain dispatch traits, Val/Ref impls, inference wrapper functions, and explicit submodules. Free functions without dispatch (e.g., `compose`, `identity`) are defined in `classes/` and re-exported in `functions.rs`. Inference wrappers are re-exported from `crate::dispatch::*`.
 
 ### Optics
 
@@ -278,4 +280,4 @@ nix shell nixpkgs#hyperfine
 
 4. **Lifetime Constraints**: `Trampoline` requires `'static`, `Thunk` and `Lazy` support arbitrary lifetimes `'a`.
 
-5. **Module Dependency Ordering**: Respect the dependency graph: brands → classes → types → functions. Never create cycles.
+5. **Module Dependency Ordering**: Respect the dependency graph: brands -> classes -> types -> dispatch -> functions. Never create cycles.
