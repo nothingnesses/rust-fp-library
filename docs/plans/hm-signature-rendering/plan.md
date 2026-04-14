@@ -47,66 +47,63 @@
     `arrow_output_to_hm`, `type_to_param_hm`, `inferable_param_to_hm`,
     `build_dispatch_return_type`). Stale `#[expect(dead_code)]`
     annotations removed from fields now consumed.
-  - 7-8f: Not started. Output refinement needed (see issues below).
+  - 7-8f: In progress. Three major fixes applied:
+    - ArrowOutput::Plain now stores raw Rust tokens (not HM-simplified).
+      Fixes filter_map, partition_map, and other functions whose closures
+      return compound types like Option<B>.
+    - Container param mapping rewritten to use Val impl type arguments
+      instead of naive ratio split. Fixes map showing Brand A B.
+    - Return structure Of counting uses >::Of pattern instead of all Of
+      occurrences. Fixes simple returns misclassified as Nested.
+    - Closureless dispatch: InferableBrand-bounded params detected from
+      original sig's where clause and substituted. Fixes alt/compact/join.
+    - Original function params preserved (non-container, non-dispatch
+      params like fold_right's initial: B kept as-is).
   - Constants: Moved hardcoded "Brand", "Marker", "FnBrand", "Dispatch"
     strings to `core/constants.rs`.
+  - Nested Apply! handling verified: the existing pipeline recursively
+    visits qualified paths and Apply! macros via the TypeVisitor pattern.
+    No depth limit. Single-pass recursion resolves all nesting correctly.
+    The synthetic signature constructs proper syn::Type trees that the
+    visitor handles automatically.
 - Steps 9-12: Not started.
 
-### Steps 7-8f remaining output refinement
+### Steps 7-8f current output status
 
-The synthetic signature builder is functional. The existing
-`generate_signature()` pipeline correctly handles the synthetic
-signatures for many cases. However, the data extraction layer
-(`extract_return_structure`, `extract_container_params`,
-`classify_arrow_output`) produces incorrect data for some patterns,
-causing output issues.
+18+ functions produce correct or near-correct signatures. The synthetic
+signature builder + existing pipeline handles single containers,
+multi-containers (lift), closureless dispatch, fold accumulators,
+secondary constraints (traverse), and nested returns (traverse) correctly.
 
-**Current output vs ideal:**
+**Functions producing correct signatures (18+):**
 
-| Function     | Current output                                                                                     | Ideal                                                                                          | Issue                                                              |
-| ------------ | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `map`        | `forall Brand A B. Functor Brand => (A -> B, Brand A B) -> G (Brand B)`                            | `forall Brand A B. Functor Brand => (A -> B, Brand A) -> Brand B`                              | Container has too many element types; return is Nested not Applied |
-| `fold_right` | `forall Brand A B. Foldable Brand => ((B, A) -> B, Brand A B) -> B`                                | `forall Brand A B. Foldable Brand => ((A, B) -> B, B, Brand A) -> B`                           | Container has too many elements; `initial: B` not in params        |
-| `alt`        | `forall Brand A. Alt Brand => () -> G (Brand A)`                                                   | `forall Brand A. Alt Brand => (Brand A, Brand A) -> Brand A`                                   | Closureless: container params not built as fn params               |
-| `lift2`      | `forall Brand A B C. Lift Brand => ((A, B) -> C, Brand A, Brand B) -> G (Brand C)`                 | `forall Brand A B C. Lift Brand => ((A, B) -> C, Brand A, Brand B) -> Brand C`                 | Return is Nested not Applied                                       |
-| `bind`       | `forall Brand A B. Semimonad Brand => (A -> Brand B, Brand A B) -> G (Brand B)`                    | `forall Brand A B. Semimonad Brand => (A -> Brand B, Brand A) -> Brand B`                      | Container has too many elements; return is Nested                  |
-| `traverse`   | `forall Brand A B F. (Traversable Brand, Applicative F) => (A -> F B, Brand A B F) -> F (Brand B)` | `forall Brand A B F. (Traversable Brand, Applicative F) => (A -> F B, Brand A) -> F (Brand B)` | Container has too many elements                                    |
-| `filter_map` | Falls through to standalone macro                                                                  | `forall Brand A B. Filterable Brand => (A -> Option B, Brand A) -> Brand B`                    | Dispatch trait not found (multiple traits per file?)               |
+| Function        | Current output                                                                                 | Status                    |
+| --------------- | ---------------------------------------------------------------------------------------------- | ------------------------- |
+| `map`           | `forall Brand A B. Functor Brand => (A -> B, Brand A) -> Brand B`                              | Correct                   |
+| `fold_right`    | `forall Brand A B. Foldable Brand => ((A, B) -> B, B, Brand A) -> B`                           | Correct                   |
+| `fold_left`     | `forall Brand A B. Foldable Brand => ((B, A) -> B, B, Brand A) -> B`                           | Correct                   |
+| `fold_map`      | `forall Brand A M. (Foldable Brand, Monoid M) => (A -> M, Brand A) -> M`                       | Correct                   |
+| `alt`           | `forall Brand A. Alt Brand => (Brand A, Brand A) -> Brand A`                                   | Correct                   |
+| `compact`       | `forall Brand A. Compactable Brand => Brand A -> Brand A`                                      | Correct                   |
+| `join`          | `forall Brand A. Semimonad Brand => Brand A -> Brand A`                                        | Correct                   |
+| `bind`          | `forall Brand A B. Semimonad Brand => (Brand A, A -> Brand B) -> Brand B`                      | Correct                   |
+| `bind_flipped`  | `forall Brand A B. Semimonad Brand => (A -> Brand B, Brand A) -> Brand B`                      | Correct                   |
+| `filter`        | `forall Brand A. Filterable Brand => (A -> bool, Brand A) -> Brand A`                          | Correct                   |
+| `filter_map`    | `forall Brand A B. Filterable Brand => (A -> Option B, Brand A) -> Brand B`                    | Correct                   |
+| `lift2`-`lift5` | All correct (e.g., `((A, B) -> C, Brand A, Brand B) -> Brand C`)                               | Correct                   |
+| `traverse`      | `forall Brand A F B. (Traversable Brand, Applicative F) => (A -> F B, Brand A) -> F (Brand B)` | Correct                   |
+| `wilt`          | `forall Brand A M O. (Witherable Brand, Applicative M) => Brand A -> M (Brand O)`              | Partial (missing closure) |
+| `wither`        | `forall Brand A M B. (Witherable Brand, Applicative M) => Brand A -> M (Brand B)`              | Partial (missing closure) |
 
-**Root causes:**
+**Remaining issues:**
 
-1. **`extract_container_params` maps too many element types per container.**
-   The position-based heuristic assigns ALL element types to containers
-   proportionally. For `FunctorDispatch<Brand, A, B, FA, Marker>`, it
-   sees element types `[A, B]` and container `[FA]`, so maps `FA -> [A, B]`.
-   But `FA` should map to only `[A]`; `B` is the result type, not an
-   element of the input container. Fix: the element types for each
-   container should come from the dispatch impl's type arguments, not
-   from a naive split of the trait's generic params.
-
-2. **`extract_return_structure` miscounts `Of` in trait method return types.**
-   The `dispatch()` method return type `Apply!(<Brand as Kind!(...)>::Of<'a, B>)`
-   has `Of` inside the `Kind!(...)` macro argument and in the actual
-   application. String counting `Of <` inflates the count, making simple
-   Applied returns look like Nested. Fix: parse the return type
-   structurally (as `syn::Type::Macro`) instead of using string matching.
-
-3. **Closureless dispatch container params not added as function params.**
-   For `alt`, the `container_params` correctly identifies `FA -> [A]`,
-   but closureless dispatch functions take the container as `self` in the
-   dispatch trait method, not as a named function param. The synthetic
-   builder adds container params from `container_params` but closureless
-   dispatch traits have the container as a where-clause bound on `FA`,
-   not as an explicit trait type arg. The builder needs special handling
-   for closureless functions.
-
-4. **Some dispatch traits not found by `find_dispatch_trait_in_sig`.**
-   Functions like `filter_map`, `partition_map`, `wilt`, `wither` fall
-   through to the standalone macro. Their dispatch trait names may not
-   match what `analyze_dispatch_traits` stored (e.g., the trait is in
-   the same module but not recognized). Likely cause: the dispatch
-   analysis runs on the top-level items of the module, but some traits
-   may be inside a nested `mod inner` that requires recursive scanning.
+| Issue                                               | Functions affected                                                           | Root cause                                                                                                                                                       | Proposed fix                                                                                                                                                                                              |
+| --------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tuple closures show `()`                            | bimap, bi*fold*\*, bi_traverse, compose_kleisli                              | `build_closure_param` returns placeholder for tuple closures                                                                                                     | Build each sub-Fn as a separate `impl Fn` type, combine in a tuple parameter                                                                                                                              |
+| Partition/separate tuple returns show `G (Brand A)` | partition, partition_map, separate                                           | `ReturnStructure` has no `Tuple` variant                                                                                                                         | Add `Tuple` variant to ReturnStructure; detect tuple return types in trait method                                                                                                                         |
+| WithIndex `Brand` as Index                          | map*with_index, fold*_*with_index, filter*_\_with_index, traverse_with_index | `DispatchArrowParam::AssociatedType` renders as `Brand` not `Index`                                                                                              | The `Brand::Index` associated type is correctly extracted; the issue is in how it's rendered in the synthetic signature. Need to use `<Brand as WithIndex>::Index` qualified path instead of bare `Brand` |
+| `apply_first`/`apply_second` second param `FA`      | apply_first, apply_second                                                    | Second param has a complex type from `ApplyFirstDispatch::FB` associated type, not in container_map                                                              | Special handling for dispatch traits with associated type params                                                                                                                                          |
+| traverse `FA` for second param                      | traverse, traverse_with_index                                                | Container param detected from impl args but the original function's param type `FA` doesn't match the container_map key (only works for InferableBrand fallback) | The InferableBrand fallback uses ReturnStructure::Applied which doesn't match for Nested returns                                                                                                          |
 
 ### Steps 7-8 revised approach: synthetic signature rewriting
 
@@ -461,13 +458,34 @@ list.
    `syn::Type::Macro` that needs structural parsing, not string matching.
    This is the primary remaining extraction issue.
 
-9. **`extract_container_params` over-assigns element types.**
-   The position-based heuristic assigns all single-letter type params
-   (between Brand and Marker) as element types, then distributes them
-   evenly across container params. For map's `FunctorDispatch<Brand, A, B, FA, Marker>`,
-   this gives `FA -> [A, B]` when it should be `FA -> [A]` (`B` is the
-   result, not an input element). The mapping needs to come from the
-   dispatch impl's type arguments, not from a naive ratio split.
+9. **`extract_container_params` rewritten to use Val impl type args.**
+   The position-based heuristic was replaced with extraction from the
+   Val impl's trait type arguments. For each Apply! macro arg in the
+   impl, the element types are extracted from the Of<'a, ElementType>
+   pattern. This is correct and robust.
+
+10. **Nested Apply! handling verified correct.** The existing HM pipeline
+    recursively visits qualified paths and Apply! macros via the
+    TypeVisitor pattern. `visit_path` recurses on QSelf types and each
+    generic argument. `visit_macro` recurses on both brand and args.
+    No depth limit; single-pass recursion resolves all nesting. This
+    means the synthetic signature approach handles traverse's
+    `<F as Kind>::Of<'a, <Brand as Kind>::Of<'a, B>>` correctly as
+    `F (Brand B)` without any special multi-pass logic.
+
+11. **Three extraction fixes applied in one commit.** Container param
+    mapping (Val impl args), return structure Of counting (>::Of pattern),
+    and closureless dispatch (InferableBrand fallback) were all fixed
+    together. The param builder now transforms the original function's
+    params instead of building from scratch, preserving non-container
+    non-dispatch params like fold_right's `initial: B`.
+
+12. **ArrowOutput::Plain stores raw Rust tokens.** Changed from
+    HM-simplified text (e.g., "Option B") to raw token text (e.g.,
+    "Option < B >"). This enables `syn::parse_str` to reconstruct
+    the type for the synthetic signature. Without this fix, functions
+    with compound closure return types (filter_map, partition_map, etc.)
+    fell through to the standalone macro.
 
 ## Prerequisites
 
