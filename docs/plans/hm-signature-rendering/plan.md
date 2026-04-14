@@ -38,41 +38,75 @@
     analysis of dispatch trait generic params. Detects element types
     (single-letter params) vs container types (multi-letter params
     between Brand and Marker).
-  - 7-8e: Not started. Core remaining work: replace
-    `generate_dispatch_signature()` and its helpers with
-    `build_synthetic_signature()` that constructs a `syn::Signature`
-    and calls the existing `generate_signature()` pipeline.
-  - 7-8f: Not started. Verify output across all 37 functions.
+  - 7-8e: Done. `build_synthetic_signature()` implemented. Constructs
+    a `syn::Signature` with Brand param, Kind hash bounds, qualified
+    path container types, Fn closure params, and structured return types.
+    Delegates to existing `generate_signature()` pipeline. Old helper
+    functions removed (`generate_dispatch_signature`,
+    `find_inferable_brand_params`, `dispatch_arrow_to_hm`,
+    `arrow_output_to_hm`, `type_to_param_hm`, `inferable_param_to_hm`,
+    `build_dispatch_return_type`). Stale `#[expect(dead_code)]`
+    annotations removed from fields now consumed.
+  - 7-8f: Not started. Output refinement needed (see issues below).
   - Constants: Moved hardcoded "Brand", "Marker", "FnBrand", "Dispatch"
     strings to `core/constants.rs`.
-  - Initial approach code (custom `SignatureData` construction) still
-    present in `generation.rs`; will be replaced in step 7-8e.
 - Steps 9-12: Not started.
 
-### Steps 7-8 remaining work
+### Steps 7-8f remaining output refinement
 
-Step 7-8e (`build_synthetic_signature`) is the core remaining work.
-It must construct a `syn::Signature` from `DispatchTraitInfo` data:
+The synthetic signature builder is functional. The existing
+`generate_signature()` pipeline correctly handles the synthetic
+signatures for many cases. However, the data extraction layer
+(`extract_return_structure`, `extract_container_params`,
+`classify_arrow_output`) produces incorrect data for some patterns,
+causing output issues.
 
-1. Create a `Brand` type param bounded by the semantic constraint
-   (e.g., `Brand: Functor`) and the Kind hash (e.g.,
-   `Brand: Kind_cdc7cd43dac7585f`). If `kind_trait_name` is `None`,
-   skip synthetic generation (fallback to standalone macro).
-2. For each container param in `container_params`, construct
-   `<Brand as Kind_hash>::Of<'a, ElementType>` qualified paths.
-3. For the closure parameter, construct `impl Fn(inputs) -> output`
-   using the `DispatchArrow` data. For `ArrowOutput::BrandApplied`,
-   the output becomes `<Brand as Kind_hash>::Of<'a, B>`. For
-   `ArrowOutput::OtherApplied`, it becomes `<F as Kind_hash>::Of<'a, B>`.
-4. Construct the return type from `ReturnStructure`, similarly using
-   qualified paths.
-5. Keep secondary constraint params (e.g., `F: Applicative`) with
-   their original names.
-6. Remove `Marker`, `FnBrand`, and inferable params from generics.
-7. Call `generate_signature()` on the synthetic signature.
+**Current output vs ideal:**
 
-All data structures needed are in place. The work is syn AST
-construction using `syn::parse_quote!` or manual `syn` type building.
+| Function     | Current output                                                                                     | Ideal                                                                                          | Issue                                                              |
+| ------------ | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `map`        | `forall Brand A B. Functor Brand => (A -> B, Brand A B) -> G (Brand B)`                            | `forall Brand A B. Functor Brand => (A -> B, Brand A) -> Brand B`                              | Container has too many element types; return is Nested not Applied |
+| `fold_right` | `forall Brand A B. Foldable Brand => ((B, A) -> B, Brand A B) -> B`                                | `forall Brand A B. Foldable Brand => ((A, B) -> B, B, Brand A) -> B`                           | Container has too many elements; `initial: B` not in params        |
+| `alt`        | `forall Brand A. Alt Brand => () -> G (Brand A)`                                                   | `forall Brand A. Alt Brand => (Brand A, Brand A) -> Brand A`                                   | Closureless: container params not built as fn params               |
+| `lift2`      | `forall Brand A B C. Lift Brand => ((A, B) -> C, Brand A, Brand B) -> G (Brand C)`                 | `forall Brand A B C. Lift Brand => ((A, B) -> C, Brand A, Brand B) -> Brand C`                 | Return is Nested not Applied                                       |
+| `bind`       | `forall Brand A B. Semimonad Brand => (A -> Brand B, Brand A B) -> G (Brand B)`                    | `forall Brand A B. Semimonad Brand => (A -> Brand B, Brand A) -> Brand B`                      | Container has too many elements; return is Nested                  |
+| `traverse`   | `forall Brand A B F. (Traversable Brand, Applicative F) => (A -> F B, Brand A B F) -> F (Brand B)` | `forall Brand A B F. (Traversable Brand, Applicative F) => (A -> F B, Brand A) -> F (Brand B)` | Container has too many elements                                    |
+| `filter_map` | Falls through to standalone macro                                                                  | `forall Brand A B. Filterable Brand => (A -> Option B, Brand A) -> Brand B`                    | Dispatch trait not found (multiple traits per file?)               |
+
+**Root causes:**
+
+1. **`extract_container_params` maps too many element types per container.**
+   The position-based heuristic assigns ALL element types to containers
+   proportionally. For `FunctorDispatch<Brand, A, B, FA, Marker>`, it
+   sees element types `[A, B]` and container `[FA]`, so maps `FA -> [A, B]`.
+   But `FA` should map to only `[A]`; `B` is the result type, not an
+   element of the input container. Fix: the element types for each
+   container should come from the dispatch impl's type arguments, not
+   from a naive split of the trait's generic params.
+
+2. **`extract_return_structure` miscounts `Of` in trait method return types.**
+   The `dispatch()` method return type `Apply!(<Brand as Kind!(...)>::Of<'a, B>)`
+   has `Of` inside the `Kind!(...)` macro argument and in the actual
+   application. String counting `Of <` inflates the count, making simple
+   Applied returns look like Nested. Fix: parse the return type
+   structurally (as `syn::Type::Macro`) instead of using string matching.
+
+3. **Closureless dispatch container params not added as function params.**
+   For `alt`, the `container_params` correctly identifies `FA -> [A]`,
+   but closureless dispatch functions take the container as `self` in the
+   dispatch trait method, not as a named function param. The synthetic
+   builder adds container params from `container_params` but closureless
+   dispatch traits have the container as a where-clause bound on `FA`,
+   not as an explicit trait type arg. The builder needs special handling
+   for closureless functions.
+
+4. **Some dispatch traits not found by `find_dispatch_trait_in_sig`.**
+   Functions like `filter_map`, `partition_map`, `wilt`, `wither` fall
+   through to the standalone macro. Their dispatch trait names may not
+   match what `analyze_dispatch_traits` stored (e.g., the trait is in
+   the same module but not recognized). Likely cause: the dispatch
+   analysis runs on the top-level items of the module, but some traits
+   may be inside a nested `mod inner` that requires recursive scanning.
 
 ### Steps 7-8 revised approach: synthetic signature rewriting
 
@@ -407,6 +441,33 @@ list.
    `DEFAULT_BRAND_PARAM`, `MARKER_PARAM`, `FN_BRAND_PARAM`,
    `DISPATCH_SUFFIX`. All usages in `dispatch.rs` and `generation.rs`
    updated.
+
+7. **Synthetic signature builder implemented (step 7-8e).**
+   `build_synthetic_signature()` constructs a `syn::Signature` with
+   Brand param, Kind hash bounds, qualified path container types, Fn
+   closure params, and structured return types. The existing
+   `generate_signature()` pipeline handles the rest. Old helper
+   functions removed entirely (code in git history).
+   `#[expect(dead_code)]` annotations removed from fields now consumed.
+   Tuple closure handling is a placeholder (returns `()` param) pending
+   further work.
+
+8. **`extract_return_structure` still uses string-based Of counting.**
+   The `ReturnStructure` approach was intended to avoid string parsing,
+   but the extraction function itself still counts `Of` substrings in
+   the trait method's return type text. This is unreliable for the same
+   reason it was unreliable in the wrapper function (Apply! macro
+   arguments contain `Of`). The trait method return type is a
+   `syn::Type::Macro` that needs structural parsing, not string matching.
+   This is the primary remaining extraction issue.
+
+9. **`extract_container_params` over-assigns element types.**
+   The position-based heuristic assigns all single-letter type params
+   (between Brand and Marker) as element types, then distributes them
+   evenly across container params. For map's `FunctorDispatch<Brand, A, B, FA, Marker>`,
+   this gives `FA -> [A, B]` when it should be `FA -> [A]` (`B` is the
+   result, not an input element). The mapping needs to come from the
+   dispatch impl's type arguments, not from a naive ratio split.
 
 ## Prerequisites
 
