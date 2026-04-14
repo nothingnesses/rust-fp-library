@@ -13,10 +13,10 @@
 //! 	functions::explicit::*,
 //! };
 //!
-//! // contramap requires InferableBrand on the container type.
-//! // Most profunctor-based types do not implement InferableBrand,
-//! // so use explicit::contramap for those.
-//! assert!(true);
+//! let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
+//! let g =
+//! 	contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, i32>, _, _, _, _>(|x: i32| x * 2, f);
+//! assert_eq!(g(5), 11); // (5 * 2) + 1
 //! ```
 
 #[fp_macros::document_module]
@@ -59,7 +59,10 @@ pub(crate) mod inner {
 		/// 	functions::explicit::*,
 		/// };
 		///
-		/// assert!(true);
+		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
+		/// let g =
+		/// 	contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, i32>, _, _, _, _>(|x: i32| x * 2, f);
+		/// assert_eq!(g(5), 11);
 		/// ```
 		fn dispatch(
 			self,
@@ -106,7 +109,10 @@ pub(crate) mod inner {
 		/// 	functions::explicit::*,
 		/// };
 		///
-		/// assert!(true);
+		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
+		/// let g =
+		/// 	contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, i32>, _, _, _, _>(|x: i32| x * 2, f);
+		/// assert_eq!(g(5), 11);
 		/// ```
 		fn dispatch(
 			self,
@@ -149,10 +155,13 @@ pub(crate) mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
-	/// assert!(true);
+	/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
+	/// let g =
+	/// 	contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, i32>, _, _, _, _>(|x: i32| x * 2, f);
+	/// assert_eq!(g(5), 11);
 	/// ```
 	pub fn contramap<'a, FA, A: 'a, B: 'a, Marker>(
 		f: impl ContravariantDispatch<
@@ -211,7 +220,10 @@ pub(crate) mod inner {
 		/// 	functions::explicit::*,
 		/// };
 		///
-		/// assert!(true);
+		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
+		/// let g =
+		/// 	contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, i32>, _, _, _, _>(|x: i32| x * 2, f);
+		/// assert_eq!(g(5), 11);
 		/// ```
 		pub fn contramap<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker>(
 			f: impl ContravariantDispatch<'a, Brand, A, B, FA, Marker>,
