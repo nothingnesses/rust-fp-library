@@ -689,16 +689,28 @@ fn build_synthetic_signature(
 			continue;
 		}
 
-		// For closureless dispatch: if the type is an InferableBrand-bounded param,
-		// it's a container. Use the return structure's element types.
-		if is_inferable_brand_param(&type_str, _original_sig)
-			&& let crate::analysis::dispatch::ReturnStructure::Applied(ref ret_args) =
-				dispatch_info.return_structure
-		{
-			let pat = &pat_type.pat;
-			let container_type = build_applied_type(&brand_ident, &kind_ident, ret_args)?;
-			fn_params.push(parse_quote!(#pat: #container_type));
-			continue;
+		// For closureless dispatch or unrecognized container params:
+		// if the type is an InferableBrand-bounded param, it's a container.
+		// Extract element types from the return structure to determine the brand application.
+		if is_inferable_brand_param(&type_str, _original_sig) {
+			use crate::analysis::dispatch::ReturnStructure;
+			let element_types: Option<Vec<String>> = match &dispatch_info.return_structure {
+				ReturnStructure::Applied(args) => Some(args.clone()),
+				ReturnStructure::Nested {
+					inner_args, ..
+				} => Some(inner_args.clone()),
+				ReturnStructure::Tuple(elements) => {
+					// For tuple returns, use the first element's args as the container type
+					elements.first().cloned()
+				}
+				ReturnStructure::Plain(_) => None,
+			};
+			if let Some(ref elems) = element_types {
+				let pat = &pat_type.pat;
+				let container_type = build_applied_type(&brand_ident, &kind_ident, elems)?;
+				fn_params.push(parse_quote!(#pat: #container_type));
+				continue;
+			}
 		}
 
 		// Keep other params as-is
