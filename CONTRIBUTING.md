@@ -36,7 +36,8 @@ just fmt     # Format all files (Rust, Nix, Markdown, YAML, TOML)
 just clippy  # Run clippy
 just test    # Run all tests (cached; only re-runs when content changes)
 just doc     # Build docs (must produce zero warnings)
-just verify  # Run fmt, check, clippy, doc, test in order
+just deny    # Check licenses and advisories with cargo-deny
+just verify  # Run fmt, check, clippy, deny, doc, test in order
 just clean   # Remove build artifacts and test cache
 ```
 

@@ -61,10 +61,10 @@ just bench -p fp-library --bench benchmarks -- Vec     # Run specific benchmark
 
 ### Verification
 
-After making changes, verify in this order: **fmt, check, clippy, doc, test**.
+After making changes, verify in this order: **fmt, check, clippy, deny, doc, test**.
 
 ```bash
-just verify  # Runs all five steps in order
+just verify  # Runs all six steps in order
 ```
 
 Or individually:
@@ -73,6 +73,7 @@ Or individually:
 just fmt
 just check
 just clippy
+just deny
 just doc
 just test
 ```

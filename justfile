@@ -86,10 +86,15 @@ clean:
     {{direnv_prefix}} cargo clean
     rm -rf .claude/test-cache/
 
-# Verify: fmt, clippy, doc, bench compile check, then test (in order).
+# Check licenses and advisories with cargo-deny.
+deny:
+    {{direnv_prefix}} cargo deny check
+
+# Verify: fmt, check, clippy, deny, doc, then test (in order).
 verify:
     just fmt
     just check
     just clippy
+    just deny
     just doc
     just test
