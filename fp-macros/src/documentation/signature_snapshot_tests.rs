@@ -146,3 +146,215 @@ dispatch_test!(semimonad_signatures, "semimonad.rs");
 dispatch_test!(traversable_signatures, "traversable.rs");
 dispatch_test!(traversable_with_index_signatures, "traversable_with_index.rs");
 dispatch_test!(witherable_signatures, "witherable.rs");
+
+// -- Edge case tests for signature generation --
+//
+// These use synthetic dispatch module code (not real files) to test
+// unusual inputs and graceful fallback behavior.
+
+/// Run synthetic code through `document_module_worker` and extract signatures.
+/// The code should be the body of a module (items, not wrapped in mod { }).
+fn extract_synthetic_signatures(code: &str) -> BTreeMap<String, String> {
+	let tokens: TokenStream =
+		code.parse().unwrap_or_else(|e| panic!("Failed to parse synthetic code: {e}"));
+	let result = document_module_worker(TokenStream::new(), tokens)
+		.unwrap_or_else(|e| panic!("document_module_worker failed: {e}"));
+	let file: syn::File = syn::parse2(result).expect("Failed to parse worker output");
+	let mut signatures = BTreeMap::new();
+	collect_fn_signatures(&file.items, &mut signatures);
+	signatures
+}
+
+/// Check that a synthetic module produces NO HM signatures (e.g., fallback to standalone macro).
+fn assert_no_dispatch_signatures(code: &str) {
+	let tokens: TokenStream =
+		code.parse().unwrap_or_else(|e| panic!("Failed to parse synthetic code: {e}"));
+	let result = document_module_worker(TokenStream::new(), tokens)
+		.unwrap_or_else(|e| panic!("document_module_worker failed: {e}"));
+	let file: syn::File = syn::parse2(result).expect("Failed to parse worker output");
+	let mut signatures = BTreeMap::new();
+	collect_fn_signatures(&file.items, &mut signatures);
+	assert!(signatures.is_empty(), "Expected no dispatch signatures, got: {signatures:?}");
+}
+
+#[test]
+fn edge_missing_kind_hash_falls_back() {
+	// Dispatch trait without Kind_* bound on Brand; build_synthetic_signature
+	// should return None, leaving #[document_signature] for the standalone macro.
+	// The standalone macro won't run in test context, so no "forall" doc is generated.
+	assert_no_dispatch_signatures(
+		r#"
+		trait NoKindDispatch<'a, Brand, A: 'a, B: 'a, FA, Marker> {
+			fn dispatch(self, fa: FA) -> ();
+		}
+		impl<'a, Brand, A, B, F>
+			NoKindDispatch<'a, Brand, A, B, (), Val> for F
+		where
+			Brand: Functor,
+			A: 'a,
+			B: 'a,
+			F: Fn(A) -> B + 'a,
+		{
+			fn dispatch(self, fa: ()) -> () {}
+		}
+		struct Val;
+
+		#[document_signature]
+		pub fn my_map<'a, FA, A: 'a, B: 'a, Marker>(
+			f: impl NoKindDispatch<'a, FA, A, B, FA, Marker>,
+			fa: FA,
+		) -> ()
+		{
+			todo!()
+		}
+		"#,
+	);
+}
+
+#[test]
+fn edge_no_document_signature_attribute_skipped() {
+	// Function WITHOUT #[document_signature] should not produce a signature
+	assert_no_dispatch_signatures(
+		r#"
+		trait FunctorDispatch<'a, Brand: Kind_abc123, A: 'a, B: 'a, FA, Marker> {
+			fn dispatch(self, fa: FA) -> ();
+		}
+		impl<'a, Brand, A, B, F>
+			FunctorDispatch<'a, Brand, A, B, (), Val> for F
+		where
+			Brand: Functor,
+			A: 'a,
+			B: 'a,
+			F: Fn(A) -> B + 'a,
+		{
+			fn dispatch(self, fa: ()) -> () {}
+		}
+		struct Val;
+
+		pub fn map_no_doc<'a, FA, A: 'a, B: 'a, Marker>(
+			f: impl FunctorDispatch<'a, FA, A, B, FA, Marker>,
+			fa: FA,
+		) -> ()
+		{
+			todo!()
+		}
+		"#,
+	);
+}
+
+#[test]
+fn edge_document_signature_without_dispatch_trait_left_for_standalone() {
+	// Function with #[document_signature] but no dispatch trait reference.
+	// The attribute should be left for the standalone macro (not removed).
+	// Since the standalone macro doesn't run in test context, no "forall" appears.
+	assert_no_dispatch_signatures(
+		r#"
+		struct Val;
+
+		#[document_signature]
+		pub fn plain_fn<A, B>(a: A) -> B {
+			todo!()
+		}
+		"#,
+	);
+}
+
+#[test]
+fn edge_simple_dispatch_produces_correct_signature() {
+	// Minimal functor-like dispatch; verify the full pipeline produces correct output
+	let sigs = extract_synthetic_signatures(
+		r#"
+		trait MapDispatch<'a, Brand: Kind_abc123, A: 'a, B: 'a, FA, Marker> {
+			fn dispatch(self, fa: FA) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
+		}
+		impl<'a, Brand, A, B, F>
+			MapDispatch<
+				'a,
+				Brand,
+				A,
+				B,
+				Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+				Val,
+			> for F
+		where
+			Brand: Functor,
+			A: 'a,
+			B: 'a,
+			F: Fn(A) -> B + 'a,
+		{
+			fn dispatch(self, fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) { todo!() }
+		}
+		struct Val;
+
+		#[document_signature]
+		pub fn my_map<'a, FA, A: 'a, B: 'a, Marker>(
+			f: impl MapDispatch<'a, <FA as InferableBrand_abc123>::Brand, A, B, FA, Marker>,
+			fa: FA,
+		) -> <<FA as InferableBrand_abc123>::Brand as Kind_abc123>::Of<'a, B>
+		where
+			FA: InferableBrand_abc123
+				+ MapDispatch<'a, <FA as InferableBrand_abc123>::Brand, A, B, FA, Marker>,
+		{
+			todo!()
+		}
+		"#,
+	);
+
+	assert_eq!(sigs.len(), 1);
+	assert_eq!(
+		sigs.get("my_map").unwrap(),
+		"forall Brand A B. Functor Brand => (A -> B, Brand A) -> Brand B"
+	);
+}
+
+#[test]
+fn edge_bifunctor_two_element_container() {
+	// Two-element brand application (bimap pattern with two-arg Kind)
+	let sigs = extract_synthetic_signatures(
+		r#"
+		trait BimapDispatch<'a, Brand: Kind_abc123, A: 'a, B: 'a, C: 'a, D: 'a, FA, Marker> {
+			fn dispatch(self, fa: FA) -> Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>);
+		}
+		impl<'a, Brand, A, B, C, D, F, G>
+			BimapDispatch<
+				'a,
+				Brand,
+				A,
+				B,
+				C,
+				D,
+				Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
+				Val,
+			> for (F, G)
+		where
+			Brand: Bifunctor,
+			A: 'a,
+			B: 'a,
+			C: 'a,
+			D: 'a,
+			F: Fn(A) -> B + 'a,
+			G: Fn(C) -> D + 'a,
+		{
+			fn dispatch(self, fa: Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>)) -> Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>) { todo!() }
+		}
+		struct Val;
+
+		#[document_signature]
+		pub fn my_bimap<'a, FA, A: 'a, B: 'a, C: 'a, D: 'a, Marker>(
+			fg: impl BimapDispatch<'a, <FA as InferableBrand_abc123>::Brand, A, B, C, D, FA, Marker>,
+			fa: FA,
+		) -> <<FA as InferableBrand_abc123>::Brand as Kind_abc123>::Of<'a, B, D>
+		where
+			FA: InferableBrand_abc123,
+		{
+			todo!()
+		}
+		"#,
+	);
+
+	assert_eq!(sigs.len(), 1);
+	assert_eq!(
+		sigs.get("my_bimap").unwrap(),
+		"forall Brand A B C D. Bifunctor Brand => ((A -> B, C -> D), Brand A C) -> Brand B D"
+	);
+}

@@ -1204,4 +1204,259 @@ mod tests {
 			info.return_structure
 		);
 	}
+
+	// -- Edge case tests --
+
+	#[test]
+	fn test_brand_param_in_middle_of_param_list() {
+		// Brand is not the first type param after lifetime; FnBrand comes first
+		let items = make_items(
+			r#"
+			trait TraverseDispatch<'a, FnBrand, Brand: Kind_abc123, A: 'a, B: 'a, F, FA, Marker> {
+				fn dispatch(self, fa: FA) -> ();
+			}
+			impl<'a, FnBrand, Brand, A, B, F, Func>
+				TraverseDispatch<'a, FnBrand, Brand, A, B, F, (), Val> for Func
+			where
+				Brand: Traversable,
+				A: 'a,
+				B: 'a,
+				F: Applicative,
+				Func: Fn(A) -> () + 'a,
+			{
+				fn dispatch(self, fa: ()) -> () {}
+			}
+			struct Val;
+			"#,
+		);
+
+		let result = analyze_dispatch_traits(&items);
+		let info = result.get("TraverseDispatch").unwrap();
+		// Brand should be found despite not being first
+		assert_eq!(info.brand_param, "Brand");
+		assert_eq!(info.kind_trait_name.as_deref(), Some("Kind_abc123"));
+		assert_eq!(info.semantic_constraint.as_deref(), Some("Traversable"));
+	}
+
+	#[test]
+	fn test_brand_param_with_unusual_name() {
+		// Brand param named "F" instead of "Brand"
+		let items = make_items(
+			r#"
+			trait MyDispatch<'a, F: Kind_xyz789, A: 'a, B: 'a, FA, Marker> {
+				fn dispatch(self, fa: FA) -> ();
+			}
+			impl<'a, F, A, B, Func>
+				MyDispatch<'a, F, A, B, (), Val> for Func
+			where
+				F: Functor,
+				A: 'a,
+				B: 'a,
+				Func: Fn(A) -> B + 'a,
+			{
+				fn dispatch(self, fa: ()) -> () {}
+			}
+			struct Val;
+			"#,
+		);
+
+		let result = analyze_dispatch_traits(&items);
+		let info = result.get("MyDispatch").unwrap();
+		// Should find "F" as the brand param via Kind_* bound on trait def
+		assert_eq!(info.brand_param, "F");
+		assert_eq!(info.kind_trait_name.as_deref(), Some("Kind_xyz789"));
+		assert_eq!(info.semantic_constraint.as_deref(), Some("Functor"));
+	}
+
+	#[test]
+	fn test_no_semantic_constraint() {
+		// Val impl where clause has no semantic type class bound on Brand
+		let items = make_items(
+			r#"
+			trait WeirdDispatch<'a, Brand: Kind_abc123, A: 'a, Marker> {
+				fn dispatch(self) -> ();
+			}
+			impl<'a, Brand, A>
+				WeirdDispatch<'a, Brand, A, Val> for ()
+			where
+				A: 'a,
+			{
+				fn dispatch(self) -> () {}
+			}
+			struct Val;
+			"#,
+		);
+
+		let result = analyze_dispatch_traits(&items);
+		let info = result.get("WeirdDispatch").unwrap();
+		assert_eq!(info.brand_param, "Brand");
+		assert_eq!(info.kind_trait_name.as_deref(), Some("Kind_abc123"));
+		// No semantic constraint found
+		assert!(info.semantic_constraint.is_none());
+	}
+
+	#[test]
+	fn test_no_val_impl() {
+		// Dispatch trait exists but no Val impl; should not produce info
+		let items = make_items(
+			r#"
+			trait OrphanDispatch<'a, Brand: Kind_abc123, A: 'a, Marker> {
+				fn dispatch(self) -> ();
+			}
+			struct Val;
+			"#,
+		);
+
+		let result = analyze_dispatch_traits(&items);
+		assert!(
+			!result.contains_key("OrphanDispatch"),
+			"Should not find info for dispatch trait without Val impl"
+		);
+	}
+
+	#[test]
+	fn test_extra_type_params_ignored() {
+		// Extra single-letter params between Brand and Marker
+		let items = make_items(
+			r#"
+			trait BigDispatch<'a, Brand: Kind_abc123, A: 'a, B: 'a, C: 'a, D: 'a, E: 'a, FA, Marker> {
+				fn dispatch(self, fa: FA) -> ();
+			}
+			impl<'a, Brand, A, B, C, D, E, F>
+				BigDispatch<'a, Brand, A, B, C, D, E, (), Val> for F
+			where
+				Brand: Functor,
+				A: 'a,
+				B: 'a,
+				C: 'a,
+				D: 'a,
+				E: 'a,
+				F: Fn(A) -> B + 'a,
+			{
+				fn dispatch(self, fa: ()) -> () {}
+			}
+			struct Val;
+			"#,
+		);
+
+		let result = analyze_dispatch_traits(&items);
+		let info = result.get("BigDispatch").unwrap();
+		assert_eq!(info.brand_param, "Brand");
+		// type_param_order includes all non-infrastructure params in trait order.
+		// FA is included because without Apply! in the impl args it is not
+		// detected as a container param.
+		assert_eq!(info.type_param_order, vec!["Brand", "A", "B", "C", "D", "E", "FA"]);
+		// No container params detected (no Apply! macros in impl type args)
+		assert!(info.container_params.is_empty());
+	}
+
+	#[test]
+	fn test_associated_types_extracted() {
+		// Val impl with an associated type definition
+		let items = make_items(
+			r#"
+			trait ApplyFirstDispatch<'a, Brand: Kind_abc123, A: 'a, B: 'a, Marker> {
+				type FB;
+				fn dispatch(self, fb: Self::FB) -> ();
+			}
+			impl<'a, Brand, A, B>
+				ApplyFirstDispatch<'a, Brand, A, B, Val>
+				for Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+			where
+				Brand: ApplyFirst,
+				A: 'a,
+				B: 'a,
+			{
+				type FB = Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
+				fn dispatch(self, fb: Self::FB) -> () {}
+			}
+			struct Val;
+			"#,
+		);
+
+		let result = analyze_dispatch_traits(&items);
+		let info = result.get("ApplyFirstDispatch").unwrap();
+		// Associated type FB should map to ["B"]
+		assert_eq!(info.associated_types.len(), 1);
+		assert_eq!(info.associated_types[0].0, "FB");
+		assert_eq!(info.associated_types[0].1, vec!["B".to_string()]);
+		// Self type elements should be ["A"]
+		assert_eq!(info.self_type_elements, Some(vec!["A".to_string()]));
+	}
+
+	#[test]
+	fn test_container_param_position() {
+		// Verify container params store the correct position index
+		let items = make_items(
+			r#"
+			trait Lift2Dispatch<'a, Brand: Kind_abc123, A: 'a, B: 'a, C: 'a, FA, FB, Marker> {
+				fn dispatch(self, fa: FA, fb: FB) -> ();
+			}
+			impl<'a, Brand, A, B, C, F>
+				Lift2Dispatch<
+					'a,
+					Brand,
+					A,
+					B,
+					C,
+					Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+					Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+					Val,
+				> for F
+			where
+				Brand: Lift,
+				A: 'a,
+				B: 'a,
+				C: 'a,
+				F: Fn(A, B) -> C + 'a,
+			{
+				fn dispatch(self, fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>), fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)) -> () { todo!() }
+			}
+			struct Val;
+			"#,
+		);
+
+		let result = analyze_dispatch_traits(&items);
+		let info = result.get("Lift2Dispatch").unwrap();
+		assert_eq!(info.container_params.len(), 2);
+		// FA is at position 4 (Brand=0, A=1, B=2, C=3, FA=4)
+		assert_eq!(info.container_params[0].name, "FA");
+		assert_eq!(info.container_params[0].position, 4);
+		assert_eq!(info.container_params[0].element_types, vec!["A".to_string()]);
+		// FB is at position 5
+		assert_eq!(info.container_params[1].name, "FB");
+		assert_eq!(info.container_params[1].position, 5);
+		assert_eq!(info.container_params[1].element_types, vec!["B".to_string()]);
+	}
+
+	#[test]
+	fn test_type_param_order_preserves_trait_definition_order() {
+		// Verify ordering matches trait definition, not alphabetical
+		let items = make_items(
+			r#"
+			trait WiltDispatch<'a, FnBrand, Brand: Kind_abc123, M, A: 'a, E: 'a, O: 'a, FA, Marker> {
+				fn dispatch(self, ta: FA) -> ();
+			}
+			impl<'a, FnBrand, Brand, M, A, E, O, Func>
+				WiltDispatch<'a, FnBrand, Brand, M, A, E, O, (), Val> for Func
+			where
+				Brand: Witherable,
+				A: 'a,
+				E: 'a,
+				O: 'a,
+				M: Applicative,
+				Func: Fn(A) -> () + 'a,
+			{
+				fn dispatch(self, ta: ()) -> () {}
+			}
+			struct Val;
+			"#,
+		);
+
+		let result = analyze_dispatch_traits(&items);
+		let info = result.get("WiltDispatch").unwrap();
+		// Order should match trait definition: Brand, M, A, E, O
+		// (FnBrand and Marker filtered, FA filtered as container param is empty since no Apply!)
+		assert_eq!(info.type_param_order, vec!["Brand", "M", "A", "E", "O", "FA"]);
+	}
 }
