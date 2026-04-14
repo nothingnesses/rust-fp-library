@@ -359,3 +359,59 @@ fn edge_bifunctor_two_element_container() {
 		"forall Brand A B C D. Bifunctor Brand => ((A -> B, C -> D), Brand A C) -> Brand B D"
 	);
 }
+
+#[test]
+fn edge_manual_override_emits_provided_string() {
+	// #[document_signature("custom signature")] should emit the string directly
+	let sigs = extract_synthetic_signatures(
+		r#"
+		struct Val;
+
+		#[document_signature("forall A B. (A -> B) -> A -> B")]
+		pub fn my_fn<A, B>(f: fn(A) -> B, a: A) -> B {
+			f(a)
+		}
+		"#,
+	);
+
+	assert_eq!(sigs.len(), 1);
+	assert_eq!(sigs.get("my_fn").unwrap(), "forall A B. (A -> B) -> A -> B");
+}
+
+#[test]
+fn edge_manual_override_in_dispatch_context() {
+	// Manual override should take precedence over dispatch-aware generation
+	let sigs = extract_synthetic_signatures(
+		r#"
+		trait MapDispatch<'a, Brand: Kind_abc123, A: 'a, B: 'a, FA, Marker> {
+			fn dispatch(self, fa: FA) -> ();
+		}
+		impl<'a, Brand, A, B, F>
+			MapDispatch<'a, Brand, A, B, (), Val> for F
+		where
+			Brand: Functor,
+			A: 'a,
+			B: 'a,
+			F: Fn(A) -> B + 'a,
+		{
+			fn dispatch(self, fa: ()) -> () {}
+		}
+		struct Val;
+
+		#[document_signature("forall F A B. Functor F => (A -> B, F A) -> F B")]
+		pub fn my_map<'a, FA, A: 'a, B: 'a, Marker>(
+			f: impl MapDispatch<'a, <FA as InferableBrand_abc123>::Brand, A, B, FA, Marker>,
+			fa: FA,
+		) -> ()
+		where
+			FA: InferableBrand_abc123,
+		{
+			todo!()
+		}
+		"#,
+	);
+
+	assert_eq!(sigs.len(), 1);
+	// Should use the manual override, not the auto-generated signature
+	assert_eq!(sigs.get("my_map").unwrap(), "forall F A B. Functor F => (A -> B, F A) -> F B");
+}

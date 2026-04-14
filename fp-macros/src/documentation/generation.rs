@@ -485,6 +485,20 @@ fn process_fn_dispatch_signature(
 		return;
 	};
 
+	// If the attribute has a string argument (manual override), use it directly
+	if let Some(attr) = item_fn.attrs.get(attr_pos)
+		&& let Some(manual_sig) = extract_manual_signature(attr)
+	{
+		item_fn.attrs.remove(attr_pos);
+		let doc_comment = format!("`{manual_sig}`");
+		let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
+		item_fn.attrs.insert(attr_pos, doc_attr);
+		let header_attr: syn::Attribute = parse_quote!(#[doc = r#"### Type Signature
+"#]);
+		item_fn.attrs.insert(attr_pos, header_attr);
+		return;
+	}
+
 	let Some(dispatch_info) = find_dispatch_trait_in_sig(&item_fn.sig, config) else {
 		// No dispatch trait found; leave #[document_signature] for the standalone macro
 		return;
@@ -509,6 +523,19 @@ fn process_fn_dispatch_signature(
 	let header_attr: syn::Attribute = parse_quote!(#[doc = r#"### Type Signature
 "#]);
 	item_fn.attrs.insert(attr_pos, header_attr);
+}
+
+/// Extract a manual signature override from a `#[document_signature("...")]` attribute.
+///
+/// Returns `Some(String)` if the attribute has a string literal argument.
+/// Returns `None` if the attribute has no arguments.
+fn extract_manual_signature(attr: &syn::Attribute) -> Option<String> {
+	let syn::Meta::List(meta_list) = &attr.meta else {
+		return None;
+	};
+	let lit: syn::LitStr = syn::parse2(meta_list.tokens.clone()).ok()?;
+	let value = lit.value();
+	if value.is_empty() { None } else { Some(value) }
 }
 
 /// Find a dispatch trait referenced in a function's parameters via `impl *Dispatch<...>`.

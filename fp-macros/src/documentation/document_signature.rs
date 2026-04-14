@@ -27,7 +27,6 @@ use {
 			attributes::reject_duplicate_attribute,
 			generate_documentation::insert_doc_comment,
 			is_phantom_data,
-			parsing::parse_empty_attributes,
 		},
 	},
 	proc_macro2::TokenStream,
@@ -44,12 +43,43 @@ use {
 	},
 };
 
+/// Parse the `#[document_signature]` attribute argument.
+///
+/// Returns `None` for empty attributes (auto-generate mode).
+/// Returns `Some(String)` when a string literal is provided (manual override).
+/// Returns `Err` for non-string, non-empty arguments.
+fn parse_signature_attribute(attr: TokenStream) -> Result<Option<String>> {
+	if attr.is_empty() {
+		return Ok(None);
+	}
+
+	// Try to parse as a string literal
+	let lit: syn::LitStr = syn::parse2(attr).map_err(|_| {
+		Error::validation(
+			proc_macro2::Span::call_site(),
+			format!(
+				"{DOCUMENT_SIGNATURE} accepts either no arguments (auto-generate) or a string literal (manual override)"
+			),
+		)
+	})?;
+
+	let value = lit.value();
+	if value.is_empty() {
+		return Err(Error::validation(
+			proc_macro2::Span::call_site(),
+			format!("{DOCUMENT_SIGNATURE} manual override string must not be empty"),
+		));
+	}
+
+	Ok(Some(value))
+}
+
 pub fn document_signature_worker(
 	attr: TokenStream,
 	item_tokens: TokenStream,
 ) -> Result<TokenStream> {
-	// Validate that no attributes are provided
-	parse_empty_attributes(attr)?;
+	// Parse the attribute: either empty (auto-generate) or a string literal (manual override)
+	let manual_signature = parse_signature_attribute(attr)?;
 
 	// Parse the item
 	let mut item = RustAst::parse(item_tokens).map_err(Error::Parse)?;
@@ -57,20 +87,22 @@ pub fn document_signature_worker(
 	// Check for duplicate #[document_signature] attributes
 	reject_duplicate_attribute(item.attributes(), DOCUMENT_SIGNATURE)?;
 
-	// Handle functions and methods — generate HM type signature
-	let sig = item.signature().ok_or_else(|| {
-		Error::validation(
-			proc_macro2::Span::call_site(),
-			format!("{DOCUMENT_SIGNATURE} can only be used on functions and methods"),
-		)
-	})?;
+	// Generate or use the provided signature
+	let doc_comment = if let Some(sig_str) = manual_signature {
+		format!("`{sig_str}`")
+	} else {
+		// Handle functions and methods — generate HM type signature
+		let sig = item.signature().ok_or_else(|| {
+			Error::validation(
+				proc_macro2::Span::call_site(),
+				format!("{DOCUMENT_SIGNATURE} can only be used on functions and methods"),
+			)
+		})?;
 
-	// Get configuration
-	let cfg = get_config();
-
-	// Generate the Hindley-Milner signature
-	let signature = generate_signature(sig, &cfg);
-	let doc_comment = format!("`{signature}`");
+		let cfg = get_config();
+		let signature = generate_signature(sig, &cfg);
+		format!("`{signature}`")
+	};
 
 	// Insert header
 	insert_doc_comment(
@@ -693,5 +725,55 @@ mod tests {
 		};
 		let sig = generate_signature(&input.sig, &Config::default()).to_string();
 		assert_eq!(sig, "forall MarkerTrait A. A -> A");
+	}
+
+	// -- Manual override tests --
+
+	#[test]
+	fn test_manual_override_emits_string() {
+		let attr: TokenStream = quote::quote!("forall A B. (A -> B) -> A -> B");
+		let item: TokenStream = quote::quote! {
+			fn my_fn<A, B>(f: fn(A) -> B, a: A) -> B { f(a) }
+		};
+		let result = document_signature_worker(attr, item).unwrap();
+		let output = result.to_string();
+		assert!(
+			output.contains("forall A B. (A -> B) -> A -> B"),
+			"Expected manual override in output, got: {output}"
+		);
+	}
+
+	#[test]
+	fn test_no_argument_auto_generates() {
+		let attr = TokenStream::new();
+		let item: TokenStream = quote::quote! {
+			fn identity<A>(x: A) -> A { x }
+		};
+		let result = document_signature_worker(attr, item).unwrap();
+		let output = result.to_string();
+		assert!(
+			output.contains("forall A. A -> A"),
+			"Expected auto-generated signature in output, got: {output}"
+		);
+	}
+
+	#[test]
+	fn test_empty_string_rejected() {
+		let attr: TokenStream = quote::quote!("");
+		let item: TokenStream = quote::quote! {
+			fn my_fn<A>(x: A) -> A { x }
+		};
+		let result = document_signature_worker(attr, item);
+		assert!(result.is_err(), "Empty string should be rejected");
+	}
+
+	#[test]
+	fn test_non_string_argument_rejected() {
+		let attr: TokenStream = quote::quote!(42);
+		let item: TokenStream = quote::quote! {
+			fn my_fn<A>(x: A) -> A { x }
+		};
+		let result = document_signature_worker(attr, item);
+		assert!(result.is_err(), "Non-string argument should be rejected");
 	}
 }
