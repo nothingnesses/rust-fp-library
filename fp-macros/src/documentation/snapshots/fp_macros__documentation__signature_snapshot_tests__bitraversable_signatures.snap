@@ -1,0 +1,6 @@
+---
+source: fp-macros/src/documentation/signature_snapshot_tests.rs
+assertion_line: 136
+expression: output
+---
+bi_traverse: forall Brand A B C D F. (Bitraversable Brand, Applicative F) => ((A -> F C, B -> F D), Brand A B) -> F (Brand C D)

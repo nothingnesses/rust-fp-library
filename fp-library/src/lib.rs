@@ -1,6 +1,9 @@
+#![forbid(unsafe_code)]
 #![warn(missing_docs)]
 #![allow(clippy::tabs_in_doc_comments)]
 
+//! # fp-library
+//!
 //! A functional programming library for Rust featuring your favourite higher-kinded types and type classes.
 //!
 //! ## Motivation
@@ -12,46 +15,56 @@
 //! 1.  A robust encoding of HKTs in stable Rust.
 //! 2.  A comprehensive set of standard type classes (`Functor`, `Monad`, `Traversable`, etc.).
 //! 3.  Zero-cost abstractions that respect Rust's performance characteristics.
-#![doc = include_str!("../docs/features.md")]
 //!
-//! ## How it Works
-#![doc = include_str!("../docs/hkt.md")]
-#![doc = include_str!("../docs/zero-cost.md")]
-#![doc = include_str!("../docs/lazy-evaluation.md")]
-#![doc = include_str!("../docs/parallelism.md")]
+//! ## Examples
 //!
-//! ## Example: Using `Functor` with `Option`
+//! ### Using `Functor` with `Option`
+//!
+//! The brand is inferred automatically from the container type:
+//!
+//! ```
+//! use fp_library::functions::*;
+//!
+//! // Brand inferred from Option<i32>
+//! let y = map(|i: i32| i * 2, Some(5));
+//! assert_eq!(y, Some(10));
+//!
+//! // Brand inferred from &Vec<i32> (by-reference dispatch)
+//! let v = vec![1, 2, 3];
+//! let y = map(|i: &i32| *i + 10, &v);
+//! assert_eq!(y, vec![11, 12, 13]);
+//! ```
+//!
+//! For types with multiple brands (e.g., `Result`), use the `explicit` variant:
 //!
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
-//! let x = Some(5);
-//! // Map a function over the `Option` using the `Functor` type class
-//! let y = map::<OptionBrand, _, _>(|i| i * 2, x);
-//! assert_eq!(y, Some(10));
+//! let y = map::<ResultErrAppliedBrand<&str>, _, _, _, _>(|i| i * 2, Ok::<i32, &str>(5));
+//! assert_eq!(y, Ok(10));
 //! ```
 //!
-//! ## Example: Monadic Do-Notation with `m_do!`
+//! ### Monadic Do-Notation with `m_do!`
 //!
 //! The `m_do!` macro provides Haskell/PureScript-style do-notation for flat monadic code.
 //! It desugars `<-` binds into nested [`bind`](functions::bind) calls.
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
-//! use fp_macros::m_do;
+//! use fp_library::{brands::*, functions::*, m_do};
 //!
-//! let result = m_do!(OptionBrand {
+//! // Inferred mode: brand inferred from container types
+//! let result = m_do!({
 //! 	x <- Some(5);
 //! 	y <- Some(x + 1);
 //! 	let z = x * y;
-//! 	pure(z)
+//! 	Some(z)
 //! });
 //! assert_eq!(result, Some(30));
 //!
-//! // Works with any monad brand
+//! // Explicit mode: for ambiguous types or when pure() is needed
 //! let result = m_do!(VecBrand {
 //! 	x <- vec![1, 2];
 //! 	y <- vec![10, 20];
@@ -59,6 +72,16 @@
 //! });
 //! assert_eq!(result, vec![11, 21, 12, 22]);
 //! ```
+#![doc = include_str!("../docs/features.md")]
+//!
+//! ## How it Works
+#![doc = include_str!("../docs/hkt.md")]
+#![doc = include_str!("../docs/brand-inference.md")]
+#![doc = include_str!("../docs/dispatch.md")]
+#![doc = include_str!("../docs/zero-cost.md")]
+#![doc = include_str!("../docs/pointer-abstraction.md")]
+#![doc = include_str!("../docs/lazy-evaluation.md")]
+#![doc = include_str!("../docs/parallelism.md")]
 //!
 //! ## Crate Features
 //!
@@ -70,6 +93,7 @@ extern crate fp_macros;
 
 pub mod brands;
 pub mod classes;
+pub mod dispatch;
 pub mod functions;
 pub mod kinds;
 pub mod types;

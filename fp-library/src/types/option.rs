@@ -8,30 +8,8 @@ mod inner {
 		crate::{
 			Apply,
 			brands::OptionBrand,
-			classes::{
-				Alt,
-				Applicative,
-				ApplyFirst,
-				ApplySecond,
-				CloneableFn,
-				Compactable,
-				Filterable,
-				Foldable,
-				Functor,
-				Lift,
-				MonadRec,
-				Monoid,
-				Plus,
-				Pointed,
-				Semiapplicative,
-				Semimonad,
-				Traversable,
-				Witherable,
-				foldable_with_index::FoldableWithIndex,
-				functor_with_index::FunctorWithIndex,
-				traversable_with_index::TraversableWithIndex,
-				with_index::WithIndex,
-			},
+			classes::*,
+			dispatch::Ref,
 			impl_kind,
 			kinds::*,
 		},
@@ -72,7 +50,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = map::<OptionBrand, _, _>(|i| i * 2, x);
+		/// let y = explicit::map::<OptionBrand, _, _, _, _>(|i| i * 2, x);
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -113,7 +91,7 @@ mod inner {
 		///
 		/// let x = Some(1);
 		/// let y = Some(2);
-		/// let z = lift2::<OptionBrand, _, _, _>(|a, b| a + b, x, y);
+		/// let z = explicit::lift2::<OptionBrand, _, _, _, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, Some(3));
 		/// ```
 		fn lift2<'a, A, B, C>(
@@ -188,13 +166,13 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let x = Some(5);
 		/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 		/// assert_eq!(y, Some(10));
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			match (ff, fa) {
@@ -233,7 +211,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = bind::<OptionBrand, _, _>(x, |i| Some(i * 2));
+		/// let y = explicit::bind::<OptionBrand, _, _, _, _>(x, |i| Some(i * 2));
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
@@ -264,15 +242,49 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(alt::<OptionBrand, _>(None, Some(5)), Some(5));
-		/// assert_eq!(alt::<OptionBrand, _>(Some(3), Some(5)), Some(3));
-		/// assert_eq!(alt::<OptionBrand, _>(None::<i32>, None), None);
+		/// assert_eq!(explicit::alt::<OptionBrand, _, _, _>(None, Some(5)), Some(5));
+		/// assert_eq!(explicit::alt::<OptionBrand, _, _, _>(Some(3), Some(5)), Some(3));
+		/// assert_eq!(explicit::alt::<OptionBrand, _, _, _>(None::<i32>, None), None);
 		/// ```
 		fn alt<'a, A: 'a>(
 			fa1: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fa2: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			fa1.or(fa2)
+		}
+	}
+
+	impl RefAlt for OptionBrand {
+		/// Chooses between two options by reference.
+		///
+		/// Returns the first `Some` value (cloned), or `None` if both are `None`.
+		/// This is the by-reference counterpart of [`Alt::alt`] for `Option`,
+		/// borrowing both arguments and cloning the inner value as needed.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the values.", "The type of the value.")]
+		///
+		#[document_parameters("The first option.", "The second option.")]
+		///
+		#[document_returns("The first `Some` value (cloned), or `None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(explicit::alt::<OptionBrand, _, _, _>(&None, &Some(5)), Some(5));
+		/// assert_eq!(explicit::alt::<OptionBrand, _, _, _>(&Some(3), &Some(5)), Some(3));
+		/// assert_eq!(explicit::alt::<OptionBrand, _, _, _>(&None::<i32>, &None), None);
+		/// ```
+		fn ref_alt<'a, A: 'a + Clone>(
+			fa1: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa2: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			fa1.as_ref().or(fa2.as_ref()).cloned()
 		}
 	}
 
@@ -325,7 +337,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_right::<RcFnBrand, OptionBrand, _, _>(|a, b| a + b, 10, x);
+		/// let y = explicit::fold_right::<RcFnBrand, OptionBrand, _, _, _, _>(|a, b| a + b, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -334,7 +346,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa {
 				Some(a) => func(a, initial),
 				None => initial,
@@ -369,7 +381,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_left::<RcFnBrand, OptionBrand, _, _>(|b, a| b + a, 10, x);
+		/// let y = explicit::fold_left::<RcFnBrand, OptionBrand, _, _, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -378,7 +390,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa {
 				Some(a) => func(initial, a),
 				None => initial,
@@ -410,7 +422,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_map::<RcFnBrand, OptionBrand, _, _>(|a: i32| a.to_string(), x);
+		/// let y = explicit::fold_map::<RcFnBrand, OptionBrand, _, _, _, _>(|a: i32| a.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -419,7 +431,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa {
 				Some(a) => func(a),
 				None => M::empty(),
@@ -450,12 +462,13 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::OptionBrand,
+		/// 	brands::*,
 		/// 	functions::*,
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = traverse::<OptionBrand, _, _, OptionBrand>(|a| Some(a * 2), x);
+		/// let y =
+		/// 	explicit::traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some(Some(10)));
 		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
@@ -557,6 +570,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters(
 			"The lifetime of the value.",
+			"The brand of the cloneable function to use.",
 			"The type of the value inside the option.",
 			"The monoid type."
 		)]
@@ -569,18 +583,23 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::OptionBrand,
+		/// 	brands::*,
 		/// 	classes::foldable_with_index::FoldableWithIndex,
 		/// 	functions::*,
 		/// };
 		/// let x = Some(5);
-		/// let y = <OptionBrand as FoldableWithIndex>::fold_map_with_index(|_, i: i32| i.to_string(), x);
+		/// let y = <OptionBrand as FoldableWithIndex>::fold_map_with_index::<RcFnBrand, _, _>(
+		/// 	|_, i: i32| i.to_string(),
+		/// 	x,
+		/// );
 		/// assert_eq!(y, "5".to_string());
 		/// ```
-		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
+		fn fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
 			f: impl Fn((), A) -> R + 'a,
 			fa: Option<A>,
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			match fa {
 				Some(a) => f((), a),
 				None => R::empty(),
@@ -649,7 +668,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(Some(5));
-		/// let y = compact::<OptionBrand, _>(x);
+		/// let y = explicit::compact::<OptionBrand, _, _, _>(x);
 		/// assert_eq!(y, Some(5));
 		/// ```
 		fn compact<'a, A: 'a>(
@@ -685,7 +704,7 @@ mod inner {
 		/// };
 		///
 		/// let x: Option<Result<i32, &str>> = Some(Ok(5));
-		/// let (errs, oks) = separate::<OptionBrand, _, _>(x);
+		/// let (errs, oks) = explicit::separate::<OptionBrand, _, _, _, _>(x);
 		/// assert_eq!(oks, Some(5));
 		/// assert_eq!(errs, None);
 		/// ```
@@ -698,6 +717,98 @@ mod inner {
 			match fa {
 				Some(Ok(o)) => (None, Some(o)),
 				Some(Err(e)) => (Some(e), None),
+				None => (None, None),
+			}
+		}
+	}
+
+	impl RefCompactable for OptionBrand {
+		/// Compacts a borrowed nested option by reference.
+		///
+		/// Flattens a borrowed `Option<Option<A>>` into an `Option<A>`,
+		/// cloning the inner value if present.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the elements. Must be [`Clone`] because elements are extracted from a borrowed container."
+		)]
+		///
+		#[document_parameters("A reference to the nested option.")]
+		///
+		#[document_returns("The flattened option with the inner value cloned, or [`None`].")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(Some(5));
+		/// let y = explicit::compact::<OptionBrand, _, _, _>(&x);
+		/// assert_eq!(y, Some(5));
+		///
+		/// let z: Option<Option<i32>> = Some(None);
+		/// let w = explicit::compact::<OptionBrand, _, _, _>(&z);
+		/// assert_eq!(w, None);
+		/// ```
+		fn ref_compact<'a, A: 'a + Clone>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<A>>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			match fa {
+				Some(Some(a)) => Some(a.clone()),
+				_ => None,
+			}
+		}
+
+		/// Separates a borrowed option of result by reference.
+		///
+		/// Splits a borrowed `Option<Result<O, E>>` into a pair of options,
+		/// cloning the inner value. The first element contains the error if
+		/// present, the second contains the success value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the error value. Must be [`Clone`] because elements are extracted from a borrowed container.",
+			"The type of the success value. Must be [`Clone`] because elements are extracted from a borrowed container."
+		)]
+		///
+		#[document_parameters("A reference to the option of result.")]
+		///
+		#[document_returns(
+			"A pair of options: the first containing the cloned error, the second containing the cloned success value."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x: Option<Result<i32, &str>> = Some(Ok(5));
+		/// let (errs, oks) = explicit::separate::<OptionBrand, _, _, _, _>(&x);
+		/// assert_eq!(oks, Some(5));
+		/// assert_eq!(errs, None);
+		///
+		/// let y: Option<Result<i32, &str>> = Some(Err("bad"));
+		/// let (errs, oks) = explicit::separate::<OptionBrand, _, _, _, _>(&y);
+		/// assert_eq!(oks, None);
+		/// assert_eq!(errs, Some("bad"));
+		/// ```
+		fn ref_separate<'a, E: 'a + Clone, O: 'a + Clone>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
+		) -> (
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		) {
+			match fa {
+				Some(Ok(o)) => (None, Some(o.clone())),
+				Some(Err(e)) => (Some(e.clone()), None),
 				None => (None, None),
 			}
 		}
@@ -729,8 +840,10 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let (errs, oks) =
-		/// 	partition_map::<OptionBrand, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+		/// let (errs, oks) = explicit::partition_map::<OptionBrand, _, _, _, _, _>(
+		/// 	|a| if a > 2 { Ok(a) } else { Err(a) },
+		/// 	x,
+		/// );
 		/// assert_eq!(oks, Some(5));
 		/// assert_eq!(errs, None);
 		/// ```
@@ -770,7 +883,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let (not_satisfied, satisfied) = partition::<OptionBrand, _>(|a| a > 2, x);
+		/// let (not_satisfied, satisfied) = explicit::partition::<OptionBrand, _, _, _>(|a| a > 2, x);
 		/// assert_eq!(satisfied, Some(5));
 		/// assert_eq!(not_satisfied, None);
 		/// ```
@@ -816,7 +929,10 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = filter_map::<OptionBrand, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
+		/// let y = explicit::filter_map::<OptionBrand, _, _, _, _>(
+		/// 	|a| if a > 2 { Some(a * 2) } else { None },
+		/// 	x,
+		/// );
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn filter_map<'a, A: 'a, B: 'a>(
@@ -846,7 +962,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = filter::<OptionBrand, _>(|a| a > 2, x);
+		/// let y = explicit::filter::<OptionBrand, _, _, _>(|a| a > 2, x);
 		/// assert_eq!(y, Some(5));
 		/// ```
 		fn filter<'a, A: 'a + Clone>(
@@ -886,8 +1002,10 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y =
-		/// 	wilt::<OptionBrand, OptionBrand, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
+		/// let y = explicit::wilt::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _, _>(
+		/// 	|a| Some(if a > 2 { Ok(a) } else { Err(a) }),
+		/// 	x,
+		/// );
 		/// assert_eq!(y, Some((None, Some(5))));
 		/// ```
 		fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone>(
@@ -943,7 +1061,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = wither::<OptionBrand, OptionBrand, _, _>(
+		/// let y = explicit::wither::<RcFnBrand, OptionBrand, OptionBrand, _, _, _, _>(
 		/// 	|a| Some(if a > 2 { Some(a * 2) } else { None }),
 		/// 	x,
 		/// );
@@ -1025,6 +1143,367 @@ mod inner {
 			}
 		}
 	}
+
+	// -- By-reference trait implementations --
+
+	impl RefFunctor for OptionBrand {
+		/// Maps a function over the option by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function.", "The option.")]
+		#[document_returns("The mapped option.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// assert_eq!(explicit::map::<OptionBrand, _, _, _, _>(|x: &i32| *x * 2, &Some(5)), Some(10));
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.as_ref().map(func)
+		}
+	}
+
+	impl RefFoldable for OptionBrand {
+		/// Folds the option by reference.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The element type.",
+			"The monoid type."
+		)]
+		#[document_parameters("The mapping function.", "The option.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result =
+		/// 	explicit::fold_map::<RcFnBrand, OptionBrand, _, _, _, _>(|x: &i32| x.to_string(), &Some(5));
+		/// assert_eq!(result, "5");
+		/// ```
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			match fa {
+				Some(a) => func(a),
+				None => Monoid::empty(),
+			}
+		}
+	}
+
+	impl RefFilterable for OptionBrand {
+		/// Filters and maps the option by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function.", "The option.")]
+		#[document_returns("The filtered option.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result = explicit::filter_map::<OptionBrand, _, _, _, _>(
+		/// 	|x: &i32| if *x > 3 { Some(*x) } else { None },
+		/// 	&Some(5),
+		/// );
+		/// assert_eq!(result, Some(5));
+		/// ```
+		fn ref_filter_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> Option<B> + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.as_ref().and_then(func)
+		}
+	}
+
+	impl RefTraversable for OptionBrand {
+		/// Traverses the option by reference.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The input type.",
+			"The output type.",
+			"The applicative."
+		)]
+		#[document_parameters("The function.", "The option.")]
+		#[document_returns("The traversed result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result: Vec<Option<String>> = ref_traverse::<OptionBrand, RcFnBrand, _, _, VecBrand>(
+		/// 	|x: &i32| vec![x.to_string()],
+		/// 	&Some(5),
+		/// );
+		/// assert_eq!(result, vec![Some("5".to_string())]);
+		/// ```
+		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			match ta {
+				Some(a) => F::map(|b| Some(b), func(a)),
+				None => F::pure(None),
+			}
+		}
+	}
+
+	impl RefWitherable for OptionBrand {}
+
+	impl RefFunctorWithIndex for OptionBrand {
+		/// Maps by reference with index (always `()`).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function.", "The option.")]
+		#[document_returns("The mapped option.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// assert_eq!(
+		/// 	explicit::map_with_index::<OptionBrand, _, _, _, _>(|(), x: &i32| *x * 2, &Some(5)),
+		/// 	Some(10),
+		/// );
+		/// ```
+		fn ref_map_with_index<'a, A: 'a, B: 'a>(
+			func: impl Fn((), &A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.as_ref().map(|a| func((), a))
+		}
+	}
+
+	impl RefFoldableWithIndex for OptionBrand {
+		/// Folds by reference with index (always `()`).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand of the cloneable function.",
+			"The element type.",
+			"The monoid type."
+		)]
+		#[document_parameters("The function.", "The option.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result = explicit::fold_map_with_index::<RcFnBrand, OptionBrand, _, _, _, _>(
+		/// 	|(), x: &i32| x.to_string(),
+		/// 	&Some(5),
+		/// );
+		/// assert_eq!(result, "5");
+		/// ```
+		fn ref_fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
+			func: impl Fn((), &A) -> R + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
+			match fa {
+				Some(a) => func((), a),
+				None => Monoid::empty(),
+			}
+		}
+	}
+
+	impl RefTraversableWithIndex for OptionBrand {
+		/// Traverses by reference with index (always `()`).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The input type.",
+			"The output type.",
+			"The applicative."
+		)]
+		#[document_parameters("The function.", "The option.")]
+		#[document_returns("The traversed result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result: Vec<Option<String>> =
+		/// 	explicit::traverse_with_index::<RcFnBrand, OptionBrand, _, _, VecBrand, _, _>(
+		/// 		|(), x: &i32| vec![x.to_string()],
+		/// 		&Some(5),
+		/// 	);
+		/// assert_eq!(result, vec![Some("5".to_string())]);
+		/// ```
+		fn ref_traverse_with_index<'a, A: 'a + Clone, B: 'a + Clone, M: Applicative>(
+			f: impl Fn((), &A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			match ta {
+				Some(a) => M::map(|b| Some(b), f((), a)),
+				None => M::pure(None),
+			}
+		}
+	}
+
+	// -- By-reference monadic trait implementations --
+
+	impl RefPointed for OptionBrand {
+		/// Creates a `Some` from a reference by cloning.
+		#[document_signature]
+		#[document_type_parameters("The lifetime of the value.", "The type of the value.")]
+		#[document_parameters("The reference to the value to wrap.")]
+		#[document_returns("A `Some` containing a clone of the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = 42;
+		/// let result: Option<i32> = ref_pure::<OptionBrand, _>(&x);
+		/// assert_eq!(result, Some(42));
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			Some(a.clone())
+		}
+	}
+
+	impl RefLift for OptionBrand {
+		/// Combines two `Option` values with a by-reference binary function.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"First input type.",
+			"Second input type.",
+			"Output type."
+		)]
+		#[document_parameters("The binary function.", "The first option.", "The second option.")]
+		#[document_returns("The combined result, or `None` if either input is `None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result = explicit::lift2::<OptionBrand, _, _, _, _, _, _>(
+		/// 	|a: &i32, b: &i32| *a + *b,
+		/// 	&Some(1),
+		/// 	&Some(2),
+		/// );
+		/// assert_eq!(result, Some(3));
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			match (fa.as_ref(), fb.as_ref()) {
+				(Some(a), Some(b)) => Some(func(a, b)),
+				_ => None,
+			}
+		}
+	}
+
+	impl RefSemiapplicative for OptionBrand {
+		/// Applies a wrapped by-ref function to an `Option` value.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The function brand.",
+			"The input type.",
+			"The output type."
+		)]
+		#[document_parameters(
+			"The option containing the by-ref function.",
+			"The option containing the value."
+		)]
+		#[document_returns("The result of applying the function, or `None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x + 1);
+		/// let result = ref_apply::<RcFnBrand, OptionBrand, _, _>(&Some(f), &Some(5));
+		/// assert_eq!(result, Some(6));
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match (ff, fa.as_ref()) {
+				(Some(f), Some(a)) => Some((**f)(a)),
+				_ => None,
+			}
+		}
+	}
+
+	impl RefSemimonad for OptionBrand {
+		/// Chains `Option` computations by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The input option.", "The function to apply by reference.")]
+		#[document_returns("The result of applying the function, or `None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result: Option<String> =
+		/// 	explicit::bind::<OptionBrand, _, _, _, _>(&Some(42), |x: &i32| Some(x.to_string()));
+		/// assert_eq!(result, Some("42".to_string()));
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.as_ref().and_then(f)
+		}
+	}
 }
 
 #[cfg(test)]
@@ -1033,7 +1512,7 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::CloneableFn,
+			classes::*,
 			functions::*,
 		},
 		quickcheck_macros::quickcheck,
@@ -1044,7 +1523,7 @@ mod tests {
 	/// Tests the identity law for Functor.
 	#[quickcheck]
 	fn functor_identity(x: Option<i32>) -> bool {
-		map::<OptionBrand, _, _>(identity, x) == x
+		explicit::map::<OptionBrand, _, _, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -1052,8 +1531,11 @@ mod tests {
 	fn functor_composition(x: Option<i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<OptionBrand, _, _>(compose(f, g), x)
-			== map::<OptionBrand, _, _>(f, map::<OptionBrand, _, _>(g, x))
+		explicit::map::<OptionBrand, _, _, _, _>(compose(f, g), x)
+			== explicit::map::<OptionBrand, _, _, _, _>(
+				f,
+				explicit::map::<OptionBrand, _, _, _, _>(g, x),
+			)
 	}
 
 	// Applicative Laws
@@ -1062,7 +1544,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_identity(v: Option<i32>) -> bool {
 		apply::<RcFnBrand, OptionBrand, _, _>(
-			pure::<OptionBrand, _>(<RcFnBrand as CloneableFn>::new(identity)),
+			pure::<OptionBrand, _>(<RcFnBrand as LiftFn>::new(identity)),
 			v,
 		) == v
 	}
@@ -1072,7 +1554,7 @@ mod tests {
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
 		apply::<RcFnBrand, OptionBrand, _, _>(
-			pure::<OptionBrand, _>(<RcFnBrand as CloneableFn>::new(f)),
+			pure::<OptionBrand, _>(<RcFnBrand as LiftFn>::new(f)),
 			pure::<OptionBrand, _>(x),
 		) == pure::<OptionBrand, _>(f(x))
 	}
@@ -1087,16 +1569,10 @@ mod tests {
 		let v_fn = |x: i32| x.wrapping_mul(2);
 		let u_fn = |x: i32| x.wrapping_add(1);
 
-		let v = if v_is_some {
-			pure::<OptionBrand, _>(<RcFnBrand as CloneableFn>::new(v_fn))
-		} else {
-			None
-		};
-		let u = if u_is_some {
-			pure::<OptionBrand, _>(<RcFnBrand as CloneableFn>::new(u_fn))
-		} else {
-			None
-		};
+		let v =
+			if v_is_some { pure::<OptionBrand, _>(<RcFnBrand as LiftFn>::new(v_fn)) } else { None };
+		let u =
+			if u_is_some { pure::<OptionBrand, _>(<RcFnBrand as LiftFn>::new(u_fn)) } else { None };
 
 		// RHS: u <*> (v <*> w)
 		let vw = apply::<RcFnBrand, OptionBrand, _, _>(v.clone(), w);
@@ -1107,7 +1583,7 @@ mod tests {
 		let uv = match (u, v) {
 			(Some(uf), Some(vf)) => {
 				let composed = move |x| uf(vf(x));
-				Some(<RcFnBrand as CloneableFn>::new(composed))
+				Some(<RcFnBrand as LiftFn>::new(composed))
 			}
 			_ => None,
 		};
@@ -1122,12 +1598,11 @@ mod tests {
 	fn applicative_interchange(y: i32) -> bool {
 		// u <*> pure y = pure ($ y) <*> u
 		let f = |x: i32| x.wrapping_mul(2);
-		let u = pure::<OptionBrand, _>(<RcFnBrand as CloneableFn>::new(f));
+		let u = pure::<OptionBrand, _>(<RcFnBrand as LiftFn>::new(f));
 
 		let lhs = apply::<RcFnBrand, OptionBrand, _, _>(u.clone(), pure::<OptionBrand, _>(y));
 
-		let rhs_fn =
-			<RcFnBrand as CloneableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
+		let rhs_fn = <RcFnBrand as LiftFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
 		let rhs = apply::<RcFnBrand, OptionBrand, _, _>(pure::<OptionBrand, _>(rhs_fn), u);
 
 		lhs == rhs
@@ -1139,13 +1614,13 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| Some(x.wrapping_mul(2));
-		bind::<OptionBrand, _, _>(pure::<OptionBrand, _>(a), f) == f(a)
+		explicit::bind::<OptionBrand, _, _, _, _>(pure::<OptionBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: Option<i32>) -> bool {
-		bind::<OptionBrand, _, _>(m, pure::<OptionBrand, _>) == m
+		explicit::bind::<OptionBrand, _, _, _, _>(m, pure::<OptionBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -1153,8 +1628,12 @@ mod tests {
 	fn monad_associativity(m: Option<i32>) -> bool {
 		let f = |x: i32| Some(x.wrapping_mul(2));
 		let g = |x: i32| Some(x.wrapping_add(1));
-		bind::<OptionBrand, _, _>(bind::<OptionBrand, _, _>(m, f), g)
-			== bind::<OptionBrand, _, _>(m, |x| bind::<OptionBrand, _, _>(f(x), g))
+		explicit::bind::<OptionBrand, _, _, _, _>(
+			explicit::bind::<OptionBrand, _, _, _, _>(m, f),
+			g,
+		) == explicit::bind::<OptionBrand, _, _, _, _>(m, |x| {
+			explicit::bind::<OptionBrand, _, _, _, _>(f(x), g)
+		})
 	}
 
 	// Edge Cases
@@ -1162,26 +1641,26 @@ mod tests {
 	/// Tests `map` on `None`.
 	#[test]
 	fn map_none() {
-		assert_eq!(map::<OptionBrand, _, _>(|x: i32| x + 1, None), None);
+		assert_eq!(explicit::map::<OptionBrand, _, _, _, _>(|x: i32| x + 1, None), None);
 	}
 
 	/// Tests `bind` on `None`.
 	#[test]
 	fn bind_none() {
-		assert_eq!(bind::<OptionBrand, _, _>(None, |x: i32| Some(x + 1)), None);
+		assert_eq!(explicit::bind::<OptionBrand, _, _, _, _>(None, |x: i32| Some(x + 1)), None);
 	}
 
 	/// Tests `bind` returning `None`.
 	#[test]
 	fn bind_returning_none() {
-		assert_eq!(bind::<OptionBrand, _, _>(Some(5), |_| None::<i32>), None);
+		assert_eq!(explicit::bind::<OptionBrand, _, _, _, _>(Some(5), |_| None::<i32>), None);
 	}
 
 	/// Tests `fold_right` on `None`.
 	#[test]
 	fn fold_right_none() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<RcFnBrand, OptionBrand, _, _>(
+			crate::functions::explicit::fold_right::<RcFnBrand, OptionBrand, _, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				None
@@ -1194,7 +1673,7 @@ mod tests {
 	#[test]
 	fn fold_left_none() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<RcFnBrand, OptionBrand, _, _>(
+			crate::functions::explicit::fold_left::<RcFnBrand, OptionBrand, _, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				None
@@ -1295,5 +1774,157 @@ mod tests {
 			0i64,
 		);
 		assert_eq!(result, Some(iterations));
+	}
+
+	// RefFunctor Laws
+
+	/// Tests the identity law for RefFunctor: `ref_map(|x| *x, opt) == opt`.
+	#[quickcheck]
+	fn ref_functor_identity(opt: Option<i32>) -> bool {
+		use crate::classes::ref_functor::RefFunctor;
+		OptionBrand::ref_map(|x: &i32| *x, &opt) == opt
+	}
+
+	/// Tests the composition law for RefFunctor.
+	#[quickcheck]
+	fn ref_functor_composition(opt: Option<i32>) -> bool {
+		use crate::classes::ref_functor::RefFunctor;
+		let f = |x: &i32| x.wrapping_add(1);
+		let g = |x: &i32| x.wrapping_mul(2);
+		OptionBrand::ref_map(|x: &i32| f(&g(x)), &opt)
+			== OptionBrand::ref_map(f, &OptionBrand::ref_map(g, &opt))
+	}
+
+	// RefSemimonad Laws
+
+	/// Tests the left identity law for RefSemimonad: `ref_bind(Some(x), |a| Some(*a)) == Some(x)`.
+	#[quickcheck]
+	fn ref_semimonad_left_identity(x: i32) -> bool {
+		use crate::classes::ref_semimonad::RefSemimonad;
+		OptionBrand::ref_bind(&Some(x), |a: &i32| Some(*a)) == Some(x)
+	}
+
+	// RefFoldable Laws
+
+	/// Tests RefFoldable fold_map on Option with Additive monoid.
+	#[quickcheck]
+	fn ref_foldable_fold_map(opt: Option<i32>) -> bool {
+		use crate::{
+			classes::ref_foldable::RefFoldable,
+			types::Additive,
+		};
+		let result = OptionBrand::ref_fold_map::<RcFnBrand, _, _>(|x: &i32| Additive(*x), &opt);
+		let expected = match opt {
+			Some(v) => Additive(v),
+			None => Additive(0),
+		};
+		result == expected
+	}
+
+	// RefSemimonad Laws (continued)
+
+	/// Tests the right identity law for RefSemimonad:
+	/// `ref_bind(m, |a| ref_pure(a)) == m`.
+	#[quickcheck]
+	fn ref_semimonad_right_identity(opt: Option<i32>) -> bool {
+		use crate::classes::{
+			ref_pointed::RefPointed,
+			ref_semimonad::RefSemimonad,
+		};
+		OptionBrand::ref_bind(&opt, |a: &i32| OptionBrand::ref_pure(a)) == opt
+	}
+
+	/// Tests the associativity law for RefSemimonad.
+	#[quickcheck]
+	fn ref_semimonad_associativity(opt: Option<i32>) -> bool {
+		use crate::classes::ref_semimonad::RefSemimonad;
+		let f = |a: &i32| if *a > 0 { Some(a.wrapping_mul(2)) } else { None };
+		let g = |b: &i32| Some(b.wrapping_add(10));
+		let lhs = OptionBrand::ref_bind(&OptionBrand::ref_bind(&opt, f), g);
+		let rhs = OptionBrand::ref_bind(&opt, |a: &i32| OptionBrand::ref_bind(&f(a), g));
+		lhs == rhs
+	}
+
+	// RefLift Laws
+
+	/// Tests the identity law for RefLift:
+	/// `ref_lift2(|_, b| *b, pure(unit), fa) == fa`.
+	#[quickcheck]
+	fn ref_lift_identity(opt: Option<i32>) -> bool {
+		use crate::classes::ref_lift::RefLift;
+		OptionBrand::ref_lift2(|_: &(), b: &i32| *b, &Some(()), &opt) == opt
+	}
+
+	/// Tests commutativity of ref_lift2 (for Option specifically):
+	/// `ref_lift2(f, a, b) == ref_lift2(|b, a| f(a, b), b, a)`.
+	#[quickcheck]
+	fn ref_lift2_commutativity(
+		a: Option<i32>,
+		b: Option<i32>,
+	) -> bool {
+		use crate::classes::ref_lift::RefLift;
+		let lhs = OptionBrand::ref_lift2(|x: &i32, y: &i32| x.wrapping_add(*y), &a, &b);
+		let rhs = OptionBrand::ref_lift2(|y: &i32, x: &i32| x.wrapping_add(*y), &b, &a);
+		lhs == rhs
+	}
+
+	// RefTraversable Laws
+
+	/// Tests the identity law for RefTraversable:
+	/// `ref_traverse(|a| Identity(*a), ta) == Identity(ta)`.
+	#[quickcheck]
+	fn ref_traversable_identity(opt: Option<i32>) -> bool {
+		use crate::{
+			classes::ref_traversable::RefTraversable,
+			types::Identity,
+		};
+		let result: Identity<Option<i32>> =
+			OptionBrand::ref_traverse::<RcFnBrand, _, _, IdentityBrand>(
+				|a: &i32| Identity(*a),
+				&opt,
+			);
+		result == Identity(opt)
+	}
+
+	/// Tests RefTraversable naturality: ref_traverse(f, ta) produces
+	/// the same result as traverse(|a| f(&a), ta).
+	#[quickcheck]
+	fn ref_traversable_consistent_with_traverse(opt: Option<i32>) -> bool {
+		use crate::classes::{
+			ref_traversable::RefTraversable,
+			traversable::Traversable,
+		};
+		let ref_result: Option<Option<String>> =
+			OptionBrand::ref_traverse::<RcFnBrand, _, _, OptionBrand>(
+				|a: &i32| Some(a.to_string()),
+				&opt,
+			);
+		let val_result: Option<Option<String>> =
+			OptionBrand::traverse::<i32, String, OptionBrand>(|a: i32| Some(a.to_string()), opt);
+		ref_result == val_result
+	}
+
+	// RefCompactable Laws
+
+	/// RefCompactable identity: ref_compact(ref_map(Some, &fa)) == fa.clone()
+	#[quickcheck]
+	fn ref_compactable_identity(x: Option<i32>) -> bool {
+		use crate::classes::ref_compactable::ref_compact;
+		let mapped: Option<Option<i32>> = x.as_ref().map(|a| Some(*a));
+		ref_compact::<OptionBrand, _>(&mapped) == x
+	}
+
+	// RefAlt Laws
+
+	/// RefAlt associativity
+	#[quickcheck]
+	fn ref_alt_associativity(
+		x: Option<i32>,
+		y: Option<i32>,
+		z: Option<i32>,
+	) -> bool {
+		use crate::classes::ref_alt::ref_alt;
+		ref_alt::<OptionBrand, _>(&ref_alt::<OptionBrand, _>(&x, &y), &z)
+			== ref_alt::<OptionBrand, _>(&x, &ref_alt::<OptionBrand, _>(&y, &z))
 	}
 }

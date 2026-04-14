@@ -7,11 +7,7 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			classes::{
-				Category,
-				Monoid,
-				Semigroup,
-			},
+			classes::*,
 			kinds::*,
 		},
 		fp_macros::*,
@@ -77,7 +73,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f = Endomorphism::<RcFnBrand, _>::new(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(f.0(5), 10);
 		/// ```
 		pub fn new(
@@ -107,7 +103,7 @@ mod inner {
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
-		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f = Endomorphism::<RcFnBrand, _>::new(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let cloned = f.clone();
 		/// assert_eq!(cloned.0(5), 10);
 		/// ```
@@ -137,7 +133,7 @@ mod inner {
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
-		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f = Endomorphism::<RcFnBrand, _>::new(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// // Debug formatting is available when the inner function type implements Debug.
 		/// // Verify the endomorphism applies correctly:
 		/// assert_eq!(f.0(5), 10);
@@ -181,7 +177,7 @@ mod inner {
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
-		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f = Endomorphism::<RcFnBrand, _>::new(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// // Hash is available when the inner function type implements Hash.
 		/// // Verify the endomorphism applies correctly:
 		/// assert_eq!(f.0(5), 10);
@@ -215,8 +211,8 @@ mod inner {
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
-		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f = Endomorphism::<RcFnBrand, _>::new(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let g = Endomorphism::<RcFnBrand, _>::new(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// // Ord is available when the inner function type implements Ord.
 		/// // Both produce the same output for the same input:
 		/// assert_eq!(f.0(5), g.0(5));
@@ -250,8 +246,8 @@ mod inner {
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
-		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f = Endomorphism::<RcFnBrand, _>::new(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let g = Endomorphism::<RcFnBrand, _>::new(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// // PartialEq is available when the inner function type implements PartialEq.
 		/// // Both produce the same output for the same input:
 		/// assert_eq!(f.0(5), g.0(5));
@@ -285,8 +281,8 @@ mod inner {
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
-		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f = Endomorphism::<RcFnBrand, _>::new(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let g = Endomorphism::<RcFnBrand, _>::new(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// // PartialOrd is available when the inner function type implements PartialOrd.
 		/// // Both produce the same output for the same input:
 		/// assert_eq!(f.0(5), g.0(5));
@@ -327,8 +323,8 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
+		/// let f = Endomorphism::<RcFnBrand, _>::new(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let g = Endomorphism::<RcFnBrand, _>::new(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
 		///
 		/// // f(g(x)) = (x + 1) * 2
 		/// let h = append::<_>(f, g);
@@ -380,11 +376,8 @@ mod tests {
 		super::*,
 		crate::{
 			brands::RcFnBrand,
-			classes::{
-				cloneable_fn::CloneableFn,
-				monoid::empty,
-				semigroup::append,
-			},
+			classes::*,
+			functions::*,
 		},
 		quickcheck_macros::quickcheck,
 	};
@@ -394,13 +387,13 @@ mod tests {
 	/// Tests the associativity law for Semigroup.
 	#[quickcheck]
 	fn semigroup_associativity(val: i32) -> bool {
-		let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as CloneableFn>::new(|x: i32| {
+		let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as LiftFn>::new(|x: i32| {
 			x.wrapping_add(1)
 		}));
-		let g = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as CloneableFn>::new(|x: i32| {
+		let g = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as LiftFn>::new(|x: i32| {
 			x.wrapping_mul(2)
 		}));
-		let h = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as CloneableFn>::new(|x: i32| {
+		let h = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as LiftFn>::new(|x: i32| {
 			x.wrapping_sub(3)
 		}));
 
@@ -415,7 +408,7 @@ mod tests {
 	/// Tests the left identity law for Monoid.
 	#[quickcheck]
 	fn monoid_left_identity(val: i32) -> bool {
-		let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as CloneableFn>::new(|x: i32| {
+		let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as LiftFn>::new(|x: i32| {
 			x.wrapping_add(1)
 		}));
 		let id = empty::<Endomorphism<RcFnBrand, i32>>();
@@ -427,7 +420,7 @@ mod tests {
 	/// Tests the right identity law for Monoid.
 	#[quickcheck]
 	fn monoid_right_identity(val: i32) -> bool {
-		let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as CloneableFn>::new(|x: i32| {
+		let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as LiftFn>::new(|x: i32| {
 			x.wrapping_add(1)
 		}));
 		let id = empty::<Endomorphism<RcFnBrand, i32>>();

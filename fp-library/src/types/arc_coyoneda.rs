@@ -59,15 +59,9 @@ mod inner {
 		crate::{
 			brands::ArcCoyonedaBrand,
 			classes::{
-				CloneableFn,
-				Foldable,
-				Functor,
 				Lift,
-				Monoid,
 				NaturalTransformation,
-				Pointed,
-				Semiapplicative,
-				Semimonad,
+				*,
 			},
 			impl_kind,
 			kinds::*,
@@ -104,7 +98,7 @@ mod inner {
 		/// let coyo = ArcCoyoneda::<OptionBrand, _>::lift(Some(42));
 		/// assert_eq!(coyo.lower_ref(), Some(42));
 		/// ```
-		fn lower_ref(&self) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
+		fn lower_ref(&self) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		where
 			F: Functor;
 	}
@@ -116,7 +110,7 @@ mod inner {
 	struct ArcCoyonedaBase<'a, F, A: 'a>
 	where
 		F: Kind_cdc7cd43dac7585f<Of<'a, A>: Send + Sync> + 'a, {
-		fa: <F as Kind_cdc7cd43dac7585f>::Of<'a, A>,
+		fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	}
 
 	#[document_type_parameters(
@@ -128,7 +122,7 @@ mod inner {
 	impl<'a, F, A: 'a> ArcCoyonedaLowerRef<'a, F, A> for ArcCoyonedaBase<'a, F, A>
 	where
 		F: Kind_cdc7cd43dac7585f + 'a,
-		<F as Kind_cdc7cd43dac7585f>::Of<'a, A>: Clone + Send + Sync,
+		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone + Send + Sync,
 	{
 		/// Returns the wrapped value by cloning.
 		#[document_signature]
@@ -145,7 +139,7 @@ mod inner {
 		/// let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
 		/// assert_eq!(coyo.lower_ref(), vec![1, 2, 3]);
 		/// ```
-		fn lower_ref(&self) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
+		fn lower_ref(&self) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		where
 			F: Functor, {
 			self.fa.clone()
@@ -194,7 +188,7 @@ mod inner {
 		/// let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x + 1);
 		/// assert_eq!(coyo.lower_ref(), vec![2, 3, 4]);
 		/// ```
-		fn lower_ref(&self) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
+		fn lower_ref(&self) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		where
 			F: Functor, {
 			#[cfg(feature = "stacker")]
@@ -222,7 +216,7 @@ mod inner {
 	struct ArcCoyonedaNewLayer<'a, F, B: 'a, A: 'a>
 	where
 		F: Kind_cdc7cd43dac7585f<Of<'a, B>: Send + Sync> + 'a, {
-		fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
+		fb: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		func: Arc<dyn Fn(B) -> A + Send + Sync + 'a>,
 	}
 
@@ -236,7 +230,7 @@ mod inner {
 	impl<'a, F, B: 'a, A: 'a> ArcCoyonedaLowerRef<'a, F, A> for ArcCoyonedaNewLayer<'a, F, B, A>
 	where
 		F: Kind_cdc7cd43dac7585f + 'a,
-		<F as Kind_cdc7cd43dac7585f>::Of<'a, B>: Clone + Send + Sync,
+		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone + Send + Sync,
 	{
 		/// Applies the stored function to the stored functor value via `F::map`.
 		#[document_signature]
@@ -253,7 +247,7 @@ mod inner {
 		/// let coyo = ArcCoyoneda::<VecBrand, _>::new(|x: i32| x * 2, vec![1, 2, 3]);
 		/// assert_eq!(coyo.lower_ref(), vec![2, 4, 6]);
 		/// ```
-		fn lower_ref(&self) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
+		fn lower_ref(&self) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		where
 			F: Functor, {
 			let func = self.func.clone();
@@ -341,9 +335,9 @@ mod inner {
 		/// let coyo = ArcCoyoneda::<OptionBrand, _>::lift(Some(42));
 		/// assert_eq!(coyo.lower_ref(), Some(42));
 		/// ```
-		pub fn lift(fa: <F as Kind_cdc7cd43dac7585f>::Of<'a, A>) -> Self
+		pub fn lift(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> Self
 		where
-			<F as Kind_cdc7cd43dac7585f>::Of<'a, A>: Clone + Send + Sync, {
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone + Send + Sync, {
 			ArcCoyoneda(Arc::new(ArcCoyonedaBase {
 				fa,
 			}))
@@ -366,7 +360,7 @@ mod inner {
 		/// let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x + 1);
 		/// assert_eq!(coyo.lower_ref(), vec![2, 3, 4]);
 		/// ```
-		pub fn lower_ref(&self) -> <F as Kind_cdc7cd43dac7585f>::Of<'a, A>
+		pub fn lower_ref(&self) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		where
 			F: Functor, {
 			self.0.lower_ref()
@@ -398,7 +392,7 @@ mod inner {
 		pub fn collapse(&self) -> ArcCoyoneda<'a, F, A>
 		where
 			F: Functor,
-			<F as Kind_cdc7cd43dac7585f>::Of<'a, A>: Clone + Send + Sync, {
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone + Send + Sync, {
 			ArcCoyoneda::lift(self.lower_ref())
 		}
 
@@ -430,7 +424,7 @@ mod inner {
 		/// // Can still use coyo after folding.
 		/// assert_eq!(coyo.lower_ref(), vec![10, 20, 30]);
 		/// ```
-		pub fn fold_map<FnBrand: CloneableFn + 'a, M>(
+		pub fn fold_map<FnBrand: LiftFn + 'a, M>(
 			&self,
 			func: impl Fn(A) -> M + 'a,
 		) -> M
@@ -499,10 +493,10 @@ mod inner {
 		/// ```
 		pub fn new<B: 'a>(
 			f: impl Fn(B) -> A + Send + Sync + 'a,
-			fb: <F as Kind_cdc7cd43dac7585f>::Of<'a, B>,
+			fb: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Self
 		where
-			<F as Kind_cdc7cd43dac7585f>::Of<'a, B>: Clone + Send + Sync, {
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone + Send + Sync, {
 			ArcCoyoneda(Arc::new(ArcCoyonedaNewLayer {
 				fb,
 				func: Arc::new(f),
@@ -551,7 +545,7 @@ mod inner {
 		) -> ArcCoyoneda<'a, G, A>
 		where
 			F: Functor,
-			<G as Kind_cdc7cd43dac7585f>::Of<'a, A>: Clone + Send + Sync, {
+			Apply!(<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone + Send + Sync, {
 			ArcCoyoneda::lift(nat.transform(self.lower_ref()))
 		}
 
@@ -577,7 +571,7 @@ mod inner {
 		pub fn pure(a: A) -> Self
 		where
 			F: Pointed,
-			<F as Kind_cdc7cd43dac7585f>::Of<'a, A>: Clone + Send + Sync, {
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone + Send + Sync, {
 			ArcCoyoneda::lift(F::pure(a))
 		}
 
@@ -613,7 +607,7 @@ mod inner {
 		) -> ArcCoyoneda<'a, F, B>
 		where
 			F: Functor + Semimonad,
-			<F as Kind_cdc7cd43dac7585f>::Of<'a, B>: Clone + Send + Sync, {
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone + Send + Sync, {
 			ArcCoyoneda::lift(F::bind(self.lower_ref(), move |a| func(a).lower_ref()))
 		}
 
@@ -644,21 +638,21 @@ mod inner {
 		/// };
 		///
 		/// // For thread-safe functors, prefer lift2 over apply.
-		/// // The apply method requires CloneableFn::Of to be Send + Sync,
-		/// // which standard FnBrands do not satisfy (CloneableFn::Of wraps
+		/// // The apply method requires CloneFn::Of to be Send + Sync,
+		/// // which standard FnBrands do not satisfy (CloneFn::Of wraps
 		/// // dyn Fn without Send + Sync bounds). Use lift2 instead:
 		/// let a = ArcCoyoneda::<OptionBrand, _>::lift(Some(3));
 		/// let b = ArcCoyoneda::<OptionBrand, _>::lift(Some(4));
 		/// let result = a.lift2(|x, y| x + y, b);
 		/// assert_eq!(result.lower_ref(), Some(7));
 		/// ```
-		pub fn apply<FnBrand: CloneableFn + 'a, B: Clone + 'a, C: 'a>(
-			ff: ArcCoyoneda<'a, F, <FnBrand as CloneableFn>::Of<'a, B, C>>,
+		pub fn apply<FnBrand: LiftFn + 'a, B: Clone + 'a, C: 'a>(
+			ff: ArcCoyoneda<'a, F, <FnBrand as CloneFn>::Of<'a, B, C>>,
 			fa: ArcCoyoneda<'a, F, B>,
 		) -> ArcCoyoneda<'a, F, C>
 		where
 			F: Functor + Semiapplicative,
-			<F as Kind_cdc7cd43dac7585f>::Of<'a, C>: Clone + Send + Sync, {
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>): Clone + Send + Sync, {
 			ArcCoyoneda::lift(F::apply::<FnBrand, B, C>(ff.lower_ref(), fa.lower_ref()))
 		}
 
@@ -694,7 +688,7 @@ mod inner {
 		where
 			F: Functor + Lift,
 			A: Clone,
-			<F as Kind_cdc7cd43dac7585f>::Of<'a, C>: Clone + Send + Sync, {
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>): Clone + Send + Sync, {
 			ArcCoyoneda::lift(F::lift2(func, self.lower_ref(), fb.lower_ref()))
 		}
 	}
@@ -756,8 +750,10 @@ mod inner {
 		/// };
 		///
 		/// let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x * 10);
-		/// let result =
-		/// 	fold_map::<RcFnBrand, ArcCoyonedaBrand<VecBrand>, _, _>(|x: i32| x.to_string(), coyo);
+		/// let result = explicit::fold_map::<RcFnBrand, ArcCoyonedaBrand<VecBrand>, _, _, _, _>(
+		/// 	|x: i32| x.to_string(),
+		/// 	coyo,
+		/// );
 		/// assert_eq!(result, "102030".to_string());
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -766,7 +762,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: LiftFn + 'a, {
 			F::fold_map::<FnBrand, A, M>(func, fa.lower_ref())
 		}
 	}
@@ -886,6 +882,7 @@ mod inner {
 pub use inner::*;
 
 #[cfg(test)]
+#[expect(clippy::unwrap_used, reason = "Tests use panicking operations for brevity and clarity")]
 mod tests {
 	use crate::{
 		brands::*,
@@ -926,8 +923,10 @@ mod tests {
 	#[test]
 	fn fold_map_on_mapped() {
 		let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x * 10);
-		let result =
-			fold_map::<RcFnBrand, ArcCoyonedaBrand<VecBrand>, _, _>(|x: i32| x.to_string(), coyo);
+		let result = explicit::fold_map::<RcFnBrand, ArcCoyonedaBrand<VecBrand>, _, _, _, _>(
+			|x: i32| x.to_string(),
+			coyo,
+		);
 		assert_eq!(result, "102030".to_string());
 	}
 
@@ -994,11 +993,12 @@ mod tests {
 		#[quickcheck]
 		fn foldable_consistency_vec(v: Vec<i32>) -> bool {
 			let coyo = ArcCoyoneda::<VecBrand, _>::lift(v.clone()).map(|x: i32| x.wrapping_add(1));
-			let via_coyoneda: String = fold_map::<RcFnBrand, ArcCoyonedaBrand<VecBrand>, _, _>(
-				|x: i32| x.to_string(),
-				coyo,
-			);
-			let direct: String = fold_map::<RcFnBrand, VecBrand, _, _>(
+			let via_coyoneda: String =
+				explicit::fold_map::<RcFnBrand, ArcCoyonedaBrand<VecBrand>, _, _, _, _>(
+					|x: i32| x.to_string(),
+					coyo,
+				);
+			let direct: String = explicit::fold_map::<RcFnBrand, VecBrand, _, _, _, _>(
 				|x: i32| x.to_string(),
 				v.iter().map(|x| x.wrapping_add(1)).collect::<Vec<_>>(),
 			);

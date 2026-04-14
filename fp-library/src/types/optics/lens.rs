@@ -10,8 +10,6 @@ mod inner {
 				optics::*,
 			},
 			classes::{
-				CloneableFn,
-				UnsizedCoercible,
 				monoid::Monoid,
 				optics::*,
 				profunctor::{
@@ -19,6 +17,7 @@ mod inner {
 					Strong,
 					Wander,
 				},
+				*,
 			},
 			kinds::*,
 		},
@@ -45,7 +44,7 @@ mod inner {
 		A: 'a,
 		B: 'a, {
 		/// Internal storage.
-		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, (A, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, B, T>)>),
+		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, (A, <FnBrand<PointerBrand> as CloneFn>::Of<'a, B, T>)>),
 	}
 
 	#[document_type_parameters(
@@ -117,19 +116,19 @@ mod inner {
 		/// 		RcBrand,
 		/// 		RcFnBrand,
 		/// 	},
-		/// 	classes::CloneableFn,
+		/// 	classes::*,
 		/// 	types::optics::Lens,
 		/// };
 		///
 		/// let l: Lens<RcBrand, i32, String, i32, String> =
-		/// 	Lens::new(|x| (x, <FnBrand<RcBrand> as CloneableFn>::new(|s| s)));
+		/// 	Lens::new(|x| (x, <FnBrand<RcBrand> as LiftFn>::new(|s| s)));
 		/// assert_eq!(l.view(42), 42);
 		/// ```
 		pub fn new(
-			to: impl 'a + Fn(S) -> (A, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, B, T>)
+			to: impl 'a + Fn(S) -> (A, <FnBrand<PointerBrand> as CloneFn>::Of<'a, B, T>)
 		) -> Self {
 			Lens {
-				to: <FnBrand<PointerBrand> as CloneableFn>::new(to),
+				to: <FnBrand<PointerBrand> as LiftFn>::new(to),
 			}
 		}
 
@@ -157,16 +156,16 @@ mod inner {
 		) -> Self
 		where
 			S: Clone, {
-			let view_brand = <FnBrand<PointerBrand> as CloneableFn>::new(view);
-			let set_brand = <FnBrand<PointerBrand> as CloneableFn>::new(set);
+			let view_brand = <FnBrand<PointerBrand> as LiftFn>::new(view);
+			let set_brand = <FnBrand<PointerBrand> as LiftFn>::new(set);
 
 			Lens {
-				to: <FnBrand<PointerBrand> as CloneableFn>::new(move |s: S| {
+				to: <FnBrand<PointerBrand> as LiftFn>::new(move |s: S| {
 					let s_clone = s.clone();
 					let set_brand = set_brand.clone();
 					(
 						view_brand(s),
-						<FnBrand<PointerBrand> as CloneableFn>::new(move |b| {
+						<FnBrand<PointerBrand> as LiftFn>::new(move |b| {
 							set_brand((s_clone.clone(), b))
 						}),
 					)
@@ -268,7 +267,7 @@ mod inner {
 		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
 		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
 		/// 	Optic::<RcFnBrand, _, _, _, _>::evaluate(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
@@ -281,7 +280,7 @@ mod inner {
 
 			Q::dimap(
 				move |s: S| to(s),
-				move |(b, f): (B, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, B, T>)| f(b),
+				move |(b, f): (B, <FnBrand<PointerBrand> as CloneFn>::Of<'a, B, T>)| f(b),
 				Q::first(pab),
 			)
 		}
@@ -324,7 +323,7 @@ mod inner {
 		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
 		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
 		/// 	LensOptic::evaluate::<RcFnBrand>(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
@@ -374,7 +373,7 @@ mod inner {
 		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
 		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
 		/// 	AffineTraversalOptic::evaluate::<RcFnBrand>(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
@@ -424,7 +423,7 @@ mod inner {
 		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
 		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
 		/// 	TraversalOptic::evaluate::<RcFnBrand>(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
@@ -566,7 +565,7 @@ mod inner {
 		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
 		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
 		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
@@ -594,7 +593,7 @@ mod inner {
 		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a, {
-		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, (A, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, A, S>)>),
+		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, (A, <FnBrand<PointerBrand> as CloneFn>::Of<'a, A, S>)>),
 	}
 
 	#[document_type_parameters(
@@ -658,19 +657,19 @@ mod inner {
 		/// 		RcBrand,
 		/// 		RcFnBrand,
 		/// 	},
-		/// 	classes::CloneableFn,
+		/// 	classes::*,
 		/// 	types::optics::LensPrime,
 		/// };
 		///
 		/// let l: LensPrime<RcBrand, i32, i32> =
-		/// 	LensPrime::new(|x| (x, <RcFnBrand as CloneableFn>::new(|s| s)));
+		/// 	LensPrime::new(|x| (x, <RcFnBrand as LiftFn>::new(|s| s)));
 		/// assert_eq!(l.view(42), 42);
 		/// ```
 		pub fn new(
-			to: impl 'a + Fn(S) -> (A, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, A, S>)
+			to: impl 'a + Fn(S) -> (A, <FnBrand<PointerBrand> as CloneFn>::Of<'a, A, S>)
 		) -> Self {
 			LensPrime {
-				to: <FnBrand<PointerBrand> as CloneableFn>::new(to),
+				to: <FnBrand<PointerBrand> as LiftFn>::new(to),
 			}
 		}
 
@@ -698,16 +697,16 @@ mod inner {
 		) -> Self
 		where
 			S: Clone, {
-			let view_brand = <FnBrand<PointerBrand> as CloneableFn>::new(view);
-			let set_brand = <FnBrand<PointerBrand> as CloneableFn>::new(set);
+			let view_brand = <FnBrand<PointerBrand> as LiftFn>::new(view);
+			let set_brand = <FnBrand<PointerBrand> as LiftFn>::new(set);
 
 			LensPrime {
-				to: <FnBrand<PointerBrand> as CloneableFn>::new(move |s: S| {
+				to: <FnBrand<PointerBrand> as LiftFn>::new(move |s: S| {
 					let s_clone = s.clone();
 					let set_brand = set_brand.clone();
 					(
 						view_brand(s),
-						<FnBrand<PointerBrand> as CloneableFn>::new(move |a| {
+						<FnBrand<PointerBrand> as LiftFn>::new(move |a| {
 							set_brand((s_clone.clone(), a))
 						}),
 					)
@@ -833,7 +832,7 @@ mod inner {
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
 		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
 		/// 	Optic::<RcFnBrand, _, _, _, _>::evaluate(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
@@ -848,7 +847,7 @@ mod inner {
 			// lens get set = dimap (\s -> (get s, s)) (\(b, s) -> set s b) . first
 			Q::dimap(
 				move |s: S| to(s),
-				move |(a, f): (A, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, A, S>)| f(a),
+				move |(a, f): (A, <FnBrand<PointerBrand> as CloneFn>::Of<'a, A, S>)| f(a),
 				Q::first(pab),
 			)
 		}
@@ -889,7 +888,7 @@ mod inner {
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
 		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
 		/// 	AffineTraversalOptic::evaluate::<RcFnBrand>(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
@@ -937,7 +936,7 @@ mod inner {
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
 		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
 		/// 	TraversalOptic::evaluate::<RcFnBrand>(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
@@ -1077,7 +1076,7 @@ mod inner {
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
 		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
 		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
@@ -1124,7 +1123,7 @@ mod inner {
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
 		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
 		/// 	LensOptic::evaluate::<RcFnBrand>(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));

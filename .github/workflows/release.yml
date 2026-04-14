@@ -13,13 +13,13 @@ jobs:
   validate:
     name: Validate
     runs-on: ubuntu-latest
+    env:
+      SKIP_DIRENV: "1"
     steps:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - run: nix develop ./devenv/ --command cargo test --workspace --all-features
-      - run: nix develop ./devenv/ --command cargo clippy --workspace --all-features -- -D warnings
-      - run: nix develop ./devenv/ --command cargo doc --workspace --all-features --no-deps
+      - run: nix develop ./devenv/ --command just verify
 
   publish-macros:
     name: Publish fp-macros

@@ -7,7 +7,7 @@
 use fp_macros::document_module;
 
 #[document_module]
-#[allow(deprecated)]
+#[expect(deprecated, reason = "Validation warnings use deprecated to emit diagnostics")]
 mod validated {
 	pub struct MyType;
 
@@ -16,7 +16,7 @@ mod validated {
 			Self
 		}
 
-		#[allow(dead_code)]
+		#[expect(dead_code, reason = "Test fixture for document_module macro")]
 		pub fn process<T>(
 			&self,
 			_value: T,

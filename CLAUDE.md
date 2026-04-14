@@ -19,15 +19,15 @@ All commands must be run via `just` recipes defined in the project's `justfile`.
 ### Formatting & Linting
 
 ```bash
-just fmt                                        # Format all files (Rust, Nix, Markdown, YAML, TOML)
-just clippy --workspace --all-features      # Run clippy
+just fmt     # Format all files (Rust, Nix, Markdown, YAML, TOML)
+just clippy  # Run clippy (--workspace --all-targets --all-features by default)
 ```
 
 ### Documentation
 
 ```bash
-just doc --workspace --all-features --no-deps   # Check docs (must produce zero warnings)
-just doc --workspace --all-features --open       # Build and open docs
+just doc                                    # Check docs (--workspace --all-features --no-deps by default)
+just doc --workspace --all-features --open  # Build and open docs
 ```
 
 ### Testing
@@ -35,47 +35,47 @@ just doc --workspace --all-features --open       # Build and open docs
 **Never run `cargo test` directly.** Use `just test` which caches output and only re-runs when source files change.
 
 ```bash
-just test --all-features                             # Run all tests with all features (cached)
-just test                                            # Run all tests, default features (cached)
-just test -p fp-library test_name                # Run a subset (no caching)
-just test -p fp-library --test property          # Run property-based tests
-just test --doc -p fp-library                    # Run doc tests
+just test                                # Run all tests (--workspace --all-features by default, cached)
+just test -p fp-library test_name        # Run a subset (no caching)
+just test -p fp-library -- prop_          # Run property-based tests (by name filter)
+just test --doc -p fp-library            # Run doc tests
 ```
 
-Cache location: `.claude/test-cache/` (gitignored). Invalidated automatically when `.rs` files or `Cargo.toml` change. **Do not re-run `just test` if no source files have changed since the last run.** The cached output is printed automatically; check it instead of re-running. There is no command to bypass the cache.
+Cache location: `.claude/test-cache/` (gitignored). Uses content hashing (`git ls-files` + `md5sum`) so the cache is invalidated only when tracked file contents change, not when timestamps change (e.g., from formatting or git operations). Re-running `just test` with no content changes is instant and prints cached output. Use `just clean` to clear the cache and build artifacts.
 
 ### Building
 
 ```bash
-just build --workspace                           # Build the workspace
-just build -p fp-library --all-features          # Build with all features
-just check --workspace                           # Check without building
+just build  # Build (--workspace --all-targets --all-features by default)
+just check  # Check without building (--workspace --all-targets --all-features by default)
 ```
 
 ### Benchmarking
 
 ```bash
-just bench -p fp-library                                   # Run all benchmarks
-just bench -p fp-library --bench benchmarks -- --list      # List benchmarks
-just bench -p fp-library --bench benchmarks -- Vec         # Run specific benchmark
+just bench                                             # Run all benchmarks
+just bench -p fp-library --bench benchmarks -- --list  # List benchmarks
+just bench -p fp-library --bench benchmarks -- Vec     # Run specific benchmark
 # Benchmark reports: target/criterion/report/index.html
 ```
 
 ### Verification
 
-After making changes, verify in this order: **fmt, clippy, doc, test**.
+After making changes, verify in this order: **fmt, check, clippy, deny, doc, test**.
 
 ```bash
-just verify    # Runs all four steps in order
+just verify  # Runs all six steps in order
 ```
 
 Or individually:
 
 ```bash
 just fmt
-just clippy --workspace --all-features
-just doc --workspace --all-features --no-deps
-just test --all-features
+just check
+just clippy
+just deny
+just doc
+just test
 ```
 
 ## Language Server & Code Intelligence
@@ -124,11 +124,13 @@ For detailed design documentation, see the `fp-library/docs/` directory:
 - `fp-library/src/brands.rs` - All brand types centralized here (leaf nodes in dependency graph)
 - `fp-library/src/kinds.rs` - `Kind` trait definitions and type application machinery
 - `fp-macros/src/hkt/` - Procedural macros (`trait_kind!`, `impl_kind!`, `Apply!`)
+- `fp-library/src/dispatch/` - Val/Ref dispatch traits, inference wrappers, and explicit functions
+- `fp-macros/src/analysis/dispatch.rs` - Dispatch trait analysis for HM signature generation
 - `fp-library/src/types/optics/` - Profunctor-encoded optics (Lens, Prism, Iso, Traversal, etc.)
 
 ### Module Dependency Ordering
 
-Respect the dependency graph: brands -> classes -> types -> functions. Never create cycles. Free functions (e.g., `map`, `pure`) are defined in their trait's module (e.g., `classes/functor.rs`) and re-exported in `functions.rs`.
+Respect the dependency graph: brands -> classes -> types -> dispatch -> functions. Never create cycles. Dispatch modules (e.g., `dispatch/functor.rs`) contain dispatch traits, Val/Ref impls, inference wrapper functions, and explicit submodules. Free functions without dispatch (e.g., `compose`, `identity`) are defined in `classes/` and re-exported in `functions.rs`. Inference wrappers are re-exported from `crate::dispatch::*`.
 
 ### Optics
 
@@ -227,7 +229,7 @@ When modifying optics code:
 For parallel/concurrent code:
 
 1. Use `ArcFnBrand` instead of `RcFnBrand`
-2. Use `SendCloneableFn` trait instead of `CloneableFn`
+2. Use `SendCloneFn` trait instead of `CloneFn`
 3. Use `ParFoldable` trait for parallel folding (requires `rayon` feature)
 4. Ensure all captured data is `Send + Sync`
 
@@ -279,4 +281,4 @@ nix shell nixpkgs#hyperfine
 
 4. **Lifetime Constraints**: `Trampoline` requires `'static`, `Thunk` and `Lazy` support arbitrary lifetimes `'a`.
 
-5. **Module Dependency Ordering**: Respect the dependency graph: brands → classes → types → functions. Never create cycles.
+5. **Module Dependency Ordering**: Respect the dependency graph: brands -> classes -> types -> dispatch -> functions. Never create cycles.

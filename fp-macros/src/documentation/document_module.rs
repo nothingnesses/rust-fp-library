@@ -205,6 +205,10 @@ pub fn document_module_worker(
 	// Also recursively extract from nested modules
 	apply_to_nested_modules(&mut items, get_context, &mut config)?;
 
+	// Pass 1b: Dispatch trait analysis
+	let dispatch_info = crate::analysis::dispatch::analyze_dispatch_traits(&items);
+	config.dispatch_traits.extend(dispatch_info);
+
 	// Pass 1.5: Validation (emit warnings for missing documentation attributes)
 	let warning_tokens: Vec<TokenStream> = if validation_mode != ValidationMode::Off {
 		let mut emitter = WarningEmitter::new();
@@ -218,10 +222,19 @@ pub fn document_module_worker(
 	};
 
 	// Pass 2: Documentation Generation (handles both top-level and nested)
-	generate_documentation(&mut items, &config)?;
+	// Collect errors instead of failing fast, so the module's items are still
+	// emitted even when an inner attribute macro fails. This prevents cascading
+	// "unresolved import" errors that obscure the real issue.
+	let mut doc_errors: Vec<proc_macro2::TokenStream> = Vec::new();
+
+	if let Err(e) = generate_documentation(&mut items, &config) {
+		doc_errors.push(e.to_compile_error());
+	}
 
 	// Also recursively generate docs for nested modules (immutable config)
-	apply_to_nested_modules_immut(&mut items, generate_documentation, &config)?;
+	if let Err(e) = apply_to_nested_modules_immut(&mut items, generate_documentation, &config) {
+		doc_errors.push(e.to_compile_error());
+	}
 
 	// Reconstruct module wrapper if needed (outer attribute case)
 	let items_output = if let Some((mut module, brace)) = module_wrapper {
@@ -231,11 +244,13 @@ pub fn document_module_worker(
 		quote!(#(#items)*)
 	};
 
-	// Combine warnings with output if validation is enabled
-	// Warnings are emitted first so they appear in the compiler output
-	let output = if !warning_tokens.is_empty() {
+	// Combine warnings, errors, and output. Errors and warnings are emitted
+	// alongside the module output so that items (traits, impls, etc.) are
+	// still visible to the compiler even when documentation attributes fail.
+	let output = if !warning_tokens.is_empty() || !doc_errors.is_empty() {
 		quote! {
 			#(#warning_tokens)*
+			#(#doc_errors)*
 			#items_output
 		}
 	} else {
@@ -371,7 +386,11 @@ fn validate_no_duplicate_doc_attrs(
 /// document_signature -> document_type_parameters -> document_parameters ->
 /// document_returns -> document_examples.
 // SAFETY: all indices are bounded by DOCUMENT_ATTR_ORDER.len() and names come from DOCUMENT_ATTR_ORDER itself
-#[allow(clippy::indexing_slicing, clippy::unwrap_used)]
+#[expect(
+	clippy::indexing_slicing,
+	clippy::unwrap_used,
+	reason = "Indices bounded by DOCUMENT_ATTR_ORDER"
+)]
 fn validate_doc_attr_order(
 	attrs: &[syn::Attribute],
 	item_span: proc_macro2::Span,

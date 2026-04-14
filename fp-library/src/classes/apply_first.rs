@@ -5,12 +5,12 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! let x = Some(5);
 //! let y = Some(10);
-//! let z = apply_first::<OptionBrand, _, _>(x, y);
+//! let z = apply_first::<OptionBrand, _, _, _, _>(x, y);
 //! assert_eq!(z, Some(5));
 //! ```
 
@@ -48,12 +48,12 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x = Some(5);
 		/// let y = Some(10);
-		/// let z = apply_first::<OptionBrand, _, _>(x, y);
+		/// let z = apply_first::<OptionBrand, _, _, _, _>(x, y);
 		/// assert_eq!(z, Some(5));
 		/// ```
 		fn apply_first<'a, A: 'a + Clone, B: 'a + Clone>(
@@ -84,12 +84,12 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let x = Some(5);
 	/// let y = Some(10);
-	/// let z = apply_first::<OptionBrand, _, _>(x, y);
+	/// let z = apply_first::<OptionBrand, _, _, _, _>(x, y);
 	/// assert_eq!(z, Some(5));
 	/// ```
 	pub fn apply_first<'a, Brand: ApplyFirst, A: 'a + Clone, B: 'a + Clone>(

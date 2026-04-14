@@ -5,11 +5,11 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! let x = Some(5);
-//! let y = traverse::<OptionBrand, _, _, OptionBrand>(|a| Some(a * 2), x);
+//! let y = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(|a| Some(a * 2), x);
 //! assert_eq!(y, Some(Some(10)));
 //! ```
 
@@ -40,7 +40,13 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::{
+	/// 		explicit::{
+	/// 			map,
+	/// 			traverse,
+	/// 		},
+	/// 		*,
+	/// 	},
 	/// };
 	///
 	/// let xs = vec![1, 2, 3];
@@ -49,8 +55,8 @@ mod inner {
 	/// // Traverse/sequence consistency:
 	/// // traverse(f, xs) = sequence(map(f, xs))
 	/// assert_eq!(
-	/// 	traverse::<VecBrand, _, _, OptionBrand>(f, xs.clone()),
-	/// 	sequence::<VecBrand, _, OptionBrand>(map::<VecBrand, _, _>(f, xs.clone())),
+	/// 	traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(f, xs.clone()),
+	/// 	sequence::<VecBrand, _, OptionBrand>(map::<VecBrand, _, _, _, _>(f, xs.clone())),
 	/// );
 	///
 	/// // Sequence/traverse consistency:
@@ -58,7 +64,7 @@ mod inner {
 	/// let ys: Vec<Option<i32>> = vec![Some(1), Some(2), Some(3)];
 	/// assert_eq!(
 	/// 	sequence::<VecBrand, _, OptionBrand>(ys.clone()),
-	/// 	traverse::<VecBrand, _, _, OptionBrand>(identity, ys),
+	/// 	traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(identity, ys),
 	/// );
 	/// ```
 	pub trait Traversable: Functor + Foldable {
@@ -90,11 +96,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = traverse::<OptionBrand, _, _, OptionBrand>(|a| Some(a * 2), x);
+		/// let y = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some(Some(10)));
 		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
@@ -174,11 +180,11 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let x = Some(5);
-	/// let y = traverse::<OptionBrand, _, _, OptionBrand>(|a| Some(a * 2), x);
+	/// let y = traverse::<RcFnBrand, OptionBrand, _, _, OptionBrand, _, _>(|a| Some(a * 2), x);
 	/// assert_eq!(y, Some(Some(10)));
 	/// ```
 	pub fn traverse<'a, Brand: Traversable, A: 'a + Clone, B: 'a + Clone, F: Applicative>(

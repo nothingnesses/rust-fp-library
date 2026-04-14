@@ -11,11 +11,11 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! let x = Some(5);
-//! let y = map::<OptionBrand, _, _>(|i| i * 2, x);
+//! let y = map::<OptionBrand, _, _, _, _>(|i| i * 2, x);
 //! assert_eq!(y, Some(10));
 //! ```
 
@@ -52,35 +52,35 @@ pub type ArcLazyBrand = LazyBrand<ArcLazyConfig>;
 /// Brand for thread-safe [`ArcTryLazy`](crate::types::ArcTryLazy).
 pub type ArcTryLazyBrand<E> = TryLazyBrand<E, ArcLazyConfig>;
 
-/// An adapter that partially applies a `Bifunctor` to its first argument, creating a `Functor` over the second argument.
+/// An adapter that partially applies a [`Bifunctor`](crate::classes::Bifunctor) to its first argument, creating a [`Functor`](crate::classes::Functor) over the second argument.
 ///
 /// ### Examples
 ///
 /// ```
 /// use fp_library::{
 /// 	brands::*,
-/// 	classes::functor::map,
+/// 	functions::explicit::*,
 /// };
 ///
 /// let x = Result::<i32, i32>::Ok(5);
-/// let y = map::<BifunctorFirstAppliedBrand<ResultBrand, i32>, _, _>(|s| s * 2, x);
+/// let y = map::<BifunctorFirstAppliedBrand<ResultBrand, i32>, _, _, _, _>(|s| s * 2, x);
 /// assert_eq!(y, Ok(10));
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BifunctorFirstAppliedBrand<Brand, A>(PhantomData<(Brand, A)>);
 
-/// An adapter that partially applies a `Bifunctor` to its second argument, creating a `Functor` over the first argument.
+/// An adapter that partially applies a [`Bifunctor`](crate::classes::Bifunctor) to its second argument, creating a [`Functor`](crate::classes::Functor) over the first argument.
 ///
 /// ### Examples
 ///
 /// ```
 /// use fp_library::{
 /// 	brands::*,
-/// 	classes::functor::map,
+/// 	functions::explicit::*,
 /// };
 ///
 /// let x = Result::<i32, i32>::Err(5);
-/// let y = map::<BifunctorSecondAppliedBrand<ResultBrand, i32>, _, _>(|e| e * 2, x);
+/// let y = map::<BifunctorSecondAppliedBrand<ResultBrand, i32>, _, _, _, _>(|e| e * 2, x);
 /// assert_eq!(y, Err(10));
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -193,18 +193,18 @@ pub struct PairFirstAppliedBrand<First>(PhantomData<First>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PairSecondAppliedBrand<Second>(PhantomData<Second>);
 
-/// An adapter that partially applies a `Profunctor` to its first argument, creating a `Functor`.
+/// An adapter that partially applies a [`Profunctor`](crate::classes::Profunctor) to its first argument, creating a [`Functor`](crate::classes::Functor).
 ///
 /// ### Examples
 ///
 /// ```
 /// use fp_library::{
 /// 	brands::*,
-/// 	classes::functor::map,
+/// 	functions::explicit::*,
 /// };
 ///
 /// let f = |x: i32| x + 1;
-/// let g = map::<ProfunctorFirstAppliedBrand<RcFnBrand, i32>, _, _>(
+/// let g = map::<ProfunctorFirstAppliedBrand<RcFnBrand, i32>, _, _, _, _>(
 /// 	|y: i32| y * 2,
 /// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
 /// );
@@ -213,7 +213,7 @@ pub struct PairSecondAppliedBrand<Second>(PhantomData<Second>);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ProfunctorFirstAppliedBrand<Brand, A>(PhantomData<(Brand, A)>);
 
-/// An adapter that partially applies a `Profunctor` to its second argument, creating a `Contravariant` functor.
+/// An adapter that partially applies a [`Profunctor`](crate::classes::Profunctor) to its second argument, creating a [`Contravariant`](crate::classes::Contravariant) functor.
 ///
 /// ### Examples
 ///
@@ -239,7 +239,7 @@ pub struct ProfunctorSecondAppliedBrand<Brand, B>(PhantomData<(Brand, B)>);
 pub struct RcBrand;
 
 /// Brand for [`RcCoyoneda`](crate::types::RcCoyoneda), the reference-counted
-/// free functor with `Clone` support.
+/// free functor with [`Clone`] support.
 ///
 /// Like [`CoyonedaBrand`], but the underlying `RcCoyoneda` is `Clone`, enabling
 /// additional type class instances such as [`Semiapplicative`](crate::classes::Semiapplicative).

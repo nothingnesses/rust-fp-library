@@ -1,4 +1,4 @@
-## Higher-Kinded Types (HKT)
+### Higher-Kinded Types (HKT)
 
 Since Rust doesn't support HKTs directly (i.e., it's not possible to use `Option` in `impl Functor for Option`, instead of `Option<T>`), this library uses **Lightweight Higher-Kinded Polymorphism** (also known as the "Brand" pattern or type-level defunctionalization).
 
@@ -13,6 +13,7 @@ use fp_library::{
 pub struct OptionBrand;
 
 impl_kind! {
+	#[no_inferable_brand]
 	for OptionBrand {
 		type Of<'a, A: 'a>: 'a = Option<A>;
 	}

@@ -6,7 +6,7 @@
 
 #[fp_macros::document_module(no_validation)]
 mod inner {
-	#[allow(dead_code)]
+	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	#[document_signature]
 	pub trait Functor {
 		fn map();

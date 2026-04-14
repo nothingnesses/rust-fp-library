@@ -10,11 +10,11 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! let x = Some(5);
-//! let y = map::<OptionBrand, _, _>(|i| i * 2, x);
+//! let y = map::<OptionBrand, _, _, _, _>(|i| i * 2, x);
 //! assert_eq!(y, Some(10));
 //! ```
 
@@ -23,11 +23,12 @@ pub mod alternative;
 pub mod applicative;
 pub mod apply_first;
 pub mod apply_second;
+pub mod arrow;
 pub mod bifoldable;
 pub mod bifunctor;
 pub mod bitraversable;
 pub mod category;
-pub mod cloneable_fn;
+pub mod clone_fn;
 pub mod commutative_ring;
 pub mod comonad;
 pub mod compactable;
@@ -42,7 +43,6 @@ pub mod filterable;
 pub mod filterable_with_index;
 pub mod foldable;
 pub mod foldable_with_index;
-pub mod function;
 pub mod functor;
 pub mod functor_with_index;
 pub mod heyting_algebra;
@@ -61,23 +61,61 @@ pub mod par_foldable;
 pub mod par_foldable_with_index;
 pub mod par_functor;
 pub mod par_functor_with_index;
+pub mod par_ref_filterable;
+pub mod par_ref_filterable_with_index;
+pub mod par_ref_foldable;
+pub mod par_ref_foldable_with_index;
+pub mod par_ref_functor;
+pub mod par_ref_functor_with_index;
 pub mod pipe;
 pub mod plus;
 pub mod pointed;
 pub mod pointer;
 pub mod profunctor;
+pub mod ref_alt;
+pub mod ref_applicative;
+pub mod ref_apply_first;
+pub mod ref_apply_second;
+pub mod ref_bifoldable;
+pub mod ref_bifunctor;
+pub mod ref_bitraversable;
+pub mod ref_compactable;
 pub mod ref_counted_pointer;
+pub mod ref_filterable;
+pub mod ref_filterable_with_index;
+pub mod ref_foldable;
+pub mod ref_foldable_with_index;
 pub mod ref_functor;
+pub mod ref_functor_with_index;
+pub mod ref_lift;
+pub mod ref_monad;
+pub mod ref_pointed;
+pub mod ref_semiapplicative;
+pub mod ref_semimonad;
+pub mod ref_traversable;
+pub mod ref_traversable_with_index;
+pub mod ref_witherable;
 pub mod ring;
 pub mod semiapplicative;
 pub mod semigroup;
 pub mod semigroupoid;
 pub mod semimonad;
 pub mod semiring;
-pub mod send_cloneable_fn;
+pub mod send_clone_fn;
 pub mod send_deferrable;
+pub mod send_ref_applicative;
+pub mod send_ref_apply_first;
+pub mod send_ref_apply_second;
 pub mod send_ref_counted_pointer;
+pub mod send_ref_foldable;
+pub mod send_ref_foldable_with_index;
 pub mod send_ref_functor;
+pub mod send_ref_functor_with_index;
+pub mod send_ref_lift;
+pub mod send_ref_monad;
+pub mod send_ref_pointed;
+pub mod send_ref_semiapplicative;
+pub mod send_ref_semimonad;
 pub mod send_unsized_coercible;
 pub mod traversable;
 pub mod traversable_with_index;

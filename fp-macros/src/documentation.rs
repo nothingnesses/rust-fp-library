@@ -23,3 +23,6 @@ pub use {
 	document_signature::document_signature_worker,
 	document_type_parameters::document_type_parameters_worker,
 };
+
+#[cfg(test)]
+mod signature_snapshot_tests;

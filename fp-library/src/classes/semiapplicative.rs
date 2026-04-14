@@ -9,7 +9,7 @@
 //! 	functions::*,
 //! };
 //!
-//! let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+//! let f = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 //! let x = Some(5);
 //! let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 //! assert_eq!(y, Some(10));
@@ -42,11 +42,14 @@ mod inner {
 	/// use fp_library::{
 	/// 	brands::*,
 	/// 	classes::*,
-	/// 	functions::*,
+	/// 	functions::{
+	/// 		explicit::map,
+	/// 		*,
+	/// 	},
 	/// };
 	///
-	/// let u = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
-	/// let v = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+	/// let u = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
+	/// let v = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// let w = Some(5i32);
 	///
 	/// // Right side: apply(u, apply(v, w))
@@ -57,11 +60,11 @@ mod inner {
 	///
 	/// // Left side: apply(apply(map(|f| |g| compose(f, g), u), v), w)
 	/// // Step 1: map the composition combinator over u
-	/// let compose_u = map::<OptionBrand, _, _>(
+	/// let compose_u = map::<OptionBrand, _, _, _, _>(
 	/// 	|u_fn: std::rc::Rc<dyn Fn(i32) -> i32>| {
-	/// 		cloneable_fn_new::<RcFnBrand, _, _>(move |v_fn: std::rc::Rc<dyn Fn(i32) -> i32>| {
+	/// 		lift_fn_new::<RcFnBrand, _, _>(move |v_fn: std::rc::Rc<dyn Fn(i32) -> i32>| {
 	/// 			let u_fn = u_fn.clone();
-	/// 			cloneable_fn_new::<RcFnBrand, _, _>(move |x: i32| u_fn(v_fn(x)))
+	/// 			lift_fn_new::<RcFnBrand, _, _>(move |x: i32| u_fn(v_fn(x)))
 	/// 		})
 	/// 	},
 	/// 	u,
@@ -108,13 +111,13 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let x = Some(5);
 		/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 		/// assert_eq!(y, Some(10));
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
 	}
@@ -149,13 +152,13 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+	/// let f = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// let x = Some(5);
 	/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	pub fn apply<'a, FnBrand: 'a + CloneableFn, Brand: Semiapplicative, A: 'a + Clone, B: 'a>(
-		ff: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+	pub fn apply<'a, FnBrand: 'a + CloneFn, Brand: Semiapplicative, A: 'a + Clone, B: 'a>(
+		ff: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		Brand::apply::<FnBrand, A, B>(ff, fa)

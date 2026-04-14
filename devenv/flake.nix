@@ -106,14 +106,14 @@
                 # whole-project tools when only some files are staged.
                 clippy = {
                   enable = true;
-                  entry = "${pkgs.just}/bin/just clippy --workspace --all-features";
+                  entry = "${pkgs.just}/bin/just clippy";
                   pass_filenames = false;
                   always_run = true;
                   stages = [ "pre-push" ];
                 };
                 cargo-doc = {
                   enable = true;
-                  entry = "${pkgs.just}/bin/just doc --workspace --all-features --no-deps";
+                  entry = "${pkgs.just}/bin/just doc";
                   pass_filenames = false;
                   always_run = true;
                   stages = [ "pre-push" ];
@@ -164,6 +164,8 @@
                 pkgs.python3
                 # For criterion.rs
                 pkgs.gnuplot
+                # For link checking in markdown
+                pkgs.lychee
               ];
 
               env = {

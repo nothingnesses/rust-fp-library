@@ -9,11 +9,11 @@ mod inner {
 			Apply,
 			brands::optics::*,
 			classes::{
-				CloneableFn,
 				profunctor::{
 					Closed,
 					Profunctor,
 				},
+				*,
 			},
 			impl_kind,
 			kinds::*,
@@ -30,11 +30,11 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure."
 	)]
-	pub struct Grating<'a, FunctionBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> {
+	pub struct Grating<'a, FunctionBrand: LiftFn, A: 'a, B: 'a, S: 'a, T: 'a> {
 		/// Grating function.
-		pub run: <FunctionBrand as CloneableFn>::Of<
+		pub run: <FunctionBrand as CloneFn>::Of<
 			'a,
-			<FunctionBrand as CloneableFn>::Of<'a, <FunctionBrand as CloneableFn>::Of<'a, S, A>, B>,
+			<FunctionBrand as CloneFn>::Of<'a, <FunctionBrand as CloneFn>::Of<'a, S, A>, B>,
 			T,
 		>,
 	}
@@ -47,9 +47,7 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure."
 	)]
-	impl<'a, FunctionBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a>
-		Grating<'a, FunctionBrand, A, B, S, T>
-	{
+	impl<'a, FunctionBrand: LiftFn, A: 'a, B: 'a, S: 'a, T: 'a> Grating<'a, FunctionBrand, A, B, S, T> {
 		/// Creates a new `Grating` instance.
 		#[document_signature]
 		///
@@ -67,26 +65,22 @@ mod inner {
 		/// };
 		///
 		/// let grating =
-		/// 	Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// 	Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(lift_fn_new::<RcFnBrand, _, _>(
 		/// 		|f: std::rc::Rc<dyn Fn(std::rc::Rc<dyn Fn((i32, i32)) -> i32>) -> i32>| {
-		/// 			let get_x = cloneable_fn_new::<RcFnBrand, _, _>(|(x, _)| x);
-		/// 			let get_y = cloneable_fn_new::<RcFnBrand, _, _>(|(_, y)| y);
+		/// 			let get_x = lift_fn_new::<RcFnBrand, _, _>(|(x, _)| x);
+		/// 			let get_y = lift_fn_new::<RcFnBrand, _, _>(|(_, y)| y);
 		/// 			f(get_x) + f(get_y)
 		/// 		},
 		/// 	));
-		/// let result = (grating.run)(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// let result = (grating.run)(lift_fn_new::<RcFnBrand, _, _>(
 		/// 	|g: std::rc::Rc<dyn Fn((i32, i32)) -> i32>| g((10, 20)),
 		/// ));
 		/// assert_eq!(result, 30);
 		/// ```
 		pub fn new(
-			run: <FunctionBrand as CloneableFn>::Of<
+			run: <FunctionBrand as CloneFn>::Of<
 				'a,
-				<FunctionBrand as CloneableFn>::Of<
-					'a,
-					<FunctionBrand as CloneableFn>::Of<'a, S, A>,
-					B,
-				>,
+				<FunctionBrand as CloneFn>::Of<'a, <FunctionBrand as CloneFn>::Of<'a, S, A>, B>,
 				T,
 			>
 		) -> Self {
@@ -97,7 +91,7 @@ mod inner {
 	}
 
 	impl_kind! {
-		impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> for GratingBrand<FunctionBrand, A, B> {
+		impl<FunctionBrand: LiftFn + 'static, A: 'static, B: 'static> for GratingBrand<FunctionBrand, A, B> {
 			#[document_default]
 			type Of<'a, S: 'a, T: 'a>: 'a = Grating<'a, FunctionBrand, A, B, S, T>;
 		}
@@ -108,7 +102,7 @@ mod inner {
 		"The type of the value produced by the inner function.",
 		"The type of the value consumed by the inner function."
 	)]
-	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Profunctor
+	impl<FunctionBrand: LiftFn + 'static, A: 'static, B: 'static> Profunctor
 		for GratingBrand<FunctionBrand, A, B>
 	{
 		/// Maps functions over the input and output of the `Grating` profunctor.
@@ -139,7 +133,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as cloneable_fn_new,
+		/// 		clone_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},
@@ -148,10 +142,10 @@ mod inner {
 		///
 		/// // Grating is usually used internally by Grate optics
 		/// let grating =
-		/// 	Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// 	Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(lift_fn_new::<RcFnBrand, _, _>(
 		/// 		|f: std::rc::Rc<dyn Fn(std::rc::Rc<dyn Fn((i32, i32)) -> i32>) -> i32>| {
-		/// 			let get_x = cloneable_fn_new::<RcFnBrand, _, _>(|(x, _)| x);
-		/// 			let get_y = cloneable_fn_new::<RcFnBrand, _, _>(|(_, y)| y);
+		/// 			let get_x = lift_fn_new::<RcFnBrand, _, _>(|(x, _)| x);
+		/// 			let get_y = lift_fn_new::<RcFnBrand, _, _>(|(_, y)| y);
 		/// 			f(get_x) + f(get_y)
 		/// 		},
 		/// 	));
@@ -160,7 +154,7 @@ mod inner {
 		/// 	|t: i32| t,
 		/// 	grating,
 		/// );
-		/// let result = (transformed.run)(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// let result = (transformed.run)(lift_fn_new::<RcFnBrand, _, _>(
 		/// 	|g: std::rc::Rc<dyn Fn((i32, i32)) -> i32>| g((10, 20)),
 		/// ));
 		/// assert_eq!(result, 30);
@@ -171,20 +165,20 @@ mod inner {
 			puv: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, T, U>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, V>) {
 			let run = puv.run;
-			let st = <FunctionBrand as CloneableFn>::new(st);
-			let uv = <FunctionBrand as CloneableFn>::new(uv);
-			Grating::<FunctionBrand, A, B, S, V>::new(<FunctionBrand as CloneableFn>::new(
-				move |f: <FunctionBrand as CloneableFn>::Of<
+			let st = <FunctionBrand as LiftFn>::new(st);
+			let uv = <FunctionBrand as LiftFn>::new(uv);
+			Grating::<FunctionBrand, A, B, S, V>::new(<FunctionBrand as LiftFn>::new(
+				move |f: <FunctionBrand as CloneFn>::Of<
 					'a,
-					<FunctionBrand as CloneableFn>::Of<'a, S, A>,
+					<FunctionBrand as CloneFn>::Of<'a, S, A>,
 					B,
 				>| {
 					let st = st.clone();
 					let uv = uv.clone();
-					(*uv)((*run)(<FunctionBrand as CloneableFn>::new(
-						move |g: <FunctionBrand as CloneableFn>::Of<'a, T, A>| {
+					(*uv)((*run)(<FunctionBrand as LiftFn>::new(
+						move |g: <FunctionBrand as CloneFn>::Of<'a, T, A>| {
 							let st = st.clone();
-							f(<FunctionBrand as CloneableFn>::new(move |s| g((*st)(s))))
+							f(<FunctionBrand as LiftFn>::new(move |s| g((*st)(s))))
 						},
 					)))
 				},
@@ -197,7 +191,7 @@ mod inner {
 		"The type of the value produced by the inner function.",
 		"The type of the value consumed by the inner function."
 	)]
-	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Closed<FunctionBrand>
+	impl<FunctionBrand: LiftFn + 'static, A: 'static, B: 'static> Closed<FunctionBrand>
 		for GratingBrand<FunctionBrand, A, B>
 	{
 		/// Lifts the `Grating` profunctor to operate on functions.
@@ -232,10 +226,10 @@ mod inner {
 		/// };
 		///
 		/// let grating =
-		/// 	Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// 	Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(lift_fn_new::<RcFnBrand, _, _>(
 		/// 		|f: std::rc::Rc<dyn Fn(std::rc::Rc<dyn Fn((i32, i32)) -> i32>) -> i32>| {
-		/// 			let get_x = cloneable_fn_new::<RcFnBrand, _, _>(|(x, _)| x);
-		/// 			let get_y = cloneable_fn_new::<RcFnBrand, _, _>(|(_, y)| y);
+		/// 			let get_x = lift_fn_new::<RcFnBrand, _, _>(|(x, _)| x);
+		/// 			let get_y = lift_fn_new::<RcFnBrand, _, _>(|(_, y)| y);
 		/// 			f(get_x) + f(get_y)
 		/// 		},
 		/// 	));
@@ -248,44 +242,40 @@ mod inner {
 		///
 		/// let run_closed = closed_grating.run;
 		/// type GetterFn = std::rc::Rc<dyn Fn(std::rc::Rc<dyn Fn(String) -> (i32, i32)>) -> i32>;
-		/// let result_fn = run_closed(cloneable_fn_new::<RcFnBrand, _, _>(|getter: GetterFn| {
+		/// let result_fn = run_closed(lift_fn_new::<RcFnBrand, _, _>(|getter: GetterFn| {
 		/// 	// getter: (String -> (i32, i32)) -> i32
 		/// 	// We provide a function that produces a pair from a string
-		/// 	getter(cloneable_fn_new::<RcFnBrand, _, _>(|s: String| (s.len() as i32, 10)))
+		/// 	getter(lift_fn_new::<RcFnBrand, _, _>(|s: String| (s.len() as i32, 10)))
 		/// }));
 		///
 		/// assert_eq!(result_fn("hello".to_string()), 5 + 10);
 		/// ```
 		fn closed<'a, S: 'a, T: 'a, X: 'a + Clone>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneableFn>::Of<'a, X, S>, <FunctionBrand as CloneableFn>::Of<'a, X, T>>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneFn>::Of<'a, X, S>, <FunctionBrand as CloneFn>::Of<'a, X, T>>)
 		{
 			let run = pab.run;
 			Grating::<
 				FunctionBrand,
 				A,
 				B,
-				<FunctionBrand as CloneableFn>::Of<'a, X, S>,
-				<FunctionBrand as CloneableFn>::Of<'a, X, T>,
-			>::new(<FunctionBrand as CloneableFn>::new(
-				move |g: <FunctionBrand as CloneableFn>::Of<
+				<FunctionBrand as CloneFn>::Of<'a, X, S>,
+				<FunctionBrand as CloneFn>::Of<'a, X, T>,
+			>::new(<FunctionBrand as LiftFn>::new(
+				move |g: <FunctionBrand as CloneFn>::Of<
 					'a,
-					<FunctionBrand as CloneableFn>::Of<
-						'a,
-						<FunctionBrand as CloneableFn>::Of<'a, X, S>,
-						A,
-					>,
+					<FunctionBrand as CloneFn>::Of<'a, <FunctionBrand as CloneFn>::Of<'a, X, S>, A>,
 					B,
 				>| {
 					let run = run.clone();
-					<FunctionBrand as CloneableFn>::new(move |x: X| {
+					<FunctionBrand as LiftFn>::new(move |x: X| {
 						let g = g.clone();
 						let x = x.clone();
-						(*run)(<FunctionBrand as CloneableFn>::new(
-							move |h: <FunctionBrand as CloneableFn>::Of<'a, S, A>| {
+						(*run)(<FunctionBrand as LiftFn>::new(
+							move |h: <FunctionBrand as CloneFn>::Of<'a, S, A>| {
 								let x = x.clone();
-								g(<FunctionBrand as CloneableFn>::new(
-									move |k: <FunctionBrand as CloneableFn>::Of<'a, X, S>| {
+								g(<FunctionBrand as LiftFn>::new(
+									move |k: <FunctionBrand as CloneFn>::Of<'a, X, S>| {
 										h(k(x.clone()))
 									},
 								))

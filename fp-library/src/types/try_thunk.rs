@@ -17,7 +17,7 @@ mod inner {
 				ApplySecond,
 				Bifoldable,
 				Bifunctor,
-				CloneableFn,
+				CloneFn,
 				Deferrable,
 				Foldable,
 				FoldableWithIndex,
@@ -25,6 +25,7 @@ mod inner {
 				FunctorWithIndex,
 				LazyConfig,
 				Lift,
+				LiftFn,
 				MonadRec,
 				Monoid,
 				Pointed,
@@ -961,6 +962,7 @@ mod inner {
 	}
 
 	impl_kind! {
+		#[no_inferable_brand]
 		impl<E: 'static> for TryThunkErrAppliedBrand<E> {
 			#[document_default]
 			type Of<'a, A: 'a>: 'a = TryThunk<'a, A, E>;
@@ -994,7 +996,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-		/// let mapped = map::<TryThunkErrAppliedBrand<()>, _, _>(|x| x * 2, try_thunk);
+		/// let mapped = explicit::map::<TryThunkErrAppliedBrand<()>, _, _, _, _>(|x| x * 2, try_thunk);
 		/// assert_eq!(mapped.evaluate(), Ok(20));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -1068,7 +1070,11 @@ mod inner {
 		///
 		/// let eval1: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
 		/// let eval2: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(20);
-		/// let result = lift2::<TryThunkErrAppliedBrand<()>, _, _, _>(|a, b| a + b, eval1, eval2);
+		/// let result = explicit::lift2::<TryThunkErrAppliedBrand<()>, _, _, _, _, _, _>(
+		/// 	|a, b| a + b,
+		/// 	eval1,
+		/// 	eval2,
+		/// );
 		/// assert_eq!(result.evaluate(), Ok(30));
 		/// ```
 		fn lift2<'a, A, B, C>(
@@ -1120,18 +1126,18 @@ mod inner {
 		/// };
 		///
 		/// let func: TryThunk<_, ()> =
-		/// 	pure::<TryThunkErrAppliedBrand<()>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// 	pure::<TryThunkErrAppliedBrand<()>, _>(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let val: TryThunk<_, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(21);
 		/// let result = apply::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Ok(42));
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			ff.bind(move |f| {
 				fa.map(
-					#[allow(clippy::redundant_closure)] // Required for move semantics
+					#[expect(clippy::redundant_closure, reason = "Required for move semantics")]
 					move |a| f(a),
 				)
 			})
@@ -1165,7 +1171,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-		/// let result = bind::<TryThunkErrAppliedBrand<()>, _, _>(try_thunk, |x| {
+		/// let result = explicit::bind::<TryThunkErrAppliedBrand<()>, _, _, _, _>(try_thunk, |x| {
 		/// 	pure::<TryThunkErrAppliedBrand<()>, _>(x * 2)
 		/// });
 		/// assert_eq!(result.evaluate(), Ok(20));
@@ -1266,8 +1272,11 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-		/// let result =
-		/// 	fold_right::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _>(|a, b| a + b, 5, try_thunk);
+		/// let result = explicit::fold_right::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
+		/// 	|a, b| a + b,
+		/// 	5,
+		/// 	try_thunk,
+		/// );
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -1276,7 +1285,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa.evaluate() {
 				Ok(a) => func(a, initial),
 				Err(_) => initial,
@@ -1310,8 +1319,11 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-		/// let result =
-		/// 	fold_left::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _>(|b, a| b + a, 5, try_thunk);
+		/// let result = explicit::fold_left::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
+		/// 	|b, a| b + a,
+		/// 	5,
+		/// 	try_thunk,
+		/// );
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -1320,7 +1332,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa.evaluate() {
 				Ok(a) => func(initial, a),
 				Err(_) => initial,
@@ -1351,8 +1363,10 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-		/// let result =
-		/// 	fold_map::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _>(|a| a.to_string(), try_thunk);
+		/// let result = explicit::fold_map::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
+		/// 	|a: i32| a.to_string(),
+		/// 	try_thunk,
+		/// );
 		/// assert_eq!(result, "10");
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -1361,7 +1375,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa.evaluate() {
 				Ok(a) => func(a),
 				Err(_) => M::empty(),
@@ -1474,16 +1488,21 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::bifunctor::*,
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
 		///
 		/// let x: TryThunk<i32, i32> = TryThunk::ok(5);
-		/// assert_eq!(bimap::<TryThunkBrand, _, _, _, _>(|e| e + 1, |s| s * 2, x).evaluate(), Ok(10));
+		/// assert_eq!(
+		/// 	explicit::bimap::<TryThunkBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x).evaluate(),
+		/// 	Ok(10)
+		/// );
 		///
 		/// let y: TryThunk<i32, i32> = TryThunk::err(5);
-		/// assert_eq!(bimap::<TryThunkBrand, _, _, _, _>(|e| e + 1, |s| s * 2, y).evaluate(), Err(6));
+		/// assert_eq!(
+		/// 	explicit::bimap::<TryThunkBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), y).evaluate(),
+		/// 	Err(6)
+		/// );
 		/// ```
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
 			f: impl Fn(A) -> B + 'a,
@@ -1530,25 +1549,23 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _>(
-		/// 		|e: i32, acc| acc - e,
-		/// 		|s: i32, acc| acc + s,
+		/// 	explicit::bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 		(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 		/// 		10,
 		/// 		TryThunk::err(3),
 		/// 	),
 		/// 	7
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _>(
-		/// 		|e: i32, acc| acc - e,
-		/// 		|s: i32, acc| acc + s,
+		/// 	explicit::bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 		(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 		/// 		10,
 		/// 		TryThunk::ok(5),
 		/// 	),
 		/// 	15
 		/// );
 		/// ```
-		fn bi_fold_right<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+		fn bi_fold_right<'a, FnBrand: CloneFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
 			f: impl Fn(A, C) -> C + 'a,
 			g: impl Fn(B, C) -> C + 'a,
 			z: C,
@@ -1592,25 +1609,23 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _>(
-		/// 		|acc, e: i32| acc - e,
-		/// 		|acc, s: i32| acc + s,
+		/// 	explicit::bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 		(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 		/// 		10,
 		/// 		TryThunk::err(3),
 		/// 	),
 		/// 	7
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _>(
-		/// 		|acc, e: i32| acc - e,
-		/// 		|acc, s: i32| acc + s,
+		/// 	explicit::bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 		(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 		/// 		10,
 		/// 		TryThunk::ok(5),
 		/// 	),
 		/// 	15
 		/// );
 		/// ```
-		fn bi_fold_left<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+		fn bi_fold_left<'a, FnBrand: CloneFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
 			f: impl Fn(C, A) -> C + 'a,
 			g: impl Fn(C, B) -> C + 'a,
 			z: C,
@@ -1653,23 +1668,21 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _>(
-		/// 		|e: i32| e.to_string(),
-		/// 		|s: i32| s.to_string(),
+		/// 	explicit::bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 		(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 		TryThunk::err(3),
 		/// 	),
 		/// 	"3".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _>(
-		/// 		|e: i32| e.to_string(),
-		/// 		|s: i32| s.to_string(),
+		/// 	explicit::bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+		/// 		(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 		TryThunk::ok(5),
 		/// 	),
 		/// 	"5".to_string()
 		/// );
 		/// ```
-		fn bi_fold_map<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, M>(
+		fn bi_fold_map<'a, FnBrand: CloneFn + 'a, A: 'a + Clone, B: 'a + Clone, M>(
 			f: impl Fn(A) -> M + 'a,
 			g: impl Fn(B) -> M + 'a,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
@@ -1684,6 +1697,7 @@ mod inner {
 	}
 
 	impl_kind! {
+		#[no_inferable_brand]
 		/// HKT branding for `TryThunk` with the success type `A` fixed.
 		///
 		/// This is the "dual-channel" encoding for `TryThunk`:
@@ -1726,7 +1740,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-		/// let mapped = map::<TryThunkOkAppliedBrand<i32>, _, _>(|x| x * 2, try_thunk);
+		/// let mapped = explicit::map::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(|x| x * 2, try_thunk);
 		/// assert_eq!(mapped.evaluate(), Err(20));
 		/// ```
 		fn map<'a, E: 'a, E2: 'a>(
@@ -1808,7 +1822,11 @@ mod inner {
 		///
 		/// let eval1: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
 		/// let eval2: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(20);
-		/// let result = lift2::<TryThunkOkAppliedBrand<i32>, _, _, _>(|a, b| a + b, eval1, eval2);
+		/// let result = explicit::lift2::<TryThunkOkAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 	|a, b| a + b,
+		/// 	eval1,
+		/// 	eval2,
+		/// );
 		/// assert_eq!(result.evaluate(), Err(30));
 		/// ```
 		fn lift2<'a, E1, E2, E3>(
@@ -1874,13 +1892,13 @@ mod inner {
 		/// };
 		///
 		/// let func: TryThunk<i32, _> =
-		/// 	pure::<TryThunkOkAppliedBrand<i32>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// 	pure::<TryThunkOkAppliedBrand<i32>, _>(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let val: TryThunk<i32, _> = pure::<TryThunkOkAppliedBrand<i32>, _>(21);
 		/// let result = apply::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Err(42));
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, E1: 'a + Clone, E2: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, E1, E2>>),
+		fn apply<'a, FnBrand: 'a + CloneFn, E1: 'a + Clone, E2: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, E1, E2>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E1>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E2>) {
 			TryThunk::new(move || match ff.evaluate() {
@@ -1920,7 +1938,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-		/// let result = bind::<TryThunkOkAppliedBrand<i32>, _, _>(try_thunk, |x| {
+		/// let result = explicit::bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(try_thunk, |x| {
 		/// 	pure::<TryThunkOkAppliedBrand<i32>, _>(x * 2)
 		/// });
 		/// assert_eq!(result.evaluate(), Err(20));
@@ -2028,8 +2046,11 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-		/// let result =
-		/// 	fold_right::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _>(|a, b| a + b, 5, try_thunk);
+		/// let result = explicit::fold_right::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+		/// 	|a, b| a + b,
+		/// 	5,
+		/// 	try_thunk,
+		/// );
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, E: 'a + Clone, B: 'a>(
@@ -2038,7 +2059,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa.evaluate() {
 				Err(e) => func(e, initial),
 				Ok(_) => initial,
@@ -2072,8 +2093,11 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-		/// let result =
-		/// 	fold_left::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _>(|b, a| b + a, 5, try_thunk);
+		/// let result = explicit::fold_left::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+		/// 	|b, a| b + a,
+		/// 	5,
+		/// 	try_thunk,
+		/// );
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, E: 'a + Clone, B: 'a>(
@@ -2082,7 +2106,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa.evaluate() {
 				Err(e) => func(initial, e),
 				Ok(_) => initial,
@@ -2113,8 +2137,10 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-		/// let result =
-		/// 	fold_map::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _>(|a| a.to_string(), try_thunk);
+		/// let result = explicit::fold_map::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+		/// 	|a: i32| a.to_string(),
+		/// 	try_thunk,
+		/// );
 		/// assert_eq!(result, "10");
 		/// ```
 		fn fold_map<'a, FnBrand, E: 'a + Clone, M>(
@@ -2123,7 +2149,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa.evaluate() {
 				Err(e) => func(e),
 				Ok(_) => M::empty(),
@@ -2205,6 +2231,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters(
 			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
 			"The type of the success value inside the `TryThunk`.",
 			"The monoid type."
 		)]
@@ -2217,22 +2244,25 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::TryThunkErrAppliedBrand,
+		/// 	brands::*,
 		/// 	classes::foldable_with_index::FoldableWithIndex,
 		/// 	types::*,
 		/// };
 		///
 		/// let x: TryThunk<i32, ()> = TryThunk::pure(5);
-		/// let y = <TryThunkErrAppliedBrand<()> as FoldableWithIndex>::fold_map_with_index(
-		/// 	|_, i: i32| i.to_string(),
-		/// 	x,
-		/// );
+		/// let y = <TryThunkErrAppliedBrand<()> as FoldableWithIndex>::fold_map_with_index::<
+		/// 	RcFnBrand,
+		/// 	_,
+		/// 	_,
+		/// >(|_, i: i32| i.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
-		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
+		fn fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid>(
 			f: impl Fn((), A) -> R + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			match fa.evaluate() {
 				Ok(a) => f((), a),
 				Err(_) => R::empty(),
@@ -2288,6 +2318,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters(
 			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
 			"The type of the error value inside the `TryThunk`.",
 			"The monoid type."
 		)]
@@ -2300,22 +2331,25 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::TryThunkOkAppliedBrand,
+		/// 	brands::*,
 		/// 	classes::foldable_with_index::FoldableWithIndex,
 		/// 	types::*,
 		/// };
 		///
 		/// let x: TryThunk<i32, i32> = TryThunk::err(5);
-		/// let y = <TryThunkOkAppliedBrand<i32> as FoldableWithIndex>::fold_map_with_index(
-		/// 	|_, e: i32| e.to_string(),
-		/// 	x,
-		/// );
+		/// let y = <TryThunkOkAppliedBrand<i32> as FoldableWithIndex>::fold_map_with_index::<
+		/// 	RcFnBrand,
+		/// 	_,
+		/// 	_,
+		/// >(|_, e: i32| e.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
-		fn fold_map_with_index<'a, E: 'a + Clone, R: Monoid>(
+		fn fold_map_with_index<'a, FnBrand, E: 'a + Clone, R: Monoid>(
 			f: impl Fn((), E) -> R + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			match fa.evaluate() {
 				Err(e) => f((), e),
 				Ok(_) => R::empty(),
@@ -2326,6 +2360,11 @@ mod inner {
 pub use inner::*;
 
 #[cfg(test)]
+#[expect(
+	clippy::unwrap_used,
+	clippy::panic,
+	reason = "Tests use panicking operations for brevity and clarity"
+)]
 mod tests {
 	use {
 		super::*,
@@ -2489,7 +2528,7 @@ mod tests {
 
 		// Functor (map over success)
 		let try_thunk: TryThunk<i32, ()> = TryThunk::ok(10);
-		let mapped = map::<TryThunkErrAppliedBrand<()>, _, _>(|x| x * 2, try_thunk);
+		let mapped = explicit::map::<TryThunkErrAppliedBrand<()>, _, _, _, _>(|x| x * 2, try_thunk);
 		assert_eq!(mapped.evaluate(), Ok(20));
 
 		// Pointed (pure -> ok)
@@ -2498,14 +2537,14 @@ mod tests {
 
 		// Semimonad (bind over success)
 		let try_thunk: TryThunk<i32, ()> = TryThunk::ok(10);
-		let bound = bind::<TryThunkErrAppliedBrand<()>, _, _>(try_thunk, |x| {
+		let bound = explicit::bind::<TryThunkErrAppliedBrand<()>, _, _, _, _>(try_thunk, |x| {
 			pure::<TryThunkErrAppliedBrand<()>, _>(x * 2)
 		});
 		assert_eq!(bound.evaluate(), Ok(20));
 
 		// Foldable (fold over success)
 		let try_thunk: TryThunk<i32, ()> = TryThunk::ok(10);
-		let folded = fold_right::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _>(
+		let folded = explicit::fold_right::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _, _>(
 			|x, acc| x + acc,
 			5,
 			try_thunk,
@@ -2540,9 +2579,8 @@ mod tests {
 
 		// Error case: f(3, 10) = 10 - 3 = 7
 		assert_eq!(
-			bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _>(
-				|e: i32, acc| acc - e,
-				|s: i32, acc| acc + s,
+			explicit::bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+				(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 				10,
 				TryThunk::err(3),
 			),
@@ -2551,9 +2589,8 @@ mod tests {
 
 		// Success case: g(5, 10) = 10 + 5 = 15
 		assert_eq!(
-			bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _>(
-				|e: i32, acc| acc - e,
-				|s: i32, acc| acc + s,
+			explicit::bi_fold_right::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+				(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 				10,
 				TryThunk::ok(5),
 			),
@@ -2572,9 +2609,8 @@ mod tests {
 		};
 
 		assert_eq!(
-			bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _>(
-				|acc, e: i32| acc - e,
-				|acc, s: i32| acc + s,
+			explicit::bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+				(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 				10,
 				TryThunk::err(3),
 			),
@@ -2582,9 +2618,8 @@ mod tests {
 		);
 
 		assert_eq!(
-			bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _>(
-				|acc, e: i32| acc - e,
-				|acc, s: i32| acc + s,
+			explicit::bi_fold_left::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+				(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 				10,
 				TryThunk::ok(5),
 			),
@@ -2603,18 +2638,16 @@ mod tests {
 		};
 
 		assert_eq!(
-			bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _>(
-				|e: i32| e.to_string(),
-				|s: i32| s.to_string(),
+			explicit::bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+				(|e: i32| e.to_string(), |s: i32| s.to_string()),
 				TryThunk::err(3),
 			),
 			"3".to_string()
 		);
 
 		assert_eq!(
-			bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _>(
-				|e: i32| e.to_string(),
-				|s: i32| s.to_string(),
+			explicit::bi_fold_map::<RcFnBrand, TryThunkBrand, _, _, _, _, _>(
+				(|e: i32| e.to_string(), |s: i32| s.to_string()),
 				TryThunk::ok(5),
 			),
 			"5".to_string()
@@ -2704,7 +2737,7 @@ mod tests {
 
 		// Functor (map over error)
 		let try_thunk: TryThunk<i32, i32> = TryThunk::err(10);
-		let mapped = map::<TryThunkOkAppliedBrand<i32>, _, _>(|x| x * 2, try_thunk);
+		let mapped = explicit::map::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(|x| x * 2, try_thunk);
 		assert_eq!(mapped.evaluate(), Err(20));
 
 		// Pointed (pure -> err)
@@ -2713,14 +2746,14 @@ mod tests {
 
 		// Semimonad (bind over error)
 		let try_thunk: TryThunk<i32, i32> = TryThunk::err(10);
-		let bound = bind::<TryThunkOkAppliedBrand<i32>, _, _>(try_thunk, |x| {
+		let bound = explicit::bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(try_thunk, |x| {
 			pure::<TryThunkOkAppliedBrand<i32>, _>(x * 2)
 		});
 		assert_eq!(bound.evaluate(), Err(20));
 
 		// Foldable (fold over error)
 		let try_thunk: TryThunk<i32, i32> = TryThunk::err(10);
-		let folded = fold_right::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _>(
+		let folded = explicit::fold_right::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _, _>(
 			|x, acc| x + acc,
 			5,
 			try_thunk,
@@ -2780,7 +2813,7 @@ mod tests {
 			functions::*,
 		};
 		let t: TryThunk<i32, i32> = TryThunk::ok(x);
-		map::<TryThunkErrAppliedBrand<i32>, _, _>(|a| a, t).evaluate() == Ok(x)
+		explicit::map::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(|a| a, t).evaluate() == Ok(x)
 	}
 
 	/// Functor composition: `map(f . g, t) == map(f, map(g, t))`.
@@ -2792,11 +2825,14 @@ mod tests {
 		};
 		let f = |a: i32| a.wrapping_add(1);
 		let g = |a: i32| a.wrapping_mul(2);
-		let lhs =
-			map::<TryThunkErrAppliedBrand<i32>, _, _>(move |a| f(g(a)), TryThunk::ok(x)).evaluate();
-		let rhs = map::<TryThunkErrAppliedBrand<i32>, _, _>(
+		let lhs = explicit::map::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
+			move |a| f(g(a)),
+			TryThunk::ok(x),
+		)
+		.evaluate();
+		let rhs = explicit::map::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
 			f,
-			map::<TryThunkErrAppliedBrand<i32>, _, _>(g, TryThunk::ok(x)),
+			explicit::map::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(g, TryThunk::ok(x)),
 		)
 		.evaluate();
 		lhs == rhs
@@ -2812,7 +2848,7 @@ mod tests {
 			functions::*,
 		};
 		let f = |x: i32| pure::<TryThunkErrAppliedBrand<i32>, _>(x.wrapping_mul(2));
-		let lhs = bind::<TryThunkErrAppliedBrand<i32>, _, _>(
+		let lhs = explicit::bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
 			pure::<TryThunkErrAppliedBrand<i32>, _>(a),
 			f,
 		)
@@ -2828,7 +2864,7 @@ mod tests {
 			brands::*,
 			functions::*,
 		};
-		let lhs = bind::<TryThunkErrAppliedBrand<i32>, _, _>(
+		let lhs = explicit::bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
 			pure::<TryThunkErrAppliedBrand<i32>, _>(x),
 			pure::<TryThunkErrAppliedBrand<i32>, _>,
 		)
@@ -2847,13 +2883,13 @@ mod tests {
 		let g = |a: i32| pure::<TryThunkErrAppliedBrand<i32>, _>(a.wrapping_mul(3));
 		let m: TryThunk<i32, i32> = TryThunk::ok(x);
 		let m2: TryThunk<i32, i32> = TryThunk::ok(x);
-		let lhs = bind::<TryThunkErrAppliedBrand<i32>, _, _>(
-			bind::<TryThunkErrAppliedBrand<i32>, _, _>(m, f),
+		let lhs = explicit::bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
+			explicit::bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(m, f),
 			g,
 		)
 		.evaluate();
-		let rhs = bind::<TryThunkErrAppliedBrand<i32>, _, _>(m2, move |a| {
-			bind::<TryThunkErrAppliedBrand<i32>, _, _>(f(a), g)
+		let rhs = explicit::bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(m2, move |a| {
+			explicit::bind::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(f(a), g)
 		})
 		.evaluate();
 		lhs == rhs
@@ -3110,9 +3146,11 @@ mod tests {
 			functions::*,
 		};
 		let f = |x: i32| pure::<TryThunkOkAppliedBrand<i32>, _>(x.wrapping_mul(2));
-		let lhs =
-			bind::<TryThunkOkAppliedBrand<i32>, _, _>(pure::<TryThunkOkAppliedBrand<i32>, _>(a), f)
-				.evaluate();
+		let lhs = explicit::bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+			pure::<TryThunkOkAppliedBrand<i32>, _>(a),
+			f,
+		)
+		.evaluate();
 		let rhs = f(a).evaluate();
 		lhs == rhs
 	}
@@ -3124,7 +3162,7 @@ mod tests {
 			brands::*,
 			functions::*,
 		};
-		let lhs = bind::<TryThunkOkAppliedBrand<i32>, _, _>(
+		let lhs = explicit::bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(
 			pure::<TryThunkOkAppliedBrand<i32>, _>(x),
 			pure::<TryThunkOkAppliedBrand<i32>, _>,
 		)
@@ -3143,13 +3181,13 @@ mod tests {
 		let g = |a: i32| pure::<TryThunkOkAppliedBrand<i32>, _>(a.wrapping_mul(3));
 		let m: TryThunk<i32, i32> = TryThunk::err(x);
 		let m2: TryThunk<i32, i32> = TryThunk::err(x);
-		let lhs = bind::<TryThunkOkAppliedBrand<i32>, _, _>(
-			bind::<TryThunkOkAppliedBrand<i32>, _, _>(m, f),
+		let lhs = explicit::bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(
+			explicit::bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(m, f),
 			g,
 		)
 		.evaluate();
-		let rhs = bind::<TryThunkOkAppliedBrand<i32>, _, _>(m2, move |a| {
-			bind::<TryThunkOkAppliedBrand<i32>, _, _>(f(a), g)
+		let rhs = explicit::bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(m2, move |a| {
+			explicit::bind::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(f(a), g)
 		})
 		.evaluate();
 		lhs == rhs

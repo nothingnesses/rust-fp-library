@@ -9,12 +9,12 @@ mod inner {
 			Apply,
 			brands::optics::*,
 			classes::{
-				CloneableFn,
 				profunctor::{
 					Choice,
 					Profunctor,
 					Strong,
 				},
+				*,
 			},
 			impl_kind,
 			kinds::*,
@@ -31,11 +31,11 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure."
 	)]
-	pub struct Stall<'a, FunctionBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> {
+	pub struct Stall<'a, FunctionBrand: LiftFn, A: 'a, B: 'a, S: 'a, T: 'a> {
 		/// Preview function: tries to extract the focus.
-		pub get: <FunctionBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
+		pub get: <FunctionBrand as CloneFn>::Of<'a, S, Result<A, T>>,
 		/// Setter function.
-		pub set: <FunctionBrand as CloneableFn>::Of<'a, (S, B), T>,
+		pub set: <FunctionBrand as CloneFn>::Of<'a, (S, B), T>,
 	}
 
 	#[document_type_parameters(
@@ -46,9 +46,7 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure."
 	)]
-	impl<'a, FunctionBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a>
-		Stall<'a, FunctionBrand, A, B, S, T>
-	{
+	impl<'a, FunctionBrand: LiftFn, A: 'a, B: 'a, S: 'a, T: 'a> Stall<'a, FunctionBrand, A, B, S, T> {
 		/// Creates a new `Stall` instance.
 		#[document_signature]
 		///
@@ -61,20 +59,20 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::RcFnBrand,
-		/// 	classes::cloneable_fn::new as cloneable_fn_new,
+		/// 	classes::clone_fn::new as lift_fn_new,
 		/// 	types::optics::Stall,
 		/// };
 		///
 		/// let stall = Stall::<RcFnBrand, i32, i32, (i32, i32), (i32, i32)>::new(
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: (i32, i32)| Ok(s.0)),
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|(s, b): ((i32, i32), i32)| (b, s.1)),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|s: (i32, i32)| Ok(s.0)),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|(s, b): ((i32, i32), i32)| (b, s.1)),
 		/// );
 		/// assert_eq!((stall.get)((10, 20)), Ok(10));
 		/// assert_eq!((stall.set)(((10, 20), 30)), (30, 20));
 		/// ```
 		pub fn new(
-			get: <FunctionBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
-			set: <FunctionBrand as CloneableFn>::Of<'a, (S, B), T>,
+			get: <FunctionBrand as CloneFn>::Of<'a, S, Result<A, T>>,
+			set: <FunctionBrand as CloneFn>::Of<'a, (S, B), T>,
 		) -> Self {
 			Stall {
 				get,
@@ -84,7 +82,7 @@ mod inner {
 	}
 
 	impl_kind! {
-		impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> for StallBrand<FunctionBrand, A, B> {
+		impl<FunctionBrand: LiftFn + 'static, A: 'static, B: 'static> for StallBrand<FunctionBrand, A, B> {
 			#[document_default]
 			type Of<'a, S: 'a, T: 'a>: 'a = Stall<'a, FunctionBrand, A, B, S, T>;
 		}
@@ -95,7 +93,7 @@ mod inner {
 		"The type of the value produced by the preview function.",
 		"The type of the value consumed by the setter."
 	)]
-	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Profunctor
+	impl<FunctionBrand: LiftFn + 'static, A: 'static, B: 'static> Profunctor
 		for StallBrand<FunctionBrand, A, B>
 	{
 		/// Maps functions over the input and output of the `Stall` profunctor.
@@ -124,7 +122,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as cloneable_fn_new,
+		/// 		clone_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},
@@ -133,8 +131,8 @@ mod inner {
 		///
 		/// // Stall is usually used internally by AffineTraversal optics
 		/// let stall = Stall::<RcFnBrand, i32, i32, (i32, i32), (i32, i32)>::new(
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: (i32, i32)| Ok(s.0)),
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|(s, b): ((i32, i32), i32)| (b, s.1)),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|s: (i32, i32)| Ok(s.0)),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|(s, b): ((i32, i32), i32)| (b, s.1)),
 		/// );
 		/// let transformed = <StallBrand<RcFnBrand, i32, i32> as Profunctor>::dimap(
 		/// 	|s: (i32, i32)| s,
@@ -150,15 +148,13 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, V>) {
 			let get = puv.get;
 			let set = puv.set;
-			let st = <FunctionBrand as CloneableFn>::new(st);
-			let uv = <FunctionBrand as CloneableFn>::new(uv);
+			let st = <FunctionBrand as LiftFn>::new(st);
+			let uv = <FunctionBrand as LiftFn>::new(uv);
 			let st_2 = st.clone();
 			let uv_2 = uv.clone();
 			Stall::new(
-				<FunctionBrand as CloneableFn>::new(move |s: S| {
-					(*get)((*st)(s)).map_err(|u| (*uv)(u))
-				}),
-				<FunctionBrand as CloneableFn>::new(move |(s, b): (S, B)| {
+				<FunctionBrand as LiftFn>::new(move |s: S| (*get)((*st)(s)).map_err(|u| (*uv)(u))),
+				<FunctionBrand as LiftFn>::new(move |(s, b): (S, B)| {
 					(*uv_2)((*set)(((*st_2)(s), b)))
 				}),
 			)
@@ -170,7 +166,7 @@ mod inner {
 		"The type of the value produced by the preview function.",
 		"The type of the value consumed by the setter."
 	)]
-	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Strong
+	impl<FunctionBrand: LiftFn + 'static, A: 'static, B: 'static> Strong
 		for StallBrand<FunctionBrand, A, B>
 	{
 		/// Lifts the `Stall` profunctor to operate on the first component of a tuple.
@@ -194,7 +190,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as cloneable_fn_new,
+		/// 		clone_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},
@@ -202,8 +198,8 @@ mod inner {
 		/// };
 		///
 		/// let stall = Stall::<RcFnBrand, i32, i32, i32, i32>::new(
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: i32| Ok(s)),
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|(_s, b): (i32, i32)| b),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|s: i32| Ok(s)),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|(_s, b): (i32, i32)| b),
 		/// );
 		/// let lifted = <StallBrand<RcFnBrand, i32, i32> as Strong>::first::<i32, i32, String>(stall);
 		/// assert_eq!((lifted.get)((10, "hi".to_string())), Ok(10));
@@ -214,12 +210,8 @@ mod inner {
 			let get = pab.get;
 			let set = pab.set;
 			Stall::new(
-				<FunctionBrand as CloneableFn>::new(move |(s, c): (S, C)| {
-					(*get)(s).map_err(|t| (t, c))
-				}),
-				<FunctionBrand as CloneableFn>::new(move |((s, c), b): ((S, C), B)| {
-					((*set)((s, b)), c)
-				}),
+				<FunctionBrand as LiftFn>::new(move |(s, c): (S, C)| (*get)(s).map_err(|t| (t, c))),
+				<FunctionBrand as LiftFn>::new(move |((s, c), b): ((S, C), B)| ((*set)((s, b)), c)),
 			)
 		}
 	}
@@ -229,7 +221,7 @@ mod inner {
 		"The type of the value produced by the preview function.",
 		"The type of the value consumed by the setter."
 	)]
-	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Choice
+	impl<FunctionBrand: LiftFn + 'static, A: 'static, B: 'static> Choice
 		for StallBrand<FunctionBrand, A, B>
 	{
 		/// Lifts the `Stall` profunctor to operate on the left component of a `Result`.
@@ -255,7 +247,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as cloneable_fn_new,
+		/// 		clone_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},
@@ -263,8 +255,8 @@ mod inner {
 		/// };
 		///
 		/// let stall = Stall::<RcFnBrand, i32, i32, i32, i32>::new(
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: i32| Ok(s)),
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|(_s, b): (i32, i32)| b),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|s: i32| Ok(s)),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|(_s, b): (i32, i32)| b),
 		/// );
 		/// let lifted = <StallBrand<RcFnBrand, i32, i32> as Choice>::left::<i32, i32, String>(stall);
 		/// assert!((lifted.get)(Err(10)).is_ok());
@@ -276,11 +268,11 @@ mod inner {
 			let get = pab.get;
 			let set = pab.set;
 			Stall::new(
-				<FunctionBrand as CloneableFn>::new(move |r: Result<C, S>| match r {
+				<FunctionBrand as LiftFn>::new(move |r: Result<C, S>| match r {
 					Err(s) => (*get)(s).map_err(Err),
 					Ok(c) => Err(Ok(c)),
 				}),
-				<FunctionBrand as CloneableFn>::new(move |(r, b): (Result<C, S>, B)| match r {
+				<FunctionBrand as LiftFn>::new(move |(r, b): (Result<C, S>, B)| match r {
 					Err(s) => Err((*set)((s, b))),
 					Ok(c) => Ok(c),
 				}),
@@ -310,7 +302,7 @@ mod inner {
 		/// 		*,
 		/// 	},
 		/// 	classes::{
-		/// 		cloneable_fn::new as cloneable_fn_new,
+		/// 		clone_fn::new as lift_fn_new,
 		/// 		optics::*,
 		/// 		profunctor::*,
 		/// 	},
@@ -318,8 +310,8 @@ mod inner {
 		/// };
 		///
 		/// let stall = Stall::<RcFnBrand, i32, i32, i32, i32>::new(
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s| Ok(s)),
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|(_, b)| b),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|s| Ok(s)),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|(_, b)| b),
 		/// );
 		/// let lifted = <StallBrand<RcFnBrand, i32, i32> as Choice>::right::<i32, i32, i32>(stall);
 		/// assert_eq!((lifted.get)(Ok(42)), Ok(42));
@@ -331,11 +323,11 @@ mod inner {
 			let get = pab.get;
 			let set = pab.set;
 			Stall::new(
-				<FunctionBrand as CloneableFn>::new(move |r: Result<S, C>| match r {
+				<FunctionBrand as LiftFn>::new(move |r: Result<S, C>| match r {
 					Ok(s) => (*get)(s).map_err(Ok),
 					Err(c) => Err(Err(c)),
 				}),
-				<FunctionBrand as CloneableFn>::new(move |(r, b): (Result<S, C>, B)| match r {
+				<FunctionBrand as LiftFn>::new(move |(r, b): (Result<S, C>, B)| match r {
 					Ok(s) => Ok((*set)((s, b))),
 					Err(c) => Err(c),
 				}),

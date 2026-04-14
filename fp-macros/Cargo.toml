@@ -1,6 +1,6 @@
 [package]
 name = "fp-macros"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 description = "Procedural macros for generating and working with Higher-Kinded Type (HKT) traits in the fp-library crate."
 repository = "https://github.com/nothingnesses/rust-fp-library"
@@ -28,6 +28,7 @@ thiserror = "2.0"
 toml = "0.9"
 
 [dev-dependencies]
+insta = "1"
 quickcheck = "1.0"
 quickcheck_macros = "1.1"
 trybuild = "1.0"

@@ -4,89 +4,124 @@ This document tracks the coverage of `fp-library` against functionality provided
 
 ## Type Classes (Traits)
 
-| FP Concept                   | Rust `std` Equivalent / Use Case         | Implementation Path                    |
-| :--------------------------- | :--------------------------------------- | :------------------------------------- |
-| **`Alt`**                    | `Option::or`, `Result::or`               | `classes/alt.rs`                       |
-| **`Alternative`**            | `Option::or`, `Option::xor`              | `classes/alternative.rs`               |
-| **`Applicative`**            | N/A                                      | `classes/applicative.rs`               |
-| **`ApplyFirst`**             | N/A                                      | `classes/apply_first.rs`               |
-| **`ApplySecond`**            | N/A                                      | `classes/apply_second.rs`              |
-| **`Bifoldable`**             | N/A                                      | `classes/bifoldable.rs`                |
-| **`Bifunctor`**              | `Result::map_err`, Tuple operations      | `classes/bifunctor.rs`                 |
-| **`Bitraversable`**          | N/A                                      | `classes/bitraversable.rs`             |
-| **`Category`**               | N/A                                      | `classes/category.rs`                  |
-| **`Choice`**                 | N/A                                      | `classes/profunctor/choice.rs`         |
-| **`CloneableFn`**            | `Clone + Fn`                             | `classes/cloneable_fn.rs`              |
-| **`Closed`**                 | N/A                                      | `classes/profunctor/closed.rs`         |
-| **`Cochoice`**               | N/A                                      | `classes/profunctor/cochoice.rs`       |
-| **`CommutativeRing`**        | N/A                                      | `classes/commutative_ring.rs`          |
-| **`Comonad`**                | `&` (references), `Box` (context access) | `classes/comonad.rs`                   |
-| **`Compactable`**            | `Iterator::flatten` (for Option)         | `classes/compactable.rs`               |
-| **`Contravariant`**          | `cmp::Ordering`, Comparison functions    | `classes/contravariant.rs`             |
-| **`Costrong`**               | N/A                                      | `classes/profunctor/costrong.rs`       |
-| **`Deferrable`**             | Lazy evaluation                          | `classes/deferrable.rs`                |
-| **`DivisionRing`**           | N/A                                      | `classes/division_ring.rs`             |
-| **`EuclideanRing`**          | N/A                                      | `classes/euclidean_ring.rs`            |
-| **`Extend`**                 | N/A                                      | `classes/extend.rs`                    |
-| **`Extract`**                | N/A                                      | `classes/extract.rs`                   |
-| **`Field`**                  | N/A                                      | `classes/field.rs`                     |
-| **`Filterable`**             | `Iterator::filter`, `Vec::retain`        | `classes/filterable.rs`                |
-| **`FilterableWithIndex`**    | `Iterator::enumerate + filter`           | `classes/filterable_with_index.rs`     |
-| **`Foldable`**               | `Iterator::fold`                         | `classes/foldable.rs`                  |
-| **`FoldableWithIndex`**      | `Iterator::enumerate + fold`             | `classes/foldable_with_index.rs`       |
-| **`Function`**               | `Fn`                                     | `classes/function.rs`                  |
-| **`Functor`**                | `Iterator::map`, `Option::map`           | `classes/functor.rs`                   |
-| **`FunctorWithIndex`**       | `Iterator::enumerate + map`              | `classes/functor_with_index.rs`        |
-| **`HeytingAlgebra`**         | `bool` operations                        | `classes/heyting_algebra.rs`           |
-| **`LazyConfig`**             | `LazyCell`, `LazyLock`                   | `classes/lazy_config.rs`               |
-| **`Lift`**                   | N/A                                      | `classes/lift.rs`                      |
-| **`Monad`**                  | `Option::and_then`, `Result::and_then`   | `classes/monad.rs`                     |
-| **`MonadPlus`**              | N/A                                      | `classes/monad_plus.rs`                |
-| **`MonadRec`**               | N/A                                      | `classes/monad_rec.rs`                 |
-| **`Monoid`**                 | `Default + Add`                          | `classes/monoid.rs`                    |
-| **`NaturalTransformation`**  | N/A                                      | `classes/natural_transformation.rs`    |
-| **`ParCompactable`**         | `rayon` parallel compact                 | `classes/par_compactable.rs`           |
-| **`ParFilterable`**          | `rayon` parallel filter                  | `classes/par_filterable.rs`            |
-| **`ParFilterableWithIndex`** | `rayon` parallel indexed filter          | `classes/par_filterable_with_index.rs` |
-| **`ParFoldable`**            | `rayon` parallel fold                    | `classes/par_foldable.rs`              |
-| **`ParFoldableWithIndex`**   | `rayon` parallel indexed fold            | `classes/par_foldable_with_index.rs`   |
-| **`ParFunctor`**             | `rayon` parallel map                     | `classes/par_functor.rs`               |
-| **`ParFunctorWithIndex`**    | `rayon` parallel indexed map             | `classes/par_functor_with_index.rs`    |
-| **`Pipe`**                   | Method chaining                          | `classes/pipe.rs`                      |
-| **`Plus`**                   | `Default` (empty for Alt)                | `classes/plus.rs`                      |
-| **`Pointed`**                | N/A                                      | `classes/pointed.rs`                   |
-| **`Pointer`**                | `Box`, `Rc`, `Arc`                       | `classes/pointer.rs`                   |
-| **`Profunctor`**             | `Fn(A) -> B`                             | `classes/profunctor.rs`                |
-| **`RefCountedPointer`**      | `Rc`, `Arc`                              | `classes/ref_counted_pointer.rs`       |
-| **`RefFunctor`**             | N/A                                      | `classes/ref_functor.rs`               |
-| **`Ring`**                   | N/A                                      | `classes/ring.rs`                      |
-| **`Semiapplicative`**        | N/A                                      | `classes/semiapplicative.rs`           |
-| **`Semigroup`**              | `Add`                                    | `classes/semigroup.rs`                 |
-| **`Semigroupoid`**           | N/A                                      | `classes/semigroupoid.rs`              |
-| **`Semimonad`**              | N/A                                      | `classes/semimonad.rs`                 |
-| **`Semiring`**               | N/A                                      | `classes/semiring.rs`                  |
-| **`SendCloneableFn`**        | `Clone + Fn + Send + Sync`               | `classes/send_cloneable_fn.rs`         |
-| **`SendDeferrable`**         | Lazy evaluation (thread-safe)            | `classes/send_deferrable.rs`           |
-| **`SendRefCountedPointer`**  | `Arc`                                    | `classes/send_ref_counted_pointer.rs`  |
-| **`SendRefFunctor`**         | N/A                                      | `classes/send_ref_functor.rs`          |
-| **`SendUnsizedCoercible`**   | N/A                                      | `classes/send_unsized_coercible.rs`    |
-| **`Strong`**                 | N/A                                      | `classes/profunctor/strong.rs`         |
-| **`Traversable`**            | `Iterator::collect`                      | `classes/traversable.rs`               |
-| **`TraversableWithIndex`**   | N/A                                      | `classes/traversable_with_index.rs`    |
-| **`UnsizedCoercible`**       | N/A                                      | `classes/unsized_coercible.rs`         |
-| **`Wander`**                 | N/A                                      | `classes/profunctor/wander.rs`         |
-| **`Witherable`**             | N/A                                      | `classes/witherable.rs`                |
-| **`WithIndex`**              | N/A                                      | `classes/with_index.rs`                |
+| FP Concept                      | Rust `std` Equivalent / Use Case         | Implementation Path                        |
+| :------------------------------ | :--------------------------------------- | :----------------------------------------- |
+| **`Alt`**                       | `Option::or`, `Result::or`               | `classes/alt.rs`                           |
+| **`Alternative`**               | `Option::or`, `Option::xor`              | `classes/alternative.rs`                   |
+| **`Applicative`**               | N/A                                      | `classes/applicative.rs`                   |
+| **`ApplyFirst`**                | N/A                                      | `classes/apply_first.rs`                   |
+| **`ApplySecond`**               | N/A                                      | `classes/apply_second.rs`                  |
+| **`Bifoldable`**                | N/A                                      | `classes/bifoldable.rs`                    |
+| **`Bifunctor`**                 | `Result::map_err`, Tuple operations      | `classes/bifunctor.rs`                     |
+| **`Bitraversable`**             | N/A                                      | `classes/bitraversable.rs`                 |
+| **`Category`**                  | N/A                                      | `classes/category.rs`                      |
+| **`Choice`**                    | N/A                                      | `classes/profunctor/choice.rs`             |
+| **`CloneFn`**                   | `Clone + Fn`                             | `classes/clone_fn.rs`                      |
+| **`ClosureMode`**               | N/A                                      | `classes/dispatch.rs`                      |
+| **`Closed`**                    | N/A                                      | `classes/profunctor/closed.rs`             |
+| **`Cochoice`**                  | N/A                                      | `classes/profunctor/cochoice.rs`           |
+| **`CommutativeRing`**           | N/A                                      | `classes/commutative_ring.rs`              |
+| **`Comonad`**                   | `&` (references), `Box` (context access) | `classes/comonad.rs`                       |
+| **`Compactable`**               | `Iterator::flatten` (for Option)         | `classes/compactable.rs`                   |
+| **`Contravariant`**             | `cmp::Ordering`, Comparison functions    | `classes/contravariant.rs`                 |
+| **`Costrong`**                  | N/A                                      | `classes/profunctor/costrong.rs`           |
+| **`Deferrable`**                | Lazy evaluation                          | `classes/deferrable.rs`                    |
+| **`DivisionRing`**              | N/A                                      | `classes/division_ring.rs`                 |
+| **`EuclideanRing`**             | N/A                                      | `classes/euclidean_ring.rs`                |
+| **`Extend`**                    | N/A                                      | `classes/extend.rs`                        |
+| **`Extract`**                   | N/A                                      | `classes/extract.rs`                       |
+| **`Field`**                     | N/A                                      | `classes/field.rs`                         |
+| **`Filterable`**                | `Iterator::filter`, `Vec::retain`        | `classes/filterable.rs`                    |
+| **`FilterableWithIndex`**       | `Iterator::enumerate + filter`           | `classes/filterable_with_index.rs`         |
+| **`Foldable`**                  | `Iterator::fold`                         | `classes/foldable.rs`                      |
+| **`FoldableWithIndex`**         | `Iterator::enumerate + fold`             | `classes/foldable_with_index.rs`           |
+| **`Arrow`**                     | `Fn` (composable)                        | `classes/arrow.rs`                         |
+| **`Functor`**                   | `Iterator::map`, `Option::map`           | `classes/functor.rs`                       |
+| **`FunctorWithIndex`**          | `Iterator::enumerate + map`              | `classes/functor_with_index.rs`            |
+| **`HeytingAlgebra`**            | `bool` operations                        | `classes/heyting_algebra.rs`               |
+| **`LazyConfig`**                | `LazyCell`, `LazyLock`                   | `classes/lazy_config.rs`                   |
+| **`Lift`**                      | N/A                                      | `classes/lift.rs`                          |
+| **`LiftFn`**                    | Construction for `CloneFn<Val>`          | `classes/clone_fn.rs`                      |
+| **`Monad`**                     | `Option::and_then`, `Result::and_then`   | `classes/monad.rs`                         |
+| **`MonadPlus`**                 | N/A                                      | `classes/monad_plus.rs`                    |
+| **`MonadRec`**                  | N/A                                      | `classes/monad_rec.rs`                     |
+| **`Monoid`**                    | `Default + Add`                          | `classes/monoid.rs`                        |
+| **`NaturalTransformation`**     | N/A                                      | `classes/natural_transformation.rs`        |
+| **`ParCompactable`**            | `rayon` parallel compact                 | `classes/par_compactable.rs`               |
+| **`ParFilterable`**             | `rayon` parallel filter                  | `classes/par_filterable.rs`                |
+| **`ParFilterableWithIndex`**    | `rayon` parallel indexed filter          | `classes/par_filterable_with_index.rs`     |
+| **`ParFoldable`**               | `rayon` parallel fold                    | `classes/par_foldable.rs`                  |
+| **`ParFoldableWithIndex`**      | `rayon` parallel indexed fold            | `classes/par_foldable_with_index.rs`       |
+| **`ParFunctor`**                | `rayon` parallel map                     | `classes/par_functor.rs`                   |
+| **`ParFunctorWithIndex`**       | `rayon` parallel indexed map             | `classes/par_functor_with_index.rs`        |
+| **`ParRefFilterable`**          | `rayon` parallel by-ref filter           | `classes/par_ref_filterable.rs`            |
+| **`ParRefFilterableWithIndex`** | `rayon` parallel by-ref indexed filter   | `classes/par_ref_filterable_with_index.rs` |
+| **`ParRefFoldable`**            | `rayon` parallel by-ref fold             | `classes/par_ref_foldable.rs`              |
+| **`ParRefFoldableWithIndex`**   | `rayon` parallel by-ref indexed fold     | `classes/par_ref_foldable_with_index.rs`   |
+| **`ParRefFunctor`**             | `rayon` parallel by-ref map              | `classes/par_ref_functor.rs`               |
+| **`ParRefFunctorWithIndex`**    | `rayon` parallel by-ref indexed map      | `classes/par_ref_functor_with_index.rs`    |
+| **`Pipe`**                      | Method chaining                          | `classes/pipe.rs`                          |
+| **`Plus`**                      | `Default` (empty for Alt)                | `classes/plus.rs`                          |
+| **`Pointed`**                   | N/A                                      | `classes/pointed.rs`                       |
+| **`Pointer`**                   | `Box`, `Rc`, `Arc`                       | `classes/pointer.rs`                       |
+| **`Profunctor`**                | `Fn(A) -> B`                             | `classes/profunctor.rs`                    |
+| **`RefApplicative`**            | N/A (blanket)                            | `classes/ref_applicative.rs`               |
+| **`RefApplyFirst`**             | N/A (blanket)                            | `classes/ref_apply_first.rs`               |
+| **`RefApplySecond`**            | N/A (blanket)                            | `classes/ref_apply_second.rs`              |
+| **`RefCountedPointer`**         | `Rc`, `Arc`                              | `classes/ref_counted_pointer.rs`           |
+| **`RefFilterable`**             | `Iterator::filter` (by ref)              | `classes/ref_filterable.rs`                |
+| **`RefFilterableWithIndex`**    | N/A                                      | `classes/ref_filterable_with_index.rs`     |
+| **`RefFoldable`**               | `Iterator::fold` (by ref)                | `classes/ref_foldable.rs`                  |
+| **`RefFoldableWithIndex`**      | N/A                                      | `classes/ref_foldable_with_index.rs`       |
+| **`RefFunctor`**                | N/A                                      | `classes/ref_functor.rs`                   |
+| **`RefFunctorWithIndex`**       | N/A                                      | `classes/ref_functor_with_index.rs`        |
+| **`RefLift`**                   | N/A                                      | `classes/ref_lift.rs`                      |
+| **`RefMonad`**                  | N/A (blanket)                            | `classes/ref_monad.rs`                     |
+| **`RefPointed`**                | N/A                                      | `classes/ref_pointed.rs`                   |
+| **`RefSemiapplicative`**        | N/A                                      | `classes/ref_semiapplicative.rs`           |
+| **`RefSemimonad`**              | N/A                                      | `classes/ref_semimonad.rs`                 |
+| **`RefTraversable`**            | N/A                                      | `classes/ref_traversable.rs`               |
+| **`RefTraversableWithIndex`**   | N/A                                      | `classes/ref_traversable_with_index.rs`    |
+| **`RefWitherable`**             | N/A                                      | `classes/ref_witherable.rs`                |
+| **`Ring`**                      | N/A                                      | `classes/ring.rs`                          |
+| **`Semiapplicative`**           | N/A                                      | `classes/semiapplicative.rs`               |
+| **`Semigroup`**                 | `Add`                                    | `classes/semigroup.rs`                     |
+| **`Semigroupoid`**              | N/A                                      | `classes/semigroupoid.rs`                  |
+| **`Semimonad`**                 | N/A                                      | `classes/semimonad.rs`                     |
+| **`Semiring`**                  | N/A                                      | `classes/semiring.rs`                      |
+| **`SendCloneFn`**               | `Clone + Fn + Send + Sync`               | `classes/send_clone_fn.rs`                 |
+| **`SendDeferrable`**            | Lazy evaluation (thread-safe)            | `classes/send_deferrable.rs`               |
+| **`SendLiftFn`**                | Construction for `SendCloneFn<Val>`      | `classes/send_clone_fn.rs`                 |
+| **`SendRefApplicative`**        | N/A (blanket)                            | `classes/send_ref_applicative.rs`          |
+| **`SendRefApplyFirst`**         | N/A (blanket)                            | `classes/send_ref_apply_first.rs`          |
+| **`SendRefApplySecond`**        | N/A (blanket)                            | `classes/send_ref_apply_second.rs`         |
+| **`SendRefCountedPointer`**     | `Arc`                                    | `classes/send_ref_counted_pointer.rs`      |
+| **`SendRefFoldable`**           | N/A                                      | `classes/send_ref_foldable.rs`             |
+| **`SendRefFoldableWithIndex`**  | N/A                                      | `classes/send_ref_foldable_with_index.rs`  |
+| **`SendRefFunctor`**            | N/A                                      | `classes/send_ref_functor.rs`              |
+| **`SendRefFunctorWithIndex`**   | N/A                                      | `classes/send_ref_functor_with_index.rs`   |
+| **`SendRefLift`**               | N/A                                      | `classes/send_ref_lift.rs`                 |
+| **`SendRefMonad`**              | N/A (blanket)                            | `classes/send_ref_monad.rs`                |
+| **`SendRefPointed`**            | N/A                                      | `classes/send_ref_pointed.rs`              |
+| **`SendRefSemiapplicative`**    | N/A                                      | `classes/send_ref_semiapplicative.rs`      |
+| **`SendRefSemimonad`**          | N/A                                      | `classes/send_ref_semimonad.rs`            |
+| **`SendUnsizedCoercible`**      | N/A                                      | `classes/send_unsized_coercible.rs`        |
+| **`Strong`**                    | N/A                                      | `classes/profunctor/strong.rs`             |
+| **`Traversable`**               | `Iterator::collect`                      | `classes/traversable.rs`                   |
+| **`TraversableWithIndex`**      | N/A                                      | `classes/traversable_with_index.rs`        |
+| **`UnsizedCoercible`**          | N/A                                      | `classes/unsized_coercible.rs`             |
+| **`Wander`**                    | N/A                                      | `classes/profunctor/wander.rs`             |
+| **`Witherable`**                | N/A                                      | `classes/witherable.rs`                    |
+| **`WithIndex`**                 | N/A                                      | `classes/with_index.rs`                    |
 
 ### Not yet implemented
 
-| FP Concept         | Rust `std` Equivalent / Use Case       | Notes                                                                                                         |
-| :----------------- | :------------------------------------- | :------------------------------------------------------------------------------------------------------------ |
-| **`Arrow`**        | `Fn(A) -> B`                           | Not a trait; operations exist as free functions (`arrow`, `split_strong`, `fan_out`) via `Category + Strong`. |
-| **`Distributive`** | `Fn(A) -> B`                           | Dual of Traversable.                                                                                          |
-| **`Invariant`**    | `Cell`, `UnsafeCell`                   | Functors that map in both directions.                                                                         |
-| **`MonadError`**   | `?` operator, `Try` trait (unstable)   | Abstracts over computation that can fail.                                                                     |
-| **`Show`**         | `std::fmt::Display`, `std::fmt::Debug` | Configurable string representation in FP contexts.                                                            |
+| FP Concept         | Rust `std` Equivalent / Use Case       | Notes                                              |
+| :----------------- | :------------------------------------- | :------------------------------------------------- |
+| **`Distributive`** | `Fn(A) -> B`                           | Dual of Traversable.                               |
+| **`Invariant`**    | `Cell`, `UnsafeCell`                   | Functors that map in both directions.              |
+| **`MonadError`**   | `?` operator, `Try` trait (unstable)   | Abstracts over computation that can fail.          |
+| **`Show`**         | `std::fmt::Display`, `std::fmt::Debug` | Configurable string representation in FP contexts. |
 
 ## Data Types (Structs/Brands)
 
@@ -115,6 +150,7 @@ This document tracks the coverage of `fp-library` against functionality provided
 | **`RcLazy`**              | `Rc<LazyCell>`               | `types/lazy.rs`              |
 | **`RcTryLazy`**           | `Rc<LazyCell<Result>>`       | `types/try_lazy.rs`          |
 | **`Result`**              | `Result`                     | `types/result.rs`            |
+| **`SendEndofunction`**    | `Arc<dyn Fn(A) -> A>`        | `types/send_endofunction.rs` |
 | **`SendThunk`**           | N/A                          | `types/send_thunk.rs`        |
 | **`String`**              | `String`                     | `types/string.rs`            |
 | **`Thunk`**               | N/A                          | `types/thunk.rs`             |

@@ -39,6 +39,7 @@ pub mod pair;
 pub mod rc_coyoneda;
 pub mod rc_ptr;
 pub mod result;
+pub mod send_endofunction;
 pub mod send_thunk;
 pub mod string;
 pub mod thunk;
@@ -87,6 +88,7 @@ pub use {
 	},
 	pair::Pair,
 	rc_coyoneda::RcCoyoneda,
+	send_endofunction::SendEndofunction,
 	send_thunk::SendThunk,
 	thunk::Thunk,
 	trampoline::Trampoline,

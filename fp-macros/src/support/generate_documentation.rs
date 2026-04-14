@@ -141,6 +141,7 @@ pub fn insert_doc_comments_batch(
 
 /// Get the documentation content from a doc attribute (test helper).
 #[cfg(test)]
+#[expect(clippy::panic, reason = "Test helper that panics on invalid input")]
 pub fn get_doc(attr: &syn::Attribute) -> String {
 	if let syn::Meta::NameValue(nv) = &attr.meta
 		&& let syn::Expr::Lit(lit) = &nv.value

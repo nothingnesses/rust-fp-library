@@ -1,21 +1,23 @@
+#![expect(clippy::todo, reason = "Tests use panicking operations for brevity and clarity")]
+
 use fp_macros::document_module;
 
 #[document_module(no_validation)]
 mod test_context {
-	#[allow(dead_code)]
+	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	pub struct CatListBrand;
-	#[allow(dead_code)]
+	#[allow(dead_code, reason = "Test fixture exists to exercise document_module macro")]
 	pub struct CatList<A>(A);
 
 	impl<A> CatList<A> {
 		#[document_signature]
-		#[allow(dead_code)]
+		#[expect(dead_code, reason = "Test fixture for document_module macro")]
 		pub fn empty() -> Self {
 			todo!()
 		}
 
 		#[document_signature]
-		#[allow(dead_code)]
+		#[expect(dead_code, reason = "Test fixture for document_module macro")]
 		pub fn is_empty(&self) -> bool {
 			true
 		}

@@ -8,27 +8,7 @@ mod inner {
 		crate::{
 			Apply,
 			brands::ThunkBrand,
-			classes::{
-				ApplyFirst,
-				ApplySecond,
-				CloneableFn,
-				Deferrable,
-				Extend,
-				Extract,
-				Foldable,
-				FoldableWithIndex,
-				Functor,
-				FunctorWithIndex,
-				LazyConfig,
-				Lift,
-				MonadRec,
-				Monoid,
-				Pointed,
-				Semiapplicative,
-				Semigroup,
-				Semimonad,
-				WithIndex,
-			},
+			classes::*,
 			impl_kind,
 			kinds::*,
 			types::{
@@ -492,7 +472,7 @@ mod inner {
 		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
-		/// let mapped = map::<ThunkBrand, _, _>(|x| x * 2, thunk);
+		/// let mapped = explicit::map::<ThunkBrand, _, _, _, _>(|x| x * 2, thunk);
 		/// assert_eq!(mapped.evaluate(), 20);
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -563,7 +543,7 @@ mod inner {
 		///
 		/// let eval1 = pure::<ThunkBrand, _>(10);
 		/// let eval2 = pure::<ThunkBrand, _>(20);
-		/// let result = lift2::<ThunkBrand, _, _, _>(|a, b| a + b, eval1, eval2);
+		/// let result = explicit::lift2::<ThunkBrand, _, _, _, _, _, _>(|a, b| a + b, eval1, eval2);
 		/// assert_eq!(result.evaluate(), 30);
 		/// ```
 		fn lift2<'a, A, B, C>(
@@ -609,18 +589,18 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let func = pure::<ThunkBrand, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let func = pure::<ThunkBrand, _>(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let val = pure::<ThunkBrand, _>(21);
 		/// let result = apply::<RcFnBrand, ThunkBrand, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), 42);
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			ff.bind(move |f| {
 				fa.map(
-					#[allow(clippy::redundant_closure)] // Required for move semantics
+					#[expect(clippy::redundant_closure, reason = "Required for move semantics")]
 					move |a| f(a),
 				)
 			})
@@ -652,7 +632,7 @@ mod inner {
 		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
-		/// let result = bind::<ThunkBrand, _, _>(thunk, |x| pure::<ThunkBrand, _>(x * 2));
+		/// let result = explicit::bind::<ThunkBrand, _, _, _, _>(thunk, |x| pure::<ThunkBrand, _>(x * 2));
 		/// assert_eq!(result.evaluate(), 20);
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
@@ -827,7 +807,7 @@ mod inner {
 		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
-		/// let result = fold_right::<RcFnBrand, ThunkBrand, _, _>(|a, b| a + b, 5, thunk);
+		/// let result = explicit::fold_right::<RcFnBrand, ThunkBrand, _, _, _, _>(|a, b| a + b, 5, thunk);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -836,7 +816,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			func(fa.evaluate(), initial)
 		}
 
@@ -866,7 +846,7 @@ mod inner {
 		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
-		/// let result = fold_left::<RcFnBrand, ThunkBrand, _, _>(|b, a| b + a, 5, thunk);
+		/// let result = explicit::fold_left::<RcFnBrand, ThunkBrand, _, _, _, _>(|b, a| b + a, 5, thunk);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -875,7 +855,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			func(initial, fa.evaluate())
 		}
 
@@ -902,7 +882,8 @@ mod inner {
 		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
-		/// let result = fold_map::<RcFnBrand, ThunkBrand, _, _>(|a| a.to_string(), thunk);
+		/// let result =
+		/// 	explicit::fold_map::<RcFnBrand, ThunkBrand, _, _, _, _>(|a: i32| a.to_string(), thunk);
 		/// assert_eq!(result, "10");
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -911,7 +892,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			func(fa.evaluate())
 		}
 	}
@@ -958,6 +939,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters(
 			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
 			"The type of the value inside the thunk.",
 			"The monoid type."
 		)]
@@ -970,19 +952,23 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::ThunkBrand,
+		/// 	brands::*,
 		/// 	classes::foldable_with_index::FoldableWithIndex,
 		/// };
 		///
 		/// let thunk = fp_library::types::Thunk::pure(5);
-		/// let result =
-		/// 	<ThunkBrand as FoldableWithIndex>::fold_map_with_index(|_, x: i32| x.to_string(), thunk);
+		/// let result = <ThunkBrand as FoldableWithIndex>::fold_map_with_index::<RcFnBrand, _, _>(
+		/// 	|_, x: i32| x.to_string(),
+		/// 	thunk,
+		/// );
 		/// assert_eq!(result, "5");
 		/// ```
-		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
+		fn fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid>(
 			f: impl Fn((), A) -> R + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			f((), fa.evaluate())
 		}
 	}
@@ -1080,10 +1066,6 @@ mod tests {
 		super::*,
 		crate::{
 			brands::*,
-			classes::{
-				monoid::empty,
-				semigroup::append,
-			},
 			functions::*,
 		},
 		quickcheck_macros::quickcheck,
@@ -1259,7 +1241,7 @@ mod tests {
 	/// Functor identity: `map(identity, fa) == fa`.
 	#[quickcheck]
 	fn functor_identity(x: i32) -> bool {
-		map::<ThunkBrand, _, _>(identity, pure::<ThunkBrand, _>(x)).evaluate() == x
+		explicit::map::<ThunkBrand, _, _, _, _>(identity, pure::<ThunkBrand, _>(x)).evaluate() == x
 	}
 
 	/// Functor composition: `map(f . g, fa) == map(f, map(g, fa))`.
@@ -1267,9 +1249,14 @@ mod tests {
 	fn functor_composition(x: i32) -> bool {
 		let f = |a: i32| a.wrapping_add(1);
 		let g = |a: i32| a.wrapping_mul(2);
-		let lhs = map::<ThunkBrand, _, _>(move |a| f(g(a)), pure::<ThunkBrand, _>(x)).evaluate();
-		let rhs = map::<ThunkBrand, _, _>(f, map::<ThunkBrand, _, _>(g, pure::<ThunkBrand, _>(x)))
-			.evaluate();
+		let lhs =
+			explicit::map::<ThunkBrand, _, _, _, _>(move |a| f(g(a)), pure::<ThunkBrand, _>(x))
+				.evaluate();
+		let rhs = explicit::map::<ThunkBrand, _, _, _, _>(
+			f,
+			explicit::map::<ThunkBrand, _, _, _, _>(g, pure::<ThunkBrand, _>(x)),
+		)
+		.evaluate();
 		lhs == rhs
 	}
 
@@ -1279,7 +1266,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| pure::<ThunkBrand, _>(x.wrapping_mul(2));
-		let lhs = bind::<ThunkBrand, _, _>(pure::<ThunkBrand, _>(a), f).evaluate();
+		let lhs = explicit::bind::<ThunkBrand, _, _, _, _>(pure::<ThunkBrand, _>(a), f).evaluate();
 		let rhs = f(a).evaluate();
 		lhs == rhs
 	}
@@ -1287,8 +1274,11 @@ mod tests {
 	/// Monad right identity: `m.bind(pure) == m`.
 	#[quickcheck]
 	fn monad_right_identity(x: i32) -> bool {
-		let lhs =
-			bind::<ThunkBrand, _, _>(pure::<ThunkBrand, _>(x), pure::<ThunkBrand, _>).evaluate();
+		let lhs = explicit::bind::<ThunkBrand, _, _, _, _>(
+			pure::<ThunkBrand, _>(x),
+			pure::<ThunkBrand, _>,
+		)
+		.evaluate();
 		lhs == x
 	}
 
@@ -1299,9 +1289,15 @@ mod tests {
 		let g = |a: i32| pure::<ThunkBrand, _>(a.wrapping_mul(3));
 		let m = pure::<ThunkBrand, _>(x);
 		let m2 = pure::<ThunkBrand, _>(x);
-		let lhs = bind::<ThunkBrand, _, _>(bind::<ThunkBrand, _, _>(m, f), g).evaluate();
-		let rhs =
-			bind::<ThunkBrand, _, _>(m2, move |a| bind::<ThunkBrand, _, _>(f(a), g)).evaluate();
+		let lhs = explicit::bind::<ThunkBrand, _, _, _, _>(
+			explicit::bind::<ThunkBrand, _, _, _, _>(m, f),
+			g,
+		)
+		.evaluate();
+		let rhs = explicit::bind::<ThunkBrand, _, _, _, _>(m2, move |a| {
+			explicit::bind::<ThunkBrand, _, _, _, _>(f(a), g)
+		})
+		.evaluate();
 		lhs == rhs
 	}
 
@@ -1349,7 +1345,8 @@ mod tests {
 	#[test]
 	fn test_foldable_via_brand() {
 		let thunk = pure::<ThunkBrand, _>(10);
-		let result = fold_right::<RcFnBrand, ThunkBrand, _, _>(|x, acc| x + acc, 5, thunk);
+		let result =
+			explicit::fold_right::<RcFnBrand, ThunkBrand, _, _, _, _>(|x, acc| x + acc, 5, thunk);
 		assert_eq!(result, 15);
 	}
 
@@ -1358,14 +1355,14 @@ mod tests {
 	fn test_lift2_via_brand() {
 		let t1 = pure::<ThunkBrand, _>(10);
 		let t2 = pure::<ThunkBrand, _>(20);
-		let result = lift2::<ThunkBrand, _, _, _>(|a, b| a + b, t1, t2);
+		let result = explicit::lift2::<ThunkBrand, _, _, _, _, _, _>(|a, b| a + b, t1, t2);
 		assert_eq!(result.evaluate(), 30);
 	}
 
 	/// Tests `Semiapplicative::apply` for `ThunkBrand` via the free function.
 	#[test]
 	fn test_apply_via_brand() {
-		let func = pure::<ThunkBrand, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		let func = pure::<ThunkBrand, _>(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		let val = pure::<ThunkBrand, _>(21);
 		let result = apply::<RcFnBrand, ThunkBrand, _, _>(func, val);
 		assert_eq!(result.evaluate(), 42);
@@ -1496,7 +1493,7 @@ mod tests {
 			brands::ThunkBrand,
 			classes::functor_with_index::FunctorWithIndex,
 			functions::{
-				map,
+				explicit,
 				pure,
 			},
 		};
@@ -1504,7 +1501,7 @@ mod tests {
 		let f = |a: i32| a * 3 + 1;
 		let thunk1 = pure::<ThunkBrand, _>(10);
 		let thunk2 = pure::<ThunkBrand, _>(10);
-		let via_map = map::<ThunkBrand, _, _>(f, thunk1).evaluate();
+		let via_map = explicit::map::<ThunkBrand, _, _, _, _>(f, thunk1).evaluate();
 		let via_map_with_index = ThunkBrand::map_with_index(|_, a| f(a), thunk2).evaluate();
 		assert_eq!(via_map, via_map_with_index);
 	}
@@ -1521,7 +1518,8 @@ mod tests {
 		};
 
 		let thunk = pure::<ThunkBrand, _>(42);
-		let result: String = ThunkBrand::fold_map_with_index(|(), a: i32| a.to_string(), thunk);
+		let result: String =
+			ThunkBrand::fold_map_with_index::<RcFnBrand, _, _>(|(), a: i32| a.to_string(), thunk);
 		assert_eq!(result, "42");
 	}
 
@@ -1534,7 +1532,7 @@ mod tests {
 			brands::*,
 			classes::foldable_with_index::FoldableWithIndex,
 			functions::{
-				fold_map,
+				explicit,
 				pure,
 			},
 		};
@@ -1542,8 +1540,9 @@ mod tests {
 		let f = |a: i32| a.to_string();
 		let thunk1 = pure::<ThunkBrand, _>(99);
 		let thunk2 = pure::<ThunkBrand, _>(99);
-		let via_fold_map = fold_map::<RcFnBrand, ThunkBrand, _, _>(f, thunk1);
-		let via_fold_map_with_index: String = ThunkBrand::fold_map_with_index(|_, a| f(a), thunk2);
+		let via_fold_map = explicit::fold_map::<RcFnBrand, ThunkBrand, _, _, _, _>(f, thunk1);
+		let via_fold_map_with_index: String =
+			ThunkBrand::fold_map_with_index::<RcFnBrand, _, _>(|_, a| f(a), thunk2);
 		assert_eq!(via_fold_map, via_fold_map_with_index);
 	}
 
@@ -1606,7 +1605,7 @@ mod tests {
 		let f = |a: i32| a.wrapping_mul(3).wrapping_add(7);
 		let fa = Thunk::new(|| x);
 		let fa2 = Thunk::new(|| x);
-		let lhs = extract::<ThunkBrand, _>(map::<ThunkBrand, _, _>(f, fa));
+		let lhs = extract::<ThunkBrand, _>(explicit::map::<ThunkBrand, _, _, _, _>(f, fa));
 		let rhs = f(extract::<ThunkBrand, _>(fa2));
 		lhs == rhs
 	}

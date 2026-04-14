@@ -12,9 +12,8 @@ mod inner {
 				optics::*,
 			},
 			classes::{
-				CloneableFn,
-				UnsizedCoercible,
 				optics::*,
+				*,
 			},
 			kinds::*,
 			types::optics::Tagged,
@@ -122,7 +121,7 @@ mod inner {
 		/// ```
 		pub fn new(review: impl 'a + Fn(B) -> T) -> Self {
 			Review {
-				review_fn: <FnBrand<PointerBrand> as CloneableFn>::new(review),
+				review_fn: <FnBrand<PointerBrand> as LiftFn>::new(review),
 				_phantom: PhantomData,
 			}
 		}
@@ -335,7 +334,7 @@ mod inner {
 		/// ```
 		pub fn new(review: impl 'a + Fn(A) -> S) -> Self {
 			ReviewPrime {
-				review_fn: <FnBrand<PointerBrand> as CloneableFn>::new(review),
+				review_fn: <FnBrand<PointerBrand> as LiftFn>::new(review),
 				_phantom: PhantomData,
 			}
 		}

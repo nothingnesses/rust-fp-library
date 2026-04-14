@@ -291,7 +291,7 @@ pub struct ErrorCollector {
 	errors: Vec<syn::Error>,
 }
 
-#[allow(dead_code)]
+#[allow(dead_code, reason = "API kept for completeness")]
 impl ErrorCollector {
 	pub fn new() -> Self {
 		Self {
@@ -402,7 +402,7 @@ impl<'a> IntoIterator for &'a ErrorCollector {
 /// // Finish and return all errors
 /// errors.finish()?;
 /// ```
-#[allow(dead_code)]
+#[allow(dead_code, reason = "API kept for completeness")]
 pub trait CollectErrors {
 	/// Execute a fallible operation, collecting any errors.
 	///
@@ -549,6 +549,7 @@ impl ToCompileError for Error {
 }
 
 #[cfg(test)]
+#[expect(clippy::unwrap_used, reason = "Tests use panicking operations for brevity and clarity")]
 mod tests {
 	use super::*;
 

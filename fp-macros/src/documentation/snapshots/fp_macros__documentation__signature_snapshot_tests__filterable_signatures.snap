@@ -1,0 +1,9 @@
+---
+source: fp-macros/src/documentation/signature_snapshot_tests.rs
+assertion_line: 138
+expression: output
+---
+filter: forall Brand A. Filterable Brand => (A -> bool, Brand A) -> Brand A
+filter_map: forall Brand A B. Filterable Brand => (A -> Option B, Brand A) -> Brand B
+partition: forall Brand A. Filterable Brand => (A -> bool, Brand A) -> (Brand A, Brand A)
+partition_map: forall Brand A E O. Filterable Brand => (A -> Result O E, Brand A) -> (Brand E, Brand O)

@@ -5,13 +5,12 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::*,
+//! 	functions::explicit::*,
 //! };
 //!
 //! let x: Result<i32, i32> = Ok(5);
-//! let y = bi_traverse::<ResultBrand, _, _, _, _, OptionBrand>(
-//! 	|e: i32| Some(e + 1),
-//! 	|s: i32| Some(s * 2),
+//! let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+//! 	(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
 //! 	x,
 //! );
 //! assert_eq!(y, Some(Ok(10)));
@@ -52,7 +51,13 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::{
+	/// 		explicit::{
+	/// 			bi_traverse,
+	/// 			bimap,
+	/// 		},
+	/// 		*,
+	/// 	},
 	/// };
 	///
 	/// // ResultBrand has Of<E, A> = Result<A, E>, so the first function handles errors
@@ -61,18 +66,24 @@ mod inner {
 	/// let g = |a: i32| if a > 0 { Some(a * 2) } else { None };
 	///
 	/// // Traverse/sequence consistency (Ok case):
-	/// // bi_traverse(f, g, x) = bi_sequence(bimap(f, g, x))
+	/// // bi_traverse((f, g), x) = bi_sequence(bimap((f, g), x))
 	/// let ok: Result<i32, String> = Ok(5);
 	/// assert_eq!(
-	/// 	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand>(f, g, ok.clone()),
-	/// 	bi_sequence::<ResultBrand, _, _, OptionBrand>(bimap::<ResultBrand, _, _, _, _>(f, g, ok)),
+	/// 	bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>((f, g), ok.clone()),
+	/// 	bi_sequence::<ResultBrand, _, _, OptionBrand>(bimap::<ResultBrand, _, _, _, _, _, _>(
+	/// 		(f, g),
+	/// 		ok
+	/// 	)),
 	/// );
 	///
 	/// // Traverse/sequence consistency (Err case):
 	/// let err: Result<i32, String> = Err("hello".to_string());
 	/// assert_eq!(
-	/// 	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand>(f, g, err.clone()),
-	/// 	bi_sequence::<ResultBrand, _, _, OptionBrand>(bimap::<ResultBrand, _, _, _, _>(f, g, err)),
+	/// 	bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>((f, g), err.clone()),
+	/// 	bi_sequence::<ResultBrand, _, _, OptionBrand>(bimap::<ResultBrand, _, _, _, _, _, _>(
+	/// 		(f, g),
+	/// 		err
+	/// 	)),
 	/// );
 	/// ```
 	pub trait Bitraversable: Bifunctor + Bifoldable {
@@ -103,13 +114,12 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
+		/// 	functions::explicit::*,
 		/// };
 		///
 		/// let x: Result<i32, i32> = Err(3);
-		/// let y = bi_traverse::<ResultBrand, _, _, _, _, OptionBrand>(
-		/// 	|e: i32| Some(e + 1),
-		/// 	|s: i32| Some(s * 2),
+		/// let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 	(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
 		/// 	x,
 		/// );
 		/// assert_eq!(y, Some(Err(4)));
@@ -198,13 +208,12 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = bi_traverse::<ResultBrand, _, _, _, _, OptionBrand>(
-	/// 	|e: i32| Some(e + 1),
-	/// 	|s: i32| Some(s * 2),
+	/// let y = bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+	/// 	(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
 	/// 	x,
 	/// );
 	/// assert_eq!(y, Some(Ok(10)));

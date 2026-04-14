@@ -10,9 +10,8 @@ mod inner {
 				optics::*,
 			},
 			classes::{
-				CloneableFn,
-				UnsizedCoercible,
 				optics::*,
+				*,
 			},
 			kinds::*,
 			types::optics::{
@@ -104,7 +103,7 @@ mod inner {
 		/// ```
 		pub fn new(to: impl 'a + Fn(S) -> (I, A)) -> Self {
 			IndexedGetter {
-				to: <FnBrand<PointerBrand> as CloneableFn>::new(to),
+				to: <FnBrand<PointerBrand> as LiftFn>::new(to),
 			}
 		}
 

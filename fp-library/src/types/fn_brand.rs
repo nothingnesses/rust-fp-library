@@ -23,22 +23,10 @@ mod inner {
 			Apply,
 			brands::FnBrand,
 			classes::{
-				Category,
-				CloneableFn,
-				Function,
-				RefCountedPointer,
-				Semigroupoid,
-				SendCloneableFn,
-				SendUnsizedCoercible,
-				UnsizedCoercible,
-				profunctor::{
-					Choice,
-					Closed,
-					Profunctor,
-					Strong,
-					Wander,
-				},
+				profunctor::*,
+				*,
 			},
+			dispatch::Ref,
 			impl_kind,
 			kinds::*,
 		},
@@ -52,7 +40,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> Function for FnBrand<P> {
+	impl<P: UnsizedCoercible> Arrow for FnBrand<P> {
 		type Of<'a, A: 'a, B: 'a> =
 			Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>);
 
@@ -67,7 +55,7 @@ mod inner {
 			"The output type of the function."
 		)]
 		///
-		#[document_parameters("The closure to wrap.", "The input value.")]
+		#[document_parameters("The closure to lift into an arrow.")]
 		///
 		#[document_returns("The wrapped function.")]
 		///
@@ -79,20 +67,29 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = arrow::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
 		/// ```
-		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as Function>::Of<'a, A, B> {
+		fn arrow<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as Arrow>::Of<'a, A, B> {
 			P::coerce_fn(f)
 		}
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
+	impl<P: UnsizedCoercible> CloneFn for FnBrand<P> {
 		type Of<'a, A: 'a, B: 'a> =
 			Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>);
 		type PointerBrand = P;
+	}
 
+	#[document_type_parameters("The reference-counted pointer type.")]
+	impl<P: UnsizedCoercible> CloneFn<Ref> for FnBrand<P> {
+		type Of<'a, A: 'a, B: 'a> = P::CloneableOf<'a, dyn 'a + Fn(&A) -> B>;
+		type PointerBrand = P;
+	}
+
+	#[document_type_parameters("The reference-counted pointer type.")]
+	impl<P: UnsizedCoercible> LiftFn for FnBrand<P> {
 		/// Creates a new cloneable function wrapper.
 		///
 		/// This function wraps the provided closure `f` into a pointer-wrapped cloneable function.
@@ -104,7 +101,7 @@ mod inner {
 			"The output type of the function."
 		)]
 		///
-		#[document_parameters("The closure to wrap.", "The input value.")]
+		#[document_parameters("The closure to wrap.")]
 		///
 		#[document_returns("The wrapped cloneable function.")]
 		///
@@ -116,11 +113,44 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
 		/// ```
-		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as CloneableFn>::Of<'a, A, B> {
+		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as CloneFn>::Of<'a, A, B> {
 			P::coerce_fn(f)
+		}
+	}
+
+	#[document_type_parameters("The reference-counted pointer type.")]
+	impl<P: UnsizedCoercible> RefLiftFn for FnBrand<P> {
+		/// Creates a new cloneable by-reference function wrapper.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the function and its captured data.",
+			"The input type (the closure receives `&A`).",
+			"The output type of the function."
+		)]
+		///
+		#[document_parameters("The by-reference closure to wrap.")]
+		///
+		#[document_returns("The wrapped cloneable by-reference function.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f = ref_lift_fn_new::<RcFnBrand, _, _>(|x: &i32| *x * 2);
+		/// assert_eq!(f(&5), 10);
+		/// ```
+		fn ref_new<'a, A: 'a, B: 'a>(
+			f: impl 'a + Fn(&A) -> B
+		) -> <Self as CloneFn<Ref>>::Of<'a, A, B> {
+			P::coerce_ref_fn(f)
 		}
 	}
 
@@ -153,8 +183,8 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let g = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 		/// assert_eq!(h(5), 12); // (5 + 1) * 2
 		/// ```
@@ -359,9 +389,9 @@ mod inner {
 		/// ```
 		fn closed<'a, A: 'a, B: 'a, X: 'a + Clone>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FnBrand<P> as CloneableFn>::Of<'a, X, A>, <FnBrand<P> as CloneableFn>::Of<'a, X, B>>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FnBrand<P> as CloneFn>::Of<'a, X, A>, <FnBrand<P> as CloneFn>::Of<'a, X, B>>)
 		{
-			P::coerce_fn(move |f: <FnBrand<P> as CloneableFn>::Of<'a, X, A>| -> <FnBrand<P> as CloneableFn>::Of<'a, X, B> {
+			P::coerce_fn(move |f: <FnBrand<P> as CloneFn>::Of<'a, X, A>| -> <FnBrand<P> as CloneFn>::Of<'a, X, B> {
 				let pab = pab.clone();
 				P::coerce_fn(move |x: X| pab(f(x)))
 			})
@@ -424,7 +454,10 @@ mod inner {
 			P::coerce_fn(move |s| {
 				let pab = pab.clone();
 				// SAFETY: traversal contract guarantees Some when applying through OptionBrand
-				#[allow(clippy::unwrap_used)]
+				#[expect(
+					clippy::unwrap_used,
+					reason = "Traversal contract guarantees Some when applying through OptionBrand"
+				)]
 				traversal
 					.apply::<crate::brands::OptionBrand>(Box::new(move |a| Some(pab(a))), s)
 					.unwrap()
@@ -433,9 +466,17 @@ mod inner {
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
-		type SendOf<'a, A: 'a, B: 'a> = P::SendOf<'a, dyn 'a + Fn(A) -> B + Send + Sync>;
+	impl<P: SendUnsizedCoercible> SendCloneFn for FnBrand<P> {
+		type Of<'a, A: 'a, B: 'a> = P::SendOf<'a, dyn 'a + Fn(A) -> B + Send + Sync>;
+	}
 
+	#[document_type_parameters("The reference-counted pointer type.")]
+	impl<P: SendUnsizedCoercible> SendCloneFn<Ref> for FnBrand<P> {
+		type Of<'a, A: 'a, B: 'a> = P::SendOf<'a, dyn 'a + Fn(&A) -> B + Send + Sync>;
+	}
+
+	#[document_type_parameters("The reference-counted pointer type.")]
+	impl<P: SendUnsizedCoercible> SendLiftFn for FnBrand<P> {
 		/// Creates a new thread-safe cloneable function wrapper.
 		///
 		/// This function wraps the provided closure `f` into a pointer-wrapped thread-safe cloneable function.
@@ -459,13 +500,46 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = send_lift_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
 		/// ```
-		fn send_cloneable_fn_new<'a, A: 'a, B: 'a>(
+		fn new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(A) -> B + Send + Sync
-		) -> Self::SendOf<'a, A, B> {
+		) -> <Self as SendCloneFn>::Of<'a, A, B> {
 			P::coerce_send_fn(f)
+		}
+	}
+
+	#[document_type_parameters("The reference-counted pointer type.")]
+	impl<P: SendUnsizedCoercible> SendRefLiftFn for FnBrand<P> {
+		/// Creates a new thread-safe cloneable by-reference function wrapper.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the function and its captured data.",
+			"The input type (the closure receives `&A`).",
+			"The output type of the function."
+		)]
+		///
+		#[document_parameters("The by-reference closure to wrap. Must be `Send + Sync`.")]
+		///
+		#[document_returns("The wrapped thread-safe cloneable by-reference function.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f = send_ref_lift_fn_new::<ArcFnBrand, _, _>(|x: &i32| *x * 2);
+		/// assert_eq!(f(&5), 10);
+		/// ```
+		fn ref_new<'a, A: 'a, B: 'a>(
+			f: impl 'a + Fn(&A) -> B + Send + Sync
+		) -> <Self as SendCloneFn<Ref>>::Of<'a, A, B> {
+			P::coerce_send_ref_fn(f)
 		}
 	}
 }
@@ -475,11 +549,8 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::{
-				category::Category,
-				cloneable_fn::CloneableFn,
-				semigroupoid::Semigroupoid,
-			},
+			classes::*,
+			functions::*,
 		},
 		quickcheck_macros::quickcheck,
 	};
@@ -489,9 +560,9 @@ mod tests {
 	/// Tests the associativity law for Semigroupoid.
 	#[quickcheck]
 	fn semigroupoid_associativity(x: i32) -> bool {
-		let f = <RcFnBrand as CloneableFn>::new(|x: i32| x.wrapping_add(1));
-		let g = <RcFnBrand as CloneableFn>::new(|x: i32| x.wrapping_mul(2));
-		let h = <RcFnBrand as CloneableFn>::new(|x: i32| x.wrapping_sub(3));
+		let f = <RcFnBrand as LiftFn>::new(|x: i32| x.wrapping_add(1));
+		let g = <RcFnBrand as LiftFn>::new(|x: i32| x.wrapping_mul(2));
+		let h = <RcFnBrand as LiftFn>::new(|x: i32| x.wrapping_sub(3));
 
 		let lhs = RcFnBrand::compose(f.clone(), RcFnBrand::compose(g.clone(), h.clone()));
 		let rhs = RcFnBrand::compose(RcFnBrand::compose(f, g), h);
@@ -504,7 +575,7 @@ mod tests {
 	/// Tests the left identity law for Category.
 	#[quickcheck]
 	fn category_left_identity(x: i32) -> bool {
-		let f = <RcFnBrand as CloneableFn>::new(|x: i32| x.wrapping_add(1));
+		let f = <RcFnBrand as LiftFn>::new(|x: i32| x.wrapping_add(1));
 		let id = RcFnBrand::identity::<i32>();
 
 		let lhs = RcFnBrand::compose(id, f.clone());
@@ -516,7 +587,7 @@ mod tests {
 	/// Tests the right identity law for Category.
 	#[quickcheck]
 	fn category_right_identity(x: i32) -> bool {
-		let f = <RcFnBrand as CloneableFn>::new(|x: i32| x.wrapping_add(1));
+		let f = <RcFnBrand as LiftFn>::new(|x: i32| x.wrapping_add(1));
 		let id = RcFnBrand::identity::<i32>();
 
 		let lhs = RcFnBrand::compose(f.clone(), id);
@@ -562,31 +633,30 @@ mod tests {
 	/// Tests the identity law for Contravariant.
 	#[quickcheck]
 	fn contravariant_identity(input: i32) -> bool {
-		use crate::{
-			classes::contravariant::contramap,
-			functions::identity,
-		};
+		use crate::functions::identity;
 		let fa = std::rc::Rc::new(|x: i32| x.wrapping_mul(2).wrapping_add(3))
 			as std::rc::Rc<dyn Fn(i32) -> i32>;
-		let result =
-			contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, i32>, _, _>(identity, fa.clone());
+		let result = explicit::contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, i32>, _, _, _, _>(
+			identity,
+			fa.clone(),
+		);
 		result(input) == fa(input)
 	}
 
 	/// Tests the composition law for Contravariant.
 	#[quickcheck]
 	fn contravariant_composition(input: i32) -> bool {
-		use crate::{
-			classes::contravariant::contramap,
-			functions::compose,
-		};
+		use crate::functions::compose;
 		type Contra = ProfunctorSecondAppliedBrand<RcFnBrand, i32>;
 		let fa = std::rc::Rc::new(|x: i32| x.wrapping_mul(2).wrapping_add(3))
 			as std::rc::Rc<dyn Fn(i32) -> i32>;
 		let f = |x: i32| x.wrapping_add(10);
 		let g = |x: i32| x.wrapping_mul(3);
-		let lhs = contramap::<Contra, _, _>(compose(f, g), fa.clone());
-		let rhs = contramap::<Contra, _, _>(g, contramap::<Contra, _, _>(f, fa));
+		let lhs = explicit::contramap::<Contra, _, _, _, _>(compose(f, g), fa.clone());
+		let rhs = explicit::contramap::<Contra, _, _, _, _>(
+			g,
+			explicit::contramap::<Contra, _, _, _, _>(f, fa),
+		);
 		lhs(input) == rhs(input)
 	}
 }

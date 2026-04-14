@@ -8,8 +8,9 @@
 //! The standard [`Functor`](crate::classes::Functor) trait requires `A -> B`, which would
 //! need either cloning or consuming the cached value. Instead, `Lazy` implements
 //! [`RefFunctor`](crate::classes::RefFunctor) (and [`SendRefFunctor`](crate::classes::SendRefFunctor)
-//! for `ArcLazy`), whose `ref_map` takes `&A -> B`. Use [`ref_map`](crate::functions::ref_map) or
-//! [`send_ref_map`](crate::functions::send_ref_map) to map over lazy values.
+//! for `ArcLazy`), whose `ref_map` takes `&A -> B`. Use [`map`](crate::functions::map) with a
+//! closure that takes `&A` to map over lazy values, or [`send_ref_map`](crate::functions::send_ref_map)
+//! for thread-safe mapping.
 
 #[fp_macros::document_module]
 mod inner {
@@ -22,17 +23,33 @@ mod inner {
 				RcBrand,
 			},
 			classes::{
-				CloneableFn,
+				CloneFn,
 				Deferrable,
-				Foldable,
-				FoldableWithIndex,
+				LiftFn,
 				Monoid,
+				RefFoldable,
+				RefFoldableWithIndex,
 				RefFunctor,
+				RefFunctorWithIndex,
+				RefLift,
+				RefPointed,
+				RefSemiapplicative,
+				RefSemimonad,
 				Semigroup,
+				SendCloneFn,
 				SendDeferrable,
+				SendLiftFn,
+				SendRefFoldable,
+				SendRefFoldableWithIndex,
 				SendRefFunctor,
+				SendRefFunctorWithIndex,
+				SendRefLift,
+				SendRefPointed,
+				SendRefSemiapplicative,
+				SendRefSemimonad,
 				WithIndex,
 			},
+			dispatch::Ref,
 			impl_kind,
 			kinds::*,
 			types::{
@@ -389,10 +406,11 @@ mod inner {
 		/// ```
 		#[inline]
 		pub fn ref_map<B: 'a>(
-			self,
-			f: impl FnOnce(&A) -> B + 'a,
+			&self,
+			f: impl Fn(&A) -> B + 'a,
 		) -> Lazy<'a, B, RcLazyConfig> {
-			RcLazy::new(move || f(self.evaluate()))
+			let this = self.clone();
+			RcLazy::new(move || f(this.evaluate()))
 		}
 	}
 
@@ -715,10 +733,11 @@ mod inner {
 		/// ```
 		#[inline]
 		pub fn ref_map<B: Send + Sync + 'a>(
-			self,
-			f: impl FnOnce(&A) -> B + Send + 'a,
+			&self,
+			f: impl Fn(&A) -> B + Send + 'a,
 		) -> Lazy<'a, B, ArcLazyConfig> {
-			ArcLazy::new(move || f(self.evaluate()))
+			let this = self.clone();
+			ArcLazy::new(move || f(this.evaluate()))
 		}
 	}
 
@@ -833,12 +852,12 @@ mod inner {
 		/// };
 		///
 		/// let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
-		/// let mapped = LazyBrand::<RcLazyConfig>::ref_map(|x: &i32| *x * 2, memo);
+		/// let mapped = LazyBrand::<RcLazyConfig>::ref_map(|x: &i32| *x * 2, &memo);
 		/// assert_eq!(*mapped.evaluate(), 20);
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
-			f: impl FnOnce(&A) -> B + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.ref_map(f)
 		}
@@ -868,14 +887,478 @@ mod inner {
 		/// };
 		///
 		/// let memo = ArcLazy::new(|| 10);
-		/// let mapped = LazyBrand::<ArcLazyConfig>::send_ref_map(|x: &i32| *x * 2, memo);
+		/// let mapped = LazyBrand::<ArcLazyConfig>::send_ref_map(|x: &i32| *x * 2, &memo);
 		/// assert_eq!(*mapped.evaluate(), 20);
 		/// ```
 		fn send_ref_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
-			f: impl FnOnce(&A) -> B + Send + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> B + Send + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.ref_map(f)
+		}
+	}
+
+	// -- SendRefPointed --
+
+	impl SendRefPointed for LazyBrand<ArcLazyConfig> {
+		/// Wraps a cloned value in a new thread-safe memoized context.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type of the value.")]
+		///
+		#[document_parameters("A reference to the value to wrap.")]
+		///
+		#[document_returns("A new thread-safe memoized value containing a clone of the input.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let value = 42;
+		/// let lazy = LazyBrand::<ArcLazyConfig>::send_ref_pure(&value);
+		/// assert_eq!(*lazy.evaluate(), 42);
+		/// ```
+		fn send_ref_pure<'a, A: Clone + Send + Sync + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			let cloned = a.clone();
+			ArcLazy::new(move || cloned)
+		}
+	}
+
+	// -- SendRefLift --
+
+	impl SendRefLift for LazyBrand<ArcLazyConfig> {
+		/// Lifts a thread-safe binary function over two memoized values using references.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the first value.",
+			"The type of the second value.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters(
+			"The function to lift.",
+			"The first memoized value.",
+			"The second memoized value."
+		)]
+		///
+		#[document_returns("A new thread-safe memoized value containing the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = ArcLazy::new(|| 3);
+		/// let y = ArcLazy::new(|| 4);
+		/// let z = LazyBrand::<ArcLazyConfig>::send_ref_lift2(|a: &i32, b: &i32| *a + *b, &x, &y);
+		/// assert_eq!(*z.evaluate(), 7);
+		/// ```
+		fn send_ref_lift2<'a, A: Send + Sync + 'a, B: Send + Sync + 'a, C: Send + Sync + 'a>(
+			func: impl Fn(&A, &B) -> C + Send + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			let fa = fa.clone();
+			let fb = fb.clone();
+			ArcLazy::new(move || func(fa.evaluate(), fb.evaluate()))
+		}
+	}
+
+	// -- SendRefSemiapplicative --
+
+	impl SendRefSemiapplicative for LazyBrand<ArcLazyConfig> {
+		/// Applies a wrapped thread-safe by-ref function to a memoized value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the thread-safe cloneable function wrapper.",
+			"The type of the input value.",
+			"The type of the output value."
+		)]
+		///
+		#[document_parameters("The memoized wrapped by-ref function.", "The memoized value.")]
+		///
+		#[document_returns("A new thread-safe memoized value containing the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let f = ArcLazy::new(|| {
+		/// 	std::sync::Arc::new(|x: &i32| *x * 2) as std::sync::Arc<dyn Fn(&i32) -> i32 + Send + Sync>
+		/// });
+		/// let x = ArcLazy::new(|| 5);
+		/// let result = LazyBrand::<ArcLazyConfig>::send_ref_apply::<ArcFnBrand, _, _>(&f, &x);
+		/// assert_eq!(*result.evaluate(), 10);
+		/// ```
+		fn send_ref_apply<
+			'a,
+			FnBrand: 'a + SendCloneFn<Ref>,
+			A: Send + Sync + 'a,
+			B: Send + Sync + 'a,
+		>(
+			ff: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as SendCloneFn<Ref>>::Of<'a, A, B>>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let ff = ff.clone();
+			let fa = fa.clone();
+			ArcLazy::new(move || {
+				let f = ff.evaluate();
+				let a = fa.evaluate();
+				(**f)(a)
+			})
+		}
+	}
+
+	// -- SendRefSemimonad --
+
+	impl SendRefSemimonad for LazyBrand<ArcLazyConfig> {
+		/// Sequences a thread-safe computation using a reference to the memoized value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the value inside the context.",
+			"The type of the value in the resulting context."
+		)]
+		///
+		#[document_parameters(
+			"The memoized value.",
+			"A thread-safe function that receives a reference and returns a new memoized value."
+		)]
+		///
+		#[document_returns("A new thread-safe memoized value produced by the function.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = ArcLazy::new(|| 5);
+		/// let result = LazyBrand::<ArcLazyConfig>::send_ref_bind(&lazy, |x: &i32| {
+		/// 	let v = *x * 2;
+		/// 	ArcLazy::new(move || v)
+		/// });
+		/// assert_eq!(*result.evaluate(), 10);
+		/// ```
+		fn send_ref_bind<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+			ma: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + Send + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			f(ma.evaluate())
+		}
+	}
+
+	// --- SendRefFoldable ---
+
+	impl SendRefFoldable for LazyBrand<ArcLazyConfig> {
+		/// Maps the value to a monoid by reference (thread-safe).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
+			"The type of the computed value.",
+			"The monoid type."
+		)]
+		#[document_parameters("The mapping function.", "The Lazy to fold.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::send_ref_foldable::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = ArcLazy::new(|| 5);
+		/// let result = send_ref_fold_map::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(
+		/// 	|a: &i32| a.to_string(),
+		/// 	&lazy,
+		/// );
+		/// assert_eq!(result, "5");
+		/// ```
+		fn send_ref_fold_map<'a, FnBrand, A: Send + Sync + 'a + Clone, M>(
+			func: impl Fn(&A) -> M + Send + Sync + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: SendLiftFn + 'a,
+			M: Monoid + Send + Sync + 'a, {
+			func(fa.evaluate())
+		}
+	}
+
+	// --- SendRefFoldableWithIndex ---
+
+	impl SendRefFoldableWithIndex for LazyBrand<ArcLazyConfig> {
+		/// Maps the value to a monoid by reference with the unit index (thread-safe).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
+			"The type of the computed value.",
+			"The monoid type."
+		)]
+		#[document_parameters("The function to apply.", "The Lazy to fold.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::send_ref_foldable_with_index::SendRefFoldableWithIndex,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = ArcLazy::new(|| 42);
+		/// let result =
+		/// 	<LazyBrand<ArcLazyConfig> as SendRefFoldableWithIndex>::send_ref_fold_map_with_index::<
+		/// 		ArcFnBrand,
+		/// 		_,
+		/// 		_,
+		/// 	>(|_, x: &i32| x.to_string(), &lazy);
+		/// assert_eq!(result, "42");
+		/// ```
+		fn send_ref_fold_map_with_index<
+			'a,
+			FnBrand,
+			A: Send + Sync + 'a + Clone,
+			R: Monoid + Send + Sync + 'a,
+		>(
+			f: impl Fn((), &A) -> R + Send + Sync + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R
+		where
+			FnBrand: SendLiftFn + 'a, {
+			f((), fa.evaluate())
+		}
+	}
+
+	// --- SendRefFunctorWithIndex ---
+
+	impl SendRefFunctorWithIndex for LazyBrand<ArcLazyConfig> {
+		/// Maps a function over the `ArcLazy` by reference with the unit index (thread-safe).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the input value.",
+			"The type of the output value."
+		)]
+		#[document_parameters("The function to apply.", "The Lazy to map over.")]
+		#[document_returns("A new Lazy containing the mapped value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::send_ref_functor_with_index::SendRefFunctorWithIndex,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = ArcLazy::new(|| 42);
+		/// let mapped = <LazyBrand<ArcLazyConfig> as SendRefFunctorWithIndex>::send_ref_map_with_index(
+		/// 	|_, x: &i32| x.to_string(),
+		/// 	&lazy,
+		/// );
+		/// assert_eq!(*mapped.evaluate(), "42");
+		/// ```
+		fn send_ref_map_with_index<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+			f: impl Fn((), &A) -> B + Send + Sync + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Self::send_ref_map(move |a| f((), a), fa)
+		}
+	}
+
+	// -- RefPointed --
+
+	impl RefPointed for LazyBrand<RcLazyConfig> {
+		/// Wraps a cloned value in a new memoized context.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type of the value. Must be `Clone`."
+		)]
+		///
+		#[document_parameters("A reference to the value to wrap.")]
+		///
+		#[document_returns("A new memoized value containing a clone of the input.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let value = 42;
+		/// let lazy = LazyBrand::<RcLazyConfig>::ref_pure(&value);
+		/// assert_eq!(*lazy.evaluate(), 42);
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			let cloned = a.clone();
+			RcLazy::new(move || cloned)
+		}
+	}
+
+	// -- RefLift --
+
+	impl RefLift for LazyBrand<RcLazyConfig> {
+		/// Lifts a binary function over two memoized values using references.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the first value.",
+			"The type of the second value.",
+			"The type of the result."
+		)]
+		///
+		#[document_parameters(
+			"The function to lift.",
+			"The first memoized value.",
+			"The second memoized value."
+		)]
+		///
+		#[document_returns("A new memoized value containing the result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = RcLazy::pure(3);
+		/// let y = RcLazy::pure(4);
+		/// let z = LazyBrand::<RcLazyConfig>::ref_lift2(|a: &i32, b: &i32| *a + *b, &x, &y);
+		/// assert_eq!(*z.evaluate(), 7);
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			let fa = fa.clone();
+			let fb = fb.clone();
+			RcLazy::new(move || func(fa.evaluate(), fb.evaluate()))
+		}
+	}
+
+	// -- RefSemiapplicative --
+
+	impl RefSemiapplicative for LazyBrand<RcLazyConfig> {
+		/// Applies a wrapped by-ref function within a memoized context to a memoized value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the input value.",
+			"The type of the output value."
+		)]
+		///
+		#[document_parameters("The memoized wrapped by-ref function.", "The memoized value.")]
+		///
+		#[document_returns("A new memoized value containing the result of applying the function.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let f = RcLazy::pure(std::rc::Rc::new(|x: &i32| *x * 2) as std::rc::Rc<dyn Fn(&i32) -> i32>);
+		/// let x = RcLazy::pure(5);
+		/// let result = LazyBrand::<RcLazyConfig>::ref_apply::<RcFnBrand, _, _>(&f, &x);
+		/// assert_eq!(*result.evaluate(), 10);
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let ff = ff.clone();
+			let fa = fa.clone();
+			RcLazy::new(move || {
+				let f = ff.evaluate();
+				let a = fa.evaluate();
+				(**f)(a)
+			})
+		}
+	}
+
+	// -- RefSemimonad --
+
+	impl RefSemimonad for LazyBrand<RcLazyConfig> {
+		/// Sequences a computation using a reference to the memoized value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the value inside the context.",
+			"The type of the value in the resulting context."
+		)]
+		///
+		#[document_parameters(
+			"The memoized value.",
+			"A function that receives a reference to the value and returns a new memoized value."
+		)]
+		///
+		#[document_returns("A new memoized value produced by the function.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = RcLazy::pure(5);
+		/// let result = LazyBrand::<RcLazyConfig>::ref_bind(&lazy, |x: &i32| {
+		/// 	Lazy::<_, RcLazyConfig>::new({
+		/// 		let v = *x;
+		/// 		move || v * 2
+		/// 	})
+		/// });
+		/// assert_eq!(*result.evaluate(), 10);
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			f(fa.evaluate())
 		}
 	}
 
@@ -1098,97 +1581,14 @@ mod inner {
 		}
 	}
 
-	// --- Foldable ---
+	// --- RefFoldable ---
 
 	#[document_type_parameters("The memoization configuration (determines Rc vs Arc).")]
-	impl<Config: LazyConfig> Foldable for LazyBrand<Config> {
-		/// Folds the `Lazy` from the right.
+	impl<Config: LazyConfig> RefFoldable for LazyBrand<Config> {
+		/// Maps the value to a monoid by reference and returns it.
 		///
-		/// Forces evaluation and folds the single contained value.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the computation.",
-			"The brand of the cloneable function to use.",
-			"The type of the elements in the structure.",
-			"The type of the accumulator."
-		)]
-		///
-		#[document_parameters(
-			"The function to apply to each element and the accumulator.",
-			"The initial value of the accumulator.",
-			"The `Lazy` to fold."
-		)]
-		///
-		#[document_returns("The final accumulator value.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy = RcLazy::new(|| 10);
-		/// let result = fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(|a, b| a + b, 5, lazy);
-		/// assert_eq!(result, 15);
-		/// ```
-		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
-			func: impl Fn(A, B) -> B + 'a,
-			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> B
-		where
-			FnBrand: CloneableFn + 'a, {
-			func(fa.evaluate().clone(), initial)
-		}
-
-		/// Folds the `Lazy` from the left.
-		///
-		/// Forces evaluation and folds the single contained value.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the computation.",
-			"The brand of the cloneable function to use.",
-			"The type of the elements in the structure.",
-			"The type of the accumulator."
-		)]
-		///
-		#[document_parameters(
-			"The function to apply to the accumulator and each element.",
-			"The initial value of the accumulator.",
-			"The `Lazy` to fold."
-		)]
-		///
-		#[document_returns("The final accumulator value.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy = RcLazy::new(|| 10);
-		/// let result = fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(|b, a| b + a, 5, lazy);
-		/// assert_eq!(result, 15);
-		/// ```
-		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
-			func: impl Fn(B, A) -> B + 'a,
-			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> B
-		where
-			FnBrand: CloneableFn + 'a, {
-			func(initial, fa.evaluate().clone())
-		}
-
-		/// Maps the value to a monoid and returns it.
-		///
-		/// Forces evaluation and maps the single contained value.
+		/// Forces evaluation and maps the single contained value by reference.
+		/// No cloning is required since the closure receives `&A` directly.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1211,17 +1611,112 @@ mod inner {
 		/// };
 		///
 		/// let lazy = RcLazy::new(|| 10);
-		/// let result =
-		/// 	fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, String>(|a: i32| a.to_string(), lazy);
+		/// let result = explicit::fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+		/// 	|a: &i32| a.to_string(),
+		/// 	&lazy,
+		/// );
 		/// assert_eq!(result, "10");
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a + Clone, R: Monoid>(
-			func: impl Fn(A) -> R + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> R
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
 		where
-			FnBrand: CloneableFn + 'a, {
-			func(fa.evaluate().clone())
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			func(fa.evaluate())
+		}
+
+		/// Folds the `Lazy` from the right by reference.
+		///
+		/// Forces evaluation and folds the single contained value by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the accumulator."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element reference and the accumulator.",
+			"The initial value of the accumulator.",
+			"The `Lazy` to fold."
+		)]
+		///
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = RcLazy::new(|| 10);
+		/// let result = explicit::fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+		/// 	|a: &i32, b| *a + b,
+		/// 	5,
+		/// 	&lazy,
+		/// );
+		/// assert_eq!(result, 15);
+		/// ```
+		fn ref_fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(&A, B) -> B + 'a,
+			initial: B,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> B
+		where
+			FnBrand: LiftFn + 'a, {
+			func(fa.evaluate(), initial)
+		}
+
+		/// Folds the `Lazy` from the left by reference.
+		///
+		/// Forces evaluation and folds the single contained value by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the accumulator."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the accumulator and each element reference.",
+			"The initial value of the accumulator.",
+			"The `Lazy` to fold."
+		)]
+		///
+		#[document_returns("The final accumulator value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = RcLazy::new(|| 10);
+		/// let result = explicit::fold_left::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+		/// 	|b, a: &i32| b + *a,
+		/// 	5,
+		/// 	&lazy,
+		/// );
+		/// assert_eq!(result, 15);
+		/// ```
+		fn ref_fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(B, &A) -> B + 'a,
+			initial: B,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> B
+		where
+			FnBrand: LiftFn + 'a, {
+			func(initial, fa.evaluate())
 		}
 	}
 
@@ -1232,24 +1727,26 @@ mod inner {
 		type Index = ();
 	}
 
-	// --- FoldableWithIndex ---
+	// --- RefFoldableWithIndex ---
 
 	#[document_type_parameters("The memoization configuration (determines Rc vs Arc).")]
-	impl<Config: LazyConfig> FoldableWithIndex for LazyBrand<Config> {
-		/// Folds the `Lazy` using a monoid, providing the index `()`.
+	impl<Config: LazyConfig> RefFoldableWithIndex for LazyBrand<Config> {
+		/// Maps the value to a monoid by reference with the unit index.
 		///
-		/// Forces evaluation and maps the single contained value with the unit index.
+		/// Forces evaluation and maps the single contained value by reference,
+		/// providing `()` as the index.
 		#[document_signature]
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
 			"The type of the computed value.",
 			"The monoid type."
 		)]
 		///
 		#[document_parameters(
-			"The function to apply to the index and the value.",
-			"The `Lazy` to fold."
+			"The function to apply to the index and value reference.",
+			"The Lazy to fold."
 		)]
 		///
 		#[document_returns("The monoid value.")]
@@ -1258,22 +1755,70 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::foldable_with_index::FoldableWithIndex,
+		/// 	classes::ref_foldable_with_index::RefFoldableWithIndex,
 		/// 	types::*,
 		/// };
 		///
-		/// let lazy = RcLazy::new(|| 10);
-		/// let result = <LazyBrand<RcLazyConfig> as FoldableWithIndex>::fold_map_with_index(
-		/// 	|_, x: i32| x.to_string(),
-		/// 	lazy,
-		/// );
-		/// assert_eq!(result, "10");
+		/// let lazy = RcLazy::new(|| 42);
+		/// let result = <LazyBrand<RcLazyConfig> as RefFoldableWithIndex>::ref_fold_map_with_index::<
+		/// 	RcFnBrand,
+		/// 	_,
+		/// 	_,
+		/// >(|_, x: &i32| x.to_string(), &lazy);
+		/// assert_eq!(result, "42");
 		/// ```
-		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
-			f: impl Fn((), A) -> R + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> R {
-			f((), fa.evaluate().clone())
+		fn ref_fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
+			f: impl Fn((), &A) -> R + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
+			f((), fa.evaluate())
+		}
+	}
+
+	// --- RefFunctorWithIndex ---
+
+	impl RefFunctorWithIndex for LazyBrand<RcLazyConfig> {
+		/// Maps a function over the `Lazy` by reference with the unit index.
+		///
+		/// Forces evaluation and maps the single contained value by reference,
+		/// providing `()` as the index. Returns a new `Lazy` wrapping the result.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the input value.",
+			"The type of the output value."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the index and value reference.",
+			"The Lazy to map over."
+		)]
+		///
+		#[document_returns("A new Lazy containing the mapped value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::ref_functor_with_index::RefFunctorWithIndex,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = RcLazy::new(|| 42);
+		/// let mapped = <LazyBrand<RcLazyConfig> as RefFunctorWithIndex>::ref_map_with_index(
+		/// 	|_, x: &i32| x.to_string(),
+		/// 	&lazy,
+		/// );
+		/// assert_eq!(*mapped.evaluate(), "42");
+		/// ```
+		fn ref_map_with_index<'a, A: 'a, B: 'a>(
+			f: impl Fn((), &A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Self::ref_map(move |a| f((), a), fa)
 		}
 	}
 
@@ -1470,16 +2015,25 @@ mod inner {
 			rc::Weak,
 		};
 
-		#[allow(clippy::type_complexity)]
+		#[expect(
+			clippy::type_complexity,
+			reason = "Nested smart pointers are inherent to the fix-point construction"
+		)]
 		let cell: Rc<OnceCell<Weak<LazyCell<A, Box<dyn FnOnce() -> A + 'a>>>>> = Rc::new(OnceCell::new());
 		let cell_clone = cell.clone();
 		let lazy = RcLazy::new(move || {
 			// INVARIANT: cell is always set on the line after this closure is
 			// created, and the outer RcLazy is still alive (we are inside its
 			// evaluation), so the Weak upgrade always succeeds.
-			#[allow(clippy::expect_used)]
+			#[expect(
+				clippy::expect_used,
+				reason = "Invariant: cell set immediately after closure creation, Weak upgrade always succeeds"
+			)]
 			let weak = cell_clone.get().expect("rc_lazy_fix: cell not initialized");
-			#[allow(clippy::expect_used)]
+			#[expect(
+				clippy::expect_used,
+				reason = "Invariant: cell set immediately after closure creation, Weak upgrade always succeeds"
+			)]
 			let self_ref = Lazy(weak.upgrade().expect("rc_lazy_fix: outer lazy was dropped"));
 			f(self_ref)
 		});
@@ -1530,7 +2084,10 @@ mod inner {
 			Weak,
 		};
 
-		#[allow(clippy::type_complexity)]
+		#[expect(
+			clippy::type_complexity,
+			reason = "Nested smart pointers are inherent to the fix-point construction"
+		)]
 		let cell: Arc<OnceLock<Weak<LazyLock<A, Box<dyn FnOnce() -> A + Send + 'a>>>>> =
 			Arc::new(OnceLock::new());
 		let cell_clone = cell.clone();
@@ -1538,9 +2095,15 @@ mod inner {
 			// INVARIANT: cell is always set on the line after this closure is
 			// created, and the outer ArcLazy is still alive (we are inside its
 			// evaluation), so the Weak upgrade always succeeds.
-			#[allow(clippy::expect_used)]
+			#[expect(
+				clippy::expect_used,
+				reason = "Invariant: cell set immediately after closure creation, Weak upgrade always succeeds"
+			)]
 			let weak = cell_clone.get().expect("arc_lazy_fix: cell not initialized");
-			#[allow(clippy::expect_used)]
+			#[expect(
+				clippy::expect_used,
+				reason = "Invariant: cell set immediately after closure creation, Weak upgrade always succeeds"
+			)]
 			let self_ref = Lazy(weak.upgrade().expect("arc_lazy_fix: outer lazy was dropped"));
 			f(self_ref)
 		});
@@ -1552,6 +2115,11 @@ mod inner {
 pub use inner::*;
 
 #[cfg(test)]
+#[expect(
+	clippy::unwrap_used,
+	clippy::panic,
+	reason = "Tests use panicking operations for brevity and clarity"
+)]
 mod tests {
 	use {
 		super::inner::*,
@@ -2002,49 +2570,56 @@ mod tests {
 		assert_eq!(*right.evaluate(), *a.evaluate());
 	}
 
-	// --- Tests for Foldable ---
+	// --- Tests for RefFoldable ---
 
 	/// Tests `fold_right` for `RcLazy`.
 	#[test]
-	fn test_rc_lazy_fold_right() {
+	fn test_rc_lazy_ref_fold_right() {
 		use crate::functions::*;
 
 		let lazy = RcLazy::pure(10);
-		let result = fold_right::<
+		let result = explicit::fold_right::<
 			crate::brands::RcFnBrand,
 			crate::brands::LazyBrand<RcLazyConfig>,
 			_,
 			_,
-		>(|a, b| a + b, 5, lazy);
+			_,
+			_,
+		>(|a: &i32, b| *a + b, 5, &lazy);
 		assert_eq!(result, 15);
 	}
 
 	/// Tests `fold_left` for `RcLazy`.
 	#[test]
-	fn test_rc_lazy_fold_left() {
+	fn test_rc_lazy_ref_fold_left() {
 		use crate::functions::*;
 
 		let lazy = RcLazy::pure(10);
-		let result = fold_left::<
+		let result = explicit::fold_left::<
 			crate::brands::RcFnBrand,
 			crate::brands::LazyBrand<RcLazyConfig>,
 			_,
 			_,
-		>(|b, a| b + a, 5, lazy);
+			_,
+			_,
+		>(|b, a: &i32| b + *a, 5, &lazy);
 		assert_eq!(result, 15);
 	}
 
 	/// Tests `fold_map` for `RcLazy`.
 	#[test]
-	fn test_rc_lazy_fold_map() {
+	fn test_rc_lazy_ref_fold_map() {
 		use crate::functions::*;
 
 		let lazy = RcLazy::pure(10);
-		let result =
-			fold_map::<crate::brands::RcFnBrand, crate::brands::LazyBrand<RcLazyConfig>, _, _>(
-				|a: i32| a.to_string(),
-				lazy,
-			);
+		let result = explicit::fold_map::<
+			crate::brands::RcFnBrand,
+			crate::brands::LazyBrand<RcLazyConfig>,
+			_,
+			_,
+			_,
+			_,
+		>(|a: &i32| a.to_string(), &lazy);
 		assert_eq!(result, "10");
 	}
 
@@ -2214,53 +2789,61 @@ mod tests {
 		assert_eq!(counter.load(Ordering::SeqCst), 1);
 	}
 
-	// --- ArcLazy Foldable tests ---
+	// --- ArcLazy RefFoldable tests ---
 
 	/// Tests `fold_right` on `ArcLazy`.
 	#[test]
-	fn test_arc_lazy_fold_right() {
+	fn test_arc_lazy_ref_fold_right() {
 		use crate::{
 			brands::*,
 			functions::*,
 		};
 
 		let lazy = ArcLazy::new(|| 10);
-		let result = fold_right::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(|a, b| a + b, 5, lazy);
+		let result = explicit::fold_right::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _, _>(
+			|a: &i32, b| *a + b,
+			5,
+			&lazy,
+		);
 		assert_eq!(result, 15);
 	}
 
 	/// Tests `fold_left` on `ArcLazy`.
 	#[test]
-	fn test_arc_lazy_fold_left() {
+	fn test_arc_lazy_ref_fold_left() {
 		use crate::{
 			brands::*,
 			functions::*,
 		};
 
 		let lazy = ArcLazy::new(|| 10);
-		let result = fold_left::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(|b, a| b + a, 5, lazy);
+		let result = explicit::fold_left::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _, _>(
+			|b, a: &i32| b + *a,
+			5,
+			&lazy,
+		);
 		assert_eq!(result, 15);
 	}
 
 	/// Tests `fold_map` on `ArcLazy`.
 	#[test]
-	fn test_arc_lazy_fold_map() {
+	fn test_arc_lazy_ref_fold_map() {
 		use crate::{
 			brands::*,
 			functions::*,
 		};
 
 		let lazy = ArcLazy::new(|| 10);
-		let result = fold_map::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, String>(
-			|a: i32| a.to_string(),
-			lazy,
+		let result = explicit::fold_map::<ArcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _, _>(
+			|a: &i32| a.to_string(),
+			&lazy,
 		);
 		assert_eq!(result, "10");
 	}
 
 	/// Property: ArcLazy fold_right is consistent with RcLazy fold_right.
 	#[quickcheck]
-	fn prop_arc_lazy_fold_right(x: i32) -> bool {
+	fn prop_arc_lazy_ref_fold_right(x: i32) -> bool {
 		use crate::{
 			brands::*,
 			functions::*,
@@ -2268,70 +2851,17 @@ mod tests {
 
 		let rc_lazy = RcLazy::new(move || x);
 		let arc_lazy = ArcLazy::new(move || x);
-		let rc_result =
-			fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _>(|a, b| a + b, 0, rc_lazy);
-		let arc_result =
-			fold_right::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _>(|a, b| a + b, 0, arc_lazy);
+		let rc_result = explicit::fold_right::<RcFnBrand, LazyBrand<RcLazyConfig>, _, _, _, _>(
+			|a: &i32, b| *a + b,
+			0,
+			&rc_lazy,
+		);
+		let arc_result = explicit::fold_right::<RcFnBrand, LazyBrand<ArcLazyConfig>, _, _, _, _>(
+			|a: &i32, b| *a + b,
+			0,
+			&arc_lazy,
+		);
 		rc_result == arc_result
-	}
-
-	// --- FoldableWithIndex tests ---
-
-	/// Tests `fold_map_with_index` for `RcLazy`.
-	///
-	/// Verifies that the index is `()` and the value is folded correctly.
-	#[test]
-	fn test_rc_lazy_fold_map_with_index() {
-		use crate::{
-			brands::*,
-			classes::foldable_with_index::FoldableWithIndex,
-		};
-
-		let lazy = RcLazy::new(|| 42);
-		let result = <LazyBrand<RcLazyConfig> as FoldableWithIndex>::fold_map_with_index(
-			|_, x: i32| x.to_string(),
-			lazy,
-		);
-		assert_eq!(result, "42");
-	}
-
-	/// Tests `fold_map_with_index` for `ArcLazy`.
-	///
-	/// Verifies that the index is `()` and the value is folded correctly.
-	#[test]
-	fn test_arc_lazy_fold_map_with_index() {
-		use crate::{
-			brands::*,
-			classes::foldable_with_index::FoldableWithIndex,
-		};
-
-		let lazy = ArcLazy::new(|| 10);
-		let result = <LazyBrand<ArcLazyConfig> as FoldableWithIndex>::fold_map_with_index(
-			|_, x: i32| x.to_string(),
-			lazy,
-		);
-		assert_eq!(result, "10");
-	}
-
-	/// Tests compatibility of `FoldableWithIndex` with `Foldable`.
-	///
-	/// Verifies that `fold_map(f, fa) = fold_map_with_index(|_, a| f(a), fa)`.
-	#[test]
-	fn test_rc_lazy_foldable_with_index_compatibility() {
-		use crate::{
-			brands::*,
-			classes::foldable_with_index::FoldableWithIndex,
-			functions::*,
-		};
-
-		let lazy1 = RcLazy::new(|| 7);
-		let lazy2 = RcLazy::new(|| 7);
-		let f = |a: i32| a.to_string();
-
-		let fold_result = fold_map::<RcFnBrand, LazyBrand<RcLazyConfig>, _, String>(f, lazy1);
-		let fold_with_index_result =
-			<LazyBrand<RcLazyConfig> as FoldableWithIndex>::fold_map_with_index(|_, a| f(a), lazy2);
-		assert_eq!(fold_result, fold_with_index_result);
 	}
 
 	// --- SendRefFunctor (ArcLazy ref_map) law tests ---
@@ -2793,5 +3323,113 @@ mod tests {
 		// Evaluate the self-reference from a spawned thread.
 		let handle = thread::spawn(move || *self_ref.evaluate());
 		assert_eq!(handle.join().unwrap(), 77);
+	}
+
+	#[test]
+	fn m_do_ref_lazy_manual() {
+		// Manual expansion of what m_do!(ref ...) should generate
+		use crate::{
+			brands::LazyBrand,
+			functions::*,
+		};
+
+		let lazy_a = RcLazy::new(|| 10i32);
+
+		let result =
+			explicit::bind::<LazyBrand<RcLazyConfig>, _, _, _, _>(&lazy_a, move |a: &i32| {
+				ref_pure::<LazyBrand<RcLazyConfig>, _>(&(*a * 2))
+			});
+
+		assert_eq!(*result.evaluate(), 20);
+	}
+
+	#[test]
+	fn m_do_ref_lazy_macro() {
+		use {
+			crate::{
+				brands::LazyBrand,
+				functions::*,
+			},
+			fp_macros::m_do,
+		};
+
+		let lazy_a = RcLazy::new(|| 10i32);
+
+		let result = m_do!(ref LazyBrand<RcLazyConfig> {
+			a: &i32 <- lazy_a;
+			pure(*a * 2)
+		});
+
+		assert_eq!(*result.evaluate(), 20);
+	}
+
+	#[test]
+	fn m_do_ref_lazy_multi_bind() {
+		use {
+			crate::{
+				brands::LazyBrand,
+				functions::*,
+			},
+			fp_macros::m_do,
+		};
+
+		let lazy_a = RcLazy::new(|| 10i32);
+		let lazy_b = RcLazy::new(|| 20i32);
+
+		// Multi-bind in ref mode: each bind receives &A, but inner closures
+		// can't capture references from outer binds (lifetime issue). Use
+		// let bindings to clone the referenced value for use in later binds.
+		let result = m_do!(ref LazyBrand<RcLazyConfig> {
+			a: &i32 <- lazy_a;
+			let a_val = *a;
+			b: &i32 <- lazy_b.clone();
+			pure(a_val + *b)
+		});
+
+		assert_eq!(*result.evaluate(), 30);
+	}
+
+	#[test]
+	fn m_do_ref_lazy_untyped() {
+		use {
+			crate::{
+				brands::LazyBrand,
+				functions::*,
+			},
+			fp_macros::m_do,
+		};
+
+		let lazy_a = RcLazy::new(|| 10i32);
+
+		let result = m_do!(ref LazyBrand<RcLazyConfig> {
+			a <- lazy_a;
+			pure(*a * 3)
+		});
+
+		assert_eq!(*result.evaluate(), 30);
+	}
+
+	#[test]
+	fn a_do_ref_lazy() {
+		use {
+			crate::{
+				brands::LazyBrand,
+				functions::*,
+			},
+			fp_macros::a_do,
+		};
+
+		let lazy_a = RcLazy::new(|| 10i32);
+		let lazy_b = RcLazy::new(|| 20i32);
+
+		// a_do uses lift2, which doesn't have the FnOnce issue since
+		// applicative binds are independent (no nesting).
+		let result = a_do!(ref LazyBrand<RcLazyConfig> {
+			a: &i32 <- lazy_a;
+			b: &i32 <- lazy_b;
+			*a + *b
+		});
+
+		assert_eq!(*result.evaluate(), 30);
 	}
 }

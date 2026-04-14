@@ -11,40 +11,8 @@ mod inner {
 				OptionBrand,
 				VecBrand,
 			},
-			classes::{
-				Alt,
-				Applicative,
-				ApplyFirst,
-				ApplySecond,
-				CloneableFn,
-				Compactable,
-				Extend,
-				Filterable,
-				Foldable,
-				Functor,
-				Lift,
-				MonadRec,
-				Monoid,
-				ParCompactable,
-				ParFilterable,
-				ParFoldable,
-				ParFunctor,
-				Plus,
-				Pointed,
-				Semiapplicative,
-				Semigroup,
-				Semimonad,
-				Traversable,
-				Witherable,
-				filterable_with_index::FilterableWithIndex,
-				foldable_with_index::FoldableWithIndex,
-				functor_with_index::FunctorWithIndex,
-				par_filterable_with_index::ParFilterableWithIndex,
-				par_foldable_with_index::ParFoldableWithIndex,
-				par_functor_with_index::ParFunctorWithIndex,
-				traversable_with_index::TraversableWithIndex,
-				with_index::WithIndex,
-			},
+			classes::*,
+			dispatch::Ref,
 			impl_kind,
 			kinds::*,
 		},
@@ -156,7 +124,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(map::<VecBrand, _, _>(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);
+		/// assert_eq!(explicit::map::<VecBrand, _, _, _, _>(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> B + 'a,
@@ -197,7 +165,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<VecBrand, _, _, _>(|x, y| x + y, vec![1, 2], vec![10, 20]),
+		/// 	explicit::lift2::<VecBrand, _, _, _, _, _, _>(|x, y| x + y, vec![1, 2], vec![10, 20]),
 		/// 	vec![11, 21, 12, 22]
 		/// );
 		/// ```
@@ -275,13 +243,13 @@ mod inner {
 		/// };
 		///
 		/// let funcs = vec![
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
+		/// 	lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
 		/// ];
 		/// assert_eq!(apply::<RcFnBrand, VecBrand, _, _>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			ff.iter().flat_map(|f| fa.iter().map(move |a| f(a.clone()))).collect()
@@ -314,7 +282,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(bind::<VecBrand, _, _>(vec![1, 2], |x| vec![x, x * 2]), vec![1, 2, 2, 4]);
+		/// assert_eq!(
+		/// 	explicit::bind::<VecBrand, _, _, _, _>(vec![1, 2], |x| vec![x, x * 2]),
+		/// 	vec![1, 2, 2, 4]
+		/// );
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -347,7 +318,7 @@ mod inner {
 		///
 		/// let x = vec![1, 2];
 		/// let y = vec![3, 4];
-		/// assert_eq!(alt::<VecBrand, _>(x, y), vec![1, 2, 3, 4]);
+		/// assert_eq!(explicit::alt::<VecBrand, _, _, _>(x, y), vec![1, 2, 3, 4]);
 		/// ```
 		fn alt<'a, A: 'a>(
 			fa1: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -356,6 +327,40 @@ mod inner {
 			let mut result = fa1;
 			result.extend(fa2);
 			result
+		}
+	}
+
+	impl RefAlt for VecBrand {
+		/// Concatenates two vectors by reference.
+		///
+		/// Both input vectors are borrowed and their elements are cloned to
+		/// construct a new vector containing all elements from both inputs.
+		/// This is the by-reference counterpart of [`Alt::alt`] for `Vec`.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
+		///
+		#[document_parameters("The first vector.", "The second vector.")]
+		///
+		#[document_returns("A new vector containing cloned elements from both inputs.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = vec![1, 2];
+		/// let y = vec![3, 4];
+		/// assert_eq!(explicit::alt::<VecBrand, _, _, _>(&x, &y), vec![1, 2, 3, 4]);
+		/// ```
+		fn ref_alt<'a, A: 'a + Clone>(
+			fa1: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa2: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			fa1.iter().chain(fa2.iter()).cloned().collect()
 		}
 	}
 
@@ -407,7 +412,14 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(fold_right::<RcFnBrand, VecBrand, _, _>(|x: i32, acc| x + acc, 0, vec![1, 2, 3]), 6);
+		/// assert_eq!(
+		/// 	explicit::fold_right::<RcFnBrand, VecBrand, _, _, _, _>(
+		/// 		|x: i32, acc| x + acc,
+		/// 		0,
+		/// 		vec![1, 2, 3]
+		/// 	),
+		/// 	6
+		/// );
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
 			func: impl Fn(A, B) -> B + 'a,
@@ -415,7 +427,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			fa.into_iter().rev().fold(initial, |acc, x| func(x, acc))
 		}
 
@@ -446,7 +458,14 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(fold_left::<RcFnBrand, VecBrand, _, _>(|acc, x: i32| acc + x, 0, vec![1, 2, 3]), 6);
+		/// assert_eq!(
+		/// 	explicit::fold_left::<RcFnBrand, VecBrand, _, _, _, _>(
+		/// 		|acc, x: i32| acc + x,
+		/// 		0,
+		/// 		vec![1, 2, 3]
+		/// 	),
+		/// 	6
+		/// );
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
 			func: impl Fn(B, A) -> B + 'a,
@@ -454,7 +473,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			fa.into_iter().fold(initial, func)
 		}
 
@@ -483,7 +502,10 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, VecBrand, _, _>(|x: i32| x.to_string(), vec![1, 2, 3]),
+		/// 	explicit::fold_map::<RcFnBrand, VecBrand, _, _, _, _>(
+		/// 		|x: i32| x.to_string(),
+		/// 		vec![1, 2, 3]
+		/// 	),
 		/// 	"123".to_string()
 		/// );
 		/// ```
@@ -493,7 +515,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			fa.into_iter().map(func).fold(M::empty(), |acc, x| M::append(acc, x))
 		}
 	}
@@ -521,15 +543,15 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		OptionBrand,
-		/// 		VecBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	functions::*,
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<VecBrand, _, _, OptionBrand>(|x| Some(x * 2), vec![1, 2, 3]),
+		/// 	explicit::traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+		/// 		|x| Some(x * 2),
+		/// 		vec![1, 2, 3]
+		/// 	),
 		/// 	Some(vec![2, 4, 6])
 		/// );
 		/// ```
@@ -645,6 +667,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters(
 			"The lifetime of the elements.",
+			"The brand of the cloneable function to use.",
 			"The type of the elements in the vector.",
 			"The monoid type."
 		)]
@@ -657,18 +680,23 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::VecBrand,
+		/// 	brands::*,
 		/// 	classes::foldable_with_index::FoldableWithIndex,
 		/// 	functions::*,
 		/// };
 		/// let v = vec![10, 20, 30];
-		/// let s = <VecBrand as FoldableWithIndex>::fold_map_with_index(|i, x| format!("{}:{}", i, x), v);
+		/// let s = <VecBrand as FoldableWithIndex>::fold_map_with_index::<RcFnBrand, _, _>(
+		/// 	|i, x| format!("{}:{}", i, x),
+		/// 	v,
+		/// );
 		/// assert_eq!(s, "0:101:202:30");
 		/// ```
-		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
+		fn fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
 			f: impl Fn(usize, A) -> R + 'a,
 			fa: Vec<A>,
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			fa.into_iter()
 				.enumerate()
 				.map(|(i, a)| f(i, a))
@@ -1507,7 +1535,7 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![Some(1), None, Some(2)];
-		/// let y = compact::<VecBrand, _>(x);
+		/// let y = explicit::compact::<VecBrand, _, _, _>(x);
 		/// assert_eq!(y, vec![1, 2]);
 		/// ```
 		fn compact<'a, A: 'a>(
@@ -1543,7 +1571,7 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![Ok(1), Err("error"), Ok(2)];
-		/// let (errs, oks) = separate::<VecBrand, _, _>(x);
+		/// let (errs, oks) = explicit::separate::<VecBrand, _, _, _, _>(x);
 		/// assert_eq!(oks, vec![1, 2]);
 		/// assert_eq!(errs, vec!["error"]);
 		/// ```
@@ -1559,6 +1587,91 @@ mod inner {
 				match result {
 					Ok(o) => oks.push(o),
 					Err(e) => errs.push(e),
+				}
+			}
+			(errs, oks)
+		}
+	}
+
+	impl RefCompactable for VecBrand {
+		/// Compacts a borrowed vector of options, discarding [`None`] values and cloning [`Some`] values.
+		///
+		/// This method iterates over a borrowed vector of options, keeping only the [`Some`] values
+		/// by cloning them into a new vector.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the elements in the [`Option`]. Must be [`Clone`] because elements are extracted from a borrowed container."
+		)]
+		///
+		#[document_parameters("A reference to the vector containing [`Option`] values.")]
+		///
+		#[document_returns(
+			"A new vector containing only the cloned values from the [`Some`] variants."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let v = vec![Some(1), None, Some(3)];
+		/// let result = explicit::compact::<VecBrand, _, _, _>(&v);
+		/// assert_eq!(result, vec![1, 3]);
+		/// ```
+		fn ref_compact<'a, A: 'a + Clone>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<A>>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			fa.iter().filter_map(|opt| opt.as_ref().cloned()).collect()
+		}
+
+		/// Separates a borrowed vector of results into two vectors: one containing the cloned [`Err`] values and one containing the cloned [`Ok`] values.
+		///
+		/// This method iterates over a borrowed vector of results, cloning each value into the
+		/// appropriate output vector.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the error values. Must be [`Clone`] because elements are extracted from a borrowed container.",
+			"The type of the success values. Must be [`Clone`] because elements are extracted from a borrowed container."
+		)]
+		///
+		#[document_parameters("A reference to the vector containing [`Result`] values.")]
+		///
+		#[document_returns(
+			"A pair of vectors: the first containing the cloned [`Err`] values, and the second containing the cloned [`Ok`] values."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let v: Vec<Result<i32, &str>> = vec![Ok(1), Err("bad"), Ok(3)];
+		/// let (errs, oks) = explicit::separate::<VecBrand, _, _, _, _>(&v);
+		/// assert_eq!(oks, vec![1, 3]);
+		/// assert_eq!(errs, vec!["bad"]);
+		/// ```
+		fn ref_separate<'a, E: 'a + Clone, O: 'a + Clone>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
+		) -> (
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		) {
+			let mut errs = Vec::new();
+			let mut oks = Vec::new();
+			for result in fa.iter() {
+				match result {
+					Ok(o) => oks.push(o.clone()),
+					Err(e) => errs.push(e.clone()),
 				}
 			}
 			(errs, oks)
@@ -1591,8 +1704,10 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let (errs, oks) =
-		/// 	partition_map::<VecBrand, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, x);
+		/// let (errs, oks) = explicit::partition_map::<VecBrand, _, _, _, _, _>(
+		/// 	|a| if a % 2 == 0 { Ok(a) } else { Err(a) },
+		/// 	x,
+		/// );
 		/// assert_eq!(oks, vec![2, 4]);
 		/// assert_eq!(errs, vec![1, 3]);
 		/// ```
@@ -1634,7 +1749,7 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let (not_satisfied, satisfied) = partition::<VecBrand, _>(|a| a % 2 == 0, x);
+		/// let (not_satisfied, satisfied) = explicit::partition::<VecBrand, _, _, _>(|a| a % 2 == 0, x);
 		/// assert_eq!(satisfied, vec![2, 4]);
 		/// assert_eq!(not_satisfied, vec![1, 3]);
 		/// ```
@@ -1674,7 +1789,10 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let y = filter_map::<VecBrand, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, x);
+		/// let y = explicit::filter_map::<VecBrand, _, _, _, _>(
+		/// 	|a| if a % 2 == 0 { Some(a * 2) } else { None },
+		/// 	x,
+		/// );
 		/// assert_eq!(y, vec![4, 8]);
 		/// ```
 		fn filter_map<'a, A: 'a, B: 'a>(
@@ -1704,7 +1822,7 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let y = filter::<VecBrand, _>(|a| a % 2 == 0, x);
+		/// let y = explicit::filter::<VecBrand, _, _, _>(|a| a % 2 == 0, x);
 		/// assert_eq!(y, vec![2, 4]);
 		/// ```
 		fn filter<'a, A: 'a + Clone>(
@@ -1742,7 +1860,7 @@ mod inner {
 		/// };
 		///
 		/// let xs = vec![1, 2, 3, 4];
-		/// let (errs, oks) = partition_map_with_index::<VecBrand, _, _, _>(
+		/// let (errs, oks) = explicit::partition_map_with_index::<VecBrand, _, _, _, _, _>(
 		/// 	|i, a: i32| if i < 2 { Ok(a) } else { Err(a) },
 		/// 	xs,
 		/// );
@@ -1785,7 +1903,8 @@ mod inner {
 		/// };
 		///
 		/// let xs = vec![1, 2, 3, 4];
-		/// let (not_satisfied, satisfied) = partition_with_index::<VecBrand, _>(|i, _a: i32| i < 2, xs);
+		/// let (not_satisfied, satisfied) =
+		/// 	explicit::partition_with_index::<VecBrand, _, _, _>(|i, _a: i32| i < 2, xs);
 		/// assert_eq!(satisfied, vec![1, 2]);
 		/// assert_eq!(not_satisfied, vec![3, 4]);
 		/// ```
@@ -1830,7 +1949,7 @@ mod inner {
 		/// };
 		///
 		/// let xs = vec![1, 2, 3, 4];
-		/// let result = filter_map_with_index::<VecBrand, _, _>(
+		/// let result = explicit::filter_map_with_index::<VecBrand, _, _, _, _>(
 		/// 	|i, a: i32| if i % 2 == 0 { Some(a * 2) } else { None },
 		/// 	xs,
 		/// );
@@ -1864,7 +1983,7 @@ mod inner {
 		/// };
 		///
 		/// let xs = vec![1, 2, 3, 4];
-		/// let result = filter_with_index::<VecBrand, _>(|i, _a: i32| i < 2, xs);
+		/// let result = explicit::filter_with_index::<VecBrand, _, _, _>(|i, _a: i32| i < 2, xs);
 		/// assert_eq!(result, vec![1, 2]);
 		/// ```
 		fn filter_with_index<'a, A: 'a + Clone>(
@@ -1987,7 +2106,7 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let y = wilt::<VecBrand, OptionBrand, _, _, _>(
+		/// let y = explicit::wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
 		/// 	|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }),
 		/// 	x,
 		/// );
@@ -2044,15 +2163,12 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		OptionBrand,
-		/// 		VecBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	functions::*,
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let y = wither::<VecBrand, OptionBrand, _, _>(
+		/// let y = explicit::wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
 		/// 	|a| Some(if a % 2 == 0 { Some(a * 2) } else { None }),
 		/// 	x,
 		/// );
@@ -2203,6 +2319,702 @@ mod inner {
 			done
 		}
 	}
+
+	// -- By-reference trait implementations --
+
+	impl RefFunctor for VecBrand {
+		/// Maps a function over the vector by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the elements in the vector.",
+			"The type of the elements in the resulting vector."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element reference.",
+			"The vector to map over."
+		)]
+		///
+		#[document_returns("A new vector containing the results.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	explicit::map::<VecBrand, _, _, _, _>(|x: &i32| *x * 2, &vec![1, 2, 3]),
+		/// 	vec![2, 4, 6]
+		/// );
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.iter().map(func).collect()
+		}
+	}
+
+	impl RefFoldable for VecBrand {
+		/// Folds the vector by reference using a monoid.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the elements.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function to map each element reference to a monoid.",
+			"The vector to fold."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let v = vec![1, 2, 3];
+		/// let result = explicit::fold_map::<RcFnBrand, VecBrand, _, _, _, _>(|x: &i32| x.to_string(), &v);
+		/// assert_eq!(result, "123");
+		/// ```
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			fa.iter().fold(Monoid::empty(), |acc, a| Semigroup::append(acc, func(a)))
+		}
+	}
+
+	impl RefFilterable for VecBrand {
+		/// Filters and maps the vector by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the input elements.",
+			"The type of the output elements."
+		)]
+		///
+		#[document_parameters("The filter-map function.", "The vector to filter.")]
+		///
+		#[document_returns("The filtered vector.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let v = vec![1, 2, 3, 4, 5];
+		/// let result = explicit::filter_map::<VecBrand, _, _, _, _>(
+		/// 	|x: &i32| if *x > 3 { Some(*x) } else { None },
+		/// 	&v,
+		/// );
+		/// assert_eq!(result, vec![4, 5]);
+		/// ```
+		fn ref_filter_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> Option<B> + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.iter().filter_map(func).collect()
+		}
+	}
+
+	impl RefTraversable for VecBrand {
+		/// Traverses the vector by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the input elements.",
+			"The type of the output elements.",
+			"The applicative functor brand."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element reference.",
+			"The vector to traverse."
+		)]
+		///
+		#[document_returns("The combined result in the applicative context.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let v = vec![1, 2, 3];
+		/// let result: Option<Vec<String>> =
+		/// 	ref_traverse::<VecBrand, RcFnBrand, _, _, OptionBrand>(|x: &i32| Some(x.to_string()), &v);
+		/// assert_eq!(result, Some(vec!["1".to_string(), "2".to_string(), "3".to_string()]));
+		/// ```
+		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			let len = ta.len();
+			ta.iter().fold(
+				F::pure::<Vec<B>>(Vec::with_capacity(len)),
+				|acc: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Vec<B>>), a| {
+					F::lift2(
+						|mut v: Vec<B>, b: B| {
+							v.push(b);
+							v
+						},
+						acc,
+						func(a),
+					)
+				},
+			)
+		}
+	}
+
+	impl RefWitherable for VecBrand {}
+
+	impl RefFunctorWithIndex for VecBrand {
+		/// Maps a function with index over the vector by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the input elements.",
+			"The type of the output elements."
+		)]
+		///
+		#[document_parameters("The function to apply.", "The vector to map over.")]
+		///
+		#[document_returns("The mapped vector.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let v = vec![10, 20, 30];
+		/// let result =
+		/// 	explicit::map_with_index::<VecBrand, _, _, _, _>(|i, x: &i32| format!("{}:{}", i, x), &v);
+		/// assert_eq!(result, vec!["0:10", "1:20", "2:30"]);
+		/// ```
+		fn ref_map_with_index<'a, A: 'a, B: 'a>(
+			func: impl Fn(usize, &A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.iter().enumerate().map(|(i, a)| func(i, a)).collect()
+		}
+	}
+
+	impl RefFoldableWithIndex for VecBrand {
+		/// Folds the vector by reference with index using a monoid.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function to map each (index, element reference) pair.",
+			"The vector to fold."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let v = vec![10, 20, 30];
+		/// let result = explicit::fold_map_with_index::<RcFnBrand, VecBrand, _, _, _, _>(
+		/// 	|i, x: &i32| format!("{}:{}", i, x),
+		/// 	&v,
+		/// );
+		/// assert_eq!(result, "0:101:202:30");
+		/// ```
+		fn ref_fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
+			func: impl Fn(usize, &A) -> R + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
+			fa.iter()
+				.enumerate()
+				.fold(Monoid::empty(), |acc, (i, a)| Semigroup::append(acc, func(i, a)))
+		}
+	}
+
+	impl RefFilterableWithIndex for VecBrand {
+		/// Filters and maps the vector by reference with index.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the input elements.",
+			"The type of the output elements."
+		)]
+		///
+		#[document_parameters("The filter-map function.", "The vector to filter.")]
+		///
+		#[document_returns("The filtered vector.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let v = vec![10, 20, 30, 40, 50];
+		/// let result = explicit::filter_map_with_index::<VecBrand, _, _, _, _>(
+		/// 	|i, x: &i32| if i >= 2 { Some(*x) } else { None },
+		/// 	&v,
+		/// );
+		/// assert_eq!(result, vec![30, 40, 50]);
+		/// ```
+		fn ref_filter_map_with_index<'a, A: 'a, B: 'a>(
+			func: impl Fn(usize, &A) -> Option<B> + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.iter().enumerate().filter_map(|(i, a)| func(i, a)).collect()
+		}
+	}
+
+	impl RefTraversableWithIndex for VecBrand {
+		/// Traverses the vector by reference with index.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the input elements.",
+			"The type of the output elements.",
+			"The applicative functor brand."
+		)]
+		///
+		#[document_parameters("The function to apply.", "The vector to traverse.")]
+		///
+		#[document_returns("The combined result in the applicative context.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let v = vec![10, 20, 30];
+		/// let result: Option<Vec<String>> =
+		/// 	explicit::traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+		/// 		|i, x: &i32| Some(format!("{}:{}", i, x)),
+		/// 		&v,
+		/// 	);
+		/// assert_eq!(result, Some(vec!["0:10".to_string(), "1:20".to_string(), "2:30".to_string()]));
+		/// ```
+		fn ref_traverse_with_index<'a, A: 'a + Clone, B: 'a + Clone, M: Applicative>(
+			f: impl Fn(usize, &A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			let len = ta.len();
+			ta.iter().enumerate().fold(
+				M::pure::<Vec<B>>(Vec::with_capacity(len)),
+				|acc: Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Vec<B>>), (i, a)| {
+					M::lift2(
+						|mut v: Vec<B>, b: B| {
+							v.push(b);
+							v
+						},
+						acc,
+						f(i, a),
+					)
+				},
+			)
+		}
+	}
+
+	// -- By-reference monadic trait implementations --
+
+	impl RefPointed for VecBrand {
+		/// Creates a singleton vector from a reference by cloning.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type of the value.")]
+		///
+		#[document_parameters("The reference to the value to wrap.")]
+		///
+		#[document_returns("A singleton vector containing a clone of the value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = 42;
+		/// let v: Vec<i32> = ref_pure::<VecBrand, _>(&x);
+		/// assert_eq!(v, vec![42]);
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			vec![a.clone()]
+		}
+	}
+
+	impl RefLift for VecBrand {
+		/// Combines two vectors with a by-reference binary function (Cartesian product).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the first input.",
+			"The type of the second input.",
+			"The type of the output."
+		)]
+		///
+		#[document_parameters(
+			"The binary function receiving references.",
+			"The first vector.",
+			"The second vector."
+		)]
+		///
+		#[document_returns("A new vector with the combined results.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let v = explicit::lift2::<VecBrand, _, _, _, _, _, _>(
+		/// 	|a: &i32, b: &String| format!("{}{}", a, b),
+		/// 	&vec![1, 2],
+		/// 	&vec!["a".to_string(), "b".to_string()],
+		/// );
+		/// assert_eq!(v, vec!["1a".to_string(), "1b".to_string(), "2a".to_string(), "2b".to_string()]);
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			let func = &func;
+			fa.iter().flat_map(|a| fb.iter().map(move |b| func(a, b))).collect()
+		}
+	}
+
+	impl RefSemiapplicative for VecBrand {
+		/// Applies wrapped by-ref functions to values (Cartesian product).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the input values.",
+			"The type of the output values."
+		)]
+		///
+		#[document_parameters(
+			"The vector containing the by-ref functions.",
+			"The vector containing the values."
+		)]
+		///
+		#[document_returns("A new vector with each function applied to each value by reference.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f1: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x + 1);
+		/// let f2: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x * 2);
+		/// let result = ref_apply::<RcFnBrand, VecBrand, _, _>(&vec![f1, f2], &vec![10, 20]);
+		/// assert_eq!(result, vec![11, 21, 20, 40]);
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			ff.iter().flat_map(|f| fa.iter().map(move |a| (**f)(a))).collect()
+		}
+	}
+
+	impl RefSemimonad for VecBrand {
+		/// Chains vector computations by reference (`flat_map` with `&A`).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the input values.",
+			"The type of the output values."
+		)]
+		///
+		#[document_parameters(
+			"The input vector.",
+			"The function to apply to each element by reference."
+		)]
+		///
+		#[document_returns("A new vector with the results flattened.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let v = vec![1, 2, 3];
+		/// let result: Vec<i32> = explicit::bind::<VecBrand, _, _, _, _>(&v, |x: &i32| vec![*x, *x * 10]);
+		/// assert_eq!(result, vec![1, 10, 2, 20, 3, 30]);
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.iter().flat_map(f).collect()
+		}
+	}
+
+	// -- Parallel by-reference trait implementations --
+
+	impl ParRefFunctor for VecBrand {
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The input element type.",
+			"The output element type."
+		)]
+		#[document_parameters("The function. Must be `Send + Sync`.", "The vector.")]
+		#[document_returns("A new vector with mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_ref_functor::ParRefFunctor,
+		/// };
+		/// let result = VecBrand::par_ref_map(|x: &i32| x * 2, &vec![1, 2, 3]);
+		/// assert_eq!(result, vec![2, 4, 6]);
+		/// ```
+		fn par_ref_map<'a, A: Send + Sync + 'a, B: Send + 'a>(
+			f: impl Fn(&A) -> B + Send + Sync + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.par_iter().map(f).collect()
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.iter().map(f).collect()
+		}
+	}
+
+	impl ParRefFoldable for VecBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The element type.", "The monoid type.")]
+		#[document_parameters("The function. Must be `Send + Sync`.", "The vector.")]
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_ref_foldable::ParRefFoldable,
+		/// };
+		/// let result = VecBrand::par_ref_fold_map(|x: &i32| x.to_string(), &vec![1, 2, 3]);
+		/// assert_eq!(result, "123");
+		/// ```
+		fn par_ref_fold_map<'a, A: Send + Sync + 'a, M: Monoid + Send + 'a>(
+			f: impl Fn(&A) -> M + Send + Sync + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.par_iter().map(f).reduce(Monoid::empty, Semigroup::append)
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.iter().map(f).fold(Monoid::empty(), |acc, m| Semigroup::append(acc, m))
+		}
+	}
+
+	impl ParRefFilterable for VecBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function. Must be `Send + Sync`.", "The vector.")]
+		#[document_returns("A new vector with filtered and mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_ref_filterable::ParRefFilterable,
+		/// };
+		/// let result = VecBrand::par_ref_filter_map(
+		/// 	|x: &i32| if *x > 2 { Some(x.to_string()) } else { None },
+		/// 	&vec![1, 2, 3, 4],
+		/// );
+		/// assert_eq!(result, vec!["3", "4"]);
+		/// ```
+		fn par_ref_filter_map<'a, A: Send + Sync + 'a, B: Send + 'a>(
+			f: impl Fn(&A) -> Option<B> + Send + Sync + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.par_iter().filter_map(f).collect()
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.iter().filter_map(f).collect()
+		}
+	}
+
+	impl ParRefFunctorWithIndex for VecBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function with index. Must be `Send + Sync`.", "The vector.")]
+		#[document_returns("A new vector with mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_ref_functor_with_index::ParRefFunctorWithIndex,
+		/// };
+		/// let result =
+		/// 	VecBrand::par_ref_map_with_index(|i, x: &i32| format!("{}:{}", i, x), &vec![10, 20]);
+		/// assert_eq!(result, vec!["0:10", "1:20"]);
+		/// ```
+		fn par_ref_map_with_index<'a, A: Send + Sync + 'a, B: Send + 'a>(
+			f: impl Fn(usize, &A) -> B + Send + Sync + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.par_iter().enumerate().map(|(i, a)| f(i, a)).collect()
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.iter().enumerate().map(|(i, a)| f(i, a)).collect()
+		}
+	}
+
+	impl ParRefFoldableWithIndex for VecBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The element type.", "The monoid type.")]
+		#[document_parameters("The function with index. Must be `Send + Sync`.", "The vector.")]
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_ref_foldable_with_index::ParRefFoldableWithIndex,
+		/// };
+		/// let result =
+		/// 	VecBrand::par_ref_fold_map_with_index(|i, x: &i32| format!("{}:{}", i, x), &vec![10, 20]);
+		/// assert_eq!(result, "0:101:20");
+		/// ```
+		fn par_ref_fold_map_with_index<'a, A: Send + Sync + 'a, M: Monoid + Send + 'a>(
+			f: impl Fn(usize, &A) -> M + Send + Sync + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.par_iter()
+					.enumerate()
+					.map(|(i, a)| f(i, a))
+					.reduce(Monoid::empty, Semigroup::append)
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.iter()
+				.enumerate()
+				.map(|(i, a)| f(i, a))
+				.fold(Monoid::empty(), |acc, m| Semigroup::append(acc, m))
+		}
+	}
+
+	impl ParRefFilterableWithIndex for VecBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function with index. Must be `Send + Sync`.", "The vector.")]
+		#[document_returns("A new vector with filtered and mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::par_ref_filterable_with_index::ParRefFilterableWithIndex,
+		/// };
+		/// let v = vec![10, 20, 30, 40, 50];
+		/// let result = VecBrand::par_ref_filter_map_with_index(
+		/// 	|i, x: &i32| if i % 2 == 0 { Some(x.to_string()) } else { None },
+		/// 	&v,
+		/// );
+		/// assert_eq!(result, vec!["10", "30", "50"]);
+		/// ```
+		fn par_ref_filter_map_with_index<'a, A: Send + Sync + 'a, B: Send + 'a>(
+			f: impl Fn(usize, &A) -> Option<B> + Send + Sync + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				fa.par_iter().enumerate().filter_map(|(i, a)| f(i, a)).collect()
+			}
+			#[cfg(not(feature = "rayon"))]
+			fa.iter().enumerate().filter_map(|(i, a)| f(i, a)).collect()
+		}
+	}
 }
 
 #[cfg(test)]
@@ -2211,7 +3023,7 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::CloneableFn,
+			classes::*,
 			functions::*,
 		},
 		quickcheck_macros::quickcheck,
@@ -2222,7 +3034,7 @@ mod tests {
 	/// Tests the identity law for Functor.
 	#[quickcheck]
 	fn functor_identity(x: Vec<i32>) -> bool {
-		map::<VecBrand, _, _>(identity, x.clone()) == x
+		explicit::map::<VecBrand, _, _, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -2230,8 +3042,8 @@ mod tests {
 	fn functor_composition(x: Vec<i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<VecBrand, _, _>(compose(f, g), x.clone())
-			== map::<VecBrand, _, _>(f, map::<VecBrand, _, _>(g, x))
+		explicit::map::<VecBrand, _, _, _, _>(compose(f, g), x.clone())
+			== explicit::map::<VecBrand, _, _, _, _>(f, explicit::map::<VecBrand, _, _, _, _>(g, x))
 	}
 
 	// Applicative Laws
@@ -2240,7 +3052,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_identity(v: Vec<i32>) -> bool {
 		apply::<RcFnBrand, VecBrand, _, _>(
-			pure::<VecBrand, _>(<RcFnBrand as CloneableFn>::new(identity)),
+			pure::<VecBrand, _>(<RcFnBrand as LiftFn>::new(identity)),
 			v.clone(),
 		) == v
 	}
@@ -2250,7 +3062,7 @@ mod tests {
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
 		apply::<RcFnBrand, VecBrand, _, _>(
-			pure::<VecBrand, _>(<RcFnBrand as CloneableFn>::new(f)),
+			pure::<VecBrand, _>(<RcFnBrand as LiftFn>::new(f)),
 			pure::<VecBrand, _>(x),
 		) == pure::<VecBrand, _>(f(x))
 	}
@@ -2264,11 +3076,11 @@ mod tests {
 	) -> bool {
 		let u_fns: Vec<_> = u_seeds
 			.iter()
-			.map(|&i| <RcFnBrand as CloneableFn>::new(move |x: i32| x.wrapping_add(i)))
+			.map(|&i| <RcFnBrand as LiftFn>::new(move |x: i32| x.wrapping_add(i)))
 			.collect();
 		let v_fns: Vec<_> = v_seeds
 			.iter()
-			.map(|&i| <RcFnBrand as CloneableFn>::new(move |x: i32| x.wrapping_mul(i)))
+			.map(|&i| <RcFnBrand as LiftFn>::new(move |x: i32| x.wrapping_mul(i)))
 			.collect();
 
 		// RHS: u <*> (v <*> w)
@@ -2284,7 +3096,7 @@ mod tests {
 				v_fns.iter().map(move |vf| {
 					let uf = uf.clone();
 					let vf = vf.clone();
-					<RcFnBrand as CloneableFn>::new(move |x| uf(vf(x)))
+					<RcFnBrand as LiftFn>::new(move |x| uf(vf(x)))
 				})
 			})
 			.collect();
@@ -2299,12 +3111,11 @@ mod tests {
 	fn applicative_interchange(y: i32) -> bool {
 		// u <*> pure y = pure ($ y) <*> u
 		let f = |x: i32| x.wrapping_mul(2);
-		let u = vec![<RcFnBrand as CloneableFn>::new(f)];
+		let u = vec![<RcFnBrand as LiftFn>::new(f)];
 
 		let lhs = apply::<RcFnBrand, VecBrand, _, _>(u.clone(), pure::<VecBrand, _>(y));
 
-		let rhs_fn =
-			<RcFnBrand as CloneableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
+		let rhs_fn = <RcFnBrand as LiftFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
 		let rhs = apply::<RcFnBrand, VecBrand, _, _>(pure::<VecBrand, _>(rhs_fn), u);
 
 		lhs == rhs
@@ -2342,13 +3153,13 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| vec![x.wrapping_mul(2)];
-		bind::<VecBrand, _, _>(pure::<VecBrand, _>(a), f) == f(a)
+		explicit::bind::<VecBrand, _, _, _, _>(pure::<VecBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: Vec<i32>) -> bool {
-		bind::<VecBrand, _, _>(m.clone(), pure::<VecBrand, _>) == m
+		explicit::bind::<VecBrand, _, _, _, _>(m.clone(), pure::<VecBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -2356,8 +3167,12 @@ mod tests {
 	fn monad_associativity(m: Vec<i32>) -> bool {
 		let f = |x: i32| vec![x.wrapping_mul(2)];
 		let g = |x: i32| vec![x.wrapping_add(1)];
-		bind::<VecBrand, _, _>(bind::<VecBrand, _, _>(m.clone(), f), g)
-			== bind::<VecBrand, _, _>(m, |x| bind::<VecBrand, _, _>(f(x), g))
+		explicit::bind::<VecBrand, _, _, _, _>(
+			explicit::bind::<VecBrand, _, _, _, _>(m.clone(), f),
+			g,
+		) == explicit::bind::<VecBrand, _, _, _, _>(m, |x| {
+			explicit::bind::<VecBrand, _, _, _, _>(f(x), g)
+		})
 	}
 
 	// Edge Cases
@@ -2365,14 +3180,17 @@ mod tests {
 	/// Tests `map` on an empty vector.
 	#[test]
 	fn map_empty() {
-		assert_eq!(map::<VecBrand, _, _>(|x: i32| x + 1, vec![] as Vec<i32>), vec![] as Vec<i32>);
+		assert_eq!(
+			explicit::map::<VecBrand, _, _, _, _>(|x: i32| x + 1, vec![] as Vec<i32>),
+			vec![] as Vec<i32>
+		);
 	}
 
 	/// Tests `bind` on an empty vector.
 	#[test]
 	fn bind_empty() {
 		assert_eq!(
-			bind::<VecBrand, _, _>(vec![] as Vec<i32>, |x: i32| vec![x + 1]),
+			explicit::bind::<VecBrand, _, _, _, _>(vec![] as Vec<i32>, |x: i32| vec![x + 1]),
 			vec![] as Vec<i32>
 		);
 	}
@@ -2381,7 +3199,7 @@ mod tests {
 	#[test]
 	fn bind_returning_empty() {
 		assert_eq!(
-			bind::<VecBrand, _, _>(vec![1, 2, 3], |_| vec![] as Vec<i32>),
+			explicit::bind::<VecBrand, _, _, _, _>(vec![1, 2, 3], |_| vec![] as Vec<i32>),
 			vec![] as Vec<i32>
 		);
 	}
@@ -2390,7 +3208,7 @@ mod tests {
 	#[test]
 	fn fold_right_empty() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<RcFnBrand, VecBrand, _, _>(
+			crate::functions::explicit::fold_right::<RcFnBrand, VecBrand, _, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				vec![]
@@ -2403,7 +3221,7 @@ mod tests {
 	#[test]
 	fn fold_left_empty() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<RcFnBrand, VecBrand, _, _>(
+			crate::functions::explicit::fold_left::<RcFnBrand, VecBrand, _, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				vec![]
@@ -2532,13 +3350,14 @@ mod tests {
 	/// Tests `filterMap identity ≡ compact`.
 	#[quickcheck]
 	fn filterable_filter_map_identity(x: Vec<Option<i32>>) -> bool {
-		filter_map::<VecBrand, _, _>(identity, x.clone()) == compact::<VecBrand, _>(x)
+		explicit::filter_map::<VecBrand, _, _, _, _>(identity, x.clone())
+			== explicit::compact::<VecBrand, _, _, _>(x)
 	}
 
 	/// Tests `filterMap Just ≡ identity`.
 	#[quickcheck]
 	fn filterable_filter_map_just(x: Vec<i32>) -> bool {
-		filter_map::<VecBrand, _, _>(Some, x.clone()) == x
+		explicit::filter_map::<VecBrand, _, _, _, _>(Some, x.clone()) == x
 	}
 
 	/// Tests `filterMap (l <=< r) ≡ filterMap l <<< filterMap r`.
@@ -2546,10 +3365,13 @@ mod tests {
 	fn filterable_filter_map_composition(x: Vec<i32>) -> bool {
 		let r = |i: i32| if i % 2 == 0 { Some(i) } else { None };
 		let l = |i: i32| if i > 5 { Some(i) } else { None };
-		let composed = |i| bind::<OptionBrand, _, _>(r(i), l);
+		let composed = |i| explicit::bind::<OptionBrand, _, _, _, _>(r(i), l);
 
-		filter_map::<VecBrand, _, _>(composed, x.clone())
-			== filter_map::<VecBrand, _, _>(l, filter_map::<VecBrand, _, _>(r, x))
+		explicit::filter_map::<VecBrand, _, _, _, _>(composed, x.clone())
+			== explicit::filter_map::<VecBrand, _, _, _, _>(
+				l,
+				explicit::filter_map::<VecBrand, _, _, _, _>(r, x),
+			)
 	}
 
 	/// Tests `filter ≡ filterMap <<< maybeBool`.
@@ -2558,26 +3380,29 @@ mod tests {
 		let p = |i: i32| i % 2 == 0;
 		let maybe_bool = |i| if p(i) { Some(i) } else { None };
 
-		filter::<VecBrand, _>(p, x.clone()) == filter_map::<VecBrand, _, _>(maybe_bool, x)
+		explicit::filter::<VecBrand, _, _, _>(p, x.clone())
+			== explicit::filter_map::<VecBrand, _, _, _, _>(maybe_bool, x)
 	}
 
 	/// Tests `partitionMap identity ≡ separate`.
 	#[quickcheck]
 	fn filterable_partition_map_identity(x: Vec<Result<i32, i32>>) -> bool {
-		partition_map::<VecBrand, _, _, _>(identity, x.clone()) == separate::<VecBrand, _, _>(x)
+		explicit::partition_map::<VecBrand, _, _, _, _, _>(identity, x.clone())
+			== explicit::separate::<VecBrand, _, _, _, _>(x)
 	}
 
 	/// Tests `partitionMap Right ≡ identity` (on the right side).
 	#[quickcheck]
 	fn filterable_partition_map_right_identity(x: Vec<i32>) -> bool {
-		let (_, oks) = partition_map::<VecBrand, _, _, _>(Ok::<_, i32>, x.clone());
+		let (_, oks) = explicit::partition_map::<VecBrand, _, _, _, _, _>(Ok::<_, i32>, x.clone());
 		oks == x
 	}
 
 	/// Tests `partitionMap Left ≡ identity` (on the left side).
 	#[quickcheck]
 	fn filterable_partition_map_left_identity(x: Vec<i32>) -> bool {
-		let (errs, _) = partition_map::<VecBrand, _, _, _>(Err::<i32, _>, x.clone());
+		let (errs, _) =
+			explicit::partition_map::<VecBrand, _, _, _, _, _>(Err::<i32, _>, x.clone());
 		errs == x
 	}
 
@@ -2587,8 +3412,8 @@ mod tests {
 		let p = |i: i32| i % 2 == 0;
 		let either_bool = |i| if p(i) { Ok(i) } else { Err(i) };
 
-		let (not_satisfied, satisfied) = partition::<VecBrand, _>(p, x.clone());
-		let (errs, oks) = partition_map::<VecBrand, _, _, _>(either_bool, x);
+		let (not_satisfied, satisfied) = explicit::partition::<VecBrand, _, _, _>(p, x.clone());
+		let (errs, oks) = explicit::partition_map::<VecBrand, _, _, _, _, _>(either_bool, x);
 
 		satisfied == oks && not_satisfied == errs
 	}
@@ -2598,7 +3423,10 @@ mod tests {
 	/// Tests `wither (pure <<< Just) ≡ pure`.
 	#[quickcheck]
 	fn witherable_identity(x: Vec<i32>) -> bool {
-		wither::<VecBrand, OptionBrand, _, _>(|i| Some(Some(i)), x.clone()) == Some(x)
+		explicit::wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
+			|i| Some(Some(i)),
+			x.clone(),
+		) == Some(x)
 	}
 
 	/// Tests `wilt p ≡ map separate <<< traverse p`.
@@ -2606,10 +3434,10 @@ mod tests {
 	fn witherable_wilt_consistency(x: Vec<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Ok(i) } else { Err(i) });
 
-		let lhs = wilt::<VecBrand, OptionBrand, _, _, _>(p, x.clone());
-		let rhs = crate::classes::functor::map::<OptionBrand, _, _>(
-			separate::<VecBrand, _, _>,
-			traverse::<VecBrand, _, _, OptionBrand>(p, x),
+		let lhs = explicit::wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(p, x.clone());
+		let rhs = crate::dispatch::functor::explicit::map::<OptionBrand, _, _, _, _>(
+			explicit::separate::<VecBrand, _, _, _, _>,
+			explicit::traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(p, x),
 		);
 
 		lhs == rhs
@@ -2620,10 +3448,10 @@ mod tests {
 	fn witherable_wither_consistency(x: Vec<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Some(i) } else { None });
 
-		let lhs = wither::<VecBrand, OptionBrand, _, _>(p, x.clone());
-		let rhs = crate::classes::functor::map::<OptionBrand, _, _>(
-			compact::<VecBrand, _>,
-			traverse::<VecBrand, _, _, OptionBrand>(p, x),
+		let lhs = explicit::wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(p, x.clone());
+		let rhs = crate::dispatch::functor::explicit::map::<OptionBrand, _, _, _, _>(
+			explicit::compact::<VecBrand, _, _, _>,
+			explicit::traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(p, x),
 		);
 
 		lhs == rhs
@@ -2638,8 +3466,10 @@ mod tests {
 		y: Vec<i32>,
 		z: Vec<i32>,
 	) -> bool {
-		alt::<VecBrand, _>(alt::<VecBrand, _>(x.clone(), y.clone()), z.clone())
-			== alt::<VecBrand, _>(x, alt::<VecBrand, _>(y, z))
+		explicit::alt::<VecBrand, _, _, _>(
+			explicit::alt::<VecBrand, _, _, _>(x.clone(), y.clone()),
+			z.clone(),
+		) == explicit::alt::<VecBrand, _, _, _>(x, explicit::alt::<VecBrand, _, _, _>(y, z))
 	}
 
 	/// Tests the distributivity law for Alt.
@@ -2649,8 +3479,13 @@ mod tests {
 		y: Vec<i32>,
 	) -> bool {
 		let f = |i: i32| i.wrapping_mul(2).wrapping_add(1);
-		map::<VecBrand, _, _>(f, alt::<VecBrand, _>(x.clone(), y.clone()))
-			== alt::<VecBrand, _>(map::<VecBrand, _, _>(f, x), map::<VecBrand, _, _>(f, y))
+		explicit::map::<VecBrand, _, _, _, _>(
+			f,
+			explicit::alt::<VecBrand, _, _, _>(x.clone(), y.clone()),
+		) == explicit::alt::<VecBrand, _, _, _>(
+			explicit::map::<VecBrand, _, _, _, _>(f, x),
+			explicit::map::<VecBrand, _, _, _, _>(f, y),
+		)
 	}
 
 	// Plus Laws
@@ -2658,13 +3493,13 @@ mod tests {
 	/// Tests the left identity law for Plus.
 	#[quickcheck]
 	fn plus_left_identity(x: Vec<i32>) -> bool {
-		alt::<VecBrand, _>(plus_empty::<VecBrand, i32>(), x.clone()) == x
+		explicit::alt::<VecBrand, _, _, _>(plus_empty::<VecBrand, i32>(), x.clone()) == x
 	}
 
 	/// Tests the right identity law for Plus.
 	#[quickcheck]
 	fn plus_right_identity(x: Vec<i32>) -> bool {
-		alt::<VecBrand, _>(x.clone(), plus_empty::<VecBrand, i32>()) == x
+		explicit::alt::<VecBrand, _, _, _>(x.clone(), plus_empty::<VecBrand, i32>()) == x
 	}
 
 	/// Tests the annihilation law for Plus.
@@ -2672,7 +3507,7 @@ mod tests {
 	fn plus_annihilation() {
 		let f = |i: i32| i.wrapping_mul(2);
 		assert_eq!(
-			map::<VecBrand, _, _>(f, plus_empty::<VecBrand, i32>()),
+			explicit::map::<VecBrand, _, _, _, _>(f, plus_empty::<VecBrand, i32>()),
 			plus_empty::<VecBrand, i32>(),
 		);
 	}
@@ -2682,14 +3517,17 @@ mod tests {
 	/// Tests the functor identity law for Compactable.
 	#[quickcheck]
 	fn compactable_functor_identity(fa: Vec<i32>) -> bool {
-		compact::<VecBrand, _>(map::<VecBrand, _, _>(Some, fa.clone())) == fa
+		explicit::compact::<VecBrand, _, _, _>(explicit::map::<VecBrand, _, _, _, _>(
+			Some,
+			fa.clone(),
+		)) == fa
 	}
 
 	/// Tests the Plus annihilation (empty) law for Compactable.
 	#[test]
 	fn compactable_plus_annihilation_empty() {
 		assert_eq!(
-			compact::<VecBrand, _>(plus_empty::<VecBrand, Option<i32>>()),
+			explicit::compact::<VecBrand, _, _, _>(plus_empty::<VecBrand, Option<i32>>()),
 			plus_empty::<VecBrand, i32>(),
 		);
 	}
@@ -2697,8 +3535,10 @@ mod tests {
 	/// Tests the Plus annihilation (map) law for Compactable.
 	#[quickcheck]
 	fn compactable_plus_annihilation_map(xs: Vec<i32>) -> bool {
-		compact::<VecBrand, _>(map::<VecBrand, _, _>(|_: i32| None::<i32>, xs))
-			== plus_empty::<VecBrand, i32>()
+		explicit::compact::<VecBrand, _, _, _>(explicit::map::<VecBrand, _, _, _, _>(
+			|_: i32| None::<i32>,
+			xs,
+		)) == plus_empty::<VecBrand, i32>()
 	}
 
 	// Edge Cases
@@ -2706,19 +3546,26 @@ mod tests {
 	/// Tests `compact` on an empty vector.
 	#[test]
 	fn compact_empty() {
-		assert_eq!(compact::<VecBrand, i32>(vec![] as Vec<Option<i32>>), vec![] as Vec<i32>);
+		assert_eq!(
+			explicit::compact::<VecBrand, i32, _, _>(vec![] as Vec<Option<i32>>),
+			vec![] as Vec<i32>
+		);
 	}
 
 	/// Tests `compact` on a vector with `None`.
 	#[test]
 	fn compact_with_none() {
-		assert_eq!(compact::<VecBrand, i32>(vec![Some(1), None, Some(2)]), vec![1, 2]);
+		assert_eq!(
+			explicit::compact::<VecBrand, i32, _, _>(vec![Some(1), None, Some(2)]),
+			vec![1, 2]
+		);
 	}
 
 	/// Tests `separate` on an empty vector.
 	#[test]
 	fn separate_empty() {
-		let (errs, oks) = separate::<VecBrand, i32, i32>(vec![] as Vec<Result<i32, i32>>);
+		let (errs, oks) =
+			explicit::separate::<VecBrand, i32, i32, _, _>(vec![] as Vec<Result<i32, i32>>);
 		assert_eq!(oks, vec![] as Vec<i32>);
 		assert_eq!(errs, vec![] as Vec<i32>);
 	}
@@ -2726,7 +3573,8 @@ mod tests {
 	/// Tests `separate` on a vector with `Ok` and `Err`.
 	#[test]
 	fn separate_mixed() {
-		let (errs, oks) = separate::<VecBrand, i32, i32>(vec![Ok(1), Err(2), Ok(3)]);
+		let (errs, oks) =
+			explicit::separate::<VecBrand, i32, i32, _, _>(vec![Ok(1), Err(2), Ok(3)]);
 		assert_eq!(oks, vec![1, 3]);
 		assert_eq!(errs, vec![2]);
 	}
@@ -2735,7 +3583,7 @@ mod tests {
 	#[test]
 	fn partition_map_empty() {
 		let (errs, oks) =
-			partition_map::<VecBrand, i32, i32, _>(|x: i32| Ok::<i32, i32>(x), vec![]);
+			explicit::partition_map::<VecBrand, _, _, _, _, _>(|x: i32| Ok::<i32, i32>(x), vec![]);
 		assert_eq!(oks, vec![] as Vec<i32>);
 		assert_eq!(errs, vec![] as Vec<i32>);
 	}
@@ -2743,7 +3591,8 @@ mod tests {
 	/// Tests `partition` on an empty vector.
 	#[test]
 	fn partition_empty() {
-		let (not_satisfied, satisfied) = partition::<VecBrand, i32>(|x: i32| x > 0, vec![]);
+		let (not_satisfied, satisfied) =
+			explicit::partition::<VecBrand, _, _, _>(|x: i32| x > 0, vec![]);
 		assert_eq!(satisfied, vec![] as Vec<i32>);
 		assert_eq!(not_satisfied, vec![] as Vec<i32>);
 	}
@@ -2751,26 +3600,38 @@ mod tests {
 	/// Tests `filter_map` on an empty vector.
 	#[test]
 	fn filter_map_empty() {
-		assert_eq!(filter_map::<VecBrand, i32, _>(|x: i32| Some(x), vec![]), vec![] as Vec<i32>);
+		assert_eq!(
+			explicit::filter_map::<VecBrand, i32, _, _, _>(|x: i32| Some(x), vec![]),
+			vec![] as Vec<i32>
+		);
 	}
 
 	/// Tests `filter` on an empty vector.
 	#[test]
 	fn filter_empty() {
-		assert_eq!(filter::<VecBrand, i32>(|x: i32| x > 0, vec![]), vec![] as Vec<i32>);
+		assert_eq!(
+			explicit::filter::<VecBrand, _, _, _>(|x: i32| x > 0, vec![]),
+			vec![] as Vec<i32>
+		);
 	}
 
 	/// Tests `wilt` on an empty vector.
 	#[test]
 	fn wilt_empty() {
-		let res = wilt::<VecBrand, OptionBrand, _, _, _>(|x: i32| Some(Ok::<i32, i32>(x)), vec![]);
+		let res = explicit::wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(
+			|x: i32| Some(Ok::<i32, i32>(x)),
+			vec![],
+		);
 		assert_eq!(res, Some((vec![], vec![])));
 	}
 
 	/// Tests `wither` on an empty vector.
 	#[test]
 	fn wither_empty() {
-		let res = wither::<VecBrand, OptionBrand, _, _>(|x: i32| Some(Some(x)), vec![]);
+		let res = explicit::wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
+			|x: i32| Some(Some(x)),
+			vec![],
+		);
 		assert_eq!(res, Some(vec![]));
 	}
 
@@ -2790,7 +3651,7 @@ mod tests {
 	#[quickcheck]
 	fn prop_par_map_equals_map(xs: Vec<i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
-		let seq_res = map::<VecBrand, _, _>(f, xs.clone());
+		let seq_res = explicit::map::<VecBrand, _, _, _, _>(f, xs.clone());
 		let par_res = par_map::<VecBrand, _, _>(f, xs);
 		seq_res == par_res
 	}
@@ -2801,10 +3662,11 @@ mod tests {
 		use crate::types::Additive;
 
 		let f = |x: i32| Additive(x as i64);
-		let seq_res = crate::classes::foldable::fold_map::<crate::brands::RcFnBrand, VecBrand, _, _>(
-			f,
-			xs.clone(),
-		);
+		let seq_res =
+			crate::functions::explicit::fold_map::<crate::brands::RcFnBrand, VecBrand, _, _, _, _>(
+				f,
+				xs.clone(),
+			);
 		let par_res = par_fold_map::<VecBrand, _, _>(f, xs);
 		seq_res == par_res
 	}
@@ -2930,5 +3792,159 @@ mod tests {
 		use crate::classes::extend::extend;
 		let result = extend::<VecBrand, _, _>(|v: Vec<i32>| v.iter().sum::<i32>(), vec![42]);
 		assert_eq!(result, vec![42]);
+	}
+
+	// -- Ref trait laws --
+
+	/// Tests the identity law for RefFunctor: ref_map(deref, v) == v.
+	#[quickcheck]
+	fn ref_functor_identity(v: Vec<i32>) -> bool {
+		use crate::classes::ref_functor::RefFunctor;
+		VecBrand::ref_map(|x: &i32| *x, &v) == v
+	}
+
+	/// Tests the composition law for RefFunctor:
+	/// ref_map(|x| g(&f(x)), v) == ref_map(g, ref_map(f, v)).
+	#[quickcheck]
+	fn ref_functor_composition(v: Vec<i32>) -> bool {
+		use crate::classes::ref_functor::RefFunctor;
+		let f = |x: &i32| x.wrapping_add(1);
+		let g = |x: &i32| x.wrapping_mul(2);
+		VecBrand::ref_map(|x: &i32| g(&f(x)), &v) == VecBrand::ref_map(g, &VecBrand::ref_map(f, &v))
+	}
+
+	/// Tests RefFoldable with Additive monoid: ref_fold_map matches iter().sum().
+	#[quickcheck]
+	fn ref_foldable_additive(v: Vec<i32>) -> bool {
+		use crate::{
+			brands::RcFnBrand,
+			classes::ref_foldable::RefFoldable,
+			types::Additive,
+		};
+		let result: Additive<i32> =
+			VecBrand::ref_fold_map::<RcFnBrand, _, _>(|x: &i32| Additive(*x), &v);
+		result.0 == v.iter().copied().fold(0i32, |a, b| a.wrapping_add(b))
+	}
+
+	/// Tests the left identity law for RefSemimonad:
+	/// ref_bind(vec![x], |a| vec![*a]) == vec![x].
+	#[quickcheck]
+	fn ref_semimonad_left_identity(x: i32) -> bool {
+		use crate::classes::ref_semimonad::RefSemimonad;
+		VecBrand::ref_bind(&vec![x], |a: &i32| vec![*a]) == vec![x]
+	}
+
+	/// Tests the associativity law for RefSemimonad:
+	/// ref_bind(ref_bind(v, f), g) == ref_bind(v, |a| ref_bind(f(a), g)).
+	#[quickcheck]
+	fn ref_semimonad_associativity(v: Vec<i32>) -> bool {
+		use crate::classes::ref_semimonad::RefSemimonad;
+		let f = |a: &i32| vec![a.wrapping_add(1), a.wrapping_mul(2)];
+		let g = |b: &i32| vec![b.wrapping_add(10)];
+		let lhs = VecBrand::ref_bind(&VecBrand::ref_bind(&v, f), g);
+		let rhs = VecBrand::ref_bind(&v, |a: &i32| VecBrand::ref_bind(&f(a), g));
+		lhs == rhs
+	}
+
+	/// Tests ParRefFunctor equivalence: par_ref_map(f, v) == ref_map(f, v).
+	#[quickcheck]
+	fn par_ref_functor_equivalence(v: Vec<i32>) -> bool {
+		use crate::classes::{
+			par_ref_functor::ParRefFunctor,
+			ref_functor::RefFunctor,
+		};
+		let f = |x: &i32| x.wrapping_mul(3).wrapping_add(7);
+		VecBrand::par_ref_map(f, &v) == VecBrand::ref_map(f, &v)
+	}
+
+	// RefSemimonad Laws (continued)
+
+	/// Tests the right identity law for RefSemimonad:
+	/// `ref_bind(v, |a| ref_pure(a)) == v`.
+	#[quickcheck]
+	fn ref_semimonad_right_identity(v: Vec<i32>) -> bool {
+		use crate::classes::{
+			ref_pointed::RefPointed,
+			ref_semimonad::RefSemimonad,
+		};
+		VecBrand::ref_bind(&v, |a: &i32| VecBrand::ref_pure(a)) == v
+	}
+
+	// RefLift Laws
+
+	/// Tests the identity law for RefLift:
+	/// `ref_lift2(|_, b| *b, pure(unit), fa) == fa`.
+	#[quickcheck]
+	fn ref_lift_identity(v: Vec<i32>) -> bool {
+		use crate::classes::ref_lift::RefLift;
+		VecBrand::ref_lift2(|_: &(), b: &i32| *b, &vec![()], &v) == v
+	}
+
+	// RefTraversable Laws
+
+	/// Tests the identity law for RefTraversable:
+	/// `ref_traverse(|a| Identity(*a), ta) == Identity(ta)`.
+	#[quickcheck]
+	fn ref_traversable_identity(v: Vec<i32>) -> bool {
+		use crate::{
+			classes::ref_traversable::RefTraversable,
+			types::Identity,
+		};
+		let result: Identity<Vec<i32>> =
+			VecBrand::ref_traverse::<RcFnBrand, _, _, IdentityBrand>(|a: &i32| Identity(*a), &v);
+		result == Identity(v)
+	}
+
+	/// Tests RefTraversable naturality: ref_traverse(f, ta) produces
+	/// the same result as traverse(|a| f(&a), ta).
+	#[quickcheck]
+	fn ref_traversable_consistent_with_traverse(v: Vec<i32>) -> bool {
+		use crate::classes::{
+			ref_traversable::RefTraversable,
+			traversable::Traversable,
+		};
+		let ref_result: Option<Vec<String>> = VecBrand::ref_traverse::<RcFnBrand, _, _, OptionBrand>(
+			|a: &i32| Some(a.to_string()),
+			&v,
+		);
+		let val_result: Option<Vec<String>> =
+			VecBrand::traverse::<i32, String, OptionBrand>(|a: i32| Some(a.to_string()), v);
+		ref_result == val_result
+	}
+
+	// RefCompactable Laws
+
+	/// RefCompactable identity: ref_compact of ref_map(Some, &v) preserves values
+	#[quickcheck]
+	fn ref_compactable_identity(v: Vec<i32>) -> bool {
+		let mapped: Vec<Option<i32>> = v.iter().map(|a| Some(*a)).collect();
+		explicit::compact::<VecBrand, _, _, _>(&mapped) == v
+	}
+
+	// RefAlt Laws
+
+	/// RefAlt associativity
+	#[quickcheck]
+	fn ref_alt_associativity(
+		x: Vec<i32>,
+		y: Vec<i32>,
+		z: Vec<i32>,
+	) -> bool {
+		explicit::alt::<VecBrand, _, _, _>(&explicit::alt::<VecBrand, _, _, _>(&x, &y), &z)
+			== explicit::alt::<VecBrand, _, _, _>(&x, &explicit::alt::<VecBrand, _, _, _>(&y, &z))
+	}
+
+	/// RefAlt distributivity with RefFunctor
+	#[quickcheck]
+	fn ref_alt_distributivity(
+		x: Vec<i32>,
+		y: Vec<i32>,
+	) -> bool {
+		let f = |a: &i32| a.wrapping_mul(2);
+		explicit::map::<VecBrand, _, _, _, _>(f, &explicit::alt::<VecBrand, _, _, _>(&x, &y))
+			== explicit::alt::<VecBrand, _, _, _>(
+				&explicit::map::<VecBrand, _, _, _, _>(f, &x),
+				&explicit::map::<VecBrand, _, _, _, _>(f, &y),
+			)
 	}
 }

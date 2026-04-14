@@ -23,12 +23,9 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::{
-	/// 		OptionBrand,
-	/// 		VecBrand,
-	/// 	},
+	/// 	brands::*,
 	/// 	classes::traversable_with_index::TraversableWithIndex,
-	/// 	functions::*,
+	/// 	functions::explicit::*,
 	/// };
 	///
 	/// let xs = vec![1, 2, 3];
@@ -37,7 +34,7 @@ mod inner {
 	/// // Compatibility with Traversable:
 	/// // traverse(f, fa) = traverse_with_index(|_, a| f(a), fa)
 	/// assert_eq!(
-	/// 	traverse::<VecBrand, _, _, OptionBrand>(f, xs.clone()),
+	/// 	traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(f, xs.clone()),
 	/// 	VecBrand::traverse_with_index::<i32, i32, OptionBrand>(|_, a| f(a), xs),
 	/// );
 	/// ```
@@ -81,6 +78,53 @@ mod inner {
 			M::Of<'a, B>: Clone, {
 			Self::sequence::<B, M>(Self::map_with_index::<A, M::Of<'a, B>>(f, ta))
 		}
+	}
+
+	/// Traverses a structure with an indexed effectful function.
+	///
+	/// Free function version that dispatches to [the type class' associated function][`TraversableWithIndex::traverse_with_index`].
+	#[document_signature]
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the traversable structure.",
+		"The type of the elements.",
+		"The type of the result elements.",
+		"The applicative brand for the effect."
+	)]
+	#[document_parameters("The indexed effectful function.", "The structure to traverse.")]
+	#[document_returns("The traversed structure wrapped in the applicative effect.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::{
+	/// 		OptionBrand,
+	/// 		RcFnBrand,
+	/// 		VecBrand,
+	/// 	},
+	/// 	functions::explicit::*,
+	/// };
+	///
+	/// let result = traverse_with_index::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(
+	/// 	|_i, x: i32| if x > 0 { Some(x * 2) } else { None },
+	/// 	vec![1, 2, 3],
+	/// );
+	/// assert_eq!(result, Some(vec![2, 4, 6]));
+	/// ```
+	pub fn traverse_with_index<
+		'a,
+		Brand: TraversableWithIndex,
+		A: 'a,
+		B: 'a + Clone,
+		M: Applicative,
+	>(
+		f: impl Fn(Brand::Index, A) -> M::Of<'a, B> + 'a,
+		ta: Brand::Of<'a, A>,
+	) -> M::Of<'a, Brand::Of<'a, B>>
+	where
+		Brand::Of<'a, B>: Clone,
+		M::Of<'a, B>: Clone, {
+		Brand::traverse_with_index::<A, B, M>(f, ta)
 	}
 }
 

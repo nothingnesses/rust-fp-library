@@ -1,9 +1,9 @@
 use fp_library::{
 	brands::RcFnBrand,
-	classes::send_cloneable_fn::SendCloneableFn,
+	classes::SendLiftFn,
 };
 
 fn main() {
-	// Should fail because RcFnBrand does not implement SendCloneableFn
-	let _ = <RcFnBrand as SendCloneableFn>::send_cloneable_fn_new(|x: i32| x);
+	// Should fail because RcFnBrand does not implement SendCloneFn
+	let _ = <RcFnBrand as SendLiftFn>::new(|x: i32| x);
 }

@@ -8,21 +8,8 @@ mod inner {
 		crate::{
 			Apply,
 			brands::Tuple1Brand,
-			classes::{
-				Applicative,
-				ApplyFirst,
-				ApplySecond,
-				CloneableFn,
-				Foldable,
-				Functor,
-				Lift,
-				MonadRec,
-				Monoid,
-				Pointed,
-				Semiapplicative,
-				Semimonad,
-				Traversable,
-			},
+			classes::*,
+			dispatch::Ref,
 			impl_kind,
 			kinds::*,
 		},
@@ -67,7 +54,7 @@ mod inner {
 		/// };
 		///
 		/// let x = (5,);
-		/// let y = map::<Tuple1Brand, _, _>(|i| i * 2, x);
+		/// let y = explicit::map::<Tuple1Brand, _, _, _, _>(|i| i * 2, x);
 		/// assert_eq!(y, (10,));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -108,7 +95,7 @@ mod inner {
 		///
 		/// let x = (1,);
 		/// let y = (2,);
-		/// let z = lift2::<Tuple1Brand, _, _, _>(|a, b| a + b, x, y);
+		/// let z = explicit::lift2::<Tuple1Brand, _, _, _, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, (3,));
 		/// ```
 		fn lift2<'a, A, B, C>(
@@ -182,13 +169,13 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = (cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),);
+		/// let f = (lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),);
 		/// let x = (5,);
 		/// let y = apply::<RcFnBrand, Tuple1Brand, _, _>(f, x);
 		/// assert_eq!(y, (10,));
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			(ff.0(fa.0),)
@@ -222,7 +209,7 @@ mod inner {
 		/// };
 		///
 		/// let x = (5,);
-		/// let y = bind::<Tuple1Brand, _, _>(x, |i| (i * 2,));
+		/// let y = explicit::bind::<Tuple1Brand, _, _, _, _>(x, |i| (i * 2,));
 		/// assert_eq!(y, (10,));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
@@ -262,7 +249,7 @@ mod inner {
 		/// };
 		///
 		/// let x = (5,);
-		/// let y = fold_right::<RcFnBrand, Tuple1Brand, _, _>(|a, b| a + b, 10, x);
+		/// let y = explicit::fold_right::<RcFnBrand, Tuple1Brand, _, _, _, _>(|a, b| a + b, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -271,7 +258,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			func(fa.0, initial)
 		}
 
@@ -303,7 +290,7 @@ mod inner {
 		/// };
 		///
 		/// let x = (5,);
-		/// let y = fold_left::<RcFnBrand, Tuple1Brand, _, _>(|b, a| b + a, 10, x);
+		/// let y = explicit::fold_left::<RcFnBrand, Tuple1Brand, _, _, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -312,7 +299,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			func(initial, fa.0)
 		}
 
@@ -343,7 +330,7 @@ mod inner {
 		/// };
 		///
 		/// let x = (5,);
-		/// let y = fold_map::<RcFnBrand, Tuple1Brand, _, _>(|a: i32| a.to_string(), x);
+		/// let y = explicit::fold_map::<RcFnBrand, Tuple1Brand, _, _, _, _>(|a: i32| a.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -352,7 +339,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			func(fa.0)
 		}
 	}
@@ -385,7 +372,8 @@ mod inner {
 		/// };
 		///
 		/// let x = (5,);
-		/// let y = traverse::<Tuple1Brand, _, _, OptionBrand>(|a| Some(a * 2), x);
+		/// let y =
+		/// 	explicit::traverse::<RcFnBrand, Tuple1Brand, _, _, OptionBrand, _, _>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some((10,)));
 		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
@@ -431,6 +419,214 @@ mod inner {
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 			F::map(|a| (a,), ta.0)
+		}
+	}
+
+	// -- By-reference trait implementations --
+
+	impl RefFunctor for Tuple1Brand {
+		/// Maps a function over the 1-tuple by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function.", "The tuple.")]
+		#[document_returns("A new 1-tuple containing the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// assert_eq!(explicit::map::<Tuple1Brand, _, _, _, _>(|x: &i32| *x * 2, &(5,)), (10,));
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			(func(&fa.0),)
+		}
+	}
+
+	impl RefFoldable for Tuple1Brand {
+		/// Folds the 1-tuple by reference.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The element type.",
+			"The monoid type."
+		)]
+		#[document_parameters("The mapping function.", "The tuple.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result =
+		/// 	explicit::fold_map::<RcFnBrand, Tuple1Brand, _, _, _, _>(|x: &i32| x.to_string(), &(5,));
+		/// assert_eq!(result, "5");
+		/// ```
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			func(&fa.0)
+		}
+	}
+
+	impl RefTraversable for Tuple1Brand {
+		/// Traverses the 1-tuple by reference.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The input type.",
+			"The output type.",
+			"The applicative."
+		)]
+		#[document_parameters("The function.", "The tuple.")]
+		#[document_returns("The traversed result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result: Option<(String,)> = ref_traverse::<Tuple1Brand, RcFnBrand, _, _, OptionBrand>(
+		/// 	|x: &i32| Some(x.to_string()),
+		/// 	&(42,),
+		/// );
+		/// assert_eq!(result, Some(("42".to_string(),)));
+		/// ```
+		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			F::map(|b| (b,), func(&ta.0))
+		}
+	}
+
+	impl RefPointed for Tuple1Brand {
+		/// Creates a 1-tuple from a reference by cloning.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The value type.")]
+		#[document_parameters("The reference to wrap.")]
+		#[document_returns("A 1-tuple containing a clone of the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = 42;
+		/// let result: (i32,) = ref_pure::<Tuple1Brand, _>(&x);
+		/// assert_eq!(result, (42,));
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			(a.clone(),)
+		}
+	}
+
+	impl RefLift for Tuple1Brand {
+		/// Combines two 1-tuples with a by-reference binary function.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "First input.", "Second input.", "Output.")]
+		#[document_parameters("The binary function.", "The first tuple.", "The second tuple.")]
+		#[document_returns("The combined 1-tuple.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result =
+		/// 	explicit::lift2::<Tuple1Brand, _, _, _, _, _, _>(|a: &i32, b: &i32| *a + *b, &(1,), &(2,));
+		/// assert_eq!(result, (3,));
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			(func(&fa.0, &fb.0),)
+		}
+	}
+
+	impl RefSemiapplicative for Tuple1Brand {
+		/// Applies a wrapped by-ref function within a 1-tuple.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The function brand.",
+			"The input type.",
+			"The output type."
+		)]
+		#[document_parameters(
+			"The tuple containing the function.",
+			"The tuple containing the value."
+		)]
+		#[document_returns("A 1-tuple containing the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x + 1);
+		/// let result = ref_apply::<RcFnBrand, Tuple1Brand, _, _>(&(f,), &(5,));
+		/// assert_eq!(result, (6,));
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			((*ff.0)(&fa.0),)
+		}
+	}
+
+	impl RefSemimonad for Tuple1Brand {
+		/// Chains 1-tuple computations by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The input tuple.", "The function to apply by reference.")]
+		#[document_returns("The resulting 1-tuple.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result: (String,) =
+		/// 	explicit::bind::<Tuple1Brand, _, _, _, _>(&(42,), |x: &i32| (x.to_string(),));
+		/// assert_eq!(result, ("42".to_string(),));
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			f(&fa.0)
 		}
 	}
 
@@ -495,22 +691,9 @@ mod tests {
 
 	use {
 		crate::{
-			brands::{
-				OptionBrand,
-				RcFnBrand,
-				Tuple1Brand,
-			},
-			classes::{
-				CloneableFn,
-				functor::map,
-				pointed::pure,
-				semiapplicative::apply,
-				semimonad::bind,
-			},
-			functions::{
-				compose,
-				identity,
-			},
+			brands::*,
+			classes::*,
+			functions::*,
 		},
 		quickcheck_macros::quickcheck,
 	};
@@ -521,7 +704,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity(x: i32) -> bool {
 		let x = (x,);
-		map::<Tuple1Brand, _, _>(identity, x) == x
+		explicit::map::<Tuple1Brand, _, _, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -530,8 +713,11 @@ mod tests {
 		let x = (x,);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<Tuple1Brand, _, _>(compose(f, g), x)
-			== map::<Tuple1Brand, _, _>(f, map::<Tuple1Brand, _, _>(g, x))
+		explicit::map::<Tuple1Brand, _, _, _, _>(compose(f, g), x)
+			== explicit::map::<Tuple1Brand, _, _, _, _>(
+				f,
+				explicit::map::<Tuple1Brand, _, _, _, _>(g, x),
+			)
 	}
 
 	// Applicative Laws
@@ -541,7 +727,7 @@ mod tests {
 	fn applicative_identity(v: i32) -> bool {
 		let v = (v,);
 		apply::<RcFnBrand, Tuple1Brand, _, _>(
-			pure::<Tuple1Brand, _>(<RcFnBrand as CloneableFn>::new(identity)),
+			pure::<Tuple1Brand, _>(<RcFnBrand as LiftFn>::new(identity)),
 			v,
 		) == v
 	}
@@ -551,7 +737,7 @@ mod tests {
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
 		apply::<RcFnBrand, Tuple1Brand, _, _>(
-			pure::<Tuple1Brand, _>(<RcFnBrand as CloneableFn>::new(f)),
+			pure::<Tuple1Brand, _>(<RcFnBrand as LiftFn>::new(f)),
 			pure::<Tuple1Brand, _>(x),
 		) == pure::<Tuple1Brand, _>(f(x))
 	}
@@ -567,8 +753,8 @@ mod tests {
 		let v_fn = move |x: i32| x.wrapping_mul(v_val);
 		let u_fn = move |x: i32| x.wrapping_add(u_val);
 
-		let v = pure::<Tuple1Brand, _>(<RcFnBrand as CloneableFn>::new(v_fn));
-		let u = pure::<Tuple1Brand, _>(<RcFnBrand as CloneableFn>::new(u_fn));
+		let v = pure::<Tuple1Brand, _>(<RcFnBrand as LiftFn>::new(v_fn));
+		let u = pure::<Tuple1Brand, _>(<RcFnBrand as LiftFn>::new(u_fn));
 
 		// RHS: u <*> (v <*> w)
 		let vw = apply::<RcFnBrand, Tuple1Brand, _, _>(v.clone(), w);
@@ -576,7 +762,7 @@ mod tests {
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		let composed = move |x| u_fn(v_fn(x));
-		let uv = pure::<Tuple1Brand, _>(<RcFnBrand as CloneableFn>::new(composed));
+		let uv = pure::<Tuple1Brand, _>(<RcFnBrand as LiftFn>::new(composed));
 
 		let lhs = apply::<RcFnBrand, Tuple1Brand, _, _>(uv, w);
 
@@ -588,12 +774,11 @@ mod tests {
 	fn applicative_interchange(y: i32) -> bool {
 		// u <*> pure y = pure ($ y) <*> u
 		let f = |x: i32| x.wrapping_mul(2);
-		let u = pure::<Tuple1Brand, _>(<RcFnBrand as CloneableFn>::new(f));
+		let u = pure::<Tuple1Brand, _>(<RcFnBrand as LiftFn>::new(f));
 
 		let lhs = apply::<RcFnBrand, Tuple1Brand, _, _>(u.clone(), pure::<Tuple1Brand, _>(y));
 
-		let rhs_fn =
-			<RcFnBrand as CloneableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
+		let rhs_fn = <RcFnBrand as LiftFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
 		let rhs = apply::<RcFnBrand, Tuple1Brand, _, _>(pure::<Tuple1Brand, _>(rhs_fn), u);
 
 		lhs == rhs
@@ -605,14 +790,14 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| (x.wrapping_mul(2),);
-		bind::<Tuple1Brand, _, _>(pure::<Tuple1Brand, _>(a), f) == f(a)
+		explicit::bind::<Tuple1Brand, _, _, _, _>(pure::<Tuple1Brand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: i32) -> bool {
 		let m = (m,);
-		bind::<Tuple1Brand, _, _>(m, pure::<Tuple1Brand, _>) == m
+		explicit::bind::<Tuple1Brand, _, _, _, _>(m, pure::<Tuple1Brand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -621,8 +806,12 @@ mod tests {
 		let m = (m,);
 		let f = |x: i32| (x.wrapping_mul(2),);
 		let g = |x: i32| (x.wrapping_add(1),);
-		bind::<Tuple1Brand, _, _>(bind::<Tuple1Brand, _, _>(m, f), g)
-			== bind::<Tuple1Brand, _, _>(m, |x| bind::<Tuple1Brand, _, _>(f(x), g))
+		explicit::bind::<Tuple1Brand, _, _, _, _>(
+			explicit::bind::<Tuple1Brand, _, _, _, _>(m, f),
+			g,
+		) == explicit::bind::<Tuple1Brand, _, _, _, _>(m, |x| {
+			explicit::bind::<Tuple1Brand, _, _, _, _>(f(x), g)
+		})
 	}
 
 	// Edge Cases
@@ -630,20 +819,20 @@ mod tests {
 	/// Tests the `map` function.
 	#[test]
 	fn map_test() {
-		assert_eq!(map::<Tuple1Brand, _, _>(|x: i32| x + 1, (1,)), (2,));
+		assert_eq!(explicit::map::<Tuple1Brand, _, _, _, _>(|x: i32| x + 1, (1,)), (2,));
 	}
 
 	/// Tests the `bind` function.
 	#[test]
 	fn bind_test() {
-		assert_eq!(bind::<Tuple1Brand, _, _>((1,), |x| (x + 1,)), (2,));
+		assert_eq!(explicit::bind::<Tuple1Brand, _, _, _, _>((1,), |x| (x + 1,)), (2,));
 	}
 
 	/// Tests the `fold_right` function.
 	#[test]
 	fn fold_right_test() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<RcFnBrand, Tuple1Brand, _, _>(
+			crate::functions::explicit::fold_right::<RcFnBrand, Tuple1Brand, _, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				(1,)
@@ -656,7 +845,7 @@ mod tests {
 	#[test]
 	fn fold_left_test() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<RcFnBrand, Tuple1Brand, _, _>(
+			crate::functions::explicit::fold_left::<RcFnBrand, Tuple1Brand, _, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				(1,)

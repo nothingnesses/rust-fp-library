@@ -12,14 +12,18 @@ The library works around this using the Brand pattern (lightweight higher-kinded
 
 ### Consequences
 
-- **Turbofish required.** The brand parameter is rarely inferable, so most calls require explicit annotation: `map::<OptionBrand, _, _>(|x| x + 1, Some(5))` instead of `Some(5).map(|x| x + 1)`.
-- **No method syntax.** Type class operations are free functions, not methods on the container. You write `bind::<OptionBrand, _, _>(f, x)` not `x.bind(f)`.
+- **No method syntax.** Type class operations are free functions, not methods on the container. You write `bind(x, f)` not `x.bind(f)`.
 - **Generated trait names in errors.** Compiler errors expose the macro-generated `Kind` trait names (e.g., `Kind_cdc7cd43dac7585f`) rather than human-readable names, making diagnostics harder to interpret.
 - **Wrapping/unwrapping overhead in generic code.** Generic functions must use `Apply!` macro invocations to convert between the `Kind` associated type and the concrete type, adding syntactic noise.
+- **Turbofish for ambiguous types.** Types reachable through multiple brands at a given arity (e.g., `Result` at arity 1) cannot use brand inference and require `explicit::` variants with turbofish: `explicit::map::<ResultErrAppliedBrand<E>, _, _, _, _>(f, x)`.
 
 ### Mitigation
 
-The `m_do!` and `a_do!` macros provide ergonomic do-notation that hides the brand plumbing. The `Pipe` trait allows method-chaining syntax for some operations. The `impl_kind!` and `trait_kind!` macros automate the boilerplate of defining new brands and kind traits.
+**Brand inference:** For types with a single unambiguous brand (Option, Vec, Identity, Thunk, Lazy, etc.), the `InferableBrand` trait enables the compiler to infer the brand from the container type. No turbofish needed: `map(|x| x + 1, Some(5))`. At arity 2 (bifunctor operations), types like `Result` that are ambiguous at arity 1 become unambiguous: `bimap((f, g), Ok(5))`.
+
+**Do-notation:** The `m_do!` and `a_do!` macros provide ergonomic do-notation. In inferred mode (`m_do!({ ... })`), the brand is inferred from container types. In explicit mode (`m_do!(Brand { ... })`), the brand is specified for ambiguous types or to use `pure()`.
+
+The `Pipe` trait allows method-chaining syntax for some operations. The `impl_kind!` and `trait_kind!` macros automate the boilerplate of defining new brands and kind traits.
 
 ## Uncurried Semantics (No Zero-Cost Currying)
 
@@ -55,7 +59,7 @@ type Lens s t a b = forall p. Strong p => p a b -> p s t
 
 Composition is ordinary function composition (`<<<`), and the profunctor is chosen at the use site. Rust cannot express this, so the library uses concrete structs (`Lens`, `Prism`, `Iso`, etc.) storing reified internal representations (equivalent to PureScript's `ALens`/`APrism`/`AnIso`), composed via a `Composed` struct with static dispatch rather than function composition. This results in deeply nested types for long composition chains, and generic code must be bounded by optic traits (e.g., `O: LensOptic`) rather than profunctor constraints.
 
-See [docs/optics-analysis.md](optics-analysis.md) and [docs/profunctor-analysis.md](profunctor-analysis.md) for detailed comparisons.
+See [Optics Comparison](optics-analysis.md) and [Profunctor Classes Analysis](profunctor-analysis.md) for detailed comparisons.
 
 #### `Wander` trait
 
@@ -101,17 +105,17 @@ All affected operations are available as inherent methods with the necessary bou
 ```rust
 // RcCoyoneda - inherent pure with Clone bound
 impl<'a, F, A: 'a> RcCoyoneda<'a, F, A> {
-    pub fn pure(value: A) -> Self
-    where F::Of<'a, A>: Clone { ... }
+	pub fn pure(value: A) -> Self
+	where F::Of<'a, A>: Clone { ... }
 }
 
 // ArcCoyoneda - inherent map with Send + Sync on closure
 impl<'a, F, A: 'a> ArcCoyoneda<'a, F, A> {
-    pub fn map<B: 'a>(self, f: impl Fn(A) -> B + Send + Sync + 'a) -> ArcCoyoneda<'a, F, B> { ... }
+	pub fn map<B: 'a>(self, f: impl Fn(A) -> B + Send + Sync + 'a) -> ArcCoyoneda<'a, F, B> { ... }
 }
 ```
 
-This means these types cannot be used generically (e.g., passed to a function expecting `F: Pointed`), but all operations work when used directly. See [docs/coyoneda.md](coyoneda.md) for the full comparison.
+This means these types cannot be used generically (e.g., passed to a function expecting `F: Pointed`), but all operations work when used directly. See [Coyoneda Implementations](coyoneda.md) for the full comparison.
 
 ### Root Cause
 
@@ -129,14 +133,21 @@ fn map<'a, A: 'a, B: 'a>(f: impl Fn(A) -> B + 'a, fa: Self::Of<'a, A>) -> Self::
 
 Automatically cloning the inner value to satisfy this signature would violate the library's zero-cost abstraction principle, since `Clone` may be expensive and the caller has no control over when it happens.
 
-### Implemented Solution: `RefFunctor` and `SendRefFunctor`
+### Implemented Solution: By-Reference Trait Hierarchy
 
-Separate traits that honestly represent what memoized types can do:
+A complete by-reference type class stack mirrors the by-value hierarchy. Each `Ref*` trait's closures receive `&A` instead of consuming `A`, making the ownership semantics honest for memoized types.
 
-- [`RefFunctor`](../src/classes/ref_functor.rs): `ref_map(func: impl FnOnce(&A) -> B, fa)` takes the value by reference. Implemented by `RcLazy`.
-- [`SendRefFunctor`](../src/classes/send_ref_functor.rs): Same but with `Send + Sync` bounds on `A`, `B`, and the closure. Implemented by `ArcLazy`.
+**Core hierarchy:** `RefFunctor`, `RefPointed`, `RefLift`, `RefSemiapplicative`, `RefSemimonad`, `RefApplicative`, `RefMonad`, `RefApplyFirst`, `RefApplySecond`.
 
-The two traits are independent (not in a sub/supertrait relationship) because `RcLazy` is `!Send` and `ArcLazy` requires `Send + Sync`. A single trait with optional `Send` bounds would either exclude `RcLazy` or fail to enforce thread safety for `ArcLazy`.
+**Foldable/Traversable/Filterable:** `RefFoldable`, `RefTraversable`, `RefFilterable`, `RefWitherable`, plus `WithIndex` variants for all.
+
+**Thread-safe:** `SendRefFunctor`, `SendRefPointed`, `SendRefLift`, `SendRefSemiapplicative`, `SendRefSemimonad`, `SendRefApplicative`, `SendRefMonad`, `SendRefFoldable`, etc. These add `Send + Sync` bounds on closures and elements.
+
+**Parallel:** `ParRefFunctor`, `ParRefFoldable`, `ParRefFilterable`, plus `WithIndex` variants. These use rayon for parallel by-reference iteration.
+
+The by-value and by-ref traits are independent (not in a sub/supertrait relationship). A unified `map` free function dispatches to the correct variant based on the closure's argument type (`Fn(A) -> B` routes to `Functor`, `Fn(&A) -> B` routes to `RefFunctor`). The same dispatch pattern extends to `bind`, `lift2`-`lift5`, `fold_map`, `fold_right`, `fold_left`, and semimonad helpers.
+
+Collection types (Vec, Option, CatList, Identity) implement both hierarchies: the by-value traits consume elements, the by-ref traits iterate by reference. `Lazy` only implements the Ref hierarchy since it caches values and can only lend references.
 
 ## `Free` and `Trampoline` Require `'static`
 
@@ -154,11 +165,11 @@ The two traits are independent (not in a sub/supertrait relationship) because `R
 
 Rust's `Any` trait requires `'static` to ensure memory safety (preventing use-after-free of references through downcasting). There is no way to have a lifetime-polymorphic `Any` on stable Rust. `Thunk` and `Lazy` avoid this constraint because they use trait objects with explicit lifetime parameters (`Box<dyn FnOnce() -> A + 'a>`) rather than type erasure via `Any`.
 
-See [docs/lifetime-ablation-experiment.md](lifetime-ablation-experiment.md) for a detailed exploration of the trade-offs around lifetime parameters in the lazy evaluation types.
+See [Lifetime Ablation Experiment](lifetime-ablation-experiment.md) for a detailed exploration of the trade-offs around lifetime parameters in the lazy evaluation types.
 
 ## Thread Safety and Parallelism
 
-### `Foldable` and `CloneableFn`
+### `Foldable` and `CloneFn`
 
 The `Foldable` trait and its default implementations (`fold_right`, `fold_left`) are **not thread-safe** in terms of sending the computation across threads, even when using `ArcFnBrand`. The `Foldable` trait cannot support parallel implementations (like those using `rayon`).
 
@@ -168,10 +179,10 @@ While `fp-library` provides `ArcFnBrand` (which uses `std::sync::Arc`), the resu
 
 #### Root Causes
 
-This limitation stems from the design of the `Function` and `CloneableFn` traits, which prioritize compatibility with `Rc` (single-threaded reference counting).
+This limitation stems from the design of the `Arrow` and `CloneFn` traits, which prioritize compatibility with `Rc` (single-threaded reference counting).
 
-1.  **`CloneableFn::new` accepts non-`Send` functions:**
-    The `CloneableFn` trait defines its constructor as:
+1.  **`CloneFn::new` accepts non-`Send` functions:**
+    The `CloneFn` trait defines its constructor as:
 
     ```rust
     fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> ...
@@ -180,7 +191,7 @@ This limitation stems from the design of the `Function` and `CloneableFn` traits
     The input `f` is **not** required to be `Send`. This is intentional to allow `RcFnBrand` to wrap closures that capture non-thread-safe data (like `Rc` pointers). Because `ArcFnBrand` implements this same trait, it must also accept non-`Send` functions. Since it cannot guarantee the input is `Send`, it cannot wrap it in an `Arc<dyn Fn(...) + Send>`. It is forced to use `Arc<dyn Fn(...)>`, which is `!Send`.
 
 2.  **`Function` Trait Type Constraints:**
-    The `Function` trait (which `CloneableFn` extends) enforces strict type equality on its associated type:
+    The `Arrow` trait enforces strict type equality on its associated type:
     ```rust
     type Of<'a, A, B>: Deref<Target = dyn 'a + Fn(A) -> B>;
     ```
@@ -195,7 +206,7 @@ This limitation stems from the design of the `Function` and `CloneableFn` traits
 
 The library addresses this with extension traits that provide thread-safe capabilities without breaking existing code:
 
-- [`SendCloneableFn`](../src/classes/send_cloneable_fn.rs): Extends `CloneableFn` with a separate `SendOf` associated type that wraps `dyn Fn + Send + Sync`. Only implemented by `ArcFnBrand`.
-- [`ParFoldable`](../src/classes/par_foldable.rs): Parallel fold operations using `impl Fn + Send + Sync` closures directly, bypassing the `CloneableFn` abstraction for parallel paths.
+- [`SendCloneFn`](../src/classes/send_clone_fn.rs): Extends `CloneFn` with a separate `Of` associated type that wraps `dyn Fn + Send + Sync`. Only implemented by `ArcFnBrand`.
+- [`ParFoldable`](../src/classes/par_foldable.rs): Parallel fold operations using `impl Fn + Send + Sync` closures directly, bypassing the `CloneFn` abstraction for parallel paths.
 
-This approach keeps `Function` and `CloneableFn` unchanged, cleanly separates Send capabilities as additive traits, and provides compile-time safety (only brands that can actually provide thread safety implement `SendCloneableFn`).
+This approach keeps `Arrow` and `CloneFn` unchanged, cleanly separates Send capabilities as additive traits, and provides compile-time safety (only brands that can actually provide thread safety implement `SendCloneFn`).

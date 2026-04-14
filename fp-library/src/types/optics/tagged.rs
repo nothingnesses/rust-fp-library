@@ -9,13 +9,13 @@ mod inner {
 			Apply,
 			brands::optics::*,
 			classes::{
-				CloneableFn,
 				profunctor::{
 					Choice,
 					Closed,
 					Costrong,
 					Profunctor,
 				},
+				*,
 			},
 			impl_kind,
 			kinds::*,
@@ -280,7 +280,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The cloneable function brand.")]
-	impl<FunctionBrand: CloneableFn + 'static> Closed<FunctionBrand> for TaggedBrand {
+	impl<FunctionBrand: LiftFn + 'static> Closed<FunctionBrand> for TaggedBrand {
 		/// Lifts the `Tagged` profunctor to operate on functions.
 		///
 		/// Given `Tagged(b)`, produces `Tagged(const b)` - a `Tagged` wrapping a constant
@@ -320,10 +320,10 @@ mod inner {
 		/// ```
 		fn closed<'a, A: 'a, B: 'a + Clone, X: 'a + Clone>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneableFn>::Of<'a, X, A>, <FunctionBrand as CloneableFn>::Of<'a, X, B>>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneFn>::Of<'a, X, A>, <FunctionBrand as CloneFn>::Of<'a, X, B>>)
 		{
 			let b = pab.0;
-			Tagged::new(<FunctionBrand as CloneableFn>::new(move |_: X| b.clone()))
+			Tagged::new(<FunctionBrand as LiftFn>::new(move |_: X| b.clone()))
 		}
 	}
 }

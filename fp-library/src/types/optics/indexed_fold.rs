@@ -7,6 +7,7 @@ mod inner {
 			Apply,
 			brands::optics::*,
 			classes::{
+				LiftFn,
 				UnsizedCoercible,
 				foldable_with_index::FoldableWithIndex,
 				monoid::Monoid,
@@ -27,10 +28,11 @@ mod inner {
 		"The lifetime of the values.",
 		"The index type.",
 		"The source type.",
-		"The element type."
+		"The element type.",
+		"The brand of the cloneable function to use."
 	)]
 	#[document_parameters("The indexed fold instance.")]
-	pub trait IndexedFoldFunc<'a, I, S, A> {
+	pub trait IndexedFoldFunc<'a, I, S, A, FnBrand: LiftFn + 'a = crate::brands::RcFnBrand> {
 		/// Apply the indexed fold function.
 		#[document_signature]
 		#[document_type_parameters("The monoid type.")]
@@ -219,14 +221,20 @@ mod inner {
 
 	#[document_type_parameters(
 		"The lifetime of the values.",
+		"The brand of the cloneable function to use.",
 		"The index type.",
 		"The brand of the foldable structure.",
 		"The type of the elements in the structure."
 	)]
 	#[document_parameters("The folded struct.")]
-	impl<'a, I, Brand, A>
-		IndexedFoldFunc<'a, I, Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>), A>
-		for Folded<Brand>
+	impl<'a, FnBrand: LiftFn + 'a, I, Brand, A>
+		IndexedFoldFunc<
+			'a,
+			I,
+			Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>),
+			A,
+			FnBrand,
+		> for Folded<Brand>
 	where
 		Brand: FoldableWithIndex<Index = I>,
 		A: 'a + Clone,
@@ -240,18 +248,18 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		VecBrand,
-		/// 		optics::*,
-		/// 	},
+		/// 	brands::*,
 		/// 	types::optics::{
 		/// 		Folded,
 		/// 		IndexedFoldFunc,
 		/// 	},
 		/// };
 		/// let folded = Folded::<VecBrand>(std::marker::PhantomData);
-		/// let result: String =
-		/// 	folded.apply(Box::new(|i: usize, x: i32| format!("[{}]={}", i, x)), vec![10, 20, 30]);
+		/// let result: String = IndexedFoldFunc::<usize, Vec<i32>, i32, RcFnBrand>::apply(
+		/// 	&folded,
+		/// 	Box::new(|i: usize, x: i32| format!("[{}]={}", i, x)),
+		/// 	vec![10, 20, 30],
+		/// );
 		/// assert_eq!(result, "[0]=10[1]=20[2]=30");
 		/// ```
 		fn apply<R: 'a + Monoid + 'static>(
@@ -259,7 +267,7 @@ mod inner {
 			f: Box<dyn Fn(I, A) -> R + 'a>,
 			s: Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>),
 		) -> R {
-			Brand::fold_map_with_index(f, s)
+			Brand::fold_map_with_index::<FnBrand, _, _>(f, s)
 		}
 	}
 

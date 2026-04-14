@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-04-14
+
+### Added
+
+- **Dispatch-aware HM signature generation**: `#[document_module]` analyzes dispatch traits (Pass 1b) and generates Hindley-Milner type signatures for inference wrapper functions by building synthetic signatures that replace dispatch machinery with semantic equivalents. Produces signatures like `forall Brand A B. Functor Brand => (A -> B, Brand A) -> Brand B`.
+- **`#[document_signature]` manual override**: `#[document_signature("forall A B. (A -> B) -> A -> B")]` emits the provided string directly, bypassing the generation pipeline.
+- **`InferableBrand` trait generation**: `trait_kind!` generates `InferableBrand_*` traits alongside `Kind_*` traits. `impl_kind!` auto-generates `InferableBrand` impls for concrete types.
+- **Inferred mode for `m_do!`/`a_do!`**: `m_do!({ ... })` infers the brand from the first monadic expression instead of requiring an explicit brand parameter.
+- **`ref` qualifier for `m_do!`/`a_do!`**: `m_do!(ref Brand { ... })` generates code that dispatches to by-reference trait methods.
+- **Exclusion support in `generate_function_re_exports!`**: `exclude { "module::function" }` syntax to suppress re-exports of functions superseded by dispatch versions.
+- **Insta snapshot regression tests**: 19 per-file tests covering all 38 dispatch inference wrapper HM signatures, plus 14 edge case tests for unusual inputs and graceful fallback behavior.
+
+### Changed
+
+- **`#[document_signature]` attribute parsing**: Now accepts an optional string literal argument (previously rejected all arguments).
+- **Dispatch analysis uses direct sources**: Container param mapping uses positional alignment from trait definition (not heuristic ident scanning). Brand param derived from trait definition's Kind\_\* bound (not Val impl where clause). Type param ordering follows trait definition order (not alphabetical sort). Inner Apply! macros in self-type elements resolved via `apply_worker`.
+- **`m_do!`/`a_do!` codegen**: Updated to use `explicit::bind`/`explicit::map` paths instead of `bind_explicit`/`map_explicit`.
+
 ## [0.6.0] - 2026-03-14
 
 ### Added

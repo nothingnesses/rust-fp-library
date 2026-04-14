@@ -24,7 +24,7 @@ mod inner {
 	/// ensuring the closure can be sent across thread boundaries. The two traits
 	/// are independent: implementing one does not require implementing the other.
 	///
-	/// Unlike [`SendCloneableFn`](crate::classes::SendCloneableFn), which wraps multi-use
+	/// Unlike [`SendCloneFn`](crate::classes::SendCloneFn), which wraps multi-use
 	/// `Fn` closures that are `Send + Sync`, this trait accepts a `FnOnce` closure that
 	/// only needs to be `Send` (not `Sync`), since deferred computations are executed
 	/// at most once.

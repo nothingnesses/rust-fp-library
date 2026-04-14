@@ -1,0 +1,8 @@
+---
+source: fp-macros/src/documentation/signature_snapshot_tests.rs
+assertion_line: 140
+expression: output
+---
+fold_left: forall Brand A B. Foldable Brand => ((B, A) -> B, B, Brand A) -> B
+fold_map: forall Brand A M. (Foldable Brand, Monoid M) => (A -> M, Brand A) -> M
+fold_right: forall Brand A B. Foldable Brand => ((A, B) -> B, B, Brand A) -> B

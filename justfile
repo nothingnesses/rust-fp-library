@@ -15,34 +15,37 @@ fmt:
 
 # Run clippy (warnings are errors).
 clippy *args:
-    {{direnv_prefix}} cargo clippy {{args}} -- -D warnings
+    {{direnv_prefix}} cargo clippy {{ if args == "" { "--workspace --all-targets --all-features" } else { args } }} -- -D warnings
 
 # Check documentation (warnings are errors) and reject emoji/unicode.
 doc *args:
     #!/usr/bin/env bash
     set -euo pipefail
-    if grep -rn '[✅❌⚠⚡←→↔≥≤≠✓✗✘✔✖──━┃┏┓┗┛┣┫┳┻╋═║►▶◀◁▲△▼▽●○■□★☆♠♣♥♦]' fp-library/src/ fp-macros/src/ --include='*.rs' docs/ --include='*.md' 2>/dev/null; then
+    {{direnv_prefix}} true
+    if grep -rn '[✅❌⚠⚡←→↔≥≤≠✓✗✘✔✖──━┃┏┓┗┛┣┫┳┻╋═║►▶◀◁▲△▼▽●○■□★☆♠♣♥♦]' fp-library/src/ fp-macros/src/ --include='*.rs' docs/ fp-library/docs/ --include='*.md' 2>/dev/null; then
         echo "ERROR: Found emoji or unicode characters in source or documentation files. Use ASCII equivalents." >&2
         exit 1
     fi
-    {{direnv_prefix}} RUSTDOCFLAGS="-D warnings" cargo doc {{args}}
+    lychee --offline --no-progress "README.md" "fp-library/docs/**/*.md" "docs/**/*.md"
+    RUSTDOCFLAGS="-D warnings" cargo doc {{ if args == "" { "--workspace --all-features --no-deps" } else { args } }}
 
 # Build the workspace.
 build *args:
-    {{direnv_prefix}} cargo build {{args}}
-
-# Check without building.
-check *args:
-    {{direnv_prefix}} cargo check {{args}}
+    {{direnv_prefix}} cargo build {{ if args == "" { "--workspace --all-targets --all-features" } else { args } }}
 
 # Run benchmarks. Use regex dots for spaces in benchmark names, e.g.:
 #   just bench -p fp-library --bench benchmarks -- "CatList.Left-Assoc"
 bench *args:
-    {{direnv_prefix}} cargo bench {{args}}
+    {{direnv_prefix}} cargo bench {{ if args == "" { "--workspace --all-targets --all-features" } else { args } }}
+
+# Check without building.
+check *args:
+    {{direnv_prefix}} cargo check {{ if args == "" { "--workspace --all-targets --all-features" } else { args } }}
 
 # Run any cargo subcommand (except test; use `just test` for that).
 cargo *args:
     #!/usr/bin/env bash
+    set -- {{args}}
     if [ "$1" = "test" ]; then
         echo "ERROR: Use 'just test' instead of 'just cargo test'." >&2
         exit 1
@@ -56,23 +59,42 @@ test *args:
     set -euo pipefail
     mkdir -p .claude/test-cache
     ARGS="{{ args }}"
-    CACHE_KEY=$(echo "$ARGS" | md5sum | cut -c1-12)
+    CONTENT_HASH=$(git ls-files -z | xargs -0 md5sum 2>/dev/null | md5sum | cut -c1-32 || true)
+    CACHE_KEY=$(echo "${ARGS}:${CONTENT_HASH}" | md5sum | cut -c1-12)
     OUTPUT_FILE=".claude/test-cache/test-output-${CACHE_KEY}.txt"
-    TIMESTAMP_FILE=".claude/test-cache/source-timestamp-${CACHE_KEY}.txt"
-    LATEST=$(find fp-library/src fp-macros/src tests -name '*.rs' -printf '%T@\n' 2>/dev/null | sort -rn | head -1; find . -maxdepth 2 -name 'Cargo.toml' -printf '%T@\n' | sort -rn | head -1)
-    CACHED=$(cat "$TIMESTAMP_FILE" 2>/dev/null || echo "0")
-    if [ "$LATEST" = "$CACHED" ]; then
+    if [ -s "$OUTPUT_FILE" ]; then
         echo "=== CACHED TEST OUTPUT (no source changes) ==="
-        cat "$OUTPUT_FILE"
+        (trap '' PIPE; cat "$OUTPUT_FILE")
     else
         echo "=== Running tests ==="
-        {{direnv_prefix}} cargo test --workspace $ARGS 2>&1 | tee "$OUTPUT_FILE"
-        echo "$LATEST" > "$TIMESTAMP_FILE"
+        TEMP_FILE="${OUTPUT_FILE}.tmp"
+        rm -f "$TEMP_FILE"
+        trap 'rm -f "$TEMP_FILE"' INT TERM HUP
+        RC=0
+        {{direnv_prefix}} cargo test {{ if args == "" { "--workspace --all-features" } else { args } }} > "$TEMP_FILE" 2>&1 || RC=$?
+        if [ ! -s "$TEMP_FILE" ]; then
+            rm -f "$TEMP_FILE"
+            exit "${RC:-1}"
+        fi
+        mv "$TEMP_FILE" "$OUTPUT_FILE"
+        (trap '' PIPE; cat "$OUTPUT_FILE")
+        exit "$RC"
     fi
 
-# Verify: fmt, clippy, doc, then test (in order).
+# Remove build artifacts and test cache.
+clean:
+    {{direnv_prefix}} cargo clean
+    rm -rf .claude/test-cache/
+
+# Check licenses and advisories with cargo-deny.
+deny:
+    {{direnv_prefix}} cargo deny check
+
+# Verify: fmt, check, clippy, deny, doc, then test (in order).
 verify:
     just fmt
-    just clippy --workspace --all-features
-    just doc --workspace --all-features --no-deps
-    just test --all-features
+    just check
+    just clippy
+    just deny
+    just doc
+    just test

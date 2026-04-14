@@ -2,12 +2,7 @@ use fp_library::{
 	brands::*,
 	classes::{
 		optics::*,
-		profunctor::{
-			first,
-			left,
-			right,
-			second,
-		},
+		profunctor::*,
 	},
 	functions::*,
 	types::optics::*,
@@ -49,7 +44,7 @@ fn test_lens_optic() {
 	let modify_age = |x: i32| x + 1;
 
 	// Wrap the closure in the Profunctor (RcFnBrand)
-	let p_modify = cloneable_fn_new::<RcFnBrand, _, _>(modify_age);
+	let p_modify = lift_fn_new::<RcFnBrand, _, _>(modify_age);
 
 	// Evaluate the optic to get the modifier function
 	let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&age_lens, p_modify);
@@ -96,7 +91,7 @@ fn test_composition() {
 	};
 
 	let modify_val = |x: i32| x * 2;
-	let p_modify = cloneable_fn_new::<RcFnBrand, _, _>(modify_val);
+	let p_modify = lift_fn_new::<RcFnBrand, _, _>(modify_val);
 
 	let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&composed, p_modify);
 
@@ -107,7 +102,7 @@ fn test_composition() {
 #[test]
 fn test_profunctor_dimap() {
 	// Test that functions are profunctors
-	let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+	let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 	let g = dimap::<RcFnBrand, _, _, _, _>(|x: i32| x * 2, |x: i32| x - 1, f);
 
 	assert_eq!(g(10), 20); // (10 * 2) + 1 - 1 = 20
@@ -115,7 +110,7 @@ fn test_profunctor_dimap() {
 
 #[test]
 fn test_strong_first() {
-	let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+	let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 	let g = first::<RcFnBrand, _, _, i32>(f);
 
 	assert_eq!(g((10, 20)), (11, 20));
@@ -123,7 +118,7 @@ fn test_strong_first() {
 
 #[test]
 fn test_strong_second() {
-	let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+	let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 	let g = second::<RcFnBrand, _, _, i32>(f);
 
 	assert_eq!(g((20, 10)), (20, 11));
@@ -131,7 +126,7 @@ fn test_strong_second() {
 
 #[test]
 fn test_choice_left() {
-	let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+	let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 	let g = left::<RcFnBrand, _, _, String>(f);
 
 	// `left` lifts a profunctor transformation `p a b` to `p (Result a c) (Result b c)`.
@@ -146,7 +141,7 @@ fn test_choice_left() {
 
 #[test]
 fn test_choice_right() {
-	let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+	let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 	let g = right::<RcFnBrand, _, _, String>(f);
 
 	// `right` lifts a profunctor transformation `p a b` to `p (Result c a) (Result c b)`.
@@ -236,7 +231,7 @@ fn test_composed_deep() {
 	// Composed optics don't have .view()/.set() directly, but can be used via evaluate
 	let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(
 		&a_val,
-		cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 10),
+		lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 10),
 	);
 	let result = modifier(obj.clone());
 	assert_eq!(result.b.c.val, 11);
@@ -322,7 +317,7 @@ fn test_polymorphic_set_composed() {
 #[test]
 fn test_polymorphic_preview_prism() {
 	let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+		PrismPrime::from_option(|r: Result<i32, String>| r.ok(), Ok);
 
 	assert_eq!(optics_preview::<RcBrand, _, _>(&ok_prism, Ok(42)), Some(42));
 	assert_eq!(optics_preview::<RcBrand, _, _>(&ok_prism, Err("error".to_string())), None);

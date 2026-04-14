@@ -140,7 +140,7 @@ Rust cannot express rank-2 types or universally quantified type aliases. The lib
 
 | Aspect     | PureScript                                                       | Rust                                     | Status                             |
 | ---------- | ---------------------------------------------------------------- | ---------------------------------------- | ---------------------------------- |
-| Type       | `Setter = Optic Function s t a b`                                | `SetterOptic` trait + `Setter` struct    | Correct                            |
+| Type       | `Setter = Optic Arrow s t a b`                                   | `SetterOptic` trait + `Setter` struct    | Correct                            |
 | Over       | `over :: Setter -> (a -> b) -> s -> t`                           | `optics_over(optic, s, f)` free function | Correct                            |
 | Set        | `set :: Setter -> b -> s -> t`                                   | `optics_set(optic, s, a)` free function  | Correct                            |
 | Arithmetic | `addOver`, `subOver`, `mulOver`, `divOver`                       | -                                        | **Missing**                        |
@@ -257,10 +257,10 @@ Each concrete struct in Rust implements all super-traits. For example, `Iso` imp
 | `IndexedTraversal`   | `forall p. Wander p => IndexedOptic p i s t a b`           | `IndexedTraversal`, `IndexedTraversalPrime` structs | **Complete** |
 | `IndexedFold`        | `IndexedFold r i s t a b = IndexedOptic (Forget r) i ...`  | `IndexedFold`, `IndexedFoldPrime` structs           | **Complete** |
 | `IndexedGetter`      | `IndexedGetter i s t a b = IndexedFold a i ...`            | `IndexedGetter`, `IndexedGetterPrime` structs       | **Complete** |
-| `IndexedSetter`      | `IndexedSetter i s t a b = IndexedOptic Function i ...`    | `IndexedSetterOptic` trait                          | **Complete** |
+| `IndexedSetter`      | `IndexedSetter i s t a b = IndexedOptic Arrow i ...`       | `IndexedSetterOptic` trait                          | **Complete** |
 | `IndexedOptic` type  | `type IndexedOptic p i s t a b = Indexed p i a b -> p s t` | `IndexedOpticAdapter` trait                         | **Complete** |
 
-### 6.2 Indexed Optic Functions
+### 6.2 Indexed Optic Arrows
 
 | PureScript                | Rust                                                         | Status                                          |
 | ------------------------- | ------------------------------------------------------------ | ----------------------------------------------- |
@@ -405,7 +405,7 @@ The Rust-specific brand parameters (pointer brand, fn brand) are placed at the t
 | `GetterOptic<'a, S, A>`                                       | method         | `evaluate<R, PointerBrand: UnsizedCoercible>(...)`         |
 | `FoldOptic<'a, S, A>`                                         | method         | `evaluate<R: Monoid, PointerBrand: UnsizedCoercible>(...)` |
 | `SetterOptic<'a, PointerBrand: UnsizedCoercible, S, T, A, B>` | trait          | `evaluate(...)`                                            |
-| `GrateOptic<'a, FunctionBrand: CloneableFn, S, T, A, B>`      | trait          | `evaluate<Z: Profunctor>(...)`                             |
+| `GrateOptic<'a, FunctionBrand: LiftFn, S, T, A, B>`           | trait          | `evaluate<Z: Profunctor>(...)`                             |
 | `ReviewOptic<'a, S, T, A, B>`                                 | neither        | `evaluate(...)` (fixed to `TaggedBrand`)                   |
 
 The first group (`IsoOptic` through `TraversalOptic`) places the profunctor at method level - these traits express "this optic works with _any_ profunctor satisfying the constraint", and the method-level parameter captures that universality.

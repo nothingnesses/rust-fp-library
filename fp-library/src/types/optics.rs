@@ -23,7 +23,7 @@
 //! | **Traversal'** | `Traversal s s a a` | `struct TraversalPrime<'a, PointerBrand, S, A, F>` |
 //! | **Getter** | `forall r. Fold r s t a b` | `struct Getter<'a, PointerBrand, S, T, A, B>` |
 //! | **Getter'** | `Getter s s a a` | `struct GetterPrime<'a, PointerBrand, S, A>` |
-//! | **Setter** | `Optic Function s t a b` | `struct Setter<'a, PointerBrand, S, T, A, B>` |
+//! | **Setter** | `Optic Arrow s t a b` | `struct Setter<'a, PointerBrand, S, T, A, B>` |
 //! | **Setter'** | `Setter s s a a` | `struct SetterPrime<'a, PointerBrand, S, A>` |
 //! | **Fold** | `Optic (Forget r) s t a b` | `struct Fold<'a, PointerBrand, S, T, A, B, F>` |
 //! | **Fold'** | `Fold r s s a a` | `struct FoldPrime<'a, PointerBrand, S, A, F>` |

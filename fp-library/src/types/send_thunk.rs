@@ -14,9 +14,10 @@ mod inner {
 		crate::{
 			brands::SendThunkBrand,
 			classes::{
-				CloneableFn,
+				CloneFn,
 				Foldable,
 				FoldableWithIndex,
+				LiftFn,
 				Monoid,
 				Semigroup,
 				SendDeferrable,
@@ -468,7 +469,8 @@ mod inner {
 		/// };
 		///
 		/// let thunk = SendThunk::pure(10);
-		/// let result = fold_right::<RcFnBrand, SendThunkBrand, _, _>(|a, b| a + b, 5, thunk);
+		/// let result =
+		/// 	explicit::fold_right::<RcFnBrand, SendThunkBrand, _, _, _, _>(|a, b| a + b, 5, thunk);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -477,7 +479,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			func(fa.evaluate(), initial)
 		}
 
@@ -508,7 +510,8 @@ mod inner {
 		/// };
 		///
 		/// let thunk = SendThunk::pure(10);
-		/// let result = fold_left::<RcFnBrand, SendThunkBrand, _, _>(|b, a| b + a, 5, thunk);
+		/// let result =
+		/// 	explicit::fold_left::<RcFnBrand, SendThunkBrand, _, _, _, _>(|b, a| b + a, 5, thunk);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
@@ -517,7 +520,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			func(initial, fa.evaluate())
 		}
 
@@ -545,7 +548,8 @@ mod inner {
 		/// };
 		///
 		/// let thunk = SendThunk::pure(10);
-		/// let result = fold_map::<RcFnBrand, SendThunkBrand, _, _>(|a| a.to_string(), thunk);
+		/// let result =
+		/// 	explicit::fold_map::<RcFnBrand, SendThunkBrand, _, _, _, _>(|a: i32| a.to_string(), thunk);
 		/// assert_eq!(result, "10");
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
@@ -554,7 +558,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			func(fa.evaluate())
 		}
 	}
@@ -568,6 +572,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters(
 			"The lifetime of the computation.",
+			"The brand of the cloneable function to use.",
 			"The type of the value inside the send thunk.",
 			"The monoid type."
 		)]
@@ -580,22 +585,24 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::SendThunkBrand,
+		/// 	brands::*,
 		/// 	classes::foldable_with_index::FoldableWithIndex,
 		/// 	types::*,
 		/// };
 		///
 		/// let thunk = SendThunk::pure(5);
-		/// let result = <SendThunkBrand as FoldableWithIndex>::fold_map_with_index(
+		/// let result = <SendThunkBrand as FoldableWithIndex>::fold_map_with_index::<RcFnBrand, _, _>(
 		/// 	|_, x: i32| x.to_string(),
 		/// 	thunk,
 		/// );
 		/// assert_eq!(result, "5");
 		/// ```
-		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
+		fn fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid>(
 			f: impl Fn((), A) -> R + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			f((), fa.evaluate())
 		}
 	}
@@ -718,6 +725,7 @@ mod inner {
 pub use inner::*;
 
 #[cfg(test)]
+#[expect(clippy::expect_used, reason = "Tests use panicking operations for brevity and clarity")]
 mod tests {
 	use {
 		super::*,
@@ -904,10 +912,11 @@ mod tests {
 				RcFnBrand,
 				SendThunkBrand,
 			},
-			classes::foldable::fold_right,
+			functions::explicit,
 		};
 		let thunk = SendThunk::pure(10);
-		let result = fold_right::<RcFnBrand, SendThunkBrand, _, _>(|a, b| a + b, 5, thunk);
+		let result =
+			explicit::fold_right::<RcFnBrand, SendThunkBrand, _, _, _, _>(|a, b| a + b, 5, thunk);
 		assert_eq!(result, 15);
 	}
 
@@ -918,10 +927,11 @@ mod tests {
 				RcFnBrand,
 				SendThunkBrand,
 			},
-			classes::foldable::fold_left,
+			functions::explicit,
 		};
 		let thunk = SendThunk::pure(10);
-		let result = fold_left::<RcFnBrand, SendThunkBrand, _, _>(|b, a| b + a, 5, thunk);
+		let result =
+			explicit::fold_left::<RcFnBrand, SendThunkBrand, _, _, _, _>(|b, a| b + a, 5, thunk);
 		assert_eq!(result, 15);
 	}
 
@@ -932,21 +942,27 @@ mod tests {
 				RcFnBrand,
 				SendThunkBrand,
 			},
-			classes::foldable::fold_map,
+			functions::explicit,
 		};
 		let thunk = SendThunk::pure(10);
-		let result = fold_map::<RcFnBrand, SendThunkBrand, _, _>(|a: i32| a.to_string(), thunk);
+		let result = explicit::fold_map::<RcFnBrand, SendThunkBrand, _, _, _, _>(
+			|a: i32| a.to_string(),
+			thunk,
+		);
 		assert_eq!(result, "10");
 	}
 
 	#[test]
 	fn test_send_thunk_fold_map_with_index() {
 		use crate::{
-			brands::SendThunkBrand,
+			brands::{
+				RcFnBrand,
+				SendThunkBrand,
+			},
 			classes::foldable_with_index::FoldableWithIndex,
 		};
 		let thunk = SendThunk::pure(5);
-		let result = <SendThunkBrand as FoldableWithIndex>::fold_map_with_index(
+		let result = <SendThunkBrand as FoldableWithIndex>::fold_map_with_index::<RcFnBrand, _, _>(
 			|_, x: i32| x.to_string(),
 			thunk,
 		);
@@ -956,11 +972,14 @@ mod tests {
 	#[test]
 	fn test_send_thunk_foldable_with_index_receives_unit_index() {
 		use crate::{
-			brands::SendThunkBrand,
+			brands::{
+				RcFnBrand,
+				SendThunkBrand,
+			},
 			classes::foldable_with_index::FoldableWithIndex,
 		};
 		let thunk = SendThunk::pure(42);
-		let result = <SendThunkBrand as FoldableWithIndex>::fold_map_with_index(
+		let result = <SendThunkBrand as FoldableWithIndex>::fold_map_with_index::<RcFnBrand, _, _>(
 			|idx, x: i32| {
 				assert_eq!(idx, ());
 				vec![x]
@@ -977,18 +996,19 @@ mod tests {
 				RcFnBrand,
 				SendThunkBrand,
 			},
-			classes::{
-				foldable::fold_map,
-				foldable_with_index::FoldableWithIndex,
-			},
+			classes::foldable_with_index::FoldableWithIndex,
+			functions::explicit,
 		};
 		let f = |a: i32| a.to_string();
 		let t1 = SendThunk::pure(7);
 		let t2 = SendThunk::pure(7);
 		// fold_map(f, fa) = fold_map_with_index(|_, a| f(a), fa)
 		assert_eq!(
-			fold_map::<RcFnBrand, SendThunkBrand, _, _>(f, t1),
-			<SendThunkBrand as FoldableWithIndex>::fold_map_with_index(|_, a| f(a), t2),
+			explicit::fold_map::<RcFnBrand, SendThunkBrand, _, _, _, _>(f, t1),
+			<SendThunkBrand as FoldableWithIndex>::fold_map_with_index::<RcFnBrand, _, _>(
+				|_, a| f(a),
+				t2
+			),
 		);
 	}
 

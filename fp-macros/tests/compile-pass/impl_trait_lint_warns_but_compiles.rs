@@ -6,12 +6,12 @@
 use fp_macros::document_module;
 
 #[document_module(no_validation)]
-#[allow(deprecated)]
+#[expect(deprecated, reason = "Lint warnings use deprecated to emit diagnostics")]
 mod lint_target {
 	pub struct MyType;
 
 	impl MyType {
-		#[allow(dead_code)]
+		#[expect(dead_code, reason = "Test fixture for document_module macro")]
 		pub fn apply<F: Fn(i32) -> i32>(
 			f: F,
 			x: i32,

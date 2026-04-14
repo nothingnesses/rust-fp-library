@@ -1,6 +1,9 @@
 use {
 	crate::{
-		analysis::get_all_parameters,
+		analysis::{
+			dispatch::DispatchTraitInfo,
+			get_all_parameters,
+		},
 		core::{
 			config::Config,
 			constants::attributes::{
@@ -43,10 +46,13 @@ use {
 	},
 	quote::quote,
 	syn::{
+		FnArg,
 		ImplItem,
 		Item,
 		Result,
 		TraitItem,
+		Type,
+		TypeParamBound,
 		parse_quote,
 		spanned::Spanned,
 		visit_mut::VisitMut,
@@ -78,7 +84,7 @@ fn insert_signature_docs(
 ///
 /// Performs Self-type substitution and generics merging before delegating
 /// to [`insert_signature_docs`] for the shared doc comment insertion.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "Documentation generation requires many parameters")]
 pub(super) fn process_document_signature(
 	method: &mut syn::ImplItemFn,
 	attr_pos: usize,
@@ -213,7 +219,7 @@ pub(super) fn process_document_type_parameters(
 }
 
 /// Process method-level documentation (signatures and type parameters).
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "Documentation generation requires many parameters")]
 fn process_method_documentation(
 	method: &mut syn::ImplItemFn,
 	self_ty: &syn::Type,
@@ -447,9 +453,636 @@ pub(super) fn generate_documentation(
 		match item {
 			Item::Impl(item_impl) => process_impl_block(item_impl, config, &mut errors),
 			Item::Trait(item_trait) => process_trait_block(item_trait, config, &mut errors),
+			Item::Fn(item_fn) => {
+				// Strip #[allow_named_generics] - consumed during lint pass, must not remain
+				// in output
+				item_fn.attrs.retain(|attr| !attr.path().is_ident(ALLOW_NAMED_GENERICS));
+
+				// If this function has #[document_signature] and references a dispatch trait,
+				// generate a dispatch-aware HM signature and remove the attribute so the
+				// standalone macro does not also process it.
+				process_fn_dispatch_signature(item_fn, config);
+			}
 			_ => {}
 		}
 	}
 
 	errors.finish()
+}
+
+// -- Dispatch-aware free function signature generation --
+
+/// Process `#[document_signature]` on a free function if it references a dispatch trait.
+///
+/// If the function has `#[document_signature]` and an `impl *Dispatch<...>` parameter,
+/// removes the attribute and inserts a dispatch-aware HM signature as doc comments.
+/// If no dispatch trait is found, the attribute is left for the standalone macro.
+fn process_fn_dispatch_signature(
+	item_fn: &mut syn::ItemFn,
+	config: &Config,
+) {
+	let Some(attr_pos) = find_attribute(&item_fn.attrs, DOCUMENT_SIGNATURE) else {
+		return;
+	};
+
+	// If the attribute has a string argument (manual override), use it directly
+	if let Some(attr) = item_fn.attrs.get(attr_pos)
+		&& let Some(manual_sig) = extract_manual_signature(attr)
+	{
+		item_fn.attrs.remove(attr_pos);
+		let doc_comment = format!("`{manual_sig}`");
+		let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
+		item_fn.attrs.insert(attr_pos, doc_attr);
+		let header_attr: syn::Attribute = parse_quote!(#[doc = r#"### Type Signature
+"#]);
+		item_fn.attrs.insert(attr_pos, header_attr);
+		return;
+	}
+
+	let Some(dispatch_info) = find_dispatch_trait_in_sig(&item_fn.sig, config) else {
+		// No dispatch trait found; leave #[document_signature] for the standalone macro
+		return;
+	};
+
+	// Build synthetic signature; if it fails (e.g., missing Kind hash), leave
+	// the attribute for the standalone macro
+	let Some(synthetic_sig) = build_synthetic_signature(&item_fn.sig, &dispatch_info) else {
+		return;
+	};
+
+	// Remove the attribute so the standalone macro does not also process it
+	item_fn.attrs.remove(attr_pos);
+
+	// Generate HM signature from the synthetic signature via the existing pipeline
+	let sig_data = generate_signature(&synthetic_sig, config);
+
+	let doc_comment = format!("`{sig_data}`");
+	let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
+	item_fn.attrs.insert(attr_pos, doc_attr);
+
+	let header_attr: syn::Attribute = parse_quote!(#[doc = r#"### Type Signature
+"#]);
+	item_fn.attrs.insert(attr_pos, header_attr);
+}
+
+/// Extract a manual signature override from a `#[document_signature("...")]` attribute.
+///
+/// Returns `Some(String)` if the attribute has a string literal argument.
+/// Returns `None` if the attribute has no arguments.
+fn extract_manual_signature(attr: &syn::Attribute) -> Option<String> {
+	let syn::Meta::List(meta_list) = &attr.meta else {
+		return None;
+	};
+	let lit: syn::LitStr = syn::parse2(meta_list.tokens.clone()).ok()?;
+	let value = lit.value();
+	if value.is_empty() { None } else { Some(value) }
+}
+
+/// Find a dispatch trait referenced in a function's parameters via `impl *Dispatch<...>`.
+fn find_dispatch_trait_in_sig(
+	sig: &syn::Signature,
+	config: &Config,
+) -> Option<DispatchTraitInfo> {
+	for input in &sig.inputs {
+		let FnArg::Typed(pat_type) = input else {
+			continue;
+		};
+		let Type::ImplTrait(impl_trait) = &*pat_type.ty else {
+			continue;
+		};
+		for bound in &impl_trait.bounds {
+			let TypeParamBound::Trait(trait_bound) = bound else {
+				continue;
+			};
+			let Some(segment) = trait_bound.path.segments.last() else {
+				continue;
+			};
+			let name = segment.ident.to_string();
+			if let Some(info) = config.dispatch_traits.get(&name) {
+				return Some(info.clone());
+			}
+		}
+	}
+
+	// Also check where-clause bounds for closureless dispatch
+	// (the container type itself has a *Dispatch bound)
+	if let Some(where_clause) = &sig.generics.where_clause {
+		for predicate in &where_clause.predicates {
+			if let syn::WherePredicate::Type(pred_type) = predicate {
+				for bound in &pred_type.bounds {
+					if let TypeParamBound::Trait(trait_bound) = bound {
+						let Some(segment) = trait_bound.path.segments.last() else {
+							continue;
+						};
+						let name = segment.ident.to_string();
+						if let Some(info) = config.dispatch_traits.get(&name) {
+							return Some(info.clone());
+						}
+					}
+				}
+			}
+		}
+	}
+
+	None
+}
+
+/// Build a synthetic `syn::Signature` that replaces dispatch machinery with
+/// semantic equivalents. The result is fed to `generate_signature()` which
+/// already handles Apply! simplification, qualified paths, and brand name
+/// formatting.
+///
+/// Returns `None` if the Kind hash is not available (fallback to standalone macro).
+fn build_synthetic_signature(
+	_original_sig: &syn::Signature,
+	dispatch_info: &DispatchTraitInfo,
+) -> Option<syn::Signature> {
+	let kind_trait_name = dispatch_info.kind_trait_name.as_ref()?;
+	let brand_param = &dispatch_info.brand_param;
+	let kind_ident: syn::Ident = syn::parse_str(kind_trait_name).ok()?;
+	let brand_ident: syn::Ident = syn::parse_str(brand_param).ok()?;
+
+	// Build generic params
+	let mut generic_params: Vec<syn::GenericParam> = Vec::new();
+
+	// Lifetime 'a
+	generic_params.push(parse_quote!('a));
+
+	// Brand: SemanticConstraint + Kind_hash
+	if let Some(ref constraint_name) = dispatch_info.semantic_constraint {
+		let constraint_ident: syn::Ident = syn::parse_str(constraint_name).ok()?;
+		generic_params.push(parse_quote!(#brand_ident: #constraint_ident + #kind_ident));
+	} else {
+		generic_params.push(parse_quote!(#brand_ident: #kind_ident));
+	}
+
+	// Add type params in the order they appear in the dispatch trait definition.
+	// This preserves the trait author's intended ordering for the forall clause.
+	// Brand is already added above; skip it and add the remaining params.
+	let mut all_element_types: Vec<String> = Vec::new();
+	let secondary_map: std::collections::HashMap<&str, &str> =
+		dispatch_info.secondary_constraints.iter().map(|(p, c)| (p.as_str(), c.as_str())).collect();
+
+	for param_name in &dispatch_info.type_param_order {
+		// Brand is already added as the first generic param
+		if param_name == brand_param {
+			continue;
+		}
+
+		// Secondary constraint params (e.g., F: Applicative, M: Applicative)
+		if let Some(constraint_name) = secondary_map.get(param_name.as_str()) {
+			let param_ident: syn::Ident = syn::parse_str(param_name).ok()?;
+			let constraint_ident: syn::Ident = syn::parse_str(constraint_name).ok()?;
+			generic_params.push(parse_quote!(#param_ident: #constraint_ident + #kind_ident));
+			continue;
+		}
+
+		// Element type params
+		if let Ok(param_ident) = syn::parse_str::<syn::Ident>(param_name) {
+			generic_params.push(parse_quote!(#param_ident: 'a));
+			all_element_types.push(param_name.clone());
+		}
+	}
+
+	// Build function parameters by transforming the original signature's params.
+	// - impl *Dispatch<...> -> impl Fn(inputs) -> output (from arrow type)
+	// - Container types (FA, FB) -> <Brand as Kind_hash>::Of<'a, ElementType>
+	// - Other params -> keep as-is
+	//
+	// The container_map maps FUNCTION type param names to element types.
+	// This is built by matching the function's dispatch trait type args
+	// (which use the function's param names like FA) against the
+	// dispatch_info.container_params (which use the trait's param names like FTA).
+	let container_map = build_container_map(_original_sig, dispatch_info);
+
+	let mut fn_params: Vec<syn::FnArg> = Vec::new();
+
+	for input in &_original_sig.inputs {
+		let FnArg::Typed(pat_type) = input else {
+			continue;
+		};
+
+		// Check if this is the impl Dispatch parameter -> replace with Fn closure
+		if matches!(&*pat_type.ty, Type::ImplTrait(_))
+			&& let Some(ref arrow) = dispatch_info.arrow_type
+			&& let Some(closure_param) =
+				build_closure_param(arrow, dispatch_info.tuple_closure, &brand_ident, &kind_ident)
+		{
+			fn_params.push(closure_param);
+			continue;
+		}
+		// Skip impl Trait params that didn't produce a closure (e.g., placeholder)
+		if matches!(&*pat_type.ty, Type::ImplTrait(_)) {
+			continue;
+		}
+
+		// For tuple closure dispatch via where-clause (e.g., compose_kleisli_flipped
+		// where (G, F): ComposeKleisliDispatch), detect tuple params of type vars
+		// and replace with the closure tuple.
+		if dispatch_info.tuple_closure
+			&& matches!(&*pat_type.ty, Type::Tuple(tuple) if tuple.elems.len() >= 2)
+			&& let Some(ref arrow) = dispatch_info.arrow_type
+			&& let Some(closure_param) = build_closure_param(arrow, true, &brand_ident, &kind_ident)
+		{
+			fn_params.push(closure_param);
+			continue;
+		}
+
+		// Check if this is a container type param -> replace with <Brand as Kind>::Of<...>
+		let ty = &pat_type.ty;
+		let type_str = quote!(#ty).to_string().replace(' ', "");
+		if let Some(elements) = container_map.get(&type_str) {
+			let pat = &pat_type.pat;
+			let container_type = build_applied_type(&brand_ident, &kind_ident, elements)?;
+			fn_params.push(parse_quote!(#pat: #container_type));
+			continue;
+		}
+
+		// Check if this is a dispatch trait associated type projection
+		// (e.g., <FA as ApplyFirstDispatch<...>>::FB -> Brand B)
+		if let Type::Path(type_path) = &*pat_type.ty
+			&& type_path.qself.is_some()
+			&& let Some(last_seg) = type_path.path.segments.last()
+		{
+			let assoc_name = last_seg.ident.to_string();
+			if let Some((_, elements)) =
+				dispatch_info.associated_types.iter().find(|(name, _)| name == &assoc_name)
+			{
+				let pat = &pat_type.pat;
+				let container_type = build_applied_type(&brand_ident, &kind_ident, elements)?;
+				fn_params.push(parse_quote!(#pat: #container_type));
+				continue;
+			}
+		}
+
+		// For closureless dispatch or unrecognized container params:
+		// if the type is an InferableBrand-bounded param, it's a container.
+		// Fallback chain (most direct source first):
+		// 1. self_type_elements: from the Val impl's self type (e.g., separate, compact)
+		// 2. type_param_order: single-letter element types from the trait definition (e.g., alt)
+		// 3. return structure: from the dispatch method's return type (last resort)
+		if is_inferable_brand_param(&type_str, _original_sig) {
+			use crate::analysis::dispatch::ReturnStructure;
+
+			let element_types: Option<Vec<String>> = dispatch_info
+				.self_type_elements
+				.clone()
+				.or_else(|| {
+					// Extract single-letter element types from trait definition params,
+					// excluding Brand and secondary constraint params.
+					let elems: Vec<String> = dispatch_info
+						.type_param_order
+						.iter()
+						.filter(|p| {
+							*p != brand_param
+								&& p.len() == 1 && !dispatch_info
+								.secondary_constraints
+								.iter()
+								.any(|(sc, _)| sc == *p)
+						})
+						.cloned()
+						.collect();
+					if elems.is_empty() { None } else { Some(elems) }
+				})
+				.or_else(|| match &dispatch_info.return_structure {
+					ReturnStructure::Applied(args) => Some(args.clone()),
+					ReturnStructure::Nested {
+						inner_args, ..
+					} => Some(inner_args.clone()),
+					ReturnStructure::Tuple(elements) => elements.first().cloned(),
+					ReturnStructure::NestedTuple {
+						inner_elements, ..
+					} => inner_elements.first().cloned(),
+					ReturnStructure::Plain(_) => None,
+				});
+			if let Some(ref elems) = element_types {
+				let pat = &pat_type.pat;
+				let container_type = build_applied_type(&brand_ident, &kind_ident, elems)?;
+				fn_params.push(parse_quote!(#pat: #container_type));
+				continue;
+			}
+		}
+
+		// Keep other params as-is
+		fn_params.push(input.clone());
+	}
+
+	// Build return type
+	let return_type =
+		build_return_type(&dispatch_info.return_structure, &brand_ident, &kind_ident)?;
+
+	// Assemble the signature
+	let generics = syn::Generics {
+		lt_token: Some(Default::default()),
+		params: generic_params.into_iter().collect(),
+		gt_token: Some(Default::default()),
+		where_clause: None,
+	};
+
+	Some(syn::Signature {
+		constness: None,
+		asyncness: None,
+		unsafety: None,
+		abi: None,
+		fn_token: Default::default(),
+		ident: syn::parse_str("synthetic").ok()?,
+		generics,
+		paren_token: Default::default(),
+		inputs: fn_params.into_iter().collect(),
+		variadic: None,
+		output: syn::ReturnType::Type(Default::default(), Box::new(return_type)),
+	})
+}
+
+/// Build a container map from the function's dispatch trait type args.
+///
+/// Uses the container_params' stored position indices to do a direct positional
+/// lookup into the function's dispatch trait type args, avoiding heuristic scanning.
+fn build_container_map(
+	sig: &syn::Signature,
+	dispatch_info: &DispatchTraitInfo,
+) -> std::collections::HashMap<String, Vec<String>> {
+	if dispatch_info.container_params.is_empty() {
+		return std::collections::HashMap::new();
+	}
+
+	// Extract dispatch trait type args from whichever location has them:
+	// either `impl *Dispatch<...>` parameter or where-clause bound.
+	let fn_type_args = extract_dispatch_type_args(sig);
+	if fn_type_args.is_empty() {
+		return std::collections::HashMap::new();
+	}
+
+	// Use each container param's stored position to directly look up the
+	// corresponding function type arg.
+	let mut result = std::collections::HashMap::new();
+	for cp in &dispatch_info.container_params {
+		if let Some(fn_arg) = fn_type_args.get(cp.position) {
+			result.insert(fn_arg.clone(), cp.element_types.clone());
+		}
+	}
+	result
+}
+
+/// Extract the dispatch trait's type args from a function signature.
+///
+/// Checks both `impl *Dispatch<...>` parameters and where-clause bounds.
+/// Returns the type args as stringified tokens (excluding lifetimes).
+fn extract_dispatch_type_args(sig: &syn::Signature) -> Vec<String> {
+	// Check impl Trait parameters
+	for input in &sig.inputs {
+		let FnArg::Typed(pat_type) = input else { continue };
+		let Type::ImplTrait(impl_trait) = &*pat_type.ty else { continue };
+		for bound in &impl_trait.bounds {
+			if let Some(args) = extract_dispatch_trait_args(bound) {
+				return args;
+			}
+		}
+	}
+
+	// Check where-clause bounds
+	if let Some(where_clause) = &sig.generics.where_clause {
+		for predicate in &where_clause.predicates {
+			if let syn::WherePredicate::Type(pred_type) = predicate {
+				for bound in &pred_type.bounds {
+					if let Some(args) = extract_dispatch_trait_args(bound) {
+						return args;
+					}
+				}
+			}
+		}
+	}
+
+	Vec::new()
+}
+
+/// If a type param bound is a `*Dispatch<...>` trait, extract its type args.
+fn extract_dispatch_trait_args(bound: &TypeParamBound) -> Option<Vec<String>> {
+	let TypeParamBound::Trait(trait_bound) = bound else {
+		return None;
+	};
+	let segment = trait_bound.path.segments.last()?;
+	if !segment.ident.to_string().ends_with(crate::core::constants::markers::DISPATCH_SUFFIX) {
+		return None;
+	}
+	let syn::PathArguments::AngleBracketed(args) = &segment.arguments else {
+		return None;
+	};
+	Some(
+		args.args
+			.iter()
+			.filter_map(|arg| {
+				if let syn::GenericArgument::Type(ty) = arg {
+					Some(quote!(#ty).to_string().replace(' ', ""))
+				} else {
+					None
+				}
+			})
+			.collect(),
+	)
+}
+
+/// Check if a type name is an InferableBrand-bounded param in the signature's where clause.
+fn is_inferable_brand_param(
+	type_name: &str,
+	sig: &syn::Signature,
+) -> bool {
+	if let Some(where_clause) = &sig.generics.where_clause {
+		for predicate in &where_clause.predicates {
+			if let syn::WherePredicate::Type(pred_type) = predicate {
+				let bounded_ty = &pred_type.bounded_ty;
+				let param_name = quote!(#bounded_ty).to_string().replace(' ', "");
+				if param_name == type_name {
+					for bound in &pred_type.bounds {
+						if let TypeParamBound::Trait(trait_bound) = bound {
+							let name = trait_bound
+								.path
+								.segments
+								.last()
+								.map(|s| s.ident.to_string())
+								.unwrap_or_default();
+							if name.starts_with("InferableBrand_") {
+								return true;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	false
+}
+
+/// Build a `<Brand as Kind_hash>::Of<'a, A, B, ...>` qualified path type.
+fn build_applied_type(
+	brand_ident: &syn::Ident,
+	kind_ident: &syn::Ident,
+	element_types: &[String],
+) -> Option<syn::Type> {
+	let mut args = vec![quote!('a)];
+	for elem in element_types {
+		let elem_type: syn::Type = syn::parse_str(elem).ok()?;
+		args.push(quote!(#elem_type));
+	}
+	let args_tokens = quote!(#(#args),*);
+	Some(parse_quote!(<#brand_ident as #kind_ident>::Of<#args_tokens>))
+}
+
+/// Build the closure parameter as `impl Fn(inputs) -> output`.
+fn build_closure_param(
+	arrow: &crate::analysis::dispatch::DispatchArrow,
+	tuple_closure: bool,
+	brand_ident: &syn::Ident,
+	kind_ident: &syn::Ident,
+) -> Option<syn::FnArg> {
+	use crate::analysis::dispatch::{
+		ArrowOutput,
+		DispatchArrowParam,
+	};
+
+	if tuple_closure {
+		// For tuple closures (bimap, etc.), each input is a sub-arrow.
+		// Build bare fn pointer types in a tuple. The HM pipeline handles
+		// fn(A) -> B via visit_bare_fn.
+		let mut fn_types: Vec<syn::Type> = Vec::new();
+
+		for param in &arrow.inputs {
+			let sub_arrow = match param {
+				DispatchArrowParam::SubArrow(arrow) => arrow,
+				DispatchArrowParam::TypeParam(sub_arrow_str) => {
+					// Legacy string path: split on " -> " and parse
+					if let Some(arrow_pos) = sub_arrow_str.rfind(" -> ") {
+						let input_str = &sub_arrow_str[.. arrow_pos];
+						let output_str = &sub_arrow_str[arrow_pos + 4 ..];
+						let input_str =
+							input_str.trim().trim_start_matches('(').trim_end_matches(')');
+						let input_types: Vec<syn::Type> = input_str
+							.split(',')
+							.filter_map(|s| syn::parse_str(s.trim()).ok())
+							.collect();
+						let output_type: syn::Type =
+							syn::parse_str(output_str.trim()).unwrap_or_else(|_| parse_quote!(()));
+						fn_types.push(parse_quote!(fn(#(#input_types),*) -> #output_type));
+					}
+					continue;
+				}
+				_ => continue,
+			};
+
+			// Build fn type from structured sub-arrow
+			let mut input_types: Vec<syn::Type> = Vec::new();
+			for sub_param in &sub_arrow.inputs {
+				match sub_param {
+					DispatchArrowParam::TypeParam(name) => {
+						let ident: syn::Ident = syn::parse_str(name).ok()?;
+						input_types.push(parse_quote!(#ident));
+					}
+					DispatchArrowParam::AssociatedType {
+						assoc_name,
+					} => {
+						let assoc_ident: syn::Ident = syn::parse_str(assoc_name).ok()?;
+						input_types.push(parse_quote!(#brand_ident::#assoc_ident));
+					}
+					DispatchArrowParam::SubArrow(_) => continue,
+				}
+			}
+
+			let output_type: syn::Type = match &sub_arrow.output {
+				ArrowOutput::Plain(s) => syn::parse_str(s).ok()?,
+				ArrowOutput::BrandApplied(args) =>
+					build_applied_type(brand_ident, kind_ident, args)?,
+				ArrowOutput::OtherApplied {
+					brand,
+					args,
+				} => {
+					let other_ident: syn::Ident = syn::parse_str(brand).ok()?;
+					build_applied_type(&other_ident, kind_ident, args)?
+				}
+			};
+
+			fn_types.push(parse_quote!(fn(#(#input_types),*) -> #output_type));
+		}
+
+		if fn_types.is_empty() {
+			return None;
+		}
+
+		return Some(parse_quote!(fg: (#(#fn_types),*)));
+	}
+
+	// Single closure: build impl Fn(A, B, ...) -> R
+	let mut input_types: Vec<syn::Type> = Vec::new();
+	for param in &arrow.inputs {
+		match param {
+			DispatchArrowParam::TypeParam(name) => {
+				let ident: syn::Ident = syn::parse_str(name).ok()?;
+				input_types.push(parse_quote!(#ident));
+			}
+			DispatchArrowParam::AssociatedType {
+				assoc_name,
+			} => {
+				let assoc_ident: syn::Ident = syn::parse_str(assoc_name).ok()?;
+				input_types.push(parse_quote!(#brand_ident::#assoc_ident));
+			}
+			DispatchArrowParam::SubArrow(_) => {
+				// SubArrow is only used in tuple closures, not single closures
+				continue;
+			}
+		}
+	}
+
+	let output_type: syn::Type = match &arrow.output {
+		ArrowOutput::Plain(s) => syn::parse_str(s).ok()?,
+		ArrowOutput::BrandApplied(args) => build_applied_type(brand_ident, kind_ident, args)?,
+		ArrowOutput::OtherApplied {
+			brand,
+			args,
+		} => {
+			let other_ident: syn::Ident = syn::parse_str(brand).ok()?;
+			build_applied_type(&other_ident, kind_ident, args)?
+		}
+	};
+
+	Some(parse_quote!(f: impl Fn(#(#input_types),*) -> #output_type + 'a))
+}
+
+/// Build the return type from `ReturnStructure`.
+fn build_return_type(
+	ret: &crate::analysis::dispatch::ReturnStructure,
+	brand_ident: &syn::Ident,
+	kind_ident: &syn::Ident,
+) -> Option<syn::Type> {
+	use crate::analysis::dispatch::ReturnStructure;
+
+	match ret {
+		ReturnStructure::Plain(var) => Some(syn::parse_str(var).ok()?),
+		ReturnStructure::Applied(args) => build_applied_type(brand_ident, kind_ident, args),
+		ReturnStructure::Nested {
+			outer_param,
+			inner_args,
+		} => {
+			let outer_ident: syn::Ident = syn::parse_str(outer_param).ok()?;
+			let inner_type = build_applied_type(brand_ident, kind_ident, inner_args)?;
+			Some(parse_quote!(<#outer_ident as #kind_ident>::Of<'a, #inner_type>))
+		}
+		ReturnStructure::Tuple(elements) => {
+			let elem_types: Vec<syn::Type> = elements
+				.iter()
+				.filter_map(|args| build_applied_type(brand_ident, kind_ident, args))
+				.collect();
+			Some(parse_quote!((#(#elem_types),*)))
+		}
+		ReturnStructure::NestedTuple {
+			outer_param,
+			inner_elements,
+		} => {
+			let outer_ident: syn::Ident = syn::parse_str(outer_param).ok()?;
+			let tuple_types: Vec<syn::Type> = inner_elements
+				.iter()
+				.filter_map(|args| build_applied_type(brand_ident, kind_ident, args))
+				.collect();
+			let tuple_type: syn::Type = parse_quote!((#(#tuple_types),*));
+			Some(parse_quote!(<#outer_ident as #kind_ident>::Of<'a, #tuple_type>))
+		}
+	}
 }

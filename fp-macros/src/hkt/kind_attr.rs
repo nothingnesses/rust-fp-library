@@ -37,6 +37,11 @@ pub fn kind_attr_worker(
 }
 
 #[cfg(test)]
+#[expect(
+	clippy::unwrap_used,
+	clippy::expect_used,
+	reason = "Tests use panicking operations for brevity and clarity"
+)]
 mod tests {
 	use super::*;
 

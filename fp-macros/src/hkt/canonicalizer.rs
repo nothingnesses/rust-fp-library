@@ -14,9 +14,15 @@
 use {
 	crate::{
 		AssociatedTypes,
-		core::error_handling::{
-			Error,
-			UnsupportedFeature,
+		core::{
+			constants::markers::{
+				INFERABLE_BRAND_PREFIX,
+				KIND_PREFIX,
+			},
+			error_handling::{
+				Error,
+				UnsupportedFeature,
+			},
 		},
 		support::type_visitor::TypeVisitor,
 	},
@@ -396,7 +402,16 @@ pub fn hash_assoc_signature(signature: &crate::hkt::AssociatedTypeBase) -> Resul
 	Ok(rapidhash(repr.as_bytes()))
 }
 
-pub fn generate_name(input: &AssociatedTypes) -> Result<Ident> {
+/// Generates a deterministic 64-bit hash for a set of associated type signatures.
+///
+/// The hash is computed by:
+/// 1. Sorting associated types by name (order-independence).
+/// 2. Generating a canonical string for each associated type.
+/// 3. Joining them with `__` and hashing with rapidhash.
+///
+/// This is the shared foundation for both `Kind_{hash}` and
+/// `InferableBrand_{hash}` name generation.
+pub fn generate_hash(input: &AssociatedTypes) -> Result<u64> {
 	let mut assoc_types: Vec<_> = input.associated_types.iter().collect();
 	// Sort by identifier to ensure order-independence
 	assoc_types.sort_by_key(|a| a.signature.name.to_string());
@@ -409,12 +424,38 @@ pub fn generate_name(input: &AssociatedTypes) -> Result<Ident> {
 
 	let canonical_repr = canonical_parts.join("__");
 
-	// Always use hash for consistency and to avoid length issues
-	let hash = rapidhash(canonical_repr.as_bytes());
-	Ok(format_ident!("Kind_{:016x}", hash))
+	Ok(rapidhash(canonical_repr.as_bytes()))
+}
+
+/// Generates a prefixed identifier from a signature hash.
+fn generate_prefixed_name(
+	prefix: &str,
+	input: &AssociatedTypes,
+) -> Result<Ident> {
+	let hash = generate_hash(input)?;
+	Ok(format_ident!("{prefix}{:016x}", hash))
+}
+
+/// Generates a `Kind_{hash}` identifier from the input signature.
+pub fn generate_name(input: &AssociatedTypes) -> Result<Ident> {
+	generate_prefixed_name(KIND_PREFIX, input)
+}
+
+/// Generates an `InferableBrand_{hash}` identifier from the input signature.
+///
+/// Uses the same content hash as [`generate_name`], so a `Kind_{hash}` trait
+/// and its corresponding `InferableBrand_{hash}` trait always share the same
+/// hash suffix.
+pub fn generate_inferable_brand_name(input: &AssociatedTypes) -> Result<Ident> {
+	generate_prefixed_name(INFERABLE_BRAND_PREFIX, input)
 }
 
 #[cfg(test)]
+#[expect(
+	clippy::unwrap_used,
+	clippy::expect_used,
+	reason = "Tests use panicking operations for brevity and clarity"
+)]
 mod tests {
 	use {
 		super::*,

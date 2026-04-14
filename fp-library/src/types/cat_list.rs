@@ -27,40 +27,8 @@ mod inner {
 				CatListBrand,
 				OptionBrand,
 			},
-			classes::{
-				Alt,
-				Applicative,
-				ApplyFirst,
-				ApplySecond,
-				CloneableFn,
-				Compactable,
-				Extend,
-				Filterable,
-				FilterableWithIndex,
-				Foldable,
-				FoldableWithIndex,
-				Functor,
-				FunctorWithIndex,
-				Lift,
-				MonadRec,
-				Monoid,
-				ParCompactable,
-				ParFilterable,
-				ParFilterableWithIndex,
-				ParFoldable,
-				ParFoldableWithIndex,
-				ParFunctor,
-				ParFunctorWithIndex,
-				Plus,
-				Pointed,
-				Semiapplicative,
-				Semigroup,
-				Semimonad,
-				Traversable,
-				TraversableWithIndex,
-				WithIndex,
-				Witherable,
-			},
+			classes::*,
+			dispatch::Ref,
 			impl_kind,
 			kinds::*,
 		},
@@ -354,7 +322,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// let mapped = map::<CatListBrand, _, _>(|x: i32| x * 2, list);
+		/// let mapped = explicit::map::<CatListBrand, _, _, _, _>(|x: i32| x * 2, list);
 		/// let vec: Vec<_> = mapped.into_iter().collect();
 		/// assert_eq!(vec, vec![2, 4, 6]);
 		/// ```
@@ -399,7 +367,7 @@ mod inner {
 		///
 		/// let list1 = CatList::singleton(1).snoc(2);
 		/// let list2 = CatList::singleton(10).snoc(20);
-		/// let lifted = lift2::<CatListBrand, _, _, _>(|x, y| x + y, list1, list2);
+		/// let lifted = explicit::lift2::<CatListBrand, _, _, _, _, _, _>(|x, y| x + y, list1, list2);
 		/// let vec: Vec<_> = lifted.into_iter().collect();
 		/// assert_eq!(vec, vec![11, 21, 12, 22]);
 		/// ```
@@ -484,15 +452,15 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let funcs = CatList::singleton(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1))
-		/// 	.snoc(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let funcs = CatList::singleton(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1))
+		/// 	.snoc(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let vals = CatList::singleton(1).snoc(2);
 		/// let applied = apply::<RcFnBrand, CatListBrand, _, _>(funcs, vals);
 		/// let vec: Vec<_> = applied.into_iter().collect();
 		/// assert_eq!(vec, vec![2, 3, 2, 4]);
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			ff.into_iter().flat_map(|f| fa.clone().into_iter().map(move |a| f(a.clone()))).collect()
@@ -523,7 +491,7 @@ mod inner {
 		///
 		/// let x = CatList::singleton(1).snoc(2);
 		/// let y = CatList::singleton(3).snoc(4);
-		/// let result: Vec<_> = alt::<CatListBrand, _>(x, y).into_iter().collect();
+		/// let result: Vec<_> = explicit::alt::<CatListBrand, _, _, _>(x, y).into_iter().collect();
 		/// assert_eq!(result, vec![1, 2, 3, 4]);
 		/// ```
 		fn alt<'a, A: 'a>(
@@ -531,6 +499,44 @@ mod inner {
 			fa2: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			fa1.append(fa2)
+		}
+	}
+
+	impl RefAlt for CatListBrand {
+		/// Concatenates two lists by reference.
+		///
+		/// Both input lists are borrowed and cloned before appending. Because
+		/// `CatList` is backed by `Rc`-based structural sharing, cloning is O(1),
+		/// and the subsequent `append` is also O(1). The `A: Clone` bound is
+		/// required by the trait signature but is not exercised in this
+		/// implementation.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
+		///
+		#[document_parameters("The first list.", "The second list.")]
+		///
+		#[document_returns("The concatenated list.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = CatList::singleton(1).snoc(2);
+		/// let y = CatList::singleton(3).snoc(4);
+		/// let result: Vec<_> = explicit::alt::<CatListBrand, _, _, _>(&x, &y).into_iter().collect();
+		/// assert_eq!(result, vec![1, 2, 3, 4]);
+		/// ```
+		fn ref_alt<'a, A: 'a + Clone>(
+			fa1: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa2: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			fa1.clone().append(fa2.clone())
 		}
 	}
 
@@ -586,7 +592,8 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2);
-		/// let bound = bind::<CatListBrand, _, _>(list, |x| CatList::singleton(x).snoc(x * 2));
+		/// let bound =
+		/// 	explicit::bind::<CatListBrand, _, _, _, _>(list, |x| CatList::singleton(x).snoc(x * 2));
 		/// let vec: Vec<_> = bound.into_iter().collect();
 		/// assert_eq!(vec, vec![1, 2, 2, 4]);
 		/// ```
@@ -625,7 +632,10 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// assert_eq!(fold_right::<RcFnBrand, CatListBrand, _, _>(|x: i32, acc| x + acc, 0, list), 6);
+		/// assert_eq!(
+		/// 	explicit::fold_right::<RcFnBrand, CatListBrand, _, _, _, _>(|x: i32, acc| x + acc, 0, list),
+		/// 	6
+		/// );
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
 			func: impl Fn(A, B) -> B + 'a,
@@ -633,7 +643,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			fa.fold_right(func, initial)
 		}
 
@@ -666,7 +676,10 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// assert_eq!(fold_left::<RcFnBrand, CatListBrand, _, _>(|acc, x: i32| acc + x, 0, list), 6);
+		/// assert_eq!(
+		/// 	explicit::fold_left::<RcFnBrand, CatListBrand, _, _, _, _>(|acc, x: i32| acc + x, 0, list),
+		/// 	6
+		/// );
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
 			func: impl Fn(B, A) -> B + 'a,
@@ -674,7 +687,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			fa.fold_left(func, initial)
 		}
 
@@ -705,7 +718,7 @@ mod inner {
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, CatListBrand, _, _>(|x: i32| x.to_string(), list),
+		/// 	explicit::fold_map::<RcFnBrand, CatListBrand, _, _, _, _>(|x: i32| x.to_string(), list),
 		/// 	"123".to_string()
 		/// );
 		/// ```
@@ -715,7 +728,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			fa.fold_map(func)
 		}
 	}
@@ -749,7 +762,10 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// let traversed = traverse::<CatListBrand, _, _, OptionBrand>(|x| Some(x * 2), list);
+		/// let traversed = explicit::traverse::<RcFnBrand, CatListBrand, _, _, OptionBrand, _, _>(
+		/// 	|x| Some(x * 2),
+		/// 	list,
+		/// );
 		/// let vec: Vec<_> = traversed.unwrap().into_iter().collect();
 		/// assert_eq!(vec, vec![2, 4, 6]);
 		/// ```
@@ -857,6 +873,7 @@ mod inner {
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
+			"The brand of the cloneable function to use.",
 			"The type of the elements in the list.",
 			"The monoid type."
 		)]
@@ -877,13 +894,16 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(10).snoc(20).snoc(30);
-		/// let result = CatListBrand::fold_map_with_index(|i, x: i32| format!("{i}:{x}"), list);
+		/// let result =
+		/// 	CatListBrand::fold_map_with_index::<RcFnBrand, _, _>(|i, x: i32| format!("{i}:{x}"), list);
 		/// assert_eq!(result, "0:101:202:30");
 		/// ```
-		fn fold_map_with_index<'a, A: 'a + Clone, R: Monoid>(
+		fn fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
 			f: impl Fn(usize, A) -> R + 'a,
 			fa: CatList<A>,
-		) -> R {
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
 			fa.fold_map_with_index(f)
 		}
 	}
@@ -1275,7 +1295,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(Some(1)).snoc(None).snoc(Some(2));
-		/// let compacted = compact::<CatListBrand, _>(list);
+		/// let compacted = explicit::compact::<CatListBrand, _, _, _>(list);
 		/// let vec: Vec<_> = compacted.into_iter().collect();
 		/// assert_eq!(vec, vec![1, 2]);
 		/// ```
@@ -1313,7 +1333,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(Ok(1)).snoc(Err("error")).snoc(Ok(2));
-		/// let (errs, oks) = separate::<CatListBrand, _, _>(list);
+		/// let (errs, oks) = explicit::separate::<CatListBrand, _, _, _, _>(list);
 		/// let oks_vec: Vec<_> = oks.into_iter().collect();
 		/// let errs_vec: Vec<_> = errs.into_iter().collect();
 		/// assert_eq!(oks_vec, vec![1, 2]);
@@ -1334,6 +1354,98 @@ mod inner {
 				}
 			}
 			(errs, oks)
+		}
+	}
+
+	impl RefCompactable for CatListBrand {
+		/// Compacts a borrowed list of options by reference.
+		///
+		/// Iterates over a borrowed [`CatList`] of [`Option`] values, discarding
+		/// [`None`] values and cloning the inner values from [`Some`] variants
+		/// into a new [`CatList`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the elements in the [`Option`]. Must be [`Clone`] because elements are extracted from a borrowed container."
+		)]
+		///
+		#[document_parameters("A reference to the list of [`Option`] values.")]
+		///
+		#[document_returns(
+			"A new list containing only the cloned values from the [`Some`] variants."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(Some(1)).snoc(None).snoc(Some(2));
+		/// let compacted = explicit::compact::<CatListBrand, _, _, _>(&list);
+		/// let vec: Vec<_> = compacted.into_iter().collect();
+		/// assert_eq!(vec, vec![1, 2]);
+		/// ```
+		fn ref_compact<'a, A: 'a + Clone>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<A>>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			fa.iter().filter_map(|opt| opt.as_ref().cloned()).collect()
+		}
+
+		/// Separates a borrowed list of results by reference.
+		///
+		/// Iterates over a borrowed [`CatList`] of [`Result`] values, cloning each
+		/// value and partitioning them into a pair of [`CatList`]s: one for the
+		/// [`Err`] values and one for the [`Ok`] values.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the error values. Must be [`Clone`] because elements are extracted from a borrowed container.",
+			"The type of the success values. Must be [`Clone`] because elements are extracted from a borrowed container."
+		)]
+		///
+		#[document_parameters("A reference to the list of [`Result`] values.")]
+		///
+		#[document_returns(
+			"A pair of lists: the first containing the cloned [`Err`] values, and the second containing the cloned [`Ok`] values."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(Ok(1)).snoc(Err("error")).snoc(Ok(2));
+		/// let (errs, oks) = explicit::separate::<CatListBrand, _, _, _, _>(&list);
+		/// let oks_vec: Vec<_> = oks.into_iter().collect();
+		/// let errs_vec: Vec<_> = errs.into_iter().collect();
+		/// assert_eq!(oks_vec, vec![1, 2]);
+		/// assert_eq!(errs_vec, vec!["error"]);
+		/// ```
+		fn ref_separate<'a, E: 'a + Clone, O: 'a + Clone>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
+		) -> (
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		) {
+			let mut errs = Vec::new();
+			let mut oks = Vec::new();
+			for result in fa.iter() {
+				match result {
+					Ok(o) => oks.push(o.clone()),
+					Err(e) => errs.push(e.clone()),
+				}
+			}
+			(errs.into_iter().collect(), oks.into_iter().collect())
 		}
 	}
 
@@ -1364,8 +1476,10 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let (errs, oks) =
-		/// 	partition_map::<CatListBrand, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, list);
+		/// let (errs, oks) = explicit::partition_map::<CatListBrand, _, _, _, _, _>(
+		/// 	|a| if a % 2 == 0 { Ok(a) } else { Err(a) },
+		/// 	list,
+		/// );
 		/// let oks_vec: Vec<_> = oks.into_iter().collect();
 		/// let errs_vec: Vec<_> = errs.into_iter().collect();
 		/// assert_eq!(oks_vec, vec![2, 4]);
@@ -1410,7 +1524,8 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let (not_satisfied, satisfied) = partition::<CatListBrand, _>(|a| a % 2 == 0, list);
+		/// let (not_satisfied, satisfied) =
+		/// 	explicit::partition::<CatListBrand, _, _, _>(|a| a % 2 == 0, list);
 		/// let sat_vec: Vec<_> = satisfied.into_iter().collect();
 		/// let not_sat_vec: Vec<_> = not_satisfied.into_iter().collect();
 		/// assert_eq!(sat_vec, vec![2, 4]);
@@ -1460,8 +1575,10 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let filtered =
-		/// 	filter_map::<CatListBrand, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, list);
+		/// let filtered = explicit::filter_map::<CatListBrand, _, _, _, _>(
+		/// 	|a| if a % 2 == 0 { Some(a * 2) } else { None },
+		/// 	list,
+		/// );
 		/// let vec: Vec<_> = filtered.into_iter().collect();
 		/// assert_eq!(vec, vec![4, 8]);
 		/// ```
@@ -1493,7 +1610,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let filtered = filter::<CatListBrand, _>(|a| a % 2 == 0, list);
+		/// let filtered = explicit::filter::<CatListBrand, _, _, _>(|a| a % 2 == 0, list);
 		/// let vec: Vec<_> = filtered.into_iter().collect();
 		/// assert_eq!(vec, vec![2, 4]);
 		/// ```
@@ -1533,7 +1650,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let (errs, oks) = partition_map_with_index::<CatListBrand, _, _, _>(
+		/// let (errs, oks) = explicit::partition_map_with_index::<CatListBrand, _, _, _, _, _>(
 		/// 	|i, a: i32| if i < 2 { Ok(a) } else { Err(a) },
 		/// 	list,
 		/// );
@@ -1580,7 +1697,7 @@ mod inner {
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
 		/// let (not_satisfied, satisfied) =
-		/// 	partition_with_index::<CatListBrand, _>(|i, _a: i32| i < 2, list);
+		/// 	explicit::partition_with_index::<CatListBrand, _, _, _>(|i, _a: i32| i < 2, list);
 		/// let sat_vec: Vec<_> = satisfied.into_iter().collect();
 		/// let not_sat_vec: Vec<_> = not_satisfied.into_iter().collect();
 		/// assert_eq!(sat_vec, vec![1, 2]);
@@ -1628,7 +1745,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let filtered = filter_map_with_index::<CatListBrand, _, _>(
+		/// let filtered = explicit::filter_map_with_index::<CatListBrand, _, _, _, _>(
 		/// 	|i, a: i32| if i % 2 == 0 { Some(a * 2) } else { None },
 		/// 	list,
 		/// );
@@ -1664,7 +1781,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let filtered = filter_with_index::<CatListBrand, _>(|i, _a: i32| i < 2, list);
+		/// let filtered = explicit::filter_with_index::<CatListBrand, _, _, _>(|i, _a: i32| i < 2, list);
 		/// let vec: Vec<_> = filtered.into_iter().collect();
 		/// assert_eq!(vec, vec![1, 2]);
 		/// ```
@@ -1797,7 +1914,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let wilted = wilt::<CatListBrand, OptionBrand, _, _, _>(
+		/// let wilted = explicit::wilt::<RcFnBrand, CatListBrand, OptionBrand, _, _, _, _, _>(
 		/// 	|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }),
 		/// 	list,
 		/// );
@@ -1864,7 +1981,7 @@ mod inner {
 		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let withered = wither::<CatListBrand, OptionBrand, _, _>(
+		/// let withered = explicit::wither::<RcFnBrand, CatListBrand, OptionBrand, _, _, _, _>(
 		/// 	|a| Some(if a % 2 == 0 { Some(a * 2) } else { None }),
 		/// 	list,
 		/// );
@@ -3307,10 +3424,707 @@ mod inner {
 			}
 		}
 	}
+	// -- By-reference trait implementations --
+
+	impl RefFunctor for CatListBrand {
+		/// Maps a function over the list by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the elements in the list.",
+			"The type of the elements in the resulting list."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element reference.",
+			"The list to map over."
+		)]
+		///
+		#[document_returns("A new list containing the results.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let result: Vec<_> =
+		/// 	explicit::map::<CatListBrand, _, _, _, _>(|x: &i32| *x * 2, &list).into_iter().collect();
+		/// assert_eq!(result, vec![2, 4, 6]);
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.iter().map(func).collect()
+		}
+	}
+
+	impl RefFoldable for CatListBrand {
+		/// Folds the list by reference using a monoid.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the elements.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function to map each element reference to a monoid.",
+			"The list to fold."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let result =
+		/// 	explicit::fold_map::<RcFnBrand, CatListBrand, _, _, _, _>(|x: &i32| x.to_string(), &list);
+		/// assert_eq!(result, "123");
+		/// ```
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			fa.iter().fold(Monoid::empty(), |acc, a| Semigroup::append(acc, func(a)))
+		}
+	}
+
+	impl RefFilterable for CatListBrand {
+		/// Filters and maps the list by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the input elements.",
+			"The type of the output elements."
+		)]
+		///
+		#[document_parameters("The filter-map function.", "The list to filter.")]
+		///
+		#[document_returns("The filtered list.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4).snoc(5);
+		/// let result: Vec<_> = explicit::filter_map::<CatListBrand, _, _, _, _>(
+		/// 	|x: &i32| if *x > 3 { Some(*x) } else { None },
+		/// 	&list,
+		/// )
+		/// .into_iter()
+		/// .collect();
+		/// assert_eq!(result, vec![4, 5]);
+		/// ```
+		fn ref_filter_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> Option<B> + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.iter().filter_map(func).collect()
+		}
+	}
+
+	impl RefTraversable for CatListBrand {
+		/// Traverses the list by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the input elements.",
+			"The type of the output elements.",
+			"The applicative functor brand."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to each element reference.",
+			"The list to traverse."
+		)]
+		///
+		#[document_returns("The combined result in the applicative context.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let result: Option<CatList<String>> = ref_traverse::<CatListBrand, RcFnBrand, _, _, OptionBrand>(
+		/// 	|x: &i32| Some(x.to_string()),
+		/// 	&list,
+		/// );
+		/// let vec: Vec<_> = result.unwrap().into_iter().collect();
+		/// assert_eq!(vec, vec!["1".to_string(), "2".to_string(), "3".to_string()]);
+		/// ```
+		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			ta.iter().fold(
+				F::pure::<CatList<B>>(CatList::empty()),
+				|acc: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, CatList<B>>), a| {
+					F::lift2(|list: CatList<B>, b: B| list.snoc(b), acc, func(a))
+				},
+			)
+		}
+	}
+
+	impl RefWitherable for CatListBrand {}
+
+	impl RefFunctorWithIndex for CatListBrand {
+		/// Maps a function with index over the list by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the input elements.",
+			"The type of the output elements."
+		)]
+		///
+		#[document_parameters("The function to apply.", "The list to map over.")]
+		///
+		#[document_returns("The mapped list.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(10).snoc(20).snoc(30);
+		/// let result: Vec<_> = explicit::map_with_index::<CatListBrand, _, _, _, _>(
+		/// 	|i, x: &i32| format!("{}:{}", i, x),
+		/// 	&list,
+		/// )
+		/// .into_iter()
+		/// .collect();
+		/// assert_eq!(result, vec!["0:10", "1:20", "2:30"]);
+		/// ```
+		fn ref_map_with_index<'a, A: 'a, B: 'a>(
+			func: impl Fn(usize, &A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.iter().enumerate().map(|(i, a)| func(i, a)).collect()
+		}
+	}
+
+	impl RefFoldableWithIndex for CatListBrand {
+		/// Folds the list by reference with index using a monoid.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function to map each (index, element reference) pair.",
+			"The list to fold."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(10).snoc(20).snoc(30);
+		/// let result = explicit::fold_map_with_index::<RcFnBrand, CatListBrand, _, _, _, _>(
+		/// 	|i, x: &i32| format!("{}:{}", i, x),
+		/// 	&list,
+		/// );
+		/// assert_eq!(result, "0:101:202:30");
+		/// ```
+		fn ref_fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
+			func: impl Fn(usize, &A) -> R + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
+			fa.iter()
+				.enumerate()
+				.fold(Monoid::empty(), |acc, (i, a)| Semigroup::append(acc, func(i, a)))
+		}
+	}
+
+	impl RefFilterableWithIndex for CatListBrand {
+		/// Filters and maps the list by reference with index.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the input elements.",
+			"The type of the output elements."
+		)]
+		///
+		#[document_parameters("The filter-map function.", "The list to filter.")]
+		///
+		#[document_returns("The filtered list.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(10).snoc(20).snoc(30).snoc(40).snoc(50);
+		/// let result: Vec<_> = explicit::filter_map_with_index::<CatListBrand, _, _, _, _>(
+		/// 	|i, x: &i32| if i >= 2 { Some(*x) } else { None },
+		/// 	&list,
+		/// )
+		/// .into_iter()
+		/// .collect();
+		/// assert_eq!(result, vec![30, 40, 50]);
+		/// ```
+		fn ref_filter_map_with_index<'a, A: 'a, B: 'a>(
+			func: impl Fn(usize, &A) -> Option<B> + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.iter().enumerate().filter_map(|(i, a)| func(i, a)).collect()
+		}
+	}
+
+	impl RefTraversableWithIndex for CatListBrand {
+		/// Traverses the list by reference with index.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the input elements.",
+			"The type of the output elements.",
+			"The applicative functor brand."
+		)]
+		///
+		#[document_parameters("The function to apply.", "The list to traverse.")]
+		///
+		#[document_returns("The combined result in the applicative context.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::ref_traversable_with_index::ref_traverse_with_index,
+		/// 	types::*,
+		/// };
+		///
+		/// let list = CatList::singleton(10).snoc(20).snoc(30);
+		/// let result: Option<CatList<String>> = ref_traverse_with_index::<CatListBrand, _, _, OptionBrand>(
+		/// 	|i, x: &i32| Some(format!("{}:{}", i, x)),
+		/// 	&list,
+		/// );
+		/// let vec: Vec<_> = result.unwrap().into_iter().collect();
+		/// assert_eq!(vec, vec!["0:10".to_string(), "1:20".to_string(), "2:30".to_string()]);
+		/// ```
+		fn ref_traverse_with_index<'a, A: 'a + Clone, B: 'a + Clone, M: Applicative>(
+			f: impl Fn(usize, &A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			ta.iter().enumerate().fold(
+				M::pure::<CatList<B>>(CatList::empty()),
+				|acc: Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, CatList<B>>),
+				 (i, a)| { M::lift2(|list: CatList<B>, b: B| list.snoc(b), acc, f(i, a)) },
+			)
+		}
+	}
+
+	// -- By-reference monadic trait implementations --
+
+	impl RefPointed for CatListBrand {
+		/// Creates a singleton `CatList` from a reference by cloning.
+		#[document_signature]
+		#[document_type_parameters("The lifetime of the value.", "The type of the value.")]
+		#[document_parameters("The reference to the value to wrap.")]
+		#[document_returns("A singleton CatList containing a clone of the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::CatList,
+		/// };
+		///
+		/// let x = 42;
+		/// let cl: CatList<i32> = ref_pure::<CatListBrand, _>(&x);
+		/// assert_eq!(cl.uncons().map(|(h, _)| h), Some(42));
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			CatList::singleton(a.clone())
+		}
+	}
+
+	impl RefLift for CatListBrand {
+		/// Combines two `CatList` values with a by-reference binary function.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"First input type.",
+			"Second input type.",
+			"Output type."
+		)]
+		#[document_parameters("The binary function.", "The first CatList.", "The second CatList.")]
+		#[document_returns("The combined CatList.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::CatList,
+		/// };
+		///
+		/// let a: CatList<i32> = vec![1, 2].into_iter().collect();
+		/// let b: CatList<i32> = vec![10, 20].into_iter().collect();
+		/// let result: CatList<i32> =
+		/// 	explicit::lift2::<CatListBrand, _, _, _, _, _, _>(|x: &i32, y: &i32| *x + *y, &a, &b);
+		/// let v: Vec<i32> = result.into_iter().collect();
+		/// assert_eq!(v, vec![11, 21, 12, 22]);
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			let func = &func;
+			fa.iter().flat_map(|a| fb.iter().map(move |b| func(a, b))).collect()
+		}
+	}
+
+	impl RefSemiapplicative for CatListBrand {
+		/// Applies wrapped by-ref functions to a CatList (Cartesian product).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The function brand.",
+			"The input type.",
+			"The output type."
+		)]
+		#[document_parameters("The CatList of by-ref functions.", "The CatList of values.")]
+		#[document_returns("The CatList of results.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::CatList,
+		/// };
+		///
+		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x + 1);
+		/// let funcs: CatList<std::rc::Rc<dyn Fn(&i32) -> i32>> = vec![f].into_iter().collect();
+		/// let vals: CatList<i32> = vec![10, 20].into_iter().collect();
+		/// let result: Vec<i32> =
+		/// 	ref_apply::<RcFnBrand, CatListBrand, _, _>(&funcs, &vals).into_iter().collect();
+		/// assert_eq!(result, vec![11, 21]);
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			ff.iter().flat_map(|f| fa.iter().map(move |a| (**f)(a))).collect()
+		}
+	}
+
+	impl RefSemimonad for CatListBrand {
+		/// Chains CatList computations by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The input CatList.", "The function to apply by reference.")]
+		#[document_returns("The flattened CatList of results.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::CatList,
+		/// };
+		///
+		/// let cl: CatList<i32> = vec![1, 2].into_iter().collect();
+		/// let result: CatList<i32> =
+		/// 	explicit::bind::<CatListBrand, _, _, _, _>(&cl, |x: &i32| CatList::singleton(*x * 10));
+		/// let v: Vec<i32> = result.into_iter().collect();
+		/// assert_eq!(v, vec![10, 20]);
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.iter().flat_map(f).collect()
+		}
+	}
+
+	// -- Parallel by-reference trait implementations --
+
+	impl ParRefFunctor for CatListBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function. Must be `Send + Sync`.", "The list.")]
+		#[document_returns("A new list with mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_ref_functor::ParRefFunctor,
+		/// 	types::*,
+		/// };
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let result = CatListBrand::par_ref_map(|x: &i32| x * 2, &list);
+		/// assert_eq!(result.into_iter().collect::<Vec<_>>(), vec![2, 4, 6]);
+		/// ```
+		fn par_ref_map<'a, A: Send + Sync + 'a, B: Send + 'a>(
+			f: impl Fn(&A) -> B + Send + Sync + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let v: Vec<&A> = fa.iter().collect();
+			#[cfg(feature = "rayon")]
+			let result: Vec<B> = {
+				use rayon::prelude::*;
+				v.into_par_iter().map(f).collect()
+			};
+			#[cfg(not(feature = "rayon"))]
+			let result: Vec<B> = v.into_iter().map(f).collect();
+			result.into_iter().collect()
+		}
+	}
+
+	impl ParRefFoldable for CatListBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The element type.", "The monoid type.")]
+		#[document_parameters("The function. Must be `Send + Sync`.", "The list.")]
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_ref_foldable::ParRefFoldable,
+		/// 	types::*,
+		/// };
+		/// let list = CatList::singleton(1).snoc(2).snoc(3);
+		/// let result = CatListBrand::par_ref_fold_map(|x: &i32| x.to_string(), &list);
+		/// assert_eq!(result, "123");
+		/// ```
+		fn par_ref_fold_map<'a, A: Send + Sync + 'a, M: Monoid + Send + 'a>(
+			f: impl Fn(&A) -> M + Send + Sync + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M {
+			let v: Vec<&A> = fa.iter().collect();
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				v.into_par_iter().map(f).reduce(Monoid::empty, Semigroup::append)
+			}
+			#[cfg(not(feature = "rayon"))]
+			v.into_iter().map(f).fold(Monoid::empty(), |acc, m| Semigroup::append(acc, m))
+		}
+	}
+
+	impl ParRefFilterable for CatListBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function. Must be `Send + Sync`.", "The list.")]
+		#[document_returns("A new list with filtered and mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_ref_filterable::ParRefFilterable,
+		/// 	types::*,
+		/// };
+		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
+		/// let result = CatListBrand::par_ref_filter_map(
+		/// 	|x: &i32| if *x > 2 { Some(x.to_string()) } else { None },
+		/// 	&list,
+		/// );
+		/// assert_eq!(result.into_iter().collect::<Vec<_>>(), vec!["3", "4"]);
+		/// ```
+		fn par_ref_filter_map<'a, A: Send + Sync + 'a, B: Send + 'a>(
+			f: impl Fn(&A) -> Option<B> + Send + Sync + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let v: Vec<&A> = fa.iter().collect();
+			#[cfg(feature = "rayon")]
+			let result: Vec<B> = {
+				use rayon::prelude::*;
+				v.into_par_iter().filter_map(f).collect()
+			};
+			#[cfg(not(feature = "rayon"))]
+			let result: Vec<B> = v.into_iter().filter_map(f).collect();
+			result.into_iter().collect()
+		}
+	}
+
+	impl ParRefFunctorWithIndex for CatListBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function with index. Must be `Send + Sync`.", "The list.")]
+		#[document_returns("A new list with mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_ref_functor_with_index::ParRefFunctorWithIndex,
+		/// 	types::*,
+		/// };
+		/// let list = CatList::singleton(10).snoc(20);
+		/// let result = CatListBrand::par_ref_map_with_index(|i, x: &i32| format!("{}:{}", i, x), &list);
+		/// assert_eq!(result.into_iter().collect::<Vec<_>>(), vec!["0:10", "1:20"]);
+		/// ```
+		fn par_ref_map_with_index<'a, A: Send + Sync + 'a, B: Send + 'a>(
+			f: impl Fn(usize, &A) -> B + Send + Sync + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let v: Vec<&A> = fa.iter().collect();
+			#[cfg(feature = "rayon")]
+			let result: Vec<B> = {
+				use rayon::prelude::*;
+				v.into_par_iter().enumerate().map(|(i, a)| f(i, a)).collect()
+			};
+			#[cfg(not(feature = "rayon"))]
+			let result: Vec<B> = v.into_iter().enumerate().map(|(i, a)| f(i, a)).collect();
+			result.into_iter().collect()
+		}
+	}
+
+	impl ParRefFoldableWithIndex for CatListBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The element type.", "The monoid type.")]
+		#[document_parameters("The function with index. Must be `Send + Sync`.", "The list.")]
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_ref_foldable_with_index::ParRefFoldableWithIndex,
+		/// 	types::*,
+		/// };
+		/// let list = CatList::singleton(10).snoc(20);
+		/// let result =
+		/// 	CatListBrand::par_ref_fold_map_with_index(|i, x: &i32| format!("{}:{}", i, x), &list);
+		/// assert_eq!(result, "0:101:20");
+		/// ```
+		fn par_ref_fold_map_with_index<'a, A: Send + Sync + 'a, M: Monoid + Send + 'a>(
+			f: impl Fn(usize, &A) -> M + Send + Sync + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M {
+			let v: Vec<&A> = fa.iter().collect();
+			#[cfg(feature = "rayon")]
+			{
+				use rayon::prelude::*;
+				v.into_par_iter()
+					.enumerate()
+					.map(|(i, a)| f(i, a))
+					.reduce(Monoid::empty, Semigroup::append)
+			}
+			#[cfg(not(feature = "rayon"))]
+			v.into_iter()
+				.enumerate()
+				.map(|(i, a)| f(i, a))
+				.fold(Monoid::empty(), |acc, m| Semigroup::append(acc, m))
+		}
+	}
+
+	impl ParRefFilterableWithIndex for CatListBrand {
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function with index. Must be `Send + Sync`.", "The list.")]
+		#[document_returns("A new list with filtered and mapped elements.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CatListBrand,
+		/// 	classes::par_ref_filterable_with_index::ParRefFilterableWithIndex,
+		/// 	types::*,
+		/// };
+		/// let list = CatList::singleton(10).snoc(20).snoc(30).snoc(40).snoc(50);
+		/// let result = CatListBrand::par_ref_filter_map_with_index(
+		/// 	|i, x: &i32| if i % 2 == 0 { Some(x.to_string()) } else { None },
+		/// 	&list,
+		/// );
+		/// assert_eq!(result.into_iter().collect::<Vec<_>>(), vec!["10", "30", "50"]);
+		/// ```
+		fn par_ref_filter_map_with_index<'a, A: Send + Sync + 'a, B: Send + 'a>(
+			f: impl Fn(usize, &A) -> Option<B> + Send + Sync + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let v: Vec<&A> = fa.iter().collect();
+			#[cfg(feature = "rayon")]
+			let result: Vec<B> = {
+				use rayon::prelude::*;
+				v.into_par_iter().enumerate().filter_map(|(i, a)| f(i, a)).collect()
+			};
+			#[cfg(not(feature = "rayon"))]
+			let result: Vec<B> = v.into_iter().enumerate().filter_map(|(i, a)| f(i, a)).collect();
+			result.into_iter().collect()
+		}
+	}
 }
 pub use inner::*;
 
 #[cfg(test)]
+#[expect(
+	clippy::unwrap_used,
+	clippy::indexing_slicing,
+	reason = "Tests use panicking operations for brevity and clarity"
+)]
 mod tests {
 	use super::*;
 
@@ -3486,7 +4300,7 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::CloneableFn,
+			classes::*,
 			functions::*,
 		},
 		quickcheck_macros::quickcheck,
@@ -3498,7 +4312,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity(x: Vec<i32>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
-		map::<CatListBrand, _, _>(identity, x.clone()) == x
+		explicit::map::<CatListBrand, _, _, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -3507,8 +4321,11 @@ mod tests {
 		let x: CatList<_> = x.into_iter().collect();
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<CatListBrand, _, _>(compose(f, g), x.clone())
-			== map::<CatListBrand, _, _>(f, map::<CatListBrand, _, _>(g, x))
+		explicit::map::<CatListBrand, _, _, _, _>(compose(f, g), x.clone())
+			== explicit::map::<CatListBrand, _, _, _, _>(
+				f,
+				explicit::map::<CatListBrand, _, _, _, _>(g, x),
+			)
 	}
 
 	// Applicative Laws
@@ -3518,7 +4335,7 @@ mod tests {
 	fn applicative_identity(v: Vec<i32>) -> bool {
 		let v: CatList<_> = v.into_iter().collect();
 		apply::<RcFnBrand, CatListBrand, _, _>(
-			pure::<CatListBrand, _>(<RcFnBrand as CloneableFn>::new(identity)),
+			pure::<CatListBrand, _>(<RcFnBrand as LiftFn>::new(identity)),
 			v.clone(),
 		) == v
 	}
@@ -3528,7 +4345,7 @@ mod tests {
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
 		apply::<RcFnBrand, CatListBrand, _, _>(
-			pure::<CatListBrand, _>(<RcFnBrand as CloneableFn>::new(f)),
+			pure::<CatListBrand, _>(<RcFnBrand as LiftFn>::new(f)),
 			pure::<CatListBrand, _>(x),
 		) == pure::<CatListBrand, _>(f(x))
 	}
@@ -3570,14 +4387,14 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| CatList::singleton(x.wrapping_mul(2));
-		bind::<CatListBrand, _, _>(pure::<CatListBrand, _>(a), f) == f(a)
+		explicit::bind::<CatListBrand, _, _, _, _>(pure::<CatListBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: Vec<i32>) -> bool {
 		let m: CatList<_> = m.into_iter().collect();
-		bind::<CatListBrand, _, _>(m.clone(), pure::<CatListBrand, _>) == m
+		explicit::bind::<CatListBrand, _, _, _, _>(m.clone(), pure::<CatListBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -3586,8 +4403,12 @@ mod tests {
 		let m: CatList<_> = m.into_iter().collect();
 		let f = |x: i32| CatList::singleton(x.wrapping_mul(2));
 		let g = |x: i32| CatList::singleton(x.wrapping_add(1));
-		bind::<CatListBrand, _, _>(bind::<CatListBrand, _, _>(m.clone(), f), g)
-			== bind::<CatListBrand, _, _>(m, |x| bind::<CatListBrand, _, _>(f(x), g))
+		explicit::bind::<CatListBrand, _, _, _, _>(
+			explicit::bind::<CatListBrand, _, _, _, _>(m.clone(), f),
+			g,
+		) == explicit::bind::<CatListBrand, _, _, _, _>(m, |x| {
+			explicit::bind::<CatListBrand, _, _, _, _>(f(x), g)
+		})
 	}
 
 	// Edge Cases
@@ -3596,7 +4417,10 @@ mod tests {
 	#[test]
 	fn map_empty() {
 		assert_eq!(
-			map::<CatListBrand, _, _>(|x: i32| x + 1, CatList::empty() as CatList<i32>),
+			explicit::map::<CatListBrand, _, _, _, _>(
+				|x: i32| x + 1,
+				CatList::empty() as CatList<i32>
+			),
 			CatList::empty() as CatList<i32>
 		);
 	}
@@ -3605,9 +4429,10 @@ mod tests {
 	#[test]
 	fn bind_empty() {
 		assert_eq!(
-			bind::<CatListBrand, _, _>(CatList::empty() as CatList<i32>, |x: i32| {
-				CatList::singleton(x + 1)
-			}),
+			explicit::bind::<CatListBrand, _, _, _, _>(
+				CatList::empty() as CatList<i32>,
+				|x: i32| { CatList::singleton(x + 1) }
+			),
 			CatList::empty() as CatList<i32>
 		);
 	}
@@ -3617,7 +4442,7 @@ mod tests {
 	fn bind_returning_empty() {
 		let list: CatList<_> = vec![1, 2, 3].into_iter().collect();
 		assert_eq!(
-			bind::<CatListBrand, _, _>(list, |_| CatList::empty() as CatList<i32>),
+			explicit::bind::<CatListBrand, _, _, _, _>(list, |_| CatList::empty() as CatList<i32>),
 			CatList::empty() as CatList<i32>
 		);
 	}
@@ -3626,7 +4451,7 @@ mod tests {
 	#[test]
 	fn fold_right_empty() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<RcFnBrand, CatListBrand, _, _>(
+			crate::functions::explicit::fold_right::<RcFnBrand, CatListBrand, _, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				CatList::empty()
@@ -3639,7 +4464,7 @@ mod tests {
 	#[test]
 	fn fold_left_empty() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<RcFnBrand, CatListBrand, _, _>(
+			crate::functions::explicit::fold_left::<RcFnBrand, CatListBrand, _, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				CatList::empty()
@@ -3749,7 +4574,7 @@ mod tests {
 	fn prop_par_map_equals_map(xs: Vec<i32>) -> bool {
 		let xs: CatList<_> = xs.into_iter().collect();
 		let f = |x: i32| x.wrapping_add(1);
-		let seq_res: CatList<_> = map::<CatListBrand, _, _>(f, xs.clone());
+		let seq_res: CatList<_> = explicit::map::<CatListBrand, _, _, _, _>(f, xs.clone());
 		let par_res: CatList<_> = par_map::<CatListBrand, _, _>(f, xs);
 		seq_res == par_res
 	}
@@ -3761,11 +4586,14 @@ mod tests {
 
 		let xs: CatList<_> = xs.into_iter().collect();
 		let f = |x: i32| Additive(x as i64);
-		let seq_res =
-			crate::classes::foldable::fold_map::<crate::brands::RcFnBrand, CatListBrand, _, _>(
-				f,
-				xs.clone(),
-			);
+		let seq_res = crate::functions::explicit::fold_map::<
+			crate::brands::RcFnBrand,
+			CatListBrand,
+			_,
+			_,
+			_,
+			_,
+		>(f, xs.clone());
 		let par_res = par_fold_map::<CatListBrand, _, _>(f, xs);
 		seq_res == par_res
 	}
@@ -3776,22 +4604,23 @@ mod tests {
 	#[quickcheck]
 	fn filterable_filter_map_identity(x: Vec<Option<i32>>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
-		filter_map::<CatListBrand, _, _>(identity, x.clone()) == compact::<CatListBrand, _>(x)
+		explicit::filter_map::<CatListBrand, _, _, _, _>(identity, x.clone())
+			== explicit::compact::<CatListBrand, _, _, _>(x)
 	}
 
 	/// Tests `filterMap Just ≡ identity`.
 	#[quickcheck]
 	fn filterable_filter_map_just(x: Vec<i32>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
-		filter_map::<CatListBrand, _, _>(Some, x.clone()) == x
+		explicit::filter_map::<CatListBrand, _, _, _, _>(Some, x.clone()) == x
 	}
 
 	/// Tests `partitionMap identity ≡ separate`.
 	#[quickcheck]
 	fn filterable_partition_map_identity(x: Vec<Result<i32, i32>>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
-		partition_map::<CatListBrand, _, _, _>(identity, x.clone())
-			== separate::<CatListBrand, _, _>(x)
+		explicit::partition_map::<CatListBrand, _, _, _, _, _>(identity, x.clone())
+			== explicit::separate::<CatListBrand, _, _, _, _>(x)
 	}
 
 	// Witherable Laws
@@ -3800,7 +4629,10 @@ mod tests {
 	#[quickcheck]
 	fn witherable_identity(x: Vec<i32>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
-		wither::<CatListBrand, OptionBrand, _, _>(|i| Some(Some(i)), x.clone()) == Some(x)
+		explicit::wither::<RcFnBrand, CatListBrand, OptionBrand, _, _, _, _>(
+			|i| Some(Some(i)),
+			x.clone(),
+		) == Some(x)
 	}
 
 	// Alt Laws
@@ -3815,12 +4647,18 @@ mod tests {
 		let cx: CatList<_> = x.into_iter().collect();
 		let cy: CatList<_> = y.into_iter().collect();
 		let cz: CatList<_> = z.into_iter().collect();
-		let lhs: Vec<_> =
-			alt::<CatListBrand, _>(alt::<CatListBrand, _>(cx.clone(), cy.clone()), cz.clone())
-				.into_iter()
-				.collect();
-		let rhs: Vec<_> =
-			alt::<CatListBrand, _>(cx, alt::<CatListBrand, _>(cy, cz)).into_iter().collect();
+		let lhs: Vec<_> = explicit::alt::<CatListBrand, _, _, _>(
+			explicit::alt::<CatListBrand, _, _, _>(cx.clone(), cy.clone()),
+			cz.clone(),
+		)
+		.into_iter()
+		.collect();
+		let rhs: Vec<_> = explicit::alt::<CatListBrand, _, _, _>(
+			cx,
+			explicit::alt::<CatListBrand, _, _, _>(cy, cz),
+		)
+		.into_iter()
+		.collect();
 		lhs == rhs
 	}
 
@@ -3833,13 +4671,15 @@ mod tests {
 		let cx: CatList<_> = x.into_iter().collect();
 		let cy: CatList<_> = y.into_iter().collect();
 		let f = |i: i32| i.wrapping_mul(2).wrapping_add(1);
-		let lhs: Vec<_> =
-			map::<CatListBrand, _, _>(f, alt::<CatListBrand, _>(cx.clone(), cy.clone()))
-				.into_iter()
-				.collect();
-		let rhs: Vec<_> = alt::<CatListBrand, _>(
-			map::<CatListBrand, _, _>(f, cx),
-			map::<CatListBrand, _, _>(f, cy),
+		let lhs: Vec<_> = explicit::map::<CatListBrand, _, _, _, _>(
+			f,
+			explicit::alt::<CatListBrand, _, _, _>(cx.clone(), cy.clone()),
+		)
+		.into_iter()
+		.collect();
+		let rhs: Vec<_> = explicit::alt::<CatListBrand, _, _, _>(
+			explicit::map::<CatListBrand, _, _, _, _>(f, cx),
+			explicit::map::<CatListBrand, _, _, _, _>(f, cy),
 		)
 		.into_iter()
 		.collect();
@@ -3852,9 +4692,10 @@ mod tests {
 	#[quickcheck]
 	fn plus_left_identity(x: Vec<i32>) -> bool {
 		let cx: CatList<_> = x.into_iter().collect();
-		let lhs: Vec<_> = alt::<CatListBrand, _>(plus_empty::<CatListBrand, i32>(), cx.clone())
-			.into_iter()
-			.collect();
+		let lhs: Vec<_> =
+			explicit::alt::<CatListBrand, _, _, _>(plus_empty::<CatListBrand, i32>(), cx.clone())
+				.into_iter()
+				.collect();
 		let rhs: Vec<_> = cx.into_iter().collect();
 		lhs == rhs
 	}
@@ -3863,9 +4704,10 @@ mod tests {
 	#[quickcheck]
 	fn plus_right_identity(x: Vec<i32>) -> bool {
 		let cx: CatList<_> = x.into_iter().collect();
-		let lhs: Vec<_> = alt::<CatListBrand, _>(cx.clone(), plus_empty::<CatListBrand, i32>())
-			.into_iter()
-			.collect();
+		let lhs: Vec<_> =
+			explicit::alt::<CatListBrand, _, _, _>(cx.clone(), plus_empty::<CatListBrand, i32>())
+				.into_iter()
+				.collect();
 		let rhs: Vec<_> = cx.into_iter().collect();
 		lhs == rhs
 	}
@@ -3875,7 +4717,9 @@ mod tests {
 	fn plus_annihilation() {
 		let f = |i: i32| i.wrapping_mul(2);
 		let lhs: Vec<_> =
-			map::<CatListBrand, _, _>(f, plus_empty::<CatListBrand, i32>()).into_iter().collect();
+			explicit::map::<CatListBrand, _, _, _, _>(f, plus_empty::<CatListBrand, i32>())
+				.into_iter()
+				.collect();
 		let rhs: Vec<_> = plus_empty::<CatListBrand, i32>().into_iter().collect();
 		assert_eq!(lhs, rhs);
 	}
@@ -3886,7 +4730,11 @@ mod tests {
 	#[quickcheck]
 	fn compactable_functor_identity(x: Vec<i32>) -> bool {
 		let cx: CatList<_> = x.into_iter().collect();
-		let lhs: Vec<_> = compact::<CatListBrand, _>(map::<CatListBrand, _, _>(Some, cx.clone()))
+		let lhs: Vec<_> =
+			explicit::compact::<CatListBrand, _, _, _>(explicit::map::<CatListBrand, _, _, _, _>(
+				Some,
+				cx.clone(),
+			))
 			.into_iter()
 			.collect();
 		let rhs: Vec<_> = cx.into_iter().collect();
@@ -4348,5 +5196,82 @@ mod tests {
 		);
 		let vec: Vec<_> = result.into_iter().collect();
 		assert_eq!(vec, vec![42]);
+	}
+
+	// -- Ref trait property tests --
+
+	#[quickcheck]
+	fn ref_functor_identity(v: Vec<i32>) -> bool {
+		let list: CatList<i32> = v.iter().copied().collect();
+		let mapped: Vec<i32> = CatListBrand::ref_map(|x: &i32| *x, &list).into_iter().collect();
+		mapped == v
+	}
+
+	#[quickcheck]
+	fn ref_functor_composition(v: Vec<i32>) -> bool {
+		let f = |x: &i32| x.wrapping_add(1);
+		let g = |x: &i32| x.wrapping_mul(2);
+		let list1: CatList<i32> = v.iter().copied().collect();
+		let list2: CatList<i32> = v.iter().copied().collect();
+		let composed: Vec<i32> =
+			CatListBrand::ref_map(|x: &i32| g(&f(x)), &list1).into_iter().collect();
+		let sequential: Vec<i32> =
+			CatListBrand::ref_map(g, &CatListBrand::ref_map(f, &list2)).into_iter().collect();
+		composed == sequential
+	}
+
+	#[quickcheck]
+	fn ref_foldable_additive(v: Vec<i32>) -> bool {
+		use crate::types::Additive;
+		let list: CatList<i32> = v.iter().copied().collect();
+		let result = CatListBrand::ref_fold_map::<RcFnBrand, _, _>(|x: &i32| Additive(*x), &list);
+		let expected = v.iter().copied().fold(0i32, |a, b| a.wrapping_add(b));
+		result.0 == expected
+	}
+
+	#[quickcheck]
+	fn ref_semimonad_left_identity(x: i32) -> bool {
+		let result: Vec<i32> =
+			CatListBrand::ref_bind(&CatList::singleton(x), |a: &i32| CatList::singleton(*a))
+				.into_iter()
+				.collect();
+		result == vec![x]
+	}
+
+	#[quickcheck]
+	fn par_ref_functor_equivalence(v: Vec<i32>) -> bool {
+		let f = |x: &i32| x.wrapping_add(1);
+		let list1: CatList<i32> = v.iter().copied().collect();
+		let list2: CatList<i32> = v.iter().copied().collect();
+		let par_result: Vec<i32> = CatListBrand::par_ref_map(f, &list1).into_iter().collect();
+		let seq_result: Vec<i32> = CatListBrand::ref_map(f, &list2).into_iter().collect();
+		par_result == seq_result
+	}
+
+	// RefAlt Laws
+
+	/// RefAlt associativity
+	#[quickcheck]
+	fn ref_alt_associativity(
+		xv: Vec<i32>,
+		yv: Vec<i32>,
+		zv: Vec<i32>,
+	) -> bool {
+		let x: CatList<i32> = xv.into_iter().collect();
+		let y: CatList<i32> = yv.into_iter().collect();
+		let z: CatList<i32> = zv.into_iter().collect();
+		let lhs: Vec<i32> = explicit::alt::<CatListBrand, _, _, _>(
+			&explicit::alt::<CatListBrand, _, _, _>(&x, &y),
+			&z,
+		)
+		.into_iter()
+		.collect();
+		let rhs: Vec<i32> = explicit::alt::<CatListBrand, _, _, _>(
+			&x,
+			&explicit::alt::<CatListBrand, _, _, _>(&y, &z),
+		)
+		.into_iter()
+		.collect();
+		lhs == rhs
 	}
 }

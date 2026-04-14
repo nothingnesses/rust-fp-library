@@ -52,7 +52,7 @@ pub fn get_fn_brand_info(
 		&& type_path.path.segments.len() >= 2
 	{
 		// SAFETY: segments.len() >= 2 checked above
-		#[allow(clippy::indexing_slicing)]
+		#[expect(clippy::indexing_slicing, reason = "segments.len() >= 2 checked above")]
 		let trait_name = type_path.path.segments[0].ident.to_string();
 		if let TraitCategory::FnBrand = classify_trait(&trait_name, config) {
 			let last_segment = type_path.path.segments.last()?;

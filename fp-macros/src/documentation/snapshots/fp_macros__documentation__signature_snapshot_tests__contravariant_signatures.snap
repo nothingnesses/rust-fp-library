@@ -1,0 +1,6 @@
+---
+source: fp-macros/src/documentation/signature_snapshot_tests.rs
+assertion_line: 138
+expression: output
+---
+contramap: forall Brand A B. Contravariant Brand => (B -> A, Brand A) -> Brand B

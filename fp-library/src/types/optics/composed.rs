@@ -8,7 +8,7 @@ use {
 			optics::*,
 		},
 		classes::{
-			CloneableFn,
+			LiftFn,
 			UnsizedCoercible,
 			monoid::Monoid,
 			optics::*,
@@ -91,7 +91,7 @@ mod inner {
 		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, x)| x);
 		/// let composed = Composed::new(l1, l2);
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <Composed<
 		/// 	'_,
 		/// 	(i32, String),
@@ -158,7 +158,7 @@ mod inner {
 		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, x)| x);
 		/// let composed = Composed::new(l1, l2);
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <Composed<
 		/// 	'_,
 		/// 	(i32, String),
@@ -219,7 +219,7 @@ mod inner {
 		/// let iso1: IsoPrime<RcBrand, i32, i32> = IsoPrime::new(|x| x, |x| x);
 		/// let iso2: IsoPrime<RcBrand, i32, i32> = IsoPrime::new(|x| x, |x| x);
 		/// let composed = Composed::new(iso1, iso2);
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <Composed<
 		/// 	'_,
 		/// 	i32,
@@ -281,7 +281,7 @@ mod inner {
 		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x| x, |(_, x)| x);
 		/// let composed = Composed::new(l1, l2);
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <Composed<
 		/// 	'_,
 		/// 	(i32, String),
@@ -344,7 +344,7 @@ mod inner {
 		/// let p1: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::from_option(|o| o, Some);
 		/// let p2: PrismPrime<RcBrand, i32, i32> = PrismPrime::from_option(Some, |x| x);
 		/// let composed = Composed::new(p1, p2);
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier =
 		/// 	<Composed<
 		/// 		'_,
@@ -408,7 +408,7 @@ mod inner {
 		/// let p2: PrismPrime<RcBrand, i32, i32> = PrismPrime::from_option(Some, |x| x);
 		/// let composed = Composed::new(l1, p2);
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <Composed<
 		/// 	'_,
 		/// 	(i32, String),
@@ -473,7 +473,7 @@ mod inner {
 		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x| x, |(_, x)| x);
 		/// let composed = Composed::new(l1, l2);
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <Composed<
 		/// 	'_,
 		/// 	(i32, String),
@@ -665,7 +665,7 @@ mod inner {
 		/// let s2: SetterPrime<RcBrand, i32, i32> =
 		/// 	SetterPrime::new(|(s, f): (i32, Box<dyn Fn(i32) -> i32>)| f(s));
 		/// let composed = Composed::new(s1, s2);
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier =
 		/// 	<Composed<
 		/// 		'_,
@@ -765,7 +765,7 @@ mod inner {
 		"The second optic."
 	)]
 	#[document_parameters("The composed optic instance.")]
-	impl<'a, FunctionBrand: CloneableFn, S, T, M, N, A, B, O1, O2>
+	impl<'a, FunctionBrand: LiftFn, S, T, M, N, A, B, O1, O2>
 		GrateOptic<'a, FunctionBrand, S, T, A, B> for Composed<'a, S, T, M, N, A, B, O1, O2>
 	where
 		O1: GrateOptic<'a, FunctionBrand, S, T, M, N>,
@@ -793,7 +793,7 @@ mod inner {
 		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x| x, |(_, x)| x);
 		/// let composed = Composed::new(l1, l2);
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <Composed<
 		/// 	'_,
 		/// 	(i32, String),
@@ -881,7 +881,7 @@ mod inner {
 	/// 	},
 	/// };
 	///
-	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|s: String| s.to_uppercase());
+	/// let f = lift_fn_new::<RcFnBrand, _, _>(|s: String| s.to_uppercase());
 	/// let modifier = <Composed<
 	/// 	'_,
 	/// 	User,

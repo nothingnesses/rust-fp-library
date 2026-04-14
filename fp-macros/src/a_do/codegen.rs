@@ -22,11 +22,12 @@ use {
 /// Separates statements into binds (applicative computations) and let bindings,
 /// then desugars into the appropriate combinator:
 ///
-/// - 0 binds -> `pure::<Brand, _>(final_expr)`
-/// - 1 bind  -> `map::<Brand, _, _>(|pat| body, expr)`
-/// - N binds -> `liftN::<Brand, _, ...>(|pats...| body, exprs...)`
+/// - 0 binds -> `pure::<Brand, _>(final_expr)` (explicit) or `compile_error!` (inferred)
+/// - 1 bind  -> `explicit::map::<Brand, ...>(...)` (explicit) or `map(...)` (inferred)
+/// - N binds -> `explicit::liftN::<Brand, ...>(...)` (explicit) or `liftN(...)` (inferred)
 pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
-	let brand = &input.brand;
+	let brand = input.brand.as_ref();
+	let ref_mode = input.ref_mode;
 
 	let mut leading_lets: Vec<TokenStream> = vec![];
 	let mut inner_lets: Vec<TokenStream> = vec![];
@@ -42,13 +43,23 @@ pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 				expr,
 			} => {
 				seen_bind = true;
-				let expr = rewrite_pure(brand, expr);
-				let param = match ty {
-					Some(ty) => quote! { #pattern: #ty },
-					None => quote! { #pattern },
+				let expr = rewrite_pure(brand, expr, ref_mode);
+				let param = match (ref_mode, ty) {
+					// Ref mode, untyped: add &_ for dispatch inference
+					(true, None) => quote! { #pattern: &_ },
+					// Ref mode, typed: user wrote the full type (including &)
+					(true, Some(ty)) => quote! { #pattern: #ty },
+					// Val mode, typed
+					(false, Some(ty)) => quote! { #pattern: #ty },
+					// Val mode, untyped
+					(false, None) => quote! { #pattern },
 				};
 				bind_params.push(param);
-				bind_exprs.push(expr);
+				if ref_mode {
+					bind_exprs.push(quote! { &(#expr) });
+				} else {
+					bind_exprs.push(expr);
+				}
 			}
 			DoStatement::Let {
 				pattern,
@@ -69,9 +80,18 @@ pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 				expr,
 			} => {
 				seen_bind = true;
-				let expr = rewrite_pure(brand, expr);
-				bind_params.push(quote! { _ });
-				bind_exprs.push(expr);
+				let expr = rewrite_pure(brand, expr, ref_mode);
+				let discard = if ref_mode {
+					quote! { _: &_ }
+				} else {
+					quote! { _ }
+				};
+				bind_params.push(discard);
+				if ref_mode {
+					bind_exprs.push(quote! { &(#expr) });
+				} else {
+					bind_exprs.push(expr);
+				}
 			}
 		}
 	}
@@ -79,22 +99,55 @@ pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 	let final_expr = &input.final_expr;
 	let n = bind_params.len();
 	let result = match (bind_params.as_slice(), bind_exprs.as_slice()) {
+		// 0 binds: pure(final_expr)
 		([], _) => {
-			quote! { pure::<#brand, _>(#final_expr) }
-		}
-		([param], [expr]) => {
-			quote! {
-				map::<#brand, _, _>(|#param| { #(#inner_lets)* #final_expr }, #expr)
+			if let Some(brand) = brand {
+				if ref_mode {
+					quote! { ref_pure::<#brand, _>(&(#final_expr)) }
+				} else {
+					quote! { pure::<#brand, _>(#final_expr) }
+				}
+			} else {
+				// Inferred mode with 0 binds: pure needs a brand
+				quote! {
+					compile_error!("a_do! with no bindings generates pure(), which requires an explicit brand; use a_do!(Brand { ... }) or write the concrete constructor directly")
+				}
 			}
 		}
+		// 1 bind: map
+		([param], [expr]) =>
+			if let Some(brand) = brand {
+				quote! {
+					explicit::map::<#brand, _, _, _, _>(|#param| { #(#inner_lets)* #final_expr }, #expr)
+				}
+			} else {
+				quote! {
+					map(|#param| { #(#inner_lets)* #final_expr }, #expr)
+				}
+			},
+		// 2-5 binds: liftN
 		_ if n <= 5 => {
-			let fn_name = format_ident!("lift{}", n);
-			let underscores: Vec<TokenStream> = (0 ..= n).map(|_| quote! { _ }).collect();
-			quote! {
-				#fn_name::<#brand, #(#underscores),*>(
-					|#(#bind_params),*| { #(#inner_lets)* #final_expr },
-					#(#bind_exprs),*
-				)
+			if let Some(brand) = brand {
+				let fn_name = format_ident!("lift{}", n);
+				// Dispatched liftN functions have type params:
+				// Brand + N value types + result type + N container types (FA, FB, ...) + Marker
+				// Total underscores: n + 1 + n + 1 = 2n + 2
+				let underscores: Vec<TokenStream> =
+					(0 .. 2 * n + 2).map(|_| quote! { _ }).collect();
+				quote! {
+					explicit::#fn_name::<#brand, #(#underscores),*>(
+						|#(#bind_params),*| { #(#inner_lets)* #final_expr },
+						#(#bind_exprs),*
+					)
+				}
+			} else {
+				let fn_name = format_ident!("lift{}", n);
+				quote! {
+					#fn_name(
+						|#(#bind_params),*| { #(#inner_lets)* #final_expr },
+						#(#bind_exprs),*
+					)
+				}
 			}
 		}
 		_ => {

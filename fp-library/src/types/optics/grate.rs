@@ -10,11 +10,9 @@ mod inner {
 			Apply,
 			brands::FnBrand,
 			classes::{
-				CloneableFn,
-				RefCountedPointer,
-				UnsizedCoercible,
 				optics::*,
 				profunctor::Closed,
+				*,
 			},
 			kinds::*,
 			types::optics::zip_with_of,
@@ -41,11 +39,11 @@ mod inner {
 		A: 'a,
 		B: 'a, {
 		/// Grating function.
-		pub grate: <FnBrand<PointerBrand> as CloneableFn>::Of<
+		pub grate: <FnBrand<PointerBrand> as CloneFn>::Of<
 			'a,
-			<FnBrand<PointerBrand> as CloneableFn>::Of<
+			<FnBrand<PointerBrand> as CloneFn>::Of<
 				'a,
-				<FnBrand<PointerBrand> as CloneableFn>::Of<
+				<FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
 					<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 					A,
@@ -81,15 +79,15 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::CloneableFn,
+		/// 		classes::*,
 		/// 		types::optics::Grate,
 		/// 	},
 		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f| {
-		/// 	let get_x = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0);
-		/// 	let get_y = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1);
+		/// 	let get_x = <RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.0);
+		/// 	let get_y = <RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.1);
 		/// 	(f(get_x), f(get_y))
 		/// });
 		/// let cloned = grate.clone();
@@ -132,24 +130,24 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::CloneableFn,
+		/// 		classes::*,
 		/// 		types::optics::Grate,
 		/// 	},
 		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f| {
-		/// 	let get_x = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0);
-		/// 	let get_y = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1);
+		/// 	let get_x = <RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.0);
+		/// 	let get_y = <RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.1);
 		/// 	(f(get_x), f(get_y))
 		/// });
 		/// assert_eq!(grate.zip_with(|(a, b)| a + b, (1, 2), (3, 4)), (4, 6));
 		/// ```
 		pub fn new(
 			grate: impl Fn(
-				<FnBrand<PointerBrand> as CloneableFn>::Of<
+				<FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
-					<FnBrand<PointerBrand> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
 						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,
@@ -162,7 +160,7 @@ mod inner {
 		where
 			<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
 			Grate {
-				grate: <FnBrand<PointerBrand> as CloneableFn>::new(grate),
+				grate: <FnBrand<PointerBrand> as LiftFn>::new(grate),
 			}
 		}
 
@@ -184,15 +182,15 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::CloneableFn,
+		/// 		classes::*,
 		/// 		types::optics::Grate,
 		/// 	},
 		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f| {
-		/// 	let get_x = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0);
-		/// 	let get_y = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1);
+		/// 	let get_x = <RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.0);
+		/// 	let get_y = <RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.1);
 		/// 	(f(get_x), f(get_y))
 		/// });
 		/// let result = grate.zip_with(|(a, b)| a + b, (1, 2), (10, 20));
@@ -245,8 +243,8 @@ mod inner {
 		/// 	fp_library::{
 		/// 		brands::*,
 		/// 		classes::{
-		/// 			CloneableFn,
 		/// 			optics::*,
+		/// 			*,
 		/// 		},
 		/// 		types::optics::Grate,
 		/// 	},
@@ -255,8 +253,8 @@ mod inner {
 		///
 		/// let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(
 		/// 	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
-		/// 		let get_x = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0);
-		/// 		let get_y = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1);
+		/// 		let get_x = <RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.0);
+		/// 		let get_y = <RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.1);
 		/// 		(f(get_x), f(get_y))
 		/// 	},
 		/// );
@@ -273,8 +271,8 @@ mod inner {
 			Q::dimap(
 				move |s: S| {
 					let s_ptr = <PointerBrand as RefCountedPointer>::cloneable_new(s);
-					<FnBrand<PointerBrand> as CloneableFn>::new(
-						move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as LiftFn>::new(
+						move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 							'a,
 							<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 							A,
@@ -282,16 +280,16 @@ mod inner {
 						      -> A { (f)(Clone::clone(&s_ptr)) },
 					)
 				},
-				move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
+				move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
-					<FnBrand<PointerBrand> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
 						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,
 					>,
 					B,
 				>| {
-					let f_brand = <FnBrand<PointerBrand> as CloneableFn>::new(move |x| f(x));
+					let f_brand = <FnBrand<PointerBrand> as LiftFn>::new(move |x| f(x));
 					grate(f_brand)
 				},
 				Q::closed(pab),
@@ -328,9 +326,9 @@ mod inner {
 		/// 	fp_library::{
 		/// 		brands::*,
 		/// 		classes::{
-		/// 			CloneableFn,
 		/// 			optics::*,
 		/// 			profunctor::*,
+		/// 			*,
 		/// 		},
 		/// 		types::optics::Grate,
 		/// 	},
@@ -359,8 +357,8 @@ mod inner {
 			Q::dimap(
 				move |s: S| {
 					let s_ptr = <PointerBrand as RefCountedPointer>::cloneable_new(s);
-					<FnBrand<PointerBrand> as CloneableFn>::new(
-						move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as LiftFn>::new(
+						move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 							'a,
 							<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 							A,
@@ -368,16 +366,16 @@ mod inner {
 						      -> A { (f)(Clone::clone(&s_ptr)) },
 					)
 				},
-				move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
+				move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
-					<FnBrand<PointerBrand> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
 						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,
 					>,
 					B,
 				>| {
-					let f_brand = <FnBrand<PointerBrand> as CloneableFn>::new(move |x| f(x));
+					let f_brand = <FnBrand<PointerBrand> as LiftFn>::new(move |x| f(x));
 					grate(f_brand)
 				},
 				Q::closed(pab),
@@ -413,9 +411,9 @@ mod inner {
 		/// 	fp_library::{
 		/// 		brands::*,
 		/// 		classes::{
-		/// 			CloneableFn,
 		/// 			optics::*,
 		/// 			profunctor::*,
+		/// 			*,
 		/// 		},
 		/// 		types::optics::Grate,
 		/// 	},
@@ -458,11 +456,11 @@ mod inner {
 		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a, {
-		pub(crate) grate_fn: <FnBrand<PointerBrand> as CloneableFn>::Of<
+		pub(crate) grate_fn: <FnBrand<PointerBrand> as CloneFn>::Of<
 			'a,
-			<FnBrand<PointerBrand> as CloneableFn>::Of<
+			<FnBrand<PointerBrand> as CloneFn>::Of<
 				'a,
-				<FnBrand<PointerBrand> as CloneableFn>::Of<
+				<FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
 					<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 					A,
@@ -494,7 +492,7 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::CloneableFn,
+		/// 		classes::*,
 		/// 		types::optics::GratePrime,
 		/// 	},
 		/// 	std::rc::Rc,
@@ -503,8 +501,8 @@ mod inner {
 		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
 		/// 	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
 		/// 		(
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0)),
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1)),
+		/// 			f(<RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.0)),
+		/// 			f(<RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.1)),
 		/// 		)
 		/// 	},
 		/// );
@@ -543,7 +541,7 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::CloneableFn,
+		/// 		classes::*,
 		/// 		types::optics::GratePrime,
 		/// 	},
 		/// 	std::rc::Rc,
@@ -552,8 +550,8 @@ mod inner {
 		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
 		/// 	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
 		/// 		(
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0)),
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1)),
+		/// 			f(<RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.0)),
+		/// 			f(<RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.1)),
 		/// 		)
 		/// 	},
 		/// );
@@ -561,9 +559,9 @@ mod inner {
 		/// ```
 		pub fn new(
 			grate: impl Fn(
-				<FnBrand<PointerBrand> as CloneableFn>::Of<
+				<FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
-					<FnBrand<PointerBrand> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
 						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,
@@ -576,7 +574,7 @@ mod inner {
 		where
 			<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
 			GratePrime {
-				grate_fn: <FnBrand<PointerBrand> as CloneableFn>::new(grate),
+				grate_fn: <FnBrand<PointerBrand> as LiftFn>::new(grate),
 			}
 		}
 	}
@@ -612,7 +610,7 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::CloneableFn,
+		/// 		classes::*,
 		/// 		types::optics::GratePrime,
 		/// 	},
 		/// 	std::rc::Rc,
@@ -621,8 +619,8 @@ mod inner {
 		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
 		/// 	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
 		/// 		(
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0)),
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1)),
+		/// 			f(<RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.0)),
+		/// 			f(<RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.1)),
 		/// 		)
 		/// 	},
 		/// );
@@ -669,8 +667,8 @@ mod inner {
 		/// 	fp_library::{
 		/// 		brands::*,
 		/// 		classes::{
-		/// 			CloneableFn,
 		/// 			optics::*,
+		/// 			*,
 		/// 		},
 		/// 		types::optics::GratePrime,
 		/// 	},
@@ -680,8 +678,8 @@ mod inner {
 		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
 		/// 	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
 		/// 		(
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0)),
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1)),
+		/// 			f(<RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.0)),
+		/// 			f(<RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.1)),
 		/// 		)
 		/// 	},
 		/// );
@@ -698,24 +696,24 @@ mod inner {
 			Q::dimap(
 				move |s: S| {
 					let s_ptr = <PointerBrand as RefCountedPointer>::cloneable_new(s);
-					<FnBrand<PointerBrand> as CloneableFn>::new(
-						move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as LiftFn>::new(
+						move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 							'a,
 							<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 							A,
 						>| { (f)(Clone::clone(&s_ptr)) },
 					)
 				},
-				move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
+				move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
-					<FnBrand<PointerBrand> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
 						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,
 					>,
 					A,
 				>| {
-					let f_brand = <FnBrand<PointerBrand> as CloneableFn>::new(move |x| f(x));
+					let f_brand = <FnBrand<PointerBrand> as LiftFn>::new(move |x| f(x));
 					grate(f_brand)
 				},
 				Q::closed(pab),
@@ -749,8 +747,8 @@ mod inner {
 		/// 	fp_library::{
 		/// 		brands::*,
 		/// 		classes::{
-		/// 			CloneableFn,
 		/// 			optics::*,
+		/// 			*,
 		/// 		},
 		/// 		types::optics::GratePrime,
 		/// 	},
@@ -760,8 +758,8 @@ mod inner {
 		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
 		/// 	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
 		/// 		(
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0)),
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1)),
+		/// 			f(<RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.0)),
+		/// 			f(<RcFnBrand as LiftFn>::new(|s: Rc<(i32, i32)>| s.1)),
 		/// 		)
 		/// 	},
 		/// );
@@ -778,24 +776,24 @@ mod inner {
 			Q::dimap(
 				move |s: S| {
 					let s_ptr = <PointerBrand as RefCountedPointer>::cloneable_new(s);
-					<FnBrand<PointerBrand> as CloneableFn>::new(
-						move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as LiftFn>::new(
+						move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 							'a,
 							<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 							A,
 						>| { (f)(Clone::clone(&s_ptr)) },
 					)
 				},
-				move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
+				move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
-					<FnBrand<PointerBrand> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
 						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,
 					>,
 					A,
 				>| {
-					let f_brand = <FnBrand<PointerBrand> as CloneableFn>::new(move |x| f(x));
+					let f_brand = <FnBrand<PointerBrand> as LiftFn>::new(move |x| f(x));
 					grate(f_brand)
 				},
 				Q::closed(pab),
@@ -828,9 +826,9 @@ mod inner {
 		/// 	fp_library::{
 		/// 		brands::*,
 		/// 		classes::{
-		/// 			CloneableFn,
 		/// 			optics::*,
 		/// 			profunctor::*,
+		/// 			*,
 		/// 		},
 		/// 		types::optics::GratePrime,
 		/// 	},

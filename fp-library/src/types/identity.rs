@@ -8,23 +8,8 @@ mod inner {
 		crate::{
 			Apply,
 			brands::IdentityBrand,
-			classes::{
-				Applicative,
-				ApplyFirst,
-				ApplySecond,
-				CloneableFn,
-				Extend,
-				Extract,
-				Foldable,
-				Functor,
-				Lift,
-				MonadRec,
-				Monoid,
-				Pointed,
-				Semiapplicative,
-				Semimonad,
-				Traversable,
-			},
+			classes::*,
+			dispatch::Ref,
 			impl_kind,
 			kinds::*,
 		},
@@ -369,7 +354,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = map::<IdentityBrand, _, _>(|i| i * 2, x);
+		/// let y = explicit::map::<IdentityBrand, _, _, _, _>(|i| i * 2, x);
 		/// assert_eq!(y, Identity(10));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -411,7 +396,7 @@ mod inner {
 		///
 		/// let x = Identity(1);
 		/// let y = Identity(2);
-		/// let z = lift2::<IdentityBrand, _, _, _>(|a, b| a + b, x, y);
+		/// let z = explicit::lift2::<IdentityBrand, _, _, _, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, Identity(3));
 		/// ```
 		fn lift2<'a, A, B, C>(
@@ -487,13 +472,13 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let f = Identity(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f = Identity(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let x = Identity(5);
 		/// let y = apply::<RcFnBrand, IdentityBrand, _, _>(f, x);
 		/// assert_eq!(y, Identity(10));
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.apply(ff.map(|f| move |a| f(a)))
@@ -528,7 +513,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = bind::<IdentityBrand, _, _>(x, |i| Identity(i * 2));
+		/// let y = explicit::bind::<IdentityBrand, _, _, _, _>(x, |i| Identity(i * 2));
 		/// assert_eq!(y, Identity(10));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
@@ -569,7 +554,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = fold_right::<RcFnBrand, IdentityBrand, _, _>(|a, b| a + b, 10, x);
+		/// let y = explicit::fold_right::<RcFnBrand, IdentityBrand, _, _, _, _>(|a, b| a + b, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a>(
@@ -578,7 +563,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			fa.fold_right(func, initial)
 		}
 
@@ -611,7 +596,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = fold_left::<RcFnBrand, IdentityBrand, _, _>(|b, a| b + a, 10, x);
+		/// let y = explicit::fold_left::<RcFnBrand, IdentityBrand, _, _, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a>(
@@ -620,7 +605,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			fa.fold_left(func, initial)
 		}
 
@@ -650,7 +635,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = fold_map::<RcFnBrand, IdentityBrand, _, _>(|a: i32| a.to_string(), x);
+		/// let y = explicit::fold_map::<RcFnBrand, IdentityBrand, _, _, _, _>(|a: i32| a.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a, M>(
@@ -659,7 +644,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			fa.fold_map(func)
 		}
 	}
@@ -693,7 +678,8 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = traverse::<IdentityBrand, _, _, OptionBrand>(|a| Some(a * 2), x);
+		/// let y =
+		/// 	explicit::traverse::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _, _>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some(Identity(10)));
 		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
@@ -881,6 +867,474 @@ mod inner {
 			Identity(f(wa))
 		}
 	}
+	// -- By-reference trait implementations --
+
+	impl RefFunctor for IdentityBrand {
+		/// Maps a function over the identity by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type of the wrapped value.",
+			"The type of the resulting value."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the value reference.",
+			"The identity to map over."
+		)]
+		///
+		#[document_returns("A new identity containing the result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	explicit::map::<IdentityBrand, _, _, _, _>(|x: &i32| *x * 2, &Identity(5)),
+		/// 	Identity(10)
+		/// );
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Identity(func(&fa.0))
+		}
+	}
+
+	impl RefFoldable for IdentityBrand {
+		/// Folds the identity by reference using a monoid.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the wrapped value.",
+			"The monoid type."
+		)]
+		///
+		#[document_parameters(
+			"The function to map the value reference to a monoid.",
+			"The identity to fold."
+		)]
+		///
+		#[document_returns("The monoid value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result = explicit::fold_map::<RcFnBrand, IdentityBrand, _, _, _, _>(
+		/// 	|x: &i32| x.to_string(),
+		/// 	&Identity(5),
+		/// );
+		/// assert_eq!(result, "5");
+		/// ```
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			func(&fa.0)
+		}
+	}
+
+	impl RefTraversable for IdentityBrand {
+		/// Traverses the identity by reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the wrapped value.",
+			"The type of the resulting value.",
+			"The applicative functor brand."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the value reference.",
+			"The identity to traverse."
+		)]
+		///
+		#[document_returns("The result in the applicative context.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result: Option<Identity<String>> =
+		/// 	ref_traverse::<IdentityBrand, RcFnBrand, _, _, OptionBrand>(
+		/// 		|x: &i32| Some(x.to_string()),
+		/// 		&Identity(42),
+		/// 	);
+		/// assert_eq!(result, Some(Identity("42".to_string())));
+		/// ```
+		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			F::map(Identity, func(&ta.0))
+		}
+	}
+
+	// -- WithIndex trait implementations --
+
+	impl WithIndex for IdentityBrand {
+		type Index = ();
+	}
+
+	impl FunctorWithIndex for IdentityBrand {
+		/// Maps with index over Identity (index is always `()`).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function to apply with index.", "The Identity value.")]
+		#[document_returns("The transformed Identity value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let result = explicit::map_with_index::<IdentityBrand, _, _, _, _>(|(), x| x * 2, Identity(5));
+		/// assert_eq!(result, Identity(10));
+		/// ```
+		fn map_with_index<'a, A: 'a, B: 'a>(
+			func: impl Fn((), A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Identity(func((), fa.0))
+		}
+	}
+
+	impl FoldableWithIndex for IdentityBrand {
+		/// Folds with index over Identity (index is always `()`).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand of the cloneable function to use.",
+			"The element type.",
+			"The monoid type."
+		)]
+		#[document_parameters("The function to apply with index.", "The Identity value.")]
+		#[document_returns("The monoid result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let result: String = explicit::fold_map_with_index::<RcFnBrand, IdentityBrand, _, _, _, _>(
+		/// 	|(), x: i32| x.to_string(),
+		/// 	Identity(42),
+		/// );
+		/// assert_eq!(result, "42");
+		/// ```
+		fn fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
+			func: impl Fn((), A) -> R + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
+			func((), fa.0)
+		}
+	}
+
+	impl TraversableWithIndex for IdentityBrand {
+		/// Traverses with index over Identity (index is always `()`).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The element type.",
+			"The output type.",
+			"The applicative brand."
+		)]
+		#[document_parameters("The function to apply with index.", "The Identity value.")]
+		#[document_returns("The result in the applicative context.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let result: Option<Identity<String>> =
+		/// 	explicit::traverse_with_index::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _, _>(
+		/// 		|(), x: i32| Some(x.to_string()),
+		/// 		Identity(42),
+		/// 	);
+		/// assert_eq!(result, Some(Identity("42".to_string())));
+		/// ```
+		fn traverse_with_index<'a, A: 'a, B: 'a + Clone, M: Applicative>(
+			func: impl Fn((), A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			M::map::<B, Identity<B>>(Identity, func((), ta.0))
+		}
+	}
+
+	// -- By-reference WithIndex implementations --
+
+	impl RefFunctorWithIndex for IdentityBrand {
+		/// Maps with index over Identity by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function to apply with index.", "The Identity value.")]
+		#[document_returns("The transformed Identity value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let result =
+		/// 	explicit::map_with_index::<IdentityBrand, _, _, _, _>(|(), x: &i32| *x * 2, &Identity(5));
+		/// assert_eq!(result, Identity(10));
+		/// ```
+		fn ref_map_with_index<'a, A: 'a, B: 'a>(
+			func: impl Fn((), &A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Identity(func((), &fa.0))
+		}
+	}
+
+	impl RefFoldableWithIndex for IdentityBrand {
+		/// Folds with index over Identity by reference.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand of the cloneable function.",
+			"The element type.",
+			"The monoid type."
+		)]
+		#[document_parameters("The function to apply with index.", "The Identity value.")]
+		#[document_returns("The monoid result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let result: String = explicit::fold_map_with_index::<RcFnBrand, IdentityBrand, _, _, _, _>(
+		/// 	|(), x: &i32| x.to_string(),
+		/// 	&Identity(42),
+		/// );
+		/// assert_eq!(result, "42");
+		/// ```
+		fn ref_fold_map_with_index<'a, FnBrand, A: 'a + Clone, R: Monoid + 'a>(
+			func: impl Fn((), &A) -> R + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> R
+		where
+			FnBrand: LiftFn + 'a, {
+			func((), &fa.0)
+		}
+	}
+
+	impl RefTraversableWithIndex for IdentityBrand {
+		/// Traverses with index over Identity by reference.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The element type.",
+			"The output type.",
+			"The applicative brand."
+		)]
+		#[document_parameters("The function to apply with index.", "The Identity value.")]
+		#[document_returns("The result in the applicative context.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let result: Option<Identity<String>> =
+		/// 	explicit::traverse_with_index::<RcFnBrand, IdentityBrand, _, _, OptionBrand, _, _>(
+		/// 		|(), x: &i32| Some(x.to_string()),
+		/// 		&Identity(42),
+		/// 	);
+		/// assert_eq!(result, Some(Identity("42".to_string())));
+		/// ```
+		fn ref_traverse_with_index<'a, A: 'a + Clone, B: 'a + Clone, M: Applicative>(
+			f: impl Fn((), &A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			M::map(Identity, f((), &ta.0))
+		}
+	}
+
+	// -- By-reference monadic trait implementations --
+
+	impl RefPointed for IdentityBrand {
+		/// Creates an Identity from a reference by cloning.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The value type.")]
+		#[document_parameters("The reference to wrap.")]
+		#[document_returns("An Identity containing a clone of the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let x = 42;
+		/// let result: Identity<i32> = ref_pure::<IdentityBrand, _>(&x);
+		/// assert_eq!(result, Identity(42));
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			Identity(a.clone())
+		}
+	}
+
+	impl RefLift for IdentityBrand {
+		/// Combines two Identity values with a by-reference binary function.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "First input.", "Second input.", "Output.")]
+		#[document_parameters(
+			"The binary function.",
+			"The first Identity.",
+			"The second Identity."
+		)]
+		#[document_returns("The combined Identity.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let result = explicit::lift2::<IdentityBrand, _, _, _, _, _, _>(
+		/// 	|a: &i32, b: &i32| *a + *b,
+		/// 	&Identity(1),
+		/// 	&Identity(2),
+		/// );
+		/// assert_eq!(result, Identity(3));
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			Identity(func(&fa.0, &fb.0))
+		}
+	}
+
+	impl RefSemiapplicative for IdentityBrand {
+		/// Applies a wrapped by-ref function within Identity.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The function brand.",
+			"The input type.",
+			"The output type."
+		)]
+		#[document_parameters(
+			"The Identity containing the function.",
+			"The Identity containing the value."
+		)]
+		#[document_returns("The Identity containing the result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let f: std::rc::Rc<dyn Fn(&i32) -> i32> = std::rc::Rc::new(|x: &i32| *x + 1);
+		/// let result = ref_apply::<RcFnBrand, IdentityBrand, _, _>(&Identity(f), &Identity(5));
+		/// assert_eq!(result, Identity(6));
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Identity((*ff.0)(&fa.0))
+		}
+	}
+
+	impl RefSemimonad for IdentityBrand {
+		/// Chains Identity computations by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The input Identity.", "The function to apply by reference.")]
+		#[document_returns("The resulting Identity.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let result: Identity<String> =
+		/// 	explicit::bind::<IdentityBrand, _, _, _, _>(&Identity(42), |x: &i32| {
+		/// 		Identity(x.to_string())
+		/// 	});
+		/// assert_eq!(result, Identity("42".to_string()));
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			f(&fa.0)
+		}
+	}
 }
 pub use inner::*;
 
@@ -894,17 +1348,8 @@ mod tests {
 				OptionBrand,
 				RcFnBrand,
 			},
-			classes::{
-				cloneable_fn::CloneableFn,
-				functor::map,
-				pointed::pure,
-				semiapplicative::apply,
-				semimonad::bind,
-			},
-			functions::{
-				compose,
-				identity,
-			},
+			classes::*,
+			functions::*,
 		},
 		quickcheck_macros::quickcheck,
 	};
@@ -915,7 +1360,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity(x: i32) -> bool {
 		let x = Identity(x);
-		map::<IdentityBrand, _, _>(identity, x) == x
+		explicit::map::<IdentityBrand, _, _, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -924,8 +1369,11 @@ mod tests {
 		let x = Identity(x);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<IdentityBrand, _, _>(compose(f, g), x)
-			== map::<IdentityBrand, _, _>(f, map::<IdentityBrand, _, _>(g, x))
+		explicit::map::<IdentityBrand, _, _, _, _>(compose(f, g), x)
+			== explicit::map::<IdentityBrand, _, _, _, _>(
+				f,
+				explicit::map::<IdentityBrand, _, _, _, _>(g, x),
+			)
 	}
 
 	// Applicative Laws
@@ -935,7 +1383,7 @@ mod tests {
 	fn applicative_identity(v: i32) -> bool {
 		let v = Identity(v);
 		apply::<RcFnBrand, IdentityBrand, _, _>(
-			pure::<IdentityBrand, _>(<RcFnBrand as CloneableFn>::new(identity)),
+			pure::<IdentityBrand, _>(<RcFnBrand as LiftFn>::new(identity)),
 			v,
 		) == v
 	}
@@ -945,7 +1393,7 @@ mod tests {
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
 		apply::<RcFnBrand, IdentityBrand, _, _>(
-			pure::<IdentityBrand, _>(<RcFnBrand as CloneableFn>::new(f)),
+			pure::<IdentityBrand, _>(<RcFnBrand as LiftFn>::new(f)),
 			pure::<IdentityBrand, _>(x),
 		) == pure::<IdentityBrand, _>(f(x))
 	}
@@ -961,8 +1409,8 @@ mod tests {
 		let v_fn = move |x: i32| x.wrapping_mul(v_val);
 		let u_fn = move |x: i32| x.wrapping_add(u_val);
 
-		let v = pure::<IdentityBrand, _>(<RcFnBrand as CloneableFn>::new(v_fn));
-		let u = pure::<IdentityBrand, _>(<RcFnBrand as CloneableFn>::new(u_fn));
+		let v = pure::<IdentityBrand, _>(<RcFnBrand as LiftFn>::new(v_fn));
+		let u = pure::<IdentityBrand, _>(<RcFnBrand as LiftFn>::new(u_fn));
 
 		// RHS: u <*> (v <*> w)
 		let vw = apply::<RcFnBrand, IdentityBrand, _, _>(v.clone(), w);
@@ -971,7 +1419,7 @@ mod tests {
 		// LHS: pure(compose) <*> u <*> v <*> w
 		// equivalent to (u . v) <*> w
 		let composed = move |x| u_fn(v_fn(x));
-		let uv = pure::<IdentityBrand, _>(<RcFnBrand as CloneableFn>::new(composed));
+		let uv = pure::<IdentityBrand, _>(<RcFnBrand as LiftFn>::new(composed));
 
 		let lhs = apply::<RcFnBrand, IdentityBrand, _, _>(uv, w);
 
@@ -983,12 +1431,11 @@ mod tests {
 	fn applicative_interchange(y: i32) -> bool {
 		// u <*> pure y = pure ($ y) <*> u
 		let f = |x: i32| x.wrapping_mul(2);
-		let u = pure::<IdentityBrand, _>(<RcFnBrand as CloneableFn>::new(f));
+		let u = pure::<IdentityBrand, _>(<RcFnBrand as LiftFn>::new(f));
 
 		let lhs = apply::<RcFnBrand, IdentityBrand, _, _>(u.clone(), pure::<IdentityBrand, _>(y));
 
-		let rhs_fn =
-			<RcFnBrand as CloneableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
+		let rhs_fn = <RcFnBrand as LiftFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
 		let rhs = apply::<RcFnBrand, IdentityBrand, _, _>(pure::<IdentityBrand, _>(rhs_fn), u);
 
 		lhs == rhs
@@ -1000,14 +1447,14 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| Identity(x.wrapping_mul(2));
-		bind::<IdentityBrand, _, _>(pure::<IdentityBrand, _>(a), f) == f(a)
+		explicit::bind::<IdentityBrand, _, _, _, _>(pure::<IdentityBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: i32) -> bool {
 		let m = Identity(m);
-		bind::<IdentityBrand, _, _>(m, pure::<IdentityBrand, _>) == m
+		explicit::bind::<IdentityBrand, _, _, _, _>(m, pure::<IdentityBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -1016,8 +1463,12 @@ mod tests {
 		let m = Identity(m);
 		let f = |x: i32| Identity(x.wrapping_mul(2));
 		let g = |x: i32| Identity(x.wrapping_add(1));
-		bind::<IdentityBrand, _, _>(bind::<IdentityBrand, _, _>(m, f), g)
-			== bind::<IdentityBrand, _, _>(m, |x| bind::<IdentityBrand, _, _>(f(x), g))
+		explicit::bind::<IdentityBrand, _, _, _, _>(
+			explicit::bind::<IdentityBrand, _, _, _, _>(m, f),
+			g,
+		) == explicit::bind::<IdentityBrand, _, _, _, _>(m, |x| {
+			explicit::bind::<IdentityBrand, _, _, _, _>(f(x), g)
+		})
 	}
 
 	// Edge Cases
@@ -1025,20 +1476,26 @@ mod tests {
 	/// Tests the `map` function.
 	#[test]
 	fn map_test() {
-		assert_eq!(map::<IdentityBrand, _, _>(|x: i32| x + 1, Identity(1)), Identity(2));
+		assert_eq!(
+			explicit::map::<IdentityBrand, _, _, _, _>(|x: i32| x + 1, Identity(1)),
+			Identity(2)
+		);
 	}
 
 	/// Tests the `bind` function.
 	#[test]
 	fn bind_test() {
-		assert_eq!(bind::<IdentityBrand, _, _>(Identity(1), |x| Identity(x + 1)), Identity(2));
+		assert_eq!(
+			explicit::bind::<IdentityBrand, _, _, _, _>(Identity(1), |x| Identity(x + 1)),
+			Identity(2)
+		);
 	}
 
 	/// Tests the `fold_right` function.
 	#[test]
 	fn fold_right_test() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<RcFnBrand, IdentityBrand, _, _>(
+			crate::functions::explicit::fold_right::<RcFnBrand, IdentityBrand, _, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				Identity(1)
@@ -1051,7 +1508,7 @@ mod tests {
 	#[test]
 	fn fold_left_test() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<RcFnBrand, IdentityBrand, _, _>(
+			crate::functions::explicit::fold_left::<RcFnBrand, IdentityBrand, _, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				Identity(1)
@@ -1177,7 +1634,7 @@ mod tests {
 		use crate::classes::extract::extract;
 		let f = |a: i32| a.wrapping_mul(5);
 		let wa = Identity(x);
-		extract::<IdentityBrand, _>(map::<IdentityBrand, _, _>(f, wa))
+		extract::<IdentityBrand, _>(explicit::map::<IdentityBrand, _, _, _, _>(f, wa))
 			== f(extract::<IdentityBrand, _>(wa))
 	}
 
@@ -1194,5 +1651,33 @@ mod tests {
 		use crate::classes::extend::extend;
 		let result = extend::<IdentityBrand, _, _>(|w: Identity<i32>| w.0 * 2, Identity(21));
 		assert_eq!(result, Identity(42));
+	}
+
+	// RefFunctor Laws
+
+	/// Tests the identity law for RefFunctor: `ref_map(|x| *x, Identity(v)) == Identity(v)`.
+	#[quickcheck]
+	fn ref_functor_identity(v: i32) -> bool {
+		use crate::classes::ref_functor::RefFunctor;
+		IdentityBrand::ref_map(|x: &i32| *x, &Identity(v)) == Identity(v)
+	}
+
+	/// Tests the composition law for RefFunctor.
+	#[quickcheck]
+	fn ref_functor_composition(v: i32) -> bool {
+		use crate::classes::ref_functor::RefFunctor;
+		let f = |x: &i32| x.wrapping_add(1);
+		let g = |x: &i32| x.wrapping_mul(2);
+		IdentityBrand::ref_map(|x: &i32| f(&g(x)), &Identity(v))
+			== IdentityBrand::ref_map(f, &IdentityBrand::ref_map(g, &Identity(v)))
+	}
+
+	// RefSemimonad Laws
+
+	/// Tests the left identity law for RefSemimonad: `ref_bind(Identity(x), |a| Identity(*a)) == Identity(x)`.
+	#[quickcheck]
+	fn ref_semimonad_left_identity(x: i32) -> bool {
+		use crate::classes::ref_semimonad::RefSemimonad;
+		IdentityBrand::ref_bind(&Identity(x), |a: &i32| Identity(*a)) == Identity(x)
 	}
 }

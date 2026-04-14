@@ -11,7 +11,7 @@
 //! };
 //!
 //! let memo = ArcLazy::new(|| 10);
-//! let mapped = send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(|x: &i32| *x * 2, memo);
+//! let mapped = send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(|x: &i32| *x * 2, &memo);
 //! assert_eq!(*mapped.evaluate(), 20);
 //! ```
 
@@ -53,17 +53,17 @@ mod inner {
 	///
 	/// // Identity: send_ref_map(|x| x.clone(), fa) evaluates to the same value as fa.
 	/// let fa = ArcLazy::pure(5);
-	/// let mapped = send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(|x: &i32| *x, fa.clone());
+	/// let mapped = send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(|x: &i32| *x, &fa);
 	/// assert_eq!(*mapped.evaluate(), *fa.evaluate());
 	///
 	/// // Composition: send_ref_map(|x| f(&g(x)), fa) = send_ref_map(f, send_ref_map(g, fa))
 	/// let f = |x: &i32| x + 1;
 	/// let g = |x: &i32| *x * 2;
 	/// let fa = ArcLazy::pure(5);
-	/// let composed = send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(|x: &i32| f(&g(x)), fa.clone());
+	/// let composed = send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(|x: &i32| f(&g(x)), &fa);
 	/// let sequential = send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(
 	/// 	f,
-	/// 	send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(g, fa),
+	/// 	&send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(g, &fa),
 	/// );
 	/// assert_eq!(*composed.evaluate(), *sequential.evaluate());
 	/// ```
@@ -76,12 +76,14 @@ mod inner {
 	/// downstream mapped value is reachable. Be aware that long chains can accumulate memory
 	/// that is only freed when the final value in the chain is dropped.
 	///
-	/// # Why `FnOnce`?
+	/// # Why `Fn` (not `FnOnce`)?
 	///
-	/// The `func` parameter uses `FnOnce` rather than `Fn` because memoized types like
-	/// `ArcLazy` create a new `ArcLazy` value capturing the closure. Since the resulting
-	/// `ArcLazy` will evaluate the closure at most once, `FnOnce` is sufficient and avoids
-	/// imposing unnecessary `Clone` or multi-call constraints on the caller.
+	/// The `func` parameter uses `Fn` rather than `FnOnce` for consistency
+	/// with [`RefFunctor`](crate::classes::RefFunctor), which requires `Fn`
+	/// to support multi-element containers like `Vec`. Closures that move
+	/// out of their captures (`FnOnce` but not `Fn`) cannot be used with
+	/// `send_ref_map`; these are rare and can be restructured by extracting
+	/// the move into a surrounding scope.
 	#[kind(type Of<'a, A: 'a>: 'a;)]
 	pub trait SendRefFunctor {
 		/// Maps a thread-safe function over the values in the functor context, where the function takes a reference.
@@ -111,12 +113,12 @@ mod inner {
 		/// };
 		///
 		/// let memo = ArcLazy::new(|| 10);
-		/// let mapped = LazyBrand::<ArcLazyConfig>::send_ref_map(|x: &i32| *x * 2, memo);
+		/// let mapped = LazyBrand::<ArcLazyConfig>::send_ref_map(|x: &i32| *x * 2, &memo);
 		/// assert_eq!(*mapped.evaluate(), 20);
 		/// ```
 		fn send_ref_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
-			func: impl FnOnce(&A) -> B + Send + 'a,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			func: impl Fn(&A) -> B + Send + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
 	}
 
@@ -148,12 +150,12 @@ mod inner {
 	/// };
 	///
 	/// let memo = ArcLazy::new(|| 10);
-	/// let mapped = send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(|x: &i32| *x * 2, memo);
+	/// let mapped = send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(|x: &i32| *x * 2, &memo);
 	/// assert_eq!(*mapped.evaluate(), 20);
 	/// ```
 	pub fn send_ref_map<'a, Brand: SendRefFunctor, A: Send + Sync + 'a, B: Send + Sync + 'a>(
-		func: impl FnOnce(&A) -> B + Send + 'a,
-		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		func: impl Fn(&A) -> B + Send + 'a,
+		fa: &Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		Brand::send_ref_map(func, fa)
 	}
@@ -176,7 +178,7 @@ mod tests {
 	#[quickcheck]
 	fn prop_send_ref_functor_identity(x: i32) -> bool {
 		let lazy = ArcLazy::pure(x);
-		let mapped = send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(|v: &i32| *v, lazy.clone());
+		let mapped = send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(|v: &i32| *v, &lazy);
 		*mapped.evaluate() == *lazy.evaluate()
 	}
 
@@ -187,10 +189,10 @@ mod tests {
 		let g = |v: &i32| v.wrapping_add(1);
 		let lazy1 = ArcLazy::pure(x);
 		let lazy2 = ArcLazy::pure(x);
-		let composed = send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(|v: &i32| g(&f(v)), lazy1);
+		let composed = send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(|v: &i32| g(&f(v)), &lazy1);
 		let sequential = send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(
 			g,
-			send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(f, lazy2),
+			&send_ref_map::<LazyBrand<ArcLazyConfig>, _, _>(f, &lazy2),
 		);
 		*composed.evaluate() == *sequential.evaluate()
 	}

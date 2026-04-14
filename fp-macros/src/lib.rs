@@ -17,6 +17,11 @@ pub(crate) mod resolution; // Type resolution
 pub(crate) mod support; // Support utilities (attributes, syntax, validation, errors)
 
 #[cfg(test)]
+#[expect(
+	clippy::unwrap_used,
+	clippy::indexing_slicing,
+	reason = "Tests use panicking operations for brevity and clarity"
+)]
 mod property_tests;
 
 use {
@@ -41,9 +46,11 @@ use {
 		AssociatedTypes,
 		ImplKindInput,
 		apply_worker,
+		generate_inferable_brand_name,
 		generate_name,
 		impl_kind_worker,
 		kind_attr_worker,
+		resolve_inferable_brand,
 		trait_kind_worker,
 	},
 	m_do::{
@@ -120,10 +127,68 @@ use {
 ///
 /// For other positions, you must use the generated name directly (e.g., `Kind_...`).
 #[proc_macro]
-#[allow(non_snake_case)]
+#[expect(non_snake_case, reason = "Matches the PascalCase type-level concept it represents")]
 pub fn Kind(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as AssociatedTypes);
 	let name = match generate_name(&input) {
+		Ok(name) => name,
+		Err(e) => return e.to_compile_error().into(),
+	};
+	quote!(#name).into()
+}
+
+/// Generates the name of an `InferableBrand` trait based on its signature.
+///
+/// This macro is analogous to [`Kind!`] but produces `InferableBrand_{hash}`
+/// identifiers instead of `Kind_{hash}`. Both macros use the same content
+/// hash, so a `Kind` trait and its corresponding `InferableBrand` trait
+/// always share the same hash suffix.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// InferableBrand!(
+///     type AssocName<Params>: Bounds;
+///     // ...
+/// )
+/// ```
+///
+/// * `Associated Types`: A list of associated type definitions (e.g., `type Of<T>;`) that define the signature of the InferableBrand.
+///
+/// ### Generates
+///
+/// The name of the generated `InferableBrand` trait (e.g., `InferableBrand_0123456789abcdef`).
+/// The name is deterministic and based on the same hash as the corresponding `Kind` trait.
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// let name = InferableBrand!(type Of<'a, A: 'a>: 'a;);
+///
+/// // Expanded code
+/// let name = InferableBrand_...; // e.g., InferableBrand_cdc7cd43dac7585f
+/// ```
+///
+/// ```ignore
+/// // Inside Apply! (the primary use case)
+/// Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>)
+/// ```
+///
+/// ### Limitations
+///
+/// Due to Rust syntax restrictions, this macro cannot be used directly in positions where a
+/// concrete path is expected by the parser, such as:
+/// * Trait bounds: `FA: InferableBrand!(...) {}` (Invalid)
+/// * Qualified paths: `<FA as InferableBrand!(...)>::Brand` (Invalid)
+///
+/// In these positions, use the generated name directly (e.g., `InferableBrand_cdc7cd43dac7585f`).
+/// Inside `Apply!()`, the macro is supported and resolved automatically via preprocessing.
+#[proc_macro]
+#[expect(non_snake_case, reason = "Matches the PascalCase type-level concept it represents")]
+pub fn InferableBrand(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as AssociatedTypes);
+	let name = match generate_inferable_brand_name(&input) {
 		Ok(name) => name,
 		Err(e) => return e.to_compile_error().into(),
 	};
@@ -147,7 +212,11 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 ///
 /// ### Generates
 ///
-/// A public trait definition with a unique name derived from the signature (format: `Kind_{hash}`).
+/// Two public trait definitions with unique names derived from the signature:
+///
+/// 1. `Kind_{hash}`: The HKT trait with the specified associated types.
+/// 2. `InferableBrand_{hash}`: A reverse-mapping trait for brand inference,
+///    with a blanket `impl for &T`. Both share the same content hash.
 ///
 /// ### Examples
 ///
@@ -156,8 +225,14 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 /// trait_kind!(type Of<T>;);
 ///
 /// // Expanded code
-/// pub trait Kind_... { // e.g., Kind_a1b2c3d4e5f67890
+/// pub trait Kind_a1b2... {
 ///     type Of<T>;
+/// }
+/// pub trait InferableBrand_a1b2... {
+///     type Brand: Kind_a1b2...;
+/// }
+/// impl<T: InferableBrand_a1b2... + ?Sized> InferableBrand_a1b2... for &T {
+///     type Brand = T::Brand;
 /// }
 /// ```
 ///
@@ -165,24 +240,14 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 /// // Invocation
 /// trait_kind!(type Of<'a, T: Display>: Debug;);
 ///
-/// // Expanded code
-/// pub trait Kind_... {
+/// // Expanded code (same pattern: Kind trait + InferableBrand trait + blanket ref impl)
+/// pub trait Kind_cdef... {
 ///     type Of<'a, T: Display>: Debug;
 /// }
-/// ```
-///
-/// ```ignore
-/// // Invocation
-/// trait_kind!(
-///     type Of<T>;
-///     type SendOf<T>: Send;
-/// );
-///
-/// // Expanded code
-/// pub trait Kind_... {
-///     type Of<T>;
-///     type SendOf<T>: Send;
+/// pub trait InferableBrand_cdef... {
+///     type Brand: Kind_cdef...;
 /// }
+/// impl<T: InferableBrand_cdef... + ?Sized> InferableBrand_cdef... for &T { ... }
 /// ```
 #[proc_macro]
 pub fn trait_kind(input: TokenStream) -> TokenStream {
@@ -224,12 +289,22 @@ pub fn trait_kind(input: TokenStream) -> TokenStream {
 ///
 /// ### Generates
 ///
-/// An implementation of the appropriate `Kind` trait for the brand.
+/// 1. An implementation of the appropriate `Kind_{hash}` trait for the brand.
+/// 2. An `InferableBrand_{hash}` impl for the target type, mapping it back to
+///    the brand. This enables brand inference for free functions like `map`,
+///    `bind`, etc.
+///
+/// The `InferableBrand` impl is suppressed when:
+/// - `#[no_inferable_brand]` is present (for types with multiple brands).
+/// - The target type is a projection (contains `Apply!` or `::`).
+/// - Multiple associated types are defined.
 ///
 /// ### Attributes
 ///
-/// Inside the `impl_kind!` block, you can use documentation-specific attributes on associated types:
+/// Inside the `impl_kind!` block, you can use these attributes:
 ///
+/// * `#[no_inferable_brand]`: Suppresses `InferableBrand` impl generation. Use this for
+///   types reachable through multiple brands (e.g., `Result` at arity 1).
 /// * `#[document_default]`: Marks this associated type as the default for resolving bare `Self` in
 ///   the generated documentation for this brand within the module.
 ///
@@ -244,14 +319,17 @@ pub fn trait_kind(input: TokenStream) -> TokenStream {
 ///     }
 /// }
 ///
-/// // Expanded code
-/// impl Kind_... for OptionBrand { // e.g., Kind_a1b2c3d4e5f67890
+/// // Expanded code (Kind impl + InferableBrand impl)
+/// impl Kind_a1b2... for OptionBrand {
 ///     type Of<A> = Option<A>;
+/// }
+/// impl<A> InferableBrand_a1b2... for Option<A> {
+///     type Brand = OptionBrand;
 /// }
 /// ```
 ///
 /// ```ignore
-/// // Invocation
+/// // Invocation with impl generics
 /// impl_kind! {
 ///     impl<E> for ResultBrand<E> {
 ///         type Of<A> = Result<A, E>;
@@ -262,10 +340,28 @@ pub fn trait_kind(input: TokenStream) -> TokenStream {
 /// impl<E> Kind_... for ResultBrand<E> {
 ///     type Of<A> = Result<A, E>;
 /// }
+/// impl<A, E> InferableBrand_... for Result<A, E> {
+///     type Brand = ResultBrand<E>;
+/// }
 /// ```
 ///
 /// ```ignore
-/// // Invocation
+/// // Suppressing InferableBrand generation for multi-brand types
+/// impl_kind! {
+///     #[no_inferable_brand]
+///     impl<E> for ResultErrAppliedBrand<E> {
+///         type Of<'a, A: 'a>: 'a = Result<A, E>;
+///     }
+/// }
+///
+/// // Expanded code (only Kind impl, no InferableBrand)
+/// impl<E> Kind_... for ResultErrAppliedBrand<E> {
+///     type Of<'a, A: 'a>: 'a = Result<A, E>;
+/// }
+/// ```
+///
+/// ```ignore
+/// // Multiple associated types: InferableBrand skipped automatically
 /// impl_kind! {
 ///     impl<E> for MyBrand<E> where E: Clone {
 ///         type Of<A> = MyType<A, E>;
@@ -273,26 +369,10 @@ pub fn trait_kind(input: TokenStream) -> TokenStream {
 ///     }
 /// }
 ///
-/// // Expanded code
+/// // Expanded code (only Kind impl)
 /// impl<E> Kind_... for MyBrand<E> where E: Clone {
 ///     type Of<A> = MyType<A, E>;
 ///     type SendOf<A> = MySendType<A, E>;
-/// }
-/// ```
-///
-/// ```ignore
-/// // Invocation
-/// // Corresponds to: trait_kind!(type Of<T: Display>;);
-/// impl_kind! {
-///     for DisplayBrand {
-///         // Bounds here are used to infer the correct `Kind` trait name
-///         type Of<T: Display> = DisplayType<T>;
-///     }
-/// }
-///
-/// // Expanded code
-/// impl Kind_... for DisplayBrand {
-///     type Of<T: Display> = DisplayType<T>;
 /// }
 /// ```
 #[proc_macro]
@@ -310,13 +390,17 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 /// `Kind` trait. It uses a syntax that mimics a fully qualified path, where the
 /// `Kind` trait is specified by its signature.
 ///
+/// `InferableBrand!(SIG)` invocations within the brand position are resolved
+/// automatically via preprocessing, enabling readable signatures like:
+/// `Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!(...)>::Of<'a, B>)`
+///
 /// ### Syntax
 ///
 /// ```ignore
 /// Apply!(<Brand as Kind!( KindSignature )>::AssocType<Args>)
 /// ```
 ///
-/// * `Brand`: The brand type (e.g., `OptionBrand`).
+/// * `Brand`: The brand type (e.g., `OptionBrand`). May contain `InferableBrand!(SIG)` invocations.
 /// * `KindSignature`: A list of associated type definitions defining the `Kind` trait schema.
 /// * `AssocType`: The associated type to project (e.g., `Of`).
 /// * `Args`: The concrete arguments to apply.
@@ -362,10 +446,27 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 /// // Expanded code
 /// type Concrete = <MyBrand as Kind_...>::SendOf<T>;
 /// ```
+///
+/// ```ignore
+/// // InferableBrand! in the brand position (resolved via preprocessing)
+/// Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>)
+///
+/// // Expanded code (InferableBrand! resolved to InferableBrand_cdc7...)
+/// <FA as InferableBrand_cdc7...>::Brand as Kind_cdc7...>::Of<'a, B>
+/// ```
 #[proc_macro]
-#[allow(non_snake_case)]
+#[expect(non_snake_case, reason = "Matches the PascalCase type-level concept it represents")]
 pub fn Apply(input: TokenStream) -> TokenStream {
-	let input = parse_macro_input!(input as ApplyInput);
+	// Resolve any InferableBrand!(SIG) invocations before parsing.
+	let preprocessed: proc_macro2::TokenStream = input.into();
+	let preprocessed = match resolve_inferable_brand(preprocessed) {
+		Ok(ts) => ts,
+		Err(e) => return e.to_compile_error().into(),
+	};
+	let input = match syn::parse2::<ApplyInput>(preprocessed) {
+		Ok(input) => input,
+		Err(e) => return e.to_compile_error().into(),
+	};
 	match apply_worker(input) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
@@ -428,37 +529,48 @@ pub fn kind(
 /// Generates re-exports for all public free functions in a directory.
 ///
 /// This macro scans the specified directory for Rust files, parses them to find public free functions,
-/// and generates `pub use` statements for them. It supports aliasing to resolve name conflicts.
+/// and generates `pub use` statements for them. It supports aliasing to resolve name conflicts
+/// and exclusions to suppress specific functions from being re-exported.
 ///
 /// ### Syntax
 ///
 /// ```ignore
 /// generate_function_re_exports!("path/to/directory", {
-///     original_name: aliased_name,
+///     "module::name": aliased_name,
+///     ...
+/// }, exclude {
+///     "module::name",
 ///     ...
 /// })
 /// ```
 ///
 /// * `path/to/directory`: The path to the directory containing the modules, relative to the crate root.
-/// * `aliases`: A map of function names to their desired aliases.
+/// * `aliases` (optional): A map of function names to their desired aliases. Keys can be
+///   qualified (`"module::function"`) or unqualified (`"function"`). When aliased, the function
+///   is exported under the alias name only.
+/// * `exclude` (optional): A set of function names to suppress entirely. Keys use the same
+///   qualified/unqualified format as aliases. Excluded functions are not re-exported at all,
+///   but remain available in their original modules.
 ///
 /// ### Generates
 ///
-/// `pub use` statements for each public function found in the directory.
+/// `pub use` statements for each public function found in the directory, except those
+/// listed in the `exclude` block.
 ///
 /// ### Examples
 ///
 /// ```ignore
-/// // Invocation
 /// generate_function_re_exports!("src/classes", {
-///     identity: category_identity,
-///     new: fn_new,
+///     "category::identity": category_identity,
+///     "filterable::filter": filterable_filter,
+/// }, exclude {
+///     "ref_filterable::ref_filter",
+///     "ref_filterable::ref_filter_map",
 /// });
 ///
-/// // Expanded code
-/// pub use src::classes::category::identity as category_identity;
-/// pub use src::classes::function::new as fn_new;
-/// // ... other re-exports
+/// // Expanded: re-exports all public functions except ref_filter and ref_filter_map.
+/// // category::identity is exported as category_identity.
+/// // filterable::filter is exported as filterable_filter.
 /// ```
 #[proc_macro]
 pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
@@ -469,28 +581,33 @@ pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
 /// Generates re-exports for all public traits in a directory.
 ///
 /// This macro scans the specified directory for Rust files, parses them to find public traits,
-/// and generates `pub use` statements for them.
+/// and generates `pub use` statements for them. Supports the same aliasing and exclusion
+/// syntax as [`generate_function_re_exports!`].
 ///
 /// ### Syntax
 ///
 /// ```ignore
 /// generate_trait_re_exports!("path/to/directory", {
-///     original_name: aliased_name,
+///     "module::TraitName": AliasedName,
+///     ...
+/// }, exclude {
+///     "module::TraitName",
 ///     ...
 /// })
 /// ```
 ///
 /// * `path/to/directory`: The path to the directory containing the modules, relative to the crate root.
-/// * `aliases`: A map of trait names to their desired aliases (optional).
+/// * `aliases` (optional): A map of trait names to their desired aliases.
+/// * `exclude` (optional): A set of trait names to suppress from re-export.
 ///
 /// ### Generates
 ///
-/// `pub use` statements for each public trait found in the directory.
+/// `pub use` statements for each public trait found in the directory, except those
+/// listed in the `exclude` block.
 ///
 /// ### Examples
 ///
 /// ```ignore
-/// // Invocation
 /// generate_trait_re_exports!("src/classes", {});
 ///
 /// // Expanded code
@@ -515,9 +632,18 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 /// ### Syntax
 ///
 /// ```ignore
+/// // Auto-generate from the function signature
 /// #[document_signature]
 /// pub fn function_name<Generics>(params) -> ReturnType { ... }
+///
+/// // Manual override with an explicit signature string
+/// #[document_signature("forall A B. (A -> B) -> A -> B")]
+/// pub fn function_name<Generics>(params) -> ReturnType { ... }
 /// ```
+///
+/// When a string argument is provided, it is emitted directly as the
+/// signature without any analysis. This is useful for functions whose
+/// signatures cannot be inferred automatically.
 ///
 /// When applying this macro to a method inside a trait, you can provide the trait name
 /// as an argument to correctly generate the `Trait self` constraint.
@@ -564,6 +690,32 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 ///     fn map<A, B>(f: impl Fn(A) -> B, fa: Self::Of<A>) -> Self::Of<B>;
 /// }
 /// ```
+///
+/// Manual override:
+///
+/// ```ignore
+/// // Invocation
+/// #[document_signature("forall F A B. Contravariant F => (B -> A, F A) -> F B")]
+/// pub fn contramap<FA, A, B>(f: impl Fn(B) -> A, fa: FA) -> FA::Of<B> { ... }
+///
+/// // Expanded code
+/// /// ### Type Signature
+/// /// `forall F A B. Contravariant F => (B -> A, F A) -> F B`
+/// pub fn contramap<FA, A, B>(f: impl Fn(B) -> A, fa: FA) -> FA::Of<B> { ... }
+/// ```
+///
+/// ### Dispatch-aware generation
+///
+/// When used inside a module annotated with
+/// [`#[document_module]`](macro@document_module), this macro benefits
+/// from dispatch trait analysis. If the function references a dispatch
+/// trait (via `impl *Dispatch<...>` or a where-clause bound), the
+/// macro builds a synthetic signature that replaces dispatch machinery
+/// with semantic equivalents (branded types, closure arrows, type
+/// class constraints). This produces cleaner signatures like
+/// `forall Brand A B. Functor Brand => (A -> B, Brand A) -> Brand B`
+/// instead of the raw Rust signature with `InferableBrand` and
+/// `Kind_*` bounds.
 ///
 /// ### Configuration
 ///
@@ -1072,11 +1224,13 @@ pub fn document_module(
 /// Monadic do-notation.
 ///
 /// Desugars flat monadic syntax into nested `bind` calls, matching
-/// Haskell/PureScript `do` notation.
+/// Haskell/PureScript `do` notation. Supports both explicit-brand and
+/// inferred-brand modes.
 ///
 /// ### Syntax
 ///
 /// ```ignore
+/// // Explicit mode: brand specified, pure() rewritten automatically
 /// m_do!(Brand {
 ///     x <- expr;            // Bind: extract value from monadic computation
 ///     y: Type <- expr;      // Typed bind: with explicit type annotation
@@ -1084,67 +1238,104 @@ pub fn document_module(
 ///     expr;                 // Sequence: discard result (shorthand for `_ <- expr;`)
 ///     let z = expr;         // Let binding: pure, not monadic
 ///     let w: Type = expr;   // Typed let binding
-///     expr                  // Final expression: no semicolon, returned as-is
+///     pure(z)               // pure() rewritten to pure::<Brand, _>(z)
 /// })
+///
+/// // Inferred mode: brand inferred from container types
+/// m_do!({
+///     x <- Some(5);         // Brand inferred from Some(5) via InferableBrand
+///     y <- Some(x + 1);
+///     Some(x + y)           // Write concrete constructor (pure() not available)
+/// })
+///
+/// // By-reference modes:
+/// m_do!(ref Brand { ... })  // Explicit, ref dispatch
+/// m_do!(ref { ... })        // Inferred, ref dispatch
 /// ```
 ///
-/// * `Brand`: The monad brand type (e.g., `OptionBrand`, `VecBrand`).
-/// * `x <- expr;`: Binds the result of a monadic expression to a pattern.
-/// * `let z = expr;`: A pure let binding (not monadic).
-/// * `expr;`: Sequences a monadic expression, discarding the result.
-/// * `expr` (final): The return expression, emitted as-is.
-///
-/// Bare `pure(args)` calls are automatically rewritten to `pure::<Brand, _>(args)`.
+/// * `Brand` (optional): The monad brand type. When omitted, the brand is inferred
+///   from container types via `InferableBrand`.
+/// * `ref` (optional): Enables by-reference dispatch. Closures receive `&A`
+///   instead of `A`, routing through `RefSemimonad::ref_bind`. Typed binds
+///   use the type as-is (include `&` in the type annotation). Untyped binds
+///   get `: &_` added automatically.
+/// * In explicit mode, bare `pure(args)` calls are rewritten to `pure::<Brand, _>(args)`
+///   (or `ref_pure::<Brand, _>(&args)` in ref mode).
+/// * In inferred mode, bare `pure(args)` calls emit a `compile_error!` because
+///   `pure` has no container argument to infer the brand from. Write concrete
+///   constructors instead (e.g., `Some(x)` instead of `pure(x)`).
 ///
 /// ### Statement Forms
 ///
-/// | Syntax | Expansion |
-/// |--------|-----------|
-/// | `x <- expr;` | `bind::<Brand, _, _>(expr, move \|x\| { … })` |
-/// | `x: Type <- expr;` | `bind::<Brand, _, _>(expr, move \|x: Type\| { … })` |
-/// | `_ <- expr;` | `bind::<Brand, _, _>(expr, move \|_\| { … })` |
-/// | `expr;` | `bind::<Brand, _, _>(expr, move \|_\| { … })` |
-/// | `let x = expr;` | `{ let x = expr; … }` |
-/// | `expr` (final) | Emitted as-is |
-///
-/// ### Generates
-///
-/// Nested `bind` calls equivalent to hand-written monadic code.
+/// | Syntax | Explicit expansion | Inferred expansion |
+/// |--------|--------------------|--------------------|
+/// | `x <- expr;` | `explicit::bind::<Brand, _, _, _, _>(expr, move \|x\| { ... })` | `bind(expr, move \|x\| { ... })` |
+/// | `x: Type <- expr;` | Same with `\|x: Type\|` | Same with `\|x: Type\|` |
+/// | `expr;` | `explicit::bind::<Brand, _, _, _, _>(expr, move \|_\| { ... })` | `bind(expr, move \|_\| { ... })` |
+/// | `let x = expr;` | `{ let x = expr; ... }` | `{ let x = expr; ... }` |
+/// | `expr` (final) | Emitted as-is | Emitted as-is |
 ///
 /// ### Examples
 ///
 /// ```ignore
-/// // Invocation
-/// use fp_library::{brands::*, functions::*};
-/// use fp_macros::m_do;
-///
-/// let result = m_do!(OptionBrand {
+/// // Inferred mode (primary API for single-brand types)
+/// let result = m_do!({
 ///     x <- Some(5);
 ///     y <- Some(x + 1);
 ///     let z = x * y;
-///     pure(z)
+///     Some(z)
 /// });
 /// assert_eq!(result, Some(30));
 ///
-/// // Expanded code
-/// let result = bind::<OptionBrand, _, _>(Some(5), move |x| {
-///     bind::<OptionBrand, _, _>(Some(x + 1), move |y| {
+/// // Expands to:
+/// let result = bind(Some(5), move |x| {
+///     bind(Some(x + 1), move |y| {
 ///         let z = x * y;
-///         pure::<OptionBrand, _>(z)
+///         Some(z)
 ///     })
 /// });
 /// ```
 ///
 /// ```ignore
-/// // Invocation
-/// // Works with any monad brand
+/// // Explicit mode (for ambiguous types or to use pure())
 /// let result = m_do!(VecBrand {
 ///     x <- vec![1, 2];
 ///     y <- vec![10, 20];
 ///     pure(x + y)
 /// });
 /// assert_eq!(result, vec![11, 21, 12, 22]);
+///
+/// // Expands to:
+/// let result = explicit::bind::<VecBrand, _, _, _, _>(vec![1, 2], move |x| {
+///     explicit::bind::<VecBrand, _, _, _, _>(vec![10, 20], move |y| {
+///         pure::<VecBrand, _>(x + y)
+///     })
+/// });
 /// ```
+///
+/// ### Ref mode: multi-bind limitation
+///
+/// In ref mode, each bind generates a `move` closure that receives `&A`.
+/// Inner closures cannot capture references from outer binds because the
+/// reference lifetime is scoped to the outer closure. Attempting to use a
+/// ref-bound variable in a later bind produces a lifetime error.
+///
+/// **Workaround:** use `let` bindings to dereference or clone values so
+/// they become owned and can be captured by later closures:
+///
+/// ```ignore
+/// m_do!(ref LazyBrand {
+///     x: &i32 <- lazy_a;
+///     let x_val = *x;          // dereference into owned value
+///     y: &i32 <- lazy_b;
+///     pure(x_val + *y)         // x_val is owned, safe to use here
+/// })
+/// ```
+///
+/// When all binds are independent (no bind uses the result of another),
+/// prefer [`a_do!`] instead. Applicative do-notation evaluates all
+/// expressions independently, so there is no closure nesting and no
+/// capture issue.
 #[proc_macro]
 pub fn m_do(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as DoInput);
@@ -1156,46 +1347,65 @@ pub fn m_do(input: TokenStream) -> TokenStream {
 
 /// Applicative do-notation.
 ///
-/// Desugars flat applicative syntax into `pure` / `map` / `lift2`–`lift5`
+/// Desugars flat applicative syntax into `pure` / `map` / `lift2`-`lift5`
 /// calls, matching PureScript `ado` notation. Unlike [`m_do!`], bindings are
 /// independent: later bind expressions cannot reference earlier bound variables.
+/// Supports both explicit-brand and inferred-brand modes.
 ///
 /// ### Syntax
 ///
 /// ```ignore
+/// // Explicit mode
 /// a_do!(Brand {
 ///     x <- expr;            // Bind: independent applicative computation
 ///     y: Type <- expr;      // Typed bind: with explicit type annotation
 ///     _ <- expr;            // Discard bind: compute for effect
 ///     expr;                 // Sequence: shorthand for `_ <- expr;`
 ///     let z = expr;         // Let binding: placed inside the combining closure
-///     let w: Type = expr;   // Typed let binding
 ///     expr                  // Final expression: the combining body
 /// })
+///
+/// // Inferred mode (brand inferred from container types)
+/// a_do!({
+///     x <- Some(3);
+///     y <- Some(4);
+///     x + y
+/// })
+///
+/// // By-reference modes:
+/// a_do!(ref Brand { ... })  // Explicit, ref dispatch
+/// a_do!(ref { ... })        // Inferred, ref dispatch
 /// ```
 ///
-/// * `Brand`: The applicative brand type (e.g., `OptionBrand`, `VecBrand`).
+/// * `Brand` (optional): The applicative brand type. When omitted, the brand is
+///   inferred from container types via `InferableBrand`.
+/// * `ref` (optional): Enables by-reference dispatch. The combining closure
+///   receives references (`&A`, `&B`, etc.) via `RefLift::ref_lift2`. Typed
+///   binds use the type as-is (include `&`). Untyped binds get `: &_`.
 /// * Bind expressions are evaluated independently (applicative, not monadic).
 /// * `let` bindings before any `<-` are hoisted outside the combinator call.
 /// * `let` bindings after a `<-` are placed inside the combining closure.
-/// * Bare `pure(args)` calls in bind expressions are rewritten to `pure::<Brand, _>(args)`.
+/// * In explicit mode, bare `pure(args)` calls are rewritten to `pure::<Brand, _>(args)`.
+/// * In inferred mode, bare `pure(args)` calls emit a `compile_error!`.
+/// * In inferred mode with 0 binds, a `compile_error!` is emitted because
+///   `pure()` requires a brand. Write the concrete constructor directly.
 ///
 /// ### Desugaring
 ///
-/// | Binds | Expansion |
-/// |-------|-----------|
-/// | 0 | `pure::<Brand, _>(final_expr)` |
-/// | 1 | `map::<Brand, _, _>(\|x\| body, expr)` |
-/// | N (2–5) | `liftN::<Brand, _, …>(\|x, y, …\| body, expr1, expr2, …)` |
+/// | Binds | Explicit expansion | Inferred expansion |
+/// |-------|--------------------|--------------------|
+/// | 0 | `pure::<Brand, _>(final_expr)` | `compile_error!` |
+/// | 1 | `explicit::map::<Brand, _, _, _, _>(\|x\| body, expr)` | `map(\|x\| body, expr)` |
+/// | N (2-5) | `explicit::liftN::<Brand, ...>(\|x, y, ...\| body, ...)` | `liftN(\|x, y, ...\| body, ...)` |
 ///
 /// ### Examples
 ///
 /// ```ignore
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::functions::*;
 /// use fp_macros::a_do;
 ///
-/// // Two independent computations combined with lift2
-/// let result = a_do!(OptionBrand {
+/// // Inferred mode: two independent computations combined with lift2
+/// let result = a_do!({
 ///     x <- Some(3);
 ///     y <- Some(4);
 ///     x + y
@@ -1203,15 +1413,29 @@ pub fn m_do(input: TokenStream) -> TokenStream {
 /// assert_eq!(result, Some(7));
 ///
 /// // Expands to:
-/// let result = lift2::<OptionBrand, _, _, _>(|x, y| x + y, Some(3), Some(4));
+/// let result = lift2(|x, y| x + y, Some(3), Some(4));
 ///
-/// // Single bind uses map
-/// let result = a_do!(OptionBrand { x <- Some(5); x * 2 });
+/// // Inferred mode: single bind uses map
+/// let result = a_do!({ x <- Some(5); x * 2 });
 /// assert_eq!(result, Some(10));
 ///
-/// // No binds uses pure
+/// // Expands to:
+/// let result = map(|x| x * 2, Some(5));
+/// ```
+///
+/// ```ignore
+/// // Explicit mode: zero-bind block uses pure (requires brand)
 /// let result: Option<i32> = a_do!(OptionBrand { 42 });
 /// assert_eq!(result, Some(42));
+///
+/// // Expands to:
+/// let result: Option<i32> = pure::<OptionBrand, _>(42);
+///
+/// // Explicit mode: single bind
+/// let result = a_do!(OptionBrand { x <- Some(5); x * 2 });
+///
+/// // Expands to:
+/// let result = explicit::map::<OptionBrand, _, _, _, _>(|x| x * 2, Some(5));
 /// ```
 #[proc_macro]
 pub fn a_do(input: TokenStream) -> TokenStream {

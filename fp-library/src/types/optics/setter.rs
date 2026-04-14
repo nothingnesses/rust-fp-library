@@ -9,10 +9,8 @@ mod inner {
 			Apply,
 			brands::FnBrand,
 			classes::{
-				CloneableFn,
-				Function,
-				UnsizedCoercible,
 				optics::*,
+				*,
 			},
 			kinds::*,
 		},
@@ -118,7 +116,7 @@ mod inner {
 		/// ```
 		pub fn new(over: impl 'a + Fn((S, Box<dyn Fn(A) -> B + 'a>)) -> T) -> Self {
 			Setter {
-				over_fn: <FnBrand<PointerBrand> as CloneableFn>::new(over),
+				over_fn: <FnBrand<PointerBrand> as LiftFn>::new(over),
 			}
 		}
 
@@ -189,7 +187,7 @@ mod inner {
 		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
 		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&s, f);
 		/// assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));
 		/// ```
@@ -198,7 +196,7 @@ mod inner {
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, T>) {
 			let over = self.over_fn.clone();
-			<FnBrand<Q> as Function>::new(move |s: S| {
+			<FnBrand<Q> as Arrow>::arrow(move |s: S| {
 				let pab_clone = pab.clone();
 				over((s, Box::new(move |a| pab_clone(a))))
 			})
@@ -247,7 +245,7 @@ mod inner {
 		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
 		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
 		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&s, f);
 		/// assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));
@@ -347,7 +345,7 @@ mod inner {
 		/// ```
 		pub fn new(over: impl 'a + Fn((S, Box<dyn Fn(A) -> A + 'a>)) -> S) -> Self {
 			SetterPrime {
-				over_fn: <FnBrand<PointerBrand> as CloneableFn>::new(over),
+				over_fn: <FnBrand<PointerBrand> as LiftFn>::new(over),
 			}
 		}
 
@@ -414,7 +412,7 @@ mod inner {
 		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
 		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&s, f);
 		/// assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));
 		/// ```
@@ -423,7 +421,7 @@ mod inner {
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>) {
 			let over = self.over_fn.clone();
-			<FnBrand<Q> as Function>::new(move |s: S| {
+			<FnBrand<Q> as Arrow>::arrow(move |s: S| {
 				let pab_clone = pab.clone();
 				over((s, Box::new(move |a| pab_clone(a))))
 			})
@@ -468,7 +466,7 @@ mod inner {
 		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
 		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
 		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&s, f);
 		/// assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));

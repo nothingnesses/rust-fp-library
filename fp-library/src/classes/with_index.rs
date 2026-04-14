@@ -17,7 +17,10 @@ mod inner {
 	/// `FunctorWithIndex`, `FoldableWithIndex`, and `TraversableWithIndex` for the same brand.
 	pub trait WithIndex {
 		/// The index type for this structure.
-		type Index;
+		///
+		/// Must be `Clone` to support default implementations of fold/traverse
+		/// operations that compose closures over the index.
+		type Index: Clone;
 	}
 }
 

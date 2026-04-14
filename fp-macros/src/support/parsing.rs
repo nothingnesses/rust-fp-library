@@ -91,14 +91,6 @@ pub fn parse_generics(generics: &Generics) -> Result<&Generics> {
 	Ok(generics)
 }
 
-/// Validates that a token stream of attributes is empty.
-pub fn parse_empty_attributes(attrs: TokenStream) -> Result<TokenStream> {
-	if !attrs.is_empty() {
-		return Err(Error::validation(Span::call_site(), "This macro does not accept attributes"));
-	}
-	Ok(attrs)
-}
-
 /// Parses entry count, returning both expected and provided if they match.
 ///
 /// # Parameters
@@ -211,6 +203,7 @@ pub fn parse_parameter_documentation_pairs(
 }
 
 #[cfg(test)]
+#[expect(clippy::unwrap_used, reason = "Tests use panicking operations for brevity and clarity")]
 mod tests {
 	use super::*;
 
@@ -255,15 +248,6 @@ mod tests {
 		assert!(result.is_ok());
 		let returned_generics = result.unwrap();
 		assert_eq!(returned_generics.params.len(), 2);
-	}
-
-	#[test]
-	fn test_parse_empty_attributes() {
-		let empty = TokenStream::new();
-		assert!(parse_empty_attributes(empty).is_ok());
-
-		let not_empty = quote::quote!(#[attr]);
-		assert!(parse_empty_attributes(not_empty).is_err());
 	}
 
 	#[test]

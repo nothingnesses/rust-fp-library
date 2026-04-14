@@ -10,8 +10,6 @@ mod inner {
 				optics::*,
 			},
 			classes::{
-				CloneableFn,
-				UnsizedCoercible,
 				monoid::Monoid,
 				optics::*,
 				profunctor::{
@@ -19,6 +17,7 @@ mod inner {
 					Strong,
 					Wander,
 				},
+				*,
 			},
 			kinds::*,
 			types::optics::Tagged,
@@ -129,8 +128,8 @@ mod inner {
 			review: impl 'a + Fn(B) -> T,
 		) -> Self {
 			Prism {
-				preview: <FnBrand<PointerBrand> as CloneableFn>::new(preview),
-				review: <FnBrand<PointerBrand> as CloneableFn>::new(review),
+				preview: <FnBrand<PointerBrand> as LiftFn>::new(preview),
+				review: <FnBrand<PointerBrand> as LiftFn>::new(review),
 			}
 		}
 
@@ -227,7 +226,7 @@ mod inner {
 		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
 		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&ok_prism, f);
 		/// assert_eq!(modifier(Some(21)), Some(42));
 		/// assert_eq!(modifier(None), None);
@@ -292,7 +291,7 @@ mod inner {
 		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
 		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn(Option<i32>) -> Option<i32>> =
 		/// 	PrismOptic::evaluate::<RcFnBrand>(&ok_prism, f);
 		/// assert_eq!(modifier(Some(21)), Some(42));
@@ -342,7 +341,7 @@ mod inner {
 		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
 		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn(Option<i32>) -> Option<i32>> =
 		/// 	AffineTraversalOptic::evaluate::<RcFnBrand>(&ok_prism, f);
 		/// assert_eq!(modifier(Some(21)), Some(42));
@@ -392,7 +391,7 @@ mod inner {
 		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
 		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn(Option<i32>) -> Option<i32>> =
 		/// 	TraversalOptic::evaluate::<RcFnBrand>(&ok_prism, f);
 		/// assert_eq!(modifier(Some(21)), Some(42));
@@ -490,7 +489,7 @@ mod inner {
 		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
 		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn(Option<i32>) -> Option<i32>> =
 		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&ok_prism, f);
 		/// assert_eq!(modifier(Some(21)), Some(42));
@@ -640,8 +639,8 @@ mod inner {
 			review: impl 'a + Fn(A) -> S,
 		) -> Self {
 			PrismPrime {
-				preview_fn: <FnBrand<PointerBrand> as CloneableFn>::new(preview),
-				review_fn: <FnBrand<PointerBrand> as CloneableFn>::new(review),
+				preview_fn: <FnBrand<PointerBrand> as LiftFn>::new(preview),
+				review_fn: <FnBrand<PointerBrand> as LiftFn>::new(review),
 			}
 		}
 
@@ -671,13 +670,13 @@ mod inner {
 		where
 			S: Clone, {
 			PrismPrime {
-				preview_fn: <FnBrand<PointerBrand> as CloneableFn>::new(move |s: S| match preview(
-					s.clone(),
-				) {
-					Some(a) => Ok(a),
-					None => Err(s),
+				preview_fn: <FnBrand<PointerBrand> as LiftFn>::new(move |s: S| {
+					match preview(s.clone()) {
+						Some(a) => Ok(a),
+						None => Err(s),
+					}
 				}),
-				review_fn: <FnBrand<PointerBrand> as CloneableFn>::new(review),
+				review_fn: <FnBrand<PointerBrand> as LiftFn>::new(review),
 			}
 		}
 
@@ -799,7 +798,7 @@ mod inner {
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
 		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&ok_prism, f);
 		/// assert_eq!(modifier(Ok(21)), Ok(42));
 		/// assert_eq!(modifier(Err("error".to_string())), Err("error".to_string()));
@@ -857,7 +856,7 @@ mod inner {
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
 		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
 		/// 	PrismOptic::evaluate::<RcFnBrand>(&ok_prism, f);
 		/// assert_eq!(modifier(Ok(21)), Ok(42));
@@ -905,7 +904,7 @@ mod inner {
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
 		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
 		/// 	AffineTraversalOptic::evaluate::<RcFnBrand>(&ok_prism, f);
 		/// assert_eq!(modifier(Ok(21)), Ok(42));
@@ -953,7 +952,7 @@ mod inner {
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
 		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
 		/// 	TraversalOptic::evaluate::<RcFnBrand>(&ok_prism, f);
 		/// assert_eq!(modifier(Ok(21)), Ok(42));
@@ -1049,7 +1048,7 @@ mod inner {
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
 		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
 		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&ok_prism, f);
 		/// assert_eq!(modifier(Ok(21)), Ok(42));

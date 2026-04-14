@@ -26,24 +26,7 @@ mod inner {
 				ControlFlowBreakAppliedBrand,
 				ControlFlowContinueAppliedBrand,
 			},
-			classes::{
-				Applicative,
-				ApplyFirst,
-				ApplySecond,
-				Bifoldable,
-				Bifunctor,
-				Bitraversable,
-				CloneableFn,
-				Foldable,
-				Functor,
-				Lift,
-				MonadRec,
-				Monoid,
-				Pointed,
-				Semiapplicative,
-				Semimonad,
-				Traversable,
-			},
+			classes::*,
 			impl_kind,
 			kinds::*,
 		},
@@ -744,14 +727,13 @@ mod inner {
 		/// 	core::ops::ControlFlow,
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::bifunctor::*,
 		/// 		functions::*,
 		/// 	},
 		/// };
 		///
 		/// let x = ControlFlow::<i32, i32>::Continue(1);
 		/// assert_eq!(
-		/// 	bimap::<ControlFlowBrand, _, _, _, _>(|c| c + 1, |b: i32| b * 2, x),
+		/// 	explicit::bimap::<ControlFlowBrand, _, _, _, _, _, _>((|c| c + 1, |b: i32| b * 2), x),
 		/// 	ControlFlow::Continue(2)
 		/// );
 		/// ```
@@ -761,6 +743,212 @@ mod inner {
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
 		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>) {
 			ControlFlowBrand::bimap(p, f, g)
+		}
+	}
+
+	impl RefBifunctor for ControlFlowBrand {
+		/// Maps functions over the values in the control flow by reference.
+		///
+		/// This method applies one function to a reference of the continue value and another
+		/// to a reference of the break value, producing a new control flow with mapped values.
+		/// The original control flow is borrowed, not consumed.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the continue value.",
+			"The type of the mapped continue value.",
+			"The type of the break value.",
+			"The type of the mapped break value."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to a reference of the continue value.",
+			"The function to apply to a reference of the break value.",
+			"The control flow to map over by reference."
+		)]
+		///
+		#[document_returns("A new control flow containing the mapped values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::ref_bifunctor::*,
+		/// 		functions::*,
+		/// 	},
+		/// };
+		///
+		/// let x = ControlFlow::<i32, i32>::Continue(1);
+		/// assert_eq!(
+		/// 	ref_bimap::<ControlFlowBrand, _, _, _, _>(|c| *c + 1, |b: &i32| *b * 2, &x),
+		/// 	ControlFlow::Continue(2)
+		/// );
+		///
+		/// let y = ControlFlow::<i32, i32>::Break(3);
+		/// assert_eq!(
+		/// 	ref_bimap::<ControlFlowBrand, _, _, _, _>(|c| *c + 1, |b: &i32| *b * 2, &y),
+		/// 	ControlFlow::Break(6)
+		/// );
+		/// ```
+		fn ref_bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
+			f: impl Fn(&A) -> B + 'a,
+			g: impl Fn(&C) -> D + 'a,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
+		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>) {
+			match p {
+				ControlFlow::Continue(a) => ControlFlow::Continue(f(a)),
+				ControlFlow::Break(c) => ControlFlow::Break(g(c)),
+			}
+		}
+	}
+
+	impl RefBifoldable for ControlFlowBrand {
+		/// Folds the control flow from right to left by reference using two step functions.
+		///
+		/// Applies `f` to a reference of the Continue value or `g` to a reference of the
+		/// Break value, returning the folded result without consuming the control flow.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the Continue value.",
+			"The type of the Break value.",
+			"The accumulator type."
+		)]
+		///
+		#[document_parameters(
+			"The step function for a reference to the Continue variant.",
+			"The step function for a reference to the Break variant.",
+			"The initial accumulator.",
+			"The control flow to fold by reference."
+		)]
+		///
+		#[document_returns("The folded result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 	},
+		/// };
+		///
+		/// let x: ControlFlow<i32, i32> = ControlFlow::Continue(3);
+		/// assert_eq!(
+		/// 	explicit::bi_fold_right::<RcFnBrand, ControlFlowBrand, _, _, _, _, _>(
+		/// 		(|c: &i32, acc| acc - *c, |b: &i32, acc| acc + *b),
+		/// 		10,
+		/// 		&x,
+		/// 	),
+		/// 	7
+		/// );
+		///
+		/// let y: ControlFlow<i32, i32> = ControlFlow::Break(5);
+		/// assert_eq!(
+		/// 	explicit::bi_fold_right::<RcFnBrand, ControlFlowBrand, _, _, _, _, _>(
+		/// 		(|c: &i32, acc| acc - *c, |b: &i32, acc| acc + *b),
+		/// 		10,
+		/// 		&y,
+		/// 	),
+		/// 	15
+		/// );
+		/// ```
+		fn ref_bi_fold_right<'a, FnBrand: LiftFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+			f: impl Fn(&A, C) -> C + 'a,
+			g: impl Fn(&B, C) -> C + 'a,
+			z: C,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> C {
+			match p {
+				ControlFlow::Continue(a) => f(a, z),
+				ControlFlow::Break(b) => g(b, z),
+			}
+		}
+	}
+
+	impl RefBitraversable for ControlFlowBrand {
+		/// Traverses a control flow by reference with two effectful functions.
+		///
+		/// Applies `f` to a reference of the Continue value or `g` to a reference of
+		/// the Break value, wrapping the result in the applicative context `F`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the Continue value.",
+			"The type of the Break value.",
+			"The output type for Continue.",
+			"The output type for Break.",
+			"The applicative context."
+		)]
+		///
+		#[document_parameters(
+			"The function applied to a reference of the Continue value.",
+			"The function applied to a reference of the Break value.",
+			"The control flow to traverse by reference."
+		)]
+		///
+		#[document_returns(
+			"`f(&a)` wrapped in context for `Continue(a)`, or `g(&b)` wrapped in context for `Break(b)`."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::ControlFlow,
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 	},
+		/// };
+		///
+		/// let x: ControlFlow<i32, i32> = ControlFlow::Continue(3);
+		/// assert_eq!(
+		/// 	explicit::bi_traverse::<RcFnBrand, ControlFlowBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 		(|c: &i32| Some(c + 1), |b: &i32| Some(b * 2)),
+		/// 		&x,
+		/// 	),
+		/// 	Some(ControlFlow::Continue(4))
+		/// );
+		///
+		/// let y: ControlFlow<i32, i32> = ControlFlow::Break(5);
+		/// assert_eq!(
+		/// 	explicit::bi_traverse::<RcFnBrand, ControlFlowBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 		(|c: &i32| Some(c + 1), |b: &i32| Some(b * 2)),
+		/// 		&y,
+		/// 	),
+		/// 	Some(ControlFlow::Break(10))
+		/// );
+		/// ```
+		fn ref_bi_traverse<
+			'a,
+			FnBrand,
+			A: 'a + Clone,
+			B: 'a + Clone,
+			C: 'a + Clone,
+			D: 'a + Clone,
+			F: Applicative,
+		>(
+			f: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
+			g: impl Fn(&B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>): Clone, {
+			match p {
+				ControlFlow::Continue(a) => F::map(|c| ControlFlow::Continue(c), f(a)),
+				ControlFlow::Break(b) => F::map(|d| ControlFlow::Break(d), g(b)),
+			}
 		}
 	}
 
@@ -799,16 +987,15 @@ mod inner {
 		///
 		/// let x: ControlFlow<i32, i32> = ControlFlow::Continue(3);
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, ControlFlowBrand, _, _, _>(
-		/// 		|c, acc| acc - c,
-		/// 		|b, acc| acc + b,
+		/// 	explicit::bi_fold_right::<RcFnBrand, ControlFlowBrand, _, _, _, _, _>(
+		/// 		(|c, acc| acc - c, |b, acc| acc + b),
 		/// 		10,
 		/// 		x,
 		/// 	),
 		/// 	7
 		/// );
 		/// ```
-		fn bi_fold_right<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+		fn bi_fold_right<'a, FnBrand: CloneFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
 			f: impl Fn(A, C) -> C + 'a,
 			g: impl Fn(B, C) -> C + 'a,
 			z: C,
@@ -851,16 +1038,15 @@ mod inner {
 		///
 		/// let x: ControlFlow<i32, i32> = ControlFlow::Break(5);
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, ControlFlowBrand, _, _, _>(
-		/// 		|acc, c| acc - c,
-		/// 		|acc, b| acc + b,
+		/// 	explicit::bi_fold_left::<RcFnBrand, ControlFlowBrand, _, _, _, _, _>(
+		/// 		(|acc, c| acc - c, |acc, b| acc + b),
 		/// 		10,
 		/// 		x,
 		/// 	),
 		/// 	15
 		/// );
 		/// ```
-		fn bi_fold_left<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+		fn bi_fold_left<'a, FnBrand: CloneFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
 			f: impl Fn(C, A) -> C + 'a,
 			g: impl Fn(C, B) -> C + 'a,
 			z: C,
@@ -902,15 +1088,14 @@ mod inner {
 		///
 		/// let x: ControlFlow<i32, i32> = ControlFlow::Continue(3);
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, ControlFlowBrand, _, _, _>(
-		/// 		|c: i32| c.to_string(),
-		/// 		|b: i32| b.to_string(),
+		/// 	explicit::bi_fold_map::<RcFnBrand, ControlFlowBrand, _, _, _, _, _>(
+		/// 		(|c: i32| c.to_string(), |b: i32| b.to_string()),
 		/// 		x,
 		/// 	),
 		/// 	"3".to_string()
 		/// );
 		/// ```
-		fn bi_fold_map<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, M>(
+		fn bi_fold_map<'a, FnBrand: CloneFn + 'a, A: 'a + Clone, B: 'a + Clone, M>(
 			f: impl Fn(A) -> M + 'a,
 			g: impl Fn(B) -> M + 'a,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
@@ -957,9 +1142,8 @@ mod inner {
 		///
 		/// let x: ControlFlow<i32, i32> = ControlFlow::Continue(3);
 		/// assert_eq!(
-		/// 	bi_traverse::<ControlFlowBrand, _, _, _, _, OptionBrand>(
-		/// 		|c: i32| Some(c + 1),
-		/// 		|b: i32| Some(b * 2),
+		/// 	explicit::bi_traverse::<RcFnBrand, ControlFlowBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 		(|c: i32| Some(c + 1), |b: i32| Some(b * 2)),
 		/// 		x,
 		/// 	),
 		/// 	Some(ControlFlow::Continue(4))
@@ -985,6 +1169,7 @@ mod inner {
 	// ControlFlowContinueAppliedBrand<ContinueType> (Functor over B, the Break type)
 
 	impl_kind! {
+		#[no_inferable_brand]
 		impl<ContinueType: 'static> for ControlFlowContinueAppliedBrand<ContinueType> {
 			type Of<'a, B: 'a>: 'a = ControlFlow<B, ContinueType>;
 		}
@@ -1024,7 +1209,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	map::<ControlFlowContinueAppliedBrand<i32>, _, _>(
+		/// 	explicit::map::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32| x * 2,
 		/// 		ControlFlow::<i32, i32>::Break(5)
 		/// 	),
@@ -1074,7 +1259,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<ControlFlowContinueAppliedBrand<()>, _, _, _>(
+		/// 	explicit::lift2::<ControlFlowContinueAppliedBrand<()>, _, _, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		ControlFlow::Break(1),
 		/// 		ControlFlow::Break(2)
@@ -1082,7 +1267,7 @@ mod inner {
 		/// 	ControlFlow::Break(3)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(
+		/// 	explicit::lift2::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		ControlFlow::Break(1),
 		/// 		ControlFlow::Continue(2)
@@ -1180,15 +1365,14 @@ mod inner {
 		/// 	},
 		/// };
 		///
-		/// let f: ControlFlow<_, ()> =
-		/// 	ControlFlow::Break(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f: ControlFlow<_, ()> = ControlFlow::Break(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(
 		/// 	apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(f, ControlFlow::Break(5)),
 		/// 	ControlFlow::Break(10)
 		/// );
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			match (ff, fa) {
@@ -1232,9 +1416,10 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<ControlFlowContinueAppliedBrand<()>, _, _>(ControlFlow::Break(5), |x| {
-		/// 		ControlFlow::Break(x * 2)
-		/// 	}),
+		/// 	explicit::bind::<ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
+		/// 		ControlFlow::Break(5),
+		/// 		|x| { ControlFlow::Break(x * 2) }
+		/// 	),
 		/// 	ControlFlow::<_, ()>::Break(10)
 		/// );
 		/// ```
@@ -1280,7 +1465,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(
+		/// 	explicit::fold_right::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
 		/// 		|x, acc| x + acc,
 		/// 		0,
 		/// 		ControlFlow::Break(5)
@@ -1288,7 +1473,7 @@ mod inner {
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _>(
+		/// 	explicit::fold_right::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		ControlFlow::Continue(1)
@@ -1302,7 +1487,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			ControlFlowBrand::fold_right(fa, func, initial)
 		}
 
@@ -1338,7 +1523,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(
+		/// 	explicit::fold_left::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
 		/// 		|acc, x| acc + x,
 		/// 		0,
 		/// 		ControlFlow::Break(5)
@@ -1346,7 +1531,7 @@ mod inner {
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _>(
+		/// 	explicit::fold_left::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
 		/// 		|acc, x: i32| acc + x,
 		/// 		0,
 		/// 		ControlFlow::Continue(1)
@@ -1360,7 +1545,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			ControlFlowBrand::fold_left(fa, func, initial)
 		}
 
@@ -1392,14 +1577,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(
+		/// 	explicit::fold_map::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		ControlFlow::Break(5)
 		/// 	),
 		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _>(
+		/// 	explicit::fold_map::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		ControlFlow::Continue(1)
 		/// 	),
@@ -1412,7 +1597,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			ControlFlowBrand::fold_map(fa, func)
 		}
 	}
@@ -1447,17 +1632,22 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<ControlFlowContinueAppliedBrand<()>, _, _, OptionBrand>(
+		/// 	explicit::traverse::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		ControlFlow::Break(5)
 		/// 	),
 		/// 	Some(ControlFlow::Break(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<ControlFlowContinueAppliedBrand<i32>, _, _, OptionBrand>(
-		/// 		|x: i32| Some(x * 2),
-		/// 		ControlFlow::Continue(1)
-		/// 	),
+		/// 	explicit::traverse::<
+		/// 		RcFnBrand,
+		/// 		ControlFlowContinueAppliedBrand<i32>,
+		/// 		_,
+		/// 		_,
+		/// 		OptionBrand,
+		/// 		_,
+		/// 		_,
+		/// 	>(|x: i32| Some(x * 2), ControlFlow::Continue(1)),
 		/// 	Some(ControlFlow::Continue(1))
 		/// );
 		/// ```
@@ -1529,6 +1719,7 @@ mod inner {
 	// ControlFlowBreakAppliedBrand<BreakType> (Functor over C, the Continue type)
 
 	impl_kind! {
+		#[no_inferable_brand]
 		impl<BreakType: 'static> for ControlFlowBreakAppliedBrand<BreakType> {
 			type Of<'a, C: 'a>: 'a = ControlFlow<BreakType, C>;
 		}
@@ -1568,7 +1759,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	map::<ControlFlowBreakAppliedBrand<i32>, _, _>(
+		/// 	explicit::map::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32| x * 2,
 		/// 		ControlFlow::<i32, i32>::Continue(5)
 		/// 	),
@@ -1618,7 +1809,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(
+		/// 	explicit::lift2::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		ControlFlow::Continue(1),
 		/// 		ControlFlow::Continue(2)
@@ -1626,7 +1817,7 @@ mod inner {
 		/// 	ControlFlow::Continue(3)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(
+		/// 	explicit::lift2::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		ControlFlow::Continue(1),
 		/// 		ControlFlow::Break(2)
@@ -1724,14 +1915,14 @@ mod inner {
 		/// };
 		///
 		/// let f: ControlFlow<(), _> =
-		/// 	ControlFlow::Continue(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// 	ControlFlow::Continue(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(
 		/// 	apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(f, ControlFlow::Continue(5)),
 		/// 	ControlFlow::Continue(10)
 		/// );
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			match (ff, fa) {
@@ -1776,9 +1967,10 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<ControlFlowBreakAppliedBrand<()>, _, _>(ControlFlow::Continue(5), |x| {
-		/// 		ControlFlow::Continue(x * 2)
-		/// 	}),
+		/// 	explicit::bind::<ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
+		/// 		ControlFlow::Continue(5),
+		/// 		|x| { ControlFlow::Continue(x * 2) }
+		/// 	),
 		/// 	ControlFlow::<(), _>::Continue(10)
 		/// );
 		/// ```
@@ -1824,7 +2016,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _>(
+		/// 	explicit::fold_right::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		ControlFlow::Continue(1)
@@ -1832,7 +2024,7 @@ mod inner {
 		/// 	1
 		/// );
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(
+		/// 	explicit::fold_right::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		ControlFlow::Break(())
@@ -1846,7 +2038,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa {
 				ControlFlow::Continue(e) => func(e, initial),
 				ControlFlow::Break(_) => initial,
@@ -1885,7 +2077,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(
+		/// 	explicit::fold_left::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
 		/// 		|acc, x: i32| acc + x,
 		/// 		0,
 		/// 		ControlFlow::Continue(5)
@@ -1893,7 +2085,7 @@ mod inner {
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _>(
+		/// 	explicit::fold_left::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
 		/// 		|acc, x: i32| acc + x,
 		/// 		0,
 		/// 		ControlFlow::Break(1)
@@ -1907,7 +2099,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa {
 				ControlFlow::Continue(e) => func(initial, e),
 				ControlFlow::Break(_) => initial,
@@ -1942,14 +2134,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(
+		/// 	explicit::fold_map::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		ControlFlow::Continue(5)
 		/// 	),
 		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _>(
+		/// 	explicit::fold_map::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		ControlFlow::Break(1)
 		/// 	),
@@ -1962,7 +2154,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa {
 				ControlFlow::Continue(e) => func(e),
 				ControlFlow::Break(_) => M::empty(),
@@ -2000,14 +2192,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<ControlFlowBreakAppliedBrand<()>, _, _, OptionBrand>(
+		/// 	explicit::traverse::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, OptionBrand, _, _>(
 		/// 		|x| Some(x * 2),
 		/// 		ControlFlow::Continue(5)
 		/// 	),
 		/// 	Some(ControlFlow::Continue(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<ControlFlowBreakAppliedBrand<i32>, _, _, OptionBrand>(
+		/// 	explicit::traverse::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, OptionBrand, _, _>(
 		/// 		|x: i32| Some(x * 2),
 		/// 		ControlFlow::Break(1)
 		/// 	),
@@ -2216,16 +2408,6 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::{
-				bifunctor::*,
-				foldable::*,
-				functor::*,
-				lift::*,
-				pointed::*,
-				semiapplicative::*,
-				semimonad::*,
-				traversable::*,
-			},
 			functions::*,
 		},
 		core::ops::ControlFlow,
@@ -2323,13 +2505,13 @@ mod tests {
 	fn test_functor_with_continue() {
 		let cf: ControlFlow<i32, i32> = ControlFlow::Break(5);
 		assert_eq!(
-			map::<ControlFlowContinueAppliedBrand<_>, _, _>(|x: i32| x * 2, cf),
+			explicit::map::<ControlFlowContinueAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, cf),
 			ControlFlow::Break(10)
 		);
 
 		let cont: ControlFlow<i32, i32> = ControlFlow::Continue(5);
 		assert_eq!(
-			map::<ControlFlowContinueAppliedBrand<_>, _, _>(|x: i32| x * 2, cont),
+			explicit::map::<ControlFlowContinueAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, cont),
 			ControlFlow::Continue(5)
 		);
 	}
@@ -2339,13 +2521,13 @@ mod tests {
 	fn test_functor_with_break() {
 		let cf: ControlFlow<i32, i32> = ControlFlow::Continue(5);
 		assert_eq!(
-			map::<ControlFlowBreakAppliedBrand<_>, _, _>(|x: i32| x * 2, cf),
+			explicit::map::<ControlFlowBreakAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, cf),
 			ControlFlow::Continue(10)
 		);
 
 		let brk: ControlFlow<i32, i32> = ControlFlow::Break(5);
 		assert_eq!(
-			map::<ControlFlowBreakAppliedBrand<_>, _, _>(|x: i32| x * 2, brk),
+			explicit::map::<ControlFlowBreakAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, brk),
 			ControlFlow::Break(5)
 		);
 	}
@@ -2355,13 +2537,13 @@ mod tests {
 	fn test_bifunctor() {
 		let cf: ControlFlow<i32, i32> = ControlFlow::Continue(5);
 		assert_eq!(
-			bimap::<ControlFlowBrand, _, _, _, _>(|c| c + 1, |b| b * 2, cf),
+			explicit::bimap::<ControlFlowBrand, _, _, _, _, _, _>((|c| c + 1, |b| b * 2), cf),
 			ControlFlow::Continue(6)
 		);
 
 		let brk: ControlFlow<i32, i32> = ControlFlow::Break(5);
 		assert_eq!(
-			bimap::<ControlFlowBrand, _, _, _, _>(|c| c + 1, |b| b * 2, brk),
+			explicit::bimap::<ControlFlowBrand, _, _, _, _, _, _>((|c| c + 1, |b| b * 2), brk),
 			ControlFlow::Break(10)
 		);
 	}
@@ -2371,7 +2553,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity_with_continue(x: ControlFlowWrapper<i32, i32>) -> bool {
 		let x = x.into_inner();
-		map::<ControlFlowContinueAppliedBrand<i32>, _, _>(identity, x) == x
+		explicit::map::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(identity, x) == x
 	}
 
 	#[quickcheck]
@@ -2379,10 +2561,10 @@ mod tests {
 		let x = x.into_inner();
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<ControlFlowContinueAppliedBrand<i32>, _, _>(compose(f, g), x)
-			== map::<ControlFlowContinueAppliedBrand<i32>, _, _>(
+		explicit::map::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(compose(f, g), x)
+			== explicit::map::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
 				f,
-				map::<ControlFlowContinueAppliedBrand<i32>, _, _>(g, x),
+				explicit::map::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(g, x),
 			)
 	}
 
@@ -2391,7 +2573,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity_with_break(x: ControlFlowWrapper<i32, i32>) -> bool {
 		let x = x.into_inner();
-		map::<ControlFlowBreakAppliedBrand<i32>, _, _>(identity, x) == x
+		explicit::map::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(identity, x) == x
 	}
 
 	#[quickcheck]
@@ -2399,10 +2581,10 @@ mod tests {
 		let x = x.into_inner();
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<ControlFlowBreakAppliedBrand<i32>, _, _>(compose(f, g), x)
-			== map::<ControlFlowBreakAppliedBrand<i32>, _, _>(
+		explicit::map::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(compose(f, g), x)
+			== explicit::map::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
 				f,
-				map::<ControlFlowBreakAppliedBrand<i32>, _, _>(g, x),
+				explicit::map::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(g, x),
 			)
 	}
 
@@ -2411,7 +2593,7 @@ mod tests {
 	#[quickcheck]
 	fn bifunctor_identity(x: ControlFlowWrapper<i32, i32>) -> bool {
 		let x = x.into_inner();
-		bimap::<ControlFlowBrand, _, _, _, _>(identity, identity, x) == x
+		explicit::bimap::<ControlFlowBrand, _, _, _, _, _, _>((identity, identity), x) == x
 	}
 
 	#[quickcheck]
@@ -2422,11 +2604,10 @@ mod tests {
 		let h = |x: i32| x.wrapping_sub(1);
 		let i = |x: i32| if x == 0 { 0 } else { x.wrapping_div(2) };
 
-		bimap::<ControlFlowBrand, _, _, _, _>(compose(f, g), compose(h, i), x)
-			== bimap::<ControlFlowBrand, _, _, _, _>(
-				f,
-				h,
-				bimap::<ControlFlowBrand, _, _, _, _>(g, i, x),
+		explicit::bimap::<ControlFlowBrand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), x)
+			== explicit::bimap::<ControlFlowBrand, _, _, _, _, _, _>(
+				(f, h),
+				explicit::bimap::<ControlFlowBrand, _, _, _, _, _, _>((g, i), x),
 			)
 	}
 
@@ -2443,11 +2624,19 @@ mod tests {
 		let s3: ControlFlow<i32, i32> = ControlFlow::Continue(3);
 
 		assert_eq!(
-			lift2::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(|x, y| x + y, s1, s2),
+			explicit::lift2::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _, _, _>(
+				|x, y| x + y,
+				s1,
+				s2
+			),
 			ControlFlow::Break(3)
 		);
 		assert_eq!(
-			lift2::<ControlFlowContinueAppliedBrand<i32>, _, _, _>(|x, y| x + y, s1, s3),
+			explicit::lift2::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _, _, _>(
+				|x, y| x + y,
+				s1,
+				s3
+			),
 			ControlFlow::Continue(3)
 		);
 	}
@@ -2463,11 +2652,19 @@ mod tests {
 		let s3: ControlFlow<i32, i32> = ControlFlow::Break(3);
 
 		assert_eq!(
-			lift2::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(|x, y| x + y, s1, s2),
+			explicit::lift2::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _, _, _>(
+				|x, y| x + y,
+				s1,
+				s2
+			),
 			ControlFlow::Continue(3)
 		);
 		assert_eq!(
-			lift2::<ControlFlowBreakAppliedBrand<i32>, _, _, _>(|x, y| x + y, s1, s3),
+			explicit::lift2::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _, _, _>(
+				|x, y| x + y,
+				s1,
+				s3
+			),
 			ControlFlow::Break(3)
 		);
 	}
@@ -2504,9 +2701,9 @@ mod tests {
 	/// handling `Break` and `Continue` variants.
 	#[test]
 	fn test_apply_with_continue() {
-		let f = pure::<ControlFlowContinueAppliedBrand<()>, _>(
-			cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
-		);
+		let f = pure::<ControlFlowContinueAppliedBrand<()>, _>(lift_fn_new::<RcFnBrand, _, _>(
+			|x: i32| x * 2,
+		));
 		let x = pure::<ControlFlowContinueAppliedBrand<()>, _>(5);
 		assert_eq!(
 			apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(f, x),
@@ -2514,10 +2711,9 @@ mod tests {
 		);
 
 		let cont: ControlFlow<_, i32> = ControlFlow::Continue(1);
-		let f_cont =
-			pure::<ControlFlowContinueAppliedBrand<i32>, _>(cloneable_fn_new::<RcFnBrand, _, _>(
-				|x: i32| x * 2,
-			));
+		let f_cont = pure::<ControlFlowContinueAppliedBrand<i32>, _>(
+			lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
+		);
 		assert_eq!(
 			apply::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _>(f_cont, cont),
 			ControlFlow::Continue(1)
@@ -2530,7 +2726,7 @@ mod tests {
 	/// handling `Break` and `Continue` variants.
 	#[test]
 	fn test_apply_with_break() {
-		let f = pure::<ControlFlowBreakAppliedBrand<()>, _>(cloneable_fn_new::<RcFnBrand, _, _>(
+		let f = pure::<ControlFlowBreakAppliedBrand<()>, _>(lift_fn_new::<RcFnBrand, _, _>(
 			|x: i32| x * 2,
 		));
 		let x = pure::<ControlFlowBreakAppliedBrand<()>, _>(5);
@@ -2540,9 +2736,9 @@ mod tests {
 		);
 
 		let brk: ControlFlow<i32, _> = ControlFlow::Break(1);
-		let f_brk = pure::<ControlFlowBreakAppliedBrand<i32>, _>(
-			cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
-		);
+		let f_brk = pure::<ControlFlowBreakAppliedBrand<i32>, _>(lift_fn_new::<RcFnBrand, _, _>(
+			|x: i32| x * 2,
+		));
 		assert_eq!(
 			apply::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _>(f_brk, brk),
 			ControlFlow::Break(1)
@@ -2558,7 +2754,7 @@ mod tests {
 	fn test_bind_with_continue() {
 		let x = pure::<ControlFlowContinueAppliedBrand<()>, _>(5);
 		assert_eq!(
-			bind::<ControlFlowContinueAppliedBrand<()>, _, _>(x, |i| pure::<
+			explicit::bind::<ControlFlowContinueAppliedBrand<()>, _, _, _, _>(x, |i| pure::<
 				ControlFlowContinueAppliedBrand<()>,
 				_,
 			>(i * 2)),
@@ -2567,10 +2763,12 @@ mod tests {
 
 		let cont: ControlFlow<i32, i32> = ControlFlow::Continue(1);
 		assert_eq!(
-			bind::<ControlFlowContinueAppliedBrand<i32>, _, _>(cont, |i| pure::<
+			explicit::bind::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(cont, |i| pure::<
 				ControlFlowContinueAppliedBrand<i32>,
 				_,
-			>(i * 2)),
+			>(
+				i * 2
+			)),
 			ControlFlow::Continue(1)
 		);
 	}
@@ -2582,7 +2780,7 @@ mod tests {
 	fn test_bind_with_break() {
 		let x = pure::<ControlFlowBreakAppliedBrand<()>, _>(5);
 		assert_eq!(
-			bind::<ControlFlowBreakAppliedBrand<()>, _, _>(x, |i| pure::<
+			explicit::bind::<ControlFlowBreakAppliedBrand<()>, _, _, _, _>(x, |i| pure::<
 				ControlFlowBreakAppliedBrand<()>,
 				_,
 			>(i * 2)),
@@ -2591,7 +2789,7 @@ mod tests {
 
 		let brk: ControlFlow<i32, i32> = ControlFlow::Break(1);
 		assert_eq!(
-			bind::<ControlFlowBreakAppliedBrand<i32>, _, _>(brk, |i| pure::<
+			explicit::bind::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(brk, |i| pure::<
 				ControlFlowBreakAppliedBrand<i32>,
 				_,
 			>(i * 2)),
@@ -2608,15 +2806,23 @@ mod tests {
 	fn test_foldable_with_continue() {
 		let x = pure::<ControlFlowContinueAppliedBrand<()>, _>(5);
 		assert_eq!(
-			fold_right::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(|a, b| a + b, 10, x),
+			explicit::fold_right::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
+				|a, b| a + b,
+				10,
+				x
+			),
 			15
 		);
 		assert_eq!(
-			fold_left::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(|b, a| b + a, 10, x),
+			explicit::fold_left::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
+				|b, a| b + a,
+				10,
+				x
+			),
 			15
 		);
 		assert_eq!(
-			fold_map::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(
+			explicit::fold_map::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _, _, _>(
 				|a: i32| a.to_string(),
 				x
 			),
@@ -2625,7 +2831,7 @@ mod tests {
 
 		let cont: ControlFlow<i32, i32> = ControlFlow::Continue(1);
 		assert_eq!(
-			fold_right::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _>(
+			explicit::fold_right::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
 				|a, b| a + b,
 				10,
 				cont
@@ -2641,15 +2847,23 @@ mod tests {
 	fn test_foldable_with_break() {
 		let x = pure::<ControlFlowBreakAppliedBrand<()>, _>(5);
 		assert_eq!(
-			fold_right::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(|a, b| a + b, 10, x),
+			explicit::fold_right::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
+				|a, b| a + b,
+				10,
+				x
+			),
 			15
 		);
 		assert_eq!(
-			fold_left::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(|b, a| b + a, 10, x),
+			explicit::fold_left::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
+				|b, a| b + a,
+				10,
+				x
+			),
 			15
 		);
 		assert_eq!(
-			fold_map::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(
+			explicit::fold_map::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _, _, _>(
 				|a: i32| a.to_string(),
 				x
 			),
@@ -2658,7 +2872,11 @@ mod tests {
 
 		let brk: ControlFlow<i32, i32> = ControlFlow::Break(1);
 		assert_eq!(
-			fold_right::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _>(|a, b| a + b, 10, brk),
+			explicit::fold_right::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
+				|a, b| a + b,
+				10,
+				brk
+			),
 			10
 		);
 	}
@@ -2672,16 +2890,29 @@ mod tests {
 	fn test_traversable_with_continue() {
 		let x = pure::<ControlFlowContinueAppliedBrand<()>, _>(5);
 		assert_eq!(
-			traverse::<ControlFlowContinueAppliedBrand<()>, _, _, OptionBrand>(|a| Some(a * 2), x),
+			explicit::traverse::<
+				RcFnBrand,
+				ControlFlowContinueAppliedBrand<()>,
+				_,
+				_,
+				OptionBrand,
+				_,
+				_,
+			>(|a| Some(a * 2), x),
 			Some(ControlFlow::Break(10))
 		);
 
 		let cont: ControlFlow<i32, i32> = ControlFlow::Continue(1);
 		assert_eq!(
-			traverse::<ControlFlowContinueAppliedBrand<i32>, _, _, OptionBrand>(
-				|a| Some(a * 2),
-				cont
-			),
+			explicit::traverse::<
+				RcFnBrand,
+				ControlFlowContinueAppliedBrand<i32>,
+				_,
+				_,
+				OptionBrand,
+				_,
+				_,
+			>(|a| Some(a * 2), cont),
 			Some(ControlFlow::Continue(1))
 		);
 	}
@@ -2693,13 +2924,29 @@ mod tests {
 	fn test_traversable_with_break() {
 		let x = pure::<ControlFlowBreakAppliedBrand<()>, _>(5);
 		assert_eq!(
-			traverse::<ControlFlowBreakAppliedBrand<()>, _, _, OptionBrand>(|a| Some(a * 2), x),
+			explicit::traverse::<
+				RcFnBrand,
+				ControlFlowBreakAppliedBrand<()>,
+				_,
+				_,
+				OptionBrand,
+				_,
+				_,
+			>(|a| Some(a * 2), x),
 			Some(ControlFlow::Continue(10))
 		);
 
 		let brk: ControlFlow<i32, i32> = ControlFlow::Break(1);
 		assert_eq!(
-			traverse::<ControlFlowBreakAppliedBrand<i32>, _, _, OptionBrand>(|a| Some(a * 2), brk),
+			explicit::traverse::<
+				RcFnBrand,
+				ControlFlowBreakAppliedBrand<i32>,
+				_,
+				_,
+				OptionBrand,
+				_,
+				_,
+			>(|a| Some(a * 2), brk),
 			Some(ControlFlow::Break(1))
 		);
 	}
@@ -2710,7 +2957,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity_with_continue(a: i32) -> bool {
 		let f = |x: i32| pure::<ControlFlowContinueAppliedBrand<i32>, _>(x.wrapping_mul(2));
-		bind::<ControlFlowContinueAppliedBrand<i32>, _, _>(
+		explicit::bind::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
 			pure::<ControlFlowContinueAppliedBrand<i32>, _>(a),
 			f,
 		) == f(a)
@@ -2720,7 +2967,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_right_identity_with_continue(x: ControlFlowWrapper<i32, i32>) -> bool {
 		let x = x.into_inner();
-		bind::<ControlFlowContinueAppliedBrand<i32>, _, _>(
+		explicit::bind::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
 			x,
 			pure::<ControlFlowContinueAppliedBrand<i32>, _>,
 		) == x
@@ -2732,11 +2979,11 @@ mod tests {
 		let x = x.into_inner();
 		let f = |x: i32| pure::<ControlFlowContinueAppliedBrand<i32>, _>(x.wrapping_mul(2));
 		let g = |x: i32| pure::<ControlFlowContinueAppliedBrand<i32>, _>(x.wrapping_add(1));
-		bind::<ControlFlowContinueAppliedBrand<i32>, _, _>(
-			bind::<ControlFlowContinueAppliedBrand<i32>, _, _>(x, f),
+		explicit::bind::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(
+			explicit::bind::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(x, f),
 			g,
-		) == bind::<ControlFlowContinueAppliedBrand<i32>, _, _>(x, |a| {
-			bind::<ControlFlowContinueAppliedBrand<i32>, _, _>(f(a), g)
+		) == explicit::bind::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(x, |a| {
+			explicit::bind::<ControlFlowContinueAppliedBrand<i32>, _, _, _, _>(f(a), g)
 		})
 	}
 
@@ -2746,7 +2993,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity_with_break(a: i32) -> bool {
 		let f = |x: i32| pure::<ControlFlowBreakAppliedBrand<i32>, _>(x.wrapping_mul(2));
-		bind::<ControlFlowBreakAppliedBrand<i32>, _, _>(
+		explicit::bind::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
 			pure::<ControlFlowBreakAppliedBrand<i32>, _>(a),
 			f,
 		) == f(a)
@@ -2756,7 +3003,7 @@ mod tests {
 	#[quickcheck]
 	fn monad_right_identity_with_break(x: ControlFlowWrapper<i32, i32>) -> bool {
 		let x = x.into_inner();
-		bind::<ControlFlowBreakAppliedBrand<i32>, _, _>(
+		explicit::bind::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
 			x,
 			pure::<ControlFlowBreakAppliedBrand<i32>, _>,
 		) == x
@@ -2768,11 +3015,11 @@ mod tests {
 		let x = x.into_inner();
 		let f = |x: i32| pure::<ControlFlowBreakAppliedBrand<i32>, _>(x.wrapping_mul(2));
 		let g = |x: i32| pure::<ControlFlowBreakAppliedBrand<i32>, _>(x.wrapping_add(1));
-		bind::<ControlFlowBreakAppliedBrand<i32>, _, _>(
-			bind::<ControlFlowBreakAppliedBrand<i32>, _, _>(x, f),
+		explicit::bind::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(
+			explicit::bind::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(x, f),
 			g,
-		) == bind::<ControlFlowBreakAppliedBrand<i32>, _, _>(x, |a| {
-			bind::<ControlFlowBreakAppliedBrand<i32>, _, _>(f(a), g)
+		) == explicit::bind::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(x, |a| {
+			explicit::bind::<ControlFlowBreakAppliedBrand<i32>, _, _, _, _>(f(a), g)
 		})
 	}
 

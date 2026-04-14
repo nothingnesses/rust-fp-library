@@ -1,0 +1,57 @@
+name: Update Cargo dependencies
+
+on:
+  schedule:
+    - cron: "0 7 * * 4"
+  workflow_dispatch:
+
+env:
+  SKIP_DIRENV: "1"
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v6
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Update Cargo dependencies
+        run: nix develop ./devenv/ --command cargo update
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet Cargo.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create pull request
+        id: create-pr
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          commit-message: "chore: update Cargo dependencies"
+          branch: update-cargo-deps
+          title: "chore: update Cargo dependencies"
+          body: |
+            Automated weekly update of Cargo.lock dependencies.
+
+      - name: Enable auto-merge
+        if: steps.create-pr.outputs.pull-request-number
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: gh pr merge ${{ steps.create-pr.outputs.pull-request-number }} --auto --squash

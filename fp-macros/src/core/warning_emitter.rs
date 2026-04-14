@@ -52,7 +52,7 @@ impl WarningEmitter {
 	}
 
 	/// Returns `true` if no warnings have been emitted.
-	#[allow(dead_code)]
+	#[allow(dead_code, reason = "API kept for completeness")]
 	pub fn is_empty(&self) -> bool {
 		self.warnings.is_empty()
 	}
@@ -70,6 +70,10 @@ impl Default for WarningEmitter {
 }
 
 #[cfg(test)]
+#[expect(
+	clippy::indexing_slicing,
+	reason = "Tests use panicking operations for brevity and clarity"
+)]
 mod tests {
 	use super::*;
 

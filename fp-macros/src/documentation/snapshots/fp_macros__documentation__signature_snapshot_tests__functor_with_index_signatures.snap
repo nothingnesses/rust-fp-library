@@ -1,0 +1,6 @@
+---
+source: fp-macros/src/documentation/signature_snapshot_tests.rs
+assertion_line: 143
+expression: output
+---
+map_with_index: forall Brand A B. FunctorWithIndex Brand => ((Index, A) -> B, Brand A) -> Brand B

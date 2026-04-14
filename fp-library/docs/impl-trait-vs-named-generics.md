@@ -55,7 +55,7 @@ This applies to most function/closure parameters in the type class hierarchy: `m
 
 Benefits:
 
-- **Fewer type parameters** in turbofish: `map::<Brand, _, _>` vs `map::<Brand, _, _, _>`.
+- **Fewer type parameters** in turbofish: `explicit::map::<Brand, _, _, _>` vs `explicit::map::<Brand, _, _, _, _>`. With brand inference, the turbofish is eliminated entirely for unambiguous types: `map(f, x)`.
 - **Matches the PureScript/Haskell convention** where function types are not type variables.
 - **Simpler signatures** with less syntactic noise.
 

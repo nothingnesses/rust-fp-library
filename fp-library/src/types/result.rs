@@ -12,24 +12,8 @@ mod inner {
 				ResultErrAppliedBrand,
 				ResultOkAppliedBrand,
 			},
-			classes::{
-				Applicative,
-				ApplyFirst,
-				ApplySecond,
-				Bifoldable,
-				Bifunctor,
-				Bitraversable,
-				CloneableFn,
-				Foldable,
-				Functor,
-				Lift,
-				MonadRec,
-				Monoid,
-				Pointed,
-				Semiapplicative,
-				Semimonad,
-				Traversable,
-			},
+			classes::*,
+			dispatch::Ref,
 			impl_kind,
 			kinds::*,
 		},
@@ -84,15 +68,14 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::bifunctor::*,
 		/// 	functions::*,
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// assert_eq!(bimap::<ResultBrand, _, _, _, _>(|e| e + 1, |s| s * 2, x), Ok(10));
+		/// assert_eq!(explicit::bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x), Ok(10));
 		///
 		/// let y: Result<i32, i32> = Err(5);
-		/// assert_eq!(bimap::<ResultBrand, _, _, _, _>(|e| e + 1, |s| s * 2, y), Err(6));
+		/// assert_eq!(explicit::bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), y), Err(6));
 		/// ```
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
 			f: impl Fn(A) -> B + 'a,
@@ -102,6 +85,199 @@ mod inner {
 			match p {
 				Ok(c) => Ok(g(c)),
 				Err(a) => Err(f(a)),
+			}
+		}
+	}
+
+	impl RefBifunctor for ResultBrand {
+		/// Maps functions over the values in the result by reference.
+		///
+		/// This method applies one function to a reference of the error value and another
+		/// to a reference of the success value, producing a new result with mapped values.
+		/// The original result is borrowed, not consumed.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the error value.",
+			"The type of the mapped error value.",
+			"The type of the success value.",
+			"The type of the mapped success value."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to a reference of the error.",
+			"The function to apply to a reference of the success.",
+			"The result to map over by reference."
+		)]
+		///
+		#[document_returns("A new result containing the mapped values.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::ref_bifunctor::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let ok: Result<i32, i32> = Ok(5);
+		/// assert_eq!(ref_bimap::<ResultBrand, _, _, _, _>(|e| *e + 1, |s| *s * 2, &ok), Ok(10));
+		///
+		/// let err: Result<i32, i32> = Err(5);
+		/// assert_eq!(ref_bimap::<ResultBrand, _, _, _, _>(|e| *e + 1, |s| *s * 2, &err), Err(6));
+		/// ```
+		fn ref_bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
+			f: impl Fn(&A) -> B + 'a,
+			g: impl Fn(&C) -> D + 'a,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
+		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>) {
+			match p {
+				Ok(c) => Ok(g(c)),
+				Err(a) => Err(f(a)),
+			}
+		}
+	}
+
+	impl RefBifoldable for ResultBrand {
+		/// Folds a result by reference using two step functions, right-associatively.
+		///
+		/// Dispatches to `f` for `Err(a)` values and `g` for `Ok(b)` values,
+		/// passing references to the contained value rather than owned values.
+		/// Since `Result` contains at most one element, no cloning is needed.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The error type (first position).",
+			"The success type (second position).",
+			"The accumulator type."
+		)]
+		///
+		#[document_parameters(
+			"The step function applied to a reference of the error value.",
+			"The step function applied to a reference of the success value.",
+			"The initial accumulator.",
+			"The result to fold by reference."
+		)]
+		///
+		#[document_returns("`f(&a, z)` for `Err(a)`, or `g(&b, z)` for `Ok(b)`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let err: Result<i32, i32> = Err(3);
+		/// assert_eq!(
+		/// 	explicit::bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		(|e: &i32, acc| acc - *e, |s: &i32, acc| acc + *s),
+		/// 		10,
+		/// 		&err,
+		/// 	),
+		/// 	7
+		/// );
+		///
+		/// let ok: Result<i32, i32> = Ok(5);
+		/// assert_eq!(
+		/// 	explicit::bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		(|e: &i32, acc| acc - *e, |s: &i32, acc| acc + *s),
+		/// 		10,
+		/// 		&ok,
+		/// 	),
+		/// 	15
+		/// );
+		/// ```
+		fn ref_bi_fold_right<'a, FnBrand: LiftFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+			f: impl Fn(&A, C) -> C + 'a,
+			g: impl Fn(&B, C) -> C + 'a,
+			z: C,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> C {
+			match p {
+				Err(a) => f(a, z),
+				Ok(b) => g(b, z),
+			}
+		}
+	}
+
+	impl RefBitraversable for ResultBrand {
+		/// Traverses a result by reference with two effectful functions.
+		///
+		/// Dispatches to `f` for `Err(a)` values and `g` for `Ok(b)` values,
+		/// passing references to the contained value rather than owned values.
+		/// The result is wrapped in the applicative context `F`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function wrapper.",
+			"The error type (first position).",
+			"The success type (second position).",
+			"The output error type.",
+			"The output success type.",
+			"The applicative context."
+		)]
+		///
+		#[document_parameters(
+			"The function applied to a reference of the error value.",
+			"The function applied to a reference of the success value.",
+			"The result to traverse by reference."
+		)]
+		///
+		#[document_returns(
+			"`f(&a)` wrapped in context for `Err(a)`, or `g(&b)` wrapped in context for `Ok(b)`."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let err: Result<i32, i32> = Err(3);
+		/// assert_eq!(
+		/// 	explicit::bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 		(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
+		/// 		&err,
+		/// 	),
+		/// 	Some(Err(4))
+		/// );
+		///
+		/// let ok: Result<i32, i32> = Ok(5);
+		/// assert_eq!(
+		/// 	explicit::bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 		(|e: &i32| Some(e + 1), |s: &i32| Some(s * 2)),
+		/// 		&ok,
+		/// 	),
+		/// 	Some(Ok(10))
+		/// );
+		/// ```
+		fn ref_bi_traverse<
+			'a,
+			FnBrand,
+			A: 'a + Clone,
+			B: 'a + Clone,
+			C: 'a + Clone,
+			D: 'a + Clone,
+			F: Applicative,
+		>(
+			f: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
+			g: impl Fn(&B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>): Clone, {
+			match p {
+				Err(a) => F::map(|c| Err(c), f(a)),
+				Ok(b) => F::map(|d| Ok(d), g(b)),
 			}
 		}
 	}
@@ -137,25 +313,23 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 		|e: i32, acc| acc - e,
-		/// 		|s: i32, acc| acc + s,
+		/// 	explicit::bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 		/// 		10,
 		/// 		Err(3),
 		/// 	),
 		/// 	7
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 		|e: i32, acc| acc - e,
-		/// 		|s: i32, acc| acc + s,
+		/// 	explicit::bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		(|e: i32, acc| acc - e, |s: i32, acc| acc + s),
 		/// 		10,
 		/// 		Ok(5),
 		/// 	),
 		/// 	15
 		/// );
 		/// ```
-		fn bi_fold_right<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+		fn bi_fold_right<'a, FnBrand: CloneFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
 			f: impl Fn(A, C) -> C + 'a,
 			g: impl Fn(B, C) -> C + 'a,
 			z: C,
@@ -197,25 +371,23 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 		|acc, e: i32| acc - e,
-		/// 		|acc, s: i32| acc + s,
+		/// 	explicit::bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 		/// 		10,
 		/// 		Err(3),
 		/// 	),
 		/// 	7
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 		|acc, e: i32| acc - e,
-		/// 		|acc, s: i32| acc + s,
+		/// 	explicit::bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		(|acc, e: i32| acc - e, |acc, s: i32| acc + s),
 		/// 		10,
 		/// 		Ok(5),
 		/// 	),
 		/// 	15
 		/// );
 		/// ```
-		fn bi_fold_left<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+		fn bi_fold_left<'a, FnBrand: CloneFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
 			f: impl Fn(C, A) -> C + 'a,
 			g: impl Fn(C, B) -> C + 'a,
 			z: C,
@@ -256,23 +428,21 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 		|e: i32| e.to_string(),
-		/// 		|s: i32| s.to_string(),
+		/// 	explicit::bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 		Err::<i32, i32>(3),
 		/// 	),
 		/// 	"3".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(
-		/// 		|e: i32| e.to_string(),
-		/// 		|s: i32| s.to_string(),
+		/// 	explicit::bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		(|e: i32| e.to_string(), |s: i32| s.to_string()),
 		/// 		Ok::<i32, i32>(5),
 		/// 	),
 		/// 	"5".to_string()
 		/// );
 		/// ```
-		fn bi_fold_map<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, M>(
+		fn bi_fold_map<'a, FnBrand: CloneFn + 'a, A: 'a + Clone, B: 'a + Clone, M>(
 			f: impl Fn(A) -> M + 'a,
 			g: impl Fn(B) -> M + 'a,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
@@ -320,17 +490,15 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand>(
-		/// 		|e: i32| Some(e + 1),
-		/// 		|s: i32| Some(s * 2),
+		/// 	explicit::bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 		(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
 		/// 		Err::<i32, i32>(3),
 		/// 	),
 		/// 	Some(Err(4))
 		/// );
 		/// assert_eq!(
-		/// 	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand>(
-		/// 		|e: i32| Some(e + 1),
-		/// 		|s: i32| Some(s * 2),
+		/// 	explicit::bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 		(|e: i32| Some(e + 1), |s: i32| Some(s * 2)),
 		/// 		Ok::<i32, i32>(5),
 		/// 	),
 		/// 	Some(Ok(10))
@@ -359,6 +527,7 @@ mod inner {
 	// ResultErrAppliedBrand<E> (Functor over T)
 
 	impl_kind! {
+		#[no_inferable_brand]
 		#[document_type_parameters("The error type.")]
 		impl<E: 'static> for ResultErrAppliedBrand<E> {
 			type Of<'a, A: 'a>: 'a = Result<A, E>;
@@ -392,8 +561,14 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(map::<ResultErrAppliedBrand<()>, _, _>(|x: i32| x * 2, Ok(5)), Ok(10));
-		/// assert_eq!(map::<ResultErrAppliedBrand<i32>, _, _>(|x: i32| x * 2, Err(1)), Err(1));
+		/// assert_eq!(
+		/// 	explicit::map::<ResultErrAppliedBrand<()>, _, _, _, _>(|x: i32| x * 2, Ok(5)),
+		/// 	Ok(10)
+		/// );
+		/// assert_eq!(
+		/// 	explicit::map::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Err(1)),
+		/// 	Err(1)
+		/// );
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> B + 'a,
@@ -435,19 +610,35 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<ResultErrAppliedBrand<()>, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
+		/// 	explicit::lift2::<ResultErrAppliedBrand<()>, _, _, _, _, _, _>(
+		/// 		|x: i32, y: i32| x + y,
+		/// 		Ok(1),
+		/// 		Ok(2)
+		/// 	),
 		/// 	Ok(3)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
+		/// 	explicit::lift2::<ResultErrAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 		|x: i32, y: i32| x + y,
+		/// 		Ok(1),
+		/// 		Err(2)
+		/// 	),
 		/// 	Err(2)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
+		/// 	explicit::lift2::<ResultErrAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 		|x: i32, y: i32| x + y,
+		/// 		Err(1),
+		/// 		Ok(2)
+		/// 	),
 		/// 	Err(1)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
+		/// 	explicit::lift2::<ResultErrAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 		|x: i32, y: i32| x + y,
+		/// 		Err(1),
+		/// 		Err(2)
+		/// 	),
 		/// 	Err(1)
 		/// );
 		/// ```
@@ -533,16 +724,16 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f: Result<_, ()> = Ok(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f: Result<_, ()> = Ok(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(f, Ok(5)), Ok(10));
-		/// let f: Result<_, i32> = Ok(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f: Result<_, i32> = Ok(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(f, Err(1)), Err(1));
 		///
 		/// let f_err: Result<_, i32> = Err(1);
 		/// assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<i32>, i32, i32>(f_err, Ok(5)), Err(1));
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			match (ff, fa) {
@@ -582,9 +773,18 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(bind::<ResultErrAppliedBrand<()>, _, _>(Ok(5), |x| Ok(x * 2)), Ok(10));
-		/// assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _>(Ok(5), |_| Err::<i32, _>(1)), Err(1));
-		/// assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _>(Err(1), |x: i32| Ok(x * 2)), Err(1));
+		/// assert_eq!(
+		/// 	explicit::bind::<ResultErrAppliedBrand<()>, _, _, _, _>(Ok(5), |x| Ok(x * 2)),
+		/// 	Ok(10)
+		/// );
+		/// assert_eq!(
+		/// 	explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(Ok(5), |_| Err::<i32, _>(1)),
+		/// 	Err(1)
+		/// );
+		/// assert_eq!(
+		/// 	explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(Err(1), |x: i32| Ok(x * 2)),
+		/// 	Err(1)
+		/// );
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -621,11 +821,19 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(|x, acc| x + acc, 0, Ok(5)),
+		/// 	explicit::fold_right::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
+		/// 		|x, acc| x + acc,
+		/// 		0,
+		/// 		Ok(5)
+		/// 	),
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(|x: i32, acc| x + acc, 0, Err(1)),
+		/// 	explicit::fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
+		/// 		|x: i32, acc| x + acc,
+		/// 		0,
+		/// 		Err(1)
+		/// 	),
 		/// 	0
 		/// );
 		/// ```
@@ -635,7 +843,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa {
 				Ok(a) => func(a, initial),
 				Err(_) => initial,
@@ -667,11 +875,19 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(|acc, x| acc + x, 0, Ok(5)),
+		/// 	explicit::fold_left::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
+		/// 		|acc, x| acc + x,
+		/// 		0,
+		/// 		Ok(5)
+		/// 	),
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(|acc, x: i32| acc + x, 0, Err(1)),
+		/// 	explicit::fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
+		/// 		|acc, x: i32| acc + x,
+		/// 		0,
+		/// 		Err(1)
+		/// 	),
 		/// 	0
 		/// );
 		/// ```
@@ -681,7 +897,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa {
 				Ok(a) => func(initial, a),
 				Err(_) => initial,
@@ -713,11 +929,17 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(|x: i32| x.to_string(), Ok(5)),
+		/// 	explicit::fold_map::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
+		/// 		|x: i32| x.to_string(),
+		/// 		Ok(5)
+		/// 	),
 		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(|x: i32| x.to_string(), Err(1)),
+		/// 	explicit::fold_map::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _, _>(
+		/// 		|x: i32| x.to_string(),
+		/// 		Err(1)
+		/// 	),
 		/// 	"".to_string()
 		/// );
 		/// ```
@@ -727,7 +949,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa {
 				Ok(a) => func(a),
 				Err(_) => M::empty(),
@@ -757,23 +979,29 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		OptionBrand,
-		/// 		ResultErrAppliedBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	functions::*,
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<ResultErrAppliedBrand<()>, _, _, OptionBrand>(|x| Some(x * 2), Ok(5)),
+		/// 	explicit::traverse::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 		|x| Some(x * 2),
+		/// 		Ok(5)
+		/// 	),
 		/// 	Some(Ok(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<ResultErrAppliedBrand<i32>, _, _, OptionBrand>(|x: i32| Some(x * 2), Err(1)),
+		/// 	explicit::traverse::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, OptionBrand, _, _>(
+		/// 		|x: i32| Some(x * 2),
+		/// 		Err(1)
+		/// 	),
 		/// 	Some(Err(1))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<ResultErrAppliedBrand<()>, _, _, OptionBrand>(|_| None::<i32>, Ok(5)),
+		/// 	explicit::traverse::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 		|_| None::<i32>,
+		/// 		Ok(5)
+		/// 	),
 		/// 	None
 		/// );
 		/// ```
@@ -838,6 +1066,7 @@ mod inner {
 	// ResultOkAppliedBrand<T> (Functor over E)
 
 	impl_kind! {
+		#[no_inferable_brand]
 		#[document_type_parameters("The success type.")]
 		impl<T: 'static> for ResultOkAppliedBrand<T> {
 			type Of<'a, A: 'a>: 'a = Result<T, A>;
@@ -871,8 +1100,14 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _>(|x: i32| x * 2, Err(5)), Err(10));
-		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _>(|x: i32| x * 2, Ok(1)), Ok(1));
+		/// assert_eq!(
+		/// 	explicit::map::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Err(5)),
+		/// 	Err(10)
+		/// );
+		/// assert_eq!(
+		/// 	explicit::map::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32| x * 2, Ok(1)),
+		/// 	Ok(1)
+		/// );
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> B + 'a,
@@ -917,19 +1152,35 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
+		/// 	explicit::lift2::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 		|x: i32, y: i32| x + y,
+		/// 		Err(1),
+		/// 		Err(2)
+		/// 	),
 		/// 	Err(3)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
+		/// 	explicit::lift2::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 		|x: i32, y: i32| x + y,
+		/// 		Err(1),
+		/// 		Ok(2)
+		/// 	),
 		/// 	Ok(2)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
+		/// 	explicit::lift2::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 		|x: i32, y: i32| x + y,
+		/// 		Ok(1),
+		/// 		Err(2)
+		/// 	),
 		/// 	Ok(1)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
+		/// 	explicit::lift2::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 		|x: i32, y: i32| x + y,
+		/// 		Ok(1),
+		/// 		Ok(2)
+		/// 	),
 		/// 	Ok(1)
 		/// );
 		/// ```
@@ -1017,16 +1268,16 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f: Result<(), _> = Err(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f: Result<(), _> = Err(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(f, Err(5)), Err(10));
-		/// let f: Result<i32, _> = Err(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f: Result<i32, _> = Err(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _>(f, Ok(1)), Ok(1));
 		///
 		/// let f_ok: Result<i32, _> = Ok(1);
 		/// assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<i32>, i32, i32>(f_ok, Err(5)), Ok(1));
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			match (ff, fa) {
@@ -1064,9 +1315,18 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(bind::<ResultOkAppliedBrand<()>, _, _>(Err(5), |x| Err(x * 2)), Err(10));
-		/// assert_eq!(bind::<ResultOkAppliedBrand<i32>, _, _>(Err(5), |_| Ok::<_, i32>(1)), Ok(1));
-		/// assert_eq!(bind::<ResultOkAppliedBrand<i32>, _, _>(Ok(1), |x: i32| Err(x * 2)), Ok(1));
+		/// assert_eq!(
+		/// 	explicit::bind::<ResultOkAppliedBrand<()>, _, _, _, _>(Err(5), |x| Err(x * 2)),
+		/// 	Err(10)
+		/// );
+		/// assert_eq!(
+		/// 	explicit::bind::<ResultOkAppliedBrand<i32>, _, _, _, _>(Err(5), |_| Ok::<_, i32>(1)),
+		/// 	Ok(1)
+		/// );
+		/// assert_eq!(
+		/// 	explicit::bind::<ResultOkAppliedBrand<i32>, _, _, _, _>(Ok(1), |x: i32| Err(x * 2)),
+		/// 	Ok(1)
+		/// );
 		/// ```
 		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1106,11 +1366,19 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _>(|x: i32, acc| x + acc, 0, Err(1)),
+		/// 	explicit::fold_right::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(
+		/// 		|x: i32, acc| x + acc,
+		/// 		0,
+		/// 		Err(1)
+		/// 	),
 		/// 	1
 		/// );
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(|x: i32, acc| x + acc, 0, Ok(())),
+		/// 	explicit::fold_right::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
+		/// 		|x: i32, acc| x + acc,
+		/// 		0,
+		/// 		Ok(())
+		/// 	),
 		/// 	0
 		/// );
 		/// ```
@@ -1120,7 +1388,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa {
 				Err(e) => func(e, initial),
 				Ok(_) => initial,
@@ -1152,11 +1420,19 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(|acc, x: i32| acc + x, 0, Err(5)),
+		/// 	explicit::fold_left::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
+		/// 		|acc, x: i32| acc + x,
+		/// 		0,
+		/// 		Err(5)
+		/// 	),
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _>(|acc, x: i32| acc + x, 0, Ok(1)),
+		/// 	explicit::fold_left::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(
+		/// 		|acc, x: i32| acc + x,
+		/// 		0,
+		/// 		Ok(1)
+		/// 	),
 		/// 	0
 		/// );
 		/// ```
@@ -1166,7 +1442,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa {
 				Err(e) => func(initial, e),
 				Ok(_) => initial,
@@ -1198,11 +1474,17 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(|x: i32| x.to_string(), Err(5)),
+		/// 	explicit::fold_map::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
+		/// 		|x: i32| x.to_string(),
+		/// 		Err(5)
+		/// 	),
 		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _>(|x: i32| x.to_string(), Ok(1)),
+		/// 	explicit::fold_map::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _, _>(
+		/// 		|x: i32| x.to_string(),
+		/// 		Ok(1)
+		/// 	),
 		/// 	"".to_string()
 		/// );
 		/// ```
@@ -1212,7 +1494,7 @@ mod inner {
 		) -> M
 		where
 			M: Monoid + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneFn + 'a, {
 			match fa {
 				Err(e) => func(e),
 				Ok(_) => M::empty(),
@@ -1242,23 +1524,29 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		OptionBrand,
-		/// 		ResultOkAppliedBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	functions::*,
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<ResultOkAppliedBrand<()>, _, _, OptionBrand>(|x| Some(x * 2), Err(5)),
+		/// 	explicit::traverse::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 		|x| Some(x * 2),
+		/// 		Err(5)
+		/// 	),
 		/// 	Some(Err(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<ResultOkAppliedBrand<i32>, _, _, OptionBrand>(|x: i32| Some(x * 2), Ok(1)),
+		/// 	explicit::traverse::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, OptionBrand, _, _>(
+		/// 		|x: i32| Some(x * 2),
+		/// 		Ok(1)
+		/// 	),
 		/// 	Some(Ok(1))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<ResultOkAppliedBrand<()>, _, _, OptionBrand>(|_| None::<i32>, Err(5)),
+		/// 	explicit::traverse::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, OptionBrand, _, _>(
+		/// 		|_| None::<i32>,
+		/// 		Err(5)
+		/// 	),
 		/// 	None
 		/// );
 		/// ```
@@ -1382,6 +1670,519 @@ mod inner {
 		}
 	}
 
+	// -- By-reference trait implementations for ResultErrAppliedBrand --
+
+	#[document_type_parameters("The error type.")]
+	impl<E: Clone + 'static> RefFunctor for ResultErrAppliedBrand<E> {
+		/// Maps a function over the result by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function.", "The result.")]
+		#[document_returns("The mapped result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// assert_eq!(
+		/// 	explicit::map::<ResultErrAppliedBrand<()>, _, _, _, _>(|x: &i32| *x * 2, &Ok(5)),
+		/// 	Ok(10)
+		/// );
+		/// assert_eq!(
+		/// 	explicit::map::<ResultErrAppliedBrand<i32>, _, _, _, _>(
+		/// 		|x: &i32| *x * 2,
+		/// 		&Err::<i32, _>(1)
+		/// 	),
+		/// 	Err(1)
+		/// );
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match fa {
+				Ok(a) => Ok(func(a)),
+				Err(e) => Err(e.clone()),
+			}
+		}
+	}
+
+	#[document_type_parameters("The error type.")]
+	impl<E: Clone + 'static> RefFoldable for ResultErrAppliedBrand<E> {
+		/// Folds the result by reference.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The element type.",
+			"The monoid type."
+		)]
+		#[document_parameters("The mapping function.", "The result.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result = explicit::fold_map::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _, _>(
+		/// 	|x: &i32| x.to_string(),
+		/// 	&Ok(5),
+		/// );
+		/// assert_eq!(result, "5");
+		/// ```
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			match fa {
+				Ok(a) => func(a),
+				Err(_) => Monoid::empty(),
+			}
+		}
+	}
+
+	#[document_type_parameters("The error type.")]
+	impl<E: Clone + 'static> RefTraversable for ResultErrAppliedBrand<E> {
+		/// Traverses the result by reference.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The input type.",
+			"The output type.",
+			"The applicative."
+		)]
+		#[document_parameters("The function.", "The result.")]
+		#[document_returns("The traversed result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result: Vec<Result<String, ()>> =
+		/// 	ref_traverse::<ResultErrAppliedBrand<()>, RcFnBrand, _, _, VecBrand>(
+		/// 		|x: &i32| vec![x.to_string()],
+		/// 		&Ok(5),
+		/// 	);
+		/// assert_eq!(result, vec![Ok("5".to_string())]);
+		/// ```
+		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			match ta {
+				Ok(a) => F::map(Ok, func(a)),
+				Err(e) => F::pure(Err(e.clone())),
+			}
+		}
+	}
+
+	#[document_type_parameters("The error type.")]
+	impl<E: 'static> RefPointed for ResultErrAppliedBrand<E> {
+		/// Creates an `Ok` from a reference by cloning.
+		#[document_signature]
+		#[document_type_parameters("The lifetime of the value.", "The type of the value.")]
+		#[document_parameters("The reference to the value to wrap.")]
+		#[document_returns("An `Ok` containing a clone of the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = 42;
+		/// let result: Result<i32, ()> = ref_pure::<ResultErrAppliedBrand<()>, _>(&x);
+		/// assert_eq!(result, Ok(42));
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			Ok(a.clone())
+		}
+	}
+
+	#[document_type_parameters("The error type.")]
+	impl<E: Clone + 'static> RefLift for ResultErrAppliedBrand<E> {
+		/// Combines two `Result` values with a by-reference binary function.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"First input type.",
+			"Second input type.",
+			"Output type."
+		)]
+		#[document_parameters("The binary function.", "The first result.", "The second result.")]
+		#[document_returns("The combined result, or the first error encountered.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result = explicit::lift2::<ResultErrAppliedBrand<()>, _, _, _, _, _, _>(
+		/// 	|a: &i32, b: &i32| *a + *b,
+		/// 	&Ok(1),
+		/// 	&Ok(2),
+		/// );
+		/// assert_eq!(result, Ok(3));
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			match (fa, fb) {
+				(Ok(a), Ok(b)) => Ok(func(a, b)),
+				(Err(e), _) => Err(e.clone()),
+				(_, Err(e)) => Err(e.clone()),
+			}
+		}
+	}
+
+	#[document_type_parameters("The error type.")]
+	impl<E: Clone + 'static> RefSemiapplicative for ResultErrAppliedBrand<E> {
+		/// Applies a wrapped by-ref function to a `Result` value.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The function brand.",
+			"The input type.",
+			"The output type."
+		)]
+		#[document_parameters(
+			"The result containing the by-ref function.",
+			"The result containing the value."
+		)]
+		#[document_returns("The result of applying the function, or the first error.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f: Result<std::rc::Rc<dyn Fn(&i32) -> i32>, ()> = Ok(std::rc::Rc::new(|x: &i32| *x + 1));
+		/// let result = ref_apply::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(&f, &Ok(5));
+		/// assert_eq!(result, Ok(6));
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match (ff, fa) {
+				(Ok(f), Ok(a)) => Ok((**f)(a)),
+				(Err(e), _) => Err(e.clone()),
+				(_, Err(e)) => Err(e.clone()),
+			}
+		}
+	}
+
+	#[document_type_parameters("The error type.")]
+	impl<E: Clone + 'static> RefSemimonad for ResultErrAppliedBrand<E> {
+		/// Chains `Result` computations by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The input result.", "The function to apply by reference.")]
+		#[document_returns("The result of applying the function, or the original error.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result: Result<String, ()> =
+		/// 	explicit::bind::<ResultErrAppliedBrand<()>, _, _, _, _>(&Ok(42), |x: &i32| {
+		/// 		Ok(x.to_string())
+		/// 	});
+		/// assert_eq!(result, Ok("42".to_string()));
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match fa {
+				Ok(a) => f(a),
+				Err(e) => Err(e.clone()),
+			}
+		}
+	}
+
+	// -- By-reference trait implementations for ResultOkAppliedBrand --
+
+	#[document_type_parameters("The success type.")]
+	impl<T: Clone + 'static> RefFunctor for ResultOkAppliedBrand<T> {
+		/// Maps a function over the error value in the result by reference.
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The function.", "The result.")]
+		#[document_returns("The mapped result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// assert_eq!(
+		/// 	explicit::map::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: &i32| *x * 2, &Err(5)),
+		/// 	Err(10)
+		/// );
+		/// assert_eq!(
+		/// 	explicit::map::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: &i32| *x * 2, &Ok::<_, i32>(1)),
+		/// 	Ok(1)
+		/// );
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match fa {
+				Err(e) => Err(func(e)),
+				Ok(t) => Ok(t.clone()),
+			}
+		}
+	}
+
+	#[document_type_parameters("The success type.")]
+	impl<T: Clone + 'static> RefFoldable for ResultOkAppliedBrand<T> {
+		/// Folds the result by reference (over error).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The element type.",
+			"The monoid type."
+		)]
+		#[document_parameters("The mapping function.", "The result.")]
+		#[document_returns("The monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result = explicit::fold_map::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _, _>(
+		/// 	|x: &i32| x.to_string(),
+		/// 	&Err(5),
+		/// );
+		/// assert_eq!(result, "5");
+		/// ```
+		fn ref_fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(&A) -> M + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: LiftFn + 'a,
+			M: Monoid + 'a, {
+			match fa {
+				Err(e) => func(e),
+				Ok(_) => Monoid::empty(),
+			}
+		}
+	}
+
+	#[document_type_parameters("The success type.")]
+	impl<T: Clone + 'static> RefTraversable for ResultOkAppliedBrand<T> {
+		/// Traverses the result by reference (over error).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The brand.",
+			"The input type.",
+			"The output type.",
+			"The applicative."
+		)]
+		#[document_parameters("The function.", "The result.")]
+		#[document_returns("The traversed result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		/// let result: Vec<Result<(), String>> =
+		/// 	ref_traverse::<ResultOkAppliedBrand<()>, RcFnBrand, _, _, VecBrand>(
+		/// 		|x: &i32| vec![x.to_string()],
+		/// 		&Err(5),
+		/// 	);
+		/// assert_eq!(result, vec![Err("5".to_string())]);
+		/// ```
+		fn ref_traverse<'a, FnBrand, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(&A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			ta: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			FnBrand: LiftFn + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			match ta {
+				Err(e) => F::map(Err, func(e)),
+				Ok(t) => F::pure(Ok(t.clone())),
+			}
+		}
+	}
+
+	#[document_type_parameters("The success type.")]
+	impl<T: 'static> RefPointed for ResultOkAppliedBrand<T> {
+		/// Creates an `Err` from a reference by cloning.
+		#[document_signature]
+		#[document_type_parameters("The lifetime of the value.", "The type of the value.")]
+		#[document_parameters("The reference to the value to wrap.")]
+		#[document_returns("An `Err` containing a clone of the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = 42;
+		/// let result: Result<(), i32> = ref_pure::<ResultOkAppliedBrand<()>, _>(&x);
+		/// assert_eq!(result, Err(42));
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			Err(a.clone())
+		}
+	}
+
+	#[document_type_parameters("The success type.")]
+	impl<T: Clone + 'static> RefLift for ResultOkAppliedBrand<T> {
+		/// Combines two `Result` values with a by-reference binary function (over error).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"First input type.",
+			"Second input type.",
+			"Output type."
+		)]
+		#[document_parameters("The binary function.", "The first result.", "The second result.")]
+		#[document_returns("The combined result, or the first success encountered.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result = explicit::lift2::<ResultOkAppliedBrand<i32>, _, _, _, _, _, _>(
+		/// 	|a: &i32, b: &i32| *a + *b,
+		/// 	&Err(1),
+		/// 	&Err(2),
+		/// );
+		/// assert_eq!(result, Err(3));
+		/// ```
+		fn ref_lift2<'a, A: 'a, B: 'a, C: 'a>(
+			func: impl Fn(&A, &B) -> C + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
+			match (fa, fb) {
+				(Err(a), Err(b)) => Err(func(a, b)),
+				(Ok(t), _) => Ok(t.clone()),
+				(_, Ok(t)) => Ok(t.clone()),
+			}
+		}
+	}
+
+	#[document_type_parameters("The success type.")]
+	impl<T: Clone + 'static> RefSemiapplicative for ResultOkAppliedBrand<T> {
+		/// Applies a wrapped by-ref function to a `Result` value (over error).
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime.",
+			"The function brand.",
+			"The input type.",
+			"The output type."
+		)]
+		#[document_parameters(
+			"The result containing the by-ref function (in Err).",
+			"The result containing the value (in Err)."
+		)]
+		#[document_returns("The result of applying the function, or the first success.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f: Result<(), std::rc::Rc<dyn Fn(&i32) -> i32>> = Err(std::rc::Rc::new(|x: &i32| *x + 1));
+		/// let result = ref_apply::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(&f, &Err(5));
+		/// assert_eq!(result, Err(6));
+		/// ```
+		fn ref_apply<'a, FnBrand: 'a + CloneFn<Ref>, A: 'a, B: 'a>(
+			ff: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match (ff, fa) {
+				(Err(f), Err(a)) => Err((**f)(a)),
+				(Ok(t), _) => Ok(t.clone()),
+				(_, Ok(t)) => Ok(t.clone()),
+			}
+		}
+	}
+
+	#[document_type_parameters("The success type.")]
+	impl<T: Clone + 'static> RefSemimonad for ResultOkAppliedBrand<T> {
+		/// Chains `Result` computations by reference (over error).
+		#[document_signature]
+		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
+		#[document_parameters("The input result.", "The function to apply by reference.")]
+		#[document_returns("The result of applying the function, or the original success.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let result: Result<(), String> =
+		/// 	explicit::bind::<ResultOkAppliedBrand<()>, _, _, _, _>(&Err(42), |x: &i32| {
+		/// 		Err(x.to_string())
+		/// 	});
+		/// assert_eq!(result, Err("42".to_string()));
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match fa {
+				Err(e) => f(e),
+				Ok(t) => Ok(t.clone()),
+			}
+		}
+	}
+
 	/// [`MonadRec`] implementation for [`ResultErrAppliedBrand`].
 	#[document_type_parameters("The error type.")]
 	impl<E: Clone + 'static> MonadRec for ResultErrAppliedBrand<E> {
@@ -1451,10 +2252,7 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::{
-				CloneableFn,
-				bifunctor::*,
-			},
+			classes::*,
 			functions::*,
 		},
 		quickcheck_macros::quickcheck,
@@ -1466,10 +2264,16 @@ mod tests {
 	#[test]
 	fn test_bimap() {
 		let x: Result<i32, i32> = Ok(5);
-		assert_eq!(bimap::<ResultBrand, _, _, _, _>(|e| e + 1, |s| s * 2, x), Ok(10));
+		assert_eq!(
+			explicit::bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), x),
+			Ok(10)
+		);
 
 		let y: Result<i32, i32> = Err(5);
-		assert_eq!(bimap::<ResultBrand, _, _, _, _>(|e| e + 1, |s| s * 2, y), Err(6));
+		assert_eq!(
+			explicit::bimap::<ResultBrand, _, _, _, _, _, _>((|e| e + 1, |s| s * 2), y),
+			Err(6)
+		);
 	}
 
 	// Bifunctor Laws
@@ -1477,7 +2281,7 @@ mod tests {
 	/// Tests the identity law for Bifunctor.
 	#[quickcheck]
 	fn bifunctor_identity(x: Result<i32, i32>) -> bool {
-		bimap::<ResultBrand, _, _, _, _>(identity, identity, x) == x
+		explicit::bimap::<ResultBrand, _, _, _, _, _, _>((identity, identity), x) == x
 	}
 
 	/// Tests the composition law for Bifunctor.
@@ -1488,8 +2292,11 @@ mod tests {
 		let h = |x: i32| x.wrapping_sub(1);
 		let i = |x: i32| if x == 0 { 0 } else { x.wrapping_div(2) };
 
-		bimap::<ResultBrand, _, _, _, _>(compose(f, g), compose(h, i), x)
-			== bimap::<ResultBrand, _, _, _, _>(f, h, bimap::<ResultBrand, _, _, _, _>(g, i, x))
+		explicit::bimap::<ResultBrand, _, _, _, _, _, _>((compose(f, g), compose(h, i)), x)
+			== explicit::bimap::<ResultBrand, _, _, _, _, _, _>(
+				(f, h),
+				explicit::bimap::<ResultBrand, _, _, _, _, _, _>((g, i), x),
+			)
 	}
 
 	// Functor Laws
@@ -1497,7 +2304,7 @@ mod tests {
 	/// Tests the identity law for Functor.
 	#[quickcheck]
 	fn functor_identity(x: Result<i32, i32>) -> bool {
-		map::<ResultErrAppliedBrand<i32>, _, _>(identity, x) == x
+		explicit::map::<ResultErrAppliedBrand<i32>, _, _, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -1505,10 +2312,10 @@ mod tests {
 	fn functor_composition(x: Result<i32, i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<ResultErrAppliedBrand<i32>, _, _>(compose(f, g), x)
-			== map::<ResultErrAppliedBrand<i32>, _, _>(
+		explicit::map::<ResultErrAppliedBrand<i32>, _, _, _, _>(compose(f, g), x)
+			== explicit::map::<ResultErrAppliedBrand<i32>, _, _, _, _>(
 				f,
-				map::<ResultErrAppliedBrand<i32>, _, _>(g, x),
+				explicit::map::<ResultErrAppliedBrand<i32>, _, _, _, _>(g, x),
 			)
 	}
 
@@ -1518,7 +2325,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_identity(v: Result<i32, i32>) -> bool {
 		apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
-			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as CloneableFn>::new(identity)),
+			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as LiftFn>::new(identity)),
 			v,
 		) == v
 	}
@@ -1528,7 +2335,7 @@ mod tests {
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
 		apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
-			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as CloneableFn>::new(f)),
+			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as LiftFn>::new(f)),
 			pure::<ResultErrAppliedBrand<i32>, _>(x),
 		) == pure::<ResultErrAppliedBrand<i32>, _>(f(x))
 	}
@@ -1544,12 +2351,12 @@ mod tests {
 		let u_fn = |x: i32| x.wrapping_add(1);
 
 		let v = if v_is_ok {
-			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as CloneableFn>::new(v_fn))
+			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as LiftFn>::new(v_fn))
 		} else {
 			Err(100)
 		};
 		let u = if u_is_ok {
-			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as CloneableFn>::new(u_fn))
+			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as LiftFn>::new(u_fn))
 		} else {
 			Err(200)
 		};
@@ -1563,7 +2370,7 @@ mod tests {
 		let uv = match (u, v) {
 			(Ok(uf), Ok(vf)) => {
 				let composed = move |x| uf(vf(x));
-				Ok(<RcFnBrand as CloneableFn>::new(composed))
+				Ok(<RcFnBrand as LiftFn>::new(composed))
 			}
 			(Err(e), _) => Err(e),
 			(_, Err(e)) => Err(e),
@@ -1579,15 +2386,14 @@ mod tests {
 	fn applicative_interchange(y: i32) -> bool {
 		// u <*> pure y = pure ($ y) <*> u
 		let f = |x: i32| x.wrapping_mul(2);
-		let u = pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as CloneableFn>::new(f));
+		let u = pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as LiftFn>::new(f));
 
 		let lhs = apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
 			u.clone(),
 			pure::<ResultErrAppliedBrand<i32>, _>(y),
 		);
 
-		let rhs_fn =
-			<RcFnBrand as CloneableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
+		let rhs_fn = <RcFnBrand as LiftFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
 		let rhs = apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
 			pure::<ResultErrAppliedBrand<i32>, _>(rhs_fn),
 			u,
@@ -1602,14 +2408,19 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| -> Result<i32, i32> { Err(x.wrapping_mul(2)) };
-		bind::<ResultErrAppliedBrand<i32>, _, _>(pure::<ResultErrAppliedBrand<i32>, _>(a), f)
-			== f(a)
+		explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(
+			pure::<ResultErrAppliedBrand<i32>, _>(a),
+			f,
+		) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: Result<i32, i32>) -> bool {
-		bind::<ResultErrAppliedBrand<i32>, _, _>(m, pure::<ResultErrAppliedBrand<i32>, _>) == m
+		explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(
+			m,
+			pure::<ResultErrAppliedBrand<i32>, _>,
+		) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -1617,10 +2428,12 @@ mod tests {
 	fn monad_associativity(m: Result<i32, i32>) -> bool {
 		let f = |x: i32| -> Result<i32, i32> { Err(x.wrapping_mul(2)) };
 		let g = |x: i32| -> Result<i32, i32> { Err(x.wrapping_add(1)) };
-		bind::<ResultErrAppliedBrand<i32>, _, _>(bind::<ResultErrAppliedBrand<i32>, _, _>(m, f), g)
-			== bind::<ResultErrAppliedBrand<i32>, _, _>(m, |x| {
-				bind::<ResultErrAppliedBrand<i32>, _, _>(f(x), g)
-			})
+		explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(
+			explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(m, f),
+			g,
+		) == explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(m, |x| {
+			explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(f(x), g)
+		})
 	}
 
 	// Edge Cases
@@ -1629,7 +2442,10 @@ mod tests {
 	#[test]
 	fn map_err() {
 		assert_eq!(
-			map::<ResultErrAppliedBrand<i32>, _, _>(|x: i32| x + 1, Err::<i32, i32>(1)),
+			explicit::map::<ResultErrAppliedBrand<i32>, _, _, _, _>(
+				|x: i32| x + 1,
+				Err::<i32, i32>(1)
+			),
 			Err(1)
 		);
 	}
@@ -1638,7 +2454,10 @@ mod tests {
 	#[test]
 	fn bind_err() {
 		assert_eq!(
-			bind::<ResultErrAppliedBrand<i32>, _, _>(Err::<i32, i32>(1), |x: i32| Ok(x + 1)),
+			explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(
+				Err::<i32, i32>(1),
+				|x: i32| Ok(x + 1)
+			),
 			Err(1)
 		);
 	}
@@ -1646,18 +2465,24 @@ mod tests {
 	/// Tests `bind` returning `Err`.
 	#[test]
 	fn bind_returning_err() {
-		assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _>(Ok(1), |_| Err::<i32, i32>(2)), Err(2));
+		assert_eq!(
+			explicit::bind::<ResultErrAppliedBrand<i32>, _, _, _, _>(Ok(1), |_| Err::<i32, i32>(2)),
+			Err(2)
+		);
 	}
 
 	/// Tests `fold_right` on `Err`.
 	#[test]
 	fn fold_right_err() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
-				|x: i32, acc| x + acc,
-				0,
-				Err(1)
-			),
+			crate::functions::explicit::fold_right::<
+				RcFnBrand,
+				ResultErrAppliedBrand<i32>,
+				_,
+				_,
+				_,
+				_,
+			>(|x: i32, acc| x + acc, 0, Err(1)),
 			0
 		);
 	}
@@ -1666,11 +2491,14 @@ mod tests {
 	#[test]
 	fn fold_left_err() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
-				|acc, x: i32| acc + x,
-				0,
-				Err(1)
-			),
+			crate::functions::explicit::fold_left::<
+				RcFnBrand,
+				ResultErrAppliedBrand<i32>,
+				_,
+				_,
+				_,
+				_,
+			>(|acc, x: i32| acc + x, 0, Err(1)),
 			0
 		);
 	}
@@ -1836,5 +2664,70 @@ mod tests {
 			0i64,
 		);
 		assert_eq!(result, Err(iterations));
+	}
+
+	// -- RefBifunctor --
+
+	/// RefBifunctor identity: bimap((Clone::clone, Clone::clone), &p) == p
+	#[quickcheck]
+	fn ref_bifunctor_identity(x: Result<i32, i32>) -> bool {
+		explicit::bimap::<ResultBrand, _, _, _, _, _, _>((|a: &i32| *a, |c: &i32| *c), &x) == x
+	}
+
+	/// RefBifunctor composition
+	#[quickcheck]
+	fn ref_bifunctor_composition(x: Result<i32, i32>) -> bool {
+		let f1 = |a: &i32| a.wrapping_add(1);
+		let f2 = |a: &i32| a.wrapping_mul(2);
+		let g1 = |c: &i32| c.wrapping_add(10);
+		let g2 = |c: &i32| c.wrapping_mul(3);
+		explicit::bimap::<ResultBrand, _, _, _, _, _, _>(
+			(|a: &i32| f2(&f1(a)), |c: &i32| g2(&g1(c))),
+			&x,
+		) == explicit::bimap::<ResultBrand, _, _, _, _, _, _>(
+			(f2, g2),
+			&explicit::bimap::<ResultBrand, _, _, _, _, _, _>((f1, g1), &x),
+		)
+	}
+
+	// -- RefBifoldable --
+
+	/// RefBifoldable: bi_fold_map with ref closures produces same result as manual fold
+	#[quickcheck]
+	fn ref_bifoldable_fold_map(x: Result<i32, i32>) -> bool {
+		let result = explicit::bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+			(|a: &i32| a.to_string(), |b: &i32| b.to_string()),
+			&x,
+		);
+		let expected = match &x {
+			Err(a) => a.to_string(),
+			Ok(b) => b.to_string(),
+		};
+		result == expected
+	}
+
+	// -- RefBitraversable --
+
+	/// RefBitraversable: bi_traverse with ref closures consistent with ref_bi_sequence . bimap ref
+	#[quickcheck]
+	fn ref_bitraversable_consistency(x: Result<i32, i32>) -> bool {
+		let f = |a: &i32| Some(a.wrapping_add(1));
+		let g = |c: &i32| Some(c.wrapping_mul(2));
+		let traversed =
+			explicit::bi_traverse::<RcFnBrand, ResultBrand, _, _, _, _, OptionBrand, _, _>(
+				(f, g),
+				&x,
+			);
+		let mapped_then_sequenced =
+			ref_bi_sequence::<ResultBrand, RcFnBrand, _, _, OptionBrand>(&explicit::bimap::<
+				ResultBrand,
+				_,
+				_,
+				_,
+				_,
+				_,
+				_,
+			>((f, g), &x));
+		traversed == mapped_then_sequenced
 	}
 }

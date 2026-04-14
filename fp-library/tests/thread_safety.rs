@@ -1,3 +1,5 @@
+#![expect(clippy::unwrap_used, reason = "Tests use panicking operations for brevity and clarity")]
+
 use {
 	fp_library::{
 		brands::*,
@@ -8,14 +10,14 @@ use {
 
 #[test]
 fn test_spawn_thread_with_send_fn() {
-	let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
+	let f = send_lift_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 	let handle = thread::spawn(move || f(21));
 	assert_eq!(handle.join().unwrap(), 42);
 }
 
 #[test]
 fn test_share_send_fn_across_threads() {
-	let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
+	let f = send_lift_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 	let f_clone1 = f.clone();
 	let f_clone2 = f.clone();
 

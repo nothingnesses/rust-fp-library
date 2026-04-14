@@ -1,0 +1,6 @@
+---
+source: fp-macros/src/documentation/signature_snapshot_tests.rs
+assertion_line: 131
+expression: output
+---
+alt: forall Brand A. Alt Brand => (Brand A, Brand A) -> Brand A

@@ -20,10 +20,16 @@ use {
 
 /// The parsed input to the `m_do!` macro.
 ///
-/// Represents `Brand { statements... final_expr }`.
+/// Represents `[ref] [Brand] { statements... final_expr }`.
+///
+/// In explicit mode, `brand` is `Some(Brand)` and the macro generates
+/// `explicit::bind::<Brand, ...>` calls. In inferred mode (brand omitted),
+/// `brand` is `None` and the macro generates inference-based `bind` calls.
 pub struct DoInput {
-	/// The brand type (e.g., `OptionBrand`).
-	pub brand: Type,
+	/// Whether the `ref` qualifier is present, selecting by-reference dispatch.
+	pub ref_mode: bool,
+	/// The brand type, or `None` for inferred mode.
+	pub brand: Option<Type>,
 	/// The statements preceding the final expression.
 	pub statements: Vec<DoStatement>,
 	/// The final expression (returned as-is, no trailing `;`).
@@ -59,7 +65,15 @@ pub enum DoStatement {
 
 impl Parse for DoInput {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		let brand: Type = input.parse()?;
+		let ref_mode = input.peek(Token![ref]);
+		if ref_mode {
+			input.parse::<Token![ref]>()?;
+		}
+
+		// Inferred mode: `{ ... }` or `ref { ... }` (no brand before brace)
+		// Explicit mode: `Brand { ... }` or `ref Brand { ... }`
+		let brand: Option<Type> =
+			if input.peek(syn::token::Brace) { None } else { Some(input.parse()?) };
 
 		let content;
 		braced!(content in input);
@@ -103,6 +117,7 @@ impl Parse for DoInput {
 			}
 
 			return Ok(DoInput {
+				ref_mode,
 				brand,
 				statements,
 				final_expr: expr,
@@ -256,6 +271,12 @@ fn collect_type_before_arrow(input: ParseStream) -> Option<Type> {
 }
 
 #[cfg(test)]
+#[expect(
+	clippy::indexing_slicing,
+	clippy::expect_used,
+	clippy::panic,
+	reason = "Tests use panicking operations for brevity and clarity"
+)]
 mod tests {
 	use {
 		super::*,
@@ -391,5 +412,63 @@ mod tests {
 	fn parse_empty_block_fails() {
 		let result = parse_str::<DoInput>("OptionBrand {}");
 		assert!(result.is_err());
+	}
+
+	#[test]
+	fn parse_ref_mode() {
+		let input: DoInput = parse_str(
+			"ref OptionBrand {
+				x <- Some(5);
+				pure(x)
+			}",
+		)
+		.expect("failed to parse");
+
+		assert!(input.ref_mode);
+		assert!(matches!(input.statements[0], DoStatement::Bind { .. }));
+	}
+
+	#[test]
+	fn parse_non_ref_mode() {
+		let input: DoInput = parse_str(
+			"OptionBrand {
+				x <- Some(5);
+				pure(x)
+			}",
+		)
+		.expect("failed to parse");
+
+		assert!(!input.ref_mode);
+		assert!(input.brand.is_some());
+	}
+
+	#[test]
+	fn parse_inferred_mode() {
+		let input: DoInput = parse_str(
+			"{
+				x <- Some(5);
+				Some(x + 1)
+			}",
+		)
+		.expect("failed to parse");
+
+		assert!(!input.ref_mode);
+		assert!(input.brand.is_none());
+		assert_eq!(input.statements.len(), 1);
+		assert!(matches!(input.statements[0], DoStatement::Bind { .. }));
+	}
+
+	#[test]
+	fn parse_inferred_ref_mode() {
+		let input: DoInput = parse_str(
+			"ref {
+				x <- Some(5);
+				Some(x + 1)
+			}",
+		)
+		.expect("failed to parse");
+
+		assert!(input.ref_mode);
+		assert!(input.brand.is_none());
 	}
 }

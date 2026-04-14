@@ -1,4 +1,4 @@
-## Zero-Cost Abstractions & Uncurried Semantics
+### Zero-Cost Abstractions & Uncurried Semantics
 
 Unlike many functional programming libraries that strictly adhere to curried functions (e.g., `map(f)(fa)`), `fp-library` adopts **uncurried semantics** (e.g., `map(f, fa)`) for its core abstractions.
 

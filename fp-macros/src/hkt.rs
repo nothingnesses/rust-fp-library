@@ -21,9 +21,13 @@ pub use {
 	apply::{
 		ApplyInput,
 		apply_worker,
+		resolve_inferable_brand,
 	},
 	associated_type::AssociatedTypeBase,
-	canonicalizer::generate_name,
+	canonicalizer::{
+		generate_inferable_brand_name,
+		generate_name,
+	},
 	impl_kind::{
 		ImplKindInput,
 		impl_kind_worker,
