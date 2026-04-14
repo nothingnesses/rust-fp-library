@@ -24,7 +24,7 @@
   Added `dispatch_traits` field to `Config`. 4 unit tests passing.
   The dispatch info is populated but not yet consumed by signature
   generation (steps 7-8).
-- Steps 7-8: In progress.
+- Steps 7-8: Done.
   - 7-8a: Done. Fixed `format_brand_name()` to not strip "Brand" suffix
     when result would be empty.
   - 7-8b: Done. Added `brand_param`, `kind_trait_name` (extracted from
@@ -47,7 +47,7 @@
     `arrow_output_to_hm`, `type_to_param_hm`, `inferable_param_to_hm`,
     `build_dispatch_return_type`). Stale `#[expect(dead_code)]`
     annotations removed from fields now consumed.
-  - 7-8f: In progress. Three major fixes applied:
+  - 7-8f: Done. All 37 functions produce correct signatures. Fixes applied:
     - ArrowOutput::Plain now stores raw Rust tokens (not HM-simplified).
       Fixes filter_map, partition_map, and other functions whose closures
       return compound types like Option<B>.
@@ -59,6 +59,25 @@
       original sig's where clause and substituted. Fixes alt/compact/join.
     - Original function params preserved (non-container, non-dispatch
       params like fold_right's initial: B kept as-is).
+    - SubArrow variant added to DispatchArrowParam for tuple closures.
+      Eliminates lossy string round-trip. Fixes compose_kleisli and
+      bi_traverse sub-arrow outputs showing () instead of Brand B.
+    - NestedTuple variant added to ReturnStructure for nested applications
+      containing tuples of brand applications (e.g., M (Brand E, Brand O)).
+      Fixes wilt falling through to standalone macro.
+    - Associated type extraction from Val impl blocks. Maps assoc type
+      names to element types from Apply!. Fixes apply_first/apply_second
+      second parameter showing raw FA instead of Brand B.
+    - Self-type element extraction from Val impl's self type for closureless
+      dispatch where the trait is implemented on the container type itself.
+      Fixes separate showing Brand E instead of Brand (Result O E).
+    - Element type params collected from all sources (container_params,
+      return structure, associated types, arrow types, self_type_elements),
+      deduplicated, and sorted alphabetically for consistent forall ordering.
+    - Tuple closure params detected in where-clause dispatch (e.g.,
+      compose_kleisli_flipped's (F, G) tuple param).
+    - build_applied_type changed to parse element types as syn::Type
+      instead of syn::Ident, supporting compound types like Result<O, E>.
   - Constants: Moved hardcoded "Brand", "Marker", "FnBrand", "Dispatch"
     strings to `core/constants.rs`.
   - Nested Apply! handling verified: the existing pipeline recursively
@@ -70,13 +89,13 @@
 
 ### Steps 7-8f current output status
 
-32 of 37 functions produce correct signatures. All string-based Apply!
+37 of 37 functions produce correct signatures. All string-based Apply!
 macro parsing has been replaced with the proper token-stream parser
 (`get_apply_macro_parameters`). Container map now built from the
 function's dispatch trait type args (not the trait's param names),
 fixing the traverse `Brand B` -> `Brand A` issue.
 
-**Functions producing correct signatures (30):**
+**All 37 functions producing correct signatures:**
 
 | Function                   | Signature                                                                                                                |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -86,9 +105,12 @@ fixing the traverse `Brand B` -> `Brand A` issue.
 | `fold_map`                 | `forall Brand A M. (Foldable Brand, Monoid M) => (A -> M, Brand A) -> M`                                                 |
 | `alt`                      | `forall Brand A. Alt Brand => (Brand A, Brand A) -> Brand A`                                                             |
 | `compact`                  | `forall Brand A. Compactable Brand => Brand A -> Brand A`                                                                |
+| `separate`                 | `forall Brand E O. Compactable Brand => Brand (Result O E) -> (Brand E, Brand O)`                                        |
 | `join`                     | `forall Brand A. Semimonad Brand => Brand A -> Brand A`                                                                  |
 | `bind`                     | `forall Brand A B. Semimonad Brand => (Brand A, A -> Brand B) -> Brand B`                                                |
 | `bind_flipped`             | `forall Brand A B. Semimonad Brand => (A -> Brand B, Brand A) -> Brand B`                                                |
+| `compose_kleisli`          | `forall Brand A B C. Semimonad Brand => ((A -> Brand B, B -> Brand C), A) -> Brand C`                                    |
+| `compose_kleisli_flipped`  | `forall Brand A B C. Semimonad Brand => ((A -> Brand B, B -> Brand C), A) -> Brand C`                                    |
 | `filter`                   | `forall Brand A. Filterable Brand => (A -> bool, Brand A) -> Brand A`                                                    |
 | `filter_map`               | `forall Brand A B. Filterable Brand => (A -> Option B, Brand A) -> Brand B`                                              |
 | `partition`                | `forall Brand A. Filterable Brand => (A -> bool, Brand A) -> (Brand A, Brand A)`                                         |
@@ -97,11 +119,15 @@ fixing the traverse `Brand B` -> `Brand A` issue.
 | `lift3`                    | `forall Brand A B C D. Lift Brand => ((A, B, C) -> D, Brand A, Brand B, Brand C) -> Brand D`                             |
 | `lift4`                    | `forall Brand A B C D E. Lift Brand => ((A, B, C, D) -> E, Brand A, Brand B, Brand C, Brand D) -> Brand E`               |
 | `lift5`                    | `forall Brand A B C D E G. Lift Brand => ((A, B, C, D, E) -> G, Brand A, Brand B, Brand C, Brand D, Brand E) -> Brand G` |
-| `bimap`                    | `forall Brand A C B D. Bifunctor Brand => ((A -> B, C -> D), Brand A C) -> Brand B D`                                    |
+| `bimap`                    | `forall Brand A B C D. Bifunctor Brand => ((A -> B, C -> D), Brand A C) -> Brand B D`                                    |
 | `bi_fold_left`             | `forall Brand A B C. Bifoldable Brand => (((C, A) -> C, (C, B) -> C), C, Brand A B) -> C`                                |
 | `bi_fold_right`            | `forall Brand A B C. Bifoldable Brand => (((A, C) -> C, (B, C) -> C), C, Brand A B) -> C`                                |
 | `bi_fold_map`              | `forall Brand A B M. (Bifoldable Brand, Monoid M) => ((A -> M, B -> M), Brand A B) -> M`                                 |
-| `wither`                   | `forall Brand A M B. (Witherable Brand, Applicative M) => Brand A -> M (Brand B)`                                        |
+| `bi_traverse`              | `forall Brand A B C D F. (Bitraversable Brand, Applicative F) => ((A -> F C, B -> F D), Brand A B) -> F (Brand C D)`     |
+| `wither`                   | `forall Brand A B M. (Witherable Brand, Applicative M) => (A -> M (Option B), Brand A) -> M (Brand B)`                   |
+| `wilt`                     | `forall Brand A E O M. (Witherable Brand, Applicative M) => (A -> M (Result O E), Brand A) -> M (Brand E, Brand O)`      |
+| `apply_first`              | `forall Brand A B. ApplyFirst Brand => (Brand A, Brand B) -> Brand A`                                                    |
+| `apply_second`             | `forall Brand A B. ApplySecond Brand => (Brand A, Brand B) -> Brand B`                                                   |
 | `map_with_index`           | `forall Brand A B. FunctorWithIndex Brand => ((Index, A) -> B, Brand A) -> Brand B`                                      |
 | `fold_left_with_index`     | `forall Brand A B. FoldableWithIndex Brand => ((Index, B, A) -> B, B, Brand A) -> B`                                     |
 | `fold_right_with_index`    | `forall Brand A B. FoldableWithIndex Brand => ((Index, A, B) -> B, B, Brand A) -> B`                                     |
@@ -111,18 +137,19 @@ fixing the traverse `Brand B` -> `Brand A` issue.
 | `partition_with_index`     | `forall Brand A. FilterableWithIndex Brand => ((Index, A) -> bool, Brand A) -> (Brand A, Brand A)`                       |
 | `partition_map_with_index` | `forall Brand A E O. FilterableWithIndex Brand => ((Index, A) -> Result O E, Brand A) -> (Brand E, Brand O)`             |
 
-**Remaining issues (5 functions):**
+**Resolved issues:**
 
-| Issue                                | Functions                                             | Root cause                                                                                                                                                                                                                                                                                                                                                                         | Approach                                                                                                                                                                                                                  |
-| ------------------------------------ | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Arrow output `()` for Apply! returns | compose_kleisli, compose_kleisli_flipped, bi_traverse | Sub-arrow output types are `Apply!(<Brand>::Of<B>)` inside `Fn(A) -> Apply!(...)` bounds. The `classify_arrow_output` uses `get_apply_macro_parameters` which works, but the Apply! token stream inside a parenthesized Fn argument may not parse correctly as a standalone `Type::Macro`. The Fn bound's return type, when extracted by syn, might lose the Apply! macro context. | Debug: check what `syn::ReturnType::Type` contains for `Fn(A) -> Apply!(...)`. The return type might be parsed as `Type::Macro` or might be a raw token stream that needs explicit Apply! resolution.                     |
-| Second param `FA` not substituted    | apply_first, apply_second                             | Second param type is `<FA as ApplyFirstDispatch<...>>::FB` (associated type projection), not in container_map.                                                                                                                                                                                                                                                                     | Extract `type FB = Apply!(...)` from Val impl's associated type items. Resolve projections during synthetic signature building.                                                                                           |
-| Falls through entirely               | wilt                                                  | Complex: FnBrand + Applicative secondary + tuple-inside-applicative return. The Fn bound's return type contains nested Apply! with Result inside another Apply!. `classify_arrow_output` or `build_synthetic_signature` returns None.                                                                                                                                              | Debug why `build_synthetic_signature` returns None. Likely the arrow output classification fails for the complex nested pattern.                                                                                          |
-| Container shows `Brand E`            | separate                                              | Closureless dispatch with tuple return. No container mapping from dispatch trait (closureless traits have no container type args in the impl). InferableBrand fallback uses Tuple return's first element `["E"]`.                                                                                                                                                                  | The correct input type for separate is `Brand (Result O E)` which requires knowing the compound input element type. This may need to come from the dispatch trait's method parameter type, not from the return structure. |
-
-**Resolved since last update:**
-
-- traverse, traverse_with_index: container `Brand B` -> `Brand A`. Fixed by `build_container_map` matching function type args to trait type args.
+- traverse, traverse_with_index: container `Brand B` -> `Brand A`. Fixed by
+  `build_container_map` matching function type args to trait type args.
+- compose_kleisli, compose_kleisli_flipped, bi_traverse: sub-arrow outputs
+  showing `()` instead of `Brand B` / `Brand C`. Fixed by `SubArrow` variant
+  in `DispatchArrowParam`, eliminating lossy string round-trip.
+- wilt: fell through to standalone macro. Fixed by `NestedTuple` variant in
+  `ReturnStructure` and `build_applied_type` parsing elements as `syn::Type`.
+- apply_first, apply_second: second param showed raw `FA`. Fixed by associated
+  type extraction from Val impl blocks.
+- separate: container showed `Brand E` instead of `Brand (Result O E)`. Fixed
+  by self-type element extraction from Val impl's `for Apply!(...)` self type.
 
 ### Step 7-8g: Regression tests for all 37 signatures
 
@@ -534,6 +561,87 @@ list.
     the type for the synthetic signature. Without this fix, functions
     with compound closure return types (filter_map, partition_map, etc.)
     fell through to the standalone macro.
+
+13. **Tuple closure sub-arrows stored as structured data, not strings.**
+    The initial approach (step 7-8e) used `format_arrow_as_string()` to
+    flatten each sub-arrow (e.g., `Fn(A) -> Apply!(...)`) into a string
+    like `"A -> Brand B"`, then `build_closure_param` split on `->` and
+    parsed the output back as `syn::Type`. This failed because `"Brand B"`
+    is not valid Rust syntax, causing `syn::parse_str` to return `Err` and
+    the output to fall back to `()`. Fix: added `SubArrow(DispatchArrow)`
+    variant to `DispatchArrowParam`. `extract_tuple_arrow` now stores each
+    sub-arrow as structured data with proper `ArrowOutput` classification.
+    `build_closure_param` constructs `fn(A) -> <Brand as Kind>::Of<B>`
+    types directly from the structured representation. Removed the now-dead
+    `format_arrow_as_string` function.
+
+14. **`NestedTuple` variant added to `ReturnStructure`.** The wilt dispatch
+    trait returns `Apply!(<M as Kind>::Of<'a, (Apply!(<Brand>::Of<E>),
+Apply!(<Brand>::Of<O>))>)`, a nested application where the inner arg
+    is a tuple of brand applications. `classify_return_type` previously
+    treated the tuple as a single opaque string in the Nested variant,
+    which failed to parse in `build_return_type`. The new `NestedTuple`
+    variant stores the inner tuple elements as separate `Vec<Vec<String>>`.
+    `build_return_type` constructs the correct
+    `<M as Kind>::Of<'a, (<Brand as Kind>::Of<E>, <Brand as Kind>::Of<O>)>`
+    syn::Type.
+
+15. **Associated type extraction from Val impl blocks.** The apply_first
+    and apply_second dispatch traits use associated types (`type FB`) for
+    the second container parameter. The inference wrapper's parameter type
+    is a qualified projection `<FA as ApplyFirstDispatch<...>>::FB` which
+    no existing code path handled. Fix: `extract_associated_types()` scans
+    the Val impl's `ImplItem::Type` items for Apply! definitions and stores
+    them in `DispatchTraitInfo::associated_types`. `build_synthetic_signature`
+    detects qualified path parameters (via `type_path.qself.is_some()`) and
+    resolves them using the associated type map. Element types from associated
+    types are also added to the generic params.
+
+16. **Self-type element extraction for closureless dispatch.** The separate
+    dispatch trait is implemented on the container itself:
+    `impl SeparateDispatch<...> for Apply!(<Brand>::Of<'a, Result<O, E>>)`.
+    The input container element type (`Result<O, E>`) differs from the
+    output element types (`E` and `O` separately). The InferableBrand
+    fallback previously derived input element types from the return structure,
+    giving `["E"]` instead of `["Result<O,E>"]`. Fix:
+    `extract_self_type_elements()` extracts Apply! args from the Val impl's
+    self type. `build_synthetic_signature` prefers these over the return
+    structure heuristic when the elements do not contain macro invocations
+    (Apply!, Kind!). Nested HKT self types (e.g., compact's
+    `Apply!(<Brand>::Of<Apply!(<Option>::Of<A>)>)`) still use the return
+    structure heuristic since their inner Apply! args are not useful raw.
+
+17. **`build_applied_type` changed to parse elements as `syn::Type`.**
+    Previously parsed each element type string as `syn::Ident`, which
+    failed for compound types like `Result<O, E>`. Now parses as
+    `syn::Type`, correctly handling both simple idents and parameterized
+    types. This was required for separate's `Brand (Result O E)` and
+    wilt's `M (Result O E)` closure output.
+
+18. **Element type params collected, deduplicated, and sorted.** The
+    initial approach added element type params incrementally from each
+    source (container_params, return structure, etc.), producing
+    inconsistent forall ordering (e.g., `forall Brand C A B` for
+    compose_kleisli). Refactored to a two-phase approach: first collect
+    all single-letter element types from every source (container_params,
+    return structure, associated types, arrow types, self_type_elements),
+    deduplicate, sort alphabetically, then add to generic params. This
+    ensures consistent `forall Brand A B C` ordering.
+
+19. **Tuple param detection for where-clause dispatch.** The
+    `compose_kleisli_flipped` function takes `gf: (F, G)` with the
+    dispatch bound in a where clause on `(G, F)`, rather than using
+    `impl ComposeKleisliDispatch<...>`. The existing code only detected
+    `impl Trait` params as dispatch closures. Added detection for tuple
+    params when `dispatch_info.tuple_closure` is true and the param type
+    is a `Type::Tuple` with 2+ elements.
+
+20. **Wither signature now includes closure parameter.** The previous
+    output `Brand A -> M (Brand B)` was incorrect: it omitted the
+    closure parameter because `build_closure_param` failed on
+    `Option<B>` (parsed as Ident). With the `syn::Type` parsing fix,
+    the closure is now correctly rendered as `A -> M (Option B)`, giving
+    the full signature `(A -> M (Option B), Brand A) -> M (Brand B)`.
 
 ## Prerequisites
 

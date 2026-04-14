@@ -12,6 +12,7 @@ use {
 	std::collections::HashMap,
 	syn::{
 		GenericArgument,
+		ImplItem,
 		Item,
 		PathArguments,
 		ReturnType,
@@ -49,6 +50,14 @@ pub struct DispatchTraitInfo {
 	/// types. E.g., for lift2: [("FA", "A"), ("FB", "B")]. Derived from
 	/// the dispatch trait's generic parameter positions.
 	pub container_params: Vec<(String, Vec<String>)>,
+	/// Associated type definitions from the Val impl block.
+	/// Maps associated type names to their element types extracted from Apply!.
+	/// E.g., for ApplyFirstDispatch: [("FB", ["B"])].
+	pub associated_types: Vec<(String, Vec<String>)>,
+	/// Element types extracted from the Val impl's self type when it is an Apply! macro.
+	/// Used for closureless dispatch where the container IS the self type.
+	/// E.g., for SeparateDispatch: Some(["Result<O,E>"]).
+	pub self_type_elements: Option<Vec<String>>,
 }
 
 /// Describes the HM return type structure of a dispatch trait.
@@ -62,6 +71,9 @@ pub enum ReturnStructure {
 	Nested { outer_param: String, inner_args: Vec<String> },
 	/// Returns a tuple of brand applications (e.g., `(F A, F B)` for partition/separate).
 	Tuple(Vec<Vec<String>>),
+	/// Returns a nested application containing a tuple of brand applications
+	/// (e.g., `M (F E, F O)` for wilt).
+	NestedTuple { outer_param: String, inner_elements: Vec<Vec<String>> },
 }
 
 /// Arrow type information extracted from a dispatch impl's Fn bound.
@@ -91,6 +103,8 @@ pub enum DispatchArrowParam {
 	TypeParam(String),
 	/// An associated type on the Brand (e.g., Brand::Index -> "Index").
 	AssociatedType { assoc_name: String },
+	/// A sub-arrow from a tuple closure (e.g., one of the Fn bounds in bimap's (F, G)).
+	SubArrow(DispatchArrow),
 }
 
 // -- Constants --
@@ -220,7 +234,7 @@ fn extract_dispatch_info(
 	let tuple_closure = is_tuple_closure(val_impl);
 
 	let arrow_type = if tuple_closure {
-		extract_tuple_arrow(val_impl)
+		extract_tuple_arrow(val_impl, brand_param.as_deref())
 	} else {
 		extract_single_arrow(val_impl, brand_param.as_deref())
 	};
@@ -237,6 +251,9 @@ fn extract_dispatch_info(
 	let container_params =
 		trait_def.map(|td| extract_container_params(td, val_impl)).unwrap_or_default();
 
+	let associated_types = extract_associated_types(val_impl);
+	let self_type_elements = extract_self_type_elements(val_impl);
+
 	DispatchTraitInfo {
 		trait_name: trait_name.to_string(),
 		brand_param: brand_param.unwrap_or_else(|| markers::DEFAULT_BRAND_PARAM.to_string()),
@@ -247,6 +264,8 @@ fn extract_dispatch_info(
 		tuple_closure,
 		return_structure,
 		container_params,
+		associated_types,
+		self_type_elements,
 	}
 }
 
@@ -436,8 +455,28 @@ fn classify_return_type(
 		}
 
 		// Nested: outer brand is different from Brand (e.g., F (Brand B))
-		// Check if any of the args is itself an Apply! with Brand
 		let outer_name = brand_name.unwrap_or_else(|| "G".to_string());
+
+		// Check if the inner arg is a tuple of Apply! types (e.g., wilt returns M (Brand E, Brand O))
+		if let [single_arg] = raw_args.as_slice()
+			&& let Type::Tuple(tuple) = single_arg
+			&& tuple.elems.len() >= 2
+		{
+			let mut inner_elements = Vec::new();
+			for elem in &tuple.elems {
+				if let Some(nested_args) = extract_apply_type_args(elem) {
+					inner_elements.push(nested_args);
+				} else {
+					let s = quote::quote!(#elem).to_string().replace(' ', "");
+					inner_elements.push(vec![s]);
+				}
+			}
+			return ReturnStructure::NestedTuple {
+				outer_param: outer_name,
+				inner_elements,
+			};
+		}
+
 		// The inner args are the type args of the outer Apply, which may
 		// themselves be Apply! macros. Extract the innermost Brand application.
 		let mut inner_args = Vec::new();
@@ -677,7 +716,10 @@ fn extract_single_arrow(
 }
 
 /// Extract arrow types from a tuple-closure dispatch impl (e.g., bimap with (F, G)).
-fn extract_tuple_arrow(val_impl: &syn::ItemImpl) -> Option<DispatchArrow> {
+fn extract_tuple_arrow(
+	val_impl: &syn::ItemImpl,
+	brand_param: Option<&str>,
+) -> Option<DispatchArrow> {
 	let mut all_inputs = Vec::new();
 	let mut last_output = ArrowOutput::Plain("()".to_string());
 
@@ -685,11 +727,9 @@ fn extract_tuple_arrow(val_impl: &syn::ItemImpl) -> Option<DispatchArrow> {
 		for predicate in &where_clause.predicates {
 			if let WherePredicate::Type(pred_type) = predicate {
 				for bound in &pred_type.bounds {
-					if let Some(arrow) = extract_fn_arrow_from_bound(bound, None) {
-						// For tuple closures, each sub-arrow becomes an input
-						let sub_arrow_str = format_arrow_as_string(&arrow);
-						all_inputs.push(DispatchArrowParam::TypeParam(sub_arrow_str));
+					if let Some(arrow) = extract_fn_arrow_from_bound(bound, brand_param) {
 						last_output = arrow.output.clone();
+						all_inputs.push(DispatchArrowParam::SubArrow(arrow));
 					}
 				}
 			}
@@ -700,10 +740,9 @@ fn extract_tuple_arrow(val_impl: &syn::ItemImpl) -> Option<DispatchArrow> {
 	for param in &val_impl.generics.params {
 		if let syn::GenericParam::Type(type_param) = param {
 			for bound in &type_param.bounds {
-				if let Some(arrow) = extract_fn_arrow_from_bound(bound, None) {
-					let sub_arrow_str = format_arrow_as_string(&arrow);
-					all_inputs.push(DispatchArrowParam::TypeParam(sub_arrow_str));
+				if let Some(arrow) = extract_fn_arrow_from_bound(bound, brand_param) {
 					last_output = arrow.output.clone();
+					all_inputs.push(DispatchArrowParam::SubArrow(arrow));
 				}
 			}
 		}
@@ -811,35 +850,30 @@ fn classify_arrow_output(
 	ArrowOutput::Plain(quote::quote!(#ty).to_string())
 }
 
-/// Format a DispatchArrow as a string for embedding in tuple closures.
-fn format_arrow_as_string(arrow: &DispatchArrow) -> String {
-	let inputs: Vec<String> = arrow
-		.inputs
-		.iter()
-		.map(|p| match p {
-			DispatchArrowParam::TypeParam(s) => s.clone(),
-			DispatchArrowParam::AssociatedType {
-				assoc_name,
-			} => assoc_name.clone(),
-		})
-		.collect();
+/// Extract associated type definitions from a Val impl block.
+///
+/// Finds `type FB = Apply!(<Brand as Kind>::Of<'a, B>)` items and extracts
+/// the associated type name and element types from the Apply! macro.
+fn extract_associated_types(val_impl: &syn::ItemImpl) -> Vec<(String, Vec<String>)> {
+	let mut result = Vec::new();
+	for item in &val_impl.items {
+		if let ImplItem::Type(type_item) = item {
+			let name = type_item.ident.to_string();
+			if let Some(args) = extract_apply_type_args(&type_item.ty) {
+				result.push((name, args));
+			}
+		}
+	}
+	result
+}
 
-	let input_str = if inputs.len() == 1 {
-		inputs.first().cloned().unwrap_or_default()
-	} else {
-		format!("({})", inputs.join(", "))
-	};
-
-	let output_str = match &arrow.output {
-		ArrowOutput::Plain(s) => s.clone(),
-		ArrowOutput::BrandApplied(args) => format!("Brand {}", args.join(" ")),
-		ArrowOutput::OtherApplied {
-			brand,
-			args,
-		} => format!("{brand} {}", args.join(" ")),
-	};
-
-	format!("{input_str} -> {output_str}")
+/// Extract element types from the Val impl's self type when it is an Apply! macro.
+///
+/// For closureless dispatch where the trait is implemented on the container type
+/// (e.g., `impl SeparateDispatch<...> for Apply!(<Brand as Kind>::Of<'a, Result<O, E>>)`),
+/// the self type's Apply! args give the correct container element types.
+fn extract_self_type_elements(val_impl: &syn::ItemImpl) -> Option<Vec<String>> {
+	extract_apply_type_args(&val_impl.self_ty)
 }
 
 // -- Helpers --

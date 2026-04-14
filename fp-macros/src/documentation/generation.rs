@@ -591,18 +591,73 @@ fn build_synthetic_signature(
 		generic_params.push(parse_quote!(#brand_ident: #kind_ident));
 	}
 
-	// Element type params (single-letter params from container_params mapping)
+	// Collect ALL single-letter element type params from every source, deduplicate,
+	// then sort alphabetically so the forall order is consistent.
 	let mut all_element_types: Vec<String> = Vec::new();
+	let add_elem = |elem: &str, all: &mut Vec<String>| {
+		if !all.contains(&elem.to_string()) {
+			all.push(elem.to_string());
+		}
+	};
+
+	// From container_params
 	for (_container, elements) in &dispatch_info.container_params {
 		for elem in elements {
-			if !all_element_types.contains(elem) {
-				all_element_types.push(elem.clone());
+			add_elem(elem, &mut all_element_types);
+		}
+	}
+
+	// From return structure
+	{
+		let return_args: Vec<&String> = match &dispatch_info.return_structure {
+			ReturnStructure::Plain(var) => vec![var],
+			ReturnStructure::Applied(args) => args.iter().collect(),
+			ReturnStructure::Nested {
+				inner_args, ..
+			} => inner_args.iter().collect(),
+			ReturnStructure::Tuple(elements) => elements.iter().flatten().collect(),
+			ReturnStructure::NestedTuple {
+				inner_elements, ..
+			} => inner_elements.iter().flatten().collect(),
+		};
+		for arg in return_args {
+			if dispatch_info.secondary_constraints.iter().all(|(p, _)| p != arg) {
+				add_elem(arg, &mut all_element_types);
 			}
 		}
 	}
+
+	// From associated types
+	for (_, elements) in &dispatch_info.associated_types {
+		for elem in elements {
+			if elem.len() == 1 {
+				add_elem(elem, &mut all_element_types);
+			}
+		}
+	}
+
+	// From arrow inputs/outputs (tuple closure sub-arrows)
+	if let Some(ref arrow) = dispatch_info.arrow_type {
+		collect_arrow_element_types_flat(arrow, &mut all_element_types);
+	}
+
+	// From self_type_elements (for closureless dispatch on containers)
+	if let Some(ref elems) = dispatch_info.self_type_elements {
+		for elem in elems {
+			if elem.len() == 1 {
+				add_elem(elem, &mut all_element_types);
+			}
+		}
+	}
+
+	// Sort alphabetically for consistent forall ordering
+	all_element_types.sort();
+
+	// Add sorted element types to generic params
 	for elem in &all_element_types {
-		let elem_ident: syn::Ident = syn::parse_str(elem).ok()?;
-		generic_params.push(parse_quote!(#elem_ident: 'a));
+		if let Ok(elem_ident) = syn::parse_str::<syn::Ident>(elem) {
+			generic_params.push(parse_quote!(#elem_ident: 'a));
+		}
 	}
 
 	// Secondary constraint params (e.g., F: Applicative for traverse)
@@ -611,44 +666,6 @@ fn build_synthetic_signature(
 		let constraint_ident: syn::Ident = syn::parse_str(constraint_name).ok()?;
 		// Also add Kind bound if this param has one (for traverse, F: Applicative + Kind_hash)
 		generic_params.push(parse_quote!(#param_ident: #constraint_ident + #kind_ident));
-	}
-
-	// Additional type params from the return structure that aren't already added
-	// (e.g., the result type variable in fold operations)
-	match &dispatch_info.return_structure {
-		ReturnStructure::Plain(var) => {
-			let var_ident: syn::Ident = syn::parse_str(var).ok()?;
-			if !all_element_types.contains(var)
-				&& dispatch_info.secondary_constraints.iter().all(|(p, _)| p != var)
-			{
-				generic_params.push(parse_quote!(#var_ident: 'a));
-			}
-		}
-		ReturnStructure::Applied(args) =>
-			for arg in args {
-				if !all_element_types.contains(arg) {
-					let arg_ident: syn::Ident = syn::parse_str(arg).ok()?;
-					generic_params.push(parse_quote!(#arg_ident: 'a));
-				}
-			},
-		ReturnStructure::Nested {
-			inner_args, ..
-		} =>
-			for arg in inner_args {
-				if !all_element_types.contains(arg) {
-					let arg_ident: syn::Ident = syn::parse_str(arg).ok()?;
-					generic_params.push(parse_quote!(#arg_ident: 'a));
-				}
-			},
-		ReturnStructure::Tuple(elements) =>
-			for elem_args in elements {
-				for arg in elem_args {
-					if !all_element_types.contains(arg) {
-						let arg_ident: syn::Ident = syn::parse_str(arg).ok()?;
-						generic_params.push(parse_quote!(#arg_ident: 'a));
-					}
-				}
-			},
 	}
 
 	// Build function parameters by transforming the original signature's params.
@@ -683,6 +700,18 @@ fn build_synthetic_signature(
 			continue;
 		}
 
+		// For tuple closure dispatch via where-clause (e.g., compose_kleisli_flipped
+		// where (G, F): ComposeKleisliDispatch), detect tuple params of type vars
+		// and replace with the closure tuple.
+		if dispatch_info.tuple_closure
+			&& matches!(&*pat_type.ty, Type::Tuple(tuple) if tuple.elems.len() >= 2)
+			&& let Some(ref arrow) = dispatch_info.arrow_type
+			&& let Some(closure_param) = build_closure_param(arrow, true, &brand_ident, &kind_ident)
+		{
+			fn_params.push(closure_param);
+			continue;
+		}
+
 		// Check if this is a container type param -> replace with <Brand as Kind>::Of<...>
 		let ty = &pat_type.ty;
 		let type_str = quote!(#ty).to_string().replace(' ', "");
@@ -693,21 +722,56 @@ fn build_synthetic_signature(
 			continue;
 		}
 
+		// Check if this is a dispatch trait associated type projection
+		// (e.g., <FA as ApplyFirstDispatch<...>>::FB -> Brand B)
+		if let Type::Path(type_path) = &*pat_type.ty
+			&& type_path.qself.is_some()
+			&& let Some(last_seg) = type_path.path.segments.last()
+		{
+			let assoc_name = last_seg.ident.to_string();
+			if let Some((_, elements)) =
+				dispatch_info.associated_types.iter().find(|(name, _)| name == &assoc_name)
+			{
+				let pat = &pat_type.pat;
+				let container_type = build_applied_type(&brand_ident, &kind_ident, elements)?;
+				fn_params.push(parse_quote!(#pat: #container_type));
+				continue;
+			}
+		}
+
 		// For closureless dispatch or unrecognized container params:
 		// if the type is an InferableBrand-bounded param, it's a container.
-		// Extract element types from the return structure to determine the brand application.
+		// Use self_type_elements when the input container has a compound element type
+		// that differs from what the return structure provides (e.g., separate's
+		// input is Brand (Result O E) but output is (Brand E, Brand O)).
+		// Only prefer self_type_elements when it contains compound types (not single idents);
+		// for simple element types, the return structure heuristic is sufficient.
 		if is_inferable_brand_param(&type_str, _original_sig) {
 			use crate::analysis::dispatch::ReturnStructure;
-			let element_types: Option<Vec<String>> = match &dispatch_info.return_structure {
-				ReturnStructure::Applied(args) => Some(args.clone()),
-				ReturnStructure::Nested {
-					inner_args, ..
-				} => Some(inner_args.clone()),
-				ReturnStructure::Tuple(elements) => {
-					// For tuple returns, use the first element's args as the container type
-					elements.first().cloned()
+
+			// Use self_type_elements when available and the elements don't contain
+			// macro invocations (Apply!, Kind!). Nested Apply! macros indicate
+			// nested HKT where the return structure heuristic works better.
+			// For simple elements (like "A") or compound non-macro types (like
+			// "Result<O, E>"), self_type_elements is the ground truth.
+			let use_self_type = dispatch_info.self_type_elements.as_ref().is_some_and(|elems| {
+				!elems.iter().any(|e| e.contains("Apply") || e.contains("Kind"))
+			});
+
+			let element_types: Option<Vec<String>> = if use_self_type {
+				dispatch_info.self_type_elements.clone()
+			} else {
+				match &dispatch_info.return_structure {
+					ReturnStructure::Applied(args) => Some(args.clone()),
+					ReturnStructure::Nested {
+						inner_args, ..
+					} => Some(inner_args.clone()),
+					ReturnStructure::Tuple(elements) => elements.first().cloned(),
+					ReturnStructure::NestedTuple {
+						inner_elements, ..
+					} => inner_elements.first().cloned(),
+					ReturnStructure::Plain(_) => None,
 				}
-				ReturnStructure::Plain(_) => None,
 			};
 			if let Some(ref elems) = element_types {
 				let pat = &pat_type.pat;
@@ -903,6 +967,44 @@ fn build_container_map(
 	std::collections::HashMap::new()
 }
 
+/// Collect single-letter type params from arrow inputs and outputs into a flat list.
+fn collect_arrow_element_types_flat(
+	arrow: &crate::analysis::dispatch::DispatchArrow,
+	all_element_types: &mut Vec<String>,
+) {
+	use crate::analysis::dispatch::{
+		ArrowOutput,
+		DispatchArrowParam,
+	};
+
+	for param in &arrow.inputs {
+		match param {
+			DispatchArrowParam::TypeParam(name) if name.len() == 1 => {
+				if !all_element_types.contains(name) {
+					all_element_types.push(name.clone());
+				}
+			}
+			DispatchArrowParam::SubArrow(sub) => {
+				collect_arrow_element_types_flat(sub, all_element_types);
+			}
+			_ => {}
+		}
+	}
+
+	let output_args = match &arrow.output {
+		ArrowOutput::BrandApplied(args)
+		| ArrowOutput::OtherApplied {
+			args, ..
+		} => args.clone(),
+		_ => Vec::new(),
+	};
+	for arg in &output_args {
+		if arg.len() == 1 && !all_element_types.contains(arg) {
+			all_element_types.push(arg.clone());
+		}
+	}
+}
+
 /// Check if a type name is an InferableBrand-bounded param in the signature's where clause.
 fn is_inferable_brand_param(
 	type_name: &str,
@@ -942,8 +1044,8 @@ fn build_applied_type(
 ) -> Option<syn::Type> {
 	let mut args = vec![quote!('a)];
 	for elem in element_types {
-		let elem_ident: syn::Ident = syn::parse_str(elem).ok()?;
-		args.push(quote!(#elem_ident));
+		let elem_type: syn::Type = syn::parse_str(elem).ok()?;
+		args.push(quote!(#elem_type));
 	}
 	let args_tokens = quote!(#(#args),*);
 	Some(parse_quote!(<#brand_ident as #kind_ident>::Of<#args_tokens>))
@@ -962,38 +1064,66 @@ fn build_closure_param(
 	};
 
 	if tuple_closure {
-		// For tuple closures (bimap, etc.), each input is a sub-arrow string
-		// like "A -> B". We build named type params with Fn bounds in the
-		// synthetic signature's generics (handled separately), and here we
-		// just build the tuple parameter with those type param names.
-		// The existing HM pipeline converts Fn-bounded type params to arrows.
-		//
-		// However, since we're building a standalone FnArg here without access
-		// to the generics builder, we use bare fn pointer types in a tuple.
-		// The HM pipeline handles fn(A) -> B via visit_bare_fn.
+		// For tuple closures (bimap, etc.), each input is a sub-arrow.
+		// Build bare fn pointer types in a tuple. The HM pipeline handles
+		// fn(A) -> B via visit_bare_fn.
 		let mut fn_types: Vec<syn::Type> = Vec::new();
 
 		for param in &arrow.inputs {
-			if let DispatchArrowParam::TypeParam(sub_arrow_str) = param {
-				// Sub-arrow is formatted as "A -> B" or "(C, A) -> C"
-				// Split on the last " -> " to get inputs and output
-				if let Some(arrow_pos) = sub_arrow_str.rfind(" -> ") {
-					let input_str = &sub_arrow_str[.. arrow_pos];
-					let output_str = &sub_arrow_str[arrow_pos + 4 ..];
+			let sub_arrow = match param {
+				DispatchArrowParam::SubArrow(arrow) => arrow,
+				DispatchArrowParam::TypeParam(sub_arrow_str) => {
+					// Legacy string path: split on " -> " and parse
+					if let Some(arrow_pos) = sub_arrow_str.rfind(" -> ") {
+						let input_str = &sub_arrow_str[.. arrow_pos];
+						let output_str = &sub_arrow_str[arrow_pos + 4 ..];
+						let input_str =
+							input_str.trim().trim_start_matches('(').trim_end_matches(')');
+						let input_types: Vec<syn::Type> = input_str
+							.split(',')
+							.filter_map(|s| syn::parse_str(s.trim()).ok())
+							.collect();
+						let output_type: syn::Type =
+							syn::parse_str(output_str.trim()).unwrap_or_else(|_| parse_quote!(()));
+						fn_types.push(parse_quote!(fn(#(#input_types),*) -> #output_type));
+					}
+					continue;
+				}
+				_ => continue,
+			};
 
-					// Parse input types: "A" or "(C, A)" or "A, B"
-					let input_str = input_str.trim().trim_start_matches('(').trim_end_matches(')');
-					let input_types: Vec<syn::Type> = input_str
-						.split(',')
-						.filter_map(|s| syn::parse_str(s.trim()).ok())
-						.collect();
-
-					let output_type: syn::Type =
-						syn::parse_str(output_str.trim()).unwrap_or_else(|_| parse_quote!(()));
-
-					fn_types.push(parse_quote!(fn(#(#input_types),*) -> #output_type));
+			// Build fn type from structured sub-arrow
+			let mut input_types: Vec<syn::Type> = Vec::new();
+			for sub_param in &sub_arrow.inputs {
+				match sub_param {
+					DispatchArrowParam::TypeParam(name) => {
+						let ident: syn::Ident = syn::parse_str(name).ok()?;
+						input_types.push(parse_quote!(#ident));
+					}
+					DispatchArrowParam::AssociatedType {
+						assoc_name,
+					} => {
+						let assoc_ident: syn::Ident = syn::parse_str(assoc_name).ok()?;
+						input_types.push(parse_quote!(#brand_ident::#assoc_ident));
+					}
+					DispatchArrowParam::SubArrow(_) => continue,
 				}
 			}
+
+			let output_type: syn::Type = match &sub_arrow.output {
+				ArrowOutput::Plain(s) => syn::parse_str(s).ok()?,
+				ArrowOutput::BrandApplied(args) =>
+					build_applied_type(brand_ident, kind_ident, args)?,
+				ArrowOutput::OtherApplied {
+					brand,
+					args,
+				} => {
+					let other_ident: syn::Ident = syn::parse_str(brand).ok()?;
+					build_applied_type(&other_ident, kind_ident, args)?
+				}
+			};
+
+			fn_types.push(parse_quote!(fn(#(#input_types),*) -> #output_type));
 		}
 
 		if fn_types.is_empty() {
@@ -1016,6 +1146,10 @@ fn build_closure_param(
 			} => {
 				let assoc_ident: syn::Ident = syn::parse_str(assoc_name).ok()?;
 				input_types.push(parse_quote!(#brand_ident::#assoc_ident));
+			}
+			DispatchArrowParam::SubArrow(_) => {
+				// SubArrow is only used in tuple closures, not single closures
+				continue;
 			}
 		}
 	}
@@ -1060,6 +1194,18 @@ fn build_return_type(
 				.filter_map(|args| build_applied_type(brand_ident, kind_ident, args))
 				.collect();
 			Some(parse_quote!((#(#elem_types),*)))
+		}
+		ReturnStructure::NestedTuple {
+			outer_param,
+			inner_elements,
+		} => {
+			let outer_ident: syn::Ident = syn::parse_str(outer_param).ok()?;
+			let tuple_types: Vec<syn::Type> = inner_elements
+				.iter()
+				.filter_map(|args| build_applied_type(brand_ident, kind_ident, args))
+				.collect();
+			let tuple_type: syn::Type = parse_quote!((#(#tuple_types),*));
+			Some(parse_quote!(<#outer_ident as #kind_ident>::Of<'a, #tuple_type>))
 		}
 	}
 }
