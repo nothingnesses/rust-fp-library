@@ -5,7 +5,10 @@
 //! to generate correct HM signatures for inference wrapper functions.
 
 use {
-	crate::core::constants::markers,
+	crate::{
+		analysis::patterns::get_apply_macro_parameters,
+		core::constants::markers,
+	},
 	std::collections::HashMap,
 	syn::{
 		GenericArgument,
@@ -95,6 +98,21 @@ pub enum DispatchArrowParam {
 /// Trait names that are infrastructure, not semantic type class constraints.
 const INFRASTRUCTURE_TRAITS: &[&str] =
 	&["Send", "Sync", "Clone", "Copy", "Debug", "Display", "Sized", "LiftFn", "SendLiftFn"];
+
+// -- Apply! macro parsing helpers --
+
+/// Extract type argument names from an Apply! macro invocation.
+///
+/// Uses `get_apply_macro_parameters` (the proper token-stream parser) to
+/// extract the type args from `Apply!(<Brand as Kind!(...)>::Of<'a, A, B>)`.
+/// Returns the type arg names as strings (e.g., `["A", "B"]`).
+fn extract_apply_type_args(ty: &Type) -> Option<Vec<String>> {
+	let Type::Macro(type_macro) = ty else {
+		return None;
+	};
+	let (_brand, args) = get_apply_macro_parameters(type_macro)?;
+	Some(args.iter().map(|t| quote::quote!(#t).to_string().replace(' ', "")).collect())
+}
 
 // -- Analysis entry point --
 
@@ -340,14 +358,11 @@ fn extract_container_params(
 		}
 
 		// Check if the corresponding impl arg is an Apply! macro (container type)
-		if let Some(Type::Macro(type_macro)) = impl_type_args.get(i) {
-			// This is an Apply! macro invocation. Extract element types from
-			// the Of<'a, ElementType, ...> pattern in the macro text.
-			let macro_str = quote::quote!(#type_macro).to_string();
-			let element_types = extract_last_of_type_args_clean(&macro_str);
-			if !element_types.is_empty() {
-				result.push((param_name.clone(), element_types));
-			}
+		if let Some(impl_arg) = impl_type_args.get(i)
+			&& let Some(element_types) = extract_apply_type_args(impl_arg)
+			&& !element_types.is_empty()
+		{
+			result.push((param_name.clone(), element_types));
 		}
 	}
 
@@ -372,104 +387,77 @@ fn extract_return_structure(
 			return Some(ReturnStructure::Plain("()".to_string()));
 		};
 
-		// Check if the return type is a tuple (e.g., partition, separate)
-		if let Type::Tuple(tuple) = &**return_ty {
-			let mut tuple_elements = Vec::new();
-			for elem in &tuple.elems {
-				let elem_str = quote::quote!(#elem).to_string();
-				let args = extract_last_of_type_args_clean(&elem_str);
-				tuple_elements.push(args);
-			}
-			if !tuple_elements.is_empty() {
-				return Some(ReturnStructure::Tuple(tuple_elements));
-			}
-		}
-
-		let ret_str = quote::quote!(#return_ty).to_string();
-
-		// Check if it's a simple type (no Apply!, no Kind_)
-		if !ret_str.contains("Apply") && !ret_str.contains("Kind_") {
-			let clean = ret_str.replace(' ', "");
-			return Some(ReturnStructure::Plain(clean));
-		}
-
-		// Count actual type applications (>::Of pattern) rather than all Of occurrences.
-		// This avoids counting Of inside Kind!(type Of<...>) macro argument text.
-		let of_count = ret_str.matches("> :: Of").count() + ret_str.matches(">::Of").count();
-
-		if of_count >= 2 {
-			// Nested: outer brand is a different param than Brand
-			let outer = extract_non_brand_param(&ret_str, brand_param);
-			let inner_args = extract_last_of_type_args_clean(&ret_str);
-			return Some(ReturnStructure::Nested {
-				outer_param: outer.unwrap_or_else(|| "G".to_string()),
-				inner_args,
-			});
-		}
-
-		// Simple Apply: Brand applied to type args
-		let type_args = extract_last_of_type_args_clean(&ret_str);
-		return Some(ReturnStructure::Applied(type_args));
+		return Some(classify_return_type(return_ty, brand_param));
 	}
 
 	None
 }
 
-/// Extract type args from the last Of<...> in a clean trait return type string.
-fn extract_last_of_type_args_clean(ret_str: &str) -> Vec<String> {
-	let Some(of_pos) = ret_str.rfind("Of") else {
-		return Vec::new();
-	};
-	let after_of = &ret_str[of_pos ..];
-
-	let Some(start) = after_of.find('<') else {
-		return Vec::new();
-	};
-	let inner = &after_of[start + 1 ..];
-
-	let mut depth = 1;
-	let mut end = 0;
-	for (i, c) in inner.char_indices() {
-		match c {
-			'<' | '(' => depth += 1,
-			'>' | ')' => {
-				depth -= 1;
-				if depth == 0 {
-					end = i;
-					break;
-				}
-			}
-			_ => {}
-		}
-	}
-
-	let args_str = &inner[.. end];
-	args_str
-		.split(',')
-		.map(|s| s.trim().to_string())
-		.filter(|s| !s.is_empty() && !s.starts_with('\''))
-		.collect()
-}
-
-/// Extract a non-Brand type parameter from a return type string.
-fn extract_non_brand_param(
-	ret_str: &str,
+/// Classify a return type into a ReturnStructure using the proper Apply! parser.
+fn classify_return_type(
+	ty: &Type,
 	brand_param: Option<&str>,
-) -> Option<String> {
-	for part in ret_str.split("as") {
-		let trimmed = part.trim();
-		if let Some(bracket_pos) = trimmed.rfind('<') {
-			let candidate = trimmed[bracket_pos + 1 ..].trim();
-			if candidate.chars().all(|c| c.is_alphanumeric() || c == '_')
-				&& !candidate.is_empty()
-				&& !candidate.starts_with("Kind")
-				&& brand_param.is_none_or(|bp| candidate != bp)
-			{
-				return Some(candidate.to_string());
+) -> ReturnStructure {
+	// Tuple return (e.g., partition, separate)
+	if let Type::Tuple(tuple) = ty {
+		let mut tuple_elements = Vec::new();
+		for elem in &tuple.elems {
+			if let Some(args) = extract_apply_type_args(elem) {
+				tuple_elements.push(args);
+			} else {
+				// Non-Apply element in tuple; treat as plain
+				let elem_str = quote::quote!(#elem).to_string().replace(' ', "");
+				tuple_elements.push(vec![elem_str]);
 			}
 		}
+		if !tuple_elements.is_empty() {
+			return ReturnStructure::Tuple(tuple_elements);
+		}
 	}
-	None
+
+	// Apply! macro return
+	if let Type::Macro(type_macro) = ty
+		&& let Some((brand, raw_args)) = get_apply_macro_parameters(type_macro)
+	{
+		let args: Vec<String> =
+			raw_args.iter().map(|t| quote::quote!(#t).to_string().replace(' ', "")).collect();
+		let brand_name = match &brand {
+			Type::Path(tp) => tp.path.segments.last().map(|s| s.ident.to_string()),
+			_ => None,
+		};
+
+		// Check if brand is the same as the Brand param (simple application)
+		// or a different param (nested application)
+		let is_brand = brand_param.is_some_and(|bp| brand_name.as_deref() == Some(bp));
+
+		if is_brand {
+			// Simple: Brand applied to type args (e.g., Brand B, Brand B D)
+			return ReturnStructure::Applied(args);
+		}
+
+		// Nested: outer brand is different from Brand (e.g., F (Brand B))
+		// Check if any of the args is itself an Apply! with Brand
+		let outer_name = brand_name.unwrap_or_else(|| "G".to_string());
+		// The inner args are the type args of the outer Apply, which may
+		// themselves be Apply! macros. Extract the innermost Brand application.
+		let mut inner_args = Vec::new();
+		for raw_arg in &raw_args {
+			if let Some(nested_args) = extract_apply_type_args(raw_arg) {
+				inner_args = nested_args;
+			} else {
+				let arg_str = quote::quote!(#raw_arg).to_string().replace(' ', "");
+				inner_args.push(arg_str);
+			}
+		}
+		return ReturnStructure::Nested {
+			outer_param: outer_name,
+			inner_args,
+		};
+	}
+
+	// Not a macro or tuple; treat as plain type
+	let ret_str = quote::quote!(#ty).to_string().replace(' ', "");
+	ReturnStructure::Plain(ret_str)
 }
 
 /// Find the Brand type parameter name by looking for a non-infrastructure,
@@ -792,28 +780,27 @@ fn classify_arrow_output(
 	ty: &Type,
 	brand_param: Option<&str>,
 ) -> ArrowOutput {
-	let type_str = quote::quote!(#ty).to_string();
+	// Use the proper Apply! parser for macro types
+	if let Type::Macro(type_macro) = ty
+		&& let Some((brand, args)) = get_apply_macro_parameters(type_macro)
+	{
+		let brand_name = match &brand {
+			Type::Path(tp) => tp.path.segments.last().map(|s| s.ident.to_string()),
+			_ => None,
+		};
 
-	// Check if this is a macro (Apply!) invocation
-	if let Type::Macro(_) = ty {
-		// The output contains Apply! macro. Check if it references Brand or another param.
-		if let Some(bp) = brand_param
-			&& type_str.contains(bp)
-		{
-			// Brand-applied: e.g., Apply!(<Brand as Kind!(...)>::Of<'a, B>)
-			// Extract the type args from the last Of<>
-			let args = extract_last_of_type_args_clean(&type_str);
-			if !args.is_empty() {
-				return ArrowOutput::BrandApplied(args);
+		let arg_strings: Vec<String> =
+			args.iter().map(|t| quote::quote!(#t).to_string().replace(' ', "")).collect();
+
+		if !arg_strings.is_empty() {
+			let is_brand = brand_param.is_some_and(|bp| brand_name.as_deref() == Some(bp));
+			if is_brand {
+				return ArrowOutput::BrandApplied(arg_strings);
 			}
-		}
-		// Check for other-brand patterns (e.g., <F as Kind!(...)>::Of<'a, B>)
-		if let Some(other_brand) = extract_non_brand_param(&type_str, brand_param) {
-			let args = extract_last_of_type_args_clean(&type_str);
-			if !args.is_empty() {
+			if let Some(name) = brand_name {
 				return ArrowOutput::OtherApplied {
-					brand: other_brand,
-					args,
+					brand: name,
+					args: arg_strings,
 				};
 			}
 		}
