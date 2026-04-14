@@ -24,7 +24,75 @@
   Added `dispatch_traits` field to `Config`. 4 unit tests passing.
   The dispatch info is populated but not yet consumed by signature
   generation (steps 7-8).
-- Steps 7-12: Not started.
+- Steps 7-8: In progress. Dispatch-aware HM signature generation is
+  functional but has output quality issues (see below). The pipeline
+  intercepts `#[document_signature]` on `Item::Fn` during Pass 2,
+  looks up dispatch trait info, and generates signatures with semantic
+  constraints, arrow types, and FA -> F A substitution. `ReturnStructure`
+  enum added to `DispatchTraitInfo` (extracted from the dispatch trait's
+  `dispatch()` method return type) to avoid parsing Apply!/InferableBrand!
+  macros in wrapper function return types.
+- Steps 9-12: Not started.
+
+### Steps 7-8 output quality issues
+
+The generated signatures are structurally correct but have refinement
+issues. Current output vs ideal for representative functions:
+
+| Function     | Current output                                                                         | Ideal                                                                          |
+| ------------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `map`        | `forall F A B. Functor F => (A -> B, F A) -> G (F B)`                                  | `forall F A B. Functor F => (A -> B, F A) -> F B`                              |
+| `fold_right` | `forall F A B. Foldable F => ((A, B) -> B, B, F A) -> B`                               | Correct                                                                        |
+| `alt`        | `forall F A. Alt F => (F A, F A) -> G (F A)`                                           | `forall F A. Alt F => (F A, F A) -> F A`                                       |
+| `lift2`      | `forall F FB A B C. Lift F => ((A, B) -> C, F A, FB) -> G (F C)`                       | `forall F A B C. Lift F => ((A, B) -> C, F A, F B) -> F C`                     |
+| `bind`       | `forall F A B. Semimonad F => (A -> Apply!(...), F A) -> G (F B)`                      | `forall F A B. Semimonad F => (A -> F B, F A) -> F B`                          |
+| `traverse`   | `forall F A B F. (Traversable F, Applicative F) => (A -> Apply!(...), F A) -> F (F B)` | `forall T A B F. (Traversable T, Applicative F) => (A -> F B, T A) -> F (T B)` |
+
+**Issue 1: Return type shows `G (F B)` instead of `F B` for simple cases.**
+Root cause: `extract_return_structure()` counts `Of` occurrences in the
+trait's `dispatch()` method return type, but `Apply!(<Brand as Kind!(...)>::Of<'a, B>)`
+contains `Of` inside the `Kind!(...)` macro argument string as well as
+the actual application. This makes `of_count >= 2` for simple return
+types, triggering the `Nested` branch. The `extract_non_brand_param()`
+then finds a spurious outer brand from the macro text.
+
+Possible fix: parse the `dispatch()` return type as a `syn::Type::Macro`
+and inspect the token stream structurally rather than using string
+matching on the rendered text.
+
+**Issue 2: `FB`/`FC` not substituted to `F B`/`F C` in lift functions.**
+Root cause: `find_inferable_brand_params()` correctly finds `FA` (it has
+an `InferableBrand_*` where-clause bound), but `FB`/`FC`/`FD`/`FE` do
+not have their own `InferableBrand_*` bounds. They are constrained
+through the dispatch trait's type arguments, not independently. The
+current approach only detects params with explicit `InferableBrand_*`
+bounds.
+
+Possible fix: detect container params by name pattern (starts with `F`
+and is followed by a single uppercase letter) in addition to by
+`InferableBrand_*` bounds. Or, extract the mapping from the dispatch
+trait's type parameter list.
+
+**Issue 3: Arrow output for bind/traverse contains raw `Apply!(...)` text.**
+Root cause: the arrow type is extracted from the Val impl's `Fn(A) -> R`
+bound. For bind, `R` is `Apply!(<Brand as Kind!(...)>::Of<'a, B>)` which
+is stored as a raw string. The HM pipeline needs to simplify this to
+`F B`.
+
+Possible fix: when extracting the arrow output type, detect `Apply!`
+patterns and simplify to `Brand arg1 arg2...` notation. Or, use the
+same `ReturnStructure` approach for arrow output types.
+
+**Issue 4: traverse has `F` name collision (container brand and applicative brand).**
+Root cause: the brand variable is hardcoded to `"F"`. When traverse has
+an explicit `F: Kind_*` type parameter (the applicative brand), both
+the inferred container brand and the explicit applicative brand render
+as `F`.
+
+Possible fix: use different variable names for different roles. The
+container brand could use `T` (for the traversable) and the applicative
+could keep `F`. Detect the collision from the function's type parameter
+list.
 
 ## Deviations
 
@@ -90,6 +158,42 @@
    it, `find_brand_param` would incorrectly identify `FnBrand` as the
    Brand parameter (since `LiftFn` passes the `is_semantic_type_class`
    check). Added `LiftFn` and `SendLiftFn` to `INFRASTRUCTURE_TRAITS`.
+
+### Steps 7-8
+
+1. **`#[document_module]` must intercept `#[document_signature]` on
+   `Item::Fn` items.** The plan assumed `document_module` already handles
+   `#[document_signature]` on all items. It only processes the attribute
+   on impl methods and trait methods. For `Item::Fn`, the attribute was
+   left for the standalone `document_signature_worker` proc macro. The
+   solution: `process_fn_dispatch_signature()` in `generation.rs` now
+   checks for dispatch trait references and intercepts the attribute
+   during Pass 2, removing it so the standalone macro does not also
+   process it. Non-dispatch functions still fall through to the standalone
+   macro.
+
+2. **`ReturnStructure` added to `DispatchTraitInfo`.** The plan originally
+   proposed parsing the wrapper function's return type to determine the
+   HM return type. This proved fragile because the wrapper's return type
+   contains nested `Apply!` and `InferableBrand!` macros whose token
+   text confuses string-based `Of` counting. The solution: extract the
+   return structure from the dispatch _trait's_ `dispatch()` method,
+   which uses `Brand` directly (no InferableBrand noise). The
+   `ReturnStructure` enum (Plain, Applied, Nested) encodes the structure
+   for direct HM generation without string parsing.
+
+3. **String-based `Of` counting proved unreliable.** The initial approach
+   counted `Of` substrings in the return type text to distinguish simple
+   (`F B`) from nested (`G (F B)`) returns. This fails because `Apply!`
+   macro arguments (e.g., `Kind!(type Of<'a, T: 'a>: 'a;)`) contain
+   `Of` as part of the signature definition text, inflating the count.
+   Even counting `Of <` (with angle bracket) picks up `Of` inside macro
+   arguments. The trait-definition-based approach (`ReturnStructure`)
+   avoids this entirely.
+
+4. **`#[expect(dead_code)]` on `trait_name` field.** After steps 7-8
+   consume most `DispatchTraitInfo` fields, `trait_name` remains unused
+   (stored for diagnostics). Kept with `#[expect(dead_code)]`.
 
 ## Prerequisites
 
