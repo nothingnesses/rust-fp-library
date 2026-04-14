@@ -640,6 +640,15 @@ fn build_synthetic_signature(
 					generic_params.push(parse_quote!(#arg_ident: 'a));
 				}
 			},
+		ReturnStructure::Tuple(elements) =>
+			for elem_args in elements {
+				for arg in elem_args {
+					if !all_element_types.contains(arg) {
+						let arg_ident: syn::Ident = syn::parse_str(arg).ok()?;
+						generic_params.push(parse_quote!(#arg_ident: 'a));
+					}
+				}
+			},
 	}
 
 	// Build function parameters by transforming the original signature's params.
@@ -782,37 +791,45 @@ fn build_closure_param(
 	};
 
 	if tuple_closure {
-		// For tuple closures (bimap, etc.), build a tuple of Fn types
-		// Each input in arrow.inputs is a formatted sub-arrow string like "A -> B"
-		// We can't easily build nested Fn types, so build as a tuple param
-		let sub_fns: Vec<proc_macro2::TokenStream> = arrow
-			.inputs
-			.iter()
-			.filter_map(|p| {
-				if let DispatchArrowParam::TypeParam(s) = p {
-					// Parse the sub-arrow string as a token stream
-					let tokens: proc_macro2::TokenStream = s.parse().ok()?;
-					Some(tokens)
-				} else {
-					None
-				}
-			})
-			.collect();
+		// For tuple closures (bimap, etc.), each input is a sub-arrow string
+		// like "A -> B". We build named type params with Fn bounds in the
+		// synthetic signature's generics (handled separately), and here we
+		// just build the tuple parameter with those type param names.
+		// The existing HM pipeline converts Fn-bounded type params to arrows.
+		//
+		// However, since we're building a standalone FnArg here without access
+		// to the generics builder, we use bare fn pointer types in a tuple.
+		// The HM pipeline handles fn(A) -> B via visit_bare_fn.
+		let mut fn_types: Vec<syn::Type> = Vec::new();
 
-		if sub_fns.len() >= 2 {
-			// Build: impl Fn(sub_arrow_1, sub_arrow_2) - but this isn't right for tuple closures
-			// Actually for bimap the parameter is (f, g) as a tuple of closures
-			// In HM this renders as ((A -> B, C -> D), ...) which the existing pipeline handles
-			// For synthetic approach, just pass the sub-arrows as a tuple
-			// Actually, the simplest correct approach: build each sub-fn as impl Fn
-			// and put them in a tuple parameter type
-			// But syn can't represent "a tuple of impl Fn" easily.
-			// Let's use the simple approach: build the inputs from the arrow's sub-arrows
-			// as separate Fn closures combined in a tuple
-			let param: syn::FnArg = parse_quote!(fg: ()); // Placeholder
-			return Some(param);
+		for param in &arrow.inputs {
+			if let DispatchArrowParam::TypeParam(sub_arrow_str) = param {
+				// Sub-arrow is formatted as "A -> B" or "(C, A) -> C"
+				// Split on the last " -> " to get inputs and output
+				if let Some(arrow_pos) = sub_arrow_str.rfind(" -> ") {
+					let input_str = &sub_arrow_str[.. arrow_pos];
+					let output_str = &sub_arrow_str[arrow_pos + 4 ..];
+
+					// Parse input types: "A" or "(C, A)" or "A, B"
+					let input_str = input_str.trim().trim_start_matches('(').trim_end_matches(')');
+					let input_types: Vec<syn::Type> = input_str
+						.split(',')
+						.filter_map(|s| syn::parse_str(s.trim()).ok())
+						.collect();
+
+					let output_type: syn::Type =
+						syn::parse_str(output_str.trim()).unwrap_or_else(|_| parse_quote!(()));
+
+					fn_types.push(parse_quote!(fn(#(#input_types),*) -> #output_type));
+				}
+			}
 		}
-		return None;
+
+		if fn_types.is_empty() {
+			return None;
+		}
+
+		return Some(parse_quote!(fg: (#(#fn_types),*)));
 	}
 
 	// Single closure: build impl Fn(A, B, ...) -> R
@@ -865,6 +882,13 @@ fn build_return_type(
 			let outer_ident: syn::Ident = syn::parse_str(outer_param).ok()?;
 			let inner_type = build_applied_type(brand_ident, kind_ident, inner_args)?;
 			Some(parse_quote!(<#outer_ident as #kind_ident>::Of<'a, #inner_type>))
+		}
+		ReturnStructure::Tuple(elements) => {
+			let elem_types: Vec<syn::Type> = elements
+				.iter()
+				.filter_map(|args| build_applied_type(brand_ident, kind_ident, args))
+				.collect();
+			Some(parse_quote!((#(#elem_types),*)))
 		}
 	}
 }

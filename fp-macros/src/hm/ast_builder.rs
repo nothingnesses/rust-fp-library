@@ -133,7 +133,18 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 					return HmAst::Variable("unknown".to_string());
 				};
 
-				let mut constructor_name = first.ident.to_string();
+				// Detect associated type access: Brand::Index where first segment
+				// is a known generic type parameter. Return just the associated
+				// type name (e.g., "Index") instead of the brand name.
+				let first_name = first.ident.to_string();
+				if type_path.path.segments.len() == 2
+					&& self.generic_names.contains(&first_name)
+					&& matches!(last.arguments, PathArguments::None)
+				{
+					return HmAst::Variable(last.ident.to_string());
+				}
+
+				let mut constructor_name = first_name;
 				if self.config.concrete_types.contains(&constructor_name) {
 					// Preserve concrete types as-is (keep original case)
 				} else if self.generic_names.contains(&constructor_name) {

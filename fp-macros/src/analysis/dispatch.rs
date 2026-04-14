@@ -57,6 +57,8 @@ pub enum ReturnStructure {
 	Applied(Vec<String>),
 	/// Returns a nested application (e.g., `G (F B)` for traverse, `M (F B)` for wither).
 	Nested { outer_param: String, inner_args: Vec<String> },
+	/// Returns a tuple of brand applications (e.g., `(F A, F B)` for partition/separate).
+	Tuple(Vec<Vec<String>>),
 }
 
 /// Arrow type information extracted from a dispatch impl's Fn bound.
@@ -369,6 +371,19 @@ fn extract_return_structure(
 		let syn::ReturnType::Type(_, return_ty) = &method.sig.output else {
 			return Some(ReturnStructure::Plain("()".to_string()));
 		};
+
+		// Check if the return type is a tuple (e.g., partition, separate)
+		if let Type::Tuple(tuple) = &**return_ty {
+			let mut tuple_elements = Vec::new();
+			for elem in &tuple.elems {
+				let elem_str = quote::quote!(#elem).to_string();
+				let args = extract_last_of_type_args_clean(&elem_str);
+				tuple_elements.push(args);
+			}
+			if !tuple_elements.is_empty() {
+				return Some(ReturnStructure::Tuple(tuple_elements));
+			}
+		}
 
 		let ret_str = quote::quote!(#return_ty).to_string();
 
