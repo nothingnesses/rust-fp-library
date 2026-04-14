@@ -8,6 +8,10 @@ use {
 	crate::{
 		analysis::patterns::get_apply_macro_parameters,
 		core::constants::markers,
+		hkt::{
+			ApplyInput,
+			apply::apply_worker,
+		},
 	},
 	std::collections::HashMap,
 	syn::{
@@ -58,6 +62,11 @@ pub struct DispatchTraitInfo {
 	/// Used for closureless dispatch where the container IS the self type.
 	/// E.g., for SeparateDispatch: Some(["Result<O,E>"]).
 	pub self_type_elements: Option<Vec<String>>,
+	/// Semantic type parameter names from the trait definition, in declaration order.
+	/// Excludes FnBrand, Marker, and multi-letter container params (FA, FB, etc.).
+	/// Used to order the forall type variables in the HM signature.
+	/// E.g., for TraverseDispatch: ["Brand", "A", "B", "F"].
+	pub type_param_order: Vec<String>,
 }
 
 /// Describes the HM return type structure of a dispatch trait.
@@ -253,6 +262,8 @@ fn extract_dispatch_info(
 
 	let associated_types = extract_associated_types(val_impl);
 	let self_type_elements = extract_self_type_elements(val_impl);
+	let type_param_order =
+		trait_def.map(|td| extract_type_param_order(td, &container_params)).unwrap_or_default();
 
 	DispatchTraitInfo {
 		trait_name: trait_name.to_string(),
@@ -266,6 +277,7 @@ fn extract_dispatch_info(
 		container_params,
 		associated_types,
 		self_type_elements,
+		type_param_order,
 	}
 }
 
@@ -850,6 +862,41 @@ fn classify_arrow_output(
 	ArrowOutput::Plain(quote::quote!(#ty).to_string())
 }
 
+/// Extract the semantic type param names from the trait definition, in declaration order.
+///
+/// Filters out lifetimes, FnBrand, Marker, and multi-letter container params (those
+/// that appear in `container_params`). The result preserves the trait author's intended
+/// ordering for the HM forall clause.
+fn extract_type_param_order(
+	trait_def: &syn::ItemTrait,
+	container_params: &[(String, Vec<String>)],
+) -> Vec<String> {
+	let container_names: Vec<&str> =
+		container_params.iter().map(|(name, _)| name.as_str()).collect();
+
+	trait_def
+		.generics
+		.params
+		.iter()
+		.filter_map(|p| {
+			if let syn::GenericParam::Type(tp) = p {
+				let name = tp.ident.to_string();
+				// Skip infrastructure params
+				if name == markers::FN_BRAND_PARAM || name == markers::MARKER_PARAM {
+					return None;
+				}
+				// Skip container params (multi-letter params that map to Apply! types)
+				if container_names.contains(&name.as_str()) {
+					return None;
+				}
+				Some(name)
+			} else {
+				None
+			}
+		})
+		.collect()
+}
+
 /// Extract associated type definitions from a Val impl block.
 ///
 /// Finds `type FB = Apply!(<Brand as Kind>::Of<'a, B>)` items and extracts
@@ -872,8 +919,31 @@ fn extract_associated_types(val_impl: &syn::ItemImpl) -> Vec<(String, Vec<String
 /// For closureless dispatch where the trait is implemented on the container type
 /// (e.g., `impl SeparateDispatch<...> for Apply!(<Brand as Kind>::Of<'a, Result<O, E>>)`),
 /// the self type's Apply! args give the correct container element types.
+///
+/// Inner Apply! macros are resolved to their expanded qualified path form
+/// (e.g., `Apply!(<OptionBrand as Kind!(...)>::Of<'a, A>)` becomes
+/// `<OptionBrand as Kind_hash>::Of<'a, A>`). This allows the HM pipeline to
+/// simplify them (e.g., to `Option A`).
 fn extract_self_type_elements(val_impl: &syn::ItemImpl) -> Option<Vec<String>> {
-	extract_apply_type_args(&val_impl.self_ty)
+	let Type::Macro(type_macro) = &*val_impl.self_ty else {
+		return None;
+	};
+	let (_brand, args) = get_apply_macro_parameters(type_macro)?;
+	Some(
+		args.iter()
+			.map(|t| {
+				// If the arg is itself an Apply! macro, resolve it to a qualified path
+				if let Type::Macro(inner_macro) = t
+					&& let Ok(apply_input) =
+						syn::parse2::<ApplyInput>(inner_macro.mac.tokens.clone())
+					&& let Ok(resolved) = apply_worker(apply_input)
+				{
+					return resolved.to_string();
+				}
+				quote::quote!(#t).to_string().replace(' ', "")
+			})
+			.collect(),
+	)
 }
 
 // -- Helpers --

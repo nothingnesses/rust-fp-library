@@ -78,6 +78,12 @@
       compose_kleisli_flipped's (F, G) tuple param).
     - build_applied_type changed to parse element types as syn::Type
       instead of syn::Ident, supporting compound types like Result<O, E>.
+    - Type param ordering derived from the dispatch trait definition's
+      generic param list (type_param_order), replacing alphabetical sort.
+      Preserves the trait author's intended forall ordering.
+    - Inner Apply! macros in self_type_elements resolved to qualified
+      paths via apply_worker. Fixes compact showing Brand A instead of
+      Brand (Option A), and join showing Brand A instead of Brand (Brand A).
   - Constants: Moved hardcoded "Brand", "Marker", "FnBrand", "Dispatch"
     strings to `core/constants.rs`.
   - Nested Apply! handling verified: the existing pipeline recursively
@@ -104,9 +110,9 @@ fixing the traverse `Brand B` -> `Brand A` issue.
 | `fold_left`                | `forall Brand A B. Foldable Brand => ((B, A) -> B, B, Brand A) -> B`                                                     |
 | `fold_map`                 | `forall Brand A M. (Foldable Brand, Monoid M) => (A -> M, Brand A) -> M`                                                 |
 | `alt`                      | `forall Brand A. Alt Brand => (Brand A, Brand A) -> Brand A`                                                             |
-| `compact`                  | `forall Brand A. Compactable Brand => Brand A -> Brand A`                                                                |
+| `compact`                  | `forall Brand A. Compactable Brand => Brand (Option A) -> Brand A`                                                       |
 | `separate`                 | `forall Brand E O. Compactable Brand => Brand (Result O E) -> (Brand E, Brand O)`                                        |
-| `join`                     | `forall Brand A. Semimonad Brand => Brand A -> Brand A`                                                                  |
+| `join`                     | `forall Brand A. Semimonad Brand => Brand (Brand A) -> Brand A`                                                          |
 | `bind`                     | `forall Brand A B. Semimonad Brand => (Brand A, A -> Brand B) -> Brand B`                                                |
 | `bind_flipped`             | `forall Brand A B. Semimonad Brand => (A -> Brand B, Brand A) -> Brand B`                                                |
 | `compose_kleisli`          | `forall Brand A B C. Semimonad Brand => ((A -> Brand B, B -> Brand C), A) -> Brand C`                                    |
@@ -124,8 +130,8 @@ fixing the traverse `Brand B` -> `Brand A` issue.
 | `bi_fold_right`            | `forall Brand A B C. Bifoldable Brand => (((A, C) -> C, (B, C) -> C), C, Brand A B) -> C`                                |
 | `bi_fold_map`              | `forall Brand A B M. (Bifoldable Brand, Monoid M) => ((A -> M, B -> M), Brand A B) -> M`                                 |
 | `bi_traverse`              | `forall Brand A B C D F. (Bitraversable Brand, Applicative F) => ((A -> F C, B -> F D), Brand A B) -> F (Brand C D)`     |
-| `wither`                   | `forall Brand A B M. (Witherable Brand, Applicative M) => (A -> M (Option B), Brand A) -> M (Brand B)`                   |
-| `wilt`                     | `forall Brand A E O M. (Witherable Brand, Applicative M) => (A -> M (Result O E), Brand A) -> M (Brand E, Brand O)`      |
+| `wither`                   | `forall Brand M A B. (Witherable Brand, Applicative M) => (A -> M (Option B), Brand A) -> M (Brand B)`                   |
+| `wilt`                     | `forall Brand M A E O. (Witherable Brand, Applicative M) => (A -> M (Result O E), Brand A) -> M (Brand E, Brand O)`      |
 | `apply_first`              | `forall Brand A B. ApplyFirst Brand => (Brand A, Brand B) -> Brand A`                                                    |
 | `apply_second`             | `forall Brand A B. ApplySecond Brand => (Brand A, Brand B) -> Brand B`                                                   |
 | `map_with_index`           | `forall Brand A B. FunctorWithIndex Brand => ((Index, A) -> B, Brand A) -> Brand B`                                      |
@@ -150,6 +156,15 @@ fixing the traverse `Brand B` -> `Brand A` issue.
   type extraction from Val impl blocks.
 - separate: container showed `Brand E` instead of `Brand (Result O E)`. Fixed
   by self-type element extraction from Val impl's `for Apply!(...)` self type.
+- compact: input showed `Brand A` instead of `Brand (Option A)`. Fixed by
+  resolving inner Apply! macros to qualified paths via `apply_worker` during
+  self-type element extraction.
+- join: input showed `Brand A` instead of `Brand (Brand A)`. Same inner Apply!
+  resolution fix as compact.
+- Type param ordering: previously alphabetical (implementation artifact), now
+  derived from the dispatch trait definition's generic param list
+  (`type_param_order`). Affects wither (`Brand M A B` instead of `Brand A B M`)
+  and wilt (`Brand M A E O` instead of `Brand A E O M`).
 
 ### Step 7-8g: Regression tests for all 37 signatures
 

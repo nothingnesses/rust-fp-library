@@ -570,8 +570,6 @@ fn build_synthetic_signature(
 	_original_sig: &syn::Signature,
 	dispatch_info: &DispatchTraitInfo,
 ) -> Option<syn::Signature> {
-	use crate::analysis::dispatch::ReturnStructure;
-
 	let kind_trait_name = dispatch_info.kind_trait_name.as_ref()?;
 	let brand_param = &dispatch_info.brand_param;
 	let kind_ident: syn::Ident = syn::parse_str(kind_trait_name).ok()?;
@@ -591,81 +589,32 @@ fn build_synthetic_signature(
 		generic_params.push(parse_quote!(#brand_ident: #kind_ident));
 	}
 
-	// Collect ALL single-letter element type params from every source, deduplicate,
-	// then sort alphabetically so the forall order is consistent.
+	// Add type params in the order they appear in the dispatch trait definition.
+	// This preserves the trait author's intended ordering for the forall clause.
+	// Brand is already added above; skip it and add the remaining params.
 	let mut all_element_types: Vec<String> = Vec::new();
-	let add_elem = |elem: &str, all: &mut Vec<String>| {
-		if !all.contains(&elem.to_string()) {
-			all.push(elem.to_string());
+	let secondary_map: std::collections::HashMap<&str, &str> =
+		dispatch_info.secondary_constraints.iter().map(|(p, c)| (p.as_str(), c.as_str())).collect();
+
+	for param_name in &dispatch_info.type_param_order {
+		// Brand is already added as the first generic param
+		if param_name == brand_param {
+			continue;
 		}
-	};
 
-	// From container_params
-	for (_container, elements) in &dispatch_info.container_params {
-		for elem in elements {
-			add_elem(elem, &mut all_element_types);
+		// Secondary constraint params (e.g., F: Applicative, M: Applicative)
+		if let Some(constraint_name) = secondary_map.get(param_name.as_str()) {
+			let param_ident: syn::Ident = syn::parse_str(param_name).ok()?;
+			let constraint_ident: syn::Ident = syn::parse_str(constraint_name).ok()?;
+			generic_params.push(parse_quote!(#param_ident: #constraint_ident + #kind_ident));
+			continue;
 		}
-	}
 
-	// From return structure
-	{
-		let return_args: Vec<&String> = match &dispatch_info.return_structure {
-			ReturnStructure::Plain(var) => vec![var],
-			ReturnStructure::Applied(args) => args.iter().collect(),
-			ReturnStructure::Nested {
-				inner_args, ..
-			} => inner_args.iter().collect(),
-			ReturnStructure::Tuple(elements) => elements.iter().flatten().collect(),
-			ReturnStructure::NestedTuple {
-				inner_elements, ..
-			} => inner_elements.iter().flatten().collect(),
-		};
-		for arg in return_args {
-			if dispatch_info.secondary_constraints.iter().all(|(p, _)| p != arg) {
-				add_elem(arg, &mut all_element_types);
-			}
+		// Element type params
+		if let Ok(param_ident) = syn::parse_str::<syn::Ident>(param_name) {
+			generic_params.push(parse_quote!(#param_ident: 'a));
+			all_element_types.push(param_name.clone());
 		}
-	}
-
-	// From associated types
-	for (_, elements) in &dispatch_info.associated_types {
-		for elem in elements {
-			if elem.len() == 1 {
-				add_elem(elem, &mut all_element_types);
-			}
-		}
-	}
-
-	// From arrow inputs/outputs (tuple closure sub-arrows)
-	if let Some(ref arrow) = dispatch_info.arrow_type {
-		collect_arrow_element_types_flat(arrow, &mut all_element_types);
-	}
-
-	// From self_type_elements (for closureless dispatch on containers)
-	if let Some(ref elems) = dispatch_info.self_type_elements {
-		for elem in elems {
-			if elem.len() == 1 {
-				add_elem(elem, &mut all_element_types);
-			}
-		}
-	}
-
-	// Sort alphabetically for consistent forall ordering
-	all_element_types.sort();
-
-	// Add sorted element types to generic params
-	for elem in &all_element_types {
-		if let Ok(elem_ident) = syn::parse_str::<syn::Ident>(elem) {
-			generic_params.push(parse_quote!(#elem_ident: 'a));
-		}
-	}
-
-	// Secondary constraint params (e.g., F: Applicative for traverse)
-	for (param_name, constraint_name) in &dispatch_info.secondary_constraints {
-		let param_ident: syn::Ident = syn::parse_str(param_name).ok()?;
-		let constraint_ident: syn::Ident = syn::parse_str(constraint_name).ok()?;
-		// Also add Kind bound if this param has one (for traverse, F: Applicative + Kind_hash)
-		generic_params.push(parse_quote!(#param_ident: #constraint_ident + #kind_ident));
 	}
 
 	// Build function parameters by transforming the original signature's params.
@@ -741,27 +690,15 @@ fn build_synthetic_signature(
 
 		// For closureless dispatch or unrecognized container params:
 		// if the type is an InferableBrand-bounded param, it's a container.
-		// Use self_type_elements when the input container has a compound element type
-		// that differs from what the return structure provides (e.g., separate's
-		// input is Brand (Result O E) but output is (Brand E, Brand O)).
-		// Only prefer self_type_elements when it contains compound types (not single idents);
-		// for simple element types, the return structure heuristic is sufficient.
+		// Use self_type_elements (the direct source from the Val impl's self type)
+		// when available, otherwise fall back to the return structure.
 		if is_inferable_brand_param(&type_str, _original_sig) {
 			use crate::analysis::dispatch::ReturnStructure;
 
-			// Use self_type_elements when available and the elements don't contain
-			// macro invocations (Apply!, Kind!). Nested Apply! macros indicate
-			// nested HKT where the return structure heuristic works better.
-			// For simple elements (like "A") or compound non-macro types (like
-			// "Result<O, E>"), self_type_elements is the ground truth.
-			let use_self_type = dispatch_info.self_type_elements.as_ref().is_some_and(|elems| {
-				!elems.iter().any(|e| e.contains("Apply") || e.contains("Kind"))
-			});
-
-			let element_types: Option<Vec<String>> = if use_self_type {
-				dispatch_info.self_type_elements.clone()
-			} else {
-				match &dispatch_info.return_structure {
+			let element_types: Option<Vec<String>> = dispatch_info
+				.self_type_elements
+				.clone()
+				.or_else(|| match &dispatch_info.return_structure {
 					ReturnStructure::Applied(args) => Some(args.clone()),
 					ReturnStructure::Nested {
 						inner_args, ..
@@ -771,8 +708,7 @@ fn build_synthetic_signature(
 						inner_elements, ..
 					} => inner_elements.first().cloned(),
 					ReturnStructure::Plain(_) => None,
-				}
-			};
+				});
 			if let Some(ref elems) = element_types {
 				let pat = &pat_type.pat;
 				let container_type = build_applied_type(&brand_ident, &kind_ident, elems)?;
@@ -965,44 +901,6 @@ fn build_container_map(
 	}
 
 	std::collections::HashMap::new()
-}
-
-/// Collect single-letter type params from arrow inputs and outputs into a flat list.
-fn collect_arrow_element_types_flat(
-	arrow: &crate::analysis::dispatch::DispatchArrow,
-	all_element_types: &mut Vec<String>,
-) {
-	use crate::analysis::dispatch::{
-		ArrowOutput,
-		DispatchArrowParam,
-	};
-
-	for param in &arrow.inputs {
-		match param {
-			DispatchArrowParam::TypeParam(name) if name.len() == 1 => {
-				if !all_element_types.contains(name) {
-					all_element_types.push(name.clone());
-				}
-			}
-			DispatchArrowParam::SubArrow(sub) => {
-				collect_arrow_element_types_flat(sub, all_element_types);
-			}
-			_ => {}
-		}
-	}
-
-	let output_args = match &arrow.output {
-		ArrowOutput::BrandApplied(args)
-		| ArrowOutput::OtherApplied {
-			args, ..
-		} => args.clone(),
-		_ => Vec::new(),
-	};
-	for arg in &output_args {
-		if arg.len() == 1 && !all_element_types.contains(arg) {
-			all_element_types.push(arg.clone());
-		}
-	}
 }
 
 /// Check if a type name is an InferableBrand-bounded param in the signature's where clause.
