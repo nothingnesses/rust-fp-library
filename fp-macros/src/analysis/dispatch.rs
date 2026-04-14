@@ -21,7 +21,7 @@ use {
 
 /// Information extracted from a dispatch trait's Val impl block.
 #[derive(Debug, Clone)]
-#[allow(dead_code, reason = "Fields used in upcoming steps 7-8 for HM signature generation")]
+#[expect(dead_code, reason = "Fields used in upcoming steps 7-8 for HM signature generation")]
 pub struct DispatchTraitInfo {
 	/// The dispatch trait name (e.g., "FunctorDispatch").
 	pub trait_name: String,

@@ -17,7 +17,14 @@
   `crate::dispatch::*` instead of `self::*`. Compile-fail `.stderr`
   golden files updated (map path changed to `src/dispatch/functor.rs`).
   `functions/contravariant.rs` kept as-is.
-- Steps 6-12: Not started.
+- Step 6: Done. Created `fp-macros/src/analysis/dispatch.rs` with
+  `DispatchTraitInfo`, `DispatchArrow`, `DispatchArrowParam` data
+  structures and `analyze_dispatch_traits()` entry point. Integrated
+  into `document_module_worker()` as Pass 1b after `get_context()`.
+  Added `dispatch_traits` field to `Config`. 4 unit tests passing.
+  The dispatch info is populated but not yet consumed by signature
+  generation (steps 7-8).
+- Steps 7-12: Not started.
 
 ## Deviations
 
@@ -42,6 +49,47 @@
      note text and needed updating.
    - `generate_function_re_exports!` macro in `functions.rs` had a
      `contravariant::contramap` alias entry that needed migration.
+
+### Step 5
+
+1. **Compile-fail `.stderr` golden files needed updating.** The error
+   messages reference the source location of the `map` function, which
+   moved from `src/functions/functor.rs` to `src/dispatch/functor.rs`.
+   Updated both `.stderr` files.
+
+2. **No other deviations.** The merge was mechanical. All dispatch
+   modules already imported `kinds::*` (which includes `InferableBrand_*`),
+   so no additional imports were needed for the inference wrappers.
+
+### Step 6
+
+1. **`#[document_signature]` on free functions is not processed by
+   `#[document_module]`.** The plan assumed `document_module` handles
+   `#[document_signature]` on all items. In reality, it only processes
+   the attribute on impl methods and trait methods (via `process_document_signature`
+   in `generation.rs`). For `Item::Fn`, the attribute is left in the output
+   and expanded later by the standalone `document_signature_worker` proc macro.
+   This means the dispatch-aware signature generation (steps 7-8) must either:
+   (a) have `document_module` intercept `#[document_signature]` on `Item::Fn`
+   items during Pass 2 (where it has Config with dispatch info), or
+   (b) find another way to pass dispatch info to the standalone macro.
+   Option (a) is recommended; it mirrors how impl methods are already handled.
+
+2. **`DispatchTraitInfo` fields marked `#[expect(dead_code)]`.** The struct
+   fields are populated in step 6 but not consumed until steps 7-8. Using
+   `#[expect]` instead of `#[allow]` so the compiler flags the suppression
+   as unnecessary once the fields are consumed.
+
+3. **`is_tuple_closure` detected false positives for unit types.** The
+   initial implementation matched `Type::Tuple(_)` which includes `()`
+   (unit type used as the self type in closureless dispatch test cases).
+   Fixed by checking `tuple.elems.len() >= 2`.
+
+4. **`LiftFn` added to infrastructure traits.** The `FnBrand: LiftFn`
+   bound appears in foldable/traversable dispatch impls. Without filtering
+   it, `find_brand_param` would incorrectly identify `FnBrand` as the
+   Brand parameter (since `LiftFn` passes the `is_semantic_type_class`
+   check). Added `LiftFn` and `SendLiftFn` to `INFRASTRUCTURE_TRAITS`.
 
 ## Prerequisites
 
