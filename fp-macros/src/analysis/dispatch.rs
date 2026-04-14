@@ -23,14 +23,12 @@ use {
 #[derive(Debug, Clone)]
 pub struct DispatchTraitInfo {
 	/// The dispatch trait name (e.g., "FunctorDispatch").
-	#[expect(dead_code, reason = "Stored for diagnostics and future use")]
+	#[expect(dead_code, reason = "Stored for diagnostics")]
 	pub trait_name: String,
 	/// The Brand type parameter name (e.g., "Brand").
-	#[expect(dead_code, reason = "Used in upcoming synthetic signature builder")]
 	pub brand_param: String,
 	/// The Kind trait name from the Brand param's bound (e.g., "Kind_cdc7cd43dac7585f").
 	/// None if the Kind hash was not found directly on the Brand parameter.
-	#[expect(dead_code, reason = "Used in upcoming synthetic signature builder")]
 	pub kind_trait_name: Option<String>,
 	/// The primary semantic type class constraint (e.g., "Functor").
 	/// Extracted from `Brand: Functor` in the Val impl's where clause.
@@ -47,7 +45,6 @@ pub struct DispatchTraitInfo {
 	/// Container param mapping: maps function type params to their element
 	/// types. E.g., for lift2: [("FA", "A"), ("FB", "B")]. Derived from
 	/// the dispatch trait's generic parameter positions.
-	#[expect(dead_code, reason = "Used in upcoming synthetic signature builder")]
 	pub container_params: Vec<(String, Vec<String>)>,
 }
 

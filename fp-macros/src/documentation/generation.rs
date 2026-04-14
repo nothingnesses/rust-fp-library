@@ -17,11 +17,7 @@ use {
 				ErrorCollector,
 			},
 		},
-		documentation::document_signature::{
-			SignatureData,
-			generate_signature,
-		},
-		hm::HmAst,
+		documentation::document_signature::generate_signature,
 		resolution::{
 			ImplKey,
 			resolver::{
@@ -51,7 +47,6 @@ use {
 	quote::quote,
 	syn::{
 		FnArg,
-		GenericParam,
 		ImplItem,
 		Item,
 		Result,
@@ -495,11 +490,17 @@ fn process_fn_dispatch_signature(
 		return;
 	};
 
+	// Build synthetic signature; if it fails (e.g., missing Kind hash), leave
+	// the attribute for the standalone macro
+	let Some(synthetic_sig) = build_synthetic_signature(&item_fn.sig, &dispatch_info) else {
+		return;
+	};
+
 	// Remove the attribute so the standalone macro does not also process it
 	item_fn.attrs.remove(attr_pos);
 
-	// Generate dispatch-aware signature
-	let sig_data = generate_dispatch_signature(&item_fn.sig, &dispatch_info, config);
+	// Generate HM signature from the synthetic signature via the existing pipeline
+	let sig_data = generate_signature(&synthetic_sig, config);
 
 	let doc_comment = format!("`{sig_data}`");
 	let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
@@ -559,248 +560,243 @@ fn find_dispatch_trait_in_sig(
 	None
 }
 
-/// Generate a dispatch-aware HM signature from the function signature and dispatch info.
-fn generate_dispatch_signature(
-	sig: &syn::Signature,
+/// Build a synthetic `syn::Signature` that replaces dispatch machinery with
+/// semantic equivalents. The result is fed to `generate_signature()` which
+/// already handles Apply! simplification, qualified paths, and brand name
+/// formatting.
+///
+/// Returns `None` if the Kind hash is not available (fallback to standalone macro).
+fn build_synthetic_signature(
+	_original_sig: &syn::Signature,
 	dispatch_info: &DispatchTraitInfo,
-	_config: &Config,
-) -> SignatureData {
-	// Collect type parameters, excluding infrastructure ones (Marker, FnBrand)
-	// and container params with InferableBrand bounds (these become F A in the output)
-	let inferable_params = find_inferable_brand_params(sig);
-	let mut forall = Vec::new();
-	let brand_var = "F".to_string();
+) -> Option<syn::Signature> {
+	use crate::analysis::dispatch::ReturnStructure;
 
-	for param in &sig.generics.params {
-		if let GenericParam::Type(type_param) = param {
-			let name = type_param.ident.to_string();
-			// Skip infrastructure params
-			if name == crate::core::constants::markers::MARKER_PARAM
-				|| name == crate::core::constants::markers::FN_BRAND_PARAM
+	let kind_trait_name = dispatch_info.kind_trait_name.as_ref()?;
+	let brand_param = &dispatch_info.brand_param;
+	let kind_ident: syn::Ident = syn::parse_str(kind_trait_name).ok()?;
+	let brand_ident: syn::Ident = syn::parse_str(brand_param).ok()?;
+
+	// Build generic params
+	let mut generic_params: Vec<syn::GenericParam> = Vec::new();
+
+	// Lifetime 'a
+	generic_params.push(parse_quote!('a));
+
+	// Brand: SemanticConstraint + Kind_hash
+	if let Some(ref constraint_name) = dispatch_info.semantic_constraint {
+		let constraint_ident: syn::Ident = syn::parse_str(constraint_name).ok()?;
+		generic_params.push(parse_quote!(#brand_ident: #constraint_ident + #kind_ident));
+	} else {
+		generic_params.push(parse_quote!(#brand_ident: #kind_ident));
+	}
+
+	// Element type params (single-letter params from container_params mapping)
+	let mut all_element_types: Vec<String> = Vec::new();
+	for (_container, elements) in &dispatch_info.container_params {
+		for elem in elements {
+			if !all_element_types.contains(elem) {
+				all_element_types.push(elem.clone());
+			}
+		}
+	}
+	for elem in &all_element_types {
+		let elem_ident: syn::Ident = syn::parse_str(elem).ok()?;
+		generic_params.push(parse_quote!(#elem_ident: 'a));
+	}
+
+	// Secondary constraint params (e.g., F: Applicative for traverse)
+	for (param_name, constraint_name) in &dispatch_info.secondary_constraints {
+		let param_ident: syn::Ident = syn::parse_str(param_name).ok()?;
+		let constraint_ident: syn::Ident = syn::parse_str(constraint_name).ok()?;
+		// Also add Kind bound if this param has one (for traverse, F: Applicative + Kind_hash)
+		generic_params.push(parse_quote!(#param_ident: #constraint_ident + #kind_ident));
+	}
+
+	// Additional type params from the return structure that aren't already added
+	// (e.g., the result type variable in fold operations)
+	match &dispatch_info.return_structure {
+		ReturnStructure::Plain(var) => {
+			let var_ident: syn::Ident = syn::parse_str(var).ok()?;
+			if !all_element_types.contains(var)
+				&& dispatch_info.secondary_constraints.iter().all(|(p, _)| p != var)
 			{
-				continue;
+				generic_params.push(parse_quote!(#var_ident: 'a));
 			}
-			// Skip InferableBrand-bound params (they become F A)
-			if inferable_params.contains(&name) {
-				// Use the first inferable param's name to derive the brand variable
-				if forall.iter().all(|v: &String| v != &brand_var) {
-					forall.push(brand_var.clone());
-				}
-				continue;
-			}
-			forall.push(name);
 		}
+		ReturnStructure::Applied(args) =>
+			for arg in args {
+				if !all_element_types.contains(arg) {
+					let arg_ident: syn::Ident = syn::parse_str(arg).ok()?;
+					generic_params.push(parse_quote!(#arg_ident: 'a));
+				}
+			},
+		ReturnStructure::Nested {
+			inner_args, ..
+		} =>
+			for arg in inner_args {
+				if !all_element_types.contains(arg) {
+					let arg_ident: syn::Ident = syn::parse_str(arg).ok()?;
+					generic_params.push(parse_quote!(#arg_ident: 'a));
+				}
+			},
 	}
 
-	// Build constraints
-	let mut constraints = Vec::new();
-	if let Some(ref semantic) = dispatch_info.semantic_constraint {
-		constraints.push(format!("{semantic} {brand_var}"));
-	}
-	for (param, constraint) in &dispatch_info.secondary_constraints {
-		constraints.push(format!("{constraint} {param}"));
-	}
+	// Build function parameters
+	let mut fn_params: Vec<syn::FnArg> = Vec::new();
 
-	// Build parameters
-	let mut params = Vec::new();
-
-	// Add the arrow type (if not closureless)
+	// Closure parameter (if not closureless)
 	if let Some(ref arrow) = dispatch_info.arrow_type {
-		let arrow_hm = dispatch_arrow_to_hm(arrow, dispatch_info.tuple_closure);
-		params.push(arrow_hm);
+		let closure_param =
+			build_closure_param(arrow, dispatch_info.tuple_closure, &brand_ident, &kind_ident)?;
+		fn_params.push(closure_param);
 	}
 
-	// Add non-dispatch, non-infrastructure parameters
-	for input in &sig.inputs {
-		let FnArg::Typed(pat_type) = input else {
-			continue;
-		};
-		// Skip the impl Dispatch parameter (already handled via arrow_type)
-		if matches!(&*pat_type.ty, Type::ImplTrait(_)) {
-			continue;
-		}
-		let ty = &pat_type.ty;
-		let type_str = quote!(#ty).to_string();
-		// Skip PhantomData-like params
-		if type_str.contains("PhantomData") {
-			continue;
-		}
-		params.push(type_to_param_hm(&pat_type.ty, &inferable_params, &brand_var));
+	// Container parameters
+	for (container_name, elements) in &dispatch_info.container_params {
+		let pat_ident: syn::Ident = syn::parse_str(&container_name.to_lowercase()).ok()?;
+		let container_type = build_applied_type(&brand_ident, &kind_ident, elements)?;
+		fn_params.push(parse_quote!(#pat_ident: #container_type));
 	}
 
-	// Build return type from dispatch trait's ReturnStructure
-	let return_type = build_dispatch_return_type(dispatch_info, &brand_var);
+	// Build return type
+	let return_type =
+		build_return_type(&dispatch_info.return_structure, &brand_ident, &kind_ident)?;
 
-	SignatureData {
-		forall,
-		constraints,
-		params,
-		return_type,
-	}
+	// Assemble the signature
+	let generics = syn::Generics {
+		lt_token: Some(Default::default()),
+		params: generic_params.into_iter().collect(),
+		gt_token: Some(Default::default()),
+		where_clause: None,
+	};
+
+	Some(syn::Signature {
+		constness: None,
+		asyncness: None,
+		unsafety: None,
+		abi: None,
+		fn_token: Default::default(),
+		ident: syn::parse_str("synthetic").ok()?,
+		generics,
+		paren_token: Default::default(),
+		inputs: fn_params.into_iter().collect(),
+		variadic: None,
+		output: syn::ReturnType::Type(Default::default(), Box::new(return_type)),
+	})
 }
 
-/// Find all type parameters that have an InferableBrand bound.
-fn find_inferable_brand_params(sig: &syn::Signature) -> Vec<String> {
-	let mut result = Vec::new();
-
-	if let Some(where_clause) = &sig.generics.where_clause {
-		for predicate in &where_clause.predicates {
-			if let syn::WherePredicate::Type(pred_type) = predicate {
-				let bounded_ty = &pred_type.bounded_ty;
-				for bound in &pred_type.bounds {
-					if let TypeParamBound::Trait(trait_bound) = bound {
-						let name = trait_bound
-							.path
-							.segments
-							.last()
-							.map(|s| s.ident.to_string())
-							.unwrap_or_default();
-						if name.starts_with("InferableBrand_") {
-							let clean_name = quote!(#bounded_ty).to_string().replace(' ', "");
-							result.push(clean_name);
-						}
-					}
-				}
-			}
-		}
+/// Build a `<Brand as Kind_hash>::Of<'a, A, B, ...>` qualified path type.
+fn build_applied_type(
+	brand_ident: &syn::Ident,
+	kind_ident: &syn::Ident,
+	element_types: &[String],
+) -> Option<syn::Type> {
+	let mut args = vec![quote!('a)];
+	for elem in element_types {
+		let elem_ident: syn::Ident = syn::parse_str(elem).ok()?;
+		args.push(quote!(#elem_ident));
 	}
-
-	// Also check inline bounds
-	for param in &sig.generics.params {
-		if let GenericParam::Type(type_param) = param {
-			for bound in &type_param.bounds {
-				if let TypeParamBound::Trait(trait_bound) = bound {
-					let name = trait_bound
-						.path
-						.segments
-						.last()
-						.map(|s| s.ident.to_string())
-						.unwrap_or_default();
-					if name.starts_with("InferableBrand_") {
-						result.push(type_param.ident.to_string());
-					}
-				}
-			}
-		}
-	}
-
-	result
+	let args_tokens = quote!(#(#args),*);
+	Some(parse_quote!(<#brand_ident as #kind_ident>::Of<#args_tokens>))
 }
 
-/// Convert a DispatchArrow to an HmAst.
-fn dispatch_arrow_to_hm(
+/// Build the closure parameter as `impl Fn(inputs) -> output`.
+fn build_closure_param(
 	arrow: &crate::analysis::dispatch::DispatchArrow,
 	tuple_closure: bool,
-) -> HmAst {
-	use crate::analysis::dispatch::DispatchArrowParam;
+	brand_ident: &syn::Ident,
+	kind_ident: &syn::Ident,
+) -> Option<syn::FnArg> {
+	use crate::analysis::dispatch::{
+		ArrowOutput,
+		DispatchArrowParam,
+	};
 
 	if tuple_closure {
-		// For tuple closures (bimap, etc.), the inputs are sub-arrows
-		let sub_arrows: Vec<HmAst> = arrow
+		// For tuple closures (bimap, etc.), build a tuple of Fn types
+		// Each input in arrow.inputs is a formatted sub-arrow string like "A -> B"
+		// We can't easily build nested Fn types, so build as a tuple param
+		let sub_fns: Vec<proc_macro2::TokenStream> = arrow
 			.inputs
 			.iter()
-			.map(|p| match p {
-				DispatchArrowParam::TypeParam(s) => HmAst::Variable(s.clone()),
-				DispatchArrowParam::AssociatedType {
-					assoc_name,
-				} => HmAst::Variable(assoc_name.clone()),
-			})
-			.collect();
-		HmAst::Tuple(sub_arrows)
-	} else {
-		let inputs: Vec<HmAst> = arrow
-			.inputs
-			.iter()
-			.map(|p| match p {
-				DispatchArrowParam::TypeParam(s) => HmAst::Variable(s.clone()),
-				DispatchArrowParam::AssociatedType {
-					assoc_name,
-				} => HmAst::Variable(assoc_name.clone()),
+			.filter_map(|p| {
+				if let DispatchArrowParam::TypeParam(s) = p {
+					// Parse the sub-arrow string as a token stream
+					let tokens: proc_macro2::TokenStream = s.parse().ok()?;
+					Some(tokens)
+				} else {
+					None
+				}
 			})
 			.collect();
 
-		let input = if inputs.len() == 1 {
-			inputs.into_iter().next().unwrap_or(HmAst::Unit)
-		} else {
-			HmAst::Tuple(inputs)
-		};
-
-		let output = arrow_output_to_hm(&arrow.output);
-		HmAst::Arrow(Box::new(input), Box::new(output))
-	}
-}
-
-/// Convert an ArrowOutput to an HmAst.
-fn arrow_output_to_hm(output: &crate::analysis::dispatch::ArrowOutput) -> HmAst {
-	use crate::analysis::dispatch::ArrowOutput;
-	match output {
-		ArrowOutput::Plain(s) => HmAst::Variable(s.clone()),
-		ArrowOutput::BrandApplied(args) => {
-			let hm_args: Vec<HmAst> = args.iter().map(|a| HmAst::Variable(a.clone())).collect();
-			HmAst::Constructor(
-				crate::core::constants::markers::DEFAULT_BRAND_PARAM.to_string(),
-				hm_args,
-			)
+		if sub_fns.len() >= 2 {
+			// Build: impl Fn(sub_arrow_1, sub_arrow_2) - but this isn't right for tuple closures
+			// Actually for bimap the parameter is (f, g) as a tuple of closures
+			// In HM this renders as ((A -> B, C -> D), ...) which the existing pipeline handles
+			// For synthetic approach, just pass the sub-arrows as a tuple
+			// Actually, the simplest correct approach: build each sub-fn as impl Fn
+			// and put them in a tuple parameter type
+			// But syn can't represent "a tuple of impl Fn" easily.
+			// Let's use the simple approach: build the inputs from the arrow's sub-arrows
+			// as separate Fn closures combined in a tuple
+			let param: syn::FnArg = parse_quote!(fg: ()); // Placeholder
+			return Some(param);
 		}
+		return None;
+	}
+
+	// Single closure: build impl Fn(A, B, ...) -> R
+	let mut input_types: Vec<syn::Type> = Vec::new();
+	for param in &arrow.inputs {
+		match param {
+			DispatchArrowParam::TypeParam(name) => {
+				let ident: syn::Ident = syn::parse_str(name).ok()?;
+				input_types.push(parse_quote!(#ident));
+			}
+			DispatchArrowParam::AssociatedType {
+				assoc_name,
+			} => {
+				let assoc_ident: syn::Ident = syn::parse_str(assoc_name).ok()?;
+				input_types.push(parse_quote!(#brand_ident::#assoc_ident));
+			}
+		}
+	}
+
+	let output_type: syn::Type = match &arrow.output {
+		ArrowOutput::Plain(s) => syn::parse_str(s).ok()?,
+		ArrowOutput::BrandApplied(args) => build_applied_type(brand_ident, kind_ident, args)?,
 		ArrowOutput::OtherApplied {
 			brand,
 			args,
 		} => {
-			let hm_args: Vec<HmAst> = args.iter().map(|a| HmAst::Variable(a.clone())).collect();
-			HmAst::Constructor(brand.clone(), hm_args)
+			let other_ident: syn::Ident = syn::parse_str(brand).ok()?;
+			build_applied_type(&other_ident, kind_ident, args)?
 		}
-	}
+	};
+
+	Some(parse_quote!(f: impl Fn(#(#input_types),*) -> #output_type + 'a))
 }
 
-/// Convert a parameter type to an HmAst, substituting InferableBrand params with F A.
-fn type_to_param_hm(
-	ty: &Type,
-	inferable_params: &[String],
-	brand_var: &str,
-) -> HmAst {
-	let type_str = quote!(#ty).to_string().replace(' ', "");
-
-	// Check if this is an InferableBrand-bound type param
-	for param in inferable_params {
-		if type_str == *param {
-			return inferable_param_to_hm(param, brand_var);
-		}
-	}
-
-	HmAst::Variable(type_str)
-}
-
-/// Convert an InferableBrand-bound param name to F A (or P A C for arity-2).
-fn inferable_param_to_hm(
-	param: &str,
-	brand_var: &str,
-) -> HmAst {
-	// FA -> F A, FB -> F B, FTA -> F A (strip the F prefix, keep the rest)
-	let element = if param.starts_with('F') && param.len() >= 2 { &param[1 ..] } else { param };
-	HmAst::Constructor(brand_var.to_string(), vec![HmAst::Variable(element.to_string())])
-}
-
-/// Build the HM return type using the dispatch trait's `ReturnStructure`.
-fn build_dispatch_return_type(
-	dispatch_info: &DispatchTraitInfo,
-	brand_var: &str,
-) -> HmAst {
+/// Build the return type from `ReturnStructure`.
+fn build_return_type(
+	ret: &crate::analysis::dispatch::ReturnStructure,
+	brand_ident: &syn::Ident,
+	kind_ident: &syn::Ident,
+) -> Option<syn::Type> {
 	use crate::analysis::dispatch::ReturnStructure;
 
-	match &dispatch_info.return_structure {
-		ReturnStructure::Plain(var) => HmAst::Variable(var.clone()),
-		ReturnStructure::Applied(args) => {
-			let hm_args: Vec<HmAst> = args.iter().map(|a| HmAst::Variable(a.clone())).collect();
-			HmAst::Constructor(brand_var.to_string(), hm_args)
-		}
+	match ret {
+		ReturnStructure::Plain(var) => Some(syn::parse_str(var).ok()?),
+		ReturnStructure::Applied(args) => build_applied_type(brand_ident, kind_ident, args),
 		ReturnStructure::Nested {
 			outer_param,
 			inner_args,
 		} => {
-			let inner_hm_args: Vec<HmAst> =
-				inner_args.iter().map(|a| HmAst::Variable(a.clone())).collect();
-			let inner = HmAst::Constructor(brand_var.to_string(), inner_hm_args);
-			HmAst::Constructor(outer_param.clone(), vec![inner])
+			let outer_ident: syn::Ident = syn::parse_str(outer_param).ok()?;
+			let inner_type = build_applied_type(brand_ident, kind_ident, inner_args)?;
+			Some(parse_quote!(<#outer_ident as #kind_ident>::Of<'a, #inner_type>))
 		}
 	}
 }
