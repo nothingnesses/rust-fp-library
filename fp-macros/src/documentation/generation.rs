@@ -575,7 +575,9 @@ fn generate_dispatch_signature(
 		if let GenericParam::Type(type_param) = param {
 			let name = type_param.ident.to_string();
 			// Skip infrastructure params
-			if name == "Marker" || name == "FnBrand" {
+			if name == crate::core::constants::markers::MARKER_PARAM
+				|| name == crate::core::constants::markers::FN_BRAND_PARAM
+			{
 				continue;
 			}
 			// Skip InferableBrand-bound params (they become F A)
@@ -723,8 +725,30 @@ fn dispatch_arrow_to_hm(
 			HmAst::Tuple(inputs)
 		};
 
-		let output = HmAst::Variable(arrow.output.clone());
+		let output = arrow_output_to_hm(&arrow.output);
 		HmAst::Arrow(Box::new(input), Box::new(output))
+	}
+}
+
+/// Convert an ArrowOutput to an HmAst.
+fn arrow_output_to_hm(output: &crate::analysis::dispatch::ArrowOutput) -> HmAst {
+	use crate::analysis::dispatch::ArrowOutput;
+	match output {
+		ArrowOutput::Plain(s) => HmAst::Variable(s.clone()),
+		ArrowOutput::BrandApplied(args) => {
+			let hm_args: Vec<HmAst> = args.iter().map(|a| HmAst::Variable(a.clone())).collect();
+			HmAst::Constructor(
+				crate::core::constants::markers::DEFAULT_BRAND_PARAM.to_string(),
+				hm_args,
+			)
+		}
+		ArrowOutput::OtherApplied {
+			brand,
+			args,
+		} => {
+			let hm_args: Vec<HmAst> = args.iter().map(|a| HmAst::Variable(a.clone())).collect();
+			HmAst::Constructor(brand.clone(), hm_args)
+		}
 	}
 }
 

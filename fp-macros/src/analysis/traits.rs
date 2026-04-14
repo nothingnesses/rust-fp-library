@@ -77,7 +77,12 @@ pub fn format_brand_name(
 	}
 
 	if let Some(stripped) = name.strip_suffix(markers::BRAND_SUFFIX) {
-		stripped.to_string()
+		if stripped.is_empty() {
+			// "Brand" alone should not be stripped to ""
+			name.to_string()
+		} else {
+			stripped.to_string()
+		}
 	} else {
 		name.to_string()
 	}

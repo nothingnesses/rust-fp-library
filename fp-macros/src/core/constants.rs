@@ -99,6 +99,14 @@ pub mod markers {
 	/// Type parameter names that are dispatch infrastructure and should be
 	/// hidden from HM signature `forall` clauses.
 	pub const HIDDEN_TYPE_PARAMS: &[&str] = &["Marker", "FnBrand"];
+	/// Suffix used to identify dispatch traits by naming convention.
+	pub const DISPATCH_SUFFIX: &str = "Dispatch";
+	/// Default name for the brand type parameter in dispatch traits.
+	pub const DEFAULT_BRAND_PARAM: &str = "Brand";
+	/// Name of the FnBrand type parameter in dispatch traits.
+	pub const FN_BRAND_PARAM: &str = "FnBrand";
+	/// Name of the Marker type parameter in dispatch traits.
+	pub const MARKER_PARAM: &str = "Marker";
 }
 
 /// Known attribute names used by the documentation macros

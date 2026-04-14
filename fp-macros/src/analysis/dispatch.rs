@@ -25,6 +25,13 @@ pub struct DispatchTraitInfo {
 	/// The dispatch trait name (e.g., "FunctorDispatch").
 	#[expect(dead_code, reason = "Stored for diagnostics and future use")]
 	pub trait_name: String,
+	/// The Brand type parameter name (e.g., "Brand").
+	#[expect(dead_code, reason = "Used in upcoming synthetic signature builder")]
+	pub brand_param: String,
+	/// The Kind trait name from the Brand param's bound (e.g., "Kind_cdc7cd43dac7585f").
+	/// None if the Kind hash was not found directly on the Brand parameter.
+	#[expect(dead_code, reason = "Used in upcoming synthetic signature builder")]
+	pub kind_trait_name: Option<String>,
 	/// The primary semantic type class constraint (e.g., "Functor").
 	/// Extracted from `Brand: Functor` in the Val impl's where clause.
 	pub semantic_constraint: Option<String>,
@@ -37,6 +44,11 @@ pub struct DispatchTraitInfo {
 	pub tuple_closure: bool,
 	/// Return type structure of the dispatch method.
 	pub return_structure: ReturnStructure,
+	/// Container param mapping: maps function type params to their element
+	/// types. E.g., for lift2: [("FA", "A"), ("FB", "B")]. Derived from
+	/// the dispatch trait's generic parameter positions.
+	#[expect(dead_code, reason = "Used in upcoming synthetic signature builder")]
+	pub container_params: Vec<(String, Vec<String>)>,
 }
 
 /// Describes the HM return type structure of a dispatch trait.
@@ -55,8 +67,19 @@ pub enum ReturnStructure {
 pub struct DispatchArrow {
 	/// The Fn bound's input parameter representations.
 	pub inputs: Vec<DispatchArrowParam>,
-	/// The Fn bound's output type as a token string.
-	pub output: String,
+	/// The Fn bound's output type, classified structurally.
+	pub output: ArrowOutput,
+}
+
+/// Structured representation of an arrow's output type.
+#[derive(Debug, Clone)]
+pub enum ArrowOutput {
+	/// A plain type variable (e.g., `B`, `bool`, `Option B`).
+	Plain(String),
+	/// The Brand applied to type args (e.g., `Apply!(<Brand as Kind>::Of<B>)` -> `Brand B`).
+	BrandApplied(Vec<String>),
+	/// Another type param applied to type args (e.g., `Apply!(<F as Kind>::Of<B>)` -> `F B`).
+	OtherApplied { brand: String, args: Vec<String> },
 }
 
 /// A single parameter in a dispatch arrow type.
@@ -69,9 +92,6 @@ pub enum DispatchArrowParam {
 }
 
 // -- Constants --
-
-/// Suffix used to identify dispatch traits by naming convention.
-const DISPATCH_SUFFIX: &str = "Dispatch";
 
 /// Trait names that are infrastructure, not semantic type class constraints.
 const INFRASTRUCTURE_TRAITS: &[&str] =
@@ -92,7 +112,7 @@ pub fn analyze_dispatch_traits(items: &[Item]) -> HashMap<String, DispatchTraitI
 		.filter_map(|item| {
 			if let Item::Trait(item_trait) = item {
 				let name = item_trait.ident.to_string();
-				if name.ends_with(DISPATCH_SUFFIX) {
+				if name.ends_with(markers::DISPATCH_SUFFIX) {
 					return Some(name);
 				}
 			}
@@ -175,6 +195,9 @@ fn extract_dispatch_info(
 	trait_def: Option<&syn::ItemTrait>,
 ) -> DispatchTraitInfo {
 	let brand_param = find_brand_param(val_impl);
+	let kind_trait_name = trait_def.and_then(|td| {
+		extract_kind_trait_name(td, brand_param.as_deref().unwrap_or(markers::DEFAULT_BRAND_PARAM))
+	});
 	let semantic_constraint =
 		brand_param.as_ref().and_then(|bp| extract_semantic_constraint(val_impl, bp));
 	let tuple_closure = is_tuple_closure(val_impl);
@@ -194,14 +217,163 @@ fn extract_dispatch_info(
 		.and_then(|td| extract_return_structure(td, brand_param.as_deref()))
 		.unwrap_or(ReturnStructure::Plain("?".to_string()));
 
+	let container_params = trait_def
+		.map(|td| {
+			extract_container_params(
+				td,
+				brand_param.as_deref().unwrap_or(markers::DEFAULT_BRAND_PARAM),
+			)
+		})
+		.unwrap_or_default();
+
 	DispatchTraitInfo {
 		trait_name: trait_name.to_string(),
+		brand_param: brand_param.unwrap_or_else(|| markers::DEFAULT_BRAND_PARAM.to_string()),
+		kind_trait_name,
 		semantic_constraint,
 		secondary_constraints,
 		arrow_type,
 		tuple_closure,
 		return_structure,
+		container_params,
 	}
+}
+
+/// Extract the Kind trait name from a dispatch trait definition's Brand param bounds.
+///
+/// Scans both inline bounds and where clause for a `Kind_*` prefixed trait.
+fn extract_kind_trait_name(
+	trait_def: &syn::ItemTrait,
+	brand_param_name: &str,
+) -> Option<String> {
+	// Check inline bounds on generic params
+	for param in &trait_def.generics.params {
+		if let syn::GenericParam::Type(type_param) = param
+			&& type_param.ident == brand_param_name
+		{
+			for bound in &type_param.bounds {
+				if let syn::TypeParamBound::Trait(trait_bound) = bound {
+					let name = trait_bound
+						.path
+						.segments
+						.last()
+						.map(|s| s.ident.to_string())
+						.unwrap_or_default();
+					if name.starts_with(markers::KIND_PREFIX) {
+						return Some(name);
+					}
+				}
+			}
+		}
+	}
+
+	// Check where clause
+	if let Some(where_clause) = &trait_def.generics.where_clause {
+		for predicate in &where_clause.predicates {
+			if let WherePredicate::Type(pred_type) = predicate {
+				let param_name = type_to_string(&pred_type.bounded_ty);
+				if param_name == brand_param_name {
+					for bound in &pred_type.bounds {
+						if let syn::TypeParamBound::Trait(trait_bound) = bound {
+							let name = trait_bound
+								.path
+								.segments
+								.last()
+								.map(|s| s.ident.to_string())
+								.unwrap_or_default();
+							if name.starts_with(markers::KIND_PREFIX) {
+								return Some(name);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	None
+}
+
+/// Extract container parameter mappings from a dispatch trait definition.
+///
+/// Uses position-based analysis of the dispatch trait's generic params.
+/// Container params are those that appear after the element type params
+/// and before the Marker param, and whose names are not `Brand`, `Marker`,
+/// `FnBrand`, or single-letter element types.
+fn extract_container_params(
+	trait_def: &syn::ItemTrait,
+	brand_param_name: &str,
+) -> Vec<(String, Vec<String>)> {
+	let params: Vec<String> = trait_def
+		.generics
+		.params
+		.iter()
+		.filter_map(|p| {
+			if let syn::GenericParam::Type(tp) = p { Some(tp.ident.to_string()) } else { None }
+		})
+		.collect();
+
+	// The dispatch trait param order is typically:
+	// Brand, [FnBrand], ElementTypes..., ContainerTypes..., Marker
+	// Where element types are single letters (A, B, C, etc.)
+	// and container types start with F (FA, FB, FC, etc.)
+
+	// Find the Brand and Marker positions
+	let brand_pos = params.iter().position(|p| p == brand_param_name);
+	let marker_pos = params.iter().position(|p| p == "Marker");
+
+	let Some(bp) = brand_pos else {
+		return Vec::new();
+	};
+	let end = marker_pos.unwrap_or(params.len());
+
+	// Params between Brand+1 and Marker, skipping FnBrand and single-letter element types
+	let mut element_types = Vec::new();
+	let mut container_mappings = Vec::new();
+
+	for param in params.iter().take(end).skip(bp + 1) {
+		if param == markers::FN_BRAND_PARAM || param == markers::MARKER_PARAM {
+			continue;
+		}
+		// Heuristic: container params have multi-char names starting with uppercase
+		// that contain at least one letter after the first
+		// Element types are single uppercase letters or well-known names like M
+		if param.len() == 1 || param == markers::FN_BRAND_PARAM {
+			element_types.push(param.clone());
+		} else {
+			// This is a container param. Map it to its element types by
+			// looking at the naming convention: FA -> [A], FTA -> [A]
+			// For bifunctor: the element types come from the trait's type args
+			// For now, use position: the Nth container param maps to the Nth
+			// subset of element types based on the brand's arity.
+			container_mappings.push(param.clone());
+		}
+	}
+
+	// Map each container to its element type(s) by position
+	// For arity-1: FA maps to element_types[0], FB to element_types[1], etc.
+	// For arity-2: FA maps to (element_types[0], element_types[1]), etc.
+	// Determine arity from the number of element types per container
+	let arity = if container_mappings.is_empty() {
+		1
+	} else {
+		// If there are more element types than containers, it's likely arity > 1
+		let ratio = element_types.len().checked_div(container_mappings.len()).unwrap_or(1);
+		ratio.max(1)
+	};
+
+	let mut result = Vec::new();
+	for (i, container) in container_mappings.iter().enumerate() {
+		let start = i * arity;
+		let end = (start + arity).min(element_types.len());
+		let mapped_elements: Vec<String> =
+			element_types.get(start .. end).unwrap_or_default().to_vec();
+		if !mapped_elements.is_empty() {
+			result.push((container.clone(), mapped_elements));
+		}
+	}
+
+	result
 }
 
 /// Extract the return type structure from the dispatch trait's `dispatch` method.
@@ -390,7 +562,7 @@ fn is_semantic_type_class(name: &str) -> bool {
 		return false;
 	}
 	// Not a dispatch trait (avoid self-referential detection)
-	if name.ends_with(DISPATCH_SUFFIX) {
+	if name.ends_with(markers::DISPATCH_SUFFIX) {
 		return false;
 	}
 	true
@@ -529,7 +701,7 @@ fn extract_single_arrow(
 /// Extract arrow types from a tuple-closure dispatch impl (e.g., bimap with (F, G)).
 fn extract_tuple_arrow(val_impl: &syn::ItemImpl) -> Option<DispatchArrow> {
 	let mut all_inputs = Vec::new();
-	let mut last_output = String::new();
+	let mut last_output = ArrowOutput::Plain("()".to_string());
 
 	if let Some(where_clause) = &val_impl.generics.where_clause {
 		for predicate in &where_clause.predicates {
@@ -593,8 +765,8 @@ fn extract_fn_arrow_from_bound(
 		args.inputs.iter().map(|ty| type_to_arrow_param(ty, brand_param)).collect();
 
 	let output = match &args.output {
-		ReturnType::Default => "()".to_string(),
-		ReturnType::Type(_, ty) => simplify_type_for_hm(ty),
+		ReturnType::Default => ArrowOutput::Plain("()".to_string()),
+		ReturnType::Type(_, ty) => classify_arrow_output(ty, brand_param),
 	};
 
 	Some(DispatchArrow {
@@ -625,6 +797,42 @@ fn type_to_arrow_param(
 }
 
 /// Simplify a type for HM rendering. Strips lifetimes, Apply! macros, etc.
+/// Classify an arrow output type as plain, brand-applied, or other-brand-applied.
+fn classify_arrow_output(
+	ty: &Type,
+	brand_param: Option<&str>,
+) -> ArrowOutput {
+	let type_str = quote::quote!(#ty).to_string();
+
+	// Check if this is a macro (Apply!) invocation
+	if let Type::Macro(_) = ty {
+		// The output contains Apply! macro. Check if it references Brand or another param.
+		if let Some(bp) = brand_param
+			&& type_str.contains(bp)
+		{
+			// Brand-applied: e.g., Apply!(<Brand as Kind!(...)>::Of<'a, B>)
+			// Extract the type args from the last Of<>
+			let args = extract_last_of_type_args_clean(&type_str);
+			if !args.is_empty() {
+				return ArrowOutput::BrandApplied(args);
+			}
+		}
+		// Check for other-brand patterns (e.g., <F as Kind!(...)>::Of<'a, B>)
+		if let Some(other_brand) = extract_non_brand_param(&type_str, brand_param) {
+			let args = extract_last_of_type_args_clean(&type_str);
+			if !args.is_empty() {
+				return ArrowOutput::OtherApplied {
+					brand: other_brand,
+					args,
+				};
+			}
+		}
+	}
+
+	// Plain type
+	ArrowOutput::Plain(simplify_type_for_hm(ty))
+}
+
 fn simplify_type_for_hm(ty: &Type) -> String {
 	match ty {
 		Type::Path(type_path) => {
@@ -683,7 +891,16 @@ fn format_arrow_as_string(arrow: &DispatchArrow) -> String {
 		format!("({})", inputs.join(", "))
 	};
 
-	format!("{} -> {}", input_str, arrow.output)
+	let output_str = match &arrow.output {
+		ArrowOutput::Plain(s) => s.clone(),
+		ArrowOutput::BrandApplied(args) => format!("Brand {}", args.join(" ")),
+		ArrowOutput::OtherApplied {
+			brand,
+			args,
+		} => format!("{brand} {}", args.join(" ")),
+	};
+
+	format!("{input_str} -> {output_str}")
 }
 
 // -- Helpers --
@@ -743,7 +960,7 @@ mod tests {
 
 		let arrow = info.arrow_type.as_ref().unwrap();
 		assert_eq!(arrow.inputs.len(), 1);
-		assert_eq!(arrow.output, "B");
+		assert!(matches!(arrow.output, ArrowOutput::Plain(ref s) if s == "B"));
 	}
 
 	#[test]
