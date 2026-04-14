@@ -36,64 +36,37 @@ a step in the InferableBrand fallback chain between
 element types from `type_param_order` (the dispatch trait's generic
 params).
 
-### Snapshot test infrastructure: Partially done
+### Snapshot test infrastructure: Done
 
-The test module and 18 per-file tests are implemented. The
-infrastructure works: `document_module_worker` processes each dispatch
-file's `mod inner` body and generates signatures.
+18 per-file tests read each dispatch submodule via `include_str!`,
+extract the `mod inner` body, run it through `document_module_worker`,
+and assert generated HM signatures against insta snapshots. All 37
+inference wrapper function signatures are covered and correct.
 
-**Status by dispatch pattern:**
+**Closureless dispatch resolution:** The initial implementation
+showed `FA` instead of branded types for closureless dispatch
+functions (alt, compact, etc.). Root cause: each dispatch file's
+`mod explicit` submodule contains functions with the same names as
+the inference wrappers. The `collect_fn_signatures` helper descended
+into `mod explicit` and the explicit function's signature (which
+correctly does NOT substitute FA) overwrote the inference wrapper's
+signature in the BTreeMap. Fixed by skipping `mod explicit` during
+signature collection.
 
-- Closure-based dispatch (31 functions): All produce correct
-  signatures in the per-file test context. These include map,
-  fold_left/right, fold_map, filter, filter_map, partition,
-  partition_map, bind, bind_flipped, compose_kleisli,
-  compose_kleisli_flipped, lift2-5, bimap, bi_fold_left/right/map,
-  bi_traverse, traverse, wither, wilt, all WithIndex variants.
+### Edge case tests: Done
 
-- Closureless dispatch (6 functions): Produce `FA` instead of the
-  correct branded type (e.g., `Brand A`) when processed in per-file
-  isolation. Affected: alt, compact, separate, join, apply_first,
-  apply_second.
+14 edge case tests added covering unusual inputs and graceful
+fallback behavior:
 
-**Root cause of closureless dispatch issue:** In production, each
-dispatch file's `mod inner` is annotated with `#[document_module]`
-and processed independently by rustc. The production output IS
-correct. In the test context, `document_module_worker` is called
-with the same token stream and the dispatch traits ARE found (verified
-with debug logging), yet the InferableBrand parameter substitution
-does not trigger. The exact failure point within `build_synthetic_signature`
-needs to be traced. The `is_inferable_brand_param` function checks
-the original function signature's where clause for `InferableBrand_*`
-bounds; this check may behave differently when the tokens come from
-`include_str!` + `str::parse::<TokenStream>()` vs rustc's own
-token stream.
+**Dispatch analysis (9 tests in `dispatch.rs`):** Brand param in
+middle of param list, unusual Brand name, no semantic constraint, no
+Val impl, extra type params, associated type extraction, container
+param positions, type param ordering.
 
-**Note on module structure:** Each dispatch file (e.g., `alt.rs`) has
-its own `#[fp_macros::document_module] pub(crate) mod inner { ... }`.
-The parent `dispatch.rs` has a separate `#[document_module] mod inner`
-that only contains `Val`, `Ref`, and `ClosureMode`. The submodule
-files are `pub mod alt;` declarations outside that inner module. This
-means per-file processing IS the correct production model (each file
-processes its own `mod inner` independently), not the full-module
-approach initially assumed.
-
-### Edge case tests: Not started
-
-### Remaining steps
-
-1. **Debug closureless dispatch in test context.** Trace
-   `build_synthetic_signature` for alt to find where InferableBrand
-   substitution fails. The function has a where clause
-   `FA: InferableBrand_cdc7cd43dac7585f + AltDispatch<...>`. Check
-   whether `is_inferable_brand_param("FA", sig)` returns true when
-   the signature comes from `str::parse::<TokenStream>()`.
-
-2. **Accept snapshots.** Once all 37 produce correct output in the
-   test context, run `cargo insta review` to accept initial snapshots.
-
-3. **Edge case tests.** Add synthetic-code unit tests for unusual
-   inputs (see specification below).
+**Signature generation (5 tests in `signature_snapshot_tests.rs`):**
+Missing Kind hash fallback, no `#[document_signature]` attribute,
+`#[document_signature]` without dispatch trait, simple dispatch
+full-pipeline, bifunctor two-element container.
 
 ## Approach
 
