@@ -990,4 +990,53 @@ mod tests {
 		assert_eq!(info.secondary_constraints.len(), 1);
 		assert_eq!(info.secondary_constraints[0], ("F".to_string(), "Applicative".to_string()));
 	}
+
+	#[test]
+	fn test_container_params_with_apply() {
+		let items = make_items(
+			r#"
+			trait FunctorDispatch<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker> {
+				fn dispatch(self, fa: FA) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
+			}
+			impl<'a, Brand, A, B, F>
+				FunctorDispatch<
+					'a,
+					Brand,
+					A,
+					B,
+					Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+					Val,
+				> for F
+			where
+				Brand: Functor,
+				A: 'a,
+				B: 'a,
+				F: Fn(A) -> B + 'a,
+			{
+				fn dispatch(self, fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) { todo!() }
+			}
+			struct Val;
+			"#,
+		);
+
+		let result = analyze_dispatch_traits(&items);
+		let info = result.get("FunctorDispatch").unwrap();
+
+		// Container params should map FA -> ["A"] (not ["A", "B"])
+		assert_eq!(
+			info.container_params.len(),
+			1,
+			"Expected 1 container param, got {:?}",
+			info.container_params
+		);
+		assert_eq!(info.container_params[0].0, "FA");
+		assert_eq!(info.container_params[0].1, vec!["A".to_string()]);
+
+		// Return structure should be Applied(["B"])
+		assert!(
+			matches!(info.return_structure, ReturnStructure::Applied(ref args) if args == &["B"]),
+			"Expected Applied([B]), got {:?}",
+			info.return_structure
+		);
+	}
 }
