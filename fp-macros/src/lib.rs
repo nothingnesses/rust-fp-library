@@ -632,9 +632,18 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 /// ### Syntax
 ///
 /// ```ignore
+/// // Auto-generate from the function signature
 /// #[document_signature]
 /// pub fn function_name<Generics>(params) -> ReturnType { ... }
+///
+/// // Manual override with an explicit signature string
+/// #[document_signature("forall A B. (A -> B) -> A -> B")]
+/// pub fn function_name<Generics>(params) -> ReturnType { ... }
 /// ```
+///
+/// When a string argument is provided, it is emitted directly as the
+/// signature without any analysis. This is useful for functions whose
+/// signatures cannot be inferred automatically.
 ///
 /// When applying this macro to a method inside a trait, you can provide the trait name
 /// as an argument to correctly generate the `Trait self` constraint.
@@ -681,6 +690,32 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 ///     fn map<A, B>(f: impl Fn(A) -> B, fa: Self::Of<A>) -> Self::Of<B>;
 /// }
 /// ```
+///
+/// Manual override:
+///
+/// ```ignore
+/// // Invocation
+/// #[document_signature("forall F A B. Contravariant F => (B -> A, F A) -> F B")]
+/// pub fn contramap<FA, A, B>(f: impl Fn(B) -> A, fa: FA) -> FA::Of<B> { ... }
+///
+/// // Expanded code
+/// /// ### Type Signature
+/// /// `forall F A B. Contravariant F => (B -> A, F A) -> F B`
+/// pub fn contramap<FA, A, B>(f: impl Fn(B) -> A, fa: FA) -> FA::Of<B> { ... }
+/// ```
+///
+/// ### Dispatch-aware generation
+///
+/// When used inside a module annotated with
+/// [`#[document_module]`](macro@document_module), this macro benefits
+/// from dispatch trait analysis. If the function references a dispatch
+/// trait (via `impl *Dispatch<...>` or a where-clause bound), the
+/// macro builds a synthetic signature that replaces dispatch machinery
+/// with semantic equivalents (branded types, closure arrows, type
+/// class constraints). This produces cleaner signatures like
+/// `forall Brand A B. Functor Brand => (A -> B, Brand A) -> Brand B`
+/// instead of the raw Rust signature with `InferableBrand` and
+/// `Kind_*` bounds.
 ///
 /// ### Configuration
 ///

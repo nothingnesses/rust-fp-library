@@ -1,6 +1,5 @@
 ### Tasks to do & ideas to look into
 
-- Dispatch traits don't get rendered nicely in signatures.
 - Add issue templates.
 - Should the `*Brand` `impl`s in [types/](../fp-library/src/types) be moved into modules in [brands/](../fp-library/src/brands)?
 - Should `Coyoneda` types, et. al, be moved to their own submodule? What about other types related to each other (newtype wrappers `Additive`, `Multiplicative`, `Conjunctive`, `Disjunctive`, etc.; `Thunk`, `Trampoline`, `Lazy`, etc.); do these also deserve their own submodules?

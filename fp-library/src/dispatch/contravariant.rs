@@ -152,6 +152,12 @@ pub(crate) mod inner {
 	#[document_returns("A new contravariant functor that accepts values of type `B`.")]
 	#[document_examples]
 	///
+	/// This example uses [`explicit::contramap`](crate::functions::explicit::contramap)
+	/// because the primary contravariant types are profunctor-based (e.g.,
+	/// `Rc<dyn Fn(A) -> B>`), which have multiple possible brands depending
+	/// on which type parameter varies. Brand inference cannot resolve this
+	/// ambiguity, so a turbofish is required.
+	///
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
