@@ -81,7 +81,7 @@ When a user provides a closure to `map` or `bind`, that closure often captures v
 
 This effectively disables standard FP patterns like:
 
-```rust
+```rust,ignore
 let x = 10;
 let res = list.map(|y| x + y); // Error: closure captures `x` by reference, not static.
 ```
