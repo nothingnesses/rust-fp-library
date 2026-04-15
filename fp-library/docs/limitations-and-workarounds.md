@@ -81,7 +81,7 @@ Several types (`RcCoyoneda`, `ArcCoyoneda`) cannot implement type class traits a
 
 For example, `RcCoyoneda::lift` requires `F::Of<'a, A>: Clone` because the base layer must be clonable for `lower_ref` to work. But the `Pointed` trait's `pure` method has no way to express this:
 
-```rust
+```rust,ignore
 // Pointed::pure signature - no Clone bound on the return type's contents
 fn pure<'a, A: 'a>(value: A) -> Self::Of<'a, A>;
 ```
@@ -102,7 +102,7 @@ For `ArcCoyoneda`, the problem is compounded: `Functor::map` also cannot be impl
 
 All affected operations are available as inherent methods with the necessary bounds stated explicitly:
 
-```rust
+```rust,ignore
 // RcCoyoneda - inherent pure with Clone bound
 impl<'a, F, A: 'a> RcCoyoneda<'a, F, A> {
 	pub fn pure(value: A) -> Self
@@ -127,7 +127,7 @@ Rust's trait system does not support conditional bounds on associated types. The
 
 `Lazy::evaluate()` returns `&A` (a reference to the cached value), not an owned `A`. The standard `Functor` trait expects `map` to consume an owned `A`:
 
-```rust
+```rust,ignore
 fn map<'a, A: 'a, B: 'a>(f: impl Fn(A) -> B + 'a, fa: Self::Of<'a, A>) -> Self::Of<'a, B>;
 ```
 
@@ -184,7 +184,7 @@ This limitation stems from the design of the `Arrow` and `CloneFn` traits, which
 1.  **`CloneFn::new` accepts non-`Send` functions:**
     The `CloneFn` trait defines its constructor as:
 
-    ```rust
+    ```rust,ignore
     fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> ...
     ```
 
@@ -192,7 +192,7 @@ This limitation stems from the design of the `Arrow` and `CloneFn` traits, which
 
 2.  **`Function` Trait Type Constraints:**
     The `Arrow` trait enforces strict type equality on its associated type:
-    ```rust
+    ```rust,ignore
     type Of<'a, A, B>: Deref<Target = dyn 'a + Fn(A) -> B>;
     ```
     This prevents `ArcFnBrand` from defining its inner type as `Arc<dyn Fn(...) + Send + Sync>`, because `dyn Fn + Send + Sync` is a different type than `dyn Fn`.

@@ -34,6 +34,7 @@ use {
 		generate_re_exports_worker,
 	},
 	documentation::{
+		doc_include_worker,
 		document_examples_worker,
 		document_module_worker,
 		document_parameters_worker,
@@ -1444,6 +1445,32 @@ pub fn m_do(input: TokenStream) -> TokenStream {
 pub fn a_do(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as DoInput);
 	match a_do_worker(input) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Includes a markdown file with relative `.md` links rewritten to rustdoc intra-doc links.
+///
+/// This macro reads a markdown file at compile time (relative to `CARGO_MANIFEST_DIR`)
+/// and rewrites same-directory `.md` links to point at `crate::docs::module_name`
+/// submodules, making cross-document links work in rendered rustdoc output.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// #![doc = doc_include!("docs/hkt.md")]
+/// ```
+///
+/// ### Link Rewriting
+///
+/// - `[text](./foo-bar.md)` becomes `[text][crate::docs::foo_bar]`
+/// - `[text](foo-bar.md)` becomes `[text][crate::docs::foo_bar]`
+/// - Links with path separators (`../`, subdirectories) are left unchanged.
+/// - Non-`.md` links are left unchanged.
+#[proc_macro]
+pub fn doc_include(input: TokenStream) -> TokenStream {
+	match doc_include_worker(input.into()) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}

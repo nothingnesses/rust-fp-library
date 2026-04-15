@@ -130,7 +130,7 @@ A fundamentally different design. Instead of hiding the intermediate type
 parameter. Functions are composed at the type level (compile time), not via
 dynamic dispatch.
 
-```rust
+```rust,ignore
 struct CoyonedaExplicit<'a, F, B, A, Func: Fn(B) -> A = Box<dyn Fn(B) -> A + 'a>> {
     fb: F::Of<'a, B>,
     func: Func,
@@ -226,7 +226,7 @@ recursion per chained `map`. Three mitigations:
 `ArcCoyoneda` uses associated type bounds on the `Kind` trait (stable
 since Rust 1.79) to let the compiler auto-derive `Send`/`Sync`:
 
-```rust
+```rust,ignore
 struct ArcCoyonedaBase<'a, F, A: 'a>
 where
     F: Kind<Of<'a, A>: Send + Sync> + 'a,

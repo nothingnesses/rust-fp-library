@@ -72,16 +72,16 @@
 //! });
 //! assert_eq!(result, vec![11, 21, 12, 22]);
 //! ```
-#![doc = include_str!("../docs/features.md")]
+#![doc = fp_macros::doc_include!("docs/features.md")]
 //!
 //! ## How it Works
-#![doc = include_str!("../docs/hkt.md")]
-#![doc = include_str!("../docs/brand-inference.md")]
-#![doc = include_str!("../docs/dispatch.md")]
-#![doc = include_str!("../docs/zero-cost.md")]
-#![doc = include_str!("../docs/pointer-abstraction.md")]
-#![doc = include_str!("../docs/lazy-evaluation.md")]
-#![doc = include_str!("../docs/parallelism.md")]
+#![doc = fp_macros::doc_include!("docs/hkt.md")]
+#![doc = fp_macros::doc_include!("docs/brand-inference.md")]
+#![doc = fp_macros::doc_include!("docs/dispatch.md")]
+#![doc = fp_macros::doc_include!("docs/zero-cost.md")]
+#![doc = fp_macros::doc_include!("docs/pointer-abstraction.md")]
+#![doc = fp_macros::doc_include!("docs/lazy-evaluation.md")]
+#![doc = fp_macros::doc_include!("docs/parallelism.md")]
 //!
 //! ## Crate Features
 //!
@@ -94,6 +94,7 @@ extern crate fp_macros;
 pub mod brands;
 pub mod classes;
 pub mod dispatch;
+pub mod docs;
 pub mod functions;
 pub mod kinds;
 pub mod types;
