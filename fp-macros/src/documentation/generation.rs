@@ -671,8 +671,60 @@ fn build_synthetic_signature(
 			fn_params.push(closure_param);
 			continue;
 		}
-		// Skip impl Trait params that didn't produce a closure (e.g., placeholder)
-		if matches!(&*pat_type.ty, Type::ImplTrait(_)) {
+		// For closureless dispatch with impl *Dispatch param (e.g., explicit join),
+		// treat the param as a container. Falls through to the container/InferableBrand
+		// logic below by extracting the param name from the impl trait bound.
+		if let Type::ImplTrait(impl_trait) = &*pat_type.ty {
+			// Check if this is an impl *Dispatch bound (closureless container param)
+			let is_dispatch_bound = impl_trait.bounds.iter().any(|b| {
+				if let TypeParamBound::Trait(t) = b {
+					t.path
+						.segments
+						.last()
+						.map(|s| {
+							s.ident
+								.to_string()
+								.ends_with(crate::core::constants::markers::DISPATCH_SUFFIX)
+						})
+						.unwrap_or(false)
+				} else {
+					false
+				}
+			});
+			if is_dispatch_bound && dispatch_info.arrow_type.is_none() {
+				// Closureless dispatch with impl Dispatch param: treat as container.
+				// Use the same fallback chain as InferableBrand-bounded params.
+				use crate::analysis::dispatch::ReturnStructure;
+				let element_types: Option<Vec<String>> = dispatch_info
+					.self_type_elements
+					.clone()
+					.or_else(|| {
+						let elems: Vec<String> = dispatch_info
+							.type_param_order
+							.iter()
+							.filter(|p| {
+								*p != brand_param
+									&& p.len() == 1 && !dispatch_info
+									.secondary_constraints
+									.iter()
+									.any(|(sc, _)| sc == *p)
+							})
+							.cloned()
+							.collect();
+						if elems.is_empty() { None } else { Some(elems) }
+					})
+					.or_else(|| match &dispatch_info.return_structure {
+						ReturnStructure::Applied(args) => Some(args.clone()),
+						_ => None,
+					});
+				if let Some(ref elements) = element_types {
+					let pat = &pat_type.pat;
+					let container_type = build_applied_type(&brand_ident, &kind_ident, elements)?;
+					fn_params.push(parse_quote!(#pat: #container_type));
+					continue;
+				}
+			}
+			// Skip other impl Trait params that didn't produce a closure or container
 			continue;
 		}
 
@@ -721,7 +773,7 @@ fn build_synthetic_signature(
 		// 1. self_type_elements: from the Val impl's self type (e.g., separate, compact)
 		// 2. type_param_order: single-letter element types from the trait definition (e.g., alt)
 		// 3. return structure: from the dispatch method's return type (last resort)
-		if is_inferable_brand_param(&type_str, _original_sig) {
+		if is_dispatch_container_param(&type_str, _original_sig) {
 			use crate::analysis::dispatch::ReturnStructure;
 
 			let element_types: Option<Vec<String>> = dispatch_info
@@ -883,7 +935,7 @@ fn extract_dispatch_trait_args(bound: &TypeParamBound) -> Option<Vec<String>> {
 }
 
 /// Check if a type name is an InferableBrand-bounded param in the signature's where clause.
-fn is_inferable_brand_param(
+fn is_dispatch_container_param(
 	type_name: &str,
 	sig: &syn::Signature,
 ) -> bool {
@@ -901,7 +953,9 @@ fn is_inferable_brand_param(
 								.last()
 								.map(|s| s.ident.to_string())
 								.unwrap_or_default();
-							if name.starts_with("InferableBrand_") {
+							if name.starts_with("InferableBrand_")
+								|| name.ends_with(crate::core::constants::markers::DISPATCH_SUFFIX)
+							{
 								return true;
 							}
 						}
