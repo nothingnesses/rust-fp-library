@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-04-15
+
+### Added
+
+- **`doc_include!` proc macro**: Reads a markdown file at compile time and rewrites same-directory `.md` links to rustdoc intra-doc links (`[text][crate::docs::module_name]`). Enables cross-document links in rendered rustdoc output.
+
+### Fixed
+
+- **Explicit dispatch HM signatures**: `is_inferable_brand_param` renamed to `is_dispatch_container_param` and extended to recognize `*Dispatch` bounds (not just `InferableBrand_*`). This fixes explicit closureless dispatch functions (compact, separate, alt, join) whose HM signatures showed raw `FA` instead of branded container types. Also handles `impl *Dispatch` params for closureless explicit functions (e.g., `explicit::join`).
+
+### Changed
+
+- **`trait_kind!`/`impl_kind!` documentation**: Updated to mention `InferableBrand` trait generation.
+
 ## [0.7.0] - 2026-04-14
 
 ### Added
