@@ -138,7 +138,7 @@ PureScript renamed `lmap` to `lcmap` to avoid conflict with `Data.Functor.Contra
 
 All profunctor free functions consistently use `Brand` for the profunctor type parameter:
 
-```rust
+```rust,ignore
 pub fn dimap<'a, Brand: Profunctor, ...>(...) { ... }
 pub fn first<'a, Brand: Strong, ...>(...) { ... }
 pub fn closed<'a, Brand: Closed<FunctionBrand>, FunctionBrand: LiftFn, ...>(...) { ... }

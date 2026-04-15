@@ -27,6 +27,29 @@ nix develop
 
 This will provide a shell with the correct Rust version and dependencies.
 
+### Rebuilding the Dev Shell
+
+nix-direnv caches the dev shell for performance. If `devenv/flake.nix` or
+`devenv/flake.lock` changes (e.g., after pulling new commits that update
+dependencies or add tools), the cache may be stale and new tools will be
+missing from your PATH.
+
+**Signs the cache is stale:**
+
+- A tool listed in `devenv/flake.nix` is not found (e.g., `lychee: command not found`).
+- `direnv export` output says "Using cached dev shell" after you know the flake changed.
+- A `just` recipe fails with a missing command even though the tool is in the flake.
+
+**To rebuild:**
+
+```sh
+# Remove the cached shell and reload
+rm -f .direnv/flake-profile* .direnv/nix-direnv.*
+direnv allow
+```
+
+If using `nix develop` directly instead of direnv, exit and re-enter the shell.
+
 ## Building and Testing
 
 All commands are run via [just](https://github.com/casey/just) recipes defined in the project's `justfile`. Never run `cargo` directly; the `justfile` handles Nix environment setup automatically.
@@ -42,6 +65,51 @@ just clean   # Remove build artifacts and test cache
 ```
 
 Run `just --list` to see all available recipes.
+
+## Snapshot Tests
+
+The HM type signature generation system uses [insta](https://insta.rs/) snapshot tests to guard against regressions. If you change the signature rendering code in `fp-macros`, snapshots may need updating.
+
+```sh
+# Run snapshot tests to see if any changed
+just test -p fp-macros --lib -- snapshot
+
+# Review and accept/reject changed snapshots interactively
+cargo insta review
+
+# Accept all changed snapshots without review
+cargo insta accept
+```
+
+You can also review snapshots manually by running the tests with `INSTA_UPDATE=new` and inspecting the `.snap.new` files in `fp-macros/src/documentation/snapshots/`.
+
+## Compile-Fail Tests (trybuild)
+
+Both `fp-macros` and `fp-library` use [trybuild](https://github.com/dtolnay/trybuild)
+for compile-fail tests. These are `.rs` files in `tests/ui/` that must fail to compile,
+with expected compiler output stored in matching `.stderr` golden files.
+
+If your changes alter error messages (e.g., changing a proc macro's error output,
+renaming types, or moving modules), the `.stderr` files need updating.
+
+**Signs a trybuild test is stale:**
+
+- Test output shows a diff between expected and actual compiler stderr.
+- The diff contains changed file paths, line numbers, or error wording.
+
+**To update:**
+
+```sh
+# Overwrite all stale .stderr files with current compiler output
+TRYBUILD=overwrite just test
+
+# Or update only a specific crate's tests
+TRYBUILD=overwrite just test -p fp-macros
+TRYBUILD=overwrite just test -p fp-library
+```
+
+Always review the updated `.stderr` files before committing to ensure the new
+error messages are correct and intentional.
 
 ## Project Structure
 

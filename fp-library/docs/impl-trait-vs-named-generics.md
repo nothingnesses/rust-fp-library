@@ -6,7 +6,7 @@ This document describes when to use `impl Trait` vs named generic type parameter
 
 In Rust, `impl Trait` in argument position is syntactic sugar for a named generic:
 
-```rust
+```rust,ignore
 fn map<A, B>(f: impl Fn(A) -> B, fa: Option<A>) -> Option<B>
 // desugars to:
 fn map<A, B, Func: Fn(A) -> B>(f: Func, fa: Option<A>) -> Option<B>
@@ -16,7 +16,7 @@ Both are universally quantified (the caller chooses the concrete type). The diff
 
 This applies to any trait bound used as a function parameter, not just `Fn`/`FnMut`/`FnOnce`:
 
-```rust
+```rust,ignore
 fn print(x: impl Display)
 fn sum(iter: impl Iterator<Item = i32>) -> i32
 fn read_from(source: impl Read) -> Vec<u8>
@@ -43,7 +43,7 @@ The `impl Fn(A) -> B` encoding mirrors this: the function parameter is not a sep
 
 Use `impl Trait` when the type only appears once and the caller has no reason to name it:
 
-```rust
+```rust,ignore
 // The closure type is an implementation detail
 fn map<'a, A: 'a, B: 'a>(
     f: impl Fn(A) -> B + 'a,
@@ -65,20 +65,20 @@ Use a named generic when the type serves a structural role in the signature.
 
 #### The type appears in multiple positions
 
-```rust
+```rust,ignore
 fn combine<T: Semigroup>(a: T, b: T) -> T
 ```
 
 With `impl Trait`, each occurrence introduces an **independent** anonymous type parameter:
 
-```rust
+```rust,ignore
 // BAD: a and b can be DIFFERENT types
 fn combine(a: impl Semigroup, b: impl Semigroup) -> impl Semigroup
 ```
 
 #### The return type depends on the input type
 
-```rust
+```rust,ignore
 fn identity<T>(x: T) -> T       // caller gets the same type back
 fn identity(x: impl Any) -> impl Any  // caller gets an opaque type
 ```
@@ -89,7 +89,7 @@ The named generic preserves the connection between input and output.
 
 When a where clause relates the type to other parameters, it must be named:
 
-```rust
+```rust,ignore
 fn apply<'a, A: 'a, B: 'a, F>(f: F, xs: Vec<A>) -> Vec<B>
 where
     F: Fn(A) -> B + Clone + Send + 'a,
@@ -97,7 +97,7 @@ where
 
 If the bounds are simple enough to fit inline, `impl Trait` still works:
 
-```rust
+```rust,ignore
 fn map<'a, A: 'a, B: 'a>(f: impl Fn(A) -> B + 'a, fa: ...) -> ...
 ```
 
@@ -107,7 +107,7 @@ Use judgment based on readability.
 
 If callers must specify the type explicitly, it must be named:
 
-```rust
+```rust,ignore
 let x = default::<u32>();  // T must be nameable
 ```
 

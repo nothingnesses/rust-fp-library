@@ -72,16 +72,59 @@
 //! });
 //! assert_eq!(result, vec![11, 21, 12, 22]);
 //! ```
-#![doc = include_str!("../docs/features.md")]
+//! ## Features
+//!
+//! For a detailed breakdown of all features, type class hierarchies,
+//! data types, and macros, see the [Features documentation][crate::docs::features].
 //!
 //! ## How it Works
-#![doc = include_str!("../docs/hkt.md")]
-#![doc = include_str!("../docs/brand-inference.md")]
-#![doc = include_str!("../docs/dispatch.md")]
-#![doc = include_str!("../docs/zero-cost.md")]
-#![doc = include_str!("../docs/pointer-abstraction.md")]
-#![doc = include_str!("../docs/lazy-evaluation.md")]
-#![doc = include_str!("../docs/parallelism.md")]
+//!
+//! **Higher-Kinded Types:** The library encodes HKTs using lightweight higher-kinded polymorphism
+//! (the "Brand" pattern). Each type constructor has a zero-sized brand type (e.g., `OptionBrand`)
+//! that implements `Kind` traits mapping brands back to concrete types.
+//! See [Higher-Kinded Types][crate::docs::hkt].
+//!
+//! **Brand Inference:** `InferableBrand` traits provide the reverse mapping (concrete type -> brand),
+//! letting the compiler infer brands automatically. `trait_kind!` and `impl_kind!` generate both
+//! mappings. See [Brand Inference][crate::docs::brand_inference].
+//!
+//! **Val/Ref Dispatch:** Each free function routes to either a by-value or by-reference trait method
+//! based on the closure's argument type (or container ownership for closureless operations). Dispatch
+//! and brand inference compose through the shared `FA` type parameter.
+//! See [Val/Ref Dispatch][crate::docs::dispatch].
+//!
+//! **Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static
+//! dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where
+//! functions must be stored as data.
+//! See [Zero-Cost Abstractions][crate::docs::zero_cost].
+//!
+//! **Lazy Evaluation:** A granular hierarchy of lazy types (`Thunk`, `Trampoline`, `Lazy`) lets you
+//! choose trade-offs between stack safety, memoization, lifetimes, and thread safety. Each has a
+//! fallible `Try*` counterpart.
+//! See [Lazy Evaluation][crate::docs::lazy_evaluation].
+//!
+//! **Thread Safety & Parallelism:** A parallel trait hierarchy (`ParFunctor`, `ParFoldable`, etc.)
+//! mirrors the sequential one. When the `rayon` feature is enabled, `par_*` functions use true
+//! parallel execution.
+//! See [Thread Safety and Parallelism][crate::docs::parallelism].
+//!
+//! ## Documentation
+//!
+//! - [Features & Type Class Hierarchy][crate::docs::features]
+//! - [Higher-Kinded Types][crate::docs::hkt]
+//! - [Brand Inference][crate::docs::brand_inference]
+//! - [Val/Ref Dispatch][crate::docs::dispatch]
+//! - [Zero-Cost Abstractions][crate::docs::zero_cost]
+//! - [Pointer Abstraction][crate::docs::pointer_abstraction]
+//! - [Lazy Evaluation][crate::docs::lazy_evaluation]
+//! - [Coyoneda Implementations][crate::docs::coyoneda]
+//! - [Thread Safety & Parallelism][crate::docs::parallelism]
+//! - [Limitations and Workarounds][crate::docs::limitations_and_workarounds]
+//! - [Project Structure][crate::docs::project_structure]
+//! - [Architecture & Design][crate::docs::architecture]
+//! - [Optics Analysis][crate::docs::optics_analysis]
+//! - [Profunctor Analysis][crate::docs::profunctor_analysis]
+//! - [Std Library Coverage][crate::docs::std_coverage_checklist]
 //!
 //! ## Crate Features
 //!
@@ -94,6 +137,7 @@ extern crate fp_macros;
 pub mod brands;
 pub mod classes;
 pub mod dispatch;
+pub mod docs;
 pub mod functions;
 pub mod kinds;
 pub mod types;

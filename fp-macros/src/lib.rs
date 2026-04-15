@@ -34,6 +34,7 @@ use {
 		generate_re_exports_worker,
 	},
 	documentation::{
+		doc_include_worker,
 		document_examples_worker,
 		document_module_worker,
 		document_parameters_worker,
@@ -195,9 +196,11 @@ pub fn InferableBrand(input: TokenStream) -> TokenStream {
 	quote!(#name).into()
 }
 
-/// Defines a new `Kind` trait.
+/// Defines a new `Kind` trait and its corresponding `InferableBrand` trait.
 ///
-/// This macro generates a trait definition for a Higher-Kinded Type signature.
+/// This macro generates a trait definition for a Higher-Kinded Type signature,
+/// along with an `InferableBrand` trait that enables automatic Brand inference
+/// in dispatch functions (see [`crate::dispatch`](https://docs.rs/fp-library/latest/fp_library/dispatch/)).
 ///
 /// ### Syntax
 ///
@@ -258,11 +261,12 @@ pub fn trait_kind(input: TokenStream) -> TokenStream {
 	}
 }
 
-/// Implements a `Kind` trait for a brand.
+/// Implements a `Kind` trait and its `InferableBrand` trait for a brand.
 ///
 /// This macro simplifies the implementation of a generated `Kind` trait for a specific
-/// brand type. It infers the correct `Kind` trait to implement based on the signature
-/// of the associated types provided in the block.
+/// brand type, and also generates the `InferableBrand` impl that enables automatic Brand
+/// inference in dispatch functions. It infers the correct `Kind` trait to implement based
+/// on the signature of the associated types provided in the block.
 ///
 /// The signature (names, parameters, and bounds) of the associated types must match
 /// the definition used in [`trait_kind!`] or [`Kind!`] to ensure the correct trait is implemented.
@@ -1441,6 +1445,32 @@ pub fn m_do(input: TokenStream) -> TokenStream {
 pub fn a_do(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as DoInput);
 	match a_do_worker(input) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Includes a markdown file with relative `.md` links rewritten to rustdoc intra-doc links.
+///
+/// This macro reads a markdown file at compile time (relative to `CARGO_MANIFEST_DIR`)
+/// and rewrites same-directory `.md` links to point at `crate::docs::module_name`
+/// submodules, making cross-document links work in rendered rustdoc output.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// #![doc = doc_include!("docs/hkt.md")]
+/// ```
+///
+/// ### Link Rewriting
+///
+/// - `[text](./foo-bar.md)` becomes `[text][crate::docs::foo_bar]`
+/// - `[text](foo-bar.md)` becomes `[text][crate::docs::foo_bar]`
+/// - Links with path separators (`../`, subdirectories) are left unchanged.
+/// - Non-`.md` links are left unchanged.
+#[proc_macro]
+pub fn doc_include(input: TokenStream) -> TokenStream {
+	match doc_include_worker(input.into()) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}

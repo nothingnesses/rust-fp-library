@@ -1,27 +1,34 @@
-//! Contains generic, helper free functions and re-exports of free versions
-//! of type class functions.
+//! The primary API for calling type class operations as free functions.
 //!
-//! This module provides a collection of utility functions commonly found in functional programming,
-//! such as function composition, constant functions, and identity functions. It also re-exports
-//! free function versions of methods defined in various type classes (traits) for convenience.
+//! This module re-exports inference-enabled dispatch functions from
+//! [`dispatch`](crate::dispatch). These functions automatically infer the
+//! Brand type parameter from the container argument, so callers do not need
+//! a turbofish annotation:
 //!
-//! ### Examples
+//! ```
+//! use fp_library::functions::*;
+//!
+//! // Brand is inferred as VecBrand from the Vec argument.
+//! let result = map(|x: i32| x + 1, vec![1, 2, 3]);
+//! assert_eq!(result, vec![2, 3, 4]);
+//! ```
+//!
+//! For cases where Brand inference is ambiguous (e.g., generic contexts),
+//! the [`explicit`] submodule provides versions that require a Brand
+//! turbofish:
 //!
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	functions::{
-//! 		compose,
-//! 		explicit::*,
-//! 	},
+//! 	functions::explicit::*,
 //! };
 //!
-//! let f = |x: i32| x + 1;
-//! let g = |x: i32| x * 2;
-//! let h = compose(f, g);
-//!
-//! assert_eq!(map::<OptionBrand, _, _, _, _>(h, Some(5)), Some(11));
+//! let result = map::<VecBrand, _, _, _, _>(|x: i32| x + 1, vec![1, 2, 3]);
+//! assert_eq!(result, vec![2, 3, 4]);
 //! ```
+//!
+//! The module also defines standalone utility functions such as [`compose`],
+//! [`constant`], [`flip`], [`identity`], and [`on`].
 
 use fp_macros::*;
 

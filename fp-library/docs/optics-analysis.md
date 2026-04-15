@@ -23,7 +23,7 @@ Rust cannot express rank-2 types or universally quantified type aliases. The lib
 
 1. **Concrete structs** (`Lens`, `Prism`, `Iso`, etc.) that hold the reified internal representation - equivalent to PureScript's `ALens`/`APrism`/`AnIso` types.
 2. **Optic traits** defining profunctor evaluation:
-   ```rust
+   ```rust,ignore
    pub trait Optic<'a, P: Profunctor, S, T, A, B> {
        fn evaluate(&self, pab: P::Of<'a, A, B>) -> P::Of<'a, S, T>;
    }
@@ -228,7 +228,7 @@ Rust cannot express rank-2 types or universally quantified type aliases. The lib
 
 PureScript establishes an optic lattice through profunctor class inheritance. Rust models this via manual trait implementations on concrete structs and on `Composed`.
 
-```
+```text
             Iso
           / | \  \
       Lens Prism Grate  Review
@@ -416,7 +416,7 @@ The first group (`IsoOptic` through `TraversalOptic`) places the profunctor at m
 
 The rationale is sound (trait-level for fixed brands, method-level for universal quantification), but the observable effect is inconsistent downstream bounds:
 
-```rust
+```rust,ignore
 // Getter: no brand in trait position
 fn optics_view<PointerBrand, O, S, A>(optic: &O, s: S) -> A
 where O: GetterOptic<'a, S, A> { ... }
@@ -497,7 +497,7 @@ In PureScript, `re` reverses an optic: `re t = unwrap (t (Re identity))`. The Ru
 
 #### 5.2 The `ReversedOptic` Struct
 
-```rust
+```rust,ignore
 pub struct ReversedOptic<'a, PointerBrand, S, T, A, B, O>
 where
     PointerBrand: UnsizedCoercible,
@@ -513,7 +513,7 @@ where
 
 And a free function:
 
-```rust
+```rust,ignore
 pub fn reverse<'a, PointerBrand, S, T, A, B, O>(
     optic: O,
 ) -> ReversedOptic<'a, PointerBrand, S, T, A, B, O>
@@ -534,7 +534,7 @@ Three trait implementations are possible. Each follows the pattern: construct `R
 
 ##### 5.3.1 `ReviewOptic` - reversing any optic >= `AffineTraversal`
 
-```rust
+```rust,ignore
 impl<'a, PointerBrand, S, T, A, B, O> ReviewOptic<'a, B, A, T, S>
     for ReversedOptic<'a, PointerBrand, S, T, A, B, O>
 where
@@ -565,7 +565,7 @@ where
 
 ##### 5.3.2 `GetterOptic` - reversing prism-like optics
 
-```rust
+```rust,ignore
 impl<'a, PointerBrand, S, A, O> GetterOptic<'a, A, S>
     for ReversedOptic<'a, PointerBrand, S, S, A, A, O>
 where
@@ -599,7 +599,7 @@ where
 
 ##### 5.3.3 `FoldOptic` - same as `GetterOptic` but with `R: Monoid + Clone`
 
-```rust
+```rust,ignore
 impl<'a, PointerBrand, S, A, O> FoldOptic<'a, A, S>
     for ReversedOptic<'a, PointerBrand, S, S, A, A, O>
 where
@@ -643,7 +643,7 @@ where
 
 Add to `reverse.rs` imports:
 
-```rust
+```rust,ignore
 use crate::{
     classes::optics::{
         AffineTraversalOptic, FoldOptic, GetterOptic, PrismOptic, ReviewOptic,

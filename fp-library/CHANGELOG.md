@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-04-15
+
+### Added
+
+- **`docs` module**: 19 documentation submodules (`docs::hkt`, `docs::features`, `docs::zero_cost`, etc.) generated from the markdown files in `fp-library/docs/`. Cross-document links are rewritten as rustdoc intra-doc links via the new `doc_include!` macro, making them work in rendered docs (docs.rs and local `cargo doc` builds).
+- **`cargo-insta`** added to the Nix dev shell for snapshot test management.
+
+### Changed
+
+- **Crate root documentation**: Replaced inline doc includes (8 full documents) with concise "How it Works" summaries and a Documentation links section pointing to the `docs` module subpages.
+- **`functions` module documentation**: Updated to describe the module as the primary API for dispatch functions with brand inference, with examples for both inference and explicit variants.
+
 ## [0.16.0] - 2026-04-14
 
 ### Added

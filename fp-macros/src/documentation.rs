@@ -6,6 +6,7 @@
 //! - #[document_type_parameters] - Type parameter documentation
 //! - #[document_module] - Module-level orchestration
 
+pub mod doc_include;
 pub mod document_examples;
 pub mod document_module;
 pub mod document_parameters;
@@ -16,6 +17,7 @@ pub mod generation;
 pub mod templates;
 
 pub use {
+	doc_include::doc_include_worker,
 	document_examples::document_examples_worker,
 	document_module::document_module_worker,
 	document_parameters::document_parameters_worker,
