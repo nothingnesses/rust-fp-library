@@ -195,9 +195,11 @@ pub fn InferableBrand(input: TokenStream) -> TokenStream {
 	quote!(#name).into()
 }
 
-/// Defines a new `Kind` trait.
+/// Defines a new `Kind` trait and its corresponding `InferableBrand` trait.
 ///
-/// This macro generates a trait definition for a Higher-Kinded Type signature.
+/// This macro generates a trait definition for a Higher-Kinded Type signature,
+/// along with an `InferableBrand` trait that enables automatic Brand inference
+/// in dispatch functions (see [`crate::dispatch`](https://docs.rs/fp-library/latest/fp_library/dispatch/)).
 ///
 /// ### Syntax
 ///
@@ -258,11 +260,12 @@ pub fn trait_kind(input: TokenStream) -> TokenStream {
 	}
 }
 
-/// Implements a `Kind` trait for a brand.
+/// Implements a `Kind` trait and its `InferableBrand` trait for a brand.
 ///
 /// This macro simplifies the implementation of a generated `Kind` trait for a specific
-/// brand type. It infers the correct `Kind` trait to implement based on the signature
-/// of the associated types provided in the block.
+/// brand type, and also generates the `InferableBrand` impl that enables automatic Brand
+/// inference in dispatch functions. It infers the correct `Kind` trait to implement based
+/// on the signature of the associated types provided in the block.
 ///
 /// The signature (names, parameters, and bounds) of the associated types must match
 /// the definition used in [`trait_kind!`] or [`Kind!`] to ensure the correct trait is implemented.
