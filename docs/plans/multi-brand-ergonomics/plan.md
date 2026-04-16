@@ -6,6 +6,28 @@ This plan extends the brand-inference system to handle multi-brand
 concrete types (`Result`, `Pair`, `Tuple2`, `ControlFlow`, `TryThunk`)
 using closure-directed inference.
 
+## API stability stance
+
+`fp-library` is pre-1.0. API-breaking changes are acceptable when they
+lead to a better end state. This plan therefore prioritises design
+correctness and internal coherence over preserving compatibility with
+the current public surface. Specifically:
+
+- Renaming, reshaping, or removing existing `explicit::` signatures,
+  free functions, macros, or attributes is acceptable if the
+  replacement is clearer or more consistent.
+- `#[no_inferable_brand]` and similar public macro attributes can
+  change semantics without a migration shim; a changelog entry is
+  sufficient.
+- Existing call sites (in doctests, UI tests, user code) can require
+  updates. Breakage is documented and mass-updated in the same
+  release rather than deferred.
+
+Downstream impact (open question 11) and partial-rollout inconsistency
+(open question 8) are still worth thinking about, but they do not
+function as hard constraints. Where a cleaner design requires
+breaking changes, prefer the cleaner design.
+
 ## Motivation
 
 Brand inference
