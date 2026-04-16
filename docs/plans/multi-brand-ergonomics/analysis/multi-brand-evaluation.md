@@ -240,53 +240,61 @@ lmap :: forall f a b c. Bifunctor f => (a -> b) -> f a c -> f b c
 lmap f = bimap f identity
 ```
 
-This convergence is strong evidence that named helpers (alternative 3)
-are the industry-standard answer. The library's existing brand
-machinery can combine this with inference for the primary direction
-(alternative 1) to match the PureScript `map` / `lmap` ergonomics
-directly.
+This convergence reflects that PureScript and Haskell use nominal
+instance resolution (one `Functor` instance per type constructor,
+globally); they structurally cannot offer closure-directed brand
+inference. Rust's trait selection is richer and admits mechanisms those
+languages cannot express.
 
 ## Recommendation
 
 A feasibility POC
 ([closure_directed_inference_poc.rs](../../../../fp-library/tests/closure_directed_inference_poc.rs))
 confirmed that Rust's stable trait selection can perform closure-directed
-brand inference (alternative 5), but comparison with PureScript and
-Haskell and examination of the diagonal failure case led to the
-conclusion that named helpers (alternative 3) are the stronger design.
+brand inference (alternative 5). After considering the safety profile of
+alternative 1 (silent primary selection can run the wrong direction
+when the user annotates a closure for the non-primary side) against
+alternative 5 (loud compile error on ambiguity), the stronger design
+is **alternative 5 with `explicit::map` as the diagonal-case escape
+hatch**.
 
-The recommended combined approach, in implementation order:
+Recommended implementation:
 
-1. **Alternative 3 (concrete helpers).** `map_ok`, `map_err`, `map_fst`,
-   `map_snd`, `map_break`, `map_continue` cover both directions of every
-   multi-brand type. Additive, no HKT machinery touched, matches stdlib
-   (`Result::map_err`) and PureScript (`map` / `lmap`) conventions.
-2. **Alternative 1 (opt-in primary brand).** For types with a canonical
-   primary direction (`Result`, `Pair`, `Tuple2`, `TryThunk`), designate
-   the primary brand and generate `InferableBrand` for it. Treat
-   `#[primary_brand]` as optional and documentary rather than mandatory:
-   types without a canonical direction (e.g., `ControlFlow`) keep all
-   brands marked `#[no_inferable_brand]`. Two strategies coexist:
-   - Strategy A: one brand has `#[primary_brand]` (or default), siblings
-     have `#[no_inferable_brand]`. `map(f, value)` works.
-   - Strategy B: all brands have `#[no_inferable_brand]`. `map` refuses;
-     users must use named helpers from layer 1 or `explicit::`.
-3. **Alternative 4 revised (targeted diagnostics).** For Strategy B
-   types, extend the `#[diagnostic::on_unimplemented]` message on
-   `InferableBrand` to name the relevant helpers (e.g., "use
-   `map_break` or `map_continue`") rather than only pointing at
-   `explicit::`.
+1. **Alternative 5 (closure-directed inference).** Introduce a
+   `Slot<Brand, A>` trait with one impl per brand per concrete type.
+   Trait selection uses `FA` and the closure's `A` jointly to pick a
+   unique brand. Single-brand types resolve via a blanket impl from
+   `InferableBrand`. Multi-brand types provide direct Slot impls. The
+   unified `map(f, fa)` function replaces its `InferableBrand` bound
+   with `Slot<Brand, A>`, which is backwards-compatible for
+   single-brand types (identical resolution) and adds new functionality
+   for multi-brand types (closure-directed dispatch).
+2. **Alternative 4 revised (targeted diagnostics).** On `Slot`
+   ambiguity, the diagnostic should point users at `explicit::map`
+   with a turbofish. Diagnostic-attribute plumbing is similar to
+   today's `#[no_inferable_brand]` message.
+3. **`explicit::` path unchanged.** Users hitting the diagonal
+   `T = T` case or preferring explicit brand selection continue to
+   use `explicit::map::<SomeBrand, _, _, _, _>(...)`. The mechanism
+   already exists and covers every case `Slot` cannot.
+
+Alternative 3 (concrete helpers) is **deferred**. Under alternative 5,
+helpers only fire in the diagonal case, which is rare. `explicit::map`
+covers the same ground. Helpers can be added later if user feedback
+shows the diagonal case is frequent enough to warrant dedicated ergonomic
+sugar. Starting without them keeps the API surface small and lets
+helpers be designed based on real usage rather than speculation.
+
+Alternative 1 (primary brand designation) is **not pursued**. Under
+alternative 5 there is no need to designate a primary: every brand is
+treated symmetrically, and the closure picks the direction. This also
+avoids the silent-wrong-direction safety hazard of alternative 1
+(where `map(|e: String| ..., Ok::<i32, String>(5))` under alternative
+1 would compile, pick the primary Ok direction, and silently ignore
+the closure because the value is the Ok variant).
 
 Alternative 2 (newtype wrappers) conflicts with the library's design
 principles and is not recommended.
-
-Alternative 5 (closure-directed inference) is feasible on stable but
-not worth pursuing as the primary multi-brand solution. The POC
-demonstrates that the `Slot<Brand, A>` pattern works for non-diagonal
-cases, but the diagonal `T = T` case remains a permanent failure, and
-the approach requires explicit closure parameter types that named
-helpers do not. Kept as a documented feasibility artifact for potential
-future use.
 
 Alternative 6 (type-only priority without closure help) is not
 achievable on stable without collapsing into alternative 1; defer

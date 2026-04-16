@@ -1,25 +1,18 @@
-# Plan: Multi-Brand Ergonomics
+# Plan: Multi-Brand Ergonomics via Closure-Directed Inference
 
 **Status:** DRAFT
 
-This plan addresses the ergonomic gap left by the existing brand
-inference system for multi-brand concrete types (`Result`, `Pair`,
-`Tuple2`, `ControlFlow`, `TryThunk`).
+This plan extends the brand-inference system to handle multi-brand
+concrete types (`Result`, `Pair`, `Tuple2`, `ControlFlow`, `TryThunk`)
+using closure-directed inference.
 
 ## Motivation
 
 Brand inference
 ([docs/plans/brand-inference/plan.md](../brand-inference/plan.md),
-implemented) lets users call free functions like `map(f, value)` without
-a turbofish for types with a single canonical brand. It deliberately
-refuses inference for multi-brand types: `Result<A, E>` is reachable
-through both `ResultErrAppliedBrand<E>` and `ResultOkAppliedBrand<A>` at
-arity 1, and the library cannot pick one without risking silently-wrong
-semantics. Those types carry `#[no_inferable_brand]` on their
-`impl_kind!` invocations, and users must reach for `explicit::` with a
-full turbofish.
-
-The friction shows up in routine code:
+implemented) lets users call free functions without a turbofish for
+types with a single canonical brand. It deliberately refuses inference
+for multi-brand types and forces them through `explicit::`:
 
 ```rust
 // Today
@@ -27,228 +20,292 @@ explicit::map::<ResultErrAppliedBrand<String>, _, _, _, _>(
     |x: i32| x + 1,
     Ok::<i32, String>(5),
 )
-
-// PureScript
-map (_ + 1) (Right 5 :: Either String Int)
-
-// Haskell
-fmap (+1) (Right 5 :: Either String Int)
 ```
 
-This plan closes most of that gap while preserving the library's
-"expose both directions as first-class" design.
+A feasibility POC
+([fp-library/tests/closure_directed_inference_poc.rs](../../../fp-library/tests/closure_directed_inference_poc.rs))
+showed that Rust's stable trait selection can disambiguate a brand from
+`(container type, closure input type)` using an overlapping-but-distinct
+impl pattern. The analysis
+([analysis/multi-brand-evaluation.md](./analysis/multi-brand-evaluation.md))
+concluded this is the strongest design: it treats all brands symmetrically,
+avoids the silent-wrong-direction hazard of a canonical-primary design,
+and surfaces ambiguity as a loud compile error.
 
-See
-[analysis/multi-brand-evaluation.md](./analysis/multi-brand-evaluation.md)
-for the full analysis of alternatives and their tradeoffs.
+After this plan lands, users write:
+
+```rust
+// After
+map(|x: i32| x + 1, Ok::<i32, String>(5))         // Ok-mapping
+map(|e: String| e.len(), Err::<i32, String>("hi".into()))  // Err-mapping
+```
 
 ## Prerequisites
 
-- Brand inference system is implemented (see
+- Brand inference is implemented (see
   [brand-inference/plan.md](../brand-inference/plan.md)).
-- Current multi-brand types carry `#[no_inferable_brand]` at the
-  `impl_kind!` invocation sites.
-- The existing `explicit::` dispatch path continues to work unchanged.
+- `#[no_inferable_brand]` is in place on all multi-brand `impl_kind!`
+  invocations.
+- `explicit::` dispatch functions exist and cover every brand.
+- The POC validates the `Slot<Brand, A>` pattern on stable rustc.
 
-## Design summary
+## Design overview
 
-Three complementary layers, each targeting a distinct user experience
-gap:
+Replace `InferableBrand`'s role in `map`-like signatures with a new
+`Slot<Brand, A>` trait. Trait selection uses both the container type
+`FA` and the closure's input type `A` to identify a unique brand:
 
-1. **Named helpers** (alternative 3 in the analysis): concrete
-   direction-specific functions (`map_ok`, `map_err`, `map_fst`,
-   `map_snd`, `map_break`, `map_continue`). Additive, no HKT machinery
-   touched. Matches the PureScript `map` / `lmap` and Rust stdlib
-   `Result::map` / `Result::map_err` naming patterns.
-2. **Opt-in primary brand** (alternative 1 in the analysis): for types
-   with a canonical direction, designate one brand as primary and let it
-   generate `InferableBrand`. Bare `map(f, value)` resolves to the
-   primary direction. Types without a canonical direction skip this
-   layer.
-3. **Targeted diagnostics** (alternative 4, revised in the analysis):
-   for types that remain in the all-opt-out configuration,
-   `#[diagnostic::on_unimplemented]` messages point users directly at
-   the named helpers from layer 1 rather than at the raw `explicit::`
-   path.
+- **Single-brand types** (Option, Vec, Thunk, etc.): a blanket impl
+  from `InferableBrand` to `Slot` makes this transparent. No direct
+  `Slot` impl required per type. Behavior matches today.
+- **Multi-brand types** (Result, Pair, Tuple2, ControlFlow, TryThunk):
+  each brand provides a direct `Slot` impl. Trait selection picks the
+  one whose `A` slot aligns with the closure's input type.
+- **Diagonal cases** (`Result<T, T>`, `(T, T)`, etc.) and **unannotated
+  closures on multi-brand types**: trait selection is ambiguous, Rust
+  emits E0283, and the diagnostic points users at `explicit::map`.
 
-See the analysis doc for why alternatives 2 (newtype wrappers), 5
-(closure-directed inference), and 6 (type-only priority without closure)
-are not pursued.
+`explicit::map` remains unchanged and handles every case Slot cannot.
 
-## Per-type strategy decisions
+## Design detail
 
-Each multi-brand type uses one of two strategies:
-
-- **Strategy A (designated primary):** One brand gets `InferableBrand`
-  generation and is the default for `map`. Siblings keep
-  `#[no_inferable_brand]`.
-- **Strategy B (all-explicit):** No designated primary. All brands keep
-  `#[no_inferable_brand]`. `map` still refuses; users reach for named
-  helpers or `explicit::`.
-
-Proposed assignment:
-
-| Type               | Strategy | Primary brand                      | Named helpers               |
-| ------------------ | -------- | ---------------------------------- | --------------------------- |
-| `Result<A, E>`     | A        | `ResultErrAppliedBrand<E>` (Ok)    | `map_ok`, `map_err`         |
-| `Pair<A, B>`       | A        | `PairFirstAppliedBrand<A>` (snd)   | `map_fst`, `map_snd`        |
-| `(A, B)`           | A        | `Tuple2FirstAppliedBrand<A>` (snd) | `map_fst`, `map_snd`        |
-| `TryThunk<A, E>`   | A        | `TryThunkErrAppliedBrand<E>` (ok)  | `map_ok`, `map_err`         |
-| `ControlFlow<B,C>` | B        | N/A                                | `map_break`, `map_continue` |
-
-Rationale per choice:
-
-- `Result`, `TryThunk`: success side is canonically primary, matching
-  Haskell `Functor (Either e)`, PureScript `Functor (Either e)`, and
-  Rust stdlib `Result::map`.
-- `Pair`, `(A, B)`: map-over-second is the Haskell convention for
-  `Functor ((,) a)`.
-- `ControlFlow`: neither `Break` nor `Continue` is canonically primary.
-  Rust stdlib's `ControlFlow::map_break` and `map_continue` are
-  symmetric peers with no `map`. Forcing a primary here would encode an
-  arbitrary choice.
-
-## Detailed design
-
-### Layer 1: Named helpers
-
-Thin wrappers around `explicit::<SpecificBrand>`:
+### The `Slot` trait
 
 ```rust
-// In functions::explicit (or a new functions::helpers module; see
-// open questions).
+pub trait Slot<'a, Brand, A>
+where
+    Brand: Kind_cdc7cd43dac7585f,
+    A: 'a,
+{
+    type Out<B: 'a>: 'a;
+    // Methods or dispatch hooks, TBD in implementation.
+}
+```
 
-pub fn map_ok<'a, T: 'a, E: 'a, B: 'a, R>(
-    f: impl FunctorDispatch<'a, ResultErrAppliedBrand<E>, T, B, R, _>,
-    r: R,
-) -> Apply!(...) where R: ... {
-    explicit::map::<ResultErrAppliedBrand<E>, _, _, _, _>(f, r)
+Actual signature depends on integration with the existing
+`FunctorDispatch` machinery (see open questions). One impl exists per
+brand per concrete type:
+
+```rust
+// Multi-brand impls, provided explicitly
+impl<'a, A, E> Slot<'a, ResultErrAppliedBrand<E>, A> for Result<A, E> {
+    type Out<B: 'a> = Result<B, E>;
 }
 
-// Symmetric for map_err, map_fst, map_snd, map_break, map_continue.
+impl<'a, T, A> Slot<'a, ResultOkAppliedBrand<T>, A> for Result<T, A> {
+    type Out<B: 'a> = Result<T, B>;
+}
 ```
 
-Exact signature shape depends on resolution of the open questions
-around Val/Ref dispatch and closure input annotations.
+### Blanket impl from `InferableBrand`
 
-### Layer 2: Opt-in primary brand
+For types with a canonical brand, `Slot` is derived automatically:
 
-For each Strategy A type, remove `#[no_inferable_brand]` from the primary
-brand's `impl_kind!` invocation and leave it on all non-primary brands.
-This alone makes the primary brand inferable via the existing
-`InferableBrand_{hash}` machinery.
+```rust
+impl<'a, FA, A> Slot<'a, FA::Brand, A> for FA
+where
+    FA: InferableBrand_cdc7cd43dac7585f,
+    A: 'a,
+{
+    type Out<B: 'a> = <FA::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>;
+}
+```
 
-Introducing a dedicated `#[primary_brand]` attribute is optional; its
-only value is documentary (it makes the intent visible at the
-declaration site). The mechanical behavior is identical to leaving the
-brand unattributed. Recommendation: introduce the attribute for
-readability, but implement it as a no-op marker in the macro.
+This means every single-brand type reachable today continues to work
+with no source changes. The library only needs direct Slot impls for
+multi-brand types.
 
-Rust coherence catches any accidental configuration where two brands
-both claim `InferableBrand` for the same concrete type, so no macro
-cross-check is needed.
+### The unified `map` function
 
-### Layer 3: Targeted diagnostics
+Replace the `InferableBrand` bound with `Slot`:
 
-For Strategy B types (currently just `ControlFlow`, plus any downstream
-user-defined types), extend the `#[diagnostic::on_unimplemented]`
-messages on the relevant `InferableBrand_{hash}` traits to suggest the
-named helpers from layer 1.
+```rust
+pub fn map<'a, Brand, FA, A, B, Marker>(
+    f: impl FunctorDispatch<'a, Brand, A, B, FA, Marker>,
+    fa: FA,
+) -> <FA as Slot<'a, Brand, A>>::Out<B>
+where
+    FA: Slot<'a, Brand, A>,
+    Brand: Kind_cdc7cd43dac7585f,
+    A: 'a,
+    B: 'a,
+```
 
-Proposed message shape for `ControlFlow<B, C>`:
+`Brand` is a function type parameter resolved by trait selection via
+`Slot<Brand, A>`. In practice:
+
+- Option<i32> with `|x| x+1`: blanket derives Slot<OptionBrand, i32>.
+  Single impl matches, Brand = OptionBrand. Identical to today.
+- Result<i32, String> with `|x: i32| x+1`: two direct impls exist.
+  Only the ResultErrAppliedBrand impl unifies with A = i32. Single
+  match, Brand = ResultErrAppliedBrand<String>.
+- Result<i32, i32> with `|x: i32| x+1`: both direct impls unify.
+  Ambiguous, compile error.
+
+### Macro support
+
+`impl_kind!` extensions:
+
+- Brands without `#[no_inferable_brand]`: generate `InferableBrand` as
+  today. Slot falls out via the blanket impl.
+- Brands with `#[no_inferable_brand]`: generate a direct `Slot` impl
+  instead (or in addition). The macro already has the `Of<'a, A>`
+  signature needed to produce the Slot impl.
+
+### Diagnostic
+
+Attach `#[diagnostic::on_unimplemented]` or `#[rustc_on_unimplemented]`
+to the `Slot` trait (or to a marker reflecting ambiguity) with a
+message along the lines of:
 
 ```text
-`ControlFlow<B, C>` does not have a canonical brand and cannot use brand inference.
-  = help: use `map_break(f, cf)` to transform the Break side
-  = help: use `map_continue(f, cf)` to transform the Continue side
-  = note: or use the `explicit::` variant with an explicit brand turbofish
+`T` does not uniquely determine a brand for this operation.
+= help: annotate the closure parameter type to disambiguate (e.g., `|x: i32| ...`)
+= help: or use `explicit::map::<SomeBrand, _, _, _, _>(...)` to specify the brand directly
 ```
 
-Implementation likely requires per-brand `on_unimplemented` attributes
-(similar to how the current generic "does not have a unique brand"
-message is attached), specialized to the helper name for each type.
+For types that are ambiguous even with annotation (the diagonal case),
+only the `explicit::map` suggestion applies. The diagnostic wording
+should handle both cases.
 
-## Out of scope
+### What changes for existing code
 
-- **Alternative 2 (newtype wrappers).** Forces users to wrap and unwrap
-  values at API boundaries, conflicting with the library's "pass your
-  normal types in" design.
-- **Alternative 5 (closure-directed inference).** Feasibility POC at
-  [fp-library/tests/closure_directed_inference_poc.rs](../../../fp-library/tests/closure_directed_inference_poc.rs)
-  confirms the `Slot<Brand, A>` pattern works on stable for non-diagonal
-  cases. Not pursued because: the diagonal `T = T` case remains a
-  permanent failure; closure input types must be explicitly annotated;
-  and named helpers deliver equivalent or better ergonomics without the
-  machinery. Kept as a documented feasibility artifact.
-- **Alternative 6 (type-only priority without closure).** Not
-  achievable on stable rustc without specialization or negative impls.
+- **User-facing call sites with single-brand types:** no change. Blanket
+  impl preserves today's behavior.
+- **User-facing call sites with multi-brand types using `explicit::`:**
+  no change. `explicit::` is not touched.
+- **User-facing call sites with multi-brand types using inference (new):**
+  now work if closure input type disambiguates; fail with the improved
+  diagnostic otherwise.
+- **`#[no_inferable_brand]` attribute:** semantics extended from "skip
+  InferableBrand" to "skip InferableBrand and generate direct Slot impl
+  instead." Existing invocations continue to work unchanged.
+
+## Scope
+
+### In scope
+
+- `Functor::map` via the new `Slot` trait.
+- Macro support for generating Slot impls on multi-brand brands.
+- Diagnostic attribute on Slot for ambiguity.
+- Doc updates.
+- Delete the `result_no_inferable_brand.rs` and
+  `tuple2_no_inferable_brand.rs` UI tests (or replace them with tests
+  asserting the new closure-directed behavior and the diagonal failure
+  case).
+
+### Deferred (not in this plan)
+
+- **Extension to other closure-taking operations** (`bind`, `apply`,
+  `lift2`, `traverse`, `fold_left`, `fold_right`, `fold_map`). The
+  same Slot pattern generalizes to each, but applying the change to
+  every operation is a larger effort. Land `map` first, validate the
+  design end-to-end, then extend.
+- **Named helpers** (`map_ok`, `map_err`, `map_fst`, etc.). Under
+  closure-directed inference these would only fire on diagonal cases,
+  which are rare. `explicit::map` covers the same ground. Revisit
+  based on real-world usage after phase 1 ships.
+- **Primary brand designation** (`#[primary_brand]`). Not needed under
+  closure-directed inference; all brands are treated symmetrically.
+- **Non-closure operations** (`pure`). The Slot pattern doesn't apply
+  to operations without a closure; these remain as-is.
+
+### Out of scope (rejected alternatives)
+
+- **Newtype disambiguation:** conflicts with the library's design
+  principles.
+- **Type-only priority without closure help:** requires unstable
+  features (specialization or negative impls).
+- **Primary-brand default with closure-directed fallback:** requires
+  specialization to layer the two dispatch paths.
 
 ## Open questions
 
-1. **Should `#[primary_brand]` be introduced as an explicit attribute?**
-   Mechanically unnecessary (absence of `#[no_inferable_brand]` already
-   implies it), but potentially valuable for declaration-site
-   documentation. Leaning toward yes.
-2. **Where do the named helpers live?** Options: inline in
-   `functions::explicit`, a new `functions::helpers` module, or as
-   inherent methods on concrete types (mimicking `Result::map_err` from
-   stdlib). Inherent methods would conflict with the existing stdlib
-   ones and are probably not viable.
-3. **Helper naming conventions.** `map_err` vs `map_left`,
-   `map_fst` vs `map_first`, etc. Leaning toward: match stdlib where
-   precedent exists (`map_err`), use short forms otherwise (`map_fst`,
-   `map_snd`). Needs audit against existing library naming.
-4. **Extension to other operations.** Does this scheme generalize to
-   `bind_ok` / `bind_err`, `fold_ok` / `fold_err`,
-   `traverse_ok` / `traverse_err`, etc.? Answering "yes" multiplies the
-   API surface significantly. Answering "no" creates asymmetry between
-   `map` and other operations on the same types. Needs a policy.
-5. **Val/Ref dispatch for helpers.** The existing dispatch system
-   transparently routes by-value and by-reference paths through a
-   single dispatch trait. Do the helpers need separate
-   `ref_map_err`-style variants, or does the closure's input type
-   annotation (`|x: i32|` vs `|x: &i32|`) flow through correctly?
-   Likely transparent but needs verification.
-6. **Diagnostic template precision.** How specific should the
-   `on_unimplemented` messages be? Full helper path
-   (`fp_library::functions::map_err`), short name (`map_err`), or
-   prose (`the `map_err` helper`)? Needs a convention check.
-7. **Migration and deprecation.** Since layer 2 is strictly additive
-   from the user's perspective (previously-ambiguous types gain a new
-   successful inference path), no breaking change. Layer 1 is
-   additive. Layer 3 is polish. No migration plan needed beyond
-   documenting the new helpers in release notes.
+1. **Exact `Slot` trait signature.** Does Slot's `Out<B>` need to
+   match the existing `Apply!(<Brand as Kind!>::Of<'a, B>)` exactly?
+   The blanket impl from InferableBrand has to produce the same
+   associated type as direct impls so that the existing dispatch
+   machinery still compiles. Validate by prototype before committing.
+2. **Coherence around the blanket impl.** The blanket
+   `impl<FA: InferableBrand> Slot<..., FA::Brand, ...> for FA` must
+   not overlap with direct Slot impls on multi-brand types. Since
+   multi-brand types don't implement `InferableBrand`, the blanket's
+   bound excludes them. Verify this holds for the `&T` blanket on
+   InferableBrand too (inherited references).
+3. **Macro-level scope of Slot generation.** Does every brand need a
+   Slot impl, or only those currently marked `#[no_inferable_brand]`?
+   The blanket covers single-brand cases, so direct impls are only
+   needed for multi-brand types. Lean toward "only generate direct
+   Slot for `#[no_inferable_brand]` brands."
+4. **Val/Ref dispatch interaction.** The existing `FunctorDispatch`
+   routes by-value and by-ref through a closure-input-type-based
+   Marker parameter. Slot introduces another dispatch axis (brand
+   selection). Verify the two compose: `map(|x: &i32| *x * 2, &Ok(5))`
+   should pick the Err brand (because `&i32` matches the first slot)
+   and route to RefFunctor.
+5. **Diagnostic wording precision.** Different messages for the "user
+   forgot annotation" case versus the "diagonal, annotation won't
+   help" case? Rust's diagnostic attributes aren't dynamic, so
+   probably one message covering both.
+6. **Testing strategy.** Positive: current multi-brand `explicit::`
+   doctests should compile identically. New: tests for closure-directed
+   resolution on Result/Pair/Tuple2/ControlFlow/TryThunk, including
+   the diagonal failure cases as UI tests. The existing POC file
+   should be promoted to a proper integration test or removed once
+   the real implementation subsumes it.
+7. **Migration for the existing `explicit::` doctests.** Many current
+   doctests use `explicit::map::<SomeBrand, _, _, _, _>(...)` on
+   multi-brand types. These should stay as-is (they document the
+   explicit path) but additional doctests for the inference path
+   should be added.
 
 ## Implementation phasing
 
-Each layer can land as an independent PR in sequence, with each
-releasable on its own:
+### Phase 1: Slot trait and map integration
 
-1. **Layer 1 (named helpers).** Implement `map_ok`, `map_err`,
-   `map_fst`, `map_snd`, `map_break`, `map_continue`. Add doctests and
-   unit tests. No changes to brand-inference machinery. Strictly
-   additive.
-2. **Layer 2 (opt-in primary brands).** For each Strategy A type,
-   remove `#[no_inferable_brand]` from the primary brand's
-   `impl_kind!`. Optionally introduce `#[primary_brand]` attribute.
-   Add UI tests confirming `map(f, ok)` now succeeds with Ok-bias.
-   Keep existing compile-fail tests for non-primary brands and
-   Strategy B types.
-3. **Layer 3 (diagnostics).** Extend `on_unimplemented` messages on
-   Strategy B types. Update existing `.stderr` snapshots in
-   `fp-library/tests/ui/`.
+1. Define `Slot` in `fp-library/src/kinds.rs` (alongside `InferableBrand`).
+2. Add blanket impl from `InferableBrand` to `Slot`.
+3. Add direct Slot impls for each multi-brand brand.
+4. Change `map` in `fp-library/src/dispatch/functor.rs` to use Slot.
+5. Update `impl_kind!` macro to emit Slot impls for brands with
+   `#[no_inferable_brand]`.
+6. Add integration tests covering non-diagonal and diagonal cases.
+7. Update or replace the existing `result_no_inferable_brand.rs` and
+   `tuple2_no_inferable_brand.rs` UI tests.
+8. Update docs: `fp-library/docs/brand-inference.md` should describe
+   the Slot extension; consider a new `fp-library/docs/multi-brand-inference.md`.
 
-Answers to the open questions (especially naming conventions and
-operation scope) should precede layer 1 implementation.
+### Phase 2: Diagnostic polish
+
+1. Attach `#[diagnostic::on_unimplemented]` to Slot (or a marker
+   trait) with helpful messages for ambiguity.
+2. Update UI test `.stderr` snapshots to reflect the new messages.
+3. Document the diagnostic in user-facing docs.
+
+### Phase 3 (future): Extend to other operations
+
+Apply the same Slot pattern to `bind`, `apply`, `lift2`, `traverse`,
+`fold_left`, `fold_right`, `fold_map`, etc. Each is a straightforward
+analog of phase 1 for that operation's dispatch trait. Only pursue
+after phase 1 is validated in practice.
+
+### Phase 4 (contingent): Named helpers
+
+If user feedback shows diagonal cases arise frequently, add
+`map_ok` / `map_err` / `map_fst` / `map_snd` / `map_break` /
+`map_continue` as thin wrappers around `explicit::map`. Until that
+feedback arrives, `explicit::map` suffices.
 
 ## Success criteria
 
-- `map(f, Ok(5))` compiles and maps over `Ok`.
-- `map_err(f, Err("fail".into()))` compiles and maps over `Err`.
-- `map(f, ControlFlow::Continue(5))` fails to compile with a diagnostic
-  naming `map_break` and `map_continue`.
-- All existing `explicit::map::<...>(f, value)` calls continue to work
-  unchanged.
-- No regression in compile-fail or property test suites.
-- Library documentation updated with the `map` / `map_err` convention
-  explained alongside the existing brand inference docs.
+- `map(|x: i32| x + 1, Ok::<i32, String>(5))` compiles and maps over
+  Ok.
+- `map(|e: String| e.len(), Err::<i32, String>("hi".into()))` compiles
+  and maps over Err.
+- `map(|x: i32| x + 1, Ok::<i32, i32>(5))` fails at compile time with
+  a diagnostic mentioning `explicit::map`.
+- All existing `map(f, Some(5))` / `map(f, vec![1, 2, 3])` /
+  `map(f, &lazy)` style calls continue to work identically.
+- All existing `explicit::map::<...>(f, value)` calls continue to
+  work unchanged.
+- No regression in any existing test suite.
