@@ -338,29 +338,38 @@ would bind on the higher-arity Slot. No design change required.
   asserting the new closure-directed behavior and the diagonal failure
   case).
 
-### Deferred (not in this plan)
+### Deferred (future phases of this plan)
 
 - **Extension to other closure-taking operations** (`bind`, `apply`,
   `lift2`, `traverse`, `fold_left`, `fold_right`, `fold_map`). The
   same Slot pattern generalizes to each, but applying the change to
-  every operation is a larger effort. Land `map` first, validate the
-  design end-to-end, then extend.
+  every operation is a larger effort. Land `map` first (phase 1),
+  validate the design end-to-end, then extend (phase 3).
+
+### Out of scope
+
 - **Named helpers** (`map_ok`, `map_err`, `map_fst`, etc.). Under
-  closure-directed inference these would only fire on diagonal cases,
-  which are rare. `explicit::map` covers the same ground. Revisit
-  based on real-world usage after phase 1 ships.
-- **Primary brand designation** (`#[primary_brand]`). Not needed under
-  closure-directed inference; all brands are treated symmetrically.
-- **Non-closure operations** (`pure`). The Slot pattern doesn't apply
-  to operations without a closure; these remain as-is.
-
-### Out of scope (rejected alternatives)
-
-- **Newtype disambiguation:** conflicts with the library's design
-  principles.
-- **Type-only priority without closure help:** requires unstable
+  closure-directed inference these would fire only on diagonal cases
+  (`Result<T, T>`, `(T, T)`, etc.), which are rare. `explicit::map` with
+  a brand turbofish handles them at slightly more call-site verbosity
+  but without introducing new API surface. If user feedback later
+  shows diagonal cases arise frequently enough to warrant dedicated
+  ergonomic sugar, helpers can be proposed in a separate plan; they
+  are not a phase of this one.
+- **Primary brand designation** (`#[primary_brand]`). Superseded by
+  Slot's symmetric treatment of all brands; the role it would have
+  played does not exist under this design.
+- **Non-closure operations** (`pure`, `empty`, `alt`, `sequence`, etc.).
+  Closure-directed inference structurally cannot apply to operations
+  without a closure. These continue to use `explicit::` and the
+  existing InferableBrand-based path. Any future work on their
+  ergonomics would be a separate proposal with a different mechanism.
+- **Newtype disambiguation.** Conflicts with the library's design
+  principles (users would have to wrap and unwrap values at
+  boundaries).
+- **Type-only priority without closure help.** Requires unstable
   features (specialization or negative impls).
-- **Primary-brand default with closure-directed fallback:** requires
+- **Primary-brand default with closure-directed fallback.** Requires
   specialization to layer the two dispatch paths.
 
 ## Open questions
@@ -438,13 +447,6 @@ Apply the same Slot pattern to `bind`, `apply`, `lift2`, `traverse`,
 `fold_left`, `fold_right`, `fold_map`, etc. Each is a straightforward
 analog of phase 1 for that operation's dispatch trait. Only pursue
 after phase 1 is validated in practice.
-
-### Phase 4 (contingent): Named helpers
-
-If user feedback shows diagonal cases arise frequently, add
-`map_ok` / `map_err` / `map_fst` / `map_snd` / `map_break` /
-`map_continue` as thin wrappers around `explicit::map`. Until that
-feedback arrives, `explicit::map` suffices.
 
 ## Success criteria
 

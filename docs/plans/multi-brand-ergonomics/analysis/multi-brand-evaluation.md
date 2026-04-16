@@ -278,12 +278,13 @@ Recommended implementation:
    use `explicit::map::<SomeBrand, _, _, _, _>(...)`. The mechanism
    already exists and covers every case `Slot` cannot.
 
-Alternative 3 (concrete helpers) is **deferred**. Under alternative 5,
-helpers only fire in the diagonal case, which is rare. `explicit::map`
-covers the same ground. Helpers can be added later if user feedback
-shows the diagonal case is frequent enough to warrant dedicated ergonomic
-sugar. Starting without them keeps the API surface small and lets
-helpers be designed based on real usage rather than speculation.
+Alternative 3 (concrete helpers) is **out of scope**. Under alternative
+5, helpers would fire only on diagonal cases, which are rare, and
+`explicit::map` with a brand turbofish already covers them. Adding
+helpers would grow the API surface for marginal ergonomic benefit.
+If user feedback later shows the diagonal case is frequent enough to
+warrant dedicated sugar, helpers can be proposed as a separate plan;
+they are not part of the closure-directed-inference work.
 
 Alternative 1 (primary brand designation) is **not pursued**. Under
 alternative 5 there is no need to designate a primary: every brand is
