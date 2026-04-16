@@ -421,10 +421,12 @@ other items remain for later discussion.
 
 ### POC findings (summary)
 
-Two POCs have been run against stable rustc:
+Four POCs have been run against stable rustc:
 
 1. [slot_production_poc.rs](../../../fp-library/tests/slot_production_poc.rs) - Slot type-level validation with a bespoke `MapDispatch` shim.
 2. [slot_valref_poc.rs](../../../fp-library/tests/slot_valref_poc.rs) - Slot composition with the production `FunctorDispatch` + Val/Ref `Marker`.
+3. [slot_select_brand_poc.rs](../../../fp-library/tests/slot_select_brand_poc.rs) - attempted to project Brand as an associated type keyed on `(FA, A)`; rejected by coherence for multi-brand types.
+4. [slot_assoc_marker_poc.rs](../../../fp-library/tests/slot_assoc_marker_poc.rs) - attempted to move Marker from trait parameter to associated type; rejected by coherence for the Val/Ref impl combination.
 
 Findings:
 
@@ -620,27 +622,44 @@ Options:
   `explicit::map::<Brand, ...>` (the Slot-bounded variant
   validated under Q15). _Trade-off:_ Ref multi-brand loses
   inference ergonomics; users learn one consistent fallback rule.
-- **b) Redesign the Ref dispatch trait** so Rust's solver can
-  commit Brand before checking the `Fn(&A)` constraint.
-  _Trade-off:_ requires changes to `FunctorDispatch` or a sibling
-  trait; speculative without further prototyping.
+- **b) Redesign the dispatch trait** to project the
+  disambiguating parameter as an associated type rather than a
+  free trait parameter. Two variants were prototyped against this
+  idea: (i) project Brand via a `SelectBrand<'a, A>` trait with
+  associated `type Brand`, and (ii) project Marker via an
+  `AssocMarkerDispatch` trait with associated `type Marker`.
+  **Both prototypes rejected by coherence (E0119).** Rust's
+  coherence checker cannot prove non-overlap between the two
+  multi-brand impls (variant i) or the two Val/Ref impls
+  (variant ii) without a distinguishing trait-argument
+  pattern. The parameter-as-disambiguator role is load-bearing on
+  stable Rust; removing it trips coherence.
+  _Trade-off:_ not achievable without specialization or negative
+  impls (both unstable).
 - **c) Split Val and Ref into separate Slot-bounded inference
   functions.** Unified `map(f, fa)` is replaced by `map(f, fa)`
-  (Val-only) and `ref_map(f, fa)` or `map_ref(f, fa)` (Ref-only).
-  **POC probe confirms the Ref-only factoring works for Ref +
-  multi-brand.** _Trade-off:_ two inference entry points instead
-  of one; user-facing API asymmetry between Val and Ref forms;
-  closes the Ref + multi-brand inference gap entirely.
+  (Val-only) and `ref_map(f, fa)` or `map_ref(f, fa)`
+  (Ref-only). **POC probe confirms the Ref-only factoring works
+  for Ref + multi-brand.** _Trade-off:_ two inference entry
+  points instead of one; user-facing API asymmetry between Val
+  and Ref forms; closes the Ref + multi-brand inference gap
+  entirely.
 
-_Recommendation:_ **c) is now the strongest option** given the POC
-probe. Splitting Val and Ref inference closes the Ref +
-multi-brand gap entirely, at the cost of one additional entry
-point. Today's unified `map` already collapses several distinct
-dispatches into one surface; splitting on Val/Ref trades one
-dimension of that collapse for full inference coverage. Option a
-remains the fallback if the split proves unexpectedly awkward in
-production code. Q15 option b is the explicit-brand escape hatch
-regardless of which is chosen here.
+_Recommendation:_ **c)**. Option b has been invalidated by two
+distinct prototypes that both hit coherence walls, so a unified
+inference signature covering Ref + multi-brand is not achievable
+on stable Rust without unstable features. Splitting Val and Ref
+inference closes the gap at the cost of one additional entry
+point. Option a remains a viable fallback if the split proves
+awkward in production code. Q15 option b (explicit-brand
+turbofish bounded on Slot) is the universal fallback regardless
+of which is chosen here.
+
+The general pattern discovered across prototypes: any time a
+multi-brand disambiguator (Brand or Marker) is moved from a free
+trait parameter into an associated-type projection, coherence
+rejects the resulting impls for multi-brand types. The parameter
+position is load-bearing on stable Rust.
 
 **Q5. Diagnostic wording precision.**
 
