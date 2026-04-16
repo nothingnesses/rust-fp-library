@@ -1,22 +1,26 @@
-// Feasibility POC for "approach 5: closure-directed brand inference" from
-// docs/plans/multi-brand-ergonomics/analysis/multi-brand-evaluation.md.
+// Minimal feasibility POC for closure-directed brand inference.
 //
-// Hypothesis: when a container type (e.g. `Result<A, E>`) has multiple valid
-// arity-1 brands, the closure's input type can disambiguate which brand to
-// use. A `Slot<Brand, A>` trait with one impl per candidate brand lets trait
-// selection unify on the unique `(Brand, A)` pair that matches the concrete
-// container type.
+// Hypothesis: when a container type (e.g. `Result<A, E>`) has multiple
+// valid arity-1 brands, the closure's input type can disambiguate which
+// brand to use. A `Slot<Brand, A>` trait with one impl per candidate
+// brand lets trait selection unify on the unique `(Brand, A)` pair that
+// matches the concrete container type.
 //
 // Expected positive results: non-diagonal cases (container type parameters
 // differ in type, or the closure input matches only one slot) resolve
 // unambiguously on stable rustc without turbofish or unstable features.
 //
 // Expected failure: the diagonal `Result<T, T>` case with a closure
-// consuming `T` produces two equally-valid `Slot` impls and inference fails.
-// The failing case is kept commented out with the expected diagnostic below.
+// consuming `T` produces two equally-valid `Slot` impls and inference
+// fails with E0283. The failing case is kept commented out below with
+// the expected diagnostic inline.
 //
-// This POC intentionally does not use the library's HKT machinery; it
-// reproduces the minimum pattern needed to exercise Rust's trait selection.
+// This POC intentionally does not use the library's HKT machinery;
+// it reproduces the minimum pattern needed to exercise Rust's trait
+// selection. The sibling POC `slot_production_poc.rs` validates the
+// same pattern against the library's real Kind_*/InferableBrand_*
+// traits; `slot_valref_poc.rs` validates composition with the
+// production Val/Ref dispatch.
 
 use std::marker::PhantomData;
 

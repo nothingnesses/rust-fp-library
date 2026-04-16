@@ -1,32 +1,40 @@
-// Production-style POC for the Slot trait from
-// docs/plans/multi-brand-ergonomics/plan.md.
+// Production-style POC for a `Slot` trait enabling closure-directed
+// brand inference against the library's real HKT machinery
+// (`Kind_*`/`InferableBrand_*`).
 //
-// Exercises the Slot design against the library's real HKT machinery to
-// validate the three blockers called out in the plan's Pending review
-// section, plus closure-directed inference composition with the existing
-// single-brand blanket and with borrowed containers.
+// Background: the library encodes higher-kinded polymorphism via
+// brands. Some concrete types map back to multiple brands at a given
+// arity (for example `Result<A, E>` is reachable through both
+// `ResultErrAppliedBrand<E>` and `ResultOkAppliedBrand<T>` at arity 1),
+// so brand inference refuses these and forces `explicit::` callers. A
+// `Slot<Brand, A> for FA` trait that admits multiple impls per
+// concrete type (one per brand) lets Rust's trait selection
+// disambiguate via the closure's input type `A`.
 //
-// What this POC validates beyond the simpler one at
-// closure_directed_inference_poc.rs:
+// What this POC validates beyond the minimal
+// `closure_directed_inference_poc.rs`:
 //
-// 1. Blocker 1: the blanket `impl<FA: InferableBrand> Slot<FA::Brand, A> for FA`
-//    coexists with direct `Slot` impls on multi-brand types, i.e. coherence
-//    accepts the combination.
-// 2. Blocker 2: a lifetime-generic Slot trait with a lifetime-carrying GAT
-//    (`type Out<B: 'a>: 'a`) compiles and resolves at call sites.
-// 3. Blocker 3: a `map`-style function returning
-//    `<FA as Slot<'a, Brand, A>>::Out<B>` normalises to the expected concrete
-//    type at call sites, including in positions that previously relied on
-//    `Apply!()`-style projections through InferableBrand + Kind.
-// 4. Open question 4: closure-directed inference composes with borrowed
-//    containers (the `&T` blanket on InferableBrand and a matching one for
-//    Slot cover both owned and `&`-form call sites).
-// 5. Open question 9: the closure-annotation matrix - which call-site shapes
-//    require an explicit parameter annotation and which do not.
+// 1. Coherence of a blanket `impl<FA: InferableBrand> Slot<FA::Brand, A> for FA`
+//    combined with direct `Slot` impls on multi-brand types. (Finding:
+//    fails with E0119; see the "direct impls for every brand" comment
+//    below.)
+// 2. Lifetime-generic Slot trait with a lifetime-carrying GAT
+//    (`type Out<B: 'a>: 'a`) compiling and resolving at call sites.
+// 3. Return-type computation: whether a function returning
+//    `<FA as Slot<'a, Brand, A>>::Out<B>` normalises to the expected
+//    concrete type at call sites.
+// 4. Composition with borrowed containers via a `&T` blanket for Slot
+//    (owned and `&`-form call sites both route through the same trait
+//    resolution).
+// 5. The closure-annotation matrix: which call-site shapes require
+//    an explicit parameter annotation and which do not.
 //
-// This is a pure-type POC: it does NOT route through FunctorDispatch or
-// Val/Ref markers. Full Val/Ref composition is a separate validation step
-// once the core trait shape is locked in.
+// This is a pure-type POC: it does NOT route through the library's
+// `FunctorDispatch` or Val/Ref Marker machinery. A bespoke `MapDispatch`
+// trait stands in for dispatch so the tests can compute results; the
+// goal is to exercise Rust's trait selection on the Slot signature
+// shape, not to reproduce production routing. Full Val/Ref + dispatch
+// composition is validated by the sibling `slot_valref_poc.rs`.
 
 use fp_library::{
 	brands::{
@@ -59,22 +67,24 @@ where
 }
 
 // -------------------------------------------------------------------------
-// Direct impls for every brand (Option A2 from the plan).
+// Direct Slot impls for every brand.
 // -------------------------------------------------------------------------
 //
-// An earlier iteration of this POC tried Option A1: a blanket
-// `impl<FA: InferableBrand> Slot<FA::Brand, A> for FA` alongside direct
-// impls for multi-brand types. Rust rejects that combination with E0119
-// (conflicting implementations), explicitly citing that upstream crates
-// could in future implement `InferableBrand` for `Result<_, _>`, making
-// the blanket potentially overlap with the direct impls. The `&T` blanket
-// for Slot collides with the InferableBrand `&T` blanket for the same
-// reason.
+// An earlier iteration of this POC tried a blanket:
 //
-// The blanket approach therefore does NOT work on stable rustc. This POC
-// now validates Option A2: every brand (single- and multi-) gets direct
-// Slot impls. Coherence is trivially safe because each impl is keyed on a
-// distinct Brand parameter.
+//   impl<FA: InferableBrand> Slot<FA::Brand, A> for FA
+//
+// alongside direct impls for multi-brand types. Rust rejects that
+// combination with E0119 (conflicting implementations), explicitly
+// citing that upstream crates could in future implement `InferableBrand`
+// for `Result<_, _>`, which would make the blanket potentially overlap
+// with the direct impls. The parallel `&T` blankets for InferableBrand
+// and Slot collide for the same reason.
+//
+// The blanket approach therefore does NOT work on stable rustc. This
+// POC gives every brand (single- and multi-) a direct Slot impl.
+// Coherence is trivially safe because each impl is keyed on a distinct
+// Brand parameter.
 
 impl<'a, A: 'a> Slot_cdc7cd43dac7585f<'a, fp_library::brands::OptionBrand, A> for Option<A> {
 	type Out<B: 'a> = Option<B>;
@@ -94,9 +104,10 @@ impl<'a, T: 'static, A: 'a> Slot_cdc7cd43dac7585f<'a, ResultOkAppliedBrand<T>, A
 	type Out<B: 'a> = Result<T, B>;
 }
 
-// Lazy exercises a lifetime-bearing type: Lazy<'a, A, Config> carries 'a in
-// its concrete form, unlike Option/Vec. This is critical for Blocker 2
-// (lifetime-generic GAT behaviour with real lifetime threading).
+// Lazy exercises a lifetime-bearing type: Lazy<'a, A, Config> carries
+// `'a` in its concrete form, unlike Option/Vec. This is critical for
+// validating the lifetime-generic GAT behaviour with real lifetime
+// threading, not just 'static lifetimes.
 
 impl<'a, A: 'a, Config: LazyConfig> Slot_cdc7cd43dac7585f<'a, LazyBrand<Config>, A>
 	for Lazy<'a, A, Config>
@@ -297,8 +308,9 @@ fn lifetime_bearing_type_slot_resolution() {
 // -------------------------------------------------------------------------
 //
 // The closure's A disambiguates which arity-1 brand of Result applies.
-// Validates blocker 1 (blanket + direct impls coexist) end-to-end: a
-// direct impl covering a type that doesn't satisfy the blanket's bound.
+// Exercises the coexistence of the blanket impl (for single-brand
+// types with InferableBrand) and direct Slot impls on multi-brand
+// types that deliberately lack InferableBrand.
 
 #[test]
 fn multi_brand_result_ok_mapping() {
@@ -334,10 +346,12 @@ fn multi_brand_err_variant_with_ok_brand() {
 // Tests: borrowed containers via the &T blanket.
 // -------------------------------------------------------------------------
 //
-// Validates open question 4's type-level composition: closure-directed
+// Type-level composition with borrowed containers: closure-directed
 // inference should work when the container is `&FA`. The POC's
 // MapDispatch for &T uses Clone instead of by-ref dispatch, so this
-// checks the Slot resolution path, not full Val/Ref production dispatch.
+// checks the Slot resolution path only, not full Val/Ref production
+// dispatch. See `slot_valref_poc.rs` for the production-dispatch
+// validation.
 
 #[test]
 fn borrowed_option_via_reference_blanket() {
@@ -368,7 +382,6 @@ fn borrowed_result_multi_brand_via_reference_blanket() {
 // -------------------------------------------------------------------------
 //
 // Enumerates which call shapes need an explicit closure parameter type.
-// Findings here feed open question 9.
 
 #[test]
 fn annotation_matrix_single_brand_no_annotation() {
@@ -389,9 +402,9 @@ fn annotation_matrix_multi_brand_requires_closure_annotation() {
 }
 
 // Alternative to closure annotation: annotating the call-site return type
-// alone is NOT sufficient to disambiguate the brand for multi-brand types.
-// Data point for open question 9: the annotation must be on the closure's
-// input, not on the result.
+// alone is NOT sufficient to disambiguate the brand for multi-brand
+// types. The annotation must be on the closure's input, not on the
+// call result.
 //
 // The call `let r: Result<i64, String> = slot_map(|x| i64::from(x + 1), Ok::<i32, String>(5))`
 // fails with E0283 because the closure's A is free; knowing only the

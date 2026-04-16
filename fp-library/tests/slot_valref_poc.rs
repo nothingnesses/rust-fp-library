@@ -1,27 +1,48 @@
-// Second Slot POC: validates composition with production FunctorDispatch
-// and Val/Ref markers.
+// Second Slot POC: validates composition with the library's production
+// `FunctorDispatch` trait and Val/Ref `Marker` dispatch axis.
 //
-// Targets Q4 from docs/plans/multi-brand-ergonomics/plan.md (workflow
-// note 8). The first Slot POC (slot_production_poc.rs) validated that
-// Slot resolution works at the type level, including through a &T
-// blanket; it used a Clone-based MapDispatch shim rather than the
-// library's production FunctorDispatch trait. This file validates that
-// Slot's brand-dispatch axis composes with FunctorDispatch's Val/Ref
-// Marker axis in a single function signature, with both inferred
-// simultaneously from the closure's input type and the container.
+// Background: `FunctorDispatch<'a, Brand, A, B, FA, Marker>` is the
+// library's existing trait for routing `Fn(A) -> B` closures to
+// `Functor::map` (Val marker) and `Fn(&A) -> B` closures to
+// `RefFunctor::ref_map` (Ref marker). Today it is bound by
+// `FA: InferableBrand` so that the Brand is resolved from a
+// concrete container with a unique brand. Multi-brand containers
+// (such as `Result<A, E>`) do not have an `InferableBrand` impl and
+// fall through to an explicit-brand turbofish path.
 //
-// Expected outcome if composition works:
-//   map_via_slot(|x: i32| ..., Some(5))                     -> Val,  OptionBrand
-//   map_via_slot(|x: &i32| ..., &Some(5))                   -> Ref,  OptionBrand
-//   map_via_slot(|x: i32| ..., Ok::<i32, String>(5))        -> Val,  ResultErrAppliedBrand<String>
-//   map_via_slot(|x: &i32| ..., &Ok::<i32, String>(5))      -> Ref,  ResultErrAppliedBrand<String>
-//   map_via_slot(|e: String| e.len(), Err::<i32, String>...)-> Val,  ResultOkAppliedBrand<i32>
-//   map_via_slot(|e: &String| e.len(), &Err::<i32, String>.)-> Ref,  ResultOkAppliedBrand<i32>
+// The sibling `slot_production_poc.rs` validated that a
+// `Slot<Brand, A> for FA` trait with per-brand impls lets closure
+// input types disambiguate the brand - but it stood in for dispatch
+// with a bespoke `MapDispatch` shim. This file composes Slot directly
+// with the production `FunctorDispatch` trait to check whether Slot's
+// brand-inference axis and FunctorDispatch's Val/Ref Marker axis can
+// both be inferred simultaneously from the closure's input type and
+// the container value.
 //
-// If Rust cannot simultaneously infer Brand (via Slot) and Marker (via
-// FunctorDispatch) in one signature, the POC fails to compile and we
-// learn that phase 1 needs a different factoring (for example, splitting
-// Val and Ref into separate Slot-bounded functions).
+// Expected behaviour if composition works:
+//   map_via_slot(|x: i32| ..., Some(5))                 -> Val, OptionBrand
+//   map_via_slot(|x: &i32| ..., &Some(5))               -> Ref, OptionBrand
+//   map_via_slot(|x: i32| ..., Ok::<i32, String>(5))    -> Val, ResultErrAppliedBrand<String>
+//   map_via_slot(|x: &i32| ..., &Ok::<i32, String>(5))  -> Ref, ResultErrAppliedBrand<String>
+//   map_via_slot(|e: String| e.len(), Err::<i32, String>(..))  -> Val, ResultOkAppliedBrand<i32>
+//   map_via_slot(|e: &String| e.len(), &Err::<i32, String>(..))-> Ref, ResultOkAppliedBrand<i32>
+//
+// Actual findings (see inline comments on each test group):
+//   Val + single-brand:     works.
+//   Val + multi-brand:      works with closure annotation.
+//   Ref + single-brand:     works.
+//   Ref + multi-brand:      DOES NOT COMPILE (E0283). Rust's solver
+//                           cannot commit a Brand for a borrowed
+//                           multi-brand container.
+//   Explicit-brand variant: works for every case including Ref +
+//                           multi-brand, because the turbofish pins
+//                           Brand directly (see map_explicit below).
+//
+// These results inform two independent design decisions:
+//   (a) whether inference-based `map` should be split into Val- and
+//       Ref-specific entry points, and
+//   (b) whether the `explicit::` family should be rewritten to bound
+//       on Slot with a Brand turbofish.
 
 #![allow(unused_imports, reason = "Kind is used inside Apply! macro expansion")]
 
@@ -270,12 +291,17 @@ fn val_then_ref_same_container() {
 // }
 
 // -------------------------------------------------------------------------
-// Q15 prototype: explicit::map-style function routing through Slot.
+// Explicit-brand variant: map function bounded on Slot with Brand
+// pinned via turbofish.
 // -------------------------------------------------------------------------
 //
-// Signature shape under the Q15 option-b "rewrite explicit::map to bound
-// on Slot" proposal. The caller pins Brand via turbofish; Slot + the
-// container argument drive A and FA inference.
+// With Brand fixed at the call site, Slot's only job is to assert
+// `Brand::Of<'a, A> = Self`. The closure's input type fixes A (as in
+// any `Fn(A) -> B` bound), and FA is inferred from the container
+// argument. This factoring works in every case the
+// inference-based `map_via_slot` above fails in (notably Ref +
+// multi-brand), because the turbofish removes the brand-selection
+// ambiguity up front.
 
 pub fn map_explicit<'a, Brand, A: 'a, B: 'a, FA, Marker>(
 	f: impl FunctorDispatch<'a, Brand, A, B, FA, Marker>,
@@ -288,13 +314,13 @@ where
 }
 
 #[test]
-fn q15_explicit_with_slot_bound_val_single_brand() {
+fn map_explicit_val_single_brand() {
 	let r = map_explicit::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
 	assert_eq!(r, Some(10));
 }
 
 #[test]
-fn q15_explicit_with_slot_bound_val_multi_brand() {
+fn map_explicit_val_multi_brand() {
 	// With Brand pinned via turbofish, the diagonal-type ambiguity that
 	// defeats inference-based map disappears. Users trade annotation on
 	// the closure for annotation on the function.
@@ -306,14 +332,14 @@ fn q15_explicit_with_slot_bound_val_multi_brand() {
 }
 
 #[test]
-fn q15_explicit_with_slot_bound_ref_single_brand() {
+fn map_explicit_ref_single_brand() {
 	let opt = Some(5);
 	let r = map_explicit::<OptionBrand, _, _, _, _>(|x: &i32| *x * 3, &opt);
 	assert_eq!(r, Some(15));
 }
 
 #[test]
-fn q15_explicit_with_slot_bound_ref_multi_brand() {
+fn map_explicit_ref_multi_brand() {
 	// The Ref + multi-brand combination that fails for map_via_slot
 	// (because Brand cannot be inferred from a multi-brand container
 	// behind a reference) DOES work here because the turbofish pins
@@ -325,7 +351,7 @@ fn q15_explicit_with_slot_bound_ref_multi_brand() {
 
 // Diagonal case: same as today's explicit::map, since Brand is pinned.
 #[test]
-fn q15_explicit_with_slot_bound_diagonal() {
+fn map_explicit_diagonal() {
 	let r =
 		map_explicit::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32| x + 1, Ok::<i32, i32>(5));
 	assert_eq!(r, Ok(6));
