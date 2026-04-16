@@ -181,6 +181,150 @@ should handle both cases.
   InferableBrand" to "skip InferableBrand and generate direct Slot impl
   instead." Existing invocations continue to work unchanged.
 
+## Integration surface
+
+### Will change alongside `map` (phase 1)
+
+- **`InferableBrand_{hash}` family:** blanket impl from InferableBrand
+  to Slot added. Existing InferableBrand impls and
+  `#[diagnostic::on_unimplemented]` attributes stay in place and
+  remain reachable for any code path that names the brand directly via
+  InferableBrand.
+- **`FunctorDispatch`:** internal structure unchanged, but the free
+  function `map` rebinds its container constraint from InferableBrand
+  to Slot.
+- **`impl_kind!` macro:** new code path generating direct Slot impls
+  for brands marked `#[no_inferable_brand]`. The macro already has the
+  `Of<'a, A>` signature information required.
+- **`trait_kind!` macro:** must generate a `Slot_{hash}` trait per
+  Kind signature, analogous to `InferableBrand_{hash}`. See the
+  higher-arity discussion below for scope.
+- **UI tests:** delete or rewrite
+  `fp-library/tests/ui/result_no_inferable_brand.rs` and
+  `tuple2_no_inferable_brand.rs` (the current ambiguity assertions).
+  Add new tests for closure-directed resolution (positive), diagonal
+  failure, and unannotated-closure failure.
+
+### Will change in phase 3 (other closure-taking operations)
+
+The Slot pattern applies uniformly to any operation that takes a
+closure consuming a type argument the brand disambiguates over. For
+operations without such a closure, Slot provides no help and users
+stay on `explicit::` for multi-brand types.
+
+| Operation                        | Closure input drives A? | Slot applicable?                       |
+| -------------------------------- | ----------------------- | -------------------------------------- |
+| `Functor::map`                   | Yes (`A -> B`)          | Yes (phase 1)                          |
+| `Semimonad::bind`                | Yes (`A -> fb`)         | Yes                                    |
+| `Lift::lift2`                    | Yes (`(A, B) -> C`)     | Yes                                    |
+| `Foldable::fold_left` / `_right` | Yes (`(B, A) -> B`)     | Yes                                    |
+| `Foldable::fold_map`             | Yes (`A -> M`)          | Yes                                    |
+| `Filterable::filter`             | Yes (`A -> bool`)       | Yes                                    |
+| `Traversable::traverse`          | Yes (`A -> g(B)`)       | Yes (outer brand only)                 |
+| `Semiapplicative::apply`         | No direct closure       | Possibly via `Fn(A) -> B` payload type |
+| `Traversable::sequence`          | No closure              | No                                     |
+| `Alt::alt`, `Plus::empty`        | No closure              | No                                     |
+| `Pointed::pure`                  | No closure              | No (return-type inference problem)     |
+
+### Will require attention in phase 1 but is not primary scope
+
+- **Ref-variant dispatch (`RefFunctor`, `RefSemimonad`, etc.):** the
+  existing Val/Ref `Marker` pattern multiplexes owned and borrowed
+  containers through a single dispatch trait. Slot must compose with
+  it correctly: `map(|x: &i32| *x + 1, &Ok::<i32, String>(5))` should
+  pick `ResultErrAppliedBrand<String>` (because `&i32` aligns with the
+  Ok slot's reference form) and route through `RefFunctor::ref_map`.
+  Prototype alongside the owned case before committing the design.
+- **Do/Ado notation macros (`m_do!`, `a_do!`):** desugar to nested
+  `bind` / `apply` calls. After phase 3 makes `bind` CDI-enabled,
+  these macros should produce well-typed code for multi-brand types
+  when user closures are annotated. Audit
+  `fp-library/tests/do_notation.rs` and
+  `fp-library/tests/ado_notation.rs` for regressions and missing
+  coverage.
+- **Existing `on_unimplemented` messages on `InferableBrand`:** remain
+  in place; new Slot-specific diagnostic is attached to Slot (or a
+  marker trait reflecting ambiguity). The plan should specify which
+  attribute appears where.
+
+### Not affected
+
+- **Optics subsystem** (`Lens`, `Prism`, `Iso`, `Traversal`, etc.):
+  profunctor-encoded with a separate dispatch mechanism. Brand
+  inference does not touch optics.
+- **Bifunctor / Bifoldable / Bitraversable at arity 2:** already
+  unambiguous via `InferableBrand_266801a817966495` (e.g.
+  `ResultBrand` has exactly one arity-2 brand). No change required.
+- **Benchmarks:** no code changes. Performance validated
+  post-implementation by running `benches/benchmarks/`; Slot is a
+  pure trait-selection mechanism with no runtime cost.
+- **Stack safety / `TailRec`, optics, serde integration:** unrelated.
+
+## Higher-arity types
+
+The `Slot<Brand, A>` design generalizes to any Kind arity. For an
+arity-k Kind, the corresponding `Slot_k<Brand, A1, ..., Ak>` would
+take as many closure-input parameters as the Kind_k it mirrors, and
+impls would be keyed by which slots of the concrete type are free.
+
+### The general pattern
+
+For a hypothetical arity-3 type `Trifunctor<A, B, C>` with three
+arity-1 brands (one per "remaining free slot"):
+
+- `TrifunctorBCFixedBrand<B, C>` fixes B and C, maps over A.
+  `Of<X> = Trifunctor<X, B, C>`.
+- `TrifunctorACFixedBrand<A, C>` fixes A and C, maps over B.
+  `Of<X> = Trifunctor<A, X, C>`.
+- `TrifunctorABFixedBrand<A, B>` fixes A and B, maps over C.
+  `Of<X> = Trifunctor<A, B, X>`.
+
+Closure-directed inference works the same way as at arity 2:
+
+- `map(|x: i32| ..., t: Trifunctor<i32, String, bool>)`: only the
+  "free A" brand's Slot impl unifies with `A = i32` (since `String`
+  and `bool` do not match). Unique resolution.
+- `map(|x: String| ..., t: Trifunctor<i32, String, bool>)`: only the
+  "free B" brand unifies. Unique.
+- Diagonal cases: `Trifunctor<T, T, U>` with a closure consuming `T`
+  is ambiguous across two brands. `Trifunctor<T, T, T>` with the same
+  closure is triply ambiguous.
+
+### Mixed-arity partial applications
+
+An arity-k type may also be partially applied to an intermediate
+arity. For `Trifunctor<A, B, C>`:
+
+- Arity-2 partial applications fix one of three slots:
+  `TrifunctorAFixedBrand<A>` (maps over B and C),
+  `TrifunctorBFixedBrand<B>`, `TrifunctorCFixedBrand<C>`. Each has
+  an arity-2 `Of<X, Y>`.
+- These arity-2 brands would then have their own arity-1 sub-brands,
+  forming a tree of partial applications.
+
+At each arity level, Slot_k disambiguates brands whose `Of` produces
+the same concrete type. The mechanism is uniform; only the trait
+arity changes.
+
+### Scope decision for this plan
+
+Implement `Slot_{hash}` only at the Kind arity used by
+Functor/Monad/Foldable/Traversable/etc. (arity 1 with lifetime:
+`Kind_cdc7cd43dac7585f`). Higher-arity Slot traits are not needed by
+any type in the library today:
+
+- Arity 2 is already unambiguous for every existing type
+  (`ResultBrand`, `Tuple2Brand`, etc. each have exactly one
+  arity-2 brand).
+- No arity-3-or-higher types exist.
+
+If future library growth introduces higher-arity types with multiple
+partial-application brands at the same level, the Slot pattern
+extends mechanically. `trait_kind!` would generate the additional
+`Slot_{hash}` trait per new Kind signature, `impl_kind!` would emit
+direct impls for multi-brand cases, and the relevant free functions
+would bind on the higher-arity Slot. No design change required.
+
 ## Scope
 
 ### In scope
@@ -223,41 +367,39 @@ should handle both cases.
 
 1. **Exact `Slot` trait signature.** Does Slot's `Out<B>` need to
    match the existing `Apply!(<Brand as Kind!>::Of<'a, B>)` exactly?
-   The blanket impl from InferableBrand has to produce the same
-   associated type as direct impls so that the existing dispatch
-   machinery still compiles. Validate by prototype before committing.
+   The blanket impl from InferableBrand must produce the same
+   associated type as direct impls so that existing dispatch machinery
+   still compiles. Validate by prototype before committing.
 2. **Coherence around the blanket impl.** The blanket
    `impl<FA: InferableBrand> Slot<..., FA::Brand, ...> for FA` must
    not overlap with direct Slot impls on multi-brand types. Since
    multi-brand types don't implement `InferableBrand`, the blanket's
-   bound excludes them. Verify this holds for the `&T` blanket on
-   InferableBrand too (inherited references).
-3. **Macro-level scope of Slot generation.** Does every brand need a
-   Slot impl, or only those currently marked `#[no_inferable_brand]`?
-   The blanket covers single-brand cases, so direct impls are only
-   needed for multi-brand types. Lean toward "only generate direct
-   Slot for `#[no_inferable_brand]` brands."
-4. **Val/Ref dispatch interaction.** The existing `FunctorDispatch`
+   bound should exclude them. Verify this holds for the `&T` blanket
+   on InferableBrand (inherited references).
+3. **Val/Ref dispatch composition.** The existing `FunctorDispatch`
    routes by-value and by-ref through a closure-input-type-based
    Marker parameter. Slot introduces another dispatch axis (brand
-   selection). Verify the two compose: `map(|x: &i32| *x * 2, &Ok(5))`
-   should pick the Err brand (because `&i32` matches the first slot)
-   and route to RefFunctor.
-5. **Diagnostic wording precision.** Different messages for the "user
-   forgot annotation" case versus the "diagonal, annotation won't
-   help" case? Rust's diagnostic attributes aren't dynamic, so
-   probably one message covering both.
-6. **Testing strategy.** Positive: current multi-brand `explicit::`
-   doctests should compile identically. New: tests for closure-directed
-   resolution on Result/Pair/Tuple2/ControlFlow/TryThunk, including
-   the diagonal failure cases as UI tests. The existing POC file
-   should be promoted to a proper integration test or removed once
-   the real implementation subsumes it.
-7. **Migration for the existing `explicit::` doctests.** Many current
-   doctests use `explicit::map::<SomeBrand, _, _, _, _>(...)` on
-   multi-brand types. These should stay as-is (they document the
-   explicit path) but additional doctests for the inference path
-   should be added.
+   selection). Verify the two compose correctly via prototype:
+   `map(|x: &i32| *x * 2, &Ok::<i32, String>(5))` should pick the Ok
+   brand (because `&i32` aligns with the Ok slot's reference form) and
+   route to `RefFunctor::ref_map`.
+4. **Diagnostic wording precision.** Does the "user forgot annotation"
+   case need a different message from the "diagonal, annotation won't
+   help" case? Rust's diagnostic attributes aren't dynamic, so one
+   message covering both is the likely outcome.
+5. **Apply-side closure-directed inference.** `Semiapplicative::apply`
+   has no outer closure but carries an `Fn(A) -> B` payload inside
+   `ff`. Could the payload's function type drive Slot dispatch in
+   phase 3? Decision can defer to phase 3 but affects whether apply
+   becomes CDI-capable or stays explicit-only for multi-brand types.
+6. **Testing strategy.** All existing single-brand doctests should
+   compile identically. All existing `explicit::map::<...>` doctests
+   on multi-brand types should stay as-is (they document the explicit
+   path). Add new positive doctests for closure-directed resolution
+   and UI tests for the diagonal failure cases. The existing POC at
+   `fp-library/tests/closure_directed_inference_poc.rs` should be
+   promoted to a proper integration test or removed once the real
+   implementation subsumes it.
 
 ## Implementation phasing
 
