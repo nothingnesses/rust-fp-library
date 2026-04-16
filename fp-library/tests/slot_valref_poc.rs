@@ -28,19 +28,29 @@
 //   map_via_slot(|e: &String| e.len(), &Err::<i32, String>(..))-> Ref, ResultOkAppliedBrand<i32>
 //
 // Actual findings (see inline comments on each test group):
-//   Val + single-brand:     works.
-//   Val + multi-brand:      works with closure annotation.
-//   Ref + single-brand:     works.
-//   Ref + multi-brand:      DOES NOT COMPILE (E0283). Rust's solver
-//                           cannot commit a Brand for a borrowed
-//                           multi-brand container.
-//   Explicit-brand variant: works for every case including Ref +
-//                           multi-brand, because the turbofish pins
-//                           Brand directly (see map_explicit below).
+//   Val + single-brand:        works.
+//   Val + multi-brand:         works with closure annotation.
+//   Ref + single-brand:        works.
+//   Ref + multi-brand (unified
+//      Val+Ref signature):     DOES NOT COMPILE (E0283). The solver
+//                              treats both Val and Ref FunctorDispatch
+//                              impls as candidates until a Marker is
+//                              committed, and cannot commit a Brand
+//                              without that.
+//   Ref + multi-brand (Marker
+//      pinned to Ref):         WORKS. A Ref-only variant of
+//                              map_via_slot that hard-codes the Marker
+//                              parameter compiles and runs for
+//                              multi-brand types. See `map_via_slot_ref_only`
+//                              below for the probe that verified this.
+//   Explicit-brand variant:    works for every case including Ref +
+//                              multi-brand, because the turbofish pins
+//                              Brand directly (see map_explicit below).
 //
 // These results inform two independent design decisions:
 //   (a) whether inference-based `map` should be split into Val- and
-//       Ref-specific entry points, and
+//       Ref-specific entry points (the probe shows splitting removes
+//       the Ref + multi-brand gap), and
 //   (b) whether the `explicit::` family should be rewritten to bound
 //       on Slot with a Brand turbofish.
 
@@ -55,7 +65,10 @@ use {
 			ResultOkAppliedBrand,
 			VecBrand,
 		},
-		dispatch::functor::FunctorDispatch,
+		dispatch::{
+			Ref,
+			functor::FunctorDispatch,
+		},
 		kinds::Kind_cdc7cd43dac7585f,
 		types::{
 			Lazy,
@@ -289,6 +302,48 @@ fn val_then_ref_same_container() {
 //     assert_eq!(r_ref, Ok(105));
 //     assert_eq!(r_val, Ok(50));
 // }
+
+// -------------------------------------------------------------------------
+// Probe: does pinning Marker disambiguate Ref + multi-brand?
+// -------------------------------------------------------------------------
+//
+// Hypothesis being tested: the Ref + multi-brand failure might be caused
+// by the solver considering both the Val and Ref FunctorDispatch impls
+// as candidates, rather than by genuine Brand-only ambiguity within
+// the Ref impl alone.
+//
+// Test: write a Ref-only variant of `map_via_slot` that pins the Marker
+// type parameter to `Ref`. If the Ref + multi-brand failure was caused
+// by Val/Ref cross-competition, this variant should succeed. If it
+// still fails, the problem is Brand disambiguation within the Ref
+// FunctorDispatch impl alone.
+
+pub fn map_via_slot_ref_only<'a, FA, A: 'a, B: 'a, Brand>(
+	f: impl FunctorDispatch<'a, Brand, A, B, FA, Ref>,
+	fa: FA,
+) -> Apply!(<Brand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>)
+where
+	Brand: Kind_cdc7cd43dac7585f,
+	FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+	f.dispatch(fa)
+}
+
+// Sanity: single-brand via the ref-only variant still works.
+#[test]
+fn probe_ref_only_single_brand() {
+	let opt = Some(5);
+	let r = map_via_slot_ref_only(|x: &i32| *x * 2, &opt);
+	assert_eq!(r, Some(10));
+}
+
+// Core probe: if the Val/Ref cross-competition hypothesis is correct,
+// this should compile and pass.
+#[test]
+fn probe_ref_only_multi_brand() {
+	let ok: Result<i32, String> = Ok(5);
+	let r: Result<i32, String> = map_via_slot_ref_only(|x: &i32| *x + 1, &ok);
+	assert_eq!(r, Ok(6));
+}
 
 // -------------------------------------------------------------------------
 // Explicit-brand variant: map function bounded on Slot with Brand
