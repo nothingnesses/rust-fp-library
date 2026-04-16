@@ -28,7 +28,7 @@ mod test_mod {
 		) -> T;
 	}
 
-	#[expect(dead_code, reason = "Test fixture for document_module macro")]
+	#[allow(dead_code, reason = "Test fixture for document_module macro")]
 	pub struct MyType<T>(T);
 
 	impl<T: Clone> MyTrait<T> for MyType<T> {

@@ -13,9 +13,7 @@ help: the trait `InferableBrand_cdc7cd43dac7585f` is implemented for `(A,)`
   | /     impl_kind! {
   | |         for Tuple1Brand {
   | |             type Of<'a, A: 'a>: 'a = (A,);
-  | |         }
-  | |     }
-  | |_____^
+  | |_________________________________________^
 note: required by a bound in `fp_library::functions::map`
  --> src/dispatch/functor.rs
   |
@@ -43,7 +41,5 @@ help: the trait `InferableBrand_cdc7cd43dac7585f` is implemented for `(A,)`
   | /     impl_kind! {
   | |         for Tuple1Brand {
   | |             type Of<'a, A: 'a>: 'a = (A,);
-  | |         }
-  | |     }
-  | |_____^
+  | |_________________________________________^
   = note: this error originates in the macro `impl_kind` (in Nightly builds, run with -Z macro-backtrace for more info)

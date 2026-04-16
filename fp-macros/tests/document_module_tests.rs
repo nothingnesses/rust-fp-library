@@ -14,7 +14,7 @@ mod test_mod {
 		type Of<T>;
 	);
 
-	#[expect(dead_code, reason = "Test fixture for document_module macro")]
+	#[allow(dead_code, reason = "Test fixture for document_module macro")]
 	pub struct MyBrand;
 	#[allow(dead_code, reason = "Test fixture exists to exercise document_module macro")]
 	pub struct MyType<T>(T);
@@ -79,11 +79,11 @@ mod test_collision {
 	#[expect(unexpected_cfgs, reason = "Testing cfg-gated items in document_module")]
 	mod test_cfg_no_conflict {
 		use fp_macros::impl_kind;
-		#[expect(dead_code, reason = "Test fixture for document_module macro")]
+		#[allow(dead_code, reason = "Test fixture for document_module macro")]
 		pub struct Brand;
 		#[expect(dead_code, reason = "Test fixture for document_module macro")]
 		pub struct SyncType<T>(T);
-		#[expect(dead_code, reason = "Test fixture for document_module macro")]
+		#[allow(dead_code, reason = "Test fixture for document_module macro")]
 		pub struct AsyncType<T>(T);
 
 		#[cfg(feature = "sync")]
@@ -283,7 +283,7 @@ mod test_trait_and_impl_together {
 		fn greet(&self) -> String;
 	}
 
-	#[expect(dead_code, reason = "Test fixture for document_module macro")]
+	#[allow(dead_code, reason = "Test fixture for document_module macro")]
 	pub struct Greeter;
 
 	#[document_parameters("The greeter instance.")]
