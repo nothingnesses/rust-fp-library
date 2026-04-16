@@ -421,20 +421,26 @@ other items remain for later discussion.
 
 ### POC findings (summary)
 
-The production-style POC validated or invalidated the three blockers
-and two of the open questions:
+Two POCs have been run against stable rustc:
 
-| Item                              | Finding                                                                              |
-| --------------------------------- | ------------------------------------------------------------------------------------ |
-| Blocker 1 (blanket + direct)      | **Invalidated.** Option A1 fails with E0119. Option A2 works cleanly.                |
-| Blocker 2 (lifetime-generic GAT)  | **Validated** (under option A2). Lifetimes propagate and normalise.                  |
-| Blocker 3 (return-type normalise) | **Validated** (under option A2). Resolves in match arms, generic fns.                |
-| Open question 4 (Val/Ref)         | **Type-level validated.** `&T` blanket works; dispatch-level untested.               |
-| Open question 9 (annotations)     | **Validated.** Closure-input annotation required; return-type-only does not suffice. |
+1. [slot_production_poc.rs](../../../fp-library/tests/slot_production_poc.rs) - Slot type-level validation with a bespoke `MapDispatch` shim.
+2. [slot_valref_poc.rs](../../../fp-library/tests/slot_valref_poc.rs) - Slot composition with the production `FunctorDispatch` + Val/Ref `Marker`.
 
-Items not addressed by the POC (diagnostic routing, apply-side CDI,
-partial-rollout UX, do-notation, downstream impact, testing strategy)
-require either production code or non-technical decisions.
+Findings:
+
+| Item                              | Finding                                                                                                                                                                                                    |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Blocker 1 (blanket + direct)      | **Invalidated.** Option A1 fails with E0119. Option A2 works cleanly.                                                                                                                                      |
+| Blocker 2 (lifetime-generic GAT)  | **Validated** (under option A2).                                                                                                                                                                           |
+| Blocker 3 (return-type normalise) | **Validated for standalone Slot; invalidated when combined with `FunctorDispatch` return type.** Fix: Slot must be a pure marker (no `Out<B>` GAT); return type uses `Apply!(<Brand as Kind>::Of<'a, B>)`. |
+| Q4 (Val/Ref composition)          | **Partial.** Val all-cases and Ref single-brand work via inference. Ref + multi-brand fails (E0283); requires explicit-brand fallback.                                                                     |
+| Q9 (closure annotations)          | **Validated.** Closure-input annotation required for multi-brand; return-type-only does not suffice.                                                                                                       |
+| Q15 (explicit::map via Slot)      | **Validated.** Turbofish-pinned Brand + Slot bound works for every case including Ref + multi-brand.                                                                                                       |
+
+Items not addressed by POC (diagnostic routing, apply-side CDI,
+partial-rollout UX, do-notation, downstream impact, testing strategy,
+projection-type brand ambiguity Q13 - mechanical argument suffices
+for Q13) require production code or non-technical decisions.
 
 ### Blockers
 
@@ -464,16 +470,27 @@ require either production code or non-technical decisions.
    No GAT-specific edge cases triggered by the POC's exercises.
 
 3. **Return type computation through `Slot::Out<B>`.**
-   **Finding (POC): validated under option A2.**
-   `<FA as Slot_*<'a, Brand, A>>::Out<B>` normalises to the expected
-   concrete type across all tested call-site shapes: flowing into
-   match arms, into generic function parameters, and chaining
-   through multiple `slot_map` calls. No inference-ordering
-   pathologies observed for the option-A2 impl layout.
-   **Caveat:** these findings apply to option A2. If option A1 were
-   resurrected via some future mechanism (specialization, sealed
-   traits), blocker 3 would need re-validation because the projection
-   path would differ.
+   **Finding (POC): validated under option A2 for a standalone Slot
+   dispatch trait; invalidated when combined with the production
+   `FunctorDispatch` return type.**
+   The first POC
+   ([slot_production_poc.rs](../../../fp-library/tests/slot_production_poc.rs))
+   used a bespoke `MapDispatch` whose return type is expressed as
+   `Self::Out<B>`; there, `<FA as Slot<...>>::Out<B>` normalises
+   correctly. The second POC
+   ([slot_valref_poc.rs](../../../fp-library/tests/slot_valref_poc.rs))
+   attempted to combine a Slot-bounded function with the production
+   `FunctorDispatch` (whose dispatcher returns
+   `Apply!(<Brand as Kind>::Of<'a, B>)`) and hit an E0308 type
+   mismatch: Rust treats `<FA as Slot<'a, Brand, A>>::Out<B>` and
+   `<Brand as Kind>::Of<'a, B>` as distinct associated-type
+   projections even when they resolve to the same concrete type.
+   **Consequence:** if Slot-bounded functions are to share
+   `FunctorDispatch` with today's signatures, Slot cannot carry an
+   `Out<B>` GAT; it must be a pure marker trait asserting
+   `Brand::Of<'a, A> = Self`, and the function return type must use
+   `Apply!(<Brand as Kind>::Of<'a, B>)` directly. The second POC
+   adopts this shape and compiles.
 
 ### Decisions
 
@@ -495,8 +512,12 @@ Options:
   (single- and multi-). _Trade-off:_ more generated code (zero
   runtime impact); coherence trivially safe (each impl keyed on a
   distinct brand); InferableBrand remains as a separate
-  "unique-brand assertion" trait. **POC finding: works; all blocker
-  validations passed under this scheme.**
+  "unique-brand assertion" trait. **POC finding: works for
+  coherence, lifetime GATs, and return-type normalisation under a
+  pure-marker Slot shape (no `Out<B>` GAT, see blocker 3). The
+  inference-based path composes with Val dispatch for all cases,
+  and with Ref dispatch for single-brand types; Ref + multi-brand
+  requires an explicit-brand fallback (see Q4 and Q15).**
 - **A3. Sealed marker trait.** Private marker like
   `trait MultiBrand: Sealed` implemented by multi-brand concrete
   types, restructuring the blanket around it. _Trade-off:_ adds
@@ -560,28 +581,59 @@ for the decision-maker, not commitments.
 
 **Q4. Val/Ref dispatch as a second selection axis.**
 
-_Finding (POC): type-level validated; dispatch-level untested._ A
-`&T` blanket for `Slot` lets `slot_map(f, &fa)` resolve the brand
-through a reference for both single-brand and multi-brand types. The
-POC's `MapDispatch` for `&T` uses Clone rather than the production
-`FunctorDispatch`/`RefFunctor` split, so full Val/Ref composition
-with `Slot`'s brand axis remains unverified.
+_Finding (POC): partial - Val works, Ref works for single-brand
+types only, Ref + multi-brand does not compose with inference-based
+`map`._
+
+The second POC
+([slot_valref_poc.rs](../../../fp-library/tests/slot_valref_poc.rs))
+combined Slot with the production `FunctorDispatch` + Val/Ref
+`Marker` in a single inference-based `map_via_slot` signature. The
+results:
+
+- Val + single-brand (Option, Vec): works.
+- Val + multi-brand (Result with annotated closure): works.
+- Ref + single-brand (&Option, &Vec, &Lazy): works.
+- Ref + multi-brand (`&Result<i32, String>` with `|x: &i32| ...`):
+  **does not compile.** E0283 ambiguity: Rust reports "multiple
+  impls satisfying `{closure}: FunctorDispatch<..., &Result<i32,
+String>, _>` found" and cannot propagate the closure's `&A`
+  constraint to commit to a Brand. The Val-case analog works even
+  though it has the same structural ambiguity, which suggests
+  Rust's trait solver handles the reference indirection differently
+  from direct value typing.
+- Explicit-brand fallback (Q15 prototype): works for **all** cases,
+  including Ref + multi-brand, because the turbofish pins Brand
+  and removes the ambiguity entirely.
 
 Options:
 
-- **a) Second POC before phase 1.** Validate the full
-  `FunctorDispatch` + `Marker` + `Slot` composition in a targeted
-  prototype. _Trade-off:_ short up-front cost; removes uncertainty
-  before any production work.
-- **b) Validate during phase 1 implementation,** with a fallback of
-  routing Ref dispatch separately if composition fails.
-  _Trade-off:_ faster start; risk of mid-phase redesign if the
-  composition doesn't work.
-- **c) Assume composition works.** _Trade-off:_ fastest; highest
-  risk.
+- **a) Accept the inference-level limitation.** Inference-based
+  `map` works for Val all-cases and Ref single-brand. Ref +
+  multi-brand requires `explicit::map::<Brand, ...>` (the
+  Slot-bounded variant validated under Q15). _Trade-off:_ Ref
+  multi-brand loses the inference ergonomics; users learn one
+  consistent fallback rule; the underlying inference problem
+  affects only this narrow case.
+- **b) Redesign the Ref dispatch trait** to key differently on `FA`
+  so Rust's solver can commit Brand before checking the `Fn(&A)`
+  constraint. _Trade-off:_ requires changes to `FunctorDispatch`
+  itself (or a sibling trait) and is speculative without further
+  prototyping.
+- **c) Split Val and Ref into separate Slot-bounded functions.**
+  Inference-based `map(f, fa)` routes to `Val` only; a separate
+  `ref_map(f, fa)` or `map_ref(f, fa)` handles `&fa`.
+  _Trade-off:_ two inference entry points (asymmetric with today's
+  unified `map`); Ref multi-brand gains inference support if this
+  factoring sidesteps the solver issue.
 
-_Recommendation:_ **a).** Low cost, eliminates the remaining
-POC-reachable uncertainty. Also listed as workflow note 8.
+_Recommendation:_ **a) combined with Q15 option b.** The POC shows
+that the explicit-brand path with a Slot bound works for every case
+including Ref multi-brand. Accepting the inference-level limitation
+leaves a clean story: inference for everything the solver can
+handle, explicit turbofish for the residual Ref multi-brand case
+(and for the diagonal). Reconsider if option c proves cheap during
+phase 1.
 
 **Q5. Diagnostic wording precision.**
 
@@ -773,6 +825,14 @@ candidates: `#[multi_brand]` (affirms what is true), or
 
 **Q15. `explicit::` module reorganization under Slot.**
 
+_Finding (POC): option b validated._ The second POC
+([slot_valref_poc.rs](../../../fp-library/tests/slot_valref_poc.rs))
+prototyped a `map_explicit` variant with a Slot bound and
+turbofish-pinned Brand. It compiles and works for every tested
+case, **including Ref + multi-brand** (which fails under inference
+see Q4). Pinning Brand removes the trait-selection ambiguity that
+defeats the inference-based path.
+
 Under A2, `explicit::` still exists for the diagonal case and for
 deliberate explicit-brand usage. Today it dispatches through direct
 Brand+FA. Should it route through Slot internally?
@@ -783,14 +843,20 @@ Options:
   signature.** _Trade-off:_ no churn for existing users; two
   dispatch pipelines coexist internally.
 - **b) Rewrite `explicit::map` to bound on Slot,** with Brand
-  pinned via turbofish: `explicit::map::<Brand>(f, fa)`.
-  _Trade-off:_ unifies dispatch; the turbofish surface contracts
-  (fewer `_, _, _` placeholders).
+  pinned via turbofish: `explicit::map::<Brand, _, _, _, _>(f, fa)`.
+  _Trade-off:_ unifies dispatch; the turbofish surface stays the
+  same shape (Brand + inference placeholders for A, B, FA, Marker)
+  but the function becomes the canonical fallback for every case
+  inference cannot handle (including Ref + multi-brand per Q4).
+  **POC-validated.**
 - **c) Remove `explicit::` entirely.** _Trade-off:_ largest
   breakage; probably too far even pre-1.0.
 
-_Recommendation:_ **b).** Unified dispatch is cleaner; the user-facing
-turbofish improvement is a modest but genuine ergonomic win.
+_Recommendation:_ **b).** Unified dispatch is cleaner; the
+Q4-identified Ref + multi-brand case has no inference path that
+works on stable rustc, so `explicit::` carries genuine value as the
+universal fallback. Making it Slot-bounded keeps the code paths
+consistent.
 
 **Q16. Compile-time regression risk from per-brand Slot generation.**
 
@@ -867,9 +933,11 @@ to design decisions about what to build.
    regressions from the plan's stated capability.
 
 8. **Run a second POC for Val/Ref + FunctorDispatch + Slot
-   composition** (Q4). Before phase 1 implementation, validate that
-   Slot's brand-dispatch axis composes with FunctorDispatch's
-   Val/Ref Marker axis in a single signature.
+   composition** (Q4). _Done._
+   [slot_valref_poc.rs](../../../fp-library/tests/slot_valref_poc.rs)
+   combines Slot (as a pure marker, per blocker 3's caveat) with
+   the production `FunctorDispatch` and Val/Ref `Marker`. Findings
+   absorbed into Q4 and Q15.
 
 9. **Benchmark compile-time impact** of per-brand Slot generation
    as part of phase 1 acceptance (Q16). Detects regressions early
