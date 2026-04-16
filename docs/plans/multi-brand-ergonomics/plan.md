@@ -426,6 +426,176 @@ required.
    promoted to a proper integration test or removed once the real
    implementation subsumes it.
 
+## Pending review
+
+This section consolidates items flagged during plan review that have
+not yet been decided. Each entry lists the concern, the approaches
+available, and the trade-offs; the appropriate response is for later
+discussion.
+
+### Blockers
+
+Items that could invalidate portions of the plan if they do not
+behave as assumed. All three share a common mitigation: extend the
+POC to cover them before committing to the current design.
+
+1. **Coherence between the blanket impl and direct `Slot` impls.**
+   The blanket `impl<FA: InferableBrand_*> Slot_*<FA::Brand, A> for FA`
+   is keyed on a where-clause bound; Rust's coherence checker must
+   prove that no concrete type could satisfy both the blanket and a
+   direct impl. Multi-brand concrete types (like `Result<_, _>`)
+   deliberately do not implement `InferableBrand_*`, but coherence
+   may or may not accept this argument through the where-clause. The
+   POC did not test the blanket + direct combination.
+
+2. **Lifetime-generic GAT behavior.** The production `Slot` for
+   `Kind_cdc7cd43dac7585f` has `'a` in the trait and in the GAT
+   (`type Out<B: 'a>: 'a`). The POC used `'static` throughout.
+   Lifetime-generic GATs have known edge cases around inference and
+   normalization that `'static` GATs do not.
+
+3. **Return type computation through `Slot::Out<B>`.** `map`'s return
+   type under the new design is
+   `<FA as Slot_*<'a, Brand, A>>::Out<B>` where `Brand` is itself
+   inferred. Rust sometimes fails to normalize associated types when
+   multiple inference steps chain through a single trait projection.
+   The existing `map` routes through InferableBrand then Kind, a
+   shallower path. Whether the new path normalizes at every real
+   call site is unverified.
+
+### Additional open questions
+
+Items identified during plan review, not listed in the Open questions
+section above.
+
+4. **Partial-rollout inconsistency during phase 1.** Phase 1
+   unblocks `map` for multi-brand types; phase 3 extends the same to
+   `bind`, `fold_*`, `traverse`, `lift2`, etc. Between phases the
+   library is inconsistent: multi-brand `map` works, multi-brand
+   `bind` still fails. Users may reasonably question the asymmetry.
+
+5. **Val/Ref dispatch as a second selection axis.**
+   `FunctorDispatch`'s `Marker` parameter is resolved via trait
+   selection keyed on the closure input type. `Slot`'s `Brand`
+   parameter is resolved via trait selection keyed on `(FA, A)`.
+   Composing two trait-selection axes in one signature is more
+   complex than today's single-axis InferableBrand dispatch. The
+   intersection (`map(|x: &i32| ..., &Ok(5))` picking the correct
+   Ref + Brand combination) is assumed but not validated.
+
+6. **Closure-annotation fragility.** Today's multi-brand pattern is
+   `explicit::map::<Brand, _, _, _, _>(|x| ..., ok)` — the brand
+   turbofish pins `A`, so the closure can be unannotated. Under
+   Slot-based map, `A` is driven by the closure. Writing
+   `map(|x| x + 1, Ok::<i32, String>(5))` without annotating `x`
+   would fail. This is a new annotation requirement for multi-brand
+   types; the plan states it but does not quantify impact.
+
+7. **Diagnostic routing between InferableBrand and Slot.**
+   InferableBrand retains its `on_unimplemented` message ("does not
+   have a unique brand"). Slot gets a new one ("closure input could
+   not disambiguate"). In a failure scenario, which diagnostic fires
+   depends on which trait Rust reports against. Possibly both,
+   possibly neither. Unclear without prototyping.
+
+8. **Do-notation macro behavior (`m_do!`, `a_do!`).** These desugar
+   to chained `bind`/`apply` calls. After phase 3, their closures
+   will require annotation when operating on multi-brand types. The
+   macros themselves may need an audit for how types propagate
+   through their expansions.
+
+9. **Downstream crate impact.** The `#[no_inferable_brand]`
+   attribute's semantics change (previously: suppress InferableBrand
+   generation; after: suppress InferableBrand + emit direct Slot).
+   Downstream crates using this attribute experience a semantic
+   shift in a public macro API.
+
+### Design decisions with trade-offs
+
+Decisions that the plan currently answers one way but where
+alternatives exist. Listed with options and trade-offs; no choice is
+locked in.
+
+**Decision A: Coherence approach.**
+
+- Option A1: Trust Rust's where-clause coherence with blanket +
+  direct impls. Simplest if it works; catastrophic failure mode if
+  not.
+- Option A2: No blanket; generate direct `Slot` impls for every
+  brand (single- and multi-). Single-brand types duplicate the
+  effect of the blanket. Coherence is trivially safe (each impl is
+  keyed on a distinct brand). Cost: more generated code, zero
+  runtime impact. InferableBrand becomes purely the
+  "unique-brand assertion" trait with no dispatch role.
+- Option A3: Sealed marker trait. Introduce a private marker like
+  `trait MultiBrand: Sealed` implemented by multi-brand concrete
+  types; restructure the blanket around it. Adds complexity for
+  limited gain.
+- Option A4: Invert the design. Make `Slot` primary; derive
+  InferableBrand from uniqueness of Slot resolution. Rewrites more
+  of the existing brand machinery. High risk.
+
+**Decision B: Phase structure.**
+
+- Option B1: Keep phases separate (current plan). Simplest PR
+  sequence. Worst user-facing experience between phase 1 and phase 3
+  releases.
+- Option B2: Bundle phase 1 and phase 3 into a single release.
+  Larger change per release but consistent public API throughout.
+- Option B3: Internally phased, released together. Phase 1 as a
+  testbed; phase 3 extends mechanically; release only after both
+  stabilize. Users never see the intermediate state.
+
+**Decision C: Annotation requirement UX.**
+
+- Option C1: Accept the requirement. Document prominently that
+  multi-brand types need closure annotations under the inference
+  path; `explicit::` remains as the no-annotation alternative via
+  turbofish.
+- Option C2: Provide alternative signatures that accept annotation
+  differently. Unclear how this would look; probably not worth
+  pursuing.
+
+### Tentative mitigations suggested during review
+
+Suggestions to evaluate during decision-making. Not authoritative;
+listed as starting points for discussion.
+
+1. **Extend the POC before committing to implementation.** Add
+   cases for the three blockers specifically: blanket + direct-impl
+   coherence, full lifetime-parameterized Slot signature, and
+   return-type normalization at a realistic call site. The POC is
+   small; additional cases are cheap insurance.
+
+2. **Document a coherence fallback.** If the extended POC shows the
+   blanket approach (option A1) does not work, switch to option A2
+   (generate direct Slot for every brand). Making the fallback
+   explicit in the plan avoids a crisis discovered at implementation
+   time.
+
+3. **Release phase 1 and phase 3 together (option B3).** Implement
+   phase 1 first as a testbed, extend to other closure-taking
+   operations before publishing, and release only after both are
+   stable.
+
+4. **Audit do-notation before phase 3.** Verify that `m_do!` and
+   `a_do!` can produce well-typed code for multi-brand types with
+   reasonable closure annotations. Add doc-level guidance if
+   needed.
+
+5. **Add a migration note for downstream crates.** Changelog entry
+   and doc update explaining the `#[no_inferable_brand]` semantic
+   shift when the release ships.
+
+6. **Defer plan Open Questions 4 and 5** (diagnostic wording, apply
+   via Fn payload) until there is a working phase 1 prototype;
+   decide with evidence rather than upfront.
+
+7. **Treat the POC as specification, not throwaway code.** Every
+   case the POC compiles should continue to compile in the
+   production implementation. Regressions from POC behavior are
+   regressions from the plan's stated capability.
+
 ## Implementation phasing
 
 ### Phase 1: Slot trait and map integration
