@@ -421,24 +421,29 @@ other items remain for later discussion.
 
 ### POC findings (summary)
 
-Five POCs have been run against stable rustc:
+Seven POCs have been run against stable rustc:
 
 1. [slot_production_poc.rs](../../../fp-library/tests/slot_production_poc.rs) - Slot type-level validation with a bespoke `MapDispatch` shim.
 2. [slot_valref_poc.rs](../../../fp-library/tests/slot_valref_poc.rs) - Slot composition with the production `FunctorDispatch` + Val/Ref `Marker`.
 3. [slot_select_brand_poc.rs](../../../fp-library/tests/slot_select_brand_poc.rs) - attempted to project Brand as an associated type keyed on `(FA, A)`; rejected by coherence for multi-brand types.
 4. [slot_assoc_marker_poc.rs](../../../fp-library/tests/slot_assoc_marker_poc.rs) - attempted to move Marker from trait parameter to associated type of the dispatch trait; rejected by coherence for the Val/Ref impl combination.
 5. [slot_marker_via_slot_poc.rs](../../../fp-library/tests/slot_marker_via_slot_poc.rs) - **successfully unifies Val and Ref dispatch including Ref + multi-brand** by lifting `Marker` into Slot as an associated-type projection keyed on FA's reference-ness (blanket for `&T` sets `type Marker = Ref`; direct impls for owned types set `type Marker = Val`). All four cases (Val/Ref x single/multi-brand) work in a single `map(f, fa)` signature.
+6. [slot_arity2_poc.rs](../../../fp-library/tests/slot_arity2_poc.rs) - **validates the Marker-via-Slot pattern at arity 2** for `Bifunctor::bimap` / `RefBifunctor::ref_bimap`. All Val and Ref cases for `ResultBrand` pass in a unified `bimap(fg, fa)` signature. Confirms the trait family generalises across Kind arities.
+7. [slot_bind_poc.rs](../../../fp-library/tests/slot_bind_poc.rs) - **validates the Marker-via-Slot pattern for `Semimonad::bind` / `RefSemimonad::ref_bind`**, which has a closure signature that returns a container of the same brand (`Fn(A) -> Of<B>`). All 14 tests pass, including multi-brand Val and Ref bind via `ResultErrAppliedBrand<E>`. Confirms the pattern generalises beyond `map` to operations with different closure shapes.
 
 Findings:
 
-| Item                              | Finding                                                                                                                                                                                                                                                                                                                                                                        |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Blocker 1 (blanket + direct)      | **Invalidated.** Option A1 fails with E0119. Option A2 works cleanly.                                                                                                                                                                                                                                                                                                          |
-| Blocker 2 (lifetime-generic GAT)  | **Validated** (under option A2).                                                                                                                                                                                                                                                                                                                                               |
-| Blocker 3 (return-type normalise) | **Validated for standalone Slot; invalidated when combined with `FunctorDispatch` return type.** Fix: Slot must be a pure marker (no `Out<B>` GAT); return type uses `Apply!(<Brand as Kind>::Of<'a, B>)`.                                                                                                                                                                     |
-| Q4 (Val/Ref composition)          | **Unified signature: works for all four cases** when Marker is lifted into Slot as an associated-type projection (POC 5). Without that lift, unified signature is partial: Val all-cases and Ref single-brand work; Ref + multi-brand fails (E0283). Split signature (Val-only or Ref-only) also works for every case but loses the unified Val/Ref dispatch users have today. |
-| Q9 (closure annotations)          | **Validated.** Closure-input annotation required for multi-brand; return-type-only does not suffice.                                                                                                                                                                                                                                                                           |
-| Q15 (explicit::map via Slot)      | **Validated.** Turbofish-pinned Brand + Slot bound works for every case including Ref + multi-brand.                                                                                                                                                                                                                                                                           |
+| Item                                  | Finding                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Blocker 1 (blanket + direct)          | **Invalidated.** Option A1 fails with E0119. Option A2 works cleanly.                                                                                                                                                                                                                                                                                                          |
+| Blocker 2 (lifetime-generic GAT)      | **Validated** (under option A2).                                                                                                                                                                                                                                                                                                                                               |
+| Blocker 3 (return-type normalise)     | **Validated for standalone Slot; invalidated when combined with `FunctorDispatch` return type.** Fix: Slot must be a pure marker (no `Out<B>` GAT); return type uses `Apply!(<Brand as Kind>::Of<'a, B>)`.                                                                                                                                                                     |
+| Q4 (Val/Ref composition)              | **Unified signature: works for all four cases** when Marker is lifted into Slot as an associated-type projection (POC 5). Without that lift, unified signature is partial: Val all-cases and Ref single-brand work; Ref + multi-brand fails (E0283). Split signature (Val-only or Ref-only) also works for every case but loses the unified Val/Ref dispatch users have today. |
+| Q9 (closure annotations)              | **Validated.** Closure-input annotation required for multi-brand; return-type-only does not suffice.                                                                                                                                                                                                                                                                           |
+| Q15 (explicit::map via Slot)          | **Validated.** Turbofish-pinned Brand + Slot bound works for every case including Ref + multi-brand.                                                                                                                                                                                                                                                                           |
+| Arity-2 Slot (POC 6)                  | **Validated.** Slot2 with Brand trait-param + Marker assoc-type works for `bimap` / `ref_bimap` at arity 2. Pattern generalises across Kind arities.                                                                                                                                                                                                                           |
+| Non-map operations (POC 7)            | **Validated.** Slot-based `bind` / `ref_bind` works for single-brand (Option, Vec, Lazy) and multi-brand (Result via `ResultErrAppliedBrand<E>`) in a unified signature. Pattern generalises across closure shapes (closure-returns-container).                                                                                                                                |
+| Path 3 (Slot replaces InferableBrand) | **Feasibility established** via POCs 5, 6, 7. The mechanism validated at arity 1 for `map` generalises to arity 2 and to `bind`. Remaining Path 3 work is implementation (macro generation, migration), not feasibility.                                                                                                                                                       |
 
 Items not addressed by POC (diagnostic routing, apply-side CDI,
 partial-rollout UX, do-notation, downstream impact, testing strategy,
@@ -575,6 +580,87 @@ Options:
 _Recommendation:_ **C1.** The requirement follows directly from how
 closure-directed inference works (validated by POC). C2 has no
 concrete shape and cannot bypass Rust's type inference rules.
+
+**Decision D: Trait consolidation.**
+
+_Status:_ open; recommendation supported by POCs 5, 6, 7.
+
+Under A2 (direct `Slot` impls for every brand, chosen via Decision A),
+the library ends up with two parallel trait families expressing closely
+related reverse-mapping information:
+
+- `InferableBrand_*<'a, A>` with `type Brand: Kind` - asserts unique
+  brand for FA, provides `FA::Brand` as an associated-type shortcut.
+- `Slot_*<'a, Brand, A>` with `type Marker` - provides closure-directed
+  multi-brand dispatch with Marker projection.
+
+For single-brand types both traits are implemented; for multi-brand
+types only Slot is (per `#[no_inferable_brand]`). This raises the
+question of whether to keep both or consolidate.
+
+Options:
+
+- **D1. Keep both trait families** (current plan baseline).
+  `InferableBrand` continues asserting uniqueness and providing the
+  `FA::Brand` shortcut; Slot handles dispatch. _Trade-off:_ clear
+  separation of roles; more machinery (two trait families, two macro
+  generation paths); some structural redundancy since Slot's
+  single-brand impls already carry the same information InferableBrand
+  does. Library-internal code that bounds on InferableBrand to access
+  `FA::Brand` continues to work unchanged.
+- **D2. Reshape `InferableBrand` to absorb Slot's role.** Change
+  `InferableBrand` to carry Brand as a trait parameter and Marker as
+  an associated type (same shape as Slot). Multi-brand types get
+  multiple `InferableBrand` impls. _Trade-off:_ one trait family
+  instead of two; breaking change to a central public trait. Loses
+  `FA::Brand` as an associated-type shortcut (Brand must be threaded
+  explicitly). Pre-1.0 stance makes the breakage acceptable; the
+  name "InferableBrand" becomes slightly misleading for multi-brand
+  types (they are inferable, just via multiple valid impls).
+- **D3. Eliminate `InferableBrand`; introduce `Slot` as its full
+  replacement.** Mechanically equivalent to D2; the difference is
+  that the new trait gets a fresh name (`Slot`) rather than reusing
+  `InferableBrand`. _Trade-off:_ same as D2 mechanically. The new
+  name better describes what the trait does (associates a position
+  in FA with a brand/marker pair) without carrying the "inferable"
+  baggage. Single-brand types have one Slot impl (inference
+  succeeds without closure annotation); multi-brand types have
+  multiple (inference needs closure annotation to disambiguate).
+  POCs 5, 6, 7 use this shape directly.
+
+_Recommendation:_ **D3.** Reasons:
+
+1. Single trait family is simpler to document, generate, and reason
+   about than two parallel families with overlapping purposes.
+2. Pre-1.0 stance specifically invites this kind of consolidation;
+   the cost is one-time internal churn.
+3. No real functionality is lost. The "unique brand for FA" property
+   becomes "Slot has a unique impl for FA at this arity" - still
+   expressible but not as a declarative trait bound. A thin
+   uniqueness-assertion marker can be added later if demand surfaces.
+4. The `impl_kind!` macro has less work: generate one trait family,
+   not two.
+5. Future maintainers see one mechanism for reverse brand lookup, not
+   two parallel ones.
+6. POCs 5, 6, 7 demonstrate the unified mechanism works for `map`,
+   `bimap`, and `bind` across all four Val/Ref x single/multi-brand
+   cases. The feasibility is established.
+
+Implementation impact under D3:
+
+- Remove `InferableBrand_*` trait families from `kinds/`.
+- Replace with `Slot_*` trait families (one per Kind arity).
+- Every brand gets direct `Slot` impls (A2 choice from Decision A);
+  single-brand types have one per arity, multi-brand have multiple.
+- `&T` blanket provides `type Marker = Ref`; direct impls provide
+  `type Marker = Val`.
+- Dispatch trait bounds change from `FA: InferableBrand` to
+  `FA: Slot<Brand, A>` with Brand threaded through explicitly.
+- The `#[no_inferable_brand]` attribute becomes `#[multi_brand]` or
+  similar (see Q14 for naming).
+- Inference wrapper signatures (`map`, `bind`, `bimap`, etc.) gain a
+  Brand type parameter and use `<FA as Slot<...>>::Marker` for Val/Ref
+  routing.
 
 ### Open questions
 
