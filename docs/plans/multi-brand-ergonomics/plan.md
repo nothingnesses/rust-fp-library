@@ -198,15 +198,21 @@ Seven POCs on stable rustc establish feasibility:
 | [slot_marker_via_slot_poc.rs](../../../fp-library/tests/slot_marker_via_slot_poc.rs) | **Adopted design.** Marker projected via Slot closes Ref + multi-brand gap in unified signature.                                                            |
 | [slot_arity2_poc.rs](../../../fp-library/tests/slot_arity2_poc.rs)                   | Pattern generalises to arity 2 (bimap).                                                                                                                     |
 | [slot_bind_poc.rs](../../../fp-library/tests/slot_bind_poc.rs)                       | Pattern generalises to `bind` (closure returns container); single-brand and multi-brand both work.                                                          |
+| [slot_apply_poc.rs](../../../fp-library/tests/slot_apply_poc.rs)                     | Pattern generalises to `apply` (two containers sharing a Brand); Brand inferred from `ff`'s Fn-payload and `fa`'s value simultaneously; multi-brand works.  |
 
 Key generalisation findings:
 
 - Trait family works across Kind arities (POC 6).
 - Pattern works across closure shapes: `Fn(A) -> B` for Functor and
-  `Fn(A) -> Of<B>` for Semimonad (POC 7).
+  `Fn(A) -> Of<B>` for Semimonad (POC 7). `apply` has no direct
+  closure but works via the Fn payload inside `ff` (POC 8).
 - Multi-brand coverage includes `Result` via `ResultErrAppliedBrand<E>`
-  for both Functor and Semimonad (the latter already existed in the
-  library matching PureScript's `Bind (Either e)`).
+  for Functor, Semimonad, and Semiapplicative (the latter two already
+  existed in the library matching PureScript's `Bind (Either e)` and
+  `Apply (Either e)`).
+- Two Slot bounds sharing the same Brand parameter (POC 8) resolve
+  correctly via the solver - Brand commits from the intersection of
+  both bounds.
 
 ## Decisions
 
@@ -319,18 +325,20 @@ closure-input ambiguities without user-facing benefit.
 
 ### Operations that cannot use Slot inference
 
-Operations without a closure cannot drive brand disambiguation from
-closure input. They continue to require `explicit::` for multi-brand
-types (mechanism unchanged from today; Slot just gives them a unique
-dispatch path):
+Operations without any payload that exposes a brand-disambiguating
+type cannot drive Slot-based inference. They continue to require
+`explicit::` for multi-brand types:
 
 - `Pointed::pure` (return-type inference problem).
-- `Alt::alt`, `Plus::empty` (no closure).
-- `Traversable::sequence` (no closure).
+- `Alt::alt`, `Plus::empty` (no payload that mentions A).
+- `Traversable::sequence` (no closure; the inner Brand is inferred
+  from the container shape but the outer Brand may remain ambiguous
+  for multi-brand outer types).
 
-`Semiapplicative::apply` has no direct closure but has an
-`Fn(A) -> B` payload inside `ff`; whether to drive Slot from that is
-Q7, deferred.
+`Semiapplicative::apply` has no direct closure but does have an
+`Fn(A) -> B` payload inside `ff`. Q7 / POC 8 confirms Slot can
+drive inference from that payload; apply is therefore moved into
+the inference-supported set in phase 2.
 
 ## Remaining open questions
 
@@ -379,39 +387,51 @@ diagnostic. Decide from observed behaviour in phase 1.
 
 ### Q7: Apply-side closure-directed inference
 
-`Semiapplicative::apply` takes no outer closure, but `ff` carries
-an `Fn(A) -> B` payload. In principle the payload's function type
-could drive Slot dispatch.
+_Finding (POC 8): option a) validated._
+`Semiapplicative::apply` takes two containers sharing a Brand: `ff`
+holding a function and `fa` holding a value. [POC 8](../../../fp-library/tests/slot_apply_poc.rs)
+confirmed that Slot-based inference works with two simultaneous Slot
+bounds sharing the Brand parameter. All 7 cases pass, including
+multi-brand Result with type-changing transformations and
+short-circuit on either side.
 
 Approaches:
 
-- **a) Implement `apply` with CDI via the `Fn` payload.** Key Slot
-  on `(FA, payload_input_type)` where the payload is an
-  `Fn(A) -> B`. A multi-brand `apply` call would infer Brand from
-  the combination of `ff`'s payload input and `fa`'s container
-  shape.
-  _Trade-off:_ uniform dispatch experience across all closure-taking
-  operations; non-trivial trait-resolution machinery - the payload
-  is nested inside the container, which complicates the Slot bound.
-  Feasibility should be validated by a targeted POC before
-  committing.
+- **a) Implement `apply` with CDI via the `Fn` payload.** Two
+  Slot bounds share the Brand parameter:
+  - `FF: Slot<Brand, <FnBrand as CloneFn>::Of<A, B>>` keys on the
+    function payload type inside `ff`.
+  - `FA: Slot<Brand, A>` keys on the value type inside `fa`.
+    Rust's solver intersects the two bounds to commit a unique Brand.
+    _Trade-off:_ uniform dispatch experience across every
+    closure-taking operation; the two-bound resolution has a modestly
+    subtle inference shape but POC 8 confirms it works on stable
+    rustc. Macro generation follows the same pattern as `map` and
+    `bind`.
 - **b) Keep `apply` explicit-only for multi-brand.** `apply`
   continues to require `explicit::apply::<Brand, ...>` on multi-brand
-  types; single-brand types work via inference as today.
+  types.
   _Trade-off:_ simplest; surface asymmetry - users who rely on
   `apply` on multi-brand types hit `explicit::` while `map`/`bind`
   do not.
-- **c) Defer the decision entirely.** Ship phases 1/2 with `apply`
-  untouched (it currently uses InferableBrand at arity 1, which is
-  gone under D3; at minimum, rebind to Slot but keep the "no inference
-  for multi-brand" behaviour). Revisit in a follow-up plan.
-  _Trade-off:_ same end state as b) for now; leaves room for a
-  cleaner eventual answer.
+- **c) Defer the decision.** Ship with `apply` unchanged; revisit
+  in a follow-up plan.
+  _Trade-off:_ leaves `apply` inconsistent with `map` and `bind` for
+  an indefinite period without clear benefit, now that option a) is
+  validated.
 
-_Recommendation:_ **c)**, escalating to a) if a phase 2 prototype
-shows the Fn-payload path is tractable. Deferring is safer than
-committing to a) without evidence or to b) as a permanent decision
-that may turn out to be suboptimal.
+_Recommendation:_ **a)**. POC 8 invalidates the original deferral
+rationale. Since Slot-based inference works for `apply`, extending
+the consistent inference experience to every operation is preferable
+to the surface asymmetry of b) or the lack of benefit of c). Include
+`apply` (and `ref_apply`) in phase 2 alongside `bind`, `bimap`,
+`fold_*`, etc.
+
+One remaining uncertainty: the POC only exercises Val
+(`Semiapplicative::apply`). `RefSemiapplicative::ref_apply` follows
+the same pattern but was not POC'd. Plan to validate during phase 2
+implementation; if an unexpected issue surfaces, fall back to a)
+for Val and b) for Ref.
 
 ### Q10: Do-notation macro behaviour
 
@@ -534,6 +554,8 @@ released together (Decision B3).
 Repeat the phase 1 rebinding for:
 
 - `bind`, `bind_flipped`, `join`, `compose_kleisli*`.
+- `apply`, `ref_apply`, `apply_first`, `apply_second` (Q7; Slot keyed
+  on the Fn payload type inside `ff` + the value type inside `fa`).
 - `bimap` at arity 2.
 - `fold_left`, `fold_right`, `fold_map`.
 - `traverse` (outer brand only).
@@ -541,7 +563,9 @@ Repeat the phase 1 rebinding for:
 - `lift2`.
 
 Each is a mechanical analogue of phase 1 for its dispatch trait.
-Audit do-notation macros (Q10).
+Audit do-notation macros (Q10). Validate `ref_apply` against the
+same POC 8 pattern early; if an unexpected issue surfaces, fall
+back to explicit-only for the Ref case.
 
 ### Phase 3: Diagnostic polish and docs
 

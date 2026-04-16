@@ -1,33 +1,47 @@
-// Fifth Slot POC: tests whether lifting `Marker` into Slot as an
-// associated-type projection (keyed on FA's reference-ness) can break
-// the Val/Ref cross-competition that blocks Ref + multi-brand in the
-// unified signature.
+// Marker-via-Slot POC (adopted design).
 //
-// Earlier findings:
-//   - Slot with Brand as a trait PARAMETER (POC 1, POC 2): coherence
-//     OK, but unified Val/Ref signature fails for Ref + multi-brand
-//     because FunctorDispatch's free-parameter `Marker` leaves Val and
-//     Ref impls as parallel candidates until Brand commits, and Brand
-//     cannot commit because A is still unresolved.
-//   - SelectBrand with Brand as an associated type (POC 3): coherence
-//     rejects the two multi-brand impls.
-//   - AssocMarkerDispatch with Marker as an associated type of the
-//     dispatch trait (POC 4): coherence rejects Val and Ref impls.
-//   - Pinning Marker to Ref (probe in POC 2): works but costs the
-//     unified signature.
+// -- Background --
 //
-// Hypothesis tested here: Slot gets an associated `type Marker`. The
-// blanket for references sets `type Marker = Ref`; the direct impls
-// for owned types set `type Marker = Val`. Marker is then projected
-// through `<FA as Slot<...>>::Marker` in the map signature, so it
-// commits as soon as FA is known (from its reference-ness alone),
-// without needing (Brand, A) to be resolved first. Val vs Ref
-// competition in FunctorDispatch is thereby eliminated because Marker
-// is no longer a free trait parameter at the call site.
+// The library's `FunctorDispatch<..., Marker>` trait has two impls:
+// Val (owned container, `Fn(A) -> B`) and Ref (borrowed container,
+// `Fn(&A) -> B`). When combined with a Slot trait that has Brand as
+// a free trait parameter, the solver sees both Val and Ref impls as
+// candidates. This "cross-competition" blocks Ref + multi-brand
+// inference because Brand cannot commit while Marker is also free.
 //
-// If this works, Ref + multi-brand is unblocked for the unified
-// signature and all four cases (Val/Ref x single/multi-brand) work
-// through a single `map(f, fa)` entry point.
+// Two alternative approaches to resolve this were tried and failed:
+//   - SelectBrand (`slot_select_brand_poc.rs`): project Brand as an
+//     associated type keyed on (FA, A). Coherence rejects multi-brand
+//     impls because their trait-argument patterns are structurally
+//     identical.
+//   - AssocMarkerDispatch (`slot_assoc_marker_poc.rs`): make Marker an
+//     associated type of the dispatch trait. Coherence rejects the
+//     Val/Ref impls because both Self-type patterns contain
+//     associated-type projections the checker can't prove non-overlap
+//     for.
+//
+// -- Hypothesis --
+//
+// Attach Marker as an associated type of SLOT (not of the dispatch
+// trait). The `&T` blanket sets `type Marker = Ref`; direct impls
+// for owned types set `type Marker = Val`. The inference wrapper
+// projects `<FA as Slot<...>>::Marker` so that Marker commits from
+// FA's reference-ness alone, without needing (Brand, A) to be
+// resolved. Once Marker commits, FunctorDispatch picks the unique
+// matching Val or Ref impl; the closure's Fn signature pins A; and
+// Slot's (Brand, A) ambiguity resolves from there.
+//
+// Coherence is not an issue because Slot already has distinct
+// trait-argument patterns (the Brand parameter differs between
+// multi-brand impls). The associated-type Marker rides alongside
+// Brand without being the sole disambiguator.
+//
+// -- Finding --
+//
+// CONFIRMED. All 9 tests pass on stable rustc, covering the full
+// Val/Ref x single/multi-brand matrix including Ref + multi-brand
+// (the critical case that failed in earlier approaches). This is
+// the adopted design for the unified inference wrapper.
 
 #![allow(unused_imports, reason = "Kind is used inside Apply! macro expansion")]
 

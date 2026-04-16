@@ -1,58 +1,51 @@
-// Second Slot POC: validates composition with the library's production
-// `FunctorDispatch` trait and Val/Ref `Marker` dispatch axis.
+// Slot + production FunctorDispatch composition POC.
 //
-// Background: `FunctorDispatch<'a, Brand, A, B, FA, Marker>` is the
-// library's existing trait for routing `Fn(A) -> B` closures to
-// `Functor::map` (Val marker) and `Fn(&A) -> B` closures to
-// `RefFunctor::ref_map` (Ref marker). Today it is bound by
-// `FA: InferableBrand` so that the Brand is resolved from a
-// concrete container with a unique brand. Multi-brand containers
-// (such as `Result<A, E>`) do not have an `InferableBrand` impl and
-// fall through to an explicit-brand turbofish path.
+// -- Background --
 //
-// The sibling `slot_production_poc.rs` validated that a
+// `FunctorDispatch<'a, Brand, A, B, FA, Marker>` is the library's
+// dispatch trait routing `Fn(A) -> B` closures to `Functor::map`
+// (Val marker) and `Fn(&A) -> B` closures to `RefFunctor::ref_map`
+// (Ref marker). Today it is bound by `FA: InferableBrand` so that
+// Brand is committed from a concrete container with a unique brand.
+// Multi-brand containers (e.g., `Result<A, E>`) have no
+// `InferableBrand` impl and fall through to an explicit-brand
+// turbofish path.
+//
+// A separate POC (`slot_production_poc.rs`) validated that a
 // `Slot<Brand, A> for FA` trait with per-brand impls lets closure
-// input types disambiguate the brand - but it stood in for dispatch
-// with a bespoke `MapDispatch` shim. This file composes Slot directly
-// with the production `FunctorDispatch` trait to check whether Slot's
-// brand-inference axis and FunctorDispatch's Val/Ref Marker axis can
-// both be inferred simultaneously from the closure's input type and
-// the container value.
+// input types disambiguate Brand, but it used a bespoke
+// `MapDispatch` shim rather than the production FunctorDispatch. This
+// file composes Slot directly with the production `FunctorDispatch`
+// to check whether Slot's brand-inference axis and FunctorDispatch's
+// Val/Ref Marker axis can both be inferred simultaneously.
 //
-// Expected behaviour if composition works:
-//   map_via_slot(|x: i32| ..., Some(5))                 -> Val, OptionBrand
-//   map_via_slot(|x: &i32| ..., &Some(5))               -> Ref, OptionBrand
-//   map_via_slot(|x: i32| ..., Ok::<i32, String>(5))    -> Val, ResultErrAppliedBrand<String>
-//   map_via_slot(|x: &i32| ..., &Ok::<i32, String>(5))  -> Ref, ResultErrAppliedBrand<String>
-//   map_via_slot(|e: String| e.len(), Err::<i32, String>(..))  -> Val, ResultOkAppliedBrand<i32>
-//   map_via_slot(|e: &String| e.len(), &Err::<i32, String>(..))-> Ref, ResultOkAppliedBrand<i32>
+// -- Findings --
 //
-// Actual findings (see inline comments on each test group):
-//   Val + single-brand:        works.
-//   Val + multi-brand:         works with closure annotation.
-//   Ref + single-brand:        works.
+//   Val + single-brand:        WORKS.
+//   Val + multi-brand:         WORKS with closure annotation.
+//   Ref + single-brand:        WORKS.
 //   Ref + multi-brand (unified
 //      Val+Ref signature):     DOES NOT COMPILE (E0283). The solver
 //                              treats both Val and Ref FunctorDispatch
 //                              impls as candidates until a Marker is
-//                              committed, and cannot commit a Brand
+//                              committed, and cannot commit Brand
 //                              without that.
 //   Ref + multi-brand (Marker
-//      pinned to Ref):         WORKS. A Ref-only variant of
-//                              map_via_slot that hard-codes the Marker
-//                              parameter compiles and runs for
-//                              multi-brand types. See `map_via_slot_ref_only`
-//                              below for the probe that verified this.
-//   Explicit-brand variant:    works for every case including Ref +
+//      pinned to Ref):         WORKS. A Ref-only variant
+//                              (`map_via_slot_ref_only` below) that
+//                              hard-codes Marker = Ref compiles for
+//                              multi-brand types. The failure is a
+//                              Val/Ref cross-competition issue, not a
+//                              Brand-resolution issue.
+//   Explicit-brand variant:    WORKS for every case including Ref +
 //                              multi-brand, because the turbofish pins
-//                              Brand directly (see map_explicit below).
+//                              Brand directly (see `map_explicit`
+//                              below).
 //
-// These results inform two independent design decisions:
-//   (a) whether inference-based `map` should be split into Val- and
-//       Ref-specific entry points (the probe shows splitting removes
-//       the Ref + multi-brand gap), and
-//   (b) whether the `explicit::` family should be rewritten to bound
-//       on Slot with a Brand turbofish.
+// NOTE: the Ref + multi-brand gap was later resolved by a different
+// approach (`slot_marker_via_slot_poc.rs`): lifting Marker into Slot
+// as an associated type so it commits from FA's reference-ness before
+// Brand resolution begins.
 
 #![allow(unused_imports, reason = "Kind is used inside Apply! macro expansion")]
 

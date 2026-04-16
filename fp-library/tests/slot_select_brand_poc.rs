@@ -1,21 +1,22 @@
-// Third Slot POC: tests whether a unified `map` signature can handle
-// Ref + multi-brand by using an associated-type projection for Brand
-// instead of a free trait parameter.
+// Brand-as-associated-type-projection POC (negative result).
 //
-// Earlier POCs established that:
-//   - Slot with Brand as a trait PARAMETER creates Val/Ref cross-
-//     competition in Rust's solver, so Ref + multi-brand fails in a
-//     unified signature.
-//   - Splitting Val and Ref into separate inference functions works but
-//     gives up the single `map` entry point.
+// -- Background --
 //
-// Hypothesis tested: replace the trait-parameter Brand with an
-// ASSOCIATED-TYPE projection keyed on (FA, A). Today's production `map`
-// works because `<FA as InferableBrand>::Brand` is such a projection -
-// Rust commits Brand immediately once FA is known, before FunctorDispatch
-// selection begins. Extending this to key on (FA, A) where A comes from
-// the closure's Fn signature might let multi-brand types share the
-// unified signature.
+// The library's production `map` uses `<FA as InferableBrand>::Brand`
+// (an associated-type projection) to commit the Brand from the
+// container alone, before FunctorDispatch's Val/Ref selection begins.
+// This only works for single-brand types because InferableBrand
+// requires a unique Brand per container type. Multi-brand types have
+// no InferableBrand impl.
+//
+// -- Hypothesis --
+//
+// Replace InferableBrand's single-valued `type Brand` with a trait
+// `SelectBrand<'a, A>` keyed on BOTH (FA, A) - where A comes from the
+// closure's Fn signature. Multi-brand types get one impl per brand,
+// each with A in a different position. Brand is an associated type, so
+// once the closure pins A, Rust projects the unique Brand before
+// FunctorDispatch is considered.
 //
 // ========================================================================
 // FINDING: HYPOTHESIS REJECTED.
@@ -29,34 +30,36 @@
 // Both impls have trait-argument pattern `SelectBrand<'_, A>` for the
 // same Self-type shape `Result<_, _>`. Coherence considers these
 // overlapping because the trait arguments are structurally identical
-// (both have a single type variable `A`); the distinguishing information
-// - which Result slot `A` names - lives only in the Self-type, and
-// coherence checks impl heads globally without caring about that
-// positional detail.
+// (both have a single type variable `A`); the distinguishing
+// information (which Result slot `A` names) lives only in the
+// Self-type, and coherence checks impl heads globally without caring
+// about that positional detail.
 //
-// Why Slot didn't hit this: Slot has Brand as a trait PARAMETER. The two
-// Slot impls are:
+// Why `Slot<Brand, A>` doesn't hit this: Slot has Brand as a trait
+// PARAMETER. The two Slot impls have:
 //
 //     impl Slot<ResultErrAppliedBrand<E>, A> for Result<A, E>
 //     impl Slot<ResultOkAppliedBrand<T>, A> for Result<T, A>
 //
 // Coherence sees different Brand values (`ResultErrAppliedBrand<_>` vs
 // `ResultOkAppliedBrand<_>`) as structurally distinct trait-argument
-// patterns and accepts the impls. The cost is that Brand becomes a
-// separate inference dimension Rust has to solve alongside Marker,
-// which is what causes the Val/Ref cross-competition failure.
+// patterns and accepts the impls.
 //
-// The associated-type projection idea cannot sidestep this trade-off on
-// stable Rust without specialization (or a disambiguating zero-size
-// position token threaded through the trait, which just moves the
-// ambiguity to another layer). The unified `map` signature remains
-// infeasible for Ref + multi-brand via any stable-Rust-only mechanism
-// explored so far.
+// General pattern: on stable Rust, an associated-type projection
+// requires a UNIQUE impl per (Self, trait-args) combination. Multi-brand
+// types need multiple impls with the same (Self-shape, trait-arg-shape),
+// which is only possible if a trait-parameter (like Brand) structurally
+// distinguishes them. An associated type cannot play this role.
 //
-// Kept as a documentation artifact and regression signpost. The impls
-// below do not compile together; the second multi-brand impl is
-// commented out to keep the file in a buildable state while still
-// preserving the structural demonstration.
+// NOTE: the inference concern this POC attempted to address (eagerly
+// committing Brand before FunctorDispatch) was later resolved by a
+// different approach (`slot_marker_via_slot_poc.rs`): lifting Marker
+// into Slot as an associated type, where Slot's Brand parameter
+// provides the structural distinction coherence needs. The Marker
+// projection commits from FA's reference-ness before Brand resolves.
+//
+// Kept as a documentation artifact. The second multi-brand impl is
+// commented out to keep the file in a buildable state.
 
 #![allow(unused_imports, reason = "Kind is used inside Apply! macro expansion")]
 

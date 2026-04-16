@@ -1,29 +1,41 @@
-// Seventh Slot POC: validates that the Marker-via-Slot pattern
-// generalises from `map` (Functor) to `bind` (Semimonad), including
-// for multi-brand types via `ResultErrAppliedBrand<E>`'s existing
-// Semimonad and RefSemimonad impls.
+// Slot-based `bind` (Semimonad) and `ref_bind` (RefSemimonad) POC.
 //
-// POC 5 established the pattern for Functor::map:
-//   - Slot carries Brand as a trait parameter (for coherence).
-//   - Slot carries Marker as an associated-type projection keyed on
-//     FA's reference-ness (for early Marker commitment in dispatch).
-// All four cases (Val/Ref x single/multi-brand) work in a single
-// `map(f, fa)` signature.
+// -- Background --
 //
-// This POC verifies the same pattern applies to `bind`, which has a
-// structurally different signature: the closure returns a container
-// of the same brand (`Fn(A) -> Of<B>` rather than `Fn(A) -> B`).
-// Brand therefore appears in two positions in the signature rather
-// than one.
+// The Slot trait carries Brand as a trait parameter (for coherence)
+// and Marker as an associated type projected from FA's reference-ness
+// (blanket for `&T` -> Ref; direct impls for owned types -> Val).
+// An earlier POC validated this for `Functor::map`, where the closure
+// is `Fn(A) -> B`. This POC validates a structurally different
+// closure shape.
 //
-// Multi-brand coverage: the library's `ResultErrAppliedBrand<E>`
-// implements `Semimonad` and `RefSemimonad` (matching PureScript's
-// `Bind (Either e)` instance). `ResultOkAppliedBrand<T>` does not
-// have a Semimonad instance, so the diagonal-disambiguation cases
-// from POC 5 don't apply here - there's only one multi-brand
-// candidate per (FA, A). Still, the POC exercises the same
-// inference machinery across Val/Ref x single/multi-brand for
-// bind's closure-returns-container signature shape.
+// -- How `bind` differs from `map` --
+//
+// `bind`'s closure returns a container of the SAME Brand:
+//   `Fn(A) -> Brand::Of<B>`
+// rather than a plain value:
+//   `Fn(A) -> B`
+//
+// Brand therefore appears in two positions in the signature (the
+// input container AND the closure's return type), not just one. The
+// closure input A still drives Slot resolution, but Brand must also
+// be consistent with the return container.
+//
+// -- Multi-brand coverage --
+//
+// `ResultErrAppliedBrand<E>` implements `Semimonad` (mapping over
+// the Ok side) and `RefSemimonad`. `ResultOkAppliedBrand<T>` does
+// not have a Semimonad instance, so only one multi-brand direction
+// is exercised. The test still validates that the Slot inference
+// machinery works correctly for the Val/Ref x single/multi-brand
+// matrix when the closure returns a container.
+//
+// -- Finding --
+//
+// CONFIRMED. All 14 tests pass on stable rustc: Val and Ref for
+// single-brand (Option, Vec, Lazy) and multi-brand (Result via
+// ResultErrAppliedBrand<E>) including passthrough and short-circuit
+// cases.
 
 #![allow(unused_imports, reason = "Kind is used inside Apply! macro expansion")]
 

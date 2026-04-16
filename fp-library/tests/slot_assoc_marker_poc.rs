@@ -1,21 +1,24 @@
-// Fourth Slot POC: tests whether a unified `map` can handle Ref +
-// multi-brand by making `Marker` an ASSOCIATED TYPE of the dispatch
-// trait rather than a free trait parameter.
+// Marker-as-dispatch-trait-associated-type POC (negative result).
 //
-// Prior POCs established:
-//   - Slot with Brand as a trait PARAMETER: coherence OK, but Val/Ref
-//     cross-competition defeats Ref + multi-brand inference.
-//   - SelectBrand with Brand as an ASSOCIATED-TYPE PROJECTION:
-//     inference OK (resolves Ref + multi-brand) but coherence rejects
-//     the two multi-brand impls.
-//   - Pinning Marker to Ref (hard-coded) resolves the Ref + multi-brand
-//     case but loses the unified signature.
+// -- Background --
 //
-// Hypothesis: the Val/Ref cross-competition in Slot+FunctorDispatch
-// arises because Marker is a free trait parameter. Making Marker an
-// associated type should force Rust to distinguish Val and Ref impls
-// purely by their Self-type patterns (by-value vs by-reference),
-// eliminating the ambiguity.
+// The library's `FunctorDispatch<..., Marker>` trait uses `Marker` as
+// a free trait parameter with two impls: one for Val (owned container,
+// `Fn(A) -> B`) and one for Ref (borrowed container, `Fn(&A) -> B`).
+// When combined with a Slot trait that has Brand as a separate free
+// trait parameter, the solver sees both Val and Ref impls as candidates
+// alongside multiple Brand candidates. This "cross-competition" blocks
+// Ref + multi-brand inference.
+//
+// -- Hypothesis --
+//
+// Make Marker an ASSOCIATED TYPE of the dispatch trait (rather than a
+// free parameter) so that Val and Ref impls become distinguishable
+// purely by their Self-type patterns: the Val impl's Self-type pattern
+// is `Apply!(Brand::Of<A>)` (not a reference); the Ref impl's is
+// `&'b Apply!(Brand::Of<A>)` (a reference). The solver should
+// eliminate the irrelevant impl as soon as FA's reference-ness is
+// known, without competing Marker candidates.
 //
 // ========================================================================
 // FINDING: HYPOTHESIS REJECTED.
@@ -27,40 +30,33 @@
 //     `AssocMarkerDispatch<'_, _, _, _, <_ as Kind>::Of<'_, _>>`
 //
 // The Val and Ref impls have Self-type patterns
-// `Apply!(Brand::Of<A>)` vs `&'b Apply!(Brand::Of<A>)` - structurally
-// distinct (one is a reference, the other isn't). But both contain
-// associated-type projections (`Brand::Of<...>`), and Rust's coherence
-// checker is conservative with projection types: it cannot prove
-// non-overlap syntactically when projections could in principle
+// `Apply!(Brand::Of<A>)` vs `&'b Apply!(Brand::Of<A>)` which are
+// structurally distinct (one is a reference, the other isn't). But
+// both contain associated-type projections (`Brand::Of<...>`), and
+// Rust's coherence checker is conservative with projection types: it
+// cannot prove non-overlap when projections could in principle
 // normalise to either shape.
 //
-// The production `FunctorDispatch` avoids this coherence issue
-// specifically because Marker is a free trait parameter whose two
-// impls supply distinct concrete values (`Val` vs `Ref`). That
-// distinction lives in the trait-argument tuple, which coherence CAN
-// reason about. Moving Marker to an associated type removes that
-// structural distinction and trips coherence.
+// The production `FunctorDispatch` avoids this because Marker is a
+// free trait parameter whose two impls supply distinct concrete values
+// (`Val` vs `Ref`). That distinction lives in the trait-argument
+// tuple, which coherence CAN reason about. Moving Marker to an
+// associated type removes that structural distinction and trips
+// coherence.
 //
-// Combined with the SelectBrand POC's finding (coherence also rejects
-// an associated-type Brand), this confirms a general pattern: on
-// stable Rust, whenever we try to remove a trait parameter (Brand or
-// Marker) by projecting it as an associated type, coherence rejects
-// the resulting impls for multi-brand types. The parameter-as-
-// disambiguator role is load-bearing.
+// General pattern: on stable Rust, when a multi-valued disambiguator
+// (Brand or Marker) is moved from a free trait parameter into an
+// associated-type projection on a trait whose impls would then overlap
+// in trait-argument shape, coherence rejects the result.
 //
-// The implication for the unified `map` goal: there is no way on
-// stable Rust to have:
-//
-//     (1) coherence-safe multi-brand impls,
-//     (2) inference-based Brand resolution for Ref + multi-brand,
-//         and
-//     (3) a single unified Val+Ref entry point
-//
-// simultaneously. Each of SelectBrand and AssocMarkerDispatch
-// sacrifices (1); Slot sacrifices (2) (for the Ref + multi-brand
-// case specifically); the only stable-Rust solution that preserves
-// (1) and (2) sacrifices (3) by splitting Val and Ref into separate
-// inference entry points.
+// NOTE: a subsequent POC (`slot_marker_via_slot_poc.rs`) found a
+// different approach that works: attach Marker as an associated type
+// of the SLOT trait (not the dispatch trait), where Slot already has
+// distinct Brand parameter values between impls. Slot's `&T` blanket
+// gives `type Marker = Ref` uniformly; direct impls give
+// `type Marker = Val`. The Marker projection commits from FA's
+// reference-ness before Brand resolution begins, eliminating
+// cross-competition.
 //
 // Kept as a documentation artifact. The Ref impl below is commented
 // out to keep the file in a buildable state while still preserving

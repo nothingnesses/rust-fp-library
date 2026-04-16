@@ -1,27 +1,31 @@
-// Sixth Slot POC: validates the Marker-via-Slot pattern at arity 2 for
-// `Bifunctor::bimap` and `RefBifunctor::ref_bimap`.
+// Arity-2 Slot for Bifunctor POC.
 //
-// POC 5 established that a unified `map(f, fa)` signature can handle
-// all four Val/Ref x single/multi-brand cases at arity 1 (with
-// lifetime) when:
-//   - Slot carries Brand as a trait parameter (for coherence), and
-//   - Slot carries Marker as an associated-type projection keyed on
-//     FA's reference-ness (for early Marker commitment in dispatch).
+// -- Background --
 //
-// This POC verifies the pattern scales to arity 2 - the Kind signature
-// used by Bifunctor, Bifoldable, and Bitraversable. Arity-2 brands like
-// `ResultBrand` have only a single arity-2 brand (not multi-brand), so
-// this POC is primarily about confirming:
-//   (1) Slot2 compiles with Brand as trait parameter and Marker as
-//       associated type at arity 2;
-//   (2) The &T blanket projects Marker = Ref uniformly at arity 2;
-//   (3) Direct impls project Marker = Val uniformly at arity 2;
-//   (4) A unified `bimap(fg, fa)` signature dispatches Val and Ref
-//       correctly through Slot2's Marker projection + production
-//       `BimapDispatch`.
+// The Slot trait carries Brand as a trait parameter (for coherence)
+// and Marker as an associated type projected from FA's reference-ness
+// (blanket for `&T` -> Ref; direct impls for owned types -> Val).
+// This lets a unified `map(f, fa)` signature commit Marker early from
+// FA alone, resolve Val/Ref dispatch, then pin Brand from the closure
+// input.
 //
-// If this works, Path 3 (eliminate InferableBrand in favour of Slot)
-// generalises mechanically to every Kind arity used by the library.
+// This POC validates the pattern at arity 2, the Kind signature used
+// by `Bifunctor::bimap` and `RefBifunctor::ref_bimap`. For arity 2:
+//   - `Slot2<'a, Brand, A, B>` mirrors the arity-2 Kind signature.
+//   - `BimapDispatch<..., Marker>` routes to `Bifunctor::bimap` (Val)
+//     or `RefBifunctor::ref_bimap` (Ref) based on the projected
+//     `<FA as Slot2<...>>::Marker`.
+//
+// Arity-2 brands like `ResultBrand` are currently single-brand at
+// arity 2, so multi-brand disambiguation is not exercised here; the
+// test confirms the structural generality of the trait family
+// across arities.
+//
+// -- Finding --
+//
+// CONFIRMED. All 6 tests pass on stable rustc (Val and Ref for
+// Result, including type-changing transformations). The Slot pattern
+// generalises mechanically from arity 1 to arity 2.
 
 #![allow(unused_imports, reason = "Kind is used inside Apply! macro expansion")]
 
