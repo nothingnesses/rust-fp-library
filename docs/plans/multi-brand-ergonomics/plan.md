@@ -390,60 +390,85 @@ required.
 
 ## Pending review
 
-This section consolidates items flagged during plan review that have
-not yet been decided. Each entry lists the concern, the approaches
-available, and the trade-offs; the appropriate response is for later
-discussion.
+This section consolidates items flagged during plan review. Each entry
+lists the concern, the approaches available, and the trade-offs. Items
+marked "POC finding" have been validated or invalidated against stable
+rustc via
+[fp-library/tests/slot_production_poc.rs](../../../fp-library/tests/slot_production_poc.rs);
+other items remain for later discussion.
+
+### POC findings (summary)
+
+The production-style POC validated or invalidated the three blockers
+and two of the open questions:
+
+| Item                              | Finding                                                                              |
+| --------------------------------- | ------------------------------------------------------------------------------------ |
+| Blocker 1 (blanket + direct)      | **Invalidated.** Option A1 fails with E0119. Option A2 works cleanly.                |
+| Blocker 2 (lifetime-generic GAT)  | **Validated** (under option A2). Lifetimes propagate and normalise.                  |
+| Blocker 3 (return-type normalise) | **Validated** (under option A2). Resolves in match arms, generic fns.                |
+| Open question 4 (Val/Ref)         | **Type-level validated.** `&T` blanket works; dispatch-level untested.               |
+| Open question 9 (annotations)     | **Validated.** Closure-input annotation required; return-type-only does not suffice. |
+
+Items not addressed by the POC (diagnostic routing, apply-side CDI,
+partial-rollout UX, do-notation, downstream impact, testing strategy)
+require either production code or non-technical decisions.
 
 ### Blockers
 
-Items that could invalidate portions of the plan if they do not
-behave as assumed. All three share a common mitigation: extend the
-POC to cover them before committing to the current design.
-
 1. **Coherence between the blanket impl and direct `Slot` impls.**
-   The blanket `impl<FA: InferableBrand_*> Slot_*<FA::Brand, A> for FA`
-   is keyed on a where-clause bound; Rust's coherence checker must
-   prove that no concrete type could satisfy both the blanket and a
-   direct impl. Multi-brand concrete types (like `Result<_, _>`)
-   deliberately do not implement `InferableBrand_*`, but coherence
-   may or may not accept this argument through the where-clause. The
-   POC did not test the blanket + direct combination. Verify this
-   also holds for the `&T` blanket on InferableBrand (inherited
-   references).
+   **Finding (POC): invalidated.** The blanket
+   `impl<FA: InferableBrand_*> Slot_*<FA::Brand, A> for FA` combined
+   with direct `Slot` impls on multi-brand types produces E0119
+   (`conflicting implementations of trait ... for type Result<_, _>`).
+   Rust's coherence checker cites that "upstream crates may add a new
+   impl of trait `InferableBrand_cdc7cd43dac7585f` for type
+   `Result<_, _>` in future versions," and refuses to prove
+   non-overlap through the where-clause bound. A symmetric conflict
+   occurs between the InferableBrand `&T` blanket and a Slot `&T`
+   blanket used together.
+   **Consequence:** Option A1 (blanket + direct impls) is not viable
+   on stable rustc. The plan must adopt option A2 (direct `Slot`
+   impls for every brand, no InferableBrand-based blanket) or a
+   different strategy entirely. Decision A below reflects this.
 
-2. **Lifetime-generic GAT behavior.** The production `Slot` for
-   `Kind_cdc7cd43dac7585f` has `'a` in the trait and in the GAT
-   (`type Out<B: 'a>: 'a`). The POC used `'static` throughout.
-   Lifetime-generic GATs have known edge cases around inference and
-   normalization that `'static` GATs do not.
+2. **Lifetime-generic GAT behavior.**
+   **Finding (POC): validated under option A2.** A Slot trait with
+   lifetime `'a` in its signature and a lifetime-bounded GAT
+   (`type Out<B: 'a>: 'a`) compiles and resolves correctly for both
+   lifetime-free types (`Option<A>`, `Vec<A>`, `Result<A, E>`) and
+   lifetime-bearing types (`Lazy<'a, A, Config>`). Associated-type
+   projections normalise at call sites without additional annotations.
+   No GAT-specific edge cases triggered by the POC's exercises.
 
-3. **Return type computation through `Slot::Out<B>`.** `map`'s return
-   type under the new design is
-   `<FA as Slot_*<'a, Brand, A>>::Out<B>` where `Brand` is itself
-   inferred. Rust sometimes fails to normalize associated types when
-   multiple inference steps chain through a single trait projection.
-   The existing `map` routes through InferableBrand then Kind, a
-   shallower path. Whether the new path normalizes at every real
-   call site is unverified. In particular, the blanket impl's
-   associated type must produce the same concrete type as direct
-   impls so that existing dispatch machinery (for example,
-   `Apply!(<Brand as Kind!>::Of<'a, B>)`-style projections)
-   continues to compile.
+3. **Return type computation through `Slot::Out<B>`.**
+   **Finding (POC): validated under option A2.**
+   `<FA as Slot_*<'a, Brand, A>>::Out<B>` normalises to the expected
+   concrete type across all tested call-site shapes: flowing into
+   match arms, into generic function parameters, and chaining
+   through multiple `slot_map` calls. No inference-ordering
+   pathologies observed for the option-A2 impl layout.
+   **Caveat:** these findings apply to option A2. If option A1 were
+   resurrected via some future mechanism (specialization, sealed
+   traits), blocker 3 would need re-validation because the projection
+   path would differ.
 
 ### Open questions
 
 Items to resolve before or during implementation.
 
 4. **Val/Ref dispatch as a second selection axis.**
-   `FunctorDispatch`'s `Marker` parameter is resolved via trait
-   selection keyed on the closure input type. `Slot`'s `Brand`
-   parameter is resolved via trait selection keyed on `(FA, A)`.
-   Composing two trait-selection axes in one signature is more
-   complex than today's single-axis InferableBrand dispatch. The
-   intersection (`map(|x: &i32| ..., &Ok(5))` picking the correct
-   Ref + Brand combination) is assumed but not validated. Verify via
-   prototype.
+   **Finding (POC): type-level validated; dispatch-level untested.**
+   A `&T` blanket for `Slot` (parallel to the existing one on
+   InferableBrand) lets `slot_map(f, &fa)` resolve the brand through
+   the reference for both single-brand (`&Option`, `&Vec`) and
+   multi-brand (`&Result`) concrete types. The POC's MapDispatch for
+   `&T` delegates through `Clone`, so it does not exercise the
+   production `FunctorDispatch`/`RefFunctor` split. The remaining
+   uncertainty is whether `Slot`'s brand axis composes with the
+   existing Val/Ref `Marker` axis in a single dispatch signature;
+   this requires a second POC against the production
+   `FunctorDispatch` trait or validation during phase 1 implementation.
 
 5. **Diagnostic wording precision.** Does the "user forgot
    annotation" case need a different message from the "diagonal,
@@ -470,13 +495,16 @@ Items to resolve before or during implementation.
    library is inconsistent: multi-brand `map` works, multi-brand
    `bind` still fails. Users may reasonably question the asymmetry.
 
-9. **Closure-annotation fragility.** Today's multi-brand pattern is
-   `explicit::map::<Brand, _, _, _, _>(|x| ..., ok)` — the brand
-   turbofish pins `A`, so the closure can be unannotated. Under
-   Slot-based map, `A` is driven by the closure. Writing
-   `map(|x| x + 1, Ok::<i32, String>(5))` without annotating `x`
-   would fail. This is a new annotation requirement for multi-brand
-   types; the plan states it but does not quantify impact.
+9. **Closure-annotation fragility.**
+   **Finding (POC): validated.** Single-brand types (Option, Vec)
+   accept unannotated closures (`|x| x + 1`) because `A` flows from
+   the container via the Slot impl. Multi-brand non-diagonal types
+   (Result<i32, String>) require an explicit closure-input annotation
+   (`|x: i32| ...`); without it the Slot impls cannot be
+   disambiguated. Annotating the call-site return type alone (e.g.,
+   `let r: Result<i64, String> = slot_map(|x| ..., Ok::<i32, String>(5))`)
+   is **not** sufficient; the annotation must pin the closure's input.
+   Documented in the POC (commented test case).
 
 10. **Do-notation macro behavior (`m_do!`, `a_do!`).** These desugar
     to chained `bind`/`apply` calls. After phase 3, their closures
@@ -506,24 +534,31 @@ Decisions that the plan currently answers one way but where
 alternatives exist. Listed with options and trade-offs; no choice is
 locked in.
 
-**Decision A: Coherence approach.**
+**Decision A: Coherence approach.** (POC-informed.)
 
 - Option A1: Trust Rust's where-clause coherence with blanket +
-  direct impls. Simplest if it works; catastrophic failure mode if
-  not.
+  direct impls. **POC finding: does not work on stable rustc**
+  (E0119, see blocker 1 above). No longer a viable option without
+  either specialization (unstable) or a different disambiguation
+  mechanism.
 - Option A2: No blanket; generate direct `Slot` impls for every
-  brand (single- and multi-). Single-brand types duplicate the
-  effect of the blanket. Coherence is trivially safe (each impl is
-  keyed on a distinct brand). Cost: more generated code, zero
-  runtime impact. InferableBrand becomes purely the
-  "unique-brand assertion" trait with no dispatch role.
+  brand (single- and multi-). **POC finding: works; all blocker
+  validations passed under this scheme.** Single-brand types
+  duplicate the effect the blanket would have provided. Coherence
+  is trivially safe (each impl is keyed on a distinct brand). Cost:
+  more generated code, zero runtime impact. InferableBrand remains
+  as the "unique-brand assertion" trait but no longer has a
+  dispatch role tied to Slot.
 - Option A3: Sealed marker trait. Introduce a private marker like
   `trait MultiBrand: Sealed` implemented by multi-brand concrete
   types; restructure the blanket around it. Adds complexity for
-  limited gain.
+  limited gain over A2.
 - Option A4: Invert the design. Make `Slot` primary; derive
   InferableBrand from uniqueness of Slot resolution. Rewrites more
   of the existing brand machinery. High risk.
+
+The POC's findings reduce this decision to "adopt option A2" unless
+an unstable-feature path becomes acceptable.
 
 **Decision B: Phase structure.**
 
@@ -551,17 +586,17 @@ locked in.
 Suggestions to evaluate during decision-making. Not authoritative;
 listed as starting points for discussion.
 
-1. **Extend the POC before committing to implementation.** Add
-   cases for the three blockers specifically: blanket + direct-impl
-   coherence, full lifetime-parameterized Slot signature, and
-   return-type normalization at a realistic call site. The POC is
-   small; additional cases are cheap insurance.
+1. **Extend the POC before committing to implementation.** **Done.**
+   The production-style POC
+   ([fp-library/tests/slot_production_poc.rs](../../../fp-library/tests/slot_production_poc.rs))
+   covers the three blockers plus Val/Ref reference-blanket resolution
+   and the closure-annotation matrix. Remaining POC gap: full
+   `FunctorDispatch`/`Marker` composition (open question 4).
 
-2. **Document a coherence fallback.** If the extended POC shows the
-   blanket approach (option A1) does not work, switch to option A2
-   (generate direct Slot for every brand). Making the fallback
-   explicit in the plan avoids a crisis discovered at implementation
-   time.
+2. **Adopt option A2 for coherence.** POC invalidated option A1 on
+   stable rustc; option A2 (direct `Slot` impls per brand) is the
+   path that actually compiles. The plan should treat this as
+   decided unless an unstable-feature path is on the table.
 
 3. **Release phase 1 and phase 3 together (option B3).** Implement
    phase 1 first as a testbed, extend to other closure-taking
