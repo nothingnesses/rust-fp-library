@@ -421,23 +421,24 @@ other items remain for later discussion.
 
 ### POC findings (summary)
 
-Four POCs have been run against stable rustc:
+Five POCs have been run against stable rustc:
 
 1. [slot_production_poc.rs](../../../fp-library/tests/slot_production_poc.rs) - Slot type-level validation with a bespoke `MapDispatch` shim.
 2. [slot_valref_poc.rs](../../../fp-library/tests/slot_valref_poc.rs) - Slot composition with the production `FunctorDispatch` + Val/Ref `Marker`.
 3. [slot_select_brand_poc.rs](../../../fp-library/tests/slot_select_brand_poc.rs) - attempted to project Brand as an associated type keyed on `(FA, A)`; rejected by coherence for multi-brand types.
-4. [slot_assoc_marker_poc.rs](../../../fp-library/tests/slot_assoc_marker_poc.rs) - attempted to move Marker from trait parameter to associated type; rejected by coherence for the Val/Ref impl combination.
+4. [slot_assoc_marker_poc.rs](../../../fp-library/tests/slot_assoc_marker_poc.rs) - attempted to move Marker from trait parameter to associated type of the dispatch trait; rejected by coherence for the Val/Ref impl combination.
+5. [slot_marker_via_slot_poc.rs](../../../fp-library/tests/slot_marker_via_slot_poc.rs) - **successfully unifies Val and Ref dispatch including Ref + multi-brand** by lifting `Marker` into Slot as an associated-type projection keyed on FA's reference-ness (blanket for `&T` sets `type Marker = Ref`; direct impls for owned types set `type Marker = Val`). All four cases (Val/Ref x single/multi-brand) work in a single `map(f, fa)` signature.
 
 Findings:
 
-| Item                              | Finding                                                                                                                                                                                                                    |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Blocker 1 (blanket + direct)      | **Invalidated.** Option A1 fails with E0119. Option A2 works cleanly.                                                                                                                                                      |
-| Blocker 2 (lifetime-generic GAT)  | **Validated** (under option A2).                                                                                                                                                                                           |
-| Blocker 3 (return-type normalise) | **Validated for standalone Slot; invalidated when combined with `FunctorDispatch` return type.** Fix: Slot must be a pure marker (no `Out<B>` GAT); return type uses `Apply!(<Brand as Kind>::Of<'a, B>)`.                 |
-| Q4 (Val/Ref composition)          | **Unified signature: partial.** Val all-cases and Ref single-brand work via inference; Ref + multi-brand fails (E0283) due to Val/Ref cross-competition. **Split signature (Val-only or Ref-only): works for every case.** |
-| Q9 (closure annotations)          | **Validated.** Closure-input annotation required for multi-brand; return-type-only does not suffice.                                                                                                                       |
-| Q15 (explicit::map via Slot)      | **Validated.** Turbofish-pinned Brand + Slot bound works for every case including Ref + multi-brand.                                                                                                                       |
+| Item                              | Finding                                                                                                                                                                                                                                                                                                                                                                        |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Blocker 1 (blanket + direct)      | **Invalidated.** Option A1 fails with E0119. Option A2 works cleanly.                                                                                                                                                                                                                                                                                                          |
+| Blocker 2 (lifetime-generic GAT)  | **Validated** (under option A2).                                                                                                                                                                                                                                                                                                                                               |
+| Blocker 3 (return-type normalise) | **Validated for standalone Slot; invalidated when combined with `FunctorDispatch` return type.** Fix: Slot must be a pure marker (no `Out<B>` GAT); return type uses `Apply!(<Brand as Kind>::Of<'a, B>)`.                                                                                                                                                                     |
+| Q4 (Val/Ref composition)          | **Unified signature: works for all four cases** when Marker is lifted into Slot as an associated-type projection (POC 5). Without that lift, unified signature is partial: Val all-cases and Ref single-brand work; Ref + multi-brand fails (E0283). Split signature (Val-only or Ref-only) also works for every case but loses the unified Val/Ref dispatch users have today. |
+| Q9 (closure annotations)          | **Validated.** Closure-input annotation required for multi-brand; return-type-only does not suffice.                                                                                                                                                                                                                                                                           |
+| Q15 (explicit::map via Slot)      | **Validated.** Turbofish-pinned Brand + Slot bound works for every case including Ref + multi-brand.                                                                                                                                                                                                                                                                           |
 
 Items not addressed by POC (diagnostic routing, apply-side CDI,
 partial-rollout UX, do-notation, downstream impact, testing strategy,
@@ -624,42 +625,63 @@ Options:
   inference ergonomics; users learn one consistent fallback rule.
 - **b) Redesign the dispatch trait** to project the
   disambiguating parameter as an associated type rather than a
-  free trait parameter. Two variants were prototyped against this
-  idea: (i) project Brand via a `SelectBrand<'a, A>` trait with
-  associated `type Brand`, and (ii) project Marker via an
-  `AssocMarkerDispatch` trait with associated `type Marker`.
-  **Both prototypes rejected by coherence (E0119).** Rust's
-  coherence checker cannot prove non-overlap between the two
-  multi-brand impls (variant i) or the two Val/Ref impls
-  (variant ii) without a distinguishing trait-argument
-  pattern. The parameter-as-disambiguator role is load-bearing on
-  stable Rust; removing it trips coherence.
-  _Trade-off:_ not achievable without specialization or negative
-  impls (both unstable).
+  free trait parameter. Three variants were prototyped:
+  (i) project Brand via a `SelectBrand<'a, A>` trait with
+  associated `type Brand` ([POC 3](../../../fp-library/tests/slot_select_brand_poc.rs));
+  (ii) project Marker as an associated type of the dispatch
+  trait itself ([POC 4](../../../fp-library/tests/slot_assoc_marker_poc.rs));
+  and (iii) project Marker as an associated type of **Slot**
+  keyed on FA's reference-ness
+  ([POC 5](../../../fp-library/tests/slot_marker_via_slot_poc.rs)).
+  _Variants (i) and (ii) are rejected by coherence (E0119).
+  Variant (iii) succeeds for all four cases in a single unified
+  signature._
+  Variant (iii)'s mechanism: Slot's `&T` blanket sets
+  `type Marker = Ref` regardless of the inner Brand; direct
+  impls for owned types set `type Marker = Val` uniformly.
+  Projecting `<FA as Slot<...>>::Marker` commits Marker from
+  FA's reference-ness alone - without needing `(Brand, A)` to be
+  resolved - so FunctorDispatch's Val/Ref cross-competition is
+  eliminated. Once Marker commits, FunctorDispatch selects the
+  unique matching impl, whose `Fn(A)` or `Fn(&A)` bound pins A,
+  and Slot's `(Brand, A)` ambiguity resolves uniquely from there.
+  _Trade-off:_ requires adding an associated `Marker` type to
+  Slot and extending `impl_kind!` to emit `type Marker = Val` for
+  direct impls. Modest macro work; no unstable features.
 - **c) Split Val and Ref into separate Slot-bounded inference
   functions.** Unified `map(f, fa)` is replaced by `map(f, fa)`
   (Val-only) and `ref_map(f, fa)` or `map_ref(f, fa)`
-  (Ref-only). **POC probe confirms the Ref-only factoring works
-  for Ref + multi-brand.** _Trade-off:_ two inference entry
-  points instead of one; user-facing API asymmetry between Val
-  and Ref forms; closes the Ref + multi-brand inference gap
-  entirely.
+  (Ref-only). _Trade-off:_ **regression** - today's unified
+  `map` already dispatches Val and Ref transparently via
+  `InferableBrand + FunctorDispatch`. The split would force
+  users who rely on that unification to pick the right function
+  at each call site. Gains Ref + multi-brand inference at the
+  cost of losing unified single-brand dispatch.
 
-_Recommendation:_ **c)**. Option b has been invalidated by two
-distinct prototypes that both hit coherence walls, so a unified
-inference signature covering Ref + multi-brand is not achievable
-on stable Rust without unstable features. Splitting Val and Ref
-inference closes the gap at the cost of one additional entry
-point. Option a remains a viable fallback if the split proves
-awkward in production code. Q15 option b (explicit-brand
-turbofish bounded on Slot) is the universal fallback regardless
-of which is chosen here.
+_Recommendation:_ **b) with variant iii.** POC 5 demonstrates
+that the unified signature can handle every case (Val/Ref x
+single/multi-brand) when Marker is lifted into Slot as an
+associated-type projection keyed on FA's reference-ness. This
+closes the Ref + multi-brand gap without sacrificing the
+unified dispatch that exists today.
 
-The general pattern discovered across prototypes: any time a
-multi-brand disambiguator (Brand or Marker) is moved from a free
-trait parameter into an associated-type projection, coherence
-rejects the resulting impls for multi-brand types. The parameter
-position is load-bearing on stable Rust.
+Option c was previously recommended based on a mistaken premise
+that unified Ref + multi-brand was not achievable on stable
+Rust. Option c's trade-off (losing unified Val/Ref for
+single-brand cases) is strictly worse than option b(iii)'s
+(adding an associated `Marker` type to Slot). Option a remains
+a viable fallback only if option b(iii) reveals further
+complications under production constraints.
+
+The general pattern from POCs 3 and 4: any time a multi-brand
+disambiguator (Brand or Marker) is moved from a free trait
+parameter into an associated-type projection on a trait whose
+_impls_ would overlap in trait-argument shape, coherence
+rejects the result. POC 5 sidesteps this by attaching the
+projection to Slot - which already has distinct trait-argument
+patterns (the Brand parameter differs between multi-brand
+impls) - rather than to a trait where the projection would be
+the sole disambiguator.
 
 **Q5. Diagnostic wording precision.**
 
