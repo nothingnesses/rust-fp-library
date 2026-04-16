@@ -388,44 +388,6 @@ required.
 - **Primary-brand default with closure-directed fallback.** Requires
   specialization to layer the two dispatch paths.
 
-## Open questions
-
-1. **Exact `Slot` trait signature.** Does Slot's `Out<B>` need to
-   match the existing `Apply!(<Brand as Kind!>::Of<'a, B>)` exactly?
-   The blanket impl from InferableBrand must produce the same
-   associated type as direct impls so that existing dispatch machinery
-   still compiles. Validate by prototype before committing.
-2. **Coherence around the blanket impl.** The blanket
-   `impl<FA: InferableBrand> Slot<..., FA::Brand, ...> for FA` must
-   not overlap with direct Slot impls on multi-brand types. Since
-   multi-brand types don't implement `InferableBrand`, the blanket's
-   bound should exclude them. Verify this holds for the `&T` blanket
-   on InferableBrand (inherited references).
-3. **Val/Ref dispatch composition.** The existing `FunctorDispatch`
-   routes by-value and by-ref through a closure-input-type-based
-   Marker parameter. Slot introduces another dispatch axis (brand
-   selection). Verify the two compose correctly via prototype:
-   `map(|x: &i32| *x * 2, &Ok::<i32, String>(5))` should pick the Ok
-   brand (because `&i32` aligns with the Ok slot's reference form) and
-   route to `RefFunctor::ref_map`.
-4. **Diagnostic wording precision.** Does the "user forgot annotation"
-   case need a different message from the "diagonal, annotation won't
-   help" case? Rust's diagnostic attributes aren't dynamic, so one
-   message covering both is the likely outcome.
-5. **Apply-side closure-directed inference.** `Semiapplicative::apply`
-   has no outer closure but carries an `Fn(A) -> B` payload inside
-   `ff`. Could the payload's function type drive Slot dispatch in
-   phase 3? Decision can defer to phase 3 but affects whether apply
-   becomes CDI-capable or stays explicit-only for multi-brand types.
-6. **Testing strategy.** All existing single-brand doctests should
-   compile identically. All existing `explicit::map::<...>` doctests
-   on multi-brand types should stay as-is (they document the explicit
-   path). Add new positive doctests for closure-directed resolution
-   and UI tests for the diagonal failure cases. The existing POC at
-   `fp-library/tests/closure_directed_inference_poc.rs` should be
-   promoted to a proper integration test or removed once the real
-   implementation subsumes it.
-
 ## Pending review
 
 This section consolidates items flagged during plan review that have
@@ -446,7 +408,9 @@ POC to cover them before committing to the current design.
    direct impl. Multi-brand concrete types (like `Result<_, _>`)
    deliberately do not implement `InferableBrand_*`, but coherence
    may or may not accept this argument through the where-clause. The
-   POC did not test the blanket + direct combination.
+   POC did not test the blanket + direct combination. Verify this
+   also holds for the `&T` blanket on InferableBrand (inherited
+   references).
 
 2. **Lifetime-generic GAT behavior.** The production `Slot` for
    `Kind_cdc7cd43dac7585f` has `'a` in the trait and in the GAT
@@ -461,29 +425,52 @@ POC to cover them before committing to the current design.
    multiple inference steps chain through a single trait projection.
    The existing `map` routes through InferableBrand then Kind, a
    shallower path. Whether the new path normalizes at every real
-   call site is unverified.
+   call site is unverified. In particular, the blanket impl's
+   associated type must produce the same concrete type as direct
+   impls so that existing dispatch machinery (for example,
+   `Apply!(<Brand as Kind!>::Of<'a, B>)`-style projections)
+   continues to compile.
 
-### Additional open questions
+### Open questions
 
-Items identified during plan review, not listed in the Open questions
-section above.
+Items to resolve before or during implementation.
 
-4. **Partial-rollout inconsistency during phase 1.** Phase 1
-   unblocks `map` for multi-brand types; phase 3 extends the same to
-   `bind`, `fold_*`, `traverse`, `lift2`, etc. Between phases the
-   library is inconsistent: multi-brand `map` works, multi-brand
-   `bind` still fails. Users may reasonably question the asymmetry.
-
-5. **Val/Ref dispatch as a second selection axis.**
+4. **Val/Ref dispatch as a second selection axis.**
    `FunctorDispatch`'s `Marker` parameter is resolved via trait
    selection keyed on the closure input type. `Slot`'s `Brand`
    parameter is resolved via trait selection keyed on `(FA, A)`.
    Composing two trait-selection axes in one signature is more
    complex than today's single-axis InferableBrand dispatch. The
    intersection (`map(|x: &i32| ..., &Ok(5))` picking the correct
-   Ref + Brand combination) is assumed but not validated.
+   Ref + Brand combination) is assumed but not validated. Verify via
+   prototype.
 
-6. **Closure-annotation fragility.** Today's multi-brand pattern is
+5. **Diagnostic wording precision.** Does the "user forgot
+   annotation" case need a different message from the "diagonal,
+   annotation won't help" case? Rust's diagnostic attributes are not
+   dynamic, so one message covering both is the likely outcome.
+
+6. **Diagnostic routing between InferableBrand and Slot.**
+   InferableBrand retains its `on_unimplemented` message ("does not
+   have a unique brand"). Slot gets a new one ("closure input could
+   not disambiguate"). In a failure scenario, which diagnostic fires
+   depends on which trait Rust reports against. Possibly both,
+   possibly neither. Unclear without prototyping.
+
+7. **Apply-side closure-directed inference.**
+   `Semiapplicative::apply` has no outer closure but carries an
+   `Fn(A) -> B` payload inside `ff`. Could the payload's function
+   type drive Slot dispatch in phase 3? Decision can defer to phase 3
+   but affects whether apply becomes CDI-capable or stays
+   explicit-only for multi-brand types.
+
+8. **Partial-rollout inconsistency during phase 1.** Phase 1
+   unblocks `map` for multi-brand types; phase 3 extends the same to
+   `bind`, `fold_*`, `traverse`, `lift2`, etc. Between phases the
+   library is inconsistent: multi-brand `map` works, multi-brand
+   `bind` still fails. Users may reasonably question the asymmetry.
+
+9. **Closure-annotation fragility.** Today's multi-brand pattern is
    `explicit::map::<Brand, _, _, _, _>(|x| ..., ok)` — the brand
    turbofish pins `A`, so the closure can be unannotated. Under
    Slot-based map, `A` is driven by the closure. Writing
@@ -491,24 +478,27 @@ section above.
    would fail. This is a new annotation requirement for multi-brand
    types; the plan states it but does not quantify impact.
 
-7. **Diagnostic routing between InferableBrand and Slot.**
-   InferableBrand retains its `on_unimplemented` message ("does not
-   have a unique brand"). Slot gets a new one ("closure input could
-   not disambiguate"). In a failure scenario, which diagnostic fires
-   depends on which trait Rust reports against. Possibly both,
-   possibly neither. Unclear without prototyping.
+10. **Do-notation macro behavior (`m_do!`, `a_do!`).** These desugar
+    to chained `bind`/`apply` calls. After phase 3, their closures
+    will require annotation when operating on multi-brand types. The
+    macros themselves may need an audit for how types propagate
+    through their expansions.
 
-8. **Do-notation macro behavior (`m_do!`, `a_do!`).** These desugar
-   to chained `bind`/`apply` calls. After phase 3, their closures
-   will require annotation when operating on multi-brand types. The
-   macros themselves may need an audit for how types propagate
-   through their expansions.
+11. **Downstream crate impact.** The `#[no_inferable_brand]`
+    attribute's semantics change (previously: suppress InferableBrand
+    generation; after: suppress InferableBrand + emit direct Slot).
+    Downstream crates using this attribute experience a semantic
+    shift in a public macro API.
 
-9. **Downstream crate impact.** The `#[no_inferable_brand]`
-   attribute's semantics change (previously: suppress InferableBrand
-   generation; after: suppress InferableBrand + emit direct Slot).
-   Downstream crates using this attribute experience a semantic
-   shift in a public macro API.
+12. **Testing strategy.** All existing single-brand doctests should
+    compile identically. All existing `explicit::map::<...>` doctests
+    on multi-brand types should stay as-is (they document the
+    explicit path). Add new positive doctests for closure-directed
+    resolution and UI tests for the diagonal failure cases. The
+    existing POC at
+    `fp-library/tests/closure_directed_inference_poc.rs` should be
+    promoted to a proper integration test or removed once the real
+    implementation subsumes it.
 
 ### Design decisions with trade-offs
 
@@ -587,9 +577,9 @@ listed as starting points for discussion.
    and doc update explaining the `#[no_inferable_brand]` semantic
    shift when the release ships.
 
-6. **Defer plan Open Questions 4 and 5** (diagnostic wording, apply
-   via Fn payload) until there is a working phase 1 prototype;
-   decide with evidence rather than upfront.
+6. **Defer open questions 5 and 7** (diagnostic wording, apply via
+   Fn payload) until there is a working phase 1 prototype; decide
+   with evidence rather than upfront.
 
 7. **Treat the POC as specification, not throwaway code.** Every
    case the POC compiles should continue to compile in the
