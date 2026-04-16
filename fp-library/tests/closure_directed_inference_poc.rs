@@ -1,5 +1,5 @@
 // Feasibility POC for "approach 5: closure-directed brand inference" from
-// docs/plans/brand-inference/analysis/multi-brand-evaluation.md.
+// docs/plans/multi-brand-ergonomics/analysis/multi-brand-evaluation.md.
 //
 // Hypothesis: when a container type (e.g. `Result<A, E>`) has multiple valid
 // arity-1 brands, the closure's input type can disambiguate which brand to
