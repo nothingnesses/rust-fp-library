@@ -406,6 +406,12 @@ would bind on the higher-arity Slot. No design change required.
 ### Phase 1: Slot trait and map integration
 
 1. Define `Slot` in `fp-library/src/kinds.rs` (alongside `InferableBrand`).
+   The module-level doc comment must summarize the trait trio
+   (`Kind_*`, `InferableBrand_*`, `Slot_*`), their complementary roles,
+   and why Slot does not replace InferableBrand. Source material for
+   this content lives in
+   [fp-library/docs/brand-dispatch-traits.md](../../../fp-library/docs/brand-dispatch-traits.md);
+   the module docs should either paraphrase or link to it.
 2. Add blanket impl from `InferableBrand` to `Slot`.
 3. Add direct Slot impls for each multi-brand brand.
 4. Change `map` in `fp-library/src/dispatch/functor.rs` to use Slot.
@@ -414,8 +420,10 @@ would bind on the higher-arity Slot. No design change required.
 6. Add integration tests covering non-diagonal and diagonal cases.
 7. Update or replace the existing `result_no_inferable_brand.rs` and
    `tuple2_no_inferable_brand.rs` UI tests.
-8. Update docs: `fp-library/docs/brand-inference.md` should describe
-   the Slot extension; consider a new `fp-library/docs/multi-brand-inference.md`.
+8. Update user-facing docs: `fp-library/docs/brand-inference.md` should
+   describe the Slot extension. The design reference
+   `fp-library/docs/brand-dispatch-traits.md` should be cross-linked
+   from the Slot trait's module docs and from `brand-inference.md`.
 
 ### Phase 2: Diagnostic polish
 
