@@ -136,46 +136,123 @@ candidate brands that would accept the call.
 
 ### 5. Closure-directed inference
 
-In principle, `map(|x: i32| ..., Ok::<i32, String>(5))` is unambiguous:
-the closure input `i32` aligns only with `ResultErrAppliedBrand` (where
-`Of<'a, i32> = Result<i32, E>`), not `ResultOkAppliedBrand` (where
-`Of<'a, i32> = Result<A, i32>`). A more sophisticated encoding could
-disambiguate based on the closure signature.
+Disambiguation comes from the **closure's input type**. Given
+`map(|x: i32| ..., Ok::<i32, String>(5))`, the closure input pins the
+polymorphic slot, which in turn selects the brand whose `Of<'a, A>` lines
+up with the container's concrete type:
 
-- Pros: Could resolve most call sites without user intervention.
-- Cons: Depends on specialization or brittle trait-resolution tricks;
-  only works when the closure input is already concretely typed; fragile
-  under type inference. Probably not worth the complexity.
+- `ResultErrAppliedBrand<E>::Of<'a, A> = Result<A, E>`. With `A = i32`
+  this is `Result<i32, ?>`, which unifies with `Result<i32, String>` when
+  `E = String`. Match.
+- `ResultOkAppliedBrand<T>::Of<'a, A> = Result<T, A>`. With `A = i32`
+  this is `Result<?, i32>`, which does not unify with `Result<i32, String>`.
+  No match.
 
-### 6. Arity-aware inference priority
+Sketch (mirrors the existing Val/Ref dispatch pattern in
+`fp-library/src/dispatch/`):
 
-Prefer the brand whose fixed parameters are already grounded in the
-argument. Effectively alternative 5 expressed at the brand level rather
-than the closure level.
+```rust
+trait Slot<Brand, A> {}
+impl<A, E> Slot<ResultErrAppliedBrand<E>, A> for Result<A, E> {}
+impl<A, T> Slot<ResultOkAppliedBrand<T>, A> for Result<T, A> {}
 
-- Pros: Same as 5.
-- Cons: Same as 5.
+fn map<FA, A, B, FB, Brand>(f: impl Fn(A) -> B, fa: FA) -> FB
+where
+    FA: Slot<Brand, A>,
+    FB: Slot<Brand, B>,
+    Brand: Functor,
+```
+
+The two `Slot` impls are not overlapping for coherence purposes because
+their `Brand` parameter differs, so this pattern is plausible on stable
+rustc 1.93.1.
+
+**Diagonal failure case.** When both container type parameters are equal
+and the closure input matches, both impls apply and inference is again
+ambiguous:
+
+- `Ok::<i32, i32>(5)` with `|x: i32| ...`: both `ResultErrAppliedBrand<i32>`
+  (from impl 1 with `E = i32`) and `ResultOkAppliedBrand<i32>` (from impl 2
+  with `T = i32`) satisfy `Slot<Brand, i32>` on `Result<i32, i32>`.
+  Rust's trait selection reports "type annotations needed" or "multiple
+  impls apply."
+
+Analogous diagonal failures: `(T, T)`, `Pair<T, T>`, `ControlFlow<T, T>`,
+`TryThunk<T, T>` (all with a closure consuming `T`). In these cases there
+is a genuine semantic question the compiler cannot resolve from types
+alone.
+
+- Pros: Works without user intervention for the non-diagonal cases
+  (probably the common case in practice). Strictly smaller failure set
+  than today's blanket refusal. No unstable features required.
+- Cons: Closure input must be nameable from context (`|x: i32| ...`
+  works; `|x| ...` does not, because Rust has no basis to pick `A`).
+  Diagonal `T = T` cases still require `explicit::`. Out-of-the-box error
+  message for the diagonal case is worse than today's hand-tuned
+  `on_unimplemented` message; recoverable, but requires additional
+  machinery (e.g., a marker trait carrying an `on_unimplemented` hint for
+  the overlap case).
+
+### 6. Type-only priority without closure help
+
+Pick a brand looking only at the container type, without using the
+closure. For `Result<i32, String>` both `ResultErrAppliedBrand<String>`
+(with `A = i32`) and `ResultOkAppliedBrand<i32>` (with `A = String`) are
+valid, so a tiebreak rule is required.
+
+To teach Rust to prefer one impl over another without a closure-based
+signal, the options are:
+
+- `#![feature(specialization)]` or `#![feature(min_specialization)]`.
+  Still unstable.
+- `#![feature(negative_impls)]`. Still unstable.
+- Pick the primary brand at definition time and don't try to do this at
+  use time at all. This is just alternative 1 in different clothing.
+
+On stable rustc 1.93.1, alternative 6 as a mechanism distinct from
+alternative 1 is not achievable. It either requires unstable features or
+collapses into alternative 1.
+
+## Stability summary (rustc 1.93.1)
+
+| Alternative                           | Stable? | Notes                                                 |
+| ------------------------------------- | ------- | ----------------------------------------------------- |
+| 1. Canonical primary brand            | Yes     | Pure macro/attribute change.                          |
+| 2. Newtype disambiguation             | Yes     | Doable but against design goals.                      |
+| 3. Concrete named helpers             | Yes     | Additive, no trait-system trickery.                   |
+| 4. Richer diagnostics                 | Yes     | Requires a helper marker trait; no unstable features. |
+| 5. Closure-directed inference         | Yes     | Works except on diagonal `T = T` cases.               |
+| 6. Type-only priority without closure | No      | Needs specialization or negative impls.               |
 
 ## Recommendation
 
 The current design is the conservative, correct choice and should remain
-the default. The two highest-leverage improvements, in order:
+the default. The highest-leverage additive improvements, in order:
 
-1. **Alternative 3 (concrete helpers)** as an additive, zero-risk
-   convenience layer. `map_ok`, `map_err`, `map_fst`, `map_snd` cover the
-   overwhelming majority of real usage of multi-brand types and require
-   no changes to the brand-inference machinery.
-2. **Alternative 1 (primary brand per type)** if Haskell-style
-   ergonomics are a design goal. The choice of primary should be
-   explicit via a `#[primary_brand]` attribute so it is discoverable at
-   the impl site.
+1. **Alternative 3 (concrete helpers)** as a zero-risk convenience layer.
+   `map_ok`, `map_err`, `map_fst`, `map_snd` cover the overwhelming
+   majority of real usage of multi-brand types and require no changes to
+   the brand-inference machinery. Lowest effort, highest direct user
+   benefit.
+2. **Alternative 5 (closure-directed inference)** if a generic solution
+   is desirable. It is feasible on stable, reduces the failure set to
+   only the diagonal `T = T` cases, and composes cleanly with the
+   existing dispatch pattern. Requires a POC to validate inference
+   behavior end-to-end and a plan for diagnostics on the remaining
+   diagonal case.
+3. **Alternative 1 (primary brand per type)** if Haskell-style
+   ergonomics for the diagonal case are also desired. The choice of
+   primary should be explicit via a `#[primary_brand]` attribute so it
+   is discoverable at the impl site. Could be layered under alternative
+   5 as a fallback for the diagonal case, though the cleanest layering
+   would require specialization.
 
-Alternative 4 (richer diagnostics) is a reasonable complement to the
-current design regardless of whether 1 or 3 is adopted; it simply makes
-the existing error better.
+Alternative 4 (richer diagnostics) is a reasonable complement to any of
+the above.
 
 Alternative 2 (newtype wrappers) conflicts with the library's design
 principles and is not recommended.
 
-Alternatives 5 and 6 (closure-directed or arity-aware inference) are
-probably not worth the complexity they would introduce.
+Alternative 6 (type-only priority without closure help) is not
+achievable on stable without collapsing into alternative 1; defer unless
+specialization stabilizes.
