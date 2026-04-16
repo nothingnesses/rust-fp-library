@@ -37,45 +37,44 @@
 //
 // -- Finding --
 //
-// HYPOTHESIS CONFIRMED. All 7 tests pass on stable rustc, including
-// multi-brand Result with type-changing transformations and
-// short-circuit on either side. The two-bound Brand resolution is
-// the first case in this POC series where one bound alone is
-// ambiguous for multi-brand types but the pair is uniquely
-// solvable.
-//
-// Only Val dispatch is tested here. The library's `ref_apply` is a
-// separate function; extending this POC to Ref is straightforward
-// but was not done.
+// HYPOTHESIS CONFIRMED. All tests pass on stable rustc for both
+// Val (`apply`) and Ref (`ref_apply`), including multi-brand Result
+// with type-changing transformations and short-circuit on either
+// side. The two-bound Brand resolution is the first case in this
+// POC series where one bound alone is ambiguous for multi-brand
+// types but the pair is uniquely solvable.
 
 #![allow(unused_imports, reason = "Kind is used inside Apply! macro expansion")]
 
-use fp_library::{
-	Apply,
-	Kind,
-	brands::{
-		OptionBrand,
-		RcFnBrand,
-		ResultErrAppliedBrand,
-		ResultOkAppliedBrand,
-		VecBrand,
+use {
+	fp_library::{
+		Apply,
+		Kind,
+		brands::{
+			OptionBrand,
+			RcFnBrand,
+			ResultErrAppliedBrand,
+			ResultOkAppliedBrand,
+			VecBrand,
+		},
+		classes::{
+			CloneFn,
+			RefSemiapplicative,
+			Semiapplicative,
+		},
+		dispatch::{
+			Ref,
+			Val,
+		},
+		functions::lift_fn_new,
+		kinds::Kind_cdc7cd43dac7585f,
 	},
-	classes::{
-		CloneFn,
-		Semiapplicative,
-	},
-	dispatch::{
-		Ref,
-		Val,
-	},
-	functions::lift_fn_new,
-	kinds::Kind_cdc7cd43dac7585f,
+	std::rc::Rc,
 };
 
 // -------------------------------------------------------------------------
-// SlotApp: arity-1 Slot analogue for apply, mirroring POC 5's shape.
-// Marker is carried but unused in this POC since we only target Val
-// (matches the library's split between `apply` and `ref_apply`).
+// SlotApp: arity-1 Slot with Brand trait-param and Marker assoc-type.
+// Direct impls set Marker = Val; &T blanket sets Marker = Ref.
 // -------------------------------------------------------------------------
 
 #[allow(non_camel_case_types)]
@@ -208,5 +207,97 @@ fn val_result_multi_brand_type_change() {
 	let f: Result<_, String> = Ok(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x.to_string()));
 	let x: Result<i32, String> = Ok(42);
 	let y: Result<String, String> = apply_via_slot::<RcFnBrand, _, _, _, _, _>(f, x);
+	assert_eq!(y, Ok("42".to_string()));
+}
+
+// -------------------------------------------------------------------------
+// Ref apply: inference validation via Slot.
+//
+// `ref_apply` takes both containers by reference. The `&T` blanket on
+// SlotApp gives Marker = Ref. Brand is inferred from the inner types
+// via the blanket delegation.
+//
+// The production implementation would use a dispatch trait (analogous to
+// FunctorDispatch) to route `(&FF, &FA)` to `Brand::ref_apply`. For
+// this POC we validate inference in two steps:
+//   (1) A `ref_apply_infer_brand` function that takes generic `(&TFF, &TFA)`
+//       with Slot bounds - if it compiles, Brand resolves.
+//   (2) Call the library's `ref_apply` directly with the inferred Brand
+//       to verify correctness.
+//
+// `RefSemiapplicative::ref_apply` uses `CloneFn<Ref>` for the function
+// wrappers (the wrapped function takes `&A`, not owned A).
+// -------------------------------------------------------------------------
+
+/// Inference-only helper: validates that Slot resolves Brand from two
+/// reference containers. Returns `PhantomData<Brand>` so callers can
+/// assert which Brand was inferred via a type annotation.
+pub fn ref_apply_infer_brand<'a, FnBrand, Brand, A, B, TFF, TFA>(
+	_ff: &TFF,
+	_fa: &TFA,
+) -> std::marker::PhantomData<Brand>
+where
+	FnBrand: CloneFn<Ref> + 'a,
+	Brand: RefSemiapplicative,
+	A: 'a,
+	B: 'a,
+	TFF: SlotApp_cdc7cd43dac7585f<'a, Brand, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>,
+	TFA: SlotApp_cdc7cd43dac7585f<'a, Brand, A>, {
+	std::marker::PhantomData
+}
+
+// -------------------------------------------------------------------------
+// Ref apply tests.
+//
+// Each test validates:
+//   - Slot inference commits the correct Brand (via PhantomData type
+//     annotation on ref_apply_infer_brand).
+//   - The library's ref_apply produces the correct result when called
+//     with that Brand.
+// -------------------------------------------------------------------------
+
+#[test]
+fn ref_option_single_brand() {
+	let f: Option<Rc<dyn Fn(&i32) -> i32>> = Some(Rc::new(|x: &i32| *x * 2));
+	let x = Some(5i32);
+	// Step 1: Slot inference commits Brand = OptionBrand.
+	let _: std::marker::PhantomData<OptionBrand> =
+		ref_apply_infer_brand::<RcFnBrand, _, _, _, _, _>(&f, &x);
+	// Step 2: call ref_apply with the inferred Brand.
+	let y: Option<i32> = fp_library::functions::ref_apply::<RcFnBrand, OptionBrand, _, _>(&f, &x);
+	assert_eq!(y, Some(10));
+}
+
+#[test]
+fn ref_result_multi_brand_ok_mapping() {
+	let f: Result<Rc<dyn Fn(&i32) -> i32>, String> = Ok(Rc::new(|x: &i32| *x + 1));
+	let x: Result<i32, String> = Ok(5);
+	// Brand infers to ResultErrAppliedBrand<String> from both containers.
+	let _: std::marker::PhantomData<ResultErrAppliedBrand<String>> =
+		ref_apply_infer_brand::<RcFnBrand, _, _, _, _, _>(&f, &x);
+	let y: Result<i32, String> =
+		fp_library::functions::ref_apply::<RcFnBrand, ResultErrAppliedBrand<String>, _, _>(&f, &x);
+	assert_eq!(y, Ok(6));
+}
+
+#[test]
+fn ref_result_multi_brand_ff_err() {
+	let f: Result<Rc<dyn Fn(&i32) -> i32>, String> = Err("bad fn".to_string());
+	let x: Result<i32, String> = Ok(5);
+	let _: std::marker::PhantomData<ResultErrAppliedBrand<String>> =
+		ref_apply_infer_brand::<RcFnBrand, _, _, _, _, _>(&f, &x);
+	let y: Result<i32, String> =
+		fp_library::functions::ref_apply::<RcFnBrand, ResultErrAppliedBrand<String>, _, _>(&f, &x);
+	assert_eq!(y, Err("bad fn".to_string()));
+}
+
+#[test]
+fn ref_result_multi_brand_type_change() {
+	let f: Result<Rc<dyn Fn(&i32) -> String>, String> = Ok(Rc::new(|x: &i32| x.to_string()));
+	let x: Result<i32, String> = Ok(42);
+	let _: std::marker::PhantomData<ResultErrAppliedBrand<String>> =
+		ref_apply_infer_brand::<RcFnBrand, _, _, _, _, _>(&f, &x);
+	let y: Result<String, String> =
+		fp_library::functions::ref_apply::<RcFnBrand, ResultErrAppliedBrand<String>, _, _>(&f, &x);
 	assert_eq!(y, Ok("42".to_string()));
 }

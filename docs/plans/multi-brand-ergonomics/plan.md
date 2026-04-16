@@ -189,16 +189,16 @@ single unique-brand Slot impl.
 
 Seven POCs on stable rustc establish feasibility:
 
-| POC                                                                                  | Finding                                                                                                                                                     |
-| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [slot_production_poc.rs](../../../fp-library/tests/slot_production_poc.rs)           | Slot type-level validation; A2 coherence works; lifetime-generic GATs OK.                                                                                   |
-| [slot_valref_poc.rs](../../../fp-library/tests/slot_valref_poc.rs)                   | Unified signature via Slot + production FunctorDispatch - validated for Val + all, Ref + single-brand. Ref + multi-brand exposed Val/Ref cross-competition. |
-| [slot_select_brand_poc.rs](../../../fp-library/tests/slot_select_brand_poc.rs)       | Alternative with Brand as associated-type projection - rejected by coherence.                                                                               |
-| [slot_assoc_marker_poc.rs](../../../fp-library/tests/slot_assoc_marker_poc.rs)       | Alternative with Marker as dispatch-trait associated type - rejected by coherence.                                                                          |
-| [slot_marker_via_slot_poc.rs](../../../fp-library/tests/slot_marker_via_slot_poc.rs) | **Adopted design.** Marker projected via Slot closes Ref + multi-brand gap in unified signature.                                                            |
-| [slot_arity2_poc.rs](../../../fp-library/tests/slot_arity2_poc.rs)                   | Pattern generalises to arity 2 (bimap).                                                                                                                     |
-| [slot_bind_poc.rs](../../../fp-library/tests/slot_bind_poc.rs)                       | Pattern generalises to `bind` (closure returns container); single-brand and multi-brand both work.                                                          |
-| [slot_apply_poc.rs](../../../fp-library/tests/slot_apply_poc.rs)                     | Pattern generalises to `apply` (two containers sharing a Brand); Brand inferred from `ff`'s Fn-payload and `fa`'s value simultaneously; multi-brand works.  |
+| POC                                                                                  | Finding                                                                                                                                                                                         |
+| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [slot_production_poc.rs](../../../fp-library/tests/slot_production_poc.rs)           | Slot type-level validation; A2 coherence works; lifetime-generic GATs OK.                                                                                                                       |
+| [slot_valref_poc.rs](../../../fp-library/tests/slot_valref_poc.rs)                   | Unified signature via Slot + production FunctorDispatch - validated for Val + all, Ref + single-brand. Ref + multi-brand exposed Val/Ref cross-competition.                                     |
+| [slot_select_brand_poc.rs](../../../fp-library/tests/slot_select_brand_poc.rs)       | Alternative with Brand as associated-type projection - rejected by coherence.                                                                                                                   |
+| [slot_assoc_marker_poc.rs](../../../fp-library/tests/slot_assoc_marker_poc.rs)       | Alternative with Marker as dispatch-trait associated type - rejected by coherence.                                                                                                              |
+| [slot_marker_via_slot_poc.rs](../../../fp-library/tests/slot_marker_via_slot_poc.rs) | **Adopted design.** Marker projected via Slot closes Ref + multi-brand gap in unified signature.                                                                                                |
+| [slot_arity2_poc.rs](../../../fp-library/tests/slot_arity2_poc.rs)                   | Pattern generalises to arity 2 (bimap).                                                                                                                                                         |
+| [slot_bind_poc.rs](../../../fp-library/tests/slot_bind_poc.rs)                       | Pattern generalises to `bind` (closure returns container); single-brand and multi-brand both work.                                                                                              |
+| [slot_apply_poc.rs](../../../fp-library/tests/slot_apply_poc.rs)                     | Pattern generalises to `apply` and `ref_apply` (two containers sharing a Brand); Brand inferred from `ff`'s Fn-payload and `fa`'s value simultaneously; multi-brand works for both Val and Ref. |
 
 Key generalisation findings:
 
@@ -293,6 +293,27 @@ user paths. Generating Slot for them would create additional Slot
 candidates for types like `Result<A, E>` at arity 1, amplifying
 closure-input ambiguities without user-facing benefit.
 
+### Decision H: Apply-side closure-directed inference
+
+**Option a)** (adopted). Extend Slot-based inference to
+`Semiapplicative::apply` and `RefSemiapplicative::ref_apply` via
+the Fn payload inside `ff`.
+
+The signature uses two Slot bounds sharing the Brand parameter:
+
+- `FF: Slot<Brand, <FnBrand as CloneFn>::Of<A, B>>` keys on the
+  function payload type inside `ff`.
+- `FA: Slot<Brand, A>` keys on the value type inside `fa`.
+
+Rust's solver intersects the two bounds to commit a unique Brand.
+Both Val and Ref are validated by POC 8 (11 tests: 7 Val + 4 Ref).
+
+_Rationale:_ gives `apply` the same inference experience as `map`
+and `bind`. Option b) (keep apply explicit-only) creates surface
+asymmetry. Option c) (defer) was the original recommendation before
+POC 8 validated feasibility; now that a) works, deferring has no
+benefit.
+
 ## Integration surface
 
 ### Will change
@@ -384,54 +405,6 @@ diagnostic. But upstream trait bounds (`Brand: Functor`,
 message. If that happens, phase 3 should add `on_unimplemented`
 overrides to the type-class traits pointing back at the Slot
 diagnostic. Decide from observed behaviour in phase 1.
-
-### Q7: Apply-side closure-directed inference
-
-_Finding (POC 8): option a) validated._
-`Semiapplicative::apply` takes two containers sharing a Brand: `ff`
-holding a function and `fa` holding a value. [POC 8](../../../fp-library/tests/slot_apply_poc.rs)
-confirmed that Slot-based inference works with two simultaneous Slot
-bounds sharing the Brand parameter. All 7 cases pass, including
-multi-brand Result with type-changing transformations and
-short-circuit on either side.
-
-Approaches:
-
-- **a) Implement `apply` with CDI via the `Fn` payload.** Two
-  Slot bounds share the Brand parameter:
-  - `FF: Slot<Brand, <FnBrand as CloneFn>::Of<A, B>>` keys on the
-    function payload type inside `ff`.
-  - `FA: Slot<Brand, A>` keys on the value type inside `fa`.
-    Rust's solver intersects the two bounds to commit a unique Brand.
-    _Trade-off:_ uniform dispatch experience across every
-    closure-taking operation; the two-bound resolution has a modestly
-    subtle inference shape but POC 8 confirms it works on stable
-    rustc. Macro generation follows the same pattern as `map` and
-    `bind`.
-- **b) Keep `apply` explicit-only for multi-brand.** `apply`
-  continues to require `explicit::apply::<Brand, ...>` on multi-brand
-  types.
-  _Trade-off:_ simplest; surface asymmetry - users who rely on
-  `apply` on multi-brand types hit `explicit::` while `map`/`bind`
-  do not.
-- **c) Defer the decision.** Ship with `apply` unchanged; revisit
-  in a follow-up plan.
-  _Trade-off:_ leaves `apply` inconsistent with `map` and `bind` for
-  an indefinite period without clear benefit, now that option a) is
-  validated.
-
-_Recommendation:_ **a)**. POC 8 invalidates the original deferral
-rationale. Since Slot-based inference works for `apply`, extending
-the consistent inference experience to every operation is preferable
-to the surface asymmetry of b) or the lack of benefit of c). Include
-`apply` (and `ref_apply`) in phase 2 alongside `bind`, `bimap`,
-`fold_*`, etc.
-
-One remaining uncertainty: the POC only exercises Val
-(`Semiapplicative::apply`). `RefSemiapplicative::ref_apply` follows
-the same pattern but was not POC'd. Plan to validate during phase 2
-implementation; if an unexpected issue surfaces, fall back to a)
-for Val and b) for Ref.
 
 ### Q10: Do-notation macro behaviour
 
@@ -563,9 +536,7 @@ Repeat the phase 1 rebinding for:
 - `lift2`.
 
 Each is a mechanical analogue of phase 1 for its dispatch trait.
-Audit do-notation macros (Q10). Validate `ref_apply` against the
-same POC 8 pattern early; if an unexpected issue surfaces, fall
-back to explicit-only for the Ref case.
+Audit do-notation macros (Q10).
 
 ### Phase 3: Diagnostic polish and docs
 
