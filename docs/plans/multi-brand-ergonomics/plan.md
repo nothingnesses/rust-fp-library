@@ -516,6 +516,9 @@ Items to resolve before or during implementation.
    `bind`, `fold_*`, `traverse`, `lift2`, etc. Between phases the
    library is inconsistent: multi-brand `map` works, multi-brand
    `bind` still fails. Users may reasonably question the asymmetry.
+   **Weight reduced** by the pre-1.0 stance: bundling phase 1 and
+   phase 3 into a single release is acceptable if it yields a more
+   coherent public API.
 
 9. **Closure-annotation fragility.**
    **Finding (POC): validated.** Single-brand types (Option, Vec)
@@ -539,6 +542,10 @@ Items to resolve before or during implementation.
     generation; after: suppress InferableBrand + emit direct Slot).
     Downstream crates using this attribute experience a semantic
     shift in a public macro API.
+    **Weight reduced** by the pre-1.0 stance: a changelog entry is
+    acceptable; no migration shim is required. See Q14 for the
+    related question of whether to rename the attribute while making
+    this change.
 
 12. **Testing strategy.** All existing single-brand doctests should
     compile identically. All existing `explicit::map::<...>` doctests
@@ -549,6 +556,79 @@ Items to resolve before or during implementation.
     `fp-library/tests/closure_directed_inference_poc.rs` should be
     promoted to a proper integration test or removed once the real
     implementation subsumes it.
+
+13. **Slot generation scope for projection-type brands.** `impl_kind!`
+    currently auto-skips InferableBrand for brands whose `Of` target
+    contains `Apply!` or `::` (e.g.,
+    `BifunctorFirstAppliedBrand<ResultBrand, A>`). Under option A2,
+    should these derived brands also get direct `Slot` impls?
+    Generating Slot for them would make `Result<A, E>` match 4 brands
+    at arity 1 instead of 2, amplifying closure-input-type
+    ambiguities. Skipping them leaves bifunctor-derived mapping as
+    explicit-only.
+    Options: - **a) Keep the projection auto-skip rule for Slot too.**
+    Projection-type brands remain explicit-only. Simplest; no
+    ambiguity expansion. - **b) Generate Slot for projection-type brands.** Uniform brand
+    landscape; risks ambiguity in cases where a bifunctor-derived
+    brand and a direct brand both match the same `(FA, A)`. - **c) Generate Slot routing through `Bifunctor::bimap(identity,
+f, _)`.** Technically elegant; macro logic grows.
+
+14. **Attribute naming under option A2.**
+    `#[no_inferable_brand]` now means "suppress InferableBrand AND
+    emit direct Slot." Types with this attribute ARE inferable (via
+    closure-directed inference); the name overpromises. The pre-1.0
+    stance permits renaming.
+    Options:
+    - **a) Keep the name.** Update documentation to clarify semantics.
+      No breakage; misleading.
+    - **b) Rename** to `#[multi_brand]`, `#[no_unique_brand]`, or
+      similar. Accurate; one-time breakage within the pre-1.0
+      window.
+    - **c) Split** into `#[no_inferable_brand]` (suppression) and
+      `#[multi_brand]` (semantic flag). Composable; more attribute
+      surface.
+
+15. **`explicit::` module reorganization under Slot.** Under option
+    A2, `explicit::` still exists for the diagonal case and for
+    deliberate explicit-brand usage. Today it dispatches through
+    direct Brand+FA; should it be rewritten to route through Slot
+    internally?
+    Options:
+    - **a) Keep today's `explicit::map::<Brand, A, B, FA, Marker>`**
+      shape. No churn for existing users; two dispatch pipelines
+      coexist internally.
+    - **b) Rewrite `explicit::map` to bound on Slot,** with Brand
+      pinned via turbofish: `explicit::map::<Brand>(f, fa)`. Unifies
+      dispatch; turbofish surface naturally contracts.
+    - **c) Remove `explicit::` entirely** in favour of inherent
+      methods or direct `Brand::method` calls. Probably too far even
+      pre-1.0.
+
+16. **Compile-time regression risk from per-brand Slot generation.**
+    Option A2 approximately doubles the macro-generated trait-impl
+    code per brand (InferableBrand + Slot instead of just
+    InferableBrand). The effect on compile times is unknown.
+    Options:
+    - **a) Measure post-implementation.** Accept regression if small
+      (for example, under 5%). Revisit only if worse.
+    - **b) Fuse InferableBrand and Slot generation** into a single
+      macro pass to reduce expansion overhead. Minor win at best.
+    - **c) Only generate Slot for brands participating in
+      closure-directed dispatch** (exclude tags like `SendThunkBrand`
+      that carry no type-class impls). Complicates macro logic for
+      uncertain savings.
+
+17. **Macro hash coordination for `Slot_{hash}`.** `Slot_{hash}`
+    must share the content hash used by `Kind_{hash}` and
+    `InferableBrand_{hash}` so `impl_kind!`-emitted impls target the
+    right trait. This is more implementation note than open question;
+    it needs to be addressed as part of phase 1 rather than decided
+    in advance.
+    Options:
+    - **a) Share the existing hash generator** across Kind,
+      InferableBrand, and Slot in the macro code. Obvious choice.
+    - **b) Re-derive hashes independently** in each macro pass.
+      Risks silent drift.
 
 ### Design decisions with trade-offs
 
@@ -642,6 +722,18 @@ listed as starting points for discussion.
    case the POC compiles should continue to compile in the
    production implementation. Regressions from POC behavior are
    regressions from the plan's stated capability.
+
+8. **Run a second POC for Val/Ref + FunctorDispatch + Slot
+   composition.** The current production-style POC uses a Clone-based
+   `&T` shim and does not exercise the production Marker parameter.
+   Before phase 1 implementation, validate that Slot's brand-dispatch
+   axis composes with FunctorDispatch's Val/Ref Marker axis in a
+   single signature. Covers the remaining uncertainty in open
+   question 4.
+
+9. **Benchmark compile-time impact** of per-brand Slot generation
+   as part of phase 1 acceptance. Targets open question 16; detects
+   regressions early rather than post-release.
 
 ## Implementation phasing
 
