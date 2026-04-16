@@ -475,248 +475,391 @@ require either production code or non-technical decisions.
    traits), blocker 3 would need re-validation because the projection
    path would differ.
 
-### Open questions
+### Decisions
 
-Items to resolve before or during implementation.
+Cross-cutting architectural choices that span multiple implementation
+items.
 
-4. **Val/Ref dispatch as a second selection axis.**
-   **Finding (POC): type-level validated; dispatch-level untested.**
-   A `&T` blanket for `Slot` (parallel to the existing one on
-   InferableBrand) lets `slot_map(f, &fa)` resolve the brand through
-   the reference for both single-brand (`&Option`, `&Vec`) and
-   multi-brand (`&Result`) concrete types. The POC's MapDispatch for
-   `&T` delegates through `Clone`, so it does not exercise the
-   production `FunctorDispatch`/`RefFunctor` split. The remaining
-   uncertainty is whether `Slot`'s brand axis composes with the
-   existing Val/Ref `Marker` axis in a single dispatch signature;
-   this requires a second POC against the production
-   `FunctorDispatch` trait or validation during phase 1 implementation.
+**Decision A: Coherence approach.**
 
-5. **Diagnostic wording precision.** Does the "user forgot
-   annotation" case need a different message from the "diagonal,
-   annotation won't help" case? Rust's diagnostic attributes are not
-   dynamic, so one message covering both is the likely outcome.
+_Status:_ resolved by POC.
 
-6. **Diagnostic routing between InferableBrand and Slot.**
-   InferableBrand retains its `on_unimplemented` message ("does not
-   have a unique brand"). Slot gets a new one ("closure input could
-   not disambiguate"). In a failure scenario, which diagnostic fires
-   depends on which trait Rust reports against. Possibly both,
-   possibly neither. Unclear without prototyping.
+Options:
 
-7. **Apply-side closure-directed inference.**
-   `Semiapplicative::apply` has no outer closure but carries an
-   `Fn(A) -> B` payload inside `ff`. Could the payload's function
-   type drive Slot dispatch in phase 3? Decision can defer to phase 3
-   but affects whether apply becomes CDI-capable or stays
-   explicit-only for multi-brand types.
-
-8. **Partial-rollout inconsistency during phase 1.** Phase 1
-   unblocks `map` for multi-brand types; phase 3 extends the same to
-   `bind`, `fold_*`, `traverse`, `lift2`, etc. Between phases the
-   library is inconsistent: multi-brand `map` works, multi-brand
-   `bind` still fails. Users may reasonably question the asymmetry.
-   **Weight reduced** by the pre-1.0 stance: bundling phase 1 and
-   phase 3 into a single release is acceptable if it yields a more
-   coherent public API.
-
-9. **Closure-annotation fragility.**
-   **Finding (POC): validated.** Single-brand types (Option, Vec)
-   accept unannotated closures (`|x| x + 1`) because `A` flows from
-   the container via the Slot impl. Multi-brand non-diagonal types
-   (Result<i32, String>) require an explicit closure-input annotation
-   (`|x: i32| ...`); without it the Slot impls cannot be
-   disambiguated. Annotating the call-site return type alone (e.g.,
-   `let r: Result<i64, String> = slot_map(|x| ..., Ok::<i32, String>(5))`)
-   is **not** sufficient; the annotation must pin the closure's input.
-   Documented in the POC (commented test case).
-
-10. **Do-notation macro behavior (`m_do!`, `a_do!`).** These desugar
-    to chained `bind`/`apply` calls. After phase 3, their closures
-    will require annotation when operating on multi-brand types. The
-    macros themselves may need an audit for how types propagate
-    through their expansions.
-
-11. **Downstream crate impact.** The `#[no_inferable_brand]`
-    attribute's semantics change (previously: suppress InferableBrand
-    generation; after: suppress InferableBrand + emit direct Slot).
-    Downstream crates using this attribute experience a semantic
-    shift in a public macro API.
-    **Weight reduced** by the pre-1.0 stance: a changelog entry is
-    acceptable; no migration shim is required. See Q14 for the
-    related question of whether to rename the attribute while making
-    this change.
-
-12. **Testing strategy.** All existing single-brand doctests should
-    compile identically. All existing `explicit::map::<...>` doctests
-    on multi-brand types should stay as-is (they document the
-    explicit path). Add new positive doctests for closure-directed
-    resolution and UI tests for the diagonal failure cases. The
-    existing POC at
-    `fp-library/tests/closure_directed_inference_poc.rs` should be
-    promoted to a proper integration test or removed once the real
-    implementation subsumes it.
-
-13. **Slot generation scope for projection-type brands.** `impl_kind!`
-    currently auto-skips InferableBrand for brands whose `Of` target
-    contains `Apply!` or `::` (e.g.,
-    `BifunctorFirstAppliedBrand<ResultBrand, A>`). Under option A2,
-    should these derived brands also get direct `Slot` impls?
-    Generating Slot for them would make `Result<A, E>` match 4 brands
-    at arity 1 instead of 2, amplifying closure-input-type
-    ambiguities. Skipping them leaves bifunctor-derived mapping as
-    explicit-only.
-    Options: - **a) Keep the projection auto-skip rule for Slot too.**
-    Projection-type brands remain explicit-only. Simplest; no
-    ambiguity expansion. - **b) Generate Slot for projection-type brands.** Uniform brand
-    landscape; risks ambiguity in cases where a bifunctor-derived
-    brand and a direct brand both match the same `(FA, A)`. - **c) Generate Slot routing through `Bifunctor::bimap(identity,
-f, _)`.** Technically elegant; macro logic grows.
-
-14. **Attribute naming under option A2.**
-    `#[no_inferable_brand]` now means "suppress InferableBrand AND
-    emit direct Slot." Types with this attribute ARE inferable (via
-    closure-directed inference); the name overpromises. The pre-1.0
-    stance permits renaming.
-    Options:
-    - **a) Keep the name.** Update documentation to clarify semantics.
-      No breakage; misleading.
-    - **b) Rename** to `#[multi_brand]`, `#[no_unique_brand]`, or
-      similar. Accurate; one-time breakage within the pre-1.0
-      window.
-    - **c) Split** into `#[no_inferable_brand]` (suppression) and
-      `#[multi_brand]` (semantic flag). Composable; more attribute
-      surface.
-
-15. **`explicit::` module reorganization under Slot.** Under option
-    A2, `explicit::` still exists for the diagonal case and for
-    deliberate explicit-brand usage. Today it dispatches through
-    direct Brand+FA; should it be rewritten to route through Slot
-    internally?
-    Options:
-    - **a) Keep today's `explicit::map::<Brand, A, B, FA, Marker>`**
-      shape. No churn for existing users; two dispatch pipelines
-      coexist internally.
-    - **b) Rewrite `explicit::map` to bound on Slot,** with Brand
-      pinned via turbofish: `explicit::map::<Brand>(f, fa)`. Unifies
-      dispatch; turbofish surface naturally contracts.
-    - **c) Remove `explicit::` entirely** in favour of inherent
-      methods or direct `Brand::method` calls. Probably too far even
-      pre-1.0.
-
-16. **Compile-time regression risk from per-brand Slot generation.**
-    Option A2 approximately doubles the macro-generated trait-impl
-    code per brand (InferableBrand + Slot instead of just
-    InferableBrand). The effect on compile times is unknown.
-    Options:
-    - **a) Measure post-implementation.** Accept regression if small
-      (for example, under 5%). Revisit only if worse.
-    - **b) Fuse InferableBrand and Slot generation** into a single
-      macro pass to reduce expansion overhead. Minor win at best.
-    - **c) Only generate Slot for brands participating in
-      closure-directed dispatch** (exclude tags like `SendThunkBrand`
-      that carry no type-class impls). Complicates macro logic for
-      uncertain savings.
-
-17. **Macro hash coordination for `Slot_{hash}`.** `Slot_{hash}`
-    must share the content hash used by `Kind_{hash}` and
-    `InferableBrand_{hash}` so `impl_kind!`-emitted impls target the
-    right trait. This is more implementation note than open question;
-    it needs to be addressed as part of phase 1 rather than decided
-    in advance.
-    Options:
-    - **a) Share the existing hash generator** across Kind,
-      InferableBrand, and Slot in the macro code. Obvious choice.
-    - **b) Re-derive hashes independently** in each macro pass.
-      Risks silent drift.
-
-### Design decisions with trade-offs
-
-Decisions that the plan currently answers one way but where
-alternatives exist. Listed with options and trade-offs; no choice is
-locked in.
-
-**Decision A: Coherence approach.** (POC-informed.)
-
-- Option A1: Trust Rust's where-clause coherence with blanket +
-  direct impls. **POC finding: does not work on stable rustc**
-  (E0119, see blocker 1 above). No longer a viable option without
-  either specialization (unstable) or a different disambiguation
-  mechanism.
-- Option A2: No blanket; generate direct `Slot` impls for every
-  brand (single- and multi-). **POC finding: works; all blocker
-  validations passed under this scheme.** Single-brand types
-  duplicate the effect the blanket would have provided. Coherence
-  is trivially safe (each impl is keyed on a distinct brand). Cost:
-  more generated code, zero runtime impact. InferableBrand remains
-  as the "unique-brand assertion" trait but no longer has a
-  dispatch role tied to Slot.
-- Option A3: Sealed marker trait. Introduce a private marker like
+- **A1. Trust Rust's where-clause coherence with blanket + direct
+  impls.** _Trade-off:_ simplest if it works; catastrophic failure
+  mode if not. **POC finding: does not work on stable rustc (E0119,
+  see blocker 1 above).** No longer viable without specialization
+  (unstable) or a different disambiguation mechanism.
+- **A2. No blanket; generate direct `Slot` impls for every brand**
+  (single- and multi-). _Trade-off:_ more generated code (zero
+  runtime impact); coherence trivially safe (each impl keyed on a
+  distinct brand); InferableBrand remains as a separate
+  "unique-brand assertion" trait. **POC finding: works; all blocker
+  validations passed under this scheme.**
+- **A3. Sealed marker trait.** Private marker like
   `trait MultiBrand: Sealed` implemented by multi-brand concrete
-  types; restructure the blanket around it. Adds complexity for
-  limited gain over A2.
-- Option A4: Invert the design. Make `Slot` primary; derive
-  InferableBrand from uniqueness of Slot resolution. Rewrites more
-  of the existing brand machinery. High risk.
+  types, restructuring the blanket around it. _Trade-off:_ adds
+  complexity for limited gain over A2.
+- **A4. Invert the design: `Slot` primary, InferableBrand derived.**
+  _Trade-off:_ conceptually cleaner; on stable Rust this degrades
+  into something equivalent to A2 because the "exists unique Slot
+  impl" predicate is not expressible. High migration risk.
 
-The POC's findings reduce this decision to "adopt option A2" unless
-an unstable-feature path becomes acceptable.
+_Recommendation:_ **A2.** The POC validates A2 end-to-end. A1 is
+definitively off the table on stable. A3 adds complexity for no
+meaningful gain. A4 collapses into A2 in practice.
 
 **Decision B: Phase structure.**
 
-- Option B1: Keep phases separate (current plan). Simplest PR
-  sequence. Worst user-facing experience between phase 1 and phase 3
-  releases.
-- Option B2: Bundle phase 1 and phase 3 into a single release.
-  Larger change per release but consistent public API throughout.
-- Option B3: Internally phased, released together. Phase 1 as a
-  testbed; phase 3 extends mechanically; release only after both
-  stabilize. Users never see the intermediate state.
+_Status:_ open; recommendation tentative.
+
+Options:
+
+- **B1. Keep phases separate** (phase 1 ships, phase 3 follows).
+  _Trade-off:_ simplest PR sequence; worst user-facing experience
+  between releases — multi-brand `map` works but multi-brand `bind`
+  does not.
+- **B2. Bundle phase 1 and phase 3 into a single release.**
+  _Trade-off:_ larger change per release; consistent public API
+  throughout.
+- **B3. Internally phased, released together.** Phase 1 lands
+  on a development branch as a testbed; phase 3 extends it
+  mechanically; release only after both stabilize.
+  _Trade-off:_ users never see the intermediate state; slightly
+  longer total delivery time.
+
+_Recommendation:_ **B3.** Pre-1.0 stance removes the "bundled
+release is too risky" argument. Internal phasing gives the
+implementer a testbed while users see only a coherent shipped API.
 
 **Decision C: Annotation requirement UX.**
 
-- Option C1: Accept the requirement. Document prominently that
-  multi-brand types need closure annotations under the inference
-  path; `explicit::` remains as the no-annotation alternative via
-  turbofish.
-- Option C2: Provide alternative signatures that accept annotation
-  differently. Unclear how this would look; probably not worth
-  pursuing.
+_Status:_ open; recommendation clear.
 
-### Tentative mitigations suggested during review
+Options:
 
-Suggestions to evaluate during decision-making. Not authoritative;
-listed as starting points for discussion.
+- **C1. Accept the requirement.** Document that multi-brand types
+  require closure-input annotations under the inference path.
+  `explicit::` remains as the no-annotation alternative via
+  turbofish. _Trade-off:_ minor call-site verbosity.
+- **C2. Provide alternative signatures that accept annotation
+  differently.** _Trade-off:_ unclear what this would look like;
+  likely complicates the dispatch story without removing the
+  underlying requirement.
 
-1. **Extend the POC before committing to implementation.** **Done.**
+_Recommendation:_ **C1.** The requirement follows directly from how
+closure-directed inference works (validated by POC). C2 has no
+concrete shape and cannot bypass Rust's type inference rules.
+
+### Open questions
+
+Each entry states the concern, enumerates options with trade-offs,
+and gives a recommendation. Recommendations are provisional guidance
+for the decision-maker, not commitments.
+
+**Q4. Val/Ref dispatch as a second selection axis.**
+
+_Finding (POC): type-level validated; dispatch-level untested._ A
+`&T` blanket for `Slot` lets `slot_map(f, &fa)` resolve the brand
+through a reference for both single-brand and multi-brand types. The
+POC's `MapDispatch` for `&T` uses Clone rather than the production
+`FunctorDispatch`/`RefFunctor` split, so full Val/Ref composition
+with `Slot`'s brand axis remains unverified.
+
+Options:
+
+- **a) Second POC before phase 1.** Validate the full
+  `FunctorDispatch` + `Marker` + `Slot` composition in a targeted
+  prototype. _Trade-off:_ short up-front cost; removes uncertainty
+  before any production work.
+- **b) Validate during phase 1 implementation,** with a fallback of
+  routing Ref dispatch separately if composition fails.
+  _Trade-off:_ faster start; risk of mid-phase redesign if the
+  composition doesn't work.
+- **c) Assume composition works.** _Trade-off:_ fastest; highest
+  risk.
+
+_Recommendation:_ **a).** Low cost, eliminates the remaining
+POC-reachable uncertainty. Also listed as workflow note 8.
+
+**Q5. Diagnostic wording precision.**
+
+Two failure modes produce different user errors: "forgot to annotate
+the closure" and "diagonal case where annotation won't help." Rust's
+`#[diagnostic::on_unimplemented]` is static, so dynamic messages
+keyed on the failure mode are not directly supported.
+
+Options:
+
+- **a) Single combined message** covering both cases ("annotate the
+  closure input; if that doesn't disambiguate, use `explicit::`").
+  _Trade-off:_ works on stable; slightly less targeted.
+- **b) Two messages via a custom mechanism** (sealed helper trait,
+  procedural macro generating per-type diagnostics). _Trade-off:_
+  more targeted; significantly more complex.
+
+_Recommendation:_ **a).** Single message is the only stable option
+and covers the common case acceptably. Revisit only if phase 1 user
+testing shows confusion.
+
+**Q6. Diagnostic routing between InferableBrand and Slot.**
+
+InferableBrand retains its `on_unimplemented` message; Slot gets a
+new one. Under a failure, which diagnostic Rust reports depends on
+which trait it resolves against.
+
+Options:
+
+- **a) Prototype and observe.** Adjust wording based on what Rust
+  actually reports under real failure scenarios. _Trade-off:_
+  empirical; defers full resolution to phase 1.
+- **b) Engineer the failure path** so exactly one diagnostic fires
+  (for example, remove InferableBrand's message now that Slot's
+  covers the same ground). _Trade-off:_ potentially loses coverage
+  for code paths that still bound on InferableBrand directly.
+
+_Recommendation:_ **a).** The right wording depends on what Rust's
+error-reporting machinery actually does in the new configuration.
+Decide from evidence during phase 1.
+
+**Q7. Apply-side closure-directed inference.**
+
+`Semiapplicative::apply` takes no outer closure but carries an
+`Fn(A) -> B` payload inside `ff`. In principle the payload's function
+type could drive `Slot` dispatch in phase 3.
+
+Options:
+
+- **a) Implement apply with CDI via the Fn payload.** _Trade-off:_
+  consistent with the rest of phase 3; macro/trait-resolution
+  complexity to validate.
+- **b) Keep apply explicit-only for multi-brand types.**
+  _Trade-off:_ fewer moving parts; surface asymmetry (apply alone
+  requires explicit:: while other operations don't).
+
+_Recommendation:_ Decide in phase 3 with evidence from a targeted
+prototype. If payload-driven inference works as cleanly as the
+closure-driven case, option a). Otherwise b).
+
+**Q8. Partial-rollout inconsistency during phase 1.**
+
+If phase 1 ships before phase 3, multi-brand `map` works while
+multi-brand `bind`/`fold_*`/etc. do not. The pre-1.0 stance reduces
+this concern's weight (see Decision B).
+
+Options:
+
+- **a) Accept the inconsistency** (Decision B option B1). Ship phase
+  1 and phase 3 separately. _Trade-off:_ faster phase 1 delivery;
+  transient UX inconsistency.
+- **b) Avoid the inconsistency** (Decision B options B2/B3). Ship
+  phase 1 and phase 3 together. _Trade-off:_ longer delivery; no
+  transient state visible to users.
+
+_Recommendation:_ **b), via Decision B's B3.** Pre-1.0 stance makes
+the delivery delay acceptable in exchange for a coherent user-facing
+rollout.
+
+**Q9. Closure-annotation fragility.**
+
+_Finding (POC): validated._ Single-brand types accept unannotated
+closures. Multi-brand non-diagonal types require closure-input
+annotations (`|x: i32| ...`); return-type-only annotations do not
+suffice.
+
+Not a decision point; noted for documentation. The finding should
+be prominently documented in user-facing docs (both in
+`fp-library/docs/brand-inference.md` and in `map`'s doc comment
+after phase 1).
+
+**Q10. Do-notation macro behavior (`m_do!`, `a_do!`).**
+
+These macros desugar to chained `bind`/`apply` calls. After phase 3
+they will require closure annotations when operating on multi-brand
+types.
+
+Options:
+
+- **a) Audit before phase 3 completes.** Run the existing
+  do-notation tests against multi-brand types with annotations; add
+  new tests covering edge cases. _Trade-off:_ catches issues
+  early.
+- **b) Only audit if issues surface** in normal testing.
+  _Trade-off:_ lower upfront cost; risk of late-discovered
+  incompatibility.
+
+_Recommendation:_ **a).** Low cost; ensures the macros remain
+usable in realistic multi-brand contexts. Listed as workflow
+note 4.
+
+**Q11. Downstream crate impact.**
+
+The `#[no_inferable_brand]` attribute's semantics change (previously:
+suppress InferableBrand; after: suppress InferableBrand + emit direct
+Slot). Pre-1.0 stance reduces this concern's weight.
+
+Options:
+
+- **a) Document in changelog.** Accept the breakage; provide a
+  migration note for downstream brand authors. _Trade-off:_
+  simplest.
+- **b) Add a migration shim** that re-emits old-semantics behavior
+  under a compatibility flag. _Trade-off:_ prolongs attribute
+  duality; incompatible with Q14 renaming.
+
+_Recommendation:_ **a).** Pre-1.0 stance explicitly accepts
+changelog-documented breakage in exchange for a cleaner end state.
+See Q14 for whether renaming happens at the same time.
+
+**Q12. Testing strategy.**
+
+Implementation checklist, not a decision point:
+
+- All existing single-brand doctests should compile identically.
+- All existing `explicit::map::<...>` doctests on multi-brand types
+  should stay as-is (they document the explicit path).
+- Add new positive doctests for closure-directed resolution.
+- Add UI tests for diagonal failure cases.
+- Promote the production POC to a proper integration test (or
+  remove it once the real implementation subsumes every case it
+  covers).
+
+**Q13. Slot generation scope for projection-type brands.**
+
+`impl_kind!` auto-skips InferableBrand for brands whose `Of` target
+contains `Apply!` or `::` (for example
+`BifunctorFirstAppliedBrand<ResultBrand, A>`). Under option A2,
+should these derived brands also get direct `Slot` impls?
+
+Options:
+
+- **a) Keep the projection auto-skip rule for Slot too.**
+  Projection-type brands remain explicit-only. _Trade-off:_ simplest
+  macro change; bifunctor-derived mapping is not CDI-accessible.
+- **b) Generate Slot for projection-type brands.** _Trade-off:_
+  uniform brand landscape; `Result<A, E>` at arity 1 would match 4
+  brands instead of 2, amplifying closure-input-type ambiguities.
+- **c) Generate Slot routing through
+  `Bifunctor::bimap(identity, f, _)`.** _Trade-off:_ technically
+  elegant; macro logic grows substantially.
+
+_Recommendation:_ **a).** Projection-type brands exist primarily for
+architectural completeness (showing Bifunctor subsumes Functor in
+one direction), not as primary user-facing paths. Keeping them
+explicit-only avoids ambiguity explosion without losing capability.
+
+**Q14. Attribute naming under option A2.**
+
+`#[no_inferable_brand]` now means "suppress InferableBrand AND emit
+direct Slot." Types with this attribute ARE inferable via closure
+direction; the name overpromises.
+
+Options:
+
+- **a) Keep the name.** Document to clarify semantics.
+  _Trade-off:_ no breakage; name remains misleading.
+- **b) Rename** to something semantically accurate:
+  `#[multi_brand]`, `#[no_unique_brand]`, etc. _Trade-off:_
+  one-time breakage within the pre-1.0 window; accurate.
+- **c) Split** into `#[no_inferable_brand]` (suppression) and
+  `#[multi_brand]` (semantic flag), composable. _Trade-off:_ most
+  flexible; more attribute surface.
+
+_Recommendation:_ **b).** Pre-1.0 stance accepts the breakage;
+accurate naming compounds positively over time. Reasonable
+candidates: `#[multi_brand]` (affirms what is true), or
+`#[no_unique_brand]` (inverse of the unique-brand concept).
+
+**Q15. `explicit::` module reorganization under Slot.**
+
+Under A2, `explicit::` still exists for the diagonal case and for
+deliberate explicit-brand usage. Today it dispatches through direct
+Brand+FA. Should it route through Slot internally?
+
+Options:
+
+- **a) Keep today's `explicit::map::<Brand, A, B, FA, Marker>`
+  signature.** _Trade-off:_ no churn for existing users; two
+  dispatch pipelines coexist internally.
+- **b) Rewrite `explicit::map` to bound on Slot,** with Brand
+  pinned via turbofish: `explicit::map::<Brand>(f, fa)`.
+  _Trade-off:_ unifies dispatch; the turbofish surface contracts
+  (fewer `_, _, _` placeholders).
+- **c) Remove `explicit::` entirely.** _Trade-off:_ largest
+  breakage; probably too far even pre-1.0.
+
+_Recommendation:_ **b).** Unified dispatch is cleaner; the user-facing
+turbofish improvement is a modest but genuine ergonomic win.
+
+**Q16. Compile-time regression risk from per-brand Slot generation.**
+
+Option A2 approximately doubles the macro-generated trait-impl code
+per brand. Compile-time impact is unknown.
+
+Options:
+
+- **a) Measure post-implementation.** Accept if small (for example
+  under 5%). Revisit only if worse. _Trade-off:_ empirical; defers
+  optimization until there is data.
+- **b) Fuse InferableBrand and Slot generation** into a single
+  macro pass. _Trade-off:_ minor win at best; more complex macro
+  code.
+- **c) Only generate Slot for brands participating in
+  closure-directed dispatch** (exclude tags like `SendThunkBrand`).
+  _Trade-off:_ complicates macro logic for uncertain savings.
+
+_Recommendation:_ **a).** Don't optimize without data. Listed as
+workflow note 9.
+
+**Q17. Macro hash coordination for `Slot_{hash}`.**
+
+`Slot_{hash}` must share the content hash used by `Kind_{hash}` and
+`InferableBrand_{hash}` so `impl_kind!`-emitted impls target the
+right trait. More implementation detail than open decision.
+
+Options:
+
+- **a) Share the existing hash generator.** _Trade-off:_ consistent
+  with today's Kind/InferableBrand coordination.
+- **b) Re-derive hashes independently.** _Trade-off:_ risks silent
+  drift; strictly worse.
+
+_Recommendation:_ **a).** Obvious choice; b) is a hazard, not a
+real alternative.
+
+### Workflow notes
+
+Process recommendations about how to execute the plan, as opposed
+to design decisions about what to build.
+
+1. **Extend the POC before committing to implementation.** _Done._
    The production-style POC
    ([fp-library/tests/slot_production_poc.rs](../../../fp-library/tests/slot_production_poc.rs))
-   covers the three blockers plus Val/Ref reference-blanket resolution
-   and the closure-annotation matrix. Remaining POC gap: full
-   `FunctorDispatch`/`Marker` composition (open question 4).
+   covers the three blockers plus Val/Ref reference-blanket
+   resolution and the closure-annotation matrix. Remaining POC gap:
+   full `FunctorDispatch`/`Marker` composition (Q4).
 
-2. **Adopt option A2 for coherence.** POC invalidated option A1 on
-   stable rustc; option A2 (direct `Slot` impls per brand) is the
-   path that actually compiles. The plan should treat this as
-   decided unless an unstable-feature path is on the table.
+2. **Adopt option A2 for coherence.** POC invalidated A1 on stable
+   rustc; A2 is the path that actually compiles. The plan now
+   records this as Decision A's recommendation.
 
-3. **Release phase 1 and phase 3 together (option B3).** Implement
-   phase 1 first as a testbed, extend to other closure-taking
-   operations before publishing, and release only after both are
-   stable.
+3. **Release phase 1 and phase 3 together (Decision B's B3).**
+   Implement phase 1 as a testbed, extend to other closure-taking
+   operations before publishing, release only after both are stable.
 
-4. **Audit do-notation before phase 3.** Verify that `m_do!` and
-   `a_do!` can produce well-typed code for multi-brand types with
-   reasonable closure annotations. Add doc-level guidance if
-   needed.
+4. **Audit do-notation before phase 3** (see Q10). Verify `m_do!`
+   and `a_do!` produce well-typed code for multi-brand types with
+   reasonable closure annotations.
 
-5. **Add a migration note for downstream crates.** Changelog entry
-   and doc update explaining the `#[no_inferable_brand]` semantic
-   shift when the release ships.
+5. **Add a migration note for downstream crates** (see Q11).
+   Changelog entry and doc update explaining the
+   `#[no_inferable_brand]` semantic shift (plus any rename from
+   Q14) when the release ships.
 
-6. **Defer open questions 5 and 7** (diagnostic wording, apply via
-   Fn payload) until there is a working phase 1 prototype; decide
-   with evidence rather than upfront.
+6. **Defer Q5 and Q7** (diagnostic wording, apply via Fn payload)
+   until there is a working phase 1 prototype; decide with evidence
+   rather than upfront.
 
 7. **Treat the POC as specification, not throwaway code.** Every
    case the POC compiles should continue to compile in the
@@ -724,16 +867,13 @@ listed as starting points for discussion.
    regressions from the plan's stated capability.
 
 8. **Run a second POC for Val/Ref + FunctorDispatch + Slot
-   composition.** The current production-style POC uses a Clone-based
-   `&T` shim and does not exercise the production Marker parameter.
-   Before phase 1 implementation, validate that Slot's brand-dispatch
-   axis composes with FunctorDispatch's Val/Ref Marker axis in a
-   single signature. Covers the remaining uncertainty in open
-   question 4.
+   composition** (Q4). Before phase 1 implementation, validate that
+   Slot's brand-dispatch axis composes with FunctorDispatch's
+   Val/Ref Marker axis in a single signature.
 
 9. **Benchmark compile-time impact** of per-brand Slot generation
-   as part of phase 1 acceptance. Targets open question 16; detects
-   regressions early rather than post-release.
+   as part of phase 1 acceptance (Q16). Detects regressions early
+   rather than post-release.
 
 ## Implementation phasing
 
