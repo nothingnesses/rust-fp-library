@@ -308,22 +308,38 @@ arity changes.
 
 ### Scope decision for this plan
 
-Implement `Slot_{hash}` only at the Kind arity used by
-Functor/Monad/Foldable/Traversable/etc. (arity 1 with lifetime:
-`Kind_cdc7cd43dac7585f`). Higher-arity Slot traits are not needed by
-any type in the library today:
+There are two separable things to decide: which arities the
+`Slot_{hash}` trait family exists at, and which arities `impl_kind!`
+emits direct Slot impls for.
 
-- Arity 2 is already unambiguous for every existing type
-  (`ResultBrand`, `Tuple2Brand`, etc. each have exactly one
-  arity-2 brand).
-- No arity-3-or-higher types exist.
+**Trait family: generate at every Kind arity.** `trait_kind!` already
+emits `Kind_{hash}` and `InferableBrand_{hash}` for every Kind
+signature encountered in the codebase (arity 1 with and without
+lifetime, arity 2 with and without lifetime). `Slot_{hash}` follows
+the same pattern: for each `Kind_{hash}` that `trait_kind!` emits,
+it also emits the corresponding `Slot_{hash}` trait plus the blanket
+impl from `InferableBrand_{hash}` to `Slot_{hash}`. This keeps the
+three-trait family uniform across arities and costs essentially
+nothing (the traits are marker-style with no runtime representation).
 
-If future library growth introduces higher-arity types with multiple
-partial-application brands at the same level, the Slot pattern
-extends mechanically. `trait_kind!` would generate the additional
-`Slot_{hash}` trait per new Kind signature, `impl_kind!` would emit
-direct impls for multi-brand cases, and the relevant free functions
-would bind on the higher-arity Slot. No design change required.
+**Direct impls: only where multi-brand ambiguity exists today.**
+`impl_kind!` emits direct `Slot_{hash}` impls only for brands
+carrying `#[no_inferable_brand]`. In the current library all such
+brands are at arity 1 (`Result`, `Pair`, `Tuple2`, `ControlFlow`,
+`TryThunk` partial applications), so phase 1 materializes direct
+impls only at that arity. Higher-arity brands (`ResultBrand` at
+arity 2, etc.) are single-brand at their arity and pick up `Slot`
+coverage via the blanket from InferableBrand; no direct impl is
+emitted.
+
+If future library growth introduces a higher-arity type with
+multiple partial-application brands at the same level (e.g. an
+arity-3 type with three arity-1 brands, or an arity-2 type with
+multiple arity-2 partial applications that map to the same concrete
+type), the `#[no_inferable_brand]` attribute on those brands would
+trigger direct Slot-impl generation at the appropriate arity. The
+macro logic is uniform across arities; no further design change
+required.
 
 ## Scope
 
