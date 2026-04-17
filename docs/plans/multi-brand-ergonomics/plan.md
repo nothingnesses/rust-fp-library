@@ -1142,4 +1142,3 @@ The plan is complete when:
 - Review findings: [analysis/06-consolidated-review-findings.md](./analysis/06-consolidated-review-findings.md).
 - POCs: listed in the Validated via POCs section above.
 - Brand-dispatch traits overview: [fp-library/docs/brand-dispatch-traits.md](../../../fp-library/docs/brand-dispatch-traits.md).
-- Parent brand-inference plan: [../brand-inference/plan.md](../brand-inference/plan.md).
