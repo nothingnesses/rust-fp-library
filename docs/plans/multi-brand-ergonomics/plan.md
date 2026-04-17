@@ -4,14 +4,19 @@
 
 ## Current progress
 
-Phase 0 step 1 complete: rewrote `fp-library/docs/brand-dispatch-traits.md`
-to reflect the adopted Marker-only Slot design (Decision L). The
-previous content described a contradictory Out-GAT + InferableBrand-blanket
-design and has been replaced with the adopted design: Slot with Brand
-as trait parameter, `type Marker` associated type, direct impls per
-brand, no blanket from InferableBrand, and `#[multi_brand]` attribute.
+Phase 0 complete. Phase 1 step 0 complete:
 
-Ready for phase 1.
+- Added `tests/non_regression_single_brand.rs` with 16 tests covering
+  map, bind, join, filter, lift2, alt inference wrappers for
+  single-brand types (Option, Vec). All pass against the current
+  codebase.
+- Added `tests/multi_brand_integration.rs` with phase 1 and phase 2
+  tests, all `#[ignore]`d with stub bodies (actual calls commented
+  out since they cannot compile until the Slot infrastructure exists).
+- Compile-fail UI test stubs deferred to phase 1 step 6 (see
+  Deviations).
+
+Ready for phase 1 step 1.
 
 ## Open questions, issues and blockers
 
@@ -19,8 +24,18 @@ None at this time. All review findings have been addressed.
 
 ## Deviations
 
-None at this time. Will be updated if implementation diverges from
-the plan.
+- Compile-fail UI test stubs deferred from phase 1 step 0 to step 6.
+  The trybuild runner uses `tests/ui/*.rs` as a glob, so any file
+  placed there must be a valid compile-fail test with matching
+  `.stderr`. Adding stubs before the Slot infrastructure exists would
+  produce incorrect error messages. The stubs will be created
+  alongside the infrastructure in step 6.
+- Multi-brand integration tests use empty stub bodies with the
+  intended calls as comments, rather than `#[ignore]`d tests with
+  actual code. The actual `map(...)` calls cannot compile against the
+  current InferableBrand-based dispatch because Result does not
+  implement InferableBrand at arity 1. Tests will be filled in and
+  un-ignored in step 7.
 
 ## Implementation protocol
 
