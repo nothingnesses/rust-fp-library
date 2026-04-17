@@ -144,14 +144,15 @@ where
 
 ### Coverage matrix
 
-| Case                         | Behaviour                                   |
-| ---------------------------- | ------------------------------------------- |
-| Val + single-brand           | Inference (no change from today)            |
-| Val + multi-brand            | Inference via closure input                 |
-| Ref + single-brand           | Inference (no change from today)            |
-| Ref + multi-brand            | Inference via closure input                 |
-| Multi-brand diagonal (`T=T`) | Compile error; use `explicit::`             |
-| Unannotated multi-brand      | Compile error; annotate or use `explicit::` |
+| Case                              | Behaviour                                   |
+| --------------------------------- | ------------------------------------------- |
+| Val + single-brand                | Inference (no change from today)            |
+| Val + multi-brand                 | Inference via closure input                 |
+| Ref + single-brand                | Inference (no change from today)            |
+| Ref + multi-brand                 | Inference via closure input                 |
+| Multi-brand + generic fixed param | Inference works (POC 9 validated)           |
+| Multi-brand diagonal (`T=T`)      | Compile error; use `explicit::`             |
+| Unannotated multi-brand           | Compile error; annotate or use `explicit::` |
 
 ### How closure-directed inference resolves Brand
 
@@ -193,18 +194,19 @@ The `#[no_inferable_brand]` attribute is renamed to `#[multi_brand]`
 
 ## Validated via POCs
 
-Seven POCs on stable rustc establish feasibility:
+Nine POCs on stable rustc establish feasibility:
 
-| POC                                                                                  | Finding                                                                                                                                                                                         |
-| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [slot_production_poc.rs](../../../fp-library/tests/slot_production_poc.rs)           | InferableBrand type-level validation; A2 coherence works; lifetime-generic GATs OK.                                                                                                             |
-| [slot_valref_poc.rs](../../../fp-library/tests/slot_valref_poc.rs)                   | Unified signature via InferableBrand + production FunctorDispatch - validated for Val + all, Ref + single-brand. Ref + multi-brand exposed Val/Ref cross-competition.                           |
-| [slot_select_brand_poc.rs](../../../fp-library/tests/slot_select_brand_poc.rs)       | Alternative with Brand as associated-type projection - rejected by coherence.                                                                                                                   |
-| [slot_assoc_marker_poc.rs](../../../fp-library/tests/slot_assoc_marker_poc.rs)       | Alternative with Marker as dispatch-trait associated type - rejected by coherence.                                                                                                              |
-| [slot_marker_via_slot_poc.rs](../../../fp-library/tests/slot_marker_via_slot_poc.rs) | **Adopted design.** Marker projected via InferableBrand closes Ref + multi-brand gap in unified signature.                                                                                      |
-| [slot_arity2_poc.rs](../../../fp-library/tests/slot_arity2_poc.rs)                   | Pattern generalises to arity 2 (bimap).                                                                                                                                                         |
-| [slot_bind_poc.rs](../../../fp-library/tests/slot_bind_poc.rs)                       | Pattern generalises to `bind` (closure returns container); single-brand and multi-brand both work.                                                                                              |
-| [slot_apply_poc.rs](../../../fp-library/tests/slot_apply_poc.rs)                     | Pattern generalises to `apply` and `ref_apply` (two containers sharing a Brand); Brand inferred from `ff`'s Fn-payload and `fa`'s value simultaneously; multi-brand works for both Val and Ref. |
+| POC                                                                                          | Finding                                                                                                                                                                                         |
+| -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [slot_production_poc.rs](../../../fp-library/tests/slot_production_poc.rs)                   | InferableBrand type-level validation; A2 coherence works; lifetime-generic GATs OK.                                                                                                             |
+| [slot_valref_poc.rs](../../../fp-library/tests/slot_valref_poc.rs)                           | Unified signature via InferableBrand + production FunctorDispatch - validated for Val + all, Ref + single-brand. Ref + multi-brand exposed Val/Ref cross-competition.                           |
+| [slot_select_brand_poc.rs](../../../fp-library/tests/slot_select_brand_poc.rs)               | Alternative with Brand as associated-type projection - rejected by coherence.                                                                                                                   |
+| [slot_assoc_marker_poc.rs](../../../fp-library/tests/slot_assoc_marker_poc.rs)               | Alternative with Marker as dispatch-trait associated type - rejected by coherence.                                                                                                              |
+| [slot_marker_via_slot_poc.rs](../../../fp-library/tests/slot_marker_via_slot_poc.rs)         | **Adopted design.** Marker projected via InferableBrand closes Ref + multi-brand gap in unified signature.                                                                                      |
+| [slot_arity2_poc.rs](../../../fp-library/tests/slot_arity2_poc.rs)                           | Pattern generalises to arity 2 (bimap).                                                                                                                                                         |
+| [slot_bind_poc.rs](../../../fp-library/tests/slot_bind_poc.rs)                               | Pattern generalises to `bind` (closure returns container); single-brand and multi-brand both work.                                                                                              |
+| [slot_apply_poc.rs](../../../fp-library/tests/slot_apply_poc.rs)                             | Pattern generalises to `apply` and `ref_apply` (two containers sharing a Brand); Brand inferred from `ff`'s Fn-payload and `fa`'s value simultaneously; multi-brand works for both Val and Ref. |
+| [slot_generic_fixed_param_poc.rs](../../../fp-library/tests/slot_generic_fixed_param_poc.rs) | Generic fixed parameters (`fn process<E>(r: Result<i32, E>)`) infer correctly; the solver commits Brand from the concrete closure input without needing to prove the generic param differs.     |
 
 Key generalisation findings:
 

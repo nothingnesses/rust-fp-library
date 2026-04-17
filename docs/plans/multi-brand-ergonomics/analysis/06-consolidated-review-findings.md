@@ -97,16 +97,16 @@ this.
 rustc 1.94.1 and all foreseeable stable releases. Consider adding a
 periodic nightly CI check with `-Znext-solver` for early warning.
 
-### M4. Generic fixed-parameter case may be ambiguous (Agent 4)
+### ~~M4. Generic fixed-parameter case may be ambiguous (Agent 4)~~ VALIDATED
 
 `fn process<E>(r: Result<i32, E>) { map(|x: i32| x + 1, r) }`
-could be ambiguous if Rust's solver cannot rule out `E = i32`. This
-is a realistic pattern (generic error types in Result-heavy code).
-
-**Recommendation:** Write a targeted POC test before
-implementation. If inference fails, document the limitation in the
-coverage matrix ("Val + multi-brand + generic fixed param -> may
-need `explicit::`").
+was expected to potentially be ambiguous if Rust's solver cannot
+rule out `E = i32`. POC (`slot_generic_fixed_param_poc.rs`, 9
+tests) confirms the solver handles this correctly on stable rustc
+1.94.1: the concrete closure input type is sufficient to commit
+Brand without needing to prove the generic parameter differs. All
+tested variants pass: generic error, generic success, both generic,
+Val, Ref, and with trait bounds.
 
 ### M5. `#[multi_brand]` is a documentation marker, not a codegen switch (Agent 2)
 
