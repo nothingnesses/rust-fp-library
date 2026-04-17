@@ -147,7 +147,7 @@ fn extract_apply_type_args(ty: &Type) -> Option<Vec<String>> {
 		return None;
 	};
 	let (_brand, args) = get_apply_macro_parameters(type_macro)?;
-	Some(args.iter().map(|t| quote::quote!(#t).to_string().replace(' ', "")).collect())
+	Some(args.iter().map(type_to_compact_string).collect())
 }
 
 // -- Analysis entry point --
@@ -328,20 +328,19 @@ fn extract_kind_trait_name(
 	// Check where clause
 	if let Some(where_clause) = &trait_def.generics.where_clause {
 		for predicate in &where_clause.predicates {
-			if let WherePredicate::Type(pred_type) = predicate {
-				let param_name = type_to_string(&pred_type.bounded_ty);
-				if param_name == brand_param_name {
-					for bound in &pred_type.bounds {
-						if let syn::TypeParamBound::Trait(trait_bound) = bound {
-							let name = trait_bound
-								.path
-								.segments
-								.last()
-								.map(|s| s.ident.to_string())
-								.unwrap_or_default();
-							if name.starts_with(markers::KIND_PREFIX) {
-								return Some(name);
-							}
+			if let WherePredicate::Type(pred_type) = predicate
+				&& bounded_ty_is_ident(&pred_type.bounded_ty, brand_param_name)
+			{
+				for bound in &pred_type.bounds {
+					if let syn::TypeParamBound::Trait(trait_bound) = bound {
+						let name = trait_bound
+							.path
+							.segments
+							.last()
+							.map(|s| s.ident.to_string())
+							.unwrap_or_default();
+						if name.starts_with(markers::KIND_PREFIX) {
+							return Some(name);
 						}
 					}
 				}
@@ -457,8 +456,7 @@ fn classify_return_type(
 				tuple_elements.push(args);
 			} else {
 				// Non-Apply element in tuple; treat as plain
-				let elem_str = quote::quote!(#elem).to_string().replace(' ', "");
-				tuple_elements.push(vec![elem_str]);
+				tuple_elements.push(vec![type_to_compact_string(elem)]);
 			}
 		}
 		if !tuple_elements.is_empty() {
@@ -470,8 +468,7 @@ fn classify_return_type(
 	if let Type::Macro(type_macro) = ty
 		&& let Some((brand, raw_args)) = get_apply_macro_parameters(type_macro)
 	{
-		let args: Vec<String> =
-			raw_args.iter().map(|t| quote::quote!(#t).to_string().replace(' ', "")).collect();
+		let args: Vec<String> = raw_args.iter().map(type_to_compact_string).collect();
 		let brand_name = match &brand {
 			Type::Path(tp) => tp.path.segments.last().map(|s| s.ident.to_string()),
 			_ => None,
@@ -499,8 +496,7 @@ fn classify_return_type(
 				if let Some(nested_args) = extract_apply_type_args(elem) {
 					inner_elements.push(nested_args);
 				} else {
-					let s = quote::quote!(#elem).to_string().replace(' ', "");
-					inner_elements.push(vec![s]);
+					inner_elements.push(vec![type_to_compact_string(elem)]);
 				}
 			}
 			return ReturnStructure::NestedTuple {
@@ -516,8 +512,7 @@ fn classify_return_type(
 			if let Some(nested_args) = extract_apply_type_args(raw_arg) {
 				inner_args = nested_args;
 			} else {
-				let arg_str = quote::quote!(#raw_arg).to_string().replace(' ', "");
-				inner_args.push(arg_str);
+				inner_args.push(type_to_compact_string(raw_arg));
 			}
 		}
 		return ReturnStructure::Nested {
@@ -527,8 +522,7 @@ fn classify_return_type(
 	}
 
 	// Not a macro or tuple; treat as plain type
-	let ret_str = quote::quote!(#ty).to_string().replace(' ', "");
-	ReturnStructure::Plain(ret_str)
+	ReturnStructure::Plain(type_to_compact_string(ty))
 }
 
 /// Find the Brand type parameter from the trait definition by looking for
@@ -563,7 +557,7 @@ fn find_brand_param_from_trait_def(trait_def: &syn::ItemTrait) -> Option<String>
 							.last()
 							.is_some_and(|s| s.ident.to_string().starts_with(markers::KIND_PREFIX))
 					{
-						return Some(type_to_string(&pred_type.bounded_ty));
+						return bounded_ty_ident_string(&pred_type.bounded_ty);
 					}
 				}
 			}
@@ -582,7 +576,9 @@ fn find_brand_param(val_impl: &syn::ItemImpl) -> Option<String> {
 
 	for predicate in &where_clause.predicates {
 		if let WherePredicate::Type(pred_type) = predicate {
-			let param_name = type_to_string(&pred_type.bounded_ty);
+			let Some(param_name) = bounded_ty_ident_string(&pred_type.bounded_ty) else {
+				continue;
+			};
 
 			// Skip lifetime-only bounds (e.g., A: 'a)
 			let has_trait_bound =
@@ -667,20 +663,19 @@ fn extract_semantic_constraint(
 	// Check where clause
 	if let Some(where_clause) = &val_impl.generics.where_clause {
 		for predicate in &where_clause.predicates {
-			if let WherePredicate::Type(pred_type) = predicate {
-				let param_name = type_to_string(&pred_type.bounded_ty);
-				if param_name == brand_param {
-					for bound in &pred_type.bounds {
-						if let syn::TypeParamBound::Trait(trait_bound) = bound {
-							let name = trait_bound
-								.path
-								.segments
-								.last()
-								.map(|s| s.ident.to_string())
-								.unwrap_or_default();
-							if is_semantic_type_class(&name) {
-								return Some(name);
-							}
+			if let WherePredicate::Type(pred_type) = predicate
+				&& bounded_ty_is_ident(&pred_type.bounded_ty, brand_param)
+			{
+				for bound in &pred_type.bounds {
+					if let syn::TypeParamBound::Trait(trait_bound) = bound {
+						let name = trait_bound
+							.path
+							.segments
+							.last()
+							.map(|s| s.ident.to_string())
+							.unwrap_or_default();
+						if is_semantic_type_class(&name) {
+							return Some(name);
 						}
 					}
 				}
@@ -721,9 +716,9 @@ fn extract_secondary_constraints(
 
 	if let Some(where_clause) = &val_impl.generics.where_clause {
 		for predicate in &where_clause.predicates {
-			if let WherePredicate::Type(pred_type) = predicate {
-				let param_name = type_to_string(&pred_type.bounded_ty);
-
+			if let WherePredicate::Type(pred_type) = predicate
+				&& let Some(param_name) = bounded_ty_ident_string(&pred_type.bounded_ty)
+			{
 				// Skip the Brand param itself
 				if param_name == brand_param {
 					continue;
@@ -884,7 +879,7 @@ fn type_to_arrow_param(
 			}
 		}
 	}
-	DispatchArrowParam::TypeParam(type_to_string(ty))
+	DispatchArrowParam::TypeParam(type_to_compact_string(ty))
 }
 
 /// Simplify a type for HM rendering. Strips lifetimes, Apply! macros, etc.
@@ -902,8 +897,7 @@ fn classify_arrow_output(
 			_ => None,
 		};
 
-		let arg_strings: Vec<String> =
-			args.iter().map(|t| quote::quote!(#t).to_string().replace(' ', "")).collect();
+		let arg_strings: Vec<String> = args.iter().map(type_to_compact_string).collect();
 
 		if !arg_strings.is_empty() {
 			let is_brand = brand_param.is_some_and(|bp| brand_name.as_deref() == Some(bp));
@@ -921,7 +915,7 @@ fn classify_arrow_output(
 
 	// Plain type: store as valid Rust token text (not HM-simplified)
 	// so it can be parsed back to syn::Type in the synthetic signature builder
-	ArrowOutput::Plain(quote::quote!(#ty).to_string())
+	ArrowOutput::Plain(type_to_compact_string(ty))
 }
 
 /// Extract the semantic type param names from the trait definition, in declaration order.
@@ -1001,7 +995,7 @@ fn extract_self_type_elements(val_impl: &syn::ItemImpl) -> Option<Vec<String>> {
 				{
 					return resolved.to_string();
 				}
-				quote::quote!(#t).to_string().replace(' ', "")
+				type_to_compact_string(t)
 			})
 			.collect(),
 	)
@@ -1014,9 +1008,29 @@ fn is_fn_like(name: &str) -> bool {
 	name == "Fn" || name == "FnMut" || name == "FnOnce"
 }
 
-/// Convert a Type to its string representation.
-fn type_to_string(ty: &Type) -> String {
+/// Convert a type to its string representation, preferring `get_ident()` for
+/// simple path types and falling back to `quote!().to_string()` for complex
+/// types (generics, qualified paths, macros, etc.).
+fn type_to_compact_string(ty: &Type) -> String {
+	if let Type::Path(tp) = ty
+		&& let Some(ident) = tp.path.get_ident()
+	{
+		return ident.to_string();
+	}
 	quote::quote!(#ty).to_string().replace(' ', "")
+}
+
+/// Check if a bounded type is a simple identifier matching the given name.
+fn bounded_ty_is_ident(
+	ty: &Type,
+	name: &str,
+) -> bool {
+	if let Type::Path(tp) = ty { tp.path.get_ident().is_some_and(|id| id == name) } else { false }
+}
+
+/// Extract the identifier string from a bounded type, if it is a simple ident.
+fn bounded_ty_ident_string(ty: &Type) -> Option<String> {
+	if let Type::Path(tp) = ty { tp.path.get_ident().map(|id| id.to_string()) } else { None }
 }
 
 #[cfg(test)]
