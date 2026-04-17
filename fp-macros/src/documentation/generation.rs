@@ -672,7 +672,7 @@ fn build_synthetic_signature(
 			continue;
 		}
 		// For closureless dispatch with impl *Dispatch param (e.g., explicit join),
-		// treat the param as a container. Falls through to the container/InferableBrand
+		// treat the param as a container. Falls through to the container/Slot
 		// logic below by extracting the param name from the impl trait bound.
 		if let Type::ImplTrait(impl_trait) = &*pat_type.ty {
 			// Check if this is an impl *Dispatch bound (closureless container param)
@@ -693,7 +693,7 @@ fn build_synthetic_signature(
 			});
 			if is_dispatch_bound && dispatch_info.arrow_type.is_none() {
 				// Closureless dispatch with impl Dispatch param: treat as container.
-				// Use the same fallback chain as InferableBrand-bounded params.
+				// Use the same fallback chain as Slot-bounded params.
 				use crate::analysis::dispatch::ReturnStructure;
 				let element_types: Option<Vec<String>> = dispatch_info
 					.self_type_elements
@@ -768,7 +768,7 @@ fn build_synthetic_signature(
 		}
 
 		// For closureless dispatch or unrecognized container params:
-		// if the type is an InferableBrand-bounded param, it's a container.
+		// if the type is a Slot-bounded or Dispatch-bounded param, it's a container.
 		// Fallback chain (most direct source first):
 		// 1. self_type_elements: from the Val impl's self type (e.g., separate, compact)
 		// 2. type_param_order: single-letter element types from the trait definition (e.g., alt)
@@ -934,7 +934,7 @@ fn extract_dispatch_trait_args(bound: &TypeParamBound) -> Option<Vec<String>> {
 	)
 }
 
-/// Check if a type name is an InferableBrand-bounded param in the signature's where clause.
+/// Check if a type name is a Slot-bounded or Dispatch-bounded param in the signature's where clause.
 fn is_dispatch_container_param(
 	type_name: &str,
 	sig: &syn::Signature,
@@ -953,8 +953,7 @@ fn is_dispatch_container_param(
 								.last()
 								.map(|s| s.ident.to_string())
 								.unwrap_or_default();
-							if name.starts_with("InferableBrand_")
-								|| name.starts_with("Slot_")
+							if name.starts_with("Slot_")
 								|| name.ends_with(crate::core::constants::markers::DISPATCH_SUFFIX)
 							{
 								return true;

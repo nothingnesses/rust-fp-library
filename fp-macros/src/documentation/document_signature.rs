@@ -673,18 +673,18 @@ mod tests {
 		assert_eq!(sig, "forall A. () -> CatList A");
 	}
 
-	// -- Phase 1: InferableBrand filtering and hidden type params --
+	// -- Phase 1: Slot filtering and hidden type params --
 
 	#[test]
-	fn test_inferable_brand_filtered_from_constraints() {
+	fn test_slot_filtered_from_constraints() {
 		let input: ItemFn = parse_quote! {
 			fn map<FA, A, B>(f: FA, a: A) -> B
 			where
-				FA: InferableBrand_cdc7cd43dac7585f
+				FA: Slot_cdc7cd43dac7585f
 			{ todo!() }
 		};
 		let sig = generate_signature(&input.sig, &Config::default()).to_string();
-		// InferableBrand_* should be suppressed from constraints
+		// Slot_* should be suppressed from constraints
 		assert_eq!(sig, "forall FA A B. (FA, A) -> B");
 	}
 

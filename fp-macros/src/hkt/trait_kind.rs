@@ -7,7 +7,6 @@ use {
 	crate::{
 		core::Result,
 		documentation::templates::DocumentationBuilder,
-		generate_inferable_brand_name,
 		generate_name,
 		generate_slot_name,
 	},
@@ -21,7 +20,6 @@ use {
 /// for a Higher-Kinded Type signature with multiple associated types.
 pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 	let name = generate_name(&input)?;
-	let ib_name = generate_inferable_brand_name(&input)?;
 	let slot_name = generate_slot_name(&input)?;
 
 	let assoc_types_tokens = input.associated_types.iter().map(|assoc| {
@@ -40,25 +38,6 @@ pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 
 	// Build documentation using the DocumentationBuilder
 	let doc_string = DocumentationBuilder::new(&name, &input.associated_types).build();
-
-	// Build InferableBrand documentation
-	let ib_doc_summary = format!("Maps a concrete type back to its canonical brand for `{name}`.",);
-	let ib_doc_detail = r#"
-
-Only implemented for types where the brand is unambiguous (one brand
-per concrete type). Types reachable through multiple brands (e.g.,
-`Result<A, E>` at arity 1) do not implement this trait and require
-explicit brand specification via turbofish.
-
-A blanket implementation for references (`&T`) delegates to `T`'s
-implementation, enabling brand inference for both owned and borrowed
-containers."#;
-	let ib_blanket_doc = format!(
-		r#"Blanket implementation delegating brand inference through references.
-
-Enables brand inference for borrowed containers (`&Vec<A>`, `&Option<A>`,
-etc.) by delegating to the underlying type's `{ib_name}` implementation."#,
-	);
 
 	// -- Slot trait generation --
 	//
@@ -89,8 +68,7 @@ etc.) by delegating to the underlying type's `{ib_name}` implementation."#,
 	let slot_doc_summary = format!(
 		r#"Reverse mapping from concrete types to brands for `{name}`.
 
-Unlike `{ib_name}` (which requires a unique brand per concrete type),
-this trait has Brand as a trait parameter, allowing multiple implementations
+This trait has Brand as a trait parameter, allowing multiple implementations
 per concrete type keyed on different Brand values. This enables
 closure-directed inference for multi-brand types like `Result`.
 
@@ -103,9 +81,8 @@ type must agree on the same `Marker` value. Owned types always produce
 `Val`; references always produce `Ref`. This invariant is enforced by
 construction since `impl_kind!` is the sole generator of implementations.
 
-This is a temporary name during the multi-brand ergonomics migration.
-Once the old `InferableBrand` is removed, `Slot` will be renamed to
-`InferableBrand`."#,
+Slot enables closure-directed brand inference for both single-brand
+and multi-brand types."#,
 	);
 
 	let slot_blanket_doc = format!(
@@ -121,23 +98,6 @@ by-reference trait method."#,
 		#[expect(non_camel_case_types, reason = "Generated name uses hash suffix for uniqueness")]
 		pub trait #name {
 			#(#assoc_types_tokens)*
-		}
-
-		#[doc = #ib_doc_summary]
-		#[doc = #ib_doc_detail]
-		#[expect(non_camel_case_types, reason = "Generated name uses hash suffix for uniqueness")]
-		#[diagnostic::on_unimplemented(
-			message = "`{Self}` does not have a unique brand and cannot use brand inference",
-			note = "use the `explicit::` variant with a turbofish to specify the brand manually"
-		)]
-		pub trait #ib_name {
-			/// The canonical brand for this type.
-			type Brand: #name;
-		}
-
-		#[doc = #ib_blanket_doc]
-		impl<__IB_T: #ib_name + ?Sized> #ib_name for &__IB_T {
-			type Brand = __IB_T::Brand;
 		}
 
 		#[doc = #slot_doc_summary]

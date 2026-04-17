@@ -98,6 +98,16 @@ dispatch mode. All ~116 call sites migrated to turbofish-free
 `apply(ff, fa)` for Val; Ref apply also works as `apply(&ff, &fa)`.
 Phase 2 complete.
 
+Phase 3 complete. Old InferableBrand trait family fully removed:
+removed InferableBrand generation from trait*kind! and impl_kind!,
+removed resolve_inferable_brand() from Apply!, removed InferableBrand!
+proc macro, removed INFERABLE_BRAND_PREFIX/INFERABLE_BRAND_MACRO
+constants, updated all analysis/documentation modules to use Slot*
+only, regenerated signature snapshot tests, removed two superseded
+POC files (brand_inference_feasibility.rs, closureless_dispatch_poc.rs),
+updated kinds.rs module docs. No InferableBrand references remain in
+any source file.
+
 ## Open questions, issues and blockers
 
 None at this time. Previously resolved:

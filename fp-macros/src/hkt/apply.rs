@@ -8,19 +8,11 @@ use {
 	crate::{
 		core::{
 			Result,
-			constants::macros::{
-				INFERABLE_BRAND_MACRO,
-				KIND_MACRO,
-			},
+			constants::macros::KIND_MACRO,
 		},
-		generate_inferable_brand_name,
 		generate_name,
 	},
-	proc_macro2::{
-		Delimiter,
-		TokenStream,
-		TokenTree,
-	},
+	proc_macro2::TokenStream,
 	quote::quote,
 	syn::{
 		AngleBracketedGenericArguments,
@@ -34,58 +26,9 @@ use {
 	},
 };
 
-/// Resolves `InferableBrand!(SIG)` invocations in a token stream.
-///
-/// Scans the token tree for an `InferableBrand` identifier followed by `!`
-/// and a parenthesized group. Replaces the three-token sequence with the
-/// resolved `InferableBrand_{hash}` identifier. This enables `Apply!` to
-/// accept brands like `<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand`.
-///
-/// Processes recursively into groups (parentheses, brackets, braces) so that
-/// nested occurrences are also resolved.
-pub fn resolve_inferable_brand(input: TokenStream) -> std::result::Result<TokenStream, syn::Error> {
-	let tokens: Vec<TokenTree> = input.into_iter().collect();
-	let mut output = Vec::new();
-	let mut i = 0;
-
-	while i < tokens.len() {
-		// Look for `InferableBrand ! ( ... )` pattern
-		if let Some([TokenTree::Ident(ident), TokenTree::Punct(bang), TokenTree::Group(group), ..]) =
-			tokens.get(i ..)
-			&& ident == INFERABLE_BRAND_MACRO
-			&& bang.as_char() == '!'
-			&& group.delimiter() == Delimiter::Parenthesis
-		{
-			let sig: AssociatedTypes = syn::parse2(group.stream())?;
-			let resolved = generate_inferable_brand_name(&sig)
-				.map_err(|e| syn::Error::new(ident.span(), e.to_string()))?;
-			output.push(TokenTree::Ident(resolved));
-			i += 3;
-			continue;
-		}
-
-		// Recurse into groups
-		if let Some(TokenTree::Group(group)) = tokens.get(i) {
-			let resolved_inner = resolve_inferable_brand(group.stream())?;
-			let mut new_group = proc_macro2::Group::new(group.delimiter(), resolved_inner);
-			new_group.set_span(group.span());
-			output.push(TokenTree::Group(new_group));
-		} else if let Some(token) = tokens.get(i) {
-			output.push(token.clone());
-		}
-		i += 1;
-	}
-
-	Ok(output.into_iter().collect())
-}
-
 /// Input structure for the `Apply!` macro.
 ///
 /// Syntax: `Apply!(<Brand as Kind!( type Of...; )>::Of<T, U>)`
-///
-/// The brand position also supports `InferableBrand!(SIG)` invocations,
-/// which are resolved to `InferableBrand_{hash}` before parsing:
-/// `Apply!(<<FA as InferableBrand!( type Of<'a, A: 'a>: 'a; )>::Brand as Kind!( type Of...; )>::Of<T, U>)`
 #[derive(Debug)]
 pub struct ApplyInput {
 	/// The brand type (e.g., `OptionBrand`).
@@ -157,11 +100,7 @@ pub fn apply_worker(input: ApplyInput) -> Result<TokenStream> {
 }
 
 #[cfg(test)]
-#[expect(
-	clippy::unwrap_used,
-	clippy::expect_used,
-	reason = "Tests use panicking operations for brevity and clarity"
-)]
+#[expect(clippy::expect_used, reason = "Tests use panicking operations for brevity and clarity")]
 mod tests {
 	use {
 		super::*,
@@ -188,30 +127,5 @@ mod tests {
 
 		assert!(output_str.contains("< OptionBrand as Kind_"));
 		assert!(output_str.contains(":: Of < 'static , i32 >"));
-	}
-
-	#[test]
-	fn test_resolve_inferable_brand_in_apply() {
-		// Simulate: Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>)
-		let input: TokenStream = "<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>"
-			.parse()
-			.unwrap();
-		let resolved = resolve_inferable_brand(input).expect("resolution failed");
-		let resolved_str = resolved.to_string();
-
-		// InferableBrand!(type Of<'a, A: 'a>: 'a;) should resolve to InferableBrand_cdc7cd43dac7585f
-		assert!(
-			resolved_str.contains("InferableBrand_cdc7cd43dac7585f"),
-			"Expected resolved InferableBrand name, got: {resolved_str}"
-		);
-		// The resolved stream should be parseable as ApplyInput
-		let parsed: ApplyInput =
-			syn::parse2(resolved).expect("Failed to parse resolved stream as ApplyInput");
-		let output = apply_worker(parsed).expect("apply_worker failed");
-		let output_str = output.to_string();
-		assert!(
-			output_str.contains("InferableBrand_cdc7cd43dac7585f"),
-			"Expected InferableBrand in output, got: {output_str}"
-		);
 	}
 }

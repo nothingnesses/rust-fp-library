@@ -8,7 +8,6 @@ use {
 		AssociatedType as AssociatedTypeInput,
 		AssociatedTypeBase,
 		AssociatedTypes,
-		generate_inferable_brand_name,
 		generate_name,
 		generate_slot_name,
 	},
@@ -24,13 +23,11 @@ use {
 	},
 	proc_macro2::TokenStream,
 	quote::quote,
-	std::collections::HashSet,
 	syn::{
 		GenericParam,
 		Generics,
 		Token,
 		Type,
-		TypeParamBound,
 		WhereClause,
 		braced,
 		parse::{
@@ -143,57 +140,8 @@ impl Parse for AssociatedType {
 	}
 }
 
-/// Collects all identifier and lifetime names referenced in a type expression.
-struct TypeIdentCollector {
-	idents: HashSet<String>,
-	lifetimes: HashSet<String>,
-}
-
-impl TypeIdentCollector {
-	fn new() -> Self {
-		Self {
-			idents: HashSet::new(),
-			lifetimes: HashSet::new(),
-		}
-	}
-
-	fn collect(ty: &Type) -> Self {
-		let mut collector = Self::new();
-		collector.visit_type(ty);
-		collector
-	}
-}
-
-impl<'ast> Visit<'ast> for TypeIdentCollector {
-	fn visit_path(
-		&mut self,
-		path: &'ast syn::Path,
-	) {
-		for segment in &path.segments {
-			self.idents.insert(segment.ident.to_string());
-			syn::visit::visit_path_segment(self, segment);
-		}
-	}
-
-	fn visit_lifetime(
-		&mut self,
-		lifetime: &'ast syn::Lifetime,
-	) {
-		self.lifetimes.insert(lifetime.ident.to_string());
-	}
-
-	fn visit_type_tuple(
-		&mut self,
-		tuple: &'ast syn::TypeTuple,
-	) {
-		for elem in &tuple.elems {
-			self.visit_type(elem);
-		}
-	}
-}
-
 /// Checks whether the target type is a projection type that should not
-/// receive InferableBrand or Slot impls.
+/// receive Slot impls.
 ///
 /// A projection type is one that:
 /// - Contains an `Apply!` macro invocation (detected as `syn::Type::Macro`)
@@ -232,35 +180,6 @@ fn is_projection_type(ty: &Type) -> bool {
 	checker.found
 }
 
-/// Checks whether an `InferableBrand` impl should be generated for this
-/// `impl_kind!` invocation.
-///
-/// Returns `false` (skip generation) when:
-/// - `#[multi_brand]` attribute is present (type has multiple brands)
-/// - Multiple associated types are defined (ambiguous primary type)
-/// - The target type is a projection (contains `Apply!` or `::`)
-fn should_generate_inferable_brand(input: &ImplKindInput) -> bool {
-	// Check for #[multi_brand] attribute
-	if input.attributes.iter().any(|attr| attr.path().is_ident("multi_brand")) {
-		return false;
-	}
-
-	// Skip if multiple associated types (ambiguous primary type)
-	if input.definitions.len() != 1 {
-		return false;
-	}
-
-	// Skip if target type is a projection
-	let Some(def) = input.definitions.first() else {
-		return false;
-	};
-	if is_projection_type(&def.target_type) {
-		return false;
-	}
-
-	true
-}
-
 /// Checks whether a `Slot` impl should be generated for this `impl_kind!`
 /// invocation.
 ///
@@ -268,9 +187,9 @@ fn should_generate_inferable_brand(input: &ImplKindInput) -> bool {
 /// - Multiple associated types are defined (ambiguous primary type)
 /// - The target type is a projection (contains `Apply!` or `::`)
 ///
-/// Unlike `should_generate_inferable_brand`, the `#[multi_brand]` attribute
-/// does NOT suppress Slot generation. Multi-brand types get Slot impls
-/// (one per brand); the attribute is a documentation marker only.
+/// The `#[multi_brand]` attribute does NOT suppress Slot generation.
+/// Multi-brand types get Slot impls (one per brand); the attribute
+/// is a documentation marker only.
 fn should_generate_slot(input: &ImplKindInput) -> bool {
 	// Skip if multiple associated types (ambiguous primary type)
 	if input.definitions.len() != 1 {
@@ -288,97 +207,6 @@ fn should_generate_slot(input: &ImplKindInput) -> bool {
 	true
 }
 
-/// Builds the generics for an `InferableBrand` impl by collecting only the
-/// generic parameters that appear in the target type, with appropriate bounds.
-fn build_inferable_brand_generics(
-	target_type: &Type,
-	assoc_generics: &Generics,
-	impl_generics: &Generics,
-) -> Generics {
-	let collector = TypeIdentCollector::collect(target_type);
-
-	// Collect lifetimes from the associated type's output bounds that appear
-	// in the target type. These are used to add lifetime bounds on impl params.
-	let output_lifetimes_in_target: HashSet<String> = assoc_generics
-		.params
-		.iter()
-		.filter_map(|p| {
-			if let GenericParam::Lifetime(lt) = p {
-				let name = lt.lifetime.ident.to_string();
-				if collector.lifetimes.contains(&name) { Some(name) } else { None }
-			} else {
-				None
-			}
-		})
-		.collect();
-
-	let mut params = syn::punctuated::Punctuated::new();
-
-	// Add lifetimes from assoc generics that appear in target type
-	for param in &assoc_generics.params {
-		if let GenericParam::Lifetime(lt) = param
-			&& collector.lifetimes.contains(&lt.lifetime.ident.to_string())
-		{
-			params.push(param.clone());
-		}
-	}
-
-	// Add type params from assoc generics that appear in target type,
-	// stripping lifetime bounds that reference lifetimes not in the target
-	for param in &assoc_generics.params {
-		if let GenericParam::Type(ty) = param
-			&& collector.idents.contains(&ty.ident.to_string())
-		{
-			let mut ty = ty.clone();
-			ty.bounds = ty
-				.bounds
-				.into_iter()
-				.filter(|bound| {
-					if let TypeParamBound::Lifetime(lt) = bound {
-						collector.lifetimes.contains(&lt.ident.to_string())
-					} else {
-						true
-					}
-				})
-				.collect();
-			params.push(GenericParam::Type(ty));
-		}
-	}
-
-	// Add lifetimes from impl generics that appear in target type
-	for param in &impl_generics.params {
-		if let GenericParam::Lifetime(lt) = param
-			&& collector.lifetimes.contains(&lt.lifetime.ident.to_string())
-		{
-			params.push(param.clone());
-		}
-	}
-
-	// Add type params from impl generics that appear in target type,
-	// with additional lifetime bounds from output lifetimes
-	for param in &impl_generics.params {
-		if let GenericParam::Type(ty) = param
-			&& collector.idents.contains(&ty.ident.to_string())
-		{
-			let mut ty = ty.clone();
-			// Add lifetime bounds for output lifetimes that appear in target
-			for lt_name in &output_lifetimes_in_target {
-				let lt = syn::Lifetime::new(&format!("'{lt_name}"), proc_macro2::Span::call_site());
-				ty.bounds.push(TypeParamBound::Lifetime(lt));
-			}
-			params.push(GenericParam::Type(ty));
-		}
-	}
-
-	let has_params = !params.is_empty();
-	Generics {
-		lt_token: if has_params { Some(Default::default()) } else { None },
-		params,
-		gt_token: if has_params { Some(Default::default()) } else { None },
-		where_clause: None,
-	}
-}
-
 /// Generates the implementation for the `impl_kind!` macro.
 ///
 /// This function takes the parsed input, determines the correct `Kind` trait based on
@@ -387,8 +215,6 @@ fn build_inferable_brand_generics(
 /// By default, it also generates:
 /// - A `Slot_{hash}` impl with `type Marker = Val` (unless the target is a projection
 ///   type or multiple associated types are defined).
-/// - An `InferableBrand_{hash}` impl for the target type (unless `#[multi_brand]` is
-///   present, the target is a projection type, or multiple associated types are defined).
 pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 	let brand = &input.brand;
 	let impl_generics = &input.impl_generics;
@@ -445,36 +271,10 @@ pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 		}
 	};
 
-	// Generate InferableBrand impl if applicable
-	let ib_impl = if should_generate_inferable_brand(&input)
-		&& let Some(def) = input.definitions.first()
-	{
-		let ib_trait_name = generate_inferable_brand_name(&kind_input)?;
-		let target_type = &def.target_type;
-		let ib_generics =
-			build_inferable_brand_generics(target_type, &def.signature.generics, impl_generics);
-		let (ib_impl_generics, ..) = ib_generics.split_for_impl();
-
-		let ib_doc = format!(
-			"Generated `{ib_trait_name}` implementation mapping `{}` back to `{}`.",
-			quote!(#target_type),
-			quote!(#brand),
-		);
-
-		quote! {
-			#[doc = #ib_doc]
-			impl #ib_impl_generics #ib_trait_name for #target_type {
-				type Brand = #brand;
-			}
-		}
-	} else {
-		quote! {}
-	};
-
 	// Generate Slot impl if applicable.
-	// Unlike InferableBrand, Slot is generated for ALL brands (including
-	// multi-brand types). The #[multi_brand] attribute does not suppress
-	// Slot generation. Each impl_kind! invocation produces at most one
+	// Slot is generated for ALL brands (including multi-brand types).
+	// The #[multi_brand] attribute does not suppress Slot generation.
+	// Each impl_kind! invocation produces at most one
 	// Slot impl; multiple brands for the same concrete type come from
 	// multiple impl_kind! invocations.
 	//
@@ -535,7 +335,6 @@ pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 
 	Ok(quote! {
 		#kind_impl
-		#ib_impl
 		#slot_impl
 	})
 }
