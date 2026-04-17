@@ -6,7 +6,14 @@
 
 use {
 	crate::{
-		analysis::patterns::get_apply_macro_parameters,
+		analysis::{
+			generics::{
+				collect_trait_bounds_for_param,
+				trait_bound_name,
+				where_clause_type_predicates,
+			},
+			patterns::get_apply_macro_parameters,
+		},
 		core::constants::markers,
 		hkt::{
 			ApplyInput,
@@ -21,7 +28,6 @@ use {
 		PathArguments,
 		ReturnType,
 		Type,
-		WherePredicate,
 	},
 };
 
@@ -304,50 +310,12 @@ fn extract_kind_trait_name(
 	trait_def: &syn::ItemTrait,
 	brand_param_name: &str,
 ) -> Option<String> {
-	// Check inline bounds on generic params
-	for param in &trait_def.generics.params {
-		if let syn::GenericParam::Type(type_param) = param
-			&& type_param.ident == brand_param_name
-		{
-			for bound in &type_param.bounds {
-				if let syn::TypeParamBound::Trait(trait_bound) = bound {
-					let name = trait_bound
-						.path
-						.segments
-						.last()
-						.map(|s| s.ident.to_string())
-						.unwrap_or_default();
-					if name.starts_with(markers::KIND_PREFIX) {
-						return Some(name);
-					}
-				}
-			}
+	for bound in collect_trait_bounds_for_param(brand_param_name, &trait_def.generics) {
+		let name = trait_bound_name(bound)?;
+		if name.to_string().starts_with(markers::KIND_PREFIX) {
+			return Some(name.to_string());
 		}
 	}
-
-	// Check where clause
-	if let Some(where_clause) = &trait_def.generics.where_clause {
-		for predicate in &where_clause.predicates {
-			if let WherePredicate::Type(pred_type) = predicate
-				&& bounded_ty_is_ident(&pred_type.bounded_ty, brand_param_name)
-			{
-				for bound in &pred_type.bounds {
-					if let syn::TypeParamBound::Trait(trait_bound) = bound {
-						let name = trait_bound
-							.path
-							.segments
-							.last()
-							.map(|s| s.ident.to_string())
-							.unwrap_or_default();
-						if name.starts_with(markers::KIND_PREFIX) {
-							return Some(name);
-						}
-					}
-				}
-			}
-		}
-	}
-
 	None
 }
 
@@ -532,12 +500,9 @@ fn find_brand_param_from_trait_def(trait_def: &syn::ItemTrait) -> Option<String>
 	for param in &trait_def.generics.params {
 		if let syn::GenericParam::Type(type_param) = param {
 			for bound in &type_param.bounds {
-				if let syn::TypeParamBound::Trait(trait_bound) = bound
-					&& trait_bound
-						.path
-						.segments
-						.last()
-						.is_some_and(|s| s.ident.to_string().starts_with(markers::KIND_PREFIX))
+				if let syn::TypeParamBound::Trait(tb) = bound
+					&& trait_bound_name(tb)
+						.is_some_and(|name| name.to_string().starts_with(markers::KIND_PREFIX))
 				{
 					return Some(type_param.ident.to_string());
 				}
@@ -546,20 +511,13 @@ fn find_brand_param_from_trait_def(trait_def: &syn::ItemTrait) -> Option<String>
 	}
 
 	// Check where clause
-	if let Some(where_clause) = &trait_def.generics.where_clause {
-		for predicate in &where_clause.predicates {
-			if let WherePredicate::Type(pred_type) = predicate {
-				for bound in &pred_type.bounds {
-					if let syn::TypeParamBound::Trait(trait_bound) = bound
-						&& trait_bound
-							.path
-							.segments
-							.last()
-							.is_some_and(|s| s.ident.to_string().starts_with(markers::KIND_PREFIX))
-					{
-						return bounded_ty_ident_string(&pred_type.bounded_ty);
-					}
-				}
+	for (ident, bounds) in where_clause_type_predicates(&trait_def.generics) {
+		for bound in bounds {
+			if let syn::TypeParamBound::Trait(tb) = bound
+				&& trait_bound_name(tb)
+					.is_some_and(|name| name.to_string().starts_with(markers::KIND_PREFIX))
+			{
+				return Some(ident.to_string());
 			}
 		}
 	}
@@ -570,37 +528,14 @@ fn find_brand_param_from_trait_def(trait_def: &syn::ItemTrait) -> Option<String>
 /// Find the Brand type parameter name by looking for a non-infrastructure,
 /// non-Fn, non-Kind trait bound on a type parameter.
 fn find_brand_param(val_impl: &syn::ItemImpl) -> Option<String> {
-	let Some(where_clause) = &val_impl.generics.where_clause else {
-		return None;
-	};
-
-	for predicate in &where_clause.predicates {
-		if let WherePredicate::Type(pred_type) = predicate {
-			let Some(param_name) = bounded_ty_ident_string(&pred_type.bounded_ty) else {
-				continue;
-			};
-
-			// Skip lifetime-only bounds (e.g., A: 'a)
-			let has_trait_bound =
-				pred_type.bounds.iter().any(|b| matches!(b, syn::TypeParamBound::Trait(_)));
-			if !has_trait_bound {
-				continue;
-			}
-
-			// Check if any bound is a semantic type class (not Fn, not Kind, not infrastructure)
-			for bound in &pred_type.bounds {
-				if let syn::TypeParamBound::Trait(trait_bound) = bound {
-					let bound_name = trait_bound
-						.path
-						.segments
-						.last()
-						.map(|s| s.ident.to_string())
-						.unwrap_or_default();
-
-					if is_semantic_type_class(&bound_name) {
-						return Some(param_name);
-					}
-				}
+	// Check where clause
+	for (ident, bounds) in where_clause_type_predicates(&val_impl.generics) {
+		for bound in bounds {
+			if let syn::TypeParamBound::Trait(tb) = bound
+				&& let Some(name) = trait_bound_name(tb)
+				&& is_semantic_type_class(&name.to_string())
+			{
+				return Some(ident.to_string());
 			}
 		}
 	}
@@ -608,19 +543,12 @@ fn find_brand_param(val_impl: &syn::ItemImpl) -> Option<String> {
 	// Also check inline bounds on generic params
 	for param in &val_impl.generics.params {
 		if let syn::GenericParam::Type(type_param) = param {
-			let param_name = type_param.ident.to_string();
 			for bound in &type_param.bounds {
-				if let syn::TypeParamBound::Trait(trait_bound) = bound {
-					let bound_name = trait_bound
-						.path
-						.segments
-						.last()
-						.map(|s| s.ident.to_string())
-						.unwrap_or_default();
-
-					if is_semantic_type_class(&bound_name) {
-						return Some(param_name);
-					}
+				if let syn::TypeParamBound::Trait(tb) = bound
+					&& let Some(name) = trait_bound_name(tb)
+					&& is_semantic_type_class(&name.to_string())
+				{
+					return Some(type_param.ident.to_string());
 				}
 			}
 		}
@@ -660,50 +588,14 @@ fn extract_semantic_constraint(
 	val_impl: &syn::ItemImpl,
 	brand_param: &str,
 ) -> Option<String> {
-	// Check where clause
-	if let Some(where_clause) = &val_impl.generics.where_clause {
-		for predicate in &where_clause.predicates {
-			if let WherePredicate::Type(pred_type) = predicate
-				&& bounded_ty_is_ident(&pred_type.bounded_ty, brand_param)
-			{
-				for bound in &pred_type.bounds {
-					if let syn::TypeParamBound::Trait(trait_bound) = bound {
-						let name = trait_bound
-							.path
-							.segments
-							.last()
-							.map(|s| s.ident.to_string())
-							.unwrap_or_default();
-						if is_semantic_type_class(&name) {
-							return Some(name);
-						}
-					}
-				}
+	for bound in collect_trait_bounds_for_param(brand_param, &val_impl.generics) {
+		if let Some(name) = trait_bound_name(bound) {
+			let name_str = name.to_string();
+			if is_semantic_type_class(&name_str) {
+				return Some(name_str);
 			}
 		}
 	}
-
-	// Check inline bounds
-	for param in &val_impl.generics.params {
-		if let syn::GenericParam::Type(type_param) = param
-			&& type_param.ident == brand_param
-		{
-			for bound in &type_param.bounds {
-				if let syn::TypeParamBound::Trait(trait_bound) = bound {
-					let name = trait_bound
-						.path
-						.segments
-						.last()
-						.map(|s| s.ident.to_string())
-						.unwrap_or_default();
-					if is_semantic_type_class(&name) {
-						return Some(name);
-					}
-				}
-			}
-		}
-	}
-
 	None
 }
 
@@ -714,30 +606,19 @@ fn extract_secondary_constraints(
 ) -> Vec<(String, String)> {
 	let mut result = Vec::new();
 
-	if let Some(where_clause) = &val_impl.generics.where_clause {
-		for predicate in &where_clause.predicates {
-			if let WherePredicate::Type(pred_type) = predicate
-				&& let Some(param_name) = bounded_ty_ident_string(&pred_type.bounded_ty)
+	for (ident, bounds) in where_clause_type_predicates(&val_impl.generics) {
+		// Skip the Brand param itself
+		if ident == brand_param {
+			continue;
+		}
+
+		for bound in bounds {
+			if let syn::TypeParamBound::Trait(tb) = bound
+				&& let Some(name) = trait_bound_name(tb)
 			{
-				// Skip the Brand param itself
-				if param_name == brand_param {
-					continue;
-				}
-
-				for bound in &pred_type.bounds {
-					if let syn::TypeParamBound::Trait(trait_bound) = bound {
-						let name = trait_bound
-							.path
-							.segments
-							.last()
-							.map(|s| s.ident.to_string())
-							.unwrap_or_default();
-
-						// Only include semantic type classes
-						if is_semantic_type_class(&name) && !is_fn_like(&name) {
-							result.push((param_name.clone(), name));
-						}
-					}
+				let name_str = name.to_string();
+				if is_semantic_type_class(&name_str) && !is_fn_like(&name_str) {
+					result.push((ident.to_string(), name_str));
 				}
 			}
 		}
@@ -752,35 +633,45 @@ fn is_tuple_closure(val_impl: &syn::ItemImpl) -> bool {
 	if let Type::Tuple(tuple) = &*val_impl.self_ty { tuple.elems.len() >= 2 } else { false }
 }
 
+/// Collect all trait bounds from both inline generic params and the where clause.
+fn all_trait_bounds(generics: &syn::Generics) -> Vec<&syn::TraitBound> {
+	let mut bounds = Vec::new();
+
+	// Inline bounds on generic params
+	for param in &generics.params {
+		if let syn::GenericParam::Type(type_param) = param {
+			for bound in &type_param.bounds {
+				if let syn::TypeParamBound::Trait(tb) = bound {
+					bounds.push(tb);
+				}
+			}
+		}
+	}
+
+	// Where clause bounds
+	for (_, pred_bounds) in where_clause_type_predicates(generics) {
+		for bound in pred_bounds {
+			if let syn::TypeParamBound::Trait(tb) = bound {
+				bounds.push(tb);
+			}
+		}
+	}
+
+	bounds
+}
+
 /// Extract arrow type from a single-closure dispatch impl.
 fn extract_single_arrow(
 	val_impl: &syn::ItemImpl,
 	brand_param: Option<&str>,
 ) -> Option<DispatchArrow> {
-	// Search where clause for Fn bounds
-	if let Some(where_clause) = &val_impl.generics.where_clause {
-		for predicate in &where_clause.predicates {
-			if let WherePredicate::Type(pred_type) = predicate {
-				for bound in &pred_type.bounds {
-					if let Some(arrow) = extract_fn_arrow_from_bound(bound, brand_param) {
-						return Some(arrow);
-					}
-				}
-			}
+	for bound in all_trait_bounds(&val_impl.generics) {
+		if let Some(arrow) =
+			extract_fn_arrow_from_bound(&syn::TypeParamBound::Trait(bound.clone()), brand_param)
+		{
+			return Some(arrow);
 		}
 	}
-
-	// Search inline bounds on generic params
-	for param in &val_impl.generics.params {
-		if let syn::GenericParam::Type(type_param) = param {
-			for bound in &type_param.bounds {
-				if let Some(arrow) = extract_fn_arrow_from_bound(bound, brand_param) {
-					return Some(arrow);
-				}
-			}
-		}
-	}
-
 	None
 }
 
@@ -792,28 +683,12 @@ fn extract_tuple_arrow(
 	let mut all_inputs = Vec::new();
 	let mut last_output = ArrowOutput::Plain("()".to_string());
 
-	if let Some(where_clause) = &val_impl.generics.where_clause {
-		for predicate in &where_clause.predicates {
-			if let WherePredicate::Type(pred_type) = predicate {
-				for bound in &pred_type.bounds {
-					if let Some(arrow) = extract_fn_arrow_from_bound(bound, brand_param) {
-						last_output = arrow.output.clone();
-						all_inputs.push(DispatchArrowParam::SubArrow(arrow));
-					}
-				}
-			}
-		}
-	}
-
-	// Also check inline bounds
-	for param in &val_impl.generics.params {
-		if let syn::GenericParam::Type(type_param) = param {
-			for bound in &type_param.bounds {
-				if let Some(arrow) = extract_fn_arrow_from_bound(bound, brand_param) {
-					last_output = arrow.output.clone();
-					all_inputs.push(DispatchArrowParam::SubArrow(arrow));
-				}
-			}
+	for bound in all_trait_bounds(&val_impl.generics) {
+		if let Some(arrow) =
+			extract_fn_arrow_from_bound(&syn::TypeParamBound::Trait(bound.clone()), brand_param)
+		{
+			last_output = arrow.output.clone();
+			all_inputs.push(DispatchArrowParam::SubArrow(arrow));
 		}
 	}
 
@@ -1018,19 +893,6 @@ fn type_to_compact_string(ty: &Type) -> String {
 		return ident.to_string();
 	}
 	quote::quote!(#ty).to_string().replace(' ', "")
-}
-
-/// Check if a bounded type is a simple identifier matching the given name.
-fn bounded_ty_is_ident(
-	ty: &Type,
-	name: &str,
-) -> bool {
-	if let Type::Path(tp) = ty { tp.path.get_ident().is_some_and(|id| id == name) } else { false }
-}
-
-/// Extract the identifier string from a bounded type, if it is a simple ident.
-fn bounded_ty_ident_string(ty: &Type) -> Option<String> {
-	if let Type::Path(tp) = ty { tp.path.get_ident().map(|id| id.to_string()) } else { None }
 }
 
 #[cfg(test)]

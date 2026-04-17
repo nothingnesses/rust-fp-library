@@ -607,30 +607,25 @@ struct FnBrandResolution {
 fn extract_fn_brand_resolutions(
 	sig: &syn::Signature
 ) -> std::collections::HashMap<String, FnBrandResolution> {
-	let mut result = std::collections::HashMap::new();
-	let Some(where_clause) = &sig.generics.where_clause else {
-		return result;
+	use crate::analysis::generics::{
+		trait_bound_name,
+		where_clause_type_predicates,
 	};
-	for predicate in &where_clause.predicates {
-		let syn::WherePredicate::Type(pred_type) = predicate else {
-			continue;
-		};
-		let Type::Path(bounded_path) = &pred_type.bounded_ty else {
-			continue;
-		};
-		let Some(bounded_ident) = bounded_path.path.get_ident() else {
-			continue;
-		};
-		for bound in &pred_type.bounds {
+
+	let mut result = std::collections::HashMap::new();
+	for (ident, bounds) in where_clause_type_predicates(&sig.generics) {
+		for bound in bounds {
 			let TypeParamBound::Trait(trait_bound) = bound else {
 				continue;
 			};
+			if trait_bound_name(trait_bound)
+				.is_none_or(|n| n != crate::core::constants::markers::INFERABLE_FN_BRAND)
+			{
+				continue;
+			}
 			let Some(segment) = trait_bound.path.segments.last() else {
 				continue;
 			};
-			if segment.ident != crate::core::constants::markers::INFERABLE_FN_BRAND {
-				continue;
-			}
 			let syn::PathArguments::AngleBracketed(args) = &segment.arguments else {
 				continue;
 			};
@@ -649,7 +644,7 @@ fn extract_fn_brand_resolutions(
 			// type_args[0] = FnBrand, [1] = A, [2] = B, [3] = Mode (optional)
 			if let [_, input, output, ..] = type_args.as_slice() {
 				result.insert(
-					bounded_ident.to_string(),
+					ident.to_string(),
 					FnBrandResolution {
 						input: (*input).clone(),
 						output: (*output).clone(),
@@ -1067,49 +1062,23 @@ fn is_dispatch_container_param(
 	ty: &syn::Type,
 	sig: &syn::Signature,
 ) -> bool {
-	let ident = match ty {
-		Type::Path(type_path) => type_path.path.get_ident(),
-		_ => None,
+	use crate::analysis::generics::{
+		collect_trait_bounds_for_param,
+		trait_bound_name,
 	};
-	let Some(ident) = ident else {
-		return false;
-	};
-	has_where_bound_matching(sig, ident, |trait_name| {
-		trait_name.starts_with(crate::core::constants::markers::INFERABLE_BRAND_PREFIX)
-			|| trait_name.ends_with(crate::core::constants::markers::DISPATCH_SUFFIX)
-	})
-}
 
-/// Check if a type parameter has a where-clause trait bound whose name satisfies a predicate.
-///
-/// Scans the signature's where clause for predicates binding the given ident,
-/// then checks each trait bound's last segment name against the predicate.
-fn has_where_bound_matching(
-	sig: &syn::Signature,
-	ident: &syn::Ident,
-	predicate_fn: impl Fn(&str) -> bool,
-) -> bool {
-	let Some(where_clause) = &sig.generics.where_clause else {
+	let Type::Path(type_path) = ty else {
 		return false;
 	};
-	for predicate in &where_clause.predicates {
-		let syn::WherePredicate::Type(pred_type) = predicate else {
-			continue;
-		};
-		// Match only simple ident types in bounded position
-		let Type::Path(bounded_path) = &pred_type.bounded_ty else {
-			continue;
-		};
-		let Some(bounded_ident) = bounded_path.path.get_ident() else {
-			continue;
-		};
-		if bounded_ident != ident {
-			continue;
-		}
-		for bound in &pred_type.bounds {
-			if let TypeParamBound::Trait(trait_bound) = bound
-				&& let Some(segment) = trait_bound.path.segments.last()
-				&& predicate_fn(&segment.ident.to_string())
+	let Some(ident) = type_path.path.get_ident() else {
+		return false;
+	};
+	let ident_str = ident.to_string();
+	for bound in collect_trait_bounds_for_param(&ident_str, &sig.generics) {
+		if let Some(name) = trait_bound_name(bound) {
+			let name_str = name.to_string();
+			if name_str.starts_with(crate::core::constants::markers::INFERABLE_BRAND_PREFIX)
+				|| name_str.ends_with(crate::core::constants::markers::DISPATCH_SUFFIX)
 			{
 				return true;
 			}

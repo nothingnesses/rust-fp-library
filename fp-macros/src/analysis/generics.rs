@@ -384,6 +384,88 @@ pub fn analyze_fn_bounds(
 	fn_bounds
 }
 
+// -- Bounds collection helpers --
+
+/// Collect all trait bounds for a named type parameter from both inline
+/// generic parameter bounds and where-clause predicates.
+///
+/// This eliminates the common pattern of scanning inline bounds then
+/// where-clause bounds separately, which appears throughout the
+/// dispatch analysis module.
+pub fn collect_trait_bounds_for_param<'a>(
+	param_name: &str,
+	generics: &'a Generics,
+) -> Vec<&'a syn::TraitBound> {
+	let mut bounds = Vec::new();
+
+	// Inline bounds on the generic param itself
+	for param in &generics.params {
+		if let GenericParam::Type(type_param) = param
+			&& type_param.ident == param_name
+		{
+			for bound in &type_param.bounds {
+				if let TypeParamBound::Trait(trait_bound) = bound {
+					bounds.push(trait_bound);
+				}
+			}
+		}
+	}
+
+	// Where-clause bounds
+	if let Some(where_clause) = &generics.where_clause {
+		for predicate in &where_clause.predicates {
+			if let WherePredicate::Type(pred_type) = predicate
+				&& bounded_ty_is_ident(&pred_type.bounded_ty, param_name)
+			{
+				for bound in &pred_type.bounds {
+					if let TypeParamBound::Trait(trait_bound) = bound {
+						bounds.push(trait_bound);
+					}
+				}
+			}
+		}
+	}
+
+	bounds
+}
+
+/// Iterate all where-clause predicates that bind a simple type parameter
+/// (i.e., `WherePredicate::Type` with a single-ident bounded type).
+///
+/// Yields `(param_name, bounds)` pairs. Skips predicates with complex
+/// bounded types (qualified paths, tuples, etc.).
+pub fn where_clause_type_predicates(
+	generics: &Generics
+) -> impl Iterator<Item = (&syn::Ident, &syn::punctuated::Punctuated<TypeParamBound, syn::token::Plus>)>
+{
+	generics.where_clause.iter().flat_map(|wc| wc.predicates.iter()).filter_map(|pred| {
+		if let WherePredicate::Type(pred_type) = pred
+			&& let Type::Path(tp) = &pred_type.bounded_ty
+			&& let Some(ident) = tp.path.get_ident()
+		{
+			Some((ident, &pred_type.bounds))
+		} else {
+			None
+		}
+	})
+}
+
+/// Extract the last segment's ident from a trait bound's path.
+///
+/// Returns the trait name (e.g., `Functor` from `crate::classes::Functor`
+/// or `Kind_abc123` from a qualified path).
+pub fn trait_bound_name(bound: &syn::TraitBound) -> Option<&syn::Ident> {
+	bound.path.segments.last().map(|s| &s.ident)
+}
+
+/// Check if a bounded type is a simple identifier matching the given name.
+pub fn bounded_ty_is_ident(
+	ty: &Type,
+	name: &str,
+) -> bool {
+	if let Type::Path(tp) = ty { tp.path.get_ident().is_some_and(|id| id == name) } else { false }
+}
+
 /// Analyze a function signature to extract generic names and function bounds.
 ///
 /// Returns a tuple of (generic_names, fn_bounds) for use in type conversion.
