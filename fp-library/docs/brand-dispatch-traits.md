@@ -1,25 +1,26 @@
 ### Brand Dispatch Traits
 
-The library uses three trait families to connect brands and concrete types.
-All three describe the same underlying equation, `Brand::Of<A> = FA`, but
-dispatch on different trait-selection angles. This doc explains how they
-fit together and why none is redundant.
+The library uses two trait families to connect brands and concrete types.
+Both describe the same underlying equation, `Brand::Of<A> = FA`, but
+from different trait-selection angles. This doc explains how they fit
+together.
 
-Status: `Kind_*` and `InferableBrand_*` are implemented. `Slot_*` is
-planned, see [docs/plans/multi-brand-ergonomics/plan.md](../../docs/plans/multi-brand-ergonomics/plan.md).
+During the multi-brand ergonomics migration, the trait that provides
+the reverse mapping (concrete type -> brand) is temporarily named
+`Slot_*`. Once migration is complete, it will be renamed to
+`InferableBrand_*`. This document describes the adopted design under
+its temporary name.
 
-#### The trio, at a glance
+#### The pair, at a glance
 
-| Trait              | `Self` type   | Direction | Multiplicity per type | Primary use                             |
-| ------------------ | ------------- | --------- | --------------------- | --------------------------------------- |
-| `Kind_*`           | Brand         | Forward   | One-to-one            | Apply brand to type argument            |
-| `InferableBrand_*` | Concrete type | Reverse   | Unique reverse        | Recover brand when unambiguous          |
-| `Slot_*`           | Concrete type | Reverse   | Keyed reverse         | Recover brand with closure's `A` as key |
+| Trait    | `Self` type   | Direction | Multiplicity per type | Primary use                         |
+| -------- | ------------- | --------- | --------------------- | ----------------------------------- |
+| `Kind_*` | Brand         | Forward   | One-to-one            | Apply brand to type argument        |
+| `Slot_*` | Concrete type | Reverse   | One impl per brand    | Recover brand; carry Val/Ref Marker |
 
 Each trait carries the same content-hash suffix derived from the Kind
-signature (e.g. `Kind_cdc7cd43dac7585f`,
-`InferableBrand_cdc7cd43dac7585f`, `Slot_cdc7cd43dac7585f`). The hash
-correspondence signals that all three traits concern the same Kind
+signature (e.g. `Kind_cdc7cd43dac7585f`, `Slot_cdc7cd43dac7585f`). The
+hash correspondence signals that both traits concern the same Kind
 shape. `trait_kind!` generates them together.
 
 #### `Kind_*`: the forward mapping
@@ -42,183 +43,195 @@ impl<E> Kind_cdc7cd43dac7585f for ResultErrAppliedBrand<E> {
 
 Read as a function: `Of: (Brand, A) -> ConcreteType`. Rust's trait
 selection can answer "given `OptionBrand`, what is `Option<i32>`?" but
-not the reverse. That asymmetry is what the other two traits address.
+not the reverse. That asymmetry is what `Slot_*` addresses.
 
-#### `InferableBrand_*`: reverse, unique
+#### `Slot_*`: reverse mapping with Marker
 
-`InferableBrand_*` inverts Kind for types with exactly one brand:
-
-```rust,ignore
-trait InferableBrand_cdc7cd43dac7585f {
-    type Brand: Kind_cdc7cd43dac7585f;
-}
-
-impl<A> InferableBrand_cdc7cd43dac7585f for Option<A> {
-    type Brand = OptionBrand;
-}
-```
-
-Semantic content: "there is exactly one brand for `FA`, and it is
-`FA::Brand`." Uniqueness is built in.
-
-`InferableBrand_*` is deliberately not implemented for types reachable
-through multiple brands at a given arity. For example, `Result<A, E>`
-is the `Of` of `ResultErrAppliedBrand<E>` and `ResultOkAppliedBrand<A>`
-and the two bifunctor-derived brands at arity 1, so asserting a unique
-brand would silently pick the wrong one.
-
-The `#[no_inferable_brand]` attribute on `impl_kind!` suppresses
-`InferableBrand_*` generation for these cases; the macro also skips it
-automatically for projection-style `Of` signatures.
-
-See also: [brand-inference.md](./brand-inference.md) for how
-`InferableBrand_*` drives turbofish-free free functions.
-
-#### `Slot_*`: reverse, keyed
-
-`Slot_*` inverts Kind for the multi-valued case:
+`Slot_*` inverts Kind. Brand and A are trait parameters (not associated
+types), allowing multiple impls per concrete type keyed on different
+Brand values. The trait carries an associated `type Marker` that
+projects whether FA is owned (Val) or borrowed (Ref):
 
 ```rust,ignore
-trait Slot_cdc7cd43dac7585f<'a, Brand, A>
+trait Slot_cdc7cd43dac7585f<'a, Brand, A: 'a>
 where
     Brand: Kind_cdc7cd43dac7585f,
-    A: 'a,
 {
-    type Out<B: 'a>: 'a;
+    type Marker;
 }
 ```
 
 Semantic content: "for this specific `(Brand, A)` pair, the equation
-`Brand::Of<A> = FA` holds; if `A` were replaced by `B`, the container
-would become `Out<B>`."
+`Brand::Of<A> = FA` holds, and `Marker` records whether FA is an owned
+or borrowed container."
 
-One impl exists per `(Brand, A)` decomposition of `FA`:
+##### Marker: Val/Ref dispatch routing
+
+The `Marker` associated type is the key design element. It projects
+from FA's reference-ness alone, before Brand and A are resolved:
+
+- Direct impls for owned types set `type Marker = Val`.
+- A single `&T` blanket sets `type Marker = Ref`.
+
+When the inference wrapper projects `<FA as Slot<Brand, A>>::Marker`,
+the compiler commits Marker from FA's ownership status immediately.
+This eliminates the Val/Ref cross-competition that would otherwise
+block Ref + multi-brand inference (where both Val and Ref dispatch
+impls appear as candidates while Brand is still free).
+
+**Marker-agreement invariant:** all Slot impls for a given Self type
+must agree on the same Marker value. Owned types always produce Val;
+references always produce Ref. `impl_kind!` enforces this by
+construction, since it is the sole generator of Slot impls.
+
+##### Impl landscape
+
+Every brand gets a direct Slot impl. There is no blanket from any
+other trait; all impls are generated individually by `impl_kind!`.
+
+Single-brand types have one impl:
 
 ```rust,ignore
-impl<'a, A: 'a, E> Slot_cdc7cd43dac7585f<'a, ResultErrAppliedBrand<E>, A>
+impl<'a, A: 'a> Slot_cdc7cd43dac7585f<'a, OptionBrand, A> for Option<A> {
+    type Marker = Val;
+}
+```
+
+Multi-brand types have one impl per brand:
+
+```rust,ignore
+impl<'a, A: 'a, E: 'static> Slot_cdc7cd43dac7585f<'a, ResultErrAppliedBrand<E>, A>
     for Result<A, E>
 {
-    type Out<B: 'a> = Result<B, E>;
+    type Marker = Val;
 }
 
-impl<'a, T, A: 'a> Slot_cdc7cd43dac7585f<'a, ResultOkAppliedBrand<T>, A>
+impl<'a, T: 'static, A: 'a> Slot_cdc7cd43dac7585f<'a, ResultOkAppliedBrand<T>, A>
     for Result<T, A>
 {
-    type Out<B: 'a> = Result<T, B>;
+    type Marker = Val;
 }
 ```
 
-For single-brand types, a blanket impl derives `Slot_*` from
-`InferableBrand_*`:
+The reference blanket (generated once globally per arity):
 
 ```rust,ignore
-impl<'a, FA, A> Slot_cdc7cd43dac7585f<'a, FA::Brand, A> for FA
+impl<'a, T: ?Sized, Brand, A: 'a> Slot_cdc7cd43dac7585f<'a, Brand, A> for &T
 where
-    FA: InferableBrand_cdc7cd43dac7585f,
-    A: 'a,
+    T: Slot_cdc7cd43dac7585f<'a, Brand, A>,
+    Brand: Kind_cdc7cd43dac7585f,
 {
-    type Out<B: 'a> = <FA::Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>;
+    type Marker = Ref;
 }
 ```
 
-Under this blanket, any type with a unique brand also gets a Slot impl
-for free. Multi-brand types get direct Slot impls generated by
-`impl_kind!` when a brand carries `#[no_inferable_brand]`.
+Projection brands (e.g. `BifunctorFirstAppliedBrand<ResultBrand, A>`)
+are skipped: `impl_kind!` does not generate Slot impls when the
+brand's `Of` target contains an `Apply!` macro invocation or a
+qualified path with `::`.
 
-#### Why the three traits look similar
+##### How closure-directed inference resolves Brand
 
-The similarity is intentional. Each trait makes the same claim about a
-Kind equation from a different trait-selection angle:
+For `map(|x: i32| x + 1, Ok::<i32, String>(5))`:
 
-- `Kind_*` presents the equation with `Brand` as `Self`, exposing the
-  concrete type via an associated type `Of<'a, A>`.
-- `InferableBrand_*` presents the equation with `FA` as `Self`, exposing
-  the brand via an associated type `Brand`.
-- `Slot_*` presents the equation with `FA` as `Self` and `Brand`, `A`
-  as trait parameters, exposing the slot-replaced type via an associated
-  type `Out<B>`.
+1. `FA = Result<i32, String>` pinned by the argument.
+2. `Marker` projected via Slot: Result is owned, so Marker = Val.
+3. With Marker committed, FunctorDispatch picks the Val impl. Its
+   `Fn(A) -> B` bound pins `A = i32` from the closure.
+4. With `A = i32`, only the `ResultErrAppliedBrand<String>` Slot impl
+   unifies with FA = `Result<i32, String>`. Brand commits.
+5. Dispatch proceeds.
 
-`Slot::Out<B>` on any impl is exactly `Brand::Of<B>` on the Kind impl
-for the same brand. This is not a coincidence; it's the same equation
-expressed twice. The blanket impl makes this explicit by forwarding
-`Out<B>` directly to `Kind::Of<B>`.
+For `&Result<i32, String>` with `|x: &i32| *x + 1`:
 
-#### Why `Slot_*` does not replace `InferableBrand_*`
+1. `FA = &Result<i32, String>`.
+2. The `&T` blanket projects Marker = Ref immediately.
+3. FunctorDispatch Ref impl applies; `Fn(&A) -> B` pins A from `&i32`.
+4. Inner Slot impl on `Result<i32, String>` resolves to
+   `ResultErrAppliedBrand<String>` with A = i32.
+5. Dispatch proceeds through `RefFunctor::ref_map`.
 
-Operationally, `Slot_*` is more permissive: it admits multi-brand
-types, which `InferableBrand_*` deliberately rejects. But "more
-permissive" means weaker assertions. Some things only
-`InferableBrand_*` can express:
+##### Dual-bound inference for `apply`
 
-1.  **Unique-brand assertion.** `FA: InferableBrand_*` is a compile-time
-    promise that `FA` has exactly one brand. Code can bound on this to
-    reject multi-brand types at the API boundary. `Slot_*` cannot
-    express "there exists a unique `Brand` such that `Slot<Brand, ?>`
-    is implemented"; Rust has no "exactly one impl" quantifier.
+`apply` has no direct closure, but the function payload inside `ff`
+carries the type information. Two Slot bounds share the Brand parameter:
 
-2.  **`FA::Brand` projection.** Inside type expressions like
-    `<FA::Brand as Kind>::Of<'_, X>`, the brand is named via an
-    associated-type path. Slot cannot produce a unique brand from `FA`
-    alone; it requires `(FA, A)`.
+- `FF: Slot<Brand, <FnBrand as CloneFn>::Of<A, B>>` keys on the
+  function payload type inside `ff`.
+- `FA: Slot<Brand, A>` keys on the value type inside `fa`.
 
-3.  **Return-type inference for non-closure operations.** `let x:
-Option<i32> = pure(5)` needs to infer the brand from the known
-    return type. `InferableBrand_*` does this via `Brand` as an
-    associated type. Slot requires a free `A` parameter that the
-    context may not supply.
+Rust's solver intersects the two bounds to commit a unique Brand.
 
-Conversely, some things only `Slot_*` can express:
+#### The unified inference wrapper
 
-1.  **Multi-brand closure-directed dispatch.** For `map(|x: i32| ...,
-Ok::<i32, String>(5))`, trait selection picks the unique impl
-    where `A = i32`. `InferableBrand_*` is absent for `Result<_, _>`
-    at arity 1 and therefore cannot drive this.
+`map` (and sibling closure-taking operations) binds on `Slot` with
+`Marker` projected:
 
-2.  **Per-slot replacement types.** `Slot::Out<B>` produces the
-    container type with the active slot replaced. `InferableBrand_*`
-    routes through `Kind::Of<B>` on the unique brand, which doesn't
-    distinguish which slot `B` fills for multi-brand types.
+```rust,ignore
+pub fn map<'a, FA, A: 'a, B: 'a, Brand>(
+    f: impl FunctorDispatch<
+        'a,
+        Brand,
+        A,
+        B,
+        FA,
+        <FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+    >,
+    fa: FA,
+) -> Apply!(<Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>)
+where
+    Brand: Kind_cdc7cd43dac7585f,
+    FA: Slot_cdc7cd43dac7585f<'a, Brand, A>,
+```
 
-So the two traits are complementary layers, not alternatives. The
-blanket impl from `InferableBrand_*` to `Slot_*` bridges them cleanly:
-single-brand types carry both guarantees (via generation and the
-blanket), and multi-brand types carry only Slot's weaker claim (via
-direct generation).
+`explicit::map` uses the same Slot bounds but takes Brand as a
+turbofish parameter, serving as the universal fallback for cases
+inference cannot handle (e.g. `Result<T, T>` diagonal).
+
+#### Coverage matrix
+
+| Case                              | Behaviour                                   |
+| --------------------------------- | ------------------------------------------- |
+| Val + single-brand                | Inference (no change from before)           |
+| Val + multi-brand                 | Inference via closure input                 |
+| Ref + single-brand                | Inference (no change from before)           |
+| Ref + multi-brand                 | Inference via closure input                 |
+| Multi-brand + generic fixed param | Inference works                             |
+| Multi-brand diagonal (`T=T`)      | Compile error; use `explicit::`             |
+| Unannotated multi-brand           | Compile error; annotate or use `explicit::` |
+
+#### Relationship to `#[multi_brand]`
+
+The `#[multi_brand]` attribute on `impl_kind!` is a documentation
+marker, not a codegen switch. Each `impl_kind!` invocation independently
+emits at most one Slot impl. Multiple Slot impls for a given concrete
+type come from multiple `impl_kind!` invocations (one per brand). The
+attribute signals to human readers that this brand shares its target
+type with other brands.
+
+For single-brand types (no attribute), the macro generates one Slot
+impl. For multi-brand brands (attribute present), the macro also
+generates one Slot impl, but the reader knows other brands targeting
+the same concrete type exist with their own Slot impls.
 
 #### Practical guide: which trait for which purpose
 
-| Task                                            | Use                |
-| ----------------------------------------------- | ------------------ |
-| Apply a brand to a type argument                | `Kind_*`           |
-| Bound a function on "unambiguously branded"     | `InferableBrand_*` |
-| Look up the brand via `FA::Brand`               | `InferableBrand_*` |
-| Return-type-infer a brand (e.g. for `pure`)     | `InferableBrand_*` |
-| Closure-directed dispatch (`map`, `bind`, ...)  | `Slot_*`           |
-| Replace the active slot's type                  | `Slot_*`           |
-| Handle multi-brand types in a closure-taking op | `Slot_*`           |
+| Task                                            | Use      |
+| ----------------------------------------------- | -------- |
+| Apply a brand to a type argument                | `Kind_*` |
+| Closure-directed dispatch (`map`, `bind`, ...)  | `Slot_*` |
+| Closureless dispatch (`join`, `alt`, ...)       | `Slot_*` |
+| Explicit dispatch via turbofish                 | `Slot_*` |
+| Handle multi-brand types in a closure-taking op | `Slot_*` |
 
-#### Relationship to `#[no_inferable_brand]`
-
-The `#[no_inferable_brand]` attribute on `impl_kind!` has a dual role:
-
-1.  Suppress `InferableBrand_*` generation (existing behavior).
-2.  Trigger direct `Slot_*` impl generation (new behavior under the
-    multi-brand-ergonomics plan).
-
-For single-brand types (no attribute), the macro generates
-`InferableBrand_*` and the Slot blanket handles the rest. For
-multi-brand brands (attribute present), the macro generates `Slot_*`
-directly while `InferableBrand_*` stays absent. The attribute is the
-single switch that routes between the two paths.
+Operations outside the dispatch system (`pure`, `empty`) take Brand
+as an explicit turbofish parameter and do not use Slot.
 
 #### Higher arities
 
-The pattern extends mechanically. For any Kind arity `k`, the trio is:
+The pattern extends mechanically. For any Kind arity `k`, the pair is:
 
 - `Kind_k<Brand>` with `Of<A1, ..., Ak>`.
-- `InferableBrand_k<FA>` with `Brand`.
-- `Slot_k<Brand, A1, ..., Ak> for FA` with `Out<B1, ..., Bk>`.
+- `Slot_k<Brand, A1, ..., Ak> for FA` with `type Marker`.
 
-Higher-arity Slot traits are only materialized if the library grows
-types with multiple partial-application brands at the same arity.
-Current types (Bifunctor brands at arity 2, etc.) do not need them.
+Each arity gets its own Slot trait with the matching hash suffix.

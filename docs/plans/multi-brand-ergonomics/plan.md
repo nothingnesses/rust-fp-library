@@ -1,11 +1,17 @@
 # Plan: Multi-Brand Ergonomics via InferableBrand Trait
 
-**Status:** DRAFT (design validated; implementation ready)
+**Status:** IN PROGRESS
 
 ## Current progress
 
-Implementation has not started. All design decisions are finalised
-(A-U) and validated via 9 POCs. The plan is ready for phase 0.
+Phase 0 step 1 complete: rewrote `fp-library/docs/brand-dispatch-traits.md`
+to reflect the adopted Marker-only Slot design (Decision L). The
+previous content described a contradictory Out-GAT + InferableBrand-blanket
+design and has been replaced with the adopted design: Slot with Brand
+as trait parameter, `type Marker` associated type, direct impls per
+brand, no blanket from InferableBrand, and `#[multi_brand]` attribute.
+
+Ready for phase 1.
 
 ## Open questions, issues and blockers
 

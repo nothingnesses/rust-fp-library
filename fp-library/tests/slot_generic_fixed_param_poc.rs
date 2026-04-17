@@ -165,9 +165,9 @@ fn generic_ok_ok_passthrough() {
 // -- Case 3: Ref variant of case 1 --
 // Same as case 1 but with a borrowed container.
 
-fn generic_err_concrete_ok_ref<E: 'static>(r: &Result<i32, E>) -> Result<i32, E>
+fn generic_err_concrete_ok_ref<E>(r: &Result<i32, E>) -> Result<i32, E>
 where
-	E: Clone, {
+	E: 'static + Clone, {
 	map(|x: &i32| *x + 1, r)
 }
 
