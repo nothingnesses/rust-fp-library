@@ -825,16 +825,32 @@ fn build_synthetic_signature(
 			continue;
 		}
 
-		// For tuple closure dispatch via where-clause (e.g., compose_kleisli_flipped
-		// where (G, F): ComposeKleisliDispatch), detect tuple params of type vars
+		// For tuple closure dispatch via where-clause (e.g., compose_kleisli
+		// where (F, G): ComposeKleisliDispatch), detect tuple params of type vars
 		// and replace with the closure tuple.
+		//
+		// If the function's tuple param order differs from the where clause's
+		// dispatch-bounded tuple (e.g., param is (F, G) but where clause has
+		// (G, F): Dispatch), reverse the arrow inputs to match the function's
+		// parameter order.
 		if dispatch_info.tuple_closure
-			&& matches!(&*pat_type.ty, Type::Tuple(tuple) if tuple.elems.len() >= 2)
+			&& let Type::Tuple(param_tuple) = &*pat_type.ty
+			&& param_tuple.elems.len() >= 2
 			&& let Some(ref arrow) = dispatch_info.arrow_type
-			&& let Some(closure_param) = build_closure_param(arrow, true, &brand_ident, &kind_ident)
 		{
-			fn_params.push(closure_param);
-			continue;
+			let effective_arrow = if is_tuple_order_reversed(param_tuple, _original_sig) {
+				let mut reversed = arrow.clone();
+				reversed.inputs.reverse();
+				reversed
+			} else {
+				arrow.clone()
+			};
+			if let Some(closure_param) =
+				build_closure_param(&effective_arrow, true, &brand_ident, &kind_ident)
+			{
+				fn_params.push(closure_param);
+				continue;
+			}
 		}
 
 		// Check if this is a container type param -> replace with <Brand as Kind>::Of<...>
@@ -1099,6 +1115,72 @@ fn has_where_bound_matching(
 			}
 		}
 	}
+	false
+}
+
+/// Check if a function's tuple parameter has its elements in reversed order
+/// relative to the dispatch-bounded tuple in the where clause.
+///
+/// For example, if the function param is `(F, G)` but the where clause has
+/// `(G, F): ComposeKleisliDispatch`, the order is reversed. This matters
+/// for generating correct HM signatures where the arrow inputs must match
+/// the function's actual parameter order.
+fn is_tuple_order_reversed(
+	param_tuple: &syn::TypeTuple,
+	sig: &syn::Signature,
+) -> bool {
+	let Some(where_clause) = &sig.generics.where_clause else {
+		return false;
+	};
+
+	// Extract ident names from the function's tuple param elements
+	let param_idents: Vec<&syn::Ident> = param_tuple
+		.elems
+		.iter()
+		.filter_map(|elem| if let Type::Path(tp) = elem { tp.path.get_ident() } else { None })
+		.collect();
+	if param_idents.len() < 2 {
+		return false;
+	}
+
+	// Find the dispatch-bounded tuple in the where clause
+	for predicate in &where_clause.predicates {
+		let syn::WherePredicate::Type(pred_type) = predicate else {
+			continue;
+		};
+		let Type::Tuple(where_tuple) = &pred_type.bounded_ty else {
+			continue;
+		};
+		// Check if this tuple has a *Dispatch bound
+		let has_dispatch = pred_type.bounds.iter().any(|b| {
+			if let TypeParamBound::Trait(tb) = b {
+				tb.path.segments.last().is_some_and(|s| {
+					s.ident.to_string().ends_with(crate::core::constants::markers::DISPATCH_SUFFIX)
+				})
+			} else {
+				false
+			}
+		});
+		if !has_dispatch {
+			continue;
+		}
+
+		// Extract ident names from the where clause's tuple
+		let where_idents: Vec<&syn::Ident> = where_tuple
+			.elems
+			.iter()
+			.filter_map(|elem| if let Type::Path(tp) = elem { tp.path.get_ident() } else { None })
+			.collect();
+
+		// Check if the orders differ (same elements, different positions)
+		if param_idents.len() == where_idents.len()
+			&& param_idents != where_idents
+			&& param_idents.iter().all(|id| where_idents.contains(id))
+		{
+			return true;
+		}
+	}
+
 	false
 }
 
