@@ -16,6 +16,20 @@ None at this time. All review findings have been addressed.
 None at this time. Will be updated if implementation diverges from
 the plan.
 
+## Implementation protocol
+
+After completing each step within a phase:
+
+1. Stage all changes (`git add`) so the test output cache is
+   invalidated (the cache keys on `git ls-files` content hashes).
+2. Run verification: `just fmt`, `just check`, `just clippy`,
+   `just deny`, `just doc`, `just test` (or `just verify` which
+   runs all six in order).
+3. If verification passes, update the `Current progress`, `Open
+questions, issues and blockers`, and `Deviations` sections at
+   the top of this plan to reflect the current state.
+4. Commit the step (including the plan updates).
+
 ---
 
 Replace the existing `InferableBrand_*` trait family with a redesigned
