@@ -96,6 +96,11 @@ pub mod markers {
 	pub const KIND_PREFIX: &str = "Kind_";
 	/// Prefix for generated InferableBrand trait names (e.g., `InferableBrand_cdc7cd43dac7585f`)
 	pub const INFERABLE_BRAND_PREFIX: &str = "InferableBrand_";
+	/// Prefix for generated Slot trait names (e.g., `Slot_cdc7cd43dac7585f`).
+	/// Temporary name during the multi-brand ergonomics migration;
+	/// will be renamed to INFERABLE_BRAND_PREFIX once the old
+	/// InferableBrand is removed.
+	pub const SLOT_PREFIX: &str = "Slot_";
 	/// Type parameter names that are dispatch infrastructure and should be
 	/// hidden from HM signature `forall` clauses.
 	pub const HIDDEN_TYPE_PARAMS: &[&str] = &["Marker", "FnBrand"];

@@ -648,6 +648,10 @@ fn is_semantic_type_class(name: &str) -> bool {
 	if name.starts_with(markers::INFERABLE_BRAND_PREFIX) {
 		return false;
 	}
+	// Not a Slot trait
+	if name.starts_with(markers::SLOT_PREFIX) {
+		return false;
+	}
 	// Not infrastructure
 	if INFRASTRUCTURE_TRAITS.contains(&name) {
 		return false;

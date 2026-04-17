@@ -16,7 +16,12 @@ Phase 0 complete. Phase 1 step 0 complete:
 - Compile-fail UI test stubs deferred to phase 1 step 6 (see
   Deviations).
 
-Ready for phase 1 step 1.
+Phase 1 step 1 complete: added `SLOT_PREFIX` constant to
+`fp-macros/src/core/constants.rs` and updated `classify_trait`,
+`is_semantic_type_class`, and `is_dispatch_container_param` to
+recognise `Slot_`-prefixed traits.
+
+Ready for phase 1 step 2.
 
 ## Open questions, issues and blockers
 

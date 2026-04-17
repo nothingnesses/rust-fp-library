@@ -954,6 +954,7 @@ fn is_dispatch_container_param(
 								.map(|s| s.ident.to_string())
 								.unwrap_or_default();
 							if name.starts_with("InferableBrand_")
+								|| name.starts_with("Slot_")
 								|| name.ends_with(crate::core::constants::markers::DISPATCH_SUFFIX)
 							{
 								return true;
