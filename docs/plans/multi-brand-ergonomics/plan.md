@@ -542,6 +542,66 @@ inference dispatch against explicit dispatch:
 _Rationale:_ validates that inference-based dispatch produces
 identical codegen to explicit dispatch (zero-cost property).
 
+### Decision V: Test-driven implementation
+
+Use a test-driven approach: write tests encoding expected outcomes
+from the plan as early as possible, initially `#[ignore]`d with a
+reason annotation indicating which phase they belong to. As each
+phase progresses, un-ignore the relevant tests; a phase is complete
+when all its tests pass.
+
+**Test structure:**
+
+Two test files, added at the start of phase 1:
+
+1. `tests/multi_brand_integration.rs` - positive integration tests
+   grouped by phase:
+
+   Phase 1 (un-ignore as map is migrated):
+   - Val + single-brand: `map(|x: i32| x + 1, Some(5))`.
+   - Val + multi-brand: `map(|x: i32| x + 1, Ok::<i32, String>(5))`.
+   - Ref + single-brand: `map(|x: &i32| *x + 1, &Some(5))`.
+   - Ref + multi-brand: `map(|x: &i32| *x + 1, &Ok::<i32, String>(5))`.
+   - Multi-brand err direction: `map(|e: String| e.len(), Err::<i32, String>("hi".into()))`.
+   - Generic fixed param: `fn process<E: 'static>(r: Result<i32, E>) -> Result<i32, E> { map(|x: i32| x + 1, r) }`.
+   - Passthrough: `map(|x: i32| x + 1, Err::<i32, String>("fail".into()))` returns `Err("fail")`.
+
+   Phase 2 (un-ignore per-operation as each is migrated):
+   - `bind` Val + multi-brand.
+   - `bind` Ref + multi-brand.
+   - `bimap` at arity 2.
+   - `fold_left` / `fold_right` / `fold_map` with multi-brand.
+   - `traverse` with multi-brand outer container.
+   - `filter` / `filter_map` with multi-brand.
+   - `lift2` with multi-brand.
+   - `apply` / `ref_apply` with multi-brand (dual Slot bounds).
+   - Closureless single-brand: `join(Some(Some(5)))`.
+   - Closureless multi-brand explicit: `explicit::join::<ResultErrAppliedBrand<String>, _, _, _>(...)`.
+
+2. `tests/ui/multi_brand_*.rs` - compile-fail UI tests (phase 1):
+   - Diagonal: `map(|x: i32| x + 1, Ok::<i32, i32>(5))` fails.
+   - Unannotated multi-brand: `map(|x| x + 1, Ok::<i32, String>(5))` fails.
+   - Double reference: `map(|x: &i32| *x + 1, &&Some(5))` fails.
+
+**Non-regression safety net** (added at the very start of phase 1,
+before any migration begins):
+
+3. `tests/non_regression_single_brand.rs` - exercises every
+   existing single-brand inference call pattern that must continue
+   to work identically throughout the migration:
+   - `map(f, Some(5))`, `map(f, vec![1,2,3])`, `map(f, &lazy)`.
+   - `bind(Some(5), f)`, `fold_left(init, f, vec)`, etc.
+   - These tests run against the OLD InferableBrand initially and
+     must stay green as each module migrates to Slot.
+
+_Rationale:_ the POCs validate the Slot pattern in isolation
+(hand-written traits). Production tests validate the same patterns
+through the actual macro pipeline, catching divergence between POC
+assumptions and macro-generated reality. Phase completion is
+concrete: all un-ignored tests pass. Non-regression tests prevent
+silent breakage of existing single-brand inference during the
+strangler-fig migration.
+
 ## Integration surface
 
 ### Will change
@@ -658,6 +718,12 @@ name `Slot` during phases 1-3 to avoid conflicts with the existing
 
 ### Phase 1: Add Slot and migrate `map`
 
+0. Add non-regression test file (`tests/non_regression_single_brand.rs`)
+   and multi-brand integration test file
+   (`tests/multi_brand_integration.rs`) with phase-2+ tests
+   `#[ignore]`d (Decision V). Add compile-fail UI test stubs. Run
+   `just verify` to confirm non-regression tests pass against the
+   current codebase before any changes.
 1. Add `SLOT_PREFIX` constant to `fp-macros/src/core/constants.rs`
    (Decision R). Update `classify_trait`, `is_semantic_type_class`,
    and `is_dispatch_container_param` to recognise `Slot_`-prefixed
@@ -683,19 +749,19 @@ name `Slot` during phases 1-3 to avoid conflicts with the existing
    to use Slot bounds (Decision Q applies to all explicit functions,
    not just `explicit::map`).
 6. Update UI tests: remove `result_no_inferable_brand.rs` and
-   `tuple2_no_inferable_brand.rs`; add UI tests for closure-directed
-   success cases, diagonal failures, unannotated-multi-brand
-   failures, and `&&T` compile-fail (Decision T).
-7. Add integration tests covering every Val/Ref x single/multi-brand
-   cell of the coverage matrix, including the generic fixed-parameter
-   case (POC 9).
+   `tuple2_no_inferable_brand.rs`; add compile-fail UI tests for
+   diagonal, unannotated-multi-brand, and `&&T` cases (Decision T).
+7. Un-ignore phase 1 tests in `multi_brand_integration.rs`; verify
+   all pass (Decision V). Confirm non-regression tests still green.
 
 ### Phase 2: Migrate remaining dispatch modules
 
 Migrate each remaining dispatch module from old `InferableBrand` to
 `Slot`. For each module, rewrite both the inference wrapper AND all
-explicit functions (Decision Q). Run `just verify` after each
-migration to confirm the branch compiles and tests pass.
+explicit functions (Decision Q). After migrating each module,
+un-ignore its corresponding tests in `multi_brand_integration.rs`
+and run `just verify` to confirm the branch compiles, the newly
+un-ignored tests pass, and non-regression tests stay green.
 
 Closure-taking modules (gain multi-brand inference):
 
