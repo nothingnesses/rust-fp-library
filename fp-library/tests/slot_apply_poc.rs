@@ -45,6 +45,10 @@
 // types but the pair is uniquely solvable.
 
 #![allow(unused_imports, reason = "Kind is used inside Apply! macro expansion")]
+#![expect(
+	clippy::type_complexity,
+	reason = "Complex Apply! projections are inherent to HKT dispatch POCs"
+)]
 
 use {
 	fp_library::{
