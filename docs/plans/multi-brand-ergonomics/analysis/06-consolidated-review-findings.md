@@ -153,14 +153,15 @@ incorrect HM signatures.
 `classify_trait`, `is_semantic_type_class`, and
 `is_dispatch_container_param` in one pass.
 
-### M9. HM signature rendering and snapshot tests will break (Agent 3)
+### ~~M9. HM signature rendering and snapshot tests will break (Agent 3)~~ ADDRESSED
 
 `is_dispatch_container_param()` checks for `InferableBrand_`
-prefix. After removal, it must check for `Slot_`. Signature
-snapshot tests have hardcoded `InferableBrand_abc123` strings.
-
-**Recommendation:** Update the prefix check and regenerate snapshot
-expectations as part of phase 1.
+prefix. The plan's strangler-fig migration handles this across two
+steps: phase 3 step 6 updates the check to `Slot_` (after old
+InferableBrand is removed); phase 4 step 4 updates it back to
+`InferableBrand_` (after Slot is renamed). Snapshot tests are
+regenerated at each step. The final state is the same prefix
+string as today, just pointing at the redesigned trait.
 
 ### M10. `InferableBrand!` macro and `resolve_inferable_brand()` not mentioned for removal (Agent 3)
 
