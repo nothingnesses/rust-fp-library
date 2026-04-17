@@ -314,6 +314,25 @@ asymmetry. Option c) (defer) was the original recommendation before
 POC 8 validated feasibility; now that a) works, deferring has no
 benefit.
 
+### Decision I: Compile-time regression threshold
+
+Measure clean-build wall-clock time before and after implementation.
+Investigate only if regression exceeds ~50% of the baseline (~36s).
+Below that threshold, accept the regression. Runtime performance
+matters more than compile-time for this project.
+
+**Baseline (2026-04-17, commit cc165b2):**
+
+- Command: `cargo build --workspace --all-targets --all-features`
+  (clean build after `just clean`).
+- Wall-clock: **24.0s** (real), 113.7s (user), 17.9s (sys).
+- Toolchain: rustc 1.94.1, debug profile.
+
+If investigation is needed, options include: only generating Slot
+for brands that participate in closure-directed dispatch (exclude
+tag-only brands like `SendThunkBrand`), or hand-optimizing the
+`impl_kind!` expansion.
+
 ## Integration surface
 
 ### Will change
@@ -435,37 +454,6 @@ _Recommendation:_ **a)**. Low cost relative to the risk of shipping
 broken do-notation. Start with c) only if a) reveals the annotation
 requirement is severely disruptive in practice.
 
-### Q16: Compile-time regression risk
-
-Every brand gets a direct Slot impl under Decision A2. Compile-time
-impact is unknown.
-
-Approaches:
-
-- **a) Measure post-implementation.** Build the full workspace
-  before and after the change; compare. Accept regressions below
-  ~5%; investigate if worse.
-  _Trade-off:_ empirical; no upfront optimization. Data-driven
-  response.
-- **b) Only generate Slot for brands that participate in
-  closure-directed dispatch.** Exclude tag-only brands like
-  `SendThunkBrand` (which carry no type-class impls and so can't
-  appear in Slot-routed dispatch).
-  _Trade-off:_ reduces generated code; complicates macro logic
-  (need a signal for which brands to include); uncertain savings
-  without measurement.
-- **c) Hand-optimize the `impl_kind!` expansion** if measurement
-  reveals a regression. Options include inlining repeated
-  substructure, caching hash computations, or deduplicating shared
-  trait paths.
-  _Trade-off:_ reactive optimization; tackles real regressions
-  without pre-emptive complexity.
-
-_Recommendation:_ **a), then c) if needed**. Measure as part of
-phase 1 acceptance. Option b) is a targeted optimization that
-should only be considered after measurement shows a problem; don't
-complicate the macro for uncertain savings.
-
 ## Out of scope
 
 Permanently excluded from this plan; revisit only if the design
@@ -566,7 +554,8 @@ The plan is complete when:
   `map(f, &lazy)`, `bind(ma, f)`, etc.) continue to work identically.
 - All existing `explicit::map::<...>(f, value)` call sites continue
   to work (with turbofish shape per Decision F).
-- Compile-time regression under 5% versus pre-change baseline (Q16).
+- Clean-build wall-clock time under ~36s (50% regression threshold
+  versus 24.0s baseline; see Q16).
 - No regression in existing test suites, benchmarks, or doctests.
 
 ## Reference material

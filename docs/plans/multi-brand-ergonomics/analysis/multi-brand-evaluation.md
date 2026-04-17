@@ -165,7 +165,7 @@ where
 
 The two `Slot` impls are not overlapping for coherence purposes because
 their `Brand` parameter differs, so this pattern is plausible on stable
-rustc 1.93.1.
+rustc 1.94.1.
 
 **Diagonal failure case.** When both container type parameters are equal
 and the closure input matches, both impls apply and inference is again
@@ -209,11 +209,11 @@ signal, the options are:
 - Pick the primary brand at definition time and don't try to do this at
   use time at all. This is just alternative 1 in different clothing.
 
-On stable rustc 1.93.1, alternative 6 as a mechanism distinct from
+On stable rustc 1.94.1, alternative 6 as a mechanism distinct from
 alternative 1 is not achievable. It either requires unstable features or
 collapses into alternative 1.
 
-## Stability summary (rustc 1.93.1)
+## Stability summary (rustc 1.94.1)
 
 | Alternative                           | Stable? | Notes                                                 |
 | ------------------------------------- | ------- | ----------------------------------------------------- |
