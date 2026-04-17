@@ -148,23 +148,20 @@ None at this time. Previously resolved:
    for self-resolution, and fp-library as a dev-dependency of
    fp-macros so its tests resolve the absolute path. Dispatch shim
    modules removed from fp-macros test files.
-9. `document_module` macro false-positive: the named-generics
-   validation incorrectly suggests `impl Trait` for `FA` in `join`
-   when `FA` is used in where-clause projections (`<FA as
-Slot<...>>::Marker`). Suppressed with `#[allow_named_generics]`.
-   Two issues to fix separately:
-   a) The validation counts only parameter-position uses of a type
-   param, not where-clause uses. When a type param appears once
-   in parameters but also in where-clause projections, it cannot
-   use `impl Trait` but the macro still warns.
-   b) The warning mechanism uses `#[deprecated]` to emit diagnostics,
-   which causes a cascading `let_unit_value` clippy lint that
-   reports "this let-binding has unit value" at the function
-   signature, with no connection to any actual let-binding.
-   To reproduce: remove `#[allow_named_generics]` from the `join`
-   inference wrapper in `dispatch/semimonad.rs` and run `just clippy`.
-   Both the false-positive deprecation warning and the spurious
-   let-binding lint will appear at the `pub fn join` line.
+9. `document_module` macro false-positive (resolved): the
+   named-generics validation was fixed upstream. The
+   `#[allow_named_generics]` suppression was removed.
+10. Decision P implementation differs from the original plan: the
+    plan specified an `ApplyDispatch` trait with Val/Ref impls, but
+    the implementation uses a direct inference wrapper with `Into`
+    bridge bounds (matching the POC pattern). This is simpler and
+    avoids a dispatch trait that would be difficult to unify across
+    Val/Ref due to differing `CloneFn` vs `CloneFn<Ref>` constraints.
+11. FnBrand inference was not in the original plan. Validated via
+    `poc_fn_brand_inference.rs` and incorporated into Decision P.
+    The `FnBrandSlot` trait enables fully turbofish-free `apply`
+    calls, eliminating both the FnBrand and Brand turbofish args.
+    The original plan assumed FnBrand would still require turbofish.
 
 ## Implementation protocol
 
