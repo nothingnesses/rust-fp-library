@@ -97,6 +97,10 @@ pub mod markers {
 	/// Type parameter names that are dispatch infrastructure and should be
 	/// hidden from HM signature `forall` clauses.
 	pub const HIDDEN_TYPE_PARAMS: &[&str] = &["Marker", "FnBrand"];
+	/// Trait name for function brand inference in semiapplicative dispatch.
+	/// A bound `WrappedFn: InferableFnBrand<FnBrand, A, B, Mode>` means
+	/// `WrappedFn` is semantically `(A -> B)`.
+	pub const INFERABLE_FN_BRAND: &str = "InferableFnBrand";
 	/// Suffix used to identify dispatch traits by naming convention.
 	pub const DISPATCH_SUFFIX: &str = "Dispatch";
 	/// Default name for the brand type parameter in dispatch traits.
