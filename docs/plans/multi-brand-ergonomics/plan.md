@@ -37,7 +37,28 @@ the projection skip rule from string heuristic to structural AST checks
 `hkt.md` doctest as `ignore` since `impl_kind!` Slot output references
 `crate::dispatch::Val` which doesn't resolve in doctest context.
 
-Ready for phase 1 step 5.
+Phase 1 step 5 complete: rewrote the `map` inference wrapper in
+`dispatch/functor.rs` to bind on Slot with Marker projected from
+`<FA as Slot<Brand, A>>::Marker`. Brand is now a type parameter
+(replacing the old Marker type parameter), and the closure's input
+type disambiguates Brand for multi-brand types. The `explicit::map`
+function is left unchanged (it already takes Brand via turbofish and
+has no InferableBrand dependency). Removed `result_no_inferable_brand`
+compile-fail test since `map` now accepts Result via Slot. Updated
+`tuple2_no_inferable_brand` stderr snapshot (the test still fails for
+diagonal `(i32, i32)` but with different error messages).
+
+Phase 1 step 5 complete: rewrote both `map` (inference wrapper) and
+`explicit::map` in `dispatch/functor.rs` to bind on Slot with Marker
+projected. The inference wrapper uses `Brand` as a type parameter
+(replacing the old `Marker` param), resolved via closure-directed
+inference. The explicit::map also uses Slot bounds with Brand via
+turbofish; its signature contracts from 5 type params to 4 (Marker
+removed). Updated all `explicit::map` call sites, the `a_do!` macro
+codegen, and projection brand doctests (which now use direct type
+class method calls since projection brands lack Slot impls).
+
+Ready for phase 1 step 6.
 
 ## Open questions, issues and blockers
 
@@ -77,6 +98,12 @@ pub struct Ref; }` shim because the Slot blanket references
 - fp-macros UI test `invalid_assoc_type_name.stderr` updated: now
   includes Slot and dispatch resolution errors in addition to the
   existing Kind and InferableBrand errors.
+- `explicit::map` turbofish contracts from 5 type args to 4 (Marker
+  removed, projected from Slot). Decision F/Q implemented as planned.
+  Projection brand doctests (BifunctorFirstAppliedBrand,
+  BifunctorSecondAppliedBrand, ProfunctorFirstAppliedBrand) updated
+  to use direct type class method calls (`<Brand as Functor>::map`)
+  since projection brands don't have Slot impls (Decision G).
 
 ## Implementation protocol
 

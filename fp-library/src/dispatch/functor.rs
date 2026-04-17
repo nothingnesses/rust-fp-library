@@ -15,12 +15,12 @@
 //! };
 //!
 //! // Owned: dispatches to Functor::map
-//! let y = map::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
+//! let y = map::<OptionBrand, _, _, _>(|x: i32| x * 2, Some(5));
 //! assert_eq!(y, Some(10));
 //!
 //! // By-ref: dispatches to RefFunctor::ref_map
 //! let lazy = RcLazy::pure(10);
-//! let mapped = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
+//! let mapped = map::<LazyBrand<RcLazyConfig>, _, _, _>(|x: &i32| *x * 2, &lazy);
 //! assert_eq!(*mapped.evaluate(), 20);
 //! ```
 
@@ -74,7 +74,7 @@ pub(crate) mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result = map::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
+		/// let result = map::<OptionBrand, _, _, _>(|x: i32| x * 2, Some(5));
 		/// assert_eq!(result, Some(10));
 		/// ```
 		fn dispatch(
@@ -124,7 +124,7 @@ pub(crate) mod inner {
 		/// 	functions::explicit::*,
 		/// };
 		///
-		/// let result = map::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
+		/// let result = map::<OptionBrand, _, _, _>(|x: i32| x * 2, Some(5));
 		/// assert_eq!(result, Some(10));
 		/// ```
 		fn dispatch(
@@ -181,7 +181,7 @@ pub(crate) mod inner {
 		/// };
 		///
 		/// let lazy = RcLazy::pure(10);
-		/// let result = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
+		/// let result = map::<LazyBrand<RcLazyConfig>, _, _, _>(|x: &i32| *x * 2, &lazy);
 		/// assert_eq!(*result.evaluate(), 20);
 		/// ```
 		fn dispatch(
@@ -197,15 +197,24 @@ pub(crate) mod inner {
 	/// Maps a function over a functor, inferring the brand from the container type.
 	///
 	/// This is the primary API for mapping. The `Brand` type parameter is
-	/// inferred from the concrete type of `fa` via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both
+	/// inferred from the concrete type of `fa` via the `Slot` trait. Both
 	/// owned and borrowed containers are supported:
 	///
 	/// - Owned: `map(|x: i32| x + 1, Some(5))` infers `OptionBrand`.
 	/// - Borrowed: `map(|x: &i32| *x + 1, &Some(5))` infers `OptionBrand`
-	///   via the blanket `impl InferableBrand for &T`.
+	///   via the blanket `impl Slot for &T`.
 	///
-	/// For types with multiple brands (e.g., `Result`), use
-	/// [`explicit::map`](crate::functions::explicit::map) with a turbofish.
+	/// For multi-brand types (e.g., `Result`), the closure's input type
+	/// disambiguates which brand applies:
+	///
+	/// - `map(|x: i32| x + 1, Ok::<i32, String>(5))` infers
+	///   `ResultErrAppliedBrand<String>` (maps over Ok).
+	/// - `map(|e: String| e.len(), Err::<i32, String>("hi".into()))` infers
+	///   `ResultOkAppliedBrand<i32>` (maps over Err).
+	///
+	/// For diagonal cases where the closure cannot disambiguate (e.g.,
+	/// `Result<T, T>`), use [`explicit::map`](crate::functions::explicit::map)
+	/// with a turbofish.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -213,7 +222,7 @@ pub(crate) mod inner {
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The type of the value(s) inside the functor.",
 		"The type of the result(s) of applying the function.",
-		"Dispatch marker type, inferred automatically."
+		"The brand, inferred via Slot from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -234,12 +243,20 @@ pub(crate) mod inner {
 	/// let v = vec![1, 2, 3];
 	/// assert_eq!(map(|x: &i32| *x + 10, &v), vec![11, 12, 13]);
 	/// ```
-	pub fn map<'a, FA, A: 'a, B: 'a, Marker>(
-		f: impl FunctorDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, A, B, FA, Marker>,
+	pub fn map<'a, FA, A: 'a, B: 'a, Brand>(
+		f: impl FunctorDispatch<
+			'a,
+			Brand,
+			A,
+			B,
+			FA,
+			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+		>,
 		fa: FA,
-	) -> Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		FA: InferableBrand_cdc7cd43dac7585f, {
+		Brand: Kind_cdc7cd43dac7585f,
+		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa)
 	}
 
@@ -262,10 +279,10 @@ pub(crate) mod inner {
 		/// - If the closure takes references (`Fn(&A) -> B`) and the container is
 		///   borrowed (`&fa`), dispatches to [`RefFunctor::ref_map`].
 		///
-		/// The `Marker` and `FA` type parameters are inferred automatically by the
-		/// compiler from the closure's argument type and the container argument.
-		/// Callers write `map::<Brand, _, _, _, _>(...)` and never need to specify
-		/// `Marker` or `FA` explicitly.
+		/// The `FA` type parameter is inferred automatically by the compiler from
+		/// the container argument. The `Marker` is projected from the Slot trait.
+		/// Callers write `map::<Brand, _, _, _>(...)` and never need to specify
+		/// `FA` explicitly.
 		///
 		/// The dispatch is resolved at compile time with no runtime cost.
 		#[document_signature]
@@ -275,8 +292,7 @@ pub(crate) mod inner {
 			"The brand of the functor.",
 			"The type of the value(s) inside the functor.",
 			"The type of the result(s) of applying the function.",
-			"The container type (owned or borrowed), inferred from the argument.",
-			"Dispatch marker type, inferred automatically."
+			"The container type (owned or borrowed), inferred from the argument."
 		)]
 		///
 		#[document_parameters(
@@ -298,18 +314,27 @@ pub(crate) mod inner {
 		/// };
 		///
 		/// // Owned: dispatches to Functor::map
-		/// let y = map::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
+		/// let y = map::<OptionBrand, _, _, _>(|x: i32| x * 2, Some(5));
 		/// assert_eq!(y, Some(10));
 		///
 		/// // By-ref: dispatches to RefFunctor::ref_map
 		/// let lazy = RcLazy::pure(10);
-		/// let mapped = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
+		/// let mapped = map::<LazyBrand<RcLazyConfig>, _, _, _>(|x: &i32| *x * 2, &lazy);
 		/// assert_eq!(*mapped.evaluate(), 20);
 		/// ```
-		pub fn map<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA, Marker>(
-			f: impl FunctorDispatch<'a, Brand, A, B, FA, Marker>,
+		pub fn map<'a, Brand: Kind_cdc7cd43dac7585f, A: 'a, B: 'a, FA>(
+			f: impl FunctorDispatch<
+				'a,
+				Brand,
+				A,
+				B,
+				FA,
+				<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			>,
 			fa: FA,
-		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+		where
+			FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
 			f.dispatch(fa)
 		}
 	}

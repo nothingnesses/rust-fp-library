@@ -32,12 +32,12 @@
 //! };
 //!
 //! // Closure takes i32 -> dispatches to Functor::map
-//! let y = map::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
+//! let y = map::<OptionBrand, _, _, _>(|x: i32| x * 2, Some(5));
 //! assert_eq!(y, Some(10));
 //!
 //! // Closure takes &i32 -> dispatches to RefFunctor::ref_map
 //! let lazy = RcLazy::pure(10);
-//! let mapped = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
+//! let mapped = map::<LazyBrand<RcLazyConfig>, _, _, _>(|x: &i32| *x * 2, &lazy);
 //! assert_eq!(*mapped.evaluate(), 20);
 //! ```
 
@@ -127,26 +127,26 @@ mod tests {
 
 	#[test]
 	fn test_val_option_map() {
-		let result = map::<OptionBrand, _, _, _, _>(|x: i32| x * 2, Some(5));
+		let result = map::<OptionBrand, _, _, _>(|x: i32| x * 2, Some(5));
 		assert_eq!(result, Some(10));
 	}
 
 	#[test]
 	fn test_val_vec_map() {
-		let result = map::<VecBrand, _, _, _, _>(|x: i32| x + 1, vec![1, 2, 3]);
+		let result = map::<VecBrand, _, _, _>(|x: i32| x + 1, vec![1, 2, 3]);
 		assert_eq!(result, vec![2, 3, 4]);
 	}
 
 	#[test]
 	fn test_ref_lazy_map() {
 		let lazy = RcLazy::pure(10);
-		let result = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &lazy);
+		let result = map::<LazyBrand<RcLazyConfig>, _, _, _>(|x: &i32| *x * 2, &lazy);
 		assert_eq!(*result.evaluate(), 20);
 	}
 
 	#[test]
 	fn test_val_none_map() {
-		let result = map::<OptionBrand, i32, i32, _, _>(|x| x * 2, None);
+		let result = map::<OptionBrand, i32, i32, _>(|x| x * 2, None);
 		assert_eq!(result, None);
 	}
 

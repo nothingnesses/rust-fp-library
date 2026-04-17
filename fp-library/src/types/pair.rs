@@ -849,7 +849,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	explicit::map::<PairFirstAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, Pair(1, 5)),
+		/// 	explicit::map::<PairFirstAppliedBrand<_>, _, _, _>(|x: i32| x * 2, Pair(1, 5)),
 		/// 	Pair(1, 10)
 		/// );
 		/// ```
@@ -1363,7 +1363,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		/// assert_eq!(
-		/// 	explicit::map::<PairFirstAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &Pair(1, 5)),
+		/// 	explicit::map::<PairFirstAppliedBrand<_>, _, _, _>(|x: &i32| *x * 2, &Pair(1, 5)),
 		/// 	Pair(1, 10)
 		/// );
 		/// ```
@@ -1633,7 +1633,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	explicit::map::<PairSecondAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, Pair(5, 1)),
+		/// 	explicit::map::<PairSecondAppliedBrand<_>, _, _, _>(|x: i32| x * 2, Pair(5, 1)),
 		/// 	Pair(10, 1)
 		/// );
 		/// ```
@@ -2141,7 +2141,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		/// assert_eq!(
-		/// 	explicit::map::<PairSecondAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &Pair(5, 1)),
+		/// 	explicit::map::<PairSecondAppliedBrand<_>, _, _, _>(|x: &i32| *x * 2, &Pair(5, 1)),
 		/// 	Pair(10, 1)
 		/// );
 		/// ```
@@ -2438,7 +2438,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let x = Pair(first, second);
-		explicit::map::<PairFirstAppliedBrand<String>, _, _, _, _>(identity, x.clone()) == x
+		explicit::map::<PairFirstAppliedBrand<String>, _, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -2450,10 +2450,10 @@ mod tests {
 		let x = Pair(first, second);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		explicit::map::<PairFirstAppliedBrand<String>, _, _, _, _>(compose(f, g), x.clone())
-			== explicit::map::<PairFirstAppliedBrand<String>, _, _, _, _>(
+		explicit::map::<PairFirstAppliedBrand<String>, _, _, _>(compose(f, g), x.clone())
+			== explicit::map::<PairFirstAppliedBrand<String>, _, _, _>(
 				f,
-				explicit::map::<PairFirstAppliedBrand<String>, _, _, _, _>(g, x),
+				explicit::map::<PairFirstAppliedBrand<String>, _, _, _>(g, x),
 			)
 	}
 

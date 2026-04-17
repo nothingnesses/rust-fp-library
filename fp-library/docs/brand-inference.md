@@ -9,7 +9,7 @@ every free function call would require a turbofish annotation:
 use fp_library::{brands::*, functions::explicit::*};
 
 // Without brand inference, the brand must be specified explicitly
-let y = map::<OptionBrand, _, _, _, _>(|x: i32| x + 1, Some(5));
+let y = map::<OptionBrand, _, _, _>(|x: i32| x + 1, Some(5));
 ```
 
 Brand inference adds the **reverse mapping** (concrete type -> brand), letting the

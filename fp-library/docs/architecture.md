@@ -198,7 +198,7 @@ Examples should demonstrate the library's intended usage patterns:
 
 - Import items using grouped wildcards (`use fp_library::{brands::*, functions::*}`) instead of individually by name.
 - For types with a single unambiguous brand (Option, Vec, Identity, etc.), use inference-based free functions without turbofish: `map(|x| x * 2, Some(5))`.
-- For types with multiple brands (Result at arity 1, Tuple2, Pair), use `explicit::` variants with turbofish: `explicit::map::<ResultErrAppliedBrand<E>, _, _, _, _>(f, x)`.
+- For types with multiple brands (Result at arity 1, Tuple2, Pair), use `explicit::` variants with turbofish: `explicit::map::<ResultErrAppliedBrand<E>, _, _, _>(f, x)`.
 - Prefer free functions over trait method calls (`OptionBrand::map(...)`).
 
 **Reasoning:** The library is designed to be used via free functions with brand inference for the common single-brand case. The `explicit::` variants are the escape hatch for ambiguous types. Examples should demonstrate the inference-based API as the primary path.

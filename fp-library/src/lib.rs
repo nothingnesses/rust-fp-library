@@ -43,7 +43,7 @@
 //! 	functions::explicit::*,
 //! };
 //!
-//! let y = map::<ResultErrAppliedBrand<&str>, _, _, _, _>(|i| i * 2, Ok::<i32, &str>(5));
+//! let y = map::<ResultErrAppliedBrand<&str>, _, _, _>(|i| i * 2, Ok::<i32, &str>(5));
 //! assert_eq!(y, Ok(10));
 //! ```
 //!

@@ -15,7 +15,7 @@
 //! };
 //!
 //! let x = Some(5);
-//! let y = map::<OptionBrand, _, _, _, _>(|i| i * 2, x);
+//! let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
 //! assert_eq!(y, Some(10));
 //! ```
 
@@ -59,11 +59,11 @@ pub type ArcTryLazyBrand<E> = TryLazyBrand<E, ArcLazyConfig>;
 /// ```
 /// use fp_library::{
 /// 	brands::*,
-/// 	functions::explicit::*,
+/// 	classes::Functor,
 /// };
 ///
 /// let x = Result::<i32, i32>::Ok(5);
-/// let y = map::<BifunctorFirstAppliedBrand<ResultBrand, i32>, _, _, _, _>(|s| s * 2, x);
+/// let y = <BifunctorFirstAppliedBrand<ResultBrand, i32> as Functor>::map(|s| s * 2, x);
 /// assert_eq!(y, Ok(10));
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -76,11 +76,11 @@ pub struct BifunctorFirstAppliedBrand<Brand, A>(PhantomData<(Brand, A)>);
 /// ```
 /// use fp_library::{
 /// 	brands::*,
-/// 	functions::explicit::*,
+/// 	classes::Functor,
 /// };
 ///
 /// let x = Result::<i32, i32>::Err(5);
-/// let y = map::<BifunctorSecondAppliedBrand<ResultBrand, i32>, _, _, _, _>(|e| e * 2, x);
+/// let y = <BifunctorSecondAppliedBrand<ResultBrand, i32> as Functor>::map(|e| e * 2, x);
 /// assert_eq!(y, Err(10));
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -200,11 +200,11 @@ pub struct PairSecondAppliedBrand<Second>(PhantomData<Second>);
 /// ```
 /// use fp_library::{
 /// 	brands::*,
-/// 	functions::explicit::*,
+/// 	classes::Functor,
 /// };
 ///
 /// let f = |x: i32| x + 1;
-/// let g = map::<ProfunctorFirstAppliedBrand<RcFnBrand, i32>, _, _, _, _>(
+/// let g = <ProfunctorFirstAppliedBrand<RcFnBrand, i32> as Functor>::map(
 /// 	|y: i32| y * 2,
 /// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
 /// );

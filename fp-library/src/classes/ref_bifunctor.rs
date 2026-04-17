@@ -188,11 +188,12 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::explicit::*,
+		/// 	classes::RefFunctor,
 		/// };
 		///
 		/// let x = Result::<i32, i32>::Ok(5);
-		/// let y = map::<BifunctorFirstAppliedBrand<ResultBrand, i32>, _, _, _, _>(|s: &i32| *s * 2, &x);
+		/// let y =
+		/// 	<BifunctorFirstAppliedBrand<ResultBrand, i32> as RefFunctor>::ref_map(|s: &i32| *s * 2, &x);
 		/// assert_eq!(y, Ok(10));
 		/// ```
 		fn ref_map<'a, B: 'a, C: 'a>(
@@ -227,11 +228,14 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::explicit::*,
+		/// 	classes::RefFunctor,
 		/// };
 		///
 		/// let x = Result::<i32, i32>::Err(5);
-		/// let y = map::<BifunctorSecondAppliedBrand<ResultBrand, i32>, _, _, _, _>(|e: &i32| *e * 2, &x);
+		/// let y = <BifunctorSecondAppliedBrand<ResultBrand, i32> as RefFunctor>::ref_map(
+		/// 	|e: &i32| *e * 2,
+		/// 	&x,
+		/// );
 		/// assert_eq!(y, Err(10));
 		/// ```
 		fn ref_map<'a, A: 'a, C: 'a>(

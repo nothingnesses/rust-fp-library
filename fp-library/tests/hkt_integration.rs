@@ -56,7 +56,7 @@ fn test_memo_ref_functor() {
 	let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
 
 	// map_ref takes a reference to the value
-	let mapped = map::<LazyBrand<RcLazyConfig>, _, _, _, _>(|x: &i32| *x * 2, &memo);
+	let mapped = map::<LazyBrand<RcLazyConfig>, _, _, _>(|x: &i32| *x * 2, &memo);
 
 	assert_eq!(*mapped.evaluate(), 20);
 }
