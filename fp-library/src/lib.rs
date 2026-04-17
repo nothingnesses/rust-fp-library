@@ -35,7 +35,19 @@
 //! assert_eq!(y, vec![11, 12, 13]);
 //! ```
 //!
-//! For types with multiple brands (e.g., `Result`), use the `explicit` variant:
+//! For types with multiple brands (e.g., `Result`), annotate the closure's input
+//! type to disambiguate which brand applies:
+//!
+//! ```
+//! use fp_library::functions::*;
+//!
+//! // Closure annotation pins A = i32, selecting ResultErrAppliedBrand<&str>
+//! let y = map(|i: i32| i * 2, Ok::<i32, &str>(5));
+//! assert_eq!(y, Ok(10));
+//! ```
+//!
+//! For diagonal cases (e.g., `Result<T, T>`) where the closure cannot disambiguate,
+//! use the `explicit` variant with a turbofish:
 //!
 //! ```
 //! use fp_library::{
@@ -43,7 +55,7 @@
 //! 	functions::explicit::*,
 //! };
 //!
-//! let y = map::<ResultErrAppliedBrand<&str>, _, _, _, _>(|i| i * 2, Ok::<i32, &str>(5));
+//! let y = map::<ResultErrAppliedBrand<i32>, _, _, _, _>(|i| i * 2, Ok::<i32, i32>(5));
 //! assert_eq!(y, Ok(10));
 //! ```
 //!
@@ -85,8 +97,9 @@
 //! See [Higher-Kinded Types][crate::docs::hkt].
 //!
 //! **Brand Inference:** `InferableBrand` traits provide the reverse mapping (concrete type -> brand),
-//! letting the compiler infer brands automatically. `trait_kind!` and `impl_kind!` generate both
-//! mappings. See [Brand Inference][crate::docs::brand_inference].
+//! with Brand as a trait parameter so multiple brands per type are supported. Closure-directed
+//! inference disambiguates multi-brand types like `Result`. `trait_kind!` and `impl_kind!` generate
+//! both mappings. See [Brand Inference][crate::docs::brand_inference].
 //!
 //! **Val/Ref Dispatch:** Each free function routes to either a by-value or by-reference trait method
 //! based on the closure's argument type (or container ownership for closureless operations). Dispatch

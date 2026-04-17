@@ -215,6 +215,12 @@ pub(crate) mod inner {
 	/// For diagonal cases where the closure cannot disambiguate (e.g.,
 	/// `Result<T, T>`), use [`explicit::map`](crate::functions::explicit::map)
 	/// with a turbofish.
+	///
+	/// **Note:** Pre-bound closures (`let f = |x| x + 1; map(f, Ok(5))`) may
+	/// lose deferred inference context for multi-brand types, because the
+	/// closure's parameter type is committed before `map` can use it for brand
+	/// resolution. Annotate the closure parameter type explicitly in these
+	/// cases: `let f = |x: i32| x + 1;`.
 	#[document_signature]
 	///
 	#[document_type_parameters(

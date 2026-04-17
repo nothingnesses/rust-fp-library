@@ -116,6 +116,16 @@ updated. Regenerated compile-fail UI test stderr snapshots.
 POC test files retain their internal hand-written trait names
 (SlotM, SlotB, SlotApp, etc.) since they are self-contained.
 
+Phase 5 complete. Added #[diagnostic::on_unimplemented] to
+InferableBrand with two-note message (annotate closure input type;
+use explicit:: fallback). Updated brand-inference.md,
+brand-dispatch-traits.md, functor.rs map doc comment, and lib.rs
+crate docs. Added known limitations section. Added multi-brand
+runtime benchmark comparing inference vs explicit dispatch.
+CLAUDE.md already accurate, no changes needed.
+
+Plan complete.
+
 ## Open questions, issues and blockers
 
 None at this time. Previously resolved:

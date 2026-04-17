@@ -175,4 +175,24 @@ pub fn bench_result(c: &mut Criterion) {
 		});
 		group.finish();
 	}
+
+	// Multi-brand inference vs explicit dispatch (Decision U)
+	//
+	// Validates that inference-based dispatch produces identical codegen
+	// to explicit dispatch (zero-cost property).
+	{
+		let mut group = c.benchmark_group("Result Multi-Brand Inference");
+		group.bench_with_input(BenchmarkId::new("inference", input_desc), &input_desc, |b, &_| {
+			b.iter(|| map(|x: i32| x + 1, std::hint::black_box(Ok::<i32, String>(5))))
+		});
+		group.bench_with_input(BenchmarkId::new("explicit", input_desc), &input_desc, |b, &_| {
+			b.iter(|| {
+				explicit::map::<ResultErrAppliedBrand<String>, _, _, _, _>(
+					|x| x + 1,
+					std::hint::black_box(Ok::<i32, String>(5)),
+				)
+			})
+		});
+		group.finish();
+	}
 }

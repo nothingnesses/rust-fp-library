@@ -123,7 +123,7 @@ fp-library = { version = "0.16", features = ["rayon", "serde"] }
 
 **Higher-Kinded Types:** The library encodes HKTs using lightweight higher-kinded polymorphism (the "Brand" pattern). Each type constructor has a zero-sized brand type (e.g., `OptionBrand`) that implements `Kind` traits mapping brands back to concrete types. See [Higher-Kinded Types](fp-library/docs/hkt.md).
 
-**Brand Inference:** `InferableBrand` traits provide the reverse mapping (concrete type -> brand), letting the compiler infer brands automatically. `trait_kind!` and `impl_kind!` generate both mappings. See [Brand Inference](fp-library/docs/brand-inference.md).
+**Brand Inference:** `InferableBrand` traits provide the reverse mapping (concrete type -> brand), with Brand as a trait parameter enabling multiple implementations per type. For single-brand types, the brand is inferred automatically. For multi-brand types like `Result`, the closure's input type disambiguates which brand applies. See [Brand Inference](fp-library/docs/brand-inference.md).
 
 **Val/Ref Dispatch:** Each free function routes to either a by-value or by-reference trait method based on the closure's argument type (or container ownership for closureless operations). Dispatch and brand inference compose through the shared `FA` type parameter. See [Val/Ref Dispatch](fp-library/docs/dispatch.md).
 
@@ -138,7 +138,7 @@ fp-library = { version = "0.16", features = ["rayon", "serde"] }
 - [API Documentation](https://docs.rs/fp-library): The complete API reference on docs.rs.
 - [Features & Type Class Hierarchy](fp-library/docs/features.md): Full feature list with hierarchy diagrams.
 - [Higher-Kinded Types](fp-library/docs/hkt.md): The Brand pattern and HKT encoding.
-- [Brand Inference](fp-library/docs/brand-inference.md): How InferableBrand eliminates turbofish for common types.
+- [Brand Inference](fp-library/docs/brand-inference.md): How InferableBrand enables turbofish-free dispatch, including closure-directed inference for multi-brand types.
 - [Val/Ref Dispatch](fp-library/docs/dispatch.md): How unified free functions route to by-value or by-reference trait methods.
 - [Zero-Cost Abstractions](fp-library/docs/zero-cost.md): Uncurried semantics and static dispatch.
 - [Pointer Abstraction](fp-library/docs/pointer-abstraction.md): Pointer hierarchy, `FnBrand<P>`, and shared memoization.

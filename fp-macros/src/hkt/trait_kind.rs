@@ -102,6 +102,11 @@ by-reference trait method."#,
 
 		#[doc = #inferable_brand_doc_summary]
 		#[expect(non_camel_case_types, reason = "Generated name uses hash suffix for uniqueness")]
+		#[diagnostic::on_unimplemented(
+			message = "cannot infer brand for `{Self}`",
+			note = "for multi-brand types, annotate the closure's input type to disambiguate",
+			note = "if that does not help, use the `explicit::` variant with a turbofish to specify the brand manually"
+		)]
 		pub trait #inferable_brand_name<#(#lifetime_defs,)* __InferableBrand_Brand: #name #(, #type_defs)*> {
 			/// Dispatch marker: [`Val`](::fp_library::dispatch::Val) for owned types,
 			/// [`Ref`](::fp_library::dispatch::Ref) for references.

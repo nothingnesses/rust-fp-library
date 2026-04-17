@@ -38,20 +38,34 @@ trait Kind_cdc7cd43dac7585f {
     type Of<'a, A: 'a>: 'a;
 }
 
-// Reverse: Type -> Brand
-trait InferableBrand_cdc7cd43dac7585f {
-    type Brand: Kind_cdc7cd43dac7585f;
+// Reverse: Type -> Brand (Brand is a trait parameter, not an associated type)
+trait InferableBrand_cdc7cd43dac7585f<'a, Brand, A: 'a>
+where
+    Brand: Kind_cdc7cd43dac7585f,
+{
+    type Marker;
 }
 
 // Blanket ref impl
-impl<T: InferableBrand_cdc7cd43dac7585f + ?Sized>
-    InferableBrand_cdc7cd43dac7585f for &T
+impl<'a, T: ?Sized, Brand, A: 'a> InferableBrand_cdc7cd43dac7585f<'a, Brand, A> for &T
+where
+    T: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>,
+    Brand: Kind_cdc7cd43dac7585f,
 {
-    type Brand = T::Brand;
+    type Marker = Ref;
 }
 ```
 
-When `impl_kind!` defines a brand, it generates both mappings:
+Because `Brand` is a trait parameter (not an associated type), a single
+concrete type can implement `InferableBrand` multiple times, once per brand.
+This is what enables multi-brand inference for types like `Result`.
+
+The `Marker` associated type projects whether the container is owned (`Val`)
+or borrowed (`Ref`), which the dispatch system uses to route to the correct
+trait method.
+
+When `impl_kind!` defines a brand, it generates both the forward Kind impl
+and the reverse InferableBrand impl:
 
 ```rust,ignore
 impl_kind! {
@@ -68,8 +82,8 @@ impl Kind_cdc7... for OptionBrand {
 }
 
 // Reverse
-impl<A> InferableBrand_cdc7... for Option<A> {
-    type Brand = OptionBrand;
+impl<'a, A: 'a> InferableBrand_cdc7...<'a, OptionBrand, A> for Option<A> {
+    type Marker = Val;
 }
 ```
 
@@ -77,12 +91,20 @@ The inference-based `map` function uses `InferableBrand` to resolve the brand
 from the container type `FA`:
 
 ```rust,ignore
-pub fn map<FA, A, B, Marker>(
-    f: impl FunctorDispatch<FA::Brand, A, B, FA, Marker>,
+pub fn map<'a, FA, A: 'a, B: 'a, Brand>(
+    f: impl FunctorDispatch<
+        'a,
+        Brand,
+        A,
+        B,
+        FA,
+        <FA as InferableBrand_cdc7...<'a, Brand, A>>::Marker,
+    >,
     fa: FA,
-) -> ...
+) -> Apply!(<Brand as Kind_cdc7...>::Of<'a, B>)
 where
-    FA: InferableBrand_cdc7...,
+    Brand: Kind_cdc7...,
+    FA: InferableBrand_cdc7...<'a, Brand, A>,
 {
     f.dispatch(fa)
 }
@@ -91,47 +113,92 @@ where
 When the caller writes `map(|x| x + 1, Some(5))`, the compiler:
 
 1. Infers `FA = Option<i32>` from the second argument.
-2. Finds `impl InferableBrand for Option<A>` and resolves `Brand = OptionBrand`.
-3. Uses `OptionBrand` to select the correct `FunctorDispatch` impl.
+2. Finds `impl InferableBrand<OptionBrand, A> for Option<A>`, resolving
+   `Brand = OptionBrand` and `Marker = Val`.
+3. Uses `OptionBrand` and `Val` to select the correct `FunctorDispatch` impl.
 
 The blanket `impl InferableBrand for &T` enables the same inference for borrowed
 containers: `map(|x: &i32| *x + 1, &Some(5))` infers `FA = &Option<i32>`,
-delegates to `Option<i32>`'s impl, and resolves `Brand = OptionBrand`.
+delegates to `Option<i32>`'s impl, resolves `Brand = OptionBrand`, and sets
+`Marker = Ref`.
 
 #### Multi-brand types
 
 Some types are reachable through multiple brands at a given arity.
-`Result<A, E>` has four arity-1 brands (`ResultErrAppliedBrand<E>`,
-`ResultOkAppliedBrand<A>`, and two bifunctor-derived brands), making
-arity-1 inference ambiguous. These types do not implement the arity-1
-`InferableBrand` trait, so `map(f, Ok(5))` produces a compile error with
-an actionable diagnostic:
+`Result<A, E>` has both `ResultErrAppliedBrand<E>` and
+`ResultOkAppliedBrand<A>` as arity-1 brands. Because `InferableBrand` takes
+`Brand` as a trait parameter, `Result` implements `InferableBrand` once for
+each brand:
 
-```text
-error: `Result<i32, String>` does not have a unique brand and cannot use brand inference
-  = note: use the `explicit::` variant with a turbofish to specify the brand manually
+```rust,ignore
+impl<'a, A: 'a, E: 'static>
+    InferableBrand_cdc7...<'a, ResultErrAppliedBrand<E>, A> for Result<A, E>
+{
+    type Marker = Val;
+}
+
+impl<'a, T: 'static, A: 'a>
+    InferableBrand_cdc7...<'a, ResultOkAppliedBrand<T>, A> for Result<T, A>
+{
+    type Marker = Val;
+}
 ```
 
-However, at arity 2, `Result` has exactly one brand (`ResultBrand`), so
-`bimap((f, g), Ok(5))` infers the brand successfully. The ambiguity is
-arity-specific, not type-specific.
+Closure-directed inference disambiguates which brand applies. When the
+closure's input type is annotated, it pins the `A` type parameter, which
+in turn selects a unique `InferableBrand` impl:
 
-#### The `#[no_inferable_brand]` attribute
+- `map(|x: i32| x + 1, Ok::<i32, String>(5))` pins `A = i32`, selecting
+  `ResultErrAppliedBrand<String>` (maps over Ok values).
+- `map(|e: String| e.len(), Err::<i32, String>("hi".into()))` pins
+  `A = String`, selecting `ResultOkAppliedBrand<i32>` (maps over Err values).
 
-`impl_kind!` generates `InferableBrand` impls by default. For multi-brand
-types, add `#[no_inferable_brand]` to suppress generation:
+For diagonal cases where both brands unify (e.g., `Result<T, T>`), the
+closure cannot disambiguate and the compiler reports an ambiguity error.
+Use [`explicit::map`](crate::functions::explicit::map) with a turbofish in
+these cases.
+
+At arity 2, `Result` has exactly one brand (`ResultBrand`), so
+`bimap((f, g), Ok(5))` infers the brand without annotation. The ambiguity
+is arity-specific, not type-specific.
+
+#### The `#[multi_brand]` attribute
+
+The `#[multi_brand]` attribute on `impl_kind!` is a documentation marker,
+not a codegen switch. It does **not** suppress `InferableBrand` generation.
+Each `impl_kind!` invocation independently emits one `InferableBrand` impl
+(unless the target type is a projection). Multiple `InferableBrand` impls
+for a given concrete type come from multiple `impl_kind!` invocations (one
+per brand). The attribute signals to human readers that this brand shares
+its target type with other brands:
 
 ```rust,ignore
 impl_kind! {
-    #[no_inferable_brand]
+    #[multi_brand]
     impl<E> for ResultErrAppliedBrand<E> {
         type Of<'a, A: 'a>: 'a = Result<A, E>;
     }
 }
 ```
 
-Generation is also automatically skipped when the target type is a projection
+Generation is automatically skipped when the target type is a projection
 (contains `Apply!` or `::`) or when multiple associated types are defined.
+
+#### Known limitations
+
+- `'static` bounds on multi-brand `InferableBrand` impls prevent non-static
+  fixed parameters from using inference. For example, if `E` has a lifetime,
+  `map(f, Ok::<i32, &str>(5))` works because `&str: 'static`, but a
+  non-static reference type would require `explicit::map`.
+- `&&T` (double reference) is not supported by `FunctorDispatch`'s `Ref`
+  impl. Pass a single reference (`&T`) instead.
+- Pre-bound closures (`let f = |x| x + 1; map(f, Ok(5))`) may lose deferred
+  inference context for multi-brand types, because the closure's parameter
+  type is committed before `map` can use it for brand resolution. Annotate
+  the closure parameter type explicitly in these cases.
+- `trait_kind!` and `impl_kind!` emit `::fp_library::dispatch::{Val, Ref}`
+  in generated code. External crates must depend on `fp-library` for the
+  macros to work correctly.
 
 #### Relationship to Val/Ref dispatch
 
