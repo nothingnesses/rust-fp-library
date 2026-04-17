@@ -69,7 +69,9 @@ Phase 1 complete. All 11 phase 1 multi-brand integration tests pass
 both-params-generic, Ref + generic fixed param). All 16 non-regression
 single-brand tests remain green. 9 phase 2 tests correctly ignored.
 
-Ready for phase 2.
+Phase 2 in progress. Migrated `semimonad.rs`: `bind`, `bind_flipped`
+(closure-taking, gain multi-brand inference) and `join` (closureless,
+uses extra `MidA` type parameter per Decision W).
 
 ## Open questions, issues and blockers
 
@@ -123,6 +125,23 @@ None at this time. Previously resolved:
    for self-resolution, and fp-library as a dev-dependency of
    fp-macros so its tests resolve the absolute path. Dispatch shim
    modules removed from fp-macros test files.
+9. `document_module` macro false-positive: the named-generics
+   validation incorrectly suggests `impl Trait` for `FA` in `join`
+   when `FA` is used in where-clause projections (`<FA as
+Slot<...>>::Marker`). Suppressed with `#[allow_named_generics]`.
+   Two issues to fix separately:
+   a) The validation counts only parameter-position uses of a type
+   param, not where-clause uses. When a type param appears once
+   in parameters but also in where-clause projections, it cannot
+   use `impl Trait` but the macro still warns.
+   b) The warning mechanism uses `#[deprecated]` to emit diagnostics,
+   which causes a cascading `let_unit_value` clippy lint that
+   reports "this let-binding has unit value" at the function
+   signature, with no connection to any actual let-binding.
+   To reproduce: remove `#[allow_named_generics]` from the `join`
+   inference wrapper in `dispatch/semimonad.rs` and run `just clippy`.
+   Both the false-positive deprecation warning and the spurious
+   let-binding lint will appear at the `pub fn join` line.
 
 ## Implementation protocol
 
