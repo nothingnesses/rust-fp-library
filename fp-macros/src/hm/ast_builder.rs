@@ -53,6 +53,42 @@ pub struct HmAstBuilder<'a> {
 	pub config: &'a Config,
 }
 
+impl HmAstBuilder<'_> {
+	/// Extract type arguments from angle-bracketed generic arguments,
+	/// converting each to its HM representation.
+	fn visit_type_args(
+		&mut self,
+		args: &syn::AngleBracketedGenericArguments,
+	) -> Vec<HmAst> {
+		args.args
+			.iter()
+			.filter_map(|arg| {
+				if let GenericArgument::Type(inner_ty) = arg {
+					Some(self.visit(inner_ty))
+				} else {
+					None
+				}
+			})
+			.collect()
+	}
+
+	/// Build a Variable or Constructor node depending on whether type arguments
+	/// are present. Used for concrete types and brand-named types.
+	fn variable_or_constructor(
+		&mut self,
+		name: String,
+		arguments: &PathArguments,
+	) -> HmAst {
+		if let PathArguments::AngleBracketed(args) = arguments {
+			let type_args = self.visit_type_args(args);
+			if !type_args.is_empty() {
+				return HmAst::Constructor(name, type_args);
+			}
+		}
+		HmAst::Variable(name)
+	}
+}
+
 impl<'a> TypeVisitor for HmAstBuilder<'a> {
 	type Output = HmAst;
 
@@ -89,15 +125,11 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 				return HmAst::Variable("unknown".to_string());
 			};
 
-			let mut args_list = Vec::new();
-
-			if let PathArguments::AngleBracketed(args) = &last_segment.arguments {
-				for arg in &args.args {
-					if let GenericArgument::Type(inner_ty) = arg {
-						args_list.push(self.visit(inner_ty));
-					}
-				}
-			}
+			let args_list = if let PathArguments::AngleBracketed(args) = &last_segment.arguments {
+				self.visit_type_args(args)
+			} else {
+				Vec::new()
+			};
 
 			// Merge constructor and args
 			match constructor_type {
@@ -161,12 +193,7 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 				}
 
 				if let PathArguments::AngleBracketed(args) = &last.arguments {
-					let mut type_args = Vec::new();
-					for arg in &args.args {
-						if let GenericArgument::Type(inner_ty) = arg {
-							type_args.push(self.visit(inner_ty));
-						}
-					}
+					let type_args = self.visit_type_args(args);
 					if !type_args.is_empty() {
 						return HmAst::Constructor(constructor_name, type_args);
 					}
@@ -200,22 +227,7 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 			// Check if this is a concrete type that should be preserved
 			if self.config.concrete_types.contains(&name) {
 				// But still process generic arguments if present
-				match &segment.arguments {
-					PathArguments::AngleBracketed(args) => {
-						let mut type_args = Vec::new();
-						for arg in &args.args {
-							if let GenericArgument::Type(inner_ty) = arg {
-								type_args.push(self.visit(inner_ty));
-							}
-						}
-						if type_args.is_empty() {
-							return HmAst::Variable(name);
-						} else {
-							return HmAst::Constructor(name, type_args);
-						}
-					}
-					_ => return HmAst::Variable(name),
-				}
+				return self.variable_or_constructor(name, &segment.arguments);
 			}
 
 			// Keep type parameters in original case (uppercase)
@@ -231,23 +243,7 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 			}
 
 			let brand_name = format_brand_name(&name, self.config);
-
-			match &segment.arguments {
-				PathArguments::AngleBracketed(args) => {
-					let mut type_args = Vec::new();
-					for arg in &args.args {
-						if let GenericArgument::Type(inner_ty) = arg {
-							type_args.push(self.visit(inner_ty));
-						}
-					}
-					if type_args.is_empty() {
-						HmAst::Variable(brand_name)
-					} else {
-						HmAst::Constructor(brand_name, type_args)
-					}
-				}
-				_ => HmAst::Variable(brand_name),
-			}
+			self.variable_or_constructor(brand_name, &segment.arguments)
 		}
 	}
 
