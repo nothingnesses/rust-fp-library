@@ -295,21 +295,29 @@ pub fn trait_kind(input: TokenStream) -> TokenStream {
 /// ### Generates
 ///
 /// 1. An implementation of the appropriate `Kind_{hash}` trait for the brand.
-/// 2. An `InferableBrand_{hash}` impl for the target type, mapping it back to
+/// 2. A `Slot_{hash}` impl for the target type with `type Marker = Val`,
+///    enabling closure-directed brand inference for both single-brand and
+///    multi-brand types.
+/// 3. An `InferableBrand_{hash}` impl for the target type, mapping it back to
 ///    the brand. This enables brand inference for free functions like `map`,
 ///    `bind`, etc.
 ///
 /// The `InferableBrand` impl is suppressed when:
-/// - `#[no_inferable_brand]` is present (for types with multiple brands).
+/// - `#[multi_brand]` is present (for types with multiple brands).
 /// - The target type is a projection (contains `Apply!` or `::`).
 /// - Multiple associated types are defined.
+///
+/// The `Slot` impl is generated for ALL brands (including multi-brand types).
+/// The `#[multi_brand]` attribute does not suppress Slot generation.
+/// Projection types and multiple-associated-type definitions do suppress it.
 ///
 /// ### Attributes
 ///
 /// Inside the `impl_kind!` block, you can use these attributes:
 ///
-/// * `#[no_inferable_brand]`: Suppresses `InferableBrand` impl generation. Use this for
-///   types reachable through multiple brands (e.g., `Result` at arity 1).
+/// * `#[multi_brand]`: Marks this brand as sharing its target type with other
+///   brands. Suppresses `InferableBrand` impl generation (since the brand is
+///   not unique). Does NOT suppress `Slot` impl generation.
 /// * `#[document_default]`: Marks this associated type as the default for resolving bare `Self` in
 ///   the generated documentation for this brand within the module.
 ///
@@ -351,17 +359,22 @@ pub fn trait_kind(input: TokenStream) -> TokenStream {
 /// ```
 ///
 /// ```ignore
-/// // Suppressing InferableBrand generation for multi-brand types
+/// // Multi-brand type: InferableBrand suppressed, Slot still generated
 /// impl_kind! {
-///     #[no_inferable_brand]
+///     #[multi_brand]
 ///     impl<E> for ResultErrAppliedBrand<E> {
 ///         type Of<'a, A: 'a>: 'a = Result<A, E>;
 ///     }
 /// }
 ///
-/// // Expanded code (only Kind impl, no InferableBrand)
+/// // Expanded code (Kind impl + Slot impl, no InferableBrand)
 /// impl<E> Kind_... for ResultErrAppliedBrand<E> {
 ///     type Of<'a, A: 'a>: 'a = Result<A, E>;
+/// }
+/// impl<'a, A: 'a, E> Slot_...<'a, ResultErrAppliedBrand<E>, A>
+///     for Result<A, E>
+/// {
+///     type Marker = Val;
 /// }
 /// ```
 ///

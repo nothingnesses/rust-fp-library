@@ -527,7 +527,7 @@ mod inner {
 	// ResultErrAppliedBrand<E> (Functor over T)
 
 	impl_kind! {
-		#[no_inferable_brand]
+		#[multi_brand]
 		#[document_type_parameters("The error type.")]
 		impl<E: 'static> for ResultErrAppliedBrand<E> {
 			type Of<'a, A: 'a>: 'a = Result<A, E>;
@@ -1066,7 +1066,7 @@ mod inner {
 	// ResultOkAppliedBrand<T> (Functor over E)
 
 	impl_kind! {
-		#[no_inferable_brand]
+		#[multi_brand]
 		#[document_type_parameters("The success type.")]
 		impl<T: 'static> for ResultOkAppliedBrand<T> {
 			type Of<'a, A: 'a>: 'a = Result<T, A>;

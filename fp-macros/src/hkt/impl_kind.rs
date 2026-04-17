@@ -10,6 +10,7 @@ use {
 		AssociatedTypes,
 		generate_inferable_brand_name,
 		generate_name,
+		generate_slot_name,
 	},
 	crate::{
 		core::Result,
@@ -191,16 +192,56 @@ impl<'ast> Visit<'ast> for TypeIdentCollector {
 	}
 }
 
+/// Checks whether the target type is a projection type that should not
+/// receive InferableBrand or Slot impls.
+///
+/// A projection type is one that:
+/// - Contains an `Apply!` macro invocation (detected as `syn::Type::Macro`)
+/// - Contains a qualified path with `::` (detected as a multi-segment path
+///   or a path with a `QSelf`)
+///
+/// Uses structural AST checks rather than string heuristics (Decision S).
+fn is_projection_type(ty: &Type) -> bool {
+	struct ProjectionChecker {
+		found: bool,
+	}
+
+	impl<'ast> Visit<'ast> for ProjectionChecker {
+		fn visit_type_macro(
+			&mut self,
+			_: &'ast syn::TypeMacro,
+		) {
+			self.found = true;
+		}
+
+		fn visit_type_path(
+			&mut self,
+			type_path: &'ast syn::TypePath,
+		) {
+			if type_path.path.segments.len() > 1 || type_path.qself.is_some() {
+				self.found = true;
+			}
+			syn::visit::visit_type_path(self, type_path);
+		}
+	}
+
+	let mut checker = ProjectionChecker {
+		found: false,
+	};
+	checker.visit_type(ty);
+	checker.found
+}
+
 /// Checks whether an `InferableBrand` impl should be generated for this
 /// `impl_kind!` invocation.
 ///
 /// Returns `false` (skip generation) when:
-/// - `#[no_inferable_brand]` attribute is present
+/// - `#[multi_brand]` attribute is present (type has multiple brands)
 /// - Multiple associated types are defined (ambiguous primary type)
 /// - The target type is a projection (contains `Apply!` or `::`)
 fn should_generate_inferable_brand(input: &ImplKindInput) -> bool {
-	// Check for #[no_inferable_brand] attribute
-	if input.attributes.iter().any(|attr| attr.path().is_ident("no_inferable_brand")) {
+	// Check for #[multi_brand] attribute
+	if input.attributes.iter().any(|attr| attr.path().is_ident("multi_brand")) {
 		return false;
 	}
 
@@ -209,13 +250,38 @@ fn should_generate_inferable_brand(input: &ImplKindInput) -> bool {
 		return false;
 	}
 
-	// Skip if target type is a projection (contains Apply! or ::)
+	// Skip if target type is a projection
 	let Some(def) = input.definitions.first() else {
 		return false;
 	};
-	let target = &def.target_type;
-	let target_str = quote!(#target).to_string();
-	if target_str.contains("::") || target_str.contains("Apply") {
+	if is_projection_type(&def.target_type) {
+		return false;
+	}
+
+	true
+}
+
+/// Checks whether a `Slot` impl should be generated for this `impl_kind!`
+/// invocation.
+///
+/// Returns `false` (skip generation) when:
+/// - Multiple associated types are defined (ambiguous primary type)
+/// - The target type is a projection (contains `Apply!` or `::`)
+///
+/// Unlike `should_generate_inferable_brand`, the `#[multi_brand]` attribute
+/// does NOT suppress Slot generation. Multi-brand types get Slot impls
+/// (one per brand); the attribute is a documentation marker only.
+fn should_generate_slot(input: &ImplKindInput) -> bool {
+	// Skip if multiple associated types (ambiguous primary type)
+	if input.definitions.len() != 1 {
+		return false;
+	}
+
+	// Skip if target type is a projection
+	let Some(def) = input.definitions.first() else {
+		return false;
+	};
+	if is_projection_type(&def.target_type) {
 		return false;
 	}
 
@@ -318,11 +384,11 @@ fn build_inferable_brand_generics(
 /// This function takes the parsed input, determines the correct `Kind` trait based on
 /// the signature of the associated types, and generates the `impl` block.
 ///
-/// By default, it also generates a corresponding `InferableBrand_{hash}` impl for the
-/// target type, enabling brand inference. This is suppressed when:
-/// - `#[no_inferable_brand]` is present
-/// - The target type is a projection (contains `Apply!` or `::`)
-/// - Multiple associated types are defined
+/// By default, it also generates:
+/// - A `Slot_{hash}` impl with `type Marker = Val` (unless the target is a projection
+///   type or multiple associated types are defined).
+/// - An `InferableBrand_{hash}` impl for the target type (unless `#[multi_brand]` is
+///   present, the target is a projection type, or multiple associated types are defined).
 pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 	let brand = &input.brand;
 	let impl_generics = &input.impl_generics;
@@ -360,12 +426,9 @@ pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 
 	let (impl_generics_impl, _, impl_generics_where) = impl_generics.split_for_impl();
 
-	// Filter out #[no_inferable_brand] from the attributes passed to the Kind impl
-	let attrs: Vec<_> = input
-		.attributes
-		.iter()
-		.filter(|attr| !attr.path().is_ident("no_inferable_brand"))
-		.collect();
+	// Filter out #[multi_brand] from the attributes passed to the Kind impl
+	let attrs: Vec<_> =
+		input.attributes.iter().filter(|attr| !attr.path().is_ident("multi_brand")).collect();
 	let has_doc = attrs.iter().any(|attr| attr.path().is_ident("doc"));
 	let maybe_separator = if has_doc {
 		quote! { #[doc = ""] }
@@ -408,9 +471,72 @@ pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 		quote! {}
 	};
 
+	// Generate Slot impl if applicable.
+	// Unlike InferableBrand, Slot is generated for ALL brands (including
+	// multi-brand types). The #[multi_brand] attribute does not suppress
+	// Slot generation. Each impl_kind! invocation produces at most one
+	// Slot impl; multiple brands for the same concrete type come from
+	// multiple impl_kind! invocations.
+	//
+	// Marker-agreement invariant: all Slot impls for a given Self type
+	// must agree on the same Marker value. Since impl_kind! always
+	// generates owned-type impls (not reference impls), Marker is always
+	// Val. The &T blanket (generated by trait_kind!) handles Ref.
+	let slot_impl = if should_generate_slot(&input)
+		&& let Some(def) = input.definitions.first()
+	{
+		let slot_name = generate_slot_name(&kind_input)?;
+		let target_type = &def.target_type;
+		let assoc_generics = &def.signature.generics;
+
+		// Extract lifetime and type params from the associated type generics
+		let lifetime_names: Vec<_> =
+			assoc_generics
+				.params
+				.iter()
+				.filter_map(|p| {
+					if let GenericParam::Lifetime(lt) = p { Some(&lt.lifetime) } else { None }
+				})
+				.collect();
+
+		let type_idents: Vec<_> = assoc_generics
+			.params
+			.iter()
+			.filter_map(|p| if let GenericParam::Type(tp) = p { Some(&tp.ident) } else { None })
+			.collect();
+
+		// Slot impl generics: all assoc type generics + all impl generics.
+		// The assoc type generics include lifetimes and type params with
+		// their bounds (e.g., 'a, A: 'a). The impl generics include the
+		// brand's generic params (e.g., E: 'static).
+		let all_slot_params: Vec<_> =
+			assoc_generics.params.iter().chain(impl_generics.params.iter()).collect();
+
+		let slot_doc = format!(
+			"Generated `{slot_name}` implementation for `{}` with brand `{}`.",
+			quote!(#target_type),
+			quote!(#brand),
+		);
+
+		quote! {
+			#[doc = #slot_doc]
+			#[expect(non_camel_case_types, reason = "Generated name uses hash suffix for uniqueness")]
+			impl<#(#all_slot_params),*>
+				#slot_name<#(#lifetime_names,)* #brand #(, #type_idents)*>
+			for #target_type
+			#impl_generics_where
+			{
+				type Marker = crate::dispatch::Val;
+			}
+		}
+	} else {
+		quote! {}
+	};
+
 	Ok(quote! {
 		#kind_impl
 		#ib_impl
+		#slot_impl
 	})
 }
 

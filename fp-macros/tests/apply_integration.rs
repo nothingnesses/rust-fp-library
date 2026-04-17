@@ -7,6 +7,7 @@ use fp_macros::{
 // Shim for Slot blanket `Marker = crate::dispatch::Ref` in trait_kind! output.
 #[allow(dead_code, reason = "Slot blanket references crate::dispatch::Ref")]
 mod dispatch {
+	pub struct Val;
 	pub struct Ref;
 }
 

@@ -962,7 +962,7 @@ mod inner {
 	}
 
 	impl_kind! {
-		#[no_inferable_brand]
+		#[multi_brand]
 		impl<E: 'static> for TryThunkErrAppliedBrand<E> {
 			#[document_default]
 			type Of<'a, A: 'a>: 'a = TryThunk<'a, A, E>;
@@ -1697,7 +1697,7 @@ mod inner {
 	}
 
 	impl_kind! {
-		#[no_inferable_brand]
+		#[multi_brand]
 		/// HKT branding for `TryThunk` with the success type `A` fixed.
 		///
 		/// This is the "dual-channel" encoding for `TryThunk`:
