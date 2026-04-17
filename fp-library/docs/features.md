@@ -65,6 +65,10 @@ automatically derive composite traits (`Applicative`, `Monad`, `Comonad`, `Alter
 [Architecture & Design](./architecture.md).
 
 ```mermaid
+---
+config:
+  layout: elk
+---
 graph TD
     Functor --> Alt --> Plus
     Functor --> Extend
@@ -101,12 +105,20 @@ its second parameter fixed (`ProfunctorSecondAppliedBrand`) implements `Contrava
 while a profunctor with its first parameter fixed (`ProfunctorFirstAppliedBrand`) implements `Functor`.
 
 ```mermaid
+---
+config:
+  layout: elk
+---
 graph TD
     Bifunctor --> Bitraversable
     Bifoldable --> Bitraversable
 ```
 
 ```mermaid
+---
+config:
+  layout: elk
+---
 graph TD
     Profunctor --> Strong --> Wander
     Profunctor --> Choice --> Wander
@@ -118,6 +130,10 @@ graph TD
 ```
 
 ```mermaid
+---
+config:
+  layout: elk
+---
 graph TD
     Semigroup --> Monoid
     Semigroupoid --> Category
