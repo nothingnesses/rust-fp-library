@@ -544,6 +544,10 @@ identical codegen to explicit dispatch (zero-cost property).
 
 ### Decision V: Test-driven implementation
 
+The exhaustive list of test cases is in
+[analysis/07-test-matrix.md](./analysis/07-test-matrix.md) (58 cases
+across 6 categories with assumptions-to-tests traceability).
+
 Use a test-driven approach: write tests encoding expected outcomes
 from the plan as early as possible, initially `#[ignore]`d with a
 reason annotation indicating which phase they belong to. As each
@@ -873,6 +877,8 @@ The plan is complete when:
 ## Reference material
 
 - Design analysis: [analysis/multi-brand-evaluation.md](./analysis/multi-brand-evaluation.md).
+- Test matrix: [analysis/07-test-matrix.md](./analysis/07-test-matrix.md).
+- Review findings: [analysis/06-consolidated-review-findings.md](./analysis/06-consolidated-review-findings.md).
 - POCs: listed in the Validated via POCs section above.
 - Brand-dispatch traits overview: [fp-library/docs/brand-dispatch-traits.md](../../../fp-library/docs/brand-dispatch-traits.md).
 - Parent brand-inference plan: [../brand-inference/plan.md](../brand-inference/plan.md).
