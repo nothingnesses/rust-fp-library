@@ -154,9 +154,14 @@ None at this time. Previously resolved:
 10. Decision P implementation differs from the original plan: the
     plan specified an `ApplyDispatch` trait with Val/Ref impls, but
     the implementation uses a direct inference wrapper with `Into`
-    bridge bounds (matching the POC pattern). This is simpler and
-    avoids a dispatch trait that would be difficult to unify across
-    Val/Ref due to differing `CloneFn` vs `CloneFn<Ref>` constraints.
+    bridge bounds (matching the POC pattern). Only Val dispatch is
+    implemented; `ref_apply` remains as a class-level free function
+    with explicit turbofish. A unified `ApplyDispatch` trait with
+    both Val and Ref impls is feasible (the impls are keyed on
+    different `(Self, Marker)` pairs and don't overlap), but the
+    inference wrapper would need to resolve the correct `CloneFn`
+    mode (`Val` or `Ref`) from the Marker. This is solvable but
+    deferred as follow-up work.
 11. FnBrand inference was not in the original plan. Validated via
     `poc_fn_brand_inference.rs` and incorporated into Decision P.
     The `FnBrandSlot` trait enables fully turbofish-free `apply`
