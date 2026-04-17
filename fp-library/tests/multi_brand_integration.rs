@@ -1,13 +1,13 @@
 // Multi-brand integration tests for closure-directed inference.
 //
-// These tests validate Slot-based inference for multi-brand types.
-// Tests are organized by phase. Phase 1 tests are active; phase 2+
-// tests are #[ignore]d until the corresponding dispatch modules are
-// migrated.
+// These tests validate Slot-based inference for multi-brand types
+// (Result, Pair, Tuple2, etc.). Tests are grouped by dispatch
+// operation. Tests for operations not yet migrated to Slot are
+// #[ignore]d until their inference wrappers are rewritten.
 
 use fp_library::functions::*;
 
-// -- Phase 1: map (functor) --
+// -- map (functor) --
 
 #[test]
 fn p1_map_val_multi_brand_ok() {
@@ -90,64 +90,64 @@ fn p1_map_ref_generic_fixed_param() {
 	assert_eq!(process(&Ok::<i32, String>(5)), Ok(6));
 }
 
-// -- Phase 2: bind (semimonad) --
+// -- bind (semimonad) --
 
 #[test]
-#[ignore = "phase 2: requires Slot-based bind dispatch"]
+#[ignore = "bind inference wrapper not yet migrated to Slot"]
 fn p2_bind_val_multi_brand() {
 	// bind(Ok::<i32, String>(5), |x: i32| Ok(x.to_string())) == Ok("5")
 }
 
 #[test]
-#[ignore = "phase 2: requires Slot-based bind dispatch"]
+#[ignore = "bind inference wrapper not yet migrated to Slot"]
 fn p2_bind_val_multi_brand_passthrough() {
 	// bind(Err::<i32, String>("fail".into()), |x: i32| Ok(x.to_string())) == Err("fail")
 }
 
 #[test]
-#[ignore = "phase 2: requires Slot-based bind dispatch"]
+#[ignore = "bind inference wrapper not yet migrated to Slot"]
 fn p2_bind_ref_multi_brand() {
 	// bind(&Ok::<i32, String>(5), |x: &i32| Ok(x.to_string())) == Ok("5")
 }
 
-// -- Phase 2: bimap (bifunctor, arity 2) --
+// -- bimap (bifunctor, arity 2) --
 
 #[test]
-#[ignore = "phase 2: requires Slot-based bimap dispatch"]
+#[ignore = "bimap inference wrapper not yet migrated to Slot"]
 fn p2_bimap_result_ok() {
 	// bimap(|x: i32| x + 1, |e: String| e.len(), Ok::<i32, String>(5)) == Ok(6)
 }
 
 #[test]
-#[ignore = "phase 2: requires Slot-based bimap dispatch"]
+#[ignore = "bimap inference wrapper not yet migrated to Slot"]
 fn p2_bimap_result_err() {
 	// bimap(|x: i32| x + 1, |e: String| e.len(), Err::<i32, String>("hi".into())) == Err(2)
 }
 
-// -- Phase 2: lift2 --
+// -- lift2 --
 
 #[test]
-#[ignore = "phase 2: requires Slot-based lift dispatch"]
+#[ignore = "lift2 inference wrapper not yet migrated to Slot"]
 fn p2_lift2_multi_brand() {
 	// lift2(|a: i32, b: i32| a + b, Ok::<i32, String>(1), Ok::<i32, String>(2)) == Ok(3)
 }
 
 #[test]
-#[ignore = "phase 2: requires Slot-based lift dispatch"]
+#[ignore = "lift2 inference wrapper not yet migrated to Slot"]
 fn p2_lift2_multi_brand_short_circuit() {
 	// lift2(|a: i32, b: i32| a + b, Ok::<i32, String>(1), Err("x".into())) == Err("x")
 }
 
-// -- Phase 2: closureless single-brand (must still infer via Slot) --
+// -- closureless single-brand (must still infer via Slot) --
 
 #[test]
-#[ignore = "phase 2: requires Slot-based join dispatch"]
+#[ignore = "join inference wrapper not yet migrated to Slot"]
 fn p2_join_single_brand_via_slot() {
 	// join(Some(Some(5))) == Some(5)
 }
 
 #[test]
-#[ignore = "phase 2: requires Slot-based alt dispatch"]
+#[ignore = "alt inference wrapper not yet migrated to Slot"]
 fn p2_alt_single_brand_via_slot() {
 	// alt(None::<i32>, Some(5)) == Some(5)
 }
