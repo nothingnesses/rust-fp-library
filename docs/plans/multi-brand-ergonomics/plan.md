@@ -57,7 +57,14 @@ signature). See revised Decisions F and Q for rationale. Removed
 `result_no_inferable_brand` compile-fail test since `map` now
 accepts Result via Slot.
 
-Ready for phase 1 step 6.
+Phase 1 step 6 complete: added three compile-fail UI tests
+(`multi_brand_diagonal.rs`, `multi_brand_unannotated.rs`,
+`double_ref.rs`) with generated `.stderr` snapshots. The existing
+`tuple2_no_inferable_brand.rs` test is retained (diagonal case for
+tuples). The `result_no_inferable_brand.rs` test was removed in
+step 5 (map now accepts Result via Slot).
+
+Ready for phase 1 step 7.
 
 ## Open questions, issues and blockers
 
