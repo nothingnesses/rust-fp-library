@@ -2,13 +2,12 @@
 
 **Status:** DRAFT (design validated; implementation ready)
 
-Add a new `InferableBrand_*` trait family that supports closure-directed
-inference for multi-brand concrete types (`Result`, `Pair`, `Tuple2`,
-`ControlFlow`, `TryThunk`) while preserving the unified Val/Ref dispatch
-users have today. The existing `UniqueBrand_*` family (renamed from
-today's `InferableBrand_*`) is retained for non-closure operations
-(`pure`, `empty`, `join`, `alt`, `sequence`) that need a unique brand
-projection.
+Replace the existing `InferableBrand_*` trait family with a redesigned
+version that supports closure-directed inference for multi-brand
+concrete types (`Result`, `Pair`, `Tuple2`, `ControlFlow`, `TryThunk`)
+while preserving the unified Val/Ref dispatch users have today. The
+new trait has Brand as a trait parameter (not an associated type) and
+carries a Marker associated type for Val/Ref dispatch.
 
 ## API stability stance
 
@@ -27,7 +26,7 @@ public surface.
 
 ## Motivation
 
-Today's `UniqueBrand`-based `map` refuses multi-brand types:
+Today's `InferableBrand`-based `map` refuses multi-brand types:
 
 ```rust
 // Today: multi-brand requires explicit turbofish
@@ -53,7 +52,7 @@ which brand applies. Single-brand calls continue to work as today.
 ### The `InferableBrand` trait family
 
 One trait per Kind arity (same pattern as today's `Kind_*` and
-`UniqueBrand_*` families):
+`InferableBrand_*` families):
 
 ```rust
 pub trait InferableBrand_cdc7cd43dac7585f<'a, Brand, A: 'a>
@@ -82,8 +81,8 @@ Two design properties carry the full weight:
 
 ### Impl landscape
 
-Every brand gets a direct `InferableBrand` impl. No blanket from `UniqueBrand`
-(that combination fails coherence; see POC 3 invalidation below).
+Every brand gets a direct `InferableBrand` impl. No blanket from the
+old `InferableBrand` (that combination fails coherence; see POC 3).
 
 Single-brand types have one impl per arity:
 
@@ -175,18 +174,22 @@ For `&Result<i32, String>` with `|x: &i32| *x + 1`:
    `ResultErrAppliedBrand<String>` with A = i32.
 5. Dispatch proceeds through `RefFunctor::ref_map`.
 
-### Relationship to `UniqueBrand`
+### Replacement of today's `InferableBrand`
 
-Under Decision D, today's `InferableBrand_*` is renamed to
-`UniqueBrand_*` and retained for non-closure operations.
-Closure-taking operations move from `UniqueBrand` to the new
-`InferableBrand`: `<FA as UniqueBrand>::Brand` (associated-type
-projection) is replaced by `FA: InferableBrand<Brand, A>` (Brand as
-an explicit type parameter resolved via closure input).
+Under Decision D, today's `InferableBrand_*` (which has Brand as
+an associated type and requires a unique brand per concrete type) is
+replaced entirely by the new `InferableBrand_*` (which has Brand as
+a trait parameter and supports multiple brands per concrete type).
+
+The old `<FA as InferableBrand>::Brand` associated-type projection
+is replaced by an explicit Brand type parameter resolved via trait
+selection. For single-brand types, the single impl resolves Brand
+uniquely (no closure needed). For multi-brand types, the closure's
+input type disambiguates.
 
 The `#[no_inferable_brand]` attribute is renamed to `#[multi_brand]`
-(Decision E). Multi-brand types get InferableBrand impls (one per
-brand) but no UniqueBrand impl. Single-brand types get both.
+(Decision E). Multi-brand types get multiple InferableBrand impls
+(one per brand). Single-brand types get one.
 
 ## Validated via POCs
 
@@ -221,15 +224,15 @@ Key generalisation findings:
 
 ### Decision A: Impl layout
 
-**A2** (adopted). Every brand gets a direct `InferableBrand` impl. No blanket
-from `UniqueBrand`.
+**A2** (adopted). Every brand gets a direct `InferableBrand` impl. No
+blanket from the old InferableBrand trait.
 
-_Rationale:_ POC 3 demonstrated the blanket (`impl<FA: UniqueBrand>
-InferableBrand<FA::Brand, A> for FA`) conflicts with direct multi-brand impls
-via E0119 - Rust's coherence checker cannot prove non-overlap through
-where-clauses in the face of potential downstream `UniqueBrand`
-impls. Direct impls per brand are trivially coherence-safe because
-their trait-argument patterns differ by Brand.
+_Rationale:_ POC 3 demonstrated that a blanket bridging the old
+associated-type-based InferableBrand to the new trait-parameter-based
+InferableBrand conflicts with direct multi-brand impls via E0119.
+Rust's coherence checker cannot prove non-overlap through
+where-clauses. Direct impls per brand are trivially coherence-safe
+because their trait-argument patterns differ by Brand.
 
 ### Decision B: Phase packaging
 
@@ -252,43 +255,39 @@ inference works. Documenting prominently is the only stable-Rust
 option; there is no alternative signature shape that removes the
 requirement.
 
-### Decision D: Trait naming and coexistence
+### Decision D: Trait consolidation
 
-Rename the current `InferableBrand_*` to `UniqueBrand_*`. Introduce
-a new `InferableBrand_*` trait family for closure-directed inference
-(the trait previously called Slot in POCs). Both trait families
-coexist permanently:
+Eliminate the current `InferableBrand_*` entirely. Replace it with
+a new `InferableBrand_*` trait family that has Brand and A as trait
+parameters plus an associated `type Marker`:
 
-- **`UniqueBrand_*`** (renamed from today's `InferableBrand_*`):
-  retains its current shape (`trait UniqueBrand { type Brand; }`).
-  Used by non-closure operations (`pure`, `empty`, `join`, `alt`,
-  `sequence`, `apply_first`, `apply_second`) that need the
-  associated-type projection `<FA as UniqueBrand>::Brand`.
-- **`InferableBrand_*`** (new): has Brand and A as trait parameters
-  plus an associated `type Marker` (`trait InferableBrand<Brand, A>
-{ type Marker; }`). Used by closure-taking operations (`map`,
-  `bind`, `traverse`, etc.) where the closure's input type
-  disambiguates which brand applies.
+```rust
+trait InferableBrand<'a, Brand: Kind, A: 'a> {
+    type Marker;
+}
+```
 
-_Rationale:_ Non-closure operations like `pure(5)` rely on a unique
-brand projection to infer their return type. Eliminating the
-unique-brand trait would regress inference for ALL types on these
-operations (review finding H1). The name swap gives the more
-user-facing trait (appearing in `map`/`bind` signatures and error
-messages) the more descriptive name, while the restricted trait gets
-a name that emphasizes its key property (uniqueness).
+_Rationale:_ The review's H1 finding (that removing InferableBrand
+breaks `pure`/`empty`) is invalid. Investigation shows that `pure`
+and `empty` are defined in `classes/pointed.rs` and `classes/plus.rs`
+as simple free functions taking Brand via turbofish
+(`pure::<OptionBrand, _>(5)`). They have no dispatch trait, no
+InferableBrand dependency, and are unaffected by this change.
 
-The two traits are independent at the type level (no supertrait
-relationship, no blanket impl bridging them). A blanket from
-UniqueBrand to InferableBrand fails coherence (same structural
-issue as Decision A / POC 3). The `impl_kind!` macro enforces the
-invariant that single-brand types get both impls by generating
-them together.
+Non-closure dispatch operations (`join`, `alt`, `apply_first`,
+`apply_second`) DO use InferableBrand today, but they take FA from
+an argument (not a return type). The new InferableBrand handles
+these correctly: for single-brand types, the single impl resolves
+Brand uniquely from FA alone, without needing a closure. For
+multi-brand types, the result is the same as today (ambiguous;
+use `explicit::`). Brand appears as a type parameter in the return
+type, replacing the old `<FA as InferableBrand>::Brand` projection.
 
-Implementation: bulk-rename the existing `InferableBrand` to
-`UniqueBrand` via `sed` across `*.rs` files, then introduce the new
-`InferableBrand` trait family. POCs 5, 6, 7, 8 validate the new
-trait's shape for `map`, `bimap`, `bind`, and `apply`.
+Implementation: bulk-rename the current `InferableBrand` references
+to the new trait's hash via `sed`, then introduce the new trait
+shape. The old trait family is fully removed. POCs 5, 6, 7, 8
+validate the new trait's shape for `map`, `bimap`, `bind`, and
+`apply`.
 
 ### Decision E: Attribute naming
 
@@ -296,7 +295,7 @@ Rename `#[no_inferable_brand]` to **`#[multi_brand]`**.
 
 _Rationale:_ Under Decision D, types with this attribute have
 InferableBrand impls (so they ARE inferable via closure direction)
-but no UniqueBrand impl (so they lack a unique brand). The new
+but have multiple impls (so no unique brand). The new
 name describes what is true (multiple brands) rather than what is
 no longer accurate. Pre-1.0 stance accepts the breakage.
 
@@ -304,7 +303,7 @@ no longer accurate. Pre-1.0 stance accepts the breakage.
 
 Rewrite `explicit::map` to bound on `InferableBrand` with Brand pinned via
 turbofish. This unifies dispatch under InferableBrand (rather than maintaining
-a separate UniqueBrand-based explicit path) and naturally
+a separate explicit path with different trait plumbing) and naturally
 contracts the turbofish surface (only Brand is user-specified; the
 rest is inferred through InferableBrand).
 
@@ -406,18 +405,18 @@ as a follow-up.
 
 | Component                                                                                                                                      | Change                                                                                                                                           |
 | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `fp-library/src/kinds.rs`                                                                                                                      | Rename `InferableBrand_*` to `UniqueBrand_*`; add new `InferableBrand_*` family with associated `Marker`.                                        |
+| `fp-library/src/kinds.rs`                                                                                                                      | Remove old `InferableBrand_*` family; add redesigned `InferableBrand_*` with Brand as trait param and associated `Marker`.                       |
 | `fp-library/src/brands.rs`                                                                                                                     | No changes; brand struct definitions stay.                                                                                                       |
 | `fp-library/src/types/*/mod.rs`                                                                                                                | Rename `#[no_inferable_brand]` to `#[multi_brand]`. Add `#[multi_brand]` to arity-1 multi-brand brands (already marked; just rename).            |
 | `fp-macros/src/hkt/impl_kind.rs`                                                                                                               | Generate direct `InferableBrand_*` impls for every brand (single and multi). Skip when brand's `Of` is a projection (contains `Apply!` or `::`). |
 | `fp-macros/src/hkt/trait_kind.rs`                                                                                                              | Generate `InferableBrand_{hash}` alongside `Kind_{hash}` at every arity.                                                                         |
-| `fp-library/src/dispatch/functor.rs`                                                                                                           | `map` rebinds from `UniqueBrand` to `InferableBrand`; `Brand` becomes a function type parameter; `Marker` projected from InferableBrand.         |
+| `fp-library/src/dispatch/functor.rs`                                                                                                           | `map` rebinds to redesigned `InferableBrand`; `Brand` becomes a function type parameter; `Marker` projected from InferableBrand.                 |
 | `fp-library/src/dispatch/semimonad.rs`                                                                                                         | Same pattern as functor.rs for `bind`, `bind_flipped`, `join`, `compose_kleisli*`.                                                               |
 | `fp-library/src/dispatch/bifunctor.rs`                                                                                                         | Same pattern at arity 2 for `bimap`.                                                                                                             |
 | `fp-library/src/dispatch/bifoldable.rs`, `bitraversable.rs`, `foldable.rs`, `traversable.rs`, `filterable.rs`, `lift.rs`, `semiapplicative.rs` | Same pattern for each operation's inference wrapper.                                                                                             |
 | `fp-library/tests/ui/*.rs`                                                                                                                     | Delete or rewrite `result_no_inferable_brand.rs` and `tuple2_no_inferable_brand.rs`; add positive and negative UI tests for the new behaviour.   |
 | `fp-library/docs/brand-inference.md`                                                                                                           | Update to describe InferableBrand; cross-link to `brand-dispatch-traits.md`.                                                                     |
-| `fp-library/docs/brand-dispatch-traits.md`                                                                                                     | Update to reflect two-trait-family design (Decision D): UniqueBrand + InferableBrand.                                                            |
+| `fp-library/docs/brand-dispatch-traits.md`                                                                                                     | Update to reflect redesigned InferableBrand (Decision D).                                                                                        |
 
 ### Unchanged
 
@@ -430,22 +429,41 @@ as a follow-up.
   Val/Ref impls are untouched. Only the inference wrappers that call
   them are rebound.
 
-### Operations that cannot use InferableBrand inference
+### Operations outside the dispatch system
 
-Operations without any payload that exposes a brand-disambiguating
-type cannot drive InferableBrand-based inference. They continue to require
-`explicit::` for multi-brand types:
+`pure` (`classes/pointed.rs`) and `empty` (`classes/plus.rs`) are
+simple free functions that take Brand as an explicit turbofish
+parameter: `pure::<OptionBrand, _>(5)`. They have no dispatch
+trait, no InferableBrand dependency, and no Val/Ref Marker. They
+are completely unaffected by this plan and require no migration.
 
-- `Pointed::pure` (return-type inference problem).
-- `Alt::alt`, `Plus::empty` (no payload that mentions A).
-- `Traversable::sequence` (no closure; the inner Brand is inferred
-  from the container shape but the outer Brand may remain ambiguous
-  for multi-brand outer types).
+### Closureless dispatch operations
+
+Several dispatch operations use InferableBrand but lack a closure
+for Brand disambiguation:
+
+- `join` (`dispatch/semimonad.rs`).
+- `alt` (`dispatch/alt.rs`).
+- `apply_first`, `apply_second` (`dispatch/apply_first.rs`,
+  `dispatch/apply_second.rs`).
+
+Under the redesigned InferableBrand, these work unchanged for
+single-brand types: FA is known from the argument, and the single
+InferableBrand impl resolves Brand uniquely without needing a
+closure. For multi-brand types, there is no disambiguating context,
+so multi-brand `join`, `alt`, `apply_first`, `apply_second` require
+`explicit::` (same outcome as today where multi-brand types have no
+InferableBrand impl at all).
+
+`Traversable::sequence` is similar: the outer Brand may be
+ambiguous for multi-brand outer types; `explicit::` is required.
+
+### Closureless operations with Fn-payload disambiguation
 
 `Semiapplicative::apply` has no direct closure but does have an
-`Fn(A) -> B` payload inside `ff`. Decision H / POC 8 confirms InferableBrand can
-drive inference from that payload; apply is therefore moved into
-the inference-supported set in phase 2.
+`Fn(A) -> B` payload inside `ff`. Decision H / POC 8 confirms
+InferableBrand can drive inference from that payload; apply is
+therefore moved into the inference-supported set in phase 2.
 
 ## Out of scope
 
@@ -480,8 +498,7 @@ released together (Decision B3).
 
 1. Add `InferableBrand_*` trait family to `fp-library/src/kinds.rs`. Include
    associated type `Marker`. The module-level doc summarises the
-   trait trio (`Kind_*`, `UniqueBrand_*`, `InferableBrand_*`).
-   `UniqueBrand_*` is the renamed version of today's `InferableBrand_*`.
+   trait pair (`Kind_*` and the redesigned `InferableBrand_*`).
 2. Update `trait_kind!` to emit `InferableBrand_{hash}` at every arity it
    already emits `Kind_{hash}` for.
 3. Update `impl_kind!` to emit direct `InferableBrand` impls. Single brands get
@@ -491,10 +508,12 @@ released together (Decision B3).
 4. Rename `#[no_inferable_brand]` to `#[multi_brand]` in macro input
    and all use sites. For multi-brand brands, generate one InferableBrand impl
    per brand variant.
-5. Rename `InferableBrand_*` to `UniqueBrand_*` via bulk `sed` across
-   all `*.rs` files (Decision D). Non-closure dispatch wrappers
-   (`pure`, `empty`, `join`, `alt`, `sequence`, `apply_first`,
-   `apply_second`) continue to bind on `UniqueBrand`.
+5. Remove old `InferableBrand_*` trait family and all its impls
+   (Decision D). Non-closure dispatch wrappers (`join`, `alt`,
+   `apply_first`, `apply_second`) are rebound to the new
+   InferableBrand (Brand resolves from FA alone for single-brand
+   types). `pure` and `empty` are unaffected (they live in
+   `classes/`, not `dispatch/`, and take Brand via turbofish).
 6. Rewrite `map` in `fp-library/src/dispatch/functor.rs` to bind on
    `InferableBrand` with Marker projected.
 7. Rewrite `explicit::map` to bind on `InferableBrand` with Brand pinned via

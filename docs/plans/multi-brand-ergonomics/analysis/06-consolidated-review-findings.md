@@ -17,37 +17,24 @@ findings across all five.
 
 ## High severity
 
-### H1. Removing InferableBrand breaks `pure`, `empty`, and other non-closure operations for ALL types (Agents 1, 3)
+### ~~H1. Removing InferableBrand breaks `pure`, `empty`, and other non-closure operations for ALL types (Agents 1, 3)~~ INVALIDATED
 
-Decision D eliminates InferableBrand entirely. But `pure(5)`,
-`empty()`, `sequence(xs)`, and similar non-closure operations
-currently rely on `<FA as InferableBrand>::Brand` as an
-associated-type projection to infer Brand. After removal, these
-operations lose inference for single-brand types too, not just
-multi-brand ones. This is a regression in functionality, not an
-improvement.
+**Post-review investigation found this finding is based on a false
+premise.** `pure` and `empty` are defined in `classes/pointed.rs`
+and `classes/plus.rs` as simple free functions taking Brand via
+turbofish (`pure::<OptionBrand, _>(5)`). They have no dispatch
+trait, no InferableBrand dependency, and are completely unaffected
+by InferableBrand's removal or redesign.
 
-**Approaches:**
+Closureless dispatch operations (`join`, `alt`, `apply_first`,
+`apply_second`) do use InferableBrand, but they take FA from
+arguments (not return types). The redesigned InferableBrand (Brand
+as trait parameter) handles these for single-brand types: the
+single impl resolves Brand uniquely from FA alone. Multi-brand
+remains explicit-only, which is the same outcome as today.
 
-- a) Retain InferableBrand (or a renamed equivalent like
-  `UniqueBrand`) alongside Slot. InferableBrand serves non-closure
-  operations; Slot serves closure-directed dispatch. Trade-off:
-  two trait families, contradicting Decision D's "one family"
-  goal, but no regression.
-- b) Accept the regression: all non-closure operations require
-  `explicit::` for every type. Trade-off: significant ergonomic
-  loss for common calls like `pure(5)`.
-- c) Add a `type DefaultBrand` associated type to Slot for
-  single-brand types, derived from the sole Slot impl. Trade-off:
-  Rust cannot express "there is exactly one impl" without
-  specialization.
-
-**Recommendation:** a). Non-closure operations need
-InferableBrand's associated-type projection. Decision D should be
-revised to "InferableBrand is no longer used by closure-taking
-operations" rather than "InferableBrand is deleted." This preserves
-`pure(5)`, `empty()`, etc. for single-brand types. Renaming to
-something like `UniqueBrand` could clarify the new role.
+No second trait family is needed. Decision D proceeds as originally
+intended (single trait family).
 
 ### H2. Phase 1 step 5 (InferableBrand removal) blocks compilation before all dispatch modules are migrated (Agents 3, 5)
 
@@ -67,11 +54,11 @@ prevents incremental testing.
 - c) Accept non-compiling intermediate state. Trade-off: loses
   incremental testability.
 
-**Recommendation:** a). Keep InferableBrand present through phases
-1-2, remove it as the final step of phase 2 (or phase 3). Note:
-this aligns with H1's recommendation to retain InferableBrand for
-non-closure operations; if H1 is adopted, InferableBrand is never
-fully removed anyway.
+**Recommendation:** a). Keep the old InferableBrand present through
+phases 1-2, remove it as the final step of phase 2 (or phase 3).
+Since H1 is invalidated (no second trait family needed), the old
+trait is fully removed once all dispatch modules are migrated to
+the redesigned InferableBrand.
 
 ### H3. Eight dispatch modules missing from the plan (Agent 5)
 
@@ -193,14 +180,14 @@ expectations as part of phase 1.
 ### M10. `InferableBrand!` macro and `resolve_inferable_brand()` not mentioned for removal (Agent 3)
 
 The `Apply!` macro contains `resolve_inferable_brand()` preprocessing
-that scans for `InferableBrand!(SIG)` tokens. This becomes dead code
-after InferableBrand removal (or stale if InferableBrand is retained
-per H1).
+that scans for `InferableBrand!(SIG)` tokens. Since the old
+InferableBrand is being replaced (not retained), this preprocessing
+code and the `InferableBrand!` proc macro become dead code.
 
-**Recommendation:** If InferableBrand is retained (H1), this code
-stays. If not, remove `resolve_inferable_brand()`, the
+**Recommendation:** Remove `resolve_inferable_brand()`, the
 `InferableBrand!` proc macro, and the `INFERABLE_BRAND_MACRO`
-constant.
+constant. The redesigned InferableBrand does not use a macro
+invocation form inside `Apply!`.
 
 ### M11. 37 explicit functions need rewriting, not just `explicit::map` (Agent 3)
 
@@ -309,23 +296,16 @@ requires explicit brand specification.
 
 ## Cross-cutting themes
 
-Three themes recur across multiple reviews:
+Two themes recur across multiple reviews (theme 1 from the
+original consolidation was invalidated by post-review
+investigation; see H1 above):
 
-1. **InferableBrand cannot be fully removed.** Agents 1 and 3
-   independently identified that non-closure operations (`pure`,
-   `empty`, `join`, `alt`, `sequence`, `apply_first`,
-   `apply_second`) depend on InferableBrand's associated-type
-   projection. Decision D's "eliminate entirely" framing must be
-   revised.
+1. **Phase ordering needs rework.** Agents 3 and 5 both identified
+   that removing the old InferableBrand in phase 1 step 5 creates
+   a non-compiling state. The plan should defer removal until all
+   dispatch modules are migrated to the redesigned InferableBrand.
 
-2. **Phase ordering needs rework.** Agents 3 and 5 both identified
-   that removing InferableBrand in phase 1 step 5 creates a
-   non-compiling state. Combined with theme 1, the cleanest
-   resolution is: retain InferableBrand for non-closure operations,
-   migrate closure-taking operations to Slot, and never remove
-   InferableBrand.
-
-3. **The plan understates migration scope.** Agents 3 and 5
+2. **The plan understates migration scope.** Agents 3 and 5
    identified that the plan mentions `explicit::map` and a handful
    of dispatch modules, but the actual scope is 19 dispatch
    modules, 37+ explicit functions, macro preprocessing code, HM
