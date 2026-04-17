@@ -399,26 +399,155 @@ _Rationale:_ low cost relative to the risk of shipping broken
 do-notation. If the audit reveals that the annotation requirement is
 severely disruptive in practice, extending the macros to automatically
 emit closure-input type annotations in their expansion can be explored
-as a follow-up.
+as a follow-up. Note: inferred-mode `m_do!` with multi-brand types
+will fail at `pure` (which takes Brand via turbofish), so multi-brand
+`m_do!` must use explicit mode (`m_do!(Brand { ... })`). Document
+this in the macro docs.
+
+### Decision L: Stale documentation
+
+Rewrite `fp-library/docs/brand-dispatch-traits.md` before
+implementation begins. The document currently describes a Slot
+design with `type Out<B>` GAT and an InferableBrand blanket, which
+contradicts the adopted Marker-only design with direct impls.
+
+_Rationale:_ implementers reading the docs before the code would
+get a misleading picture. Update early to avoid confusion.
+
+### Decision M: Marker-agreement invariant
+
+Document the invariant that all InferableBrand impls for a given
+Self type must agree on the same Marker value (Val for owned types,
+Ref for references). Add the invariant to the InferableBrand
+trait's rustdoc and as a comment in `impl_kind!`.
+
+_Rationale:_ the Marker projection mechanism depends on this
+invariant but it was never stated explicitly. `impl_kind!` is the
+sole generator, so enforcement is by construction. Documentation
+prevents future hand-written impls from violating it.
+
+### Decision N: Solver evaluation order risk
+
+Accept that the Marker projection timing ("commits from FA alone,
+before Brand and A are resolved") depends on current rustc solver
+behaviour, not a language guarantee. The design is validated on
+stable rustc 1.94.1 via all POCs.
+
+_Rationale:_ the new trait solver (rust-lang/rust#107374) could
+theoretically change evaluation order, but it is years from
+stabilisation. Restructuring pre-emptively would be premature.
+Consider adding a periodic nightly CI check with `-Znext-solver`
+for early warning.
+
+### Decision O: Attribute semantics clarification
+
+`#[multi_brand]` is a documentation marker, not a codegen switch.
+Each `impl_kind!` invocation independently emits at most one
+InferableBrand impl. Multiple impls for a given concrete type come
+from multiple `impl_kind!` invocations. The attribute signals to
+human readers that this brand shares its target type with other
+brands.
+
+_Rationale:_ the plan previously said `#[multi_brand]` "tells
+impl_kind! to emit multiple InferableBrand impls," which is
+misleading. Each invocation handles one brand. Clarify to prevent
+misunderstanding during implementation.
+
+### Decision P: `apply`/`ref_apply` dispatch module
+
+Create `dispatch/semiapplicative.rs` as a new dispatch module in
+phase 2, with `ApplyDispatch` trait, Val/Ref impls, inference
+wrapper with dual InferableBrand bounds (per Decision H), and
+explicit wrapper. This is new work, not a mechanical rebinding of
+an existing module.
+
+_Rationale:_ POC 8 validates the signature shape. The plan
+previously characterised this as "mechanical analogue," which
+understates the work.
+
+### Decision Q: `explicit::` function scope
+
+Decision F applies to ALL 37 explicit functions across all 19
+dispatch modules, not just `explicit::map`. Each explicit function
+that uses `<FA as InferableBrand>::Brand` must be rewritten to use
+the redesigned InferableBrand with Brand as a turbofish parameter.
+
+_Rationale:_ the plan's integration table previously mentioned only
+`explicit::map`. All explicit functions share the same signature
+pattern and migration is mechanical, but the scope must be explicit
+to avoid underestimating the work.
+
+### Decision R: Hash coordination
+
+Add `SLOT_PREFIX` constant (temporary name during phases 1-3) to
+`fp-macros/src/core/constants.rs`. Update `classify_trait`,
+`is_semantic_type_class`, and `is_dispatch_container_param` to
+recognise `Slot_`-prefixed traits as part of the Kind category
+(not semantic type classes). In phase 4, rename to
+`INFERABLE_BRAND_PREFIX`.
+
+_Rationale:_ without this, Slot-bounded dispatch wrappers produce
+incorrect HM signatures because `Slot_` bounds fall through to
+`TraitCategory::Other`.
+
+### Decision S: Projection skip rule improvement
+
+Switch the projection auto-skip rule in `impl_kind!` from the
+current string heuristic (`contains("::")` / `contains("Apply")`)
+to structural AST checks: match on `syn::Type::Macro` for `Apply!`
+invocations and check `syn::TypePath` segment count for `::`.
+
+_Rationale:_ the string heuristic works for all current brands but
+could false-positive on downstream types named `Applicable` or
+using fully-qualified paths. The `syn::visit::Visit` infrastructure
+is already used in this module.
+
+### Decision T: Known limitations to document
+
+Document the following known limitations in phase 5 (docs):
+
+- `'static` bounds on multi-brand Slot impls prevent non-static
+  fixed parameters from using inference. Pre-existing limitation
+  of the Brand pattern, not introduced by InferableBrand.
+- `&&T` (double reference) is not supported by FunctorDispatch's
+  Ref impl. Add a compile-fail UI test in phase 1 to lock in the
+  expected behaviour.
+- Pre-bound closures (`let f = |x| x + 1; map(f, Ok(5))`) may
+  lose deferred inference context for multi-brand types. Annotate
+  the closure parameter.
+
+### Decision U: Multi-brand runtime benchmark
+
+Add one Criterion benchmark comparing Slot-based multi-brand
+inference dispatch against explicit dispatch:
+`map(|x: i32| x + 1, Ok::<i32, String>(5))` vs
+`explicit::map::<ResultErrAppliedBrand<String>, _, _, _, _>(...)`.
+
+_Rationale:_ validates that inference-based dispatch produces
+identical codegen to explicit dispatch (zero-cost property).
 
 ## Integration surface
 
 ### Will change
 
-| Component                                                                                                                                      | Change                                                                                                                                           |
-| ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `fp-library/src/kinds.rs`                                                                                                                      | Remove old `InferableBrand_*` family; add redesigned `InferableBrand_*` with Brand as trait param and associated `Marker`.                       |
-| `fp-library/src/brands.rs`                                                                                                                     | No changes; brand struct definitions stay.                                                                                                       |
-| `fp-library/src/types/*/mod.rs`                                                                                                                | Rename `#[no_inferable_brand]` to `#[multi_brand]`. Add `#[multi_brand]` to arity-1 multi-brand brands (already marked; just rename).            |
-| `fp-macros/src/hkt/impl_kind.rs`                                                                                                               | Generate direct `InferableBrand_*` impls for every brand (single and multi). Skip when brand's `Of` is a projection (contains `Apply!` or `::`). |
-| `fp-macros/src/hkt/trait_kind.rs`                                                                                                              | Generate `InferableBrand_{hash}` alongside `Kind_{hash}` at every arity.                                                                         |
-| `fp-library/src/dispatch/functor.rs`                                                                                                           | `map` rebinds to redesigned `InferableBrand`; `Brand` becomes a function type parameter; `Marker` projected from InferableBrand.                 |
-| `fp-library/src/dispatch/semimonad.rs`                                                                                                         | Same pattern as functor.rs for `bind`, `bind_flipped`, `join`, `compose_kleisli*`.                                                               |
-| `fp-library/src/dispatch/bifunctor.rs`                                                                                                         | Same pattern at arity 2 for `bimap`.                                                                                                             |
-| `fp-library/src/dispatch/bifoldable.rs`, `bitraversable.rs`, `foldable.rs`, `traversable.rs`, `filterable.rs`, `lift.rs`, `semiapplicative.rs` | Same pattern for each operation's inference wrapper.                                                                                             |
-| `fp-library/tests/ui/*.rs`                                                                                                                     | Delete or rewrite `result_no_inferable_brand.rs` and `tuple2_no_inferable_brand.rs`; add positive and negative UI tests for the new behaviour.   |
-| `fp-library/docs/brand-inference.md`                                                                                                           | Update to describe InferableBrand; cross-link to `brand-dispatch-traits.md`.                                                                     |
-| `fp-library/docs/brand-dispatch-traits.md`                                                                                                     | Update to reflect redesigned InferableBrand (Decision D).                                                                                        |
+| Component                                                                                                                          | Change                                                                                                                                           |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `fp-library/src/kinds.rs`                                                                                                          | Remove old `InferableBrand_*` family; add redesigned `InferableBrand_*` with Brand as trait param and associated `Marker`.                       |
+| `fp-library/src/brands.rs`                                                                                                         | No changes; brand struct definitions stay.                                                                                                       |
+| `fp-library/src/types/*/mod.rs`                                                                                                    | Rename `#[no_inferable_brand]` to `#[multi_brand]`. Add `#[multi_brand]` to arity-1 multi-brand brands (already marked; just rename).            |
+| `fp-macros/src/hkt/impl_kind.rs`                                                                                                   | Generate direct `InferableBrand_*` impls for every brand (single and multi). Skip when brand's `Of` is a projection (contains `Apply!` or `::`). |
+| `fp-macros/src/hkt/trait_kind.rs`                                                                                                  | Generate `InferableBrand_{hash}` alongside `Kind_{hash}` at every arity.                                                                         |
+| `fp-library/src/dispatch/functor.rs`                                                                                               | `map` rebinds to redesigned `InferableBrand`; `Brand` becomes a function type parameter; `Marker` projected from InferableBrand.                 |
+| `fp-library/src/dispatch/semimonad.rs`                                                                                             | Same pattern as functor.rs for `bind`, `bind_flipped`, `join`. `compose_kleisli*` already take Brand via turbofish; no migration needed (L4).    |
+| `fp-library/src/dispatch/semiapplicative.rs`                                                                                       | **New module** (Decision P). Create `ApplyDispatch` trait, Val/Ref impls, inference wrapper with dual InferableBrand bounds, explicit wrapper.   |
+| `fp-library/src/dispatch/bifunctor.rs`                                                                                             | Same pattern at arity 2 for `bimap`.                                                                                                             |
+| `fp-library/src/dispatch/bifoldable.rs`, `bitraversable.rs`, `foldable.rs`, `traversable.rs`, `filterable.rs`, `lift.rs`           | Same pattern for each operation's inference wrapper.                                                                                             |
+| `fp-library/src/dispatch/alt.rs`, `apply_first.rs`, `apply_second.rs`                                                              | Mechanical migration. Multi-brand stays explicit-only (closureless).                                                                             |
+| `fp-library/src/dispatch/functor_with_index.rs`, `foldable_with_index.rs`, `filterable_with_index.rs`, `traversable_with_index.rs` | Same pattern (closure-taking; gain multi-brand inference).                                                                                       |
+| `fp-library/src/dispatch/witherable.rs`, `compactable.rs`, `contravariant.rs`                                                      | Same pattern (closure-taking; gain multi-brand inference).                                                                                       |
+| `fp-library/tests/ui/*.rs`                                                                                                         | Delete or rewrite `result_no_inferable_brand.rs` and `tuple2_no_inferable_brand.rs`; add positive and negative UI tests for the new behaviour.   |
+| `fp-library/docs/brand-inference.md`                                                                                               | Update to describe InferableBrand; cross-link to `brand-dispatch-traits.md`.                                                                     |
+| `fp-library/docs/brand-dispatch-traits.md`                                                                                         | Update to reflect redesigned InferableBrand (Decision D).                                                                                        |
 
 ### Unchanged
 
@@ -504,37 +633,53 @@ name `Slot` during phases 1-3 to avoid conflicts with the existing
 `InferableBrand`. After the old trait is removed, phase 4 renames
 `Slot` to `InferableBrand`.
 
+### Phase 0: Pre-implementation
+
+1. Rewrite `fp-library/docs/brand-dispatch-traits.md` to reflect
+   the adopted Marker-only Slot design (Decision L). The current
+   content describes a contradictory Out-GAT + InferableBrand-blanket
+   design and would mislead implementers.
+
 ### Phase 1: Add Slot and migrate `map`
 
-1. Add `Slot_*` trait family to `fp-library/src/kinds.rs` alongside
+1. Add `SLOT_PREFIX` constant to `fp-macros/src/core/constants.rs`
+   (Decision R). Update `classify_trait`, `is_semantic_type_class`,
+   and `is_dispatch_container_param` to recognise `Slot_`-prefixed
+   traits.
+2. Add `Slot_*` trait family to `fp-library/src/kinds.rs` alongside
    the existing `InferableBrand_*`. Include associated type `Marker`.
-   Both trait families coexist; the branch compiles at every step.
-2. Update `trait_kind!` to emit `Slot_{hash}` at every arity it
+   Document the Marker-agreement invariant in the trait's rustdoc
+   (Decision M). Both trait families coexist; the branch compiles at
+   every step.
+3. Update `trait_kind!` to emit `Slot_{hash}` at every arity it
    already emits `Kind_{hash}` for.
-3. Update `impl_kind!` to emit direct `Slot` impls for every brand.
+4. Update `impl_kind!` to emit direct `Slot` impls for every brand.
    Single brands get `Marker = Val`. The `&T` blanket for references
    (generated once globally) gives `Marker = Ref`. Projection brands
-   (whose `Of` contains `Apply!` or `::`) are skipped.
-4. Rename `#[no_inferable_brand]` to `#[multi_brand]` in macro input
-   and all use sites. For multi-brand brands, generate one Slot impl
-   per brand variant.
-5. Rewrite `map` in `fp-library/src/dispatch/functor.rs` to bind on
-   `Slot` with Marker projected. The old `InferableBrand`-based
-   `map` is replaced.
-6. Rewrite `explicit::map` to bind on `Slot` with Brand pinned via
-   turbofish (Decision F).
-7. Update UI tests: remove `result_no_inferable_brand.rs` and
+   are skipped using structural AST checks (Decision S). In the same
+   change, rename `#[no_inferable_brand]` to `#[multi_brand]` in
+   macro input and all use sites (Decision O). Add a comment in
+   `impl_kind!` explaining the Marker-agreement invariant
+   (Decision M).
+5. Rewrite `map` and `explicit::map` in
+   `fp-library/src/dispatch/functor.rs` to bind on `Slot` with
+   Marker projected. Rewrite all explicit functions in functor.rs
+   to use Slot bounds (Decision Q applies to all explicit functions,
+   not just `explicit::map`).
+6. Update UI tests: remove `result_no_inferable_brand.rs` and
    `tuple2_no_inferable_brand.rs`; add UI tests for closure-directed
-   success cases, diagonal failures, and unannotated-multi-brand
-   failures.
-8. Add integration tests covering every Val/Ref x single/multi-brand
-   cell of the coverage matrix.
+   success cases, diagonal failures, unannotated-multi-brand
+   failures, and `&&T` compile-fail (Decision T).
+7. Add integration tests covering every Val/Ref x single/multi-brand
+   cell of the coverage matrix, including the generic fixed-parameter
+   case (POC 9).
 
 ### Phase 2: Migrate remaining dispatch modules
 
-Migrate each remaining dispatch module from `InferableBrand` to
-`Slot`. Run `just verify` after each migration to confirm the
-branch compiles and tests pass.
+Migrate each remaining dispatch module from old `InferableBrand` to
+`Slot`. For each module, rewrite both the inference wrapper AND all
+explicit functions (Decision Q). Run `just verify` after each
+migration to confirm the branch compiles and tests pass.
 
 Closure-taking modules (gain multi-brand inference):
 
@@ -545,9 +690,9 @@ Closure-taking modules (gain multi-brand inference):
 - `filter`, `filter_map`, `partition`, `partition_map`
   (`filterable.rs`).
 - `lift2` through `lift5` (`lift.rs`).
-- `apply`, `ref_apply` (`semiapplicative.rs`, new dispatch module;
-  Decision H; Slot keyed on the Fn payload type inside `ff` + the
-  value type inside `fa`).
+- `apply`, `ref_apply`: **create new** `dispatch/semiapplicative.rs`
+  module (Decision P). ApplyDispatch trait, Val/Ref impls, inference
+  wrapper with dual Slot bounds (Decision H), explicit wrapper.
 - `functor_with_index.rs`, `foldable_with_index.rs`,
   `filterable_with_index.rs`, `traversable_with_index.rs`.
 - `witherable.rs`, `compactable.rs`, `contravariant.rs`.
@@ -560,10 +705,12 @@ explicit-only):
 - `apply_first` (`apply_first.rs`), `apply_second`
   (`apply_second.rs`).
 
-Already explicit-only (no migration needed):
+No migration needed:
 
-- `compose_kleisli`, `compose_kleisli_flipped` (take Brand via
-  turbofish; no InferableBrand usage).
+- `compose_kleisli`, `compose_kleisli_flipped` (already take Brand
+  via turbofish; no InferableBrand usage).
+- `pure`, `empty` (defined in `classes/`, not `dispatch/`; take
+  Brand via turbofish; unaffected).
 
 Audit do-notation macros (Decision K).
 
@@ -603,16 +750,22 @@ With the old `InferableBrand` gone, rename `Slot` to
 4. Update `is_dispatch_container_param()`, `classify_trait()`, and
    signature snapshot tests for the `InferableBrand_` prefix.
 
-### Phase 5: Diagnostic polish and docs
+### Phase 5: Diagnostics, benchmarks, and docs
 
 1. Attach `#[diagnostic::on_unimplemented]` to `InferableBrand`
    with wording determined from phase 1/2 observations (Decision J).
 2. Update `fp-library/docs/brand-inference.md` and
    `fp-library/docs/brand-dispatch-traits.md` for the redesigned
    InferableBrand.
-3. Update `map`'s doc comment to document the closure-annotation
+3. Update all dispatch module doc comments that reference the old
+   InferableBrand to describe the redesigned trait.
+4. Update `map`'s doc comment to document the closure-annotation
    requirement for multi-brand types (Decision C).
-4. Update `CLAUDE.md` and any other developer-facing docs.
+5. Document known limitations (Decision T): `'static` bounds on
+   multi-brand fixed parameters, `&&T` not supported, pre-bound
+   closures need parameter annotations.
+6. Add multi-brand runtime benchmark (Decision U).
+7. Update `CLAUDE.md` and any other developer-facing docs.
 
 ## Success criteria
 

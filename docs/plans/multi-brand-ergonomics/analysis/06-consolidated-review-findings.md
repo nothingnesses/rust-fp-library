@@ -64,7 +64,7 @@ multi-brand remaining explicit-only.
 
 ## Medium severity
 
-### M1. `brand-dispatch-traits.md` contradicts the adopted design (Agents 1, 3)
+### ~~M1. `brand-dispatch-traits.md` contradicts the adopted design (Agents 1, 3)~~ ADDRESSED
 
 The document describes a Slot with `type Out<B>` GAT and an
 InferableBrand blanket. The adopted design uses Marker-only Slot
@@ -75,7 +75,7 @@ coexistence model that Decision D rejects.
 (phase 1 or before implementation begins) to avoid confusing
 implementers. The current content is actively misleading.
 
-### M2. Marker-agreement invariant is undocumented (Agent 1)
+### ~~M2. Marker-agreement invariant is undocumented (Agent 1)~~ ADDRESSED
 
 The plan's inference mechanism relies on all Slot impls for a given
 Self type agreeing on the same Marker value (Val for owned, Ref for
@@ -86,7 +86,7 @@ rustdoc and add a comment in `impl_kind!` explaining the
 requirement. Enforcement is not needed since `impl_kind!` is the
 sole Slot generator.
 
-### M3. Marker projection relies on unspecified solver evaluation order (Agent 1)
+### ~~M3. Marker projection relies on unspecified solver evaluation order (Agent 1)~~ ADDRESSED
 
 The claim that "Marker commits from FA alone, before (Brand, A) are
 resolved" depends on current rustc solver behaviour, not a language
@@ -108,7 +108,7 @@ Brand without needing to prove the generic parameter differs. All
 tested variants pass: generic error, generic success, both generic,
 Val, Ref, and with trait bounds.
 
-### M5. `#[multi_brand]` is a documentation marker, not a codegen switch (Agent 2)
+### ~~M5. `#[multi_brand]` is a documentation marker, not a codegen switch (Agent 2)~~ ADDRESSED
 
 The plan says `#[multi_brand]` "tells impl_kind! to emit multiple
 Slot impls," but each `impl_kind!` invocation independently emits
@@ -120,7 +120,7 @@ generation.
 documentation marker meaning "this brand is one of several for its
 target type." No codegen behavior change.
 
-### M6. `join`, `apply_first`, `apply_second` are closureless (Agent 5)
+### ~~M6. `join`, `apply_first`, `apply_second` are closureless (Agent 5)~~ ADDRESSED
 
 The plan lists these under phase 2 but does not note they lack a
 closure for Brand disambiguation. For multi-brand types, they
@@ -131,7 +131,7 @@ to the "Operations that cannot use Slot inference" list for
 multi-brand types. Their Slot migration is mechanical
 (InferableBrand -> Slot) but multi-brand stays explicit-only.
 
-### M7. No dispatch module exists for `apply`/`ref_apply` (Agents 3, 5)
+### ~~M7. No dispatch module exists for `apply`/`ref_apply` (Agents 3, 5)~~ ADDRESSED
 
 The plan lists `apply` and `ref_apply` for phase 2, but there is no
 `dispatch/semiapplicative.rs`. Creating one from scratch is more
@@ -141,7 +141,7 @@ work than "repeat the phase 1 rebinding."
 `dispatch/semiapplicative.rs` must be created (not merely rebound).
 The POC 8 already validates the signature shape.
 
-### M8. Hash coordination needs SLOT_PREFIX + consumer updates (Agent 2)
+### ~~M8. Hash coordination needs SLOT_PREFIX + consumer updates (Agent 2)~~ ADDRESSED
 
 A `SLOT_PREFIX` constant must be added, and consumer sites in
 `analysis/dispatch.rs`, `analysis/traits.rs`, and
@@ -163,7 +163,7 @@ InferableBrand is removed); phase 4 step 4 updates it back to
 regenerated at each step. The final state is the same prefix
 string as today, just pointing at the redesigned trait.
 
-### M10. `InferableBrand!` macro and `resolve_inferable_brand()` not mentioned for removal (Agent 3)
+### ~~M10. `InferableBrand!` macro and `resolve_inferable_brand()` not mentioned for removal (Agent 3)~~ ADDRESSED
 
 The `Apply!` macro contains `resolve_inferable_brand()` preprocessing
 that scans for `InferableBrand!(SIG)` tokens. Since the old
@@ -175,7 +175,7 @@ code and the `InferableBrand!` proc macro become dead code.
 constant. The redesigned InferableBrand does not use a macro
 invocation form inside `Apply!`.
 
-### M11. 37 explicit functions need rewriting, not just `explicit::map` (Agent 3)
+### ~~M11. 37 explicit functions need rewriting, not just `explicit::map` (Agent 3)~~ ADDRESSED
 
 Decision F mentions `explicit::map` but all 37 explicit functions
 across 19 dispatch modules use `<FA as InferableBrand>::Brand`. All
@@ -187,7 +187,7 @@ table.
 
 ## Low severity
 
-### L1. `'static` bounds on multi-brand Slot impls (Agents 1, 4)
+### ~~L1. `'static` bounds on multi-brand Slot impls (Agents 1, 4)~~ ADDRESSED
 
 Multi-brand brands require `E: 'static` or `T: 'static` for
 coherence. This prevents non-static fixed parameters from using
@@ -195,7 +195,7 @@ inference. Pre-existing limitation, not introduced by Slot.
 
 **Recommendation:** Document as a known limitation.
 
-### L2. Nested `&&T` behaviour (Agent 1)
+### ~~L2. Nested `&&T` behaviour (Agent 1)~~ ADDRESSED
 
 `&&Option<A>` resolves through the `&T` blanket recursively but
 FunctorDispatch's Ref impl only matches one level of reference.
@@ -204,7 +204,7 @@ Pre-existing limitation.
 **Recommendation:** Add a compile-fail UI test for `&&T` to lock
 in the expected behaviour.
 
-### L3. Projection skip rule fragility (Agent 2)
+### ~~L3. Projection skip rule fragility (Agent 2)~~ ADDRESSED
 
 The `contains("::")` / `contains("Apply")` string heuristic could
 false-positive on fully-qualified paths or types named `Applicable`.
@@ -213,7 +213,7 @@ false-positive on fully-qualified paths or types named `Applicable`.
 (`Type::Macro` for `Apply!`, path segment count for `::`) during
 implementation.
 
-### L4. `compose_kleisli` already bypasses InferableBrand (Agents 3, 5)
+### ~~L4. `compose_kleisli` already bypasses InferableBrand (Agents 3, 5)~~ ADDRESSED
 
 These functions take Brand as turbofish and have no InferableBrand
 usage. The plan lists them for phase 2 migration, but no code
@@ -222,7 +222,7 @@ change is needed.
 **Recommendation:** Remove from the phase 2 list or note as
 "no-op."
 
-### L5. No multi-brand benchmark planned (Agent 5)
+### ~~L5. No multi-brand benchmark planned (Agent 5)~~ ADDRESSED
 
 No benchmark validates that Slot-based multi-brand dispatch produces
 identical codegen to explicit dispatch.
@@ -230,7 +230,7 @@ identical codegen to explicit dispatch.
 **Recommendation:** Add one benchmark comparing `map(|x: i32| x +
 1, Ok::<i32, String>(5))` against its explicit equivalent.
 
-### L6. Pre-bound closures lose deferred inference (Agent 4)
+### ~~L6. Pre-bound closures lose deferred inference (Agent 4)~~ ADDRESSED
 
 `let f = |x| x + 1; map(f, Ok::<i32, String>(5))` may fail
 because inference context is not propagated to the let binding.
@@ -238,7 +238,7 @@ because inference context is not propagated to the let binding.
 **Recommendation:** Document in phase 3 that pre-bound closures
 for multi-brand types should include parameter annotations.
 
-### L7. Attribute rename timing vs impl_kind! update (Agent 5)
+### ~~L7. Attribute rename timing vs impl_kind! update (Agent 5)~~ ADDRESSED
 
 Steps 3 (impl_kind! changes) and 4 (attribute rename) should be
 combined to avoid an intermediate state where impl_kind! expects
@@ -246,7 +246,7 @@ one attribute name and the code has the other.
 
 **Recommendation:** Combine steps 3 and 4 into one step.
 
-### L8. Do-notation macros in multi-brand inferred mode blocked by `pure` (Agent 5)
+### ~~L8. Do-notation macros in multi-brand inferred mode blocked by `pure` (Agent 5)~~ ADDRESSED
 
 Inferred-mode `m_do!` with multi-brand types fails at the `pure`
 call, not the `bind` calls. Users must use explicit mode
