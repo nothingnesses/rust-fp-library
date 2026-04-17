@@ -72,8 +72,16 @@ single-brand tests remain green. 9 phase 2 tests correctly ignored.
 Phase 2 dispatch migration complete. All 19 dispatch modules migrated
 from InferableBrand to Slot (34 inference wrappers total). No
 InferableBrand references remain in dispatch/. Explicit functions
-unchanged per revised Decision Q. Do-notation audit (Decision K)
-still pending.
+unchanged per revised Decision Q. All 20 integration tests pass
+(11 phase 1 + 9 phase 2). 16 non-regression tests green.
+
+Remaining phase 2 items:
+
+- Do-notation audit (Decision K) - next.
+- `dispatch/semiapplicative.rs` (Decision P) - new module, deferred
+  until after the do-notation audit since `a_do!` uses apply/lift
+  for multi-bind expressions and audit findings could influence the
+  dispatch module design.
 
 ## Open questions, issues and blockers
 
