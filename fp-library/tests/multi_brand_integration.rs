@@ -1,91 +1,93 @@
 // Multi-brand integration tests for closure-directed inference.
 //
-// These tests validate the new Slot-based inference for multi-brand
-// types (Result, Pair, Tuple2, ControlFlow, TryThunk). Tests are
-// organized by phase and start #[ignore]d. Each phase's tests are
-// un-ignored when the corresponding dispatch modules are migrated.
+// These tests validate Slot-based inference for multi-brand types.
+// Tests are organized by phase. Phase 1 tests are active; phase 2+
+// tests are #[ignore]d until the corresponding dispatch modules are
+// migrated.
+
+use fp_library::functions::*;
 
 // -- Phase 1: map (functor) --
 
-// Tests in this section are un-ignored in phase 1 step 7 once
-// the Slot-based map dispatch is in place. Until then, the test
-// bodies are empty stubs because the calls would not compile
-// against the current InferableBrand-based dispatch (Result does
-// not implement InferableBrand at arity 1).
-
 #[test]
-#[ignore = "phase 1: requires Slot-based map dispatch"]
 fn p1_map_val_multi_brand_ok() {
-	// map(|x: i32| x + 1, Ok::<i32, String>(5)) == Ok(6)
+	let r = map(|x: i32| x + 1, Ok::<i32, String>(5));
+	assert_eq!(r, Ok(6));
 }
 
 #[test]
-#[ignore = "phase 1: requires Slot-based map dispatch"]
 fn p1_map_val_multi_brand_err() {
-	// map(|e: String| e.len(), Err::<i32, String>("hi".into())) == Err(2)
+	let r: Result<i32, usize> = map(|e: String| e.len(), Err::<i32, String>("hi".into()));
+	assert_eq!(r, Err(2));
 }
 
 #[test]
-#[ignore = "phase 1: requires Slot-based map dispatch"]
 fn p1_map_val_multi_brand_passthrough() {
-	// map(|x: i32| x + 1, Err::<i32, String>("fail".into())) == Err("fail")
+	let r = map(|x: i32| x + 1, Err::<i32, String>("fail".into()));
+	assert_eq!(r, Err("fail".to_string()));
 }
 
 #[test]
-#[ignore = "phase 1: requires Slot-based map dispatch"]
 fn p1_map_ref_multi_brand_ok() {
-	// map(|x: &i32| *x + 1, &Ok::<i32, String>(5)) == Ok(6)
+	let ok: Result<i32, String> = Ok(5);
+	let r: Result<i32, String> = map(|x: &i32| *x + 1, &ok);
+	assert_eq!(r, Ok(6));
 }
 
 #[test]
-#[ignore = "phase 1: requires Slot-based map dispatch"]
 fn p1_map_ref_multi_brand_err() {
-	// map(|e: &String| e.len(), &Err::<i32, String>("hi".into())) == Err(2)
+	let err: Result<i32, String> = Err("hi".into());
+	let r: Result<i32, usize> = map(|e: &String| e.len(), &err);
+	assert_eq!(r, Err(2));
 }
 
 #[test]
-#[ignore = "phase 1: requires Slot-based map dispatch"]
 fn p1_map_ref_multi_brand_passthrough() {
-	// map(|x: &i32| *x + 1, &Err::<i32, String>("fail".into())) == Err("fail")
+	let err: Result<i32, String> = Err("fail".into());
+	let r: Result<i32, String> = map(|x: &i32| *x + 1, &err);
+	assert_eq!(r, Err("fail".to_string()));
 }
 
 #[test]
-#[ignore = "phase 1: requires Slot-based map dispatch"]
 fn p1_map_generic_fixed_param_ok() {
-	// fn f<E: 'static>(r: Result<i32, E>) -> Result<i32, E> { map(|x: i32| x + 1, r) }
-	// f(Ok::<i32, String>(5)) == Ok(6)
+	fn process<E: 'static>(r: Result<i32, E>) -> Result<i32, E> {
+		map(|x: i32| x + 1, r)
+	}
+	assert_eq!(process(Ok::<i32, String>(5)), Ok(6));
 }
 
 #[test]
-#[ignore = "phase 1: requires Slot-based map dispatch"]
 fn p1_map_generic_fixed_param_passthrough() {
-	// fn f<E: 'static>(r: Result<i32, E>) -> Result<i32, E> { map(|x: i32| x + 1, r) }
-	// f(Err::<i32, String>("x".into())) == Err("x")
+	fn process<E: 'static>(r: Result<i32, E>) -> Result<i32, E> {
+		map(|x: i32| x + 1, r)
+	}
+	assert_eq!(process(Err::<i32, String>("x".into())), Err("x".to_string()));
 }
 
 #[test]
-#[ignore = "phase 1: requires Slot-based map dispatch"]
 fn p1_map_generic_fixed_param_err_direction() {
-	// fn f<T: 'static>(r: Result<T, String>) -> Result<T, usize> { map(|e: String| e.len(), r) }
-	// f(Err("hi".into())) == Err(2)
+	fn process<T: 'static>(r: Result<T, String>) -> Result<T, usize> {
+		map(|e: String| e.len(), r)
+	}
+	assert_eq!(process(Err::<i32, String>("hi".into())), Err(2));
 }
 
 #[test]
-#[ignore = "phase 1: requires Slot-based map dispatch"]
 fn p1_map_both_params_generic() {
-	// fn f<T: 'static + Clone, E: 'static>(r: Result<T, E>) -> Result<T, E> {
-	//     map(|x: T| x.clone(), r)
-	// }
-	// f(Ok::<i32, String>(10)) == Ok(10)
+	fn process<T: 'static + Clone, E: 'static>(r: Result<T, E>) -> Result<T, E> {
+		map(|x: T| x.clone(), r)
+	}
+	assert_eq!(process(Ok::<i32, String>(10)), Ok(10));
 }
 
 #[test]
-#[ignore = "phase 1: requires Slot-based map dispatch"]
 fn p1_map_ref_generic_fixed_param() {
-	// fn f<E: 'static + Clone>(r: &Result<i32, E>) -> Result<i32, E> {
-	//     map(|x: &i32| *x + 1, r)
-	// }
-	// f(&Ok::<i32, String>(5)) == Ok(6)
+	fn process<E>(r: &Result<i32, E>) -> Result<i32, E>
+	where
+		E: 'static + Clone, {
+		map(|x: &i32| *x + 1, r)
+	}
+	assert_eq!(process(&Ok::<i32, String>(5)), Ok(6));
 }
 
 // -- Phase 2: bind (semimonad) --
@@ -142,12 +144,10 @@ fn p2_lift2_multi_brand_short_circuit() {
 #[ignore = "phase 2: requires Slot-based join dispatch"]
 fn p2_join_single_brand_via_slot() {
 	// join(Some(Some(5))) == Some(5)
-	// Confirms single-brand closureless inference still works after Slot migration.
 }
 
 #[test]
 #[ignore = "phase 2: requires Slot-based alt dispatch"]
 fn p2_alt_single_brand_via_slot() {
 	// alt(None::<i32>, Some(5)) == Some(5)
-	// Confirms single-brand closureless inference still works after Slot migration.
 }

@@ -64,7 +64,12 @@ Phase 1 step 6 complete: added three compile-fail UI tests
 tuples). The `result_no_inferable_brand.rs` test was removed in
 step 5 (map now accepts Result via Slot).
 
-Ready for phase 1 step 7.
+Phase 1 complete. All 11 phase 1 multi-brand integration tests pass
+(Val + Ref for Ok/Err mapping, passthrough, generic fixed params,
+both-params-generic, Ref + generic fixed param). All 16 non-regression
+single-brand tests remain green. 9 phase 2 tests correctly ignored.
+
+Ready for phase 2.
 
 ## Open questions, issues and blockers
 
