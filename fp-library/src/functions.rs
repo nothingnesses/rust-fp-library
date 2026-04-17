@@ -36,6 +36,7 @@ pub use crate::dispatch::contravariant::contramap;
 // Inference wrappers (from dispatch modules, top-level of each).
 pub use crate::dispatch::{
 	alt::alt,
+	semiapplicative::apply,
 	apply_first::apply_first,
 	apply_second::apply_second,
 	bifoldable::{
@@ -105,6 +106,7 @@ fp_macros::generate_function_re_exports!("src/classes", {
 	"send_clone_fn::ref_new": send_ref_lift_fn_new,
 }, exclude {
 	// By-value non-dispatch free functions superseded by dispatch versions.
+	"semiapplicative::apply",
 	"contravariant::contramap",
 	"alt::alt",
 	"apply_first::apply_first",
