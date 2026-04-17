@@ -61,59 +61,15 @@ Ready for phase 1 step 6.
 
 ## Open questions, issues and blockers
 
-1. **Closureless Slot inference for single-brand types.**
-
-   Phase 2 migrates closureless operations (`join`, `alt`,
-   `apply_first`, `apply_second`) from InferableBrand to Slot. With
-   InferableBrand, Brand was an associated type, so the solver
-   committed it directly from FA. With Slot, Brand is a trait
-   parameter, so the solver must find the unique Slot impl when no
-   closure pins A. For example, `join(Some(Some(5)))` needs the
-   solver to resolve Brand = OptionBrand from the single Slot impl
-   on `Option<Option<i32>>` without any closure-driven disambiguation.
-
-   This should work (one impl means unique resolution), and the test
-   matrix covers it (cases 46-47). But it has not been validated in
-   practice. If Rust's solver cannot commit Brand from a single Slot
-   impl without a closure, the closureless migration approach breaks.
-
-   **Approaches:**
-
-   a) Write a targeted POC before starting phase 2. Define a
-   Slot-based `join` wrapper by hand (similar to
-   `slot_bind_poc.rs`) and test with `Some(Some(5))`. Validates
-   the assumption with minimal effort.
-
-   b) Proceed with phase 2 and discover the result when migrating
-   `join` in `semimonad.rs`. The test matrix tests (46-47) would
-   catch any failure immediately.
-
-   c) Write the phase 2 `join` test case now (step 7) as a
-   non-ignored test that uses the current InferableBrand-based
-   `join`. If it passes, it at least confirms the test
-   infrastructure works; the actual Slot validation happens when
-   the inference wrapper is rewritten.
-
-   **Trade-offs:** (a) is the safest; it catches the problem before
-   any phase 2 code is written, at the cost of one small POC file.
-   (b) is the simplest but delays discovery; if the assumption fails,
-   phase 2 work on closureless operations must be redesigned. (c) is
-   a middle ground but doesn't actually test the Slot path.
-
-   **Recommendation:** (a). The POC is small (under 30 lines) and
-   validates a foundational assumption. If it fails, we learn before
-   investing in phase 2 closureless migration.
-
-2. **`crate::dispatch::{Val, Ref}` hardcoded in macro output.**
+1. **`crate::dispatch::{Val, Ref}` hardcoded in macro output.**
 
    The `trait_kind!` blanket impl emits `type Marker =
 crate::dispatch::Ref` and `impl_kind!` emits `type Marker =
-crate::dispatch::Val`. These paths resolve correctly in
-   fp-library (where `dispatch::Val` and `dispatch::Ref` are
-   defined) but fail in any other crate that invokes `trait_kind!`
-   or `impl_kind!`. This is currently mitigated with shim modules in
-   fp-macros test files, and the hkt.md doctest was changed to
-   `rust,ignore`.
+crate::dispatch::Val`. These paths resolve correctly in fp-library
+   (where `dispatch::Val` and `dispatch::Ref` are defined) but fail
+   in any other crate that invokes `trait_kind!` or `impl_kind!`.
+   Currently mitigated with shim modules in fp-macros test files, and
+   the hkt.md doctest was changed to `rust,ignore`.
 
    **Approaches:**
 
@@ -123,8 +79,8 @@ crate::dispatch::Val`. These paths resolve correctly in
    fp-library's public API, not by invoking the macros directly.
 
    b) Define `Val` and `Ref` in a lightweight non-proc-macro crate
-   (e.g., `fp-core`) that both fp-macros and fp-library depend
-   on. The macros would emit `fp_core::dispatch::Val` instead of
+   (e.g., `fp-core`) that both fp-macros and fp-library depend on.
+   The macros would emit `fp_core::dispatch::Val` instead of
    `crate::dispatch::Val`. Eliminates the hardcoding but adds a
    crate to the workspace.
 
@@ -141,6 +97,11 @@ crate::dispatch::Val`. These paths resolve correctly in
    **Recommendation:** (a) for now. Add to Decision T's known
    limitations list. If external macro use becomes a real need
    post-1.0, (b) is the right long-term fix.
+
+Previously resolved:
+
+- Closureless Slot inference validated by `slot_closureless_poc.rs`
+  (see Decision W).
 
 ## Deviations
 
@@ -795,6 +756,35 @@ assumptions and macro-generated reality. Phase completion is
 concrete: all un-ignored tests pass. Non-regression tests prevent
 silent breakage of existing single-brand inference during the
 strangler-fig migration.
+
+### Decision W: Closureless Slot inference
+
+Closureless dispatch operations (`join`, `alt`, `apply_first`,
+`apply_second`) resolve Brand from the single Slot impl on FA
+without needing a closure. Validated by `slot_closureless_poc.rs`
+(11 tests covering Val and Ref for both `alt` and `join` with
+Option and Vec).
+
+Two structural patterns:
+
+1. **Flat operations** (`alt`, `apply_first`, `apply_second`): the
+   Slot bound `FA: Slot<Brand, A>` resolves both Brand and A from
+   FA's unique Slot impl. No extra type parameters needed.
+
+2. **Nested operations** (`join`): FA is `Brand::Of<Brand::Of<A>>`,
+   so the Slot bound decomposes FA into Brand and an inner type
+   `MidA` that is itself a branded container. The inference wrapper
+   needs an extra `MidA` type parameter:
+   `fn join<'a, FA, A, Brand, MidA>(mma: FA)` with
+   `FA: Slot<Brand, MidA> + JoinDispatch<Brand, A, Marker>`.
+   `MidA` is fully inferred and never specified by callers.
+
+_Rationale:_ the plan originally described closureless migration as
+"mechanical." The POC confirmed this for flat operations but
+revealed that nested operations require the extra `MidA` parameter,
+which was not anticipated. The pattern is straightforward once
+identified but must be applied consistently during phase 2's
+`semimonad.rs` migration.
 
 ## Integration surface
 
