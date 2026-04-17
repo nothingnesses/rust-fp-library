@@ -12,6 +12,10 @@ use {
 		generate_name,
 	},
 	crate::{
+		analysis::generics::{
+			extract_lifetime_names,
+			extract_type_idents,
+		},
 		core::Result,
 		support::{
 			attributes,
@@ -24,7 +28,6 @@ use {
 	proc_macro2::TokenStream,
 	quote::quote,
 	syn::{
-		GenericParam,
 		Generics,
 		Token,
 		Type,
@@ -290,20 +293,8 @@ pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 		let assoc_generics = &def.signature.generics;
 
 		// Extract lifetime and type params from the associated type generics
-		let lifetime_names: Vec<_> =
-			assoc_generics
-				.params
-				.iter()
-				.filter_map(|p| {
-					if let GenericParam::Lifetime(lt) = p { Some(&lt.lifetime) } else { None }
-				})
-				.collect();
-
-		let type_idents: Vec<_> = assoc_generics
-			.params
-			.iter()
-			.filter_map(|p| if let GenericParam::Type(tp) = p { Some(&tp.ident) } else { None })
-			.collect();
+		let lifetime_names = extract_lifetime_names(assoc_generics);
+		let type_idents = extract_type_idents(assoc_generics);
 
 		// InferableBrand impl generics: all assoc type generics + all impl generics.
 		// The assoc type generics include lifetimes and type params with

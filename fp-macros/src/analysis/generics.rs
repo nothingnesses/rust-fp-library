@@ -466,6 +466,24 @@ pub fn bounded_ty_is_ident(
 	if let Type::Path(tp) = ty { tp.path.get_ident().is_some_and(|id| id == name) } else { false }
 }
 
+/// Extract lifetime references from generic parameters.
+pub fn extract_lifetime_names(generics: &Generics) -> Vec<&syn::Lifetime> {
+	generics
+		.params
+		.iter()
+		.filter_map(|p| if let GenericParam::Lifetime(lt) = p { Some(&lt.lifetime) } else { None })
+		.collect()
+}
+
+/// Extract type parameter idents from generic parameters.
+pub fn extract_type_idents(generics: &Generics) -> Vec<&syn::Ident> {
+	generics
+		.params
+		.iter()
+		.filter_map(|p| if let GenericParam::Type(tp) = p { Some(&tp.ident) } else { None })
+		.collect()
+}
+
 /// Analyze a function signature to extract generic names and function bounds.
 ///
 /// Returns a tuple of (generic_names, fn_bounds) for use in type conversion.

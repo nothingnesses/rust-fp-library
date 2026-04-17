@@ -5,6 +5,10 @@
 use {
 	super::AssociatedTypes,
 	crate::{
+		analysis::generics::{
+			extract_lifetime_names,
+			extract_type_idents,
+		},
 		core::Result,
 		documentation::templates::DocumentationBuilder,
 		generate_inferable_brand_name,
@@ -62,8 +66,8 @@ pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 		.filter_map(|p| if let syn::GenericParam::Type(tp) = p { Some(tp) } else { None })
 		.collect();
 
-	let lifetime_names: Vec<_> = lifetime_defs.iter().map(|lt| &lt.lifetime).collect();
-	let type_idents: Vec<_> = type_defs.iter().map(|tp| &tp.ident).collect();
+	let lifetime_names = extract_lifetime_names(first_generics);
+	let type_idents = extract_type_idents(first_generics);
 
 	let inferable_brand_doc_summary = format!(
 		r#"Reverse mapping from concrete types to brands for `{name}`.
