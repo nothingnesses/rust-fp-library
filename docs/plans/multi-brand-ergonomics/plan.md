@@ -90,11 +90,13 @@ replaced the class-level `map`. The class-level `apply` moves to
 is excluded, and the dispatch version is re-exported instead.
 
 Decision P complete. `dispatch/semiapplicative.rs` created with
-`FnBrandSlot` trait, `ApplyDispatch`-free inference wrapper, and
-`explicit::apply` re-export. All ~116 call sites migrated from
-`apply::<RcFnBrand, Brand, _, _>(ff, fa)` to `apply(ff, fa)` (both
-FnBrand and Brand fully inferred). 19 doctests updated. Phase 2
-complete.
+unified Val/Ref dispatch via `ApplyDispatch` trait (Approach B from
+`poc_apply_unified_dispatch.rs`). `FnBrandSlot` with Mode parameter
+infers FnBrand for both Val and Ref wrapper types. `CloneFn<Marker>`
+bound on the inference wrapper ties the function-wrapping mode to the
+dispatch mode. All ~116 call sites migrated to turbofish-free
+`apply(ff, fa)` for Val; Ref apply also works as `apply(&ff, &fa)`.
+Phase 2 complete.
 
 ## Open questions, issues and blockers
 
