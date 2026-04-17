@@ -2,6 +2,22 @@
 
 **Status:** DRAFT (design validated; implementation ready)
 
+## Current progress
+
+Implementation has not started. All design decisions are finalised
+(A-U) and validated via 9 POCs. The plan is ready for phase 0.
+
+## Open questions, issues and blockers
+
+None at this time. All review findings have been addressed.
+
+## Deviations
+
+None at this time. Will be updated if implementation diverges from
+the plan.
+
+---
+
 Replace the existing `InferableBrand_*` trait family with a redesigned
 version that supports closure-directed inference for multi-brand
 concrete types (`Result`, `Pair`, `Tuple2`, `ControlFlow`, `TryThunk`)
