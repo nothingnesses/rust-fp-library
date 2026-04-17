@@ -526,7 +526,7 @@ pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 			for #target_type
 			#impl_generics_where
 			{
-				type Marker = crate::dispatch::Val;
+				type Marker = ::fp_library::dispatch::Val;
 			}
 		}
 	} else {

@@ -301,6 +301,7 @@ dependencies = [
 name = "fp-macros"
 version = "0.7.1"
 dependencies = [
+ "fp-library",
  "insta",
  "proc-macro-warning",
  "proc-macro2",

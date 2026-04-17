@@ -43,19 +43,21 @@ pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 
 	// Build InferableBrand documentation
 	let ib_doc_summary = format!("Maps a concrete type back to its canonical brand for `{name}`.",);
-	let ib_doc_detail = "\n\nOnly implemented for types where the brand is unambiguous (one brand\n\
-		 per concrete type). Types reachable through multiple brands (e.g.,\n\
-		 `Result<A, E>` at arity 1) do not implement this trait and require\n\
-		 explicit brand specification via turbofish.\n\
-		 \n\
-		 A blanket implementation for references (`&T`) delegates to `T`'s\n\
-		 implementation, enabling brand inference for both owned and borrowed\n\
-		 containers.";
+	let ib_doc_detail = r#"
+
+Only implemented for types where the brand is unambiguous (one brand
+per concrete type). Types reachable through multiple brands (e.g.,
+`Result<A, E>` at arity 1) do not implement this trait and require
+explicit brand specification via turbofish.
+
+A blanket implementation for references (`&T`) delegates to `T`'s
+implementation, enabling brand inference for both owned and borrowed
+containers."#;
 	let ib_blanket_doc = format!(
-		"Blanket implementation delegating brand inference through references.\n\
-		 \n\
-		 Enables brand inference for borrowed containers (`&Vec<A>`, `&Option<A>`,\n\
-		 etc.) by delegating to the underlying type's `{ib_name}` implementation.",
+		r#"Blanket implementation delegating brand inference through references.
+
+Enables brand inference for borrowed containers (`&Vec<A>`, `&Option<A>`,
+etc.) by delegating to the underlying type's `{ib_name}` implementation."#,
 	);
 
 	// -- Slot trait generation --
@@ -141,8 +143,8 @@ by-reference trait method."#,
 		#[doc = #slot_doc_summary]
 		#[expect(non_camel_case_types, reason = "Generated name uses hash suffix for uniqueness")]
 		pub trait #slot_name<#(#lifetime_defs,)* __Slot_Brand: #name #(, #type_defs)*> {
-			/// Dispatch marker: [`Val`](crate::dispatch::Val) for owned types,
-			/// [`Ref`](crate::dispatch::Ref) for references.
+			/// Dispatch marker: [`Val`](::fp_library::dispatch::Val) for owned types,
+			/// [`Ref`](::fp_library::dispatch::Ref) for references.
 			type Marker;
 		}
 
@@ -154,7 +156,7 @@ by-reference trait method."#,
 		where
 			__Slot_T: #slot_name<#(#lifetime_names,)* __Slot_Brand #(, #type_idents)*>,
 		{
-			type Marker = crate::dispatch::Ref;
+			type Marker = ::fp_library::dispatch::Ref;
 		}
 	})
 }

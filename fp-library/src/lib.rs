@@ -133,6 +133,10 @@
 //! - **`stacker`**: Enables adaptive stack growth for deep `Coyoneda`, `RcCoyoneda`, and `ArcCoyoneda` map chains via the [stacker](https://github.com/rust-lang/stacker) crate. Without this feature, deeply chained maps can overflow the stack.
 
 extern crate fp_macros;
+// Allow the proc macro output to reference this crate via the absolute
+// path `::fp_library::dispatch::{Val, Ref}`. Without this, `::fp_library`
+// only resolves in external crates, not inside fp-library itself.
+extern crate self as fp_library;
 
 pub mod brands;
 pub mod classes;

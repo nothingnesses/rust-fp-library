@@ -5,4 +5,4 @@
 .claude/test-cache/
 .claude/worktrees/
 .pre-commit-config.yaml
-.playwright-mcp/
+.playwright-mcp/rust_out
