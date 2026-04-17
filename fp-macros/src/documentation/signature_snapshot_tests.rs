@@ -143,6 +143,12 @@ dispatch_test!(foldable_with_index_signatures, "foldable_with_index.rs");
 dispatch_test!(functor_signatures, "functor.rs");
 dispatch_test!(functor_with_index_signatures, "functor_with_index.rs");
 dispatch_test!(lift_signatures, "lift.rs");
+// Disabled: the generated signature for apply renders WrappedFn as an
+// opaque type param instead of resolving it to (A -> B) via the
+// InferableFnBrand bound. The expected signature is:
+//   forall Brand A B. Semiapplicative Brand => (Brand (A -> B), Brand A) -> Brand B
+// Re-enable once the HM signature generator handles InferableFnBrand.
+// dispatch_test!(semiapplicative_signatures, "semiapplicative.rs");
 dispatch_test!(semimonad_signatures, "semimonad.rs");
 dispatch_test!(traversable_signatures, "traversable.rs");
 dispatch_test!(traversable_with_index_signatures, "traversable_with_index.rs");

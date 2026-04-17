@@ -2,7 +2,7 @@
 //! and [`RefSemiapplicative::ref_apply`](crate::classes::RefSemiapplicative::ref_apply).
 //!
 //! Provides unified Val/Ref dispatch via the [`ApplyDispatch`] trait, the
-//! [`FnBrandSlot`] trait for FnBrand inference, and an inference wrapper
+//! [`InferableFnBrand`] trait for FnBrand inference, and an inference wrapper
 //! [`apply`] that infers both Brand and FnBrand from the container types.
 //!
 //! ### Examples
@@ -62,7 +62,7 @@ pub(crate) mod inner {
 		"The output type of the wrapped function.",
 		"The closure mode (Val or Ref)."
 	)]
-	pub trait FnBrandSlot<FnBrand, A, B, Mode = Val> {}
+	pub trait InferableFnBrand<FnBrand, A, B, Mode = Val> {}
 
 	// -- RcFnBrand impls --
 
@@ -72,7 +72,7 @@ pub(crate) mod inner {
 		"The input type of the wrapped function.",
 		"The output type of the wrapped function."
 	)]
-	impl<'a, A: 'a, B: 'a> FnBrandSlot<crate::brands::RcFnBrand, A, B, Val>
+	impl<'a, A: 'a, B: 'a> InferableFnBrand<crate::brands::RcFnBrand, A, B, Val>
 		for std::rc::Rc<dyn 'a + Fn(A) -> B>
 	{
 	}
@@ -83,7 +83,7 @@ pub(crate) mod inner {
 		"The input type of the wrapped function.",
 		"The output type of the wrapped function."
 	)]
-	impl<'a, A: 'a, B: 'a> FnBrandSlot<crate::brands::RcFnBrand, A, B, Ref>
+	impl<'a, A: 'a, B: 'a> InferableFnBrand<crate::brands::RcFnBrand, A, B, Ref>
 		for std::rc::Rc<dyn 'a + Fn(&A) -> B>
 	{
 	}
@@ -96,7 +96,7 @@ pub(crate) mod inner {
 		"The input type of the wrapped function.",
 		"The output type of the wrapped function."
 	)]
-	impl<'a, A: 'a, B: 'a> FnBrandSlot<crate::brands::ArcFnBrand, A, B, Val>
+	impl<'a, A: 'a, B: 'a> InferableFnBrand<crate::brands::ArcFnBrand, A, B, Val>
 		for std::sync::Arc<dyn 'a + Fn(A) -> B + Send + Sync>
 	{
 	}
@@ -107,7 +107,7 @@ pub(crate) mod inner {
 		"The input type of the wrapped function.",
 		"The output type of the wrapped function."
 	)]
-	impl<'a, A: 'a, B: 'a> FnBrandSlot<crate::brands::ArcFnBrand, A, B, Ref>
+	impl<'a, A: 'a, B: 'a> InferableFnBrand<crate::brands::ArcFnBrand, A, B, Ref>
 		for std::sync::Arc<dyn 'a + Fn(&A) -> B + Send + Sync>
 	{
 	}
@@ -136,7 +136,7 @@ pub(crate) mod inner {
 		Brand: Kind_cdc7cd43dac7585f,
 		A: 'a,
 		B: 'a,
-		W: 'a,
+		WrappedFn: 'a,
 		FA,
 		Marker,
 	> {
@@ -177,24 +177,24 @@ pub(crate) mod inner {
 		"The concrete wrapped-function type."
 	)]
 	#[document_parameters("The owned function container.")]
-	impl<'a, FnBrand, Brand, A, B, W>
+	impl<'a, FnBrand, Brand, A, B, WrappedFn>
 		ApplyDispatch<
 			'a,
 			FnBrand,
 			Brand,
 			A,
 			B,
-			W,
+			WrappedFn,
 			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			Val,
-		> for Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, W>)
+		> for Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, WrappedFn>)
 	where
 		FnBrand: CloneFn + 'a,
 		Brand: Semiapplicative,
 		A: Clone + 'a,
 		B: 'a,
-		W: Clone + 'a,
-		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, W>): Into<
+		WrappedFn: Clone + 'a,
+		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, WrappedFn>): Into<
 			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 		>,
 	{
@@ -237,25 +237,25 @@ pub(crate) mod inner {
 		"The concrete wrapped-function type."
 	)]
 	#[document_parameters("The borrowed function container.")]
-	impl<'a, 'b, FnBrand, Brand, A, B, W>
+	impl<'a, 'b, FnBrand, Brand, A, B, WrappedFn>
 		ApplyDispatch<
 			'a,
 			FnBrand,
 			Brand,
 			A,
 			B,
-			W,
+			WrappedFn,
 			&'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			Ref,
-		> for &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, W>)
+		> for &'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, WrappedFn>)
 	where
 		'a: 'b,
 		FnBrand: CloneFn<Ref> + 'a,
 		Brand: RefSemiapplicative,
 		A: 'a,
 		B: 'a,
-		W: 'a,
-		&'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, W>): Into<
+		WrappedFn: 'a,
+		&'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, WrappedFn>): Into<
 			&'b Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn<Ref>>::Of<'a, A, B>>),
 		>,
 	{
@@ -291,7 +291,7 @@ pub(crate) mod inner {
 	/// Brand, FnBrand, and Val/Ref dispatch from the container types.
 	///
 	/// - Brand is resolved via dual InferableBrand bounds on FF and FA.
-	/// - FnBrand is resolved via [`FnBrandSlot`] from the wrapper type W.
+	/// - FnBrand is resolved via [`InferableFnBrand`] from the wrapper type WrappedFn.
 	/// - Val/Ref dispatch is resolved via the Marker projected from FA's InferableBrand.
 	/// - The `CloneFn` mode is tied to the Marker via `CloneFn<Marker>`.
 	///
@@ -303,7 +303,7 @@ pub(crate) mod inner {
 	///
 	#[document_type_parameters(
 		"The lifetime of the values.",
-		"The function-wrapping brand, inferred via FnBrandSlot.",
+		"The function-wrapping brand, inferred via InferableFnBrand.",
 		"The brand, inferred via InferableBrand from FF and FA.",
 		"The type of the value(s) inside the value container.",
 		"The result type after applying the function.",
@@ -339,7 +339,7 @@ pub(crate) mod inner {
 	/// assert_eq!(y, Some(10));
 	/// ```
 	#[allow_named_generics]
-	pub fn apply<'a, FnBrand, Brand, A, B, W, FF, FA>(
+	pub fn apply<'a, FnBrand, Brand, A, B, WrappedFn, FF, FA>(
 		ff: FF,
 		fa: FA,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
@@ -347,24 +347,24 @@ pub(crate) mod inner {
 		Brand: Kind_cdc7cd43dac7585f,
 		A: 'a,
 		B: 'a,
-		W: 'a,
+		WrappedFn: 'a,
 		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>,
 		<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker: ClosureMode,
 		FnBrand: CloneFn<<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker> + 'a,
-		W: FnBrandSlot<
+		WrappedFn: InferableFnBrand<
 				FnBrand,
 				A,
 				B,
 				<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 			>,
-		FF: InferableBrand_cdc7cd43dac7585f<'a, Brand, W>
+		FF: InferableBrand_cdc7cd43dac7585f<'a, Brand, WrappedFn>
 			+ ApplyDispatch<
 				'a,
 				FnBrand,
 				Brand,
 				A,
 				B,
-				W,
+				WrappedFn,
 				FA,
 				<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 			>, {
