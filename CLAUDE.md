@@ -158,6 +158,14 @@ Never use emoji or unicode symbols in code, comments, or documentation. Use plai
 - Math: `>=`, `<=`, `!=` (not unicode math symbols).
 - Section dividers: `// -- Section name --` (not box-drawing characters).
 
+### AST Pattern Matching in Macros
+
+When working on proc macro code in `fp-macros/`, always use `syn` AST pattern matching instead of stringly-typed processing:
+
+- Use `path.get_ident()`, `path.is_ident()`, or segment matching to compare types and trait names. Do not use `quote!(#ty).to_string()` to stringify AST nodes for comparison.
+- Store `syn::Ident` or `syn::Type` in data structures instead of stringified representations. Avoid round-tripping through strings (stringify then re-parse with `syn::parse_str`).
+- `ident.to_string()` is acceptable for map keys, error messages, and final output (e.g., `HmAst::Variable`), but not as a substitute for structural matching.
+
 ### Documentation Standards
 
 Functions must include:
