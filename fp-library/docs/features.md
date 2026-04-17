@@ -19,8 +19,8 @@ from the container type via `InferableBrand` traits. No turbofish needed:
 ```rust
 use fp_library::functions::*;
 
-let y = map(|x: i32| x + 1, Some(5));                     // infers OptionBrand
-let z: Vec<i32> = bind(vec![1, 2], |x: i32| vec![x, x*10]); // infers VecBrand
+let y = map(|x: i32| x + 1, Some(5));                           // infers OptionBrand
+let z: Vec<i32> = bind(vec![1, 2], |x: i32| vec![x, x*10]);     // infers VecBrand
 let w = bimap((|e: i32| e+1, |s: i32| s*2), Ok::<i32, i32>(5)); // infers ResultBrand
 assert_eq!(y, Some(6));
 assert_eq!(z, vec![1, 10, 2, 20]);

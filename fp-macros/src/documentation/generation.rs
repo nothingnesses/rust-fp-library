@@ -786,11 +786,11 @@ fn build_synthetic_signature(
 				// Closureless dispatch with impl Dispatch param: treat as container.
 				// Use the same fallback chain as InferableBrand-bounded params.
 				use crate::analysis::dispatch::ReturnStructure;
-				let element_types: Option<Vec<String>> = dispatch_info
+				let element_types: Option<Vec<Type>> = dispatch_info
 					.self_type_elements
 					.clone()
 					.or_else(|| {
-						let elems: Vec<String> = dispatch_info
+						let elems: Vec<Type> = dispatch_info
 							.type_param_order
 							.iter()
 							.filter(|p| {
@@ -800,7 +800,7 @@ fn build_synthetic_signature(
 									.iter()
 									.any(|(sc, _)| sc == *p)
 							})
-							.cloned()
+							.filter_map(|p| syn::parse_str::<Type>(p).ok())
 							.collect();
 						if elems.is_empty() { None } else { Some(elems) }
 					})
@@ -889,13 +889,13 @@ fn build_synthetic_signature(
 		if is_dispatch_container_param(ty, _original_sig) {
 			use crate::analysis::dispatch::ReturnStructure;
 
-			let element_types: Option<Vec<String>> = dispatch_info
+			let element_types: Option<Vec<Type>> = dispatch_info
 				.self_type_elements
 				.clone()
 				.or_else(|| {
 					// Extract single-letter element types from trait definition params,
 					// excluding Brand and secondary constraint params.
-					let elems: Vec<String> = dispatch_info
+					let elems: Vec<Type> = dispatch_info
 						.type_param_order
 						.iter()
 						.filter(|p| {
@@ -905,7 +905,7 @@ fn build_synthetic_signature(
 								.iter()
 								.any(|(sc, _)| sc == *p)
 						})
-						.cloned()
+						.filter_map(|p| syn::parse_str::<Type>(p).ok())
 						.collect();
 					if elems.is_empty() { None } else { Some(elems) }
 				})
@@ -969,7 +969,7 @@ fn build_synthetic_signature(
 fn build_container_map(
 	sig: &syn::Signature,
 	dispatch_info: &DispatchTraitInfo,
-) -> std::collections::HashMap<String, Vec<String>> {
+) -> std::collections::HashMap<String, Vec<Type>> {
 	if dispatch_info.container_params.is_empty() {
 		return std::collections::HashMap::new();
 	}
@@ -1158,14 +1158,24 @@ fn is_tuple_order_reversed(
 /// Any element that names a type parameter resolved via InferableFnBrand
 /// (e.g., `WrappedFn`) is replaced with a bare fn type string `fn(A)->B`.
 fn resolve_fn_brand_elements(
-	elements: &mut [String],
+	elements: &mut [Type],
 	fn_brand_resolutions: &std::collections::HashMap<String, FnBrandResolution>,
 ) {
 	for elem in elements.iter_mut() {
-		if let Some(resolution) = fn_brand_resolutions.get(elem.as_str()) {
+		let key = if let Type::Path(tp) = elem {
+			tp.path.get_ident().map(|id| id.to_string())
+		} else {
+			None
+		};
+		if let Some(key) = key
+			&& let Some(resolution) = fn_brand_resolutions.get(key.as_str())
+		{
 			let input = &resolution.input;
 			let output = &resolution.output;
-			*elem = format!("fn({input})->{output}");
+			let fn_str = format!("fn({input})->{output}");
+			if let Ok(fn_ty) = syn::parse_str::<Type>(&fn_str) {
+				*elem = fn_ty;
+			}
 		}
 	}
 }
@@ -1174,12 +1184,11 @@ fn resolve_fn_brand_elements(
 fn build_applied_type(
 	brand_ident: &syn::Ident,
 	kind_ident: &syn::Ident,
-	element_types: &[String],
+	element_types: &[Type],
 ) -> Option<syn::Type> {
 	let mut args = vec![quote!('a)];
 	for elem in element_types {
-		let elem_type: syn::Type = syn::parse_str(elem).ok()?;
-		args.push(quote!(#elem_type));
+		args.push(quote!(#elem));
 	}
 	let args_tokens = quote!(#(#args),*);
 	Some(parse_quote!(<#brand_ident as #kind_ident>::Of<#args_tokens>))
@@ -1206,55 +1215,38 @@ fn build_closure_param(
 		for param in &arrow.inputs {
 			let sub_arrow = match param {
 				DispatchArrowParam::SubArrow(arrow) => arrow,
-				DispatchArrowParam::TypeParam(sub_arrow_str) => {
-					// Legacy string path: split on " -> " and parse
-					if let Some(arrow_pos) = sub_arrow_str.rfind(" -> ") {
-						let input_str = &sub_arrow_str[.. arrow_pos];
-						let output_str = &sub_arrow_str[arrow_pos + 4 ..];
-						let input_str =
-							input_str.trim().trim_start_matches('(').trim_end_matches(')');
-						let input_types: Vec<syn::Type> = input_str
-							.split(',')
-							.filter_map(|s| syn::parse_str(s.trim()).ok())
-							.collect();
-						let output_type: syn::Type =
-							syn::parse_str(output_str.trim()).unwrap_or_else(|_| parse_quote!(()));
-						fn_types.push(parse_quote!(fn(#(#input_types),*) -> #output_type));
-					}
+				DispatchArrowParam::TypeParam(_)
+				| DispatchArrowParam::AssociatedType {
+					..
+				} => {
 					continue;
 				}
-				_ => continue,
 			};
 
 			// Build fn type from structured sub-arrow
 			let mut input_types: Vec<syn::Type> = Vec::new();
 			for sub_param in &sub_arrow.inputs {
 				match sub_param {
-					DispatchArrowParam::TypeParam(name) => {
-						let ident: syn::Ident = syn::parse_str(name).ok()?;
+					DispatchArrowParam::TypeParam(ident) => {
 						input_types.push(parse_quote!(#ident));
 					}
 					DispatchArrowParam::AssociatedType {
 						assoc_name,
 					} => {
-						let assoc_ident: syn::Ident = syn::parse_str(assoc_name).ok()?;
-						input_types.push(parse_quote!(#brand_ident::#assoc_ident));
+						input_types.push(parse_quote!(#brand_ident::#assoc_name));
 					}
 					DispatchArrowParam::SubArrow(_) => continue,
 				}
 			}
 
 			let output_type: syn::Type = match &sub_arrow.output {
-				ArrowOutput::Plain(s) => syn::parse_str(s).ok()?,
+				ArrowOutput::Plain(ty) => *ty.clone(),
 				ArrowOutput::BrandApplied(args) =>
 					build_applied_type(brand_ident, kind_ident, args)?,
 				ArrowOutput::OtherApplied {
 					brand,
 					args,
-				} => {
-					let other_ident: syn::Ident = syn::parse_str(brand).ok()?;
-					build_applied_type(&other_ident, kind_ident, args)?
-				}
+				} => build_applied_type(brand, kind_ident, args)?,
 			};
 
 			fn_types.push(parse_quote!(fn(#(#input_types),*) -> #output_type));
@@ -1271,15 +1263,13 @@ fn build_closure_param(
 	let mut input_types: Vec<syn::Type> = Vec::new();
 	for param in &arrow.inputs {
 		match param {
-			DispatchArrowParam::TypeParam(name) => {
-				let ident: syn::Ident = syn::parse_str(name).ok()?;
+			DispatchArrowParam::TypeParam(ident) => {
 				input_types.push(parse_quote!(#ident));
 			}
 			DispatchArrowParam::AssociatedType {
 				assoc_name,
 			} => {
-				let assoc_ident: syn::Ident = syn::parse_str(assoc_name).ok()?;
-				input_types.push(parse_quote!(#brand_ident::#assoc_ident));
+				input_types.push(parse_quote!(#brand_ident::#assoc_name));
 			}
 			DispatchArrowParam::SubArrow(_) => {
 				// SubArrow is only used in tuple closures, not single closures
@@ -1289,15 +1279,12 @@ fn build_closure_param(
 	}
 
 	let output_type: syn::Type = match &arrow.output {
-		ArrowOutput::Plain(s) => syn::parse_str(s).ok()?,
+		ArrowOutput::Plain(ty) => *ty.clone(),
 		ArrowOutput::BrandApplied(args) => build_applied_type(brand_ident, kind_ident, args)?,
 		ArrowOutput::OtherApplied {
 			brand,
 			args,
-		} => {
-			let other_ident: syn::Ident = syn::parse_str(brand).ok()?;
-			build_applied_type(&other_ident, kind_ident, args)?
-		}
+		} => build_applied_type(brand, kind_ident, args)?,
 	};
 
 	Some(parse_quote!(f: impl Fn(#(#input_types),*) -> #output_type + 'a))
@@ -1312,15 +1299,14 @@ fn build_return_type(
 	use crate::analysis::dispatch::ReturnStructure;
 
 	match ret {
-		ReturnStructure::Plain(var) => Some(syn::parse_str(var).ok()?),
+		ReturnStructure::Plain(ty) => Some(*ty.clone()),
 		ReturnStructure::Applied(args) => build_applied_type(brand_ident, kind_ident, args),
 		ReturnStructure::Nested {
 			outer_param,
 			inner_args,
 		} => {
-			let outer_ident: syn::Ident = syn::parse_str(outer_param).ok()?;
 			let inner_type = build_applied_type(brand_ident, kind_ident, inner_args)?;
-			Some(parse_quote!(<#outer_ident as #kind_ident>::Of<'a, #inner_type>))
+			Some(parse_quote!(<#outer_param as #kind_ident>::Of<'a, #inner_type>))
 		}
 		ReturnStructure::Tuple(elements) => {
 			let elem_types: Vec<syn::Type> = elements
@@ -1333,13 +1319,12 @@ fn build_return_type(
 			outer_param,
 			inner_elements,
 		} => {
-			let outer_ident: syn::Ident = syn::parse_str(outer_param).ok()?;
 			let tuple_types: Vec<syn::Type> = inner_elements
 				.iter()
 				.filter_map(|args| build_applied_type(brand_ident, kind_ident, args))
 				.collect();
 			let tuple_type: syn::Type = parse_quote!((#(#tuple_types),*));
-			Some(parse_quote!(<#outer_ident as #kind_ident>::Of<'a, #tuple_type>))
+			Some(parse_quote!(<#outer_param as #kind_ident>::Of<'a, #tuple_type>))
 		}
 	}
 }
