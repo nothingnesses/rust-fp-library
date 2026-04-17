@@ -1,4 +1,4 @@
-// Slot + production FunctorDispatch composition POC.
+// InferableBrand + production FunctorDispatch composition POC.
 //
 // -- Background --
 //
@@ -12,11 +12,11 @@
 // turbofish path.
 //
 // A separate POC (`slot_production_poc.rs`) validated that a
-// `Slot<Brand, A> for FA` trait with per-brand impls lets closure
+// `InferableBrand<Brand, A> for FA` trait with per-brand impls lets closure
 // input types disambiguate Brand, but it used a bespoke
 // `MapDispatch` shim rather than the production FunctorDispatch. This
-// file composes Slot directly with the production `FunctorDispatch`
-// to check whether Slot's brand-inference axis and FunctorDispatch's
+// file composes InferableBrand directly with the production `FunctorDispatch`
+// to check whether InferableBrand's brand-inference axis and FunctorDispatch's
 // Val/Ref Marker axis can both be inferred simultaneously.
 //
 // -- Findings --
@@ -43,7 +43,7 @@
 //                              below).
 //
 // NOTE: the Ref + multi-brand gap was later resolved by a different
-// approach (`slot_marker_via_slot_poc.rs`): lifting Marker into Slot
+// approach (`slot_marker_via_slot_poc.rs`): lifting Marker into InferableBrand
 // as an associated type so it commits from FA's reference-ness before
 // Brand resolution begins.
 
@@ -76,60 +76,63 @@ use {
 };
 
 // -------------------------------------------------------------------------
-// Slot trait (marker-only variant).
+// InferableBrand trait (marker-only variant).
 // -------------------------------------------------------------------------
 //
-// Finding from an earlier iteration: a Slot trait with its own `Out<B>`
+// Finding from an earlier iteration: a InferableBrand trait with its own `Out<B>`
 // GAT does not unify with FunctorDispatch's `Apply!(Brand::Of<'a, B>)`
 // return type, even when structurally equal. Rust treats the two
 // associated-type projections as distinct, producing E0308 in the
 // map_via_slot body.
 //
-// This variant keeps Slot as a pure marker asserting
+// This variant keeps InferableBrand as a pure marker asserting
 // `Brand::Of<'a, A> = Self`, with no associated types. The
 // map_via_slot return type is then expressed directly as
 // `Apply!(Brand::Of<'a, B>)` matching FunctorDispatch's dispatcher
 // return type. This avoids the projection mismatch.
 
 #[allow(non_camel_case_types)]
-pub trait Slot_cdc7cd43dac7585f<'a, Brand, A: 'a>
+pub trait InferableBrand_cdc7cd43dac7585f<'a, Brand, A: 'a>
 where
 	Brand: Kind_cdc7cd43dac7585f, {
 }
 
 // Direct marker impls per brand.
 
-impl<'a, A: 'a> Slot_cdc7cd43dac7585f<'a, OptionBrand, A> for Option<A> {}
+impl<'a, A: 'a> InferableBrand_cdc7cd43dac7585f<'a, OptionBrand, A> for Option<A> {}
 
-impl<'a, A: 'a> Slot_cdc7cd43dac7585f<'a, VecBrand, A> for Vec<A> {}
+impl<'a, A: 'a> InferableBrand_cdc7cd43dac7585f<'a, VecBrand, A> for Vec<A> {}
 
-impl<'a, A: 'a, E: 'static> Slot_cdc7cd43dac7585f<'a, ResultErrAppliedBrand<E>, A>
+impl<'a, A: 'a, E: 'static> InferableBrand_cdc7cd43dac7585f<'a, ResultErrAppliedBrand<E>, A>
 	for Result<A, E>
 {
 }
 
-impl<'a, T: 'static, A: 'a> Slot_cdc7cd43dac7585f<'a, ResultOkAppliedBrand<T>, A> for Result<T, A> {}
+impl<'a, T: 'static, A: 'a> InferableBrand_cdc7cd43dac7585f<'a, ResultOkAppliedBrand<T>, A>
+	for Result<T, A>
+{
+}
 
-impl<'a, A: 'a, Config: LazyConfig> Slot_cdc7cd43dac7585f<'a, LazyBrand<Config>, A>
+impl<'a, A: 'a, Config: LazyConfig> InferableBrand_cdc7cd43dac7585f<'a, LazyBrand<Config>, A>
 	for Lazy<'a, A, Config>
 {
 }
 
-// Reference blanket: &T inherits T's Slot impls.
+// Reference blanket: &T inherits T's InferableBrand impls.
 
-impl<'a, T: ?Sized, Brand, A: 'a> Slot_cdc7cd43dac7585f<'a, Brand, A> for &T
+impl<'a, T: ?Sized, Brand, A: 'a> InferableBrand_cdc7cd43dac7585f<'a, Brand, A> for &T
 where
-	T: Slot_cdc7cd43dac7585f<'a, Brand, A>,
+	T: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>,
 	Brand: Kind_cdc7cd43dac7585f,
 {
 }
 
 // -------------------------------------------------------------------------
-// map_via_slot: Slot-bound dispatch using the production FunctorDispatch
+// map_via_slot: InferableBrand-bound dispatch using the production FunctorDispatch
 // trait and Val/Ref marker.
 // -------------------------------------------------------------------------
 //
-// This is the core signature under test. Brand is resolved via Slot
+// This is the core signature under test. Brand is resolved via InferableBrand
 // (keyed on FA + A); Marker is resolved via FunctorDispatch (keyed on
 // the closure's input type). Both must be inferable from the call site.
 
@@ -139,7 +142,7 @@ pub fn map_via_slot<'a, FA, A: 'a, B: 'a, Brand, Marker>(
 ) -> Apply!(<Brand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>)
 where
 	Brand: Kind_cdc7cd43dac7585f,
-	FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+	FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 	f.dispatch(fa)
 }
 
@@ -224,13 +227,13 @@ fn val_result_ok_with_err_value() {
 // -------------------------------------------------------------------------
 //
 // FINDING: these tests DO NOT COMPILE under the simple composition
-// `FunctorDispatch<'a, Brand, A, B, FA, Marker>` + `FA: Slot<'a, Brand, A>`
+// `FunctorDispatch<'a, Brand, A, B, FA, Marker>` + `FA: InferableBrand<'a, Brand, A>`
 // signature used in `map_via_slot`.
 //
 // Error: E0283 "cannot infer type for type parameter `Brand`" with notes
 // naming multiple FunctorDispatch impls for
 // `{closure}: FunctorDispatch<'_, _, _, _, &Result<i32, String>, _>` and
-// multiple Slot impls for `Result<i32, String>: Slot<'_, _, _>`.
+// multiple InferableBrand impls for `Result<i32, String>: InferableBrand<'_, _, _>`.
 //
 // What's happening: the Ref FunctorDispatch impl's Self-type is
 // `&'b Apply!(Brand::Of<'a, A>)`. Rust unifies this with &Result<i32, String>
@@ -317,7 +320,7 @@ pub fn map_via_slot_ref_only<'a, FA, A: 'a, B: 'a, Brand>(
 ) -> Apply!(<Brand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>)
 where
 	Brand: Kind_cdc7cd43dac7585f,
-	FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+	FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 	f.dispatch(fa)
 }
 
@@ -339,11 +342,11 @@ fn probe_ref_only_multi_brand() {
 }
 
 // -------------------------------------------------------------------------
-// Explicit-brand variant: map function bounded on Slot with Brand
+// Explicit-brand variant: map function bounded on InferableBrand with Brand
 // pinned via turbofish.
 // -------------------------------------------------------------------------
 //
-// With Brand fixed at the call site, Slot's only job is to assert
+// With Brand fixed at the call site, InferableBrand's only job is to assert
 // `Brand::Of<'a, A> = Self`. The closure's input type fixes A (as in
 // any `Fn(A) -> B` bound), and FA is inferred from the container
 // argument. This factoring works in every case the
@@ -357,7 +360,7 @@ pub fn map_explicit<'a, Brand, A: 'a, B: 'a, FA, Marker>(
 ) -> Apply!(<Brand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>)
 where
 	Brand: Kind_cdc7cd43dac7585f,
-	FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+	FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 	f.dispatch(fa)
 }
 
@@ -410,7 +413,7 @@ fn map_explicit_diagonal() {
 // dispatch signature.
 // -------------------------------------------------------------------------
 //
-// Kept commented. Uncomment to reproduce E0283 under the Slot +
+// Kept commented. Uncomment to reproduce E0283 under the InferableBrand +
 // FunctorDispatch + Marker composition.
 //
 // #[test]

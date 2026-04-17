@@ -18,7 +18,7 @@
 //
 // - Val impl: Self = Brand::Of<A>, closure is Fn(A) -> B
 // - Ref impl: Self = &Brand::Of<A>, closure is Fn(&A) -> B
-// - Marker is projected from <FA as Slot<Brand, A>>::Marker
+// - Marker is projected from <FA as InferableBrand<Brand, A>>::Marker
 //
 // The current dispatch/semiapplicative.rs handles Val only. The
 // challenge for unification is that apply's FnBrand bound depends on
@@ -45,7 +45,7 @@
 // -- Approach B: CloneFn<Marker> --
 //
 // The inference wrapper bounds FnBrand: CloneFn<Marker> where Marker
-// is projected from the Slot trait. Since Val and Ref ARE the
+// is projected from the InferableBrand trait. Since Val and Ref ARE the
 // ClosureMode types (they implement ClosureMode directly), this bound
 // selects the correct CloneFn mode automatically. FnBrandSlot gains a
 // Mode parameter to disambiguate Val and Ref wrapper types.
@@ -63,7 +63,7 @@
 // All three approaches should compile and work for both Val and Ref
 // dispatch with single-brand types (Option, Vec). Multi-brand types
 // (Result) are expected to need explicit Brand turbofish due to the
-// Slot-based inference limitation (no closure to anchor the element
+// InferableBrand-based inference limitation (no closure to anchor the element
 // type). Approach B is expected to be the cleanest since the CloneFn
 // bound precisely matches the dispatch mode.
 //
@@ -75,7 +75,7 @@
 //
 // MULTI-BRAND TYPES (Result) require explicit Brand turbofish, same as
 // the existing explicit::apply / ref_apply. This is an inherent
-// limitation of Slot-based inference: Result has two Slot impls and
+// limitation of InferableBrand-based inference: Result has two InferableBrand impls and
 // apply has no user closure to anchor the element type (unlike map/bind
 // where the closure pins A and disambiguates). For multi-brand apply,
 // users must use explicit::apply or ref_apply with a Brand turbofish.
@@ -90,7 +90,7 @@
 //   - Would reject a hypothetical FnBrand implementing only one mode.
 //
 // Approach B (CloneFn<Marker>):
-//   FnBrand: CloneFn<Marker> where Marker from Slot
+//   FnBrand: CloneFn<Marker> where Marker from InferableBrand
 //   + Precise bound: only requires the mode that matches the dispatch.
 //   + FnBrandSlot with Mode parameter provides clean disambiguation.
 //   + Marker: ClosureMode bound is always satisfied (Val/Ref are the
@@ -169,8 +169,8 @@ use {
 		},
 		functions::lift_fn_new,
 		kinds::{
+			InferableBrand_cdc7cd43dac7585f,
 			Kind_cdc7cd43dac7585f,
-			Slot_cdc7cd43dac7585f,
 		},
 	},
 	std::rc::Rc,
@@ -194,8 +194,8 @@ use {
 // genuinely different (Fn(A)->B vs Fn(&A)->B are different trait
 // objects even though Fn(&A)->B could match Fn(A)->B with A=&A').
 //
-// The Mode parameter is linked to the Slot Marker, so the solver
-// uses the known Marker to select the correct FnBrandSlot impl.
+// The Mode parameter is linked to the InferableBrand Marker, so the solver
+// uses the known Marker to select the correct FnBrandInferableBrand impl.
 
 trait FnBrandSlotModed<FnBrand, A, B, Mode = Val> {}
 
@@ -338,8 +338,8 @@ mod approach_a {
 		A: 'a,
 		B: 'a,
 		W: 'a + FnBrandSlotBroad<FnBrand>,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>,
-		FF: Slot_cdc7cd43dac7585f<'a, Brand, W>
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>,
+		FF: InferableBrand_cdc7cd43dac7585f<'a, Brand, W>
 			+ ApplyDispatch<
 				'a,
 				FnBrand,
@@ -348,7 +348,7 @@ mod approach_a {
 				B,
 				W,
 				FA,
-				<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+				<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 			>, {
 		ff.dispatch(fa)
 	}
@@ -359,7 +359,7 @@ mod approach_a {
 // =========================================================================
 //
 // The inference wrapper bounds FnBrand: CloneFn<Marker> where Marker
-// is projected from the Slot trait. Val and Ref implement ClosureMode,
+// is projected from the InferableBrand trait. Val and Ref implement ClosureMode,
 // so CloneFn<Val> and CloneFn<Ref> are selected automatically.
 //
 // FnBrandSlot uses the Mode parameter to disambiguate Val and Ref
@@ -456,11 +456,16 @@ mod approach_b {
 		A: 'a,
 		B: 'a,
 		W: 'a,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>,
-		<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker: ClosureMode,
-		FnBrand: CloneFn<<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker> + 'a,
-		W: FnBrandSlotModed<FnBrand, A, B, <FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker>,
-		FF: Slot_cdc7cd43dac7585f<'a, Brand, W>
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>,
+		<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker: ClosureMode,
+		FnBrand: CloneFn<<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker> + 'a,
+		W: FnBrandSlotModed<
+				FnBrand,
+				A,
+				B,
+				<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			>,
+		FF: InferableBrand_cdc7cd43dac7585f<'a, Brand, W>
 			+ ApplyDispatch<
 				'a,
 				FnBrand,
@@ -469,7 +474,7 @@ mod approach_b {
 				B,
 				W,
 				FA,
-				<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+				<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 			>, {
 		ff.dispatch(fa)
 	}
@@ -579,8 +584,8 @@ mod approach_c {
 		A: 'a,
 		B: 'a,
 		W: 'a + FnBrandSlotBroad<FnBrand>,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>,
-		FF: Slot_cdc7cd43dac7585f<'a, Brand, W>
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>,
+		FF: InferableBrand_cdc7cd43dac7585f<'a, Brand, W>
 			+ ApplyDispatch<
 				'a,
 				FnBrand,
@@ -589,7 +594,7 @@ mod approach_c {
 				B,
 				W,
 				FA,
-				<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+				<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 			>, {
 		ff.dispatch(fa)
 	}
@@ -624,14 +629,14 @@ fn approach_a_ref_option() {
 }
 
 // Multi-brand types (Result) cannot use the unified inference wrapper
-// because Result has two Slot impls and the solver cannot intersect
+// because Result has two InferableBrand impls and the solver cannot intersect
 // them without a closure to anchor the element type (unlike map/bind
 // where the closure pins A). For multi-brand apply, users fall back
 // to the library's explicit::apply / ref_apply with Brand turbofish.
 //
 // Cross-validation: verify the Val and Ref type class methods work
 // correctly for Result (confirming the dispatch trait can be wired to
-// the right method; only the inference wrapper's Slot resolution
+// the right method; only the inference wrapper's InferableBrand resolution
 // fails for multi-brand).
 #[test]
 fn approach_a_val_result_crosscheck() {

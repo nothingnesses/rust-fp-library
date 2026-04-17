@@ -207,7 +207,7 @@ pub(crate) mod inner {
 	/// brand from the container type.
 	///
 	/// This is the primary API for bimapping. The `Brand` type parameter is
-	/// inferred from the concrete type of `p` via the `Slot` trait. Both
+	/// inferred from the concrete type of `p` via the `InferableBrand` trait. Both
 	/// owned and borrowed containers are supported.
 	///
 	/// For types that need an explicit brand, use
@@ -221,7 +221,7 @@ pub(crate) mod inner {
 		"The type of the first result.",
 		"The type of the second value.",
 		"The type of the second result.",
-		"The brand, inferred via Slot from FA and the closure's input type."
+		"The brand, inferred via InferableBrand from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -256,13 +256,13 @@ pub(crate) mod inner {
 			C,
 			D,
 			FA,
-			<FA as Slot_266801a817966495<'a, Brand, A, C>>::Marker,
+			<FA as InferableBrand_266801a817966495<'a, Brand, A, C>>::Marker,
 		>,
 		p: FA,
 	) -> Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>)
 	where
 		Brand: Kind_266801a817966495,
-		FA: Slot_266801a817966495<'a, Brand, A, C>, {
+		FA: InferableBrand_266801a817966495<'a, Brand, A, C>, {
 		fg.dispatch(p)
 	}
 

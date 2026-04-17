@@ -175,7 +175,7 @@ pub(crate) mod inner {
 	/// inferring the brand from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via the `Slot` trait. Both owned and borrowed containers are supported.
+	/// via the `InferableBrand` trait. Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
 	/// [`explicit::apply_first`](crate::functions::explicit::apply_first) with a turbofish.
@@ -186,7 +186,7 @@ pub(crate) mod inner {
 		"The first container type (owned or borrowed). Brand is inferred from this.",
 		"The type of the value(s) inside the first container.",
 		"The type of the value(s) inside the second container.",
-		"The brand, inferred via Slot from FA and the element type."
+		"The brand, inferred via InferableBrand from FA and the element type."
 	)]
 	///
 	#[document_parameters(
@@ -213,13 +213,19 @@ pub(crate) mod inner {
 			Brand,
 			A,
 			B,
-			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>>::FB,
 	) -> <Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>
-			+ ApplyFirstDispatch<'a, Brand, A, B, <FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>
+			+ ApplyFirstDispatch<
+				'a,
+				Brand,
+				A,
+				B,
+				<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			>, {
 		fa.dispatch(fb)
 	}
 

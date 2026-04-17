@@ -35,11 +35,11 @@
 // Self-type, and coherence checks impl heads globally without caring
 // about that positional detail.
 //
-// Why `Slot<Brand, A>` doesn't hit this: Slot has Brand as a trait
-// PARAMETER. The two Slot impls have:
+// Why `InferableBrand<Brand, A>` doesn't hit this: InferableBrand has Brand as a trait
+// PARAMETER. The two InferableBrand impls have:
 //
-//     impl Slot<ResultErrAppliedBrand<E>, A> for Result<A, E>
-//     impl Slot<ResultOkAppliedBrand<T>, A> for Result<T, A>
+//     impl InferableBrand<ResultErrAppliedBrand<E>, A> for Result<A, E>
+//     impl InferableBrand<ResultOkAppliedBrand<T>, A> for Result<T, A>
 //
 // Coherence sees different Brand values (`ResultErrAppliedBrand<_>` vs
 // `ResultOkAppliedBrand<_>`) as structurally distinct trait-argument
@@ -54,7 +54,7 @@
 // NOTE: the inference concern this POC attempted to address (eagerly
 // committing Brand before FunctorDispatch) was later resolved by a
 // different approach (`slot_marker_via_slot_poc.rs`): lifting Marker
-// into Slot as an associated type, where Slot's Brand parameter
+// into InferableBrand as an associated type, where InferableBrand's Brand parameter
 // provides the structural distinction coherence needs. The Marker
 // projection commits from FA's reference-ness before Brand resolves.
 //
@@ -200,7 +200,7 @@ fn ref_result_ok_side_only() {
 	// Ref + multi-brand works here, because the associated-type
 	// projection commits Brand cleanly BEFORE FunctorDispatch considers
 	// Val vs Ref - sidestepping the cross-competition issue seen with
-	// Slot's trait-parameter Brand. The broken piece is coherence on
+	// InferableBrand's trait-parameter Brand. The broken piece is coherence on
 	// the impls themselves, not the inference machinery.
 	let ok: Result<i32, String> = Ok(5);
 	let r: Result<i32, String> = map(|x: &i32| *x + 1, &ok);

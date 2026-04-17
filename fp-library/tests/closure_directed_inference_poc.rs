@@ -2,7 +2,7 @@
 //
 // Hypothesis: when a container type (e.g. `Result<A, E>`) has multiple
 // valid arity-1 brands, the closure's input type can disambiguate which
-// brand to use. A `Slot<Brand, A>` trait with one impl per candidate
+// brand to use. A `InferableBrand<Brand, A>` trait with one impl per candidate
 // brand lets trait selection unify on the unique `(Brand, A)` pair that
 // matches the concrete container type.
 //
@@ -11,7 +11,7 @@
 // unambiguously on stable rustc without turbofish or unstable features.
 //
 // Expected failure: the diagonal `Result<T, T>` case with a closure
-// consuming `T` produces two equally-valid `Slot` impls and inference
+// consuming `T` produces two equally-valid `InferableBrand` impls and inference
 // fails with E0283. The failing case is kept commented out below with
 // the expected diagnostic inline.
 //
@@ -30,13 +30,13 @@ struct OptionBrand;
 struct ResultOkBrand<E>(#[allow(dead_code)] PhantomData<E>);
 struct ResultErrBrand<T>(#[allow(dead_code)] PhantomData<T>);
 
-// -- The Slot disambiguation trait --
+// -- The InferableBrand disambiguation trait --
 //
-// `Slot<Brand, A> for Container` declares: "Container is the `Of<A>` projection
+// `InferableBrand<Brand, A> for Container` declares: "Container is the `Of<A>` projection
 // of Brand, with Brand's partially-applied parameters derived from Container's
 // remaining type parameters."
 
-trait Slot<Brand, A> {
+trait InferableBrand<Brand, A> {
 	type Out<B>;
 	fn slot_map<B>(
 		fa: Self,
@@ -46,7 +46,7 @@ trait Slot<Brand, A> {
 
 // -- Single-brand sanity check: Option --
 
-impl<A> Slot<OptionBrand, A> for Option<A> {
+impl<A> InferableBrand<OptionBrand, A> for Option<A> {
 	type Out<B> = Option<B>;
 
 	fn slot_map<B>(
@@ -59,7 +59,7 @@ impl<A> Slot<OptionBrand, A> for Option<A> {
 
 // -- Multi-brand case: Result with both slots available --
 
-impl<A, E> Slot<ResultOkBrand<E>, A> for Result<A, E> {
+impl<A, E> InferableBrand<ResultOkBrand<E>, A> for Result<A, E> {
 	type Out<B> = Result<B, E>;
 
 	fn slot_map<B>(
@@ -70,7 +70,7 @@ impl<A, E> Slot<ResultOkBrand<E>, A> for Result<A, E> {
 	}
 }
 
-impl<T, A> Slot<ResultErrBrand<T>, A> for Result<T, A> {
+impl<T, A> InferableBrand<ResultErrBrand<T>, A> for Result<T, A> {
 	type Out<B> = Result<T, B>;
 
 	fn slot_map<B>(
@@ -89,9 +89,9 @@ impl<T, A> Slot<ResultErrBrand<T>, A> for Result<T, A> {
 fn map<FA, A, B, Brand>(
 	f: impl Fn(A) -> B,
 	fa: FA,
-) -> <FA as Slot<Brand, A>>::Out<B>
+) -> <FA as InferableBrand<Brand, A>>::Out<B>
 where
-	FA: Slot<Brand, A>, {
+	FA: InferableBrand<Brand, A>, {
 	FA::slot_map(fa, f)
 }
 
@@ -132,7 +132,7 @@ fn result_err_mapping_via_closure_input_string() {
 #[test]
 fn result_ok_different_output_type() {
 	// Output type B differs from input A. Verifies B also flows through
-	// Slot::Out<B> correctly.
+	// InferableBrand::Out<B> correctly.
 	let r = map(|x: i32| x.to_string(), Ok::<i32, String>(5));
 	assert_eq!(r, Ok("5".to_string()));
 }
@@ -158,7 +158,7 @@ fn result_ok_with_err_value_present() {
 // -- Diagonal failure case --
 //
 // When both type parameters of Result are equal and the closure input matches
-// that common type, both Slot impls apply and trait selection is ambiguous.
+// that common type, both InferableBrand impls apply and trait selection is ambiguous.
 // Uncomment to observe the compile error:
 //
 // #[test]
@@ -169,9 +169,9 @@ fn result_ok_with_err_value_present() {
 //     //   error[E0283]: type annotations needed
 //     //     cannot infer type of the type parameter `Brand` declared on the
 //     //     function `map`
-//     //   note: multiple `impl`s satisfying `Result<i32, i32>: Slot<_, i32>` found
-//     //     impl<A, E> Slot<ResultOkBrand<E>, A> for Result<A, E>
-//     //     impl<T, A> Slot<ResultErrBrand<T>, A> for Result<T, A>
+//     //   note: multiple `impl`s satisfying `Result<i32, i32>: InferableBrand<_, i32>` found
+//     //     impl<A, E> InferableBrand<ResultOkBrand<E>, A> for Result<A, E>
+//     //     impl<T, A> InferableBrand<ResultErrBrand<T>, A> for Result<T, A>
 // }
 //
 // Same pattern fails for any `(T, T)`-shaped multi-brand container: `Pair<T, T>`,

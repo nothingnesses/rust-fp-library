@@ -5,7 +5,7 @@
 // The library's `FunctorDispatch<..., Marker>` trait uses `Marker` as
 // a free trait parameter with two impls: one for Val (owned container,
 // `Fn(A) -> B`) and one for Ref (borrowed container, `Fn(&A) -> B`).
-// When combined with a Slot trait that has Brand as a separate free
+// When combined with a InferableBrand trait that has Brand as a separate free
 // trait parameter, the solver sees both Val and Ref impls as candidates
 // alongside multiple Brand candidates. This "cross-competition" blocks
 // Ref + multi-brand inference.
@@ -51,8 +51,8 @@
 //
 // NOTE: a subsequent POC (`slot_marker_via_slot_poc.rs`) found a
 // different approach that works: attach Marker as an associated type
-// of the SLOT trait (not the dispatch trait), where Slot already has
-// distinct Brand parameter values between impls. Slot's `&T` blanket
+// of the SLOT trait (not the dispatch trait), where InferableBrand already has
+// distinct Brand parameter values between impls. InferableBrand's `&T` blanket
 // gives `type Marker = Ref` uniformly; direct impls give
 // `type Marker = Val`. The Marker projection commits from FA's
 // reference-ness before Brand resolution begins, eliminating
@@ -86,28 +86,31 @@ use {
 };
 
 // -------------------------------------------------------------------------
-// Slot trait (trait-parameter Brand, for coherence).
+// InferableBrand trait (trait-parameter Brand, for coherence).
 // -------------------------------------------------------------------------
 
 #[allow(non_camel_case_types)]
-pub trait Slot_cdc7cd43dac7585f<'a, Brand, A: 'a>
+pub trait InferableBrand_cdc7cd43dac7585f<'a, Brand, A: 'a>
 where
 	Brand: Kind_cdc7cd43dac7585f, {
 }
 
-impl<'a, A: 'a> Slot_cdc7cd43dac7585f<'a, OptionBrand, A> for Option<A> {}
-impl<'a, A: 'a> Slot_cdc7cd43dac7585f<'a, VecBrand, A> for Vec<A> {}
+impl<'a, A: 'a> InferableBrand_cdc7cd43dac7585f<'a, OptionBrand, A> for Option<A> {}
+impl<'a, A: 'a> InferableBrand_cdc7cd43dac7585f<'a, VecBrand, A> for Vec<A> {}
 
-impl<'a, A: 'a, E: 'static> Slot_cdc7cd43dac7585f<'a, ResultErrAppliedBrand<E>, A>
+impl<'a, A: 'a, E: 'static> InferableBrand_cdc7cd43dac7585f<'a, ResultErrAppliedBrand<E>, A>
 	for Result<A, E>
 {
 }
 
-impl<'a, T: 'static, A: 'a> Slot_cdc7cd43dac7585f<'a, ResultOkAppliedBrand<T>, A> for Result<T, A> {}
+impl<'a, T: 'static, A: 'a> InferableBrand_cdc7cd43dac7585f<'a, ResultOkAppliedBrand<T>, A>
+	for Result<T, A>
+{
+}
 
-impl<'a, T: ?Sized, Brand, A: 'a> Slot_cdc7cd43dac7585f<'a, Brand, A> for &T
+impl<'a, T: ?Sized, Brand, A: 'a> InferableBrand_cdc7cd43dac7585f<'a, Brand, A> for &T
 where
-	T: Slot_cdc7cd43dac7585f<'a, Brand, A>,
+	T: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>,
 	Brand: Kind_cdc7cd43dac7585f,
 {
 }
@@ -195,7 +198,7 @@ pub fn map<'a, FA, A: 'a, B: 'a, Brand>(
 ) -> Apply!(<Brand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>)
 where
 	Brand: Kind_cdc7cd43dac7585f,
-	FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+	FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 	f.dispatch(fa)
 }
 

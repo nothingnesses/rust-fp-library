@@ -262,7 +262,7 @@ pub(crate) mod inner {
 	/// the brand from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa` via
-	/// the `Slot` trait. `FnBrand` and `F` (the applicative brand) must still be
+	/// the `InferableBrand` trait. `FnBrand` and `F` (the applicative brand) must still be
 	/// specified explicitly.
 	///
 	/// For types that need an explicit brand, use
@@ -278,7 +278,7 @@ pub(crate) mod inner {
 		"The type of the first result.",
 		"The type of the second result.",
 		"The applicative effect brand.",
-		"The brand, inferred via Slot from FA and the closure's input type."
+		"The brand, inferred via InferableBrand from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -323,13 +323,13 @@ pub(crate) mod inner {
 			D,
 			F,
 			FA,
-			<FA as Slot_266801a817966495<'a, Brand, A, B>>::Marker,
+			<FA as InferableBrand_266801a817966495<'a, Brand, A, B>>::Marker,
 		>,
 		fa: FA,
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
 	where
 		Brand: Kind_266801a817966495,
-		FA: Slot_266801a817966495<'a, Brand, A, B>, {
+		FA: InferableBrand_266801a817966495<'a, Brand, A, B>, {
 		fg.dispatch(fa)
 	}
 

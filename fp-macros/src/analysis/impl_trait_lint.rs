@@ -60,7 +60,7 @@ pub fn find_impl_trait_candidates(sig: &Signature) -> Vec<ImplTraitCandidate> {
 
 		// 5. Not self-referential in bounds.
 		// If the param's own bounds reference itself (e.g.,
-		// `FA: JoinDispatch<..., <FA as Slot<...>>::Marker>`), it cannot use
+		// `FA: JoinDispatch<..., <FA as InferableBrand<...>>::Marker>`), it cannot use
 		// `impl Trait` because `impl Trait` cannot reference itself by name.
 		if is_self_referential_in_bounds(&all_bounds, &name) {
 			continue;
@@ -197,7 +197,7 @@ fn is_cross_referenced(
 /// Check if the type parameter appears inside its own bounds.
 ///
 /// When a param's bounds reference itself (e.g.,
-/// `FA: JoinDispatch<..., <FA as Slot<...>>::Marker>`), the param cannot use
+/// `FA: JoinDispatch<..., <FA as InferableBrand<...>>::Marker>`), the param cannot use
 /// `impl Trait` because `impl Trait` cannot reference itself by name.
 fn is_self_referential_in_bounds(
 	bounds: &[&TypeParamBound],
@@ -760,7 +760,7 @@ mod tests {
 	fn test_self_referential_bound_not_candidate() {
 		// FA's own bound references FA via a projection: cannot use impl Trait
 		let sig = parse_sig(
-			"fn join<FA, A>(mma: FA) where FA: Slot<A> + Dispatch<A, <FA as Slot<A>>::Marker>",
+			"fn join<FA, A>(mma: FA) where FA: InferableBrand<A> + Dispatch<A, <FA as InferableBrand<A>>::Marker>",
 		);
 		let candidates = find_impl_trait_candidates(&sig);
 		assert!(candidates.is_empty());

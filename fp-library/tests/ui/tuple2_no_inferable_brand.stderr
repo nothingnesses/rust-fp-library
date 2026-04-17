@@ -4,7 +4,7 @@ error[E0284]: type annotations needed
 9 |     let _ = map(|x: i32| x + 1, (1i32, 2i32));
   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type for type parameter `Brand` declared on the function `map`
   |
-  = note: cannot satisfy `<(i32, i32) as Slot_cdc7cd43dac7585f<'_, _, i32>>::Marker == Val`
+  = note: cannot satisfy `<(i32, i32) as InferableBrand_cdc7cd43dac7585f<'_, _, i32>>::Marker == Val`
 
 error[E0283]: type annotations needed
  --> tests/ui/tuple2_no_inferable_brand.rs:9:30
@@ -14,10 +14,10 @@ error[E0283]: type annotations needed
   |             |
   |             required by a bound introduced by this call
   |
-  = note: multiple `impl`s satisfying `(i32, i32): Slot_cdc7cd43dac7585f<'_, _, i32>` found in the `fp_library` crate:
-          - impl<'a, A, First> Slot_cdc7cd43dac7585f<'a, Tuple2FirstAppliedBrand<First>, A> for (First, A)
+  = note: multiple `impl`s satisfying `(i32, i32): InferableBrand_cdc7cd43dac7585f<'_, _, i32>` found in the `fp_library` crate:
+          - impl<'a, A, First> InferableBrand_cdc7cd43dac7585f<'a, Tuple2FirstAppliedBrand<First>, A> for (First, A)
             where A: 'a, First: 'static;
-          - impl<'a, A, Second> Slot_cdc7cd43dac7585f<'a, Tuple2SecondAppliedBrand<Second>, A> for (A, Second)
+          - impl<'a, A, Second> InferableBrand_cdc7cd43dac7585f<'a, Tuple2SecondAppliedBrand<Second>, A> for (A, Second)
             where A: 'a, Second: 'static;
 note: required by a bound in `fp_library::functions::map`
  --> src/dispatch/functor.rs
@@ -25,5 +25,5 @@ note: required by a bound in `fp_library::functions::map`
   |     pub fn map<'a, FA, A: 'a, B: 'a, Brand>(
   |            --- required by a bound in this function
 ...
-  |         FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
-  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `map`
+  |         FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `map`

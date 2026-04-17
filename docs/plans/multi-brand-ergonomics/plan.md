@@ -108,6 +108,14 @@ POC files (brand_inference_feasibility.rs, closureless_dispatch_poc.rs),
 updated kinds.rs module docs. No InferableBrand references remain in
 any source file.
 
+Phase 4 complete. Renamed Slot to InferableBrand throughout the
+codebase: `Slot_` -> `InferableBrand_`, `SLOT_PREFIX` ->
+`INFERABLE_BRAND_PREFIX`, `generate_slot_name` ->
+`generate_inferable_brand_name`, all comments and doc strings
+updated. Regenerated compile-fail UI test stderr snapshots.
+POC test files retain their internal hand-written trait names
+(SlotM, SlotB, SlotApp, etc.) since they are self-contained.
+
 ## Open questions, issues and blockers
 
 None at this time. Previously resolved:

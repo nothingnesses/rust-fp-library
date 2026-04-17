@@ -1,10 +1,10 @@
-// Marker-via-Slot POC (adopted design).
+// Marker-via-InferableBrand POC (adopted design).
 //
 // -- Background --
 //
 // The library's `FunctorDispatch<..., Marker>` trait has two impls:
 // Val (owned container, `Fn(A) -> B`) and Ref (borrowed container,
-// `Fn(&A) -> B`). When combined with a Slot trait that has Brand as
+// `Fn(&A) -> B`). When combined with a InferableBrand trait that has Brand as
 // a free trait parameter, the solver sees both Val and Ref impls as
 // candidates. This "cross-competition" blocks Ref + multi-brand
 // inference because Brand cannot commit while Marker is also free.
@@ -25,13 +25,13 @@
 // Attach Marker as an associated type of SLOT (not of the dispatch
 // trait). The `&T` blanket sets `type Marker = Ref`; direct impls
 // for owned types set `type Marker = Val`. The inference wrapper
-// projects `<FA as Slot<...>>::Marker` so that Marker commits from
+// projects `<FA as InferableBrand<...>>::Marker` so that Marker commits from
 // FA's reference-ness alone, without needing (Brand, A) to be
 // resolved. Once Marker commits, FunctorDispatch picks the unique
 // matching Val or Ref impl; the closure's Fn signature pins A; and
-// Slot's (Brand, A) ambiguity resolves from there.
+// InferableBrand's (Brand, A) ambiguity resolves from there.
 //
-// Coherence is not an issue because Slot already has distinct
+// Coherence is not an issue because InferableBrand already has distinct
 // trait-argument patterns (the Brand parameter differs between
 // multi-brand impls). The associated-type Marker rides alongside
 // Brand without being the sole disambiguator.
@@ -73,7 +73,7 @@ use {
 };
 
 // -------------------------------------------------------------------------
-// Slot with associated Marker.
+// InferableBrand with associated Marker.
 // -------------------------------------------------------------------------
 
 #[allow(non_camel_case_types)]
@@ -120,7 +120,7 @@ where
 }
 
 // -------------------------------------------------------------------------
-// Unified map function: Marker projected from Slot.
+// Unified map function: Marker projected from InferableBrand.
 // -------------------------------------------------------------------------
 
 pub fn map<'a, FA, A: 'a, B: 'a, Brand>(

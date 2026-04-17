@@ -2,8 +2,8 @@
 //
 // -- Background --
 //
-// The Slot-based brand inference mechanism works by letting the
-// closure's input type pin A, which then selects a unique Slot impl
+// The InferableBrand-based brand inference mechanism works by letting the
+// closure's input type pin A, which then selects a unique InferableBrand impl
 // and commits Brand. This is validated for concrete types (e.g.,
 // `Result<i32, String>`) in `slot_marker_via_slot_poc.rs`.
 //
@@ -12,10 +12,10 @@
 //
 //     fn process<E>(r: Result<i32, E>) { map(|x: i32| x + 1, r) }
 //
-// Here Result<i32, E> has two Slot impls:
-//   - Slot<ResultErrAppliedBrand<E>, i32> for Result<i32, E>.
+// Here Result<i32, E> has two InferableBrand impls:
+//   - InferableBrand<ResultErrAppliedBrand<E>, i32> for Result<i32, E>.
 //     The closure pins A = i32; this impl matches directly.
-//   - Slot<ResultOkAppliedBrand<i32>, E> for Result<i32, E>.
+//   - InferableBrand<ResultOkAppliedBrand<i32>, E> for Result<i32, E>.
 //     The closure pins A = i32, but this impl has A = E. It would
 //     match only if E = i32, which Rust cannot rule out since E is
 //     unconstrained.
@@ -34,7 +34,7 @@
 // -- Finding --
 //
 // CONFIRMED: all 9 cases pass on stable rustc 1.94.1. Rust's solver
-// correctly commits to the Slot impl whose A matches the closure's
+// correctly commits to the InferableBrand impl whose A matches the closure's
 // concrete input type, even when the other impl cannot be statically
 // ruled out (because the generic parameter could in principle equal
 // the closure's input type). The solver does not require exhaustive
@@ -68,37 +68,39 @@ use {
 };
 
 // -------------------------------------------------------------------------
-// Slot trait (same as POC 5, the adopted design).
+// InferableBrand trait (same as POC 5, the adopted design).
 // -------------------------------------------------------------------------
 
 #[allow(non_camel_case_types)]
-pub trait Slot_cdc7cd43dac7585f<'a, Brand, A: 'a>
+pub trait InferableBrand_cdc7cd43dac7585f<'a, Brand, A: 'a>
 where
 	Brand: Kind_cdc7cd43dac7585f, {
 	type Marker;
 }
 
-impl<'a, A: 'a> Slot_cdc7cd43dac7585f<'a, OptionBrand, A> for Option<A> {
+impl<'a, A: 'a> InferableBrand_cdc7cd43dac7585f<'a, OptionBrand, A> for Option<A> {
 	type Marker = Val;
 }
 
-impl<'a, A: 'a> Slot_cdc7cd43dac7585f<'a, VecBrand, A> for Vec<A> {
+impl<'a, A: 'a> InferableBrand_cdc7cd43dac7585f<'a, VecBrand, A> for Vec<A> {
 	type Marker = Val;
 }
 
-impl<'a, A: 'a, E: 'static> Slot_cdc7cd43dac7585f<'a, ResultErrAppliedBrand<E>, A>
+impl<'a, A: 'a, E: 'static> InferableBrand_cdc7cd43dac7585f<'a, ResultErrAppliedBrand<E>, A>
 	for Result<A, E>
 {
 	type Marker = Val;
 }
 
-impl<'a, T: 'static, A: 'a> Slot_cdc7cd43dac7585f<'a, ResultOkAppliedBrand<T>, A> for Result<T, A> {
+impl<'a, T: 'static, A: 'a> InferableBrand_cdc7cd43dac7585f<'a, ResultOkAppliedBrand<T>, A>
+	for Result<T, A>
+{
 	type Marker = Val;
 }
 
-impl<'a, T: ?Sized, Brand, A: 'a> Slot_cdc7cd43dac7585f<'a, Brand, A> for &T
+impl<'a, T: ?Sized, Brand, A: 'a> InferableBrand_cdc7cd43dac7585f<'a, Brand, A> for &T
 where
-	T: Slot_cdc7cd43dac7585f<'a, Brand, A>,
+	T: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>,
 	Brand: Kind_cdc7cd43dac7585f,
 {
 	type Marker = Ref;
@@ -109,12 +111,19 @@ where
 // -------------------------------------------------------------------------
 
 pub fn map<'a, FA, A: 'a, B: 'a, Brand>(
-	f: impl FunctorDispatch<'a, Brand, A, B, FA, <FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker>,
+	f: impl FunctorDispatch<
+		'a,
+		Brand,
+		A,
+		B,
+		FA,
+		<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+	>,
 	fa: FA,
 ) -> Apply!(<Brand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>)
 where
 	Brand: Kind_cdc7cd43dac7585f,
-	FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+	FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 	f.dispatch(fa)
 }
 
@@ -216,7 +225,7 @@ fn test_both_generic_map_err() {
 }
 
 // -- Case 7: generic fixed param with a trait bound --
-// Verifies bounds on E don't interfere with Slot resolution.
+// Verifies bounds on E don't interfere with InferableBrand resolution.
 
 fn generic_err_with_bound<E: 'static + std::fmt::Debug>(r: Result<i32, E>) -> Result<String, E> {
 	map(|x: i32| format!("{x}"), r)

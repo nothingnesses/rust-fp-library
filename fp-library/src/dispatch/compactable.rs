@@ -273,7 +273,7 @@ pub(crate) mod inner {
 	/// from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via the `Slot` trait. Both owned and borrowed containers are supported.
+	/// via the `InferableBrand` trait. Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
 	/// [`explicit::compact`](crate::functions::explicit::compact) with a turbofish.
@@ -283,7 +283,7 @@ pub(crate) mod inner {
 		"The lifetime of the values.",
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The type of the value(s) inside the `Option` wrappers.",
-		"The brand, inferred via Slot from FA and the element type."
+		"The brand, inferred via InferableBrand from FA and the element type."
 	)]
 	///
 	#[document_parameters("The container of `Option` values (owned or borrowed).")]
@@ -302,12 +302,12 @@ pub(crate) mod inner {
 	pub fn compact<'a, FA, A: 'a, Brand>(fa: FA) -> <Brand as Kind_cdc7cd43dac7585f>::Of<'a, A>
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, Option<A>>
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, Option<A>>
 			+ CompactDispatch<
 				'a,
 				Brand,
 				A,
-				<FA as Slot_cdc7cd43dac7585f<'a, Brand, Option<A>>>::Marker,
+				<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, Option<A>>>::Marker,
 			>, {
 		fa.dispatch()
 	}
@@ -316,7 +316,7 @@ pub(crate) mod inner {
 	/// the brand from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via the `Slot` trait. Both owned and borrowed containers are supported.
+	/// via the `InferableBrand` trait. Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
 	/// [`explicit::separate`](crate::functions::explicit::separate) with a turbofish.
@@ -327,7 +327,7 @@ pub(crate) mod inner {
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The error type inside the `Result` wrappers.",
 		"The success type inside the `Result` wrappers.",
-		"The brand, inferred via Slot from FA and the element type."
+		"The brand, inferred via InferableBrand from FA and the element type."
 	)]
 	///
 	#[document_parameters("The container of `Result` values (owned or borrowed).")]
@@ -347,13 +347,13 @@ pub(crate) mod inner {
 	) -> (<Brand as Kind_cdc7cd43dac7585f>::Of<'a, E>, <Brand as Kind_cdc7cd43dac7585f>::Of<'a, O>)
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, Result<O, E>>
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, Result<O, E>>
 			+ SeparateDispatch<
 				'a,
 				Brand,
 				E,
 				O,
-				<FA as Slot_cdc7cd43dac7585f<'a, Brand, Result<O, E>>>::Marker,
+				<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, Result<O, E>>>::Marker,
 			>, {
 		fa.dispatch()
 	}

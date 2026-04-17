@@ -450,7 +450,7 @@ pub(crate) mod inner {
 	/// inferring the brand from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `ta`
-	/// via the `Slot` trait. `FnBrand` and `M` (the applicative brand) must
+	/// via the `InferableBrand` trait. `FnBrand` and `M` (the applicative brand) must
 	/// still be specified explicitly.
 	/// Both owned and borrowed containers are supported.
 	///
@@ -466,7 +466,7 @@ pub(crate) mod inner {
 		"The type of the elements in the input structure.",
 		"The error type.",
 		"The success type.",
-		"The brand, inferred via Slot from FA and the closure's input type."
+		"The brand, inferred via InferableBrand from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -499,7 +499,7 @@ pub(crate) mod inner {
 			E,
 			O,
 			FA,
-			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		ta: FA,
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -511,7 +511,7 @@ pub(crate) mod inner {
 	>)
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		func.dispatch(ta)
 	}
 
@@ -519,7 +519,7 @@ pub(crate) mod inner {
 	/// inferring the brand from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `ta`
-	/// via the `Slot` trait. `FnBrand` and `M` (the applicative brand) must
+	/// via the `InferableBrand` trait. `FnBrand` and `M` (the applicative brand) must
 	/// still be specified explicitly.
 	/// Both owned and borrowed containers are supported.
 	///
@@ -534,7 +534,7 @@ pub(crate) mod inner {
 		"The applicative functor brand (must be specified explicitly).",
 		"The type of the elements in the input structure.",
 		"The type of the elements in the output structure.",
-		"The brand, inferred via Slot from FA and the closure's input type."
+		"The brand, inferred via InferableBrand from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -566,7 +566,7 @@ pub(crate) mod inner {
 			A,
 			B,
 			FA,
-			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		ta: FA,
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -575,7 +575,7 @@ pub(crate) mod inner {
 	>)
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		func.dispatch(ta)
 	}
 

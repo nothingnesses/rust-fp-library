@@ -197,12 +197,12 @@ pub(crate) mod inner {
 	/// Maps a function over a functor, inferring the brand from the container type.
 	///
 	/// This is the primary API for mapping. The `Brand` type parameter is
-	/// inferred from the concrete type of `fa` via the `Slot` trait. Both
+	/// inferred from the concrete type of `fa` via the `InferableBrand` trait. Both
 	/// owned and borrowed containers are supported:
 	///
 	/// - Owned: `map(|x: i32| x + 1, Some(5))` infers `OptionBrand`.
 	/// - Borrowed: `map(|x: &i32| *x + 1, &Some(5))` infers `OptionBrand`
-	///   via the blanket `impl Slot for &T`.
+	///   via the blanket `impl InferableBrand for &T`.
 	///
 	/// For multi-brand types (e.g., `Result`), the closure's input type
 	/// disambiguates which brand applies:
@@ -222,7 +222,7 @@ pub(crate) mod inner {
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The type of the value(s) inside the functor.",
 		"The type of the result(s) of applying the function.",
-		"The brand, inferred via Slot from FA and the closure's input type."
+		"The brand, inferred via InferableBrand from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -250,13 +250,13 @@ pub(crate) mod inner {
 			A,
 			B,
 			FA,
-			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa)
 	}
 

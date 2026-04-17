@@ -1,8 +1,8 @@
-// Slot-based `bind` (Semimonad) and `ref_bind` (RefSemimonad) POC.
+// InferableBrand-based `bind` (Semimonad) and `ref_bind` (RefSemimonad) POC.
 //
 // -- Background --
 //
-// The Slot trait carries Brand as a trait parameter (for coherence)
+// The InferableBrand trait carries Brand as a trait parameter (for coherence)
 // and Marker as an associated type projected from FA's reference-ness
 // (blanket for `&T` -> Ref; direct impls for owned types -> Val).
 // An earlier POC validated this for `Functor::map`, where the closure
@@ -18,7 +18,7 @@
 //
 // Brand therefore appears in two positions in the signature (the
 // input container AND the closure's return type), not just one. The
-// closure input A still drives Slot resolution, but Brand must also
+// closure input A still drives InferableBrand resolution, but Brand must also
 // be consistent with the return container.
 //
 // -- Multi-brand coverage --
@@ -26,7 +26,7 @@
 // `ResultErrAppliedBrand<E>` implements `Semimonad` (mapping over
 // the Ok side) and `RefSemimonad`. `ResultOkAppliedBrand<T>` does
 // not have a Semimonad instance, so only one multi-brand direction
-// is exercised. The test still validates that the Slot inference
+// is exercised. The test still validates that the InferableBrand inference
 // machinery works correctly for the Val/Ref x single/multi-brand
 // matrix when the closure returns a container.
 //
@@ -66,7 +66,7 @@ use {
 };
 
 // -------------------------------------------------------------------------
-// Slot (arity-1, same shape as POC 5's SlotM).
+// InferableBrand (arity-1, same shape as POC 5's SlotM).
 // -------------------------------------------------------------------------
 
 #[allow(non_camel_case_types)]
@@ -110,7 +110,7 @@ where
 }
 
 // -------------------------------------------------------------------------
-// Unified bind: Marker projected from Slot.
+// Unified bind: Marker projected from InferableBrand.
 // -------------------------------------------------------------------------
 
 pub fn bind<'a, FA, A: 'a, B: 'a, Brand>(

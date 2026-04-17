@@ -290,9 +290,9 @@ pub(crate) mod inner {
 	/// Applies a container of functions to a container of values, inferring
 	/// Brand, FnBrand, and Val/Ref dispatch from the container types.
 	///
-	/// - Brand is resolved via dual Slot bounds on FF and FA.
+	/// - Brand is resolved via dual InferableBrand bounds on FF and FA.
 	/// - FnBrand is resolved via [`FnBrandSlot`] from the wrapper type W.
-	/// - Val/Ref dispatch is resolved via the Marker projected from FA's Slot.
+	/// - Val/Ref dispatch is resolved via the Marker projected from FA's InferableBrand.
 	/// - The `CloneFn` mode is tied to the Marker via `CloneFn<Marker>`.
 	///
 	/// No turbofish arguments are needed for single-brand types.
@@ -304,7 +304,7 @@ pub(crate) mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The function-wrapping brand, inferred via FnBrandSlot.",
-		"The brand, inferred via Slot from FF and FA.",
+		"The brand, inferred via InferableBrand from FF and FA.",
 		"The type of the value(s) inside the value container.",
 		"The result type after applying the function.",
 		"The concrete wrapped-function type, inferred from FF's element type.",
@@ -348,11 +348,16 @@ pub(crate) mod inner {
 		A: 'a,
 		B: 'a,
 		W: 'a,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>,
-		<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker: ClosureMode,
-		FnBrand: CloneFn<<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker> + 'a,
-		W: FnBrandSlot<FnBrand, A, B, <FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker>,
-		FF: Slot_cdc7cd43dac7585f<'a, Brand, W>
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>,
+		<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker: ClosureMode,
+		FnBrand: CloneFn<<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker> + 'a,
+		W: FnBrandSlot<
+				FnBrand,
+				A,
+				B,
+				<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			>,
+		FF: InferableBrand_cdc7cd43dac7585f<'a, Brand, W>
 			+ ApplyDispatch<
 				'a,
 				FnBrand,
@@ -361,7 +366,7 @@ pub(crate) mod inner {
 				B,
 				W,
 				FA,
-				<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+				<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 			>, {
 		ff.dispatch(fa)
 	}

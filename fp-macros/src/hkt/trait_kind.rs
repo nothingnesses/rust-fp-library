@@ -7,8 +7,8 @@ use {
 	crate::{
 		core::Result,
 		documentation::templates::DocumentationBuilder,
+		generate_inferable_brand_name,
 		generate_name,
-		generate_slot_name,
 	},
 	proc_macro2::TokenStream,
 	quote::quote,
@@ -20,7 +20,7 @@ use {
 /// for a Higher-Kinded Type signature with multiple associated types.
 pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 	let name = generate_name(&input)?;
-	let slot_name = generate_slot_name(&input)?;
+	let inferable_brand_name = generate_inferable_brand_name(&input)?;
 
 	let assoc_types_tokens = input.associated_types.iter().map(|assoc| {
 		let ident = &assoc.signature.name;
@@ -39,9 +39,9 @@ pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 	// Build documentation using the DocumentationBuilder
 	let doc_string = DocumentationBuilder::new(&name, &input.associated_types).build();
 
-	// -- Slot trait generation --
+	// -- InferableBrand trait generation --
 	//
-	// Extract generics from the first associated type. The Slot trait's
+	// Extract generics from the first associated type. The InferableBrand trait's
 	// parameters are: the associated type's lifetimes, then Brand (bounded
 	// by the Kind trait), then the associated type's type parameters.
 
@@ -65,7 +65,7 @@ pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 	let lifetime_names: Vec<_> = lifetime_defs.iter().map(|lt| &lt.lifetime).collect();
 	let type_idents: Vec<_> = type_defs.iter().map(|tp| &tp.ident).collect();
 
-	let slot_doc_summary = format!(
+	let inferable_brand_doc_summary = format!(
 		r#"Reverse mapping from concrete types to brands for `{name}`.
 
 This trait has Brand as a trait parameter, allowing multiple implementations
@@ -81,14 +81,14 @@ type must agree on the same `Marker` value. Owned types always produce
 `Val`; references always produce `Ref`. This invariant is enforced by
 construction since `impl_kind!` is the sole generator of implementations.
 
-Slot enables closure-directed brand inference for both single-brand
+InferableBrand enables closure-directed brand inference for both single-brand
 and multi-brand types."#,
 	);
 
-	let slot_blanket_doc = format!(
+	let inferable_brand_blanket_doc = format!(
 		r#"Blanket implementation projecting `Marker = Ref` for borrowed containers.
 
-Delegates the Brand resolution to the underlying type's `{slot_name}`
+Delegates the Brand resolution to the underlying type's `{inferable_brand_name}`
 implementation while setting `Marker = Ref` to route dispatch to the
 by-reference trait method."#,
 	);
@@ -100,21 +100,21 @@ by-reference trait method."#,
 			#(#assoc_types_tokens)*
 		}
 
-		#[doc = #slot_doc_summary]
+		#[doc = #inferable_brand_doc_summary]
 		#[expect(non_camel_case_types, reason = "Generated name uses hash suffix for uniqueness")]
-		pub trait #slot_name<#(#lifetime_defs,)* __Slot_Brand: #name #(, #type_defs)*> {
+		pub trait #inferable_brand_name<#(#lifetime_defs,)* __InferableBrand_Brand: #name #(, #type_defs)*> {
 			/// Dispatch marker: [`Val`](::fp_library::dispatch::Val) for owned types,
 			/// [`Ref`](::fp_library::dispatch::Ref) for references.
 			type Marker;
 		}
 
-		#[doc = #slot_blanket_doc]
+		#[doc = #inferable_brand_blanket_doc]
 		#[expect(non_camel_case_types, reason = "Generated name uses hash suffix for uniqueness")]
-		impl<#(#lifetime_defs,)* __Slot_T: ?Sized, __Slot_Brand: #name #(, #type_defs)*>
-			#slot_name<#(#lifetime_names,)* __Slot_Brand #(, #type_idents)*>
-		for &__Slot_T
+		impl<#(#lifetime_defs,)* __InferableBrand_T: ?Sized, __InferableBrand_Brand: #name #(, #type_defs)*>
+			#inferable_brand_name<#(#lifetime_names,)* __InferableBrand_Brand #(, #type_idents)*>
+		for &__InferableBrand_T
 		where
-			__Slot_T: #slot_name<#(#lifetime_names,)* __Slot_Brand #(, #type_idents)*>,
+			__InferableBrand_T: #inferable_brand_name<#(#lifetime_names,)* __InferableBrand_Brand #(, #type_idents)*>,
 		{
 			type Marker = ::fp_library::dispatch::Ref;
 		}

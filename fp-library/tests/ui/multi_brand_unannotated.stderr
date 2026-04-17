@@ -4,7 +4,7 @@ error[E0284]: type annotations needed
 9 |     let _ = map(|x| x + 1, Ok::<i32, String>(5));
   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type for type parameter `Brand` declared on the function `map`
   |
-  = note: cannot satisfy `<Result<i32, String> as Slot_cdc7cd43dac7585f<'_, _, _>>::Marker == Val`
+  = note: cannot satisfy `<Result<i32, String> as InferableBrand_cdc7cd43dac7585f<'_, _, _>>::Marker == Val`
 
 error[E0283]: type annotations needed
  --> tests/ui/multi_brand_unannotated.rs:9:25
@@ -14,10 +14,10 @@ error[E0283]: type annotations needed
   |             |
   |             required by a bound introduced by this call
   |
-  = note: multiple `impl`s satisfying `Result<i32, String>: Slot_cdc7cd43dac7585f<'_, _, _>` found in the `fp_library` crate:
-          - impl<'a, A, E> Slot_cdc7cd43dac7585f<'a, ResultErrAppliedBrand<E>, A> for Result<A, E>
+  = note: multiple `impl`s satisfying `Result<i32, String>: InferableBrand_cdc7cd43dac7585f<'_, _, _>` found in the `fp_library` crate:
+          - impl<'a, A, E> InferableBrand_cdc7cd43dac7585f<'a, ResultErrAppliedBrand<E>, A> for Result<A, E>
             where A: 'a, E: 'static;
-          - impl<'a, A, T> Slot_cdc7cd43dac7585f<'a, ResultOkAppliedBrand<T>, A> for Result<T, A>
+          - impl<'a, A, T> InferableBrand_cdc7cd43dac7585f<'a, ResultOkAppliedBrand<T>, A> for Result<T, A>
             where A: 'a, T: 'static;
 note: required by a bound in `fp_library::functions::map`
  --> src/dispatch/functor.rs
@@ -25,5 +25,5 @@ note: required by a bound in `fp_library::functions::map`
   |     pub fn map<'a, FA, A: 'a, B: 'a, Brand>(
   |            --- required by a bound in this function
 ...
-  |         FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
-  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `map`
+  |         FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `map`

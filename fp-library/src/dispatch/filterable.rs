@@ -701,7 +701,7 @@ pub(crate) mod inner {
 	/// from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via the `Slot` trait. Both owned and borrowed containers are supported.
+	/// via the `InferableBrand` trait. Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
 	/// [`explicit::filter`](crate::functions::explicit::filter) with a turbofish.
@@ -711,7 +711,7 @@ pub(crate) mod inner {
 		"The lifetime of the values.",
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The type of the value(s) inside the filterable.",
-		"The brand, inferred via Slot from FA and the element type."
+		"The brand, inferred via InferableBrand from FA and the element type."
 	)]
 	///
 	#[document_parameters(
@@ -731,12 +731,18 @@ pub(crate) mod inner {
 	/// assert_eq!(y, Some(5));
 	/// ```
 	pub fn filter<'a, FA, A: 'a + Clone, Brand>(
-		f: impl FilterDispatch<'a, Brand, A, FA, <FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker>,
+		f: impl FilterDispatch<
+			'a,
+			Brand,
+			A,
+			FA,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+		>,
 		fa: FA,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa)
 	}
 
@@ -744,7 +750,7 @@ pub(crate) mod inner {
 	/// from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via the `Slot` trait. Both owned and borrowed containers are supported.
+	/// via the `InferableBrand` trait. Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
 	/// [`explicit::filter_map`](crate::functions::explicit::filter_map) with a turbofish.
@@ -755,7 +761,7 @@ pub(crate) mod inner {
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The type of the value(s) inside the filterable.",
 		"The type of the result(s) of applying the function.",
-		"The brand, inferred via Slot from FA and the element type."
+		"The brand, inferred via InferableBrand from FA and the element type."
 	)]
 	///
 	#[document_parameters(
@@ -779,13 +785,13 @@ pub(crate) mod inner {
 			A,
 			B,
 			FA,
-			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa)
 	}
 
@@ -793,7 +799,7 @@ pub(crate) mod inner {
 	/// from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via the `Slot` trait. Both owned and borrowed containers are supported.
+	/// via the `InferableBrand` trait. Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
 	/// [`explicit::partition`](crate::functions::explicit::partition) with a turbofish.
@@ -803,7 +809,7 @@ pub(crate) mod inner {
 		"The lifetime of the values.",
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The type of the value(s) inside the filterable.",
-		"The brand, inferred via Slot from FA and the element type."
+		"The brand, inferred via InferableBrand from FA and the element type."
 	)]
 	///
 	#[document_parameters(
@@ -822,7 +828,13 @@ pub(crate) mod inner {
 	/// assert_eq!(no, None);
 	/// ```
 	pub fn partition<'a, FA, A: 'a + Clone, Brand>(
-		f: impl PartitionDispatch<'a, Brand, A, FA, <FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker>,
+		f: impl PartitionDispatch<
+			'a,
+			Brand,
+			A,
+			FA,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+		>,
 		fa: FA,
 	) -> (
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -830,7 +842,7 @@ pub(crate) mod inner {
 	)
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa)
 	}
 
@@ -838,7 +850,7 @@ pub(crate) mod inner {
 	/// from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via the `Slot` trait. Both owned and borrowed containers are supported.
+	/// via the `InferableBrand` trait. Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
 	/// [`explicit::partition_map`](crate::functions::explicit::partition_map) with a turbofish.
@@ -850,7 +862,7 @@ pub(crate) mod inner {
 		"The type of the value(s) inside the filterable.",
 		"The error type produced by the partitioning function.",
 		"The success type produced by the partitioning function.",
-		"The brand, inferred via Slot from FA and the element type."
+		"The brand, inferred via InferableBrand from FA and the element type."
 	)]
 	///
 	#[document_parameters(
@@ -876,7 +888,7 @@ pub(crate) mod inner {
 			E,
 			O,
 			FA,
-			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
 	) -> (
@@ -885,7 +897,7 @@ pub(crate) mod inner {
 	)
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa)
 	}
 

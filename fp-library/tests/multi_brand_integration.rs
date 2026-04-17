@@ -1,8 +1,8 @@
 // Multi-brand integration tests for closure-directed inference.
 //
-// These tests validate Slot-based inference for multi-brand types
+// These tests validate InferableBrand-based inference for multi-brand types
 // (Result, Pair, Tuple2, etc.). Tests are grouped by dispatch
-// operation. Tests for operations not yet migrated to Slot are
+// operation. Tests for operations not yet migrated to InferableBrand are
 // #[ignore]d until their inference wrappers are rewritten.
 
 use fp_library::functions::*;
@@ -143,7 +143,7 @@ fn p2_lift2_multi_brand_short_circuit() {
 	assert_eq!(r, Err("x".to_string()));
 }
 
-// -- closureless single-brand (must still infer via Slot) --
+// -- closureless single-brand (must still infer via InferableBrand) --
 
 #[test]
 fn p2_join_single_brand_via_slot() {

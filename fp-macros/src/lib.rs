@@ -47,8 +47,8 @@ use {
 		AssociatedTypes,
 		ImplKindInput,
 		apply_worker,
+		generate_inferable_brand_name,
 		generate_name,
-		generate_slot_name,
 		impl_kind_worker,
 		kind_attr_worker,
 		trait_kind_worker,
@@ -137,10 +137,10 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 	quote!(#name).into()
 }
 
-/// Defines a new `Kind` trait and its corresponding `Slot` trait.
+/// Defines a new `Kind` trait and its corresponding `InferableBrand` trait.
 ///
 /// This macro generates a trait definition for a Higher-Kinded Type signature,
-/// along with a `Slot` trait that enables closure-directed brand inference
+/// along with a `InferableBrand` trait that enables closure-directed brand inference
 /// in dispatch functions (see [`crate::dispatch`](https://docs.rs/fp-library/latest/fp_library/dispatch/)).
 ///
 /// ### Syntax
@@ -159,7 +159,7 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 /// Two public trait definitions with unique names derived from the signature:
 ///
 /// 1. `Kind_{hash}`: The HKT trait with the specified associated types.
-/// 2. `Slot_{hash}`: A reverse-mapping trait for closure-directed brand inference.
+/// 2. `InferableBrand_{hash}`: A reverse-mapping trait for closure-directed brand inference.
 ///    Both share the same content hash.
 ///
 /// ### Examples
@@ -172,7 +172,7 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 /// pub trait Kind_a1b2... {
 ///     type Of<T>;
 /// }
-/// pub trait Slot_a1b2...<A> {
+/// pub trait InferableBrand_a1b2...<A> {
 ///     type Marker;
 /// }
 /// ```
@@ -185,7 +185,7 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 /// pub trait Kind_cdef... {
 ///     type Of<'a, T: Display>: Debug;
 /// }
-/// pub trait Slot_cdef...<'a, Brand, A: Display> {
+/// pub trait InferableBrand_cdef...<'a, Brand, A: Display> {
 ///     type Marker;
 /// }
 /// ```
@@ -198,10 +198,10 @@ pub fn trait_kind(input: TokenStream) -> TokenStream {
 	}
 }
 
-/// Implements a `Kind` trait and its `Slot` trait for a brand.
+/// Implements a `Kind` trait and its `InferableBrand` trait for a brand.
 ///
 /// This macro simplifies the implementation of a generated `Kind` trait for a specific
-/// brand type, and also generates the `Slot` impl that enables closure-directed brand
+/// brand type, and also generates the `InferableBrand` impl that enables closure-directed brand
 /// inference in dispatch functions. It infers the correct `Kind` trait to implement based
 /// on the signature of the associated types provided in the block.
 ///
@@ -231,11 +231,11 @@ pub fn trait_kind(input: TokenStream) -> TokenStream {
 /// ### Generates
 ///
 /// 1. An implementation of the appropriate `Kind_{hash}` trait for the brand.
-/// 2. A `Slot_{hash}` impl for the target type with `type Marker = Val`,
+/// 2. A `InferableBrand_{hash}` impl for the target type with `type Marker = Val`,
 ///    enabling closure-directed brand inference for both single-brand and
 ///    multi-brand types.
 ///
-/// The `Slot` impl is generated for ALL brands (including multi-brand types).
+/// The `InferableBrand` impl is generated for ALL brands (including multi-brand types).
 /// Projection types and multiple-associated-type definitions do suppress it.
 ///
 /// ### Attributes
@@ -243,7 +243,7 @@ pub fn trait_kind(input: TokenStream) -> TokenStream {
 /// Inside the `impl_kind!` block, you can use these attributes:
 ///
 /// * `#[multi_brand]`: Marks this brand as sharing its target type with other
-///   brands. Does NOT suppress `Slot` impl generation.
+///   brands. Does NOT suppress `InferableBrand` impl generation.
 /// * `#[document_default]`: Marks this associated type as the default for resolving bare `Self` in
 ///   the generated documentation for this brand within the module.
 ///
@@ -258,11 +258,11 @@ pub fn trait_kind(input: TokenStream) -> TokenStream {
 ///     }
 /// }
 ///
-/// // Expanded code (Kind impl + Slot impl)
+/// // Expanded code (Kind impl + InferableBrand impl)
 /// impl Kind_a1b2... for OptionBrand {
 ///     type Of<A> = Option<A>;
 /// }
-/// impl<A> Slot_a1b2...<OptionBrand, A> for Option<A> {
+/// impl<A> InferableBrand_a1b2...<OptionBrand, A> for Option<A> {
 ///     type Marker = Val;
 /// }
 /// ```
@@ -279,13 +279,13 @@ pub fn trait_kind(input: TokenStream) -> TokenStream {
 /// impl<E> Kind_... for ResultBrand<E> {
 ///     type Of<A> = Result<A, E>;
 /// }
-/// impl<A, E> Slot_...<ResultBrand<E>, A> for Result<A, E> {
+/// impl<A, E> InferableBrand_...<ResultBrand<E>, A> for Result<A, E> {
 ///     type Marker = Val;
 /// }
 /// ```
 ///
 /// ```ignore
-/// // Multi-brand type: Slot still generated
+/// // Multi-brand type: InferableBrand still generated
 /// impl_kind! {
 ///     #[multi_brand]
 ///     impl<E> for ResultErrAppliedBrand<E> {
@@ -293,11 +293,11 @@ pub fn trait_kind(input: TokenStream) -> TokenStream {
 ///     }
 /// }
 ///
-/// // Expanded code (Kind impl + Slot impl)
+/// // Expanded code (Kind impl + InferableBrand impl)
 /// impl<E> Kind_... for ResultErrAppliedBrand<E> {
 ///     type Of<'a, A: 'a>: 'a = Result<A, E>;
 /// }
-/// impl<'a, A: 'a, E> Slot_...<'a, ResultErrAppliedBrand<E>, A>
+/// impl<'a, A: 'a, E> InferableBrand_...<'a, ResultErrAppliedBrand<E>, A>
 ///     for Result<A, E>
 /// {
 ///     type Marker = Val;
@@ -305,7 +305,7 @@ pub fn trait_kind(input: TokenStream) -> TokenStream {
 /// ```
 ///
 /// ```ignore
-/// // Multiple associated types: Slot skipped automatically
+/// // Multiple associated types: InferableBrand skipped automatically
 /// impl_kind! {
 ///     impl<E> for MyBrand<E> where E: Clone {
 ///         type Of<A> = MyType<A, E>;
@@ -637,7 +637,7 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 /// with semantic equivalents (branded types, closure arrows, type
 /// class constraints). This produces cleaner signatures like
 /// `forall Brand A B. Functor Brand => (A -> B, Brand A) -> Brand B`
-/// instead of the raw Rust signature with `Slot` and `Kind_*` bounds.
+/// instead of the raw Rust signature with `InferableBrand` and `Kind_*` bounds.
 ///
 /// ### Configuration
 ///
@@ -1165,7 +1165,7 @@ pub fn document_module(
 ///
 /// // Inferred mode: brand inferred from container types
 /// m_do!({
-///     x <- Some(5);         // Brand inferred from Some(5) via Slot
+///     x <- Some(5);         // Brand inferred from Some(5) via InferableBrand
 ///     y <- Some(x + 1);
 ///     Some(x + y)           // Write concrete constructor (pure() not available)
 /// })
@@ -1176,7 +1176,7 @@ pub fn document_module(
 /// ```
 ///
 /// * `Brand` (optional): The monad brand type. When omitted, the brand is inferred
-///   from container types via `Slot`.
+///   from container types via `InferableBrand`.
 /// * `ref` (optional): Enables by-reference dispatch. Closures receive `&A`
 ///   instead of `A`, routing through `RefSemimonad::ref_bind`. Typed binds
 ///   use the type as-is (include `&` in the type annotation). Untyped binds
@@ -1300,7 +1300,7 @@ pub fn m_do(input: TokenStream) -> TokenStream {
 /// ```
 ///
 /// * `Brand` (optional): The applicative brand type. When omitted, the brand is
-///   inferred from container types via `Slot`.
+///   inferred from container types via `InferableBrand`.
 /// * `ref` (optional): Enables by-reference dispatch. The combining closure
 ///   receives references (`&A`, `&B`, etc.) via `RefLift::ref_lift2`. Typed
 ///   binds use the type as-is (include `&`). Untyped binds get `: &_`.

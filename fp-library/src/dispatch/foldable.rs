@@ -482,7 +482,7 @@ pub(crate) mod inner {
 	/// Folds a structure from the right, inferring the brand from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via the `Slot` trait. `FnBrand` must still be specified explicitly.
+	/// via the `InferableBrand` trait. `FnBrand` must still be specified explicitly.
 	/// Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
@@ -495,7 +495,7 @@ pub(crate) mod inner {
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The type of the elements.",
 		"The type of the accumulator.",
-		"The brand, inferred via Slot from FA and the element type."
+		"The brand, inferred via InferableBrand from FA and the element type."
 	)]
 	///
 	#[document_parameters(
@@ -524,21 +524,21 @@ pub(crate) mod inner {
 			A,
 			B,
 			FA,
-			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		initial: B,
 		fa: FA,
 	) -> B
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		func.dispatch(initial, fa)
 	}
 
 	/// Folds a structure from the left, inferring the brand from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via the `Slot` trait. `FnBrand` must still be specified explicitly.
+	/// via the `InferableBrand` trait. `FnBrand` must still be specified explicitly.
 	/// Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
@@ -551,7 +551,7 @@ pub(crate) mod inner {
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The type of the elements.",
 		"The type of the accumulator.",
-		"The brand, inferred via Slot from FA and the element type."
+		"The brand, inferred via InferableBrand from FA and the element type."
 	)]
 	///
 	#[document_parameters(
@@ -580,21 +580,21 @@ pub(crate) mod inner {
 			A,
 			B,
 			FA,
-			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		initial: B,
 		fa: FA,
 	) -> B
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		func.dispatch(initial, fa)
 	}
 
 	/// Maps values to a monoid and combines them, inferring the brand from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via the `Slot` trait. `FnBrand` must still be specified explicitly.
+	/// via the `InferableBrand` trait. `FnBrand` must still be specified explicitly.
 	/// Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
@@ -607,7 +607,7 @@ pub(crate) mod inner {
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The type of the elements.",
 		"The monoid type.",
-		"The brand, inferred via Slot from FA and the element type."
+		"The brand, inferred via InferableBrand from FA and the element type."
 	)]
 	///
 	#[document_parameters(
@@ -635,13 +635,13 @@ pub(crate) mod inner {
 			A,
 			M,
 			FA,
-			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
 	) -> M
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		func.dispatch(fa)
 	}
 

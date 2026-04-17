@@ -127,7 +127,7 @@ pub(crate) mod inner {
 	/// Contravariantly maps a function over a value, inferring the brand from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via the `Slot` trait. Only owned containers are supported; there is no
+	/// via the `InferableBrand` trait. Only owned containers are supported; there is no
 	/// `RefContravariant` trait because the Ref pattern is about closures
 	/// receiving element references (`&A`), but `contramap`'s closure
 	/// produces elements (`Fn(B) -> A`), not consumes them.
@@ -141,7 +141,7 @@ pub(crate) mod inner {
 		"The container type. Brand is inferred from this.",
 		"The type of the value(s) inside the contravariant functor.",
 		"The type that the new contravariant functor accepts.",
-		"The brand, inferred via Slot from FA and the element type."
+		"The brand, inferred via InferableBrand from FA and the element type."
 	)]
 	///
 	#[document_parameters(
@@ -176,13 +176,13 @@ pub(crate) mod inner {
 			A,
 			B,
 			FA,
-			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
 	) -> <Brand as Kind_cdc7cd43dac7585f>::Of<'a, B>
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa)
 	}
 

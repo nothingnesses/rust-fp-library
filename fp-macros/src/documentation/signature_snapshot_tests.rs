@@ -289,12 +289,12 @@ fn edge_simple_dispatch_produces_correct_signature() {
 
 		#[document_signature]
 		pub fn my_map<'a, FA, A: 'a, B: 'a, Marker>(
-			f: impl MapDispatch<'a, <FA as Slot_abc123>::Brand, A, B, FA, Marker>,
+			f: impl MapDispatch<'a, <FA as InferableBrand_abc123>::Brand, A, B, FA, Marker>,
 			fa: FA,
-		) -> <<FA as Slot_abc123>::Brand as Kind_abc123>::Of<'a, B>
+		) -> <<FA as InferableBrand_abc123>::Brand as Kind_abc123>::Of<'a, B>
 		where
-			FA: Slot_abc123
-				+ MapDispatch<'a, <FA as Slot_abc123>::Brand, A, B, FA, Marker>,
+			FA: InferableBrand_abc123
+				+ MapDispatch<'a, <FA as InferableBrand_abc123>::Brand, A, B, FA, Marker>,
 		{
 			todo!()
 		}
@@ -342,11 +342,11 @@ fn edge_bifunctor_two_element_container() {
 
 		#[document_signature]
 		pub fn my_bimap<'a, FA, A: 'a, B: 'a, C: 'a, D: 'a, Marker>(
-			fg: impl BimapDispatch<'a, <FA as Slot_abc123>::Brand, A, B, C, D, FA, Marker>,
+			fg: impl BimapDispatch<'a, <FA as InferableBrand_abc123>::Brand, A, B, C, D, FA, Marker>,
 			fa: FA,
-		) -> <<FA as Slot_abc123>::Brand as Kind_abc123>::Of<'a, B, D>
+		) -> <<FA as InferableBrand_abc123>::Brand as Kind_abc123>::Of<'a, B, D>
 		where
-			FA: Slot_abc123,
+			FA: InferableBrand_abc123,
 		{
 			todo!()
 		}
@@ -400,11 +400,11 @@ fn edge_manual_override_in_dispatch_context() {
 
 		#[document_signature("forall F A B. Functor F => (A -> B, F A) -> F B")]
 		pub fn my_map<'a, FA, A: 'a, B: 'a, Marker>(
-			f: impl MapDispatch<'a, <FA as Slot_abc123>::Brand, A, B, FA, Marker>,
+			f: impl MapDispatch<'a, <FA as InferableBrand_abc123>::Brand, A, B, FA, Marker>,
 			fa: FA,
 		) -> ()
 		where
-			FA: Slot_abc123,
+			FA: InferableBrand_abc123,
 		{
 			todo!()
 		}

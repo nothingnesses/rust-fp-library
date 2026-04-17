@@ -1,4 +1,4 @@
-// Slot-based `apply` (Semiapplicative) POC.
+// InferableBrand-based `apply` (Semiapplicative) POC.
 //
 // -- Background --
 //
@@ -9,21 +9,21 @@
 //
 //     apply::<RcFnBrand, OptionBrand, _, _>(ff, fa)
 //
-// The Slot-based inference mechanism validated in earlier POCs (for
-// `map` and `bind`) uses a Slot<Brand, A> trait where closure input
+// The InferableBrand-based inference mechanism validated in earlier POCs (for
+// `map` and `bind`) uses a InferableBrand<Brand, A> trait where closure input
 // drives A, disambiguating the Brand. For `apply`, there is no
 // direct closure. Instead, the function INSIDE `ff` carries A and B
 // in its payload type: `<FnBrand as CloneFn>::Of<'a, A, B>`.
 //
 // -- How this differs from `map` and `bind` --
 //
-// 1. Two containers must agree on Brand. FF keys Slot on the
+// 1. Two containers must agree on Brand. FF keys InferableBrand on the
 //    payload type `<FnBrand as CloneFn>::Of<'a, A, B>`; FA keys
-//    Slot on A. Rust must find a Brand satisfying both bounds
+//    InferableBrand on A. Rust must find a Brand satisfying both bounds
 //    simultaneously.
 // 2. The library has no unified Val/Ref `ApplyDispatch` trait;
 //    `apply` and `ref_apply` are separate functions. So the Val/Ref
-//    cross-competition that motivated the Marker-via-Slot design
+//    cross-competition that motivated the Marker-via-InferableBrand design
 //    does not arise here.
 // 3. The function payload is a branded wrapper (e.g., `Rc<dyn Fn>`)
 //    accessed through `CloneFn::Of`, adding a level of indirection
@@ -31,7 +31,7 @@
 //
 // -- Hypothesis --
 //
-// Slot-based inference of Brand from two simultaneous Slot bounds
+// InferableBrand-based inference of Brand from two simultaneous InferableBrand bounds
 // works for both single-brand and multi-brand Val `apply`. Rust's
 // solver intersects the two bounds to commit a unique Brand.
 //
@@ -77,7 +77,7 @@ use {
 };
 
 // -------------------------------------------------------------------------
-// SlotApp: arity-1 Slot with Brand trait-param and Marker assoc-type.
+// SlotApp: arity-1 InferableBrand with Brand trait-param and Marker assoc-type.
 // Direct impls set Marker = Val; &T blanket sets Marker = Ref.
 // -------------------------------------------------------------------------
 
@@ -117,7 +117,7 @@ where
 }
 
 // -------------------------------------------------------------------------
-// Slot-based apply signature.
+// InferableBrand-based apply signature.
 //
 // The bounds say:
 //   - FF is the Brand's Of applied to a CloneFn wrapper of (A, B).
@@ -155,7 +155,7 @@ where
 
 #[test]
 fn val_option_single_brand_full_turbofish() {
-	// Force every type parameter explicitly to test whether the Slot
+	// Force every type parameter explicitly to test whether the InferableBrand
 	// mechanism works at all for apply, independent of inference.
 	let f = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	let x = Some(5i32);
@@ -215,7 +215,7 @@ fn val_result_multi_brand_type_change() {
 }
 
 // -------------------------------------------------------------------------
-// Ref apply: inference validation via Slot.
+// Ref apply: inference validation via InferableBrand.
 //
 // `ref_apply` takes both containers by reference. The `&T` blanket on
 // SlotApp gives Marker = Ref. Brand is inferred from the inner types
@@ -225,7 +225,7 @@ fn val_result_multi_brand_type_change() {
 // FunctorDispatch) to route `(&FF, &FA)` to `Brand::ref_apply`. For
 // this POC we validate inference in two steps:
 //   (1) A `ref_apply_infer_brand` function that takes generic `(&TFF, &TFA)`
-//       with Slot bounds - if it compiles, Brand resolves.
+//       with InferableBrand bounds - if it compiles, Brand resolves.
 //   (2) Call the library's `ref_apply` directly with the inferred Brand
 //       to verify correctness.
 //
@@ -233,7 +233,7 @@ fn val_result_multi_brand_type_change() {
 // wrappers (the wrapped function takes `&A`, not owned A).
 // -------------------------------------------------------------------------
 
-/// Inference-only helper: validates that Slot resolves Brand from two
+/// Inference-only helper: validates that InferableBrand resolves Brand from two
 /// reference containers. Returns `PhantomData<Brand>` so callers can
 /// assert which Brand was inferred via a type annotation.
 pub fn ref_apply_infer_brand<'a, FnBrand, Brand, A, B, TFF, TFA>(
@@ -254,7 +254,7 @@ where
 // Ref apply tests.
 //
 // Each test validates:
-//   - Slot inference commits the correct Brand (via PhantomData type
+//   - InferableBrand inference commits the correct Brand (via PhantomData type
 //     annotation on ref_apply_infer_brand).
 //   - The library's ref_apply produces the correct result when called
 //     with that Brand.
@@ -264,7 +264,7 @@ where
 fn ref_option_single_brand() {
 	let f: Option<Rc<dyn Fn(&i32) -> i32>> = Some(Rc::new(|x: &i32| *x * 2));
 	let x = Some(5i32);
-	// Step 1: Slot inference commits Brand = OptionBrand.
+	// Step 1: InferableBrand inference commits Brand = OptionBrand.
 	let _: std::marker::PhantomData<OptionBrand> =
 		ref_apply_infer_brand::<RcFnBrand, _, _, _, _, _>(&f, &x);
 	// Step 2: call ref_apply with the inferred Brand.

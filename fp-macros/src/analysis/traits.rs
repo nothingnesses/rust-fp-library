@@ -39,7 +39,7 @@ pub fn classify_trait(
 		macros::APPLY_MACRO => TraitCategory::ApplyMacro,
 		n if config.apply_macro_aliases().contains(n) => TraitCategory::ApplyMacro,
 		n if n.starts_with(markers::KIND_PREFIX) => TraitCategory::Kind,
-		n if n.starts_with(markers::SLOT_PREFIX) => TraitCategory::Kind,
+		n if n.starts_with(markers::INFERABLE_BRAND_PREFIX) => TraitCategory::Kind,
 		_ => TraitCategory::Other(name.to_string()),
 	}
 }

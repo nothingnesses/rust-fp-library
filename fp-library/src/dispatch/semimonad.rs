@@ -510,7 +510,7 @@ pub(crate) mod inner {
 	/// Sequences a monadic computation, inferring the brand from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `ma`
-	/// via the `Slot` trait. For multi-brand types, the closure's input type
+	/// via the `InferableBrand` trait. For multi-brand types, the closure's input type
 	/// disambiguates which brand applies. For diagonal cases, use
 	/// [`explicit::bind`](crate::functions::explicit::bind) with a turbofish.
 	#[document_signature]
@@ -520,7 +520,7 @@ pub(crate) mod inner {
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The type of the value inside the monad.",
 		"The type of the result.",
-		"The brand, inferred via Slot from FA and the closure's input type."
+		"The brand, inferred via InferableBrand from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -539,11 +539,18 @@ pub(crate) mod inner {
 	/// ```
 	pub fn bind<'a, FA, A: 'a, B: 'a, Brand>(
 		ma: FA,
-		f: impl BindDispatch<'a, Brand, A, B, FA, <FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker>,
+		f: impl BindDispatch<
+			'a,
+			Brand,
+			A,
+			B,
+			FA,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+		>,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(ma)
 	}
 
@@ -551,7 +558,7 @@ pub(crate) mod inner {
 	/// from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `ma`
-	/// via the `Slot` trait. For multi-brand types, the closure's input type
+	/// via the `InferableBrand` trait. For multi-brand types, the closure's input type
 	/// disambiguates which brand applies. For diagonal cases, use
 	/// [`explicit::bind_flipped`](crate::functions::explicit::bind_flipped) with a turbofish.
 	#[document_signature]
@@ -561,7 +568,7 @@ pub(crate) mod inner {
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The input element type.",
 		"The output element type.",
-		"The brand, inferred via Slot from FA and the closure's input type."
+		"The brand, inferred via InferableBrand from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -579,18 +586,25 @@ pub(crate) mod inner {
 	/// assert_eq!(result, Some(10));
 	/// ```
 	pub fn bind_flipped<'a, FA, A: 'a, B: 'a, Brand>(
-		f: impl BindDispatch<'a, Brand, A, B, FA, <FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker>,
+		f: impl BindDispatch<
+			'a,
+			Brand,
+			A,
+			B,
+			FA,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+		>,
 		ma: FA,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(ma)
 	}
 
 	/// Removes one layer of monadic nesting, inferring the brand from the container type.
 	///
-	/// The `Brand` type parameter is inferred from the single `Slot` impl
+	/// The `Brand` type parameter is inferred from the single `InferableBrand` impl
 	/// on FA. For single-brand types, this resolves uniquely without a
 	/// closure. For multi-brand types, use
 	/// [`explicit::join`](crate::functions::explicit::join) with a turbofish.
@@ -600,7 +614,7 @@ pub(crate) mod inner {
 		"The lifetime of the values.",
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The type of the value(s) inside the inner layer.",
-		"The brand, inferred via Slot from FA.",
+		"The brand, inferred via InferableBrand from FA.",
 		"The inner container type (e.g., `Option<i32>` for `Option<Option<i32>>`), inferred automatically."
 	)]
 	///
@@ -622,8 +636,13 @@ pub(crate) mod inner {
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, MidA>
-			+ JoinDispatch<'a, Brand, A, <FA as Slot_cdc7cd43dac7585f<'a, Brand, MidA>>::Marker>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, MidA>
+			+ JoinDispatch<
+				'a,
+				Brand,
+				A,
+				<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, MidA>>::Marker,
+			>, {
 		mma.dispatch()
 	}
 

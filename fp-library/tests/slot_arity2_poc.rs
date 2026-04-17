@@ -1,8 +1,8 @@
-// Arity-2 Slot for Bifunctor POC.
+// Arity-2 InferableBrand for Bifunctor POC.
 //
 // -- Background --
 //
-// The Slot trait carries Brand as a trait parameter (for coherence)
+// The InferableBrand trait carries Brand as a trait parameter (for coherence)
 // and Marker as an associated type projected from FA's reference-ness
 // (blanket for `&T` -> Ref; direct impls for owned types -> Val).
 // This lets a unified `map(f, fa)` signature commit Marker early from
@@ -24,7 +24,7 @@
 // -- Finding --
 //
 // CONFIRMED. All 6 tests pass on stable rustc (Val and Ref for
-// Result, including type-changing transformations). The Slot pattern
+// Result, including type-changing transformations). The InferableBrand pattern
 // generalises mechanically from arity 1 to arity 2.
 
 #![allow(unused_imports, reason = "Kind is used inside Apply! macro expansion")]

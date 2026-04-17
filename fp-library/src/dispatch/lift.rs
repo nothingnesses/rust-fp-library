@@ -840,7 +840,7 @@ pub(crate) mod inner {
 	/// from the first container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via the `Slot` trait. The dispatch trait constrains `fb` to the same brand.
+	/// via the `InferableBrand` trait. The dispatch trait constrains `fb` to the same brand.
 	///
 	/// For types with multiple brands, use
 	/// [`explicit::lift2`](crate::functions::explicit::lift2) with a turbofish.
@@ -853,7 +853,7 @@ pub(crate) mod inner {
 		"The type of the first value.",
 		"The type of the second value.",
 		"The type of the result.",
-		"The brand, inferred via Slot from FA and the closure's input type."
+		"The brand, inferred via InferableBrand from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -880,14 +880,14 @@ pub(crate) mod inner {
 			C,
 			FA,
 			FB,
-			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
 		fb: FB,
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa, fb)
 	}
 
@@ -895,7 +895,7 @@ pub(crate) mod inner {
 	/// from the first container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via the `Slot` trait. The dispatch trait constrains all other containers
+	/// via the `InferableBrand` trait. The dispatch trait constrains all other containers
 	/// to the same brand.
 	///
 	/// For types with multiple brands, use
@@ -911,7 +911,7 @@ pub(crate) mod inner {
 		"The type of the second value.",
 		"The type of the third value.",
 		"The type of the result.",
-		"The brand, inferred via Slot from FA and the closure's input type."
+		"The brand, inferred via InferableBrand from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -941,7 +941,7 @@ pub(crate) mod inner {
 			FA,
 			FB,
 			FC,
-			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
 		fb: FB,
@@ -949,7 +949,7 @@ pub(crate) mod inner {
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>)
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa, fb, fc)
 	}
 
@@ -957,7 +957,7 @@ pub(crate) mod inner {
 	/// from the first container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via the `Slot` trait. The dispatch trait constrains all other containers
+	/// via the `InferableBrand` trait. The dispatch trait constrains all other containers
 	/// to the same brand.
 	///
 	/// For types with multiple brands, use
@@ -975,7 +975,7 @@ pub(crate) mod inner {
 		"The type of the third value.",
 		"The type of the fourth value.",
 		"The type of the result.",
-		"The brand, inferred via Slot from FA and the closure's input type."
+		"The brand, inferred via InferableBrand from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -1008,7 +1008,7 @@ pub(crate) mod inner {
 			FB,
 			FC,
 			FD,
-			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
 		fb: FB,
@@ -1017,7 +1017,7 @@ pub(crate) mod inner {
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>)
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa, fb, fc, fd)
 	}
 
@@ -1025,7 +1025,7 @@ pub(crate) mod inner {
 	/// from the first container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via the `Slot` trait. The dispatch trait constrains all other containers
+	/// via the `InferableBrand` trait. The dispatch trait constrains all other containers
 	/// to the same brand.
 	///
 	/// For types with multiple brands, use
@@ -1045,7 +1045,7 @@ pub(crate) mod inner {
 		"The type of the fourth value.",
 		"The type of the fifth value.",
 		"The type of the result.",
-		"The brand, inferred via Slot from FA and the closure's input type."
+		"The brand, inferred via InferableBrand from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -1081,7 +1081,7 @@ pub(crate) mod inner {
 			FC,
 			FD,
 			FE,
-			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
 		fb: FB,
@@ -1091,7 +1091,7 @@ pub(crate) mod inner {
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, G>)
 	where
 		Brand: Kind_cdc7cd43dac7585f,
-		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa, fb, fc, fd, fe)
 	}
 

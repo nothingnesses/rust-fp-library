@@ -1,4 +1,4 @@
-// FnBrand inference via a Slot-like trait pattern.
+// FnBrand inference via a InferableBrand-like trait pattern.
 //
 // -- Background --
 //
@@ -8,11 +8,11 @@
 // cannot reverse-project an associated type: given an
 // `Rc<dyn Fn(A) -> B>`, it cannot determine that `FnBrand = RcFnBrand`.
 //
-// The Brand inference problem was solved with a Slot trait pattern
+// The Brand inference problem was solved with a InferableBrand trait pattern
 // where Brand is a trait parameter:
 //
-//     trait Slot<Brand, A> { type Marker; }
-//     impl<A> Slot<OptionBrand, A> for Option<A> { type Marker = Val; }
+//     trait InferableBrand<Brand, A> { type Marker; }
+//     impl<A> InferableBrand<OptionBrand, A> for Option<A> { type Marker = Val; }
 //
 // This file investigates whether the same pattern can provide the
 // reverse mapping for FnBrand: given the concrete wrapper type
@@ -24,7 +24,7 @@
 // A `FnBrandSlot<FnBrand, A, B>` trait with impls for each concrete
 // wrapper type can enable the solver to infer FnBrand from the
 // concrete wrapped function type. Combined with the existing Brand
-// Slot, this would let `apply` infer both Brand and FnBrand from
+// InferableBrand, this would let `apply` infer both Brand and FnBrand from
 // the argument types.
 //
 // -- Finding --
@@ -63,7 +63,7 @@
 //   - Requires a bridge bound (Into conversion) to equate W with
 //     CloneFn::Of. In practice this is identity since W IS CloneFn::Of
 //     after normalization, but the solver needs the explicit bound.
-//   - FnBrandSlot impls must be generated for each concrete wrapper
+//   - FnBrandInferableBrand impls must be generated for each concrete wrapper
 //     type (Rc<dyn Fn>, Arc<dyn Fn>, etc.). This is a fixed set
 //     determined by the FnBrand variants in the library.
 
@@ -109,7 +109,7 @@ trait FnBrandSlot<FnBrand, A, B> {}
 impl<'a, A: 'a, B: 'a> FnBrandSlot<RcFnBrand, A, B> for Rc<dyn 'a + Fn(A) -> B> {}
 impl<'a, A: 'a, B: 'a> FnBrandSlot<ArcFnBrand, A, B> for Arc<dyn 'a + Fn(A) -> B> {}
 
-/// Test function: takes a generic F with a FnBrandSlot bound.
+/// Test function: takes a generic F with a FnBrandInferableBrand bound.
 /// If the solver can infer FnBrand from the concrete type, this
 /// should compile without turbofish on FnBrand.
 fn accepts_fn_brand_slot<FnBrand, A, B, F: FnBrandSlot<FnBrand, A, B>>(_f: &F) {}
@@ -138,13 +138,13 @@ fn step1_basic_arc_resolution() {
 //   Rc<dyn 'a + Fn(A) -> B>
 //
 // The solver must see through the associated type projection to match
-// the FnBrandSlot impl.
+// the FnBrandInferableBrand impl.
 
 #[test]
 fn step2_lift_fn_new_rc() {
 	let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 	// f has type <RcFnBrand as CloneFn>::Of<'_, i32, i32> = Rc<dyn Fn(i32) -> i32>.
-	// Does the solver match this against the FnBrandSlot impl?
+	// Does the solver match this against the FnBrandInferableBrand impl?
 	accepts_fn_brand_slot(&f);
 }
 
@@ -155,15 +155,15 @@ fn step2_lift_fn_new_arc() {
 }
 
 // =========================================================================
-// Step 3: Combined inference with Brand (Slot) and FnBrand (FnBrandSlot)
+// Step 3: Combined inference with Brand (InferableBrand) and FnBrand (FnBrandSlot)
 // =========================================================================
 //
-// A simplified apply-like function using BOTH Brand Slot and FnBrandSlot
+// A simplified apply-like function using BOTH Brand InferableBrand and FnBrandSlot
 // bounds. The solver must resolve Brand from the container type (via
-// the existing Slot mechanism) AND FnBrand from the wrapped function
+// the existing InferableBrand mechanism) AND FnBrand from the wrapped function
 // type (via FnBrandSlot) simultaneously.
 
-// Brand Slot (replicating the pattern from the codebase).
+// Brand InferableBrand (replicating the pattern from the codebase).
 trait BrandSlot<'a, Brand, A: 'a>
 where
 	Brand: Kind_cdc7cd43dac7585f, {
@@ -180,7 +180,7 @@ impl<'a, A: 'a, E: 'static> BrandSlot<'a, ResultErrAppliedBrand<E>, A> for Resul
 
 // -- Step 3a: Direct bound on associated type (FAILS) --
 //
-// Approach: put FnBrandSlot bound on <FnBrand as CloneFn>::Of<'a, A, B>.
+// Approach: put FnBrandInferableBrand bound on <FnBrand as CloneFn>::Of<'a, A, B>.
 // This fails because the solver must know FnBrand to compute the LHS,
 // but FnBrand is what we are trying to infer FROM this bound.
 // Error: E0284 "cannot satisfy <_ as CloneFn>::Of<'_, i32, i32> == Rc<dyn Fn(i32) -> i32>"

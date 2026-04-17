@@ -16,8 +16,8 @@ use {
 		AssociatedTypes,
 		core::{
 			constants::markers::{
+				INFERABLE_BRAND_PREFIX,
 				KIND_PREFIX,
-				SLOT_PREFIX,
 			},
 			error_handling::{
 				Error,
@@ -410,7 +410,7 @@ pub fn hash_assoc_signature(signature: &crate::hkt::AssociatedTypeBase) -> Resul
 /// 3. Joining them with `__` and hashing with rapidhash.
 ///
 /// This is the shared foundation for both `Kind_{hash}` and
-/// `Slot_{hash}` name generation.
+/// `InferableBrand_{hash}` name generation.
 pub fn generate_hash(input: &AssociatedTypes) -> Result<u64> {
 	let mut assoc_types: Vec<_> = input.associated_types.iter().collect();
 	// Sort by identifier to ensure order-independence
@@ -441,12 +441,12 @@ pub fn generate_name(input: &AssociatedTypes) -> Result<Ident> {
 	generate_prefixed_name(KIND_PREFIX, input)
 }
 
-/// Generates a `Slot_{hash}` identifier from the input signature.
+/// Generates a `InferableBrand_{hash}` identifier from the input signature.
 ///
 /// Uses the same content hash as [`generate_name`], so a `Kind_{hash}` trait
-/// and its corresponding `Slot_{hash}` trait always share the same hash suffix.
-pub fn generate_slot_name(input: &AssociatedTypes) -> Result<Ident> {
-	generate_prefixed_name(SLOT_PREFIX, input)
+/// and its corresponding `InferableBrand_{hash}` trait always share the same hash suffix.
+pub fn generate_inferable_brand_name(input: &AssociatedTypes) -> Result<Ident> {
+	generate_prefixed_name(INFERABLE_BRAND_PREFIX, input)
 }
 
 #[cfg(test)]

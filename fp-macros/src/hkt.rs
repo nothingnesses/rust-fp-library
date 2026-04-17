@@ -24,8 +24,8 @@ pub use {
 	},
 	associated_type::AssociatedTypeBase,
 	canonicalizer::{
+		generate_inferable_brand_name,
 		generate_name,
-		generate_slot_name,
 	},
 	impl_kind::{
 		ImplKindInput,
