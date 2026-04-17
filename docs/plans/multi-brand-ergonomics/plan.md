@@ -174,14 +174,14 @@ For `&Result<i32, String>` with `|x: &i32| *x + 1`:
 
 ### Replacement of `InferableBrand`
 
-Under Decision D3 (see Decisions), `InferableBrand_*` is removed
+Under Decision D (see Decisions), `InferableBrand_*` is removed
 entirely. Single-brand types previously used
 `<FA as InferableBrand>::Brand` as an associated-type shortcut; this
 becomes `FA: Slot<Brand, A>` with Brand threaded explicitly through
 the signature. Functionally equivalent; syntactically more uniform.
 
 The `#[no_inferable_brand]` attribute is renamed to `#[multi_brand]`
-(Decision Q14) and gains new semantics: it tells `impl_kind!` to
+(Decision E) and gains new semantics: it tells `impl_kind!` to
 emit multiple Slot impls (one per applicable brand) rather than a
 single unique-brand Slot impl.
 
@@ -251,10 +251,10 @@ requirement.
 
 ### Decision D: Trait consolidation
 
-**D3** (recommended). Eliminate `InferableBrand_*` entirely.
-Introduce `Slot_*` as its replacement.
+Eliminate `InferableBrand_*` entirely. Introduce `Slot_*` as its
+full replacement (no parallel trait families).
 
-_Rationale:_ After D3, single-brand types have one Slot impl per
+_Rationale:_ single-brand types have one Slot impl per
 arity (Marker = Val), multi-brand types have multiple (all Marker =
 Val), references have the blanket (Marker = Ref). One trait family,
 one conceptual model, one macro generation path. POCs 5, 6, 7
@@ -262,9 +262,9 @@ validate this shape for `map`, `bimap`, and `bind`.
 
 ### Decision E: Attribute naming
 
-Rename `#[no_inferable_brand]` to **`#[multi_brand]`** (Q14 option b).
+Rename `#[no_inferable_brand]` to **`#[multi_brand]`**.
 
-_Rationale:_ The old name overpromises after D3 - types with the
+_Rationale:_ The old name overpromises after Decision D - types with the
 attribute ARE inferable via closure direction. The new name
 describes what is true (multiple brands) rather than what is no
 longer true (no unique brand). Pre-1.0 stance accepts the breakage.
@@ -272,9 +272,12 @@ longer true (no unique brand). Pre-1.0 stance accepts the breakage.
 ### Decision F: `explicit::map` shape
 
 Rewrite `explicit::map` to bound on `Slot` with Brand pinned via
-turbofish (Q15 option b).
+turbofish. This unifies dispatch under Slot (rather than maintaining
+a separate InferableBrand-based explicit path) and naturally
+contracts the turbofish surface (only Brand is user-specified; the
+rest is inferred through Slot).
 
-_Rationale:_ Under D3, there is only one reverse-mapping trait family
+_Rationale:_ Under Decision D, there is only one reverse-mapping trait family
 (Slot). `explicit::map` becomes the universal fallback for cases
 inference cannot handle (e.g., `Result<T, T>` diagonal). The
 signature shape stays familiar:
@@ -284,7 +287,7 @@ path works for every case including Ref + multi-brand.
 ### Decision G: Projection-type brands
 
 Projection brands (e.g., `BifunctorFirstAppliedBrand<ResultBrand, A>`)
-remain explicit-only (Q13 option a). `impl_kind!` skips Slot
+remain explicit-only. `impl_kind!` skips Slot
 generation when the brand's `Of` target contains `Apply!` or `::`.
 
 _Rationale:_ These brands exist for architectural completeness
@@ -295,7 +298,7 @@ closure-input ambiguities without user-facing benefit.
 
 ### Decision H: Apply-side closure-directed inference
 
-**Option a)** (adopted). Extend Slot-based inference to
+Extend Slot-based inference to
 `Semiapplicative::apply` and `RefSemiapplicative::ref_apply` via
 the Fn payload inside `ff`.
 
@@ -309,10 +312,11 @@ Rust's solver intersects the two bounds to commit a unique Brand.
 Both Val and Ref are validated by POC 8 (11 tests: 7 Val + 4 Ref).
 
 _Rationale:_ gives `apply` the same inference experience as `map`
-and `bind`. Option b) (keep apply explicit-only) creates surface
-asymmetry. Option c) (defer) was the original recommendation before
-POC 8 validated feasibility; now that a) works, deferring has no
-benefit.
+and `bind`. Keeping apply explicit-only for multi-brand would create
+surface asymmetry ("why does apply need `explicit::` when map
+doesn't?"). Deferring was the original recommendation before POC 8
+validated feasibility; now that the Fn-payload approach works,
+deferring has no benefit.
 
 ### Decision I: Compile-time regression threshold
 
@@ -333,6 +337,39 @@ for brands that participate in closure-directed dispatch (exclude
 tag-only brands like `SendThunkBrand`), or hand-optimizing the
 `impl_kind!` expansion.
 
+### Decision J: Diagnostic wording for ambiguity failures
+
+Single combined `#[diagnostic::on_unimplemented]`
+message on `Slot`: "annotate the closure input type; if that doesn't
+disambiguate, use `explicit::map::<Brand, ...>`."
+
+_Rationale:_ works on stable Rust; simple to implement. The same
+static text covers both failure modes (missing annotation and
+diagonal case). The annotation hint is slightly misleading in the
+diagonal case, but phase 3 can revisit if user testing shows
+confusion. Escalating later is easier than pulling back premature
+complexity.
+
+If upstream trait bounds (`Brand: Functor`, `Brand: RefFunctor`)
+fire before `Slot`'s diagnostic and produce a less helpful message,
+phase 3 should add `on_unimplemented` overrides to those type-class
+traits pointing users back at the Slot diagnostic. Decide from
+observed behaviour during implementation.
+
+### Decision K: Do-notation macro behaviour
+
+Audit `m_do!` and `a_do!` against multi-brand
+types before shipping. Run existing `tests/do_notation.rs` and
+`tests/ado_notation.rs` with multi-brand containers; add tests for
+annotated and unannotated closures; document the annotation
+requirement in macro docs.
+
+_Rationale:_ low cost relative to the risk of shipping broken
+do-notation. If the audit reveals that the annotation requirement is
+severely disruptive in practice, extending the macros to automatically
+emit closure-input type annotations in their expansion can be explored
+as a follow-up.
+
 ## Integration surface
 
 ### Will change
@@ -350,7 +387,7 @@ tag-only brands like `SendThunkBrand`), or hand-optimizing the
 | `fp-library/src/dispatch/bifoldable.rs`, `bitraversable.rs`, `foldable.rs`, `traversable.rs`, `filterable.rs`, `lift.rs`, `semiapplicative.rs` | Same pattern for each operation's inference wrapper.                                                                                           |
 | `fp-library/tests/ui/*.rs`                                                                                                                     | Delete or rewrite `result_no_inferable_brand.rs` and `tuple2_no_inferable_brand.rs`; add positive and negative UI tests for the new behaviour. |
 | `fp-library/docs/brand-inference.md`                                                                                                           | Update to describe Slot; cross-link to `brand-dispatch-traits.md`.                                                                             |
-| `fp-library/docs/brand-dispatch-traits.md`                                                                                                     | Update to reflect single-trait-family design (D3).                                                                                             |
+| `fp-library/docs/brand-dispatch-traits.md`                                                                                                     | Update to reflect single-trait-family design (Decision D).                                                                                     |
 
 ### Unchanged
 
@@ -376,83 +413,9 @@ type cannot drive Slot-based inference. They continue to require
   for multi-brand outer types).
 
 `Semiapplicative::apply` has no direct closure but does have an
-`Fn(A) -> B` payload inside `ff`. Q7 / POC 8 confirms Slot can
+`Fn(A) -> B` payload inside `ff`. Decision H / POC 8 confirms Slot can
 drive inference from that payload; apply is therefore moved into
 the inference-supported set in phase 2.
-
-## Remaining open questions
-
-Items that still need decisions. Each entry lists approaches with
-trade-offs and a tentative recommendation.
-
-### Q5: Diagnostic wording for ambiguity failures
-
-`Slot`'s `#[diagnostic::on_unimplemented]` message must cover two
-failure modes with the same static text: "forgot to annotate the
-closure" and "diagonal case where annotation won't help."
-
-Approaches:
-
-- **a) Single combined message on `Slot`.** One static `on_unimplemented`
-  message that mentions both remedies: "annotate the closure input;
-  if that doesn't disambiguate, use `explicit::map::<Brand, ...>`."
-  _Trade-off:_ works on stable Rust; same text for both failure
-  modes, so the annotation hint is slightly misleading in the
-  diagonal case.
-- **b) Per-type diagnostics generated by `impl_kind!`.** The macro
-  emits a custom `on_unimplemented` string per concrete type, naming
-  the available brands.
-  _Trade-off:_ more targeted; macro complexity grows; diagnostic
-  strings must track brand renames.
-- **c) Sealed helper traits with structurally-distinct impls per
-  failure mode.** Rust reports the most-specific unsatisfied trait
-  first. Design separate `MissingAnnotation` and `DiagonalAmbiguity`
-  markers.
-  _Trade-off:_ most targeted; significant elaboration of the trait
-  landscape; uncertain whether Rust's error reporting consistently
-  picks the intended trait.
-
-_Recommendation:_ **a)**. Start simple. Revisit only if phase 1/2
-user testing shows confusion. Escalating later is easier than
-pulling back from premature complexity.
-
-A secondary concern (previously tracked as Q6): which trait's
-diagnostic fires when. Under Decision D3, `InferableBrand` is
-removed, so `Slot` is the only reverse-mapping trait with a
-diagnostic. But upstream trait bounds (`Brand: Functor`,
-`Brand: RefFunctor`, etc.) may fire first and report a less helpful
-message. If that happens, phase 3 should add `on_unimplemented`
-overrides to the type-class traits pointing back at the Slot
-diagnostic. Decide from observed behaviour in phase 1.
-
-### Q10: Do-notation macro behaviour
-
-`m_do!` and `a_do!` desugar to chained `bind`/`apply` calls. Under
-phase 2, multi-brand do-notation will require closure annotations
-for the bound variables.
-
-Approaches:
-
-- **a) Audit before shipping.** Run existing `tests/do_notation.rs`
-  and `tests/ado_notation.rs` against multi-brand types; add tests
-  for annotated and unannotated closures; document the annotation
-  requirement in macro docs.
-  _Trade-off:_ catches incompatibilities during implementation; some
-  upfront investigation cost.
-- **b) Ship without audit; react if issues surface.** Rely on the
-  existing test suite to catch problems post-implementation.
-  _Trade-off:_ less upfront work; risks late-discovered
-  incompatibility that pushes the release.
-- **c) Extend the macros to emit type annotations.** `m_do!` could
-  detect multi-brand types and inject closure-input annotations in
-  the expansion based on the initial container's type.
-  _Trade-off:_ potentially nicer ergonomics at the call site;
-  significant macro complexity; may not work when the macro can't
-  statically determine the container type.
-
-_Recommendation:_ **a)**. Low cost relative to the risk of shipping
-broken do-notation. Start with c) only if a) reveals the annotation
-requirement is severely disruptive in practice.
 
 ## Out of scope
 
@@ -488,7 +451,7 @@ released together (Decision B3).
 1. Add `Slot_*` trait family to `fp-library/src/kinds.rs`. Include
    associated type `Marker`. The module-level doc summarises the
    trait trio (`Kind_*`, `Slot_*`, and the historical `InferableBrand_*`
-   if kept as a compatibility re-export - likely not needed under D3).
+   if kept as a compatibility re-export - likely not needed under Decision D).
 2. Update `trait_kind!` to emit `Slot_{hash}` at every arity it
    already emits `Kind_{hash}` for.
 3. Update `impl_kind!` to emit direct `Slot` impls. Single brands get
@@ -498,7 +461,7 @@ released together (Decision B3).
 4. Rename `#[no_inferable_brand]` to `#[multi_brand]` in macro input
    and all use sites. For multi-brand brands, generate one Slot impl
    per brand variant.
-5. Remove `InferableBrand_*` trait family and all impls (Decision D3).
+5. Remove `InferableBrand_*` trait family and all impls (Decision D).
 6. Rewrite `map` in `fp-library/src/dispatch/functor.rs` to bind on
    `Slot` with Marker projected.
 7. Rewrite `explicit::map` to bind on `Slot` with Brand pinned via
@@ -515,8 +478,9 @@ released together (Decision B3).
 Repeat the phase 1 rebinding for:
 
 - `bind`, `bind_flipped`, `join`, `compose_kleisli*`.
-- `apply`, `ref_apply`, `apply_first`, `apply_second` (Q7; Slot keyed
-  on the Fn payload type inside `ff` + the value type inside `fa`).
+- `apply`, `ref_apply`, `apply_first`, `apply_second` (Decision H;
+  Slot keyed on the Fn payload type inside `ff` + the value type
+  inside `fa`).
 - `bimap` at arity 2.
 - `fold_left`, `fold_right`, `fold_map`.
 - `traverse` (outer brand only).
@@ -524,12 +488,12 @@ Repeat the phase 1 rebinding for:
 - `lift2`.
 
 Each is a mechanical analogue of phase 1 for its dispatch trait.
-Audit do-notation macros (Q10).
+Audit do-notation macros (Decision K).
 
 ### Phase 3: Diagnostic polish and docs
 
 1. Attach `#[diagnostic::on_unimplemented]` to `Slot` with wording
-   determined from phase 1/2 observations (Q5/Q6).
+   determined from phase 1/2 observations (Decision J).
 2. Update `fp-library/docs/brand-inference.md` and
    `fp-library/docs/brand-dispatch-traits.md` for the single-family
    design.
@@ -555,7 +519,7 @@ The plan is complete when:
 - All existing `explicit::map::<...>(f, value)` call sites continue
   to work (with turbofish shape per Decision F).
 - Clean-build wall-clock time under ~36s (50% regression threshold
-  versus 24.0s baseline; see Q16).
+  versus 24.0s baseline; see Decision I).
 - No regression in existing test suites, benchmarks, or doctests.
 
 ## Reference material
