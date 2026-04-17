@@ -5,6 +5,11 @@
 //! comments, and asserts them against an insta snapshot. This ensures changes
 //! to dispatch analysis, synthetic signature building, or the HM pipeline do
 //! not silently break any of the 37 inference wrapper function signatures.
+//!
+//! This module lives in `src/documentation/` rather than `tests/` because it
+//! uses `document_module_worker`, which is `pub(super)` to the `documentation`
+//! module. Moving it to an integration test would require widening that
+//! function's visibility.
 
 #![expect(
 	clippy::unwrap_used,

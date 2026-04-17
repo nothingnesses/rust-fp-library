@@ -1,6 +1,6 @@
 ### Brand Inference
 
-The HKT encoding above provides a **forward mapping** from brands to concrete types
+The library's HKT encoding provides a **forward mapping** from brands to concrete types
 (`OptionBrand` -> `Option<A>`), but the compiler has no way to go backwards: given
 `Option<A>`, it cannot determine that `OptionBrand` is the right brand. This means
 every free function call would require a turbofish annotation:
