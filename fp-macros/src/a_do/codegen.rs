@@ -4,7 +4,12 @@
 
 use {
 	crate::m_do::{
-		codegen::rewrite_pure,
+		codegen::{
+			format_bind_param,
+			format_discard_param,
+			rewrite_pure,
+			wrap_container_ref,
+		},
 		input::{
 			DoInput,
 			DoStatement,
@@ -44,22 +49,8 @@ pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 			} => {
 				seen_bind = true;
 				let expr = rewrite_pure(brand, expr, ref_mode);
-				let param = match (ref_mode, ty) {
-					// Ref mode, untyped: add &_ for dispatch inference
-					(true, None) => quote! { #pattern: &_ },
-					// Ref mode, typed: user wrote the full type (including &)
-					(true, Some(ty)) => quote! { #pattern: #ty },
-					// Val mode, typed
-					(false, Some(ty)) => quote! { #pattern: #ty },
-					// Val mode, untyped
-					(false, None) => quote! { #pattern },
-				};
-				bind_params.push(param);
-				if ref_mode {
-					bind_exprs.push(quote! { &(#expr) });
-				} else {
-					bind_exprs.push(expr);
-				}
+				bind_params.push(format_bind_param(pattern, ty.as_ref(), ref_mode));
+				bind_exprs.push(wrap_container_ref(expr, ref_mode));
 			}
 			DoStatement::Let {
 				pattern,
@@ -81,17 +72,8 @@ pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 			} => {
 				seen_bind = true;
 				let expr = rewrite_pure(brand, expr, ref_mode);
-				let discard = if ref_mode {
-					quote! { _: &_ }
-				} else {
-					quote! { _ }
-				};
-				bind_params.push(discard);
-				if ref_mode {
-					bind_exprs.push(quote! { &(#expr) });
-				} else {
-					bind_exprs.push(expr);
-				}
+				bind_params.push(format_discard_param(ref_mode));
+				bind_exprs.push(wrap_container_ref(expr, ref_mode));
 			}
 		}
 	}

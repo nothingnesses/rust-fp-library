@@ -32,21 +32,8 @@ pub fn m_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 				expr,
 			} => {
 				let expr = rewrite_pure(brand, expr, ref_mode);
-				let closure_param = match (ref_mode, ty) {
-					// Ref mode, untyped: add &_ for dispatch inference
-					(true, None) => quote! { #pattern: &_ },
-					// Ref mode, typed: user wrote the full type (including &)
-					(true, Some(ty)) => quote! { #pattern: #ty },
-					// Val mode, typed
-					(false, Some(ty)) => quote! { #pattern: #ty },
-					// Val mode, untyped
-					(false, None) => quote! { #pattern },
-				};
-				let container = if ref_mode {
-					quote! { &(#expr) }
-				} else {
-					quote! { #expr }
-				};
+				let closure_param = format_bind_param(pattern, ty.as_ref(), ref_mode);
+				let container = wrap_container_ref(quote! { #expr }, ref_mode);
 				if let Some(brand) = brand {
 					quote! { explicit::bind::<#brand, _, _, _, _>(#container, move |#closure_param| { #result }) }
 				} else {
@@ -68,16 +55,8 @@ pub fn m_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 				expr,
 			} => {
 				let expr = rewrite_pure(brand, expr, ref_mode);
-				let discard = if ref_mode {
-					quote! { _: &_ }
-				} else {
-					quote! { _ }
-				};
-				let container = if ref_mode {
-					quote! { &(#expr) }
-				} else {
-					quote! { #expr }
-				};
+				let discard = format_discard_param(ref_mode);
+				let container = wrap_container_ref(quote! { #expr }, ref_mode);
 				if let Some(brand) = brand {
 					quote! { explicit::bind::<#brand, _, _, _, _>(#container, move |#discard| { #result }) }
 				} else {
@@ -88,6 +67,45 @@ pub fn m_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 	}
 
 	Ok(result)
+}
+
+/// Format a bind closure parameter with optional type annotation and ref mode.
+pub(crate) fn format_bind_param(
+	pattern: &syn::Pat,
+	ty: Option<&Type>,
+	ref_mode: bool,
+) -> TokenStream {
+	match (ref_mode, ty) {
+		// Ref mode, untyped: add &_ for dispatch inference
+		(true, None) => quote! { #pattern: &_ },
+		// Ref mode, typed: user wrote the full type (including &)
+		(true, Some(ty)) => quote! { #pattern: #ty },
+		// Val mode, typed
+		(false, Some(ty)) => quote! { #pattern: #ty },
+		// Val mode, untyped
+		(false, None) => quote! { #pattern },
+	}
+}
+
+/// Wrap an expression in a reference if in ref mode.
+pub(crate) fn wrap_container_ref(
+	expr: TokenStream,
+	ref_mode: bool,
+) -> TokenStream {
+	if ref_mode {
+		quote! { &(#expr) }
+	} else {
+		expr
+	}
+}
+
+/// Format a discard pattern for sequence statements.
+pub(crate) fn format_discard_param(ref_mode: bool) -> TokenStream {
+	if ref_mode {
+		quote! { _: &_ }
+	} else {
+		quote! { _ }
+	}
 }
 
 /// Rewrites bare `pure(args)` calls within an expression.

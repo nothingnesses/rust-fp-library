@@ -617,7 +617,7 @@ fn extract_secondary_constraints(
 				&& let Some(name) = trait_bound_name(tb)
 			{
 				let name_str = name.to_string();
-				if is_semantic_type_class(&name_str) && !is_fn_like(&name_str) {
+				if is_semantic_type_class(&name_str) {
 					result.push((ident.to_string(), name_str));
 				}
 			}
@@ -877,11 +877,6 @@ fn extract_self_type_elements(val_impl: &syn::ItemImpl) -> Option<Vec<String>> {
 }
 
 // -- Helpers --
-
-/// Check if a name looks like a Fn-like trait (not a type class).
-fn is_fn_like(name: &str) -> bool {
-	name == "Fn" || name == "FnMut" || name == "FnOnce"
-}
 
 /// Convert a type to its string representation, preferring `get_ident()` for
 /// simple path types and falling back to `quote!().to_string()` for complex
