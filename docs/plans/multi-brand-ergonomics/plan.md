@@ -61,7 +61,86 @@ Ready for phase 1 step 6.
 
 ## Open questions, issues and blockers
 
-None at this time. All review findings have been addressed.
+1. **Closureless Slot inference for single-brand types.**
+
+   Phase 2 migrates closureless operations (`join`, `alt`,
+   `apply_first`, `apply_second`) from InferableBrand to Slot. With
+   InferableBrand, Brand was an associated type, so the solver
+   committed it directly from FA. With Slot, Brand is a trait
+   parameter, so the solver must find the unique Slot impl when no
+   closure pins A. For example, `join(Some(Some(5)))` needs the
+   solver to resolve Brand = OptionBrand from the single Slot impl
+   on `Option<Option<i32>>` without any closure-driven disambiguation.
+
+   This should work (one impl means unique resolution), and the test
+   matrix covers it (cases 46-47). But it has not been validated in
+   practice. If Rust's solver cannot commit Brand from a single Slot
+   impl without a closure, the closureless migration approach breaks.
+
+   **Approaches:**
+
+   a) Write a targeted POC before starting phase 2. Define a
+   Slot-based `join` wrapper by hand (similar to
+   `slot_bind_poc.rs`) and test with `Some(Some(5))`. Validates
+   the assumption with minimal effort.
+
+   b) Proceed with phase 2 and discover the result when migrating
+   `join` in `semimonad.rs`. The test matrix tests (46-47) would
+   catch any failure immediately.
+
+   c) Write the phase 2 `join` test case now (step 7) as a
+   non-ignored test that uses the current InferableBrand-based
+   `join`. If it passes, it at least confirms the test
+   infrastructure works; the actual Slot validation happens when
+   the inference wrapper is rewritten.
+
+   **Trade-offs:** (a) is the safest; it catches the problem before
+   any phase 2 code is written, at the cost of one small POC file.
+   (b) is the simplest but delays discovery; if the assumption fails,
+   phase 2 work on closureless operations must be redesigned. (c) is
+   a middle ground but doesn't actually test the Slot path.
+
+   **Recommendation:** (a). The POC is small (under 30 lines) and
+   validates a foundational assumption. If it fails, we learn before
+   investing in phase 2 closureless migration.
+
+2. **`crate::dispatch::{Val, Ref}` hardcoded in macro output.**
+
+   The `trait_kind!` blanket impl emits `type Marker =
+crate::dispatch::Ref` and `impl_kind!` emits `type Marker =
+crate::dispatch::Val`. These paths resolve correctly in
+   fp-library (where `dispatch::Val` and `dispatch::Ref` are
+   defined) but fail in any other crate that invokes `trait_kind!`
+   or `impl_kind!`. This is currently mitigated with shim modules in
+   fp-macros test files, and the hkt.md doctest was changed to
+   `rust,ignore`.
+
+   **Approaches:**
+
+   a) Document as a known limitation. `trait_kind!` and `impl_kind!`
+   are implementation details of fp-library, not intended for
+   external use. External crates would define their own brands via
+   fp-library's public API, not by invoking the macros directly.
+
+   b) Define `Val` and `Ref` in a lightweight non-proc-macro crate
+   (e.g., `fp-core`) that both fp-macros and fp-library depend
+   on. The macros would emit `fp_core::dispatch::Val` instead of
+   `crate::dispatch::Val`. Eliminates the hardcoding but adds a
+   crate to the workspace.
+
+   c) Have `trait_kind!` and `impl_kind!` accept an optional path
+   parameter for the dispatch module (defaulting to
+   `crate::dispatch`). External users could override it. Adds
+   macro API complexity for a rare use case.
+
+   **Trade-offs:** (a) is zero-cost but limits reusability. (b) is
+   clean but adds a dependency and workspace crate for two unit
+   structs. (c) is flexible but adds API surface for a use case that
+   may never arise.
+
+   **Recommendation:** (a) for now. Add to Decision T's known
+   limitations list. If external macro use becomes a real need
+   post-1.0, (b) is the right long-term fix.
 
 ## Deviations
 
@@ -858,11 +937,10 @@ name `Slot` during phases 1-3 to avoid conflicts with the existing
    macro input and all use sites (Decision O). Add a comment in
    `impl_kind!` explaining the Marker-agreement invariant
    (Decision M).
-5. Rewrite `map` and `explicit::map` in
+5. Rewrite the `map` inference wrapper in
    `fp-library/src/dispatch/functor.rs` to bind on `Slot` with
-   Marker projected. Rewrite all explicit functions in functor.rs
-   to use Slot bounds (Decision Q applies to all explicit functions,
-   not just `explicit::map`).
+   Marker projected. `explicit::map` keeps its original signature
+   (revised Decision F/Q: explicit functions do not use Slot bounds).
 6. Update UI tests: remove `result_no_inferable_brand.rs` and
    `tuple2_no_inferable_brand.rs`; add compile-fail UI tests for
    diagonal, unannotated-multi-brand, and `&&T` cases (Decision T).
@@ -872,8 +950,9 @@ name `Slot` during phases 1-3 to avoid conflicts with the existing
 ### Phase 2: Migrate remaining dispatch modules
 
 Migrate each remaining dispatch module from old `InferableBrand` to
-`Slot`. For each module, rewrite both the inference wrapper AND all
-explicit functions (Decision Q). After migrating each module,
+`Slot`. For each module, rewrite the inference wrapper to use Slot
+bounds (explicit functions keep their original signatures per revised
+Decision Q). After migrating each module,
 un-ignore its corresponding tests in `multi_brand_integration.rs`
 and run `just verify` to confirm the branch compiles, the newly
 un-ignored tests pass, and non-regression tests stay green.
