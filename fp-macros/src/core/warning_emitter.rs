@@ -9,7 +9,10 @@ use {
 		Span,
 		TokenStream,
 	},
-	quote::ToTokens,
+	quote::{
+		ToTokens,
+		quote,
+	},
 	std::sync::atomic::{
 		AtomicUsize,
 		Ordering,
@@ -48,7 +51,13 @@ impl WarningEmitter {
 		let name = format!("_fp_macros_warning_{id}");
 
 		let warning = FormattedWarning::new_deprecated(&name, message, span);
-		self.warnings.push(warning.into_token_stream());
+		let warning_tokens = warning.into_token_stream();
+		// proc-macro-warning generates `let _ = _w;` where `_w: ()`, triggering
+		// clippy::let_unit_value. Wrap with expect so we notice if upstream fixes this.
+		self.warnings.push(quote! {
+			#[expect(clippy::let_unit_value, reason = "proc-macro-warning emits `let _ = _w` where _w: ()")]
+			#warning_tokens
+		});
 	}
 
 	/// Returns `true` if no warnings have been emitted.

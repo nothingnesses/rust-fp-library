@@ -617,7 +617,6 @@ pub(crate) mod inner {
 	/// let x = Some(Some(5));
 	/// assert_eq!(join(&x), Some(5));
 	/// ```
-	#[allow_named_generics]
 	pub fn join<'a, FA, A: 'a, Brand, MidA: 'a>(
 		mma: FA
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
