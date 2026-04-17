@@ -337,3 +337,39 @@ fn inferred_ref_mode() {
 	});
 	assert_eq!(result, Some(15));
 }
+
+// -- Multi-brand audit (Decision K) --
+//
+// These tests validate m_do! with multi-brand types (Result).
+// Multi-brand m_do! must use explicit mode because pure() needs
+// Brand via turbofish. Inferred mode would fail at pure().
+
+#[test]
+fn multi_brand_explicit_bind_chain() {
+	let result: Result<i32, String> = m_do!(ResultErrAppliedBrand<String> {
+		x: i32 <- Ok::<i32, String>(5);
+		y: i32 <- Ok::<i32, String>(x + 1);
+		pure(x + y)
+	});
+	assert_eq!(result, Ok(11));
+}
+
+#[test]
+fn multi_brand_explicit_short_circuit() {
+	let result: Result<i32, String> = m_do!(ResultErrAppliedBrand<String> {
+		x: i32 <- Ok::<i32, String>(5);
+		_: i32 <- Err::<i32, String>("fail".into());
+		pure(x)
+	});
+	assert_eq!(result, Err("fail".to_string()));
+}
+
+#[test]
+fn multi_brand_explicit_with_let() {
+	let result: Result<i32, String> = m_do!(ResultErrAppliedBrand<String> {
+		x: i32 <- Ok::<i32, String>(10);
+		let doubled = x * 2;
+		pure(doubled)
+	});
+	assert_eq!(result, Ok(20));
+}

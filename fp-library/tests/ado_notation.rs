@@ -397,3 +397,46 @@ fn inferred_with_let() {
 	});
 	assert_eq!(result, Some(105));
 }
+
+// -- Multi-brand audit (Decision K) --
+//
+// These tests validate a_do! with multi-brand types (Result).
+// Multi-brand a_do! must use explicit mode because:
+// - 0 binds: pure() needs Brand via turbofish.
+// - 1 bind: explicit::map is used (Brand via turbofish).
+// - 2+ binds: explicit::liftN is used (Brand via turbofish).
+
+#[test]
+fn multi_brand_explicit_single_bind() {
+	let result = a_do!(ResultErrAppliedBrand<String> {
+		x: i32 <- Ok::<i32, String>(5);
+		x * 2
+	});
+	assert_eq!(result, Ok(10));
+}
+
+#[test]
+fn multi_brand_explicit_two_binds() {
+	let result = a_do!(ResultErrAppliedBrand<String> {
+		x: i32 <- Ok::<i32, String>(5);
+		y: i32 <- Ok::<i32, String>(10);
+		x + y
+	});
+	assert_eq!(result, Ok(15));
+}
+
+#[test]
+fn multi_brand_explicit_short_circuit() {
+	let result: Result<i32, String> = a_do!(ResultErrAppliedBrand<String> {
+		x: i32 <- Ok::<i32, String>(5);
+		_: i32 <- Err::<i32, String>("fail".into());
+		x
+	});
+	assert_eq!(result, Err("fail".to_string()));
+}
+
+#[test]
+fn multi_brand_explicit_zero_binds() {
+	let result: Result<i32, String> = a_do!(ResultErrAppliedBrand<String> { 42 });
+	assert_eq!(result, Ok(42));
+}

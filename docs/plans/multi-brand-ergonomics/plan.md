@@ -75,13 +75,13 @@ InferableBrand references remain in dispatch/. Explicit functions
 unchanged per revised Decision Q. All 20 integration tests pass
 (11 phase 1 + 9 phase 2). 16 non-regression tests green.
 
-Remaining phase 2 items:
+Do-notation audit (Decision K) complete. Both `m_do!` and `a_do!`
+work correctly with multi-brand types in explicit mode. Added 7 audit
+tests (3 m_do + 4 a_do) covering bind chains, short-circuit, let
+bindings, single/two/zero binds with `ResultErrAppliedBrand<String>`.
+No issues found; no macro changes needed.
 
-- Do-notation audit (Decision K) - next.
-- `dispatch/semiapplicative.rs` (Decision P) - new module, deferred
-  until after the do-notation audit since `a_do!` uses apply/lift
-  for multi-bind expressions and audit findings could influence the
-  dispatch module design.
+Remaining: `dispatch/semiapplicative.rs` (Decision P).
 
 ## Open questions, issues and blockers
 
