@@ -69,9 +69,11 @@ Phase 1 complete. All 11 phase 1 multi-brand integration tests pass
 both-params-generic, Ref + generic fixed param). All 16 non-regression
 single-brand tests remain green. 9 phase 2 tests correctly ignored.
 
-Phase 2 in progress. Migrated `semimonad.rs`: `bind`, `bind_flipped`
-(closure-taking, gain multi-brand inference) and `join` (closureless,
-uses extra `MidA` type parameter per Decision W).
+Phase 2 dispatch migration complete. All 19 dispatch modules migrated
+from InferableBrand to Slot (34 inference wrappers total). No
+InferableBrand references remain in dispatch/. Explicit functions
+unchanged per revised Decision Q. Do-notation audit (Decision K)
+still pending.
 
 ## Open questions, issues and blockers
 

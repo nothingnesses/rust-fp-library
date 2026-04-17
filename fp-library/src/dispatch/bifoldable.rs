@@ -593,8 +593,7 @@ pub(crate) mod inner {
 	/// container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa` via
-	/// [`InferableBrand`](crate::kinds::InferableBrand_266801a817966495). `FnBrand`
-	/// must still be specified explicitly.
+	/// the `Slot` trait. `FnBrand` must still be specified explicitly.
 	///
 	/// For types that need an explicit brand, use
 	/// [`explicit::bi_fold_left`](crate::functions::explicit::bi_fold_left).
@@ -607,7 +606,7 @@ pub(crate) mod inner {
 		"The type of the first element.",
 		"The type of the second element.",
 		"The accumulator type.",
-		"Dispatch marker type, inferred automatically."
+		"The brand, inferred via Slot from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -629,22 +628,23 @@ pub(crate) mod inner {
 	/// let y = bi_fold_left::<RcFnBrand, _, _, _, _, _>((|acc, e| acc - e, |acc, s| acc + s), 10, x);
 	/// assert_eq!(y, 15);
 	/// ```
-	pub fn bi_fold_left<'a, FnBrand, FA, A: 'a, B: 'a, C: 'a, Marker>(
+	pub fn bi_fold_left<'a, FnBrand, FA, A: 'a, B: 'a, C: 'a, Brand>(
 		fg: impl BiFoldLeftDispatch<
 			'a,
 			FnBrand,
-			<FA as InferableBrand_266801a817966495>::Brand,
+			Brand,
 			A,
 			B,
 			C,
 			FA,
-			Marker,
+			<FA as Slot_266801a817966495<'a, Brand, A, B>>::Marker,
 		>,
 		z: C,
 		fa: FA,
 	) -> C
 	where
-		FA: InferableBrand_266801a817966495, {
+		Brand: Kind_266801a817966495,
+		FA: Slot_266801a817966495<'a, Brand, A, B>, {
 		fg.dispatch(z, fa)
 	}
 
@@ -652,8 +652,7 @@ pub(crate) mod inner {
 	/// container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa` via
-	/// [`InferableBrand`](crate::kinds::InferableBrand_266801a817966495). `FnBrand`
-	/// must still be specified explicitly.
+	/// the `Slot` trait. `FnBrand` must still be specified explicitly.
 	///
 	/// For types that need an explicit brand, use
 	/// [`explicit::bi_fold_right`](crate::functions::explicit::bi_fold_right).
@@ -666,7 +665,7 @@ pub(crate) mod inner {
 		"The type of the first element.",
 		"The type of the second element.",
 		"The accumulator type.",
-		"Dispatch marker type, inferred automatically."
+		"The brand, inferred via Slot from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -688,22 +687,23 @@ pub(crate) mod inner {
 	/// let y = bi_fold_right::<RcFnBrand, _, _, _, _, _>((|e, acc| acc - e, |s, acc| acc + s), 10, x);
 	/// assert_eq!(y, 7);
 	/// ```
-	pub fn bi_fold_right<'a, FnBrand, FA, A: 'a, B: 'a, C: 'a, Marker>(
+	pub fn bi_fold_right<'a, FnBrand, FA, A: 'a, B: 'a, C: 'a, Brand>(
 		fg: impl BiFoldRightDispatch<
 			'a,
 			FnBrand,
-			<FA as InferableBrand_266801a817966495>::Brand,
+			Brand,
 			A,
 			B,
 			C,
 			FA,
-			Marker,
+			<FA as Slot_266801a817966495<'a, Brand, A, B>>::Marker,
 		>,
 		z: C,
 		fa: FA,
 	) -> C
 	where
-		FA: InferableBrand_266801a817966495, {
+		Brand: Kind_266801a817966495,
+		FA: Slot_266801a817966495<'a, Brand, A, B>, {
 		fg.dispatch(z, fa)
 	}
 
@@ -711,8 +711,7 @@ pub(crate) mod inner {
 	/// container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa` via
-	/// [`InferableBrand`](crate::kinds::InferableBrand_266801a817966495). `FnBrand`
-	/// must still be specified explicitly.
+	/// the `Slot` trait. `FnBrand` must still be specified explicitly.
 	///
 	/// For types that need an explicit brand, use
 	/// [`explicit::bi_fold_map`](crate::functions::explicit::bi_fold_map).
@@ -725,7 +724,7 @@ pub(crate) mod inner {
 		"The type of the first element.",
 		"The type of the second element.",
 		"The monoid type to fold into.",
-		"Dispatch marker type, inferred automatically."
+		"The brand, inferred via Slot from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -749,21 +748,22 @@ pub(crate) mod inner {
 	/// );
 	/// assert_eq!(y, "5".to_string());
 	/// ```
-	pub fn bi_fold_map<'a, FnBrand, FA, A: 'a, B: 'a, M: Monoid + 'a, Marker>(
+	pub fn bi_fold_map<'a, FnBrand, FA, A: 'a, B: 'a, M: Monoid + 'a, Brand>(
 		fg: impl BiFoldMapDispatch<
 			'a,
 			FnBrand,
-			<FA as InferableBrand_266801a817966495>::Brand,
+			Brand,
 			A,
 			B,
 			M,
 			FA,
-			Marker,
+			<FA as Slot_266801a817966495<'a, Brand, A, B>>::Marker,
 		>,
 		fa: FA,
 	) -> M
 	where
-		FA: InferableBrand_266801a817966495, {
+		Brand: Kind_266801a817966495,
+		FA: Slot_266801a817966495<'a, Brand, A, B>, {
 		fg.dispatch(fa)
 	}
 

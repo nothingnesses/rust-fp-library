@@ -93,61 +93,64 @@ fn p1_map_ref_generic_fixed_param() {
 // -- bind (semimonad) --
 
 #[test]
-#[ignore = "bind inference wrapper not yet migrated to Slot"]
 fn p2_bind_val_multi_brand() {
-	// bind(Ok::<i32, String>(5), |x: i32| Ok(x.to_string())) == Ok("5")
+	let r: Result<String, String> = bind(Ok::<i32, String>(5), |x: i32| Ok(x.to_string()));
+	assert_eq!(r, Ok("5".to_string()));
 }
 
 #[test]
-#[ignore = "bind inference wrapper not yet migrated to Slot"]
 fn p2_bind_val_multi_brand_passthrough() {
-	// bind(Err::<i32, String>("fail".into()), |x: i32| Ok(x.to_string())) == Err("fail")
+	let r: Result<String, String> =
+		bind(Err::<i32, String>("fail".into()), |x: i32| Ok(x.to_string()));
+	assert_eq!(r, Err("fail".to_string()));
 }
 
 #[test]
-#[ignore = "bind inference wrapper not yet migrated to Slot"]
 fn p2_bind_ref_multi_brand() {
-	// bind(&Ok::<i32, String>(5), |x: &i32| Ok(x.to_string())) == Ok("5")
+	let ok: Result<i32, String> = Ok(5);
+	let r: Result<String, String> = bind(&ok, |x: &i32| Ok(x.to_string()));
+	assert_eq!(r, Ok("5".to_string()));
 }
 
 // -- bimap (bifunctor, arity 2) --
+//
+// ResultBrand's Of<'a, A, B> = Result<B, A> (error first, success second).
+// So bimap's closure pair is (error_fn, success_fn) matching (A, B).
 
 #[test]
-#[ignore = "bimap inference wrapper not yet migrated to Slot"]
 fn p2_bimap_result_ok() {
-	// bimap(|x: i32| x + 1, |e: String| e.len(), Ok::<i32, String>(5)) == Ok(6)
+	let r = bimap((|e: String| e.len(), |x: i32| x + 1), Ok::<i32, String>(5));
+	assert_eq!(r, Ok(6));
 }
 
 #[test]
-#[ignore = "bimap inference wrapper not yet migrated to Slot"]
 fn p2_bimap_result_err() {
-	// bimap(|x: i32| x + 1, |e: String| e.len(), Err::<i32, String>("hi".into())) == Err(2)
+	let r = bimap((|e: String| e.len(), |x: i32| x + 1), Err::<i32, String>("hi".into()));
+	assert_eq!(r, Err(2));
 }
 
 // -- lift2 --
 
 #[test]
-#[ignore = "lift2 inference wrapper not yet migrated to Slot"]
 fn p2_lift2_multi_brand() {
-	// lift2(|a: i32, b: i32| a + b, Ok::<i32, String>(1), Ok::<i32, String>(2)) == Ok(3)
+	let r = lift2(|a: i32, b: i32| a + b, Ok::<i32, String>(1), Ok::<i32, String>(2));
+	assert_eq!(r, Ok(3));
 }
 
 #[test]
-#[ignore = "lift2 inference wrapper not yet migrated to Slot"]
 fn p2_lift2_multi_brand_short_circuit() {
-	// lift2(|a: i32, b: i32| a + b, Ok::<i32, String>(1), Err("x".into())) == Err("x")
+	let r = lift2(|a: i32, b: i32| a + b, Ok::<i32, String>(1), Err::<i32, String>("x".into()));
+	assert_eq!(r, Err("x".to_string()));
 }
 
 // -- closureless single-brand (must still infer via Slot) --
 
 #[test]
-#[ignore = "join inference wrapper not yet migrated to Slot"]
 fn p2_join_single_brand_via_slot() {
-	// join(Some(Some(5))) == Some(5)
+	assert_eq!(join(Some(Some(5))), Some(5));
 }
 
 #[test]
-#[ignore = "alt inference wrapper not yet migrated to Slot"]
 fn p2_alt_single_brand_via_slot() {
-	// alt(None::<i32>, Some(5)) == Some(5)
+	assert_eq!(alt(None::<i32>, Some(5)), Some(5));
 }

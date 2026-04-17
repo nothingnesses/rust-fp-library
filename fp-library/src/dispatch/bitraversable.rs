@@ -262,8 +262,8 @@ pub(crate) mod inner {
 	/// the brand from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa` via
-	/// [`InferableBrand`](crate::kinds::InferableBrand_266801a817966495). `FnBrand`
-	/// and `F` (the applicative brand) must still be specified explicitly.
+	/// the `Slot` trait. `FnBrand` and `F` (the applicative brand) must still be
+	/// specified explicitly.
 	///
 	/// For types that need an explicit brand, use
 	/// [`explicit::bi_traverse`](crate::functions::explicit::bi_traverse).
@@ -278,7 +278,7 @@ pub(crate) mod inner {
 		"The type of the first result.",
 		"The type of the second result.",
 		"The applicative effect brand.",
-		"Dispatch marker type, inferred automatically."
+		"The brand, inferred via Slot from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -311,24 +311,25 @@ pub(crate) mod inner {
 		C: 'a,
 		D: 'a,
 		F: Kind_cdc7cd43dac7585f,
-		Marker,
+		Brand,
 	>(
 		fg: impl BiTraverseDispatch<
 			'a,
 			FnBrand,
-			<FA as InferableBrand_266801a817966495>::Brand,
+			Brand,
 			A,
 			B,
 			C,
 			D,
 			F,
 			FA,
-			Marker,
+			<FA as Slot_266801a817966495<'a, Brand, A, B>>::Marker,
 		>,
 		fa: FA,
-	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a, B: 'a>: 'a;)>::Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
+	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
 	where
-		FA: InferableBrand_266801a817966495, {
+		Brand: Kind_266801a817966495,
+		FA: Slot_266801a817966495<'a, Brand, A, B>, {
 		fg.dispatch(fa)
 	}
 

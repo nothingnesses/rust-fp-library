@@ -713,7 +713,7 @@ pub(crate) mod inner {
 	/// from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
+	/// via the `Slot` trait. Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
 	/// [`explicit::filter_with_index`](crate::functions::explicit::filter_with_index) with a turbofish.
@@ -723,7 +723,7 @@ pub(crate) mod inner {
 		"The lifetime of the values.",
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The type of the value(s) inside the filterable.",
-		"Dispatch marker type, inferred automatically."
+		"The brand, inferred via Slot from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -742,26 +742,26 @@ pub(crate) mod inner {
 	/// let y = filter_with_index(|i, _x: i32| i < 2, vec![10, 20, 30, 40]);
 	/// assert_eq!(y, vec![10, 20]);
 	/// ```
-	pub fn filter_with_index<'a, FA, A: 'a + Clone, Marker>(
+	pub fn filter_with_index<'a, FA, A: 'a + Clone, Brand>(
 		f: impl FilterWithIndexDispatch<
 			'a,
-			<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+			Brand,
 			A,
 			FA,
-			Marker,
+			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
-	) -> Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 	where
-		FA: InferableBrand_cdc7cd43dac7585f,
-		<FA as InferableBrand_cdc7cd43dac7585f>::Brand: WithIndex, {
+		Brand: Kind_cdc7cd43dac7585f + WithIndex,
+		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa)
 	}
 
 	/// Filters and maps the values with index, inferring the brand from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
+	/// via the `Slot` trait. Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
 	/// [`explicit::filter_map_with_index`](crate::functions::explicit::filter_map_with_index) with a turbofish.
@@ -772,7 +772,7 @@ pub(crate) mod inner {
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The type of the value(s) inside the filterable.",
 		"The type of the result(s) of applying the function.",
-		"Dispatch marker type, inferred automatically."
+		"The brand, inferred via Slot from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -792,20 +792,20 @@ pub(crate) mod inner {
 	/// );
 	/// assert_eq!(y, vec![20, 60]);
 	/// ```
-	pub fn filter_map_with_index<'a, FA, A: 'a, B: 'a, Marker>(
+	pub fn filter_map_with_index<'a, FA, A: 'a, B: 'a, Brand>(
 		f: impl FilterMapWithIndexDispatch<
 			'a,
-			<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+			Brand,
 			A,
 			B,
 			FA,
-			Marker,
+			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
-	) -> Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		FA: InferableBrand_cdc7cd43dac7585f,
-		<FA as InferableBrand_cdc7cd43dac7585f>::Brand: WithIndex, {
+		Brand: Kind_cdc7cd43dac7585f + WithIndex,
+		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa)
 	}
 
@@ -813,7 +813,7 @@ pub(crate) mod inner {
 	/// from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
+	/// via the `Slot` trait. Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
 	/// [`explicit::partition_with_index`](crate::functions::explicit::partition_with_index) with a turbofish.
@@ -823,7 +823,7 @@ pub(crate) mod inner {
 		"The lifetime of the values.",
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The type of the value(s) inside the filterable.",
-		"Dispatch marker type, inferred automatically."
+		"The brand, inferred via Slot from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -841,22 +841,22 @@ pub(crate) mod inner {
 	/// assert_eq!(sat, vec![10, 20]);
 	/// assert_eq!(not_sat, vec![30, 40]);
 	/// ```
-	pub fn partition_with_index<'a, FA, A: 'a + Clone, Marker>(
+	pub fn partition_with_index<'a, FA, A: 'a + Clone, Brand>(
 		f: impl PartitionWithIndexDispatch<
 			'a,
-			<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+			Brand,
 			A,
 			FA,
-			Marker,
+			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
 	) -> (
-		Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	)
 	where
-		FA: InferableBrand_cdc7cd43dac7585f,
-		<FA as InferableBrand_cdc7cd43dac7585f>::Brand: WithIndex, {
+		Brand: Kind_cdc7cd43dac7585f + WithIndex,
+		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa)
 	}
 
@@ -864,7 +864,7 @@ pub(crate) mod inner {
 	/// inferring the brand from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
+	/// via the `Slot` trait. Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
 	/// [`explicit::partition_map_with_index`](crate::functions::explicit::partition_map_with_index) with a turbofish.
@@ -876,7 +876,7 @@ pub(crate) mod inner {
 		"The type of the value(s) inside the filterable.",
 		"The error type produced by the partitioning function.",
 		"The success type produced by the partitioning function.",
-		"Dispatch marker type, inferred automatically."
+		"The brand, inferred via Slot from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -897,24 +897,24 @@ pub(crate) mod inner {
 	/// assert_eq!(oks, vec![10, 20]);
 	/// assert_eq!(errs, vec![30, 40]);
 	/// ```
-	pub fn partition_map_with_index<'a, FA, A: 'a, E: 'a, O: 'a, Marker>(
+	pub fn partition_map_with_index<'a, FA, A: 'a, E: 'a, O: 'a, Brand>(
 		f: impl PartitionMapWithIndexDispatch<
 			'a,
-			<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+			Brand,
 			A,
 			E,
 			O,
 			FA,
-			Marker,
+			<FA as Slot_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
 	) -> (
-		Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-		Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
 	)
 	where
-		FA: InferableBrand_cdc7cd43dac7585f,
-		<FA as InferableBrand_cdc7cd43dac7585f>::Brand: WithIndex, {
+		Brand: Kind_cdc7cd43dac7585f + WithIndex,
+		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa)
 	}
 
