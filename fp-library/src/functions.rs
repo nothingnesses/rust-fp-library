@@ -79,7 +79,6 @@ pub use crate::dispatch::{
 		lift4,
 		lift5,
 	},
-	semiapplicative::apply,
 	semimonad::{
 		bind,
 		bind_flipped,
@@ -213,7 +212,6 @@ pub mod explicit {
 			lift4,
 			lift5,
 		},
-		semiapplicative::explicit::apply,
 		semimonad::explicit::{
 			bind,
 			bind_flipped,
