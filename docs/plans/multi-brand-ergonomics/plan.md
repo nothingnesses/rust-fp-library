@@ -90,10 +90,9 @@ replaced the class-level `map`. The class-level `apply` moves to
 is excluded, and the dispatch version is re-exported instead.
 
 Call sites migrate from `apply::<RcFnBrand, OptionBrand, _, _>(ff, fa)`
-(Brand specified manually) to `apply::<RcFnBrand, _, _, _, _, _>(ff, fa)`
-(Brand inferred via dual Slot bounds). `FnBrand` still requires
-turbofish since Rust's solver cannot reverse-project associated types
-to recover it from the concrete wrapped function type.
+(both FnBrand and Brand specified manually) to `apply(ff, fa)` (both
+inferred). FnBrand inference validated by `poc_fn_brand_inference.rs`
+via a `FnBrandSlot` trait with an intermediary `W` type parameter.
 
 ## Open questions, issues and blockers
 
@@ -647,10 +646,21 @@ The dispatch `apply` replaces the class-level `apply` as the primary
 API re-exported through `functions::apply`. The class-level `apply`
 from `classes/semiapplicative.rs` is excluded from
 `generate_function_re_exports!` and becomes the `explicit::apply`
-fallback. Call sites migrate from
-`apply::<RcFnBrand, Brand, _, _>(ff, fa)` to
-`apply::<RcFnBrand, _, _, _, _, _>(ff, fa)` (Brand inferred via
-dual Slot bounds; `FnBrand` still requires turbofish).
+fallback.
+
+**FnBrand inference** is feasible and should be included. Validated
+by `poc_fn_brand_inference.rs` (8 tests, all pass). The approach
+uses a `FnBrandSlot<FnBrand, A, B>` trait with impls for each
+concrete wrapper type (`Rc<dyn Fn(A) -> B>`, `Arc<dyn Fn(A) -> B>`).
+An extra type parameter `W` (the wrapper type) is extracted from the
+container via the Brand Slot, then `FnBrandSlot` on `W` resolves
+`FnBrand`. A bridge bound converts `Brand::Of<W>` to
+`Brand::Of<CloneFn::Of>` for the actual `Semiapplicative::apply`
+call.
+
+Call sites migrate from `apply::<RcFnBrand, Brand, _, _>(ff, fa)` to
+`apply(ff, fa)` (both Brand and FnBrand fully inferred). This
+eliminates all turbofish arguments from `apply` calls.
 
 Ref dispatch (`ref_apply`) is deferred as follow-up work.
 `RefSemiapplicative::ref_apply` uses `CloneFn<Ref>` (a different
@@ -660,9 +670,10 @@ Slot inference works for the Ref case; a `ref_apply` inference
 wrapper can be added separately without a shared dispatch trait.
 
 _Rationale:_ POC 8 validates the dual-Slot-bound signature shape.
-The dispatch module replaces the class-level free function to provide
-Brand inference, consistent with how all other dispatch modules
-supersede their class-level counterparts.
+`poc_fn_brand_inference.rs` validates the FnBrand inference
+mechanism. The dispatch module replaces the class-level free function
+to provide full inference, consistent with how all other dispatch
+modules supersede their class-level counterparts.
 
 ### Decision Q: `explicit::` function scope (revised)
 
