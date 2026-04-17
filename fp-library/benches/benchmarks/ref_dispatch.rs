@@ -21,12 +21,12 @@ pub fn bench_ref_dispatch(c: &mut Criterion) {
 		let mut group = c.benchmark_group("Dispatch Map Option");
 		group.bench_with_input(BenchmarkId::new("val", opt_desc), &opt_desc, |b, &_| {
 			b.iter(|| {
-				explicit::map::<OptionBrand, _, _, _>(|x| x * 2, std::hint::black_box(opt_val))
+				explicit::map::<OptionBrand, _, _, _, _>(|x| x * 2, std::hint::black_box(opt_val))
 			})
 		});
 		group.bench_with_input(BenchmarkId::new("ref", opt_desc), &opt_desc, |b, &_| {
 			b.iter(|| {
-				explicit::map::<OptionBrand, _, _, _>(
+				explicit::map::<OptionBrand, _, _, _, _>(
 					|x: &i32| *x * 2,
 					std::hint::black_box(&opt_val),
 				)
@@ -93,14 +93,14 @@ pub fn bench_ref_dispatch(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("val", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| explicit::map::<VecBrand, _, _, _>(|x| x * 2, v),
+				|v| explicit::map::<VecBrand, _, _, _, _>(|x| x * 2, v),
 				BatchSize::SmallInput,
 			)
 		});
 		group.bench_with_input(BenchmarkId::new("ref", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| explicit::map::<VecBrand, _, _, _>(|x: &i32| *x * 2, &v),
+				|v| explicit::map::<VecBrand, _, _, _, _>(|x: &i32| *x * 2, &v),
 				BatchSize::SmallInput,
 			)
 		});

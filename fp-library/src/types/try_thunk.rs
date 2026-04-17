@@ -996,7 +996,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-		/// let mapped = explicit::map::<TryThunkErrAppliedBrand<()>, _, _, _>(|x| x * 2, try_thunk);
+		/// let mapped = explicit::map::<TryThunkErrAppliedBrand<()>, _, _, _, _>(|x| x * 2, try_thunk);
 		/// assert_eq!(mapped.evaluate(), Ok(20));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -1740,7 +1740,7 @@ mod inner {
 		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-		/// let mapped = explicit::map::<TryThunkOkAppliedBrand<i32>, _, _, _>(|x| x * 2, try_thunk);
+		/// let mapped = explicit::map::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(|x| x * 2, try_thunk);
 		/// assert_eq!(mapped.evaluate(), Err(20));
 		/// ```
 		fn map<'a, E: 'a, E2: 'a>(
@@ -2528,7 +2528,7 @@ mod tests {
 
 		// Functor (map over success)
 		let try_thunk: TryThunk<i32, ()> = TryThunk::ok(10);
-		let mapped = explicit::map::<TryThunkErrAppliedBrand<()>, _, _, _>(|x| x * 2, try_thunk);
+		let mapped = explicit::map::<TryThunkErrAppliedBrand<()>, _, _, _, _>(|x| x * 2, try_thunk);
 		assert_eq!(mapped.evaluate(), Ok(20));
 
 		// Pointed (pure -> ok)
@@ -2737,7 +2737,7 @@ mod tests {
 
 		// Functor (map over error)
 		let try_thunk: TryThunk<i32, i32> = TryThunk::err(10);
-		let mapped = explicit::map::<TryThunkOkAppliedBrand<i32>, _, _, _>(|x| x * 2, try_thunk);
+		let mapped = explicit::map::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(|x| x * 2, try_thunk);
 		assert_eq!(mapped.evaluate(), Err(20));
 
 		// Pointed (pure -> err)
@@ -2813,7 +2813,7 @@ mod tests {
 			functions::*,
 		};
 		let t: TryThunk<i32, i32> = TryThunk::ok(x);
-		explicit::map::<TryThunkErrAppliedBrand<i32>, _, _, _>(|a| a, t).evaluate() == Ok(x)
+		explicit::map::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(|a| a, t).evaluate() == Ok(x)
 	}
 
 	/// Functor composition: `map(f . g, t) == map(f, map(g, t))`.
@@ -2825,14 +2825,14 @@ mod tests {
 		};
 		let f = |a: i32| a.wrapping_add(1);
 		let g = |a: i32| a.wrapping_mul(2);
-		let lhs = explicit::map::<TryThunkErrAppliedBrand<i32>, _, _, _>(
+		let lhs = explicit::map::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
 			move |a| f(g(a)),
 			TryThunk::ok(x),
 		)
 		.evaluate();
-		let rhs = explicit::map::<TryThunkErrAppliedBrand<i32>, _, _, _>(
+		let rhs = explicit::map::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(
 			f,
-			explicit::map::<TryThunkErrAppliedBrand<i32>, _, _, _>(g, TryThunk::ok(x)),
+			explicit::map::<TryThunkErrAppliedBrand<i32>, _, _, _, _>(g, TryThunk::ok(x)),
 		)
 		.evaluate();
 		lhs == rhs

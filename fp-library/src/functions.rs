@@ -23,7 +23,7 @@
 //! 	functions::explicit::*,
 //! };
 //!
-//! let result = map::<VecBrand, _, _, _>(|x: i32| x + 1, vec![1, 2, 3]);
+//! let result = map::<VecBrand, _, _, _, _>(|x: i32| x + 1, vec![1, 2, 3]);
 //! assert_eq!(result, vec![2, 3, 4]);
 //! ```
 //!

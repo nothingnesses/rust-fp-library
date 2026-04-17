@@ -472,7 +472,7 @@ mod inner {
 		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
-		/// let mapped = explicit::map::<ThunkBrand, _, _, _>(|x| x * 2, thunk);
+		/// let mapped = explicit::map::<ThunkBrand, _, _, _, _>(|x| x * 2, thunk);
 		/// assert_eq!(mapped.evaluate(), 20);
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -1241,7 +1241,7 @@ mod tests {
 	/// Functor identity: `map(identity, fa) == fa`.
 	#[quickcheck]
 	fn functor_identity(x: i32) -> bool {
-		explicit::map::<ThunkBrand, _, _, _>(identity, pure::<ThunkBrand, _>(x)).evaluate() == x
+		explicit::map::<ThunkBrand, _, _, _, _>(identity, pure::<ThunkBrand, _>(x)).evaluate() == x
 	}
 
 	/// Functor composition: `map(f . g, fa) == map(f, map(g, fa))`.
@@ -1249,11 +1249,12 @@ mod tests {
 	fn functor_composition(x: i32) -> bool {
 		let f = |a: i32| a.wrapping_add(1);
 		let g = |a: i32| a.wrapping_mul(2);
-		let lhs = explicit::map::<ThunkBrand, _, _, _>(move |a| f(g(a)), pure::<ThunkBrand, _>(x))
-			.evaluate();
-		let rhs = explicit::map::<ThunkBrand, _, _, _>(
+		let lhs =
+			explicit::map::<ThunkBrand, _, _, _, _>(move |a| f(g(a)), pure::<ThunkBrand, _>(x))
+				.evaluate();
+		let rhs = explicit::map::<ThunkBrand, _, _, _, _>(
 			f,
-			explicit::map::<ThunkBrand, _, _, _>(g, pure::<ThunkBrand, _>(x)),
+			explicit::map::<ThunkBrand, _, _, _, _>(g, pure::<ThunkBrand, _>(x)),
 		)
 		.evaluate();
 		lhs == rhs
@@ -1500,7 +1501,7 @@ mod tests {
 		let f = |a: i32| a * 3 + 1;
 		let thunk1 = pure::<ThunkBrand, _>(10);
 		let thunk2 = pure::<ThunkBrand, _>(10);
-		let via_map = explicit::map::<ThunkBrand, _, _, _>(f, thunk1).evaluate();
+		let via_map = explicit::map::<ThunkBrand, _, _, _, _>(f, thunk1).evaluate();
 		let via_map_with_index = ThunkBrand::map_with_index(|_, a| f(a), thunk2).evaluate();
 		assert_eq!(via_map, via_map_with_index);
 	}
@@ -1604,7 +1605,7 @@ mod tests {
 		let f = |a: i32| a.wrapping_mul(3).wrapping_add(7);
 		let fa = Thunk::new(|| x);
 		let fa2 = Thunk::new(|| x);
-		let lhs = extract::<ThunkBrand, _>(explicit::map::<ThunkBrand, _, _, _>(f, fa));
+		let lhs = extract::<ThunkBrand, _>(explicit::map::<ThunkBrand, _, _, _, _>(f, fa));
 		let rhs = f(extract::<ThunkBrand, _>(fa2));
 		lhs == rhs
 	}

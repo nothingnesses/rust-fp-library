@@ -215,7 +215,7 @@ fn equivalent_to_manual_map() {
 		x <- Some(7);
 		x + 1
 	});
-	let manual_result = explicit::map::<OptionBrand, _, _, _>(|x| x + 1, Some(7));
+	let manual_result = explicit::map::<OptionBrand, _, _, _, _>(|x| x + 1, Some(7));
 	assert_eq!(ado_result, manual_result);
 }
 
@@ -354,7 +354,7 @@ fn ref_mode_equivalent_to_manual_ref_map() {
 		x: &i32 <- Some(7);
 		*x + 1
 	});
-	let manual_result = explicit::map::<OptionBrand, _, _, _>(|x: &i32| *x + 1, &Some(7));
+	let manual_result = explicit::map::<OptionBrand, _, _, _, _>(|x: &i32| *x + 1, &Some(7));
 	assert_eq!(ado_result, manual_result);
 }
 

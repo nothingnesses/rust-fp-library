@@ -29,7 +29,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				explicit::map::<PairFirstAppliedBrand<String>, _, _, _>(
+				explicit::map::<PairFirstAppliedBrand<String>, _, _, _, _>(
 					|x| x * 2,
 					std::hint::black_box(val.clone()),
 				)

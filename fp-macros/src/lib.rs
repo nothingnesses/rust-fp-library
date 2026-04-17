@@ -1413,7 +1413,7 @@ pub fn m_do(input: TokenStream) -> TokenStream {
 /// | Binds | Explicit expansion | Inferred expansion |
 /// |-------|--------------------|--------------------|
 /// | 0 | `pure::<Brand, _>(final_expr)` | `compile_error!` |
-/// | 1 | `explicit::map::<Brand, _, _, _>(\|x\| body, expr)` | `map(\|x\| body, expr)` |
+/// | 1 | `explicit::map::<Brand, _, _, _, _>(\|x\| body, expr)` | `map(\|x\| body, expr)` |
 /// | N (2-5) | `explicit::liftN::<Brand, ...>(\|x, y, ...\| body, ...)` | `liftN(\|x, y, ...\| body, ...)` |
 ///
 /// ### Examples
@@ -1453,7 +1453,7 @@ pub fn m_do(input: TokenStream) -> TokenStream {
 /// let result = a_do!(OptionBrand { x <- Some(5); x * 2 });
 ///
 /// // Expands to:
-/// let result = explicit::map::<OptionBrand, _, _, _>(|x| x * 2, Some(5));
+/// let result = explicit::map::<OptionBrand, _, _, _, _>(|x| x * 2, Some(5));
 /// ```
 #[proc_macro]
 pub fn a_do(input: TokenStream) -> TokenStream {

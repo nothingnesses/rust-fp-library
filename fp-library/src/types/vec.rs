@@ -124,7 +124,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(explicit::map::<VecBrand, _, _, _>(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);
+		/// assert_eq!(explicit::map::<VecBrand, _, _, _, _>(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			func: impl Fn(A) -> B + 'a,
@@ -2347,7 +2347,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(explicit::map::<VecBrand, _, _, _>(|x: &i32| *x * 2, &vec![1, 2, 3]), vec![2, 4, 6]);
+		/// assert_eq!(
+		/// 	explicit::map::<VecBrand, _, _, _, _>(|x: &i32| *x * 2, &vec![1, 2, 3]),
+		/// 	vec![2, 4, 6]
+		/// );
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a>(
 			func: impl Fn(&A) -> B + 'a,
@@ -3031,7 +3034,7 @@ mod tests {
 	/// Tests the identity law for Functor.
 	#[quickcheck]
 	fn functor_identity(x: Vec<i32>) -> bool {
-		explicit::map::<VecBrand, _, _, _>(identity, x.clone()) == x
+		explicit::map::<VecBrand, _, _, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -3039,8 +3042,8 @@ mod tests {
 	fn functor_composition(x: Vec<i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		explicit::map::<VecBrand, _, _, _>(compose(f, g), x.clone())
-			== explicit::map::<VecBrand, _, _, _>(f, explicit::map::<VecBrand, _, _, _>(g, x))
+		explicit::map::<VecBrand, _, _, _, _>(compose(f, g), x.clone())
+			== explicit::map::<VecBrand, _, _, _, _>(f, explicit::map::<VecBrand, _, _, _, _>(g, x))
 	}
 
 	// Applicative Laws
@@ -3178,7 +3181,7 @@ mod tests {
 	#[test]
 	fn map_empty() {
 		assert_eq!(
-			explicit::map::<VecBrand, _, _, _>(|x: i32| x + 1, vec![] as Vec<i32>),
+			explicit::map::<VecBrand, _, _, _, _>(|x: i32| x + 1, vec![] as Vec<i32>),
 			vec![] as Vec<i32>
 		);
 	}
@@ -3432,7 +3435,7 @@ mod tests {
 		let p = |i: i32| Some(if i % 2 == 0 { Ok(i) } else { Err(i) });
 
 		let lhs = explicit::wilt::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _, _>(p, x.clone());
-		let rhs = crate::dispatch::functor::explicit::map::<OptionBrand, _, _, _>(
+		let rhs = crate::dispatch::functor::explicit::map::<OptionBrand, _, _, _, _>(
 			explicit::separate::<VecBrand, _, _, _, _>,
 			explicit::traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(p, x),
 		);
@@ -3446,7 +3449,7 @@ mod tests {
 		let p = |i: i32| Some(if i % 2 == 0 { Some(i) } else { None });
 
 		let lhs = explicit::wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(p, x.clone());
-		let rhs = crate::dispatch::functor::explicit::map::<OptionBrand, _, _, _>(
+		let rhs = crate::dispatch::functor::explicit::map::<OptionBrand, _, _, _, _>(
 			explicit::compact::<VecBrand, _, _, _>,
 			explicit::traverse::<RcFnBrand, VecBrand, _, _, OptionBrand, _, _>(p, x),
 		);
@@ -3476,12 +3479,12 @@ mod tests {
 		y: Vec<i32>,
 	) -> bool {
 		let f = |i: i32| i.wrapping_mul(2).wrapping_add(1);
-		explicit::map::<VecBrand, _, _, _>(
+		explicit::map::<VecBrand, _, _, _, _>(
 			f,
 			explicit::alt::<VecBrand, _, _, _>(x.clone(), y.clone()),
 		) == explicit::alt::<VecBrand, _, _, _>(
-			explicit::map::<VecBrand, _, _, _>(f, x),
-			explicit::map::<VecBrand, _, _, _>(f, y),
+			explicit::map::<VecBrand, _, _, _, _>(f, x),
+			explicit::map::<VecBrand, _, _, _, _>(f, y),
 		)
 	}
 
@@ -3504,7 +3507,7 @@ mod tests {
 	fn plus_annihilation() {
 		let f = |i: i32| i.wrapping_mul(2);
 		assert_eq!(
-			explicit::map::<VecBrand, _, _, _>(f, plus_empty::<VecBrand, i32>()),
+			explicit::map::<VecBrand, _, _, _, _>(f, plus_empty::<VecBrand, i32>()),
 			plus_empty::<VecBrand, i32>(),
 		);
 	}
@@ -3514,8 +3517,10 @@ mod tests {
 	/// Tests the functor identity law for Compactable.
 	#[quickcheck]
 	fn compactable_functor_identity(fa: Vec<i32>) -> bool {
-		explicit::compact::<VecBrand, _, _, _>(explicit::map::<VecBrand, _, _, _>(Some, fa.clone()))
-			== fa
+		explicit::compact::<VecBrand, _, _, _>(explicit::map::<VecBrand, _, _, _, _>(
+			Some,
+			fa.clone(),
+		)) == fa
 	}
 
 	/// Tests the Plus annihilation (empty) law for Compactable.
@@ -3530,7 +3535,7 @@ mod tests {
 	/// Tests the Plus annihilation (map) law for Compactable.
 	#[quickcheck]
 	fn compactable_plus_annihilation_map(xs: Vec<i32>) -> bool {
-		explicit::compact::<VecBrand, _, _, _>(explicit::map::<VecBrand, _, _, _>(
+		explicit::compact::<VecBrand, _, _, _>(explicit::map::<VecBrand, _, _, _, _>(
 			|_: i32| None::<i32>,
 			xs,
 		)) == plus_empty::<VecBrand, i32>()
@@ -3646,7 +3651,7 @@ mod tests {
 	#[quickcheck]
 	fn prop_par_map_equals_map(xs: Vec<i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
-		let seq_res = explicit::map::<VecBrand, _, _, _>(f, xs.clone());
+		let seq_res = explicit::map::<VecBrand, _, _, _, _>(f, xs.clone());
 		let par_res = par_map::<VecBrand, _, _>(f, xs);
 		seq_res == par_res
 	}
@@ -3936,10 +3941,10 @@ mod tests {
 		y: Vec<i32>,
 	) -> bool {
 		let f = |a: &i32| a.wrapping_mul(2);
-		explicit::map::<VecBrand, _, _, _>(f, &explicit::alt::<VecBrand, _, _, _>(&x, &y))
+		explicit::map::<VecBrand, _, _, _, _>(f, &explicit::alt::<VecBrand, _, _, _>(&x, &y))
 			== explicit::alt::<VecBrand, _, _, _>(
-				&explicit::map::<VecBrand, _, _, _>(f, &x),
-				&explicit::map::<VecBrand, _, _, _>(f, &y),
+				&explicit::map::<VecBrand, _, _, _, _>(f, &x),
+				&explicit::map::<VecBrand, _, _, _, _>(f, &y),
 			)
 	}
 }

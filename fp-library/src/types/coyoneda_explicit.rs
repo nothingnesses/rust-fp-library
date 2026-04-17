@@ -755,7 +755,8 @@ mod inner {
 		/// };
 		///
 		/// let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
-		/// let mapped = explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(|x| x * 10, coyo);
+		/// let mapped =
+		/// 	explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _, _>(|x| x * 10, coyo);
 		/// assert_eq!(mapped.lower(), vec![10, 20, 30]);
 		/// ```
 		fn map<'a, A: 'a, C: 'a>(
@@ -1290,7 +1291,7 @@ mod tests {
 	fn brand_functor_map() {
 		let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
 		let mapped =
-			explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(|x| x * 10, coyo);
+			explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _, _>(|x| x * 10, coyo);
 		assert_eq!(mapped.lower(), vec![10, 20, 30]);
 	}
 
@@ -1298,7 +1299,8 @@ mod tests {
 	fn brand_functor_identity_law() {
 		let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
 		let result =
-			explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(identity, coyo).lower();
+			explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _, _>(identity, coyo)
+				.lower();
 		assert_eq!(result, vec![1, 2, 3]);
 	}
 
@@ -1309,13 +1311,13 @@ mod tests {
 
 		let coyo1 = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
 		let left =
-			explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(compose(f, g), coyo1)
+			explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _, _>(compose(f, g), coyo1)
 				.lower();
 
 		let coyo2 = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
-		let right = explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(
+		let right = explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _, _>(
 			f,
-			explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(g, coyo2),
+			explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _, _>(g, coyo2),
 		)
 		.lower();
 
@@ -1326,11 +1328,11 @@ mod tests {
 	fn brand_functor_chained_maps_fuse() {
 		// Chaining through the brand still produces single-pass fusion.
 		let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(vec![1, 2, 3]).boxed();
-		let result = explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(
+		let result = explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _, _>(
 			|x: i32| x.to_string(),
-			explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(
+			explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _, _>(
 				|x| x * 2,
-				explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(|x| x + 1, coyo),
+				explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _, _>(|x| x + 1, coyo),
 			),
 		)
 		.lower();
@@ -1388,14 +1390,14 @@ mod tests {
 		#[quickcheck]
 		fn functor_identity_vec(v: Vec<i32>) -> bool {
 			let coyo = CoyonedaExplicit::<VecBrand, _, _, _>::lift(v.clone()).boxed();
-			explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _>(identity, coyo).lower()
-				== v
+			explicit::map::<CoyonedaExplicitBrand<VecBrand, i32>, _, _, _, _>(identity, coyo)
+				.lower() == v
 		}
 
 		#[quickcheck]
 		fn functor_identity_option(x: Option<i32>) -> bool {
 			let coyo = CoyonedaExplicit::<OptionBrand, _, _, _>::lift(x).boxed();
-			explicit::map::<CoyonedaExplicitBrand<OptionBrand, i32>, _, _, _>(identity, coyo)
+			explicit::map::<CoyonedaExplicitBrand<OptionBrand, i32>, _, _, _, _>(identity, coyo)
 				.lower() == x
 		}
 

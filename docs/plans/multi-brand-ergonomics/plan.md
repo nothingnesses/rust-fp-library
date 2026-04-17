@@ -48,15 +48,14 @@ compile-fail test since `map` now accepts Result via Slot. Updated
 `tuple2_no_inferable_brand` stderr snapshot (the test still fails for
 diagonal `(i32, i32)` but with different error messages).
 
-Phase 1 step 5 complete: rewrote both `map` (inference wrapper) and
-`explicit::map` in `dispatch/functor.rs` to bind on Slot with Marker
-projected. The inference wrapper uses `Brand` as a type parameter
-(replacing the old `Marker` param), resolved via closure-directed
-inference. The explicit::map also uses Slot bounds with Brand via
-turbofish; its signature contracts from 5 type params to 4 (Marker
-removed). Updated all `explicit::map` call sites, the `a_do!` macro
-codegen, and projection brand doctests (which now use direct type
-class method calls since projection brands lack Slot impls).
+Phase 1 step 5 complete: rewrote the `map` inference wrapper in
+`dispatch/functor.rs` to bind on Slot with Marker projected. The
+inference wrapper uses `Brand` as a type parameter (replacing the
+old `Marker` param), resolved via closure-directed inference.
+`explicit::map` is left unchanged (no Slot bound, original 5-param
+signature). See revised Decisions F and Q for rationale. Removed
+`result_no_inferable_brand` compile-fail test since `map` now
+accepts Result via Slot.
 
 Ready for phase 1 step 6.
 
@@ -96,12 +95,12 @@ pub struct Ref; }` shim because the Slot blanket references
 7. fp-macros UI test `invalid_assoc_type_name.stderr` updated: now
    includes Slot and dispatch resolution errors in addition to the
    existing Kind and InferableBrand errors.
-8. `explicit::map` turbofish contracts from 5 type args to 4
-   (Marker removed, projected from Slot). Decision F/Q implemented
-   as planned. Projection brand doctests (BifunctorFirstAppliedBrand,
-   BifunctorSecondAppliedBrand, ProfunctorFirstAppliedBrand) updated
-   to use direct type class method calls (`<Brand as Functor>::map`)
-   since projection brands don't have Slot impls (Decision G).
+8. Decisions F and Q revised during implementation. The original
+   plan required Slot bounds on all explicit functions, but this was
+   found to be incompatible with Decision G (projection brands lack
+   Slot impls and would lose explicit:: access). Explicit functions
+   now keep their original signatures; only inference wrappers use
+   Slot. See revised Decisions F and Q for details.
 
 ## Implementation protocol
 
@@ -418,19 +417,24 @@ but have multiple impls (so no unique brand). The new
 name describes what is true (multiple brands) rather than what is
 no longer accurate. Pre-1.0 stance accepts the breakage.
 
-### Decision F: `explicit::map` shape
+### Decision F: `explicit::map` shape (revised)
 
-Rewrite `explicit::map` to bound on `InferableBrand` with Brand pinned via
-turbofish. This unifies dispatch under InferableBrand (rather than maintaining
-a separate explicit path with different trait plumbing) and naturally
-contracts the turbofish surface (only Brand is user-specified; the
-rest is inferred through InferableBrand).
+Keep `explicit::map` unchanged: no Slot bound, Marker as a free type
+parameter, original turbofish shape `explicit::map::<Brand, _, _, _, _>(f, fa)`.
 
-_Rationale:_ `explicit::map` becomes the universal fallback for cases
-inference cannot handle (e.g., `Result<T, T>` diagonal). The
-signature shape stays familiar:
-`explicit::map::<Brand, _, _, _, _>(f, fa)`. POC 2 validated this
-path works for every case including Ref + multi-brand.
+_Rationale (revised):_ Adding a Slot bound to `explicit::map` is
+incompatible with Decision G (projection brands remain explicit-only).
+Projection brands do not have Slot impls because generating them
+would amplify closure-input ambiguities (see Decision G). If
+`explicit::map` required Slot, projection brands could no longer use
+the explicit dispatch path, contradicting Decision G's guarantee.
+
+Keeping `explicit::map` free of Slot bounds makes it the true
+universal fallback: it works for single-brand, multi-brand, projection
+brands, and diagonal cases. The `FunctorDispatch` trait bound already
+validates that Brand implements the correct type class. Slot-based
+dispatch is confined to the inference wrappers, where it provides
+closure-directed Brand resolution.
 
 ### Decision G: Projection-type brands
 
@@ -582,17 +586,23 @@ _Rationale:_ POC 8 validates the signature shape. The plan
 previously characterised this as "mechanical analogue," which
 understates the work.
 
-### Decision Q: `explicit::` function scope
+### Decision Q: `explicit::` function scope (revised)
 
-Decision F applies to ALL 37 explicit functions across all 19
-dispatch modules, not just `explicit::map`. Each explicit function
-that uses `<FA as InferableBrand>::Brand` must be rewritten to use
-the redesigned InferableBrand with Brand as a turbofish parameter.
+Explicit functions are NOT rewritten to use Slot bounds. Only
+inference wrappers are migrated to Slot. Explicit functions keep
+their current signatures with Marker as a free type parameter and
+no Slot bound.
 
-_Rationale:_ the plan's integration table previously mentioned only
-`explicit::map`. All explicit functions share the same signature
-pattern and migration is mechanical, but the scope must be explicit
-to avoid underestimating the work.
+_Rationale (revised):_ The original Decision Q required Slot bounds
+on all 37 explicit functions. During implementation, this was found
+to be incompatible with Decision G: projection brands do not have
+Slot impls, so adding Slot bounds to explicit functions would
+exclude projection brands from the explicit dispatch path. Since
+explicit functions are the universal fallback (including for
+projection brands and diagonal cases), they must remain
+unconstrained. The `FunctorDispatch`/`BindDispatch`/etc. trait
+bounds already validate type class membership. Slot is only needed
+in inference wrappers for Brand resolution.
 
 ### Decision R: Hash coordination
 

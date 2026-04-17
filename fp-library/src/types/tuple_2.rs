@@ -478,7 +478,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	explicit::map::<Tuple2FirstAppliedBrand<_>, _, _, _>(|x: i32| x * 2, (1, 5)),
+		/// 	explicit::map::<Tuple2FirstAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, (1, 5)),
 		/// 	(1, 10)
 		/// );
 		/// ```
@@ -980,7 +980,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		/// assert_eq!(
-		/// 	explicit::map::<Tuple2FirstAppliedBrand<_>, _, _, _>(|x: &i32| *x * 2, &(1, 5)),
+		/// 	explicit::map::<Tuple2FirstAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &(1, 5)),
 		/// 	(1, 10)
 		/// );
 		/// ```
@@ -1244,7 +1244,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	explicit::map::<Tuple2SecondAppliedBrand<_>, _, _, _>(|x: i32| x * 2, (5, 1)),
+		/// 	explicit::map::<Tuple2SecondAppliedBrand<_>, _, _, _, _>(|x: i32| x * 2, (5, 1)),
 		/// 	(10, 1)
 		/// );
 		/// ```
@@ -1740,7 +1740,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		/// assert_eq!(
-		/// 	explicit::map::<Tuple2SecondAppliedBrand<_>, _, _, _>(|x: &i32| *x * 2, &(5, 1)),
+		/// 	explicit::map::<Tuple2SecondAppliedBrand<_>, _, _, _, _>(|x: &i32| *x * 2, &(5, 1)),
 		/// 	(10, 1)
 		/// );
 		/// ```
@@ -2031,7 +2031,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let x = (first, second);
-		explicit::map::<Tuple2FirstAppliedBrand<String>, _, _, _>(identity, x.clone()) == x
+		explicit::map::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -2043,10 +2043,10 @@ mod tests {
 		let x = (first, second);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		explicit::map::<Tuple2FirstAppliedBrand<String>, _, _, _>(compose(f, g), x.clone())
-			== explicit::map::<Tuple2FirstAppliedBrand<String>, _, _, _>(
+		explicit::map::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(compose(f, g), x.clone())
+			== explicit::map::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(
 				f,
-				explicit::map::<Tuple2FirstAppliedBrand<String>, _, _, _>(g, x),
+				explicit::map::<Tuple2FirstAppliedBrand<String>, _, _, _, _>(g, x),
 			)
 	}
 

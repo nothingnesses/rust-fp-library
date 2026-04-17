@@ -354,7 +354,7 @@ mod inner {
 		/// };
 		///
 		/// let x = Identity(5);
-		/// let y = explicit::map::<IdentityBrand, _, _, _>(|i| i * 2, x);
+		/// let y = explicit::map::<IdentityBrand, _, _, _, _>(|i| i * 2, x);
 		/// assert_eq!(y, Identity(10));
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
@@ -896,7 +896,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	explicit::map::<IdentityBrand, _, _, _>(|x: &i32| *x * 2, &Identity(5)),
+		/// 	explicit::map::<IdentityBrand, _, _, _, _>(|x: &i32| *x * 2, &Identity(5)),
 		/// 	Identity(10)
 		/// );
 		/// ```
@@ -1360,7 +1360,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity(x: i32) -> bool {
 		let x = Identity(x);
-		explicit::map::<IdentityBrand, _, _, _>(identity, x) == x
+		explicit::map::<IdentityBrand, _, _, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -1369,10 +1369,10 @@ mod tests {
 		let x = Identity(x);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		explicit::map::<IdentityBrand, _, _, _>(compose(f, g), x)
-			== explicit::map::<IdentityBrand, _, _, _>(
+		explicit::map::<IdentityBrand, _, _, _, _>(compose(f, g), x)
+			== explicit::map::<IdentityBrand, _, _, _, _>(
 				f,
-				explicit::map::<IdentityBrand, _, _, _>(g, x),
+				explicit::map::<IdentityBrand, _, _, _, _>(g, x),
 			)
 	}
 
@@ -1477,7 +1477,7 @@ mod tests {
 	#[test]
 	fn map_test() {
 		assert_eq!(
-			explicit::map::<IdentityBrand, _, _, _>(|x: i32| x + 1, Identity(1)),
+			explicit::map::<IdentityBrand, _, _, _, _>(|x: i32| x + 1, Identity(1)),
 			Identity(2)
 		);
 	}
@@ -1634,7 +1634,7 @@ mod tests {
 		use crate::classes::extract::extract;
 		let f = |a: i32| a.wrapping_mul(5);
 		let wa = Identity(x);
-		extract::<IdentityBrand, _>(explicit::map::<IdentityBrand, _, _, _>(f, wa))
+		extract::<IdentityBrand, _>(explicit::map::<IdentityBrand, _, _, _, _>(f, wa))
 			== f(extract::<IdentityBrand, _>(wa))
 	}
 

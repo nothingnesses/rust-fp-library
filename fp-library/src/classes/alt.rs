@@ -66,10 +66,10 @@ mod inner {
 	/// let x = Some(3);
 	/// let y: Option<i32> = None;
 	/// assert_eq!(
-	/// 	map::<OptionBrand, _, _, _>(f, alt::<OptionBrand, _, _, _>(x, y)),
+	/// 	map::<OptionBrand, _, _, _, _>(f, alt::<OptionBrand, _, _, _>(x, y)),
 	/// 	alt::<OptionBrand, _, _, _>(
-	/// 		map::<OptionBrand, _, _, _>(f, x),
-	/// 		map::<OptionBrand, _, _, _>(f, y)
+	/// 		map::<OptionBrand, _, _, _, _>(f, x),
+	/// 		map::<OptionBrand, _, _, _, _>(f, y)
 	/// 	),
 	/// );
 	/// ```

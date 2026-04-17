@@ -118,7 +118,7 @@ pub fn a_do_worker(input: DoInput) -> syn::Result<TokenStream> {
 		([param], [expr]) =>
 			if let Some(brand) = brand {
 				quote! {
-					explicit::map::<#brand, _, _, _>(|#param| { #(#inner_lets)* #final_expr }, #expr)
+					explicit::map::<#brand, _, _, _, _>(|#param| { #(#inner_lets)* #final_expr }, #expr)
 				}
 			} else {
 				quote! {
