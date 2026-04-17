@@ -6,7 +6,10 @@
 // validate that single-brand types continue to work with brand
 // inference after each migration step.
 
-use fp_library::functions::*;
+use fp_library::{
+	brands::*,
+	functions::*,
+};
 
 // -- Functor (map) --
 
@@ -75,6 +78,14 @@ fn nr11_join_option_none() {
 	assert_eq!(join(Some(None::<i32>)), None);
 }
 
+// -- Foldable (fold_right) --
+
+#[test]
+fn nr12a_fold_right_val_vec() {
+	let result = fold_right::<RcFnBrand, _, _, _, _>(|a: i32, b: i32| a + b, 0, vec![1, 2, 3]);
+	assert_eq!(result, 6);
+}
+
 // -- Filterable (filter) --
 
 #[test]
@@ -104,4 +115,24 @@ fn nr15_alt_none_some() {
 #[test]
 fn nr16_alt_some_some() {
 	assert_eq!(alt(Some(3), Some(5)), Some(3));
+}
+
+// -- Traversable (traverse) --
+
+#[test]
+fn nr17_traverse_val_vec_all_pass() {
+	let result = traverse::<RcFnBrand, _, _, _, OptionBrand, _>(
+		|x: i32| if x > 0 { Some(x) } else { None },
+		vec![1, 2, 3],
+	);
+	assert_eq!(result, Some(vec![1, 2, 3]));
+}
+
+#[test]
+fn nr18_traverse_val_vec_short_circuit() {
+	let result = traverse::<RcFnBrand, _, _, _, OptionBrand, _>(
+		|x: i32| if x > 0 { Some(x) } else { None },
+		vec![1, -1, 3],
+	);
+	assert_eq!(result, None);
 }

@@ -5,7 +5,12 @@
 // operation. Tests for operations not yet migrated to InferableBrand are
 // #[ignore]d until their inference wrappers are rewritten.
 
-use fp_library::functions::*;
+use fp_library::{
+	brands::*,
+	classes::*,
+	functions::*,
+	types::*,
+};
 
 // -- map (functor) --
 
@@ -143,6 +148,66 @@ fn p2_lift2_multi_brand_short_circuit() {
 	assert_eq!(r, Err("x".to_string()));
 }
 
+// -- fold_map (foldable) --
+
+#[test]
+fn p2_fold_map_multi_brand_ok() {
+	let result = fold_map::<RcFnBrand, _, _, _, _>(|x: i32| x.to_string(), Ok::<i32, String>(5));
+	assert_eq!(result, "5");
+}
+
+// -- traverse (traversable) --
+
+#[test]
+fn p2_traverse_multi_brand_ok() {
+	let result =
+		traverse::<RcFnBrand, _, _, _, OptionBrand, _>(|x: i32| Some(x + 1), Ok::<i32, String>(5));
+	assert_eq!(result, Some(Ok(6)));
+}
+
+#[test]
+fn p2_traverse_multi_brand_inner_failure() {
+	let result =
+		traverse::<RcFnBrand, _, _, _, OptionBrand, _>(|_x: i32| None::<i32>, Ok::<i32, String>(5));
+	assert_eq!(result, None);
+}
+
+// -- apply (semiapplicative) --
+//
+// The apply inference wrapper cannot disambiguate multi-brand types like
+// Result because Brand is inferred from the value container via
+// InferableBrand, but Result has two impls (ResultErrAppliedBrand and
+// ResultOkAppliedBrand). Multi-brand apply requires calling
+// Semiapplicative::apply directly with an explicit Brand.
+
+#[test]
+fn p2_apply_val_multi_brand() {
+	let f: Result<_, String> = Ok(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
+	let x: Result<i32, String> = Ok(5);
+	let y: Result<i32, String> =
+		ResultErrAppliedBrand::<String>::apply::<RcFnBrand, i32, i32>(f, x);
+	assert_eq!(y, Ok(6));
+}
+
+#[test]
+fn p2_apply_ref_multi_brand() {
+	let f: Result<_, String> =
+		Ok(std::rc::Rc::new(|x: &i32| *x + 1) as std::rc::Rc<dyn Fn(&i32) -> i32>);
+	let x: Result<i32, String> = Ok(5);
+	let y: Result<i32, String> =
+		ResultErrAppliedBrand::<String>::ref_apply::<RcFnBrand, i32, i32>(&f, &x);
+	assert_eq!(y, Ok(6));
+}
+
+// -- closureless multi-brand (explicit only) --
+
+#[test]
+fn p2_explicit_join_multi_brand() {
+	use fp_library::functions::explicit::join as explicit_join;
+	let r = explicit_join::<ResultErrAppliedBrand<String>, _, _>(Ok(Ok(5)));
+	assert_eq!(r, Ok(5));
+}
+
 // -- closureless single-brand (must still infer via InferableBrand) --
 
 #[test]
@@ -153,4 +218,61 @@ fn p2_join_single_brand_via_slot() {
 #[test]
 fn p2_alt_single_brand_via_slot() {
 	assert_eq!(alt(None::<i32>, Some(5)), Some(5));
+}
+
+// -- Other multi-brand types: Pair --
+
+#[test]
+fn p2_map_pair_first() {
+	let p = Pair(5i32, "hello");
+	let r = map(|x: i32| x + 1, p);
+	assert_eq!(r, Pair(6, "hello"));
+}
+
+#[test]
+fn p2_map_pair_second() {
+	let p = Pair(5i32, "hello");
+	let r: Pair<i32, usize> = map(|s: &str| s.len(), p);
+	assert_eq!(r, Pair(5, 5));
+}
+
+// -- Other multi-brand types: Tuple2 --
+//
+// Tuple2 cannot use brand inference even with distinct types because
+// it has multiple arity-1 brands. Use explicit::map with a turbofish.
+
+#[test]
+fn p2_map_tuple2_first() {
+	use fp_library::functions::explicit::map as explicit_map;
+	let r =
+		explicit_map::<Tuple2SecondAppliedBrand<&str>, _, _, _, _>(|x: i32| x + 1, (5i32, "hello"));
+	assert_eq!(r, (6, "hello"));
+}
+
+#[test]
+fn p2_map_tuple2_second() {
+	use fp_library::functions::explicit::map as explicit_map;
+	let r = explicit_map::<Tuple2FirstAppliedBrand<i32>, _, _, _, _>(
+		|s: &str| s.len(),
+		(5i32, "hello"),
+	);
+	assert_eq!(r, (5, 5));
+}
+
+// -- Other multi-brand types: ControlFlow --
+
+#[test]
+fn p2_map_control_flow_continue() {
+	use std::ops::ControlFlow;
+	let r = map(|x: i32| x + 1, ControlFlow::<String, i32>::Continue(5));
+	assert_eq!(r, ControlFlow::Continue(6));
+}
+
+// -- Other multi-brand types: TryThunk --
+
+#[test]
+fn p2_map_try_thunk_ok() {
+	let t: TryThunk<i32, String> = TryThunk::pure(5);
+	let r = map(|x: i32| x + 1, t);
+	assert_eq!(r.evaluate(), Ok(6));
 }
