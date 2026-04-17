@@ -13,6 +13,7 @@ use {
 				where_clause_type_predicates,
 			},
 			patterns::get_apply_macro_parameters,
+			traits::is_semantic_type_class,
 		},
 		core::constants::markers,
 		hkt::{
@@ -136,10 +137,6 @@ pub enum DispatchArrowParam {
 }
 
 // -- Constants --
-
-/// Trait names that are infrastructure, not semantic type class constraints.
-const INFRASTRUCTURE_TRAITS: &[&str] =
-	&["Send", "Sync", "Clone", "Copy", "Debug", "Display", "Sized", "LiftFn", "SendLiftFn"];
 
 // -- Apply! macro parsing helpers --
 
@@ -555,32 +552,6 @@ fn find_brand_param(val_impl: &syn::ItemImpl) -> Option<String> {
 	}
 
 	None
-}
-
-/// Check if a trait name represents a semantic type class constraint
-/// (as opposed to infrastructure like Fn, Kind, Send, etc.).
-fn is_semantic_type_class(name: &str) -> bool {
-	// Not a Fn trait
-	if name == "Fn" || name == "FnMut" || name == "FnOnce" {
-		return false;
-	}
-	// Not a Kind trait
-	if name.starts_with(markers::KIND_PREFIX) {
-		return false;
-	}
-	// Not a InferableBrand trait
-	if name.starts_with(markers::INFERABLE_BRAND_PREFIX) {
-		return false;
-	}
-	// Not infrastructure
-	if INFRASTRUCTURE_TRAITS.contains(&name) {
-		return false;
-	}
-	// Not a dispatch trait (avoid self-referential detection)
-	if name.ends_with(markers::DISPATCH_SUFFIX) {
-		return false;
-	}
-	true
 }
 
 /// Extract the primary semantic constraint from the Brand parameter.
