@@ -794,7 +794,7 @@ mod inner {
 		///
 		/// let ff = Coyoneda::<OptionBrand, _>::lift(Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2)));
 		/// let fa = Coyoneda::<OptionBrand, _>::lift(Some(5));
-		/// let result = apply::<RcFnBrand, CoyonedaBrand<OptionBrand>, _, _>(ff, fa);
+		/// let result = apply(ff, fa);
 		/// assert_eq!(result.lower(), Some(10));
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
@@ -1228,7 +1228,7 @@ mod tests {
 		let ff =
 			Coyoneda::<OptionBrand, _>::lift(Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2)));
 		let fa = Coyoneda::<OptionBrand, _>::lift(Some(5));
-		let result = apply::<RcFnBrand, CoyonedaBrand<OptionBrand>, _, _>(ff, fa);
+		let result = apply(ff, fa);
 		assert_eq!(result.lower(), Some(10));
 	}
 
@@ -1236,7 +1236,7 @@ mod tests {
 	fn apply_option_none_fn() {
 		let ff = Coyoneda::<OptionBrand, _>::lift(None::<<RcFnBrand as CloneFn>::Of<'_, i32, i32>>);
 		let fa = Coyoneda::<OptionBrand, _>::lift(Some(5));
-		let result = apply::<RcFnBrand, CoyonedaBrand<OptionBrand>, _, _>(ff, fa);
+		let result = apply(ff, fa);
 		assert_eq!(result.lower(), None);
 	}
 
@@ -1247,7 +1247,7 @@ mod tests {
 			lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 10),
 		]);
 		let fa = Coyoneda::<VecBrand, _>::lift(vec![2i32, 3]);
-		let result = apply::<RcFnBrand, CoyonedaBrand<VecBrand>, _, _>(ff, fa);
+		let result = apply(ff, fa);
 		assert_eq!(result.lower(), vec![3, 4, 20, 30]);
 	}
 

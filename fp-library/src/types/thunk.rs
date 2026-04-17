@@ -591,7 +591,7 @@ mod inner {
 		///
 		/// let func = pure::<ThunkBrand, _>(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let val = pure::<ThunkBrand, _>(21);
-		/// let result = apply::<RcFnBrand, ThunkBrand, _, _>(func, val);
+		/// let result = apply(func, val);
 		/// assert_eq!(result.evaluate(), 42);
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
@@ -1364,7 +1364,7 @@ mod tests {
 	fn test_apply_via_brand() {
 		let func = pure::<ThunkBrand, _>(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		let val = pure::<ThunkBrand, _>(21);
-		let result = apply::<RcFnBrand, ThunkBrand, _, _>(func, val);
+		let result = apply(func, val);
 		assert_eq!(result.evaluate(), 42);
 	}
 

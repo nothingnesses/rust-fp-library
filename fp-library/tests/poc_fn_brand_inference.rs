@@ -68,10 +68,6 @@
 //     determined by the FnBrand variants in the library.
 
 #![allow(unused_imports, reason = "Kind is used inside Apply! macro expansion")]
-#![expect(
-	clippy::type_complexity,
-	reason = "Complex Apply! projections are inherent to HKT dispatch POCs"
-)]
 
 use {
 	fp_library::{

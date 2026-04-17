@@ -988,13 +988,17 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::semiapplicative::apply as explicit_apply,
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
 		///
 		/// let f = Pair("a".to_string(), lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(
-		/// 	apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(f, Pair("b".to_string(), 5)),
+		/// 	explicit_apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
+		/// 		f,
+		/// 		Pair("b".to_string(), 5)
+		/// 	),
 		/// 	Pair("ab".to_string(), 10)
 		/// );
 		/// ```
@@ -1770,13 +1774,17 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::semiapplicative::apply as explicit_apply,
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
 		///
 		/// let f = Pair(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2), "a".to_string());
 		/// assert_eq!(
-		/// 	apply::<RcFnBrand, PairSecondAppliedBrand<String>, _, _>(f, Pair(5, "b".to_string())),
+		/// 	explicit_apply::<RcFnBrand, PairSecondAppliedBrand<String>, _, _>(
+		/// 		f,
+		/// 		Pair(5, "b".to_string())
+		/// 	),
 		/// 	Pair(10, "ab".to_string())
 		/// );
 		/// ```
@@ -2380,7 +2388,10 @@ mod tests {
 		super::inner::*,
 		crate::{
 			brands::*,
-			classes::*,
+			classes::{
+				semiapplicative::apply as explicit_apply,
+				*,
+			},
 			functions::*,
 		},
 		quickcheck_macros::quickcheck,
@@ -2466,7 +2477,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let v = Pair(first, second);
-		apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
+		explicit_apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
 			pure::<PairFirstAppliedBrand<String>, _>(<RcFnBrand as LiftFn>::new(identity)),
 			v.clone(),
 		) == v
@@ -2476,7 +2487,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
+		explicit_apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
 			pure::<PairFirstAppliedBrand<String>, _>(<RcFnBrand as LiftFn>::new(f)),
 			pure::<PairFirstAppliedBrand<String>, _>(x),
 		) == pure::<PairFirstAppliedBrand<String>, _>(f(x))
@@ -2499,8 +2510,9 @@ mod tests {
 		let v = pure::<PairFirstAppliedBrand<String>, _>(v_fn);
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(v.clone(), w.clone());
-		let rhs = apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(u.clone(), vw);
+		let vw =
+			explicit_apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(v.clone(), w.clone());
+		let rhs = explicit_apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		let compose_fn = <RcFnBrand as LiftFn>::new(|f: std::rc::Rc<dyn Fn(i32) -> i32>| {
@@ -2513,9 +2525,10 @@ mod tests {
 		});
 
 		let pure_compose = pure::<PairFirstAppliedBrand<String>, _>(compose_fn);
-		let u_applied = apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(pure_compose, u);
-		let uv = apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(u_applied, v);
-		let lhs = apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(uv, w);
+		let u_applied =
+			explicit_apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(pure_compose, u);
+		let uv = explicit_apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(u_applied, v);
+		let lhs = explicit_apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(uv, w);
 
 		lhs == rhs
 	}
@@ -2530,13 +2543,13 @@ mod tests {
 		let f = move |x: i32| x.wrapping_mul(u_seed);
 		let u = pure::<PairFirstAppliedBrand<String>, _>(<RcFnBrand as LiftFn>::new(f));
 
-		let lhs = apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
+		let lhs = explicit_apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
 			u.clone(),
 			pure::<PairFirstAppliedBrand<String>, _>(y),
 		);
 
 		let rhs_fn = <RcFnBrand as LiftFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
+		let rhs = explicit_apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
 			pure::<PairFirstAppliedBrand<String>, _>(rhs_fn),
 			u,
 		);

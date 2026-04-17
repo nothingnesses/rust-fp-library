@@ -455,7 +455,7 @@ mod inner {
 		/// let funcs = CatList::singleton(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1))
 		/// 	.snoc(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let vals = CatList::singleton(1).snoc(2);
-		/// let applied = apply::<RcFnBrand, CatListBrand, _, _>(funcs, vals);
+		/// let applied = apply(funcs, vals);
 		/// let vec: Vec<_> = applied.into_iter().collect();
 		/// assert_eq!(vec, vec![2, 3, 2, 4]);
 		/// ```
@@ -4334,20 +4334,15 @@ mod tests {
 	#[quickcheck]
 	fn applicative_identity(v: Vec<i32>) -> bool {
 		let v: CatList<_> = v.into_iter().collect();
-		apply::<RcFnBrand, CatListBrand, _, _>(
-			pure::<CatListBrand, _>(<RcFnBrand as LiftFn>::new(identity)),
-			v.clone(),
-		) == v
+		apply(pure::<CatListBrand, _>(<RcFnBrand as LiftFn>::new(identity)), v.clone()) == v
 	}
 
 	/// Tests the homomorphism law for Applicative.
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<RcFnBrand, CatListBrand, _, _>(
-			pure::<CatListBrand, _>(<RcFnBrand as LiftFn>::new(f)),
-			pure::<CatListBrand, _>(x),
-		) == pure::<CatListBrand, _>(f(x))
+		apply(pure::<CatListBrand, _>(<RcFnBrand as LiftFn>::new(f)), pure::<CatListBrand, _>(x))
+			== pure::<CatListBrand, _>(f(x))
 	}
 
 	// Semigroup Laws

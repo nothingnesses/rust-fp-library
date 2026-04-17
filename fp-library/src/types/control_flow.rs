@@ -1360,14 +1360,17 @@ mod inner {
 		/// 	core::ops::ControlFlow,
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::*,
+		/// 		classes::semiapplicative::apply as explicit_apply,
 		/// 		functions::*,
 		/// 	},
 		/// };
 		///
 		/// let f: ControlFlow<_, ()> = ControlFlow::Break(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(
-		/// 	apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(f, ControlFlow::Break(5)),
+		/// 	explicit_apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(
+		/// 		f,
+		/// 		ControlFlow::Break(5)
+		/// 	),
 		/// 	ControlFlow::Break(10)
 		/// );
 		/// ```
@@ -1909,7 +1912,7 @@ mod inner {
 		/// 	core::ops::ControlFlow,
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::*,
+		/// 		classes::semiapplicative::apply as explicit_apply,
 		/// 		functions::*,
 		/// 	},
 		/// };
@@ -1917,7 +1920,10 @@ mod inner {
 		/// let f: ControlFlow<(), _> =
 		/// 	ControlFlow::Continue(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(
-		/// 	apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(f, ControlFlow::Continue(5)),
+		/// 	explicit_apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(
+		/// 		f,
+		/// 		ControlFlow::Continue(5)
+		/// 	),
 		/// 	ControlFlow::Continue(10)
 		/// );
 		/// ```
@@ -2408,6 +2414,7 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
+			classes::semiapplicative::apply as explicit_apply,
 			functions::*,
 		},
 		core::ops::ControlFlow,
@@ -2706,7 +2713,7 @@ mod tests {
 		));
 		let x = pure::<ControlFlowContinueAppliedBrand<()>, _>(5);
 		assert_eq!(
-			apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(f, x),
+			explicit_apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(f, x),
 			ControlFlow::Break(10)
 		);
 
@@ -2715,7 +2722,7 @@ mod tests {
 			lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
 		);
 		assert_eq!(
-			apply::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _>(f_cont, cont),
+			explicit_apply::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _>(f_cont, cont),
 			ControlFlow::Continue(1)
 		);
 	}
@@ -2731,7 +2738,7 @@ mod tests {
 		));
 		let x = pure::<ControlFlowBreakAppliedBrand<()>, _>(5);
 		assert_eq!(
-			apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(f, x),
+			explicit_apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(f, x),
 			ControlFlow::Continue(10)
 		);
 
@@ -2740,7 +2747,7 @@ mod tests {
 			|x: i32| x * 2,
 		));
 		assert_eq!(
-			apply::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _>(f_brk, brk),
+			explicit_apply::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _>(f_brk, brk),
 			ControlFlow::Break(1)
 		);
 	}

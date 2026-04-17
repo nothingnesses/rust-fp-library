@@ -56,7 +56,7 @@
 //!
 //! let f = pure::<OptionBrand, _>(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 //! let x = pure::<OptionBrand, _>(5);
-//! let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
+//! let y = apply(f, x);
 //! assert_eq!(y, Some(10));
 //! ```
 
@@ -97,26 +97,23 @@ mod inner {
 	/// // Identity: apply(pure(identity), v) = v
 	/// let v = Some(5);
 	/// let id_fn = pure::<OptionBrand, _>(lift_fn_new::<RcFnBrand, _, _>(identity::<i32>));
-	/// assert_eq!(apply::<RcFnBrand, OptionBrand, _, _>(id_fn, v), v);
+	/// assert_eq!(apply(id_fn, v), v);
 	///
 	/// // Homomorphism: apply(pure(f), pure(x)) = pure(f(x))
 	/// let f = |x: i32| x * 2;
 	/// assert_eq!(
-	/// 	apply::<RcFnBrand, OptionBrand, _, _>(
-	/// 		pure::<OptionBrand, _>(lift_fn_new::<RcFnBrand, _, _>(f)),
-	/// 		pure::<OptionBrand, _>(5),
-	/// 	),
+	/// 	apply(pure::<OptionBrand, _>(lift_fn_new::<RcFnBrand, _, _>(f)), pure::<OptionBrand, _>(5),),
 	/// 	pure::<OptionBrand, _>(f(5)),
 	/// );
 	///
 	/// // Interchange: apply(u, pure(y)) = apply(pure(|f| f(y)), u)
 	/// let u = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
 	/// let y = 5i32;
-	/// let left = apply::<RcFnBrand, OptionBrand, _, _>(u.clone(), pure::<OptionBrand, _>(y));
+	/// let left = apply(u.clone(), pure::<OptionBrand, _>(y));
 	/// let apply_y = pure::<OptionBrand, _>(lift_fn_new::<RcFnBrand, _, _>(
 	/// 	move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y),
 	/// ));
-	/// let right = apply::<RcFnBrand, OptionBrand, _, _>(apply_y, u);
+	/// let right = apply(apply_y, u);
 	/// assert_eq!(left, right);
 	/// ```
 	pub trait Applicative: Pointed + Semiapplicative + ApplyFirst + ApplySecond {}

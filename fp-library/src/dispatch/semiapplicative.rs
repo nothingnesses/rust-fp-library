@@ -44,11 +44,23 @@ pub(crate) mod inner {
 	)]
 	pub trait FnBrandSlot<FnBrand, A, B> {}
 
+	/// Maps `Rc<dyn Fn(A) -> B>` back to `RcFnBrand`.
+	#[document_type_parameters(
+		"The lifetime of the wrapped function.",
+		"The input type of the wrapped function.",
+		"The output type of the wrapped function."
+	)]
 	impl<'a, A: 'a, B: 'a> FnBrandSlot<crate::brands::RcFnBrand, A, B>
 		for std::rc::Rc<dyn 'a + Fn(A) -> B>
 	{
 	}
 
+	/// Maps `Arc<dyn Fn(A) -> B + Send + Sync>` back to `ArcFnBrand`.
+	#[document_type_parameters(
+		"The lifetime of the wrapped function.",
+		"The input type of the wrapped function.",
+		"The output type of the wrapped function."
+	)]
 	impl<'a, A: 'a, B: 'a> FnBrandSlot<crate::brands::ArcFnBrand, A, B>
 		for std::sync::Arc<dyn 'a + Fn(A) -> B + Send + Sync>
 	{
@@ -111,13 +123,9 @@ pub(crate) mod inner {
 		B: 'a,
 		W: 'a + Clone + FnBrandSlot<FnBrand, A, B>,
 		FF: Slot_cdc7cd43dac7585f<'a, Brand, W>
-			+ Into<
-				Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, W>),
-			>,
+			+ Into<Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, W>)>,
 		FA: Slot_cdc7cd43dac7585f<'a, Brand, A>
-			+ Into<
-				Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			>,
+			+ Into<Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>,
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, W>): Into<
 			Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
 		>, {

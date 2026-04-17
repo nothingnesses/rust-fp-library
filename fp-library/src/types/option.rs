@@ -168,7 +168,7 @@ mod inner {
 		///
 		/// let f = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let x = Some(5);
-		/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
+		/// let y = apply(f, x);
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
@@ -1543,20 +1543,15 @@ mod tests {
 	/// Tests the identity law for Applicative.
 	#[quickcheck]
 	fn applicative_identity(v: Option<i32>) -> bool {
-		apply::<RcFnBrand, OptionBrand, _, _>(
-			pure::<OptionBrand, _>(<RcFnBrand as LiftFn>::new(identity)),
-			v,
-		) == v
+		apply(pure::<OptionBrand, _>(<RcFnBrand as LiftFn>::new(identity)), v) == v
 	}
 
 	/// Tests the homomorphism law for Applicative.
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<RcFnBrand, OptionBrand, _, _>(
-			pure::<OptionBrand, _>(<RcFnBrand as LiftFn>::new(f)),
-			pure::<OptionBrand, _>(x),
-		) == pure::<OptionBrand, _>(f(x))
+		apply(pure::<OptionBrand, _>(<RcFnBrand as LiftFn>::new(f)), pure::<OptionBrand, _>(x))
+			== pure::<OptionBrand, _>(f(x))
 	}
 
 	/// Tests the composition law for Applicative.
@@ -1575,8 +1570,8 @@ mod tests {
 			if u_is_some { pure::<OptionBrand, _>(<RcFnBrand as LiftFn>::new(u_fn)) } else { None };
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<RcFnBrand, OptionBrand, _, _>(v.clone(), w);
-		let rhs = apply::<RcFnBrand, OptionBrand, _, _>(u.clone(), vw);
+		let vw = apply(v.clone(), w);
+		let rhs = apply(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		// equivalent to (u . v) <*> w
@@ -1588,7 +1583,7 @@ mod tests {
 			_ => None,
 		};
 
-		let lhs = apply::<RcFnBrand, OptionBrand, _, _>(uv, w);
+		let lhs = apply(uv, w);
 
 		lhs == rhs
 	}
@@ -1600,10 +1595,10 @@ mod tests {
 		let f = |x: i32| x.wrapping_mul(2);
 		let u = pure::<OptionBrand, _>(<RcFnBrand as LiftFn>::new(f));
 
-		let lhs = apply::<RcFnBrand, OptionBrand, _, _>(u.clone(), pure::<OptionBrand, _>(y));
+		let lhs = apply(u.clone(), pure::<OptionBrand, _>(y));
 
 		let rhs_fn = <RcFnBrand as LiftFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = apply::<RcFnBrand, OptionBrand, _, _>(pure::<OptionBrand, _>(rhs_fn), u);
+		let rhs = apply(pure::<OptionBrand, _>(rhs_fn), u);
 
 		lhs == rhs
 	}

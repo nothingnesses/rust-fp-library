@@ -36,7 +36,6 @@ pub use crate::dispatch::contravariant::contramap;
 // Inference wrappers (from dispatch modules, top-level of each).
 pub use crate::dispatch::{
 	alt::alt,
-	semiapplicative::apply,
 	apply_first::apply_first,
 	apply_second::apply_second,
 	bifoldable::{
@@ -80,6 +79,7 @@ pub use crate::dispatch::{
 		lift4,
 		lift5,
 	},
+	semiapplicative::apply,
 	semimonad::{
 		bind,
 		bind_flipped,
@@ -168,62 +168,67 @@ fp_macros::generate_function_re_exports!("src/classes", {
 /// For most use cases, prefer the inference-enabled wrappers from the parent
 /// [`functions`](crate::functions) module.
 pub mod explicit {
-	pub use crate::dispatch::{
-		alt::explicit::alt,
-		apply_first::explicit::apply_first,
-		apply_second::explicit::apply_second,
-		bifoldable::explicit::{
-			bi_fold_left,
-			bi_fold_map,
-			bi_fold_right,
-		},
-		bifunctor::explicit::bimap,
-		bitraversable::explicit::bi_traverse,
-		compactable::explicit::{
-			compact,
-			separate,
-		},
-		contravariant::explicit::contramap,
-		filterable::explicit::{
-			filter,
-			filter_map,
-			partition,
-			partition_map,
-		},
-		filterable_with_index::explicit::{
-			filter_map_with_index,
-			filter_with_index,
-			partition_map_with_index,
-			partition_with_index,
-		},
-		foldable::explicit::{
-			fold_left,
-			fold_map,
-			fold_right,
-		},
-		foldable_with_index::explicit::{
-			fold_left_with_index,
-			fold_map_with_index,
-			fold_right_with_index,
-		},
-		functor::explicit::map,
-		functor_with_index::explicit::map_with_index,
-		lift::explicit::{
-			lift2,
-			lift3,
-			lift4,
-			lift5,
-		},
-		semimonad::explicit::{
-			bind,
-			bind_flipped,
-			join,
-		},
-		traversable::explicit::traverse,
-		traversable_with_index::explicit::traverse_with_index,
-		witherable::explicit::{
-			wilt,
-			wither,
+	// The class-level apply serves as the explicit fallback (takes
+	// FnBrand and Brand via turbofish). The dispatch version infers both.
+	pub use crate::{
+		classes::semiapplicative::apply,
+		dispatch::{
+			alt::explicit::alt,
+			apply_first::explicit::apply_first,
+			apply_second::explicit::apply_second,
+			bifoldable::explicit::{
+				bi_fold_left,
+				bi_fold_map,
+				bi_fold_right,
+			},
+			bifunctor::explicit::bimap,
+			bitraversable::explicit::bi_traverse,
+			compactable::explicit::{
+				compact,
+				separate,
+			},
+			contravariant::explicit::contramap,
+			filterable::explicit::{
+				filter,
+				filter_map,
+				partition,
+				partition_map,
+			},
+			filterable_with_index::explicit::{
+				filter_map_with_index,
+				filter_with_index,
+				partition_map_with_index,
+				partition_with_index,
+			},
+			foldable::explicit::{
+				fold_left,
+				fold_map,
+				fold_right,
+			},
+			foldable_with_index::explicit::{
+				fold_left_with_index,
+				fold_map_with_index,
+				fold_right_with_index,
+			},
+			functor::explicit::map,
+			functor_with_index::explicit::map_with_index,
+			lift::explicit::{
+				lift2,
+				lift3,
+				lift4,
+				lift5,
+			},
+			semimonad::explicit::{
+				bind,
+				bind_flipped,
+				join,
+			},
+			traversable::explicit::traverse,
+			traversable_with_index::explicit::traverse_with_index,
+			witherable::explicit::{
+				wilt,
+				wither,
+			},
 		},
 	};
 }

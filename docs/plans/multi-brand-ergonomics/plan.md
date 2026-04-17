@@ -89,10 +89,12 @@ replaced the class-level `map`. The class-level `apply` moves to
 `"semiapplicative::apply"` entry in `generate_function_re_exports!`
 is excluded, and the dispatch version is re-exported instead.
 
-Call sites migrate from `apply::<RcFnBrand, OptionBrand, _, _>(ff, fa)`
-(both FnBrand and Brand specified manually) to `apply(ff, fa)` (both
-inferred). FnBrand inference validated by `poc_fn_brand_inference.rs`
-via a `FnBrandSlot` trait with an intermediary `W` type parameter.
+Decision P complete. `dispatch/semiapplicative.rs` created with
+`FnBrandSlot` trait, `ApplyDispatch`-free inference wrapper, and
+`explicit::apply` re-export. All ~116 call sites migrated from
+`apply::<RcFnBrand, Brand, _, _>(ff, fa)` to `apply(ff, fa)` (both
+FnBrand and Brand fully inferred). 19 doctests updated. Phase 2
+complete.
 
 ## Open questions, issues and blockers
 

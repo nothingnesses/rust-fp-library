@@ -1121,6 +1121,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::semiapplicative::apply as explicit_apply,
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
@@ -1128,7 +1129,7 @@ mod inner {
 		/// let func: TryThunk<_, ()> =
 		/// 	pure::<TryThunkErrAppliedBrand<()>, _>(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let val: TryThunk<_, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(21);
-		/// let result = apply::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _>(func, val);
+		/// let result = explicit_apply::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Ok(42));
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
@@ -1887,6 +1888,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::semiapplicative::apply as explicit_apply,
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
@@ -1894,7 +1896,7 @@ mod inner {
 		/// let func: TryThunk<i32, _> =
 		/// 	pure::<TryThunkOkAppliedBrand<i32>, _>(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let val: TryThunk<i32, _> = pure::<TryThunkOkAppliedBrand<i32>, _>(21);
-		/// let result = apply::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _>(func, val);
+		/// let result = explicit_apply::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Err(42));
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneFn, E1: 'a + Clone, E2: 'a>(
