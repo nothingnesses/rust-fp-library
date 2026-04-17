@@ -36,29 +36,14 @@ remains explicit-only, which is the same outcome as today.
 No second trait family is needed. Decision D proceeds as originally
 intended (single trait family).
 
-### H2. Phase 1 step 5 (InferableBrand removal) blocks compilation before all dispatch modules are migrated (Agents 3, 5)
+### ~~H2. Phase 1 step 5 (InferableBrand removal) blocks compilation before all dispatch modules are migrated (Agents 3, 5)~~ ADDRESSED
 
-The plan removes InferableBrand in phase 1 step 5, but only `map`
-and `explicit::map` are rewritten by that point. All other 18
-dispatch modules still reference InferableBrand and will fail to
-compile. This creates a non-compiling intermediate state that
-prevents incremental testing.
-
-**Approaches:**
-
-- a) Defer InferableBrand removal to after phase 2 (all dispatch
-  modules migrated). Trade-off: InferableBrand and Slot coexist
-  during development, but each module is testable after migration.
-- b) Migrate all 19 dispatch modules in phase 1 before removing
-  InferableBrand. Trade-off: phase 1 becomes very large.
-- c) Accept non-compiling intermediate state. Trade-off: loses
-  incremental testability.
-
-**Recommendation:** a). Keep the old InferableBrand present through
-phases 1-2, remove it as the final step of phase 2 (or phase 3).
-Since H1 is invalidated (no second trait family needed), the old
-trait is fully removed once all dispatch modules are migrated to
-the redesigned InferableBrand.
+The plan now uses a strangler-fig migration via a temporary `Slot`
+name: the new trait is introduced as `Slot` alongside the existing
+`InferableBrand` (phase 1), dispatch modules are migrated one by
+one (phase 2), the old `InferableBrand` is removed once
+unreferenced (phase 3), and `Slot` is renamed to `InferableBrand`
+via bulk `sed` (phase 4). The branch compiles at every step.
 
 ### H3. Eight dispatch modules missing from the plan (Agent 5)
 
@@ -297,17 +282,18 @@ requires explicit brand specification.
 ## Cross-cutting themes
 
 Two themes recur across multiple reviews (theme 1 from the
-original consolidation was invalidated by post-review
-investigation; see H1 above):
+original consolidation was invalidated, see H1; theme 2 was
+addressed, see H2):
 
-1. **Phase ordering needs rework.** Agents 3 and 5 both identified
-   that removing the old InferableBrand in phase 1 step 5 creates
-   a non-compiling state. The plan should defer removal until all
-   dispatch modules are migrated to the redesigned InferableBrand.
+1. ~~**Phase ordering needs rework.**~~ ADDRESSED. The plan now uses
+   a strangler-fig migration via temporary `Slot` name. Both trait
+   families coexist during phases 1-2; old InferableBrand is removed
+   in phase 3 after all modules are migrated; Slot is renamed to
+   InferableBrand in phase 4.
 
 2. **The plan understates migration scope.** Agents 3 and 5
    identified that the plan mentions `explicit::map` and a handful
    of dispatch modules, but the actual scope is 19 dispatch
    modules, 37+ explicit functions, macro preprocessing code, HM
    signature rendering, snapshot tests, and documentation. The
-   plan's integration surface table should be expanded accordingly.
+   plan's phase 2 now enumerates all 19 modules explicitly.
