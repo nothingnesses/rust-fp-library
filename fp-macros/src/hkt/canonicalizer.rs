@@ -18,6 +18,7 @@ use {
 			constants::markers::{
 				INFERABLE_BRAND_PREFIX,
 				KIND_PREFIX,
+				SLOT_PREFIX,
 			},
 			error_handling::{
 				Error,
@@ -448,6 +449,17 @@ pub fn generate_name(input: &AssociatedTypes) -> Result<Ident> {
 /// hash suffix.
 pub fn generate_inferable_brand_name(input: &AssociatedTypes) -> Result<Ident> {
 	generate_prefixed_name(INFERABLE_BRAND_PREFIX, input)
+}
+
+/// Generates a `Slot_{hash}` identifier from the input signature.
+///
+/// Uses the same content hash as [`generate_name`], so a `Kind_{hash}` trait
+/// and its corresponding `Slot_{hash}` trait always share the same hash suffix.
+/// This is a temporary name during the multi-brand ergonomics migration;
+/// once the old `InferableBrand` is removed, `Slot` will be renamed to
+/// `InferableBrand`.
+pub fn generate_slot_name(input: &AssociatedTypes) -> Result<Ident> {
+	generate_prefixed_name(SLOT_PREFIX, input)
 }
 
 #[cfg(test)]

@@ -4,6 +4,12 @@ use fp_macros::{
 	trait_kind,
 };
 
+// Shim for Slot blanket `Marker = crate::dispatch::Ref` in trait_kind! output.
+#[allow(dead_code, reason = "Slot blanket references crate::dispatch::Ref")]
+mod dispatch {
+	pub struct Ref;
+}
+
 // Define a `Kind` with 1 type parameter and no bounds
 trait_kind!(
 	type Of<T>;

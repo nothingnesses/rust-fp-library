@@ -9,6 +9,7 @@ use {
 		documentation::templates::DocumentationBuilder,
 		generate_inferable_brand_name,
 		generate_name,
+		generate_slot_name,
 	},
 	proc_macro2::TokenStream,
 	quote::quote,
@@ -21,6 +22,7 @@ use {
 pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 	let name = generate_name(&input)?;
 	let ib_name = generate_inferable_brand_name(&input)?;
+	let slot_name = generate_slot_name(&input)?;
 
 	let assoc_types_tokens = input.associated_types.iter().map(|assoc| {
 		let ident = &assoc.signature.name;
@@ -56,6 +58,62 @@ pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 		 etc.) by delegating to the underlying type's `{ib_name}` implementation.",
 	);
 
+	// -- Slot trait generation --
+	//
+	// Extract generics from the first associated type. The Slot trait's
+	// parameters are: the associated type's lifetimes, then Brand (bounded
+	// by the Kind trait), then the associated type's type parameters.
+
+	// The parser validates that associated_types is non-empty (parse_non_empty in input.rs),
+	// so this indexing is safe. Clippy's indexing_slicing lint is suppressed accordingly.
+	#[expect(clippy::indexing_slicing, reason = "validated non-empty by parser")]
+	let first_generics = &input.associated_types[0].signature.generics;
+
+	let lifetime_defs: Vec<_> = first_generics
+		.params
+		.iter()
+		.filter_map(|p| if let syn::GenericParam::Lifetime(lt) = p { Some(lt) } else { None })
+		.collect();
+
+	let type_defs: Vec<_> = first_generics
+		.params
+		.iter()
+		.filter_map(|p| if let syn::GenericParam::Type(tp) = p { Some(tp) } else { None })
+		.collect();
+
+	let lifetime_names: Vec<_> = lifetime_defs.iter().map(|lt| &lt.lifetime).collect();
+	let type_idents: Vec<_> = type_defs.iter().map(|tp| &tp.ident).collect();
+
+	let slot_doc_summary = format!(
+		r#"Reverse mapping from concrete types to brands for `{name}`.
+
+Unlike `{ib_name}` (which requires a unique brand per concrete type),
+this trait has Brand as a trait parameter, allowing multiple implementations
+per concrete type keyed on different Brand values. This enables
+closure-directed inference for multi-brand types like `Result`.
+
+The associated `Marker` type projects whether the container is owned
+(`Val`) or borrowed (`Ref`). Direct implementations for owned types set
+`Marker = Val`; the blanket implementation for `&T` sets `Marker = Ref`.
+
+**Marker-agreement invariant:** all implementations for a given `Self`
+type must agree on the same `Marker` value. Owned types always produce
+`Val`; references always produce `Ref`. This invariant is enforced by
+construction since `impl_kind!` is the sole generator of implementations.
+
+This is a temporary name during the multi-brand ergonomics migration.
+Once the old `InferableBrand` is removed, `Slot` will be renamed to
+`InferableBrand`."#,
+	);
+
+	let slot_blanket_doc = format!(
+		r#"Blanket implementation projecting `Marker = Ref` for borrowed containers.
+
+Delegates the Brand resolution to the underlying type's `{slot_name}`
+implementation while setting `Marker = Ref` to route dispatch to the
+by-reference trait method."#,
+	);
+
 	Ok(quote! {
 		#[doc = #doc_string]
 		#[expect(non_camel_case_types, reason = "Generated name uses hash suffix for uniqueness")]
@@ -78,6 +136,25 @@ pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 		#[doc = #ib_blanket_doc]
 		impl<__IB_T: #ib_name + ?Sized> #ib_name for &__IB_T {
 			type Brand = __IB_T::Brand;
+		}
+
+		#[doc = #slot_doc_summary]
+		#[expect(non_camel_case_types, reason = "Generated name uses hash suffix for uniqueness")]
+		pub trait #slot_name<#(#lifetime_defs,)* __Slot_Brand: #name #(, #type_defs)*> {
+			/// Dispatch marker: [`Val`](crate::dispatch::Val) for owned types,
+			/// [`Ref`](crate::dispatch::Ref) for references.
+			type Marker;
+		}
+
+		#[doc = #slot_blanket_doc]
+		#[expect(non_camel_case_types, reason = "Generated name uses hash suffix for uniqueness")]
+		impl<#(#lifetime_defs,)* __Slot_T: ?Sized, __Slot_Brand: #name #(, #type_defs)*>
+			#slot_name<#(#lifetime_names,)* __Slot_Brand #(, #type_idents)*>
+		for &__Slot_T
+		where
+			__Slot_T: #slot_name<#(#lifetime_names,)* __Slot_Brand #(, #type_idents)*>,
+		{
+			type Marker = crate::dispatch::Ref;
 		}
 	})
 }

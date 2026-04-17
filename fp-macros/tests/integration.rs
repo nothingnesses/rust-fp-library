@@ -7,6 +7,12 @@ use {
 	std::fmt::Display,
 };
 
+// Shim for Slot blanket `Marker = crate::dispatch::Ref` in trait_kind! output.
+#[allow(dead_code, reason = "Slot blanket references crate::dispatch::Ref")]
+mod dispatch {
+	pub struct Ref;
+}
+
 // ===========================================================================
 // Test 1: Simple `Kind` (No Lifetimes)
 // ===========================================================================

@@ -49,6 +49,7 @@ use {
 		apply_worker,
 		generate_inferable_brand_name,
 		generate_name,
+		generate_slot_name,
 		impl_kind_worker,
 		kind_attr_worker,
 		resolve_inferable_brand,

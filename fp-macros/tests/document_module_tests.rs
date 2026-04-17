@@ -6,6 +6,12 @@ use fp_macros::{
 	trait_kind,
 };
 
+// Shim for Slot blanket `Marker = crate::dispatch::Ref` in trait_kind! output.
+#[allow(dead_code, reason = "Slot blanket references crate::dispatch::Ref")]
+mod dispatch {
+	pub struct Ref;
+}
+
 #[document_module(no_validation)]
 mod test_mod {
 	use super::*;
