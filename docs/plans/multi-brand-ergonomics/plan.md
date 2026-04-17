@@ -81,7 +81,19 @@ tests (3 m_do + 4 a_do) covering bind chains, short-circuit, let
 bindings, single/two/zero binds with `ResultErrAppliedBrand<String>`.
 No issues found; no macro changes needed.
 
-Remaining: `dispatch/semiapplicative.rs` (Decision P).
+Implementing `dispatch/semiapplicative.rs` (Decision P). The new
+dispatch `apply` replaces the class-level `apply` as the primary API
+(re-exported through `functions::apply`), just as dispatch `map`
+replaced the class-level `map`. The class-level `apply` moves to
+`explicit::apply` as the turbofish fallback. The old
+`"semiapplicative::apply"` entry in `generate_function_re_exports!`
+is excluded, and the dispatch version is re-exported instead.
+
+Call sites migrate from `apply::<RcFnBrand, OptionBrand, _, _>(ff, fa)`
+(Brand specified manually) to `apply::<RcFnBrand, _, _, _, _, _>(ff, fa)`
+(Brand inferred via dual Slot bounds). `FnBrand` still requires
+turbofish since Rust's solver cannot reverse-project associated types
+to recover it from the concrete wrapped function type.
 
 ## Open questions, issues and blockers
 
@@ -625,17 +637,32 @@ impl_kind! to emit multiple InferableBrand impls," which is
 misleading. Each invocation handles one brand. Clarify to prevent
 misunderstanding during implementation.
 
-### Decision P: `apply`/`ref_apply` dispatch module
+### Decision P: `apply`/`ref_apply` dispatch module (revised)
 
 Create `dispatch/semiapplicative.rs` as a new dispatch module in
-phase 2, with `ApplyDispatch` trait, Val/Ref impls, inference
-wrapper with dual InferableBrand bounds (per Decision H), and
-explicit wrapper. This is new work, not a mechanical rebinding of
-an existing module.
+phase 2 with `ApplyDispatch` trait, Val impl, inference wrapper with
+dual Slot bounds (per Decision H), and explicit wrapper.
 
-_Rationale:_ POC 8 validates the signature shape. The plan
-previously characterised this as "mechanical analogue," which
-understates the work.
+The dispatch `apply` replaces the class-level `apply` as the primary
+API re-exported through `functions::apply`. The class-level `apply`
+from `classes/semiapplicative.rs` is excluded from
+`generate_function_re_exports!` and becomes the `explicit::apply`
+fallback. Call sites migrate from
+`apply::<RcFnBrand, Brand, _, _>(ff, fa)` to
+`apply::<RcFnBrand, _, _, _, _, _>(ff, fa)` (Brand inferred via
+dual Slot bounds; `FnBrand` still requires turbofish).
+
+Ref dispatch (`ref_apply`) is deferred as follow-up work.
+`RefSemiapplicative::ref_apply` uses `CloneFn<Ref>` (a different
+function-wrapping constraint than `CloneFn` for Val), making unified
+Val/Ref dispatch in a single trait non-trivial. POC 8 validated that
+Slot inference works for the Ref case; a `ref_apply` inference
+wrapper can be added separately without a shared dispatch trait.
+
+_Rationale:_ POC 8 validates the dual-Slot-bound signature shape.
+The dispatch module replaces the class-level free function to provide
+Brand inference, consistent with how all other dispatch modules
+supersede their class-level counterparts.
 
 ### Decision Q: `explicit::` function scope (revised)
 
