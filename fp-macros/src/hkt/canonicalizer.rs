@@ -30,7 +30,7 @@ use {
 		format_ident,
 		quote,
 	},
-	std::collections::BTreeMap,
+	std::collections::HashMap,
 	syn::{
 		GenericArgument,
 		GenericParam,
@@ -55,9 +55,9 @@ type Result<T> = std::result::Result<T, Error>;
 /// the generated hash.
 pub struct Canonicalizer {
 	/// Maps lifetime names to their index (e.g., "a" -> 0).
-	lifetime_map: BTreeMap<String, usize>,
+	lifetime_map: HashMap<String, usize>,
 	/// Maps type parameter names to their index (e.g., "T" -> 0).
-	type_map: BTreeMap<String, usize>,
+	type_map: HashMap<String, usize>,
 }
 
 impl Canonicalizer {
@@ -66,8 +66,8 @@ impl Canonicalizer {
 	/// This initializes the mappings for lifetimes and type parameters based
 	/// on their order in the `Generics` definition.
 	pub fn new(generics: &Generics) -> Self {
-		let mut lifetime_map = BTreeMap::new();
-		let mut type_map = BTreeMap::new();
+		let mut lifetime_map = HashMap::new();
+		let mut type_map = HashMap::new();
 
 		let mut l_idx = 0;
 		let mut t_idx = 0;
@@ -82,16 +82,67 @@ impl Canonicalizer {
 					type_map.insert(ty.ident.to_string(), t_idx);
 					t_idx += 1;
 				}
-				GenericParam::Const(_) => {
-					// Const parameters are not currently supported for canonicalization mapping
-					// They will be treated as literal values in bounds
-				}
+				GenericParam::Const(_) => {}
 			}
 		}
 
 		Self {
 			lifetime_map,
 			type_map,
+		}
+	}
+
+	/// Canonicalize a lifetime, replacing mapped lifetimes with positional indices.
+	fn canonicalize_lifetime(
+		&self,
+		lt: &syn::Lifetime,
+	) -> String {
+		if let Some(idx) = self.lifetime_map.get(&lt.ident.to_string()) {
+			format!("l{idx}")
+		} else {
+			lt.ident.to_string()
+		}
+	}
+
+	/// Canonicalize path segments (shared by `canonicalize_bound` and `visit_path`).
+	fn canonicalize_path_segments(
+		&mut self,
+		segments: &syn::punctuated::Punctuated<syn::PathSegment, Token![::]>,
+	) -> Result<String> {
+		let mut path_parts = Vec::new();
+		for seg in segments {
+			let ident = seg.ident.to_string();
+			let segment_str = match &seg.arguments {
+				PathArguments::None => ident,
+				PathArguments::AngleBracketed(args) => {
+					let mut args_vec = Vec::new();
+					for arg in &args.args {
+						args_vec.push(self.canonicalize_generic_arg(arg)?);
+					}
+					format!("{ident}<{}>", args_vec.join(","))
+				}
+				PathArguments::Parenthesized(args) => {
+					let mut inputs_vec = Vec::new();
+					for t in &args.inputs {
+						inputs_vec.push(self.visit(t)?);
+					}
+					let output = self.canonicalize_return_type(&args.output)?;
+					format!("{ident}({})->{output}", inputs_vec.join(","))
+				}
+			};
+			path_parts.push(segment_str);
+		}
+		Ok(path_parts.join("::"))
+	}
+
+	/// Canonicalize a return type.
+	fn canonicalize_return_type(
+		&mut self,
+		output: &ReturnType,
+	) -> Result<String> {
+		match output {
+			ReturnType::Default => Ok("()".to_string()),
+			ReturnType::Type(_, ty) => self.visit(ty),
 		}
 	}
 
@@ -113,37 +164,7 @@ impl Canonicalizer {
 				Ok(format!("l{idx}"))
 			}
 			TypeParamBound::Trait(tr) => {
-				// Full path with generic arguments
-				let mut path_parts = Vec::new();
-				for seg in &tr.path.segments {
-					let ident = seg.ident.to_string();
-					let segment_str = match &seg.arguments {
-						PathArguments::None => ident,
-						PathArguments::AngleBracketed(args) => {
-							let mut args_vec = Vec::new();
-							for arg in &args.args {
-								args_vec.push(self.canonicalize_generic_arg(arg)?);
-							}
-							let args_str = args_vec.join(",");
-							format!("{ident}<{args_str}>")
-						}
-						PathArguments::Parenthesized(args) => {
-							// Fn trait bounds: Fn(A) -> B
-							let mut inputs_vec = Vec::new();
-							for t in &args.inputs {
-								inputs_vec.push(self.canonicalize_type(t)?);
-							}
-							let inputs = inputs_vec.join(",");
-							let output = match &args.output {
-								ReturnType::Default => "()".to_string(),
-								ReturnType::Type(_, ty) => self.canonicalize_type(ty)?,
-							};
-							format!("{ident}({inputs})->{output}")
-						}
-					};
-					path_parts.push(segment_str);
-				}
-				let path = path_parts.join("::");
+				let path = self.canonicalize_path_segments(&tr.path.segments)?;
 				Ok(format!("t{path}"))
 			}
 			TypeParamBound::Verbatim(_tokens) =>
@@ -166,8 +187,34 @@ impl Canonicalizer {
 		for b in bounds {
 			parts.push(self.canonicalize_bound(b)?);
 		}
-		parts.sort(); // Ensure deterministic order
+		parts.sort();
 		Ok(parts.join(""))
+	}
+
+	/// Canonicalize a const expression, substituting mapped type parameter
+	/// names with their canonical form.
+	fn canonicalize_const_expr(
+		&self,
+		expr: &syn::Expr,
+	) -> String {
+		let tokens = quote!(#expr);
+		let mut result = proc_macro2::TokenStream::new();
+		for tt in tokens {
+			match &tt {
+				proc_macro2::TokenTree::Ident(ident) => {
+					let name = ident.to_string();
+					if let Some(idx) = self.type_map.get(&name) {
+						result.extend(std::iter::once(proc_macro2::TokenTree::Ident(
+							proc_macro2::Ident::new(&format!("T{idx}"), ident.span()),
+						)));
+					} else {
+						result.extend(std::iter::once(tt));
+					}
+				}
+				_ => result.extend(std::iter::once(tt)),
+			}
+		}
+		result.to_string().replace(' ', "")
 	}
 
 	fn canonicalize_generic_arg(
@@ -175,17 +222,11 @@ impl Canonicalizer {
 		arg: &GenericArgument,
 	) -> Result<String> {
 		match arg {
-			GenericArgument::Type(ty) => self.canonicalize_type(ty),
-			GenericArgument::Lifetime(lt) => {
-				if let Some(idx) = self.lifetime_map.get(&lt.ident.to_string()) {
-					Ok(format!("l{idx}"))
-				} else {
-					Ok(lt.ident.to_string())
-				}
-			}
+			GenericArgument::Type(ty) => self.visit(ty),
+			GenericArgument::Lifetime(lt) => Ok(self.canonicalize_lifetime(lt)),
 			GenericArgument::AssocType(assoc) =>
-				Ok(format!("{}={}", assoc.ident, self.canonicalize_type(&assoc.ty)?)),
-			GenericArgument::Const(expr) => Ok(quote!(#expr).to_string().replace(" ", "")),
+				Ok(format!("{}={}", assoc.ident, self.visit(&assoc.ty)?)),
+			GenericArgument::Const(expr) => Ok(self.canonicalize_const_expr(expr)),
 			GenericArgument::AssocConst(_) | GenericArgument::Constraint(_) =>
 				Err(Error::Unsupported(UnsupportedFeature::GenericArgument {
 					description: "Associated const or constraint".to_string(),
@@ -213,57 +254,31 @@ impl TypeVisitor for Canonicalizer {
 		&mut self,
 		type_path: &syn::TypePath,
 	) -> Self::Output {
-		// Check if it's a type parameter
+		// Handle qualified self types (e.g., <T as Iterator>::Item)
+		if let Some(qself) = &type_path.qself {
+			let qself_str = self.visit(&qself.ty)?;
+			let path_str = self.canonicalize_path_segments(&type_path.path.segments)?;
+			return Ok(format!("<{qself_str}>::{path_str}"));
+		}
+
+		// Check if it's a simple type parameter
 		if let Some(ident) = type_path.path.get_ident()
 			&& let Some(idx) = self.type_map.get(&ident.to_string())
 		{
 			return Ok(format!("T{idx}"));
 		}
 
-		let mut path_parts = Vec::new();
-		for seg in &type_path.path.segments {
-			let ident = seg.ident.to_string();
-			let segment_str = match &seg.arguments {
-				PathArguments::None => ident,
-				PathArguments::AngleBracketed(args) => {
-					let mut args_vec = Vec::new();
-					for a in &args.args {
-						args_vec.push(self.canonicalize_generic_arg(a)?);
-					}
-					let args_str = args_vec.join(",");
-					format!("{ident}<{args_str}>")
-				}
-				PathArguments::Parenthesized(args) => {
-					let mut inputs_vec = Vec::new();
-					for t in &args.inputs {
-						inputs_vec.push(self.visit(t)?);
-					}
-					let inputs = inputs_vec.join(",");
-					let output = match &args.output {
-						ReturnType::Default => "()".to_string(),
-						ReturnType::Type(_, ty) => self.visit(ty)?,
-					};
-					format!("{ident}({inputs})->{output}")
-				}
-			};
-			path_parts.push(segment_str);
-		}
-		Ok(path_parts.join("::"))
+		self.canonicalize_path_segments(&type_path.path.segments)
 	}
 
 	fn visit_reference(
 		&mut self,
 		type_ref: &syn::TypeReference,
 	) -> Self::Output {
-		let lt = if let Some(lt) = &type_ref.lifetime {
-			if let Some(idx) = self.lifetime_map.get(&lt.ident.to_string()) {
-				format!("l{idx} ")
-			} else {
-				format!("{} ", lt.ident)
-			}
-		} else {
-			"".to_string()
-		};
+		let lt = type_ref
+			.lifetime
+			.as_ref()
+			.map_or(String::new(), |lt| format!("{} ", self.canonicalize_lifetime(lt)));
 		let mutability = if type_ref.mutability.is_some() { "mut " } else { "" };
 		Ok(format!("&{lt}{mutability}{}", self.visit(&type_ref.elem)?))
 	}
@@ -276,8 +291,7 @@ impl TypeVisitor for Canonicalizer {
 		for t in &tuple.elems {
 			elems_vec.push(self.visit(t)?);
 		}
-		let elems = elems_vec.join(",");
-		Ok(format!("({elems})"))
+		Ok(format!("({})", elems_vec.join(",")))
 	}
 
 	fn visit_slice(
@@ -291,8 +305,45 @@ impl TypeVisitor for Canonicalizer {
 		&mut self,
 		array: &syn::TypeArray,
 	) -> Self::Output {
-		let len = quote!(#array.len).to_string().replace(" ", "");
+		let len_expr = &array.len;
+		let len = self.canonicalize_const_expr(len_expr);
 		Ok(format!("[{};{len}]", self.visit(&array.elem)?))
+	}
+
+	fn visit_bare_fn(
+		&mut self,
+		bare_fn: &syn::TypeBareFn,
+	) -> Self::Output {
+		let mut inputs_vec = Vec::new();
+		for arg in &bare_fn.inputs {
+			inputs_vec.push(self.visit(&arg.ty)?);
+		}
+		let output = self.canonicalize_return_type(&bare_fn.output)?;
+		Ok(format!("fn({})->{output}", inputs_vec.join(",")))
+	}
+
+	fn visit_trait_object(
+		&mut self,
+		trait_object: &syn::TypeTraitObject,
+	) -> Self::Output {
+		let mut parts: Vec<String> = Vec::new();
+		for bound in &trait_object.bounds {
+			parts.push(self.canonicalize_bound(bound)?);
+		}
+		parts.sort();
+		Ok(format!("dyn {}", parts.join("+")))
+	}
+
+	fn visit_impl_trait(
+		&mut self,
+		impl_trait: &syn::TypeImplTrait,
+	) -> Self::Output {
+		let mut parts: Vec<String> = Vec::new();
+		for bound in &impl_trait.bounds {
+			parts.push(self.canonicalize_bound(bound)?);
+		}
+		parts.sort();
+		Ok(format!("impl {}", parts.join("+")))
 	}
 
 	fn visit_other(
@@ -302,22 +353,9 @@ impl TypeVisitor for Canonicalizer {
 		match ty {
 			Type::Never(_) => Ok("!".to_string()),
 			Type::Infer(_) => Ok("_".to_string()),
-			Type::BareFn(_) | Type::ImplTrait(_) | Type::TraitObject(_) =>
-				Err(Error::Unsupported(UnsupportedFeature::ComplexTypes {
-					description: format!("Type {} in canonicalization", quote!(#ty)),
-					span: proc_macro2::Span::call_site(),
-				})),
+			Type::Paren(paren) => self.visit(&paren.elem),
 			_ => self.default_output(),
 		}
-	}
-}
-
-impl Canonicalizer {
-	fn canonicalize_type(
-		&mut self,
-		ty: &Type,
-	) -> Result<String> {
-		self.visit(ty)
 	}
 }
 
