@@ -369,15 +369,34 @@ traits.
 
 ### Phase 3: Documentation
 
-1. Update `fp-library/docs/pointer-abstraction.md` to describe the
-   flattened hierarchy and `Of` naming.
-2. Update `fp-library/docs/limitations-and-workarounds.md` if it
-   references the pointer hierarchy structure or old associated type
-   names.
-3. Update the `pointer` module-level doc in `fp-library/src/classes/`
-   (if any remains after `pointer.rs` removal) to reflect the
-   flattened hierarchy.
-4. Run `just verify`.
+Update all docs that reference the old hierarchy, `Pointer` trait,
+or old associated type names (`CloneableOf`, `SendOf`):
+
+1. `fp-library/docs/pointer-abstraction.md`: Rewrite hierarchy
+   diagram and description. Remove `Pointer` from the chain. Describe
+   `RefCountedPointer` and `SendRefCountedPointer` as independent
+   traits. Update associated type names to `Of`. Update `FnBrand<P>`
+   description to reflect `SendCloneFn` independence.
+2. `fp-library/docs/limitations-and-workarounds.md`: Update the
+   "No Refinement of Associated Type Bounds in Subtraits" section
+   to use the new `Of` names and reflect the flattened hierarchy.
+   Update the "Foldable and CloneFn" section if it references the
+   pointer hierarchy.
+3. `fp-library/docs/zero-cost.md` (line 26): Update reference to
+   "unified `Pointer` hierarchy" to describe `RefCountedPointer`.
+4. `fp-library/docs/features.md` (line 211): Update mention of
+   `Pointer`, `RefCountedPointer`, `SendRefCountedPointer` to
+   reflect `Pointer` removal and flattened hierarchy.
+5. `fp-library/docs/std-coverage-checklist.md` (line 66): Remove
+   `Pointer` row from the trait table.
+6. `CLAUDE.md` (line 115): Update pointer-abstraction.md description
+   to remove `Pointer` mention.
+7. `fp-library/src/classes/pointer.rs` module-level doc: File is
+   removed; move the hierarchy overview to
+   `ref_counted_pointer.rs` module doc or the `classes.rs` module
+   doc.
+8. `fp-library/CHANGELOG.md`: No changes (historical record).
+9. Run `just verify`.
 
 ## Success criteria
 
