@@ -73,8 +73,14 @@ non-Send variant." This is inconsistent with the `CloneFn`/`SendCloneFn`
 hierarchy, which already uses the flat pattern (independent parallel
 traits) for the same structural reason.
 
-Additionally, the associated types use inconsistent naming:
-`Pointer::Of`, `RefCountedPointer::CloneableOf`,
+Additionally, `Pointer` is dead code: no production consumer bounds
+on it, projects through `Pointer::Of`, or calls `Pointer::new`. Its
+`Of` and `new` are redundant with `RefCountedPointer::CloneableOf`
+and `cloneable_new`. It exists only as `RefCountedPointer`'s
+supertrait and in its own free function, impls, and tests.
+
+The associated types also use inconsistent naming:
+`RefCountedPointer::CloneableOf`,
 `SendRefCountedPointer::SendOf`. The library convention (used by
 `Kind`, `CloneFn`, `SendCloneFn`) is to name the primary associated
 type `Of`, with the trait name providing disambiguation.
@@ -82,7 +88,6 @@ type `Of`, with the trait name providing disambiguation.
 After this plan:
 
 ```
-Pointer                    (Of)            -- independent
 RefCountedPointer          (Of, TakeCellOf)  -- independent
   <- UnsizedCoercible                        -- methods use RefCountedPointer::Of
 SendRefCountedPointer      (Of)            -- independent
@@ -150,9 +155,7 @@ trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'static {
 ### After
 
 ```
-trait Pointer {                            // independent (was supertrait of RefCountedPointer)
-    type Of<'a, T>;           // Deref
-}
+// Pointer trait removed entirely.
 
 trait RefCountedPointer {                  // independent (Pointer supertrait removed)
     type Of<'a, T>;           // Clone + Deref  (renamed from CloneableOf)
@@ -177,11 +180,13 @@ trait SendUnsizedCoercible: SendRefCountedPointer + 'static {
 
 ### Changes
 
-1. **Make `Pointer` independent.** Remove the `Pointer` supertrait
-   from `RefCountedPointer`. `Pointer` remains as an independent
-   trait for future `BoxBrand` extensibility. `RcBrand` and `ArcBrand`
-   continue to implement both traits, but the supertrait link is
-   removed.
+1. **Remove `Pointer` entirely.** No production consumer bounds on
+   it, projects through `Pointer::Of`, or calls `Pointer::new`.
+   Remove the trait, its impls for `RcBrand` and `ArcBrand`, its
+   free function `pointer_new`, its re-export, and its tests. If a
+   future `BoxBrand` needs a non-clonable pointer trait, an
+   independent trait can be introduced at that time; the flat
+   architecture makes this trivial.
 
 2. **Make `SendRefCountedPointer` independent.** Remove the
    `RefCountedPointer` supertrait. `SendRefCountedPointer` becomes a
@@ -225,17 +230,19 @@ Current consumers of `SendUnsizedCoercible`:
 
 ## Decisions
 
-### Decision A: Keep `Pointer` as independent trait
+### Decision A: Remove `Pointer`
 
-**Adopted.** Keep `Pointer` but remove it as a supertrait of
-`RefCountedPointer`. `Pointer` becomes an independent trait.
+**Adopted.** Remove `Pointer` trait entirely.
 
-_Rationale:_ `Pointer` provides the extension point for a future
-`BoxBrand` that supports heap allocation and `Deref` but not `Clone`.
-No consumer accesses `Pointer::Of` through `RefCountedPointer`, so
-the supertrait link is not logically necessary. Making it independent
-is consistent with the flat pattern applied to all other unnecessary
-links.
+_Rationale:_ No production consumer bounds on `Pointer`, projects
+through `Pointer::Of`, or calls `Pointer::new`. Both `RcBrand` and
+`ArcBrand` set `Pointer::Of` to the same type as
+`RefCountedPointer::CloneableOf`. It exists only as
+`RefCountedPointer`'s supertrait, in its own free function, impls,
+tests, and doc examples. If a future `BoxBrand` needs a non-clonable
+pointer trait, an independent trait can be introduced at that time.
+The flat architecture makes this trivial since there are no supertrait
+chains to insert into.
 
 ### Decision B: `SendRefCountedPointer` independence
 
@@ -246,9 +253,9 @@ _Rationale:_ `SendRefCountedPointer::Of` (renamed from `SendOf`) has
 different bounds than `RefCountedPointer::Of` (renamed from
 `CloneableOf`). This is the same structural reason that `SendCloneFn`
 is independent of `CloneFn` (`dyn Fn + Send + Sync` vs `dyn Fn`).
-The only consumer of `SendRefCountedPointer` (`SendUnsizedCoercible`)
-reaches `RefCountedPointer` through its own `UnsizedCoercible`
-supertrait when it needs it, so the link is redundant.
+No consumer of `SendRefCountedPointer` relies on the supertrait link
+to access `RefCountedPointer` methods; `SendUnsizedCoercible` reaches
+`RefCountedPointer` through its own `UnsizedCoercible` supertrait.
 
 ### Decision C: `SendUnsizedCoercible` independence from `UnsizedCoercible`
 
@@ -295,9 +302,14 @@ traits.
 
 | Component                                            | Change                                                                                                                                                               |
 | :--------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fp-library/src/classes/pointer.rs`                  | Remove entirely.                                                                                                                                                     |
 | `fp-library/src/classes/ref_counted_pointer.rs`      | Remove `Pointer` supertrait. Rename `CloneableOf` to `Of`.                                                                                                           |
 | `fp-library/src/classes/send_ref_counted_pointer.rs` | Remove `RefCountedPointer` supertrait. Rename `SendOf` to `Of`. Update doc comment.                                                                                  |
 | `fp-library/src/classes/send_unsized_coercible.rs`   | Remove `UnsizedCoercible` supertrait (keep `SendRefCountedPointer + 'static`). Update return types to use `<Self as SendRefCountedPointer>::Of`. Update doc comment. |
+| `fp-library/src/types/rc_ptr.rs`                     | Remove `impl Pointer for RcBrand`.                                                                                                                                   |
+| `fp-library/src/types/arc_ptr.rs`                    | Remove `impl Pointer for ArcBrand`.                                                                                                                                  |
+| `fp-library/src/classes.rs`                          | Remove `pointer` module export.                                                                                                                                      |
+| `fp-library/src/functions.rs`                        | Remove `pointer_new` re-export.                                                                                                                                      |
 | All consumer sites referencing `CloneableOf`         | Rename to `Of` (qualified as `<P as RefCountedPointer>::Of`).                                                                                                        |
 | All consumer sites referencing `SendOf`              | Rename to `Of` (qualified as `<P as SendRefCountedPointer>::Of`).                                                                                                    |
 | `fp-library/docs/pointer-abstraction.md`             | Update hierarchy description.                                                                                                                                        |
@@ -305,7 +317,6 @@ traits.
 
 ### Unchanged
 
-- **`Pointer`**: Kept as independent trait. `Of` name unchanged.
 - **`UnsizedCoercible`**: Still extends `RefCountedPointer + 'static`. Methods return `<Self as RefCountedPointer>::Of` (renamed from `CloneableOf`).
 - **`CloneFn` / `SendCloneFn`**: Already independent, already use `Of`. No changes.
 - **`FnBrand<P>`**: Bounds on `P: UnsizedCoercible` and `P: SendUnsizedCoercible` are unchanged. Internal references to `CloneableOf` and `SendOf` are renamed to `Of`.
@@ -320,7 +331,6 @@ traits.
 ### Phase 0: Non-regression tests
 
 1. Add a test file exercising the current pointer APIs:
-   `Pointer::new`,
    `RefCountedPointer::cloneable_new`, `try_unwrap`,
    `take_cell_new`, `take_cell_take`,
    `SendRefCountedPointer::send_new`,
@@ -331,17 +341,22 @@ traits.
    `arc_ptr.rs` cover this adequately; add missing coverage.
 2. Run `just verify`.
 
-### Phase 1: Flatten supertrait links
+### Phase 1: Remove `Pointer` and flatten supertrait links
 
 1. Remove `Pointer` supertrait from `RefCountedPointer`.
-2. Remove `RefCountedPointer` supertrait from
+2. Remove `impl Pointer for RcBrand` and `impl Pointer for ArcBrand`.
+3. Remove the `Pointer` trait definition, its module, its free
+   function `pointer_new`, and its re-export in `functions.rs`.
+4. Remove test code that exercises `Pointer` directly.
+5. Update `classes.rs` module exports.
+6. Remove `RefCountedPointer` supertrait from
    `SendRefCountedPointer`.
-3. Remove `UnsizedCoercible` supertrait from `SendUnsizedCoercible`
+7. Remove `UnsizedCoercible` supertrait from `SendUnsizedCoercible`
    (keep `SendRefCountedPointer + 'static`).
-4. Update doc comments on affected traits.
-5. Check all consumers for any that relied on removed supertrait
+8. Update doc comments on affected traits.
+9. Check all consumers for any that relied on removed supertrait
    links. (Audit found none, but verify during implementation.)
-6. Run `just verify`.
+10. Run `just verify`.
 
 ### Phase 2: Rename associated types to `Of`
 
@@ -359,15 +374,16 @@ traits.
 2. Update `fp-library/docs/limitations-and-workarounds.md` if it
    references the pointer hierarchy structure or old associated type
    names.
-3. Update `fp-library/src/classes/pointer.rs` module-level doc to
-   reflect the flattened hierarchy.
+3. Update the `pointer` module-level doc in `fp-library/src/classes/`
+   (if any remains after `pointer.rs` removal) to reflect the
+   flattened hierarchy.
 4. Run `just verify`.
 
 ## Success criteria
 
 The plan is complete when:
 
-- `Pointer` is an independent trait (not a supertrait of anything).
+- `Pointer` trait is removed.
 - `RefCountedPointer` is an independent trait (no supertraits).
   `UnsizedCoercible` extends it (logically necessary).
 - `SendRefCountedPointer` is an independent trait (no supertraits).
