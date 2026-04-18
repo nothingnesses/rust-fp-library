@@ -171,8 +171,8 @@ impl Canonicalizer {
 				Err(Error::Unsupported(UnsupportedFeature::VerbatimBounds {
 					span: proc_macro2::Span::call_site(),
 				})),
-			_ => Err(Error::Unsupported(UnsupportedFeature::BoundType {
-				description: "Unknown bound type variant".to_string(),
+			other => Err(Error::Unsupported(UnsupportedFeature::BoundType {
+				description: format!("Unsupported bound type: {}", quote!(#other)),
 				span: proc_macro2::Span::call_site(),
 			})),
 		}
@@ -183,12 +183,21 @@ impl Canonicalizer {
 		&mut self,
 		bounds: &Punctuated<TypeParamBound, Token![+]>,
 	) -> Result<String> {
+		self.sorted_bounds(bounds, "")
+	}
+
+	/// Canonicalize bounds into a sorted, joined string with the given separator.
+	fn sorted_bounds(
+		&mut self,
+		bounds: &Punctuated<TypeParamBound, Token![+]>,
+		sep: &str,
+	) -> Result<String> {
 		let mut parts: Vec<String> = Vec::new();
 		for b in bounds {
 			parts.push(self.canonicalize_bound(b)?);
 		}
 		parts.sort();
-		Ok(parts.join(""))
+		Ok(parts.join(sep))
 	}
 
 	/// Canonicalize a const expression, substituting mapped type parameter
@@ -232,8 +241,8 @@ impl Canonicalizer {
 					description: "Associated const or constraint".to_string(),
 					span: proc_macro2::Span::call_site(),
 				})),
-			_ => Err(Error::Unsupported(UnsupportedFeature::GenericArgument {
-				description: "Unknown generic argument variant".to_string(),
+			other => Err(Error::Unsupported(UnsupportedFeature::GenericArgument {
+				description: format!("Unsupported generic argument: {}", quote!(#other)),
 				span: proc_macro2::Span::call_site(),
 			})),
 		}
@@ -314,36 +323,36 @@ impl TypeVisitor for Canonicalizer {
 		&mut self,
 		bare_fn: &syn::TypeBareFn,
 	) -> Self::Output {
+		let mut prefix = String::new();
+		if bare_fn.unsafety.is_some() {
+			prefix.push_str("unsafe ");
+		}
+		if let Some(abi) = &bare_fn.abi {
+			prefix.push_str("extern ");
+			if let Some(name) = &abi.name {
+				prefix.push_str(&format!("{} ", name.value()));
+			}
+		}
 		let mut inputs_vec = Vec::new();
 		for arg in &bare_fn.inputs {
 			inputs_vec.push(self.visit(&arg.ty)?);
 		}
 		let output = self.canonicalize_return_type(&bare_fn.output)?;
-		Ok(format!("fn({})->{output}", inputs_vec.join(",")))
+		Ok(format!("{prefix}fn({})->{output}", inputs_vec.join(",")))
 	}
 
 	fn visit_trait_object(
 		&mut self,
 		trait_object: &syn::TypeTraitObject,
 	) -> Self::Output {
-		let mut parts: Vec<String> = Vec::new();
-		for bound in &trait_object.bounds {
-			parts.push(self.canonicalize_bound(bound)?);
-		}
-		parts.sort();
-		Ok(format!("dyn {}", parts.join("+")))
+		Ok(format!("dyn {}", self.sorted_bounds(&trait_object.bounds, "+")?))
 	}
 
 	fn visit_impl_trait(
 		&mut self,
 		impl_trait: &syn::TypeImplTrait,
 	) -> Self::Output {
-		let mut parts: Vec<String> = Vec::new();
-		for bound in &impl_trait.bounds {
-			parts.push(self.canonicalize_bound(bound)?);
-		}
-		parts.sort();
-		Ok(format!("impl {}", parts.join("+")))
+		Ok(format!("impl {}", self.sorted_bounds(&impl_trait.bounds, "+")?))
 	}
 
 	fn visit_other(
@@ -354,6 +363,7 @@ impl TypeVisitor for Canonicalizer {
 			Type::Never(_) => Ok("!".to_string()),
 			Type::Infer(_) => Ok("_".to_string()),
 			Type::Paren(paren) => self.visit(&paren.elem),
+			Type::Group(group) => self.visit(&group.elem),
 			_ => self.default_output(),
 		}
 	}
@@ -816,5 +826,172 @@ mod tests {
 		let name2 = generate_name(&input2).unwrap();
 
 		assert_eq!(name1, name2);
+	}
+
+	// ===========================================================================
+	// Type Visitor Tests
+	// ===========================================================================
+
+	/// Helper to canonicalize a type with the given generic parameters.
+	fn canon_type(
+		generics_str: &str,
+		ty_str: &str,
+	) -> String {
+		let generics: Generics = syn::parse_str(generics_str).expect("Failed to parse generics");
+		let ty: Type = syn::parse_str(ty_str).expect("Failed to parse type");
+		let mut canon = Canonicalizer::new(&generics);
+		canon.visit(&ty).expect("Failed to canonicalize type")
+	}
+
+	#[test]
+	fn test_visit_reference() {
+		assert_eq!(canon_type("<T>", "&T"), "&T0");
+		assert_eq!(canon_type("<T>", "&mut T"), "&mut T0");
+	}
+
+	#[test]
+	fn test_visit_reference_with_lifetime() {
+		assert_eq!(canon_type("<'a, T>", "&'a T"), "&l0 T0");
+		assert_eq!(canon_type("<'a, T>", "&'a mut T"), "&l0 mut T0");
+	}
+
+	#[test]
+	fn test_visit_reference_static_lifetime() {
+		assert_eq!(canon_type("<T>", "&'static T"), "&static T0");
+	}
+
+	#[test]
+	fn test_visit_tuple() {
+		assert_eq!(canon_type("<>", "()"), "()");
+		assert_eq!(canon_type("<T, U>", "(T, U)"), "(T0,T1)");
+	}
+
+	#[test]
+	fn test_visit_slice() {
+		assert_eq!(canon_type("<T>", "[T]"), "[T0]");
+	}
+
+	#[test]
+	fn test_visit_array() {
+		assert_eq!(canon_type("<T>", "[T; 5]"), "[T0;5]");
+	}
+
+	#[test]
+	fn test_visit_array_type_param_independence() {
+		assert_eq!(canon_type("<A>", "[A; 3]"), canon_type("<B>", "[B; 3]"));
+	}
+
+	#[test]
+	fn test_visit_bare_fn() {
+		assert_eq!(canon_type("<>", "fn()"), "fn()->()");
+		assert_eq!(canon_type("<T, U>", "fn(T) -> U"), "fn(T0)->T1");
+		assert_eq!(canon_type("<A, B, C>", "fn(A, B) -> C"), "fn(T0,T1)->T2");
+	}
+
+	#[test]
+	fn test_visit_bare_fn_unsafe() {
+		assert_eq!(canon_type("<T>", "unsafe fn(T) -> T"), "unsafe fn(T0)->T0");
+	}
+
+	#[test]
+	fn test_visit_bare_fn_extern() {
+		assert_eq!(canon_type("<T>", "extern \"C\" fn(T) -> T"), "extern C fn(T0)->T0");
+	}
+
+	#[test]
+	fn test_visit_bare_fn_unsafe_extern() {
+		assert_eq!(
+			canon_type("<T>", "unsafe extern \"C\" fn(T) -> T"),
+			"unsafe extern C fn(T0)->T0"
+		);
+	}
+
+	#[test]
+	fn test_visit_bare_fn_distinguishes_unsafety() {
+		let safe = canon_type("<T>", "fn(T) -> T");
+		let unsafe_ = canon_type("<T>", "unsafe fn(T) -> T");
+		assert_ne!(safe, unsafe_);
+	}
+
+	#[test]
+	fn test_visit_bare_fn_distinguishes_abi() {
+		let rust = canon_type("<T>", "fn(T) -> T");
+		let c = canon_type("<T>", "extern \"C\" fn(T) -> T");
+		assert_ne!(rust, c);
+	}
+
+	#[test]
+	fn test_visit_trait_object() {
+		let generics: Generics = parse_quote!(<>);
+		let ty: Type = parse_quote!(dyn Clone);
+		let mut canon = Canonicalizer::new(&generics);
+		let result = canon.visit(&ty).unwrap();
+		assert_eq!(result, "dyn tClone");
+	}
+
+	#[test]
+	fn test_visit_trait_object_multiple_bounds_sorted() {
+		let generics: Generics = parse_quote!(<>);
+		let ty1: Type = parse_quote!(dyn Clone + Send);
+		let ty2: Type = parse_quote!(dyn Send + Clone);
+		let mut canon1 = Canonicalizer::new(&generics);
+		let mut canon2 = Canonicalizer::new(&generics);
+		assert_eq!(canon1.visit(&ty1).unwrap(), canon2.visit(&ty2).unwrap());
+	}
+
+	#[test]
+	fn test_visit_impl_trait() {
+		let generics: Generics = parse_quote!(<>);
+		let ty: Type = parse_quote!(impl Clone);
+		let mut canon = Canonicalizer::new(&generics);
+		let result = canon.visit(&ty).unwrap();
+		assert_eq!(result, "impl tClone");
+	}
+
+	#[test]
+	fn test_visit_impl_trait_multiple_bounds_sorted() {
+		let generics: Generics = parse_quote!(<>);
+		let ty1: Type = parse_quote!(impl Clone + Send);
+		let ty2: Type = parse_quote!(impl Send + Clone);
+		let mut canon1 = Canonicalizer::new(&generics);
+		let mut canon2 = Canonicalizer::new(&generics);
+		assert_eq!(canon1.visit(&ty1).unwrap(), canon2.visit(&ty2).unwrap());
+	}
+
+	#[test]
+	fn test_visit_never() {
+		assert_eq!(canon_type("<>", "!"), "!");
+	}
+
+	#[test]
+	fn test_visit_path_with_qself() {
+		let generics: Generics = parse_quote!(<T>);
+		let ty: Type = parse_quote!(<T as Iterator>::Item);
+		let mut canon = Canonicalizer::new(&generics);
+		let result = canon.visit(&ty).unwrap();
+		assert_eq!(result, "<T0>::Iterator::Item");
+	}
+
+	#[test]
+	fn test_visit_path_qself_type_param_independence() {
+		let generics1: Generics = parse_quote!(<A>);
+		let ty1: Type = parse_quote!(<A as Iterator>::Item);
+		let mut canon1 = Canonicalizer::new(&generics1);
+
+		let generics2: Generics = parse_quote!(<B>);
+		let ty2: Type = parse_quote!(<B as Iterator>::Item);
+		let mut canon2 = Canonicalizer::new(&generics2);
+
+		assert_eq!(canon1.visit(&ty1).unwrap(), canon2.visit(&ty2).unwrap());
+	}
+
+	#[test]
+	fn test_canonicalize_const_expr_with_type_param() {
+		let generics: Generics = parse_quote!(<T>);
+		let canon = Canonicalizer::new(&generics);
+		let expr: syn::Expr = parse_quote!(std::mem::size_of::<T>());
+		let result = canon.canonicalize_const_expr(&expr);
+		assert!(result.contains("T0"), "Expected T to be canonicalized to T0, got: {result}");
+		assert!(!result.contains("T>"), "Expected raw T to be replaced, got: {result}");
 	}
 }
