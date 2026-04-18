@@ -200,15 +200,13 @@ None at this time. Previously resolved:
 
 After completing each step within a phase:
 
-1. Stage all changes (`git add`) so the test output cache is
-   invalidated (the cache keys on `git ls-files` content hashes).
-2. Run verification: `just fmt`, `just check`, `just clippy`,
+1. Run verification: `just fmt`, `just check`, `just clippy`,
    `just deny`, `just doc`, `just test` (or `just verify` which
    runs all six in order).
-3. If verification passes, update the `Current progress`, `Open
+2. If verification passes, update the `Current progress`, `Open
 questions, issues and blockers`, and `Deviations` sections at
    the top of this plan to reflect the current state.
-4. Commit the step (including the plan updates).
+3. Commit the step (including the plan updates).
 
 ---
 

@@ -20,10 +20,11 @@ mod inner {
 		std::ops::Deref,
 	};
 
-	/// Extension trait for thread-safe reference-counted pointers.
+	/// Thread-safe counterpart to [`RefCountedPointer`].
 	///
-	/// This follows the same pattern as `SendCloneFn` extends `CloneFn`,
-	/// adding a `SendOf` associated type with explicit `Send + Sync` bounds.
+	/// Unlike `SendCloneFn` (which is independent of `CloneFn`), this trait
+	/// is a supertrait of `RefCountedPointer`, adding a `SendOf` associated
+	/// type with explicit `Send + Sync` bounds.
 	pub trait SendRefCountedPointer: RefCountedPointer {
 		/// The thread-safe pointer type constructor.
 		///

@@ -202,11 +202,11 @@ This limitation stems from the design of the `Arrow` and `CloneFn` traits, which
 - **`fold_right` / `fold_left`:** Even if you use `ArcFnBrand`, the closure created internally by these functions is `!Send`.
 - **`fold_map`:** The `Foldable` trait signature for `fold_map` does not enforce `Send` on the mapping function `F`. Therefore, you cannot implement `Foldable` for a parallel data structure (e.g., using `rayon`) because parallel libraries require `Send` bounds which the trait does not provide.
 
-#### Implemented Solution: Extension Traits
+#### Implemented Solution: Parallel Traits
 
-The library addresses this with extension traits that provide thread-safe capabilities without breaking existing code:
+The library addresses this with independent parallel traits that provide thread-safe capabilities without breaking existing code:
 
-- [`SendCloneFn`](../src/classes/send_clone_fn.rs): Extends `CloneFn` with a separate `Of` associated type that wraps `dyn Fn + Send + Sync`. Only implemented by `ArcFnBrand`.
+- [`SendCloneFn`](../src/classes/send_clone_fn.rs): A separate trait (not a supertrait of `CloneFn`) that mirrors `CloneFn` with `Send + Sync` bounds. It has its own `Of` associated type that wraps `dyn Fn + Send + Sync` (a different unsized type than `CloneFn::Of`'s `dyn Fn` target). `FnBrand<P>` implements both traits when the pointer `P` supports it (`ArcFnBrand` implements both; `RcFnBrand` implements only `CloneFn`).
 - [`ParFoldable`](../src/classes/par_foldable.rs): Parallel fold operations using `impl Fn + Send + Sync` closures directly, bypassing the `CloneFn` abstraction for parallel paths.
 
-This approach keeps `Arrow` and `CloneFn` unchanged, cleanly separates Send capabilities as additive traits, and provides compile-time safety (only brands that can actually provide thread safety implement `SendCloneFn`).
+This approach keeps `Arrow` and `CloneFn` unchanged, cleanly separates `Send` capabilities as independent traits, and provides compile-time safety (only brands that can actually provide thread safety implement `SendCloneFn`).
