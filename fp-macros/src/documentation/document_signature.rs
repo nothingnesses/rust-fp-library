@@ -500,7 +500,7 @@ mod tests {
 			fn foo(x: &dyn Fn(i32) -> i32, y: Box<dyn Iterator<Item = String>>) -> i32 { todo!() }
 		};
 		let sig = generate_signature(&input.sig, &Config::default()).to_string();
-		assert_eq!(sig, "(&dyn (i32 -> i32), dyn (Iterator String)) -> i32");
+		assert_eq!(sig, "(&(i32 -> i32), Iterator String) -> i32");
 	}
 
 	#[test]
@@ -540,7 +540,7 @@ mod tests {
 		};
 		let sig = generate_signature(&input.sig, &Config::default()).to_string();
 		// Send is ignored by default config
-		assert_eq!(sig, "dyn (Iterator i32) -> i32");
+		assert_eq!(sig, "Iterator i32 -> i32");
 	}
 
 	#[test]

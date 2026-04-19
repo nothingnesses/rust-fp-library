@@ -72,6 +72,40 @@ impl HmAstBuilder<'_> {
 			.collect()
 	}
 
+	/// Extract the HM representation from a list of trait bounds (as found
+	/// in `impl Trait` and `dyn Trait` types).
+	///
+	/// Filters out ignored traits (Send, Sync, etc.) and converts the
+	/// remaining bounds via `trait_bound_to_hm_type`. Returns the single
+	/// bound directly, multiple bounds as a Tuple, or a placeholder Variable
+	/// if no meaningful bounds remain.
+	fn extract_trait_bound_hm(
+		&mut self,
+		bounds: &syn::punctuated::Punctuated<TypeParamBound, syn::token::Plus>,
+	) -> HmAst {
+		let mut hm_bounds = Vec::new();
+		for bound in bounds {
+			if let TypeParamBound::Trait(trait_bound) = bound
+				&& let Some(segment) = last_path_segment(&trait_bound.path)
+			{
+				let name = segment.ident.to_string();
+				if !self.config.ignored_traits().contains(&name) {
+					hm_bounds.push(trait_bound_to_hm_type(
+						trait_bound,
+						self.fn_bounds,
+						self.generic_names,
+						self.config,
+					));
+				}
+			}
+		}
+		match hm_bounds.len() {
+			0 => HmAst::Variable("_".to_string()),
+			1 => hm_bounds.into_iter().next().unwrap_or_else(|| HmAst::Variable("_".to_string())),
+			_ => HmAst::Tuple(hm_bounds),
+		}
+	}
+
 	/// Build a Variable or Constructor node depending on whether type arguments
 	/// are present. Used for concrete types and brand-named types.
 	fn variable_or_constructor(
@@ -293,50 +327,16 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 		&mut self,
 		trait_object: &syn::TypeTraitObject,
 	) -> Self::Output {
-		// Erase auto traits and lifetimes from trait objects
-		let mut bounds = Vec::new();
-		for bound in &trait_object.bounds {
-			if let syn::TypeParamBound::Trait(trait_bound) = bound
-				&& let Some(segment) = last_path_segment(&trait_bound.path)
-			{
-				let name = segment.ident.to_string();
-				if !self.config.ignored_traits().contains(&name) {
-					bounds.push(trait_bound_to_hm_type(
-						trait_bound,
-						self.fn_bounds,
-						self.generic_names,
-						self.config,
-					));
-				}
-			}
-			// If path is empty, skip this bound (defensive handling)
-		}
-
-		if bounds.is_empty() {
-			HmAst::TraitObject(Box::new(HmAst::Variable("_".to_string())))
-		} else {
-			// SAFETY: bounds checked non-empty above
-			#[expect(clippy::indexing_slicing, reason = "Length checked above")]
-			let inner = if bounds.len() == 1 { bounds[0].clone() } else { HmAst::Tuple(bounds) };
-			HmAst::TraitObject(Box::new(inner))
-		}
+		// HM signatures erase dyn, same as impl: both represent the abstract
+		// type (e.g., Iterator String), not Rust's dispatch strategy.
+		self.extract_trait_bound_hm(&trait_object.bounds)
 	}
 
 	fn visit_impl_trait(
 		&mut self,
 		impl_trait: &syn::TypeImplTrait,
 	) -> Self::Output {
-		for bound in &impl_trait.bounds {
-			if let TypeParamBound::Trait(trait_bound) = bound {
-				return trait_bound_to_hm_type(
-					trait_bound,
-					self.fn_bounds,
-					self.generic_names,
-					self.config,
-				);
-			}
-		}
-		HmAst::Variable("impl_trait".to_string())
+		self.extract_trait_bound_hm(&impl_trait.bounds)
 	}
 
 	fn visit_bare_fn(

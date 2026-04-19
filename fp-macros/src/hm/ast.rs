@@ -11,7 +11,6 @@ pub enum HmAst {
 	MutableReference(Box<HmAst>),
 	#[default]
 	Unit,
-	TraitObject(Box<HmAst>),
 }
 
 impl fmt::Display for HmAst {
@@ -32,8 +31,7 @@ impl HmAst {
 			| HmAst::List(_)
 			| HmAst::Tuple(_)
 			| HmAst::Reference(_)
-			| HmAst::MutableReference(_)
-			| HmAst::TraitObject(_) => 3,
+			| HmAst::MutableReference(_) => 3,
 			// Application: binds tight
 			HmAst::Constructor(_, args) =>
 				if args.is_empty() {
@@ -98,10 +96,6 @@ impl HmAst {
 				write!(f, " -> ")?;
 				// Right child is right-associative, so it can be an Arrow without parens.
 				output.fmt_with_precedence(f, 1)?;
-			}
-			HmAst::TraitObject(inner) => {
-				write!(f, "dyn ")?;
-				inner.fmt_with_precedence(f, 3)?;
 			}
 		}
 
