@@ -151,14 +151,23 @@ For `&Result<i32, String>` with `|x: &i32| *x + 1`:
 ##### Dual-bound inference for `apply`
 
 `apply` has no direct closure, but the function payload inside `ff`
-carries the type information. Two InferableBrand bounds share the
-Brand parameter:
+carries the type information. The inference wrapper introduces a
+`WrappedFn` type parameter for the concrete wrapped function type
+(e.g., `Rc<dyn Fn(i32) -> i32>`). Two InferableBrand bounds share
+the Brand parameter:
 
-- `FF: InferableBrand<Brand, <FnBrand as CloneFn>::Of<A, B>>` keys on
-  the function payload type inside `ff`.
+- `FF: InferableBrand<Brand, WrappedFn>` keys on the wrapped
+  function type inside `ff`.
 - `FA: InferableBrand<Brand, A>` keys on the value type inside `fa`.
 
 Rust's solver intersects the two bounds to commit a unique Brand.
+A separate `InferableFnBrand<FnBrand, A, B, Marker>` bound on
+`WrappedFn` resolves the FnBrand (e.g., `RcFnBrand`) from the
+concrete wrapper type. This avoids a circular dependency that
+would arise from bounding directly on
+`<FnBrand as CloneFn>::Of<A, B>` (the solver would need FnBrand
+to compute the associated type, but FnBrand is what it is trying
+to infer).
 
 #### The unified inference wrapper
 
