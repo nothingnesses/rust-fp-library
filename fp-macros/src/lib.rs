@@ -1380,12 +1380,26 @@ pub fn a_do(input: TokenStream) -> TokenStream {
 /// #![doc = doc_include!("docs/hkt.md")]
 /// ```
 ///
-/// ### Link Rewriting
+/// * `path`: A string literal path to a markdown file, relative to `CARGO_MANIFEST_DIR`.
 ///
-/// - `[text](./foo-bar.md)` becomes `[text][crate::docs::foo_bar]`
-/// - `[text](foo-bar.md)` becomes `[text][crate::docs::foo_bar]`
-/// - Links with path separators (`../`, subdirectories) are left unchanged.
-/// - Non-`.md` links are left unchanged.
+/// ### Generates
+///
+/// A string literal containing the file contents with rewritten links.
+/// Same-directory `.md` links are converted to rustdoc intra-doc link references;
+/// all other links are left unchanged.
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// #![doc = doc_include!("docs/hkt.md")]
+///
+/// // Link rewriting:
+/// //   [text](./foo-bar.md)  ->  [text][crate::docs::foo_bar]
+/// //   [text](foo-bar.md)    ->  [text][crate::docs::foo_bar]
+/// //   [text](../other.md)   ->  unchanged (contains path separator)
+/// //   [text](https://...)   ->  unchanged (not .md)
+/// ```
 #[proc_macro]
 pub fn doc_include(input: TokenStream) -> TokenStream {
 	match doc_include_worker(input.into()) {
