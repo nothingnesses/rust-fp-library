@@ -1,6 +1,6 @@
 //! Efficient queue-like structure with O(1) append and O(1) amortized uncons.
 //!
-//! Implements the ["Reflection without Remorse"](http://okmij.org/ftp/Haskell/zseq.pdf) data structure used to enable O(1) left-associated [`bind`](crate::functions::bind) operations in the [`Free`](crate::types::Free) monad. In that context, `CatList` serves as the continuation queue: each `bind` appends a continuation in O(1), and [`Free::evaluate`](crate::types::Free::evaluate) pops continuations one at a time via `uncons`.
+//! Implements the ["Reflection without Remorse"](http://okmij.org/ftp/Haskell/zseq.pdf) data structure used to enable O(1) left-associated [`bind`](crate::functions::bind) operations in the [`Free`](crate::types::Free) monad. In that context, `CatList` serves as the continuation queue: each `bind` appends a continuation in O(1), and [`Free::evaluate`](crate::types::Free::evaluate) pops continuations one at a time via `uncons`. The corresponding brand is  [`CatListBrand`](crate::brands::CatListBrand).
 //!
 //! ### Examples
 //!

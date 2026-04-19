@@ -4,19 +4,6 @@
 //! Traits representing higher-kinded types (e.g., `Functor`) are implemented by
 //! [`Brand` types][crate::brands] to simulate higher-kinded polymorphism, as Rust does not
 //! natively support it.
-//!
-//! ### Examples
-//!
-//! ```
-//! use fp_library::{
-//! 	brands::*,
-//! 	functions::explicit::*,
-//! };
-//!
-//! let x = Some(5);
-//! let y = map::<OptionBrand, _, _, _, _>(|i| i * 2, x);
-//! assert_eq!(y, Some(10));
-//! ```
 
 pub mod alt;
 pub mod alternative;

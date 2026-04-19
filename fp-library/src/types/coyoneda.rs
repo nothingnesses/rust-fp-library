@@ -3,7 +3,7 @@
 //!
 //! `Coyoneda F` is a `Functor` even when `F` itself is not. The `Functor` bound on `F`
 //! is only required when calling [`lower`](Coyoneda::lower) to extract the underlying
-//! value. This is the defining property of the free functor construction.
+//! value. This is the defining property of the free functor construction. The corresponding brand is [`CoyonedaBrand`](crate::brands::CoyonedaBrand).
 //!
 //! ## Performance characteristics
 //!

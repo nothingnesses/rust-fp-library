@@ -1,6 +1,6 @@
 //! Deferred, non-memoized fallible computation with higher-kinded type support.
 //!
-//! The fallible counterpart to [`Thunk`](crate::types::Thunk). Each call to [`TryThunk::evaluate`] re-executes the computation and returns a [`Result`]. Supports borrowing and lifetime polymorphism.
+//! The fallible counterpart to [`Thunk`](crate::types::Thunk). Each call to [`TryThunk::evaluate`] re-executes the computation and returns a [`Result`]. Supports borrowing and lifetime polymorphism. The corresponding brands are [`TryThunkBrand`](crate::brands::TryThunkBrand) (bifunctor), [`TryThunkErrAppliedBrand`](crate::brands::TryThunkErrAppliedBrand) (functor over the success value), and [`TryThunkOkAppliedBrand`](crate::brands::TryThunkOkAppliedBrand) (functor over the error value).
 
 #[fp_macros::document_module]
 mod inner {

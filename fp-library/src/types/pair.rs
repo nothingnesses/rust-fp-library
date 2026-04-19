@@ -1,6 +1,6 @@
 //! Two-value container with [`Bifunctor`](crate::classes::Bifunctor) and dual [`Functor`](crate::classes::Functor) instances.
 //!
-//! Can be used as a bifunctor over both values, or as a functor/monad by fixing either the first value [`PairFirstAppliedBrand`](crate::brands::PairFirstAppliedBrand) or second value [`PairSecondAppliedBrand`](crate::brands::PairSecondAppliedBrand).
+//! Can be used as a bifunctor over both values [`PairBrand`](crate::brands::PairBrand), or as a functor/monad by fixing either the first value [`PairFirstAppliedBrand`](crate::brands::PairFirstAppliedBrand) or second value [`PairSecondAppliedBrand`](crate::brands::PairSecondAppliedBrand).
 
 #[fp_macros::document_module]
 mod inner {

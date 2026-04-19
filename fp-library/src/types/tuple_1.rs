@@ -1,6 +1,6 @@
 //! Single-value tuple with [`Functor`](crate::classes::Functor), [`Applicative`](crate::classes::Applicative), [`Monad`](crate::classes::Monad), [`MonadRec`](crate::classes::MonadRec), [`Foldable`](crate::classes::Foldable), [`Traversable`](crate::classes::Traversable), and parallel folding instances.
 //!
-//! A trivial wrapper using the native Rust 1-tuple `(A,)`.
+//! A trivial wrapper using the native Rust 1-tuple `(A,)`. The corresponding brand is [`Tuple1Brand`](crate::brands::Tuple1Brand).
 
 #[fp_macros::document_module]
 mod inner {

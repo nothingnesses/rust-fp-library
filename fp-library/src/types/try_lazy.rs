@@ -2,7 +2,7 @@
 //!
 //! Computes a [`Result`] at most once and caches either the success value or error. All clones
 //! share the same cache. Available in both single-threaded [`RcTryLazy`] and thread-safe
-//! [`ArcTryLazy`] variants.
+//! [`ArcTryLazy`] variants. The corresponding brands are [`RcTryLazyBrand`](crate::brands::RcTryLazyBrand) and [`ArcTryLazyBrand`](crate::brands::ArcTryLazyBrand).
 //!
 //! # Implementation
 //!

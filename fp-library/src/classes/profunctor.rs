@@ -55,7 +55,7 @@ mod inner {
 	///
 	/// ### Hierarchy Unification
 	///
-	/// This trait is now the root of the unified profunctor and arrow hierarchies on
+	/// This trait is the root of the unified profunctor and arrow hierarchies on
 	/// [`Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)`](crate::kinds::Kind_266801a817966495).
 	/// This unification ensures that all profunctor-based abstractions
 	/// (including lenses and prisms) share a consistent higher-kinded representation with

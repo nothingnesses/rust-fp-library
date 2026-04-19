@@ -1,6 +1,6 @@
 //! Trivial wrapper that contains a single value.
 //!
-//! The simplest possible container type, often used as a base case for higher-kinded types or when a container is required but no additional effect is needed.
+//! The simplest possible container type, often used as a base case for higher-kinded types or when a container is required but no additional effect is needed. The corresponding brand is [`IdentityBrand`](crate::brands::IdentityBrand).
 
 #[fp_macros::document_module]
 mod inner {

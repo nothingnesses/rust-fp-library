@@ -1,6 +1,6 @@
 //! Memoized lazy evaluation with shared cache semantics.
 //!
-//! Computes a value at most once on first access and caches the result. All clones share the same cache. Available in both single-threaded [`RcLazy`] and thread-safe [`ArcLazy`] variants.
+//! Computes a value at most once on first access and caches the result. All clones share the same cache. Available in both single-threaded [`RcLazy`] and thread-safe [`ArcLazy`] variants. The corresponding brands are [`RcLazyBrand`](crate::brands::RcLazyBrand) and [`ArcLazyBrand`](crate::brands::ArcLazyBrand).
 //!
 //! ## Why `Lazy` does not implement `Functor`
 //!

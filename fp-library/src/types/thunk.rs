@@ -1,6 +1,6 @@
 //! Deferred, non-memoized computation with higher-kinded type support.
 //!
-//! Builds computation chains without stack safety guarantees but supports borrowing and lifetime polymorphism. Does not cache results; if you need the same computation's result more than once, wrap it in [`Lazy`](crate::types::Lazy). For stack-safe alternatives, use [`Trampoline`](crate::types::Trampoline).
+//! Builds computation chains without stack safety guarantees but supports borrowing and lifetime polymorphism. Does not cache results; if you need the same computation's result more than once, wrap it in [`Lazy`](crate::types::Lazy). For stack-safe alternatives, use [`Trampoline`](crate::types::Trampoline). The corresponding brand is [`ThunkBrand`](crate::brands::ThunkBrand).
 
 #[fp_macros::document_module]
 mod inner {

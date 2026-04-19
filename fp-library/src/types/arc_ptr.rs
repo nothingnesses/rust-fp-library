@@ -1,6 +1,6 @@
 //! Thread-safe reference-counted pointer abstraction using [`Arc`](std::sync::Arc).
 //!
-//! Provides trait implementations for using `Arc` in the library's pointer abstraction hierarchy.
+//! Provides trait implementations for using `Arc` in the library's pointer abstraction hierarchy. The corresponding brand is [`ArcBrand`](crate::brands::ArcBrand).
 //!
 //! ### Examples
 //!

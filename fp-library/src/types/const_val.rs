@@ -1,4 +1,4 @@
-//! The `Const` functor, which ignores its second type parameter.
+//! The `Const` functor, which ignores its second type parameter. The corresponding brand is [`ConstBrand`](crate::brands::ConstBrand).
 
 #[fp_macros::document_module]
 mod inner {

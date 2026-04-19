@@ -1,6 +1,6 @@
 //! Helpers and type class implementations for [`ControlFlow`](core::ops::ControlFlow) in tail-recursive computations.
 //!
-//! Used by [`MonadRec`](crate::classes::monad_rec::MonadRec) to implement stack-safe tail recursion. [`ControlFlow::Continue`](core::ops::ControlFlow::Continue) continues iteration, while [`ControlFlow::Break`](core::ops::ControlFlow::Break) terminates with a result.
+//! Used by [`MonadRec`](crate::classes::monad_rec::MonadRec) to implement stack-safe tail recursion. [`ControlFlow::Continue`](core::ops::ControlFlow::Continue) continues iteration, while [`ControlFlow::Break`](core::ops::ControlFlow::Break) terminates with a result. The corresponding brands are [`ControlFlowBrand`](crate::brands::ControlFlowBrand) (bifunctor), [`ControlFlowBreakAppliedBrand`](crate::brands::ControlFlowBreakAppliedBrand) (functor over the continue value), and [`ControlFlowContinueAppliedBrand`](crate::brands::ControlFlowContinueAppliedBrand) (functor over the break value).
 //!
 //! ### Examples
 //!

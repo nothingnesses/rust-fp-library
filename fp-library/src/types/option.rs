@@ -1,6 +1,6 @@
 //! Functional programming trait implementations for the standard library [`Option`] type.
 //!
-//! Extends `Option` with [`Functor`](crate::classes::Functor), [`Monad`](crate::classes::semimonad::Semimonad), [`Foldable`](crate::classes::Foldable), [`Traversable`](crate::classes::Traversable), [`Filterable`](crate::classes::Filterable), and [`Witherable`](crate::classes::Witherable) instances.
+//! Extends `Option` with [`Functor`](crate::classes::Functor), [`Monad`](crate::classes::semimonad::Semimonad), [`Foldable`](crate::classes::Foldable), [`Traversable`](crate::classes::Traversable), [`Filterable`](crate::classes::Filterable), and [`Witherable`](crate::classes::Witherable) instances. The corresponding brand is [`OptionBrand`](crate::brands::OptionBrand).
 
 #[fp_macros::document_module]
 mod inner {

@@ -1,6 +1,6 @@
 //! Two-value tuple with [`Bifunctor`](crate::classes::Bifunctor) and dual [`Functor`](crate::classes::Functor) instances.
 //!
-//! Can be used as a bifunctor over both values, or as a functor/monad by fixing either the first value [`Tuple2FirstAppliedBrand`](crate::brands::Tuple2FirstAppliedBrand) or second value [`Tuple2SecondAppliedBrand`](crate::brands::Tuple2SecondAppliedBrand).
+//! Can be used as a bifunctor over both values [`Tuple2Brand`](crate::brands::Tuple2Brand), or as a functor/monad by fixing either the first value [`Tuple2FirstAppliedBrand`](crate::brands::Tuple2FirstAppliedBrand) or second value [`Tuple2SecondAppliedBrand`](crate::brands::Tuple2SecondAppliedBrand).
 
 #[fp_macros::document_module]
 mod inner {

@@ -1,6 +1,6 @@
 //! Functional programming trait implementations for the standard library [`Result`] type.
 //!
-//! Extends `Result` with dual functor/monad instances: [`ResultErrAppliedBrand`](crate::brands::ResultErrAppliedBrand) (standard Result monad) functors over the success value, while [`ResultOkAppliedBrand`](crate::brands::ResultOkAppliedBrand) functors over the error value.
+//! Extends `Result` with bifunctor instance [`ResultBrand`](crate::brands::ResultBrand) and dual functor/monad instances: [`ResultErrAppliedBrand`](crate::brands::ResultErrAppliedBrand) (standard Result monad) functors over the success value, while [`ResultOkAppliedBrand`](crate::brands::ResultOkAppliedBrand) functors over the error value.
 
 #[fp_macros::document_module]
 mod inner {
