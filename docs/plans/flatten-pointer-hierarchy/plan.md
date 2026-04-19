@@ -8,7 +8,13 @@ None. Plan is in draft stage for review.
 
 ## Open questions, issues and blockers
 
-None at this time.
+None at this time. Previously resolved:
+
+1. `FnBrand<P>` struct bound requires `P: RefCountedPointer`. After
+   flattening, `ToDynSendFn` no longer implies `RefCountedPointer`,
+   so `FnBrand` impl blocks bounded on `P: ToDynSendFn` must add
+   `ToDynCloneFn` (which implies `RefCountedPointer`) to their
+   bounds. See gotcha in Changes section.
 
 ## Deviations
 
@@ -227,8 +233,9 @@ trait ToDynSendFn: SendRefCountedPointer + 'static {  // renamed from SendUnsize
 
 4. **Make `SendRefCountedPointer` independent.** Remove the
    `RefCountedPointer` supertrait. `SendRefCountedPointer` becomes a
-   standalone trait with only its own `Of` and `send_new`, mirroring
-   how `SendCloneFn` is independent of `CloneFn`.
+   standalone trait with only its own `Of` and `new` (renamed from
+   `send_new`), mirroring how `SendCloneFn` is independent of
+   `CloneFn`.
 
 5. **Rename `UnsizedCoercible` to `ToDynCloneFn`.** Rename methods
    `coerce_fn` to `new` and `coerce_ref_fn` to `ref_new`, matching
@@ -253,6 +260,34 @@ trait ToDynSendFn: SendRefCountedPointer + 'static {  // renamed from SendUnsize
    `<P as SendRefCountedPointer>::Of`). `RefCountedPointer::TakeCellOf`
    keeps its descriptive name since it is a secondary associated type
    on the same trait.
+
+8. **Rename pointer constructor methods to `new`.** Rename
+   `RefCountedPointer::cloneable_new` to `new` and
+   `SendRefCountedPointer::send_new` to `new`. Since the traits are
+   independent, each can have a `new` method without conflict.
+   Rename corresponding free functions:
+   - `pointer_new` (unchanged, already `new`)
+   - `ref_counted_pointer_new` (unchanged name, dispatches to
+     renamed `RefCountedPointer::new`)
+   - `send_ref_counted_pointer_new` (unchanged name, dispatches to
+     renamed `SendRefCountedPointer::new`)
+   - `to_dyn_fn_new` / `to_dyn_fn_ref_new` (new)
+   - `to_dyn_clone_fn_new` / `to_dyn_clone_fn_ref_new` (renamed
+     from `coerce_fn` / `coerce_ref_fn` free functions)
+   - `to_dyn_send_fn_new` / `to_dyn_send_fn_ref_new` (renamed
+     from `coerce_send_fn` / `coerce_send_ref_fn` free functions)
+
+9. **Update `FnBrand` impl bounds for `ToDynSendFn`.** The four
+   `FnBrand<P>` impl blocks currently bounded on
+   `P: SendUnsizedCoercible` (for `SendCloneFn`, `SendLiftFn`,
+   `SendRefLiftFn`) must add `ToDynCloneFn` to their bounds after
+   the rename: `P: ToDynSendFn + ToDynCloneFn`. This is because
+   `FnBrand<P>` requires `P: RefCountedPointer` at the struct level,
+   and `ToDynSendFn` no longer implies `RefCountedPointer` (it only
+   extends `SendRefCountedPointer`). `ToDynCloneFn` provides the
+   needed `RefCountedPointer` via its supertrait. In practice this
+   does not exclude any type: `ArcBrand` (the only `ToDynSendFn`
+   implementor) also implements `ToDynCloneFn`.
 
 ### Consumer impact
 
@@ -360,7 +395,20 @@ do the same thing (wrap a closure), just returning different types
 (`CloneFn::Of` vs `RefCountedPointer::Of<dyn Fn>`). Consistent
 method names reflect this parallel.
 
-### Decision F: Doc updates
+### Decision F: Rename pointer constructor methods to `new`
+
+**Adopted.** Rename `RefCountedPointer::cloneable_new` to `new` and
+`SendRefCountedPointer::send_new` to `new`.
+
+_Rationale:_ With the traits independent, each can have a `new`
+method without naming conflict. This is consistent with
+`Pointer::new`, `ToDynFn::new`, `ToDynCloneFn::new`, and
+`ToDynSendFn::new`. Unqualified calls on types implementing multiple
+pointer traits (e.g., `ArcBrand::new`) become ambiguous, but this is
+the standard Rust pattern for independent traits with same-named
+methods, resolved via qualified syntax or free functions.
+
+### Decision G: Doc updates
 
 Update doc comments on `SendRefCountedPointer` and `ToDynSendFn`
 to describe them as independent parallel traits.
@@ -373,8 +421,8 @@ to describe them as independent parallel traits.
 | :---------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `fp-library/src/classes/pointer.rs`                   | Keep. Remove supertrait link from `RefCountedPointer`.                                                                                                                                            |
 | `fp-library/src/classes/to_dyn_fn.rs`                 | New file. `ToDynFn` trait extending `Pointer + 'static` with `new` / `ref_new` methods.                                                                                                           |
-| `fp-library/src/classes/ref_counted_pointer.rs`       | Remove `Pointer` supertrait. Rename `CloneableOf` to `Of`.                                                                                                                                        |
-| `fp-library/src/classes/send_ref_counted_pointer.rs`  | Remove `RefCountedPointer` supertrait. Rename `SendOf` to `Of`. Update doc comment.                                                                                                               |
+| `fp-library/src/classes/ref_counted_pointer.rs`       | Remove `Pointer` supertrait. Rename `CloneableOf` to `Of`. Rename `cloneable_new` to `new`.                                                                                                       |
+| `fp-library/src/classes/send_ref_counted_pointer.rs`  | Remove `RefCountedPointer` supertrait. Rename `SendOf` to `Of`. Rename `send_new` to `new`. Update doc comment.                                                                                   |
 | `fp-library/src/classes/unsized_coercible.rs`         | Rename to `to_dyn_clone_fn.rs`. Rename trait to `ToDynCloneFn`. Rename methods to `new` / `ref_new`. Rename free functions accordingly.                                                           |
 | `fp-library/src/classes/send_unsized_coercible.rs`    | Rename to `to_dyn_send_fn.rs`. Rename trait to `ToDynSendFn`. Remove `ToDynCloneFn` supertrait (keep `SendRefCountedPointer + 'static`). Rename methods to `new` / `ref_new`. Update doc comment. |
 | `fp-library/src/types/rc_ptr.rs`                      | Add `impl ToDynFn for RcBrand`.                                                                                                                                                                   |
@@ -384,8 +432,11 @@ to describe them as independent parallel traits.
 | `fp-library/src/classes.rs`                           | Add `to_dyn_fn` module export.                                                                                                                                                                    |
 | All consumer sites referencing `CloneableOf`          | Rename to `Of` (qualified as `<P as RefCountedPointer>::Of`).                                                                                                                                     |
 | All consumer sites referencing `SendOf`               | Rename to `Of` (qualified as `<P as SendRefCountedPointer>::Of`).                                                                                                                                 |
+| All consumer sites referencing `cloneable_new`        | Rename to `new` (qualified as `<P as RefCountedPointer>::new`).                                                                                                                                   |
+| All consumer sites referencing `send_new`             | Rename to `new` (qualified as `<P as SendRefCountedPointer>::new`).                                                                                                                               |
 | All consumer sites referencing `UnsizedCoercible`     | Rename bound to `ToDynCloneFn`. Rename method calls: `coerce_fn` -> `new`, `coerce_ref_fn` -> `ref_new`.                                                                                          |
 | All consumer sites referencing `SendUnsizedCoercible` | Rename bound to `ToDynSendFn`. Rename method calls: `coerce_send_fn` -> `new`, `coerce_send_ref_fn` -> `ref_new`.                                                                                 |
+| `fp-library/src/types/fn_brand.rs`                    | `P: SendUnsizedCoercible` impl blocks become `P: ToDynSendFn + ToDynCloneFn` (to satisfy `FnBrand`'s `P: RefCountedPointer` struct bound).                                                        |
 | `fp-library/docs/pointer-abstraction.md`              | Update hierarchy description.                                                                                                                                                                     |
 | `fp-library/docs/limitations-and-workarounds.md`      | Update if it references the pointer hierarchy or old associated type names.                                                                                                                       |
 
@@ -394,7 +445,7 @@ to describe them as independent parallel traits.
 - **`Pointer`**: Kept as independent trait. `Of` name unchanged. `ToDynFn` extends it.
 - **`ToDynCloneFn`** (renamed from `UnsizedCoercible`): Still extends `RefCountedPointer + 'static`. Methods return `<Self as RefCountedPointer>::Of` (renamed from `CloneableOf`).
 - **`CloneFn` / `SendCloneFn`**: Already independent, already use `Of`. No changes.
-- **`FnBrand<P>`**: Bounds renamed (`P: ToDynCloneFn` and `P: ToDynSendFn`). Internal references to `CloneableOf` and `SendOf` are renamed to `Of`.
+- **`FnBrand<P>`**: `P: ToDynCloneFn` impls unchanged (renamed from `UnsizedCoercible`). `P: ToDynSendFn` impls gain `+ ToDynCloneFn` bound (see change 9). Internal references to `CloneableOf` and `SendOf` are renamed to `Of`.
 - **Type class hierarchies**: Correct by construction.
 - **Algebraic hierarchies**: Mathematical structure.
 - **Optics system**: Bounds renamed to `ToDynCloneFn` (rename `CloneableOf` references to `Of`).
@@ -441,12 +492,19 @@ to describe them as independent parallel traits.
    `unsized_coercible.rs` to `to_dyn_clone_fn.rs`.
 2. Rename `SendUnsizedCoercible` to `ToDynSendFn`. Rename file
    `send_unsized_coercible.rs` to `to_dyn_send_fn.rs`.
-3. Rename methods: `coerce_fn` -> `new`, `coerce_ref_fn` -> `ref_new`,
-   `coerce_send_fn` -> `new`, `coerce_send_ref_fn` -> `ref_new`.
-4. Rename free functions accordingly.
-5. Update all consumer sites: trait bounds, method calls, imports.
-6. Update `classes.rs` module exports.
-7. Run `just verify`.
+3. Rename coercion methods: `coerce_fn` -> `new`,
+   `coerce_ref_fn` -> `ref_new`, `coerce_send_fn` -> `new`,
+   `coerce_send_ref_fn` -> `ref_new`.
+4. Rename pointer constructor methods: `cloneable_new` -> `new`,
+   `send_new` -> `new`.
+5. Rename free functions accordingly.
+6. Update `FnBrand<P>` impl blocks bounded on
+   `P: SendUnsizedCoercible` to `P: ToDynSendFn + ToDynCloneFn`
+   (to satisfy `FnBrand`'s `P: RefCountedPointer` struct bound).
+7. Update all remaining consumer sites: trait bounds, method calls,
+   imports.
+8. Update `classes.rs` module exports.
+9. Run `just verify`.
 
 ### Phase 3: Rename associated types to `Of`
 
