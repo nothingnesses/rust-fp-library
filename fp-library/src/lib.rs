@@ -96,16 +96,20 @@
 //! that implements `Kind` traits mapping brands back to concrete types.
 //! See [Higher-Kinded Types][crate::docs::hkt].
 //!
-//! **Brand Inference:** `InferableBrand` traits provide the reverse mapping (concrete type -> brand),
-//! with Brand as a trait parameter so multiple brands per type are supported. Closure-directed
-//! inference disambiguates multi-brand types like `Result`. `trait_kind!` and `impl_kind!` generate
-//! both mappings. See [Brand Inference][crate::docs::brand_inference].
+//! **Brand Inference:** A user guide for turbofish-free dispatch. Shows how the compiler infers
+//! brands from container types, how closure annotations disambiguate multi-brand types like
+//! `Result`, and when to fall back to `explicit::` functions.
+//! See [Brand Inference][crate::docs::brand_inference].
 //!
-//! **Val/Ref Dispatch:** Each free function routes to either a by-value or by-reference trait method
-//! based on the closure's argument type (or container ownership for closureless operations). Dispatch
-//! and brand inference compose through the shared `FA` type parameter.
-//! See [Val/Ref Dispatch][crate::docs::dispatch] and
-//! [Brand Dispatch Traits][crate::docs::brand_dispatch_traits] for the full design.
+//! **Val/Ref Dispatch:** A user guide for unified function dispatch. Each free function routes to
+//! either a by-value or by-reference trait method based on the closure's argument type (or container
+//! ownership for closureless operations). Dispatch and brand inference compose through the shared
+//! `FA` type parameter. See [Val/Ref Dispatch][crate::docs::dispatch].
+//!
+//! **Brand Dispatch Traits:** The implementer reference for the `Kind` and `InferableBrand` trait
+//! families, covering trait shapes, the Marker invariant, inference resolution steps, impl
+//! landscape, and coverage matrix.
+//! See [Brand Dispatch Traits][crate::docs::brand_dispatch_traits].
 //!
 //! **Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static
 //! dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where
@@ -124,22 +128,23 @@
 //!
 //! ## Documentation
 //!
-//! - [Features & Type Class Hierarchy][crate::docs::features]
-//! - [Higher-Kinded Types][crate::docs::hkt]
-//! - [Brand Inference][crate::docs::brand_inference]
-//! - [Val/Ref Dispatch][crate::docs::dispatch]
-//! - [Brand Dispatch Traits][crate::docs::brand_dispatch_traits]
-//! - [Zero-Cost Abstractions][crate::docs::zero_cost]
-//! - [Pointer Abstraction][crate::docs::pointer_abstraction]
-//! - [Lazy Evaluation][crate::docs::lazy_evaluation]
-//! - [Coyoneda Implementations][crate::docs::coyoneda]
-//! - [Thread Safety & Parallelism][crate::docs::parallelism]
-//! - [Limitations and Workarounds][crate::docs::limitations_and_workarounds]
-//! - [Project Structure][crate::docs::project_structure]
-//! - [Architecture & Design][crate::docs::architecture]
-//! - [Optics Analysis][crate::docs::optics_analysis]
-//! - [Profunctor Analysis][crate::docs::profunctor_analysis]
-//! - [Std Library Coverage][crate::docs::std_coverage_checklist]
+//! - [Features & Type Class Hierarchy][crate::docs::features]: Full feature list with hierarchy diagrams.
+//! - [Higher-Kinded Types][crate::docs::hkt]: The Brand pattern and HKT encoding.
+//! - [Brand Inference][crate::docs::brand_inference]: User guide for turbofish-free dispatch and multi-brand inference.
+//! - [Val/Ref Dispatch][crate::docs::dispatch]: User guide for unified by-value and by-reference function dispatch.
+//! - [Brand Dispatch Traits][crate::docs::brand_dispatch_traits]: Implementer reference for trait shapes, Marker invariant, and inference resolution.
+//! - [Zero-Cost Abstractions][crate::docs::zero_cost]: Uncurried semantics and static dispatch.
+//! - [Pointer Abstraction][crate::docs::pointer_abstraction]: Pointer hierarchy, `FnBrand<P>`, and shared memoization.
+//! - [Lazy Evaluation][crate::docs::lazy_evaluation]: Guide to the lazy evaluation and memoization types.
+//! - [Coyoneda Implementations][crate::docs::coyoneda]: Trade-offs between the four free functor variants.
+//! - [Thread Safety & Parallelism][crate::docs::parallelism]: Parallel trait hierarchy and rayon support.
+//! - [Limitations and Workarounds][crate::docs::limitations_and_workarounds]: Rust type system constraints and how the library addresses them.
+//! - [Project Structure][crate::docs::project_structure]: Module layout and dependency graph.
+//! - [Architecture & Design][crate::docs::architecture]: Design decisions and documentation conventions.
+//! - [Optics Analysis][crate::docs::optics_analysis]: Optics coverage comparison with PureScript.
+//! - [Profunctor Analysis][crate::docs::profunctor_analysis]: Profunctor class hierarchy comparison with PureScript.
+//! - [Std Library Coverage][crate::docs::std_coverage_checklist]: Type class coverage for standard library types.
+//!-  [Benchmarks](crate::docs::benchmarking): Performance results, graphs, and benchmark coverage.
 //!
 //! ## Crate Features
 //!
