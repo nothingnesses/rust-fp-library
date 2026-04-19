@@ -1,9 +1,31 @@
 //! The primary API for calling type class operations as free functions.
 //!
-//! This module re-exports inference-enabled dispatch functions from
-//! [`dispatch`](crate::dispatch). These functions automatically infer the
-//! Brand type parameter from the container argument, so callers do not need
-//! a turbofish annotation:
+//! Re-exports are drawn from three source modules, each serving a
+//! different role:
+//!
+//! - **[`dispatch`](crate::dispatch)** provides inference wrappers that
+//!   infer Brand (and sometimes FnBrand) from the container argument via
+//!   [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f).
+//!   These are the primary API for most operations (`map`, `bind`,
+//!   `fold_left`, `apply`, etc.). Val/Ref dispatch is also handled
+//!   automatically: passing an owned container dispatches to the Val
+//!   impl, passing a reference dispatches to the Ref impl.
+//!
+//! - **[`classes`](crate::classes)** provides free functions that take
+//!   Brand via turbofish. These cover operations where Brand cannot be
+//!   inferred from arguments because the container is constructed rather
+//!   than transformed (e.g., [`pure`], [`plus_empty`]), or where the
+//!   function was superseded by a dispatch wrapper and serves as the
+//!   explicit fallback.
+//!
+//! - **[`types`](crate::types)** provides type-specific utilities
+//!   (constructors, conversions) that do not go through the type class
+//!   system.
+//!
+//! The [`explicit`] submodule re-exports the explicit (turbofish-required)
+//! versions from each dispatch module, for cases where Brand inference is
+//! ambiguous (e.g., diagonal types like `Result<T, T>`, or generic
+//! contexts):
 //!
 //! ```
 //! use fp_library::functions::*;
@@ -13,16 +35,13 @@
 //! assert_eq!(result, vec![2, 3, 4]);
 //! ```
 //!
-//! For cases where Brand inference is ambiguous (e.g., generic contexts),
-//! the [`explicit`] submodule provides versions that require a Brand
-//! turbofish:
-//!
 //! ```
 //! use fp_library::{
 //! 	brands::*,
 //! 	functions::explicit::*,
 //! };
 //!
+//! // Brand specified explicitly via turbofish.
 //! let result = map::<VecBrand, _, _, _, _>(|x: i32| x + 1, vec![1, 2, 3]);
 //! assert_eq!(result, vec![2, 3, 4]);
 //! ```
