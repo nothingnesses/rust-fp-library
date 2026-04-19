@@ -208,10 +208,11 @@ type classes.
 **Function wrappers:** `Endofunction` (dynamically composed `a -> a`), `Endomorphism`
 (monoidally composed `a -> a`).
 
-**Pointer abstraction:** `Pointer`, `RefCountedPointer`, `SendRefCountedPointer` abstract
-over `Rc`/`Arc` via `FnBrand<P>`, enabling generic code that works with either pointer
-type. `CloneFn`/`SendCloneFn` provide cloneable closure wrappers for applicative contexts.
-`Arrow` provides composable callable wrappers for the optics system.
+**Pointer abstraction:** Independent pointer traits (`Pointer`, `RefCountedPointer`,
+`SendRefCountedPointer`) and coercion traits (`ToDynFn`, `ToDynCloneFn`, `ToDynSendFn`)
+abstract over `Box`/`Rc`/`Arc` via `FnBrand<P>`, enabling generic code that works with
+any pointer type. `CloneFn`/`SendCloneFn` provide cloneable closure wrappers for
+applicative contexts. `Arrow` provides composable callable wrappers for the optics system.
 See [Pointer Abstraction](./pointer-abstraction.md).
 
 ### Numeric Algebra

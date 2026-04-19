@@ -105,11 +105,12 @@ This document tracks the coverage of `fp-library` against functionality provided
 | **`SendRefPointed`**            | N/A                                      | `classes/send_ref_pointed.rs`              |
 | **`SendRefSemiapplicative`**    | N/A                                      | `classes/send_ref_semiapplicative.rs`      |
 | **`SendRefSemimonad`**          | N/A                                      | `classes/send_ref_semimonad.rs`            |
-| **`SendUnsizedCoercible`**      | N/A                                      | `classes/send_unsized_coercible.rs`        |
 | **`Strong`**                    | N/A                                      | `classes/profunctor/strong.rs`             |
+| **`ToDynCloneFn`**              | N/A                                      | `classes/to_dyn_clone_fn.rs`               |
+| **`ToDynFn`**                   | N/A                                      | `classes/to_dyn_fn.rs`                     |
+| **`ToDynSendFn`**               | N/A                                      | `classes/to_dyn_send_fn.rs`                |
 | **`Traversable`**               | `Iterator::collect`                      | `classes/traversable.rs`                   |
 | **`TraversableWithIndex`**      | N/A                                      | `classes/traversable_with_index.rs`        |
-| **`UnsizedCoercible`**          | N/A                                      | `classes/unsized_coercible.rs`             |
 | **`Wander`**                    | N/A                                      | `classes/profunctor/wander.rs`             |
 | **`Witherable`**                | N/A                                      | `classes/witherable.rs`                    |
 | **`WithIndex`**                 | N/A                                      | `classes/with_index.rs`                    |

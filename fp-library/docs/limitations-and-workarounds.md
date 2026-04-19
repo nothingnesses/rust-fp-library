@@ -173,7 +173,7 @@ See [Lifetime Ablation Experiment](lifetime-ablation-experiment.md) for a detail
 
 Rust does not allow a subtrait to add bounds to an associated type inherited from a supertrait. Given a trait hierarchy where a base trait defines `type Of<T>: Deref`, a subtrait cannot narrow it to `type Of<T>: Clone + Deref` or `type Of<T>: Send + Sync + Deref`. The bounds on an associated type are fixed in the trait that defines it.
 
-This means each level of a trait hierarchy that needs different bounds on its pointer/wrapper type must define its own associated type. For example, `RefCountedPointer` cannot reuse `Pointer::Of` with a `Clone` bound added; it must introduce a separate `CloneableOf`. Similarly, `SendRefCountedPointer` cannot add `Send + Sync` to `CloneableOf`; it introduces `SendOf`.
+This means each level of a trait hierarchy that needs different bounds on its pointer/wrapper type must define its own associated type. For example, `RefCountedPointer` cannot reuse `Pointer::Of` with a `Clone` bound added; it must introduce a separate `Of` with `Clone + Deref` bounds. Similarly, `SendRefCountedPointer` cannot add `Send + Sync` to `RefCountedPointer::Of`; it has its own `Of` with `Clone + Send + Sync + Deref` bounds.
 
 ### Consequences
 
@@ -183,14 +183,14 @@ Each pointer trait level has its own associated type, even though they resolve t
 
 | Trait                   | Associated type | Bounds                        | `ArcBrand` resolves to |
 | :---------------------- | :-------------- | :---------------------------- | :--------------------- |
-| `RefCountedPointer`     | `CloneableOf`   | `Clone + Deref`               | `Arc<T>`               |
-| `SendRefCountedPointer` | `SendOf`        | `Clone + Send + Sync + Deref` | `Arc<T>`               |
+| `RefCountedPointer`     | `Of`            | `Clone + Deref`               | `Arc<T>`               |
+| `SendRefCountedPointer` | `Of`            | `Clone + Send + Sync + Deref` | `Arc<T>`               |
 
 The `CloneFn`/`SendCloneFn` split exists for the same reason: `CloneFn::Of` derefs to `dyn Fn(A) -> B`, while `SendCloneFn::Of` derefs to `dyn Fn(A) -> B + Send + Sync`. These are different unsized types in Rust, so they cannot share an associated type.
 
 #### Flat hierarchies instead of linear chains
 
-Because each level needs its own associated type regardless of the hierarchy shape, there is no structural benefit to encoding pointer traits as a linear supertrait chain. The Send variants (`SendRefCountedPointer`, `SendCloneFn`) are independent parallel traits rather than subtraits, since their associated types have fundamentally different bounds. Consumers that need both capabilities list both as bounds (e.g., `SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer`).
+Because each level needs its own associated type regardless of the hierarchy shape, there is no structural benefit to encoding pointer traits as a linear supertrait chain. The Send variants (`SendRefCountedPointer`, `SendCloneFn`) are independent parallel traits rather than subtraits, since their associated types have fundamentally different bounds. Consumers that need both capabilities list both as bounds (e.g., `P: ToDynCloneFn + ToDynSendFn`).
 
 #### Capability-trait composition is limited
 

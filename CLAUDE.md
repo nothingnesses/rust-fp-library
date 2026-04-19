@@ -112,7 +112,7 @@ For detailed design documentation, see the `fp-library/docs/` directory:
 - `fp-library/docs/hkt.md` - Higher-Kinded Types and the Brand pattern
 - `fp-library/docs/zero-cost.md` - Zero-cost abstractions and uncurried semantics
 - `fp-library/docs/lazy-evaluation.md` - Lazy evaluation types, trade-offs, and decision guide
-- `fp-library/docs/pointer-abstraction.md` - Pointer hierarchy, `FnBrand<P>`, and `LazyConfig`
+- `fp-library/docs/pointer-abstraction.md` - Pointer traits, `FnBrand<P>`, and `LazyConfig`
 - `fp-library/docs/coyoneda.md` - Free functor implementations and trade-offs
 - `fp-library/docs/parallelism.md` - Thread safety and parallel trait hierarchy
 - `fp-library/docs/features.md` - Full feature list with type class hierarchy
