@@ -466,17 +466,17 @@ mod inner {
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: SendUnsizedCoercible> SendCloneFn for FnBrand<P> {
+	impl<P: SendUnsizedCoercible + UnsizedCoercible> SendCloneFn for FnBrand<P> {
 		type Of<'a, A: 'a, B: 'a> = P::SendOf<'a, dyn 'a + Fn(A) -> B + Send + Sync>;
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: SendUnsizedCoercible> SendCloneFn<Ref> for FnBrand<P> {
+	impl<P: SendUnsizedCoercible + UnsizedCoercible> SendCloneFn<Ref> for FnBrand<P> {
 		type Of<'a, A: 'a, B: 'a> = P::SendOf<'a, dyn 'a + Fn(&A) -> B + Send + Sync>;
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: SendUnsizedCoercible> SendLiftFn for FnBrand<P> {
+	impl<P: SendUnsizedCoercible + UnsizedCoercible> SendLiftFn for FnBrand<P> {
 		/// Creates a new thread-safe cloneable function wrapper.
 		///
 		/// This function wraps the provided closure `f` into a pointer-wrapped thread-safe cloneable function.
@@ -511,7 +511,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: SendUnsizedCoercible> SendRefLiftFn for FnBrand<P> {
+	impl<P: SendUnsizedCoercible + UnsizedCoercible> SendRefLiftFn for FnBrand<P> {
 		/// Creates a new thread-safe cloneable by-reference function wrapper.
 		#[document_signature]
 		///

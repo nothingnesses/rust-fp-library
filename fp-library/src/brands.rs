@@ -86,6 +86,14 @@ pub struct BifunctorFirstAppliedBrand<Brand, A>(PhantomData<(Brand, A)>);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BifunctorSecondAppliedBrand<Brand, B>(PhantomData<(Brand, B)>);
 
+/// Brand for [`Box`] owned heap-allocated pointer.
+///
+/// `BoxBrand` implements [`Pointer`](crate::classes::Pointer) and
+/// [`ToDynFn`](crate::classes::ToDynFn) but not
+/// [`RefCountedPointer`] (since `Box<dyn Fn>` is not `Clone`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BoxBrand;
+
 /// Brand for [`CatList`](crate::types::CatList).
 ///
 /// `CatList` is the catenable list that serves as the backbone of

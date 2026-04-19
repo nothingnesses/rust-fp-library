@@ -19,8 +19,13 @@ mod inner {
 		fp_macros::*,
 	};
 
-	/// Extension trait for pointer brands that can coerce to thread-safe `dyn Fn + Send + Sync`.
-	pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'static {
+	/// Trait for pointer brands that can coerce to thread-safe `dyn Fn + Send + Sync`.
+	///
+	/// This is an independent trait (not a supertrait of `UnsizedCoercible`),
+	/// matching the pattern used by `SendCloneFn` (independent of `CloneFn`).
+	/// It extends `SendRefCountedPointer` because its methods return
+	/// `SendRefCountedPointer::SendOf` types.
+	pub trait SendUnsizedCoercible: SendRefCountedPointer + 'static {
 		/// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync`.
 		#[document_signature]
 		///

@@ -28,18 +28,21 @@
 #[fp_macros::document_module]
 mod inner {
 	use {
-		crate::classes::*,
 		fp_macros::*,
 		std::ops::Deref,
 	};
 
-	/// Extension trait for reference-counted pointers with shared ownership.
+	/// Trait for reference-counted pointers with shared ownership.
 	///
-	/// Adds [`CloneableOf`](Self::CloneableOf) (a cloneable, dereferenceable pointer)
+	/// Provides [`CloneableOf`](Self::CloneableOf) (a cloneable, dereferenceable pointer)
 	/// and [`TakeCellOf`](Self::TakeCellOf) (a cloneable cell supporting one-shot value
 	/// extraction). The latter pairs the pointer with an appropriate interior mutability
 	/// primitive (`RefCell` for `Rc`, `Mutex` for `Arc`).
-	pub trait RefCountedPointer: Pointer {
+	///
+	/// This is an independent trait (not a supertrait of
+	/// [`Pointer`](crate::classes::Pointer)). Both `RcBrand` and `ArcBrand`
+	/// implement `Pointer` and `RefCountedPointer` independently.
+	pub trait RefCountedPointer {
 		/// The cloneable pointer type constructor.
 		///
 		/// For Rc/Arc, this is the same as `Of<'a, T>`.

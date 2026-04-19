@@ -24,6 +24,7 @@ mod inner {
 				RefCountedPointer,
 				SendRefCountedPointer,
 				SendUnsizedCoercible,
+				ToDynFn,
 				UnsizedCoercible,
 			},
 		},
@@ -197,6 +198,62 @@ mod inner {
 		/// ```
 		fn send_new<'a, T: Send + Sync + 'a>(value: T) -> Arc<T> {
 			Arc::new(value)
+		}
+	}
+
+	impl ToDynFn for ArcBrand {
+		/// Coerces a sized closure to a `dyn Fn` wrapped in an `Arc`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the closure.",
+			"The input type of the function.",
+			"The output type of the function."
+		)]
+		///
+		#[document_parameters("The closure to coerce.")]
+		///
+		#[document_returns("The closure wrapped in an `Arc` as a trait object.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// };
+		///
+		/// let f = <ArcBrand as ToDynFn>::new(|x: i32| x + 1);
+		/// assert_eq!(f(1), 2);
+		/// ```
+		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Arc<dyn 'a + Fn(A) -> B> {
+			Arc::new(f)
+		}
+
+		/// Coerces a sized by-reference closure to a `dyn Fn(&A) -> B` wrapped in an `Arc`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the closure.",
+			"The input type (the closure receives `&A`).",
+			"The output type of the function."
+		)]
+		///
+		#[document_parameters("The closure to coerce.")]
+		///
+		#[document_returns("The closure wrapped in an `Arc` as a by-reference trait object.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// };
+		///
+		/// let f = <ArcBrand as ToDynFn>::ref_new(|x: &i32| *x + 1);
+		/// assert_eq!(f(&1), 2);
+		/// ```
+		fn ref_new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(&A) -> B) -> Arc<dyn 'a + Fn(&A) -> B> {
+			Arc::new(f)
 		}
 	}
 

@@ -15,17 +15,19 @@
 #[fp_macros::document_module]
 mod inner {
 	use {
-		crate::classes::*,
 		fp_macros::*,
 		std::ops::Deref,
 	};
 
-	/// Thread-safe counterpart to [`RefCountedPointer`].
+	/// Thread-safe counterpart to
+	/// [`RefCountedPointer`](crate::classes::RefCountedPointer).
 	///
-	/// Unlike `SendCloneFn` (which is independent of `CloneFn`), this trait
-	/// is a supertrait of `RefCountedPointer`, adding a `SendOf` associated
-	/// type with explicit `Send + Sync` bounds.
-	pub trait SendRefCountedPointer: RefCountedPointer {
+	/// This is an independent trait (not a supertrait of `RefCountedPointer`),
+	/// matching the pattern used by `SendCloneFn` (independent of `CloneFn`).
+	/// Both traits have their own associated type with different bounds:
+	/// `RefCountedPointer::CloneableOf` requires `Clone + Deref`, while
+	/// `SendRefCountedPointer::SendOf` requires `Clone + Send + Sync + Deref`.
+	pub trait SendRefCountedPointer {
 		/// The thread-safe pointer type constructor.
 		///
 		/// For `ArcBrand`, this is `Arc<T>` where `T: Send + Sync`.
