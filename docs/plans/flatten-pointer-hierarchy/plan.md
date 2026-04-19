@@ -271,11 +271,11 @@ trait ToDynSendFn: SendRefCountedPointer + 'static {  // renamed from SendUnsize
      renamed `RefCountedPointer::new`)
    - `send_ref_counted_pointer_new` (unchanged name, dispatches to
      renamed `SendRefCountedPointer::new`)
-   - `to_dyn_fn_new` / `to_dyn_fn_ref_new` (new)
-   - `to_dyn_clone_fn_new` / `to_dyn_clone_fn_ref_new` (renamed
-     from `coerce_fn` / `coerce_ref_fn` free functions)
-   - `to_dyn_send_fn_new` / `to_dyn_send_fn_ref_new` (renamed
-     from `coerce_send_fn` / `coerce_send_ref_fn` free functions)
+   - `to_dyn_fn` / `to_ref_dyn_fn` (new)
+   - `to_dyn_clone_fn` / `to_ref_dyn_clone_fn` (renamed from
+     `coerce_fn` / `coerce_ref_fn` free functions)
+   - `to_dyn_send_fn` / `to_ref_dyn_send_fn` (renamed from
+     `coerce_send_fn` / `coerce_send_ref_fn` free functions)
 
 9. **Update `FnBrand` impl bounds for `ToDynSendFn`.** The four
    `FnBrand<P>` impl blocks currently bounded on
