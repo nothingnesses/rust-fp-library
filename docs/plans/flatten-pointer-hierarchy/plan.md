@@ -490,6 +490,42 @@ old method names (`coerce_fn`, `coerce_ref_fn`, `coerce_send_fn`,
 8. `fp-library/CHANGELOG.md`: No changes (historical record).
 9. Run `just verify`.
 
+## Follow-up opportunities
+
+### Unify Coyoneda variants over pointer brand
+
+`Coyoneda`, `RcCoyoneda`, and `ArcCoyoneda` are three separate types
+that duplicate the same free-functor structure, differing only in the
+pointer used to wrap inner layers and functions:
+
+| Variant       | Inner layer pointer          | Function storage             | Cloneable | Send |
+| :------------ | :--------------------------- | :--------------------------- | :-------- | :--- |
+| `Coyoneda`    | `Box<dyn CoyonedaInner>`     | Inline (erased by outer Box) | No        | No   |
+| `RcCoyoneda`  | `Rc<dyn RcCoyonedaLowerRef>` | `Rc<dyn Fn>`                 | Yes       | No   |
+| `ArcCoyoneda` | `Arc<dyn ...>`               | `Arc<dyn Fn + Send + Sync>`  | Yes       | Yes  |
+
+With the flat pointer/coercion traits introduced by this plan, these
+could potentially be unified into a single `Coyoneda<P: Pointer>`
+where `P` determines both the layer pointer and function storage:
+
+- `Coyoneda<BoxBrand>`: uses `Box<dyn ...>` for layers, stores
+  functions inline (erased by the outer `Box`). Single-owner,
+  consumed by `lower`. Equivalent to current `Coyoneda`.
+- `Coyoneda<RcBrand>`: uses `Rc<dyn ...>` for layers, wraps
+  functions via `ToDynCloneFn`. Clonable, `lower_ref` borrows
+  `&self`. Equivalent to current `RcCoyoneda`.
+- `Coyoneda<ArcBrand>`: uses `Arc<dyn ...>` for layers, wraps
+  functions via `ToDynSendFn`. Clonable + Send. Equivalent to
+  current `ArcCoyoneda`.
+
+The consuming `lower(self)` and borrowing `lower_ref(&self)` methods
+could coexist on the same type, available based on which capabilities
+`P` provides. This would eliminate code duplication across the three
+variants.
+
+This is out of scope for this plan but is a natural follow-up that
+exercises the new trait hierarchy in a real use case.
+
 ## Success criteria
 
 The plan is complete when:
