@@ -82,11 +82,11 @@ non-Send variant." This is inconsistent with the `CloneFn`/`SendCloneFn`
 hierarchy, which already uses the flat pattern (independent parallel
 traits) for the same structural reason.
 
-Additionally, `Pointer` is dead code: no production consumer bounds
-on it, projects through `Pointer::Of`, or calls `Pointer::new`. Its
-`Of` and `new` are redundant with `RefCountedPointer::CloneableOf`
-and `cloneable_new`. It exists only as `RefCountedPointer`'s
-supertrait and in its own free function, impls, and tests.
+Additionally, `Pointer` currently has no production consumers but
+serves as the extension point for non-clonable pointer brands. This
+plan introduces `BoxBrand` and `ToDynFn` to validate that the flat
+architecture accommodates pointer brands that only implement a subset
+of the traits.
 
 The associated types also use inconsistent naming:
 `RefCountedPointer::CloneableOf`,
@@ -97,11 +97,17 @@ type `Of`, with the trait name providing disambiguation.
 After this plan:
 
 ```
+Pointer                    (Of)              -- independent
+  <- ToDynFn                                 -- methods use Pointer::Of
 RefCountedPointer          (Of, TakeCellOf)  -- independent
   <- ToCloneDynFn                            -- methods use RefCountedPointer::Of
 SendRefCountedPointer      (Of)              -- independent
   <- ToSendDynFn                             -- methods use SendRefCountedPointer::Of
 ```
+
+`BoxBrand` implements `Pointer` + `ToDynFn` only. `RcBrand`
+implements `Pointer` + `ToDynFn` + `RefCountedPointer` +
+`ToCloneDynFn`. `ArcBrand` implements all six.
 
 ### Hierarchy audit
 
@@ -164,7 +170,15 @@ trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'static {
 ### After
 
 ```
-// Pointer trait removed entirely.
+trait Pointer {                            // independent (no longer supertrait of RefCountedPointer)
+    type Of<'a, T>;           // Deref
+}
+
+trait ToDynFn: Pointer + 'static {         // NEW: wraps closures into Box<dyn Fn>
+    fn new(...) -> ...;      // impl Fn(A) -> B  ->  Pointer::Of<dyn Fn(A) -> B>
+    fn ref_new(...) -> ...;  // impl Fn(&A) -> B ->  Pointer::Of<dyn Fn(&A) -> B>
+    // methods return <Self as Pointer>::Of<dyn Fn>
+}
 
 trait RefCountedPointer {                  // independent (Pointer supertrait removed)
     type Of<'a, T>;           // Clone + Deref  (renamed from CloneableOf)
@@ -193,26 +207,36 @@ trait ToSendDynFn: SendRefCountedPointer + 'static {  // renamed from SendUnsize
 
 ### Changes
 
-1. **Remove `Pointer` entirely.** No production consumer bounds on
-   it, projects through `Pointer::Of`, or calls `Pointer::new`.
-   Remove the trait, its impls for `RcBrand` and `ArcBrand`, its
-   free function `pointer_new`, its re-export, and its tests. If a
-   future `BoxBrand` needs a non-clonable pointer trait, an
-   independent trait can be introduced at that time; the flat
-   architecture makes this trivial.
+1. **Keep `Pointer` as independent trait.** Remove the `Pointer`
+   supertrait from `RefCountedPointer`. `Pointer` becomes an
+   independent trait. `RcBrand` and `ArcBrand` continue to implement
+   it.
 
-2. **Make `SendRefCountedPointer` independent.** Remove the
+2. **Add `ToDynFn` trait.** New trait extending `Pointer + 'static`
+   with methods `new` / `ref_new` that wrap closures into
+   `<Self as Pointer>::Of<dyn Fn>`. Mirrors `ToCloneDynFn` and
+   `ToSendDynFn` at the `Box` level. Implemented by `BoxBrand`,
+   `RcBrand`, and `ArcBrand`.
+
+3. **Add `BoxBrand`.** New brand struct implementing `Pointer`
+   (`Of = Box<T>`) and `ToDynFn` (wraps `impl Fn` into
+   `Box<dyn Fn>`). Does not implement `RefCountedPointer` (no
+   `Clone`), `SendRefCountedPointer`, `ToCloneDynFn`, or
+   `ToSendDynFn`. Validates that the flat architecture accommodates
+   pointer brands with a subset of capabilities.
+
+4. **Make `SendRefCountedPointer` independent.** Remove the
    `RefCountedPointer` supertrait. `SendRefCountedPointer` becomes a
    standalone trait with only its own `Of` and `send_new`, mirroring
    how `SendCloneFn` is independent of `CloneFn`.
 
-3. **Rename `UnsizedCoercible` to `ToCloneDynFn`.** Rename methods
+5. **Rename `UnsizedCoercible` to `ToCloneDynFn`.** Rename methods
    `coerce_fn` to `new` and `coerce_ref_fn` to `ref_new`, matching
    the `LiftFn::new` / `RefLiftFn::ref_new` pattern. Keep the
    `RefCountedPointer` supertrait (methods return
    `RefCountedPointer::Of`).
 
-4. **Rename `SendUnsizedCoercible` to `ToSendDynFn` and make it
+6. **Rename `SendUnsizedCoercible` to `ToSendDynFn` and make it
    independent of `ToCloneDynFn`.** Remove the `UnsizedCoercible`
    (now `ToCloneDynFn`) supertrait. Keep the
    `SendRefCountedPointer` supertrait (methods return
@@ -221,7 +245,7 @@ trait ToSendDynFn: SendRefCountedPointer + 'static {  // renamed from SendUnsize
    both coercion capabilities bound on both:
    `P: ToCloneDynFn + ToSendDynFn`.
 
-5. **Rename associated types to `Of`.** Rename
+7. **Rename associated types to `Of`.** Rename
    `RefCountedPointer::CloneableOf` to `Of` and
    `SendRefCountedPointer::SendOf` to `Of`. Each trait uses `Of` as
    its primary associated type, disambiguated by the trait name (e.g.,
@@ -253,19 +277,20 @@ Current consumers of `SendUnsizedCoercible` (renamed to
 
 ## Decisions
 
-### Decision A: Remove `Pointer`
+### Decision A: Keep `Pointer` as independent trait, add `ToDynFn` and `BoxBrand`
 
-**Adopted.** Remove `Pointer` trait entirely.
+**Adopted.** Keep `Pointer` but remove it as a supertrait of
+`RefCountedPointer`. Add `ToDynFn` (extending `Pointer + 'static`)
+for wrapping closures into `Box<dyn Fn>`. Add `BoxBrand` as a
+concrete implementor of `Pointer` + `ToDynFn` only.
 
-_Rationale:_ No production consumer bounds on `Pointer`, projects
-through `Pointer::Of`, or calls `Pointer::new`. Both `RcBrand` and
-`ArcBrand` set `Pointer::Of` to the same type as
-`RefCountedPointer::CloneableOf`. It exists only as
-`RefCountedPointer`'s supertrait, in its own free function, impls,
-tests, and doc examples. If a future `BoxBrand` needs a non-clonable
-pointer trait, an independent trait can be introduced at that time.
-The flat architecture makes this trivial since there are no supertrait
-chains to insert into.
+_Rationale:_ Introducing `BoxBrand` and `ToDynFn` alongside the
+flattening validates that the architecture accommodates pointer
+brands that implement only a subset of traits. Without a real
+implementor, the design is speculative. With `BoxBrand`, the
+`Pointer` / `ToDynFn` story is tested end-to-end. The cost is small
+(one trait, one brand struct, a few impls and tests) and the result
+is a concrete proof that the flat architecture works as intended.
 
 ### Decision B: `SendRefCountedPointer` independence
 
@@ -346,15 +371,17 @@ to describe them as independent parallel traits.
 
 | Component                                             | Change                                                                                                                                                                                            |
 | :---------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `fp-library/src/classes/pointer.rs`                   | Remove entirely.                                                                                                                                                                                  |
+| `fp-library/src/classes/pointer.rs`                   | Keep. Remove supertrait link from `RefCountedPointer`.                                                                                                                                            |
+| `fp-library/src/classes/to_dyn_fn.rs`                 | New file. `ToDynFn` trait extending `Pointer + 'static` with `new` / `ref_new` methods.                                                                                                           |
 | `fp-library/src/classes/ref_counted_pointer.rs`       | Remove `Pointer` supertrait. Rename `CloneableOf` to `Of`.                                                                                                                                        |
 | `fp-library/src/classes/send_ref_counted_pointer.rs`  | Remove `RefCountedPointer` supertrait. Rename `SendOf` to `Of`. Update doc comment.                                                                                                               |
 | `fp-library/src/classes/unsized_coercible.rs`         | Rename to `to_clone_dyn_fn.rs`. Rename trait to `ToCloneDynFn`. Rename methods to `new` / `ref_new`. Rename free functions accordingly.                                                           |
 | `fp-library/src/classes/send_unsized_coercible.rs`    | Rename to `to_send_dyn_fn.rs`. Rename trait to `ToSendDynFn`. Remove `ToCloneDynFn` supertrait (keep `SendRefCountedPointer + 'static`). Rename methods to `new` / `ref_new`. Update doc comment. |
-| `fp-library/src/types/rc_ptr.rs`                      | Remove `impl Pointer for RcBrand`.                                                                                                                                                                |
-| `fp-library/src/types/arc_ptr.rs`                     | Remove `impl Pointer for ArcBrand`.                                                                                                                                                               |
-| `fp-library/src/classes.rs`                           | Remove `pointer` module export.                                                                                                                                                                   |
-| `fp-library/src/functions.rs`                         | Remove `pointer_new` re-export.                                                                                                                                                                   |
+| `fp-library/src/types/rc_ptr.rs`                      | Add `impl ToDynFn for RcBrand`.                                                                                                                                                                   |
+| `fp-library/src/types/arc_ptr.rs`                     | Add `impl ToDynFn for ArcBrand`.                                                                                                                                                                  |
+| `fp-library/src/types/box_ptr.rs`                     | New file. `BoxBrand` struct, `impl Pointer for BoxBrand`, `impl ToDynFn for BoxBrand`.                                                                                                            |
+| `fp-library/src/brands.rs`                            | Add `BoxBrand` struct.                                                                                                                                                                            |
+| `fp-library/src/classes.rs`                           | Add `to_dyn_fn` module export.                                                                                                                                                                    |
 | All consumer sites referencing `CloneableOf`          | Rename to `Of` (qualified as `<P as RefCountedPointer>::Of`).                                                                                                                                     |
 | All consumer sites referencing `SendOf`               | Rename to `Of` (qualified as `<P as SendRefCountedPointer>::Of`).                                                                                                                                 |
 | All consumer sites referencing `UnsizedCoercible`     | Rename bound to `ToCloneDynFn`. Rename method calls: `coerce_fn` -> `new`, `coerce_ref_fn` -> `ref_new`.                                                                                          |
@@ -364,6 +391,7 @@ to describe them as independent parallel traits.
 
 ### Unchanged
 
+- **`Pointer`**: Kept as independent trait. `Of` name unchanged. `ToDynFn` extends it.
 - **`ToCloneDynFn`** (renamed from `UnsizedCoercible`): Still extends `RefCountedPointer + 'static`. Methods return `<Self as RefCountedPointer>::Of` (renamed from `CloneableOf`).
 - **`CloneFn` / `SendCloneFn`**: Already independent, already use `Of`. No changes.
 - **`FnBrand<P>`**: Bounds renamed (`P: ToCloneDynFn` and `P: ToSendDynFn`). Internal references to `CloneableOf` and `SendOf` are renamed to `Of`.
@@ -390,22 +418,22 @@ to describe them as independent parallel traits.
    `arc_ptr.rs` cover this adequately; add missing coverage.
 2. Run `just verify`.
 
-### Phase 1: Remove `Pointer` and flatten supertrait links
+### Phase 1: Flatten supertrait links, add `ToDynFn` and `BoxBrand`
 
 1. Remove `Pointer` supertrait from `RefCountedPointer`.
-2. Remove `impl Pointer for RcBrand` and `impl Pointer for ArcBrand`.
-3. Remove the `Pointer` trait definition, its module, its free
-   function `pointer_new`, and its re-export in `functions.rs`.
-4. Remove test code that exercises `Pointer` directly.
-5. Update `classes.rs` module exports.
-6. Remove `RefCountedPointer` supertrait from
+2. Remove `RefCountedPointer` supertrait from
    `SendRefCountedPointer`.
-7. Remove `UnsizedCoercible` supertrait from `SendUnsizedCoercible`
+3. Remove `UnsizedCoercible` supertrait from `SendUnsizedCoercible`
    (keep `SendRefCountedPointer + 'static`).
-8. Update doc comments on affected traits.
-9. Check all consumers for any that relied on removed supertrait
+4. Add `ToDynFn` trait (extends `Pointer + 'static`) with methods
+   `new` / `ref_new`. Implement for `RcBrand`, `ArcBrand`.
+5. Add `BoxBrand` struct to `brands.rs`. Implement `Pointer`
+   (`Of = Box<T>`) and `ToDynFn` (wraps `impl Fn` into
+   `Box<dyn Fn>`) for `BoxBrand`. Add test file `box_ptr.rs`.
+6. Update doc comments on affected traits.
+7. Check all consumers for any that relied on removed supertrait
    links. (Audit found none, but verify during implementation.)
-10. Run `just verify`.
+8. Run `just verify`.
 
 ### Phase 2: Rename coercion traits and methods
 
@@ -438,28 +466,27 @@ old method names (`coerce_fn`, `coerce_ref_fn`, `coerce_send_fn`,
 `SendOf`):
 
 1. `fp-library/docs/pointer-abstraction.md`: Rewrite hierarchy
-   diagram and description. Remove `Pointer` from the chain. Describe
-   `RefCountedPointer` and `SendRefCountedPointer` as independent
-   traits. Update associated type names to `Of`. Update `FnBrand<P>`
-   description to reflect `SendCloneFn` independence.
+   diagram and description. Describe `Pointer`,
+   `RefCountedPointer`, and `SendRefCountedPointer` as independent
+   traits. Add `ToDynFn`, `ToCloneDynFn`, `ToSendDynFn` descriptions.
+   Add `BoxBrand`. Update associated type names to `Of`. Update
+   `FnBrand<P>` description to reflect `SendCloneFn` independence.
 2. `fp-library/docs/limitations-and-workarounds.md`: Update the
    "No Refinement of Associated Type Bounds in Subtraits" section
    to use the new `Of` names and reflect the flattened hierarchy.
    Update the "Foldable and CloneFn" section if it references the
    pointer hierarchy.
 3. `fp-library/docs/zero-cost.md` (line 26): Update reference to
-   "unified `Pointer` hierarchy" to describe `RefCountedPointer`.
+   "unified `Pointer` hierarchy" to describe the flat trait set.
 4. `fp-library/docs/features.md` (line 211): Update mention of
    `Pointer`, `RefCountedPointer`, `SendRefCountedPointer` to
-   reflect `Pointer` removal and flattened hierarchy.
-5. `fp-library/docs/std-coverage-checklist.md` (line 66): Remove
-   `Pointer` row from the trait table.
+   reflect flattened hierarchy and new traits.
+5. `fp-library/docs/std-coverage-checklist.md` (line 66): Update
+   `Pointer` row, add `ToDynFn`/`BoxBrand` rows.
 6. `CLAUDE.md` (line 115): Update pointer-abstraction.md description
-   to remove `Pointer` mention.
-7. `fp-library/src/classes/pointer.rs` module-level doc: File is
-   removed; move the hierarchy overview to
-   `ref_counted_pointer.rs` module doc or the `classes.rs` module
-   doc.
+   to reflect flattened hierarchy.
+7. `fp-library/src/classes/pointer.rs` module-level doc: Update
+   hierarchy overview to reflect flattened structure.
 8. `fp-library/CHANGELOG.md`: No changes (historical record).
 9. Run `just verify`.
 
@@ -467,7 +494,14 @@ old method names (`coerce_fn`, `coerce_ref_fn`, `coerce_send_fn`,
 
 The plan is complete when:
 
-- `Pointer` trait is removed.
+- `Pointer` is an independent trait (no supertraits, not a supertrait
+  of `RefCountedPointer`). `ToDynFn` extends it (logically
+  necessary).
+- `ToDynFn` trait exists with `new` / `ref_new` methods wrapping
+  closures into `<Self as Pointer>::Of<dyn Fn>`.
+- `BoxBrand` exists, implementing `Pointer` (`Of = Box<T>`) and
+  `ToDynFn` only. Does not implement `RefCountedPointer` or any
+  Send/Clone traits.
 - `RefCountedPointer` is an independent trait (no supertraits).
   `ToCloneDynFn` extends it (logically necessary).
 - `SendRefCountedPointer` is an independent trait (no supertraits).
