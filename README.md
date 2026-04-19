@@ -8,23 +8,17 @@ A functional programming library for Rust featuring your favourite higher-kinded
 
 ## At a Glance
 
-- HKT emulation in stable Rust via the Brand pattern.
-- Type class hierarchy inspired by Haskell / PureScript.
+- HKT emulation in stable Rust via type-level defunctionalization.
+- Type class hierarchy inspired by PureScript / Haskell (`Functor`, `Monad`, `Foldable`, etc.).
 - Brand inference: `map(|x| x + 1, Some(5))` with no turbofish needed.
 - Val/Ref dispatch: one function handles both owned and borrowed containers.
-- Zero-cost abstractions (no runtime overhead).
+- Zero-cost core operations (map, bind, fold, etc.) via static dispatch.
 - Works with `std` types (`Option`, `Result`, `Vec`, etc.).
 - Advanced features: optics, lazy evaluation, parallel traits.
 
 ## Motivation
 
-Rust is a multi-paradigm language with strong functional programming features like iterators, closures, and algebraic data types. However, it lacks native support for **Higher-Kinded Types (HKT)**, which limits the ability to write generic code that abstracts over type constructors (e.g., writing a function that works for any `Monad`, whether it's `Option`, `Result`, or `Vec`).
-
-`fp-library` aims to bridge this gap by providing:
-
-1.  A robust encoding of HKTs in stable Rust.
-2.  A comprehensive set of standard type classes (`Functor`, `Monad`, `Traversable`, etc.).
-3.  Zero-cost abstractions that respect Rust's performance characteristics.
+Rust is a multi-paradigm language with strong functional programming features like iterators, closures, and algebraic data types. However, it lacks native support for **Higher-Kinded Types (HKT)**, which limits the ability to write generic code that abstracts over type constructors (e.g., writing a function that works for any `Monad`, whether it's `Option`, `Result`, or `Vec`). `fp-library` aims to bridge this gap.
 
 ## Examples
 
@@ -47,12 +41,14 @@ fn main() {
 }
 ```
 
-For types with multiple brands (e.g., `Result`), use the `explicit` variant:
+For types with multiple brands (e.g., `Result`, which can be viewed as a functor over
+either its `Ok` or `Err` type), use the `explicit` variant to select the brand:
 
 ```rust
 use fp_library::{brands::*, functions::explicit::*};
 
 fn main() {
+	// ResultErrAppliedBrand fixes the error type, so map operates on the Ok value.
 	let y = map::<ResultErrAppliedBrand<&str>, _, _, _, _>(|i| i * 2, Ok::<i32, &str>(5));
 	assert_eq!(y, Ok(10));
 }
@@ -123,11 +119,7 @@ fp-library = { version = "0.16", features = ["rayon", "serde"] }
 
 **Higher-Kinded Types:** The library encodes HKTs using lightweight higher-kinded polymorphism (the "Brand" pattern). Each type constructor has a zero-sized brand type (e.g., `OptionBrand`) that implements `Kind` traits mapping brands back to concrete types. See [Higher-Kinded Types](fp-library/docs/hkt.md).
 
-**Brand Inference:** A user guide for turbofish-free dispatch. Shows how the compiler infers brands from container types, how closure annotations disambiguate multi-brand types like `Result`, and when to fall back to `explicit::` functions. See [Brand Inference](fp-library/docs/brand-inference.md).
-
-**Val/Ref Dispatch:** A user guide for unified function dispatch. Each free function routes to either a by-value or by-reference trait method based on the closure's argument type (or container ownership for closureless operations). Dispatch and brand inference compose through the shared `FA` type parameter. See [Val/Ref Dispatch](fp-library/docs/dispatch.md).
-
-**Brand Dispatch Traits:** The implementer reference for the `Kind` and `InferableBrand` trait families, covering trait shapes, the Marker invariant, inference resolution steps, impl landscape, and coverage matrix. See [Brand Dispatch Traits](fp-library/docs/brand-dispatch-traits.md).
+**Dispatch System:** Free functions like `map` and `bind` infer the brand from the container type and route to by-value or by-reference trait methods automatically, so most call sites need no turbofish. For details, see [Brand Inference](fp-library/docs/brand-inference.md), [Val/Ref Dispatch](fp-library/docs/dispatch.md), and [Brand Dispatch Traits](fp-library/docs/brand-dispatch-traits.md).
 
 **Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where functions must be stored as data. See [Zero-Cost Abstractions](fp-library/docs/zero-cost.md).
 
@@ -155,6 +147,7 @@ fp-library = { version = "0.16", features = ["rayon", "serde"] }
 - [Profunctor Analysis](fp-library/docs/profunctor-analysis.md): Profunctor class hierarchy comparison with PureScript.
 - [Std Library Coverage](fp-library/docs/std-coverage-checklist.md): Type class coverage for standard library types.
 - [Benchmarks](fp-library/docs/benchmarking.md): Performance results, graphs, and benchmark coverage.
+- [References](fp-library/docs/references.md): Papers, libraries, and resources that informed this project.
 
 ## Contributing
 
@@ -174,17 +167,4 @@ This project is licensed under the [Blue Oak Model License 1.0.0](LICENSE).
 
 ## References
 
-- [Lightweight higher-kinded polymorphism](https://web.archive.org/web/20220104164033/https://www.lpw25.net/papers/flops2014.pdf)
-- [Typeclassopedia](https://wiki.haskell.org/Typeclassopedia)
-- [Lean Mathlib Prelude](https://leanprover-community.github.io/mathlib4_docs/Init/Prelude.html)
-- [PureScript Pursuit](https://pursuit.purescript.org/)
-- [Haskell base package Prelude](https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html)
-- [PureScript Typeclass Hierarchy](https://jordanmartinez.github.io/purescript-jordans-reference-site/content/91-Type-Classes/index.html)
-- [Where to find theoretical background (i.e., resources) behind PureScript classes?](https://discourse.purescript.org/t/where-to-find-theoretical-background-i-e-resources-behind-purescript-classes/535)
-- [Counterexamples of Type Classes](https://blog.functorial.com/posts/2015-12-06-Counterexamples.html)
-- [Haskell semigroupoids package](https://github.com/ekmett/semigroupoids)
-  - [Class names](https://github.com/ekmett/semigroupoids/issues/26)
-- [Why not Pointed?](https://wiki.haskell.org/Why_not_Pointed%3F)
-- [Pluggable lifetimes](https://docs.rs/generic-std/latest/generic_std/plug/trait.PlugLifetime.html)
-- [Scala Cats](https://typelevel.org/cats/)
-- [haskell_bits](https://github.com/clintonmead/haskell_bits)
+See [References](fp-library/docs/references.md) for papers, libraries, and other resources that informed this project.

@@ -1,0 +1,16 @@
+# References
+
+- [Lightweight higher-kinded polymorphism](https://web.archive.org/web/20220104164033/https://www.lpw25.net/papers/flops2014.pdf)
+- [Typeclassopedia](https://wiki.haskell.org/Typeclassopedia)
+- [Lean Mathlib Prelude](https://leanprover-community.github.io/mathlib4_docs/Init/Prelude.html)
+- [PureScript Pursuit](https://pursuit.purescript.org/)
+- [Haskell base package Prelude](https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html)
+- [PureScript Typeclass Hierarchy](https://jordanmartinez.github.io/purescript-jordans-reference-site/content/91-Type-Classes/index.html)
+- [Where to find theoretical background (i.e., resources) behind PureScript classes?](https://discourse.purescript.org/t/where-to-find-theoretical-background-i-e-resources-behind-purescript-classes/535)
+- [Counterexamples of Type Classes](https://blog.functorial.com/posts/2015-12-06-Counterexamples.html)
+- [Haskell semigroupoids package](https://github.com/ekmett/semigroupoids)
+  - [Class names](https://github.com/ekmett/semigroupoids/issues/26)
+- [Why not Pointed?](https://wiki.haskell.org/Why_not_Pointed%3F)
+- [Pluggable lifetimes](https://docs.rs/generic-std/latest/generic_std/plug/trait.PlugLifetime.html)
+- [Scala Cats](https://typelevel.org/cats/)
+- [haskell_bits](https://github.com/clintonmead/haskell_bits)

@@ -8,13 +8,7 @@
 //!
 //! ## Motivation
 //!
-//! Rust is a multi-paradigm language with strong functional programming features like iterators, closures, and algebraic data types. However, it lacks native support for **Higher-Kinded Types (HKT)**, which limits the ability to write generic code that abstracts over type constructors (e.g., writing a function that works for any `Monad`, whether it's `Option`, `Result`, or `Vec`).
-//!
-//! `fp-library` aims to bridge this gap by providing:
-//!
-//! 1.  A robust encoding of HKTs in stable Rust.
-//! 2.  A comprehensive set of standard type classes (`Functor`, `Monad`, `Traversable`, etc.).
-//! 3.  Zero-cost abstractions that respect Rust's performance characteristics.
+//! Rust is a multi-paradigm language with strong functional programming features like iterators, closures, and algebraic data types. However, it lacks native support for **Higher-Kinded Types (HKT)**, which limits the ability to write generic code that abstracts over type constructors (e.g., writing a function that works for any `Monad`, whether it's `Option`, `Result`, or `Vec`). `fp-library` aims to bridge this gap.
 //!
 //! ## Examples
 //!
@@ -35,8 +29,9 @@
 //! assert_eq!(y, vec![11, 12, 13]);
 //! ```
 //!
-//! For types with multiple brands (e.g., `Result`), annotate the closure's input
-//! type to disambiguate which brand applies:
+//! For types with multiple brands (e.g., `Result`, which can be viewed as a functor over
+//! either its `Ok` or `Err` type), annotate the closure's input type to disambiguate
+//! which brand applies:
 //!
 //! ```
 //! use fp_library::functions::*;
@@ -96,20 +91,11 @@
 //! that implements `Kind` traits mapping brands back to concrete types.
 //! See [Higher-Kinded Types][crate::docs::hkt].
 //!
-//! **Brand Inference:** A user guide for turbofish-free dispatch. Shows how the compiler infers
-//! brands from container types, how closure annotations disambiguate multi-brand types like
-//! `Result`, and when to fall back to `explicit::` functions.
-//! See [Brand Inference][crate::docs::brand_inference].
-//!
-//! **Val/Ref Dispatch:** A user guide for unified function dispatch. Each free function routes to
-//! either a by-value or by-reference trait method based on the closure's argument type (or container
-//! ownership for closureless operations). Dispatch and brand inference compose through the shared
-//! `FA` type parameter. See [Val/Ref Dispatch][crate::docs::dispatch].
-//!
-//! **Brand Dispatch Traits:** The implementer reference for the `Kind` and `InferableBrand` trait
-//! families, covering trait shapes, the Marker invariant, inference resolution steps, impl
-//! landscape, and coverage matrix.
-//! See [Brand Dispatch Traits][crate::docs::brand_dispatch_traits].
+//! **Dispatch System:** Free functions like `map` and `bind` infer the brand from the container
+//! type and route to by-value or by-reference trait methods automatically, so most call sites
+//! need no turbofish. For details, see [Brand Inference][crate::docs::brand_inference],
+//! [Val/Ref Dispatch][crate::docs::dispatch], and
+//! [Brand Dispatch Traits][crate::docs::brand_dispatch_traits].
 //!
 //! **Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static
 //! dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where
@@ -144,7 +130,8 @@
 //! - [Optics Analysis][crate::docs::optics_analysis]: Optics coverage comparison with PureScript.
 //! - [Profunctor Analysis][crate::docs::profunctor_analysis]: Profunctor class hierarchy comparison with PureScript.
 //! - [Std Library Coverage][crate::docs::std_coverage_checklist]: Type class coverage for standard library types.
-//!-  [Benchmarks](crate::docs::benchmarking): Performance results, graphs, and benchmark coverage.
+//! - [Benchmarks][crate::docs::benchmarking]: Performance results, graphs, and benchmark coverage.
+//! - [References][crate::docs::references]: Papers, libraries, and resources that informed this project.
 //!
 //! ## Crate Features
 //!
