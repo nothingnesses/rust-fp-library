@@ -119,6 +119,92 @@ mod inner {
 			g: impl Fn(&C) -> D + 'a,
 			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
 		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>);
+
+		/// Maps a function over the first type argument of the bifunctor by reference.
+		///
+		/// By-reference variant of [`Bifunctor::map_first`]. The closure receives a reference
+		/// to the first value and produces an owned result. Requires `C: Clone` because the
+		/// second value must be cloned out of the borrowed container.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the first value.",
+			"The type of the first result.",
+			"The type of the second value (must be Clone)."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the first value.",
+			"The bifunctor instance (borrowed)."
+		)]
+		///
+		#[document_returns("A new bifunctor instance with the first value transformed.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// };
+		///
+		/// let x = Result::<i32, i32>::Err(5);
+		/// let y = ResultBrand::ref_map_first(|e: &i32| *e * 2, &x);
+		/// assert_eq!(y, Err(10));
+		///
+		/// let x = Result::<i32, i32>::Ok(5);
+		/// let y = ResultBrand::ref_map_first(|e: &i32| *e * 2, &x);
+		/// assert_eq!(y, Ok(5));
+		/// ```
+		fn ref_map_first<'a, A: 'a, B: 'a, C: Clone + 'a>(
+			f: impl Fn(&A) -> B + 'a,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
+		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, C>) {
+			Self::ref_bimap(f, |c: &C| c.clone(), p)
+		}
+
+		/// Maps a function over the second type argument of the bifunctor by reference.
+		///
+		/// By-reference variant of [`Bifunctor::map_second`]. The closure receives a reference
+		/// to the second value and produces an owned result. Requires `A: Clone` because the
+		/// first value must be cloned out of the borrowed container.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the first value (must be Clone).",
+			"The type of the second value.",
+			"The type of the second result."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the second value.",
+			"The bifunctor instance (borrowed)."
+		)]
+		///
+		#[document_returns("A new bifunctor instance with the second value transformed.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// };
+		///
+		/// let x = Result::<i32, i32>::Ok(5);
+		/// let y = ResultBrand::ref_map_second(|s: &i32| *s * 2, &x);
+		/// assert_eq!(y, Ok(10));
+		///
+		/// let x = Result::<i32, i32>::Err(5);
+		/// let y = ResultBrand::ref_map_second(|s: &i32| *s * 2, &x);
+		/// assert_eq!(y, Err(5));
+		/// ```
+		fn ref_map_second<'a, A: Clone + 'a, B: 'a, C: 'a>(
+			g: impl Fn(&B) -> C + 'a,
+			p: &Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>) {
+			Self::ref_bimap(|a: &A| a.clone(), g, p)
+		}
 	}
 
 	/// Maps functions over the values in the bifunctor context by reference.
@@ -162,6 +248,82 @@ mod inner {
 		p: &Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>) {
 		Brand::ref_bimap(f, g, p)
+	}
+
+	/// Maps a function over the first type argument of the bifunctor by reference.
+	///
+	/// Free function version that dispatches to [the type class' associated function][`RefBifunctor::ref_map_first`].
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the bifunctor.",
+		"The type of the first value.",
+		"The type of the first result.",
+		"The type of the second value (must be Clone)."
+	)]
+	///
+	#[document_parameters(
+		"The function to apply to the first value.",
+		"The bifunctor instance (borrowed)."
+	)]
+	///
+	#[document_returns("A new bifunctor instance with the first value transformed.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	classes::ref_bifunctor::*,
+	/// };
+	///
+	/// let x = Result::<i32, i32>::Err(5);
+	/// let y = ref_map_first::<ResultBrand, _, _, _>(|e: &i32| *e * 2, &x);
+	/// assert_eq!(y, Err(10));
+	/// ```
+	pub fn ref_map_first<'a, Brand: RefBifunctor, A: 'a, B: 'a, C: Clone + 'a>(
+		f: impl Fn(&A) -> B + 'a,
+		p: &Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
+	) -> Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, C>) {
+		Brand::ref_map_first(f, p)
+	}
+
+	/// Maps a function over the second type argument of the bifunctor by reference.
+	///
+	/// Free function version that dispatches to [the type class' associated function][`RefBifunctor::ref_map_second`].
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the bifunctor.",
+		"The type of the first value (must be Clone).",
+		"The type of the second value.",
+		"The type of the second result."
+	)]
+	///
+	#[document_parameters(
+		"The function to apply to the second value.",
+		"The bifunctor instance (borrowed)."
+	)]
+	///
+	#[document_returns("A new bifunctor instance with the second value transformed.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	classes::ref_bifunctor::*,
+	/// };
+	///
+	/// let x = Result::<i32, i32>::Ok(5);
+	/// let y = ref_map_second::<ResultBrand, _, _, _>(|s: &i32| *s * 2, &x);
+	/// assert_eq!(y, Ok(10));
+	/// ```
+	pub fn ref_map_second<'a, Brand: RefBifunctor, A: Clone + 'a, B: 'a, C: 'a>(
+		g: impl Fn(&B) -> C + 'a,
+		p: &Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+	) -> Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>) {
+		Brand::ref_map_second(g, p)
 	}
 
 	/// [`RefFunctor`] instance for [`BifunctorFirstAppliedBrand`].

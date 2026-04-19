@@ -106,6 +106,8 @@ pub mod foldable_with_index;
 pub mod functor;
 pub mod functor_with_index;
 pub mod lift;
+pub mod map_first;
+pub mod map_second;
 pub mod semiapplicative;
 pub mod semimonad;
 pub mod traversable;

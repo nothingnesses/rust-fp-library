@@ -156,8 +156,8 @@ pub use crate::{
 		profunctor::{
 			arrow,
 			dimap,
-			lmap,
-			rmap,
+			map_input,
+			map_output,
 		},
 		ref_bitraversable::{
 			ref_bi_for,
@@ -261,6 +261,8 @@ pub use crate::{
 			lift4,
 			lift5,
 		},
+		map_first::map_first,
+		map_second::map_second,
 		semiapplicative::apply,
 		semimonad::{
 			bind,
@@ -352,6 +354,8 @@ pub mod explicit {
 				lift4,
 				lift5,
 			},
+			map_first::explicit::map_first,
+			map_second::explicit::map_second,
 			semimonad::explicit::{
 				bind,
 				bind_flipped,

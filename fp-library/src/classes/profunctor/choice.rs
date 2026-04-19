@@ -339,7 +339,7 @@ mod inner {
 		l: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>),
 		r: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<B, A>, C>) {
-		Brand::rmap(
+		Brand::map_output(
 			|result: Result<C, C>| match result {
 				Ok(c) | Err(c) => c,
 			},

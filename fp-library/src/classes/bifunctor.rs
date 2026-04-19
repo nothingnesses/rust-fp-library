@@ -127,6 +127,92 @@ mod inner {
 			g: impl Fn(C) -> D + 'a,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
 		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>);
+
+		/// Maps a function over the first type argument of the bifunctor.
+		///
+		/// This is a convenience method that maps only over the first (left) type argument,
+		/// leaving the second unchanged.
+		/// Corresponds to `lmap` in both Haskell and PureScript.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the first value.",
+			"The type of the first result.",
+			"The type of the second value."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the first value.",
+			"The bifunctor instance."
+		)]
+		///
+		#[document_returns("A new bifunctor instance with the first value transformed.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// let x = Result::<i32, i32>::Err(5);
+		/// let y = map_first::<ResultBrand, _, _, _, _, _>(|e| e * 2, x);
+		/// assert_eq!(y, Err(10));
+		///
+		/// let x = Result::<i32, i32>::Ok(5);
+		/// let y = map_first::<ResultBrand, _, _, _, _, _>(|e| e * 2, x);
+		/// assert_eq!(y, Ok(5));
+		/// ```
+		fn map_first<'a, A: 'a, B: 'a, C: 'a>(
+			f: impl Fn(A) -> B + 'a,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
+		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, C>) {
+			Self::bimap(f, crate::functions::identity, p)
+		}
+
+		/// Maps a function over the second type argument of the bifunctor.
+		///
+		/// This is a convenience method that maps only over the second (right) type argument,
+		/// leaving the first unchanged.
+		/// Corresponds to `rmap` in both Haskell and PureScript.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the first value.",
+			"The type of the second value.",
+			"The type of the second result."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the second value.",
+			"The bifunctor instance."
+		)]
+		///
+		#[document_returns("A new bifunctor instance with the second value transformed.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::explicit::*,
+		/// };
+		///
+		/// let x = Result::<i32, i32>::Ok(5);
+		/// let y = map_second::<ResultBrand, _, _, _, _, _>(|s| s * 2, x);
+		/// assert_eq!(y, Ok(10));
+		///
+		/// let x = Result::<i32, i32>::Err(5);
+		/// let y = map_second::<ResultBrand, _, _, _, _, _>(|s| s * 2, x);
+		/// assert_eq!(y, Err(5));
+		/// ```
+		fn map_second<'a, A: 'a, B: 'a, C: 'a>(
+			g: impl Fn(B) -> C + 'a,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>) {
+			Self::bimap(crate::functions::identity, g, p)
+		}
 	}
 
 	/// Maps functions over the values in the bifunctor context.
@@ -170,6 +256,88 @@ mod inner {
 		p: Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>) {
 		Brand::bimap(f, g, p)
+	}
+
+	/// Maps a function over the first type argument of the bifunctor.
+	///
+	/// Corresponds to `lmap` in both Haskell and PureScript.
+	///
+	/// Free function version that dispatches to [the type class' associated function][`Bifunctor::map_first`].
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the bifunctor.",
+		"The type of the first value.",
+		"The type of the first result.",
+		"The type of the second value."
+	)]
+	///
+	#[document_parameters("The function to apply to the first value.", "The bifunctor instance.")]
+	///
+	#[document_returns("A new bifunctor instance with the first value transformed.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::explicit::*,
+	/// };
+	///
+	/// let x = Result::<i32, i32>::Err(5);
+	/// let y = map_first::<ResultBrand, _, _, _, _, _>(|e| e * 2, x);
+	/// assert_eq!(y, Err(10));
+	///
+	/// let x = Result::<i32, i32>::Ok(5);
+	/// let y = map_first::<ResultBrand, _, _, _, _, _>(|e| e * 2, x);
+	/// assert_eq!(y, Ok(5));
+	/// ```
+	pub fn map_first<'a, Brand: Bifunctor, A: 'a, B: 'a, C: 'a>(
+		f: impl Fn(A) -> B + 'a,
+		p: Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
+	) -> Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, C>) {
+		Brand::map_first(f, p)
+	}
+
+	/// Maps a function over the second type argument of the bifunctor.
+	///
+	/// Corresponds to `rmap` in both Haskell and PureScript.
+	///
+	/// Free function version that dispatches to [the type class' associated function][`Bifunctor::map_second`].
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the bifunctor.",
+		"The type of the first value.",
+		"The type of the second value.",
+		"The type of the second result."
+	)]
+	///
+	#[document_parameters("The function to apply to the second value.", "The bifunctor instance.")]
+	///
+	#[document_returns("A new bifunctor instance with the second value transformed.")]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::explicit::*,
+	/// };
+	///
+	/// let x = Result::<i32, i32>::Ok(5);
+	/// let y = map_second::<ResultBrand, _, _, _, _, _>(|s| s * 2, x);
+	/// assert_eq!(y, Ok(10));
+	///
+	/// let x = Result::<i32, i32>::Err(5);
+	/// let y = map_second::<ResultBrand, _, _, _, _, _>(|s| s * 2, x);
+	/// assert_eq!(y, Err(5));
+	/// ```
+	pub fn map_second<'a, Brand: Bifunctor, A: 'a, B: 'a, C: 'a>(
+		g: impl Fn(B) -> C + 'a,
+		p: Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+	) -> Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>) {
+		Brand::map_second(g, p)
 	}
 
 	impl_kind! {
