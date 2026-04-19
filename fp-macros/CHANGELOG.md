@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-04-19
+
+### Added
+
+- **`InferableFnBrand` resolution in HM signatures**: HM signature generation now resolves `InferableFnBrand` wrapper types to their semantic equivalents, eliminating stringly-typed processing.
+
+### Changed
+
+- **`doc_include!` renamed to `include_documentation!`**: Follows Rust naming conventions (verb-noun order, paralleling `include_str!` and `include_bytes!` from std). All 21 call sites in fp-library updated.
+- **`Slot` renamed to `InferableBrand`**: Generated trait names updated (`InferableBrand_*` instead of `Slot_*`). `FnBrandSlot` renamed to `InferableFnBrand`. `no_inferable_brand` attribute renamed to `multi_brand`.
+- **`generate_function_re_exports!` removed**: Macro deleted; fp-library now uses manual `pub use` re-exports for dispatch functions.
+- **Dispatch analysis uses `syn::Type` AST nodes**: Replaced stringly-typed processing with `syn` AST pattern matching in dispatch data structures, eliminating `parse_str` round-trips.
+- **Absolute crate paths in macro output**: Generated code uses `::fp_library::` paths and raw string literals instead of relative paths.
+
+### Fixed
+
+- **`dyn` erased from trait objects in HM signatures**: Trait objects like `dyn Fn(A) -> B` now display without the `dyn` keyword in generated signatures.
+- **Canonicalizer correctness**: Addressed audit findings for improved robustness.
+- **Reversed tuple param order**: Fixed detection of reversed tuple parameter order in `compose_kleisli_flipped`.
+
 ## [0.7.1] - 2026-04-15
 
 ### Added

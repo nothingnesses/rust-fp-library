@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-04-19
+
+### Added
+
+- **`BoxBrand`**: New brand implementing `Pointer` (`Of = Box<T>`) and `ToDynFn` (wraps `impl Fn` into `Box<dyn Fn>`). Validates that the flat pointer architecture accommodates pointer brands with a subset of capabilities.
+- **`ToDynFn` trait**: Extends `Pointer` for wrapping closures into `dyn Fn` trait objects behind any pointer type. Implemented for `BoxBrand`, `RcBrand`, and `ArcBrand`.
+- **Bifunctor `map_first`/`map_second`**: New trait methods with default implementations, plus `RefBifunctor::ref_map_first` and `ref_map_second` by-reference variants. Dispatch modules (`dispatch/map_first.rs`, `dispatch/map_second.rs`) with Val/Ref routing, inference wrappers, and explicit turbofish functions.
+- **Semiapplicative dispatch module**: `dispatch/semiapplicative.rs` with fully turbofish-free inference for `Semiapplicative::apply`. Both brand and `FnBrand` are inferred from container argument types.
+- **Unified Val/Ref apply dispatch**: `apply(f, x)` for owned containers and `apply(&f, &x)` for borrowed containers, both fully turbofish-free for single-brand types.
+- **Brand cross-references**: Type module doc comments now cross-reference their corresponding brand types.
+
+### Changed
+
+- **Profunctor method renames (API breaking)**: `Profunctor::lmap` renamed to `map_input`, `Profunctor::rmap` renamed to `map_output` for clarity in snake_case.
+- **`doc_include!` renamed to `include_documentation!` (API breaking)**: Follows Rust naming conventions (verb-noun order). All 21 call sites updated.
+- **Pointer associated type renames (API breaking)**: `RefCountedPointer::CloneableOf` renamed to `Of`, `SendRefCountedPointer::SendOf` renamed to `Of`, matching the library's convention (`Kind::Of`, `CloneFn::Of`, `SendCloneFn::Of`, `Pointer::Of`). Disambiguated via qualified syntax where needed.
+- **Coercion trait renames (API breaking)**: `UnsizedCoercible` renamed to `ToDynCloneFn`, `SendUnsizedCoercible` renamed to `ToDynSendFn`. Methods renamed to `new`/`ref_new` matching `LiftFn`/`RefLiftFn` pattern.
+- **Pointer hierarchy flattened (API breaking)**: Removed `Pointer` from `RefCountedPointer` supertraits, `RefCountedPointer` from `SendRefCountedPointer` supertraits, and `UnsizedCoercible` from `SendUnsizedCoercible` supertraits. Traits are now independent, composed via bounds where needed.
+- **Brand inference renames (API breaking)**: `Slot` renamed to `InferableBrand`, `FnBrandSlot` renamed to `InferableFnBrand`, `W` renamed to `WrappedFn`, `no_inferable_brand` attribute renamed to `multi_brand`.
+- **`generate_function_re_exports!` replaced with manual `pub use`**: Dispatch function re-exports in `functions.rs` now use explicit `pub use` statements instead of the proc macro.
+
+### Fixed
+
+- **`dyn` erased from trait objects in HM signatures**: Generated doc signatures no longer show the `dyn` keyword for trait objects.
+
 ## [0.16.1] - 2026-04-15
 
 ### Added

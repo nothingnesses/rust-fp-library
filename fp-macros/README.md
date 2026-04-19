@@ -14,7 +14,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-fp-macros = "0.7"
+fp-macros = "0.8"
 ```
 
 > **Note:** If you are using [`fp-library`](https://crates.io/crates/fp-library), these macros are already re-exported at the crate root. You only need to add this dependency if you are using the macros independently.
