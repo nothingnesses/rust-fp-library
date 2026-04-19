@@ -44,9 +44,7 @@ mod inner {
 		/// let f = to_dyn_clone_fn::<RcBrand, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
-		fn new<'a, A: 'a, B: 'a>(
-			f: impl 'a + Fn(A) -> B
-		) -> Self::CloneableOf<'a, dyn 'a + Fn(A) -> B>;
+		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, dyn 'a + Fn(A) -> B>;
 
 		/// Coerces a sized by-reference closure to a `dyn Fn(&A) -> B` wrapped in this pointer type.
 		#[document_signature]
@@ -75,7 +73,7 @@ mod inner {
 		/// ```
 		fn ref_new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(&A) -> B
-		) -> Self::CloneableOf<'a, dyn 'a + Fn(&A) -> B>;
+		) -> Self::Of<'a, dyn 'a + Fn(&A) -> B>;
 	}
 
 	/// Coerces a sized by-reference closure to a `dyn Fn(&A) -> B` wrapped in this pointer type.
@@ -104,7 +102,7 @@ mod inner {
 	/// ```
 	pub fn ref_new<'a, Brand: ToDynCloneFn, A: 'a, B: 'a>(
 		func: impl 'a + Fn(&A) -> B
-	) -> Brand::CloneableOf<'a, dyn 'a + Fn(&A) -> B> {
+	) -> Brand::Of<'a, dyn 'a + Fn(&A) -> B> {
 		<Brand as ToDynCloneFn>::ref_new::<A, B>(func)
 	}
 
@@ -137,7 +135,7 @@ mod inner {
 	/// ```
 	pub fn new<'a, Brand: ToDynCloneFn, A: 'a, B: 'a>(
 		func: impl 'a + Fn(A) -> B
-	) -> Brand::CloneableOf<'a, dyn 'a + Fn(A) -> B> {
+	) -> Brand::Of<'a, dyn 'a + Fn(A) -> B> {
 		<Brand as ToDynCloneFn>::new::<A, B>(func)
 	}
 }

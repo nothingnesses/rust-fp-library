@@ -24,7 +24,7 @@ mod inner {
 	/// This is an independent trait (not a supertrait of `ToDynCloneFn`),
 	/// matching the pattern used by `SendCloneFn` (independent of `CloneFn`).
 	/// It extends `SendRefCountedPointer` because its methods return
-	/// `SendRefCountedPointer::SendOf` types.
+	/// `SendRefCountedPointer::Of` types.
 	pub trait ToDynSendFn: SendRefCountedPointer + 'static {
 		/// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync`.
 		#[document_signature]
@@ -53,7 +53,7 @@ mod inner {
 		/// ```
 		fn new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(A) -> B + Send + Sync
-		) -> Self::SendOf<'a, dyn 'a + Fn(A) -> B + Send + Sync>;
+		) -> Self::Of<'a, dyn 'a + Fn(A) -> B + Send + Sync>;
 
 		/// Coerces a sized Send+Sync by-reference closure to a `dyn Fn(&A) -> B + Send + Sync`.
 		#[document_signature]
@@ -82,7 +82,7 @@ mod inner {
 		/// ```
 		fn ref_new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(&A) -> B + Send + Sync
-		) -> Self::SendOf<'a, dyn 'a + Fn(&A) -> B + Send + Sync>;
+		) -> Self::Of<'a, dyn 'a + Fn(&A) -> B + Send + Sync>;
 	}
 
 	/// Coerces a sized Send+Sync by-reference closure to a `dyn Fn(&A) -> B + Send + Sync`.
@@ -115,7 +115,7 @@ mod inner {
 	/// ```
 	pub fn ref_new<'a, Brand: ToDynSendFn, A: 'a, B: 'a>(
 		func: impl 'a + Fn(&A) -> B + Send + Sync
-	) -> Brand::SendOf<'a, dyn 'a + Fn(&A) -> B + Send + Sync> {
+	) -> Brand::Of<'a, dyn 'a + Fn(&A) -> B + Send + Sync> {
 		<Brand as ToDynSendFn>::ref_new::<A, B>(func)
 	}
 
@@ -148,7 +148,7 @@ mod inner {
 	/// ```
 	pub fn new<'a, Brand: ToDynSendFn, A: 'a, B: 'a>(
 		func: impl 'a + Fn(A) -> B + Send + Sync
-	) -> Brand::SendOf<'a, dyn 'a + Fn(A) -> B + Send + Sync> {
+	) -> Brand::Of<'a, dyn 'a + Fn(A) -> B + Send + Sync> {
 		<Brand as ToDynSendFn>::new::<A, B>(func)
 	}
 }

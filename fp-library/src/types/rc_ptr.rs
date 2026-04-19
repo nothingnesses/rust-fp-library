@@ -62,7 +62,7 @@ mod inner {
 	}
 
 	impl RefCountedPointer for RcBrand {
-		type CloneableOf<'a, T: ?Sized + 'a> = Rc<T>;
+		type Of<'a, T: ?Sized + 'a> = Rc<T>;
 		type TakeCellOf<'a, T: 'a> = Rc<RefCell<Option<T>>>;
 
 		/// Wraps a sized value in an `Rc`.

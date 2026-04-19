@@ -34,7 +34,7 @@ mod inner {
 
 	/// Trait for reference-counted pointers with shared ownership.
 	///
-	/// Provides [`CloneableOf`](Self::CloneableOf) (a cloneable, dereferenceable pointer)
+	/// Provides [`Of`](Self::Of) (a cloneable, dereferenceable pointer)
 	/// and [`TakeCellOf`](Self::TakeCellOf) (a cloneable cell supporting one-shot value
 	/// extraction). The latter pairs the pointer with an appropriate interior mutability
 	/// primitive (`RefCell` for `Rc`, `Mutex` for `Arc`).
@@ -46,7 +46,7 @@ mod inner {
 		/// The cloneable pointer type constructor.
 		///
 		/// For Rc/Arc, this is the same as `Of<'a, T>`.
-		type CloneableOf<'a, T: ?Sized + 'a>: Clone + Deref<Target = T> + 'a;
+		type Of<'a, T: ?Sized + 'a>: Clone + Deref<Target = T> + 'a;
 
 		/// Wraps a sized value in a cloneable pointer.
 		#[document_signature]
@@ -67,9 +67,9 @@ mod inner {
 		/// let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
 		/// ```
-		fn new<'a, T: 'a>(value: T) -> Self::CloneableOf<'a, T>
+		fn new<'a, T: 'a>(value: T) -> Self::Of<'a, T>
 		where
-			Self::CloneableOf<'a, T>: Sized;
+			Self::Of<'a, T>: Sized;
 
 		/// Attempts to unwrap the inner value if this is the sole reference.
 		#[document_signature]
@@ -97,9 +97,7 @@ mod inner {
 		/// let ptr2 = ptr1.clone();
 		/// assert!(try_unwrap::<RcBrand, _>(ptr1).is_err());
 		/// ```
-		fn try_unwrap<'a, T: 'a>(
-			ptr: Self::CloneableOf<'a, T>
-		) -> Result<T, Self::CloneableOf<'a, T>>;
+		fn try_unwrap<'a, T: 'a>(ptr: Self::Of<'a, T>) -> Result<T, Self::Of<'a, T>>;
 
 		/// A cloneable cell that holds an optional value which can be taken exactly once.
 		///
@@ -183,8 +181,8 @@ mod inner {
 	/// assert!(try_unwrap::<RcBrand, _>(ptr1).is_err());
 	/// ```
 	pub fn try_unwrap<'a, P: RefCountedPointer, T: 'a>(
-		ptr: P::CloneableOf<'a, T>
-	) -> Result<T, P::CloneableOf<'a, T>> {
+		ptr: P::Of<'a, T>
+	) -> Result<T, P::Of<'a, T>> {
 		P::try_unwrap(ptr)
 	}
 
@@ -213,9 +211,9 @@ mod inner {
 	/// let clone = ptr.clone();
 	/// assert_eq!(*clone, 42);
 	/// ```
-	pub fn new<'a, P: RefCountedPointer, T: 'a>(value: T) -> P::CloneableOf<'a, T>
+	pub fn new<'a, P: RefCountedPointer, T: 'a>(value: T) -> P::Of<'a, T>
 	where
-		P::CloneableOf<'a, T>: Sized, {
+		P::Of<'a, T>: Sized, {
 		P::new(value)
 	}
 

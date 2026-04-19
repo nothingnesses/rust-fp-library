@@ -35,7 +35,7 @@ mod inner {
 
 	impl_kind! {
 		impl<P: ToDynCloneFn> for FnBrand<P> {
-			type Of<'a, A: 'a, B: 'a>: 'a = <P as RefCountedPointer>::CloneableOf<'a, dyn 'a + Fn(A) -> B>;
+			type Of<'a, A: 'a, B: 'a>: 'a = <P as RefCountedPointer>::Of<'a, dyn 'a + Fn(A) -> B>;
 		}
 	}
 
@@ -84,7 +84,7 @@ mod inner {
 
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: ToDynCloneFn> CloneFn<Ref> for FnBrand<P> {
-		type Of<'a, A: 'a, B: 'a> = P::CloneableOf<'a, dyn 'a + Fn(&A) -> B>;
+		type Of<'a, A: 'a, B: 'a> = P::Of<'a, dyn 'a + Fn(&A) -> B>;
 		type PointerBrand = P;
 	}
 
@@ -467,12 +467,14 @@ mod inner {
 
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: ToDynSendFn + ToDynCloneFn> SendCloneFn for FnBrand<P> {
-		type Of<'a, A: 'a, B: 'a> = P::SendOf<'a, dyn 'a + Fn(A) -> B + Send + Sync>;
+		type Of<'a, A: 'a, B: 'a> =
+			<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(A) -> B + Send + Sync>;
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: ToDynSendFn + ToDynCloneFn> SendCloneFn<Ref> for FnBrand<P> {
-		type Of<'a, A: 'a, B: 'a> = P::SendOf<'a, dyn 'a + Fn(&A) -> B + Send + Sync>;
+		type Of<'a, A: 'a, B: 'a> =
+			<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(&A) -> B + Send + Sync>;
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]

@@ -64,7 +64,7 @@ mod inner {
 	}
 
 	impl RefCountedPointer for ArcBrand {
-		type CloneableOf<'a, T: ?Sized + 'a> = Arc<T>;
+		type Of<'a, T: ?Sized + 'a> = Arc<T>;
 		type TakeCellOf<'a, T: 'a> = Arc<Mutex<Option<T>>>;
 
 		/// Wraps a sized value in an `Arc`.
@@ -174,7 +174,7 @@ mod inner {
 	}
 
 	impl SendRefCountedPointer for ArcBrand {
-		type SendOf<'a, T: ?Sized + Send + Sync + 'a> = Arc<T>;
+		type Of<'a, T: ?Sized + Send + Sync + 'a> = Arc<T>;
 
 		/// Wraps a sized value in an `Arc`.
 		#[document_signature]

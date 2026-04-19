@@ -45,7 +45,7 @@ mod inner {
 				'a,
 				<FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
-					<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
+					<PointerBrand as RefCountedPointer>::Of<'a, S>,
 					A,
 				>,
 				B,
@@ -149,7 +149,7 @@ mod inner {
 					'a,
 					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
-						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
+						<PointerBrand as RefCountedPointer>::Of<'a, S>,
 						A,
 					>,
 					B,
@@ -158,7 +158,7 @@ mod inner {
 			+ 'a
 		) -> Self
 		where
-			<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
+			<PointerBrand as RefCountedPointer>::Of<'a, S>: Sized, {
 			Grate {
 				grate: <FnBrand<PointerBrand> as LiftFn>::new(grate),
 			}
@@ -203,7 +203,7 @@ mod inner {
 			s2: S,
 		) -> T
 		where
-			<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
+			<PointerBrand as RefCountedPointer>::Of<'a, S>: Sized, {
 			zip_with_of::<FnBrand<PointerBrand>, S, T, A, B>(self, f, s1, s2)
 		}
 	}
@@ -227,7 +227,7 @@ mod inner {
 		T: 'a,
 		A: 'a,
 		B: 'a + Clone,
-		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
+		<PointerBrand as RefCountedPointer>::Of<'a, S>: Sized,
 	{
 		/// Evaluates the grate with a profunctor.
 		#[document_signature]
@@ -274,7 +274,7 @@ mod inner {
 					<FnBrand<PointerBrand> as LiftFn>::new(
 						move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 							'a,
-							<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
+							<PointerBrand as RefCountedPointer>::Of<'a, S>,
 							A,
 						>|
 						      -> A { (f)(Clone::clone(&s_ptr)) },
@@ -284,7 +284,7 @@ mod inner {
 					'a,
 					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
-						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
+						<PointerBrand as RefCountedPointer>::Of<'a, S>,
 						A,
 					>,
 					B,
@@ -313,7 +313,7 @@ mod inner {
 		S: 'a,
 		A: 'a,
 		B: 'a + Clone,
-		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
+		<PointerBrand as RefCountedPointer>::Of<'a, S>: Sized,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -360,7 +360,7 @@ mod inner {
 					<FnBrand<PointerBrand> as LiftFn>::new(
 						move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 							'a,
-							<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
+							<PointerBrand as RefCountedPointer>::Of<'a, S>,
 							A,
 						>|
 						      -> A { (f)(Clone::clone(&s_ptr)) },
@@ -370,7 +370,7 @@ mod inner {
 					'a,
 					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
-						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
+						<PointerBrand as RefCountedPointer>::Of<'a, S>,
 						A,
 					>,
 					B,
@@ -399,7 +399,7 @@ mod inner {
 		S: 'a,
 		A: 'a,
 		B: 'a + Clone,
-		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
+		<PointerBrand as RefCountedPointer>::Of<'a, S>: Sized,
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
@@ -462,7 +462,7 @@ mod inner {
 				'a,
 				<FnBrand<PointerBrand> as CloneFn>::Of<
 					'a,
-					<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
+					<PointerBrand as RefCountedPointer>::Of<'a, S>,
 					A,
 				>,
 				A,
@@ -563,7 +563,7 @@ mod inner {
 					'a,
 					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
-						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
+						<PointerBrand as RefCountedPointer>::Of<'a, S>,
 						A,
 					>,
 					A,
@@ -572,7 +572,7 @@ mod inner {
 			+ 'a
 		) -> Self
 		where
-			<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
+			<PointerBrand as RefCountedPointer>::Of<'a, S>: Sized, {
 			GratePrime {
 				grate_fn: <FnBrand<PointerBrand> as LiftFn>::new(grate),
 			}
@@ -634,7 +634,7 @@ mod inner {
 			s2: S,
 		) -> S
 		where
-			<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
+			<PointerBrand as RefCountedPointer>::Of<'a, S>: Sized, {
 			zip_with_of::<FnBrand<PointerBrand>, S, S, A, A>(self, f, s1, s2)
 		}
 	}
@@ -653,7 +653,7 @@ mod inner {
 		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a + Clone,
-		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
+		<PointerBrand as RefCountedPointer>::Of<'a, S>: Sized,
 	{
 		/// Evaluates the grate with a profunctor.
 		#[document_signature]
@@ -699,7 +699,7 @@ mod inner {
 					<FnBrand<PointerBrand> as LiftFn>::new(
 						move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 							'a,
-							<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
+							<PointerBrand as RefCountedPointer>::Of<'a, S>,
 							A,
 						>| { (f)(Clone::clone(&s_ptr)) },
 					)
@@ -708,7 +708,7 @@ mod inner {
 					'a,
 					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
-						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
+						<PointerBrand as RefCountedPointer>::Of<'a, S>,
 						A,
 					>,
 					A,
@@ -734,7 +734,7 @@ mod inner {
 		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a + Clone,
-		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
+		<PointerBrand as RefCountedPointer>::Of<'a, S>: Sized,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -779,7 +779,7 @@ mod inner {
 					<FnBrand<PointerBrand> as LiftFn>::new(
 						move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 							'a,
-							<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
+							<PointerBrand as RefCountedPointer>::Of<'a, S>,
 							A,
 						>| { (f)(Clone::clone(&s_ptr)) },
 					)
@@ -788,7 +788,7 @@ mod inner {
 					'a,
 					<FnBrand<PointerBrand> as CloneFn>::Of<
 						'a,
-						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
+						<PointerBrand as RefCountedPointer>::Of<'a, S>,
 						A,
 					>,
 					A,
@@ -814,7 +814,7 @@ mod inner {
 		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a + Clone,
-		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
+		<PointerBrand as RefCountedPointer>::Of<'a, S>: Sized,
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
