@@ -32,7 +32,7 @@ mod inner {
 	)]
 	pub struct IndexedGetter<'a, PointerBrand, I, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		I: 'a,
 		S: 'a,
 		A: 'a, {
@@ -50,7 +50,7 @@ mod inner {
 	#[document_parameters("The indexed getter instance.")]
 	impl<'a, PointerBrand, I, S, A> Clone for IndexedGetter<'a, PointerBrand, I, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		I: 'a,
 		S: 'a,
 		A: 'a,
@@ -85,7 +85,7 @@ mod inner {
 	#[document_parameters("The indexed getter instance.")]
 	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedGetter<'a, PointerBrand, I, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		/// Create a new indexed getter.
 		#[document_signature]
@@ -140,7 +140,7 @@ mod inner {
 	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedGetterOptic<'a, I, S, A>
 		for IndexedGetter<'a, PointerBrand, I, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The result type.", "The reference-counted pointer type.")]
@@ -163,7 +163,7 @@ mod inner {
 		/// let result = IndexedGetterOptic::evaluate::<i32, RcBrand>(&g, pab);
 		/// assert_eq!(result.run((42, "hi".to_string())), 42);
 		/// ```
-		fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Indexed<'a, ForgetBrand<Q, R>, I, A, A>,
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>)
@@ -187,7 +187,7 @@ mod inner {
 	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedFoldOptic<'a, I, S, A>
 		for IndexedGetter<'a, PointerBrand, I, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
@@ -210,10 +210,7 @@ mod inner {
 		/// let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&g, pab);
 		/// assert_eq!(result.run((42, "hi".to_string())), "[0]=42");
 		/// ```
-		fn evaluate<
-			R: 'a + crate::classes::monoid::Monoid + 'static,
-			Q: UnsizedCoercible + 'static,
-		>(
+		fn evaluate<R: 'a + crate::classes::monoid::Monoid + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Indexed<'a, ForgetBrand<Q, R>, I, A, A>,
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>)
@@ -234,9 +231,9 @@ mod inner {
 	#[document_parameters("The indexed getter instance.")]
 	impl<
 		'a,
-		Q2: UnsizedCoercible + 'static,
+		Q2: ToDynCloneFn + 'static,
 		R: 'a + 'static,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		I: 'a,
 		S: 'a,
 		A: 'a,
@@ -281,9 +278,9 @@ mod inner {
 	#[document_parameters("The indexed getter instance.")]
 	impl<
 		'a,
-		Q2: UnsizedCoercible + 'static,
+		Q2: ToDynCloneFn + 'static,
 		R: 'a + 'static,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		I: 'a,
 		S: 'a,
 		A: 'a,

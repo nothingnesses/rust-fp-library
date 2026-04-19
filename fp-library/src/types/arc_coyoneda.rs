@@ -2,7 +2,7 @@
 //!
 //! [`ArcCoyoneda`] is a variant of [`Coyoneda`](crate::types::Coyoneda) that wraps
 //! its inner layers in [`Arc`](std::sync::Arc) instead of [`Box`], making it `Clone`,
-//! `Send`, and `Sync`. This enables sharing deferred map chains across threads.
+//! `Send`, and `Sync`. This enables sharing deferred map chains across threads. The corresponding brand is [`ArcCoyonedaBrand`](crate::brands::ArcCoyonedaBrand).
 //!
 //! ## Trade-offs vs `RcCoyoneda`
 //!

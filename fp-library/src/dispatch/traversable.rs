@@ -233,7 +233,7 @@ pub(crate) mod inner {
 	/// Traverses a structure, inferring the brand from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `ta`
-	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). `FnBrand` and `F` (the applicative brand) must
+	/// via the `InferableBrand` trait. `FnBrand` and `F` (the applicative brand) must
 	/// still be specified explicitly.
 	/// Both owned and borrowed containers are supported.
 	///
@@ -248,7 +248,7 @@ pub(crate) mod inner {
 		"The type of the elements in the input structure.",
 		"The type of the elements in the output structure.",
 		"The applicative functor brand (must be specified explicitly).",
-		"Dispatch marker type, inferred automatically."
+		"The brand, inferred via InferableBrand from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -268,21 +268,22 @@ pub(crate) mod inner {
 	/// let y = traverse::<RcFnBrand, _, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Some(5));
 	/// assert_eq!(y, Some(Some(10)));
 	/// ```
-	pub fn traverse<'a, FnBrand, FA, A: 'a, B: 'a, F: Kind_cdc7cd43dac7585f, Marker>(
+	pub fn traverse<'a, FnBrand, FA, A: 'a, B: 'a, F: Kind_cdc7cd43dac7585f, Brand>(
 		func: impl TraverseDispatch<
 			'a,
 			FnBrand,
-			<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+			Brand,
 			A,
 			B,
 			F,
 			FA,
-			Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		ta: FA,
-	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 	where
-		FA: InferableBrand_cdc7cd43dac7585f, {
+		Brand: Kind_cdc7cd43dac7585f,
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		func.dispatch(ta)
 	}
 

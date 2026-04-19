@@ -1,6 +1,6 @@
 //! Deferred, non-memoized computation with higher-kinded type support.
 //!
-//! Builds computation chains without stack safety guarantees but supports borrowing and lifetime polymorphism. Does not cache results; if you need the same computation's result more than once, wrap it in [`Lazy`](crate::types::Lazy). For stack-safe alternatives, use [`Trampoline`](crate::types::Trampoline).
+//! Builds computation chains without stack safety guarantees but supports borrowing and lifetime polymorphism. Does not cache results; if you need the same computation's result more than once, wrap it in [`Lazy`](crate::types::Lazy). For stack-safe alternatives, use [`Trampoline`](crate::types::Trampoline). The corresponding brand is [`ThunkBrand`](crate::brands::ThunkBrand).
 
 #[fp_macros::document_module]
 mod inner {
@@ -591,7 +591,7 @@ mod inner {
 		///
 		/// let func = pure::<ThunkBrand, _>(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let val = pure::<ThunkBrand, _>(21);
-		/// let result = apply::<RcFnBrand, ThunkBrand, _, _>(func, val);
+		/// let result = apply(func, val);
 		/// assert_eq!(result.evaluate(), 42);
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
@@ -1364,7 +1364,7 @@ mod tests {
 	fn test_apply_via_brand() {
 		let func = pure::<ThunkBrand, _>(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		let val = pure::<ThunkBrand, _>(21);
-		let result = apply::<RcFnBrand, ThunkBrand, _, _>(func, val);
+		let result = apply(func, val);
 		assert_eq!(result.evaluate(), 42);
 	}
 

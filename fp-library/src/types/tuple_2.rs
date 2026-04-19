@@ -1,6 +1,6 @@
 //! Two-value tuple with [`Bifunctor`](crate::classes::Bifunctor) and dual [`Functor`](crate::classes::Functor) instances.
 //!
-//! Can be used as a bifunctor over both values, or as a functor/monad by fixing either the first value [`Tuple2FirstAppliedBrand`](crate::brands::Tuple2FirstAppliedBrand) or second value [`Tuple2SecondAppliedBrand`](crate::brands::Tuple2SecondAppliedBrand).
+//! Can be used as a bifunctor over both values [`Tuple2Brand`](crate::brands::Tuple2Brand), or as a functor/monad by fixing either the first value [`Tuple2FirstAppliedBrand`](crate::brands::Tuple2FirstAppliedBrand) or second value [`Tuple2SecondAppliedBrand`](crate::brands::Tuple2SecondAppliedBrand).
 
 #[fp_macros::document_module]
 mod inner {
@@ -442,7 +442,7 @@ mod inner {
 	// Tuple2FirstAppliedBrand<First> (Functor over Second)
 
 	impl_kind! {
-		#[no_inferable_brand]
+		#[multi_brand]
 		impl<First: 'static> for Tuple2FirstAppliedBrand<First> {
 			type Of<'a, A: 'a>: 'a = (First, A);
 		}
@@ -612,12 +612,13 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::semiapplicative::apply as explicit_apply,
 		/// 	functions::*,
 		/// };
 		///
 		/// let f = ("a".to_string(), lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(
-		/// 	apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(f, ("b".to_string(), 5)),
+		/// 	explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(f, ("b".to_string(), 5)),
 		/// 	("ab".to_string(), 10)
 		/// );
 		/// ```
@@ -1208,7 +1209,7 @@ mod inner {
 	// Tuple2SecondAppliedBrand<Second> (Functor over First)
 
 	impl_kind! {
-		#[no_inferable_brand]
+		#[multi_brand]
 		impl<Second: 'static> for Tuple2SecondAppliedBrand<Second> {
 			type Of<'a, A: 'a>: 'a = (A, Second);
 		}
@@ -1378,12 +1379,16 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::semiapplicative::apply as explicit_apply,
 		/// 	functions::*,
 		/// };
 		///
 		/// let f = (lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2), "a".to_string());
 		/// assert_eq!(
-		/// 	apply::<RcFnBrand, Tuple2SecondAppliedBrand<String>, _, _>(f, (5, "b".to_string())),
+		/// 	explicit_apply::<RcFnBrand, Tuple2SecondAppliedBrand<String>, _, _>(
+		/// 		f,
+		/// 		(5, "b".to_string())
+		/// 	),
 		/// 	(10, "ab".to_string())
 		/// );
 		/// ```
@@ -1972,7 +1977,10 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::*,
+			classes::{
+				semiapplicative::apply as explicit_apply,
+				*,
+			},
 			functions::*,
 		},
 		core::ops::ControlFlow,
@@ -2059,7 +2067,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let v = (first, second);
-		apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
+		explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
 			pure::<Tuple2FirstAppliedBrand<String>, _>(<RcFnBrand as LiftFn>::new(identity)),
 			v.clone(),
 		) == v
@@ -2069,7 +2077,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
+		explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
 			pure::<Tuple2FirstAppliedBrand<String>, _>(<RcFnBrand as LiftFn>::new(f)),
 			pure::<Tuple2FirstAppliedBrand<String>, _>(x),
 		) == pure::<Tuple2FirstAppliedBrand<String>, _>(f(x))
@@ -2092,8 +2100,11 @@ mod tests {
 		let v = pure::<Tuple2FirstAppliedBrand<String>, _>(v_fn);
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(v.clone(), w.clone());
-		let rhs = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(u.clone(), vw);
+		let vw = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
+			v.clone(),
+			w.clone(),
+		);
+		let rhs = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		let compose_fn = <RcFnBrand as LiftFn>::new(|f: std::rc::Rc<dyn Fn(i32) -> i32>| {
@@ -2106,9 +2117,10 @@ mod tests {
 		});
 
 		let pure_compose = pure::<Tuple2FirstAppliedBrand<String>, _>(compose_fn);
-		let u_applied = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(pure_compose, u);
-		let uv = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(u_applied, v);
-		let lhs = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(uv, w);
+		let u_applied =
+			explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(pure_compose, u);
+		let uv = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(u_applied, v);
+		let lhs = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(uv, w);
 
 		lhs == rhs
 	}
@@ -2123,13 +2135,13 @@ mod tests {
 		let f = move |x: i32| x.wrapping_mul(u_seed);
 		let u = pure::<Tuple2FirstAppliedBrand<String>, _>(<RcFnBrand as LiftFn>::new(f));
 
-		let lhs = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
+		let lhs = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
 			u.clone(),
 			pure::<Tuple2FirstAppliedBrand<String>, _>(y),
 		);
 
 		let rhs_fn = <RcFnBrand as LiftFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
+		let rhs = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
 			pure::<Tuple2FirstAppliedBrand<String>, _>(rhs_fn),
 			u,
 		);

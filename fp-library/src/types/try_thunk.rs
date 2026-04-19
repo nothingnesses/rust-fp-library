@@ -1,6 +1,6 @@
 //! Deferred, non-memoized fallible computation with higher-kinded type support.
 //!
-//! The fallible counterpart to [`Thunk`](crate::types::Thunk). Each call to [`TryThunk::evaluate`] re-executes the computation and returns a [`Result`]. Supports borrowing and lifetime polymorphism.
+//! The fallible counterpart to [`Thunk`](crate::types::Thunk). Each call to [`TryThunk::evaluate`] re-executes the computation and returns a [`Result`]. Supports borrowing and lifetime polymorphism. The corresponding brands are [`TryThunkBrand`](crate::brands::TryThunkBrand) (bifunctor), [`TryThunkErrAppliedBrand`](crate::brands::TryThunkErrAppliedBrand) (functor over the success value), and [`TryThunkOkAppliedBrand`](crate::brands::TryThunkOkAppliedBrand) (functor over the error value).
 
 #[fp_macros::document_module]
 mod inner {
@@ -962,7 +962,7 @@ mod inner {
 	}
 
 	impl_kind! {
-		#[no_inferable_brand]
+		#[multi_brand]
 		impl<E: 'static> for TryThunkErrAppliedBrand<E> {
 			#[document_default]
 			type Of<'a, A: 'a>: 'a = TryThunk<'a, A, E>;
@@ -1121,6 +1121,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::semiapplicative::apply as explicit_apply,
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
@@ -1128,7 +1129,7 @@ mod inner {
 		/// let func: TryThunk<_, ()> =
 		/// 	pure::<TryThunkErrAppliedBrand<()>, _>(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let val: TryThunk<_, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(21);
-		/// let result = apply::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _>(func, val);
+		/// let result = explicit_apply::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Ok(42));
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
@@ -1697,7 +1698,7 @@ mod inner {
 	}
 
 	impl_kind! {
-		#[no_inferable_brand]
+		#[multi_brand]
 		/// HKT branding for `TryThunk` with the success type `A` fixed.
 		///
 		/// This is the "dual-channel" encoding for `TryThunk`:
@@ -1887,6 +1888,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::semiapplicative::apply as explicit_apply,
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
@@ -1894,7 +1896,7 @@ mod inner {
 		/// let func: TryThunk<i32, _> =
 		/// 	pure::<TryThunkOkAppliedBrand<i32>, _>(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let val: TryThunk<i32, _> = pure::<TryThunkOkAppliedBrand<i32>, _>(21);
-		/// let result = apply::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _>(func, val);
+		/// let result = explicit_apply::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Err(42));
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneFn, E1: 'a + Clone, E2: 'a>(

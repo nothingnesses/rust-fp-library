@@ -204,7 +204,7 @@ pub(crate) mod inner {
 	/// Maps a function with index over a functor, inferring the brand from the container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both owned and borrowed containers are supported.
+	/// via the `InferableBrand` trait. Both owned and borrowed containers are supported.
 	///
 	/// For types with multiple brands, use
 	/// [`explicit::map_with_index`](crate::functions::explicit::map_with_index) with a turbofish.
@@ -215,7 +215,7 @@ pub(crate) mod inner {
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The type of the value(s) inside the functor.",
 		"The type of the result(s) of applying the function.",
-		"Dispatch marker type, inferred automatically."
+		"The brand, inferred via InferableBrand from FA and the element type."
 	)]
 	///
 	#[document_parameters(
@@ -232,20 +232,20 @@ pub(crate) mod inner {
 	/// let y = map_with_index(|i, x: i32| x + i as i32, vec![10, 20, 30]);
 	/// assert_eq!(y, vec![10, 21, 32]);
 	/// ```
-	pub fn map_with_index<'a, FA, A: 'a, B: 'a, Marker>(
+	pub fn map_with_index<'a, FA, A: 'a, B: 'a, Brand>(
 		f: impl MapWithIndexDispatch<
 			'a,
-			<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+			Brand,
 			A,
 			B,
 			FA,
-			Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
-	) -> Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		FA: InferableBrand_cdc7cd43dac7585f,
-		<FA as InferableBrand_cdc7cd43dac7585f>::Brand: WithIndex, {
+		Brand: Kind_cdc7cd43dac7585f + WithIndex,
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa)
 	}
 

@@ -2,7 +2,7 @@
 //!
 //! [`RcCoyoneda`] is a variant of [`Coyoneda`](crate::types::Coyoneda) that wraps
 //! its inner layers in [`Rc`](std::rc::Rc) instead of [`Box`], making it `Clone`.
-//! This enables sharing and reuse of deferred map chains without consuming the value.
+//! This enables sharing and reuse of deferred map chains without consuming the value. The corresponding brand is [`RcCoyonedaBrand`](crate::brands::RcCoyonedaBrand).
 //!
 //! ## Trade-offs vs `Coyoneda`
 //!

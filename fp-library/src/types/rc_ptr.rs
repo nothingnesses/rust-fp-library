@@ -1,6 +1,6 @@
 //! Single-threaded reference-counted pointer abstraction using [`Rc`](std::rc::Rc).
 //!
-//! Provides trait implementations for using `Rc` in the library's pointer abstraction hierarchy. Not thread-safe; use [`ArcBrand`](crate::brands::ArcBrand) for multi-threaded contexts.
+//! Provides trait implementations for using `Rc` in the library's pointer abstraction hierarchy. Not thread-safe; use [`ArcBrand`](crate::brands::ArcBrand) for multi-threaded contexts. The corresponding brand is [`RcBrand`](crate::brands::RcBrand).
 //!
 //! ### Examples
 //!
@@ -22,7 +22,8 @@ mod inner {
 			classes::{
 				Pointer,
 				RefCountedPointer,
-				UnsizedCoercible,
+				ToDynCloneFn,
+				ToDynFn,
 			},
 		},
 		fp_macros::*,
@@ -61,7 +62,7 @@ mod inner {
 	}
 
 	impl RefCountedPointer for RcBrand {
-		type CloneableOf<'a, T: ?Sized + 'a> = Rc<T>;
+		type Of<'a, T: ?Sized + 'a> = Rc<T>;
 		type TakeCellOf<'a, T: 'a> = Rc<RefCell<Option<T>>>;
 
 		/// Wraps a sized value in an `Rc`.
@@ -84,7 +85,7 @@ mod inner {
 		/// let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
 		/// ```
-		fn cloneable_new<'a, T: 'a>(value: T) -> Rc<T> {
+		fn new<'a, T: 'a>(value: T) -> Rc<T> {
 			Rc::new(value)
 		}
 
@@ -165,7 +166,63 @@ mod inner {
 		}
 	}
 
-	impl UnsizedCoercible for RcBrand {
+	impl ToDynFn for RcBrand {
+		/// Coerces a sized closure to a `dyn Fn` wrapped in an `Rc`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the closure.",
+			"The input type of the function.",
+			"The output type of the function."
+		)]
+		///
+		#[document_parameters("The closure to coerce.")]
+		///
+		#[document_returns("The closure wrapped in an `Rc` as a trait object.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// };
+		///
+		/// let f = <RcBrand as ToDynFn>::new(|x: i32| x + 1);
+		/// assert_eq!(f(1), 2);
+		/// ```
+		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Rc<dyn 'a + Fn(A) -> B> {
+			Rc::new(f)
+		}
+
+		/// Coerces a sized by-reference closure to a `dyn Fn(&A) -> B` wrapped in an `Rc`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the closure.",
+			"The input type (the closure receives `&A`).",
+			"The output type of the function."
+		)]
+		///
+		#[document_parameters("The closure to coerce.")]
+		///
+		#[document_returns("The closure wrapped in an `Rc` as a by-reference trait object.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// };
+		///
+		/// let f = <RcBrand as ToDynFn>::ref_new(|x: &i32| *x + 1);
+		/// assert_eq!(f(&1), 2);
+		/// ```
+		fn ref_new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(&A) -> B) -> Rc<dyn 'a + Fn(&A) -> B> {
+			Rc::new(f)
+		}
+	}
+
+	impl ToDynCloneFn for RcBrand {
 		/// Coerces a sized closure to a `dyn Fn` wrapped in an `Rc`.
 		#[document_signature]
 		///
@@ -187,10 +244,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = coerce_fn::<RcBrand, _, _>(|x: i32| x + 1);
+		/// let f = to_dyn_clone_fn::<RcBrand, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
-		fn coerce_fn<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Rc<dyn 'a + Fn(A) -> B> {
+		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Rc<dyn 'a + Fn(A) -> B> {
 			Rc::new(f)
 		}
 
@@ -215,10 +272,10 @@ mod inner {
 		/// 	classes::*,
 		/// };
 		///
-		/// let f = RcBrand::coerce_ref_fn(|x: &i32| *x + 1);
+		/// let f = <RcBrand as ToDynCloneFn>::ref_new(|x: &i32| *x + 1);
 		/// assert_eq!(f(&1), 2);
 		/// ```
-		fn coerce_ref_fn<'a, A: 'a, B: 'a>(f: impl 'a + Fn(&A) -> B) -> Rc<dyn 'a + Fn(&A) -> B> {
+		fn ref_new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(&A) -> B) -> Rc<dyn 'a + Fn(&A) -> B> {
 			Rc::new(f)
 		}
 	}
@@ -231,29 +288,29 @@ mod tests {
 		brands::RcBrand,
 		classes::{
 			RefCountedPointer,
-			pointer::new,
-			ref_counted_pointer::cloneable_new,
+			pointer::new as pointer_new,
+			ref_counted_pointer::new as ref_counted_pointer_new,
 		},
 	};
 
-	/// Tests that `pointer_new` correctly creates an `Rc` wrapping the value.
+	/// Tests that `Pointer::new` correctly creates an `Rc` wrapping the value.
 	#[test]
-	fn test_rc_new() {
-		let ptr = new::<RcBrand, _>(42);
+	fn test_rc_pointer_new() {
+		let ptr = pointer_new::<RcBrand, _>(42);
 		assert_eq!(*ptr, 42);
 	}
 
-	/// Tests that `ref_counted_pointer_new` correctly creates an `Rc` wrapping the value.
+	/// Tests that `RefCountedPointer::new` correctly creates an `Rc` wrapping the value.
 	#[test]
-	fn test_rc_cloneable_new() {
-		let ptr = cloneable_new::<RcBrand, _>(42);
+	fn test_rc_ref_counted_new() {
+		let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
 		assert_eq!(*ptr, 42);
 	}
 
 	/// Tests that cloning the pointer works as expected (shared ownership).
 	#[test]
 	fn test_rc_clone() {
-		let ptr = cloneable_new::<RcBrand, _>(42);
+		let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
 		let clone = ptr.clone();
 		assert_eq!(*clone, 42);
 	}
@@ -263,10 +320,10 @@ mod tests {
 	/// - Returns `Err(ptr)` when there are multiple references.
 	#[test]
 	fn test_rc_try_unwrap() {
-		let ptr = cloneable_new::<RcBrand, _>(42);
+		let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
 		assert_eq!(RcBrand::try_unwrap(ptr), Ok(42));
 
-		let ptr = cloneable_new::<RcBrand, _>(42);
+		let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
 		let _clone = ptr.clone();
 		assert!(RcBrand::try_unwrap(ptr).is_err());
 	}

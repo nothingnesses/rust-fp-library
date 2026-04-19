@@ -197,15 +197,30 @@ pub(crate) mod inner {
 	/// Maps a function over a functor, inferring the brand from the container type.
 	///
 	/// This is the primary API for mapping. The `Brand` type parameter is
-	/// inferred from the concrete type of `fa` via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). Both
+	/// inferred from the concrete type of `fa` via the `InferableBrand` trait. Both
 	/// owned and borrowed containers are supported:
 	///
 	/// - Owned: `map(|x: i32| x + 1, Some(5))` infers `OptionBrand`.
 	/// - Borrowed: `map(|x: &i32| *x + 1, &Some(5))` infers `OptionBrand`
 	///   via the blanket `impl InferableBrand for &T`.
 	///
-	/// For types with multiple brands (e.g., `Result`), use
-	/// [`explicit::map`](crate::functions::explicit::map) with a turbofish.
+	/// For multi-brand types (e.g., `Result`), the closure's input type
+	/// disambiguates which brand applies:
+	///
+	/// - `map(|x: i32| x + 1, Ok::<i32, String>(5))` infers
+	///   `ResultErrAppliedBrand<String>` (maps over Ok).
+	/// - `map(|e: String| e.len(), Err::<i32, String>("hi".into()))` infers
+	///   `ResultOkAppliedBrand<i32>` (maps over Err).
+	///
+	/// For diagonal cases where the closure cannot disambiguate (e.g.,
+	/// `Result<T, T>`), use [`explicit::map`](crate::functions::explicit::map)
+	/// with a turbofish.
+	///
+	/// **Note:** Pre-bound closures (`let f = |x| x + 1; map(f, Ok(5))`) may
+	/// lose deferred inference context for multi-brand types, because the
+	/// closure's parameter type is committed before `map` can use it for brand
+	/// resolution. Annotate the closure parameter type explicitly in these
+	/// cases: `let f = |x: i32| x + 1;`.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -213,7 +228,7 @@ pub(crate) mod inner {
 		"The container type (owned or borrowed). Brand is inferred from this.",
 		"The type of the value(s) inside the functor.",
 		"The type of the result(s) of applying the function.",
-		"Dispatch marker type, inferred automatically."
+		"The brand, inferred via InferableBrand from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -234,12 +249,20 @@ pub(crate) mod inner {
 	/// let v = vec![1, 2, 3];
 	/// assert_eq!(map(|x: &i32| *x + 10, &v), vec![11, 12, 13]);
 	/// ```
-	pub fn map<'a, FA, A: 'a, B: 'a, Marker>(
-		f: impl FunctorDispatch<'a, <FA as InferableBrand_cdc7cd43dac7585f>::Brand, A, B, FA, Marker>,
+	pub fn map<'a, FA, A: 'a, B: 'a, Brand>(
+		f: impl FunctorDispatch<
+			'a,
+			Brand,
+			A,
+			B,
+			FA,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+		>,
 		fa: FA,
-	) -> Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		FA: InferableBrand_cdc7cd43dac7585f, {
+		Brand: Kind_cdc7cd43dac7585f,
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa)
 	}
 

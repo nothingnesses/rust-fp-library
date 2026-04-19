@@ -1,1 +1,1 @@
-#![doc = fp_macros::doc_include!("docs/hkt.md")]
+#![doc = fp_macros::include_documentation!("docs/hkt.md")]

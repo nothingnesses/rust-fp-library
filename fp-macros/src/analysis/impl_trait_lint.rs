@@ -58,6 +58,21 @@ pub fn find_impl_trait_candidates(sig: &Signature) -> Vec<ImplTraitCandidate> {
 			continue;
 		}
 
+		// 5. Not self-referential in bounds.
+		// If the param's own bounds reference itself (e.g.,
+		// `FA: JoinDispatch<..., <FA as InferableBrand<...>>::Marker>`), it cannot use
+		// `impl Trait` because `impl Trait` cannot reference itself by name.
+		if is_self_referential_in_bounds(&all_bounds, &name) {
+			continue;
+		}
+
+		// 6. Not used in where-clause projections (e.g., `<FA as Trait>::Assoc: Bound`).
+		// `impl Trait` cannot be referenced by name, so any where-clause predicate
+		// whose `bounded_ty` contains the param inside a projection disqualifies it.
+		if appears_in_where_clause_projection(sig, &name) {
+			continue;
+		}
+
 		let bounds_display = format_bounds(&all_bounds);
 		candidates.push(ImplTraitCandidate {
 			param_name: name,
@@ -176,6 +191,52 @@ fn is_cross_referenced(
 		}
 	}
 
+	false
+}
+
+/// Check if the type parameter appears inside its own bounds.
+///
+/// When a param's bounds reference itself (e.g.,
+/// `FA: JoinDispatch<..., <FA as InferableBrand<...>>::Marker>`), the param cannot use
+/// `impl Trait` because `impl Trait` cannot reference itself by name.
+fn is_self_referential_in_bounds(
+	bounds: &[&TypeParamBound],
+	name: &str,
+) -> bool {
+	for bound in bounds {
+		if let TypeParamBound::Trait(trait_bound) = bound
+			&& trait_bound_contains_type_param(trait_bound, name)
+		{
+			return true;
+		}
+	}
+	false
+}
+
+/// Check if the type parameter appears inside a where-clause projection's subject.
+///
+/// When a predicate's `bounded_ty` is a projection like `<FA as Trait>::Assoc`,
+/// the type param `FA` cannot use `impl Trait` because `impl Trait` cannot be
+/// referenced by name in where clauses. This catches predicates where the param
+/// appears inside `bounded_ty` but is not the bare ident itself (those are
+/// already handled as simple bound collection in `collect_all_bounds`).
+fn appears_in_where_clause_projection(
+	sig: &Signature,
+	name: &str,
+) -> bool {
+	if let Some(wc) = &sig.generics.where_clause {
+		for pred in &wc.predicates {
+			if let syn::WherePredicate::Type(pred_type) = pred
+				// Skip predicates where the bounded_ty IS the bare param (e.g., `FA: Trait`).
+				// Those are normal bounds, not projections.
+				&& !type_is_ident(&pred_type.bounded_ty, name)
+				// Check if the param appears inside the bounded_ty (e.g., `<FA as Trait>::Assoc`)
+				&& contains_type_param(&pred_type.bounded_ty, name)
+			{
+				return true;
+			}
+		}
+	}
 	false
 }
 
@@ -689,5 +750,49 @@ mod tests {
 		let sig = parse_sig("fn foo<F: Iterator>(x: <F as Iterator>::Item)");
 		let candidates = find_impl_trait_candidates(&sig);
 		assert!(candidates.is_empty());
+	}
+
+	// =========================================================================
+	// Self-referential bounds tests
+	// =========================================================================
+
+	#[test]
+	fn test_self_referential_bound_not_candidate() {
+		// FA's own bound references FA via a projection: cannot use impl Trait
+		let sig = parse_sig(
+			"fn join<FA, A>(mma: FA) where FA: InferableBrand<A> + Dispatch<A, <FA as InferableBrand<A>>::Marker>",
+		);
+		let candidates = find_impl_trait_candidates(&sig);
+		assert!(candidates.is_empty());
+	}
+
+	#[test]
+	fn test_non_self_referential_bound_is_candidate() {
+		// FA's bounds do not reference FA itself
+		let sig = parse_sig("fn foo<FA: Clone + Send>(x: FA)");
+		let candidates = find_impl_trait_candidates(&sig);
+		assert_eq!(candidates.len(), 1);
+		assert_eq!(candidates[0].param_name, "FA");
+	}
+
+	// =========================================================================
+	// Where-clause projection tests
+	// =========================================================================
+
+	#[test]
+	fn test_where_clause_projection_not_candidate() {
+		// FA appears inside a where-clause predicate's bounded_ty as a projection
+		let sig = parse_sig("fn foo<FA: Clone>(x: FA) where <FA as Iterator>::Item: Send");
+		let candidates = find_impl_trait_candidates(&sig);
+		assert!(candidates.is_empty());
+	}
+
+	#[test]
+	fn test_simple_where_bound_still_candidate() {
+		// FA has a simple where-clause bound (FA: Clone), not a projection
+		let sig = parse_sig("fn foo<FA>(x: FA) where FA: Clone");
+		let candidates = find_impl_trait_candidates(&sig);
+		assert_eq!(candidates.len(), 1);
+		assert_eq!(candidates[0].param_name, "FA");
 	}
 }

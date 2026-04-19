@@ -38,7 +38,7 @@ mod inner {
 	)]
 	pub struct Lens<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -58,7 +58,7 @@ mod inner {
 	#[document_parameters("The lens instance.")]
 	impl<'a, PointerBrand, S, T, A, B> Clone for Lens<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -97,7 +97,7 @@ mod inner {
 	#[document_parameters("The lens instance.")]
 	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> Lens<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		/// Create a new polymorphic lens.
 		/// This matches PureScript's `lens'` constructor.
@@ -239,7 +239,7 @@ mod inner {
 		for Lens<'a, PointerBrand, S, T, A, B>
 	where
 		Q: Strong,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -298,7 +298,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> LensOptic<'a, S, T, A, B>
 		for Lens<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -348,7 +348,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> AffineTraversalOptic<'a, S, T, A, B>
 		for Lens<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -398,7 +398,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> TraversalOptic<'a, S, T, A, B>
 		for Lens<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -445,7 +445,7 @@ mod inner {
 	#[document_parameters("The lens instance.")]
 	impl<'a, PointerBrand, S: 'a, A: 'a> GetterOptic<'a, S, A> for Lens<'a, PointerBrand, S, S, A, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters(
@@ -474,7 +474,7 @@ mod inner {
 		/// let folded = GetterOptic::evaluate(&l, f);
 		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
 		/// ```
-		fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
@@ -492,7 +492,7 @@ mod inner {
 	#[document_parameters("The lens instance.")]
 	impl<'a, PointerBrand, S: 'a, A: 'a> FoldOptic<'a, S, A> for Lens<'a, PointerBrand, S, S, A, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
@@ -518,7 +518,7 @@ mod inner {
 		/// let folded = FoldOptic::evaluate(&l, f);
 		/// assert_eq!(folded.run((42, "hi".to_string())), "42".to_string());
 		/// ```
-		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
@@ -540,8 +540,8 @@ mod inner {
 	impl<'a, Q, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> SetterOptic<'a, Q, S, T, A, B>
 		for Lens<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
-		Q: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
+		Q: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
@@ -590,7 +590,7 @@ mod inner {
 	)]
 	pub struct LensPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a, {
 		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, (A, <FnBrand<PointerBrand> as CloneFn>::Of<'a, A, S>)>),
@@ -605,7 +605,7 @@ mod inner {
 	#[document_parameters("The lens instance.")]
 	impl<'a, PointerBrand, S, A> Clone for LensPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{
@@ -639,7 +639,7 @@ mod inner {
 	#[document_parameters("The monomorphic lens instance.")]
 	impl<'a, PointerBrand, S: 'a, A: 'a> LensPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		/// Create a new monomorphic lens.
 		/// This matches PureScript's `lens'` constructor.
@@ -806,7 +806,7 @@ mod inner {
 	impl<'a, Q, PointerBrand, S, A> Optic<'a, Q, S, S, A, A> for LensPrime<'a, PointerBrand, S, A>
 	where
 		Q: Strong,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{
@@ -863,7 +863,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, A: 'a> AffineTraversalOptic<'a, S, S, A, A>
 		for LensPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -911,7 +911,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, A: 'a> TraversalOptic<'a, S, S, A, A>
 		for LensPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -958,7 +958,7 @@ mod inner {
 	#[document_parameters("The monomorphic lens instance.")]
 	impl<'a, PointerBrand, S: 'a, A: 'a> GetterOptic<'a, S, A> for LensPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters(
@@ -987,7 +987,7 @@ mod inner {
 		/// let folded = GetterOptic::evaluate(&l, f);
 		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
 		/// ```
-		fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
@@ -1005,7 +1005,7 @@ mod inner {
 	#[document_parameters("The monomorphic lens instance.")]
 	impl<'a, PointerBrand, S: 'a, A: 'a> FoldOptic<'a, S, A> for LensPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
@@ -1031,7 +1031,7 @@ mod inner {
 		/// let folded = FoldOptic::evaluate(&l, f);
 		/// assert_eq!(folded.run((42, "hi".to_string())), "42".to_string());
 		/// ```
-		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
@@ -1051,8 +1051,8 @@ mod inner {
 	impl<'a, Q, PointerBrand, S: 'a, A: 'a> SetterOptic<'a, Q, S, S, A, A>
 		for LensPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
-		Q: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
+		Q: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
@@ -1098,7 +1098,7 @@ mod inner {
 	#[document_parameters("The monomorphic lens instance.")]
 	impl<'a, PointerBrand, S: 'a, A: 'a> LensOptic<'a, S, S, A, A> for LensPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]

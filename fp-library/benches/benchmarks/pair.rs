@@ -5,6 +5,7 @@ use {
 	},
 	fp_library::{
 		brands::*,
+		classes::semiapplicative::apply as explicit_apply,
 		functions::*,
 		types::Pair,
 	},
@@ -199,7 +200,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
+				explicit_apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
 					std::hint::black_box(f.clone()),
 					std::hint::black_box(val.clone()),
 				)

@@ -1,9 +1,31 @@
 //! The primary API for calling type class operations as free functions.
 //!
-//! This module re-exports inference-enabled dispatch functions from
-//! [`dispatch`](crate::dispatch). These functions automatically infer the
-//! Brand type parameter from the container argument, so callers do not need
-//! a turbofish annotation:
+//! Re-exports are drawn from three source modules, each serving a
+//! different role:
+//!
+//! - **[`dispatch`](crate::dispatch)** provides inference wrappers that
+//!   infer Brand (and sometimes FnBrand) from the container argument via
+//!   [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f).
+//!   These are the primary API for most operations (`map`, `bind`,
+//!   `fold_left`, `apply`, etc.). Val/Ref dispatch is also handled
+//!   automatically: passing an owned container dispatches to the Val
+//!   impl, passing a reference dispatches to the Ref impl.
+//!
+//! - **[`classes`](crate::classes)** provides free functions that take
+//!   Brand via turbofish. These cover operations where Brand cannot be
+//!   inferred from arguments because the container is constructed rather
+//!   than transformed (e.g., [`pure`], [`plus_empty`]), or where the
+//!   function was superseded by a dispatch wrapper and serves as the
+//!   explicit fallback.
+//!
+//! - **[`types`](crate::types)** provides type-specific utilities
+//!   (constructors, conversions) that do not go through the type class
+//!   system.
+//!
+//! The [`explicit`] submodule re-exports the explicit (turbofish-required)
+//! versions from each dispatch module, for cases where Brand inference is
+//! ambiguous (e.g., diagonal types like `Result<T, T>`, or generic
+//! contexts):
 //!
 //! ```
 //! use fp_library::functions::*;
@@ -13,16 +35,13 @@
 //! assert_eq!(result, vec![2, 3, 4]);
 //! ```
 //!
-//! For cases where Brand inference is ambiguous (e.g., generic contexts),
-//! the [`explicit`] submodule provides versions that require a Brand
-//! turbofish:
-//!
 //! ```
 //! use fp_library::{
 //! 	brands::*,
 //! 	functions::explicit::*,
 //! };
 //!
+//! // Brand specified explicitly via turbofish.
 //! let result = map::<VecBrand, _, _, _, _>(|x: i32| x + 1, vec![1, 2, 3]);
 //! assert_eq!(result, vec![2, 3, 4]);
 //! ```
@@ -32,224 +51,325 @@
 
 use fp_macros::*;
 
-pub use crate::dispatch::contravariant::contramap;
-// Inference wrappers (from dispatch modules, top-level of each).
-pub use crate::dispatch::{
-	alt::alt,
-	apply_first::apply_first,
-	apply_second::apply_second,
-	bifoldable::{
-		bi_fold_left,
-		bi_fold_map,
-		bi_fold_right,
+pub use crate::{
+	// -- Class-level free functions (Brand via turbofish) --
+	//
+	// These are operations where Brand cannot be inferred from the
+	// arguments (e.g., constructors) or where no dispatch wrapper
+	// exists. Aliases avoid name collisions with other re-exports.
+	classes::{
+		alternative::guard,
+		applicative::{
+			unless,
+			when,
+		},
+		bitraversable::{
+			bi_for,
+			bi_sequence,
+			for_left,
+			for_right,
+			traverse_left,
+			traverse_right,
+		},
+		category::identity as category_identity,
+		clone_fn::new as lift_fn_new,
+		clone_fn::ref_new as ref_lift_fn_new,
+		deferrable::defer,
+		division_ring::{
+			divide_left,
+			divide_right,
+			reciprocate,
+		},
+		euclidean_ring::{
+			degree,
+			divide,
+			gcd,
+			lcm,
+			modulo,
+		},
+		extend::{
+			compose_co_kleisli,
+			compose_co_kleisli_flipped,
+			duplicate,
+			extend,
+			extend_flipped,
+		},
+		extract::extract,
+		heyting_algebra::{
+			conjoin,
+			disjoin,
+			false_value,
+			imply,
+			not,
+			true_value,
+		},
+		monad::{
+			if_m,
+			unless_m,
+			when_m,
+		},
+		monad_rec::{
+			forever,
+			repeat_m,
+			tail_rec_m,
+			until_m,
+			until_some,
+			while_m,
+			while_some,
+		},
+		monoid::{
+			empty,
+			power,
+		},
+		par_compactable::{
+			par_compact,
+			par_separate,
+		},
+		par_filterable::{
+			par_filter,
+			par_filter_map,
+		},
+		par_filterable_with_index::{
+			par_filter_map_with_index,
+			par_filter_with_index,
+		},
+		par_foldable::par_fold_map,
+		par_foldable_with_index::par_fold_map_with_index,
+		par_functor::par_map,
+		par_functor_with_index::par_map_with_index,
+		par_ref_filterable::{
+			par_ref_filter,
+			par_ref_filter_map,
+		},
+		par_ref_filterable_with_index::{
+			par_ref_filter_map_with_index,
+			par_ref_filter_with_index,
+		},
+		par_ref_foldable::par_ref_fold_map,
+		par_ref_foldable_with_index::par_ref_fold_map_with_index,
+		par_ref_functor::par_ref_map,
+		par_ref_functor_with_index::par_ref_map_with_index,
+		pipe::pipe,
+		plus::empty as plus_empty,
+		pointed::pure,
+		pointer::new as pointer_new,
+		profunctor::{
+			arrow,
+			dimap,
+			map_input,
+			map_output,
+		},
+		ref_bitraversable::{
+			ref_bi_for,
+			ref_bi_for_left,
+			ref_bi_for_right,
+			ref_bi_sequence,
+			ref_bi_traverse_left,
+			ref_bi_traverse_right,
+		},
+		ref_counted_pointer::new as ref_counted_pointer_new,
+		ref_counted_pointer::{
+			take_cell_new,
+			take_cell_take,
+			try_unwrap,
+		},
+		ref_monad::{
+			ref_if_m,
+			ref_unless_m,
+		},
+		ref_pointed::ref_pure,
+		ref_semiapplicative::ref_apply,
+		ref_traversable::ref_traverse,
+		ring::{
+			negate,
+			subtract,
+		},
+		semigroup::append,
+		semigroupoid::compose as semigroupoid_compose,
+		semiring::{
+			add,
+			multiply,
+			one,
+			zero,
+		},
+		send_clone_fn::new as send_lift_fn_new,
+		send_clone_fn::ref_new as send_ref_lift_fn_new,
+		send_deferrable::send_defer,
+		send_ref_apply_first::send_ref_apply_first,
+		send_ref_apply_second::send_ref_apply_second,
+		send_ref_counted_pointer::new as send_ref_counted_pointer_new,
+		send_ref_foldable::send_ref_fold_map,
+		send_ref_foldable_with_index::send_ref_fold_map_with_index,
+		send_ref_functor::send_ref_map,
+		send_ref_functor_with_index::send_ref_map_with_index,
+		send_ref_lift::send_ref_lift2,
+		send_ref_pointed::send_ref_pure,
+		send_ref_semiapplicative::send_ref_apply,
+		send_ref_semimonad::send_ref_bind,
+		to_dyn_clone_fn::new as to_dyn_clone_fn,
+		to_dyn_clone_fn::ref_new as to_ref_dyn_clone_fn,
+		to_dyn_fn::to_dyn_fn,
+		to_dyn_fn::to_ref_dyn_fn,
+		to_dyn_send_fn::new as to_dyn_send_fn,
+		to_dyn_send_fn::ref_new as to_ref_dyn_send_fn,
+		traversable::sequence,
 	},
-	bifunctor::bimap,
-	bitraversable::bi_traverse,
-	compactable::{
-		compact,
-		separate,
-	},
-	filterable::{
-		filter,
-		filter_map,
-		partition,
-		partition_map,
-	},
-	filterable_with_index::{
-		filter_map_with_index,
-		filter_with_index,
-		partition_map_with_index,
-		partition_with_index,
-	},
-	foldable::{
-		fold_left,
-		fold_map,
-		fold_right,
-	},
-	foldable_with_index::{
-		fold_left_with_index,
-		fold_map_with_index,
-		fold_right_with_index,
-	},
-	functor::map,
-	functor_with_index::map_with_index,
-	lift::{
-		lift2,
-		lift3,
-		lift4,
-		lift5,
-	},
-	semimonad::{
-		bind,
-		bind_flipped,
-		join,
-	},
-	traversable::traverse,
-	traversable_with_index::traverse_with_index,
-	witherable::{
-		wilt,
-		wither,
-	},
-};
-// Auto-generate re-exports, passing in aliases for conflicting names.
-fp_macros::generate_function_re_exports!("src/classes", {
-	"category::identity": category_identity,
-	"clone_fn::new": lift_fn_new,
-	"clone_fn::ref_new": ref_lift_fn_new,
-	"pointer::new": pointer_new,
-	"ref_counted_pointer::cloneable_new": ref_counted_pointer_new,
-	"send_ref_counted_pointer::send_new": send_ref_counted_pointer_new,
-	"plus::empty": plus_empty,
-	"semigroupoid::compose": semigroupoid_compose,
-	"send_clone_fn::new": send_lift_fn_new,
-	"send_clone_fn::ref_new": send_ref_lift_fn_new,
-}, exclude {
-	// By-value non-dispatch free functions superseded by dispatch versions.
-	"contravariant::contramap",
-	"alt::alt",
-	"apply_first::apply_first",
-	"apply_second::apply_second",
-	"bifoldable::bi_fold_left",
-	"bifoldable::bi_fold_map",
-	"bifoldable::bi_fold_right",
-	"bifunctor::bimap",
-	"bitraversable::bi_traverse",
-	"compactable::compact",
-	"compactable::separate",
-	"filterable::filter",
-	"filterable::filter_map",
-	"filterable::partition",
-	"filterable::partition_map",
-	"filterable_with_index::filter_map_with_index",
-	"filterable_with_index::filter_with_index",
-	"filterable_with_index::partition_map_with_index",
-	"filterable_with_index::partition_with_index",
-	"foldable_with_index::fold_left_with_index",
-	"foldable_with_index::fold_map_with_index",
-	"foldable_with_index::fold_right_with_index",
-	"functor_with_index::map_with_index",
-	"semimonad::join",
-	"traversable::traverse",
-	"traversable_with_index::traverse_with_index",
-	"witherable::wilt",
-	"witherable::wither",
-	// By-ref non-dispatch free functions superseded by dispatch versions.
-	"ref_alt::ref_alt",
-	"ref_apply_first::ref_apply_first",
-	"ref_apply_second::ref_apply_second",
-	"ref_bifunctor::ref_bimap",
-	"ref_bifoldable::ref_bi_fold_left",
-	"ref_bifoldable::ref_bi_fold_map",
-	"ref_bifoldable::ref_bi_fold_right",
-	"ref_bitraversable::ref_bi_traverse",
-	"ref_compactable::ref_compact",
-	"ref_compactable::ref_separate",
-	"ref_filterable::ref_filter",
-	"ref_filterable::ref_filter_map",
-	"ref_filterable::ref_partition",
-	"ref_filterable::ref_partition_map",
-	"ref_filterable_with_index::ref_filter_with_index",
-	"ref_filterable_with_index::ref_filter_map_with_index",
-	"ref_filterable_with_index::ref_partition_with_index",
-	"ref_filterable_with_index::ref_partition_map_with_index",
-	"ref_foldable_with_index::ref_fold_left_with_index",
-	"ref_foldable_with_index::ref_fold_map_with_index",
-	"ref_foldable_with_index::ref_fold_right_with_index",
-	"ref_functor_with_index::ref_map_with_index",
-	"ref_semimonad::ref_join",
-	"ref_traversable_with_index::ref_traverse_with_index",
-	"ref_witherable::ref_wilt",
-	"ref_witherable::ref_wither",
-});
-/// Explicit dispatch functions requiring a Brand turbofish.
-///
-/// For most use cases, prefer the inference-enabled wrappers from the parent
-/// [`functions`](crate::functions) module.
-pub mod explicit {
-	pub use crate::dispatch::{
-		alt::explicit::alt,
-		apply_first::explicit::apply_first,
-		apply_second::explicit::apply_second,
-		bifoldable::explicit::{
+	// Inference wrappers (from dispatch modules, top-level of each).
+	dispatch::{
+		alt::alt,
+		apply_first::apply_first,
+		apply_second::apply_second,
+		bifoldable::{
 			bi_fold_left,
 			bi_fold_map,
 			bi_fold_right,
 		},
-		bifunctor::explicit::bimap,
-		bitraversable::explicit::bi_traverse,
-		compactable::explicit::{
+		bifunctor::bimap,
+		bitraversable::bi_traverse,
+		compactable::{
 			compact,
 			separate,
 		},
-		contravariant::explicit::contramap,
-		filterable::explicit::{
+		contravariant::contramap,
+		filterable::{
 			filter,
 			filter_map,
 			partition,
 			partition_map,
 		},
-		filterable_with_index::explicit::{
+		filterable_with_index::{
 			filter_map_with_index,
 			filter_with_index,
 			partition_map_with_index,
 			partition_with_index,
 		},
-		foldable::explicit::{
+		foldable::{
 			fold_left,
 			fold_map,
 			fold_right,
 		},
-		foldable_with_index::explicit::{
+		foldable_with_index::{
 			fold_left_with_index,
 			fold_map_with_index,
 			fold_right_with_index,
 		},
-		functor::explicit::map,
-		functor_with_index::explicit::map_with_index,
-		lift::explicit::{
+		functor::map,
+		functor_with_index::map_with_index,
+		lift::{
 			lift2,
 			lift3,
 			lift4,
 			lift5,
 		},
-		semimonad::explicit::{
+		map_first::map_first,
+		map_second::map_second,
+		semiapplicative::apply,
+		semimonad::{
 			bind,
 			bind_flipped,
+			compose_kleisli,
+			compose_kleisli_flipped,
 			join,
 		},
-		traversable::explicit::traverse,
-		traversable_with_index::explicit::traverse_with_index,
-		witherable::explicit::{
+		traversable::traverse,
+		traversable_with_index::traverse_with_index,
+		witherable::{
 			wilt,
 			wither,
 		},
+	},
+	// -- Type-specific utilities --
+	types::{
+		lazy::{
+			arc_lazy_fix,
+			rc_lazy_fix,
+		},
+		optics::{
+			optics_as_index,
+			optics_compose,
+			optics_indexed_fold_map,
+			optics_indexed_over,
+			optics_indexed_preview,
+			optics_indexed_set,
+			optics_indexed_view,
+			optics_reindexed,
+			optics_un_index,
+			positions,
+		},
+	},
+};
+
+/// Explicit dispatch functions requiring a Brand turbofish.
+///
+/// For most use cases, prefer the inference-enabled wrappers from the parent
+/// [`functions`](crate::functions) module.
+pub mod explicit {
+	// The class-level apply serves as the explicit fallback (takes
+	// FnBrand and Brand via turbofish). The dispatch version infers both.
+	pub use crate::{
+		classes::semiapplicative::apply,
+		dispatch::{
+			alt::explicit::alt,
+			apply_first::explicit::apply_first,
+			apply_second::explicit::apply_second,
+			bifoldable::explicit::{
+				bi_fold_left,
+				bi_fold_map,
+				bi_fold_right,
+			},
+			bifunctor::explicit::bimap,
+			bitraversable::explicit::bi_traverse,
+			compactable::explicit::{
+				compact,
+				separate,
+			},
+			contravariant::explicit::contramap,
+			filterable::explicit::{
+				filter,
+				filter_map,
+				partition,
+				partition_map,
+			},
+			filterable_with_index::explicit::{
+				filter_map_with_index,
+				filter_with_index,
+				partition_map_with_index,
+				partition_with_index,
+			},
+			foldable::explicit::{
+				fold_left,
+				fold_map,
+				fold_right,
+			},
+			foldable_with_index::explicit::{
+				fold_left_with_index,
+				fold_map_with_index,
+				fold_right_with_index,
+			},
+			functor::explicit::map,
+			functor_with_index::explicit::map_with_index,
+			lift::explicit::{
+				lift2,
+				lift3,
+				lift4,
+				lift5,
+			},
+			map_first::explicit::map_first,
+			map_second::explicit::map_second,
+			semimonad::explicit::{
+				bind,
+				bind_flipped,
+				join,
+			},
+			traversable::explicit::traverse,
+			traversable_with_index::explicit::traverse_with_index,
+			witherable::explicit::{
+				wilt,
+				wither,
+			},
+		},
 	};
 }
-
-// Functions without dispatch wrappers.
-pub use crate::dispatch::semimonad::{
-	compose_kleisli,
-	compose_kleisli_flipped,
-};
-// Re-exports from other modules.
-pub use crate::types::{
-	lazy::{
-		arc_lazy_fix,
-		rc_lazy_fix,
-	},
-	optics::{
-		optics_as_index,
-		optics_compose,
-		optics_indexed_fold_map,
-		optics_indexed_over,
-		optics_indexed_preview,
-		optics_indexed_set,
-		optics_indexed_view,
-		optics_reindexed,
-		optics_un_index,
-		positions,
-	},
-};
 
 /// Composes two functions.
 ///

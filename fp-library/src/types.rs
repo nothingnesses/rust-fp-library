@@ -16,6 +16,7 @@
 pub mod additive;
 pub mod arc_coyoneda;
 pub mod arc_ptr;
+pub mod box_ptr;
 pub mod cat_list;
 pub mod conjunctive;
 pub mod const_val;

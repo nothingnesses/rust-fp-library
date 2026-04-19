@@ -21,7 +21,6 @@ pub use {
 	apply::{
 		ApplyInput,
 		apply_worker,
-		resolve_inferable_brand,
 	},
 	associated_type::AssociatedTypeBase,
 	canonicalizer::{

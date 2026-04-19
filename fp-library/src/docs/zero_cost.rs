@@ -1,1 +1,1 @@
-#![doc = fp_macros::doc_include!("docs/zero-cost.md")]
+#![doc = fp_macros::include_documentation!("docs/zero-cost.md")]

@@ -20,12 +20,28 @@ use {
 	},
 };
 
+/// Infrastructure trait names that are not semantic type class constraints.
+/// These are marker/capability traits that should be excluded from dispatch
+/// analysis and HM signature constraints.
+const INFRASTRUCTURE_TRAITS: &[&str] =
+	&["Send", "Sync", "Clone", "Copy", "Debug", "Display", "Sized", "LiftFn", "SendLiftFn"];
+
 #[derive(Debug, PartialEq)]
 pub enum TraitCategory {
+	/// Fn, FnMut, FnOnce.
 	FnTrait,
+	/// CloneableFn, SendCloneableFn, Function (function-wrapping brands).
 	FnBrand,
+	/// The Apply! macro or aliases.
 	ApplyMacro,
+	/// Kind_* or InferableBrand_* traits.
 	Kind,
+	/// *Dispatch traits (e.g., FunctorDispatch, ApplyDispatch).
+	Dispatch,
+	/// Infrastructure traits (Send, Sync, Clone, etc.) that are not
+	/// semantic type class constraints.
+	Infrastructure,
+	/// A semantic type class or other user-defined trait.
 	Other(String),
 }
 
@@ -40,8 +56,40 @@ pub fn classify_trait(
 		n if config.apply_macro_aliases().contains(n) => TraitCategory::ApplyMacro,
 		n if n.starts_with(markers::KIND_PREFIX) => TraitCategory::Kind,
 		n if n.starts_with(markers::INFERABLE_BRAND_PREFIX) => TraitCategory::Kind,
+		n if n.ends_with(markers::DISPATCH_SUFFIX) => TraitCategory::Dispatch,
+		n if INFRASTRUCTURE_TRAITS.contains(&n) => TraitCategory::Infrastructure,
 		_ => TraitCategory::Other(name.to_string()),
 	}
+}
+
+/// Check if a trait name represents a semantic type class constraint
+/// (as opposed to infrastructure like Fn, Kind, Send, Dispatch, etc.).
+///
+/// Uses only compile-time constant checks without requiring Config.
+/// This works because Config-dependent categories (Apply! macro aliases)
+/// never appear as trait bounds in dispatch contexts.
+pub fn is_semantic_type_class(name: &str) -> bool {
+	// Not a Fn trait
+	if traits::FN_TRAITS.contains(&name) {
+		return false;
+	}
+	// Not a FnBrand
+	if brands::FN_BRANDS.contains(&name) {
+		return false;
+	}
+	// Not a Kind or InferableBrand trait
+	if name.starts_with(markers::KIND_PREFIX) || name.starts_with(markers::INFERABLE_BRAND_PREFIX) {
+		return false;
+	}
+	// Not a dispatch trait
+	if name.ends_with(markers::DISPATCH_SUFFIX) {
+		return false;
+	}
+	// Not infrastructure
+	if INFRASTRUCTURE_TRAITS.contains(&name) {
+		return false;
+	}
+	true
 }
 
 /// Extract the HM type from a trait bound if it represents a function type.

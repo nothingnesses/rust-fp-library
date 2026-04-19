@@ -55,7 +55,7 @@ mod inner {
 	/// // Annihilation: apply(empty, f) = empty
 	/// let f: Vec<i32> = vec![1, 2, 3];
 	/// let empty_fns: Vec<std::rc::Rc<dyn Fn(i32) -> i32>> = plus_empty::<VecBrand, _>();
-	/// let result = apply::<RcFnBrand, VecBrand, _, _>(empty_fns, f);
+	/// let result = apply(empty_fns, f);
 	/// assert_eq!(result, plus_empty::<VecBrand, i32>());
 	/// ```
 	pub trait Alternative: Applicative + Plus {}

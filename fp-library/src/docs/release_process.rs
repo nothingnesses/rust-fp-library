@@ -1,1 +1,1 @@
-#![doc = fp_macros::doc_include!("docs/release-process.md")]
+#![doc = fp_macros::include_documentation!("docs/release-process.md")]

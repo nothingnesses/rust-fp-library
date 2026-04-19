@@ -6,7 +6,15 @@
 
 use {
 	crate::{
-		analysis::patterns::get_apply_macro_parameters,
+		analysis::{
+			generics::{
+				collect_trait_bounds_for_param,
+				trait_bound_name,
+				where_clause_type_predicates,
+			},
+			patterns::get_apply_macro_parameters,
+			traits::is_semantic_type_class,
+		},
 		core::constants::markers,
 		hkt::{
 			ApplyInput,
@@ -21,7 +29,6 @@ use {
 		PathArguments,
 		ReturnType,
 		Type,
-		WherePredicate,
 	},
 };
 
@@ -52,17 +59,17 @@ pub struct DispatchTraitInfo {
 	pub return_structure: ReturnStructure,
 	/// Container param mapping: maps trait type param names to their element
 	/// types and position in the trait's generic param list.
-	/// E.g., for lift2: [ContainerParam { name: "FA", position: 4, elements: ["A"] }].
+	/// E.g., for lift2: [ContainerParam { name: "FA", position: 4, elements: [A] }].
 	/// Derived from the dispatch trait's generic parameter positions.
 	pub container_params: Vec<ContainerParam>,
 	/// Associated type definitions from the Val impl block.
 	/// Maps associated type names to their element types extracted from Apply!.
-	/// E.g., for ApplyFirstDispatch: [("FB", ["B"])].
-	pub associated_types: Vec<(String, Vec<String>)>,
+	/// E.g., for ApplyFirstDispatch: [("FB", [B])].
+	pub associated_types: Vec<(String, Vec<Type>)>,
 	/// Element types extracted from the Val impl's self type when it is an Apply! macro.
 	/// Used for closureless dispatch where the container IS the self type.
-	/// E.g., for SeparateDispatch: Some(["Result<O,E>"]).
-	pub self_type_elements: Option<Vec<String>>,
+	/// E.g., for SeparateDispatch: Some([Result<O,E>]).
+	pub self_type_elements: Option<Vec<Type>>,
 	/// Semantic type parameter names from the trait definition, in declaration order.
 	/// Excludes FnBrand, Marker, and multi-letter container params (FA, FB, etc.).
 	/// Used to order the forall type variables in the HM signature.
@@ -78,24 +85,24 @@ pub struct ContainerParam {
 	/// Position index among type params in the trait definition (excluding lifetimes).
 	pub position: usize,
 	/// The element types extracted from the Apply! macro in the Val impl
-	/// (e.g., ["A"] for FA, ["B"] for FB).
-	pub element_types: Vec<String>,
+	/// (e.g., [A] for FA, [B] for FB).
+	pub element_types: Vec<Type>,
 }
 
 /// Describes the HM return type structure of a dispatch trait.
 #[derive(Debug, Clone)]
 pub enum ReturnStructure {
-	/// Returns a simple type variable (e.g., `B` for fold_right, `M` for fold_map).
-	Plain(String),
+	/// Returns a plain type (e.g., `B` for fold_right, `()` for unit return).
+	Plain(Box<Type>),
 	/// Returns the brand applied to type args (e.g., `F B` for map, `F B D` for bimap).
-	Applied(Vec<String>),
+	Applied(Vec<Type>),
 	/// Returns a nested application (e.g., `G (F B)` for traverse, `M (F B)` for wither).
-	Nested { outer_param: String, inner_args: Vec<String> },
+	Nested { outer_param: syn::Ident, inner_args: Vec<Type> },
 	/// Returns a tuple of brand applications (e.g., `(F A, F B)` for partition/separate).
-	Tuple(Vec<Vec<String>>),
+	Tuple(Vec<Vec<Type>>),
 	/// Returns a nested application containing a tuple of brand applications
 	/// (e.g., `M (F E, F O)` for wilt).
-	NestedTuple { outer_param: String, inner_elements: Vec<Vec<String>> },
+	NestedTuple { outer_param: syn::Ident, inner_elements: Vec<Vec<Type>> },
 }
 
 /// Arrow type information extracted from a dispatch impl's Fn bound.
@@ -110,44 +117,40 @@ pub struct DispatchArrow {
 /// Structured representation of an arrow's output type.
 #[derive(Debug, Clone)]
 pub enum ArrowOutput {
-	/// A plain type variable (e.g., `B`, `bool`, `Option B`).
-	Plain(String),
-	/// The Brand applied to type args (e.g., `Apply!(<Brand as Kind>::Of<B>)` -> `Brand B`).
-	BrandApplied(Vec<String>),
-	/// Another type param applied to type args (e.g., `Apply!(<F as Kind>::Of<B>)` -> `F B`).
-	OtherApplied { brand: String, args: Vec<String> },
+	/// A plain type (e.g., `B`, `bool`, `Option<B>`).
+	Plain(Box<Type>),
+	/// The Brand applied to type args (e.g., `Apply!(<Brand as Kind>::Of<B>)` -> [B]).
+	BrandApplied(Vec<Type>),
+	/// Another type param applied to type args (e.g., `Apply!(<F as Kind>::Of<B>)` -> F [B]).
+	OtherApplied { brand: syn::Ident, args: Vec<Type> },
 }
 
 /// A single parameter in a dispatch arrow type.
 #[derive(Debug, Clone)]
 pub enum DispatchArrowParam {
-	/// A simple type parameter (e.g., "A").
-	TypeParam(String),
-	/// An associated type on the Brand (e.g., Brand::Index -> "Index").
-	AssociatedType { assoc_name: String },
+	/// A simple type parameter (e.g., A).
+	TypeParam(syn::Ident),
+	/// An associated type on the Brand (e.g., Brand::Index -> Index).
+	AssociatedType { assoc_name: syn::Ident },
 	/// A sub-arrow from a tuple closure (e.g., one of the Fn bounds in bimap's (F, G)).
-	SubArrow(DispatchArrow),
+	SubArrow(Box<DispatchArrow>),
 }
 
 // -- Constants --
 
-/// Trait names that are infrastructure, not semantic type class constraints.
-const INFRASTRUCTURE_TRAITS: &[&str] =
-	&["Send", "Sync", "Clone", "Copy", "Debug", "Display", "Sized", "LiftFn", "SendLiftFn"];
-
 // -- Apply! macro parsing helpers --
 
-/// Extract type argument names from an Apply! macro invocation.
+/// Extract type arguments from an Apply! macro invocation.
 ///
 /// Uses `get_apply_macro_parameters` (the proper token-stream parser) to
 /// extract the type args from `Apply!(<Brand as Kind!(...)>::Of<'a, A, B>)`.
-/// Returns the type arg names as strings (e.g., `["A", "B"]`).
-fn extract_apply_type_args(ty: &Type) -> Option<Vec<String>> {
+/// Returns the type args as `syn::Type` values.
+fn extract_apply_type_args(ty: &Type) -> Option<Vec<Type>> {
 	let Type::Macro(type_macro) = ty else {
 		return None;
 	};
 	let (_brand, args) = get_apply_macro_parameters(type_macro)?;
-	Some(args.iter().map(|t| quote::quote!(#t).to_string().replace(' ', "")).collect())
+	Some(args)
 }
 
 // -- Analysis entry point --
@@ -271,7 +274,7 @@ fn extract_dispatch_info(
 
 	let return_structure = trait_def
 		.and_then(|td| extract_return_structure(td, brand_param.as_deref()))
-		.unwrap_or(ReturnStructure::Plain("?".to_string()));
+		.unwrap_or(ReturnStructure::Plain(Box::new(syn::parse_quote!(()))));
 
 	let container_params =
 		trait_def.map(|td| extract_container_params(td, val_impl)).unwrap_or_default();
@@ -304,51 +307,12 @@ fn extract_kind_trait_name(
 	trait_def: &syn::ItemTrait,
 	brand_param_name: &str,
 ) -> Option<String> {
-	// Check inline bounds on generic params
-	for param in &trait_def.generics.params {
-		if let syn::GenericParam::Type(type_param) = param
-			&& type_param.ident == brand_param_name
-		{
-			for bound in &type_param.bounds {
-				if let syn::TypeParamBound::Trait(trait_bound) = bound {
-					let name = trait_bound
-						.path
-						.segments
-						.last()
-						.map(|s| s.ident.to_string())
-						.unwrap_or_default();
-					if name.starts_with(markers::KIND_PREFIX) {
-						return Some(name);
-					}
-				}
-			}
+	for bound in collect_trait_bounds_for_param(brand_param_name, &trait_def.generics) {
+		let name = trait_bound_name(bound)?;
+		if name.to_string().starts_with(markers::KIND_PREFIX) {
+			return Some(name.to_string());
 		}
 	}
-
-	// Check where clause
-	if let Some(where_clause) = &trait_def.generics.where_clause {
-		for predicate in &where_clause.predicates {
-			if let WherePredicate::Type(pred_type) = predicate {
-				let param_name = type_to_string(&pred_type.bounded_ty);
-				if param_name == brand_param_name {
-					for bound in &pred_type.bounds {
-						if let syn::TypeParamBound::Trait(trait_bound) = bound {
-							let name = trait_bound
-								.path
-								.segments
-								.last()
-								.map(|s| s.ident.to_string())
-								.unwrap_or_default();
-							if name.starts_with(markers::KIND_PREFIX) {
-								return Some(name);
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
 	None
 }
 
@@ -435,20 +399,23 @@ fn extract_return_structure(
 		}
 
 		let syn::ReturnType::Type(_, return_ty) = &method.sig.output else {
-			return Some(ReturnStructure::Plain("()".to_string()));
+			return Some(ReturnStructure::Plain(Box::new(syn::parse_quote!(()))));
 		};
 
-		return Some(classify_return_type(return_ty, brand_param));
+		return classify_return_type(return_ty, brand_param);
 	}
 
 	None
 }
 
 /// Classify a return type into a ReturnStructure using the proper Apply! parser.
+///
+/// Returns `None` if the return type contains an Apply! macro whose brand
+/// cannot be extracted as a simple identifier.
 fn classify_return_type(
 	ty: &Type,
 	brand_param: Option<&str>,
-) -> ReturnStructure {
+) -> Option<ReturnStructure> {
 	// Tuple return (e.g., partition, separate)
 	if let Type::Tuple(tuple) = ty {
 		let mut tuple_elements = Vec::new();
@@ -457,12 +424,11 @@ fn classify_return_type(
 				tuple_elements.push(args);
 			} else {
 				// Non-Apply element in tuple; treat as plain
-				let elem_str = quote::quote!(#elem).to_string().replace(' ', "");
-				tuple_elements.push(vec![elem_str]);
+				tuple_elements.push(vec![elem.clone()]);
 			}
 		}
 		if !tuple_elements.is_empty() {
-			return ReturnStructure::Tuple(tuple_elements);
+			return Some(ReturnStructure::Tuple(tuple_elements));
 		}
 	}
 
@@ -470,8 +436,6 @@ fn classify_return_type(
 	if let Type::Macro(type_macro) = ty
 		&& let Some((brand, raw_args)) = get_apply_macro_parameters(type_macro)
 	{
-		let args: Vec<String> =
-			raw_args.iter().map(|t| quote::quote!(#t).to_string().replace(' ', "")).collect();
 		let brand_name = match &brand {
 			Type::Path(tp) => tp.path.segments.last().map(|s| s.ident.to_string()),
 			_ => None,
@@ -483,11 +447,14 @@ fn classify_return_type(
 
 		if is_brand {
 			// Simple: Brand applied to type args (e.g., Brand B, Brand B D)
-			return ReturnStructure::Applied(args);
+			return Some(ReturnStructure::Applied(raw_args));
 		}
 
 		// Nested: outer brand is different from Brand (e.g., F (Brand B))
-		let outer_name = brand_name.unwrap_or_else(|| "G".to_string());
+		let outer_ident = match &brand {
+			Type::Path(tp) => tp.path.get_ident().cloned()?,
+			_ => return None,
+		};
 
 		// Check if the inner arg is a tuple of Apply! types (e.g., wilt returns M (Brand E, Brand O))
 		if let [single_arg] = raw_args.as_slice()
@@ -499,14 +466,13 @@ fn classify_return_type(
 				if let Some(nested_args) = extract_apply_type_args(elem) {
 					inner_elements.push(nested_args);
 				} else {
-					let s = quote::quote!(#elem).to_string().replace(' ', "");
-					inner_elements.push(vec![s]);
+					inner_elements.push(vec![elem.clone()]);
 				}
 			}
-			return ReturnStructure::NestedTuple {
-				outer_param: outer_name,
+			return Some(ReturnStructure::NestedTuple {
+				outer_param: outer_ident,
 				inner_elements,
-			};
+			});
 		}
 
 		// The inner args are the type args of the outer Apply, which may
@@ -516,19 +482,17 @@ fn classify_return_type(
 			if let Some(nested_args) = extract_apply_type_args(raw_arg) {
 				inner_args = nested_args;
 			} else {
-				let arg_str = quote::quote!(#raw_arg).to_string().replace(' ', "");
-				inner_args.push(arg_str);
+				inner_args.push(raw_arg.clone());
 			}
 		}
-		return ReturnStructure::Nested {
-			outer_param: outer_name,
+		return Some(ReturnStructure::Nested {
+			outer_param: outer_ident,
 			inner_args,
-		};
+		});
 	}
 
 	// Not a macro or tuple; treat as plain type
-	let ret_str = quote::quote!(#ty).to_string().replace(' ', "");
-	ReturnStructure::Plain(ret_str)
+	Some(ReturnStructure::Plain(Box::new(ty.clone())))
 }
 
 /// Find the Brand type parameter from the trait definition by looking for
@@ -538,12 +502,9 @@ fn find_brand_param_from_trait_def(trait_def: &syn::ItemTrait) -> Option<String>
 	for param in &trait_def.generics.params {
 		if let syn::GenericParam::Type(type_param) = param {
 			for bound in &type_param.bounds {
-				if let syn::TypeParamBound::Trait(trait_bound) = bound
-					&& trait_bound
-						.path
-						.segments
-						.last()
-						.is_some_and(|s| s.ident.to_string().starts_with(markers::KIND_PREFIX))
+				if let syn::TypeParamBound::Trait(tb) = bound
+					&& trait_bound_name(tb)
+						.is_some_and(|name| name.to_string().starts_with(markers::KIND_PREFIX))
 				{
 					return Some(type_param.ident.to_string());
 				}
@@ -552,20 +513,13 @@ fn find_brand_param_from_trait_def(trait_def: &syn::ItemTrait) -> Option<String>
 	}
 
 	// Check where clause
-	if let Some(where_clause) = &trait_def.generics.where_clause {
-		for predicate in &where_clause.predicates {
-			if let WherePredicate::Type(pred_type) = predicate {
-				for bound in &pred_type.bounds {
-					if let syn::TypeParamBound::Trait(trait_bound) = bound
-						&& trait_bound
-							.path
-							.segments
-							.last()
-							.is_some_and(|s| s.ident.to_string().starts_with(markers::KIND_PREFIX))
-					{
-						return Some(type_to_string(&pred_type.bounded_ty));
-					}
-				}
+	for (ident, bounds) in where_clause_type_predicates(&trait_def.generics) {
+		for bound in bounds {
+			if let syn::TypeParamBound::Trait(tb) = bound
+				&& trait_bound_name(tb)
+					.is_some_and(|name| name.to_string().starts_with(markers::KIND_PREFIX))
+			{
+				return Some(ident.to_string());
 			}
 		}
 	}
@@ -576,35 +530,14 @@ fn find_brand_param_from_trait_def(trait_def: &syn::ItemTrait) -> Option<String>
 /// Find the Brand type parameter name by looking for a non-infrastructure,
 /// non-Fn, non-Kind trait bound on a type parameter.
 fn find_brand_param(val_impl: &syn::ItemImpl) -> Option<String> {
-	let Some(where_clause) = &val_impl.generics.where_clause else {
-		return None;
-	};
-
-	for predicate in &where_clause.predicates {
-		if let WherePredicate::Type(pred_type) = predicate {
-			let param_name = type_to_string(&pred_type.bounded_ty);
-
-			// Skip lifetime-only bounds (e.g., A: 'a)
-			let has_trait_bound =
-				pred_type.bounds.iter().any(|b| matches!(b, syn::TypeParamBound::Trait(_)));
-			if !has_trait_bound {
-				continue;
-			}
-
-			// Check if any bound is a semantic type class (not Fn, not Kind, not infrastructure)
-			for bound in &pred_type.bounds {
-				if let syn::TypeParamBound::Trait(trait_bound) = bound {
-					let bound_name = trait_bound
-						.path
-						.segments
-						.last()
-						.map(|s| s.ident.to_string())
-						.unwrap_or_default();
-
-					if is_semantic_type_class(&bound_name) {
-						return Some(param_name);
-					}
-				}
+	// Check where clause
+	for (ident, bounds) in where_clause_type_predicates(&val_impl.generics) {
+		for bound in bounds {
+			if let syn::TypeParamBound::Trait(tb) = bound
+				&& let Some(name) = trait_bound_name(tb)
+				&& is_semantic_type_class(&name.to_string())
+			{
+				return Some(ident.to_string());
 			}
 		}
 	}
@@ -612,19 +545,12 @@ fn find_brand_param(val_impl: &syn::ItemImpl) -> Option<String> {
 	// Also check inline bounds on generic params
 	for param in &val_impl.generics.params {
 		if let syn::GenericParam::Type(type_param) = param {
-			let param_name = type_param.ident.to_string();
 			for bound in &type_param.bounds {
-				if let syn::TypeParamBound::Trait(trait_bound) = bound {
-					let bound_name = trait_bound
-						.path
-						.segments
-						.last()
-						.map(|s| s.ident.to_string())
-						.unwrap_or_default();
-
-					if is_semantic_type_class(&bound_name) {
-						return Some(param_name);
-					}
+				if let syn::TypeParamBound::Trait(tb) = bound
+					&& let Some(name) = trait_bound_name(tb)
+					&& is_semantic_type_class(&name.to_string())
+				{
+					return Some(type_param.ident.to_string());
 				}
 			}
 		}
@@ -633,82 +559,19 @@ fn find_brand_param(val_impl: &syn::ItemImpl) -> Option<String> {
 	None
 }
 
-/// Check if a trait name represents a semantic type class constraint
-/// (as opposed to infrastructure like Fn, Kind, Send, etc.).
-fn is_semantic_type_class(name: &str) -> bool {
-	// Not a Fn trait
-	if name == "Fn" || name == "FnMut" || name == "FnOnce" {
-		return false;
-	}
-	// Not a Kind trait
-	if name.starts_with(markers::KIND_PREFIX) {
-		return false;
-	}
-	// Not an InferableBrand trait
-	if name.starts_with(markers::INFERABLE_BRAND_PREFIX) {
-		return false;
-	}
-	// Not infrastructure
-	if INFRASTRUCTURE_TRAITS.contains(&name) {
-		return false;
-	}
-	// Not a dispatch trait (avoid self-referential detection)
-	if name.ends_with(markers::DISPATCH_SUFFIX) {
-		return false;
-	}
-	true
-}
-
 /// Extract the primary semantic constraint from the Brand parameter.
 fn extract_semantic_constraint(
 	val_impl: &syn::ItemImpl,
 	brand_param: &str,
 ) -> Option<String> {
-	// Check where clause
-	if let Some(where_clause) = &val_impl.generics.where_clause {
-		for predicate in &where_clause.predicates {
-			if let WherePredicate::Type(pred_type) = predicate {
-				let param_name = type_to_string(&pred_type.bounded_ty);
-				if param_name == brand_param {
-					for bound in &pred_type.bounds {
-						if let syn::TypeParamBound::Trait(trait_bound) = bound {
-							let name = trait_bound
-								.path
-								.segments
-								.last()
-								.map(|s| s.ident.to_string())
-								.unwrap_or_default();
-							if is_semantic_type_class(&name) {
-								return Some(name);
-							}
-						}
-					}
-				}
+	for bound in collect_trait_bounds_for_param(brand_param, &val_impl.generics) {
+		if let Some(name) = trait_bound_name(bound) {
+			let name_str = name.to_string();
+			if is_semantic_type_class(&name_str) {
+				return Some(name_str);
 			}
 		}
 	}
-
-	// Check inline bounds
-	for param in &val_impl.generics.params {
-		if let syn::GenericParam::Type(type_param) = param
-			&& type_param.ident == brand_param
-		{
-			for bound in &type_param.bounds {
-				if let syn::TypeParamBound::Trait(trait_bound) = bound {
-					let name = trait_bound
-						.path
-						.segments
-						.last()
-						.map(|s| s.ident.to_string())
-						.unwrap_or_default();
-					if is_semantic_type_class(&name) {
-						return Some(name);
-					}
-				}
-			}
-		}
-	}
-
 	None
 }
 
@@ -719,30 +582,19 @@ fn extract_secondary_constraints(
 ) -> Vec<(String, String)> {
 	let mut result = Vec::new();
 
-	if let Some(where_clause) = &val_impl.generics.where_clause {
-		for predicate in &where_clause.predicates {
-			if let WherePredicate::Type(pred_type) = predicate {
-				let param_name = type_to_string(&pred_type.bounded_ty);
+	for (ident, bounds) in where_clause_type_predicates(&val_impl.generics) {
+		// Skip the Brand param itself
+		if ident == brand_param {
+			continue;
+		}
 
-				// Skip the Brand param itself
-				if param_name == brand_param {
-					continue;
-				}
-
-				for bound in &pred_type.bounds {
-					if let syn::TypeParamBound::Trait(trait_bound) = bound {
-						let name = trait_bound
-							.path
-							.segments
-							.last()
-							.map(|s| s.ident.to_string())
-							.unwrap_or_default();
-
-						// Only include semantic type classes
-						if is_semantic_type_class(&name) && !is_fn_like(&name) {
-							result.push((param_name.clone(), name));
-						}
-					}
+		for bound in bounds {
+			if let syn::TypeParamBound::Trait(tb) = bound
+				&& let Some(name) = trait_bound_name(tb)
+			{
+				let name_str = name.to_string();
+				if is_semantic_type_class(&name_str) {
+					result.push((ident.to_string(), name_str));
 				}
 			}
 		}
@@ -757,35 +609,45 @@ fn is_tuple_closure(val_impl: &syn::ItemImpl) -> bool {
 	if let Type::Tuple(tuple) = &*val_impl.self_ty { tuple.elems.len() >= 2 } else { false }
 }
 
+/// Collect all trait bounds from both inline generic params and the where clause.
+fn all_trait_bounds(generics: &syn::Generics) -> Vec<&syn::TraitBound> {
+	let mut bounds = Vec::new();
+
+	// Inline bounds on generic params
+	for param in &generics.params {
+		if let syn::GenericParam::Type(type_param) = param {
+			for bound in &type_param.bounds {
+				if let syn::TypeParamBound::Trait(tb) = bound {
+					bounds.push(tb);
+				}
+			}
+		}
+	}
+
+	// Where clause bounds
+	for (_, pred_bounds) in where_clause_type_predicates(generics) {
+		for bound in pred_bounds {
+			if let syn::TypeParamBound::Trait(tb) = bound {
+				bounds.push(tb);
+			}
+		}
+	}
+
+	bounds
+}
+
 /// Extract arrow type from a single-closure dispatch impl.
 fn extract_single_arrow(
 	val_impl: &syn::ItemImpl,
 	brand_param: Option<&str>,
 ) -> Option<DispatchArrow> {
-	// Search where clause for Fn bounds
-	if let Some(where_clause) = &val_impl.generics.where_clause {
-		for predicate in &where_clause.predicates {
-			if let WherePredicate::Type(pred_type) = predicate {
-				for bound in &pred_type.bounds {
-					if let Some(arrow) = extract_fn_arrow_from_bound(bound, brand_param) {
-						return Some(arrow);
-					}
-				}
-			}
+	for bound in all_trait_bounds(&val_impl.generics) {
+		if let Some(arrow) =
+			extract_fn_arrow_from_bound(&syn::TypeParamBound::Trait(bound.clone()), brand_param)
+		{
+			return Some(arrow);
 		}
 	}
-
-	// Search inline bounds on generic params
-	for param in &val_impl.generics.params {
-		if let syn::GenericParam::Type(type_param) = param {
-			for bound in &type_param.bounds {
-				if let Some(arrow) = extract_fn_arrow_from_bound(bound, brand_param) {
-					return Some(arrow);
-				}
-			}
-		}
-	}
-
 	None
 }
 
@@ -795,30 +657,14 @@ fn extract_tuple_arrow(
 	brand_param: Option<&str>,
 ) -> Option<DispatchArrow> {
 	let mut all_inputs = Vec::new();
-	let mut last_output = ArrowOutput::Plain("()".to_string());
+	let mut last_output = ArrowOutput::Plain(Box::new(syn::parse_quote!(())));
 
-	if let Some(where_clause) = &val_impl.generics.where_clause {
-		for predicate in &where_clause.predicates {
-			if let WherePredicate::Type(pred_type) = predicate {
-				for bound in &pred_type.bounds {
-					if let Some(arrow) = extract_fn_arrow_from_bound(bound, brand_param) {
-						last_output = arrow.output.clone();
-						all_inputs.push(DispatchArrowParam::SubArrow(arrow));
-					}
-				}
-			}
-		}
-	}
-
-	// Also check inline bounds
-	for param in &val_impl.generics.params {
-		if let syn::GenericParam::Type(type_param) = param {
-			for bound in &type_param.bounds {
-				if let Some(arrow) = extract_fn_arrow_from_bound(bound, brand_param) {
-					last_output = arrow.output.clone();
-					all_inputs.push(DispatchArrowParam::SubArrow(arrow));
-				}
-			}
+	for bound in all_trait_bounds(&val_impl.generics) {
+		if let Some(arrow) =
+			extract_fn_arrow_from_bound(&syn::TypeParamBound::Trait(bound.clone()), brand_param)
+		{
+			last_output = arrow.output.clone();
+			all_inputs.push(DispatchArrowParam::SubArrow(Box::new(arrow)));
 		}
 	}
 
@@ -842,9 +688,7 @@ fn extract_fn_arrow_from_bound(
 	};
 
 	let segment = trait_bound.path.segments.last()?;
-	let name = segment.ident.to_string();
-
-	if name != "Fn" && name != "FnMut" && name != "FnOnce" {
+	if !crate::core::constants::traits::FN_TRAITS.contains(&segment.ident.to_string().as_str()) {
 		return None;
 	}
 
@@ -856,7 +700,7 @@ fn extract_fn_arrow_from_bound(
 		args.inputs.iter().map(|ty| type_to_arrow_param(ty, brand_param)).collect();
 
 	let output = match &args.output {
-		ReturnType::Default => ArrowOutput::Plain("()".to_string()),
+		ReturnType::Default => ArrowOutput::Plain(Box::new(syn::parse_quote!(()))),
 		ReturnType::Type(_, ty) => classify_arrow_output(ty, brand_param),
 	};
 
@@ -874,20 +718,25 @@ fn type_to_arrow_param(
 	if let Type::Path(type_path) = ty {
 		// Check for Brand::Index pattern (two-segment path)
 		let segments: Vec<_> = type_path.path.segments.iter().collect();
-		if let [first_seg, second_seg] = segments.as_slice() {
-			let first = first_seg.ident.to_string();
-			let second = second_seg.ident.to_string();
-			if brand_param.is_some_and(|bp| bp == first) {
-				return DispatchArrowParam::AssociatedType {
-					assoc_name: second,
-				};
-			}
+		if let [first_seg, second_seg] = segments.as_slice()
+			&& brand_param.is_some_and(|bp| first_seg.ident == bp)
+		{
+			return DispatchArrowParam::AssociatedType {
+				assoc_name: second_seg.ident.clone(),
+			};
+		}
+		// Simple ident path (e.g., A, B)
+		if let Some(ident) = type_path.path.get_ident() {
+			return DispatchArrowParam::TypeParam(ident.clone());
 		}
 	}
-	DispatchArrowParam::TypeParam(type_to_string(ty))
+	// Fallback for complex types: create ident from string representation
+	DispatchArrowParam::TypeParam(syn::Ident::new(
+		&type_to_compact_string(ty),
+		proc_macro2::Span::call_site(),
+	))
 }
 
-/// Simplify a type for HM rendering. Strips lifetimes, Apply! macros, etc.
 /// Classify an arrow output type as plain, brand-applied, or other-brand-applied.
 fn classify_arrow_output(
 	ty: &Type,
@@ -897,31 +746,28 @@ fn classify_arrow_output(
 	if let Type::Macro(type_macro) = ty
 		&& let Some((brand, args)) = get_apply_macro_parameters(type_macro)
 	{
-		let brand_name = match &brand {
-			Type::Path(tp) => tp.path.segments.last().map(|s| s.ident.to_string()),
+		let brand_ident = match &brand {
+			Type::Path(tp) => tp.path.get_ident().cloned(),
 			_ => None,
 		};
+		let brand_name_str = brand_ident.as_ref().map(|id| id.to_string());
 
-		let arg_strings: Vec<String> =
-			args.iter().map(|t| quote::quote!(#t).to_string().replace(' ', "")).collect();
-
-		if !arg_strings.is_empty() {
-			let is_brand = brand_param.is_some_and(|bp| brand_name.as_deref() == Some(bp));
+		if !args.is_empty() {
+			let is_brand = brand_param.is_some_and(|bp| brand_name_str.as_deref() == Some(bp));
 			if is_brand {
-				return ArrowOutput::BrandApplied(arg_strings);
+				return ArrowOutput::BrandApplied(args);
 			}
-			if let Some(name) = brand_name {
+			if let Some(ident) = brand_ident {
 				return ArrowOutput::OtherApplied {
-					brand: name,
-					args: arg_strings,
+					brand: ident,
+					args,
 				};
 			}
 		}
 	}
 
-	// Plain type: store as valid Rust token text (not HM-simplified)
-	// so it can be parsed back to syn::Type in the synthetic signature builder
-	ArrowOutput::Plain(quote::quote!(#ty).to_string())
+	// Plain type
+	ArrowOutput::Plain(Box::new(ty.clone()))
 }
 
 /// Extract the semantic type param names from the trait definition, in declaration order.
@@ -962,7 +808,7 @@ fn extract_type_param_order(
 ///
 /// Finds `type FB = Apply!(<Brand as Kind>::Of<'a, B>)` items and extracts
 /// the associated type name and element types from the Apply! macro.
-fn extract_associated_types(val_impl: &syn::ItemImpl) -> Vec<(String, Vec<String>)> {
+fn extract_associated_types(val_impl: &syn::ItemImpl) -> Vec<(String, Vec<Type>)> {
 	let mut result = Vec::new();
 	for item in &val_impl.items {
 		if let ImplItem::Type(type_item) = item {
@@ -985,23 +831,24 @@ fn extract_associated_types(val_impl: &syn::ItemImpl) -> Vec<(String, Vec<String
 /// (e.g., `Apply!(<OptionBrand as Kind!(...)>::Of<'a, A>)` becomes
 /// `<OptionBrand as Kind_hash>::Of<'a, A>`). This allows the HM pipeline to
 /// simplify them (e.g., to `Option A`).
-fn extract_self_type_elements(val_impl: &syn::ItemImpl) -> Option<Vec<String>> {
+fn extract_self_type_elements(val_impl: &syn::ItemImpl) -> Option<Vec<Type>> {
 	let Type::Macro(type_macro) = &*val_impl.self_ty else {
 		return None;
 	};
 	let (_brand, args) = get_apply_macro_parameters(type_macro)?;
 	Some(
-		args.iter()
+		args.into_iter()
 			.map(|t| {
 				// If the arg is itself an Apply! macro, resolve it to a qualified path
-				if let Type::Macro(inner_macro) = t
+				if let Type::Macro(inner_macro) = &t
 					&& let Ok(apply_input) =
 						syn::parse2::<ApplyInput>(inner_macro.mac.tokens.clone())
 					&& let Ok(resolved) = apply_worker(apply_input)
+					&& let Ok(resolved_ty) = syn::parse2::<Type>(resolved)
 				{
-					return resolved.to_string();
+					return resolved_ty;
 				}
-				quote::quote!(#t).to_string().replace(' ', "")
+				t
 			})
 			.collect(),
 	)
@@ -1009,13 +856,15 @@ fn extract_self_type_elements(val_impl: &syn::ItemImpl) -> Option<Vec<String>> {
 
 // -- Helpers --
 
-/// Check if a name looks like a Fn-like trait (not a type class).
-fn is_fn_like(name: &str) -> bool {
-	name == "Fn" || name == "FnMut" || name == "FnOnce"
-}
-
-/// Convert a Type to its string representation.
-fn type_to_string(ty: &Type) -> String {
+/// Convert a type to its string representation, preferring `get_ident()` for
+/// simple path types and falling back to `quote!().to_string()` for complex
+/// types (generics, qualified paths, macros, etc.).
+fn type_to_compact_string(ty: &Type) -> String {
+	if let Type::Path(tp) = ty
+		&& let Some(ident) = tp.path.get_ident()
+	{
+		return ident.to_string();
+	}
 	quote::quote!(#ty).to_string().replace(' ', "")
 }
 
@@ -1064,7 +913,9 @@ mod tests {
 
 		let arrow = info.arrow_type.as_ref().unwrap();
 		assert_eq!(arrow.inputs.len(), 1);
-		assert!(matches!(arrow.output, ArrowOutput::Plain(ref s) if s == "B"));
+		assert!(
+			matches!(&arrow.output, ArrowOutput::Plain(ty) if quote::quote!(#ty).to_string() == "B")
+		);
 	}
 
 	#[test]
@@ -1195,11 +1046,13 @@ mod tests {
 			info.container_params
 		);
 		assert_eq!(info.container_params[0].name, "FA");
-		assert_eq!(info.container_params[0].element_types, vec!["A".to_string()]);
+		assert_eq!(info.container_params[0].element_types.len(), 1);
+		let elems = &info.container_params[0].element_types;
+		assert_eq!(quote::quote!(#(#elems)*).to_string(), "A");
 
-		// Return structure should be Applied(["B"])
+		// Return structure should be Applied([B])
 		assert!(
-			matches!(info.return_structure, ReturnStructure::Applied(ref args) if args == &["B"]),
+			matches!(&info.return_structure, ReturnStructure::Applied(args) if args.len() == 1 && quote::quote!(#(#args)*).to_string() == "B"),
 			"Expected Applied([B]), got {:?}",
 			info.return_structure
 		);
@@ -1379,9 +1232,13 @@ mod tests {
 		// Associated type FB should map to ["B"]
 		assert_eq!(info.associated_types.len(), 1);
 		assert_eq!(info.associated_types[0].0, "FB");
-		assert_eq!(info.associated_types[0].1, vec!["B".to_string()]);
-		// Self type elements should be ["A"]
-		assert_eq!(info.self_type_elements, Some(vec!["A".to_string()]));
+		let assoc_elems = &info.associated_types[0].1;
+		assert_eq!(assoc_elems.len(), 1);
+		assert_eq!(quote::quote!(#(#assoc_elems)*).to_string(), "B");
+		// Self type elements should be [A]
+		let self_elems = info.self_type_elements.as_ref().unwrap();
+		assert_eq!(self_elems.len(), 1);
+		assert_eq!(quote::quote!(#(#self_elems)*).to_string(), "A");
 	}
 
 	#[test]
@@ -1422,11 +1279,15 @@ mod tests {
 		// FA is at position 4 (Brand=0, A=1, B=2, C=3, FA=4)
 		assert_eq!(info.container_params[0].name, "FA");
 		assert_eq!(info.container_params[0].position, 4);
-		assert_eq!(info.container_params[0].element_types, vec!["A".to_string()]);
+		let fa_elems = &info.container_params[0].element_types;
+		assert_eq!(fa_elems.len(), 1);
+		assert_eq!(quote::quote!(#(#fa_elems)*).to_string(), "A");
 		// FB is at position 5
 		assert_eq!(info.container_params[1].name, "FB");
 		assert_eq!(info.container_params[1].position, 5);
-		assert_eq!(info.container_params[1].element_types, vec!["B".to_string()]);
+		let fb_elems = &info.container_params[1].element_types;
+		assert_eq!(fb_elems.len(), 1);
+		assert_eq!(quote::quote!(#(#fb_elems)*).to_string(), "B");
 	}
 
 	#[test]

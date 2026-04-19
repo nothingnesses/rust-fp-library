@@ -167,6 +167,49 @@ Rust's `Any` trait requires `'static` to ensure memory safety (preventing use-af
 
 See [Lifetime Ablation Experiment](lifetime-ablation-experiment.md) for a detailed exploration of the trade-offs around lifetime parameters in the lazy evaluation types.
 
+## No Refinement of Associated Type Bounds in Subtraits
+
+### The Issue
+
+Rust does not allow a subtrait to add bounds to an associated type inherited from a supertrait. Given a trait hierarchy where a base trait defines `type Of<T>: Deref`, a subtrait cannot narrow it to `type Of<T>: Clone + Deref` or `type Of<T>: Send + Sync + Deref`. The bounds on an associated type are fixed in the trait that defines it.
+
+This means each level of a trait hierarchy that needs different bounds on its pointer/wrapper type must define its own associated type. For example, `RefCountedPointer` cannot reuse `Pointer::Of` with a `Clone` bound added; it must introduce a separate `Of` with `Clone + Deref` bounds. Similarly, `SendRefCountedPointer` cannot add `Send + Sync` to `RefCountedPointer::Of`; it has its own `Of` with `Clone + Send + Sync + Deref` bounds.
+
+### Consequences
+
+#### Separate associated types per hierarchy level
+
+Each pointer trait level has its own associated type, even though they resolve to the same concrete type for all implementors:
+
+| Trait                   | Associated type | Bounds                        | `ArcBrand` resolves to |
+| :---------------------- | :-------------- | :---------------------------- | :--------------------- |
+| `RefCountedPointer`     | `Of`            | `Clone + Deref`               | `Arc<T>`               |
+| `SendRefCountedPointer` | `Of`            | `Clone + Send + Sync + Deref` | `Arc<T>`               |
+
+The `CloneFn`/`SendCloneFn` split exists for the same reason: `CloneFn::Of` derefs to `dyn Fn(A) -> B`, while `SendCloneFn::Of` derefs to `dyn Fn(A) -> B + Send + Sync`. These are different unsized types in Rust, so they cannot share an associated type.
+
+#### Flat hierarchies instead of linear chains
+
+Because each level needs its own associated type regardless of the hierarchy shape, there is no structural benefit to encoding pointer traits as a linear supertrait chain. The Send variants (`SendRefCountedPointer`, `SendCloneFn`) are independent parallel traits rather than subtraits, since their associated types have fundamentally different bounds. Consumers that need both capabilities list both as bounds (e.g., `P: ToDynCloneFn + ToDynSendFn`).
+
+#### Capability-trait composition is limited
+
+An alternative design using independent "capability traits" composed via blanket-implemented marker traits was considered. Each capability would define its own `Of` type, and markers like `RefCountedPointer` would be blanket-implemented for any type implementing the required capabilities. However, such marker traits cannot have their own associated types in a blanket impl, because the impl cannot know the concrete relationship between different capability traits' `Of` types. If a marker trait needs an associated type that combines bounds from multiple capabilities, it must be manually implemented per type, losing the automatic derivation benefit.
+
+### Root Causes
+
+Three missing Rust features contribute:
+
+1. **No associated type bound refinement in subtraits.** You cannot write `trait Sub: Super where Self::Of: Clone {}` in a way that enriches the inherited associated type's bounds. The associated type is owned by the trait that defines it.
+
+2. **No higher-ranked type bounds.** Rust supports `for<'a>` (higher-ranked over lifetimes) but not `for<T>` (higher-ranked over types). You cannot express "for all `T: Send + Sync`, `Self::Of<T>: Send + Sync`" as a trait bound. This would allow a single associated type to conditionally satisfy different bounds depending on its type parameter.
+
+3. **No associated traits.** Rust has associated types but not associated traits. If a trait could define `trait Bounds` as an associated item, implementors could specify which bounds their `Of` type satisfies, and subtraits could compose those bounds. Without this, the bounds on an associated type are fixed at definition time.
+
+### Consequence for Library Design
+
+The library uses independent parallel traits for Send variants (matching the `CloneFn`/`SendCloneFn` pattern) and separate associated types at each abstraction level. This is the most pragmatic encoding given Rust's trait system. The redundancy at the impl level (defining `Arc<T>` as the associated type in multiple traits) is the cost of expressing different bound requirements on what is concretely the same type.
+
 ## Thread Safety and Parallelism
 
 ### `Foldable` and `CloneFn`
@@ -202,11 +245,11 @@ This limitation stems from the design of the `Arrow` and `CloneFn` traits, which
 - **`fold_right` / `fold_left`:** Even if you use `ArcFnBrand`, the closure created internally by these functions is `!Send`.
 - **`fold_map`:** The `Foldable` trait signature for `fold_map` does not enforce `Send` on the mapping function `F`. Therefore, you cannot implement `Foldable` for a parallel data structure (e.g., using `rayon`) because parallel libraries require `Send` bounds which the trait does not provide.
 
-#### Implemented Solution: Extension Traits
+#### Implemented Solution: Parallel Traits
 
-The library addresses this with extension traits that provide thread-safe capabilities without breaking existing code:
+The library addresses this with independent parallel traits that provide thread-safe capabilities without breaking existing code:
 
-- [`SendCloneFn`](../src/classes/send_clone_fn.rs): Extends `CloneFn` with a separate `Of` associated type that wraps `dyn Fn + Send + Sync`. Only implemented by `ArcFnBrand`.
+- [`SendCloneFn`](../src/classes/send_clone_fn.rs): A separate trait (not a supertrait of `CloneFn`) that mirrors `CloneFn` with `Send + Sync` bounds. It has its own `Of` associated type that wraps `dyn Fn + Send + Sync` (a different unsized type than `CloneFn::Of`'s `dyn Fn` target). `FnBrand<P>` implements both traits when the pointer `P` supports it (`ArcFnBrand` implements both; `RcFnBrand` implements only `CloneFn`).
 - [`ParFoldable`](../src/classes/par_foldable.rs): Parallel fold operations using `impl Fn + Send + Sync` closures directly, bypassing the `CloneFn` abstraction for parallel paths.
 
-This approach keeps `Arrow` and `CloneFn` unchanged, cleanly separates Send capabilities as additive traits, and provides compile-time safety (only brands that can actually provide thread safety implement `SendCloneFn`).
+This approach keeps `Arrow` and `CloneFn` unchanged, cleanly separates `Send` capabilities as independent traits, and provides compile-time safety (only brands that can actually provide thread safety implement `SendCloneFn`).

@@ -35,7 +35,7 @@ mod inner {
 	)]
 	pub struct Review<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -56,7 +56,7 @@ mod inner {
 	#[document_parameters("The review instance.")]
 	impl<'a, PointerBrand, S, T, A, B> Clone for Review<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -95,7 +95,7 @@ mod inner {
 	#[document_parameters("The review instance.")]
 	impl<'a, PointerBrand, S, T, A, B> Review<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -164,7 +164,7 @@ mod inner {
 	impl<'a, PointerBrand, S, T, A, B> Optic<'a, TaggedBrand, S, T, A, B>
 		for Review<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -212,7 +212,7 @@ mod inner {
 	impl<'a, PointerBrand, S, T, A, B> ReviewOptic<'a, S, T, A, B>
 		for Review<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -258,7 +258,7 @@ mod inner {
 	)]
 	pub struct ReviewPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a, {
 		/// Function to construct a structure from a focus value.
@@ -275,7 +275,7 @@ mod inner {
 	#[document_parameters("The review instance.")]
 	impl<'a, PointerBrand, S, A> Clone for ReviewPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{
@@ -310,7 +310,7 @@ mod inner {
 	#[document_parameters("The review instance.")]
 	impl<'a, PointerBrand, S, A> ReviewPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{
@@ -375,7 +375,7 @@ mod inner {
 	impl<'a, PointerBrand, S, A> Optic<'a, TaggedBrand, S, S, A, A>
 		for ReviewPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{
@@ -418,7 +418,7 @@ mod inner {
 	#[document_parameters("The review instance.")]
 	impl<'a, PointerBrand, S, A> ReviewOptic<'a, S, S, A, A> for ReviewPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{

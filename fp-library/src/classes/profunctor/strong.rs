@@ -303,7 +303,7 @@ mod inner {
 		l: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
 		r: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, (B, C)>) {
-		Brand::lmap(|a: A| (a.clone(), a), split_strong::<Brand, A, B, A, C>(l, r))
+		Brand::map_input(|a: A| (a.clone(), a), split_strong::<Brand, A, B, A, C>(l, r))
 	}
 }
 

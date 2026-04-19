@@ -8,13 +8,7 @@
 //!
 //! ## Motivation
 //!
-//! Rust is a multi-paradigm language with strong functional programming features like iterators, closures, and algebraic data types. However, it lacks native support for **Higher-Kinded Types (HKT)**, which limits the ability to write generic code that abstracts over type constructors (e.g., writing a function that works for any `Monad`, whether it's `Option`, `Result`, or `Vec`).
-//!
-//! `fp-library` aims to bridge this gap by providing:
-//!
-//! 1.  A robust encoding of HKTs in stable Rust.
-//! 2.  A comprehensive set of standard type classes (`Functor`, `Monad`, `Traversable`, etc.).
-//! 3.  Zero-cost abstractions that respect Rust's performance characteristics.
+//! Rust is a multi-paradigm language with strong functional programming features like iterators, closures, and algebraic data types. However, it lacks native support for **Higher-Kinded Types (HKT)**, which limits the ability to write generic code that abstracts over type constructors (e.g., writing a function that works for any `Monad`, whether it's `Option`, `Result`, or `Vec`). `fp-library` aims to bridge this gap.
 //!
 //! ## Examples
 //!
@@ -35,7 +29,20 @@
 //! assert_eq!(y, vec![11, 12, 13]);
 //! ```
 //!
-//! For types with multiple brands (e.g., `Result`), use the `explicit` variant:
+//! For types with multiple brands (e.g., `Result`, which can be viewed as a functor over
+//! either its `Ok` or `Err` type), annotate the closure's input type to disambiguate
+//! which brand applies:
+//!
+//! ```
+//! use fp_library::functions::*;
+//!
+//! // Closure annotation pins A = i32, selecting ResultErrAppliedBrand<&str>
+//! let y = map(|i: i32| i * 2, Ok::<i32, &str>(5));
+//! assert_eq!(y, Ok(10));
+//! ```
+//!
+//! For diagonal cases (e.g., `Result<T, T>`) where the closure cannot disambiguate,
+//! use the `explicit` variant with a turbofish:
 //!
 //! ```
 //! use fp_library::{
@@ -43,7 +50,7 @@
 //! 	functions::explicit::*,
 //! };
 //!
-//! let y = map::<ResultErrAppliedBrand<&str>, _, _, _, _>(|i| i * 2, Ok::<i32, &str>(5));
+//! let y = map::<ResultErrAppliedBrand<i32>, _, _, _, _>(|i| i * 2, Ok::<i32, i32>(5));
 //! assert_eq!(y, Ok(10));
 //! ```
 //!
@@ -84,14 +91,11 @@
 //! that implements `Kind` traits mapping brands back to concrete types.
 //! See [Higher-Kinded Types][crate::docs::hkt].
 //!
-//! **Brand Inference:** `InferableBrand` traits provide the reverse mapping (concrete type -> brand),
-//! letting the compiler infer brands automatically. `trait_kind!` and `impl_kind!` generate both
-//! mappings. See [Brand Inference][crate::docs::brand_inference].
-//!
-//! **Val/Ref Dispatch:** Each free function routes to either a by-value or by-reference trait method
-//! based on the closure's argument type (or container ownership for closureless operations). Dispatch
-//! and brand inference compose through the shared `FA` type parameter.
-//! See [Val/Ref Dispatch][crate::docs::dispatch].
+//! **Dispatch System:** Free functions like `map` and `bind` infer the brand from the container
+//! type and route to by-value or by-reference trait methods automatically, so most call sites
+//! need no turbofish. For details, see [Brand Inference][crate::docs::brand_inference],
+//! [Val/Ref Dispatch][crate::docs::dispatch], and
+//! [Brand Dispatch Traits][crate::docs::brand_dispatch_traits].
 //!
 //! **Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static
 //! dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where
@@ -110,21 +114,24 @@
 //!
 //! ## Documentation
 //!
-//! - [Features & Type Class Hierarchy][crate::docs::features]
-//! - [Higher-Kinded Types][crate::docs::hkt]
-//! - [Brand Inference][crate::docs::brand_inference]
-//! - [Val/Ref Dispatch][crate::docs::dispatch]
-//! - [Zero-Cost Abstractions][crate::docs::zero_cost]
-//! - [Pointer Abstraction][crate::docs::pointer_abstraction]
-//! - [Lazy Evaluation][crate::docs::lazy_evaluation]
-//! - [Coyoneda Implementations][crate::docs::coyoneda]
-//! - [Thread Safety & Parallelism][crate::docs::parallelism]
-//! - [Limitations and Workarounds][crate::docs::limitations_and_workarounds]
-//! - [Project Structure][crate::docs::project_structure]
-//! - [Architecture & Design][crate::docs::architecture]
-//! - [Optics Analysis][crate::docs::optics_analysis]
-//! - [Profunctor Analysis][crate::docs::profunctor_analysis]
-//! - [Std Library Coverage][crate::docs::std_coverage_checklist]
+//! - [Features & Type Class Hierarchy][crate::docs::features]: Full feature list with hierarchy diagrams.
+//! - [Higher-Kinded Types][crate::docs::hkt]: The Brand pattern and HKT encoding.
+//! - [Brand Inference][crate::docs::brand_inference]: User guide for turbofish-free dispatch and multi-brand inference.
+//! - [Val/Ref Dispatch][crate::docs::dispatch]: User guide for unified by-value and by-reference function dispatch.
+//! - [Brand Dispatch Traits][crate::docs::brand_dispatch_traits]: Implementer reference for trait shapes, Marker invariant, and inference resolution.
+//! - [Zero-Cost Abstractions][crate::docs::zero_cost]: Uncurried semantics and static dispatch.
+//! - [Pointer Abstraction][crate::docs::pointer_abstraction]: Pointer hierarchy, `FnBrand<P>`, and shared memoization.
+//! - [Lazy Evaluation][crate::docs::lazy_evaluation]: Guide to the lazy evaluation and memoization types.
+//! - [Coyoneda Implementations][crate::docs::coyoneda]: Trade-offs between the four free functor variants.
+//! - [Thread Safety & Parallelism][crate::docs::parallelism]: Parallel trait hierarchy and rayon support.
+//! - [Limitations and Workarounds][crate::docs::limitations_and_workarounds]: Rust type system constraints and how the library addresses them.
+//! - [Project Structure][crate::docs::project_structure]: Module layout and dependency graph.
+//! - [Architecture & Design][crate::docs::architecture]: Design decisions and documentation conventions.
+//! - [Optics Analysis][crate::docs::optics_analysis]: Optics coverage comparison with PureScript.
+//! - [Profunctor Analysis][crate::docs::profunctor_analysis]: Profunctor class hierarchy comparison with PureScript.
+//! - [Std Library Coverage][crate::docs::std_coverage_checklist]: Type class coverage for standard library types.
+//! - [Benchmarks][crate::docs::benchmarking]: Performance results, graphs, and benchmark coverage.
+//! - [References][crate::docs::references]: Papers, libraries, and resources that informed this project.
 //!
 //! ## Crate Features
 //!
@@ -133,6 +140,10 @@
 //! - **`stacker`**: Enables adaptive stack growth for deep `Coyoneda`, `RcCoyoneda`, and `ArcCoyoneda` map chains via the [stacker](https://github.com/rust-lang/stacker) crate. Without this feature, deeply chained maps can overflow the stack.
 
 extern crate fp_macros;
+// Allow the proc macro output to reference this crate via the absolute
+// path `::fp_library::dispatch::{Val, Ref}`. Without this, `::fp_library`
+// only resolves in external crates, not inside fp-library itself.
+extern crate self as fp_library;
 
 pub mod brands;
 pub mod classes;

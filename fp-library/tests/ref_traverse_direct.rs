@@ -1,6 +1,6 @@
-//! Validates direct by-reference traverse implementations (Approach A).
-//! These avoid cloning the container by iterating via .iter() and using
-//! applicative operations to build the result.
+//! Validates direct by-reference traverse implementations that avoid
+//! cloning the container by iterating via `.iter()` and using applicative
+//! operations to build the result.
 
 use fp_library::{
 	brands::*,

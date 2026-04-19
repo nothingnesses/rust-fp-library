@@ -1,1 +1,1 @@
-#![doc = fp_macros::doc_include!("docs/parallelism.md")]
+#![doc = fp_macros::include_documentation!("docs/parallelism.md")]

@@ -1,0 +1,5 @@
+---
+source: fp-macros/src/documentation/signature_snapshot_tests.rs
+expression: output
+---
+apply: forall Brand A B. Semiapplicative Brand => (Brand (A -> B), Brand A) -> Brand B

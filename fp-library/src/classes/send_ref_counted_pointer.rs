@@ -15,20 +15,23 @@
 #[fp_macros::document_module]
 mod inner {
 	use {
-		crate::classes::*,
 		fp_macros::*,
 		std::ops::Deref,
 	};
 
-	/// Extension trait for thread-safe reference-counted pointers.
+	/// Thread-safe counterpart to
+	/// [`RefCountedPointer`](crate::classes::RefCountedPointer).
 	///
-	/// This follows the same pattern as `SendCloneFn` extends `CloneFn`,
-	/// adding a `SendOf` associated type with explicit `Send + Sync` bounds.
-	pub trait SendRefCountedPointer: RefCountedPointer {
+	/// This is an independent trait (not a supertrait of `RefCountedPointer`),
+	/// matching the pattern used by `SendCloneFn` (independent of `CloneFn`).
+	/// Both traits have their own associated type with different bounds:
+	/// `RefCountedPointer::Of` requires `Clone + Deref`, while
+	/// `SendRefCountedPointer::Of` requires `Clone + Send + Sync + Deref`.
+	pub trait SendRefCountedPointer {
 		/// The thread-safe pointer type constructor.
 		///
 		/// For `ArcBrand`, this is `Arc<T>` where `T: Send + Sync`.
-		type SendOf<'a, T: ?Sized + Send + Sync + 'a>: Clone + Send + Sync + Deref<Target = T> + 'a;
+		type Of<'a, T: ?Sized + Send + Sync + 'a>: Clone + Send + Sync + Deref<Target = T> + 'a;
 
 		/// Wraps a sized value in a thread-safe pointer.
 		#[document_signature]
@@ -49,9 +52,9 @@ mod inner {
 		/// let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
 		/// ```
-		fn send_new<'a, T: Send + Sync + 'a>(value: T) -> Self::SendOf<'a, T>
+		fn new<'a, T: Send + Sync + 'a>(value: T) -> Self::Of<'a, T>
 		where
-			Self::SendOf<'a, T>: Sized;
+			Self::Of<'a, T>: Sized;
 	}
 
 	/// Wraps a sized value in a thread-safe pointer.
@@ -77,12 +80,10 @@ mod inner {
 	/// let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 	/// assert_eq!(*ptr, 42);
 	/// ```
-	pub fn send_new<'a, P: SendRefCountedPointer, T: Send + Sync + 'a>(
-		value: T
-	) -> P::SendOf<'a, T>
+	pub fn new<'a, P: SendRefCountedPointer, T: Send + Sync + 'a>(value: T) -> P::Of<'a, T>
 	where
-		P::SendOf<'a, T>: Sized, {
-		P::send_new(value)
+		P::Of<'a, T>: Sized, {
+		P::new(value)
 	}
 }
 

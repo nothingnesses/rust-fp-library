@@ -30,7 +30,7 @@ mod inner {
 	)]
 	pub struct Setter<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -50,7 +50,7 @@ mod inner {
 	#[document_parameters("The setter instance.")]
 	impl<'a, PointerBrand, S, T, A, B> Clone for Setter<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -89,7 +89,7 @@ mod inner {
 	#[document_parameters("The setter instance.")]
 	impl<'a, PointerBrand, S, T, A, B> Setter<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -161,8 +161,8 @@ mod inner {
 	impl<'a, Q, PointerBrand, S, T, A, B> Optic<'a, FnBrand<Q>, S, T, A, B>
 		for Setter<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
-		Q: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
+		Q: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -216,8 +216,8 @@ mod inner {
 	impl<'a, Q, PointerBrand, S, T, A, B> SetterOptic<'a, Q, S, T, A, B>
 		for Setter<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
-		Q: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
+		Q: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -269,7 +269,7 @@ mod inner {
 	)]
 	pub struct SetterPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a, {
 		/// Function to update the focus in a structure.
@@ -285,7 +285,7 @@ mod inner {
 	#[document_parameters("The setter instance.")]
 	impl<'a, PointerBrand, S, A> Clone for SetterPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{
@@ -320,7 +320,7 @@ mod inner {
 	#[document_parameters("The setter instance.")]
 	impl<'a, PointerBrand, S, A> SetterPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{
@@ -388,8 +388,8 @@ mod inner {
 	impl<'a, Q, PointerBrand, S, A> Optic<'a, FnBrand<Q>, S, S, A, A>
 		for SetterPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
-		Q: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
+		Q: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{
@@ -439,8 +439,8 @@ mod inner {
 	impl<'a, Q, PointerBrand, S, A> SetterOptic<'a, Q, S, S, A, A>
 		for SetterPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
-		Q: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
+		Q: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{

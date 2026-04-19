@@ -4,7 +4,7 @@ Since Rust doesn't support HKTs directly (i.e., it's not possible to use `Option
 
 Each type constructor has a corresponding `Brand` type (e.g., `OptionBrand` for `Option`). These brands implement the `Kind` traits, which map the brand and generic arguments back to the concrete type. The library provides macros to simplify this process.
 
-```rust
+```rust,ignore
 use fp_library::{
 	impl_kind,
 	kinds::*,
@@ -13,7 +13,6 @@ use fp_library::{
 pub struct OptionBrand;
 
 impl_kind! {
-	#[no_inferable_brand]
 	for OptionBrand {
 		type Of<'a, A: 'a>: 'a = Option<A>;
 	}

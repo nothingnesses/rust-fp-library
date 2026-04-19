@@ -11,7 +11,7 @@
 //!
 //! let f = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 //! let x = Some(5);
-//! let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
+//! let y = apply(f, x);
 //! assert_eq!(y, Some(10));
 //! ```
 
@@ -53,10 +53,7 @@ mod inner {
 	/// let w = Some(5i32);
 	///
 	/// // Right side: apply(u, apply(v, w))
-	/// let right = apply::<RcFnBrand, OptionBrand, _, _>(
-	/// 	u.clone(),
-	/// 	apply::<RcFnBrand, OptionBrand, _, _>(v.clone(), w),
-	/// );
+	/// let right = apply(u.clone(), apply(v.clone(), w));
 	///
 	/// // Left side: apply(apply(map(|f| |g| compose(f, g), u), v), w)
 	/// // Step 1: map the composition combinator over u
@@ -70,8 +67,8 @@ mod inner {
 	/// 	u,
 	/// );
 	/// // Step 2: apply to v, then to w
-	/// let composed = apply::<RcFnBrand, OptionBrand, _, _>(compose_u, v);
-	/// let left = apply::<RcFnBrand, OptionBrand, _, _>(composed, w);
+	/// let composed = apply(compose_u, v);
+	/// let left = apply(composed, w);
 	///
 	/// assert_eq!(left, right);
 	/// assert_eq!(left, Some(11)); // (5 * 2) + 1
@@ -113,7 +110,7 @@ mod inner {
 		///
 		/// let f = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let x = Some(5);
-		/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
+		/// let y = apply(f, x);
 		/// assert_eq!(y, Some(10));
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
@@ -154,7 +151,7 @@ mod inner {
 	///
 	/// let f = Some(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// let x = Some(5);
-	/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
+	/// let y = apply(f, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
 	pub fn apply<'a, FnBrand: 'a + CloneFn, Brand: Semiapplicative, A: 'a + Clone, B: 'a>(

@@ -1,6 +1,6 @@
 //! Helpers and type class implementations for [`ControlFlow`](core::ops::ControlFlow) in tail-recursive computations.
 //!
-//! Used by [`MonadRec`](crate::classes::monad_rec::MonadRec) to implement stack-safe tail recursion. [`ControlFlow::Continue`](core::ops::ControlFlow::Continue) continues iteration, while [`ControlFlow::Break`](core::ops::ControlFlow::Break) terminates with a result.
+//! Used by [`MonadRec`](crate::classes::monad_rec::MonadRec) to implement stack-safe tail recursion. [`ControlFlow::Continue`](core::ops::ControlFlow::Continue) continues iteration, while [`ControlFlow::Break`](core::ops::ControlFlow::Break) terminates with a result. The corresponding brands are [`ControlFlowBrand`](crate::brands::ControlFlowBrand) (bifunctor), [`ControlFlowBreakAppliedBrand`](crate::brands::ControlFlowBreakAppliedBrand) (functor over the continue value), and [`ControlFlowContinueAppliedBrand`](crate::brands::ControlFlowContinueAppliedBrand) (functor over the break value).
 //!
 //! ### Examples
 //!
@@ -1169,7 +1169,7 @@ mod inner {
 	// ControlFlowContinueAppliedBrand<ContinueType> (Functor over B, the Break type)
 
 	impl_kind! {
-		#[no_inferable_brand]
+		#[multi_brand]
 		impl<ContinueType: 'static> for ControlFlowContinueAppliedBrand<ContinueType> {
 			type Of<'a, B: 'a>: 'a = ControlFlow<B, ContinueType>;
 		}
@@ -1360,14 +1360,17 @@ mod inner {
 		/// 	core::ops::ControlFlow,
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::*,
+		/// 		classes::semiapplicative::apply as explicit_apply,
 		/// 		functions::*,
 		/// 	},
 		/// };
 		///
 		/// let f: ControlFlow<_, ()> = ControlFlow::Break(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(
-		/// 	apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(f, ControlFlow::Break(5)),
+		/// 	explicit_apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(
+		/// 		f,
+		/// 		ControlFlow::Break(5)
+		/// 	),
 		/// 	ControlFlow::Break(10)
 		/// );
 		/// ```
@@ -1719,7 +1722,7 @@ mod inner {
 	// ControlFlowBreakAppliedBrand<BreakType> (Functor over C, the Continue type)
 
 	impl_kind! {
-		#[no_inferable_brand]
+		#[multi_brand]
 		impl<BreakType: 'static> for ControlFlowBreakAppliedBrand<BreakType> {
 			type Of<'a, C: 'a>: 'a = ControlFlow<BreakType, C>;
 		}
@@ -1909,7 +1912,7 @@ mod inner {
 		/// 	core::ops::ControlFlow,
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::*,
+		/// 		classes::semiapplicative::apply as explicit_apply,
 		/// 		functions::*,
 		/// 	},
 		/// };
@@ -1917,7 +1920,10 @@ mod inner {
 		/// let f: ControlFlow<(), _> =
 		/// 	ControlFlow::Continue(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(
-		/// 	apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(f, ControlFlow::Continue(5)),
+		/// 	explicit_apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(
+		/// 		f,
+		/// 		ControlFlow::Continue(5)
+		/// 	),
 		/// 	ControlFlow::Continue(10)
 		/// );
 		/// ```
@@ -2408,6 +2414,7 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
+			classes::semiapplicative::apply as explicit_apply,
 			functions::*,
 		},
 		core::ops::ControlFlow,
@@ -2706,7 +2713,7 @@ mod tests {
 		));
 		let x = pure::<ControlFlowContinueAppliedBrand<()>, _>(5);
 		assert_eq!(
-			apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(f, x),
+			explicit_apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(f, x),
 			ControlFlow::Break(10)
 		);
 
@@ -2715,7 +2722,7 @@ mod tests {
 			lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
 		);
 		assert_eq!(
-			apply::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _>(f_cont, cont),
+			explicit_apply::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _>(f_cont, cont),
 			ControlFlow::Continue(1)
 		);
 	}
@@ -2731,7 +2738,7 @@ mod tests {
 		));
 		let x = pure::<ControlFlowBreakAppliedBrand<()>, _>(5);
 		assert_eq!(
-			apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(f, x),
+			explicit_apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(f, x),
 			ControlFlow::Continue(10)
 		);
 
@@ -2740,7 +2747,7 @@ mod tests {
 			|x: i32| x * 2,
 		));
 		assert_eq!(
-			apply::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _>(f_brk, brk),
+			explicit_apply::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _>(f_brk, brk),
 			ControlFlow::Break(1)
 		);
 	}

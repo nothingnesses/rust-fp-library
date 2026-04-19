@@ -1,6 +1,6 @@
 //! Functional programming trait implementations for the standard library [`Result`] type.
 //!
-//! Extends `Result` with dual functor/monad instances: [`ResultErrAppliedBrand`](crate::brands::ResultErrAppliedBrand) (standard Result monad) functors over the success value, while [`ResultOkAppliedBrand`](crate::brands::ResultOkAppliedBrand) functors over the error value.
+//! Extends `Result` with bifunctor instance [`ResultBrand`](crate::brands::ResultBrand) and dual functor/monad instances: [`ResultErrAppliedBrand`](crate::brands::ResultErrAppliedBrand) (standard Result monad) functors over the success value, while [`ResultOkAppliedBrand`](crate::brands::ResultOkAppliedBrand) functors over the error value.
 
 #[fp_macros::document_module]
 mod inner {
@@ -527,7 +527,7 @@ mod inner {
 	// ResultErrAppliedBrand<E> (Functor over T)
 
 	impl_kind! {
-		#[no_inferable_brand]
+		#[multi_brand]
 		#[document_type_parameters("The error type.")]
 		impl<E: 'static> for ResultErrAppliedBrand<E> {
 			type Of<'a, A: 'a>: 'a = Result<A, E>;
@@ -720,17 +720,20 @@ mod inner {
 		/// 	Apply,
 		/// 	Kind,
 		/// 	brands::*,
-		/// 	classes::*,
+		/// 	classes::semiapplicative::apply as explicit_apply,
 		/// 	functions::*,
 		/// };
 		///
 		/// let f: Result<_, ()> = Ok(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(f, Ok(5)), Ok(10));
+		/// assert_eq!(explicit_apply::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(f, Ok(5)), Ok(10));
 		/// let f: Result<_, i32> = Ok(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(f, Err(1)), Err(1));
+		/// assert_eq!(explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(f, Err(1)), Err(1));
 		///
 		/// let f_err: Result<_, i32> = Err(1);
-		/// assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<i32>, i32, i32>(f_err, Ok(5)), Err(1));
+		/// assert_eq!(
+		/// 	explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, i32, i32>(f_err, Ok(5)),
+		/// 	Err(1)
+		/// );
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
@@ -1066,7 +1069,7 @@ mod inner {
 	// ResultOkAppliedBrand<T> (Functor over E)
 
 	impl_kind! {
-		#[no_inferable_brand]
+		#[multi_brand]
 		#[document_type_parameters("The success type.")]
 		impl<T: 'static> for ResultOkAppliedBrand<T> {
 			type Of<'a, A: 'a>: 'a = Result<T, A>;
@@ -1264,17 +1267,20 @@ mod inner {
 		/// 	Apply,
 		/// 	Kind,
 		/// 	brands::*,
-		/// 	classes::*,
+		/// 	classes::semiapplicative::apply as explicit_apply,
 		/// 	functions::*,
 		/// };
 		///
 		/// let f: Result<(), _> = Err(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(f, Err(5)), Err(10));
+		/// assert_eq!(explicit_apply::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(f, Err(5)), Err(10));
 		/// let f: Result<i32, _> = Err(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _>(f, Ok(1)), Ok(1));
+		/// assert_eq!(explicit_apply::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _>(f, Ok(1)), Ok(1));
 		///
 		/// let f_ok: Result<i32, _> = Ok(1);
-		/// assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<i32>, i32, i32>(f_ok, Err(5)), Ok(1));
+		/// assert_eq!(
+		/// 	explicit_apply::<RcFnBrand, ResultOkAppliedBrand<i32>, i32, i32>(f_ok, Err(5)),
+		/// 	Ok(1)
+		/// );
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
@@ -2252,7 +2258,10 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::*,
+			classes::{
+				semiapplicative::apply as explicit_apply,
+				*,
+			},
 			functions::*,
 		},
 		quickcheck_macros::quickcheck,
@@ -2324,7 +2333,7 @@ mod tests {
 	/// Tests the identity law for Applicative.
 	#[quickcheck]
 	fn applicative_identity(v: Result<i32, i32>) -> bool {
-		apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
+		explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
 			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as LiftFn>::new(identity)),
 			v,
 		) == v
@@ -2334,7 +2343,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
+		explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
 			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as LiftFn>::new(f)),
 			pure::<ResultErrAppliedBrand<i32>, _>(x),
 		) == pure::<ResultErrAppliedBrand<i32>, _>(f(x))
@@ -2362,8 +2371,8 @@ mod tests {
 		};
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(v.clone(), w);
-		let rhs = apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(u.clone(), vw);
+		let vw = explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(v.clone(), w);
+		let rhs = explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		// equivalent to (u . v) <*> w
@@ -2376,7 +2385,7 @@ mod tests {
 			(_, Err(e)) => Err(e),
 		};
 
-		let lhs = apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(uv, w);
+		let lhs = explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(uv, w);
 
 		lhs == rhs
 	}
@@ -2388,13 +2397,13 @@ mod tests {
 		let f = |x: i32| x.wrapping_mul(2);
 		let u = pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as LiftFn>::new(f));
 
-		let lhs = apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
+		let lhs = explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
 			u.clone(),
 			pure::<ResultErrAppliedBrand<i32>, _>(y),
 		);
 
 		let rhs_fn = <RcFnBrand as LiftFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
+		let rhs = explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
 			pure::<ResultErrAppliedBrand<i32>, _>(rhs_fn),
 			u,
 		);

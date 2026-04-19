@@ -625,8 +625,8 @@ mod inner {
 	impl<'a, Q, I: 'a, S: 'a, A: 'a, PointerBrand, F> IndexedSetterOptic<'a, Q, I, S, S, A, A>
 		for IndexedSetterPrime<'a, PointerBrand, I, S, A, F>
 	where
-		PointerBrand: UnsizedCoercible,
-		Q: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
+		Q: ToDynCloneFn,
 		F: IndexedSetterFunc<'a, I, S, S, A, A> + Clone + 'a,
 	{
 		#[document_signature]
@@ -690,7 +690,7 @@ mod inner {
 		IndexedSetterOptic<'a, Q, I, S, T, A, B> for IndexedSetter<'a, PointerBrand, I, S, T, A, B, F>
 	where
 		F: IndexedSetterFunc<'a, I, S, T, A, B> + Clone + 'a,
-		Q: UnsizedCoercible,
+		Q: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value to transform.")]
@@ -749,7 +749,7 @@ mod inner {
 		"The setter function type."
 	)]
 	#[document_parameters("The indexed setter instance.")]
-	impl<'a, Q2: UnsizedCoercible + 'static, PointerBrand, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a, F>
+	impl<'a, Q2: ToDynCloneFn + 'static, PointerBrand, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a, F>
 		IndexedOpticAdapter<'a, FnBrand<Q2>, I, S, T, A, B>
 		for IndexedSetter<'a, PointerBrand, I, S, T, A, B, F>
 	where
@@ -800,7 +800,7 @@ mod inner {
 		"The setter function type."
 	)]
 	#[document_parameters("The indexed setter instance.")]
-	impl<'a, Q2: UnsizedCoercible + 'static, PointerBrand, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a, F>
+	impl<'a, Q2: ToDynCloneFn + 'static, PointerBrand, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a, F>
 		IndexedOpticAdapterDiscardsFocus<'a, FnBrand<Q2>, I, S, T, A, B>
 		for IndexedSetter<'a, PointerBrand, I, S, T, A, B, F>
 	where
@@ -841,7 +841,7 @@ mod inner {
 		"The setter function type."
 	)]
 	#[document_parameters("The indexed setter instance.")]
-	impl<'a, Q2: UnsizedCoercible + 'static, PointerBrand: UnsizedCoercible, I: 'a, S: 'a, A: 'a, F>
+	impl<'a, Q2: ToDynCloneFn + 'static, PointerBrand: ToDynCloneFn, I: 'a, S: 'a, A: 'a, F>
 		IndexedOpticAdapter<'a, FnBrand<Q2>, I, S, S, A, A>
 		for IndexedSetterPrime<'a, PointerBrand, I, S, A, F>
 	where
@@ -889,7 +889,7 @@ mod inner {
 		"The setter function type."
 	)]
 	#[document_parameters("The indexed setter instance.")]
-	impl<'a, Q2: UnsizedCoercible + 'static, PointerBrand: UnsizedCoercible, I: 'a, S: 'a, A: 'a, F>
+	impl<'a, Q2: ToDynCloneFn + 'static, PointerBrand: ToDynCloneFn, I: 'a, S: 'a, A: 'a, F>
 		IndexedOpticAdapterDiscardsFocus<'a, FnBrand<Q2>, I, S, S, A, A>
 		for IndexedSetterPrime<'a, PointerBrand, I, S, A, F>
 	where

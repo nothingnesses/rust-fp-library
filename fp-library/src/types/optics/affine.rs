@@ -41,7 +41,7 @@ mod inner {
 	)]
 	pub struct AffineTraversal<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -61,7 +61,7 @@ mod inner {
 	#[document_parameters("The affine traversal instance.")]
 	impl<'a, PointerBrand, S, T, A, B> Clone for AffineTraversal<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -100,7 +100,7 @@ mod inner {
 	#[document_parameters("The affine traversal instance.")]
 	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> AffineTraversal<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		/// Create a new polymorphic affine traversal.
 		/// This matches PureScript's `affineTraversal'` constructor.
@@ -254,7 +254,7 @@ mod inner {
 		for AffineTraversal<'a, PointerBrand, S, T, A, B>
 	where
 		Q: Strong + Choice,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -320,7 +320,7 @@ mod inner {
 	impl<'a, PointerBrand, S, T, A, B> AffineTraversalOptic<'a, S, T, A, B>
 		for AffineTraversal<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -376,7 +376,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> TraversalOptic<'a, S, T, A, B>
 		for AffineTraversal<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -426,7 +426,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, A: 'a> FoldOptic<'a, S, A>
 		for AffineTraversal<'a, PointerBrand, S, S, A, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters(
@@ -458,7 +458,7 @@ mod inner {
 		/// >>::evaluate::<String, RcBrand>(&at, f);
 		/// assert_eq!(folded.run((42, "hello".to_string())), "42".to_string());
 		/// ```
-		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
@@ -480,8 +480,8 @@ mod inner {
 	impl<'a, Q, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> SetterOptic<'a, Q, S, T, A, B>
 		for AffineTraversal<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
-		Q: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
+		Q: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
@@ -533,7 +533,7 @@ mod inner {
 	)]
 	pub struct AffineTraversalPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a, {
 		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<(A, <FnBrand<PointerBrand> as CloneFn>::Of<'a, A, S>), S>>),
@@ -548,7 +548,7 @@ mod inner {
 	#[document_parameters("The affine traversal instance.")]
 	impl<'a, PointerBrand, S, A> Clone for AffineTraversalPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{
@@ -583,7 +583,7 @@ mod inner {
 	#[document_parameters("The monomorphic affine traversal instance.")]
 	impl<'a, PointerBrand, S: 'a, A: 'a> AffineTraversalPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		/// Create a new monomorphic affine traversal.
 		/// This matches PureScript's `affineTraversal'` constructor.
@@ -764,7 +764,7 @@ mod inner {
 		for AffineTraversalPrime<'a, PointerBrand, S, A>
 	where
 		Q: Strong + Choice,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{
@@ -826,7 +826,7 @@ mod inner {
 	impl<'a, PointerBrand, S, A> AffineTraversalOptic<'a, S, S, A, A>
 		for AffineTraversalPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{
@@ -877,7 +877,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, A: 'a> TraversalOptic<'a, S, S, A, A>
 		for AffineTraversalPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -926,7 +926,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, A: 'a> FoldOptic<'a, S, A>
 		for AffineTraversalPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters(
@@ -958,7 +958,7 @@ mod inner {
 		/// >>::evaluate::<String, RcBrand>(&at, f);
 		/// assert_eq!(folded.run((42, "hello".to_string())), "42".to_string());
 		/// ```
-		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
@@ -978,8 +978,8 @@ mod inner {
 	impl<'a, Q, PointerBrand, S: 'a, A: 'a> SetterOptic<'a, Q, S, S, A, A>
 		for AffineTraversalPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
-		Q: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
+		Q: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]

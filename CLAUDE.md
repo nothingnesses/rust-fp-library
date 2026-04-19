@@ -112,7 +112,7 @@ For detailed design documentation, see the `fp-library/docs/` directory:
 - `fp-library/docs/hkt.md` - Higher-Kinded Types and the Brand pattern
 - `fp-library/docs/zero-cost.md` - Zero-cost abstractions and uncurried semantics
 - `fp-library/docs/lazy-evaluation.md` - Lazy evaluation types, trade-offs, and decision guide
-- `fp-library/docs/pointer-abstraction.md` - Pointer hierarchy, `FnBrand<P>`, and `LazyConfig`
+- `fp-library/docs/pointer-abstraction.md` - Pointer traits, `FnBrand<P>`, and `LazyConfig`
 - `fp-library/docs/coyoneda.md` - Free functor implementations and trade-offs
 - `fp-library/docs/parallelism.md` - Thread safety and parallel trait hierarchy
 - `fp-library/docs/features.md` - Full feature list with type class hierarchy
@@ -157,6 +157,14 @@ Never use emoji or unicode symbols in code, comments, or documentation. Use plai
 - Arrows: `->`, `<-`, `<->` (not unicode arrows).
 - Math: `>=`, `<=`, `!=` (not unicode math symbols).
 - Section dividers: `// -- Section name --` (not box-drawing characters).
+
+### AST Pattern Matching in Macros
+
+When working on proc macro code in `fp-macros/`, always use `syn` AST pattern matching instead of stringly-typed processing:
+
+- Use `path.get_ident()`, `path.is_ident()`, or segment matching to compare types and trait names. Do not use `quote!(#ty).to_string()` to stringify AST nodes for comparison.
+- Store `syn::Ident` or `syn::Type` in data structures instead of stringified representations. Avoid round-tripping through strings (stringify then re-parse with `syn::parse_str`).
+- `ident.to_string()` is acceptable for map keys, error messages, and final output (e.g., `HmAst::Variable`), but not as a substitute for structural matching.
 
 ### Documentation Standards
 

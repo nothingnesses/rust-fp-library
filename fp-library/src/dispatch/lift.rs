@@ -840,7 +840,7 @@ pub(crate) mod inner {
 	/// from the first container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). The dispatch trait constrains `fb` to the same brand.
+	/// via the `InferableBrand` trait. The dispatch trait constrains `fb` to the same brand.
 	///
 	/// For types with multiple brands, use
 	/// [`explicit::lift2`](crate::functions::explicit::lift2) with a turbofish.
@@ -853,7 +853,7 @@ pub(crate) mod inner {
 		"The type of the first value.",
 		"The type of the second value.",
 		"The type of the result.",
-		"Dispatch marker type, inferred automatically."
+		"The brand, inferred via InferableBrand from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -871,22 +871,23 @@ pub(crate) mod inner {
 	/// let z = lift2(|a, b| a + b, Some(1), Some(2));
 	/// assert_eq!(z, Some(3));
 	/// ```
-	pub fn lift2<'a, FA, FB, A: 'a, B: 'a, C: 'a, Marker>(
+	pub fn lift2<'a, FA, FB, A: 'a, B: 'a, C: 'a, Brand>(
 		f: impl Lift2Dispatch<
 			'a,
-			<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+			Brand,
 			A,
 			B,
 			C,
 			FA,
 			FB,
-			Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
 		fb: FB,
-	) -> Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
-		FA: InferableBrand_cdc7cd43dac7585f, {
+		Brand: Kind_cdc7cd43dac7585f,
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa, fb)
 	}
 
@@ -894,7 +895,7 @@ pub(crate) mod inner {
 	/// from the first container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). The dispatch trait constrains all other containers
+	/// via the `InferableBrand` trait. The dispatch trait constrains all other containers
 	/// to the same brand.
 	///
 	/// For types with multiple brands, use
@@ -910,7 +911,7 @@ pub(crate) mod inner {
 		"The type of the second value.",
 		"The type of the third value.",
 		"The type of the result.",
-		"Dispatch marker type, inferred automatically."
+		"The brand, inferred via InferableBrand from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -929,10 +930,10 @@ pub(crate) mod inner {
 	/// let r = lift3(|a, b, c| a + b + c, Some(1), Some(2), Some(3));
 	/// assert_eq!(r, Some(6));
 	/// ```
-	pub fn lift3<'a, FA, FB, FC, A: 'a, B: 'a, C: 'a, D: 'a, Marker>(
+	pub fn lift3<'a, FA, FB, FC, A: 'a, B: 'a, C: 'a, D: 'a, Brand>(
 		f: impl Lift3Dispatch<
 			'a,
-			<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+			Brand,
 			A,
 			B,
 			C,
@@ -940,14 +941,15 @@ pub(crate) mod inner {
 			FA,
 			FB,
 			FC,
-			Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
 		fb: FB,
 		fc: FC,
-	) -> Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>)
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>)
 	where
-		FA: InferableBrand_cdc7cd43dac7585f, {
+		Brand: Kind_cdc7cd43dac7585f,
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa, fb, fc)
 	}
 
@@ -955,7 +957,7 @@ pub(crate) mod inner {
 	/// from the first container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). The dispatch trait constrains all other containers
+	/// via the `InferableBrand` trait. The dispatch trait constrains all other containers
 	/// to the same brand.
 	///
 	/// For types with multiple brands, use
@@ -973,7 +975,7 @@ pub(crate) mod inner {
 		"The type of the third value.",
 		"The type of the fourth value.",
 		"The type of the result.",
-		"Dispatch marker type, inferred automatically."
+		"The brand, inferred via InferableBrand from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -993,10 +995,10 @@ pub(crate) mod inner {
 	/// let r = lift4(|a, b, c, d| a + b + c + d, Some(1), Some(2), Some(3), Some(4));
 	/// assert_eq!(r, Some(10));
 	/// ```
-	pub fn lift4<'a, FA, FB, FC, FD, A: 'a, B: 'a, C: 'a, D: 'a, E: 'a, Marker>(
+	pub fn lift4<'a, FA, FB, FC, FD, A: 'a, B: 'a, C: 'a, D: 'a, E: 'a, Brand>(
 		f: impl Lift4Dispatch<
 			'a,
-			<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+			Brand,
 			A,
 			B,
 			C,
@@ -1006,15 +1008,16 @@ pub(crate) mod inner {
 			FB,
 			FC,
 			FD,
-			Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
 		fb: FB,
 		fc: FC,
 		fd: FD,
-	) -> Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>)
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>)
 	where
-		FA: InferableBrand_cdc7cd43dac7585f, {
+		Brand: Kind_cdc7cd43dac7585f,
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa, fb, fc, fd)
 	}
 
@@ -1022,7 +1025,7 @@ pub(crate) mod inner {
 	/// from the first container type.
 	///
 	/// The `Brand` type parameter is inferred from the concrete type of `fa`
-	/// via [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f). The dispatch trait constrains all other containers
+	/// via the `InferableBrand` trait. The dispatch trait constrains all other containers
 	/// to the same brand.
 	///
 	/// For types with multiple brands, use
@@ -1042,7 +1045,7 @@ pub(crate) mod inner {
 		"The type of the fourth value.",
 		"The type of the fifth value.",
 		"The type of the result.",
-		"Dispatch marker type, inferred automatically."
+		"The brand, inferred via InferableBrand from FA and the closure's input type."
 	)]
 	///
 	#[document_parameters(
@@ -1063,10 +1066,10 @@ pub(crate) mod inner {
 	/// let r = lift5(|a, b, c, d, e| a + b + c + d + e, Some(1), Some(2), Some(3), Some(4), Some(5));
 	/// assert_eq!(r, Some(15));
 	/// ```
-	pub fn lift5<'a, FA, FB, FC, FD, FE, A: 'a, B: 'a, C: 'a, D: 'a, E: 'a, G: 'a, Marker>(
+	pub fn lift5<'a, FA, FB, FC, FD, FE, A: 'a, B: 'a, C: 'a, D: 'a, E: 'a, G: 'a, Brand>(
 		f: impl Lift5Dispatch<
 			'a,
-			<FA as InferableBrand_cdc7cd43dac7585f>::Brand,
+			Brand,
 			A,
 			B,
 			C,
@@ -1078,16 +1081,17 @@ pub(crate) mod inner {
 			FC,
 			FD,
 			FE,
-			Marker,
+			<FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
 		>,
 		fa: FA,
 		fb: FB,
 		fc: FC,
 		fd: FD,
 		fe: FE,
-	) -> Apply!(<<FA as InferableBrand!(type Of<'a, A: 'a>: 'a;)>::Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, G>)
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, G>)
 	where
-		FA: InferableBrand_cdc7cd43dac7585f, {
+		Brand: Kind_cdc7cd43dac7585f,
+		FA: InferableBrand_cdc7cd43dac7585f<'a, Brand, A>, {
 		f.dispatch(fa, fb, fc, fd, fe)
 	}
 

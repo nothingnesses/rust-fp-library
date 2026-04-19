@@ -3,7 +3,7 @@
 //! [`CoyonedaExplicit`] is the same construction as [`Coyoneda`](crate::types::Coyoneda)
 //! but without existential quantification over the intermediate type `B`. Where `Coyoneda`
 //! hides `B` behind a trait object (enabling HKT integration), `CoyonedaExplicit` exposes
-//! `B` as a type parameter (enabling compile-time function composition).
+//! `B` as a type parameter (enabling compile-time function composition). The corresponding brand is [`CoyonedaExplicitBrand`](crate::brands::CoyonedaExplicitBrand).
 //!
 //! ## Map fusion
 //!

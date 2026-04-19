@@ -322,12 +322,7 @@ pub fn bench_option(c: &mut Criterion) {
 			})
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
-			b.iter(|| {
-				apply::<RcFnBrand, OptionBrand, _, _>(
-					std::hint::black_box(f.clone()),
-					std::hint::black_box(val),
-				)
-			})
+			b.iter(|| apply(std::hint::black_box(f.clone()), std::hint::black_box(val)))
 		});
 		group.finish();
 	}

@@ -1,12 +1,14 @@
-//! Hierarchy of traits for abstracting over different types of pointers and their capabilities.
+//! Independent traits for abstracting over different types of pointers and their capabilities.
 //!
-//! The hierarchy is as follows:
-//! * [`Pointer`]: Base trait for any heap-allocated pointer.
-//! * [`RefCountedPointer`][super::ref_counted_pointer::RefCountedPointer]: Extension for pointers that allow shared ownership (cloning).
-//! * [`SendRefCountedPointer`][super::send_ref_counted_pointer::SendRefCountedPointer]: Extension for thread-safe reference-counted pointers.
+//! The pointer traits are independent (no supertrait relationships between them):
+//! * [`Pointer`]: Base trait for any heap-allocated pointer (`Box`, `Rc`, `Arc`).
+//! * [`RefCountedPointer`][super::ref_counted_pointer::RefCountedPointer]: Clonable reference-counted pointer (`Rc`, `Arc`).
+//! * [`SendRefCountedPointer`][super::send_ref_counted_pointer::SendRefCountedPointer]: Thread-safe reference-counted pointer (`Arc`).
 //!
-//! Additionally, [`UnsizedCoercible`][super::unsized_coercible::UnsizedCoercible] and [`SendUnsizedCoercible`][super::send_unsized_coercible::SendUnsizedCoercible] are provided to support
-//! coercing sized closures into trait objects (`dyn Fn`).
+//! Coercion traits wrap closures into `dyn Fn` trait objects:
+//! * [`ToDynFn`][super::to_dyn_fn::ToDynFn]: Coerce to `dyn Fn` behind any pointer (extends `Pointer`).
+//! * [`ToDynCloneFn`][super::to_dyn_clone_fn::ToDynCloneFn]: Coerce to `dyn Fn` behind a clonable pointer (extends `RefCountedPointer`).
+//! * [`ToDynSendFn`][super::to_dyn_send_fn::ToDynSendFn]: Coerce to `dyn Fn + Send + Sync` behind a thread-safe pointer (extends `SendRefCountedPointer`).
 //!
 //! ### Examples
 //!

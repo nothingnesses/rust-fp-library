@@ -587,6 +587,75 @@ fn find_dispatch_trait_in_sig(
 	None
 }
 
+/// Information about a type parameter bounded by `InferableFnBrand<_, A, B, _>`.
+///
+/// When `WrappedFn: InferableFnBrand<FnBrand, A, B, Mode>`, the type parameter
+/// `WrappedFn` is semantically `(A -> B)` and should be hidden from the forall
+/// clause, with occurrences replaced by an arrow type.
+struct FnBrandResolution {
+	/// The input type ident (second type arg of InferableFnBrand).
+	input: syn::Ident,
+	/// The output type ident (third type arg of InferableFnBrand).
+	output: syn::Ident,
+}
+
+/// Scan the signature's where clause for `InferableFnBrand` bounds and return
+/// a map from bounded type parameter name to its arrow components.
+///
+/// For example, `WrappedFn: InferableFnBrand<FnBrand, A, B, Mode>` produces
+/// `{ "WrappedFn" -> FnBrandResolution { input: A, output: B } }`.
+fn extract_fn_brand_resolutions(
+	sig: &syn::Signature
+) -> std::collections::HashMap<String, FnBrandResolution> {
+	use crate::analysis::generics::{
+		trait_bound_name,
+		where_clause_type_predicates,
+	};
+
+	let mut result = std::collections::HashMap::new();
+	for (ident, bounds) in where_clause_type_predicates(&sig.generics) {
+		for bound in bounds {
+			let TypeParamBound::Trait(trait_bound) = bound else {
+				continue;
+			};
+			if trait_bound_name(trait_bound)
+				.is_none_or(|n| n != crate::core::constants::markers::INFERABLE_FN_BRAND)
+			{
+				continue;
+			}
+			let Some(segment) = trait_bound.path.segments.last() else {
+				continue;
+			};
+			let syn::PathArguments::AngleBracketed(args) = &segment.arguments else {
+				continue;
+			};
+			// InferableFnBrand<FnBrand, A, B, Mode> - extract A (index 1) and B (index 2)
+			let type_args: Vec<&syn::Ident> = args
+				.args
+				.iter()
+				.filter_map(|arg| {
+					if let syn::GenericArgument::Type(Type::Path(tp)) = arg {
+						tp.path.get_ident()
+					} else {
+						None
+					}
+				})
+				.collect();
+			// type_args[0] = FnBrand, [1] = A, [2] = B, [3] = Mode (optional)
+			if let [_, input, output, ..] = type_args.as_slice() {
+				result.insert(
+					ident.to_string(),
+					FnBrandResolution {
+						input: (*input).clone(),
+						output: (*output).clone(),
+					},
+				);
+			}
+		}
+	}
+	result
+}
+
 /// Build a synthetic `syn::Signature` that replaces dispatch machinery with
 /// semantic equivalents. The result is fed to `generate_signature()` which
 /// already handles Apply! simplification, qualified paths, and brand name
@@ -601,6 +670,11 @@ fn build_synthetic_signature(
 	let brand_param = &dispatch_info.brand_param;
 	let kind_ident: syn::Ident = syn::parse_str(kind_trait_name).ok()?;
 	let brand_ident: syn::Ident = syn::parse_str(brand_param).ok()?;
+
+	// Resolve InferableFnBrand bounds: type params like WrappedFn that are
+	// bounded by InferableFnBrand<FnBrand, A, B, _> are semantically (A -> B)
+	// and should be hidden from forall with their occurrences substituted.
+	let fn_brand_resolutions = extract_fn_brand_resolutions(_original_sig);
 
 	// Build generic params
 	let mut generic_params: Vec<syn::GenericParam> = Vec::new();
@@ -619,6 +693,8 @@ fn build_synthetic_signature(
 	// Add type params in the order they appear in the dispatch trait definition.
 	// This preserves the trait author's intended ordering for the forall clause.
 	// Brand is already added above; skip it and add the remaining params.
+	// Params resolved via InferableFnBrand are also skipped (they appear as
+	// arrow types in container element positions instead).
 	let mut all_element_types: Vec<String> = Vec::new();
 	let secondary_map: std::collections::HashMap<&str, &str> =
 		dispatch_info.secondary_constraints.iter().map(|(p, c)| (p.as_str(), c.as_str())).collect();
@@ -626,6 +702,11 @@ fn build_synthetic_signature(
 	for param_name in &dispatch_info.type_param_order {
 		// Brand is already added as the first generic param
 		if param_name == brand_param {
+			continue;
+		}
+
+		// Skip params resolved via InferableFnBrand (e.g., WrappedFn)
+		if fn_brand_resolutions.contains_key(param_name) {
 			continue;
 		}
 
@@ -653,7 +734,17 @@ fn build_synthetic_signature(
 	// This is built by matching the function's dispatch trait type args
 	// (which use the function's param names like FA) against the
 	// dispatch_info.container_params (which use the trait's param names like FTA).
-	let container_map = build_container_map(_original_sig, dispatch_info);
+	let mut container_map = build_container_map(_original_sig, dispatch_info);
+
+	// Resolve InferableFnBrand element types in the container map: if a
+	// container's element type is a param resolved via InferableFnBrand
+	// (e.g., WrappedFn), replace it with a bare fn type so it renders as
+	// (A -> B) in the HM signature.
+	if !fn_brand_resolutions.is_empty() {
+		for elements in container_map.values_mut() {
+			resolve_fn_brand_elements(elements, &fn_brand_resolutions);
+		}
+	}
 
 	let mut fn_params: Vec<syn::FnArg> = Vec::new();
 
@@ -695,11 +786,11 @@ fn build_synthetic_signature(
 				// Closureless dispatch with impl Dispatch param: treat as container.
 				// Use the same fallback chain as InferableBrand-bounded params.
 				use crate::analysis::dispatch::ReturnStructure;
-				let element_types: Option<Vec<String>> = dispatch_info
+				let element_types: Option<Vec<Type>> = dispatch_info
 					.self_type_elements
 					.clone()
 					.or_else(|| {
-						let elems: Vec<String> = dispatch_info
+						let elems: Vec<Type> = dispatch_info
 							.type_param_order
 							.iter()
 							.filter(|p| {
@@ -709,7 +800,7 @@ fn build_synthetic_signature(
 									.iter()
 									.any(|(sc, _)| sc == *p)
 							})
-							.cloned()
+							.filter_map(|p| syn::parse_str::<Type>(p).ok())
 							.collect();
 						if elems.is_empty() { None } else { Some(elems) }
 					})
@@ -717,9 +808,10 @@ fn build_synthetic_signature(
 						ReturnStructure::Applied(args) => Some(args.clone()),
 						_ => None,
 					});
-				if let Some(ref elements) = element_types {
+				if let Some(mut elements) = element_types {
+					resolve_fn_brand_elements(&mut elements, &fn_brand_resolutions);
 					let pat = &pat_type.pat;
-					let container_type = build_applied_type(&brand_ident, &kind_ident, elements)?;
+					let container_type = build_applied_type(&brand_ident, &kind_ident, &elements)?;
 					fn_params.push(parse_quote!(#pat: #container_type));
 					continue;
 				}
@@ -728,22 +820,43 @@ fn build_synthetic_signature(
 			continue;
 		}
 
-		// For tuple closure dispatch via where-clause (e.g., compose_kleisli_flipped
-		// where (G, F): ComposeKleisliDispatch), detect tuple params of type vars
+		// For tuple closure dispatch via where-clause (e.g., compose_kleisli
+		// where (F, G): ComposeKleisliDispatch), detect tuple params of type vars
 		// and replace with the closure tuple.
+		//
+		// If the function's tuple param order differs from the where clause's
+		// dispatch-bounded tuple (e.g., param is (F, G) but where clause has
+		// (G, F): Dispatch), reverse the arrow inputs to match the function's
+		// parameter order.
 		if dispatch_info.tuple_closure
-			&& matches!(&*pat_type.ty, Type::Tuple(tuple) if tuple.elems.len() >= 2)
+			&& let Type::Tuple(param_tuple) = &*pat_type.ty
+			&& param_tuple.elems.len() >= 2
 			&& let Some(ref arrow) = dispatch_info.arrow_type
-			&& let Some(closure_param) = build_closure_param(arrow, true, &brand_ident, &kind_ident)
 		{
-			fn_params.push(closure_param);
-			continue;
+			let effective_arrow = if is_tuple_order_reversed(param_tuple, _original_sig) {
+				let mut reversed = arrow.clone();
+				reversed.inputs.reverse();
+				reversed
+			} else {
+				arrow.clone()
+			};
+			if let Some(closure_param) =
+				build_closure_param(&effective_arrow, true, &brand_ident, &kind_ident)
+			{
+				fn_params.push(closure_param);
+				continue;
+			}
 		}
 
 		// Check if this is a container type param -> replace with <Brand as Kind>::Of<...>
 		let ty = &pat_type.ty;
-		let type_str = quote!(#ty).to_string().replace(' ', "");
-		if let Some(elements) = container_map.get(&type_str) {
+		let type_ident_str = match &**ty {
+			Type::Path(tp) => tp.path.get_ident().map(|id| id.to_string()),
+			_ => None,
+		};
+		if let Some(ref ident_str) = type_ident_str
+			&& let Some(elements) = container_map.get(ident_str.as_str())
+		{
 			let pat = &pat_type.pat;
 			let container_type = build_applied_type(&brand_ident, &kind_ident, elements)?;
 			fn_params.push(parse_quote!(#pat: #container_type));
@@ -768,21 +881,21 @@ fn build_synthetic_signature(
 		}
 
 		// For closureless dispatch or unrecognized container params:
-		// if the type is an InferableBrand-bounded param, it's a container.
+		// if the type is a InferableBrand-bounded or Dispatch-bounded param, it's a container.
 		// Fallback chain (most direct source first):
 		// 1. self_type_elements: from the Val impl's self type (e.g., separate, compact)
 		// 2. type_param_order: single-letter element types from the trait definition (e.g., alt)
 		// 3. return structure: from the dispatch method's return type (last resort)
-		if is_dispatch_container_param(&type_str, _original_sig) {
+		if is_dispatch_container_param(ty, _original_sig) {
 			use crate::analysis::dispatch::ReturnStructure;
 
-			let element_types: Option<Vec<String>> = dispatch_info
+			let element_types: Option<Vec<Type>> = dispatch_info
 				.self_type_elements
 				.clone()
 				.or_else(|| {
 					// Extract single-letter element types from trait definition params,
 					// excluding Brand and secondary constraint params.
-					let elems: Vec<String> = dispatch_info
+					let elems: Vec<Type> = dispatch_info
 						.type_param_order
 						.iter()
 						.filter(|p| {
@@ -792,7 +905,7 @@ fn build_synthetic_signature(
 								.iter()
 								.any(|(sc, _)| sc == *p)
 						})
-						.cloned()
+						.filter_map(|p| syn::parse_str::<Type>(p).ok())
 						.collect();
 					if elems.is_empty() { None } else { Some(elems) }
 				})
@@ -807,9 +920,10 @@ fn build_synthetic_signature(
 					} => inner_elements.first().cloned(),
 					ReturnStructure::Plain(_) => None,
 				});
-			if let Some(ref elems) = element_types {
+			if let Some(mut elems) = element_types {
+				resolve_fn_brand_elements(&mut elems, &fn_brand_resolutions);
 				let pat = &pat_type.pat;
-				let container_type = build_applied_type(&brand_ident, &kind_ident, elems)?;
+				let container_type = build_applied_type(&brand_ident, &kind_ident, &elems)?;
 				fn_params.push(parse_quote!(#pat: #container_type));
 				continue;
 			}
@@ -850,43 +964,46 @@ fn build_synthetic_signature(
 ///
 /// Uses the container_params' stored position indices to do a direct positional
 /// lookup into the function's dispatch trait type args, avoiding heuristic scanning.
+/// Keys are type parameter names extracted as idents from the dispatch trait's
+/// angle-bracketed arguments.
 fn build_container_map(
 	sig: &syn::Signature,
 	dispatch_info: &DispatchTraitInfo,
-) -> std::collections::HashMap<String, Vec<String>> {
+) -> std::collections::HashMap<String, Vec<Type>> {
 	if dispatch_info.container_params.is_empty() {
 		return std::collections::HashMap::new();
 	}
 
-	// Extract dispatch trait type args from whichever location has them:
+	// Extract dispatch trait type arg idents from whichever location has them:
 	// either `impl *Dispatch<...>` parameter or where-clause bound.
-	let fn_type_args = extract_dispatch_type_args(sig);
-	if fn_type_args.is_empty() {
+	let fn_type_arg_idents = extract_dispatch_type_arg_idents(sig);
+	if fn_type_arg_idents.is_empty() {
 		return std::collections::HashMap::new();
 	}
 
 	// Use each container param's stored position to directly look up the
-	// corresponding function type arg.
+	// corresponding function type arg ident.
 	let mut result = std::collections::HashMap::new();
 	for cp in &dispatch_info.container_params {
-		if let Some(fn_arg) = fn_type_args.get(cp.position) {
-			result.insert(fn_arg.clone(), cp.element_types.clone());
+		if let Some(Some(fn_arg_ident)) = fn_type_arg_idents.get(cp.position) {
+			result.insert(fn_arg_ident.to_string(), cp.element_types.clone());
 		}
 	}
 	result
 }
 
-/// Extract the dispatch trait's type args from a function signature.
+/// Extract the dispatch trait's type arg idents from a function signature.
 ///
 /// Checks both `impl *Dispatch<...>` parameters and where-clause bounds.
-/// Returns the type args as stringified tokens (excluding lifetimes).
-fn extract_dispatch_type_args(sig: &syn::Signature) -> Vec<String> {
+/// Returns one entry per type argument (excluding lifetimes), preserving
+/// positional alignment. Complex types produce `None`.
+fn extract_dispatch_type_arg_idents(sig: &syn::Signature) -> Vec<Option<syn::Ident>> {
 	// Check impl Trait parameters
 	for input in &sig.inputs {
 		let FnArg::Typed(pat_type) = input else { continue };
 		let Type::ImplTrait(impl_trait) = &*pat_type.ty else { continue };
 		for bound in &impl_trait.bounds {
-			if let Some(args) = extract_dispatch_trait_args(bound) {
+			if let Some(args) = extract_dispatch_trait_arg_idents(bound) {
 				return args;
 			}
 		}
@@ -897,7 +1014,7 @@ fn extract_dispatch_type_args(sig: &syn::Signature) -> Vec<String> {
 		for predicate in &where_clause.predicates {
 			if let syn::WherePredicate::Type(pred_type) = predicate {
 				for bound in &pred_type.bounds {
-					if let Some(args) = extract_dispatch_trait_args(bound) {
+					if let Some(args) = extract_dispatch_trait_arg_idents(bound) {
 						return args;
 					}
 				}
@@ -908,8 +1025,12 @@ fn extract_dispatch_type_args(sig: &syn::Signature) -> Vec<String> {
 	Vec::new()
 }
 
-/// If a type param bound is a `*Dispatch<...>` trait, extract its type args.
-fn extract_dispatch_trait_args(bound: &TypeParamBound) -> Option<Vec<String>> {
+/// If a type param bound is a `*Dispatch<...>` trait, extract its type arg idents.
+///
+/// Returns one entry per type argument (excluding lifetimes), preserving
+/// positional alignment with the trait definition's type parameters.
+/// Complex types that are not simple identifiers produce `None`.
+fn extract_dispatch_trait_arg_idents(bound: &TypeParamBound) -> Option<Vec<Option<syn::Ident>>> {
 	let TypeParamBound::Trait(trait_bound) = bound else {
 		return None;
 	};
@@ -923,60 +1044,151 @@ fn extract_dispatch_trait_args(bound: &TypeParamBound) -> Option<Vec<String>> {
 	Some(
 		args.args
 			.iter()
-			.filter_map(|arg| {
-				if let syn::GenericArgument::Type(ty) = arg {
-					Some(quote!(#ty).to_string().replace(' ', ""))
-				} else {
-					None
-				}
+			.filter_map(|arg| match arg {
+				syn::GenericArgument::Type(Type::Path(type_path)) =>
+					Some(type_path.path.get_ident().cloned()),
+				syn::GenericArgument::Type(_) => Some(None),
+				_ => None, // Skip lifetimes
 			})
 			.collect(),
 	)
 }
 
-/// Check if a type name is an InferableBrand-bounded param in the signature's where clause.
+/// Check if a type has an InferableBrand or Dispatch bound in the signature's where clause.
+///
+/// Only matches simple identifier types (single-segment paths). Complex types
+/// (references, qualified paths, etc.) are never dispatch container params.
 fn is_dispatch_container_param(
-	type_name: &str,
+	ty: &syn::Type,
 	sig: &syn::Signature,
 ) -> bool {
-	if let Some(where_clause) = &sig.generics.where_clause {
-		for predicate in &where_clause.predicates {
-			if let syn::WherePredicate::Type(pred_type) = predicate {
-				let bounded_ty = &pred_type.bounded_ty;
-				let param_name = quote!(#bounded_ty).to_string().replace(' ', "");
-				if param_name == type_name {
-					for bound in &pred_type.bounds {
-						if let TypeParamBound::Trait(trait_bound) = bound {
-							let name = trait_bound
-								.path
-								.segments
-								.last()
-								.map(|s| s.ident.to_string())
-								.unwrap_or_default();
-							if name.starts_with("InferableBrand_")
-								|| name.ends_with(crate::core::constants::markers::DISPATCH_SUFFIX)
-							{
-								return true;
-							}
-						}
-					}
-				}
+	use crate::analysis::generics::{
+		collect_trait_bounds_for_param,
+		trait_bound_name,
+	};
+
+	let Type::Path(type_path) = ty else {
+		return false;
+	};
+	let Some(ident) = type_path.path.get_ident() else {
+		return false;
+	};
+	let ident_str = ident.to_string();
+	for bound in collect_trait_bounds_for_param(&ident_str, &sig.generics) {
+		if let Some(name) = trait_bound_name(bound) {
+			let name_str = name.to_string();
+			if name_str.starts_with(crate::core::constants::markers::INFERABLE_BRAND_PREFIX)
+				|| name_str.ends_with(crate::core::constants::markers::DISPATCH_SUFFIX)
+			{
+				return true;
 			}
 		}
 	}
 	false
 }
 
+/// Check if a function's tuple parameter has its elements in reversed order
+/// relative to the dispatch-bounded tuple in the where clause.
+///
+/// For example, if the function param is `(F, G)` but the where clause has
+/// `(G, F): ComposeKleisliDispatch`, the order is reversed. This matters
+/// for generating correct HM signatures where the arrow inputs must match
+/// the function's actual parameter order.
+fn is_tuple_order_reversed(
+	param_tuple: &syn::TypeTuple,
+	sig: &syn::Signature,
+) -> bool {
+	let Some(where_clause) = &sig.generics.where_clause else {
+		return false;
+	};
+
+	// Extract ident names from the function's tuple param elements
+	let param_idents: Vec<&syn::Ident> = param_tuple
+		.elems
+		.iter()
+		.filter_map(|elem| if let Type::Path(tp) = elem { tp.path.get_ident() } else { None })
+		.collect();
+	if param_idents.len() < 2 {
+		return false;
+	}
+
+	// Find the dispatch-bounded tuple in the where clause
+	for predicate in &where_clause.predicates {
+		let syn::WherePredicate::Type(pred_type) = predicate else {
+			continue;
+		};
+		let Type::Tuple(where_tuple) = &pred_type.bounded_ty else {
+			continue;
+		};
+		// Check if this tuple has a *Dispatch bound
+		let has_dispatch = pred_type.bounds.iter().any(|b| {
+			if let TypeParamBound::Trait(tb) = b {
+				tb.path.segments.last().is_some_and(|s| {
+					s.ident.to_string().ends_with(crate::core::constants::markers::DISPATCH_SUFFIX)
+				})
+			} else {
+				false
+			}
+		});
+		if !has_dispatch {
+			continue;
+		}
+
+		// Extract ident names from the where clause's tuple
+		let where_idents: Vec<&syn::Ident> = where_tuple
+			.elems
+			.iter()
+			.filter_map(|elem| if let Type::Path(tp) = elem { tp.path.get_ident() } else { None })
+			.collect();
+
+		// Check if the orders differ (same elements, different positions)
+		if param_idents.len() == where_idents.len()
+			&& param_idents != where_idents
+			&& param_idents.iter().all(|id| where_idents.contains(id))
+		{
+			return true;
+		}
+	}
+
+	false
+}
+
+/// Resolve element type names through InferableFnBrand mappings.
+///
+/// Any element that names a type parameter resolved via InferableFnBrand
+/// (e.g., `WrappedFn`) is replaced with a bare fn type string `fn(A)->B`.
+fn resolve_fn_brand_elements(
+	elements: &mut [Type],
+	fn_brand_resolutions: &std::collections::HashMap<String, FnBrandResolution>,
+) {
+	for elem in elements.iter_mut() {
+		let key = if let Type::Path(tp) = elem {
+			tp.path.get_ident().map(|id| id.to_string())
+		} else {
+			None
+		};
+		if let Some(key) = key
+			&& let Some(resolution) = fn_brand_resolutions.get(key.as_str())
+		{
+			let input = &resolution.input;
+			let output = &resolution.output;
+			let fn_str = format!("fn({input})->{output}");
+			if let Ok(fn_ty) = syn::parse_str::<Type>(&fn_str) {
+				*elem = fn_ty;
+			}
+		}
+	}
+}
+
 /// Build a `<Brand as Kind_hash>::Of<'a, A, B, ...>` qualified path type.
 fn build_applied_type(
 	brand_ident: &syn::Ident,
 	kind_ident: &syn::Ident,
-	element_types: &[String],
+	element_types: &[Type],
 ) -> Option<syn::Type> {
 	let mut args = vec![quote!('a)];
 	for elem in element_types {
-		let elem_type: syn::Type = syn::parse_str(elem).ok()?;
-		args.push(quote!(#elem_type));
+		args.push(quote!(#elem));
 	}
 	let args_tokens = quote!(#(#args),*);
 	Some(parse_quote!(<#brand_ident as #kind_ident>::Of<#args_tokens>))
@@ -1003,55 +1215,38 @@ fn build_closure_param(
 		for param in &arrow.inputs {
 			let sub_arrow = match param {
 				DispatchArrowParam::SubArrow(arrow) => arrow,
-				DispatchArrowParam::TypeParam(sub_arrow_str) => {
-					// Legacy string path: split on " -> " and parse
-					if let Some(arrow_pos) = sub_arrow_str.rfind(" -> ") {
-						let input_str = &sub_arrow_str[.. arrow_pos];
-						let output_str = &sub_arrow_str[arrow_pos + 4 ..];
-						let input_str =
-							input_str.trim().trim_start_matches('(').trim_end_matches(')');
-						let input_types: Vec<syn::Type> = input_str
-							.split(',')
-							.filter_map(|s| syn::parse_str(s.trim()).ok())
-							.collect();
-						let output_type: syn::Type =
-							syn::parse_str(output_str.trim()).unwrap_or_else(|_| parse_quote!(()));
-						fn_types.push(parse_quote!(fn(#(#input_types),*) -> #output_type));
-					}
+				DispatchArrowParam::TypeParam(_)
+				| DispatchArrowParam::AssociatedType {
+					..
+				} => {
 					continue;
 				}
-				_ => continue,
 			};
 
 			// Build fn type from structured sub-arrow
 			let mut input_types: Vec<syn::Type> = Vec::new();
 			for sub_param in &sub_arrow.inputs {
 				match sub_param {
-					DispatchArrowParam::TypeParam(name) => {
-						let ident: syn::Ident = syn::parse_str(name).ok()?;
+					DispatchArrowParam::TypeParam(ident) => {
 						input_types.push(parse_quote!(#ident));
 					}
 					DispatchArrowParam::AssociatedType {
 						assoc_name,
 					} => {
-						let assoc_ident: syn::Ident = syn::parse_str(assoc_name).ok()?;
-						input_types.push(parse_quote!(#brand_ident::#assoc_ident));
+						input_types.push(parse_quote!(#brand_ident::#assoc_name));
 					}
 					DispatchArrowParam::SubArrow(_) => continue,
 				}
 			}
 
 			let output_type: syn::Type = match &sub_arrow.output {
-				ArrowOutput::Plain(s) => syn::parse_str(s).ok()?,
+				ArrowOutput::Plain(ty) => *ty.clone(),
 				ArrowOutput::BrandApplied(args) =>
 					build_applied_type(brand_ident, kind_ident, args)?,
 				ArrowOutput::OtherApplied {
 					brand,
 					args,
-				} => {
-					let other_ident: syn::Ident = syn::parse_str(brand).ok()?;
-					build_applied_type(&other_ident, kind_ident, args)?
-				}
+				} => build_applied_type(brand, kind_ident, args)?,
 			};
 
 			fn_types.push(parse_quote!(fn(#(#input_types),*) -> #output_type));
@@ -1068,15 +1263,13 @@ fn build_closure_param(
 	let mut input_types: Vec<syn::Type> = Vec::new();
 	for param in &arrow.inputs {
 		match param {
-			DispatchArrowParam::TypeParam(name) => {
-				let ident: syn::Ident = syn::parse_str(name).ok()?;
+			DispatchArrowParam::TypeParam(ident) => {
 				input_types.push(parse_quote!(#ident));
 			}
 			DispatchArrowParam::AssociatedType {
 				assoc_name,
 			} => {
-				let assoc_ident: syn::Ident = syn::parse_str(assoc_name).ok()?;
-				input_types.push(parse_quote!(#brand_ident::#assoc_ident));
+				input_types.push(parse_quote!(#brand_ident::#assoc_name));
 			}
 			DispatchArrowParam::SubArrow(_) => {
 				// SubArrow is only used in tuple closures, not single closures
@@ -1086,15 +1279,12 @@ fn build_closure_param(
 	}
 
 	let output_type: syn::Type = match &arrow.output {
-		ArrowOutput::Plain(s) => syn::parse_str(s).ok()?,
+		ArrowOutput::Plain(ty) => *ty.clone(),
 		ArrowOutput::BrandApplied(args) => build_applied_type(brand_ident, kind_ident, args)?,
 		ArrowOutput::OtherApplied {
 			brand,
 			args,
-		} => {
-			let other_ident: syn::Ident = syn::parse_str(brand).ok()?;
-			build_applied_type(&other_ident, kind_ident, args)?
-		}
+		} => build_applied_type(brand, kind_ident, args)?,
 	};
 
 	Some(parse_quote!(f: impl Fn(#(#input_types),*) -> #output_type + 'a))
@@ -1109,15 +1299,14 @@ fn build_return_type(
 	use crate::analysis::dispatch::ReturnStructure;
 
 	match ret {
-		ReturnStructure::Plain(var) => Some(syn::parse_str(var).ok()?),
+		ReturnStructure::Plain(ty) => Some(*ty.clone()),
 		ReturnStructure::Applied(args) => build_applied_type(brand_ident, kind_ident, args),
 		ReturnStructure::Nested {
 			outer_param,
 			inner_args,
 		} => {
-			let outer_ident: syn::Ident = syn::parse_str(outer_param).ok()?;
 			let inner_type = build_applied_type(brand_ident, kind_ident, inner_args)?;
-			Some(parse_quote!(<#outer_ident as #kind_ident>::Of<'a, #inner_type>))
+			Some(parse_quote!(<#outer_param as #kind_ident>::Of<'a, #inner_type>))
 		}
 		ReturnStructure::Tuple(elements) => {
 			let elem_types: Vec<syn::Type> = elements
@@ -1130,13 +1319,12 @@ fn build_return_type(
 			outer_param,
 			inner_elements,
 		} => {
-			let outer_ident: syn::Ident = syn::parse_str(outer_param).ok()?;
 			let tuple_types: Vec<syn::Type> = inner_elements
 				.iter()
 				.filter_map(|args| build_applied_type(brand_ident, kind_ident, args))
 				.collect();
 			let tuple_type: syn::Type = parse_quote!((#(#tuple_types),*));
-			Some(parse_quote!(<#outer_ident as #kind_ident>::Of<'a, #tuple_type>))
+			Some(parse_quote!(<#outer_param as #kind_ident>::Of<'a, #tuple_type>))
 		}
 	}
 }

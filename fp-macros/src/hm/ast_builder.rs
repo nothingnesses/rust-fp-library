@@ -53,6 +53,76 @@ pub struct HmAstBuilder<'a> {
 	pub config: &'a Config,
 }
 
+impl HmAstBuilder<'_> {
+	/// Extract type arguments from angle-bracketed generic arguments,
+	/// converting each to its HM representation.
+	fn visit_type_args(
+		&mut self,
+		args: &syn::AngleBracketedGenericArguments,
+	) -> Vec<HmAst> {
+		args.args
+			.iter()
+			.filter_map(|arg| {
+				if let GenericArgument::Type(inner_ty) = arg {
+					Some(self.visit(inner_ty))
+				} else {
+					None
+				}
+			})
+			.collect()
+	}
+
+	/// Extract the HM representation from a list of trait bounds (as found
+	/// in `impl Trait` and `dyn Trait` types).
+	///
+	/// Filters out ignored traits (Send, Sync, etc.) and converts the
+	/// remaining bounds via `trait_bound_to_hm_type`. Returns the single
+	/// bound directly, multiple bounds as a Tuple, or a placeholder Variable
+	/// if no meaningful bounds remain.
+	fn extract_trait_bound_hm(
+		&mut self,
+		bounds: &syn::punctuated::Punctuated<TypeParamBound, syn::token::Plus>,
+	) -> HmAst {
+		let mut hm_bounds = Vec::new();
+		for bound in bounds {
+			if let TypeParamBound::Trait(trait_bound) = bound
+				&& let Some(segment) = last_path_segment(&trait_bound.path)
+			{
+				let name = segment.ident.to_string();
+				if !self.config.ignored_traits().contains(&name) {
+					hm_bounds.push(trait_bound_to_hm_type(
+						trait_bound,
+						self.fn_bounds,
+						self.generic_names,
+						self.config,
+					));
+				}
+			}
+		}
+		match hm_bounds.len() {
+			0 => HmAst::Variable("_".to_string()),
+			1 => hm_bounds.into_iter().next().unwrap_or_else(|| HmAst::Variable("_".to_string())),
+			_ => HmAst::Tuple(hm_bounds),
+		}
+	}
+
+	/// Build a Variable or Constructor node depending on whether type arguments
+	/// are present. Used for concrete types and brand-named types.
+	fn variable_or_constructor(
+		&mut self,
+		name: String,
+		arguments: &PathArguments,
+	) -> HmAst {
+		if let PathArguments::AngleBracketed(args) = arguments {
+			let type_args = self.visit_type_args(args);
+			if !type_args.is_empty() {
+				return HmAst::Constructor(name, type_args);
+			}
+		}
+		HmAst::Variable(name)
+	}
+}
+
 impl<'a> TypeVisitor for HmAstBuilder<'a> {
 	type Output = HmAst;
 
@@ -89,15 +159,11 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 				return HmAst::Variable("unknown".to_string());
 			};
 
-			let mut args_list = Vec::new();
-
-			if let PathArguments::AngleBracketed(args) = &last_segment.arguments {
-				for arg in &args.args {
-					if let GenericArgument::Type(inner_ty) = arg {
-						args_list.push(self.visit(inner_ty));
-					}
-				}
-			}
+			let args_list = if let PathArguments::AngleBracketed(args) = &last_segment.arguments {
+				self.visit_type_args(args)
+			} else {
+				Vec::new()
+			};
 
 			// Merge constructor and args
 			match constructor_type {
@@ -161,12 +227,7 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 				}
 
 				if let PathArguments::AngleBracketed(args) = &last.arguments {
-					let mut type_args = Vec::new();
-					for arg in &args.args {
-						if let GenericArgument::Type(inner_ty) = arg {
-							type_args.push(self.visit(inner_ty));
-						}
-					}
+					let type_args = self.visit_type_args(args);
 					if !type_args.is_empty() {
 						return HmAst::Constructor(constructor_name, type_args);
 					}
@@ -200,22 +261,7 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 			// Check if this is a concrete type that should be preserved
 			if self.config.concrete_types.contains(&name) {
 				// But still process generic arguments if present
-				match &segment.arguments {
-					PathArguments::AngleBracketed(args) => {
-						let mut type_args = Vec::new();
-						for arg in &args.args {
-							if let GenericArgument::Type(inner_ty) = arg {
-								type_args.push(self.visit(inner_ty));
-							}
-						}
-						if type_args.is_empty() {
-							return HmAst::Variable(name);
-						} else {
-							return HmAst::Constructor(name, type_args);
-						}
-					}
-					_ => return HmAst::Variable(name),
-				}
+				return self.variable_or_constructor(name, &segment.arguments);
 			}
 
 			// Keep type parameters in original case (uppercase)
@@ -231,23 +277,7 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 			}
 
 			let brand_name = format_brand_name(&name, self.config);
-
-			match &segment.arguments {
-				PathArguments::AngleBracketed(args) => {
-					let mut type_args = Vec::new();
-					for arg in &args.args {
-						if let GenericArgument::Type(inner_ty) = arg {
-							type_args.push(self.visit(inner_ty));
-						}
-					}
-					if type_args.is_empty() {
-						HmAst::Variable(brand_name)
-					} else {
-						HmAst::Constructor(brand_name, type_args)
-					}
-				}
-				_ => HmAst::Variable(brand_name),
-			}
+			self.variable_or_constructor(brand_name, &segment.arguments)
 		}
 	}
 
@@ -297,50 +327,16 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 		&mut self,
 		trait_object: &syn::TypeTraitObject,
 	) -> Self::Output {
-		// Erase auto traits and lifetimes from trait objects
-		let mut bounds = Vec::new();
-		for bound in &trait_object.bounds {
-			if let syn::TypeParamBound::Trait(trait_bound) = bound
-				&& let Some(segment) = last_path_segment(&trait_bound.path)
-			{
-				let name = segment.ident.to_string();
-				if !self.config.ignored_traits().contains(&name) {
-					bounds.push(trait_bound_to_hm_type(
-						trait_bound,
-						self.fn_bounds,
-						self.generic_names,
-						self.config,
-					));
-				}
-			}
-			// If path is empty, skip this bound (defensive handling)
-		}
-
-		if bounds.is_empty() {
-			HmAst::TraitObject(Box::new(HmAst::Variable("_".to_string())))
-		} else {
-			// SAFETY: bounds checked non-empty above
-			#[expect(clippy::indexing_slicing, reason = "Length checked above")]
-			let inner = if bounds.len() == 1 { bounds[0].clone() } else { HmAst::Tuple(bounds) };
-			HmAst::TraitObject(Box::new(inner))
-		}
+		// HM signatures erase dyn, same as impl: both represent the abstract
+		// type (e.g., Iterator String), not Rust's dispatch strategy.
+		self.extract_trait_bound_hm(&trait_object.bounds)
 	}
 
 	fn visit_impl_trait(
 		&mut self,
 		impl_trait: &syn::TypeImplTrait,
 	) -> Self::Output {
-		for bound in &impl_trait.bounds {
-			if let TypeParamBound::Trait(trait_bound) = bound {
-				return trait_bound_to_hm_type(
-					trait_bound,
-					self.fn_bounds,
-					self.generic_names,
-					self.config,
-				);
-			}
-		}
-		HmAst::Variable("impl_trait".to_string())
+		self.extract_trait_bound_hm(&impl_trait.bounds)
 	}
 
 	fn visit_bare_fn(

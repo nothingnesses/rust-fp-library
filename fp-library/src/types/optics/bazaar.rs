@@ -298,7 +298,7 @@ mod inner {
 		/// 	foci: vec![5],
 		/// 	rebuild: lift_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
 		/// };
-		/// let result = apply::<RcFnBrand, BazaarListBrand<RcFnBrand, i32, i32>, _, _>(bl_f, bl_a);
+		/// let result = apply(bl_f, bl_a);
 		/// assert_eq!((result.rebuild)(vec![7]), 14);
 		/// ```
 		fn apply<'a, FnB: 'a + CloneFn, T: 'a + Clone, U: 'a>(

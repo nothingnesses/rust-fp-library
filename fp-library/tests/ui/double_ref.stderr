@@ -1,0 +1,24 @@
+error[E0271]: type mismatch resolving `<OptionBrand as Kind_cdc7cd43dac7585f>::Of<'_, i32> == &Option<i32>`
+ --> tests/ui/double_ref.rs:8:14
+  |
+8 |     let _ = map(|x: &i32| *x + 1, &&Some(5));
+  |             --- ^^^^^^^^^^^^^^^^ expected `&Option<i32>`, found `Option<i32>`
+  |             |
+  |             required by a bound introduced by this call
+  |
+  = note: expected reference `&Option<i32>`
+                  found enum `Option<i32>`
+note: required by a bound in `fp_library::functions::map`
+ --> src/dispatch/functor.rs
+  |
+  |       pub fn map<'a, FA, A: 'a, B: 'a, Brand>(
+  |              --- required by a bound in this function
+  |           f: impl FunctorDispatch<
+  |  _________________^
+  | |             'a,
+  | |             Brand,
+  | |             A,
+... |
+  | |             <FA as InferableBrand_cdc7cd43dac7585f<'a, Brand, A>>::Marker,
+  | |         >,
+  | |_________^ required by this bound in `map`

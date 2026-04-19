@@ -55,7 +55,7 @@ mod inner {
 	///
 	/// ### Hierarchy Unification
 	///
-	/// This trait is now the root of the unified profunctor and arrow hierarchies on
+	/// This trait is the root of the unified profunctor and arrow hierarchies on
 	/// [`Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)`](crate::kinds::Kind_266801a817966495).
 	/// This unification ensures that all profunctor-based abstractions
 	/// (including lenses and prisms) share a consistent higher-kinded representation with
@@ -153,6 +153,7 @@ mod inner {
 		/// Maps contravariantly over the first argument.
 		///
 		/// This is a convenience method that maps only over the input (contravariant position).
+		/// Corresponds to `lmap` in Haskell and `lcmap` in PureScript.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -178,13 +179,13 @@ mod inner {
 		/// };
 		///
 		/// let f = |x: i32| x + 1;
-		/// let g = lmap::<RcFnBrand, _, _, _>(
+		/// let g = map_input::<RcFnBrand, _, _, _>(
 		/// 	|x: i32| x * 2,
 		/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
 		/// );
 		/// assert_eq!(g(10), 21); // (10 * 2) + 1 = 21
 		/// ```
-		fn lmap<'a, A: 'a, B: 'a, C: 'a>(
+		fn map_input<'a, A: 'a, B: 'a, C: 'a>(
 			ab: impl Fn(A) -> B + 'a,
 			pbc: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>) {
@@ -194,6 +195,7 @@ mod inner {
 		/// Maps covariantly over the second argument.
 		///
 		/// This is a convenience method that maps only over the output (covariant position).
+		/// Corresponds to `rmap` in both Haskell and PureScript.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -219,13 +221,13 @@ mod inner {
 		/// };
 		///
 		/// let f = |x: i32| x + 1;
-		/// let g = rmap::<RcFnBrand, _, _, _>(
+		/// let g = map_output::<RcFnBrand, _, _, _>(
 		/// 	|x: i32| x * 2,
 		/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
 		/// );
 		/// assert_eq!(g(10), 22); // (10 + 1) * 2 = 22
 		/// ```
-		fn rmap<'a, A: 'a, B: 'a, C: 'a>(
+		fn map_output<'a, A: 'a, B: 'a, C: 'a>(
 			bc: impl Fn(B) -> C + 'a,
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>) {
@@ -281,7 +283,9 @@ mod inner {
 
 	/// Maps contravariantly over the first argument.
 	///
-	/// Free function version that dispatches to [the type class' associated function][`Profunctor::lmap`].
+	/// Corresponds to `lmap` in Haskell and `lcmap` in PureScript.
+	///
+	/// Free function version that dispatches to [the type class' associated function][`Profunctor::map_input`].
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -308,22 +312,24 @@ mod inner {
 	/// };
 	///
 	/// let f = |x: i32| x + 1;
-	/// let g = lmap::<RcFnBrand, _, _, _>(
+	/// let g = map_input::<RcFnBrand, _, _, _>(
 	/// 	|x: i32| x * 2,
 	/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
 	/// );
 	/// assert_eq!(g(10), 21); // (10 * 2) + 1 = 21
 	/// ```
-	pub fn lmap<'a, Brand: Profunctor, A: 'a, B: 'a, C: 'a>(
+	pub fn map_input<'a, Brand: Profunctor, A: 'a, B: 'a, C: 'a>(
 		ab: impl Fn(A) -> B + 'a,
 		pbc: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>) {
-		Brand::lmap(ab, pbc)
+		Brand::map_input(ab, pbc)
 	}
 
 	/// Maps covariantly over the second argument.
 	///
-	/// Free function version that dispatches to [the type class' associated function][`Profunctor::rmap`].
+	/// Corresponds to `rmap` in both Haskell and PureScript.
+	///
+	/// Free function version that dispatches to [the type class' associated function][`Profunctor::map_output`].
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -350,24 +356,24 @@ mod inner {
 	/// };
 	///
 	/// let f = |x: i32| x + 1;
-	/// let g = rmap::<RcFnBrand, _, _, _>(
+	/// let g = map_output::<RcFnBrand, _, _, _>(
 	/// 	|x: i32| x * 2,
 	/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
 	/// );
 	/// assert_eq!(g(10), 22); // (10 + 1) * 2 = 22
 	/// ```
-	pub fn rmap<'a, Brand: Profunctor, A: 'a, B: 'a, C: 'a>(
+	pub fn map_output<'a, Brand: Profunctor, A: 'a, B: 'a, C: 'a>(
 		bc: impl Fn(B) -> C + 'a,
 		pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>) {
-		Brand::rmap(bc, pab)
+		Brand::map_output(bc, pab)
 	}
 
 	/// Lifts a pure function into a profunctor context.
 	///
 	/// Given a type that is both a [`Category`] (providing `identity`) and a
-	/// [`Profunctor`] (providing `rmap`), this function lifts a pure function
-	/// `A -> B` into the profunctor as `rmap(f, identity())`.
+	/// [`Profunctor`] (providing `map_output`), this function lifts a pure function
+	/// `A -> B` into the profunctor as `map_output(f, identity())`.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -396,7 +402,7 @@ mod inner {
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 	where
 		Brand: Category + Profunctor, {
-		Brand::rmap(f, Brand::identity())
+		Brand::map_output(f, Brand::identity())
 	}
 
 	crate::impl_kind! {
@@ -407,7 +413,7 @@ mod inner {
 
 	/// [`Functor`] instance for [`ProfunctorFirstAppliedBrand`].
 	///
-	/// Maps over the second (covariant) type parameter of a profunctor via [`Profunctor::rmap`].
+	/// Maps over the second (covariant) type parameter of a profunctor via [`Profunctor::map_output`].
 	#[document_type_parameters("The profunctor brand.", "The fixed first type parameter.")]
 	impl<Brand: Profunctor, A: 'static> Functor for ProfunctorFirstAppliedBrand<Brand, A> {
 		/// Map a function over the covariant type parameter.
@@ -435,7 +441,7 @@ mod inner {
 			f: impl Fn(B) -> C + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
-			Brand::rmap(f, fa)
+			Brand::map_output(f, fa)
 		}
 	}
 
@@ -447,7 +453,7 @@ mod inner {
 
 	/// [`Contravariant`] instance for [`ProfunctorSecondAppliedBrand`].
 	///
-	/// Contramaps over the first (contravariant) type parameter of a profunctor via [`Profunctor::lmap`].
+	/// Contramaps over the first (contravariant) type parameter of a profunctor via [`Profunctor::map_input`].
 	#[document_type_parameters("The profunctor brand.", "The fixed second type parameter.")]
 	impl<Brand: Profunctor, B: 'static> Contravariant for ProfunctorSecondAppliedBrand<Brand, B> {
 		/// Contramap a function over the contravariant type parameter.
@@ -476,7 +482,7 @@ mod inner {
 			f: impl Fn(C) -> A + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
-			Brand::lmap(f, fa)
+			Brand::map_input(f, fa)
 		}
 	}
 }

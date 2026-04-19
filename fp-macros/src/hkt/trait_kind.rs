@@ -5,6 +5,10 @@
 use {
 	super::AssociatedTypes,
 	crate::{
+		analysis::generics::{
+			extract_lifetime_names,
+			extract_type_idents,
+		},
 		core::Result,
 		documentation::templates::DocumentationBuilder,
 		generate_inferable_brand_name,
@@ -20,7 +24,7 @@ use {
 /// for a Higher-Kinded Type signature with multiple associated types.
 pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 	let name = generate_name(&input)?;
-	let ib_name = generate_inferable_brand_name(&input)?;
+	let inferable_brand_name = generate_inferable_brand_name(&input)?;
 
 	let assoc_types_tokens = input.associated_types.iter().map(|assoc| {
 		let ident = &assoc.signature.name;
@@ -39,21 +43,58 @@ pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 	// Build documentation using the DocumentationBuilder
 	let doc_string = DocumentationBuilder::new(&name, &input.associated_types).build();
 
-	// Build InferableBrand documentation
-	let ib_doc_summary = format!("Maps a concrete type back to its canonical brand for `{name}`.",);
-	let ib_doc_detail = "\n\nOnly implemented for types where the brand is unambiguous (one brand\n\
-		 per concrete type). Types reachable through multiple brands (e.g.,\n\
-		 `Result<A, E>` at arity 1) do not implement this trait and require\n\
-		 explicit brand specification via turbofish.\n\
-		 \n\
-		 A blanket implementation for references (`&T`) delegates to `T`'s\n\
-		 implementation, enabling brand inference for both owned and borrowed\n\
-		 containers.";
-	let ib_blanket_doc = format!(
-		"Blanket implementation delegating brand inference through references.\n\
-		 \n\
-		 Enables brand inference for borrowed containers (`&Vec<A>`, `&Option<A>`,\n\
-		 etc.) by delegating to the underlying type's `{ib_name}` implementation.",
+	// -- InferableBrand trait generation --
+	//
+	// Extract generics from the first associated type. The InferableBrand trait's
+	// parameters are: the associated type's lifetimes, then Brand (bounded
+	// by the Kind trait), then the associated type's type parameters.
+
+	// The parser validates that associated_types is non-empty (parse_non_empty in input.rs),
+	// so this indexing is safe. Clippy's indexing_slicing lint is suppressed accordingly.
+	#[expect(clippy::indexing_slicing, reason = "validated non-empty by parser")]
+	let first_generics = &input.associated_types[0].signature.generics;
+
+	let lifetime_defs: Vec<_> = first_generics
+		.params
+		.iter()
+		.filter_map(|p| if let syn::GenericParam::Lifetime(lt) = p { Some(lt) } else { None })
+		.collect();
+
+	let type_defs: Vec<_> = first_generics
+		.params
+		.iter()
+		.filter_map(|p| if let syn::GenericParam::Type(tp) = p { Some(tp) } else { None })
+		.collect();
+
+	let lifetime_names = extract_lifetime_names(first_generics);
+	let type_idents = extract_type_idents(first_generics);
+
+	let inferable_brand_doc_summary = format!(
+		r#"Reverse mapping from concrete types to brands for `{name}`.
+
+This trait has Brand as a trait parameter, allowing multiple implementations
+per concrete type keyed on different Brand values. This enables
+closure-directed inference for multi-brand types like `Result`.
+
+The associated `Marker` type projects whether the container is owned
+(`Val`) or borrowed (`Ref`). Direct implementations for owned types set
+`Marker = Val`; the blanket implementation for `&T` sets `Marker = Ref`.
+
+**Marker-agreement invariant:** all implementations for a given `Self`
+type must agree on the same `Marker` value. Owned types always produce
+`Val`; references always produce `Ref`. This invariant is enforced by
+construction since `impl_kind!` is the sole generator of implementations.
+
+InferableBrand enables closure-directed brand inference for both single-brand
+and multi-brand types."#,
+	);
+
+	let inferable_brand_blanket_doc = format!(
+		r#"Blanket implementation projecting `Marker = Ref` for borrowed containers.
+
+Delegates the Brand resolution to the underlying type's `{inferable_brand_name}`
+implementation while setting `Marker = Ref` to route dispatch to the
+by-reference trait method."#,
 	);
 
 	Ok(quote! {
@@ -63,21 +104,28 @@ pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 			#(#assoc_types_tokens)*
 		}
 
-		#[doc = #ib_doc_summary]
-		#[doc = #ib_doc_detail]
+		#[doc = #inferable_brand_doc_summary]
 		#[expect(non_camel_case_types, reason = "Generated name uses hash suffix for uniqueness")]
 		#[diagnostic::on_unimplemented(
-			message = "`{Self}` does not have a unique brand and cannot use brand inference",
-			note = "use the `explicit::` variant with a turbofish to specify the brand manually"
+			message = "cannot infer brand for `{Self}`",
+			note = "for multi-brand types, annotate the closure's input type to disambiguate",
+			note = "if that does not help, use the `explicit::` variant with a turbofish to specify the brand manually"
 		)]
-		pub trait #ib_name {
-			/// The canonical brand for this type.
-			type Brand: #name;
+		pub trait #inferable_brand_name<#(#lifetime_defs,)* __InferableBrand_Brand: #name #(, #type_defs)*> {
+			/// Dispatch marker: [`Val`](::fp_library::dispatch::Val) for owned types,
+			/// [`Ref`](::fp_library::dispatch::Ref) for references.
+			type Marker;
 		}
 
-		#[doc = #ib_blanket_doc]
-		impl<__IB_T: #ib_name + ?Sized> #ib_name for &__IB_T {
-			type Brand = __IB_T::Brand;
+		#[doc = #inferable_brand_blanket_doc]
+		#[expect(non_camel_case_types, reason = "Generated name uses hash suffix for uniqueness")]
+		impl<#(#lifetime_defs,)* __InferableBrand_T: ?Sized, __InferableBrand_Brand: #name #(, #type_defs)*>
+			#inferable_brand_name<#(#lifetime_names,)* __InferableBrand_Brand #(, #type_idents)*>
+		for &__InferableBrand_T
+		where
+			__InferableBrand_T: #inferable_brand_name<#(#lifetime_names,)* __InferableBrand_Brand #(, #type_idents)*>,
+		{
+			type Marker = ::fp_library::dispatch::Ref;
 		}
 	})
 }

@@ -42,7 +42,7 @@ mod inner {
 	)]
 	pub struct Iso<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -64,7 +64,7 @@ mod inner {
 	#[document_parameters("The iso instance.")]
 	impl<'a, PointerBrand, S, T, A, B> Clone for Iso<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -104,7 +104,7 @@ mod inner {
 	#[document_parameters("The iso instance.")]
 	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> Iso<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		/// Create a new polymorphic isomorphism.
 		#[document_signature]
@@ -206,7 +206,7 @@ mod inner {
 	impl<'a, Q, PointerBrand, S, T, A, B> Optic<'a, Q, S, T, A, B> for Iso<'a, PointerBrand, S, T, A, B>
 	where
 		Q: Profunctor,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -258,7 +258,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> IsoOptic<'a, S, T, A, B>
 		for Iso<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -302,7 +302,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> AffineTraversalOptic<'a, S, T, A, B>
 		for Iso<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -348,7 +348,7 @@ mod inner {
 	impl<'a, FunctionBrand: LiftFn, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a>
 		GrateOptic<'a, FunctionBrand, S, T, A, B> for Iso<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -393,7 +393,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> LensOptic<'a, S, T, A, B>
 		for Iso<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -437,7 +437,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> PrismOptic<'a, S, T, A, B>
 		for Iso<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -482,7 +482,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> TraversalOptic<'a, S, T, A, B>
 		for Iso<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -524,7 +524,7 @@ mod inner {
 	#[document_parameters("The iso instance.")]
 	impl<'a, PointerBrand, S: 'a, A: 'a> GetterOptic<'a, S, A> for Iso<'a, PointerBrand, S, S, A, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters(
@@ -551,7 +551,7 @@ mod inner {
 		/// let folded = GetterOptic::evaluate(&iso, f);
 		/// assert_eq!(folded.run((42,)), 42);
 		/// ```
-		fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
@@ -569,7 +569,7 @@ mod inner {
 	#[document_parameters("The iso instance.")]
 	impl<'a, PointerBrand, S: 'a, A: 'a> FoldOptic<'a, S, A> for Iso<'a, PointerBrand, S, S, A, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
@@ -593,7 +593,7 @@ mod inner {
 		/// let folded = FoldOptic::evaluate(&iso, f);
 		/// assert_eq!(folded.run((42,)), "42".to_string());
 		/// ```
-		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
@@ -615,8 +615,8 @@ mod inner {
 	impl<'a, Q, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> SetterOptic<'a, Q, S, T, A, B>
 		for Iso<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
-		Q: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
+		Q: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
@@ -660,7 +660,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> ReviewOptic<'a, S, T, A, B>
 		for Iso<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
@@ -704,7 +704,7 @@ mod inner {
 	)]
 	pub struct IsoPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a, {
 		pub(crate) from_fn: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
@@ -720,7 +720,7 @@ mod inner {
 	#[document_parameters("The iso instance.")]
 	impl<'a, PointerBrand, S, A> Clone for IsoPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{
@@ -755,7 +755,7 @@ mod inner {
 	#[document_parameters("The monomorphic iso instance.")]
 	impl<'a, PointerBrand, S: 'a, A: 'a> IsoPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		/// Create a new monomorphic isomorphism from bidirectional conversion functions.
 		#[document_signature]
@@ -878,7 +878,7 @@ mod inner {
 	impl<'a, Q, PointerBrand, S, A> Optic<'a, Q, S, S, A, A> for IsoPrime<'a, PointerBrand, S, A>
 	where
 		Q: Profunctor,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{
@@ -926,7 +926,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, A: 'a> AffineTraversalOptic<'a, S, S, A, A>
 		for IsoPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -970,7 +970,7 @@ mod inner {
 	impl<'a, FunctionBrand: LiftFn, PointerBrand, S: 'a, A: 'a>
 		GrateOptic<'a, FunctionBrand, S, S, A, A> for IsoPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -1012,7 +1012,7 @@ mod inner {
 	#[document_parameters("The monomorphic iso instance.")]
 	impl<'a, PointerBrand, S: 'a, A: 'a> LensOptic<'a, S, S, A, A> for IsoPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -1053,7 +1053,7 @@ mod inner {
 	#[document_parameters("The monomorphic iso instance.")]
 	impl<'a, PointerBrand, S: 'a, A: 'a> PrismOptic<'a, S, S, A, A> for IsoPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -1096,7 +1096,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, A: 'a> TraversalOptic<'a, S, S, A, A>
 		for IsoPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -1138,7 +1138,7 @@ mod inner {
 	#[document_parameters("The monomorphic iso instance.")]
 	impl<'a, PointerBrand, S: 'a, A: 'a> GetterOptic<'a, S, A> for IsoPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters(
@@ -1165,7 +1165,7 @@ mod inner {
 		/// let folded = GetterOptic::evaluate(&iso, f);
 		/// assert_eq!(folded.run((42,)), 42);
 		/// ```
-		fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
@@ -1183,7 +1183,7 @@ mod inner {
 	#[document_parameters("The monomorphic iso instance.")]
 	impl<'a, PointerBrand, S: 'a, A: 'a> FoldOptic<'a, S, A> for IsoPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
@@ -1207,7 +1207,7 @@ mod inner {
 		/// let folded = FoldOptic::evaluate(&iso, f);
 		/// assert_eq!(folded.run((42,)), "42".to_string());
 		/// ```
-		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
@@ -1227,8 +1227,8 @@ mod inner {
 	impl<'a, Q, PointerBrand, S: 'a, A: 'a> SetterOptic<'a, Q, S, S, A, A>
 		for IsoPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
-		Q: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
+		Q: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
@@ -1270,7 +1270,7 @@ mod inner {
 	impl<'a, PointerBrand, S: 'a, A: 'a> ReviewOptic<'a, S, S, A, A>
 		for IsoPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
@@ -1311,7 +1311,7 @@ mod inner {
 	#[document_parameters("The monomorphic iso instance.")]
 	impl<'a, PointerBrand, S: 'a, A: 'a> IsoOptic<'a, S, S, A, A> for IsoPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]

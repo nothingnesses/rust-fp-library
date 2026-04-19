@@ -19,8 +19,8 @@ from the container type via `InferableBrand` traits. No turbofish needed:
 ```rust
 use fp_library::functions::*;
 
-let y = map(|x: i32| x + 1, Some(5));                     // infers OptionBrand
-let z: Vec<i32> = bind(vec![1, 2], |x: i32| vec![x, x*10]); // infers VecBrand
+let y = map(|x: i32| x + 1, Some(5));                           // infers OptionBrand
+let z: Vec<i32> = bind(vec![1, 2], |x: i32| vec![x, x*10]);     // infers VecBrand
 let w = bimap((|e: i32| e+1, |s: i32| s*2), Ok::<i32, i32>(5)); // infers ResultBrand
 assert_eq!(y, Some(6));
 assert_eq!(z, vec![1, 10, 2, 20]);
@@ -65,6 +65,10 @@ automatically derive composite traits (`Applicative`, `Monad`, `Comonad`, `Alter
 [Architecture & Design](./architecture.md).
 
 ```mermaid
+---
+config:
+  layout: elk
+---
 graph TD
     Functor --> Alt --> Plus
     Functor --> Extend
@@ -101,12 +105,20 @@ its second parameter fixed (`ProfunctorSecondAppliedBrand`) implements `Contrava
 while a profunctor with its first parameter fixed (`ProfunctorFirstAppliedBrand`) implements `Functor`.
 
 ```mermaid
+---
+config:
+  layout: elk
+---
 graph TD
     Bifunctor --> Bitraversable
     Bifoldable --> Bitraversable
 ```
 
 ```mermaid
+---
+config:
+  layout: elk
+---
 graph TD
     Profunctor --> Strong --> Wander
     Profunctor --> Choice --> Wander
@@ -118,6 +130,10 @@ graph TD
 ```
 
 ```mermaid
+---
+config:
+  layout: elk
+---
 graph TD
     Semigroup --> Monoid
     Semigroupoid --> Category
@@ -192,10 +208,11 @@ type classes.
 **Function wrappers:** `Endofunction` (dynamically composed `a -> a`), `Endomorphism`
 (monoidally composed `a -> a`).
 
-**Pointer abstraction:** `Pointer`, `RefCountedPointer`, `SendRefCountedPointer` abstract
-over `Rc`/`Arc` via `FnBrand<P>`, enabling generic code that works with either pointer
-type. `CloneFn`/`SendCloneFn` provide cloneable closure wrappers for applicative contexts.
-`Arrow` provides composable callable wrappers for the optics system.
+**Pointer abstraction:** Independent pointer traits (`Pointer`, `RefCountedPointer`,
+`SendRefCountedPointer`) and coercion traits (`ToDynFn`, `ToDynCloneFn`, `ToDynSendFn`)
+abstract over `Box`/`Rc`/`Arc` via `FnBrand<P>`, enabling generic code that works with
+any pointer type. `CloneFn`/`SendCloneFn` provide cloneable closure wrappers for
+applicative contexts. `Arrow` provides composable callable wrappers for the optics system.
 See [Pointer Abstraction](./pointer-abstraction.md).
 
 ### Numeric Algebra

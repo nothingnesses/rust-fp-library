@@ -34,9 +34,15 @@ mod inner {
 
 	/// Abstraction for thread-safe cloneable wrappers over closures.
 	///
-	/// This trait extends [`CloneFn`] to enforce `Send + Sync` bounds on the
-	/// wrapped closure and the wrapper itself. This is implemented by types like
-	/// [`ArcFnBrand`][crate::brands::ArcFnBrand] but not [`RcFnBrand`][crate::brands::RcFnBrand].
+	/// This trait mirrors [`CloneFn`] with additional `Send + Sync` bounds on the
+	/// wrapped closure and the wrapper itself. It is a separate, independent trait
+	/// (not a supertrait of `CloneFn`) because its [`Of`](Self::Of) associated type
+	/// derefs to `dyn Fn + Send + Sync`, which is a different unsized type than the
+	/// `dyn Fn` target used by `CloneFn::Of`. Types like
+	/// [`FnBrand<P>`](crate::brands::FnBrand) implement both traits when the
+	/// pointer `P` supports it ([`ArcFnBrand`][crate::brands::ArcFnBrand]
+	/// implements both; [`RcFnBrand`][crate::brands::RcFnBrand] implements only
+	/// `CloneFn`).
 	///
 	/// The `Mode` parameter selects whether the wrapped closure takes its input
 	/// by value (`Val`, the default) or by reference (`Ref`).

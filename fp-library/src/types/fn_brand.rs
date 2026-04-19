@@ -34,13 +34,13 @@ mod inner {
 	};
 
 	impl_kind! {
-		impl<P: UnsizedCoercible> for FnBrand<P> {
-			type Of<'a, A: 'a, B: 'a>: 'a = <P as RefCountedPointer>::CloneableOf<'a, dyn 'a + Fn(A) -> B>;
+		impl<P: ToDynCloneFn> for FnBrand<P> {
+			type Of<'a, A: 'a, B: 'a>: 'a = <P as RefCountedPointer>::Of<'a, dyn 'a + Fn(A) -> B>;
 		}
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> Arrow for FnBrand<P> {
+	impl<P: ToDynCloneFn> Arrow for FnBrand<P> {
 		type Of<'a, A: 'a, B: 'a> =
 			Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>);
 
@@ -71,25 +71,25 @@ mod inner {
 		/// assert_eq!(f(5), 10);
 		/// ```
 		fn arrow<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as Arrow>::Of<'a, A, B> {
-			P::coerce_fn(f)
+			<P as ToDynCloneFn>::new(f)
 		}
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> CloneFn for FnBrand<P> {
+	impl<P: ToDynCloneFn> CloneFn for FnBrand<P> {
 		type Of<'a, A: 'a, B: 'a> =
 			Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>);
 		type PointerBrand = P;
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> CloneFn<Ref> for FnBrand<P> {
-		type Of<'a, A: 'a, B: 'a> = P::CloneableOf<'a, dyn 'a + Fn(&A) -> B>;
+	impl<P: ToDynCloneFn> CloneFn<Ref> for FnBrand<P> {
+		type Of<'a, A: 'a, B: 'a> = P::Of<'a, dyn 'a + Fn(&A) -> B>;
 		type PointerBrand = P;
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> LiftFn for FnBrand<P> {
+	impl<P: ToDynCloneFn> LiftFn for FnBrand<P> {
 		/// Creates a new cloneable function wrapper.
 		///
 		/// This function wraps the provided closure `f` into a pointer-wrapped cloneable function.
@@ -117,12 +117,12 @@ mod inner {
 		/// assert_eq!(f(5), 10);
 		/// ```
 		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as CloneFn>::Of<'a, A, B> {
-			P::coerce_fn(f)
+			<P as ToDynCloneFn>::new(f)
 		}
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> RefLiftFn for FnBrand<P> {
+	impl<P: ToDynCloneFn> RefLiftFn for FnBrand<P> {
 		/// Creates a new cloneable by-reference function wrapper.
 		#[document_signature]
 		///
@@ -150,12 +150,12 @@ mod inner {
 		fn ref_new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(&A) -> B
 		) -> <Self as CloneFn<Ref>>::Of<'a, A, B> {
-			P::coerce_ref_fn(f)
+			<P as ToDynCloneFn>::ref_new(f)
 		}
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
+	impl<P: ToDynCloneFn> Semigroupoid for FnBrand<P> {
 		/// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
 		///
 		/// This method composes two pointer-wrapped functions `f` and `g` to produce a new function that represents the application of `g` followed by `f`.
@@ -192,12 +192,12 @@ mod inner {
 			f: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, C, D>),
 			g: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, D>) {
-			P::coerce_fn(move |b| f(g(b)))
+			<P as ToDynCloneFn>::new(move |b| f(g(b)))
 		}
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> Category for FnBrand<P> {
+	impl<P: ToDynCloneFn> Category for FnBrand<P> {
 		/// Returns the identity morphism.
 		///
 		/// The identity morphism is a function that maps every object to itself, wrapped in the pointer type.
@@ -220,12 +220,12 @@ mod inner {
 		/// ```
 		fn identity<'a, A>()
 		-> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>) {
-			P::coerce_fn(|a| a)
+			<P as ToDynCloneFn>::new(|a| a)
 		}
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> Profunctor for FnBrand<P> {
+	impl<P: ToDynCloneFn> Profunctor for FnBrand<P> {
 		/// Maps over both arguments of the profunctor.
 		///
 		/// This method applies a contravariant function to the input and a covariant
@@ -267,12 +267,12 @@ mod inner {
 			cd: impl Fn(C) -> D + 'a,
 			pbc: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>) {
-			P::coerce_fn(move |a| cd(pbc(ab(a))))
+			<P as ToDynCloneFn>::new(move |a| cd(pbc(ab(a))))
 		}
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> Strong for FnBrand<P> {
+	impl<P: ToDynCloneFn> Strong for FnBrand<P> {
 		/// Lift a profunctor to operate on the first component of a pair.
 		///
 		/// This method takes a function `A -> B` and returns `(A, C) -> (B, C)`,
@@ -305,12 +305,12 @@ mod inner {
 		fn first<'a, A: 'a, B: 'a, C>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (A, C), (B, C)>) {
-			P::coerce_fn(move |(a, c)| (pab(a), c))
+			<P as ToDynCloneFn>::new(move |(a, c)| (pab(a), c))
 		}
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> Choice for FnBrand<P> {
+	impl<P: ToDynCloneFn> Choice for FnBrand<P> {
 		/// Lift a profunctor to operate on the left (Err) variant of a Result.
 		///
 		/// This method takes a function `A -> B` and returns `Result<C, A> -> Result<C, B>`,
@@ -345,7 +345,7 @@ mod inner {
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>)
 		{
-			P::coerce_fn(move |r: Result<C, A>| -> Result<C, B> {
+			<P as ToDynCloneFn>::new(move |r: Result<C, A>| -> Result<C, B> {
 				match r {
 					Err(a) => Err(pab(a)),
 					Ok(c) => Ok(c),
@@ -355,7 +355,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> Closed<FnBrand<P>> for FnBrand<P> {
+	impl<P: ToDynCloneFn> Closed<FnBrand<P>> for FnBrand<P> {
 		/// Lift a profunctor to operate on functions.
 		///
 		/// This method takes a function `A -> B` and returns `(X -> A) -> (X -> B)`,
@@ -391,15 +391,15 @@ mod inner {
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FnBrand<P> as CloneFn>::Of<'a, X, A>, <FnBrand<P> as CloneFn>::Of<'a, X, B>>)
 		{
-			P::coerce_fn(move |f: <FnBrand<P> as CloneFn>::Of<'a, X, A>| -> <FnBrand<P> as CloneFn>::Of<'a, X, B> {
+			<P as ToDynCloneFn>::new(move |f: <FnBrand<P> as CloneFn>::Of<'a, X, A>| -> <FnBrand<P> as CloneFn>::Of<'a, X, B> {
 				let pab = pab.clone();
-				P::coerce_fn(move |x: X| pab(f(x)))
+				<P as ToDynCloneFn>::new(move |x: X| pab(f(x)))
 			})
 		}
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> Wander for FnBrand<P> {
+	impl<P: ToDynCloneFn> Wander for FnBrand<P> {
 		/// Lift a profunctor to operate on a traversable structure.
 		#[document_signature]
 		///
@@ -451,7 +451,7 @@ mod inner {
 			traversal: impl crate::classes::optics::traversal::TraversalFunc<'a, S, T, A, B> + 'a,
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>) {
-			P::coerce_fn(move |s| {
+			<P as ToDynCloneFn>::new(move |s| {
 				let pab = pab.clone();
 				// SAFETY: traversal contract guarantees Some when applying through OptionBrand
 				#[expect(
@@ -466,17 +466,19 @@ mod inner {
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: SendUnsizedCoercible> SendCloneFn for FnBrand<P> {
-		type Of<'a, A: 'a, B: 'a> = P::SendOf<'a, dyn 'a + Fn(A) -> B + Send + Sync>;
+	impl<P: ToDynSendFn + ToDynCloneFn> SendCloneFn for FnBrand<P> {
+		type Of<'a, A: 'a, B: 'a> =
+			<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(A) -> B + Send + Sync>;
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: SendUnsizedCoercible> SendCloneFn<Ref> for FnBrand<P> {
-		type Of<'a, A: 'a, B: 'a> = P::SendOf<'a, dyn 'a + Fn(&A) -> B + Send + Sync>;
+	impl<P: ToDynSendFn + ToDynCloneFn> SendCloneFn<Ref> for FnBrand<P> {
+		type Of<'a, A: 'a, B: 'a> =
+			<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(&A) -> B + Send + Sync>;
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: SendUnsizedCoercible> SendLiftFn for FnBrand<P> {
+	impl<P: ToDynSendFn + ToDynCloneFn> SendLiftFn for FnBrand<P> {
 		/// Creates a new thread-safe cloneable function wrapper.
 		///
 		/// This function wraps the provided closure `f` into a pointer-wrapped thread-safe cloneable function.
@@ -506,12 +508,12 @@ mod inner {
 		fn new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(A) -> B + Send + Sync
 		) -> <Self as SendCloneFn>::Of<'a, A, B> {
-			P::coerce_send_fn(f)
+			<P as ToDynSendFn>::new(f)
 		}
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: SendUnsizedCoercible> SendRefLiftFn for FnBrand<P> {
+	impl<P: ToDynSendFn + ToDynCloneFn> SendRefLiftFn for FnBrand<P> {
 		/// Creates a new thread-safe cloneable by-reference function wrapper.
 		#[document_signature]
 		///
@@ -539,7 +541,7 @@ mod inner {
 		fn ref_new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(&A) -> B + Send + Sync
 		) -> <Self as SendCloneFn<Ref>>::Of<'a, A, B> {
-			P::coerce_send_ref_fn(f)
+			<P as ToDynSendFn>::ref_new(f)
 		}
 	}
 }

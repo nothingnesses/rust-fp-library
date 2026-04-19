@@ -8,6 +8,7 @@
 
 pub mod architecture;
 pub mod benchmarking;
+pub mod brand_dispatch_traits;
 pub mod brand_inference;
 pub mod coyoneda;
 pub mod dispatch;
@@ -22,6 +23,7 @@ pub mod parallelism;
 pub mod pointer_abstraction;
 pub mod profunctor_analysis;
 pub mod project_structure;
+pub mod references;
 pub mod release_process;
 pub mod std_coverage_checklist;
 pub mod zero_cost;

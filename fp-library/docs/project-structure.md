@@ -3,6 +3,10 @@
 ## Module Dependency Graph
 
 ```mermaid
+---
+config:
+  layout: elk
+---
 graph TD
     fp-macros["fp-macros<br/>(proc macro crate)"]
     kinds["kinds<br/>Kind + InferableBrand traits"]

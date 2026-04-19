@@ -1,1 +1,1 @@
-#![doc = fp_macros::doc_include!("docs/std-coverage-checklist.md")]
+#![doc = fp_macros::include_documentation!("docs/std-coverage-checklist.md")]

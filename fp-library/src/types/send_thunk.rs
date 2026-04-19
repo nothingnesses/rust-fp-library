@@ -6,7 +6,7 @@
 //!
 //! Standard HKT traits (`Functor`, `Semimonad`, etc.) cannot be implemented because
 //! their signatures do not require `Send` on mapping functions. Use the inherent
-//! methods ([`map`](SendThunk::map), [`bind`](SendThunk::bind)) instead.
+//! methods ([`map`](SendThunk::map), [`bind`](SendThunk::bind)) instead. The corresponding brand is [`SendThunkBrand`](crate::brands::SendThunkBrand).
 
 #[fp_macros::document_module]
 mod inner {

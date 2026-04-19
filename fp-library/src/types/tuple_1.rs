@@ -1,6 +1,6 @@
 //! Single-value tuple with [`Functor`](crate::classes::Functor), [`Applicative`](crate::classes::Applicative), [`Monad`](crate::classes::Monad), [`MonadRec`](crate::classes::MonadRec), [`Foldable`](crate::classes::Foldable), [`Traversable`](crate::classes::Traversable), and parallel folding instances.
 //!
-//! A trivial wrapper using the native Rust 1-tuple `(A,)`.
+//! A trivial wrapper using the native Rust 1-tuple `(A,)`. The corresponding brand is [`Tuple1Brand`](crate::brands::Tuple1Brand).
 
 #[fp_macros::document_module]
 mod inner {
@@ -171,7 +171,7 @@ mod inner {
 		///
 		/// let f = (lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),);
 		/// let x = (5,);
-		/// let y = apply::<RcFnBrand, Tuple1Brand, _, _>(f, x);
+		/// let y = apply(f, x);
 		/// assert_eq!(y, (10,));
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
@@ -726,20 +726,15 @@ mod tests {
 	#[quickcheck]
 	fn applicative_identity(v: i32) -> bool {
 		let v = (v,);
-		apply::<RcFnBrand, Tuple1Brand, _, _>(
-			pure::<Tuple1Brand, _>(<RcFnBrand as LiftFn>::new(identity)),
-			v,
-		) == v
+		apply(pure::<Tuple1Brand, _>(<RcFnBrand as LiftFn>::new(identity)), v) == v
 	}
 
 	/// Tests the homomorphism law for Applicative.
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<RcFnBrand, Tuple1Brand, _, _>(
-			pure::<Tuple1Brand, _>(<RcFnBrand as LiftFn>::new(f)),
-			pure::<Tuple1Brand, _>(x),
-		) == pure::<Tuple1Brand, _>(f(x))
+		apply(pure::<Tuple1Brand, _>(<RcFnBrand as LiftFn>::new(f)), pure::<Tuple1Brand, _>(x))
+			== pure::<Tuple1Brand, _>(f(x))
 	}
 
 	/// Tests the composition law for Applicative.
@@ -757,14 +752,14 @@ mod tests {
 		let u = pure::<Tuple1Brand, _>(<RcFnBrand as LiftFn>::new(u_fn));
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<RcFnBrand, Tuple1Brand, _, _>(v.clone(), w);
-		let rhs = apply::<RcFnBrand, Tuple1Brand, _, _>(u.clone(), vw);
+		let vw = apply(v.clone(), w);
+		let rhs = apply(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		let composed = move |x| u_fn(v_fn(x));
 		let uv = pure::<Tuple1Brand, _>(<RcFnBrand as LiftFn>::new(composed));
 
-		let lhs = apply::<RcFnBrand, Tuple1Brand, _, _>(uv, w);
+		let lhs = apply(uv, w);
 
 		lhs == rhs
 	}
@@ -776,10 +771,10 @@ mod tests {
 		let f = |x: i32| x.wrapping_mul(2);
 		let u = pure::<Tuple1Brand, _>(<RcFnBrand as LiftFn>::new(f));
 
-		let lhs = apply::<RcFnBrand, Tuple1Brand, _, _>(u.clone(), pure::<Tuple1Brand, _>(y));
+		let lhs = apply(u.clone(), pure::<Tuple1Brand, _>(y));
 
 		let rhs_fn = <RcFnBrand as LiftFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = apply::<RcFnBrand, Tuple1Brand, _, _>(pure::<Tuple1Brand, _>(rhs_fn), u);
+		let rhs = apply(pure::<Tuple1Brand, _>(rhs_fn), u);
 
 		lhs == rhs
 	}

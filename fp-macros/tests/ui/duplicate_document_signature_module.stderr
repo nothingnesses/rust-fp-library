@@ -4,7 +4,9 @@ error: cannot find attribute `document_signature` in this scope
 10 |     #[document_signature]
    |       ^^^^^^^^^^^^^^^^^^
    |
-help: consider importing this attribute macro
+help: consider importing one of these attribute macros
+   |
+ 9 +     use fp_library::document_signature;
    |
  9 +     use fp_macros::document_signature;
    |

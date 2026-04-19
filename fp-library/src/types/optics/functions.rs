@@ -72,7 +72,7 @@ mod inner {
 		s: S,
 	) -> A
 	where
-		PointerBrand: UnsizedCoercible + 'static,
+		PointerBrand: ToDynCloneFn + 'static,
 		S: 'a,
 		A: 'a + 'static, {
 		(optic.evaluate::<A, PointerBrand>(Forget::new(|a| a)).0)(s)
@@ -120,7 +120,7 @@ mod inner {
 		a: A,
 	) -> S
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a + Clone, {
 		let f = <FnBrand<PointerBrand> as Arrow>::arrow(move |_| a.clone());
@@ -173,7 +173,7 @@ mod inner {
 		f: impl Fn(A) -> A + 'a,
 	) -> S
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a, {
 		let f = <FnBrand<PointerBrand> as Arrow>::arrow(f);
@@ -219,7 +219,7 @@ mod inner {
 		s: S,
 	) -> Option<A>
 	where
-		PointerBrand: UnsizedCoercible + 'static,
+		PointerBrand: ToDynCloneFn + 'static,
 		S: 'a,
 		A: 'a + 'static + Clone, {
 		#[derive(Clone)]
@@ -536,7 +536,7 @@ mod inner {
 		s: S,
 	) -> (I, A)
 	where
-		PointerBrand: UnsizedCoercible + 'static,
+		PointerBrand: ToDynCloneFn + 'static,
 		I: 'a + 'static,
 		S: 'a,
 		A: 'a + 'static, {
@@ -582,7 +582,7 @@ mod inner {
 		f: impl Fn(I, A) -> A + 'a,
 	) -> S
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		I: 'a,
 		S: 'a,
 		A: 'a, {
@@ -628,7 +628,7 @@ mod inner {
 		a: A,
 	) -> S
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		I: 'a,
 		S: 'a,
 		A: 'a + Clone, {
@@ -668,7 +668,7 @@ mod inner {
 		s: S,
 	) -> Option<(I, A)>
 	where
-		PointerBrand: UnsizedCoercible + 'static,
+		PointerBrand: ToDynCloneFn + 'static,
 		I: 'a + Clone + 'static,
 		S: 'a,
 		A: 'a + 'static + Clone, {
@@ -736,7 +736,7 @@ mod inner {
 		s: S,
 	) -> R
 	where
-		PointerBrand: UnsizedCoercible + 'static,
+		PointerBrand: ToDynCloneFn + 'static,
 		I: 'a,
 		S: 'a,
 		A: 'a,
@@ -1220,7 +1220,7 @@ mod inner {
 		traversal: Traversal<'a, PointerBrand, S, T, A, B, F>
 	) -> IndexedTraversal<'a, PointerBrand, usize, S, T, A, B, PositionsTraversalFunc<F>>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		F: TraversalFunc<'a, S, T, A, B> + Clone + 'a,
 		S: 'a,
 		T: 'a,

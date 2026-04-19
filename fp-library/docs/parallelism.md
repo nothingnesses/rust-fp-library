@@ -5,6 +5,10 @@ All `par_*` free functions accept plain `impl Fn + Send + Sync` closures: no wra
 types required. Element types require `A: Send`; closures require `Send + Sync`.
 
 ```mermaid
+---
+config:
+  layout: elk
+---
 graph TD
     ParFunctor --> ParFilterable
     ParCompactable --> ParFilterable
@@ -37,6 +41,10 @@ instead of consuming `A`. Elements require `A: Send + Sync` (for rayon's `par_it
 which needs `&A: Send`, equivalent to `A: Sync`).
 
 ```mermaid
+---
+config:
+  layout: elk
+---
 graph TD
     ParRefFunctor --> ParRefFilterable
     ParCompactable --> ParRefFilterable

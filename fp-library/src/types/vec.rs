@@ -1,6 +1,6 @@
 //! Functional programming trait implementations for the standard library [`Vec`] type.
 //!
-//! Extends `Vec` with [`Functor`](crate::classes::Functor), [`Monad`](crate::classes::semimonad::Semimonad), [`Foldable`](crate::classes::Foldable), [`Traversable`](crate::classes::Traversable), [`Extend`](crate::classes::Extend), [`Filterable`](crate::classes::Filterable), [`Witherable`](crate::classes::Witherable), and parallel folding instances.
+//! Extends `Vec` with [`Functor`](crate::classes::Functor), [`Monad`](crate::classes::semimonad::Semimonad), [`Foldable`](crate::classes::Foldable), [`Traversable`](crate::classes::Traversable), [`Extend`](crate::classes::Extend), [`Filterable`](crate::classes::Filterable), [`Witherable`](crate::classes::Witherable), and parallel folding instances. The corresponding brand is [`VecBrand`](crate::brands::VecBrand).
 
 #[fp_macros::document_module]
 mod inner {
@@ -246,7 +246,7 @@ mod inner {
 		/// 	lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
 		/// 	lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
 		/// ];
-		/// assert_eq!(apply::<RcFnBrand, VecBrand, _, _>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
+		/// assert_eq!(apply(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
@@ -3051,20 +3051,15 @@ mod tests {
 	/// Tests the identity law for Applicative.
 	#[quickcheck]
 	fn applicative_identity(v: Vec<i32>) -> bool {
-		apply::<RcFnBrand, VecBrand, _, _>(
-			pure::<VecBrand, _>(<RcFnBrand as LiftFn>::new(identity)),
-			v.clone(),
-		) == v
+		apply(pure::<VecBrand, _>(<RcFnBrand as LiftFn>::new(identity)), v.clone()) == v
 	}
 
 	/// Tests the homomorphism law for Applicative.
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<RcFnBrand, VecBrand, _, _>(
-			pure::<VecBrand, _>(<RcFnBrand as LiftFn>::new(f)),
-			pure::<VecBrand, _>(x),
-		) == pure::<VecBrand, _>(f(x))
+		apply(pure::<VecBrand, _>(<RcFnBrand as LiftFn>::new(f)), pure::<VecBrand, _>(x))
+			== pure::<VecBrand, _>(f(x))
 	}
 
 	/// Tests the composition law for Applicative.
@@ -3084,8 +3079,8 @@ mod tests {
 			.collect();
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<RcFnBrand, VecBrand, _, _>(v_fns.clone(), w.clone());
-		let rhs = apply::<RcFnBrand, VecBrand, _, _>(u_fns.clone(), vw);
+		let vw = apply(v_fns.clone(), w.clone());
+		let rhs = apply(u_fns.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		// equivalent to (u . v) <*> w
@@ -3101,7 +3096,7 @@ mod tests {
 			})
 			.collect();
 
-		let lhs = apply::<RcFnBrand, VecBrand, _, _>(uv_fns, w);
+		let lhs = apply(uv_fns, w);
 
 		lhs == rhs
 	}
@@ -3113,10 +3108,10 @@ mod tests {
 		let f = |x: i32| x.wrapping_mul(2);
 		let u = vec![<RcFnBrand as LiftFn>::new(f)];
 
-		let lhs = apply::<RcFnBrand, VecBrand, _, _>(u.clone(), pure::<VecBrand, _>(y));
+		let lhs = apply(u.clone(), pure::<VecBrand, _>(y));
 
 		let rhs_fn = <RcFnBrand as LiftFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = apply::<RcFnBrand, VecBrand, _, _>(pure::<VecBrand, _>(rhs_fn), u);
+		let rhs = apply(pure::<VecBrand, _>(rhs_fn), u);
 
 		lhs == rhs
 	}

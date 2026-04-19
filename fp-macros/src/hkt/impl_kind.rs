@@ -12,6 +12,10 @@ use {
 		generate_name,
 	},
 	crate::{
+		analysis::generics::{
+			extract_lifetime_names,
+			extract_type_idents,
+		},
 		core::Result,
 		support::{
 			attributes,
@@ -23,13 +27,10 @@ use {
 	},
 	proc_macro2::TokenStream,
 	quote::quote,
-	std::collections::HashSet,
 	syn::{
-		GenericParam,
 		Generics,
 		Token,
 		Type,
-		TypeParamBound,
 		WhereClause,
 		braced,
 		parse::{
@@ -142,175 +143,71 @@ impl Parse for AssociatedType {
 	}
 }
 
-/// Collects all identifier and lifetime names referenced in a type expression.
-struct TypeIdentCollector {
-	idents: HashSet<String>,
-	lifetimes: HashSet<String>,
-}
+/// Checks whether the target type is a projection type that should not
+/// receive InferableBrand impls.
+///
+/// A projection type is one that:
+/// - Contains an `Apply!` macro invocation (detected as `syn::Type::Macro`)
+/// - Contains a qualified path with `::` (detected as a multi-segment path
+///   or a path with a `QSelf`)
+///
+/// Uses structural AST checks rather than string heuristics (Decision S).
+fn is_projection_type(ty: &Type) -> bool {
+	struct ProjectionChecker {
+		found: bool,
+	}
 
-impl TypeIdentCollector {
-	fn new() -> Self {
-		Self {
-			idents: HashSet::new(),
-			lifetimes: HashSet::new(),
+	impl<'ast> Visit<'ast> for ProjectionChecker {
+		fn visit_type_macro(
+			&mut self,
+			_: &'ast syn::TypeMacro,
+		) {
+			self.found = true;
+		}
+
+		fn visit_type_path(
+			&mut self,
+			type_path: &'ast syn::TypePath,
+		) {
+			if type_path.path.segments.len() > 1 || type_path.qself.is_some() {
+				self.found = true;
+			}
+			syn::visit::visit_type_path(self, type_path);
 		}
 	}
 
-	fn collect(ty: &Type) -> Self {
-		let mut collector = Self::new();
-		collector.visit_type(ty);
-		collector
-	}
+	let mut checker = ProjectionChecker {
+		found: false,
+	};
+	checker.visit_type(ty);
+	checker.found
 }
 
-impl<'ast> Visit<'ast> for TypeIdentCollector {
-	fn visit_path(
-		&mut self,
-		path: &'ast syn::Path,
-	) {
-		for segment in &path.segments {
-			self.idents.insert(segment.ident.to_string());
-			syn::visit::visit_path_segment(self, segment);
-		}
-	}
-
-	fn visit_lifetime(
-		&mut self,
-		lifetime: &'ast syn::Lifetime,
-	) {
-		self.lifetimes.insert(lifetime.ident.to_string());
-	}
-
-	fn visit_type_tuple(
-		&mut self,
-		tuple: &'ast syn::TypeTuple,
-	) {
-		for elem in &tuple.elems {
-			self.visit_type(elem);
-		}
-	}
-}
-
-/// Checks whether an `InferableBrand` impl should be generated for this
-/// `impl_kind!` invocation.
+/// Checks whether a `InferableBrand` impl should be generated for this `impl_kind!`
+/// invocation.
 ///
 /// Returns `false` (skip generation) when:
-/// - `#[no_inferable_brand]` attribute is present
 /// - Multiple associated types are defined (ambiguous primary type)
 /// - The target type is a projection (contains `Apply!` or `::`)
-fn should_generate_inferable_brand(input: &ImplKindInput) -> bool {
-	// Check for #[no_inferable_brand] attribute
-	if input.attributes.iter().any(|attr| attr.path().is_ident("no_inferable_brand")) {
-		return false;
-	}
-
+///
+/// The `#[multi_brand]` attribute does NOT suppress InferableBrand generation.
+/// Multi-brand types get InferableBrand impls (one per brand); the attribute
+/// is a documentation marker only.
+fn should_generate_slot(input: &ImplKindInput) -> bool {
 	// Skip if multiple associated types (ambiguous primary type)
 	if input.definitions.len() != 1 {
 		return false;
 	}
 
-	// Skip if target type is a projection (contains Apply! or ::)
+	// Skip if target type is a projection
 	let Some(def) = input.definitions.first() else {
 		return false;
 	};
-	let target = &def.target_type;
-	let target_str = quote!(#target).to_string();
-	if target_str.contains("::") || target_str.contains("Apply") {
+	if is_projection_type(&def.target_type) {
 		return false;
 	}
 
 	true
-}
-
-/// Builds the generics for an `InferableBrand` impl by collecting only the
-/// generic parameters that appear in the target type, with appropriate bounds.
-fn build_inferable_brand_generics(
-	target_type: &Type,
-	assoc_generics: &Generics,
-	impl_generics: &Generics,
-) -> Generics {
-	let collector = TypeIdentCollector::collect(target_type);
-
-	// Collect lifetimes from the associated type's output bounds that appear
-	// in the target type. These are used to add lifetime bounds on impl params.
-	let output_lifetimes_in_target: HashSet<String> = assoc_generics
-		.params
-		.iter()
-		.filter_map(|p| {
-			if let GenericParam::Lifetime(lt) = p {
-				let name = lt.lifetime.ident.to_string();
-				if collector.lifetimes.contains(&name) { Some(name) } else { None }
-			} else {
-				None
-			}
-		})
-		.collect();
-
-	let mut params = syn::punctuated::Punctuated::new();
-
-	// Add lifetimes from assoc generics that appear in target type
-	for param in &assoc_generics.params {
-		if let GenericParam::Lifetime(lt) = param
-			&& collector.lifetimes.contains(&lt.lifetime.ident.to_string())
-		{
-			params.push(param.clone());
-		}
-	}
-
-	// Add type params from assoc generics that appear in target type,
-	// stripping lifetime bounds that reference lifetimes not in the target
-	for param in &assoc_generics.params {
-		if let GenericParam::Type(ty) = param
-			&& collector.idents.contains(&ty.ident.to_string())
-		{
-			let mut ty = ty.clone();
-			ty.bounds = ty
-				.bounds
-				.into_iter()
-				.filter(|bound| {
-					if let TypeParamBound::Lifetime(lt) = bound {
-						collector.lifetimes.contains(&lt.ident.to_string())
-					} else {
-						true
-					}
-				})
-				.collect();
-			params.push(GenericParam::Type(ty));
-		}
-	}
-
-	// Add lifetimes from impl generics that appear in target type
-	for param in &impl_generics.params {
-		if let GenericParam::Lifetime(lt) = param
-			&& collector.lifetimes.contains(&lt.lifetime.ident.to_string())
-		{
-			params.push(param.clone());
-		}
-	}
-
-	// Add type params from impl generics that appear in target type,
-	// with additional lifetime bounds from output lifetimes
-	for param in &impl_generics.params {
-		if let GenericParam::Type(ty) = param
-			&& collector.idents.contains(&ty.ident.to_string())
-		{
-			let mut ty = ty.clone();
-			// Add lifetime bounds for output lifetimes that appear in target
-			for lt_name in &output_lifetimes_in_target {
-				let lt = syn::Lifetime::new(&format!("'{lt_name}"), proc_macro2::Span::call_site());
-				ty.bounds.push(TypeParamBound::Lifetime(lt));
-			}
-			params.push(GenericParam::Type(ty));
-		}
-	}
-
-	let has_params = !params.is_empty();
-	Generics {
-		lt_token: if has_params { Some(Default::default()) } else { None },
-		params,
-		gt_token: if has_params { Some(Default::default()) } else { None },
-		where_clause: None,
-	}
 }
 
 /// Generates the implementation for the `impl_kind!` macro.
@@ -318,11 +215,9 @@ fn build_inferable_brand_generics(
 /// This function takes the parsed input, determines the correct `Kind` trait based on
 /// the signature of the associated types, and generates the `impl` block.
 ///
-/// By default, it also generates a corresponding `InferableBrand_{hash}` impl for the
-/// target type, enabling brand inference. This is suppressed when:
-/// - `#[no_inferable_brand]` is present
-/// - The target type is a projection (contains `Apply!` or `::`)
-/// - Multiple associated types are defined
+/// By default, it also generates:
+/// - A `InferableBrand_{hash}` impl with `type Marker = Val` (unless the target is a projection
+///   type or multiple associated types are defined).
 pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 	let brand = &input.brand;
 	let impl_generics = &input.impl_generics;
@@ -360,12 +255,9 @@ pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 
 	let (impl_generics_impl, _, impl_generics_where) = impl_generics.split_for_impl();
 
-	// Filter out #[no_inferable_brand] from the attributes passed to the Kind impl
-	let attrs: Vec<_> = input
-		.attributes
-		.iter()
-		.filter(|attr| !attr.path().is_ident("no_inferable_brand"))
-		.collect();
+	// Filter out #[multi_brand] from the attributes passed to the Kind impl
+	let attrs: Vec<_> =
+		input.attributes.iter().filter(|attr| !attr.path().is_ident("multi_brand")).collect();
 	let has_doc = attrs.iter().any(|attr| attr.path().is_ident("doc"));
 	let maybe_separator = if has_doc {
 		quote! { #[doc = ""] }
@@ -382,26 +274,50 @@ pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 		}
 	};
 
-	// Generate InferableBrand impl if applicable
-	let ib_impl = if should_generate_inferable_brand(&input)
+	// Generate InferableBrand impl if applicable.
+	// InferableBrand is generated for ALL brands (including multi-brand types).
+	// The #[multi_brand] attribute does not suppress InferableBrand generation.
+	// Each impl_kind! invocation produces at most one
+	// InferableBrand impl; multiple brands for the same concrete type come from
+	// multiple impl_kind! invocations.
+	//
+	// Marker-agreement invariant: all InferableBrand impls for a given Self type
+	// must agree on the same Marker value. Since impl_kind! always
+	// generates owned-type impls (not reference impls), Marker is always
+	// Val. The &T blanket (generated by trait_kind!) handles Ref.
+	let slot_impl = if should_generate_slot(&input)
 		&& let Some(def) = input.definitions.first()
 	{
-		let ib_trait_name = generate_inferable_brand_name(&kind_input)?;
+		let inferable_brand_name = generate_inferable_brand_name(&kind_input)?;
 		let target_type = &def.target_type;
-		let ib_generics =
-			build_inferable_brand_generics(target_type, &def.signature.generics, impl_generics);
-		let (ib_impl_generics, ..) = ib_generics.split_for_impl();
+		let assoc_generics = &def.signature.generics;
 
-		let ib_doc = format!(
-			"Generated `{ib_trait_name}` implementation mapping `{}` back to `{}`.",
+		// Extract lifetime and type params from the associated type generics
+		let lifetime_names = extract_lifetime_names(assoc_generics);
+		let type_idents = extract_type_idents(assoc_generics);
+
+		// InferableBrand impl generics: all assoc type generics + all impl generics.
+		// The assoc type generics include lifetimes and type params with
+		// their bounds (e.g., 'a, A: 'a). The impl generics include the
+		// brand's generic params (e.g., E: 'static).
+		let all_slot_params: Vec<_> =
+			assoc_generics.params.iter().chain(impl_generics.params.iter()).collect();
+
+		let slot_doc = format!(
+			"Generated `{inferable_brand_name}` implementation for `{}` with brand `{}`.",
 			quote!(#target_type),
 			quote!(#brand),
 		);
 
 		quote! {
-			#[doc = #ib_doc]
-			impl #ib_impl_generics #ib_trait_name for #target_type {
-				type Brand = #brand;
+			#[doc = #slot_doc]
+			#[expect(non_camel_case_types, reason = "Generated name uses hash suffix for uniqueness")]
+			impl<#(#all_slot_params),*>
+				#inferable_brand_name<#(#lifetime_names,)* #brand #(, #type_idents)*>
+			for #target_type
+			#impl_generics_where
+			{
+				type Marker = ::fp_library::dispatch::Val;
 			}
 		}
 	} else {
@@ -410,7 +326,7 @@ pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 
 	Ok(quote! {
 		#kind_impl
-		#ib_impl
+		#slot_impl
 	})
 }
 
