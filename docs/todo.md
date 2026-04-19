@@ -1,6 +1,6 @@
 ### Tasks to do & ideas to look into
 
-- Assess validity of [audit_multi_brand_coverage.md](plans/multi-brand-ergonomics/analysis/audit_multi_brand_coverage.md).
+- Assess validity of [audit_multi_brand_coverage.md](plans/multi-brand-ergonomics/audit.md).
 - Add issue templates.
 - Should the `*Brand` `impl`s in [types/](../fp-library/src/types) be moved into modules in [brands/](../fp-library/src/brands)?
 - Should `Coyoneda` types, et. al, be moved to their own submodule? What about other types related to each other (newtype wrappers `Additive`, `Multiplicative`, `Conjunctive`, `Disjunctive`, etc.; `Thunk`, `Trampoline`, `Lazy`, etc.); do these also deserve their own submodules?
