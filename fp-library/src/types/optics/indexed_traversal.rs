@@ -10,7 +10,7 @@ mod inner {
 				optics::*,
 			},
 			classes::{
-				UnsizedCoercible,
+				ToDynCloneFn,
 				applicative::Applicative,
 				monoid::Monoid,
 				optics::*,
@@ -442,7 +442,7 @@ mod inner {
 		/// let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&l, pab);
 		/// assert_eq!(result.run(vec![10, 20]), "1020".to_string());
 		/// ```
-		fn evaluate<R: 'a + Monoid + Clone + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + Clone + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Indexed<'a, ForgetBrand<Q, R>, I, A, A>,
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>)
@@ -467,7 +467,7 @@ mod inner {
 		IndexedSetterOptic<'a, Q, I, S, T, A, B> for IndexedTraversal<'a, PointerBrand, I, S, T, A, B, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, T, A, B> + Clone + 'a,
-		Q: UnsizedCoercible,
+		Q: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value to transform.")]
@@ -820,7 +820,7 @@ mod inner {
 		/// let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&l, pab);
 		/// assert_eq!(result.run(vec![10, 20]), "1020".to_string());
 		/// ```
-		fn evaluate<R: 'a + Monoid + Clone + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + Clone + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Indexed<'a, ForgetBrand<Q, R>, I, A, A>,
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>)
@@ -843,7 +843,7 @@ mod inner {
 		IndexedSetterOptic<'a, Q, I, S, S, A, A> for IndexedTraversalPrime<'a, PointerBrand, I, S, A, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, S, A, A> + Clone + 'a,
-		Q: UnsizedCoercible,
+		Q: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value to transform.")]

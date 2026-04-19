@@ -13,7 +13,7 @@ mod inner {
 				optics::*,
 			},
 			classes::{
-				UnsizedCoercible,
+				ToDynCloneFn,
 				monoid::Monoid,
 				optics::*,
 				profunctor::Wander,
@@ -38,7 +38,7 @@ mod inner {
 	)]
 	pub struct Traversal<'a, PointerBrand, S, T, A, B, F>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		F: TraversalFunc<'a, S, T, A, B> + 'a,
 		S: 'a,
 		T: 'a,
@@ -62,7 +62,7 @@ mod inner {
 	)]
 	impl<'a, PointerBrand, S, T, A, B, F> Traversal<'a, PointerBrand, S, T, A, B, F>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		F: TraversalFunc<'a, S, T, A, B> + 'a,
 	{
 		/// Creates a new `Traversal` instance.
@@ -135,7 +135,7 @@ mod inner {
 	)]
 	pub struct TraversalPrime<'a, PointerBrand, S, A, F>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		F: TraversalFunc<'a, S, S, A, A> + 'a,
 		S: 'a,
 		A: 'a, {
@@ -153,7 +153,7 @@ mod inner {
 	)]
 	impl<'a, PointerBrand, S, A, F> TraversalPrime<'a, PointerBrand, S, A, F>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		F: TraversalFunc<'a, S, S, A, A> + 'a,
 	{
 		/// Creates a new `TraversalPrime` instance.
@@ -229,7 +229,7 @@ mod inner {
 		for Traversal<'a, PointerBrand, S, T, A, B, F>
 	where
 		Q: Wander,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		F: TraversalFunc<'a, S, T, A, B> + Clone + 'a,
 		S: 'a,
 		T: 'a,
@@ -311,7 +311,7 @@ mod inner {
 	impl<'a, PointerBrand, S, T, A, B, F> TraversalOptic<'a, S, T, A, B>
 		for Traversal<'a, PointerBrand, S, T, A, B, F>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		F: TraversalFunc<'a, S, T, A, B> + Clone + 'a,
 		S: 'a,
 		T: 'a,
@@ -387,7 +387,7 @@ mod inner {
 	#[document_parameters("The traversal instance.")]
 	impl<'a, PointerBrand, S, A, F> FoldOptic<'a, S, A> for Traversal<'a, PointerBrand, S, S, A, A, F>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		F: TraversalFunc<'a, S, S, A, A> + Clone + 'a,
 		S: 'a,
 		A: 'a + Clone,
@@ -451,7 +451,7 @@ mod inner {
 		/// let result = FoldOptic::evaluate(&traversal, f);
 		/// assert_eq!(result.run(vec![1, 2]), "12".to_string());
 		/// ```
-		fn evaluate<R: 'a + Monoid + Clone + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + Clone + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
@@ -474,8 +474,8 @@ mod inner {
 	impl<'a, Q, PointerBrand, S, T, A, B, F> SetterOptic<'a, Q, S, T, A, B>
 		for Traversal<'a, PointerBrand, S, T, A, B, F>
 	where
-		PointerBrand: UnsizedCoercible,
-		Q: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
+		Q: ToDynCloneFn,
 		F: TraversalFunc<'a, S, T, A, B> + Clone + 'a,
 		S: 'a,
 		T: 'a,

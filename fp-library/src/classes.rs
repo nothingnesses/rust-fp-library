@@ -116,11 +116,11 @@ pub mod send_ref_monad;
 pub mod send_ref_pointed;
 pub mod send_ref_semiapplicative;
 pub mod send_ref_semimonad;
-pub mod send_unsized_coercible;
+pub mod to_dyn_clone_fn;
 pub mod to_dyn_fn;
+pub mod to_dyn_send_fn;
 pub mod traversable;
 pub mod traversable_with_index;
-pub mod unsized_coercible;
 pub mod with_index;
 pub mod witherable;
 

@@ -5,7 +5,7 @@
 //! * [`RefCountedPointer`][super::ref_counted_pointer::RefCountedPointer]: Extension for pointers that allow shared ownership (cloning).
 //! * [`SendRefCountedPointer`][super::send_ref_counted_pointer::SendRefCountedPointer]: Extension for thread-safe reference-counted pointers.
 //!
-//! Additionally, [`UnsizedCoercible`][super::unsized_coercible::UnsizedCoercible] and [`SendUnsizedCoercible`][super::send_unsized_coercible::SendUnsizedCoercible] are provided to support
+//! Additionally, [`ToDynCloneFn`][super::to_dyn_clone_fn::ToDynCloneFn] and [`ToDynSendFn`][super::to_dyn_send_fn::ToDynSendFn] are provided to support
 //! coercing sized closures into trait objects (`dyn Fn`).
 //!
 //! ### Examples

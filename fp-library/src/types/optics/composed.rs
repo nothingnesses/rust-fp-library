@@ -9,7 +9,7 @@ use {
 		},
 		classes::{
 			LiftFn,
-			UnsizedCoercible,
+			ToDynCloneFn,
 			monoid::Monoid,
 			optics::*,
 			profunctor::{
@@ -549,7 +549,7 @@ mod inner {
 		/// > as GetterOptic<(i32, String), i32>>::evaluate::<i32, RcBrand>(&composed, f);
 		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
 		/// ```
-		fn evaluate<R: 'a + 'static, PointerBrand: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + 'static, PointerBrand: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
@@ -612,7 +612,7 @@ mod inner {
 		/// > as FoldOptic<Vec<i32>, i32>>::evaluate::<String, RcBrand>(&composed, f);
 		/// assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());
 		/// ```
-		fn evaluate<R: 'a + Monoid + Clone + 'static, PointerBrand: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + Clone + 'static, PointerBrand: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
@@ -638,7 +638,7 @@ mod inner {
 	impl<'a, PointerBrand, S, T, M, N, A, B, O1, O2> SetterOptic<'a, PointerBrand, S, T, A, B>
 		for Composed<'a, S, T, M, N, A, B, O1, O2>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		O1: SetterOptic<'a, PointerBrand, S, T, M, N>,
 		O2: SetterOptic<'a, PointerBrand, M, N, A, B>,
 		M: 'a,
@@ -1091,7 +1091,7 @@ mod inner {
 		/// );
 		/// assert_eq!(folded.run((42, "hi".to_string())), (0, 42));
 		/// ```
-		fn evaluate<R: 'a + 'static, PointerBrand: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + 'static, PointerBrand: ToDynCloneFn + 'static>(
 			&self,
 			pab: crate::types::optics::Indexed<'a, ForgetBrand<PointerBrand, R>, I, A, A>,
 		) -> Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
@@ -1153,7 +1153,7 @@ mod inner {
 		/// );
 		/// assert_eq!(folded.run((42, "hi".to_string())), "0:42");
 		/// ```
-		fn evaluate<R: 'a + Monoid + Clone + 'static, PointerBrand: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + Clone + 'static, PointerBrand: ToDynCloneFn + 'static>(
 			&self,
 			pab: crate::types::optics::Indexed<'a, ForgetBrand<PointerBrand, R>, I, A, A>,
 		) -> Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
@@ -1180,7 +1180,7 @@ mod inner {
 	impl<'a, PointerBrand, I: 'a, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2>
 		IndexedSetterOptic<'a, PointerBrand, I, S, T, A, B> for Composed<'a, S, T, M, N, A, B, O1, O2>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		O1: SetterOptic<'a, PointerBrand, S, T, M, N>,
 		O2: IndexedSetterOptic<'a, PointerBrand, I, M, N, A, B>,
 	{

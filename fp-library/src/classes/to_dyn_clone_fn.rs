@@ -8,7 +8,7 @@
 //! 	functions::*,
 //! };
 //!
-//! let f = coerce_fn::<RcBrand, _, _>(|x: i32| x + 1);
+//! let f = to_dyn_clone_fn::<RcBrand, _, _>(|x: i32| x + 1);
 //! assert_eq!(f(1), 2);
 //! ```
 
@@ -20,7 +20,7 @@ mod inner {
 	};
 
 	/// Trait for pointer brands that can perform unsized coercion to `dyn Fn`.
-	pub trait UnsizedCoercible: RefCountedPointer + 'static {
+	pub trait ToDynCloneFn: RefCountedPointer + 'static {
 		/// Coerces a sized closure to a `dyn Fn` wrapped in this pointer type.
 		#[document_signature]
 		///
@@ -41,10 +41,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = coerce_fn::<RcBrand, _, _>(|x: i32| x + 1);
+		/// let f = to_dyn_clone_fn::<RcBrand, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
-		fn coerce_fn<'a, A: 'a, B: 'a>(
+		fn new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(A) -> B
 		) -> Self::CloneableOf<'a, dyn 'a + Fn(A) -> B>;
 
@@ -70,10 +70,10 @@ mod inner {
 		/// 	classes::*,
 		/// };
 		///
-		/// let f = RcBrand::coerce_ref_fn(|x: &i32| *x + 1);
+		/// let f = <RcBrand as ToDynCloneFn>::ref_new(|x: &i32| *x + 1);
 		/// assert_eq!(f(&1), 2);
 		/// ```
-		fn coerce_ref_fn<'a, A: 'a, B: 'a>(
+		fn ref_new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(&A) -> B
 		) -> Self::CloneableOf<'a, dyn 'a + Fn(&A) -> B>;
 	}
@@ -99,18 +99,18 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let f = coerce_ref_fn::<RcBrand, _, _>(|x: &i32| *x + 1);
+	/// let f = to_ref_dyn_clone_fn::<RcBrand, _, _>(|x: &i32| *x + 1);
 	/// assert_eq!(f(&1), 2);
 	/// ```
-	pub fn coerce_ref_fn<'a, Brand: UnsizedCoercible, A: 'a, B: 'a>(
+	pub fn ref_new<'a, Brand: ToDynCloneFn, A: 'a, B: 'a>(
 		func: impl 'a + Fn(&A) -> B
 	) -> Brand::CloneableOf<'a, dyn 'a + Fn(&A) -> B> {
-		Brand::coerce_ref_fn::<A, B>(func)
+		<Brand as ToDynCloneFn>::ref_new::<A, B>(func)
 	}
 
 	/// Coerces a sized closure to a `dyn Fn` wrapped in this pointer type.
 	///
-	/// Free function version that dispatches to [the type class' associated function][`UnsizedCoercible::coerce_fn`].
+	/// Free function version that dispatches to [the type class' associated function][`ToDynCloneFn::new`].
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -128,17 +128,17 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	classes::unsized_coercible::*,
+	/// 	classes::to_dyn_clone_fn::*,
 	/// 	functions::*,
 	/// };
 	///
-	/// let f = coerce_fn::<RcBrand, _, _>(|x: i32| x + 1);
+	/// let f = to_dyn_clone_fn::<RcBrand, _, _>(|x: i32| x + 1);
 	/// assert_eq!(f(1), 2);
 	/// ```
-	pub fn coerce_fn<'a, Brand: UnsizedCoercible, A: 'a, B: 'a>(
+	pub fn new<'a, Brand: ToDynCloneFn, A: 'a, B: 'a>(
 		func: impl 'a + Fn(A) -> B
 	) -> Brand::CloneableOf<'a, dyn 'a + Fn(A) -> B> {
-		Brand::coerce_fn::<A, B>(func)
+		<Brand as ToDynCloneFn>::new::<A, B>(func)
 	}
 }
 

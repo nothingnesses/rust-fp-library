@@ -8,7 +8,7 @@ mod inner {
 			brands::optics::*,
 			classes::{
 				LiftFn,
-				UnsizedCoercible,
+				ToDynCloneFn,
 				foldable_with_index::FoldableWithIndex,
 				monoid::Monoid,
 				optics::*,
@@ -118,7 +118,7 @@ mod inner {
 		/// 	},
 		/// 	classes::{
 		/// 		IndexedFoldOptic,
-		/// 		UnsizedCoercible,
+		/// 		ToDynCloneFn,
 		/// 		monoid::Monoid,
 		/// 		semigroup::Semigroup,
 		/// 	},
@@ -181,7 +181,7 @@ mod inner {
 		/// 	},
 		/// 	classes::{
 		/// 		IndexedFoldOptic,
-		/// 		UnsizedCoercible,
+		/// 		ToDynCloneFn,
 		/// 		monoid::Monoid,
 		/// 		semigroup::Semigroup,
 		/// 	},
@@ -390,7 +390,7 @@ mod inner {
 		for IndexedFold<'a, PointerBrand, I, S, T, A, B, F>
 	where
 		F: IndexedFoldFunc<'a, I, S, A> + Clone + 'a,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
@@ -406,7 +406,7 @@ mod inner {
 		/// 	},
 		/// 	classes::{
 		/// 		IndexedFoldOptic,
-		/// 		UnsizedCoercible,
+		/// 		ToDynCloneFn,
 		/// 		monoid::Monoid,
 		/// 		semigroup::Semigroup,
 		/// 	},
@@ -432,7 +432,7 @@ mod inner {
 		/// let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&l, pab);
 		/// assert_eq!(result.run(vec![10, 20]), "[0]=10[1]=20");
 		/// ```
-		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Indexed<'a, ForgetBrand<Q, R>, I, A, A>,
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>)
@@ -460,9 +460,9 @@ mod inner {
 	#[document_parameters("The indexed fold instance.")]
 	impl<
 		'a,
-		Q2: UnsizedCoercible + 'static,
+		Q2: ToDynCloneFn + 'static,
 		R: 'a + Monoid + Clone + 'static,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		I: 'a,
 		S: 'a,
 		T: 'a,
@@ -522,9 +522,9 @@ mod inner {
 	#[document_parameters("The indexed fold instance.")]
 	impl<
 		'a,
-		Q2: UnsizedCoercible + 'static,
+		Q2: ToDynCloneFn + 'static,
 		R: 'a + Monoid + Clone + 'static,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		I: 'a,
 		S: 'a,
 		T: 'a,
@@ -611,7 +611,7 @@ mod inner {
 		/// 	},
 		/// 	classes::{
 		/// 		IndexedFoldOptic,
-		/// 		UnsizedCoercible,
+		/// 		ToDynCloneFn,
 		/// 		monoid::Monoid,
 		/// 		semigroup::Semigroup,
 		/// 	},
@@ -671,7 +671,7 @@ mod inner {
 		/// 	},
 		/// 	classes::{
 		/// 		IndexedFoldOptic,
-		/// 		UnsizedCoercible,
+		/// 		ToDynCloneFn,
 		/// 		monoid::Monoid,
 		/// 		semigroup::Semigroup,
 		/// 	},
@@ -717,7 +717,7 @@ mod inner {
 		for IndexedFoldPrime<'a, PointerBrand, I, S, A, F>
 	where
 		F: IndexedFoldFunc<'a, I, S, A> + Clone + 'a,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
@@ -733,7 +733,7 @@ mod inner {
 		/// 	},
 		/// 	classes::{
 		/// 		IndexedFoldOptic,
-		/// 		UnsizedCoercible,
+		/// 		ToDynCloneFn,
 		/// 		monoid::Monoid,
 		/// 		semigroup::Semigroup,
 		/// 	},
@@ -758,7 +758,7 @@ mod inner {
 		/// let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&l, pab);
 		/// assert_eq!(result.run(vec![10, 20]), "[0]=10[1]=20");
 		/// ```
-		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Indexed<'a, ForgetBrand<Q, R>, I, A, A>,
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>)
@@ -784,9 +784,9 @@ mod inner {
 	#[document_parameters("The indexed fold instance.")]
 	impl<
 		'a,
-		Q2: UnsizedCoercible + 'static,
+		Q2: ToDynCloneFn + 'static,
 		R: 'a + Monoid + Clone + 'static,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		I: 'a,
 		S: 'a,
 		A: 'a,
@@ -842,9 +842,9 @@ mod inner {
 	#[document_parameters("The indexed fold instance.")]
 	impl<
 		'a,
-		Q2: UnsizedCoercible + 'static,
+		Q2: ToDynCloneFn + 'static,
 		R: 'a + Monoid + Clone + 'static,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		I: 'a,
 		S: 'a,
 		A: 'a,

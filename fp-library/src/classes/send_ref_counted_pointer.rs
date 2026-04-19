@@ -52,7 +52,7 @@ mod inner {
 		/// let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
 		/// ```
-		fn send_new<'a, T: Send + Sync + 'a>(value: T) -> Self::SendOf<'a, T>
+		fn new<'a, T: Send + Sync + 'a>(value: T) -> Self::SendOf<'a, T>
 		where
 			Self::SendOf<'a, T>: Sized;
 	}
@@ -80,12 +80,10 @@ mod inner {
 	/// let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 	/// assert_eq!(*ptr, 42);
 	/// ```
-	pub fn send_new<'a, P: SendRefCountedPointer, T: Send + Sync + 'a>(
-		value: T
-	) -> P::SendOf<'a, T>
+	pub fn new<'a, P: SendRefCountedPointer, T: Send + Sync + 'a>(value: T) -> P::SendOf<'a, T>
 	where
 		P::SendOf<'a, T>: Sized, {
-		P::send_new(value)
+		P::new(value)
 	}
 }
 

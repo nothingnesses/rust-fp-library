@@ -67,7 +67,7 @@ mod inner {
 		/// let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
 		/// ```
-		fn cloneable_new<'a, T: 'a>(value: T) -> Self::CloneableOf<'a, T>
+		fn new<'a, T: 'a>(value: T) -> Self::CloneableOf<'a, T>
 		where
 			Self::CloneableOf<'a, T>: Sized;
 
@@ -213,10 +213,10 @@ mod inner {
 	/// let clone = ptr.clone();
 	/// assert_eq!(*clone, 42);
 	/// ```
-	pub fn cloneable_new<'a, P: RefCountedPointer, T: 'a>(value: T) -> P::CloneableOf<'a, T>
+	pub fn new<'a, P: RefCountedPointer, T: 'a>(value: T) -> P::CloneableOf<'a, T>
 	where
 		P::CloneableOf<'a, T>: Sized, {
-		P::cloneable_new(value)
+		P::new(value)
 	}
 
 	/// Creates a new take-cell containing the given value.

@@ -33,7 +33,7 @@ mod inner {
 	)]
 	pub struct Grate<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -65,7 +65,7 @@ mod inner {
 	#[document_parameters("The grate instance.")]
 	impl<'a, PointerBrand, S, T, A, B> Clone for Grate<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -111,7 +111,7 @@ mod inner {
 	#[document_parameters("The grate instance.")]
 	impl<'a, PointerBrand, S, T, A, B> Grate<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -222,7 +222,7 @@ mod inner {
 		for Grate<'a, PointerBrand, S, T, A, B>
 	where
 		Q: Closed<FnBrand<PointerBrand>>,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -270,7 +270,7 @@ mod inner {
 
 			Q::dimap(
 				move |s: S| {
-					let s_ptr = <PointerBrand as RefCountedPointer>::cloneable_new(s);
+					let s_ptr = <PointerBrand as RefCountedPointer>::new(s);
 					<FnBrand<PointerBrand> as LiftFn>::new(
 						move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 							'a,
@@ -309,7 +309,7 @@ mod inner {
 	impl<'a, PointerBrand, S, T, A, B> GrateOptic<'a, FnBrand<PointerBrand>, S, T, A, B>
 		for Grate<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 		B: 'a + Clone,
@@ -356,7 +356,7 @@ mod inner {
 
 			Q::dimap(
 				move |s: S| {
-					let s_ptr = <PointerBrand as RefCountedPointer>::cloneable_new(s);
+					let s_ptr = <PointerBrand as RefCountedPointer>::new(s);
 					<FnBrand<PointerBrand> as LiftFn>::new(
 						move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 							'a,
@@ -395,7 +395,7 @@ mod inner {
 	impl<'a, PointerBrand, S, T, A, B> SetterOptic<'a, PointerBrand, S, T, A, B>
 		for Grate<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 		B: 'a + Clone,
@@ -453,7 +453,7 @@ mod inner {
 	)]
 	pub struct GratePrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a, {
 		pub(crate) grate_fn: <FnBrand<PointerBrand> as CloneFn>::Of<
@@ -480,7 +480,7 @@ mod inner {
 	#[document_parameters("The grate instance.")]
 	impl<'a, PointerBrand, S, A> Clone for GratePrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{
@@ -524,7 +524,7 @@ mod inner {
 	)]
 	impl<'a, PointerBrand, S, A> GratePrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{
@@ -588,7 +588,7 @@ mod inner {
 	#[document_parameters("The grate instance.")]
 	impl<'a, PointerBrand, S, A> GratePrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a + Clone,
 	{
@@ -650,7 +650,7 @@ mod inner {
 	impl<'a, Q, PointerBrand, S, A> Optic<'a, Q, S, S, A, A> for GratePrime<'a, PointerBrand, S, A>
 	where
 		Q: Closed<FnBrand<PointerBrand>>,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a + Clone,
 		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
@@ -695,7 +695,7 @@ mod inner {
 
 			Q::dimap(
 				move |s: S| {
-					let s_ptr = <PointerBrand as RefCountedPointer>::cloneable_new(s);
+					let s_ptr = <PointerBrand as RefCountedPointer>::new(s);
 					<FnBrand<PointerBrand> as LiftFn>::new(
 						move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 							'a,
@@ -731,7 +731,7 @@ mod inner {
 	impl<'a, PointerBrand, S, A> GrateOptic<'a, FnBrand<PointerBrand>, S, S, A, A>
 		for GratePrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a + Clone,
 		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
@@ -775,7 +775,7 @@ mod inner {
 
 			Q::dimap(
 				move |s: S| {
-					let s_ptr = <PointerBrand as RefCountedPointer>::cloneable_new(s);
+					let s_ptr = <PointerBrand as RefCountedPointer>::new(s);
 					<FnBrand<PointerBrand> as LiftFn>::new(
 						move |f: <FnBrand<PointerBrand> as CloneFn>::Of<
 							'a,
@@ -811,7 +811,7 @@ mod inner {
 	impl<'a, PointerBrand, S, A> SetterOptic<'a, PointerBrand, S, S, A, A>
 		for GratePrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a + Clone,
 		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,

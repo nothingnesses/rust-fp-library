@@ -347,7 +347,7 @@ mod inner {
 		/// 	>(&g, f);
 		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
 		/// ```
-		fn evaluate<R: 'a + 'static, PointerBrand: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + 'static, PointerBrand: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
@@ -402,7 +402,7 @@ mod inner {
 		/// >(&f_optic, f);
 		/// assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());
 		/// ```
-		fn evaluate<R: 'a + Monoid + Clone + 'static, PointerBrand: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + Clone + 'static, PointerBrand: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
@@ -418,7 +418,7 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The optic instance.")]
-	pub trait SetterOptic<'a, PointerBrand: UnsizedCoercible, S: 'a, T: 'a, A: 'a, B: 'a> {
+	pub trait SetterOptic<'a, PointerBrand: ToDynCloneFn, S: 'a, T: 'a, A: 'a, B: 'a> {
 		/// Evaluate the optic with the function profunctor.
 		#[document_signature]
 		///
@@ -582,7 +582,7 @@ mod inner {
 		/// 	>(&g, f);
 		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
 		/// ```
-		fn evaluate<R: 'a + 'static, PointerBrand: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + 'static, PointerBrand: ToDynCloneFn + 'static>(
 			&self,
 			pab: crate::types::optics::Indexed<'a, ForgetBrand<PointerBrand, R>, I, A, A>,
 		) -> Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
@@ -638,7 +638,7 @@ mod inner {
 		/// [`IndexedTraversalFunc::apply`](crate::classes::optics::IndexedTraversalFunc::apply) with
 		/// [`ConstBrand<R>`](crate::brands::ConstBrand) as the applicative, and that
 		/// requires `Const<R, B>: Clone`, which in turn requires `R: Clone`.
-		fn evaluate<R: 'a + Monoid + Clone + 'static, PointerBrand: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + Clone + 'static, PointerBrand: ToDynCloneFn + 'static>(
 			&self,
 			pab: crate::types::optics::Indexed<'a, ForgetBrand<PointerBrand, R>, I, A, A>,
 		) -> Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
@@ -655,15 +655,8 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The optic instance.")]
-	pub trait IndexedSetterOptic<
-		'a,
-		PointerBrand: UnsizedCoercible,
-		I: 'a,
-		S: 'a,
-		T: 'a,
-		A: 'a,
-		B: 'a,
-	> {
+	pub trait IndexedSetterOptic<'a, PointerBrand: ToDynCloneFn, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a>
+	{
 		/// Evaluate the optic with the function profunctor.
 		#[document_signature]
 		///

@@ -36,7 +36,7 @@ mod inner {
 	)]
 	pub struct Getter<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -57,7 +57,7 @@ mod inner {
 	#[document_parameters("The getter instance.")]
 	impl<'a, PointerBrand, S, T, A, B> Clone for Getter<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -96,7 +96,7 @@ mod inner {
 	#[document_parameters("The getter instance.")]
 	impl<'a, PointerBrand, S, T, A, B> Getter<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -167,8 +167,8 @@ mod inner {
 	impl<'a, PointerBrand, S, T, A, B, R, Q> Optic<'a, ForgetBrand<Q, R>, S, T, A, B>
 		for Getter<'a, PointerBrand, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
-		Q: UnsizedCoercible + 'static,
+		PointerBrand: ToDynCloneFn,
+		Q: ToDynCloneFn + 'static,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -217,7 +217,7 @@ mod inner {
 	)]
 	pub struct GetterPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a, {
 		/// Function to view the focus of the getter in a structure.
@@ -234,7 +234,7 @@ mod inner {
 	#[document_parameters("The getter instance.")]
 	impl<'a, PointerBrand, S, A> Clone for GetterPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{
@@ -269,7 +269,7 @@ mod inner {
 	#[document_parameters("The getter instance.")]
 	impl<'a, PointerBrand, S, A> GetterPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		A: 'a,
 	{
@@ -336,8 +336,8 @@ mod inner {
 	impl<'a, PointerBrand, S, A, R, Q> Optic<'a, ForgetBrand<Q, R>, S, S, A, A>
 		for GetterPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
-		Q: UnsizedCoercible + 'static,
+		PointerBrand: ToDynCloneFn,
+		Q: ToDynCloneFn + 'static,
 		S: 'a,
 		A: 'a,
 		R: 'a + 'static,
@@ -382,7 +382,7 @@ mod inner {
 	#[document_parameters("The getter instance.")]
 	impl<'a, PointerBrand, S: 'a, A: 'a> GetterOptic<'a, S, A> for GetterPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters(
@@ -409,7 +409,7 @@ mod inner {
 		/// let folded = GetterOptic::evaluate(&g, f);
 		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
 		/// ```
-		fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>)
@@ -427,7 +427,7 @@ mod inner {
 	#[document_parameters("The getter instance.")]
 	impl<'a, PointerBrand, S: 'a, A: 'a> FoldOptic<'a, S, A> for GetterPrime<'a, PointerBrand, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters(
@@ -454,7 +454,7 @@ mod inner {
 		/// let folded: Forget<RcBrand, String, (i32, String), (i32, String)> = FoldOptic::evaluate(&g, f);
 		/// assert_eq!(folded.run((42, "hi".to_string())), "42".to_string());
 		/// ```
-		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)

@@ -29,10 +29,10 @@ mod inner {
 	/// `impl Fn(A) -> B` into `Box<dyn Fn(A) -> B>`.
 	///
 	/// For clonable variants, see
-	/// [`UnsizedCoercible`](crate::classes::UnsizedCoercible) (which extends
+	/// [`ToDynCloneFn`](crate::classes::ToDynCloneFn) (which extends
 	/// [`RefCountedPointer`](crate::classes::RefCountedPointer)). For
 	/// thread-safe variants, see
-	/// [`SendUnsizedCoercible`](crate::classes::SendUnsizedCoercible)
+	/// [`ToDynSendFn`](crate::classes::ToDynSendFn)
 	/// (which extends
 	/// [`SendRefCountedPointer`](crate::classes::SendRefCountedPointer)).
 	pub trait ToDynFn: Pointer + 'static {

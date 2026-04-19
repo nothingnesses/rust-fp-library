@@ -3,7 +3,7 @@
 //! Non-regression tests for the pointer and coercion trait APIs.
 //!
 //! These tests exercise every public method on `Pointer`, `RefCountedPointer`,
-//! `SendRefCountedPointer`, `UnsizedCoercible`, and `SendUnsizedCoercible`
+//! `SendRefCountedPointer`, `ToDynCloneFn`, and `ToDynSendFn`
 //! through both trait method syntax and free functions. They serve as a
 //! safety net during the flatten-pointer-hierarchy refactor.
 
@@ -38,33 +38,33 @@ fn pointer_new_free_fn_arc() {
 	assert_eq!(*ptr, 42);
 }
 
-// -- RefCountedPointer: cloneable_new --
+// -- RefCountedPointer: new --
 
 #[test]
-fn ref_counted_pointer_cloneable_new_rc() {
-	let ptr = <RcBrand as RefCountedPointer>::cloneable_new(42);
+fn ref_counted_pointer_new_rc() {
+	let ptr = <RcBrand as RefCountedPointer>::new(42);
 	assert_eq!(*ptr, 42);
 	let clone = ptr.clone();
 	assert_eq!(*clone, 42);
 }
 
 #[test]
-fn ref_counted_pointer_cloneable_new_arc() {
-	let ptr = <ArcBrand as RefCountedPointer>::cloneable_new(42);
+fn ref_counted_pointer_new_arc() {
+	let ptr = <ArcBrand as RefCountedPointer>::new(42);
 	assert_eq!(*ptr, 42);
 	let clone = ptr.clone();
 	assert_eq!(*clone, 42);
 }
 
 #[test]
-fn ref_counted_pointer_cloneable_new_free_fn_rc() {
-	let ptr = ref_counted_pointer::cloneable_new::<RcBrand, _>(42);
+fn ref_counted_pointer_new_free_fn_rc() {
+	let ptr = ref_counted_pointer::new::<RcBrand, _>(42);
 	assert_eq!(*ptr, 42);
 }
 
 #[test]
-fn ref_counted_pointer_cloneable_new_free_fn_arc() {
-	let ptr = ref_counted_pointer::cloneable_new::<ArcBrand, _>(42);
+fn ref_counted_pointer_new_free_fn_arc() {
+	let ptr = ref_counted_pointer::new::<ArcBrand, _>(42);
 	assert_eq!(*ptr, 42);
 }
 
@@ -72,26 +72,26 @@ fn ref_counted_pointer_cloneable_new_free_fn_arc() {
 
 #[test]
 fn ref_counted_pointer_try_unwrap_rc_sole_ref() {
-	let ptr = <RcBrand as RefCountedPointer>::cloneable_new(42);
+	let ptr = <RcBrand as RefCountedPointer>::new(42);
 	assert_eq!(RcBrand::try_unwrap(ptr), Ok(42));
 }
 
 #[test]
 fn ref_counted_pointer_try_unwrap_rc_multiple_refs() {
-	let ptr = <RcBrand as RefCountedPointer>::cloneable_new(42);
+	let ptr = <RcBrand as RefCountedPointer>::new(42);
 	let _clone = ptr.clone();
 	assert!(RcBrand::try_unwrap(ptr).is_err());
 }
 
 #[test]
 fn ref_counted_pointer_try_unwrap_arc_sole_ref() {
-	let ptr = <ArcBrand as RefCountedPointer>::cloneable_new(42);
+	let ptr = <ArcBrand as RefCountedPointer>::new(42);
 	assert_eq!(ArcBrand::try_unwrap(ptr), Ok(42));
 }
 
 #[test]
 fn ref_counted_pointer_try_unwrap_free_fn() {
-	let ptr = ref_counted_pointer::cloneable_new::<RcBrand, _>(42);
+	let ptr = ref_counted_pointer::new::<RcBrand, _>(42);
 	assert_eq!(ref_counted_pointer::try_unwrap::<RcBrand, _>(ptr), Ok(42));
 }
 
@@ -133,7 +133,7 @@ fn ref_counted_pointer_take_cell_free_fn_arc() {
 
 #[test]
 fn send_ref_counted_pointer_send_new_arc() {
-	let ptr = <ArcBrand as SendRefCountedPointer>::send_new(42);
+	let ptr = <ArcBrand as SendRefCountedPointer>::new(42);
 	assert_eq!(*ptr, 42);
 	let clone = ptr.clone();
 	assert_eq!(*clone, 42);
@@ -141,88 +141,88 @@ fn send_ref_counted_pointer_send_new_arc() {
 
 #[test]
 fn send_ref_counted_pointer_send_new_free_fn() {
-	let ptr = send_ref_counted_pointer::send_new::<ArcBrand, _>(42);
+	let ptr = send_ref_counted_pointer::new::<ArcBrand, _>(42);
 	assert_eq!(*ptr, 42);
 }
 
 #[test]
 fn send_ref_counted_pointer_send_across_thread() {
-	let ptr = send_ref_counted_pointer::send_new::<ArcBrand, _>(42);
+	let ptr = send_ref_counted_pointer::new::<ArcBrand, _>(42);
 	let handle = std::thread::spawn(move || *ptr);
 	assert_eq!(handle.join().unwrap(), 42);
 }
 
-// -- UnsizedCoercible --
+// -- ToDynCloneFn --
 
 #[test]
-fn unsized_coercible_coerce_fn_rc() {
-	let f = <RcBrand as UnsizedCoercible>::coerce_fn(|x: i32| x + 1);
+fn to_dyn_clone_fn_new_rc() {
+	let f = <RcBrand as ToDynCloneFn>::new(|x: i32| x + 1);
 	assert_eq!(f(1), 2);
 	let clone = f.clone();
 	assert_eq!(clone(1), 2);
 }
 
 #[test]
-fn unsized_coercible_coerce_fn_arc() {
-	let f = <ArcBrand as UnsizedCoercible>::coerce_fn(|x: i32| x + 1);
+fn to_dyn_clone_fn_new_arc() {
+	let f = <ArcBrand as ToDynCloneFn>::new(|x: i32| x + 1);
 	assert_eq!(f(1), 2);
 }
 
 #[test]
-fn unsized_coercible_coerce_ref_fn_rc() {
-	let f = <RcBrand as UnsizedCoercible>::coerce_ref_fn(|x: &i32| *x + 1);
+fn to_dyn_clone_fn_ref_new_rc() {
+	let f = <RcBrand as ToDynCloneFn>::ref_new(|x: &i32| *x + 1);
 	assert_eq!(f(&1), 2);
 }
 
 #[test]
-fn unsized_coercible_coerce_ref_fn_arc() {
-	let f = <ArcBrand as UnsizedCoercible>::coerce_ref_fn(|x: &i32| *x + 1);
+fn to_dyn_clone_fn_ref_new_arc() {
+	let f = <ArcBrand as ToDynCloneFn>::ref_new(|x: &i32| *x + 1);
 	assert_eq!(f(&1), 2);
 }
 
 #[test]
-fn unsized_coercible_coerce_fn_free_fn_rc() {
-	let f = unsized_coercible::coerce_fn::<RcBrand, _, _>(|x: i32| x + 1);
+fn to_dyn_clone_fn_new_free_fn_rc() {
+	let f = to_dyn_clone_fn::new::<RcBrand, _, _>(|x: i32| x + 1);
 	assert_eq!(f(1), 2);
 }
 
 #[test]
-fn unsized_coercible_coerce_ref_fn_free_fn_rc() {
-	let f = unsized_coercible::coerce_ref_fn::<RcBrand, _, _>(|x: &i32| *x + 1);
+fn to_dyn_clone_fn_ref_new_free_fn_rc() {
+	let f = to_dyn_clone_fn::ref_new::<RcBrand, _, _>(|x: &i32| *x + 1);
 	assert_eq!(f(&1), 2);
 }
 
-// -- SendUnsizedCoercible --
+// -- ToDynSendFn --
 
 #[test]
-fn send_unsized_coercible_coerce_send_fn_arc() {
-	let f = <ArcBrand as SendUnsizedCoercible>::coerce_send_fn(|x: i32| x + 1);
+fn to_dyn_send_fn_new_arc() {
+	let f = <ArcBrand as ToDynSendFn>::new(|x: i32| x + 1);
 	assert_eq!(f(1), 2);
 	let clone = f.clone();
 	assert_eq!(clone(1), 2);
 }
 
 #[test]
-fn send_unsized_coercible_coerce_send_ref_fn_arc() {
-	let f = <ArcBrand as SendUnsizedCoercible>::coerce_send_ref_fn(|x: &i32| *x + 1);
+fn to_dyn_send_fn_ref_new_arc() {
+	let f = <ArcBrand as ToDynSendFn>::ref_new(|x: &i32| *x + 1);
 	assert_eq!(f(&1), 2);
 }
 
 #[test]
-fn send_unsized_coercible_coerce_send_fn_free_fn_arc() {
-	let f = send_unsized_coercible::coerce_send_fn::<ArcBrand, _, _>(|x: i32| x + 1);
+fn to_dyn_send_fn_new_free_fn_arc() {
+	let f = to_dyn_send_fn::new::<ArcBrand, _, _>(|x: i32| x + 1);
 	assert_eq!(f(1), 2);
 }
 
 #[test]
-fn send_unsized_coercible_coerce_send_ref_fn_free_fn_arc() {
-	let f = send_unsized_coercible::coerce_send_ref_fn::<ArcBrand, _, _>(|x: &i32| *x + 1);
+fn to_dyn_send_fn_ref_new_free_fn_arc() {
+	let f = to_dyn_send_fn::ref_new::<ArcBrand, _, _>(|x: &i32| *x + 1);
 	assert_eq!(f(&1), 2);
 }
 
 #[test]
-fn send_unsized_coercible_send_across_thread() {
-	let f = <ArcBrand as SendUnsizedCoercible>::coerce_send_fn(|x: i32| x + 1);
+fn to_dyn_send_fn_send_across_thread() {
+	let f = <ArcBrand as ToDynSendFn>::new(|x: i32| x + 1);
 	let handle = std::thread::spawn(move || f(10));
 	assert_eq!(handle.join().unwrap(), 11);
 }

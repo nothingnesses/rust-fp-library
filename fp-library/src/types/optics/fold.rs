@@ -9,7 +9,7 @@ mod inner {
 			Apply,
 			brands::optics::*,
 			classes::{
-				UnsizedCoercible,
+				ToDynCloneFn,
 				monoid::Monoid,
 				optics::*,
 			},
@@ -106,7 +106,7 @@ mod inner {
 	)]
 	pub struct Fold<'a, PointerBrand, S, T, A, B, F>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		F: FoldFunc<'a, S, A>,
 		S: 'a,
 		T: 'a,
@@ -129,7 +129,7 @@ mod inner {
 	#[document_parameters("The fold instance.")]
 	impl<'a, PointerBrand, S, T, A, B, F> Clone for Fold<'a, PointerBrand, S, T, A, B, F>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		F: FoldFunc<'a, S, A> + Clone,
 		S: 'a,
 		T: 'a,
@@ -177,7 +177,7 @@ mod inner {
 	#[document_parameters("The fold instance.")]
 	impl<'a, PointerBrand, S, T, A, B, F> Fold<'a, PointerBrand, S, T, A, B, F>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		F: FoldFunc<'a, S, A>,
 		S: 'a,
 		T: 'a,
@@ -263,7 +263,7 @@ mod inner {
 	#[document_parameters("The fold instance.")]
 	impl<'a, PointerBrand, S, T, A, B, F> FoldOptic<'a, S, A> for Fold<'a, PointerBrand, S, T, A, B, F>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		F: FoldFunc<'a, S, A> + Clone + 'a,
 		S: 'a,
 		T: 'a,
@@ -296,7 +296,7 @@ mod inner {
 		/// let folded: Forget<RcBrand, String, Vec<i32>, Vec<i32>> = FoldOptic::evaluate(&f_optic, f);
 		/// assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());
 		/// ```
-		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>)
@@ -321,7 +321,7 @@ mod inner {
 	)]
 	pub struct FoldPrime<'a, PointerBrand, S, A, F>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		F: FoldFunc<'a, S, A>,
 		S: 'a,
 		A: 'a, {
@@ -340,7 +340,7 @@ mod inner {
 	#[document_parameters("The fold instance.")]
 	impl<'a, PointerBrand, S, A, F> Clone for FoldPrime<'a, PointerBrand, S, A, F>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		F: FoldFunc<'a, S, A> + Clone,
 		S: 'a,
 		A: 'a,
@@ -382,7 +382,7 @@ mod inner {
 	#[document_parameters("The fold instance.")]
 	impl<'a, PointerBrand, S, A, F> FoldPrime<'a, PointerBrand, S, A, F>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		F: FoldFunc<'a, S, A>,
 		S: 'a,
 		A: 'a,
@@ -462,7 +462,7 @@ mod inner {
 	#[document_parameters("The fold instance.")]
 	impl<'a, PointerBrand, S, A, F> FoldOptic<'a, S, A> for FoldPrime<'a, PointerBrand, S, A, F>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		F: FoldFunc<'a, S, A> + Clone + 'a,
 		S: 'a,
 		A: 'a,
@@ -493,7 +493,7 @@ mod inner {
 		/// let folded: Forget<RcBrand, String, Vec<i32>, Vec<i32>> = FoldOptic::evaluate(&f_optic, f);
 		/// assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());
 		/// ```
-		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>)

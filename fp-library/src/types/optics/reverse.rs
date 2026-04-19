@@ -64,7 +64,7 @@ mod inner {
 	pub struct Reverse<
 		'a,
 		InnerP: Profunctor,
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -87,7 +87,7 @@ mod inner {
 		"The varying input type.",
 		"The varying output type."
 	)]
-	impl<'a, InnerP: Profunctor, PointerBrand: UnsizedCoercible, S: 'a, T: 'a, A: 'a, B: 'a>
+	impl<'a, InnerP: Profunctor, PointerBrand: ToDynCloneFn, S: 'a, T: 'a, A: 'a, B: 'a>
 		Reverse<'a, InnerP, PointerBrand, S, T, A, B>
 	{
 		/// Creates a new `Reverse` instance by wrapping a function.
@@ -141,7 +141,7 @@ mod inner {
 		"The varying output type."
 	)]
 	#[document_parameters("The `Reverse` instance.")]
-	impl<'a, InnerP: Profunctor, PointerBrand: UnsizedCoercible, S: 'a, T: 'a, A: 'a, B: 'a> Clone
+	impl<'a, InnerP: Profunctor, PointerBrand: ToDynCloneFn, S: 'a, T: 'a, A: 'a, B: 'a> Clone
 		for Reverse<'a, InnerP, PointerBrand, S, T, A, B>
 	{
 		#[document_signature]
@@ -177,7 +177,7 @@ mod inner {
 	impl_kind! {
 		impl<
 			InnerP: Profunctor + 'static,
-			PointerBrand: UnsizedCoercible + 'static,
+			PointerBrand: ToDynCloneFn + 'static,
 			S: 'static,
 			T: 'static,
 		> for ReverseBrand<InnerP, PointerBrand, S, T> {
@@ -199,12 +199,8 @@ mod inner {
 		"The fixed source type.",
 		"The fixed target type."
 	)]
-	impl<
-		InnerP: Profunctor + 'static,
-		PointerBrand: UnsizedCoercible + 'static,
-		S: 'static,
-		T: 'static,
-	> Profunctor for ReverseBrand<InnerP, PointerBrand, S, T>
+	impl<InnerP: Profunctor + 'static, PointerBrand: ToDynCloneFn + 'static, S: 'static, T: 'static>
+		Profunctor for ReverseBrand<InnerP, PointerBrand, S, T>
 	{
 		/// Maps over both arguments of `Reverse`, swapping the roles of `f` and `g` on the inner profunctor.
 		#[document_signature]
@@ -284,7 +280,7 @@ mod inner {
 		"The fixed source type.",
 		"The fixed target type."
 	)]
-	impl<InnerP: Choice + 'static, PointerBrand: UnsizedCoercible + 'static, S: 'static, T: 'static>
+	impl<InnerP: Choice + 'static, PointerBrand: ToDynCloneFn + 'static, S: 'static, T: 'static>
 		Cochoice for ReverseBrand<InnerP, PointerBrand, S, T>
 	{
 		/// Extracts from a `Reverse` that operates on `Result` types using `InnerP::left`.
@@ -400,12 +396,8 @@ mod inner {
 		"The fixed source type.",
 		"The fixed target type."
 	)]
-	impl<
-		InnerP: Cochoice + 'static,
-		PointerBrand: UnsizedCoercible + 'static,
-		S: 'static,
-		T: 'static,
-	> Choice for ReverseBrand<InnerP, PointerBrand, S, T>
+	impl<InnerP: Cochoice + 'static, PointerBrand: ToDynCloneFn + 'static, S: 'static, T: 'static>
+		Choice for ReverseBrand<InnerP, PointerBrand, S, T>
 	{
 		/// Lifts `Reverse` to operate on the `Err` variant of a `Result` using `InnerP::unleft`.
 		#[document_signature]
@@ -526,7 +518,7 @@ mod inner {
 		"The fixed source type.",
 		"The fixed target type."
 	)]
-	impl<InnerP: Strong + 'static, PointerBrand: UnsizedCoercible + 'static, S: 'static, T: 'static>
+	impl<InnerP: Strong + 'static, PointerBrand: ToDynCloneFn + 'static, S: 'static, T: 'static>
 		Costrong for ReverseBrand<InnerP, PointerBrand, S, T>
 	{
 		/// Extracts from a `Reverse` that operates on the first component of a pair using `InnerP::first`.
@@ -646,12 +638,8 @@ mod inner {
 		"The fixed source type.",
 		"The fixed target type."
 	)]
-	impl<
-		InnerP: Costrong + 'static,
-		PointerBrand: UnsizedCoercible + 'static,
-		S: 'static,
-		T: 'static,
-	> Strong for ReverseBrand<InnerP, PointerBrand, S, T>
+	impl<InnerP: Costrong + 'static, PointerBrand: ToDynCloneFn + 'static, S: 'static, T: 'static>
+		Strong for ReverseBrand<InnerP, PointerBrand, S, T>
 	{
 		/// Lifts `Reverse` to operate on the first component of a pair using `InnerP::unfirst`.
 		#[document_signature]
@@ -769,7 +757,7 @@ mod inner {
 	)]
 	pub struct ReversedOptic<'a, PointerBrand, S, T, A, B, O>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -837,7 +825,7 @@ mod inner {
 		optic: O
 	) -> ReversedOptic<'a, PointerBrand, S, T, A, B, O>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -869,7 +857,7 @@ mod inner {
 	impl<'a, PointerBrand, S, T, A, B, O> ReviewOptic<'a, B, A, T, S>
 		for ReversedOptic<'a, PointerBrand, S, T, A, B, O>
 	where
-		PointerBrand: UnsizedCoercible + 'static,
+		PointerBrand: ToDynCloneFn + 'static,
 		O: LensOptic<'a, S, T, A, B>,
 		S: 'a + 'static,
 		T: 'a + 'static,
@@ -940,7 +928,7 @@ mod inner {
 	impl<'a, PointerBrand, S, T, A, B, O> IsoOptic<'a, B, A, T, S>
 		for ReversedOptic<'a, PointerBrand, S, T, A, B, O>
 	where
-		PointerBrand: UnsizedCoercible + 'static,
+		PointerBrand: ToDynCloneFn + 'static,
 		O: IsoOptic<'a, S, T, A, B>,
 		S: 'a + 'static,
 		T: 'a + 'static,
@@ -1010,7 +998,7 @@ mod inner {
 	impl<'a, PointerBrand, S, A, O> GetterOptic<'a, A, S>
 		for ReversedOptic<'a, PointerBrand, S, S, A, A, O>
 	where
-		PointerBrand: UnsizedCoercible + 'static,
+		PointerBrand: ToDynCloneFn + 'static,
 		O: PrismOptic<'a, S, S, A, A>,
 		S: 'a + 'static,
 		A: 'a + 'static,
@@ -1046,7 +1034,7 @@ mod inner {
 		/// let result = GetterOptic::evaluate::<Option<i32>, RcBrand>(&reversed, forget);
 		/// assert_eq!(result.run(42), Some(42));
 		/// ```
-		fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>)
@@ -1080,7 +1068,7 @@ mod inner {
 	impl<'a, PointerBrand, S, A, O> FoldOptic<'a, A, S>
 		for ReversedOptic<'a, PointerBrand, S, S, A, A, O>
 	where
-		PointerBrand: UnsizedCoercible + 'static,
+		PointerBrand: ToDynCloneFn + 'static,
 		O: PrismOptic<'a, S, S, A, A>,
 		S: 'a + 'static,
 		A: 'a + 'static,
@@ -1115,7 +1103,7 @@ mod inner {
 		/// let result = FoldOptic::evaluate::<String, RcBrand>(&reversed, forget);
 		/// assert_eq!(result.run(42), "Some(42)");
 		/// ```
-		fn evaluate<R: 'a + Monoid + Clone + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + Clone + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>)

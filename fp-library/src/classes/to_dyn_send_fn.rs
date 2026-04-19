@@ -8,7 +8,7 @@
 //! 	functions::*,
 //! };
 //!
-//! let f = coerce_send_fn::<ArcBrand, _, _>(|x: i32| x + 1);
+//! let f = to_dyn_send_fn::<ArcBrand, _, _>(|x: i32| x + 1);
 //! assert_eq!(f(1), 2);
 //! ```
 
@@ -21,11 +21,11 @@ mod inner {
 
 	/// Trait for pointer brands that can coerce to thread-safe `dyn Fn + Send + Sync`.
 	///
-	/// This is an independent trait (not a supertrait of `UnsizedCoercible`),
+	/// This is an independent trait (not a supertrait of `ToDynCloneFn`),
 	/// matching the pattern used by `SendCloneFn` (independent of `CloneFn`).
 	/// It extends `SendRefCountedPointer` because its methods return
 	/// `SendRefCountedPointer::SendOf` types.
-	pub trait SendUnsizedCoercible: SendRefCountedPointer + 'static {
+	pub trait ToDynSendFn: SendRefCountedPointer + 'static {
 		/// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync`.
 		#[document_signature]
 		///
@@ -48,10 +48,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = coerce_send_fn::<ArcBrand, _, _>(|x: i32| x + 1);
+		/// let f = to_dyn_send_fn::<ArcBrand, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
-		fn coerce_send_fn<'a, A: 'a, B: 'a>(
+		fn new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(A) -> B + Send + Sync
 		) -> Self::SendOf<'a, dyn 'a + Fn(A) -> B + Send + Sync>;
 
@@ -77,17 +77,17 @@ mod inner {
 		/// 	classes::*,
 		/// };
 		///
-		/// let f = ArcBrand::coerce_send_ref_fn(|x: &i32| *x + 1);
+		/// let f = <ArcBrand as ToDynSendFn>::ref_new(|x: &i32| *x + 1);
 		/// assert_eq!(f(&1), 2);
 		/// ```
-		fn coerce_send_ref_fn<'a, A: 'a, B: 'a>(
+		fn ref_new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(&A) -> B + Send + Sync
 		) -> Self::SendOf<'a, dyn 'a + Fn(&A) -> B + Send + Sync>;
 	}
 
 	/// Coerces a sized Send+Sync by-reference closure to a `dyn Fn(&A) -> B + Send + Sync`.
 	///
-	/// Free function version that dispatches to [`SendUnsizedCoercible::coerce_send_ref_fn`].
+	/// Free function version that dispatches to [`ToDynSendFn::ref_new`].
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -110,18 +110,18 @@ mod inner {
 	/// 	functions::*,
 	/// };
 	///
-	/// let f = coerce_send_ref_fn::<ArcBrand, _, _>(|x: &i32| *x + 1);
+	/// let f = to_ref_dyn_send_fn::<ArcBrand, _, _>(|x: &i32| *x + 1);
 	/// assert_eq!(f(&1), 2);
 	/// ```
-	pub fn coerce_send_ref_fn<'a, Brand: SendUnsizedCoercible, A: 'a, B: 'a>(
+	pub fn ref_new<'a, Brand: ToDynSendFn, A: 'a, B: 'a>(
 		func: impl 'a + Fn(&A) -> B + Send + Sync
 	) -> Brand::SendOf<'a, dyn 'a + Fn(&A) -> B + Send + Sync> {
-		Brand::coerce_send_ref_fn::<A, B>(func)
+		<Brand as ToDynSendFn>::ref_new::<A, B>(func)
 	}
 
 	/// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync`.
 	///
-	/// Free function version that dispatches to [the type class' associated function][`SendUnsizedCoercible::coerce_send_fn`].
+	/// Free function version that dispatches to [the type class' associated function][`ToDynSendFn::new`].
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -139,17 +139,17 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	classes::send_unsized_coercible::*,
+	/// 	classes::to_dyn_send_fn::*,
 	/// 	functions::*,
 	/// };
 	///
-	/// let f = coerce_send_fn::<ArcBrand, _, _>(|x: i32| x + 1);
+	/// let f = to_dyn_send_fn::<ArcBrand, _, _>(|x: i32| x + 1);
 	/// assert_eq!(f(1), 2);
 	/// ```
-	pub fn coerce_send_fn<'a, Brand: SendUnsizedCoercible, A: 'a, B: 'a>(
+	pub fn new<'a, Brand: ToDynSendFn, A: 'a, B: 'a>(
 		func: impl 'a + Fn(A) -> B + Send + Sync
 	) -> Brand::SendOf<'a, dyn 'a + Fn(A) -> B + Send + Sync> {
-		Brand::coerce_send_fn::<A, B>(func)
+		<Brand as ToDynSendFn>::new::<A, B>(func)
 	}
 }
 

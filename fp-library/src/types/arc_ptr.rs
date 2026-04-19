@@ -23,9 +23,9 @@ mod inner {
 				Pointer,
 				RefCountedPointer,
 				SendRefCountedPointer,
-				SendUnsizedCoercible,
+				ToDynCloneFn,
 				ToDynFn,
-				UnsizedCoercible,
+				ToDynSendFn,
 			},
 		},
 		fp_macros::*,
@@ -87,7 +87,7 @@ mod inner {
 		/// let ptr = ref_counted_pointer_new::<ArcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
 		/// ```
-		fn cloneable_new<'a, T: 'a>(value: T) -> Arc<T> {
+		fn new<'a, T: 'a>(value: T) -> Arc<T> {
 			Arc::new(value)
 		}
 
@@ -196,7 +196,7 @@ mod inner {
 		/// let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
 		/// ```
-		fn send_new<'a, T: Send + Sync + 'a>(value: T) -> Arc<T> {
+		fn new<'a, T: Send + Sync + 'a>(value: T) -> Arc<T> {
 			Arc::new(value)
 		}
 	}
@@ -257,7 +257,7 @@ mod inner {
 		}
 	}
 
-	impl UnsizedCoercible for ArcBrand {
+	impl ToDynCloneFn for ArcBrand {
 		/// Coerces a sized closure to a `dyn Fn` wrapped in an `Arc`.
 		#[document_signature]
 		///
@@ -279,10 +279,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = coerce_fn::<ArcBrand, _, _>(|x: i32| x + 1);
+		/// let f = to_dyn_clone_fn::<ArcBrand, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
-		fn coerce_fn<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Arc<dyn 'a + Fn(A) -> B> {
+		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Arc<dyn 'a + Fn(A) -> B> {
 			Arc::new(f)
 		}
 
@@ -307,15 +307,15 @@ mod inner {
 		/// 	classes::*,
 		/// };
 		///
-		/// let f = ArcBrand::coerce_ref_fn(|x: &i32| *x + 1);
+		/// let f = <ArcBrand as ToDynCloneFn>::ref_new(|x: &i32| *x + 1);
 		/// assert_eq!(f(&1), 2);
 		/// ```
-		fn coerce_ref_fn<'a, A: 'a, B: 'a>(f: impl 'a + Fn(&A) -> B) -> Arc<dyn 'a + Fn(&A) -> B> {
+		fn ref_new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(&A) -> B) -> Arc<dyn 'a + Fn(&A) -> B> {
 			Arc::new(f)
 		}
 	}
 
-	impl SendUnsizedCoercible for ArcBrand {
+	impl ToDynSendFn for ArcBrand {
 		/// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync` wrapped in an `Arc`.
 		#[document_signature]
 		///
@@ -337,10 +337,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = coerce_send_fn::<ArcBrand, _, _>(|x: i32| x + 1);
+		/// let f = to_dyn_send_fn::<ArcBrand, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
-		fn coerce_send_fn<'a, A: 'a, B: 'a>(
+		fn new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(A) -> B + Send + Sync
 		) -> Arc<dyn 'a + Fn(A) -> B + Send + Sync> {
 			Arc::new(f)
@@ -369,10 +369,10 @@ mod inner {
 		/// 	classes::*,
 		/// };
 		///
-		/// let f = ArcBrand::coerce_send_ref_fn(|x: &i32| *x + 1);
+		/// let f = <ArcBrand as ToDynSendFn>::ref_new(|x: &i32| *x + 1);
 		/// assert_eq!(f(&1), 2);
 		/// ```
-		fn coerce_send_ref_fn<'a, A: 'a, B: 'a>(
+		fn ref_new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(&A) -> B + Send + Sync
 		) -> Arc<dyn 'a + Fn(&A) -> B + Send + Sync> {
 			Arc::new(f)
@@ -386,37 +386,37 @@ mod tests {
 		brands::ArcBrand,
 		classes::{
 			RefCountedPointer,
-			pointer::new,
-			ref_counted_pointer::cloneable_new,
-			send_ref_counted_pointer::send_new,
+			pointer::new as pointer_new,
+			ref_counted_pointer::new as ref_counted_pointer_new,
+			send_ref_counted_pointer::new as send_ref_counted_pointer_new,
 		},
 	};
 
-	/// Tests that `pointer_new` correctly creates an `Arc` wrapping the value.
+	/// Tests that `Pointer::new` correctly creates an `Arc` wrapping the value.
 	#[test]
-	fn test_arc_new() {
-		let ptr = new::<ArcBrand, _>(42);
+	fn test_arc_pointer_new() {
+		let ptr = pointer_new::<ArcBrand, _>(42);
 		assert_eq!(*ptr, 42);
 	}
 
-	/// Tests that `ref_counted_pointer_new` correctly creates an `Arc` wrapping the value.
+	/// Tests that `RefCountedPointer::new` correctly creates an `Arc` wrapping the value.
 	#[test]
-	fn test_arc_cloneable_new() {
-		let ptr = cloneable_new::<ArcBrand, _>(42);
+	fn test_arc_ref_counted_new() {
+		let ptr = ref_counted_pointer_new::<ArcBrand, _>(42);
 		assert_eq!(*ptr, 42);
 	}
 
-	/// Tests that `send_ref_counted_pointer_new` correctly creates an `Arc` wrapping the value.
+	/// Tests that `SendRefCountedPointer::new` correctly creates an `Arc` wrapping the value.
 	#[test]
-	fn test_arc_send_new() {
-		let ptr = send_new::<ArcBrand, _>(42);
+	fn test_arc_send_ref_counted_new() {
+		let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 		assert_eq!(*ptr, 42);
 	}
 
 	/// Tests that cloning the pointer works as expected (shared ownership).
 	#[test]
 	fn test_arc_clone() {
-		let ptr = cloneable_new::<ArcBrand, _>(42);
+		let ptr = ref_counted_pointer_new::<ArcBrand, _>(42);
 		let clone = ptr.clone();
 		assert_eq!(*clone, 42);
 	}
@@ -426,10 +426,10 @@ mod tests {
 	/// - Returns `Err(ptr)` when there are multiple references.
 	#[test]
 	fn test_arc_try_unwrap() {
-		let ptr = cloneable_new::<ArcBrand, _>(42);
+		let ptr = ref_counted_pointer_new::<ArcBrand, _>(42);
 		assert_eq!(ArcBrand::try_unwrap(ptr), Ok(42));
 
-		let ptr = cloneable_new::<ArcBrand, _>(42);
+		let ptr = ref_counted_pointer_new::<ArcBrand, _>(42);
 		let _clone = ptr.clone();
 		assert!(ArcBrand::try_unwrap(ptr).is_err());
 	}

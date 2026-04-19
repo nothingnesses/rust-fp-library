@@ -36,7 +36,7 @@ mod inner {
 	)]
 	pub struct IndexedLens<'a, PointerBrand, I, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		I: 'a,
 		S: 'a,
 		T: 'a,
@@ -58,7 +58,7 @@ mod inner {
 	#[document_parameters("The indexed lens instance.")]
 	impl<'a, PointerBrand, I, S, T, A, B> Clone for IndexedLens<'a, PointerBrand, I, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		I: 'a,
 		S: 'a,
 		T: 'a,
@@ -99,7 +99,7 @@ mod inner {
 	impl<'a, PointerBrand, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a>
 		IndexedLens<'a, PointerBrand, I, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		/// Create a new polymorphic indexed lens.
 		#[document_signature]
@@ -250,7 +250,7 @@ mod inner {
 	impl<'a, P: Strong, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a, PointerBrand>
 		IndexedOpticAdapter<'a, P, I, S, T, A, B> for IndexedLens<'a, PointerBrand, I, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
@@ -295,7 +295,7 @@ mod inner {
 		IndexedOpticAdapterDiscardsFocus<'a, P, I, S, T, A, B>
 		for IndexedLens<'a, PointerBrand, I, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
@@ -341,7 +341,7 @@ mod inner {
 	impl<'a, P: Strong, I: 'a, S: 'a, A: 'a, PointerBrand> IndexedOpticAdapter<'a, P, I, S, S, A, A>
 		for IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
@@ -384,7 +384,7 @@ mod inner {
 		IndexedOpticAdapterDiscardsFocus<'a, P, I, S, S, A, A>
 		for IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
@@ -431,7 +431,7 @@ mod inner {
 	impl<'a, PointerBrand, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a> IndexedLensOptic<'a, I, S, T, A, B>
 		for IndexedLens<'a, PointerBrand, I, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -483,7 +483,7 @@ mod inner {
 	impl<'a, PointerBrand, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a>
 		IndexedTraversalOptic<'a, I, S, T, A, B> for IndexedLens<'a, PointerBrand, I, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -528,7 +528,7 @@ mod inner {
 	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedGetterOptic<'a, I, S, A>
 		for IndexedLens<'a, PointerBrand, I, S, S, A, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The result type.", "The reference-counted pointer type.")]
@@ -552,7 +552,7 @@ mod inner {
 		/// let result = IndexedGetterOptic::evaluate::<i32, RcBrand>(&l, pab);
 		/// assert_eq!(result.run((42, "hi".to_string())), 42);
 		/// ```
-		fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Indexed<'a, ForgetBrand<Q, R>, I, A, A>,
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>)
@@ -572,7 +572,7 @@ mod inner {
 	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedFoldOptic<'a, I, S, A>
 		for IndexedLens<'a, PointerBrand, I, S, S, A, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
@@ -596,7 +596,7 @@ mod inner {
 		/// let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&l, pab);
 		/// assert_eq!(result.run((42, "hi".to_string())), "[0]=42");
 		/// ```
-		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Indexed<'a, ForgetBrand<Q, R>, I, A, A>,
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>)
@@ -619,8 +619,8 @@ mod inner {
 	impl<'a, Q, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a, PointerBrand>
 		IndexedSetterOptic<'a, Q, I, S, T, A, B> for IndexedLens<'a, PointerBrand, I, S, T, A, B>
 	where
-		PointerBrand: UnsizedCoercible,
-		Q: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
+		Q: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value to transform.")]
@@ -663,7 +663,7 @@ mod inner {
 	)]
 	pub struct IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		I: 'a,
 		S: 'a,
 		A: 'a, {
@@ -680,7 +680,7 @@ mod inner {
 	#[document_parameters("The indexed lens instance.")]
 	impl<'a, PointerBrand, I, S, A> Clone for IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 		I: 'a,
 		S: 'a,
 		A: 'a,
@@ -716,7 +716,7 @@ mod inner {
 	#[document_parameters("The indexed lens instance.")]
 	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		/// Create a new monomorphic indexed lens.
 		#[document_signature]
@@ -864,7 +864,7 @@ mod inner {
 	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedLensOptic<'a, I, S, S, A, A>
 		for IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -911,7 +911,7 @@ mod inner {
 	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedTraversalOptic<'a, I, S, S, A, A>
 		for IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -956,7 +956,7 @@ mod inner {
 	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedGetterOptic<'a, I, S, A>
 		for IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The result type.", "The reference-counted pointer type.")]
@@ -980,7 +980,7 @@ mod inner {
 		/// let result = IndexedGetterOptic::evaluate::<i32, RcBrand>(&l, pab);
 		/// assert_eq!(result.run(42), 42);
 		/// ```
-		fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Indexed<'a, ForgetBrand<Q, R>, I, A, A>,
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>)
@@ -1000,7 +1000,7 @@ mod inner {
 	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedFoldOptic<'a, I, S, A>
 		for IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
@@ -1024,7 +1024,7 @@ mod inner {
 		/// let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&l, pab);
 		/// assert_eq!(result.run(42), "[0]=42");
 		/// ```
-		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + 'static, Q: ToDynCloneFn + 'static>(
 			&self,
 			pab: Indexed<'a, ForgetBrand<Q, R>, I, A, A>,
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>)
@@ -1045,8 +1045,8 @@ mod inner {
 	impl<'a, Q, I: 'a, S: 'a, A: 'a, PointerBrand> IndexedSetterOptic<'a, Q, I, S, S, A, A>
 		for IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		PointerBrand: UnsizedCoercible,
-		Q: UnsizedCoercible,
+		PointerBrand: ToDynCloneFn,
+		Q: ToDynCloneFn,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value to transform.")]
