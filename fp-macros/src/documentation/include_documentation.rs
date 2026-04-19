@@ -1,4 +1,4 @@
-//! `doc_include!` macro for including markdown files with link rewriting.
+//! `include_documentation!` macro for including markdown files with link rewriting.
 //!
 //! Reads a markdown file relative to `CARGO_MANIFEST_DIR` and rewrites
 //! relative `.md` links to rustdoc intra-doc links pointing at
@@ -10,12 +10,12 @@ use {
 	quote::quote,
 };
 
-/// Worker function for the `doc_include!` proc macro.
+/// Worker function for the `include_documentation!` proc macro.
 ///
 /// Parses a string literal file path, reads the file relative to
 /// `CARGO_MANIFEST_DIR`, rewrites same-directory `.md` links to
 /// intra-doc links, and returns a string literal token.
-pub fn doc_include_worker(input: TokenStream) -> Result<TokenStream, syn::Error> {
+pub fn include_documentation_worker(input: TokenStream) -> Result<TokenStream, syn::Error> {
 	let lit: syn::LitStr = syn::parse2(input)?;
 	let rel_path = lit.value();
 

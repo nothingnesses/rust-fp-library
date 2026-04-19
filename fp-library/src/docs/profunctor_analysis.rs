@@ -1,1 +1,1 @@
-#![doc = fp_macros::doc_include!("docs/profunctor-analysis.md")]
+#![doc = fp_macros::include_documentation!("docs/profunctor-analysis.md")]

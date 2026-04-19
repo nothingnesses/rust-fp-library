@@ -1,1 +1,1 @@
-#![doc = fp_macros::doc_include!("docs/optics-analysis.md")]
+#![doc = fp_macros::include_documentation!("docs/optics-analysis.md")]

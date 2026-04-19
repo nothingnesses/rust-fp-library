@@ -1,1 +1,1 @@
-#![doc = fp_macros::doc_include!("docs/brand-dispatch-traits.md")]
+#![doc = fp_macros::include_documentation!("docs/brand-dispatch-traits.md")]

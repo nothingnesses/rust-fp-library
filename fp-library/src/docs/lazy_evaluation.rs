@@ -1,1 +1,1 @@
-#![doc = fp_macros::doc_include!("docs/lazy-evaluation.md")]
+#![doc = fp_macros::include_documentation!("docs/lazy-evaluation.md")]

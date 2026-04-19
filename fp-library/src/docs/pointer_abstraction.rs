@@ -1,1 +1,1 @@
-#![doc = fp_macros::doc_include!("docs/pointer-abstraction.md")]
+#![doc = fp_macros::include_documentation!("docs/pointer-abstraction.md")]

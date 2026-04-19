@@ -1,1 +1,1 @@
-#![doc = fp_macros::doc_include!("docs/brand-inference.md")]
+#![doc = fp_macros::include_documentation!("docs/brand-inference.md")]

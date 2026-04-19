@@ -1,1 +1,1 @@
-#![doc = fp_macros::doc_include!("docs/benchmarking.md")]
+#![doc = fp_macros::include_documentation!("docs/benchmarking.md")]

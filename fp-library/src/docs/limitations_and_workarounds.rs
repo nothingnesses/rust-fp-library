@@ -1,1 +1,1 @@
-#![doc = fp_macros::doc_include!("docs/limitations-and-workarounds.md")]
+#![doc = fp_macros::include_documentation!("docs/limitations-and-workarounds.md")]

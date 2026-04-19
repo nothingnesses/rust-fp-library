@@ -34,13 +34,13 @@ use {
 		generate_re_exports_worker,
 	},
 	documentation::{
-		doc_include_worker,
 		document_examples_worker,
 		document_module_worker,
 		document_parameters_worker,
 		document_returns_worker,
 		document_signature_worker,
 		document_type_parameters_worker,
+		include_documentation_worker,
 	},
 	hkt::{
 		ApplyInput,
@@ -1377,7 +1377,7 @@ pub fn a_do(input: TokenStream) -> TokenStream {
 /// ### Syntax
 ///
 /// ```ignore
-/// #![doc = doc_include!("docs/hkt.md")]
+/// #![doc = include_documentation!("docs/hkt.md")]
 /// ```
 ///
 /// * `path`: A string literal path to a markdown file, relative to `CARGO_MANIFEST_DIR`.
@@ -1392,7 +1392,7 @@ pub fn a_do(input: TokenStream) -> TokenStream {
 ///
 /// ```ignore
 /// // Invocation
-/// #![doc = doc_include!("docs/hkt.md")]
+/// #![doc = include_documentation!("docs/hkt.md")]
 ///
 /// // Link rewriting:
 /// //   [text](./foo-bar.md)  ->  [text][crate::docs::foo_bar]
@@ -1401,8 +1401,8 @@ pub fn a_do(input: TokenStream) -> TokenStream {
 /// //   [text](https://...)   ->  unchanged (not .md)
 /// ```
 #[proc_macro]
-pub fn doc_include(input: TokenStream) -> TokenStream {
-	match doc_include_worker(input.into()) {
+pub fn include_documentation(input: TokenStream) -> TokenStream {
+	match include_documentation_worker(input.into()) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}

@@ -1,1 +1,1 @@
-#![doc = fp_macros::doc_include!("docs/lifetime-ablation-experiment.md")]
+#![doc = fp_macros::include_documentation!("docs/lifetime-ablation-experiment.md")]
