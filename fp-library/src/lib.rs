@@ -104,7 +104,8 @@
 //! **Val/Ref Dispatch:** Each free function routes to either a by-value or by-reference trait method
 //! based on the closure's argument type (or container ownership for closureless operations). Dispatch
 //! and brand inference compose through the shared `FA` type parameter.
-//! See [Val/Ref Dispatch][crate::docs::dispatch].
+//! See [Val/Ref Dispatch][crate::docs::dispatch] and
+//! [Brand Dispatch Traits][crate::docs::brand_dispatch_traits] for the full design.
 //!
 //! **Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static
 //! dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where
@@ -127,6 +128,7 @@
 //! - [Higher-Kinded Types][crate::docs::hkt]
 //! - [Brand Inference][crate::docs::brand_inference]
 //! - [Val/Ref Dispatch][crate::docs::dispatch]
+//! - [Brand Dispatch Traits][crate::docs::brand_dispatch_traits]
 //! - [Zero-Cost Abstractions][crate::docs::zero_cost]
 //! - [Pointer Abstraction][crate::docs::pointer_abstraction]
 //! - [Lazy Evaluation][crate::docs::lazy_evaluation]

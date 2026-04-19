@@ -125,7 +125,7 @@ fp-library = { version = "0.16", features = ["rayon", "serde"] }
 
 **Brand Inference:** `InferableBrand` traits provide the reverse mapping (concrete type -> brand), with Brand as a trait parameter enabling multiple implementations per type. For single-brand types, the brand is inferred automatically. For multi-brand types like `Result`, the closure's input type disambiguates which brand applies. See [Brand Inference](fp-library/docs/brand-inference.md).
 
-**Val/Ref Dispatch:** Each free function routes to either a by-value or by-reference trait method based on the closure's argument type (or container ownership for closureless operations). Dispatch and brand inference compose through the shared `FA` type parameter. See [Val/Ref Dispatch](fp-library/docs/dispatch.md).
+**Val/Ref Dispatch:** Each free function routes to either a by-value or by-reference trait method based on the closure's argument type (or container ownership for closureless operations). Dispatch and brand inference compose through the shared `FA` type parameter. See [Val/Ref Dispatch](fp-library/docs/dispatch.md) and [Brand Dispatch Traits](fp-library/docs/brand-dispatch-traits.md) for the full design.
 
 **Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where functions must be stored as data. See [Zero-Cost Abstractions](fp-library/docs/zero-cost.md).
 
@@ -140,6 +140,7 @@ fp-library = { version = "0.16", features = ["rayon", "serde"] }
 - [Higher-Kinded Types](fp-library/docs/hkt.md): The Brand pattern and HKT encoding.
 - [Brand Inference](fp-library/docs/brand-inference.md): How InferableBrand enables turbofish-free dispatch, including closure-directed inference for multi-brand types.
 - [Val/Ref Dispatch](fp-library/docs/dispatch.md): How unified free functions route to by-value or by-reference trait methods.
+- [Brand Dispatch Traits](fp-library/docs/brand-dispatch-traits.md): InferableBrand, FnBrandSlot, and the dispatch trait pattern in detail.
 - [Zero-Cost Abstractions](fp-library/docs/zero-cost.md): Uncurried semantics and static dispatch.
 - [Pointer Abstraction](fp-library/docs/pointer-abstraction.md): Pointer hierarchy, `FnBrand<P>`, and shared memoization.
 - [Lazy Evaluation](fp-library/docs/lazy-evaluation.md): Guide to the lazy evaluation and memoization types.
