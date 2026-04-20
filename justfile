@@ -57,11 +57,11 @@ cargo *args:
 test *args:
     #!/usr/bin/env bash
     set -euo pipefail
-    mkdir -p .claude/test-cache
+    mkdir -p .cache/test-output
     ARGS="{{ args }}"
     CONTENT_HASH=$(git ls-files -z | xargs -0 md5sum 2>/dev/null | md5sum | cut -c1-32 || true)
     CACHE_KEY=$(echo "${ARGS}:${CONTENT_HASH}" | md5sum | cut -c1-12)
-    OUTPUT_FILE=".claude/test-cache/test-output-${CACHE_KEY}.txt"
+    OUTPUT_FILE=".cache/test-output/test-output-${CACHE_KEY}.txt"
     if [ -s "$OUTPUT_FILE" ]; then
         echo "=== CACHED TEST OUTPUT (no source changes) ==="
         (trap '' PIPE; cat "$OUTPUT_FILE")
@@ -84,7 +84,7 @@ test *args:
 # Remove build artifacts and test cache.
 clean:
     {{direnv_prefix}} cargo clean
-    rm -rf .claude/test-cache/
+    rm -rf .cache/test-output/
 
 # Check licenses and advisories with cargo-deny.
 deny:
