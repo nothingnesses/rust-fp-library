@@ -119,7 +119,7 @@ fp-library = { version = "0.17", features = ["rayon", "serde"] }
 
 **Higher-Kinded Types:** The library encodes HKTs using lightweight higher-kinded polymorphism (the "Brand" pattern). Each type constructor has a zero-sized brand type (e.g., `OptionBrand`) that implements `Kind` traits mapping brands back to concrete types. See [Higher-Kinded Types](fp-library/docs/hkt.md).
 
-**Dispatch System:** Free functions like `map` and `bind` infer the brand from the container type and route to by-value or by-reference trait methods automatically, so most call sites need no turbofish. For details, see [Brand Inference](fp-library/docs/brand-inference.md), [Val/Ref Dispatch](fp-library/docs/dispatch.md), and [Brand Dispatch Traits](fp-library/docs/brand-dispatch-traits.md).
+**Dispatch System:** Free functions like `map` and `bind` infer the brand from the container type and route to by-value or by-reference trait methods automatically, so most call sites need no turbofish. For details, see [Brand Inference](fp-library/docs/brand-inference.md) and [Val/Ref Dispatch](fp-library/docs/dispatch.md).
 
 **Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where functions must be stored as data. See [Zero-Cost Abstractions](fp-library/docs/zero-cost.md).
 
@@ -132,9 +132,8 @@ fp-library = { version = "0.17", features = ["rayon", "serde"] }
 - [API Documentation](https://docs.rs/fp-library): The complete API reference on docs.rs.
 - [Features & Type Class Hierarchy](fp-library/docs/features.md): Full feature list with hierarchy diagrams.
 - [Higher-Kinded Types](fp-library/docs/hkt.md): The Brand pattern and HKT encoding.
-- [Brand Inference](fp-library/docs/brand-inference.md): User guide for turbofish-free dispatch and multi-brand inference.
-- [Val/Ref Dispatch](fp-library/docs/dispatch.md): User guide for unified by-value and by-reference function dispatch.
-- [Brand Dispatch Traits](fp-library/docs/brand-dispatch-traits.md): Implementer reference for trait shapes, Marker invariant, and inference resolution.
+- [Brand Inference](fp-library/docs/brand-inference.md): Brand inference, trait shapes, Marker invariant, and inference resolution.
+- [Val/Ref Dispatch](fp-library/docs/dispatch.md): Unified by-value and by-reference function dispatch.
 - [Zero-Cost Abstractions](fp-library/docs/zero-cost.md): Uncurried semantics and static dispatch.
 - [Pointer Abstraction](fp-library/docs/pointer-abstraction.md): Pointer hierarchy, `FnBrand<P>`, and shared memoization.
 - [Lazy Evaluation](fp-library/docs/lazy-evaluation.md): Guide to the lazy evaluation and memoization types.

@@ -4,6 +4,9 @@
 //! Traits representing higher-kinded types (e.g., `Functor`) are implemented by
 //! [`Brand` types][crate::brands] to simulate higher-kinded polymorphism, as Rust does not
 //! natively support it.
+//!
+//! For the full type class hierarchy and feature list, see
+//! [Features][crate::docs::features].
 
 pub mod alt;
 pub mod alternative;

@@ -35,6 +35,10 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Disable git hooks
+        if: steps.diff.outputs.changed == 'true'
+        run: git config --unset core.hooksPath || true
+
       - name: Create pull request
         id: create-pr
         if: steps.diff.outputs.changed == 'true'

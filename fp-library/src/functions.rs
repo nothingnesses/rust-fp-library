@@ -1,31 +1,15 @@
 //! The primary API for calling type class operations as free functions.
 //!
-//! Re-exports are drawn from three source modules, each serving a
-//! different role:
+//! Re-exports inference wrappers from [`dispatch`](crate::dispatch), explicit
+//! (turbofish-required) variants via the [`explicit`] submodule, constructors
+//! from [`classes`](crate::classes) (e.g., [`pure`], [`plus_empty`]),
+//! type-specific utilities from [`types`](crate::types), and standalone
+//! functions such as [`compose`], [`constant`], [`flip`], [`identity`],
+//! and [`on`].
 //!
-//! - **[`dispatch`](crate::dispatch)** provides inference wrappers that
-//!   infer Brand (and sometimes FnBrand) from the container argument via
-//!   [`InferableBrand`](crate::kinds::InferableBrand_cdc7cd43dac7585f).
-//!   These are the primary API for most operations (`map`, `bind`,
-//!   `fold_left`, `apply`, etc.). Val/Ref dispatch is also handled
-//!   automatically: passing an owned container dispatches to the Val
-//!   impl, passing a reference dispatches to the Ref impl.
-//!
-//! - **[`classes`](crate::classes)** provides free functions that take
-//!   Brand via turbofish. These cover operations where Brand cannot be
-//!   inferred from arguments because the container is constructed rather
-//!   than transformed (e.g., [`pure`], [`plus_empty`]), or where the
-//!   function was superseded by a dispatch wrapper and serves as the
-//!   explicit fallback.
-//!
-//! - **[`types`](crate::types)** provides type-specific utilities
-//!   (constructors, conversions) that do not go through the type class
-//!   system.
-//!
-//! The [`explicit`] submodule re-exports the explicit (turbofish-required)
-//! versions from each dispatch module, for cases where Brand inference is
-//! ambiguous (e.g., diagonal types like `Result<T, T>`, or generic
-//! contexts):
+//! For how brand inference and Val/Ref dispatch work, see
+//! [Brand Inference][crate::docs::brand_inference] and
+//! [Val/Ref Dispatch][crate::docs::dispatch].
 //!
 //! ```
 //! use fp_library::functions::*;
@@ -45,9 +29,6 @@
 //! let result = map::<VecBrand, _, _, _, _>(|x: i32| x + 1, vec![1, 2, 3]);
 //! assert_eq!(result, vec![2, 3, 4]);
 //! ```
-//!
-//! The module also defines standalone utility functions such as [`compose`],
-//! [`constant`], [`flip`], [`identity`], and [`on`].
 
 use fp_macros::*;
 

@@ -1,26 +1,15 @@
 //! Dispatch infrastructure for unified free functions that route to either
 //! by-value or by-reference trait methods based on the closure's argument type.
 //!
-//! The dispatch system uses marker types ([`Val`] and [`Ref`]) to select the
-//! appropriate trait at compile time. The compiler infers the marker from the
-//! closure's argument type: `Fn(A) -> B` resolves to [`Val`], `Fn(&A) -> B`
-//! resolves to [`Ref`].
+//! The marker types [`Val`] and [`Ref`] select the appropriate trait at compile
+//! time. Each sub-module provides a dispatch trait and unified free function for
+//! a specific type class operation, mirroring the corresponding `classes/` module.
 //!
-//! The [`ClosureMode`] trait maps each marker to the corresponding `dyn Fn`
-//! trait object type, used by [`CloneFn`](crate::classes::CloneFn) and
-//! [`SendCloneFn`](crate::classes::SendCloneFn) to parameterize the `Deref`
-//! target of wrapped closures.
-//!
-//! ### Sub-modules
-//!
-//! Each sub-module provides a dispatch trait and unified free function for
-//! a specific type class operation, mirroring the corresponding `classes/`
-//! module:
-//!
-//! - [`functor`]: `FunctorDispatch` + `map`
-//! - [`semimonad`]: `BindDispatch` + `bind`
-//! - [`lift`]: `Lift2Dispatch`-`Lift5Dispatch` + `lift2`-`lift5`
-//! - [`foldable`]: `FoldRightDispatch`, `FoldLeftDispatch`, `FoldMapDispatch` + `fold_right`, `fold_left`, `fold_map`
+//! For a detailed explanation of how dispatch works, including the marker
+//! resolution rules, closureless dispatch, and the relationship to thread
+//! safety, see [Val/Ref Dispatch][crate::docs::dispatch]. For how the
+//! brand is inferred from the container type, see
+//! [Brand Inference][crate::docs::brand_inference].
 //!
 //! ### Examples
 //!

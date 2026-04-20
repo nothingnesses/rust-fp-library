@@ -8,7 +8,6 @@
 
 pub mod architecture;
 pub mod benchmarking;
-pub mod brand_dispatch_traits;
 pub mod brand_inference;
 pub mod coyoneda;
 pub mod dispatch;

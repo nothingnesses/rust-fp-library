@@ -72,8 +72,27 @@ When the caller writes `map(|x: &i32| *x + 10, &v)`:
 The `FA` type parameter is key: it appears in both the dispatch trait (to
 constrain the container) and in `InferableBrand` (to resolve the brand).
 This is how dispatch and brand inference compose through a single type variable.
-See [Brand Inference](./brand-inference.md) for how the reverse mapping from
-concrete types to brands works.
+See [Brand Inference](./brand-inference.md) for the full trait shapes and how
+the reverse mapping from concrete types to brands works.
+
+#### ClosureMode
+
+The `ClosureMode` trait maps each marker (`Val` or `Ref`) to the
+corresponding `dyn Fn` trait object type. It is used by `CloneFn` and
+`SendCloneFn` to parameterize the `Deref` target of wrapped closures:
+`Val` produces `dyn Fn(A) -> B` (by-value), `Ref` produces
+`dyn Fn(&A) -> B` (by-reference).
+
+#### Sub-modules
+
+Each sub-module of `dispatch` provides a dispatch trait and unified free
+function for a specific type class operation, mirroring the corresponding
+`classes/` module:
+
+- `functor`: `FunctorDispatch` + `map`
+- `semimonad`: `BindDispatch` + `bind`
+- `lift`: `Lift2Dispatch`-`Lift5Dispatch` + `lift2`-`lift5`
+- `foldable`: `FoldRightDispatch`, `FoldLeftDispatch`, `FoldMapDispatch` + `fold_right`, `fold_left`, `fold_map`
 
 #### Closureless dispatch
 

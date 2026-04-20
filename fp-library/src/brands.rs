@@ -6,6 +6,9 @@
 //! `Vec A`/`Vec<A>` is the concrete type where `Vec` has been applied to some
 //! generic type `A`.
 //!
+//! For how brands encode HKTs, see [Higher-Kinded Types][crate::docs::hkt].
+//! For the brand inference system, see [Brand Inference][crate::docs::brand_inference].
+//!
 //! ### Examples
 //!
 //! ```
