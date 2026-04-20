@@ -434,9 +434,7 @@ mod inner {
 		/// impl<'a> TraversalFunc<'a, i32, i32, i32, i32> for SingleTraversal {
 		/// 	fn apply<M: Applicative>(
 		/// 		&self,
-		/// 		f: Box<
-		/// 			dyn Fn(i32) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, i32>) + 'a,
-		/// 		>,
+		/// 		f: impl Fn(i32) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, i32>) + 'a,
 		/// 		s: i32,
 		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, i32>) {
 		/// 		f(s)
@@ -458,9 +456,7 @@ mod inner {
 					clippy::unwrap_used,
 					reason = "Traversal contract guarantees Some when applying through OptionBrand"
 				)]
-				traversal
-					.apply::<crate::brands::OptionBrand>(Box::new(move |a| Some(pab(a))), s)
-					.unwrap()
+				traversal.apply::<crate::brands::OptionBrand>(move |a| Some(pab(a)), s).unwrap()
 			})
 		}
 	}

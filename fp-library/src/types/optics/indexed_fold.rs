@@ -53,7 +53,7 @@ mod inner {
 		/// impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 		/// 	fn apply<R: 'a + Monoid + 'static>(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
+		/// 		f: impl Fn(usize, i32) -> R + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> R {
 		/// 		s.into_iter()
@@ -62,12 +62,12 @@ mod inner {
 		/// 	}
 		/// }
 		/// let fold = MyFold;
-		/// let result: String = fold.apply(Box::new(|i, x| format!("[{}]={}", i, x)), vec![10, 20]);
+		/// let result: String = fold.apply(|i, x| format!("[{}]={}", i, x), vec![10, 20]);
 		/// assert_eq!(result, "[0]=10[1]=20");
 		/// ```
 		fn apply<R: 'a + Monoid + 'static>(
 			&self,
-			f: Box<dyn Fn(I, A) -> R + 'a>,
+			f: impl Fn(I, A) -> R + 'a,
 			s: S,
 		) -> R;
 	}
@@ -129,7 +129,7 @@ mod inner {
 		/// impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 		/// 	fn apply<R: 'a + Monoid + 'static>(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
+		/// 		f: impl Fn(usize, i32) -> R + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> R {
 		/// 		s.into_iter()
@@ -192,7 +192,7 @@ mod inner {
 		/// impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 		/// 	fn apply<R: 'a + Monoid + 'static>(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
+		/// 		f: impl Fn(usize, i32) -> R + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> R {
 		/// 		s.into_iter()
@@ -257,14 +257,14 @@ mod inner {
 		/// let folded = Folded::<VecBrand>(std::marker::PhantomData);
 		/// let result: String = IndexedFoldFunc::<usize, Vec<i32>, i32, RcFnBrand>::apply(
 		/// 	&folded,
-		/// 	Box::new(|i: usize, x: i32| format!("[{}]={}", i, x)),
+		/// 	|i: usize, x: i32| format!("[{}]={}", i, x),
 		/// 	vec![10, 20, 30],
 		/// );
 		/// assert_eq!(result, "[0]=10[1]=20[2]=30");
 		/// ```
 		fn apply<R: 'a + Monoid + 'static>(
 			&self,
-			f: Box<dyn Fn(I, A) -> R + 'a>,
+			f: impl Fn(I, A) -> R + 'a,
 			s: Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>),
 		) -> R {
 			Brand::fold_map_with_index::<FnBrand, _, _>(f, s)
@@ -417,7 +417,7 @@ mod inner {
 		/// impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 		/// 	fn apply<R: 'a + Monoid + 'static>(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
+		/// 		f: impl Fn(usize, i32) -> R + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> R {
 		/// 		s.into_iter()
@@ -440,7 +440,7 @@ mod inner {
 			let fold_fn = self.fold_fn.clone();
 			crate::types::optics::Forget::<Q, R, S, S>::new(move |s: S| {
 				let pab_fn = pab.inner.0.clone();
-				fold_fn.apply::<R>(Box::new(move |i, a| (pab_fn)((i, a))), s)
+				fold_fn.apply::<R>(move |i, a| (pab_fn)((i, a)), s)
 			})
 		}
 	}
@@ -622,7 +622,7 @@ mod inner {
 		/// impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 		/// 	fn apply<R: 'a + Monoid + 'static>(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
+		/// 		f: impl Fn(usize, i32) -> R + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> R {
 		/// 		s.into_iter()
@@ -682,7 +682,7 @@ mod inner {
 		/// impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 		/// 	fn apply<R: 'a + Monoid + 'static>(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
+		/// 		f: impl Fn(usize, i32) -> R + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> R {
 		/// 		s.into_iter()
@@ -744,7 +744,7 @@ mod inner {
 		/// impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 		/// 	fn apply<R: 'a + Monoid + 'static>(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
+		/// 		f: impl Fn(usize, i32) -> R + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> R {
 		/// 		s.into_iter()
@@ -766,7 +766,7 @@ mod inner {
 			let fold_fn = self.fold_fn.clone();
 			crate::types::optics::Forget::<Q, R, S, S>::new(move |s: S| {
 				let pab_fn = pab.inner.0.clone();
-				fold_fn.apply::<R>(Box::new(move |i, a| (pab_fn)((i, a))), s)
+				fold_fn.apply::<R>(move |i, a| (pab_fn)((i, a)), s)
 			})
 		}
 	}

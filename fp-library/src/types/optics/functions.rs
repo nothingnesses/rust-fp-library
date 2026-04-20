@@ -1117,7 +1117,7 @@ mod inner {
 		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
 		/// 	fn apply<M: Applicative>(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		/// 		f: impl Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a,
 		/// 		s: Vec<A>,
 		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
 		/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
@@ -1135,26 +1135,24 @@ mod inner {
 		/// let t = Traversal::<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
 		/// let p = positions(t).traversal;
 		/// let s = vec![10, 20, 30];
-		/// let f = Box::new(|i: usize, a: i32| -> Option<i32> { Some(a + i as i32) });
+		/// let f = |i: usize, a: i32| -> Option<i32> { Some(a + i as i32) };
 		/// let result: Option<Vec<i32>> = IndexedTraversalFunc::apply::<OptionBrand>(&p, f, s);
 		/// assert_eq!(result, Some(vec![10, 21, 32]));
 		/// ```
 		fn apply<M: Applicative>(
 			&self,
-			f: Box<
-				dyn Fn(usize, A) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>) + 'a,
-			>,
+			f: impl Fn(usize, A) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>) + 'a,
 			s: S,
 		) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, T>)
 		where
 			Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>): Clone, {
 			let counter = std::cell::Cell::new(0usize);
 			self.0.apply::<M>(
-				Box::new(move |a: A| {
+				move |a: A| {
 					let i = counter.get();
 					counter.set(i + 1);
 					f(i, a)
-				}),
+				},
 				s,
 			)
 		}
@@ -1195,7 +1193,7 @@ mod inner {
 	/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
 	/// 	fn apply<M: Applicative>(
 	/// 		&self,
-	/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+	/// 		f: impl Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a,
 	/// 		s: Vec<A>,
 	/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
 	/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {

@@ -650,20 +650,23 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		optics::*,
-		/// 		*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::{
+		/// 			optics::*,
+		/// 			*,
+		/// 		},
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
 		/// 	},
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let s1: SetterPrime<RcBrand, (i32, String), i32> =
-		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Rc<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// let s2: SetterPrime<RcBrand, i32, i32> =
-		/// 	SetterPrime::new(|(s, f): (i32, Box<dyn Fn(i32) -> i32>)| f(s));
+		/// 	SetterPrime::new(|(s, f): (i32, Rc<dyn Fn(i32) -> i32>)| f(s));
 		/// let composed = Composed::new(s1, s2);
 		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier =

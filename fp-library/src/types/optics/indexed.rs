@@ -353,16 +353,14 @@ mod inner {
 			{
 				fn apply<M: Applicative>(
 					&self,
-					f: Box<
-						dyn Fn((I, A)) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>)
-							+ 'a,
-					>,
+					f: impl Fn((I, A)) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>)
+					+ 'a,
 					(i, s): (I, S),
 				) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, T>)
 				where
 					Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>): Clone, {
 					let i_clone = i.clone();
-					self.traversal.apply::<M>(Box::new(move |a| f((i_clone.clone(), a))), s)
+					self.traversal.apply::<M>(move |a| f((i_clone.clone(), a)), s)
 				}
 			}
 

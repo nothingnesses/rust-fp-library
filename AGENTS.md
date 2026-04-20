@@ -111,7 +111,7 @@ Respect the dependency graph: brands -> classes -> types -> dispatch -> function
 
 ### Optics
 
-Optics use profunctor encoding. Internal profunctors: `Exchange` (isos), `Market` (prisms), `Forget` (getters/folds), `Shop` (lenses). Many optics currently hard-code `Rc`; per `docs/todo.md`, these should be refactored to use `FnBrand<P>`. See [fp-library/docs/optics-analysis.md](fp-library/docs/optics-analysis.md) for design details.
+Optics use profunctor encoding. Internal profunctors: `Exchange` (isos), `Market` (prisms), `Forget` (getters/folds), `Shop` (lenses). All optics are generic over the pointer type via `FnBrand<P>`, supporting `Rc`, `Arc`, and `Box`. See [fp-library/docs/optics-analysis.md](fp-library/docs/optics-analysis.md) for design details.
 
 ## Code Style & Documentation
 
@@ -222,7 +222,7 @@ When writing test file headers, explain the background in concrete terms (the ac
 When modifying optics code:
 
 - Optics use profunctor encoding; understand `Profunctor`, `Strong`, `Choice` traits.
-- Internal profunctors (Exchange, Market, Shop, Forget, etc.) are in [fp-library/src/types/optics/](fp-library/src/types/optics/). The profunctor types are parameterized over `FunctionBrand: LiftFn`, but many optic functions still hard-code `Rc`; per `docs/todo.md`, these should be refactored to use `FnBrand<P>`.
+- Internal profunctors (Exchange, Market, Shop, Forget, etc.) are in [fp-library/src/types/optics/](fp-library/src/types/optics/). All optics are generic over the pointer type via `FnBrand<P>`.
 - See [fp-library/docs/optics-analysis.md](fp-library/docs/optics-analysis.md) for design details.
 
 ### Thread-Safe Operations

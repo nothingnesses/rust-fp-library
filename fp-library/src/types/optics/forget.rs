@@ -292,7 +292,7 @@ mod inner {
 			Forget::new(move |s| {
 				let pab = pab.clone();
 				(traversal.apply::<ConstBrand<R>>(
-					Box::new(move |a| crate::types::const_val::Const::new((pab.0)(a))),
+					move |a| crate::types::const_val::Const::new((pab.0)(a)),
 					s,
 				))
 				.0

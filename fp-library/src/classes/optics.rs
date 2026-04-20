@@ -428,18 +428,21 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		optics::*,
-		/// 		*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::{
+		/// 			optics::*,
+		/// 			*,
+		/// 		},
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
 		/// 	},
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
-		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Rc<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <SetterPrime<RcBrand, (i32, String), i32> as SetterOptic<
 		/// 	RcBrand,
@@ -666,18 +669,21 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		optics::*,
-		/// 		*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::{
+		/// 			optics::*,
+		/// 			*,
+		/// 		},
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
 		/// 	},
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
-		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Rc<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <SetterPrime<RcBrand, (i32, String), i32> as SetterOptic<
 		/// 	RcBrand,
