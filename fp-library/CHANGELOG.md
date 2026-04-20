@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-04-20
+
+### Changed
+
+- **Documentation deduplicated**: Module-level doc comments in top-level `.rs` files (`kinds`, `dispatch`, `functions`, `brands`, `classes`, `types`) slimmed to short summaries with links to design docs in `fp-library/docs/`.
+- **`brand-dispatch-traits.md` merged into `brand-inference.md`**: Consolidated the two docs covering brand inference traits into a single document. All cross-references updated.
+- **`hkt.md` expanded**: Added "How it works" section explaining the Brand pattern, `trait_kind!`/`impl_kind!` macro documentation, and the Kind trait hash naming table.
+- **`AGENTS.md` file paths converted to links**: File and directory references now use markdown link syntax.
+
 ## [0.17.0] - 2026-04-19
 
 ### Added
