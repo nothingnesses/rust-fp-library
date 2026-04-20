@@ -12,7 +12,7 @@ When adding new AI assistant instructions, put tool-agnostic guidance here (proj
 
 ## Running Commands
 
-All commands must be run via `just` recipes defined in the project's `justfile`. The `justfile` loads the Nix development environment via direnv automatically. Run `just --list` to see all available recipes.
+All commands must be run via `just` recipes defined in the project's [justfile](justfile). The `justfile` loads the Nix development environment via direnv automatically. Run `just --list` to see all available recipes.
 
 **Never run `cargo` directly.** Always use `just <recipe>` or `just cargo <subcommand>` for non-standard cargo commands.
 
@@ -82,26 +82,28 @@ just test
 
 ## Architecture
 
-For detailed design documentation, see the `fp-library/docs/` directory:
+For detailed design documentation, see [fp-library/docs/](fp-library/docs/):
 
-- `fp-library/docs/hkt.md` - Higher-Kinded Types and the Brand pattern
-- `fp-library/docs/zero-cost.md` - Zero-cost abstractions and uncurried semantics
-- `fp-library/docs/lazy-evaluation.md` - Lazy evaluation types, trade-offs, and decision guide
-- `fp-library/docs/pointer-abstraction.md` - Pointer traits, `FnBrand<P>`, and `LazyConfig`
-- `fp-library/docs/coyoneda.md` - Free functor implementations and trade-offs
-- `fp-library/docs/parallelism.md` - Thread safety and parallel trait hierarchy
-- `fp-library/docs/features.md` - Full feature list with type class hierarchy
-- `fp-library/docs/architecture.md` - Module organization and documentation conventions
-- `fp-library/docs/optics-analysis.md` - Optics system design details
+- [fp-library/docs/hkt.md](fp-library/docs/hkt.md) - Higher-Kinded Types and the Brand pattern
+- [fp-library/docs/brand-inference.md](fp-library/docs/brand-inference.md) - Brand inference, trait shapes, Marker invariant, and inference resolution
+- [fp-library/docs/dispatch.md](fp-library/docs/dispatch.md) - Val/Ref dispatch system
+- [fp-library/docs/zero-cost.md](fp-library/docs/zero-cost.md) - Zero-cost abstractions and uncurried semantics
+- [fp-library/docs/lazy-evaluation.md](fp-library/docs/lazy-evaluation.md) - Lazy evaluation types, trade-offs, and decision guide
+- [fp-library/docs/pointer-abstraction.md](fp-library/docs/pointer-abstraction.md) - Pointer traits, `FnBrand<P>`, and `LazyConfig`
+- [fp-library/docs/coyoneda.md](fp-library/docs/coyoneda.md) - Free functor implementations and trade-offs
+- [fp-library/docs/parallelism.md](fp-library/docs/parallelism.md) - Thread safety and parallel trait hierarchy
+- [fp-library/docs/features.md](fp-library/docs/features.md) - Full feature list with type class hierarchy
+- [fp-library/docs/architecture.md](fp-library/docs/architecture.md) - Module organization and documentation conventions
+- [fp-library/docs/optics-analysis.md](fp-library/docs/optics-analysis.md) - Optics system design details
 
 ### Key Locations
 
-- `fp-library/src/brands.rs` - All brand types centralized here (leaf nodes in dependency graph)
-- `fp-library/src/kinds.rs` - `Kind` trait definitions and type application machinery
-- `fp-macros/src/hkt/` - Procedural macros (`trait_kind!`, `impl_kind!`, `Apply!`)
-- `fp-library/src/dispatch/` - Val/Ref dispatch traits, inference wrappers, and explicit functions
-- `fp-macros/src/analysis/dispatch.rs` - Dispatch trait analysis for HM signature generation
-- `fp-library/src/types/optics/` - Profunctor-encoded optics (Lens, Prism, Iso, Traversal, etc.)
+- [fp-library/src/brands.rs](fp-library/src/brands.rs) - All brand types centralized here (leaf nodes in dependency graph)
+- [fp-library/src/kinds.rs](fp-library/src/kinds.rs) - `Kind` trait definitions and type application machinery
+- [fp-macros/src/hkt/](fp-macros/src/hkt/) - Procedural macros (`trait_kind!`, `impl_kind!`, `Apply!`)
+- [fp-library/src/dispatch/](fp-library/src/dispatch/) - Val/Ref dispatch traits, inference wrappers, and explicit functions
+- [fp-macros/src/analysis/dispatch.rs](fp-macros/src/analysis/dispatch.rs) - Dispatch trait analysis for HM signature generation
+- [fp-library/src/types/optics/](fp-library/src/types/optics/) - Profunctor-encoded optics (Lens, Prism, Iso, Traversal, etc.)
 
 ### Module Dependency Ordering
 
@@ -109,13 +111,13 @@ Respect the dependency graph: brands -> classes -> types -> dispatch -> function
 
 ### Optics
 
-Optics use profunctor encoding. Internal profunctors: `Exchange` (isos), `Market` (prisms), `Forget` (getters/folds), `Shop` (lenses). Many optics currently hard-code `Rc`; per `docs/todo.md`, these should be refactored to use `FnBrand<P>`. See `fp-library/docs/optics-analysis.md` for design details.
+Optics use profunctor encoding. Internal profunctors: `Exchange` (isos), `Market` (prisms), `Forget` (getters/folds), `Shop` (lenses). Many optics currently hard-code `Rc`; per `docs/todo.md`, these should be refactored to use `FnBrand<P>`. See [fp-library/docs/optics-analysis.md](fp-library/docs/optics-analysis.md) for design details.
 
 ## Code Style & Documentation
 
 ### Formatting
 
-The codebase uses custom rustfmt rules (`rustfmt.toml`):
+The codebase uses custom rustfmt rules ([rustfmt.toml](rustfmt.toml)):
 
 - Hard tabs (`\t`) for indentation
 - Vertical layout for function parameters and imports
@@ -137,7 +139,7 @@ Never use emoji or unicode symbols in code, comments, or documentation. Use plai
 
 ### AST Pattern Matching in Macros
 
-When working on proc macro code in `fp-macros/`, always use `syn` AST pattern matching instead of stringly-typed processing:
+When working on proc macro code in [fp-macros/](fp-macros/), always use `syn` AST pattern matching instead of stringly-typed processing:
 
 - Use `path.get_ident()`, `path.is_ident()`, or segment matching to compare types and trait names. Do not use `quote!(#ty).to_string()` to stringify AST nodes for comparison.
 - Store `syn::Ident` or `syn::Type` in data structures instead of stringified representations. Avoid round-tripping through strings (stringify then re-parse with `syn::parse_str`).
@@ -197,22 +199,22 @@ When writing test file headers, explain the background in concrete terms (the ac
 
 ### Implementing a New Type Class
 
-1. Define the trait in `fp-library/src/classes/new_class.rs`. Class files contain only trait definitions (and optionally a `Ref` variant, e.g., `RefFunctor`), not free functions.
-2. Update `fp-library/src/classes.rs` to export the module.
-3. Create a dispatch module at `fp-library/src/dispatch/new_class.rs` containing:
+1. Define the trait in [fp-library/src/classes/](fp-library/src/classes/)`new_class.rs`. Class files contain only trait definitions (and optionally a `Ref` variant, e.g., `RefFunctor`), not free functions.
+2. Update [fp-library/src/classes.rs](fp-library/src/classes.rs) to export the module.
+3. Create a dispatch module at [fp-library/src/dispatch/](fp-library/src/dispatch/)`new_class.rs` containing:
    - A dispatch trait (e.g., `NewClassDispatch<'a, Brand, A, B, FA, Marker>`).
    - A `Val` impl that routes to the owned trait method.
    - A `Ref` impl that routes to the `Ref*` variant trait method.
    - An inference wrapper function (the public API, e.g., `pub fn map(f, fa)`) that binds on `InferableBrand` with `Marker` projected, enabling brand inference from the container type.
    - An `explicit` submodule with the turbofish-taking variant (e.g., `pub mod explicit { pub fn map(...) }`).
-4. Update `fp-library/src/dispatch.rs` to export the new dispatch module.
-5. Re-export the functions in `fp-library/src/functions.rs`. This file is the primary public API and draws from three sources: inference wrappers from `dispatch::` (top-level re-exports), class-level free functions from `classes::` (for operations where Brand cannot be inferred, e.g., `pure`, `empty`), and type-specific utilities from `types::`. Add the inference wrapper to the `dispatch::` re-export block and the explicit variant to `pub mod explicit`.
+4. Update [fp-library/src/dispatch.rs](fp-library/src/dispatch.rs) to export the new dispatch module.
+5. Re-export the functions in [fp-library/src/functions.rs](fp-library/src/functions.rs). This file is the primary public API and draws from three sources: inference wrappers from `dispatch::` (top-level re-exports), class-level free functions from `classes::` (for operations where Brand cannot be inferred, e.g., `pure`, `empty`), and type-specific utilities from `types::`. Add the inference wrapper to the `dispatch::` re-export block and the explicit variant to `pub mod explicit`.
 6. Add documentation following the template above.
 
 ### Adding a Brand for a New Type
 
-1. Add a zero-sized brand struct to `fp-library/src/brands.rs` (derive `Clone`, `Copy`, `Debug`, `Default`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash`).
-2. Use `impl_kind!` in `fp-library/src/types/new_type.rs` to define the `Kind` implementation. For types with multiple type parameters (like `Result`), use separate `impl_kind!` blocks for each partial application and mark brands with `#[multi_brand]`.
+1. Add a zero-sized brand struct to [fp-library/src/brands.rs](fp-library/src/brands.rs) (derive `Clone`, `Copy`, `Debug`, `Default`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash`).
+2. Use `impl_kind!` in [fp-library/src/types/](fp-library/src/types/)`new_type.rs` to define the `Kind` implementation. For types with multiple type parameters (like `Result`), use separate `impl_kind!` blocks for each partial application and mark brands with `#[multi_brand]`.
 3. Implement relevant type classes (both owned and `Ref` variants, e.g., `Functor` and `RefFunctor`) in the same types file.
 
 ### Working with Optics
@@ -220,8 +222,8 @@ When writing test file headers, explain the background in concrete terms (the ac
 When modifying optics code:
 
 - Optics use profunctor encoding; understand `Profunctor`, `Strong`, `Choice` traits.
-- Internal profunctors (Exchange, Market, Shop, Forget, etc.) are in `types/optics/`. The profunctor types are parameterized over `FunctionBrand: LiftFn`, but many optic functions still hard-code `Rc`; per `docs/todo.md`, these should be refactored to use `FnBrand<P>`.
-- See `fp-library/docs/optics-analysis.md` for design details.
+- Internal profunctors (Exchange, Market, Shop, Forget, etc.) are in [fp-library/src/types/optics/](fp-library/src/types/optics/). The profunctor types are parameterized over `FunctionBrand: LiftFn`, but many optic functions still hard-code `Rc`; per `docs/todo.md`, these should be refactored to use `FnBrand<P>`.
+- See [fp-library/docs/optics-analysis.md](fp-library/docs/optics-analysis.md) for design details.
 
 ### Thread-Safe Operations
 

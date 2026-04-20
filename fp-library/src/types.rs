@@ -4,6 +4,10 @@
 //! data structures and wrappers, including `Identity`, `Lazy`, and extensions
 //! for standard library types like `Option` and `Result`.
 //!
+//! For the lazy evaluation type hierarchy, see
+//! [Lazy Evaluation][crate::docs::lazy_evaluation]. For optics types, see
+//! [Optics Analysis][crate::docs::optics_analysis].
+//!
 //! ### Examples
 //!
 //! ```

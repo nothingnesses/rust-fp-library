@@ -93,9 +93,8 @@
 //!
 //! **Dispatch System:** Free functions like `map` and `bind` infer the brand from the container
 //! type and route to by-value or by-reference trait methods automatically, so most call sites
-//! need no turbofish. For details, see [Brand Inference][crate::docs::brand_inference],
-//! [Val/Ref Dispatch][crate::docs::dispatch], and
-//! [Brand Dispatch Traits][crate::docs::brand_dispatch_traits].
+//! need no turbofish. For details, see [Brand Inference][crate::docs::brand_inference]
+//! and [Val/Ref Dispatch][crate::docs::dispatch].
 //!
 //! **Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static
 //! dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where
@@ -116,9 +115,8 @@
 //!
 //! - [Features & Type Class Hierarchy][crate::docs::features]: Full feature list with hierarchy diagrams.
 //! - [Higher-Kinded Types][crate::docs::hkt]: The Brand pattern and HKT encoding.
-//! - [Brand Inference][crate::docs::brand_inference]: User guide for turbofish-free dispatch and multi-brand inference.
-//! - [Val/Ref Dispatch][crate::docs::dispatch]: User guide for unified by-value and by-reference function dispatch.
-//! - [Brand Dispatch Traits][crate::docs::brand_dispatch_traits]: Implementer reference for trait shapes, Marker invariant, and inference resolution.
+//! - [Brand Inference][crate::docs::brand_inference]: Brand inference, trait shapes, Marker invariant, and inference resolution.
+//! - [Val/Ref Dispatch][crate::docs::dispatch]: Unified by-value and by-reference function dispatch.
 //! - [Zero-Cost Abstractions][crate::docs::zero_cost]: Uncurried semantics and static dispatch.
 //! - [Pointer Abstraction][crate::docs::pointer_abstraction]: Pointer hierarchy, `FnBrand<P>`, and shared memoization.
 //! - [Lazy Evaluation][crate::docs::lazy_evaluation]: Guide to the lazy evaluation and memoization types.
