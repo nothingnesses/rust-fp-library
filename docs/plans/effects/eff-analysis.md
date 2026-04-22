@@ -459,6 +459,136 @@ But it cannot support:
 
 This is enough to cover the "boring but useful 80%" of an effects library, but falls short of being a full eff port. The "interesting" cases — the ones that justify algebraic effects as a framework rather than a dependency-injection pattern — are precisely the ones `switch-resume` cannot handle.
 
+## Could `switch-resume` Be Extended to Fully Match eff?
+
+This section takes each gap identified above and asks, concretely: what would it take to close it? Can the `switch-resume` design be extended, or are there hard blockers?
+
+### Gap 1: Multiple Independent Prompts
+
+**The gap**: `switch-resume` has a single delimiter per `run` invocation and a single channel for switches. eff has one prompt per installed handler, with `control0#` able to capture up to any of them selectively.
+
+**Extension sketch**: Replace the single task/channel with a per-prompt structure. Each prompt carries a unique identifier and its own return type:
+
+```rust
+pub struct PromptId(u64);
+
+pub struct Prompt<'a, R> {
+    id: PromptId,
+    switch_sender: Sender<Switch<'a, R>>,
+    _marker: PhantomData<&'a R>,
+}
+
+pub async fn with_prompt<'a, R, A, Body, Fut>(body: Body) -> R
+where
+    Body: FnOnce(Prompt<'a, R>) -> Fut,
+    Fut: Future<Output = R> + 'a,
+{
+    // Install new prompt loop; drive body; handle switches targeting this prompt id;
+    // let switches targeting outer prompts propagate upward by returning Pending.
+    ...
+}
+
+impl<'a, R> Prompt<'a, R> {
+    pub async fn switch<Arg, F, Fut>(&self, f: F) -> Arg
+    where
+        F: FnOnce(Resume<'a, Arg, R>) -> Fut + 'a,
+        Fut: Future<Output = R> + 'a,
+    { ... }
+}
+```
+
+Nesting: `with_prompt` creates a new loop that drives its body, intercepting switches whose `PromptId` matches. Switches targeting outer prompts leave the inner body pending and propagate outward until they reach the matching loop. This is `switch-resume`'s existing mechanism generalised to multiple identifiers.
+
+**Verdict**: Feasible. The extra machinery is per-prompt channel plumbing, a prompt-ID registry (analogous to eff's targets vector), and careful propagation of unmatched switches. Performance cost scales with prompt count, and each switch crossing multiple prompts pays the "walk through the prompt stack" cost (O(n) in the nesting depth, vs. eff's O(1)).
+
+### Gap 2: `control` vs. `control0` Semantics
+
+**The gap**: eff distinguishes `IncludePrompt` (shift-like: delimiter stays; on invocation, the handler is still there) from `ExcludePrompt` (control0-like: delimiter removed; on invocation, no handler is active). `switch-resume` offers only one flavor: the delimiter stays in place because it is the outer `run` loop that is driving everything.
+
+**Extension sketch**: In the multi-prompt model, the distinction maps to _what is available inside the switch closure and inside the resumed continuation_:
+
+- **`control`-like `switch`**: Inside the switch closure, the target prompt's handle is still usable (you can call `prompt.switch(...)` again and it will be handled). When `resume(arg)` is awaited, the continuation runs; the prompt's loop is still active, so any switches inside the continuation are handled by the same prompt. This matches `switch-resume`'s current behavior when extended to multi-prompt.
+
+- **`control0`-like `switch`**: Inside the switch closure, the prompt is conceptually removed; its handle should not work. When `resume(arg)` is awaited, the continuation's switches are _not_ handled by this prompt; the caller must reinstall a matching prompt via another `with_prompt`. Implementing this requires explicitly tearing down the prompt before running the switch closure, and requiring the switch closure's return type to reflect that the continuation does not re-enter the prompt.
+
+The type signatures would differ:
+
+```rust
+// control-like: closure's result is the prompt's final R; continuation returns R.
+pub async fn switch_control<Arg, F, Fut>(&self, f: F) -> Arg
+where F: FnOnce(ContResume<Arg, R>) -> Fut, Fut: Future<Output = R>;
+
+// control0-like: closure's result is still R, but continuation has a "requires-reinstall"
+// phantom tag; invoking it produces whatever the reinstalled prompt returns, not R.
+pub async fn switch_control0<Arg, F, Fut>(&self, f: F) -> Arg
+where F: FnOnce(BareCont<Arg>) -> Fut, Fut: Future<Output = R>;
+```
+
+**Verdict**: Feasible with the multi-prompt extension, but subtle. The key is carefully tracking whether the captured continuation re-enters the original prompt's loop. This is exactly what eff's `IncludePrompt`/`ExcludePrompt` modes encode; the Rust version would require equivalent type-level bookkeeping.
+
+### Gap 3: Scoped Operations (`locally`, Catch, Local)
+
+**The gap**: eff's `locally` runs a sub-computation with the _caller's_ effect list visible, bypassing the current handler. This is how `Catch` runs recovery without the current Error handler interfering, and how `Local` runs with a modified Reader environment.
+
+**Extension sketch**: With multi-prompt support, `locally` becomes "run this sub-computation without our prompt on the stack." Implementation: briefly remove our prompt from the effective prompt stack (or mark it as inactive) while the sub-computation runs; any switches in the sub-computation bypass our prompt and target outer ones. This is essentially `Catch` = "run under a _different_ Error handler" via nested `with_prompt`.
+
+**Verdict**: Feasible, and actually a natural fit for multi-prompt. `locally` is mostly about prompt-stack management.
+
+### Gap 4: Multi-Shot Continuations (NonDet, Alternative)
+
+**The gap**: eff's `control` allows invoking a captured continuation multiple times (e.g., `k True` and `k False` in `Choose`). `switch-resume`'s `Resume` is `FnOnce`, allowing exactly one invocation.
+
+**Extension attempt**: Change `Resume` to `FnMut` or have it contain a cloneable reference to the paused state? This is the crux of the question, and it runs into a **hard blocker in stable Rust**:
+
+1. **Compiler-generated `Future`s are not `Clone`**. An `async` block lowers to an anonymous state-machine type whose fields include borrows held across `.await` points. Such types are self-referential and pinned. `Pin` was introduced specifically to forbid moves of these values, let alone copies. There is no stable mechanism to clone them. This is intentional and not accidental; adding auto-`Clone` would be a semver hazard because the cloneability of a future would depend on hidden state across yield points.
+
+2. **Stackful coroutine crates do not support forking**. `corosensei`, `may`, `generator`, and similar libraries all expose only resume/yield, not clone. Naive `memcpy` of a coroutine stack is unsound because the frames contain raw pointers (return addresses, frame pointers) aimed at the original stack.
+
+3. **Nightly has partial support**. The `coroutine_clone` feature (#95360) lets the compiler derive `Clone` for coroutines whose captured state is `Clone` and which contain no cross-yield self-references. But (a) it's nightly, (b) it does not extend to `async fn`, (c) it requires hand-writing coroutines in a restricted style. Not a viable path for a library targeting stable Rust.
+
+4. **OCaml 5 shipped one-shot-only for the same reason**. Even in a managed runtime with a GC, multi-shot effects require extensive heap traversal to deep-copy continuations. OCaml's team concluded this was infeasible and landed one-shot only. Rust, without a managed runtime, is strictly worse positioned.
+
+5. **Known workarounds all require abandoning direct style**:
+   - **CPS** (hand- or macro-transformed): explicit continuation-passing closures stored in `Arc<dyn Fn>` can be invoked multiple times. Loses direct-style syntax.
+   - **Free-monad reification**: represent the computation as a data structure; multi-shot is "interpret the tree twice." Works perfectly but is exactly what `purescript-run` does. At that point, `switch-resume` contributes nothing.
+   - **Replay-based**: re-run the entire computation with different "branch decisions" recorded externally. Requires effects to be pure-functions-of-input, and costs O(n²) for n effect calls.
+
+**Verdict**: **Hard blocker in stable Rust**. Multi-shot cannot be added to `switch-resume` without either moving to nightly + hand-written coroutines (losing async/direct style), or falling back to free-monad reification (at which point we have two disjoint mechanisms and switch-resume adds nothing).
+
+This is not a minor limitation: `NonDet` / `Alternative` is a canonical algebraic effect, and it is arguably _the_ example that distinguishes "real" algebraic effects from dependency-injection patterns. An effects library that cannot express it is closer to `bluefin` or the ReaderT-IO family (Approach 2 in effects.md) than to `eff` or `purescript-run`.
+
+### Gap 5: Async Coloring
+
+**The gap**: In `switch-resume`, every effectful function must be `async` because `switch` is an `async fn`. Pure Rust code cannot perform effects.
+
+**Extension attempt**: Color-erasing is impossible. `async` is structural in Rust; it affects the calling convention and the return type. Even macro-heavy approaches cannot make a sync function invoke an effect that requires `.await`.
+
+**Verdict**: Hard blocker, though a manageable one. "Everything is async" is an ergonomic tax, not a semantic blocker. Users would have to write `async fn` pervasively, similar to how async-ecosystem code already does.
+
+### Gap 6: Performance Relative to eff
+
+Even setting aside multi-shot, a `switch-resume`-based design has baseline costs that eff does not:
+
+- **Boxed closures on every `switch`**: `Box<dyn FnOnce(...) -> Future>` plus `Pin<Box<dyn Future>>` for the continuation itself. eff's continuations are unboxed `(# State#, Registers#, a #)` tuples.
+- **Async executor overhead**: Every `.await` is a poll through the state machine. eff's effect dispatch is a direct function call via a targets-vector lookup.
+- **Channel-based signaling**: `async_channel` + `async_oneshot` in `switch-resume`. Each switch involves sending messages, not pointer manipulation.
+- **O(n) prompt walks**: The multi-prompt extension pays O(nesting depth) to find a matching prompt. eff pays O(1) for targets-vector lookup.
+
+These are all on the "cost" side of the design rather than "blocker" side, but they compound: a `switch-resume`-based effects library would likely be one to two orders of magnitude slower than eff on micro-benchmarks, and measurably slower than a free-monad-based library for shallow handler stacks.
+
+### Summary: Extension Feasibility
+
+| Gap                                | Extensible?          | Notes                                                                                              |
+| ---------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------- |
+| Multiple independent prompts       | Yes                  | Per-prompt channels; propagation up the prompt stack.                                              |
+| `control` vs. `control0` semantics | Yes                  | Subtle but tractable with careful API design.                                                      |
+| Scoped operations (`locally`)      | Yes                  | Natural with multi-prompt.                                                                         |
+| **Multi-shot continuations**       | **No (stable Rust)** | Blocked by `Pin` + self-referential async state. No fix without nightly or free-monad reification. |
+| Async coloring                     | No                   | Inherent; manageable ergonomic cost.                                                               |
+| Performance parity with eff        | No                   | Allocation and executor overhead are baseline.                                                     |
+
+The bolded row is the dispositive one. An extended `switch-resume` can get close to eff's _shape_ — multi-prompt handlers, control0-like semantics, scoped operations — but it cannot get NonDet/Alternative back. Since multi-shot is one of the defining features of eff (and of algebraic effects generally), extended `switch-resume` is still a _partial_ port, not a full one.
+
 ## Feasibility for Rust Port
 
 ### Blockers for a Full Port
