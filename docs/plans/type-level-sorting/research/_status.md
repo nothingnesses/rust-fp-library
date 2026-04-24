@@ -11,8 +11,8 @@ against the eight approaches catalogued in [README.md](README.md).
 
 ### Direct sorting implementations
 
-- [ ] [type-level-sort.md](type-level-sort.md)
-- [ ] [typelist.md](typelist.md)
+- [x] [type-level-sort.md](type-level-sort.md)
+- [x] [typelist.md](typelist.md)
 
 ### Foundational primitives
 
@@ -23,12 +23,12 @@ against the eight approaches catalogued in [README.md](README.md).
 ### Hash-based type identity
 
 - [x] [stabby.md](stabby.md)
-- [ ] [type-uuid.md](type-uuid.md)
+- [x] [type-uuid.md](type-uuid.md)
 
 ### Type-level DSLs and operators
 
-- [ ] [rust-type-freak.md](rust-type-freak.md)
-- [ ] [typ.md](typ.md)
+- [x] [rust-type-freak.md](rust-type-freak.md)
+- [x] [typ.md](typ.md)
 - [x] [tstr-crates.md](tstr-crates.md)
 
 ### Marker-trait approaches
