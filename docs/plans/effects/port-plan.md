@@ -233,6 +233,37 @@ In PureScript terms, this is the distinction between `MonadState` (a constraint,
 
 Kept in the plan not as a candidate but as a benchmark: this is what good row-ergonomics looks like in Rust. Options 1 to 4 should aim to match option 5's error-message quality and compositional feel, even though they will pay the type-level-list-machinery tax along the way. Real-world references: [shtsoft effect-trait pattern](https://blog.shtsoft.eu/2022/12/22/effect-trait-dp.html), `karpal-effect`, `higher`.
 
+#### Ordering mitigations
+
+Options 1, 2, and 4 share a problem: `Coproduct<A, Coproduct<B, Void>>` and `Coproduct<B, Coproduct<A, Void>>` are distinct types despite denoting the same effect set. Three workarounds exist, each with distinct costs.
+
+**Sorting types at the type level is not directly available in stable Rust.** The trait system can unify types but cannot compare them by any total order; `TypeId::of::<T>()` is a runtime value and cannot drive trait resolution. Haskell's `row-types` library does this via the built-in `Symbol` kind (type-level strings with a canonical ordering); Rust has no analogous kind. Any workaround therefore simulates ordering from outside the type system.
+
+The three workarounds:
+
+1. **Macro-based canonicalisation by textual tag.** A proc macro (such as the `coprod![...]` or `effects![...]` in option 4) sorts effect names lexically at expansion time and emits a `Coproduct` in canonical order.
+
+   ```rust
+   type E1 = effects![State<i32>, Reader<Env>];
+   type E2 = effects![Reader<Env>, State<i32>];
+   // Both expand to the same Coproduct, e.g.:
+   //   Coproduct<Reader<Env>, Coproduct<State<i32>, Void>>
+   ```
+
+   Pros: simple, no language extensions, no per-effect boilerplate. Folds into option 4's macro layer for free, so the row-ordering issue disappears from user code as long as users go through the macro. Cons: hand-written `Coproduct<...>` types bypass the sort. Textual names include generic parameters, so different parameterisations sort into different positions (usually correct, occasionally surprising). Fully-generic effect types may not have a canonical name at macro-expansion time.
+
+2. **Tag-based type-level sorting.** Each effect implements a trait providing a type-level numeric tag (`trait EffectTag { type Tag: typenum::Unsigned; }`), and a recursive trait performs insertion sort at type-resolution time.
+
+   Pros: works without a macro; users can define a `Coproduct` by hand and the type system still sorts it. Cons: every effect definition requires a tag impl; tag collisions produce confusing errors and demand a coordination mechanism (a global registry or hash-of-type-name); compile time worsens because type-level sorting is quadratic trait resolution in the worst case. No Rust effect crate currently ships this approach.
+
+3. **Permutation proofs (`CoproductSubsetter`).** Don't sort. Instead, generalise every API so that a function accepting an effect row also accepts any permutation of it; the trait machinery (`CoproductSubsetter<Target, Indices>` from frunk) proves the permutation at the call site.
+
+   Pros: works with any coproduct shape; no macro discipline required. This is what `effing-mad` and `corophage` already do. Cons: user-visible machinery; error messages carry full permutation indices; compile time scales with permutation size (factorial worst case, though inference usually resolves quickly); users pay the cost at every composition site.
+
+**Recommendation.** Adopt workaround 1 as a Phase 1 implementation detail of option 4. The macro layer already exists in the hybrid design; making it canonicalise is additive and cheap. Workaround 3 stays as a fallback for the rare cases where a user bypasses the macro and composes raw Coproducts; existing frunk machinery handles it. Workaround 2 is rejected on complexity and compile-time grounds unless a compelling case for hand-authored coproducts emerges.
+
+**Note on trait-bound sets (option 5 above).** The trait-bound-set approach is trivially order-invariant: `T: A + B` and `T: B + A` are the same constraint. This is the only unordered container at the type level in stable Rust, but it lives in the _constraint_ world, not the _data_ world, so it cannot serve as a data container for the Free family. It is not a mitigation for coproduct ordering; it is an entirely different encoding that sidesteps the problem at the cost of giving up first-class programs.
+
 #### Honourable mentions (not direct candidates)
 
 - **Coroutine-frame row (Abubalay).** The entire row disappears at runtime because the stackless coroutine's state machine is already a sum of "currently suspended at effect X" variants. An optimisation target for any option 1-based implementation rather than a separate encoding.
