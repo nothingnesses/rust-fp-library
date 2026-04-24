@@ -603,7 +603,7 @@ The bolded row is the dispositive one. An extended `switch-resume` can get close
 
 2. **Custom stackful runtime (`libhandler`-style)**: Use `setjmp`/`longjmp` or platform-specific fiber APIs (e.g., `ucontext`, Windows Fibers) to implement full delimited continuations. Platform-specific, unsafe, not portable to all targets (notably WASM). This is how Koka's C runtime works.
 
-3. **Free monad approach (abandon continuations)**: Build effects as a data structure and interpret them with explicit stack-safe loops. Supports multi-shot via re-interpretation (the tree can be walked multiple times). Slower than eff but portable and pure. This is what `purescript-run` does and what our [feasibility-comparison.md](./feasibility-comparison.md) recommends.
+3. **Free monad approach (abandon continuations)**: Build effects as a data structure and interpret them with explicit stack-safe loops. Supports multi-shot via re-interpretation (the tree can be walked multiple times). Slower than eff but portable and pure. This is what `purescript-run` does and what our [port-plan.md](./port-plan.md) recommends.
 
 ### Conclusion
 
@@ -611,4 +611,4 @@ The `eff` approach is fundamentally tied to GHC's runtime support for delimited 
 
 `switch-resume` is worth keeping in mind as a potential building block for experiments or for a future "async effects" variant, but it is not a substitute for a full delimited-continuation primitive. Its one-shot limitation and single-prompt-per-`run` design rule out the most interesting uses of `eff`.
 
-The recommended path remains: use `eff`'s semantics and handler API as design targets while implementing via a free-monad-based approach (closer to `purescript-run`). See [feasibility-comparison.md](./feasibility-comparison.md) for the proposed Rust design.
+The recommended path remains: use `eff`'s semantics and handler API as design targets while implementing via a free-monad-based approach (closer to `purescript-run`). See [port-plan.md](./port-plan.md) for the proposed Rust design.
