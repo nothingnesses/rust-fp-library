@@ -89,27 +89,150 @@ Each blocker below must be resolved before writing any new types. They are order
 
 ### 4.1 BLOCKER: How to represent the effect row
 
-This is _the_ decision. Every other question flows from it. Rust has no row types. There are four plausible encodings, each with a different cost profile:
+This is _the_ decision. Every other question flows from it. Rust has no row types. Any encoding we pick must preserve **openness** — the ability to write `fn speak<R>(...) -> Run<TALK + R, ()>` where `R` is an unknown extension of the effect set. Closed encodings (fixed tuples, monolithic enums) are rejected up front because they break the core premise of Run.
 
-1. **Type-level heterogeneous list (HList) of brand-label pairs / nested coproduct.**
-   Example: `Run<(StateBrand<i32>, (ReaderBrand<Env>, Nil))>` or, as a nested coproduct, `Coproduct<State<i32>, Coproduct<Reader<Env>, Void>>`. Needs trait-based membership and removal (`Member<Effect, Index>`, `Remove<Brand>`). Gives open composition. Similar to `frunk::HList`; similar to `freer-simple` and `polysemy` in Haskell. Pros: fully extensible, type-safe, no macros required. Cons: deep nesting produces complex types; error messages degrade with depth; trait-resolution overhead at compile time.
-2. **Closed tuple of brands with a fixed arity.**
-   Example: `Run<(StateBrand<i32>, ReaderBrand<Env>)>`. Simple, good error messages, but loses openness: you cannot write `speak :: forall r. String -> Run (TALK + r) Unit` because there is no way to say "a tuple with at least this entry". You'd need a sum-of-supertypes or macro wrappers.
-3. **Single wide enum with one variant per effect.**
-   Example: `enum AppEffect { State(...), Reader(...) }`. Users must define this enum up front, closing the world. Violates the first principle of `Run` (open composition). Rejected on design grounds but mentioned for completeness.
-4. **Trait-object dispatch with `TypeId` tags.**
-   Example: `Run` holds `Box<dyn Any>` plus a `TypeId` for tag. Allows full openness and dynamic dispatch. Costs: boxing per effect invocation, runtime type lookup, loss of static exhaustiveness checks. Closest match to the PureScript runtime representation (which is literally `{ type: String, value, map }`).
-5. **Hybrid: nested coproduct + macro sugar for construction.**
-   Use the nested coproduct internally but expose ergonomic macros: `type MyEffects = coprod![State<i32>, Reader<String>];` expanding to the nested form. This is the default direction for the draft architecture in section 5.
+An ecosystem survey (see the research note below) surfaced five distinct open encodings. Not every one is compatible with the Free-family commitment in section 4.4, but each is worth understanding. The subsection that follows defines key vocabulary used throughout the options list.
+
+#### Background: key concepts for the options below
+
+**First-class program.** In a Free-monad design, a "program using effects A and B" is a concrete value, typically a tree of `Bind` and `Pure` nodes. You can store it in a variable, clone it (if the underlying types allow), walk it multiple times, substitute one effect for another via hoisting, or re-interpret it into a different target monad. In the mtl-style (trait-bound-set) design, a "program" is a generic Rust function: calling it runs it, and that is all. There is no value representing "the program" that you can inspect or replay. The property of being a value rather than a function is what enables multi-shot interpretation, handler composition via `peel`/`send`, and pure-data interpreters like `runPure`. Our section 4.4 commitment to the Free family requires this property.
+
+**Row ordering.** In PureScript, `(a :: A, b :: B)` and `(b :: B, a :: A)` are the same row type; labels form a set, not a list. Rust tuples and nested coproducts are ordered: `Coproduct<A, Coproduct<B, Void>>` is a distinct type from `Coproduct<B, Coproduct<A, Void>>`. When two functions return programs with different orderings of the same effects, Rust's type checker does not see them as compatible without an explicit conversion.
+
+**Embedder and Subsetter (frunk terminology).** Two traits that translate between orderings or sizes of a coproduct. `CoproductEmbedder<Larger, Idxs>` proves "my coproduct can be embedded into a larger one by mapping each variant to the correct position in the larger one." `CoproductSubsetter<Subset, Idxs>` proves "I can project out a subset of my variants into a smaller coproduct." They compose, but their invocation is user-visible: every time you widen or narrow an effect row, there is an explicit (even if inference-elided) call. These are the machinery that papers over the row-ordering problem above.
+
+**Type-level list machinery.** Options 1 and 2 encode the effect row as a recursively-nested type constructor such as `Coproduct<A, Coproduct<B, Void>>` or `HList![A, B]`. Working with such a list requires recursive traits (`Member<E, List, Idx>`), type-level indices (Peano `Here`/`There` or typenum naturals), and usually macros to hide the nesting. Rust trait bounds (`T: A + B`) are _not_ a type-level list; they are an unordered, duplicate-free set of constraints the compiler resolves directly. The trait-bound-set approach (option 5) uses this native mechanism instead of building list machinery in user space.
+
+#### The five open encodings
+
+**1. Type-level heterogeneous list / nested coproduct.**
+
+```rust
+// An effect set written as a nested coproduct:
+type MyEffects = Coproduct<State<i32>, Coproduct<Reader<Env>, Void>>;
+
+// A program polymorphic in additional effects R:
+fn my_program<R>(...) -> Run<Coproduct<State<i32>, R>, i32> {
+    // polymorphic in the tail R; composes with any extension the caller supplies.
+}
+```
+
+How openness works: a function generic over the tail `R` of the coproduct can be called with any extension the caller supplies. Adding a new effect adds a new layer to the nesting; no existing program changes.
+
+Known concrete issues:
+
+- **Row ordering.** `Coproduct<State, Coproduct<Reader, Void>>` is a different type from `Coproduct<Reader, Coproduct<State, Void>>`. Composing two functions with different orderings requires an `Embedder` or `Subsetter` (see background). For a 3-effect program there are 6 orderings, so in practice users rely on handler APIs and helper traits that hide the conversion machinery.
+- **Error messages.** Trait resolution on deeply nested coproducts produces errors like `expected CoprodInjector<State<i32>, There<There<There<Here>>>> for Coproduct<Reader, Coproduct<Writer, Coproduct<Except, Coproduct<State, Void>>>>`. Every crate using this approach (`effing-mad`, `corophage`) publicly acknowledges this as a known pain point.
+- **Compile time.** Each callsite monomorphises the coproduct to its specific index, producing a distinct instance per use.
+
+Real-world references: `frunk::Coproduct`, `effing-mad`, `corophage`; analogous to Haskell's `freer-simple` and `polysemy`.
+
+**2. Typenum-indexed sum list.**
+
+Same user-facing encoding as option 1, but membership indices are binary type-level naturals (`typenum::UInt`) instead of Peano `Here` / `There<T>` wrappers.
+
+```rust
+// The 5th effect's index becomes roughly UInt<UInt<UTerm, B1>, B0>  (O(log n) depth)
+// instead of There<There<There<There<Here>>>>  (O(n) depth).
+```
+
+Same openness story, same row-ordering issue. Improvements:
+
+- Binary naturals scale better; index-type depth grows logarithmically with effect count.
+- Error messages improve proportionally because the printed index types are shallower.
+- Compile time improves because trait resolution recurses fewer times.
+
+A refinement of option 1 at the implementation level; it does not change the user-facing surface. Real-world reference: [`reffect`](https://github.com/js2xxx/reffect).
+
+**3. Trait-object dispatch with `TypeId` tags.**
+
+Effects are erased to `Box<dyn Any>` plus a `TypeId`. The effect set is not tracked in types at all.
+
+```rust
+// Handler peels by downcasting at runtime:
+if effect.type_id() == TypeId::of::<State<i32>>() {
+    let state_op = effect.downcast::<State<i32>>().unwrap();
+    // handle it
+} else if effect.type_id() == TypeId::of::<Reader<Env>>() {
+    // ...
+}
+```
+
+How openness works: fully dynamic. Adding a new effect just means inserting a new downcast branch; the program's type signature does not change.
+
+Known concrete issues:
+
+- **No static exhaustiveness.** The compiler cannot tell you "you forgot to handle the State effect"; a missing branch falls through at runtime.
+- **Boxing cost.** Every effect invocation involves a `Box<dyn Any>` allocation and a `TypeId` lookup. PureScript pays this cost (its runtime representation is literally `{ type: String, value, map }`) and gets away with it because JavaScript already boxes everything; Rust does not, so this is a real per-invocation tax.
+- **Loses the first-class-program-indexed-by-row property** (see background). The program's type no longer records which effects it uses; that information lives only in which handlers the user chose to write. Signatures like `fn prog() -> Run<A>` lose their documentation value and cannot be used for static analysis.
+
+Real-world references: `anymap`, `typemap`, `typedmap`, `axum::Extension`, and PureScript's own runtime representation of `Run`.
+
+**4. Hybrid: coproduct + macro sugar.**
+
+Use option 1 or 2 internally; expose user-facing macros that accept a flat effect list:
+
+```rust
+// User writes a flat list:
+type MyEffects = coprod![State<i32>, Reader<Env>];
+// Macro expands to: Coproduct<State<i32>, Coproduct<Reader<Env>, Void>>
+
+// Usage looks like row-sugar in type positions:
+fn my_program<R: Embed<coprod![State<i32>]>>(...) -> Run<R, i32> { ... }
+```
+
+Same fundamental encoding as options 1/2; macros hide the nesting. `corophage`'s `Effects![E1, ...Alias]` (with spread syntax) is the reference implementation and the approach closest to PureScript's row sugar.
+
+Inherits options 1/2's row-ordering issue, but the macro typically normalises orderings so end-users rarely see them. Inherits compile-time cost. Error messages can be worse than raw coproduct because the user sees the macro expansion in the error, not their original code. Currently the default direction for the draft architecture in section 5.
+
+**5. Trait-bound set (one-trait-per-effect, mtl-style).**
+
+Each effect is a trait; a program is a generic function constrained by the trait bounds that name its effects.
+
+```rust
+trait State<S> { fn get(&mut self) -> S; fn put(&mut self, s: S); }
+trait Reader<E> { fn ask(&self) -> E; }
+
+// The "effect set" of this program is its trait-bound set.
+fn my_program<M: State<i32> + Reader<Env>>(m: &mut M) -> i32 {
+    let env = m.ask();
+    let n = m.get();
+    n + env.config_value()
+}
+```
+
+How openness works: a function's effect set _is_ its trait-bound set. `fn foo<M: A + B>` composes with `fn bar<M: B + C>` into `fn baz<M: A + B + C>`. No type-level list machinery (see background) because Rust trait bounds are _already_ an unordered, duplicate-free, compositional set; the compiler knows how to merge and resolve them. You do not build this in user space.
+
+This is the cleanest native Rust encoding of row polymorphism.
+
+**Fundamental blocker for this port:** programs are not first-class values (see background). Concretely:
+
+- `my_program` above is a function, not a value. You cannot clone it, print it, or inspect which operations it performs without running it.
+- Handler methods run "in tail position": when `my_program` calls `m.get()`, the `M::get` implementation returns a value, computation continues, and `M::get` never sees what the program does afterwards. There is no "rest of the program" handle for the handler to manipulate.
+- Multi-shot interpretation is impossible. The `Choose` effect wants to handle `Alt(k)` by running `k(true)` _and_ `k(false)`, but in this encoding there is no `k`; there is only a method call that returns one boolean. You would have to restructure the entire program in continuation-passing style to recover a continuation handle, which amounts to building a Free monad in disguise.
+- Pure-data interpreters like `runPure` are impossible. `runPure` inspects the AST to decide what to emit for each effect; there is no AST here.
+
+In PureScript terms, this is the distinction between `MonadState` (a constraint, runs methods) and `Run (STATE s + r)` (a value, builds an AST). The library deliberately ships Run because some effects need AST access. Section 4.4 commits to Run-style via the Free family, which forecloses on this encoding as the substrate.
+
+Kept in the plan not as a candidate but as a benchmark: this is what good row-ergonomics looks like in Rust. Options 1 to 4 should aim to match option 5's error-message quality and compositional feel, even though they will pay the type-level-list-machinery tax along the way. Real-world references: [shtsoft effect-trait pattern](https://blog.shtsoft.eu/2022/12/22/effect-trait-dp.html), `karpal-effect`, `higher`.
+
+#### Honourable mentions (not direct candidates)
+
+- **Coroutine-frame row (Abubalay).** The entire row disappears at runtime because the stackless coroutine's state machine is already a sum of "currently suspended at effect X" variants. An optimisation target for any option 1-based implementation rather than a separate encoding.
+- **Const-generic effect axes (Wuyts' `#[maybe(async)]` proposal).** Each effect becomes an independent const-bool parameter (`T: Trait<ASYNC = E>`), which is row-polymorphism in a different shape. Useful for a finite, known-at-language-level effect set (like async/sync); cannot express "arbitrary tail `r`".
+- **Extractor-tuple pattern (axum `FromRequest`, bevy `QueryFilter`).** Provides extensibility by macro-implementing a trait for tuples of length 0..16. Works well for closed-world dispatch but does not give true row polymorphism. Good precedent for ergonomic "user adds an effect type" workflows.
+
+**Openness-preserving options remaining as candidates:** 1, 2, 3, 4. Option 5 is ruled out by section 4.4's Free-family commitment but is the benchmark for what good row-ergonomics looks like.
 
 **Open questions under this blocker:**
 
 - Is it acceptable to require the user to write their effect set as a type-level list even for a 3-effect program? PureScript uses row sugar `(state :: State s, reader :: Reader e | r)`; there is no sugar in Rust.
-- Can a macro (`effects![State<i32>, Reader<Env>]` / `coprod![...]`) make the coproduct approach ergonomic enough?
-- Is exhaustiveness checking (compile-time "you forgot to handle the `state` effect") a hard requirement? Option 4 can't give that; options 1-3 can.
-- Do we need a `Lacks` constraint (prevents duplicate labels in a row)? PureScript's row system has this built in; Rust needs trait-based emulation.
+- Can a macro (`effects![State<i32>, Reader<Env>]` / `coprod![...]`) make the coproduct approach ergonomic enough? `corophage`'s `Effects![...]` syntax is the benchmark to match or beat.
+- Is exhaustiveness checking (compile-time "you forgot to handle the `state` effect") a hard requirement? Option 3 can't give that; options 1, 2, and 4 can.
+- Do we need a `Lacks` constraint (prevents duplicate labels in a row)? PureScript's row system has this built in; Rust needs trait-based emulation, cost similar to `Member`.
+- Should the implementation use frunk's Peano-indexed Coproduct or typenum-indexed SumList? Both are open; the choice affects error-message quality and compile time but not the user-facing API.
 
-**Leaning:** the hybrid (option 5) is the default; options 1 and 4 remain viable fallbacks. Build a minimal prototype before committing.
+**Leaning:** the hybrid (option 4) remains the default, with typenum indexing (option 2) as the recommended under-the-hood refinement to mitigate option 1's known compile-time and error-message pain. Trait-objects (option 3) are the fallback if the static-dispatch routes become unmanageable. Build a minimal prototype before committing. Track `corophage` and `effing-mad` as concrete reference implementations.
 
 ### 4.2 BLOCKER: Functor dictionary for VariantF
 
