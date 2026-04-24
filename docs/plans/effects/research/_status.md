@@ -23,14 +23,14 @@ section 4.1.
 ### Non-Rust languages
 
 - [x] [effekt.md](effekt.md)
-- [ ] [koka.md](koka.md)
+- [x] [koka.md](koka.md)
 
 ### Rust effect crates
 
-- [ ] [corophage.md](corophage.md)
-- [ ] [effing-mad.md](effing-mad.md)
-- [ ] [reffect.md](reffect.md)
-- [ ] [fx-rs.md](fx-rs.md)
+- [x] [corophage.md](corophage.md)
+- [x] [effing-mad.md](effing-mad.md)
+- [x] [reffect.md](reffect.md)
+- [x] [fx-rs.md](fx-rs.md)
 
 ## Stage 1 synthesis
 
