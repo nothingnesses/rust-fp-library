@@ -17,7 +17,7 @@ section 4.1.
 - [x] [fused-effects.md](fused-effects.md)
 - [x] [eveff.md](eveff.md)
 - [x] [mpeff.md](mpeff.md)
-- [ ] [heftia.md](heftia.md)
+- [x] [heftia.md](heftia.md)
 - [ ] [in-other-words.md](in-other-words.md)
 
 ### Non-Rust languages
