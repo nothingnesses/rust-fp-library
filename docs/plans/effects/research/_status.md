@@ -4,6 +4,8 @@ Tracks which research documents are complete and which are still pending.
 Update this whenever you finish (or explicitly defer) a research doc. See
 [README.md](README.md) for the full protocol.
 
+**Status: research phase complete as of 2026-04-24.** All Stage 1 per-codebase classifications, the Stage 1 synthesis, and the three priority Stage 2 deep dives are ticked. The one remaining Stage 2 entry (compile-time indexing) has been reclassified as an implementation-phase investigation; see the note under "Stage 2: deep dives" below. Next phase: apply research findings to implementation per the port-plan's section 6 roadmap.
+
 ## Stage 1: per-codebase classification
 
 Each file below is a brief classification doc (~1500 words max) against
@@ -47,4 +49,7 @@ warrant deeper investigation. Each entry becomes a new
 - [x] [deep-dive-evidence-passing.md](deep-dive-evidence-passing.md): can Rust host typed handler-vector dispatch (EvEff / Koka indexing) without delimited continuations? Priority 1.
 - [x] [deep-dive-coroutine-vs-free.md](deep-dive-coroutine-vs-free.md): do coroutines alone preserve the first-class-program properties section 4.4 requires, or is a Free wrapper still needed? Priority 2.
 - [x] [deep-dive-scoped-effects.md](deep-dive-scoped-effects.md): which scoped-effect pattern (heftia dual row, in-other-words Effly, polysemy Tactical, freer-simple interposition) ports most cleanly to Rust? Priority 3.
-- [ ] [deep-dive-compile-time-indexing.md](deep-dive-compile-time-indexing.md): prototype a proc-macro that emits a const `[usize; N]` index table alongside the coproduct expansion, extending corophage's `Effects![...]`. Measure compile-time and dispatch cost vs coproduct pattern-match. Spawned by the evidence-passing deep dive.
+
+Deferred to Option 4 implementation (no longer classified as Stage 2 research):
+
+- `deep-dive-compile-time-indexing.md` (original title). Prototype a proc-macro that emits a const `[usize; N]` index table alongside the coproduct expansion, extending corophage's `Effects![...]`, and measure compile-time and dispatch cost vs a coproduct pattern-match baseline. This is not research: it cannot be answered without building an Option 4 prototype to A/B against. Reclassified as an implementation-phase investigation to run during Option 4 build-out. The evidence-passing deep dive (section 5.2 of research/deep-dive-evidence-passing.md) is the motivating context.
