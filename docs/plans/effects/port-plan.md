@@ -67,8 +67,7 @@ From the research document, a minimum usable port needs:
 
 ### 3.2 Present but insufficient
 
-- **Free is restricted to `'static`.** Because `TypeErasedValue = Box<dyn Any>` and `Any: 'static`, every type that flows through a `Free` value must be `'static` ([free.rs:46-53](../../../fp-library/src/types/free.rs#L46-L53)). This is documented. For effect programs that close over non-`'static` borrowed state (e.g., a `&mut Vec<T>` held by a handler), this is a hard limit.
-- **Free is not itself a `Kind`.** It cannot be used as a brand, because its `Of<'a, A>` would have to be `Free<F, A>` for any `'a`, but `Free`'s `'static` bound means there is no sensible `'a` parameter. This blocks nice type signatures like `Free<F>: Monad` for the Functor/Monad trait hierarchy. In the Run port, `Run<R>` will inherit this restriction unless we use a different base.
+- **The current `Free<F, A>` cannot, on its own, serve as Run's substrate.** Three limitations, all traceable to `TypeErasedValue = Box<dyn Any>` plus `Box<dyn FnOnce>` continuations ([free.rs:46-53](../../../fp-library/src/types/free.rs#L46-L53)): it requires `A: 'static` (so effect payloads cannot borrow), it is single-owner (so multi-shot effects like `Choose` cannot consume their continuation twice), and it is not `Send`/`Sync` (so thread-crossing effect programs are impossible). As a consequence of the `'static` bound, `Free` also cannot implement the library's `Kind` trait directly, which would otherwise let it participate in HKT-polymorphic code. Section 4.4 addresses all three by shipping three sibling variants (`RcFree`, `ArcFree`, `FreeExplicit`) alongside the existing `Free`.
 - **Coyoneda is closed-sum, not open-sum.** It gives us a free `Functor` instance for any type constructor, but does not provide row-polymorphic labelling or partial interpretation. It is adjacent to `VariantF` (both are functor machinery), but solves a different problem.
 - **`NaturalTransformation` is not rank-N in the PureScript sense.** It's a trait with `fn transform<'a, A: 'a>(...)` as a method, and the trait itself is a concrete value at the call site. PureScript's `f ~> g = forall x. f x -> g x` is a first-class value; Rust's version is a dispatched trait-object or a generic parameter. This works for `fold_free` but may bite when building handler combinators that need to store or pass natural transformations around.
 
@@ -138,21 +137,93 @@ In Rust, this distinction is less useful: most target monads we'd write (`Option
 
 **Recommendation (not a decision):** ship only the `MonadRec` family. Revisit if we find target monads that cannot implement it.
 
-### 4.4 BLOCKER: The `'static` bound inherited from `Free`
+### 4.4 DECISION: Ship a four-variant `Free` family
 
-Every effect functor and every effect value that flows through `Run` will be `'static` if we keep the current `Free`. Consequences:
+The existing `Free<F, A>` imposes three limitations, each driven by an independent implementation choice:
 
-- Users cannot define effects that hold borrowed references (e.g., `State<&'a mut Vec<T>>`).
-- Handlers cannot close over non-`'static` environment data.
-- All effect payloads become owned (`String` not `&str`, `Vec<T>` not `&[T]`).
+1. **`'static` only**, because `Box<dyn Any>` requires `'static`. Blocks effects that hold borrowed references (`State<&'a mut Vec<T>>`), handlers that close over non-`'static` environment data, and non-owned payloads (`&str`, `&[T]`).
+2. **Single-owner, non-cloneable**, because `Box<dyn FnOnce>` consumes its callable once. Blocks multi-shot continuations — specifically the `Choose` effect from `purescript-run`, whose handler calls the continuation both for `true` and for `false`. The current `Free` cannot serve as Run's AST for multi-shot effects.
+3. **Not thread-safe**, because `Box<dyn FnOnce>` has no `Send`/`Sync` bounds. Blocks effectful programs that need to cross thread boundaries.
 
-Options:
+These are the same forces that produced the [four-variant Coyoneda family](../../../fp-library/docs/coyoneda.md) (`Coyoneda`, `RcCoyoneda`, `ArcCoyoneda`, `CoyonedaExplicit`). The axes are identical here: sharing model (Box / Rc / Arc) and existentiality (erased continuation types via `Box<dyn Any>` + CatList, or concrete recursive enum). The Coyoneda story covered every useful combination with four siblings. The Free story should do the same.
 
-- **Accept the tax.** Document prominently that `Run` is for `'static` effects. Simplest; matches the existing `Free`.
-- **Write a non-`'static` Free.** Replace `Box<dyn Any>` with an existential that carries the lifetime. Very hard in practice.
-- **Parameterize `Run` over a lifetime.** `Run<'a, R, A>` where each `F in R` has `F: Functor<'a>`. Trades API complexity for expressive power. Compatible with [coyoneda_explicit.rs](../../../fp-library/src/types/coyoneda_explicit.rs), which already supports `'a`.
+**Decision: ship all four Free variants, mirroring the Coyoneda family exactly.**
 
-**Open question:** is there enough demand for non-`'static` effects to justify the cost? Probably not for a first release.
+| Variant        | Sharing | Erasure                  | `'static`? | Cloneable? | Thread-safe? | Bind | Purpose                                                              |
+| -------------- | ------- | ------------------------ | ---------- | ---------- | ------------ | ---- | -------------------------------------------------------------------- |
+| `Free` (today) | `Box`   | `Box<dyn Any>` + CatList | Yes        | No         | No           | O(1) | Default; fast single-shot effect programs.                           |
+| `RcFree`       | `Rc`    | `Box<dyn Any>` + CatList | Yes        | Yes, O(1)  | No           | O(1) | Multi-shot continuations (`Choose`, nondeterminism).                 |
+| `ArcFree`      | `Arc`   | `Box<dyn Any>` + CatList | Yes        | Yes, O(1)  | Yes          | O(1) | Effect programs that cross thread boundaries.                        |
+| `FreeExplicit` | `Box`   | concrete recursive enum  | No         | No         | No           | O(N) | Effects with borrowed payloads (`Reader<&str>`, `State<&'a mut T>`). |
+
+The POC at [fp-library/tests/free_explicit_poc.rs](../../../fp-library/tests/free_explicit_poc.rs) validated the fourth (`FreeExplicit`). The first (`Free`) already ships. The two new ones (`RcFree`, `ArcFree`) are mechanical copies of `Free`'s internals with the outer wrapper swapped (`Box` → `Rc` / `Arc`) and appropriate bounds added on stored closures. The closure-storage pattern from [ArcCoyoneda](../../../fp-library/src/types/arc_coyoneda.rs) is the direct template — in particular, the associated-type-bound trick (`Kind<Of<'a, A>: Send + Sync>`) that lets the compiler auto-derive `Send`/`Sync` without unsafe.
+
+**Why ship all four at once rather than incrementally.** The API of `Run<R, A>` is shaped by which Free variant underlies it. If Run starts on `Free` and later needs multi-shot (`Choose`), switching to `RcFree` is a breaking change: user-written handlers move from `FnOnce` to `Fn`-shaped continuations, effect functors that stored `FnOnce` payloads have to change, and any previously-compiled effect program stops type-checking. The cost of the Coyoneda-style "pick the variant that fits" API has already been paid once in the library; paying it again for Free keeps the design coherent and avoids a near-certain v2 migration.
+
+#### POC status (FreeExplicit only)
+
+The POC covered the one variant that required novel work (the non-erased recursive enum). Files:
+
+- [fp-library/tests/free_explicit_poc.rs](../../../fp-library/tests/free_explicit_poc.rs) — 6 passing tests, 1 intentionally `#[ignore]`d.
+- [fp-library/benches/benchmarks/free_explicit.rs](../../../fp-library/benches/benchmarks/free_explicit.rs) — Criterion bench at 4 depths.
+- [fp-library/tests/ui/free_requires_static.rs](../../../fp-library/tests/ui/free_requires_static.rs) — compile-fail documenting that `Free` rejects non-`'static` payloads, motivating `FreeExplicit`.
+
+Findings per question:
+
+| #   | Question                                  | Finding                                                                                                                                                                                                                                |
+| --- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Q1  | Compiles as `Kind` with the brand system? | Yes. `FreeExplicitBrand<F>` registers via `impl_kind! { impl<F: Kind_... + 'static> for FreeExplicitBrand<F> { ... } }` and satisfies the Kind trait for `IdentityBrand` and `OptionBrand`.                                            |
+| Q2  | Supports non-`'static` payload?           | Yes. Both `FreeExplicit<'_, IdentityBrand, &str>` with a borrowed payload and a borrowed value inside a `Wrap` layer compile and round-trip.                                                                                           |
+| Q3  | Bind overhead at increasing depths?       | Approximately linear in the spine walk. Single bind + evaluate over a pre-built `Wrap` spine: 273 ns / 3.95 μs / 28.5 μs / 277 μs at depths 10 / 100 / 1 000 / 10 000. Per-node cost ~27 ns. Acceptable for realistic effect programs. |
+| Q4a | Iterative evaluate on deep chains?        | Yes. 100 000-deep chain evaluates without stack overflow via a `while let` loop in `evaluate_identity`.                                                                                                                                |
+| Q4b | Naive `Drop` on deep chains?              | **Overflows.** Must ship a custom iterative `Drop` (see below). Test is `#[ignore]`d to document the behaviour without crashing normal runs.                                                                                           |
+| Q5  | Two-effect Run-shaped example?            | Yes. `OptionBrand` short-circuits cleanly via `Wrap(None)`; `IdentityBrand` chained binds compose.                                                                                                                                     |
+
+#### What to do about `Drop`
+
+All four variants need stack-safe `Drop`, but the mechanism differs:
+
+- **`Free`, `RcFree`, `ArcFree`** share the current `Free`'s `Drop` strategy: iteratively dismantle `Suspend` layers via the `Extract` trait ([free.rs:218-225](../../../fp-library/src/types/free.rs#L218-L225)). `RcFree` and `ArcFree` only need to run the dismantling when the last reference is dropped (which `Rc::drop`/`Arc::drop` already gives them); the inner CatList dismantling is identical.
+- **`FreeExplicit`** needs a custom iterative `Drop` that the POC deliberately leaves out of scope. Pattern:
+  1. Add an `Extract`-style trait bound on `F` at the struct definition (`F: Extract + Functor + 'a`) so `Drop` can call it. Rust requires `Drop` impl bounds to match struct bounds, so this propagates.
+  2. Implement `Drop` as a loop: repeatedly take the current `Wrap(f_inner)`, call `F::extract(f_inner)` to pull out the next `Box<FreeExplicit>`, then non-recursively drop the extracted layer. When a `Pure` is reached, let default drop handle it.
+  3. Caveat: this forces every effect functor used with `FreeExplicit` to implement `Extract`. For functors that cannot (e.g., effects whose payload is a continuation function rather than a concrete value), users must go through `fold_free` into a `MonadRec` target instead. Same story `Free` already tells; the bound simply propagates.
+
+**Cleanup tasks at promotion time** are enumerated in section 7.
+
+#### Deferred: the Rc/Arc × Explicit intersections
+
+The sharing and existentiality axes form a 2×3 matrix. The four variants above fill four of the six cells. The remaining two cells are the "shared + concrete" corners:
+
+|          | Box            | Rc                              | Arc                              |
+| -------- | -------------- | ------------------------------- | -------------------------------- |
+| Erased   | `Free`         | `RcFree`                        | `ArcFree`                        |
+| Explicit | `FreeExplicit` | **`RcFreeExplicit`** (deferred) | **`ArcFreeExplicit`** (deferred) |
+
+The equivalent deferral applies to Coyoneda (`RcCoyonedaExplicit`, `ArcCoyonedaExplicit`) — noted here because the existing Coyoneda family has already made the same decision by omitting those two corners, and this plan deliberately inherits that shape.
+
+**Capabilities each cell would add:**
+
+- `RcFreeExplicit` would enable multi-shot continuations (`Choose`) over borrowed effect payloads (`Reader<&'a Config>`). Sound only for immutable borrows; mutable + multi-shot is a borrow-checker violation regardless of encoding.
+- `ArcFreeExplicit` would enable thread-crossing effect programs that borrow from an enclosing `std::thread::scope`. Coherent but very narrow.
+
+**Why deferred rather than shipped:**
+
+The four primary variants (`Free`, `RcFree`, `ArcFree`, `FreeExplicit`) are each _enabling_: without any one of them, a category of Run program is impossible with no workaround. That's what justified shipping all four up front. The two intersections are _ergonomic_: they cover combinations of two capabilities already covered separately, and users who hit the combined case can work around it by choosing either primary variant that covers one axis (clone borrowed data into owned before invoking `Choose`, for instance).
+
+The practical consequence: adding `RcFreeExplicit` or `ArcFreeExplicit` later is a non-breaking, additive change. Users who picked `FreeExplicit` or `RcFree` in v1 do not have to migrate; the new intersection variant just opens a new opt-in path. Contrast this with the four primary variants, where deferring any of them would force a breaking API change when added later because Run's handler shape depends on which Free underlies it.
+
+**What must be true to revisit this decision:**
+
+- A concrete user request for `Choose` + borrowed effect payloads, or a scoped-threads + borrowed-payloads program, that cannot be expressed tolerably by cloning to owned first.
+- Or a demonstration that leaving two corners of the matrix empty produces surprising error messages or teaching problems that outweigh the implementation cost.
+
+Without one of those, shipping the intersections now is speculative generality. The door is deliberately left open; we are not shipping them yet.
+
+#### Open questions left after this decision
+
+- Whether Run programs targeting thread-safe execution (`ArcFree`) need a parallel `Send`-constrained `Functor`/`Monad` trait hierarchy, or whether the existing `Send`-families in `classes/send_*.rs` already cover it.
+- Whether `RcFree` and `ArcFree` should be behind cargo features so users of the `Free` fast path don't pay compile cost for the other variants. Defer until the port is closer to shipping.
 
 ### 4.5 BLOCKER: Natural transformations as values
 
@@ -173,25 +244,32 @@ The blockers above resolve, for the current working hypothesis, to the following
 ### 5.1 Core types
 
 ```
-Run<Effects, A> = Freer<Coproduct<...effects...>, A>
+Run<Effects, A>   = FreeFamily<VariantF<Effects>, A>
 
 where
-  Freer<F, A>        = Pure(A) | Impure(F_erased, continuation)
-  Coproduct<H, T>    = Here(H) | There(T)
-  Void               = empty-tail of the coproduct
+  FreeFamily        = one of { Free, RcFree, ArcFree, FreeExplicit } per section 4.4
+  VariantF<Effects> = open sum of effect functors, encoded as a nested Coproduct
+  Coproduct<H, T>   = Here(H) | There(T)
+  Void              = empty-tail of the coproduct
   Member<E, Effects> = trait proving E is somewhere in the coproduct
 ```
 
-The user-facing type constructor is `Run<Effects, A>`. The `Effects` parameter is a nested `Coproduct` (possibly produced by a `coprod!` macro). `Freer` replaces `Free` to eliminate the per-effect `Functor` requirement; the cost is internal use of `Box<dyn Any>` for the existential intermediate.
+The user-facing type constructor is `Run<Effects, A>`. The `Effects` parameter is a nested `Coproduct` (possibly produced by a `coprod!` macro). The underlying Free variant is selected at the `Run`-type-alias level: `Run<R, A>` is one alias per variant (`RcRun`, `ArcRun`, `RunExplicit`) so users can opt in to sharing or lifetime flexibility without rewriting effect code. Effect functors satisfy `Functor` (which the existing `Coyoneda` makes trivial to provide for any enum) — this is the trade-off for keeping the Free core instead of Freer.
 
-### 5.2 Why Freer rather than Free + Coyoneda
+### 5.2 Why Free + Coyoneda rather than Freer
 
-The decision between:
+The candidates were:
 
 - **Standard Free + explicit `Functor` bound** on each effect (with `Coyoneda` as a helper for effects that aren't naturally functors).
 - **Freer** (existential continuation, no `Functor` requirement).
 
-favours Freer for a first cut. Reasons: effects become plain enums with no derive gymnastics; it aligns with `freer-simple` (a known-working Haskell library); the `Box<dyn Any>` cost is acceptable for a first implementation. Coyoneda is still available as a later optimisation if the functor route proves more ergonomic with the Brand system.
+The four-variant commitment in section 4.4 resolves this in favour of Free. Reasons:
+
+- The existing `Free<F, A>` already implements the fast path. Building Run on top of it reuses the stack-safe CatList internals, the custom `Drop`, and the `fold_free`-via-`MonadRec` interpreter machinery. Rewriting all of that under a Freer encoding would duplicate work and introduce a divergent second set of tests.
+- The POC demonstrated that `FreeExplicit` integrates with the Kind system cleanly; the remaining two siblings (`RcFree`, `ArcFree`) follow the Coyoneda playbook directly. Keeping the Free family cohesive is easier than maintaining parallel Free and Freer families.
+- The per-effect `Functor` requirement that motivated Freer is cheap to satisfy in this library: `Coyoneda<F>` gives any type constructor a `Functor` instance for free. Effect enums that don't want to hand-derive `Functor` can wrap themselves in `Coyoneda` at lift time.
+
+The user-facing effect definition pattern therefore looks like plain Rust enums plus one `derive` or one `Coyoneda::lift`, not a new core encoding.
 
 ### 5.3 Effect definition pattern
 
@@ -243,23 +321,32 @@ Handler composition then works as a pipeline that removes one effect from the ro
 
 ## 6. Implementation Roadmap
 
-### Phase 1: Core machinery
+### Phase 1: Complete the Free family
+
+Land the three missing Free variants (`RcFree`, `ArcFree`, `FreeExplicit`) before starting Run work. Doing this first locks in the substrate and lets Phases 2-4 treat the choice of variant as a user-level parameter.
+
+1. `FreeExplicit<'a, F, A>` promoted from POC with custom iterative `Drop` (section 4.4). Delete the local copies in the POC test and bench files once the promotion lands.
+2. `RcFree<F, A>` following the `Free` template with `Rc` swapped in for `Box`. Continuations become `Rc<dyn Fn>`; `lower_ref(&self)` / `peel_ref(&self)` analogues to match the `RcCoyoneda` pattern. No `Send`/`Sync` bounds.
+3. `ArcFree<F, A>` following the `ArcCoyoneda` template: `Arc<dyn Fn + Send + Sync>`, associated-type bounds on the `Kind` trait (`Kind<Of<'a, A>: Send + Sync>`) to auto-derive `Send`/`Sync` without unsafe.
+4. A shared test suite exercising the properties each variant promises (single-shot vs. multi-shot vs. borrow-carrying vs. thread-crossing) so future refactors do not silently regress one variant's behaviour.
+
+### Phase 2: Core machinery
 
 1. `Coproduct<H, T>` and `Void` types.
 2. `Member<E, Index>` trait for injection/projection with type-level index.
-3. `Freer<F, A>` with existential continuation.
-4. `Run<Effects, A>` as `Freer<Coproduct<...>, A>`.
-5. `peel` / `send` / `pure` core operations.
+3. `VariantF<Effects>` on top of Coproduct, carrying the per-functor `map` dictionary (or leaning on `Coyoneda` to lift non-functor effect enums).
+4. `Run<Effects, A>` type aliases for each Free variant: `Run`, `RcRun`, `ArcRun`, `RunExplicit`.
+5. `peel` / `send` / `pure` core operations, implemented once per Free variant (mostly delegation to the underlying Free family).
 6. Convenience macros: `coprod![]` for type construction, `effects![]` if needed.
 
-### Phase 2: Interpretation
+### Phase 3: Interpretation
 
 1. `run` / `runPure` (iterative interpretation loop; already stack-safe in Rust).
 2. `runAccum` (interpretation with threaded state).
 3. `interpret` (natural-transformation-style).
 4. Stack-safe variants only if an actual target monad needs them.
 
-### Phase 3: Built-in effects
+### Phase 4: Built-in effects
 
 1. `State` (get, put, modify, runState).
 2. `Reader` (ask, asks, local, runReader).
@@ -267,7 +354,7 @@ Handler composition then works as a pipeline that removes one effect from the ro
 4. `Writer` (tell, censor, runWriter).
 5. `Choose` (empty, alt, runChoose; validates multi-shot).
 
-### Phase 4: Integration
+### Phase 5: Integration
 
 1. Bridge to existing Monad/Functor hierarchy if the `'static` limitation is resolved.
 2. Brand for `Run` to enable use with existing HKT-polymorphic code.
@@ -277,7 +364,7 @@ Handler composition then works as a pipeline that removes one effect from the ro
 
 ## 7. Non-Blocking Tasks (Mostly Mechanical)
 
-Once the blockers in section 4 are resolved and the core machinery from 6.1 exists, the following are straightforward.
+Once the blockers in section 4 are resolved and the Phase 1 / Phase 2 machinery from section 6 exists, the following are straightforward.
 
 - **`Run` newtype** wrapping the chosen core.
 - **Per-effect enums.** Direct translation from PureScript's `data State s a = ...`.
@@ -286,6 +373,25 @@ Once the blockers in section 4 are resolved and the core machinery from 6.1 exis
 - **`expand`.** One-line `unsafe fn` using `mem::transmute` once the row constraints prove subsetting.
 - **Base-monad bridge.** A `liftEffect`-analog for any target monad we care about. The first target should probably be `Thunk` or `Identity` (pure), with `async fn` as a followup.
 - **Error messages.** Rust's error messages on trait-heavy type machinery are legendary. Budget time for macro-generated human-readable errors.
+- **Promote `FreeExplicit` from POC to `src/`.** See section 4.4 for the POC findings.
+  - Move `FreeExplicit<'a, F, A>` and `FreeExplicitBrand<F>` from the POC test file to a new `fp-library/src/types/free_explicit.rs` module, exported from [fp-library/src/types/mod.rs](../../../fp-library/src/types.rs).
+  - Implement iterative `Drop` as described in section 4.4 (the `Extract`-driven dismantling pattern borrowed from the existing [free.rs:218-225](../../../fp-library/src/types/free.rs#L218-L225)). Without this step, deep `Wrap` chains stack-overflow on drop.
+  - Replace the local `FreeExplicit` definition in [fp-library/tests/free_explicit_poc.rs](../../../fp-library/tests/free_explicit_poc.rs) with `use fp_library::types::FreeExplicit;`. Decide whether to keep the file as `free_explicit_integration.rs` or supersede it with dedicated tests in `src/types/free_explicit.rs`.
+  - Replace the local `FreeExplicit` definition in [fp-library/benches/benchmarks/free_explicit.rs](../../../fp-library/benches/benchmarks/free_explicit.rs) with the same import. The bench's local copy exists only because no `src/` module was available at POC time; it must not be retained once the real type ships.
+  - Port the POC's `evaluate_identity` / `evaluate_option` helpers into a generic `evaluate` backed by `Extract`, matching the shape `Free::evaluate` already has.
+  - Add class instances (`Functor`, `Pointed`, `Semimonad`, `Monad`, `NaturalTransformation`-aware `fold_free`) for `FreeExplicitBrand<F>`, matching what `Free` exposes where applicable.
+- **Add `RcFree<F, A>` at `fp-library/src/types/rc_free.rs`.** Follow the [rc_coyoneda.rs](../../../fp-library/src/types/rc_coyoneda.rs) template. Steps:
+  - Swap `Box<dyn FnOnce>` continuations for `Rc<dyn Fn>` so the structure can be cloned and each continuation invoked multiple times (required for multi-shot effects like `Choose`).
+  - Keep the `CatList` + `Box<dyn Any>` erasure for O(1) bind; only the outer container changes.
+  - Add `lower_ref(&self)` / `peel_ref(&self)` so handlers can re-interpret the tree without consuming it. Require `F::Of<'a, A>: Clone` at those call sites, as `RcCoyoneda` does.
+  - `RcFreeBrand<F>` registered with `impl_kind!`. Functor / Foldable at the brand level; `Pointed` / `Semimonad` as inherent methods, matching `RcCoyoneda`'s coverage.
+  - Custom iterative `Drop` that inherits the existing `Free`'s `Extract`-driven dismantling when the last `Rc` reference is released.
+- **Add `ArcFree<F, A>` at `fp-library/src/types/arc_free.rs`.** Follow the [arc_coyoneda.rs](../../../fp-library/src/types/arc_coyoneda.rs) template. Steps:
+  - Swap `Rc` for `Arc` and add `Send + Sync` bounds on the stored continuations and `F::Of<'a, A>: Send + Sync`.
+  - Use the associated-type-bounds trick (`F: Kind<Of<'a, A>: Send + Sync>`) so the compiler auto-derives `Send + Sync` on `ArcFree` and `ArcFreeBrand` without unsafe.
+  - `ArcFreeBrand<F>` registered with `impl_kind!`. Foldable at the brand level; everything else inherent, matching `ArcCoyoneda`'s coverage (the HKT `Functor::map` signature lacks `Send + Sync` on its closure, so `Functor` is not implementable at the brand level for `ArcFree` either).
+  - Iterative `Drop`, same pattern as above.
+- **Add a cross-variant `Free`-family test suite.** Co-locate with the per-variant test modules. Validate properties each variant promises: `Free` rejects multi-shot; `RcFree` supports multi-shot over `Choose`; `ArcFree` crosses a `spawn` boundary; `FreeExplicit` accepts `&'a str` payloads. The POC's `TalkF`/`DinnerF` example (see [test/Examples.purs](https://github.com/natefaubion/purescript-run/blob/master/test/Examples.purs#L13-L106)) is the natural integration test to port against each variant.
 
 ---
 
@@ -329,44 +435,49 @@ These are not full blockers (they don't prevent the first line of code) but they
 
 ## 10. Comparison Table (Approaches and Proposed Rust Design)
 
-| Aspect                   | `eff` (Hasura)                     | `purescript-run`                                 | Proposed Rust design     |
-| ------------------------ | ---------------------------------- | ------------------------------------------------ | ------------------------ |
-| Core mechanism           | Delimited continuations            | Free monad                                       | Freer monad              |
-| Effect dispatch          | O(1) array lookup                  | O(n) peel loop                                   | O(n) peel loop           |
-| Open sum                 | Type-level list + array            | Row-polymorphic VariantF                         | Nested Coproduct         |
-| Handler install          | `prompt#` + push target            | Recursive interpretation                         | Iterative loop           |
-| Multi-shot continuations | Yes (via `control`)                | Yes (tree is re-interpretable; used by `Choose`) | Yes (tree interpretable) |
-| Higher-order effects     | Natural (via `locally`, `control`) | Supported (via `locally`-like patterns)          | Needs design work        |
-| Stack safety             | Native (RTS handles it)            | `MonadRec` / trampolining                        | Iterative loops (native) |
-| Runtime dependency       | GHC RTS                            | None (pure data)                                 | None (pure data)         |
-| Feasible in Rust?        | No                                 | Yes                                              | Yes (recommended)        |
+| Aspect                   | `eff` (Hasura)                     | `purescript-run`                                 | Proposed Rust design                                  |
+| ------------------------ | ---------------------------------- | ------------------------------------------------ | ----------------------------------------------------- |
+| Core mechanism           | Delimited continuations            | Free monad                                       | Free monad (four-variant family, section 4.4)         |
+| Effect dispatch          | O(1) array lookup                  | O(n) peel loop                                   | O(n) peel loop                                        |
+| Open sum                 | Type-level list + array            | Row-polymorphic VariantF                         | Nested Coproduct                                      |
+| Handler install          | `prompt#` + push target            | Recursive interpretation                         | Iterative loop                                        |
+| Multi-shot continuations | Yes (via `control`)                | Yes (tree is re-interpretable; used by `Choose`) | Yes via `RcFree`/`ArcFree` (not available via `Free`) |
+| Thread-crossing programs | Yes                                | Yes via `Aff`                                    | Yes via `ArcFree`                                     |
+| Borrowed effect payloads | N/A                                | N/A (GC)                                         | Yes via `FreeExplicit`                                |
+| Higher-order effects     | Natural (via `locally`, `control`) | Supported (via `locally`-like patterns)          | Needs design work                                     |
+| Stack safety             | Native (RTS handles it)            | `MonadRec` / trampolining                        | Iterative loops (native)                              |
+| Runtime dependency       | GHC RTS                            | None (pure data)                                 | None (pure data)                                      |
+| Feasible in Rust?        | No                                 | Yes                                              | Yes (recommended)                                     |
 
 ---
 
 ## 11. Cross-Reference Table: PureScript Piece to Rust Status
 
-| PureScript piece                                                                              | Rust counterpart in `fp-library` today                             | Status                                       |
-| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------- |
-| `Free f a`                                                                                    | [`Free<F, A>`](../../../fp-library/src/types/free.rs)              | Present, `'static`-only.                     |
-| `liftF`                                                                                       | `Free::lift_f`                                                     | Present.                                     |
-| `foldFree`                                                                                    | `Free::fold_free`                                                  | Present, requires `G: MonadRec + 'static`.   |
-| `hoistFree`                                                                                   | `Free::hoist_free`                                                 | Present.                                     |
-| `resume` / `resume'`                                                                          | `Free::resume`                                                     | Present.                                     |
-| `MonadRec`, `tailRecM`, `Step`                                                                | `MonadRec`, `tail_rec_m`, `ControlFlow`                            | Present.                                     |
-| `TypeEquals`, `to`, `from`                                                                    | Nothing direct. Rust generics + `PhantomData` cover it implicitly. | N/A by design.                               |
-| `Newtype` class                                                                               | Nothing. Rust newtypes need no abstraction.                        | N/A by design.                               |
-| `Natural transformation (~>)`                                                                 | `NaturalTransformation<F, G>` trait                                | Present.                                     |
-| `Variant` (non-functor)                                                                       | Absent.                                                            | Missing, not needed for Run.                 |
-| `VariantF`                                                                                    | Absent.                                                            | Missing; central blocker.                    |
-| Row `Row (Type -> Type)`                                                                      | Absent.                                                            | Missing; central blocker.                    |
-| `inj`, `prj`, `on`, `case_`, `match`, `expand`, `contract`                                    | Absent.                                                            | Missing.                                     |
-| Row constraints (`Cons`, `Union`, `Lacks`)                                                    | Absent.                                                            | Missing; needs trait-based emulation.        |
-| `IsSymbol`, `Proxy "label"`                                                                   | Absent.                                                            | Missing; options in blocker 4.1.             |
-| `Run r a`                                                                                     | Absent.                                                            | Missing.                                     |
-| `lift`, `send`, `peel`, `resume` (Run level)                                                  | Absent (exists at Free level).                                     | Missing.                                     |
-| `interpret`, `run`, `runRec`, `runAccum`, `runAccumRec`, `runPure`, `runAccumPure`, `runCont` | Absent.                                                            | Missing.                                     |
-| `Run.Reader`, `Run.State`, `Run.Writer`, `Run.Except`, `Run.Choose`                           | Absent.                                                            | Missing (mechanical once `Run` exists).      |
-| `liftEffect`, `runBaseEffect`, `liftAff`, `runBaseAff`                                        | Absent.                                                            | Missing; target choice is itself a question. |
+| PureScript piece                                                                              | Rust counterpart in `fp-library` today                             | Status                                             |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------- |
+| `Free f a` (single-shot, `'static`)                                                           | [`Free<F, A>`](../../../fp-library/src/types/free.rs)              | Present, `'static`-only.                           |
+| `Free f a` (multi-shot via shared continuations)                                              | `RcFree<F, A>`                                                     | Missing; see section 4.4 / Phase 1.                |
+| `Free f a` (multi-shot, thread-safe)                                                          | `ArcFree<F, A>`                                                    | Missing; see section 4.4 / Phase 1.                |
+| `Free f a` (lifetime-carrying payloads)                                                       | `FreeExplicit<'a, F, A>`                                           | POC only; promotion pending section 4.4 / Phase 1. |
+| `liftF`                                                                                       | `Free::lift_f`                                                     | Present.                                           |
+| `foldFree`                                                                                    | `Free::fold_free`                                                  | Present, requires `G: MonadRec + 'static`.         |
+| `hoistFree`                                                                                   | `Free::hoist_free`                                                 | Present.                                           |
+| `resume` / `resume'`                                                                          | `Free::resume`                                                     | Present.                                           |
+| `MonadRec`, `tailRecM`, `Step`                                                                | `MonadRec`, `tail_rec_m`, `ControlFlow`                            | Present.                                           |
+| `TypeEquals`, `to`, `from`                                                                    | Nothing direct. Rust generics + `PhantomData` cover it implicitly. | N/A by design.                                     |
+| `Newtype` class                                                                               | Nothing. Rust newtypes need no abstraction.                        | N/A by design.                                     |
+| `Natural transformation (~>)`                                                                 | `NaturalTransformation<F, G>` trait                                | Present.                                           |
+| `Variant` (non-functor)                                                                       | Absent.                                                            | Missing, not needed for Run.                       |
+| `VariantF`                                                                                    | Absent.                                                            | Missing; central blocker.                          |
+| Row `Row (Type -> Type)`                                                                      | Absent.                                                            | Missing; central blocker.                          |
+| `inj`, `prj`, `on`, `case_`, `match`, `expand`, `contract`                                    | Absent.                                                            | Missing.                                           |
+| Row constraints (`Cons`, `Union`, `Lacks`)                                                    | Absent.                                                            | Missing; needs trait-based emulation.              |
+| `IsSymbol`, `Proxy "label"`                                                                   | Absent.                                                            | Missing; options in blocker 4.1.                   |
+| `Run r a`                                                                                     | Absent.                                                            | Missing.                                           |
+| `lift`, `send`, `peel`, `resume` (Run level)                                                  | Absent (exists at Free level).                                     | Missing.                                           |
+| `interpret`, `run`, `runRec`, `runAccum`, `runAccumRec`, `runPure`, `runAccumPure`, `runCont` | Absent.                                                            | Missing.                                           |
+| `Run.Reader`, `Run.State`, `Run.Writer`, `Run.Except`, `Run.Choose`                           | Absent.                                                            | Missing (mechanical once `Run` exists).            |
+| `liftEffect`, `runBaseEffect`, `liftAff`, `runBaseAff`                                        | Absent.                                                            | Missing; target choice is itself a question.       |
 
 ---
 
@@ -374,14 +485,17 @@ These are not full blockers (they don't prevent the first line of code) but they
 
 `fp-library` has everything it needs for the "free monad + stack-safe recursion + natural transformation" substrate. The Rust equivalents of `Free`, `MonadRec`, `Step`, and `NaturalTransformation` are already in place and close enough to the PureScript shape that `fold_free` is effectively `runRec` already.
 
-What is missing is the **row-polymorphic open sum** (`VariantF` and its supporting type-level machinery). Nothing in the crate today solves that problem, and Rust does not give us the solution for free.
+What is missing is twofold: the **row-polymorphic open sum** (`VariantF` and its supporting type-level machinery), and **three additional `Free` siblings** that together unblock multi-shot continuations, thread-crossing programs, and borrowed effect payloads (see section 4.4).
 
-The three hard blockers in order:
+The two remaining hard blockers:
 
 1. **Row encoding** (section 4.1). HList / coproduct / tuple / `TypeId` dispatch. Every other piece of the port is shaped by this.
-2. **Functor dictionary dispatch** (section 4.2). Static bound vs dynamic box vs Freer (which sidesteps the problem). Choice follows from 4.1.
-3. **`'static` bound on Free** (section 4.4). Accept, replace, or parameterize. Independent of 4.1 but bounds the scope of what users can do.
+2. **Functor dictionary dispatch** (section 4.2). Static bound vs dynamic box. Choice follows from 4.1. `Coyoneda` covers the non-functor effect case.
+
+Decided:
+
+- **Free family (section 4.4).** Ship four variants: `Free` (existing), `RcFree`, `ArcFree`, `FreeExplicit`. The POC validated the fourth; the first already ships; the middle two are mechanical copies of existing Coyoneda siblings. This resolves the former third blocker ("`'static` bound on Free") in favour of covering the whole design space up front.
 
 The other open questions (async story, macro design, exhaustiveness trade-offs) are secondary and can be deferred until a prototype exists.
 
-**Recommended next action:** build a proof-of-concept with exactly two effects (`Reader<Env>` and `State<i32>`) using the nested-coproduct + Freer encoding described in section 5, no macros, and validate whether the resulting API is recognizable as "extensible algebraic effects". If yes, proceed to flesh out; if no, revisit blocker 4.1 before anything else.
+**Recommended next action:** execute Phase 1 from section 6 — land the three missing Free siblings in `src/` before starting the Run machinery. Once all four variants exist and share a cross-variant test suite, the Row and Functor-dispatch blockers become the only remaining open questions and can be tackled with confidence that the substrate is solid.

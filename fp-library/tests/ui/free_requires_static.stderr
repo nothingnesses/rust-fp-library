@@ -1,0 +1,11 @@
+error[E0597]: `local` does not live long enough
+  --> tests/ui/free_requires_static.rs:20:24
+   |
+19 |     let local = String::from("hello");
+   |         ----- binding `local` declared here
+20 |     let reference: &str = &local;
+   |                           ^^^^^^ borrowed value does not live long enough
+21 |     let _free: Free<IdentityBrand, &str> = Free::pure(reference);
+   |                                            --------------------- argument requires that `local` is borrowed for `'static`
+22 | }
+   | - `local` dropped here while still borrowed

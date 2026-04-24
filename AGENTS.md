@@ -45,6 +45,8 @@ just test --doc -p fp-library      # Run doc tests
 
 Cache location: `.cache/test-output/` (gitignored). Uses content hashing (`git ls-files` + `md5sum`) so the cache is invalidated only when tracked file contents change, not when timestamps change (e.g., from formatting or git operations). Re-running `just test` with no content changes is instant and prints cached output. Use `just clean` to clear the cache and build artifacts.
 
+**Gotcha: new or untracked files are invisible to the cache.** `git ls-files` only lists files known to the git index, so an edit to a brand-new file that has never been `git add`ed does not change the hash. Symptom: `just test` keeps printing the cached output of a prior run and shows errors referring to a version of the file that no longer exists on disk. Fix: run `git add <file>` once after creating the file; subsequent edits are picked up automatically (the hash reads working-tree contents via `md5sum`). This bites any new test, bench, or source file.
+
 ### Building
 
 ```bash
