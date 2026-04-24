@@ -144,6 +144,8 @@ Known concrete issues:
 
 Real-world references: `frunk::Coproduct`, `effing-mad`, `corophage`; analogous to Haskell's `freer-simple` and `polysemy`.
 
+**Nightly-toolchain caveat.** `effing-mad`'s design relies on Rust's unstable `Coroutine` trait (requires `feature(coroutines, coroutine_trait)`). The trait has no stabilisation timeline. Any port that takes `effing-mad` as its implementation model inherits this blocker. `corophage` sidesteps the issue by building on `fauxgen`-backed async coroutines that compile on stable Rust; see [research/effing-mad.md](research/effing-mad.md) and [research/corophage.md](research/corophage.md).
+
 **2. Typenum-indexed sum list.**
 
 Same user-facing encoding as option 1, but membership indices are binary type-level naturals (`typenum::UInt`) instead of Peano `Here` / `There<T>` wrappers.
@@ -153,13 +155,15 @@ Same user-facing encoding as option 1, but membership indices are binary type-le
 // instead of There<There<There<There<Here>>>>  (O(n) depth).
 ```
 
-Same openness story, same row-ordering issue. Improvements:
+Same openness story, same row-ordering issue. Theoretical improvements:
 
 - Binary naturals scale better; index-type depth grows logarithmically with effect count.
 - Error messages improve proportionally because the printed index types are shallower.
 - Compile time improves because trait resolution recurses fewer times.
 
-A refinement of option 1 at the implementation level; it does not change the user-facing surface. Real-world reference: [`reffect`](https://github.com/js2xxx/reffect).
+A refinement of option 1 at the implementation level; it does not change the user-facing surface.
+
+**No known Rust reference implementation.** Earlier drafts of this section cited [`reffect`](https://github.com/js2xxx/reffect) as the Option 2 reference. Stage 1 research (see [research/reffect.md](research/reffect.md)) confirmed that reffect's tag type is a single-parameter `UInt<U>` phantom wrapper defined in `src/util/tag.rs`, not a two-parameter `typenum`-style binary natural `UInt<U, B0|B1>`. Its index-type depth is therefore O(n), structurally equivalent to frunk's `There<T>`; the logarithmic advantages above are unrealised in any surveyed Rust crate. Option 2 is kept as a design point but has no production validation.
 
 **3. Trait-object dispatch with `TypeId` tags.**
 
@@ -200,7 +204,9 @@ fn my_program<R: Embed<coprod![State<i32>]>>(...) -> Run<R, i32> { ... }
 
 Same fundamental encoding as options 1/2; macros hide the nesting. `corophage`'s `Effects![E1, ...Alias]` (with spread syntax) is the reference implementation and the approach closest to PureScript's row sugar.
 
-Inherits options 1/2's row-ordering issue, but the macro typically normalises orderings so end-users rarely see them. Inherits compile-time cost. Error messages can be worse than raw coproduct because the user sees the macro expansion in the error, not their original code. Currently the default direction for the draft architecture in section 5.
+Inherits options 1/2's row-ordering issue. Note that `corophage`'s macro does _not_ currently sort or deduplicate orderings (see [research/corophage.md](research/corophage.md)); it preserves user-written order and expands to a right-nested `Coproduct<A, Coproduct<B, CNil>>` verbatim. Row-ordering mismatches are instead mediated at composition sites by `CoproductSubsetter`; see "Ordering mitigations" below. Macro-based lexical normalisation (workaround 1) is compatible with this design but is not what `corophage` itself implements today. Inherits compile-time cost. Error messages can be worse than raw coproduct because the user sees the macro expansion in the error, not their original code. Currently the default direction for the draft architecture in section 5.
+
+**Per-effect lifetime parameter (corophage pattern).** `corophage` attaches a lifetime parameter `'a` to every effect type (`trait Effect<'a>` per `corophage/src/effect.rs:83`), allowing effect payloads to borrow non-`'static` data. This is a direct, production-validated match for the port's `FreeExplicit` variant (see section 4.4), which must support non-`'static` effect payloads. The port should adopt the same `'a` pattern on effect traits; doing so is what makes `FreeExplicit` useful in practice.
 
 **5. Trait-bound set (one-trait-per-effect, mtl-style).**
 
@@ -280,7 +286,7 @@ The three workarounds:
 - Do we need a `Lacks` constraint (prevents duplicate labels in a row)? PureScript's row system has this built in; Rust needs trait-based emulation, cost similar to `Member`.
 - Should the implementation use frunk's Peano-indexed Coproduct or typenum-indexed SumList? Both are open; the choice affects error-message quality and compile time but not the user-facing API.
 
-**Leaning:** the hybrid (option 4) remains the default, with typenum indexing (option 2) as the recommended under-the-hood refinement to mitigate option 1's known compile-time and error-message pain. Trait-objects (option 3) are the fallback if the static-dispatch routes become unmanageable. Build a minimal prototype before committing. Track `corophage` and `effing-mad` as concrete reference implementations.
+**Leaning:** the hybrid (option 4) remains the default, with Peano indexing (option 1 substrate, as `corophage` implements) as the starting point. True typenum-binary indexing (option 2) is an acknowledged future optimisation but has no Rust reference implementation to copy from; adopting it would require fresh design work. Trait-objects (option 3) are the fallback if the static-dispatch routes become unmanageable. Build a minimal prototype before committing. Track `corophage` as the primary concrete reference implementation; `effing-mad` is a secondary reference but requires nightly Rust.
 
 ### 4.2 BLOCKER: Functor dictionary for VariantF
 
