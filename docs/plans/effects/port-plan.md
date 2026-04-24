@@ -99,6 +99,23 @@ An ecosystem survey (see the research note below) surfaced five distinct open en
 
 **Row ordering.** In PureScript, `(a :: A, b :: B)` and `(b :: B, a :: A)` are the same row type; labels form a set, not a list. Rust tuples and nested coproducts are ordered: `Coproduct<A, Coproduct<B, Void>>` is a distinct type from `Coproduct<B, Coproduct<A, Void>>`. When two functions return programs with different orderings of the same effects, Rust's type checker does not see them as compatible without an explicit conversion.
 
+**How the type-level list is actually encoded.** Options 1 and 2 share the same runtime shape (a right-nested enum) and differ only in how they index positions in the list. The enum:
+
+```rust
+enum Void {} // empty type, no values
+enum Coproduct<Head, Tail> {
+    Here(Head),
+    There(Tail),
+}
+```
+
+A row of three effects is `Coproduct<E1, Coproduct<E2, Coproduct<E3, Void>>>`. Membership ("is E2 in this row?") is proved by a trait whose second parameter is a type-level index naming the position:
+
+- **Peano indices (option 1, frunk):** `Here`, `There<Here>`, `There<There<Here>>`, and so on. The nth effect has a type n layers deep. Trait resolution walks the coproduct once per `There`, so compile time and error-message size scale O(n).
+- **Binary indices (option 2, typenum):** `UInt<UInt<UTerm, B1>, B0>` for index 2, that is, a binary encoding. The nth effect has a type O(log n) deep. Compile time and error-message size scale O(log n).
+
+Both are real type-level numbers; Rust resolves the right trait impl at compile time. The index is inferred at every call site, so users never type one directly, but they do see them in error messages when a membership claim fails.
+
 **Embedder and Subsetter (frunk terminology).** Two traits that translate between orderings or sizes of a coproduct. `CoproductEmbedder<Larger, Idxs>` proves "my coproduct can be embedded into a larger one by mapping each variant to the correct position in the larger one." `CoproductSubsetter<Subset, Idxs>` proves "I can project out a subset of my variants into a smaller coproduct." They compose, but their invocation is user-visible: every time you widen or narrow an effect row, there is an explicit (even if inference-elided) call. These are the machinery that papers over the row-ordering problem above.
 
 **Type-level list machinery.** Options 1 and 2 encode the effect row as a recursively-nested type constructor such as `Coproduct<A, Coproduct<B, Void>>` or `HList![A, B]`. Working with such a list requires recursive traits (`Member<E, List, Idx>`), type-level indices (Peano `Here`/`There` or typenum naturals), and usually macros to hide the nesting. Rust trait bounds (`T: A + B`) are _not_ a type-level list; they are an unordered, duplicate-free set of constraints the compiler resolves directly. The trait-bound-set approach (option 5) uses this native mechanism instead of building list machinery in user space.
