@@ -208,6 +208,8 @@ Inherits options 1/2's row-ordering issue. Note that `corophage`'s macro does _n
 
 **Per-effect lifetime parameter (corophage pattern).** `corophage` attaches a lifetime parameter `'a` to every effect type (`trait Effect<'a>` per `corophage/src/effect.rs:83`), allowing effect payloads to borrow non-`'static` data. This is a direct, production-validated match for the port's `FreeExplicit` variant (see section 4.4), which must support non-`'static` effect payloads. The port should adopt the same `'a` pattern on effect traits; doing so is what makes `FreeExplicit` useful in practice.
 
+**Compile-time index-table refinement (Koka-inspired).** A sufficiently rich proc-macro can do more than expand the coproduct: it can also emit a const `[usize; N]` table assigning each effect in the row a stable integer index by lexical sort order. Handler dispatch then reads the handler from an array slot by index rather than pattern-matching the coproduct, giving O(1) dispatch independent of the row size and no runtime `TypeId` inspection. This is a portable adaptation of Koka's `OpenResolve` pass (see [research/koka.md](research/koka.md) and [research/deep-dive-evidence-passing.md](research/deep-dive-evidence-passing.md)). `corophage`'s current `Effects![...]` macro does _not_ emit such a table; this is flagged as an achievable Phase 2 optimisation, not a Phase 1 requirement.
+
 **5. Trait-bound set (one-trait-per-effect, mtl-style).**
 
 Each effect is a trait; a program is a generic function constrained by the trait bounds that name its effects.
@@ -270,6 +272,10 @@ The three workarounds:
 
 **Note on trait-bound sets (option 5 above).** The trait-bound-set approach is trivially order-invariant: `T: A + B` and `T: B + A` are the same constraint. This is the only unordered container at the type level in stable Rust, but it lives in the _constraint_ world, not the _data_ world, so it cannot serve as a data container for the Free family. It is not a mitigation for coproduct ordering; it is an entirely different encoding that sidesteps the problem at the cost of giving up first-class programs.
 
+#### Evaluated and declined
+
+**Evidence passing (EvEff / Koka dispatch).** Stage 2 research evaluated the handler-vector dispatch mechanism used by EvEff (Xie and Leijen, ICFP 2020) and Koka as a candidate sixth row encoding. Finding: the mechanism is not portable to Rust as a distinct encoding. In Haskell, dispatch relies on the closed type family `HEqual` (`src/Control/Ev/Eff.hs:263-265`) to drive instance resolution by type identity. Rust has no closed-type-family analogue outside of unstable `min_specialization`. Any Rust simulation reduces to Option 1 (Peano index) or Option 3 (`TypeId` runtime comparison) at the implementation level. See [research/eveff.md](research/eveff.md), [research/koka.md](research/koka.md), and [research/deep-dive-evidence-passing.md](research/deep-dive-evidence-passing.md). The one genuinely portable idea from this family, Koka's compile-time effect-index vector, has been folded into Option 4 above as a refinement of the macro layer.
+
 #### Honourable mentions (not direct candidates)
 
 - **Coroutine-frame row (Abubalay).** The entire row disappears at runtime because the stackless coroutine's state machine is already a sum of "currently suspended at effect X" variants. An optimisation target for any option 1-based implementation rather than a separate encoding.
@@ -285,6 +291,7 @@ The three workarounds:
 - Is exhaustiveness checking (compile-time "you forgot to handle the `state` effect") a hard requirement? Option 3 can't give that; options 1, 2, and 4 can.
 - Do we need a `Lacks` constraint (prevents duplicate labels in a row)? PureScript's row system has this built in; Rust needs trait-based emulation, cost similar to `Member`.
 - Should the implementation use frunk's Peano-indexed Coproduct or typenum-indexed SumList? Both are open; the choice affects error-message quality and compile time but not the user-facing API.
+- How should duplicate entries in a row be distinguished? PureScript disallows them via row's `Lacks` constraint. Koka handles the duplicate case via mask levels (`src/Core/OpenResolve.hs:208-218`), computing a level for each label based on how many identical labels precede it, so a nested `handlerLocal`-style handler for the same effect is addressable distinctly from its parent. If the port supports scoped handlers that re-introduce an already-handled effect, it needs an equivalent; see [research/deep-dive-evidence-passing.md](research/deep-dive-evidence-passing.md) section 5.3.
 
 **Leaning:** the hybrid (option 4) remains the default, with Peano indexing (option 1 substrate, as `corophage` implements) as the starting point. True typenum-binary indexing (option 2) is an acknowledged future optimisation but has no Rust reference implementation to copy from; adopting it would require fresh design work. Trait-objects (option 3) are the fallback if the static-dispatch routes become unmanageable. Build a minimal prototype before committing. Track `corophage` as the primary concrete reference implementation; `effing-mad` is a secondary reference but requires nightly Rust.
 
