@@ -483,6 +483,22 @@ In every case the surrounding type system constraints make the coercion safe.
 
 `Free`'s `CatList` assumes persistent, shared, garbage-collected lists. `Trampoline = Free ((->) Unit)` depends on PureScript thunks being lazy. These are not language features of Rust, so the port will need ownership and allocation decisions.
 
+### 6.10 Quick Reference: PureScript Feature to Rust Counterpart
+
+The table below is a fast lookup of each PureScript mechanism used by `purescript-run` and the most plausible Rust counterpart for each. It is informational, not prescriptive; design tradeoffs live in [port-plan.md](port-plan.md).
+
+| PureScript feature                                | Where used in `purescript-run`           | Plausible Rust counterpart                                                   |
+| ------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------- |
+| Row polymorphism (`r` in `Run r a`)               | Open-ended effect sets                   | No direct equivalent. Approximated via type-level lists or macros.           |
+| `VariantF` (row-indexed functor sum)              | Open union of effect functors            | Nested coproduct (`Coproduct<H, T>`), closed tuple, or dynamic trait object. |
+| Native higher-kinded types (`Functor f`, `~>`)    | Instance quantification                  | Brand-based HKT encoding already in `fp-library`.                            |
+| `Row.Cons` / `Row.Union` / `Row.Lacks`            | Compile-time row arithmetic              | Custom traits (`Member<E, Row>`, `Remove<E, Row>`) on an HList encoding.     |
+| `unsafeCoerce` (expand, coerceM, toRows/fromRows) | Zero-cost row widening                   | `std::mem::transmute` or pointer casts, each gated by a trait bound.         |
+| Newtype deriving                                  | Zero-cost `Run` wrapper                  | `#[repr(transparent)]` plus manual impls (no trait analog needed).           |
+| `IsSymbol` + `Proxy "label"`                      | Label-indexed effect access              | Per-effect zero-sized marker types, `TypeId`, or const generics (limited).   |
+| `TypeEquals` witness                              | Instance-resolution equality constraints | Implicit via Rust's unification; occasional `PhantomData` wrapper.           |
+| Rank-N types (`foldFree`, `Mapper f`)             | Handler callbacks polymorphic in `x`     | Generic fn parameters, trait objects (`dyn for<'a> Fn`), or GATs.            |
+
 ---
 
 ## 7. How It All Works Together: A Walkthrough
