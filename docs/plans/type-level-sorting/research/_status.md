@@ -16,24 +16,24 @@ against the eight approaches catalogued in [README.md](README.md).
 
 ### Foundational primitives
 
-- [ ] [typenum.md](typenum.md)
-- [ ] [frunk.md](frunk.md)
-- [ ] [static-assertions-rs.md](static-assertions-rs.md)
+- [x] [typenum.md](typenum.md)
+- [x] [frunk.md](frunk.md)
+- [x] [static-assertions-rs.md](static-assertions-rs.md)
 
 ### Hash-based type identity
 
-- [ ] [stabby.md](stabby.md)
+- [x] [stabby.md](stabby.md)
 - [ ] [type-uuid.md](type-uuid.md)
 
 ### Type-level DSLs and operators
 
 - [ ] [rust-type-freak.md](rust-type-freak.md)
 - [ ] [typ.md](typ.md)
-- [ ] [tstr-crates.md](tstr-crates.md)
+- [x] [tstr-crates.md](tstr-crates.md)
 
 ### Marker-trait approaches
 
-- [ ] [spidermeme.md](spidermeme.md)
+- [x] [spidermeme.md](spidermeme.md)
 
 ## Stage 1 synthesis
 
