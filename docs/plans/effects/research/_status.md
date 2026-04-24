@@ -36,7 +36,7 @@ section 4.1.
 
 Populate only after every entry above is ticked.
 
-- [ ] [\_classification.md](_classification.md)
+- [x] [\_classification.md](_classification.md)
 
 ## Stage 2: deep dives
 
@@ -44,4 +44,6 @@ Populated after Stage 1 synthesis identifies which codebases (if any)
 warrant deeper investigation. Each entry becomes a new
 `deep-dive-<topic>.md` file in this directory.
 
-_(None scheduled yet.)_
+- [ ] [deep-dive-evidence-passing.md](deep-dive-evidence-passing.md): can Rust host typed handler-vector dispatch (EvEff / Koka indexing) without delimited continuations? Priority 1.
+- [ ] [deep-dive-coroutine-vs-free.md](deep-dive-coroutine-vs-free.md): do coroutines alone preserve the first-class-program properties section 4.4 requires, or is a Free wrapper still needed? Priority 2.
+- [ ] [deep-dive-scoped-effects.md](deep-dive-scoped-effects.md): which scoped-effect pattern (heftia dual row, in-other-words Effly, polysemy Tactical, freer-simple interposition) ports most cleanly to Rust? Priority 3.
