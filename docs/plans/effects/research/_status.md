@@ -12,9 +12,9 @@ section 4.1.
 
 ### Haskell effect libraries
 
-- [ ] [freer-simple.md](freer-simple.md)
-- [ ] [polysemy.md](polysemy.md)
-- [ ] [fused-effects.md](fused-effects.md)
+- [x] [freer-simple.md](freer-simple.md)
+- [x] [polysemy.md](polysemy.md)
+- [x] [fused-effects.md](fused-effects.md)
 - [ ] [eveff.md](eveff.md)
 - [ ] [mpeff.md](mpeff.md)
 - [ ] [heftia.md](heftia.md)
