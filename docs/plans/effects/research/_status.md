@@ -15,8 +15,8 @@ section 4.1.
 - [x] [freer-simple.md](freer-simple.md)
 - [x] [polysemy.md](polysemy.md)
 - [x] [fused-effects.md](fused-effects.md)
-- [ ] [eveff.md](eveff.md)
-- [ ] [mpeff.md](mpeff.md)
+- [x] [eveff.md](eveff.md)
+- [x] [mpeff.md](mpeff.md)
 - [ ] [heftia.md](heftia.md)
 - [ ] [in-other-words.md](in-other-words.md)
 
