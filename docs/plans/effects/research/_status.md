@@ -18,7 +18,7 @@ section 4.1.
 - [x] [eveff.md](eveff.md)
 - [x] [mpeff.md](mpeff.md)
 - [x] [heftia.md](heftia.md)
-- [ ] [in-other-words.md](in-other-words.md)
+- [x] [in-other-words.md](in-other-words.md)
 
 ### Non-Rust languages
 
