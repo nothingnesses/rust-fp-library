@@ -22,7 +22,7 @@ section 4.1.
 
 ### Non-Rust languages
 
-- [ ] [effekt.md](effekt.md)
+- [x] [effekt.md](effekt.md)
 - [ ] [koka.md](koka.md)
 
 ### Rust effect crates
