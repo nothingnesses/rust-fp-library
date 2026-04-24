@@ -309,6 +309,8 @@ Does the Rust `Functor` trait's `map` signature (`fn map<'a, A, B>(f: impl Fn(A)
 
 **Open question:** is it acceptable to force all effect functors to implement a supplementary `DynFunctor` trait that hides the type parameters behind `dyn Any`? This is the practical consequence of the dynamic option and needs explicit acknowledgment.
 
+**Scope narrowing from the dual-row decision in section 4.5.** The Functor-dictionary problem applies only to the _first-order_ effect row (the `VariantF` of algebraic effects). The higher-order row (scoped effects such as `Catch<E>` or `Local<E>`; see section 4.5) is not a functor: it is a closed set of constructors, each holding its own action and handler payload, and is interpreted by manual case dispatch rather than by `map`. This halves the surface area of the problem. Whichever option is adopted here (static bound, dynamic `DynFunctor`, or freer-style erasure) applies only to first-order effects; scoped effects do not require a dictionary at all. See [research/deep-dive-scoped-effects.md](research/deep-dive-scoped-effects.md).
+
 ### 4.3 BLOCKER: How strong should stack-safety guarantees be
 
 The existing `Free` is stack-safe (O(1) bind, iterative drop via `Extract`). That is sufficient for `Run`'s own stack-safety. But the PureScript library distinguishes two interpreter families:
@@ -421,6 +423,53 @@ Without one of those, shipping the intersections now is speculative generality. 
 
 **Open question:** will users build natural transformations by hand, or only via a macro? A macro-based DSL is the realistic answer, but it pushes complexity into the macro layer.
 
+#### Dual-row scoped-effect integration
+
+The port adopts heftia's dual-row architecture for scoped effects (see section 4.5 for the full rationale). Concretely, `Run` is typed against _two_ rows rather than one: a first-order algebraic row (`VariantF` of ordinary effect functors, subject to section 4.2's functor-dictionary question) and a higher-order row (a coproduct of scoped-effect constructors such as `Catch<E>` and `Local<E>`, holding their action and handler payloads as first-class values). The higher-order row does _not_ require a `Functor` instance; it is interpreted via manual case dispatch, which simplifies section 4.2 and keeps scoped effects visible as data rather than hidden in Tactical-style state threading. The four-variant Free decision above is orthogonal to the dual-row split: any of `Free`, `RcFree`, `ArcFree`, or `FreeExplicit` can carry the dual row via its Free-family wrapper. See [research/deep-dive-scoped-effects.md](research/deep-dive-scoped-effects.md) for the pattern comparison and recommendation.
+
+---
+
+### 4.5 DECISION: Scoped-effect representation via heftia's dual row
+
+Stage 2 priority-3 research ([research/deep-dive-scoped-effects.md](research/deep-dive-scoped-effects.md)) compared four patterns for representing scoped effects (`Reader.local`, `Error.catch`, `mask`, `bracket`) under the port's encoding:
+
+- Heftia's dual-row elaboration (scoped effects in a separate row, reified as constructors).
+- Polysemy's `Tactical` state threading.
+- In-other-words' Derivs/Prims reformulation with `Effly` continuation wrapper.
+- Freer-simple's flat interposition (first-order only).
+
+Plus MpEff's native multi-prompt delimited continuations as an aspirational, non-portable reference (GHC RTS primitives; ruled out by section 1.2).
+
+**Decision: adopt heftia's dual-row architecture.**
+
+Scoped effects live in a second row, separate from the first-order algebraic row. Each scoped effect is a concrete constructor holding its action and handler(s) as first-class values. Interpreters dispatch on the constructor via a trait with one method per variant; no Tactical state-threading, no existential functor, no reformulation pass.
+
+**Standard scoped-effect constructors shipped with the port:**
+
+| Constructor  | Payload (roughly)                                                              | Models                                    |
+| ------------ | ------------------------------------------------------------------------------ | ----------------------------------------- |
+| `Catch<E>`   | `action: Run<R, A>`, `handler: Box<dyn FnOnce(E) -> Run<R, A>>`                | `Error.catch`, `try`/`catch`.             |
+| `Local<E>`   | `modify: Box<dyn FnOnce(E) -> E>`, `action: Run<R, A>`                         | `Reader.local`.                           |
+| `Mask`       | `action: Run<R, A>` plus an effect identifier                                  | Masking one layer of a duplicated effect. |
+| `Bracket<A>` | `acquire: Run<R, A>`, `release: Box<dyn FnOnce(A) -> Run<R, ()>>`, `body: ...` | Resource management.                      |
+| `Span<Tag>`  | `tag: Tag`, `action: Run<R, A>`                                                | Instrumentation / tracing.                |
+
+The exact payload shapes depend on the chosen Free variant (boxed `dyn FnOnce` for `Free`; shared `Rc<dyn Fn>` for `RcFree`, and so on). Users can define their own higher-order effects by implementing the same interpreter trait.
+
+**Why heftia over the alternatives.**
+
+- _vs polysemy's Tactical_: Tactical threads state through an existential functor `f ()` that must be carried end-to-end; every interpreter has to thread it via `runT`/`bindT`/`pureT`. In Rust, this pattern produces a forest of `Box<dyn Any>` and an existential `F` that `rustc` cannot infer. Heftia's dual row avoids the existential entirely; the action payload is a concrete `Run<R, A>`.
+- _vs in-other-words' Effly_: Effly requires a Derivs/Prims reformulation layer that rewrites each scoped effect into a primitive effect before interpretation. This doubles the effect-definition burden and requires writing two interpreters per effect. The dual-row approach has one pass.
+- _vs freer-simple's interposition_: interposition only supports _first-order_ rewrites (swap `Reader.ask` results for a modified environment during a sub-computation). It does not support true higher-order effects like `Error.catch` that need to pattern-match on exceptions thrown by the sub-computation. The port needs `Error.catch`, so interposition is insufficient.
+
+**Why this is structurally a decision, not a blocker.** Unlike section 4.1 (where five encoding options compete on rough parity) or section 4.2 (where the functor-dictionary tradeoff is still open), the dual-row pattern is the clear winner once the port commits to first-class programs (section 4.4) and declines delimited continuations (section 1.2). The alternatives are either strictly more complex (Tactical, Effly) or strictly less expressive (interposition). This subsection is therefore titled DECISION rather than BLOCKER.
+
+**Open questions under this decision:**
+
+- Should scoped-effect constructors be generic over the lifetime `'a` (mirroring corophage's per-effect `'a`; section 4.1 Option 4) from day one, or added later when `FreeExplicit` need emerges? Adding them from day one is cheaper than retrofitting.
+- How does user-defined extension work? The higher-order row is a coproduct of constructors, each implementing an interpreter trait; users define new constructors and implement the trait. This mirrors the first-order row's openness story but the trait is different (no `Functor`).
+- Does the interpreter trait need an associated continuation type, or can it be fixed as `Run<R, A>`? Associated type adds flexibility; fixed type is simpler. Defer until prototype.
+
 ---
 
 ## 5. Draft Architecture (Recommended Direction)
@@ -430,17 +479,21 @@ The blockers above resolve, for the current working hypothesis, to the following
 ### 5.1 Core types
 
 ```
-Run<Effects, A>   = FreeFamily<VariantF<Effects>, A>
+Run<Effects, ScopedEffects, A>  = FreeFamily<Node<Effects, ScopedEffects>, A>
+
+Node<Effects, ScopedEffects>    = First(VariantF<Effects>)
+                                | Scoped(ScopedCoproduct<ScopedEffects>)
 
 where
-  FreeFamily        = one of { Free, RcFree, ArcFree, FreeExplicit } per section 4.4
-  VariantF<Effects> = open sum of effect functors, encoded as a nested Coproduct
-  Coproduct<H, T>   = Here(H) | There(T)
-  Void              = empty-tail of the coproduct
-  Member<E, Effects> = trait proving E is somewhere in the coproduct
+  FreeFamily                    = one of { Free, RcFree, ArcFree, FreeExplicit } per section 4.4
+  VariantF<Effects>             = open sum of FIRST-ORDER effect functors, encoded as a nested Coproduct
+  ScopedCoproduct<ScopedEffects>= open sum of HIGHER-ORDER scoped constructors (per section 4.5)
+  Coproduct<H, T>               = Here(H) | There(T)
+  Void                          = empty-tail of the coproduct
+  Member<E, Effects>            = trait proving E is somewhere in the coproduct
 ```
 
-The user-facing type constructor is `Run<Effects, A>`. The `Effects` parameter is a nested `Coproduct` (possibly produced by a `coprod!` macro). The underlying Free variant is selected at the `Run`-type-alias level: `Run<R, A>` is one alias per variant (`RcRun`, `ArcRun`, `RunExplicit`) so users can opt in to sharing or lifetime flexibility without rewriting effect code. Effect functors satisfy `Functor` (which the existing `Coyoneda` makes trivial to provide for any enum) — this is the trade-off for keeping the Free core instead of Freer.
+The user-facing type constructor is `Run<Effects, ScopedEffects, A>`. Both parameters are nested `Coproduct`s (possibly produced by `effects![...]` and `scoped_effects![...]` macros). The underlying Free variant is selected at the `Run`-type-alias level: `Run<R, S, A>` is one alias per variant (`RcRun`, `ArcRun`, `RunExplicit`) so users can opt in to sharing or lifetime flexibility without rewriting effect code. First-order effect functors satisfy `Functor` (which the existing `Coyoneda` makes trivial to provide for any enum) — this is the trade-off for keeping the Free core instead of Freer. Scoped constructors do NOT require `Functor` (section 4.2, dual-row scope narrowing); they are interpreted via manual case dispatch per section 4.5.
 
 ### 5.2 Why Free + Coyoneda rather than Freer
 
