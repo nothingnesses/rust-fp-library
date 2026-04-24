@@ -4,6 +4,8 @@ Tracks which research documents are complete and which are still
 pending. Update this whenever you finish (or explicitly defer) a
 research doc. See [README.md](README.md) for the full protocol.
 
+**Status: research phase complete as of 2026-04-24.** All 11 Stage 1 per-codebase classifications and the Stage 1 synthesis are ticked. No Stage 2 deep dives scheduled; the synthesis recommends no port-plan edits (workaround 2 stays declined on the existing reasoning, with a low-priority factual note that any future revisit should target tstr_crates rather than typenum). Type-level-sorting research arc closes here.
+
 ## Stage 1: per-codebase classification
 
 Each file below is a brief classification doc (~1200 words max)
@@ -39,7 +41,7 @@ against the eight approaches catalogued in [README.md](README.md).
 
 Populate only after every entry above is ticked.
 
-- [ ] [\_classification.md](_classification.md)
+- [x] [\_classification.md](_classification.md)
 
 ## Stage 2: deep dives
 
