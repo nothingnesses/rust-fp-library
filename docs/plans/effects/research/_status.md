@@ -4,12 +4,12 @@ Tracks which research documents are complete and which are still pending.
 Update this whenever you finish (or explicitly defer) a research doc. See
 [README.md](README.md) for the full protocol.
 
-**Status: research phase complete as of 2026-04-24.** All Stage 1 per-codebase classifications, the Stage 1 synthesis, and the three priority Stage 2 deep dives are ticked. The one remaining Stage 2 entry (compile-time indexing) has been reclassified as an implementation-phase investigation; see the note under "Stage 2: deep dives" below. Next phase: apply research findings to implementation per the port-plan's section 6 roadmap.
+**Status: research phase complete as of 2026-04-24.** All Stage 1 per-codebase classifications, the Stage 1 synthesis, and the three priority Stage 2 deep dives are ticked. The one remaining Stage 2 entry (compile-time indexing) has been reclassified as an implementation-phase investigation; see the note under "Stage 2: deep dives" below. Next phase: apply research findings to implementation per the decisions's section 6 roadmap.
 
 ## Stage 1: per-codebase classification
 
 Each file below is a brief classification doc (~1500 words max) against
-the five encodings catalogued in [../port-plan.md](../port-plan.md)
+the five encodings catalogued in [../decisions.md](../decisions.md)
 section 4.1.
 
 ### Haskell effect libraries

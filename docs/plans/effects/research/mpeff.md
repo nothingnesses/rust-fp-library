@@ -7,7 +7,7 @@
 ## Purpose
 
 Stage 1 research document: classify `MpEff` against the five effect-row
-encodings catalogued in [../port-plan.md](../port-plan.md) section 4.1.
+encodings catalogued in [../decisions.md](../decisions.md) section 4.1.
 Identify whether this codebase is a variant of an existing option or
 represents a genuinely novel encoding worth deeper investigation in Stage 2.
 
@@ -30,7 +30,7 @@ MpEff implements the Generalized Evidence Passing semantics (Xie & Leijen 2021) 
 
 MpEff differs fundamentally from `Free + Coproduct + Member` in that it abandons the free monad altogether in favor of delimited continuations. Instead of building an AST, computations directly yield control to a prompt (line 218-219 `yield` function), passing a handler operation and a continuation. The program is not a reifiable data structure; it is a control-flow graph whose branches are determined by where prompts lie. Scoped operations like `local` and `catch` (lines 79-82) become native control features rather than requiring additional abstraction (HFunctor, Tactical). Evidence passing replaces member indices: instead of proving "effect X is at position N in the coproduct", MpEff proves "the effect context contains a handler of type X" via the `In` constraint, then recovers the actual handler value at runtime via marker match (line 265 `mmatch`). This is a more direct correspondence to how handlers are actually used than a statically-indexed position would be.
 
-### Classification against port-plan section 4.1
+### Classification against decisions section 4.1
 
 MpEff is not a direct fit for any single option 1-5; it represents a genuinely distinct approach that cannot be implemented with option 1's nested coproduct, option 2's typenum indices, option 3's trait-object dispatch, option 4's macro-sugar coproduct, or option 5's trait-bound set. The closest superficial analogue is option 1 in that both use a type-level list (`:*` vs. nested `Coproduct`), but the similarity ends there. Option 1 builds a static type-indexed data structure amenable to per-position trait resolution; MpEff discards the static index and uses runtime marker identity instead. This is closer in spirit to option 3's dynamic dispatch (`TypeId` downcasting), but with two key differences: (a) MpEff tracks the row type statically (the `Context e` type depends on the full row), preserving first-class programs and exhaustiveness checking, and (b) MpEff's marker matching is bidirectional (handler saves its marker; operation yields with a marker; both must match), not unidirectional tag-to-implementation lookup. If forced to classify, MpEff is a hybrid of option 1's static row tracking and option 3's dynamic dispatch semantics, unified under a control-flow abstraction rather than either list-machinery or trait-object machinery.
 
@@ -42,9 +42,9 @@ Scoped operations are native to MpEff's multi-prompt control model. The key mech
 
 MpEff achieves extensibility by leaving the type-level row `e` universally quantified in the signatures of handler combinators. A function can be written as `foo :: (In h e) => Eff e a -> Eff e a` to work with any effect row containing `h`; callers can pass additional effects in the tail, and the handler works transparently. Effect definitions are open user-defined datatypes (e.g., `data Reader a e ans = Reader { ask :: Op () a e ans }` in src/Control/Mp/Util.hs:39); each effect is a record of operations. New effects are added by writing a new record type and a handler function (e.g., `reader` in src/Control/Mp/Util.hs:44-46), with no modification to the library core. The `VariantF` analogue is implicit: operations are not values in a sum; they are fields of a handler record. This trades explicit sum construction for implicit record-field dispatch.
 
-### Relevance to port-plan
+### Relevance to decisions
 
-No change needed. MpEff is a reference point for understanding how evidence passing can be implemented, but it cannot be directly ported to Rust because its core depends on Haskell's `prompt#` and `control0#` RTS primitives. Section 1.2 of the port-plan already rules out delimited continuations as a substrate. However, MpEff's proof that evidence passing yields clean scoped-operation semantics is valuable context for evaluating the four primary row encodings (options 1, 2, 4 under consideration). If a stage 2 deep-dive were to compare how each Rust option handles `local`/`catch`/`mask`, MpEff's simplicity should be the aspirational target; the presence of extra boilerplate in option 1 or option 4 would signal that the encoding is fighting against the semantics.
+No change needed. MpEff is a reference point for understanding how evidence passing can be implemented, but it cannot be directly ported to Rust because its core depends on Haskell's `prompt#` and `control0#` RTS primitives. Section 1.2 of the decisions already rules out delimited continuations as a substrate. However, MpEff's proof that evidence passing yields clean scoped-operation semantics is valuable context for evaluating the four primary row encodings (options 1, 2, 4 under consideration). If a stage 2 deep-dive were to compare how each Rust option handles `local`/`catch`/`mask`, MpEff's simplicity should be the aspirational target; the presence of extra boilerplate in option 1 or option 4 would signal that the encoding is fighting against the semantics.
 
 ### References
 

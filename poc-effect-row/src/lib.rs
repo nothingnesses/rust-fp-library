@@ -1,5 +1,5 @@
 //! POC for the effect-row canonicalisation hybrid (workaround 1 +
-//! workaround 3 from port-plan section 4.1).
+//! workaround 3 from decisions section 4.1).
 //!
 //! Re-exports the `effects!` and `effects_coyo!` macros and frunk's
 //! coproduct machinery for use in tests.
@@ -19,7 +19,7 @@ pub use {
 /// Stub Coyoneda for the POC.
 ///
 /// Models `Coyoneda<F, A> = exists B. (F<B>, B -> A)` enough to
-/// demonstrate the macro integration story for port-plan section 4.2's
+/// demonstrate the macro integration story for decisions section 4.2's
 /// static option (each row variant wrapped in `Coyoneda<E>` becomes a
 /// `Functor` regardless of `E`'s own shape). The intermediate type `B`
 /// is erased via `Box<dyn Any>`, mirroring how fp-library's real
@@ -130,7 +130,7 @@ impl<F: 'static, A: 'static> Functor<A> for coyoneda::Coyoneda<F, A> {
 // Recursive Functor for Coproduct<H, T>: dispatches `fmap` to the
 // active variant. This is the actual mechanism by which
 // `VariantF<R>` implements `Functor` under the static option in
-// port-plan section 4.2.
+// decisions section 4.2.
 impl<H, T, A> Functor<A> for Coproduct<H, T>
 where
 	H: Functor<A> + 'static,

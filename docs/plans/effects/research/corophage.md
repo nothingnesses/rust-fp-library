@@ -7,7 +7,7 @@
 ## Purpose
 
 Stage 1 research document: classify `corophage` against the five
-effect-row encodings catalogued in [../port-plan.md](../port-plan.md)
+effect-row encodings catalogued in [../decisions.md](../decisions.md)
 section 4.1. Corophage is already named in the plan as a reference
 implementation for option 4 (hybrid coproduct plus macro sugar); this
 research confirms or updates that characterisation and surfaces any
@@ -38,9 +38,9 @@ A secondary distinction: **the `Program` type decouples computation from handler
 
 A third distinction: **single-shot-only handlers** (README.md:62). Each handler runs once and cannot replay or duplicate the continuation. This is a deliberate design constraint enforced by accepting `FnOnce` payloads in `Control::resume(value)`.
 
-### Classification against port-plan section 4.1
+### Classification against decisions section 4.1
 
-**Confirmed: Option 4 (Hybrid coproduct plus macro sugar).** Corophage is the reference implementation named in port-plan.md:201.
+**Confirmed: Option 4 (Hybrid coproduct plus macro sugar).** Corophage is the reference implementation named in decisions.md:201.
 
 Corophage uses **Peano-indexed coproducts internally** (Option 1, not Option 2 with typenum). Evidence: corophage/src/effect.rs:1-2 imports `Here, There` from `frunk_core::indices`, and the `InjectResume` trait uses these directly (effect.rs:104-120). `Here` marks the head, `There<T>` marks each tail position, producing O(n) index depth.
 
@@ -56,11 +56,11 @@ Corophage achieves openness via **generic type parameters over the effect coprod
 
 The `#[effectful]` macro (corophage-macros/src/effectful.rs:146-230) similarly supports spread syntax in the attribute: `#[effectful(E1, ...BaseEffects)]` expands to nested `Coproduct` with all effects combined (effectful.rs:173-176).
 
-### Relevance to port-plan
+### Relevance to decisions
 
 No change needed. Corophage's characterisation as Option 4 is accurate and complete. The plan's recommendation (section 4.1, "Leaning") stands: adopt Option 4 (macro-sugar hybrid) with Peano indices (Option 1) as the substrate, noting Option 2 (typenum binary indices) as a future refinement to mitigate error-message bloat. Corophage demonstrates that Option 1's error messages are tolerable in practice and that the permutation-proofs approach (`CoproductSubsetter`) for row-ordering is workable.
 
-One implementation detail worth noting: corophage uses `'a` as a lifetime parameter on all effects (`Effects<'a>: MapResume + Send + Sync + 'a`, effect.rs:83), allowing effects to borrow non-`'static` data. This is valuable for programs that hold references to local state. The port-plan's section 4.4 commitment to a four-variant `Free` family (with `FreeExplicit` supporting non-`'static` payloads) aligns with this design. Corophage demonstrates that the pattern is already practical and compatible with coroutine-based execution.
+One implementation detail worth noting: corophage uses `'a` as a lifetime parameter on all effects (`Effects<'a>: MapResume + Send + Sync + 'a`, effect.rs:83), allowing effects to borrow non-`'static` data. This is valuable for programs that hold references to local state. The decisions's section 4.4 commitment to a four-variant `Free` family (with `FreeExplicit` supporting non-`'static` payloads) aligns with this design. Corophage demonstrates that the pattern is already practical and compatible with coroutine-based execution.
 
 ### References
 

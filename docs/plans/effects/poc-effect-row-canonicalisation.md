@@ -3,11 +3,11 @@
 **Status:** complete
 **Last updated:** 2026-04-25
 **Code:** [`poc-effect-row/`](../../../poc-effect-row/) at the repo root.
-**Question source:** [port-plan.md](port-plan.md) section 4.1, "Ordering mitigations" subsection.
+**Question source:** [decisions.md](decisions.md) section 4.1, "Ordering mitigations" subsection.
 
 ## 1. Purpose and scope
 
-The port-plan currently recommends the hybrid workaround 1 + workaround 3 for effect-row ordering: a proc-macro `effects![...]` lexically sorts effect names at expansion time so two orderings of the same effect set produce the same canonical type (workaround 1), with frunk's `CoproductSubsetter` as a fallback when users hand-write a non-canonical row (workaround 3). The recommendation rested on the observation that workaround 1 is feasible-in-principle and workaround 3 is mature in `effing-mad` and `corophage`, but the hybrid had not been demonstrated working together.
+The decisions currently recommends the hybrid workaround 1 + workaround 3 for effect-row ordering: a proc-macro `effects![...]` lexically sorts effect names at expansion time so two orderings of the same effect set produce the same canonical type (workaround 1), with frunk's `CoproductSubsetter` as a fallback when users hand-write a non-canonical row (workaround 3). The recommendation rested on the observation that workaround 1 is feasible-in-principle and workaround 3 is mature in `effing-mad` and `corophage`, but the hybrid had not been demonstrated working together.
 
 This POC closes that gap by writing the smallest possible end-to-end implementation and exercising both halves under a single handler, plus a small `tstr_crates` integration demo (tests t14-t16) that probes what the optional refinement actually delivers on stable Rust. It does NOT measure compile-time cost and does NOT capture error-message quality on failing fallbacks (those would be follow-ups if the design moves to production).
 
@@ -64,13 +64,13 @@ The handler itself is unaware of which path was used. From the handler's perspec
 
 ### 4.2 Sort by stringified type works for generic and lifetime-parameterised effects
 
-The riskiest unknown going in was whether sorting by `quote!{}.to_string()` would be robust under the kinds of types real effects use. Tests t06, t07, t08 cover the cases the port-plan section 4.1 explicitly flagged:
+The riskiest unknown going in was whether sorting by `quote!{}.to_string()` would be robust under the kinds of types real effects use. Tests t06, t07, t08 cover the cases the decisions section 4.1 explicitly flagged:
 
 - Generic effect types (`Reader<Env>`, `State<S>`) sort consistently because their stringified form includes the generic parameters. Two invocations with the same effects in different orders produce identical sorted strings and therefore identical canonical types.
 - Same root with different generic parameters (`Reader<i32>` vs `Reader<i64>`) sort as distinct entries because their full stringified forms differ at the parameter position. The canonical form preserves both, in lexical order.
 - Lifetime parameters compile through. The macro does not need to special-case `'a` or `'static`.
 
-The port-plan listed three concerns about workaround 1: hand-written types bypass the sort, generic parameters in textual names, and fully-generic effects without canonical names at expansion time. The first concern is real and is exactly why workaround 3 exists as a fallback. The second and third concerns are addressed by stringifying the WHOLE type (including parameters) before sorting; this POC confirms that approach works for the cases that matter.
+The decisions listed three concerns about workaround 1: hand-written types bypass the sort, generic parameters in textual names, and fully-generic effects without canonical names at expansion time. The first concern is real and is exactly why workaround 3 exists as a fallback. The second and third concerns are addressed by stringifying the WHOLE type (including parameters) before sorting; this POC confirms that approach works for the cases that matter.
 
 ### 4.3 Empty and singleton edge cases work
 
@@ -80,7 +80,7 @@ Tests t04 and t05 cover the boundary cases. `effects![]` produces `CNil`; `effec
 
 Tests t11 and t12 stress trait inference. 5-effect and 7-effect rows compile and canonicalise across multiple orderings without observable slowdown. The `cargo test` runtime for the full 13-test suite is under one second on a cold build, suggesting trait resolution for these sizes is comfortable.
 
-This does not refute the port-plan's note that compile time scales with permutation size in the worst case. Workaround 3's `.subset()` machinery scales factorially in the worst case (the `frunk` indices machinery searches permutations), but for normal sizes this remains fast. A future test suite would want to push to 10+ effects to find the inflection point.
+This does not refute the decisions's note that compile time scales with permutation size in the worst case. Workaround 3's `.subset()` machinery scales factorially in the worst case (the `frunk` indices machinery searches permutations), but for normal sizes this remains fast. A future test suite would want to push to 10+ effects to find the inflection point.
 
 ### 4.5 tstr_crates integration: building blocks present, type-level sort still needs nightly
 
@@ -94,7 +94,7 @@ What `tstr_crates` does NOT enable on stable Rust: the `Ordering` returned by `t
 
 ### 4.6 Static-via-Coyoneda for section 4.2: empirically validated end-to-end
 
-Tests c01-c08 close the open question in port-plan section 4.2 (which option resolves the `Functor` dictionary requirement for `VariantF<R>`):
+Tests c01-c08 close the open question in decisions section 4.2 (which option resolves the `Functor` dictionary requirement for `VariantF<R>`):
 
 - **The macro integrates with Coyoneda wrapping cleanly.** `effects_coyo![A; F1, F2]` lexically sorts the inner effect names and emits `Coproduct<Coyoneda<F1, A>, Coproduct<Coyoneda<F2, A>, CNil>>`. Two orderings produce the same canonical row, including for generic effect types (c01, c02, c07). The macro syntax requires an explicit answer-type prefix because `Coyoneda<F, A>` has two type parameters and the macro needs both at expansion time; in production this would be hidden inside `Run<Effs, A>`'s definition so users would not see it.
 - **`Coyoneda<F, A>` is a Functor for any F.** The POC's `Functor` trait impl on `Coyoneda` works for any inner `F`, including types that have no Functor impl of their own (`Logger` in test c03). `fmap` composes the lifted function without touching `fb`; the inner state is preserved through chains (c04). `lower` runs the composed function for the round-trip (c05).
@@ -112,15 +112,15 @@ The final test suite produces no compiler warnings. The proc-macro implementatio
 
 In scope to flag for follow-up work:
 
-- **Compile-time error messages on failing fallback.** When a user hand-writes a coproduct that is NOT a permutation of the canonical row (e.g., it lacks an effect the handler requires), what does the compiler say? `static_assertions::assert_type_eq_all!` failure produces a `mem::transmute` error message; `.subset()` failure produces a long frunk-index error. Neither is friendly, and the port-plan flagged error quality as a concern. A real follow-up would capture sample errors and judge whether they meet the user-experience bar.
+- **Compile-time error messages on failing fallback.** When a user hand-writes a coproduct that is NOT a permutation of the canonical row (e.g., it lacks an effect the handler requires), what does the compiler say? `static_assertions::assert_type_eq_all!` failure produces a `mem::transmute` error message; `.subset()` failure produces a long frunk-index error. Neither is friendly, and the decisions flagged error quality as a concern. A real follow-up would capture sample errors and judge whether they meet the user-experience bar.
 - **Macro hygiene with ambient generics.** This POC uses concrete types (`A`, `B`, `Reader<Env>`). What happens when `effects![T, U]` is expanded inside a function generic over `T` and `U`? The macro stringifies `T` and `U` to "T" and "U" lexically, which works for sorting but might surprise a user who expects type-identity-based ordering rather than name-based ordering. Worth testing.
 - **A richer macro that consumes TStr names from a `NamedEffect` trait.** Tests t14-t16 demonstrate the data shape and the compile-time comparison. The remaining step (a proc-macro that takes effects and reads their TStr names instead of the type's stringified path) is straightforward but not implemented in this POC. Worth doing if the project decides import-path independence is important.
 - **Compile-time benchmark.** No measurement of how long the macro adds to compile time on the user's side, or how `.subset()` mediation scales as the row grows past 7 effects. The plan flagged factorial worst-case for trait resolution; the POC did not exercise that boundary.
 - **Negative tests.** Compile-fail tests would prove the system rejects ill-typed fallbacks (e.g., handler expects `effects![A, B]` but receives `Coproduct<A, CNil>`). Useful for regression, but not load-bearing for the feasibility verdict.
 
-## 6. Implications for port-plan section 4.1
+## 6. Implications for decisions section 4.1
 
-The hybrid is feasible. The port-plan's existing recommendation (workaround 1 primary, workaround 3 fallback) can stand without revision; the POC strengthens rather than changes the recommendation.
+The hybrid is feasible. The decisions's existing recommendation (workaround 1 primary, workaround 3 fallback) can stand without revision; the POC strengthens rather than changes the recommendation.
 
 Three small adjustments worth considering for the eventual implementation:
 
@@ -142,4 +142,4 @@ The POC code at `poc-effect-row/` can be deleted once those tests migrate to the
 
 ## 8. Verdict
 
-The hybrid (workaround 1 macro canonicalisation + workaround 3 `CoproductSubsetter` fallback) is a working design on stable Rust 1.94.1. Thirteen passing tests cover the cases the port-plan flagged as risky, including generics, lifetimes, and 5-7 effect scaling. No port-plan edits are recommended; the existing recommendation can be implemented as written.
+The hybrid (workaround 1 macro canonicalisation + workaround 3 `CoproductSubsetter` fallback) is a working design on stable Rust 1.94.1. Thirteen passing tests cover the cases the decisions flagged as risky, including generics, lifetimes, and 5-7 effect scaling. No decisions edits are recommended; the existing recommendation can be implemented as written.

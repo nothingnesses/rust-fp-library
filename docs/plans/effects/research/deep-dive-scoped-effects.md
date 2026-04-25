@@ -166,7 +166,7 @@ fn interpret_primitive(
 
 **Row requirements:** Single row. Derived effects do not require a separate layer; they are compiled down via type-level computation. Primitives are first-order. Peano indices work identically.
 
-**Fit with Option 4 + Peano.** Good fit. The reformulation strategy is independent of the row encoding. It is a layering idea on top of option 4's macro-sugar coproduct. The only wrinkle: in-other-words uses a `Carrier` typeclass to mediate reformulation; Rust would need a similar abstraction at the Handler level, which is sketched in section 4.2 of port-plan.md.
+**Fit with Option 4 + Peano.** Good fit. The reformulation strategy is independent of the row encoding. It is a layering idea on top of option 4's macro-sugar coproduct. The only wrinkle: in-other-words uses a `Carrier` typeclass to mediate reformulation; Rust would need a similar abstraction at the Handler level, which is sketched in section 4.2 of decisions.md.
 
 ### 2.4 Freer-simple: interposition
 
@@ -268,7 +268,7 @@ fn interpose<Op, A>(
 
 **Runners-up and their tradeoffs:**
 
-- **Polysemy (Tactical):** Excellent library design; the state-threading abstraction is powerful. But Rust's constraint on rank-N types and the existence of the existential `F` functor make it harder to implement safely. Error messages would be less clear. Recommended as a fallback if the dual-row approach proves hard to integrate with port-plan section 4.2's Functor dictionary requirement.
+- **Polysemy (Tactical):** Excellent library design; the state-threading abstraction is powerful. But Rust's constraint on rank-N types and the existence of the existential `F` functor make it harder to implement safely. Error messages would be less clear. Recommended as a fallback if the dual-row approach proves hard to integrate with decisions section 4.2's Functor dictionary requirement.
 - **In-other-words (primitive reformulation):** Sound and elegant. The derived/primitive split solves the quadratic-instance problem. However, it adds a tier of abstraction that Rust developers would need to learn. Better as a Phase 2 optimization, once the dual-row layer is stable.
 - **Freer-simple (interpose):** Lightest-weight, most idiomatic for Rust (runtime dispatch, no exotic type machinery). Good fit for a minimal MVP, but lacks the AST-level access that makes scoped effects reinterpretable and machine-readable. Recommended as a fallback if static dispatch becomes a blocker.
 
@@ -318,7 +318,7 @@ This is boilerplate, but it is unavoidable. The dual-row pattern is not a workar
 
 ### 5.3 The `'static` constraint on boxed continuations
 
-When storing `Box<dyn Fn(String) -> Free<VariantF<R>, A>>` as the handler in a `CatchOp`, the closure must be `'static` because it will be boxed and stored in the union. If the handler closes over borrowed references (e.g., `&str`, `&mut Vec<T>`), the port must use `FreeExplicit` (section 4.4), not `Free`. The port-plan already commits to shipping `FreeExplicit` for this reason; the dual-row approach is compatible with it.
+When storing `Box<dyn Fn(String) -> Free<VariantF<R>, A>>` as the handler in a `CatchOp`, the closure must be `'static` because it will be boxed and stored in the union. If the handler closes over borrowed references (e.g., `&str`, `&mut Vec<T>`), the port must use `FreeExplicit` (section 4.4), not `Free`. The decisions already commits to shipping `FreeExplicit` for this reason; the dual-row approach is compatible with it.
 
 **Mitigation:** Document clearly that scoped handlers that close over non-`'static` environment must use `FreeExplicit<'a, ...>` and include a lifetime parameter on the higher-order row itself: `HigherOrderRow<'a>`. This couples the two rows at the lifetime level, which is acceptable because lifetimes are usually inferred.
 
@@ -364,7 +364,7 @@ Section 4.1 is complete. The following edits to section 4.2 and 4.4 are recommen
 
 **Port-plan references:**
 
-- docs/plans/effects/port-plan.md:4.1 (row encoding options)
-- docs/plans/effects/port-plan.md:4.2 (Functor dictionary)
-- docs/plans/effects/port-plan.md:4.4 (Free family decision)
+- docs/plans/effects/decisions.md:4.1 (row encoding options)
+- docs/plans/effects/decisions.md:4.2 (Functor dictionary)
+- docs/plans/effects/decisions.md:4.4 (Free family decision)
 - fp-library/src/types/free.rs (current Free implementation)

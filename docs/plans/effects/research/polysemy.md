@@ -7,7 +7,7 @@
 ## Purpose
 
 Stage 1 research document: classify `polysemy` against the five
-effect-row encodings catalogued in [../port-plan.md](../port-plan.md)
+effect-row encodings catalogued in [../decisions.md](../decisions.md)
 section 4.1. Identify whether this codebase is a variant of an existing
 option or represents a genuinely novel encoding worth deeper
 investigation in Stage 2.
@@ -55,11 +55,11 @@ The `Tactical` monad (defined at `src/Polysemy/Internal/Tactics.hs:77-78`) reifi
 
 The `Scoped` effect (documented in `src/Polysemy/Internal/Scoped.hs:106-109` and interpreted in `src/Polysemy/Scoped.hs`) is a second major contribution: it decouples resource allocation from effect interpretation by introducing a meta-effect that wraps the programmer's computation. The interpreter receives the wrapped computation and decides when to allocate/deallocate resources.
 
-### Classification against port-plan section 4.1
+### Classification against decisions section 4.1
 
 Polysemy is a tight variant of **option 1: Type-level heterogeneous list / nested coproduct**. The effect row is encoded as a type-level list that maps to integer indices at runtime via `ElemOf`. The Member resolution is Peano-style (recursive instances at `src/Polysemy/Internal/Union.hs:202-206`), so index depth scales O(n). The indexing proof is hidden from users except in error messages.
 
-However, polysemy differs from the port-plan's description of option 1 in one significant way: the actual member proofs are integers, not type-level witnesses. The compile-time proof uniqueness is guaranteed by Haskell's constraint solver, but the runtime representation is a bare `Int`. This avoids the monomorphisation overhead that would result from generating a distinct instance per call site if the index were a type-level phantom (as in frunk). Haskell's type erasure makes this trade-off safe; Rust would need to decide whether to accept the monomorphisation cost or use runtime tags (approaching option 3).
+However, polysemy differs from the decisions's description of option 1 in one significant way: the actual member proofs are integers, not type-level witnesses. The compile-time proof uniqueness is guaranteed by Haskell's constraint solver, but the runtime representation is a bare `Int`. This avoids the monomorphisation overhead that would result from generating a distinct instance per call site if the index were a type-level phantom (as in frunk). Haskell's type erasure makes this trade-off safe; Rust would need to decide whether to accept the monomorphisation cost or use runtime tags (approaching option 3).
 
 This is still squarely within option 1's design space.
 
@@ -79,11 +79,11 @@ The implementation relies on type-level list machinery to maintain this openness
 
 New effects can be defined as GADTs (as shown in `src/Polysemy.hs:44-53`) with smart constructors generated via Template Haskell (`makeSem`). This is UX sugar; the substrate is the `send` function which injects effects into the Union at any position in the row, using the Member proof.
 
-### Relevance to port-plan
+### Relevance to decisions
 
 No change needed. Polysemy confirms that option 1 (type-level nested coproduct with Peano-style indexing) is a mature, production-grade encoding for extensible effects in a strongly-typed functional language. Its innovations (Weaving, Tactical, Scoped) are implementation conveniences layered on top of the core option-1 machinery, not departures from it.
 
-The one wrinkle is that Haskell can erase type-level proofs to integers and recover the right behavior via type erasure at call sites. Rust cannot do this; it must choose between (a) keeping indices as types (incurring monomorphisation cost as noted above), (b) accepting runtime tags (option 3), or (c) using a hybrid (option 4). The port-plan already acknowledges these trade-offs; polysemy does not introduce new considerations.
+The one wrinkle is that Haskell can erase type-level proofs to integers and recover the right behavior via type erasure at call sites. Rust cannot do this; it must choose between (a) keeping indices as types (incurring monomorphisation cost as noted above), (b) accepting runtime tags (option 3), or (c) using a hybrid (option 4). The decisions already acknowledges these trade-offs; polysemy does not introduce new considerations.
 
 The Tactical and Scoped mechanisms are valuable and should inform the design of handler combinators and higher-order effect support in Rust, but they do not require changes to the row encoding decision itself.
 

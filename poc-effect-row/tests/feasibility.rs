@@ -1,6 +1,6 @@
 //! Feasibility tests for the workaround-1 + workaround-3 hybrid.
 //!
-//! Each test maps to a specific question raised by the port-plan's
+//! Each test maps to a specific question raised by the decisions's
 //! section 4.1 ordering-mitigations subsection.
 //!
 //! Test naming convention: `t<NN>_<question_under_test>`.
@@ -241,7 +241,7 @@ fn t13_subsetter_handles_five_effect_permutation() {
 // cannot directly canonicalise hand-written coproducts at the type
 // level. Lifting Ordering into trait-dispatch terms requires nightly
 // `feature(adt_const_params)` plus `feature(generic_const_exprs)`.
-// This is the gap noted in port-plan section 4.1's discussion of
+// This is the gap noted in decisions section 4.1's discussion of
 // approach 4 (adt_const_params with strings) versus approach 9
 // (type-level hashing with type-level result) in the type-level-
 // sorting research README.

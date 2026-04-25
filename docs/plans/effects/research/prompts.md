@@ -38,8 +38,8 @@ pending item, in parallel:
 Agents must respect the per-file word budget (~1500 words excluding
 template boilerplate) and the contract in
 `docs/plans/effects/research/README.md`. Do NOT modify
-`../port-plan.md` directly; note any plan-relevant findings under the
-"Relevance to port-plan" subsection of the research file.
+`../decisions.md` directly; note any plan-relevant findings under the
+"Relevance to decisions" subsection of the research file.
 
 After all <N> agents complete, report a brief summary of what each
 found: the classification against options 1-5 and whether the codebase
@@ -65,8 +65,8 @@ Fill every required subsection with findings grounded in source
 references (file paths and line numbers). Respect the ~1500-word
 budget and the contract in
 `docs/plans/effects/research/README.md`. Do NOT modify
-`../port-plan.md` directly; note any plan-relevant findings under the
-"Relevance to port-plan" subsection of the research file.
+`../decisions.md` directly; note any plan-relevant findings under the
+"Relevance to decisions" subsection of the research file.
 
 When complete, update the file's `Status:` to `complete`, set
 `Last updated:`, and tick the corresponding checkbox in
@@ -94,7 +94,7 @@ Required structure:
 
 1. Brief intro: what Stage 1 set out to answer.
 2. Classification table: one row per codebase, columns for core
-   substrate, classification against port-plan section 4.1's options
+   substrate, classification against decisions section 4.1's options
    1-5, and a one-line novelty verdict.
 3. "Novel encodings" section: for each codebase flagged genuinely
    novel, briefly sketch what makes it novel and why it deserves a
@@ -104,11 +104,11 @@ Required structure:
 5. "Recommendations for Stage 2" section: name which (if any) deep
    dives are worth scheduling and what specific questions each should
    answer.
-6. "Relevance to port-plan" section: which sections of
-   `../port-plan.md` would change based on Stage 1 findings, or "no
+6. "Relevance to decisions" section: which sections of
+   `../decisions.md` would change based on Stage 1 findings, or "no
    changes recommended" explicitly if that is the conclusion.
 
-Word budget: ~2500 words. Do NOT modify `../port-plan.md` directly.
+Word budget: ~2500 words. Do NOT modify `../decisions.md` directly.
 
 When complete, update `docs/plans/effects/research/_status.md` to
 tick the `_classification.md` checkbox and add any Stage 2 deep dives
@@ -146,12 +146,12 @@ Fill `docs/plans/effects/research/deep-dive-<TOPIC>.md` with:
    Rust given the `fp-library` Brand/Kind machinery? What would
    block it? What would it cost in complexity, unsafe code, or
    performance?
-4. Comparison against the five options in `../port-plan.md` section
+4. Comparison against the five options in `../decisions.md` section
    4.1. Does this warrant a sixth option, or does it refine an
    existing one?
 5. Concrete plan-edit recommendations, if any.
 
-Word budget: ~2000 words. Do NOT modify `../port-plan.md` directly;
+Word budget: ~2000 words. Do NOT modify `../decisions.md` directly;
 recommend plan edits in section 5 of the deep-dive doc instead.
 
 When complete, set `Status: complete` in the deep-dive file, tick
@@ -174,7 +174,7 @@ Research task: <DESCRIBE THE QUESTION IN ONE OR TWO SENTENCES>.
 Work within `docs/plans/effects/research/`. Follow the agent contract
 in `docs/plans/effects/research/README.md`: files descriptive, not
 prescriptive; claims grounded in source references; plan edits
-recommended via "Relevance to port-plan" subsections, not executed.
+recommended via "Relevance to decisions" subsections, not executed.
 
 If this work produces a new research artefact, name the file
 `docs/plans/effects/research/<sensible-name>.md` and add an

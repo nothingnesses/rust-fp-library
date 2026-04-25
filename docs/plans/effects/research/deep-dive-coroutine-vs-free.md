@@ -5,7 +5,7 @@
 
 ## 1. Purpose and scope
 
-The port-plan's section 4.4 couples first-class programs with the Free monad
+The decisions's section 4.4 couples first-class programs with the Free monad
 family as a single architectural commitment. This dive asks: which properties
 of the Free-family actually require an AST data structure, and which survive
 under a coroutine-only substrate?
@@ -368,7 +368,7 @@ The code is not pure; it is imperative wrapped in a closure.
 
 **Definition (PureScript-Run context):**
 
-PureScript's `hoistFree` (purescript-free, referenced in port-plan section
+PureScript's `hoistFree` (purescript-free, referenced in decisions section
 3.2) transforms every effect in a program via a natural transformation `F ~>
 G` without running the program. Example: convert all `State` effects to
 `(s -> Tuple s a)` via a natural transformation. The result is a new program
@@ -484,7 +484,7 @@ not a differentiator.
 
 **Key finding:** Coroutines support two of the six cells (stack safety and
 type-level handler composition). The other four all require an AST data
-structure. Since the port-plan commits to multi-shot interpretation,
+structure. Since the decisions commits to multi-shot interpretation,
 data-level handler composition (peel/send routing), pure-data inspection,
 and hoisting as core features (section 4.4), Free is **mandatory**, not
 optional. The type-level composition coroutines do provide is a convenience
@@ -525,7 +525,7 @@ section 3.2. But it cannot support:
 
 ### 4.2 Hybrid option: Free over a coroutine base functor
 
-The port-plan already contemplates shipping four Free variants (`Free`, `RcFree`,
+The decisions already contemplates shipping four Free variants (`Free`, `RcFree`,
 `ArcFree`, `FreeExplicit`). A fifth option would be **Free over a coroutine
 base functor**: each suspended layer is a coroutine, not a plain functor. This
 would combine the AST properties of Free (peel, send, runPure, hoisting) with
@@ -542,7 +542,7 @@ Based on the evidence, the port should:
 
 1. **Commit to Free for the core effect system**, not coroutines. Every Free
    property tested above (except stack safety, which both support equally) is
-   **essential** to the port-plan's vision of first-class programs.
+   **essential** to the decisions's vision of first-class programs.
 2. **Use the four planned Free variants** (Free, RcFree, ArcFree, FreeExplicit)
    to handle Send/Sync/lifetime constraints.
 3. **Consider coroutines as an implementation detail**, not a substrate choice:
@@ -553,7 +553,7 @@ Based on the evidence, the port should:
 
 ---
 
-## 5. Comparison against port-plan section 4.4
+## 5. Comparison against decisions section 4.4
 
 Section 4.4 commits to "a Free monad design" and lists four variants. The
 stated goal is to preserve: "multi-shot continuations" (handler composition
@@ -563,7 +563,7 @@ transformations).
 **Finding:** Coroutines support type-level handler attachment (row
 narrowing) but do not support the data-level versions of the four
 distinguishing properties: multi-shot interpretation, data-level peel/send,
-pure-data inspection, and hoisting. Since the port-plan's stated goals name
+pure-data inspection, and hoisting. Since the decisions's stated goals name
 the data-level properties specifically (continuations that can be invoked
 multiple times, programs that can be walked as data, natural-transformation
 hoists), Free (or an equivalent AST) is **required**, not optional.
@@ -578,7 +578,7 @@ substrate choice.
 
 ## 6. Concrete plan-edit recommendations
 
-The primary finding is **defensive**: the port-plan's section 4.4 Free-family
+The primary finding is **defensive**: the decisions's section 4.4 Free-family
 commitment is validated, not questioned. The four-variant Free family stays.
 
 One minor edit is warranted from the type-level-vs-data-level distinction

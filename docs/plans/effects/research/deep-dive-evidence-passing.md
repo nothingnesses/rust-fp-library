@@ -7,7 +7,7 @@
 
 Stage 1 flagged EvEff ([eveff.md](eveff.md)) and Koka
 ([koka.md](koka.md)) as genuinely novel relative to the five row
-encodings in port-plan section 4.1. The synthesis
+encodings in decisions section 4.1. The synthesis
 ([\_classification.md](_classification.md), section 5.1) queued this
 deep dive to answer one question: can Rust host a typed handler-vector
 dispatch, as EvEff and Koka do in Haskell, that is ergonomic and
@@ -16,7 +16,7 @@ requiring delimited continuations?
 
 Scope: classify the dispatch mechanism (handler-vector lookup by
 type identity) separately from the control substrate (multi-prompt
-continuations). The control substrate is ruled out by port-plan
+continuations). The control substrate is ruled out by decisions
 section 1.2. The dispatch mechanism is the candidate for a sixth
 option or a refinement of an existing one. This dive reads EvEff's
 `Context e` GADT and Koka's `OpenResolve` pass against the
@@ -230,7 +230,7 @@ Blockers for a Rust simulation:
   index parameter produces frunk-class error messages. No worse
   than Option 1; no better.
 
-## 4. Comparison against the port-plan's five options
+## 4. Comparison against the decisions's five options
 
 The dispatch mechanism that EvEff calls "evidence passing" does
 not, in Rust, constitute a sixth row encoding. Once `HEqual` is
@@ -260,7 +260,7 @@ Option 4, not as a separate encoding.
 ## 5. Concrete plan-edit recommendations
 
 This deep dive recommends three specific edits to
-`../port-plan.md` section 4.1.
+`../decisions.md` section 4.1.
 
 **5.1 Close evidence passing as a candidate encoding.** Section
 4.1 should explicitly note that evidence passing, as implemented

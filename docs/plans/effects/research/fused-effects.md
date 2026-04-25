@@ -7,7 +7,7 @@
 ## Purpose
 
 Stage 1 research document: classify `fused-effects` against the five
-effect-row encodings catalogued in [../port-plan.md](../port-plan.md)
+effect-row encodings catalogued in [../decisions.md](../decisions.md)
 section 4.1. Identify whether this codebase is a variant of an existing
 option or represents a genuinely novel encoding worth deeper
 investigation in Stage 2.
@@ -53,7 +53,7 @@ structures. Each effect definition includes both first-order operations (like
 (e.g., `Reader.Local`), which receive different Algebra interpretations but
 are not syntactically distinguished from ordinary effects.
 
-### Classification against port-plan section 4.1
+### Classification against decisions section 4.1
 
 Fused-effects is a variant of **Option 5 (trait-bound set / mtl-style)** with
 a crucial hybrid twist. On the surface, programs are written as generic
@@ -66,7 +66,7 @@ over this coproduct. Thus fused-effects is **Option 5 with a Option 1 substrate
 underneath**, but crucially without Free: the coproduct is not wrapped in a
 monad, and the program is not a data structure. This makes it unsuitable for
 porting to Rust as-is if the port must satisfy the Free-family commitment in
-port-plan section 4.4 (programs must be first-class values for multi-shot
+decisions section 4.4 (programs must be first-class values for multi-shot
 interpretation and handler composition via `peel`/`send`).
 
 ### Scoped-operations handling (`local`, `catch`, and similar)
@@ -97,9 +97,9 @@ code that takes one program and passes it to multiple different carriers in
 sequence; instead, you run the entire computation end-to-end with a chosen
 carrier stack.
 
-### Relevance to port-plan
+### Relevance to decisions
 
-Fused-effects reveals a critical tension: the port-plan's Free-family
+Fused-effects reveals a critical tension: the decisions's Free-family
 commitment (section 4.4) requires first-class programs to enable multi-shot
 interpretation and dynamic handler composition. Fused-effects explicitly
 rejects Free and uses direct dispatch instead. If the Rust port is to support

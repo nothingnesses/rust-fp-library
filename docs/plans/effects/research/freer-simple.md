@@ -7,7 +7,7 @@
 ## Purpose
 
 Stage 1 research document: classify `freer-simple` against the five
-effect-row encodings catalogued in [../port-plan.md](../port-plan.md)
+effect-row encodings catalogued in [../decisions.md](../decisions.md)
 section 4.1. Identify whether this codebase is a variant of an existing
 option or represents a genuinely novel encoding worth deeper investigation
 in Stage 2.
@@ -47,7 +47,7 @@ Second, the codebase achieves constant-time injection and projection (`src/Data/
 by storing a `Word` index directly in the Union constructor and using `unsafeCoerce` to
 treat all payloads as the same size at runtime. This is a known approach, not novel.
 
-### Classification against port-plan section 4.1
+### Classification against decisions section 4.1
 
 `freer-simple` is a direct instance of **Option 1: Type-level heterogeneous list / nested coproduct**
 with Peano indices. The effect row is represented as a nested type: `Eff (Reader e ': State s ': []) a`
@@ -87,14 +87,14 @@ through the type, so a handler can be stacked with others. New effects are defin
 (no special infrastructure required); the open union automatically accommodates them as long as
 the user provides a handler. This is the baseline freer design; openness is "built in" by parametricity.
 
-### Relevance to port-plan
+### Relevance to decisions
 
 No change needed. `freer-simple` confirms that option 1 (Peano-indexed nested coproduct)
 is a well-proven design with real-world adoption and good ergonomics when paired with
 handler-combinator libraries. The stack-safe tail queue is an implementation detail that
 does not affect the row encoding choice. The absence of higher-order scoped effects (true
 delimited continuations) is a deliberate design trade-off, not a limitation of the encoding;
-the port-plan section 4.4 already commits to Free family and handler composability,
+the decisions section 4.4 already commits to Free family and handler composability,
 which freer-simple demonstrates. The plan's note at section 4.1 that "freer-simple" and
 "polysemy" are real-world references for option 1 is validated.
 

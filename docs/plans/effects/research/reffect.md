@@ -7,7 +7,7 @@
 ## Purpose
 
 Stage 1 research document: classify `reffect` against the five
-effect-row encodings catalogued in [../port-plan.md](../port-plan.md)
+effect-row encodings catalogued in [../decisions.md](../decisions.md)
 section 4.1. Reffect is already named in the plan as the reference
 implementation for option 2 (typenum-indexed sum list); this research
 confirms or updates that characterisation and surfaces any details the
@@ -40,7 +40,7 @@ Reffect contributes a **compile-time-indexed handler composition pipeline** and 
 
 3. **Macro-sugar for effect groups and row specification:** The `#[effectful(...)]` attribute (macros/src/lib.rs:146-156) and `#[group]` trait macro (macros/src/lib.rs:159-171) normalize effect rows by converting flat effect lists into nested tuples via the `Effect` enum parsing. No canonical sort is applied; order is preserved as written by the user.
 
-### Classification against port-plan section 4.1
+### Classification against decisions section 4.1
 
 **Confirmed as Option 2 (typenum-indexed sum list), with strong coroutine-execution overlap from Option 4 (hybrid approach).**
 
@@ -72,7 +72,7 @@ Here, `ConcatList` (src/util/sum_type/range.rs:34-48) is a type-level concatenat
 
 **Row-ordering is user-controlled, not normalized.** Two functions returning `(E1, (E2, ()))` and `(E2, (E1, ()))` have distinct types and will not unify. Reffect does not provide `Embedder` or `Subsetter` traits to convert between orderings. Instead, the handler-composition pipeline via `catch0` and `catch1` (which invoke `SplitList::narrow_tag` in src/util/sum_type/range.rs:50-57) allows type-level reordering at handler boundaries. This defers the cost to composition time, not definition time.
 
-### Relevance to port-plan
+### Relevance to decisions
 
 **Change required: rethink the O(log n) claim in section 4.1 option 2 summary.**
 

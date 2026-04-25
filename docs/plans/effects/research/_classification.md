@@ -7,14 +7,14 @@
 
 Stage 1 surveyed 13 effect-system codebases, one research document per
 codebase, classifying each against the five open row encodings catalogued
-in [../port-plan.md](../port-plan.md) section 4.1:
+in [../decisions.md](../decisions.md) section 4.1:
 
 1. Type-level heterogeneous list / nested coproduct with Peano indices.
 2. Typenum-indexed sum list (binary naturals, O(log n) depth).
 3. Trait-object dispatch with `TypeId` tags.
 4. Hybrid: coproduct + macro sugar.
 5. Trait-bound set (mtl-style). Ruled out by the Free-family commitment
-   in port-plan section 4.4 but retained as a benchmark.
+   in decisions section 4.4 but retained as a benchmark.
 
 Each Stage 1 file answered a narrow question: is this codebase a variant
 of one of those options, or is its approach genuinely novel and worth a
@@ -76,7 +76,7 @@ continuations via GHC's `prompt#` and `control0#` RTS primitives. This
 is what makes `local`, `catch`, and `mask` fall out as native
 control-flow features, without the Tactical or HFunctor machinery that
 polysemy and fused-effects need. The same primitives are what make
-MpEff non-portable to Rust: the port-plan has ruled out delimited
+MpEff non-portable to Rust: the decisions has ruled out delimited
 continuations in section 1.2.
 
 EvEff's lookup mechanism, however, is separable from the continuation
@@ -119,7 +119,7 @@ data structure) but goes beyond mtl because the compiler, not the
 user, threads the capability. Rust cannot replicate implicit
 parameters; a simulation would require either a macro layer to inject
 `&dyn Handler` arguments or a novel effect-row syntax. Programs are
-not first-class values, which conflicts with the port-plan's section
+not first-class values, which conflicts with the decisions's section
 4.4 commitment. Effekt is therefore a reference point, not a candidate.
 No Stage 2 deep dive is recommended unless the Free-family commitment
 is ever relaxed.
@@ -158,7 +158,7 @@ equivalent. None of these is a row-encoding novelty; Option 1 is the
 dominant choice in the Free-family world.
 
 **Option 2 family (zero members).** No codebase surveyed implements
-Option 2 as the port-plan defines it. reffect is the plan's named
+Option 2 as the decisions defines it. reffect is the plan's named
 reference, but its tag type `UInt<U>` is a single-parameter phantom
 wrapper, not a two-parameter binary natural like `typenum::UInt<U,
 B0|B1>`. Type depth is O(n), identical to frunk's `There<T>`
@@ -174,7 +174,7 @@ PureScript `Run` itself does (at runtime, `Run` is a
 `{ type: String, value, map }` object), but none of the Rust, Haskell,
 or research-language codebases in the survey use this approach for a
 typed row. The honourable-mention crates (`anymap`, `typemap`,
-`axum::Extension`) in the port-plan are dictionary-style, not
+`axum::Extension`) in the decisions are dictionary-style, not
 effect-row libraries. Option 3 is a feasible fallback but has no
 production validation for the port's specific use case.
 
@@ -184,7 +184,7 @@ Its `Effects![...]` macro preserves user order (no lexical sorting, no
 deduplication), expands to a right-nested frunk coproduct with Peano
 indices, and supports `...Tail` spread syntax. Single-shot `FnOnce`
 handlers rule out multi-shot effects like `Choose`. Its lifetime
-parameter `'a` on effects is a concrete validation of the port-plan's
+parameter `'a` on effects is a concrete validation of the decisions's
 `FreeExplicit` variant for non-`'static` payloads; a detail the plan's
 summary did not call out.
 
@@ -195,7 +195,7 @@ typeclass rather than wrapping the coproduct in Free. Programs are
 generic functions, not first-class values. fx-rs ([fx-rs.md](fx-rs.md))
 uses struct-based evidence traits `Has<T>` / `Put<T, U>` rather than
 trait bounds, but also forecloses on first-class programs. Both are
-ruled out by the port-plan section 4.4 commitment; they serve as
+ruled out by the decisions section 4.4 commitment; they serve as
 fallback designs if the Free-family approach becomes unmanageable.
 
 ## 5. Recommendations for Stage 2
@@ -265,9 +265,9 @@ recommended: a row-normalisation deep dive, because that is a design
 decision to make during Option 4 implementation, not a research
 question.
 
-## 6. Relevance to port-plan
+## 6. Relevance to decisions
 
-Five specific changes to `../port-plan.md` are warranted based on
+Five specific changes to `../decisions.md` are warranted based on
 Stage 1 evidence. This synthesis does not make the edits; they are
 human-review items.
 

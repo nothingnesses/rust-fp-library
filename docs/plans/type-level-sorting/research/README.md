@@ -2,12 +2,12 @@
 
 Supporting research for the question: do any approaches to type-level
 sorting in Rust actually work, and well enough to inform
-[../../effects/port-plan.md](../../effects/port-plan.md) section 4.1's
+[../../effects/decisions.md](../../effects/decisions.md) section 4.1's
 "ordering mitigations" subsection (specifically workaround 2: tag-based
 type-level sorting)? Each file in this directory records findings from
 reading one codebase or pursuing one question. Files are descriptive
 (what is true about the source) rather than prescriptive (what the
-project will do); the port-plan remains the authoritative decision
+project will do); the decisions remains the authoritative decision
 document for the effects port.
 
 ## Why this directory exists
@@ -19,7 +19,7 @@ sessions without losing state. See [`_status.md`](_status.md) for the
 task queue.
 
 This directory was spawned by the effects research; the originating
-question is workaround 2 in port-plan section 4.1, currently rejected
+question is workaround 2 in decisions section 4.1, currently rejected
 on speculative complexity and compile-time grounds. The dive aims to
 catalogue the actual state of type-level sorting in Rust, identify
 which approaches work and at what cost, and surface anything novel.
@@ -56,7 +56,7 @@ rather than ordering).
    than" via overlapping impls; nightly-only, brittle.
 6. **`std::any::TypeId` runtime comparison.** Not type-level proper;
    compare at runtime via stable type identity. Falls back to Option 3
-   (TypeId dispatch) in port-plan terminology.
+   (TypeId dispatch) in decisions terminology.
 7. **Marker-trait inequality via orphan rules.** Exploit coherence rules
    to prove "two types are different".
 8. **Const generics + `const fn` comparison.** Use stable const generics
@@ -71,7 +71,7 @@ rather than ordering).
     identity that deduplicate effects in a row (set) or look up
     per-type values (map), achieving canonicalisation without ordering.
     On stable Rust this typically reduces to runtime `TypeId`-keyed
-    storage, which is approach 6 / port-plan Option 3 in disguise; a
+    storage, which is approach 6 / decisions Option 3 in disguise; a
     truly type-level realisation would require nightly features.
 
 The classification asks: which approach (or combination) does this
@@ -98,9 +98,9 @@ Every file in this directory must:
    the corresponding checkbox in [`_status.md`](_status.md).
 
 Agents writing here should not modify
-[../../effects/port-plan.md](../../effects/port-plan.md) directly. If a
+[../../effects/decisions.md](../../effects/decisions.md) directly. If a
 finding recommends a plan change, note it under "Relevance to
-port-plan" within the research file; the plan edit happens as a
+decisions" within the research file; the plan edit happens as a
 separate human-driven step after the research is reviewed.
 
 ## Resume protocol

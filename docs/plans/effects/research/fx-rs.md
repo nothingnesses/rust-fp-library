@@ -7,7 +7,7 @@
 ## Purpose
 
 Stage 1 research document: classify `fx-rs` against the five effect-row
-encodings catalogued in [../port-plan.md](../port-plan.md) section 4.1.
+encodings catalogued in [../decisions.md](../decisions.md) section 4.1.
 This codebase was mentioned in an earlier ecosystem survey but has not yet
 been characterised in the plan; this research places it in the
 classification space for the first time.
@@ -39,7 +39,7 @@ The effect environment is unordered: `S` is just a type that implements the nece
 
 This comes at a cost: there is no exhaustiveness checking, no AST inspection, and no multi-shot continuation support. Handlers are simple functions `Fx<S, V> -> Fx<T, V>` that transform requirements, not complex transformations over an effect tree.
 
-### Classification against port-plan section 4.1
+### Classification against decisions section 4.1
 
 fx-rs is a novel design that does not fit neatly into options 1-5. The closest conceptual match is _option 5 (trait-bound set)_, except that fx-rs uses concrete struct member types rather than Rust trait bounds. Like option 5, it is fundamentally non-Free, preserves openness via type parameters, and avoids row-ordering issues. Unlike option 5, it does not store effects in method-call form; it wraps them in the `Fx` type and delays evaluation.
 
@@ -61,11 +61,11 @@ Openness is achieved through the `S` type parameter in `Fx<S, V>`. A function ge
 
 The `Abilities` type and macros (`abilities_macro`, `field_macro`, `builder_macro` in crates/) provide ergonomic wrappers for defining effect-specific APIs and deriving evidence implementations, but the core mechanism is trait-based evidence passing, not type-level lists or macros.
 
-### Relevance to port-plan
+### Relevance to decisions
 
-fx-rs is a significant conceptual departure from the five enumerated options and suggests that the port-plan's commitment to the Free-monad family may be too restrictive. However, fx-rs also forecloses on multi-shot continuations (a stated requirement for `Choose` support), exhaustiveness checking, and first-class program values. For the rust-fp-lib port, which explicitly targets Run-style free-monad semantics, fx-rs does not constitute a viable alternative encoding for the row.
+fx-rs is a significant conceptual departure from the five enumerated options and suggests that the decisions's commitment to the Free-monad family may be too restrictive. However, fx-rs also forecloses on multi-shot continuations (a stated requirement for `Choose` support), exhaustiveness checking, and first-class program values. For the rust-fp-lib port, which explicitly targets Run-style free-monad semantics, fx-rs does not constitute a viable alternative encoding for the row.
 
-The **only material relevance** is architectural humility: if the Free + coproduct approach proves unmanageable, option 5 (trait-bound sets) and fx-rs's evidence-passing hybrid represent the next frontier, trading AST composability for simpler type-level machinery. No change to the port-plan's direction is recommended at this stage.
+The **only material relevance** is architectural humility: if the Free + coproduct approach proves unmanageable, option 5 (trait-bound sets) and fx-rs's evidence-passing hybrid represent the next frontier, trading AST composability for simpler type-level machinery. No change to the decisions's direction is recommended at this stage.
 
 ### References
 

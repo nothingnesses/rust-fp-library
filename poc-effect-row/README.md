@@ -1,7 +1,7 @@
 # POC: effect-row canonicalisation hybrid
 
 Standalone POC for the workaround 1 + workaround 3 hybrid described in
-[`docs/plans/effects/port-plan.md`](../docs/plans/effects/port-plan.md)
+[`docs/plans/effects/decisions.md`](../docs/plans/effects/decisions.md)
 section 4.1, "Ordering mitigations". Findings are written up in
 [`docs/plans/effects/poc-effect-row-canonicalisation.md`](../docs/plans/effects/poc-effect-row-canonicalisation.md).
 
@@ -40,7 +40,7 @@ Expected output: `13 passed; 0 failed`.
 ## Status
 
 Feasibility verdict: hybrid is feasible on stable Rust 1.94.1; no
-port-plan edits required. Detailed findings in the docs link above.
+decisions edits required. Detailed findings in the docs link above.
 
 This POC code can be deleted once its tests migrate to the production
 crate during the port implementation.

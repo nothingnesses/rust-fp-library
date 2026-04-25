@@ -7,7 +7,7 @@
 ## Purpose
 
 Stage 1 research document: classify `heftia` against the five effect-row
-encodings catalogued in [../port-plan.md](../port-plan.md) section 4.1.
+encodings catalogued in [../decisions.md](../decisions.md) section 4.1.
 Identify whether this codebase is a variant of an existing option or
 represents a genuinely novel encoding worth deeper investigation in Stage 2.
 
@@ -34,11 +34,11 @@ The key innovation of Heftia relative to a standard `Free + Coproduct + Member` 
 
 The dual row appears in effect definitions: `makeEffectF` generates first-order effects (e.g., `Log :: String -> Log f ()` from Control/Monad/Hefty.hs:30), while `makeEffectH` generates higher-order effects (e.g., `Span :: String -> f a -> Span f a` from Control/Monad/Hefty.hs:34). Higher-order handlers like `handleCatch` use `interposeWith` to rewrite scoped operations into composition points inside the computation (Control/Monad/Hefty/Except.hs:50-51). This is fundamentally different from polysemy's Tactical or fused-effects' HFunctor, which embed continuations as data inside the first-order effect algebraic type.
 
-### Classification against port-plan section 4.1
+### Classification against decisions section 4.1
 
 Classification: Variant of Option 1 (type-level heterogeneous list / nested coproduct), enhanced by a dual-row structure that is orthogonal to the row encoding itself.
 
-The underlying row representation is a nested coproduct with type-level membership indices (likely Peano-style or similar, coming from data-effects). This maps directly to option 1 as described in port-plan.md section 4.1 (lines 125-145). The two-row structure (first-order + higher-order) is not a novel row encoding; it is an architectural layer on top of a standard row. Heftia ships one row of first-order effects and one row of higher-order effects, both using the same underlying coproduct machinery; the novelty lies in how scoped operations become first-class elaboration targets, not in how the row itself is represented.
+The underlying row representation is a nested coproduct with type-level membership indices (likely Peano-style or similar, coming from data-effects). This maps directly to option 1 as described in decisions.md section 4.1 (lines 125-145). The two-row structure (first-order + higher-order) is not a novel row encoding; it is an architectural layer on top of a standard row. Heftia ships one row of first-order effects and one row of higher-order effects, both using the same underlying coproduct machinery; the novelty lies in how scoped operations become first-class elaboration targets, not in how the row itself is represented.
 
 ### Scoped-operations handling (`local`, `catch`, and similar)
 
@@ -48,11 +48,11 @@ Scoped operations are expressed as constructors in the higher-order effect row, 
 
 Heftia achieves openness via the standard Open-Union machinery from data-effects. Functions are written polymorphic in a "tail" row variable, e.g., `fn my_program<R>(...) -> Eff (EFFECT + R) a`, where `R` is an unknown extension. The `Member<E, Row>` constraint (or its data-effects analogue `In`) proves membership of an effect in the row, and composition happens via row-polymorphic type arguments. This is the standard open-union approach used in polysemy, freer-simple, and other Haskell effect libraries. There is no novelty here; Heftia inherits the openness strategy from the underlying data-effects framework.
 
-### Relevance to port-plan
+### Relevance to decisions
 
-Recommendation: No change needed to port-plan.md; consider Stage 2 deep-dive on scoped-operation ergonomics only if a compelling case emerges.
+Recommendation: No change needed to decisions.md; consider Stage 2 deep-dive on scoped-operation ergonomics only if a compelling case emerges.
 
-Heftia's row encoding (option 1 + nested coproduct) offers no new information relative to the existing research. Its key contribution is the dual row separating first-order from higher-order effects; this is orthogonal to the row encoding question that is blocking the port. The port-plan already contemplates first-order and higher-order effects as separate concerns (port-plan.md section 4.2 mentions "Functor dictionary" and the need to handle both); Heftia demonstrates that dual rows can coexist using standard coproduct machinery. However, whether a Rust port should adopt the same dual-row structure is a design question, not an encoding blocker question. If the port were to explore "how should we ergonomically express scoped operations in Rust?", Heftia's `elaborate` / `interpose` pattern is worth studying in Stage 2. For now, the port's immediate blocker (which of options 1-5 for the row encoding) remains unaffected.
+Heftia's row encoding (option 1 + nested coproduct) offers no new information relative to the existing research. Its key contribution is the dual row separating first-order from higher-order effects; this is orthogonal to the row encoding question that is blocking the port. The decisions already contemplates first-order and higher-order effects as separate concerns (decisions.md section 4.2 mentions "Functor dictionary" and the need to handle both); Heftia demonstrates that dual rows can coexist using standard coproduct machinery. However, whether a Rust port should adopt the same dual-row structure is a design question, not an encoding blocker question. If the port were to explore "how should we ergonomically express scoped operations in Rust?", Heftia's `elaborate` / `interpose` pattern is worth studying in Stage 2. For now, the port's immediate blocker (which of options 1-5 for the row encoding) remains unaffected.
 
 ### References
 

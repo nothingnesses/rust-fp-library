@@ -7,7 +7,7 @@
 ## Purpose
 
 Stage 1 research document: classify `koka` against the five effect-row
-encodings catalogued in [../port-plan.md](../port-plan.md) section 4.1.
+encodings catalogued in [../decisions.md](../decisions.md) section 4.1.
 Koka has native row polymorphism, so the interesting question is not "is
 this one of options 1-5" but "how does Koka lower its row types into a
 runtime representation, and could that lowering strategy inform a Rust
@@ -60,7 +60,7 @@ src/Core/OpenResolve.hs:208-218). This is more sophisticated than typical
 Free implementations, which cannot express nested scopes for the same effect
 without additional machinery.
 
-### Classification against port-plan section 4.1
+### Classification against decisions section 4.1
 
 Koka's lowering does not map cleanly to options 1-5. It is closest to
 Option 3 (TypeId-like dispatch) but inverted: rather than tagging values
@@ -71,7 +71,7 @@ extensible. But its lowering is neither a heterogeneous list (Option 1),
 binary-indexed sum (Option 2), dynamic TypeId dispatch (Option 3), nor
 macro sugar (Option 4). Instead, the _row is erased during compilation
 and replaced with a pre-computed vector of evidence indices_. This is
-genuinely novel relative to the port-plan's baseline, and suggests a
+genuinely novel relative to the decisions's baseline, and suggests a
 sixth option: row-polymorphic source, but eager linearization to a
 flat index vector at compile time, with no runtime row structure.
 
@@ -111,7 +111,7 @@ closure: the compiler fully resolves the effect row before code generation.
 Koka's lowering strategy is _partially_ portable to Rust, but faces two blockers.
 First, Koka relies on multi-prompt delimited continuations for the runtime
 semantics of scoped operations (the `ctl` construct and resumption points).
-The port-plan (section 1.2) has ruled out delimited continuations as a
+The decisions (section 1.2) has ruled out delimited continuations as a
 substrate, so Koka's scoped-operation model cannot be ported directly.
 Second, the evidence vector stores pointers to closures and handler tables;
 in Rust, this would require dynamic allocation or unsafe pointer arithmetic,
@@ -127,9 +127,9 @@ modifying the code-generation backend to use them. Feasibility: high for
 the indexing strategy alone, but low for the full handler system without
 delimited continuations.
 
-### Relevance to port-plan
+### Relevance to decisions
 
-Findings suggest a minor revision to port-plan section 4.1. The indexing
+Findings suggest a minor revision to decisions section 4.1. The indexing
 strategy (pre-computed effect indices, flat vector at runtime, scoped
 nesting via mask levels) is novel and worth considering as Option 6 or as
 a hybrid with Option 3. Concretely: if the port uses TypeId or macro-sugar
@@ -141,7 +141,7 @@ in a different form), so the full handler-with-resumption system is not
 portable to a Free-monad-based Rust port. Recommendation: create a Stage 2
 deep dive on the index-generation pass (src/Core/OpenResolve.hs) to assess
 whether the strategy can be adapted to Option 3 or 4 in Rust. No change to
-the current port-plan direction is required at this stage.
+the current decisions direction is required at this stage.
 
 ### References
 

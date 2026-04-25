@@ -12,7 +12,7 @@ Identify whether this codebase implements sorting directly, provides
 primitives that enable sorting, or is unrelated to the question.
 
 `frunk` is the canonical HList / Coproduct crate in Rust and is named
-in the effects port-plan as the Option 1 (Peano-indexed coproduct)
+in the effects decisions as the Option 1 (Peano-indexed coproduct)
 reference. The classification should focus on: does frunk itself sort
 HLists or Coproducts? If not, what type-level operations does it
 provide that could be composed with a sort?
@@ -101,7 +101,7 @@ Frunk _cannot_ make `Coproduct<A, Coproduct<B, Void>>` and `Coproduct<B,
 Coproduct<A, Void>>` resolve to the same type. The core issue: both the
 `embed` method (coproduct.rs:440-450) and the `Embedder` trait (line 1231)
 require an explicit target type as input. The compiler does not infer a
-canonical form. In the effects port-plan, `CoproductSubsetter` (coproduct.rs: 1145) is used to prove that a permutation exists: `subset()` extracts a
+canonical form. In the effects decisions, `CoproductSubsetter` (coproduct.rs: 1145) is used to prove that a permutation exists: `subset()` extracts a
 subset and returns the remainder. This is permutation _mediation_, not
 canonicalisation. Two different coproduct orderings will have two different
 types; subsets must be explicitly requested. A true canonicalisation would

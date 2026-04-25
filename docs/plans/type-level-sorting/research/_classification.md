@@ -6,7 +6,7 @@
 ## 1. What Stage 1 set out to answer
 
 The originating question was whether type-level sorting in Rust is
-feasible enough to inform the effects research's port-plan section
+feasible enough to inform the effects research's decisions section
 4.1 "ordering mitigations" subsection (specifically workaround 2:
 tag-based type-level sorting, currently rejected on speculative
 complexity and compile-time grounds).
@@ -34,7 +34,7 @@ Each Stage 1 file answered three narrow questions: which approach
 does this codebase implement, is it on stable or nightly Rust, and
 could it canonicalise a coproduct row of arbitrary effect types?
 This synthesis aggregates the verdicts, maps the design space, and
-decides whether the port-plan should be revised or any Stage 2 deep
+decides whether the decisions should be revised or any Stage 2 deep
 dive is justified.
 
 ## 2. Classification table
@@ -154,7 +154,7 @@ opt into specialization at the language level. Neither uses it for
 type-level sorting; tyrade uses it for DSL trait dispatch, and
 fixed-type-id uses it conditionally for hash-tagged dispatch. Both
 are nightly-only. The feature is brittle and has no stabilisation
-timeline; ruled out by the port-plan's stable-only posture.
+timeline; ruled out by the decisions's stable-only posture.
 
 ### Approach 6: TypeId runtime comparison
 
@@ -168,7 +168,7 @@ runtime deduplication, not type-level canonicalisation. For an
 effect row, the user could store values from either ordering in an
 anymap and reconstruct in canonical order, but the original
 coproduct types remain distinct compile-time entities. This is the
-port-plan's Option 3 territory.
+decisions's Option 3 territory.
 
 ### Approach 7: marker-trait inequality
 
@@ -225,7 +225,7 @@ typemap-meta cannot make them resolve to the same type.
 The takeaway is sharper than expected: **stable Rust does support
 genuine type-level dispatch on type identity**, just not for
 canonicalising dynamic rows. This is a useful piece of evidence for
-the port-plan: the canonicalisation gap is not "stable Rust is too
+the decisions: the canonicalisation gap is not "stable Rust is too
 weak", it is "stable Rust's type-level dispatch is closed-world".
 
 ## 4. Design-space map
@@ -255,7 +255,7 @@ Pulling together the per-approach findings:
   assigns `TStr<...>` names per effect, recursive trait drives a
   sort using `tstr::cmp`, output is the canonicalised coproduct.
   Several hundred lines of macro plus recursive impls; same shape
-  as the port-plan's workaround 2 description.
+  as the decisions's workaround 2 description.
 
 ## 5. Recommendations for Stage 2
 
@@ -275,13 +275,13 @@ research:
 - The hash-map family (anymap, rust-typemap, typemap-meta) is
   either runtime-keyed or fixed-schema-only.
 
-## 6. Relevance to port-plan
+## 6. Relevance to decisions
 
-**Recommendation: no port-plan edits required. Workaround 2 stays
+**Recommendation: no decisions edits required. Workaround 2 stays
 declined on the existing reasoning.** Unchanged from the original
 synthesis.
 
-Section 4.1 of [../../effects/port-plan.md](../../effects/port-plan.md)
+Section 4.1 of [../../effects/decisions.md](../../effects/decisions.md)
 currently rejects workaround 2 (tag-based type-level sorting) on
 speculative complexity and compile-time grounds. Stage 1 confirmed
 the speculation; the expansion strengthens the confirmation with five
@@ -302,7 +302,7 @@ the call site. This is an analytic distinction, not a new
 encoding; it explains why the design space looks empty even though
 type-level dispatch is technically possible on stable.
 
-No other sections of the port-plan are affected. Section 4.1's
+No other sections of the decisions are affected. Section 4.1's
 workaround 1 (macro-based canonicalisation) and workaround 3
 (`CoproductSubsetter` permutation proofs) remain the recommended
 mitigations.

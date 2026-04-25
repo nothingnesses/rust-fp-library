@@ -55,7 +55,7 @@ against the eight approaches catalogued in [README.md](README.md).
 
 Populate only after every entry above is ticked. Reopened on
 2026-04-25; rewrite folded in the five new classifications and
-restated the verdict (no port-plan edits, two low-priority optional
+restated the verdict (no decisions edits, two low-priority optional
 notes).
 
 - [x] [\_classification.md](_classification.md)

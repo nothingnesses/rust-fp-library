@@ -1,4 +1,4 @@
-//! POC: static-via-Coyoneda for port-plan section 4.2.
+//! POC: static-via-Coyoneda for decisions section 4.2.
 //!
 //! Question: when `VariantF<Coproduct<Eff1, Eff2, ...>>` needs to
 //! implement `Functor`, can the static option (each variant must

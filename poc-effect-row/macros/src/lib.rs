@@ -5,7 +5,7 @@
 //! of `quote!{}.to_string()`), and emits a right-nested
 //! `frunk_core::coproduct::Coproduct<...>` in canonical order.
 //!
-//! This is workaround 1 from port-plan section 4.1 ordering
+//! This is workaround 1 from decisions section 4.1 ordering
 //! mitigations, taken to its logical extreme: the macro always
 //! produces the same canonical type regardless of input order.
 //!
@@ -52,7 +52,7 @@ pub fn effects(input: TokenStream) -> TokenStream {
 /// argument: `effects_coyo![A; Eff1, Eff2]` emits
 /// `Coproduct<Coyoneda<Eff1, A>, Coproduct<Coyoneda<Eff2, A>, CNil>>`
 /// in lexical order. The point is to exercise the macro / Coyoneda
-/// integration story for port-plan section 4.2's static option.
+/// integration story for decisions section 4.2's static option.
 ///
 /// Sort order is determined by the inner effect type's stringified
 /// form, NOT the wrapped form. The inner-vs-wrapped distinction does

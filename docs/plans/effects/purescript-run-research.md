@@ -485,7 +485,7 @@ In every case the surrounding type system constraints make the coercion safe.
 
 ### 6.10 Quick Reference: PureScript Feature to Rust Counterpart
 
-The table below is a fast lookup of each PureScript mechanism used by `purescript-run` and the most plausible Rust counterpart for each. It is informational, not prescriptive; design tradeoffs live in [port-plan.md](port-plan.md).
+The table below is a fast lookup of each PureScript mechanism used by `purescript-run` and the most plausible Rust counterpart for each. It is informational, not prescriptive; design tradeoffs live in [decisions.md](decisions.md).
 
 | PureScript feature                                | Where used in `purescript-run`           | Plausible Rust counterpart                                                   |
 | ------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------- |

@@ -1,7 +1,7 @@
 # Effects research directory
 
 Supporting research for the extensible-algebraic-effects port at
-[../port-plan.md](../port-plan.md). Each file in this directory records
+[../decisions.md](../decisions.md). Each file in this directory records
 findings from reading one codebase or pursuing one question. Files are
 descriptive (what is true about the source) rather than prescriptive (what
 the project will do); the plan remains the authoritative decision document.
@@ -43,8 +43,8 @@ Every file in this directory must:
 5. When completing a file, update its `Status:` to `complete` AND tick the
    corresponding checkbox in [`_status.md`](_status.md).
 
-Agents writing here should not modify `../port-plan.md` directly. If a
-finding recommends a plan change, note it under "Relevance to port-plan"
+Agents writing here should not modify `../decisions.md` directly. If a
+finding recommends a plan change, note it under "Relevance to decisions"
 within the research file; the plan edit happens as a separate human-driven
 step after the research is reviewed.
 

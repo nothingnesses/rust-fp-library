@@ -32,7 +32,7 @@ The keying is **fundamentally runtime**, despite the presence of the `Key` trait
 
 ### Approach used (or enabled)
 
-**Approach 10 (runtime variant).** rust-typemap is a type-level hash-map in nomenclature only: it uses `TypeId` keying and `Box<dyn Any>` storage, placing it in approach 6 (runtime `TypeId` comparison) / port-plan Option 3 territory. Compared to anymap, it differs in requiring explicit `Key` trait impls (stricter at the type level but not more type-level in execution), and providing ergonomic entry APIs. Both crates achieve the same deduplicated storage via `TypeId`; neither enables type-level row canonicalisation. rust-typemap's `Key`-with-`Value` pattern is compile-time ergonomic but not type-level.
+**Approach 10 (runtime variant).** rust-typemap is a type-level hash-map in nomenclature only: it uses `TypeId` keying and `Box<dyn Any>` storage, placing it in approach 6 (runtime `TypeId` comparison) / decisions Option 3 territory. Compared to anymap, it differs in requiring explicit `Key` trait impls (stricter at the type level but not more type-level in execution), and providing ergonomic entry APIs. Both crates achieve the same deduplicated storage via `TypeId`; neither enables type-level row canonicalisation. rust-typemap's `Key`-with-`Value` pattern is compile-time ergonomic but not type-level.
 
 ### Stable or nightly
 
@@ -52,7 +52,7 @@ Both crates store one value per type via `TypeId`-keyed `HashMap<TypeId, Box<dyn
 
 ### Applicability to coproduct row canonicalisation
 
-**Not applicable.** Both rust-typemap and anymap are runtime-keyed. To deduplicate an effect row like `Coproduct<A, Coproduct<B, Void>>` to a canonical order, a type-level coproduct would need to resolve the row structure (and compare effects) at compile time. rust-typemap's `Key`-with-`Value` mechanism does not enable this: inserting two effects of the same type into the same row position is a runtime operation, and the coproduct structure itself is unaffected. No approach in this family (10: runtime hash-maps) solves the canonicalisation problem without falling back to runtime TypeId comparison, which the port-plan already rejects as Option 3.
+**Not applicable.** Both rust-typemap and anymap are runtime-keyed. To deduplicate an effect row like `Coproduct<A, Coproduct<B, Void>>` to a canonical order, a type-level coproduct would need to resolve the row structure (and compare effects) at compile time. rust-typemap's `Key`-with-`Value` mechanism does not enable this: inserting two effects of the same type into the same row position is a runtime operation, and the coproduct structure itself is unaffected. No approach in this family (10: runtime hash-maps) solves the canonicalisation problem without falling back to runtime TypeId comparison, which the decisions already rejects as Option 3.
 
 ### References
 
