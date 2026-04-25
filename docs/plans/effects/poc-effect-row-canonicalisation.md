@@ -25,24 +25,32 @@ Total POC code: ~150 lines including comments. The proc-macro is the only piece 
 
 All 13 tests pass under `cargo test` on the project's stable toolchain (Rust 1.94.1 from the project's nix devenv). Per-test summary:
 
-| Test | What it answers                                                                                                                                            | Result |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| t01  | Two orderings of `{A, B}` produce the same type.                                                                                                           | Pass.  |
-| t02  | All 6 permutations of `{A, B, C}` produce the same type.                                                                                                   | Pass.  |
-| t03  | The canonical form is the lexical order (verified literally).                                                                                              | Pass.  |
-| t04  | `effects![]` produces `CNil`.                                                                                                                              | Pass.  |
-| t05  | `effects![A]` produces `Coproduct<A, CNil>`.                                                                                                               | Pass.  |
-| t06  | Generic effects (`Reader<Env>`, `State<S>`) sort consistently.                                                                                             | Pass.  |
-| t07  | Same root, different generic params (`Reader<i32>`, `Reader<i64>`) sort distinctly but canonicalise across orderings.                                      | Pass.  |
-| t08  | Lifetime parameters compile through the macro.                                                                                                             | Pass.  |
-| t09  | Workaround 3 fallback: hand-written non-canonical row mediates via `.subset()` into the canonical type.                                                    | Pass.  |
-| t10  | Macro-emitted row passes directly into a handler typed on the canonical row (no permutation needed).                                                       | Pass.  |
-| t11  | 5-effect rows canonicalise across multiple orderings.                                                                                                      | Pass.  |
-| t12  | 7-effect rows canonicalise (sufficient to exercise nontrivial trait inference).                                                                            | Pass.  |
-| t13  | `.subset()` mediates a 5-effect permutation reliably.                                                                                                      | Pass.  |
-| t14  | `tstr::TS!("...")` provides stable type-level identity across module contexts.                                                                             | Pass.  |
-| t15  | `tstr::cmp` computes string ordering at compile time, returning `core::cmp::Ordering`.                                                                     | Pass.  |
-| t16  | An effect can carry its canonical TStr name as both a type and a const value via a small `NamedEffect` trait, and pairs of names compare in const context. | Pass.  |
+| Test | What it answers                                                                                                                                                                                                                                           | Result |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| t01  | Two orderings of `{A, B}` produce the same type.                                                                                                                                                                                                          | Pass.  |
+| t02  | All 6 permutations of `{A, B, C}` produce the same type.                                                                                                                                                                                                  | Pass.  |
+| t03  | The canonical form is the lexical order (verified literally).                                                                                                                                                                                             | Pass.  |
+| t04  | `effects![]` produces `CNil`.                                                                                                                                                                                                                             | Pass.  |
+| t05  | `effects![A]` produces `Coproduct<A, CNil>`.                                                                                                                                                                                                              | Pass.  |
+| t06  | Generic effects (`Reader<Env>`, `State<S>`) sort consistently.                                                                                                                                                                                            | Pass.  |
+| t07  | Same root, different generic params (`Reader<i32>`, `Reader<i64>`) sort distinctly but canonicalise across orderings.                                                                                                                                     | Pass.  |
+| t08  | Lifetime parameters compile through the macro.                                                                                                                                                                                                            | Pass.  |
+| t09  | Workaround 3 fallback: hand-written non-canonical row mediates via `.subset()` into the canonical type.                                                                                                                                                   | Pass.  |
+| t10  | Macro-emitted row passes directly into a handler typed on the canonical row (no permutation needed).                                                                                                                                                      | Pass.  |
+| t11  | 5-effect rows canonicalise across multiple orderings.                                                                                                                                                                                                     | Pass.  |
+| t12  | 7-effect rows canonicalise (sufficient to exercise nontrivial trait inference).                                                                                                                                                                           | Pass.  |
+| t13  | `.subset()` mediates a 5-effect permutation reliably.                                                                                                                                                                                                     | Pass.  |
+| t14  | `tstr::TS!("...")` provides stable type-level identity across module contexts.                                                                                                                                                                            | Pass.  |
+| t15  | `tstr::cmp` computes string ordering at compile time, returning `core::cmp::Ordering`.                                                                                                                                                                    | Pass.  |
+| t16  | An effect can carry its canonical TStr name as both a type and a const value via a small `NamedEffect` trait, and pairs of names compare in const context.                                                                                                | Pass.  |
+| c01  | `effects_coyo!` emits a Coproduct over Coyoneda-wrapped variants in canonical lexical order.                                                                                                                                                              | Pass.  |
+| c02  | Two orderings of `effects_coyo!` over the same effects produce the same wrapped row type.                                                                                                                                                                 | Pass.  |
+| c03  | `Coyoneda<F, A>` implements the POC's `Functor` trait for any `F`, including effects that have no Functor impl of their own.                                                                                                                              | Pass.  |
+| c04  | `fmap` over a Coyoneda value composes the function lazily without touching the inner `F`.                                                                                                                                                                 | Pass.  |
+| c05  | `lower` runs the composed function over the stored `F` and produces the final `A`.                                                                                                                                                                        | Pass.  |
+| c06  | `CoproductSubsetter` permutation fallback works over Coyoneda-wrapped rows (workaround 3 + Coyoneda compose).                                                                                                                                             | Pass.  |
+| c07  | Generic effect types canonicalise under Coyoneda wrapping.                                                                                                                                                                                                | Pass.  |
+| c08  | `Coproduct<H, T>` implements `Functor` via recursive trait dispatch (`Coproduct<H, T>: Functor` where `H: Functor + T: Functor`, with `CNil` as the base case). The active variant's `fmap` is selected by trait resolution alone, no runtime dictionary. | Pass.  |
 
 `assert_type_eq_all!` from `static_assertions` performs the type-equality check at compile time, so a passing test means the compiler unified the two type aliases. Failure would surface as a build error, not a runtime panic.
 
@@ -84,7 +92,19 @@ Tests t14, t15, t16 probe what `tstr_crates` adds on top of the proc-macro hybri
 
 What `tstr_crates` does NOT enable on stable Rust: the `Ordering` returned by `tstr::cmp` cannot parameterise types. Lifting it into trait dispatch (so a recursive `Sort<Row>` trait can drive auto-canonicalisation of hand-written coproducts) requires nightly's `feature(adt_const_params)` plus `feature(generic_const_exprs)`. The proc-macro (workaround 1) and `CoproductSubsetter` (workaround 3) remain the stable-Rust answer. `tstr_crates` is a refinement available today only at the macro-input layer (a richer macro could take TStr names from each effect's `NamedEffect` impl, sort by them, and emit canonical Coproducts that are stable across import paths) and a fuller refinement deferred until nightly stabilises the relevant features.
 
-### 4.6 No warnings, clean compile
+### 4.6 Static-via-Coyoneda for section 4.2: empirically validated end-to-end
+
+Tests c01-c08 close the open question in port-plan section 4.2 (which option resolves the `Functor` dictionary requirement for `VariantF<R>`):
+
+- **The macro integrates with Coyoneda wrapping cleanly.** `effects_coyo![A; F1, F2]` lexically sorts the inner effect names and emits `Coproduct<Coyoneda<F1, A>, Coproduct<Coyoneda<F2, A>, CNil>>`. Two orderings produce the same canonical row, including for generic effect types (c01, c02, c07). The macro syntax requires an explicit answer-type prefix because `Coyoneda<F, A>` has two type parameters and the macro needs both at expansion time; in production this would be hidden inside `Run<Effs, A>`'s definition so users would not see it.
+- **`Coyoneda<F, A>` is a Functor for any F.** The POC's `Functor` trait impl on `Coyoneda` works for any inner `F`, including types that have no Functor impl of their own (`Logger` in test c03). `fmap` composes the lifted function without touching `fb`; the inner state is preserved through chains (c04). `lower` runs the composed function for the round-trip (c05).
+- **`Coproduct<H, T>` implements Functor by recursive trait dispatch.** Test c08 demonstrates that the row itself becomes a Functor via two impls: `Coproduct<H, T>: Functor where H: Functor + T: Functor` (which matches on `Inl` / `Inr` and forwards to the active variant) and `CNil: Functor` (base case, vacuous since `CNil` has no values). Trait resolution selects the right path with no specialization, no runtime dictionary, no nightly features.
+
+Combined, c01-c08 demonstrate that the static option in section 4.2 works end-to-end on stable Rust 1.94. Any effect type can participate in a row regardless of whether it implements Functor naturally; the user wraps in Coyoneda at lift time. The dynamic `DynFunctor` option (boxed-trait-object dispatch) is therefore unnecessary unless a future use case surfaces an effect that genuinely cannot be Coyoneda-wrapped.
+
+The POC's stub Coyoneda uses `Box<dyn Any>` to erase the intermediate type `B`, mirroring fp-library's real Coyoneda; the stub demonstrates the SHAPE of the static-via-Coyoneda story and the macro integration. Production would use fp-library's actual Coyoneda family (`Coyoneda` / `RcCoyoneda` / `ArcCoyoneda` / `CoyonedaExplicit`) paired with the matching Free variant per section 5.2.
+
+### 4.7 No warnings, clean compile
 
 The final test suite produces no compiler warnings. The proc-macro implementation is short enough that there is no clippy noise either. The POC could be promoted to production with minimal additional engineering; the macro source is already commented and small.
 
