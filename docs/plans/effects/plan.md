@@ -113,8 +113,10 @@ let result: String = run_program()
     .extract();
 ```
 
-`runReader: Run<R + READER, A> -> Run<R, A>`-style row narrowing
-matches PureScript Run; the macro layer plus
+`runReader: Run<R + READER, S, A> -> Run<R, S, A>`-style row
+narrowing matches PureScript Run (the scoped-effect row `S`
+threads unchanged through first-order handlers and is narrowed
+only by scoped-effect handlers); the macro layer plus
 `CoproductSubsetter`-mediated permutation proofs handle the
 ordering-mitigation problem (see
 [decisions.md](decisions.md) section 4.1).
@@ -148,9 +150,13 @@ The design is recorded in full in
 - **Scoped effects (decisions §4.5):** heftia-style dual-row
   architecture. `Run` carries a separate higher-order row of
   scoped-effect constructors (`Catch<'a, E>`, `Local<'a, E>`,
-  `Mask`, `Bracket<'a, A>`, `Span<Tag>`). Day-one `'a` parameter,
+  `Bracket<'a, A, B>`, `Span<'a, Tag>`). Day-one `'a` parameter,
   fixed `Run<R, A>` continuation, coproduct-of-constructors
-  extension shape.
+  extension shape. (A `Mask<'a, E>` constructor for duplicated-effect
+  masking was considered and deferred to a future revision; see
+  [decisions.md](decisions.md) section 4.5's "Deferred to a future
+  revision" sub-decision for the four options preserved on the
+  shelf.)
 - **Natural transformations (decisions §4.6):** `handlers!{...}`
   macro DSL primary, builder pattern (`nt().on::<E>(handler)...`)
   as fallback.
@@ -209,21 +215,22 @@ Quick reference table:
 
 ### Will change
 
-| Component                                 | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `fp-library/src/types/free.rs`            | Existing `Free<F, A>` keeps its current shape; minor adjustments if integration with `Run` requires.                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `fp-library/src/types/free_explicit.rs`   | **New module.** Promote `FreeExplicit<'a, F, A>` from POC, add iterative custom `Drop`, add `Functor` / `Pointed` / `Semimonad` / `Monad` impls.                                                                                                                                                                                                                                                                                                                                                      |
-| `fp-library/src/types/rc_free.rs`         | **New module.** `RcFree<F, A>` following the `Free` template with `Rc<dyn Fn>` continuations. Multi-shot effects (`Choose`, `Amb`).                                                                                                                                                                                                                                                                                                                                                                   |
-| `fp-library/src/types/arc_free.rs`        | **New module.** `ArcFree<F, A>` following `ArcCoyoneda` template with `Arc<dyn Fn + Send + Sync>` and the `Send`/`Sync` Kind-trait pattern.                                                                                                                                                                                                                                                                                                                                                           |
-| `fp-library/src/types/run.rs`             | **New module.** `Run<Effects, ScopedEffects, A>` plus `RcRun`, `ArcRun`, `RunExplicit` aliases. `Node<...>` enum dispatching first-order vs scoped.                                                                                                                                                                                                                                                                                                                                                   |
-| `fp-library/src/types/run/variant_f.rs`   | **New submodule.** `VariantF<Effects>` first-order coproduct with Coyoneda-wrapped variants and recursive `Functor` impl on `Coproduct<H, T>`.                                                                                                                                                                                                                                                                                                                                                        |
-| `fp-library/src/types/run/scoped.rs`      | **New submodule.** `ScopedCoproduct<ScopedEffects>` higher-order coproduct, standard scoped constructors (`Catch`, `Local`, `Mask`, `Bracket`, `Span`).                                                                                                                                                                                                                                                                                                                                               |
-| `fp-library/src/types/run/handler.rs`     | **New submodule.** Handler-pipeline machinery (`Run::handle`), natural-transformation type, `peel` / `send` / `extract`.                                                                                                                                                                                                                                                                                                                                                                              |
-| `fp-library/src/types/run/interpreter.rs` | **New submodule.** `interpret` / `run` / `runAccum` (recursive) and `interpretRec` / `runRec` / `runAccumRec` (`MonadRec`-targeted) families.                                                                                                                                                                                                                                                                                                                                                         |
-| `fp-macros/src/effects/`                  | **New module tree.** `effects!`, `effects_coyo!`, `handlers!`, `define_effect!`, `define_scoped_effect!` proc-macros. Migration from POC.                                                                                                                                                                                                                                                                                                                                                             |
-| `fp-library/src/brands.rs`                | Add brands for new types: `RunBrand`, `RcRunBrand`, `ArcRunBrand`, `RunExplicitBrand`, `RcFreeBrand`, `ArcFreeBrand`, `FreeExplicitBrand<F>`. `FreeExplicitBrand<F>` is a single-parameter `PhantomData<F>` struct mirroring [`CoyonedaBrand<F>`](../../../fp-library/src/brands.rs#L155); `'static` bounds live on impls (per [`CoyonedaExplicitBrand<F, B>`'s convention](../../../fp-library/src/brands.rs#L171)) so `FreeExplicit<'a, F, A>`'s `'a` and `A` stay in `Of<'a, A>` at instantiation. |
-| `fp-library/tests/run_*.rs`               | **New test files.** Per-Free-variant unit tests (Phase 1), row-canonicalisation regression tests migrated from `poc-effect-row/` (Phase 2), TalkF + DinnerF integration test (Phase 4).                                                                                                                                                                                                                                                                                                               |
-| `fp-library/benches/benchmarks/run_*.rs`  | **New bench files.** Per-Free-variant Criterion benches (bind-deep, bind-wide, peel-and-handle), row-canonicalisation benches (macro vs Subsetter), handler-composition benches.                                                                                                                                                                                                                                                                                                                      |
+| Component                                 | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fp-library/src/types/free.rs`            | Existing `Free<F, A>` keeps its current shape; minor adjustments if integration with `Run` requires.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `fp-library/src/types/free_explicit.rs`   | **New module.** Promote `FreeExplicit<'a, F, A>` from POC, add iterative custom `Drop`, add `Functor` / `Pointed` / `Semimonad` / `Monad` impls.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `fp-library/src/types/rc_free.rs`         | **New module.** `RcFree<F, A>` following the `Free` template with `FnBrand<RcBrand>`-shaped continuations (i.e., `Rc<dyn 'a + Fn(B) -> RcFree<F, A>>` via the unified [`FnBrand`](../../../fp-library/src/types/fn_brand.rs) abstraction). Multi-shot effects (`Choose`, `Amb`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `fp-library/src/types/arc_free.rs`        | **New module.** `ArcFree<F, A>` following the `ArcCoyoneda` template with `FnBrand<ArcBrand>`-shaped continuations (i.e., `Arc<dyn 'a + Fn(B) -> ArcFree<F, A> + Send + Sync>` via [`FnBrand`](../../../fp-library/src/types/fn_brand.rs) parameterised by [`ArcBrand`](../../../fp-library/src/brands.rs#L43)) and the `Send`/`Sync` Kind-trait pattern via `SendRefCountedPointer`.                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `fp-library/src/types/run.rs`             | **New module.** `Run<Effects, ScopedEffects, A>` plus `RcRun`, `ArcRun`, `RunExplicit` aliases. `Node<...>` enum dispatching first-order vs scoped.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `fp-library/src/types/run/coproduct.rs`   | **New submodule.** Brand-aware adapter layer over `frunk_core::coproduct::{Coproduct, CNil, CoproductSubsetter}`: newtype wrappers, `impl` blocks bridging `frunk_core`'s Plucker / Sculptor / Embedder traits to the project's `Brand` system. Direct (non-newtyped) `Functor` impls on `frunk_core::Coproduct<H, T>` live here too (own-trait + foreign-type, orphan-permitted).                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `fp-library/src/types/run/variant_f.rs`   | **New submodule.** `VariantF<Effects>` first-order coproduct with Coyoneda-wrapped variants and recursive `Functor` impl on `Coproduct<H, T>` (delegating to the adapter in `coproduct.rs`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `fp-library/src/types/run/scoped.rs`      | **New submodule.** `ScopedCoproduct<ScopedEffects>` higher-order coproduct, standard scoped constructors (`Catch`, `Local`, `Bracket`, `Span`). `Mask` is deferred to a future revision per [decisions.md](decisions.md) section 4.5 sub-decisions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `fp-library/src/types/run/handler.rs`     | **New submodule.** Handler-pipeline machinery (`Run::handle`), natural-transformation type, `peel` / `send` / `extract`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `fp-library/src/types/run/interpreter.rs` | **New submodule.** `interpret` / `run` / `runAccum` (recursive) and `interpretRec` / `runRec` / `runAccumRec` (`MonadRec`-targeted) families.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `fp-macros/src/effects/`                  | **New module tree.** `effects!`, `effects_coyo!`, `handlers!`, `define_effect!`, `define_scoped_effect!` proc-macros. Migration from POC.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `fp-library/src/brands.rs`                | Add brands for new types: `RcFreeBrand`, `ArcFreeBrand`, `FreeExplicitBrand<F>`, `RunBrand<R, S>`, `RcRunBrand<R, S>`, `ArcRunBrand<R, S>`, `RunExplicitBrand<R, S>`. `FreeExplicitBrand<F>` is a single-parameter `PhantomData<F>` struct mirroring [`CoyonedaBrand<F>`](../../../fp-library/src/brands.rs#L155); the four `*RunBrand<R, S>` variants are two-parameter `PhantomData<(R, S)>` structs mirroring [`CoyonedaExplicitBrand<F, B>`](../../../fp-library/src/brands.rs#L171). For all of these, `'static` bounds live on impls (so the row types `R`, `S` and the payload `'a`, `A` stay out of the brand identity and appear only in `Of<'a, A>` at instantiation, keeping brand types `'static`-clean while admitting non-`'static` payloads via `RunExplicit` / `FreeExplicit`). |
+| `fp-library/tests/run_*.rs`               | **New test files.** Per-Free-variant unit tests (Phase 1), row-canonicalisation regression tests migrated from `poc-effect-row/` (Phase 2), TalkF + DinnerF integration test (Phase 4).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `fp-library/benches/benchmarks/run_*.rs`  | **New bench files.** Per-Free-variant Criterion benches (bind-deep, bind-wide, peel-and-handle), row-canonicalisation benches (macro vs Subsetter), handler-composition benches.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 ### Unchanged
 
@@ -296,12 +303,24 @@ first prevents later refactor.
    imported type. Un-`#[ignore]` the deep-`Drop` test once the
    iterative `Drop` ships.
 2. Implement `RcFree<F, A>` at `fp-library/src/types/rc_free.rs`
-   following the `Free` template with `Rc<dyn Fn>` continuations
-   and the `RcCoyoneda` cloning pattern. Add `lower_ref(&self)` /
-   `peel_ref(&self)` for non-consuming reinterpretation.
+   following the `Free` template, with continuations expressed via
+   [`FnBrand<RcBrand>`](../../../fp-library/src/types/fn_brand.rs)
+   (yielding `Rc<dyn 'a + Fn(B) -> RcFree<F, A>>` after `Kind`
+   resolution) and the `RcCoyoneda` cloning pattern. Add
+   `lower_ref(&self)` / `peel_ref(&self)` for non-consuming
+   reinterpretation. The `FnBrand`-based shape is preferred over a
+   raw `Rc<dyn Fn>` field so the new module participates in the
+   library's unified function-pointer abstraction from day one
+   (see [`fn_brand.rs`](../../../fp-library/src/types/fn_brand.rs)).
 3. Implement `ArcFree<F, A>` at `fp-library/src/types/arc_free.rs`
-   following the `ArcCoyoneda` template (`Arc<dyn Fn + Send + Sync>`,
-   the `Kind<Of<'a, A>: Send + Sync>` associated-type-bound trick).
+   following the `ArcCoyoneda` template, with continuations
+   expressed via
+   [`FnBrand<ArcBrand>`](../../../fp-library/src/types/fn_brand.rs)
+   parameterised by
+   [`ArcBrand`](../../../fp-library/src/brands.rs#L43) (yielding
+   `Arc<dyn 'a + Fn(B) -> ArcFree<F, A> + Send + Sync>` after
+   `Kind` resolution via `SendRefCountedPointer`) and the
+   `Kind<Of<'a, A>: Send + Sync>` associated-type-bound trick.
 4. Add brands and `Functor` / `Pointed` / `Semimonad` / `Monad` impls
    for `RcFreeBrand`, `ArcFreeBrand`, `FreeExplicitBrand<F>`. The
    default `Free`'s impls are the template.
@@ -316,9 +335,16 @@ first prevents later refactor.
 
 ### Phase 2: Run substrate and first-order effects
 
-1. `Coproduct<H, T>` and `CNil` types under `fp-library/src/types/`
-   (or re-export from `frunk_core` if the project decides to
-   depend on it; see Implementation note 1 below).
+1. Add `frunk_core` as a direct dependency of `fp-library`
+   (license check via `just deny`, MSRV verification, and
+   workspace `Cargo.toml` registration). Introduce a thin
+   Brand-aware adapter layer at `fp-library/src/types/run/coproduct.rs`:
+   newtype wrappers around `frunk_core::coproduct::{Coproduct, CNil}`
+   plus `impl` blocks bridging `frunk_core`'s Plucker / Sculptor /
+   Embedder traits to the project's `Brand` system. Direct `impl`s
+   of fp-library's own `Functor` for `frunk_core::Coproduct<H, T>`
+   are permitted by the orphan rules; `Brand`-style impls require
+   the newtype wrapper. See Implementation note 1 below.
 2. `VariantF<Effects>` at `fp-library/src/types/run/variant_f.rs`:
    Coyoneda-wrapped Coproduct row with recursive `Functor` impl
    on `Coproduct<H, T>` (where `H: Functor + T: Functor`) and base
@@ -326,7 +352,8 @@ first prevents later refactor.
    [poc-effect-row/src/lib.rs](../../../poc-effect-row/src/lib.rs)
    under the production `Functor` trait.
 3. `Member<E, Indices>` trait for first-order injection /
-   projection, plus `CoproductSubsetter` if not via `frunk_core`.
+   projection, layered on top of `frunk_core::CoproductSubsetter`
+   via the adapter from step 1.
 4. `Run<Effects, ScopedEffects, A>` core type at
    `fp-library/src/types/run.rs` with `RcRun`, `ArcRun`,
    `RunExplicit` aliases. `Node<Effects, ScopedEffects>` enum.
@@ -382,11 +409,6 @@ first prevents later refactor.
      `handler: Box<dyn FnOnce(E) -> Run<R, S, A>>`.
    - `Local<'a, E>` for `Reader.local` — `modify: Box<dyn FnOnce(E) -> E>`,
      `action: Run<R, S, A>`.
-   - `Mask<'a, E>` — `action: Run<R, S, A>`,
-     `effect: PhantomData<E>` (compile-time effect identifier;
-     supports non-`'static` effects uniformly with the rest of
-     the design, see [decisions.md](decisions.md) section 4.5
-     sub-decisions).
    - `Bracket<'a, A, B>` — `acquire: Run<R, S, A>`,
      `release: Box<dyn FnOnce(A) -> Run<R, S, ()>>`,
      `body: Box<dyn FnOnce(&A) -> Run<R, S, B>>`. Two type
@@ -400,14 +422,17 @@ first prevents later refactor.
    sharing the lexical-sort helper with Phase 2's `effects!` (one
    helper, two thin entry-point macros, distinct output shapes:
    Coyoneda-wrapped Coproduct vs `ScopedCoproduct`).
-5. Smart constructors: `local`, `catch`, `mask`, `bracket`, `span`.
+5. Smart constructors: `local`, `catch`, `bracket`, `span`. (No
+   `mask` smart constructor in v1; the `Mask` constructor is
+   deferred per [decisions.md](decisions.md) section 4.5
+   sub-decisions.)
 6. Standard handlers (`run_reader`'s `local` clause,
    `run_except`'s `catch` clause, etc.) wired through the dual
    row.
-7. Tests: scoped-effect unit tests covering each of the five
-   standard constructors plus `compile_fail` cases. Reformulate
-   relevant Phase 3 tests to use scoped operations where
-   appropriate.
+7. Tests: scoped-effect unit tests covering each of the four
+   standard constructors (`Catch`, `Local`, `Bracket`, `Span`)
+   plus `compile_fail` cases. Reformulate relevant Phase 3 tests
+   to use scoped operations where appropriate.
 
 ### Phase 5: Integration test, deferred items as needed
 
@@ -458,18 +483,22 @@ need surfaces:
 ## Implementation notes
 
 1. **`Coproduct` choice (Phase 2).** The POC depends on
-   `frunk_core::coproduct::{Coproduct, CNil, CoproductSubsetter}`.
-   Decision: depend on `frunk_core` directly with a thin
-   Brand-aware adapter layer (newtypes plus `impl` blocks that
-   bridge `frunk_core`'s Plucker / Sculptor / Embedder traits to
-   the project's `Brand` system). Switch to an in-house
-   reimplementation only if the adapter exceeds approximately 200
-   lines, which would indicate the impedance mismatch is real
-   enough to justify the maintenance cost. Implementing the
-   project's own `Functor` for `frunk_core::Coproduct<H, T>` is
-   permitted by the orphan rules (own-trait + foreign-type);
-   `Brand`-style impls on the foreign type require the newtype
-   wrapper.
+   `frunk_core::coproduct::{Coproduct, CNil, CoproductSubsetter}`,
+   and the production port adopts the same dependency. Phase 2
+   step 1 adds `frunk_core` to `fp-library`'s `Cargo.toml`,
+   confirms the license is permitted by `just deny`, and
+   introduces a thin Brand-aware adapter layer at
+   `fp-library/src/types/run/coproduct.rs` (newtypes plus `impl`
+   blocks that bridge `frunk_core`'s Plucker / Sculptor / Embedder
+   traits to the project's `Brand` system). Implementing
+   fp-library's own `Functor` for `frunk_core::Coproduct<H, T>`
+   directly is permitted by the orphan rules (own-trait +
+   foreign-type) and is the preferred shape for the recursive
+   `Functor` dispatch; `Brand`-style impls on the foreign type
+   require the newtype wrapper. If the adapter ever exceeds
+   approximately 200 lines, that signals real impedance mismatch
+   and a fork to an in-house reimplementation should be
+   considered, but the default is to stay on `frunk_core`.
 2. **POC-to-production migration (Phases 2 + 3).** The POC at
    `poc-effect-row/` is a separate Cargo workspace and does not
    integrate with fp-library's `Brand` system; the production
@@ -506,9 +535,10 @@ The plan is complete when all of the following hold:
   per-variant unit tests passing.
 - `Reader`, `State`, `Except`, `Writer`, `Choose` ship as standard
   first-order effects with smart constructors.
-- `Catch`, `Local`, `Mask`, `Bracket`, `Span` ship as standard
+- `Catch`, `Local`, `Bracket`, `Span` ship as standard
   scoped-effect constructors with smart constructors and
-  scoped-handler interpreters.
+  scoped-handler interpreters. (`Mask` deferred per
+  [decisions.md](decisions.md) section 4.5 sub-decisions.)
 - The TalkF + DinnerF integration test passes.
 - All 25 row-canonicalisation tests migrated from
   `poc-effect-row/` pass under the production types.
