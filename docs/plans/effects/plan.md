@@ -1,10 +1,10 @@
 # Plan: Port purescript-run to fp-library
 
-**Status:** Phase 1 in progress (steps 1 and 2 of 6 complete).
+**Status:** Phase 1 in progress (steps 1, 2, and 3 of 6 complete).
 
 ## Current progress
 
-Phase 1 steps 1 and 2 complete.
+Phase 1 steps 1, 2, and 3 complete.
 
 **Step 1 (`FreeExplicit`).** `FreeExplicit<'a, F, A>` and
 `FreeExplicitBrand<F>` are promoted from POC into production at
@@ -47,10 +47,31 @@ The full set of inherent methods covered is `pure`, `wrap`,
 cheap because Clone is O(1)). 12 unit tests cover construction,
 chaining, multi-shot via clone, and deep evaluate / Drop.
 
-Remaining Phase 1 work: step 3 (`ArcFree`), step 4 (brand
-registrations + by-value and by-reference trait hierarchies for
-all three new variants), step 5 (per-variant Criterion benches),
-step 6 (per-variant unit and `compile_fail` tests).
+**Step 3 (`ArcFree`).** `ArcFree<F, A>` lands at
+[fp-library/src/types/arc_free.rs](../../../fp-library/src/types/arc_free.rs)
+following the
+[`ArcCoyoneda`](../../../fp-library/src/types/arc_coyoneda.rs)
+template. Same shape as `RcFree`, with three thread-safe
+substitutions: `Arc<dyn Fn + Send + Sync>` for continuations
+(constructed via
+[`<ArcFnBrand as SendLiftFn>::new`](../../../fp-library/src/classes/send_clone_fn.rs)),
+`Arc<dyn Any + Send + Sync>` for the type-erased value cell, and
+the associated-type-bound trick
+`Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>`
+on every struct and impl that touches the inner data so the
+compiler can auto-derive `Send + Sync` for concrete `F` (the
+`F::Of<...>` field is otherwise opaque to the auto-trait
+derivation). The whole substrate lives behind an outer
+`Arc<Inner>` so cloning is O(1) (atomic refcount bump).
+12 unit tests cover the same cases as `RcFree` plus
+`cross_thread_via_spawn`, `cross_thread_clone_branches`, and
+`is_send_and_sync` to actually exercise the thread-safety
+contract.
+
+Remaining Phase 1 work: step 4 (brand registrations + by-value
+and by-reference trait hierarchies for all three new variants),
+step 5 (per-variant Criterion benches), step 6 (per-variant unit
+and `compile_fail` tests).
 
 Other artefacts unchanged from pre-implementation:
 
@@ -143,6 +164,28 @@ it here and pause until it's resolved.
   the library's unified function-pointer abstraction is still on
   the construction path. The newtype's `Clone` impl bumps the
   underlying `Rc`'s refcount.
+- **Phase 1 step 3: `ArcFree` carries the same trio of
+  Deviations as `RcFree`** (the type-erased value uses
+  `Arc<dyn Any + Send + Sync>` for `Clone`/`Send`/`Sync`
+  participation, the substrate is wrapped in outer `Arc<Inner>`,
+  and `ArcContinuation<F>` is a newtype wrapping
+  `Arc<dyn Fn(...) + Send + Sync>` constructed via
+  `<ArcFnBrand as SendLiftFn>::new`). All three deviations carry
+  forward unchanged from step 2's analysis with `Rc` substituted
+  for `Arc`.
+- **Phase 1 step 3: associated-type-bound trick is propagated to
+  every struct and impl.** Decision 4.4 names the trick
+  (`Kind<Of<'a, A>: Send + Sync>`) but does not prescribe scope.
+  In production, `Send + Sync` auto-derivation on `ArcFreeInner`
+  via the `F::Of<...>` field requires the bound at the struct
+  definition. To keep all uses of the inner data type-checkable,
+  the same `Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>`
+  bound is added to `ArcContinuation<F>`, `ArcFreeView<F>`,
+  `ArcFreeStep<F, A>`, `ArcFreeInner<F, A>`, `ArcFree<F, A>`, and
+  every `impl` block that mentions any of them. This is verbose
+  but mechanical; `ArcCoyoneda`'s template uses the same trick at
+  fewer sites because its trait-object internal representation
+  hides the `F::Of` from auto-derivation.
 
 ## Implementation protocol
 

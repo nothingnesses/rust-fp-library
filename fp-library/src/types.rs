@@ -19,6 +19,7 @@
 
 pub mod additive;
 pub mod arc_coyoneda;
+pub mod arc_free;
 pub mod arc_ptr;
 pub mod box_ptr;
 pub mod cat_list;
@@ -62,6 +63,13 @@ pub mod vec;
 pub use {
 	additive::Additive,
 	arc_coyoneda::ArcCoyoneda,
+	arc_free::{
+		ArcContinuation,
+		ArcFree,
+		ArcFreeStep,
+		ArcFreeView,
+		ArcTypeErasedValue,
+	},
 	cat_list::CatList,
 	conjunctive::Conjunctive,
 	coyoneda::Coyoneda,
