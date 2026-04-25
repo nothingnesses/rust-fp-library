@@ -224,7 +224,8 @@ Quick reference table:
 | `fp-library/src/types/run.rs`             | **New module.** `Run<Effects, ScopedEffects, A>` plus `RcRun`, `ArcRun`, `RunExplicit` aliases. `Node<...>` enum dispatching first-order vs scoped.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `fp-library/src/types/run/coproduct.rs`   | **New submodule.** Brand-aware adapter layer over `frunk_core::coproduct::{Coproduct, CNil, CoproductSubsetter}`: newtype wrappers, `impl` blocks bridging `frunk_core`'s Plucker / Sculptor / Embedder traits to the project's `Brand` system. Direct (non-newtyped) `Functor` impls on `frunk_core::Coproduct<H, T>` live here too (own-trait + foreign-type, orphan-permitted).                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `fp-library/src/types/run/variant_f.rs`   | **New submodule.** `VariantF<Effects>` first-order coproduct with Coyoneda-wrapped variants and recursive `Functor` impl on `Coproduct<H, T>` (delegating to the adapter in `coproduct.rs`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `fp-library/src/types/run/scoped.rs`      | **New submodule.** `ScopedCoproduct<ScopedEffects>` higher-order coproduct, standard scoped constructors (`Catch`, `Local`, `Bracket`, `Span`). `Mask` is deferred to a future revision per [decisions.md](decisions.md) section 4.5 sub-decisions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `fp-library/src/types/run/scoped.rs`      | **New submodule.** `ScopedCoproduct<ScopedEffects>` higher-order coproduct, standard scoped constructors. `Catch<'a, E>` and `Span<'a, Tag>` ship Val-only. `Local` ships in Val and Ref flavours (`Local<'a, E>` + `RefLocal<'a, E>`); `Bracket` ships in Val and Ref flavours (`Bracket<'a, A, B>` + `RefBracket<'a, P, A, B>`) per [decisions.md](decisions.md) section 4.5 sub-decisions. `Mask` is deferred to a future revision per the same section.                                                                                                                                                                                                                                                                                                                                     |
+| `fp-library/src/dispatch/run/`            | **New submodule.** Closure-driven Val/Ref dispatch for `bracket` and `local` smart constructors, mirroring the existing layout described in [`fp-library/docs/dispatch.md`](../../../fp-library/docs/dispatch.md). Files: `bracket.rs` (`BracketDispatch` trait + `Val` impl + `Ref<P>` impls per pointer brand + `bracket` inference wrapper + `explicit::bracket` brand-explicit wrapper); `local.rs` (`LocalDispatch` trait + `Val` and `Ref` impls + `local` inference wrapper + `explicit::local` wrapper). Re-exported from `fp-library/src/functions.rs` alongside `map`, `bind`, etc.                                                                                                                                                                                                   |
 | `fp-library/src/types/run/handler.rs`     | **New submodule.** Handler-pipeline machinery (`Run::handle`), natural-transformation type, `peel` / `send` / `extract`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `fp-library/src/types/run/interpreter.rs` | **New submodule.** `interpret` / `run` / `runAccum` (recursive) and `interpretRec` / `runRec` / `runAccumRec` (`MonadRec`-targeted) families.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `fp-macros/src/effects/`                  | **New module tree.** `effects!`, `effects_coyo!`, `handlers!`, `define_effect!`, `define_scoped_effect!` proc-macros. Migration from POC.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
@@ -321,9 +322,16 @@ first prevents later refactor.
    `Arc<dyn 'a + Fn(B) -> ArcFree<F, A> + Send + Sync>` after
    `Kind` resolution via `SendRefCountedPointer`) and the
    `Kind<Of<'a, A>: Send + Sync>` associated-type-bound trick.
-4. Add brands and `Functor` / `Pointed` / `Semimonad` / `Monad` impls
+4. Add brands and the by-value hierarchy
+   (`Functor` / `Pointed` / `Semimonad` / `Monad`) plus the
+   by-reference hierarchy
+   (`RefFunctor` / `RefSemimonad` / `RefMonad`, etc., per
+   [`fp-library/docs/dispatch.md`](../../../fp-library/docs/dispatch.md))
    for `RcFreeBrand`, `ArcFreeBrand`, `FreeExplicitBrand<F>`. The
-   default `Free`'s impls are the template.
+   default `Free`'s impls are the template. Both hierarchies are
+   required so that `dispatch::map` / `dispatch::bind` route
+   correctly over each brand once `Run` and the scoped-effect
+   smart constructors land in Phase 2 / Phase 4.
 5. Per-variant Criterion benches (bind-deep at depths 10 / 100 /
    1000 / 10000, bind-wide, peel-and-handle). Match the
    `FreeExplicit` POC bench shape.
@@ -357,6 +365,16 @@ first prevents later refactor.
 4. `Run<Effects, ScopedEffects, A>` core type at
    `fp-library/src/types/run.rs` with `RcRun`, `ArcRun`,
    `RunExplicit` aliases. `Node<Effects, ScopedEffects>` enum.
+   Add brands and the by-value hierarchy
+   (`Functor` / `Pointed` / `Semimonad` / `Monad`) plus the
+   by-reference hierarchy
+   (`RefFunctor` / `RefSemimonad` / `RefMonad`, etc.) for
+   `RunBrand`, `RcRunBrand`, `ArcRunBrand`, `RunExplicitBrand`,
+   delegating to the underlying Free variant's existing impls
+   from Phase 1 step 4. Both hierarchies are required so
+   `m_do!` / `a_do!` and `dispatch::map` / `dispatch::bind`
+   work over `Run` regardless of whether the user's closures
+   consume or borrow.
 5. `Run::pure`, `Run::peel`, `Run::send` core operations,
    delegating to the underlying Free variant.
 6. `effects!` macro in `fp-macros/src/effects/effects.rs`,
@@ -404,17 +422,44 @@ first prevents later refactor.
 1. `ScopedCoproduct<ScopedEffects>` at
    `fp-library/src/types/run/scoped.rs` with the dual-row
    integration into `Run<Effects, ScopedEffects, A>`.
-2. Standard scoped-effect constructors:
-   - `Catch<'a, E>` for `Error.catch` — `action: Run<R, S, A>`,
-     `handler: Box<dyn FnOnce(E) -> Run<R, S, A>>`.
-   - `Local<'a, E>` for `Reader.local` — `modify: Box<dyn FnOnce(E) -> E>`,
+2. Standard scoped-effect constructors. Per
+   [decisions.md](decisions.md) section 4.5 sub-decisions, `Bracket`
+   and `Local` ship in two parallel flavours each (Val and Ref) that
+   mirror the library's existing Val/Ref dispatch pattern at
+   [`fp-library/docs/dispatch.md`](../../../fp-library/docs/dispatch.md);
+   `Catch` and `Span` ship Val-only (Ref flavours rejected per the
+   sub-decision).
+   - `Catch<'a, E>` for `Error.catch`, with `action: Run<R, S, A>`,
+     `handler: Box<dyn FnOnce(E) -> Run<R, S, A>>`. Val only.
+   - `Local<'a, E>` (Val flavour) for `Reader.local` with a
+     consuming modify, holding `modify: Box<dyn FnOnce(E) -> E>`,
      `action: Run<R, S, A>`.
-   - `Bracket<'a, A, B>` — `acquire: Run<R, S, A>`,
-     `release: Box<dyn FnOnce(A) -> Run<R, S, ()>>`,
-     `body: Box<dyn FnOnce(&A) -> Run<R, S, B>>`. Two type
-     parameters matching PureScript's
-     `bracket :: Run r a -> (a -> Run r Unit) -> (a -> Run r b) -> Run r b`.
-   - `Span<'a, Tag>` — `tag: Tag`, `action: Run<R, S, A>`.
+   - `RefLocal<'a, E>` (Ref flavour) for `Reader.local` with a
+     borrowing modify, holding `modify: Box<dyn FnOnce(&E) -> E>`,
+     `action: Run<R, S, A>`. Removes the `E: Clone` requirement
+     that the Val flavour imposes when users want to derive a
+     sub-scope env from the parent without owning it.
+   - `Bracket<'a, A, B>` (Val flavour) for `Run` / `RunExplicit`
+     users, with `acquire: Run<R, S, A>`,
+     `body: Box<dyn FnOnce(A) -> Run<R, S, (A, B)>>`,
+     `release: Box<dyn FnOnce(A) -> Run<R, S, ()>>`. The body
+     consumes `A`, threads it back to the interpreter via
+     `(A, B)`, and the interpreter moves the returned `A` into
+     `release`.
+   - `RefBracket<'a, P, A, B>` (Ref flavour) for `RcRun` /
+     `ArcRun` users, parameterised by
+     [`P: RefCountedPointer`](../../../fp-library/src/classes/ref_counted_pointer.rs)
+     ([`RcBrand`](../../../fp-library/src/brands.rs#L250) for
+     `RcRun`, [`ArcBrand`](../../../fp-library/src/brands.rs#L43)
+     for `ArcRun`), with `acquire: Run<R, S, A>`,
+     `body: Box<dyn FnOnce(P::Of<A>) -> Run<R, S, B>>`,
+     `release: Box<dyn FnOnce(P::Of<A>) -> Run<R, S, ()>>`. Body
+     and release both receive a pointer clone; the resource lives
+     until the last clone drops, mirroring PureScript's
+     GC-aliased `bracket` semantics
+     ([`Aff.purs:308`](https://github.com/purescript-contrib/purescript-aff/blob/master/src/Effect/Aff.purs#L308)).
+   - `Span<'a, Tag>`, with `tag: Tag`, `action: Run<R, S, A>`.
+     Val only (no closure to dispatch over).
 3. Scoped-effect interpreter trait. Method per constructor;
    fixed `Run<R, A>` continuation
    ([decisions.md](decisions.md) section 4.5).
@@ -422,10 +467,30 @@ first prevents later refactor.
    sharing the lexical-sort helper with Phase 2's `effects!` (one
    helper, two thin entry-point macros, distinct output shapes:
    Coyoneda-wrapped Coproduct vs `ScopedCoproduct`).
-5. Smart constructors: `local`, `catch`, `bracket`, `span`. (No
-   `mask` smart constructor in v1; the `Mask` constructor is
-   deferred per [decisions.md](decisions.md) section 4.5
-   sub-decisions.)
+5. Smart constructors: `catch`, `span` (single-flavour
+   wrappers); `bracket` and `local` (closure-driven dispatch over
+   Val and Ref flavours, reusing the existing `Val` / `Ref`
+   markers and dispatch machinery from
+   [`fp-library/src/dispatch/`](../../../fp-library/src/dispatch/);
+   `bracket`'s Ref impl additionally carries the pointer brand
+   `P` so `Ref<RcBrand>` and `Ref<ArcBrand>` resolve to distinct
+   `RefBracket` node types). Concretely:
+   - `BracketDispatch<R, S, A, B, Marker>` trait with `Val` impl
+     (closures of shape `FnOnce(A) -> Run<R, S, (A, B)>` plus
+     `FnOnce(A) -> Run<R, S, ()>`) and `Ref<P>` impls for each
+     `P: RefCountedPointer` (closures of shape
+     `FnOnce(P::Of<A>) -> Run<R, S, B>` plus
+     `FnOnce(P::Of<A>) -> Run<R, S, ()>`).
+   - `LocalDispatch<R, S, E, A, Marker>` trait with `Val` impl
+     (`FnOnce(E) -> E`) and `Ref` impl (`FnOnce(&E) -> E`).
+   - The dispatch traits and their impls live at
+     `fp-library/src/dispatch/run/bracket.rs` and
+     `fp-library/src/dispatch/run/local.rs`, mirroring the
+     existing layout described in
+     [`fp-library/docs/dispatch.md`](../../../fp-library/docs/dispatch.md).
+     No `mask` smart constructor in v1; the `Mask` constructor is
+     deferred per [decisions.md](decisions.md) section 4.5
+     sub-decisions.
 6. Standard handlers (`run_reader`'s `local` clause,
    `run_except`'s `catch` clause, etc.) wired through the dual
    row.
@@ -462,23 +527,118 @@ first prevents later refactor.
 
 ### Phase 6+ (deferred, not in this plan)
 
-These are listed for completeness; they arrive when concrete
-need surfaces:
+These items arrive when concrete need surfaces. Each one names
+the artifact, what it would deliver, why it is deferred, and a
+revisit trigger; entries are ordered roughly from substrate
+outward to user surface.
 
-- `RcFreeExplicit` / `ArcFreeExplicit` intersection variants for
-  the rare combination of (multi-shot or thread-crossing) with
-  non-`'static` payloads
-  ([decisions.md](decisions.md) section 4.4).
-- `MonadRec` impl for `Future` as an async target monad
-  ([decisions.md](decisions.md) section 9 items 3 + 4).
-- Optional split of `fp-macros` into `fp-effects-macros` if the
-  crate becomes too large
-  ([decisions.md](decisions.md) section 9 item 8).
-- Open questions left after section 4.4: parallel
-  `Send`-constrained `Functor` / `Monad` trait hierarchy for
-  `ArcFree` if the existing `Send`-families don't cover, cargo
-  feature gating for `RcFree` / `ArcFree` if compile cost
-  matters.
+- **`RcFreeExplicit` / `ArcFreeExplicit` intersection variants.**
+  Add the two missing entries in the cross-product of sharing
+  model and existentiality so that (multi-shot or
+  thread-crossing) Free programs can also carry non-`'static`
+  payloads ([decisions.md](decisions.md) section 4.4). _What
+  this is for:_ the rare program that needs both a refcounted
+  Free substrate and borrowed effect data. _Why deferred:_ no
+  concrete user request yet, and intersections are non-breaking
+  additions when needed. _Trigger:_ a user program that wants
+  borrowed effect payloads in a multi-shot or thread-crossing
+  setting.
+- **`Send`-constrained trait hierarchy and cargo feature gating
+  for `RcFree` / `ArcFree`.** Either a parallel
+  `Send`-constrained `Functor` / `Monad` hierarchy if the
+  existing `Send`-families don't cover the `ArcFree` use case,
+  or cargo feature gates that let downstream crates opt out of
+  compiling `RcFree` / `ArcFree` if their compile cost becomes
+  uncomfortable
+  ([decisions.md](decisions.md) section 4.4). _Why deferred:_
+  the current shape's adequacy is unverified; the answer
+  depends on benchmarks and downstream feedback. _Trigger:_
+  benchmark or compile-time evidence that the existing shape is
+  insufficient.
+- **`State::modify` Val/Ref split.** Add a `RefState<S>`
+  first-order effect alongside `State<S>` whose `modify`
+  operation takes `FnOnce(&S) -> S` instead of `FnOnce(S) -> S`,
+  with a unified `modify(...)` smart constructor dispatching
+  over closure shape via the same `Val` / `Ref` markers used by
+  `Local` / `RefLocal` in Phase 4. _What this is for:_ users who
+  want to derive a new state from the old without owning it,
+  avoiding an `S: Clone` requirement. _Why deferred:_ Phase 3's
+  standard first-order effect set ships Val-only to keep the
+  surface small; the Run-brand by-ref hierarchy from Phase 2
+  step 4 already supplies the trait routing this would build
+  on. _Trigger:_ first user who hits the `S: Clone` wall on the
+  Val flavour, or the first integration test that benefits from
+  `&S` in `modify`.
+- **`Writer::censor` Val/Ref split.** Add `censor` to the
+  standard `Writer<W>` set (currently only `tell` ships in
+  Phase 3 step 4), then ship a `RefWriter<W>` extension whose
+  `censor` takes `FnOnce(&W) -> W` instead of
+  `FnOnce(W) -> W`. _What this is for:_ deriving a transformed
+  log without consuming the parent, the writer-log analogue of
+  `State::modify`'s ergonomic story. _Why deferred:_ `censor`
+  itself is not in v1's standard Writer set, and the Val/Ref
+  split is a follow-up to adding it. _Trigger:_ a real
+  log-censoring use case, plus the same `W: Clone` ergonomic
+  wall.
+- **`handlers!{...}` macro Val/Ref variants.** Extend the
+  Phase 3 macro so each per-effect handler entry can be emitted
+  as Val or Ref based on the user's closure type, reusing the
+  same `Val` / `Ref` markers as the rest of the dispatch
+  system. Each entry is conceptually a closure of shape
+  `FnOnce(E::Operation) -> Run<R', S, A>`; the Ref variant
+  takes `FnOnce(&E::Operation) -> Run<R', S, A>`. _What this is
+  for:_ handlers that inspect operations without consuming them
+  (e.g., a logging handler that records and then forwards),
+  avoiding a `Clone` bound on operation payloads. _Why
+  deferred:_ the macro is already non-trivial in v1; shipping it
+  Val-only first and extending it once a real handler benefits
+  is a smaller initial bite, and the extension is non-breaking.
+  _Trigger:_ first handler (in the standard library or
+  downstream) that needs inspect-without-consuming on an
+  operation payload.
+- **`generalBracket` and `BracketConditions`.** Port the
+  more general bracket from PureScript Aff at
+  [`Aff.purs:364-373`](https://github.com/purescript-contrib/purescript-aff/blob/master/src/Effect/Aff.purs#L364-L373):
+  `generalBracket` accepts a `BracketConditions` record with
+  separate `killed`, `failed`, and `completed` handlers, each
+  receiving the resource. _What this is for:_ observing how a
+  bracketed action terminated (success, failure, cancellation)
+  and running different cleanup per outcome, instead of v1's
+  single uniform `release`. _Why deferred:_ v1's interpreter is
+  sync and has no cancellation event, so `killed` has no
+  semantics until the async target monad lands; without async,
+  `generalBracket` collapses to a more verbose `bracket` with
+  two unused branches. The Ref-flavour `RefBracket<'a, P, A, B>`
+  already shows that multiple closures can each receive
+  `P::Of<A>` without contention, so the dispatch design extends
+  cleanly when the time comes. _Trigger:_ the async target
+  monad lands (next item), at which point cancellation becomes
+  a real event handlers want to observe.
+- **`MonadRec` impl for `Future` as an async target monad**
+  ([decisions.md](decisions.md) section 9 items 3 + 4). _What
+  this is for:_ asynchronous interpretation of `Run` programs
+  via the same target-monad mechanism that already lets users
+  pick `Identity` or `Thunk` for sync interpretation; no
+  parallel `AsyncRun` family. _Why deferred:_ v1 ships sync
+  interpreters and async users wrap calls in `spawn_blocking`
+  or similar; adding `Future` as a `MonadRec` target requires
+  designing around pinned futures, executor coupling, and
+  multi-shot continuation friction, which is a separate body of
+  work. _Trigger:_ first user request for async interpretation
+  that cannot be satisfied by `spawn_blocking` around a sync
+  interpreter call.
+- **Split `fp-macros` into `fp-effects-macros`**
+  ([decisions.md](decisions.md) section 9 item 8). _What this
+  is for:_ a separate crate housing the effects-related
+  proc-macros (`effects!`, `effects_coyo!`, `handlers!`,
+  `define_effect!`, `define_scoped_effect!`,
+  `scoped_effects!`) so their release cadence is independent of
+  the HKT-system macros and do-notation macros that share
+  `fp-macros` today. _Why deferred:_ v1 keeps everything in one
+  crate to avoid multiplying release coordination and adding a
+  parallel macro-resolution path. _Trigger:_ `fp-macros`
+  compile time grows uncomfortably, or effects-related macro
+  changes start blocking unrelated macro releases.
 
 ## Implementation notes
 
@@ -535,10 +695,27 @@ The plan is complete when all of the following hold:
   per-variant unit tests passing.
 - `Reader`, `State`, `Except`, `Writer`, `Choose` ship as standard
   first-order effects with smart constructors.
-- `Catch`, `Local`, `Bracket`, `Span` ship as standard
-  scoped-effect constructors with smart constructors and
-  scoped-handler interpreters. (`Mask` deferred per
-  [decisions.md](decisions.md) section 4.5 sub-decisions.)
+- `Catch<'a, E>` and `Span<'a, Tag>` ship as Val-only
+  scoped-effect constructors; `Local` ships in Val and Ref
+  flavours (`Local<'a, E>` + `RefLocal<'a, E>`); `Bracket`
+  ships in Val and Ref flavours (`Bracket<'a, A, B>` +
+  `RefBracket<'a, P, A, B>` parameterised over
+  `P: RefCountedPointer`), each with scoped-handler
+  interpreters. The `bracket` and `local` smart constructors
+  use closure-driven Val/Ref dispatch (mirroring
+  [`dispatch.md`](../../../fp-library/docs/dispatch.md)) so the
+  user picks the flavour by closure type, not by turbofish.
+  (`Mask` deferred per [decisions.md](decisions.md) section 4.5
+  sub-decisions.)
+- The by-value hierarchy (`Functor` / `Pointed` / `Semimonad` /
+  `Monad`) and by-reference hierarchy
+  (`RefFunctor` / `RefSemimonad` / `RefMonad`) are both
+  implemented for every Free variant brand
+  (`RcFreeBrand`, `ArcFreeBrand`, `FreeExplicitBrand<F>`) and
+  every Run variant brand (`RunBrand`, `RcRunBrand`,
+  `ArcRunBrand`, `RunExplicitBrand`); `dispatch::map` /
+  `dispatch::bind` route correctly for both consuming and
+  borrowing closures.
 - The TalkF + DinnerF integration test passes.
 - All 25 row-canonicalisation tests migrated from
   `poc-effect-row/` pass under the production types.

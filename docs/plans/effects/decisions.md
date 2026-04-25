@@ -446,12 +446,14 @@ Scoped effects live in a second row, separate from the first-order algebraic row
 
 **Standard scoped-effect constructors shipped with the port:**
 
-| Constructor         | Payload                                                                                                     | Models                        |
-| ------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| `Catch<'a, E>`      | `action: Run<R, A>`, `handler: Box<dyn FnOnce(E) -> Run<R, A>>`                                             | `Error.catch`, `try`/`catch`. |
-| `Local<'a, E>`      | `modify: Box<dyn FnOnce(E) -> E>`, `action: Run<R, A>`                                                      | `Reader.local`.               |
-| `Bracket<'a, A, B>` | `acquire: Run<R, A>`, `release: Box<dyn FnOnce(A) -> Run<R, ()>>`, `body: Box<dyn FnOnce(&A) -> Run<R, B>>` | Resource management.          |
-| `Span<'a, Tag>`     | `tag: Tag`, `action: Run<R, A>`                                                                             | Instrumentation / tracing.    |
+| Constructor                             | Payload                                                                                                                                               | Models                                             |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `Catch<'a, E>`                          | `action: Run<R, A>`, `handler: Box<dyn FnOnce(E) -> Run<R, A>>`                                                                                       | `Error.catch`, `try`/`catch`.                      |
+| `Local<'a, E>` (Val flavour)            | `modify: Box<dyn FnOnce(E) -> E>`, `action: Run<R, A>`                                                                                                | `Reader.local` (closure consumes the env).         |
+| `RefLocal<'a, E>` (Ref flavour)         | `modify: Box<dyn FnOnce(&E) -> E>`, `action: Run<R, A>`                                                                                               | `Reader.local` (closure borrows the env).          |
+| `Bracket<'a, A, B>` (Val flavour)       | `acquire: Run<R, A>`, `body: Box<dyn FnOnce(A) -> Run<R, (A, B)>>`, `release: Box<dyn FnOnce(A) -> Run<R, ()>>`                                       | Resource management (`Run` / `RunExplicit` users). |
+| `RefBracket<'a, P, A, B>` (Ref flavour) | `acquire: Run<R, A>`, `body: Box<dyn FnOnce(P::Of<A>) -> Run<R, B>>`, `release: Box<dyn FnOnce(P::Of<A>) -> Run<R, ()>>` where `P: RefCountedPointer` | Resource management (`RcRun` / `ArcRun` users).    |
+| `Span<'a, Tag>`                         | `tag: Tag`, `action: Run<R, A>`                                                                                                                       | Instrumentation / tracing.                         |
 
 The exact payload shapes depend on the chosen Free variant (boxed `dyn FnOnce` for `Free`; shared `Rc<dyn Fn>` for `RcFree`, and so on). Users can define their own higher-order effects by implementing the same interpreter trait.
 
@@ -468,7 +470,66 @@ The exact payload shapes depend on the chosen Free variant (boxed `dyn FnOnce` f
 - _Lifetime parameter `'a` from day one._ Decision: yes. Each scoped-effect constructor is generic over a lifetime `'a` (`Catch<'a, E>`, `Local<'a, E>`, etc.) from day one, mirroring corophage's per-effect `'a` already adopted by section 4.1 Option 4 for first-order effects. This keeps the design uniform across both rows and avoids a breaking-change retrofit when `FreeExplicit` use cases want non-`'static` scoped actions.
 - _Interpreter continuation type._ Decision: fixed `Run<R, A>`. The trait method that interprets a scoped effect returns a `Run<R, A>` parameterised generically by `R` and `A`; the answer type and effect row can change via the trait method's signature, but the wrapper stays `Run`. Handlers that escape to non-`Run` values (e.g., a `runPure: Run<Void, A> -> A` analogue) live as separate free functions outside the trait, mirroring PureScript Run's split between `interpret` (Run-to-Run) and `run`/`runPure` (Run-to-bare-value). This matches every Haskell library the port can credibly imitate (heftia, in-other-words, PureScript Run): row-narrowing is expressed via the handler's signature, not via a per-impl associated type. An associated continuation type is deferred to a v2 if a real use case surfaces a handler that genuinely needs different per-impl output kinds inside the trait; until then, the simpler shape is preferred.
 - _User-defined extension shape._ Decision: coproduct-of-constructors (heftia-style). The higher-order row is a coproduct of concrete struct types (`Catch<'a, E>`, `Local<'a, E>`, user-defined `MyScoped<'a, ...>`, etc.); each struct gets its own interpreter impl. This mirrors the first-order row's structure (also a coproduct of effect functor structs per section 4.1 Option 4), keeping both rows uniform: programs are trees of `Pure`/`Suspend` over coproducts of constructor values, which is the data shape section 4.4 commits to as "first-class programs." A single-registration trait would invert this for the higher-order row only, breaking the symmetry; declined. Per-effect boilerplate (one struct + one impl per scoped effect) can be reduced later via a `define_scoped_effect!` macro mirroring section 9's planned `define_effect!` for first-order effects. The macro is a Phase 2 ergonomic improvement, not a Phase 1 design choice.
-- _Concrete payload shapes for the standard scoped constructors._ Decision: `Bracket<'a, A, B>` carries two type parameters where `A` is the resource type and `B` is the body's result type, matching PureScript's `bracket :: Run r a -> (a -> Run r Unit) -> (a -> Run r b) -> Run r b`. `Catch<'a, E>`, `Local<'a, E>`, and `Span<'a, Tag>` carry the day-one `'a` parameter from the previous sub-decision; the table above lists every constructor's full payload. (A `Mask<'a, E>` constructor was considered for the standard set and is deferred; see the next sub-decision for the full options analysis and revisit triggers.)
+- _Concrete payload shapes for the standard scoped constructors._ Decision: `Catch<'a, E>` and `Span<'a, Tag>` carry the day-one `'a` parameter from the previous sub-decision; the table above lists every constructor's full payload. `Bracket` and `Local` ship in two parallel flavours (Val and Ref) that mirror the library's existing Val/Ref dispatch pattern documented at [`fp-library/docs/dispatch.md`](../../../fp-library/docs/dispatch.md); a single user-facing smart constructor (`bracket` / `local`) uses closure-driven dispatch to pick the right flavour at the call site, exactly the way `dispatch::functor::map` already does for `Functor` versus `RefFunctor`.
+
+  **Bracket: Val and Ref flavours.** The Val flavour `Bracket<'a, A, B>` has `body: Box<dyn FnOnce(A) -> Run<R, (A, B)>>` and `release: Box<dyn FnOnce(A) -> Run<R, ()>>`. The body consumes `A`, threads it back to the interpreter via `(A, B)`, and the interpreter moves the returned `A` into `release`. The Ref flavour `RefBracket<'a, P, A, B>` has `body: Box<dyn FnOnce(P::Of<A>) -> Run<R, B>>` and `release: Box<dyn FnOnce(P::Of<A>) -> Run<R, ()>>` where `P: RefCountedPointer` is `RcBrand` for `RcRun` users and `ArcBrand` for `ArcRun` users. Body and release both receive a pointer clone, the resource lives until the last clone drops, and PureScript's GC-aliased semantics from [`bracket`](https://github.com/purescript-contrib/purescript-aff/blob/master/src/Effect/Aff.purs#L308) port directly.
+
+  **Why two flavours rather than one Val flavour for everyone.** PureScript's `bracket :: Run r a -> (a -> Run r Unit) -> (a -> Run r b) -> Run r b` takes `a` by value in both `body` and `release`, relying on GC to alias the resource between the two closures. Rust has no GC, so something has to carry the aliasing. The Val flavour uses the user's return type (`(A, B)`) to thread it back. The Ref flavour uses a refcount. Both are honest; neither subsumes the other. Users of the default `Run` get the Val flavour (no extra allocation, just an explicit thread-back); users of `RcRun` / `ArcRun` are already paying for refcounting on the substrate, so refcounting the resource is in-budget and gives them the closer-to-PureScript semantics.
+
+  **Why not the originally drafted `body: Box<dyn FnOnce(&A) -> Run<R, B>>` shape.** That shape looked like the Rust-faithful translation of PureScript's `(a -> Aff b)`, but it collapses into a useless signature on closer inspection: the returned `Run<R, B>` outlives the `&A` borrow (it is stored in a scoped-effect node and walked by the interpreter long after the body call has returned), so any closure inside the `Run` that captured `&A` would dangle. Effective bodies would be restricted to "look at `&A` synchronously, copy out `Copy` fields, return a `Run` whose closures reference nothing." Almost every real bracketed body wants the resource live throughout the body's effectful tree (e.g., reading from a `BufReader<File>` across nested binds), so this shape is rejected.
+
+  **Local: Val and Ref flavours.** Same axis, lighter justification. `Local<'a, E>` (Val) holds `modify: Box<dyn FnOnce(E) -> E>` and matches PureScript's `local :: (e -> e) -> Run r a -> Run r a` literally. `RefLocal<'a, E>` (Ref) holds `modify: Box<dyn FnOnce(&E) -> E>`, removing the `E: Clone` requirement that the Val flavour imposes on users who want to derive a sub-scope environment from the parent without owning it. The output `E` is owned, so there is no lifetime trap (the borrow only needs to live across the synchronous call to `modify`). This is structurally the same shape as `Functor::map`'s Val/Ref split and reuses the same dispatch machinery.
+
+  **Why `Catch` does not get a Ref flavour.** A symmetric `RefCatch<'a, E>` with `handler: Box<dyn FnOnce(&E) -> Run<R, A>>` would hit the same lifetime trap as the rejected `Bracket` shape: the returned `Run<R, A>` outlives the borrow. Errors in the surveyed languages (Haskell, PureScript) are owned values and rarely the kind of multi-ton handle a bracket guards. The Val-only signature `Catch<'a, E>` with `handler: Box<dyn FnOnce(E) -> Run<R, A>>` is correct here; users with non-`Clone` errors that they want to inspect without consuming can wrap them in `Rc` themselves.
+
+  **Why `Span` does not split.** No closure to dispatch over.
+
+  **Smart-constructor dispatch.** `bracket(acquire, body, release)` and `local(modify, action)` are the user-facing functions. Each is a thin wrapper over a `BracketDispatch` / `LocalDispatch` trait with two impls: `Val` for closures of the by-value shape, `Ref<P>` for closures of the by-reference / by-pointer shape. The `Ref<P>` marker carries the pointer brand so that `Ref<RcBrand>` and `Ref<ArcBrand>` are distinct dispatch impls for `bracket` (the pointer kind is part of the variant identity for the Ref Bracket flavour); `local`'s Ref impl does not need the pointer parameter because `RefLocal`'s payload is just `&E`, not `P::Of<E>`. The dispatch traits and their `Val` / `Ref` markers reuse the existing types from [`fp-library/src/dispatch/`](../../../fp-library/src/dispatch/) so the pattern is uniform across Functor, Bracket, and Local. (See "Why this isn't speculative scope creep" below.)
+
+  **Why this isn't speculative scope creep.** The library already commits to parallel Val/Ref hierarchies for every existing operation that takes a closure ([`fp-library/docs/dispatch.md`](../../../fp-library/docs/dispatch.md)). Shipping `Bracket` and `Local` as Val-only would invert that policy specifically for the scoped-effect surface, forcing users with non-`Clone` resources or environments to either work around it or wait for a v2 follow-up. Adding the Ref flavour now is a one-time cost (one extra struct + one extra interpreter trait method per scoped effect) and matches the rest of the library's existing surface. (A `Mask<'a, E>` constructor was considered for the standard set and is deferred; see the next sub-decision for the full options analysis and revisit triggers.)
+
+  **Worked example: a file-reading body across nested binds.** This is the use case that drove the Val/Ref split. With `RefBracket` (Ref flavour, refcounted), the closure can capture the file handle freely:
+
+  ```rust,ignore
+  // Pseudocode using RcRun.
+  // FILE is the Reader/Writer effect for opening/reading; HANDLE is Rc<File>.
+  let program: RcRun<FILE, NoScoped, String> = bracket(
+      open_file_for_read("data.txt"),                     // acquire: RcRun<FILE, _, File>
+      |handle: Rc<File>| {                                // body: closure-driven dispatch
+                                                          //   picks RefBracket<'a, RcBrand, File, String>
+          m_do!(RcRunBrand {
+              line1 <- read_line(Rc::clone(&handle));
+              line2 <- read_line(Rc::clone(&handle));
+              line3 <- read_line(handle);                 // last clone moves into the read
+              pure(format!("{line1}{line2}{line3}"))
+          })
+      },
+      |handle: Rc<File>| close_file(handle),              // release: consumes the final clone
+  );
+  ```
+
+  No lifetime annotations leak to the user. The closure's `Rc<File>` argument selects `Ref<RcBrand>`, the dispatch impl emits a `RefBracket<'a, RcBrand, File, String>` node, and the interpreter knows to clone the handle once for body and once for release. Switching to `ArcRun` flips the brand to `ArcBrand` and the program type-checks unchanged.
+
+  By contrast, the Val flavour for the default `Run` looks like:
+
+  ```rust,ignore
+  // Pseudocode using Run (the default, Box-based Free).
+  // The body threads the resource back via its return type.
+  let program: Run<FILE, NoScoped, String> = bracket(
+      open_file_for_read("data.txt"),                     // acquire: Run<FILE, _, File>
+      |file: File| {                                      // body: closure-driven dispatch
+                                                          //   picks Bracket<'a, File, String> (Val)
+          m_do!(RunBrand {
+              line1 <- read_line(&file);                  // assume read_line(&File) is a Run-shaped op
+              line2 <- read_line(&file);
+              pure((file, format!("{line1}{line2}")))     // thread the File back to the interpreter
+          })
+      },
+      |file: File| close_file(file),                      // release: receives the threaded-back file
+  );
+  ```
+
+  The thread-back is explicit but kept entirely inside the body closure; no special syntax, just a tuple in the body's return type. Users who prefer the implicit-aliasing semantics of `RcRun` pay one allocation and skip the tuple plumbing.
 
 - _Deferred to a future revision: `Mask` scoped-effect constructor._ Decision: the v1 standard scoped-effect set ships as `Catch`, `Local`, `Bracket`, `Span` only. `Mask` is not included in the initial surface; users who need duplicated-effect masking can roll their own via the `define_scoped_effect!` macro until concrete demand justifies promoting one to the standard set. The full design space surveyed below is preserved so this decision can be revisited.
 
