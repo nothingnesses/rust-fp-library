@@ -174,6 +174,23 @@ pub struct CoyonedaExplicitBrand<F, B>(PhantomData<(F, B)>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FnBrand<PtrBrand: RefCountedPointer>(PhantomData<PtrBrand>);
 
+/// Brand for [`FreeExplicit`](crate::types::FreeExplicit), the naive recursive
+/// Free monad supporting non-`'static` payloads.
+///
+/// Unlike the existing [`Free`](crate::types::Free), which cannot be a brand
+/// because its `Box<dyn Any>` continuation queue forces `A: 'static`,
+/// `FreeExplicit` keeps the functor structure as a concrete recursive enum
+/// and so satisfies the [`Kind`](crate::kinds) signature. The trade-off is
+/// O(N) [`bind`](crate::types::FreeExplicit::bind) on left-associated chains.
+///
+/// `F` must be `'static` because the [`Kind`](crate::kinds) trait's associated
+/// type `Of<'a, A>` introduces its own lifetime `'a`, so type parameters baked
+/// into the brand must outlive all possible `'a`. In practice this is not a
+/// restriction because all brands in the library are zero-sized marker types,
+/// which are inherently `'static`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FreeExplicitBrand<F>(PhantomData<F>);
+
 /// Brand for [`Identity`](crate::types::Identity).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct IdentityBrand;

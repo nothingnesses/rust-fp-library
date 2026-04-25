@@ -1,14 +1,36 @@
 # Plan: Port purescript-run to fp-library
 
-**Status:** NOT STARTED
+**Status:** Phase 1 in progress (step 1 of 6 complete).
 
 ## Current progress
 
-Pre-implementation phase. Design and decisions are recorded in
-[decisions.md](decisions.md). Research artifacts are in
-[research/](research/) (13 codebase classifications, 3 Stage 2
-deep dives, 1 synthesis). Two POC suites validate the most-novel
-design choices:
+Phase 1 step 1 complete: `FreeExplicit<'a, F, A>` and
+`FreeExplicitBrand<F>` are promoted from POC into production at
+[fp-library/src/types/free_explicit.rs](../../../fp-library/src/types/free_explicit.rs)
+and [fp-library/src/brands.rs](../../../fp-library/src/brands.rs).
+The struct now wraps its `Pure | Wrap` enum behind an
+`Option<FreeExplicitView>` so the new custom iterative `Drop` impl
+can take the view via `Option::take` and walk a deep `Wrap` chain
+in a loop via `Extract::extract`, mirroring [`Free`](../../../fp-library/src/types/free.rs)'s
+strategy. The struct-level bound is `F: Extract + Functor + 'a` per
+[decisions.md](decisions.md) section 4.4 ("What to do about `Drop`").
+
+The POC test file at
+[fp-library/tests/free_explicit_poc.rs](../../../fp-library/tests/free_explicit_poc.rs)
+now imports the production type. The previously-`#[ignore]`d
+`q4_naive_drop_overflows` test is replaced by `q4_drop_deep_does_not_overflow`,
+which actively exercises the iterative `Drop` on a 100 000-deep
+chain and passes under `just verify`. The bench at
+[fp-library/benches/benchmarks/free_explicit.rs](../../../fp-library/benches/benchmarks/free_explicit.rs)
+was migrated to the imported type with no shape change.
+
+Remaining Phase 1 work: step 2 (`RcFree`), step 3 (`ArcFree`),
+step 4 (brand registrations + by-value and by-reference trait
+hierarchies for all three new variants), step 5 (per-variant
+Criterion benches), step 6 (per-variant unit and `compile_fail`
+tests).
+
+Other artefacts unchanged from pre-implementation:
 
 - [poc-effect-row/](../../../poc-effect-row/) — 25 tests across two
   suites validating the row-encoding hybrid (workaround 1 macro
@@ -16,15 +38,7 @@ design choices:
   `tstr_crates` Phase 2 refinement, and static-via-Coyoneda
   Functor dispatch end-to-end. See
   [poc-effect-row-canonicalisation.md](poc-effect-row-canonicalisation.md)
-  for findings.
-- [fp-library/tests/free_explicit_poc.rs](../../../fp-library/tests/free_explicit_poc.rs)
-  — validates the `FreeExplicit` variant for non-`'static`
-  effect payloads (6 tests passing, 1 intentionally `#[ignore]`d
-  to document `Drop` overflow before the iterative custom `Drop`
-  ships).
-
-Implementation has not yet started. Phase 1 begins by promoting
-`FreeExplicit` from POC and adding `RcFree`, `ArcFree` siblings.
+  for findings. Migrates into production during Phase 2.
 
 ## Open questions, issues and blockers
 
@@ -45,7 +59,30 @@ it here and pause until it's resolved.
 
 ## Deviations
 
-None yet.
+- **Phase 1 step 1: removed `OptionBrand`-using POC tests.** Adding
+  the `F: Extract + Functor + 'a` bound to `FreeExplicit` (required
+  by the iterative `Drop` impl per
+  [decisions.md](decisions.md) section 4.4) means
+  `OptionBrand` can no longer back a `FreeExplicit`, since `None`
+  has no value to surrender and `OptionBrand` therefore cannot
+  lawfully implement `Extract`. The POC's `q5_two_effect_run`
+  short-circuit test and the `evaluate_option` helper were dropped;
+  the same Run-shaped semantics are reachable via handler
+  interpretation in Phase 3+. This is exactly the caveat the
+  decision predicts ("this forces every effect functor used with
+  `FreeExplicit` to implement `Extract`"), but the plan step text
+  said to "replace the local definition with an import" without
+  explicitly listing test removals, so it is recorded here.
+- **Phase 1 step 1: introduced `FreeExplicitView` enum.** The POC's
+  `FreeExplicit` was a two-variant enum directly. The production
+  type wraps the variants in `view: Option<FreeExplicitView>` so
+  the custom `Drop` impl can move the view out via `Option::take`
+  without producing a sentinel `A` value. `FreeExplicitView` is
+  `pub` and re-exported alongside `FreeExplicit` to keep the
+  variants visible for users who want to pattern-match. No external
+  test or bench needed to change shape; the POC tests only used
+  `pure`, `wrap`, `bind`, and `evaluate` (no direct match on the
+  variants).
 
 ## Implementation protocol
 

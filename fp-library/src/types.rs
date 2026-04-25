@@ -34,6 +34,7 @@ pub mod endomorphism;
 pub mod first;
 pub mod fn_brand;
 pub mod free;
+pub mod free_explicit;
 pub mod identity;
 pub mod last;
 pub mod lazy;
@@ -75,6 +76,10 @@ pub use {
 	free::{
 		Free,
 		FreeStep,
+	},
+	free_explicit::{
+		FreeExplicit,
+		FreeExplicitView,
 	},
 	identity::Identity,
 	last::Last,
