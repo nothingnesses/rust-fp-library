@@ -319,19 +319,21 @@ Does the Rust `Functor` trait's `map` signature (`fn map<'a, A, B>(f: impl Fn(A)
 
 **Scope narrowing from the dual-row decision in section 4.5.** The Functor-dictionary problem applies only to the _first-order_ effect row (the `VariantF` of algebraic effects). The higher-order row (scoped effects such as `Catch<E>` or `Local<E>`; see section 4.5) is not a functor: it is a closed set of constructors, each holding its own action and handler payload, and is interpreted by manual case dispatch rather than by `map`. This halves the surface area of the problem. Whichever option is adopted here (static bound, dynamic `DynFunctor`, or freer-style erasure) applies only to first-order effects; scoped effects do not require a dictionary at all. See [research/deep-dive-scoped-effects.md](research/deep-dive-scoped-effects.md).
 
-### 4.3 BLOCKER: How strong should stack-safety guarantees be
+### 4.3 DECISION: Ship both interpreter families (PureScript-mirroring)
 
-The existing `Free` is stack-safe (O(1) bind, iterative drop via `Extract`). That is sufficient for `Run`'s own stack-safety. But the PureScript library distinguishes two interpreter families:
+The existing `Free` is stack-safe (O(1) bind, iterative drop via `Extract`). That is sufficient for `Run`'s own stack-safety. The PureScript library distinguishes two interpreter families:
 
 - `interpret` / `run` / `runAccum`: assume the target monad is stack-safe.
 - `interpretRec` / `runRec` / `runAccumRec`: require `MonadRec` on the target.
 
-In Rust, this distinction is less useful: most target monads we'd write (`Option`, `Result`, `Thunk`) already implement `MonadRec` or trivially can. The open question:
+In Rust, this distinction is less useful at the design level: most target monads we'd write (`Option`, `Result`, `Thunk`) already implement `MonadRec` or trivially can. But the documentation and pedagogical advantages of mirroring PureScript 1:1 are real, and the implementation cost of shipping the second family is mostly mechanical (the iterative-via-`MonadRec` path is the harder one and is already required for the four-variant Free family in section 4.4).
 
-- Do we ship both families, mirroring PureScript 1:1? Easier to document but doubles the surface area.
-- Do we ship only the `MonadRec` family and make every interpreter stack-safe by default? Simpler, costs a few percent in common cases.
+**Decision: ship both families, mirroring PureScript.** Two interpreter families:
 
-**Recommendation (not a decision):** ship only the `MonadRec` family. Revisit if we find target monads that cannot implement it.
+- `interpret` / `run` / `runAccum`: assume the target monad is stack-safe (recursive interpretation).
+- `interpretRec` / `runRec` / `runAccumRec`: require `MonadRec` on the target (iterative via trampolining).
+
+This doubles the public-API surface but matches the upstream PureScript naming, which makes the library easier to teach to PureScript users and easier to cross-reference against `purescript-run` source. The few-percent runtime cost concern that motivated "MonadRec only" is real but small; users who care can reach for the recursive family explicitly.
 
 ### 4.4 DECISION: Ship a four-variant `Free` family
 
@@ -421,23 +423,13 @@ Without one of those, shipping the intersections now is speculative generality. 
 - Whether Run programs targeting thread-safe execution (`ArcFree`) need a parallel `Send`-constrained `Functor`/`Monad` trait hierarchy, or whether the existing `Send`-families in `classes/send_*.rs` already cover it.
 - Whether `RcFree` and `ArcFree` should be behind cargo features so users of the `Free` fast path don't pay compile cost for the other variants. Defer until the port is closer to shipping.
 
-### 4.5 BLOCKER: Natural transformations as values
-
-`interpret` takes a natural transformation `VariantF r ~> m` as a runtime value. In PureScript this is a polymorphic function. In Rust:
-
-- The existing `NaturalTransformation<F, G>` trait works for `F` with a statically-known type. But `VariantF r` is an _open_ sum; its concrete representation changes with `r`.
-- A natural transformation from `VariantF r` must, by construction, handle every case in `r`. In PureScript this is assembled with `case_ # on _reader handleReader # on _state handleState`. The `on` combinator threads the "smaller row" through the type of the remaining fallback.
-- In Rust, the equivalent is probably a tuple-of-closures (one per effect) indexed by the same type-level structure as the row, produced by a macro (`handlers! { state: handleState, reader: handleReader }`).
-
-**Open question:** will users build natural transformations by hand, or only via a macro? A macro-based DSL is the realistic answer, but it pushes complexity into the macro layer.
-
-#### Dual-row scoped-effect integration
-
-The port adopts heftia's dual-row architecture for scoped effects (see section 4.5 for the full rationale). Concretely, `Run` is typed against _two_ rows rather than one: a first-order algebraic row (`VariantF` of ordinary effect functors, subject to section 4.2's functor-dictionary question) and a higher-order row (a coproduct of scoped-effect constructors such as `Catch<E>` and `Local<E>`, holding their action and handler payloads as first-class values). The higher-order row does _not_ require a `Functor` instance; it is interpreted via manual case dispatch, which simplifies section 4.2 and keeps scoped effects visible as data rather than hidden in Tactical-style state threading. The four-variant Free decision above is orthogonal to the dual-row split: any of `Free`, `RcFree`, `ArcFree`, or `FreeExplicit` can carry the dual row via its Free-family wrapper. See [research/deep-dive-scoped-effects.md](research/deep-dive-scoped-effects.md) for the pattern comparison and recommendation.
-
----
-
 ### 4.5 DECISION: Scoped-effect representation via heftia's dual row
+
+#### Dual-row scoped-effect integration with the Free family
+
+The port adopts heftia's dual-row architecture for scoped effects (full rationale below). Concretely, `Run` is typed against _two_ rows rather than one: a first-order algebraic row (`VariantF` of ordinary effect functors, subject to section 4.2's functor-dictionary question) and a higher-order row (a coproduct of scoped-effect constructors such as `Catch<E>` and `Local<E>`, holding their action and handler payloads as first-class values). The higher-order row does _not_ require a `Functor` instance; it is interpreted via manual case dispatch, which simplifies section 4.2 and keeps scoped effects visible as data rather than hidden in Tactical-style state threading. The four-variant Free decision in section 4.4 is orthogonal to the dual-row split: any of `Free`, `RcFree`, `ArcFree`, or `FreeExplicit` can carry the dual row via its Free-family wrapper. See [research/deep-dive-scoped-effects.md](research/deep-dive-scoped-effects.md) for the pattern comparison and recommendation.
+
+#### Comparison and decision
 
 Stage 2 priority-3 research ([research/deep-dive-scoped-effects.md](research/deep-dive-scoped-effects.md)) compared four patterns for representing scoped effects (`Reader.local`, `Error.catch`, `mask`, `bracket`) under the port's encoding:
 
@@ -472,11 +464,28 @@ The exact payload shapes depend on the chosen Free variant (boxed `dyn FnOnce` f
 
 **Why this is structurally a decision, not a blocker.** Unlike section 4.1 (where five encoding options compete on rough parity) or section 4.2 (where the functor-dictionary tradeoff is still open), the dual-row pattern is the clear winner once the port commits to first-class programs (section 4.4) and declines delimited continuations (section 1.2). The alternatives are either strictly more complex (Tactical, Effly) or strictly less expressive (interposition). This subsection is therefore titled DECISION rather than BLOCKER.
 
-**Open questions under this decision:**
+**Sub-decisions under this section:**
 
-- Should scoped-effect constructors be generic over the lifetime `'a` (mirroring corophage's per-effect `'a`; section 4.1 Option 4) from day one, or added later when `FreeExplicit` need emerges? Adding them from day one is cheaper than retrofitting.
-- How does user-defined extension work? The higher-order row is a coproduct of constructors, each implementing an interpreter trait; users define new constructors and implement the trait. This mirrors the first-order row's openness story but the trait is different (no `Functor`).
-- Does the interpreter trait need an associated continuation type, or can it be fixed as `Run<R, A>`? Associated type adds flexibility; fixed type is simpler. Defer until prototype.
+- _Lifetime parameter `'a` from day one._ Decision: yes. Each scoped-effect constructor is generic over a lifetime `'a` (`Catch<'a, E>`, `Local<'a, E>`, etc.) from day one, mirroring corophage's per-effect `'a` already adopted by section 4.1 Option 4 for first-order effects. This keeps the design uniform across both rows and avoids a breaking-change retrofit when `FreeExplicit` use cases want non-`'static` scoped actions.
+
+**Open sub-questions under this decision:**
+
+- _Interpreter continuation type: fixed `Run<R, A>` or associated type?_ Pending decision; see analysis in the synthesis below or the research notes in [research/deep-dive-scoped-effects.md](research/deep-dive-scoped-effects.md).
+- _User-defined extension shape: coproduct-of-constructors or single registration trait?_ Pending decision; see analysis in the synthesis below.
+
+---
+
+### 4.6 DECISION: Natural transformations as values
+
+`interpret` takes a natural transformation `VariantF r ~> m` as a runtime value. In PureScript this is a polymorphic function. In Rust:
+
+- The existing `NaturalTransformation<F, G>` trait works for `F` with a statically-known type. But `VariantF r` is an _open_ sum; its concrete representation changes with `r`.
+- A natural transformation from `VariantF r` must, by construction, handle every case in `r`. In PureScript this is assembled with `case_ # on _reader handleReader # on _state handleState`. The `on` combinator threads the "smaller row" through the type of the remaining fallback.
+- In Rust, the equivalent is a tuple-of-closures (one per effect) indexed by the same type-level structure as the row.
+
+**Decision: macro DSL primary, builder fallback.** Users assemble natural transformations via a macro (`handlers!{ state: handle_state, reader: handle_reader }`) that expands to the appropriate per-effect tuple-of-closures matching the row's type-level structure. The builder pattern (`nt().on::<State<i32>>(handle_state).on::<Reader<Env>>(handle_reader)`) remains available as the fallback for users who want to bypass the macro or compose handlers programmatically. This mirrors section 4.1's workaround 1 + workaround 3 hybrid (macro primary, mechanical fallback for hand-authoring) and section 4.1's row-narrowing handler API note: the consistent design across the plan is "macro for ergonomics, type-level building blocks for escapes".
+
+The macro design is non-trivial; ownership of the macro rests with the same crate that hosts `effects!` (per section 4.1, fp-macros or a dedicated effects sub-crate). Error-message quality is the main implementation risk; the builder fallback exists partly to give users a path with cleaner errors when the macro expansion is the source of confusion.
 
 ---
 
@@ -564,6 +573,35 @@ fn run_state<S, R, A>(
 ```
 
 Handler composition then works as a pipeline that removes one effect from the row at each stage, mirroring PureScript's `# runReader env # runState 0 # extract`.
+
+The example above assumes `State<S>` is a natural `Functor`. For an effect that is not a natural `Functor`, the user lifts it through `Coyoneda` at construction time (section 4.2 resolution lean) and the handler lowers before pattern-matching:
+
+```rust
+fn run_logger<R, A>(
+    program: Run<Coprod![Coyoneda<Logger>, ...R], A>,
+) -> Run<R, (Vec<String>, A)> {
+    let mut log = Vec::new();
+    let mut current = program;
+    loop {
+        match current.peel() {
+            RunStep::Pure(a) => return Run::pure((log, a)),
+            RunStep::Impure(Coproduct::Here(coyo), k) => {
+                // Lower the Coyoneda first to recover the original
+                // Logger value, then pattern-match.
+                let logger_op: Logger = coyo.lower(/* ... */);
+                match logger_op {
+                    Logger::Log(msg) => { log.push(msg); current = k(()); }
+                }
+            }
+            RunStep::Impure(Coproduct::There(other), k) => {
+                current = Run::impure(other, k);   // forward
+            }
+        }
+    }
+}
+```
+
+The two patterns differ only at the `Coproduct::Here(...)` line: natural-Functor effects are pattern-matched directly; Coyoneda-wrapped effects are lowered first. The rest of the handler shape is identical.
 
 ---
 
