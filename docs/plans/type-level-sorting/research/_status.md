@@ -4,7 +4,7 @@ Tracks which research documents are complete and which are still
 pending. Update this whenever you finish (or explicitly defer) a
 research doc. See [README.md](README.md) for the full protocol.
 
-**Status: research phase complete as of 2026-04-24.** All 11 Stage 1 per-codebase classifications and the Stage 1 synthesis are ticked. No Stage 2 deep dives scheduled; the synthesis recommends no port-plan edits (workaround 2 stays declined on the existing reasoning, with a low-priority factual note that any future revisit should target tstr_crates rather than typenum). Type-level-sorting research arc closes here.
+**Status: research phase REOPENED as of 2026-04-25.** The original 11-codebase Stage 1 plus its synthesis closed cleanly on 2026-04-24, but the user has expanded scope to cover three additional topics: tyrade (a type-level DSL by Will Crichton), type-level hashing producing a type-level result (a deduplication-based alternative to sorting), and type-level hash-map / hash-set (also deduplication-based). Five new Stage 1 entries scheduled below. The synthesis is unticked and will be re-done once the new classifications complete.
 
 ## Stage 1: per-codebase classification
 
@@ -37,9 +37,26 @@ against the eight approaches catalogued in [README.md](README.md).
 
 - [x] [spidermeme.md](spidermeme.md)
 
+### Type-level DSL (added in expansion)
+
+- [x] [tyrade.md](tyrade.md)
+
+### Type-level hashing (added in expansion)
+
+- [x] [fixed-type-id.md](fixed-type-id.md)
+
+### Type-level hash-map / hash-set (added in expansion)
+
+- [x] [anymap.md](anymap.md)
+- [x] [typemap-meta.md](typemap-meta.md)
+- [x] [rust-typemap.md](rust-typemap.md)
+
 ## Stage 1 synthesis
 
-Populate only after every entry above is ticked.
+Populate only after every entry above is ticked. Reopened on
+2026-04-25; rewrite folded in the five new classifications and
+restated the verdict (no port-plan edits, two low-priority optional
+notes).
 
 - [x] [\_classification.md](_classification.md)
 

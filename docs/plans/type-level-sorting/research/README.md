@@ -36,7 +36,12 @@ which approaches work and at what cost, and surface anything novel.
 Underscore-prefixed files are meta-files (tracking, indices, synthesis);
 files without an underscore are content.
 
-## The eight approaches under consideration
+## The candidate approaches under consideration
+
+The first eight approaches are about ordering / sorting. Approaches 9
+and 10, added in a later expansion, are alternative canonicalisation
+routes that do not require sorting (they deduplicate by type identity
+rather than ordering).
 
 1. **Peano + typenum comparison.** Recursive insertion sort via traits.
    Each effect implements a typenum tag; a recursive trait performs
@@ -56,6 +61,18 @@ files without an underscore are content.
    to prove "two types are different".
 8. **Const generics + `const fn` comparison.** Use stable const generics
    and `const fn` to compute order at compile time.
+9. **Type-level hashing with type-level result.** Compile-time hash that
+   produces a TYPE (not just a runtime const). Two types with the same
+   hash collapse to identical type-level identity, enabling
+   canonicalisation without ordering. Distinguished from approach 3,
+   where the hash is a runtime constant unable to drive trait dispatch
+   on stable Rust.
+10. **Type-level hash-map / hash-set.** Data structures keyed by type
+    identity that deduplicate effects in a row (set) or look up
+    per-type values (map), achieving canonicalisation without ordering.
+    On stable Rust this typically reduces to runtime `TypeId`-keyed
+    storage, which is approach 6 / port-plan Option 3 in disguise; a
+    truly type-level realisation would require nightly features.
 
 The classification asks: which approach (or combination) does this
 codebase use, and does it actually solve the row-canonicalisation
