@@ -700,19 +700,27 @@ Neither changes the core design.
 
 ---
 
-## 9. Open Questions That Should Be Answered Before Starting
+## 9. Pre-implementation Decisions (formerly open questions)
 
-These are not full blockers (they don't prevent the first line of code) but they should have answers recorded before the port is attempted.
+These items were originally open questions; each is now answered. Recorded here so the implementer has explicit decisions to refer to. They are not full blockers (they don't prevent the first line of code) but they shape phase planning and the v1 / Phase 2 / Phase 3 split.
 
-1. **What is the target audience?** A library author building effect-heavy internal tooling has different needs than an application developer. The row-encoding choice in 4.1 may change based on this.
-2. **Do we want partial interpretation?** The ability to write `runReader: Run (READER + r) a -> Run r a` is the whole point of `Run`. If we relax this (only full interpretation), we can drop row polymorphism and the problem becomes much easier. Confirm we want the full version.
-3. **How does `Run` interact with `async`?** PureScript's `Aff` maps onto async Rust. Do we want an `async`-aware interpreter from day one, or is a synchronous interpreter acceptable?
-4. **What's the story for `IO`/effects-with-side-effects?** The PureScript `Effect` monad has no direct Rust analog. Options: `Thunk`, a custom `Effect` type, `std::io::Result`, or lean on `async` from the start. Needs a named owner.
-5. **Higher-order effects.** `purescript-run` supports `local` (Reader) and `catch` (Error), which take effectful computations as arguments. In the Freer encoding these require special handling. `eff` solves this with `locally` / `control`; a Freer-based system needs a different approach (possibly "hefty algebras" or explicit scoping).
-6. **Performance.** Freer allocates a closure per bind. Benchmark against a direct non-effectful implementation to establish a baseline.
-7. **Lifetime constraints.** Can the Freer monad's `Box<dyn FnOnce(...) -> ...>` work without `'static`? If not, effects carrying references (e.g., `Reader<&str>`) will not work. May force all effect data to be owned.
-8. **Macro infrastructure.** Will the port introduce a `define_effect!` macro that generates the enum, smart constructors, and label type? Almost certainly yes. Who owns the macro design?
-9. **Testing strategy.** Port the canonical `TalkF` + `DinnerF` example from [test/Examples.purs](https://github.com/natefaubion/purescript-run/blob/master/test/Examples.purs#L13-L106) as an integration test to validate the design.
+1. **Target audience: both library and application developers.** The macro + raw-substrate hybrid in section 4.1 makes simple cases simple while preserving expressivity for power users. Section 4.5's `define_scoped_effect!` (Phase 2) and section 4.6's macro DSL are the ergonomic surface; the Free family + dual-row + Coyoneda are the power surface. No design changes from this answer; record audience as the tiebreaker for future scoping decisions.
+
+2. **Partial interpretation: yes.** `runReader: Run<R + READER, A> -> Run<R, A>` is the whole point of `Run`. This confirms section 4.1's row-polymorphism premise and all downstream design.
+
+3. **Async interaction: sync interpreters in v1, async via target-monad in Phase 3.** The interpreter functions stay sync; async support arrives by adding a `MonadRec` impl for a `Future`-shaped target monad as a valid target for `interpret`/`interpretRec`. No parallel `AsyncRun` family. This mirrors PureScript Run + `Aff`: the substrate is monomorphic over the target; the user picks. Avoids forcing the async tax on sync users while keeping the library async-capable when the target monad is async.
+
+4. **IO / Effect story: `Thunk` for v1, `Future` as a `MonadRec` target for Phase 3.** No separate `Effect`-monad analogue. v1 uses `Thunk` (already in fp-library) for deferred-IO semantics; real IO interpreters live at the handler boundary (a handler that runs `std` IO when peeling the IO effect from the row). Phase 3 adds `Future` as a `MonadRec` target via the section-9 item-3 mechanism above. This keeps the IO story unified: it's always "user picks the target monad."
+
+5. **Higher-order effects:** closed by section 4.5 DECISION (heftia dual-row, with all four sub-decisions locked in: dual-row, day-one `'a`, fixed `Run<R, A>` continuation, coproduct-of-constructors).
+
+6. **Performance: Criterion benches per phase.** Section 4.4's existing `FreeExplicit` POC bench at four depths is the template. Phase 1 adds matching bind-deep, bind-wide, and peel-and-handle benches for `RcFree`, `ArcFree`, and the existing `Free`. Phase 2+ adds row-canonicalisation (macro vs `CoproductSubsetter` fallback) and handler-composition benches. Approximately 6-10 benches total. Establishes regression detection across phases.
+
+7. **Lifetime constraints:** closed by section 4.4 (`FreeExplicit` covers non-`'static` payloads via concrete recursive enum) plus section 4.5 (day-one `'a` on scoped-effect constructors). The four-variant Free family means non-`'static` payloads are explicitly supported by one variant; users who need them opt in.
+
+8. **Macro infrastructure: single owner, fp-macros.** The new effects-related macros (`effects!`, `effects_coyo!`, `handlers!`, `define_effect!`, `define_scoped_effect!`) live in fp-macros alongside the existing HKT, `m_do!`, `a_do!` machinery. Move to a separate `fp-effects-macros` crate only if fp-macros becomes too large; defer that decision until Phase 3+.
+
+9. **Testing strategy: per-phase unit + integration tests, with TalkF + DinnerF as the headline integration test.** Phase 1 ships per-Free-variant unit tests plus `compile_fail` tests for negative cases. Phase 2 ports the existing `poc-effect-row/` test suites into the production crate as the row-canonicalisation regression baseline (24 tests across feasibility + Coyoneda integration). Phase 4 ships the canonical `TalkF` + `DinnerF` example from [`purescript-run/test/Examples.purs`](https://github.com/natefaubion/purescript-run/blob/master/test/Examples.purs#L13-L106) as the headline integration test. Criterion benches (item 6) provide the performance baseline.
 
 ---
 
