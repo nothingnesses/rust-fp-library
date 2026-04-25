@@ -43,6 +43,7 @@ pub mod optics;
 pub mod option;
 pub mod pair;
 pub mod rc_coyoneda;
+pub mod rc_free;
 pub mod rc_ptr;
 pub mod result;
 pub mod send_endofunction;
@@ -98,6 +99,12 @@ pub use {
 	},
 	pair::Pair,
 	rc_coyoneda::RcCoyoneda,
+	rc_free::{
+		RcFree,
+		RcFreeStep,
+		RcFreeView,
+		RcTypeErasedValue,
+	},
 	send_endofunction::SendEndofunction,
 	send_thunk::SendThunk,
 	thunk::Thunk,

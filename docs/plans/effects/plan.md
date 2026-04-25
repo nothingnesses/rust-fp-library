@@ -1,34 +1,56 @@
 # Plan: Port purescript-run to fp-library
 
-**Status:** Phase 1 in progress (step 1 of 6 complete).
+**Status:** Phase 1 in progress (steps 1 and 2 of 6 complete).
 
 ## Current progress
 
-Phase 1 step 1 complete: `FreeExplicit<'a, F, A>` and
+Phase 1 steps 1 and 2 complete.
+
+**Step 1 (`FreeExplicit`).** `FreeExplicit<'a, F, A>` and
 `FreeExplicitBrand<F>` are promoted from POC into production at
 [fp-library/src/types/free_explicit.rs](../../../fp-library/src/types/free_explicit.rs)
 and [fp-library/src/brands.rs](../../../fp-library/src/brands.rs).
-The struct now wraps its `Pure | Wrap` enum behind an
-`Option<FreeExplicitView>` so the new custom iterative `Drop` impl
-can take the view via `Option::take` and walk a deep `Wrap` chain
-in a loop via `Extract::extract`, mirroring [`Free`](../../../fp-library/src/types/free.rs)'s
-strategy. The struct-level bound is `F: Extract + Functor + 'a` per
-[decisions.md](decisions.md) section 4.4 ("What to do about `Drop`").
+The struct wraps its `Pure | Wrap` enum behind an
+`Option<FreeExplicitView>` so the custom iterative `Drop` can take
+the view via `Option::take` and walk a deep `Wrap` chain in a loop
+via `Extract::extract`, mirroring
+[`Free`](../../../fp-library/src/types/free.rs)'s strategy. The
+struct-level bound is `F: Extract + Functor + 'a` per
+[decisions.md](decisions.md) section 4.4. The POC test file imports
+the production type and the previously-`#[ignore]`d
+`q4_naive_drop_overflows` test is replaced by an actively-running
+`q4_drop_deep_does_not_overflow` over a 100 000-deep chain.
 
-The POC test file at
-[fp-library/tests/free_explicit_poc.rs](../../../fp-library/tests/free_explicit_poc.rs)
-now imports the production type. The previously-`#[ignore]`d
-`q4_naive_drop_overflows` test is replaced by `q4_drop_deep_does_not_overflow`,
-which actively exercises the iterative `Drop` on a 100 000-deep
-chain and passes under `just verify`. The bench at
-[fp-library/benches/benchmarks/free_explicit.rs](../../../fp-library/benches/benchmarks/free_explicit.rs)
-was migrated to the imported type with no shape change.
+**Step 2 (`RcFree`).** `RcFree<F, A>` lands at
+[fp-library/src/types/rc_free.rs](../../../fp-library/src/types/rc_free.rs)
+following the [`Free`](../../../fp-library/src/types/free.rs)
+template. Continuation cells in the
+[`CatList`](../../../fp-library/src/types/cat_list.rs) queue are
+`Rc<dyn Fn>` (matching what
+[`FnBrand<RcBrand>`](../../../fp-library/src/types/fn_brand.rs)
+resolves to) instead of `Box<dyn FnOnce>`, so multi-shot effects
+like `Choose` can drive the same stored continuation more than
+once. The whole substrate lives behind an outer `Rc<Inner>` so
+[`Clone`](https://doc.rust-lang.org/std/clone/trait.Clone.html) is
+unconditional and O(1) (refcount bump), matching the
+[`RcCoyoneda`](../../../fp-library/src/types/rc_coyoneda.rs)
+cloning pattern. The inner state's `Drop` impl iteratively
+dismantles deep `Suspend` chains via `Extract::extract` (taking
+ownership through `Rc::try_unwrap` when uniquely held), and
+dropping a 100 000-deep chain is exercised by
+`deep_drop_does_not_overflow` in the unit tests.
 
-Remaining Phase 1 work: step 2 (`RcFree`), step 3 (`ArcFree`),
-step 4 (brand registrations + by-value and by-reference trait
-hierarchies for all three new variants), step 5 (per-variant
-Criterion benches), step 6 (per-variant unit and `compile_fail`
-tests).
+The full set of inherent methods covered is `pure`, `wrap`,
+`lift_f`, `bind`, `map`, `to_view`, `resume`, `evaluate`,
+`hoist_free`, plus the new non-consuming
+`lower_ref(&self)` / `peel_ref(&self)` (clone-then-consume,
+cheap because Clone is O(1)). 12 unit tests cover construction,
+chaining, multi-shot via clone, and deep evaluate / Drop.
+
+Remaining Phase 1 work: step 3 (`ArcFree`), step 4 (brand
+registrations + by-value and by-reference trait hierarchies for
+all three new variants), step 5 (per-variant Criterion benches),
+step 6 (per-variant unit and `compile_fail` tests).
 
 Other artefacts unchanged from pre-implementation:
 
@@ -83,6 +105,44 @@ it here and pause until it's resolved.
   test or bench needed to change shape; the POC tests only used
   `pure`, `wrap`, `bind`, and `evaluate` (no direct match on the
   variants).
+- **Phase 1 step 2: `RcFree` uses `Rc<dyn Any>` (not `Box<dyn Any>`)
+  for the type-erased value cell.** Decision 4.4's table summarises
+  `RcFree`'s erasure as "`Box<dyn Any>` + CatList" while also
+  committing to "Cloneable: Yes, O(1)". `Box<dyn Any>` is not
+  `Clone`, so the literal table reading conflicts with the Clone
+  commitment. The minimal resolution is to swap the Box-erased
+  cell for an `Rc<dyn Any>`, which keeps the `dyn Any` erasure
+  shape but lets the inner state participate in Clone. Recovering
+  an owned `A` from the cell uses `Rc::try_unwrap` and falls back
+  to `(*shared).clone()` when the cell is shared, which constrains
+  the public methods that perform the final downcast (`to_view`,
+  `resume`, `evaluate`, `lower_ref`, `peel_ref`, `hoist_free`) to
+  require `A: Clone`. This matches the multi-shot semantics: a
+  handler that wants to evaluate the same program more than once
+  needs the result type to be reproducible.
+- **Phase 1 step 2: `RcFree<F, A>` is `Rc<RcFreeInner<F, A>>`
+  (outer `Rc` wrapping).** Step 2's text says "follow the `Free`
+  template" without specifying outer-Rc-wrapping, but the unconditional
+  O(1) Clone commitment plus the `Suspend` arm holding
+  `F::Of<RcFree<F, RcTypeErasedValue>>` produce a recursive Clone
+  bound that only resolves cleanly when `RcFree: Clone` is
+  unconditional. Outer-Rc-wrapping (the
+  [`RcCoyoneda`](../../../fp-library/src/types/rc_coyoneda.rs)
+  pattern) makes Clone trivially `Rc::clone(&self.inner)`. State-
+  extending operations (`bind`, `map`, `wrap`, `lift_f`, `cast_phantom`)
+  use `Rc::try_unwrap` to move out when uniquely owned and clone
+  the inner state otherwise.
+- **Phase 1 step 2: `RcContinuation` is a newtype, not the bare
+  `<RcFnBrand as CloneFn>::Of` projection.** Step 2's text says
+  "expressed via `FnBrand<RcBrand>`". Using the macro-mediated GAT
+  projection directly as a type alias does not parse (the type
+  parameter `F` does not surface through the `Apply!` expansion).
+  The production type uses a thin newtype `RcContinuation<F>(Rc<dyn Fn(...)>)`
+  with the same in-memory shape as `<RcFnBrand as CloneFn>::Of`,
+  and constructs values via `<RcFnBrand as LiftFn>::new(...)` so
+  the library's unified function-pointer abstraction is still on
+  the construction path. The newtype's `Clone` impl bumps the
+  underlying `Rc`'s refcount.
 
 ## Implementation protocol
 
