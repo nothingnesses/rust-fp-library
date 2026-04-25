@@ -1,6 +1,6 @@
 .direnv/
 *.code-workspace
-/target
+target/
 .vscode
 .cache/test-output/
 .claude/worktrees/

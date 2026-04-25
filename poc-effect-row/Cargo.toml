@@ -1,0 +1,20 @@
+[package]
+name = "poc-effect-row"
+version = "0.0.0"
+edition = "2024"
+description = "POC for effect-row canonicalisation hybrid (port-plan section 4.1)"
+publish = false
+
+[workspace]
+members = ["macros"]
+# Inner workspace containing the host crate (root) and the proc-macro
+# subcrate. Declaring a workspace here detaches this directory from
+# the outer rust-fp-lib workspace.
+
+[dependencies]
+effect-row-macros = { path = "macros" }
+frunk_core = "0.4"
+
+[dev-dependencies]
+static_assertions = "1.1"
+tstr = "0.3"
