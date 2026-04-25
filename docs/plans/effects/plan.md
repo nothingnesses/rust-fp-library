@@ -85,7 +85,57 @@ Other artefacts unchanged from pre-implementation:
 
 ## Open questions, issues and blockers
 
-None. All blockers from the design phase are resolved in
+**BLOCKER (Phase 1 step 4): `RcFreeBrand` and `ArcFreeBrand`
+cannot satisfy the existing `Kind`/`Functor` hierarchy under
+their `A: 'static` constraint.** Step 4 calls for adding brand
+registrations and `Functor` / `Pointed` / `Semimonad` / `Monad`
+impls (plus the by-reference siblings) for `RcFreeBrand`,
+`ArcFreeBrand`, and `FreeExplicitBrand<F>`, with "the default
+`Free`'s impls" as the template. The existing `Free<F, A>` has
+no brand and no such impls, exactly because its `Box<dyn Any>`
+erasure forces `A: 'static`, while the `Kind` trait's signature
+is `type Of<'a, A: 'a>: 'a;` and the `Functor::map` signature is
+`fn map<'a, A: 'a, B: 'a>(...)` — neither admits the stricter
+`A: 'static`. `RcFree<F, A>` and `ArcFree<F, A>` (steps 2 and 3)
+share the same `A: 'static` constraint from their
+`Rc<dyn Any>` / `Arc<dyn Any + Send + Sync>` erasure, so
+`impl_kind! { ... type Of<'a, A: 'a>: 'a = RcFree<F, A>; }`
+won't compile (the struct bound `A: 'static` is not provable for
+arbitrary `A: 'a`).
+
+Only `FreeExplicitBrand<F>` actually fits the existing trait
+hierarchy as written: `FreeExplicit<'a, F, A: 'a>` has no
+`'static` requirement.
+
+The plan's brand-entry note says "`'static` bounds live on
+impls" but doesn't specify the mechanism. Candidate resolutions:
+
+1. Add a `'static`-constrained `Kind` variant
+   (`Kind!(type Of<'a, A: 'a + 'static>: 'a;)`) plus parallel
+   `Functor`/`Pointed`/`Semimonad`/`Monad` traits keyed on it.
+   Substantial library extension.
+2. Use GAT `where`-clauses on `Of` (stable Rust 1.65+) to add
+   `A: 'static` to the brand's `Of` impl. Whether `impl_kind!`
+   accepts that syntax and whether the existing trait hierarchy
+   composes with it cleanly is unverified.
+3. Skip `RcFreeBrand`/`ArcFreeBrand` and have
+   `RcRunBrand`/`ArcRunBrand` (Phase 2) implement `Functor` /
+   `Monad` directly via a different mechanism (inherent methods,
+   bespoke trait family, etc.).
+4. Reinterpret step 4 as `FreeExplicitBrand`-only and defer
+   `RcFreeBrand`/`ArcFreeBrand` to Phase 2 step 4 where the
+   `Run`-brand impls have to commit to a concrete design.
+
+Each candidate has different implications for the library's
+trait hierarchy and for Phase 2's `Run<...>` brand design.
+Choosing among them is a design decision the implementation
+agent does not have authority to make unilaterally.
+
+**Pause until resolved.**
+
+---
+
+All blockers from the design phase are resolved in
 [decisions.md](decisions.md):
 
 - Section 4 (six DECISIONs): row encoding, Functor dictionary,
