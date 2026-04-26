@@ -996,16 +996,29 @@ inherent-method only; the Explicit family (`FreeExplicit`,
 8. Per-variant Criterion benches for all six variants (bind-deep
    at depths 10 / 100 / 1000 / 10000, bind-wide, peel-and-handle),
    plus a cross-variant comparison bench documenting the O(1) vs
-   O(N) bind-cost asymmetry. Match the `FreeExplicit` POC bench
-   shape.
-9. Per-variant unit tests covering construction, evaluation,
-   `fold_free` interpretation, and the property each variant
-   promises (single-shot vs. multi-shot, thread-safe,
-   `'static` vs `'a`, Brand-dispatched vs inherent-method-only).
-   Plus `compile_fail` UI tests for the negative cases:
-   multi-shot via `Free`, Brand-dispatched call against an
-   Erased variant, missing `Send + Sync` on a closure passed to
-   `ArcFreeExplicit::bind`, etc.
+   O(N) bind-cost asymmetry. The existing
+   [`free_explicit.rs`](../../../fp-library/benches/benchmarks/free_explicit.rs)
+   POC bench has the `bind-deep` shape only; step 8 extends that
+   shape with `bind-wide` (single bind closure mapping over a
+   wide-but-shallow chain) and `peel-and-handle` (single-step
+   `to_view` / `peel_ref` cost) and replicates the full set
+   across all six variants.
+9. Per-variant unit tests covering construction, evaluation, and
+   the property each variant promises (single-shot vs.
+   multi-shot, thread-safe, `'static` vs `'a`, Brand-dispatched
+   vs inherent-method-only). The canonical interpretation method
+   varies by variant: `Free::fold_free` for `Free` (the only
+   variant with that inherent method); `evaluate` for
+   `RcFree`/`ArcFree`/`FreeExplicit`/`RcFreeExplicit`/`ArcFreeExplicit`.
+   Plus `compile_fail` UI tests under
+   [`fp-library/tests/ui/`](../../../fp-library/tests/ui/)
+   (registered via the existing
+   [`fp-library/tests/compile_fail.rs`](../../../fp-library/tests/compile_fail.rs)
+   `trybuild` harness) for the negative cases: multi-shot via
+   `Free`, Brand-dispatched call against an Erased variant,
+   missing `Send + Sync` on a closure passed to
+   `ArcFreeExplicit::bind`, missing `Clone` on a closure passed
+   to `RcFree::bind`, etc.
 
 ### Phase 2: Run substrate and first-order effects
 
