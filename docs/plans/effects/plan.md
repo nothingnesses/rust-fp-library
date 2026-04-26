@@ -111,159 +111,56 @@ Other artefacts unchanged from pre-implementation:
 
 ## Open questions, issues and blockers
 
-**Open question for Phase 1 step 7 and Phase 2 step 4:
-brand-level dispatch for the multi-shot Explicit Free family
-lands on the by-reference hierarchy, not the by-value
-hierarchy.** `RcFreeExplicit::bind` (and any derived `map`)
-consumes `self` and routes through `into_inner_owned`, which
-falls back to cloning the inner state when the outer `Rc` is
-shared. The inner state's `Pure(A)` arm holds `A` directly, so
-that fallback path requires `A: Clone`. The `Functor` trait's
-`map<'a, A: 'a, B: 'a>` signature is fixed and stable Rust does
-not admit per-method `where A: Clone` on the impl. The same logic
-applies to `Semimonad::bind` and downstream. `Pointed::pure` is
-unaffected because `pure(a)` does not need `A: Clone`.
+None blocking.
 
-The library already has the answer to this kind of constraint:
-the **by-reference trait hierarchy** documented in
+**Resolved (between Phase 1 step 4 and step 5): brand-level
+dispatch for the multi-shot Explicit Free family lands on the
+by-reference hierarchy, not the by-value hierarchy.**
+`RcFreeExplicit::bind` requires `A: Clone` (because shared inner
+state must clone to recover an owned `A`), and stable Rust does
+not admit per-method `where A: Clone` on a `Functor::map` impl.
+This is the same constraint that
 [fp-library/docs/limitations-and-workarounds.md](../../../fp-library/docs/limitations-and-workarounds.md)
-under "Memoized Types Cannot Implement `Functor`". `RefFunctor`,
-`RefPointed`, `RefSemimonad`, `RefMonad` (and the `SendRef*`
-variants) take their closure as `Fn(&A) -> B` and the container
-by reference, so the implementor never needs to own `A`. `Lazy`
-is brand-dispatched via the Ref hierarchy alone for exactly this
-reason. The unified `map` free function dispatches on closure
-shape: `Fn(A) -> B` routes to `Functor`, `Fn(&A) -> B` routes to
-`RefFunctor`. Step 7 already scopes both hierarchies for
-`RcFreeExplicitBrand` and `FreeExplicitBrand` (and step 6 already
-scopes `SendFunctor` plus by extension `SendRefFunctor` for
-`ArcFreeExplicitBrand`).
+documents under "Unexpressible Bounds in Trait Method Signatures"
+for `RcCoyoneda`/`ArcCoyoneda` and addresses under "Memoized Types
+Cannot Implement `Functor`" via the by-reference hierarchy
+(`RefFunctor`, `RefSemimonad`, `RefMonad` and `SendRef*`
+parallels) that `Lazy` already uses. The decision (locked
+2026-04-26) is to follow `Lazy`'s precedent:
 
-For `RcFreeExplicit`, `RefFunctor::ref_map` is implementable: in
-the `Pure(a)` arm, apply `f(&a)` directly with no Clone bound; in
-the `Wrap(fa)` arm, recurse via `F::ref_map` (requires
-`F: RefFunctor`). Same shape extends to `RefSemimonad::ref_bind`,
-`RefMonad`, etc. This makes the brand-level coverage:
+- `FreeExplicitBrand`: full by-value (`Functor` / `Pointed` /
+  `Semimonad` / `Monad`) + full Ref hierarchy.
+- `RcFreeExplicitBrand`: `Pointed` on the by-value side; full
+  Ref hierarchy (`RefFunctor` / `RefSemimonad` / `RefMonad`,
+  plus `RefPointed` and the supporting Ref traits per
+  [`fp-library/docs/dispatch.md`](../../../fp-library/docs/dispatch.md)).
+- `ArcFreeExplicitBrand`: `SendPointed` on the by-value side
+  (added by step 6 alongside `SendFunctor` etc.); full SendRef
+  hierarchy (`SendRefFunctor` / `SendRefSemimonad` /
+  `SendRefMonad`, plus the supporting `SendRef*` traits).
 
-| Type              | by-value Functor | by-value Pointed  | by-value Semimonad | Ref Functor | Ref Pointed | Ref Semimonad                |
-| :---------------- | :--------------- | :---------------- | :----------------- | :---------- | :---------- | :--------------------------- |
-| `FreeExplicit`    | Yes              | Yes               | Yes                | Yes         | Yes         | Yes                          |
-| `RcFreeExplicit`  | No               | Yes               | No                 | Yes         | Yes         | Yes                          |
-| `ArcFreeExplicit` | No               | via `SendPointed` | No                 | Yes         | Yes         | Yes (via `SendRefSemimonad`) |
+The remaining by-value operations (`bind`, `map`, etc.) on
+`RcFreeExplicit` / `ArcFreeExplicit` ship as inherent methods
+with their natural `Clone` bounds, mirroring the
+`RcCoyoneda`/`ArcCoyoneda` precedent. Two alternatives were
+considered and rejected: (a) modifying the existing by-value
+hierarchy to add `Clone` bounds taxes the entire ecosystem
+(`Option`, `Vec`, `Identity`, etc.) for one wrapper's storage
+strategy; (b) adding a parallel `CloneFunctor` / `CloneSemimonad`
+/ `CloneMonad` family duplicates the Ref hierarchy's dispatch
+story and adds a third orthogonal trait-and-dispatch axis (closure
+shape, send-ness, Clone-ness). The Ref path is the documented
+library convention and exists today; revisit `CloneFunctor` only
+if Phase 5+ user feedback indicates Ref-only brand UX is
+insufficient for the multi-shot Explicit family.
 
-The user-facing implication: `m_do!` and typeclass-generic
-dispatch over `RcRunExplicit` / `ArcRunExplicit` work via the Ref
-hierarchy. Users writing `m_do!` over those Run variants pass
-`Fn(&A) -> ...` continuations rather than `Fn(A) -> ...`. The
-single-threaded single-shot variant `RunExplicit` (built on
-`FreeExplicit`) keeps full by-value brand coverage and is the
-ergonomic "default" for typeclass-generic code; the multi-shot
-variants get brand dispatch via Ref. This matches `Lazy`'s
-precedent exactly. The plan's Motivation section needs a small
-clarification on this, and Phase 2 step 4 should explicitly state
-that `m_do!` continuations on `RcRunExplicit` / `ArcRunExplicit`
-take `&A`.
-
-Resolutions in priority order:
-
-1. **Stick with Ref hierarchy + inherent by-value methods**
-   (recommended). Step 7 implements `RefFunctor` /
-   `RefSemimonad` / `RefMonad` for `RcFreeExplicitBrand`, plus
-   `SendRefFunctor` / `SendRefSemimonad` / `SendRefMonad` for
-   `ArcFreeExplicitBrand`, plus `Pointed` (and `SendPointed`)
-   on the by-value side because `pure` needs no Clone bound.
-   `RcFreeExplicit::bind` / `ArcFreeExplicit::bind` ship as
-   inherent methods (with their natural Clone bounds) for direct
-   non-generic use, mirroring the
-   [`RcCoyoneda`/`ArcCoyoneda` precedent](../../../fp-library/docs/limitations-and-workarounds.md).
-   Update plan Motivation to show `m_do!` over multi-shot
-   Explicit Run variants taking `Fn(&A) -> ...` continuations.
-2. Restructure `RcFreeExplicit`/`ArcFreeExplicit` to a
-   Coyoneda-hybrid `Pure` cell (e.g.,
-   `Pure<X>(Rc<X>, Rc<dyn Fn(X) -> A>)`) so by-value `map` adds
-   a function layer without consuming `A`. Adds one `Rc` per
-   `pure` and an existential type parameter; bind still has the
-   spine-recursion cost. Restores by-value `Functor` brand
-   coverage (matching `RcCoyoneda` precedent) but does not solve
-   by-value `Semimonad` (bind still needs ownership of the
-   intermediate value). Higher-effort and only partially helps.
-3. Add a `CloneFunctor` / `CloneSemimonad` / `CloneMonad`
-   parallel trait family with `A: Clone` on the closure
-   parameter, paralleling `SendFunctor`. Discussed below in
-   "Hierarchy modification options"; not recommended without
-   user feedback indicating Ref-hierarchy UX is insufficient.
-
-### Hierarchy modification options
-
-The user asked whether to consider (a) modifying the existing
-by-value hierarchy to add Clone bounds or (b) adding a parallel
-by-value hierarchy with Clone bounds.
-
-**(a) Modify the existing by-value hierarchy.** Don't do this.
-`Functor` / `Pointed` / `Semimonad` / `Monad` are foundational
-abstractions implemented by every container type in the library
-(`Option`, `Result`, `Vec`, `Identity`, `Free`, `Coyoneda`, etc.).
-Adding `A: Clone` (or any extra trait bound on the element) to
-the trait method signatures would force every existing
-implementor to carry the bound, restricting them to `Clone`
-elements without benefit. It would also break the abstraction:
-the categorical Functor laws don't require Clone, so encoding
-Clone in the trait signature mis-models what a Functor is. This
-is the same argument that keeps `Send + Sync` out of `Functor`
-(handled via parallel `SendFunctor` instead).
-
-**(b) Add a parallel `CloneFunctor` / `CloneSemimonad` /
-`CloneMonad` family.** Plausible but speculative. Mirrors the
-existing `SendFunctor` pattern (planned for `ArcFreeExplicit` in
-step 6) and the `RefFunctor` family. Each trait would carry
-`A: Clone` (and possibly `B: Clone`) on the closure parameter,
-admitting impls for types whose internal storage forces clone-on-
-shared-access. `RcFreeExplicit` would implement `CloneFunctor`
-/ `CloneSemimonad` / `CloneMonad`; `ArcFreeExplicit` would
-implement `SendCloneFunctor` / etc. Generic code that wants the
-multi-shot Explicit family would write `F: CloneFunctor` instead
-of `F: Functor`.
-
-The arguments against doing this now:
-
-- The Ref hierarchy already exists and already covers the same
-  use cases that motivated this question (brand dispatch on a
-  type that can't consume `A` cheaply).
-- `Send + Sync` is fundamentally a different kind of constraint
-  from `Clone`. `Send + Sync` weakens what the implementor can
-  store internally (no `Rc`, no `Cell`, etc.); `Clone` is a
-  demand on the closure's input. From the user's perspective,
-  calling a `CloneFunctor::map` looks identical to calling a
-  regular `Functor::map`; the only difference is which trait
-  bound the user wrote in their generic code. That's a less
-  natural axis to split on than Send-vs-not-Send.
-- The dispatch surface (`m_do!`, the unified `map` free
-  function) currently splits on closure shape (`Fn(A)` vs
-  `Fn(&A)`) and on send-ness (regular vs `Send` variants).
-  Adding a Clone axis means three orthogonal splits, which the
-  macro/dispatch wiring would have to learn. Real complexity
-  cost.
-- "Don't add features beyond what the task requires." The Ref
-  hierarchy resolves the immediate problem; `CloneFunctor`
-  should be added only if real-world usage shows the Ref-only
-  brand path is too cumbersome for users of the multi-shot
-  Explicit family. That's a Phase 5+ refinement question.
-
-If we **were** to add `CloneFunctor` later, the smallest version
-would parallel `SendFunctor` exactly: an independent trait,
-implemented by exactly the brands that need it, and a unified
-dispatch arm in the `map` / `bind` free functions that prefers
-the Clone-bounded impl when both are available. That's a
-mechanical addition that doesn't require re-design.
-
-Step 4's commit lands the `RcFreeExplicit` type and `Kind`
-registration as planned. The question affects step 7's trait
-hierarchy scope (which Ref impls land), step 6's design
-(whether `SendFunctor` for `ArcFreeExplicitBrand` is paired with
-`SendRefFunctor` from the start), and the plan's Motivation /
-Phase 2 wording (Ref-shaped continuations on `m_do!` over
-multi-shot Run variants). It does not block step 5
-(`ArcFreeExplicit`, which is structural).
+Plan-level consequences of the decision are reflected in
+Phase 1 step 7, Phase 2 step 4, the Motivation section's
+multi-shot example, and the "Will change" table's
+`*RunExplicitBrand` row. Step 7 also schedules an update to
+[fp-library/docs/limitations-and-workarounds.md](../../../fp-library/docs/limitations-and-workarounds.md)'s
+"Unexpressible Bounds" classification table to add rows for
+the three Explicit Free variants once their impls land.
 
 The earlier `RcFreeBrand`/`ArcFreeBrand` blocker
 is resolved by adopting the **Erased/Explicit dispatch split**
@@ -492,7 +389,10 @@ let result: String = run_program()
 ```
 
 For Brand-dispatched typeclass-generic code (or programs with
-non-`'static` payloads), use the corresponding Explicit variant:
+non-`'static` payloads), use the corresponding Explicit variant.
+The single-shot single-thread variant `RunExplicit` (built on
+`FreeExplicit`) keeps full by-value brand coverage and is the
+ergonomic default:
 
 ```rust
 fn run_program_explicit<'a>() -> RunExplicit<'a, AppEffects, NoScoped, String> {
@@ -504,9 +404,35 @@ fn run_program_explicit<'a>() -> RunExplicit<'a, AppEffects, NoScoped, String> {
 }
 ```
 
-Convert between the two on demand: `run_program().into_explicit()`
-walks the structure once and returns an `RunExplicit` of the same
-program, suitable for handing into typeclass-generic consumers.
+The multi-shot variants `RcRunExplicit` / `ArcRunExplicit` get
+brand dispatch via the by-reference hierarchy (`RefFunctor` /
+`RefSemimonad` / `RefMonad` and their `SendRef*` parallels),
+matching `Lazy`'s precedent for the same constraint. The existing
+`m_do!` / `a_do!` macros support a `ref` qualifier
+(`m_do!(ref Brand { ... })`) that routes through
+`RefSemimonad::ref_bind`; closures take `&A`:
+
+```rust
+fn run_program_rc_explicit<'a>() -> RcRunExplicit<'a, AppEffects, NoScoped, String> {
+    m_do!(ref RcRunExplicitBrand {
+        cfg <- ask::<Env>();          // cfg: &Env
+        n <- get::<Counter>();         // n: &Counter
+        pure(format!("got {n}"))
+    })
+}
+```
+
+For inherent-method calls on multi-shot Explicit Run programs
+(e.g., when `A: Clone` is satisfied and consuming continuations
+are preferred), the by-value `bind` / `map` ship as inherent
+methods on `RcRunExplicit` / `ArcRunExplicit` directly, with their
+natural `Clone` bounds, mirroring the
+[`RcCoyoneda`/`ArcCoyoneda` precedent](../../../fp-library/docs/limitations-and-workarounds.md).
+
+Convert between Erased and Explicit on demand:
+`run_program().into_explicit()` walks the structure once and
+returns the corresponding Explicit Run of the same program,
+suitable for handing into typeclass-generic consumers.
 
 `runReader: Run<R + READER, S, A> -> Run<R, S, A>`-style row
 narrowing matches PureScript Run (the scoped-effect row `S`
@@ -619,20 +545,20 @@ Quick reference table:
 | Component                                                                                         | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `fp-library/src/types/free.rs`                                                                    | Existing `Free<F, A>` keeps its current shape; inherent-method only (no Brand). Minor adjustments if integration with `Run` requires.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `fp-library/src/types/free_explicit.rs`                                                           | **New module (Phase 1 step 1).** Promote `FreeExplicit<'a, F, A>` from POC, add iterative custom `Drop`, add `Functor` / `Pointed` / `Semimonad` / `Monad` impls (Phase 1 step 7).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `fp-library/src/types/free_explicit.rs`                                                           | **New module (Phase 1 step 1).** Promote `FreeExplicit<'a, F, A>` from POC, add iterative custom `Drop`, add full by-value `Functor` / `Pointed` / `Semimonad` / `Monad` impls plus full `RefFunctor` / `RefPointed` / `RefSemimonad` / `RefMonad` impls (Phase 1 step 7). The naive recursive enum has no Clone bound on bind, so both hierarchies land cleanly.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `fp-library/src/types/rc_free.rs`                                                                 | **New module (Phase 1 step 2).** `RcFree<F, A>` following the `Free` template with `FnBrand<RcBrand>`-shaped continuations (i.e., `Rc<dyn 'a + Fn(B) -> RcFree<F, A>>` via the unified [`FnBrand`](../../../fp-library/src/types/fn_brand.rs) abstraction). Multi-shot effects (`Choose`, `Amb`). Inherent-method only; no `RcFreeBrand`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `fp-library/src/types/arc_free.rs`                                                                | **New module (Phase 1 step 3).** `ArcFree<F, A>` following the `ArcCoyoneda` template with `FnBrand<ArcBrand>`-shaped continuations (i.e., `Arc<dyn 'a + Fn(B) -> ArcFree<F, A> + Send + Sync>` via [`FnBrand`](../../../fp-library/src/types/fn_brand.rs) parameterised by [`ArcBrand`](../../../fp-library/src/brands.rs#L43)) and the `Send`/`Sync` Kind-trait pattern via `SendRefCountedPointer`. Inherent-method only; no `ArcFreeBrand`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `fp-library/src/types/rc_free_explicit.rs`                                                        | **New module (Phase 1 step 4).** `RcFreeExplicit<'a, F, A>` extending `FreeExplicit`'s concrete recursive enum with an outer `Rc<RcFreeExplicitInner>` wrapper plus `Rc<dyn Fn>` continuations. O(N) bind, multi-shot, `A: 'a`, Brand-compatible (registered as `RcFreeExplicitBrand<F>` in step 7). Custom iterative `Drop` via `Extract` + `Rc::try_unwrap`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `fp-library/src/types/arc_free_explicit.rs`                                                       | **New module (Phase 1 step 5).** `ArcFreeExplicit<'a, F, A>` extending `RcFreeExplicit`'s shape with `Arc<...>` wrapping and `Arc<dyn Fn + Send + Sync>` continuations. Same `Kind<Of<'a, A>: Send + Sync>` associated-type-bound trick as `ArcFree`. Brand-compatible (`ArcFreeExplicitBrand<F>`) via the new `SendFunctor` family from step 6.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `fp-library/src/classes/send_functor.rs`, `send_pointed.rs`, `send_semimonad.rs`, `send_monad.rs` | **New trait files (Phase 1 step 6).** By-value parallels of the existing `send_ref_*` family with `Send + Sync` bounds on the closure parameters. Required by `ArcFreeExplicitBrand`'s `Functor`/`Pointed`/`Semimonad`/`Monad` impls; also supplies the missing trait impls for `ArcCoyonedaBrand` that the existing module docs flag.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `fp-library/src/types/run.rs`                                                                     | **New module (Phase 2 step 4).** Six concrete Run types: `Run<R, S, A>`, `RcRun<R, S, A>`, `ArcRun<R, S, A>` (Erased family, inherent-method only) and `RunExplicit<'a, R, S, A>`, `RcRunExplicit<'a, R, S, A>`, `ArcRunExplicit<'a, R, S, A>` (Explicit family, Brand-dispatched). `Node<R, S>` enum dispatching first-order vs scoped layers. `into_explicit()` / `from_erased()` conversion API between paired Erased and Explicit Run variants.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `fp-library/src/types/rc_free_explicit.rs`                                                        | **New module (Phase 1 step 4).** `RcFreeExplicit<'a, F, A>` extending `FreeExplicit`'s concrete recursive enum with an outer `Rc<RcFreeExplicitInner>` wrapper plus `Rc<dyn Fn>` continuations. O(N) bind, multi-shot, `A: 'a`, Brand-compatible (`RcFreeExplicitBrand<F>` registered in step 4). Custom iterative `Drop` via `Extract` + `Rc::try_unwrap`. Brand-level dispatch in step 7: `Pointed` only on by-value (`pure` has no Clone bound); full `RefFunctor` / `RefSemimonad` / `RefMonad` plus supporting Ref traits per [`fp-library/docs/dispatch.md`](../../../fp-library/docs/dispatch.md). By-value `bind` / `map` ship as inherent methods with their natural `A: Clone` bounds.                                                                                                                                                                                                                                                                                           |
+| `fp-library/src/types/arc_free_explicit.rs`                                                       | **New module (Phase 1 step 5).** `ArcFreeExplicit<'a, F, A>` extending `RcFreeExplicit`'s shape with `Arc<...>` wrapping and `Arc<dyn Fn + Send + Sync>` continuations. Same `Kind<Of<'a, A>: Send + Sync>` associated-type-bound trick as `ArcFree`. Brand-compatible (`ArcFreeExplicitBrand<F>` registered in step 5). Brand-level dispatch in step 7: `SendPointed` (added by step 6) on by-value; full `SendRefFunctor` / `SendRefSemimonad` / `SendRefMonad` plus supporting `SendRef*` traits. By-value `bind` / `map` ship as inherent methods with `A: Clone + Send + Sync` bounds.                                                                                                                                                                                                                                                                                                                                                                                                |
+| `fp-library/src/classes/send_functor.rs`, `send_pointed.rs`, `send_semimonad.rs`, `send_monad.rs` | **New trait files (Phase 1 step 6).** By-value parallels of the existing `send_ref_*` family with `Send + Sync` bounds on the closure parameters and on values entering the structure (`SendPointed::pure(a: A)` requires `A: Send + Sync`). `SendPointed` lands as the brand-level `pure` for `ArcCoyonedaBrand` (closing the open gap module docs flag) and `ArcFreeExplicitBrand`. `SendFunctor` / `SendSemimonad` / `SendMonad` carry trait impls for `ArcCoyonedaBrand` (whose by-value path has no Clone bound). The multi-shot Explicit Free family does not implement `SendFunctor` / `SendSemimonad` / `SendMonad` at the brand level (Clone bound on bind makes them unexpressible) and instead routes brand-level dispatch through the existing `SendRef*` hierarchy in step 7.                                                                                                                                                                                                 |
+| `fp-library/src/types/run.rs`                                                                     | **New module (Phase 2 step 4).** Six concrete Run types: `Run<R, S, A>`, `RcRun<R, S, A>`, `ArcRun<R, S, A>` (Erased family, inherent-method only) and `RunExplicit<'a, R, S, A>` (Explicit, full by-value brand-dispatched), `RcRunExplicit<'a, R, S, A>`, `ArcRunExplicit<'a, R, S, A>` (Explicit, Pointed/SendPointed by-value plus full Ref/SendRef brand coverage). `Node<R, S>` enum dispatching first-order vs scoped layers. `into_explicit()` / `from_erased()` conversion API between paired Erased and Explicit Run variants.                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `fp-library/src/types/run/coproduct.rs`                                                           | **New submodule.** Brand-aware adapter layer over `frunk_core::coproduct::{Coproduct, CNil, CoproductSubsetter}`: newtype wrappers, `impl` blocks bridging `frunk_core`'s Plucker / Sculptor / Embedder traits to the project's `Brand` system. Direct (non-newtyped) `Functor` impls on `frunk_core::Coproduct<H, T>` live here too (own-trait + foreign-type, orphan-permitted).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `fp-library/src/types/run/variant_f.rs`                                                           | **New submodule.** `VariantF<Effects>` first-order coproduct with Coyoneda-wrapped variants and recursive `Functor` impl on `Coproduct<H, T>` (delegating to the adapter in `coproduct.rs`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `fp-library/src/types/run/scoped.rs`                                                              | **New submodule.** `ScopedCoproduct<ScopedEffects>` higher-order coproduct, standard scoped constructors. `Catch<'a, E>` and `Span<'a, Tag>` ship Val-only. `Local` ships in Val and Ref flavours (`Local<'a, E>` + `RefLocal<'a, E>`); `Bracket` ships in Val and Ref flavours (`Bracket<'a, A, B>` + `RefBracket<'a, P, A, B>`) per [decisions.md](decisions.md) section 4.5 sub-decisions. `Mask` is deferred to a future revision per the same section.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `fp-library/src/dispatch/run/`                                                                    | **New submodule.** Closure-driven Val/Ref dispatch for `bracket` and `local` smart constructors, mirroring the existing layout described in [`fp-library/docs/dispatch.md`](../../../fp-library/docs/dispatch.md). Files: `bracket.rs` (`BracketDispatch` trait + `Val` impl + `Ref<P>` impls per pointer brand + `bracket` inference wrapper + `explicit::bracket` brand-explicit wrapper); `local.rs` (`LocalDispatch` trait + `Val` and `Ref` impls + `local` inference wrapper + `explicit::local` wrapper). Re-exported from `fp-library/src/functions.rs` alongside `map`, `bind`, etc.                                                                                                                                                                                                                                                                                                                                                                                              |
 | `fp-library/src/types/run/handler.rs`                                                             | **New submodule.** Handler-pipeline machinery (`Run::handle`), natural-transformation type, `peel` / `send` / `extract`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `fp-library/src/types/run/interpreter.rs`                                                         | **New submodule.** `interpret` / `run` / `runAccum` (recursive) and `interpretRec` / `runRec` / `runAccumRec` (`MonadRec`-targeted) families.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `fp-macros/src/effects/`                                                                          | **New module tree.** `effects!`, `effects_coyo!`, `handlers!`, `define_effect!`, `define_scoped_effect!`, `scoped_effects!`, and `run_do!` proc-macros. `run_do!` is the inherent-method-based monadic do-notation for the Erased Run family (`Run` / `RcRun` / `ArcRun`); the Explicit Run family uses the existing `m_do!` / `a_do!` over the corresponding `*RunExplicitBrand`. Migration from POC for the row-construction macros.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `fp-macros/src/effects/`                                                                          | **New module tree.** `effects!`, `effects_coyo!`, `handlers!`, `define_effect!`, `define_scoped_effect!`, `scoped_effects!`, and `run_do!` proc-macros. `run_do!` is the inherent-method-based monadic do-notation for the Erased Run family (`Run` / `RcRun` / `ArcRun`); the Explicit Run family uses the existing `m_do!` / `a_do!` over `RunExplicitBrand` (full by-value brand coverage), and the same macros with the `ref` qualifier (`m_do!(ref RcRunExplicitBrand { ... })`) over `RcRunExplicitBrand` / `ArcRunExplicitBrand` (Ref-hierarchy brand coverage; closures take `&A`). Migration from POC for the row-construction macros.                                                                                                                                                                                                                                                                                                                                            |
 | `fp-library/src/brands.rs`                                                                        | Add brands for the Brand-dispatched (Explicit) types only: `FreeExplicitBrand<F>`, `RcFreeExplicitBrand<F>`, `ArcFreeExplicitBrand<F>`, `RunExplicitBrand<R, S>`, `RcRunExplicitBrand<R, S>`, `ArcRunExplicitBrand<R, S>`. The Erased family (`Free`, `RcFree`, `ArcFree`, `Run`, `RcRun`, `ArcRun`) does NOT get brands; those types remain inherent-method only. `*FreeExplicitBrand<F>` are single-parameter `PhantomData<F>` structs mirroring [`CoyonedaBrand<F>`](../../../fp-library/src/brands.rs#L155); the three `*RunExplicitBrand<R, S>` variants are two-parameter `PhantomData<(R, S)>` structs mirroring [`CoyonedaExplicitBrand<F, B>`](../../../fp-library/src/brands.rs#L171). For all of them, `'static` bounds live on impls (so the row types `R`, `S` and the payload `'a`, `A` stay out of the brand identity and appear only in `Of<'a, A>` at instantiation, keeping brand types `'static`-clean while admitting non-`'static` payloads via the Explicit family). |
 | `fp-library/tests/run_*.rs`                                                                       | **New test files.** Per-Free-variant unit tests for all six variants (Phase 1 step 9, including `compile_fail` cases for Brand-dispatched calls against Erased variants and missing `Send + Sync` on `ArcFreeExplicit::bind` closures), row-canonicalisation regression tests migrated from `poc-effect-row/` (Phase 2), `Run <-> RunExplicit` conversion tests (Phase 2 step 6), TalkF + DinnerF integration test (Phase 4).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `fp-library/benches/benchmarks/run_*.rs`                                                          | **New bench files.** Per-Free-variant Criterion benches for all six variants (bind-deep, bind-wide, peel-and-handle) plus a cross-variant comparison documenting the O(1) vs O(N) bind-cost asymmetry between the Erased and Explicit families. Row-canonicalisation benches (macro vs Subsetter), handler-composition benches, and `Run <-> RunExplicit` conversion benches.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -653,11 +579,22 @@ Quick reference table:
 - **Existing `MonadRec` impls** (`Option`, `Result`, `Thunk`,
   etc.): used as interpretation targets but not modified.
 - **Pre-existing dispatch traits and `m_do!` / `a_do!`**: continue
-  to work for the Explicit Run family (`RunExplicit`,
-  `RcRunExplicit`, `ArcRunExplicit`) once the corresponding
-  `*RunExplicitBrand` impls from Phase 2 step 4 ship. The Erased
-  Run family (`Run`, `RcRun`, `ArcRun`) uses the new `run_do!`
-  macro instead, since those types are not Brand-dispatched.
+  to work for `RunExplicit` (full by-value brand coverage) once
+  the corresponding `RunExplicitBrand` impls from Phase 2 step 4
+  ship. `RcRunExplicit` / `ArcRunExplicit` carry only `Pointed` /
+  `SendPointed` on the by-value side (the Clone bound on bind
+  makes `Functor` / `Semimonad` / `Monad` unexpressible at the
+  brand level, per `RcCoyoneda` / `ArcCoyoneda` precedent
+  documented in
+  [`fp-library/docs/limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md));
+  brand-dispatched typeclass-generic code over them uses the
+  existing `m_do!` / `a_do!` macros with the `ref` qualifier
+  (`m_do!(ref RcRunExplicitBrand { ... })`), routing through
+  `RefFunctor` / `RefSemimonad` (and their `SendRef*` parallels
+  for `ArcRunExplicitBrand`). The Erased Run family (`Run`,
+  `RcRun`, `ArcRun`)
+  uses the new `run_do!` macro, since those types are not
+  Brand-dispatched.
 
 ## Out of scope
 
@@ -761,33 +698,61 @@ inherent-method only; the Explicit family (`FreeExplicit`,
 6. Add the `SendFunctor` trait family at
    `fp-library/src/classes/`: `send_functor.rs`,
    `send_pointed.rs`, `send_semimonad.rs`, `send_monad.rs` (the
-   by-value parallels of the existing `send_ref_*` files). Each
-   takes its closure parameter as `impl Fn(...) + Send + Sync`,
-   resolving the gap that today prevents `ArcCoyonedaBrand` from
-   implementing `Functor` and that `ArcFreeExplicitBrand` would
-   otherwise inherit. Add `SendFunctor` (and downstream)
-   implementations for `ArcCoyonedaBrand` as a bonus integration,
-   closing the open gap that
+   by-value parallels of the existing `send_ref_*` files).
+   `SendFunctor` / `SendSemimonad` / `SendMonad` take their
+   closure parameter as `impl Fn(...) + Send + Sync`;
+   `SendPointed::pure(a: A)` requires `A: Send + Sync`. Resolves
+   the gap that today prevents `ArcCoyonedaBrand` from
+   implementing `Functor` and gives `ArcFreeExplicitBrand` a
+   brand-level `pure`. Add `SendFunctor` / `SendPointed` /
+   `SendSemimonad` / `SendMonad` implementations for
+   `ArcCoyonedaBrand` as a bonus integration, closing the open
+   gap that
    [arc_coyoneda.rs](../../../fp-library/src/types/arc_coyoneda.rs)'s
-   module docs flag.
-7. Add brand registrations and trait hierarchies for the three
-   Explicit Free brands (`FreeExplicitBrand<F>`,
-   `RcFreeExplicitBrand<F>`, `ArcFreeExplicitBrand<F>`):
-   - The by-value hierarchy (`Functor` / `Pointed` / `Semimonad` /
-     `Monad`) plus the by-reference hierarchy (`RefFunctor` /
-     `RefSemimonad` / `RefMonad`, etc., per
-     [`fp-library/docs/dispatch.md`](../../../fp-library/docs/dispatch.md))
-     for `FreeExplicitBrand` and `RcFreeExplicitBrand` via the
-     existing trait family.
-   - `SendFunctor` / `SendPointed` / `SendSemimonad` /
-     `SendMonad` impls for `ArcFreeExplicitBrand` via the new
-     trait family from step 6.
+   module docs flag (`ArcCoyoneda`'s by-value path has no Clone
+   bound, so the full hierarchy lands).
+7. Add by-value and by-reference trait hierarchies for the three
+   Explicit Free brands. The brand structs (`FreeExplicitBrand<F>`,
+   `RcFreeExplicitBrand<F>`, `ArcFreeExplicitBrand<F>`) and their
+   `Kind` registrations land alongside the type definitions in
+   steps 1, 4, and 5; this step implements the type-class traits
+   on top of them. Brand-level coverage matches the resolved
+   open question above:
+   - `FreeExplicitBrand`: full by-value (`Functor` / `Pointed` /
+     `Semimonad` / `Monad`) plus full by-reference (`RefFunctor`
+     / `RefPointed` / `RefSemimonad` / `RefMonad` and supporting
+     Ref traits per
+     [`fp-library/docs/dispatch.md`](../../../fp-library/docs/dispatch.md)).
+     The naive recursive enum has no Clone bound on bind, so
+     both hierarchies land cleanly.
+   - `RcFreeExplicitBrand`: `Pointed` only on the by-value side
+     (`pure` has no Clone bound); full Ref hierarchy
+     (`RefFunctor` / `RefSemimonad` / `RefMonad`, plus
+     `RefPointed` and supporting Ref traits). The remaining
+     by-value operations (`bind`, `map`, etc.) ship as inherent
+     methods on `RcFreeExplicit` with their natural `A: Clone`
+     bounds.
+   - `ArcFreeExplicitBrand`: `SendPointed` (from step 6) on the
+     by-value side; full `SendRef*` hierarchy (`SendRefFunctor`
+     / `SendRefSemimonad` / `SendRefMonad` plus supporting
+     `SendRef*` traits, which already exist in
+     [`fp-library/src/classes/`](../../../fp-library/src/classes/)).
+     The remaining by-value operations ship as inherent methods
+     on `ArcFreeExplicit` with `A: Clone + Send + Sync` bounds.
    - The Erased family (`Free`, `RcFree`, `ArcFree`) does not get
      brands; those types remain inherent-method only.
    - Both hierarchies are required so `dispatch::map` /
      `dispatch::bind` route correctly over each Brand-dispatched
      Free variant once `Run` and the scoped-effect smart
-     constructors land in Phase 2 / Phase 4.
+     constructors land in Phase 2 / Phase 4. The Ref hierarchy
+     is the dispatch path for typeclass-generic code over the
+     multi-shot Explicit Run variants.
+   - Update
+     [`fp-library/docs/limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md)'s
+     "Unexpressible Bounds in Trait Method Signatures"
+     classification table to add rows for the three Explicit
+     Free variants documenting the brand-level coverage above
+     (matching the existing `RcCoyoneda` / `ArcCoyoneda` rows).
 8. Per-variant Criterion benches for all six variants (bind-deep
    at depths 10 / 100 / 1000 / 10000, bind-wide, peel-and-handle),
    plus a cross-variant comparison bench documenting the O(1) vs
@@ -831,23 +796,34 @@ inherent-method only; the Explicit family (`FreeExplicit`,
    (Explicit family, Brand-dispatched). Each is a thin wrapper
    over its Free variant with a shared `Node<R, S>` enum
    dispatching first-order vs scoped layers.
-   - For the three Explicit Run brands (`RunExplicitBrand`,
-     `RcRunExplicitBrand`, `ArcRunExplicitBrand`), add the
-     by-value hierarchy (`Functor` / `Pointed` / `Semimonad` /
-     `Monad`) plus the by-reference hierarchy (`RefFunctor` /
-     `RefSemimonad` / `RefMonad`, etc.) by delegating to the
-     underlying `*FreeExplicitBrand` impls from Phase 1 step 7.
-     `ArcRunExplicitBrand` additionally delegates through the
-     `SendFunctor` family.
+   - `RunExplicitBrand`: full by-value (`Functor` / `Pointed` /
+     `Semimonad` / `Monad`) plus full by-reference (`RefFunctor`
+     / `RefPointed` / `RefSemimonad` / `RefMonad` and supporting
+     Ref traits) by delegating to `FreeExplicitBrand`'s impls
+     from Phase 1 step 7.
+   - `RcRunExplicitBrand`: `Pointed` only on the by-value side
+     (delegating to `RcFreeExplicitBrand::pure`); full Ref
+     hierarchy delegating to `RcFreeExplicitBrand`'s `Ref*`
+     impls. By-value `bind` / `map` ship as inherent methods on
+     `RcRunExplicit`, mirroring `RcFreeExplicit`'s inherent
+     surface.
+   - `ArcRunExplicitBrand`: `SendPointed` (added by step 6) on
+     the by-value side; full `SendRef*` hierarchy delegating to
+     `ArcFreeExplicitBrand`'s impls. By-value `bind` / `map`
+     ship as inherent methods on `ArcRunExplicit` with
+     `A: Clone + Send + Sync` bounds.
    - The three Erased Run types do NOT get brands. They expose
      identical inherent-method APIs (`pure`, `peel`, `send`,
      `bind`, `map`, `lift_f`, `handle`, `extract`, etc.) but
      `m_do!` / `a_do!` do not work over them; `run_do!` from
      step 7 below is the inherent-method-based macro analogue.
-   - Both hierarchies on the Explicit brands are required so
-     `m_do!` / `a_do!` and `dispatch::map` / `dispatch::bind`
-     work over Brand-dispatched Run programs regardless of
-     whether the user's closures consume or borrow.
+   - The hierarchies on the Explicit brands are scoped so
+     `dispatch::map` / `dispatch::bind` and the matching
+     do-notation macros (`m_do!` / `a_do!` for `RunExplicit`;
+     `m_do!(ref ...)` / `a_do!(ref ...)` for `RcRunExplicit` /
+     `ArcRunExplicit`) route correctly. Inherent by-value `bind`
+     / `map` on the multi-shot Explicit Run variants cover the
+     non-generic case where the user has `A: Clone` available.
 5. `Run::pure`, `Run::peel`, `Run::send` core operations on
    each of the six Run variants, delegating to the underlying
    Free variant.
@@ -866,11 +842,18 @@ inherent-method only; the Explicit family (`FreeExplicit`,
    inherent-method-based monadic do-notation that desugars to
    chained `.bind(|x| ...)` calls. Required for the Erased Run
    family (`Run`, `RcRun`, `ArcRun`) since they are not
-   Brand-dispatched and `m_do!` does not apply. The Explicit
-   Run family continues to use `m_do!` over the corresponding
-   `*RunExplicitBrand`. Both expansions accept the same
-   surface syntax so users moving between the two families do
-   not have to re-learn the do-notation form.
+   Brand-dispatched and `m_do!` does not apply. `RunExplicit`
+   uses the existing `m_do!` / `a_do!` over `RunExplicitBrand`
+   (full by-value brand coverage). `RcRunExplicit` /
+   `ArcRunExplicit` use the existing `m_do!` / `a_do!` macros
+   with the `ref` qualifier (`m_do!(ref RcRunExplicitBrand { ... })`),
+   dispatching through the `Ref*` / `SendRef*` hierarchies that
+   step 4 wires up on `RcRunExplicitBrand` / `ArcRunExplicitBrand`.
+   All forms accept the same surface syntax so users moving
+   between families do not have to re-learn the do-notation; the
+   only difference is whether their binding closures take `A`
+   (by-value) or `&A` (by-reference, signalled by the `ref`
+   qualifier).
 8. `effects!` macro in `fp-macros/src/effects/effects.rs`,
    migrated from
    [poc-effect-row/macros/src/lib.rs](../../../poc-effect-row/macros/src/lib.rs).
