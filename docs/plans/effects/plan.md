@@ -1370,6 +1370,111 @@ inherent-method only; the Explicit family (`FreeExplicit`,
 4. Write `fp-library/docs/run.md` documenting the effects
    subsystem for users. Cross-link to
    [decisions.md](decisions.md) for design rationale.
+5. **Documentation finalization.** Update the documents listed
+   below so they reflect the production state of the effects
+   subsystem once Phases 1-5 are complete.
+
+   **Living step:** Each implementation phase, on completion,
+   must review the bullets here and add any new public items,
+   behavioural surprises, or constraints that surfaced during
+   that phase's work, under the relevant document. The goal is
+   that when this step finally runs, every documentation change
+   it lists is accurate and nothing has been forgotten. Treat
+   the per-document bullets as a checklist that grows over time;
+   do not rely on memory or `git log` to reconstruct the change
+   set at the end. If a phase finds that a planned doc update
+   is no longer needed (e.g., a feature was deferred), strike
+   it through with rationale rather than deleting it.
+
+   Documents and what to add:
+   - **[fp-library/docs/features.md](../../../fp-library/docs/features.md):**
+     Add a "Free family" table parallel to the existing "Free
+     functors" Coyoneda table (currently around lines 199-204),
+     listing the six variants (`Free`, `RcFree`, `ArcFree`,
+     `FreeExplicit`, `RcFreeExplicit`, `ArcFreeExplicit`) with
+     columns for Family (Erased / Explicit), Clone, Send,
+     `'a`-payload, Bind cost (O(1) vs O(N)). Add a "Run
+     subsystem" section listing the six concrete Run types,
+     the dual-row structure, the Erased/Explicit dispatch
+     split, and the `into_explicit` / `from_erased` API.
+   - **[fp-library/docs/limitations-and-workarounds.md](../../../fp-library/docs/limitations-and-workarounds.md):**
+     The "Unexpressible Bounds in Trait Method Signatures"
+     classification table already has rows for the three
+     Explicit Free variants (added by Phase 1 step 7). Append
+     rows for any `*RunExplicitBrand` (Phase 2 step 4) or
+     scoped-effect dispatch (Phase 4) impls that hit further
+     HRTB-over-types or per-`A` Clone-bound walls.
+   - **[fp-library/CHANGELOG.md](../../../fp-library/CHANGELOG.md):**
+     Populate the `[Unreleased]` section under `Added` with the
+     new public items: six-variant Free family (one promoted
+     from POC, five new), `SendFunctor` trait family, six
+     `Run` types, `Node` / `VariantF` / `ScopedCoproduct`,
+     standard first-order effects (`State`, `Reader`, `Except`,
+     `Writer`, `Choose`), standard scoped effects (`Catch`,
+     `Local` / `RefLocal`, `Bracket` / `RefBracket`, `Span`),
+     the macro family (`effects!`, `effects_coyo!`,
+     `handlers!`, `define_effect!`, `define_scoped_effect!`,
+     `scoped_effects!`, `run_do!`), the
+     `interpret`/`interpretRec`/`run*` interpreter pair, and
+     the natural-transformation builder. If any pre-existing
+     public API changed shape during the port, record it under
+     `Changed`. Match the categorization style established in
+     0.17.x entries.
+   - **[README.md](../../../README.md):** Add a brief
+     "Effects" entry alongside the existing "Dispatch System"
+     summary, pointing at `fp-library/docs/run.md` (created by
+     step 4) for details.
+   - **[docs/todo.md](../../../docs/todo.md):** Strike through
+     or remove the "Algebraic effects/effect system" bullet
+     (and its sub-bullets pointing at
+     [plans/effects/effects.md](effects.md) and external Eff
+     references); the work it tracks is now landed.
+   - **[fp-library/docs/architecture.md](../../../fp-library/docs/architecture.md):**
+     If the effects subsystem warrants top-level architectural
+     description (parallel to existing "Free Functions" /
+     "Dispatch" sections), add one summarising the
+     six-variant Free substrate, the Erased/Explicit dispatch
+     split, the dual-row Run shape, and the heftia-style
+     scoped-effect encoding. Skip if `run.md` (step 4) already
+     covers this depth and an architecture-level summary
+     would duplicate.
+   - **[fp-library/docs/dispatch.md](../../../fp-library/docs/dispatch.md):**
+     If Phase 4's `BracketDispatch` / `LocalDispatch` Val/Ref
+     dispatch introduces a pattern that doesn't follow the
+     existing convention this doc describes, add a section
+     covering the new shape. Skip if the new dispatch is a
+     direct application of the existing pattern.
+
+   Per-phase records (append as phases complete):
+   - **Phase 1 (complete).** Six Free variants land
+     (`FreeExplicit` promoted, `RcFree` / `ArcFree` /
+     `RcFreeExplicit` / `ArcFreeExplicit` new), `SendFunctor`
+     trait family lands across nine files, brand impls for the
+     three Explicit Free brands land. The
+     `limitations-and-workarounds.md` "Unexpressible Bounds"
+     table gained six new rows (three by-value, three
+     by-reference) for the Explicit Free family;
+     `features.md` and `CHANGELOG.md` are not yet updated for
+     these (waiting for this finalization step). The Phase 1
+     step 8 finding that `Free<IdentityBrand, A>` is
+     layout-cyclic should be mentioned in `run.md` (step 4)'s
+     "When to use which" section because it constrains
+     concrete-`F` choices.
+   - **Phase 2 (TBD).** Append findings here when complete:
+     new public items in `Run`, `VariantF`, `Node`, the
+     `effects!` macro, the `run_do!` macro, the conversion
+     API, plus any unexpressible-bound rows that surface in
+     the `*RunExplicitBrand` impls.
+   - **Phase 3 (TBD).** Append findings here when complete:
+     handler-pipeline machinery, interpreter family, standard
+     first-order effects, `handlers!` and `define_effect!`
+     macros, plus negative-case `compile_fail` UI tests.
+   - **Phase 4 (TBD).** Append findings here when complete:
+     scoped-effect coproduct, dual-row integration, the four
+     standard scoped-effect constructors and their Val/Ref
+     flavours where applicable, dispatch additions for
+     `bracket` / `local`, plus any new dispatch.md /
+     limitations-and-workarounds.md material.
 
 ### Phase 6+ (deferred, not in this plan)
 
