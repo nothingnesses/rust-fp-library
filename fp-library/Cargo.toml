@@ -19,6 +19,7 @@ name = "benchmarks"
 
 [dependencies]
 fp-macros = { path = "../fp-macros", version = "0.8" }
+frunk_core = "0.4"
 rayon = { version = "1.11", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
 stacker = { version = "0.1", optional = true }

@@ -49,6 +49,7 @@ pub mod rc_free;
 pub mod rc_free_explicit;
 pub mod rc_ptr;
 pub mod result;
+pub mod run;
 pub mod send_endofunction;
 pub mod send_thunk;
 pub mod string;

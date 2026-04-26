@@ -1,10 +1,37 @@
 # Plan: Port purescript-run to fp-library
 
-**Status:** Phase 1 complete (all 9 steps).
+**Status:** Phase 1 complete (all 9 steps); Phase 2 in progress
+(step 1 of 10 complete).
 
 ## Current progress
 
-Phase 1 complete (steps 1-9).
+Phase 1 complete (steps 1-9). Phase 2 step 1 complete.
+
+**Phase 2 step 1 (`frunk_core` dependency + Brand-aware Coproduct
+adapter).** `frunk_core = "0.4"` is added to
+[fp-library/Cargo.toml](../../../fp-library/Cargo.toml) (resolves
+to `frunk_core 0.4.4`, license MIT, already on the
+[`deny.toml`](../../../deny.toml) allow-list, `just deny` passes).
+The new `run/` submodule lands at
+[fp-library/src/types/run.rs](../../../fp-library/src/types/run.rs)
+with [coproduct.rs](../../../fp-library/src/types/run/coproduct.rs)
+as its first file, and `pub mod run;` is added to
+[fp-library/src/types.rs](../../../fp-library/src/types.rs).
+
+The adapter re-exports the frunk_core types and traits the rest of
+Phase 2 / 3 / 4 will need (`Coproduct`, `CNil`, `CoprodInjector`,
+`CoprodUninjector`, `CoproductSubsetter`, `CoproductEmbedder`,
+`CoproductSelector`, `CoproductTaker`, plus `Here`, `There`,
+`HCons`, `HNil`, `HList`) and adds local newtype wrappers
+`BrandedCoproduct<H, T>(pub Coproduct<H, T>)` and
+`BrandedCNil(pub CNil)` that downstream Brand impls can target
+without tripping the orphan rules. Bridge impls of
+`CoprodInjector` and `CoprodUninjector` on `BrandedCoproduct`
+delegate to the inner Coproduct; Subsetter / Embedder / Selector /
+Taker bridges land incrementally as concrete Phase 2 / 3 / 4 call
+sites surface them. Four unit tests verify round-trip
+conversions and the bridge delegations against a representative
+two-effect row.
 
 **Step 1 (`FreeExplicit`).** `FreeExplicit<'a, F, A>` and
 `FreeExplicitBrand<F>` are promoted from POC into production at
@@ -671,6 +698,49 @@ motivating use case is`ArcFreeExplicitBrand`in step 7, the`OptionBrand` examples
   closure, which provides the indirection. Step 8's text said
   "replicates the full set across all six variants" without
   specifying brand choice, so the deviation is recorded here.
+- **Phase 2 step 1: actual frunk_core 0.4 trait names are
+  `CoprodInjector` / `CoprodUninjector` / `CoproductSubsetter` /
+  `CoproductEmbedder`, not `Plucker` / `Sculptor` / `Embedder`.**
+  Step 1's text and Implementation note 1 refer to the
+  HList-style names ("Plucker / Sculptor / Embedder") which match
+  frunk_core's HList module. The Coproduct module uses the
+  Coproduct-style names; `CoprodUninjector` is the Plucker analog
+  (`uninject(self) -> Result<T, Self::Remainder>`),
+  `CoproductSubsetter` is the Sculptor analog
+  (`subset(self) -> Result<Targets, Self::Remainder>`), and
+  `CoproductEmbedder` is the Embedder analog
+  (`embed(self) -> Out`). The adapter at
+  [`fp-library/src/types/run/coproduct.rs`](../../../fp-library/src/types/run/coproduct.rs)
+  uses the Coproduct-style names directly. Future plan references
+  to Plucker / Sculptor / Embedder for the Coproduct adapter
+  should be read as the Coproduct-style trait family above.
+- **Phase 2 step 1: minimum-viable adapter ships with
+  `CoprodInjector` / `CoprodUninjector` bridges only.** Step 1's
+  text says "impl blocks bridging frunk_core's Plucker / Sculptor
+  / Embedder traits to the project's Brand system" without
+  specifying which to ship now versus later. Implementation note
+  1's "thin adapter, target under approximately 200 lines" cap
+  pushes against shipping every bridge speculatively. The
+  adapter therefore lands with newtype wrappers
+  ([`BrandedCoproduct`], [`BrandedCNil`]), bidirectional
+  [`From`] conversions, and bridge impls of [`CoprodInjector`]
+  and [`CoprodUninjector`] on [`BrandedCoproduct`]. Bridges for
+  `CoproductSubsetter`, `CoproductEmbedder`, `CoproductSelector`,
+  and `CoproductTaker` land here as concrete Phase 2 / 3 / 4
+  call sites surface them. The module docs flag the deferred
+  bridges so future implementers know where they go.
+- **Phase 2 step 1: `frunk_core` chosen over `frunk`.** Step 1's
+  text and Implementation note 1 name `frunk_core` directly. The
+  umbrella `frunk` crate re-exports `frunk_core` plus
+  `frunk_proc_macros`, `frunk_derives`, `Validated`, and
+  `frunk_laws`. The effects port uses only `Coproduct`, `CNil`,
+  the index types, and the four bridged traits, all of which
+  live in `frunk_core`. Choosing `frunk_core` keeps the
+  proc-macro / `syn` chain out of the dependency graph (fp-library
+  already has `fp-macros` for proc-macros) and lets a future
+  swap to `frunk` be a one-line Cargo.toml change since `frunk`
+  is API-compatible with `frunk_core`. License is MIT for both,
+  already on the [`deny.toml`](../../../deny.toml) allow-list.
 
 ## Implementation protocol
 
