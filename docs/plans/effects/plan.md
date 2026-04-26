@@ -1,11 +1,48 @@
 # Plan: Port purescript-run to fp-library
 
 **Status:** Phase 1 complete (all 9 steps); Phase 2 in progress
-(step 1 of 10 complete).
+(steps 1 and 2 of 10 complete).
 
 ## Current progress
 
-Phase 1 complete (steps 1-9). Phase 2 step 1 complete.
+Phase 1 complete (steps 1-9). Phase 2 steps 1 and 2 complete.
+
+**Phase 2 step 2 (`VariantF<Effects>` and the row-`Functor`).**
+[`CNilBrand`](../../../fp-library/src/brands.rs) and
+[`CoproductBrand<H, T>`](../../../fp-library/src/brands.rs) are
+promoted from the design probe into
+[fp-library/src/brands.rs](../../../fp-library/src/brands.rs)
+proper, with their `impl_kind!` registrations and recursive
+[`Functor`](../../../fp-library/src/classes/functor.rs) impls
+landing at
+[fp-library/src/types/run/variant_f.rs](../../../fp-library/src/types/run/variant_f.rs).
+
+`CoproductBrand<H, T>` resolves `Of<'a, A>` to
+`Coproduct<H::Of<'a, A>, T::Of<'a, A>>`, recursing through the head
+and tail brands. `CNilBrand` resolves to `CNil` (uninhabited; the
+base case of the recursion). `Functor::map` on `CoproductBrand`
+dispatches at runtime via `match` on the `Inl` / `Inr` variants;
+`Functor::map` on `CNilBrand` is the uninhabited base case (its
+input has no inhabitants, so the body is `match fa {}`).
+
+A type alias `VariantF<H, T> = CoproductBrand<H, T>` is exposed
+from [`variant_f`](../../../fp-library/src/types/run/variant_f.rs)
+so call sites can use the canonical name from
+[decisions.md](decisions.md) section 5.1 without introducing a
+separate brand. The Coyoneda-wrapping per row variant happens at
+the `effects!` macro layer (Phase 2 step 8); step 2's `VariantF`
+machinery does not require it because `CoyonedaBrand<E>` is
+already a `Functor` for any `E`, so the recursive `Functor`
+constraint composes through naturally.
+
+Four unit tests in `variant_f.rs`'s `mod tests` exercise: Kind
+resolution over an `OptionBrand` / `VecBrand` / `CNilBrand` row,
+head-branch dispatch via `Inl`, tail-branch dispatch via `Inr` (a
+two-deep recursion case), and the `VariantF` alias resolving to
+`CoproductBrand`. The earlier
+`fp-library/tests/coproduct_brand_probe.rs` design probe (three
+tests) is removed; its content is fully covered by the new
+production-level `mod tests` block.
 
 **Phase 2 step 1 (`frunk_core` dependency + Brand-aware Coproduct
 adapter).** `frunk_core = "0.4"` is added to
@@ -25,9 +62,9 @@ Phase 2 / 3 / 4 will need (`Coproduct`, `CNil`, `CoprodInjector`,
 `HCons`, `HNil`, `HList`). Two unit tests exercise inject /
 uninject against a representative two-effect row.
 
-A probe at
-[fp-library/tests/coproduct_brand_probe.rs](../../../fp-library/tests/coproduct_brand_probe.rs)
-validates the Brand-level integration ahead of step 2: a generic
+A probe at `fp-library/tests/coproduct_brand_probe.rs` (since
+removed once the design was promoted in step 2) validates the
+Brand-level integration ahead of step 2: a generic
 `CoproductBrand<H, T>` with `Of<'a, A> = Coproduct<H::Of<'a, A>, T::Of<'a, A>>`
 and a recursive `Functor` impl on `CoproductBrand<H, T>` (with
 `H: Functor + 'static, T: Functor + 'static`) compiles and
@@ -729,9 +766,10 @@ motivating use case is`ArcFreeExplicitBrand`in step 7, the`OptionBrand` examples
   `frunk_core::coproduct::{Coproduct, CNil}` plus impl blocks
   bridging Plucker / Sculptor / Embedder", on the premise that
   Brand-style impls require a local newtype to satisfy the
-  orphan rules. The probe at
-  [`fp-library/tests/coproduct_brand_probe.rs`](../../../fp-library/tests/coproduct_brand_probe.rs)
-  disproved that premise: because `Kind_*` is fp-library's own
+  orphan rules. A probe at
+  `fp-library/tests/coproduct_brand_probe.rs` (committed during
+  step 1 and removed in step 2 once the brands landed in
+  production) disproved that premise: because `Kind_*` is fp-library's own
   trait, a generic `CoproductBrand<H, T>` (a local Brand struct)
   can carry the `impl_kind!` registration with
   `Of<'a, A> = Coproduct<H::Of<'a, A>, T::Of<'a, A>>` directly

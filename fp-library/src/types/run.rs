@@ -9,7 +9,12 @@
 //!
 //! - [`coproduct`]: Re-export adapter over [`frunk_core::coproduct`],
 //!   surfacing the row-encoding types and trait family the rest of the
-//!   subsystem consumes. The Brand-level integration for the Coproduct
-//!   row lands at `crate::brands::CoproductBrand` (Phase 2 step 2).
+//!   subsystem consumes.
+//! - [`variant_f`]: [`Functor`](crate::classes::Functor) impls for the
+//!   Coproduct-row brands [`CNilBrand`](crate::brands::CNilBrand) and
+//!   [`CoproductBrand`](crate::brands::CoproductBrand), plus the
+//!   [`VariantF`](variant_f::VariantF) alias. This is the open sum of
+//!   first-order effect functors that PureScript spells `VariantF`.
 
 pub mod coproduct;
+pub mod variant_f;

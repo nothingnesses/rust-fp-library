@@ -106,9 +106,40 @@ pub struct BoxBrand;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CatListBrand;
 
+/// Brand for the empty effect row [`CNil`](crate::types::run::coproduct::CNil).
+///
+/// The base case of the recursive [`CoproductBrand`] chain that encodes a
+/// row of first-order effect functors. `CNil` is uninhabited, so values of
+/// `CNilBrand`'s `Of<A>` projection never exist at runtime; the brand is
+/// load-bearing only at the type level.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CNilBrand;
+
 /// Brand for the [`Const`](crate::types::const_val::Const) functor.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ConstBrand<R>(PhantomData<R>);
+
+/// Brand for a non-empty effect row encoded as a nested
+/// [`Coproduct`](crate::types::run::coproduct::Coproduct).
+///
+/// `CoproductBrand<H, T>` parameterises over a head brand `H` and tail
+/// brand `T`, with `Of<'a, A>` resolving to
+/// `Coproduct<H::Of<'a, A>, T::Of<'a, A>>`. The recursive structure
+/// terminates at [`CNilBrand`]; the canonical shape produced by
+/// [`effects!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
+/// (Phase 2 step 8) is
+/// `CoproductBrand<CoyonedaBrand<E1>, CoproductBrand<CoyonedaBrand<E2>, CNilBrand>>`,
+/// where each effect is wrapped in [`CoyonedaBrand`] so any effect type
+/// becomes a [`Functor`](crate::classes::Functor) for free.
+///
+/// This is the Rust encoding of PureScript's
+/// [`VariantF`](https://github.com/purescript-deprecated/purescript-variant)
+/// for first-order effect rows. See
+/// [`fp-library::types::run::variant_f`](crate::types::run::variant_f) for
+/// the [`Functor`](crate::classes::Functor) impl that dispatches at runtime
+/// via the `Inl` / `Inr` variants.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CoproductBrand<H, T>(PhantomData<(H, T)>);
 
 /// Brand for [`ControlFlow`](core::ops::ControlFlow).
 ///
