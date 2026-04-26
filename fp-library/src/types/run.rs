@@ -7,9 +7,9 @@
 //!
 //! ## Submodules
 //!
-//! - [`coproduct`]: Brand-aware adapter layer over
-//!   [`frunk_core::coproduct`]. Provides newtype wrappers and bridge
-//!   impls so the project's `Brand` system can interact with the
-//!   row-encoding machinery.
+//! - [`coproduct`]: Re-export adapter over [`frunk_core::coproduct`],
+//!   surfacing the row-encoding types and trait family the rest of the
+//!   subsystem consumes. The Brand-level integration for the Coproduct
+//!   row lands at `crate::brands::CoproductBrand` (Phase 2 step 2).
 
 pub mod coproduct;

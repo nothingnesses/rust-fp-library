@@ -22,16 +22,26 @@ The adapter re-exports the frunk_core types and traits the rest of
 Phase 2 / 3 / 4 will need (`Coproduct`, `CNil`, `CoprodInjector`,
 `CoprodUninjector`, `CoproductSubsetter`, `CoproductEmbedder`,
 `CoproductSelector`, `CoproductTaker`, plus `Here`, `There`,
-`HCons`, `HNil`, `HList`) and adds local newtype wrappers
-`BrandedCoproduct<H, T>(pub Coproduct<H, T>)` and
-`BrandedCNil(pub CNil)` that downstream Brand impls can target
-without tripping the orphan rules. Bridge impls of
-`CoprodInjector` and `CoprodUninjector` on `BrandedCoproduct`
-delegate to the inner Coproduct; Subsetter / Embedder / Selector /
-Taker bridges land incrementally as concrete Phase 2 / 3 / 4 call
-sites surface them. Four unit tests verify round-trip
-conversions and the bridge delegations against a representative
-two-effect row.
+`HCons`, `HNil`, `HList`). Two unit tests exercise inject /
+uninject against a representative two-effect row.
+
+A probe at
+[fp-library/tests/coproduct_brand_probe.rs](../../../fp-library/tests/coproduct_brand_probe.rs)
+validates the Brand-level integration ahead of step 2: a generic
+`CoproductBrand<H, T>` with `Of<'a, A> = Coproduct<H::Of<'a, A>, T::Of<'a, A>>`
+and a recursive `Functor` impl on `CoproductBrand<H, T>` (with
+`H: Functor + 'static, T: Functor + 'static`) compiles and
+dispatches at runtime via `match` on `Inl` / `Inr`. `CNilBrand`
+provides the base case via `match fa {}` on the uninhabited
+`CNil`. Three probe tests cover Kind resolution, head-branch
+dispatch, and tail-branch dispatch over an
+`OptionBrand` / `VecBrand` / `CNilBrand` row.
+
+Step 2 will promote `CoproductBrand` and `CNilBrand` from the
+probe into [fp-library/src/brands.rs](../../../fp-library/src/brands.rs)
+proper, alongside the new
+`fp-library/src/types/run/variant_f.rs` module that wraps the
+Coproduct row in Coyoneda per effect.
 
 **Step 1 (`FreeExplicit`).** `FreeExplicit<'a, F, A>` and
 `FreeExplicitBrand<F>` are promoted from POC into production at
@@ -714,21 +724,28 @@ motivating use case is`ArcFreeExplicitBrand`in step 7, the`OptionBrand` examples
   uses the Coproduct-style names directly. Future plan references
   to Plucker / Sculptor / Embedder for the Coproduct adapter
   should be read as the Coproduct-style trait family above.
-- **Phase 2 step 1: minimum-viable adapter ships with
-  `CoprodInjector` / `CoprodUninjector` bridges only.** Step 1's
-  text says "impl blocks bridging frunk_core's Plucker / Sculptor
-  / Embedder traits to the project's Brand system" without
-  specifying which to ship now versus later. Implementation note
-  1's "thin adapter, target under approximately 200 lines" cap
-  pushes against shipping every bridge speculatively. The
-  adapter therefore lands with newtype wrappers
-  ([`BrandedCoproduct`], [`BrandedCNil`]), bidirectional
-  [`From`] conversions, and bridge impls of [`CoprodInjector`]
-  and [`CoprodUninjector`] on [`BrandedCoproduct`]. Bridges for
-  `CoproductSubsetter`, `CoproductEmbedder`, `CoproductSelector`,
-  and `CoproductTaker` land here as concrete Phase 2 / 3 / 4
-  call sites surface them. The module docs flag the deferred
-  bridges so future implementers know where they go.
+- **Phase 2 step 1: no newtype wrappers ship; the adapter is
+  re-exports only.** The plan text says "newtype wrappers around
+  `frunk_core::coproduct::{Coproduct, CNil}` plus impl blocks
+  bridging Plucker / Sculptor / Embedder", on the premise that
+  Brand-style impls require a local newtype to satisfy the
+  orphan rules. The probe at
+  [`fp-library/tests/coproduct_brand_probe.rs`](../../../fp-library/tests/coproduct_brand_probe.rs)
+  disproved that premise: because `Kind_*` is fp-library's own
+  trait, a generic `CoproductBrand<H, T>` (a local Brand struct)
+  can carry the `impl_kind!` registration with
+  `Of<'a, A> = Coproduct<H::Of<'a, A>, T::Of<'a, A>>` directly
+  on the foreign value type. No wrapper is needed at the Brand
+  boundary. The initial draft of step 1 shipped
+  `BrandedCoproduct<H, T>(pub Coproduct<H, T>)` and `BrandedCNil`
+  with `From` conversions and `CoprodInjector` / `CoprodUninjector`
+  bridge impls; once the probe proved them dead-weight, they were
+  removed in the same step. The adapter now re-exports
+  frunk_core's types and trait family verbatim and points
+  downstream consumers at the upcoming
+  `crate::brands::CoproductBrand` (Phase 2 step 2). Two unit
+  tests exercise raw Coproduct inject / uninject as the trait
+  family's smoke test.
 - **Phase 2 step 1: `frunk_core` chosen over `frunk`.** Step 1's
   text and Implementation note 1 name `frunk_core` directly. The
   umbrella `frunk` crate re-exports `frunk_core` plus
