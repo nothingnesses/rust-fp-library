@@ -29,6 +29,17 @@ one step per commit, until the phase is complete or you hit a blocker.
 4. Skim relevant entries under
    [research/](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/research/)
    only if a step names them. Do not re-read the full corpus.
+5. If your step touches type-class impls, brand-level dispatch, or
+   `Send + Sync` auto-derive, also skim
+   [fp-library/docs/limitations-and-workarounds.md](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/limitations-and-workarounds.md)'s
+   "Unexpressible Bounds in Trait Method Signatures" table. Step 7
+   added rows for the Explicit Free family that record where
+   stable Rust's lack of `for<T>` HRTB caps brand coverage. The
+   pattern (Pointed at the brand level; `bind`/`map` inherent-only;
+   Ref hierarchy as the by-reference dispatch path) is the
+   precedent any new wrapper type with shared internal state will
+   end up following. Saves rediscovering the constraint
+   mid-implementation.
 
 ## Per-step protocol
 
@@ -143,6 +154,61 @@ change them unilaterally. If you encounter:
   current task, fix, or callers in comments.
 - **No backwards-compatibility shims, dead code preservation, or
   removed-code comments.** Delete what is no longer used.
+
+## Common gotchas from prior steps
+
+These bit prior steps repeatedly. Internalising them up front saves
+debug cycles.
+
+- **Stage new files before `just verify`.** Untracked files do not
+  invalidate the test-output cache, so a green verify on untracked
+  code is not trustworthy. After creating new files, run `git add`
+  before `just verify`. If verify reformats existing files (via
+  `treefmt`), `git status` will show `MM` on the staged file; re-stage
+  with `git add` before retrying the commit.
+- **`#[document_examples]` requires a real Rust code block.** It
+  rejects `\`\`\`ignore`, `\`\`\`text`, and other non-Rust fences.
+If no working example exists for a method whose impl depends on
+scaffolding from a later step, options are: (a) add a working
+example that uses an existing brand which already supports the
+trait (e.g., `OptionBrand`for the`Send\*`family); (b) provide
+a small one-off impl alongside so the example compiles; (c)
+remove the macro and use plain`# Examples`markdown, but the
+resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so this only works after careful suppression.
+- **Inherent-method bounds do not propagate into trait impl
+  bodies.** When implementing a brand-level type-class trait by
+  delegating to an inherent method (e.g.,
+  `RcFreeExplicitBrand::bind` -> `RcFreeExplicit::bind`), the
+  inherent method's `where A: Clone, F::Of<...>: Clone` bounds are
+  not in scope inside the trait method body. Stable Rust does not
+  let you add per-method `where` bounds beyond what the trait
+  declares (no HRTB-over-types). When this hits, the right move
+  is usually documenting the brand-level coverage gap (see the
+  [`limitations-and-workarounds.md`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/limitations-and-workarounds.md)
+  precedent) and routing through the Ref hierarchy where possible,
+  not fighting the constraint.
+
+## Bench and compile_fail test scaffolding
+
+For step 8 (benches) and step 9 (tests), the existing
+infrastructure points are:
+
+- **Criterion benches** go in
+  [`fp-library/benches/benchmarks/`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/benches/benchmarks/).
+  The existing
+  [`free_explicit.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/benches/benchmarks/free_explicit.rs)
+  is the baseline shape. Wire new bench files through whatever
+  `criterion_group!` registration the directory uses.
+- **`compile_fail` UI tests** go in
+  [`fp-library/tests/ui/`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/ui/).
+  The
+  [`fp-library/tests/compile_fail.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/compile_fail.rs)
+  driver registers them via `trybuild::TestCases::new().compile_fail("tests/ui/*.rs")`,
+  and `trybuild = "1.0"` is already in
+  `fp-library/Cargo.toml`. Each negative case is one `.rs` file
+  plus a sibling `.stderr` capturing expected error output;
+  `.stderr` files are auto-generated on first run via
+  `TRYBUILD=overwrite cargo test --test compile_fail`.
 
 ## Tooling
 
