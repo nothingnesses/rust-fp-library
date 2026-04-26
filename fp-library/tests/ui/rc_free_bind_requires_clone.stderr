@@ -1,0 +1,19 @@
+error[E0277]: the trait bound `NotClone: Clone` is not satisfied
+  --> tests/ui/rc_free_bind_requires_clone.rs:18:23
+   |
+18 |     let _bound = program.bind(|x: NotClone| RcFree::pure(NotClone(x.0 + 1)));
+   |                          ^^^^ the trait `Clone` is not implemented for `NotClone`
+   |
+note: required by a bound in `RcFree::<F, A>::bind`
+  --> src/types/rc_free.rs
+   |
+   |         pub fn bind<B: 'static>(
+   |                ---- required by a bound in this associated function
+...
+   |             A: Clone,
+   |                ^^^^^ required by this bound in `RcFree::<F, A>::bind`
+help: consider annotating `NotClone` with `#[derive(Clone)]`
+   |
+14 + #[derive(Clone)]
+15 | struct NotClone(i32);
+   |

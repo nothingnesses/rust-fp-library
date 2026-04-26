@@ -1,0 +1,5 @@
+error[E0599]: no method named `clone` found for struct `Free<F, A>` in the current scope
+  --> tests/ui/free_not_clone.rs:18:20
+   |
+18 |     let _other = free.clone();
+   |                       ^^^^^ method not found in `Free<ThunkBrand, i32>`

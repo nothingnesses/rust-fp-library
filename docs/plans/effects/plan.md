@@ -1,10 +1,10 @@
 # Plan: Port purescript-run to fp-library
 
-**Status:** Phase 1 in progress (steps 1, 2, 3, 4, 5, 6, 7, and 8 of 9 complete).
+**Status:** Phase 1 complete (all 9 steps).
 
 ## Current progress
 
-Phase 1 steps 1, 2, 3, 4, 5, 6, 7, and 8 complete.
+Phase 1 complete (steps 1-9).
 
 **Step 1 (`FreeExplicit`).** `FreeExplicit<'a, F, A>` and
 `FreeExplicitBrand<F>` are promoted from POC into production at
@@ -284,8 +284,58 @@ Explicit family escape the cycle either via the outer `Rc<Inner>` /
 existing `Free` unit tests use (`Thunk<A>` holds a boxed closure,
 which provides the indirection).
 
-Remaining Phase 1 work: step 9 (per-variant unit and `compile_fail`
-tests).
+**Step 9 (per-variant unit and `compile_fail` tests).** Closes the gap
+in `FreeExplicit`'s test coverage and adds four new `compile_fail` UI
+tests under [fp-library/tests/ui/](../../../fp-library/tests/ui/).
+
+Unit tests added to
+[free_explicit.rs](../../../fp-library/src/types/free_explicit.rs):
+nine tests in the `mod tests` block covering construction
+(`pure_evaluate`, `wrap_evaluate`), evaluation (`bind_chains`),
+deep `Wrap` chains (`deep_evaluate_does_not_overflow`,
+`deep_drop_does_not_overflow`), the non-`'static` payload property
+(`non_static_payload`), and the brand-dispatched paths added in
+step 7 (`brand_dispatched_pointed`, `brand_dispatched_functor`,
+`brand_dispatched_semimonad` covering `RefPointed::ref_pure`,
+`RefFunctor::ref_map`, `RefSemimonad::ref_bind`). The other five
+variants already had source-level unit tests; their existing
+coverage (multi-shot via clone for the multi-shot variants,
+cross-thread + `is_send_and_sync` for the Arc variants, deep
+eval/Drop for all, non-static for the Explicit family) was unchanged
+and is sufficient for step 9's property-coverage requirements.
+
+`compile_fail` UI tests added under
+[fp-library/tests/ui/](../../../fp-library/tests/ui/):
+
+- `free_not_clone.rs`: confirms `Free` is single-shot. Cloning a
+  `Free` value fails because `Free` deliberately omits `Clone`;
+  multi-shot clients must pick `RcFree` or `ArcFree`. Pairs the
+  long-standing `free_requires_static.rs` test on the `'static`
+  bound axis with the orthogonal single-shot axis.
+- `erased_free_brands_do_not_exist.rs`: confirms the Erased family
+  carries no Brand dispatch by importing a non-existent `FreeBrand`.
+  Per decisions section 4.4, only the Explicit family has brands;
+  typeclass-generic code over an Erased Free fails to resolve.
+- `arc_free_explicit_bind_requires_send.rs`: confirms
+  `ArcFreeExplicit::bind` rejects `!Send + !Sync` closures. Captures
+  an `Rc<i32>` (which is `!Send` and `!Sync`) inside the bind
+  closure; the `Arc<dyn Fn + Send + Sync>` storage shape rejects it.
+  Multi-shot single-thread programs should use `RcFreeExplicit`.
+- `rc_free_bind_requires_clone.rs`: confirms `RcFree::bind` requires
+  `A: Clone`. The bound is needed because `RcFree`'s shared inner
+  state recovers an owned `A` from a potentially-shared
+  `Rc<dyn Any>` cell via `Rc::try_unwrap` with a fallback to
+  `(*shared).clone()`.
+
+The `.stderr` files were generated via
+`TRYBUILD=overwrite cargo test --test compile_fail` (the
+[trybuild](https://docs.rs/trybuild) bootstrap pattern, run via raw
+cargo so the wip files do not persist under `fp-library/wip/` after
+generation), then committed alongside their `.rs` counterparts.
+
+All Phase 1 work is now landed; Phase 2 (Run substrate and
+first-order effects) is the next phase per the resequenced phasing
+below.
 
 Other artefacts unchanged from pre-implementation:
 

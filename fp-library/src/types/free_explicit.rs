@@ -702,3 +702,101 @@ mod inner {
 }
 
 pub use inner::*;
+
+#[cfg(test)]
+mod tests {
+	use {
+		super::*,
+		crate::{
+			brands::{
+				FreeExplicitBrand,
+				IdentityBrand,
+			},
+			classes::{
+				RefFunctor,
+				RefPointed,
+				RefSemimonad,
+			},
+			types::Identity,
+		},
+	};
+
+	#[test]
+	fn pure_evaluate() {
+		let free = FreeExplicit::<IdentityBrand, _>::pure(42);
+		assert_eq!(free.evaluate(), 42);
+	}
+
+	#[test]
+	fn wrap_evaluate() {
+		let inner = FreeExplicit::<IdentityBrand, _>::pure(7);
+		let free: FreeExplicit<'_, IdentityBrand, _> =
+			FreeExplicit::wrap(Identity(Box::new(inner)));
+		assert_eq!(free.evaluate(), 7);
+	}
+
+	#[test]
+	fn bind_chains() {
+		let free = FreeExplicit::<IdentityBrand, _>::pure(1)
+			.bind(|x: i32| FreeExplicit::pure(x + 1))
+			.bind(|x: i32| FreeExplicit::pure(x * 10));
+		assert_eq!(free.evaluate(), 20);
+	}
+
+	#[test]
+	fn deep_evaluate_does_not_overflow() {
+		const DEPTH: usize = 100_000;
+		let mut free: FreeExplicit<'_, IdentityBrand, i32> = FreeExplicit::pure(0);
+		for _ in 0 .. DEPTH {
+			free = FreeExplicit::wrap(Identity(Box::new(free)));
+		}
+		assert_eq!(free.evaluate(), 0);
+	}
+
+	#[test]
+	fn deep_drop_does_not_overflow() {
+		const DEPTH: usize = 100_000;
+		let mut free: FreeExplicit<'_, IdentityBrand, i32> = FreeExplicit::pure(0);
+		for _ in 0 .. DEPTH {
+			free = FreeExplicit::wrap(Identity(Box::new(free)));
+		}
+		drop(free);
+	}
+
+	#[test]
+	fn non_static_payload() {
+		// Defining property of the Explicit family: payloads can borrow
+		// non-`'static` data.
+		let s = String::from("hello");
+		let r: &str = &s;
+		let free: FreeExplicit<'_, IdentityBrand, &str> = FreeExplicit::pure(r);
+		assert_eq!(free.evaluate(), "hello");
+	}
+
+	#[test]
+	fn brand_dispatched_pointed() {
+		// Brand-dispatched `pure` via `RefPointed`.
+		let value = 7;
+		let free: FreeExplicit<'_, IdentityBrand, _> =
+			FreeExplicitBrand::<IdentityBrand>::ref_pure(&value);
+		assert_eq!(free.evaluate(), 7);
+	}
+
+	#[test]
+	fn brand_dispatched_functor() {
+		// Brand-dispatched `ref_map` via `RefFunctor`.
+		let free = FreeExplicit::<IdentityBrand, _>::pure(10);
+		let mapped = FreeExplicitBrand::<IdentityBrand>::ref_map(|x: &i32| *x * 2, &free);
+		assert_eq!(mapped.evaluate(), 20);
+	}
+
+	#[test]
+	fn brand_dispatched_semimonad() {
+		// Brand-dispatched `ref_bind` via `RefSemimonad`.
+		let free = FreeExplicit::<IdentityBrand, _>::pure(2);
+		let chained = FreeExplicitBrand::<IdentityBrand>::ref_bind(&free, |x: &i32| {
+			FreeExplicit::pure(x + 1)
+		});
+		assert_eq!(chained.evaluate(), 3);
+	}
+}

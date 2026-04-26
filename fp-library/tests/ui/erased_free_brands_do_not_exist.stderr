@@ -1,0 +1,8 @@
+error[E0432]: unresolved import `fp_library::brands::FreeBrand`
+  --> tests/ui/erased_free_brands_do_not_exist.rs:10:5
+   |
+10 | use fp_library::brands::FreeBrand;
+   |     ^^^^^^^^^^^^^^^^^^^^---------
+   |     |                   |
+   |     |                   help: a similar name exists in the module: `FnBrand`
+   |     no `FreeBrand` in `brands`
