@@ -111,60 +111,159 @@ Other artefacts unchanged from pre-implementation:
 
 ## Open questions, issues and blockers
 
-**Open question for Phase 1 step 7:
-`RcFreeExplicit::bind` requires `A: Clone` but `Functor::map`
-cannot add per-method bounds.** `RcFreeExplicit::bind` (and any
-derived `map`) consumes `self` and routes through
-`into_inner_owned`, which falls back to cloning the inner state
-when the outer `Rc` is shared. Because the inner state's `Pure(A)`
-arm holds `A` directly, that fallback path requires `A: Clone`.
-The same constraint applies to the Pure cell: a shared
-`RcFreeExplicit::pure(a)` cannot be turned into `f(a)` without an
-owned `A`. The `Functor` trait's `map<'a, A: 'a, B: 'a>` signature
-is fixed and stable Rust does not admit per-method `where A: Clone`
-on the impl, so a direct delegation to `RcFreeExplicit::bind` will
-not type-check.
+**Open question for Phase 1 step 7 and Phase 2 step 4:
+brand-level dispatch for the multi-shot Explicit Free family
+lands on the by-reference hierarchy, not the by-value
+hierarchy.** `RcFreeExplicit::bind` (and any derived `map`)
+consumes `self` and routes through `into_inner_owned`, which
+falls back to cloning the inner state when the outer `Rc` is
+shared. The inner state's `Pure(A)` arm holds `A` directly, so
+that fallback path requires `A: Clone`. The `Functor` trait's
+`map<'a, A: 'a, B: 'a>` signature is fixed and stable Rust does
+not admit per-method `where A: Clone` on the impl. The same logic
+applies to `Semimonad::bind` and downstream. `Pointed::pure` is
+unaffected because `pure(a)` does not need `A: Clone`.
 
-For comparison: `RcCoyonedaBrand` implements `Functor` cleanly
-because its inherent `map` does not consume `A` (it just snocs a
-function layer onto a deferred-map chain). `CoyonedaExplicitBrand`
-sidesteps the issue by parameterising the brand on the Coyoneda
-output type `B` and storing function composition rather than
-values. Neither pattern transfers directly to the Free spine,
-which has explicit `Pure(A)` cells that any `bind`/`map` must
-either consume (uniquely) or clone (shared).
+The library already has the answer to this kind of constraint:
+the **by-reference trait hierarchy** documented in
+[fp-library/docs/limitations-and-workarounds.md](../../../fp-library/docs/limitations-and-workarounds.md)
+under "Memoized Types Cannot Implement `Functor`". `RefFunctor`,
+`RefPointed`, `RefSemimonad`, `RefMonad` (and the `SendRef*`
+variants) take their closure as `Fn(&A) -> B` and the container
+by reference, so the implementor never needs to own `A`. `Lazy`
+is brand-dispatched via the Ref hierarchy alone for exactly this
+reason. The unified `map` free function dispatches on closure
+shape: `Fn(A) -> B` routes to `Functor`, `Fn(&A) -> B` routes to
+`RefFunctor`. Step 7 already scopes both hierarchies for
+`RcFreeExplicitBrand` and `FreeExplicitBrand` (and step 6 already
+scopes `SendFunctor` plus by extension `SendRefFunctor` for
+`ArcFreeExplicitBrand`).
 
-Possible resolutions to surface in step 7:
+For `RcFreeExplicit`, `RefFunctor::ref_map` is implementable: in
+the `Pure(a)` arm, apply `f(&a)` directly with no Clone bound; in
+the `Wrap(fa)` arm, recurse via `F::ref_map` (requires
+`F: RefFunctor`). Same shape extends to `RefSemimonad::ref_bind`,
+`RefMonad`, etc. This makes the brand-level coverage:
 
-1. Restructure `RcFreeExplicit` to a Coyoneda-hybrid Pure cell
-   (e.g., `Pure<X>(Rc<X>, Rc<dyn Fn(X) -> A>)`) so `map` adds a
-   function layer instead of consuming `A`. Adds one `Rc` per
+| Type              | by-value Functor | by-value Pointed  | by-value Semimonad | Ref Functor | Ref Pointed | Ref Semimonad                |
+| :---------------- | :--------------- | :---------------- | :----------------- | :---------- | :---------- | :--------------------------- |
+| `FreeExplicit`    | Yes              | Yes               | Yes                | Yes         | Yes         | Yes                          |
+| `RcFreeExplicit`  | No               | Yes               | No                 | Yes         | Yes         | Yes                          |
+| `ArcFreeExplicit` | No               | via `SendPointed` | No                 | Yes         | Yes         | Yes (via `SendRefSemimonad`) |
+
+The user-facing implication: `m_do!` and typeclass-generic
+dispatch over `RcRunExplicit` / `ArcRunExplicit` work via the Ref
+hierarchy. Users writing `m_do!` over those Run variants pass
+`Fn(&A) -> ...` continuations rather than `Fn(A) -> ...`. The
+single-threaded single-shot variant `RunExplicit` (built on
+`FreeExplicit`) keeps full by-value brand coverage and is the
+ergonomic "default" for typeclass-generic code; the multi-shot
+variants get brand dispatch via Ref. This matches `Lazy`'s
+precedent exactly. The plan's Motivation section needs a small
+clarification on this, and Phase 2 step 4 should explicitly state
+that `m_do!` continuations on `RcRunExplicit` / `ArcRunExplicit`
+take `&A`.
+
+Resolutions in priority order:
+
+1. **Stick with Ref hierarchy + inherent by-value methods**
+   (recommended). Step 7 implements `RefFunctor` /
+   `RefSemimonad` / `RefMonad` for `RcFreeExplicitBrand`, plus
+   `SendRefFunctor` / `SendRefSemimonad` / `SendRefMonad` for
+   `ArcFreeExplicitBrand`, plus `Pointed` (and `SendPointed`)
+   on the by-value side because `pure` needs no Clone bound.
+   `RcFreeExplicit::bind` / `ArcFreeExplicit::bind` ship as
+   inherent methods (with their natural Clone bounds) for direct
+   non-generic use, mirroring the
+   [`RcCoyoneda`/`ArcCoyoneda` precedent](../../../fp-library/docs/limitations-and-workarounds.md).
+   Update plan Motivation to show `m_do!` over multi-shot
+   Explicit Run variants taking `Fn(&A) -> ...` continuations.
+2. Restructure `RcFreeExplicit`/`ArcFreeExplicit` to a
+   Coyoneda-hybrid `Pure` cell (e.g.,
+   `Pure<X>(Rc<X>, Rc<dyn Fn(X) -> A>)`) so by-value `map` adds
+   a function layer without consuming `A`. Adds one `Rc` per
    `pure` and an existential type parameter; bind still has the
-   spine-recursion cost. Keeps `Functor` impl bound-free.
-2. Add a `CloneFunctor` / `CloneSemimonad` / `CloneMonad`
+   spine-recursion cost. Restores by-value `Functor` brand
+   coverage (matching `RcCoyoneda` precedent) but does not solve
+   by-value `Semimonad` (bind still needs ownership of the
+   intermediate value). Higher-effort and only partially helps.
+3. Add a `CloneFunctor` / `CloneSemimonad` / `CloneMonad`
    parallel trait family with `A: Clone` on the closure
-   parameter, paralleling the existing `SendFunctor` family that
-   `ArcFreeExplicit` will use (Phase 1 step 6). `RcFreeExplicit`
-   then implements the Clone-bounded family rather than the
-   bound-free family. Mechanical but expands the trait surface.
-3. Skip `Functor` for `RcFreeExplicitBrand` and route Brand-
-   dispatched multi-shot programs through `ArcFreeExplicitBrand`
-   only. Loses the single-threaded multi-shot Brand story, which
-   contradicts the plan's "six concrete `Run` types in three
-   pairs" structure.
+   parameter, paralleling `SendFunctor`. Discussed below in
+   "Hierarchy modification options"; not recommended without
+   user feedback indicating Ref-hierarchy UX is insufficient.
 
-The same constraint applies to `ArcFreeExplicit` (step 5) once
-its `bind` lands; the `SendFunctor` family from step 6 already
-admits a `Send + Sync` bound on the closure parameter, so adding
-an `A: Clone` bound there alongside `Send + Sync` may be a smaller
-incremental change than option 2 in isolation.
+### Hierarchy modification options
+
+The user asked whether to consider (a) modifying the existing
+by-value hierarchy to add Clone bounds or (b) adding a parallel
+by-value hierarchy with Clone bounds.
+
+**(a) Modify the existing by-value hierarchy.** Don't do this.
+`Functor` / `Pointed` / `Semimonad` / `Monad` are foundational
+abstractions implemented by every container type in the library
+(`Option`, `Result`, `Vec`, `Identity`, `Free`, `Coyoneda`, etc.).
+Adding `A: Clone` (or any extra trait bound on the element) to
+the trait method signatures would force every existing
+implementor to carry the bound, restricting them to `Clone`
+elements without benefit. It would also break the abstraction:
+the categorical Functor laws don't require Clone, so encoding
+Clone in the trait signature mis-models what a Functor is. This
+is the same argument that keeps `Send + Sync` out of `Functor`
+(handled via parallel `SendFunctor` instead).
+
+**(b) Add a parallel `CloneFunctor` / `CloneSemimonad` /
+`CloneMonad` family.** Plausible but speculative. Mirrors the
+existing `SendFunctor` pattern (planned for `ArcFreeExplicit` in
+step 6) and the `RefFunctor` family. Each trait would carry
+`A: Clone` (and possibly `B: Clone`) on the closure parameter,
+admitting impls for types whose internal storage forces clone-on-
+shared-access. `RcFreeExplicit` would implement `CloneFunctor`
+/ `CloneSemimonad` / `CloneMonad`; `ArcFreeExplicit` would
+implement `SendCloneFunctor` / etc. Generic code that wants the
+multi-shot Explicit family would write `F: CloneFunctor` instead
+of `F: Functor`.
+
+The arguments against doing this now:
+
+- The Ref hierarchy already exists and already covers the same
+  use cases that motivated this question (brand dispatch on a
+  type that can't consume `A` cheaply).
+- `Send + Sync` is fundamentally a different kind of constraint
+  from `Clone`. `Send + Sync` weakens what the implementor can
+  store internally (no `Rc`, no `Cell`, etc.); `Clone` is a
+  demand on the closure's input. From the user's perspective,
+  calling a `CloneFunctor::map` looks identical to calling a
+  regular `Functor::map`; the only difference is which trait
+  bound the user wrote in their generic code. That's a less
+  natural axis to split on than Send-vs-not-Send.
+- The dispatch surface (`m_do!`, the unified `map` free
+  function) currently splits on closure shape (`Fn(A)` vs
+  `Fn(&A)`) and on send-ness (regular vs `Send` variants).
+  Adding a Clone axis means three orthogonal splits, which the
+  macro/dispatch wiring would have to learn. Real complexity
+  cost.
+- "Don't add features beyond what the task requires." The Ref
+  hierarchy resolves the immediate problem; `CloneFunctor`
+  should be added only if real-world usage shows the Ref-only
+  brand path is too cumbersome for users of the multi-shot
+  Explicit family. That's a Phase 5+ refinement question.
+
+If we **were** to add `CloneFunctor` later, the smallest version
+would parallel `SendFunctor` exactly: an independent trait,
+implemented by exactly the brands that need it, and a unified
+dispatch arm in the `map` / `bind` free functions that prefers
+the Clone-bounded impl when both are available. That's a
+mechanical addition that doesn't require re-design.
 
 Step 4's commit lands the `RcFreeExplicit` type and `Kind`
-registration as planned; the question only affects step 7's trait
-hierarchy work and does not block step 5 (`ArcFreeExplicit`,
-which is structural) or step 6 (`SendFunctor`, which adds
-trait-family scaffolding). Surfacing it now so the eventual
-resolution can shape decisions made in steps 5 and 6.
+registration as planned. The question affects step 7's trait
+hierarchy scope (which Ref impls land), step 6's design
+(whether `SendFunctor` for `ArcFreeExplicitBrand` is paired with
+`SendRefFunctor` from the start), and the plan's Motivation /
+Phase 2 wording (Ref-shaped continuations on `m_do!` over
+multi-shot Run variants). It does not block step 5
+(`ArcFreeExplicit`, which is structural).
 
 The earlier `RcFreeBrand`/`ArcFreeBrand` blocker
 is resolved by adopting the **Erased/Explicit dispatch split**
