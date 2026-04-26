@@ -1,10 +1,10 @@
 # Plan: Port purescript-run to fp-library
 
-**Status:** Phase 1 in progress (steps 1, 2, 3, 4, 5, and 6 of 9 complete).
+**Status:** Phase 1 in progress (steps 1, 2, 3, 4, 5, 6, and 7 of 9 complete).
 
 ## Current progress
 
-Phase 1 steps 1, 2, 3, 4, 5, and 6 complete.
+Phase 1 steps 1, 2, 3, 4, 5, 6, and 7 complete.
 
 **Step 1 (`FreeExplicit`).** `FreeExplicit<'a, F, A>` and
 `FreeExplicitBrand<F>` are promoted from POC into production at
@@ -187,10 +187,59 @@ re-exported through
 [fp-library/src/functions.rs](../../../fp-library/src/functions.rs)
 alongside the existing `send_ref_*` free-function variants.
 
-Remaining Phase 1 work: step 7 (brand registrations + by-value
-and by-reference trait hierarchies for all three Explicit
-brands), step 8 (per-variant Criterion benches), step 9
-(per-variant unit and `compile_fail` tests).
+**Step 7 (brand-level trait hierarchies for the Explicit Free
+family).** The realistic scope, after running the impls against
+stable Rust:
+
+- `FreeExplicitBrand`: `Functor`, `Pointed`, `Semimonad` on the
+  by-value side; `RefFunctor`, `RefPointed`, `RefSemimonad` on
+  the by-reference side. Brand impls live inside the inner mod
+  alongside the type definitions; the by-reference impls share
+  two private recursive helpers (`free_explicit_ref_map`,
+  `free_explicit_ref_bind`) that box the user closure into
+  `Rc<dyn Fn>` and walk the spine via `F::ref_map`.
+- `RcFreeExplicitBrand`: `Pointed` on the by-value side
+  (`bind`/`map` blocked by per-`A` Clone bounds the trait can't
+  add); full `RefFunctor`/`RefPointed`/`RefSemimonad` on the
+  by-reference side via `Rc::deref` + `F::ref_map`.
+- `ArcFreeExplicitBrand`: `SendPointed` on the by-value side
+  only. The `SendRef*` hierarchy is structurally blocked: the
+  closure passed to `F::send_ref_map` returns
+  `ArcFreeExplicit<F, B>`, which auto-derive of `Send + Sync`
+  requires the `Kind<Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync>`
+  bound dropped from the struct in step 5. Adding it back via
+  the impl block would need `for<'a, T>` HRTB-over-types, which
+  stable Rust does not provide. The block is documented in
+  `arc_free_explicit.rs` for future revisits.
+
+Three classes of by-value impl that step 7 originally intended
+are also blocked:
+
+- `Lift` / `Semiapplicative` / `Applicative` / `ApplyFirst` /
+  `ApplySecond` / `Monad` for **all three** Explicit brands. The
+  natural `lift2 = bind(fa, |a| map(fb, |b| f(a, b)))` pattern
+  requires `fb` to survive multiple invocations of the bind
+  closure; `FreeExplicit` is not `Clone`, and
+  `Rc`/`ArcFreeExplicit::bind` carry per-`A` Clone bounds the
+  trait can't add. Without `Lift`, `Applicative`'s blanket impl
+  doesn't apply, which cascades to `Monad`.
+- `RefLift` / `RefSemiapplicative` / `RefApplicative` /
+  `RefMonad` for `FreeExplicit` and `RcFreeExplicit`. The
+  natural `ref_lift2 = ref_bind(fa, |a: &A| ref_map(fb, |b: &B| f(a, b)))`
+  pattern captures `&a` in the inner closure, but `ref_map`'s
+  closure must satisfy `+ 'a` and the captured `&a`'s lifetime
+  is shorter than `'a`. Cloning `a` would resolve it but the
+  trait doesn't admit `A: Clone`.
+- All `SendRef*` for `ArcFreeExplicit` (per the HRTB-over-types
+  reason above).
+
+The `fp-library/docs/limitations-and-workarounds.md` table is
+extended with three by-value rows (`FreeExplicit`,
+`RcFreeExplicit`, `ArcFreeExplicit`) and a parallel three-row
+by-reference classification.
+
+Remaining Phase 1 work: step 8 (per-variant Criterion benches),
+step 9 (per-variant unit and `compile_fail` tests).
 
 Other artefacts unchanged from pre-implementation:
 

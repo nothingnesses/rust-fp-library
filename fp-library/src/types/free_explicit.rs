@@ -29,10 +29,7 @@ mod inner {
 		crate::{
 			Apply,
 			brands::FreeExplicitBrand,
-			classes::{
-				Extract,
-				Functor,
-			},
+			classes::*,
 			impl_kind,
 			kinds::*,
 		},
@@ -351,6 +348,355 @@ mod inner {
 					}
 				}
 			}
+		}
+	}
+
+	// -- Brand-level type class instances --
+	//
+	// FreeExplicitBrand implements Functor, Pointed, and Semimonad. It does
+	// NOT implement Lift, Semiapplicative, Applicative, ApplyFirst,
+	// ApplySecond, or Monad because their natural implementation pattern
+	// (`lift2 = bind(fa, |a| map(fb, |b| f(a, b)))`) requires `fb` to be
+	// usable across multiple invocations of the bind closure. `FreeExplicit`
+	// is not `Clone` (no outer `Rc`/`Arc` wrapper, and the embedded
+	// `F::Of<'a, ...>` field's `Clone`-ness is not expressible per-`A` in
+	// trait method signatures without HRTB-over-types). The remaining
+	// applicative-family operations are reachable through:
+	//
+	// 1. Inherent methods on `FreeExplicit` (`bind`, `wrap`, `evaluate`).
+	// 2. The Ref hierarchy (`RefFunctor` / `RefPointed` / `RefSemimonad`)
+	//    impls below, which take `&self` and so don't have the consume-
+	//    multiple-times issue.
+	//
+	// This matches the `RcCoyoneda`/`ArcCoyoneda` precedent: brand-level
+	// coverage is whatever the trait signatures admit; the rest is
+	// inherent-only.
+
+	#[document_type_parameters("The base functor.")]
+	impl<F: Extract + Functor + 'static> Pointed for FreeExplicitBrand<F> {
+		/// Wraps a value in a pure `FreeExplicit` computation.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime that bounds the payload and the functor.",
+			"The type of the value to wrap."
+		)]
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		#[document_returns("A `FreeExplicit` computation that produces `a`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free: FreeExplicit<'_, IdentityBrand, _> = FreeExplicitBrand::<IdentityBrand>::pure(42);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			FreeExplicit::pure(a)
+		}
+	}
+
+	#[document_type_parameters("The base functor.")]
+	impl<F: Extract + Functor + 'static> Functor for FreeExplicitBrand<F> {
+		/// Maps a function over the result of a `FreeExplicit` computation
+		/// by composing it with [`pure`](FreeExplicit::pure) under
+		/// [`bind`](FreeExplicit::bind).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime that bounds the payload and the functor.",
+			"The original result type.",
+			"The new result type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the result.",
+			"The `FreeExplicit` computation."
+		)]
+		///
+		#[document_returns("A new `FreeExplicit` with the function applied to its result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = FreeExplicit::<IdentityBrand, _>::pure(10);
+		/// let mapped = FreeExplicitBrand::<IdentityBrand>::map(|x: i32| x * 2, free);
+		/// assert_eq!(mapped.evaluate(), 20);
+		/// ```
+		fn map<'a, A: 'a, B: 'a>(
+			f: impl Fn(A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.bind(move |a| FreeExplicit::pure(f(a)))
+		}
+	}
+
+	#[document_type_parameters("The base functor.")]
+	impl<F: Extract + Functor + 'static> Semimonad for FreeExplicitBrand<F> {
+		/// Sequences `FreeExplicit` computations.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime that bounds the payload and the functor.",
+			"The type of the result of the first computation.",
+			"The type of the result of the second computation."
+		)]
+		///
+		#[document_parameters(
+			"The first `FreeExplicit` computation.",
+			"The function to chain after the first computation."
+		)]
+		///
+		#[document_returns("A new `FreeExplicit` chaining the function after `ma`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = FreeExplicit::<IdentityBrand, _>::pure(2);
+		/// let chained =
+		/// 	FreeExplicitBrand::<IdentityBrand>::bind(free, |x: i32| FreeExplicit::pure(x + 1));
+		/// assert_eq!(chained.evaluate(), 3);
+		/// ```
+		fn bind<'a, A: 'a, B: 'a>(
+			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			ma.bind(func)
+		}
+	}
+
+	// -- Ref hierarchy --
+	//
+	// The Ref hierarchy takes `&self` rather than `self`, so the
+	// consume-or-clone issues that block `Lift` / `Semiapplicative` for
+	// the by-value side don't apply here. Recursive helpers use
+	// `Rc<dyn Fn>` boxing to avoid monomorphisation blow-up at each
+	// spine layer (analogous to `bind_boxed`).
+
+	/// Internal recursive worker for [`RefFunctor::ref_map`] over
+	/// [`FreeExplicit`]. Takes the user closure pre-boxed into an [`Rc`]
+	/// so the recursive call inside `F::ref_map`'s closure does not
+	/// generate a fresh closure type per layer.
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	classes::*,
+	/// 	types::*,
+	/// };
+	///
+	/// let free = FreeExplicit::<IdentityBrand, _>::pure(10);
+	/// let mapped = FreeExplicitBrand::<IdentityBrand>::ref_map(|x: &i32| *x + 1, &free);
+	/// assert_eq!(mapped.evaluate(), 11);
+	/// ```
+	#[expect(
+		clippy::expect_used,
+		clippy::borrowed_box,
+		reason = "FreeExplicit values consumed exactly once; double consumption is a bug. The `&Box<FreeExplicit>` shape is dictated by the F::Of<'a, Box<FreeExplicit>>: F::ref_map dispatch."
+	)]
+	fn free_explicit_ref_map<'a, F, A: 'a, B: 'a>(
+		func: Rc<dyn Fn(&A) -> B + 'a>,
+		fa: &FreeExplicit<'a, F, A>,
+	) -> FreeExplicit<'a, F, B>
+	where
+		F: Extract + Functor + RefFunctor + 'a, {
+		let view = fa.view.as_ref().expect("FreeExplicit value already consumed");
+		match view {
+			FreeExplicitView::Pure(a) => FreeExplicit::pure(func(a)),
+			FreeExplicitView::Wrap(fa_inner) => {
+				let func_outer = Rc::clone(&func);
+				FreeExplicit::wrap(F::ref_map(
+					move |inner: &Box<FreeExplicit<'a, F, A>>| -> Box<FreeExplicit<'a, F, B>> {
+						let func_inner = Rc::clone(&func_outer);
+						Box::new(free_explicit_ref_map(func_inner, &**inner))
+					},
+					fa_inner,
+				))
+			}
+		}
+	}
+
+	/// Internal recursive worker for [`RefSemimonad::ref_bind`] over
+	/// [`FreeExplicit`]. Mirrors `free_explicit_ref_map`'s shape but the
+	/// `Pure` arm uses the produced `FreeExplicit<F, B>` directly
+	/// (rather than wrapping `f(a)` in `pure`).
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	classes::*,
+	/// 	types::*,
+	/// };
+	///
+	/// let free = FreeExplicit::<IdentityBrand, _>::pure(2);
+	/// let chained =
+	/// 	FreeExplicitBrand::<IdentityBrand>::ref_bind(&free, |x: &i32| FreeExplicit::pure(x + 1));
+	/// assert_eq!(chained.evaluate(), 3);
+	/// ```
+	#[expect(
+		clippy::expect_used,
+		clippy::borrowed_box,
+		clippy::type_complexity,
+		reason = "FreeExplicit values consumed exactly once; double consumption is a bug. The `&Box<FreeExplicit>` shape is dictated by the F::Of<'a, Box<FreeExplicit>>: F::ref_map dispatch. Boxed closure type complexity is dictated by the recursive helper signature."
+	)]
+	fn free_explicit_ref_bind<'a, F, A: 'a, B: 'a>(
+		f: Rc<dyn Fn(&A) -> FreeExplicit<'a, F, B> + 'a>,
+		fa: &FreeExplicit<'a, F, A>,
+	) -> FreeExplicit<'a, F, B>
+	where
+		F: Extract + Functor + RefFunctor + 'a, {
+		let view = fa.view.as_ref().expect("FreeExplicit value already consumed");
+		match view {
+			FreeExplicitView::Pure(a) => f(a),
+			FreeExplicitView::Wrap(fa_inner) => {
+				let f_outer = Rc::clone(&f);
+				FreeExplicit::wrap(F::ref_map(
+					move |inner: &Box<FreeExplicit<'a, F, A>>| -> Box<FreeExplicit<'a, F, B>> {
+						let f_inner = Rc::clone(&f_outer);
+						Box::new(free_explicit_ref_bind(f_inner, &**inner))
+					},
+					fa_inner,
+				))
+			}
+		}
+	}
+
+	#[document_type_parameters("The base functor.")]
+	impl<F: Extract + Functor + RefFunctor + 'static> RefFunctor for FreeExplicitBrand<F> {
+		/// Maps a function over the result of a `FreeExplicit` computation
+		/// using a reference to the value, walking the structure
+		/// recursively via `F::ref_map`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime that bounds the payload and the functor.",
+			"The original result type.",
+			"The new result type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the result by reference.",
+			"The `FreeExplicit` computation."
+		)]
+		///
+		#[document_returns("A new `FreeExplicit` with the function applied to its result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = FreeExplicit::<IdentityBrand, _>::pure(10);
+		/// let mapped = FreeExplicitBrand::<IdentityBrand>::ref_map(|x: &i32| *x * 2, &free);
+		/// assert_eq!(mapped.evaluate(), 20);
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let func_rc: Rc<dyn Fn(&A) -> B + 'a> = Rc::new(func);
+			free_explicit_ref_map(func_rc, fa)
+		}
+	}
+
+	#[document_type_parameters("The base functor.")]
+	impl<F: Extract + Functor + 'static> RefPointed for FreeExplicitBrand<F> {
+		/// Wraps a cloned value in a pure `FreeExplicit` computation.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime that bounds the payload and the functor.",
+			"The type of the value to wrap. Must be `Clone`."
+		)]
+		///
+		#[document_parameters("A reference to the value to wrap.")]
+		///
+		#[document_returns("A `FreeExplicit` computation that produces a clone of `a`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let value = 42;
+		/// let free: FreeExplicit<'_, IdentityBrand, _> =
+		/// 	FreeExplicitBrand::<IdentityBrand>::ref_pure(&value);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			FreeExplicit::pure(a.clone())
+		}
+	}
+
+	#[document_type_parameters("The base functor.")]
+	impl<F: Extract + Functor + RefFunctor + 'static> RefSemimonad for FreeExplicitBrand<F> {
+		/// Sequences `FreeExplicit` computations using a reference to the
+		/// intermediate value, walking the structure recursively via
+		/// `F::ref_map`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime that bounds the payload and the functor.",
+			"The type of the result of the first computation.",
+			"The type of the result of the second computation."
+		)]
+		///
+		#[document_parameters(
+			"The first `FreeExplicit` computation.",
+			"The function to chain after the first computation."
+		)]
+		///
+		#[document_returns("A new `FreeExplicit` chaining the function after `ma`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = FreeExplicit::<IdentityBrand, _>::pure(2);
+		/// let chained =
+		/// 	FreeExplicitBrand::<IdentityBrand>::ref_bind(&free, |x: &i32| FreeExplicit::pure(x + 1));
+		/// assert_eq!(chained.evaluate(), 3);
+		/// ```
+		#[expect(
+			clippy::type_complexity,
+			reason = "Boxed closure type is dictated by the recursive helper signature"
+		)]
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			ma: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let f_rc: Rc<dyn Fn(&A) -> FreeExplicit<'a, F, B> + 'a> = Rc::new(f);
+			free_explicit_ref_bind(f_rc, ma)
 		}
 	}
 }

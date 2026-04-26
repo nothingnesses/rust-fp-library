@@ -52,11 +52,7 @@ mod inner {
 				ArcFnBrand,
 				ArcFreeExplicitBrand,
 			},
-			classes::{
-				Extract,
-				Functor,
-				SendLiftFn,
-			},
+			classes::*,
 			impl_kind,
 			kinds::*,
 		},
@@ -675,6 +671,69 @@ mod inner {
 			}
 		}
 	}
+
+	// -- Brand-level type class instances --
+	//
+	// `ArcFreeExplicitBrand` implements `SendPointed` only at the by-value
+	// level. The full `SendFunctor` / `SendSemimonad` / `SendLift` /
+	// `SendApplicative` / `SendMonad` chain is unexpressible for the same
+	// reasons as `RcFreeExplicitBrand` (Clone bounds on `bind` /
+	// `into_inner_owned` are per-`A` and not in the trait method
+	// signatures), plus the `Send + Sync` Kind bound is a per-`A` HRTB
+	// that no stable Rust feature supports. By-reference brand dispatch
+	// routes through the `SendRef*` hierarchy below. See
+	// [`fp-library/docs/limitations-and-workarounds.md`](crate) for the
+	// pattern.
+
+	#[document_type_parameters("The base functor.")]
+	impl<F: Extract + Functor + 'static> SendPointed for ArcFreeExplicitBrand<F> {
+		/// Wraps a value in a pure thread-safe `ArcFreeExplicit` computation.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime that bounds the payload and the functor.",
+			"The type of the value to wrap. Must be `Send + Sync`."
+		)]
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		#[document_returns("An `ArcFreeExplicit` computation that produces `a`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free: ArcFreeExplicit<'_, IdentityBrand, _> =
+		/// 	ArcFreeExplicitBrand::<IdentityBrand>::send_pure(42);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		fn send_pure<'a, A: Send + Sync + 'a>(
+			a: A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			ArcFreeExplicit::pure(a)
+		}
+	}
+
+	// -- SendRef hierarchy NOT IMPLEMENTED for `ArcFreeExplicitBrand` --
+	//
+	// The natural recursive impl pattern (walk `&fa`, build new
+	// `ArcFreeExplicit<F, B>`, recurse via `F::send_ref_map`) requires
+	// the closure passed to `F::send_ref_map` to return
+	// `ArcFreeExplicit<'a, F, B>: Send + Sync`. Auto-derive of `Send +
+	// Sync` on `ArcFreeExplicit` requires
+	// `Kind<Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync>` (the bound
+	// dropped from the struct in step 5 — see deviations in plan.md).
+	// That bound's `'a` and `A` are the trait method's per-method
+	// generics; stable Rust does not support `for<'a, T>` HRTB, so the
+	// bound cannot be added at the impl block level. By-reference
+	// dispatch over `ArcFreeExplicit` is reachable via inherent
+	// methods on the concrete type, plus the `RcFreeExplicitBrand`
+	// `Ref*` impls when the user is willing to forfeit thread-safety.
+	// See `fp-library/docs/limitations-and-workarounds.md`.
 }
 
 pub use inner::*;

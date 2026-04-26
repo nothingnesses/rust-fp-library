@@ -92,11 +92,22 @@ For `ArcCoyoneda`, the problem is compounded: `Functor::map` also cannot be impl
 
 ### Consequences
 
-| Type          | Brand-level `Functor` | Brand-level `Pointed` | Brand-level `Semimonad` | Reason                                                         |
-| :------------ | :-------------------- | :-------------------- | :---------------------- | :------------------------------------------------------------- |
-| `Coyoneda`    | Yes                   | Yes                   | Yes                     | `Box<dyn FnOnce>` has no extra bounds.                         |
-| `RcCoyoneda`  | Yes                   | No                    | No                      | Needs `F::Of: Clone`.                                          |
-| `ArcCoyoneda` | No                    | No                    | No                      | Needs `F::Of: Clone + Send + Sync` and closures `Send + Sync`. |
+| Type              | Brand-level `Functor`   | Brand-level `Pointed`   | Brand-level `Semimonad` | Reason                                                                                                                                                                                     |
+| :---------------- | :---------------------- | :---------------------- | :---------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Coyoneda`        | Yes                     | Yes                     | Yes                     | `Box<dyn FnOnce>` has no extra bounds.                                                                                                                                                     |
+| `RcCoyoneda`      | Yes                     | No                      | No                      | Needs `F::Of: Clone`.                                                                                                                                                                      |
+| `ArcCoyoneda`     | Yes (via `SendFunctor`) | No                      | No                      | Needs `F::Of: Clone + Send + Sync` and closures `Send + Sync`. `SendFunctor` (closure has `Send + Sync`) closes the by-value `Functor` gap; `SendPointed` / `SendSemimonad` still blocked. |
+| `FreeExplicit`    | Yes                     | Yes                     | Yes                     | Concrete recursive enum; `bind` has no Clone bound. `Lift` / `Semiapplicative` / `Applicative` / `Monad` blocked: `lift2` consumes `fb` multiply; `FreeExplicit` is not `Clone`.           |
+| `RcFreeExplicit`  | No                      | Yes                     | No                      | `bind` requires per-`A` `Clone` bounds for the shared-inner-state recovery path; `pure` does not.                                                                                          |
+| `ArcFreeExplicit` | No                      | Yes (via `SendPointed`) | No                      | Same as `RcFreeExplicit` plus the `Kind<Of<...>: Send + Sync>` auto-derive bound is per-`A` (no HRTB-over-types in stable Rust).                                                           |
+
+The Free Explicit family also has a parallel by-reference classification:
+
+| Type              | Brand-level `RefFunctor`       | Brand-level `RefPointed` | Brand-level `RefSemimonad`     | Reason                                                                                                                                                                                             |
+| :---------------- | :----------------------------- | :----------------------- | :----------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FreeExplicit`    | Yes (requires `F: RefFunctor`) | Yes                      | Yes (requires `F: RefFunctor`) | Recursive helper walks `&fa` via `F::ref_map`. `RefLift` blocked: closure captures shorter-lifetime `&A`, can't satisfy `+ 'a`.                                                                    |
+| `RcFreeExplicit`  | Yes (requires `F: RefFunctor`) | Yes                      | Yes (requires `F: RefFunctor`) | Same recursive pattern via `Rc::deref` + `F::ref_map`. `RefLift` blocked for the same reason.                                                                                                      |
+| `ArcFreeExplicit` | No (`SendRefFunctor` blocked)  | No                       | No                             | The closure passed to `F::send_ref_map` returns `ArcFreeExplicit<F, B>`, requiring auto-derived `Send + Sync`; that requires the per-`A` `Kind` bound that no HRTB-over-types feature can express. |
 
 ### Workaround: Inherent Methods
 
