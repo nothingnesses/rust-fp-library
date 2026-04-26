@@ -1,10 +1,10 @@
 # Plan: Port purescript-run to fp-library
 
-**Status:** Phase 1 in progress (steps 1, 2, 3, 4, 5, 6, and 7 of 9 complete).
+**Status:** Phase 1 in progress (steps 1, 2, 3, 4, 5, 6, 7, and 8 of 9 complete).
 
 ## Current progress
 
-Phase 1 steps 1, 2, 3, 4, 5, 6, and 7 complete.
+Phase 1 steps 1, 2, 3, 4, 5, 6, 7, and 8 complete.
 
 **Step 1 (`FreeExplicit`).** `FreeExplicit<'a, F, A>` and
 `FreeExplicitBrand<F>` are promoted from POC into production at
@@ -238,8 +238,54 @@ extended with three by-value rows (`FreeExplicit`,
 `RcFreeExplicit`, `ArcFreeExplicit`) and a parallel three-row
 by-reference classification.
 
-Remaining Phase 1 work: step 8 (per-variant Criterion benches),
-step 9 (per-variant unit and `compile_fail` tests).
+**Step 8 (per-variant Criterion benches).** Six per-variant bench
+files plus a cross-variant comparison bench land at
+[fp-library/benches/benchmarks/](../../../fp-library/benches/benchmarks/):
+[free.rs](../../../fp-library/benches/benchmarks/free.rs),
+[rc_free.rs](../../../fp-library/benches/benchmarks/rc_free.rs),
+[arc_free.rs](../../../fp-library/benches/benchmarks/arc_free.rs),
+[free_explicit.rs](../../../fp-library/benches/benchmarks/free_explicit.rs)
+(extended from the POC bench),
+[rc_free_explicit.rs](../../../fp-library/benches/benchmarks/rc_free_explicit.rs),
+[arc_free_explicit.rs](../../../fp-library/benches/benchmarks/arc_free_explicit.rs),
+and the cross-variant
+[free_family_comparison.rs](../../../fp-library/benches/benchmarks/free_family_comparison.rs).
+
+Each per-variant file covers three shapes: `bind-deep + evaluate` at
+depths 10 / 100 / 1000 / 10000 (build a `Wrap` spine, then bind once
+across it, then evaluate), `bind-wide + evaluate` at the same widths
+(`pure(0).bind(...).bind(...)...` chained N times), and
+`peel-and-handle (Pure)` (single-step view extraction). For variants
+that expose a non-consuming `peel_ref(&self)`
+(`RcFree`, `ArcFree`, `RcFreeExplicit`, `ArcFreeExplicit`), the
+peel-and-handle group includes both the consuming `to_view()` and the
+`peel_ref()` shapes; for `Free` and `FreeExplicit` only the consuming
+form is available. The `evaluate only (reference)` shape (carried
+over from the POC bench) stays in the per-variant files so the bind +
+evaluate measurements have a paired baseline isolating the walk-once
+cost.
+
+The cross-variant bench groups all six variants under
+`FreeFamily/bind-deep + evaluate` and
+`FreeFamily/bind-wide + evaluate`, with one criterion subgroup per
+shape so the output shows the variants side-by-side at each depth.
+This documents the O(1) (Erased family: bind only snocs onto the
+CatList) vs O(N) (Explicit family: bind walks the existing spine
+inside the recursive worker) bind-cost asymmetry directly.
+
+Brand choice: every variant uses `IdentityBrand` except `Free`,
+which uses `ThunkBrand` because `Free<IdentityBrand, A>` is
+layout-cyclic (the `Wrap` arm holds `F::Of<Free<F, TypeErasedValue>>`
+where `TypeErasedValue = Box<dyn Any>`, and `Identity<T>` provides no
+indirection inside that recursion). The Rc/Arc variants and the
+Explicit family escape the cycle either via the outer `Rc<Inner>` /
+`Arc<Inner>` wrapper or via the explicit `Box<...>` indirection in
+`FreeExplicit`'s `Wrap` arm. `ThunkBrand` is the same brand the
+existing `Free` unit tests use (`Thunk<A>` holds a boxed closure,
+which provides the indirection).
+
+Remaining Phase 1 work: step 9 (per-variant unit and `compile_fail`
+tests).
 
 Other artefacts unchanged from pre-implementation:
 
@@ -558,6 +604,23 @@ adding the`OptionBrand`impls (above). For traits whose only
 motivating use case is`ArcFreeExplicitBrand`in step 7, the`OptionBrand` examples serve as canonical shape demonstrations
   until step 7's impls land and provide the substantive use
   case.
+- **Phase 1 step 8: `Free` bench uses `ThunkBrand`, not
+  `IdentityBrand`.** The other five Free variants use `IdentityBrand`
+  (matching the existing
+  [free_explicit.rs](../../../fp-library/benches/benchmarks/free_explicit.rs)
+  POC bench). `Free` cannot: `Free<F, A>`'s `Wrap` arm holds
+  `F::Of<Free<F, TypeErasedValue>>` where `TypeErasedValue = Box<dyn Any>`,
+  and `Identity<T>` is `T` with no indirection, so the layout
+  recursion has no termination; `Free<IdentityBrand, A>` fails to
+  compile with `error[E0391]: cycle detected when computing layout`.
+  The Rc/Arc Erased family escapes via the outer `Rc<Inner>` /
+  `Arc<Inner>` wrapper; the Explicit family escapes via either
+  `Box<...>` (in `FreeExplicit`'s `Wrap` arm) or the outer
+  `Rc<Inner>` / `Arc<Inner>` wrapper. `ThunkBrand` is the brand the
+  existing `Free` unit tests already use; `Thunk<A>` holds a boxed
+  closure, which provides the indirection. Step 8's text said
+  "replicates the full set across all six variants" without
+  specifying brand choice, so the deviation is recorded here.
 
 ## Implementation protocol
 
