@@ -1,7 +1,8 @@
 # Plan: Port purescript-run to fp-library
 
 **Status:** Phase 1 complete (all 9 steps); Phase 2 in progress
-(steps 1, 2, and 3 of 10 complete).
+(steps 1, 2, and 3 of 10 complete; step 4 paused pending a
+blocker, see Open questions below).
 
 ## Current progress
 
@@ -445,7 +446,99 @@ Other artefacts unchanged from pre-implementation:
 
 ## Open questions, issues and blockers
 
-None blocking.
+**BLOCKER (surfaced 2026-04-27 during Phase 2 step 4 kickoff):
+Run cannot directly wrap `Free<NodeBrand, A>` over typical effect
+rows because `Free`'s struct-level `Extract` bound transitively
+requires every effect type to implement `Extract`, which
+effects-as-data cannot satisfy.**
+
+The chain of bounds:
+
+1. [`Free<F, A>`](../../../fp-library/src/types/free.rs) (and
+   the other five Free variants) declares its struct with
+   `where F: Extract + Functor + 'static`. This is enforced at
+   the type-declaration site, not just on inherent methods, so
+   a `Free<NodeBrand<R, S>, A>` instance fails to compile when
+   `NodeBrand<R, S>` doesn't satisfy `Extract`.
+2. [`Free::drop`](../../../fp-library/src/types/free.rs) walks
+   deep `Wrap` chains via `<F as Extract>::extract(fa)`. The
+   custom iterative `Drop` is what makes a 100 000-deep
+   `Wrap` chain not stack-overflow on cleanup; the `Extract`
+   bound is load-bearing for that strategy, not just the
+   struct declaration.
+3. To satisfy `NodeBrand<R, S>: Extract` for typical Run usage,
+   we need `R: Extract` and `S: Extract`. For the first-order
+   row, `R = CoproductBrand<CoyonedaBrand<E1>, CoproductBrand<...>>`,
+   and the recursive bound bottoms out at
+   `CoyonedaBrand<E>: Extract`.
+4. `CoyonedaBrand<E>::extract` would need to recover an `A` from
+   `Coyoneda<E, A>`. The natural shape is
+   `coyo.lower()` (returns `E::Of<A>`, requires `E: Functor`)
+   followed by `<E as Extract>::extract(...)`. So the bound
+   transitively requires `E: Extract` for every effect type in
+   the row.
+5. Effect types (`Reader<E>`, `State<S>`, `Choose`, `Except<E>`,
+   `Writer<W>`, etc.) are pure data; they have no canonical
+   "evaluate" because they need a handler to interpret. So
+   `Reader<E>: Extract` (and the same for every other effect)
+   cannot hold without baking an arbitrary semantics into the
+   effect type.
+
+The blocker means `Run<R, S, A> = Free<NodeBrand<R, S>, A>` over
+any typical effect row fails to compile. The plan
+([decisions.md](decisions.md) section 5.2 and plan.md's
+"Will change" table for `run.rs`) commits to "Run is a Free
+over VariantF", so the structural assumption is load-bearing
+across Phases 2-5.
+
+Possible resolution paths (each is a Phase-1-or-later scope
+expansion that the agent does not have authority to execute
+unilaterally):
+
+- **(a) Relax `Free`'s struct-level `Extract` bound to just
+  `Functor`.** Move the `Extract` requirement to the inherent
+  methods that need it (`evaluate`, `to_view`, `resume`,
+  `fold_free`, `hoist_free`). Rework the `Drop` impl to work
+  without `Extract`: either accept recursive drop (stack
+  overflow risk on deep chains, regressing Phase 1's
+  `deep_drop_does_not_overflow` tests), or use a different
+  iterative dismantling strategy that does not rely on
+  `Extract`. Same change applied across all six Free variants.
+  Risk: substantial Phase 1 rework; existing tests need to
+  re-validate the deep-drop property under whatever new
+  strategy lands.
+- **(b) Build a parallel `RunFree`-like substrate.** Define
+  a new family of types in `types/run/` that mirror Free's
+  structure (CatList for Erased, naive recursive enum for
+  Explicit, custom iterative `Drop`) but without the `Extract`
+  bound. Reuse code via macros or generic traits where
+  possible. Six new types parallel the six Free variants.
+  Risk: code duplication; deep-drop tests need a new
+  iterative-dismantling strategy that doesn't go through
+  `Extract`.
+- **(c) Sidestep the bound at the Run wrapper.** Make Run a
+  newtype struct that internally holds something other than a
+  raw `Free<NodeBrand, A>` (e.g., a `Box<dyn ...>` trait
+  object, a custom enum, or a Free over a placeholder brand
+  that DOES implement Extract trivially while the actual
+  effect data lives elsewhere). Likely requires a redesign
+  of the relationship between Run and Free.
+- **(d) Implement Extract for `CoyonedaBrand<E>` /
+  `CoproductBrand<H, T>` / `NodeBrand<R, S>` with semantics
+  that do something defensible for the Run case** (e.g.,
+  Coyoneda's extract panics with a clear message that a
+  handler is required; Free's iterative `Drop` falls back to
+  recursive drop when extract panics). Risk: programs that
+  drop unhandled Run values without going through a handler
+  panic, even in legitimate scenarios (program panics in
+  user code mid-evaluation, deliberate program discarding,
+  etc.). This is a footgun.
+
+The Phase 2 step 4 implementation is paused pending decision on
+which path to take. The earlier interpretation calls (Node as
+dedicated enum, Scoped arm structurally present, NoScoped reuses
+CNilBrand, single commit) remain valid for whichever path is
+chosen; this blocker is upstream of those.
 
 **Resolved (between Phase 1 step 4 and step 5): brand-level
 dispatch for the multi-shot Explicit Free family lands on the
