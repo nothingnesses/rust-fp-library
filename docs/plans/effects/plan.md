@@ -1,10 +1,10 @@
 # Plan: Port purescript-run to fp-library
 
-**Status:** Phase 1 in progress (steps 1, 2, 3, 4, and 5 of 9 complete).
+**Status:** Phase 1 in progress (steps 1, 2, 3, 4, 5, and 6 of 9 complete).
 
 ## Current progress
 
-Phase 1 steps 1, 2, 3, 4, and 5 complete.
+Phase 1 steps 1, 2, 3, 4, 5, and 6 complete.
 
 **Step 1 (`FreeExplicit`).** `FreeExplicit<'a, F, A>` and
 `FreeExplicitBrand<F>` are promoted from POC into production at
@@ -113,10 +113,84 @@ Drop, non-`'static` payloads, plus `cross_thread_via_spawn`,
 `cross_thread_clone_branches`, and `is_send_and_sync` to exercise
 the thread-safety contract.
 
-Remaining Phase 1 work: step 6 (`SendFunctor` trait family), step 7
-(brand registrations + by-value and by-reference trait hierarchies
-for all three Explicit brands), step 8 (per-variant Criterion
-benches), step 9 (per-variant unit and `compile_fail` tests).
+**Step 6 (`SendFunctor` trait family).** The full by-value
+parallel of the existing `send_ref_*` family lands across nine new
+trait files at
+[fp-library/src/classes/](../../../fp-library/src/classes/):
+[send_pointed.rs](../../../fp-library/src/classes/send_pointed.rs),
+[send_functor.rs](../../../fp-library/src/classes/send_functor.rs),
+[send_lift.rs](../../../fp-library/src/classes/send_lift.rs),
+[send_semiapplicative.rs](../../../fp-library/src/classes/send_semiapplicative.rs),
+[send_apply_first.rs](../../../fp-library/src/classes/send_apply_first.rs),
+[send_apply_second.rs](../../../fp-library/src/classes/send_apply_second.rs),
+[send_applicative.rs](../../../fp-library/src/classes/send_applicative.rs),
+[send_semimonad.rs](../../../fp-library/src/classes/send_semimonad.rs),
+and [send_monad.rs](../../../fp-library/src/classes/send_monad.rs).
+
+Trait shapes:
+
+- `SendPointed::send_pure(a: A)` requires `A: Send + Sync`.
+- `SendFunctor::send_map` and `SendSemimonad::send_bind` carry
+  `Send + Sync` on both their `A`/`B` parameters and on the
+  closure parameter (matching what
+  [`<ArcFnBrand as SendLiftFn>::new`](../../../fp-library/src/classes/send_clone_fn.rs)
+  requires).
+- `SendLift::send_lift2` carries `Send + Sync` on the closure and
+  `Clone + Send + Sync` on `A` / `B` so the closure can move
+  copies of both arguments.
+- `SendSemiapplicative::send_apply` carries `Clone + Send + Sync`
+  on `A` and `Send + Sync` on `B`, taking the wrapped function
+  via `<FnBrand as SendCloneFn>::Of<'a, A, B>` (parallel to
+  `SendRefSemiapplicative` using `SendCloneFn<Ref>`).
+- `SendApplyFirst` and `SendApplySecond` are blanket-implemented
+  for any `Brand: SendLift`, paralleling
+  [`SendRefApplyFirst`](../../../fp-library/src/classes/send_ref_apply_first.rs)
+  / [`SendRefApplySecond`](../../../fp-library/src/classes/send_ref_apply_second.rs).
+- `SendApplicative: SendPointed + SendSemiapplicative + SendApplyFirst + SendApplySecond`
+  is a blanket impl, mirroring
+  [`Applicative`](../../../fp-library/src/classes/applicative.rs)
+  with thread-safety bounds layered on top.
+- `SendMonad: SendApplicative + SendSemimonad` is a blanket impl,
+  mirroring [`Monad`](../../../fp-library/src/classes/monad.rs).
+
+The bonus integration with existing brands lands as follows:
+
+- `ArcCoyonedaBrand`: implements `SendFunctor` (closure has
+  `Send + Sync`, fits inside the existing `Arc<dyn Fn + Send + Sync>`
+  layer storage). It does **not** implement `SendPointed`,
+  `SendSemimonad`, `SendLift`, or `SendSemiapplicative` because
+  all four go through
+  [`ArcCoyoneda::lift`](../../../fp-library/src/types/arc_coyoneda.rs)
+  which requires `F::Of<'a, A>: Clone + Send + Sync`, a per-`A`
+  bound that cannot be expressed in the trait method signature
+  (no HRTB-over-types). The module-level docs and the brand-impl
+  block comment in
+  [arc_coyoneda.rs](../../../fp-library/src/types/arc_coyoneda.rs)
+  are updated to reflect the partial close.
+- `OptionBrand`: implements `SendPointed`, `SendFunctor`,
+  `SendLift`, `SendSemiapplicative`, and `SendSemimonad` directly
+  via `Some(a)`, `fa.map(f)`, `fa.zip(fb).map(...)`, pattern
+  matching, and `ma.and_then(f)` respectively. `SendApplicative`,
+  `SendApplyFirst`, `SendApplySecond`, and `SendMonad` follow via
+  the blanket impls. `Option`'s by-value path has no Clone or
+  thread-affinity constraints, so the impls are mechanical.
+  Adding these impls beyond the plan's named `ArcCoyonedaBrand`
+  target is a small scope expansion documented in the deviations,
+  needed because `#[document_examples]` requires real Rust code
+  blocks and `ArcCoyonedaBrand` cannot supply them for the
+  `SendPointed` / `SendSemimonad` / `SendLift` /
+  `SendSemiapplicative` traits.
+
+`send_pure`, `send_map`, `send_lift2`, `send_apply`,
+`send_apply_first`, `send_apply_second`, and `send_bind` are
+re-exported through
+[fp-library/src/functions.rs](../../../fp-library/src/functions.rs)
+alongside the existing `send_ref_*` free-function variants.
+
+Remaining Phase 1 work: step 7 (brand registrations + by-value
+and by-reference trait hierarchies for all three Explicit
+brands), step 8 (per-variant Criterion benches), step 9
+(per-variant unit and `compile_fail` tests).
 
 Other artefacts unchanged from pre-implementation:
 
@@ -368,6 +442,73 @@ it here and pause until it's resolved.
   `Arc<dyn Fn + Send + Sync>` continuation cell forces all values
   flowing through it to be thread-safe. This matches `ArcFree::bind`'s
   bound profile.
+- **Phase 1 step 6: nine new trait files, not the four named in
+  the step text.** The plan listed only four files
+  (`send_functor.rs`, `send_pointed.rs`, `send_semimonad.rs`,
+  `send_monad.rs`), but a faithful by-value parallel of the
+  existing `send_ref_*` family needs the full applicative-family
+  scaffolding so `SendMonad: SendApplicative + SendSemimonad`
+  can mirror [`Monad`](../../../fp-library/src/classes/monad.rs)'s
+  shape. Step 6 ships nine files: the four named, plus
+  `send_lift.rs` (`SendLift::send_lift2`),
+  `send_semiapplicative.rs` (`SendSemiapplicative::send_apply`
+  using `SendCloneFn`), `send_apply_first.rs` and
+  `send_apply_second.rs` (blanket-implemented over `SendLift`),
+  and `send_applicative.rs` (`SendApplicative` blanket over the
+  `SendPointed + SendSemiapplicative + SendApplyFirst + SendApplySecond`
+  combination). With these, `SendMonad`'s supertrait chain is
+  identical to the by-value `Monad`'s, just with `Send + Sync`
+  bounds layered on. Step text underspecified the file count;
+  the trait family wouldn't have been usable for typeclass-generic
+  thread-safe code without the full chain.
+- **Phase 1 step 6: `OptionBrand` implements the full applicative
+  family of `Send*` traits, not just the three originally
+  scoped.** The step text named `ArcCoyonedaBrand` as the bonus
+  integration. `ArcCoyonedaBrand` cannot implement `SendPointed`,
+  `SendSemimonad`, `SendLift`, or `SendSemiapplicative` because
+  all four go through
+  [`ArcCoyoneda::lift`](../../../fp-library/src/types/arc_coyoneda.rs)
+  which requires `F::Of<'a, A>: Clone + Send + Sync`, a per-`A`
+  bound (same blocker as the by-value `Pointed` / `Semimonad`
+  cases the
+  [limitations doc](../../../fp-library/docs/limitations-and-workarounds.md)
+  classifies for `RcCoyoneda` / `ArcCoyoneda`). To give every
+  new trait method a working executable doctest (which
+  `#[document_examples]` requires), `OptionBrand` was given
+  trivial impls of `SendPointed` / `SendFunctor` / `SendLift` /
+  `SendSemiapplicative` / `SendSemimonad`. `Option<A>` is
+  `Send + Sync` whenever `A` is, so all five impls are
+  mechanical and align with `OptionBrand`'s existing `Pointed` /
+  `Functor` / `Lift` / `Semiapplicative` / `Semimonad` impls.
+  `SendApplicative` / `SendApplyFirst` / `SendApplySecond` /
+  `SendMonad` follow via the blanket impls.
+- **Phase 1 step 6: `ArcCoyonedaBrand` implements `SendFunctor`
+  only, not the full `SendFunctor` / `SendPointed` /
+  `SendSemimonad` / `SendMonad` quartet the plan named.** The
+  step text said "the full hierarchy lands" for
+  `ArcCoyonedaBrand` because "ArcCoyoneda's by-value path has no
+  Clone bound". This was over-optimistic: `ArcCoyoneda::map` has
+  no Clone bound, but `ArcCoyoneda::pure` and `ArcCoyoneda::bind`
+  both go through `lift` which carries a per-`A`
+  `F::Of<'a, A>: Clone + Send + Sync` bound. The trait
+  signatures cannot express that bound (no HRTB-over-types). The
+  module-level docs and the brand-impl block comment in
+  [arc_coyoneda.rs](../../../fp-library/src/types/arc_coyoneda.rs)
+  are updated to record this. `ArcCoyonedaBrand` joins
+  `RcCoyonedaBrand`'s precedent of partial brand-level coverage
+  with the rest of the operations available as inherent methods
+  on the concrete `ArcCoyoneda` type.
+- **Phase 1 step 6: `#[document_examples]` macro requires real
+  Rust code blocks.** Removing the macro from a method silences
+  its function but emits a deprecation warning that
+  `-D warnings` (in `just clippy`) escalates to error. The macro
+  also rejects `\`\`\`ignore`and other non-Rust-marker fences.
+The chosen resolution is to give every newly-defined trait
+method a working executable doctest, which is what motivated
+adding the`OptionBrand`impls (above). For traits whose only
+motivating use case is`ArcFreeExplicitBrand`in step 7, the`OptionBrand` examples serve as canonical shape demonstrations
+  until step 7's impls land and provide the substantive use
+  case.
 
 ## Implementation protocol
 

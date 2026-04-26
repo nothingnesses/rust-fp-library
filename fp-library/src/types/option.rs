@@ -222,6 +222,207 @@ mod inner {
 		}
 	}
 
+	impl SendPointed for OptionBrand {
+		/// Wraps a value in an option for thread-safe contexts.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type of the value to wrap. Must be `Send + Sync`."
+		)]
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		#[document_returns("`Some(a)`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = send_pure::<OptionBrand, _>(5);
+		/// assert_eq!(x, Some(5));
+		/// ```
+		fn send_pure<'a, A: Send + Sync + 'a>(
+			a: A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			Some(a)
+		}
+	}
+
+	impl SendFunctor for OptionBrand {
+		/// Maps a thread-safe function over the value inside an option.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the value inside the option. Must be `Send + Sync`.",
+			"The type of the result of applying the function. Must be `Send + Sync`."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply. Must be `Send + Sync`.",
+			"The option instance."
+		)]
+		///
+		#[document_returns("A new option containing the result of applying the function.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(5);
+		/// let y = send_map::<OptionBrand, _, _>(|i: i32| i * 2, x);
+		/// assert_eq!(y, Some(10));
+		/// ```
+		fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+			func: impl Fn(A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.map(func)
+		}
+	}
+
+	impl SendSemimonad for OptionBrand {
+		/// Chains thread-safe option computations.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the result of the first computation. Must be `Send + Sync`.",
+			"The type of the result of the second computation. Must be `Send + Sync`."
+		)]
+		///
+		#[document_parameters(
+			"The first option.",
+			"A thread-safe function to apply to the value inside the option."
+		)]
+		///
+		#[document_returns(
+			"The result of applying `f` to the value if `ma` is `Some`, otherwise `None`."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(5);
+		/// let y = send_bind::<OptionBrand, _, _>(x, |i: i32| Some(i * 2));
+		/// assert_eq!(y, Some(10));
+		/// ```
+		fn send_bind<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+			+ Send
+			+ Sync
+			+ 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			ma.and_then(func)
+		}
+	}
+
+	impl SendLift for OptionBrand {
+		/// Lifts a thread-safe binary function into the option context.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the first option's value. Must be `Clone + Send + Sync`.",
+			"The type of the second option's value. Must be `Clone + Send + Sync`.",
+			"The return type of the function. Must be `Send + Sync`."
+		)]
+		///
+		#[document_parameters(
+			"The binary function to apply. Must be `Send + Sync`.",
+			"The first option.",
+			"The second option."
+		)]
+		///
+		#[document_returns("`Some(f(a, b))` if both options are `Some`, otherwise `None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(1);
+		/// let y = Some(2);
+		/// let z = send_lift2::<OptionBrand, _, _, _>(|a: i32, b: i32| a + b, x, y);
+		/// assert_eq!(z, Some(3));
+		/// ```
+		fn send_lift2<'a, A, B, C>(
+			func: impl Fn(A, B) -> C + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
+		where
+			A: Clone + Send + Sync + 'a,
+			B: Clone + Send + Sync + 'a,
+			C: Send + Sync + 'a, {
+			fa.zip(fb).map(|(a, b)| func(a, b))
+		}
+	}
+
+	impl SendSemiapplicative for OptionBrand {
+		/// Applies a wrapped thread-safe function to a wrapped value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the thread-safe cloneable function wrapper.",
+			"The type of the input value. Must be `Clone + Send + Sync`.",
+			"The type of the output value. Must be `Send + Sync`."
+		)]
+		///
+		#[document_parameters(
+			"The option containing the function.",
+			"The option containing the value."
+		)]
+		///
+		#[document_returns("`Some(f(a))` if both are `Some`, otherwise `None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f: Option<std::sync::Arc<dyn Fn(i32) -> i32 + Send + Sync>> =
+		/// 	Some(std::sync::Arc::new(|x: i32| x * 2));
+		/// let x = Some(5);
+		/// let y = send_apply::<ArcFnBrand, OptionBrand, _, _>(f, x);
+		/// assert_eq!(y, Some(10));
+		/// ```
+		fn send_apply<
+			'a,
+			FnBrand: 'a + SendCloneFn,
+			A: Clone + Send + Sync + 'a,
+			B: Send + Sync + 'a,
+		>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as SendCloneFn>::Of<'a, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match (ff, fa) {
+				(Some(f), Some(a)) => Some(f(a)),
+				_ => None,
+			}
+		}
+	}
+
 	impl Alt for OptionBrand {
 		/// Chooses between two options.
 		///

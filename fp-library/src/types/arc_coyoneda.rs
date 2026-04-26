@@ -32,9 +32,22 @@
 //! `ArcCoyonedaBrand` does **not** implement [`Functor`](crate::classes::Functor).
 //! The HKT trait signatures lack `Send + Sync` bounds on their closure parameters,
 //! so there is no way to guarantee that closures passed to `map` are safe to store
-//! inside an `Arc`-wrapped layer. Use [`RcCoyonedaBrand`](crate::brands::RcCoyonedaBrand)
-//! when HKT polymorphism is needed, or work with `ArcCoyoneda` directly through its
-//! inherent methods.
+//! inside an `Arc`-wrapped layer. The thread-safe by-value parallel
+//! [`SendFunctor`](crate::classes::SendFunctor) (closure has `Send + Sync`)
+//! resolves this and is implemented for `ArcCoyonedaBrand`.
+//!
+//! `ArcCoyonedaBrand` does not implement [`Pointed`](crate::classes::Pointed),
+//! [`SendPointed`](crate::classes::SendPointed),
+//! [`Semimonad`](crate::classes::Semimonad), or
+//! [`SendSemimonad`](crate::classes::SendSemimonad) because constructing an
+//! `ArcCoyoneda` via [`lift`](ArcCoyoneda::lift) requires
+//! `F::Of<'a, A>: Clone + Send + Sync`, a per-`A` bound that cannot be
+//! expressed in stable Rust trait method signatures (no HRTB-over-types; see
+//! [fp-library/docs/limitations-and-workarounds.md](crate)). Use
+//! [`RcCoyonedaBrand`](crate::brands::RcCoyonedaBrand) when HKT polymorphism
+//! is needed for the full `Pointed` / `Semimonad` surface, or work with
+//! `ArcCoyoneda` directly through its inherent methods (`pure`, `apply`,
+//! `bind`, `lift2`).
 //!
 //! ### Examples
 //!
@@ -703,20 +716,69 @@ mod inner {
 
 	// -- Brand-level type class instances --
 	//
-	// ArcCoyonedaBrand implements only Foldable. It does NOT implement Functor,
-	// Pointed, Lift, Semiapplicative, or Semimonad, for two independent reasons:
+	// ArcCoyonedaBrand implements Foldable and SendFunctor. It does NOT
+	// implement Functor, Pointed, SendPointed, Lift, Semiapplicative,
+	// Semimonad, or SendSemimonad, for two independent reasons:
 	//
-	// 1. Functor: the HKT Functor::map signature lacks Send + Sync bounds on its
-	//    closure parameter, so closures passed to map cannot be stored inside
-	//    Arc-wrapped layers. This is the same limitation as SendThunkBrand.
+	// 1. Functor: the HKT Functor::map signature lacks Send + Sync bounds on
+	//    its closure parameter, so closures passed to map cannot be stored
+	//    inside Arc-wrapped layers. This is what SendFunctor (with Send + Sync
+	//    on the closure) resolves; ArcCoyonedaBrand implements SendFunctor.
 	//
-	// 2. Pointed, Lift, Semiapplicative, Semimonad: even if Functor were available,
-	//    these traits require constructing an ArcCoyoneda, which needs
-	//    F::Of<'a, A>: Clone + Send + Sync. This bound cannot be expressed in the
-	//    trait method signatures (same blocker as RcCoyonedaBrand; see rc_coyoneda.rs).
+	// 2. Pointed, SendPointed, Lift, Semiapplicative, Semimonad,
+	//    SendSemimonad: these traits require constructing an ArcCoyoneda via
+	//    `lift`, which needs F::Of<'a, A>: Clone + Send + Sync. This bound
+	//    cannot be expressed in the trait method signatures (no
+	//    HRTB-over-types in stable Rust; same blocker as RcCoyonedaBrand,
+	//    see rc_coyoneda.rs and fp-library/docs/limitations-and-workarounds.md).
 	//
-	// Use RcCoyonedaBrand when HKT polymorphism is needed, or work with ArcCoyoneda
-	// directly via its inherent methods (pure, apply, bind, lift2).
+	// Use RcCoyonedaBrand when HKT polymorphism is needed for the full
+	// Pointed / Semimonad surface, or work with ArcCoyoneda directly via its
+	// inherent methods (pure, apply, bind, lift2).
+
+	// -- SendFunctor implementation --
+
+	#[document_type_parameters("The brand of the underlying functor.")]
+	impl<F: Kind_cdc7cd43dac7585f + 'static> SendFunctor for ArcCoyonedaBrand<F> {
+		/// Maps a thread-safe function over the values in the
+		/// `ArcCoyoneda` by adding a new mapping layer.
+		///
+		/// Does not require `F: Functor`. The function is stored in an
+		/// `Arc<dyn Fn + Send + Sync>` and applied at
+		/// [`lower_ref`](ArcCoyoneda::lower_ref) time.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the current output. Must be `Send + Sync`.",
+			"The type of the new output. Must be `Send + Sync`."
+		)]
+		///
+		#[document_parameters("The function to apply.", "The `ArcCoyoneda` value.")]
+		///
+		#[document_returns(
+			"A new `ArcCoyoneda` with the function stored for deferred application."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
+		/// let mapped = ArcCoyonedaBrand::<VecBrand>::send_map(|x: i32| x * 10, coyo);
+		/// assert_eq!(mapped.lower_ref(), vec![10, 20, 30]);
+		/// ```
+		fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+			func: impl Fn(A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.map(func)
+		}
+	}
 
 	// -- Foldable implementation --
 
