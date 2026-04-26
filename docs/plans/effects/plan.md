@@ -111,7 +111,62 @@ Other artefacts unchanged from pre-implementation:
 
 ## Open questions, issues and blockers
 
-None blocking. The earlier `RcFreeBrand`/`ArcFreeBrand` blocker
+**Open question for Phase 1 step 7:
+`RcFreeExplicit::bind` requires `A: Clone` but `Functor::map`
+cannot add per-method bounds.** `RcFreeExplicit::bind` (and any
+derived `map`) consumes `self` and routes through
+`into_inner_owned`, which falls back to cloning the inner state
+when the outer `Rc` is shared. Because the inner state's `Pure(A)`
+arm holds `A` directly, that fallback path requires `A: Clone`.
+The same constraint applies to the Pure cell: a shared
+`RcFreeExplicit::pure(a)` cannot be turned into `f(a)` without an
+owned `A`. The `Functor` trait's `map<'a, A: 'a, B: 'a>` signature
+is fixed and stable Rust does not admit per-method `where A: Clone`
+on the impl, so a direct delegation to `RcFreeExplicit::bind` will
+not type-check.
+
+For comparison: `RcCoyonedaBrand` implements `Functor` cleanly
+because its inherent `map` does not consume `A` (it just snocs a
+function layer onto a deferred-map chain). `CoyonedaExplicitBrand`
+sidesteps the issue by parameterising the brand on the Coyoneda
+output type `B` and storing function composition rather than
+values. Neither pattern transfers directly to the Free spine,
+which has explicit `Pure(A)` cells that any `bind`/`map` must
+either consume (uniquely) or clone (shared).
+
+Possible resolutions to surface in step 7:
+
+1. Restructure `RcFreeExplicit` to a Coyoneda-hybrid Pure cell
+   (e.g., `Pure<X>(Rc<X>, Rc<dyn Fn(X) -> A>)`) so `map` adds a
+   function layer instead of consuming `A`. Adds one `Rc` per
+   `pure` and an existential type parameter; bind still has the
+   spine-recursion cost. Keeps `Functor` impl bound-free.
+2. Add a `CloneFunctor` / `CloneSemimonad` / `CloneMonad`
+   parallel trait family with `A: Clone` on the closure
+   parameter, paralleling the existing `SendFunctor` family that
+   `ArcFreeExplicit` will use (Phase 1 step 6). `RcFreeExplicit`
+   then implements the Clone-bounded family rather than the
+   bound-free family. Mechanical but expands the trait surface.
+3. Skip `Functor` for `RcFreeExplicitBrand` and route Brand-
+   dispatched multi-shot programs through `ArcFreeExplicitBrand`
+   only. Loses the single-threaded multi-shot Brand story, which
+   contradicts the plan's "six concrete `Run` types in three
+   pairs" structure.
+
+The same constraint applies to `ArcFreeExplicit` (step 5) once
+its `bind` lands; the `SendFunctor` family from step 6 already
+admits a `Send + Sync` bound on the closure parameter, so adding
+an `A: Clone` bound there alongside `Send + Sync` may be a smaller
+incremental change than option 2 in isolation.
+
+Step 4's commit lands the `RcFreeExplicit` type and `Kind`
+registration as planned; the question only affects step 7's trait
+hierarchy work and does not block step 5 (`ArcFreeExplicit`,
+which is structural) or step 6 (`SendFunctor`, which adds
+trait-family scaffolding). Surfacing it now so the eventual
+resolution can shape decisions made in steps 5 and 6.
+
+The earlier `RcFreeBrand`/`ArcFreeBrand` blocker
 is resolved by adopting the **Erased/Explicit dispatch split**
 documented in [decisions.md](decisions.md) section 4.4: the
 Erased family (`Free`, `RcFree`, `ArcFree`) is inherent-method
