@@ -1,11 +1,33 @@
 # Plan: Port purescript-run to fp-library
 
 **Status:** Phase 1 complete (all 9 steps); Phase 2 in progress
-(steps 1 and 2 of 10 complete).
+(steps 1, 2, and 3 of 10 complete).
 
 ## Current progress
 
-Phase 1 complete (steps 1-9). Phase 2 steps 1 and 2 complete.
+Phase 1 complete (steps 1-9). Phase 2 steps 1, 2, and 3 complete.
+
+**Phase 2 step 3 (`Member<E, Idx>` trait).** [`Member<E, Idx>`](../../../fp-library/src/types/run/member.rs)
+lands at
+[fp-library/src/types/run/member.rs](../../../fp-library/src/types/run/member.rs)
+with `inject(E) -> Self` and `project(self) -> Result<E, Self::Remainder>`
+methods. A blanket impl `impl<S, E, Idx, Rem> Member<E, Idx> for S
+where S: CoprodInjector<E, Idx> + CoprodUninjector<E, Idx, Remainder = Rem>`
+delegates to the frunk_core trait family re-exported by
+[`coproduct.rs`](../../../fp-library/src/types/run/coproduct.rs), so
+every Coproduct value automatically gets `Member<E, Idx>` for whichever
+`(E, Idx)` pairs frunk_core can prove. Six unit tests cover injection
+at head and tail positions, projection success at head and tail,
+projection-absent returning the remainder row, and round-trip through
+the trait.
+
+`Member` is single-effect only by design; row narrowing (subset /
+sculpt) stays through `CoproductSubsetter` directly until Phase 3
+handler code surfaces a single-bound need for multi-effect narrowing.
+The trait is also agnostic to whether row variants are bare effect
+types `E` or `Coyoneda<E, A>`-wrapped; the Coyoneda-wrapping policy
+belongs to the smart constructors emitted by the `effects!` macro
+(Phase 2 step 9), not to `Member`.
 
 **Phase 2 step 2 (`VariantF<Effects>` and the row-`Functor`).**
 [`CNilBrand`](../../../fp-library/src/brands.rs) and
@@ -796,6 +818,53 @@ motivating use case is`ArcFreeExplicitBrand`in step 7, the`OptionBrand` examples
   swap to `frunk` be a one-line Cargo.toml change since `frunk`
   is API-compatible with `frunk_core`. License is MIT for both,
   already on the [`deny.toml`](../../../deny.toml) allow-list.
+- **Phase 2 step 3: `Member` layers on
+  `CoprodInjector` + `CoprodUninjector`, not `CoproductSubsetter`.**
+  Step 3's text says "Member<E, Indices> trait for first-order
+  injection / projection, layered on top of
+  `frunk_core::CoproductSubsetter` via the adapter from step 1".
+  `CoproductSubsetter` is the row-narrowing (sculpt) trait, which
+  takes a row of Targets and returns either the narrowed row or
+  the remainder. `Member` is single-effect inject / project, which
+  composes from `CoprodInjector::inject` (lift one effect into the
+  row) and `CoprodUninjector::uninject` (try to extract one
+  effect, returning the remainder). The blanket impl on Member
+  delegates to those two traits directly. `CoproductSubsetter`
+  remains the right primitive for row narrowing in handler code
+  but is not what Member needs.
+- **Phase 2 step 3: `Member` is a new trait with delegated
+  methods, not a marker supertrait alias.** Three trait shapes
+  were considered: (a) a marker supertrait
+  `Member<E, Idx>: CoprodInjector<E, Idx> + CoprodUninjector<E, Idx>`
+  with no own methods, (b) a new trait with `inject` / `project`
+  methods that delegate to the frunk impls (the chosen shape),
+  and (c) no Member trait at all (use frunk traits directly).
+  Approach (b) was chosen so where-clauses, error messages, and
+  rustdoc on smart-constructor signatures use fp-library's
+  `Member` vocabulary rather than frunk's
+  `CoprodInjector + CoprodUninjector` pair. The indirection is
+  zero-cost at runtime; the small maintenance surface is worth
+  the public-API insulation from frunk_core's internal naming
+  choices and the closer match to PureScript Run's `Member r`
+  precedent.
+- **Phase 2 step 3: `Member` is single-effect only; row
+  narrowing stays through `CoproductSubsetter` directly.**
+  Step 3's text mentions only "first-order injection / projection".
+  A separate `Members<Targets, Indices>` plural trait that bundles
+  `CoproductSubsetter` for the same single-bound convenience may
+  be added later when Phase 3 handler code wants it; until then,
+  handler call sites use `CoproductSubsetter` directly. Adding
+  `Members` is purely additive and does not affect `Member`.
+- **Phase 2 step 3: `Member` is agnostic to Coyoneda wrapping.**
+  Row variants emitted by the `effects!` macro (Phase 2 step 8)
+  are `Coyoneda<E, A>`-wrapped, so `Member<Coyoneda<E, A>, Idx>`
+  is what smart constructors prove against the row. `Member`
+  itself does not bake in any Coyoneda assumption; the wrapping
+  policy belongs to the smart constructors that the macro emits
+  (Phase 2 step 9). If step 9's call sites want a sugar trait
+  `EffectMember<E, Idx>` that finds the position whose Coyoneda
+  wraps `E`, that lands then on top of `Member`, not as a
+  redefinition of it.
 
 ## Implementation protocol
 

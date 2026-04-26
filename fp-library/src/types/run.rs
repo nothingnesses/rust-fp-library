@@ -15,6 +15,12 @@
 //!   [`CoproductBrand`](crate::brands::CoproductBrand), plus the
 //!   [`VariantF`](variant_f::VariantF) alias. This is the open sum of
 //!   first-order effect functors that PureScript spells `VariantF`.
+//! - [`member`]: [`Member<E, Idx>`](member::Member) trait for
+//!   single-effect injection / projection over a Coproduct row,
+//!   layered on top of the frunk
+//!   [`CoprodInjector`](coproduct::CoprodInjector) and
+//!   [`CoprodUninjector`](coproduct::CoprodUninjector) trait family.
 
 pub mod coproduct;
+pub mod member;
 pub mod variant_f;
