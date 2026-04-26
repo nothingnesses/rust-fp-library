@@ -140,6 +140,26 @@ pub struct ControlFlowContinueAppliedBrand<C>(PhantomData<C>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ArcCoyonedaBrand<F>(PhantomData<F>);
 
+/// Brand for [`ArcFreeExplicit`](crate::types::ArcFreeExplicit), the
+/// thread-safe multi-shot naive recursive Free monad supporting non-`'static`
+/// payloads.
+///
+/// Like [`RcFreeExplicitBrand`], the underlying type keeps the functor
+/// structure as a concrete recursive enum (no `dyn Any` erasure), so `A: 'a`
+/// is admitted at the cost of O(N) [`bind`](crate::types::ArcFreeExplicit::bind)
+/// on left-associated chains. The outer [`Arc`](std::sync::Arc) wrapper plus
+/// [`Arc<dyn Fn + Send + Sync>`](std::sync::Arc) continuations provide
+/// unconditional O(1) [`Clone`] and [`Send`] + [`Sync`] participation,
+/// matching [`ArcFree`](crate::types::ArcFree)'s thread-safety pattern.
+///
+/// `F` must be `'static` because the [`Kind`](crate::kinds) trait's associated
+/// type `Of<'a, A>` introduces its own lifetime `'a`, so type parameters baked
+/// into the brand must outlive all possible `'a`. In practice this is not a
+/// restriction because all brands in the library are zero-sized marker types,
+/// which are inherently `'static`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ArcFreeExplicitBrand<F>(PhantomData<F>);
+
 /// Brand for [`Coyoneda`](crate::types::Coyoneda), the free functor.
 ///
 /// `CoyonedaBrand<F>` is a [`Functor`](crate::classes::Functor) for any type constructor

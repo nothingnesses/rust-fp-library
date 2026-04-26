@@ -20,6 +20,7 @@
 pub mod additive;
 pub mod arc_coyoneda;
 pub mod arc_free;
+pub mod arc_free_explicit;
 pub mod arc_ptr;
 pub mod box_ptr;
 pub mod cat_list;
@@ -70,6 +71,10 @@ pub use {
 		ArcFreeStep,
 		ArcFreeView,
 		ArcTypeErasedValue,
+	},
+	arc_free_explicit::{
+		ArcFreeExplicit,
+		ArcFreeExplicitView,
 	},
 	cat_list::CatList,
 	conjunctive::Conjunctive,

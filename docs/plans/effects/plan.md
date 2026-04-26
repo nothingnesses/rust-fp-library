@@ -1,10 +1,10 @@
 # Plan: Port purescript-run to fp-library
 
-**Status:** Phase 1 in progress (steps 1, 2, 3, and 4 of 9 complete).
+**Status:** Phase 1 in progress (steps 1, 2, 3, 4, and 5 of 9 complete).
 
 ## Current progress
 
-Phase 1 steps 1, 2, 3, and 4 complete.
+Phase 1 steps 1, 2, 3, 4, and 5 complete.
 
 **Step 1 (`FreeExplicit`).** `FreeExplicit<'a, F, A>` and
 `FreeExplicitBrand<F>` are promoted from POC into production at
@@ -93,11 +93,30 @@ cheap because Clone is O(1)). 10 unit tests cover construction,
 chaining, multi-shot via clone, deep evaluate / Drop, and
 non-`'static` payloads.
 
-Remaining Phase 1 work: step 5 (`ArcFreeExplicit`), step 6
-(`SendFunctor` trait family), step 7 (brand registrations +
-by-value and by-reference trait hierarchies for all three Explicit
-brands), step 8 (per-variant Criterion benches), step 9
-(per-variant unit and `compile_fail` tests).
+**Step 5 (`ArcFreeExplicit`).** `ArcFreeExplicit<'a, F, A>` lands at
+[fp-library/src/types/arc_free_explicit.rs](../../../fp-library/src/types/arc_free_explicit.rs)
+mirroring `RcFreeExplicit`'s structure with three thread-safe
+substitutions: `Arc<...>` for the outer wrapper, `Arc<dyn Fn + Send + Sync>`
+for the [`bind`](../../../fp-library/src/types/arc_free_explicit.rs)
+worker continuation (constructed via
+[`<ArcFnBrand as SendLiftFn>::new`](../../../fp-library/src/classes/send_clone_fn.rs)),
+and `Send + Sync` bounds on the user closure passed to `bind`.
+The `ArcFreeExplicitBrand<F>` brand and its `Kind` registration land
+in [fp-library/src/brands.rs](../../../fp-library/src/brands.rs)
+mirroring `RcFreeExplicitBrand<F>`. The inner state's `Drop` impl
+iteratively dismantles deep `Wrap` chains via `Extract::extract` +
+`Arc::try_unwrap`. The full set of inherent methods covered is
+`pure`, `wrap`, `bind`, `evaluate`, `to_view`, plus the
+non-consuming `lower_ref(&self)` / `peel_ref(&self)`. 12 unit tests
+cover construction, chaining, multi-shot via clone, deep evaluate /
+Drop, non-`'static` payloads, plus `cross_thread_via_spawn`,
+`cross_thread_clone_branches`, and `is_send_and_sync` to exercise
+the thread-safety contract.
+
+Remaining Phase 1 work: step 6 (`SendFunctor` trait family), step 7
+(brand registrations + by-value and by-reference trait hierarchies
+for all three Explicit brands), step 8 (per-variant Criterion
+benches), step 9 (per-variant unit and `compile_fail` tests).
 
 Other artefacts unchanged from pre-implementation:
 
@@ -318,6 +337,37 @@ it here and pause until it's resolved.
   has no Brand dispatch at all (decisions section 4.4); the
   Explicit family routes the same operations through the trait
   hierarchy.
+- **Phase 1 step 5: `Kind<Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync>`
+  associated-type-bound trick is dropped from the struct.** Step 5's
+  text says "Same `Kind<Of<'a, A>: Send + Sync>` associated-type-bound
+  trick as `ArcFree`". `ArcFree` works because `A` is fixed
+  (`ArcTypeErasedValue`) and the bound's GAT instantiation is concrete
+  (`Of<'static, ArcFree<F, ArcTypeErasedValue>>`). `ArcFreeExplicit`
+  has generic `A`, so the analogous bound is
+  `Kind<Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync>` parameterised
+  by both `'a` and `A`. The `impl_kind!` registration for
+  `ArcFreeExplicitBrand<F>` requires the bound for any `'a` and `A`,
+  which is `for<'a, A> Kind<Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync>` -
+  an HRTB-over-types that stable Rust does not support
+  ([fp-library/docs/limitations-and-workarounds.md](../../../fp-library/docs/limitations-and-workarounds.md)
+  section "No Rank-N Types"). With the bound on the struct, the
+  `impl_kind!` cannot prove `ArcFreeExplicit<'a, F, A>` is well-formed
+  for arbitrary `'a` / `A` and fails to compile. With the bound off,
+  `impl_kind!` compiles and `Send + Sync` auto-derive still works
+  for concrete `F` (e.g., `IdentityBrand`) via type-walk resolution.
+  The `is_send_and_sync` test passes for `ArcFreeExplicit<'_, IdentityBrand, i32>`.
+  Step 7's brand impls will need to add concrete `Send + Sync` bounds
+  at impl sites where they require thread-safety guarantees over
+  generic `F`, mirroring how the `ArcCoyoneda` precedent threads
+  bounds through individual impls rather than the struct.
+- **Phase 1 step 5: `bind` requires `A: Clone + Send + Sync` -
+  `Send + Sync` from the closure-storage shape, `Clone` from the
+  shared-inner-state recovery fallback.** `RcFreeExplicit::bind`
+  required `A: Clone` for the same shared-inner-state reason;
+  `ArcFreeExplicit::bind` adds `Send + Sync` because the
+  `Arc<dyn Fn + Send + Sync>` continuation cell forces all values
+  flowing through it to be thread-safe. This matches `ArcFree::bind`'s
+  bound profile.
 
 ## Implementation protocol
 
