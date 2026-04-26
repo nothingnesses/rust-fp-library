@@ -1,10 +1,10 @@
 # Plan: Port purescript-run to fp-library
 
-**Status:** Phase 1 in progress (steps 1, 2, and 3 of 6 complete).
+**Status:** Phase 1 in progress (steps 1, 2, 3, and 4 of 9 complete).
 
 ## Current progress
 
-Phase 1 steps 1, 2, and 3 complete.
+Phase 1 steps 1, 2, 3, and 4 complete.
 
 **Step 1 (`FreeExplicit`).** `FreeExplicit<'a, F, A>` and
 `FreeExplicitBrand<F>` are promoted from POC into production at
@@ -68,10 +68,36 @@ derivation). The whole substrate lives behind an outer
 `is_send_and_sync` to actually exercise the thread-safety
 contract.
 
-Remaining Phase 1 work: step 4 (brand registrations + by-value
-and by-reference trait hierarchies for all three new variants),
-step 5 (per-variant Criterion benches), step 6 (per-variant unit
-and `compile_fail` tests).
+**Step 4 (`RcFreeExplicit`).** `RcFreeExplicit<'a, F, A>` lands at
+[fp-library/src/types/rc_free_explicit.rs](../../../fp-library/src/types/rc_free_explicit.rs)
+extending [`FreeExplicit`](../../../fp-library/src/types/free_explicit.rs)'s
+concrete recursive enum (no `dyn Any` erasure) with an outer
+`Rc<RcFreeExplicitInner>` wrapper plus an `Rc<dyn Fn>`-shaped
+continuation in the [`bind`](../../../fp-library/src/types/rc_free_explicit.rs)
+worker constructed via
+[`<RcFnBrand as LiftFn>::new`](../../../fp-library/src/types/fn_brand.rs)
+so the unified function-pointer abstraction is on the construction
+path. Because the wrapper is `Rc<Inner>`, the `Wrap` variant holds
+`F::Of<'a, RcFreeExplicit<'a, F, A>>` directly (no extra `Box`
+needed) and `Clone` is unconditionally O(1). The `RcFreeExplicitBrand<F>`
+brand and its `Kind` registration land in
+[fp-library/src/brands.rs](../../../fp-library/src/brands.rs)
+mirroring `FreeExplicitBrand<F>`. The inner state's `Drop` impl
+iteratively dismantles deep `Wrap` chains via `Extract::extract` +
+`Rc::try_unwrap`, taking ownership through `try_unwrap` when
+uniquely held and leaving shared chains for other holders to
+dismantle when they release. The full set of inherent methods
+covered is `pure`, `wrap`, `bind`, `evaluate`, `to_view`, plus the
+non-consuming `lower_ref(&self)` / `peel_ref(&self)` (clone-then-consume,
+cheap because Clone is O(1)). 10 unit tests cover construction,
+chaining, multi-shot via clone, deep evaluate / Drop, and
+non-`'static` payloads.
+
+Remaining Phase 1 work: step 5 (`ArcFreeExplicit`), step 6
+(`SendFunctor` trait family), step 7 (brand registrations +
+by-value and by-reference trait hierarchies for all three Explicit
+brands), step 8 (per-variant Criterion benches), step 9
+(per-variant unit and `compile_fail` tests).
 
 Other artefacts unchanged from pre-implementation:
 
@@ -199,6 +225,48 @@ it here and pause until it's resolved.
   but mechanical; `ArcCoyoneda`'s template uses the same trick at
   fewer sites because its trait-object internal representation
   hides the `F::Of` from auto-derivation.
+- **Phase 1 step 4: `RcFreeExplicitBrand<F>` struct and `impl_kind!`
+  registration land in step 4, not step 7.** Step 4's text says
+  "Brand-compatible: this is the multi-shot variant that carries
+  Brand dispatch in Phase 1 step 7", which on a strict reading could
+  mean step 7 introduces both the brand struct and the trait impls.
+  Step 1 set the precedent of pairing the brand struct + `impl_kind!`
+  with the type definition (`FreeExplicitBrand<F>` was added in step 1
+  even though its `Functor`/`Pointed`/`Semimonad`/`Monad` impls are
+  scheduled for step 7). Step 4 follows the same precedent: the
+  brand and `Kind` registration ship now, the trait hierarchies
+  ship in step 7. This keeps step 7's scope to "trait impls" only.
+- **Phase 1 step 4: `Wrap` variant holds `RcFreeExplicit` directly,
+  not `Box<RcFreeExplicit>`.** `FreeExplicit`'s `Wrap` variant uses
+  `F::Of<'a, Box<FreeExplicit<'a, F, A>>>` because the outer struct
+  is unboxed and a recursive type needs indirection to be sized.
+  `RcFreeExplicit`'s outer wrapper is `Rc<RcFreeExplicitInner>`,
+  which already provides the indirection, so the `Wrap` arm holds
+  `F::Of<'a, RcFreeExplicit<'a, F, A>>` directly. Skipping the `Box`
+  layer avoids one extra heap hop per node and keeps the `F::extract`
+  call site free of a `*extracted` deref.
+- **Phase 1 step 4: `to_view(self)` is exposed as a public
+  consuming method.** Step 4's text only names `lower_ref(&self)`
+  and `peel_ref(&self)`. `peel_ref` is naturally implemented as
+  `self.clone().to_view()`, which requires a consuming `to_view`
+  on the underlying type (the `view` field is private). Exposing
+  `to_view` publicly keeps the implementation symmetric with
+  `RcFree::to_view` and avoids burying the consuming version as a
+  private helper. `FreeExplicit` does not have `to_view` because
+  it does not have `peel_ref` either.
+- **Phase 1 step 4: inherent-method API is intentionally narrower
+  than `RcFree`'s.** `RcFree` exposes `pure`, `wrap`, `lift_f`,
+  `bind`, `map`, `to_view`, `resume`, `evaluate`, `hoist_free`,
+  plus `lower_ref` / `peel_ref`. `RcFreeExplicit` exposes only
+  `pure`, `wrap`, `bind`, `evaluate`, `to_view`, `lower_ref`,
+  `peel_ref`. The omitted methods (`lift_f`, `map`, `resume`,
+  `hoist_free`) belong on the Brand-dispatched API surface that
+  step 7 builds via `Functor` / `Pointed` / `Semimonad` / `Monad`,
+  so adding them as inherent methods here would duplicate that
+  surface. `RcFree` has them inherently because the Erased family
+  has no Brand dispatch at all (decisions section 4.4); the
+  Explicit family routes the same operations through the trait
+  hierarchy.
 
 ## Implementation protocol
 

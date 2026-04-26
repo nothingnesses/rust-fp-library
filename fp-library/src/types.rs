@@ -45,6 +45,7 @@ pub mod option;
 pub mod pair;
 pub mod rc_coyoneda;
 pub mod rc_free;
+pub mod rc_free_explicit;
 pub mod rc_ptr;
 pub mod result;
 pub mod send_endofunction;
@@ -112,6 +113,10 @@ pub use {
 		RcFreeStep,
 		RcFreeView,
 		RcTypeErasedValue,
+	},
+	rc_free_explicit::{
+		RcFreeExplicit,
+		RcFreeExplicitView,
 	},
 	send_endofunction::SendEndofunction,
 	send_thunk::SendThunk,
