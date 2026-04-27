@@ -15,25 +15,72 @@ one step per commit, until the phase is complete or you hit a blocker.
 
 ## Current resume point
 
-**Phase 1 is complete (steps 1-9). The immediate next work is the
-Phase 1 follow-up: `WrapDrop` migration, two commits.** After the
-follow-up lands, Phase 2 step 4 resumes (Phase 2 steps 1, 2, and 3
-are already complete).
+**Phase 1 complete; Phase 1 follow-up commits both landed
+(`WrapDrop` migration plus the `Functor` -> `Kind` relaxation);
+Phase 2 steps 1, 2, 3, and 4a complete; Phase 2 step 4b is the
+immediate next work.**
 
-The Phase 1 follow-up resolves a blocker that surfaced during
-Phase 2 step 4 kickoff: `Free`'s struct-level `Extract` bound
-prevents `Free<NodeBrand<R, S>, A>` from compiling over typical
-effect rows. The full rationale, problem statement, probe results,
-per-F policy decisions, and alternatives considered live in
-[resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md).
-The phasing-side checklist with concrete migration steps lives at
-plan.md's "Phase 1 follow-up: WrapDrop migration" section.
+Phase 2 step 4 was structurally large enough to warrant splitting
+(see deviations.md's "Phase 2 step 4: split into 4a (foundation)
+and 4b (Explicit family)" entry). 4a landed at commit `c3712f6`
+with the foundation: `WrapDrop` impls on the row brands
+(`CNilBrand`, `CoproductBrand`, `CoyonedaBrand`); the `Node` /
+`NodeBrand` machinery (Kind, Functor, WrapDrop); and the three
+Erased Run wrappers (`Run`, `RcRun`, `ArcRun`). 4a also renamed
+the effects subsystem directory from `fp-library/src/types/run/`
+to
+[`fp-library/src/types/effects/`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/)
+(parent module file from `types/run.rs` to `types/effects.rs`)
+so update grep patterns and import paths accordingly.
 
-Read both before writing migration code. The work is mechanical
-(introduce `WrapDrop` trait, migrate ~71 occurrences of `F: Extract`
-across six Free variants, then a Functor-bound relaxation pass) but
-touches Phase 1 deliverables, so verify the existing tests including
-`deep_drop_does_not_overflow` stay green.
+4b is the Explicit family plus brand machinery. Per the plan
+text: three Explicit Run wrappers (`RunExplicit`, `RcRunExplicit`,
+`ArcRunExplicit`); three new brands (`RunExplicitBrand`,
+`RcRunExplicitBrand`, `ArcRunExplicitBrand`); brand-level
+type-class impls delegating to
+[`FreeExplicitBrand`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/free_explicit.rs)'s
+impls; inherent `bind` / `map` on `RcRunExplicit` and
+`ArcRunExplicit` (mirroring `RcFreeExplicit`'s inherent surface
+under the multi-shot Explicit decision).
+
+**Three active blockers shape what 4b can deliver. Read them
+before writing code.** They live in
+[plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s
+`Open questions, issues and blockers -> Active blockers`
+section, dated 2026-04-27:
+
+1. **`Monad` / `RefMonad` on the Explicit Run brands are not
+   reachable via brand-level delegation.** Rust's `Monad` blanket
+   impl requires `Applicative`; `FreeExplicitBrand` deliberately
+   does not implement `Applicative` (the `Clone` constraint in
+   `lift2`'s natural definition); so the Run brands inherit the
+   gap. 4b ships `Functor / Pointed / Semimonad` and the Ref
+   equivalents only, not `Monad` / `RefMonad`. Record as a
+   deviation when 4b lands.
+2. **`RefFunctor` cascade is missing on the row brands.** Step 4a
+   gave `NodeBrand` / `CoproductBrand` / `CNilBrand` only
+   `Functor` and `WrapDrop`. Step 4b's `RunExplicitBrand`
+   `RefFunctor` / `RefSemimonad` impls delegate to
+   `FreeExplicitBrand`'s impls which carry
+   `F: WrapDrop + Functor + RefFunctor + 'static`, so 4b must
+   also add `RefFunctor` (and `SendRefFunctor` for the Send-side
+   delegation) impls cascading down the row chain. ~4-8 extra
+   trait impls, mechanical.
+3. **Re-export pattern for the effects subsystem types is
+   undecided.** Three options: (A) re-export under
+   `crate::types::*` matching the rest of the `types/`
+   directory, (B) re-export at `crate::types::effects::*` only,
+   (C) no re-exports. **Decision needed before 4b lands** so
+   the re-export block is established by the same commit that
+   adds the Explicit family. If deferred, a separate
+   `chore: add re-exports` follow-up fragments the public API
+   surface across multiple commits.
+
+Each entry in plan.md's Active blockers cites concrete file
+paths and line numbers (e.g., `monad.rs:214,218` for the
+blanket impl; `free_explicit.rs:373-388` for the Applicative
+non-impl rationale) so the implementor can verify the claims
+without prior conversational context.
 
 ## Where to start
 
@@ -109,6 +156,30 @@ For each step you implement:
 
 Do not skip the protocol to "batch" steps; a step is the commit
 boundary, even when two steps look small.
+
+**Splitting an oversized step is permitted but exceptional.** If
+a numbered step in plan.md is large enough that landing it as
+one commit would risk leaving the working tree mid-step on
+context exhaustion (rough rule of thumb: ~1500+ new lines, 7+
+new files, or multiple new public types with mixed concerns),
+you may split it into sub-commits (e.g., 4a foundation, 4b
+follow-on) under the following conditions:
+
+1. Surface the scope to the user before starting. Explain what's
+   bundled and offer the split as an option; do not split
+   unilaterally.
+2. The split must be coherent: each sub-commit must compile and
+   pass `just verify` independently, and each must be
+   independently reviewable.
+3. Record the split in
+   [deviations.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md)
+   under the step's heading, explaining the scope rationale and
+   what each sub-commit lands. Phase 2 step 4's split into 4a
+   (foundation) and 4b (Explicit family) is the existing
+   precedent.
+
+The default remains "one step per commit"; splitting is for
+genuinely outsized steps, not for convenience.
 
 ## When you hit something unexpected
 
@@ -239,13 +310,32 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   is a regression test guarding the `WrapDrop` resolution.** It
   measures structural Wrap depth across Run-shaped Free
   programs and documents that Run-typical patterns have
-  structural depth at most 1, which is the property the new
-  `WrapDrop::None` policy relies on for soundness. If a Phase 1
-  follow-up commit or future Phase 2-4 change appears to
-  invalidate the probe (e.g., new patterns emit deeper
-  structural Wrap chains), pause and re-evaluate before
-  shipping; the probe finding is load-bearing for the
+  structural depth at most 1, which is the property the
+  `WrapDrop::None` policy relies on for soundness (effect-row
+  brands like `CoyonedaBrand` / `CoproductBrand` / `NodeBrand`
+  all return `None` from `WrapDrop::drop` because they do not
+  materially store the inner Free; `Drop` then falls through to
+  recursive drop on the layer, which is sound only as long as
+  the structural Wrap depth stays bounded). If a future Phase
+  2-4 change appears to invalidate the probe (e.g., new patterns
+  emit deeper structural Wrap chains), pause and re-evaluate
+  before shipping; the probe finding is load-bearing for the
   no-`Extract`-bound semantics.
+- **`Kind!(...)` macro invocations inside `Apply!(...)` do not
+  require `use fp_macros::Kind;` to be in scope.** `Apply!` is a
+  procedural macro that parses the inner `Kind!(...)` syntax
+  itself; the inner macro never gets invoked as a real macro,
+  so rustc's unused-import analysis flags the import as dead.
+  Some older test files used to carry an
+  `#[expect(unused_imports)] use fp_macros::Kind;` shim to
+  suppress the warning; that shim is no longer needed and was
+  removed during Phase 2 step 4a (commits `9adabd5` and
+  `c3712f6`). When writing a test file that uses
+  `Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)`
+  patterns, do not import `Kind` from `fp_macros`. If you
+  separately call `<F as Kind!(...)>::Of<...>` outside an
+  `Apply!` (rare; the explicit form bypasses `Apply!`), then
+  the import is needed.
 
 ## Bench and compile_fail test infrastructure
 
@@ -312,9 +402,10 @@ You can either:
   `just verify` clean, `Current progress` reflects the new state)
   and stop. The user reviews and starts the next phase.
 - **Complete a focused follow-up commit set** (e.g., the Phase 1
-  follow-up `WrapDrop` migration's two commits) and stop. The
-  user reviews before proceeding to the next phase step that
-  the follow-up unblocks.
+  follow-up `WrapDrop` migration's two commits, or the
+  Phase 2 step 4a/4b split's two commits) and stop. The user
+  reviews before proceeding to the next phase step that the
+  follow-up unblocks.
 - **Stop at the first blocker** you cannot resolve under the
   protocol above. Commit the active-blocker entry under
   plan.md's
