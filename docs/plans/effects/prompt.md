@@ -245,6 +245,14 @@ For each step you implement:
 4. Update the docs that capture state and history:
    - [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s
      `Current progress` section to reflect what now exists.
+     Trim older entries per plan.md's
+     [`Implementation protocol`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)
+     step 3 when the rolling-detail window has grown past
+     ~3 narratives (demote the oldest narrative to a
+     one-line bullet in the "Earlier completed steps" commit
+     log; verify any load-bearing context is preserved in
+     deviations.md / resolutions.md / commit message before
+     demoting).
    - [deviations.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md)
      (append-only) for any per-step deviation from the original
      plan text. Group entries by phase and step, matching the

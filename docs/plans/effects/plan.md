@@ -292,7 +292,41 @@ After completing each step within a phase:
 2. If verification passes, update `Current progress`, `Open
 questions, issues and blockers`, and `Deviations` sections at
    the top of this plan to reflect the current state.
-3. Commit the step (including the plan updates).
+3. **Trim `Current progress` if it has grown.** The section
+   has two subsections:
+   - **"Most recent steps (rolling detail)"** holds the latest
+     ~3 step narratives in detail. Each new step's narrative
+     lands at the top of this subsection.
+   - **"Earlier completed steps (commit log)"** holds older
+     entries as one-line bullets:
+     `- ``<commit-hash>`` (step <N>): <one-line summary>.`
+     with cross-references to deviations.md / resolutions.md /
+     commit messages where the deeper narrative lives.
+
+   When the rolling-detail subsection grows past ~3 entries,
+   demote the oldest narrative to a bullet in the commit-log
+   subsection. Before demoting, verify the narrative's
+   load-bearing context lives somewhere persistent: design
+   choices in [deviations.md](deviations.md), load-bearing
+   investigations in [resolutions.md](resolutions.md),
+   "what changed" in the commit message. If a piece of
+   context lives only in plan.md, move it to the right home
+   first.
+
+   Goal: keep `Current progress` under ~250 lines so a new
+   agent reading the plan reaches actionable content quickly.
+   Detailed history stays accessible via `git show <hash>`,
+   deviations.md, and resolutions.md.
+
+   Demotion can ride in the same commit as the new step or
+   land separately as a `docs(plan): trim Current progress`
+   follow-up; pick whichever keeps the new step's diff clean.
+   For larger structural rearrangements (e.g., the multi-step
+   trim that landed `97b7e73`), a dedicated commit is
+   preferable.
+
+4. Commit the step (including the plan updates and any inline
+   trim).
 
 ---
 
