@@ -32,7 +32,7 @@ Phase 2 step 4 (the six concrete `Run` types) commits to
 `Run<R, S, A> = Free<NodeBrand<R, S>, A>` per
 [decisions.md](decisions.md) section 5.2 and [plan.md](plan.md)'s
 "Will change" table entry for
-[`fp-library/src/types/run.rs`](../../../fp-library/src/types/run.rs).
+[`fp-library/src/types/effects.rs`](../../../fp-library/src/types/effects.rs).
 This requires `Free<NodeBrand<R, S>, A>` to compile for typical
 effect rows. It does not, because of a transitively-poisoning
 trait bound:
@@ -210,7 +210,7 @@ Four resolution paths were evaluated; the chosen path is the
 recorded for design-history transparency:
 
 - **Build a parallel `RunFree`-like substrate without the
-  `Extract` bound.** Define six new types in `types/run/`
+  `Extract` bound.** Define six new types in `types/effects/`
   paralleling the six existing Free variants, with relaxed
   bounds and recursive `Wrap` drop. Same insight as the chosen
   path but isolated to Run; Phase 1's Free family would stay

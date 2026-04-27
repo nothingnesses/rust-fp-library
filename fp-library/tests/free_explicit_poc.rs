@@ -31,14 +31,6 @@ use fp_library::{
 		Identity,
 	},
 };
-// `Kind` is referenced only inside `Kind!(...)` macro invocations below.
-// rustc's unused-import analysis does not see the macro call as a direct
-// use, so the import looks dead even though removing it breaks compilation.
-#[expect(
-	unused_imports,
-	reason = "Kind is referenced via the Kind!(...) macro below, which rustc does not detect as a direct use."
-)]
-use fp_macros::Kind;
 
 // -- Brand integrates with the Kind system --
 

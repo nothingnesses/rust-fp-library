@@ -18,7 +18,7 @@
 //! can prove.
 //!
 //! Row narrowing (subset / sculpt) stays through
-//! [`CoproductSubsetter`](crate::types::run::coproduct::CoproductSubsetter)
+//! [`CoproductSubsetter`](crate::types::effects::coproduct::CoproductSubsetter)
 //! directly. A separate `Members<Targets, Indices>` plural trait may be
 //! added later if Phase 3 handler code wants the same single-bound
 //! convenience for multi-effect narrowing; this module covers
@@ -32,7 +32,7 @@
 //! constructors that the [`effects!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
 //! macro emits (Phase 2 step 9), not to `Member` itself.
 
-use crate::types::run::coproduct::{
+use crate::types::effects::coproduct::{
 	CoprodInjector,
 	CoprodUninjector,
 };
@@ -41,16 +41,16 @@ use crate::types::run::coproduct::{
 /// type-level position `Idx`.
 ///
 /// Bounds: any `Self` that implements both
-/// [`CoprodInjector<E, Idx>`](crate::types::run::coproduct::CoprodInjector)
+/// [`CoprodInjector<E, Idx>`](crate::types::effects::coproduct::CoprodInjector)
 /// and
-/// [`CoprodUninjector<E, Idx>`](crate::types::run::coproduct::CoprodUninjector)
+/// [`CoprodUninjector<E, Idx>`](crate::types::effects::coproduct::CoprodUninjector)
 /// gets `Member<E, Idx>` via the blanket impl below. There is no need
 /// to add per-row impls.
 ///
 /// # Example
 ///
 /// ```
-/// use fp_library::types::run::{
+/// use fp_library::types::effects::{
 /// 	coproduct::{
 /// 		CNil,
 /// 		Coproduct,
@@ -104,7 +104,7 @@ where
 mod tests {
 	use {
 		super::*,
-		crate::types::run::coproduct::{
+		crate::types::effects::coproduct::{
 			CNil,
 			Coproduct,
 			Here,

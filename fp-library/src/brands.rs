@@ -42,12 +42,40 @@ pub mod optics;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ArcBrand;
 
+/// Brand for [`ArcCoyoneda`](crate::types::ArcCoyoneda), the thread-safe
+/// reference-counted free functor.
+///
+/// Like [`CoyonedaBrand`], but the underlying `ArcCoyoneda` is `Clone`, `Send`,
+/// and `Sync`, enabling additional type class instances.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ArcCoyonedaBrand<F>(PhantomData<F>);
+
 /// Brand for [atomically reference-counted][std::sync::Arc]
 /// [closures][Fn] (`Arc<dyn Fn(A) -> B>`).
 ///
 /// This type alias provides a way to construct and type-check [`Arc`](std::sync::Arc)-wrapped
 /// closures in a generic context.
 pub type ArcFnBrand = FnBrand<ArcBrand>;
+
+/// Brand for [`ArcFreeExplicit`](crate::types::ArcFreeExplicit), the
+/// thread-safe multi-shot naive recursive Free monad supporting non-`'static`
+/// payloads.
+///
+/// Like [`RcFreeExplicitBrand`], the underlying type keeps the functor
+/// structure as a concrete recursive enum (no `dyn Any` erasure), so `A: 'a`
+/// is admitted at the cost of O(N) [`bind`](crate::types::ArcFreeExplicit::bind)
+/// on left-associated chains. The outer [`Arc`](std::sync::Arc) wrapper plus
+/// [`Arc<dyn Fn + Send + Sync>`](std::sync::Arc) continuations provide
+/// unconditional O(1) [`Clone`] and [`Send`] + [`Sync`] participation,
+/// matching [`ArcFree`](crate::types::ArcFree)'s thread-safety pattern.
+///
+/// `F` must be `'static` because the [`Kind`](crate::kinds) trait's associated
+/// type `Of<'a, A>` introduces its own lifetime `'a`, so type parameters baked
+/// into the brand must outlive all possible `'a`. In practice this is not a
+/// restriction because all brands in the library are zero-sized marker types,
+/// which are inherently `'static`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ArcFreeExplicitBrand<F>(PhantomData<F>);
 
 /// Brand for thread-safe [`ArcLazy`](crate::types::ArcLazy).
 pub type ArcLazyBrand = LazyBrand<ArcLazyConfig>;
@@ -106,7 +134,7 @@ pub struct BoxBrand;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CatListBrand;
 
-/// Brand for the empty effect row [`CNil`](crate::types::run::coproduct::CNil).
+/// Brand for the empty effect row [`CNil`](crate::types::effects::coproduct::CNil).
 ///
 /// The base case of the recursive [`CoproductBrand`] chain that encodes a
 /// row of first-order effect functors. `CNil` is uninhabited, so values of
@@ -118,28 +146,6 @@ pub struct CNilBrand;
 /// Brand for the [`Const`](crate::types::const_val::Const) functor.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ConstBrand<R>(PhantomData<R>);
-
-/// Brand for a non-empty effect row encoded as a nested
-/// [`Coproduct`](crate::types::run::coproduct::Coproduct).
-///
-/// `CoproductBrand<H, T>` parameterises over a head brand `H` and tail
-/// brand `T`, with `Of<'a, A>` resolving to
-/// `Coproduct<H::Of<'a, A>, T::Of<'a, A>>`. The recursive structure
-/// terminates at [`CNilBrand`]; the canonical shape produced by
-/// [`effects!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
-/// (Phase 2 step 8) is
-/// `CoproductBrand<CoyonedaBrand<E1>, CoproductBrand<CoyonedaBrand<E2>, CNilBrand>>`,
-/// where each effect is wrapped in [`CoyonedaBrand`] so any effect type
-/// becomes a [`Functor`](crate::classes::Functor) for free.
-///
-/// This is the Rust encoding of PureScript's
-/// [`VariantF`](https://github.com/purescript-deprecated/purescript-variant)
-/// for first-order effect rows. See
-/// [`fp-library::types::run::variant_f`](crate::types::run::variant_f) for
-/// the [`Functor`](crate::classes::Functor) impl that dispatches at runtime
-/// via the `Inl` / `Inr` variants.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct CoproductBrand<H, T>(PhantomData<(H, T)>);
 
 /// Brand for [`ControlFlow`](core::ops::ControlFlow).
 ///
@@ -163,33 +169,27 @@ pub struct ControlFlowBreakAppliedBrand<B>(PhantomData<B>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ControlFlowContinueAppliedBrand<C>(PhantomData<C>);
 
-/// Brand for [`ArcCoyoneda`](crate::types::ArcCoyoneda), the thread-safe
-/// reference-counted free functor.
+/// Brand for a non-empty effect row encoded as a nested
+/// [`Coproduct`](crate::types::effects::coproduct::Coproduct).
 ///
-/// Like [`CoyonedaBrand`], but the underlying `ArcCoyoneda` is `Clone`, `Send`,
-/// and `Sync`, enabling additional type class instances.
+/// `CoproductBrand<H, T>` parameterises over a head brand `H` and tail
+/// brand `T`, with `Of<'a, A>` resolving to
+/// `Coproduct<H::Of<'a, A>, T::Of<'a, A>>`. The recursive structure
+/// terminates at [`CNilBrand`]; the canonical shape produced by
+/// [`effects!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
+/// (Phase 2 step 8) is
+/// `CoproductBrand<CoyonedaBrand<E1>, CoproductBrand<CoyonedaBrand<E2>, CNilBrand>>`,
+/// where each effect is wrapped in [`CoyonedaBrand`] so any effect type
+/// becomes a [`Functor`](crate::classes::Functor) for free.
+///
+/// This is the Rust encoding of PureScript's
+/// [`VariantF`](https://github.com/purescript-deprecated/purescript-variant)
+/// for first-order effect rows. See
+/// [`fp-library::types::effects::variant_f`](crate::types::effects::variant_f) for
+/// the [`Functor`](crate::classes::Functor) impl that dispatches at runtime
+/// via the `Inl` / `Inr` variants.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ArcCoyonedaBrand<F>(PhantomData<F>);
-
-/// Brand for [`ArcFreeExplicit`](crate::types::ArcFreeExplicit), the
-/// thread-safe multi-shot naive recursive Free monad supporting non-`'static`
-/// payloads.
-///
-/// Like [`RcFreeExplicitBrand`], the underlying type keeps the functor
-/// structure as a concrete recursive enum (no `dyn Any` erasure), so `A: 'a`
-/// is admitted at the cost of O(N) [`bind`](crate::types::ArcFreeExplicit::bind)
-/// on left-associated chains. The outer [`Arc`](std::sync::Arc) wrapper plus
-/// [`Arc<dyn Fn + Send + Sync>`](std::sync::Arc) continuations provide
-/// unconditional O(1) [`Clone`] and [`Send`] + [`Sync`] participation,
-/// matching [`ArcFree`](crate::types::ArcFree)'s thread-safety pattern.
-///
-/// `F` must be `'static` because the [`Kind`](crate::kinds) trait's associated
-/// type `Of<'a, A>` introduces its own lifetime `'a`, so type parameters baked
-/// into the brand must outlive all possible `'a`. In practice this is not a
-/// restriction because all brands in the library are zero-sized marker types,
-/// which are inherently `'static`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ArcFreeExplicitBrand<F>(PhantomData<F>);
+pub struct CoproductBrand<H, T>(PhantomData<(H, T)>);
 
 /// Brand for [`Coyoneda`](crate::types::Coyoneda), the free functor.
 ///
@@ -255,6 +255,25 @@ pub struct IdentityBrand;
 ///   or [`ArcLazyConfig`] for thread-safe contexts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LazyBrand<Config: LazyConfig>(PhantomData<Config>);
+
+/// Brand for the [`Node<R, S>`](crate::types::effects::node::Node) wrapper that
+/// dispatches a Free-family computation between its first-order effect
+/// row `R` and its scoped-effect row `S`.
+///
+/// `NodeBrand<R, S>::Of<'a, A>` resolves to
+/// `Node<'a, R, S, A>`. `R` is a row brand of first-order effect
+/// functors (typically a [`CoproductBrand`] of
+/// [`CoyonedaBrand`]-wrapped effects
+/// terminated by [`CNilBrand`]). `S` is the scoped-effect row brand
+/// (Phase 4 will populate it; for v1 first-order-only programs it
+/// resolves to [`CNilBrand`]).
+///
+/// Used as the `F` parameter of the Free-family wrappers that
+/// [`Run`](crate::types::effects::run::Run) / [`RcRun`](crate::types::effects::rc_run::RcRun)
+/// / [`ArcRun`](crate::types::effects::arc_run::ArcRun) (and their Explicit siblings)
+/// build on, e.g., `Run<R, S, A> = Free<NodeBrand<R, S>, A>`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct NodeBrand<R, S>(PhantomData<(R, S)>);
 
 /// Brand for [`Option`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

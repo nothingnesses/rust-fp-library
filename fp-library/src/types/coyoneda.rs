@@ -644,6 +644,47 @@ mod inner {
 		}
 	}
 
+	// -- WrapDrop implementation --
+
+	#[document_type_parameters("The brand of the underlying type constructor.")]
+	impl<F: Kind_cdc7cd43dac7585f + 'static> WrapDrop for CoyonedaBrand<F> {
+		/// Drop-time decomposition for a [`Coyoneda`] layer. Always
+		/// returns `None`. The Coyoneda's stored function would
+		/// construct the inner value if invoked, but the function is
+		/// not invoked at drop time, and the Coyoneda's environment
+		/// does not materially store the inner value the caller would
+		/// iterate on. Recursive drop on the Coyoneda is sound for the
+		/// patterns documented on [`WrapDrop`]: effects injected via
+		/// `lift_f` and chained via `bind` produce structural `Wrap`
+		/// depth at most 1, so the recursive drop traverses one layer
+		/// in place.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type the layer would yield.")]
+		///
+		#[document_parameters("The Coyoneda layer being decomposed.")]
+		///
+		#[document_returns("Always `None`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo: Coyoneda<OptionBrand, i32> = Coyoneda::lift(Some(7));
+		/// assert_eq!(<CoyonedaBrand<OptionBrand> as WrapDrop>::drop(coyo), None);
+		/// ```
+		fn drop<'a, X: 'a>(
+			_fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		) -> Option<X> {
+			None
+		}
+	}
+
 	// -- Foldable implementation --
 
 	#[document_type_parameters("The brand of the underlying foldable functor.")]

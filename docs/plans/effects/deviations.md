@@ -424,7 +424,7 @@ phasing, see [plan.md](plan.md).
   (`subset(self) -> Result<Targets, Self::Remainder>`), and
   `CoproductEmbedder` is the Embedder analog
   (`embed(self) -> Out`). The adapter at
-  [`fp-library/src/types/run/coproduct.rs`](../../../fp-library/src/types/run/coproduct.rs)
+  [`fp-library/src/types/effects/coproduct.rs`](../../../fp-library/src/types/effects/coproduct.rs)
   uses the Coproduct-style names directly. Future plan
   references to Plucker / Sculptor / Embedder for the Coproduct
   adapter should be read as the Coproduct-style trait family
@@ -516,3 +516,106 @@ phasing, see [plan.md](plan.md).
   `EffectMember<E, Idx>` that finds the position whose Coyoneda
   wraps `E`, that lands then on top of `Member`, not as a
   redefinition of it.
+
+### Step 4: split into 4a (foundation) and 4b (Explicit family)
+
+- **The plan's "step 4" is split into two commits.** Steps 1, 2,
+  and 3 each landed as a single commit of 60-300 lines. Step 4
+  as written bundles a structurally larger amount of work into
+  one commit: three `WrapDrop` impls for existing row brands,
+  the `Node` / `NodeBrand` machinery (~250 lines), three Erased
+  Run wrapper types (~600 lines combined), three Explicit Run
+  wrapper types plus three new brands plus their `WrapDrop`
+  impls, and a full brand-level type-class hierarchy
+  (`Pointed` / `Functor` / `Semimonad` / `Monad` plus
+  `RefFunctor` / `RefPointed` / `RefSemimonad` / `RefMonad` and
+  `SendPointed` / `SendRef*`) on the three Explicit brands
+  delegating to `FreeExplicitBrand`'s impls. Estimated total
+  ~1500-3000 new lines across 7+ new files.
+
+  Splitting:
+  - **4a (this commit):** foundation. Row-brand `WrapDrop`
+    impls (`CNilBrand`, `CoproductBrand`, `CoyonedaBrand`),
+    `Node` / `NodeBrand` machinery, the three Erased Run wrapper
+    types (`Run`, `RcRun`, `ArcRun`) with `Drop` / `Clone`
+    inheritance and `from_*_free` / `into_*_free` zero-cost
+    construction sugar. Verify-clean.
+  - **4b (next commit):** the Explicit family. Three Explicit
+    Run wrappers (`RunExplicit`, `RcRunExplicit`,
+    `ArcRunExplicit`), three new brands
+    (`RunExplicitBrand`, `RcRunExplicitBrand`,
+    `ArcRunExplicitBrand`), their `WrapDrop` impls, and the
+    full brand-level type-class hierarchy delegating to
+    `FreeExplicitBrand`.
+
+  This deviates from the protocol's "one step per commit" rule
+  but keeps each commit independently reviewable and finishable
+  in a single agent session. The user-facing operations
+  (`pure` / `peel` / `send` / `bind` / `map` / `lift_f` /
+  `evaluate` / `handle`) on all six Run variants remain in
+  Phase 2 step 5 as written.
+
+- **`fp-library/src/types/run/` is renamed to
+  `fp-library/src/types/effects/`** (and the parent module file
+  from `types/run.rs` to `types/effects.rs`). Step 4's plan text
+  literally says "Six `Run` types at `fp-library/src/types/run.rs`
+  (and sibling files)". The current file is the parent module
+  declaring submodules for the broader effects subsystem
+  (`coproduct`, `member`, `variant_f`, plus the new
+  `node` / `run` / `rc_run` / `arc_run`); none of those are
+  Run-specific. Naming the parent module `effects` matches what
+  the file's own doc comment already calls itself ("Effects
+  subsystem") and what the plan / decisions docs use throughout
+  ("effects subsystem", "effects port", "effects plan").
+
+  Renaming also avoids the `module_inception` clippy lint that
+  would fire on `types::run::run::Run` (the lint is denied via
+  `-D warnings`); without the rename, the lint would have
+  required `#[expect(clippy::module_inception)]` on the inner
+  `pub mod run;` declaration. The rename eliminates the lint at
+  the source rather than papering over it.
+
+  Affected import sites: tests and inner modules of
+  `node.rs` / `run.rs` / `rc_run.rs` / `arc_run.rs` reference
+  `crate::types::effects::*`; brand doc-comments in `brands.rs`
+  for `NodeBrand` / `CoproductBrand` / `CNilBrand` /
+  `CoyonedaBrand` updated; markdown link references in
+  [`plan.md`](plan.md), [`resolutions.md`](resolutions.md), and
+  this file updated.
+
+- **Three Erased Run wrappers ship as tuple-struct newtypes
+  with `from_*_free` / `into_*_free` zero-cost conversion
+  rather than as type aliases.** Step 4's plan text says
+  "Each is a thin wrapper over its Free variant"; an alternative
+  reading would have used `pub type Run<R, S, A> = Free<NodeBrand<R, S>, A>;`.
+  Tuple-struct newtypes were chosen so the user-facing public
+  API (`Run::pure`, `Run::peel`, `Run::send`, etc., landing in
+  step 5) lives on `Run` rather than as inherent methods on
+  `Free`, which would conflate the two abstractions. Zero-cost
+  conversion via `from_free` / `into_free` keeps the
+  newtype-vs-alias distinction free at the call site.
+
+- **`ArcRun`'s where-clause uses an associated-type bound on
+  the `NodeBrand<R, S>` projection rather than recursive
+  `Send + Sync` constraints on `R`, `S` separately.** The
+  bound shape is
+  `NodeBrand<R, S>: WrapDrop + Kind_*<Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync> + 'static`.
+  This mirrors `ArcFree`'s own struct-level bound from Phase 1
+  step 3 (which uses the same trick on `F` directly) and is the
+  pattern that lets the compiler auto-derive `Send + Sync` on
+  the inner `ArcFreeInner`. Recursive `R: Send + Sync` /
+  `S: Send + Sync` constraints would not be sufficient because
+  the substrate's continuations live in `Arc<dyn Fn + Send + Sync>`
+  storage that needs the `Of<...>: Send + Sync` projection
+  resolved at the brand level, not at the row component level.
+
+- **No `WrapDrop` impl for `RcCoyonedaBrand` or `ArcCoyonedaBrand`
+  in 4a.** The plan's step-4 inventory of `WrapDrop` impls lists
+  `CoyonedaBrand` only. The Run typical pattern uses
+  `CoyonedaBrand` on the first-order row, so the existing impl
+  is sufficient for the `RcRun` / `ArcRun` substrates' bound
+  resolution as long as the user picks `CoyonedaBrand` (or
+  `IdentityBrand` directly) for the row's head brands. Adding
+  `WrapDrop` for the refcounted Coyoneda brands is a follow-up
+  if step-4b's tests or a Phase 3 handler stack genuinely need
+  them.

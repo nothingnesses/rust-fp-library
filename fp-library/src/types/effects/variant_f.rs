@@ -1,5 +1,5 @@
 //! Open sum of first-order effect functors, encoded as a nested
-//! [`Coproduct`](crate::types::run::coproduct::Coproduct) row.
+//! [`Coproduct`](crate::types::effects::coproduct::Coproduct) row.
 //!
 //! This module is the Rust counterpart to PureScript's `VariantF` from
 //! [`Data.Functor.Variant`](https://github.com/purescript-deprecated/purescript-variant).
@@ -13,8 +13,8 @@
 //! [`CoproductBrand`](crate::brands::CoproductBrand) /
 //! [`CNilBrand`](crate::brands::CNilBrand), and `Functor` dispatches via
 //! type-level pattern-matching on the [`Inl`](
-//! crate::types::run::coproduct::Coproduct::Inl) /
-//! [`Inr`](crate::types::run::coproduct::Coproduct::Inr) variants without
+//! crate::types::effects::coproduct::Coproduct::Inl) /
+//! [`Inr`](crate::types::effects::coproduct::Coproduct::Inr) variants without
 //! a runtime dictionary.
 //!
 //! The conceptual type is also exposed as the alias [`VariantF<H, T>`] so
@@ -40,17 +40,20 @@ mod inner {
 				CNilBrand,
 				CoproductBrand,
 			},
-			classes::Functor,
+			classes::{
+				Functor,
+				WrapDrop,
+			},
 			impl_kind,
 			kinds::*,
-			types::run::coproduct::Coproduct,
+			types::effects::coproduct::Coproduct,
 		},
 		fp_macros::*,
 	};
 
 	impl_kind! {
 		for CNilBrand {
-			type Of<'a, A: 'a>: 'a = crate::types::run::coproduct::CNil;
+			type Of<'a, A: 'a>: 'a = crate::types::effects::coproduct::CNil;
 		}
 	}
 
@@ -109,7 +112,7 @@ mod inner {
 		/// 		OptionBrand,
 		/// 	},
 		/// 	classes::Functor,
-		/// 	types::run::coproduct::Coproduct,
+		/// 	types::effects::coproduct::Coproduct,
 		/// };
 		///
 		/// type Row =
@@ -166,7 +169,7 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::*,
 		/// 	classes::*,
-		/// 	types::run::coproduct::Coproduct,
+		/// 	types::effects::coproduct::Coproduct,
 		/// };
 		///
 		/// type Row =
@@ -189,6 +192,106 @@ mod inner {
 			}
 		}
 	}
+
+	impl WrapDrop for CNilBrand {
+		/// Drop-time decomposition for the empty effect row. The argument
+		/// has type `CNil`, which is uninhabited; the body matches it
+		/// exhaustively without producing a result. The outer `Free`
+		/// `Drop` never reaches this method on a row whose tail has been
+		/// narrowed to `CNilBrand` because no inhabitant of the row
+		/// could have selected the empty tail; the impl exists to
+		/// satisfy the trait at the type level.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type the empty row would yield."
+		)]
+		///
+		#[document_parameters("The empty-row functor instance (uninhabited).")]
+		///
+		#[document_returns("Unreachable; the body matches the uninhabited input exhaustively.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// // CNilBrand's `WrapDrop::drop` is unreachable at runtime: the
+		/// // input type `CNil` is uninhabited, so no value can be passed.
+		/// // This sketch only exercises the type-level resolution; the
+		/// // assertion ties the bound check into a runtime test.
+		/// use fp_library::{
+		/// 	brands::CNilBrand,
+		/// 	classes::WrapDrop,
+		/// };
+		/// fn requires_wrap_drop<F: WrapDrop>() {}
+		/// requires_wrap_drop::<CNilBrand>();
+		/// assert!(true);
+		/// ```
+		fn drop<'a, X: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		) -> Option<X> {
+			match fa {}
+		}
+	}
+
+	#[document_type_parameters(
+		"The brand of the head effect in the row.",
+		"The brand of the tail row (typically another `CoproductBrand` or `CNilBrand`)."
+	)]
+	impl<H, T> WrapDrop for CoproductBrand<H, T>
+	where
+		H: WrapDrop + 'static,
+		T: WrapDrop + 'static,
+	{
+		/// Drop-time decomposition for a non-empty effect row. Dispatches
+		/// to the head brand `H` if the runtime tag is
+		/// [`Inl`](Coproduct::Inl), or recurses into the tail brand `T`
+		/// if it is [`Inr`](Coproduct::Inr). The recursion bottoms out
+		/// at [`CNilBrand`]'s uninhabited base case, so a fully-resolved
+		/// row delegates to the active head brand's policy and returns
+		/// whatever that brand returns.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type the layer would yield.")]
+		///
+		#[document_parameters("The Coproduct functor layer.")]
+		///
+		#[document_returns("The active head or tail brand's `WrapDrop::drop` result for `fa`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		IdentityBrand,
+		/// 	},
+		/// 	classes::WrapDrop,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::coproduct::Coproduct,
+		/// 	},
+		/// };
+		///
+		/// type Row =
+		/// 	<CoproductBrand<IdentityBrand, CNilBrand> as fp_library::kinds::Kind_cdc7cd43dac7585f>::Of<
+		/// 		'static,
+		/// 		i32,
+		/// 	>;
+		///
+		/// let row: Row = Coproduct::inject(Identity(42));
+		/// assert_eq!(<CoproductBrand<IdentityBrand, CNilBrand> as WrapDrop>::drop(row), Some(42));
+		/// ```
+		fn drop<'a, X: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		) -> Option<X> {
+			match fa {
+				Coproduct::Inl(h) => <H as WrapDrop>::drop::<X>(h),
+				Coproduct::Inr(t) => <T as WrapDrop>::drop::<X>(t),
+			}
+		}
+	}
 }
 
 pub use inner::*;
@@ -196,11 +299,6 @@ pub use inner::*;
 #[cfg(test)]
 #[expect(clippy::panic, reason = "Tests panic on unreachable Coproduct branches for clarity.")]
 mod tests {
-	#[expect(
-		unused_imports,
-		reason = "Kind is referenced via the Kind!(...) macro below, which rustc does not detect as a direct use."
-	)]
-	use fp_macros::Kind;
 	use {
 		super::*,
 		crate::{
@@ -213,7 +311,7 @@ mod tests {
 			},
 			classes::Functor,
 			kinds::*,
-			types::run::coproduct::Coproduct,
+			types::effects::coproduct::Coproduct,
 		},
 	};
 
