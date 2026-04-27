@@ -244,7 +244,7 @@ mod inner {
 	/// `Send + Sync`.
 	#[document_type_parameters(
 		"The lifetime that bounds the payload and the functor.",
-		"The base functor (must implement [`Extract`] and [`Functor`]).",
+		"The base functor (must implement [`WrapDrop`]; the inherent methods additionally require [`Functor`], and `evaluate` / `lower_ref` additionally require [`Extract`]).",
 		"The result type."
 	)]
 	pub struct ArcFreeExplicit<'a, F, A>

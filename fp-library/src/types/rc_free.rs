@@ -116,7 +116,7 @@ mod inner {
 	///
 	/// Mirrors [`FreeView`](crate::types::free::FreeView): either a pure
 	/// value or a single suspended functor layer holding the next step.
-	#[document_type_parameters("The base functor (must implement [`Extract`] and [`Functor`]).")]
+	#[document_type_parameters("The base functor (must implement [`WrapDrop`]).")]
 	pub enum RcFreeView<F>
 	where
 		F: WrapDrop + 'static, {
@@ -131,7 +131,7 @@ mod inner {
 		),
 	}
 
-	#[document_type_parameters("The base functor (must implement [`Extract`] and [`Functor`]).")]
+	#[document_type_parameters("The base functor (must implement [`WrapDrop`]).")]
 	#[document_parameters("The view to clone.")]
 	impl<F> Clone for RcFreeView<F>
 	where
@@ -307,7 +307,7 @@ mod inner {
 	/// stored continuations more than once, with `Clone` exposing the
 	/// program independently to each handler branch.
 	#[document_type_parameters(
-		"The base functor (must implement [`Extract`] and [`Functor`]).",
+		"The base functor (must implement [`WrapDrop`]; methods that walk the spine additionally require [`Functor`], and `evaluate` / `lower_ref` additionally require [`Extract`]).",
 		"The result type."
 	)]
 	pub struct RcFree<F, A>

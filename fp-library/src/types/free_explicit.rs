@@ -88,12 +88,12 @@ mod inner {
 	/// # Drop behavior
 	///
 	/// Dropping iteratively dismantles a deep `Wrap` chain via
-	/// [`Extract::extract`], mirroring the strategy used by
+	/// [`WrapDrop::drop`], mirroring the strategy used by
 	/// [`Free::drop`](crate::types::Free). Without this, a 100 000-deep
 	/// `Wrap` chain stack-overflows during cleanup.
 	#[document_type_parameters(
 		"The lifetime that bounds the payload and the functor.",
-		"The base functor (must implement [`Extract`] and [`Functor`]).",
+		"The base functor (must implement [`WrapDrop`]; the inherent methods additionally require [`Functor`], and `evaluate` additionally requires [`Extract`]).",
 		"The result type."
 	)]
 	pub struct FreeExplicit<'a, F, A: 'a>

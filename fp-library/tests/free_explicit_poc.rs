@@ -1,20 +1,23 @@
-// Integration tests for the production `FreeExplicit<'a, F, A>` covering
-// the questions originally exercised by the standalone POC in this file.
+// Integration tests for `fp_library::types::FreeExplicit` covering the
+// load-bearing properties of the naive recursive Free substrate:
 //
-// The POC validated that a naive recursive Free monad over a concrete
-// functor structure could:
-// 1. Compile as a `Kind` with the existing brand macros.
-// 2. Support non-`'static` effect payloads (e.g., `&'a str`).
-// 3. Interpret to completion iteratively for a concrete functor.
-// 4. Survive deep `Wrap` chains under both evaluation and `Drop`.
+// 1. The brand integrates with the `Kind` system so `FreeExplicit` can
+//    be type-applied via the existing Brand macros.
+// 2. The type carries non-`'static` payloads (e.g., `&'a str`) and
+//    closures that borrow from non-`'static` scopes.
+// 3. `evaluate` interprets a deeply nested `Wrap` chain to completion
+//    iteratively, never recursing.
+// 4. Custom `Drop` dismantles a deeply nested `Wrap` chain iteratively
+//    via `<F as WrapDrop>::drop(...)`, never recursing.
+// 5. Chained `bind`s compose over a concrete functor (`IdentityBrand`).
 //
-// In production, the type lives at `fp_library::types::FreeExplicit` and
-// is bounded `F: Extract + Functor + 'a` so that its custom iterative
-// `Drop` can dismantle deep chains without overflowing the stack. The
-// POC's `OptionBrand`-based short-circuit tests are gone: `OptionBrand`
-// cannot lawfully implement `Extract` (a `None` has no value to surrender),
-// and the same Run-shaped semantics are reachable in production via
-// handler interpretation rather than direct `FreeExplicit::evaluate`.
+// The struct is bounded `F: WrapDrop + 'a`; the inherent methods
+// additionally require `F: Functor` (the recursive `bind` walks the
+// spine via `F::map`); `evaluate` additionally requires `F: Extract`.
+// Effect functors that lack a canonical `Extract` (e.g., `OptionBrand`,
+// where `None` has no value to surrender) cannot reach their result
+// through `FreeExplicit::evaluate` directly; they reach it through
+// handler interpretation instead.
 
 use fp_library::{
 	Apply,
@@ -37,7 +40,7 @@ use fp_library::{
 )]
 use fp_macros::Kind;
 
-// -- Q1: does the type integrate with the Kind system? --
+// -- Brand integrates with the Kind system --
 
 #[test]
 fn q1_kind_integration() {
@@ -57,7 +60,7 @@ fn q1_kind_integration() {
 	) = FreeExplicit::<IdentityBrand, i32>::pure(42);
 }
 
-// -- Q2: does it carry a borrowed payload? --
+// -- Borrowed payload (non-`'static`) --
 
 #[test]
 fn q2_borrowed_payload() {
@@ -90,7 +93,7 @@ fn q2_borrowed_in_wrap_layer() {
 	assert_eq!(free.evaluate(), "inner");
 }
 
-// -- Q4a: iterative evaluate on a very deep chain does not overflow --
+// -- Iterative `evaluate` on a very deep chain does not overflow --
 
 #[test]
 fn q4_iterative_evaluate_deep() {
@@ -105,11 +108,13 @@ fn q4_iterative_evaluate_deep() {
 	assert_eq!(free.evaluate(), 0);
 }
 
-// -- Q4b: iterative `Drop` on a very deep chain does not overflow --
+// -- Iterative `Drop` on a very deep chain does not overflow --
 //
-// In the POC this test was `#[ignore]`d because the naive recursive `Drop`
-// stack-overflowed. The production type ships a custom iterative `Drop`
-// that walks the chain via `Extract::extract`, so the test is now active.
+// `FreeExplicit`'s custom `Drop` walks the chain via
+// `<F as WrapDrop>::drop(fa)`, dismantling each `Wrap` layer
+// iteratively in a `loop`. With `IdentityBrand: WrapDrop` returning
+// `Some` (delegating to `Extract::extract`), a 100 000-deep chain
+// dismantles without growing the call stack.
 
 #[test]
 fn q4_drop_deep_does_not_overflow() {
@@ -122,12 +127,11 @@ fn q4_drop_deep_does_not_overflow() {
 	drop(free);
 }
 
-// -- Q5: chained binds compose --
+// -- Chained binds compose --
 
 #[test]
 fn q5_identity_chained_binds() {
-	// A shallow sanity check that bind composes over IdentityBrand. This is
-	// the baseline Run needs.
+	// A shallow sanity check that bind composes over IdentityBrand.
 	let program: FreeExplicit<'_, IdentityBrand, i32> = FreeExplicit::pure(1)
 		.bind(|x| FreeExplicit::pure(x + 1))
 		.bind(|x| FreeExplicit::pure(x * 10))

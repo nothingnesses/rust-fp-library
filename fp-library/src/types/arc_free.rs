@@ -108,7 +108,7 @@ mod inner {
 	/// Either a pure value or a single suspended functor layer holding the
 	/// next step. Mirrors [`RcFreeView`](crate::types::RcFreeView) with
 	/// `Arc + Send + Sync` substitutions.
-	#[document_type_parameters("The base functor (must implement [`Extract`] and [`Functor`]).")]
+	#[document_type_parameters("The base functor (must implement [`WrapDrop`]).")]
 	pub enum ArcFreeView<F>
 	where
 		F: WrapDrop
@@ -314,7 +314,7 @@ mod inner {
 	/// storage. The whole program is `Clone`, `Send`, and `Sync` whenever
 	/// the underlying functor's `Of<'static, ArcFree<...>>` is.
 	#[document_type_parameters(
-		"The base functor (must implement [`Extract`] and [`Functor`]).",
+		"The base functor (must implement [`WrapDrop`]; methods that walk the spine additionally require [`Functor`], and `evaluate` / `lower_ref` additionally require [`Extract`]).",
 		"The result type."
 	)]
 	pub struct ArcFree<F, A>
