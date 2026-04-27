@@ -1,15 +1,57 @@
 # Plan: Port purescript-run to fp-library
 
 **Status:** Phase 1 complete (all 9 steps); Phase 1 follow-up
-commit 1 (`WrapDrop` migration) landed; Phase 2 in progress
-(steps 1, 2, and 3 of 10 complete; step 4 awaits the second Phase 1
-follow-up commit relaxing the `Functor` bound to `Kind` on the
-struct, after which step 4 resumes).
+both commits (`WrapDrop` migration plus `Functor` -> `Kind`
+relaxation) landed; Phase 2 in progress (steps 1, 2, and 3 of 10
+complete; step 4 unblocked).
 
 ## Current progress
 
-Phase 1 complete (steps 1-9). Phase 1 follow-up commit 1 complete.
-Phase 2 steps 1, 2, and 3 complete.
+Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
+complete. Phase 2 steps 1, 2, and 3 complete; step 4 unblocked.
+
+**Phase 1 follow-up commit 2 (`Functor` -> `Kind` relaxation on
+the struct).** Across all six Free variants, the struct,
+`*View`, `*Step`, `Inner`, `Continuation`, `Clone`, `Drop`, and
+`impl_kind!` declarations relax from
+`F: WrapDrop + Functor + 'static` (or `'a`) to
+`F: WrapDrop + 'static` (or `'a`). The `Kind` GAT requirement
+needed by the `Suspend` variant (`F::Of<'_, Free<F, _>>`) is
+inherited from `WrapDrop`'s `Kind` supertrait, so no extra
+bound is required at the data-type sites.
+
+For the Erased family ([`Free`](../../../fp-library/src/types/free.rs),
+[`RcFree`](../../../fp-library/src/types/rc_free.rs),
+[`ArcFree`](../../../fp-library/src/types/arc_free.rs)), the
+inherent construction methods (`pure`, `bind`, `map`,
+`cast_phantom`, `erase_type`) do not call `F::map`; their impl
+blocks relax to `F: WrapDrop + 'static`. Methods that do call
+`F::map` (`wrap`, `lift_f`, `to_view`, `resume`, `peel_ref`,
+`hoist_free`, plus `evaluate` and `lower_ref` transitively via
+`to_view`) get `where F: Functor` as a per-method bound. The
+brand-level type-class impls keep `F: WrapDrop + Functor + ...`
+because they delegate to inherent methods that need `Functor`.
+
+For the Explicit family ([`FreeExplicit`](../../../fp-library/src/types/free_explicit.rs),
+[`RcFreeExplicit`](../../../fp-library/src/types/rc_free_explicit.rs),
+[`ArcFreeExplicit`](../../../fp-library/src/types/arc_free_explicit.rs)),
+the inherent `bind` (via the recursive `bind_boxed` worker)
+walks the spine via `F::map`, so `bind`, `map`, `wrap`, and
+`lift_f` all transitively require `F: Functor`. The inherent
+impl blocks therefore stay at `F: WrapDrop + Functor + 'a`;
+only the data-type / `Drop` declarations relax. The brand-level
+impls similarly stay at `F: WrapDrop + Functor + ...`.
+
+The Phase 1 stack-safety tests, including
+`deep_drop_does_not_overflow` on both
+`Free<ThunkBrand>` and `FreeExplicit<IdentityBrand>` plus the
+deep-drop tests on the four `Rc` / `Arc` variants, all pass
+post-relaxation. Phase 2 step 4
+(`Run<R, S, A> = Free<NodeBrand<R, S>, A>`) is now unblocked:
+the struct only requires `NodeBrand<R, S>: WrapDrop + 'static`
+to instantiate; `Functor` is required only at use sites where
+`NodeBrand<R, S>` will impl it (since `CoproductBrand<H, T>`
+already does, per Phase 2 step 2).
 
 **Phase 1 follow-up commit 1 (`WrapDrop` migration, struct/Drop
 swap).** New trait

@@ -350,6 +350,63 @@ phasing, see [plan.md](plan.md).
   `inner_conts.uncons()` drain) must run regardless of
   whether the inner view exists.
 
+### Commit 2: `Functor` -> `Kind` relaxation on the struct
+
+- **Asymmetric per-variant relaxation: Erased family relaxes the
+  inherent impl block bound; Explicit family does not.** The
+  plan text says to add `where F: Functor` to "impl blocks that
+  call `F::map`" with the example list `wrap`, `lift_f`,
+  `to_view`, and methods that go through them transitively
+  (`evaluate`, `resume`, `fold_free`). It explicitly notes that
+  `pure`, `bind`, `map` (the inherent method) do not need
+  `Functor`. This is true for the Erased family (`Free`,
+  `RcFree`, `ArcFree`), where `bind` just snocs the new
+  continuation onto a `CatList` without inspecting the suspended
+  layer.
+  For the Explicit family (`FreeExplicit`,
+  `RcFreeExplicit`, `ArcFreeExplicit`), the inherent `bind`
+  walks the spine through `bind_boxed`, which calls `F::map`
+  recursively at each `Wrap` node (the recursive structural
+  shape requires this; there is no `CatList` to defer the
+  walk into). So `bind` (and via it `map`, `wrap`, `lift_f`)
+  all transitively need `F: Functor`. The Explicit family
+  therefore keeps its inherent impl block at
+  `F: WrapDrop + Functor + 'a`; only the data-type / `Drop`
+  declarations relax. This does not affect Run usability:
+  `NodeBrand<R, S>` is expected to impl `Functor` for the same
+  reason `CoproductBrand<H, T>` does (Phase 2 step 2), so the
+  Explicit Run variants will still get full method coverage.
+- **Erased family uses per-method `where F: Functor`, not
+  separate impl blocks.** The plan suggests "impl blocks that
+  call `F::map`". `free.rs` already organised methods into
+  three impl blocks (construction / functor-dependent /
+  evaluate), so the construction block stays at
+  `F: WrapDrop + 'static` and the functor-dependent block is at
+  `F: WrapDrop + Functor + 'static`. For `rc_free.rs` and
+  `arc_free.rs`, all methods bundle into a single inherent
+  impl block; rather than splitting it into two, the impl
+  block bound stays at `F: WrapDrop + 'static` and methods
+  that need `Functor` (`wrap`, `lift_f`, `to_view`, `resume`,
+  `peel_ref`, `evaluate`, `lower_ref`, `hoist_free`) get
+  `where F: Functor` per-method. Same rationale as commit 1's
+  per-method `where F: Extract`: the alternative (splitting
+  blocks) would touch ~100 unrelated lines per variant.
+- **Brand-level impls keep `F: Functor` even where they could
+  be relaxed.** On `FreeExplicitBrand<F>` and the
+  Rc/Arc-Explicit brands, the `Pointed` impl could in
+  principle drop `F: Functor` (its only call is to
+  `FreeExplicit::pure(a)`, which doesn't need `Functor` after
+  the relaxation). But the `Functor` and `Semimonad` impls
+  call `fa.bind(...)` which needs `F: Functor` (per the
+  asymmetric Erased/Explicit point above), and the `RefFunctor`
+  / `RefSemimonad` impls call helpers that use `F::ref_map`
+  and `FreeExplicit::wrap`. Relaxing only `Pointed` and
+  `RefPointed` while leaving the other four at
+  `F: Functor + ...` was not done; consistency was preferred,
+  and the resulting bound parity matches the plan's
+  "impl blocks that call F::map" guidance applied
+  conservatively at the brand-impl level.
+
 ## Phase 2: Run substrate
 
 ### Step 1: `frunk_core` dependency + Coproduct adapter

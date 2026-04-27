@@ -71,7 +71,6 @@ mod inner {
 	)
 	where
 		F: WrapDrop
-			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static;
 
@@ -80,7 +79,6 @@ mod inner {
 	impl<F> Clone for ArcContinuation<F>
 	where
 		F: WrapDrop
-			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
 	{
@@ -114,7 +112,6 @@ mod inner {
 	pub enum ArcFreeView<F>
 	where
 		F: WrapDrop
-			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static, {
 		/// A pure value (type-erased, `Send + Sync`).
@@ -133,7 +130,6 @@ mod inner {
 	impl<F> Clone for ArcFreeView<F>
 	where
 		F: WrapDrop
-			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -175,7 +171,6 @@ mod inner {
 	pub enum ArcFreeStep<F, A>
 	where
 		F: WrapDrop
-			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
 		A: 'static, {
@@ -196,7 +191,6 @@ mod inner {
 	struct ArcFreeInner<F, A>
 	where
 		F: WrapDrop
-			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
 		A: 'static, {
@@ -210,7 +204,6 @@ mod inner {
 	impl<F, A> Clone for ArcFreeInner<F, A>
 	where
 		F: WrapDrop
-			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
 		A: 'static,
@@ -253,7 +246,6 @@ mod inner {
 	impl<F, A> Drop for ArcFreeInner<F, A>
 	where
 		F: WrapDrop
-			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
 		A: 'static,
@@ -328,7 +320,6 @@ mod inner {
 	pub struct ArcFree<F, A>
 	where
 		F: WrapDrop
-			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
 		A: 'static, {
@@ -340,7 +331,6 @@ mod inner {
 	impl<F, A> Clone for ArcFree<F, A>
 	where
 		F: WrapDrop
-			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
 		A: 'static,
@@ -375,7 +365,6 @@ mod inner {
 	impl<F, A> ArcFree<F, A>
 	where
 		F: WrapDrop
-			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
 		A: 'static,
@@ -609,6 +598,7 @@ mod inner {
 			fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcFree<F, A>>)
 		) -> Self
 		where
+			F: Functor,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
 				ArcFree<F, ArcTypeErasedValue>,
@@ -647,6 +637,7 @@ mod inner {
 		/// ```
 		pub fn lift_f(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)) -> Self
 		where
+			F: Functor,
 			A: Send + Sync,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
@@ -685,6 +676,7 @@ mod inner {
 		)]
 		pub fn to_view(self) -> ArcFreeStep<F, A>
 		where
+			F: Functor,
 			A: Clone + Send + Sync,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
@@ -773,6 +765,7 @@ mod inner {
 			self
 		) -> Result<A, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcFree<F, A>>)>
 		where
+			F: Functor,
 			A: Clone + Send + Sync,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
@@ -802,7 +795,7 @@ mod inner {
 		/// ```
 		pub fn evaluate(self) -> A
 		where
-			F: Extract,
+			F: Extract + Functor,
 			A: Clone + Send + Sync,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
@@ -841,7 +834,7 @@ mod inner {
 		/// ```
 		pub fn lower_ref(&self) -> A
 		where
-			F: Extract,
+			F: Extract + Functor,
 			A: Clone + Send + Sync,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
@@ -873,6 +866,7 @@ mod inner {
 		/// ```
 		pub fn peel_ref(&self) -> ArcFreeStep<F, A>
 		where
+			F: Functor,
 			A: Clone + Send + Sync,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
@@ -921,6 +915,7 @@ mod inner {
 			nt: impl NaturalTransformation<F, G> + Clone + Send + Sync + 'static,
 		) -> ArcFree<G, A>
 		where
+			F: Functor,
 			G: WrapDrop
 				+ Functor
 				+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<G, ArcTypeErasedValue>>: Send + Sync>

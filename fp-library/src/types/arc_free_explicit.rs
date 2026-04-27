@@ -74,7 +74,7 @@ mod inner {
 	)]
 	pub enum ArcFreeExplicitView<'a, F, A: 'a>
 	where
-		F: WrapDrop + Functor + 'a, {
+		F: WrapDrop + 'a, {
 		/// A pure value.
 		Pure(A),
 		/// A suspended computation: a functor layer wrapping the next step.
@@ -94,7 +94,7 @@ mod inner {
 	#[document_parameters("The view to clone.")]
 	impl<'a, F, A: 'a> Clone for ArcFreeExplicitView<'a, F, A>
 	where
-		F: WrapDrop + Functor + 'a,
+		F: WrapDrop + 'a,
 		A: Clone,
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'a,
@@ -136,7 +136,7 @@ mod inner {
 	/// is what lets the compiler auto-derive `Send + Sync` for concrete `F`.
 	pub struct ArcFreeExplicitInner<'a, F, A>
 	where
-		F: WrapDrop + Functor + 'a,
+		F: WrapDrop + 'a,
 		A: 'a, {
 		view: Option<ArcFreeExplicitView<'a, F, A>>,
 	}
@@ -149,7 +149,7 @@ mod inner {
 	#[document_parameters("The inner state to clone.")]
 	impl<'a, F, A> Clone for ArcFreeExplicitInner<'a, F, A>
 	where
-		F: WrapDrop + Functor + 'a,
+		F: WrapDrop + 'a,
 		A: 'a + Clone,
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'a,
@@ -189,7 +189,7 @@ mod inner {
 	#[document_parameters("The inner state being dropped.")]
 	impl<'a, F, A> Drop for ArcFreeExplicitInner<'a, F, A>
 	where
-		F: WrapDrop + Functor + 'a,
+		F: WrapDrop + 'a,
 		A: 'a,
 	{
 		/// Iteratively dismantles a deep `Wrap` chain via
@@ -249,13 +249,13 @@ mod inner {
 	)]
 	pub struct ArcFreeExplicit<'a, F, A>
 	where
-		F: WrapDrop + Functor + 'a,
+		F: WrapDrop + 'a,
 		A: 'a, {
 		inner: Arc<ArcFreeExplicitInner<'a, F, A>>,
 	}
 
 	impl_kind! {
-		impl<F: WrapDrop + Functor + 'static> for ArcFreeExplicitBrand<F> {
+		impl<F: WrapDrop + 'static> for ArcFreeExplicitBrand<F> {
 			type Of<'a, A: 'a>: 'a = ArcFreeExplicit<'a, F, A>;
 		}
 	}
@@ -268,7 +268,7 @@ mod inner {
 	#[document_parameters("The `ArcFreeExplicit` instance to clone.")]
 	impl<'a, F, A> Clone for ArcFreeExplicit<'a, F, A>
 	where
-		F: WrapDrop + Functor + 'a,
+		F: WrapDrop + 'a,
 		A: 'a,
 	{
 		/// Clones the `ArcFreeExplicit` by atomic refcount bump on the outer

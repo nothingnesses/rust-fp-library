@@ -113,11 +113,11 @@ mod inner {
 	/// [`PhantomData`] on the outer [`Free`] struct. The CatList of continuations
 	/// lives at the top level in [`Free`], not inside any variant.
 	#[document_type_parameters(
-		"The base functor. Requires [`WrapDrop`] and [`Functor`] to match the struct-level bounds on [`Free`]; the `Suspend` variant itself only uses the [`Kind`](crate::kinds) trait (implied by `Functor`) for type application, and the `WrapDrop` bound is needed for stack-safe `Drop`."
+		"The base functor. Requires [`WrapDrop`] to match the struct-level bound on [`Free`]; the `Suspend` variant itself only uses the [`Kind`](crate::kinds) trait (a supertrait of `WrapDrop`) for type application."
 	)]
 	pub enum FreeView<F>
 	where
-		F: WrapDrop + Functor + 'static, {
+		F: WrapDrop + 'static, {
 		/// A pure value (type-erased).
 		///
 		/// This variant represents a computation that has finished and produced a value.
@@ -141,12 +141,12 @@ mod inner {
 	/// decomposition that both [`Free::evaluate`] and [`Free::resume`]
 	/// delegate to.
 	#[document_type_parameters(
-		"The base functor. Requires [`WrapDrop`] and [`Functor`] to match the struct-level bounds on [`Free`].",
+		"The base functor. Requires [`WrapDrop`] to match the struct-level bound on [`Free`].",
 		"The result type of the computation."
 	)]
 	pub enum FreeStep<F, A>
 	where
-		F: WrapDrop + Functor + 'static,
+		F: WrapDrop + 'static,
 		A: 'static, {
 		/// The computation completed with a final value.
 		Done(A),
@@ -229,13 +229,13 @@ mod inner {
 	/// constructed `Free` chains may therefore trigger deferred computations and
 	/// their side effects.
 	#[document_type_parameters(
-		"The base functor (must implement [`WrapDrop`] and [`Functor`]). Many construction methods (`pure`, `bind`, `map`) only need `F: 'static` in principle, and functor-dependent methods (`wrap`, `lift_f`, `resume`, `fold_free`, `hoist_free`) only need `Functor`. The `WrapDrop` bound is required at the struct level because the custom `Drop` implementation calls [`WrapDrop::drop`] to iteratively dismantle `Suspend` nodes without overflowing the stack.",
+		"The base functor (must implement [`WrapDrop`]). Construction methods (`pure`, `bind`, `map`) only need `F: 'static`, functor-dependent methods (`wrap`, `lift_f`, `to_view`, `resume`, `fold_free`, `hoist_free`, `substitute_free`) additionally require `F: Functor`, and `evaluate` additionally requires `F: Extract`. The `WrapDrop` bound is required at the struct level because the custom `Drop` implementation calls [`WrapDrop::drop`] to iteratively dismantle `Suspend` nodes without overflowing the stack.",
 		"The result type."
 	)]
 	///
 	pub struct Free<F, A>
 	where
-		F: WrapDrop + Functor + 'static,
+		F: WrapDrop + 'static,
 		A: 'static, {
 		/// The current step of the computation (type-erased).
 		view: Option<FreeView<F>>,
@@ -247,18 +247,17 @@ mod inner {
 
 	// -- Construction and composition --
 	//
-	// Methods in this block only need `F: 'static` in principle; they
-	// never call `Functor::map`, `Extract::extract`, or `WrapDrop::drop`.
-	// The `WrapDrop + Functor` bounds are inherited from the struct
-	// definition, which requires them for stack-safe `Drop` of `Suspend`
-	// nodes (Rust requires `Drop` impl bounds to match struct bounds
-	// exactly).
+	// Methods in this block never call `Functor::map`, `Extract::extract`,
+	// or `WrapDrop::drop`. The `WrapDrop` bound is inherited from the
+	// struct definition, which requires it for stack-safe `Drop` of
+	// `Suspend` nodes (Rust requires `Drop` impl bounds to match struct
+	// bounds exactly).
 
 	#[document_type_parameters("The base functor.", "The result type.")]
 	#[document_parameters("The Free monad instance to operate on.")]
 	impl<F, A> Free<F, A>
 	where
-		F: WrapDrop + Functor + 'static,
+		F: WrapDrop + 'static,
 		A: 'static,
 	{
 		/// Extracts the view and continuations, leaving `self` in a consumed
@@ -987,7 +986,7 @@ mod inner {
 	#[document_parameters("The free monad instance to drop.")]
 	impl<F, A> Drop for Free<F, A>
 	where
-		F: WrapDrop + Functor + 'static,
+		F: WrapDrop + 'static,
 		A: 'static,
 	{
 		#[document_signature]

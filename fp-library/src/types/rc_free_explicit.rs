@@ -87,7 +87,7 @@ mod inner {
 	)]
 	pub enum RcFreeExplicitView<'a, F, A: 'a>
 	where
-		F: WrapDrop + Functor + 'a, {
+		F: WrapDrop + 'a, {
 		/// A pure value.
 		Pure(A),
 		/// A suspended computation: a functor layer wrapping the next step.
@@ -107,7 +107,7 @@ mod inner {
 	#[document_parameters("The view to clone.")]
 	impl<'a, F, A: 'a> Clone for RcFreeExplicitView<'a, F, A>
 	where
-		F: WrapDrop + Functor + 'a,
+		F: WrapDrop + 'a,
 		A: Clone,
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'a,
@@ -146,7 +146,7 @@ mod inner {
 	/// it out via [`Option::take`] without producing a sentinel value of `A`.
 	struct RcFreeExplicitInner<'a, F, A>
 	where
-		F: WrapDrop + Functor + 'a,
+		F: WrapDrop + 'a,
 		A: 'a, {
 		view: Option<RcFreeExplicitView<'a, F, A>>,
 	}
@@ -159,7 +159,7 @@ mod inner {
 	#[document_parameters("The inner state to clone.")]
 	impl<'a, F, A> Clone for RcFreeExplicitInner<'a, F, A>
 	where
-		F: WrapDrop + Functor + 'a,
+		F: WrapDrop + 'a,
 		A: 'a + Clone,
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'a,
@@ -199,7 +199,7 @@ mod inner {
 	#[document_parameters("The inner state being dropped.")]
 	impl<'a, F, A> Drop for RcFreeExplicitInner<'a, F, A>
 	where
-		F: WrapDrop + Functor + 'a,
+		F: WrapDrop + 'a,
 		A: 'a,
 	{
 		/// Iteratively dismantles a deep `Wrap` chain via
@@ -270,13 +270,13 @@ mod inner {
 	)]
 	pub struct RcFreeExplicit<'a, F, A>
 	where
-		F: WrapDrop + Functor + 'a,
+		F: WrapDrop + 'a,
 		A: 'a, {
 		inner: Rc<RcFreeExplicitInner<'a, F, A>>,
 	}
 
 	impl_kind! {
-		impl<F: WrapDrop + Functor + 'static> for RcFreeExplicitBrand<F> {
+		impl<F: WrapDrop + 'static> for RcFreeExplicitBrand<F> {
 			type Of<'a, A: 'a>: 'a = RcFreeExplicit<'a, F, A>;
 		}
 	}
@@ -289,7 +289,7 @@ mod inner {
 	#[document_parameters("The `RcFreeExplicit` instance to clone.")]
 	impl<'a, F, A> Clone for RcFreeExplicit<'a, F, A>
 	where
-		F: WrapDrop + Functor + 'a,
+		F: WrapDrop + 'a,
 		A: 'a,
 	{
 		/// Clones the `RcFreeExplicit` by bumping the refcount on the outer

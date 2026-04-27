@@ -55,7 +55,7 @@ mod inner {
 	)]
 	pub enum FreeExplicitView<'a, F, A: 'a>
 	where
-		F: WrapDrop + Functor + 'a, {
+		F: WrapDrop + 'a, {
 		/// A pure value.
 		Pure(A),
 		/// A suspended computation: a functor layer wrapping the next step.
@@ -98,12 +98,12 @@ mod inner {
 	)]
 	pub struct FreeExplicit<'a, F, A: 'a>
 	where
-		F: WrapDrop + Functor + 'a, {
+		F: WrapDrop + 'a, {
 		view: Option<FreeExplicitView<'a, F, A>>,
 	}
 
 	impl_kind! {
-		impl<F: WrapDrop + Functor + 'static> for FreeExplicitBrand<F> {
+		impl<F: WrapDrop + 'static> for FreeExplicitBrand<F> {
 			type Of<'a, A: 'a>: 'a = FreeExplicit<'a, F, A>;
 		}
 	}
@@ -318,7 +318,7 @@ mod inner {
 	#[document_parameters("The `FreeExplicit` instance being dropped.")]
 	impl<'a, F, A: 'a> Drop for FreeExplicit<'a, F, A>
 	where
-		F: WrapDrop + Functor + 'a,
+		F: WrapDrop + 'a,
 	{
 		/// Iteratively dismantles a deep `Wrap` chain via [`WrapDrop::drop`].
 		///
