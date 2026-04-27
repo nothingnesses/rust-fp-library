@@ -882,3 +882,155 @@ ArcRunExplicit keeps Send + Sync`); (2) the literal name
   [`Into`](https://doc.rust-lang.org/std/convert/trait.Into.html)
   impl, in the source file's tests). This documents both API
   surfaces as part of the regression suite.
+
+### Step 7: `im_do!` macro and supporting inherent methods (design pre-locked, implementation pending)
+
+This entry captures the design decisions for step 7 made
+ahead of implementation, so the implementer (whether the user
+or a future agent session) lands a consistent, well-documented
+result. Three things differ from the plan-text's literal step
+7 description: the macro's name, its scope (extended from
+"Erased family only" to "all six wrappers"), and the
+forward-reservation of an applicative companion name.
+
+- **Macro name: `im_do!` ("Inherent Monadic do") instead of
+  `run_do!`.** The plan-text named the macro `run_do!`,
+  scoping it nominally to the Run subsystem. Step 7's design
+  review surfaced two reasons to prefer a dispatch-path name
+  over a subsystem-scoped name:
+  1. The dispatch pattern (inherent-method calls instead of
+     trait dispatch) is the load-bearing fact about the
+     macro. The Run-scoping is incidental — any wrapper type
+     with inherent `bind` could use the same macro.
+  2. The applicative companion (see below) needs a parallel
+     name. `run_a_do!` reads awkwardly; `run_ado!` is
+     asymmetric to the existing `m_do!` / `a_do!` pair.
+     `im_do!` / `ia_do!` mirrors `m_do!` / `a_do!` cleanly
+     while adding the dispatch-path prefix `i` for "inherent".
+
+  Renaming a macro after users start writing call sites is
+  costly (deprecation cycle, documentation churn). Locking
+  the name in before step 7 ships is much cheaper.
+
+- **Forward-reserved applicative companion: `ia_do!`
+  ("Inherent Applicative do").** Step 7 itself ships only
+  the monadic form (`im_do!`); applicative inherent
+  do-notation is deferred until a concrete need surfaces
+  (likely Phase 3+ when handler composition introduces
+  independent-bind patterns over `ArcRun`). However, the
+  name is reserved in plan.md and in step 7's commit message
+  so that whenever the applicative form lands, the
+  convention is already in place.
+
+  **Same-length naming is deliberate.** `im_do!` and
+  `ia_do!` are 5 characters each; `m_do!` and `a_do!` are
+  4 characters each. Within each pair, the monadic and
+  applicative forms have identical lengths so neither is
+  typographically disfavored. This is intentional design
+  guidance: applicative composition is generally preferable
+  to monadic composition when binds are independent (it
+  allows parallelization, avoids closure-nesting issues
+  in `ref` mode, and produces simpler desugarings — a
+  single `liftN` / `map` call instead of nested `bind`s).
+  Users should reach for `ia_do!` over `im_do!` (and
+  `a_do!` over `m_do!`) whenever the binds are independent;
+  giving the applicative form a longer name would subtly
+  push users toward the wrong default. This mirrors the
+  PureScript `do` / `ado` convention's same-length
+  pairing.
+
+- **Scope expansion: `im_do!` covers all six Run wrappers,
+  not just the Erased family.** The plan-text restricted
+  the macro to `Run` / `RcRun` / `ArcRun` and assumed
+  `m_do!(ref RcRunExplicitBrand)` would handle by-reference
+  do-notation on the Explicit family. Step 7's design
+  review surfaced two reasons to expand scope:
+  1. **Canonical Coyoneda-headed rows can't reach the
+     brand-level `ref` form.** `CoyonedaBrand: RefFunctor`
+     is unimplementable on stable Rust (per
+     [`fp-library/docs/limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md)),
+     so `m_do!(ref RcRunExplicitBrand<R, S> { ... })` over
+     a row containing `CoyonedaBrand` (which the `effects!`
+     macro emits in the canonical case) fails type checking
+     at the row-brand cascade. Users with canonical effect
+     rows need an alternative path. Inherent `ref_bind`
+     (added in step 7b) sidesteps the cascade by cloning
+     the program and calling by-value `bind` with a
+     wrapping closure — this works without requiring the
+     row brand to be `RefFunctor`. `im_do!(ref RcRunExplicit { ... })`
+     desugars to inherent `ref_bind` calls, providing the
+     by-reference path that `m_do!(ref ...)` cannot reach.
+  2. **`m_do!(ref ArcRunExplicitBrand)` is permanently
+     unreachable.** `ArcFreeExplicitBrand: SendRefFunctor`
+     is unimplementable on stable Rust (per the limitations
+     doc; the closure passed to `send_ref_map` returns a
+     value whose `Send + Sync` auto-derive needs the
+     per-`A` `Kind<Of<'a, A>: Send + Sync>` HRTB).
+     `ArcRunExplicitBrand` would only delegate, so it
+     inherits the gap. `im_do!(ref ArcRunExplicit { ... })`
+     is the only by-reference path available for
+     `ArcRunExplicit`.
+
+  Covering all six wrappers with one macro produces a
+  coherent user-facing story: `im_do!` works wherever
+  inherent `bind` (and `ref_bind`, for the four
+  `Clone`-able wrappers) is available, regardless of the
+  underlying brand-dispatch story.
+
+- **Sub-task split: 7a, 7b, 7c.** The plan-text's step 7
+  is now structurally three sub-steps. They could land as
+  one commit each or bundle into 7a+7b together with 7c
+  separate; the implementer decides at commit time per the
+  oversized-step-splitting protocol in
+  [`.claude/CLAUDE.md`](../../../CLAUDE.md). Recommended
+  decomposition:
+  - 7a: inherent `bind` and `map` on `Run`, `RcRun`, `ArcRun`,
+    `RunExplicit` (the four wrappers that don't already
+    have them; `RcRunExplicit` and `ArcRunExplicit` shipped
+    them in step 4b).
+  - 7b: inherent `ref_bind` and `ref_map` on `RcRun`, `ArcRun`,
+    `RcRunExplicit`, `ArcRunExplicit` (the four `Clone`-able
+    wrappers).
+  - 7c: `im_do!` macro itself, with by-value and `ref` forms,
+    plus the `compile_fail` UI test for `im_do!(ref ...)`
+    on non-`Clone` wrappers (`Run`, `RunExplicit`).
+
+- **Documentation strategy: name and rationale captured in
+  three places.** When step 7c lands the macro, the macro's
+  doc-comment (the `//!` module doc and the `///` proc-macro
+  function doc) should explain:
+  1. What the name means: "im" is short for "inherent
+     monadic" (parallel to "m" for "monadic" in `m_do!`).
+     The matching applicative form is `ia_do!` ("inherent
+     applicative", parallel to `a_do!`).
+  2. Why "inherent": the macro desugars to inherent method
+     calls (`expr.bind(|x| ...)`) rather than trait
+     dispatch (`<Brand as Semimonad>::bind(expr, |x| ...)`).
+     This is the dispatch path that works for types whose
+     brand can't satisfy `Semimonad` due to per-`A`
+     bounds that stable Rust can't carry in trait method
+     signatures.
+  3. When to use `im_do!` vs `m_do!`: prefer `m_do!` when
+     the type's brand has full `Semimonad` coverage
+     (typeclass-generic, no clones); use `im_do!` when
+     `m_do!` doesn't reach (e.g., Erased Run family,
+     or canonical-row `ref` mode).
+  4. Why the same length as `ia_do!`: encourages users to
+     prefer the applicative form when binds are
+     independent, mirroring the `m_do!` / `a_do!` pairing.
+
+  Cross-references: this deviations.md entry, the macro's
+  source-level doc comment, and the eventual user-facing
+  guide in `fp-library/docs/run.md` (Phase 5 step 4) all
+  carry the same rationale. A precursor note in
+  `effects.rs`'s module docstring during step 7c is
+  acceptable until Phase 5 lands the full guide.
+
+- **Shared input parser.** When step 7c writes the macro,
+  extract the existing `m_do!` / `a_do!` input parser (in
+  `fp-macros/src/m_do/input.rs` and
+  `fp-macros/src/a_do/input.rs`) into a shared
+  `fp-macros/src/support/do_input.rs` (or similar) so
+  surface-syntax features stay consistent across all four
+  macros. This prevents drift when (e.g.) typed-bind
+  syntax is extended in one and forgotten in others.
