@@ -1,8 +1,9 @@
 # Plan: Port purescript-run to fp-library
 
 **Status:** Phase 1 complete (all 9 steps); Phase 2 in progress
-(steps 1, 2, and 3 of 10 complete; step 4 paused pending a
-blocker, see Open questions below).
+(steps 1, 2, and 3 of 10 complete; step 4 unblocked, awaiting two
+Phase 1 follow-up commits introducing `WrapDrop` per the resolution
+in Open questions below).
 
 ## Current progress
 
@@ -446,121 +447,84 @@ Other artefacts unchanged from pre-implementation:
 
 ## Open questions, issues and blockers
 
-**BLOCKER (surfaced 2026-04-27 during Phase 2 step 4 kickoff):
-Run cannot directly wrap `Free<NodeBrand, A>` over typical effect
-rows because `Free`'s struct-level `Extract` bound transitively
-requires every effect type to implement `Extract`, which
-effects-as-data cannot satisfy.**
+### Resolved (2026-04-27): introduce `WrapDrop` trait for Free's struct-level Drop concern
 
-The chain of bounds:
+A new trait `WrapDrop` lands at the struct level of the Free
+family, replacing `Extract` for `Drop`'s iterative-dismantling
+purposes while preserving `Extract` as a separate trait for
+`evaluate` / `fold_free` / etc. Migration ships as two Phase 1
+follow-up commits before Phase 2 step 4 resumes.
+
+#### Problem
+
+Phase 2 step 4 (the six concrete `Run` types) commits to
+`Run<R, S, A> = Free<NodeBrand<R, S>, A>` per
+[decisions.md](decisions.md) section 5.2 and the "Will change"
+table entry for
+[`fp-library/src/types/run.rs`](../../../fp-library/src/types/run.rs).
+This requires `Free<NodeBrand<R, S>, A>` to compile for typical
+effect rows. It does not, because of a transitively-poisoning
+trait bound:
 
 1. [`Free<F, A>`](../../../fp-library/src/types/free.rs) (and
    the other five Free variants) declares its struct with
-   `where F: Extract + Functor + 'static`. This is enforced at
-   the type-declaration site, not just on inherent methods, so
-   a `Free<NodeBrand<R, S>, A>` instance fails to compile when
-   `NodeBrand<R, S>` doesn't satisfy `Extract`.
-2. [`Free::drop`](../../../fp-library/src/types/free.rs) walks
-   deep `Wrap` chains via `<F as Extract>::extract(fa)`. The
-   custom iterative `Drop` is what makes a 100 000-deep
-   `Wrap` chain not stack-overflow on cleanup; the `Extract`
-   bound is load-bearing for that strategy, not just the
-   struct declaration.
+   `where F: Extract + Functor + 'static`. The `Extract` bound
+   is enforced at the type-declaration site, not just on
+   inherent methods, so a `Free<NodeBrand<R, S>, A>` instance
+   fails to compile when `NodeBrand<R, S>` does not implement
+   `Extract`.
+2. [`Free::drop`](../../../fp-library/src/types/free.rs) calls
+   `<F as Extract>::extract(fa)` to walk deep `Wrap` chains
+   iteratively. This is what keeps a 100 000-deep `Wrap` chain
+   from stack-overflowing during cleanup; the `Extract` bound
+   is load-bearing for the existing `Drop` strategy, which is
+   why the bound is on the struct rather than on individual
+   methods (Rust requires `Drop` impl bounds to match struct
+   bounds exactly).
 3. To satisfy `NodeBrand<R, S>: Extract` for typical Run usage,
-   we need `R: Extract` and `S: Extract`. For the first-order
+   the bound recurses into the row brands. For the first-order
    row, `R = CoproductBrand<CoyonedaBrand<E1>, CoproductBrand<...>>`,
    and the recursive bound bottoms out at
    `CoyonedaBrand<E>: Extract`.
 4. `CoyonedaBrand<E>::extract` would need to recover an `A` from
-   `Coyoneda<E, A>`. The natural shape is
-   `coyo.lower()` (returns `E::Of<A>`, requires `E: Functor`)
-   followed by `<E as Extract>::extract(...)`. So the bound
-   transitively requires `E: Extract` for every effect type in
-   the row.
+   `Coyoneda<E, A>`. The natural implementation lowers the
+   Coyoneda (`coyo.lower()` returns `E::Of<A>`, requires
+   `E: Functor`) and then calls `<E as Extract>::extract(...)`.
+   So the bound transitively requires `E: Extract` for every
+   effect type in the row.
 5. Effect types (`Reader<E>`, `State<S>`, `Choose`, `Except<E>`,
-   `Writer<W>`, etc.) are pure data; they have no canonical
-   "evaluate" because they need a handler to interpret. So
+   `Writer<W>`, etc.) are pure data with no canonical
+   "evaluate" semantics: they need a handler to interpret. So
    `Reader<E>: Extract` (and the same for every other effect)
-   cannot hold without baking an arbitrary semantics into the
+   cannot hold without baking arbitrary semantics into each
    effect type.
 
-The blocker means `Run<R, S, A> = Free<NodeBrand<R, S>, A>` over
-any typical effect row fails to compile. The plan
-([decisions.md](decisions.md) section 5.2 and plan.md's
-"Will change" table for `run.rs`) commits to "Run is a Free
-over VariantF", so the structural assumption is load-bearing
-across Phases 2-5.
+The bound is correct for the Free family's general use cases
+(`Free<IdentityBrand>` evaluates by unwrapping; `Free<ThunkBrand>`
+evaluates by running the thunk). It is over-conservative for the
+effects-as-data use case Run needs.
 
-Possible resolution paths (each is a Phase-1-or-later scope
-expansion that the agent does not have authority to execute
-unilaterally):
+#### Investigation: Wrap-depth probe
 
-- **(a) Relax `Free`'s struct-level `Extract` bound to just
-  `Functor`.** Move the `Extract` requirement to the inherent
-  methods that need it (`evaluate`, `to_view`, `resume`,
-  `fold_free`, `hoist_free`). Rework the `Drop` impl to work
-  without `Extract`: either accept recursive drop (stack
-  overflow risk on deep chains, regressing Phase 1's
-  `deep_drop_does_not_overflow` tests), or use a different
-  iterative dismantling strategy that does not rely on
-  `Extract`. Same change applied across all six Free variants.
-  Risk: substantial Phase 1 rework; existing tests need to
-  re-validate the deep-drop property under whatever new
-  strategy lands.
-- **(b) Build a parallel `RunFree`-like substrate.** Define
-  a new family of types in `types/run/` that mirror Free's
-  structure (CatList for Erased, naive recursive enum for
-  Explicit, custom iterative `Drop`) but without the `Extract`
-  bound. Reuse code via macros or generic traits where
-  possible. Six new types parallel the six Free variants.
-  Risk: code duplication; deep-drop tests need a new
-  iterative-dismantling strategy that doesn't go through
-  `Extract`.
-- **(c) Sidestep the bound at the Run wrapper.** Make Run a
-  newtype struct that internally holds something other than a
-  raw `Free<NodeBrand, A>` (e.g., a `Box<dyn ...>` trait
-  object, a custom enum, or a Free over a placeholder brand
-  that DOES implement Extract trivially while the actual
-  effect data lives elsewhere). Likely requires a redesign
-  of the relationship between Run and Free.
-- **(d) Implement Extract for `CoyonedaBrand<E>` /
-  `CoproductBrand<H, T>` / `NodeBrand<R, S>` with semantics
-  that do something defensible for the Run case** (e.g.,
-  Coyoneda's extract panics with a clear message that a
-  handler is required; Free's iterative `Drop` falls back to
-  recursive drop when extract panics). Risk: programs that
-  drop unhandled Run values without going through a handler
-  panic, even in legitimate scenarios (program panics in
-  user code mid-evaluation, deliberate program discarding,
-  etc.). This is a footgun.
-
-The Phase 2 step 4 implementation is paused pending decision on
-which path to take. The earlier interpretation calls (Node as
-dedicated enum, Scoped arm structurally present, NoScoped reuses
-CNilBrand, single commit) remain valid for whichever path is
-chosen; this blocker is upstream of those.
-
-**Probe results
-([fp-library/tests/run_wrap_depth_probe.rs](../../../fp-library/tests/run_wrap_depth_probe.rs),
-commit `09d676b`):** to determine whether the `Extract` bound is
-structurally necessary for Run usage or only for artificial
-deep-Wrap-chain patterns, a probe at
+A probe at
 [`fp-library/tests/run_wrap_depth_probe.rs`](../../../fp-library/tests/run_wrap_depth_probe.rs)
-measures Wrap-arm depth across seven Run-shaped construction
-patterns over `Free<ThunkBrand, _>` (using `ThunkBrand` because
+(commit `09d676b`) measures `Wrap`-arm depth in Run-shaped
+programs over `Free<ThunkBrand, _>` (using `ThunkBrand` because
 `Free<IdentityBrand, _>` is layout-cyclic per the Phase 1 step 8
-deviation). The probe distinguishes two metrics:
+deviation, but the structural behaviour the probe measures is
+brand-independent). The probe distinguishes two metrics:
 
-- **Evaluation depth:** how many `Wrap` layers materialize when
-  `to_view` applies pending continuations and follows the Wrap
-  chain via `Extract`. This is what an interpreter sees when
-  walking the program.
+- **Evaluation depth:** how many `Wrap` layers materialise when
+  `to_view` applies pending continuations and follows the
+  resulting `Wrap` chain via `Extract`. This is what an
+  interpreter sees when walking the program.
 - **Structural depth:** how many `Wrap` layers exist in the
-  original view BEFORE `to_view` applies any continuation. This
-  is what `Drop` traverses, because `Drop` dismantles the view
-  and continuations in place without applying the closures.
+  original view BEFORE `to_view` applies any continuation.
+  This is what `Drop` traverses, because `Drop` dismantles
+  the view and continuations in place without applying the
+  closures.
 
-The seven tests and their findings:
+Seven tests and their findings:
 
 | Pattern                                                                | Evaluation depth | Structural depth                |
 | ---------------------------------------------------------------------- | ---------------- | ------------------------------- |
@@ -572,63 +536,205 @@ The seven tests and their findings:
 | `lift_f(eff).bind(\|x\| pure(x+1))` chained 100 000 times, then `drop` | n/a              | succeeds without stack overflow |
 | Explicit `Free::wrap(...)` chained 100 times                           | 100              | 100                             |
 
-**Bottom-line finding:** Run-typical programs (built via
-`lift_f` plus a flat `bind` chain) have **structural Wrap depth
-at most 1**, regardless of bind-chain length. The depth that
-grows with sequencing lives in the CatList of continuations,
-which the existing iterative `Drop` already dismantles without
-calling `Extract`. The 100 000-bind drop test passes without
-stack overflow even though `Drop` only walks one Wrap layer
-(the original `lift_f`'s Wrap) recursively.
+Bottom-line finding: Run-typical programs (built via `lift_f`
+plus a flat `bind` chain) have structural `Wrap` depth at most
+1, regardless of bind-chain length. The depth that grows with
+sequencing lives in the `CatList` of continuations, which the
+existing iterative `Drop` already dismantles without calling
+`Extract`. The 100 000-bind drop test passes without stack
+overflow even though `Drop` only walks one `Wrap` layer (the
+original `lift_f`'s `Wrap`) recursively.
 
 The artificial 100-deep `Free::wrap` chain pattern (last row) is
 the case that motivated the existing `Extract`-based iterative
 `Drop`. Run-typical usage does not produce this pattern; users
-inject effects via `lift_f` (one Wrap per call) and chain via
-`bind` (no new Wraps). The probe also includes
+inject effects via `lift_f` (one `Wrap` per call) and chain via
+`bind` (no new `Wrap`s). The probe also covers
 `nested_lift_f_via_bind_materializes_wraps_at_evaluation_time`,
-which has evaluation depth 100 but structural depth 0 — a
-useful corner case showing that `bind` closures returning
-`lift_f` build their Wraps at _evaluation_ time, not at
-construction time, so they live in the CatList rather than in
-the structural Wrap chain.
+showing that `bind` closures returning `lift_f` build their
+`Wrap`s at _evaluation_ time, not construction time, so they
+live in the `CatList` rather than the structural `Wrap` chain.
 
-**Reframed resolution paths in light of the probe:**
+#### Resolution: introduce the `WrapDrop` trait
 
-- **(a)** Modify Phase 1's Free family in place. The probe
-  invalidates the "alternatives investigated and rejected"
-  comment at
-  [`fp-library/src/types/free.rs`](../../../fp-library/src/types/free.rs)
-  lines 250-259 by surfacing a fourth alternative the comment
-  did not list: **recursive `Drop` on `Wrap` plus iterative
-  `Drop` on the CatList**. Sound for Run-typical usage; would
-  regress
-  [`Free::deep_drop_does_not_overflow`](../../../fp-library/src/types/free.rs)
-  which exercises the artificial 100 000-deep-`wrap` pattern.
-  Ship-as-is means losing that property for the Free family in
-  general.
-- **(b)** Build a parallel `RunFree`-like substrate. Same
-  insight, isolated to Run. **Probe-validated as sound** for
-  Run usage. Phase 1's Free family stays untouched, including
-  its existing deep-drop guarantee. Cost: ~6 new files
-  paralleling the existing Free / RcFree / ArcFree / FreeExplicit
-  / RcFreeExplicit / ArcFreeExplicit, with relaxed bounds and
-  recursive Wrap drop. Some shared logic could be factored.
-- **(c)** Run is not literally a Free. Still an option but no
-  longer necessary; (b) achieves the goal without redesigning
+A new trait `WrapDrop` separates the structural-cleanup question
+(what `Drop` needs) from the semantic-interpretation question
+(what `Extract` answers). `Extract` continues to mean "given
+`F::Of<X>`, give me the `X`" and is used by `evaluate`,
+`fold_free`, `resume`, etc. `WrapDrop` instead asks "given
+`F::Of<X>`, can you yield the inner `X` without running user
+code?", returning `Option<X>`.
+
+##### Trait definition
+
+```rust
+pub trait WrapDrop: Kind {
+    /// Drop-time decomposition. `Some(x)` means F materially
+    /// stores X and the caller can iterate on it. `None` means
+    /// F doesn't store X (or storing is closure-captured), so
+    /// the caller should let `fa` drop normally.
+    fn drop<'a, X: 'a>(fa: Self::Of<'a, X>) -> Option<X>;
+}
+```
+
+##### Naming rationale
+
+The trait's name reflects that it is the operation `Free`'s
+`Wrap` variant performs at drop time. The method name `drop`
+does not clash with `std::ops::Drop::drop` because they are
+different traits with different receiver shapes
+(`std::ops::Drop::drop(&mut self)` is a method;
+`WrapDrop::drop(fa: F::Of<'_, X>)` is an associated function).
+Call sites use fully-qualified syntax:
+`<F as WrapDrop>::drop(fa)`.
+
+##### Free's Drop dispatch
+
+Free's `Drop` impl is rewritten to dispatch on the `Option`:
+
+```rust
+match F::drop(layer) {
+    Some(inner) => worklist.push(inner.view); // existing iterative path
+    None => { /* layer already dropped recursively by the match arm */ }
+}
+```
+
+##### Per-F policy choices
+
+- **F materially stores the inner X** (e.g., `IdentityBrand`):
+  `WrapDrop::drop` returns `Some(<F as Extract>::extract(fa))`,
+  preserving the existing iterative path.
+- **F's storage runs user code to materialise X but the
+  existing test suite relies on iterative dismantling** (e.g.,
+  `ThunkBrand`): `WrapDrop::drop` returns
+  `Some(<F as Extract>::extract(fa))`. This preserves
+  side-effect-on-Drop semantics and the Phase 1
+  `deep_drop_does_not_overflow` test. The alternative (return
+  `None` to skip closures) was rejected because the closure's
+  captures hold inner Frees that would drop recursively for
+  100k-deep chains.
+- **F does not materially store X at all** (e.g.,
+  `CoyonedaBrand<E>`, `CoproductBrand<H, T>`, `CNilBrand`,
+  `NodeBrand<R, S>`): `WrapDrop::drop` returns `None`. Drop
+  falls through to recursive drop on `fa`; the probe validates
+  this is sound for Run-typical patterns because the `F::Of<X>`
+  storage doesn't materially recurse on inner Frees (Coyoneda's
+  closure would construct a Free if called, but doesn't store
+  one; the Coproduct's variants hold Coyonedas which have the
+  same property).
+
+##### Documented limitation
+
+Artificial deep `wrap(...)` chains over F's whose
+`WrapDrop::drop` returns `None` (e.g., a hand-built 100k-deep
+`wrap(Coyoneda(...))` chain) overflow the stack on `Drop`.
+Run-typical usage does not generate this pattern, and no
+existing test exercises it. The trait's docs warn future
+F-authors of the constraint.
+
+#### Migration plan
+
+The migration ships as two Phase 1 follow-up commits before
+Phase 2 step 4 resumes.
+
+##### Commit 1: `feat: introduce WrapDrop trait`
+
+- New trait `WrapDrop` at
+  `fp-library/src/classes/wrap_drop.rs` with the signature
+  above.
+- `WrapDrop` impls for the two existing `Extract`-implementing
+  brands (`IdentityBrand` at
+  [fp-library/src/types/identity.rs](../../../fp-library/src/types/identity.rs),
+  `ThunkBrand` at
+  [fp-library/src/types/thunk.rs](../../../fp-library/src/types/thunk.rs)),
+  each returning `Some(<Self as Extract>::extract(fa))` so
+  existing behaviour stays green.
+- Replace `F: Extract + Functor + 'static` with
+  `F: WrapDrop + Functor + 'static` on the struct, `FreeView`,
+  `FreeStep`, and `Drop` declarations of all six Free variants
+  (`Free`, `RcFree`, `ArcFree`, `FreeExplicit`,
+  `RcFreeExplicit`, `ArcFreeExplicit`). Inventory: 71 occurrences
+  of `F: Extract` across the six variant source files,
+  mechanically migrated. Methods that call `F::extract`
+  semantically (`evaluate`, `resume`, etc.) keep
+  `where F: Extract` on their impl blocks.
+- Rewrite Free's `Drop` loop to call `F::drop` and switch on
+  the returned `Option`: `Some(inner)` follows the existing
+  iterative path; `None` lets the layer drop in place.
+- Tests: existing Phase 1 tests (including
+  `deep_drop_does_not_overflow` for both `Free<ThunkBrand>` and
+  `FreeExplicit<IdentityBrand>`) must all pass. The
+  [run_wrap_depth_probe.rs](../../../fp-library/tests/run_wrap_depth_probe.rs)
+  tests stay green as additional regression coverage.
+
+##### Commit 2: `refactor: relax Functor bound to Kind on Free's struct`
+
+- Change the struct-level, `FreeView`, `FreeStep`, and `Drop`
+  bounds from `F: WrapDrop + Functor + 'static` to
+  `F: WrapDrop + 'static` (the `Kind` GAT requirement is
+  inherited from `WrapDrop`'s `Kind` supertrait). The struct
+  only needs F to provide the `Of<...>` GAT; methods that call
+  `F::map` carry `where F: Functor` on their impl blocks.
+  After the relaxation, `wrap`, `lift_f`, `to_view`, and
+  methods that go through them transitively (`evaluate`,
+  `resume`, `fold_free`, etc.) carry the Functor bound. Methods
+  like `pure`, `bind`, `map` (the inherent method, not
+  `Functor::map`) do not.
+- Process: relax the struct bound, run `cargo check`, add
+  `where F: Functor` to every impl block the compiler flags.
+  Repeat until clean.
+- Same six Free variants. Same tests must pass.
+
+##### After both commits land
+
+Phase 2 step 4 resumes with
+`Run = Free<NodeBrand<R, S>, A>` over the relaxed bound. The
+four interpretation calls already approved (Node as a dedicated
+enum, the Scoped arm structurally present with payload deferred
+to Phase 4, `NoScoped` reuses `CNilBrand`, single commit) carry
+forward unchanged. Step 4 also adds the `WrapDrop` impls for
+the new brands (`CoyonedaBrand<E>`, `CoproductBrand<H, T>`,
+`CNilBrand`, `NodeBrand<R, S>`), all returning `None` per the
+policies above.
+
+#### Alternatives considered and rejected
+
+Four resolution paths were evaluated; the chosen path is the
+`WrapDrop` introduction described above. The other three are
+recorded for design-history transparency:
+
+- **Build a parallel `RunFree`-like substrate without the
+  `Extract` bound.** Define six new types in `types/run/`
+  paralleling the six existing Free variants, with relaxed
+  bounds and recursive `Wrap` drop. Same insight as the chosen
+  path but isolated to Run; Phase 1's Free family would stay
+  untouched. Probe-validated as sound for Run usage. Rejected
+  because it duplicates the entire substrate (CatList for
+  Erased, naive recursive enum for Explicit, custom `Drop`)
+  for one architectural concern. `WrapDrop` achieves the same
+  expressivity with a single new trait and mechanical-but-
+  unified migration.
+- **Make Run a newtype struct that internally holds something
+  other than a raw `Free<NodeBrand, A>`** (e.g., a
+  `Box<dyn ...>` trait object, a custom enum, or a Free over a
+  placeholder brand that does implement Extract trivially while
+  effect data lives elsewhere). Rejected because it diverges
+  from the plan's literal "Run is a Free" model
+  ([decisions.md](decisions.md) section 5.2,
+  [README of `purescript-run`](https://github.com/natefaubion/purescript-run))
+  and the other paths achieve the goal without redesigning
   the relationship.
-- **(d)** Implement `Extract` for the row brands with panic
-  semantics. Still a footgun; rejected.
+- **Implement `Extract` for `CoyonedaBrand<E>` /
+  `CoproductBrand<H, T>` / `NodeBrand<R, S>` with panic
+  semantics** (extract panics with a clear "handler required"
+  message; Drop falls back to recursive drop when extract
+  panics). Rejected as a footgun: programs that drop unhandled
+  Run values panic in legitimate scenarios (program panics in
+  user code mid-evaluation, deliberate program discarding,
+  test fixtures asserting on Run structure without running it).
 
-The probe tests stay in
-[`fp-library/tests/run_wrap_depth_probe.rs`](../../../fp-library/tests/run_wrap_depth_probe.rs)
-as regression-safety documentation. They exercise properties of
-the existing Free family that step 4's resolution must preserve
-for the new substrate.
+### Resolved (2026-04-26): brand-level dispatch for the multi-shot Explicit Free family lands on the by-reference hierarchy
 
-**Resolved (between Phase 1 step 4 and step 5): brand-level
-dispatch for the multi-shot Explicit Free family lands on the
-by-reference hierarchy, not the by-value hierarchy.**
 `RcFreeExplicit::bind` requires `A: Clone` (because shared inner
 state must clone to recover an owned `A`), and stable Rust does
 not admit per-method `where A: Clone` on a `Functor::map` impl.
@@ -638,8 +744,10 @@ documents under "Unexpressible Bounds in Trait Method Signatures"
 for `RcCoyoneda`/`ArcCoyoneda` and addresses under "Memoized Types
 Cannot Implement `Functor`" via the by-reference hierarchy
 (`RefFunctor`, `RefSemimonad`, `RefMonad` and `SendRef*`
-parallels) that `Lazy` already uses. The decision (locked
-2026-04-26) is to follow `Lazy`'s precedent:
+parallels) that `Lazy` already uses. The decision is to follow
+`Lazy`'s precedent.
+
+#### Brand-level coverage
 
 - `FreeExplicitBrand`: full by-value (`Functor` / `Pointed` /
   `Semimonad` / `Monad`) + full Ref hierarchy.
@@ -652,41 +760,52 @@ parallels) that `Lazy` already uses. The decision (locked
   hierarchy (`SendRefFunctor` / `SendRefSemimonad` /
   `SendRefMonad`, plus the supporting `SendRef*` traits).
 
+#### Inherent-method fallback
+
 The remaining by-value operations (`bind`, `map`, etc.) on
 `RcFreeExplicit` / `ArcFreeExplicit` ship as inherent methods
 with their natural `Clone` bounds, mirroring the
-`RcCoyoneda`/`ArcCoyoneda` precedent. Two alternatives were
-considered and rejected: (a) modifying the existing by-value
-hierarchy to add `Clone` bounds taxes the entire ecosystem
-(`Option`, `Vec`, `Identity`, etc.) for one wrapper's storage
-strategy; (b) adding a parallel `CloneFunctor` / `CloneSemimonad`
-/ `CloneMonad` family duplicates the Ref hierarchy's dispatch
-story and adds a third orthogonal trait-and-dispatch axis (closure
-shape, send-ness, Clone-ness). The Ref path is the documented
-library convention and exists today; revisit `CloneFunctor` only
-if Phase 5+ user feedback indicates Ref-only brand UX is
-insufficient for the multi-shot Explicit family.
+`RcCoyoneda`/`ArcCoyoneda` precedent.
 
-Plan-level consequences of the decision are reflected in
-Phase 1 step 7, Phase 2 step 4, the Motivation section's
-multi-shot example, and the "Will change" table's
-`*RunExplicitBrand` row. Step 7 also schedules an update to
+#### Alternatives considered and rejected
+
+- Modifying the existing by-value hierarchy to add `Clone`
+  bounds taxes the entire ecosystem (`Option`, `Vec`,
+  `Identity`, etc.) for one wrapper's storage strategy.
+- Adding a parallel `CloneFunctor` / `CloneSemimonad` /
+  `CloneMonad` family duplicates the Ref hierarchy's dispatch
+  story and adds a third orthogonal trait-and-dispatch axis
+  (closure shape, send-ness, Clone-ness). The Ref path is the
+  documented library convention and exists today; revisit
+  `CloneFunctor` only if Phase 5+ user feedback indicates
+  Ref-only brand UX is insufficient for the multi-shot Explicit
+  family.
+
+#### Plan-level consequences
+
+The decision is reflected in Phase 1 step 7, Phase 2 step 4, the
+Motivation section's multi-shot example, and the "Will change"
+table's `*RunExplicitBrand` row. Step 7 also schedules an update
+to
 [fp-library/docs/limitations-and-workarounds.md](../../../fp-library/docs/limitations-and-workarounds.md)'s
-"Unexpressible Bounds" classification table to add rows for
-the three Explicit Free variants once their impls land.
+"Unexpressible Bounds" classification table to add rows for the
+three Explicit Free variants once their impls land.
 
-The earlier `RcFreeBrand`/`ArcFreeBrand` blocker
-is resolved by adopting the **Erased/Explicit dispatch split**
-documented in [decisions.md](decisions.md) section 4.4: the
-Erased family (`Free`, `RcFree`, `ArcFree`) is inherent-method
-only and is not Brand-dispatched, while the Explicit family
-(`FreeExplicit`, `RcFreeExplicit`, `ArcFreeExplicit`) carries
-the full Brand hierarchy. Phase 1 grows by three steps to add
-the two new Explicit Rc/Arc siblings and the `SendFunctor`
-trait family; Phase 2 grows the Run surface to six concrete
-types (one per Free variant) plus an `into_explicit` /
-`from_explicit` conversion API. See the resequenced phasing
-below.
+### Resolved earlier: Erased / Explicit dispatch split for the Free family
+
+The earlier `RcFreeBrand` / `ArcFreeBrand` blocker is resolved by
+adopting the Erased/Explicit dispatch split documented in
+[decisions.md](decisions.md) section 4.4: the Erased family
+(`Free`, `RcFree`, `ArcFree`) is inherent-method only and is not
+Brand-dispatched, while the Explicit family (`FreeExplicit`,
+`RcFreeExplicit`, `ArcFreeExplicit`) carries the full Brand
+hierarchy. Phase 1 grows by three steps to add the two new
+Explicit Rc/Arc siblings and the `SendFunctor` trait family;
+Phase 2 grows the Run surface to six concrete types (one per Free
+variant) plus an `into_explicit` / `from_explicit` conversion
+API. See the resequenced phasing below.
+
+### Design-phase blockers (resolved in decisions.md)
 
 All blockers from the design phase are resolved in
 [decisions.md](decisions.md):
@@ -700,8 +819,13 @@ All blockers from the design phase are resolved in
   effects, performance, lifetime constraints, macro
   infrastructure, testing strategy.
 
+### Procedure for new blockers
+
 If a load-bearing question surfaces during implementation, record
-it here and pause until it's resolved.
+it as a new `###` subsection under `## Open questions, issues and
+blockers` and pause until it's resolved. Resolved entries stay in
+this section as `### Resolved (date): ...` subsections to
+preserve design history.
 
 ## Deviations
 
@@ -1833,7 +1957,21 @@ inherent-method only; the Explicit family (`FreeExplicit`,
      layout-cyclic should be mentioned in `run.md` (step 4)'s
      "When to use which" section because it constrains
      concrete-`F` choices.
-   - **Phase 2 (TBD).** Append findings here when complete:
+   - **Phase 2 (in progress).** Phase 2 ships the `WrapDrop`
+     trait at
+     `fp-library/src/classes/wrap_drop.rs`
+     as a Phase 1 retroactive refinement before step 4 resumes
+     (see Open questions resolution above for the rationale).
+     `WrapDrop` is a new public trait that needs to land in
+     `features.md` (effects subsystem section) and the
+     `CHANGELOG.md` `[Unreleased]` Added list. Free's struct
+     bound migrates from
+     `F: Extract + Functor + 'static` to
+     `F: WrapDrop + 'static`; this is technically a breaking
+     change to the bound but is purely-additive in practice
+     because every existing F that implements `Extract` gains
+     a paired `WrapDrop` impl.
+     Append remaining findings here when Phase 2 completes:
      new public items in `Run`, `VariantF`, `Node`, the
      `effects!` macro, the `run_do!` macro, the conversion
      API, plus any unexpressible-bound rows that surface in
