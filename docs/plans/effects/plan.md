@@ -8,866 +8,171 @@ relaxation) landed; Phase 2 in progress (steps 1, 2, 3, 4a, 4b,
 ## Current progress
 
 Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
-complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, and 7c.1
-complete. Phase 2 step 7 design pre-locked (naming and scope
-refinements captured below); sub-step 7c.2 (the `im_do!` macro)
-remaining.
-
-**Phase 2 step 7c.1 (inherent `ref_pure` on the four
-`Clone`-able wrappers).** `RcRun`, `ArcRun`, `RcRunExplicit`,
-and `ArcRunExplicit` gain inherent `ref_pure(a: &A) -> Self`
-methods. Each is implemented as `Self::pure(a.clone())`.
-Bounds: `A: Clone` for `RcRun` / `RcRunExplicit` /
-`ArcRunExplicit`; `A: Clone + Send + Sync` for `ArcRun` (its
-inherent `pure` already requires `Send + Sync`).
-
-This rounds out the inherent by-reference surface so the
-`im_do!(ref Wrapper { ... pure(x) })` form (Phase 2 step 7c.2)
-can rewrite bare `pure(x)` to `Wrapper::ref_pure(&x)`,
-parallel to how `m_do!(ref Brand { ... pure(x) })` rewrites
-to `<Brand as RefPointed>::ref_pure(&x)`. Without this,
-`im_do!(ref ...)` would have to either reject bare `pure(x)`
-(asymmetric with `m_do!(ref ...)`) or implicitly clone the
-value (silent magic). The chosen design keeps the macro
-behavior parallel and explicit.
-
-Four new tests (`ref_pure_wraps_cloned_value` per wrapper)
-verify the methods clone correctly and produce equivalent
-programs to `pure(value.clone())`.
-
-Step 7c.2 (the `im_do!` macro itself with by-value and `ref`
-forms, plus shared input parser refactor and `compile_fail`
-UI test) remains to be implemented.
-
-**Phase 2 step 7b (inherent `ref_bind` and `ref_map` on the
-four `Clone`-able wrappers).** `RcRun`, `ArcRun`, `RcRunExplicit`,
-and `ArcRunExplicit` gain inherent `ref_bind(&self, f)` and
-`ref_map(&self, f)` methods. Each is implemented as
-`self.clone().bind(move |a| f(&a))` (or analogously for
-`ref_map`): the `O(1)` clone (refcount bump on the inner
-`Rc`/`Arc` substrate) keeps `&self` available while the
-wrapping closure converts the substrate's owned `A` from the
-by-value path back into the `&A` the user-supplied `f`
-expects.
-
-This sidesteps the `R: RefFunctor` cascade that brand-level
-`RefSemimonad::ref_bind` requires through the substrate's
-by-reference walking algorithm. By cloning the program and
-walking by-value, the substrate doesn't need the row brand to
-implement `RefFunctor`, which means by-reference dispatch
-works over canonical `CoyonedaBrand`-headed effect rows where
-brand-level `m_do!(ref ...)` cannot reach. Costs `O(1)` per
-`ref_bind` / `ref_map` (one Rc/Arc refcount op).
-
-For non-`Clone` wrappers (`Run`, `RunExplicit`), inherent
-by-reference methods are structurally impossible (can't
-materialize a fresh `Self` from `&self` without `Clone`).
-Step 7c will surface this via a `compile_fail` UI test on
-`im_do!(ref ...)` over those wrappers.
-
-Eight new tests (`ref_bind_chains_pure_value_via_clone` and
-`ref_map_transforms_pure_value_via_clone` per wrapper) verify
-the Run-level by-reference dispatch end-to-end.
-
-Step 7c (the `im_do!` macro itself) remains to be implemented.
-
-**Phase 2 step 7a (inherent `bind` and `map` on the four Run
-wrappers that don't already have them).** `Run`, `RcRun`,
-`ArcRun`, and `RunExplicit` gain inherent `bind(self, f)` and
-`map(self, f)` methods. Each delegates to its underlying Free
-substrate's `bind`/`map` (or to `bind` + `pure` for
-`RunExplicit::map`, since `FreeExplicit` ships only `bind`).
-Bounds match the substrate's: `Run` / `RunExplicit` have no
-extra bounds beyond their impl block; `RcRun` carries
-`A: Clone` plus the projection `Clone` bound that its `peel`
-already requires; `ArcRun` carries `A: Clone + Send + Sync`,
-the projection `Clone` bound, and the `Send + Sync` closure
-bound. `RcRunExplicit` and `ArcRunExplicit` already shipped
-inherent `bind`/`map` from step 4b. Eight new tests
-(`bind_chains_pure_values` and `map_transforms_pure_value` per
-wrapper) verify the methods at the Run-level.
-
-Step 7b (inherent `ref_bind`/`ref_map` on the four `Clone`-able
-wrappers) and step 7c (the `im_do!` macro) remain to be
-implemented.
-
-**Phase 2 step 7 design (pre-implementation, naming + scope
-locked).** The macro that step 7 ships is named `im_do!`
-("Inherent Monadic do") rather than the plan-text's earlier
-`run_do!`. The rename communicates the dispatch path
-(inherent-method, not Run-specific) and pairs with a
-forward-reserved `ia_do!` ("Inherent Applicative do") name for
-the future applicative companion. The two names share a length
-deliberately so the applicative form is not typographically
-disfavored — users should prefer `ia_do!` over `im_do!` (and
-`a_do!` over `m_do!`) whenever binds are independent, just as
-PureScript style prefers `ado` over `do` when applicable.
-
-Step 7's scope grew to three sub-tasks (7a, 7b, 7c, see the
-phasing entry below) covering: inherent `bind`/`map` on the
-four wrappers that don't have them; inherent `ref_bind`/`ref_map`
-on the four `Clone`-able wrappers (sidestepping the
-`R: RefFunctor` cascade that brand-level by-reference dispatch
-requires); the `im_do!` macro itself with by-value and
-`ref`-mode forms.
-
-The "minimal bundle" decision recorded in
-[deviations.md](deviations.md) under step 7 explains why
-`m_do!(ref RcRunExplicitBrand { ... })` over canonical
-Coyoneda-headed rows is left as a documented gap (item 1B from
-the open-issues investigation), why `m_do!(ref ArcRunExplicitBrand)`
-is permanently unreachable on stable Rust (item 2 from same),
-and why `RcCoyonedaBrand: WrapDrop` / `ArcCoyonedaBrand: WrapDrop`
-remain deferred (item 3 from same; needed only for the deferred
-1A row-encoding switch).
-
-**Phase 2 step 6 (Erased -> Explicit conversion via [`From`](https://doc.rust-lang.org/std/convert/trait.From.html) impls).**
-Three [`From`](https://doc.rust-lang.org/std/convert/trait.From.html)
-impls land for the Erased -> Explicit direction, one per pair:
-[`From<Run<R, S, A>> for RunExplicit<'static, R, S, A>`](../../../fp-library/src/types/effects/run_explicit.rs),
-[`From<RcRun<R, S, A>> for RcRunExplicit<'static, R, S, A>`](../../../fp-library/src/types/effects/rc_run_explicit.rs),
-[`From<ArcRun<R, S, A>> for ArcRunExplicit<'static, R, S, A>`](../../../fp-library/src/types/effects/arc_run_explicit.rs).
-Each impl walks the underlying Free chain via `peel` and rebuilds
-it through the paired Explicit substrate's `wrap`. Pure values
-re-emerge as `*RunExplicit::pure(a)`. Recursion is O(N) in the
-chain depth (one stack frame per suspended `Wrap` layer); per the
-Wrap-depth probe at
-[`fp-library/tests/run_wrap_depth_probe.rs`](../../../fp-library/tests/run_wrap_depth_probe.rs),
-Run-typical patterns have structural depth at most 1, so the
-recursion is essentially constant in practice.
-
-The plan text named the conversions `Run::into_explicit()` /
-`RunExplicit::from_erased(...)` (custom inherent methods), but
-the wider codebase uses
-[`From`](https://doc.rust-lang.org/std/convert/trait.From.html)
-extensively for sibling-type conversions
-([rc_coyoneda.rs](../../../fp-library/src/types/rc_coyoneda.rs),
-[lazy.rs](../../../fp-library/src/types/lazy.rs),
-[thunk.rs](../../../fp-library/src/types/thunk.rs),
-[try_lazy.rs](../../../fp-library/src/types/try_lazy.rs), and 30+
-others). Following that precedent, step 6 ships a single
-[`From`](https://doc.rust-lang.org/std/convert/trait.From.html)
-impl per pair instead of two separate inherent methods. Users
-get both call styles for free via the blanket
-[`Into`](https://doc.rust-lang.org/std/convert/trait.Into.html)
-impl: `RunExplicit::from(run)` (constructor style) and
-`run.into()` (method style, requires destination type to be
-inferable). See
-[deviations.md](deviations.md) for the rationale.
-
-The conversion preserves the underlying substrate's properties:
-`Run -> RunExplicit` is single-shot via `Box`-in-`Wrap`
-indirection; `RcRun -> RcRunExplicit` keeps multi-shot via
-`Rc<dyn Fn>` continuations on both sides; `ArcRun -> ArcRunExplicit`
-keeps `Send + Sync` and multi-shot via `Arc<dyn Fn + Send + Sync>`
-continuations. The closure passed to `<NodeBrand<R, S> as Functor>::map`
-inside each `From::from` body composes cleanly under the
-HRTB-bearing impl-block scope on `ArcRun` because projection-typed
-values come from `peel`'s return and from `Functor::map`'s output
-(never constructed inline as `Node::First(...)` literals); this
-matches the workaround established in step 5.
-
-Twelve new tests cover the conversions: a pure-value round-trip
-and a suspended-layer preservation per pair, exercised through
-both `From::from(...)` and `.into()` call styles, all passing
-under `just verify`.
-
-[`TryFrom`](https://doc.rust-lang.org/std/convert/trait.TryFrom.html)
-was considered but does not apply: the conversion is total once
-the type-level bounds are satisfied (no runtime fallibility to
-surface).
-
-**Phase 2 step 5 (`pure` / `peel` / `send` core operations on
-six Run variants).** Each of the six Run wrapper types (`Run`,
-`RcRun`, `ArcRun`, `RunExplicit`, `RcRunExplicit`,
-`ArcRunExplicit`) gains three inherent methods: `pure(a)`
-delegates to the underlying Free variant's `pure`; `peel(self)`
-returns `Result<A, NodeBrand<R, S>::Of<'_, Run<R, S, A>>>`,
-exposing the next-step continuation as a [`Node`](../../../fp-library/src/types/effects/node.rs)
-layer; `send(node)` lifts a pre-constructed `Node`-projection
-value into the program. The signatures are uniform across all
-six wrappers.
-
-Step 5 also adds
-[`FreeExplicit::to_view`](../../../fp-library/src/types/free_explicit.rs)
-as a small precursor (FreeExplicit's `view` field is private; a
-public `to_view` is needed for `RunExplicit::peel` to expose the
-underlying view-shape).
-
-The `send` signature deviates from the plan-text expectation
-("takes the row-variant layer") to "takes the
-`Node`-projection value already constructed". This is a
-workaround for a stable-Rust GAT-normalization limitation
-discovered while implementing `ArcRun::send`: the HRTB on
-`ArcFree`'s struct (`Of<'static, ArcFree<...>>: Send + Sync`)
-poisons normalization for `<NodeBrand<R, S> as Kind>::Of<...>`
-in any scope mentioning the HRTB. Construction inside a
-`Node::First(layer)` literal there fails to unify with the
-projection. Passing the `Node`-projection value as a parameter
-sidesteps this by ensuring the value is already in projection
-form when it crosses the HRTB boundary. The probe at
-[`fp-library/tests/arc_run_normalization_probe.rs`](../../../fp-library/tests/arc_run_normalization_probe.rs)
-documents the limit and the workaround as a regression test.
-See [resolutions.md](resolutions.md) for the full investigation.
-
-For `pure` and `peel`, no workaround is needed: `pure` doesn't
-construct projection-typed values, and `peel`'s `map_err`
-through `Functor::map` receives the projection-typed value from
-`*Free::resume` (Erased) or `*FreeExplicit::to_view` (Explicit)
-and returns the projection-typed value, with no Node literal in
-between.
-
-**Phase 2 step 4b (Explicit family: three Explicit Run wrapper
-types, three `RunExplicit` brands, brand-level type-class impls,
-row-brand `RefFunctor` and `Extract` cascade impls, `Node`
-`Clone` impl, A+B hybrid re-export pattern).** Three new
-wrapper types land at
-[`fp-library/src/types/effects/run_explicit.rs`](../../../fp-library/src/types/effects/run_explicit.rs),
-[`fp-library/src/types/effects/rc_run_explicit.rs`](../../../fp-library/src/types/effects/rc_run_explicit.rs),
-and
-[`fp-library/src/types/effects/arc_run_explicit.rs`](../../../fp-library/src/types/effects/arc_run_explicit.rs).
-Each is a thin tuple-struct wrapper over its respective
-[`FreeExplicit`](../../../fp-library/src/types/free_explicit.rs)
-/
-[`RcFreeExplicit`](../../../fp-library/src/types/rc_free_explicit.rs)
-/
-[`ArcFreeExplicit`](../../../fp-library/src/types/arc_free_explicit.rs)
-substrate over `NodeBrand<R, S>`, with
-`from_*_free_explicit` / `into_*_free_explicit` zero-cost
-conversion sugar. `RcRunExplicit` and `ArcRunExplicit` carry
-inherent `bind` and `map` methods (the brand-level
-[`Semimonad`](../../../fp-library/src/classes/semimonad.rs) /
-[`Functor`](../../../fp-library/src/classes/functor.rs) cannot
-be implemented because the underlying `bind` requires per-`A`
-`Clone` bounds the trait method signatures cannot carry).
-
-Three new brands land at
-[`fp-library/src/brands.rs`](../../../fp-library/src/brands.rs):
-`RunExplicitBrand<R, S>`, `RcRunExplicitBrand<R, S>`,
-`ArcRunExplicitBrand<R, S>`, each with an `impl_kind!`
-projection to its wrapper type. Brand-level coverage delegates
-to the corresponding `*FreeExplicitBrand`'s impls:
-`RunExplicitBrand` gets
-[`Functor`](../../../fp-library/src/classes/functor.rs),
-[`Pointed`](../../../fp-library/src/classes/pointed.rs),
-[`Semimonad`](../../../fp-library/src/classes/semimonad.rs),
-[`RefFunctor`](../../../fp-library/src/classes/ref_functor.rs),
-[`RefPointed`](../../../fp-library/src/classes/ref_pointed.rs),
-[`RefSemimonad`](../../../fp-library/src/classes/ref_semimonad.rs);
-`RcRunExplicitBrand` gets
-[`Pointed`](../../../fp-library/src/classes/pointed.rs) plus the
-Ref hierarchy;
-`ArcRunExplicitBrand` gets
-[`SendPointed`](../../../fp-library/src/classes/send_pointed.rs)
-only.
-[`Monad`](../../../fp-library/src/classes/monad.rs) /
-[`RefMonad`](../../../fp-library/src/classes/ref_monad.rs) /
-[`SendMonad`](../../../fp-library/src/classes/send_monad.rs) and
-the [`SendRef`](../../../fp-library/src/classes/send_ref_functor.rs)-family
-hierarchy are not reachable through brand-level delegation; see
-`deviations.md` for the full rationale and
-[resolutions.md](resolutions.md) for design history.
-
-Row-brand cascade impls were extended:
-[`CNilBrand`](../../../fp-library/src/types/effects/variant_f.rs),
-[`CoproductBrand<H, T>`](../../../fp-library/src/types/effects/variant_f.rs),
-and
-[`NodeBrand<R, S>`](../../../fp-library/src/types/effects/node.rs)
-each got
-[`RefFunctor`](../../../fp-library/src/classes/ref_functor.rs)
-(needed by the
-`RunExplicitBrand` Ref-hierarchy delegation) and
-[`Extract`](../../../fp-library/src/classes/extract.rs) impls
-(so canonical Run-shaped programs whose row brands implement
-[`Extract`](../../../fp-library/src/classes/extract.rs) can have
-`evaluate()` called).
-[`Node<'a, R, S, A>`](../../../fp-library/src/types/effects/node.rs)
-got a [`Clone`] impl (needed by
-[`RcFreeExplicit::evaluate`](../../../fp-library/src/types/rc_free_explicit.rs)
-/
-[`ArcFreeExplicit::evaluate`](../../../fp-library/src/types/arc_free_explicit.rs)
-when their outer refcounts are not unique).
-
-A+B hybrid re-export pattern landed: the six Run wrapper
-headline types
-(`Run`, `RcRun`, `ArcRun`, `RunExplicit`, `RcRunExplicit`,
-`ArcRunExplicit`) are re-exported at the top level
-([`crate::types::*`](../../../fp-library/src/types.rs)) for
-ergonomic imports matching the rest of the
-[`types/`](../../../fp-library/src/types/) directory; the same
-six plus `Node` and `VariantF` are re-exported at the
-subsystem-scoped
-[`crate::types::effects::*`](../../../fp-library/src/types/effects.rs)
-for callers preferring the namespaced form. This mirrors the
-[`optics`](../../../fp-library/src/types/optics.rs)
-precedent (selective top-level + comprehensive subsystem-scoped).
-
-**Phase 2 step 4a (foundation: row-brand `WrapDrop` impls,
-`Node` / `NodeBrand` machinery, three Erased Run wrapper
-types).** Step 4 in the plan text is structurally large enough
-that landing it as a single commit would be too disruptive for
-review and risk leaving the working tree mid-step on context
-exhaustion; the step is split into 4a (foundation) and 4b
-(Explicit family + brand-level type-class hierarchy).
-
-The directory previously named [`fp-library/src/types/run/`](../../../fp-library/src/types/effects/)
-is renamed to
-[`fp-library/src/types/effects/`](../../../fp-library/src/types/effects/),
-and the parent module file from `types/run.rs` to
-[`types/effects.rs`](../../../fp-library/src/types/effects.rs).
-The submodules already covered the entire effects subsystem
-(coproduct, variant_f, member, plus the new node/run/rc_run/arc_run);
-the new name reflects that. The rename is also a deviation
-recorded in `deviations.md`.
-
-`WrapDrop` impls landed for the three row brands the canonical
-Run shape uses:
-[`CNilBrand`](../../../fp-library/src/types/effects/variant_f.rs)
-(the uninhabited base case),
-[`CoproductBrand<H, T>`](../../../fp-library/src/types/effects/variant_f.rs)
-(dispatches by `Inl`/`Inr`, recurses into the active brand), and
-[`CoyonedaBrand<F>`](../../../fp-library/src/types/coyoneda.rs)
-(returns `None` per the Wrap-depth probe finding from the
-`WrapDrop` resolution).
-
-[`Node<'a, R, S, A>`](../../../fp-library/src/types/effects/node.rs)
-ships at `fp-library/src/types/effects/node.rs` as a tagged
-dispatch enum: `First(R::Of<'a, A>)` for first-order effect
-layers and `Scoped(S::Of<'a, A>)` for scoped-effect layers (Phase
-4 populates the scoped row). The brand
-[`NodeBrand<R, S>`](../../../fp-library/src/brands.rs) is added
-to `brands.rs` and registers a `Kind` projection
-(`Of<'a, A> = Node<'a, R, S, A>`), a recursive `Functor` impl
-dispatching by variant, and a recursive `WrapDrop` impl
-dispatching by variant. Three unit tests cover constructing a
-`First` layer, mapping over it, and dropping it through the
-`WrapDrop` chain.
-
-Three Erased Run wrapper types land as thin wrappers over their
-respective Free-family substrates:
-[`Run<R, S, A>`](../../../fp-library/src/types/effects/run.rs)
-over [`Free<NodeBrand<R, S>, A>`](../../../fp-library/src/types/free.rs);
-[`RcRun<R, S, A>`](../../../fp-library/src/types/effects/rc_run.rs)
-over [`RcFree<NodeBrand<R, S>, A>`](../../../fp-library/src/types/rc_free.rs)
-(plus `Clone` impl);
-[`ArcRun<R, S, A>`](../../../fp-library/src/types/effects/arc_run.rs)
-over [`ArcFree<NodeBrand<R, S>, A>`](../../../fp-library/src/types/arc_free.rs)
-(plus `Clone` impl, `Send + Sync` witness via the
-`Kind_*<Of<'static, ArcFree<..., ArcTypeErasedValue>>: Send + Sync>`
-associated-type bound). Each wrapper ships
-`from_*_free` / `into_*_free` zero-cost conversion sugar; the
-user-facing operations (`pure`, `peel`, `send`, `bind`, `map`,
-`lift_f`, `evaluate`, `handle`, etc.) land in Phase 2 step 5.
-
-**Phase 1 follow-up commit 2 (`Functor` -> `Kind` relaxation on
-the struct).** Across all six Free variants, the struct,
-`*View`, `*Step`, `Inner`, `Continuation`, `Clone`, `Drop`, and
-`impl_kind!` declarations relax from
-`F: WrapDrop + Functor + 'static` (or `'a`) to
-`F: WrapDrop + 'static` (or `'a`). The `Kind` GAT requirement
-needed by the `Suspend` variant (`F::Of<'_, Free<F, _>>`) is
-inherited from `WrapDrop`'s `Kind` supertrait, so no extra
-bound is required at the data-type sites.
-
-For the Erased family ([`Free`](../../../fp-library/src/types/free.rs),
-[`RcFree`](../../../fp-library/src/types/rc_free.rs),
-[`ArcFree`](../../../fp-library/src/types/arc_free.rs)), the
-inherent construction methods (`pure`, `bind`, `map`,
-`cast_phantom`, `erase_type`) do not call `F::map`; their impl
-blocks relax to `F: WrapDrop + 'static`. Methods that do call
-`F::map` (`wrap`, `lift_f`, `to_view`, `resume`, `peel_ref`,
-`hoist_free`, plus `evaluate` and `lower_ref` transitively via
-`to_view`) get `where F: Functor` as a per-method bound. The
-brand-level type-class impls keep `F: WrapDrop + Functor + ...`
-because they delegate to inherent methods that need `Functor`.
-
-For the Explicit family ([`FreeExplicit`](../../../fp-library/src/types/free_explicit.rs),
-[`RcFreeExplicit`](../../../fp-library/src/types/rc_free_explicit.rs),
-[`ArcFreeExplicit`](../../../fp-library/src/types/arc_free_explicit.rs)),
-the inherent `bind` (via the recursive `bind_boxed` worker)
-walks the spine via `F::map`, so `bind`, `map`, `wrap`, and
-`lift_f` all transitively require `F: Functor`. The inherent
-impl blocks therefore stay at `F: WrapDrop + Functor + 'a`;
-only the data-type / `Drop` declarations relax. The brand-level
-impls similarly stay at `F: WrapDrop + Functor + ...`.
-
-The Phase 1 stack-safety tests, including
-`deep_drop_does_not_overflow` on both
-`Free<ThunkBrand>` and `FreeExplicit<IdentityBrand>` plus the
-deep-drop tests on the four `Rc` / `Arc` variants, all pass
-post-relaxation. Phase 2 step 4
-(`Run<R, S, A> = Free<NodeBrand<R, S>, A>`) is now unblocked:
-the struct only requires `NodeBrand<R, S>: WrapDrop + 'static`
-to instantiate; `Functor` is required only at use sites where
-`NodeBrand<R, S>` will impl it (since `CoproductBrand<H, T>`
-already does, per Phase 2 step 2).
-
-**Phase 1 follow-up commit 1 (`WrapDrop` migration, struct/Drop
-swap).** New trait
-[`WrapDrop`](../../../fp-library/src/classes/wrap_drop.rs) lands at
-`fp-library/src/classes/wrap_drop.rs`, with the signature
-`fn drop<'a, X: 'a>(fa: Self::Of<'a, X>) -> Option<X>` and a
-`Kind!(type Of<'a, A: 'a>: 'a;)` supertrait. `WrapDrop` impls land
-on [`IdentityBrand`](../../../fp-library/src/types/identity.rs) and
-[`ThunkBrand`](../../../fp-library/src/types/thunk.rs), each
-delegating to their existing `Extract` impl by returning
-`Some(<Self as Extract>::extract(fa))`.
-
-All six Free variants
-([`Free`](../../../fp-library/src/types/free.rs),
-[`RcFree`](../../../fp-library/src/types/rc_free.rs),
-[`ArcFree`](../../../fp-library/src/types/arc_free.rs),
-[`FreeExplicit`](../../../fp-library/src/types/free_explicit.rs),
-[`RcFreeExplicit`](../../../fp-library/src/types/rc_free_explicit.rs),
-[`ArcFreeExplicit`](../../../fp-library/src/types/arc_free_explicit.rs))
-migrated their struct-, view-, step-, and `Drop`-declaration
-bounds from `F: Extract + Functor + 'static` (or `'a`) to
-`F: WrapDrop + Functor + 'static` (or `'a`); same for `Inner` /
-`Continuation` / `Clone` impls and the brand-level type-class
-impls (`FreeExplicitBrand` / `RcFreeExplicitBrand` /
-`ArcFreeExplicitBrand`'s `Pointed` / `Functor` / `Semimonad` /
-`SendPointed` / `RefFunctor` / `RefPointed` / `RefSemimonad`).
-Methods that genuinely call `F::extract` (`evaluate` on all six
-variants; `lower_ref` on the four `Rc` / `Arc` variants) keep
-`where F: Extract` as a per-method bound. Each variant's `Drop`
-body is rewritten to call `<F as WrapDrop>::drop(fa)` and
-dispatch on the returned `Option`: `Some(inner)` follows the
-existing iterative path; `None` lets the layer drop in place.
-The `evaluate` impl block on `Free` keeps
-`F: Extract + WrapDrop + Functor + 'static` so the methods
-inherited from the `WrapDrop`-bounded blocks (`to_view` etc.)
-stay in scope.
-
-The Phase 1 stack-safety tests (including
-`deep_drop_does_not_overflow` for both `Free<ThunkBrand>` and
-`FreeExplicit<IdentityBrand>`, and the corresponding deep-drop
-tests on the four `Rc` / `Arc` variants) all pass post-migration.
-
-**Phase 2 step 3 (`Member<E, Idx>` trait).** [`Member<E, Idx>`](../../../fp-library/src/types/effects/member.rs)
-lands at
-[fp-library/src/types/effects/member.rs](../../../fp-library/src/types/effects/member.rs)
-with `inject(E) -> Self` and `project(self) -> Result<E, Self::Remainder>`
-methods. A blanket impl `impl<S, E, Idx, Rem> Member<E, Idx> for S
-where S: CoprodInjector<E, Idx> + CoprodUninjector<E, Idx, Remainder = Rem>`
-delegates to the frunk_core trait family re-exported by
-[`coproduct.rs`](../../../fp-library/src/types/effects/coproduct.rs), so
-every Coproduct value automatically gets `Member<E, Idx>` for whichever
-`(E, Idx)` pairs frunk_core can prove. Six unit tests cover injection
-at head and tail positions, projection success at head and tail,
-projection-absent returning the remainder row, and round-trip through
-the trait.
-
-`Member` is single-effect only by design; row narrowing (subset /
-sculpt) stays through `CoproductSubsetter` directly until Phase 3
-handler code surfaces a single-bound need for multi-effect narrowing.
-The trait is also agnostic to whether row variants are bare effect
-types `E` or `Coyoneda<E, A>`-wrapped; the Coyoneda-wrapping policy
-belongs to the smart constructors emitted by the `effects!` macro
-(Phase 2 step 9), not to `Member`.
-
-**Phase 2 step 2 (`VariantF<Effects>` and the row-`Functor`).**
-[`CNilBrand`](../../../fp-library/src/brands.rs) and
-[`CoproductBrand<H, T>`](../../../fp-library/src/brands.rs) are
-promoted from the design probe into
-[fp-library/src/brands.rs](../../../fp-library/src/brands.rs)
-proper, with their `impl_kind!` registrations and recursive
-[`Functor`](../../../fp-library/src/classes/functor.rs) impls
-landing at
-[fp-library/src/types/effects/variant_f.rs](../../../fp-library/src/types/effects/variant_f.rs).
-
-`CoproductBrand<H, T>` resolves `Of<'a, A>` to
-`Coproduct<H::Of<'a, A>, T::Of<'a, A>>`, recursing through the head
-and tail brands. `CNilBrand` resolves to `CNil` (uninhabited; the
-base case of the recursion). `Functor::map` on `CoproductBrand`
-dispatches at runtime via `match` on the `Inl` / `Inr` variants;
-`Functor::map` on `CNilBrand` is the uninhabited base case (its
-input has no inhabitants, so the body is `match fa {}`).
-
-A type alias `VariantF<H, T> = CoproductBrand<H, T>` is exposed
-from [`variant_f`](../../../fp-library/src/types/effects/variant_f.rs)
-so call sites can use the canonical name from
-[decisions.md](decisions.md) section 5.1 without introducing a
-separate brand. The Coyoneda-wrapping per row variant happens at
-the `effects!` macro layer (Phase 2 step 8); step 2's `VariantF`
-machinery does not require it because `CoyonedaBrand<E>` is
-already a `Functor` for any `E`, so the recursive `Functor`
-constraint composes through naturally.
-
-Four unit tests in `variant_f.rs`'s `mod tests` exercise: Kind
-resolution over an `OptionBrand` / `VecBrand` / `CNilBrand` row,
-head-branch dispatch via `Inl`, tail-branch dispatch via `Inr` (a
-two-deep recursion case), and the `VariantF` alias resolving to
-`CoproductBrand`. The earlier
-`fp-library/tests/coproduct_brand_probe.rs` design probe (three
-tests) is removed; its content is fully covered by the new
-production-level `mod tests` block.
-
-**Phase 2 step 1 (`frunk_core` dependency + Brand-aware Coproduct
-adapter).** `frunk_core = "0.4"` is added to
-[fp-library/Cargo.toml](../../../fp-library/Cargo.toml) (resolves
-to `frunk_core 0.4.4`, license MIT, already on the
-[`deny.toml`](../../../deny.toml) allow-list, `just deny` passes).
-The new `run/` submodule lands at
-[fp-library/src/types/effects.rs](../../../fp-library/src/types/effects.rs)
-with [coproduct.rs](../../../fp-library/src/types/effects/coproduct.rs)
-as its first file, and `pub mod run;` is added to
-[fp-library/src/types.rs](../../../fp-library/src/types.rs).
-
-The adapter re-exports the frunk_core types and traits the rest of
-Phase 2 / 3 / 4 will need (`Coproduct`, `CNil`, `CoprodInjector`,
-`CoprodUninjector`, `CoproductSubsetter`, `CoproductEmbedder`,
-`CoproductSelector`, `CoproductTaker`, plus `Here`, `There`,
-`HCons`, `HNil`, `HList`). Two unit tests exercise inject /
-uninject against a representative two-effect row.
-
-A probe at `fp-library/tests/coproduct_brand_probe.rs` (since
-removed once the design was promoted in step 2) validates the
-Brand-level integration ahead of step 2: a generic
-`CoproductBrand<H, T>` with `Of<'a, A> = Coproduct<H::Of<'a, A>, T::Of<'a, A>>`
-and a recursive `Functor` impl on `CoproductBrand<H, T>` (with
-`H: Functor + 'static, T: Functor + 'static`) compiles and
-dispatches at runtime via `match` on `Inl` / `Inr`. `CNilBrand`
-provides the base case via `match fa {}` on the uninhabited
-`CNil`. Three probe tests cover Kind resolution, head-branch
-dispatch, and tail-branch dispatch over an
-`OptionBrand` / `VecBrand` / `CNilBrand` row.
-
-Step 2 will promote `CoproductBrand` and `CNilBrand` from the
-probe into [fp-library/src/brands.rs](../../../fp-library/src/brands.rs)
-proper, alongside the new
-`fp-library/src/types/effects/variant_f.rs` module that wraps the
-Coproduct row in Coyoneda per effect.
-
-**Step 1 (`FreeExplicit`).** `FreeExplicit<'a, F, A>` and
-`FreeExplicitBrand<F>` are promoted from POC into production at
-[fp-library/src/types/free_explicit.rs](../../../fp-library/src/types/free_explicit.rs)
-and [fp-library/src/brands.rs](../../../fp-library/src/brands.rs).
-The struct wraps its `Pure | Wrap` enum behind an
-`Option<FreeExplicitView>` so the custom iterative `Drop` can take
-the view via `Option::take` and walk a deep `Wrap` chain in a loop
-via `Extract::extract`, mirroring
-[`Free`](../../../fp-library/src/types/free.rs)'s strategy. The
-struct-level bound is `F: Extract + Functor + 'a` per
-[decisions.md](decisions.md) section 4.4. The POC test file imports
-the production type and the previously-`#[ignore]`d
-`q4_naive_drop_overflows` test is replaced by an actively-running
-`q4_drop_deep_does_not_overflow` over a 100 000-deep chain.
-
-**Step 2 (`RcFree`).** `RcFree<F, A>` lands at
-[fp-library/src/types/rc_free.rs](../../../fp-library/src/types/rc_free.rs)
-following the [`Free`](../../../fp-library/src/types/free.rs)
-template. Continuation cells in the
-[`CatList`](../../../fp-library/src/types/cat_list.rs) queue are
-`Rc<dyn Fn>` (matching what
-[`FnBrand<RcBrand>`](../../../fp-library/src/types/fn_brand.rs)
-resolves to) instead of `Box<dyn FnOnce>`, so multi-shot effects
-like `Choose` can drive the same stored continuation more than
-once. The whole substrate lives behind an outer `Rc<Inner>` so
-[`Clone`](https://doc.rust-lang.org/std/clone/trait.Clone.html) is
-unconditional and O(1) (refcount bump), matching the
-[`RcCoyoneda`](../../../fp-library/src/types/rc_coyoneda.rs)
-cloning pattern. The inner state's `Drop` impl iteratively
-dismantles deep `Suspend` chains via `Extract::extract` (taking
-ownership through `Rc::try_unwrap` when uniquely held), and
-dropping a 100 000-deep chain is exercised by
-`deep_drop_does_not_overflow` in the unit tests.
-
-The full set of inherent methods covered is `pure`, `wrap`,
-`lift_f`, `bind`, `map`, `to_view`, `resume`, `evaluate`,
-`hoist_free`, plus the new non-consuming
-`lower_ref(&self)` / `peel_ref(&self)` (clone-then-consume,
-cheap because Clone is O(1)). 12 unit tests cover construction,
-chaining, multi-shot via clone, and deep evaluate / Drop.
-
-**Step 3 (`ArcFree`).** `ArcFree<F, A>` lands at
-[fp-library/src/types/arc_free.rs](../../../fp-library/src/types/arc_free.rs)
-following the
-[`ArcCoyoneda`](../../../fp-library/src/types/arc_coyoneda.rs)
-template. Same shape as `RcFree`, with three thread-safe
-substitutions: `Arc<dyn Fn + Send + Sync>` for continuations
-(constructed via
-[`<ArcFnBrand as SendLiftFn>::new`](../../../fp-library/src/classes/send_clone_fn.rs)),
-`Arc<dyn Any + Send + Sync>` for the type-erased value cell, and
-the associated-type-bound trick
-`Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>`
-on every struct and impl that touches the inner data so the
-compiler can auto-derive `Send + Sync` for concrete `F` (the
-`F::Of<...>` field is otherwise opaque to the auto-trait
-derivation). The whole substrate lives behind an outer
-`Arc<Inner>` so cloning is O(1) (atomic refcount bump).
-12 unit tests cover the same cases as `RcFree` plus
-`cross_thread_via_spawn`, `cross_thread_clone_branches`, and
-`is_send_and_sync` to actually exercise the thread-safety
-contract.
-
-**Step 4 (`RcFreeExplicit`).** `RcFreeExplicit<'a, F, A>` lands at
-[fp-library/src/types/rc_free_explicit.rs](../../../fp-library/src/types/rc_free_explicit.rs)
-extending [`FreeExplicit`](../../../fp-library/src/types/free_explicit.rs)'s
-concrete recursive enum (no `dyn Any` erasure) with an outer
-`Rc<RcFreeExplicitInner>` wrapper plus an `Rc<dyn Fn>`-shaped
-continuation in the [`bind`](../../../fp-library/src/types/rc_free_explicit.rs)
-worker constructed via
-[`<RcFnBrand as LiftFn>::new`](../../../fp-library/src/types/fn_brand.rs)
-so the unified function-pointer abstraction is on the construction
-path. Because the wrapper is `Rc<Inner>`, the `Wrap` variant holds
-`F::Of<'a, RcFreeExplicit<'a, F, A>>` directly (no extra `Box`
-needed) and `Clone` is unconditionally O(1). The `RcFreeExplicitBrand<F>`
-brand and its `Kind` registration land in
-[fp-library/src/brands.rs](../../../fp-library/src/brands.rs)
-mirroring `FreeExplicitBrand<F>`. The inner state's `Drop` impl
-iteratively dismantles deep `Wrap` chains via `Extract::extract` +
-`Rc::try_unwrap`, taking ownership through `try_unwrap` when
-uniquely held and leaving shared chains for other holders to
-dismantle when they release. The full set of inherent methods
-covered is `pure`, `wrap`, `bind`, `evaluate`, `to_view`, plus the
-non-consuming `lower_ref(&self)` / `peel_ref(&self)` (clone-then-consume,
-cheap because Clone is O(1)). 10 unit tests cover construction,
-chaining, multi-shot via clone, deep evaluate / Drop, and
-non-`'static` payloads.
-
-**Step 5 (`ArcFreeExplicit`).** `ArcFreeExplicit<'a, F, A>` lands at
-[fp-library/src/types/arc_free_explicit.rs](../../../fp-library/src/types/arc_free_explicit.rs)
-mirroring `RcFreeExplicit`'s structure with three thread-safe
-substitutions: `Arc<...>` for the outer wrapper, `Arc<dyn Fn + Send + Sync>`
-for the [`bind`](../../../fp-library/src/types/arc_free_explicit.rs)
-worker continuation (constructed via
-[`<ArcFnBrand as SendLiftFn>::new`](../../../fp-library/src/classes/send_clone_fn.rs)),
-and `Send + Sync` bounds on the user closure passed to `bind`.
-The `ArcFreeExplicitBrand<F>` brand and its `Kind` registration land
-in [fp-library/src/brands.rs](../../../fp-library/src/brands.rs)
-mirroring `RcFreeExplicitBrand<F>`. The inner state's `Drop` impl
-iteratively dismantles deep `Wrap` chains via `Extract::extract` +
-`Arc::try_unwrap`. The full set of inherent methods covered is
-`pure`, `wrap`, `bind`, `evaluate`, `to_view`, plus the
-non-consuming `lower_ref(&self)` / `peel_ref(&self)`. 12 unit tests
-cover construction, chaining, multi-shot via clone, deep evaluate /
-Drop, non-`'static` payloads, plus `cross_thread_via_spawn`,
-`cross_thread_clone_branches`, and `is_send_and_sync` to exercise
-the thread-safety contract.
-
-**Step 6 (`SendFunctor` trait family).** The full by-value
-parallel of the existing `send_ref_*` family lands across nine new
-trait files at
-[fp-library/src/classes/](../../../fp-library/src/classes/):
-[send_pointed.rs](../../../fp-library/src/classes/send_pointed.rs),
-[send_functor.rs](../../../fp-library/src/classes/send_functor.rs),
-[send_lift.rs](../../../fp-library/src/classes/send_lift.rs),
-[send_semiapplicative.rs](../../../fp-library/src/classes/send_semiapplicative.rs),
-[send_apply_first.rs](../../../fp-library/src/classes/send_apply_first.rs),
-[send_apply_second.rs](../../../fp-library/src/classes/send_apply_second.rs),
-[send_applicative.rs](../../../fp-library/src/classes/send_applicative.rs),
-[send_semimonad.rs](../../../fp-library/src/classes/send_semimonad.rs),
-and [send_monad.rs](../../../fp-library/src/classes/send_monad.rs).
-
-Trait shapes:
-
-- `SendPointed::send_pure(a: A)` requires `A: Send + Sync`.
-- `SendFunctor::send_map` and `SendSemimonad::send_bind` carry
-  `Send + Sync` on both their `A`/`B` parameters and on the
-  closure parameter (matching what
-  [`<ArcFnBrand as SendLiftFn>::new`](../../../fp-library/src/classes/send_clone_fn.rs)
-  requires).
-- `SendLift::send_lift2` carries `Send + Sync` on the closure and
-  `Clone + Send + Sync` on `A` / `B` so the closure can move
-  copies of both arguments.
-- `SendSemiapplicative::send_apply` carries `Clone + Send + Sync`
-  on `A` and `Send + Sync` on `B`, taking the wrapped function
-  via `<FnBrand as SendCloneFn>::Of<'a, A, B>` (parallel to
-  `SendRefSemiapplicative` using `SendCloneFn<Ref>`).
-- `SendApplyFirst` and `SendApplySecond` are blanket-implemented
-  for any `Brand: SendLift`, paralleling
-  [`SendRefApplyFirst`](../../../fp-library/src/classes/send_ref_apply_first.rs)
-  / [`SendRefApplySecond`](../../../fp-library/src/classes/send_ref_apply_second.rs).
-- `SendApplicative: SendPointed + SendSemiapplicative + SendApplyFirst + SendApplySecond`
-  is a blanket impl, mirroring
-  [`Applicative`](../../../fp-library/src/classes/applicative.rs)
-  with thread-safety bounds layered on top.
-- `SendMonad: SendApplicative + SendSemimonad` is a blanket impl,
-  mirroring [`Monad`](../../../fp-library/src/classes/monad.rs).
-
-The bonus integration with existing brands lands as follows:
-
-- `ArcCoyonedaBrand`: implements `SendFunctor` (closure has
-  `Send + Sync`, fits inside the existing `Arc<dyn Fn + Send + Sync>`
-  layer storage). It does **not** implement `SendPointed`,
-  `SendSemimonad`, `SendLift`, or `SendSemiapplicative` because
-  all four go through
-  [`ArcCoyoneda::lift`](../../../fp-library/src/types/arc_coyoneda.rs)
-  which requires `F::Of<'a, A>: Clone + Send + Sync`, a per-`A`
-  bound that cannot be expressed in the trait method signature
-  (no HRTB-over-types). The module-level docs and the brand-impl
-  block comment in
-  [arc_coyoneda.rs](../../../fp-library/src/types/arc_coyoneda.rs)
-  are updated to reflect the partial close.
-- `OptionBrand`: implements `SendPointed`, `SendFunctor`,
-  `SendLift`, `SendSemiapplicative`, and `SendSemimonad` directly
-  via `Some(a)`, `fa.map(f)`, `fa.zip(fb).map(...)`, pattern
-  matching, and `ma.and_then(f)` respectively. `SendApplicative`,
-  `SendApplyFirst`, `SendApplySecond`, and `SendMonad` follow via
-  the blanket impls. `Option`'s by-value path has no Clone or
-  thread-affinity constraints, so the impls are mechanical.
-  Adding these impls beyond the plan's named `ArcCoyonedaBrand`
-  target is a small scope expansion documented in the deviations,
-  needed because `#[document_examples]` requires real Rust code
-  blocks and `ArcCoyonedaBrand` cannot supply them for the
-  `SendPointed` / `SendSemimonad` / `SendLift` /
-  `SendSemiapplicative` traits.
-
-`send_pure`, `send_map`, `send_lift2`, `send_apply`,
-`send_apply_first`, `send_apply_second`, and `send_bind` are
-re-exported through
-[fp-library/src/functions.rs](../../../fp-library/src/functions.rs)
-alongside the existing `send_ref_*` free-function variants.
-
-**Step 7 (brand-level trait hierarchies for the Explicit Free
-family).** The realistic scope, after running the impls against
-stable Rust:
-
-- `FreeExplicitBrand`: `Functor`, `Pointed`, `Semimonad` on the
-  by-value side; `RefFunctor`, `RefPointed`, `RefSemimonad` on
-  the by-reference side. Brand impls live inside the inner mod
-  alongside the type definitions; the by-reference impls share
-  two private recursive helpers (`free_explicit_ref_map`,
-  `free_explicit_ref_bind`) that box the user closure into
-  `Rc<dyn Fn>` and walk the spine via `F::ref_map`.
-- `RcFreeExplicitBrand`: `Pointed` on the by-value side
-  (`bind`/`map` blocked by per-`A` Clone bounds the trait can't
-  add); full `RefFunctor`/`RefPointed`/`RefSemimonad` on the
-  by-reference side via `Rc::deref` + `F::ref_map`.
-- `ArcFreeExplicitBrand`: `SendPointed` on the by-value side
-  only. The `SendRef*` hierarchy is structurally blocked: the
-  closure passed to `F::send_ref_map` returns
-  `ArcFreeExplicit<F, B>`, which auto-derive of `Send + Sync`
-  requires the `Kind<Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync>`
-  bound dropped from the struct in step 5. Adding it back via
-  the impl block would need `for<'a, T>` HRTB-over-types, which
-  stable Rust does not provide. The block is documented in
-  `arc_free_explicit.rs` for future revisits.
-
-Three classes of by-value impl that step 7 originally intended
-are also blocked:
-
-- `Lift` / `Semiapplicative` / `Applicative` / `ApplyFirst` /
-  `ApplySecond` / `Monad` for **all three** Explicit brands. The
-  natural `lift2 = bind(fa, |a| map(fb, |b| f(a, b)))` pattern
-  requires `fb` to survive multiple invocations of the bind
-  closure; `FreeExplicit` is not `Clone`, and
-  `Rc`/`ArcFreeExplicit::bind` carry per-`A` Clone bounds the
-  trait can't add. Without `Lift`, `Applicative`'s blanket impl
-  doesn't apply, which cascades to `Monad`.
-- `RefLift` / `RefSemiapplicative` / `RefApplicative` /
-  `RefMonad` for `FreeExplicit` and `RcFreeExplicit`. The
-  natural `ref_lift2 = ref_bind(fa, |a: &A| ref_map(fb, |b: &B| f(a, b)))`
-  pattern captures `&a` in the inner closure, but `ref_map`'s
-  closure must satisfy `+ 'a` and the captured `&a`'s lifetime
-  is shorter than `'a`. Cloning `a` would resolve it but the
-  trait doesn't admit `A: Clone`.
-- All `SendRef*` for `ArcFreeExplicit` (per the HRTB-over-types
-  reason above).
-
-The `fp-library/docs/limitations-and-workarounds.md` table is
-extended with three by-value rows (`FreeExplicit`,
-`RcFreeExplicit`, `ArcFreeExplicit`) and a parallel three-row
-by-reference classification.
-
-**Step 8 (per-variant Criterion benches).** Six per-variant bench
-files plus a cross-variant comparison bench land at
-[fp-library/benches/benchmarks/](../../../fp-library/benches/benchmarks/):
-[free.rs](../../../fp-library/benches/benchmarks/free.rs),
-[rc_free.rs](../../../fp-library/benches/benchmarks/rc_free.rs),
-[arc_free.rs](../../../fp-library/benches/benchmarks/arc_free.rs),
-[free_explicit.rs](../../../fp-library/benches/benchmarks/free_explicit.rs)
-(extended from the POC bench),
-[rc_free_explicit.rs](../../../fp-library/benches/benchmarks/rc_free_explicit.rs),
-[arc_free_explicit.rs](../../../fp-library/benches/benchmarks/arc_free_explicit.rs),
-and the cross-variant
-[free_family_comparison.rs](../../../fp-library/benches/benchmarks/free_family_comparison.rs).
-
-Each per-variant file covers three shapes: `bind-deep + evaluate` at
-depths 10 / 100 / 1000 / 10000 (build a `Wrap` spine, then bind once
-across it, then evaluate), `bind-wide + evaluate` at the same widths
-(`pure(0).bind(...).bind(...)...` chained N times), and
-`peel-and-handle (Pure)` (single-step view extraction). For variants
-that expose a non-consuming `peel_ref(&self)`
-(`RcFree`, `ArcFree`, `RcFreeExplicit`, `ArcFreeExplicit`), the
-peel-and-handle group includes both the consuming `to_view()` and the
-`peel_ref()` shapes; for `Free` and `FreeExplicit` only the consuming
-form is available. The `evaluate only (reference)` shape (carried
-over from the POC bench) stays in the per-variant files so the bind +
-evaluate measurements have a paired baseline isolating the walk-once
-cost.
-
-The cross-variant bench groups all six variants under
-`FreeFamily/bind-deep + evaluate` and
-`FreeFamily/bind-wide + evaluate`, with one criterion subgroup per
-shape so the output shows the variants side-by-side at each depth.
-This documents the O(1) (Erased family: bind only snocs onto the
-CatList) vs O(N) (Explicit family: bind walks the existing spine
-inside the recursive worker) bind-cost asymmetry directly.
-
-Brand choice: every variant uses `IdentityBrand` except `Free`,
-which uses `ThunkBrand` because `Free<IdentityBrand, A>` is
-layout-cyclic (the `Wrap` arm holds `F::Of<Free<F, TypeErasedValue>>`
-where `TypeErasedValue = Box<dyn Any>`, and `Identity<T>` provides no
-indirection inside that recursion). The Rc/Arc variants and the
-Explicit family escape the cycle either via the outer `Rc<Inner>` /
-`Arc<Inner>` wrapper or via the explicit `Box<...>` indirection in
-`FreeExplicit`'s `Wrap` arm. `ThunkBrand` is the same brand the
-existing `Free` unit tests use (`Thunk<A>` holds a boxed closure,
-which provides the indirection).
-
-**Step 9 (per-variant unit and `compile_fail` tests).** Closes the gap
-in `FreeExplicit`'s test coverage and adds four new `compile_fail` UI
-tests under [fp-library/tests/ui/](../../../fp-library/tests/ui/).
-
-Unit tests added to
-[free_explicit.rs](../../../fp-library/src/types/free_explicit.rs):
-nine tests in the `mod tests` block covering construction
-(`pure_evaluate`, `wrap_evaluate`), evaluation (`bind_chains`),
-deep `Wrap` chains (`deep_evaluate_does_not_overflow`,
-`deep_drop_does_not_overflow`), the non-`'static` payload property
-(`non_static_payload`), and the brand-dispatched paths added in
-step 7 (`brand_dispatched_pointed`, `brand_dispatched_functor`,
-`brand_dispatched_semimonad` covering `RefPointed::ref_pure`,
-`RefFunctor::ref_map`, `RefSemimonad::ref_bind`). The other five
-variants already had source-level unit tests; their existing
-coverage (multi-shot via clone for the multi-shot variants,
-cross-thread + `is_send_and_sync` for the Arc variants, deep
-eval/Drop for all, non-static for the Explicit family) was unchanged
-and is sufficient for step 9's property-coverage requirements.
-
-`compile_fail` UI tests added under
-[fp-library/tests/ui/](../../../fp-library/tests/ui/):
-
-- `free_not_clone.rs`: confirms `Free` is single-shot. Cloning a
-  `Free` value fails because `Free` deliberately omits `Clone`;
-  multi-shot clients must pick `RcFree` or `ArcFree`. Pairs the
-  long-standing `free_requires_static.rs` test on the `'static`
-  bound axis with the orthogonal single-shot axis.
-- `erased_free_brands_do_not_exist.rs`: confirms the Erased family
-  carries no Brand dispatch by importing a non-existent `FreeBrand`.
-  Per decisions section 4.4, only the Explicit family has brands;
-  typeclass-generic code over an Erased Free fails to resolve.
-- `arc_free_explicit_bind_requires_send.rs`: confirms
-  `ArcFreeExplicit::bind` rejects `!Send + !Sync` closures. Captures
-  an `Rc<i32>` (which is `!Send` and `!Sync`) inside the bind
-  closure; the `Arc<dyn Fn + Send + Sync>` storage shape rejects it.
-  Multi-shot single-thread programs should use `RcFreeExplicit`.
-- `rc_free_bind_requires_clone.rs`: confirms `RcFree::bind` requires
-  `A: Clone`. The bound is needed because `RcFree`'s shared inner
-  state recovers an owned `A` from a potentially-shared
-  `Rc<dyn Any>` cell via `Rc::try_unwrap` with a fallback to
-  `(*shared).clone()`.
-
-The `.stderr` files were generated via
-`TRYBUILD=overwrite cargo test --test compile_fail` (the
-[trybuild](https://docs.rs/trybuild) bootstrap pattern, run via raw
-cargo so the wip files do not persist under `fp-library/wip/` after
-generation), then committed alongside their `.rs` counterparts.
-
-All Phase 1 work is now landed; Phase 2 (Run substrate and
-first-order effects) is the next phase per the resequenced phasing
-below.
+complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, 7c.1, and
+7c.2a complete. Phase 2 step 7 design pre-locked (naming and
+scope refinements captured below); sub-step 7c.2b (the `im_do!`
+macro itself) remaining.
+
+The three entries below carry the in-flight context for step
+7c.2b. Older steps' detailed narratives live in commit messages
+and [deviations.md](deviations.md); see the **Earlier completed
+steps (commit log)** subsection further down.
+
+**Phase 2 step 7c.2a (`e4cf7b5`): shared `DoInput` parser
+extraction.** Moved
+`fp-macros/src/m_do/input.rs` to
+[`fp-macros/src/support/do_input.rs`](../../../fp-macros/src/support/do_input.rs)
+so all four do-notation macros (`m_do!`, `a_do!`, `im_do!`,
+future `ia_do!`) share the parser.
+[`fp-macros/src/m_do.rs`](../../../fp-macros/src/m_do.rs)
+re-exports `DoInput` from the new location for backward
+compatibility; `m_do/codegen.rs` and `a_do/codegen.rs` import
+directly from `crate::support::do_input`. Codegen helpers
+(`format_bind_param`, `format_discard_param`,
+`wrap_container_ref`, `rewrite_pure`) stay in
+[`fp-macros/src/m_do/codegen.rs`](../../../fp-macros/src/m_do/codegen.rs)
+and remain reusable from `im_do!`'s codegen. Pure refactor;
+all 2422 tests still pass; m_do!/a_do! behavior unchanged.
+
+**Phase 2 step 7c.1 (`10d17fe`): inherent `ref_pure` on the four
+`Clone`-able wrappers.** `RcRun`, `ArcRun`, `RcRunExplicit`,
+and `ArcRunExplicit` gain inherent
+`ref_pure(a: &A) -> Self` methods, implemented as
+`Self::pure(a.clone())`. Bounds: `A: Clone` (with
+`+ Send + Sync` for `ArcRun`'s `pure`-inherited bound).
+Rounds out the inherent by-reference surface so step 7c.2b's
+`im_do!(ref Wrapper { ... pure(x) })` can rewrite bare
+`pure(x)` to `Wrapper::ref_pure(&x)`, parallel to
+`m_do!(ref Brand { ... pure(x) })`'s
+`<Brand as RefPointed>::ref_pure(&x)`. The alternative
+designs (rejecting `pure(x)` in `ref` mode, or implicit
+clone) were rejected; see [deviations.md](deviations.md)
+step 7 entry for the rationale.
+
+### Earlier completed steps (commit log)
+
+Each entry's design choices are recorded in
+[deviations.md](deviations.md) under the corresponding step
+heading; the commit message has the full implementation
+summary; resolved blockers are in
+[resolutions.md](resolutions.md). Listed newest-first.
+
+Phase 2:
+
+- `6dc802e` (step 7b): inherent `ref_bind`/`ref_map` on the
+  four `Clone`-able wrappers (`RcRun`, `ArcRun`,
+  `RcRunExplicit`, `ArcRunExplicit`). Pattern
+  `self.clone().bind(move |a| f(&a))`; `O(1)` clone sidesteps
+  the `R: RefFunctor` cascade brand-level dispatch requires.
+- `ef6257e` (step 7a): inherent `bind`/`map` on `Run`,
+  `RcRun`, `ArcRun`, `RunExplicit`. The other two wrappers
+  shipped them in step 4b.
+- `7f5be3c` (step 6 follow-up): refactored conversion surface
+  from inherent `into_explicit`/`from_erased` methods to
+  [`From`](https://doc.rust-lang.org/std/convert/trait.From.html)
+  impls. Matches the codebase's ~35 sibling-type `From`
+  precedent; users get both `Explicit::from(erased)` and
+  `erased.into()` for free via the blanket
+  [`Into`](https://doc.rust-lang.org/std/convert/trait.Into.html).
+- `11a89bc` (step 6): three Erased -> Explicit Run conversions
+  via [`From`](https://doc.rust-lang.org/std/convert/trait.From.html).
+  Each walks the underlying Free chain via `peel` and rebuilds
+  via `wrap`; preserves multi-shot/`Send + Sync` per substrate.
+  O(N) in chain depth (one stack frame per suspended `Wrap`
+  layer; structural depth at most 1 for Run-typical patterns
+  per the Wrap-depth probe).
+- `4950c50` (step 5): inherent `pure`/`peel`/`send` on each of
+  the six Run wrappers. `send` takes a pre-constructed
+  `Node`-projection value (rather than a row-variant layer) to
+  sidestep HRTB-poisoning under `ArcFree`'s impl-block scope;
+  see [resolutions.md](resolutions.md) for the full
+  investigation. Step 5 also adds
+  [`FreeExplicit::to_view`](../../../fp-library/src/types/free_explicit.rs)
+  as a precursor.
+- `289d3c6` (step 4b): three Explicit Run wrappers (`RunExplicit`,
+  `RcRunExplicit`, `ArcRunExplicit`); three `*RunExplicitBrand`s
+  with brand-level type-class hierarchy delegating to
+  `*FreeExplicitBrand`'s impls; row-brand `RefFunctor`/`Extract`
+  cascade on `CNilBrand`/`CoproductBrand`/`NodeBrand`; `Node`
+  `Clone` impl; A+B hybrid re-export pattern (top-level +
+  subsystem-scoped, mirrors the optics precedent). `Monad` /
+  `RefMonad` / `SendMonad` / `SendRef`-family are not reachable
+  through brand-level delegation; inherent `bind`/`map` on
+  `RcRunExplicit`/`ArcRunExplicit` cover the by-value monadic
+  surface.
+- `c3712f6` (step 4a): foundation. Row-brand `WrapDrop` impls
+  on `CNilBrand`/`CoproductBrand`/`CoyonedaBrand`;
+  `Node`/`NodeBrand` machinery (Kind, Functor, WrapDrop, then
+  `RefFunctor`/`Extract` added in 4b); three Erased Run
+  wrappers (`Run`, `RcRun`, `ArcRun`). Renamed
+  `fp-library/src/types/run/` to
+  `fp-library/src/types/effects/`.
+- `26ed053` (step 3): `Member<E, Idx>` trait at
+  [`fp-library/src/types/effects/member.rs`](../../../fp-library/src/types/effects/member.rs)
+  for first-order injection / projection over Coproduct rows.
+  Blanket impl over `frunk_core::CoprodInjector` +
+  `CoprodUninjector`. Single-effect by design; row narrowing
+  stays through `CoproductSubsetter`.
+- `26ef01a` (step 2): `VariantF<Effects>` Coyoneda-wrapped
+  Coproduct row at
+  [`fp-library/src/types/effects/variant_f.rs`](../../../fp-library/src/types/effects/variant_f.rs).
+  Recursive `Functor` impl on `CoproductBrand<H, T>`
+  dispatching by `Inl`/`Inr`; uninhabited base case on
+  `CNilBrand` (`match fa {}`). `VariantF<H, T>` alias to
+  `CoproductBrand<H, T>` exposed for canonical naming per
+  [decisions.md](decisions.md) section 5.1.
+- `a1d0258` (step 1): `frunk_core` dependency (license-checked)
+  - Brand-aware Coproduct adapter at
+    [`fp-library/src/types/effects/coproduct.rs`](../../../fp-library/src/types/effects/coproduct.rs).
+    Re-exports `Coproduct`, `CNil`, `CoprodInjector`,
+    `CoprodUninjector`, `CoproductSubsetter`, `CoproductEmbedder`,
+    `CoproductSelector`, `CoproductTaker`, plus list helpers.
+
+Phase 1 follow-up:
+
+- `834f8af` (commit 2): `Functor` -> `Kind` relaxation on the
+  six Free struct/`*View`/`*Step`/`Inner`/`Continuation` data
+  declarations. The `Suspend`-arm `Kind` requirement is
+  inherited from `WrapDrop`'s `Kind` supertrait, so no extra
+  bound at the data-type sites; methods that need `F::map`
+  carry `where F: Functor` per-method.
+- `3dee27e` (commit 1): `WrapDrop` trait migration. New
+  [`WrapDrop`](../../../fp-library/src/classes/wrap_drop.rs)
+  trait at `fp-library/src/classes/wrap_drop.rs` decouples
+  Drop's structural cleanup from `Extract`'s semantic
+  interpretation; all six Free variants migrated their
+  struct/Drop bounds from `F: Extract + Functor` to
+  `F: WrapDrop + Functor`. Methods that genuinely call
+  `F::extract` (`evaluate`, `lower_ref`) keep the per-method
+  `F: Extract` bound. See
+  [resolutions.md](resolutions.md) for the full
+  investigation.
+
+Phase 1 (the Free family, all nine steps): six Free variants
+(`Free`, `RcFree`, `ArcFree`, `FreeExplicit`, `RcFreeExplicit`,
+`ArcFreeExplicit`); per-variant unit tests covering
+construction, chaining, multi-shot via clone where applicable,
+deep evaluate / Drop, non-`'static` payloads, and
+cross-thread + `Send + Sync` witness for the Arc variants;
+per-variant Criterion benches (per-variant + cross-family
+comparison) under
+[`fp-library/benches/benchmarks/`](../../../fp-library/benches/benchmarks/);
+promotion of the POC `FreeExplicit` to production at
+[`fp-library/src/types/free_explicit.rs`](../../../fp-library/src/types/free_explicit.rs);
+the
+[`SendFunctor`](../../../fp-library/src/classes/send_functor.rs)
+trait family (Phase 1 step 6) for thread-safe auto-derive on
+`Arc`-substrate types; brand-level type-class hierarchies on
+the three Explicit Free brands (Phase 1 step 7) with the
+realistic blocked subset (`Lift` / `Semiapplicative` /
+`Applicative` / `Monad` cascade + the `SendRef*` hierarchy on
+`ArcFreeExplicitBrand`) documented in
+[`fp-library/docs/limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md);
+four `compile_fail` UI tests under
+[`fp-library/tests/ui/`](../../../fp-library/tests/ui/)
+exercising single-shot, no-brand-on-Erased, Send-bound on
+`ArcFreeExplicit::bind`, and `Clone`-bound on `RcFree::bind`
+properties.
 
 Other artefacts unchanged from pre-implementation:
 
