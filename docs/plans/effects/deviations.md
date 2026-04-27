@@ -773,67 +773,112 @@ phasing, see [plan.md](plan.md).
   evaluating the Coyoneda function which is beyond the scope of
   step 5).
 
-### Step 6: Erased -> Explicit conversion methods
+### Step 6: Erased -> Explicit conversion via `From` impls
 
-- **API direction interpretation: Erased -> Explicit only,
-  exposed in two API styles.** The plan text reads "Conversion
-  methods between paired Erased and Explicit Run variants:
-  `Run::into_explicit() -> RunExplicit`, ..., and the reverse
-  `RunExplicit::from_erased(...)`, etc.". The phrase "the
-  reverse" is ambiguous: it could mean "the reverse direction
-  (Explicit -> Erased)" or "the reverse-construction-style API
-  (constructor on the target type rather than method on the
-  input)". Step 6 implements the latter reading: each pair
-  ships an `into_explicit` method on the Erased side and a
-  `from_erased` constructor on the Explicit side, both
-  performing the same Erased -> Explicit walk. The
-  `from_erased` constructor delegates to `into_explicit` so
-  there is a single source of truth. Three considerations
-  drive this reading: (1) the plan's own `Preserves multi-shot
-/ Send + Sync properties` clarification only describes the
-  Erased -> Explicit direction (`RcRun -> RcRunExplicit keeps
-multi-shot`, `ArcRun -> ArcRunExplicit keeps Send + Sync`);
-  (2) the literal name `from_erased` ("from an Erased value")
-  takes an Erased input, not produces one; (3) the existing
-  precedent from step 4b's wrappers ships `from_*_free` and
-  `into_*_free` for the Free <-> Run pair, also as two API
-  styles for the same direction. If the Explicit -> Erased
-  direction is needed in a later phase, it can be added as a
-  new step rather than inferred from this ambiguous wording.
-- **`from_erased` lives in a separate `'static`-scoped impl
-  block.** Each Explicit Run wrapper carries an `'a` lifetime
-  parameter (`RunExplicit<'a, R, S, A>`, etc.), but the source
-  Erased Run wrapper requires `A: 'static`. To express
-  "constructing a `RunExplicit<'static, ...>` from a `Run`",
-  `from_erased` lives in an `impl<R, S, A> RunExplicit<'static,
-R, S, A> where A: 'static, ...` block separate from the main
-  `impl<'a, R, S, A: 'a> RunExplicit<'a, R, S, A> where ...`
-  block that hosts the lifetime-generic methods. Same pattern
-  for `RcRunExplicit::from_erased` and
-  `ArcRunExplicit::from_erased`. Calling
-  `RunExplicit::from_erased(run)` infers `'a = 'static` and
-  the result type is `RunExplicit<'static, R, S, A>`.
-- **Per-method bounds on the Rc/Arc variants mirror those on
-  `peel`.** `RcRun::into_explicit` and `RcRunExplicit::from_erased`
-  both carry `A: Clone` and the projection `Clone` bound that
-  `RcRun::peel` requires (the substrate's `to_view` reattaches
-  pending continuations and recovers shared inner state via
-  cloning when the outer refcount is not unique). `ArcRun::into_explicit`
-  and `ArcRunExplicit::from_erased` add `A: Clone + Send + Sync`,
-  the projection `Clone` bound, and `NodeBrand<R, S>: Functor`
-  (the latter not implied by the impl-block bound, which only
-  carries `WrapDrop` and the `Send + Sync` projection HRTB).
+- **API direction interpretation: Erased -> Explicit only.**
+  The plan text reads "Conversion methods between paired Erased
+  and Explicit Run variants: `Run::into_explicit() -> RunExplicit`,
+  ..., and the reverse `RunExplicit::from_erased(...)`, etc.".
+  The phrase "the reverse" is ambiguous: it could mean "the
+  reverse direction (Explicit -> Erased)" or "the
+  reverse-construction-style API (constructor on the target
+  type rather than method on the input)". Step 6 implements the
+  latter reading: a single Erased -> Explicit conversion per
+  pair, exposed via standard
+  [`From`](https://doc.rust-lang.org/std/convert/trait.From.html)
+  impls so users get both call styles
+  (`Explicit::from(erased)` and `erased.into()`) from one impl.
+  Three considerations drive this reading: (1) the plan's own
+  "Preserves multi-shot / Send + Sync properties" clarification
+  only describes the Erased -> Explicit direction
+  (`RcRun -> RcRunExplicit keeps multi-shot`, `ArcRun ->
+ArcRunExplicit keeps Send + Sync`); (2) the literal name
+  `from_erased` ("from an Erased value") takes an Erased input,
+  not produces one; (3) the existing precedent from step 4b's
+  wrappers ships `from_*_free` and `into_*_free` for the
+  Free <-> Run pair, also as two API styles for the same
+  direction. If the Explicit -> Erased direction is needed in
+  a later phase, it can be added as a new step rather than
+  inferred from this ambiguous wording.
+- **Trait-based conversion via
+  [`From`](https://doc.rust-lang.org/std/convert/trait.From.html),
+  not custom inherent methods.** The plan text spells the
+  conversions as `Run::into_explicit()` (method on Erased) and
+  `RunExplicit::from_erased(...)` (constructor on Explicit).
+  The wider codebase uses
+  [`From`](https://doc.rust-lang.org/std/convert/trait.From.html)
+  for sibling-type conversions extensively
+  ([rc_coyoneda.rs:852](../../../fp-library/src/types/rc_coyoneda.rs),
+  [arc_coyoneda.rs:879](../../../fp-library/src/types/arc_coyoneda.rs),
+  [lazy.rs](../../../fp-library/src/types/lazy.rs) and
+  [trampoline.rs](../../../fp-library/src/types/trampoline.rs)
+  for the Lazy <-> Trampoline pair, the
+  [TryLazy / TryThunk / TrySendThunk family](../../../fp-library/src/types/try_lazy.rs);
+  approximately 35
+  [`From`](https://doc.rust-lang.org/std/convert/trait.From.html)
+  impls across the type modules). Step 6 follows that
+  precedent: a single
+  [`From<*Run<R, S, A>> for *RunExplicit<'static, R, S, A>`](https://doc.rust-lang.org/std/convert/trait.From.html)
+  impl per pair, with the conversion logic in the `from` body.
+  The blanket
+  [`Into`](https://doc.rust-lang.org/std/convert/trait.Into.html)
+  impl gives `run.into()` for free. This consolidates two
+  inherent methods per pair (`into_explicit` + `from_erased`)
+  into one trait impl, matches Rust idiom, and removes the
+  delegation indirection while preserving both call styles at
+  use sites.
+  [`TryFrom`](https://doc.rust-lang.org/std/convert/trait.TryFrom.html)
+  was considered but does not apply: the conversion is total
+  once type-level bounds are satisfied.
+- **`From` impl lives in the destination file.** The codebase
+  precedent splits between source-file
+  ([rc_coyoneda.rs:852](../../../fp-library/src/types/rc_coyoneda.rs)
+  has `From<RcCoyoneda> for Coyoneda`) and destination-file
+  ([thunk.rs:320](../../../fp-library/src/types/thunk.rs) has
+  `From<Lazy> for Thunk`,
+  [try_lazy.rs:467](../../../fp-library/src/types/try_lazy.rs)
+  has `From<TryThunk> for TryLazy`, etc.). Destination-file is
+  the dominant precedent, and it matches the original
+  plan-text's `RunExplicit::from_erased(...)` placement
+  intuition (the constructor lives on the destination). Step 6
+  places the three impls in
+  [run_explicit.rs](../../../fp-library/src/types/effects/run_explicit.rs),
+  [rc_run_explicit.rs](../../../fp-library/src/types/effects/rc_run_explicit.rs),
+  and
+  [arc_run_explicit.rs](../../../fp-library/src/types/effects/arc_run_explicit.rs).
+- **Bounds: per-method bounds on Rc/Arc variants migrate to
+  impl-block `where` clauses.** Inherent methods can carry
+  per-method `where` clauses;
+  [`From::from`](https://doc.rust-lang.org/std/convert/trait.From.html)
+  cannot (the trait signature is fixed). The Rc variant's
+  `A: Clone` and projection `Clone` bound, and the Arc
+  variant's `A: Clone + Send + Sync`, projection `Clone` bound,
+  and `NodeBrand<R, S>: Functor` bound (the latter not implied
+  by the existing impl-block bound, which only carries
+  `WrapDrop` and the `Send + Sync` projection HRTB) all move to
+  the
+  `impl<...> From<*Run<R, S, A>> for *RunExplicit<'static, R, S, A> where ...`
+  block-level `where` clause. The Run variant has no extra
+  bounds beyond its impl block.
 - **GAT-poisoning workaround: passes through cleanly without
-  surfacing.** `ArcRun::into_explicit` operates inside the
-  HRTB-bearing impl-block scope on `ArcRun` (the
-  `Of<'static, ArcFree<...>>: Send + Sync` projection HRTB).
-  Step 5 established that constructing `Node::First(layer)`
-  literals inside such a scope fails GAT normalization. Step 6
-  composes its conversion entirely from values whose
-  projection types come from `peel`'s return and from
-  `Functor::map`'s output, never from inline `Node::*` literal
-  construction; the `ArcFreeExplicit::wrap` call receives the
-  mapped projection value directly. Compilation passed without
-  any of the four workaround patterns from
+  surfacing.** The Arc impl operates inside the HRTB-bearing
+  impl-block scope on
+  [`ArcRun`](../../../fp-library/src/types/effects/arc_run.rs)
+  (the `Of<'static, ArcFree<...>>: Send + Sync` projection
+  HRTB). Step 5 established that constructing
+  `Node::First(layer)` literals inside such a scope fails GAT
+  normalization. Step 6 composes its conversion entirely from
+  values whose projection types come from `peel`'s return and
+  from `Functor::map`'s output, never from inline `Node::*`
+  literal construction; the `ArcFreeExplicit::wrap` call
+  receives the mapped projection value directly. Compilation
+  passed without any of the four workaround patterns from
   [`fp-library/tests/arc_run_normalization_probe.rs`](../../../fp-library/tests/arc_run_normalization_probe.rs)
   needing to be invoked.
+- **Tests exercise both call styles.** The 12 new tests split
+  six exercising `*RunExplicit::from(erased)` (the
+  constructor-style, in the destination file's tests) and six
+  exercising `erased.into()` (the method-style via the blanket
+  [`Into`](https://doc.rust-lang.org/std/convert/trait.Into.html)
+  impl, in the source file's tests). This documents both API
+  surfaces as part of the regression suite.

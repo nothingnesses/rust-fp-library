@@ -459,31 +459,53 @@ mod inner {
 		}
 	}
 
+	// -- From<ArcRun> for ArcRunExplicit (Erased -> Explicit conversion) --
+
 	#[document_type_parameters(
 		"The first-order effect row brand.",
 		"The scoped-effect row brand.",
 		"The result type."
 	)]
-	impl<R, S, A> ArcRunExplicit<'static, R, S, A>
+	impl<R, S, A> From<ArcRun<R, S, A>> for ArcRunExplicit<'static, R, S, A>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
-		A: 'static,
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + Functor
+			+ 'static,
+		A: Clone + Send + Sync + 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+		>): Clone,
 	{
-		/// Constructs an `ArcRunExplicit<'static, R, S, A>` from the
-		/// paired Erased-substrate
-		/// [`ArcRun<R, S, A>`](crate::types::effects::arc_run::ArcRun) by
-		/// delegating to [`ArcRun::into_explicit`](ArcRun::into_explicit).
+		/// Converts an [`ArcRun<R, S, A>`](crate::types::effects::arc_run::ArcRun)
+		/// into the paired Explicit-substrate form by walking the
+		/// underlying [`ArcFree`](crate::types::ArcFree) chain via
+		/// [`peel`](ArcRun::peel) and rebuilding each suspended layer
+		/// through [`ArcFreeExplicit::wrap`](crate::types::ArcFreeExplicit).
+		/// Pure values re-emerge as
+		/// [`ArcRunExplicit::pure`](ArcRunExplicit::pure).
 		///
-		/// Thread-safe multi-shot semantics are preserved across the
-		/// conversion (both sides carry `Arc<dyn Fn + Send + Sync>`
-		/// continuations); see [`ArcRun::into_explicit`](ArcRun::into_explicit)
-		/// for details.
+		/// `Send + Sync` is preserved: both `ArcRun` and `ArcRunExplicit`
+		/// auto-derive thread-safety from their `Arc<dyn Fn + Send + Sync>`
+		/// substrates when `A: Send + Sync` and the projection HRTB holds.
+		/// O(N) in the chain depth.
+		///
+		/// The body uses the GAT-poisoning workaround established in
+		/// step 5: projection-typed values come from `peel`'s return and
+		/// from `Functor::map`'s output, never from inline
+		/// `Node::First(...)` literals, so this composes cleanly under
+		/// the HRTB-bearing impl-block scope. See
+		/// [`tests/arc_run_normalization_probe.rs`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/tests/arc_run_normalization_probe.rs)
+		/// for the regression test.
 		#[document_signature]
 		///
 		#[document_parameters("The Erased-substrate `ArcRun` to convert.")]
 		///
-		#[document_returns("An `ArcRunExplicit` carrying the same effects as `arc_run`.")]
+		#[document_returns("An `ArcRunExplicit` carrying the same effects.")]
 		///
 		#[document_examples]
 		///
@@ -500,24 +522,26 @@ mod inner {
 		/// type Scoped = CNilBrand;
 		///
 		/// let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::pure(42);
-		/// let explicit: ArcRunExplicit<'static, FirstRow, Scoped, i32> =
-		/// 	ArcRunExplicit::from_erased(arc_run);
-		/// assert!(matches!(explicit.peel(), Ok(42)));
+		/// // Both call styles work via the blanket `Into` impl.
+		/// let from_style: ArcRunExplicit<'static, FirstRow, Scoped, i32> = ArcRunExplicit::from(arc_run);
+		/// assert!(matches!(from_style.peel(), Ok(42)));
+		/// let arc_run2: ArcRun<FirstRow, Scoped, i32> = ArcRun::pure(42);
+		/// let into_style: ArcRunExplicit<'static, FirstRow, Scoped, i32> = arc_run2.into();
+		/// assert!(matches!(into_style.peel(), Ok(42)));
 		/// ```
-		#[inline]
-		pub fn from_erased(arc_run: ArcRun<R, S, A>) -> Self
-		where
-			NodeBrand<R, S>: WrapDrop
-				+ Kind_cdc7cd43dac7585f<
-					Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
-				> + Functor
-				+ 'static,
-			A: Clone + Send + Sync,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
-			>): Clone, {
-			arc_run.into_explicit()
+		fn from(arc_run: ArcRun<R, S, A>) -> Self {
+			match arc_run.peel() {
+				Ok(a) => ArcRunExplicit::pure(a),
+				Err(layer) => {
+					let inner = <NodeBrand<R, S> as Functor>::map(
+						|run: ArcRun<R, S, A>| -> ArcFreeExplicit<'static, NodeBrand<R, S>, A> {
+							ArcRunExplicit::from(run).into_arc_free_explicit()
+						},
+						layer,
+					);
+					ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(inner))
+				}
+			}
 		}
 	}
 
@@ -692,7 +716,7 @@ mod tests {
 		use crate::types::effects::arc_run::ArcRun;
 		let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::pure(42);
 		let explicit: ArcRunExplicit<'static, FirstRow, Scoped, i32> =
-			ArcRunExplicit::from_erased(arc_run);
+			ArcRunExplicit::from(arc_run);
 		assert!(matches!(explicit.peel(), Ok(42)));
 	}
 
@@ -708,7 +732,8 @@ mod tests {
 		};
 		let layer = Coproduct::inject(Identity(7));
 		let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::send(Node::First(layer));
-		let explicit = ArcRunExplicit::from_erased(arc_run);
+		let explicit: ArcRunExplicit<'static, FirstRow, Scoped, i32> =
+			ArcRunExplicit::from(arc_run);
 		assert!(explicit.peel().is_err());
 	}
 }

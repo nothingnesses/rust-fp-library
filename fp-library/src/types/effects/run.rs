@@ -45,11 +45,7 @@ mod inner {
 				WrapDrop,
 			},
 			kinds::*,
-			types::{
-				Free,
-				FreeExplicit,
-				effects::run_explicit::RunExplicit,
-			},
+			types::Free,
 		},
 		fp_macros::*,
 	};
@@ -269,58 +265,6 @@ mod inner {
 		) -> Self {
 			Run::from_free(Free::<NodeBrand<R, S>, A>::lift_f(node))
 		}
-
-		/// Converts this `Run` into the paired Explicit-substrate form by
-		/// walking the underlying [`Free`](crate::types::Free) chain via
-		/// [`peel`](Run::peel) and rebuilding each suspended layer through
-		/// [`FreeExplicit::wrap`](crate::types::FreeExplicit). Pure values
-		/// re-emerge as [`RunExplicit::pure`](RunExplicit::pure).
-		///
-		/// The conversion is O(N) in the chain depth (one stack frame per
-		/// suspended layer); per the structural Wrap-depth probe at
-		/// [`tests/run_wrap_depth_probe.rs`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/tests/run_wrap_depth_probe.rs),
-		/// Run-typical patterns have depth at most 1, so the recursion is
-		/// constant in practice. The result is single-shot and `'static`,
-		/// matching the source `Run`'s representation guarantees.
-		///
-		/// See [`RunExplicit::from_erased`](RunExplicit::from_erased) for
-		/// the constructor-style API spelling of the same conversion.
-		#[document_signature]
-		///
-		#[document_returns("A `RunExplicit<'static, R, S, A>` carrying the same effects.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		run::Run,
-		/// 		run_explicit::RunExplicit,
-		/// 	},
-		/// };
-		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
-		/// type Scoped = CNilBrand;
-		///
-		/// let run: Run<FirstRow, Scoped, i32> = Run::pure(7);
-		/// let explicit: RunExplicit<'static, FirstRow, Scoped, i32> = run.into_explicit();
-		/// assert!(matches!(explicit.peel(), Ok(7)));
-		/// ```
-		pub fn into_explicit(self) -> RunExplicit<'static, R, S, A> {
-			match self.peel() {
-				Ok(a) => RunExplicit::pure(a),
-				Err(layer) => {
-					let boxed = <NodeBrand<R, S> as Functor>::map(
-						|run: Run<R, S, A>| -> Box<FreeExplicit<'static, NodeBrand<R, S>, A>> {
-							Box::new(run.into_explicit().into_free_explicit())
-						},
-						layer,
-					);
-					RunExplicit::from_free_explicit(FreeExplicit::wrap(boxed))
-				}
-			}
-		}
 	}
 }
 
@@ -382,18 +326,20 @@ mod tests {
 	}
 
 	#[test]
-	fn into_explicit_round_trips_pure() {
+	fn into_explicit_via_into_round_trips_pure() {
+		use crate::types::effects::run_explicit::RunExplicit;
 		let run: RunAlias<i32> = Run::pure(42);
-		let explicit = run.into_explicit();
+		let explicit: RunExplicit<'static, FirstRow, Scoped, i32> = run.into();
 		assert!(matches!(explicit.peel(), Ok(42)));
 	}
 
 	#[test]
-	fn into_explicit_preserves_suspended_layer() {
+	fn into_explicit_via_into_preserves_suspended_layer() {
+		use crate::types::effects::run_explicit::RunExplicit;
 		let coyo: Coyoneda<'static, IdentityBrand, i32> = Coyoneda::lift(Identity(7));
 		let layer = Coproduct::inject(coyo);
 		let run: RunAlias<i32> = Run::send(Node::First(layer));
-		let explicit = run.into_explicit();
+		let explicit: RunExplicit<'static, FirstRow, Scoped, i32> = run.into();
 		assert!(explicit.peel().is_err());
 	}
 }

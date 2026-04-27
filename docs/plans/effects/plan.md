@@ -10,28 +10,39 @@ relaxation) landed; Phase 2 in progress (steps 1, 2, 3, 4a, 4b,
 Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
 complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, and 6 complete.
 
-**Phase 2 step 6 (Erased -> Explicit conversion methods on the
-six Run variants).** Each of the three Erased Run wrapper types
-gains an `into_explicit(self)` inherent method that walks the
-underlying Free chain via `peel` and rebuilds it through the
-paired Explicit substrate's `wrap`:
-[`Run::into_explicit`](../../../fp-library/src/types/effects/run.rs)
-returns `RunExplicit<'static, R, S, A>`,
-[`RcRun::into_explicit`](../../../fp-library/src/types/effects/rc_run.rs)
-returns `RcRunExplicit<'static, R, S, A>`, and
-[`ArcRun::into_explicit`](../../../fp-library/src/types/effects/arc_run.rs)
-returns `ArcRunExplicit<'static, R, S, A>`. Each of the three
-Explicit Run wrapper types gains a paired
-`from_erased(run)` constructor in a separate `'static`-scoped
-impl block ([`RunExplicit::from_erased`](../../../fp-library/src/types/effects/run_explicit.rs),
-[`RcRunExplicit::from_erased`](../../../fp-library/src/types/effects/rc_run_explicit.rs),
-[`ArcRunExplicit::from_erased`](../../../fp-library/src/types/effects/arc_run_explicit.rs))
-that delegates to the corresponding `into_explicit` for a single
-source of truth. Recursion is O(N) in the chain depth (one stack
-frame per suspended `Wrap` layer); per the Wrap-depth probe at
+**Phase 2 step 6 (Erased -> Explicit conversion via [`From`](https://doc.rust-lang.org/std/convert/trait.From.html) impls).**
+Three [`From`](https://doc.rust-lang.org/std/convert/trait.From.html)
+impls land for the Erased -> Explicit direction, one per pair:
+[`From<Run<R, S, A>> for RunExplicit<'static, R, S, A>`](../../../fp-library/src/types/effects/run_explicit.rs),
+[`From<RcRun<R, S, A>> for RcRunExplicit<'static, R, S, A>`](../../../fp-library/src/types/effects/rc_run_explicit.rs),
+[`From<ArcRun<R, S, A>> for ArcRunExplicit<'static, R, S, A>`](../../../fp-library/src/types/effects/arc_run_explicit.rs).
+Each impl walks the underlying Free chain via `peel` and rebuilds
+it through the paired Explicit substrate's `wrap`. Pure values
+re-emerge as `*RunExplicit::pure(a)`. Recursion is O(N) in the
+chain depth (one stack frame per suspended `Wrap` layer); per the
+Wrap-depth probe at
 [`fp-library/tests/run_wrap_depth_probe.rs`](../../../fp-library/tests/run_wrap_depth_probe.rs),
 Run-typical patterns have structural depth at most 1, so the
 recursion is essentially constant in practice.
+
+The plan text named the conversions `Run::into_explicit()` /
+`RunExplicit::from_erased(...)` (custom inherent methods), but
+the wider codebase uses
+[`From`](https://doc.rust-lang.org/std/convert/trait.From.html)
+extensively for sibling-type conversions
+([rc_coyoneda.rs](../../../fp-library/src/types/rc_coyoneda.rs),
+[lazy.rs](../../../fp-library/src/types/lazy.rs),
+[thunk.rs](../../../fp-library/src/types/thunk.rs),
+[try_lazy.rs](../../../fp-library/src/types/try_lazy.rs), and 30+
+others). Following that precedent, step 6 ships a single
+[`From`](https://doc.rust-lang.org/std/convert/trait.From.html)
+impl per pair instead of two separate inherent methods. Users
+get both call styles for free via the blanket
+[`Into`](https://doc.rust-lang.org/std/convert/trait.Into.html)
+impl: `RunExplicit::from(run)` (constructor style) and
+`run.into()` (method style, requires destination type to be
+inferable). See
+[deviations.md](deviations.md) for the rationale.
 
 The conversion preserves the underlying substrate's properties:
 `Run -> RunExplicit` is single-shot via `Box`-in-`Wrap`
@@ -39,15 +50,21 @@ indirection; `RcRun -> RcRunExplicit` keeps multi-shot via
 `Rc<dyn Fn>` continuations on both sides; `ArcRun -> ArcRunExplicit`
 keeps `Send + Sync` and multi-shot via `Arc<dyn Fn + Send + Sync>`
 continuations. The closure passed to `<NodeBrand<R, S> as Functor>::map`
-inside each `into_explicit` body composes cleanly under the
+inside each `From::from` body composes cleanly under the
 HRTB-bearing impl-block scope on `ArcRun` because projection-typed
 values come from `peel`'s return and from `Functor::map`'s output
 (never constructed inline as `Node::First(...)` literals); this
 matches the workaround established in step 5.
 
 Twelve new tests cover the conversions: a pure-value round-trip
-and a suspended-layer preservation per direction per pair, all
-passing under `just verify`.
+and a suspended-layer preservation per pair, exercised through
+both `From::from(...)` and `.into()` call styles, all passing
+under `just verify`.
+
+[`TryFrom`](https://doc.rust-lang.org/std/convert/trait.TryFrom.html)
+was considered but does not apply: the conversion is total once
+the type-level bounds are satisfied (no runtime fallibility to
+surface).
 
 **Phase 2 step 5 (`pure` / `peel` / `send` core operations on
 six Run variants).** Each of the six Run wrapper types (`Run`,

@@ -459,30 +459,41 @@ mod inner {
 		}
 	}
 
+	// -- From<RcRun> for RcRunExplicit (Erased -> Explicit conversion) --
+
 	#[document_type_parameters(
 		"The first-order effect row brand.",
 		"The scoped-effect row brand.",
 		"The result type."
 	)]
-	impl<R, S, A> RcRunExplicit<'static, R, S, A>
+	impl<R, S, A> From<RcRun<R, S, A>> for RcRunExplicit<'static, R, S, A>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
-		A: 'static,
+		A: Clone + 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+		>): Clone,
 	{
-		/// Constructs an `RcRunExplicit<'static, R, S, A>` from the
-		/// paired Erased-substrate
-		/// [`RcRun<R, S, A>`](crate::types::effects::rc_run::RcRun) by
-		/// delegating to [`RcRun::into_explicit`](RcRun::into_explicit).
+		/// Converts an [`RcRun<R, S, A>`](crate::types::effects::rc_run::RcRun)
+		/// into the paired Explicit-substrate form by walking the
+		/// underlying [`RcFree`](crate::types::RcFree) chain via
+		/// [`peel`](RcRun::peel) and rebuilding each suspended layer
+		/// through [`RcFreeExplicit::wrap`](crate::types::RcFreeExplicit).
+		/// Pure values re-emerge as
+		/// [`RcRunExplicit::pure`](RcRunExplicit::pure).
 		///
-		/// Multi-shot semantics are preserved across the conversion (both
-		/// sides carry `Rc<dyn Fn>` continuations); see
-		/// [`RcRun::into_explicit`](RcRun::into_explicit) for details.
+		/// Multi-shot semantics are preserved across the conversion: the
+		/// source `RcRun` carries `Rc<dyn Fn>` continuations and the
+		/// resulting `RcRunExplicit` keeps the same `Rc`-shared substrate,
+		/// so handlers for non-deterministic effects (e.g., `Choose`) can
+		/// drive either side equivalently. O(N) in the chain depth.
 		#[document_signature]
 		///
 		#[document_parameters("The Erased-substrate `RcRun` to convert.")]
 		///
-		#[document_returns("An `RcRunExplicit` carrying the same effects as `rc_run`.")]
+		#[document_returns("An `RcRunExplicit` carrying the same effects.")]
 		///
 		#[document_examples]
 		///
@@ -499,19 +510,26 @@ mod inner {
 		/// type Scoped = CNilBrand;
 		///
 		/// let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::pure(42);
-		/// let explicit: RcRunExplicit<'static, FirstRow, Scoped, i32> =
-		/// 	RcRunExplicit::from_erased(rc_run);
-		/// assert!(matches!(explicit.peel(), Ok(42)));
+		/// // Both call styles work via the blanket `Into` impl.
+		/// let from_style: RcRunExplicit<'static, FirstRow, Scoped, i32> = RcRunExplicit::from(rc_run);
+		/// assert!(matches!(from_style.peel(), Ok(42)));
+		/// let rc_run2: RcRun<FirstRow, Scoped, i32> = RcRun::pure(42);
+		/// let into_style: RcRunExplicit<'static, FirstRow, Scoped, i32> = rc_run2.into();
+		/// assert!(matches!(into_style.peel(), Ok(42)));
 		/// ```
-		#[inline]
-		pub fn from_erased(rc_run: RcRun<R, S, A>) -> Self
-		where
-			A: Clone,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
-			>): Clone, {
-			rc_run.into_explicit()
+		fn from(rc_run: RcRun<R, S, A>) -> Self {
+			match rc_run.peel() {
+				Ok(a) => RcRunExplicit::pure(a),
+				Err(layer) => {
+					let inner = <NodeBrand<R, S> as Functor>::map(
+						|run: RcRun<R, S, A>| -> RcFreeExplicit<'static, NodeBrand<R, S>, A> {
+							RcRunExplicit::from(run).into_rc_free_explicit()
+						},
+						layer,
+					);
+					RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::wrap(inner))
+				}
+			}
 		}
 	}
 
@@ -841,8 +859,7 @@ mod tests {
 	fn from_erased_round_trips_pure() {
 		use crate::types::effects::rc_run::RcRun;
 		let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::pure(42);
-		let explicit: RcRunExplicit<'static, FirstRow, Scoped, i32> =
-			RcRunExplicit::from_erased(rc_run);
+		let explicit: RcRunExplicit<'static, FirstRow, Scoped, i32> = RcRunExplicit::from(rc_run);
 		assert!(matches!(explicit.peel(), Ok(42)));
 	}
 
@@ -858,7 +875,7 @@ mod tests {
 		};
 		let layer = Coproduct::inject(Identity(7));
 		let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::send(Node::First(layer));
-		let explicit = RcRunExplicit::from_erased(rc_run);
+		let explicit: RcRunExplicit<'static, FirstRow, Scoped, i32> = RcRunExplicit::from(rc_run);
 		assert!(explicit.peel().is_err());
 	}
 }
