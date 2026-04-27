@@ -13,6 +13,28 @@ against the phased steps in
 [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md),
 one step per commit, until the phase is complete or you hit a blocker.
 
+## Current resume point
+
+**Phase 1 is complete (steps 1-9). The immediate next work is the
+Phase 1 follow-up: `WrapDrop` migration, two commits.** After the
+follow-up lands, Phase 2 step 4 resumes (Phase 2 steps 1, 2, and 3
+are already complete).
+
+The Phase 1 follow-up resolves a blocker that surfaced during
+Phase 2 step 4 kickoff: `Free`'s struct-level `Extract` bound
+prevents `Free<NodeBrand<R, S>, A>` from compiling over typical
+effect rows. The full rationale, problem statement, probe results,
+per-F policy decisions, and alternatives considered live in
+[resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md).
+The phasing-side checklist with concrete migration steps lives at
+plan.md's "Phase 1 follow-up: WrapDrop migration" section.
+
+Read both before writing migration code. The work is mechanical
+(introduce `WrapDrop` trait, migrate ~71 occurrences of `F: Extract`
+across six Free variants, then a Functor-bound relaxation pass) but
+touches Phase 1 deliverables, so verify the existing tests including
+`deep_drop_does_not_overflow` stay green.
+
 ## Where to start
 
 1. Read [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md).
@@ -65,12 +87,21 @@ For each step you implement:
 3. If verification fails, fix the underlying issue. Do not bypass
    hooks (`--no-verify`, `--no-gpg-sign`) and do not silence
    warnings without addressing them.
-4. Update the top of
-   [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md):
-   `Current progress` to reflect what now exists,
-   `Open questions, issues and blockers` if you found any (see
-   "When you hit something unexpected" below), and `Deviations` if
-   your implementation diverges from what the step text said.
+4. Update the docs that capture state and history:
+   - [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s
+     `Current progress` section to reflect what now exists.
+   - [deviations.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md)
+     (append-only) for any per-step deviation from the original
+     plan text. Group entries by phase and step, matching the
+     existing structure.
+   - If you encounter a blocker, add an entry to plan.md's
+     `Open questions, issues and blockers -> Active blockers`
+     subsection (see "When you hit something unexpected" below).
+     Once the blocker resolves, move the entry to
+     [resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md)
+     as a new top-level entry, dated; replace the active-blocker
+     subsection in plan.md with a one-line summary plus an
+     anchor link to resolutions.md.
 5. Commit. One step per commit; the commit message describes the
    step. Use conventional-commit prefixes (`feat`, `fix`, `refactor`,
    `test`, `bench`, `docs`, `chore`). Never include `Co-Authored-By`
@@ -85,7 +116,8 @@ The plan and decisions are frozen. You do not have authority to
 change them unilaterally. If you encounter:
 
 - **A step that doesn't make sense given the current code state.**
-  Stop. Add an entry under `Open questions, issues and blockers` in
+  Stop. Add an entry under
+  `Open questions, issues and blockers -> Active blockers` in
   [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)
   describing what's unclear, commit that single edit, and report
   back to the user. Do not invent an interpretation.
@@ -93,15 +125,17 @@ change them unilaterally. If you encounter:
   [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
   is incompatible with what stable Rust permits, with the existing
   fp-library code, or with another decision). Same protocol: record
-  it in `Open questions, issues and blockers`, commit, report back.
-  Do not edit
+  it under
+  `Open questions, issues and blockers -> Active blockers` in
+  plan.md, commit, report back. Do not edit
   [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
   yourself.
 - **A simpler way to do something** (refactor opportunity, missing
   abstraction, etc.). If it is in scope for the step, do it inline.
   If it would expand the step's scope or touch unrelated code, note
-  it under `Deviations` or as a follow-up `chore:` commit; do not
-  silently expand the step.
+  it under
+  [deviations.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md)
+  or as a follow-up `chore:` commit; do not silently expand the step.
 - **Unexpected files, branches, or in-progress work.** Investigate
   before deleting or overwriting. The user's local state is real and
   may be load-bearing; ask before discarding it.
@@ -187,18 +221,47 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   [`limitations-and-workarounds.md`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/limitations-and-workarounds.md)
   precedent) and routing through the Ref hierarchy where possible,
   not fighting the constraint.
+- **`Free<IdentityBrand, A>` is layout-cyclic.** `Free`'s `Wrap`
+  arm holds `F::Of<Free<F, TypeErasedValue>>` where
+  `TypeErasedValue = Box<dyn Any>`. For `IdentityBrand`,
+  `Identity<T>` is `T` with no indirection, so layout recursion
+  has no termination and rustc rejects with
+  `error[E0391]: cycle detected when computing layout`. Tests
+  and benches that wrap Free over an identity-shaped functor
+  must use `ThunkBrand` instead (`Thunk<A>` holds a boxed
+  closure, providing the indirection). The Rc/Arc Erased family
+  escapes via outer `Rc<Inner>` / `Arc<Inner>` wrapping; the
+  Explicit family escapes via `Box<...>` in `FreeExplicit`'s
+  `Wrap` arm or the same outer wrapping for the Rc/Arc Explicit
+  variants. See deviations.md's Phase 1 step 8 entry.
+- **The Wrap-depth probe at
+  [`fp-library/tests/run_wrap_depth_probe.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_wrap_depth_probe.rs)
+  is a regression test guarding the `WrapDrop` resolution.** It
+  measures structural Wrap depth across Run-shaped Free
+  programs and documents that Run-typical patterns have
+  structural depth at most 1, which is the property the new
+  `WrapDrop::None` policy relies on for soundness. If a Phase 1
+  follow-up commit or future Phase 2-4 change appears to
+  invalidate the probe (e.g., new patterns emit deeper
+  structural Wrap chains), pause and re-evaluate before
+  shipping; the probe finding is load-bearing for the
+  no-`Extract`-bound semantics.
 
-## Bench and compile_fail test scaffolding
+## Bench and compile_fail test infrastructure
 
-For step 8 (benches) and step 9 (tests), the existing
-infrastructure points are:
+Many phases add benches or `compile_fail` UI tests. The
+infrastructure pointers below apply across phases; reach for
+them whenever a step asks for benchmarking or negative-case
+testing.
 
 - **Criterion benches** go in
   [`fp-library/benches/benchmarks/`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/benches/benchmarks/).
-  The existing
-  [`free_explicit.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/benches/benchmarks/free_explicit.rs)
-  is the baseline shape. Wire new bench files through whatever
-  `criterion_group!` registration the directory uses.
+  Existing per-variant Free benches
+  ([`free.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/benches/benchmarks/free.rs),
+  [`free_explicit.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/benches/benchmarks/free_explicit.rs),
+  etc.) are the baseline shape. Wire new bench files into the
+  `criterion_group!` registration in
+  [`fp-library/benches/benchmarks.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/benches/benchmarks.rs).
 - **`compile_fail` UI tests** go in
   [`fp-library/tests/ui/`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/ui/).
   The
@@ -208,7 +271,19 @@ infrastructure points are:
   `fp-library/Cargo.toml`. Each negative case is one `.rs` file
   plus a sibling `.stderr` capturing expected error output;
   `.stderr` files are auto-generated on first run via
-  `TRYBUILD=overwrite cargo test --test compile_fail`.
+  `TRYBUILD=overwrite cargo test --test compile_fail` (use raw
+  `cargo`, not `just test`, when bootstrapping `.stderr` files
+  so the wip files do not persist under `fp-library/wip/`).
+- **Probe / investigation tests** can also live in
+  [`fp-library/tests/`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/).
+  Existing examples include
+  [`run_wrap_depth_probe.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_wrap_depth_probe.rs)
+  (regression-guards a property load-bearing for the WrapDrop
+  resolution) and
+  [`free_explicit_poc.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/free_explicit_poc.rs)
+  (integration-tests `FreeExplicit` against the questions the
+  POC originally asked). Use the same shape when a step's work
+  benefits from a self-documenting investigation as a test.
 
 ## Tooling
 
@@ -236,20 +311,46 @@ You can either:
 - **Complete one phase end-to-end** (every numbered step ticked,
   `just verify` clean, `Current progress` reflects the new state)
   and stop. The user reviews and starts the next phase.
+- **Complete a focused follow-up commit set** (e.g., the Phase 1
+  follow-up `WrapDrop` migration's two commits) and stop. The
+  user reviews before proceeding to the next phase step that
+  the follow-up unblocks.
 - **Stop at the first blocker** you cannot resolve under the
-  protocol above. Commit the `Open questions, issues and blockers`
-  entry, summarise the blocker, and exit.
+  protocol above. Commit the active-blocker entry under
+  plan.md's
+  `Open questions, issues and blockers -> Active blockers`,
+  summarise the blocker, and exit.
 
 Do not work through multiple phases unprompted. Phases ship together
 as a single feature release, but they review separately.
 
 ## Reference map
 
+The four-corner doc taxonomy:
+
 - [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md):
-  the phased steps and success criteria. The authoritative answer
-  to "what do I do next."
+  the active working spec. Phased steps, current progress, active
+  blockers, success criteria. The authoritative answer to "what do
+  I do next."
 - [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md):
-  the design rationale. The authoritative answer to "why this way."
+  frozen design rationale. The authoritative answer to "why this
+  way." Do not edit.
+- [resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md):
+  append-only post-write log of resolved blockers. Holds full
+  problem statements, investigations, alternatives considered,
+  and rationale for each load-bearing question that paused
+  implementation. Read this when plan.md's `Active blockers`
+  section points at it for context, or when "why does X work this
+  way?" cannot be answered from decisions.md alone.
+- [deviations.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md):
+  append-only post-write log of per-step implementation choices
+  that diverged from the plan text. Grouped by phase and step.
+  Read this when "the code doesn't match the step description"
+  needs explanation; append a new entry when your own work
+  diverges.
+
+Other reference material:
+
 - [research/](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/research/):
   per-codebase classifications, three Stage 2 deep dives, and a
   synthesis. Source material for the decisions.
@@ -265,6 +366,11 @@ as a single feature release, but they review separately.
   The POC promotion is complete (Phase 1 step 1); the file now
   exercises the type imported from
   `/home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/free_explicit.rs`.
+- [fp-library/tests/run_wrap_depth_probe.rs](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_wrap_depth_probe.rs):
+  regression test for the property the WrapDrop resolution relies
+  on (Run-typical structural Wrap depth at most 1). Background
+  investigation, see resolutions.md's "Resolved (2026-04-27): introduce WrapDrop trait..."
+  entry.
 - [CLAUDE.md](file:///home/jessea/Documents/projects/rust-fp-lib/CLAUDE.md):
   project-wide agent instructions including LSP usage.
 - [AGENTS.md](file:///home/jessea/Documents/projects/rust-fp-lib/AGENTS.md):
