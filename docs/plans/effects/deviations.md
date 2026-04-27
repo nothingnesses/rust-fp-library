@@ -1,0 +1,400 @@
+# Implementation deviations: effects port
+
+This file is the post-write log of per-step implementation
+choices that diverged from the original plan text. Each entry
+describes a step's implementation choice, why it diverged, and
+(where useful) what the plan text said vs what shipped.
+
+Entries are append-only, grouped by phase and step. They are
+load-bearing for code review (so reviewers know why a step's
+output isn't a literal transcription of the plan text) and for
+future maintenance (so the next implementer reading the code
+understands subtle choices).
+
+For resolved blockers (load-bearing questions that paused
+implementation until investigated), see [resolutions.md](resolutions.md).
+For active blockers, current progress, and the implementation
+phasing, see [plan.md](plan.md).
+
+## Phase 1: Free family
+
+### Step 1: `FreeExplicit` promotion
+
+- **Removed `OptionBrand`-using POC tests.** Adding the
+  `F: Extract + Functor + 'a` bound to `FreeExplicit` (required
+  by the iterative `Drop` impl per
+  [decisions.md](decisions.md) section 4.4) means
+  `OptionBrand` can no longer back a `FreeExplicit`, since `None`
+  has no value to surrender and `OptionBrand` therefore cannot
+  lawfully implement `Extract`. The POC's `q5_two_effect_run`
+  short-circuit test and the `evaluate_option` helper were dropped;
+  the same Run-shaped semantics are reachable via handler
+  interpretation in Phase 3+. This is exactly the caveat the
+  decision predicts ("this forces every effect functor used with
+  `FreeExplicit` to implement `Extract`"), but the plan step text
+  said to "replace the local definition with an import" without
+  explicitly listing test removals, so it is recorded here.
+- **Introduced `FreeExplicitView` enum.** The POC's `FreeExplicit`
+  was a two-variant enum directly. The production type wraps the
+  variants in `view: Option<FreeExplicitView>` so the custom
+  `Drop` impl can move the view out via `Option::take` without
+  producing a sentinel `A` value. `FreeExplicitView` is `pub` and
+  re-exported alongside `FreeExplicit` to keep the variants
+  visible for users who want to pattern-match. No external test
+  or bench needed to change shape; the POC tests only used
+  `pure`, `wrap`, `bind`, and `evaluate` (no direct match on the
+  variants).
+
+### Step 2: `RcFree`
+
+- **`RcFree` uses `Rc<dyn Any>` (not `Box<dyn Any>`) for the
+  type-erased value cell.** Decision 4.4's table summarises
+  `RcFree`'s erasure as "`Box<dyn Any>` + CatList" while also
+  committing to "Cloneable: Yes, O(1)". `Box<dyn Any>` is not
+  `Clone`, so the literal table reading conflicts with the Clone
+  commitment. The minimal resolution is to swap the Box-erased
+  cell for an `Rc<dyn Any>`, which keeps the `dyn Any` erasure
+  shape but lets the inner state participate in Clone. Recovering
+  an owned `A` from the cell uses `Rc::try_unwrap` and falls back
+  to `(*shared).clone()` when the cell is shared, which constrains
+  the public methods that perform the final downcast (`to_view`,
+  `resume`, `evaluate`, `lower_ref`, `peel_ref`, `hoist_free`) to
+  require `A: Clone`. This matches the multi-shot semantics: a
+  handler that wants to evaluate the same program more than once
+  needs the result type to be reproducible.
+- **`RcFree<F, A>` is `Rc<RcFreeInner<F, A>>` (outer `Rc`
+  wrapping).** Step 2's text says "follow the `Free` template"
+  without specifying outer-Rc-wrapping, but the unconditional
+  O(1) Clone commitment plus the `Suspend` arm holding
+  `F::Of<RcFree<F, RcTypeErasedValue>>` produce a recursive Clone
+  bound that only resolves cleanly when `RcFree: Clone` is
+  unconditional. Outer-Rc-wrapping (the
+  [`RcCoyoneda`](../../../fp-library/src/types/rc_coyoneda.rs)
+  pattern) makes Clone trivially `Rc::clone(&self.inner)`. State-
+  extending operations (`bind`, `map`, `wrap`, `lift_f`,
+  `cast_phantom`) use `Rc::try_unwrap` to move out when uniquely
+  owned and clone the inner state otherwise.
+- **`RcContinuation` is a newtype, not the bare
+  `<RcFnBrand as CloneFn>::Of` projection.** Step 2's text says
+  "expressed via `FnBrand<RcBrand>`". Using the macro-mediated GAT
+  projection directly as a type alias does not parse (the type
+  parameter `F` does not surface through the `Apply!` expansion).
+  The production type uses a thin newtype
+  `RcContinuation<F>(Rc<dyn Fn(...)>)` with the same in-memory
+  shape as `<RcFnBrand as CloneFn>::Of`, and constructs values via
+  `<RcFnBrand as LiftFn>::new(...)` so the library's unified
+  function-pointer abstraction is still on the construction path.
+  The newtype's `Clone` impl bumps the underlying `Rc`'s refcount.
+
+### Step 3: `ArcFree`
+
+- **`ArcFree` carries the same trio of deviations as `RcFree`**
+  (the type-erased value uses `Arc<dyn Any + Send + Sync>` for
+  `Clone`/`Send`/`Sync` participation, the substrate is wrapped
+  in outer `Arc<Inner>`, and `ArcContinuation<F>` is a newtype
+  wrapping `Arc<dyn Fn(...) + Send + Sync>` constructed via
+  `<ArcFnBrand as SendLiftFn>::new`). All three deviations carry
+  forward unchanged from step 2's analysis with `Rc` substituted
+  for `Arc`.
+- **Associated-type-bound trick is propagated to every struct
+  and impl.** Decision 4.4 names the trick
+  (`Kind<Of<'a, A>: Send + Sync>`) but does not prescribe scope.
+  In production, `Send + Sync` auto-derivation on `ArcFreeInner`
+  via the `F::Of<...>` field requires the bound at the struct
+  definition. To keep all uses of the inner data type-checkable,
+  the same
+  `Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>`
+  bound is added to `ArcContinuation<F>`, `ArcFreeView<F>`,
+  `ArcFreeStep<F, A>`, `ArcFreeInner<F, A>`, `ArcFree<F, A>`, and
+  every `impl` block that mentions any of them. This is verbose
+  but mechanical; `ArcCoyoneda`'s template uses the same trick at
+  fewer sites because its trait-object internal representation
+  hides the `F::Of` from auto-derivation.
+
+### Step 4: `RcFreeExplicit`
+
+- **`RcFreeExplicitBrand<F>` struct and `impl_kind!` registration
+  land in step 4, not step 7.** Step 4's text says
+  "Brand-compatible: this is the multi-shot variant that carries
+  Brand dispatch in Phase 1 step 7", which on a strict reading
+  could mean step 7 introduces both the brand struct and the
+  trait impls. Step 1 set the precedent of pairing the brand
+  struct + `impl_kind!` with the type definition
+  (`FreeExplicitBrand<F>` was added in step 1 even though its
+  `Functor`/`Pointed`/`Semimonad`/`Monad` impls are scheduled for
+  step 7). Step 4 follows the same precedent: the brand and
+  `Kind` registration ship now, the trait hierarchies ship in
+  step 7. This keeps step 7's scope to "trait impls" only.
+- **`Wrap` variant holds `RcFreeExplicit` directly, not
+  `Box<RcFreeExplicit>`.** `FreeExplicit`'s `Wrap` variant uses
+  `F::Of<'a, Box<FreeExplicit<'a, F, A>>>` because the outer struct
+  is unboxed and a recursive type needs indirection to be sized.
+  `RcFreeExplicit`'s outer wrapper is `Rc<RcFreeExplicitInner>`,
+  which already provides the indirection, so the `Wrap` arm holds
+  `F::Of<'a, RcFreeExplicit<'a, F, A>>` directly. Skipping the
+  `Box` layer avoids one extra heap hop per node and keeps the
+  `F::extract` call site free of a `*extracted` deref.
+- **`to_view(self)` is exposed as a public consuming method.**
+  Step 4's text only names `lower_ref(&self)` and
+  `peel_ref(&self)`. `peel_ref` is naturally implemented as
+  `self.clone().to_view()`, which requires a consuming `to_view`
+  on the underlying type (the `view` field is private). Exposing
+  `to_view` publicly keeps the implementation symmetric with
+  `RcFree::to_view` and avoids burying the consuming version as
+  a private helper. `FreeExplicit` does not have `to_view`
+  because it does not have `peel_ref` either.
+- **Inherent-method API is intentionally narrower than
+  `RcFree`'s.** `RcFree` exposes `pure`, `wrap`, `lift_f`,
+  `bind`, `map`, `to_view`, `resume`, `evaluate`, `hoist_free`,
+  plus `lower_ref` / `peel_ref`. `RcFreeExplicit` exposes only
+  `pure`, `wrap`, `bind`, `evaluate`, `to_view`, `lower_ref`,
+  `peel_ref`. The omitted methods (`lift_f`, `map`, `resume`,
+  `hoist_free`) belong on the Brand-dispatched API surface that
+  step 7 builds via `Functor` / `Pointed` / `Semimonad` /
+  `Monad`, so adding them as inherent methods here would
+  duplicate that surface. `RcFree` has them inherently because
+  the Erased family has no Brand dispatch at all (decisions
+  section 4.4); the Explicit family routes the same operations
+  through the trait hierarchy.
+
+### Step 5: `ArcFreeExplicit`
+
+- **`Kind<Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync>`
+  associated-type-bound trick is dropped from the struct.**
+  Step 5's text says "Same `Kind<Of<'a, A>: Send + Sync>`
+  associated-type-bound trick as `ArcFree`". `ArcFree` works
+  because `A` is fixed (`ArcTypeErasedValue`) and the bound's
+  GAT instantiation is concrete
+  (`Of<'static, ArcFree<F, ArcTypeErasedValue>>`). `ArcFreeExplicit`
+  has generic `A`, so the analogous bound is
+  `Kind<Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync>`
+  parameterised by both `'a` and `A`. The `impl_kind!`
+  registration for `ArcFreeExplicitBrand<F>` requires the bound
+  for any `'a` and `A`, which is
+  `for<'a, A> Kind<Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync>` --
+  an HRTB-over-types that stable Rust does not support
+  ([fp-library/docs/limitations-and-workarounds.md](../../../fp-library/docs/limitations-and-workarounds.md)
+  section "No Rank-N Types"). With the bound on the struct, the
+  `impl_kind!` cannot prove `ArcFreeExplicit<'a, F, A>` is
+  well-formed for arbitrary `'a` / `A` and fails to compile. With
+  the bound off, `impl_kind!` compiles and `Send + Sync`
+  auto-derive still works for concrete `F` (e.g.,
+  `IdentityBrand`) via type-walk resolution. The
+  `is_send_and_sync` test passes for
+  `ArcFreeExplicit<'_, IdentityBrand, i32>`. Step 7's brand
+  impls will need to add concrete `Send + Sync` bounds at impl
+  sites where they require thread-safety guarantees over generic
+  `F`, mirroring how the `ArcCoyoneda` precedent threads bounds
+  through individual impls rather than the struct.
+- **`bind` requires `A: Clone + Send + Sync`** -- `Send + Sync`
+  from the closure-storage shape, `Clone` from the
+  shared-inner-state recovery fallback. `RcFreeExplicit::bind`
+  required `A: Clone` for the same shared-inner-state reason;
+  `ArcFreeExplicit::bind` adds `Send + Sync` because the
+  `Arc<dyn Fn + Send + Sync>` continuation cell forces all
+  values flowing through it to be thread-safe. This matches
+  `ArcFree::bind`'s bound profile.
+
+### Step 6: `SendFunctor` trait family
+
+- **Nine new trait files, not the four named in the step
+  text.** The plan listed only four files
+  (`send_functor.rs`, `send_pointed.rs`, `send_semimonad.rs`,
+  `send_monad.rs`), but a faithful by-value parallel of the
+  existing `send_ref_*` family needs the full applicative-family
+  scaffolding so `SendMonad: SendApplicative + SendSemimonad`
+  can mirror
+  [`Monad`](../../../fp-library/src/classes/monad.rs)'s shape.
+  Step 6 ships nine files: the four named, plus
+  `send_lift.rs` (`SendLift::send_lift2`),
+  `send_semiapplicative.rs` (`SendSemiapplicative::send_apply`
+  using `SendCloneFn`), `send_apply_first.rs` and
+  `send_apply_second.rs` (blanket-implemented over `SendLift`),
+  and `send_applicative.rs` (`SendApplicative` blanket over the
+  `SendPointed + SendSemiapplicative + SendApplyFirst + SendApplySecond`
+  combination). With these, `SendMonad`'s supertrait chain is
+  identical to the by-value `Monad`'s, just with `Send + Sync`
+  bounds layered on. Step text underspecified the file count;
+  the trait family wouldn't have been usable for typeclass-generic
+  thread-safe code without the full chain.
+- **`OptionBrand` implements the full applicative family of
+  `Send*` traits, not just the three originally scoped.** The
+  step text named `ArcCoyonedaBrand` as the bonus integration.
+  `ArcCoyonedaBrand` cannot implement `SendPointed`,
+  `SendSemimonad`, `SendLift`, or `SendSemiapplicative` because
+  all four go through
+  [`ArcCoyoneda::lift`](../../../fp-library/src/types/arc_coyoneda.rs)
+  which requires `F::Of<'a, A>: Clone + Send + Sync`, a per-`A`
+  bound (same blocker as the by-value `Pointed` / `Semimonad`
+  cases the
+  [limitations doc](../../../fp-library/docs/limitations-and-workarounds.md)
+  classifies for `RcCoyoneda` / `ArcCoyoneda`). To give every
+  new trait method a working executable doctest (which
+  `#[document_examples]` requires), `OptionBrand` was given
+  trivial impls of `SendPointed` / `SendFunctor` / `SendLift` /
+  `SendSemiapplicative` / `SendSemimonad`. `Option<A>` is
+  `Send + Sync` whenever `A` is, so all five impls are
+  mechanical and align with `OptionBrand`'s existing `Pointed` /
+  `Functor` / `Lift` / `Semiapplicative` / `Semimonad` impls.
+  `SendApplicative` / `SendApplyFirst` / `SendApplySecond` /
+  `SendMonad` follow via the blanket impls.
+- **`ArcCoyonedaBrand` implements `SendFunctor` only, not the
+  full `SendFunctor` / `SendPointed` / `SendSemimonad` /
+  `SendMonad` quartet the plan named.** The step text said
+  "the full hierarchy lands" for `ArcCoyonedaBrand` because
+  "ArcCoyoneda's by-value path has no Clone bound". This was
+  over-optimistic: `ArcCoyoneda::map` has no Clone bound, but
+  `ArcCoyoneda::pure` and `ArcCoyoneda::bind` both go through
+  `lift` which carries a per-`A`
+  `F::Of<'a, A>: Clone + Send + Sync` bound. The trait
+  signatures cannot express that bound (no HRTB-over-types).
+  The module-level docs and the brand-impl block comment in
+  [arc_coyoneda.rs](../../../fp-library/src/types/arc_coyoneda.rs)
+  are updated to record this. `ArcCoyonedaBrand` joins
+  `RcCoyonedaBrand`'s precedent of partial brand-level coverage
+  with the rest of the operations available as inherent methods
+  on the concrete `ArcCoyoneda` type.
+- **`#[document_examples]` macro requires real Rust code
+  blocks.** Removing the macro from a method silences its
+  function but emits a deprecation warning that `-D warnings`
+  (in `just clippy`) escalates to error. The macro also rejects
+  ` ```ignore` and other non-Rust-marker fences. The chosen
+  resolution is to give every newly-defined trait method a
+  working executable doctest, which is what motivated adding
+  the `OptionBrand` impls (above). For traits whose only
+  motivating use case is `ArcFreeExplicitBrand` in step 7, the
+  `OptionBrand` examples serve as canonical shape demonstrations
+  until step 7's impls land and provide the substantive use
+  case.
+
+### Step 8: per-variant Criterion benches
+
+- **`Free` bench uses `ThunkBrand`, not `IdentityBrand`.** The
+  other five Free variants use `IdentityBrand` (matching the
+  existing
+  [free_explicit.rs](../../../fp-library/benches/benchmarks/free_explicit.rs)
+  POC bench). `Free` cannot: `Free<F, A>`'s `Wrap` arm holds
+  `F::Of<Free<F, TypeErasedValue>>` where
+  `TypeErasedValue = Box<dyn Any>`, and `Identity<T>` is `T`
+  with no indirection, so the layout recursion has no
+  termination; `Free<IdentityBrand, A>` fails to compile with
+  `error[E0391]: cycle detected when computing layout`. The
+  Rc/Arc Erased family escapes via the outer `Rc<Inner>` /
+  `Arc<Inner>` wrapper; the Explicit family escapes via either
+  `Box<...>` (in `FreeExplicit`'s `Wrap` arm) or the outer
+  `Rc<Inner>` / `Arc<Inner>` wrapper. `ThunkBrand` is the brand
+  the existing `Free` unit tests already use; `Thunk<A>` holds a
+  boxed closure, which provides the indirection. Step 8's text
+  said "replicates the full set across all six variants"
+  without specifying brand choice, so the deviation is recorded
+  here.
+
+## Phase 2: Run substrate
+
+### Step 1: `frunk_core` dependency + Coproduct adapter
+
+- **Actual frunk_core 0.4 trait names are `CoprodInjector` /
+  `CoprodUninjector` / `CoproductSubsetter` /
+  `CoproductEmbedder`, not `Plucker` / `Sculptor` /
+  `Embedder`.** Step 1's text and Implementation note 1 refer
+  to the HList-style names ("Plucker / Sculptor / Embedder")
+  which match frunk_core's HList module. The Coproduct module
+  uses the Coproduct-style names; `CoprodUninjector` is the
+  Plucker analog
+  (`uninject(self) -> Result<T, Self::Remainder>`),
+  `CoproductSubsetter` is the Sculptor analog
+  (`subset(self) -> Result<Targets, Self::Remainder>`), and
+  `CoproductEmbedder` is the Embedder analog
+  (`embed(self) -> Out`). The adapter at
+  [`fp-library/src/types/run/coproduct.rs`](../../../fp-library/src/types/run/coproduct.rs)
+  uses the Coproduct-style names directly. Future plan
+  references to Plucker / Sculptor / Embedder for the Coproduct
+  adapter should be read as the Coproduct-style trait family
+  above.
+- **No newtype wrappers ship; the adapter is re-exports only.**
+  The plan text says "newtype wrappers around
+  `frunk_core::coproduct::{Coproduct, CNil}` plus impl blocks
+  bridging Plucker / Sculptor / Embedder", on the premise that
+  Brand-style impls require a local newtype to satisfy the
+  orphan rules. A probe at
+  `fp-library/tests/coproduct_brand_probe.rs` (committed during
+  step 1 and removed in step 2 once the brands landed in
+  production) disproved that premise: because `Kind_*` is
+  fp-library's own trait, a generic `CoproductBrand<H, T>` (a
+  local Brand struct) can carry the `impl_kind!` registration
+  with `Of<'a, A> = Coproduct<H::Of<'a, A>, T::Of<'a, A>>`
+  directly on the foreign value type. No wrapper is needed at
+  the Brand boundary. The initial draft of step 1 shipped
+  `BrandedCoproduct<H, T>(pub Coproduct<H, T>)` and `BrandedCNil`
+  with `From` conversions and `CoprodInjector` /
+  `CoprodUninjector` bridge impls; once the probe proved them
+  dead-weight, they were removed in the same step. The adapter
+  now re-exports frunk_core's types and trait family verbatim
+  and points downstream consumers at the upcoming
+  `crate::brands::CoproductBrand` (Phase 2 step 2). Two unit
+  tests exercise raw Coproduct inject / uninject as the trait
+  family's smoke test.
+- **`frunk_core` chosen over `frunk`.** Step 1's text and
+  Implementation note 1 name `frunk_core` directly. The
+  umbrella `frunk` crate re-exports `frunk_core` plus
+  `frunk_proc_macros`, `frunk_derives`, `Validated`, and
+  `frunk_laws`. The effects port uses only `Coproduct`, `CNil`,
+  the index types, and the four bridged traits, all of which
+  live in `frunk_core`. Choosing `frunk_core` keeps the
+  proc-macro / `syn` chain out of the dependency graph
+  (fp-library already has `fp-macros` for proc-macros) and lets
+  a future swap to `frunk` be a one-line Cargo.toml change since
+  `frunk` is API-compatible with `frunk_core`. License is MIT
+  for both, already on the [`deny.toml`](../../../deny.toml)
+  allow-list.
+
+### Step 3: `Member<E, Idx>` trait
+
+- **`Member` layers on `CoprodInjector` + `CoprodUninjector`,
+  not `CoproductSubsetter`.** Step 3's text says
+  "Member<E, Indices> trait for first-order injection /
+  projection, layered on top of `frunk_core::CoproductSubsetter`
+  via the adapter from step 1". `CoproductSubsetter` is the
+  row-narrowing (sculpt) trait, which takes a row of Targets
+  and returns either the narrowed row or the remainder.
+  `Member` is single-effect inject / project, which composes
+  from `CoprodInjector::inject` (lift one effect into the row)
+  and `CoprodUninjector::uninject` (try to extract one effect,
+  returning the remainder). The blanket impl on Member delegates
+  to those two traits directly. `CoproductSubsetter` remains
+  the right primitive for row narrowing in handler code but is
+  not what Member needs.
+- **`Member` is a new trait with delegated methods, not a
+  marker supertrait alias.** Three trait shapes were
+  considered: (a) a marker supertrait
+  `Member<E, Idx>: CoprodInjector<E, Idx> + CoprodUninjector<E, Idx>`
+  with no own methods, (b) a new trait with `inject` / `project`
+  methods that delegate to the frunk impls (the chosen shape),
+  and (c) no Member trait at all (use frunk traits directly).
+  Approach (b) was chosen so where-clauses, error messages, and
+  rustdoc on smart-constructor signatures use fp-library's
+  `Member` vocabulary rather than frunk's
+  `CoprodInjector + CoprodUninjector` pair. The indirection is
+  zero-cost at runtime; the small maintenance surface is worth
+  the public-API insulation from frunk_core's internal naming
+  choices and the closer match to PureScript Run's `Member r`
+  precedent.
+- **`Member` is single-effect only; row narrowing stays through
+  `CoproductSubsetter` directly.** Step 3's text mentions only
+  "first-order injection / projection". A separate
+  `Members<Targets, Indices>` plural trait that bundles
+  `CoproductSubsetter` for the same single-bound convenience
+  may be added later when Phase 3 handler code wants it; until
+  then, handler call sites use `CoproductSubsetter` directly.
+  Adding `Members` is purely additive and does not affect
+  `Member`.
+- **`Member` is agnostic to Coyoneda wrapping.** Row variants
+  emitted by the `effects!` macro (Phase 2 step 8) are
+  `Coyoneda<E, A>`-wrapped, so `Member<Coyoneda<E, A>, Idx>` is
+  what smart constructors prove against the row. `Member`
+  itself does not bake in any Coyoneda assumption; the wrapping
+  policy belongs to the smart constructors that the macro emits
+  (Phase 2 step 9). If step 9's call sites want a sugar trait
+  `EffectMember<E, Idx>` that finds the position whose Coyoneda
+  wraps `E`, that lands then on top of `Member`, not as a
+  redefinition of it.
