@@ -15,6 +15,255 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-04-27): brand-level type-class coverage gap on the Explicit Run brands
+
+The plan's Phase 2 step 4 specification named a full
+`Functor / Pointed / Semimonad / Monad` hierarchy plus a
+`RefFunctor / RefPointed / RefSemimonad / RefMonad` hierarchy
+for `RunExplicitBrand`, with analogous coverage for
+`RcRunExplicitBrand` and `ArcRunExplicitBrand`. Step 4b
+landed the achievable subset: `Functor / Pointed / Semimonad`
+plus the by-reference equivalents for `RunExplicitBrand`,
+`Pointed` plus by-reference equivalents for
+`RcRunExplicitBrand`, and `SendPointed` only for
+`ArcRunExplicitBrand`.
+[`Monad`](../../../fp-library/src/classes/monad.rs) /
+[`RefMonad`](../../../fp-library/src/classes/ref_monad.rs) /
+[`SendMonad`](../../../fp-library/src/classes/send_monad.rs) and
+the [`SendRef`](../../../fp-library/src/classes/send_ref_functor.rs)-family
+hierarchy are not reachable through brand-level delegation;
+inherent `bind` and `map` methods on `RcRunExplicit` and
+`ArcRunExplicit` (mirroring
+[`RcFreeExplicit`](../../../fp-library/src/types/rc_free_explicit.rs)'s
+inherent surface) cover the by-value monadic surface for
+concrete-type call sites.
+
+### Problem
+
+Three independent gaps share the same root cause: stable Rust's
+trait method signatures cannot carry per-`A` bounds (no HRTB
+over types), and the `*FreeExplicitBrand`s the Run-Explicit
+brands delegate to deliberately do not implement the missing
+classes for the same reason.
+
+1. **`Monad` blanket impl requires `Applicative`.** The
+   project's [`Monad`](../../../fp-library/src/classes/monad.rs)
+   trait at line 214 is
+   `pub trait Monad: Applicative + Semimonad {}` with a blanket
+   `impl<Brand> Monad for Brand where Brand: Applicative + Semimonad {}`
+   at line 218. Same shape for
+   [`RefMonad`](../../../fp-library/src/classes/ref_monad.rs)
+   over `RefApplicative + RefSemimonad`. So a brand cannot be
+   `Monad` without first being `Applicative`.
+   [`FreeExplicitBrand`](../../../fp-library/src/brands.rs)
+   deliberately does not implement
+   [`Applicative`](../../../fp-library/src/classes/applicative.rs)
+   (its [`Lift`](../../../fp-library/src/classes/lift.rs)
+   supertrait's natural definition pattern
+   `lift2 = bind(fa, |a| map(fb, |b| f(a, b)))` requires `fb` to
+   be reusable across closure invocations, and
+   [`FreeExplicit`](../../../fp-library/src/types/free_explicit.rs)
+   is not `Clone` per [`free_explicit.rs`](../../../fp-library/src/types/free_explicit.rs)
+   lines 369-388). The Run wrapper brands inherit this gap
+   through delegation.
+2. **`SendRef` hierarchy unreachable on `ArcRunExplicitBrand`.**
+   The [`ArcFreeExplicit`](../../../fp-library/src/types/arc_free_explicit.rs)
+   substrate auto-derives `Send + Sync` only when its struct
+   carries a per-`A` `Kind` HRTB
+   (`Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync`).
+   That bound's `'a` and `A` are the trait method's per-method
+   generics; stable Rust does not support `for<'a, T>` HRTB at
+   the impl-block level. So
+   [`ArcFreeExplicitBrand`](../../../fp-library/src/brands.rs)
+   does not implement
+   [`SendRefFunctor`](../../../fp-library/src/classes/send_ref_functor.rs)
+   /
+   [`SendRefPointed`](../../../fp-library/src/classes/send_ref_pointed.rs)
+   /
+   [`SendRefSemimonad`](../../../fp-library/src/classes/send_ref_semimonad.rs)
+   (see [`arc_free_explicit.rs`](../../../fp-library/src/types/arc_free_explicit.rs)
+   lines 730-745). `ArcRunExplicitBrand`'s would-be Send-Ref
+   delegation has no target.
+3. **Ref hierarchy is bounded by `R: RefFunctor`.** The Ref
+   impls on `RunExplicitBrand` and `RcRunExplicitBrand` delegate
+   to the corresponding `*FreeExplicitBrand`'s Ref impls, which
+   carry `F: WrapDrop + Functor + RefFunctor + 'static`.
+   For `Run`, `F = NodeBrand<R, S>`; the cascade requires
+   `R: RefFunctor` and `S: RefFunctor`. Step 4b adds
+   [`RefFunctor`](../../../fp-library/src/classes/ref_functor.rs)
+   impls on `CNilBrand`, `CoproductBrand<H, T>`, and
+   `NodeBrand<R, S>`, but
+   [`CoyonedaBrand`](../../../fp-library/src/brands.rs) does not
+   implement
+   [`RefFunctor`](../../../fp-library/src/classes/ref_functor.rs).
+   Canonical Run rows (`CoproductBrand<CoyonedaBrand<E_i>, ...>`)
+   do not satisfy the cascade. The Ref impls are present at the
+   brand level but reachable only for synthetic rows whose
+   brands carry their own `RefFunctor` impls (e.g.,
+   `CoproductBrand<IdentityBrand, CNilBrand>`).
+
+### Resolution
+
+Ship the achievable subset; document gaps as deviations. Future
+work that needs the missing coverage either reaches for the
+inherent methods on the concrete Run wrapper types or, for
+`Coyoneda`-wrapped effect rows, adds `RefFunctor` to
+[`CoyonedaBrand`](../../../fp-library/src/types/coyoneda.rs)
+(scope-creep beyond step 4b; tracked separately).
+
+### Why not work around
+
+- **Restructuring `Monad`'s supertrait chain:** would require
+  editing [`monad.rs`](../../../fp-library/src/classes/monad.rs)
+  and similar; out of scope for the effects port and would break
+  every existing brand impl.
+- **Adding `Applicative` impls with `Clone` bounds at the trait
+  signature level:** stable Rust's
+  [`Applicative::lift2`](../../../fp-library/src/classes/lift.rs)
+  signature can't be augmented; per-method `where` clauses on
+  trait impls are restricted to what the trait allows.
+- **Adding the SendRef hierarchy directly on
+  `ArcRunExplicitBrand`** (bypassing
+  `ArcFreeExplicitBrand`): would have the same per-`A` HRTB
+  obstacle the underlying brand has.
+
+## Resolved (2026-04-27): row-brand `RefFunctor` and `Extract` cascade impls land in step 4b
+
+Phase 2 step 4a left
+[`CNilBrand`](../../../fp-library/src/types/effects/variant_f.rs),
+[`CoproductBrand<H, T>`](../../../fp-library/src/types/effects/variant_f.rs),
+and
+[`NodeBrand<R, S>`](../../../fp-library/src/types/effects/node.rs)
+with [`Functor`](../../../fp-library/src/classes/functor.rs)
+and [`WrapDrop`](../../../fp-library/src/classes/wrap_drop.rs)
+impls only. Step 4b added
+[`RefFunctor`](../../../fp-library/src/classes/ref_functor.rs)
+and [`Extract`](../../../fp-library/src/classes/extract.rs)
+cascade impls on each of the three brands, plus a
+[`Clone`] impl for the
+[`Node`](../../../fp-library/src/types/effects/node.rs) enum.
+
+### Problem
+
+Three trait gaps surfaced as step 4b's Explicit family was
+landed:
+
+1. **`RefFunctor` needed for Ref-hierarchy delegation.**
+   `RunExplicitBrand`'s
+   [`RefFunctor`](../../../fp-library/src/classes/ref_functor.rs)
+   impl delegates to
+   [`FreeExplicitBrand`](../../../fp-library/src/brands.rs)'s,
+   which carries `F: WrapDrop + Functor + RefFunctor + 'static`.
+   For `Run`, `F = NodeBrand<R, S>`; the cascade requires
+   `R: RefFunctor` and `S: RefFunctor`, so the row brand chain
+   must support it.
+2. **`Extract` needed for `evaluate()` on canonical Run
+   programs.**
+   [`FreeExplicit::evaluate`](../../../fp-library/src/types/free_explicit.rs)
+   requires `F: Extract`. For `Run`, `F = NodeBrand<R, S>`; the
+   cascade requires `R: Extract` and `S: Extract`.
+   [`IdentityBrand`](../../../fp-library/src/types/identity.rs)
+   has [`Extract`](../../../fp-library/src/classes/extract.rs);
+   the row chain (Coproduct / CNil / Node) did not.
+   Without it, brand-level test programs and doctests over
+   synthetic rows could not assert evaluation results.
+3. **`Clone` needed by Rc/Arc Free's evaluate fallback.**
+   [`RcFreeExplicit::evaluate`](../../../fp-library/src/types/rc_free_explicit.rs)
+   and
+   [`ArcFreeExplicit::evaluate`](../../../fp-library/src/types/arc_free_explicit.rs)
+   carry the per-`A` bound
+   `Apply!(<F as Kind!(...)>::Of<'a, *FreeExplicit<'a, F, A>>): Clone`.
+   For `F = NodeBrand<R, S>`, this expands to
+   `Node<'a, R, S, *FreeExplicit<'a, NodeBrand<R, S>, A>>: Clone`.
+   `Node` did not implement
+   [`Clone`].
+
+### Resolution
+
+Land mechanical cascade impls on the row brands following the
+same shape as the existing
+[`Functor`](../../../fp-library/src/classes/functor.rs) /
+[`WrapDrop`](../../../fp-library/src/classes/wrap_drop.rs)
+impls:
+
+- [`CNilBrand`](../../../fp-library/src/types/effects/variant_f.rs):
+  uninhabited base case for both
+  [`RefFunctor`](../../../fp-library/src/classes/ref_functor.rs)
+  and
+  [`Extract`](../../../fp-library/src/classes/extract.rs).
+- [`CoproductBrand<H, T>`](../../../fp-library/src/types/effects/variant_f.rs):
+  dispatches by `Inl` / `Inr` recursing into the active brand;
+  bounded `H: RefFunctor + 'static, T: RefFunctor + 'static`
+  for [`RefFunctor`](../../../fp-library/src/classes/ref_functor.rs);
+  same shape with [`Extract`](../../../fp-library/src/classes/extract.rs)
+  for the Extract impl.
+- [`NodeBrand<R, S>`](../../../fp-library/src/types/effects/node.rs):
+  dispatches by `First` / `Scoped`; bounded
+  `R: RefFunctor + 'static, S: RefFunctor + 'static` for
+  [`RefFunctor`](../../../fp-library/src/classes/ref_functor.rs);
+  same shape for [`Extract`](../../../fp-library/src/classes/extract.rs).
+- [`Node<'a, R, S, A>`](../../../fp-library/src/types/effects/node.rs):
+  manual [`Clone`] impl bounded on `Apply!(<R as Kind!(...)>::Of<'a, A>): Clone`
+  and the `S` projection; clones the active variant's payload.
+
+`SendRefFunctor` cascade is _not_ added because
+[`ArcRunExplicitBrand`](../../../fp-library/src/brands.rs)
+cannot have a SendRef hierarchy in the first place (see the
+adjacent resolution about brand-level coverage gaps).
+
+## Resolved (2026-04-27): re-export pattern for the effects subsystem types follows the optics A+B hybrid
+
+Step 4b adopts the
+[`optics`](../../../fp-library/src/types/optics.rs) precedent:
+selective top-level re-exports of headline types in
+[`crate::types::*`](../../../fp-library/src/types.rs), plus
+comprehensive subsystem-scoped re-exports at
+[`crate::types::effects::*`](../../../fp-library/src/types/effects.rs).
+
+### Problem
+
+Phase 2 step 4 left re-exports undecided. Three options were
+considered:
+
+- **A. Top-level only** (`crate::types::*`): matches the rest
+  of the [`types/`](../../../fp-library/src/types/) directory;
+  ergonomic; but ~12 names land in the top-level block and the
+  effects subsystem stops being visually distinguished.
+- **B. Subsystem-scoped only** (`crate::types::effects::*`):
+  preserves the top-level namespace shape; matches what
+  [`optics`](../../../fp-library/src/types/optics.rs) does for
+  non-headline types; but deviates from the Free family's
+  surface.
+- **C. No re-exports**: zero maintenance, but friction at
+  every import site and matches no existing pattern.
+
+The existing
+[`optics`](../../../fp-library/src/types/optics.rs) precedent
+is neither pure A nor pure B: it re-exports every submodule
+symbol via
+`pub use submodule::*` at
+[`crate::types::optics::*`](../../../fp-library/src/types/optics.rs)
+(comprehensive, B), AND surfaces only the three headline types
+[`Composed`](../../../fp-library/src/types/optics.rs),
+[`Lens`](../../../fp-library/src/types/optics.rs),
+[`LensPrime`](../../../fp-library/src/types/optics.rs) at the
+top-level (selective, A).
+
+### Resolution
+
+Adopt the optics precedent literally: the six Run wrapper
+headline types
+(`Run`, `RcRun`, `ArcRun`, `RunExplicit`, `RcRunExplicit`,
+`ArcRunExplicit`) are headline-class and ship at the top level
+([`crate::types::*`](../../../fp-library/src/types.rs)) because
+they are the user-facing types most callers will import; the
+brands and row machinery (`Node`, `VariantF`,
+`*RunExplicitBrand`) are subsystem-scoped and ship at
+[`crate::types::effects::*`](../../../fp-library/src/types/effects.rs)
+only. Brand types stay in
+[`crate::brands::*`](../../../fp-library/src/brands.rs) per the
+existing precedent for all brand types in the library.
+
 ## Resolved (2026-04-27): introduce `WrapDrop` trait for Free's struct-level Drop concern
 
 A new trait `WrapDrop` lands at the struct level of the Free

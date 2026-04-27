@@ -80,6 +80,28 @@ pub struct ArcFreeExplicitBrand<F>(PhantomData<F>);
 /// Brand for thread-safe [`ArcLazy`](crate::types::ArcLazy).
 pub type ArcLazyBrand = LazyBrand<ArcLazyConfig>;
 
+/// Brand for thread-safe [`ArcRunExplicit<R, S, A>`](crate::types::effects::arc_run_explicit::ArcRunExplicit),
+/// the [`Send`] + [`Sync`] multi-shot Explicit Run program.
+///
+/// `ArcRunExplicitBrand<R, S>::Of<'a, A>` resolves to
+/// `ArcRunExplicit<'a, R, S, A>`, which is a thin wrapper over
+/// [`ArcFreeExplicit<'a, NodeBrand<R, S>, A>`](crate::types::ArcFreeExplicit).
+/// Brand-level coverage delegates to
+/// [`ArcFreeExplicitBrand`]'s impls and so is limited to
+/// [`SendPointed`](crate::classes::SendPointed); the
+/// [`SendRef`](crate::classes::SendRefFunctor)-family hierarchy is not
+/// reachable through brand-level delegation because
+/// [`ArcFreeExplicitBrand`] does not implement it (auto-derive of
+/// `Send + Sync` on `ArcFreeExplicit` requires a per-`A` HRTB on the
+/// [`Kind`](crate::kinds) projection that stable Rust's trait method
+/// signatures cannot carry). Inherent
+/// [`bind`](crate::types::effects::arc_run_explicit::ArcRunExplicit::bind)
+/// and [`map`](crate::types::effects::arc_run_explicit::ArcRunExplicit::map)
+/// methods on `ArcRunExplicit` cover the by-value monadic surface for
+/// concrete-type call sites.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ArcRunExplicitBrand<R, S>(PhantomData<(R, S)>);
+
 /// Brand for thread-safe [`ArcTryLazy`](crate::types::ArcTryLazy).
 pub type ArcTryLazyBrand<E> = TryLazyBrand<E, ArcLazyConfig>;
 
@@ -374,6 +396,27 @@ pub struct RcFreeExplicitBrand<F>(PhantomData<F>);
 /// Brand for single-threaded [`RcLazy`](crate::types::RcLazy).
 pub type RcLazyBrand = LazyBrand<RcLazyConfig>;
 
+/// Brand for [`RcRunExplicit<R, S, A>`](crate::types::effects::rc_run_explicit::RcRunExplicit),
+/// the multi-shot, [`Clone`]-cheap Explicit Run program.
+///
+/// `RcRunExplicitBrand<R, S>::Of<'a, A>` resolves to
+/// `RcRunExplicit<'a, R, S, A>`, which is a thin wrapper over
+/// [`RcFreeExplicit<'a, NodeBrand<R, S>, A>`](crate::types::RcFreeExplicit).
+/// Brand-level coverage delegates to
+/// [`RcFreeExplicitBrand`]'s impls; on the by-value side that is
+/// [`Pointed`](crate::classes::Pointed) only (per-`A` `Clone` bounds
+/// on `bind` cannot be added to the trait method signatures); on the
+/// by-reference side it is
+/// [`RefFunctor`](crate::classes::RefFunctor),
+/// [`RefPointed`](crate::classes::RefPointed), and
+/// [`RefSemimonad`](crate::classes::RefSemimonad). Inherent
+/// [`bind`](crate::types::effects::rc_run_explicit::RcRunExplicit::bind) and
+/// [`map`](crate::types::effects::rc_run_explicit::RcRunExplicit::map) on
+/// `RcRunExplicit` cover the by-value monadic surface for concrete-type
+/// call sites.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RcRunExplicitBrand<R, S>(PhantomData<(R, S)>);
+
 /// Brand for single-threaded [`RcTryLazy`](crate::types::RcTryLazy).
 pub type RcTryLazyBrand<E> = TryLazyBrand<E, RcLazyConfig>;
 
@@ -392,6 +435,30 @@ pub struct ResultErrAppliedBrand<E>(PhantomData<E>);
 /// This brand forms a [`crate::classes::Functor`] and [`crate::classes::Monad`] over the error ([`Err`]) type.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ResultOkAppliedBrand<T>(PhantomData<T>);
+
+/// Brand for [`RunExplicit<R, S, A>`](crate::types::effects::run_explicit::RunExplicit),
+/// the single-shot Explicit Run program.
+///
+/// `RunExplicitBrand<R, S>::Of<'a, A>` resolves to
+/// `RunExplicit<'a, R, S, A>`, which is a thin wrapper over
+/// [`FreeExplicit<'a, NodeBrand<R, S>, A>`](crate::types::FreeExplicit).
+/// Brand-level coverage delegates to
+/// [`FreeExplicitBrand`]'s impls:
+/// [`Functor`](crate::classes::Functor),
+/// [`Pointed`](crate::classes::Pointed),
+/// [`Semimonad`](crate::classes::Semimonad), and the by-reference
+/// [`RefFunctor`](crate::classes::RefFunctor),
+/// [`RefPointed`](crate::classes::RefPointed),
+/// [`RefSemimonad`](crate::classes::RefSemimonad).
+/// [`Monad`](crate::classes::Monad) and
+/// [`RefMonad`](crate::classes::RefMonad) are not reachable because
+/// the [`Monad`](crate::classes::Monad) blanket impl requires
+/// [`Applicative`](crate::classes::Applicative), which
+/// [`FreeExplicitBrand`] deliberately does not implement (the natural
+/// `lift2` definition needs a per-`A` `Clone` bound that stable Rust's
+/// trait method signatures cannot express).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RunExplicitBrand<R, S>(PhantomData<(R, S)>);
 
 /// Brand for [`SendThunk`](crate::types::SendThunk).
 ///

@@ -37,7 +37,9 @@ mod inner {
 			Apply,
 			brands::NodeBrand,
 			classes::{
+				Extract,
 				Functor,
+				RefFunctor,
 				WrapDrop,
 			},
 			impl_kind,
@@ -191,6 +193,180 @@ mod inner {
 			match fa {
 				Node::First(r) => <R as WrapDrop>::drop::<X>(r),
 				Node::Scoped(s) => <S as WrapDrop>::drop::<X>(s),
+			}
+		}
+	}
+
+	#[document_type_parameters("The first-order row brand.", "The scoped-effect row brand.")]
+	impl<R, S> RefFunctor for NodeBrand<R, S>
+	where
+		R: RefFunctor + 'static,
+		S: RefFunctor + 'static,
+	{
+		/// `RefFunctor::ref_map` for a [`Node`] layer dispatches by
+		/// variant: `First` recurses into `R::ref_map`; `Scoped`
+		/// recurses into `S::ref_map`. Mirrors the
+		/// [`Functor`](crate::classes::Functor) impl above with `&self`
+		/// receivers; required by Phase 2 step 4b's
+		/// `RunExplicitBrand` Ref-hierarchy delegation through
+		/// [`FreeExplicitBrand`](crate::brands::FreeExplicitBrand)'s
+		/// `RefFunctor` impl.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The current result type.",
+			"The new result type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply by reference to the result.",
+			"The Node layer."
+		)]
+		///
+		#[document_returns("A Node layer with the function applied to its result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::effects::node::Node,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let node: Node<'static, FirstRow, Scoped, i32> = Node::First(
+		/// 	fp_library::types::effects::coproduct::Coproduct::inject(fp_library::types::Identity(7)),
+		/// );
+		/// let mapped: Node<'static, FirstRow, Scoped, i32> =
+		/// 	<NodeBrand<FirstRow, Scoped> as RefFunctor>::ref_map(|x: &i32| *x + 1, &node);
+		/// match mapped {
+		/// 	Node::First(c) => match c {
+		/// 		fp_library::types::effects::coproduct::Coproduct::Inl(fp_library::types::Identity(
+		/// 			x,
+		/// 		)) => assert_eq!(x, 8),
+		/// 		fp_library::types::effects::coproduct::Coproduct::Inr(_) => panic!("expected head Inl"),
+		/// 	},
+		/// 	Node::Scoped(_) => panic!("expected First variant"),
+		/// }
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match fa {
+				Node::First(r) => Node::First(<R as RefFunctor>::ref_map(func, r)),
+				Node::Scoped(s) => Node::Scoped(<S as RefFunctor>::ref_map(func, s)),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the layer and its inner Free continuations.",
+		"The first-order row brand.",
+		"The scoped-effect row brand.",
+		"The result type of the layer's continuation."
+	)]
+	#[document_parameters("The Node layer to clone.")]
+	impl<'a, R, S, A> Clone for Node<'a, R, S, A>
+	where
+		R: Kind_cdc7cd43dac7585f + 'static,
+		S: Kind_cdc7cd43dac7585f + 'static,
+		A: 'a,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+		Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+	{
+		/// Clones a [`Node`] by delegating to the active row brand's
+		/// payload [`Clone`]. Required so the
+		/// [`Rc`](std::rc::Rc)- and [`Arc`](std::sync::Arc)-backed
+		/// [`Free`](crate::types::FreeExplicit) substrates can clone
+		/// shared inner state when their outer refcounts are not
+		/// unique.
+		#[document_signature]
+		///
+		#[document_returns("A clone of the Node layer.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let node: Node<'static, FirstRow, Scoped, i32> = Node::First(Coproduct::inject(Identity(7)));
+		/// let cloned = node.clone();
+		/// assert!(matches!(cloned, Node::First(Coproduct::Inl(Identity(7)))));
+		/// ```
+		fn clone(&self) -> Self {
+			match self {
+				Node::First(r) => Node::First(r.clone()),
+				Node::Scoped(s) => Node::Scoped(s.clone()),
+			}
+		}
+	}
+
+	#[document_type_parameters("The first-order row brand.", "The scoped-effect row brand.")]
+	impl<R, S> Extract for NodeBrand<R, S>
+	where
+		R: Extract + 'static,
+		S: Extract + 'static,
+	{
+		/// `Extract::extract` for a [`Node`] layer dispatches by
+		/// variant: `First` recurses into `R::extract`; `Scoped`
+		/// recurses into `S::extract`. Mirrors the
+		/// [`Functor`](crate::classes::Functor) impl above. Used by
+		/// [`FreeExplicit::evaluate`](crate::types::FreeExplicit) to
+		/// pull a value out of a Run-shaped program when the underlying
+		/// row brands themselves implement [`Extract`].
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type yielded by the layer.")]
+		///
+		#[document_parameters("The Node layer being extracted.")]
+		///
+		#[document_returns("The active row brand's `extract` result for the variant's payload.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let node: Node<'static, FirstRow, Scoped, i32> = Node::First(Coproduct::inject(Identity(42)));
+		/// let value = <NodeBrand<FirstRow, Scoped> as Extract>::extract::<i32>(node);
+		/// assert_eq!(value, 42);
+		/// ```
+		fn extract<'a, A: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		) -> A {
+			match fa {
+				Node::First(r) => <R as Extract>::extract::<A>(r),
+				Node::Scoped(s) => <S as Extract>::extract::<A>(s),
 			}
 		}
 	}

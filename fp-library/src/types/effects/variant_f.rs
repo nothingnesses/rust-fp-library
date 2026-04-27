@@ -41,7 +41,9 @@ mod inner {
 				CoproductBrand,
 			},
 			classes::{
+				Extract,
 				Functor,
+				RefFunctor,
 				WrapDrop,
 			},
 			impl_kind,
@@ -289,6 +291,220 @@ mod inner {
 			match fa {
 				Coproduct::Inl(h) => <H as WrapDrop>::drop::<X>(h),
 				Coproduct::Inr(t) => <T as WrapDrop>::drop::<X>(t),
+			}
+		}
+	}
+
+	impl RefFunctor for CNilBrand {
+		/// `RefFunctor::ref_map` for the empty row. The argument's type
+		/// is `CNil`, which is uninhabited; the body matches it
+		/// exhaustively without producing a result.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the value(s) inside the functor.",
+			"The type of the result(s) of applying the function."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply by reference (unused; the empty row carries no value).",
+			"The empty-row functor instance (uninhabited)."
+		)]
+		///
+		#[document_returns("Unreachable; the body matches the uninhabited input exhaustively.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		IdentityBrand,
+		/// 	},
+		/// 	classes::RefFunctor,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::coproduct::Coproduct,
+		/// 	},
+		/// };
+		///
+		/// type Row =
+		/// 	<CoproductBrand<IdentityBrand, CNilBrand> as fp_library::kinds::Kind_cdc7cd43dac7585f>::Of<
+		/// 		'static,
+		/// 		i32,
+		/// 	>;
+		///
+		/// let value: Row = Coproduct::inject(Identity(7));
+		/// let mapped =
+		/// 	<CoproductBrand<IdentityBrand, CNilBrand> as RefFunctor>::ref_map(|x: &i32| *x * 2, &value);
+		/// assert!(matches!(mapped, Coproduct::Inl(Identity(14))));
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			_func: impl Fn(&A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match *fa {}
+		}
+	}
+
+	#[document_type_parameters(
+		"The brand of the head effect in the row.",
+		"The brand of the tail row (typically another `CoproductBrand` or `CNilBrand`)."
+	)]
+	impl<H, T> RefFunctor for CoproductBrand<H, T>
+	where
+		H: RefFunctor + 'static,
+		T: RefFunctor + 'static,
+	{
+		/// `RefFunctor::ref_map` for a non-empty effect row. Dispatches
+		/// to the head brand `H` if the runtime tag is
+		/// [`Inl`](Coproduct::Inl), or recurses into the tail brand `T`
+		/// if it is [`Inr`](Coproduct::Inr). Mirrors the
+		/// [`Functor`](crate::classes::Functor) impl above with `&self`
+		/// receivers.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the value(s) inside the functor.",
+			"The type of the result(s) of applying the function."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply by reference to the value(s) inside the functor.",
+			"The functor instance containing the value(s)."
+		)]
+		///
+		#[document_returns(
+			"A new functor instance containing the result(s) of applying the function."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::coproduct::Coproduct,
+		/// 	},
+		/// };
+		///
+		/// type Row =
+		/// 	<CoproductBrand<IdentityBrand, CNilBrand> as fp_library::kinds::Kind_cdc7cd43dac7585f>::Of<
+		/// 		'static,
+		/// 		i32,
+		/// 	>;
+		///
+		/// let value: Row = Coproduct::inject(Identity(10));
+		/// let mapped =
+		/// 	<CoproductBrand<IdentityBrand, CNilBrand> as RefFunctor>::ref_map(|x: &i32| *x + 1, &value);
+		/// assert!(matches!(mapped, Coproduct::Inl(Identity(11))));
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match fa {
+				Coproduct::Inl(h) => Coproduct::Inl(<H as RefFunctor>::ref_map(func, h)),
+				Coproduct::Inr(t) => Coproduct::Inr(<T as RefFunctor>::ref_map(func, t)),
+			}
+		}
+	}
+
+	impl Extract for CNilBrand {
+		/// `Extract::extract` for the empty row. The argument's type is
+		/// `CNil`, which is uninhabited; the body matches it
+		/// exhaustively without producing a result.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type the empty row would yield."
+		)]
+		///
+		#[document_parameters("The empty-row functor instance (uninhabited).")]
+		///
+		#[document_returns("Unreachable; the body matches the uninhabited input exhaustively.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CNilBrand,
+		/// 	classes::Extract,
+		/// };
+		/// fn requires_extract<F: Extract>() {}
+		/// requires_extract::<CNilBrand>();
+		/// assert_eq!(2 + 2, 4);
+		/// ```
+		fn extract<'a, A: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		) -> A {
+			match fa {}
+		}
+	}
+
+	#[document_type_parameters(
+		"The brand of the head effect in the row.",
+		"The brand of the tail row (typically another `CoproductBrand` or `CNilBrand`)."
+	)]
+	impl<H, T> Extract for CoproductBrand<H, T>
+	where
+		H: Extract + 'static,
+		T: Extract + 'static,
+	{
+		/// `Extract::extract` for a non-empty effect row. Dispatches
+		/// to the head brand `H` if the runtime tag is
+		/// [`Inl`](Coproduct::Inl), or recurses into the tail brand `T`
+		/// if it is [`Inr`](Coproduct::Inr). The recursion bottoms out
+		/// at [`CNilBrand`]'s uninhabited base case.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type yielded by the active brand."
+		)]
+		///
+		#[document_parameters("The Coproduct functor layer.")]
+		///
+		#[document_returns("The active head or tail brand's `extract` result for `fa`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		IdentityBrand,
+		/// 	},
+		/// 	classes::Extract,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::coproduct::Coproduct,
+		/// 	},
+		/// };
+		///
+		/// type Row =
+		/// 	<CoproductBrand<IdentityBrand, CNilBrand> as fp_library::kinds::Kind_cdc7cd43dac7585f>::Of<
+		/// 		'static,
+		/// 		i32,
+		/// 	>;
+		///
+		/// let row: Row = Coproduct::inject(Identity(42));
+		/// let value = <CoproductBrand<IdentityBrand, CNilBrand> as Extract>::extract::<i32>(row);
+		/// assert_eq!(value, 42);
+		/// ```
+		fn extract<'a, A: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		) -> A {
+			match fa {
+				Coproduct::Inl(h) => <H as Extract>::extract::<A>(h),
+				Coproduct::Inr(t) => <T as Extract>::extract::<A>(t),
 			}
 		}
 	}

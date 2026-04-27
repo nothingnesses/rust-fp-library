@@ -619,3 +619,96 @@ phasing, see [plan.md](plan.md).
   `WrapDrop` for the refcounted Coyoneda brands is a follow-up
   if step-4b's tests or a Phase 3 handler stack genuinely need
   them.
+
+- **Brand-level coverage on the Explicit Run brands ships only
+  the achievable subset.** The plan text named a full
+  `Functor / Pointed / Semimonad / Monad` hierarchy plus the
+  `Ref*` and `SendRef*` equivalents on the three Explicit Run
+  brands. Step 4b ships:
+  - `RunExplicitBrand`: `Functor`, `Pointed`, `Semimonad`,
+    `RefFunctor`, `RefPointed`, `RefSemimonad`.
+  - `RcRunExplicitBrand`: `Pointed` plus `RefFunctor`,
+    `RefPointed`, `RefSemimonad`.
+  - `ArcRunExplicitBrand`: `SendPointed` only.
+
+  `Monad` / `RefMonad` / `SendMonad` are unreachable because the
+  blanket impls require `Applicative` / `RefApplicative` /
+  `SendApplicative`, which the underlying
+  `*FreeExplicitBrand`s deliberately do not implement. The
+  `SendRef*` hierarchy is unreachable on `ArcRunExplicitBrand`
+  because `ArcFreeExplicitBrand` does not implement it (the
+  `for<'a, A>` HRTB needed to express
+  `Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync` at the
+  impl-block level is not in stable Rust). Inherent `bind` and
+  `map` methods on `RcRunExplicit` and `ArcRunExplicit` cover
+  the by-value monadic surface for concrete-type call sites.
+  See [resolutions.md](resolutions.md#resolved-2026-04-27-brand-level-type-class-coverage-gap-on-the-explicit-run-brands)
+  for full rationale.
+
+- **Ref hierarchy on `RunExplicitBrand` and `RcRunExplicitBrand`
+  is bounded by `R: RefFunctor, S: RefFunctor`.** The brand
+  impls compile against the cascade
+  `R: RefFunctor + 'static, S: RefFunctor + 'static`. Step 4b
+  adds `RefFunctor` impls on the row brands to satisfy this
+  cascade, but
+  [`CoyonedaBrand`](../../../fp-library/src/brands.rs) does not
+  implement `RefFunctor`, so canonical Run effect rows
+  (`CoproductBrand<CoyonedaBrand<E_i>, ...>`) do not satisfy
+  the cascade in practice. Brand-level `Ref*` dispatch is
+  reachable only for synthetic rows whose head brands implement
+  `RefFunctor` directly (e.g.,
+  `CoproductBrand<IdentityBrand, CNilBrand>`). Adding
+  `RefFunctor` to `CoyonedaBrand` is scope-creep beyond step
+  4b; tracked separately.
+
+- **Row-brand `RefFunctor` and `Extract` cascade impls land in
+  step 4b.** Step 4a's row-brand inventory listed only
+  `Functor` and `WrapDrop`. Step 4b extends to include
+  `RefFunctor` impls on `CNilBrand`, `CoproductBrand<H, T>`, and
+  `NodeBrand<R, S>` (required by the Ref-hierarchy delegation
+  per the bullet above) and `Extract` impls on the same three
+  brands. The `Extract` cascade is needed because
+  [`FreeExplicit::evaluate`](../../../fp-library/src/types/free_explicit.rs)
+  requires `F: Extract`, and tests / doctests over canonical
+  Run-shaped programs assert evaluation results. Without the
+  cascade, brand-level construction works but `evaluate()` does
+  not; with it, programs whose row brands themselves have
+  `Extract` (e.g., `IdentityBrand`-based test rows) can be
+  evaluated.
+
+- **`Node<'a, R, S, A>` gets a manual `Clone` impl.**
+  [`RcFreeExplicit::evaluate`](../../../fp-library/src/types/rc_free_explicit.rs)
+  and
+  [`ArcFreeExplicit::evaluate`](../../../fp-library/src/types/arc_free_explicit.rs)
+  carry the per-`A` bound
+  `Apply!(<F as Kind!(...)>::Of<'a, *FreeExplicit<'a, F, A>>): Clone`
+  (used in the shared-state recovery fallback when the outer
+  refcount is not unique). For `F = NodeBrand<R, S>`, this
+  expands to
+  `Node<'a, R, S, *FreeExplicit<'a, NodeBrand<R, S>, A>>: Clone`.
+  The manual `Clone` impl on `Node` is bounded by
+  `Apply!(<R as Kind!(...)>::Of<'a, A>): Clone` and the `S`
+  projection's `Clone`; it clones the active variant's payload.
+
+- **`SendRefFunctor` cascade on row brands is _not_ added.** The
+  plan's step 4b active-blocker entry anticipated a Send-side
+  cascade alongside the by-reference cascade. Since
+  `ArcRunExplicitBrand` cannot have a `SendRef` hierarchy (per
+  the brand-level coverage bullet above), there is no consumer
+  for `SendRefFunctor` on the row brands at this stage.
+  Deferred until a future need surfaces.
+
+- **Re-export pattern follows the
+  [`optics`](../../../fp-library/src/types/optics.rs) precedent:
+  selective top-level + comprehensive subsystem-scoped.** The
+  six Run wrapper headline types
+  (`Run`, `RcRun`, `ArcRun`, `RunExplicit`, `RcRunExplicit`,
+  `ArcRunExplicit`) ship at the top level
+  ([`crate::types::*`](../../../fp-library/src/types.rs)); the
+  same six plus `Node` and `VariantF` ship at
+  [`crate::types::effects::*`](../../../fp-library/src/types/effects.rs)
+  for the namespaced form. Brand types stay in
+  [`crate::brands::*`](../../../fp-library/src/brands.rs) per
+  the existing precedent for all brand types. See
+  [resolutions.md](resolutions.md#resolved-2026-04-27-re-export-pattern-for-the-effects-subsystem-types-follows-the-optics-ab-hybrid)
+  for the full options analysis.
