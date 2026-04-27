@@ -540,6 +540,92 @@ dedicated enum, Scoped arm structurally present, NoScoped reuses
 CNilBrand, single commit) remain valid for whichever path is
 chosen; this blocker is upstream of those.
 
+**Probe results
+([fp-library/tests/run_wrap_depth_probe.rs](../../../fp-library/tests/run_wrap_depth_probe.rs),
+commit `09d676b`):** to determine whether the `Extract` bound is
+structurally necessary for Run usage or only for artificial
+deep-Wrap-chain patterns, a probe at
+[`fp-library/tests/run_wrap_depth_probe.rs`](../../../fp-library/tests/run_wrap_depth_probe.rs)
+measures Wrap-arm depth across seven Run-shaped construction
+patterns over `Free<ThunkBrand, _>` (using `ThunkBrand` because
+`Free<IdentityBrand, _>` is layout-cyclic per the Phase 1 step 8
+deviation). The probe distinguishes two metrics:
+
+- **Evaluation depth:** how many `Wrap` layers materialize when
+  `to_view` applies pending continuations and follows the Wrap
+  chain via `Extract`. This is what an interpreter sees when
+  walking the program.
+- **Structural depth:** how many `Wrap` layers exist in the
+  original view BEFORE `to_view` applies any continuation. This
+  is what `Drop` traverses, because `Drop` dismantles the view
+  and continuations in place without applying the closures.
+
+The seven tests and their findings:
+
+| Pattern                                                                | Evaluation depth | Structural depth                |
+| ---------------------------------------------------------------------- | ---------------- | ------------------------------- |
+| `Free::pure(0)`                                                        | 0                | 0                               |
+| `pure(0).bind(\|x\| pure(x+1))` chained 1000 times                     | 0                | 0                               |
+| `lift_f(eff)` alone                                                    | 1                | 1                               |
+| `lift_f(eff).bind(\|x\| pure(x+1))` chained 1000 times                 | 1                | 1                               |
+| `pure(0).bind(\|x\| lift_f(eff))` chained 100 times                    | 100              | 0                               |
+| `lift_f(eff).bind(\|x\| pure(x+1))` chained 100 000 times, then `drop` | n/a              | succeeds without stack overflow |
+| Explicit `Free::wrap(...)` chained 100 times                           | 100              | 100                             |
+
+**Bottom-line finding:** Run-typical programs (built via
+`lift_f` plus a flat `bind` chain) have **structural Wrap depth
+at most 1**, regardless of bind-chain length. The depth that
+grows with sequencing lives in the CatList of continuations,
+which the existing iterative `Drop` already dismantles without
+calling `Extract`. The 100 000-bind drop test passes without
+stack overflow even though `Drop` only walks one Wrap layer
+(the original `lift_f`'s Wrap) recursively.
+
+The artificial 100-deep `Free::wrap` chain pattern (last row) is
+the case that motivated the existing `Extract`-based iterative
+`Drop`. Run-typical usage does not produce this pattern; users
+inject effects via `lift_f` (one Wrap per call) and chain via
+`bind` (no new Wraps). The probe also includes
+`nested_lift_f_via_bind_materializes_wraps_at_evaluation_time`,
+which has evaluation depth 100 but structural depth 0 — a
+useful corner case showing that `bind` closures returning
+`lift_f` build their Wraps at _evaluation_ time, not at
+construction time, so they live in the CatList rather than in
+the structural Wrap chain.
+
+**Reframed resolution paths in light of the probe:**
+
+- **(a)** Modify Phase 1's Free family in place. The probe
+  invalidates the "alternatives investigated and rejected"
+  comment at
+  [`fp-library/src/types/free.rs`](../../../fp-library/src/types/free.rs)
+  lines 250-259 by surfacing a fourth alternative the comment
+  did not list: **recursive `Drop` on `Wrap` plus iterative
+  `Drop` on the CatList**. Sound for Run-typical usage; would
+  regress
+  [`Free::deep_drop_does_not_overflow`](../../../fp-library/src/types/free.rs)
+  which exercises the artificial 100 000-deep-`wrap` pattern.
+  Ship-as-is means losing that property for the Free family in
+  general.
+- **(b)** Build a parallel `RunFree`-like substrate. Same
+  insight, isolated to Run. **Probe-validated as sound** for
+  Run usage. Phase 1's Free family stays untouched, including
+  its existing deep-drop guarantee. Cost: ~6 new files
+  paralleling the existing Free / RcFree / ArcFree / FreeExplicit
+  / RcFreeExplicit / ArcFreeExplicit, with relaxed bounds and
+  recursive Wrap drop. Some shared logic could be factored.
+- **(c)** Run is not literally a Free. Still an option but no
+  longer necessary; (b) achieves the goal without redesigning
+  the relationship.
+- **(d)** Implement `Extract` for the row brands with panic
+  semantics. Still a footgun; rejected.
+
+The probe tests stay in
+[`fp-library/tests/run_wrap_depth_probe.rs`](../../../fp-library/tests/run_wrap_depth_probe.rs)
+as regression-safety documentation. They exercise properties of
+the existing Free family that step 4's resolution must preserve
+for the new substrate.
+
 **Resolved (between Phase 1 step 4 and step 5): brand-level
 dispatch for the multi-shot Explicit Free family lands on the
 by-reference hierarchy, not the by-value hierarchy.**
