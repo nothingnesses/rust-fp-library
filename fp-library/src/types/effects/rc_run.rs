@@ -32,11 +32,13 @@
 mod inner {
 	use {
 		crate::{
+			Apply,
 			brands::NodeBrand,
 			classes::{
 				Functor,
 				WrapDrop,
 			},
+			kinds::*,
 			types::RcFree,
 		},
 		fp_macros::*,
@@ -172,6 +174,139 @@ mod inner {
 		pub fn into_rc_free(self) -> RcFree<NodeBrand<R, S>, A> {
 			self.0
 		}
+
+		/// Wraps a value in a pure `RcRun` computation. Delegates to
+		/// [`RcFree::pure`](crate::types::RcFree).
+		#[document_signature]
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		#[document_returns("An `RcRun` computation that produces `a`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// // Identity-headed row is used for assertions that engage `peel`
+		/// // (which carries a per-projection `Clone` bound that the
+		/// // canonical `Coyoneda` row does not satisfy).
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::pure(42);
+		/// assert!(matches!(rc_run.peel(), Ok(42)));
+		/// ```
+		#[inline]
+		pub fn pure(a: A) -> Self {
+			RcRun::from_rc_free(RcFree::pure(a))
+		}
+
+		/// Decomposes this `RcRun` computation into one step. Returns
+		/// `Ok(a)` if the program is a pure value, or `Err(layer)`
+		/// carrying the next `RcRun` continuation in a [`Node`](crate::types::effects::node::Node) layer.
+		/// Delegates to [`RcFree::resume`](crate::types::RcFree).
+		#[document_signature]
+		///
+		#[document_returns(
+			"`Ok(a)` for a pure result, or `Err(layer)` carrying the next `RcRun` step."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// // Identity-headed row: `peel`'s per-projection `Clone` bound
+		/// // is satisfied by `Identity<RcFree>: Clone`.
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::pure(7);
+		/// assert!(matches!(rc_run.peel(), Ok(7)));
+		/// ```
+		#[expect(
+			clippy::type_complexity,
+			reason = "Return type encodes Result<A, NodeBrand<R, S>::Of<'static, RcRun<R, S, A>>>; the GAT projection is structurally complex but cannot be aliased without losing the projection link the wrapper depends on."
+		)]
+		pub fn peel(
+			self
+		) -> Result<
+			A,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>),
+		>
+		where
+			A: Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			self.0
+				.resume()
+				.map_err(|node| <NodeBrand<R, S> as Functor>::map(RcRun::from_rc_free, node))
+		}
+
+		/// Lifts a [`Node`](crate::types::effects::node::Node) dispatch layer into the `RcRun` program.
+		/// The `node` argument is the
+		/// [`NodeBrand<R, S>`](crate::brands::NodeBrand) `Of<'static, A>`
+		/// projection (typically `Node::First(<R as Member<...>>::inject(operation))`);
+		/// `send` delegates to
+		/// [`RcFree::lift_f`](crate::types::RcFree). The
+		/// `Node`-projection signature is symmetric across the six Run
+		/// wrappers; see
+		/// [`Run::send`](crate::types::effects::run::Run::send) for the
+		/// rationale.
+		#[document_signature]
+		///
+		#[document_parameters("The Node dispatch layer carrying the effect operation.")]
+		///
+		#[document_returns(
+			"An `RcRun` computation that performs the effect and returns its result."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 			rc_run::RcRun,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let layer = Coproduct::inject(Identity(7));
+		/// let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::send(Node::First(layer));
+		/// let next = match rc_run.peel() {
+		/// 	Err(Node::First(Coproduct::Inl(Identity(n)))) => n,
+		/// 	_ => panic!("expected First(Inl(Identity(..))) layer"),
+		/// };
+		/// assert!(matches!(next.peel(), Ok(7)));
+		/// ```
+		#[inline]
+		pub fn send(
+			node: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+		) -> Self
+		where
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			RcRun::from_rc_free(RcFree::<NodeBrand<R, S>, A>::lift_f(node))
+		}
 	}
 }
 
@@ -189,30 +324,58 @@ mod tests {
 				IdentityBrand,
 				NodeBrand,
 			},
-			types::RcFree,
+			types::{
+				Identity,
+				RcFree,
+				effects::{
+					coproduct::Coproduct,
+					node::Node,
+				},
+			},
 		},
 	};
 
-	type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
-	type Scoped = CNilBrand;
-	type RcRunAlias<A> = RcRun<FirstRow, Scoped, A>;
+	type CoyonedaFirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+	type CoyonedaScoped = CNilBrand;
+	// `peel` carries a per-projection `Clone` bound that the canonical
+	// `Coyoneda`-wrapped row does not satisfy (`Coyoneda` is `!Clone`);
+	// tests that exercise `peel` use an `Identity`-headed row instead.
+	// `RcFree`'s outer `Rc<Inner>` provides the layout indirection that
+	// makes the `Identity`-headed row well-formed for `RcRun`.
+	type IdentityFirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+	type IdentityScoped = CNilBrand;
 
 	#[test]
 	fn from_rc_free_and_into_rc_free_round_trip() {
-		let rc_free: RcFree<NodeBrand<FirstRow, Scoped>, i32> = RcFree::pure(42);
-		let rc_run: RcRunAlias<i32> = RcRun::from_rc_free(rc_free);
-		let _back: RcFree<NodeBrand<FirstRow, Scoped>, i32> = rc_run.into_rc_free();
+		let rc_free: RcFree<NodeBrand<CoyonedaFirstRow, CoyonedaScoped>, i32> = RcFree::pure(42);
+		let rc_run: RcRun<CoyonedaFirstRow, CoyonedaScoped, i32> = RcRun::from_rc_free(rc_free);
+		let _back: RcFree<NodeBrand<CoyonedaFirstRow, CoyonedaScoped>, i32> = rc_run.into_rc_free();
 	}
 
 	#[test]
 	fn clone_bumps_refcount_in_constant_time() {
-		let rc_run: RcRunAlias<i32> = RcRun::from_rc_free(RcFree::pure(7));
+		let rc_run: RcRun<CoyonedaFirstRow, CoyonedaScoped, i32> =
+			RcRun::from_rc_free(RcFree::pure(7));
 		let _branch = rc_run.clone();
 	}
 
 	#[test]
 	fn drop_a_pure_rc_run_does_not_panic() {
-		let rc_run: RcRunAlias<i32> = RcRun::from_rc_free(RcFree::pure(7));
+		let rc_run: RcRun<CoyonedaFirstRow, CoyonedaScoped, i32> =
+			RcRun::from_rc_free(RcFree::pure(7));
 		drop(rc_run);
+	}
+
+	#[test]
+	fn pure_then_peel_returns_value() {
+		let rc_run: RcRun<IdentityFirstRow, IdentityScoped, i32> = RcRun::pure(42);
+		assert!(matches!(rc_run.peel(), Ok(42)));
+	}
+
+	#[test]
+	fn send_produces_suspended_program() {
+		let layer = Coproduct::inject(Identity(7));
+		let rc_run: RcRun<IdentityFirstRow, IdentityScoped, i32> = RcRun::send(Node::First(layer));
+		assert!(rc_run.peel().is_err());
 	}
 }

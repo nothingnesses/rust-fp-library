@@ -38,11 +38,13 @@
 mod inner {
 	use {
 		crate::{
+			Apply,
 			brands::NodeBrand,
 			classes::{
 				Functor,
 				WrapDrop,
 			},
+			kinds::*,
 			types::Free,
 		},
 		fp_macros::*,
@@ -139,6 +141,130 @@ mod inner {
 		pub fn into_free(self) -> Free<NodeBrand<R, S>, A> {
 			self.0
 		}
+
+		/// Wraps a value in a pure `Run` computation. Delegates to
+		/// [`Free::pure`](crate::types::Free).
+		#[document_signature]
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		#[document_returns("A `Run` computation that produces `a`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: Run<FirstRow, Scoped, i32> = Run::pure(42);
+		/// assert!(matches!(run.peel(), Ok(42)));
+		/// ```
+		#[inline]
+		pub fn pure(a: A) -> Self {
+			Run::from_free(Free::pure(a))
+		}
+
+		/// Decomposes this `Run` computation into one step. Returns
+		/// `Ok(a)` if the program is a pure value, or `Err(layer)` if
+		/// it is suspended in the dual-row
+		/// [`Node`](crate::types::effects::node::Node) dispatch enum,
+		/// where `layer` carries the next `Run` continuation.
+		///
+		/// Delegates to [`Free::resume`](crate::types::Free).
+		#[document_signature]
+		///
+		#[document_returns(
+			"`Ok(a)` for a pure result, or `Err(layer)` carrying the next `Run` step in a `Node` layer."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: Run<FirstRow, Scoped, i32> = Run::pure(7);
+		/// assert!(matches!(run.peel(), Ok(7)));
+		/// ```
+		#[expect(
+			clippy::type_complexity,
+			reason = "Return type encodes Result<A, NodeBrand<R, S>::Of<'static, Run<R, S, A>>>; the GAT projection is structurally complex but cannot be aliased without losing the projection link the wrapper depends on."
+		)]
+		pub fn peel(
+			self
+		) -> Result<
+			A,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>),
+		> {
+			self.0.resume().map_err(|node| <NodeBrand<R, S> as Functor>::map(Run::from_free, node))
+		}
+
+		/// Lifts a [`Node`](crate::types::effects::node::Node) dispatch layer into the `Run` program.
+		/// The `node` argument is a value of
+		/// [`NodeBrand<R, S>`](crate::brands::NodeBrand)'s
+		/// `Of<'static, A>` projection (typically constructed via
+		/// `Node::First(<R as Member<...>>::inject(operation))` for a
+		/// first-order effect, or `Node::Scoped(...)` for a scoped
+		/// effect); `send` delegates to
+		/// [`Free::lift_f`](crate::types::Free).
+		///
+		/// The `Node`-projection signature (rather than a row-variant
+		/// signature) is required so the same shape works across all
+		/// six Run wrappers, including
+		/// [`ArcRun`](crate::types::effects::arc_run::ArcRun) and
+		/// [`ArcRunExplicit`](crate::types::effects::arc_run_explicit::ArcRunExplicit).
+		/// Constructing the [`Node`](crate::types::effects::node::Node) literal inside an `Arc`-substrate
+		/// method body fails GAT normalization (see
+		/// `tests/arc_run_normalization_probe.rs`); accepting an
+		/// already-projection-typed parameter sidesteps that.
+		#[document_signature]
+		///
+		#[document_parameters("The Node dispatch layer carrying the effect operation.")]
+		///
+		#[document_returns("A `Run` computation that performs the effect and returns its result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Coyoneda,
+		/// 		Identity,
+		/// 		effects::{
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 			run::Run,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let coyo: Coyoneda<'static, IdentityBrand, i32> = Coyoneda::lift(Identity(7));
+		/// let layer = Coproduct::inject(coyo);
+		/// let run: Run<FirstRow, Scoped, i32> = Run::send(Node::First(layer));
+		/// // `send` produces a suspended program; peel returns Err
+		/// // carrying the layer with the next continuation.
+		/// assert!(run.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn send(
+			node: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+		) -> Self {
+			Run::from_free(Free::<NodeBrand<R, S>, A>::lift_f(node))
+		}
 	}
 }
 
@@ -156,7 +282,15 @@ mod tests {
 				IdentityBrand,
 				NodeBrand,
 			},
-			types::Free,
+			types::{
+				Coyoneda,
+				Free,
+				Identity,
+				effects::{
+					coproduct::Coproduct,
+					node::Node,
+				},
+			},
 		},
 	};
 
@@ -175,5 +309,19 @@ mod tests {
 	fn drop_a_pure_run_does_not_panic() {
 		let run: RunAlias<i32> = Run::from_free(Free::pure(7));
 		drop(run);
+	}
+
+	#[test]
+	fn pure_then_peel_returns_value() {
+		let run: RunAlias<i32> = Run::pure(42);
+		assert!(matches!(run.peel(), Ok(42)));
+	}
+
+	#[test]
+	fn send_produces_suspended_program() {
+		let coyo: Coyoneda<'static, IdentityBrand, i32> = Coyoneda::lift(Identity(7));
+		let layer = Coproduct::inject(coyo);
+		let run: RunAlias<i32> = Run::send(Node::First(layer));
+		assert!(run.peel().is_err());
 	}
 }

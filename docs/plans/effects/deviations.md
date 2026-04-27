@@ -712,3 +712,63 @@ phasing, see [plan.md](plan.md).
   the existing precedent for all brand types. See
   [resolutions.md](resolutions.md#resolved-2026-04-27-re-export-pattern-for-the-effects-subsystem-types-follows-the-optics-ab-hybrid)
   for the full options analysis.
+
+### Step 5: `pure` / `peel` / `send` core operations on six Run variants
+
+- **`*Run::send` takes the `Node`-projection value, not the
+  row-variant layer.** The plan-text expectation was that `send`
+  takes the first-order row variant `R::Of<'_, A>` and constructs
+  `Node::First(layer)` internally before delegating to
+  `*Free::lift_f`. While implementing `ArcRun::send` this shape
+  failed to compile: `ArcFree`'s struct-level HRTB
+  (`Of<'static, ArcFree<...>>: Send + Sync`) poisons GAT
+  normalization in any scope mentioning it, so constructing a
+  `Node::First(layer)` literal there cannot be unified with the
+  `<NodeBrand<R, S> as Kind>::Of<'_, A>` projection that
+  `lift_f` expects. The workaround that succeeds: pass an
+  already-projection-typed value as the parameter, never
+  construct a Node literal inside the HRTB scope.
+
+  Eleven experiments at
+  [`fp-library/tests/arc_run_normalization_probe.rs`](../../../fp-library/tests/arc_run_normalization_probe.rs)
+  isolated the trigger and validated the workaround. The probe
+  file ships in `tests/` (trimmed to four passing patterns) as
+  a regression test documenting the limit. See
+  [resolutions.md](resolutions.md#resolved-2026-04-27-runsend-takes-a-node-projection-value-to-sidestep-gat-normalization-poisoning-under-arcfrees-hrtb)
+  for the full investigation.
+
+  The signature change applies symmetrically to all six wrappers
+  (`Run`, `RcRun`, `ArcRun`, `RunExplicit`, `RcRunExplicit`,
+  `ArcRunExplicit`) so the API is uniform; only `ArcRun` strictly
+  requires it (the others would compile with the natural shape
+  too, but uniformity matters for step 7 macros and step 9
+  smart constructors that emit `send` calls).
+
+- **`FreeExplicit::to_view` precursor.** `FreeExplicit`'s `view`
+  field is private. `RunExplicit::peel` needs to walk the view
+  to expose the underlying `FreeExplicitView::Pure(a)` /
+  `FreeExplicitView::Wrap(layer)` shape. A small precursor
+  [`pub fn to_view(self) -> FreeExplicitView<'a, F, A>`](../../../fp-library/src/types/free_explicit.rs)
+  was added on `FreeExplicit`, mirroring the existing
+  `RcFreeExplicit::to_view` / `ArcFreeExplicit::to_view`
+  methods. Not in the plan-text inventory; recorded here.
+
+- **Doctests use `peel`-based assertions (not `evaluate`-based)
+  for the Erased family `Run` and `RcRun`.**
+  `Free::evaluate`, `RcFree::evaluate`, and `ArcFree::evaluate`
+  require `F: Extract` on the substrate functor, which
+  `CoyonedaBrand` does not implement. To assert non-trivial
+  behavior in doctests without pulling in `Extract`-having row
+  brands, the `pure` and `peel` doctests on `Run` and `RcRun`
+  use `peel`-based assertions
+  (`assert!(matches!(run.peel(), Ok(value)))`); doctests on
+  `RcRun::pure` and `RcRun::peel` switch to an `Identity`-headed
+  row so `peel`'s per-projection `Clone` bound is satisfied
+  (`Identity<RcFree>: Clone` is unconditional). `ArcRun`'s
+  `peel` similarly works only with `Identity`-headed rows. The
+  `Run::send` doctest uses a `Coyoneda`-headed row (`Run` lacks
+  the `Clone` bound on `peel` since `Free::resume` doesn't carry
+  one) and asserts `is_err()` on the resulting program (the
+  full pattern-match into `Coyoneda<...>` value would require
+  evaluating the Coyoneda function which is beyond the scope of
+  step 5).

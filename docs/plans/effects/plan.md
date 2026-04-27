@@ -2,13 +2,53 @@
 
 **Status:** Phase 1 complete (all 9 steps); Phase 1 follow-up
 both commits (`WrapDrop` migration plus `Functor` -> `Kind`
-relaxation) landed; Phase 2 in progress (steps 1, 2, 3, 4a, and
-4b of 10 complete).
+relaxation) landed; Phase 2 in progress (steps 1, 2, 3, 4a, 4b,
+and 5 of 10 complete).
 
 ## Current progress
 
 Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
-complete. Phase 2 steps 1, 2, 3, 4a, and 4b complete.
+complete. Phase 2 steps 1, 2, 3, 4a, 4b, and 5 complete.
+
+**Phase 2 step 5 (`pure` / `peel` / `send` core operations on
+six Run variants).** Each of the six Run wrapper types (`Run`,
+`RcRun`, `ArcRun`, `RunExplicit`, `RcRunExplicit`,
+`ArcRunExplicit`) gains three inherent methods: `pure(a)`
+delegates to the underlying Free variant's `pure`; `peel(self)`
+returns `Result<A, NodeBrand<R, S>::Of<'_, Run<R, S, A>>>`,
+exposing the next-step continuation as a [`Node`](../../../fp-library/src/types/effects/node.rs)
+layer; `send(node)` lifts a pre-constructed `Node`-projection
+value into the program. The signatures are uniform across all
+six wrappers.
+
+Step 5 also adds
+[`FreeExplicit::to_view`](../../../fp-library/src/types/free_explicit.rs)
+as a small precursor (FreeExplicit's `view` field is private; a
+public `to_view` is needed for `RunExplicit::peel` to expose the
+underlying view-shape).
+
+The `send` signature deviates from the plan-text expectation
+("takes the row-variant layer") to "takes the
+`Node`-projection value already constructed". This is a
+workaround for a stable-Rust GAT-normalization limitation
+discovered while implementing `ArcRun::send`: the HRTB on
+`ArcFree`'s struct (`Of<'static, ArcFree<...>>: Send + Sync`)
+poisons normalization for `<NodeBrand<R, S> as Kind>::Of<...>`
+in any scope mentioning the HRTB. Construction inside a
+`Node::First(layer)` literal there fails to unify with the
+projection. Passing the `Node`-projection value as a parameter
+sidesteps this by ensuring the value is already in projection
+form when it crosses the HRTB boundary. The probe at
+[`fp-library/tests/arc_run_normalization_probe.rs`](../../../fp-library/tests/arc_run_normalization_probe.rs)
+documents the limit and the workaround as a regression test.
+See [resolutions.md](resolutions.md) for the full investigation.
+
+For `pure` and `peel`, no workaround is needed: `pure` doesn't
+construct projection-typed values, and `peel`'s `map_err`
+through `Functor::map` receives the projection-typed value from
+`*Free::resume` (Erased) or `*FreeExplicit::to_view` (Explicit)
+and returns the projection-typed value, with no Node literal in
+between.
 
 **Phase 2 step 4b (Explicit family: three Explicit Run wrapper
 types, three `RunExplicit` brands, brand-level type-class impls,
@@ -713,6 +753,13 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-04-27): `*Run::send` takes a `Node`-projection value to sidestep GAT-normalization poisoning under `ArcFree`'s HRTB](resolutions.md#resolved-2026-04-27-runsend-takes-a-node-projection-value-to-sidestep-gat-normalization-poisoning-under-arcfrees-hrtb)
+  -- discovered while implementing `ArcRun::send`: the HRTB at
+  `ArcFree`'s struct level poisons `<NodeBrand as Kind>::Of<...>`
+  normalization in any scope mentioning it. Workaround: pass
+  the `Node`-projection value as a parameter rather than
+  constructing it inside the HRTB scope. Applied symmetrically
+  to all six Run wrappers' `send` for API uniformity.
 - [Resolved (2026-04-27): brand-level type-class coverage gap on the Explicit Run brands](resolutions.md#resolved-2026-04-27-brand-level-type-class-coverage-gap-on-the-explicit-run-brands)
   -- ship `Functor / Pointed / Semimonad` plus the by-reference
   equivalents for `RunExplicitBrand`; `Pointed` plus by-reference

@@ -176,6 +176,38 @@ mod inner {
 			}
 		}
 
+		/// Decomposes this `FreeExplicit` into its [`FreeExplicitView`].
+		///
+		/// Mirrors [`RcFreeExplicit::to_view`](crate::types::RcFreeExplicit)
+		/// and [`ArcFreeExplicit::to_view`](crate::types::ArcFreeExplicit)
+		/// at the by-value level, with no `Clone` bound (the unboxed outer
+		/// struct does not have a refcount to recover).
+		#[document_signature]
+		///
+		#[document_returns("The view of the computation.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = FreeExplicit::<IdentityBrand, _>::pure(42);
+		/// match free.to_view() {
+		/// 	FreeExplicitView::Pure(a) => assert_eq!(a, 42),
+		/// 	FreeExplicitView::Wrap(_) => panic!("expected Pure"),
+		/// }
+		/// ```
+		#[expect(
+			clippy::expect_used,
+			reason = "FreeExplicit values consumed exactly once; double consumption is a bug"
+		)]
+		pub fn to_view(mut self) -> FreeExplicitView<'a, F, A> {
+			self.view.take().expect("FreeExplicit value already consumed")
+		}
+
 		/// Iteratively evaluates the computation by extracting one functor
 		/// layer at a time.
 		///

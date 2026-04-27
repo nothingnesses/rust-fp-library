@@ -30,8 +30,12 @@
 mod inner {
 	use {
 		crate::{
+			Apply,
 			brands::NodeBrand,
-			classes::WrapDrop,
+			classes::{
+				Functor,
+				WrapDrop,
+			},
 			kinds::Kind_cdc7cd43dac7585f,
 			types::{
 				ArcFree,
@@ -180,6 +184,148 @@ mod inner {
 		pub fn into_arc_free(self) -> ArcFree<NodeBrand<R, S>, A> {
 			self.0
 		}
+
+		/// Wraps a value in a pure `ArcRun` computation. Delegates to
+		/// [`ArcFree::pure`](crate::types::ArcFree).
+		#[document_signature]
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		#[document_returns("An `ArcRun` computation that produces `a`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::pure(42);
+		/// assert_eq!(arc_run.into_arc_free().evaluate(), 42);
+		/// ```
+		#[inline]
+		pub fn pure(a: A) -> Self
+		where
+			A: Send + Sync, {
+			ArcRun::from_arc_free(ArcFree::pure(a))
+		}
+
+		/// Decomposes this `ArcRun` computation into one step. Returns
+		/// `Ok(a)` if the program is a pure value, or `Err(layer)`
+		/// carrying the next `ArcRun` continuation in a
+		/// [`Node`](crate::types::effects::node::Node) layer. Delegates to
+		/// [`ArcFree::resume`](crate::types::ArcFree).
+		#[document_signature]
+		///
+		#[document_returns(
+			"`Ok(a)` for a pure result, or `Err(layer)` carrying the next `ArcRun` step."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::pure(7);
+		/// assert!(matches!(arc_run.peel(), Ok(7)));
+		/// ```
+		#[expect(
+			clippy::type_complexity,
+			reason = "Return type encodes Result<A, NodeBrand<R, S>::Of<'static, ArcRun<R, S, A>>>; the GAT projection is structurally complex but cannot be aliased without losing the projection link the wrapper depends on."
+		)]
+		pub fn peel(
+			self
+		) -> Result<
+			A,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+		>
+		where
+			NodeBrand<R, S>: Functor,
+			A: Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone, {
+			self.0
+				.resume()
+				.map_err(|node| <NodeBrand<R, S> as Functor>::map(ArcRun::from_arc_free, node))
+		}
+
+		/// Lifts a [`Node`](crate::types::effects::node::Node) dispatch
+		/// layer into the `ArcRun` program. The `node` argument is the
+		/// [`NodeBrand<R, S>`](crate::brands::NodeBrand)
+		/// `Of<'static, A>` projection; `send` delegates to
+		/// [`ArcFree::lift_f`](crate::types::ArcFree).
+		///
+		/// The `Node`-projection signature is required because
+		/// `ArcFree`'s struct-level HRTB
+		/// (`Of<'static, ArcFree<...>>: Send + Sync`) poisons GAT
+		/// normalization in any scope mentioning it: constructing a
+		/// `Node::First` literal inside this method body fails to
+		/// unify with the projection. The caller (test code, smart
+		/// constructors emitted by
+		/// [`effects!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md),
+		/// or generic helpers without the HRTB) constructs the layer
+		/// outside the HRTB scope and passes the result here. See
+		/// `tests/arc_run_normalization_probe.rs` for the experimental
+		/// matrix that established the limit.
+		#[document_signature]
+		///
+		#[document_parameters("The Node dispatch layer carrying the effect operation.")]
+		///
+		#[document_returns(
+			"An `ArcRun` computation that performs the effect and returns its result."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			arc_run::ArcRun,
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let layer = Coproduct::inject(Identity(7));
+		/// let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::send(Node::First(layer));
+		/// let next = match arc_run.peel() {
+		/// 	Err(Node::First(Coproduct::Inl(Identity(n)))) => n,
+		/// 	_ => panic!("expected First(Inl(Identity(..))) layer"),
+		/// };
+		/// assert!(matches!(next.peel(), Ok(7)));
+		/// ```
+		#[inline]
+		pub fn send(
+			node: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+		) -> Self
+		where
+			NodeBrand<R, S>: Functor,
+			A: Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone, {
+			ArcRun::from_arc_free(ArcFree::<NodeBrand<R, S>, A>::lift_f(node))
+		}
 	}
 }
 
@@ -228,5 +374,25 @@ mod tests {
 	#[test]
 	fn arc_run_is_send_sync() {
 		_send_sync_witness::<ArcRunAlias<i32>>();
+	}
+
+	#[test]
+	fn pure_then_peel_returns_value() {
+		let arc_run: ArcRunAlias<i32> = ArcRun::pure(42);
+		assert!(matches!(arc_run.peel(), Ok(42)));
+	}
+
+	#[test]
+	fn send_produces_suspended_program() {
+		use crate::types::{
+			Identity,
+			effects::{
+				coproduct::Coproduct,
+				node::Node,
+			},
+		};
+		let layer = Coproduct::inject(Identity(7));
+		let arc_run: ArcRunAlias<i32> = ArcRun::send(Node::First(layer));
+		assert!(arc_run.peel().is_err());
 	}
 }

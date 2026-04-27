@@ -203,6 +203,146 @@ mod inner {
 			self.0
 		}
 
+		/// Wraps a value in a pure `ArcRunExplicit` computation.
+		/// Delegates to
+		/// [`ArcFreeExplicit::pure`](crate::types::ArcFreeExplicit).
+		#[document_signature]
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		#[document_returns("An `ArcRunExplicit` computation that produces `a`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: ArcRunExplicit<'_, FirstRow, Scoped, i32> = ArcRunExplicit::pure(42);
+		/// assert_eq!(run.into_arc_free_explicit().evaluate(), 42);
+		/// ```
+		#[inline]
+		pub fn pure(a: A) -> Self {
+			ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::pure(a))
+		}
+
+		/// Decomposes this `ArcRunExplicit` computation into one step.
+		/// Walks the [`ArcFreeExplicitView`](crate::types::ArcFreeExplicitView)
+		/// from the underlying substrate.
+		#[document_signature]
+		///
+		#[document_returns(
+			"`Ok(a)` for a pure result, or `Err(layer)` carrying the next `ArcRunExplicit` step."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: ArcRunExplicit<'_, FirstRow, Scoped, i32> = ArcRunExplicit::pure(7);
+		/// assert!(matches!(run.peel(), Ok(7)));
+		/// ```
+		#[expect(
+			clippy::type_complexity,
+			reason = "Return type encodes Result<A, NodeBrand<R, S>::Of<'a, ArcRunExplicit<'a, R, S, A>>>; the GAT projection is structurally complex but cannot be aliased without losing the projection link the wrapper depends on."
+		)]
+		pub fn peel(
+			self
+		) -> Result<
+			A,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>),
+		>
+		where
+			A: Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone, {
+			match self.0.to_view() {
+				crate::types::arc_free_explicit::ArcFreeExplicitView::Pure(a) => Ok(a),
+				crate::types::arc_free_explicit::ArcFreeExplicitView::Wrap(node) => {
+					let mapped = <NodeBrand<R, S> as Functor>::map(
+						ArcRunExplicit::from_arc_free_explicit,
+						node,
+					);
+					Err(mapped)
+				}
+			}
+		}
+
+		/// Lifts a [`Node`](crate::types::effects::node::Node) dispatch
+		/// layer into the `ArcRunExplicit` program. The `node` argument
+		/// is the
+		/// [`NodeBrand<R, S>`](crate::brands::NodeBrand)
+		/// `Of<'a, A>` projection; `send` wraps it via
+		/// [`ArcFreeExplicit::wrap`](crate::types::ArcFreeExplicit)
+		/// after promoting each `A` into a pure `ArcFreeExplicit`. The
+		/// `Node`-projection signature is symmetric across all six Run
+		/// wrappers; see
+		/// [`Run::send`](crate::types::effects::run::Run::send) for
+		/// the rationale.
+		#[document_signature]
+		///
+		#[document_parameters("The Node dispatch layer carrying the effect operation.")]
+		///
+		#[document_returns(
+			"An `ArcRunExplicit` computation that performs the effect and returns its result."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			arc_run_explicit::ArcRunExplicit,
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let layer = Coproduct::inject(Identity(7));
+		/// let run: ArcRunExplicit<'_, FirstRow, Scoped, i32> = ArcRunExplicit::send(Node::First(layer));
+		/// let next = match run.peel() {
+		/// 	Err(Node::First(Coproduct::Inl(Identity(n)))) => n,
+		/// 	_ => panic!("expected First(Inl(Identity(..))) layer"),
+		/// };
+		/// assert!(matches!(next.peel(), Ok(7)));
+		/// ```
+		#[inline]
+		pub fn send(
+			node: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		) -> Self
+		where
+			A: Send + Sync, {
+			let mapped = <NodeBrand<R, S> as Functor>::map(
+				|a: A| -> ArcFreeExplicit<'a, NodeBrand<R, S>, A> { ArcFreeExplicit::pure(a) },
+				node,
+			);
+			ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(mapped))
+		}
+
 		/// Inherent counterpart to
 		/// [`ArcFreeExplicit::map`](crate::types::ArcFreeExplicit) by way of
 		/// [`bind`](ArcRunExplicit::bind) and `SendPointed::send_pure` on
@@ -457,5 +597,26 @@ mod tests {
 		let run: ArcRunExplicit<'_, FirstRow, Scoped, &str> =
 			ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::pure(r));
 		assert_eq!(run.into_arc_free_explicit().evaluate(), "hello");
+	}
+
+	#[test]
+	fn pure_then_peel_returns_value() {
+		let run: ArcRunExplicit<'_, FirstRow, Scoped, i32> = ArcRunExplicit::pure(42);
+		assert!(matches!(run.peel(), Ok(42)));
+	}
+
+	#[test]
+	fn send_produces_suspended_program() {
+		use crate::types::{
+			Identity,
+			effects::{
+				coproduct::Coproduct,
+				node::Node,
+			},
+		};
+		let layer = Coproduct::inject(Identity(7));
+		let run: ArcRunExplicit<'_, FirstRow, Scoped, i32> =
+			ArcRunExplicit::send(Node::First(layer));
+		assert!(run.peel().is_err());
 	}
 }

@@ -211,6 +211,145 @@ mod inner {
 			self.0
 		}
 
+		/// Wraps a value in a pure `RcRunExplicit` computation.
+		/// Delegates to
+		/// [`RcFreeExplicit::pure`](crate::types::RcFreeExplicit).
+		#[document_signature]
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		#[document_returns("An `RcRunExplicit` computation that produces `a`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: RcRunExplicit<'_, FirstRow, Scoped, i32> = RcRunExplicit::pure(42);
+		/// assert_eq!(run.into_rc_free_explicit().evaluate(), 42);
+		/// ```
+		#[inline]
+		pub fn pure(a: A) -> Self {
+			RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::pure(a))
+		}
+
+		/// Decomposes this `RcRunExplicit` computation into one step.
+		/// Walks the [`RcFreeExplicitView`](crate::types::RcFreeExplicitView)
+		/// from the underlying substrate.
+		#[document_signature]
+		///
+		#[document_returns(
+			"`Ok(a)` for a pure result, or `Err(layer)` carrying the next `RcRunExplicit` step."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: RcRunExplicit<'_, FirstRow, Scoped, i32> = RcRunExplicit::pure(7);
+		/// assert!(matches!(run.peel(), Ok(7)));
+		/// ```
+		#[expect(
+			clippy::type_complexity,
+			reason = "Return type encodes Result<A, NodeBrand<R, S>::Of<'a, RcRunExplicit<'a, R, S, A>>>; the GAT projection is structurally complex but cannot be aliased without losing the projection link the wrapper depends on."
+		)]
+		pub fn peel(
+			self
+		) -> Result<
+			A,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, S, A>,
+			>),
+		>
+		where
+			A: Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone, {
+			match self.0.to_view() {
+				crate::types::RcFreeExplicitView::Pure(a) => Ok(a),
+				crate::types::RcFreeExplicitView::Wrap(node) => {
+					let mapped = <NodeBrand<R, S> as Functor>::map(
+						RcRunExplicit::from_rc_free_explicit,
+						node,
+					);
+					Err(mapped)
+				}
+			}
+		}
+
+		/// Lifts a [`Node`](crate::types::effects::node::Node) dispatch
+		/// layer into the `RcRunExplicit` program. The `node` argument
+		/// is the
+		/// [`NodeBrand<R, S>`](crate::brands::NodeBrand)
+		/// `Of<'a, A>` projection; `send` wraps it via
+		/// [`RcFreeExplicit::wrap`](crate::types::RcFreeExplicit) after
+		/// promoting each `A` into a pure `RcFreeExplicit` (no `Box`
+		/// indirection because the outer `Rc<Inner>` wrapper provides
+		/// it). The `Node`-projection signature is symmetric across
+		/// all six Run wrappers; see
+		/// [`Run::send`](crate::types::effects::run::Run::send) for the
+		/// rationale.
+		#[document_signature]
+		///
+		#[document_parameters("The Node dispatch layer carrying the effect operation.")]
+		///
+		#[document_returns(
+			"An `RcRunExplicit` computation that performs the effect and returns its result."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 			rc_run_explicit::RcRunExplicit,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let layer = Coproduct::inject(Identity(7));
+		/// let run: RcRunExplicit<'_, FirstRow, Scoped, i32> = RcRunExplicit::send(Node::First(layer));
+		/// let next = match run.peel() {
+		/// 	Err(Node::First(Coproduct::Inl(Identity(n)))) => n,
+		/// 	_ => panic!("expected First(Inl(Identity(..))) layer"),
+		/// };
+		/// assert!(matches!(next.peel(), Ok(7)));
+		/// ```
+		#[inline]
+		pub fn send(
+			node: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		) -> Self {
+			let mapped = <NodeBrand<R, S> as Functor>::map(
+				|a: A| -> RcFreeExplicit<'a, NodeBrand<R, S>, A> { RcFreeExplicit::pure(a) },
+				node,
+			);
+			RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::wrap(mapped))
+		}
+
 		/// Inherent counterpart to
 		/// [`RcFreeExplicit::map`](crate::types::RcFreeExplicit) by way of
 		/// [`bind`](RcRunExplicit::bind) and `Pointed::pure` on the
@@ -616,5 +755,25 @@ mod tests {
 		let run: RcRunExplicit<'_, FirstRow, Scoped, &str> =
 			RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::pure(r));
 		assert_eq!(run.into_rc_free_explicit().evaluate(), "hello");
+	}
+
+	#[test]
+	fn pure_then_peel_returns_value() {
+		let run: RcRunExplicit<'_, FirstRow, Scoped, i32> = RcRunExplicit::pure(42);
+		assert!(matches!(run.peel(), Ok(42)));
+	}
+
+	#[test]
+	fn send_produces_suspended_program() {
+		use crate::types::{
+			Identity,
+			effects::{
+				coproduct::Coproduct,
+				node::Node,
+			},
+		};
+		let layer = Coproduct::inject(Identity(7));
+		let run: RcRunExplicit<'_, FirstRow, Scoped, i32> = RcRunExplicit::send(Node::First(layer));
+		assert!(run.peel().is_err());
 	}
 }

@@ -15,6 +15,111 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-04-27): `*Run::send` takes a `Node`-projection value to sidestep GAT-normalization poisoning under `ArcFree`'s HRTB
+
+Step 5's `send` method on each of the six Run wrappers takes the
+[`NodeBrand<R, S>`](../../../fp-library/src/brands.rs)
+`Of<'_, A>` projection (already-constructed) rather than the
+first-order row variant (constructed internally via
+`Node::First(layer)`). This deviates from the natural shape that
+mirrors PureScript Run's `send`, but is required because of a
+stable-Rust GAT-normalization limit that surfaces in `ArcRun`'s
+impl-block context.
+
+### Problem
+
+While implementing `ArcRun::send` with the natural shape (take
+the row variant `R::Of<'static, A>`, construct
+`Node::First(layer)` internally, pass to `ArcFree::lift_f`),
+the compiler refused to unify `Node<'static, R, S, A>` (the
+literal value) with
+`<NodeBrand<R, S> as Kind_cdc7cd43dac7585f>::Of<'static, A>`
+(the projection that `ArcFree::lift_f` expects), even though
+`impl_kind!` declares them equal:
+
+```
+expected associated type `<NodeBrand<R, S> as kinds::Kind_cdc7cd43dac7585f>::Of<'static, A>`
+                  found enum `node::inner::Node<'static, R, S, A>`
+```
+
+The same construction succeeds for `Run::send` (over
+[`Free`](../../../fp-library/src/types/free.rs)) and
+`RcRun::send` (over
+[`RcFree`](../../../fp-library/src/types/rc_free.rs)). The
+difference is that
+[`ArcFree`](../../../fp-library/src/types/arc_free.rs)'s struct
+carries a per-`A`-instantiation HRTB
+`F: Kind<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>`
+(needed so the compiler can auto-derive `Send + Sync` on
+`ArcFree<F, A>` when `F`'s `Of` projection is `Send + Sync`).
+This HRTB propagates to `ArcRun`'s impl block, and inside that
+block stable Rust's normalizer refuses to fire for any other
+instantiation of the same `Of` projection.
+
+### Investigation
+
+Eleven experiments at
+[`fp-library/tests/arc_run_normalization_probe.rs`](../../../fp-library/tests/arc_run_normalization_probe.rs)
+(see history; trimmed in the final commit to the four passing
+patterns) isolated the trigger:
+
+- The HRTB itself, not the `ArcFree` field, is the trigger
+  (PhantomData-only struct + HRTB still fails).
+- The trigger is not impl-block-specific: a free function
+  carrying the HRTB also fails.
+- The trigger poisons cross-substrate calls: a `RcFree::lift_f`
+  call from inside an `ArcFree`-HRTB-bearing impl also fails.
+- Workarounds tried that all fail: explicit `Apply!()`-typed
+  local; turbofish `Node::<'static, R, S, A>::First(layer)`;
+  using `<...as Kind_cdc7cd43dac7585f>::Of` directly bypassing
+  `Apply!`; routing through `Functor::map(identity, Node::First(layer))`
+  (whose input is also at the projection); restructuring the
+  impl block to use direct `R: ... + 'static, S: ... + 'static`
+  bounds plus the HRTB.
+- The workaround that succeeds: pass an already-projection-typed
+  value into the HRTB-scope function, never construct a Node
+  literal there. The caller (typically code without HRTB in
+  scope, e.g., test code, smart-constructor macro output) builds
+  `Node::First(layer)` and passes the result.
+
+The probe file at
+[`fp-library/tests/arc_run_normalization_probe.rs`](../../../fp-library/tests/arc_run_normalization_probe.rs)
+is the trimmed regression-test version that documents the four
+patterns confirmed to work despite the limit.
+
+### Resolution
+
+`*Run::send` on all six wrappers takes the
+`Node`-projection value as a parameter, uniform signature:
+
+```rust
+pub fn send(
+    node: Apply!(<NodeBrand<R, S> as Kind!(...)>::Of<'_, A>),
+) -> Self;
+```
+
+Smart constructors (Phase 2 step 9) will emit
+`Node::First(<R as Member<...>>::inject(coyo))` in their bodies
+and pass the result to `send`. User test code does the same.
+
+### Why not work around at a different layer
+
+- **Re-architect `ArcFree` to remove the struct-level HRTB**:
+  out of scope for step 5 (would require a Phase 1 follow-up
+  commit). The HRTB is load-bearing for `Send + Sync` auto-derive
+  on `ArcFree`, which dozens of other code paths depend on.
+- **Provide `unsafe impl Send` / `unsafe impl Sync` for
+  `ArcRun`** with bounds that don't include the HRTB: the unsafe
+  impl's `where` clause would still need to express the
+  Send/Sync condition somehow, and any expression of "the
+  projection at this instantiation is Send + Sync" is itself an
+  HRTB-shaped constraint that re-triggers the issue.
+- **Accept the asymmetry between `Run`/`RcRun` (take row
+  variant) and `ArcRun` (take Node projection)**: the symmetric
+  approach was chosen for design consistency (the two patterns
+  diverging across the six wrappers would surface as confusion
+  in users of step 7's macros and step 9's smart constructors).
+
 ## Resolved (2026-04-27): brand-level type-class coverage gap on the Explicit Run brands
 
 The plan's Phase 2 step 4 specification named a full
