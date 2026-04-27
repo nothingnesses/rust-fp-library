@@ -41,16 +41,18 @@
 //!
 //! ## Trait bound on `F`
 //!
-//! `RcFreeExplicit<'a, F, A>` requires `F: Extract + Functor + 'a`. The
-//! [`Extract`](crate::classes::Extract) bound is needed by the custom
+//! `RcFreeExplicit<'a, F, A>` requires `F: WrapDrop + Functor + 'a`. The
+//! [`WrapDrop`](crate::classes::WrapDrop) bound is needed by the custom
 //! iterative [`Drop`] impl so deep `Wrap` chains can be dismantled without
-//! overflowing the stack.
+//! overflowing the stack. The
+//! [`evaluate`](RcFreeExplicit::evaluate) method additionally requires
+//! `F: Extract`.
 //!
 //! ## Drop behavior
 //!
 //! When the last `Rc` reference releases, the inner data's [`Drop`] runs and
 //! iteratively dismantles a deep `Wrap` chain via
-//! [`Extract::extract`](crate::classes::Extract::extract) plus
+//! [`WrapDrop::drop`](crate::classes::WrapDrop::drop) plus
 //! [`Rc::try_unwrap`](std::rc::Rc::try_unwrap). Without this, deep chains
 //! stack-overflow during cleanup.
 
@@ -85,7 +87,7 @@ mod inner {
 	)]
 	pub enum RcFreeExplicitView<'a, F, A: 'a>
 	where
-		F: Extract + Functor + 'a, {
+		F: WrapDrop + Functor + 'a, {
 		/// A pure value.
 		Pure(A),
 		/// A suspended computation: a functor layer wrapping the next step.
@@ -105,7 +107,7 @@ mod inner {
 	#[document_parameters("The view to clone.")]
 	impl<'a, F, A: 'a> Clone for RcFreeExplicitView<'a, F, A>
 	where
-		F: Extract + Functor + 'a,
+		F: WrapDrop + Functor + 'a,
 		A: Clone,
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'a,
@@ -144,7 +146,7 @@ mod inner {
 	/// it out via [`Option::take`] without producing a sentinel value of `A`.
 	struct RcFreeExplicitInner<'a, F, A>
 	where
-		F: Extract + Functor + 'a,
+		F: WrapDrop + Functor + 'a,
 		A: 'a, {
 		view: Option<RcFreeExplicitView<'a, F, A>>,
 	}
@@ -157,7 +159,7 @@ mod inner {
 	#[document_parameters("The inner state to clone.")]
 	impl<'a, F, A> Clone for RcFreeExplicitInner<'a, F, A>
 	where
-		F: Extract + Functor + 'a,
+		F: WrapDrop + Functor + 'a,
 		A: 'a + Clone,
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'a,
@@ -197,18 +199,20 @@ mod inner {
 	#[document_parameters("The inner state being dropped.")]
 	impl<'a, F, A> Drop for RcFreeExplicitInner<'a, F, A>
 	where
-		F: Extract + Functor + 'a,
+		F: WrapDrop + Functor + 'a,
 		A: 'a,
 	{
 		/// Iteratively dismantles a deep `Wrap` chain via
-		/// [`Extract::extract`] and [`Rc::try_unwrap`](std::rc::Rc::try_unwrap).
+		/// [`WrapDrop::drop`] and [`Rc::try_unwrap`](std::rc::Rc::try_unwrap).
 		///
-		/// At each `Wrap`, extract the inner [`RcFreeExplicit`] and try to
-		/// unwrap its outer `Rc`. If unique, take its view (leaving `None`)
-		/// and continue the loop; the just-emptied inner then drops with
-		/// `view: None`, so its own `Drop` becomes a no-op and never
-		/// recurses. If shared, leave the other holders to dismantle when
-		/// they release their references.
+		/// At each `Wrap`, consult `WrapDrop::drop`. `Some(extracted)` lets
+		/// the loop try to unwrap the inner [`RcFreeExplicit`]'s outer `Rc`;
+		/// if unique, take its view (leaving `None`) and continue the loop
+		/// (the just-emptied inner drops with `view: None`, so its own
+		/// `Drop` becomes a no-op and never recurses). If shared, leave
+		/// other holders to dismantle. `None` lets the layer drop in place,
+		/// which is sound for brands that do not materially store the inner
+		/// `RcFreeExplicit`.
 		#[document_signature]
 		#[document_examples]
 		///
@@ -230,9 +234,14 @@ mod inner {
 						current_view = None;
 					}
 					RcFreeExplicitView::Wrap(fa) => {
-						let extracted: RcFreeExplicit<'a, F, A> = F::extract(fa);
-						if let Ok(mut owned) = Rc::try_unwrap(extracted.inner) {
-							current_view = owned.view.take();
+						if let Some(extracted) =
+							<F as WrapDrop>::drop::<RcFreeExplicit<'a, F, A>>(fa)
+						{
+							if let Ok(mut owned) = Rc::try_unwrap(extracted.inner) {
+								current_view = owned.view.take();
+							} else {
+								current_view = None;
+							}
 						} else {
 							current_view = None;
 						}
@@ -261,13 +270,13 @@ mod inner {
 	)]
 	pub struct RcFreeExplicit<'a, F, A>
 	where
-		F: Extract + Functor + 'a,
+		F: WrapDrop + Functor + 'a,
 		A: 'a, {
 		inner: Rc<RcFreeExplicitInner<'a, F, A>>,
 	}
 
 	impl_kind! {
-		impl<F: Extract + Functor + 'static> for RcFreeExplicitBrand<F> {
+		impl<F: WrapDrop + Functor + 'static> for RcFreeExplicitBrand<F> {
 			type Of<'a, A: 'a>: 'a = RcFreeExplicit<'a, F, A>;
 		}
 	}
@@ -280,7 +289,7 @@ mod inner {
 	#[document_parameters("The `RcFreeExplicit` instance to clone.")]
 	impl<'a, F, A> Clone for RcFreeExplicit<'a, F, A>
 	where
-		F: Extract + Functor + 'a,
+		F: WrapDrop + Functor + 'a,
 		A: 'a,
 	{
 		/// Clones the `RcFreeExplicit` by bumping the refcount on the outer
@@ -316,7 +325,7 @@ mod inner {
 	#[document_parameters("The `RcFreeExplicit` instance.")]
 	impl<'a, F, A: 'a> RcFreeExplicit<'a, F, A>
 	where
-		F: Extract + Functor + 'a,
+		F: WrapDrop + Functor + 'a,
 	{
 		/// Constructs an `RcFreeExplicit` from owned inner state.
 		#[document_signature]
@@ -498,6 +507,7 @@ mod inner {
 		/// ```
 		pub fn evaluate(self) -> A
 		where
+			F: Extract,
 			A: Clone,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
@@ -536,6 +546,7 @@ mod inner {
 		/// ```
 		pub fn lower_ref(&self) -> A
 		where
+			F: Extract,
 			A: Clone,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
@@ -714,7 +725,7 @@ mod inner {
 	// for the broader pattern.
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: Extract + Functor + 'static> Pointed for RcFreeExplicitBrand<F> {
+	impl<F: WrapDrop + Functor + 'static> Pointed for RcFreeExplicitBrand<F> {
 		/// Wraps a value in a pure `RcFreeExplicit` computation.
 		#[document_signature]
 		///
@@ -773,7 +784,7 @@ mod inner {
 		fa: &RcFreeExplicit<'a, F, A>,
 	) -> RcFreeExplicit<'a, F, B>
 	where
-		F: Extract + Functor + RefFunctor + 'a, {
+		F: WrapDrop + Functor + RefFunctor + 'a, {
 		let view = fa.inner.view.as_ref().expect("RcFreeExplicit value already consumed");
 		match view {
 			RcFreeExplicitView::Pure(a) => RcFreeExplicit::pure(func(a)),
@@ -817,7 +828,7 @@ mod inner {
 		fa: &RcFreeExplicit<'a, F, A>,
 	) -> RcFreeExplicit<'a, F, B>
 	where
-		F: Extract + Functor + RefFunctor + 'a, {
+		F: WrapDrop + Functor + RefFunctor + 'a, {
 		let view = fa.inner.view.as_ref().expect("RcFreeExplicit value already consumed");
 		match view {
 			RcFreeExplicitView::Pure(a) => f(a),
@@ -835,7 +846,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: Extract + Functor + RefFunctor + 'static> RefFunctor for RcFreeExplicitBrand<F> {
+	impl<F: WrapDrop + Functor + RefFunctor + 'static> RefFunctor for RcFreeExplicitBrand<F> {
 		/// Maps a function over the result of an `RcFreeExplicit`
 		/// computation by reference.
 		#[document_signature]
@@ -875,7 +886,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: Extract + Functor + 'static> RefPointed for RcFreeExplicitBrand<F> {
+	impl<F: WrapDrop + Functor + 'static> RefPointed for RcFreeExplicitBrand<F> {
 		/// Wraps a cloned value in a pure `RcFreeExplicit` computation.
 		#[document_signature]
 		///
@@ -909,7 +920,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: Extract + Functor + RefFunctor + 'static> RefSemimonad for RcFreeExplicitBrand<F> {
+	impl<F: WrapDrop + Functor + RefFunctor + 'static> RefSemimonad for RcFreeExplicitBrand<F> {
 		/// Sequences `RcFreeExplicit` computations using a reference to
 		/// the intermediate value.
 		#[document_signature]

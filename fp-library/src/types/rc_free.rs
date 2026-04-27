@@ -44,7 +44,7 @@
 //!
 //! When the last `Rc` reference releases, the inner data's [`Drop`] runs
 //! and iteratively dismantles a deep `Wrap` chain via
-//! [`Extract::extract`](crate::classes::Extract::extract), mirroring
+//! [`WrapDrop::drop`](crate::classes::WrapDrop::drop), mirroring
 //! [`Free`](crate::types::Free)'s strategy.
 //! Without this, deep `Suspend` chains stack-overflow during cleanup.
 
@@ -59,6 +59,7 @@ mod inner {
 				Functor,
 				LiftFn,
 				NaturalTransformation,
+				WrapDrop,
 			},
 			kinds::*,
 			types::CatList,
@@ -82,13 +83,13 @@ mod inner {
 	/// [`<RcFnBrand as CloneFn>::Of<'static, RcTypeErasedValue, RcFree<F, RcTypeErasedValue>>`](crate::brands::FnBrand).
 	pub struct RcContinuation<F>(Rc<dyn Fn(RcTypeErasedValue) -> RcFree<F, RcTypeErasedValue>>)
 	where
-		F: Extract + Functor + 'static;
+		F: WrapDrop + Functor + 'static;
 
 	#[document_type_parameters("The base functor.")]
 	#[document_parameters("The continuation to clone.")]
 	impl<F> Clone for RcContinuation<F>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + Functor + 'static,
 	{
 		/// Clones the continuation by bumping the refcount on its `Rc`.
 		#[document_signature]
@@ -118,7 +119,7 @@ mod inner {
 	#[document_type_parameters("The base functor (must implement [`Extract`] and [`Functor`]).")]
 	pub enum RcFreeView<F>
 	where
-		F: Extract + Functor + 'static, {
+		F: WrapDrop + Functor + 'static, {
 		/// A pure value (type-erased).
 		Return(RcTypeErasedValue),
 		/// A suspended functor layer holding the next step.
@@ -134,7 +135,7 @@ mod inner {
 	#[document_parameters("The view to clone.")]
 	impl<F> Clone for RcFreeView<F>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + Functor + 'static,
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'static,
 			RcFree<F, RcTypeErasedValue>,
@@ -173,7 +174,7 @@ mod inner {
 	#[document_type_parameters("The base functor.", "The result type.")]
 	pub enum RcFreeStep<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + Functor + 'static,
 		A: 'static, {
 		/// The computation completed with a final value.
 		Done(A),
@@ -185,7 +186,7 @@ mod inner {
 	/// Inner state of an [`RcFree`]: view plus pending continuations.
 	struct RcFreeInner<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + Functor + 'static,
 		A: 'static, {
 		view: Option<RcFreeView<F>>,
 		continuations: CatList<RcContinuation<F>>,
@@ -196,7 +197,7 @@ mod inner {
 	#[document_parameters("The inner state to clone.")]
 	impl<F, A> Clone for RcFreeInner<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + Functor + 'static,
 		A: 'static,
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'static,
@@ -235,11 +236,11 @@ mod inner {
 	#[document_parameters("The inner state being dropped.")]
 	impl<F, A> Drop for RcFreeInner<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + Functor + 'static,
 		A: 'static,
 	{
 		/// Iteratively dismantles deep `Suspend` chains via
-		/// [`Extract::extract`], mirroring [`Free::drop`](crate::types::Free).
+		/// [`WrapDrop::drop`], mirroring [`Free::drop`](crate::types::Free).
 		#[document_signature]
 		#[document_examples]
 		///
@@ -271,11 +272,17 @@ mod inner {
 						// Trivially dropped, no nested `RcFree` values.
 					}
 					RcFreeView::Suspend(fa) => {
-						let extracted: RcFree<F, RcTypeErasedValue> = <F as Extract>::extract(fa);
-						// If we hold the last reference, peel its view and
-						// continue the worklist; otherwise leave the other
-						// holders to dismantle when they release.
-						if let Ok(mut owned) = Rc::try_unwrap(extracted.inner) {
+						// Consult `WrapDrop::drop` on the base functor to decide how
+						// to dismantle the layer. `Some(extracted)` means F materially
+						// holds an inner `RcFree`; if we hold the last reference, peel
+						// its view and continue the worklist (otherwise leave other
+						// holders to dismantle when they release). `None` lets the
+						// layer drop in place, which is sound for brands that do not
+						// materially store the inner `RcFree`.
+						if let Some(extracted) =
+							<F as WrapDrop>::drop::<RcFree<F, RcTypeErasedValue>>(fa)
+							&& let Ok(mut owned) = Rc::try_unwrap(extracted.inner)
+						{
 							if let Some(inner_view) = owned.view.take() {
 								worklist.push(inner_view);
 							}
@@ -305,7 +312,7 @@ mod inner {
 	)]
 	pub struct RcFree<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + Functor + 'static,
 		A: 'static, {
 		inner: Rc<RcFreeInner<F, A>>,
 	}
@@ -314,7 +321,7 @@ mod inner {
 	#[document_parameters("The `RcFree` instance to clone.")]
 	impl<F, A> Clone for RcFree<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + Functor + 'static,
 		A: 'static,
 	{
 		/// Clones the `RcFree` by bumping the refcount on the outer `Rc`.
@@ -346,7 +353,7 @@ mod inner {
 	#[document_parameters("The `RcFree` instance.")]
 	impl<F, A> RcFree<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + Functor + 'static,
 		A: 'static,
 	{
 		/// Constructs an `RcFree` from owned inner state.
@@ -765,6 +772,7 @@ mod inner {
 		/// ```
 		pub fn evaluate(self) -> A
 		where
+			F: Extract,
 			A: Clone,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
@@ -803,6 +811,7 @@ mod inner {
 		/// ```
 		pub fn lower_ref(&self) -> A
 		where
+			F: Extract,
 			A: Clone,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
@@ -876,7 +885,7 @@ mod inner {
 		/// let hoisted: RcFree<IdentityBrand, i32> = free.hoist_free(IdToId);
 		/// assert_eq!(hoisted.evaluate(), 42);
 		/// ```
-		pub fn hoist_free<G: Extract + Functor + 'static>(
+		pub fn hoist_free<G: WrapDrop + Functor + 'static>(
 			self,
 			nt: impl NaturalTransformation<F, G> + Clone + 'static,
 		) -> RcFree<G, A>

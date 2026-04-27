@@ -289,6 +289,67 @@ phasing, see [plan.md](plan.md).
   without specifying brand choice, so the deviation is recorded
   here.
 
+## Phase 1 follow-up: `WrapDrop` migration
+
+### Commit 1: `WrapDrop` trait and per-variant struct/Drop swap
+
+- **Did not split impl blocks for `Rc` / `Arc` variants; used
+  per-method `where F: Extract` instead.** `free.rs` already
+  organised its inherent methods into three impl blocks
+  (construction / functor-dependent / `evaluate`-only); after
+  migration the third block uses
+  `F: Extract + WrapDrop + Functor + 'static`, and the other
+  two use `F: WrapDrop + Functor + 'static`. The other five
+  variants (`RcFree`, `ArcFree`, `FreeExplicit`,
+  `RcFreeExplicit`, `ArcFreeExplicit`) bundle their methods
+  into a single inherent impl block. To avoid a structural
+  rewrite, `evaluate` and `lower_ref` (the only methods that
+  call `F::extract`) get `where F: Extract` as a per-method
+  bound, and the impl block stays at
+  `F: WrapDrop + Functor + 'a` (or `'static`). Per-method
+  bounds are valid Rust, and the alternative (splitting the
+  impl block) would touch ~100 unrelated lines of impl block
+  delimiters and document attributes per variant. The plan's
+  "Methods that call `F::extract` semantically (`evaluate`,
+  `resume`, etc.) keep `where F: Extract` on their impl
+  blocks." is satisfied modulo the choice of where the `where`
+  clause lives (impl block vs method).
+- **Added `WrapDrop` to the `Free<F, A>` `evaluate` impl block's
+  bound list, not just `Extract`.** The plan says the
+  `evaluate` impl block keeps `where F: Extract`. After
+  migration, however, `evaluate`'s body calls `current.to_view()`,
+  which now lives in a `WrapDrop`-bounded impl block. For the
+  `to_view` method to be in scope inside `evaluate`, the
+  `evaluate` impl block must also satisfy
+  `F: WrapDrop + Functor + 'static`. The bound is therefore
+  `F: Extract + WrapDrop + Functor + 'static` for that block.
+  `Extract` and `WrapDrop` remain separate traits with no
+  supertrait relationship between them, mirroring the
+  resolution's design intent.
+- **Did not introduce a `wrap_drop` free function.** The
+  [`Extract`](../../../fp-library/src/classes/extract.rs)
+  module pairs the trait with a free function `extract<F, A>`
+  for ergonomic call sites. `WrapDrop` is internal-facing
+  (the only consumer is the `Free` family's `Drop`), and call
+  sites already use the fully-qualified
+  `<F as WrapDrop>::drop::<X>(fa)` syntax (with explicit `X`
+  because Rust cannot infer it from `Self::Of<'a, X>`). A
+  free function would just shadow the standard
+  `std::ops::Drop::drop` name without adding ergonomics, so
+  this commit ships the trait alone.
+- **Drop-body `if-let` chains use `&&` (Rust 2024
+  let-chains).** Clippy's `collapsible_if` lint (denied via
+  `-D warnings`) rejected the nested
+  `if let Some(extracted) = ... { if let Ok(mut owned) = ... { ... } }`
+  pattern in `RcFree`'s and `ArcFree`'s `Drop` bodies. The
+  collapsed form
+  `if let Some(extracted) = ... && let Ok(mut owned) = ... { ... }`
+  is the lint-suggested rewrite and uses stable let-chains
+  (Rust 1.94+). Inner `if let`s on `owned.view.take()` are
+  not collapsed because the second branch (the
+  `inner_conts.uncons()` drain) must run regardless of
+  whether the inner view exists.
+
 ## Phase 2: Run substrate
 
 ### Step 1: `frunk_core` dependency + Coproduct adapter

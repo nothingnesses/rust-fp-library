@@ -738,6 +738,43 @@ mod inner {
 		}
 	}
 
+	impl WrapDrop for ThunkBrand {
+		/// Drop-time decomposition for `Thunk` by delegating to
+		/// [`Extract::extract`]. Returning `Some` keeps the
+		/// [`Free`](crate::types::Free) family's iterative `Drop` path
+		/// engaged for `Free<ThunkBrand, _>`, evaluating the thunk
+		/// during drop so deeply chained `Suspend` layers can be
+		/// dismantled without recursion.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the computation.",
+			"The type of the value inside the thunk."
+		)]
+		///
+		#[document_parameters("The thunk to decompose.")]
+		///
+		#[document_returns("`Some` of the value produced by the thunk.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let thunk = Thunk::new(|| 42);
+		/// assert_eq!(<ThunkBrand as WrapDrop>::drop(thunk), Some(42));
+		/// ```
+		fn drop<'a, X: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		) -> Option<X> {
+			Some(<Self as Extract>::extract(fa))
+		}
+	}
+
 	impl Extend for ThunkBrand {
 		/// Extends a local computation to the `Thunk` context.
 		///

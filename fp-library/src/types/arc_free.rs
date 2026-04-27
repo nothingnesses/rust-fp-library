@@ -31,7 +31,7 @@
 //!
 //! When the last `Arc` reference releases, the inner data's [`Drop`] runs
 //! and iteratively dismantles a deep `Wrap` chain via
-//! [`Extract::extract`](crate::classes::Extract::extract), mirroring
+//! [`WrapDrop::drop`](crate::classes::WrapDrop::drop), mirroring
 //! [`RcFree`](crate::types::RcFree) and [`Free`](crate::types::Free).
 
 #[fp_macros::document_module]
@@ -45,6 +45,7 @@ mod inner {
 				Functor,
 				NaturalTransformation,
 				SendLiftFn,
+				WrapDrop,
 			},
 			kinds::*,
 			types::CatList,
@@ -69,7 +70,7 @@ mod inner {
 		Arc<dyn Fn(ArcTypeErasedValue) -> ArcFree<F, ArcTypeErasedValue> + Send + Sync>,
 	)
 	where
-		F: Extract
+		F: WrapDrop
 			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static;
@@ -78,7 +79,7 @@ mod inner {
 	#[document_parameters("The continuation to clone.")]
 	impl<F> Clone for ArcContinuation<F>
 	where
-		F: Extract
+		F: WrapDrop
 			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
@@ -112,7 +113,7 @@ mod inner {
 	#[document_type_parameters("The base functor (must implement [`Extract`] and [`Functor`]).")]
 	pub enum ArcFreeView<F>
 	where
-		F: Extract
+		F: WrapDrop
 			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static, {
@@ -131,7 +132,7 @@ mod inner {
 	#[document_parameters("The view to clone.")]
 	impl<F> Clone for ArcFreeView<F>
 	where
-		F: Extract
+		F: WrapDrop
 			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
@@ -173,7 +174,7 @@ mod inner {
 	#[document_type_parameters("The base functor.", "The result type.")]
 	pub enum ArcFreeStep<F, A>
 	where
-		F: Extract
+		F: WrapDrop
 			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
@@ -194,7 +195,7 @@ mod inner {
 	/// `F::Of<...>` field is opaque and the auto-trait derivation fails.
 	struct ArcFreeInner<F, A>
 	where
-		F: Extract
+		F: WrapDrop
 			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
@@ -208,7 +209,7 @@ mod inner {
 	#[document_parameters("The inner state to clone.")]
 	impl<F, A> Clone for ArcFreeInner<F, A>
 	where
-		F: Extract
+		F: WrapDrop
 			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
@@ -251,14 +252,14 @@ mod inner {
 	#[document_parameters("The inner state being dropped.")]
 	impl<F, A> Drop for ArcFreeInner<F, A>
 	where
-		F: Extract
+		F: WrapDrop
 			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
 		A: 'static,
 	{
 		/// Iteratively dismantles deep `Suspend` chains via
-		/// [`Extract::extract`](crate::classes::Extract::extract), mirroring
+		/// [`WrapDrop::drop`](crate::classes::WrapDrop::drop), mirroring
 		/// [`RcFree`](crate::types::RcFree)'s `Drop` strategy.
 		#[document_signature]
 		#[document_examples]
@@ -291,8 +292,15 @@ mod inner {
 						// Trivially dropped, no nested `ArcFree` values.
 					}
 					ArcFreeView::Suspend(fa) => {
-						let extracted: ArcFree<F, ArcTypeErasedValue> = <F as Extract>::extract(fa);
-						if let Ok(mut owned) = Arc::try_unwrap(extracted.inner) {
+						// `Some(extracted)` means F materially holds an inner
+						// `ArcFree`; if we hold the last reference, peel and
+						// continue the worklist iteratively. `None` lets the
+						// layer drop in place (sound for brands that do not
+						// materially store the inner `ArcFree`).
+						if let Some(extracted) =
+							<F as WrapDrop>::drop::<ArcFree<F, ArcTypeErasedValue>>(fa)
+							&& let Ok(mut owned) = Arc::try_unwrap(extracted.inner)
+						{
 							if let Some(inner_view) = owned.view.take() {
 								worklist.push(inner_view);
 							}
@@ -319,7 +327,7 @@ mod inner {
 	)]
 	pub struct ArcFree<F, A>
 	where
-		F: Extract
+		F: WrapDrop
 			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
@@ -331,7 +339,7 @@ mod inner {
 	#[document_parameters("The `ArcFree` instance to clone.")]
 	impl<F, A> Clone for ArcFree<F, A>
 	where
-		F: Extract
+		F: WrapDrop
 			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
@@ -366,7 +374,7 @@ mod inner {
 	#[document_parameters("The `ArcFree` instance.")]
 	impl<F, A> ArcFree<F, A>
 	where
-		F: Extract
+		F: WrapDrop
 			+ Functor
 			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
 			+ 'static,
@@ -794,6 +802,7 @@ mod inner {
 		/// ```
 		pub fn evaluate(self) -> A
 		where
+			F: Extract,
 			A: Clone + Send + Sync,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
@@ -832,6 +841,7 @@ mod inner {
 		/// ```
 		pub fn lower_ref(&self) -> A
 		where
+			F: Extract,
 			A: Clone + Send + Sync,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
@@ -911,7 +921,7 @@ mod inner {
 			nt: impl NaturalTransformation<F, G> + Clone + Send + Sync + 'static,
 		) -> ArcFree<G, A>
 		where
-			G: Extract
+			G: WrapDrop
 				+ Functor
 				+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<G, ArcTypeErasedValue>>: Send + Sync>
 				+ 'static,

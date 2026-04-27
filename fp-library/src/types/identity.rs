@@ -826,6 +826,41 @@ mod inner {
 		}
 	}
 
+	impl WrapDrop for IdentityBrand {
+		/// Drop-time decomposition for `Identity` by delegating to
+		/// [`Extract::extract`]. Returning `Some` keeps the
+		/// [`Free`](crate::types::Free) family's iterative `Drop` path
+		/// engaged for `Free<IdentityBrand, _>`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type of the value inside the identity."
+		)]
+		///
+		#[document_parameters("The identity to decompose.")]
+		///
+		#[document_returns("`Some` of the inner value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let id = Identity(42);
+		/// assert_eq!(<IdentityBrand as WrapDrop>::drop(id), Some(42));
+		/// ```
+		fn drop<'a, X: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		) -> Option<X> {
+			Some(<Self as Extract>::extract(fa))
+		}
+	}
+
 	impl Extend for IdentityBrand {
 		/// Extends a local computation to the `Identity` context.
 		///

@@ -122,6 +122,7 @@ pub mod traversable;
 pub mod traversable_with_index;
 pub mod with_index;
 pub mod witherable;
+pub mod wrap_drop;
 
 // Automatically re-export all traits defined in submodules.
 fp_macros::generate_trait_re_exports!("src/classes", {});

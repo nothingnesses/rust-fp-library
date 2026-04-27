@@ -26,20 +26,22 @@
 //! ## Trait bound on `F`
 //!
 //! `ArcFreeExplicit<'a, F, A>` requires
-//! `F: Extract + Functor + Kind_cdc7cd43dac7585f<Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync> + 'a`.
+//! `F: WrapDrop + Functor + Kind_cdc7cd43dac7585f<Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync> + 'a`.
 //! The associated-type-bound trick on the [`Kind`](crate::kinds) projection
 //! is what lets the compiler auto-derive `Send + Sync` on the inner state
 //! and (by extension) `ArcFreeExplicit` for concrete `F`: without it, the
 //! `F::Of<...>` field is opaque and the auto-trait derivation fails.
-//! [`Extract`](crate::classes::Extract) is needed by the custom iterative
+//! [`WrapDrop`](crate::classes::WrapDrop) is needed by the custom iterative
 //! [`Drop`] impl so deep `Wrap` chains can be dismantled without overflowing
-//! the stack.
+//! the stack. The
+//! [`evaluate`](ArcFreeExplicit::evaluate) method additionally requires
+//! `F: Extract`.
 //!
 //! ## Drop behavior
 //!
 //! When the last `Arc` reference releases, the inner data's [`Drop`] runs
 //! and iteratively dismantles a deep `Wrap` chain via
-//! [`Extract::extract`](crate::classes::Extract::extract) plus
+//! [`WrapDrop::drop`](crate::classes::WrapDrop::drop) plus
 //! [`Arc::try_unwrap`](std::sync::Arc::try_unwrap). Without this, deep chains
 //! stack-overflow during cleanup.
 
@@ -72,7 +74,7 @@ mod inner {
 	)]
 	pub enum ArcFreeExplicitView<'a, F, A: 'a>
 	where
-		F: Extract + Functor + 'a, {
+		F: WrapDrop + Functor + 'a, {
 		/// A pure value.
 		Pure(A),
 		/// A suspended computation: a functor layer wrapping the next step.
@@ -92,7 +94,7 @@ mod inner {
 	#[document_parameters("The view to clone.")]
 	impl<'a, F, A: 'a> Clone for ArcFreeExplicitView<'a, F, A>
 	where
-		F: Extract + Functor + 'a,
+		F: WrapDrop + Functor + 'a,
 		A: Clone,
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'a,
@@ -134,7 +136,7 @@ mod inner {
 	/// is what lets the compiler auto-derive `Send + Sync` for concrete `F`.
 	pub struct ArcFreeExplicitInner<'a, F, A>
 	where
-		F: Extract + Functor + 'a,
+		F: WrapDrop + Functor + 'a,
 		A: 'a, {
 		view: Option<ArcFreeExplicitView<'a, F, A>>,
 	}
@@ -147,7 +149,7 @@ mod inner {
 	#[document_parameters("The inner state to clone.")]
 	impl<'a, F, A> Clone for ArcFreeExplicitInner<'a, F, A>
 	where
-		F: Extract + Functor + 'a,
+		F: WrapDrop + Functor + 'a,
 		A: 'a + Clone,
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'a,
@@ -187,11 +189,11 @@ mod inner {
 	#[document_parameters("The inner state being dropped.")]
 	impl<'a, F, A> Drop for ArcFreeExplicitInner<'a, F, A>
 	where
-		F: Extract + Functor + 'a,
+		F: WrapDrop + Functor + 'a,
 		A: 'a,
 	{
 		/// Iteratively dismantles a deep `Wrap` chain via
-		/// [`Extract::extract`] and [`Arc::try_unwrap`](std::sync::Arc::try_unwrap),
+		/// [`WrapDrop::drop`] and [`Arc::try_unwrap`](std::sync::Arc::try_unwrap),
 		/// mirroring [`RcFreeExplicit`](crate::types::RcFreeExplicit)'s
 		/// strategy with atomic refcounting.
 		#[document_signature]
@@ -215,9 +217,14 @@ mod inner {
 						current_view = None;
 					}
 					ArcFreeExplicitView::Wrap(fa) => {
-						let extracted: ArcFreeExplicit<'a, F, A> = F::extract(fa);
-						if let Ok(mut owned) = Arc::try_unwrap(extracted.inner) {
-							current_view = owned.view.take();
+						if let Some(extracted) =
+							<F as WrapDrop>::drop::<ArcFreeExplicit<'a, F, A>>(fa)
+						{
+							if let Ok(mut owned) = Arc::try_unwrap(extracted.inner) {
+								current_view = owned.view.take();
+							} else {
+								current_view = None;
+							}
 						} else {
 							current_view = None;
 						}
@@ -242,13 +249,13 @@ mod inner {
 	)]
 	pub struct ArcFreeExplicit<'a, F, A>
 	where
-		F: Extract + Functor + 'a,
+		F: WrapDrop + Functor + 'a,
 		A: 'a, {
 		inner: Arc<ArcFreeExplicitInner<'a, F, A>>,
 	}
 
 	impl_kind! {
-		impl<F: Extract + Functor + 'static> for ArcFreeExplicitBrand<F> {
+		impl<F: WrapDrop + Functor + 'static> for ArcFreeExplicitBrand<F> {
 			type Of<'a, A: 'a>: 'a = ArcFreeExplicit<'a, F, A>;
 		}
 	}
@@ -261,7 +268,7 @@ mod inner {
 	#[document_parameters("The `ArcFreeExplicit` instance to clone.")]
 	impl<'a, F, A> Clone for ArcFreeExplicit<'a, F, A>
 	where
-		F: Extract + Functor + 'a,
+		F: WrapDrop + Functor + 'a,
 		A: 'a,
 	{
 		/// Clones the `ArcFreeExplicit` by atomic refcount bump on the outer
@@ -297,7 +304,7 @@ mod inner {
 	#[document_parameters("The `ArcFreeExplicit` instance.")]
 	impl<'a, F, A: 'a> ArcFreeExplicit<'a, F, A>
 	where
-		F: Extract + Functor + 'a,
+		F: WrapDrop + Functor + 'a,
 	{
 		/// Constructs an `ArcFreeExplicit` from owned inner state.
 		#[document_signature]
@@ -479,6 +486,7 @@ mod inner {
 		/// ```
 		pub fn evaluate(self) -> A
 		where
+			F: Extract,
 			A: Clone,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
@@ -517,6 +525,7 @@ mod inner {
 		/// ```
 		pub fn lower_ref(&self) -> A
 		where
+			F: Extract,
 			A: Clone,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
@@ -686,7 +695,7 @@ mod inner {
 	// pattern.
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: Extract + Functor + 'static> SendPointed for ArcFreeExplicitBrand<F> {
+	impl<F: WrapDrop + Functor + 'static> SendPointed for ArcFreeExplicitBrand<F> {
 		/// Wraps a value in a pure thread-safe `ArcFreeExplicit` computation.
 		#[document_signature]
 		///

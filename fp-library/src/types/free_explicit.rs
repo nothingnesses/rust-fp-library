@@ -14,14 +14,18 @@
 //!
 //! ## Trait bound on `F`
 //!
-//! `FreeExplicit<'a, F, A>` requires `F: Extract + Functor + 'a`. The
-//! [`Extract`](crate::classes::Extract) bound is needed by the custom
+//! `FreeExplicit<'a, F, A>` requires `F: WrapDrop + Functor + 'a`. The
+//! [`WrapDrop`](crate::classes::WrapDrop) bound is needed by the custom
 //! iterative [`Drop`] impl so deep `Wrap` chains can be dismantled without
 //! overflowing the stack. Functors whose payload is a continuation function
-//! rather than an extractable value cannot be used directly with
-//! `FreeExplicit`; route through
-//! [`Free::fold_free`](crate::types::Free::fold_free) into a
-//! [`MonadRec`](crate::classes::MonadRec) target instead.
+//! rather than an extractable value can opt into `WrapDrop::drop = None` so
+//! that recursive drop runs in place; this is sound for the patterns
+//! documented on `WrapDrop`. The
+//! [`evaluate`](FreeExplicit::evaluate) method additionally requires
+//! `F: Extract`. Functors whose payload doesn't yield a value at all should
+//! route through [`Free::fold_free`](crate::types::Free::fold_free) into a
+//! [`MonadRec`](crate::classes::MonadRec) target instead of relying on
+//! `evaluate`.
 
 #[fp_macros::document_module]
 mod inner {
@@ -51,7 +55,7 @@ mod inner {
 	)]
 	pub enum FreeExplicitView<'a, F, A: 'a>
 	where
-		F: Extract + Functor + 'a, {
+		F: WrapDrop + Functor + 'a, {
 		/// A pure value.
 		Pure(A),
 		/// A suspended computation: a functor layer wrapping the next step.
@@ -94,12 +98,12 @@ mod inner {
 	)]
 	pub struct FreeExplicit<'a, F, A: 'a>
 	where
-		F: Extract + Functor + 'a, {
+		F: WrapDrop + Functor + 'a, {
 		view: Option<FreeExplicitView<'a, F, A>>,
 	}
 
 	impl_kind! {
-		impl<F: Extract + Functor + 'static> for FreeExplicitBrand<F> {
+		impl<F: WrapDrop + Functor + 'static> for FreeExplicitBrand<F> {
 			type Of<'a, A: 'a>: 'a = FreeExplicit<'a, F, A>;
 		}
 	}
@@ -112,7 +116,7 @@ mod inner {
 	#[document_parameters("The `FreeExplicit` instance.")]
 	impl<'a, F, A: 'a> FreeExplicit<'a, F, A>
 	where
-		F: Extract + Functor + 'a,
+		F: WrapDrop + Functor + 'a,
 	{
 		/// Creates a pure `FreeExplicit` value.
 		#[document_signature]
@@ -200,7 +204,9 @@ mod inner {
 			clippy::expect_used,
 			reason = "FreeExplicit values consumed exactly once; double consumption is a bug"
 		)]
-		pub fn evaluate(self) -> A {
+		pub fn evaluate(self) -> A
+		where
+			F: Extract, {
 			let mut current = self;
 			loop {
 				let view = current.view.take().expect("FreeExplicit value already consumed");
@@ -312,16 +318,20 @@ mod inner {
 	#[document_parameters("The `FreeExplicit` instance being dropped.")]
 	impl<'a, F, A: 'a> Drop for FreeExplicit<'a, F, A>
 	where
-		F: Extract + Functor + 'a,
+		F: WrapDrop + Functor + 'a,
 	{
-		/// Iteratively dismantles a deep `Wrap` chain via [`Extract::extract`].
+		/// Iteratively dismantles a deep `Wrap` chain via [`WrapDrop::drop`].
 		///
 		/// Naive recursive `Drop` would overflow the stack for chains beyond
 		/// a few thousand layers. This impl walks the chain in a loop: at
-		/// each `Wrap`, it extracts the inner `Box<FreeExplicit>`, takes its
-		/// view (leaving `None`), and continues. The just-emptied
-		/// `Box<FreeExplicit>` then drops with `view: None`, so its own
-		/// `Drop` becomes a no-op and never recurses.
+		/// each `Wrap`, it consults `WrapDrop::drop` on the base functor to
+		/// decide how to dismantle the layer. `Some(extracted)` lets the
+		/// loop take the extracted node's view (leaving `None`) and
+		/// continue (the just-emptied `Box<FreeExplicit>` drops with
+		/// `view: None`, so its own `Drop` becomes a no-op and never
+		/// recurses). `None` lets the layer drop in place, which is sound
+		/// for brands that do not materially store the inner
+		/// `Box<FreeExplicit>`.
 		#[document_signature]
 		#[document_examples]
 		///
@@ -343,8 +353,13 @@ mod inner {
 						current_view = None;
 					}
 					FreeExplicitView::Wrap(fa) => {
-						let mut extracted: Box<FreeExplicit<'a, F, A>> = F::extract(fa);
-						current_view = extracted.view.take();
+						if let Some(mut extracted) =
+							<F as WrapDrop>::drop::<Box<FreeExplicit<'a, F, A>>>(fa)
+						{
+							current_view = extracted.view.take();
+						} else {
+							current_view = None;
+						}
 					}
 				}
 			}
@@ -373,7 +388,7 @@ mod inner {
 	// inherent-only.
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: Extract + Functor + 'static> Pointed for FreeExplicitBrand<F> {
+	impl<F: WrapDrop + Functor + 'static> Pointed for FreeExplicitBrand<F> {
 		/// Wraps a value in a pure `FreeExplicit` computation.
 		#[document_signature]
 		///
@@ -403,7 +418,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: Extract + Functor + 'static> Functor for FreeExplicitBrand<F> {
+	impl<F: WrapDrop + Functor + 'static> Functor for FreeExplicitBrand<F> {
 		/// Maps a function over the result of a `FreeExplicit` computation
 		/// by composing it with [`pure`](FreeExplicit::pure) under
 		/// [`bind`](FreeExplicit::bind).
@@ -443,7 +458,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: Extract + Functor + 'static> Semimonad for FreeExplicitBrand<F> {
+	impl<F: WrapDrop + Functor + 'static> Semimonad for FreeExplicitBrand<F> {
 		/// Sequences `FreeExplicit` computations.
 		#[document_signature]
 		///
@@ -516,7 +531,7 @@ mod inner {
 		fa: &FreeExplicit<'a, F, A>,
 	) -> FreeExplicit<'a, F, B>
 	where
-		F: Extract + Functor + RefFunctor + 'a, {
+		F: WrapDrop + Functor + RefFunctor + 'a, {
 		let view = fa.view.as_ref().expect("FreeExplicit value already consumed");
 		match view {
 			FreeExplicitView::Pure(a) => FreeExplicit::pure(func(a)),
@@ -562,7 +577,7 @@ mod inner {
 		fa: &FreeExplicit<'a, F, A>,
 	) -> FreeExplicit<'a, F, B>
 	where
-		F: Extract + Functor + RefFunctor + 'a, {
+		F: WrapDrop + Functor + RefFunctor + 'a, {
 		let view = fa.view.as_ref().expect("FreeExplicit value already consumed");
 		match view {
 			FreeExplicitView::Pure(a) => f(a),
@@ -580,7 +595,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: Extract + Functor + RefFunctor + 'static> RefFunctor for FreeExplicitBrand<F> {
+	impl<F: WrapDrop + Functor + RefFunctor + 'static> RefFunctor for FreeExplicitBrand<F> {
 		/// Maps a function over the result of a `FreeExplicit` computation
 		/// using a reference to the value, walking the structure
 		/// recursively via `F::ref_map`.
@@ -621,7 +636,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: Extract + Functor + 'static> RefPointed for FreeExplicitBrand<F> {
+	impl<F: WrapDrop + Functor + 'static> RefPointed for FreeExplicitBrand<F> {
 		/// Wraps a cloned value in a pure `FreeExplicit` computation.
 		#[document_signature]
 		///
@@ -655,7 +670,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: Extract + Functor + RefFunctor + 'static> RefSemimonad for FreeExplicitBrand<F> {
+	impl<F: WrapDrop + Functor + RefFunctor + 'static> RefSemimonad for FreeExplicitBrand<F> {
 		/// Sequences `FreeExplicit` computations using a reference to the
 		/// intermediate value, walking the structure recursively via
 		/// `F::ref_map`.

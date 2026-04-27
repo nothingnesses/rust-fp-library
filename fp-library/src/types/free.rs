@@ -76,6 +76,7 @@ mod inner {
 				Functor,
 				MonadRec,
 				NaturalTransformation,
+				WrapDrop,
 			},
 			kinds::*,
 			types::{
@@ -112,11 +113,11 @@ mod inner {
 	/// [`PhantomData`] on the outer [`Free`] struct. The CatList of continuations
 	/// lives at the top level in [`Free`], not inside any variant.
 	#[document_type_parameters(
-		"The base functor. Requires [`Extract`] and [`Functor`] to match the struct-level bounds on [`Free`]; the `Suspend` variant itself only uses the [`Kind`](crate::kinds) trait (implied by `Functor`) for type application, and the `Extract` bound is needed for stack-safe `Drop`."
+		"The base functor. Requires [`WrapDrop`] and [`Functor`] to match the struct-level bounds on [`Free`]; the `Suspend` variant itself only uses the [`Kind`](crate::kinds) trait (implied by `Functor`) for type application, and the `WrapDrop` bound is needed for stack-safe `Drop`."
 	)]
 	pub enum FreeView<F>
 	where
-		F: Extract + Functor + 'static, {
+		F: WrapDrop + Functor + 'static, {
 		/// A pure value (type-erased).
 		///
 		/// This variant represents a computation that has finished and produced a value.
@@ -140,12 +141,12 @@ mod inner {
 	/// decomposition that both [`Free::evaluate`] and [`Free::resume`]
 	/// delegate to.
 	#[document_type_parameters(
-		"The base functor. Requires [`Extract`] and [`Functor`] to match the struct-level bounds on [`Free`].",
+		"The base functor. Requires [`WrapDrop`] and [`Functor`] to match the struct-level bounds on [`Free`].",
 		"The result type of the computation."
 	)]
 	pub enum FreeStep<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + Functor + 'static,
 		A: 'static, {
 		/// The computation completed with a final value.
 		Done(A),
@@ -218,19 +219,23 @@ mod inner {
 	/// # Drop behavior
 	///
 	/// Dropping a `Free` value iteratively dismantles the computation chain to avoid
-	/// stack overflow. For `Suspend` nodes, this requires extracting the inner `Free`
-	/// from the functor layer via [`Extract::extract`]. For functors like
-	/// [`ThunkBrand`], this means the thunk is evaluated during drop. Be aware that
-	/// dropping a partially-constructed `Free` chain may trigger deferred computations
-	/// and their side effects.
+	/// stack overflow. For `Suspend` nodes, this consults [`WrapDrop::drop`] on the
+	/// base functor: a `Some(inner)` return lets `Drop` push the inner view onto its
+	/// worklist and continue iteratively, while `None` lets the layer drop in place
+	/// (recursive drop is sound when the layer does not materially store the inner
+	/// `Free`; see `WrapDrop`'s docs for the soundness argument). For functors like
+	/// [`ThunkBrand`], `WrapDrop::drop` returns `Some` by delegating to
+	/// [`Extract::extract`], which evaluates the thunk during drop; partially
+	/// constructed `Free` chains may therefore trigger deferred computations and
+	/// their side effects.
 	#[document_type_parameters(
-		"The base functor (must implement [`Extract`] and [`Functor`]). Many construction methods (`pure`, `bind`, `map`) only need `F: 'static` in principle, and functor-dependent methods (`wrap`, `lift_f`, `resume`, `fold_free`, `hoist_free`) only need `Functor`. The `Extract` bound is required at the struct level because the custom `Drop` implementation calls [`Extract::extract`] to iteratively dismantle `Suspend` nodes without overflowing the stack.",
+		"The base functor (must implement [`WrapDrop`] and [`Functor`]). Many construction methods (`pure`, `bind`, `map`) only need `F: 'static` in principle, and functor-dependent methods (`wrap`, `lift_f`, `resume`, `fold_free`, `hoist_free`) only need `Functor`. The `WrapDrop` bound is required at the struct level because the custom `Drop` implementation calls [`WrapDrop::drop`] to iteratively dismantle `Suspend` nodes without overflowing the stack.",
 		"The result type."
 	)]
 	///
 	pub struct Free<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + Functor + 'static,
 		A: 'static, {
 		/// The current step of the computation (type-erased).
 		view: Option<FreeView<F>>,
@@ -243,26 +248,17 @@ mod inner {
 	// -- Construction and composition --
 	//
 	// Methods in this block only need `F: 'static` in principle; they
-	// never call `Functor::map` or `Extract::extract`. The `Extract +
-	// Functor` bounds are inherited from the struct definition, which
-	// requires them for stack-safe `Drop` of `Suspend` nodes.
-	//
-	// Relaxing these bounds was investigated and is not feasible: Rust
-	// requires `Drop` impl bounds to match the struct bounds exactly,
-	// and the `Drop` impl needs `Extract` to iteratively dismantle
-	// `Suspend` nodes without stack overflow. Alternative approaches
-	// (ManuallyDrop with leaks, type-erased drop functions, split
-	// structs) all introduce unsoundness, leaks, or significant
-	// per-node overhead for marginal gain. This is a Rust-specific
-	// limitation; PureScript/Haskell avoid it via GC. The workaround
-	// for non-Extract functors is `fold_free`, which interprets into
-	// any `MonadRec` target.
+	// never call `Functor::map`, `Extract::extract`, or `WrapDrop::drop`.
+	// The `WrapDrop + Functor` bounds are inherited from the struct
+	// definition, which requires them for stack-safe `Drop` of `Suspend`
+	// nodes (Rust requires `Drop` impl bounds to match struct bounds
+	// exactly).
 
 	#[document_type_parameters("The base functor.", "The result type.")]
 	#[document_parameters("The Free monad instance to operate on.")]
 	impl<F, A> Free<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + Functor + 'static,
 		A: 'static,
 	{
 		/// Extracts the view and continuations, leaving `self` in a consumed
@@ -487,14 +483,15 @@ mod inner {
 	// -- Functor-dependent operations --
 	//
 	// Methods in this block call `Functor::map` (`F::map`) and thus
-	// require `F: Functor`. They do NOT call `Extract::extract`; the
-	// `Extract` bound is inherited from the struct definition.
+	// require `F: Functor`. They do NOT call `Extract::extract` or
+	// `WrapDrop::drop`; the `WrapDrop` bound is inherited from the
+	// struct definition.
 
 	#[document_type_parameters("The base functor.", "The result type.")]
 	#[document_parameters("The Free monad instance to operate on.")]
 	impl<F, A> Free<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + Functor + 'static,
 		A: 'static,
 	{
 		/// Creates a suspended computation from a functor value.
@@ -844,7 +841,7 @@ mod inner {
 		/// let hoisted: Free<ThunkBrand, i32> = free.hoist_free(ThunkId);
 		/// assert_eq!(hoisted.evaluate(), 42);
 		/// ```
-		pub fn hoist_free<G: Extract + Functor + 'static>(
+		pub fn hoist_free<G: WrapDrop + Functor + 'static>(
 			self,
 			nt: impl NaturalTransformation<F, G> + Clone + 'static,
 		) -> Free<G, A> {
@@ -913,7 +910,7 @@ mod inner {
 		/// 	});
 		/// assert_eq!(substituted.evaluate(), 42);
 		/// ```
-		pub fn substitute_free<G: Extract + Functor + 'static>(
+		pub fn substitute_free<G: WrapDrop + Functor + 'static>(
 			self,
 			nt: impl Fn(
 				Apply!(
@@ -939,15 +936,16 @@ mod inner {
 	// -- Evaluation (requires Extract) --
 	//
 	// This method calls `Extract::extract` and thus genuinely requires
-	// `F: Extract + Functor`. The `Drop` implementation also needs
-	// `Extract` for the same reason (stack-safe dismantling of `Suspend`
-	// nodes).
+	// `F: Extract`. The `WrapDrop + Functor + 'static` half mirrors
+	// the struct's bound so methods inherited from those impl blocks
+	// (`to_view` here) remain in scope; only `evaluate` adds the
+	// `Extract` requirement.
 
 	#[document_type_parameters("The base functor.", "The result type.")]
 	#[document_parameters("The Free monad instance to operate on.")]
 	impl<F, A> Free<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: Extract + WrapDrop + Functor + 'static,
 		A: 'static,
 	{
 		/// Executes the Free computation, returning the final result.
@@ -989,7 +987,7 @@ mod inner {
 	#[document_parameters("The free monad instance to drop.")]
 	impl<F, A> Drop for Free<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + Functor + 'static,
 		A: 'static,
 	{
 		#[document_signature]
@@ -1031,19 +1029,24 @@ mod inner {
 					}
 
 					FreeView::Suspend(fa) => {
-						// The functor layer contains a `Free<F, TypeErasedValue>` inside.
-						// If we let it drop recursively, deeply nested Suspend chains will
-						// overflow the stack. Instead, we use `Extract::extract`
-						// to eagerly extract the inner `Free`, then push its view onto
-						// the worklist for iterative dismantling.
-						let mut extracted: Free<F, TypeErasedValue> = <F as Extract>::extract(fa);
-						if let Some(inner_view) = extracted.view.take() {
-							worklist.push(inner_view);
-						}
-						// Drain the extracted node's continuations iteratively.
-						let mut inner_conts = std::mem::take(&mut extracted.continuations);
-						while let Some((_continuation, rest)) = inner_conts.uncons() {
-							inner_conts = rest;
+						// The functor layer may contain a `Free<F, TypeErasedValue>`
+						// inside. Consult `WrapDrop::drop` to decide how to dismantle
+						// it: `Some(inner)` means F materially holds the inner Free,
+						// so we eagerly take its view onto the worklist for iterative
+						// dismantling (avoiding stack overflow on deep Suspend chains);
+						// `None` means F does not materially store a Free, so the
+						// layer drops recursively in place (sound for the Run-typical
+						// patterns documented on `WrapDrop`).
+						if let Some(mut extracted) =
+							<F as WrapDrop>::drop::<Free<F, TypeErasedValue>>(fa)
+						{
+							if let Some(inner_view) = extracted.view.take() {
+								worklist.push(inner_view);
+							}
+							let mut inner_conts = std::mem::take(&mut extracted.continuations);
+							while let Some((_continuation, rest)) = inner_conts.uncons() {
+								inner_conts = rest;
+							}
 						}
 					}
 				}

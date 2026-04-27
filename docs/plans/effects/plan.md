@@ -1,13 +1,56 @@
 # Plan: Port purescript-run to fp-library
 
-**Status:** Phase 1 complete (all 9 steps); Phase 2 in progress
-(steps 1, 2, and 3 of 10 complete; step 4 unblocked, awaiting two
-Phase 1 follow-up commits introducing `WrapDrop` per the resolution
-in Open questions below).
+**Status:** Phase 1 complete (all 9 steps); Phase 1 follow-up
+commit 1 (`WrapDrop` migration) landed; Phase 2 in progress
+(steps 1, 2, and 3 of 10 complete; step 4 awaits the second Phase 1
+follow-up commit relaxing the `Functor` bound to `Kind` on the
+struct, after which step 4 resumes).
 
 ## Current progress
 
-Phase 1 complete (steps 1-9). Phase 2 steps 1, 2, and 3 complete.
+Phase 1 complete (steps 1-9). Phase 1 follow-up commit 1 complete.
+Phase 2 steps 1, 2, and 3 complete.
+
+**Phase 1 follow-up commit 1 (`WrapDrop` migration, struct/Drop
+swap).** New trait
+[`WrapDrop`](../../../fp-library/src/classes/wrap_drop.rs) lands at
+`fp-library/src/classes/wrap_drop.rs`, with the signature
+`fn drop<'a, X: 'a>(fa: Self::Of<'a, X>) -> Option<X>` and a
+`Kind!(type Of<'a, A: 'a>: 'a;)` supertrait. `WrapDrop` impls land
+on [`IdentityBrand`](../../../fp-library/src/types/identity.rs) and
+[`ThunkBrand`](../../../fp-library/src/types/thunk.rs), each
+delegating to their existing `Extract` impl by returning
+`Some(<Self as Extract>::extract(fa))`.
+
+All six Free variants
+([`Free`](../../../fp-library/src/types/free.rs),
+[`RcFree`](../../../fp-library/src/types/rc_free.rs),
+[`ArcFree`](../../../fp-library/src/types/arc_free.rs),
+[`FreeExplicit`](../../../fp-library/src/types/free_explicit.rs),
+[`RcFreeExplicit`](../../../fp-library/src/types/rc_free_explicit.rs),
+[`ArcFreeExplicit`](../../../fp-library/src/types/arc_free_explicit.rs))
+migrated their struct-, view-, step-, and `Drop`-declaration
+bounds from `F: Extract + Functor + 'static` (or `'a`) to
+`F: WrapDrop + Functor + 'static` (or `'a`); same for `Inner` /
+`Continuation` / `Clone` impls and the brand-level type-class
+impls (`FreeExplicitBrand` / `RcFreeExplicitBrand` /
+`ArcFreeExplicitBrand`'s `Pointed` / `Functor` / `Semimonad` /
+`SendPointed` / `RefFunctor` / `RefPointed` / `RefSemimonad`).
+Methods that genuinely call `F::extract` (`evaluate` on all six
+variants; `lower_ref` on the four `Rc` / `Arc` variants) keep
+`where F: Extract` as a per-method bound. Each variant's `Drop`
+body is rewritten to call `<F as WrapDrop>::drop(fa)` and
+dispatch on the returned `Option`: `Some(inner)` follows the
+existing iterative path; `None` lets the layer drop in place.
+The `evaluate` impl block on `Free` keeps
+`F: Extract + WrapDrop + Functor + 'static` so the methods
+inherited from the `WrapDrop`-bounded blocks (`to_view` etc.)
+stay in scope.
+
+The Phase 1 stack-safety tests (including
+`deep_drop_does_not_overflow` for both `Free<ThunkBrand>` and
+`FreeExplicit<IdentityBrand>`, and the corresponding deep-drop
+tests on the four `Rc` / `Arc` variants) all pass post-migration.
 
 **Phase 2 step 3 (`Member<E, Idx>` trait).** [`Member<E, Idx>`](../../../fp-library/src/types/run/member.rs)
 lands at
