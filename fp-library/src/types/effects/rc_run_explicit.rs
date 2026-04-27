@@ -457,6 +457,126 @@ mod inner {
 			>): Clone, {
 			RcRunExplicit::from_rc_free_explicit(self.0.bind(move |a| f(a).into_rc_free_explicit()))
 		}
+
+		/// By-reference [`bind`](RcRunExplicit::bind): chains a
+		/// continuation that receives `&A` rather than `A`.
+		///
+		/// Implemented via `self.clone().bind(move |a| f(&a))`. The
+		/// clone is `O(1)` (atomic-free `Rc::clone` on the inner
+		/// substrate); the wrapping closure converts the owned `A`
+		/// from the substrate's by-value bind path back into the
+		/// `&A` the user-supplied `f` expects.
+		///
+		/// This is the inherent escape hatch for by-reference
+		/// dispatch over canonical Coyoneda-headed effect rows,
+		/// where brand-level `RefSemimonad::ref_bind` is unreachable
+		/// because `CoyonedaBrand: RefFunctor` is unimplementable on
+		/// stable Rust (see
+		/// [`fp-library/docs/limitations-and-workarounds.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/docs/limitations-and-workarounds.md)).
+		/// For synthetic rows whose row brand satisfies
+		/// [`RefFunctor`](crate::classes::RefFunctor), brand-level
+		/// `m_do!(ref RcRunExplicitBrand { ... })` is also available
+		/// and slightly cheaper (no clone). The
+		/// [`im_do!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
+		/// macro's `ref` form (Phase 2 step 7c) desugars to this
+		/// method.
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to chain after this computation.")]
+		///
+		#[document_returns("A new `RcRunExplicit` chaining `f` after a clone of this one.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		RcFreeExplicit,
+		/// 		effects::rc_run_explicit::RcRunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: RcRunExplicit<'_, FirstRow, Scoped, i32> =
+		/// 	RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::pure(2));
+		/// let chained =
+		/// 	run.ref_bind(|x: &i32| RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::pure(*x + 1)));
+		/// assert_eq!(chained.into_rc_free_explicit().evaluate(), 3);
+		/// ```
+		pub fn ref_bind<B: 'a>(
+			&self,
+			f: impl Fn(&A) -> RcRunExplicit<'a, R, S, B> + 'a,
+		) -> RcRunExplicit<'a, R, S, B>
+		where
+			A: Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, B>,
+			>): Clone, {
+			self.clone().bind(move |a| f(&a))
+		}
+
+		/// By-reference [`map`](RcRunExplicit::map): applies a
+		/// function that takes `&A` rather than `A`.
+		///
+		/// Implemented via `self.clone().map(move |a| f(&a))`. The
+		/// clone is `O(1)` (atomic-free `Rc::clone`). See
+		/// [`ref_bind`](RcRunExplicit::ref_bind) for the design
+		/// rationale.
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to apply by reference to the result.")]
+		///
+		#[document_returns(
+			"A new `RcRunExplicit` with `f` applied to a clone of this one's result."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		RcFreeExplicit,
+		/// 		effects::rc_run_explicit::RcRunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: RcRunExplicit<'_, FirstRow, Scoped, i32> =
+		/// 	RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::pure(7));
+		/// let mapped = run.ref_map(|x: &i32| *x * 3);
+		/// assert_eq!(mapped.into_rc_free_explicit().evaluate(), 21);
+		/// ```
+		pub fn ref_map<B: 'a>(
+			&self,
+			f: impl Fn(&A) -> B + 'a,
+		) -> RcRunExplicit<'a, R, S, B>
+		where
+			A: Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, B>,
+			>): Clone, {
+			self.clone().map(move |a| f(&a))
+		}
 	}
 
 	// -- From<RcRun> for RcRunExplicit (Erased -> Explicit conversion) --
@@ -877,5 +997,20 @@ mod tests {
 		let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::send(Node::First(layer));
 		let explicit: RcRunExplicit<'static, FirstRow, Scoped, i32> = RcRunExplicit::from(rc_run);
 		assert!(explicit.peel().is_err());
+	}
+
+	#[test]
+	fn ref_bind_chains_pure_value_via_clone() {
+		let run: RunAlias<'_, i32> = RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::pure(2));
+		let chained = run
+			.ref_bind(|x: &i32| RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::pure(*x + 1)));
+		assert_eq!(chained.into_rc_free_explicit().evaluate(), 3);
+	}
+
+	#[test]
+	fn ref_map_transforms_pure_value_via_clone() {
+		let run: RunAlias<'_, i32> = RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::pure(7));
+		let mapped = run.ref_map(|x: &i32| *x * 3);
+		assert_eq!(mapped.into_rc_free_explicit().evaluate(), 21);
 	}
 }

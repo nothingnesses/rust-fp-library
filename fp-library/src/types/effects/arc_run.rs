@@ -403,6 +403,103 @@ mod inner {
 			>): Clone, {
 			ArcRun::from_arc_free(self.0.map(f))
 		}
+
+		/// By-reference [`bind`](ArcRun::bind): chains a continuation
+		/// that receives `&A` rather than `A`.
+		///
+		/// Implemented via `self.clone().bind(move |a| f(&a))`. The
+		/// clone is `O(1)` (atomic refcount bump on the inner
+		/// substrate); the wrapping closure converts the owned `A`
+		/// from the substrate's by-value bind path back into the
+		/// `&A` the user-supplied `f` expects.
+		///
+		/// This is the only by-reference dispatch path available for
+		/// `ArcRun` (the brand-level `SendRefSemimonad` is
+		/// unreachable for the broader Run family on stable Rust per
+		/// [`fp-library/docs/limitations-and-workarounds.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/docs/limitations-and-workarounds.md)).
+		/// The
+		/// [`im_do!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
+		/// macro's `ref` form (Phase 2 step 7c) desugars to this
+		/// method.
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to chain after this computation.")]
+		///
+		#[document_returns("A new `ArcRun` chaining `f` after a clone of this one.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::pure(2);
+		/// let chained = arc_run.ref_bind(|x: &i32| ArcRun::pure(*x + 1));
+		/// assert!(matches!(chained.peel(), Ok(3)));
+		/// ```
+		#[inline]
+		pub fn ref_bind<B: 'static + Send + Sync>(
+			&self,
+			f: impl Fn(&A) -> ArcRun<R, S, B> + Send + Sync + 'static,
+		) -> ArcRun<R, S, B>
+		where
+			A: Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone, {
+			self.clone().bind(move |a| f(&a))
+		}
+
+		/// By-reference [`map`](ArcRun::map): applies a function that
+		/// takes `&A` rather than `A`.
+		///
+		/// Implemented via `self.clone().map(move |a| f(&a))`. The
+		/// clone is `O(1)` (atomic refcount bump). See
+		/// [`ref_bind`](ArcRun::ref_bind) for the design rationale.
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to apply by reference to the result.")]
+		///
+		#[document_returns("A new `ArcRun` with `f` applied to a clone of this one's result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::pure(7);
+		/// let mapped = arc_run.ref_map(|x: &i32| *x * 3);
+		/// assert!(matches!(mapped.peel(), Ok(21)));
+		/// ```
+		#[inline]
+		pub fn ref_map<B: 'static + Send + Sync>(
+			&self,
+			f: impl Fn(&A) -> B + Send + Sync + 'static,
+		) -> ArcRun<R, S, B>
+		where
+			A: Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone, {
+			self.clone().map(move |a| f(&a))
+		}
 	}
 }
 
@@ -508,5 +605,19 @@ mod tests {
 	fn map_transforms_pure_value() {
 		let arc_run: ArcRunAlias<i32> = ArcRun::pure(7).map(|x| x * 3);
 		assert!(matches!(arc_run.peel(), Ok(21)));
+	}
+
+	#[test]
+	fn ref_bind_chains_pure_value_via_clone() {
+		let arc_run: ArcRunAlias<i32> = ArcRun::pure(2);
+		let chained = arc_run.ref_bind(|x: &i32| ArcRun::pure(*x + 1));
+		assert!(matches!(chained.peel(), Ok(3)));
+	}
+
+	#[test]
+	fn ref_map_transforms_pure_value_via_clone() {
+		let arc_run: ArcRunAlias<i32> = ArcRun::pure(7);
+		let mapped = arc_run.ref_map(|x: &i32| *x * 3);
+		assert!(matches!(mapped.peel(), Ok(21)));
 	}
 }

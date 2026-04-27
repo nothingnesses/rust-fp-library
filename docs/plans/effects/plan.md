@@ -8,9 +8,42 @@ relaxation) landed; Phase 2 in progress (steps 1, 2, 3, 4a, 4b,
 ## Current progress
 
 Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
-complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, and 7a complete.
-Phase 2 step 7 design pre-locked (naming and scope refinements
-captured below); sub-steps 7b and 7c remaining.
+complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, and 7b
+complete. Phase 2 step 7 design pre-locked (naming and scope
+refinements captured below); sub-step 7c (the `im_do!` macro)
+remaining.
+
+**Phase 2 step 7b (inherent `ref_bind` and `ref_map` on the
+four `Clone`-able wrappers).** `RcRun`, `ArcRun`, `RcRunExplicit`,
+and `ArcRunExplicit` gain inherent `ref_bind(&self, f)` and
+`ref_map(&self, f)` methods. Each is implemented as
+`self.clone().bind(move |a| f(&a))` (or analogously for
+`ref_map`): the `O(1)` clone (refcount bump on the inner
+`Rc`/`Arc` substrate) keeps `&self` available while the
+wrapping closure converts the substrate's owned `A` from the
+by-value path back into the `&A` the user-supplied `f`
+expects.
+
+This sidesteps the `R: RefFunctor` cascade that brand-level
+`RefSemimonad::ref_bind` requires through the substrate's
+by-reference walking algorithm. By cloning the program and
+walking by-value, the substrate doesn't need the row brand to
+implement `RefFunctor`, which means by-reference dispatch
+works over canonical `CoyonedaBrand`-headed effect rows where
+brand-level `m_do!(ref ...)` cannot reach. Costs `O(1)` per
+`ref_bind` / `ref_map` (one Rc/Arc refcount op).
+
+For non-`Clone` wrappers (`Run`, `RunExplicit`), inherent
+by-reference methods are structurally impossible (can't
+materialize a fresh `Self` from `&self` without `Clone`).
+Step 7c will surface this via a `compile_fail` UI test on
+`im_do!(ref ...)` over those wrappers.
+
+Eight new tests (`ref_bind_chains_pure_value_via_clone` and
+`ref_map_transforms_pure_value_via_clone` per wrapper) verify
+the Run-level by-reference dispatch end-to-end.
+
+Step 7c (the `im_do!` macro itself) remains to be implemented.
 
 **Phase 2 step 7a (inherent `bind` and `map` on the four Run
 wrappers that don't already have them).** `Run`, `RcRun`,

@@ -457,6 +457,121 @@ mod inner {
 				self.0.bind(move |a| f(a).into_arc_free_explicit()),
 			)
 		}
+
+		/// By-reference [`bind`](ArcRunExplicit::bind): chains a
+		/// continuation that receives `&A` rather than `A`.
+		///
+		/// Implemented via `self.clone().bind(move |a| f(&a))`. The
+		/// clone is `O(1)` (atomic refcount bump on the inner
+		/// substrate); the wrapping closure converts the owned `A`
+		/// from the substrate's by-value bind path back into the
+		/// `&A` the user-supplied `f` expects.
+		///
+		/// This is the only by-reference dispatch path available for
+		/// `ArcRunExplicit` (the brand-level `SendRefSemimonad` is
+		/// permanently unreachable on stable Rust per
+		/// [`fp-library/docs/limitations-and-workarounds.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/docs/limitations-and-workarounds.md)).
+		/// The
+		/// [`im_do!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
+		/// macro's `ref` form (Phase 2 step 7c) desugars to this
+		/// method.
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to chain after this computation.")]
+		///
+		#[document_returns("A new `ArcRunExplicit` chaining `f` after a clone of this one.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		ArcFreeExplicit,
+		/// 		effects::arc_run_explicit::ArcRunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: ArcRunExplicit<'_, FirstRow, Scoped, i32> =
+		/// 	ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::pure(2));
+		/// let chained = run
+		/// 	.ref_bind(|x: &i32| ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::pure(*x + 1)));
+		/// assert_eq!(chained.into_arc_free_explicit().evaluate(), 3);
+		/// ```
+		pub fn ref_bind<B: 'a>(
+			&self,
+			f: impl Fn(&A) -> ArcRunExplicit<'a, R, S, B> + Send + Sync + 'a,
+		) -> ArcRunExplicit<'a, R, S, B>
+		where
+			A: Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, B>,
+			>): Clone, {
+			self.clone().bind(move |a| f(&a))
+		}
+
+		/// By-reference [`map`](ArcRunExplicit::map): applies a
+		/// function that takes `&A` rather than `A`.
+		///
+		/// Implemented via `self.clone().map(move |a| f(&a))`. The
+		/// clone is `O(1)` (atomic refcount bump). See
+		/// [`ref_bind`](ArcRunExplicit::ref_bind) for the design
+		/// rationale.
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to apply by reference to the result.")]
+		///
+		#[document_returns(
+			"A new `ArcRunExplicit` with `f` applied to a clone of this one's result."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		ArcFreeExplicit,
+		/// 		effects::arc_run_explicit::ArcRunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: ArcRunExplicit<'_, FirstRow, Scoped, i32> =
+		/// 	ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::pure(7));
+		/// let mapped = run.ref_map(|x: &i32| *x * 3);
+		/// assert_eq!(mapped.into_arc_free_explicit().evaluate(), 21);
+		/// ```
+		pub fn ref_map<B: Send + Sync + 'a>(
+			&self,
+			f: impl Fn(&A) -> B + Send + Sync + 'a,
+		) -> ArcRunExplicit<'a, R, S, B>
+		where
+			A: Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, B>,
+			>): Clone, {
+			self.clone().map(move |a| f(&a))
+		}
 	}
 
 	// -- From<ArcRun> for ArcRunExplicit (Erased -> Explicit conversion) --
@@ -735,5 +850,23 @@ mod tests {
 		let explicit: ArcRunExplicit<'static, FirstRow, Scoped, i32> =
 			ArcRunExplicit::from(arc_run);
 		assert!(explicit.peel().is_err());
+	}
+
+	#[test]
+	fn ref_bind_chains_pure_value_via_clone() {
+		let run: RunAlias<'_, i32> =
+			ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::pure(2));
+		let chained = run.ref_bind(|x: &i32| {
+			ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::pure(*x + 1))
+		});
+		assert_eq!(chained.into_arc_free_explicit().evaluate(), 3);
+	}
+
+	#[test]
+	fn ref_map_transforms_pure_value_via_clone() {
+		let run: RunAlias<'_, i32> =
+			ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::pure(7));
+		let mapped = run.ref_map(|x: &i32| *x * 3);
+		assert_eq!(mapped.into_arc_free_explicit().evaluate(), 21);
 	}
 }

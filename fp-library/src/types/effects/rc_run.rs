@@ -384,6 +384,106 @@ mod inner {
 			>): Clone, {
 			RcRun::from_rc_free(self.0.map(f))
 		}
+
+		/// By-reference [`bind`](RcRun::bind): chains a continuation
+		/// that receives `&A` rather than `A`.
+		///
+		/// Implemented via `self.clone().bind(move |a| f(&a))`. The
+		/// clone is `O(1)` (atomic-free `Rc::clone` on the inner
+		/// substrate); the wrapping closure converts the owned `A`
+		/// from the substrate's by-value bind path back into the
+		/// `&A` the user-supplied `f` expects.
+		///
+		/// This is the inherent escape hatch for by-reference
+		/// dispatch over canonical Coyoneda-headed effect rows,
+		/// where brand-level `RefSemimonad::ref_bind` is unreachable
+		/// because `CoyonedaBrand: RefFunctor` is unimplementable on
+		/// stable Rust (see
+		/// [`fp-library/docs/limitations-and-workarounds.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/docs/limitations-and-workarounds.md)).
+		/// The
+		/// [`im_do!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
+		/// macro's `ref` form (Phase 2 step 7c) desugars to this
+		/// method.
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to chain after this computation.")]
+		///
+		#[document_returns("A new `RcRun` chaining `f` after a clone of this one.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::pure(2);
+		/// let chained = rc_run.ref_bind(|x: &i32| RcRun::pure(*x + 1));
+		/// assert!(matches!(chained.peel(), Ok(3)));
+		/// ```
+		#[inline]
+		pub fn ref_bind<B: 'static>(
+			&self,
+			f: impl Fn(&A) -> RcRun<R, S, B> + 'static,
+		) -> RcRun<R, S, B>
+		where
+			A: Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			self.clone().bind(move |a| f(&a))
+		}
+
+		/// By-reference [`map`](RcRun::map): applies a function that
+		/// takes `&A` rather than `A`.
+		///
+		/// Implemented via `self.clone().map(move |a| f(&a))`. The
+		/// clone is `O(1)` (atomic-free `Rc::clone` on the inner
+		/// substrate). See [`ref_bind`](RcRun::ref_bind) for the
+		/// canonical-row design rationale.
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to apply by reference to the result.")]
+		///
+		#[document_returns("A new `RcRun` with `f` applied to a clone of this one's result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::pure(7);
+		/// let mapped = rc_run.ref_map(|x: &i32| *x * 3);
+		/// assert!(matches!(mapped.peel(), Ok(21)));
+		/// ```
+		#[inline]
+		pub fn ref_map<B: 'static>(
+			&self,
+			f: impl Fn(&A) -> B + 'static,
+		) -> RcRun<R, S, B>
+		where
+			A: Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			self.clone().map(move |a| f(&a))
+		}
 	}
 }
 
@@ -484,5 +584,19 @@ mod tests {
 	fn map_transforms_pure_value() {
 		let rc_run: RcRun<IdentityFirstRow, IdentityScoped, i32> = RcRun::pure(7).map(|x| x * 3);
 		assert!(matches!(rc_run.peel(), Ok(21)));
+	}
+
+	#[test]
+	fn ref_bind_chains_pure_value_via_clone() {
+		let rc_run: RcRun<IdentityFirstRow, IdentityScoped, i32> = RcRun::pure(2);
+		let chained = rc_run.ref_bind(|x: &i32| RcRun::pure(*x + 1));
+		assert!(matches!(chained.peel(), Ok(3)));
+	}
+
+	#[test]
+	fn ref_map_transforms_pure_value_via_clone() {
+		let rc_run: RcRun<IdentityFirstRow, IdentityScoped, i32> = RcRun::pure(7);
+		let mapped = rc_run.ref_map(|x: &i32| *x * 3);
+		assert!(matches!(mapped.peel(), Ok(21)));
 	}
 }
