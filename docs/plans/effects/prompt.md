@@ -17,83 +17,173 @@ one step per commit, until the phase is complete or you hit a blocker.
 
 **Phase 1 complete; Phase 1 follow-up commits both landed
 (`WrapDrop` migration plus the `Functor` -> `Kind` relaxation);
-Phase 2 steps 1, 2, 3, 4a, 4b, and 5 complete; Phase 2 step 6
-is the immediate next work.**
+Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, 7c.1, and 7c.2a
+complete; Phase 2 step 7c.2b (the `im_do!` macro itself) is
+the immediate next work.**
 
 Recent commit milestones:
 
-- `c3712f6` (Phase 2 step 4a, foundation): row-brand `WrapDrop`
-  impls; `Node` / `NodeBrand` machinery (Kind, Functor, WrapDrop);
-  three Erased Run wrappers (`Run`, `RcRun`, `ArcRun`). Renamed
-  the effects subsystem directory from
-  `fp-library/src/types/run/` to
-  [`fp-library/src/types/effects/`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/)
-  (parent module file from `types/run.rs` to `types/effects.rs`).
-- `289d3c6` (Phase 2 step 4b): three Explicit Run wrappers
-  (`RunExplicit`, `RcRunExplicit`, `ArcRunExplicit`); three
-  brands (`RunExplicitBrand`, `RcRunExplicitBrand`,
-  `ArcRunExplicitBrand`); brand-level type-class impls
-  delegating to
-  [`FreeExplicitBrand`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/free_explicit.rs);
-  inherent `bind` / `map` on `RcRunExplicit` and
-  `ArcRunExplicit`; row-brand `RefFunctor` and `Extract` cascade
-  on `CNilBrand`, `CoproductBrand`, `NodeBrand`; `Clone` impl
-  on `Node`; A+B hybrid re-export pattern (top-level + scoped).
-- `4950c50` (Phase 2 step 5): three inherent methods (`pure`,
-  `peel`, `send`) on each of the six Run wrapper types.
+- `11a89bc` (Phase 2 step 6): three [`From`](https://doc.rust-lang.org/std/convert/trait.From.html)
+  impls for the Erased -> Explicit Run conversion, one per
+  pair (`Run`/`RunExplicit`, `RcRun`/`RcRunExplicit`,
+  `ArcRun`/`ArcRunExplicit`). Each walks the underlying Free
+  chain via `peel` and rebuilds in the other shape; O(N) in
+  chain depth. Multi-shot / Send + Sync properties preserved
+  per substrate.
+- `7f5be3c` (Phase 2 step 6 follow-up): refactored the
+  conversion surface from custom-named inherent methods
+  (`into_explicit` / `from_erased`) to `From` impls, matching
+  the codebase's ~35 sibling-type conversion impls. Users get
+  both `Explicit::from(erased)` and `erased.into()` from one
+  impl via the blanket `Into`.
+- `d31924d` (Phase 2 step 7 design pre-lock): renamed the
+  planned macro from `run_do!` to `im_do!` ("Inherent Monadic
+  do"), with `ia_do!` ("Inherent Applicative do")
+  forward-reserved as the future applicative companion.
+  Same-length names (5 chars each) deliberately keep the
+  applicative form from being typographically disfavored.
+  Step 7 expanded into three sub-steps (7a/7b/7c) with 7c
+  further split into 7c.1/7c.2.
+- `ef6257e` (Phase 2 step 7a): inherent `bind`/`map` on
+  `Run`, `RcRun`, `ArcRun`, and `RunExplicit` (the four
+  wrappers that didn't already have them; `RcRunExplicit` and
+  `ArcRunExplicit` shipped them in step 4b).
+- `6dc802e` (Phase 2 step 7b): inherent `ref_bind`/`ref_map`
+  on the four `Clone`-able wrappers (`RcRun`, `ArcRun`,
+  `RcRunExplicit`, `ArcRunExplicit`). Pattern:
+  `self.clone().bind(move |a| f(&a))`. The clone is O(1);
+  bypasses the `R: RefFunctor` cascade that brand-level
+  `RefSemimonad::ref_bind` requires, so canonical
+  Coyoneda-headed effect rows can use by-reference do-notation
+  through this path.
+- `10d17fe` (Phase 2 step 7c.1): inherent `ref_pure` on the
+  four `Clone`-able wrappers. Implemented as
+  `Self::pure(a.clone())`. Rounds out the inherent
+  by-reference surface so
+  `im_do!(ref Wrapper { ... pure(x) })` can rewrite to
+  `Wrapper::ref_pure(&x)` parallel to
+  `m_do!(ref Brand { ... pure(x) })`.
+- `e4cf7b5` (Phase 2 step 7c.2a): extracted shared `DoInput`
+  parser from `fp-macros/src/m_do/input.rs` into
+  [`fp-macros/src/support/do_input.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/support/do_input.rs),
+  ready for `im_do!` (and future `ia_do!`) to reuse. Pure
+  refactor; m_do!/a_do! unchanged behaviorally.
 
-Step 6 implements **conversion methods between paired Erased and
-Explicit Run variants**: `Run::into_explicit() -> RunExplicit`
-and `RunExplicit::from_erased(Run) -> RunExplicit`, plus the
-analogous `RcRun <-> RcRunExplicit` and
-`ArcRun <-> ArcRunExplicit` pairs. Each walks the underlying
-Free structure once via `peel` and rebuilds in the other shape;
-O(N) in the chain depth. Per
-[plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s
-Phase 2 step 6 entry, conversions preserve multi-shot /
-`Send + Sync` properties of the underlying substrate.
+Step 7c.2b implements the **`im_do!` ("Inherent Monadic do")
+proc-macro** at `fp-macros/src/effects/im_do.rs` (directory +
+codegen module to be created) plus the
+`pub fn im_do(input)` proc-macro export in
+[`fp-macros/src/lib.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/lib.rs).
+Per the design pre-lock and the user's confirmed scope:
 
-**There are no active blockers** as of this resume point. Six
-resolutions in
-[resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md)
-document the design-shaping decisions made in steps 4b and 5
-(brand-level coverage gaps on the Explicit Run brands; row-brand
-cascade expansion; re-export pattern; GAT-normalization
-HRTB-poisoning workaround). Read those if step 6 surfaces a
-question that plan.md or decisions.md alone cannot answer.
+- **Both inferred and explicit modes** (parity with
+  `m_do!`/`a_do!`):
+  `im_do!({ x <- expr; ... })` and
+  `im_do!(Wrapper { x <- expr; ... pure(x) })`.
+- **`ref` qualifier**:
+  `im_do!(ref Wrapper { x: &i32 <- expr; ... })`. Restricted
+  to the four `Clone`-able wrappers (`RcRun`, `ArcRun`,
+  `RcRunExplicit`, `ArcRunExplicit`).
+  `im_do!(ref Run { ... })` and
+  `im_do!(ref RunExplicit { ... })` must produce a clear
+  "cannot use `ref` form on non-`Clone` wrapper" diagnostic,
+  demonstrated by one `compile_fail` UI test at
+  [`fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/ui/).
+- **`pure(x)` rewriting**: in by-value explicit mode, rewrites
+  to `Wrapper::pure(x)`; in `ref` explicit mode, rewrites to
+  `Wrapper::ref_pure(&x)`. Inferred mode rejects bare
+  `pure(x)` with a `compile_error!` (mirrors
+  `m_do!({ ... pure(x) })`'s rejection).
+- **Codegen reuse**: `format_bind_param`,
+  `format_discard_param`, and `wrap_container_ref` from
+  [`fp-macros/src/m_do/codegen.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/m_do/codegen.rs)
+  are brand-agnostic and importable directly. Write a
+  parallel `rewrite_pure_inherent` for the `im_do!`-specific
+  `pure` rewriting path; do not try to make the existing
+  `rewrite_pure` polymorphic.
+- **Doc-comment**: extensive, mirroring the four-point
+  explanation in
+  [`docs/plans/effects/deviations.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md)'s
+  step 7 entry: (1) what "im" means and the parallel with
+  `m_do!`/`a_do!`'s "m"/"a"; (2) why "inherent" (dispatch via
+  inherent method calls, not trait dispatch); (3) when to use
+  `im_do!` vs `m_do!` (prefer `m_do!` when brand has full
+  `Semimonad`; use `im_do!` when it doesn't reach); (4) why
+  same length as `ia_do!` (prefer applicative when binds are
+  independent).
+- **Integration tests**: at least one passing test per wrapper
+  in by-value mode, plus one passing test per `Clone`-able
+  wrapper in `ref` mode. New file
+  [`fp-library/tests/im_do.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/).
+  Note that fp-library's
+  [`src/lib.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/lib.rs)
+  does `pub use fp_macros::*;`, so `im_do!` is automatically
+  re-exported from fp-library once the proc-macro lands.
 
-**Pre-existing items still open from earlier steps** (not blocking
-step 6, but likely to surface in step 7+):
+**There are no active blockers** as of this resume point.
+Three pre-existing items from earlier sessions
+(`CoyonedaBrand: RefFunctor` missing on canonical rows,
+`ArcRunExplicit`'s `SendRef*` hierarchy permanently
+unreachable, `RcCoyonedaBrand` / `ArcCoyonedaBrand` lack
+`WrapDrop`) are all addressed by the **minimal-bundle path**
+locked into
+[`docs/plans/effects/deviations.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md)'s
+step 7 entry: rather than fix any of them structurally, route
+all by-reference do-notation over canonical effect rows
+through `im_do!(ref ...)`, which sidesteps the brand-level
+gaps via inherent `ref_bind`/`ref_map`/`ref_pure`. The macro
+ships uniform coverage across all six Run wrappers; the
+brand-level gaps become "documented limitations of
+`m_do!(ref ...)` over canonical rows", not blockers.
 
-- `CoyonedaBrand: RefFunctor` is missing. Blocks step 7's
-  `m_do!(ref RcRunExplicit)` over canonical Coyoneda-wrapped
-  rows.
-- `ArcRunExplicit`'s `SendRef*` hierarchy is permanently
-  unreachable on stable Rust. Blocks step 7's
-  `m_do!(ref ArcRunExplicit)` form entirely.
-- `RcCoyonedaBrand` / `ArcCoyonedaBrand` lack `WrapDrop`.
+**Scaffolding already in place** (do not redo any of this in
+7c.2b):
 
-If any of these surface during step 6, surface them as new
-active-blocker entries in plan.md and pause.
+- Inherent `bind`/`map` on all six Run wrappers (steps 7a +
+  4b).
+- Inherent `ref_bind`/`ref_map`/`ref_pure` on the four
+  `Clone`-able wrappers (steps 7b + 7c.1). The two
+  non-`Clone` wrappers (`Run`, `RunExplicit`) deliberately
+  don't have these; materializing `Self` from `&self` is
+  structurally impossible without `Clone`. This is what the
+  `compile_fail` UI test demonstrates.
+- Shared `DoInput` parser at
+  [`fp-macros/src/support/do_input.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/support/do_input.rs)
+  (step 7c.2a). `m_do!` re-exports `DoInput` from this
+  location for backward compatibility; `im_do!` should import
+  from `crate::support::do_input` directly.
+- `From` impls for Erased -> Explicit conversions (step 6).
+  Not directly used by `im_do!`, but available if any
+  integration test wants to assert round-trip equivalence
+  between `im_do!` over an Erased wrapper and `m_do!` over
+  its paired Explicit brand.
 
-**HRTB-poisoning is a structural pattern to expect.** Step 5
-discovered (and the new gotcha below documents) that
-`ArcFree`'s struct-level HRTB on the `Kind` projection poisons
-GAT normalization in any scope mentioning it. Step 6's
-conversions recurse through `peel` results and rebuild via
-`send`; both engage GAT normalization. If `ArcRun::into_explicit()`
-or `ArcRunExplicit::from_erased(ArcRun)` fails to compile at a
-recursion site, apply the same workaround: produce
-projection-typed values outside the HRTB scope, never construct
-`Node::First(...)` literals inside it. The probe at
+**HRTB-poisoning is a structural pattern that may surface
+when working with `ArcFree`-substrate code.** The Phase 2
+step 5 investigation discovered that `ArcFree`'s struct-level
+HRTB on the `Kind` projection
+(`Of<'static, ArcFree<...>>: Send + Sync`) poisons GAT
+normalization in any scope mentioning the HRTB.
+Constructing projection-typed literals like
+`Node::First(layer)` inside that scope fails to unify with
+`<NodeBrand<R, S> as Kind>::Of<'_, A>`. **Workaround**:
+receive projection-typed values as parameters; never
+construct projection-typed values inside an HRTB-bearing
+scope. The probe at
 [`fp-library/tests/arc_run_normalization_probe.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/arc_run_normalization_probe.rs)
-is a quick way to validate workaround variants.
+documents four passing patterns and serves as the
+regression-test home for this limit. The pattern is unlikely
+to surface in 7c.2b (the macro's codegen produces method
+chains over concrete types, no HRTB-bearing scopes), but
+it's worth knowing for Phase 3+ handler work that recurses
+through `*FreeExplicit::resume` or similar.
 
-If you encounter unexpected behavior during step 6, plan.md's
-`Active blockers` section is the place to record load-bearing
-questions; entries should cite concrete file paths and line
-numbers so the next implementor (or you in a future session) can
-verify claims without conversational context.
+If you encounter unexpected behavior during 7c.2b, plan.md's
+`Active blockers` section is the place to record
+load-bearing questions; entries should cite concrete file
+paths and line numbers so the next implementor (or you in a
+future session) can verify claims without conversational
+context.
 
 ## Where to start
 
@@ -236,8 +326,13 @@ change them unilaterally. If you encounter:
 - **`/home/jessea/Documents/projects/rust-fp-lib/fp-macros/` holds
   proc-macros.** The `effects!`, `effects_coyo!`, `handlers!`,
   `define_effect!`, `define_scoped_effect!`, `scoped_effects!`, and
-  `run_do!` macros land in
-  `/home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/`.
+  `im_do!` ("Inherent Monadic do") macros land in
+  `/home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/`
+  (with `ia_do!` ("Inherent Applicative do") forward-reserved as
+  the future applicative companion). The shared `DoInput` parser
+  used by all four do-notation macros (`m_do!`, `a_do!`,
+  `im_do!`, future `ia_do!`) lives at
+  `/home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/support/do_input.rs`.
 - **`/home/jessea/Documents/projects/rust-fp-lib/poc-effect-row/` is
   a separate Cargo workspace and a reference implementation.** Do
   not modify it during the port; migrate code out of it into
