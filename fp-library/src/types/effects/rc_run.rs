@@ -39,7 +39,11 @@ mod inner {
 				WrapDrop,
 			},
 			kinds::*,
-			types::RcFree,
+			types::{
+				RcFree,
+				RcFreeExplicit,
+				effects::rc_run_explicit::RcRunExplicit,
+			},
 		},
 		fp_macros::*,
 	};
@@ -307,6 +311,64 @@ mod inner {
 			>): Clone, {
 			RcRun::from_rc_free(RcFree::<NodeBrand<R, S>, A>::lift_f(node))
 		}
+
+		/// Converts this `RcRun` into the paired
+		/// [`RcRunExplicit`](crate::types::effects::rc_run_explicit::RcRunExplicit)
+		/// form by walking the underlying [`RcFree`](crate::types::RcFree)
+		/// chain via [`peel`](RcRun::peel) and rebuilding each suspended
+		/// layer through
+		/// [`RcFreeExplicit::wrap`](crate::types::RcFreeExplicit). Pure
+		/// values re-emerge as [`RcRunExplicit::pure`](RcRunExplicit::pure).
+		///
+		/// The conversion preserves multi-shot semantics: the source
+		/// `RcRun` carries `Rc<dyn Fn>` continuations and the resulting
+		/// `RcRunExplicit` keeps the same `Rc`-shared substrate, so
+		/// handlers for non-deterministic effects (e.g., `Choose`) can
+		/// drive either side equivalently.
+		///
+		/// O(N) in the chain depth (one stack frame per suspended layer).
+		#[document_signature]
+		///
+		#[document_returns("An `RcRunExplicit<'static, R, S, A>` carrying the same effects.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		rc_run::RcRun,
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::pure(7);
+		/// let explicit: RcRunExplicit<'static, FirstRow, Scoped, i32> = rc_run.into_explicit();
+		/// assert!(matches!(explicit.peel(), Ok(7)));
+		/// ```
+		pub fn into_explicit(self) -> RcRunExplicit<'static, R, S, A>
+		where
+			A: Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			match self.peel() {
+				Ok(a) => RcRunExplicit::pure(a),
+				Err(layer) => {
+					let inner = <NodeBrand<R, S> as Functor>::map(
+						|run: RcRun<R, S, A>| -> RcFreeExplicit<'static, NodeBrand<R, S>, A> {
+							run.into_explicit().into_rc_free_explicit()
+						},
+						layer,
+					);
+					RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::wrap(inner))
+				}
+			}
+		}
 	}
 }
 
@@ -377,5 +439,20 @@ mod tests {
 		let layer = Coproduct::inject(Identity(7));
 		let rc_run: RcRun<IdentityFirstRow, IdentityScoped, i32> = RcRun::send(Node::First(layer));
 		assert!(rc_run.peel().is_err());
+	}
+
+	#[test]
+	fn into_explicit_round_trips_pure() {
+		let rc_run: RcRun<IdentityFirstRow, IdentityScoped, i32> = RcRun::pure(42);
+		let explicit = rc_run.into_explicit();
+		assert!(matches!(explicit.peel(), Ok(42)));
+	}
+
+	#[test]
+	fn into_explicit_preserves_suspended_layer() {
+		let layer = Coproduct::inject(Identity(7));
+		let rc_run: RcRun<IdentityFirstRow, IdentityScoped, i32> = RcRun::send(Node::First(layer));
+		let explicit = rc_run.into_explicit();
+		assert!(explicit.peel().is_err());
 	}
 }

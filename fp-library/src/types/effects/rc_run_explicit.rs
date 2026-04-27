@@ -61,7 +61,11 @@ mod inner {
 			},
 			impl_kind,
 			kinds::*,
-			types::RcFreeExplicit,
+			types::{
+				RcFree,
+				RcFreeExplicit,
+				effects::rc_run::RcRun,
+			},
 		},
 		fp_macros::*,
 	};
@@ -455,6 +459,62 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The result type."
+	)]
+	impl<R, S, A> RcRunExplicit<'static, R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static,
+	{
+		/// Constructs an `RcRunExplicit<'static, R, S, A>` from the
+		/// paired Erased-substrate
+		/// [`RcRun<R, S, A>`](crate::types::effects::rc_run::RcRun) by
+		/// delegating to [`RcRun::into_explicit`](RcRun::into_explicit).
+		///
+		/// Multi-shot semantics are preserved across the conversion (both
+		/// sides carry `Rc<dyn Fn>` continuations); see
+		/// [`RcRun::into_explicit`](RcRun::into_explicit) for details.
+		#[document_signature]
+		///
+		#[document_parameters("The Erased-substrate `RcRun` to convert.")]
+		///
+		#[document_returns("An `RcRunExplicit` carrying the same effects as `rc_run`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		rc_run::RcRun,
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::pure(42);
+		/// let explicit: RcRunExplicit<'static, FirstRow, Scoped, i32> =
+		/// 	RcRunExplicit::from_erased(rc_run);
+		/// assert!(matches!(explicit.peel(), Ok(42)));
+		/// ```
+		#[inline]
+		pub fn from_erased(rc_run: RcRun<R, S, A>) -> Self
+		where
+			A: Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			rc_run.into_explicit()
+		}
+	}
+
 	// -- Brand-level type class instances --
 	//
 	// `Functor` / `Semimonad` are not implemented at the brand level
@@ -775,5 +835,30 @@ mod tests {
 		let layer = Coproduct::inject(Identity(7));
 		let run: RcRunExplicit<'_, FirstRow, Scoped, i32> = RcRunExplicit::send(Node::First(layer));
 		assert!(run.peel().is_err());
+	}
+
+	#[test]
+	fn from_erased_round_trips_pure() {
+		use crate::types::effects::rc_run::RcRun;
+		let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::pure(42);
+		let explicit: RcRunExplicit<'static, FirstRow, Scoped, i32> =
+			RcRunExplicit::from_erased(rc_run);
+		assert!(matches!(explicit.peel(), Ok(42)));
+	}
+
+	#[test]
+	fn from_erased_preserves_suspended_layer() {
+		use crate::types::{
+			Identity,
+			effects::{
+				coproduct::Coproduct,
+				node::Node,
+				rc_run::RcRun,
+			},
+		};
+		let layer = Coproduct::inject(Identity(7));
+		let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::send(Node::First(layer));
+		let explicit = RcRunExplicit::from_erased(rc_run);
+		assert!(explicit.peel().is_err());
 	}
 }

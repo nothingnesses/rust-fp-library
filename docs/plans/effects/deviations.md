@@ -772,3 +772,68 @@ phasing, see [plan.md](plan.md).
   full pattern-match into `Coyoneda<...>` value would require
   evaluating the Coyoneda function which is beyond the scope of
   step 5).
+
+### Step 6: Erased -> Explicit conversion methods
+
+- **API direction interpretation: Erased -> Explicit only,
+  exposed in two API styles.** The plan text reads "Conversion
+  methods between paired Erased and Explicit Run variants:
+  `Run::into_explicit() -> RunExplicit`, ..., and the reverse
+  `RunExplicit::from_erased(...)`, etc.". The phrase "the
+  reverse" is ambiguous: it could mean "the reverse direction
+  (Explicit -> Erased)" or "the reverse-construction-style API
+  (constructor on the target type rather than method on the
+  input)". Step 6 implements the latter reading: each pair
+  ships an `into_explicit` method on the Erased side and a
+  `from_erased` constructor on the Explicit side, both
+  performing the same Erased -> Explicit walk. The
+  `from_erased` constructor delegates to `into_explicit` so
+  there is a single source of truth. Three considerations
+  drive this reading: (1) the plan's own `Preserves multi-shot
+/ Send + Sync properties` clarification only describes the
+  Erased -> Explicit direction (`RcRun -> RcRunExplicit keeps
+multi-shot`, `ArcRun -> ArcRunExplicit keeps Send + Sync`);
+  (2) the literal name `from_erased` ("from an Erased value")
+  takes an Erased input, not produces one; (3) the existing
+  precedent from step 4b's wrappers ships `from_*_free` and
+  `into_*_free` for the Free <-> Run pair, also as two API
+  styles for the same direction. If the Explicit -> Erased
+  direction is needed in a later phase, it can be added as a
+  new step rather than inferred from this ambiguous wording.
+- **`from_erased` lives in a separate `'static`-scoped impl
+  block.** Each Explicit Run wrapper carries an `'a` lifetime
+  parameter (`RunExplicit<'a, R, S, A>`, etc.), but the source
+  Erased Run wrapper requires `A: 'static`. To express
+  "constructing a `RunExplicit<'static, ...>` from a `Run`",
+  `from_erased` lives in an `impl<R, S, A> RunExplicit<'static,
+R, S, A> where A: 'static, ...` block separate from the main
+  `impl<'a, R, S, A: 'a> RunExplicit<'a, R, S, A> where ...`
+  block that hosts the lifetime-generic methods. Same pattern
+  for `RcRunExplicit::from_erased` and
+  `ArcRunExplicit::from_erased`. Calling
+  `RunExplicit::from_erased(run)` infers `'a = 'static` and
+  the result type is `RunExplicit<'static, R, S, A>`.
+- **Per-method bounds on the Rc/Arc variants mirror those on
+  `peel`.** `RcRun::into_explicit` and `RcRunExplicit::from_erased`
+  both carry `A: Clone` and the projection `Clone` bound that
+  `RcRun::peel` requires (the substrate's `to_view` reattaches
+  pending continuations and recovers shared inner state via
+  cloning when the outer refcount is not unique). `ArcRun::into_explicit`
+  and `ArcRunExplicit::from_erased` add `A: Clone + Send + Sync`,
+  the projection `Clone` bound, and `NodeBrand<R, S>: Functor`
+  (the latter not implied by the impl-block bound, which only
+  carries `WrapDrop` and the `Send + Sync` projection HRTB).
+- **GAT-poisoning workaround: passes through cleanly without
+  surfacing.** `ArcRun::into_explicit` operates inside the
+  HRTB-bearing impl-block scope on `ArcRun` (the
+  `Of<'static, ArcFree<...>>: Send + Sync` projection HRTB).
+  Step 5 established that constructing `Node::First(layer)`
+  literals inside such a scope fails GAT normalization. Step 6
+  composes its conversion entirely from values whose
+  projection types come from `peel`'s return and from
+  `Functor::map`'s output, never from inline `Node::*` literal
+  construction; the `ArcFreeExplicit::wrap` call receives the
+  mapped projection value directly. Compilation passed without
+  any of the four workaround patterns from
+  [`fp-library/tests/arc_run_normalization_probe.rs`](../../../fp-library/tests/arc_run_normalization_probe.rs)
+  needing to be invoked.

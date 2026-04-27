@@ -54,7 +54,12 @@ mod inner {
 			},
 			impl_kind,
 			kinds::*,
-			types::ArcFreeExplicit,
+			types::{
+				ArcFree,
+				ArcFreeExplicit,
+				arc_free::ArcTypeErasedValue,
+				effects::arc_run::ArcRun,
+			},
 		},
 		fp_macros::*,
 	};
@@ -454,6 +459,68 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The result type."
+	)]
+	impl<R, S, A> ArcRunExplicit<'static, R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static,
+	{
+		/// Constructs an `ArcRunExplicit<'static, R, S, A>` from the
+		/// paired Erased-substrate
+		/// [`ArcRun<R, S, A>`](crate::types::effects::arc_run::ArcRun) by
+		/// delegating to [`ArcRun::into_explicit`](ArcRun::into_explicit).
+		///
+		/// Thread-safe multi-shot semantics are preserved across the
+		/// conversion (both sides carry `Arc<dyn Fn + Send + Sync>`
+		/// continuations); see [`ArcRun::into_explicit`](ArcRun::into_explicit)
+		/// for details.
+		#[document_signature]
+		///
+		#[document_parameters("The Erased-substrate `ArcRun` to convert.")]
+		///
+		#[document_returns("An `ArcRunExplicit` carrying the same effects as `arc_run`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::pure(42);
+		/// let explicit: ArcRunExplicit<'static, FirstRow, Scoped, i32> =
+		/// 	ArcRunExplicit::from_erased(arc_run);
+		/// assert!(matches!(explicit.peel(), Ok(42)));
+		/// ```
+		#[inline]
+		pub fn from_erased(arc_run: ArcRun<R, S, A>) -> Self
+		where
+			NodeBrand<R, S>: WrapDrop
+				+ Kind_cdc7cd43dac7585f<
+					Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+				> + Functor
+				+ 'static,
+			A: Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone, {
+			arc_run.into_explicit()
+		}
+	}
+
 	// -- Brand-level type class instances --
 	//
 	// Only `SendPointed` is reachable. `SendFunctor`, `SendSemimonad`,
@@ -618,5 +685,30 @@ mod tests {
 		let run: ArcRunExplicit<'_, FirstRow, Scoped, i32> =
 			ArcRunExplicit::send(Node::First(layer));
 		assert!(run.peel().is_err());
+	}
+
+	#[test]
+	fn from_erased_round_trips_pure() {
+		use crate::types::effects::arc_run::ArcRun;
+		let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::pure(42);
+		let explicit: ArcRunExplicit<'static, FirstRow, Scoped, i32> =
+			ArcRunExplicit::from_erased(arc_run);
+		assert!(matches!(explicit.peel(), Ok(42)));
+	}
+
+	#[test]
+	fn from_erased_preserves_suspended_layer() {
+		use crate::types::{
+			Identity,
+			effects::{
+				arc_run::ArcRun,
+				coproduct::Coproduct,
+				node::Node,
+			},
+		};
+		let layer = Coproduct::inject(Identity(7));
+		let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::send(Node::First(layer));
+		let explicit = ArcRunExplicit::from_erased(arc_run);
+		assert!(explicit.peel().is_err());
 	}
 }

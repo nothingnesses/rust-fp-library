@@ -73,7 +73,10 @@ mod inner {
 			},
 			impl_kind,
 			kinds::*,
-			types::FreeExplicit,
+			types::{
+				FreeExplicit,
+				effects::run::Run,
+			},
 		},
 		fp_macros::*,
 	};
@@ -313,6 +316,55 @@ mod inner {
 				node,
 			);
 			RunExplicit::from_free_explicit(FreeExplicit::wrap(mapped))
+		}
+	}
+
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The result type."
+	)]
+	impl<R, S, A> RunExplicit<'static, R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static,
+	{
+		/// Constructs a `RunExplicit<'static, R, S, A>` from the paired
+		/// Erased-substrate [`Run<R, S, A>`](crate::types::effects::run::Run)
+		/// by delegating to [`Run::into_explicit`](Run::into_explicit).
+		///
+		/// This is the constructor-style spelling of the same conversion
+		/// `run.into_explicit()` performs as a method. Walking the chain
+		/// is O(N) in depth; see [`Run::into_explicit`](Run::into_explicit)
+		/// for the depth analysis.
+		#[document_signature]
+		///
+		#[document_parameters("The Erased-substrate `Run` to convert.")]
+		///
+		#[document_returns("A `RunExplicit` carrying the same effects as `run`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		run_explicit::RunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: Run<FirstRow, Scoped, i32> = Run::pure(42);
+		/// let explicit: RunExplicit<'static, FirstRow, Scoped, i32> = RunExplicit::from_erased(run);
+		/// assert!(matches!(explicit.peel(), Ok(42)));
+		/// ```
+		#[inline]
+		pub fn from_erased(run: Run<R, S, A>) -> Self {
+			run.into_explicit()
 		}
 	}
 
@@ -743,5 +795,40 @@ mod tests {
 		let layer = Coproduct::inject(Identity(7));
 		let run: RunExplicit<'_, FirstRow, Scoped, i32> = RunExplicit::send(Node::First(layer));
 		assert!(run.peel().is_err());
+	}
+
+	#[test]
+	fn from_erased_round_trips_pure() {
+		use crate::{
+			brands::CoyonedaBrand,
+			types::effects::run::Run,
+		};
+		type CoyoFirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		let run: Run<CoyoFirstRow, CNilBrand, i32> = Run::pure(42);
+		let explicit: RunExplicit<'static, CoyoFirstRow, CNilBrand, i32> =
+			RunExplicit::from_erased(run);
+		assert!(matches!(explicit.peel(), Ok(42)));
+	}
+
+	#[test]
+	fn from_erased_preserves_suspended_layer() {
+		use crate::{
+			brands::CoyonedaBrand,
+			types::{
+				Coyoneda,
+				Identity,
+				effects::{
+					coproduct::Coproduct,
+					node::Node,
+					run::Run,
+				},
+			},
+		};
+		type CoyoFirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		let coyo: Coyoneda<'static, IdentityBrand, i32> = Coyoneda::lift(Identity(7));
+		let layer = Coproduct::inject(coyo);
+		let run: Run<CoyoFirstRow, CNilBrand, i32> = Run::send(Node::First(layer));
+		let explicit = RunExplicit::from_erased(run);
+		assert!(explicit.peel().is_err());
 	}
 }
