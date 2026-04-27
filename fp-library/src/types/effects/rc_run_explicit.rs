@@ -577,6 +577,48 @@ mod inner {
 			>): Clone, {
 			self.clone().map(move |a| f(&a))
 		}
+
+		/// By-reference [`pure`](RcRunExplicit::pure): wraps a
+		/// cloned value in an `RcRunExplicit` computation.
+		///
+		/// Implemented as `RcRunExplicit::pure(a.clone())`. Requires
+		/// `A: Clone`. Parallel to brand-level
+		/// [`RefPointed::ref_pure`](crate::classes::RefPointed) for
+		/// concrete-type call sites; the brand-level form is
+		/// [`<RcRunExplicitBrand<R, S> as RefPointed>::ref_pure(&a)`](crate::brands::RcRunExplicitBrand).
+		///
+		/// The
+		/// [`im_do!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
+		/// macro's `ref` form (Phase 2 step 7c) rewrites bare
+		/// `pure(x)` calls inside
+		/// `im_do!(ref RcRunExplicit { ... })` to this method.
+		#[document_signature]
+		///
+		#[document_parameters("A reference to the value to wrap.")]
+		///
+		#[document_returns("An `RcRunExplicit` computation that produces a clone of `a`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let value = 42;
+		/// let run: RcRunExplicit<'_, FirstRow, Scoped, i32> = RcRunExplicit::ref_pure(&value);
+		/// assert_eq!(run.into_rc_free_explicit().evaluate(), 42);
+		/// ```
+		#[inline]
+		pub fn ref_pure(a: &A) -> Self
+		where
+			A: Clone, {
+			RcRunExplicit::pure(a.clone())
+		}
 	}
 
 	// -- From<RcRun> for RcRunExplicit (Erased -> Explicit conversion) --
@@ -1012,5 +1054,12 @@ mod tests {
 		let run: RunAlias<'_, i32> = RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::pure(7));
 		let mapped = run.ref_map(|x: &i32| *x * 3);
 		assert_eq!(mapped.into_rc_free_explicit().evaluate(), 21);
+	}
+
+	#[test]
+	fn ref_pure_wraps_cloned_value() {
+		let value = 42;
+		let run: RunAlias<'_, i32> = RcRunExplicit::ref_pure(&value);
+		assert_eq!(run.into_rc_free_explicit().evaluate(), 42);
 	}
 }

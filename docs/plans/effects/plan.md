@@ -8,10 +8,36 @@ relaxation) landed; Phase 2 in progress (steps 1, 2, 3, 4a, 4b,
 ## Current progress
 
 Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
-complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, and 7b
+complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, and 7c.1
 complete. Phase 2 step 7 design pre-locked (naming and scope
-refinements captured below); sub-step 7c (the `im_do!` macro)
+refinements captured below); sub-step 7c.2 (the `im_do!` macro)
 remaining.
+
+**Phase 2 step 7c.1 (inherent `ref_pure` on the four
+`Clone`-able wrappers).** `RcRun`, `ArcRun`, `RcRunExplicit`,
+and `ArcRunExplicit` gain inherent `ref_pure(a: &A) -> Self`
+methods. Each is implemented as `Self::pure(a.clone())`.
+Bounds: `A: Clone` for `RcRun` / `RcRunExplicit` /
+`ArcRunExplicit`; `A: Clone + Send + Sync` for `ArcRun` (its
+inherent `pure` already requires `Send + Sync`).
+
+This rounds out the inherent by-reference surface so the
+`im_do!(ref Wrapper { ... pure(x) })` form (Phase 2 step 7c.2)
+can rewrite bare `pure(x)` to `Wrapper::ref_pure(&x)`,
+parallel to how `m_do!(ref Brand { ... pure(x) })` rewrites
+to `<Brand as RefPointed>::ref_pure(&x)`. Without this,
+`im_do!(ref ...)` would have to either reject bare `pure(x)`
+(asymmetric with `m_do!(ref ...)`) or implicitly clone the
+value (silent magic). The chosen design keeps the macro
+behavior parallel and explicit.
+
+Four new tests (`ref_pure_wraps_cloned_value` per wrapper)
+verify the methods clone correctly and produce equivalent
+programs to `pure(value.clone())`.
+
+Step 7c.2 (the `im_do!` macro itself with by-value and `ref`
+forms, plus shared input parser refactor and `compile_fail`
+UI test) remains to be implemented.
 
 **Phase 2 step 7b (inherent `ref_bind` and `ref_map` on the
 four `Clone`-able wrappers).** `RcRun`, `ArcRun`, `RcRunExplicit`,

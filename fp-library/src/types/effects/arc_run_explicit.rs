@@ -572,6 +572,52 @@ mod inner {
 			>): Clone, {
 			self.clone().map(move |a| f(&a))
 		}
+
+		/// By-reference [`pure`](ArcRunExplicit::pure): wraps a
+		/// cloned value in an `ArcRunExplicit` computation.
+		///
+		/// Implemented as `ArcRunExplicit::pure(a.clone())`.
+		/// Requires `A: Clone + Send + Sync`. Parallel to
+		/// brand-level
+		/// [`SendRefPointed::send_ref_pure`](crate::classes::SendRefPointed)
+		/// for concrete-type call sites; brand-level
+		/// `SendRefPointed` on
+		/// [`ArcRunExplicitBrand`](crate::brands::ArcRunExplicitBrand)
+		/// is unreachable on stable Rust per
+		/// [`fp-library/docs/limitations-and-workarounds.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/docs/limitations-and-workarounds.md).
+		///
+		/// The
+		/// [`im_do!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
+		/// macro's `ref` form (Phase 2 step 7c) rewrites bare
+		/// `pure(x)` calls inside
+		/// `im_do!(ref ArcRunExplicit { ... })` to this method.
+		#[document_signature]
+		///
+		#[document_parameters("A reference to the value to wrap.")]
+		///
+		#[document_returns("An `ArcRunExplicit` computation that produces a clone of `a`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let value = 42;
+		/// let run: ArcRunExplicit<'_, FirstRow, Scoped, i32> = ArcRunExplicit::ref_pure(&value);
+		/// assert_eq!(run.into_arc_free_explicit().evaluate(), 42);
+		/// ```
+		#[inline]
+		pub fn ref_pure(a: &A) -> Self
+		where
+			A: Clone + Send + Sync, {
+			ArcRunExplicit::pure(a.clone())
+		}
 	}
 
 	// -- From<ArcRun> for ArcRunExplicit (Erased -> Explicit conversion) --
@@ -868,5 +914,12 @@ mod tests {
 			ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::pure(7));
 		let mapped = run.ref_map(|x: &i32| *x * 3);
 		assert_eq!(mapped.into_arc_free_explicit().evaluate(), 21);
+	}
+
+	#[test]
+	fn ref_pure_wraps_cloned_value() {
+		let value = 42;
+		let run: RunAlias<'_, i32> = ArcRunExplicit::ref_pure(&value);
+		assert_eq!(run.into_arc_free_explicit().evaluate(), 42);
 	}
 }

@@ -500,6 +500,47 @@ mod inner {
 			>): Clone, {
 			self.clone().map(move |a| f(&a))
 		}
+
+		/// By-reference [`pure`](ArcRun::pure): wraps a cloned value
+		/// in an `ArcRun` computation.
+		///
+		/// Implemented as `ArcRun::pure(a.clone())`. Requires
+		/// `A: Clone + Send + Sync`. Parallel to brand-level
+		/// [`SendRefPointed::send_ref_pure`](crate::classes::SendRefPointed)
+		/// for types where brand-level dispatch isn't reachable.
+		///
+		/// The
+		/// [`im_do!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
+		/// macro's `ref` form (Phase 2 step 7c) rewrites bare
+		/// `pure(x)` calls inside `im_do!(ref ArcRun { ... })` to
+		/// this method.
+		#[document_signature]
+		///
+		#[document_parameters("A reference to the value to wrap.")]
+		///
+		#[document_returns("An `ArcRun` computation that produces a clone of `a`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let value = 42;
+		/// let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::ref_pure(&value);
+		/// assert!(matches!(arc_run.peel(), Ok(42)));
+		/// ```
+		#[inline]
+		pub fn ref_pure(a: &A) -> Self
+		where
+			A: Clone + Send + Sync, {
+			ArcRun::pure(a.clone())
+		}
 	}
 }
 
@@ -619,5 +660,12 @@ mod tests {
 		let arc_run: ArcRunAlias<i32> = ArcRun::pure(7);
 		let mapped = arc_run.ref_map(|x: &i32| *x * 3);
 		assert!(matches!(mapped.peel(), Ok(21)));
+	}
+
+	#[test]
+	fn ref_pure_wraps_cloned_value() {
+		let value = 42;
+		let arc_run: ArcRunAlias<i32> = ArcRun::ref_pure(&value);
+		assert!(matches!(arc_run.peel(), Ok(42)));
 	}
 }
