@@ -3,7 +3,7 @@
 //! Transforms parsed `DoInput` into nested `bind` calls with `pure` auto-rewriting.
 
 use {
-	super::input::{
+	crate::support::do_input::{
 		DoInput,
 		DoStatement,
 	},

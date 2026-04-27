@@ -3,14 +3,14 @@
 //! Transforms parsed `DoInput` into `pure` / `map` / `liftN` calls.
 
 use {
-	crate::m_do::{
-		codegen::{
+	crate::{
+		m_do::codegen::{
 			format_bind_param,
 			format_discard_param,
 			rewrite_pure,
 			wrap_container_ref,
 		},
-		input::{
+		support::do_input::{
 			DoInput,
 			DoStatement,
 		},
