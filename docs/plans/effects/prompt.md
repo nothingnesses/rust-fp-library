@@ -17,70 +17,83 @@ one step per commit, until the phase is complete or you hit a blocker.
 
 **Phase 1 complete; Phase 1 follow-up commits both landed
 (`WrapDrop` migration plus the `Functor` -> `Kind` relaxation);
-Phase 2 steps 1, 2, 3, and 4a complete; Phase 2 step 4b is the
-immediate next work.**
+Phase 2 steps 1, 2, 3, 4a, 4b, and 5 complete; Phase 2 step 6
+is the immediate next work.**
 
-Phase 2 step 4 was structurally large enough to warrant splitting
-(see deviations.md's "Phase 2 step 4: split into 4a (foundation)
-and 4b (Explicit family)" entry). 4a landed at commit `c3712f6`
-with the foundation: `WrapDrop` impls on the row brands
-(`CNilBrand`, `CoproductBrand`, `CoyonedaBrand`); the `Node` /
-`NodeBrand` machinery (Kind, Functor, WrapDrop); and the three
-Erased Run wrappers (`Run`, `RcRun`, `ArcRun`). 4a also renamed
-the effects subsystem directory from `fp-library/src/types/run/`
-to
-[`fp-library/src/types/effects/`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/)
-(parent module file from `types/run.rs` to `types/effects.rs`)
-so update grep patterns and import paths accordingly.
+Recent commit milestones:
 
-4b is the Explicit family plus brand machinery. Per the plan
-text: three Explicit Run wrappers (`RunExplicit`, `RcRunExplicit`,
-`ArcRunExplicit`); three new brands (`RunExplicitBrand`,
-`RcRunExplicitBrand`, `ArcRunExplicitBrand`); brand-level
-type-class impls delegating to
-[`FreeExplicitBrand`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/free_explicit.rs)'s
-impls; inherent `bind` / `map` on `RcRunExplicit` and
-`ArcRunExplicit` (mirroring `RcFreeExplicit`'s inherent surface
-under the multi-shot Explicit decision).
+- `c3712f6` (Phase 2 step 4a, foundation): row-brand `WrapDrop`
+  impls; `Node` / `NodeBrand` machinery (Kind, Functor, WrapDrop);
+  three Erased Run wrappers (`Run`, `RcRun`, `ArcRun`). Renamed
+  the effects subsystem directory from
+  `fp-library/src/types/run/` to
+  [`fp-library/src/types/effects/`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/)
+  (parent module file from `types/run.rs` to `types/effects.rs`).
+- `289d3c6` (Phase 2 step 4b): three Explicit Run wrappers
+  (`RunExplicit`, `RcRunExplicit`, `ArcRunExplicit`); three
+  brands (`RunExplicitBrand`, `RcRunExplicitBrand`,
+  `ArcRunExplicitBrand`); brand-level type-class impls
+  delegating to
+  [`FreeExplicitBrand`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/free_explicit.rs);
+  inherent `bind` / `map` on `RcRunExplicit` and
+  `ArcRunExplicit`; row-brand `RefFunctor` and `Extract` cascade
+  on `CNilBrand`, `CoproductBrand`, `NodeBrand`; `Clone` impl
+  on `Node`; A+B hybrid re-export pattern (top-level + scoped).
+- `4950c50` (Phase 2 step 5): three inherent methods (`pure`,
+  `peel`, `send`) on each of the six Run wrapper types.
 
-**Three active blockers shape what 4b can deliver. Read them
-before writing code.** They live in
+Step 6 implements **conversion methods between paired Erased and
+Explicit Run variants**: `Run::into_explicit() -> RunExplicit`
+and `RunExplicit::from_erased(Run) -> RunExplicit`, plus the
+analogous `RcRun <-> RcRunExplicit` and
+`ArcRun <-> ArcRunExplicit` pairs. Each walks the underlying
+Free structure once via `peel` and rebuilds in the other shape;
+O(N) in the chain depth. Per
 [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s
-`Open questions, issues and blockers -> Active blockers`
-section, dated 2026-04-27:
+Phase 2 step 6 entry, conversions preserve multi-shot /
+`Send + Sync` properties of the underlying substrate.
 
-1. **`Monad` / `RefMonad` on the Explicit Run brands are not
-   reachable via brand-level delegation.** Rust's `Monad` blanket
-   impl requires `Applicative`; `FreeExplicitBrand` deliberately
-   does not implement `Applicative` (the `Clone` constraint in
-   `lift2`'s natural definition); so the Run brands inherit the
-   gap. 4b ships `Functor / Pointed / Semimonad` and the Ref
-   equivalents only, not `Monad` / `RefMonad`. Record as a
-   deviation when 4b lands.
-2. **`RefFunctor` cascade is missing on the row brands.** Step 4a
-   gave `NodeBrand` / `CoproductBrand` / `CNilBrand` only
-   `Functor` and `WrapDrop`. Step 4b's `RunExplicitBrand`
-   `RefFunctor` / `RefSemimonad` impls delegate to
-   `FreeExplicitBrand`'s impls which carry
-   `F: WrapDrop + Functor + RefFunctor + 'static`, so 4b must
-   also add `RefFunctor` (and `SendRefFunctor` for the Send-side
-   delegation) impls cascading down the row chain. ~4-8 extra
-   trait impls, mechanical.
-3. **Re-export pattern for the effects subsystem types is
-   undecided.** Three options: (A) re-export under
-   `crate::types::*` matching the rest of the `types/`
-   directory, (B) re-export at `crate::types::effects::*` only,
-   (C) no re-exports. **Decision needed before 4b lands** so
-   the re-export block is established by the same commit that
-   adds the Explicit family. If deferred, a separate
-   `chore: add re-exports` follow-up fragments the public API
-   surface across multiple commits.
+**There are no active blockers** as of this resume point. Six
+resolutions in
+[resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md)
+document the design-shaping decisions made in steps 4b and 5
+(brand-level coverage gaps on the Explicit Run brands; row-brand
+cascade expansion; re-export pattern; GAT-normalization
+HRTB-poisoning workaround). Read those if step 6 surfaces a
+question that plan.md or decisions.md alone cannot answer.
 
-Each entry in plan.md's Active blockers cites concrete file
-paths and line numbers (e.g., `monad.rs:214,218` for the
-blanket impl; `free_explicit.rs:373-388` for the Applicative
-non-impl rationale) so the implementor can verify the claims
-without prior conversational context.
+**Pre-existing items still open from earlier steps** (not blocking
+step 6, but likely to surface in step 7+):
+
+- `CoyonedaBrand: RefFunctor` is missing. Blocks step 7's
+  `m_do!(ref RcRunExplicit)` over canonical Coyoneda-wrapped
+  rows.
+- `ArcRunExplicit`'s `SendRef*` hierarchy is permanently
+  unreachable on stable Rust. Blocks step 7's
+  `m_do!(ref ArcRunExplicit)` form entirely.
+- `RcCoyonedaBrand` / `ArcCoyonedaBrand` lack `WrapDrop`.
+
+If any of these surface during step 6, surface them as new
+active-blocker entries in plan.md and pause.
+
+**HRTB-poisoning is a structural pattern to expect.** Step 5
+discovered (and the new gotcha below documents) that
+`ArcFree`'s struct-level HRTB on the `Kind` projection poisons
+GAT normalization in any scope mentioning it. Step 6's
+conversions recurse through `peel` results and rebuild via
+`send`; both engage GAT normalization. If `ArcRun::into_explicit()`
+or `ArcRunExplicit::from_erased(ArcRun)` fails to compile at a
+recursion site, apply the same workaround: produce
+projection-typed values outside the HRTB scope, never construct
+`Node::First(...)` literals inside it. The probe at
+[`fp-library/tests/arc_run_normalization_probe.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/arc_run_normalization_probe.rs)
+is a quick way to validate workaround variants.
+
+If you encounter unexpected behavior during step 6, plan.md's
+`Active blockers` section is the place to record load-bearing
+questions; entries should cite concrete file paths and line
+numbers so the next implementor (or you in a future session) can
+verify claims without conversational context.
 
 ## Where to start
 
@@ -101,14 +114,19 @@ without prior conversational context.
 5. If your step touches type-class impls, brand-level dispatch, or
    `Send + Sync` auto-derive, also skim
    [fp-library/docs/limitations-and-workarounds.md](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/limitations-and-workarounds.md)'s
-   "Unexpressible Bounds in Trait Method Signatures" table. Step 7
-   added rows for the Explicit Free family that record where
-   stable Rust's lack of `for<T>` HRTB caps brand coverage. The
-   pattern (Pointed at the brand level; `bind`/`map` inherent-only;
-   Ref hierarchy as the by-reference dispatch path) is the
-   precedent any new wrapper type with shared internal state will
-   end up following. Saves rediscovering the constraint
-   mid-implementation.
+   "Unexpressible Bounds in Trait Method Signatures" table. Phase
+   1 step 7 added rows for the Explicit Free family that record
+   where stable Rust's lack of `for<T>` HRTB caps brand coverage.
+   The pattern (Pointed at the brand level; `bind`/`map`
+   inherent-only; Ref hierarchy as the by-reference dispatch
+   path) is the precedent any new wrapper type with shared
+   internal state will end up following. Saves rediscovering the
+   constraint mid-implementation.
+6. Check plan.md's `Active blockers` subsection for any open
+   items. If non-empty, read those before writing code; their
+   resolution is part of your work. (Currently empty as of the
+   most recent commit; surface new blockers there if you
+   encounter them.)
 
 ## Per-step protocol
 
@@ -305,6 +323,39 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   Explicit family escapes via `Box<...>` in `FreeExplicit`'s
   `Wrap` arm or the same outer wrapping for the Rc/Arc Explicit
   variants. See deviations.md's Phase 1 step 8 entry.
+  **For Run-shaped programs**: `Run<R, S, A>` (over `Free`) hits
+  this cycle when `R` has a no-indirection head (e.g.,
+  `IdentityBrand`); use `CoyonedaBrand`-headed rows for `Run`'s
+  doctests/tests. `RcRun` / `ArcRun` / all three Explicit
+  variants escape via their respective outer-pointer or
+  `Box`-in-Wrap indirection, so `IdentityBrand`-headed rows
+  work for them.
+- **HRTB on a GAT projection poisons normalization in scope.**
+  Discovered while implementing `ArcRun::send` in Phase 2 step 5. When a struct, impl block, or function's where-clause
+  carries an HRTB on a generic associated type at a specific
+  instantiation (e.g.,
+  `NodeBrand<R, S>: Kind<Of<'static, ArcFree<...>>: Send + Sync>`,
+  which `ArcFree`'s struct propagates to every `ArcRun`
+  impl-block context), rustc refuses to normalize that GAT at
+  _other_ instantiations in the same scope. So a literal
+  `Node::First(layer)` cannot be unified with
+  `<NodeBrand<R, S> as Kind>::Of<'_, A>` even though
+  `impl_kind!` declares them equal. The trigger is the HRTB
+  itself, not the substrate: PhantomData-only structs with the
+  HRTB hit it; free functions carrying the HRTB hit it;
+  cross-substrate calls (e.g., `RcFree::lift_f` from inside an
+  `ArcFree`-HRTB-bearing impl) hit it. **Workaround**: receive
+  projection-typed values as parameters; never construct
+  projection-typed values inside an HRTB-bearing scope. The
+  caller (typically test code, smart-constructor macro output,
+  or top-level concrete-type code with no HRTB in scope) builds
+  the projection literal and passes it in. The probe file
+  [`fp-library/tests/arc_run_normalization_probe.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/arc_run_normalization_probe.rs)
+  documents four passing patterns and is the regression-test
+  home for this limit. This is the design driver for
+  `*Run::send` taking the `Node`-projection value (rather than
+  the row-variant layer) symmetrically across all six Run
+  wrappers.
 - **The Wrap-depth probe at
   [`fp-library/tests/run_wrap_depth_probe.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_wrap_depth_probe.rs)
   is a regression test guarding the `WrapDrop` resolution.** It
