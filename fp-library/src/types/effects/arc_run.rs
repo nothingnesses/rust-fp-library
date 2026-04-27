@@ -326,6 +326,83 @@ mod inner {
 			>): Clone, {
 			ArcRun::from_arc_free(ArcFree::<NodeBrand<R, S>, A>::lift_f(node))
 		}
+
+		/// Sequences this `ArcRun` with a continuation `f`. Delegates to
+		/// [`ArcFree::bind`](crate::types::ArcFree).
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to chain after this computation.")]
+		///
+		#[document_returns("A new `ArcRun` chaining `f` after this one.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let arc_run: ArcRun<FirstRow, Scoped, i32> =
+		/// 	ArcRun::pure(2).bind(|x| ArcRun::pure(x + 1)).bind(|x| ArcRun::pure(x * 10));
+		/// assert!(matches!(arc_run.peel(), Ok(30)));
+		/// ```
+		#[inline]
+		pub fn bind<B: 'static + Send + Sync>(
+			self,
+			f: impl Fn(A) -> ArcRun<R, S, B> + Send + Sync + 'static,
+		) -> ArcRun<R, S, B>
+		where
+			A: Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone, {
+			ArcRun::from_arc_free(self.0.bind(move |a| f(a).into_arc_free()))
+		}
+
+		/// Functor map over the result of this `ArcRun`. Delegates to
+		/// [`ArcFree::map`](crate::types::ArcFree).
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to apply to the result of this computation.")]
+		///
+		#[document_returns("A new `ArcRun` with `f` applied to its result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::pure(7).map(|x| x * 3);
+		/// assert!(matches!(arc_run.peel(), Ok(21)));
+		/// ```
+		#[inline]
+		pub fn map<B: 'static + Send + Sync>(
+			self,
+			f: impl Fn(A) -> B + Send + Sync + 'static,
+		) -> ArcRun<R, S, B>
+		where
+			A: Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone, {
+			ArcRun::from_arc_free(self.0.map(f))
+		}
 	}
 }
 
@@ -418,5 +495,18 @@ mod tests {
 		let arc_run: ArcRunAlias<i32> = ArcRun::send(Node::First(layer));
 		let explicit: ArcRunExplicit<'static, FirstRow, Scoped, i32> = arc_run.into();
 		assert!(explicit.peel().is_err());
+	}
+
+	#[test]
+	fn bind_chains_pure_values() {
+		let arc_run: ArcRunAlias<i32> =
+			ArcRun::pure(2).bind(|x| ArcRun::pure(x + 1)).bind(|x| ArcRun::pure(x * 10));
+		assert!(matches!(arc_run.peel(), Ok(30)));
+	}
+
+	#[test]
+	fn map_transforms_pure_value() {
+		let arc_run: ArcRunAlias<i32> = ArcRun::pure(7).map(|x| x * 3);
+		assert!(matches!(arc_run.peel(), Ok(21)));
 	}
 }

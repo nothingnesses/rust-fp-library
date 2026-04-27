@@ -317,6 +317,74 @@ mod inner {
 			);
 			RunExplicit::from_free_explicit(FreeExplicit::wrap(mapped))
 		}
+
+		/// Sequences this `RunExplicit` with a continuation `f`.
+		/// Delegates to [`FreeExplicit::bind`](crate::types::FreeExplicit).
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to chain after this computation.")]
+		///
+		#[document_returns("A new `RunExplicit` chaining `f` after this one.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: RunExplicit<'_, FirstRow, Scoped, i32> =
+		/// 	RunExplicit::pure(2).bind(|x| RunExplicit::pure(x + 1)).bind(|x| RunExplicit::pure(x * 10));
+		/// assert_eq!(run.into_free_explicit().evaluate(), 30);
+		/// ```
+		#[inline]
+		pub fn bind<B: 'a>(
+			self,
+			f: impl Fn(A) -> RunExplicit<'a, R, S, B> + 'a,
+		) -> RunExplicit<'a, R, S, B> {
+			RunExplicit::from_free_explicit(self.0.bind(move |a| f(a).into_free_explicit()))
+		}
+
+		/// Functor map over the result of this `RunExplicit`.
+		/// Implemented via [`bind`](RunExplicit::bind) and
+		/// [`pure`](RunExplicit::pure) (the underlying
+		/// [`FreeExplicit`](crate::types::FreeExplicit) does not ship an
+		/// inherent `map`).
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to apply to the result of this computation.")]
+		///
+		#[document_returns("A new `RunExplicit` with `f` applied to its result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: RunExplicit<'_, FirstRow, Scoped, i32> = RunExplicit::pure(7).map(|x| x * 3);
+		/// assert_eq!(run.into_free_explicit().evaluate(), 21);
+		/// ```
+		#[inline]
+		pub fn map<B: 'a>(
+			self,
+			f: impl Fn(A) -> B + 'a,
+		) -> RunExplicit<'a, R, S, B> {
+			self.bind(move |a| RunExplicit::pure(f(a)))
+		}
 	}
 
 	// -- From<Run> for RunExplicit (Erased -> Explicit conversion) --
@@ -850,5 +918,19 @@ mod tests {
 		let run: Run<CoyoFirstRow, CNilBrand, i32> = Run::send(Node::First(layer));
 		let explicit: RunExplicit<'static, CoyoFirstRow, CNilBrand, i32> = RunExplicit::from(run);
 		assert!(explicit.peel().is_err());
+	}
+
+	#[test]
+	fn bind_chains_pure_values() {
+		let run: RunAlias<'_, i32> = RunExplicit::pure(2)
+			.bind(|x| RunExplicit::pure(x + 1))
+			.bind(|x| RunExplicit::pure(x * 10));
+		assert_eq!(run.into_free_explicit().evaluate(), 30);
+	}
+
+	#[test]
+	fn map_transforms_pure_value() {
+		let run: RunAlias<'_, i32> = RunExplicit::pure(7).map(|x| x * 3);
+		assert_eq!(run.into_free_explicit().evaluate(), 21);
 	}
 }

@@ -265,6 +265,71 @@ mod inner {
 		) -> Self {
 			Run::from_free(Free::<NodeBrand<R, S>, A>::lift_f(node))
 		}
+
+		/// Sequences this `Run` with a continuation `f`. Delegates to
+		/// [`Free::bind`](crate::types::Free).
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to chain after this computation.")]
+		///
+		#[document_returns("A new `Run` chaining `f` after this one.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: Run<FirstRow, Scoped, i32> =
+		/// 	Run::pure(2).bind(|x| Run::pure(x + 1)).bind(|x| Run::pure(x * 10));
+		/// assert!(matches!(run.peel(), Ok(30)));
+		/// ```
+		#[inline]
+		pub fn bind<B: 'static>(
+			self,
+			f: impl FnOnce(A) -> Run<R, S, B> + 'static,
+		) -> Run<R, S, B> {
+			Run::from_free(self.0.bind(move |a| f(a).into_free()))
+		}
+
+		/// Functor map over the result of this `Run`. Delegates to
+		/// [`Free::map`](crate::types::Free).
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to apply to the result of this computation.")]
+		///
+		#[document_returns("A new `Run` with `f` applied to its result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: Run<FirstRow, Scoped, i32> = Run::pure(7).map(|x| x * 3);
+		/// assert!(matches!(run.peel(), Ok(21)));
+		/// ```
+		#[inline]
+		pub fn map<B: 'static>(
+			self,
+			f: impl FnOnce(A) -> B + 'static,
+		) -> Run<R, S, B> {
+			Run::from_free(self.0.map(f))
+		}
 	}
 }
 
@@ -341,5 +406,18 @@ mod tests {
 		let run: RunAlias<i32> = Run::send(Node::First(layer));
 		let explicit: RunExplicit<'static, FirstRow, Scoped, i32> = run.into();
 		assert!(explicit.peel().is_err());
+	}
+
+	#[test]
+	fn bind_chains_pure_values() {
+		let run: RunAlias<i32> =
+			Run::pure(2).bind(|x| Run::pure(x + 1)).bind(|x| Run::pure(x * 10));
+		assert!(matches!(run.peel(), Ok(30)));
+	}
+
+	#[test]
+	fn map_transforms_pure_value() {
+		let run: RunAlias<i32> = Run::pure(7).map(|x| x * 3);
+		assert!(matches!(run.peel(), Ok(21)));
 	}
 }

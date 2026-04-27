@@ -8,9 +8,29 @@ relaxation) landed; Phase 2 in progress (steps 1, 2, 3, 4a, 4b,
 ## Current progress
 
 Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
-complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, and 6 complete.
+complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, and 7a complete.
 Phase 2 step 7 design pre-locked (naming and scope refinements
-captured below); implementation pending.
+captured below); sub-steps 7b and 7c remaining.
+
+**Phase 2 step 7a (inherent `bind` and `map` on the four Run
+wrappers that don't already have them).** `Run`, `RcRun`,
+`ArcRun`, and `RunExplicit` gain inherent `bind(self, f)` and
+`map(self, f)` methods. Each delegates to its underlying Free
+substrate's `bind`/`map` (or to `bind` + `pure` for
+`RunExplicit::map`, since `FreeExplicit` ships only `bind`).
+Bounds match the substrate's: `Run` / `RunExplicit` have no
+extra bounds beyond their impl block; `RcRun` carries
+`A: Clone` plus the projection `Clone` bound that its `peel`
+already requires; `ArcRun` carries `A: Clone + Send + Sync`,
+the projection `Clone` bound, and the `Send + Sync` closure
+bound. `RcRunExplicit` and `ArcRunExplicit` already shipped
+inherent `bind`/`map` from step 4b. Eight new tests
+(`bind_chains_pure_values` and `map_transforms_pure_value` per
+wrapper) verify the methods at the Run-level.
+
+Step 7b (inherent `ref_bind`/`ref_map` on the four `Clone`-able
+wrappers) and step 7c (the `im_do!` macro) remain to be
+implemented.
 
 **Phase 2 step 7 design (pre-implementation, naming + scope
 locked).** The macro that step 7 ships is named `im_do!`

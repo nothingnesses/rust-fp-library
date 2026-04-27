@@ -307,6 +307,83 @@ mod inner {
 			>): Clone, {
 			RcRun::from_rc_free(RcFree::<NodeBrand<R, S>, A>::lift_f(node))
 		}
+
+		/// Sequences this `RcRun` with a continuation `f`. Delegates to
+		/// [`RcFree::bind`](crate::types::RcFree).
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to chain after this computation.")]
+		///
+		#[document_returns("A new `RcRun` chaining `f` after this one.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let rc_run: RcRun<FirstRow, Scoped, i32> =
+		/// 	RcRun::pure(2).bind(|x| RcRun::pure(x + 1)).bind(|x| RcRun::pure(x * 10));
+		/// assert!(matches!(rc_run.peel(), Ok(30)));
+		/// ```
+		#[inline]
+		pub fn bind<B: 'static>(
+			self,
+			f: impl Fn(A) -> RcRun<R, S, B> + 'static,
+		) -> RcRun<R, S, B>
+		where
+			A: Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			RcRun::from_rc_free(self.0.bind(move |a| f(a).into_rc_free()))
+		}
+
+		/// Functor map over the result of this `RcRun`. Delegates to
+		/// [`RcFree::map`](crate::types::RcFree).
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to apply to the result of this computation.")]
+		///
+		#[document_returns("A new `RcRun` with `f` applied to its result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::pure(7).map(|x| x * 3);
+		/// assert!(matches!(rc_run.peel(), Ok(21)));
+		/// ```
+		#[inline]
+		pub fn map<B: 'static>(
+			self,
+			f: impl Fn(A) -> B + 'static,
+		) -> RcRun<R, S, B>
+		where
+			A: Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			RcRun::from_rc_free(self.0.map(f))
+		}
 	}
 }
 
@@ -394,5 +471,18 @@ mod tests {
 		let rc_run: RcRun<IdentityFirstRow, IdentityScoped, i32> = RcRun::send(Node::First(layer));
 		let explicit: RcRunExplicit<'static, IdentityFirstRow, IdentityScoped, i32> = rc_run.into();
 		assert!(explicit.peel().is_err());
+	}
+
+	#[test]
+	fn bind_chains_pure_values() {
+		let rc_run: RcRun<IdentityFirstRow, IdentityScoped, i32> =
+			RcRun::pure(2).bind(|x| RcRun::pure(x + 1)).bind(|x| RcRun::pure(x * 10));
+		assert!(matches!(rc_run.peel(), Ok(30)));
+	}
+
+	#[test]
+	fn map_transforms_pure_value() {
+		let rc_run: RcRun<IdentityFirstRow, IdentityScoped, i32> = RcRun::pure(7).map(|x| x * 3);
+		assert!(matches!(rc_run.peel(), Ok(21)));
 	}
 }
