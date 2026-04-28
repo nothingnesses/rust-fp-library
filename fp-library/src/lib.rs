@@ -153,3 +153,15 @@ pub mod types;
 pub(crate) mod utils;
 
 pub use fp_macros::*;
+
+/// fp-library-internal entry points. Not part of the public API.
+///
+/// Items here are documented as internal-only by convention. They are
+/// reachable from user code, but their signatures, names, and
+/// semantics may change without a major-version bump. fp-library's own
+/// code routes internal usage through this module so the
+/// internal-only intent is visible at the call site.
+#[doc(hidden)]
+pub mod __internal {
+	pub use fp_macros::raw_effects;
+}

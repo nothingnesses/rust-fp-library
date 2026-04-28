@@ -1103,3 +1103,103 @@ warrant explicit capture:
   `format_bind_param` and `format_discard_param` are reused
   from
   [`fp-macros/src/m_do/codegen.rs`](../../../fp-macros/src/m_do/codegen.rs).
+
+### Step 8: `effects!` macro migration plus `raw_effects!` companion
+
+The macros land at
+[`fp-macros/src/effects/effects_macro.rs`](../../../fp-macros/src/effects/effects_macro.rs)
+with the shared lexical-sort helper at
+[`fp-macros/src/effects/row_sort.rs`](../../../fp-macros/src/effects/row_sort.rs).
+fp-library exposes `raw_effects!` via a new
+[`__internal`](../../../fp-library/src/lib.rs) module marked
+`#[doc(hidden)]`. Three implementation choices warrant explicit
+capture:
+
+- **File renamed from `effects/effects.rs` to
+  `effects/effects_macro.rs` to dodge clippy's `module_inception`
+  lint.** The plan-text named the file
+  `fp-macros/src/effects/effects.rs`, which would create the
+  module path `crate::effects::effects`. Clippy's
+  `module_inception` lint (an `-D warnings` rule under
+  `just clippy`) flags any module nested inside a same-named
+  parent: `error: module has the same name as its containing
+module`. Three options were considered: (a) add
+  `#[allow(clippy::module_inception)]` to the inner module;
+  (b) flatten the worker code into the parent
+  `fp-macros/src/effects.rs`; (c) rename the inner file. Option
+  (c) chosen because (a) leaves a static-analysis exception in
+  the codebase that future maintainers must understand, and (b)
+  scales poorly as the effects subsystem accumulates other
+  per-macro modules (`scoped_effects/`, `handlers/`, etc.) which
+  would each need similar special-casing in `effects.rs`.
+  Renaming the file is a one-line deviation from plan-text with
+  no semantic consequence: the proc-macro is still named
+  `effects!` (registered in `lib.rs`), and the worker function
+  path is `crate::effects::effects_macro::effects_worker` rather
+  than `crate::effects::effects::effects_worker`. The file's
+  module-doc cross-references this entry.
+
+- **`raw_effects!` is `#[doc(hidden)]` on the proc-macro export,
+  re-exported through `fp_library::__internal`.** Decisions
+  section 4.6 specifies `crate::__internal::raw_effects!` as the
+  public-facing path for fp-library-internal use. Two
+  ergonomic concerns shaped the implementation:
+  1. fp-library does `pub use fp_macros::*;` which star-exports
+     every proc-macro at the crate root, including
+     `raw_effects!`. Switching to explicit re-exports (listing
+     each macro by name) would scale poorly across many
+     macros and fight the existing pattern, so the star
+     re-export stays.
+  2. Without further intervention, `fp_library::raw_effects!`
+     would be reachable and indexed by rustdoc as a top-level
+     public macro, contradicting decisions section 4.6's
+     "not part of the public surface" intent.
+
+  Resolution: mark the proc-macro export `#[doc(hidden)]` in
+  fp-macros so rustdoc skips it, and add a new
+  `pub mod __internal { pub use fp_macros::raw_effects; }` to
+  fp-library's `lib.rs` (also `#[doc(hidden)]`). The internal
+  intent is then visible at every call site as
+  `fp_library::__internal::raw_effects!`; the top-level path
+  remains technically reachable but undocumented. fp-library's
+  own internal usage routes through `__internal` so the
+  internal-only convention is enforced by call-site discipline.
+
+- **`assert_type_eq` pattern for canonical-ordering tests.** The
+  plan's success criterion for `effects!` is that input order
+  doesn't affect the resulting type:
+  `effects![A, B] == effects![B, A]` at the type level. Rust
+  has no built-in compile-time type-equality assertion, so the
+  test pattern is:
+
+  ```rust
+  fn assert_type_eq<T>(_: PhantomData<T>, _: PhantomData<T>) {}
+  let p1: PhantomData<R1> = PhantomData;
+  let p2: PhantomData<R2> = PhantomData;
+  assert_type_eq(p1, p2); // compiles iff R1 == R2
+  ```
+
+  The function takes two `PhantomData<T>` parameters (note: same
+  `T`); passing `PhantomData<R1>` and `PhantomData<R2>` of
+  different types fails compilation. The integration test file
+  uses this pattern across empty / single / two / three-brand
+  inputs. `static_assertions::assert_type_eq_all!` would be a
+  drop-in alternative but would add a dev-dependency for a
+  one-off test pattern; the inline helper is preferred.
+
+- **Coyoneda-wrapped rows don't satisfy `RcRun::peel`'s `Clone`
+  bound.** `RcRun::peel` requires
+  `NodeBrand<R, S>::Of<'static, RcFree<...>>: Clone`, which for
+  `IdentityBrand`-headed rows is satisfied directly. For
+  `CoyonedaBrand`-wrapped rows (the canonical `effects!`
+  output), the projection contains a
+  `Coyoneda<F, RcFree<...>>` whose stored continuation is a
+  trait object that is not `Clone`. The integration test
+  `effects_row_drives_run_wrapper` therefore tests construction
+  only (drops the program); the `peel`-exercising
+  `raw_effects_row_drives_run_wrapper_with_peel` uses
+  `raw_effects!` (un-wrapped form) which satisfies the bound.
+  This is a documented limitation of the canonical Coyoneda
+  form on the Erased Rc family, not a step 8 regression; the
+  Explicit family's `peel` doesn't carry the Clone bound and
+  works with both forms.

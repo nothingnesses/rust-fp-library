@@ -43,7 +43,13 @@ use {
 		document_type_parameters_worker,
 		include_documentation_worker,
 	},
-	effects::im_do::im_do_worker,
+	effects::{
+		effects_macro::{
+			effects_worker,
+			raw_effects_worker,
+		},
+		im_do::im_do_worker,
+	},
 	hkt::{
 		ApplyInput,
 		AssociatedTypes,
@@ -1365,6 +1371,104 @@ pub fn m_do(input: TokenStream) -> TokenStream {
 pub fn a_do(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as DoInput);
 	match a_do_worker(input) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Constructs a canonical first-order effect row brand.
+///
+/// `effects![Brand1, Brand2, ...]` parses a comma-separated list of brand
+/// types, lexically sorts them by `quote!(#t).to_string()`, and emits a
+/// right-nested
+/// [`CoproductBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CoproductBrand.html)
+/// chain in canonical order, with each brand wrapped in
+/// [`CoyonedaBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CoyonedaBrand.html)
+/// so any effect type becomes a [`Functor`] for free. The chain
+/// terminates at
+/// [`CNilBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CNilBrand.html);
+/// empty input produces just `CNilBrand`.
+///
+/// The lexical sort means the resulting type is independent of input
+/// order: `effects![A, B]` and `effects![B, A]` produce the same
+/// canonical type. This is workaround 1 from
+/// [`decisions.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/decisions.md)
+/// section 4.1's ordering mitigations.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// effects![Brand1, Brand2, ...]
+/// ```
+///
+/// * Each `BrandN` is a brand type (e.g.,
+///   [`OptionBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.OptionBrand.html),
+///   [`IdentityBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.IdentityBrand.html),
+///   or a user-defined effect brand).
+/// * The macro evaluates in type position only; it cannot be used as
+///   an expression.
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::brands::{IdentityBrand, OptionBrand};
+/// use fp_macros::effects;
+///
+/// // Two equivalent rows; both expand to the same canonical type.
+/// type R1 = effects![IdentityBrand, OptionBrand];
+/// type R2 = effects![OptionBrand, IdentityBrand];
+/// // R1 == R2 == CoproductBrand<CoyonedaBrand<IdentityBrand>,
+/// //                CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>
+/// ```
+///
+/// ### Notes on canonicalisation
+///
+/// * Whitespace inside the input is normalised by `quote!`'s
+///   stringification, so `Reader<Env>` and `Reader < Env >` sort to
+///   the same position.
+/// * Generic parameters are part of the stringified form, so
+///   `Reader<i32>` and `Reader<i64>` sort to different positions
+///   (usually correct, occasionally surprising).
+/// * Hand-written `CoproductBrand<...>` types bypass the canonical
+///   sort; use this macro for all row construction in user code.
+///
+/// [`Functor`]: https://docs.rs/fp-library/latest/fp_library/classes/trait.Functor.html
+#[proc_macro]
+pub fn effects(input: TokenStream) -> TokenStream {
+	match effects_worker(input.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Internal: constructs an un-wrapped first-order effect row brand
+/// (no [`CoyonedaBrand`] wrapping).
+///
+/// Companion to [`effects!`] for fp-library-internal use (test
+/// fixtures, lower-level combinators that already supply
+/// `Functor`-providing brands directly). Not part of the public
+/// surface; users should always go through [`effects!`].
+///
+/// fp-library exposes this as `fp_library::__internal::raw_effects!`
+/// so the internal-only intent is visible at the call site. The
+/// macro itself is [`#[doc(hidden)]`] in fp-macros.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// raw_effects![Brand1, Brand2, ...]
+/// ```
+///
+/// Same lexical sort as [`effects!`], same canonical-ordering
+/// guarantee, but the emitted chain is plain
+/// `CoproductBrand<Brand1, CoproductBrand<Brand2, ..., CNilBrand>>`
+/// rather than `CoproductBrand<CoyonedaBrand<Brand1>, ...>`.
+///
+/// [`CoyonedaBrand`]: https://docs.rs/fp-library/latest/fp_library/brands/struct.CoyonedaBrand.html
+#[doc(hidden)]
+#[proc_macro]
+pub fn raw_effects(input: TokenStream) -> TokenStream {
+	match raw_effects_worker(input.into()) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}

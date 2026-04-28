@@ -9,65 +9,73 @@ relaxation) landed; Phase 2 in progress (steps 1, 2, 3, 4a, 4b,
 
 Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
 complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, 7c.1,
-7c.2a, and 7c.2b complete. **Phase 2 step 7 (the `im_do!`
-macro and supporting inherent methods) is fully landed.** Next
-step in the phase is step 8 (handler combinators / interpreters),
-to be picked up in a future session.
+7c.2a, 7c.2b, and 8 complete. **Phase 2 step 8 (the `effects!`
+macro migration plus internal `raw_effects!` companion) is
+landed.** Next step in the phase is step 9
+(Coyoneda-wrapping smart constructors, the `lift_f` analogues
+for each effect type), to be picked up in a future session.
 
 The two entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
 
-**Phase 2 step 7c.2b (this commit): `im_do!` proc-macro.** The
+**Phase 2 step 8 (this commit): `effects!` macro migration plus
+`raw_effects!` companion.** The public `effects!` proc-macro
+lands at
+[`fp-macros/src/effects/effects_macro.rs`](../../../fp-macros/src/effects/effects_macro.rs)
+under the
+[`fp-macros/src/effects/`](../../../fp-macros/src/effects/)
+subsystem directory; both `pub fn effects(input)` and
+`pub fn raw_effects(input)` proc-macro exports are registered
+in
+[`fp-macros/src/lib.rs`](../../../fp-macros/src/lib.rs).
+`effects!` lexically sorts its input brand types by
+`quote!(#t).to_string()` and emits a right-nested
+`CoproductBrand<CoyonedaBrand<#brand>, ..., CNilBrand>` chain;
+`raw_effects!` (marked `#[doc(hidden)]`) emits the un-wrapped
+`CoproductBrand<#brand, ..., CNilBrand>` form for fp-library
+internal use, exposed via a new
+[`fp_library::__internal`](../../../fp-library/src/lib.rs)
+module. The lexical-sort logic lives in
+[`fp-macros/src/effects/row_sort.rs`](../../../fp-macros/src/effects/row_sort.rs)'s
+`parse_and_sort_types` helper so `scoped_effects!` (Phase 4
+step 4) can reuse the same canonicalisation. Ten integration
+tests in
+[`fp-library/tests/effects_macro.rs`](../../../fp-library/tests/effects_macro.rs)
+exercise: empty / single / two / three-brand expansions; the
+canonical-ordering property (different input orderings produce
+the same canonical type, verified via `assert_type_eq` /
+`PhantomData` compile-time type-equality); explicit-shape
+verification matching the documented form on
+[`CoproductBrand`](../../../fp-library/src/brands.rs);
+`raw_effects!`'s un-wrapped emission; and production use of
+both forms as the `R` parameter of an `RcRun` wrapper. All
+plus six unit tests inside fp-macros (in `effects_macro.rs`
+and `row_sort.rs`); `just verify` is clean across the whole
+workspace.
+
+**Phase 2 step 7c.2b (`2121174`): `im_do!` proc-macro.** The
 inherent-method-dispatched monadic do-notation macro lands at
 [`fp-macros/src/effects/im_do/codegen.rs`](../../../fp-macros/src/effects/im_do/codegen.rs)
-under the new
-[`fp-macros/src/effects/`](../../../fp-macros/src/effects/)
-subsystem directory; the `pub fn im_do(input)` proc-macro
-export is registered in
-[`fp-macros/src/lib.rs`](../../../fp-macros/src/lib.rs) with
-extensive doc-comment covering the four-point design rationale
-(name, dispatch path, when-to-use, same-length pairing). Codegen
-reuses `format_bind_param` and `format_discard_param` from
-[`fp-macros/src/m_do/codegen.rs`](../../../fp-macros/src/m_do/codegen.rs)
-directly; `rewrite_pure_inherent` is the macro-specific path that
-rewrites bare `pure(x)` to `Wrapper::pure(x)` (val mode) or
-`Wrapper::ref_pure(&(x))` (ref mode), with inferred mode rejected
-as `compile_error!` parallel to `m_do!`. Method-call syntax on
-the wrapper handles both `bind` and `ref_bind` dispatch via
-auto-ref; no container-wrapping helper is needed.
+with the `pub fn im_do(input)` proc-macro export registered in
+[`fp-macros/src/lib.rs`](../../../fp-macros/src/lib.rs).
+Codegen reuses `format_bind_param` and `format_discard_param`
+from
+[`fp-macros/src/m_do/codegen.rs`](../../../fp-macros/src/m_do/codegen.rs);
+`rewrite_pure_inherent` rewrites bare `pure(x)` to
+`Wrapper::pure(x)` (val mode) or `Wrapper::ref_pure(&(x))`
+(ref mode), with inferred mode rejected as `compile_error!`.
+Method-call syntax handles both `bind` and `ref_bind` dispatch
+via auto-ref; no container-wrapping helper is needed.
 Sixteen integration tests in
 [`fp-library/tests/im_do.rs`](../../../fp-library/tests/im_do.rs)
-exercise: by-value mode on all six wrappers (Run uses a
-Coyoneda-headed row to dodge the `IdentityBrand` layout cycle;
-the other five use identity-headed rows directly); ref mode on
-the four `Clone`-able wrappers; let bindings, typed binds,
-discard binds, sequence statements; and one inferred-mode
+cover by-value mode on all six wrappers, ref mode on the four
+`Clone`-able wrappers, statement variety, and one inferred-mode
 invocation. The compile_fail UI test at
 [`fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.rs`](../../../fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.rs)
-demonstrates that `im_do!(ref Run { ... })` rejects with rustc's
-natural "no method named `ref_bind` found for struct `Run`"
-error (plus the parallel error on `ref_pure`); the same pattern
-applies to `RunExplicit`. All 2422 unit tests, 16 new
-integration tests, and the compile_fail test pass under
-`just verify`.
-
-**Phase 2 step 7c.2a (`e4cf7b5`): shared `DoInput` parser
-extraction.** Moved
-`fp-macros/src/m_do/input.rs` to
-[`fp-macros/src/support/do_input.rs`](../../../fp-macros/src/support/do_input.rs)
-so all four do-notation macros (`m_do!`, `a_do!`, `im_do!`,
-future `ia_do!`) share the parser.
-[`fp-macros/src/m_do.rs`](../../../fp-macros/src/m_do.rs)
-re-exports `DoInput` from the new location for backward
-compatibility; `m_do/codegen.rs` and `a_do/codegen.rs` import
-directly from `crate::support::do_input`. Codegen helpers
-(`format_bind_param`, `format_discard_param`,
-`wrap_container_ref`, `rewrite_pure`) stay in
-[`fp-macros/src/m_do/codegen.rs`](../../../fp-macros/src/m_do/codegen.rs)
-and remain reusable from `im_do!`'s codegen. Pure refactor;
-all 2422 tests still pass; m_do!/a_do! behavior unchanged.
+demonstrates that `im_do!(ref Run { ... })` rejects with
+rustc's natural "no method named `ref_bind` found" error.
 
 ### Earlier completed steps (commit log)
 
@@ -79,6 +87,20 @@ summary; resolved blockers are in
 
 Phase 2:
 
+- `2121174` (step 7c.2b): `im_do!` proc-macro at
+  [`fp-macros/src/effects/im_do/codegen.rs`](../../../fp-macros/src/effects/im_do/codegen.rs).
+  Inherent-method dispatch (`expr.bind(...)` /
+  `expr.ref_bind(...)`); `pure(x)` rewriting to
+  `Wrapper::pure(x)` / `Wrapper::ref_pure(&(x))`. 16 integration
+  tests cover all six wrappers; one compile_fail UI test
+  demonstrates the natural rejection of `im_do!(ref Run { ... })`
+  on non-`Clone` wrappers.
+- `e4cf7b5` (step 7c.2a): shared `DoInput` parser extraction
+  from `fp-macros/src/m_do/input.rs` to
+  [`fp-macros/src/support/do_input.rs`](../../../fp-macros/src/support/do_input.rs).
+  Reused by all four do-notation macros (`m_do!`, `a_do!`,
+  `im_do!`, future `ia_do!`); pure refactor with no behavior
+  change.
 - `10d17fe` (step 7c.1): inherent `ref_pure` on the four
   `Clone`-able wrappers (`RcRun`, `ArcRun`, `RcRunExplicit`,
   `ArcRunExplicit`). Pattern `Self::pure(a.clone())`; bounds
