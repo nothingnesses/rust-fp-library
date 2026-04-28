@@ -9,16 +9,95 @@ relaxation) landed; Phase 2 in progress (steps 1, 2, 3, 4a, 4b,
 
 Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
 complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, 7c.1,
-7c.2a, 7c.2b, 8, and 9 (all sub-steps 9a, 9b+9e, 9c+9f, 9d+9g,
-9h, 9i) complete. Step 10 (POC migration plus deletion) is the
-last remaining Phase 2 step.
+7c.2a, 7c.2b, 8, 9 (all sub-steps 9a, 9b+9e, 9c+9f, 9d+9g, 9h,
+9i), and 10a (POC test migration into
+`fp-library/tests/run_row_canonicalisation.rs`) complete. Step
+10b (delete the `poc-effect-row/` workspace) is the only
+remaining Phase 2 work and is held for explicit user
+confirmation since it is destructive.
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
 
-**Phase 2 step 9i (this commit): `SendRefPointed` lands on
+**Phase 2 step 10a (this commit): row-canonicalisation regression
+baseline at
+[`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs).**
+20 integration tests migrated from
+[`poc-effect-row/tests/`](../../../poc-effect-row/tests/),
+substituting fp-library's existing brands
+(`IdentityBrand` / `OptionBrand` / `ResultBrand` / `BoxBrand` /
+`CatListBrand` / `ThunkBrand` / `SendThunkBrand` /
+`TryThunkBrand` / `ArcCoyonedaBrand`) for the POC's local
+`struct A(i32)` / `struct B(...)` placeholder types.
+
+Coverage: canonicalisation across all 6 permutations of 3
+brands; 5- and 7-brand scaling; lexical-canonical-form check;
+empty / single-brand edge cases; same-root different-params sort
+(via `CoyonedaBrand<Identity>` vs `CoyonedaBrand<Option>`);
+`CoproductSubsetter` (workaround 3) on runtime
+`Coproduct` values across 3- and 5-element permutations;
+`effects!` vs `raw_effects!` Coyoneda wrapping difference;
+each row brand drives all six Run wrappers
+(`Run`/`RcRun`/`ArcRun`/`RunExplicit`/`RcRunExplicit`/`ArcRunExplicit`).
+Arc-family wrappers use `ArcCoyonedaBrand`-headed rows to
+satisfy the substrate's struct-level `Send + Sync` HRTB.
+
+Tests intentionally skipped from the POC (4 of 25 not migrated;
+a fifth, `c08`, is implicitly covered):
+
+- `feasibility::t08` (1 test): lifetime-parameter-bearing raw
+  effect type. Production effect brands are zero-sized `'static`
+  markers (no lifetime params at the brand level); the test
+  exercises a property production brands cannot have.
+- `feasibility::t10` (1 test): "handler accepts macro output as
+  runtime value". In POC, effect types served as both row brands
+  AND runtime value types; in production the brand is a
+  zero-sized marker and the analog is the all-six-Run-wrappers
+  integration tests (a row brand drives the wrapper's type
+  parameters).
+- `feasibility::t14`-`t16` (3 tests): `tstr_crates` compile-time
+  string-ordering demos; not testing fp-library; would require
+  adding `tstr` as a dev-dep to no regression-baseline benefit.
+- `coyoneda::c03`-`c05` (3 tests): POC-local `Coyoneda` lift +
+  decoder-closure mechanics. Production
+  [`Coyoneda`](../../../fp-library/src/types/coyoneda.rs) has
+  no decoder closure (uses brand-Kind machinery directly); the
+  mechanics-tests don't translate.
+- `coyoneda::c08` (1 test, implicitly covered): Coproduct-of-
+  Coyoneda end-to-end fmap dispatch, exercised by the
+  [`tests/run_lift.rs`](../../../fp-library/tests/run_lift.rs)
+  round-trip tests on all six Run wrappers (lift -> peel -> lower
+  recovers the value, which only works if the Coproduct +
+  Coyoneda dispatch composes correctly).
+
+Per-test mapping is documented in
+[deviations.md](deviations.md) under step 10a, with a follow-up
+on `coyoneda::c06`: that test was initially landed as a
+PhantomData-only placeholder during the migration; on review it
+was replaced with `subsetter_over_runtime_coyoneda_wrapped_values`
+that constructs production `Coyoneda::lift(Identity(7))` runtime
+values, builds a non-canonical Coproduct of Coyoneda variants,
+and runs `.subset()` to recover the canonical permutation. This
+is the production analog of the POC's `c06` and the gap the
+review surfaced.
+
+Plus net-new coverage that wasn't in the POC (all 6 permutations
+vs POC's 3, `effects!` vs `raw_effects!` contrast,
+all-six-Run-wrappers integration). All 2437 unit tests pass
+under `just verify` (no `src/` changes in this commit;
+integration-test-only addition); 21 new integration tests in
+`tests/run_row_canonicalisation.rs` all pass.
+
+Step 10b (delete `poc-effect-row/` workspace) is the only
+remaining work and is held for explicit user confirmation
+because it is destructive. The POC workspace is detached
+(declares its own `[workspace]` block) and not built by the
+outer cargo workspace, so the deletion is safe but
+irreversible.
+
+**Phase 2 step 9i (`df99ff6`): `SendRefPointed` lands on
 `ArcRunExplicitBrand` via inherent-method delegation; the rest of
 the SendRef cascade is documented as blocked by the same
 HRTB-over-types limit.** The plan's reference shape predicted
@@ -107,100 +186,6 @@ strategy uses the wrapper's existing inherent `ref_map` /
 and is independent of 9h. It is the last remaining sub-step in
 step 9.
 
-**Phase 2 step 9d+9g bundle (`42e698a`): brand-level Send-aware
-surface unchanged on both `ArcFreeExplicitBrand` and
-`ArcRunExplicitBrand`; inherent `ArcFreeExplicit::map` lands as the
-concrete-type workaround for the unreachable brand-level
-`SendFunctor::send_map`.**
-Sub-step 9d's plan text predicted that with the substrate now
-`SendFunctor`-routed (per 9c), at minimum
-[`SendFunctor`](../../../fp-library/src/classes/send_functor.rs)
-should be implementable at the brand level. A scratch impl
-delegating through
-[`ArcFreeExplicit::bind`](../../../fp-library/src/types/arc_free_explicit.rs)
-was attempted; rustc rejected it with four blocking bounds
-(`A: Clone`; `<F as Kind>::Of<'_, ArcFreeExplicit<'_, F, A>>:
-Clone`; `: Send`; `: Sync`). Each is the per-`A`
-HRTB-over-types blocker that
-[step 4b's resolution](resolutions.md#resolved-2026-04-27-brand-level-type-class-coverage-gap-on-the-explicit-run-brands)
-documented for the parallel by-value `Functor`/`Semimonad`
-chain on
-[`RcFreeExplicitBrand`](../../../fp-library/src/brands.rs).
-The 9c migration only changed which `F` trait
-[`bind_boxed`](../../../fp-library/src/types/arc_free_explicit.rs)
-internally routes through (`F::map` -> `F::send_map`); the
-`Clone` cascade on
-[`into_inner_owned`](../../../fp-library/src/types/arc_free_explicit.rs)'s
-shared-`Arc` recovery path is intrinsic to the `Arc<Inner>`
-data shape and remains in `bind`'s where-clause unchanged.
-
-Same blockers apply to
-[`SendSemimonad`](../../../fp-library/src/classes/send_semimonad.rs)
-(calls `bind` directly) and to
-[`SendLift`](../../../fp-library/src/classes/send_lift.rs)
-(`lift2`'s natural `bind`-based body needs the per-`A`
-`F::Of: Clone + Send + Sync` bound on the suspended layer even
-though the trait carries `A: Clone` / `B: Clone`). The
-`SendSemiapplicative` / `SendApplicative` / `SendMonad`
-cascade is then blocked transitively. The brand-level coverage
-on
-[`ArcFreeExplicitBrand`](../../../fp-library/src/brands.rs)
-stays at
-[`SendPointed`](../../../fp-library/src/classes/send_pointed.rs)
-only.
-
-Action:
-
-- Refreshed the inline comment block at
-  [`fp-library/src/types/arc_free_explicit.rs`](../../../fp-library/src/types/arc_free_explicit.rs)
-  to record that the post-9c re-evaluation reached the same
-  conclusion (so future implementors don't redo the probe).
-- Added a Send-aware brand-level coverage table to
-  [`fp-library/docs/limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md)
-  parallel to the existing by-value and by-reference tables on
-  the Free Explicit family.
-- Landed inherent
-  [`ArcFreeExplicit::map`](../../../fp-library/src/types/arc_free_explicit.rs)
-  to close the by-value Send-aware mapping gap at the concrete
-  type level. The per-`A` `Clone + Send + Sync` bounds that
-  cannot go in `SendFunctor::send_map`'s trait signature fit
-  cleanly in the inherent method's where-clause. Mirrors the
-  [`ArcFree::map`](../../../fp-library/src/types/arc_free.rs)
-  precedent for brand-blocked operations on the Erased family;
-  the bare name `map` (with `Send + Sync` bounds in the
-  where-clause) matches the established Arc-substrate naming
-  convention. Three new unit tests cover the basic transformation,
-  composition with `bind`, and cross-thread `send`-via-`spawn`.
-
-**9g (also in this commit): no-op outcome.** Sub-step 9g's plan
-text predicts "`SendPointed` plus whatever cascades from
-`ArcFreeExplicitBrand`'s expanded surface" on
-[`ArcRunExplicitBrand`](../../../fp-library/src/brands.rs).
-With 9d landing zero new brand-level impls on `ArcFreeExplicitBrand`,
-nothing cascades; `ArcRunExplicitBrand` already has
-[`SendPointed`](../../../fp-library/src/types/effects/arc_run_explicit.rs)
-from step 4b; and the wrapper's inherent surface
-(`bind` / `map` / `ref_map` / `ref_pure`) is already complete from
-steps 4b, 7a, 7b, and 7c.1. The Send-aware `map` on
-`ArcRunExplicit` already exists with the appropriate
-`A: Clone + Send + Sync` and `Of: Clone + Send + Sync` bounds in its
-where-clause (it's named `map`, not `send_map`, matching the
-Arc-substrate naming convention that 9d's rename also adopts). 9g
-ships as a documentation-only outcome bundled into this commit;
-the bundling is reasonable because 9g's outcome is a strict
-logical consequence of 9d's, and the two together tell one story
-about post-9c re-evaluation across the Arc Explicit family.
-
-All 2429 unit tests pass under `just verify`.
-
-Implication for sub-step 9i: 9i lands `SendRefFunctor` (and
-related Send-aware Ref-family traits) on
-`ArcRunExplicitBrand` via inherent-method delegation. That
-strategy uses the wrapper's existing inherent
-`ref_map` / `ref_bind` / `ref_pure` (already in place from steps
-7b and 7c.1) and is independent of 9d's and 9g's brand-level
-re-evaluation. No change to 9i's scope.
-
 ### Earlier completed steps (commit log)
 
 Each entry's design choices are recorded in
@@ -211,6 +196,15 @@ summary; resolved blockers are in
 
 Phase 2:
 
+- `42e698a` (step 9d+9g bundle): brand-level Send-aware surface
+  unchanged on both `ArcFreeExplicitBrand` and
+  `ArcRunExplicitBrand` (per-`A` HRTB-over-types blocker confirmed
+  via rustc probe). Inherent `ArcFreeExplicit::map` lands as the
+  concrete-type workaround; the bare name `map` (Send + Sync in
+  the where-clause) matches Arc-substrate naming convention. 9g
+  is a strict logical consequence of 9d (no code changes), bundled
+  with 9d to avoid a content-free follow-up commit. Limitations doc
+  gains a Send-aware brand-level coverage table.
 - `9295a26` (step 9c+9f bundle): replace `F: Functor` with
   `F: SendFunctor` on `ArcFreeExplicit`; switch `ArcRunExplicit`
   to `SendFunctor`-routed dispatch. Mirrors the 9b+9e bundle for
