@@ -1840,3 +1840,121 @@ Open follow-ups for step 2:
 - Negative-case `compile_fail` UI tests (handler missing for an
   effect, wrong type ascription, etc.) ship in step 6, not step
   1, per the plan's step partition.
+
+### Step 2: `interpret` / `run` / `run_accum` recursive-target interpreter family
+
+Plan text reads:
+
+> `interpret` / `run` / `runAccum` recursive-target interpreter
+> family in `fp-library/src/types/effects/interpreter.rs`.
+
+Implementation choices made (recorded so step 3's
+`MonadRec`-target family can mirror the same shape):
+
+- **`DispatchHandlers<'a, Layer, NextProgram>` trait at
+  [`fp-library/src/types/effects/interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs).**
+  Walks a [`HandlersCons`](../../../fp-library/src/types/effects/handlers.rs) /
+  [`HandlersNil`](../../../fp-library/src/types/effects/handlers.rs)
+  in lock-step with the row's value-level
+  [`Coproduct`](../../../fp-library/src/types/effects/coproduct.rs)
+  chain. Three `HandlersCons<Handler<EBrand, F>, T>` impls cover
+  one Coyoneda variant each
+  ([`Coyoneda`](../../../fp-library/src/types/coyoneda.rs),
+  [`RcCoyoneda`](../../../fp-library/src/types/rc_coyoneda.rs),
+  [`ArcCoyoneda`](../../../fp-library/src/types/arc_coyoneda.rs))
+  because the per-wrapper Coyoneda variant pairing rule (from
+  Phase 2 step 9h) means each Run wrapper's row has a different
+  Coyoneda type at the value level. The duplication is mechanical:
+  identical body, different `lower*` method (bare `Coyoneda::lower`
+  takes `self`; the Rc/Arc variants ship `lower_ref(&self)` only).
+  Arc variant adds `Send + Sync` bounds and `Functor + SendFunctor`.
+- **Mono-in-`A` step-function shape, matching PureScript Run's
+  runtime model.** Per [`purescript-run/src/Run.purs:184-217`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs#L178-L217),
+  `interpret = run` and the implemented form's handler is
+  `(VariantF r (Run r a) -> m (Run r a))` -- mono in `a`. The
+  Rust port adopts this directly: handler closures are mono in
+  `A`, with `A` flowing in from the program's result type.
+  Handler-list values are specialized to one program's `A`. A
+  rank-2-polymorphic alternative via the existing
+  [`NaturalTransformation`](../../../fp-library/src/classes/natural_transformation.rs)
+  trait is documented in plan.md's Phase 6+ deferred-items
+  section as a future companion entry-point.
+- **Per-wrapper inherent methods.** Each of the six Run wrappers
+  ships inherent `interpret` / `run` / `run_accum` methods.
+  `run` is a thin alias for `interpret` per PureScript Run's
+  `interpret = run`. `run_accum` accepts an `init` state value
+  and threads state via closure captures (`Rc<RefCell<S>>` for
+  single-threaded substrates, `Arc<Mutex<S>>` for ArcRun /
+  ArcRunExplicit); state is ephemeral to the loop, mirroring
+  PureScript Run's `runAccum` shape that returns `m a` (not
+  `m (s, a)`). Threading via captures rather than a separate
+  stateful trait avoids doubling the trait machinery.
+- **Loop body and `Node::First` dispatch.** Each method's loop
+  is a `match prog.peel() { Ok(a) => return a, Err(node) => ...
+}`. For Run / RcRun / RunExplicit / RcRunExplicit /
+  ArcRunExplicit, the `Err` arm pattern-matches `Node::First` /
+  `Node::Scoped` directly. For `ArcRun`, the same pattern fails
+  GAT normalization under the struct-level HRTB (the same wall
+  documented for `ArcRun::send` in Phase 2 step 5's
+  resolutions.md entry). The workaround mirrors the `lift_node`
+  precedent: a free function `unwrap_first<R, S, A>` defined
+  outside the impl-block scope receives the `Node`-projection
+  value, pattern-matches inside its non-HRTB scope, and returns
+  the first-order layer payload. `ArcRun::interpret` calls
+  `unwrap_first` and then dispatches. `ArcRunExplicit` does NOT
+  hit this wall (its struct-level bounds don't include the
+  `Of: Send + Sync` HRTB; the `Send + Sync` cascade comes
+  through per-method bounds), so it pattern-matches inline.
+- **`Scoped` arm panics with `unreachable!`.** Phase 3 first-order
+  interpretation does not route scoped layers; the `Node::Scoped`
+  arm panics with a descriptive message. This is gated by
+  `#[expect(clippy::unreachable, reason = "...")]` per method
+  (Run / RcRun / RunExplicit / RcRunExplicit / ArcRunExplicit /
+  ArcRun's `unwrap_first` helper). Phase 4 will route scoped
+  layers, replacing the panic with real dispatch.
+- **Inner brand as the handler-list key.** The `handlers!` macro
+  uses the inner effect brand (`IdentityBrand`, `StateBrand`,
+  etc.) as the handler key for ALL wrappers, matching `effects!`'s
+  sort key. The DispatchHandlers impls bind the inner brand to
+  `EBrand` and pattern-match on the relevant Coyoneda value
+  variant; users don't need to know which Coyoneda wrapper is
+  in use at the row level.
+- **`#[document_examples]` doctests use the per-wrapper Coyoneda-variant
+  brand for the row.** `Run` / `RunExplicit` doctests use
+  `CoyonedaBrand<IdentityBrand>` for the row; `RcRun` /
+  `RcRunExplicit` use `RcCoyonedaBrand<IdentityBrand>`;
+  `ArcRun` / `ArcRunExplicit` use `ArcCoyonedaBrand<IdentityBrand>`.
+  Per the per-wrapper Coyoneda variant pairing rule.
+
+What landed in this commit:
+
+- New file: [`fp-library/src/types/effects/interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
+  with the `DispatchHandlers` trait and four impls
+  (`HandlersNil`/`CNil` base case; one cons-cell impl per Coyoneda
+  variant).
+- Wiring: `pub mod interpreter` and `pub use interpreter::DispatchHandlers`
+  in
+  [`fp-library/src/types/effects.rs`](../../../fp-library/src/types/effects.rs).
+- Inherent methods on six Run wrappers for `interpret`, `run`,
+  `run_accum`. ArcRun gains the `unwrap_first` HRTB-poisoning
+  workaround helper.
+- New file: [`fp-library/tests/run_interpret.rs`](../../../fp-library/tests/run_interpret.rs)
+  with 12 integration tests across all six wrappers.
+- Plan.md Phase 6+ deferred-items gains an `interpret_nt` entry
+  for a future
+  [`NaturalTransformation`](../../../fp-library/src/classes/natural_transformation.rs)-based
+  companion entry-point.
+
+Verification: `just verify` clean. 2456 unit tests; 12 integration
+tests added; doctests across the methods compile and pass.
+
+Open follow-ups for step 3 (`MonadRec`-target family):
+
+- Step 3's `interpret_rec` / `run_rec` / `run_accum_rec` mirror
+  this step's per-wrapper inherent-method layout but route
+  through `MonadRec`'s `tail_rec_m` instead of host-stack
+  recursion. The `DispatchHandlers` trait reuses unchanged;
+  only the loop body changes.
+- The Phase 6+ `interpret_nt` companion entry-point remains
+  deferred unless the closure-mono-in-A constraint blocks a
+  real user need.

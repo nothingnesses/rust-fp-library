@@ -43,6 +43,7 @@ mod inner {
 				RcCoyoneda,
 				RcFree,
 				effects::{
+					interpreter::DispatchHandlers,
 					member::Member,
 					node::Node,
 				},
@@ -595,6 +596,212 @@ mod inner {
 		where
 			A: Clone, {
 			RcRun::pure(a.clone())
+		}
+
+		/// Interprets this `RcRun` program by walking each effect via
+		/// the matching handler closure in `handlers`, looping until
+		/// the program reduces to a [`Pure`](crate::types::RcFree)
+		/// value.
+		///
+		/// Multi-shot variant of [`Run::interpret`](crate::types::effects::run::Run::interpret).
+		/// Each [`peel`](RcRun::peel) requires `A: Clone` and
+		/// `RcFree`-projection `Clone` because the substrate
+		/// participates in multi-shot continuation cloning. See
+		/// [`Run::interpret`](crate::types::effects::run::Run::interpret)
+		/// for the design rationale, mono-in-`A` step-function shape,
+		/// and PureScript-Run cross-reference.
+		#[document_signature]
+		///
+		#[document_parameters("The handler list (typically built via the `handlers!` macro).")]
+		///
+		#[document_returns("The final result value of the program.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			handlers::*,
+		/// 			rc_run::RcRun,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: RcRun<FirstRow, Scoped, i32> = RcRun::lift::<IdentityBrand, _>(Identity(42));
+		/// let result = prog.interpret(handlers! {
+		/// 	IdentityBrand: |op: Identity<RcRun<FirstRow, Scoped, i32>>| op.0,
+		/// });
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them."
+		)]
+		pub fn interpret(
+			self,
+			mut handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RcRun<R, S, A>>),
+				RcRun<R, S, A>,
+			>,
+		) -> A
+		where
+			A: Clone,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			let mut prog = self;
+			loop {
+				match prog.peel() {
+					Ok(a) => return a,
+					Err(Node::First(layer)) => prog = handlers.dispatch(layer),
+					Err(Node::Scoped(_)) => {
+						unreachable!(
+							"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
+						)
+					}
+				}
+			}
+		}
+
+		/// Alias for [`interpret`](RcRun::interpret), kept for naming
+		/// parity with PureScript Run's
+		/// [`run`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs).
+		/// See [`Run::run`](crate::types::effects::run::Run::run).
+		#[document_signature]
+		///
+		#[document_parameters("The handler list.")]
+		///
+		#[document_returns("The final result value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			handlers::*,
+		/// 			rc_run::RcRun,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: RcRun<FirstRow, Scoped, i32> = RcRun::lift::<IdentityBrand, _>(Identity(99));
+		/// let result = prog.run(handlers! {
+		/// 	IdentityBrand: |op: Identity<RcRun<FirstRow, Scoped, i32>>| op.0,
+		/// });
+		/// assert_eq!(result, 99);
+		/// ```
+		#[inline]
+		pub fn run(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RcRun<R, S, A>>),
+				RcRun<R, S, A>,
+			>,
+		) -> A
+		where
+			A: Clone,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			self.interpret(handlers)
+		}
+
+		/// Interprets this `RcRun` program with a state value threaded
+		/// through each handler invocation. See
+		/// [`Run::run_accum`](crate::types::effects::run::Run::run_accum)
+		/// for the state-threading model (closure captures, not a
+		/// separate trait).
+		#[document_signature]
+		///
+		#[document_type_parameters("The state type.")]
+		///
+		#[document_parameters(
+			"The handler list (typically built via the `handlers!` macro), with each closure capturing the state cell.",
+			"The initial state value (passed through to the user's state cell)."
+		)]
+		///
+		#[document_returns("The final result value of the program.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		handlers,
+		/// 		types::{
+		/// 			Identity,
+		/// 			effects::{
+		/// 				handlers::*,
+		/// 				rc_run::RcRun,
+		/// 			},
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::RefCell,
+		/// 		rc::Rc,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let counter: Rc<RefCell<i32>> = Rc::new(RefCell::new(0));
+		/// let counter_for_handler = Rc::clone(&counter);
+		///
+		/// let prog: RcRun<FirstRow, Scoped, i32> = RcRun::lift::<IdentityBrand, _>(Identity(7));
+		/// let result = prog.run_accum(
+		/// 	handlers! {
+		/// 		IdentityBrand: move |op: Identity<RcRun<FirstRow, Scoped, i32>>| {
+		/// 			*counter_for_handler.borrow_mut() += 1;
+		/// 			op.0
+		/// 		},
+		/// 	},
+		/// 	0_i32,
+		/// );
+		/// assert_eq!(result, 7);
+		/// assert_eq!(*counter.borrow(), 1);
+		/// ```
+		#[inline]
+		pub fn run_accum<St>(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RcRun<R, S, A>>),
+				RcRun<R, S, A>,
+			>,
+			init: St,
+		) -> A
+		where
+			A: Clone,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			let _ = init;
+			self.interpret(handlers)
 		}
 	}
 }

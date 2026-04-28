@@ -14,14 +14,91 @@ complete. Phase 2 complete: steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b,
 9h, 9i), 10a (POC test migration into
 `fp-library/tests/run_row_canonicalisation.rs`), and 10b
 (`poc-effect-row/` workspace deleted). Phase 3 in progress: step
-1 (`handlers!{...}` macro plus `nt()` builder fallback) landed.
+1 (`handlers!{...}` macro plus `nt()` builder fallback) and step
+2 (`interpret`/`run`/`run_accum` recursive-target interpreter
+family across all six Run wrappers) landed.
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
 
-**Phase 3 step 1 (this commit): `handlers!{...}` macro plus
+**Phase 3 step 2 (this commit): `interpret`/`run`/`run_accum`
+recursive-target interpreter family across all six Run wrappers.**
+New module
+[`fp-library/src/types/effects/interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
+hosts the `DispatchHandlers<'a, Layer, NextProgram>` trait that
+walks a [`HandlersCons`](../../../fp-library/src/types/effects/handlers.rs)
+in lock-step with the row's value-level
+[`Coproduct`](../../../fp-library/src/types/effects/coproduct.rs)
+chain. Three cons-cell impls cover one Coyoneda variant each
+(`Coyoneda` / `RcCoyoneda` / `ArcCoyoneda`); the empty case is
+`HandlersNil`/`CNil`. Each wrapper exposes inherent
+`interpret`/`run`/`run_accum` methods that loop on `peel`,
+dispatch each `Node::First` layer through `DispatchHandlers`,
+and panic on `Node::Scoped` (Phase 4 will route scoped
+dispatch).
+
+Per-wrapper deltas: ArcRun's loop pattern-matches `Node::First`
+through a free-function helper
+[`unwrap_first`](../../../fp-library/src/types/effects/arc_run.rs)
+to sidestep the same struct-level HRTB-poisoning that drove
+[`lift_node`](../../../fp-library/src/types/effects/arc_run.rs)
+in Phase 2 step 5; the other five wrappers pattern-match inline.
+RcRun / RcRunExplicit / ArcRun / ArcRunExplicit add the
+substrate-specific `Clone` / `Send + Sync` bounds matching their
+respective `peel` signatures. State threading in `run_accum` is
+via closure captures (`Rc<RefCell<S>>` for single-threaded
+substrates, `Arc<Mutex<S>>` for ArcRun / ArcRunExplicit), which
+matches PureScript Run's `runAccum :: ... -> Run r a -> m a`
+shape (state is internal to the loop; final result is `A` only).
+
+The handler closure's mono-in-`A` shape matches PureScript Run's
+actual runtime model
+([`Run.purs:184-217`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs#L178-L217)
+shows `interpret = run` aliasing). The handler closure receives
+the Coyoneda-lowered effect (`<EBrand as Kind>::Of<'_, NextProgram>`)
+and returns the next program. Users name the _inner_ effect
+brand (`IdentityBrand`, `StateBrand`, etc.) in the `handlers!`
+macro for all six wrappers, matching `effects!`'s sort key; the
+DispatchHandlers impls bind the inner brand and dispatch on the
+relevant Coyoneda value variant.
+
+Tests: 12 integration tests in
+[`fp-library/tests/run_interpret.rs`](../../../fp-library/tests/run_interpret.rs)
+covering single-effect interpretation, bind-chain interpretation,
+the `run` alias matching `interpret`, and `run_accum` with state
+threading via `Rc<RefCell<...>>` (single-threaded) or
+`Arc<Mutex<...>>` (Send + Sync). Per-wrapper doctests on each
+`interpret` / `run` / `run_accum` method exercise the
+canonical-row-and-handler combination. `just verify` clean: 2456
+unit tests + 12 integration tests + doctests on each method
+compile and pass.
+
+Plan.md Phase 6+ deferred-items section gains an entry for a
+future `interpret_nt`-style companion entry-point taking
+[`NaturalTransformation`](../../../fp-library/src/classes/natural_transformation.rs)
+directly (the existing rank-2 polymorphic trait used by
+[`Free::fold_free`](../../../fp-library/src/types/free.rs)),
+preserving the future-revisit context per the user's request.
+
+Per-step deviation entry in
+[deviations.md](deviations.md) Phase 3 step 2 records: the
+three-impl Coyoneda-variant traversal pattern; the mono-in-`A`
+step-function rationale; per-wrapper inherent-method layout;
+ArcRun's `unwrap_first` HRTB-poisoning workaround mirroring
+`lift_node`'s precedent; the `Scoped` arm panic gated by
+`#[expect(clippy::unreachable, ...)]` until Phase 4; state
+threading via closure captures vs a separate stateful trait;
+and the inner-brand handler-list key matching `effects!`'s
+sort.
+
+Step 3 (`interpret_rec` / `run_rec` / `run_accum_rec` MonadRec-target
+interpreter family) is the immediate next work; the
+`DispatchHandlers` trait reuses unchanged, only the loop body
+switches from host-stack recursion to `tail_rec_m` trampolining.
+
+**Phase 3 step 1: `handlers!{...}` macro plus
 `nt()` builder fallback for assembling natural transformations
 `VariantF<R> ~> M`.** New runtime carrier in
 [`fp-library/src/types/effects/handlers.rs`](../../../fp-library/src/types/effects/handlers.rs):
@@ -96,36 +173,6 @@ next work and will consume the handler-list shape this step
 ships. The interpreter trait will dispatch over `Run::peel` /
 `*Run::peel` results, recursing through the handler list in
 lock-step with the row's `Coproduct::Inl`/`Inr` branches.
-
-**Phase 2 step 10b: delete the `poc-effect-row/`
-workspace.** With 10a's regression baseline in place at
-[`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs)
-fully subsuming the POC's tests (21 directly migrated or
-covered, 4 documented as not-applicable to production, 1
-implicitly covered by `run_lift.rs`), the POC workspace's job is
-done. `git rm -r poc-effect-row/` removes 8 files (~97MB
-including the `target/` cache that wasn't tracked). The POC
-declared its own `[workspace]` block, so the outer cargo
-workspace was unaffected by its presence and is unaffected by
-its absence; `just verify` continues clean.
-
-Updates: `Other artefacts` section refreshed to remove the
-"unchanged from pre-implementation" line about poc-effect-row;
-the `Boundaries` section under "## Out of scope" had its
-poc-effect-row line removed. Historical references in step
-narratives, the research/survey sections, and the Phase 2 step
-text remain as past-tense documentation of where the migrated
-tests came from. The standalone planning doc
-[`docs/plans/effects/poc-effect-row-canonicalisation.md`](poc-effect-row-canonicalisation.md)
-is preserved as research-history; deletion of the workspace
-does not invalidate the findings it documents.
-
-**Phase 2 is now complete (all 10 steps landed)**. Phase 3
-(first-order effect handlers, interpreters, natural
-transformations: `handlers!{...}` macro, `interpret`/`run`/
-`runAccum`/`interpretRec`/`runRec`/`runAccumRec` family, smart
-constructors for `State`/`Reader`/`Except`/`Writer`/`Choose`,
-and `define_effect!` macro) is the next phase.
 
 **Phase 2 step 10a (`162ab1e`): row-canonicalisation regression
 baseline at
@@ -213,6 +260,15 @@ summary; resolved blockers are in
 
 Phase 2:
 
+- `fe4ad59` (step 10b): `poc-effect-row/` workspace deleted; the
+  POC's job is done after 10a migrated 21 of 25 tests to
+  [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs)
+  (4 documented as not-applicable; 1 implicitly covered). 8
+  files removed (~97MB including untracked `target/` cache).
+  The POC declared its own `[workspace]` block so the outer
+  cargo workspace was unaffected by its presence and absence.
+  Doc-link maintenance across four cross-referencing files;
+  Phase 2 ships complete with this commit.
 - `df99ff6` (step 9i): `SendRefPointed` lands on
   `ArcRunExplicitBrand` via inherent-method delegation; the rest
   of the SendRef cascade (`SendRefFunctor` /
@@ -1887,6 +1943,33 @@ outward to user surface.
   _Trigger:_ first handler (in the standard library or
   downstream) that needs inspect-without-consuming on an
   operation payload.
+- **`interpret_nt`-style entry-point taking [`NaturalTransformation`](../../../fp-library/src/classes/natural_transformation.rs)
+  directly.** Companion to the handler-list-driven
+  [`interpret`](../../../fp-library/src/types/effects/interpreter.rs)
+  shipped in Phase 3 step 2. The trait-based form lets users
+  bypass the per-effect closure pattern entirely, supplying a
+  rank-2-polymorphic struct impl
+  (`fn transform<A>(&self, fa: <RowBrand as Kind>::Of<'_, A>) -> <MBrand as Kind>::Of<'_, A>`)
+  as a single value; [`Free::fold_free`](../../../fp-library/src/types/free.rs)
+  already consumes the same trait, so the internal machinery
+  is largely shared. _What this is for:_ users whose
+  transformation genuinely doesn't depend on `A` (e.g., a
+  cross-row hoist, a logging shim that ignores the program's
+  result type, or programmatic composition of transformations
+  outside the per-effect handler pattern); the existing
+  closure-based path is mono-in-`A` per [decisions.md](decisions.md)
+  section 4.6's resolution and Phase 3 step 2's deviations
+  entry, so users who want true rank-2 polymorphism currently
+  have to reach for `Free::fold_free` directly with their own
+  loop. _Why deferred:_ the closure-based path covers the
+  common-case ergonomic surface, and shipping a parallel
+  `interpret_nt` per Run wrapper would have doubled Phase 3
+  step 2's interpreter surface (six wrappers x three methods x
+  two paths). _Trigger:_ first user request for an
+  A-polymorphic transformation that the closure path's
+  mono-in-`A` constraint blocks; or a benchmark / DX motivation
+  for offering trait-impl handlers as a first-class user-facing
+  alternative.
 - **`generalBracket` and `BracketConditions`.** Port the
   more general bracket from PureScript Aff at
   [`Aff.purs:364-373`](https://github.com/purescript-contrib/purescript-aff/blob/master/src/Effect/Aff.purs#L364-L373):

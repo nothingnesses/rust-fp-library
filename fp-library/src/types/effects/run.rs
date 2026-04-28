@@ -49,6 +49,7 @@ mod inner {
 				Coyoneda,
 				Free,
 				effects::{
+					interpreter::DispatchHandlers,
 					member::Member,
 					node::Node,
 				},
@@ -414,6 +415,247 @@ mod inner {
 					Idx,
 				>>::inject(coyo);
 			Self::send(Node::First(layer))
+		}
+
+		/// Interprets this `Run` program by walking each effect via the
+		/// matching handler closure in `handlers`, looping until the
+		/// program reduces to a [`Pure`](crate::types::Free) value.
+		///
+		/// `handlers` is a handler list (typically built via the
+		/// [`handlers!`](https://docs.rs/fp-macros/latest/fp_macros/macro.handlers.html)
+		/// macro or the
+		/// [`nt()`](crate::types::effects::handlers::nt) builder
+		/// fallback) whose cells align cell-for-cell with the row
+		/// brand chain `R`. Each cell carries a closure
+		/// [`Handler<EBrand, F>`](crate::types::effects::handlers::Handler)
+		/// of shape `FnMut(<EBrand as Kind>::Of<'_, Run<R, CNilBrand, A>>) -> Run<R, CNilBrand, A>`,
+		/// taking the lowered [`Coyoneda`](crate::types::Coyoneda)
+		/// payload and returning the next-step program in the same
+		/// row.
+		///
+		/// Mirrors PureScript Run's
+		/// [`interpret`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
+		/// (which is itself a literal alias for
+		/// [`run`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)).
+		/// Per [Phase 3 step 2 deviations](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/deviations.md),
+		/// the Rust port adopts the mono-in-`A` step-function shape so
+		/// handler closures don't need rank-2 polymorphism (which Rust
+		/// closures can't express). The scoped row `S` is fixed at
+		/// [`CNilBrand`](crate::brands::CNilBrand) for Phase 3; Phase 4
+		/// extends this to dispatch over scoped effects too.
+		///
+		/// ## Stack safety
+		///
+		/// This method recurses host-stack-frame per peeled layer.
+		/// Phase 3 step 3 ships
+		/// [`interpret_rec`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
+		/// (and siblings) for stack-safe interpretation via `MonadRec`.
+		#[document_signature]
+		///
+		#[document_parameters("The handler list (typically built via the `handlers!` macro).")]
+		///
+		#[document_returns("The final result value of the program.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			handlers::*,
+		/// 			run::Run,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// // Lift an Identity effect, then interpret it: the handler
+		/// // unwraps the `Identity` and returns a pure program.
+		/// let prog: Run<FirstRow, Scoped, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
+		/// let result = prog.interpret(handlers! {
+		/// 	IdentityBrand: |op: Identity<Run<FirstRow, Scoped, i32>>| op.0,
+		/// });
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them. Reaching the Scoped arm would indicate a wrapper-API logic error rather than user error, so the descriptive panic is appropriate until Phase 4 lands."
+		)]
+		pub fn interpret(
+			self,
+			mut handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Run<R, S, A>>),
+				Run<R, S, A>,
+			>,
+		) -> A
+		where
+			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static, {
+			let mut prog = self;
+			loop {
+				match prog.peel() {
+					Ok(a) => return a,
+					Err(Node::First(layer)) => prog = handlers.dispatch(layer),
+					Err(Node::Scoped(_)) => {
+						unreachable!(
+							"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
+						)
+					}
+				}
+			}
+		}
+
+		/// Alias for [`interpret`](Run::interpret), kept for naming
+		/// parity with PureScript Run's
+		/// [`run`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs).
+		///
+		/// In PureScript Run,
+		/// `interpret :: (VariantF r ~> m) -> Run r a -> m a` carries
+		/// a rank-2 natural-transformation signature while
+		/// `run :: (VariantF r (Run r a) -> m (Run r a)) -> Run r a -> m a`
+		/// carries the mono-in-`a` step-function form. The two
+		/// implementations are literally aliased
+		/// (`interpret = run` at
+		/// [`Run.purs:184`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)).
+		/// The Rust port has only the mono-in-`a` form (closures
+		/// cannot be A-polymorphic); both names are exposed for
+		/// PureScript-cross-reference convenience.
+		#[document_signature]
+		///
+		#[document_parameters("The handler list.")]
+		///
+		#[document_returns("The final result value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			handlers::*,
+		/// 			run::Run,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: Run<FirstRow, Scoped, i32> = Run::lift::<IdentityBrand, _>(Identity(99));
+		/// let result = prog.run(handlers! {
+		/// 	IdentityBrand: |op: Identity<Run<FirstRow, Scoped, i32>>| op.0,
+		/// });
+		/// assert_eq!(result, 99);
+		/// ```
+		#[inline]
+		pub fn run(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Run<R, S, A>>),
+				Run<R, S, A>,
+			>,
+		) -> A
+		where
+			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static, {
+			self.interpret(handlers)
+		}
+
+		/// Interprets this `Run` program with a state value threaded
+		/// through each handler invocation, mirroring PureScript Run's
+		/// [`runAccum`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs).
+		///
+		/// `init` is the initial state value. Each handler receives
+		/// the current state by mutable reference inside the closures
+		/// that compose `handlers`; users mutate the state in-place to
+		/// thread updates between effect dispatches. The final state is
+		/// discarded, matching PureScript Run's
+		/// `runAccum :: ... -> Run r a -> m a` shape (state is internal
+		/// to the loop).
+		///
+		/// Per the Phase 3 step 2 deviations entry, state threading in
+		/// the Rust port is via closure captures (a mutable
+		/// [`Rc`](std::rc::Rc) /
+		/// [`RefCell`](std::cell::RefCell) or plain `&mut` borrowed
+		/// across the handler-list closures) rather than a separate
+		/// stateful trait, which would have doubled the trait
+		/// machinery. The `init` parameter exists for API parity and
+		/// is moved into the user's choice of state cell at the call
+		/// site.
+		#[document_signature]
+		///
+		#[document_type_parameters("The state type.")]
+		///
+		#[document_parameters(
+			"The handler list (typically built via the `handlers!` macro), with each closure capturing the state cell.",
+			"The initial state value (passed through to the user's state cell)."
+		)]
+		///
+		#[document_returns("The final result value of the program.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		handlers,
+		/// 		types::{
+		/// 			Identity,
+		/// 			effects::{
+		/// 				handlers::*,
+		/// 				run::Run,
+		/// 			},
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::RefCell,
+		/// 		rc::Rc,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let counter: Rc<RefCell<i32>> = Rc::new(RefCell::new(0));
+		/// let counter_for_handler = Rc::clone(&counter);
+		///
+		/// let prog: Run<FirstRow, Scoped, i32> = Run::lift::<IdentityBrand, _>(Identity(7));
+		/// let result = prog.run_accum(
+		/// 	handlers! {
+		/// 		IdentityBrand: move |op: Identity<Run<FirstRow, Scoped, i32>>| {
+		/// 			*counter_for_handler.borrow_mut() += 1;
+		/// 			op.0
+		/// 		},
+		/// 	},
+		/// 	0_i32,
+		/// );
+		/// assert_eq!(result, 7);
+		/// assert_eq!(*counter.borrow(), 1);
+		/// ```
+		#[inline]
+		pub fn run_accum<St>(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Run<R, S, A>>),
+				Run<R, S, A>,
+			>,
+			init: St,
+		) -> A
+		where
+			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static, {
+			let _ = init;
+			self.interpret(handlers)
 		}
 	}
 }

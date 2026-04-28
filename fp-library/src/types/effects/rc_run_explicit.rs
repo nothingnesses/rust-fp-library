@@ -66,6 +66,7 @@ mod inner {
 				RcFree,
 				RcFreeExplicit,
 				effects::{
+					interpreter::DispatchHandlers,
 					member::Member,
 					node::Node,
 					rc_run::RcRun,
@@ -685,6 +686,200 @@ mod inner {
 		where
 			A: Clone, {
 			RcRunExplicit::pure(a.clone())
+		}
+
+		/// Interprets this `RcRunExplicit` program by walking each
+		/// effect via the matching handler closure in `handlers`.
+		/// Multi-shot, lifetime-flexible variant of
+		/// [`Run::interpret`](crate::types::effects::run::Run::interpret).
+		#[document_signature]
+		///
+		#[document_parameters("The handler list (typically built via the `handlers!` macro).")]
+		///
+		#[document_returns("The final result value of the program.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			handlers::*,
+		/// 			rc_run_explicit::RcRunExplicit,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, i32> =
+		/// 	RcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// let result = prog.interpret(handlers! {
+		/// 	IdentityBrand: |op: Identity<RcRunExplicit<'static, FirstRow, Scoped, i32>>| op.0,
+		/// });
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them."
+		)]
+		pub fn interpret(
+			self,
+			mut handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RcRunExplicit<'a, R, S, A>>),
+				RcRunExplicit<'a, R, S, A>,
+			>,
+		) -> A
+		where
+			A: Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone, {
+			let mut prog = self;
+			loop {
+				match prog.peel() {
+					Ok(a) => return a,
+					Err(Node::First(layer)) => prog = handlers.dispatch(layer),
+					Err(Node::Scoped(_)) => {
+						unreachable!(
+							"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
+						)
+					}
+				}
+			}
+		}
+
+		/// Alias for [`interpret`](RcRunExplicit::interpret), kept for
+		/// PureScript Run naming parity.
+		#[document_signature]
+		///
+		#[document_parameters("The handler list.")]
+		///
+		#[document_returns("The final result value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			handlers::*,
+		/// 			rc_run_explicit::RcRunExplicit,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, i32> =
+		/// 	RcRunExplicit::lift::<IdentityBrand, _>(Identity(99));
+		/// let result = prog.run(handlers! {
+		/// 	IdentityBrand: |op: Identity<RcRunExplicit<'static, FirstRow, Scoped, i32>>| op.0,
+		/// });
+		/// assert_eq!(result, 99);
+		/// ```
+		#[inline]
+		pub fn run(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RcRunExplicit<'a, R, S, A>>),
+				RcRunExplicit<'a, R, S, A>,
+			>,
+		) -> A
+		where
+			A: Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone, {
+			self.interpret(handlers)
+		}
+
+		/// Interprets this `RcRunExplicit` program with a state value
+		/// threaded through each handler invocation. See
+		/// [`Run::run_accum`](crate::types::effects::run::Run::run_accum).
+		#[document_signature]
+		///
+		#[document_type_parameters("The state type.")]
+		///
+		#[document_parameters(
+			"The handler list (typically built via the `handlers!` macro), with each closure capturing the state cell.",
+			"The initial state value."
+		)]
+		///
+		#[document_returns("The final result value of the program.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		handlers,
+		/// 		types::{
+		/// 			Identity,
+		/// 			effects::{
+		/// 				handlers::*,
+		/// 				rc_run_explicit::RcRunExplicit,
+		/// 			},
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::RefCell,
+		/// 		rc::Rc,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let counter: Rc<RefCell<i32>> = Rc::new(RefCell::new(0));
+		/// let counter_for_handler = Rc::clone(&counter);
+		///
+		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, i32> =
+		/// 	RcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
+		/// let result = prog.run_accum(
+		/// 	handlers! {
+		/// 		IdentityBrand: move |op: Identity<RcRunExplicit<'static, FirstRow, Scoped, i32>>| {
+		/// 			*counter_for_handler.borrow_mut() += 1;
+		/// 			op.0
+		/// 		},
+		/// 	},
+		/// 	0_i32,
+		/// );
+		/// assert_eq!(result, 7);
+		/// assert_eq!(*counter.borrow(), 1);
+		/// ```
+		#[inline]
+		pub fn run_accum<St>(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RcRunExplicit<'a, R, S, A>>),
+				RcRunExplicit<'a, R, S, A>,
+			>,
+			init: St,
+		) -> A
+		where
+			A: Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone, {
+			let _ = init;
+			self.interpret(handlers)
 		}
 	}
 

@@ -42,6 +42,7 @@ mod inner {
 				ArcFree,
 				arc_free::ArcTypeErasedValue,
 				effects::{
+					interpreter::DispatchHandlers,
 					member::Member,
 					node::Node,
 				},
@@ -608,6 +609,215 @@ mod inner {
 			A: Clone + Send + Sync, {
 			ArcRun::pure(a.clone())
 		}
+
+		/// Interprets this `ArcRun` program by walking each effect via
+		/// the matching handler closure in `handlers`, looping until
+		/// the program reduces to a [`Pure`](crate::types::ArcFree)
+		/// value.
+		///
+		/// Thread-safe variant of [`Run::interpret`](crate::types::effects::run::Run::interpret).
+		/// Each [`peel`](ArcRun::peel) requires `A: Clone + Send +
+		/// Sync` and `ArcFree`-projection `Clone`. Per the Phase 2
+		/// step 5 HRTB-poisoning resolution, the handler list itself
+		/// is constructed outside this method's scope (typically
+		/// outside the impl block) and passed in.
+		#[document_signature]
+		///
+		#[document_parameters("The handler list (typically built via the `handlers!` macro).")]
+		///
+		#[document_returns("The final result value of the program.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			arc_run::ArcRun,
+		/// 			handlers::*,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(42));
+		/// let result = prog.interpret(handlers! {
+		/// 	IdentityBrand: |op: Identity<ArcRun<FirstRow, Scoped, i32>>| op.0,
+		/// });
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		pub fn interpret(
+			self,
+			mut handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, S, A>>),
+				ArcRun<R, S, A>,
+			>,
+		) -> A
+		where
+			R: Kind_cdc7cd43dac7585f + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			A: Clone + Send + Sync,
+			NodeBrand<R, S>: SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone, {
+			let mut prog = self;
+			loop {
+				match prog.peel() {
+					Ok(a) => return a,
+					Err(node) => {
+						let layer = unwrap_first::<R, S, ArcRun<R, S, A>>(node);
+						prog = handlers.dispatch(layer);
+					}
+				}
+			}
+		}
+
+		/// Alias for [`interpret`](ArcRun::interpret), kept for naming
+		/// parity with PureScript Run's
+		/// [`run`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs).
+		#[document_signature]
+		///
+		#[document_parameters("The handler list.")]
+		///
+		#[document_returns("The final result value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			arc_run::ArcRun,
+		/// 			handlers::*,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(99));
+		/// let result = prog.run(handlers! {
+		/// 	IdentityBrand: |op: Identity<ArcRun<FirstRow, Scoped, i32>>| op.0,
+		/// });
+		/// assert_eq!(result, 99);
+		/// ```
+		#[inline]
+		pub fn run(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, S, A>>),
+				ArcRun<R, S, A>,
+			>,
+		) -> A
+		where
+			R: Kind_cdc7cd43dac7585f + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			A: Clone + Send + Sync,
+			NodeBrand<R, S>: SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone, {
+			self.interpret(handlers)
+		}
+
+		/// Interprets this `ArcRun` program with a state value
+		/// threaded through each handler invocation. See
+		/// [`Run::run_accum`](crate::types::effects::run::Run::run_accum).
+		///
+		/// State threading uses thread-safe primitives (e.g.,
+		/// [`Arc`](std::sync::Arc) /
+		/// [`Mutex`](std::sync::Mutex) or
+		/// [`RwLock`](std::sync::RwLock)) at the user level so the
+		/// captured state cell satisfies `ArcRun`'s `Send + Sync`
+		/// substrate.
+		#[document_signature]
+		///
+		#[document_type_parameters("The state type.")]
+		///
+		#[document_parameters(
+			"The handler list (typically built via the `handlers!` macro), with each closure capturing the state cell.",
+			"The initial state value."
+		)]
+		///
+		#[document_returns("The final result value of the program.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		handlers,
+		/// 		types::{
+		/// 			Identity,
+		/// 			effects::{
+		/// 				arc_run::ArcRun,
+		/// 				handlers::*,
+		/// 			},
+		/// 		},
+		/// 	},
+		/// 	std::sync::{
+		/// 		Arc,
+		/// 		Mutex,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let counter: Arc<Mutex<i32>> = Arc::new(Mutex::new(0));
+		/// let counter_for_handler = Arc::clone(&counter);
+		///
+		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(7));
+		/// let result = prog.run_accum(
+		/// 	handlers! {
+		/// 		IdentityBrand: move |op: Identity<ArcRun<FirstRow, Scoped, i32>>| {
+		/// 			*counter_for_handler.lock().unwrap() += 1;
+		/// 			op.0
+		/// 		},
+		/// 	},
+		/// 	0_i32,
+		/// );
+		/// assert_eq!(result, 7);
+		/// assert_eq!(*counter.lock().unwrap(), 1);
+		/// ```
+		#[inline]
+		pub fn run_accum<St>(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, S, A>>),
+				ArcRun<R, S, A>,
+			>,
+			init: St,
+		) -> A
+		where
+			R: Kind_cdc7cd43dac7585f + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			A: Clone + Send + Sync,
+			NodeBrand<R, S>: SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone, {
+			let _ = init;
+			self.interpret(handlers)
+		}
 	}
 
 	/// HRTB-poisoning workaround for [`ArcRun::lift`]. The body of
@@ -690,6 +900,82 @@ mod inner {
 			Idx,
 		>>::inject(coyo);
 		Node::First(layer)
+	}
+
+	/// HRTB-poisoning workaround for [`ArcRun::interpret`]. Pattern
+	/// matching `Node::First(...)` / `Node::Scoped(...)` inside an
+	/// `ArcRun`-impl-block scope fails GAT normalization symmetrically
+	/// to [`lift_node`]'s construction case (the struct-level HRTB on
+	/// `<NodeBrand<R, S> as Kind>::Of<'static, ArcFree<...>>: Send +
+	/// Sync` poisons the projection equality declared by
+	/// [`impl_kind!`](crate::impl_kind)). This free function performs
+	/// the variant match outside the HRTB scope so the equality
+	/// normalizes; the caller (typically [`ArcRun::interpret`]) hands
+	/// the [`Node`]-projection value here and receives the matched
+	/// `First`-payload back, with the `Scoped` arm rejected via
+	/// [`unreachable!`] (Phase 3 first-order interpretation does not
+	/// route scoped layers; Phase 4 will).
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The result type of the program."
+	)]
+	///
+	#[document_parameters(
+		"The Node-projection value (typically [`ArcRun::peel`]'s `Err` payload)."
+	)]
+	///
+	#[document_returns("The first-order layer payload, ready for handler dispatch.")]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	types::{
+	/// 		Identity,
+	/// 		effects::{
+	/// 			arc_run::{
+	/// 				lift_node,
+	/// 				unwrap_first,
+	/// 			},
+	/// 			coproduct::Coproduct,
+	/// 		},
+	/// 	},
+	/// };
+	///
+	/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+	/// type Scoped = CNilBrand;
+	///
+	/// let node = lift_node::<FirstRow, Scoped, IdentityBrand, _, i32>(Identity(42));
+	/// let layer = unwrap_first::<FirstRow, Scoped, i32>(node);
+	/// match layer {
+	/// 	Coproduct::Inl(_) => assert!(true),
+	/// 	Coproduct::Inr(_) => panic!("expected head Inl"),
+	/// }
+	/// ```
+	#[doc(hidden)]
+	#[expect(
+		clippy::unreachable,
+		reason = "Phase 3 first-order interpreter does not handle scoped layers; the helper is only reachable from interpret loops that route Node::First, so the Scoped arm is genuinely unreachable until Phase 4."
+	)]
+	pub fn unwrap_first<R, S, A>(
+		node: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+	) -> Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+	where
+		R: Kind_cdc7cd43dac7585f + 'static,
+		S: Kind_cdc7cd43dac7585f + 'static,
+		A: 'static, {
+		match node {
+			Node::First(layer) => layer,
+			Node::Scoped(_) => {
+				unreachable!(
+					"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
+				)
+			}
+		}
 	}
 }
 

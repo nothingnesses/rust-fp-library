@@ -45,11 +45,15 @@
 //!   the [`HandlersNil`] / [`HandlersCons<H, T>`](HandlersCons)
 //!   cons-list runtime carrier for the `handlers!` macro and
 //!   `nt().on::<E, _>(...)` builder fallback (Phase 3 step 1).
+//! - `interpreter`: [`DispatchHandlers`] trait that walks a handler
+//!   list against a row's value-level `Coproduct` chain, dispatching
+//!   each variant to the matching handler closure (Phase 3 step 2).
 
 pub mod arc_run;
 pub mod arc_run_explicit;
 pub mod coproduct;
 pub mod handlers;
+pub mod interpreter;
 pub mod member;
 pub mod node;
 pub mod rc_run;
@@ -67,6 +71,7 @@ pub use {
 		HandlersNil,
 		nt,
 	},
+	interpreter::DispatchHandlers,
 	node::Node,
 	rc_run::RcRun,
 	rc_run_explicit::RcRunExplicit,
