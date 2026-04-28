@@ -1690,3 +1690,153 @@ Documentation maintained:
 Phase 2 is now complete (all 10 steps landed). Phase 3
 (first-order effect handlers, interpreters, natural
 transformations) is the next phase.
+
+## Phase 3: First-order effect handlers, interpreters, natural transformations
+
+### Step 1: `handlers!{...}` macro plus `nt()` builder fallback
+
+Plan text says only:
+
+> `handlers!{...}` macro in `fp-macros/src/effects/handlers.rs`
+> producing tuple-of-closures keyed on the row's type-level
+> structure. Builder fallback (`nt().on::<E>(handler)...`) as the
+> non-macro path ([decisions.md](decisions.md) section 4.6).
+
+The runtime carrier shape for the "tuple-of-closures keyed on the
+row's type-level structure" was unspecified. Implementation
+choices made (recorded here so step 2's interpreter consumes a
+known shape):
+
+- **Runtime carrier is a dedicated cons-list,
+  `HandlersNil` / `HandlersCons<H, T>`, in
+  [`fp-library/src/types/effects/handlers.rs`](../../../fp-library/src/types/effects/handlers.rs)**,
+  with each handler wrapped in a `Handler<E, F>` newtype that pins
+  the brand identity at the type level via
+  `PhantomData<fn() -> E>`. The cell shape mirrors the row brand
+  chain `CoproductBrand<H, T>` / `CNilBrand` cell-for-cell so the
+  Phase 3 step 2 interpreter can recurse through both lists in
+  lock-step (handler `head` matches row brand head; handler `tail`
+  recurses into row brand tail). Closure type `F` stays fully
+  generic; step 2 will pin the concrete shape via an interpreter
+  trait bound.
+- **Distinct types from `frunk_core`'s `HCons`/`HNil`.** The
+  coproduct adapter
+  ([`fp-library/src/types/effects/coproduct.rs`](../../../fp-library/src/types/effects/coproduct.rs))
+  already re-exports `frunk_core::hlist::{HCons, HNil}` for the
+  row-encoding indexing machinery (`Here` / `There`,
+  `CoprodInjector`, etc.). Reusing the same types for the handler
+  carrier would conflate two distinct roles (type-level position
+  proofs vs runtime closure carriers) and prevent inherent-method
+  dispatch on the handler-list types (the `.on()` builder method
+  needs to live on the list types directly, which can't be done on
+  foreign types without an extension trait dance). Rolling our own
+  `HandlersNil`/`HandlersCons` keeps the intent visible at call
+  sites and lets `.on()` be inherent.
+- **Builder uses prepend semantics; macro sorts.** `nt()` returns
+  `HandlersNil`; `.on::<EBrand, F>(self, handler)` on either
+  `HandlersNil` or `HandlersCons<H, T>` returns a new
+  `HandlersCons<Handler<E, F>, Self>` (i.e., the new handler is at
+  the head). Chained `.on()` calls therefore produce a list whose
+  head is the most-recently-added handler. Users wanting builder
+  output to match the macro's lexical-canonical order call
+  `.on()` in reverse-lexical order. Documented under the
+  module-level "Builder ordering" section in
+  [`handlers.rs`](../../../fp-library/src/types/effects/handlers.rs)
+  and in the `handlers!` macro doc-comment in
+  [`fp-macros/src/lib.rs`](../../../fp-macros/src/lib.rs). The
+  macro takes the user-provided list, sorts entries lexically by
+  `quote!(brand).to_string()` (matching `effects!`'s sort key
+  exactly via the same `quote::quote` stringification), and emits
+  the cons chain in canonical order so the macro and builder paths
+  produce structurally-identical values when fed equivalent
+  inputs.
+- **Macro-side worker lives at
+  [`fp-macros/src/effects/handlers.rs`](../../../fp-macros/src/effects/handlers.rs)
+  next to
+  [`effects_macro.rs`](../../../fp-macros/src/effects/effects_macro.rs)**
+  and follows the same shape: a `*_worker` function returning
+  `syn::Result<TokenStream>`, plus a thin `#[proc_macro] pub fn
+handlers` entry-point in
+  [`fp-macros/src/lib.rs`](../../../fp-macros/src/lib.rs). The
+  shared lexical-sort helper in
+  [`row_sort.rs`](../../../fp-macros/src/effects/row_sort.rs) is
+  not reused: `row_sort.rs`'s `parse_and_sort_types` parses
+  `Punctuated<Type, Token![,]>`, but `handlers!` parses
+  `Punctuated<HandlerEntry, Token![,]>` where each `HandlerEntry`
+  is `Type: Expr`. Inlining the small parse-then-sort-by-stringified-brand
+  loop is cheaper than refactoring `row_sort` into a generic
+  helper that takes both a parser and a key-extractor. If a future
+  macro (e.g., `scoped_effects!` or its handler-side analog) ends
+  up needing the same key-extraction shape, the helper can be
+  generalised then; one duplicate sort loop is below the threshold
+  that justifies the abstraction now.
+- **`Handler<E, F>` uses `PhantomData<fn() -> E>` rather than
+  `PhantomData<E>`.** The `fn() -> E` form keeps `Handler<E, F>`
+  free of variance and `Send`/`Sync` concerns inherited from `E`
+  itself, which matters because `E` is a row brand (typically a
+  zero-sized marker type) used purely as a type-level tag. The
+  variance-free form is the standard "phantom for tagging" idiom
+  in Rust ecosystem code (e.g., `std::marker::PhantomPinned` ships
+  this exact shape).
+- **Re-export pattern.** Per the optics A+B hybrid (decisions.md
+  section 4.4 resolution), the handler types are re-exported at
+  the subsystem-scope `crate::types::effects::*`
+  (`Handler` / `HandlersCons` / `HandlersNil` / `nt`) but not
+  promoted to the top-level `crate::types::*`. The Run wrappers
+  hold the headline-types tier; the handler-list machinery is a
+  supporting detail of the effects subsystem.
+- **No re-export of `handlers!` through
+  `fp_library::__internal`.** Unlike `raw_effects!` (which is
+  internal-only and re-exported through `__internal` so the call
+  site signals "fp-library-internal use"), `handlers!` is
+  user-facing and re-exported through the standard
+  `pub use fp_macros::*` path in
+  [`fp-library/src/lib.rs`](../../../fp-library/src/lib.rs). The
+  builder fallback is also user-facing (no `__internal`
+  marker).
+
+What landed in this commit:
+
+- New file: [`fp-library/src/types/effects/handlers.rs`](../../../fp-library/src/types/effects/handlers.rs)
+  with `Handler<E, F>` newtype, `HandlersNil`, `HandlersCons<H,
+T>`, the `.on::<E, F>(...)` inherent builder methods on both
+  list types, the `nt()` entry-point function, and 6 inline unit
+  tests covering builder semantics and struct-literal
+  construction.
+- New file: [`fp-macros/src/effects/handlers.rs`](../../../fp-macros/src/effects/handlers.rs)
+  with the `HandlerEntry` parser, the `handlers_worker` function,
+  and 6 token-string assertion tests covering empty input, single
+  entry, two-entry canonical-ordering equivalence, lexical-sort
+  head ordering, generic brand parameters, and trailing-comma
+  acceptance.
+- New file: [`fp-library/tests/handlers_macro.rs`](../../../fp-library/tests/handlers_macro.rs)
+  with 10 integration tests exercising the macro and builder
+  end-to-end (canonical-shape equivalence between macro and
+  builder for aligned input, handler-closure invocation through
+  the head/tail chain, three-entry sort, brand pinning,
+  trailing-comma acceptance, builder prepend semantics).
+- Wiring: `pub mod handlers;` added to
+  [`fp-macros/src/effects.rs`](../../../fp-macros/src/effects.rs);
+  `handlers::handlers_worker` import and `#[proc_macro] pub fn
+handlers(...)` entry-point added to
+  [`fp-macros/src/lib.rs`](../../../fp-macros/src/lib.rs);
+  `pub mod handlers;` plus
+  `pub use handlers::{Handler, HandlersCons, HandlersNil, nt}`
+  added to
+  [`fp-library/src/types/effects.rs`](../../../fp-library/src/types/effects.rs).
+
+Verification: `just verify` clean (fmt, check, clippy with
+`-D warnings`, deny, doc, test). 2437 unit tests pass; 10
+integration tests added; 6 worker tests added.
+
+Open follow-ups for step 2:
+
+- The interpreter trait will pin the closure shape `F` per
+  effect (e.g., a closure of shape
+  `FnMut(Coyoneda<E, X>) -> ...interpreter target...`). Step 1
+  cannot pin `F` because the interpreter target type isn't
+  decided yet (step 2's `interpret`/`run`/`runAccum` family will
+  determine it).
+- Negative-case `compile_fail` UI tests (handler missing for an
+  effect, wrong type ascription, etc.) ship in step 6, not step
+  1, per the plan's step partition.

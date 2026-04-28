@@ -41,10 +41,15 @@
 //! - [`arc_run_explicit`]: [`ArcRunExplicit<'a, R, S, A>`](arc_run_explicit::ArcRunExplicit),
 //!   the `Send + Sync` Explicit sibling over
 //!   [`ArcFreeExplicit`](crate::types::ArcFreeExplicit).
+//! - [`handlers`]: [`Handler<E, F>`](handlers::Handler) newtype plus
+//!   the [`HandlersNil`] / [`HandlersCons<H, T>`](HandlersCons)
+//!   cons-list runtime carrier for the `handlers!` macro and
+//!   `nt().on::<E, _>(...)` builder fallback (Phase 3 step 1).
 
 pub mod arc_run;
 pub mod arc_run_explicit;
 pub mod coproduct;
+pub mod handlers;
 pub mod member;
 pub mod node;
 pub mod rc_run;
@@ -56,6 +61,12 @@ pub mod variant_f;
 pub use {
 	arc_run::ArcRun,
 	arc_run_explicit::ArcRunExplicit,
+	handlers::{
+		Handler,
+		HandlersCons,
+		HandlersNil,
+		nt,
+	},
 	node::Node,
 	rc_run::RcRun,
 	rc_run_explicit::RcRunExplicit,

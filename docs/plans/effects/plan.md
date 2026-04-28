@@ -13,14 +13,91 @@ complete. Phase 2 complete: steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b,
 7c.1, 7c.2a, 7c.2b, 8, 9 (all sub-steps 9a, 9b+9e, 9c+9f, 9d+9g,
 9h, 9i), 10a (POC test migration into
 `fp-library/tests/run_row_canonicalisation.rs`), and 10b
-(`poc-effect-row/` workspace deleted). Phase 3 is next.
+(`poc-effect-row/` workspace deleted). Phase 3 in progress: step
+1 (`handlers!{...}` macro plus `nt()` builder fallback) landed.
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
 
-**Phase 2 step 10b (this commit): delete the `poc-effect-row/`
+**Phase 3 step 1 (this commit): `handlers!{...}` macro plus
+`nt()` builder fallback for assembling natural transformations
+`VariantF<R> ~> M`.** New runtime carrier in
+[`fp-library/src/types/effects/handlers.rs`](../../../fp-library/src/types/effects/handlers.rs):
+`Handler<E, F>` newtype (pins brand identity at the type level
+via `PhantomData<fn() -> E>`); `HandlersNil` / `HandlersCons<H,
+T>` cons-list types whose cells mirror the row brand
+`CoproductBrand<H, T>` / `CNilBrand` chain cell-for-cell;
+inherent `.on::<E, F>(self, handler)` builder methods on both
+list types using prepend semantics; `nt()` entry-point.
+
+New macro at
+[`fp-macros/src/effects/handlers.rs`](../../../fp-macros/src/effects/handlers.rs)
+with `#[proc_macro] pub fn handlers` entry-point in
+[`fp-macros/src/lib.rs`](../../../fp-macros/src/lib.rs). Parses
+`Brand: expression, Brand: expression, ...` syntax (brand parses
+as `syn::Type`, expression as `syn::Expr` so closure literals,
+function references, and pre-built handler values all work),
+sorts entries lexically by `quote!(brand).to_string()` (matching
+[`effects!`](../../../fp-macros/src/effects/effects_macro.rs)'s
+sort key exactly), and emits a right-nested `HandlersCons` chain
+terminated in `HandlersNil`. Each entry's expression is wrapped
+in `Handler::<Brand, _>::new(...)`. Empty input emits just
+`HandlersNil`.
+
+Re-export pattern: per the optics A+B hybrid, the handler types
+ship at the subsystem-scope `crate::types::effects::*`
+(`Handler`, `HandlersCons`, `HandlersNil`, `nt`) but not at the
+top-level `crate::types::*`; the Run wrappers hold the
+headline-types tier. The `handlers!` macro re-exports through
+the standard `pub use fp_macros::*` path and is user-facing (no
+`__internal` marker).
+
+The closure shape `F` carried inside each `Handler<E, F>` is left
+fully generic. Phase 3 step 2's interpreter family
+(`interpret`/`run`/`runAccum`) will pin the concrete shape
+via an interpreter-side trait bound.
+
+Tests: 10 integration tests in
+[`fp-library/tests/handlers_macro.rs`](../../../fp-library/tests/handlers_macro.rs)
+covering empty input, single-entry shape, two- and three-entry
+canonical-ordering equivalence (input order does not affect the
+emitted type), trailing-comma acceptance, brand-pinning in the
+emitted `Handler<Brand, _>` shape, the `nt()` builder's
+prepend-semantics property, and macro/builder shape-equivalence
+when the builder is called in reverse-lexical order. 6
+token-string assertion tests in
+[`fp-macros/src/effects/handlers.rs`](../../../fp-macros/src/effects/handlers.rs)
+cover the worker function directly. 6 inline unit tests in the
+runtime-carrier module exercise the builder methods and
+struct-literal construction. `just verify` clean (2437 unit
+tests; 10 new integration tests; 6 worker-token tests).
+
+Per-step deviation entry in
+[deviations.md](deviations.md) Phase 3 step 1 records: (1) the
+runtime-carrier shape choice (dedicated `HandlersNil`/`HandlersCons`
+distinct from `frunk_core::hlist::{HCons, HNil}` to keep the
+type-level position vs runtime closure carrier roles separate
+and to enable inherent `.on()` methods); (2) prepend semantics
+on the builder, with macro lexical sorting handling alignment
+to canonical row order; (3) the macro lives next to
+[`effects_macro.rs`](../../../fp-macros/src/effects/effects_macro.rs)
+but does not reuse the
+[`row_sort.rs`](../../../fp-macros/src/effects/row_sort.rs)
+helper because the parser shapes differ
+(`Punctuated<Type, ...>` vs `Punctuated<HandlerEntry, ...>`);
+(4) `Handler<E, F>` uses `PhantomData<fn() -> E>` for variance
+neutrality; (5) re-export at subsystem scope only; (6) no
+`__internal` re-export.
+
+Step 2 (`interpret`/`run`/`runAccum` family) is the immediate
+next work and will consume the handler-list shape this step
+ships. The interpreter trait will dispatch over `Run::peel` /
+`*Run::peel` results, recursing through the handler list in
+lock-step with the row's `Coproduct::Inl`/`Inr` branches.
+
+**Phase 2 step 10b: delete the `poc-effect-row/`
 workspace.** With 10a's regression baseline in place at
 [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs)
 fully subsuming the POC's tests (21 directly migrated or
@@ -126,51 +203,6 @@ because it is destructive. The POC workspace is detached
 outer cargo workspace, so the deletion is safe but
 irreversible.
 
-**Phase 2 step 9i (`df99ff6`): `SendRefPointed` lands on
-`ArcRunExplicitBrand` via inherent-method delegation; the rest of
-the SendRef cascade is documented as blocked by the same
-HRTB-over-types limit.** The plan's reference shape predicted
-that `SendRefFunctor`, `SendRefSemimonad`, etc. would all land
-via inherent-method delegation (delegate to the wrapper's
-`ref_map` / `ref_bind`). Two probes confirmed only `SendRefPointed`
-admits delegation: its trait signature carries `A: Clone + Send +
-Sync` (matching `ArcRunExplicit::ref_pure`'s bounds) and takes no
-closure (so the closure-bound mismatch that blocks
-`SendRefFunctor` does not apply).
-
-`SendRefFunctor::send_ref_map`'s closure is `Fn(&A) -> B + Send +
-'a` (only `Send`), but `ArcRunExplicit::ref_map` requires `Send +
-Sync` (the substrate stores closures in `Arc<dyn Fn + Send +
-Sync>`). Plus three per-`A` HRTB blockers (`A: Clone`; per-`A`
-`<R as Kind>::Of<...>: Clone + Send + Sync`; same for `S` and
-`NodeBrand<R, S>`) identical to those documented for
-`ArcFreeExplicitBrand: SendFunctor` in 9d. Tightening the trait
-to add `Sync` would resolve one blocker but break callers passing
-`Send`-only closures (e.g.,
-`LazyBrand<ArcLazyConfig>::send_ref_map`); adding `A: Clone`
-would conceptually violate the ref-family contract and still
-leave the per-`A` `F::Of` HRTBs unresolved. Same blockers cascade
-through `SendRefSemimonad` -> `SendRefSemiapplicative` ->
-`SendRefApplicative` -> `SendRefMonad`.
-
-The user-facing by-reference Send-aware surface is the inherent
-[`ArcRunExplicit::ref_map`](../../../fp-library/src/types/effects/arc_run_explicit.rs)
-/ `ref_bind` / `ref_pure` methods, which carry the per-`A` bounds
-explicitly. The
-[`im_do!(ref ArcRunExplicit { ... })`](../../../fp-macros/src/effects/im_do/codegen.rs)
-macro form desugars to these inherent methods, so user code
-remains unaffected. Documented blockers added to the
-[Send-aware Ref coverage table](../../../fp-library/docs/limitations-and-workarounds.md)
-parallel to 9d's by-value table on `ArcFreeExplicitBrand`.
-
-`ArcRun` (the Erased family) has no brand, so its SendRef
-coverage stays inherent-method-only via the `im_do!(ref ArcRun
-{ ... })` desugaring. Step 9 is now complete with all nine
-sub-steps landed (or documented-as-blocked-with-workaround).
-Step 10 (POC test migration to
-`fp-library/tests/run_row_canonicalisation.rs` plus deletion of
-the `poc-effect-row/` workspace) remains.
-
 ### Earlier completed steps (commit log)
 
 Each entry's design choices are recorded in
@@ -181,6 +213,22 @@ summary; resolved blockers are in
 
 Phase 2:
 
+- `df99ff6` (step 9i): `SendRefPointed` lands on
+  `ArcRunExplicitBrand` via inherent-method delegation; the rest
+  of the SendRef cascade (`SendRefFunctor` /
+  `SendRefSemimonad` / `SendRefSemiapplicative` /
+  `SendRefApplicative` / `SendRefMonad`) is blocked by the
+  closure-bound mismatch (`Fn(&A) -> B + Send + 'a` vs
+  `ArcRunExplicit::ref_map`'s `Send + Sync` requirement) plus
+  three per-`A` HRTB walls (per-`A` `Clone`, per-`A`
+  `<R as Kind>::Of<...>: Clone + Send + Sync`, same for `S` and
+  `NodeBrand<R, S>`). Documented in the
+  [Send-aware Ref coverage table](../../../fp-library/docs/limitations-and-workarounds.md)
+  parallel to 9d's by-value table on `ArcFreeExplicitBrand`. The
+  user-facing by-reference Send-aware surface is the inherent
+  `ArcRunExplicit::ref_map` / `ref_bind` / `ref_pure` methods;
+  `im_do!(ref ArcRunExplicit { ... })` desugars to these so user
+  code is unaffected.
 - `199370b` (step 9h): universal `*Run::lift` across all six Run
   wrappers. Plan's per-wrapper delta table corrected: each
   wrapper's `lift` uses the Coyoneda variant whose pointer kind

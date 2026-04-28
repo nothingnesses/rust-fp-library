@@ -48,6 +48,7 @@ use {
 			effects_worker,
 			raw_effects_worker,
 		},
+		handlers::handlers_worker,
 		im_do::im_do_worker,
 	},
 	hkt::{
@@ -1469,6 +1470,88 @@ pub fn effects(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn raw_effects(input: TokenStream) -> TokenStream {
 	match raw_effects_worker(input.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Constructs a handler list for a first-order effect row, the
+/// runtime carrier of a natural transformation `VariantF<R> ~> M`.
+///
+/// `handlers!{ Brand1: expr1, Brand2: expr2, ... }` parses a
+/// comma-separated list of `Brand: expression` entries, sorts them
+/// lexically by the stringified brand type (matching [`effects!`]'s
+/// row order), and emits a right-nested
+/// [`HandlersCons`] / [`HandlersNil`] cons chain whose cells align
+/// cell-for-cell with the row produced by `effects!`. Each
+/// `expression` is wrapped in [`Handler::<Brand, _>::new(...)`] to pin
+/// the brand identity at the type level.
+///
+/// Empty input emits just [`HandlersNil`].
+///
+/// Per [`decisions.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/decisions.md)
+/// section 4.6, this macro is the primary surface for assembling
+/// natural transformations. The non-macro fallback is
+/// `nt().on::<E, _>(handler)` (a chained-builder over the same
+/// runtime types); both expressions evaluate to handler lists
+/// consumable by the Phase 3 step 2 interpreter.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// handlers! {
+///     Brand1: closure_or_function_or_handler_value,
+///     Brand2: closure_or_function_or_handler_value,
+///     ...
+/// }
+/// ```
+///
+/// The `Brand` position parses as a [`syn::Type`], so generic
+/// parameters (`Reader<Env>`, `State<i32>`) are accepted. The
+/// expression position parses as a [`syn::Expr`], so closure literals,
+/// path references to functions, and pre-built handler values all
+/// work.
+///
+/// ### Sorting and row alignment
+///
+/// Sort key is `quote!(Brand).to_string()`, the same shape
+/// [`effects!`] uses, so a `handlers!` invocation listing the same
+/// brands as an `effects![...]` invocation produces a value whose
+/// cell sequence aligns position-by-position with the row brand chain.
+/// Listing brands in any order yields the same canonical output;
+/// canonicalisation is deterministic.
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::{handlers, types::effects::handlers::*};
+///
+/// // Lexical sort -> ReaderBrand head, StateBrand tail.
+/// let h = handlers! {
+///     StateBrand: |op| op,
+///     ReaderBrand: |op| op,
+/// };
+/// // h: HandlersCons<Handler<ReaderBrand, _>, HandlersCons<Handler<StateBrand, _>, HandlersNil>>
+/// ```
+///
+/// ### Builder fallback
+///
+/// Equivalent to `nt().on::<EBrand, _>(handler)` chains; see
+/// [`HandlersNil::on`] / [`HandlersCons::on`]. The builder uses
+/// prepend semantics, so users wanting a list aligned with
+/// `effects!`-canonical order should call `.on()` in
+/// reverse-lexical order (or just use this macro, which handles the
+/// sort).
+///
+/// [`effects!`]: macro.effects.html
+/// [`HandlersCons`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.HandlersCons.html
+/// [`HandlersNil`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.HandlersNil.html
+/// [`Handler::<Brand, _>::new(...)`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.Handler.html
+/// [`HandlersNil::on`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.HandlersNil.html#method.on
+/// [`HandlersCons::on`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.HandlersCons.html#method.on
+#[proc_macro]
+pub fn handlers(input: TokenStream) -> TokenStream {
+	match handlers_worker(input.into()) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}
