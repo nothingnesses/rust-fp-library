@@ -242,9 +242,124 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-None at this time. The three blockers that surfaced
-2026-04-27 while preparing Phase 2 step 4b have all been
-resolved as part of the step 4b commit:
+#### Active blocker (2026-04-28): Phase 2 step 9 scope is under-specified
+
+Phase 2 step 9's plan-text reads in full:
+
+> 9. Coyoneda-wrapping smart constructors (`lift_f` analogues for each effect type).
+
+Two plausible interpretations of "smart constructors for each
+effect type" exist, and they differ substantially in scope:
+
+1. **Generic combinator interpretation.** Ship one `lift_f`
+   helper that takes an arbitrary effect value `E` plus a
+   `Member<CoyonedaBrand<E>, Idx>` witness, Coyoneda-wraps the
+   effect, injects into the row's first-order branch, wraps in
+   `Node::First(...)`, and lifts via the relevant Run wrapper's
+   `send`. Works generically for any effect type the user
+   later defines. Estimated scope: 1 file, ~50-100 lines, 1
+   test module exercising the generic combinator over a couple
+   of toy effect types.
+
+2. **Per-effect helpers interpretation.** Define concrete
+   first-order effect types (`State<S>`, `Reader<E>`,
+   `Except<E>`, `Writer<W>`, `Choose`) plus their per-effect
+   helpers (`ask`, `get`, `put`, `modify`, `tell`, `throw`).
+   Estimated scope: 4-5 effect-type modules, ~500+ lines, full
+   doctest coverage per effect.
+
+Reading the rest of the plan, interpretation 1 is the more
+likely intent: Phase 3 step 4 explicitly schedules
+_"Standard first-order effect types and their smart
+constructors: `State<S>`, `Reader<E>`, `Except<E>`, `Writer<W>`,
+`Choose`"_ as a separate Phase 3 deliverable
+([plan.md line 1119-1121](plan.md)), so doing per-effect work
+in Phase 2 step 9 would duplicate it. Decisions section 6
+similarly describes per-effect smart constructors ("`ask`,
+`get`, `put`, ...") as **thin wrappers over** the lift_f /
+inj / send infrastructure, implying the lift_f piece is
+prerequisite infrastructure that ships first (which is what
+step 9 would land under interpretation 1).
+
+But interpretation 1 still leaves open design decisions that
+the plan does not pre-lock and that the implementer should
+not unilaterally decide:
+
+- **Free function vs per-wrapper inherent method.** Phase 2's
+  established pattern (steps 5, 7a-c) puts user-facing
+  Run-program operations on the wrappers as inherent methods:
+  `Run::pure`, `RcRun::bind`, etc. By that pattern, `lift_f`
+  would land as six inherent methods (one per wrapper). But
+  `lift_f` differs structurally: its key argument is the
+  effect value, not `self`, so a free function (or associated
+  function on the wrapper) may be more natural. Pre-lock
+  needed: free function in
+  `fp-library/src/types/effects/lift_f.rs`, or six inherent
+  methods, or both?
+
+- **Exact signature: `Member` bounds and `Coyoneda` wrapping.**
+  The natural signature is something like:
+
+  ```rust
+  pub fn lift_f<E, R, S, Idx, A>(effect: E) -> Run<R, S, A>
+  where
+      R: Member<CoyonedaBrand<E>, Idx>,
+      E: Kind!(type Of<'a, T: 'a>: 'a;),
+      ...
+  ```
+
+  but the exact bounds (`E: Functor`?
+  `E: Kind<...>`? `A: 'static`? `Idx` in turbofish or
+  type-inferred?), the Coyoneda-decode closure (does the user
+  supply it, or does the helper assume the trivial decode?),
+  and how to align this across the six Run wrappers (whose
+  bounds differ: Erased Rc family wants `A: 'static`, Explicit
+  family wants `A: 'a`, ArcRunExplicit wants `A: 'a + Send + Sync`)
+  is the design work step 9 needs.
+
+- **HRTB-poisoning under `ArcFree`.** Per the gotchas section
+  in [plan.md's `Common gotchas from prior steps`](plan.md#common-gotchas-from-prior-steps),
+  constructing a `Node`-projection literal inside an
+  HRTB-bearing scope (which `ArcFree`'s struct propagates into
+  every `ArcRun`-method context) fails GAT normalization. The
+  workaround used by `*Run::send` is to receive the
+  `Node`-projection as a parameter rather than constructing it
+  inside the HRTB scope. `lift_f` for `ArcRun` would need to
+  thread the same workaround: either accept a pre-built
+  Coyoneda-wrapped Node-projection, or be defined entirely
+  outside any HRTB-bearing scope. The plan doesn't pre-lock
+  which.
+
+**Question for the user:** which interpretation, and on the
+generic-combinator path, what is the pre-locked design (free
+function vs inherent method, exact signature, HRTB workaround
+shape)?
+
+**Suggested resolution path:**
+
+- If interpretation 1 is intended: pre-lock the design
+  decisions above (free function vs inherent method, exact
+  signature, HRTB workaround) by amending
+  [decisions.md](decisions.md) section 6 or adding a new
+  section. Then update plan.md step 9 to reference the
+  decision, and proceed.
+- If interpretation 2 is intended: amend Phase 3 step 4 to
+  explicitly cross-reference Phase 2 step 9 (so the duplicate
+  scoping is intentional and documented), or move the
+  per-effect helpers fully into Phase 2 step 9 and remove from
+  Phase 3.
+- Alternatively, if the user wants me to proceed under
+  interpretation 1 with reasonable defaults (free function in
+  `fp-library/src/types/effects/lift_f.rs`, signature parallel
+  to the existing `Member::inject` plus a Coyoneda lift, and
+  the same HRTB-receive-as-parameter workaround as
+  `*Run::send`), say so and I'll land it.
+
+#### Previously resolved blockers
+
+The three blockers that surfaced 2026-04-27 while preparing
+Phase 2 step 4b have all been resolved as part of the step 4b
+commit:
 
 - Brand-level type-class coverage gap on the Explicit Run
   brands: shipped achievable subset, documented gaps; see
