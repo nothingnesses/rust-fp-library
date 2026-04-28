@@ -17,146 +17,140 @@ one step per commit, until the phase is complete or you hit a blocker.
 
 **Phase 1 complete; Phase 1 follow-up commits both landed
 (`WrapDrop` migration plus the `Functor` -> `Kind` relaxation);
-Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, 7c.1, and 7c.2a
-complete; Phase 2 step 7c.2b (the `im_do!` macro itself) is
-the immediate next work.**
+Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, 7c.1, 7c.2a, 7c.2b,
+and 8 complete; Phase 2 step 9 in progress: rename + `Run::lift`
+reference impl, sub-step 9a (SendFunctor cascade prerequisites),
+and bundles 9b+9e (ArcFree+ArcRun migration) and 9c+9f
+(ArcFreeExplicit+ArcRunExplicit migration) all complete.
+**Sub-step 9d** (expand brand-level type-class surface on
+`ArcFreeExplicitBrand`) is the immediate next work.**
 
-Recent commit milestones:
+Step 9's nine-sub-step decomposition (locked in by
+[the 2026-04-28 implementation expansion resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md))
+unifies into seven sub-step commits because three migration
+pairs are tightly coupled: 9b+9e bundle (ArcFree changes
+cascade through ArcRun) and 9c+9f bundle
+(ArcFreeExplicit changes cascade through ArcRunExplicit).
+**Remaining sub-steps after this session: 9d, 9g, 9h, 9i.**
 
-- `11a89bc` (Phase 2 step 6): three [`From`](https://doc.rust-lang.org/std/convert/trait.From.html)
-  impls for the Erased -> Explicit Run conversion, one per
-  pair (`Run`/`RunExplicit`, `RcRun`/`RcRunExplicit`,
-  `ArcRun`/`ArcRunExplicit`). Each walks the underlying Free
-  chain via `peel` and rebuilds in the other shape; O(N) in
-  chain depth. Multi-shot / Send + Sync properties preserved
-  per substrate.
-- `7f5be3c` (Phase 2 step 6 follow-up): refactored the
-  conversion surface from custom-named inherent methods
-  (`into_explicit` / `from_erased`) to `From` impls, matching
-  the codebase's ~35 sibling-type conversion impls. Users get
-  both `Explicit::from(erased)` and `erased.into()` from one
-  impl via the blanket `Into`.
-- `d31924d` (Phase 2 step 7 design pre-lock): renamed the
-  planned macro from `run_do!` to `im_do!` ("Inherent Monadic
-  do"), with `ia_do!` ("Inherent Applicative do")
-  forward-reserved as the future applicative companion.
-  Same-length names (5 chars each) deliberately keep the
-  applicative form from being typographically disfavored.
-  Step 7 expanded into three sub-steps (7a/7b/7c) with 7c
-  further split into 7c.1/7c.2.
-- `ef6257e` (Phase 2 step 7a): inherent `bind`/`map` on
-  `Run`, `RcRun`, `ArcRun`, and `RunExplicit` (the four
-  wrappers that didn't already have them; `RcRunExplicit` and
-  `ArcRunExplicit` shipped them in step 4b).
-- `6dc802e` (Phase 2 step 7b): inherent `ref_bind`/`ref_map`
-  on the four `Clone`-able wrappers (`RcRun`, `ArcRun`,
-  `RcRunExplicit`, `ArcRunExplicit`). Pattern:
-  `self.clone().bind(move |a| f(&a))`. The clone is O(1);
-  bypasses the `R: RefFunctor` cascade that brand-level
-  `RefSemimonad::ref_bind` requires, so canonical
-  Coyoneda-headed effect rows can use by-reference do-notation
-  through this path.
-- `10d17fe` (Phase 2 step 7c.1): inherent `ref_pure` on the
-  four `Clone`-able wrappers. Implemented as
-  `Self::pure(a.clone())`. Rounds out the inherent
-  by-reference surface so
-  `im_do!(ref Wrapper { ... pure(x) })` can rewrite to
-  `Wrapper::ref_pure(&x)` parallel to
-  `m_do!(ref Brand { ... pure(x) })`.
-- `e4cf7b5` (Phase 2 step 7c.2a): extracted shared `DoInput`
-  parser from `fp-macros/src/m_do/input.rs` into
-  [`fp-macros/src/support/do_input.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/support/do_input.rs),
-  ready for `im_do!` (and future `ia_do!`) to reuse. Pure
-  refactor; m_do!/a_do! unchanged behaviorally.
+Recent commit milestones (newest first):
 
-Step 7c.2b implements the **`im_do!` ("Inherent Monadic do")
-proc-macro** at `fp-macros/src/effects/im_do.rs` (directory +
-codegen module to be created) plus the
-`pub fn im_do(input)` proc-macro export in
-[`fp-macros/src/lib.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/lib.rs).
-Per the design pre-lock and the user's confirmed scope:
+- `9295a26` (Phase 2 step 9c+9f bundle): replace `F: Functor`
+  with `F: SendFunctor` on `ArcFreeExplicit`; switch
+  `ArcRunExplicit` methods to `SendFunctor`-routed dispatch.
+  Generic param lists consolidate `B` bounds into the
+  where-clause to satisfy `clippy::type_repetition_in_bounds`.
+  The `arc_free_explicit_bind_requires_send` UI test's
+  `.stderr` is regenerated for shifted error-message line
+  numbers.
+- `f86c150` (Phase 2 step 9b+9e bundle): replace `F: Functor`
+  with `F: SendFunctor` on `ArcFree`'s eight per-method bound
+  sites; switch three internal `F::map` calls to
+  `F::send_map`; switch `hoist_free`'s `G: Functor` to
+  `G: SendFunctor`. `ArcRun::peel` and `::send` switch to
+  `NodeBrand<R, S>: SendFunctor` and route through
+  `SendFunctor::send_map`. The
+  [`arc_run_normalization_probe.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/arc_run_normalization_probe.rs)'s
+  pattern-A `send` updates to track production. The
+  `From<ArcRun>` impl on `ArcRunExplicit` gains
+  `R: SendFunctor + S: SendFunctor` plus
+  `NodeBrand<R, S>: SendFunctor`.
+- `779651e` (Phase 2 step 9a): brand-level `SendFunctor`
+  cascade plus missing `WrapDrop` impl. Adds five new trait
+  impls: `IdentityBrand: SendFunctor`,
+  `CNilBrand: SendFunctor`, `CoproductBrand<H, T>: SendFunctor`
+  (recursive over `H: SendFunctor + T: SendFunctor`),
+  `NodeBrand<R, S>: SendFunctor` (recursive over
+  `R: SendFunctor + S: SendFunctor`), and
+  `ArcCoyonedaBrand: WrapDrop` (returns `None`, mirroring
+  `CoyonedaBrand`/`RcCoyonedaBrand`'s pattern). Each impl
+  body is a near-mirror of the existing `Functor` (or
+  `WrapDrop`) impl on the same brand with the
+  `Send + Sync` bound added to closure parameters where
+  applicable.
+- `e9d7997` (Phase 2 step 9 expansion): expanded plan.md
+  step 9 from a single-step entry into a nine-sub-step
+  decomposition (9a-9i). Records the SendFunctor cascade
+  prerequisites discovery in
+  [resolutions.md's 2026-04-28 implementation-expansion
+  entry](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md).
+- `34b6a97` (Phase 2 step 9 rename): renamed
+  `Run::lift_f` to `Run::lift` to match PureScript Run's
+  [`Run.lift`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs);
+  the `_f` suffix is reserved for the Free-only operation
+  ([`Free::lift_f`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/free.rs),
+  the snake_case translation of PureScript's `Free.liftF`).
+  The Run-level row-aware operation takes the bare name
+  `lift`. Resolution + plan + decisions cross-references all
+  amended.
+- `c3555c7` (Phase 2 step 9 resolution): resolved the
+  earlier "step 9 scope under-specified" blocker by locking
+  in the generic-combinator interpretation (inherent
+  associated function on each Run wrapper, raw effect
+  input, full Coyoneda-lift / inject / `Node::First` /
+  `*Run::send` chain inside the body, type-inferred `Idx`).
+  Followed up by the 9-sub-step expansion in `e9d7997`.
 
-- **Both inferred and explicit modes** (parity with
-  `m_do!`/`a_do!`):
-  `im_do!({ x <- expr; ... })` and
-  `im_do!(Wrapper { x <- expr; ... pure(x) })`.
-- **`ref` qualifier**:
-  `im_do!(ref Wrapper { x: &i32 <- expr; ... })`. Restricted
-  to the four `Clone`-able wrappers (`RcRun`, `ArcRun`,
-  `RcRunExplicit`, `ArcRunExplicit`).
-  `im_do!(ref Run { ... })` and
-  `im_do!(ref RunExplicit { ... })` must produce a clear
-  "cannot use `ref` form on non-`Clone` wrapper" diagnostic,
-  demonstrated by one `compile_fail` UI test at
-  [`fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/ui/).
-- **`pure(x)` rewriting**: in by-value explicit mode, rewrites
-  to `Wrapper::pure(x)`; in `ref` explicit mode, rewrites to
-  `Wrapper::ref_pure(&x)`. Inferred mode rejects bare
-  `pure(x)` with a `compile_error!` (mirrors
-  `m_do!({ ... pure(x) })`'s rejection).
-- **Codegen reuse**: `format_bind_param`,
-  `format_discard_param`, and `wrap_container_ref` from
-  [`fp-macros/src/m_do/codegen.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/m_do/codegen.rs)
-  are brand-agnostic and importable directly. Write a
-  parallel `rewrite_pure_inherent` for the `im_do!`-specific
-  `pure` rewriting path; do not try to make the existing
-  `rewrite_pure` polymorphic.
-- **Doc-comment**: extensive, mirroring the four-point
-  explanation in
-  [`docs/plans/effects/deviations.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md)'s
-  step 7 entry: (1) what "im" means and the parallel with
-  `m_do!`/`a_do!`'s "m"/"a"; (2) why "inherent" (dispatch via
-  inherent method calls, not trait dispatch); (3) when to use
-  `im_do!` vs `m_do!` (prefer `m_do!` when brand has full
-  `Semimonad`; use `im_do!` when it doesn't reach); (4) why
-  same length as `ia_do!` (prefer applicative when binds are
-  independent).
-- **Integration tests**: at least one passing test per wrapper
-  in by-value mode, plus one passing test per `Clone`-able
-  wrapper in `ref` mode. New file
-  [`fp-library/tests/im_do.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/).
-  Note that fp-library's
-  [`src/lib.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/lib.rs)
-  does `pub use fp_macros::*;`, so `im_do!` is automatically
-  re-exported from fp-library once the proc-macro lands.
+**Sub-step 9d implements** the expanded brand-level type-class
+surface on
+[`ArcFreeExplicitBrand`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/brands.rs).
+The substrate's machinery is now `SendFunctor`-routed (per
+9c), so the brand-level coverage gap step 4b documented
+(`SendPointed` only; SendRef-family unreachable) shifts.
+Re-evaluate which Send-aware brand-level impls become
+reachable; at minimum `SendFunctor` should now be
+implementable. `SendSemimonad`, `SendApplicative`,
+`SendMonad` may follow if their dependencies satisfy under
+the new substrate. Don't add `SendRefFunctor` here; that's
+sub-step 9i (which uses inherent-method delegation, a
+different strategy than substrate-brand delegation).
+
+**Where the brand-level coverage analysis lives**:
+[step 4b's resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-04-27-brand-level-type-class-coverage-gap-on-the-explicit-run-brands)
+documented the original gap; document any newly-reachable
+impls in
+[`fp-library/docs/limitations-and-workarounds.md`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/limitations-and-workarounds.md)'s
+"Unexpressible Bounds in Trait Method Signatures" table when
+the impl lands or is confirmed still unreachable.
+
+**Remaining sub-steps after 9d**:
+
+- **9g**: same brand-level surface re-evaluation for
+  `ArcRunExplicitBrand`. Independent of 9d structurally
+  (different brand, different impl block) but with similar
+  shape.
+- **9h**: universal `*Run::lift` across all six Run
+  wrappers. The original step 9 payoff. `Run::lift` exists
+  from commit `34b6a97`; 9h adds the remaining five wrappers
+  (`RcRun::lift`, `ArcRun::lift`, `RunExplicit::lift`,
+  `RcRunExplicit::lift`, `ArcRunExplicit::lift`). Per-wrapper
+  delta table in plan.md step 9h. The `ArcRun::lift` /
+  `ArcRunExplicit::lift` use `ArcCoyoneda` instead of
+  `Coyoneda` (because Coyoneda isn't `Send + Sync`); the
+  HRTB-poisoning fallback (free `lift_node` helper) may be
+  needed for `ArcRun::lift` per the resolution. Plus
+  integration tests at
+  [`fp-library/tests/run_lift.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/).
+  The WIP branch
+  [`step-9-wip-with-arc-blocker`](file:///home/jessea/Documents/projects/rust-fp-lib/.git)
+  preserves a previous attempt at 9h before the 9a-9g
+  cascade landed; it doesn't compile against the current
+  trunk but is useful as a reference for the per-wrapper
+  bound deltas and the integration test shape.
+- **9i**: `SendRefFunctor` on `ArcRunExplicitBrand` via
+  inherent-method delegation. Step 4b documented the
+  SendRef-family hierarchy as unreachable through
+  substrate-brand delegation
+  (`ArcFreeExplicitBrand: SendRefFunctor` is unimplementable
+  due to per-`A` HRTB on the `Kind` projection). 9i sidesteps
+  by delegating to the wrapper's inherent `ref_map` /
+  `ref_bind` / `ref_pure` directly. Reference impl shape in
+  plan.md step 9i.
 
 **There are no active blockers** as of this resume point.
-Three pre-existing items from earlier sessions
-(`CoyonedaBrand: RefFunctor` missing on canonical rows,
-`ArcRunExplicit`'s `SendRef*` hierarchy permanently
-unreachable, `RcCoyonedaBrand` / `ArcCoyonedaBrand` lack
-`WrapDrop`) are all addressed by the **minimal-bundle path**
-locked into
-[`docs/plans/effects/deviations.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md)'s
-step 7 entry: rather than fix any of them structurally, route
-all by-reference do-notation over canonical effect rows
-through `im_do!(ref ...)`, which sidesteps the brand-level
-gaps via inherent `ref_bind`/`ref_map`/`ref_pure`. The macro
-ships uniform coverage across all six Run wrappers; the
-brand-level gaps become "documented limitations of
-`m_do!(ref ...)` over canonical rows", not blockers.
-
-**Scaffolding already in place** (do not redo any of this in
-7c.2b):
-
-- Inherent `bind`/`map` on all six Run wrappers (steps 7a +
-  4b).
-- Inherent `ref_bind`/`ref_map`/`ref_pure` on the four
-  `Clone`-able wrappers (steps 7b + 7c.1). The two
-  non-`Clone` wrappers (`Run`, `RunExplicit`) deliberately
-  don't have these; materializing `Self` from `&self` is
-  structurally impossible without `Clone`. This is what the
-  `compile_fail` UI test demonstrates.
-- Shared `DoInput` parser at
-  [`fp-macros/src/support/do_input.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/support/do_input.rs)
-  (step 7c.2a). `m_do!` re-exports `DoInput` from this
-  location for backward compatibility; `im_do!` should import
-  from `crate::support::do_input` directly.
-- `From` impls for Erased -> Explicit conversions (step 6).
-  Not directly used by `im_do!`, but available if any
-  integration test wants to assert round-trip equivalence
-  between `im_do!` over an Erased wrapper and `m_do!` over
-  its paired Explicit brand.
+Confirm before starting 9d by re-reading the
+`Active blockers` section in plan.md (currently
+"_(None active.)_" per recent commits).
 
 **HRTB-poisoning is a structural pattern that may surface
 when working with `ArcFree`-substrate code.** The Phase 2
@@ -172,18 +166,54 @@ construct projection-typed values inside an HRTB-bearing
 scope. The probe at
 [`fp-library/tests/arc_run_normalization_probe.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/arc_run_normalization_probe.rs)
 documents four passing patterns and serves as the
-regression-test home for this limit. The pattern is unlikely
-to surface in 7c.2b (the macro's codegen produces method
-chains over concrete types, no HRTB-bearing scopes), but
-it's worth knowing for Phase 3+ handler work that recurses
-through `*FreeExplicit::resume` or similar.
+regression-test home for this limit. Sub-step 9h's
+`ArcRun::lift` is most likely to surface this pattern; the
+resolution's `lift_node` fallback covers it.
 
-If you encounter unexpected behavior during 7c.2b, plan.md's
+If you encounter unexpected behavior during 9d, plan.md's
 `Active blockers` section is the place to record
 load-bearing questions; entries should cite concrete file
 paths and line numbers so the next implementor (or you in a
 future session) can verify claims without conversational
 context.
+
+## Lessons learned in step 9 (worth internalising)
+
+These came up during the 9a-9c+9f migration cycle. Reading
+them up front saves the same debug cycles in 9d-9i.
+
+- **The SendFunctor migration cascades through wrapper
+  call sites.** `ArcFree`'s bound replacement broke
+  `ArcRun`'s methods at every call site; 9b had to bundle
+  with 9e to keep the workspace compiling. Same coupling for
+  9c/9f. **Bundle migrations across substrate/wrapper pairs
+  by default**; surface the bundling decision to the user as a
+  deviations.md entry, but don't try to land the substrate
+  half independently.
+- **`SendFunctor::send_map`'s closure-Send+Sync requirement
+  cascades into `A`, `B`, and projection bounds.** When you
+  switch a method body from `F::map(...)` to
+  `F::send_map(...)`, the closure's parameter and return type
+  must be `Send + Sync`, which transitively requires
+  `A: Send + Sync` and `B: Send + Sync` and the projection
+  types `F::Of<'a, ...>: Send + Sync` (cascading to row
+  brands' `R::Of<...>: Send + Sync` and
+  `S::Of<...>: Send + Sync`). Add these proactively to method
+  bounds when migrating; fewer iterations than letting rustc
+  surface them one at a time.
+- **Clippy's `type_repetition_in_bounds` lint requires a
+  type's bounds to be in one place.** When migrating, if
+  you split bounds between the generic-param-list and the
+  where-clause (e.g., `<B: 'a>` plus `B: Send + Sync` in
+  where), clippy fails. Consolidate by removing the inline
+  bound and putting everything in the where-clause:
+  `<B>` plus `B: Send + Sync + 'a` in where.
+- **`compile_fail` `.stderr` files are sensitive to
+  bound-changes.** The migrations shifted error-message line
+  numbers in the
+  `arc_free_explicit_bind_requires_send` UI test; regenerate
+  with `TRYBUILD=overwrite cargo test --test compile_fail`
+  (raw `cargo`, not `just test`, to avoid `wip/` artifacts).
 
 ## Where to start
 
@@ -332,15 +362,25 @@ change them unilaterally. If you encounter:
 - **`/home/jessea/Documents/projects/rust-fp-lib/fp-library/` is the
   production crate.** Code, tests, and benches go here.
 - **`/home/jessea/Documents/projects/rust-fp-lib/fp-macros/` holds
-  proc-macros.** The `effects!`, `effects_coyo!`, `handlers!`,
-  `define_effect!`, `define_scoped_effect!`, `scoped_effects!`, and
-  `im_do!` ("Inherent Monadic do") macros land in
-  `/home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/`
-  (with `ia_do!` ("Inherent Applicative do") forward-reserved as
-  the future applicative companion). The shared `DoInput` parser
-  used by all four do-notation macros (`m_do!`, `a_do!`,
-  `im_do!`, future `ia_do!`) lives at
-  `/home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/support/do_input.rs`.
+  proc-macros.** The effects-subsystem macros live in
+  `/home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/`.
+  Already shipped: `im_do!` ("Inherent Monadic do") at
+  [`im_do/codegen.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/im_do/codegen.rs)
+  (Phase 2 step 7c.2b); `effects!` (public, Coyoneda-wrapped
+  row) and `raw_effects!` (internal, un-wrapped row) at
+  [`effects_macro.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/effects_macro.rs)
+  with the shared lexical-sort helper at
+  [`row_sort.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/row_sort.rs)
+  (Phase 2 step 8). Pending: `handlers!` (Phase 3),
+  `define_effect!` (Phase 3 step 5), `define_scoped_effect!`
+  (Phase 4), `scoped_effects!` (Phase 4 step 4) — all land
+  in the same directory. `ia_do!` ("Inherent Applicative do")
+  is forward-reserved as a future applicative companion to
+  `im_do!`. The shared `DoInput` parser used by all four
+  do-notation macros (`m_do!`, `a_do!`, `im_do!`, future
+  `ia_do!`) lives at
+  `/home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/support/do_input.rs`
+  (Phase 2 step 7c.2a).
 - **`/home/jessea/Documents/projects/rust-fp-lib/poc-effect-row/` is
   a separate Cargo workspace and a reference implementation.** Do
   not modify it during the port; migrate code out of it into
