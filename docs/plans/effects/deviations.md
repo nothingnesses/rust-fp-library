@@ -1638,3 +1638,55 @@ Deferred for 10b: the destructive `git rm -r poc-effect-row/`.
 The POC workspace declares its own `[workspace]` block (detached
 from the outer cargo workspace), so deletion is safe but
 irreversible. Holding for explicit user confirmation.
+
+### Step 10b: `poc-effect-row/` workspace deleted; Phase 2 complete
+
+`git rm -r poc-effect-row/` removed 8 tracked files; the
+~97MB total includes the `target/` cache that was not tracked.
+The workspace's `[workspace]` block detached it from the outer
+cargo workspace, so the removal had no effect on `just verify`
+(no Cargo dependency edges to clean up).
+
+Subsumption ledger (final, post-amendment to step 10a):
+
+- 21 of 25 POC tests directly migrated or covered in
+  [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs).
+- 4 POC tests skipped with documented rationale: `feasibility::t08`
+  (lifetime-parameter-bearing raw effect type, does not translate
+  because production brands are zero-sized `'static` markers);
+  `feasibility::t14`-`t16` (3 `tstr_crates` compile-time
+  string-ordering demos that do not test fp-library).
+- 1 POC test (`coyoneda::c08`) implicitly covered by the
+  end-to-end round-trip tests in
+  [`tests/run_lift.rs`](../../../fp-library/tests/run_lift.rs)
+  on all six Run wrappers (lift -> peel -> lower recovers the
+  value, which only round-trips correctly if Coproduct's
+  recursive Functor impl dispatches to the active variant's
+  Coyoneda).
+- 1 POC test (`feasibility::t10`) replaced by an analog: the
+  all-six-Run-wrappers integration tests, which exercise the
+  production analog of "the macro's emitted row drives the
+  wrapper's type parameters" (POC's brand-AND-runtime-value
+  conflation does not translate; the Run-wrapper integration is
+  the production framing).
+
+Documentation maintained:
+
+- The standalone planning doc
+  [`docs/plans/effects/poc-effect-row-canonicalisation.md`](poc-effect-row-canonicalisation.md)
+  is preserved as research history; deletion of the workspace
+  does not invalidate the findings it documents.
+- Plan.md `Other artefacts` section updated to past-tense
+  (records the deletion); `Reference map` POC validation bullet
+  updated; the historical-strategy note about POC-to-production
+  migration in the planning section gains a past-tense annotation
+  pointing to where the migration actually landed (steps 8 and
+  10a) and where the workspace went (step 10b).
+- Historical references in step narratives, the research/survey
+  sections, and the Phase 2 step text remain as past-tense
+  documentation of where the migrated tests came from. They are
+  not re-edited.
+
+Phase 2 is now complete (all 10 steps landed). Phase 3
+(first-order effect handlers, interpreters, natural
+transformations) is the next phase.

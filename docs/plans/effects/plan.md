@@ -2,30 +2,59 @@
 
 **Status:** Phase 1 complete (all 9 steps); Phase 1 follow-up
 both commits (`WrapDrop` migration plus `Functor` -> `Kind`
-relaxation) landed; Phase 2 in progress (steps 1, 2, 3, 4a, 4b,
-5, and 6 of 10 complete).
+relaxation) landed; **Phase 2 complete (all 10 steps)**. Phase 3
+(first-order effect handlers, interpreters, natural
+transformations) is the next phase.
 
 ## Current progress
 
 Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
-complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, 7c.1,
-7c.2a, 7c.2b, 8, 9 (all sub-steps 9a, 9b+9e, 9c+9f, 9d+9g, 9h,
-9i), and 10a (POC test migration into
-`fp-library/tests/run_row_canonicalisation.rs`) complete. Step
-10b (delete the `poc-effect-row/` workspace) is the only
-remaining Phase 2 work and is held for explicit user
-confirmation since it is destructive.
+complete. Phase 2 complete: steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b,
+7c.1, 7c.2a, 7c.2b, 8, 9 (all sub-steps 9a, 9b+9e, 9c+9f, 9d+9g,
+9h, 9i), 10a (POC test migration into
+`fp-library/tests/run_row_canonicalisation.rs`), and 10b
+(`poc-effect-row/` workspace deleted). Phase 3 is next.
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
 
-**Phase 2 step 10a (this commit): row-canonicalisation regression
+**Phase 2 step 10b (this commit): delete the `poc-effect-row/`
+workspace.** With 10a's regression baseline in place at
+[`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs)
+fully subsuming the POC's tests (21 directly migrated or
+covered, 4 documented as not-applicable to production, 1
+implicitly covered by `run_lift.rs`), the POC workspace's job is
+done. `git rm -r poc-effect-row/` removes 8 files (~97MB
+including the `target/` cache that wasn't tracked). The POC
+declared its own `[workspace]` block, so the outer cargo
+workspace was unaffected by its presence and is unaffected by
+its absence; `just verify` continues clean.
+
+Updates: `Other artefacts` section refreshed to remove the
+"unchanged from pre-implementation" line about poc-effect-row;
+the `Boundaries` section under "## Out of scope" had its
+poc-effect-row line removed. Historical references in step
+narratives, the research/survey sections, and the Phase 2 step
+text remain as past-tense documentation of where the migrated
+tests came from. The standalone planning doc
+[`docs/plans/effects/poc-effect-row-canonicalisation.md`](poc-effect-row-canonicalisation.md)
+is preserved as research-history; deletion of the workspace
+does not invalidate the findings it documents.
+
+**Phase 2 is now complete (all 10 steps landed)**. Phase 3
+(first-order effect handlers, interpreters, natural
+transformations: `handlers!{...}` macro, `interpret`/`run`/
+`runAccum`/`interpretRec`/`runRec`/`runAccumRec` family, smart
+constructors for `State`/`Reader`/`Except`/`Writer`/`Choose`,
+and `define_effect!` macro) is the next phase.
+
+**Phase 2 step 10a (`162ab1e`): row-canonicalisation regression
 baseline at
 [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs).**
 20 integration tests migrated from
-[`poc-effect-row/tests/`](../../../poc-effect-row/tests/),
+`poc-effect-row/tests/` (workspace deleted in 10b),
 substituting fp-library's existing brands
 (`IdentityBrand` / `OptionBrand` / `ResultBrand` / `BoxBrand` /
 `CatListBrand` / `ThunkBrand` / `SendThunkBrand` /
@@ -142,50 +171,6 @@ Step 10 (POC test migration to
 `fp-library/tests/run_row_canonicalisation.rs` plus deletion of
 the `poc-effect-row/` workspace) remains.
 
-**Phase 2 step 9h (`199370b`): universal `*Run::lift` across all
-six Run wrappers, with the per-wrapper Coyoneda-variant pairing
-corrected.** The plan's per-wrapper delta table specified bare
-`Coyoneda` for `RcRun::lift` and `RcRunExplicit::lift`; this is
-unsatisfiable because `*Run::send`/`*Run::peel` carry a per-method
-`Of<'_, *Free<..., *TypeErasedValue>>: Clone` bound intrinsic to
-the shared-`Rc`/`Arc` substrate state, and bare `Coyoneda`'s
-`Box<dyn FnOnce>` continuation is not `Clone`. Corrected pairing:
-each wrapper's `lift` uses the Coyoneda variant whose pointer kind
-matches the wrapper's substrate (Run -> Coyoneda;
-RcRun/RcRunExplicit -> RcCoyoneda; ArcRun/ArcRunExplicit ->
-ArcCoyoneda; RunExplicit -> Coyoneda).
-`ArcRun::lift` uses the
-[`lift_node`](../../../fp-library/src/types/effects/arc_run.rs)
-HRTB-poisoning fallback the
-[2026-04-27 resolution](resolutions.md) anticipated; inline
-construction of the `Node::First` literal inside `ArcRun`'s
-impl-block scope hit the GAT-normalization error from the
-struct-level HRTB. The other five wrappers build inline.
-
-Side artefact: step 9a noted `ArcCoyonedaBrand: WrapDrop` mirrored
-`RcCoyonedaBrand`'s pattern, but `RcCoyonedaBrand` did not
-actually carry the impl. This bundle adds it (returns `None`,
-matching `CoyonedaBrand` / `ArcCoyonedaBrand`), unblocking
-`RcCoyonedaBrand`-headed rows from satisfying the
-`NodeBrand<R, S>: WrapDrop` cascade that `RcRun` /
-`RcRunExplicit`'s struct definitions require.
-
-Integration test file
-[`fp-library/tests/run_lift.rs`](../../../fp-library/tests/run_lift.rs)
-ships 11 tests: round-trip on each of the six wrappers (all real
-round-trips with the matched Coyoneda variant), second-branch
-`Member` resolution on `Run` and `RunExplicit`, inferred-`Idx`
-verification, and `lift().bind(...)` composition on `Run` and
-`RunExplicit`. All 2436 unit tests pass under `just verify`.
-
-Implication for sub-step 9i: 9i lands `SendRefFunctor` (and
-related Send-aware Ref-family traits) on
-`ArcRunExplicitBrand` via inherent-method delegation. That
-strategy uses the wrapper's existing inherent `ref_map` /
-`ref_bind` / `ref_pure` (already in place from steps 7b and 7c.1)
-and is independent of 9h. It is the last remaining sub-step in
-step 9.
-
 ### Earlier completed steps (commit log)
 
 Each entry's design choices are recorded in
@@ -196,6 +181,18 @@ summary; resolved blockers are in
 
 Phase 2:
 
+- `199370b` (step 9h): universal `*Run::lift` across all six Run
+  wrappers. Plan's per-wrapper delta table corrected: each
+  wrapper's `lift` uses the Coyoneda variant whose pointer kind
+  matches its substrate (Run/RunExplicit -> Coyoneda;
+  RcRun/RcRunExplicit -> RcCoyoneda; ArcRun/ArcRunExplicit ->
+  ArcCoyoneda) because `*Run::send`/`*Run::peel` carry per-method
+  `Of<'_, *Free<..., *TypeErasedValue>>: Clone` bounds intrinsic
+  to the shared substrate state. `ArcRun::lift` uses the
+  `lift_node` HRTB-poisoning fallback. Side artefact: added the
+  missing `RcCoyonedaBrand: WrapDrop` impl (step 9a's commit
+  message claimed mirroring this pattern but it didn't exist).
+  11 new integration tests in `tests/run_lift.rs`.
 - `42e698a` (step 9d+9g bundle): brand-level Send-aware surface
   unchanged on both `ArcFreeExplicitBrand` and
   `ArcRunExplicitBrand` (per-`A` HRTB-over-types blocker confirmed
@@ -384,15 +381,20 @@ exercising single-shot, no-brand-on-Erased, Send-bound on
 `ArcFreeExplicit::bind`, and `Clone`-bound on `RcFree::bind`
 properties.
 
-Other artefacts unchanged from pre-implementation:
+Other artefacts:
 
-- [poc-effect-row/](../../../poc-effect-row/) -- 25 tests across two
-  suites validating the row-encoding hybrid (workaround 1 macro
-  plus workaround 3 `CoproductSubsetter` fallback), the
-  `tstr_crates` Phase 2 refinement, and static-via-Coyoneda
-  Functor dispatch end-to-end. See
+- The `poc-effect-row/` workspace was deleted in Phase 2 step
+  10b after its 25 tests were either migrated to
+  [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs)
+  (21 tests) or documented as not-applicable to production
+  (4 tests; tstr_crates demos and a lifetime-parameter test that
+  production brands cannot express); a fifth (`coyoneda::c08`)
+  is implicitly covered by
+  [`tests/run_lift.rs`](../../../fp-library/tests/run_lift.rs).
+  The standalone planning doc
   [poc-effect-row-canonicalisation.md](poc-effect-row-canonicalisation.md)
-  for findings. Migrates into production during Phase 2.
+  is preserved as research history; the deletion does not
+  invalidate the findings it documents.
 
 ## Open questions, issues and blockers
 
@@ -748,12 +750,12 @@ where `FreeFamily` is one of `Free` / `RcFree` / `ArcFree` /
 
 ## Validated via POCs
 
-| POC                                                                                                       | Findings                                                                                                                                                                                                                                                                                                                                                   |
-| --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [poc-effect-row/tests/feasibility.rs](../../../poc-effect-row/tests/feasibility.rs)                       | 17 tests covering workaround 1 (lexical-sort macro) plus workaround 3 (`CoproductSubsetter` fallback), generic-effect handling, lifetime parameters, 5- and 7-effect rows for trait-inference scaling, plus `tstr_crates` Phase 2 refinement (3 tests showing content-addressed naming + `tstr::cmp` compile-time ordering). All pass on stable Rust 1.94. |
-| [poc-effect-row/tests/coyoneda.rs](../../../poc-effect-row/tests/coyoneda.rs)                             | 8 tests validating static-via-Coyoneda end-to-end: `effects_coyo!` macro emits Coyoneda-wrapped Coproducts canonically; `Coyoneda<F, A>` is `Functor` for any `F`; `Coproduct<H, T>` implements `Functor` via recursive trait dispatch with no specialization or runtime dictionary; row canonicalises across input orderings under wrapping.              |
-| [fp-library/tests/free_explicit_poc.rs](../../../fp-library/tests/free_explicit_poc.rs)                   | 6 tests validating `FreeExplicit<'a, F, A>` integrates with the Brand-and-Kind machinery, supports non-`'static` payloads, supports two-effect Run-shaped composition. One `#[ignore]`d test documents that naive `Drop` overflows on deep chains; the iterative custom `Drop` ships in Phase 1.                                                           |
-| [fp-library/benches/benchmarks/free_explicit.rs](../../../fp-library/benches/benchmarks/free_explicit.rs) | Criterion bench at depths 10 / 100 / 1000 / 10000 confirming `FreeExplicit`'s per-node cost is approximately 27ns in the linear regime. The Phase-1 baseline for measuring `RcFree` / `ArcFree` regressions.                                                                                                                                               |
+| POC                                                                                                                                                                         | Findings                                                                                                                                                                                                                                                                                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `poc-effect-row/tests/feasibility.rs` (deleted in 10b; migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs)) | 17 tests covering workaround 1 (lexical-sort macro) plus workaround 3 (`CoproductSubsetter` fallback), generic-effect handling, lifetime parameters, 5- and 7-effect rows for trait-inference scaling, plus `tstr_crates` Phase 2 refinement (3 tests showing content-addressed naming + `tstr::cmp` compile-time ordering). All pass on stable Rust 1.94. |
+| `poc-effect-row/tests/coyoneda.rs` (deleted in 10b; migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs))    | 8 tests validating static-via-Coyoneda end-to-end: `effects_coyo!` macro emits Coyoneda-wrapped Coproducts canonically; `Coyoneda<F, A>` is `Functor` for any `F`; `Coproduct<H, T>` implements `Functor` via recursive trait dispatch with no specialization or runtime dictionary; row canonicalises across input orderings under wrapping.              |
+| [fp-library/tests/free_explicit_poc.rs](../../../fp-library/tests/free_explicit_poc.rs)                                                                                     | 6 tests validating `FreeExplicit<'a, F, A>` integrates with the Brand-and-Kind machinery, supports non-`'static` payloads, supports two-effect Run-shaped composition. One `#[ignore]`d test documents that naive `Drop` overflows on deep chains; the iterative custom `Drop` ships in Phase 1.                                                           |
+| [fp-library/benches/benchmarks/free_explicit.rs](../../../fp-library/benches/benchmarks/free_explicit.rs)                                                                   | Criterion bench at depths 10 / 100 / 1000 / 10000 confirming `FreeExplicit`'s per-node cost is approximately 27ns in the linear regime. The Phase-1 baseline for measuring `RcFree` / `ArcFree` regressions.                                                                                                                                               |
 
 The POC code (the `effects!` / `effects_coyo!` macros, the stub
 Coyoneda) migrates into production during Phase 2 and Phase 3; the
@@ -1104,7 +1106,7 @@ this section is the phasing-side checklist.
    Coyoneda-wrapped Coproduct row with recursive `Functor` impl
    on `Coproduct<H, T>` (where `H: Functor + T: Functor`) and base
    case on `CNil`. Migrate the trait-shape from
-   [poc-effect-row/src/lib.rs](../../../poc-effect-row/src/lib.rs)
+   `poc-effect-row/src/lib.rs` (workspace deleted in 10b)
    under the production `Functor` trait.
 3. `Member<E, Indices>` trait for first-order injection /
    projection, layered on top of `frunk_core::CoproductSubsetter`
@@ -1285,8 +1287,8 @@ this section is the phasing-side checklist.
    handling, same `ref`-mode lifetime concerns.
 
 8. `effects!` macro in `fp-macros/src/effects/effects.rs`,
-   migrated from
-   [poc-effect-row/macros/src/lib.rs](../../../poc-effect-row/macros/src/lib.rs).
+   migrated from `poc-effect-row/macros/src/lib.rs`
+   (workspace deleted in 10b).
    Lexical-sort by `quote!{}.to_string()`; emit Coyoneda-wrapped
    variants. The un-wrapped Coproduct form lives at
    `crate::__internal::raw_effects!` for fp-library-internal use
@@ -1900,15 +1902,18 @@ outward to user surface.
    approximately 200 lines, that signals real impedance mismatch
    and a fork to an in-house reimplementation should be
    considered, but the default is to stay on `frunk_core`.
-2. **POC-to-production migration (Phases 2 + 3).** The POC at
-   `poc-effect-row/` is a separate Cargo workspace and does not
-   integrate with fp-library's `Brand` system; the production
-   types use `Brand` machinery throughout. Migration is mostly
-   mechanical (swap the stub Coyoneda for fp-library's, swap the
-   raw Coproduct types for branded equivalents) but expect
-   surface-area changes around the macro output (the `effects!`
-   macro must emit Brand-shaped types in production). Plan one
-   step per POC test as a regression-safety strategy.
+2. **POC-to-production migration (Phases 2 + 3).** Historical
+   strategy note: when this plan was written, the POC at
+   `poc-effect-row/` was a separate Cargo workspace not
+   integrated with fp-library's `Brand` system. The production
+   migration was expected to be mostly mechanical (swap the
+   stub Coyoneda for fp-library's, swap the raw Coproduct types
+   for branded equivalents) with surface-area changes around the
+   macro output. The actual migration landed in Phase 2 step 8
+   (`effects!` / `raw_effects!` macros) and Phase 2 step 10a
+   (regression baseline at
+   [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs));
+   the POC workspace was deleted in step 10b.
 3. **`Drop` correctness (Phase 1).** `RcFree` and `ArcFree`
    inherit `Free`'s iterative `Drop` strategy via the underlying
    `CatList`; `FreeExplicit` requires its own iterative `Drop`
@@ -2001,10 +2006,11 @@ The plan is complete when all of the following hold:
   [../type-level-sorting/research/](../type-level-sorting/research/)
   (16 codebase classifications, `_classification.md` synthesis).
 - POC validation:
-  - [poc-effect-row/](../../../poc-effect-row/) -- row-encoding
-    hybrid, `tstr_crates` refinement, static-via-Coyoneda.
   - [poc-effect-row-canonicalisation.md](poc-effect-row-canonicalisation.md)
-    -- POC findings document.
+    -- findings from the (now-deleted) `poc-effect-row/`
+    workspace; the workspace was migrated to
+    [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs)
+    and deleted in Phase 2 step 10b.
   - [fp-library/tests/free_explicit_poc.rs](../../../fp-library/tests/free_explicit_poc.rs)
     -- `FreeExplicit` POC.
   - [fp-library/benches/benchmarks/free_explicit.rs](../../../fp-library/benches/benchmarks/free_explicit.rs)

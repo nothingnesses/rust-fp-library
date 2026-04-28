@@ -642,10 +642,12 @@ Other reference material:
 - [type-level-sorting/research/](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/type-level-sorting/research/):
   the parallel research arc on type-level sorting. Cited from
   decisions section 4.1.
-- [poc-effect-row/](file:///home/jessea/Documents/projects/rust-fp-lib/poc-effect-row/):
-  standalone Cargo workspace with the row-encoding hybrid POC.
-  Reference implementation only; migrates into production during
-  Phase 2.
+- `poc-effect-row/`: standalone Cargo workspace with the
+  row-encoding hybrid POC. Migrated to
+  [`fp-library/tests/run_row_canonicalisation.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_row_canonicalisation.rs)
+  in Phase 2 step 10a; workspace deleted in step 10b. The
+  preserved findings live in
+  [`docs/plans/effects/poc-effect-row-canonicalisation.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/poc-effect-row-canonicalisation.md).
 - [fp-library/tests/free_explicit_poc.rs](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/free_explicit_poc.rs):
   import-based integration tests for the production `FreeExplicit`.
   The POC promotion is complete (Phase 1 step 1); the file now
