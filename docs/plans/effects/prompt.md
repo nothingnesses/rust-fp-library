@@ -15,205 +15,230 @@ one step per commit, until the phase is complete or you hit a blocker.
 
 ## Current resume point
 
-**Phase 1 complete; Phase 1 follow-up commits both landed
+Phase 1 complete; Phase 1 follow-up both commits landed
 (`WrapDrop` migration plus the `Functor` -> `Kind` relaxation);
-Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, 7c.1, 7c.2a, 7c.2b,
-and 8 complete; Phase 2 step 9 in progress: rename + `Run::lift`
-reference impl, sub-step 9a (SendFunctor cascade prerequisites),
-and bundles 9b+9e (ArcFree+ArcRun migration) and 9c+9f
-(ArcFreeExplicit+ArcRunExplicit migration) all complete.
-**Sub-step 9d** (expand brand-level type-class surface on
-`ArcFreeExplicitBrand`) is the immediate next work.**
+Phase 2 complete (all 10 steps). The `poc-effect-row/` workspace
+was deleted in step 10b after its tests migrated to
+[`fp-library/tests/run_row_canonicalisation.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_row_canonicalisation.rs)
+in step 10a.
 
-Step 9's nine-sub-step decomposition (locked in by
-[the 2026-04-28 implementation expansion resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md))
-unifies into seven sub-step commits because three migration
-pairs are tightly coupled: 9b+9e bundle (ArcFree changes
-cascade through ArcRun) and 9c+9f bundle
-(ArcFreeExplicit changes cascade through ArcRunExplicit).
-**Remaining sub-steps after this session: 9d, 9g, 9h, 9i.**
+**Phase 3 (first-order effect handlers, interpreters, natural
+transformations) is the active phase. Phase 3 step 1
+(`handlers!{...}` macro) is the immediate next work.**
 
-Recent commit milestones (newest first):
+What Phase 2 shipped (commit-log order, oldest first):
 
-- `9295a26` (Phase 2 step 9c+9f bundle): replace `F: Functor`
-  with `F: SendFunctor` on `ArcFreeExplicit`; switch
-  `ArcRunExplicit` methods to `SendFunctor`-routed dispatch.
-  Generic param lists consolidate `B` bounds into the
-  where-clause to satisfy `clippy::type_repetition_in_bounds`.
-  The `arc_free_explicit_bind_requires_send` UI test's
-  `.stderr` is regenerated for shifted error-message line
-  numbers.
-- `f86c150` (Phase 2 step 9b+9e bundle): replace `F: Functor`
-  with `F: SendFunctor` on `ArcFree`'s eight per-method bound
-  sites; switch three internal `F::map` calls to
-  `F::send_map`; switch `hoist_free`'s `G: Functor` to
-  `G: SendFunctor`. `ArcRun::peel` and `::send` switch to
-  `NodeBrand<R, S>: SendFunctor` and route through
-  `SendFunctor::send_map`. The
-  [`arc_run_normalization_probe.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/arc_run_normalization_probe.rs)'s
-  pattern-A `send` updates to track production. The
-  `From<ArcRun>` impl on `ArcRunExplicit` gains
-  `R: SendFunctor + S: SendFunctor` plus
-  `NodeBrand<R, S>: SendFunctor`.
-- `779651e` (Phase 2 step 9a): brand-level `SendFunctor`
-  cascade plus missing `WrapDrop` impl. Adds five new trait
-  impls: `IdentityBrand: SendFunctor`,
-  `CNilBrand: SendFunctor`, `CoproductBrand<H, T>: SendFunctor`
-  (recursive over `H: SendFunctor + T: SendFunctor`),
-  `NodeBrand<R, S>: SendFunctor` (recursive over
-  `R: SendFunctor + S: SendFunctor`), and
-  `ArcCoyonedaBrand: WrapDrop` (returns `None`, mirroring
-  `CoyonedaBrand`/`RcCoyonedaBrand`'s pattern). Each impl
-  body is a near-mirror of the existing `Functor` (or
-  `WrapDrop`) impl on the same brand with the
-  `Send + Sync` bound added to closure parameters where
-  applicable.
-- `e9d7997` (Phase 2 step 9 expansion): expanded plan.md
-  step 9 from a single-step entry into a nine-sub-step
-  decomposition (9a-9i). Records the SendFunctor cascade
-  prerequisites discovery in
-  [resolutions.md's 2026-04-28 implementation-expansion
-  entry](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md).
-- `34b6a97` (Phase 2 step 9 rename): renamed
-  `Run::lift_f` to `Run::lift` to match PureScript Run's
-  [`Run.lift`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs);
-  the `_f` suffix is reserved for the Free-only operation
-  ([`Free::lift_f`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/free.rs),
-  the snake_case translation of PureScript's `Free.liftF`).
-  The Run-level row-aware operation takes the bare name
-  `lift`. Resolution + plan + decisions cross-references all
-  amended.
-- `c3555c7` (Phase 2 step 9 resolution): resolved the
-  earlier "step 9 scope under-specified" blocker by locking
-  in the generic-combinator interpretation (inherent
-  associated function on each Run wrapper, raw effect
-  input, full Coyoneda-lift / inject / `Node::First` /
-  `*Run::send` chain inside the body, type-inferred `Idx`).
-  Followed up by the 9-sub-step expansion in `e9d7997`.
+- Steps 1-3: `frunk_core` dependency + brand-aware Coproduct
+  adapter; `VariantF<Effects>` Coyoneda-wrapped Coproduct row;
+  `Member<E, Idx>` trait for first-order injection / projection.
+- Steps 4a, 4b: Run wrappers foundation
+  (`Run`/`RcRun`/`ArcRun`); Explicit family
+  (`RunExplicit`/`RcRunExplicit`/`ArcRunExplicit`) with brand
+  registration + `Node`/`NodeBrand` machinery.
+- Step 5: inherent `pure` / `peel` / `send` core operations on
+  all six Run wrappers. Discovered the HRTB-poisoning pattern
+  (see Lessons below).
+- Step 6: Erased -> Explicit conversion via `From` impls.
+- Steps 7a, 7b, 7c.1, 7c.2a, 7c.2b: inherent
+  `bind` / `map` / `ref_map` / `ref_bind` / `ref_pure`;
+  shared `DoInput` parser; `im_do!` proc-macro.
+- Step 8: `effects!` (public, Coyoneda-wrapped row) and
+  `raw_effects!` (internal, un-wrapped row) macros at
+  [`fp-macros/src/effects/effects_macro.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/effects_macro.rs)
+  with shared lexical-sort helper at
+  [`row_sort.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/row_sort.rs).
+- Step 9: universal `*Run::lift` across all six Run wrappers
+  (sub-step 9h); `SendFunctor` cascade prerequisites
+  (sub-steps 9a, 9b+9e, 9c+9f); brand-level coverage
+  re-evaluations on the Arc Explicit family (sub-step 9d+9g);
+  `SendRefPointed` on `ArcRunExplicitBrand` via inherent-method
+  delegation (sub-step 9i; the rest of the SendRef cascade is
+  documented as blocked by the per-`A` HRTB-over-types limit).
+  Inherent `ArcFreeExplicit::map` lands as the concrete-type
+  workaround for the unreachable brand-level
+  `SendFunctor::send_map`.
+- Step 10a: 21 of the POC's 25 row-canonicalisation tests
+  migrated to
+  [`fp-library/tests/run_row_canonicalisation.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_row_canonicalisation.rs)
+  with full per-test mapping in
+  [deviations.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md).
+- Step 10b: `poc-effect-row/` workspace deleted; doc-link
+  maintenance across the four cross-referencing files.
 
-**Sub-step 9d implements** the expanded brand-level type-class
-surface on
-[`ArcFreeExplicitBrand`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/brands.rs).
-The substrate's machinery is now `SendFunctor`-routed (per
-9c), so the brand-level coverage gap step 4b documented
-(`SendPointed` only; SendRef-family unreachable) shifts.
-Re-evaluate which Send-aware brand-level impls become
-reachable; at minimum `SendFunctor` should now be
-implementable. `SendSemimonad`, `SendApplicative`,
-`SendMonad` may follow if their dependencies satisfy under
-the new substrate. Don't add `SendRefFunctor` here; that's
-sub-step 9i (which uses inherent-method delegation, a
-different strategy than substrate-brand delegation).
+**Phase 3 step 1 entails** the `handlers!{...}` macro at the
+not-yet-existing `fp-macros/src/effects/handlers.rs` (sibling of
+the existing
+[`effects_macro.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/effects_macro.rs)),
+producing tuple-of-closures keyed on the row's type-level
+structure. The non-macro builder fallback
+`nt().on::<E>(handler)...` is also in scope per
+[decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
+section 4.6.
 
-**Where the brand-level coverage analysis lives**:
-[step 4b's resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-04-27-brand-level-type-class-coverage-gap-on-the-explicit-run-brands)
-documented the original gap; document any newly-reachable
-impls in
-[`fp-library/docs/limitations-and-workarounds.md`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/limitations-and-workarounds.md)'s
-"Unexpressible Bounds in Trait Method Signatures" table when
-the impl lands or is confirmed still unreachable.
+The existing
+[`effects_macro.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/effects_macro.rs)
+is the structural template for proc-macros that traverse a row.
+The shared lexical-sort helper at
+[`row_sort.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/row_sort.rs)
+is the precedent for any sort-helper sharing between
+`handlers!`, `effects!`, and the future `scoped_effects!`
+(Phase 4 step 4); reuse if the row-traversal logic in
+`handlers!` is shaped similarly.
 
-**Remaining sub-steps after 9d**:
+**Remaining Phase 3 steps after step 1**:
 
-- **9g**: same brand-level surface re-evaluation for
-  `ArcRunExplicitBrand`. Independent of 9d structurally
-  (different brand, different impl block) but with similar
-  shape.
-- **9h**: universal `*Run::lift` across all six Run
-  wrappers. The original step 9 payoff. `Run::lift` exists
-  from commit `34b6a97`; 9h adds the remaining five wrappers
-  (`RcRun::lift`, `ArcRun::lift`, `RunExplicit::lift`,
-  `RcRunExplicit::lift`, `ArcRunExplicit::lift`). Per-wrapper
-  delta table in plan.md step 9h. The `ArcRun::lift` /
-  `ArcRunExplicit::lift` use `ArcCoyoneda` instead of
-  `Coyoneda` (because Coyoneda isn't `Send + Sync`); the
-  HRTB-poisoning fallback (free `lift_node` helper) may be
-  needed for `ArcRun::lift` per the resolution. Plus
-  integration tests at
-  [`fp-library/tests/run_lift.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/).
-  The WIP branch
-  [`step-9-wip-with-arc-blocker`](file:///home/jessea/Documents/projects/rust-fp-lib/.git)
-  preserves a previous attempt at 9h before the 9a-9g
-  cascade landed; it doesn't compile against the current
-  trunk but is useful as a reference for the per-wrapper
-  bound deltas and the integration test shape.
-- **9i**: `SendRefFunctor` on `ArcRunExplicitBrand` via
-  inherent-method delegation. Step 4b documented the
-  SendRef-family hierarchy as unreachable through
-  substrate-brand delegation
-  (`ArcFreeExplicitBrand: SendRefFunctor` is unimplementable
-  due to per-`A` HRTB on the `Kind` projection). 9i sidesteps
-  by delegating to the wrapper's inherent `ref_map` /
-  `ref_bind` / `ref_pure` directly. Reference impl shape in
-  plan.md step 9i.
+- Step 2: `interpret` / `run` / `runAccum` recursive-target
+  interpreter family at
+  `fp-library/src/types/effects/interpreter.rs`.
+- Step 3: `interpretRec` / `runRec` / `runAccumRec`
+  `MonadRec`-target interpreter family in the same module.
+- Step 4: standard first-order effect types and their smart
+  constructors (`State<S>`, `Reader<E>`, `Except<E>`,
+  `Writer<W>`, `Choose` (multi-shot, `RcRun`-only)). The smart
+  constructors are one-liners over `*Run::lift`; per the
+  Coyoneda variant pairing rule (see Lessons below), each
+  smart constructor's effect-row parameterisation depends on
+  the Run wrapper it targets.
+- Step 5: `define_effect!` macro at
+  `fp-macros/src/effects/define_effect.rs` generating effect
+  enum + smart constructors + label / brand registration.
+- Step 6: `compile_fail` UI tests for negative cases (handler
+  missing an effect, wrong type ascription, multi-shot via
+  single-shot `Run`).
 
 **There are no active blockers** as of this resume point.
-Confirm before starting 9d by re-reading the
+Confirm before starting Phase 3 step 1 by re-reading the
 `Active blockers` section in plan.md (currently
 "_(None active.)_" per recent commits).
 
-**HRTB-poisoning is a structural pattern that may surface
-when working with `ArcFree`-substrate code.** The Phase 2
-step 5 investigation discovered that `ArcFree`'s struct-level
-HRTB on the `Kind` projection
-(`Of<'static, ArcFree<...>>: Send + Sync`) poisons GAT
-normalization in any scope mentioning the HRTB.
-Constructing projection-typed literals like
-`Node::First(layer)` inside that scope fails to unify with
-`<NodeBrand<R, S> as Kind>::Of<'_, A>`. **Workaround**:
-receive projection-typed values as parameters; never
-construct projection-typed values inside an HRTB-bearing
+If you encounter unexpected behaviour during Phase 3, plan.md's
+`Active blockers` section is the place to record load-bearing
+questions; entries should cite concrete file paths and line
+numbers so the next implementor (or you in a future session)
+can verify claims without conversational context.
+
+## Lessons learned in Phase 2 (load-bearing for Phase 3)
+
+These were learned during Phase 2 sub-steps 5, 9a-9i, and 10a.
+Reading them up front saves re-discovery cycles in Phase 3.
+
+### Coyoneda variant pairing rule (load-bearing for Phase 3 step 4)
+
+Each Run wrapper's `lift` uses the Coyoneda variant whose
+pointer kind matches its substrate:
+
+- `Run` / `RunExplicit` -> bare `Coyoneda`.
+- `RcRun` / `RcRunExplicit` -> `RcCoyoneda`.
+- `ArcRun` / `ArcRunExplicit` -> `ArcCoyoneda`.
+
+Driver: `*Run::send` and `*Run::peel` carry per-method
+`Of<'_, *Free<..., *TypeErasedValue>>: Clone` bounds intrinsic
+to the shared-`Rc`/`Arc` substrate state. Bare `Coyoneda`'s
+`Box<dyn FnOnce>` continuation is not `Clone`, so only the
+matching shared-pointer Coyoneda variant satisfies the bound.
+The plan's per-wrapper delta table for step 9h initially
+specified bare `Coyoneda` for `RcRun`/`RcRunExplicit`; that
+proved unsatisfiable and was corrected in step 9h's deviations
+entry.
+
+When Phase 3 step 4's smart constructors (`ask`, `get`, `put`,
+`tell`, `throw`) define one-liners over `*Run::lift`, they need
+to carry the same pairing in their effect-row parameterisation.
+A user-facing `ask` likely needs to either (a) be parameterised
+over the Run wrapper, (b) ship six variants, or (c) pick one
+canonical wrapper per effect family. Resolve this design
+question before writing per-effect smart constructors.
+
+### HRTB-poisoning workaround pattern (relevant whenever Arc-substrate code is touched)
+
+`ArcRun`'s struct-level HRTB on the `Kind` projection
+(`Of<'static, ArcFree<..., ArcTypeErasedValue>>: Send + Sync`)
+poisons GAT normalization in any scope mentioning the HRTB.
+Constructing a `Node::First(layer)` literal inside an
+`ArcRun`-impl-block scope fails to unify with
+`<NodeBrand<R, S> as Kind>::Of<'_, A>` even though `impl_kind!`
+declares them equal.
+
+**Workaround**: receive projection-typed values as parameters;
+never construct projection-typed values inside an HRTB-bearing
 scope. The probe at
 [`fp-library/tests/arc_run_normalization_probe.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/arc_run_normalization_probe.rs)
-documents four passing patterns and serves as the
-regression-test home for this limit. Sub-step 9h's
-`ArcRun::lift` is most likely to surface this pattern; the
-resolution's `lift_node` fallback covers it.
+documents four passing patterns and is the regression-test home
+for this limit. The free
+[`lift_node`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/arc_run.rs)
+helper (used by `ArcRun::lift`) is the precedent fallback. If
+Phase 3 handlers / smart constructors need to construct
+projection-typed values in HRTB-bearing scopes, use the same
+pattern.
 
-If you encounter unexpected behavior during 9d, plan.md's
-`Active blockers` section is the place to record
-load-bearing questions; entries should cite concrete file
-paths and line numbers so the next implementor (or you in a
-future session) can verify claims without conversational
-context.
+### Per-`A` HRTB-over-types blocks brand-level type-class delegation
 
-## Lessons learned in step 9 (worth internalising)
+Stable Rust does not support `for<T>` HRTBs. When a brand-level
+type-class trait requires per-`A` bounds (`A: Clone`, per-`A`
+`F::Of<...>: Clone + Send + Sync`), the bounds cannot be
+expressed in the trait method signature. This is the same wall
+that blocked:
 
-These came up during the 9a-9c+9f migration cycle. Reading
-them up front saves the same debug cycles in 9d-9i.
+- Brand-level `Functor`/`Semimonad` on `RcFreeExplicitBrand`
+  (step 4b).
+- Brand-level `SendFunctor`/`SendSemimonad` on
+  `ArcFreeExplicitBrand` (step 9d) and `ArcRunExplicitBrand`
+  (step 9g).
+- Brand-level `SendRefFunctor`/`SendRefSemimonad` cascade on
+  `ArcRunExplicitBrand` (step 9i).
 
-- **The SendFunctor migration cascades through wrapper
-  call sites.** `ArcFree`'s bound replacement broke
-  `ArcRun`'s methods at every call site; 9b had to bundle
-  with 9e to keep the workspace compiling. Same coupling for
-  9c/9f. **Bundle migrations across substrate/wrapper pairs
-  by default**; surface the bundling decision to the user as a
-  deviations.md entry, but don't try to land the substrate
-  half independently.
-- **`SendFunctor::send_map`'s closure-Send+Sync requirement
-  cascades into `A`, `B`, and projection bounds.** When you
-  switch a method body from `F::map(...)` to
-  `F::send_map(...)`, the closure's parameter and return type
-  must be `Send + Sync`, which transitively requires
-  `A: Send + Sync` and `B: Send + Sync` and the projection
-  types `F::Of<'a, ...>: Send + Sync` (cascading to row
-  brands' `R::Of<...>: Send + Sync` and
-  `S::Of<...>: Send + Sync`). Add these proactively to method
-  bounds when migrating; fewer iterations than letting rustc
-  surface them one at a time.
-- **Clippy's `type_repetition_in_bounds` lint requires a
-  type's bounds to be in one place.** When migrating, if
-  you split bounds between the generic-param-list and the
-  where-clause (e.g., `<B: 'a>` plus `B: Send + Sync` in
-  where), clippy fails. Consolidate by removing the inline
-  bound and putting everything in the where-clause:
-  `<B>` plus `B: Send + Sync + 'a` in where.
+Workaround pattern: implement the operation on the concrete
+type as an inherent method (where per-`A` bounds work in the
+where-clause) and document the brand-level gap in
+[`fp-library/docs/limitations-and-workarounds.md`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/limitations-and-workarounds.md).
+The `im_do!(ref ...)` macro form already routes around
+brand-level gaps via inherent-method delegation; if Phase 3
+brand-level handler dispatch on Arc-substrate types hits the
+same wall, use the same pattern.
+
+### `effects!` vs `raw_effects!` distinction (relevant for Phase 3 steps 1, 6)
+
+[`effects!`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/effects_macro.rs)
+is the public macro that produces Coyoneda-wrapped Coproduct
+brand rows (each variant satisfies the row-Functor requirement
+because Coyoneda is unconditionally Functor regardless of its
+inner).
+[`raw_effects!`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/lib.rs)
+at `fp_library::__internal` is the internal macro that produces
+raw Coproduct brand rows (no Coyoneda wrap), used in test
+fixtures and lower-level combinators.
+
+Phase 3 handlers should generally consume rows produced by
+`effects!`; Phase 3 step 6's compile_fail UI tests may use
+`raw_effects!` to construct test-only edge cases.
+
+### Bundle substrate/wrapper migrations by default (load-bearing for any future cascade work)
+
+`ArcFree`'s bound replacement in step 9b broke `ArcRun`'s
+methods at every call site; 9b had to bundle with 9e to keep
+the workspace compiling. Same coupling drove the 9c+9f bundle.
+**Bundle migrations across substrate/wrapper pairs by default**;
+surface the bundling decision to the user as a deviations.md
+entry but don't try to land the substrate half independently.
+Phase 3 is unlikely to surface substrate-vs-wrapper migrations
+of this shape, but the principle generalises to any
+cascade-coupled refactor.
+
+### Mechanical operational gotchas
+
 - **`compile_fail` `.stderr` files are sensitive to
-  bound-changes.** The migrations shifted error-message line
-  numbers in the
+  bound-changes.** Phase 2 migrations shifted error-message
+  line numbers in the
   `arc_free_explicit_bind_requires_send` UI test; regenerate
   with `TRYBUILD=overwrite cargo test --test compile_fail`
   (raw `cargo`, not `just test`, to avoid `wip/` artifacts).
+  Phase 3 step 6's compile_fail UI tests will need the same
+  regeneration treatment whenever bounds shift.
+- **Clippy's `type_repetition_in_bounds` lint requires a
+  type's bounds to be in one place.** If you split bounds
+  between the generic-param-list and the where-clause (e.g.,
+  `<B: 'a>` plus `B: Send + Sync` in where), clippy fails.
+  Consolidate: `<B>` plus `B: Send + Sync + 'a` in where.
 
 ## Where to start
 
@@ -381,13 +406,6 @@ change them unilaterally. If you encounter:
   `ia_do!`) lives at
   `/home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/support/do_input.rs`
   (Phase 2 step 7c.2a).
-- **`/home/jessea/Documents/projects/rust-fp-lib/poc-effect-row/` is
-  a separate Cargo workspace and a reference implementation.** Do
-  not modify it during the port; migrate code out of it into
-  `/home/jessea/Documents/projects/rust-fp-lib/fp-library/` and
-  `/home/jessea/Documents/projects/rust-fp-lib/fp-macros/` per the
-  phase instructions, and delete it only when its tests have a
-  production equivalent (Phase 2 step 10).
 - **Documentation lives in
   `/home/jessea/Documents/projects/rust-fp-lib/docs/`.** Do not
   invent new top-level docs without an explicit step asking for
