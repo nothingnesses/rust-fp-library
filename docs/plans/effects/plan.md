@@ -10,19 +10,62 @@ relaxation) landed; Phase 2 in progress (steps 1, 2, 3, 4a, 4b,
 Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
 complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, 7c.1,
 7c.2a, 7c.2b, and 8 complete; step 9 in progress (sub-steps 9a,
-9b+9e, 9c+9f, and 9d+9g complete; the `Run::lift` rename and
+9b+9e, 9c+9f, 9d+9g, and 9h complete; the `Run::lift` rename and
 reference impl from commit `34b6a97` count as in-step-9 progress
-although they predate the 9a-9i decomposition). Two sub-steps
-remaining (9h, 9i). Next up is sub-step 9h (universal `*Run::lift`
-across the remaining five Run wrappers; `Run::lift` already
-landed at commit `34b6a97`).
+although they predate the 9a-9i decomposition). One sub-step
+remaining (9i: `SendRefFunctor` and related Send-aware Ref-family
+traits on `ArcRunExplicitBrand` via inherent-method delegation).
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
 
-**Phase 2 step 9d+9g bundle (this commit): brand-level Send-aware
+**Phase 2 step 9h (this commit): universal `*Run::lift` across all
+six Run wrappers, with the per-wrapper Coyoneda-variant pairing
+corrected.** The plan's per-wrapper delta table specified bare
+`Coyoneda` for `RcRun::lift` and `RcRunExplicit::lift`; this is
+unsatisfiable because `*Run::send`/`*Run::peel` carry a per-method
+`Of<'_, *Free<..., *TypeErasedValue>>: Clone` bound intrinsic to
+the shared-`Rc`/`Arc` substrate state, and bare `Coyoneda`'s
+`Box<dyn FnOnce>` continuation is not `Clone`. Corrected pairing:
+each wrapper's `lift` uses the Coyoneda variant whose pointer kind
+matches the wrapper's substrate (Run -> Coyoneda;
+RcRun/RcRunExplicit -> RcCoyoneda; ArcRun/ArcRunExplicit ->
+ArcCoyoneda; RunExplicit -> Coyoneda).
+`ArcRun::lift` uses the
+[`lift_node`](../../../fp-library/src/types/effects/arc_run.rs)
+HRTB-poisoning fallback the
+[2026-04-27 resolution](resolutions.md) anticipated; inline
+construction of the `Node::First` literal inside `ArcRun`'s
+impl-block scope hit the GAT-normalization error from the
+struct-level HRTB. The other five wrappers build inline.
+
+Side artefact: step 9a noted `ArcCoyonedaBrand: WrapDrop` mirrored
+`RcCoyonedaBrand`'s pattern, but `RcCoyonedaBrand` did not
+actually carry the impl. This bundle adds it (returns `None`,
+matching `CoyonedaBrand` / `ArcCoyonedaBrand`), unblocking
+`RcCoyonedaBrand`-headed rows from satisfying the
+`NodeBrand<R, S>: WrapDrop` cascade that `RcRun` /
+`RcRunExplicit`'s struct definitions require.
+
+Integration test file
+[`fp-library/tests/run_lift.rs`](../../../fp-library/tests/run_lift.rs)
+ships 11 tests: round-trip on each of the six wrappers (all real
+round-trips with the matched Coyoneda variant), second-branch
+`Member` resolution on `Run` and `RunExplicit`, inferred-`Idx`
+verification, and `lift().bind(...)` composition on `Run` and
+`RunExplicit`. All 2436 unit tests pass under `just verify`.
+
+Implication for sub-step 9i: 9i lands `SendRefFunctor` (and
+related Send-aware Ref-family traits) on
+`ArcRunExplicitBrand` via inherent-method delegation. That
+strategy uses the wrapper's existing inherent `ref_map` /
+`ref_bind` / `ref_pure` (already in place from steps 7b and 7c.1)
+and is independent of 9h. It is the last remaining sub-step in
+step 9.
+
+**Phase 2 step 9d+9g bundle (`42e698a`): brand-level Send-aware
 surface unchanged on both `ArcFreeExplicitBrand` and
 `ArcRunExplicitBrand`; inherent `ArcFreeExplicit::map` lands as the
 concrete-type workaround for the unreachable brand-level
@@ -160,54 +203,6 @@ has its `.stderr` regenerated because the migration shifted
 the error-message line numbers slightly. All 2428 unit tests
 pass; doctests + clippy + deny + doc all clean.
 
-**Phase 2 step 9b+9e (`f86c150`): replace `F: Functor` with
-`F: SendFunctor` on `ArcFree` and switch `ArcRun` to
-`SendFunctor`-routed dispatch.** Per the resolution,
-`ArcFree`'s eight per-method `F: Functor` (or
-`F: Extract + Functor`) bounds switch to `F: SendFunctor` (or
-`F: Extract + SendFunctor`); three internal `F::map(...)` calls
-switch to `F::send_map(...)`; the import switches from
-`Functor` to `SendFunctor`. `ArcFree::wrap` additionally needs
-`A: Send + Sync` because `SendFunctor::send_map` requires its
-closure parameter type (`ArcFree<F, A>`) to be `Send + Sync`,
-which transitively requires `A: Send + Sync`. `hoist_free`'s
-`G: Functor` likewise becomes `G: SendFunctor`.
-
-`ArcRun`'s `peel` and `send` methods route through
-`ArcFree::resume` and `ArcFree::lift_f` respectively; their
-`NodeBrand<R, S>: Functor` bound switches to
-`NodeBrand<R, S>: SendFunctor`, and `peel`'s body switches from
-`<NodeBrand<R, S> as Functor>::map` to
-`<NodeBrand<R, S> as SendFunctor>::send_map`. `arc_run.rs`'s
-`Functor` import is now unused and removed; `SendFunctor` is
-imported in its place.
-
-[`fp-library/tests/arc_run_normalization_probe.rs`](../../../fp-library/tests/arc_run_normalization_probe.rs)'s
-pattern-A `send` method (which mirrors `*Run::send`'s shape for
-HRTB-poisoning regression coverage) updates its
-`NodeBrand<R, S>: Functor` bound to `SendFunctor` to match the
-production wrapper.
-
-[`fp-library/src/types/effects/arc_run_explicit.rs`](../../../fp-library/src/types/effects/arc_run_explicit.rs)'s
-`From<ArcRun>` impl (the conversion from step 6) walks the
-source `ArcRun` via its `peel`, so the impl's where-clause
-gains `R: SendFunctor + S: SendFunctor` plus
-`NodeBrand<R, S>: SendFunctor`. The `Functor` cascade stays
-because the impl's body still calls
-`<NodeBrand<R, S> as Functor>::map` (its closure returns
-`ArcFreeExplicit<...>`, which 9c+9f hasn't migrated yet).
-
-**Bundling rationale.** Sub-steps 9b and 9e were originally
-planned as separate commits, but `ArcFree`'s bound replacement
-cascades through `ArcRun`'s call sites: `ArcRun::peel` and
-`ArcRun::send` invoke `ArcFree`'s methods, so once `ArcFree`
-requires `F: SendFunctor`, `ArcRun` must too. They cannot land
-independently without `arc_run.rs` failing to compile.
-Documented as a sub-step deviation; same coupling expected for
-9c+9f (ArcFreeExplicit + ArcRunExplicit). The remaining
-sub-steps (9d, 9g, 9h, 9i) stay independent. All 2428 unit
-tests pass under `just verify`.
-
 ### Earlier completed steps (commit log)
 
 Each entry's design choices are recorded in
@@ -218,6 +213,17 @@ summary; resolved blockers are in
 
 Phase 2:
 
+- `f86c150` (step 9b+9e bundle): replace `F: Functor` with
+  `F: SendFunctor` on `ArcFree`; switch `ArcRun` to
+  `SendFunctor`-routed dispatch. Bundled because `ArcRun::peel`/
+  `send` route through `ArcFree`'s methods, so the bound
+  replacement cascades. Eight per-method bound updates on
+  `ArcFree`; three `F::map`->`F::send_map` calls; `wrap` gains
+  `A: Send + Sync`; `hoist_free` switches to `G: SendFunctor`.
+  `ArcRun`'s two per-method `Functor` bounds become `SendFunctor`,
+  one `<NodeBrand as Functor>::map` becomes `<as SendFunctor>::send_map`.
+  `arc_run_normalization_probe.rs`'s pattern-A and
+  `arc_run_explicit.rs`'s `From<ArcRun>` impl track the change.
 - `779651e` (step 9a): brand-level `SendFunctor` cascade
   prerequisites for sub-steps 9b through 9g. Adds
   `IdentityBrand: SendFunctor`, `CNilBrand: SendFunctor`,

@@ -56,10 +56,15 @@ mod inner {
 			impl_kind,
 			kinds::*,
 			types::{
+				ArcCoyoneda,
 				ArcFree,
 				ArcFreeExplicit,
 				arc_free::ArcTypeErasedValue,
-				effects::arc_run::ArcRun,
+				effects::{
+					arc_run::ArcRun,
+					member::Member,
+					node::Node,
+				},
 			},
 		},
 		fp_macros::*,
@@ -375,6 +380,77 @@ mod inner {
 				node,
 			);
 			ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(mapped))
+		}
+
+		/// Lifts a raw effect value into an `ArcRunExplicit` program.
+		///
+		/// Thread-safe Explicit-substrate analog of
+		/// [`Run::lift`](crate::types::effects::run::Run::lift). Same chain
+		/// (`ArcCoyoneda::lift` -> `Member::inject` ->
+		/// `Node::First` -> [`send`](ArcRunExplicit::send)) but uses
+		/// [`ArcCoyoneda`](crate::types::ArcCoyoneda) (the
+		/// `Send + Sync` Coyoneda variant) because the bare
+		/// [`Coyoneda`](crate::types::Coyoneda)'s `Box<dyn FnOnce>`
+		/// continuation is not `Send + Sync` and the `Arc`-substrate
+		/// rejects it.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being lifted.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The effect value to lift. Must be `Clone + Send + Sync`.")]
+		///
+		#[document_returns("An `ArcRunExplicit` program suspended at the lifted effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run_explicit::ArcRunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: ArcRunExplicit<'_, FirstRow, Scoped, i32> =
+		/// 	ArcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// // The program is suspended at the lifted effect; peel reveals the layer.
+		/// assert!(run.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn lift<EBrand, Idx>(
+			effect: Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
+				Member<ArcCoyoneda<'a, EBrand, A>, Idx>,
+			EBrand: Kind_cdc7cd43dac7585f + 'a,
+			Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone + Send + Sync,
+			A: Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone + Send + Sync, {
+			let coyo: ArcCoyoneda<'a, EBrand, A> = ArcCoyoneda::lift(effect);
+			let layer = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) as Member<
+				ArcCoyoneda<'a, EBrand, A>,
+				Idx,
+			>>::inject(coyo);
+			Self::send(Node::First(layer))
 		}
 
 		/// Inherent counterpart to

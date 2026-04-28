@@ -39,7 +39,14 @@ mod inner {
 				WrapDrop,
 			},
 			kinds::*,
-			types::RcFree,
+			types::{
+				RcCoyoneda,
+				RcFree,
+				effects::{
+					member::Member,
+					node::Node,
+				},
+			},
 		},
 		fp_macros::*,
 	};
@@ -306,6 +313,70 @@ mod inner {
 				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
 			>): Clone, {
 			RcRun::from_rc_free(RcFree::<NodeBrand<R, S>, A>::lift_f(node))
+		}
+
+		/// Lifts a raw effect value into an `RcRun` program.
+		///
+		/// Erased Rc-substrate analog of [`Run::lift`](crate::types::effects::run::Run::lift).
+		/// Wraps the effect in [`RcCoyoneda::lift`](crate::types::RcCoyoneda::lift)
+		/// (the `Rc`-pointer Coyoneda variant) rather than bare
+		/// [`Coyoneda`](crate::types::Coyoneda): `RcRun::send` carries an
+		/// `Of<'_, RcFree<..., RcTypeErasedValue>>: Clone` bound (intrinsic
+		/// to `RcFree`'s shared-`Rc` state), which `RcCoyoneda` satisfies
+		/// (`Rc::clone` is unconditional) but bare `Coyoneda` does not
+		/// (its `Box<dyn FnOnce>` continuation is not `Clone`). This
+		/// pairs the wrapper's pointer kind with the matching Coyoneda
+		/// variant: `Run`->`Coyoneda`, `RcRun`->`RcCoyoneda`,
+		/// `ArcRun`->`ArcCoyoneda`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being lifted.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The effect value to lift.")]
+		///
+		#[document_returns("An `RcRun` program suspended at the lifted effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run::RcRun,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::lift::<IdentityBrand, _>(Identity(42));
+		/// // The program is suspended at the lifted effect; peel reveals the layer.
+		/// assert!(rc_run.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn lift<EBrand, Idx>(
+			effect: Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+		) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				Member<RcCoyoneda<'static, EBrand, A>, Idx>,
+			EBrand: Kind_cdc7cd43dac7585f + 'static,
+			Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			let coyo: RcCoyoneda<'static, EBrand, A> = RcCoyoneda::lift(effect);
+			let layer =
+				<Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>) as Member<
+					RcCoyoneda<'static, EBrand, A>,
+					Idx,
+				>>::inject(coyo);
+			Self::send(Node::First(layer))
 		}
 
 		/// Sequences this `RcRun` with a continuation `f`. Delegates to

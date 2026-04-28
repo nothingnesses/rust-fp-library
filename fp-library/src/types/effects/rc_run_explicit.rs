@@ -62,9 +62,14 @@ mod inner {
 			impl_kind,
 			kinds::*,
 			types::{
+				RcCoyoneda,
 				RcFree,
 				RcFreeExplicit,
-				effects::rc_run::RcRun,
+				effects::{
+					member::Member,
+					node::Node,
+					rc_run::RcRun,
+				},
 			},
 		},
 		fp_macros::*,
@@ -352,6 +357,68 @@ mod inner {
 				node,
 			);
 			RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::wrap(mapped))
+		}
+
+		/// Lifts a raw effect value into an `RcRunExplicit` program.
+		///
+		/// Multi-shot Explicit-substrate analog of
+		/// [`Run::lift`](crate::types::effects::run::Run::lift). Wraps the
+		/// effect in [`RcCoyoneda::lift`](crate::types::RcCoyoneda::lift)
+		/// (the `Rc`-pointer Coyoneda variant) rather than bare
+		/// [`Coyoneda`](crate::types::Coyoneda) so downstream
+		/// [`peel`](RcRunExplicit::peel) is callable: `RcRunExplicit::peel`
+		/// requires `Of<'_, RcFreeExplicit<...>>: Clone`, which
+		/// `RcCoyoneda` satisfies (`Rc::clone`) but bare `Coyoneda` does
+		/// not (its `Box<dyn FnOnce>` continuation is not `Clone`). This
+		/// pairs the wrapper's pointer kind with the matching Coyoneda
+		/// variant: `RunExplicit`->`Coyoneda`,
+		/// `RcRunExplicit`->`RcCoyoneda`,
+		/// `ArcRunExplicit`->`ArcCoyoneda`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being lifted.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The effect value to lift.")]
+		///
+		#[document_returns("An `RcRunExplicit` program suspended at the lifted effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run_explicit::RcRunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: RcRunExplicit<'_, FirstRow, Scoped, i32> =
+		/// 	RcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// // The program is suspended at the lifted effect; peel reveals the layer.
+		/// assert!(run.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn lift<EBrand, Idx>(
+			effect: Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
+				Member<RcCoyoneda<'a, EBrand, A>, Idx>,
+			EBrand: Kind_cdc7cd43dac7585f + 'a,
+			Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
+			let coyo: RcCoyoneda<'a, EBrand, A> = RcCoyoneda::lift(effect);
+			let layer = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) as Member<
+				RcCoyoneda<'a, EBrand, A>,
+				Idx,
+			>>::inject(coyo);
+			Self::send(Node::First(layer))
 		}
 
 		/// Inherent counterpart to

@@ -74,8 +74,13 @@ mod inner {
 			impl_kind,
 			kinds::*,
 			types::{
+				Coyoneda,
 				FreeExplicit,
-				effects::run::Run,
+				effects::{
+					member::Member,
+					node::Node,
+					run::Run,
+				},
 			},
 		},
 		fp_macros::*,
@@ -316,6 +321,60 @@ mod inner {
 				node,
 			);
 			RunExplicit::from_free_explicit(FreeExplicit::wrap(mapped))
+		}
+
+		/// Lifts a raw effect value into a `RunExplicit` program.
+		///
+		/// Explicit-substrate analog of
+		/// [`Run::lift`](crate::types::effects::run::Run::lift). Same chain
+		/// (`Coyoneda::lift` -> `Member::inject` ->
+		/// `Node::First` -> [`send`](RunExplicit::send)), parameterized
+		/// over `'a` rather than `'static` so the lifted effect can borrow
+		/// non-`'static` data.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being lifted.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The effect value to lift.")]
+		///
+		#[document_returns("A `RunExplicit` program suspended at the lifted effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run_explicit::RunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: RunExplicit<'_, FirstRow, Scoped, i32> =
+		/// 	RunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// // The program is suspended at the lifted effect; peel reveals the layer.
+		/// assert!(run.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn lift<EBrand, Idx>(
+			effect: Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
+				Member<Coyoneda<'a, EBrand, A>, Idx>,
+			EBrand: Kind_cdc7cd43dac7585f + 'a, {
+			let coyo: Coyoneda<'a, EBrand, A> = Coyoneda::lift(effect);
+			let layer = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) as Member<
+				Coyoneda<'a, EBrand, A>,
+				Idx,
+			>>::inject(coyo);
+			Self::send(Node::First(layer))
 		}
 
 		/// Sequences this `RunExplicit` with a continuation `f`.

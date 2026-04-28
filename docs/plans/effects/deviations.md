@@ -1405,3 +1405,80 @@ strategy uses the wrapper's existing inherent
 `ref_map` / `ref_bind` / `ref_pure` (already in place from steps
 7b and 7c.1) and is independent of 9d's and 9g's brand-level
 re-evaluation. No change to 9i's scope.
+
+### Step 9h: per-wrapper Coyoneda-variant pairing corrected to substrate-pointer-matched
+
+The plan's
+[step 9h per-wrapper delta table](plan.md) listed bare `Coyoneda`
+for `RcRun::lift` and `RcRunExplicit::lift`. Rust rejects this:
+`*Run::send` (and `*Run::peel` for the shared-pointer wrappers)
+carries a per-method `Of<'_, *Free<..., *TypeErasedValue>>: Clone`
+bound that is intrinsic to the `Rc`/`Arc`-shared substrate state.
+With a `CoyonedaBrand`-headed row, that bound resolves to
+`Coyoneda<...>: Clone`, which is unsatisfiable because
+[`Coyoneda`](../../../fp-library/src/types/coyoneda.rs)'s
+`Box<dyn FnOnce>` continuation is single-shot and not `Clone`. So
+the methods compile in isolation but cannot be called with the
+Run-canonical Coyoneda-headed row.
+
+The
+[2026-04-28 WIP branch `step-9-wip-with-arc-blocker`](https://github.com/nothingnesses/rust-fp-library/tree/step-9-wip-with-arc-blocker)
+captured the WIP author's intended bound shape but did not validate
+the integration tests. The same issue would have surfaced as a test
+failure on `rc_run_lift_constructs` and
+`rc_run_explicit_lift_round_trip` against the WIP code.
+
+Corrected per-wrapper delta:
+
+| Wrapper          | `'a`         | Coyoneda variant             | Driver                                                            |
+| :--------------- | :----------- | :--------------------------- | :---------------------------------------------------------------- |
+| `Run`            | `'static`    | `Coyoneda<'static, _, _>`    | `Free` is single-shot; no `Clone` cascade.                        |
+| `RcRun`          | `'static`    | `RcCoyoneda<'static, _, _>`  | `RcFree`'s shared `Rc` state needs `Clone` on the row projection. |
+| `ArcRun`         | `'static`    | `ArcCoyoneda<'static, _, _>` | `ArcFree`'s shared `Arc` state needs `Clone + Send + Sync`.       |
+| `RunExplicit`    | `'a` (param) | `Coyoneda<'a, _, _>`         | `FreeExplicit` has no shared state.                               |
+| `RcRunExplicit`  | `'a` (param) | `RcCoyoneda<'a, _, _>`       | `RcFreeExplicit`'s shared `Rc` state, same as `RcRun`.            |
+| `ArcRunExplicit` | `'a` (param) | `ArcCoyoneda<'a, _, _>`      | `ArcFreeExplicit`'s shared `Arc` state, same as `ArcRun`.         |
+
+The pattern: each wrapper's `lift` uses the Coyoneda variant whose
+pointer kind matches the wrapper's substrate's pointer kind. This is
+a uniform pairing rule rather than a per-wrapper exception.
+
+Side artefact: step 9a added
+[`ArcCoyonedaBrand: WrapDrop`](../../../fp-library/src/types/arc_coyoneda.rs)
+and noted the impl mirrored
+[`RcCoyonedaBrand`](../../../fp-library/src/types/rc_coyoneda.rs)'s
+pattern, but `RcCoyonedaBrand` did not actually carry that impl.
+This bundle adds it (also returns `None`, mirroring
+[`CoyonedaBrand: WrapDrop`](../../../fp-library/src/types/coyoneda.rs)),
+unblocking `RcCoyonedaBrand`-headed rows for use as `NodeBrand` row
+brands on `RcRun`/`RcRunExplicit`. Without it, the
+`NodeBrand<R, S>: WrapDrop` requirement on the `RcRun` /
+`RcRunExplicit` struct definitions fails to recurse through
+`CoproductBrand<RcCoyonedaBrand<...>, ...>: WrapDrop`.
+
+The plan's `Run::lift` signature (already in production via commit
+`34b6a97`) is unchanged; only the five new wrapper methods land in
+this bundle. The reference signature in plan.md step 9h remains
+correct for `Run`; the per-wrapper delta table above is the
+correction.
+
+`ArcRun::lift` uses the
+[`lift_node` HRTB-poisoning fallback](../../../fp-library/src/types/effects/arc_run.rs)
+the resolution anticipated. Inline construction of the
+`Node::First` literal inside `ArcRun`'s impl-block scope failed
+with a GAT-normalization error
+(`Node<'_, {unknown}, ...> != <NodeBrand<R, S> as Kind>::Of<'static, A>`),
+exactly the 2026-04-27 limit. Factoring the literal-build step into
+the free `lift_node` function outside the HRTB-bearing scope
+sidesteps the poisoning. The other five wrappers build the literal
+inline successfully.
+
+The integration test file
+[`fp-library/tests/run_lift.rs`](../../../fp-library/tests/run_lift.rs)
+ships 11 tests: round-trip on each of the six wrappers (all real
+round-trips with the matched Coyoneda variant), second-branch
+`Member` resolution on `Run` and `RunExplicit`, inferred-`Idx`
+verification, and `lift().bind(...)` composition on `Run` and
+`RunExplicit`. The Run-canonical row uses bare `CoyonedaBrand`; the
+Rc/Arc-family rows use `RcCoyonedaBrand`/`ArcCoyonedaBrand`
+respectively, matching the corrected per-wrapper delta.

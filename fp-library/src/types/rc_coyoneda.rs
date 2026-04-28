@@ -878,6 +878,58 @@ mod inner {
 			crate::types::Coyoneda::lift(rc.lower_ref())
 		}
 	}
+
+	// -- WrapDrop implementation --
+
+	#[document_type_parameters("The brand of the underlying type constructor.")]
+	impl<F: Kind_cdc7cd43dac7585f + 'static> WrapDrop for RcCoyonedaBrand<F> {
+		/// Drop-time decomposition for an [`RcCoyoneda`] layer. Always
+		/// returns `None`, mirroring
+		/// [`CoyonedaBrand`](crate::brands::CoyonedaBrand) /
+		/// [`ArcCoyonedaBrand`](crate::brands::ArcCoyonedaBrand). The
+		/// Coyoneda's stored function would construct the inner value if
+		/// invoked, but the function is not invoked at drop time, and
+		/// the Coyoneda's environment does not materially store the inner
+		/// value the caller would iterate on. Recursive drop on the
+		/// `RcCoyoneda` is sound for the patterns documented on
+		/// [`WrapDrop`]: effects injected via `lift_f`-style operations
+		/// and chained via `bind` produce structural `Wrap` chains of
+		/// bounded depth (at most 1 for Run-typical patterns; see
+		/// [`tests/run_wrap_depth_probe.rs`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/tests/run_wrap_depth_probe.rs)
+		/// for the regression evidence). Required by the row-cascade
+		/// brands' [`WrapDrop`] machinery so [`RcCoyonedaBrand`]-headed
+		/// rows can serve as the row brand for
+		/// [`RcRun`](crate::types::effects::rc_run::RcRun) /
+		/// [`RcRunExplicit`](crate::types::effects::rc_run_explicit::RcRunExplicit).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the layer.",
+			"The intermediate type stored inside the Coyoneda."
+		)]
+		///
+		#[document_parameters("The Coyoneda layer (consumed).")]
+		///
+		#[document_returns("Always `None`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo: RcCoyoneda<'_, OptionBrand, i32> = RcCoyoneda::lift(Some(7));
+		/// assert_eq!(<RcCoyonedaBrand<OptionBrand> as WrapDrop>::drop(coyo), None);
+		/// ```
+		fn drop<'a, X: 'a>(
+			_fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		) -> Option<X> {
+			None
+		}
+	}
 }
 
 pub use inner::*;

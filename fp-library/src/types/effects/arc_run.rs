@@ -38,8 +38,13 @@ mod inner {
 			},
 			kinds::Kind_cdc7cd43dac7585f,
 			types::{
+				ArcCoyoneda,
 				ArcFree,
 				arc_free::ArcTypeErasedValue,
+				effects::{
+					member::Member,
+					node::Node,
+				},
 			},
 		},
 		fp_macros::*,
@@ -327,6 +332,68 @@ mod inner {
 			ArcRun::from_arc_free(ArcFree::<NodeBrand<R, S>, A>::lift_f(node))
 		}
 
+		/// Lifts a raw effect value into an `ArcRun` program.
+		///
+		/// Thread-safe Erased-substrate analog of
+		/// [`Run::lift`](crate::types::effects::run::Run::lift). Uses
+		/// [`ArcCoyoneda`](crate::types::ArcCoyoneda) (the
+		/// `Send + Sync` Coyoneda variant) because the bare
+		/// [`Coyoneda`](crate::types::Coyoneda)'s `Box<dyn FnOnce>`
+		/// continuation is not `Send + Sync` and the `Arc`-substrate
+		/// rejects it. `ArcCoyoneda` is unconditionally `Clone +
+		/// Send + Sync` via `Arc::clone`, which satisfies the
+		/// row-projection `Clone` bound `ArcRun::peel` carries; the
+		/// downstream lift+peel round-trip recovers the lifted value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being lifted.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The effect value to lift. Must be `Clone + Send + Sync`.")]
+		///
+		#[document_returns("An `ArcRun` program suspended at the lifted effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run::ArcRun,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(42));
+		/// // The program is suspended at the lifted effect; peel reveals the layer.
+		/// assert!(arc_run.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn lift<EBrand, Idx>(
+			effect: Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+		) -> Self
+		where
+			NodeBrand<R, S>: SendFunctor,
+			R: Kind_cdc7cd43dac7585f,
+			S: Kind_cdc7cd43dac7585f,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				Member<ArcCoyoneda<'static, EBrand, A>, Idx>,
+			EBrand: Kind_cdc7cd43dac7585f + 'static,
+			Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				Clone + Send + Sync,
+			A: Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone, {
+			Self::send(lift_node::<R, S, EBrand, Idx, A>(effect))
+		}
+
 		/// Sequences this `ArcRun` with a continuation `f`. Delegates to
 		/// [`ArcFree::bind`](crate::types::ArcFree).
 		#[document_signature]
@@ -541,6 +608,88 @@ mod inner {
 			A: Clone + Send + Sync, {
 			ArcRun::pure(a.clone())
 		}
+	}
+
+	/// HRTB-poisoning workaround for [`ArcRun::lift`]. The body of
+	/// `lift` constructs a [`Node::First`] literal whose type rustc
+	/// must normalize against
+	/// `<NodeBrand<R, S> as Kind>::Of<'static, A>`. Inside
+	/// [`ArcRun`]'s impl-block scope, the HRTB on the `Kind`
+	/// projection
+	/// (`Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync`)
+	/// poisons that normalization (the 2026-04-27 limit; see
+	/// [`docs/plans/effects/resolutions.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/resolutions.md)).
+	/// Factoring the literal-build step into a free function outside
+	/// the HRTB-bearing impl scope sidesteps the poisoning:
+	/// [`ArcRun::lift`] only sees the already-normalized projection
+	/// value as a function argument and never builds the literal
+	/// inside its own scope.
+	///
+	/// Internal helper for [`ArcRun::lift`]; not part of the public
+	/// API. The other five Run wrappers do not need this workaround
+	/// (their `lift` body builds the literal inline successfully) and
+	/// do not ship a sibling helper.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The brand of the effect being lifted.",
+		"The type-level Member-position witness (typically inferred).",
+		"The result type."
+	)]
+	///
+	#[document_parameters("The effect value to lift.")]
+	///
+	#[document_returns(
+		"A `Node::First` projection wrapping the ArcCoyoneda-lifted, row-injected effect."
+	)]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	types::{
+	/// 		Identity,
+	/// 		effects::{
+	/// 			arc_run::lift_node,
+	/// 			coproduct::Coproduct,
+	/// 			node::Node,
+	/// 		},
+	/// 	},
+	/// };
+	///
+	/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+	/// type Scoped = CNilBrand;
+	///
+	/// let layer = lift_node::<FirstRow, Scoped, IdentityBrand, _, i32>(Identity(42));
+	/// match layer {
+	/// 	Node::First(Coproduct::Inl(coyo)) => {
+	/// 		let Identity(value) = coyo.lower_ref();
+	/// 		assert_eq!(value, 42);
+	/// 	}
+	/// 	_ => panic!("expected Node::First(Inl(_)) for a single-effect row"),
+	/// }
+	/// ```
+	#[doc(hidden)]
+	pub fn lift_node<R, S, EBrand, Idx, A>(
+		effect: Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+	) -> Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+	where
+		R: Kind_cdc7cd43dac7585f,
+		S: Kind_cdc7cd43dac7585f,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+			Member<ArcCoyoneda<'static, EBrand, A>, Idx>,
+		EBrand: Kind_cdc7cd43dac7585f + 'static,
+		Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>): Clone + Send + Sync,
+		A: 'static, {
+		let coyo: ArcCoyoneda<'static, EBrand, A> = ArcCoyoneda::lift(effect);
+		let layer = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>) as Member<
+			ArcCoyoneda<'static, EBrand, A>,
+			Idx,
+		>>::inject(coyo);
+		Node::First(layer)
 	}
 }
 
