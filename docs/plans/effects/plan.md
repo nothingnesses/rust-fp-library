@@ -242,118 +242,14 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-04-28): Phase 2 step 9 scope is under-specified
+_(None active.)_
 
-Phase 2 step 9's plan-text reads in full:
-
-> 9. Coyoneda-wrapping smart constructors (`lift_f` analogues for each effect type).
-
-Two plausible interpretations of "smart constructors for each
-effect type" exist, and they differ substantially in scope:
-
-1. **Generic combinator interpretation.** Ship one `lift_f`
-   helper that takes an arbitrary effect value `E` plus a
-   `Member<CoyonedaBrand<E>, Idx>` witness, Coyoneda-wraps the
-   effect, injects into the row's first-order branch, wraps in
-   `Node::First(...)`, and lifts via the relevant Run wrapper's
-   `send`. Works generically for any effect type the user
-   later defines. Estimated scope: 1 file, ~50-100 lines, 1
-   test module exercising the generic combinator over a couple
-   of toy effect types.
-
-2. **Per-effect helpers interpretation.** Define concrete
-   first-order effect types (`State<S>`, `Reader<E>`,
-   `Except<E>`, `Writer<W>`, `Choose`) plus their per-effect
-   helpers (`ask`, `get`, `put`, `modify`, `tell`, `throw`).
-   Estimated scope: 4-5 effect-type modules, ~500+ lines, full
-   doctest coverage per effect.
-
-Reading the rest of the plan, interpretation 1 is the more
-likely intent: Phase 3 step 4 explicitly schedules
-_"Standard first-order effect types and their smart
-constructors: `State<S>`, `Reader<E>`, `Except<E>`, `Writer<W>`,
-`Choose`"_ as a separate Phase 3 deliverable
-([plan.md line 1119-1121](plan.md)), so doing per-effect work
-in Phase 2 step 9 would duplicate it. Decisions section 6
-similarly describes per-effect smart constructors ("`ask`,
-`get`, `put`, ...") as **thin wrappers over** the lift_f /
-inj / send infrastructure, implying the lift_f piece is
-prerequisite infrastructure that ships first (which is what
-step 9 would land under interpretation 1).
-
-But interpretation 1 still leaves open design decisions that
-the plan does not pre-lock and that the implementer should
-not unilaterally decide:
-
-- **Free function vs per-wrapper inherent method.** Phase 2's
-  established pattern (steps 5, 7a-c) puts user-facing
-  Run-program operations on the wrappers as inherent methods:
-  `Run::pure`, `RcRun::bind`, etc. By that pattern, `lift_f`
-  would land as six inherent methods (one per wrapper). But
-  `lift_f` differs structurally: its key argument is the
-  effect value, not `self`, so a free function (or associated
-  function on the wrapper) may be more natural. Pre-lock
-  needed: free function in
-  `fp-library/src/types/effects/lift_f.rs`, or six inherent
-  methods, or both?
-
-- **Exact signature: `Member` bounds and `Coyoneda` wrapping.**
-  The natural signature is something like:
-
-  ```rust
-  pub fn lift_f<E, R, S, Idx, A>(effect: E) -> Run<R, S, A>
-  where
-      R: Member<CoyonedaBrand<E>, Idx>,
-      E: Kind!(type Of<'a, T: 'a>: 'a;),
-      ...
-  ```
-
-  but the exact bounds (`E: Functor`?
-  `E: Kind<...>`? `A: 'static`? `Idx` in turbofish or
-  type-inferred?), the Coyoneda-decode closure (does the user
-  supply it, or does the helper assume the trivial decode?),
-  and how to align this across the six Run wrappers (whose
-  bounds differ: Erased Rc family wants `A: 'static`, Explicit
-  family wants `A: 'a`, ArcRunExplicit wants `A: 'a + Send + Sync`)
-  is the design work step 9 needs.
-
-- **HRTB-poisoning under `ArcFree`.** Per the gotchas section
-  in [plan.md's `Common gotchas from prior steps`](plan.md#common-gotchas-from-prior-steps),
-  constructing a `Node`-projection literal inside an
-  HRTB-bearing scope (which `ArcFree`'s struct propagates into
-  every `ArcRun`-method context) fails GAT normalization. The
-  workaround used by `*Run::send` is to receive the
-  `Node`-projection as a parameter rather than constructing it
-  inside the HRTB scope. `lift_f` for `ArcRun` would need to
-  thread the same workaround: either accept a pre-built
-  Coyoneda-wrapped Node-projection, or be defined entirely
-  outside any HRTB-bearing scope. The plan doesn't pre-lock
-  which.
-
-**Question for the user:** which interpretation, and on the
-generic-combinator path, what is the pre-locked design (free
-function vs inherent method, exact signature, HRTB workaround
-shape)?
-
-**Suggested resolution path:**
-
-- If interpretation 1 is intended: pre-lock the design
-  decisions above (free function vs inherent method, exact
-  signature, HRTB workaround) by amending
-  [decisions.md](decisions.md) section 6 or adding a new
-  section. Then update plan.md step 9 to reference the
-  decision, and proceed.
-- If interpretation 2 is intended: amend Phase 3 step 4 to
-  explicitly cross-reference Phase 2 step 9 (so the duplicate
-  scoping is intentional and documented), or move the
-  per-effect helpers fully into Phase 2 step 9 and remove from
-  Phase 3.
-- Alternatively, if the user wants me to proceed under
-  interpretation 1 with reasonable defaults (free function in
-  `fp-library/src/types/effects/lift_f.rs`, signature parallel
-  to the existing `Member::inject` plus a Coyoneda lift, and
-  the same HRTB-receive-as-parameter workaround as
-  `*Run::send`), say so and I'll land it.
+The Phase 2 step 9 under-specification (logged 2026-04-28) is
+resolved; full investigation, alternatives, and resolution moved
+to [resolutions.md](resolutions.md#resolved-2026-04-28-phase-2-step-9-scope-is-under-specified).
+The one-line summary is in the
+[Resolved blockers (summary)](#resolved-blockers-summary) section
+below.
 
 #### Previously resolved blockers
 
@@ -389,6 +285,14 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-04-28): Phase 2 step 9 scope is under-specified](resolutions.md#resolved-2026-04-28-phase-2-step-9-scope-is-under-specified)
+  -- generic `lift_f` combinator interpretation locked in;
+  inherent associated function on each of the six Run wrappers
+  mirroring `*Run::send`'s shape; takes the raw effect (not
+  pre-lifted Coyoneda) and does Coyoneda lift -> row inject ->
+  `Node::First` -> `*Run::send` inline; falls back to a free
+  `lift_node` helper for `ArcRun::lift_f` only if HRTB-poisoning
+  recurs.
 - [Resolved (2026-04-27): `*Run::send` takes a `Node`-projection value to sidestep GAT-normalization poisoning under `ArcFree`'s HRTB](resolutions.md#resolved-2026-04-27-runsend-takes-a-node-projection-value-to-sidestep-gat-normalization-poisoning-under-arcfrees-hrtb)
   -- discovered while implementing `ArcRun::send`: the HRTB at
   `ArcFree`'s struct level poisons `<NodeBrand as Kind>::Of<...>`
@@ -1211,8 +1115,73 @@ this section is the phasing-side checklist.
    Factor the lexical-sort logic into a shared `proc-macro2`
    helper used by both `effects!` and `scoped_effects!` (Phase 4
    step 4) so sort-correctness fixes land in one place.
-9. Coyoneda-wrapping smart constructors (`lift_f` analogues for
-   each effect type).
+9. **Generic `lift_f` combinator** as an inherent associated
+   function on each of the six Run wrappers, mirroring
+   `*Run::send`'s shape. Per the
+   [2026-04-28 resolution](resolutions.md#resolved-2026-04-28-phase-2-step-9-scope-is-under-specified):
+   take the raw effect (an `EBrand::Of<'a, A>` value, not a
+   pre-lifted Coyoneda), do the full chain inside the body
+   (Coyoneda lift -> row inject -> `Node::First` -> `*Run::send`),
+   and let `Idx` be type-inferred at call sites where the row is
+   unambiguous (turbofish only on duplicate-effect-type rows).
+
+   Reference signature for `Run` (the other five wrappers differ
+   only in `'a`, `A`-bound, and the `Clone`/`Functor` row bounds;
+   see the per-wrapper delta table in the resolution):
+
+   ```rust
+   impl<R: Kind, S: Kind, A: 'static> Run<R, S, A> {
+       pub fn lift_f<EBrand, Idx>(
+           effect: Apply!(<EBrand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>),
+       ) -> Self
+       where
+           R: Member<CoyonedaBrand<EBrand>, Idx>,
+           EBrand: Kind!(type Of<'a, T: 'a>: 'a;) + 'static,
+       {
+           let coyo = Coyoneda::<'static, EBrand, A>::lift(effect);
+           let layer = <R as Member<CoyonedaBrand<EBrand>, Idx>>::inject(coyo);
+           Self::send(Node::First(layer))
+       }
+   }
+   ```
+
+   This is the "thin wrapper over `inj + lift_f`/`send`"
+   infrastructure that [decisions.md](decisions.md) section 6 names
+   as the prerequisite for Phase 3's per-effect smart constructors
+   (`ask`, `get`, `put`, `modify`, `tell`, `throw`). Each of those
+   becomes a one-liner over `*Run::lift_f`.
+
+   **HRTB-poisoning fallback.** Try the inline body first on every
+   wrapper. If `ArcRun::lift_f` fails to compile due to
+   GAT-normalization recurring under `ArcFree`'s HRTB-bearing
+   impl-block scope (the 2026-04-27 limit), factor the literal-build
+   step into a free helper outside the HRTB scope:
+
+   ```rust
+   pub fn lift_node<R, S, EBrand, Idx, A>(
+       effect: Apply!(<EBrand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>),
+   ) -> Apply!(<NodeBrand<R, S> as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>)
+   where R: Member<CoyonedaBrand<EBrand>, Idx>, /* ... */
+   {
+       Node::First(<R as Member<CoyonedaBrand<EBrand>, Idx>>::inject(Coyoneda::lift(effect)))
+   }
+   ```
+
+   Then `ArcRun::lift_f` calls `Self::send(lift_node::<R, S, EBrand, Idx, A>(effect))`.
+   Don't pre-bake `lift_node` for the other five wrappers
+   prophylactically; only adopt it where it's needed.
+
+   **Tests.** One unit test per wrapper at
+   `fp-library/tests/run_lift_f.rs` covering: lift -> peel
+   round-trips a single-effect row to `Node::First(Inl(Coyoneda(...)))`;
+   the inferred-`Idx` form compiles for an unambiguous row;
+   turbofish-`Idx` form compiles for a row with duplicated effect
+   types; lifting through a multi-effect row injects at the
+   correct branch (`Inl` vs `Inr` chain) determined by `Member`'s
+   index. Plus one passing integration test per wrapper
+   demonstrating `Run::lift_f::<EBrand, _, _>(effect).bind(...)`
+   composition.
+
 10. Migrate the 25 row-canonicalisation tests from
     `poc-effect-row/tests/` into
     `fp-library/tests/run_row_canonicalisation.rs` as the

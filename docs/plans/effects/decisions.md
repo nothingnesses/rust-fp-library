@@ -762,7 +762,7 @@ Once the blockers in section 4 are resolved and the Phase 1 / Phase 2 machinery 
 
 - **`Run` newtype** wrapping the chosen core.
 - **Per-effect enums.** Direct translation from PureScript's `data State s a = ...`.
-- **Smart constructors.** `ask`, `get`, `put`, `modify`, `tell`, `throw`, `catch`. Each is a thin wrapper over `inj + lift_f`/`send`.
+- **Smart constructors.** `ask`, `get`, `put`, `modify`, `tell`, `throw`, `catch`. Each is a thin wrapper over `inj + lift_f`/`send`. The concrete signature for the `lift_f` combinator (inherent associated function on each Run wrapper, raw-effect input, full Coyoneda-lift / inject / `Node::First` / `send` chain inside the body) is locked in by [plan.md Phase 2 step 9](plan.md) and the [2026-04-28 resolution](resolutions.md#resolved-2026-04-28-phase-2-step-9-scope-is-under-specified).
 - **`extract :: Run () a -> a`.** Trivial once the empty row type is defined.
 - **`expand`.** One-line `unsafe fn` using `mem::transmute` once the row constraints prove subsetting.
 - **Base-monad bridge.** A `liftEffect`-analog for any target monad we care about. The first target should probably be `Thunk` or `Identity` (pure), with `async fn` as a followup.

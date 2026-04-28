@@ -15,6 +15,140 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-04-28): Phase 2 step 9 scope is under-specified
+
+Phase 2 step 9's plan-text originally read in full:
+
+> 9. Coyoneda-wrapping smart constructors (`lift_f` analogues for each effect type).
+
+Two plausible interpretations of "smart constructors for each
+effect type" existed, and they differed substantially in scope:
+the **generic combinator** interpretation (one helper that
+takes any effect value plus a `Member` witness, lifts it
+through Coyoneda, injects into the row, wraps in `Node::First`,
+and `send`s) and the **per-effect helpers** interpretation
+(concrete `State<S>` / `Reader<E>` / `Except<E>` / `Writer<W>` /
+`Choose` types plus `ask`, `get`, `put`, `modify`, `tell`,
+`throw`).
+
+Reading the rest of the plan, the generic-combinator interpretation
+was the intended one: Phase 3 step 4 explicitly schedules
+_"Standard first-order effect types and their smart
+constructors: `State<S>`, `Reader<E>`, `Except<E>`, `Writer<W>`,
+`Choose`"_ as a separate Phase 3 deliverable, so doing per-effect
+work in Phase 2 step 9 would duplicate it.
+[decisions.md](decisions.md) section 6 likewise describes
+per-effect smart constructors as **thin wrappers over** the
+`inj + lift_f`/`send` infrastructure, implying the `lift_f`
+piece is prerequisite infrastructure that ships first (which is
+what step 9 lands).
+
+Three sub-questions remained open under the generic-combinator
+interpretation:
+
+- **Free function vs per-wrapper inherent method.** The
+  established Phase 2 pattern (steps 5, 7a-c) puts user-facing
+  Run-program operations on the wrappers as inherent methods
+  (`Run::pure`, `RcRun::bind`, etc.), but `lift_f`'s key argument
+  is the effect value, not `self`, so a free function would also
+  be natural.
+- **Exact signature.** The `Member` bounds, the `Coyoneda`
+  decode closure (does the user supply it?), the alignment across
+  the six wrappers (whose bounds differ: Erased Rc family wants
+  `A: 'static`, Explicit family wants `A: 'a`, ArcRunExplicit
+  wants `A: 'a + Send + Sync`), and whether `Idx` is turbofished
+  or inferred.
+- **HRTB-poisoning under `ArcFree`.** Per the prior 2026-04-27
+  resolution, constructing a `Node`-projection literal inside
+  an HRTB-bearing scope (which `ArcFree`'s struct propagates
+  into every `ArcRun`-method context) fails GAT normalization.
+  `lift_f` for `ArcRun` would need to thread the same workaround.
+
+### Resolution
+
+**Generic combinator interpretation. Inherent associated
+function on each of the six Run wrappers, mirroring `*Run::send`'s
+shape. Take the raw effect (an `EBrand::Of<'a, A>` value) and do
+the full chain (Coyoneda lift -> row inject -> `Node::First` ->
+`*Run::send`) inside the body. Type-infer `Idx` at call sites
+where the row is unambiguous; turbofish only when duplicate effect
+types make `Idx` ambiguous. Try the simple inline body first; fall
+back to a free `lift_node<R, S, EBrand, Idx, A>(effect)` helper
+for `ArcRun::lift_f` if HRTB-poisoning recurs.**
+
+The signature for `Run` is:
+
+```rust
+impl<R: Kind, S: Kind, A: 'static> Run<R, S, A> {
+    pub fn lift_f<EBrand, Idx>(
+        effect: Apply!(<EBrand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>),
+    ) -> Self
+    where
+        R: Member<CoyonedaBrand<EBrand>, Idx>,
+        EBrand: Kind!(type Of<'a, T: 'a>: 'a;) + 'static,
+    {
+        let coyo = Coyoneda::<'static, EBrand, A>::lift(effect);
+        let layer = <R as Member<CoyonedaBrand<EBrand>, Idx>>::inject(coyo);
+        Self::send(Node::First(layer))
+    }
+}
+```
+
+Per-wrapper deltas (the body shape is identical; only the bounds
+change):
+
+| Wrapper          | `'a`         | Extra `A` bound            | Extra row/node bound                                          |
+| :--------------- | :----------- | :------------------------- | :------------------------------------------------------------ |
+| `Run`            | `'static`    | `A: 'static`               | (none)                                                        |
+| `RcRun`          | `'static`    | `A: 'static`               | the `Apply<...>: Clone` bound `RcRun::send` carries           |
+| `ArcRun`         | `'static`    | `A: Send + Sync + 'static` | `NodeBrand<R, S>: Functor` plus the `Apply<...>: Clone` bound |
+| `RunExplicit`    | `'a` (param) | `A: 'a`                    | (none)                                                        |
+| `RcRunExplicit`  | `'a` (param) | `A: 'a`                    | (none)                                                        |
+| `ArcRunExplicit` | `'a` (param) | `A: 'a + Send + Sync`      | (none)                                                        |
+
+The Coyoneda decode closure is implicit: `Coyoneda::lift` defaults
+to the trivial decode, which is what every smart-constructor case
+wants. Users who want a non-trivial decode construct `Coyoneda`
+themselves and use `*Run::send` directly.
+
+### Why not a single polymorphic free function
+
+The six wrappers use six different inner constructors with six
+different bound shapes (`'static` vs `'a`, `Clone` on the Apply
+node-projection, `Send + Sync` for Arc, etc.) and there is no
+common trait abstracting "construct from a node-projection".
+Inventing one to make `lift_f` polymorphic would be more code
+than just writing six near-identical inherent methods, which is
+the same trade-off `*Run::send` already settled on its 2026-04-27
+resolution.
+
+### Why raw effect input (not pre-lifted Coyoneda)
+
+Matches PureScript Run's `liftF :: forall f a. f a -> Run r a`,
+keeps Phase 3's smart constructors one-liners
+(`pub fn ask<R, S, Idx>() -> Run<R, S, Env> { Run::lift_f::<ReaderBrand, _, _>(Reader::Ask) }`),
+and keeps the Coyoneda detail an implementation concern of the
+helper rather than a user-visible step. Users who want to
+construct a non-trivial Coyoneda decode bypass `lift_f` and call
+`Coyoneda::lift_with` plus `*Run::send` directly.
+
+### Why "try inline; fall back if needed" for the HRTB workaround
+
+The 2026-04-27 GAT-normalization issue specifically hit
+`Apply!(<NodeBrand<R, S> as Kind>::Of<'static, A>)` _normalization_
+inside `ArcFree`'s HRTB-bearing scope. `lift_f`'s body builds the
+Node-projection by _literal construction_ (`Node::First(Coproduct::inject(coyo))`);
+no `Apply!` normalization is required on the result type, only on
+the `effect` parameter (which is fine, since it's already
+pre-resolved at the function boundary). Plausibly clean for
+`ArcRun::lift_f`. If it does fail, the workaround is mechanical:
+factor `Node::First(<R as Member<...>>::inject(Coyoneda::lift(effect)))`
+into a free helper outside the HRTB scope and have
+`ArcRun::lift_f` call `Self::send(lift_node::<R, S, EBrand, Idx, A>(effect))`.
+Pre-baking the `lift_node` helper in all six wrappers
+prophylactically would be wasted code if the simple form works
+for everything but `ArcRun`.
+
 ## Resolved (2026-04-27): `*Run::send` takes a `Node`-projection value to sidestep GAT-normalization poisoning under `ArcFree`'s HRTB
 
 Step 5's `send` method on each of the six Run wrappers takes the
