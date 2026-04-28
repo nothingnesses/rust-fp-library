@@ -189,6 +189,193 @@ Pre-baking the `lift_node` helper in all six wrappers
 prophylactically would be wasted code if the simple form works
 for everything but `ArcRun`.
 
+## Resolved (2026-04-28 implementation expansion): step 9 SendFunctor cascade prerequisites for Arc family
+
+While implementing the original 2026-04-28 resolution above,
+[`Run::lift`](../../../fp-library/src/types/effects/run.rs)
+landed cleanly at commit `34b6a97`. Extending the same body to
+`RunExplicit`, `RcRun`, `RcRunExplicit` worked. But `ArcRun::lift`
+and `ArcRunExplicit::lift` hit a structural conflict the original
+resolution didn't anticipate.
+
+### Problem
+
+`ArcRun`'s struct-level HRTB
+(`Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync`)
+forces every variant of the row's projection to be `Send + Sync`.
+The bare
+[`Coyoneda`](../../../fp-library/src/types/coyoneda.rs) stores
+its accumulated continuation in `Box<dyn FnOnce>` (no
+`Send + Sync`), so `Coyoneda<'_, EBrand, A>` is not
+`Send + Sync` and `ArcRun` rejects `CoyonedaBrand`-headed rows.
+
+The Send-aware companion
+[`ArcCoyoneda`](../../../fp-library/src/types/arc_coyoneda.rs)
+exists and is `Send + Sync`. But
+[`ArcCoyonedaBrand`](../../../fp-library/src/brands.rs)
+deliberately doesn't implement
+[`Functor`](../../../fp-library/src/classes/functor.rs) (it
+only implements [`SendFunctor`](../../../fp-library/src/classes/send_functor.rs)
+and [`Foldable`](../../../fp-library/src/classes/foldable.rs)),
+because the
+[`Functor::map`](../../../fp-library/src/classes/functor.rs)
+trait method's signature lacks `Send + Sync` bounds on its
+closure parameter; closures stored in Arc-wrapped layers must
+be `Send + Sync`. This is a deliberate fp-library design
+choice: the Send-aware parallel trait family
+([`SendFunctor`](../../../fp-library/src/classes/send_functor.rs),
+[`SendPointed`](../../../fp-library/src/classes/send_pointed.rs),
+[`SendSemimonad`](../../../fp-library/src/classes/send_semimonad.rs),
+[`SendApplicative`](../../../fp-library/src/classes/send_applicative.rs),
+etc., plus the
+[`SendRef`](../../../fp-library/src/classes/send_ref_functor.rs)
+prefix tree) exists to handle Arc-substrate brands; plain
+`Functor` deliberately does not impose Send bounds for the
+common-case non-thread-crossing brands.
+
+`ArcRun`'s existing `peel` / `send` / `bind` / `map`
+implementations route through `<NodeBrand<R, S> as Functor>::map`
+on the row brand. `NodeBrand: Functor` cascades to `R: Functor`,
+which `ArcCoyonedaBrand` cannot satisfy. So the universal
+`Run.lift` shape (Coyoneda lift -> row inject -> `Node::First` ->
+`*Run::send`) cannot work for the Arc family without a Send-aware
+substrate path.
+
+The substrate
+[`ArcFree`](../../../fp-library/src/types/arc_free.rs) compounds
+the issue: its internal machinery (`lift_f`, `wrap`, `bind`,
+`evaluate`, `fold_free`, `hoist_free`) all bound `F: Functor` and
+call `F::map` directly. Switching the Run wrappers to the
+Send-aware tree requires switching the substrate too.
+
+### Resolution
+
+**Expand step 9 with a `SendFunctor` cascade as prerequisite
+sub-steps before the universal `lift` work. Replace
+`F: Functor` bounds with `F: SendFunctor` on the Arc-substrate
+machinery (`ArcFree`, `ArcFreeExplicit`); land the missing
+`SendFunctor` impls on the row-cascade brands; expand the
+brand-level type-class surface on `ArcFreeExplicitBrand` and
+`ArcRunExplicitBrand` to absorb newly-reachable Send-aware
+impls; then complete `*Run::lift` for all six wrappers under
+the now-supported cascade.** Implement `SendRefFunctor` on
+`ArcRunExplicitBrand` via inherent-method delegation (calling
+the wrapper's `ref_map` / `ref_bind` / `ref_pure` directly,
+bypassing the brand-level cascade via the clone-trick).
+
+The expanded sub-step structure lives in plan.md step 9 (9a
+through 9i); each lands as a separate commit. The `Run::lift`
+implementation already shipped at commit `34b6a97` stays as the
+reference design; sub-step 9h fills in the remaining five
+wrappers.
+
+### Why "replace Functor with SendFunctor" instead of adding sibling methods
+
+Two paths considered:
+
+- **Replace `F: Functor` with `F: SendFunctor`** on `ArcFree` /
+  `ArcFreeExplicit`'s methods (signatures change, internal
+  `F::map` calls become `F::send_map`). Breaking change for any
+  pre-existing caller passing a non-Send `Functor`-only row
+  brand. Cleaner long-term: one method per operation; semantic
+  alignment between the substrate's thread-safety bounds and
+  the trait surface.
+- **Add Send-aware sibling methods** (`ArcFree::send_lift_f`
+  alongside `ArcFree::lift_f`). Backwards-compatible but doubles
+  the API surface; users have to pick the right method. The cost
+  compounds across `ArcFreeExplicit`'s siblings.
+
+Replacement chosen because `ArcFree`'s struct-level Send+Sync
+HRTB already restricts concrete callers to row brands that
+satisfy `Send + Sync`; adding `SendFunctor` impls to the row-
+cascade brands (sub-step 9a) keeps existing concrete callers
+working without method-surface duplication.
+
+### Why `SendRefFunctor` via inherent-method delegation
+
+The 2026-04-27
+"[brand-level type-class coverage gap on the Explicit Run brands](#resolved-2026-04-27-brand-level-type-class-coverage-gap-on-the-explicit-run-brands)"
+resolution documented `SendRef`-family hierarchy as unreachable
+through brand-level delegation: `ArcFreeExplicitBrand` can't
+implement `SendRefFunctor` because the auto-derive of
+`Send + Sync` on the closure return type requires a per-`A`
+HRTB on the `Kind` projection that stable Rust's trait method
+signatures cannot carry.
+
+The unreachability is at the substrate-brand level. The
+`ArcRunExplicit` _wrapper_ has inherent
+[`ref_map`](../../../fp-library/src/types/effects/arc_run_explicit.rs)
+/ `ref_bind` / `ref_pure` methods that work via the clone-trick
+(`self.clone().send_map(move |a| f(&a))`); the `O(1)`
+`Arc::clone` makes this cheap, and the per-`A` HRTB doesn't
+appear at the wrapper-method signature because the closure
+constraints are checked against the inherent method's bound
+list rather than against the brand-level trait method's. So
+`ArcRunExplicitBrand: SendRefFunctor` is reachable if the impl
+delegates to the wrapper's inherent `ref_map`, sidestepping
+`ArcFreeExplicitBrand` entirely.
+
+This is a different delegation strategy than what step 4b's
+resolution considered (substrate-brand delegation). The
+inherent-method delegation pattern produces a working
+brand-level `SendRefFunctor` impl with the same observable
+behavior at the cost of an `O(1)` clone per call. The clone is
+acceptable: brand-level dispatch is the path the user opted into
+when they wrote `<ArcRunExplicitBrand as SendRefFunctor>::send_ref_map`,
+and the alternative is no brand-level coverage at all.
+
+### Why not defer the SendFunctor cascade to a later phase
+
+Three plausible structures considered:
+
+- **Defer to Phase 1.5 follow-up.** The SendFunctor cascade on
+  the row-brand types is genuinely substrate-level
+  infrastructure, and Phase 1's WrapDrop migration set a
+  precedent for landing prerequisite trait-cascade work as a
+  follow-up between phases. But Phase 1 has long completed; a
+  retroactive "Phase 1.5" is structurally awkward and signals
+  bigger drift than the work warrants.
+- **Defer to Phase 3.** Phase 3 step 4 lands per-effect smart
+  constructors that build on `*Run::lift`. Deferring the
+  cascade would push `ArcRun::ask` / `ArcRun::get` etc. behind
+  a structural prerequisite, breaking Phase 3's promise of
+  thin one-liners over `*Run::lift`.
+- **Expand step 9's scope.** Most coherent: the cascade is
+  required by step 9's universal-`lift` promise; landing it as
+  step 9 sub-steps keeps the prerequisite-and-payoff together,
+  visible in one place, and verifiable as a unit. The smaller
+  sub-step granularity ensures each is independently
+  reviewable.
+
+The third option chosen.
+
+### Reference: scope inventory at start of expansion
+
+Confirmed by code inspection at the time the blocker surfaced:
+
+- `ArcCoyonedaBrand`: has [`SendFunctor`](../../../fp-library/src/types/arc_coyoneda.rs);
+  needs [`WrapDrop`](../../../fp-library/src/classes/wrap_drop.rs).
+- `IdentityBrand`: has `Functor` and `WrapDrop`; needs
+  `SendFunctor` (mechanical; `Identity<A>` has no closures, so
+  the closure `Send + Sync` requirement is vacuous).
+- `NodeBrand`, `CoproductBrand<H, T>`, `CNilBrand`: have
+  `Functor` and `WrapDrop`; need `SendFunctor` (recursive
+  cascade for the inductive cases; uninhabited base case for
+  `CNilBrand`).
+- `ArcFree`: bounds `lift_f` / `wrap` / `bind` / `evaluate` /
+  `fold_free` / `hoist_free` on `F: Functor`; calls `F::map` at
+  three sites; switch to `F: SendFunctor` and `F::send_map`.
+- `ArcFreeExplicit`: same shape as `ArcFree`; same migration.
+- `ArcRun`: methods route through `<NodeBrand<R, S> as Functor>::map`;
+  switch to `<NodeBrand<R, S> as SendFunctor>::send_map` after
+  the cascade lands.
+- `ArcRunExplicit`: same as `ArcRun`.
+- `ArcFreeExplicitBrand`: brand-level coverage limited to
+  `SendPointed` per step 4b; expand to `SendFunctor` and
+  cascade dependents under the Send-aware machinery.
+- `ArcRunExplicitBrand`: same expansion path; plus the
+  `SendRefFunctor`-via-inherent-method-delegation impl.
+
 ## Resolved (2026-04-27): `*Run::send` takes a `Node`-projection value to sidestep GAT-normalization poisoning under `ArcFree`'s HRTB
 
 Step 5's `send` method on each of the six Run wrappers takes the

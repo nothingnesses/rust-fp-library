@@ -11,9 +11,16 @@ Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
 complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, 7c.1,
 7c.2a, 7c.2b, and 8 complete. **Phase 2 step 8 (the `effects!`
 macro migration plus internal `raw_effects!` companion) is
-landed.** Next step in the phase is step 9 (the generic `lift`
-combinator on each of the six Run wrappers; PureScript Run's
-`Run.lift` analog), to be picked up in a future session.
+landed.** Step 9 (the generic `lift` combinator on each of the
+six Run wrappers; PureScript Run's `Run.lift` analog) is in
+progress: the rename + `Run::lift` reference implementation
+shipped at commit `34b6a97`, but completing the Arc family
+surfaced an implementation-expansion blocker resolved on
+2026-04-28 (see
+[resolutions.md](resolutions.md#resolved-2026-04-28-implementation-expansion-step-9-sendfunctor-cascade-prerequisites-for-arc-family)).
+Step 9 now decomposes into nine sub-steps (9a-9i); next up is
+sub-step 9a (brand-level `SendFunctor` cascade plus missing
+`WrapDrop` impl), to be picked up in a future session.
 
 The two entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
@@ -285,6 +292,22 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-04-28 implementation expansion): step 9 SendFunctor cascade prerequisites for Arc family](resolutions.md#resolved-2026-04-28-implementation-expansion-step-9-sendfunctor-cascade-prerequisites-for-arc-family)
+  -- discovered while implementing the original 2026-04-28
+  resolution: `ArcRun::lift` and `ArcRunExplicit::lift` cannot
+  use the same `Coyoneda::lift` chain as the other four wrappers
+  because `Coyoneda` isn't `Send + Sync` and the Send-aware
+  sibling `ArcCoyonedaBrand` doesn't implement `Functor` (a
+  deliberate fp-library design choice; the `Functor` trait's
+  `map` signature lacks `Send + Sync` bounds on closures).
+  Resolution: expand step 9 with sub-steps 9a-9g landing the
+  `SendFunctor` cascade prerequisites (replace `F: Functor` with
+  `F: SendFunctor` on `ArcFree`/`ArcFreeExplicit`; add missing
+  `SendFunctor` impls on the row-cascade brands; expand
+  brand-level coverage on `ArcFreeExplicitBrand` /
+  `ArcRunExplicitBrand`); then complete `*Run::lift` for all six
+  wrappers in 9h; add `SendRefFunctor` on `ArcRunExplicitBrand`
+  via inherent-method delegation in 9i.
 - [Resolved (2026-04-28): Phase 2 step 9 scope is under-specified](resolutions.md#resolved-2026-04-28-phase-2-step-9-scope-is-under-specified)
   -- generic combinator interpretation locked in, named `lift`
   to match PureScript Run's
@@ -294,7 +317,8 @@ summaries:
   pre-lifted Coyoneda) and does Coyoneda lift -> row inject ->
   `Node::First` -> `*Run::send` inline; falls back to a free
   `lift_node` helper for `ArcRun::lift` only if HRTB-poisoning
-  recurs.
+  recurs. Followed up by the implementation-expansion entry
+  above when the Arc-family Coyoneda/Functor conflict surfaced.
 - [Resolved (2026-04-27): `*Run::send` takes a `Node`-projection value to sidestep GAT-normalization poisoning under `ArcFree`'s HRTB](resolutions.md#resolved-2026-04-27-runsend-takes-a-node-projection-value-to-sidestep-gat-normalization-poisoning-under-arcfrees-hrtb)
   -- discovered while implementing `ArcRun::send`: the HRTB at
   `ArcFree`'s struct level poisons `<NodeBrand as Kind>::Of<...>`
@@ -1121,24 +1145,106 @@ this section is the phasing-side checklist.
    [`Run.lift`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
    analog) as an inherent associated function on each of the six
    Run wrappers, mirroring `*Run::send`'s shape. Per the
-   [2026-04-28 resolution](resolutions.md#resolved-2026-04-28-phase-2-step-9-scope-is-under-specified):
+   [2026-04-28 resolution](resolutions.md#resolved-2026-04-28-phase-2-step-9-scope-is-under-specified)
+   and the
+   [2026-04-28 expansion](resolutions.md#resolved-2026-04-28-implementation-expansion-step-9-sendfunctor-cascade-prerequisites-for-arc-family):
    take the raw effect (an `EBrand::Of<'a, A>` value, not a
    pre-lifted Coyoneda), do the full chain inside the body
    (Coyoneda lift -> row inject -> `Node::First` -> `*Run::send`),
    and let `Idx` be type-inferred at call sites where the row is
-   unambiguous (turbofish only on duplicate-effect-type rows).
-
-   The bare name `lift` matches PureScript Run's `Run.lift`; the
-   `_f` suffix is reserved for the Free-only operation
+   unambiguous (turbofish only on duplicate-effect-type rows). The
+   bare name `lift` matches PureScript Run's `Run.lift`; the `_f`
+   suffix is reserved for the Free-only operation
    ([`Free::lift_f`](../../../fp-library/src/types/free.rs), the
-   snake_case translation of PureScript's `Free.liftF`). The
-   row-aware Run-level operation is named `lift` without the
-   suffix to keep the two operations distinguishable, matching
-   the PureScript convention.
+   snake_case translation of PureScript's `Free.liftF`).
 
-   Reference signature for `Run` (the other five wrappers differ
-   only in `'a`, `A`-bound, and the `Clone`/`Functor` row bounds;
-   see the per-wrapper delta table in the resolution):
+   The work breaks into nine sub-steps; each lands as a separate
+   commit and verifies under `just verify` independently. Sub-steps
+   9a-9g establish the `SendFunctor` cascade prerequisites for the
+   Arc family (the architectural finding documented in the 2026-04-28
+   expansion); sub-steps 9h-9i complete the universal `lift` and
+   `SendRefFunctor` work. Already landed: the `Run::lift` reference
+   implementation at commit
+   [`34b6a97`](../../../fp-library/src/types/effects/run.rs) (which
+   names + signs off on the chosen design but doesn't extend to the
+   Arc family).
+
+   **9a. Brand-level `SendFunctor` cascade plus missing `WrapDrop`.**
+   Add `SendFunctor` impls on the row-cascade brands that don't have
+   them: `IdentityBrand`, `CNilBrand`, `CoproductBrand<H, T>` (recursive,
+   requiring `H: SendFunctor + T: SendFunctor`), and
+   `NodeBrand<R, S>` (delegates to the first-order and scoped row
+   brands' `SendFunctor` impls). Add the missing
+   [`WrapDrop`](../../../fp-library/src/classes/wrap_drop.rs) impl on
+   [`ArcCoyonedaBrand`](../../../fp-library/src/types/arc_coyoneda.rs)
+   (returns `None`, mirroring the existing
+   [`CoyonedaBrand`](../../../fp-library/src/types/coyoneda.rs) /
+   [`RcCoyonedaBrand`](../../../fp-library/src/types/rc_coyoneda.rs)
+   pattern; the Coyoneda's stored function does not materially store
+   an inner Free, so structural-recursive drop is sound). All impls
+   are mechanical mirrors of the existing `Functor` / `WrapDrop`
+   patterns; no novel algorithm.
+
+   **9b. Replace `F: Functor` with `F: SendFunctor` on `ArcFree`.**
+   The substrate at
+   [`fp-library/src/types/arc_free.rs`](../../../fp-library/src/types/arc_free.rs)
+   currently bounds `lift_f`, `wrap`, `bind`, `evaluate`, `fold_free`,
+   `hoist_free`, etc. on `F: Functor` and routes `F::map` calls
+   through it. Switch all such bounds to `F: SendFunctor` and replace
+   `F::map(...)` calls with `F::send_map(...)`. The closures passed
+   at the call sites (`ArcFree::pure`, user-supplied
+   `Send + Sync`-bound continuations from `bind`, etc.) are already
+   `Send + Sync`, so the migration is mechanical. This is a breaking
+   change for any pre-existing caller passing a non-Send `Functor`
+   row brand, but `ArcFree`'s struct-level
+   `Of<'static, ArcFree<...>>: Send + Sync` HRTB already restricts
+   concrete callers to row brands that satisfy `Send + Sync`, so
+   adding `SendFunctor` impls (sub-step 9a) keeps existing callers
+   working.
+
+   **9c. Replace `F: Functor` with `F: SendFunctor` on
+   `ArcFreeExplicit`.** Same migration as 9b for the substrate at
+   [`fp-library/src/types/arc_free_explicit.rs`](../../../fp-library/src/types/arc_free_explicit.rs).
+   Method signatures and internal `F::map` call sites switch to
+   `F::send_map`.
+
+   **9d. Expand brand-level type-class surface on
+   `ArcFreeExplicitBrand`.** With `ArcFreeExplicit`'s machinery now
+   routed through `SendFunctor`, the brand-level coverage gap
+   documented in step 4b (per-`A` HRTB blocking SendRef-family
+   impls) shifts. Re-evaluate the cascade and land newly-reachable
+   impls: at minimum `SendFunctor`; potentially `SendSemimonad`,
+   `SendApplicative`, `SendMonad` if their dependencies are
+   satisfiable through the same SendFunctor-aware substrate. Document
+   any remaining unreachable subset in
+   [`fp-library/docs/limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md).
+   Don't add `SendRefFunctor` here; that's sub-step 9i.
+
+   **9e. Switch `ArcRun` to `SendFunctor`-routed dispatch.** The
+   wrapper at
+   [`fp-library/src/types/effects/arc_run.rs`](../../../fp-library/src/types/effects/arc_run.rs)
+   currently routes `peel`/`send`/`bind`/`map` through
+   `<NodeBrand<R, S> as Functor>::map`. Switch to
+   `<NodeBrand<R, S> as SendFunctor>::send_map`, calling the
+   Send-aware `ArcFree` siblings from 9b. The struct-level HRTB
+   stays (the `Of<'static, ArcFree<...>>: Send + Sync` bound is
+   orthogonal to the trait bound on `R`).
+
+   **9f. Switch `ArcRunExplicit` to `SendFunctor`-routed dispatch.**
+   Same migration as 9e for
+   [`fp-library/src/types/effects/arc_run_explicit.rs`](../../../fp-library/src/types/effects/arc_run_explicit.rs).
+
+   **9g. Expand brand-level type-class surface on
+   `ArcRunExplicitBrand`.** Step 4b documented the brand-level
+   coverage as `SendPointed` only. With the SendFunctor-aware
+   substrate machinery from 9c-9d, this expands to `SendPointed`
+   plus whatever cascades from `ArcFreeExplicitBrand`'s expanded
+   surface (sub-step 9d). Land the newly-reachable impls; document
+   any remaining gap.
+
+   **9h. Add `lift` inherent method to all six Run wrappers.** The
+   originally-planned step 9 work, now unblocked for the Arc family
+   by the 9a-9g cascade. Reference signature for `Run`:
 
    ```rust
    impl<R: Kind, S: Kind, A: 'static> Run<R, S, A> {
@@ -1158,6 +1264,57 @@ this section is the phasing-side checklist.
    }
    ```
 
+   For the Erased Rc and Explicit families, the wrapper substitutes
+   their own Coyoneda variant (`Coyoneda` for non-Arc; `ArcCoyoneda`
+   for `ArcRun` / `ArcRunExplicit`) and the corresponding Member
+   bound. Per-wrapper delta table:
+
+   | Wrapper          | `'a`         | Coyoneda variant             | Extra `A` bound            |
+   | :--------------- | :----------- | :--------------------------- | :------------------------- |
+   | `Run`            | `'static`    | `Coyoneda<'static, _, _>`    | `A: 'static`               |
+   | `RcRun`          | `'static`    | `Coyoneda<'static, _, _>`    | `A: 'static`               |
+   | `ArcRun`         | `'static`    | `ArcCoyoneda<'static, _, _>` | `A: Send + Sync + 'static` |
+   | `RunExplicit`    | `'a` (param) | `Coyoneda<'a, _, _>`         | `A: 'a`                    |
+   | `RcRunExplicit`  | `'a` (param) | `Coyoneda<'a, _, _>`         | `A: 'a`                    |
+   | `ArcRunExplicit` | `'a` (param) | `ArcCoyoneda<'a, _, _>`      | `A: 'a + Send + Sync`      |
+
+   `Run::lift` already landed at commit
+   [`34b6a97`](../../../fp-library/src/types/effects/run.rs); 9h
+   adds the remaining five. `ArcRun::lift` may need the
+   `lift_node` HRTB-fallback helper from the original 2026-04-28
+   resolution; defer to the implementer's experience.
+
+   **HRTB-poisoning fallback.** Try the inline body first on every
+   wrapper. If `ArcRun::lift` fails to compile due to GAT-normalization
+   recurring under `ArcFree`'s HRTB-bearing impl-block scope (the
+   2026-04-27 limit), factor the literal-build step into a free
+   helper outside the HRTB scope:
+
+   ```rust
+   pub fn lift_node<R, S, EBrand, Idx, A>(
+       effect: Apply!(<EBrand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>),
+   ) -> Apply!(<NodeBrand<R, S> as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>)
+   where /* SendFunctor cascade bounds */
+   {
+       Node::First(<_ as Member<_, Idx>>::inject(ArcCoyoneda::lift(effect)))
+   }
+   ```
+
+   Then `ArcRun::lift` calls
+   `Self::send(lift_node::<R, S, EBrand, Idx, A>(effect))`. Don't
+   pre-bake `lift_node` for the other five wrappers prophylactically.
+
+   **Tests.** One integration test per wrapper at
+   `fp-library/tests/run_lift.rs` covering: lift -> peel two-step
+   round-trip (lower the inner Coyoneda's stored continuation, peel
+   that to recover the value) on a single-effect row; second-branch
+   injection through a multi-effect row (proves `Member` resolves
+   the position correctly); inferred-`Idx` compiles unambiguously;
+   `*Run::lift::<EBrand, _>(effect).bind(...)` composition. Erased
+   Rc/Arc-family `peel` carries a row-projection `Clone` bound that
+   Coyoneda-headed rows don't satisfy; substitute construction-only
+   tests for those two wrappers.
+
    This is the "thin wrapper over `inj + liftF`/`send`"
    infrastructure that [decisions.md](decisions.md) section 6 names
    as the prerequisite for Phase 3's per-effect smart constructors
@@ -1165,39 +1322,50 @@ this section is the phasing-side checklist.
    becomes a one-liner over `*Run::lift`, parallel to PureScript
    Run's `liftEffect = lift (Proxy :: "effect")` pattern.
 
-   **HRTB-poisoning fallback.** Try the inline body first on every
-   wrapper. If `ArcRun::lift` fails to compile due to
-   GAT-normalization recurring under `ArcFree`'s HRTB-bearing
-   impl-block scope (the 2026-04-27 limit), factor the literal-build
-   step into a free helper outside the HRTB scope:
+   **9i. `SendRefFunctor` on `ArcRunExplicitBrand` via inherent-method
+   delegation.** Step 4b documented the SendRef-family hierarchy on
+   `ArcRunExplicitBrand` as unreachable through brand-level
+   delegation because `ArcFreeExplicitBrand` doesn't implement it
+   (per-`A` HRTB on `Kind` projection, unexpressible in trait method
+   signatures). 9i sidesteps that gap with a different delegation
+   strategy: implement `SendRefFunctor` on `ArcRunExplicitBrand` by
+   calling the wrapper's inherent
+   [`ref_map`](../../../fp-library/src/types/effects/arc_run_explicit.rs)
+   directly, which uses the clone-trick
+   (`self.clone().map(move |a| f(&a))`) to bypass the brand-level
+   cascade. The `O(1)` `Arc::clone` makes this cheap; the inherent
+   ref methods already handle the per-`A` constraints at the wrapper
+   level.
+
+   Reference shape:
 
    ```rust
-   pub fn lift_node<R, S, EBrand, Idx, A>(
-       effect: Apply!(<EBrand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>),
-   ) -> Apply!(<NodeBrand<R, S> as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>)
+   impl<R, S> SendRefFunctor for ArcRunExplicitBrand<R, S>
    where
-       Apply!(<R as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>):
-           Member<Coyoneda<'static, EBrand, A>, Idx>,
-       /* ... */
+       R: WrapDrop + SendFunctor + 'static,
+       S: WrapDrop + SendFunctor + 'static,
    {
-       Node::First(<_ as Member<_, Idx>>::inject(Coyoneda::lift(effect)))
+       fn send_ref_map<'a, A: 'a, B: 'a, Func>(
+           f: Func,
+           fa: &Apply!(<Self as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, A>),
+       ) -> Apply!(<Self as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>)
+       where
+           Func: Fn(&A) -> B + Send + Sync + 'a,
+       {
+           fa.ref_map(f)
+       }
    }
    ```
 
-   Then `ArcRun::lift` calls `Self::send(lift_node::<R, S, EBrand, Idx, A>(effect))`.
-   Don't pre-bake `lift_node` for the other five wrappers
-   prophylactically; only adopt it where it's needed.
-
-   **Tests.** One unit test per wrapper at
-   `fp-library/tests/run_lift.rs` covering: lift -> peel
-   round-trips a single-effect row to `Node::First(Inl(Coyoneda(...)))`;
-   the inferred-`Idx` form compiles for an unambiguous row;
-   turbofish-`Idx` form compiles for a row with duplicated effect
-   types; lifting through a multi-effect row injects at the
-   correct branch (`Inl` vs `Inr` chain) determined by `Member`'s
-   index. Plus one passing integration test per wrapper
-   demonstrating `Run::lift::<EBrand, _>(effect).bind(...)`
-   composition.
+   Applies the same delegation pattern to other reachable
+   SendRef-family traits (`SendRefSemimonad` via `ref_bind`,
+   `SendRefPointed` via `ref_pure`) where the wrapper's inherent
+   counterpart admits direct delegation. Document anything that
+   doesn't admit delegation in
+   [`fp-library/docs/limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md).
+   `ArcRun` (the Erased family) has no brand, so its SendRef
+   coverage stays inherent-method-only via
+   [`im_do!(ref ArcRun { ... })`](../../../fp-macros/src/effects/im_do.rs).
 
 10. Migrate the 25 row-canonicalisation tests from
     `poc-effect-row/tests/` into
