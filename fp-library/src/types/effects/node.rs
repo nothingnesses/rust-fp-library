@@ -40,6 +40,7 @@ mod inner {
 				Extract,
 				Functor,
 				RefFunctor,
+				SendFunctor,
 				WrapDrop,
 			},
 			impl_kind,
@@ -138,6 +139,82 @@ mod inner {
 			match fa {
 				Node::First(r) => Node::First(<R as Functor>::map(func, r)),
 				Node::Scoped(s) => Node::Scoped(<S as Functor>::map(func, s)),
+			}
+		}
+	}
+
+	#[document_type_parameters("The first-order row brand.", "The scoped-effect row brand.")]
+	impl<R, S> SendFunctor for NodeBrand<R, S>
+	where
+		R: SendFunctor + 'static,
+		S: SendFunctor + 'static,
+	{
+		/// Thread-safe `send_map` for a [`Node`] layer. Dispatches by
+		/// variant: `First` recurses into `R::send_map`; `Scoped`
+		/// recurses into `S::send_map`. Parallel to
+		/// [`Functor::map`](crate::classes::Functor::map) on
+		/// [`NodeBrand`], with the closure `Send + Sync` requirement
+		/// propagated to both row branches. Required by Arc-substrate
+		/// Run wrappers ([`ArcRun`](crate::types::effects::arc_run::ArcRun)
+		/// and
+		/// [`ArcRunExplicit`](crate::types::effects::arc_run_explicit::ArcRunExplicit))
+		/// to route their `peel` / `send` / `bind` / `map` calls
+		/// through the Send-aware substrate; the by-value
+		/// [`Functor`] impl above stays in place for the non-Arc
+		/// wrappers.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The current result type. Must be `Send + Sync`.",
+			"The new result type. Must be `Send + Sync`."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the result. Must be `Send + Sync`.",
+			"The Node layer."
+		)]
+		///
+		#[document_returns("A Node layer with the function applied to its result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::SendFunctor,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let layer: <NodeBrand<FirstRow, Scoped> as fp_library::kinds::Kind_cdc7cd43dac7585f>::Of<
+		/// 	'static,
+		/// 	i32,
+		/// > = Node::First(Coproduct::inject(Identity(4)));
+		/// let mapped = <NodeBrand<FirstRow, Scoped> as SendFunctor>::send_map(|x: i32| x * 2, layer);
+		/// match mapped {
+		/// 	Node::First(c) => match c {
+		/// 		Coproduct::Inl(Identity(x)) => assert_eq!(x, 8),
+		/// 		Coproduct::Inr(_) => panic!("expected head Inl"),
+		/// 	},
+		/// 	Node::Scoped(_) => panic!("expected First variant"),
+		/// }
+		/// ```
+		fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+			func: impl Fn(A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match fa {
+				Node::First(r) => Node::First(<R as SendFunctor>::send_map(func, r)),
+				Node::Scoped(s) => Node::Scoped(<S as SendFunctor>::send_map(func, s)),
 			}
 		}
 	}

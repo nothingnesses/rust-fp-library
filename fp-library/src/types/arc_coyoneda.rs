@@ -716,9 +716,10 @@ mod inner {
 
 	// -- Brand-level type class instances --
 	//
-	// ArcCoyonedaBrand implements Foldable and SendFunctor. It does NOT
-	// implement Functor, Pointed, SendPointed, Lift, Semiapplicative,
-	// Semimonad, or SendSemimonad, for two independent reasons:
+	// ArcCoyonedaBrand implements Foldable, SendFunctor, and WrapDrop.
+	// It does NOT implement Functor, Pointed, SendPointed, Lift,
+	// Semiapplicative, Semimonad, or SendSemimonad, for two independent
+	// reasons:
 	//
 	// 1. Functor: the HKT Functor::map signature lacks Send + Sync bounds on
 	//    its closure parameter, so closures passed to map cannot be stored
@@ -777,6 +778,65 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.map(func)
+		}
+	}
+
+	// -- WrapDrop implementation --
+
+	#[document_type_parameters("The brand of the underlying type constructor.")]
+	impl<F: Kind_cdc7cd43dac7585f + 'static> WrapDrop for ArcCoyonedaBrand<F> {
+		/// Drop-time decomposition for an [`ArcCoyoneda`] layer.
+		/// Always returns `None`, mirroring
+		/// [`CoyonedaBrand`](crate::brands::CoyonedaBrand) /
+		/// [`RcCoyonedaBrand`](crate::brands::RcCoyonedaBrand).
+		///
+		/// The Coyoneda's stored function would construct the inner
+		/// value if invoked, but the function is not invoked at drop
+		/// time, and the Coyoneda's environment does not materially
+		/// store the inner value the caller would iterate on.
+		/// Recursive drop on the Coyoneda is sound for the patterns
+		/// documented on [`WrapDrop`]: effects injected via
+		/// `lift_f`-style operations and chained via `bind` produce
+		/// structural `Wrap` chains of bounded depth (at most 1 for
+		/// Run-typical patterns; see
+		/// [`tests/run_wrap_depth_probe.rs`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/tests/run_wrap_depth_probe.rs)
+		/// for the regression evidence). Required by the row-cascade
+		/// brands' [`WrapDrop`] machinery so
+		/// [`ArcCoyonedaBrand`]-headed rows can serve as the row
+		/// brand for [`ArcRun`](crate::types::effects::arc_run::ArcRun)
+		/// /
+		/// [`ArcRunExplicit`](crate::types::effects::arc_run_explicit::ArcRunExplicit)
+		/// (Phase 2 step 9 SendFunctor cascade).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the layer.",
+			"The intermediate type stored inside the Coyoneda."
+		)]
+		///
+		#[document_parameters("The Coyoneda layer (consumed).")]
+		///
+		#[document_returns(
+			"`None`; recursive structural drop on the Coyoneda is sound for Run-typical patterns."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::WrapDrop,
+		/// 	types::ArcCoyoneda,
+		/// };
+		///
+		/// let coyo = ArcCoyoneda::<OptionBrand, _>::lift(Some(7));
+		/// let result = <ArcCoyonedaBrand<OptionBrand> as WrapDrop>::drop::<i32>(coyo);
+		/// assert!(result.is_none());
+		/// ```
+		fn drop<'a, X: 'a>(
+			_fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		) -> Option<X> {
+			None
 		}
 	}
 

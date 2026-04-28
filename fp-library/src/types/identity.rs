@@ -365,6 +365,53 @@ mod inner {
 		}
 	}
 
+	impl SendFunctor for IdentityBrand {
+		/// Thread-safe `map` for [`IdentityBrand`].
+		///
+		/// `Identity<A>` is a single-field tuple newtype, so
+		/// `Identity<A>: Send + Sync` whenever `A: Send + Sync`. The
+		/// closure `Send + Sync` requirement on
+		/// [`SendFunctor::send_map`] is therefore vacuously
+		/// satisfiable for the identity functor: there are no stored
+		/// closures to thread through. Implementation delegates to
+		/// the inherent
+		/// [`Identity::map`](crate::types::identity::Identity::map).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type of the value inside the identity. Must be `Send + Sync`.",
+			"The type of the result of applying the function. Must be `Send + Sync`."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply. Must be `Send + Sync`.",
+			"The identity to map over."
+		)]
+		///
+		#[document_returns("A new identity containing the result of applying the function.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::IdentityBrand,
+		/// 	classes::SendFunctor,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let x: Identity<i32> = Identity(5);
+		/// let y = <IdentityBrand as SendFunctor>::send_map(|i: i32| i * 2, x);
+		/// assert_eq!(y, Identity(10));
+		/// ```
+		fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+			func: impl Fn(A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.map(func)
+		}
+	}
+
 	impl Lift for IdentityBrand {
 		/// Lifts a binary function into the identity context.
 		///

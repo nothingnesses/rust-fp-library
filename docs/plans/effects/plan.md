@@ -9,23 +9,40 @@ relaxation) landed; Phase 2 in progress (steps 1, 2, 3, 4a, 4b,
 
 Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
 complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, 7c.1,
-7c.2a, 7c.2b, and 8 complete. **Phase 2 step 8 (the `effects!`
-macro migration plus internal `raw_effects!` companion) is
-landed.** Step 9 (the generic `lift` combinator on each of the
-six Run wrappers; PureScript Run's `Run.lift` analog) is in
-progress: the rename + `Run::lift` reference implementation
-shipped at commit `34b6a97`, but completing the Arc family
-surfaced an implementation-expansion blocker resolved on
-2026-04-28 (see
-[resolutions.md](resolutions.md#resolved-2026-04-28-implementation-expansion-step-9-sendfunctor-cascade-prerequisites-for-arc-family)).
-Step 9 now decomposes into nine sub-steps (9a-9i); next up is
-sub-step 9a (brand-level `SendFunctor` cascade plus missing
-`WrapDrop` impl), to be picked up in a future session.
+7c.2a, 7c.2b, and 8 complete; step 9 in progress (sub-steps
+9a complete; the `Run::lift` rename and reference impl from
+commit `34b6a97` count as in-step-9 progress although they
+predate the 9a-9i decomposition). Six sub-steps remaining (9b
+through 9i). Next up is sub-step 9b (replace `F: Functor` with
+`F: SendFunctor` on `ArcFree`'s machinery).
 
-The two entries below carry the rolling detail for the most
+The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
+
+**Phase 2 step 9a (this commit): brand-level `SendFunctor`
+cascade plus `WrapDrop` on `ArcCoyonedaBrand`.** Adds five
+prerequisite trait impls so the rest of the SendFunctor
+cascade (sub-steps 9b through 9g) can build:
+[`IdentityBrand: SendFunctor`](../../../fp-library/src/types/identity.rs)
+(delegates to inherent `Identity::map`),
+[`CNilBrand: SendFunctor`](../../../fp-library/src/types/effects/variant_f.rs)
+(uninhabited base case),
+[`CoproductBrand<H, T>: SendFunctor`](../../../fp-library/src/types/effects/variant_f.rs)
+(recursive: requires `H: SendFunctor + T: SendFunctor`,
+dispatches by Inl/Inr),
+[`NodeBrand<R, S>: SendFunctor`](../../../fp-library/src/types/effects/node.rs)
+(recursive into row brands, dispatches by First/Scoped), and
+[`ArcCoyonedaBrand: WrapDrop`](../../../fp-library/src/types/arc_coyoneda.rs)
+(returns `None`, mirroring `CoyonedaBrand` /
+`RcCoyonedaBrand`'s pattern). Each impl's body is a near-mirror
+of the existing `Functor` (or `WrapDrop`) impl on the same
+brand, with the `Send + Sync` bound added to closure parameters
+where applicable. All 2428 unit tests pass under `just verify`
+(six new doctests for the new impls). The `arc_coyoneda.rs`
+module-level docs noting "ArcCoyonedaBrand implements Foldable
+and SendFunctor" updated to include `WrapDrop`.
 
 **Phase 2 step 8 (this commit): `effects!` macro migration plus
 `raw_effects!` companion.** The public `effects!` proc-macro

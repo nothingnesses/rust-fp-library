@@ -44,6 +44,7 @@ mod inner {
 				Extract,
 				Functor,
 				RefFunctor,
+				SendFunctor,
 				WrapDrop,
 			},
 			impl_kind,
@@ -135,6 +136,54 @@ mod inner {
 		}
 	}
 
+	impl SendFunctor for CNilBrand {
+		/// Thread-safe `send_map` for the empty row. The argument's
+		/// type is [`CNil`](crate::types::effects::coproduct::CNil),
+		/// which is uninhabited; the body matches it exhaustively
+		/// without producing a result. Parallel to
+		/// [`Functor::map`](crate::classes::Functor::map) for
+		/// [`CNilBrand`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the value(s) inside the functor. Must be `Send + Sync`.",
+			"The type of the result(s) of applying the function. Must be `Send + Sync`."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply (unused; the empty row carries no value). Must be `Send + Sync`.",
+			"The empty-row functor instance (uninhabited)."
+		)]
+		///
+		#[document_returns("Unreachable; the body matches the uninhabited input exhaustively.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CNilBrand,
+		/// 	classes::SendFunctor,
+		/// 	types::effects::coproduct::CNil,
+		/// };
+		///
+		/// // Constructing a `CNil` value is impossible (uninhabited),
+		/// // so this example only demonstrates the type signature.
+		/// fn _send_map_signature_check<A: Send + Sync + 'static, B: Send + Sync + 'static>(
+		/// 	cnil: CNil
+		/// ) -> CNil {
+		/// 	<CNilBrand as SendFunctor>::send_map::<A, B>(|_| panic!("unreachable"), cnil)
+		/// }
+		/// assert!(true);
+		/// ```
+		fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+			_func: impl Fn(A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match fa {}
+		}
+	}
+
 	#[document_type_parameters(
 		"The brand of the head effect in the row.",
 		"The brand of the tail row (typically another `CoproductBrand` or `CNilBrand`)."
@@ -191,6 +240,70 @@ mod inner {
 			match fa {
 				Coproduct::Inl(h) => Coproduct::Inl(<H as Functor>::map(func, h)),
 				Coproduct::Inr(t) => Coproduct::Inr(<T as Functor>::map(func, t)),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The brand of the head effect in the row.",
+		"The brand of the tail row (typically another `CoproductBrand` or `CNilBrand`)."
+	)]
+	impl<H, T> SendFunctor for CoproductBrand<H, T>
+	where
+		H: SendFunctor + 'static,
+		T: SendFunctor + 'static,
+	{
+		/// Thread-safe `send_map` for a non-empty effect row.
+		/// Dispatches to the head brand `H` if the runtime tag is
+		/// [`Inl`](Coproduct::Inl), or recurses into the tail brand
+		/// `T` if it is [`Inr`](Coproduct::Inr). Parallel to
+		/// [`Functor::map`](crate::classes::Functor::map) for
+		/// [`CoproductBrand`], with the closure `Send + Sync`
+		/// requirement propagated to both branches.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the value(s) inside the functor. Must be `Send + Sync`.",
+			"The type of the result(s) of applying the function. Must be `Send + Sync`."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the value(s). Must be `Send + Sync`.",
+			"The functor instance containing the value(s)."
+		)]
+		///
+		#[document_returns(
+			"A new functor instance containing the result(s) of applying the function."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::SendFunctor,
+		/// 	types::effects::coproduct::Coproduct,
+		/// };
+		///
+		/// type Row =
+		/// 	<CoproductBrand<OptionBrand, CNilBrand> as fp_library::kinds::Kind_cdc7cd43dac7585f>::Of<
+		/// 		'static,
+		/// 		i32,
+		/// 	>;
+		///
+		/// let value: Row = Coproduct::inject(Some(10));
+		/// let mapped =
+		/// 	<CoproductBrand<OptionBrand, CNilBrand> as SendFunctor>::send_map(|x: i32| x + 1, value);
+		/// assert!(matches!(mapped, Coproduct::Inl(Some(11))));
+		/// ```
+		fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+			func: impl Fn(A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match fa {
+				Coproduct::Inl(h) => Coproduct::Inl(<H as SendFunctor>::send_map(func, h)),
+				Coproduct::Inr(t) => Coproduct::Inr(<T as SendFunctor>::send_map(func, t)),
 			}
 		}
 	}
