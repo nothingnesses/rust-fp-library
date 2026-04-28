@@ -9,19 +9,61 @@ relaxation) landed; Phase 2 in progress (steps 1, 2, 3, 4a, 4b,
 
 Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
 complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, 7c.1,
-7c.2a, 7c.2b, and 8 complete; step 9 in progress (sub-steps 9a,
-9b+9e, 9c+9f, 9d+9g, and 9h complete; the `Run::lift` rename and
-reference impl from commit `34b6a97` count as in-step-9 progress
-although they predate the 9a-9i decomposition). One sub-step
-remaining (9i: `SendRefFunctor` and related Send-aware Ref-family
-traits on `ArcRunExplicitBrand` via inherent-method delegation).
+7c.2a, 7c.2b, 8, and 9 (all sub-steps 9a, 9b+9e, 9c+9f, 9d+9g,
+9h, 9i) complete. Step 10 (POC migration plus deletion) is the
+last remaining Phase 2 step.
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
 
-**Phase 2 step 9h (this commit): universal `*Run::lift` across all
+**Phase 2 step 9i (this commit): `SendRefPointed` lands on
+`ArcRunExplicitBrand` via inherent-method delegation; the rest of
+the SendRef cascade is documented as blocked by the same
+HRTB-over-types limit.** The plan's reference shape predicted
+that `SendRefFunctor`, `SendRefSemimonad`, etc. would all land
+via inherent-method delegation (delegate to the wrapper's
+`ref_map` / `ref_bind`). Two probes confirmed only `SendRefPointed`
+admits delegation: its trait signature carries `A: Clone + Send +
+Sync` (matching `ArcRunExplicit::ref_pure`'s bounds) and takes no
+closure (so the closure-bound mismatch that blocks
+`SendRefFunctor` does not apply).
+
+`SendRefFunctor::send_ref_map`'s closure is `Fn(&A) -> B + Send +
+'a` (only `Send`), but `ArcRunExplicit::ref_map` requires `Send +
+Sync` (the substrate stores closures in `Arc<dyn Fn + Send +
+Sync>`). Plus three per-`A` HRTB blockers (`A: Clone`; per-`A`
+`<R as Kind>::Of<...>: Clone + Send + Sync`; same for `S` and
+`NodeBrand<R, S>`) identical to those documented for
+`ArcFreeExplicitBrand: SendFunctor` in 9d. Tightening the trait
+to add `Sync` would resolve one blocker but break callers passing
+`Send`-only closures (e.g.,
+`LazyBrand<ArcLazyConfig>::send_ref_map`); adding `A: Clone`
+would conceptually violate the ref-family contract and still
+leave the per-`A` `F::Of` HRTBs unresolved. Same blockers cascade
+through `SendRefSemimonad` -> `SendRefSemiapplicative` ->
+`SendRefApplicative` -> `SendRefMonad`.
+
+The user-facing by-reference Send-aware surface is the inherent
+[`ArcRunExplicit::ref_map`](../../../fp-library/src/types/effects/arc_run_explicit.rs)
+/ `ref_bind` / `ref_pure` methods, which carry the per-`A` bounds
+explicitly. The
+[`im_do!(ref ArcRunExplicit { ... })`](../../../fp-macros/src/effects/im_do/codegen.rs)
+macro form desugars to these inherent methods, so user code
+remains unaffected. Documented blockers added to the
+[Send-aware Ref coverage table](../../../fp-library/docs/limitations-and-workarounds.md)
+parallel to 9d's by-value table on `ArcFreeExplicitBrand`.
+
+`ArcRun` (the Erased family) has no brand, so its SendRef
+coverage stays inherent-method-only via the `im_do!(ref ArcRun
+{ ... })` desugaring. Step 9 is now complete with all nine
+sub-steps landed (or documented-as-blocked-with-workaround).
+Step 10 (POC test migration to
+`fp-library/tests/run_row_canonicalisation.rs` plus deletion of
+the `poc-effect-row/` workspace) remains.
+
+**Phase 2 step 9h (`199370b`): universal `*Run::lift` across all
 six Run wrappers, with the per-wrapper Coyoneda-variant pairing
 corrected.** The plan's per-wrapper delta table specified bare
 `Coyoneda` for `RcRun::lift` and `RcRunExplicit::lift`; this is
@@ -159,50 +201,6 @@ strategy uses the wrapper's existing inherent
 7b and 7c.1) and is independent of 9d's and 9g's brand-level
 re-evaluation. No change to 9i's scope.
 
-**Phase 2 step 9c+9f bundle (`9295a26`): replace
-`F: Functor` with `F: SendFunctor` on `ArcFreeExplicit` and
-switch `ArcRunExplicit` to `SendFunctor`-routed dispatch.**
-Mirrors the 9b+9e bundle pattern for the Explicit family.
-[`ArcFreeExplicit`](../../../fp-library/src/types/arc_free_explicit.rs):
-the impl-block-level `F: WrapDrop + Functor + 'a` switches to
-`F: WrapDrop + SendFunctor + 'a`, propagating to all methods
-(`pure`, `wrap`, `to_view`, `evaluate`, `lower_ref`, `peel_ref`,
-`bind`, `bind_boxed`, `hoist_free`); the single `F::map` call
-inside `bind_boxed` switches to `F::send_map`. The
-`SendPointed` impl on `ArcFreeExplicitBrand` similarly switches
-its bound from `Functor` to `SendFunctor`. Adding `send_map`
-to `bind` / `bind_boxed`'s call cascade requires
-`A: Send + Sync` and `B: Send + Sync` (the closure parameter
-and return-type Send + Sync requirements) plus
-`F::Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync` and the
-B-equivalent on the data input/output of `send_map`. The
-existing `Clone` bounds on those projections gain
-`+ Send + Sync` to absorb both.
-
-[`ArcRunExplicit`](../../../fp-library/src/types/effects/arc_run_explicit.rs):
-all `R: WrapDrop + Functor + 'static, S: WrapDrop + Functor + 'static`
-struct/impl-block bounds switch to
-`R: WrapDrop + SendFunctor + 'static, S: WrapDrop + SendFunctor + 'static`;
-two `<NodeBrand<R, S> as Functor>::map` calls (in `peel`
-and `send`) switch to
-`<NodeBrand<R, S> as SendFunctor>::send_map`; method-level
-`Functor` bounds switch likewise. `peel`, `send`, `map`, `bind`,
-`ref_bind`, `ref_map` all gain the `Send + Sync` cascade
-bounds (`A`, `B`, the row projections via `R::Of` and `S::Of`,
-the substrate projection via `NodeBrand::Of`) needed by
-`SendFunctor::send_map`'s closure-input/output and the
-`ArcFreeExplicit::bind`'s call signature. Generic param lists
-adjust from `<B: 'a>` / `<B: Send + Sync + 'a>` to bare `<B>`
-with `B: Send + Sync + 'a` consolidated into the where-clause
-(clippy's `type_repetition_in_bounds` requires bounds in one
-place per parameter).
-
-The compile_fail UI test for
-[`arc_free_explicit_bind_requires_send`](../../../fp-library/tests/ui/arc_free_explicit_bind_requires_send.rs)
-has its `.stderr` regenerated because the migration shifted
-the error-message line numbers slightly. All 2428 unit tests
-pass; doctests + clippy + deny + doc all clean.
-
 ### Earlier completed steps (commit log)
 
 Each entry's design choices are recorded in
@@ -213,6 +211,18 @@ summary; resolved blockers are in
 
 Phase 2:
 
+- `9295a26` (step 9c+9f bundle): replace `F: Functor` with
+  `F: SendFunctor` on `ArcFreeExplicit`; switch `ArcRunExplicit`
+  to `SendFunctor`-routed dispatch. Mirrors the 9b+9e bundle for
+  the Explicit family. `ArcFreeExplicit`'s impl-block bound
+  switches; the single `F::map` call inside `bind_boxed` becomes
+  `F::send_map`. `SendPointed` impl on `ArcFreeExplicitBrand`
+  similarly switches to `F: SendFunctor`. `ArcRunExplicit`'s
+  struct/impl-block bounds switch to `R/S: SendFunctor`; two
+  `<NodeBrand as Functor>::map` calls become `<as SendFunctor>::send_map`;
+  per-method bounds gain `Send + Sync` cascade on `A`, `B`, and the
+  row projections. `arc_free_explicit_bind_requires_send`'s
+  `.stderr` regenerated.
 - `f86c150` (step 9b+9e bundle): replace `F: Functor` with
   `F: SendFunctor` on `ArcFree`; switch `ArcRun` to
   `SendFunctor`-routed dispatch. Bundled because `ArcRun::peel`/

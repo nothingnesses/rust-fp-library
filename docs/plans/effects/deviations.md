@@ -1482,3 +1482,92 @@ verification, and `lift().bind(...)` composition on `Run` and
 `RunExplicit`. The Run-canonical row uses bare `CoyonedaBrand`; the
 Rc/Arc-family rows use `RcCoyonedaBrand`/`ArcCoyonedaBrand`
 respectively, matching the corrected per-wrapper delta.
+
+### Step 9i: SendRef cascade reduced to `SendRefPointed` only; `SendRefFunctor` / `SendRefSemimonad` remain blocked
+
+The plan's
+[step 9i reference shape](plan.md) predicted that
+`SendRefFunctor`, `SendRefSemimonad`, and the cascade above
+would all land on
+[`ArcRunExplicitBrand`](../../../fp-library/src/brands.rs) via
+inherent-method delegation through the wrapper's
+[`ref_map`](../../../fp-library/src/types/effects/arc_run_explicit.rs)
+/ `ref_bind` / `ref_pure` methods. Two probes against rustc
+confirmed only `SendRefPointed` admits this delegation:
+
+- `SendRefPointed` works (matching bounds; no closure parameter).
+  Trait carries `A: Clone + Send + Sync`, matching
+  [`ArcRunExplicit::ref_pure`](../../../fp-library/src/types/effects/arc_run_explicit.rs)'s
+  bounds exactly.
+- `SendRefFunctor` is blocked by four constraints, three of them
+  the same per-`A` HRTB blockers documented for
+  `ArcFreeExplicitBrand: SendFunctor` in 9d (`A: Clone`; per-`A`
+  `<R as Kind>::Of<...>: Clone + Send + Sync`; same on `S` and
+  `NodeBrand<R, S>`); plus a closure-bound mismatch:
+  [`SendRefFunctor::send_ref_map`](../../../fp-library/src/classes/send_ref_functor.rs)'s
+  closure is `Fn(&A) -> B + Send + 'a` (only `Send`), but
+  `ArcRunExplicit::ref_map` requires `Send + Sync` (the substrate
+  stores closures in `Arc<dyn Fn + Send + Sync>`).
+- `SendRefSemimonad` is blocked by the same pattern.
+- `SendRefSemiapplicative` -> `SendRefApplicative` ->
+  `SendRefMonad` blanket-derive from these and so are blocked
+  transitively.
+
+Trait-tightening alternatives considered:
+
+- **Add `Sync` to the closure**: would resolve the closure-bound
+  mismatch on `SendRefFunctor`/`SendRefSemimonad`, but would break
+  callers passing `Send`-only closures (e.g.,
+  `LazyBrand<ArcLazyConfig>::send_ref_map` users whose closures
+  capture non-`Sync` thread-safe values). The asymmetry vs.
+  [`SendFunctor::send_map`](../../../fp-library/src/classes/send_functor.rs)
+  (which already requires `Send + Sync`) suggests this is a
+  legitimate consistency improvement worth pursuing as a separate
+  refactor, but is out of 9i's scope and only resolves one of
+  four blockers.
+- **Add `A: Clone`**: would conceptually violate the ref-family
+  contract (`send_ref_map` operates on `&A`, never moving or
+  cloning `A`) and force unnecessary bounds on impls that don't
+  need them
+  ([`ArcLazy::ref_map`](../../../fp-library/src/types/lazy.rs)
+  produces `B` from `&A` via `evaluate()` returning `&A`; no `A`
+  is moved). Even with this, the per-`A`
+  `F::Of<...>: Clone + Send + Sync` HRTBs would remain unresolved.
+
+Neither alternative reaches all four blockers; the per-`A` HRTB
+on the suspended layer is the same fundamental gap that no
+combination of stable-Rust trait-method bounds can express. This
+is the same wall the by-value `SendFunctor` cascade hit on
+`ArcFreeExplicitBrand` in 9d.
+
+Action taken:
+
+- Implemented
+  [`SendRefPointed for ArcRunExplicitBrand`](../../../fp-library/src/types/effects/arc_run_explicit.rs)
+  via `ArcRunExplicit::ref_pure` delegation. Body is a one-liner;
+  inline comment block above the impl explains why the broader
+  SendRef cascade does not delegate.
+- Added a Send-aware Ref-family brand-level coverage table to
+  [`fp-library/docs/limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md)
+  enumerating the per-trait blockers (`SendRefPointed` reachable;
+  `SendRefFunctor`/`SendRefSemimonad`/cascade blocked) and noting
+  the trait-tightening tradeoff that doesn't fully resolve.
+
+User-facing impact: the inherent
+[`ArcRunExplicit::ref_map`](../../../fp-library/src/types/effects/arc_run_explicit.rs)
+/ `ref_bind` methods carry the per-`A` bounds explicitly in their
+where-clauses and remain the by-reference Send-aware surface for
+callers operating on the concrete type. The
+[`im_do!(ref ArcRunExplicit { ... })`](../../../fp-macros/src/effects/im_do/codegen.rs)
+macro form (Phase 2 step 7c) already desugars to these inherent
+methods, so user code paths are unaffected by the brand-level
+gap.
+
+`ArcRun` (Erased family) has no brand, so its SendRef coverage
+stays inherent-method-only via `im_do!(ref ArcRun { ... })` per
+the plan; no brand-level work needed there.
+
+Step 9 is now complete with all nine sub-steps landed (or
+documented-as-blocked-with-workaround). Step 10 (POC test
+migration plus deletion of the `poc-effect-row/` workspace) is
+the last remaining Phase 2 step.

@@ -873,6 +873,78 @@ mod inner {
 			)
 		}
 	}
+
+	// -- SendRef hierarchy: inherent-method delegation --
+	//
+	// `SendRefFunctor` and `SendRefSemimonad` are NOT implementable on
+	// `ArcRunExplicitBrand` even via inherent-method delegation. Their
+	// trait method signatures lack the per-`A` bounds the underlying
+	// `ArcFreeExplicit::bind` cascade requires (`A: Clone`, plus per-`A`
+	// `F::Of<'_, ArcFreeExplicit<...>>: Clone + Send + Sync`); these
+	// cannot be added at the trait level without `for<T>` HRTBs that
+	// stable Rust does not support, and the trait's closure bound
+	// (`Send + 'a`) is also weaker than the wrapper's `ref_map` /
+	// `ref_bind` requirement (`Send + Sync + 'a`). The user-facing
+	// by-reference Send-aware surface is the inherent
+	// [`ArcRunExplicit::ref_map`](ArcRunExplicit::ref_map) /
+	// [`ref_bind`](ArcRunExplicit::ref_bind) methods on the concrete
+	// wrapper. See
+	// [`fp-library/docs/limitations-and-workarounds.md`](crate) for the
+	// per-method analysis. Only `SendRefPointed` admits inherent-method
+	// delegation: its trait signature already carries `A: Clone + Send
+	// + Sync` and takes no closure, matching `ArcRunExplicit::ref_pure`'s
+	// bounds exactly.
+
+	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
+	impl<R, S> crate::classes::SendRefPointed for ArcRunExplicitBrand<R, S>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+	{
+		/// Wraps a cloned value in a pure thread-safe `ArcRunExplicit`
+		/// computation by delegating to inherent
+		/// [`ArcRunExplicit::ref_pure`](ArcRunExplicit::ref_pure).
+		///
+		/// Only by-reference Send-aware brand-level operation reachable
+		/// for [`ArcRunExplicitBrand`](crate::brands::ArcRunExplicitBrand);
+		/// see the inline rationale above. The trait's
+		/// `A: Clone + Send + Sync` bound matches `ref_pure`'s, and
+		/// neither side carries a closure (so the closure-bound
+		/// mismatch that blocks `SendRefFunctor` / `SendRefSemimonad`
+		/// does not apply).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime that bounds the payload and the row brands.",
+			"The type of the value to wrap. Must be `Clone + Send + Sync`."
+		)]
+		///
+		#[document_parameters("A reference to the value to wrap.")]
+		///
+		#[document_returns("An `ArcRunExplicit` computation that produces a clone of the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let value = 42;
+		/// let run: ArcRunExplicit<'_, FirstRow, Scoped, _> =
+		/// 	<ArcRunExplicitBrand<FirstRow, Scoped> as SendRefPointed>::send_ref_pure(&value);
+		/// assert_eq!(run.into_arc_free_explicit().evaluate(), 42);
+		/// ```
+		fn send_ref_pure<'a, A: Clone + Send + Sync + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			ArcRunExplicit::ref_pure(a)
+		}
+	}
 }
 
 pub use inner::*;
