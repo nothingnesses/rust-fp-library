@@ -681,6 +681,61 @@ mod inner {
 				}
 			}
 		}
+
+		/// Maps a thread-safe by-value function over the result of an
+		/// `ArcFreeExplicit` computation.
+		///
+		/// Inherent-method workaround for the brand-level
+		/// [`SendFunctor`](crate::classes::SendFunctor) coverage gap on
+		/// [`ArcFreeExplicitBrand`](crate::brands::ArcFreeExplicitBrand):
+		/// the per-`A` `Clone + Send + Sync` bounds on `A` and the
+		/// suspended layer cannot be expressed in `SendFunctor::send_map`'s
+		/// trait method signature (no HRTB-over-types in stable Rust), but
+		/// they fit cleanly in an inherent method's where-clause. Named
+		/// `map` (not `send_map`) to match the inherent-method naming
+		/// convention on Arc-substrate types ([`ArcFree::map`](crate::types::ArcFree::map),
+		/// [`ArcRunExplicit::map`](crate::types::effects::arc_run_explicit::ArcRunExplicit::map)),
+		/// where the `Send + Sync` bounds live in the where-clause and
+		/// the bare name `map` is unambiguous because the non-Send variant
+		/// is not implementable on the same type. See
+		/// [`fp-library/docs/limitations-and-workarounds.md`](crate) for
+		/// the table of brand-level gaps the inherent methods close.
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to apply to the result.")]
+		///
+		#[document_returns("A new `ArcFreeExplicit` with the function applied to its result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = ArcFreeExplicit::<IdentityBrand, _>::pure(10).map(|x: i32| x * 2);
+		/// assert_eq!(free.evaluate(), 20);
+		/// ```
+		pub fn map<B>(
+			self,
+			f: impl Fn(A) -> B + Send + Sync + 'a,
+		) -> ArcFreeExplicit<'a, F, B>
+		where
+			A: Clone + Send + Sync,
+			B: Send + Sync + 'a,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, F, A>,
+			>): Clone + Send + Sync,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, F, B>,
+			>): Clone + Send + Sync, {
+			self.bind(move |a| ArcFreeExplicit::pure(f(a)))
+		}
 	}
 
 	// -- Brand-level type class instances --
@@ -688,13 +743,26 @@ mod inner {
 	// `ArcFreeExplicitBrand` implements `SendPointed` only at the by-value
 	// level. The full `SendFunctor` / `SendSemimonad` / `SendLift` /
 	// `SendApplicative` / `SendMonad` chain is unexpressible for the same
-	// reasons as `RcFreeExplicitBrand` (Clone bounds on `bind` /
-	// `into_inner_owned` are per-`A` and not in the trait method
-	// signatures), plus the `Send + Sync` Kind bound is a per-`A` HRTB
-	// that no stable Rust feature supports. By-reference brand dispatch
-	// routes through the `SendRef*` hierarchy below. See
+	// reasons as `RcFreeExplicitBrand`'s by-value `Functor` / `Semimonad`
+	// cascade: `ArcFreeExplicit::bind` requires per-`A` `Clone` (because
+	// `into_inner_owned` falls back to cloning when the outer `Arc` is
+	// shared) plus per-`A` `F::Of<'a, ArcFreeExplicit<'a, F, A>>: Clone +
+	// Send + Sync` on the suspended layer; trait method signatures cannot
+	// add per-`A` bounds without HRTB-over-types. The post-9c migration of
+	// `ArcFreeExplicit`'s substrate from `F::map` to `F::send_map` did not
+	// change this: the `Send + Sync` constraints on the closure are now in
+	// scope via `F: SendFunctor`, but the per-`A` `Clone` cascade on
+	// `bind`'s where-clause remains intrinsic to the `Arc<Inner>` data
+	// shape. The by-value Send-aware surface for callers operating on the
+	// concrete type is covered by inherent
+	// [`ArcFreeExplicit::map`] and [`ArcFreeExplicit::bind`], which
+	// state the per-`A` bounds explicitly. By-reference brand dispatch
+	// routes through the `SendRef*` hierarchy (sub-step 9i, via
+	// inherent-method delegation on the parallel
+	// `ArcRunExplicitBrand`). See
 	// [`fp-library/docs/limitations-and-workarounds.md`](crate) for the
-	// pattern.
+	// table of brand-level coverage gaps and the inherent methods that
+	// close them.
 
 	#[document_type_parameters("The base functor.")]
 	impl<F: WrapDrop + SendFunctor + 'static> SendPointed for ArcFreeExplicitBrand<F> {
@@ -783,6 +851,27 @@ mod tests {
 			.bind(|x: i32| ArcFreeExplicit::pure(x + 1))
 			.bind(|x: i32| ArcFreeExplicit::pure(x * 10));
 		assert_eq!(free.evaluate(), 20);
+	}
+
+	#[test]
+	fn map_transforms_result() {
+		let free = ArcFreeExplicit::<IdentityBrand, _>::pure(10).map(|x: i32| x * 2);
+		assert_eq!(free.evaluate(), 20);
+	}
+
+	#[test]
+	fn map_chains_with_bind() {
+		let free = ArcFreeExplicit::<IdentityBrand, _>::pure(3)
+			.map(|x: i32| x + 1)
+			.bind(|x: i32| ArcFreeExplicit::pure(x * 5));
+		assert_eq!(free.evaluate(), 20);
+	}
+
+	#[test]
+	fn map_cross_thread() {
+		let free = ArcFreeExplicit::<IdentityBrand, _>::pure(7).map(|x: i32| x * 6);
+		let handle = std::thread::spawn(move || free.evaluate());
+		assert_eq!(handle.join().unwrap(), 42);
 	}
 
 	#[test]

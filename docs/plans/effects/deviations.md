@@ -1256,3 +1256,152 @@ The "verifies independently" criterion stays satisfied: the
 9a, 9b+9e, 9c+9f, 9d, 9g, 9h, 9i sequence of commits each
 verifies clean. The bundling reduces sub-step count from nine
 to seven without weakening the per-commit review property.
+
+### Steps 9d and 9g bundled: brand-level Send-aware surface unchanged on both Arc Explicit brands; inherent `ArcFreeExplicit::map` lands as concrete-type workaround
+
+[Plan.md step 9d](plan.md) said "at minimum `SendFunctor`
+should now be implementable" on
+[`ArcFreeExplicitBrand`](../../../fp-library/src/brands.rs)
+following the 9c substrate migration. The post-9c re-evaluation
+found this prediction did not hold. A scratch
+[`SendFunctor`](../../../fp-library/src/classes/send_functor.rs)
+impl delegating through
+[`ArcFreeExplicit::bind`](../../../fp-library/src/types/arc_free_explicit.rs)
+(`fa.bind(move |a| ArcFreeExplicit::pure(func(a)))`) was
+attempted; rustc rejected it with four blocking bounds:
+
+1. `A: Clone` (from
+   [`bind`](../../../fp-library/src/types/arc_free_explicit.rs)'s
+   where-clause; not in
+   [`SendFunctor::send_map`](../../../fp-library/src/classes/send_functor.rs)'s
+   signature).
+2. `<F as Kind>::Of<'_, ArcFreeExplicit<'_, F, A>>: Clone` (the
+   per-`A` HRTB on the suspended layer; unexpressible in trait
+   method signatures).
+3. `<F as Kind>::Of<'_, ArcFreeExplicit<'_, F, A>>: Send` (same
+   shape).
+4. `<F as Kind>::Of<'_, ArcFreeExplicit<'_, F, A>>: Sync` (same
+   shape).
+
+These are the exact blockers that
+[step 4b's resolution](resolutions.md#resolved-2026-04-27-brand-level-type-class-coverage-gap-on-the-explicit-run-brands)
+documented for the parallel by-value `Functor`/`Semimonad` chain
+on
+[`RcFreeExplicitBrand`](../../../fp-library/src/brands.rs). The
+9c substrate migration only changed which `F` trait
+[`ArcFreeExplicit::bind_boxed`](../../../fp-library/src/types/arc_free_explicit.rs)
+routes through internally (`F::map` to `F::send_map`); it did
+not eliminate the `Clone` cascade on
+[`into_inner_owned`](../../../fp-library/src/types/arc_free_explicit.rs)'s
+shared-`Arc` recovery path, which is intrinsic to the
+`Arc<Inner>` data shape.
+
+Same blockers apply to
+[`SendSemimonad::send_bind`](../../../fp-library/src/classes/send_semimonad.rs)
+(calls `bind` directly) and to
+[`SendLift::send_lift2`](../../../fp-library/src/classes/send_lift.rs)
+(`bind`-based body needs the `F::Of: Clone + Send + Sync`
+per-`A` bound on the suspended layer even though `A` and `B`
+have `Clone` in the trait signature). The
+[`SendSemiapplicative`](../../../fp-library/src/classes/send_semiapplicative.rs)
+/
+[`SendApplicative`](../../../fp-library/src/classes/send_applicative.rs)
+/
+[`SendMonad`](../../../fp-library/src/classes/send_monad.rs)
+cascade is then blocked transitively via supertraits.
+
+Action taken:
+
+- Refreshed the inline comment block at
+  [`fp-library/src/types/arc_free_explicit.rs`](../../../fp-library/src/types/arc_free_explicit.rs)
+  so the post-9c re-evaluation is explicit (the existing comment
+  correctly stated the blockers but pre-dated the
+  SendFunctor-routed substrate; the refresh saves future
+  implementors from redoing the probe).
+- Added a Send-aware brand-level coverage table to
+  [`fp-library/docs/limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md)
+  parallel to the existing by-value and by-reference tables for
+  the Free Explicit family. The new table enumerates `SendFunctor`
+  / `SendPointed` / `SendSemimonad` / `SendLift` coverage on
+  [`ArcFreeExplicit`](../../../fp-library/src/types/arc_free_explicit.rs)
+  and explains the binding constraint.
+- Landed inherent
+  [`ArcFreeExplicit::map`](../../../fp-library/src/types/arc_free_explicit.rs)
+  as the concrete-type workaround for the unreachable
+  brand-level `SendFunctor::send_map`. The per-`A`
+  `Clone + Send + Sync` bounds that cannot live in the trait
+  method signature fit cleanly in the inherent method's
+  where-clause. Body delegates to existing
+  [`bind`](../../../fp-library/src/types/arc_free_explicit.rs)
+  via the standard `bind(|a| pure(f(a)))` pattern. Mirrors the
+  [`ArcFree::map`](../../../fp-library/src/types/arc_free.rs)
+  precedent for brand-blocked operations on the Erased family.
+  Naming: the bare `map` (not `send_map`) follows the
+  established Arc-substrate inherent-method convention used by
+  [`ArcFree::map`](../../../fp-library/src/types/arc_free.rs)
+  and
+  [`ArcRunExplicit::map`](../../../fp-library/src/types/effects/arc_run_explicit.rs),
+  where `Send + Sync` bounds live in the where-clause and the
+  bare name is unambiguous because the non-Send variant is
+  not implementable on the same type.
+  Three new unit tests cover the basic transformation,
+  composition with `bind`, and cross-thread `send`-via-`spawn`.
+
+Scope discussion: this commit fuses two related concerns
+(documenting the brand-level coverage gap + adding the inherent
+workaround). The user explicitly chose this fold ("option 1")
+over a follow-up split. The two pieces address the same
+underlying gap, so reviewing them together makes the
+"unreachable at brand level, reachable at concrete-type level"
+contrast legible. `SendLift::send_lift2` and the rest of the
+applicative cascade are NOT lifted to inherent methods at this
+time; no Free family member has an inherent `lift2`, so adding
+one would set new precedent for the whole family. Callers
+needing lifted binary application can compose `bind` with `pure`
+directly. This keeps the API addition minimal while still closing
+the most-needed Send-aware monadic-companion (`map`).
+
+Bundling rationale (9d and 9g into one commit): 9g's plan text
+predicts "`SendPointed` plus whatever cascades from
+`ArcFreeExplicitBrand`'s expanded surface" on
+[`ArcRunExplicitBrand`](../../../fp-library/src/brands.rs). With
+9d landing zero new brand-level impls on `ArcFreeExplicitBrand`,
+nothing cascades; `ArcRunExplicitBrand` already has
+[`SendPointed`](../../../fp-library/src/types/effects/arc_run_explicit.rs)
+from step 4b; and the wrapper's inherent surface
+(`bind` / `map` / `ref_map` / `ref_pure`) is already complete from
+steps 4b, 7a, 7b, and 7c.1. The Send-aware `map` on
+[`ArcRunExplicit`](../../../fp-library/src/types/effects/arc_run_explicit.rs)
+already exists with the appropriate
+`A: Clone + Send + Sync` and `Of: Clone + Send + Sync` bounds in
+its where-clause (it's named `map`, not `send_map`, matching the
+Arc-substrate naming convention that this commit also adopts via
+the rename described above). So 9g has no code to land at all;
+it ships as the documentation-only logical consequence of 9d's
+re-evaluation outcome.
+
+The bundling here is different in flavour from the 9b+9e and
+9c+9f bundles documented above: those bundled because their
+substrate/wrapper migrations were technically coupled (couldn't
+land independently without breaking compilation). 9d and 9g are
+not technically coupled in that sense; rather, they are
+_logically_ coupled: 9g's outcome is a strict consequence of 9d's,
+and splitting them across two commits would mean a separate "9g:
+no actions taken; here's why" commit immediately after 9d. The
+single combined commit tells one coherent story about post-9c
+re-evaluation across both Arc Explicit brands and avoids a
+content-free follow-up commit.
+
+The "verifies independently" criterion the original 2026-04-28
+expanded resolution required for the 9-sub-step decomposition
+remains satisfied: this commit verifies clean under `just verify`,
+and the next commit (9h: universal `*Run::lift`) is independent
+of both 9d and 9g.
+
+Implication for sub-step 9i: 9i lands `SendRefFunctor` (and
+related Send-aware Ref-family traits) on
+`ArcRunExplicitBrand` via inherent-method delegation. That
+strategy uses the wrapper's existing inherent
+`ref_map` / `ref_bind` / `ref_pure` (already in place from steps
+7b and 7c.1) and is independent of 9d's and 9g's brand-level
+re-evaluation. No change to 9i's scope.
