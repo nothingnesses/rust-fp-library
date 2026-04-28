@@ -1,0 +1,39 @@
+error[E0599]: no method named `ref_bind` found for struct `Run<R, S, A>` in the current scope
+  --> tests/ui/im_do_ref_on_non_clone_wrapper.rs:30:44
+   |
+30 |       let _result: Run<FirstRow, Scoped, i32> = im_do!(ref Run {
+   |  _______________________________________________^
+31 | |         x: &i32 <- Run::pure(2);
+32 | |         pure(*x + 1)
+33 | |     });
+   | |______^
+   |
+   = note: this error originates in the macro `im_do` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no function or associated item named `ref_pure` found for struct `Run<R, S, A>` in the current scope
+  --> tests/ui/im_do_ref_on_non_clone_wrapper.rs:30:44
+   |
+30 |       let _result: Run<FirstRow, Scoped, i32> = im_do!(ref Run {
+   |  _______________________________________________^
+31 | |         x: &i32 <- Run::pure(2);
+32 | |         pure(*x + 1)
+33 | |     });
+   | |______^ function or associated item not found in `Run<_, _, _>`
+   |
+note: if you're trying to build a new `Run<_, _, _>` consider using one of the following associated functions:
+      Run::<R, S, A>::from_free
+      Run::<R, S, A>::pure
+      Run::<R, S, A>::send
+  --> src/types/effects/run.rs
+   |
+   |           pub fn from_free(free: Free<NodeBrand<R, S>, A>) -> Self {
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+   |           pub fn pure(a: A) -> Self {
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+   | /         pub fn send(
+   | |             node: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+   | |         ) -> Self {
+   | |_________________^
+   = note: this error originates in the macro `im_do` (in Nightly builds, run with -Z macro-backtrace for more info)

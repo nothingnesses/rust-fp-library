@@ -10,6 +10,7 @@ pub(crate) mod analysis; // Type and trait analysis
 pub(crate) mod codegen; // Code generation (includes re-exports)
 pub(crate) mod core; // Core infrastructure (config, error, result)
 pub(crate) mod documentation; // Documentation generation macros
+pub(crate) mod effects; // Effects subsystem macros (im_do!, future ia_do!, ...)
 pub(crate) mod hkt; // Higher-Kinded Type macros
 pub(crate) mod hm; // Hindley-Milner type conversion
 pub(crate) mod m_do; // Monadic do-notation
@@ -42,6 +43,7 @@ use {
 		document_type_parameters_worker,
 		include_documentation_worker,
 	},
+	effects::im_do::im_do_worker,
 	hkt::{
 		ApplyInput,
 		AssociatedTypes,
@@ -1363,6 +1365,181 @@ pub fn m_do(input: TokenStream) -> TokenStream {
 pub fn a_do(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as DoInput);
 	match a_do_worker(input) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Inherent-method-dispatched monadic do-notation.
+///
+/// Desugars flat monadic syntax into nested inherent
+/// `bind` / `ref_bind` method calls on the six Run wrappers
+/// ([`Run`](https://docs.rs/fp-library/latest/fp_library/types/effects/run/struct.Run.html),
+/// [`RcRun`](https://docs.rs/fp-library/latest/fp_library/types/effects/rc_run/struct.RcRun.html),
+/// [`ArcRun`](https://docs.rs/fp-library/latest/fp_library/types/effects/arc_run/struct.ArcRun.html),
+/// [`RunExplicit`](https://docs.rs/fp-library/latest/fp_library/types/effects/run_explicit/struct.RunExplicit.html),
+/// [`RcRunExplicit`](https://docs.rs/fp-library/latest/fp_library/types/effects/rc_run_explicit/struct.RcRunExplicit.html),
+/// [`ArcRunExplicit`](https://docs.rs/fp-library/latest/fp_library/types/effects/arc_run_explicit/struct.ArcRunExplicit.html)),
+/// rather than to brand-dispatched [`Semimonad`] / [`RefSemimonad`]
+/// trait calls. Bare `pure(x)` calls in the block are rewritten to
+/// `Wrapper::pure(x)` (or `Wrapper::ref_pure(&(x))` in `ref` mode).
+///
+/// ### Naming and pairing
+///
+/// "im" stands for "Inherent Monadic", parallel to "m" for "Monadic" in
+/// [`m_do!`]. The matching applicative form is forward-reserved as
+/// `ia_do!` ("Inherent Applicative", parallel to [`a_do!`]). Both
+/// `im_do!` and `ia_do!` are 5 characters; both `m_do!` and `a_do!`
+/// are 4 characters. Within each pair the monadic and applicative
+/// forms are typographically equal so neither is disfavored;
+/// applicative composition is generally preferable when binds are
+/// independent (single `liftN` / `map` call instead of nested
+/// `bind`s, no closure-nesting issues in `ref` mode), so use
+/// `ia_do!` (or [`a_do!`]) over `im_do!` (or [`m_do!`]) when the
+/// binds don't depend on each other.
+///
+/// ### Why "inherent": dispatch path
+///
+/// Each statement desugars to a method call on the wrapper value
+/// (`expr.bind(|x| ...)`, `expr.ref_bind(|x| ...)`) rather than to a
+/// brand-dispatched function (`bind::<Brand, _, _, _, _>(expr, ...)`).
+/// This works for wrapper types whose brand can't satisfy the
+/// brand-level [`Semimonad`] / [`RefSemimonad`] cascade in stable
+/// Rust. Two cases motivate the macro:
+///
+/// 1. The Erased Run family (`Run`, `RcRun`, `ArcRun`) has no
+///    brand-dispatched type-class hierarchy at all (Erased substrates
+///    type-erase through `Box<dyn Any>` and use inherent methods only).
+///    [`m_do!`] doesn't reach them; `im_do!` does.
+/// 2. Canonical Coyoneda-headed effect rows can't reach `m_do!(ref ...)`
+///    because [`CoyonedaBrand: RefFunctor`] is unimplementable on
+///    stable Rust (per
+///    [`fp-library/docs/limitations-and-workarounds.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/docs/limitations-and-workarounds.md));
+///    the row-brand cascade fails type-checking even on the four
+///    `Clone`-able wrappers. `im_do!(ref Wrapper { ... })` desugars
+///    to inherent `ref_bind`, which clones the program (`O(1)` on
+///    `Rc`/`Arc` substrates) and bypasses the cascade.
+///
+/// ### When to use `im_do!` vs [`m_do!`]
+///
+/// Prefer [`m_do!`] when the type's brand has full [`Semimonad`]
+/// coverage (typeclass-generic code, no clones, no per-`A` bounds).
+/// Reach for `im_do!` when [`m_do!`] doesn't reach: the Erased Run
+/// family, or `ref` dispatch over canonical Coyoneda-headed rows.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// // Explicit mode: wrapper specified, pure() rewritten automatically
+/// im_do!(Wrapper {
+///     x <- expr;            // Bind: extract value, sequence with `bind`
+///     y: Type <- expr;      // Typed bind: with explicit type annotation
+///     _ <- expr;            // Discard bind: sequence, discarding the result
+///     expr;                 // Sequence: shorthand for `_ <- expr;`
+///     let z = expr;         // Let binding: pure, not monadic
+///     let w: Type = expr;   // Typed let binding
+///     pure(z)               // pure() rewritten to Wrapper::pure(z)
+/// })
+///
+/// // Inferred mode: pure() not available (no wrapper to qualify)
+/// im_do!({
+///     x <- RcRun::pure(5);  // Method dispatch infers from the receiver
+///     RcRun::pure(x + 1)    // Write the concrete constructor
+/// })
+///
+/// // By-reference modes (only valid on `Clone`-able wrappers):
+/// im_do!(ref Wrapper { ... })  // Explicit, ref dispatch
+/// im_do!(ref { ... })          // Inferred, ref dispatch
+/// ```
+///
+/// * `Wrapper` (optional): The wrapper type whose `pure` /
+///   `ref_pure` is used to rewrite bare `pure(x)`. When omitted, bare
+///   `pure(x)` calls emit `compile_error!`.
+/// * `ref` (optional): Selects by-reference dispatch. Each statement
+///   desugars to a `ref_bind` call instead of `bind`; closures
+///   receive `&A` instead of `A`. Only the four `Clone`-able wrappers
+///   ([`RcRun`], [`ArcRun`], [`RcRunExplicit`], [`ArcRunExplicit`])
+///   have inherent `ref_bind` / `ref_pure`; using `ref` with the
+///   single-shot wrappers ([`Run`], [`RunExplicit`]) produces a
+///   "no method named `ref_bind` found" error from rustc.
+/// * In explicit mode, bare `pure(args)` calls are rewritten to
+///   `Wrapper::pure(args)` (or `Wrapper::ref_pure(&(args))` in
+///   `ref` mode).
+/// * In inferred mode, bare `pure(args)` calls emit a
+///   `compile_error!` because there is no wrapper to qualify the
+///   call with. Write the concrete constructor instead (e.g.,
+///   `RcRun::pure(x)` instead of `pure(x)`).
+///
+/// ### Statement Forms
+///
+/// | Syntax | Explicit expansion | Inferred expansion |
+/// |--------|--------------------|--------------------|
+/// | `x <- expr;` | `(expr).bind(move \|x\| { ... })` | Same |
+/// | `x: Type <- expr;` | Same with `\|x: Type\|` | Same |
+/// | `expr;` | `(expr).bind(move \|_\| { ... })` | Same |
+/// | `let x = expr;` | `{ let x = expr; ... }` | Same |
+/// | `expr` (final) | Emitted as-is (with `pure` rewriting) | Emitted as-is |
+///
+/// In `ref` mode, `bind` becomes `ref_bind` and the closure
+/// parameter has `&_` added (unless the user wrote a typed bind
+/// with the full reference type).
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::{
+///     brands::{CNilBrand, CoproductBrand, IdentityBrand},
+///     types::effects::rc_run::RcRun,
+/// };
+/// use fp_macros::im_do;
+///
+/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+/// type Scoped = CNilBrand;
+///
+/// // Explicit mode, by-value
+/// let result: RcRun<FirstRow, Scoped, i32> = im_do!(RcRun {
+///     x <- RcRun::pure(2);
+///     y <- RcRun::pure(x + 1);
+///     pure(x * y)
+/// });
+/// assert!(matches!(result.peel(), Ok(6)));
+///
+/// // Expands to:
+/// // let result = (RcRun::pure(2)).bind(move |x| {
+/// //     (RcRun::pure(x + 1)).bind(move |y| {
+/// //         <RcRun>::pure(x * y)
+/// //     })
+/// // });
+/// ```
+///
+/// ```ignore
+/// // ref mode, by-reference (only on Clone-able wrappers)
+/// let result: RcRun<FirstRow, Scoped, i32> = im_do!(ref RcRun {
+///     x: &i32 <- RcRun::pure(2);
+///     pure(*x + 1)
+/// });
+///
+/// // Expands to:
+/// // let result = (RcRun::pure(2)).ref_bind(move |x: &i32| {
+/// //     <RcRun>::ref_pure(&(*x + 1))
+/// // });
+/// ```
+///
+/// [`m_do!`]: macro@m_do
+/// [`a_do!`]: macro@a_do
+/// [`Semimonad`]: https://docs.rs/fp-library/latest/fp_library/classes/trait.Semimonad.html
+/// [`RefSemimonad`]: https://docs.rs/fp-library/latest/fp_library/classes/trait.RefSemimonad.html
+/// [`CoyonedaBrand: RefFunctor`]: https://docs.rs/fp-library/latest/fp_library/brands/struct.CoyonedaBrand.html
+/// [`Run`]: https://docs.rs/fp-library/latest/fp_library/types/effects/run/struct.Run.html
+/// [`RcRun`]: https://docs.rs/fp-library/latest/fp_library/types/effects/rc_run/struct.RcRun.html
+/// [`ArcRun`]: https://docs.rs/fp-library/latest/fp_library/types/effects/arc_run/struct.ArcRun.html
+/// [`RunExplicit`]: https://docs.rs/fp-library/latest/fp_library/types/effects/run_explicit/struct.RunExplicit.html
+/// [`RcRunExplicit`]: https://docs.rs/fp-library/latest/fp_library/types/effects/rc_run_explicit/struct.RcRunExplicit.html
+/// [`ArcRunExplicit`]: https://docs.rs/fp-library/latest/fp_library/types/effects/arc_run_explicit/struct.ArcRunExplicit.html
+#[proc_macro]
+pub fn im_do(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as DoInput);
+	match im_do_worker(input) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}

@@ -8,15 +8,50 @@ relaxation) landed; Phase 2 in progress (steps 1, 2, 3, 4a, 4b,
 ## Current progress
 
 Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
-complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, 7c.1, and
-7c.2a complete. Phase 2 step 7 design pre-locked (naming and
-scope refinements captured below); sub-step 7c.2b (the `im_do!`
-macro itself) remaining.
+complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, 7c.1,
+7c.2a, and 7c.2b complete. **Phase 2 step 7 (the `im_do!`
+macro and supporting inherent methods) is fully landed.** Next
+step in the phase is step 8 (handler combinators / interpreters),
+to be picked up in a future session.
 
-The three entries below carry the in-flight context for step
-7c.2b. Older steps' detailed narratives live in commit messages
-and [deviations.md](deviations.md); see the **Earlier completed
-steps (commit log)** subsection further down.
+The two entries below carry the rolling detail for the most
+recent steps. Older steps' detailed narratives live in commit
+messages and [deviations.md](deviations.md); see the **Earlier
+completed steps (commit log)** subsection further down.
+
+**Phase 2 step 7c.2b (this commit): `im_do!` proc-macro.** The
+inherent-method-dispatched monadic do-notation macro lands at
+[`fp-macros/src/effects/im_do/codegen.rs`](../../../fp-macros/src/effects/im_do/codegen.rs)
+under the new
+[`fp-macros/src/effects/`](../../../fp-macros/src/effects/)
+subsystem directory; the `pub fn im_do(input)` proc-macro
+export is registered in
+[`fp-macros/src/lib.rs`](../../../fp-macros/src/lib.rs) with
+extensive doc-comment covering the four-point design rationale
+(name, dispatch path, when-to-use, same-length pairing). Codegen
+reuses `format_bind_param` and `format_discard_param` from
+[`fp-macros/src/m_do/codegen.rs`](../../../fp-macros/src/m_do/codegen.rs)
+directly; `rewrite_pure_inherent` is the macro-specific path that
+rewrites bare `pure(x)` to `Wrapper::pure(x)` (val mode) or
+`Wrapper::ref_pure(&(x))` (ref mode), with inferred mode rejected
+as `compile_error!` parallel to `m_do!`. Method-call syntax on
+the wrapper handles both `bind` and `ref_bind` dispatch via
+auto-ref; no container-wrapping helper is needed.
+Sixteen integration tests in
+[`fp-library/tests/im_do.rs`](../../../fp-library/tests/im_do.rs)
+exercise: by-value mode on all six wrappers (Run uses a
+Coyoneda-headed row to dodge the `IdentityBrand` layout cycle;
+the other five use identity-headed rows directly); ref mode on
+the four `Clone`-able wrappers; let bindings, typed binds,
+discard binds, sequence statements; and one inferred-mode
+invocation. The compile_fail UI test at
+[`fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.rs`](../../../fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.rs)
+demonstrates that `im_do!(ref Run { ... })` rejects with rustc's
+natural "no method named `ref_bind` found for struct `Run`"
+error (plus the parallel error on `ref_pure`); the same pattern
+applies to `RunExplicit`. All 2422 unit tests, 16 new
+integration tests, and the compile_fail test pass under
+`just verify`.
 
 **Phase 2 step 7c.2a (`e4cf7b5`): shared `DoInput` parser
 extraction.** Moved
@@ -34,21 +69,6 @@ directly from `crate::support::do_input`. Codegen helpers
 and remain reusable from `im_do!`'s codegen. Pure refactor;
 all 2422 tests still pass; m_do!/a_do! behavior unchanged.
 
-**Phase 2 step 7c.1 (`10d17fe`): inherent `ref_pure` on the four
-`Clone`-able wrappers.** `RcRun`, `ArcRun`, `RcRunExplicit`,
-and `ArcRunExplicit` gain inherent
-`ref_pure(a: &A) -> Self` methods, implemented as
-`Self::pure(a.clone())`. Bounds: `A: Clone` (with
-`+ Send + Sync` for `ArcRun`'s `pure`-inherited bound).
-Rounds out the inherent by-reference surface so step 7c.2b's
-`im_do!(ref Wrapper { ... pure(x) })` can rewrite bare
-`pure(x)` to `Wrapper::ref_pure(&x)`, parallel to
-`m_do!(ref Brand { ... pure(x) })`'s
-`<Brand as RefPointed>::ref_pure(&x)`. The alternative
-designs (rejecting `pure(x)` in `ref` mode, or implicit
-clone) were rejected; see [deviations.md](deviations.md)
-step 7 entry for the rationale.
-
 ### Earlier completed steps (commit log)
 
 Each entry's design choices are recorded in
@@ -59,6 +79,13 @@ summary; resolved blockers are in
 
 Phase 2:
 
+- `10d17fe` (step 7c.1): inherent `ref_pure` on the four
+  `Clone`-able wrappers (`RcRun`, `ArcRun`, `RcRunExplicit`,
+  `ArcRunExplicit`). Pattern `Self::pure(a.clone())`; bounds
+  `A: Clone` (plus `+ Send + Sync` on `ArcRun`). Rounds out the
+  inherent by-reference surface so `im_do!(ref Wrapper {
+... pure(x) })` rewrites `pure(x)` -> `Wrapper::ref_pure(&x)`
+  parallel to `m_do!`'s brand-level path.
 - `6dc802e` (step 7b): inherent `ref_bind`/`ref_map` on the
   four `Clone`-able wrappers (`RcRun`, `ArcRun`,
   `RcRunExplicit`, `ArcRunExplicit`). Pattern

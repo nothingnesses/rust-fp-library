@@ -1034,3 +1034,72 @@ forward-reservation of an applicative companion name.
   surface-syntax features stay consistent across all four
   macros. This prevents drift when (e.g.) typed-bind
   syntax is extended in one and forgotten in others.
+
+### Step 7c.2b: `im_do!` proc-macro implementation
+
+The macro lands at
+[`fp-macros/src/effects/im_do/codegen.rs`](../../../fp-macros/src/effects/im_do/codegen.rs)
+under a new
+[`fp-macros/src/effects/`](../../../fp-macros/src/effects/)
+subsystem directory, mirroring the existing `m_do.rs` /
+`m_do/codegen.rs` shape. The proc-macro export is registered in
+[`fp-macros/src/lib.rs`](../../../fp-macros/src/lib.rs).
+Two implementation choices diverge from the design pre-lock or
+warrant explicit capture:
+
+- **Bare path syntax for `pure` rewriting (`Wrapper::pure(...)`,
+  not `<Wrapper>::pure(...)`).** The first iteration emitted
+  `<#wrapper>::pure(#args)` and `<#wrapper>::ref_pure(&(#args))`,
+  expecting `<Wrapper>::method` to behave identically to
+  `Wrapper::method` for inherent associated functions. It does
+  not: `<Type>::method(...)` is the fully-qualified form where
+  `Type` must be a complete type, so `<Run>::pure(...)` fails
+  with `error[E0107]: missing generics for struct Run` because
+  `Run<R, S, A>` requires three type parameters and `Run` alone
+  is incomplete in fully-qualified position. The bare path form
+  `Run::pure(...)` lets rustc infer the generics from the
+  expression context (return type, argument types). Switched
+  to `#wrapper::pure(#args)` and `#wrapper::ref_pure(&(#args))`;
+  16 of 16 integration tests then compiled. Users who pass a
+  qualified path like `crate::types::effects::run::Run` get
+  `crate::types::effects::run::Run::pure(...)`, also valid.
+  The `Type` ASTs that would break this (incomplete generics,
+  e.g. `Run<R, S>` written by the user) are nonsensical anyway:
+  the third parameter `A` must be inferred from the call site,
+  so users would never write them.
+
+- **No custom diagnostic for `im_do!(ref ...)` on non-`Clone`
+  wrappers.** The pre-lock asked for "a clear `cannot use
+`ref` form on non-`Clone` wrapper` diagnostic". The macro
+  cannot introspect at expansion time whether a wrapper has
+  inherent `ref_bind` / `ref_pure`, so emitting a custom
+  `compile_error!` would require either: (a) a hardcoded
+  allowlist of wrapper names (brittle, fails on aliases and
+  module-qualified paths), or (b) generating a trait-witness
+  bound that fails for non-`Clone` types (more complex than
+  the macro warrants). Instead, the macro emits straight
+  inherent method calls, and rustc's natural error
+  ("no method named `ref_bind` found for struct `Run<R, S, A>`"
+  followed by "no function or associated item named `ref_pure`
+  found") names the wrapper directly. The compile_fail UI test
+  at
+  [`fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.rs`](../../../fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.rs)
+  captures this error; the test file's source comments
+  document the property. Only `Run` is exercised (a single
+  failure demonstrates the property; the same error pattern
+  applies to `RunExplicit`).
+
+- **Method-call syntax handles ref-mode borrowing
+  automatically.** The plan's design pre-lock reused
+  `wrap_container_ref` from `m_do/codegen.rs` to wrap the
+  container expression in `&(...)` for ref dispatch. That
+  helper exists because the brand-level free function
+  `bind::<Brand, _, _, _, _>(container, ...)` takes the
+  container as a value parameter; `ref_bind` requires `&container`.
+  For `im_do!`'s method-call dispatch, Rust's auto-ref handles
+  this: `(expr).ref_bind(...)` automatically borrows `expr` as
+  `&expr` for the `&self` receiver. The `wrap_container_ref`
+  import was removed from the codegen; only
+  `format_bind_param` and `format_discard_param` are reused
+  from
+  [`fp-macros/src/m_do/codegen.rs`](../../../fp-macros/src/m_do/codegen.rs).
