@@ -24,6 +24,7 @@ note: if you're trying to build a new `Run<_, _, _>` consider using one of the f
       Run::<R, S, A>::from_free
       Run::<R, S, A>::pure
       Run::<R, S, A>::send
+      Run::<R, S, A>::lift
   --> src/types/effects/run.rs
    |
    |           pub fn from_free(free: Free<NodeBrand<R, S>, A>) -> Self {
@@ -36,4 +37,13 @@ note: if you're trying to build a new `Run<_, _, _>` consider using one of the f
    | |             node: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
    | |         ) -> Self {
    | |_________________^
+...
+   | /         pub fn lift<EBrand, Idx>(
+   | |             effect: Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+   | |         ) -> Self
+   | |         where
+   | |             Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+   | |                 Member<Coyoneda<'static, EBrand, A>, Idx>,
+   | |             EBrand: Kind_cdc7cd43dac7585f + 'static, {
+   | |____________________________________________________^
    = note: this error originates in the macro `im_do` (in Nightly builds, run with -Z macro-backtrace for more info)

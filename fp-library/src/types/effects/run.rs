@@ -45,7 +45,14 @@ mod inner {
 				WrapDrop,
 			},
 			kinds::*,
-			types::Free,
+			types::{
+				Coyoneda,
+				Free,
+				effects::{
+					member::Member,
+					node::Node,
+				},
+			},
 		},
 		fp_macros::*,
 	};
@@ -329,6 +336,84 @@ mod inner {
 			f: impl FnOnce(A) -> B + 'static,
 		) -> Run<R, S, B> {
 			Run::from_free(self.0.map(f))
+		}
+
+		/// Lifts a raw effect value into a `Run` program.
+		///
+		/// Direct analog of PureScript Run's
+		/// [`lift`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs).
+		/// Takes the raw effect (an `EBrand`'s `Of<'static, A>`
+		/// projection), wraps it in
+		/// [`Coyoneda::lift`](crate::types::Coyoneda::lift) so any
+		/// effect functor satisfies the row's
+		/// [`Functor`](crate::classes::Functor) requirement, injects
+		/// at the
+		/// [`Member`](crate::types::effects::member::Member)-determined
+		/// position, wraps in [`Node::First`](crate::types::effects::node::Node),
+		/// and lifts via [`send`](Run::send). Phase 3's per-effect
+		/// smart constructors (`ask`, `get`, `put`, `tell`, `throw`)
+		/// will be one-liners over this combinator, mirroring
+		/// PureScript Run's `liftEffect = lift (Proxy :: "effect")`
+		/// pattern.
+		///
+		/// Naming note: PureScript Run distinguishes
+		/// [`Run.lift`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
+		/// (the row-aware Run-level operation, which this method
+		/// implements) from
+		/// [`Free.liftF`](https://github.com/purescript/purescript-free/blob/main/src/Control/Monad/Free.purs)
+		/// (the Free-monad-only lift, which fp-library exposes as
+		/// [`Free::lift_f`](crate::types::Free::lift_f)). The bare
+		/// name `lift` matches the row-aware operation; the `_f`
+		/// suffix is reserved for the Free-only operation.
+		///
+		/// `Idx` is the type-level position witness. For an
+		/// unambiguous row (each effect type appears once), Rust
+		/// infers it; turbofish only when duplicate effect types make
+		/// the position ambiguous.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being lifted.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The effect value to lift.")]
+		///
+		#[document_returns("A `Run` program suspended at the lifted effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run::Run,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: Run<FirstRow, Scoped, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
+		/// // The program is suspended at the lifted effect; peel reveals the layer.
+		/// assert!(run.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn lift<EBrand, Idx>(
+			effect: Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+		) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				Member<Coyoneda<'static, EBrand, A>, Idx>,
+			EBrand: Kind_cdc7cd43dac7585f + 'static, {
+			let coyo: Coyoneda<'static, EBrand, A> = Coyoneda::lift(effect);
+			let layer =
+				<Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>) as Member<
+					Coyoneda<'static, EBrand, A>,
+					Idx,
+				>>::inject(coyo);
+			Self::send(Node::First(layer))
 		}
 	}
 }

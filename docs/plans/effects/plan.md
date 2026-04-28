@@ -11,9 +11,9 @@ Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
 complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, 7c.1,
 7c.2a, 7c.2b, and 8 complete. **Phase 2 step 8 (the `effects!`
 macro migration plus internal `raw_effects!` companion) is
-landed.** Next step in the phase is step 9
-(Coyoneda-wrapping smart constructors, the `lift_f` analogues
-for each effect type), to be picked up in a future session.
+landed.** Next step in the phase is step 9 (the generic `lift`
+combinator on each of the six Run wrappers; PureScript Run's
+`Run.lift` analog), to be picked up in a future session.
 
 The two entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
@@ -286,12 +286,14 @@ resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
 - [Resolved (2026-04-28): Phase 2 step 9 scope is under-specified](resolutions.md#resolved-2026-04-28-phase-2-step-9-scope-is-under-specified)
-  -- generic `lift_f` combinator interpretation locked in;
+  -- generic combinator interpretation locked in, named `lift`
+  to match PureScript Run's
+  [`Run.lift`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs);
   inherent associated function on each of the six Run wrappers
   mirroring `*Run::send`'s shape; takes the raw effect (not
   pre-lifted Coyoneda) and does Coyoneda lift -> row inject ->
   `Node::First` -> `*Run::send` inline; falls back to a free
-  `lift_node` helper for `ArcRun::lift_f` only if HRTB-poisoning
+  `lift_node` helper for `ArcRun::lift` only if HRTB-poisoning
   recurs.
 - [Resolved (2026-04-27): `*Run::send` takes a `Node`-projection value to sidestep GAT-normalization poisoning under `ArcFree`'s HRTB](resolutions.md#resolved-2026-04-27-runsend-takes-a-node-projection-value-to-sidestep-gat-normalization-poisoning-under-arcfrees-hrtb)
   -- discovered while implementing `ArcRun::send`: the HRTB at
@@ -1115,9 +1117,10 @@ this section is the phasing-side checklist.
    Factor the lexical-sort logic into a shared `proc-macro2`
    helper used by both `effects!` and `scoped_effects!` (Phase 4
    step 4) so sort-correctness fixes land in one place.
-9. **Generic `lift_f` combinator** as an inherent associated
-   function on each of the six Run wrappers, mirroring
-   `*Run::send`'s shape. Per the
+9. **Generic `lift` combinator** (PureScript Run's
+   [`Run.lift`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
+   analog) as an inherent associated function on each of the six
+   Run wrappers, mirroring `*Run::send`'s shape. Per the
    [2026-04-28 resolution](resolutions.md#resolved-2026-04-28-phase-2-step-9-scope-is-under-specified):
    take the raw effect (an `EBrand::Of<'a, A>` value, not a
    pre-lifted Coyoneda), do the full chain inside the body
@@ -1125,34 +1128,45 @@ this section is the phasing-side checklist.
    and let `Idx` be type-inferred at call sites where the row is
    unambiguous (turbofish only on duplicate-effect-type rows).
 
+   The bare name `lift` matches PureScript Run's `Run.lift`; the
+   `_f` suffix is reserved for the Free-only operation
+   ([`Free::lift_f`](../../../fp-library/src/types/free.rs), the
+   snake_case translation of PureScript's `Free.liftF`). The
+   row-aware Run-level operation is named `lift` without the
+   suffix to keep the two operations distinguishable, matching
+   the PureScript convention.
+
    Reference signature for `Run` (the other five wrappers differ
    only in `'a`, `A`-bound, and the `Clone`/`Functor` row bounds;
    see the per-wrapper delta table in the resolution):
 
    ```rust
    impl<R: Kind, S: Kind, A: 'static> Run<R, S, A> {
-       pub fn lift_f<EBrand, Idx>(
+       pub fn lift<EBrand, Idx>(
            effect: Apply!(<EBrand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>),
        ) -> Self
        where
-           R: Member<CoyonedaBrand<EBrand>, Idx>,
-           EBrand: Kind!(type Of<'a, T: 'a>: 'a;) + 'static,
+           Apply!(<R as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>):
+               Member<Coyoneda<'static, EBrand, A>, Idx>,
+           EBrand: Kind_cdc7cd43dac7585f + 'static,
        {
-           let coyo = Coyoneda::<'static, EBrand, A>::lift(effect);
-           let layer = <R as Member<CoyonedaBrand<EBrand>, Idx>>::inject(coyo);
+           let coyo: Coyoneda<'static, EBrand, A> = Coyoneda::lift(effect);
+           let layer = <Apply!(<R as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>)
+               as Member<Coyoneda<'static, EBrand, A>, Idx>>::inject(coyo);
            Self::send(Node::First(layer))
        }
    }
    ```
 
-   This is the "thin wrapper over `inj + lift_f`/`send`"
+   This is the "thin wrapper over `inj + liftF`/`send`"
    infrastructure that [decisions.md](decisions.md) section 6 names
    as the prerequisite for Phase 3's per-effect smart constructors
    (`ask`, `get`, `put`, `modify`, `tell`, `throw`). Each of those
-   becomes a one-liner over `*Run::lift_f`.
+   becomes a one-liner over `*Run::lift`, parallel to PureScript
+   Run's `liftEffect = lift (Proxy :: "effect")` pattern.
 
    **HRTB-poisoning fallback.** Try the inline body first on every
-   wrapper. If `ArcRun::lift_f` fails to compile due to
+   wrapper. If `ArcRun::lift` fails to compile due to
    GAT-normalization recurring under `ArcFree`'s HRTB-bearing
    impl-block scope (the 2026-04-27 limit), factor the literal-build
    step into a free helper outside the HRTB scope:
@@ -1161,25 +1175,28 @@ this section is the phasing-side checklist.
    pub fn lift_node<R, S, EBrand, Idx, A>(
        effect: Apply!(<EBrand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>),
    ) -> Apply!(<NodeBrand<R, S> as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>)
-   where R: Member<CoyonedaBrand<EBrand>, Idx>, /* ... */
+   where
+       Apply!(<R as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>):
+           Member<Coyoneda<'static, EBrand, A>, Idx>,
+       /* ... */
    {
-       Node::First(<R as Member<CoyonedaBrand<EBrand>, Idx>>::inject(Coyoneda::lift(effect)))
+       Node::First(<_ as Member<_, Idx>>::inject(Coyoneda::lift(effect)))
    }
    ```
 
-   Then `ArcRun::lift_f` calls `Self::send(lift_node::<R, S, EBrand, Idx, A>(effect))`.
+   Then `ArcRun::lift` calls `Self::send(lift_node::<R, S, EBrand, Idx, A>(effect))`.
    Don't pre-bake `lift_node` for the other five wrappers
    prophylactically; only adopt it where it's needed.
 
    **Tests.** One unit test per wrapper at
-   `fp-library/tests/run_lift_f.rs` covering: lift -> peel
+   `fp-library/tests/run_lift.rs` covering: lift -> peel
    round-trips a single-effect row to `Node::First(Inl(Coyoneda(...)))`;
    the inferred-`Idx` form compiles for an unambiguous row;
    turbofish-`Idx` form compiles for a row with duplicated effect
    types; lifting through a multi-effect row injects at the
    correct branch (`Inl` vs `Inr` chain) determined by `Member`'s
    index. Plus one passing integration test per wrapper
-   demonstrating `Run::lift_f::<EBrand, _, _>(effect).bind(...)`
+   demonstrating `Run::lift::<EBrand, _>(effect).bind(...)`
    composition.
 
 10. Migrate the 25 row-canonicalisation tests from

@@ -39,9 +39,9 @@ constructors: `State<S>`, `Reader<E>`, `Except<E>`, `Writer<W>`,
 work in Phase 2 step 9 would duplicate it.
 [decisions.md](decisions.md) section 6 likewise describes
 per-effect smart constructors as **thin wrappers over** the
-`inj + lift_f`/`send` infrastructure, implying the `lift_f`
-piece is prerequisite infrastructure that ships first (which is
-what step 9 lands).
+`inj + liftF`/`send` infrastructure, implying the row-aware
+lift combinator is prerequisite infrastructure that ships first
+(which is what step 9 lands).
 
 Three sub-questions remained open under the generic-combinator
 interpretation:
@@ -49,9 +49,9 @@ interpretation:
 - **Free function vs per-wrapper inherent method.** The
   established Phase 2 pattern (steps 5, 7a-c) puts user-facing
   Run-program operations on the wrappers as inherent methods
-  (`Run::pure`, `RcRun::bind`, etc.), but `lift_f`'s key argument
-  is the effect value, not `self`, so a free function would also
-  be natural.
+  (`Run::pure`, `RcRun::bind`, etc.), but the combinator's key
+  argument is the effect value, not `self`, so a free function
+  would also be natural.
 - **Exact signature.** The `Member` bounds, the `Coyoneda`
   decode closure (does the user supply it?), the alignment across
   the six wrappers (whose bounds differ: Erased Rc family wants
@@ -62,37 +62,72 @@ interpretation:
   resolution, constructing a `Node`-projection literal inside
   an HRTB-bearing scope (which `ArcFree`'s struct propagates
   into every `ArcRun`-method context) fails GAT normalization.
-  `lift_f` for `ArcRun` would need to thread the same workaround.
+  `ArcRun`'s row-aware lift combinator would need to thread
+  the same workaround.
+
+- **Naming: `lift` vs `lift_f`.** The combinator does the full
+  chain (`Coyoneda::lift` + Member inject + `Node::First` +
+  `*Run::send`); functionally it is the direct analog of
+  PureScript Run's
+  [`lift`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
+  (signature `Proxy sym -> f a -> Run r a`, body
+  `Run <<< liftF <<< inj p`), not of
+  [`Free.liftF`](https://github.com/purescript/purescript-free/blob/main/src/Control/Monad/Free.purs).
+  PureScript explicitly distinguishes the two: `Free.liftF`
+  is the Free-only operation; `Run.lift` is the row-aware
+  Run-level operation that consumes a row label and runs the
+  full inject + liftF chain. fp-library already mirrors the
+  Free side as
+  [`Free::lift_f`](../../../fp-library/src/types/free.rs)
+  (snake_case translation of `liftF`); the Run-level operation
+  takes the bare name `lift`. Phase 3's per-effect smart
+  constructors (`ask = lift ReaderBrand Reader::Ask`, etc.)
+  read consistently with PureScript's
+  `liftEffect = lift (Proxy :: "effect")` pattern under this
+  naming.
 
 ### Resolution
 
-**Generic combinator interpretation. Inherent associated
-function on each of the six Run wrappers, mirroring `*Run::send`'s
-shape. Take the raw effect (an `EBrand::Of<'a, A>` value) and do
-the full chain (Coyoneda lift -> row inject -> `Node::First` ->
-`*Run::send`) inside the body. Type-infer `Idx` at call sites
-where the row is unambiguous; turbofish only when duplicate effect
-types make `Idx` ambiguous. Try the simple inline body first; fall
-back to a free `lift_node<R, S, EBrand, Idx, A>(effect)` helper
-for `ArcRun::lift_f` if HRTB-poisoning recurs.**
+**Generic combinator interpretation, named `lift` (matching
+PureScript Run's
+[`lift`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)).
+Inherent associated function on each of the six Run wrappers,
+mirroring `*Run::send`'s shape. Take the raw effect (an
+`EBrand::Of<'a, A>` value) and do the full chain (`Coyoneda::lift`
+-> row inject -> `Node::First` -> `*Run::send`) inside the body.
+Type-infer `Idx` at call sites where the row is unambiguous;
+turbofish only when duplicate effect types make `Idx` ambiguous.
+Try the simple inline body first; fall back to a free
+`lift_node<R, S, EBrand, Idx, A>(effect)` helper for `ArcRun::lift`
+if HRTB-poisoning recurs.**
 
 The signature for `Run` is:
 
 ```rust
 impl<R: Kind, S: Kind, A: 'static> Run<R, S, A> {
-    pub fn lift_f<EBrand, Idx>(
+    pub fn lift<EBrand, Idx>(
         effect: Apply!(<EBrand as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>),
     ) -> Self
     where
-        R: Member<CoyonedaBrand<EBrand>, Idx>,
-        EBrand: Kind!(type Of<'a, T: 'a>: 'a;) + 'static,
+        Apply!(<R as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>):
+            Member<Coyoneda<'static, EBrand, A>, Idx>,
+        EBrand: Kind_cdc7cd43dac7585f + 'static,
     {
-        let coyo = Coyoneda::<'static, EBrand, A>::lift(effect);
-        let layer = <R as Member<CoyonedaBrand<EBrand>, Idx>>::inject(coyo);
+        let coyo: Coyoneda<'static, EBrand, A> = Coyoneda::lift(effect);
+        let layer = <Apply!(<R as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'static, A>)
+            as Member<Coyoneda<'static, EBrand, A>, Idx>>::inject(coyo);
         Self::send(Node::First(layer))
     }
 }
 ```
+
+The `Kind!()` macro can't appear in trait-bound position (per
+its doc-comment limitation: invalid in supertrait bounds, type
+aliases, and trait aliases on stable Rust); the bound on
+`EBrand` uses the generated hash name `Kind_cdc7cd43dac7585f`
+directly. The hash is deterministic from the signature
+`type Of<'a, T: 'a>: 'a;` and is in scope via fp-library's
+existing `kinds::*` re-export.
 
 Per-wrapper deltas (the body shape is identical; only the bounds
 change):
@@ -117,34 +152,39 @@ The six wrappers use six different inner constructors with six
 different bound shapes (`'static` vs `'a`, `Clone` on the Apply
 node-projection, `Send + Sync` for Arc, etc.) and there is no
 common trait abstracting "construct from a node-projection".
-Inventing one to make `lift_f` polymorphic would be more code
+Inventing one to make `lift` polymorphic would be more code
 than just writing six near-identical inherent methods, which is
 the same trade-off `*Run::send` already settled on its 2026-04-27
 resolution.
 
 ### Why raw effect input (not pre-lifted Coyoneda)
 
-Matches PureScript Run's `liftF :: forall f a. f a -> Run r a`,
-keeps Phase 3's smart constructors one-liners
-(`pub fn ask<R, S, Idx>() -> Run<R, S, Env> { Run::lift_f::<ReaderBrand, _, _>(Reader::Ask) }`),
-and keeps the Coyoneda detail an implementation concern of the
-helper rather than a user-visible step. Users who want to
-construct a non-trivial Coyoneda decode bypass `lift_f` and call
-`Coyoneda::lift_with` plus `*Run::send` directly.
+Matches PureScript Run's
+[`lift :: Row.Cons sym f r1 r2 => Proxy sym -> f a -> Run r2 a`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs),
+which takes the raw effect (`f a`) and does the inject + liftF
+chain internally. Phase 3's smart constructors then become
+one-liners
+(`pub fn ask<R, S, Idx>() -> Run<R, S, Env> { Run::lift::<ReaderBrand, _>(Reader::Ask) }`),
+mirroring PureScript's
+`liftEffect = lift (Proxy :: "effect")` pattern. The Coyoneda
+detail stays an implementation concern of the helper rather than a
+user-visible step. Users who want to construct a non-trivial
+Coyoneda decode bypass `lift` and call `Coyoneda::new` plus
+`*Run::send` directly.
 
 ### Why "try inline; fall back if needed" for the HRTB workaround
 
 The 2026-04-27 GAT-normalization issue specifically hit
 `Apply!(<NodeBrand<R, S> as Kind>::Of<'static, A>)` _normalization_
-inside `ArcFree`'s HRTB-bearing scope. `lift_f`'s body builds the
-Node-projection by _literal construction_ (`Node::First(Coproduct::inject(coyo))`);
+inside `ArcFree`'s HRTB-bearing scope. The `lift` body builds the
+Node-projection by _literal construction_ (`Node::First(Member::inject(coyo))`);
 no `Apply!` normalization is required on the result type, only on
 the `effect` parameter (which is fine, since it's already
 pre-resolved at the function boundary). Plausibly clean for
-`ArcRun::lift_f`. If it does fail, the workaround is mechanical:
-factor `Node::First(<R as Member<...>>::inject(Coyoneda::lift(effect)))`
+`ArcRun::lift`. If it does fail, the workaround is mechanical:
+factor `Node::First(<_ as Member<_, Idx>>::inject(Coyoneda::lift(effect)))`
 into a free helper outside the HRTB scope and have
-`ArcRun::lift_f` call `Self::send(lift_node::<R, S, EBrand, Idx, A>(effect))`.
+`ArcRun::lift` call `Self::send(lift_node::<R, S, EBrand, Idx, A>(effect))`.
 Pre-baking the `lift_node` helper in all six wrappers
 prophylactically would be wasted code if the simple form works
 for everything but `ArcRun`.
