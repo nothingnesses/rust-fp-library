@@ -9,19 +9,69 @@ relaxation) landed; Phase 2 in progress (steps 1, 2, 3, 4a, 4b,
 
 Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
 complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, 7c.1,
-7c.2a, 7c.2b, and 8 complete; step 9 in progress (sub-steps
-9a complete; the `Run::lift` rename and reference impl from
-commit `34b6a97` count as in-step-9 progress although they
-predate the 9a-9i decomposition). Six sub-steps remaining (9b
-through 9i). Next up is sub-step 9b (replace `F: Functor` with
-`F: SendFunctor` on `ArcFree`'s machinery).
+7c.2a, 7c.2b, and 8 complete; step 9 in progress (sub-steps 9a and 9b+9e complete;
+the `Run::lift` rename and reference impl from commit `34b6a97`
+count as in-step-9 progress although they predate the 9a-9i
+decomposition). Five sub-steps remaining (9c+9f, 9d, 9g, 9h,
+9i). Next up is sub-step 9c+9f bundle (replace `F: Functor`
+with `F: SendFunctor` on `ArcFreeExplicit` machinery, plus the
+forced cascade onto `ArcRunExplicit` method bounds; the bundle
+shape mirrors what 9b+9e settled on).
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
 
-**Phase 2 step 9a (this commit): brand-level `SendFunctor`
+**Phase 2 step 9b+9e bundle (this commit): replace
+`F: Functor` with `F: SendFunctor` on `ArcFree` and switch
+`ArcRun` to `SendFunctor`-routed dispatch.** Per the resolution,
+`ArcFree`'s eight per-method `F: Functor` (or
+`F: Extract + Functor`) bounds switch to `F: SendFunctor` (or
+`F: Extract + SendFunctor`); three internal `F::map(...)` calls
+switch to `F::send_map(...)`; the import switches from
+`Functor` to `SendFunctor`. `ArcFree::wrap` additionally needs
+`A: Send + Sync` because `SendFunctor::send_map` requires its
+closure parameter type (`ArcFree<F, A>`) to be `Send + Sync`,
+which transitively requires `A: Send + Sync`. `hoist_free`'s
+`G: Functor` likewise becomes `G: SendFunctor`.
+
+`ArcRun`'s `peel` and `send` methods route through
+`ArcFree::resume` and `ArcFree::lift_f` respectively; their
+`NodeBrand<R, S>: Functor` bound switches to
+`NodeBrand<R, S>: SendFunctor`, and `peel`'s body switches from
+`<NodeBrand<R, S> as Functor>::map` to
+`<NodeBrand<R, S> as SendFunctor>::send_map`. `arc_run.rs`'s
+`Functor` import is now unused and removed; `SendFunctor` is
+imported in its place.
+
+[`fp-library/tests/arc_run_normalization_probe.rs`](../../../fp-library/tests/arc_run_normalization_probe.rs)'s
+pattern-A `send` method (which mirrors `*Run::send`'s shape for
+HRTB-poisoning regression coverage) updates its
+`NodeBrand<R, S>: Functor` bound to `SendFunctor` to match the
+production wrapper.
+
+[`fp-library/src/types/effects/arc_run_explicit.rs`](../../../fp-library/src/types/effects/arc_run_explicit.rs)'s
+`From<ArcRun>` impl (the conversion from step 6) walks the
+source `ArcRun` via its `peel`, so the impl's where-clause
+gains `R: SendFunctor + S: SendFunctor` plus
+`NodeBrand<R, S>: SendFunctor`. The `Functor` cascade stays
+because the impl's body still calls
+`<NodeBrand<R, S> as Functor>::map` (its closure returns
+`ArcFreeExplicit<...>`, which 9c+9f hasn't migrated yet).
+
+**Bundling rationale.** Sub-steps 9b and 9e were originally
+planned as separate commits, but `ArcFree`'s bound replacement
+cascades through `ArcRun`'s call sites: `ArcRun::peel` and
+`ArcRun::send` invoke `ArcFree`'s methods, so once `ArcFree`
+requires `F: SendFunctor`, `ArcRun` must too. They cannot land
+independently without `arc_run.rs` failing to compile.
+Documented as a sub-step deviation; same coupling expected for
+9c+9f (ArcFreeExplicit + ArcRunExplicit). The remaining
+sub-steps (9d, 9g, 9h, 9i) stay independent. All 2428 unit
+tests pass under `just verify`.
+
+**Phase 2 step 9a (`779651e`): brand-level `SendFunctor`
 cascade plus `WrapDrop` on `ArcCoyonedaBrand`.** Adds five
 prerequisite trait impls so the rest of the SendFunctor
 cascade (sub-steps 9b through 9g) can build:

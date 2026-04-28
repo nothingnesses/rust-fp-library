@@ -42,8 +42,8 @@ mod inner {
 			brands::ArcFnBrand,
 			classes::{
 				Extract,
-				Functor,
 				NaturalTransformation,
+				SendFunctor,
 				SendLiftFn,
 				WrapDrop,
 			},
@@ -598,12 +598,13 @@ mod inner {
 			fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcFree<F, A>>)
 		) -> Self
 		where
-			F: Functor,
+			F: SendFunctor,
+			A: Send + Sync,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
 				ArcFree<F, ArcTypeErasedValue>,
 			>): Clone, {
-			let erased_fa = F::map(
+			let erased_fa = F::send_map(
 				|inner: ArcFree<F, A>| -> ArcFree<F, ArcTypeErasedValue> { inner.cast_phantom() },
 				fa,
 			);
@@ -637,13 +638,13 @@ mod inner {
 		/// ```
 		pub fn lift_f(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)) -> Self
 		where
-			F: Functor,
+			F: SendFunctor,
 			A: Send + Sync,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
 				ArcFree<F, ArcTypeErasedValue>,
 			>): Clone, {
-			ArcFree::wrap(F::map(ArcFree::pure, fa))
+			ArcFree::wrap(F::send_map(ArcFree::pure, fa))
 		}
 
 		/// Decomposes this `ArcFree` into a single [`ArcFreeStep`].
@@ -676,7 +677,7 @@ mod inner {
 		)]
 		pub fn to_view(self) -> ArcFreeStep<F, A>
 		where
-			F: Functor,
+			F: SendFunctor,
 			A: Clone + Send + Sync,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
@@ -721,7 +722,7 @@ mod inner {
 						));
 						let all_conts = conts.snoc(downcast_cont);
 						let remaining = std::sync::Mutex::new(Some(all_conts));
-						let typed_fa = F::map(
+						let typed_fa = F::send_map(
 							move |inner_free: ArcFree<F, ArcTypeErasedValue>| {
 								let conts_for_inner = remaining
 									.lock()
@@ -765,7 +766,7 @@ mod inner {
 			self
 		) -> Result<A, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcFree<F, A>>)>
 		where
-			F: Functor,
+			F: SendFunctor,
 			A: Clone + Send + Sync,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
@@ -795,7 +796,7 @@ mod inner {
 		/// ```
 		pub fn evaluate(self) -> A
 		where
-			F: Extract + Functor,
+			F: Extract + SendFunctor,
 			A: Clone + Send + Sync,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
@@ -834,7 +835,7 @@ mod inner {
 		/// ```
 		pub fn lower_ref(&self) -> A
 		where
-			F: Extract + Functor,
+			F: Extract + SendFunctor,
 			A: Clone + Send + Sync,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
@@ -866,7 +867,7 @@ mod inner {
 		/// ```
 		pub fn peel_ref(&self) -> ArcFreeStep<F, A>
 		where
-			F: Functor,
+			F: SendFunctor,
 			A: Clone + Send + Sync,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
@@ -915,9 +916,9 @@ mod inner {
 			nt: impl NaturalTransformation<F, G> + Clone + Send + Sync + 'static,
 		) -> ArcFree<G, A>
 		where
-			F: Functor,
+			F: SendFunctor,
 			G: WrapDrop
-				+ Functor
+				+ SendFunctor
 				+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<G, ArcTypeErasedValue>>: Send + Sync>
 				+ 'static,
 			A: Clone + Send + Sync,

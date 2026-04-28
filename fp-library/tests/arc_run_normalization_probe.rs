@@ -45,6 +45,7 @@ use {
 		},
 		classes::{
 			Functor,
+			SendFunctor,
 			WrapDrop,
 		},
 		kinds::*,
@@ -87,7 +88,7 @@ mod pattern_a_pass_projection_in {
 			node: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
 		) -> Self
 		where
-			NodeBrand<R, S>: Functor,
+			NodeBrand<R, S>: SendFunctor,
 			A: Send + Sync,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,

@@ -1203,3 +1203,56 @@ module`. Three options were considered: (a) add
   form on the Erased Rc family, not a step 8 regression; the
   Explicit family's `peel` doesn't carry the Clone bound and
   works with both forms.
+
+### Step 9b: bundled with 9e to keep `arc_run.rs` compiling
+
+The 2026-04-28 expanded resolution decomposed step 9 into nine
+independent sub-steps (9a-9i). Sub-step 9b ("replace
+`F: Functor` with `F: SendFunctor` on `ArcFree`") and sub-step
+9e ("switch `ArcRun` to `SendFunctor`-routed dispatch") were
+listed separately. In practice they cannot land independently:
+[`ArcRun::peel`](../../../fp-library/src/types/effects/arc_run.rs)
+calls
+[`ArcFree::resume`](../../../fp-library/src/types/arc_free.rs)
+and
+[`ArcRun::send`](../../../fp-library/src/types/effects/arc_run.rs)
+calls
+[`ArcFree::lift_f`](../../../fp-library/src/types/arc_free.rs).
+After 9b's bound replacement, both `ArcFree` methods require
+`F: SendFunctor`; `ArcRun`'s methods can no longer satisfy the
+new bound with their existing `NodeBrand<R, S>: Functor`
+constraint. Compilation breaks at every `ArcRun` method that
+delegates to `ArcFree`.
+
+Bundled 9b and 9e into a single commit. The combined commit:
+
+- `ArcFree`: eight per-method `F: Functor` -> `F: SendFunctor`,
+  three `F::map` -> `F::send_map`, plus `A: Send + Sync` added
+  to `wrap` (because `send_map`'s closure parameter type
+  `ArcFree<F, A>` requires `Send + Sync`, which transitively
+  requires `A: Send + Sync`).
+- `ArcRun`: two per-method `NodeBrand<R, S>: Functor` ->
+  `NodeBrand<R, S>: SendFunctor`, one
+  `<NodeBrand<R, S> as Functor>::map` ->
+  `<NodeBrand<R, S> as SendFunctor>::send_map` in `peel`'s
+  body. `Functor` import removed (unused); `SendFunctor`
+  added.
+- `arc_run_normalization_probe.rs`: pattern-A's `send` method
+  (which mirrors production `*Run::send` for HRTB regression
+  coverage) updated to `SendFunctor` to track the production
+  shape.
+- `arc_run_explicit.rs`'s `From<ArcRun>` impl: gains
+  `SendFunctor` bounds on `R, S, NodeBrand<R, S>` to satisfy
+  `ArcRun::peel`'s new requirement (the impl body's own
+  `<NodeBrand<R, S> as Functor>::map` call stays unchanged
+  because it routes through the not-yet-migrated
+  `ArcFreeExplicit::wrap`; 9c+9f will resolve that side).
+
+The same coupling is expected for 9c+9f (ArcFreeExplicit and
+ArcRunExplicit). Future sub-steps 9d, 9g, 9h, 9i remain
+independent.
+
+The "verifies independently" criterion stays satisfied: the
+9a, 9b+9e, 9c+9f, 9d, 9g, 9h, 9i sequence of commits each
+verifies clean. The bundling reduces sub-step count from nine
+to seven without weakening the per-commit review property.

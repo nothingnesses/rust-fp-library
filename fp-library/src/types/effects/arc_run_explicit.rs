@@ -49,6 +49,7 @@ mod inner {
 			},
 			classes::{
 				Functor,
+				SendFunctor,
 				SendPointed,
 				WrapDrop,
 			},
@@ -629,12 +630,13 @@ mod inner {
 	)]
 	impl<R, S, A> From<ArcRun<R, S, A>> for ArcRunExplicit<'static, R, S, A>
 	where
-		R: WrapDrop + Functor + 'static,
-		S: WrapDrop + Functor + 'static,
+		R: WrapDrop + Functor + SendFunctor + 'static,
+		S: WrapDrop + Functor + SendFunctor + 'static,
 		NodeBrand<R, S>: WrapDrop
 			+ Kind_cdc7cd43dac7585f<
 				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
 			> + Functor
+			+ SendFunctor
 			+ 'static,
 		A: Clone + Send + Sync + 'static,
 		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<

@@ -33,7 +33,7 @@ mod inner {
 			Apply,
 			brands::NodeBrand,
 			classes::{
-				Functor,
+				SendFunctor,
 				WrapDrop,
 			},
 			kinds::Kind_cdc7cd43dac7585f,
@@ -250,15 +250,15 @@ mod inner {
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
 		>
 		where
-			NodeBrand<R, S>: Functor,
+			NodeBrand<R, S>: SendFunctor,
 			A: Clone + Send + Sync,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
 				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
 			>): Clone, {
-			self.0
-				.resume()
-				.map_err(|node| <NodeBrand<R, S> as Functor>::map(ArcRun::from_arc_free, node))
+			self.0.resume().map_err(|node| {
+				<NodeBrand<R, S> as SendFunctor>::send_map(ArcRun::from_arc_free, node)
+			})
 		}
 
 		/// Lifts a [`Node`](crate::types::effects::node::Node) dispatch
@@ -318,7 +318,7 @@ mod inner {
 			node: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
 		) -> Self
 		where
-			NodeBrand<R, S>: Functor,
+			NodeBrand<R, S>: SendFunctor,
 			A: Send + Sync,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
