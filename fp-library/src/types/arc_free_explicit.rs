@@ -304,7 +304,7 @@ mod inner {
 	#[document_parameters("The `ArcFreeExplicit` instance.")]
 	impl<'a, F, A: 'a> ArcFreeExplicit<'a, F, A>
 	where
-		F: WrapDrop + Functor + 'a,
+		F: WrapDrop + SendFunctor + 'a,
 	{
 		/// Constructs an `ArcFreeExplicit` from owned inner state.
 		#[document_signature]
@@ -596,20 +596,21 @@ mod inner {
 		/// 	.bind(|x: i32| ArcFreeExplicit::pure(x * 10));
 		/// assert_eq!(free.evaluate(), 30);
 		/// ```
-		pub fn bind<B: 'a>(
+		pub fn bind<B>(
 			self,
 			f: impl Fn(A) -> ArcFreeExplicit<'a, F, B> + Send + Sync + 'a,
 		) -> ArcFreeExplicit<'a, F, B>
 		where
-			A: Clone,
+			A: Clone + Send + Sync,
+			B: Send + Sync + 'a,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, F, A>,
-			>): Clone,
+			>): Clone + Send + Sync,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, F, B>,
-			>): Clone, {
+			>): Clone + Send + Sync, {
 			let boxed: Arc<dyn Fn(A) -> ArcFreeExplicit<'a, F, B> + Send + Sync + 'a> =
 				<ArcFnBrand as SendLiftFn>::new(f);
 			self.bind_boxed(boxed)
@@ -647,20 +648,21 @@ mod inner {
 			clippy::expect_used,
 			reason = "ArcFreeExplicit values consumed exactly once per branch; double consumption indicates a bug"
 		)]
-		fn bind_boxed<B: 'a>(
+		fn bind_boxed<B>(
 			self,
 			f: Arc<dyn Fn(A) -> ArcFreeExplicit<'a, F, B> + Send + Sync + 'a>,
 		) -> ArcFreeExplicit<'a, F, B>
 		where
-			A: Clone,
+			A: Clone + Send + Sync,
+			B: Send + Sync + 'a,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, F, A>,
-			>): Clone,
+			>): Clone + Send + Sync,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, F, B>,
-			>): Clone, {
+			>): Clone + Send + Sync, {
 			let mut owned = self.into_inner_owned();
 			let view = owned.view.take().expect("ArcFreeExplicit value already consumed");
 			match view {
@@ -668,7 +670,7 @@ mod inner {
 				ArcFreeExplicitView::Wrap(fa) => {
 					let f_outer = Arc::clone(&f);
 					ArcFreeExplicit::from_inner(ArcFreeExplicitInner {
-						view: Some(ArcFreeExplicitView::Wrap(F::map(
+						view: Some(ArcFreeExplicitView::Wrap(F::send_map(
 							move |inner: ArcFreeExplicit<'a, F, A>| -> ArcFreeExplicit<'a, F, B> {
 								let f_inner = Arc::clone(&f_outer);
 								inner.bind_boxed(f_inner)
@@ -695,7 +697,7 @@ mod inner {
 	// pattern.
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: WrapDrop + Functor + 'static> SendPointed for ArcFreeExplicitBrand<F> {
+	impl<F: WrapDrop + SendFunctor + 'static> SendPointed for ArcFreeExplicitBrand<F> {
 		/// Wraps a value in a pure thread-safe `ArcFreeExplicit` computation.
 		#[document_signature]
 		///

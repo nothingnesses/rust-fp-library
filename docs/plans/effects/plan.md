@@ -9,23 +9,67 @@ relaxation) landed; Phase 2 in progress (steps 1, 2, 3, 4a, 4b,
 
 Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
 complete. Phase 2 steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b, 7c.1,
-7c.2a, 7c.2b, and 8 complete; step 9 in progress (sub-steps 9a and 9b+9e complete;
-the `Run::lift` rename and reference impl from commit `34b6a97`
-count as in-step-9 progress although they predate the 9a-9i
-decomposition). Five sub-steps remaining (9c+9f, 9d, 9g, 9h,
-9i). Next up is sub-step 9c+9f bundle (replace `F: Functor`
-with `F: SendFunctor` on `ArcFreeExplicit` machinery, plus the
-forced cascade onto `ArcRunExplicit` method bounds; the bundle
-shape mirrors what 9b+9e settled on).
+7c.2a, 7c.2b, and 8 complete; step 9 in progress (sub-steps 9a, 9b+9e, and 9c+9f
+complete; the `Run::lift` rename and reference impl from
+commit `34b6a97` count as in-step-9 progress although they
+predate the 9a-9i decomposition). Four sub-steps remaining
+(9d, 9g, 9h, 9i). Next up is sub-step 9d (expand brand-level
+type-class surface on `ArcFreeExplicitBrand` to absorb
+newly-reachable Send-aware impls under the SendFunctor-routed
+substrate).
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
 
-**Phase 2 step 9b+9e bundle (this commit): replace
-`F: Functor` with `F: SendFunctor` on `ArcFree` and switch
-`ArcRun` to `SendFunctor`-routed dispatch.** Per the resolution,
+**Phase 2 step 9c+9f bundle (this commit): replace
+`F: Functor` with `F: SendFunctor` on `ArcFreeExplicit` and
+switch `ArcRunExplicit` to `SendFunctor`-routed dispatch.**
+Mirrors the 9b+9e bundle pattern for the Explicit family.
+[`ArcFreeExplicit`](../../../fp-library/src/types/arc_free_explicit.rs):
+the impl-block-level `F: WrapDrop + Functor + 'a` switches to
+`F: WrapDrop + SendFunctor + 'a`, propagating to all methods
+(`pure`, `wrap`, `to_view`, `evaluate`, `lower_ref`, `peel_ref`,
+`bind`, `bind_boxed`, `hoist_free`); the single `F::map` call
+inside `bind_boxed` switches to `F::send_map`. The
+`SendPointed` impl on `ArcFreeExplicitBrand` similarly switches
+its bound from `Functor` to `SendFunctor`. Adding `send_map`
+to `bind` / `bind_boxed`'s call cascade requires
+`A: Send + Sync` and `B: Send + Sync` (the closure parameter
+and return-type Send + Sync requirements) plus
+`F::Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync` and the
+B-equivalent on the data input/output of `send_map`. The
+existing `Clone` bounds on those projections gain
+`+ Send + Sync` to absorb both.
+
+[`ArcRunExplicit`](../../../fp-library/src/types/effects/arc_run_explicit.rs):
+all `R: WrapDrop + Functor + 'static, S: WrapDrop + Functor + 'static`
+struct/impl-block bounds switch to
+`R: WrapDrop + SendFunctor + 'static, S: WrapDrop + SendFunctor + 'static`;
+two `<NodeBrand<R, S> as Functor>::map` calls (in `peel`
+and `send`) switch to
+`<NodeBrand<R, S> as SendFunctor>::send_map`; method-level
+`Functor` bounds switch likewise. `peel`, `send`, `map`, `bind`,
+`ref_bind`, `ref_map` all gain the `Send + Sync` cascade
+bounds (`A`, `B`, the row projections via `R::Of` and `S::Of`,
+the substrate projection via `NodeBrand::Of`) needed by
+`SendFunctor::send_map`'s closure-input/output and the
+`ArcFreeExplicit::bind`'s call signature. Generic param lists
+adjust from `<B: 'a>` / `<B: Send + Sync + 'a>` to bare `<B>`
+with `B: Send + Sync + 'a` consolidated into the where-clause
+(clippy's `type_repetition_in_bounds` requires bounds in one
+place per parameter).
+
+The compile_fail UI test for
+[`arc_free_explicit_bind_requires_send`](../../../fp-library/tests/ui/arc_free_explicit_bind_requires_send.rs)
+has its `.stderr` regenerated because the migration shifted
+the error-message line numbers slightly. All 2428 unit tests
+pass; doctests + clippy + deny + doc all clean.
+
+**Phase 2 step 9b+9e (`f86c150`): replace `F: Functor` with
+`F: SendFunctor` on `ArcFree` and switch `ArcRun` to
+`SendFunctor`-routed dispatch.** Per the resolution,
 `ArcFree`'s eight per-method `F: Functor` (or
 `F: Extract + Functor`) bounds switch to `F: SendFunctor` (or
 `F: Extract + SendFunctor`); three internal `F::map(...)` calls
@@ -94,63 +138,6 @@ where applicable. All 2428 unit tests pass under `just verify`
 module-level docs noting "ArcCoyonedaBrand implements Foldable
 and SendFunctor" updated to include `WrapDrop`.
 
-**Phase 2 step 8 (this commit): `effects!` macro migration plus
-`raw_effects!` companion.** The public `effects!` proc-macro
-lands at
-[`fp-macros/src/effects/effects_macro.rs`](../../../fp-macros/src/effects/effects_macro.rs)
-under the
-[`fp-macros/src/effects/`](../../../fp-macros/src/effects/)
-subsystem directory; both `pub fn effects(input)` and
-`pub fn raw_effects(input)` proc-macro exports are registered
-in
-[`fp-macros/src/lib.rs`](../../../fp-macros/src/lib.rs).
-`effects!` lexically sorts its input brand types by
-`quote!(#t).to_string()` and emits a right-nested
-`CoproductBrand<CoyonedaBrand<#brand>, ..., CNilBrand>` chain;
-`raw_effects!` (marked `#[doc(hidden)]`) emits the un-wrapped
-`CoproductBrand<#brand, ..., CNilBrand>` form for fp-library
-internal use, exposed via a new
-[`fp_library::__internal`](../../../fp-library/src/lib.rs)
-module. The lexical-sort logic lives in
-[`fp-macros/src/effects/row_sort.rs`](../../../fp-macros/src/effects/row_sort.rs)'s
-`parse_and_sort_types` helper so `scoped_effects!` (Phase 4
-step 4) can reuse the same canonicalisation. Ten integration
-tests in
-[`fp-library/tests/effects_macro.rs`](../../../fp-library/tests/effects_macro.rs)
-exercise: empty / single / two / three-brand expansions; the
-canonical-ordering property (different input orderings produce
-the same canonical type, verified via `assert_type_eq` /
-`PhantomData` compile-time type-equality); explicit-shape
-verification matching the documented form on
-[`CoproductBrand`](../../../fp-library/src/brands.rs);
-`raw_effects!`'s un-wrapped emission; and production use of
-both forms as the `R` parameter of an `RcRun` wrapper. All
-plus six unit tests inside fp-macros (in `effects_macro.rs`
-and `row_sort.rs`); `just verify` is clean across the whole
-workspace.
-
-**Phase 2 step 7c.2b (`2121174`): `im_do!` proc-macro.** The
-inherent-method-dispatched monadic do-notation macro lands at
-[`fp-macros/src/effects/im_do/codegen.rs`](../../../fp-macros/src/effects/im_do/codegen.rs)
-with the `pub fn im_do(input)` proc-macro export registered in
-[`fp-macros/src/lib.rs`](../../../fp-macros/src/lib.rs).
-Codegen reuses `format_bind_param` and `format_discard_param`
-from
-[`fp-macros/src/m_do/codegen.rs`](../../../fp-macros/src/m_do/codegen.rs);
-`rewrite_pure_inherent` rewrites bare `pure(x)` to
-`Wrapper::pure(x)` (val mode) or `Wrapper::ref_pure(&(x))`
-(ref mode), with inferred mode rejected as `compile_error!`.
-Method-call syntax handles both `bind` and `ref_bind` dispatch
-via auto-ref; no container-wrapping helper is needed.
-Sixteen integration tests in
-[`fp-library/tests/im_do.rs`](../../../fp-library/tests/im_do.rs)
-cover by-value mode on all six wrappers, ref mode on the four
-`Clone`-able wrappers, statement variety, and one inferred-mode
-invocation. The compile_fail UI test at
-[`fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.rs`](../../../fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.rs)
-demonstrates that `im_do!(ref Run { ... })` rejects with
-rustc's natural "no method named `ref_bind` found" error.
-
 ### Earlier completed steps (commit log)
 
 Each entry's design choices are recorded in
@@ -161,6 +148,16 @@ summary; resolved blockers are in
 
 Phase 2:
 
+- `9929563` (step 8): `effects!` proc-macro migration to
+  [`fp-macros/src/effects/effects_macro.rs`](../../../fp-macros/src/effects/effects_macro.rs)
+  plus `raw_effects!` companion at
+  [`fp_library::__internal`](../../../fp-library/src/lib.rs).
+  Lexical-sort helper at
+  [`fp-macros/src/effects/row_sort.rs`](../../../fp-macros/src/effects/row_sort.rs)
+  shared with the future `scoped_effects!`. Ten integration
+  tests verify canonical-ordering and explicit-shape via
+  `assert_type_eq` / `PhantomData`; six fp-macros unit tests
+  cover the worker functions and sort helper directly.
 - `2121174` (step 7c.2b): `im_do!` proc-macro at
   [`fp-macros/src/effects/im_do/codegen.rs`](../../../fp-macros/src/effects/im_do/codegen.rs).
   Inherent-method dispatch (`expr.bind(...)` /

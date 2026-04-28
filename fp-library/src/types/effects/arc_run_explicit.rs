@@ -80,12 +80,12 @@ mod inner {
 	)]
 	pub struct ArcRunExplicit<'a, R, S, A>(ArcFreeExplicit<'a, NodeBrand<R, S>, A>)
 	where
-		R: WrapDrop + Functor + 'static,
-		S: WrapDrop + Functor + 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
 		A: 'a;
 
 	impl_kind! {
-		impl<R: WrapDrop + Functor + 'static, S: WrapDrop + Functor + 'static>
+		impl<R: WrapDrop + SendFunctor + 'static, S: WrapDrop + SendFunctor + 'static>
 			for ArcRunExplicitBrand<R, S> {
 			type Of<'a, A: 'a>: 'a = ArcRunExplicit<'a, R, S, A>;
 		}
@@ -100,8 +100,8 @@ mod inner {
 	#[document_parameters("The `ArcRunExplicit` instance to clone.")]
 	impl<'a, R, S, A> Clone for ArcRunExplicit<'a, R, S, A>
 	where
-		R: WrapDrop + Functor + 'static,
-		S: WrapDrop + Functor + 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
 		A: 'a,
 	{
 		/// Clones the `ArcRunExplicit` by atomic refcount bump on the
@@ -143,8 +143,8 @@ mod inner {
 	#[document_parameters("The `ArcRunExplicit` instance.")]
 	impl<'a, R, S, A: 'a> ArcRunExplicit<'a, R, S, A>
 	where
-		R: WrapDrop + Functor + 'static,
-		S: WrapDrop + Functor + 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
 	{
 		/// Wraps an
 		/// [`ArcFreeExplicit<'a, NodeBrand<R, S>, A>`](crate::types::ArcFreeExplicit)
@@ -274,15 +274,31 @@ mod inner {
 			>),
 		>
 		where
-			A: Clone,
+			A: Clone + Send + Sync,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
-			>): Clone, {
+			>): Clone + Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync, {
 			match self.0.to_view() {
 				crate::types::arc_free_explicit::ArcFreeExplicitView::Pure(a) => Ok(a),
 				crate::types::arc_free_explicit::ArcFreeExplicitView::Wrap(node) => {
-					let mapped = <NodeBrand<R, S> as Functor>::map(
+					let mapped = <NodeBrand<R, S> as SendFunctor>::send_map(
 						ArcRunExplicit::from_arc_free_explicit,
 						node,
 					);
@@ -341,8 +357,20 @@ mod inner {
 			node: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		) -> Self
 		where
-			A: Send + Sync, {
-			let mapped = <NodeBrand<R, S> as Functor>::map(
+			A: Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone + Send + Sync, {
+			let mapped = <NodeBrand<R, S> as SendFunctor>::send_map(
 				|a: A| -> ArcFreeExplicit<'a, NodeBrand<R, S>, A> { ArcFreeExplicit::pure(a) },
 				node,
 			);
@@ -385,20 +413,21 @@ mod inner {
 		/// let mapped = run.map(|x: i32| x * 3);
 		/// assert_eq!(mapped.into_arc_free_explicit().evaluate(), 30);
 		/// ```
-		pub fn map<B: Send + Sync + 'a>(
+		pub fn map<B>(
 			self,
 			f: impl Fn(A) -> B + Send + Sync + 'a,
 		) -> ArcRunExplicit<'a, R, S, B>
 		where
 			A: Clone + Send + Sync,
+			B: Send + Sync + 'a,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
-			>): Clone,
+			>): Clone + Send + Sync,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, B>,
-			>): Clone, {
+			>): Clone + Send + Sync, {
 			ArcRunExplicit::from_arc_free_explicit(
 				self.0.bind(move |a| ArcFreeExplicit::pure(f(a))),
 			)
@@ -440,20 +469,21 @@ mod inner {
 		/// 	run.bind(|x: i32| ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::pure(x + 1)));
 		/// assert_eq!(chained.into_arc_free_explicit().evaluate(), 3);
 		/// ```
-		pub fn bind<B: 'a>(
+		pub fn bind<B>(
 			self,
 			f: impl Fn(A) -> ArcRunExplicit<'a, R, S, B> + Send + Sync + 'a,
 		) -> ArcRunExplicit<'a, R, S, B>
 		where
-			A: Clone,
+			A: Clone + Send + Sync,
+			B: Send + Sync + 'a,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
-			>): Clone,
+			>): Clone + Send + Sync,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, B>,
-			>): Clone, {
+			>): Clone + Send + Sync, {
 			ArcRunExplicit::from_arc_free_explicit(
 				self.0.bind(move |a| f(a).into_arc_free_explicit()),
 			)
@@ -504,20 +534,21 @@ mod inner {
 		/// 	.ref_bind(|x: &i32| ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::pure(*x + 1)));
 		/// assert_eq!(chained.into_arc_free_explicit().evaluate(), 3);
 		/// ```
-		pub fn ref_bind<B: 'a>(
+		pub fn ref_bind<B>(
 			&self,
 			f: impl Fn(&A) -> ArcRunExplicit<'a, R, S, B> + Send + Sync + 'a,
 		) -> ArcRunExplicit<'a, R, S, B>
 		where
 			A: Clone + Send + Sync,
+			B: Send + Sync + 'a,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
-			>): Clone,
+			>): Clone + Send + Sync,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, B>,
-			>): Clone, {
+			>): Clone + Send + Sync, {
 			self.clone().bind(move |a| f(&a))
 		}
 
@@ -557,20 +588,21 @@ mod inner {
 		/// let mapped = run.ref_map(|x: &i32| *x * 3);
 		/// assert_eq!(mapped.into_arc_free_explicit().evaluate(), 21);
 		/// ```
-		pub fn ref_map<B: Send + Sync + 'a>(
+		pub fn ref_map<B>(
 			&self,
 			f: impl Fn(&A) -> B + Send + Sync + 'a,
 		) -> ArcRunExplicit<'a, R, S, B>
 		where
 			A: Clone + Send + Sync,
+			B: Send + Sync + 'a,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
-			>): Clone,
+			>): Clone + Send + Sync,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, B>,
-			>): Clone, {
+			>): Clone + Send + Sync, {
 			self.clone().map(move |a| f(&a))
 		}
 
@@ -724,8 +756,8 @@ mod inner {
 	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
 	impl<R, S> SendPointed for ArcRunExplicitBrand<R, S>
 	where
-		R: WrapDrop + Functor + 'static,
-		S: WrapDrop + Functor + 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
 	{
 		/// Wraps a value in a pure thread-safe `ArcRunExplicit`
 		/// computation by delegating to
