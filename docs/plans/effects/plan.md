@@ -509,7 +509,195 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-_(None active.)_
+#### Active blocker (2026-04-29): Phase 3 step 2/3 interpreter target-monad shape
+
+**Question.** Phase 3 step 2's `interpret` / `run` / `run_accum` shipped
+with the target monad implicit (`M = self Run wrapper`, returns `A`
+directly). [decisions.md](decisions.md) section 4.3 frames both step
+2 (`Monad m`) and step 3 (`MonadRec m`) as exposing the target monad
+as a parameter. Should step 2 be reshaped to match decisions.md
+4.3's framing (and step 3 added as the parallel stack-safe form), or
+should step 2 stay as-shipped and step 3 add an externally-targeted
+form alongside? This question is load-bearing because the answer
+determines step 3's shape and whether step 2's just-shipped API
+(`d5efe2a`) needs reshaping.
+
+**Reference shapes.** PureScript Run's
+[`Run.purs:178-261`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs#L178-L261):
+
+```haskell
+-- Both interpret and interpretRec aliases of run/runRec respectively
+interpret    :: Monad m    => (VariantF r ~> m) -> Run r a -> m a
+interpretRec :: MonadRec m => (VariantF r ~> m) -> Run r a -> m a
+
+-- The actual workhorses
+run          :: Monad m    => (VariantF r (Run r a) -> m (Run r a)) -> Run r a -> m a
+runRec       :: MonadRec m => (VariantF r (Run r a) -> m (Run r a)) -> Run r a -> m a
+runAccum     :: Monad m    => (s -> VariantF r (Run r a) -> m (Tuple s (Run r a))) -> s -> Run r a -> m a
+runAccumRec  :: MonadRec m => (s -> VariantF r (Run r a) -> m (Tuple s (Run r a))) -> s -> Run r a -> m a
+
+-- Loop bodies:
+run k = loop where loop = resume (\a -> loop =<< k a) pure   -- bind-driven
+runRec k = runFreeM (coerceM k) <<< unwrap                   -- tailRecM-driven (via runFreeM)
+```
+
+PureScript's `MonadRec` class
+([`Control.Monad.Rec.Class:58-59`](https://github.com/purescript/purescript-tailrec/blob/master/src/Control/Monad/Rec/Class.purs#L58-L59)):
+
+```haskell
+class Monad m <= MonadRec m where
+  tailRecM :: forall a b. (a -> m (Step a b)) -> a -> m b
+```
+
+Class invariant: `tailRecM` runs in constant stack space.
+
+fp-library's [`MonadRec`](../../../fp-library/src/classes/monad_rec.rs)
+mirrors this exactly:
+`tail_rec_m :: (A -> M::Of<ControlFlow<B, A>>) -> A -> M::Of<B>`,
+same constant-stack invariant. `IdentityBrand`,
+`OptionBrand`, `ThunkBrand`, `VecBrand`, etc. already implement it.
+
+The Rust precedent at
+[`Free::fold_free<G: MonadRec>`](../../../fp-library/src/types/free.rs)
+already implements the PureScript-faithful pattern: takes a
+[`NaturalTransformation<F, G>`](../../../fp-library/src/classes/natural_transformation.rs),
+drives the loop via `G::tail_rec_m`, returns `G::Of<'_, A>`.
+Step 3's externally-targeted form would extend this pattern to
+Run's handler-list shape.
+
+**Why PureScript needs the rec/non-rec distinction.** PureScript's
+`run` body
+`loop = resume (\a -> loop =<< k a) pure` recurses through
+`m`'s bind: `loop =<< k a` builds nested `m`-bind frames in the
+host stack. Stack-safe iff `m`'s bind is stack-safe; long-running
+programs blow the stack for typical bind-recursive `m`s.
+`runRec`'s `runFreeM` swaps the bind-recursion for `tailRecM`,
+which by `MonadRec`'s class invariant runs in constant stack
+regardless of `m`'s bind shape. The distinction is purely a
+stack-safety guarantee on the target monad.
+
+**Why Rust's situation differs.** Step 2 as-shipped uses a
+`while`-loop with `prog = handlers.dispatch(layer)` (assignment-driven,
+not bind-driven). The interpreter loop itself is structurally stack-safe
+regardless of any `M`. The handler closures could recurse internally,
+but that's user code, not interpreter machinery. So the rec/non-rec
+distinction as it exists in PureScript Run doesn't apply to step 2's
+shipped form.
+
+To match PureScript Run's framing, step 2 would need to expose
+`<MBrand: Monad>` and route the loop through `M::bind`. That has
+implementation costs in Rust (see "Workarounds" below).
+
+**Three concrete options.**
+
+**Option (i.a): Symmetric step 2 (`Monad`) and step 3 (`MonadRec`)
+exposing target M.** Reshape step 2 to mirror PureScript's `run`
+exactly:
+
+```rust
+// Step 2 reshape:
+pub fn interpret<MBrand: Monad>(self, handlers: H) -> M::Of<'_, A>
+where H: ... + Clone
+
+// Step 3 (added):
+pub fn interpret_rec<MBrand: MonadRec>(self, handlers: H) -> M::Of<'_, A>
+where H: ... + Clone
+```
+
+Step 2's loop is bind-driven via `M::bind`; step 3's is
+`tail_rec_m`-driven. Handler closures produce `M::Of<Run<R, S, A>>`
+for both forms.
+
+Implementation requires the workarounds in the next section to
+make recursion-with-borrowed-handlers work in stable Rust.
+
+**Option (i.b): Drop the rec/non-rec naming distinction; ship one
+family bounded `MonadRec`.** Step 2 reshapes to take
+`<MBrand: MonadRec>`, uses `tail_rec_m`. No `_rec` family at all.
+Six methods total instead of twelve. Deviates from PureScript
+naming and from decisions.md 4.3's two-family framing.
+
+**Option (ii): Step 2 stays as-shipped (M = self Run, returns A);
+step 3 adds an externally-targeted `<MBrand: MonadRec>` form
+alongside.** Step 2 = simple "give me the value" primitive. Step 3
+= "extract to a MonadRec target like `Thunk` / `Option` / `Result`
+with stack-safety". Two distinct functions, different shapes,
+different use cases.
+
+**Workarounds for the bind-driven loop in Rust (relevant to (i.a)).**
+
+PureScript's `loop =<< k a` recurses through `m`'s bind. The closure
+passed to bind must:
+
+1. Be `Fn` (multi-callable) so non-deterministic `m`s like `Vec` can
+   call the continuation multiple times.
+2. Capture the handler list to recurse with it.
+3. Not mutably alias the handler list across calls (Rust's `Fn`
+   borrow rules require the captured state to be immutably-shared
+   or owned-and-cloned per call).
+
+Three workarounds, all cheap in practice:
+
+- **Workaround 1: Closures as `Fn` (not `FnMut`).** Most user
+  closures are naturally `Fn` already (mutation through `RefCell`
+  or `Mutex` works from `&self`). The integration tests'
+  `move \|op\| { *counter.borrow_mut() += 1; op.0 }` is `Fn`
+  because `RefCell::borrow_mut` is callable from `&self`. The
+  shift from `FnMut` to `Fn` is mostly free.
+- **Workaround 2: Handler list `Clone`.** Each step clones the
+  handler list before passing it to the recursive bind closure,
+  so each invocation of the closure (potentially multiple for
+  non-deterministic `m`) gets its own copy. Trivial closures are
+  `Clone` automatically. Closures capturing `Rc<RefCell<T>>` /
+  `Arc<Mutex<T>>` are `Clone` (refcount bump). The
+  `HandlersCons` / `HandlersNil` types already derive `Clone`.
+  Per-step cost: one shallow clone (HCons cells × handler
+  closure clones). Near-free for zero-sized closures, O(1)
+  refcount bumps for shared-pointer captures.
+- **Workaround 3: `'static` bound.** Already implicit for the
+  Erased Run family. Tightening for the Explicit family forces
+  handlers to not borrow stack-bound user data. Adds friction but
+  not a hard wall.
+
+With these workarounds, refined option (i.a) is implementable in
+stable Rust. Without them, only option (i.b) (collapse to
+`MonadRec` uniformly) or option (ii) (keep step 2 simple, add
+step 3 as a different-shape sibling) are tractable.
+
+**Trade-off summary.**
+
+| Dimension                             | (i.a) Symmetric Monad/MonadRec                                                                                         | (i.b) MonadRec uniform                       | (ii) Asymmetric: simple + MonadRec sibling                                                        |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| PureScript fidelity                   | 1:1                                                                                                                    | Diverges (no Monad-bound form)               | Step 3 faithful; step 2 simple specialization                                                     |
+| decisions.md 4.3 alignment            | Full                                                                                                                   | Partial (one family)                         | Step 3 honors; step 2 documented as Rust-pragmatic specialization                                 |
+| Implementation effort                 | High: reshape step 2 + add step 3 + Clone bounds                                                                       | Medium: reshape step 2; no separate step 3   | Low: step 2 unchanged; add step 3                                                                 |
+| API breaking change                   | Yes, to `d5efe2a`'s API                                                                                                | Yes, to `d5efe2a`'s API                      | No                                                                                                |
+| Method count (per wrapper)            | 6 (interpret/run/run_accum × rec/non-rec)                                                                              | 3 (interpret/run/run_accum)                  | 6 (current 3 plus 3 \_rec siblings, different shape)                                              |
+| Closure ergonomics                    | Closures produce `M::Of<Run>`. Marginally more verbose (`\|op\| Identity(handler_body)` for the Identity-target case). | Same as (i.a)                                | Step 2 closures unchanged (`\|op\| handler_body`); step 3 closures produce `M::Of<Run>`           |
+| Handler list bounds                   | `Clone` required throughout                                                                                            | `Clone` required throughout (likely)         | None on step 2; `Clone` on step 3                                                                 |
+| Stack-safety story                    | Explicit: pick `interpret_rec` for guaranteed stack-safety; `interpret` is at the mercy of `m`'s bind                  | Implicit: always stack-safe via `tail_rec_m` | Step 2: structurally stack-safe (while loop). Step 3: `tail_rec_m`-driven, always stack-safe.     |
+| User mental model                     | "Pick bound based on stack-safety needs"                                                                               | "One form, always stack-safe"                | "Use `interpret` if you want a value; `interpret_rec` if you want extraction to a MonadRec brand" |
+| Decision 4.3's "target monad" framing | Honored exactly                                                                                                        | Diverges (only one family)                   | Asymmetric (step 2 doesn't expose M)                                                              |
+| Conceptual redundancy                 | Two methods that compile to similar loops, distinguished by stack-safety bound                                         | None                                         | None: methods are functionally distinct                                                           |
+
+**Cross-references.**
+
+- [decisions.md](decisions.md) section 4.3 ("Ship both interpreter
+  families (PureScript-mirroring)").
+- [`fp-library/src/types/free.rs`](../../../fp-library/src/types/free.rs)'s
+  `Free::fold_free<G: MonadRec>` is the existing Rust precedent
+  for the externally-targeted MonadRec form.
+- [`fp-library/src/classes/natural_transformation.rs`](../../../fp-library/src/classes/natural_transformation.rs)
+  is the existing rank-2 polymorphic abstraction; complementary
+  to the handler-list-driven path. Already documented in Phase
+  6+ deferred items as a future `interpret_nt` companion
+  entry-point.
+- [PureScript Run](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
+  source.
+- [PureScript MonadRec](https://github.com/purescript/purescript-tailrec/blob/master/src/Control/Monad/Rec/Class.purs)
+  source.
+- Phase 3 step 2 commit `d5efe2a` is the API the (i.a) / (i.b)
+  reshapes would break and that (ii) preserves.
 
 The Phase 2 step 9 under-specification (logged 2026-04-28) is
 resolved; full investigation, alternatives, and resolution moved
