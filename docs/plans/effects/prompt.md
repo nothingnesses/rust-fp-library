@@ -23,8 +23,41 @@ was deleted in step 10b after its tests migrated to
 in step 10a.
 
 **Phase 3 (first-order effect handlers, interpreters, natural
-transformations) is the active phase. Phase 3 step 1
-(`handlers!{...}` macro) is the immediate next work.**
+transformations) is the active phase.** Steps 1 and 2 shipped;
+**an active blocker pauses step 3**.
+
+**Active blocker pending resolution.** plan.md's
+`Active blockers` section contains a comprehensive entry
+(`Active blocker (2026-04-29): Phase 3 step 2/3 interpreter
+target-monad shape`) accumulated across three commits
+(`9f9e07b` introduced; `8e59bb5` widened to a three-axis
+analysis; `05539af` added per-decision approaches and
+trade-offs). The blocker has **five pending decisions** with
+documented approaches, trade-offs, and recommendations. **The
+next session's first task is to surface these decisions to
+the user, get a chosen set, and only then resume
+implementation.** Do not treat this as a "find the next
+numbered step and start coding" situation.
+
+The five decisions, with the recommended set:
+
+| #   | Question                                                              | Recommendation              |
+| --- | --------------------------------------------------------------------- | --------------------------- |
+| 1   | Axis 1 widening: ship row-narrowing pipeline + `extract`?             | **(1.A) Full widen**        |
+| 2   | Axis 3 rec/non-rec: PureScript-faithful symmetric vs asymmetric?      | **(2.C) Asymmetric**        |
+| 3   | Phase 3 step ordering: renumber after axis 1 widening?                | **(3.A) Insert + renumber** |
+| 4   | Phase 6+ deferred entries for `runCont` / `interpose` / algebraic-FO? | **(4.A) Defer all three**   |
+| 5   | Update decisions.md?                                                  | **(5.A) Keep frozen**       |
+
+The full analysis (~600 lines under
+`### Active blockers` in plan.md) covers PureScript Run's
+reference shapes, the `MonadRec` class invariant, the Rust
+constraints (closure-recursion-with-borrowed-state) and their
+workarounds, the three orthogonal axes (which functions,
+handler shape, rec/non-rec), Phase 4 implications, heftia row
+architecture clarification, decisions.md alignment, and a
+summary recommendation table. Read it end-to-end before
+acting.
 
 What Phase 2 shipped (commit-log order, oldest first):
 
@@ -65,57 +98,97 @@ What Phase 2 shipped (commit-log order, oldest first):
 - Step 10b: `poc-effect-row/` workspace deleted; doc-link
   maintenance across the four cross-referencing files.
 
-**Phase 3 step 1 entails** the `handlers!{...}` macro at the
-not-yet-existing `fp-macros/src/effects/handlers.rs` (sibling of
-the existing
-[`effects_macro.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/effects_macro.rs)),
-producing tuple-of-closures keyed on the row's type-level
-structure. The non-macro builder fallback
-`nt().on::<E>(handler)...` is also in scope per
-[decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
-section 4.6.
+What Phase 3 has shipped:
 
-The existing
-[`effects_macro.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/effects_macro.rs)
-is the structural template for proc-macros that traverse a row.
-The shared lexical-sort helper at
-[`row_sort.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/row_sort.rs)
-is the precedent for any sort-helper sharing between
-`handlers!`, `effects!`, and the future `scoped_effects!`
-(Phase 4 step 4); reuse if the row-traversal logic in
-`handlers!` is shaped similarly.
+- **Step 1** (`82dd7bb`): `handlers!{...}` macro at
+  [`fp-macros/src/effects/handlers.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/handlers.rs)
+  - `nt()` builder fallback. Runtime carrier types
+    (`Handler<E, F>`, `HandlersNil`, `HandlersCons<H, T>`,
+    inherent `.on::<E, F>(...)` builder methods) live at
+    [`fp-library/src/types/effects/handlers.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/handlers.rs).
+    The macro sorts entries lexically (matching `effects!`'s
+    sort) and emits a right-nested cons chain; closures stored
+    inside `Handler<E, F>` carry brand identity via
+    `PhantomData<fn() -> E>`. 10 integration tests in
+    [`fp-library/tests/handlers_macro.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/handlers_macro.rs)
+  - 6 worker-token tests + 6 inline unit tests.
+- **Step 2** (`d5efe2a`): `interpret` / `run` / `run_accum`
+  inherent methods on all six Run wrappers, plus the
+  [`DispatchHandlers<'a, Layer, NextProgram>`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/interpreter.rs)
+  trait at
+  `fp-library/src/types/effects/interpreter.rs`. The trait has
+  three cons-cell impls (one per Coyoneda variant: `Coyoneda`,
+  `RcCoyoneda`, `ArcCoyoneda`) per the per-wrapper Coyoneda
+  variant pairing rule. The methods loop on `peel`, dispatch
+  each `Node::First` layer through `DispatchHandlers`, and
+  panic on `Node::Scoped` (gated by
+  `#[expect(clippy::unreachable, ...)]` until Phase 4 routes
+  scoped layers). ArcRun's loop uses a free-function helper
+  `unwrap_first<R, S, A>` to sidestep struct-level
+  HRTB-poisoning of the `Node::First` pattern match (mirrors
+  the `lift_node` precedent from Phase 2 step 5). 12
+  integration tests in
+  [`fp-library/tests/run_interpret.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_interpret.rs)
+  - per-method doctests.
 
-**Remaining Phase 3 steps after step 1**:
+  **Step 2 simplified:** the M target is implicit (= self Run
+  wrapper); methods return `A` directly. This is a
+  Rust-pragmatic specialization that doesn't fully mirror
+  PureScript Run's `<m: Monad>` shape. The active blocker
+  records this and lays out the choice between reshaping
+  step 2 to expose M (option (i.a) / (i.b) per the blocker
+  entry) and shipping a different-shape MonadRec sibling
+  alongside (option (ii)). Recommendation in the blocker
+  entry: option (ii) under axis 1 widening.
 
-- Step 2: `interpret` / `run` / `runAccum` recursive-target
-  interpreter family at
-  `fp-library/src/types/effects/interpreter.rs`.
-- Step 3: `interpretRec` / `runRec` / `runAccumRec`
-  `MonadRec`-target interpreter family in the same module.
-- Step 4: standard first-order effect types and their smart
-  constructors (`State<S>`, `Reader<E>`, `Except<E>`,
-  `Writer<W>`, `Choose` (multi-shot, `RcRun`-only)). The smart
-  constructors are one-liners over `*Run::lift`; per the
-  Coyoneda variant pairing rule (see Lessons below), each
-  smart constructor's effect-row parameterisation depends on
-  the Run wrapper it targets.
-- Step 5: `define_effect!` macro at
-  `fp-macros/src/effects/define_effect.rs` generating effect
-  enum + smart constructors + label / brand registration.
-- Step 6: `compile_fail` UI tests for negative cases (handler
-  missing an effect, wrong type ascription, multi-shot via
-  single-shot `Run`).
+**Remaining Phase 3 steps (contingent on the active blocker
+resolution).** If the recommended set is confirmed, Phase 3
+re-orders as:
 
-**There are no active blockers** as of this resume point.
-Confirm before starting Phase 3 step 1 by re-reading the
-`Active blockers` section in plan.md (currently
-"_(None active.)_" per recent commits).
+- Step 3 (NEW): row-narrowing pipeline + `extract`. Per
+  wrapper: `interpret_with::<EBrand>(handler) -> Run<R_minus_E, S, A>`
+  (PureScript `runPure` / heftia `interpretWith` analog) plus
+  `extract(self) -> A` for empty-row Run. New
+  `DispatchOneHandler` trait variant alongside the existing
+  `DispatchHandlers`.
+- Step 4 (was step 3): `interpret_rec` / `run_rec` /
+  `run_accum_rec` `<MBrand: MonadRec>` externally-targeted
+  interpreter family in the same module
+  (`fp-library/src/types/effects/interpreter.rs`).
+- Step 5 (was step 4): standard first-order effect types and
+  their smart constructors (`State<S>`, `Reader<E>`,
+  `Except<E>`, `Writer<W>`, `Choose` (multi-shot,
+  `RcRun`-only)).
+- Step 6 (was step 5): `define_effect!` macro at
+  `fp-macros/src/effects/define_effect.rs`.
+- Step 7 (was step 6): `compile_fail` UI tests for negative
+  cases.
 
-If you encounter unexpected behaviour during Phase 3, plan.md's
-`Active blockers` section is the place to record load-bearing
-questions; entries should cite concrete file paths and line
-numbers so the next implementor (or you in a future session)
-can verify claims without conversational context.
+If a different decision set lands (e.g., (1.B) no widen +
+(2.A) symmetric reshape), the step ordering differs; consult
+the active blocker for the alternative.
+
+**Process for the next session:**
+
+1. Read plan.md's `Active blockers` section end-to-end.
+2. Surface the five decisions to the user with the recommended
+   set; ask them to confirm or override per-decision.
+3. Once decisions land, do whatever doc updates the chosen
+   decisions require (e.g., if (4.A): add the three Phase 6+
+   deferred entries to plan.md; if (3.A): renumber Phase 3
+   steps in plan.md).
+4. Then implement the chosen step 3 (and onward).
+5. After implementation, move the active-blocker entry to
+   resolutions.md as a top-level dated entry per the standard
+   procedure; replace it with a one-line summary in plan.md's
+   `Active blockers` (or remove it).
+
+If you encounter unexpected behaviour during Phase 3
+implementation, plan.md's `Active blockers` section is the
+place to record additional load-bearing questions; entries
+should cite concrete file paths and line numbers so the next
+implementor (or you in a future session) can verify claims
+without conversational context.
 
 ## Lessons learned in Phase 2 (load-bearing for Phase 3)
 
@@ -240,23 +313,190 @@ cascade-coupled refactor.
   `<B: 'a>` plus `B: Send + Sync` in where), clippy fails.
   Consolidate: `<B>` plus `B: Send + Sync + 'a` in where.
 
+## Lessons learned in Phase 3 (load-bearing for remaining Phase 3 + Phase 4)
+
+These were learned during Phase 3 step 1 (`82dd7bb`) and
+step 2 (`d5efe2a`) plus the active-blocker design analysis.
+
+### Handler-list runtime carrier shape
+
+`HandlersNil` / `HandlersCons<H, T>` is fp-library's own
+cons-list, distinct from `frunk_core::hlist::{HCons, HNil}`
+already re-exported under
+[`crate::types::effects::coproduct`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/coproduct.rs).
+The two are intentionally different types: frunk's HList
+provides type-level position witnesses for row-membership
+proofs (`Here` / `There`, `CoprodInjector`); fp-library's
+`HandlersCons` carries runtime handler closures aligned with
+the row's value-level shape. The distinction lets inherent
+`.on::<E, F>(...)` builder methods live on the handler-list
+types directly without an extension-trait dance. Don't conflate
+them.
+
+`Handler<E, F>` uses `PhantomData<fn() -> E>` (variance-neutral)
+rather than `PhantomData<E>`. The brand `E` is a zero-sized
+marker type used purely for tagging; `fn() -> E` keeps the
+newtype free of variance and `Send`/`Sync` concerns inherited
+from `E` itself. Standard "phantom for tagging" idiom.
+
+The handler list's builder uses **prepend semantics**:
+`nt().on::<A, _>(ha).on::<B, _>(hb)` produces
+`HandlersCons<Handler<B>, HandlersCons<Handler<A>, HandlersNil>>`
+(B at head). The macro sorts lexically, so users wanting
+macro-equivalent ordering should call `.on()` in
+reverse-lexical order. Documented at the module level in
+[`handlers.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/handlers.rs).
+
+### `DispatchHandlers` trait + per-Coyoneda-variant impls
+
+The
+[`DispatchHandlers<'a, Layer, NextProgram>`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/interpreter.rs)
+trait walks a `HandlersCons` / `HandlersNil` against the
+row's value-level `Coproduct` chain in lock-step. It has
+**four impls**: a base case for `HandlersNil` paired with
+`CNil`, plus three cons-cell impls — one per Coyoneda variant
+(`Coyoneda`, `RcCoyoneda`, `ArcCoyoneda`). The duplication is
+mechanical: identical body, different `lower*` method (bare
+`Coyoneda::lower` consumes self; the Rc/Arc variants ship
+`lower_ref(&self)` only).
+
+When step 3 ships row-narrowing (per the active blocker's
+recommendation 1.A), expect a parallel `DispatchOneHandler<'a, Layer, NextProgram>`
+trait that handles **single-effect** matching against the
+row's head: it succeeds on `Coproduct::Inl(...)` and forwards
+unchanged on `Coproduct::Inr(rest)`. Three Coyoneda-variant
+impls again. The code reuses `DispatchHandlers`'s pattern;
+diff is mostly in the matching logic.
+
+### Closure-mono-in-`A` constraint matches PureScript Run runtime
+
+PureScript Run's
+[`interpret`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
+is the rank-2 polymorphic API; its actual implementation is
+`run` (literally aliased). The `run` form's handler is
+`(VariantF r (Run r a) -> m (Run r a))` — mono in `a`. fp-library
+adopts the mono-in-`a` form so handler closures fit Rust's
+non-generic-closure constraint. Each `Handler<E, F>` cell
+carries a closure of shape
+`FnOnce(<EBrand as Kind>::Of<'_, NextProgram>) -> NextProgram`
+where `NextProgram` is the Run wrapper specialized to the
+program's result type `A`.
+
+Rank-2 polymorphic targets reach for
+[`NaturalTransformation`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/natural_transformation.rs)
+directly via
+[`Free::fold_free`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/free.rs).
+A future `interpret_nt`-style companion entry-point is recorded
+in plan.md's Phase 6+ deferred items.
+
+### HRTB-poisoning recurs in `ArcRun`'s interpret loop
+
+Phase 2 step 5's HRTB-poisoning workaround (`*Run::send`
+takes a Node-projection value rather than constructing one
+inside the impl-block scope) **recurred** in Phase 3 step 2's
+`ArcRun::interpret` body. Pattern-matching `Node::First(layer)`
+inside the impl-block scope failed GAT normalization
+symmetrically: the projection equality declared by
+[`impl_kind!`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/lib.rs)
+won't normalize under the struct-level HRTB.
+
+Workaround: a free function `unwrap_first<R, S, A>` defined
+outside the impl-block scope receives the Node-projection
+value and pattern-matches inside its non-HRTB scope. Sibling
+to `lift_node`'s precedent. See
+[`arc_run.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/arc_run.rs)'s
+`unwrap_first` helper. **Other five Run wrappers do not need
+this workaround** — only `ArcRun` (Erased Arc) has the
+struct-level HRTB; `ArcRunExplicit` carries the `Send + Sync`
+bounds per-method, not at the struct level, so it
+pattern-matches inline.
+
+If Phase 3 step 3 (row-narrowing) needs to pattern-match
+`Node` projections inside `ArcRun`'s impl block, expect to
+extend `unwrap_first` (or add a sibling helper) for the new
+pattern shape.
+
+### Per-wrapper Coyoneda-variant brand in test rows
+
+Phase 3 step 2's integration tests in
+[`run_interpret.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_interpret.rs)
+use the wrapper-appropriate Coyoneda-variant brand at the row
+level:
+
+- `Run` / `RunExplicit`: `CoproductBrand<CoyonedaBrand<...>, CNilBrand>`.
+- `RcRun` / `RcRunExplicit`: `CoproductBrand<RcCoyonedaBrand<...>, CNilBrand>`.
+- `ArcRun` / `ArcRunExplicit`: `CoproductBrand<ArcCoyonedaBrand<...>, CNilBrand>`.
+
+Per the per-wrapper Coyoneda variant pairing rule from Phase
+2 step 9h. Mismatching the brand to the wrapper triggers
+peel-bound or Member-bound failures (not always with clear
+error messages). When writing new tests, always use the
+matching brand.
+
+The `handlers!{}` macro takes the **inner brand** (e.g.,
+`IdentityBrand`) regardless of which wrapper the row targets.
+The DispatchHandlers impls bind the inner brand and dispatch
+on the relevant Coyoneda value variant; users don't need to
+reach into `CoyonedaBrand<IdentityBrand>` syntactic form for
+the macro key.
+
+### Step 2's M-target asymmetry (load-bearing for the active blocker)
+
+Phase 3 step 2 shipped with the M target implicit (= self Run
+wrapper, returns `A`). PureScript Run's `run`/`runRec` exposes
+`<m: Monad>` / `<m: MonadRec>` symmetrically. The Rust port
+deviates because Rust closures can't elegantly recurse with
+borrowed handler state through `m`'s `bind`. The active
+blocker analyzes the trade-offs of refactoring to symmetry
+(option (i.a)) vs adding an externally-targeted MonadRec
+sibling alongside (option (ii)). Read the blocker before
+choosing.
+
 ## Where to start
 
-1. Read [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md).
-   The `Current progress` section names the active phase and what was
-   finished last. The implementation phasing sections (Phase 1 through
-   Phase 5, plus Phase 6+ deferred) list numbered steps within each
+**The active blocker is non-empty as of the most recent
+commits** (see "Current resume point" above). The first task
+is blocker resolution, not implementation. Adjust the
+sequence below accordingly.
+
+1. **Read plan.md's `Active blockers` section end-to-end first.**
+   The `Active blocker (2026-04-29): Phase 3 step 2/3
+interpreter target-monad shape` entry is ~600 lines and
+   carries five pending decisions. The five decisions, their
+   approaches, trade-offs, and recommendations are documented
+   in plan.md; read them in order. You don't need to invent
+   new analysis — the prior session did that work; your job is
+   to surface the decisions to the user and get a chosen set.
+2. Read [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s
+   `Current progress` section to confirm what shipped under
+   `82dd7bb` (Phase 3 step 1) and `d5efe2a` (Phase 3 step 2).
+   The implementation phasing sections (Phase 1 through Phase
+   5, plus Phase 6+ deferred) list numbered steps within each
    phase.
-2. Find the first numbered step in the current phase that has not
-   been done. Check the working tree if uncertain (look at recent
-   commits and at the source tree for files the step would create).
-3. Read [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
-   for any sections referenced by that step. The plan cross-references
-   decisions whenever the implementation choice is non-obvious.
-4. Skim relevant entries under
+3. Surface the five decisions to the user. The recommended
+   set in plan.md is (1.A) full widen, (2.C) asymmetric, (3.A)
+   insert + renumber, (4.A) defer all three, (5.A) keep
+   decisions.md frozen. Get the user's per-decision choice
+   (confirm-or-override).
+4. Apply doc updates the chosen decisions require:
+   - If (4.A): add three Phase 6+ deferred entries to plan.md
+     (`runCont` / `interpose` / algebraic-FO handler shape).
+   - If (3.A) under (1.A): renumber Phase 3 steps in plan.md
+     (current 3-6 become 4-7; new step 3 = row-narrowing
+     pipeline + `extract`).
+   - If (5.A): nothing in decisions.md changes.
+   - Land doc updates as a `docs(plan):` commit before
+     starting implementation, so the implementation commit
+     stays focused on code.
+5. Read [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
+   for any sections referenced by the chosen step. Sections
+   4.3 (interpreter families), 4.5 (scoped effects), and 4.6
+   (natural transformations) are the most relevant for the
+   immediate Phase 3 work.
+6. Skim relevant entries under
    [research/](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/research/)
    only if a step names them. Do not re-read the full corpus.
-5. If your step touches type-class impls, brand-level dispatch, or
+7. If your step touches type-class impls, brand-level dispatch, or
    `Send + Sync` auto-derive, also skim
    [fp-library/docs/limitations-and-workarounds.md](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/limitations-and-workarounds.md)'s
    "Unexpressible Bounds in Trait Method Signatures" table. Phase
@@ -267,11 +507,13 @@ cascade-coupled refactor.
    path) is the precedent any new wrapper type with shared
    internal state will end up following. Saves rediscovering the
    constraint mid-implementation.
-6. Check plan.md's `Active blockers` subsection for any open
-   items. If non-empty, read those before writing code; their
-   resolution is part of your work. (Currently empty as of the
-   most recent commit; surface new blockers there if you
-   encounter them.)
+8. After implementation lands and `just verify` is clean,
+   move the active-blocker entry from plan.md to resolutions.md
+   as a top-level dated entry per the standard procedure;
+   replace the entry in plan.md's `Active blockers` with a
+   one-line summary plus an anchor link to resolutions.md (or
+   remove the entry). The Phase 2 step 9 resolution is a
+   recent precedent for this move.
 
 ## Per-step protocol
 
@@ -396,11 +638,14 @@ change them unilaterally. If you encounter:
   [`effects_macro.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/effects_macro.rs)
   with the shared lexical-sort helper at
   [`row_sort.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/row_sort.rs)
-  (Phase 2 step 8). Pending: `handlers!` (Phase 3),
-  `define_effect!` (Phase 3 step 5), `define_scoped_effect!`
-  (Phase 4), `scoped_effects!` (Phase 4 step 4) — all land
-  in the same directory. `ia_do!` ("Inherent Applicative do")
-  is forward-reserved as a future applicative companion to
+  (Phase 2 step 8); `handlers!` at
+  [`handlers.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/handlers.rs)
+  (Phase 3 step 1, commit `82dd7bb`). Pending:
+  `define_effect!` (Phase 3 step 5 / 6 depending on blocker
+  resolution), `define_scoped_effect!` (Phase 4),
+  `scoped_effects!` (Phase 4 step 4) — all land in the same
+  directory. `ia_do!` ("Inherent Applicative do") is
+  forward-reserved as a future applicative companion to
   `im_do!`. The shared `DoInput` parser used by all four
   do-notation macros (`m_do!`, `a_do!`, `im_do!`, future
   `ia_do!`) lives at
