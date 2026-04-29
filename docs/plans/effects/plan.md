@@ -699,6 +699,203 @@ step 3 as a different-shape sibling) are tractable.
 - Phase 3 step 2 commit `d5efe2a` is the API the (i.a) / (i.b)
   reshapes would break and that (ii) preserves.
 
+**Widened-scope analysis (added 2026-04-29).** A subsequent close
+read of [PureScript Run](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
+and [heftia](https://github.com/sayo-hs/heftia)'s interpreter
+machinery reveals that the rec/non-rec axis is one of three
+related-but-orthogonal axes the plan must address. This widens
+the scope of the question; expressing the full design space
+upfront avoids partial decisions that lock in awkward shapes.
+
+The three axes:
+
+**Axis 1: which interpreter functions ship.** PureScript Run
+ships eleven interpreter functions; current plan.md schedules
+six (`interpret`/`run`/`run_accum` × rec/non-rec). The gap:
+
+| Function                    | Purpose                                                                                                            | Currently scheduled                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
+| `extract`                   | Empty-row pure value extract; terminator of pipeline-style composition                                             | No                                 |
+| `runPure` / `runAccumPure`  | Row-narrowing pipeline: strip ONE effect from `r1`, returning `Run r2 a`. Heftia's primary mode (`interpretWith`). | No                                 |
+| `runCont` / `runAccumCont`  | Continuation-passing handler shape: handler takes `(VariantF r (m b) -> m b)` and `(a -> m b)` explicitly          | No                                 |
+| `interpose` family (heftia) | Hook into an effect WITHOUT removing it from the row; useful for logging, tracing                                  | Not in PureScript Run; not in plan |
+
+PureScript and heftia users typically write programs in
+**pipeline style**: `program # runState 0 # runReader env #
+runExcept # extract`. Each handler removes one effect; `extract`
+extracts the value at the end. fp-library's currently-shipped
+`interpret(handlers!{...}) -> A` collapses this into one call,
+which is terser for the all-at-once case but doesn't compose for
+partial interpretation.
+
+**Axis 2: handler shape (algebraic vs return-next-program).**
+Heftia's `AlgHandler e m n ans = forall x. e x -> (x -> m ans)
+-> n ans` — handler receives operation AND a continuation
+explicitly. PureScript Run's `run`-form handler (and
+fp-library's currently-shipped form) returns an `m`-wrapped next
+program; the continuation is implicit (whatever happens after
+`bind`). PureScript's `runCont` matches heftia's algebraic
+shape.
+
+The asymmetry to note: fp-library's [decisions.md](decisions.md)
+section 4.5 specifies scoped-effect constructors (`Catch`,
+`Local`, `Bracket`, `Span`) that carry their action / body /
+release closures _inside_ the constructor — that's de-facto
+algebraic-handler-shape for higher-order effects. So the current
+design is **implicit-continuation for first-order + algebraic-
+shape for higher-order**, by accident. PureScript Run made the
+same implicit choice. This asymmetry is reasonable: FO effects
+rarely need continuation control (typical: read state, transform,
+return next program), HO effects often do (catch must decide
+whether to invoke the handler).
+
+**Axis 3: rec/non-rec for the externally-targeted M family.**
+The original blocker question. Three options laid out above:
+(i.a) symmetric Monad/MonadRec, (i.b) MonadRec uniform, (ii)
+asymmetric simple + MonadRec sibling.
+
+**Phase 4 implications across the axes.**
+
+| Axis                                       | Phase 3 work added                                                                                             | Phase 4 work added                                                                                  |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Add `runPure` row-narrowing (axis 1)       | New method `interpret_with::<E>` per wrapper; new `DispatchOneHandler` trait variant; `extract` per wrapper    | Scoped-effect siblings (`interpret_scoped_with::<E>`); same dispatch loop, parallel methods         |
+| Add `runCont` (axis 1)                     | New method per wrapper; new handler-closure shape; new `cont_handlers!` macro                                  | Lower priority; scoped HO already uses algebraic-style closures internally                          |
+| Switch handler shape to algebraic (axis 2) | Major: handlers!{} macro reshape, all FO closures take continuation explicitly, all doctests change            | Aligns FO + HO handler shapes; macro/infrastructure unification                                     |
+| Symmetric rec/non-rec (axis 3 = (i.a))     | Reshape step 2 to `<M: Monad>`; add `_rec` siblings with `<M: MonadRec>`; multiplied across all axis-1 methods | Scoped interpreters get rec/non-rec siblings too; method count doubles in Phase 4 alongside Phase 3 |
+| Asymmetric (axis 3 = (ii))                 | Step 2 stays; step 3 adds `_rec` form; total steps 3 & 4 ship the family without doubling                      | Scoped interpreters get a single MonadRec-bound externally-targeted form; minimal addition          |
+
+**Heftia's row architecture clarification.** Heftia uses ONE
+effect list (`es`) where each element has a `KnownOrder` (FO or
+HO); it doesn't literally use a value-level dual row. The
+`FOEs es` constraint requires all members to be first-order;
+otherwise, mixed-order programs traverse a single dispatch.
+fp-library's
+[decisions.md](decisions.md) section 4.5 takes the _idea_
+(separate FO vs HO dispatch) and specifies it as a value-level
+dual row: `Run<R, S, A>` with `Node<R, S> = First(...) |
+Scoped(...)`. So fp-library's "heftia-inspired" framing is
+inspiration, not direct port; the row encoding diverges. This
+gives latitude on the interpreter API: we don't need to mirror
+heftia's mixed-order constraint machinery (`FOEs`, `KnownOrder`,
+etc.); we can just dispatch on `Node::First` vs `Node::Scoped`.
+
+**Decisions.md alignment under widened scope.** Section 4.3
+("Ship both interpreter families (PureScript-mirroring)") commits
+to the rec/non-rec split. Section 4.5 mentions `runPure` ("Run-
+to-bare-value") as a free-function companion to the trait-
+dispatched scoped-effect interpreter, but the current plan.md
+phasing schedules neither `runPure` (axis 1) nor the rec/non-rec
+split's externally-targeted M form (axis 3). The widened scope
+proposal brings plan.md closer to honoring section 4.3's full
+intent. The "what's missing" survey in decisions.md
+(section 3) explicitly lists `interpret`, `run`, `runRec`,
+`runAccum`, `runAccumPure`, `runPure`, `runCont`, `extract` as
+absent — meaning the original commitment was the full PureScript
+Run combinator family, narrower than the present plan.md
+schedule. Widening is a course-correction toward the original
+commitment, not a scope creep.
+
+Section 4.5's mention of "handlers that escape to non-`Run`
+values (e.g., a `runPure: Run<Void, A> -> A` analogue) live as
+separate free functions outside the trait" is the closest
+existing handle for `runPure`-style. Under axis 1 widening,
+we'd ship this as scheduled methods on each Run wrapper rather
+than ad-hoc free functions.
+
+Axis 2 (algebraic handler shape) is **not** addressed by
+decisions.md. The implicit choice is "PureScript Run shape" via
+section 4.5's framing. If we want to widen on axis 2, the
+decision would need refinement; this can be deferred to Phase 6+
+if no real user need surfaces.
+
+**Recommended scope adjustments under widening.**
+
+1. **Widen on axis 1**: schedule `extract` and
+   `interpret_with::<E>` row-narrowing pipeline as a new Phase
+   3 step (before or alongside the existing rec/non-rec step).
+   This is heftia's primary mode and PureScript's typical
+   pattern; the absence is a real ergonomic gap.
+2. **Defer continuation-passing forms (`run_cont`)** to Phase
+   6+. Lower priority; users with continuation-passing needs
+   can reach for `Free::fold_free` directly.
+3. **Defer `interpose` (heftia hook-without-removing)** to
+   Phase 6+. Genuinely useful but not in PureScript Run; not
+   blocking.
+4. **Don't widen on axis 2 (algebraic handler shape).** The
+   implicit choice "PureScript Run shape for FO + algebraic
+   shape for HO" is a good ergonomic call. Widening forces
+   every FO handler to take a continuation; user code gets
+   longer for the typical case. Defer to Phase 6+ if a real
+   need surfaces.
+5. **On axis 3, lean (ii) under widening.** With pipeline-style
+   `interpret_with::<E>` now in scope, the "all-handlers-at-once"
+   `interpret -> A` from current step 2 becomes one of multiple
+   distinct primitives (alongside row-narrowing and MonadRec-target
+   extract). The asymmetric (ii) shape gives users three
+   non-overlapping primitives:
+   - `interpret(handlers) -> A`: all-handlers-at-once, simple value
+     extract.
+   - `interpret_with::<E>(handler) -> Run<R_minus_E, S, A>`:
+     pipeline-style, one effect at a time.
+   - `interpret_rec<M: MonadRec>(handlers) -> M::Of<A>`:
+     all-handlers-at-once, extract to MonadRec target with
+     stack-safety.
+     Plus their `run_accum` siblings. Symmetric (i.a) would
+     multiply rec/non-rec across all three families, ballooning
+     the API.
+
+**Updated step plan suggestion under widening.** Phase 3
+re-scheduled as:
+
+1. Step 1: `handlers!{...}` macro + `nt()` builder. **Done**
+   (`82dd7bb`).
+2. Step 2: `interpret`/`run`/`run_accum` (all-handlers-at-once,
+   returns A). **Done** (`d5efe2a`).
+3. Step 3 (new): pipeline-style row-narrowing.
+   `interpret_with::<E>` and `extract` per wrapper. Heftia-primary
+   pattern.
+4. Step 4 (was step 3): MonadRec-target
+   `interpret_rec`/`run_rec`/`run_accum_rec` per wrapper.
+5. Step 5 (was step 4): standard first-order effects (`State`,
+   `Reader`, `Except`, `Writer`, `Choose`).
+6. Step 6 (was step 5): `define_effect!` macro.
+7. Step 7 (was step 6): `compile_fail` UI tests.
+
+Phase 6+ deferred-items grows:
+
+- `interpret_with<M: Monad>` (axis 3 alternative branch with
+  Monad bound) — already drafted.
+- `interpret_nt<NT>` (rank-2 polymorphic via NaturalTransformation)
+  — already drafted.
+- `run_cont` / `run_accum_cont` family (axis 1 continuation-passing)
+  — new entry.
+- `interpose` (heftia hook-without-removing) — new entry.
+- Algebraic handler shape on FO (axis 2) — new entry, "if a real
+  user need surfaces for explicit-continuation FO handlers".
+
+**Pending decisions to resolve before unblocking.** Before
+implementation resumes:
+
+1. Do we widen on axis 1 (ship `runPure`-style row-narrowing +
+   `extract`)? Recommendation: yes.
+2. On axis 3, which option (i.a / i.b / ii)? Recommendation: (ii)
+   under axis 1 widening.
+3. Do we update plan.md's Phase 3 step ordering per the widened
+   schedule? Recommendation: yes.
+4. Do we mark `run_cont` / `interpose` / algebraic-FO as Phase 6+
+   deferred items (vs unscheduled)? Recommendation: yes.
+5. Do we update decisions.md to acknowledge the wider plan
+   (without changing the underlying commitments)? The original
+   commitment to the full PureScript family stands; the plan
+   was narrowing it informally. A short note in decisions.md
+   section 4.3 / 4.5 saying "the implementation chose the
+   schedule X under the constraints Y" is mechanical. Or keep
+   decisions.md frozen and rely on plan.md / deviations.md to
+   record the implementation choices; this is the existing
+   convention. Recommendation: keep decisions.md frozen; plan.md
+   captures the implementation schedule, deviations.md captures
+   per-step choices.
+
 The Phase 2 step 9 under-specification (logged 2026-04-28) is
 resolved; full investigation, alternatives, and resolution moved
 to [resolutions.md](resolutions.md#resolved-2026-04-28-phase-2-step-9-scope-is-under-specified).
