@@ -873,28 +873,194 @@ Phase 6+ deferred-items grows:
 - Algebraic handler shape on FO (axis 2) — new entry, "if a real
   user need surfaces for explicit-continuation FO handlers".
 
-**Pending decisions to resolve before unblocking.** Before
-implementation resumes:
+**Pending decisions to resolve before unblocking.** Five
+decisions gate the implementation. Each has 2-3 approaches with
+documented trade-offs and a recommendation. Listed in dependency
+order (later decisions depend on earlier ones).
 
-1. Do we widen on axis 1 (ship `runPure`-style row-narrowing +
-   `extract`)? Recommendation: yes.
-2. On axis 3, which option (i.a / i.b / ii)? Recommendation: (ii)
-   under axis 1 widening.
-3. Do we update plan.md's Phase 3 step ordering per the widened
-   schedule? Recommendation: yes.
-4. Do we mark `run_cont` / `interpose` / algebraic-FO as Phase 6+
-   deferred items (vs unscheduled)? Recommendation: yes.
-5. Do we update decisions.md to acknowledge the wider plan
-   (without changing the underlying commitments)? The original
-   commitment to the full PureScript family stands; the plan
-   was narrowing it informally. A short note in decisions.md
-   section 4.3 / 4.5 saying "the implementation chose the
-   schedule X under the constraints Y" is mechanical. Or keep
-   decisions.md frozen and rely on plan.md / deviations.md to
-   record the implementation choices; this is the existing
-   convention. Recommendation: keep decisions.md frozen; plan.md
-   captures the implementation schedule, deviations.md captures
-   per-step choices.
+##### Decision 1 (axis 1 widening): ship row-narrowing pipeline + `extract`?
+
+Should Phase 3 schedule `extract(self) -> A` (empty-row pure
+extract) and `interpret_with::<EBrand>(handler) -> Run<R_minus_E, S, A>`
+(single-effect row-narrowing pipeline)?
+
+Approaches:
+
+- **(1.A) Full widen.** Schedule both `extract` and
+  `interpret_with::<E>` as a new Phase 3 step. Heftia's primary
+  mode + PureScript's `runPure`/`extract` analogs.
+- **(1.B) No widen.** Keep current six-method schedule; defer
+  pipeline-style entirely to Phase 6+.
+- **(1.C) Partial widen.** Ship `extract` only (trivial 1-line
+  per wrapper); defer `interpret_with::<E>` pipeline.
+
+Trade-offs:
+
+- **(1.A)**: Closes the heftia/PureScript ergonomic gap. Enables
+  pipeline composition `prog.interpret_with(state).interpret_with(reader).extract()`.
+  Phase 4 inherits parallel scoped-row-narrowing naturally.
+  Brings plan.md back toward decisions.md section 3's full
+  inventory. Cost: new method per wrapper + new
+  `DispatchOneHandler` trait variant + tests.
+- **(1.B)**: Cheapest now. Real ergonomic gap: users can only
+  use "one mega `handlers!{}` block with all effects" style.
+  Future widening is non-breaking but current users live
+  without it.
+- **(1.C)**: `extract` alone is mostly useless (it only matters
+  AFTER all effects are stripped, which `interpret_with::<E>`
+  enables). Not a meaningful intermediate.
+
+Recommendation: **(1.A)**. Pipeline-style is heftia's primary
+mode; the absence is a real gap that current users will hit.
+
+##### Decision 2 (axis 3): rec/non-rec for the externally-targeted M family?
+
+When the MonadRec-target step ships, should step 2 be reshaped
+to symmetric `<M: Monad>` (matching PureScript Run 1:1)?
+
+Approaches:
+
+- **(2.A) (i.a) Symmetric.** Reshape step 2 to take
+  `<MBrand: Monad>`. Add the `_rec` family bounded `<MBrand: MonadRec>`.
+  Mirrors PureScript Run's `run`/`runRec`. Breaking change to
+  `d5efe2a`.
+- **(2.B) (i.b) MonadRec uniform.** Reshape step 2 to take
+  `<MBrand: MonadRec>`. Drop the `_rec` naming distinction (one
+  family). Six methods total instead of twelve.
+- **(2.C) (ii) Asymmetric.** Step 2 stays as-shipped (M = self
+  Run, returns A); the MonadRec step adds externally-targeted
+  `<MBrand: MonadRec>` family alongside.
+
+Trade-offs:
+
+- **(2.A) Symmetric**: PureScript-faithful 1:1. Honors
+  decisions.md 4.3 fully. Costs: reshape `d5efe2a` (breaking),
+  Clone bound on handler lists, ergonomic friction
+  (`prog.interpret::<IdentityBrand>(...).0` for the simple case),
+  doctests change. Method count under axis 1 widening: 18 per
+  wrapper × 6 = 108.
+- **(2.B) MonadRec uniform**: Simplest method count (6 per
+  wrapper). Diverges from PureScript Run vocabulary. Still needs
+  step 2 reshape (breaking). Loses the "Monad-bound family" arm
+  decisions.md 4.3 commits to.
+- **(2.C) Asymmetric**: No reshape. Three genuinely-distinct
+  primitives under axis 1 widening: simple `interpret -> A`,
+  pipeline `interpret_with -> Run<R', S, A>`, MonadRec
+  `interpret_rec<M> -> M::Of<A>`. Each has a clear use case.
+  Decision 4.3's "Monad m" family deferred to Phase 6+ as
+  `interpret_with<M: Monad>` (already drafted as a deferred
+  entry). Honest documentation in deviations.md / resolutions.md
+  required.
+
+Recommendation: **(2.C)** under axis 1 widening (decision 1.A).
+Three distinct primitives map to three distinct user use cases
+without redundancy. Symmetric (2.A) would multiply rec/non-rec
+across all three families (108 methods); the marginal value
+over (2.C) is small for the cost.
+
+##### Decision 3 (Phase 3 step ordering): renumber after axis 1 widening?
+
+If decision 1.A ships, Phase 3 gets a new step. How to order?
+
+Approaches:
+
+- **(3.A) Insert + renumber.** Steps 1-2 done; new step 3 ships
+  row-narrowing pipeline; step 4 is the (was step 3) MonadRec
+  family; renumber 5-7 (was 4-6).
+- **(3.B) Insert without renumbering.** Add a step "2.5" or
+  "3a" alongside the existing.
+- **(3.C) Combine.** Step 3 becomes "row-narrowing + MonadRec
+  extraction" as one combined step.
+
+Trade-offs:
+
+- **(3.A) Renumber**: Clean canonical ordering. Reference-sweep
+  cost in plan.md / deviations.md but bounded.
+- **(3.B) Step 2.5**: Avoids renumbering. Non-canonical;
+  confusing to future readers.
+- **(3.C) Combine**: One commit ships two substantively
+  different things. Violates "one logical thing per step"
+  convention.
+
+Recommendation: **(3.A)** if decision 1.A ships. **N/A** if
+decision 1.B (no widen).
+
+##### Decision 4 (Phase 6+ deferred entries for `runCont` / `interpose` / algebraic-FO)?
+
+Do these get explicit Phase 6+ deferred-items entries (vs being
+unscheduled / left out)?
+
+Approaches:
+
+- **(4.A) Defer all three.** Add Phase 6+ entries for each,
+  naming use case, deferral cost, and trigger.
+- **(4.B) Mixed.** Defer some, mark others as out-of-scope.
+- **(4.C) Skip Phase 6+ entries.** Rely on decisions.md
+  section 3 inventory.
+
+Trade-offs:
+
+- **(4.A) Defer all**: Most discoverable. Matches existing
+  Phase 6+ pattern (7 existing entries, similar structure).
+  Future implementers see explicit trigger conditions.
+- **(4.B) Mixed**: Inconsistent: some get triggers, others
+  implicit "if needed" with no documented thresholds.
+- **(4.C) Skip**: decisions.md section 3 is an inventory, not
+  a deferral plan. Not actionable for future implementers.
+
+Recommendation: **(4.A) Defer all three** with explicit
+trigger conditions per the existing pattern.
+
+##### Decision 5 (decisions.md update)?
+
+Should decisions.md be edited to reflect the implementation
+choices (especially axis 3 deviation if 2.C ships)?
+
+Approaches:
+
+- **(5.A) Keep decisions.md frozen.** All implementation
+  choices recorded in plan.md / deviations.md / resolutions.md
+  per the existing convention.
+- **(5.B) Refine 4.3 to acknowledge axis 3 deviation.** Add a
+  short note to section 4.3 referencing plan.md / resolutions.md.
+- **(5.C) Add 4.7 for axis 2 (handler shape).** Make the
+  implicit "PureScript-Run shape for FO + algebraic for HO"
+  decision explicit.
+
+Trade-offs:
+
+- **(5.A) Frozen**: Honors CLAUDE.md / AGENTS.md convention
+  ("decisions are frozen"). Original design rationale
+  preserved as written. Implementation choices visible via
+  cross-reference.
+- **(5.B) Refine 4.3**: PureScript-faithful for design-history
+  readers. Violates "frozen decisions" convention; sets
+  precedent that decisions can be edited post-hoc.
+- **(5.C) Add 4.7**: Completeness. Same convention violation.
+  Adds doc surface without changing what ships.
+
+Recommendation: **(5.A) Keep frozen**. Per existing convention.
+Resolutions.md gets a top-level entry once this blocker
+resolves; deviations.md gets per-step entries when each step
+ships. Decisions.md stays as the original design-rationale
+record.
+
+##### Combined recommendation summary
+
+| Decision                     | Recommendation              |
+| ---------------------------- | --------------------------- |
+| 1: axis 1 widening           | **(1.A) Full widen**        |
+| 2: axis 3 rec/non-rec        | **(2.C) Asymmetric**        |
+| 3: step ordering             | **(3.A) Insert + renumber** |
+| 4: Phase 6+ deferred entries | **(4.A) Defer all three**   |
+| 5: decisions.md update       | **(5.A) Keep frozen**       |
+
+If the recommended set is confirmed: implementation resumes
+with the renumbered Phase 3 (new step 3 = row-narrowing
+pipeline + `extract`; new step 4 = MonadRec-target rec family);
+deferred entries land in plan.md's Phase 6+ section;
+decisions.md stays unchanged; resolutions.md gets a top-level
+entry once the work ships.
 
 The Phase 2 step 9 under-specification (logged 2026-04-28) is
 resolved; full investigation, alternatives, and resolution moved
