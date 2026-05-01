@@ -521,7 +521,7 @@ what code lands; the last two only change documentation.
 
 | #   | Decision                                                                  | Recommendation              | Status                   |
 | --- | ------------------------------------------------------------------------- | --------------------------- | ------------------------ |
-| 1   | Schedule `runPure`-style row-narrowing pipeline + `extract`?              | **(1.A) Yes**               | Pending                  |
+| 1   | Schedule `runPure`-style row-narrowing pipeline + `extract`?              | **(1.A) Yes**               | **Confirmed 2026-04-29** |
 | 2   | Reshape step 2 to expose target M (PureScript-faithful symmetry)?         | **(2.C) No, asymmetric**    | **Confirmed 2026-04-29** |
 | 3   | Renumber Phase 3 if decision 1 widens scope?                              | **(3.A) Insert + renumber** | Pending                  |
 | 4   | Add Phase 6+ deferred entries for `runCont` / `interpose` / algebraic-FO? | **(4.A) Defer all three**   | Pending                  |
@@ -716,8 +716,52 @@ primary mode + PureScript's `runPure`/`extract` analogs.
   AFTER all effects are stripped, which `interpret_with::<E>`
   enables). Not a meaningful intermediate.
 
-**Recommendation: (1.A).** Pipeline-style is heftia's primary
-mode; the absence is a real gap current users will hit.
+**Confirmed 2026-04-29: (1.A) Full widen.**
+
+Initial recommendation reasoning ("pipeline-style is heftia's
+primary mode") was partly principled and partly conventional
+("matches PureScript / heftia"). The convention-following part
+was challenged through the lens "what does each option
+uniquely enable, ignoring ecosystem precedent?".
+
+Re-examination identified three principled capabilities
+pipeline + `extract` uniquely enables that step 2's
+all-handlers-at-once form (and the future MonadRec form
+under (2.C)) cannot:
+
+1. **Partial interpretation.** Users can interpret one
+   effect, get a `Run<R_minus_E, S, A>` back, store it / pass
+   it elsewhere, and interpret the rest later (or never).
+   Step 2 demands all handlers upfront; the future MonadRec
+   form returns `M::Of<A>` (extracted), not `Run<R', S, A>`
+   (partial). Pipeline is the only shape that keeps the
+   program in Run-land while peeling effects.
+2. **User-controlled handler ordering for non-commuting
+   effects.** For combinations like `NonDet × Except`, the
+   interpretation order materially affects semantics. Step 2
+   dispatches in program-encoded order; pipeline lets users
+   explicitly chain `.interpret_with::<Except>(...).interpret_with::<NonDet>(...)`
+   vs the reverse.
+3. **Compositional handler libraries.** Library authors can
+   ship reusable handlers as
+   `fn run_state<R, A>(...) -> Run<R_minus_State, S, A>`.
+   Without pipeline, library authors can only ship handler
+   closures meant to be plugged into a user-built
+   `handlers!{}` block.
+
+These three capabilities are real ecosystem needs, not just
+conventions. The fact that heftia and PureScript ship
+pipeline as primary is corroborating evidence (the
+ecosystems hit these needs and chose to provide pipeline);
+the load-bearing reason is the capability set, not the
+ecosystem precedent.
+
+(1.B) "no widen" was rejected because it ships less
+capability without compensating gain. (1.C) "extract only"
+was rejected because `extract` without pipeline is
+incoherent: extract only matters when the row is empty,
+which is what `interpret_with::<E>` enables. So either ship
+both or neither.
 
 ###### Decision 2: Reshape step 2 to expose target M?
 
