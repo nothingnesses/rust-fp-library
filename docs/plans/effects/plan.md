@@ -523,7 +523,7 @@ what code lands; the last two only change documentation.
 | --- | ------------------------------------------------------------------------- | --------------------------- | ------------------------ |
 | 1   | Schedule `runPure`-style row-narrowing pipeline + `extract`?              | **(1.A) Yes**               | **Confirmed 2026-04-29** |
 | 2   | Reshape step 2 to expose target M (PureScript-faithful symmetry)?         | **(2.C) No, asymmetric**    | **Confirmed 2026-04-29** |
-| 3   | Renumber Phase 3 if decision 1 widens scope?                              | **(3.A) Insert + renumber** | Pending                  |
+| 3   | Renumber Phase 3 if decision 1 widens scope?                              | **(3.A) Insert + renumber** | **Confirmed 2026-04-29** |
 | 4   | Add Phase 6+ deferred entries for `runCont` / `interpose` / algebraic-FO? | **(4.A) Defer all three**   | Pending                  |
 | 5   | Update decisions.md to acknowledge implementation choices?                | **(5.A) Keep frozen**       | Pending                  |
 
@@ -862,8 +862,45 @@ How to order?
   different things. Violates "one logical thing per step"
   convention.
 
-**Recommendation: (3.A)** if decision 1.A ships. **N/A** if
-decision 1.B (no widen).
+**Confirmed 2026-04-29: (3.A) Insert + renumber.** (Applies
+because decision 1 confirmed (1.A) "full widen", introducing
+the new pipeline + extract step that needs scheduling.)
+
+Initial recommendation reasoning ("clean canonical ordering")
+was framed against the per-step protocol convention. User
+feedback prompted a check: is "follow the convention"
+religious adherence, or is the convention principled?
+
+Re-examination identified that the per-step protocol's
+"atomic commits + linear readability" is a software-engineering
+practice with concrete benefits: bisectability (`git bisect`
+on per-step commits), reviewability (one logical thing per
+diff), and navigability (numbered sequence reads
+linearly). The convention is principled.
+
+What each alternative trades for what:
+
+- **(3.B) Step "2.5" or "3a".** Saves one-time edit cost
+  (renumbering plan.md sections). Costs permanent
+  non-canonical numbering ("Phase 3 step 1, step 2, step
+  2.5, step 3..."). Trades a small one-time cost for
+  permanent reader confusion. Net negative.
+- **(3.C) Combine pipeline + MonadRec into one step.** Saves
+  one commit. Costs reviewability: pipeline returns
+  `Run<R', S, A>` and uses a new `DispatchOneHandler` trait;
+  MonadRec form returns `M::Of<A>` and reuses
+  `DispatchHandlers`. Different shapes, different doctests.
+  A combined commit would be ~2x size, harder to review,
+  harder to bisect. Net negative.
+
+(3.A) does the small one-time renumbering work to preserve
+the protocol's structural quality. The reference-sweep is
+bounded (plan.md "Implementation phasing" + "Current
+progress" sections; existing deviations.md entries for
+already-shipped steps 1-2 don't need editing because their
+numbers don't change; commit messages are immutable but
+their step numbers are also unchanged). Future deviations.md
+entries and commit messages use the new numbering.
 
 ###### Decision 4: Phase 6+ deferred entries for axis-1/2 items not in scope?
 
