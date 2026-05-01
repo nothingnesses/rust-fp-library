@@ -519,16 +519,18 @@ on the six Run wrappers with the target monad implicit
 five decisions gate the implementation. The first three change
 what code lands; the last two only change documentation.
 
-| #   | Decision                                                                  | Recommendation              |
-| --- | ------------------------------------------------------------------------- | --------------------------- |
-| 1   | Schedule `runPure`-style row-narrowing pipeline + `extract`?              | **(1.A) Yes**               |
-| 2   | Reshape step 2 to expose target M (PureScript-faithful symmetry)?         | **(2.C) No, asymmetric**    |
-| 3   | Renumber Phase 3 if decision 1 widens scope?                              | **(3.A) Insert + renumber** |
-| 4   | Add Phase 6+ deferred entries for `runCont` / `interpose` / algebraic-FO? | **(4.A) Defer all three**   |
-| 5   | Update decisions.md to acknowledge implementation choices?                | **(5.A) Keep frozen**       |
+| #   | Decision                                                                  | Recommendation              | Status                   |
+| --- | ------------------------------------------------------------------------- | --------------------------- | ------------------------ |
+| 1   | Schedule `runPure`-style row-narrowing pipeline + `extract`?              | **(1.A) Yes**               | Pending                  |
+| 2   | Reshape step 2 to expose target M (PureScript-faithful symmetry)?         | **(2.C) No, asymmetric**    | **Confirmed 2026-04-29** |
+| 3   | Renumber Phase 3 if decision 1 widens scope?                              | **(3.A) Insert + renumber** | Pending                  |
+| 4   | Add Phase 6+ deferred entries for `runCont` / `interpose` / algebraic-FO? | **(4.A) Defer all three**   | Pending                  |
+| 5   | Update decisions.md to acknowledge implementation choices?                | **(5.A) Keep frozen**       | Pending                  |
 
-If the recommended set is confirmed, the implementation
-sequence in section 5 below resumes Phase 3 work.
+Confirmation rationale per decision is recorded in section 2
+below. Once all five decisions are confirmed, the
+implementation sequence in section 5 resumes Phase 3 work and
+this entry moves to resolutions.md.
 
 ##### 1. Background
 
@@ -757,13 +759,39 @@ PureScript Run 1:1)?
 | Stack-safety story         | Explicit choice via bound                           | Implicit (always)           | Step 2 structurally safe; new family `tail_rec_m`-driven    |
 | Conceptual redundancy      | Two methods for similar loops                       | None                        | None: methods functionally distinct                         |
 
-**Recommendation: (2.C)** under decision (1.A). Three
-genuinely-distinct primitives map to three distinct user use
-cases without redundancy. (2.A) would multiply rec/non-rec
-across all three families (108 methods); marginal value over
-(2.C) is small for the cost. Decision 4.3's "Monad m" family
-gets deferred to Phase 6+ as `interpret_with<M: Monad>` (this
-deferred entry is already drafted).
+**Confirmed 2026-04-29: (2.C) Asymmetric.**
+
+Initial recommendation reasoning ("three distinct primitives,
+marginal value of (2.A) is small") was partly principled and
+partly conventional ("preserve `d5efe2a`'s API"). The
+preserve-d5efe2a part was religious adherence; user feedback
+forced re-examination through the lens "what does each option
+uniquely enable, ignoring what already shipped?".
+
+Re-examination identified that step 2's M-free shape uniquely
+enables value extraction without engaging MonadRec
+abstraction. The structural stack-safety of step 2's
+while-loop (per section 1.4 above) means there's no `M` in the
+body, no `bind`, no `tail_rec_m` — the user's mental model is
+"give me a value", not "extract via a chosen monad target".
+Under any alternative (2.A / 2.B / 2.D), the basic
+value-extraction case routes through `M = IdentityBrand` with
+turbofish + `.0` unwrap, forcing users to encounter MonadRec
+machinery they don't conceptually need.
+
+The simple form is therefore not redundant with the MonadRec
+form. The three primitives — simple (M-free), pipeline
+(row-narrowing), MonadRec (external target) — cover three
+orthogonal cognitive models, and dropping any of them loses
+real capability. (2.C) ships all three; that's the minimal
+complete set under (1.A) widening.
+
+(A fourth option (2.D) "drop step 2's simple form, ship only
+pipeline + MonadRec" was considered and rejected because
+forcing every user through the MonadRec abstraction for the
+basic case is a real ergonomic cost. The unique
+value-extraction-without-MonadRec capability of step 2's form
+is what makes (2.C) principled.)
 
 ###### Decision 3: Phase 3 step ordering after axis 1 widening?
 
