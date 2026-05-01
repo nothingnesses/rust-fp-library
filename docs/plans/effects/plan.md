@@ -525,7 +525,7 @@ what code lands; the last two only change documentation.
 | 2   | Reshape step 2 to expose target M (PureScript-faithful symmetry)?         | **(2.C) No, asymmetric**    | **Confirmed 2026-04-29** |
 | 3   | Renumber Phase 3 if decision 1 widens scope?                              | **(3.A) Insert + renumber** | **Confirmed 2026-04-29** |
 | 4   | Add Phase 6+ deferred entries for `runCont` / `interpose` / algebraic-FO? | **(4.A) Defer all three**   | **Confirmed 2026-04-29** |
-| 5   | Update decisions.md to acknowledge implementation choices?                | **(5.A) Keep frozen**       | Pending                  |
+| 5   | Update decisions.md to acknowledge implementation choices?                | **(5.A) Keep frozen**       | **Confirmed 2026-04-29** |
 
 Confirmation rationale per decision is recorded in section 2
 below. Once all five decisions are confirmed, the
@@ -1005,10 +1005,47 @@ ships)?
   layer. Violates "frozen decisions" convention.
 - **(5.C) Add 4.7**: Completeness. Same convention violation.
 
-**Recommendation: (5.A) Keep frozen.** Per existing
-convention. Resolutions.md gets a top-level entry once this
-blocker resolves; deviations.md gets per-step entries when
-each step ships.
+**Confirmed 2026-04-29: (5.A) Keep decisions.md frozen.**
+
+Initial recommendation reasoning ("CLAUDE.md / AGENTS.md
+convention says decisions are frozen") was the most explicitly
+convention-anchored of the five. User feedback prompted the
+deepest probe: is this convention principled, or just rules?
+
+Re-examination identified that the doc system has separate
+roles for separate kinds of content:
+
+- **decisions.md** = design-time rationale, frozen at Phase 0.
+  Records "what we believed before we started building".
+- **plan.md "Key decisions"** = implementation-time design
+  choices, accumulating across phases.
+- **resolutions.md** = blocker-level analyses with full
+  reasoning for load-bearing questions that paused work.
+- **deviations.md** = per-step implementation choices that
+  diverged from plan text.
+
+Each doc has a distinct role: design-time vs
+implementation-time, narrative vs per-step, frozen vs living.
+**Editing decisions.md to record implementation-time choices
+would merge two roles inappropriately**, making the doc
+system harder to reason about. Future readers benefit from
+role separation: they know exactly which doc to consult for
+which kind of question.
+
+(5.B) "refine 4.3" violates role separation by mixing
+implementation-time content (axis 3 deviation) into a
+design-time doc. The same content belongs in resolutions.md.
+
+(5.C) "add 4.7" is structurally wrong: axis 2 is an
+implementation-time decision that didn't exist when
+decisions.md was written. New decisions made during
+implementation belong in plan.md "Key decisions" or
+resolutions.md, not in decisions.md.
+
+The "set a precedent" concern about editing decisions.md is
+real but secondary. The primary reason is role separation:
+each doc serves a different question, and conflating roles
+defeats the purpose of having multiple docs.
 
 ##### 3. Phase 4 implications
 
