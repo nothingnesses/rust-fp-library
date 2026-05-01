@@ -23,11 +23,14 @@ was deleted in step 10b after its tests migrated to
 in step 10a.
 
 **Phase 3 (first-order effect handlers, interpreters, natural
-transformations) is the active phase.** Steps 1 and 2 shipped.
-Step 3 (pipeline row-narrowing) is the immediate next work.
-There are no active blockers; the Phase 3 step 2/3 interpreter
-family shape question resolved on 2026-04-29 (see
-[resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md)).
+transformations) is the active phase.** Steps 1, 2, and 3
+shipped. Step 4 (`MonadRec`-target externally-targeted
+interpreter family `interpret_rec` / `run_rec` / `run_accum_rec`)
+is the next work and **paused on an active blocker** logged
+2026-05-01 carrying three load-bearing design questions
+(handler input/output shape; `DispatchHandlers::dispatch`
+`&mut self` vs `&self`; state-threading in `run_accum_rec`).
+The first task is blocker resolution, not implementation.
 
 What Phase 2 shipped (commit-log order, oldest first):
 
@@ -111,22 +114,64 @@ What Phase 3 has shipped:
   reasoning in
   [resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md).
 
+- **Step 3** (`ff84f20`): pipeline row-narrowing
+  `interpret_with::<EBrand, Idx, RMinusE>(handler) -> Wrapper<RMinusE, S, A>`
+  plus empty-dual-row terminal `extract(self) -> A` on all six
+  Run wrappers. The matched arm uses the per-wrapper Coyoneda
+  variant's `lower` (or `lower_ref` for shared-pointer
+  substrates) followed by recursive `Functor::map`
+  (or `SendFunctor::send_map` for the Arc substrates) to
+  narrow each inner program before invoking the handler; the
+  unmatched arm narrows the layer's content via the same
+  recursive map and re-emits via the substrate's `wrap`
+  operation. Dispatch is inline per-wrapper (no separate
+  `DispatchOneHandler` trait shipped, since the existing
+  `Member::project` plus per-Coyoneda `lower` choice does the
+  work; the trait abstraction would have added ceremony
+  without enabling shared code paths). `extract` is panic-free
+  by construction: tightening the where-bound to
+  `Wrapper<CNilBrand, CNilBrand, A>` makes both `Node` arms
+  carry uninhabited `CNil` payloads, so the body's exhaustive
+  `match cnil {}` on each side diverges to `!`. ArcRun gains
+  three new HRTB-free helpers parallel to `lift_node` /
+  `unwrap_first`: `make_node_first` (HRTB-free `Node::First`
+  literal builder), `wrap_first_arc` (forwards a pre-built
+  node to `ArcFree::wrap`), `unwrap_pure_node` (statically
+  eliminates a `Node` over an empty dual row, used by
+  `ArcRun::extract`). Handler bound is
+  `impl Fn(...) -> Wrapper<RMinusE, S, A> + Clone + 'static`
+  (plus `Send + Sync` on the Arc wrappers) so the closure can
+  be cloned across recursive narrowing of each inner sub-
+  program. Recursion is host-stack-frame per peeled layer; not
+  stack-safe on long Identity-shaped chains. Phase 3 step 4
+  will provide the stack-safe alternative via `tail_rec_m`. 16
+  integration tests in
+  [`fp-library/tests/run_interpret_with.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_interpret_with.rs)
+  - per-method doctests on each of the six wrappers.
+
 **Remaining Phase 3 steps:**
 
-- Step 3 (next): pipeline row-narrowing per wrapper:
-  `interpret_with::<EBrand>(handler) -> Run<R_minus_E, S, A>`
-  plus `extract(self) -> A` for empty-row Run. New
-  `DispatchOneHandler` trait variant alongside the existing
-  `DispatchHandlers`. PureScript `runPure` / heftia
-  `interpretWith` analog. Enables partial interpretation,
-  user-controlled handler ordering for non-commuting effects,
-  and compositional handler libraries.
-- Step 4: `interpret_rec` / `run_rec` / `run_accum_rec`
+- Step 4 (next, **active blocker** logged 2026-05-01):
+  `interpret_rec` / `run_rec` / `run_accum_rec`
   `<MBrand: MonadRec>` externally-targeted interpreter family
   in the same module
   (`fp-library/src/types/effects/interpreter.rs`).
   `tail_rec_m`-driven loop for stack-safety guarantees on
   external M targets like `Thunk` / `Option` / `Result`.
+  Three load-bearing design questions in plan.md's
+  `Active blockers` section need user-confirmed answers before
+  implementation begins:
+  1. Handler input/output shape: mirror PureScript's M-wrapped
+     continuations on both sides (recommended), Rust-flavoured
+     simplification (raw input, M-wrapped output), or hybrid.
+  2. `DispatchHandlers::dispatch` `&mut self` vs `&self`:
+     relax to `&self` + `Fn` (recommended), clone handlers per
+     iteration, or wrap in `RefCell`.
+  3. State threading in `run_accum_rec`: continue closure-
+     capture pattern (recommended), state-via-M (defer to
+     Phase 6+), or punt `run_accum_rec` to Phase 6+.
+     Recommended set: (A) + (A1) + (A). Read the blocker before
+     starting any code.
 - Step 5: standard first-order effect types and their smart
   constructors (`State<S>`, `Reader<E>`, `Except<E>`,
   `Writer<W>`, `Choose` (multi-shot, `RcRun`-only)).
@@ -311,13 +356,27 @@ mechanical: identical body, different `lower*` method (bare
 `Coyoneda::lower` consumes self; the Rc/Arc variants ship
 `lower_ref(&self)` only).
 
-When step 3 ships row-narrowing (per the active blocker's
-recommendation 1.A), expect a parallel `DispatchOneHandler<'a, Layer, NextProgram>`
-trait that handles **single-effect** matching against the
-row's head: it succeeds on `Coproduct::Inl(...)` and forwards
-unchanged on `Coproduct::Inr(rest)`. Three Coyoneda-variant
-impls again. The code reuses `DispatchHandlers`'s pattern;
-diff is mostly in the matching logic.
+Step 3 (`ff84f20`) shipped row-narrowing without adding a
+parallel `DispatchOneHandler` trait: the existing
+[`Member::project`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/member.rs)
+already does the chain walking, and the per-Coyoneda-variant
+`lower` choice is one line of wrapper-local code; abstracting
+into a trait would have added ceremony without enabling shared
+code paths. See
+[deviations.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md)
+under Phase 3 step 3 for the alternatives considered (a
+`DispatchOneHandler` trait keyed on the Coyoneda variant or on
+the chain shape, both rejected). The "trait" wording in the
+original plan text was a design pattern, not a contract on the
+Rust artifact name.
+
+Step 4's MonadRec-target family is expected to **reuse the
+same `DispatchHandlers` trait unchanged**, just instantiated
+with `NextProgram = M::Of<Run<R, S, A>>` (the M-wrapped
+continuation type) per the active-blocker recommendation Q1.A.
+The interpreter does
+`<R as Functor>::map(M::pure, peel_layer)` to lift Run-
+continuations to M-wrapped before dispatch.
 
 ### Closure-mono-in-`A` constraint matches PureScript Run runtime
 
@@ -340,32 +399,128 @@ directly via
 A future `interpret_nt`-style companion entry-point is recorded
 in plan.md's Phase 6+ deferred items.
 
-### HRTB-poisoning recurs in `ArcRun`'s interpret loop
+### HRTB-poisoning workarounds expanded across `ArcRun`
 
 Phase 2 step 5's HRTB-poisoning workaround (`*Run::send`
 takes a Node-projection value rather than constructing one
-inside the impl-block scope) **recurred** in Phase 3 step 2's
-`ArcRun::interpret` body. Pattern-matching `Node::First(layer)`
-inside the impl-block scope failed GAT normalization
-symmetrically: the projection equality declared by
+inside the impl-block scope) **recurs** in any `ArcRun`-impl-
+block code that pattern-matches `Node` literals or constructs
+`Node` projections. The projection equality declared by
 [`impl_kind!`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/lib.rs)
-won't normalize under the struct-level HRTB.
+won't normalize under the struct-level HRTB
+(`<NodeBrand<R, S> as Kind>::Of<'static, ArcFree<...>>: Send + Sync`).
 
-Workaround: a free function `unwrap_first<R, S, A>` defined
-outside the impl-block scope receives the Node-projection
-value and pattern-matches inside its non-HRTB scope. Sibling
-to `lift_node`'s precedent. See
-[`arc_run.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/arc_run.rs)'s
-`unwrap_first` helper. **Other five Run wrappers do not need
-this workaround** — only `ArcRun` (Erased Arc) has the
-struct-level HRTB; `ArcRunExplicit` carries the `Send + Sync`
-bounds per-method, not at the struct level, so it
-pattern-matches inline.
+`ArcRun` ships **five HRTB-free helpers** at module scope in
+[`arc_run.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/arc_run.rs),
+each addressing a specific pattern that the struct-level HRTB
+would otherwise poison:
 
-If Phase 3 step 3 (row-narrowing) needs to pattern-match
-`Node` projections inside `ArcRun`'s impl block, expect to
-extend `unwrap_first` (or add a sibling helper) for the new
-pattern shape.
+- `lift_node<R, S, EBrand, Idx, A>(effect)`: builds the
+  `Node::First(<R as Member>::inject(Coyoneda::lift(effect)))`
+  projection outside the HRTB scope. Used by `ArcRun::lift`.
+- `unwrap_first<R, S, A>(node)`: pattern-matches a
+  `Node::First` projection outside the HRTB scope, returning
+  the row-level layer. Used by `ArcRun::interpret` and
+  `ArcRun::interpret_with`.
+- `make_node_first<R, S, A>(layer)`: HRTB-free `Node::First`
+  literal builder. Used by `ArcRun::interpret_with`'s
+  unmatched arm.
+- `wrap_first_arc<RMinusE, S, A>(node)`: forwards a pre-built
+  `Node` projection to `ArcFree::wrap` without constructing
+  any `Node` literal inside its own HRTB-bearing scope. Used
+  by `ArcRun::interpret_with`'s unmatched arm.
+- `unwrap_pure_node<Inner, Ret>(node)`: statically eliminates
+  a `Node` over an empty dual row. Both `Node` arms carry
+  uninhabited `CNil` payloads, so the body diverges to `!`,
+  which coerces to the caller's `Ret` without runtime panic.
+  Used by `ArcRun::extract`.
+
+**Other five Run wrappers do not need these helpers**: only
+`ArcRun` (Erased Arc) has the struct-level HRTB;
+`ArcRunExplicit` carries the `Send + Sync` bounds per-method,
+not at the struct level, so it pattern-matches `Node` literals
+inline.
+
+If a future step (Phase 3 step 4 / step 5; Phase 4 scoped
+effects) needs new `Node`-construction or `ArcFree::wrap`-call
+sites inside `ArcRun`'s impl block, expect to add another
+helper following the same naming convention. Step 4's
+MonadRec-target loop is unlikely to need new helpers (it
+returns `M::Of<A>` directly; no narrowed Run construction in
+scope), but Phase 4's scoped effects will likely add at least
+a `Node::Scoped` analog of `make_node_first` / `unwrap_first`.
+
+### Recursive structural narrowing pattern (load-bearing for any future row-walking step)
+
+Phase 3 step 3's `interpret_with` shipped the canonical
+pattern for "walk a Run program, narrowing each layer's
+content recursively":
+
+1. `peel` the program; on `Ok(a)` return
+   `Wrapper::pure(a)`; on `Err(Node::First(layer))` continue.
+2. Project the target effect from the layer via
+   [`Member::project`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/member.rs).
+3. Matched arm: `coyo.lower()` (or `lower_ref` for shared-
+   pointer Coyoneda variants), then map a recursive call to
+   the same operation over each inner sub-program via
+   `<EBrand as Functor>::map(narrow, lowered)`, then hand to
+   the user's handler.
+4. Unmatched arm: map the recursive call over each inner
+   sub-program in the remainder via
+   `<R_minus_E as Functor>::map(narrow, rest)`, then re-emit
+   via the substrate's `wrap` operation.
+
+The recursion is **structural** (via `Functor::map`) rather
+than iterative (via a `loop`). Host-stack-frame depth equals
+the chain depth of the program (NOT the structural Wrap depth,
+which is bounded at most 1 per the
+[WrapDrop probe](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_wrap_depth_probe.rs)).
+This is acceptable for typical user programs but unbounded for
+deep Identity-shaped chains; Phase 3 step 4's
+`tail_rec_m`-driven loop is the stack-safe alternative for
+external-M extraction.
+
+The recursive narrowing closure clones the handler before each
+inner recursive call (since `Functor::map`'s closure is `Fn`
+and the recursive `interpret_with` consumes a handler by
+value). This drives the `F: Fn + Clone + 'static` (plus
+`Send + Sync` on Arc) handler bound. Users who want
+cheap-to-clone handlers wrap captured state in `Rc` / `Arc`,
+which Rust infers as `Fn` automatically due to interior
+mutability.
+
+When Phase 3 step 5 ships standard first-order effects with
+non-Identity shapes (`State<S>` whose `Of<NextProgram>` is a
+closure `S -> NextProgram`), the recursive narrowing for those
+effects becomes lazy: `Functor::map` over a closure composes
+with the new function, and the recursion is deferred until the
+state value is supplied. This is a property worth exploiting
+for stack safety on State-heavy programs.
+
+### Panic-free `extract` via empty dual row
+
+Phase 3 step 3's `extract` ships with the where-bound tightened
+to `Wrapper<CNilBrand, CNilBrand, A>` (both first-order and
+scoped rows empty). Both
+[`Node`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/node.rs)
+arms carry uninhabited
+[`CNil`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/coproduct.rs)
+payloads, so the body's exhaustive `match cnil {}` on each
+side diverges to type `!`, statically proving no runtime
+panic. This is **stronger** than the `interpret` family's
+panic-on-Scoped pattern (gated by `#[expect(clippy::unreachable, ...)]`)
+and is the design pattern any future "fully reduce a Run program
+to its result" entry point should follow.
+
+The trade-off: `extract` is no longer callable on programs
+whose first-order row is empty but whose scoped row carries
+layers. Phase 4's scoped-effect interpreter will introduce a
+separate elimination operation for non-empty scoped rows,
+keeping `extract`'s remit fully-pure-programs only. When
+designing Phase 4's API, mirror `extract`'s panic-free shape
+where possible: tighten the where-bound until the body
+diverges via uninhabited match, rather than panicking on
+unreachable arms.
 
 ### Per-wrapper Coyoneda-variant brand in test rows
 
@@ -391,17 +546,35 @@ on the relevant Coyoneda value variant; users don't need to
 reach into `CoyonedaBrand<IdentityBrand>` syntactic form for
 the macro key.
 
-### Step 2's M-target asymmetry (load-bearing for the active blocker)
+### Three orthogonal interpreter primitives (load-bearing context for step 4)
 
-Phase 3 step 2 shipped with the M target implicit (= self Run
-wrapper, returns `A`). PureScript Run's `run`/`runRec` exposes
-`<m: Monad>` / `<m: MonadRec>` symmetrically. The Rust port
-deviates because Rust closures can't elegantly recurse with
-borrowed handler state through `m`'s `bind`. The active
-blocker analyzes the trade-offs of refactoring to symmetry
-(option (i.a)) vs adding an externally-targeted MonadRec
-sibling alongside (option (ii)). Read the blocker before
-choosing.
+Phase 3 ships three orthogonal interpreter primitives, one per
+cognitive model, per the 2026-04-29 resolution
+([resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-04-29-phase-3-step-23-interpreter-family-shape)):
+
+- **Simple value extraction (step 2, M-free):** `interpret`
+  / `run` / `run_accum` return `A` directly via a `while`-loop;
+  no engagement with `MonadRec` abstraction. Stack-safe by
+  construction (no `M::bind` or `M::tail_rec_m` in the body).
+- **Pipeline row-narrowing (step 3, partial interpretation):**
+  `interpret_with::<EBrand>` returns `Wrapper<RMinusE, S, A>`;
+  enables compositional handler chains and user-controlled
+  handler ordering for non-commuting effects. Recursion is
+  host-stack-frame per peeled layer (not stack-safe on long
+  Identity-shaped chains).
+- **MonadRec extraction (step 4, external M target):**
+  `interpret_rec` / `run_rec` / `run_accum_rec` return
+  `M::Of<A>` for `MBrand: MonadRec`; uses `tail_rec_m` for
+  stack-safety on external M targets like `Thunk` / `Option`
+  / `Result` / `Vec`.
+
+Each shape uniquely enables a use case the others cannot
+subsume. Step 4's three load-bearing design questions
+(captured in plan.md's `Active blockers` section) refine the
+public API: handler input/output shape (M-wrapped vs raw),
+`DispatchHandlers::dispatch` `&mut self` vs `&self`, and
+state threading in `run_accum_rec`. Read the blocker before
+starting step 4.
 
 ## Where to start
 
@@ -411,39 +584,39 @@ is blocker resolution, not implementation. Adjust the
 sequence below accordingly.
 
 1. **Read plan.md's `Active blockers` section end-to-end first.**
-   The `Active blocker (2026-04-29): Phase 3 step 2/3
-interpreter target-monad shape` entry is ~600 lines and
-   carries five pending decisions. The five decisions, their
-   approaches, trade-offs, and recommendations are documented
-   in plan.md; read them in order. You don't need to invent
-   new analysis — the prior session did that work; your job is
-   to surface the decisions to the user and get a chosen set.
+   The `Active blocker (2026-05-01): Phase 3 step 4 interpreter
+design (handler shape, dispatch-trait reuse, state threading)`
+   entry carries three pending design questions. Each question
+   records its options considered, the implementor's leaning,
+   and the implementation order conditional on the chosen set;
+   read them in order. You don't need to invent new analysis;
+   your job is to surface the questions to the user and get a
+   chosen set.
 2. Read [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s
    `Current progress` section to confirm what shipped under
-   `82dd7bb` (Phase 3 step 1) and `d5efe2a` (Phase 3 step 2).
-   The implementation phasing sections (Phase 1 through Phase
-   5, plus Phase 6+ deferred) list numbered steps within each
-   phase.
-3. Surface the five decisions to the user. The recommended
-   set in plan.md is (1.A) full widen, (2.C) asymmetric, (3.A)
-   insert + renumber, (4.A) defer all three, (5.A) keep
-   decisions.md frozen. Get the user's per-decision choice
-   (confirm-or-override).
-4. Apply doc updates the chosen decisions require:
-   - If (4.A): add three Phase 6+ deferred entries to plan.md
-     (`runCont` / `interpose` / algebraic-FO handler shape).
-   - If (3.A) under (1.A): renumber Phase 3 steps in plan.md
-     (current 3-6 become 4-7; new step 3 = row-narrowing
-     pipeline + `extract`).
-   - If (5.A): nothing in decisions.md changes.
-   - Land doc updates as a `docs(plan):` commit before
-     starting implementation, so the implementation commit
-     stays focused on code.
+   `82dd7bb` (Phase 3 step 1), `d5efe2a` (Phase 3 step 2), and
+   `ff84f20` (Phase 3 step 3). The implementation phasing
+   sections (Phase 1 through Phase 5, plus Phase 6+ deferred)
+   list numbered steps within each phase.
+3. Surface the three questions to the user. The recommended
+   set in plan.md is (Q1 = A) mirror PureScript handler shape;
+   (Q2 = A1) relax `DispatchHandlers::dispatch` to `&self` +
+   `Fn`; (Q3 = A) continue closure-capture state threading.
+   Get the user's per-question choice (confirm-or-override).
+4. Apply doc updates the chosen set requires (typically none if
+   the recommended set is accepted; the dispatch-trait
+   relaxation in Q2 = A1 lands as the first commit in step 4
+   rather than as a separate doc-only commit). If the user
+   overrides any choice, capture the rationale by editing the
+   blocker entry in place, then land any required plan.md /
+   decisions.md doc updates as a `docs(plan):` commit before
+   starting implementation, so the implementation commit stays
+   focused on code.
 5. Read [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
-   for any sections referenced by the chosen step. Sections
-   4.3 (interpreter families), 4.5 (scoped effects), and 4.6
-   (natural transformations) are the most relevant for the
-   immediate Phase 3 work.
+   for any sections referenced by the chosen step. Section 4.3
+   (interpreter families) is the most relevant for step 4;
+   sections 4.5 (scoped effects) and 4.6 (natural
+   transformations) become relevant for Phase 4 / future work.
 6. Skim relevant entries under
    [research/](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/research/)
    only if a step names them. Do not re-read the full corpus.
@@ -463,8 +636,9 @@ interpreter target-monad shape` entry is ~600 lines and
    as a top-level dated entry per the standard procedure;
    replace the entry in plan.md's `Active blockers` with a
    one-line summary plus an anchor link to resolutions.md (or
-   remove the entry). The Phase 2 step 9 resolution is a
-   recent precedent for this move.
+   remove the entry). The Phase 3 step 2/3 resolution
+   (2026-04-29) and the Phase 2 step 9 resolution are recent
+   precedents for this move.
 
 ## Per-step protocol
 
