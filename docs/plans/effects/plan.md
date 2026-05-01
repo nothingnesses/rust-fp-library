@@ -524,7 +524,7 @@ what code lands; the last two only change documentation.
 | 1   | Schedule `runPure`-style row-narrowing pipeline + `extract`?              | **(1.A) Yes**               | **Confirmed 2026-04-29** |
 | 2   | Reshape step 2 to expose target M (PureScript-faithful symmetry)?         | **(2.C) No, asymmetric**    | **Confirmed 2026-04-29** |
 | 3   | Renumber Phase 3 if decision 1 widens scope?                              | **(3.A) Insert + renumber** | **Confirmed 2026-04-29** |
-| 4   | Add Phase 6+ deferred entries for `runCont` / `interpose` / algebraic-FO? | **(4.A) Defer all three**   | Pending                  |
+| 4   | Add Phase 6+ deferred entries for `runCont` / `interpose` / algebraic-FO? | **(4.A) Defer all three**   | **Confirmed 2026-04-29** |
 | 5   | Update decisions.md to acknowledge implementation choices?                | **(5.A) Keep frozen**       | Pending                  |
 
 Confirmation rationale per decision is recorded in section 2
@@ -927,8 +927,57 @@ deferred-items entries (vs being unscheduled)?
 - **(4.C) Skip**: decisions.md section 3 is an inventory, not
   a deferral plan; not actionable for future implementers.
 
-**Recommendation: (4.A) Defer all three** with explicit
-trigger conditions per the existing pattern.
+**Confirmed 2026-04-29: (4.A) Defer all three.**
+
+Initial recommendation reasoning ("matches existing Phase 6+
+pattern, 7 existing entries") was framed as
+pattern-matching to existing convention. User feedback
+prompted a check: is "follow the convention" religious
+adherence, or is the convention principled?
+
+Re-examination identified that the Phase 6+ deferred-entries
+pattern serves a real institutional-memory purpose: each
+entry records (i) what the item is, (ii) why it was
+deferred (cost / dependency / ergonomic-trade-off), and (iii)
+a trigger condition for when to revisit. Without entries,
+deferred items either get lost (no record outside chat
+history) or get re-litigated (each future agent re-evaluates
+from scratch). The pattern exists because plan.md has
+finite v1 scope and needs a structured way to forward-record
+"considered but deferred". Principled, not arbitrary.
+
+Why all three deserve full entries (not (4.B) mixed):
+
+- `runCont` / `runAccumCont` (continuation-passing handler
+  shape): rare use case; can be approximated via
+  `Free::fold_free` directly. Trigger: first user request
+  for explicit-continuation handlers that the
+  closure-returns-next-program shape can't accommodate.
+- `interpose` (heftia hook-without-removing-from-row):
+  genuinely useful for logging/tracing; not in PureScript Run.
+  Trigger: first observability use case where users want to
+  hook an effect without consuming it.
+- Algebraic-shape FO handlers (axis 2): would force every FO
+  handler to take a continuation; ergonomic regression for
+  typical case. Trigger: first user with a real need for
+  explicit-continuation FO handlers (e.g., a non-standard
+  control-flow effect requiring explicit yield/resume).
+
+These three differ in WHY they're deferred but share the
+same structural status (deliberately not in v1; may revisit
+later). Documenting them uniformly preserves that status.
+
+(4.B) "mixed" would need a principled criterion for which
+items get entries vs which don't; no such criterion exists
+that doesn't reduce to religious adherence ("PureScript ones
+get entries" is convention; "near-term-user ones" is hard
+to predict pre-deployment).
+
+(4.C) "skip entries" relies on decisions.md section 3
+"Entirely missing" inventory, but that's an inventory, not a
+deferral plan — it doesn't say WHEN items ship or under
+what trigger. Future implementers reading section 3 alone
+would re-evaluate from scratch.
 
 ###### Decision 5: Update decisions.md?
 
