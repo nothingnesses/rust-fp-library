@@ -1958,3 +1958,177 @@ Open follow-ups for step 3 (`MonadRec`-target family):
 - The Phase 6+ `interpret_nt` companion entry-point remains
   deferred unless the closure-mono-in-A constraint blocks a
   real user need.
+
+### Step 3: pipeline row-narrowing `interpret_with::<EBrand>` plus empty-row terminal `extract`
+
+Pipeline-narrowing per-wrapper inherent
+`interpret_with::<EBrand, Idx, RMinusE>(handler) -> Wrapper<RMinusE, S, A>`
+plus empty-dual-row terminal `extract(self) -> A` shipped across
+all six Run wrappers.
+
+What the plan called for, and what diverged:
+
+- **No `DispatchOneHandler` trait shipped.** The plan text under
+  Phase 3 step 3 (and the resolution doc's
+  "Heftia row architecture clarification" / "What ships under the
+  resolution" subsections) anticipated a parallel
+  `DispatchOneHandler<'a, Layer, NextProgram>` trait beside the
+  step 2 `DispatchHandlers` trait. Three design shapes were
+  considered:
+  1. A trait keyed on the Coyoneda variant carrying just the
+     `lower` step (parallel to step 2's three impls). Body would
+     be one line per impl (`handler(self.lower())` /
+     `handler(self.lower_ref())`).
+  2. A trait keyed on the Coproduct chain shape with three
+     blanket impls walking the chain via `Member::project`.
+     Coherence requires marker disambiguation (`DispatchOne`
+     phantom token) and the body is essentially
+     `match Member::project(layer) { Ok(coyo) => ..., Err(rest) => ... }`.
+  3. Inline dispatch in each wrapper's `interpret_with` body
+     using `Member::project` plus the per-Coyoneda-variant
+     `lower` / `lower_ref` choice.
+     Approaches 1 and 2 were rejected as over-engineered: each Run
+     wrapper already statically pairs with a single Coyoneda variant
+     per the per-wrapper pairing rule from Phase 2 step 9h, so the
+     abstraction enables no shared code paths. Approach 3 (inline)
+     wins on readability without losing capability. The
+     `DispatchOneHandler` name is preserved in the resolution doc as
+     the design vocabulary; the runtime artifact is the inherent
+     method body.
+- **Panic-free `extract` via empty-dual-row tightening.** The
+  plan text described `extract(self) -> A` for "empty-row Run".
+  Initial implementation tightened only the first-order row
+  (`R = CNilBrand`) and panicked on the `Node::Scoped` arm via
+  `unreachable!`, mirroring step 2's `interpret` panic. User
+  review pushed for a no-panic-by-construction shape: tighten
+  the where-bound to BOTH rows (`R = CNilBrand AND S = CNilBrand`).
+  Both arms then carry uninhabited
+  [`CNil`](../../../fp-library/src/types/effects/coproduct.rs)
+  payloads; the body's exhaustive `match cnil {}` on each side
+  diverges to `!`, statically proving no runtime panic. The
+  trade-off: `extract` is no longer callable on programs whose
+  first-order row is empty but whose scoped row carries layers.
+  Phase 4 will introduce a separate elimination operation for
+  non-empty scoped rows; the design intent is that `extract`'s
+  remit stays "fully-pure programs only".
+- **Three new `ArcRun` HRTB-free helpers.** ArcRun's struct-level
+  HRTB (`<NodeBrand<R, S> as Kind>::Of<'static, ArcFree<...>>: Send + Sync`)
+  poisons GAT normalization in scope. Implementing
+  `interpret_with` and `extract` cleanly required three sibling
+  helpers parallel to Phase 2 step 5's `lift_node` and
+  `unwrap_first` precedents:
+  - [`make_node_first<R, S, A>`](../../../fp-library/src/types/effects/arc_run.rs):
+    HRTB-free helper that constructs a `Node::First` projection.
+    Used by `interpret_with`'s unmatched arm to build the layer
+    outside the caller's HRTB scope.
+  - [`wrap_first_arc<RMinusE, S, A>`](../../../fp-library/src/types/effects/arc_run.rs):
+    HRTB-poisoning workaround for the
+    [`ArcFree::wrap`](../../../fp-library/src/types/arc_free.rs)
+    call. Receives an already-built `Node` projection (constructed
+    by `make_node_first`) and forwards it to `ArcFree::wrap`. The
+    function body therefore performs no GAT projection
+    construction inside its own HRTB-bearing scope, so the
+    projection equality declared by
+    [`impl_kind!`](../../../fp-macros/src/lib.rs) normalizes
+    cleanly.
+  - [`unwrap_pure_node<Inner, Ret>`](../../../fp-library/src/types/effects/arc_run.rs):
+    HRTB-free helper that statically eliminates a `Node` over an
+    empty dual row. Both `Node` arms carry uninhabited `CNil`
+    payloads, so the match diverges to `!`, which coerces to the
+    caller's `Ret` without panic. Two type parameters: `Inner`
+    is the inner-program type stored in the `Node`'s continuation
+    slot; `Ret` is the caller's expected return type. Used by
+    `ArcRun::extract`.
+    Only `ArcRun` (not `ArcRunExplicit`) needs these helpers
+    because the Explicit variants carry the `Send + Sync` bounds
+    per-method rather than at the struct level, so their bodies
+    pattern-match `Node` literals inline successfully. The other
+    five Run wrappers (Run, RunExplicit, RcRun, RcRunExplicit,
+    ArcRunExplicit) all pattern-match inline.
+- **Handler bound: `impl Fn + Clone + 'static` (plus `Send + Sync` on Arc).**
+  The recursive narrowing in both arms requires cloning the
+  handler before invoking it inside the
+  [`Functor::map`](../../../fp-library/src/classes/functor.rs)
+  closure that walks each inner sub-program. Each `Functor::map`
+  invocation may call its closure multiple times (once per inner
+  slot in the layer's content); the closure clones the handler
+  per call. For typical Identity-shaped effects this is one
+  clone per peeled chain link; for closure-shaped effects
+  (e.g., `State<S>`) the recursive interpret_with is deferred
+  inside the new state function. Users who want cheap-to-clone
+  handlers can wrap captured state in `Rc` / `Arc`. The same
+  approach is used internally by step 2's
+  `run_accum`-via-closure-capture pattern.
+- **Recursion is host-stack-frame per peeled layer.** Unlike
+  step 2's `interpret` which uses a `loop`, step 3's
+  `interpret_with` recurses structurally via `Functor::map`
+  inside each layer's body. Per the
+  [WrapDrop probe](../../../fp-library/tests/run_wrap_depth_probe.rs),
+  Run-typical patterns have structural depth at most 1, but the
+  CHAIN depth (number of peel-able layers) is not bounded. Programs
+  with deep chains of eager-recursing effects (Identity-shaped)
+  can blow the host stack. Phase 3 step 4 will provide the
+  stack-safe alternative via `tail_rec_m` for external `MBrand`
+  targets. Per the resolutions doc this trade-off is intentional:
+  step 3's pipeline shape uniquely enables partial interpretation
+  / handler ordering / compositional handler libraries; step 4
+  is the stack-safe extraction sibling.
+- **Per-wrapper Coyoneda variant pairing.** The Member bound
+  uses the wrapper's matching Coyoneda variant: `Coyoneda` for
+  Run / RunExplicit; `RcCoyoneda` for RcRun / RcRunExplicit;
+  `ArcCoyoneda` for ArcRun / ArcRunExplicit. Matched-arm dispatch
+  uses the corresponding `lower` (consume) or `lower_ref` (clone)
+  per the per-wrapper `peel`/`lift` substrate constraints
+  established in Phase 2 step 9h.
+- **Lint expectation cleanup on ArcRun.** `ArcRun::interpret_with`
+  initially carried `#[expect(clippy::unreachable, ...)]` from
+  the symmetric copy with the other wrappers. ArcRun routes its
+  layer extraction through `unwrap_first` (which has its own
+  panic on `Node::Scoped`); the outer `interpret_with`'s body
+  has no inline `unreachable!`. The expectation was unfulfilled
+  and removed.
+
+What landed in this commit:
+
+- New per-wrapper inherent methods on
+  [Run](../../../fp-library/src/types/effects/run.rs),
+  [RunExplicit](../../../fp-library/src/types/effects/run_explicit.rs),
+  [RcRun](../../../fp-library/src/types/effects/rc_run.rs),
+  [RcRunExplicit](../../../fp-library/src/types/effects/rc_run_explicit.rs),
+  [ArcRun](../../../fp-library/src/types/effects/arc_run.rs),
+  [ArcRunExplicit](../../../fp-library/src/types/effects/arc_run_explicit.rs):
+  `interpret_with::<EBrand, Idx, RMinusE>(handler)` for pipeline
+  row-narrowing.
+- New per-wrapper inherent methods (in separate impl blocks
+  scoped to `Wrapper<CNilBrand, CNilBrand, A>`): `extract(self) -> A`
+  for empty-dual-row terminal extraction. Panic-free by
+  construction via exhaustive match on the uninhabited `CNil`
+  payloads.
+- New helpers in
+  [`arc_run.rs`](../../../fp-library/src/types/effects/arc_run.rs):
+  `make_node_first`, `wrap_first_arc`, `unwrap_pure_node`. All
+  `#[doc(hidden)]`. Sibling to the existing `lift_node` and
+  `unwrap_first`.
+- New file: [`fp-library/tests/run_interpret_with.rs`](../../../fp-library/tests/run_interpret_with.rs)
+  with 16 integration tests across all six wrappers
+  (single-effect narrow-and-extract, bind-chain
+  narrow-and-extract, pure-program extract).
+
+Verification: `just verify` clean. 2471 unit tests; 16 new
+integration tests added; doctests across the `interpret_with` and
+`extract` methods on all six wrappers compile and pass.
+
+Open follow-ups for step 4 (`MonadRec`-target family):
+
+- Step 4's `interpret_rec` / `run_rec` / `run_accum_rec` mirror
+  step 2's per-wrapper inherent-method layout (M-extraction;
+  uses the existing `DispatchHandlers` trait) but route through
+  `MonadRec`'s `tail_rec_m` instead of a host-stack `while` loop.
+  The trait reuses unchanged.
+- Step 5's first-order effect smart constructors (`State`,
+  `Reader`, `Except`, `Writer`, `Choose`) plug into both step 2's
+  all-handlers-at-once `interpret` and step 3's pipeline
+  `interpret_with`; the chain-and-extract idiom
+  (`prog.interpret_with::<E1>(...).interpret_with::<E2>(...).extract()`)
+  is the typical user-facing surface for narrowing programs to
+  pure values.

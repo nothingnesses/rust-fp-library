@@ -39,7 +39,10 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::NodeBrand,
+			brands::{
+				CNilBrand,
+				NodeBrand,
+			},
 			classes::{
 				Functor,
 				WrapDrop,
@@ -656,6 +659,196 @@ mod inner {
 			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static, {
 			let _ = init;
 			self.interpret(handlers)
+		}
+
+		/// Pipeline row-narrowing interpreter: interpret a single
+		/// effect `EBrand` out of the row, returning a `Run` program in
+		/// the narrowed row `RMinusE` (with `EBrand` removed).
+		///
+		/// Mirrors PureScript Run's
+		/// [`interpret`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
+		/// (the row-narrowing form, not the all-handlers-at-once form
+		/// shipped on this wrapper as [`Run::interpret`]) and heftia's
+		/// `interpret_with` primary mode. Three capabilities this form
+		/// uniquely enables: partial interpretation (interpret one
+		/// effect, store the result, interpret the rest later);
+		/// user-controlled handler ordering for non-commuting effects
+		/// (e.g., `NonDet x Except`); compositional handler libraries
+		/// (`fn run_state<R, A>(...) -> Run<R_minus_State, S, A>`).
+		///
+		/// `handler` consumes the lowered effect (`<EBrand as Kind>::Of<'_, Run<RMinusE, S, A>>`,
+		/// where each inner program is already narrowed) and produces
+		/// the next-step program in the narrowed row. The handler is
+		/// reused across recursive calls (one clone per inner sub-program
+		/// in the layer's content), so `F: Fn + Clone + 'static`.
+		///
+		/// ## Stack safety
+		///
+		/// This method recurses host-stack-frame per peeled layer in
+		/// the original program (the recursion is via [`Functor::map`]
+		/// on each layer's continuation). For Identity-shaped effects,
+		/// the recursion is eager; for closure-shaped effects (e.g.,
+		/// `State<S>`), the recursion is deferred until the closure is
+		/// invoked. Programs with deep chains of eager-recursing effects
+		/// can blow the host stack; for stack-safe interpretation use
+		/// the Phase 3 step 4 `interpret_rec` family (when shipped).
+		///
+		/// ## Type inference
+		///
+		/// Turbofish `EBrand` only; `Idx` is inferred via
+		/// [`Member`](crate::types::effects::member::Member); `F` from
+		/// the handler argument; `RMinusE` from the handler's return
+		/// type.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being interpreted out of the row.",
+			"The type-level position witness (typically inferred).",
+			"The narrowed row brand (the original row with `EBrand` removed; typically inferred from the handler's return type)."
+		)]
+		///
+		#[document_parameters("The handler closure for the targeted effect.")]
+		///
+		#[document_returns("A `Run` program in the narrowed row `RMinusE`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run::Run,
+		/// 	},
+		/// };
+		///
+		/// type FullRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type EmptyRow = CNilBrand;
+		///
+		/// // Lift an Identity effect, then narrow it out: the handler
+		/// // unwraps the `Identity` and returns the (narrowed) inner
+		/// // program.
+		/// let prog: Run<FullRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
+		/// let narrowed: Run<EmptyRow, CNilBrand, i32> = prog
+		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
+		/// 		|op: Identity<Run<EmptyRow, CNilBrand, i32>>| op.0,
+		/// 	);
+		/// assert_eq!(narrowed.extract(), 42);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them. Reaching the Scoped arm would indicate a wrapper-API logic error rather than user error, so the descriptive panic is appropriate until Phase 4 lands."
+		)]
+		pub fn interpret_with<EBrand, Idx, RMinusE>(
+			self,
+			handler: impl Fn(
+				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<RMinusE, S, A>>),
+			) -> Run<RMinusE, S, A>
+			+ Clone
+			+ 'static,
+		) -> Run<RMinusE, S, A>
+		where
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>): Member<
+					Coyoneda<'static, EBrand, Run<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>
+								),
+				>, {
+			match self.peel() {
+				Ok(a) => Run::pure(a),
+				Err(Node::First(layer)) => match <Apply!(
+					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>
+				) as Member<
+					Coyoneda<'static, EBrand, Run<R, S, A>>,
+					Idx,
+				>>::project(layer)
+				{
+					Ok(coyo) => {
+						let lowered = coyo.lower();
+						let h_for_recurse = handler.clone();
+						let mapped = <EBrand as Functor>::map(
+							move |inner: Run<R, S, A>| {
+								inner.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
+							},
+							lowered,
+						);
+						handler(mapped)
+					}
+					Err(rest) => {
+						let h_for_recurse = handler.clone();
+						let mapped_free = <RMinusE as Functor>::map(
+							move |inner: Run<R, S, A>| {
+								inner
+									.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
+									.into_free()
+							},
+							rest,
+						);
+						Run::from_free(Free::<NodeBrand<RMinusE, S>, A>::wrap(Node::First(
+							mapped_free,
+						)))
+					}
+				},
+				Err(Node::Scoped(_)) => {
+					unreachable!(
+						"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
+					)
+				}
+			}
+		}
+	}
+
+	#[document_type_parameters("The result type.")]
+	#[document_parameters("The Run instance.")]
+	impl<A> Run<CNilBrand, CNilBrand, A>
+	where
+		A: 'static,
+	{
+		/// Extracts the result value from a `Run` program whose first-order
+		/// and scoped rows have both been fully interpreted away (both
+		/// resolve to [`CNilBrand`]). Both rows' `Of<...>` projections are
+		/// [`CNil`](crate::types::effects::coproduct::CNil) (uninhabited),
+		/// so each `Node` arm is structurally impossible and matched
+		/// exhaustively; the body diverges to type `!`, statically
+		/// proving no runtime panic.
+		///
+		/// Direct analog of PureScript Run's
+		/// [`extract`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
+		/// /
+		/// [`runPure`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs).
+		/// Pairs with [`Run::interpret_with`] for the
+		/// chain-and-extract pipeline:
+		/// `prog.interpret_with::<E1>(...).interpret_with::<E2>(...).extract()`.
+		/// Phase 4 will introduce a separate elimination operation for
+		/// non-empty scoped rows, leaving `extract` as the
+		/// fully-pure-program entry point.
+		#[document_signature]
+		///
+		#[document_returns("The final result value of the fully-narrowed program.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let pure_prog: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
+		/// assert_eq!(pure_prog.extract(), 42);
+		/// ```
+		#[inline]
+		pub fn extract(self) -> A {
+			match self.peel() {
+				Ok(a) => a,
+				Err(Node::First(cnil)) => match cnil {},
+				Err(Node::Scoped(cnil)) => match cnil {},
+			}
 		}
 	}
 }

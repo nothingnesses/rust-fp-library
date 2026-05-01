@@ -45,6 +45,7 @@ mod inner {
 			brands::{
 				ArcFreeExplicitBrand,
 				ArcRunExplicitBrand,
+				CNilBrand,
 				NodeBrand,
 			},
 			classes::{
@@ -969,6 +970,204 @@ mod inner {
 			>): Send + Sync, {
 			let _ = init;
 			self.interpret(handlers)
+		}
+
+		/// Pipeline row-narrowing interpreter. See
+		/// [`Run::interpret_with`](crate::types::effects::run::Run::interpret_with)
+		/// for cross-wrapper semantics. `ArcRunExplicit` differences:
+		/// thread-safe handler (`Send + Sync`); the [`ArcCoyoneda`]
+		/// variant pairs with the `Arc`-shared substrate (matched-arm
+		/// dispatch lowers via [`ArcCoyoneda::lower_ref`]). Unlike
+		/// [`ArcRun`], this wrapper does not need the
+		/// `wrap_first_arc` HRTB workaround because
+		/// [`ArcRunExplicit`]'s struct definition carries the
+		/// `Send + Sync` bounds per-method (not at the struct level),
+		/// so `Node` literals normalize inline.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being interpreted out of the row.",
+			"The type-level position witness (typically inferred).",
+			"The narrowed row brand."
+		)]
+		///
+		#[document_parameters("The handler closure for the targeted effect.")]
+		///
+		#[document_returns("An `ArcRunExplicit` program in the narrowed row.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run_explicit::ArcRunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FullRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type EmptyRow = CNilBrand;
+		///
+		/// let prog: ArcRunExplicit<'static, FullRow, CNilBrand, i32> =
+		/// 	ArcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// let narrowed: ArcRunExplicit<'static, EmptyRow, CNilBrand, i32> = prog
+		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
+		/// 		|op: Identity<ArcRunExplicit<'static, EmptyRow, CNilBrand, i32>>| op.0,
+		/// 	);
+		/// assert_eq!(narrowed.extract(), 42);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them."
+		)]
+		pub fn interpret_with<EBrand, Idx, RMinusE>(
+			self,
+			handler: impl Fn(
+				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, RMinusE, S, A>>),
+			) -> ArcRunExplicit<'a, RMinusE, S, A>
+			+ Clone
+			+ Send
+			+ Sync
+			+ 'a,
+		) -> ArcRunExplicit<'a, RMinusE, S, A>
+		where
+			A: Clone + Send + Sync,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + SendFunctor + 'static,
+			RMinusE: WrapDrop + SendFunctor + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync,
+			Apply!(<NodeBrand<RMinusE, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusE, S>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusE, S>, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusE, S>, A>,
+			>): Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, RMinusE, S, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, RMinusE, S, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>):
+				Member<
+						ArcCoyoneda<'a, EBrand, ArcRunExplicit<'a, R, S, A>>,
+						Idx,
+						Remainder = Apply!(
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>
+									),
+					>, {
+			match self.peel() {
+				Ok(a) => ArcRunExplicit::pure(a),
+				Err(Node::First(layer)) => match <Apply!(
+					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>
+				) as Member<
+					ArcCoyoneda<'a, EBrand, ArcRunExplicit<'a, R, S, A>>,
+					Idx,
+				>>::project(layer)
+				{
+					Ok(coyo) => {
+						let lowered = coyo.lower_ref();
+						let h_for_recurse = handler.clone();
+						let mapped = <EBrand as SendFunctor>::send_map(
+							move |inner: ArcRunExplicit<'a, R, S, A>| {
+								inner.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
+							},
+							lowered,
+						);
+						handler(mapped)
+					}
+					Err(rest) => {
+						let h_for_recurse = handler.clone();
+						let mapped_free = <RMinusE as SendFunctor>::send_map(
+							move |inner: ArcRunExplicit<'a, R, S, A>| {
+								inner
+									.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
+									.into_arc_free_explicit()
+							},
+							rest,
+						);
+						ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::<
+							'a,
+							NodeBrand<RMinusE, S>,
+							A,
+						>::wrap(Node::First(
+							mapped_free,
+						)))
+					}
+				},
+				Err(Node::Scoped(_)) => {
+					unreachable!(
+						"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
+					)
+				}
+			}
+		}
+	}
+
+	#[document_type_parameters("The lifetime that bounds the payload.", "The result type.")]
+	#[document_parameters("The `ArcRunExplicit` instance.")]
+	impl<'a, A: 'a> ArcRunExplicit<'a, CNilBrand, CNilBrand, A> {
+		/// Extracts the result value from an `ArcRunExplicit` program
+		/// whose first-order and scoped rows have both been fully
+		/// interpreted away. Exhaustive `match` over the uninhabited
+		/// `CNil` payloads proves no runtime panic, statically. See
+		/// [`Run::extract`](crate::types::effects::run::Run::extract).
+		#[document_signature]
+		///
+		#[document_returns("The final result value of the fully-narrowed program.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// };
+		///
+		/// let pure_prog: ArcRunExplicit<'_, CNilBrand, CNilBrand, i32> = ArcRunExplicit::pure(42);
+		/// assert_eq!(pure_prog.extract(), 42);
+		/// ```
+		#[inline]
+		pub fn extract(self) -> A
+		where
+			A: Clone + Send + Sync,
+			Apply!(<NodeBrand<CNilBrand, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<CNilBrand, CNilBrand>, A>,
+			>): Clone + Send + Sync, {
+			match self.peel() {
+				Ok(a) => a,
+				Err(Node::First(cnil)) => match cnil {},
+				Err(Node::Scoped(cnil)) => match cnil {},
+			}
 		}
 	}
 

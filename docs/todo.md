@@ -1,5 +1,7 @@
 ### Tasks to do & ideas to look into
 
+- Refactor unreachable code.
+- Determine if there's a better way to get around HRTB poisoning and reduce the amount of bounds.
 - Assess validity of [audit_multi_brand_coverage.md](plans/multi-brand-ergonomics/audit.md).
 - Add issue templates.
 - Should the `*Brand` `impl`s in [types/](../fp-library/src/types) be moved into modules in [brands/](../fp-library/src/brands)?

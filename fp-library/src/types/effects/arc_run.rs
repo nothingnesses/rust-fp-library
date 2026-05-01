@@ -31,7 +31,10 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::NodeBrand,
+			brands::{
+				CNilBrand,
+				NodeBrand,
+			},
 			classes::{
 				SendFunctor,
 				WrapDrop,
@@ -818,6 +821,132 @@ mod inner {
 			let _ = init;
 			self.interpret(handlers)
 		}
+
+		/// Pipeline row-narrowing interpreter. See
+		/// [`Run::interpret_with`](crate::types::effects::run::Run::interpret_with)
+		/// for cross-wrapper semantics. `ArcRun` differences:
+		/// thread-safe substrate
+		/// (`A: Send + Sync`, handler is `Send + Sync`); the
+		/// [`ArcCoyoneda`] variant pairs with the `Arc`-shared
+		/// substrate (matched-arm dispatch lowers via
+		/// [`ArcCoyoneda::lower_ref`]); the unmatched-arm `Node::First`
+		/// construction is factored through the [`wrap_first_arc`]
+		/// HRTB-poisoning workaround free helper, mirroring
+		/// [`lift_node`]'s precedent.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being interpreted out of the row.",
+			"The type-level position witness (typically inferred).",
+			"The narrowed row brand."
+		)]
+		///
+		#[document_parameters("The handler closure for the targeted effect.")]
+		///
+		#[document_returns("An `ArcRun` program in the narrowed row.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run::ArcRun,
+		/// 	},
+		/// };
+		///
+		/// type FullRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type EmptyRow = CNilBrand;
+		///
+		/// let prog: ArcRun<FullRow, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(42));
+		/// let narrowed: ArcRun<EmptyRow, CNilBrand, i32> = prog
+		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
+		/// 		|op: Identity<ArcRun<EmptyRow, CNilBrand, i32>>| op.0,
+		/// 	);
+		/// assert_eq!(narrowed.extract(), 42);
+		/// ```
+		#[inline]
+		pub fn interpret_with<EBrand, Idx, RMinusE>(
+			self,
+			handler: impl Fn(
+				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<RMinusE, S, A>>),
+			) -> ArcRun<RMinusE, S, A>
+			+ Clone
+			+ Send
+			+ Sync
+			+ 'static,
+		) -> ArcRun<RMinusE, S, A>
+		where
+			R: Kind_cdc7cd43dac7585f + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			A: Clone + Send + Sync,
+			EBrand: Kind_cdc7cd43dac7585f + crate::classes::Functor + SendFunctor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			NodeBrand<R, S>: SendFunctor,
+			NodeBrand<RMinusE, S>: WrapDrop
+				+ Kind_cdc7cd43dac7585f<
+					Of<'static, ArcFree<NodeBrand<RMinusE, S>, ArcTypeErasedValue>>: Send + Sync,
+				> + SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<NodeBrand<RMinusE, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<RMinusE, S>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>): Member<
+					ArcCoyoneda<'static, EBrand, ArcRun<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+								),
+				>, {
+			match self.peel() {
+				Ok(a) => ArcRun::pure(a),
+				Err(node) => {
+					let layer = unwrap_first::<R, S, ArcRun<R, S, A>>(node);
+					match <Apply!(
+						<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+					) as Member<ArcCoyoneda<'static, EBrand, ArcRun<R, S, A>>, Idx>>::project(
+						layer
+					) {
+						Ok(coyo) => {
+							let lowered = coyo.lower_ref();
+							let h_for_recurse = handler.clone();
+							let mapped = <EBrand as SendFunctor>::send_map(
+								move |inner: ArcRun<R, S, A>| {
+									inner.interpret_with::<EBrand, Idx, RMinusE>(
+										h_for_recurse.clone(),
+									)
+								},
+								lowered,
+							);
+							handler(mapped)
+						}
+						Err(rest) => {
+							let h_for_recurse = handler.clone();
+							let mapped_arc_free = <RMinusE as SendFunctor>::send_map(
+								move |inner: ArcRun<R, S, A>| {
+									inner
+										.interpret_with::<EBrand, Idx, RMinusE>(
+											h_for_recurse.clone(),
+										)
+										.into_arc_free()
+								},
+								rest,
+							);
+							let node_first =
+								make_node_first::<RMinusE, S, ArcFree<NodeBrand<RMinusE, S>, A>>(
+									mapped_arc_free,
+								);
+							ArcRun::from_arc_free(wrap_first_arc::<RMinusE, S, A>(node_first))
+						}
+					}
+				}
+			}
+		}
 	}
 
 	/// HRTB-poisoning workaround for [`ArcRun::lift`]. The body of
@@ -974,6 +1103,238 @@ mod inner {
 				unreachable!(
 					"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
 				)
+			}
+		}
+	}
+
+	/// HRTB-free helper that statically eliminates a [`Node`] over an
+	/// empty dual row. Both `Node` arms carry uninhabited
+	/// [`CNil`](crate::types::effects::coproduct::CNil) payloads, so the
+	/// match diverges to type `!`, which coerces to the caller's
+	/// expected `Ret` without any runtime panic. Used by
+	/// [`ArcRun::extract`] (and
+	/// [`ArcRunExplicit::extract`](crate::types::effects::arc_run_explicit::ArcRunExplicit::extract))
+	/// since inline pattern matching against `Node` literals fails GAT
+	/// normalization inside the Arc-substrate wrappers' HRTB-bearing
+	/// impl scopes; the helper's where-clause holds no HRTB so the
+	/// match normalizes cleanly.
+	///
+	/// `Inner` is the inner-program type stored in the `Node`'s
+	/// continuation slot; `Ret` is the caller's return type that the
+	/// divergent match coerces into.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The inner-program type stored in the `Node`'s continuation slot.",
+		"The caller's return type (the divergent match coerces into it)."
+	)]
+	///
+	#[document_parameters("The Node projection over the empty dual row.")]
+	///
+	#[document_returns(
+		"The (unreachable) inhabitant; the function diverges via exhaustive match on uninhabited payloads."
+	)]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// // The helper is internal (`#[doc(hidden)]`) and discharges the
+	/// // (statically uninhabited) `Err` arm of `peel` for empty-row
+	/// // programs. Callers exercise it via `ArcRun::extract` (see that
+	/// // method's example for the integrated path).
+	/// use fp_library::{
+	/// 	brands::CNilBrand,
+	/// 	types::effects::arc_run::ArcRun,
+	/// };
+	///
+	/// let pure_prog: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(42);
+	/// assert_eq!(pure_prog.extract(), 42);
+	/// ```
+	#[doc(hidden)]
+	pub fn unwrap_pure_node<Inner, Ret>(
+		node: Apply!(
+			<NodeBrand<CNilBrand, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Inner>
+		)
+	) -> Ret
+	where
+		Inner: 'static, {
+		match node {
+			Node::First(cnil) => match cnil {},
+			Node::Scoped(cnil) => match cnil {},
+		}
+	}
+
+	/// HRTB-free helper that constructs a [`Node::First`] projection.
+	/// Mirrors [`lift_node`]'s "build the literal outside the HRTB
+	/// scope" idiom: the function's where-clause carries only `Kind`
+	/// bounds (no GAT-projection HRTB), so the [`Node`] literal
+	/// normalizes against
+	/// `<NodeBrand<R, S> as Kind>::Of<'_, A>` cleanly. Internal helper
+	/// for [`ArcRun::interpret_with`]'s unmatched arm; not part of the
+	/// public API.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The inner-program type carried by the layer's continuations."
+	)]
+	///
+	#[document_parameters("The first-order layer payload.")]
+	///
+	#[document_returns("The `Node::First` projection.")]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	types::{
+	/// 		Identity,
+	/// 		effects::{
+	/// 			arc_run::make_node_first,
+	/// 			coproduct::Coproduct,
+	/// 			node::Node,
+	/// 		},
+	/// 	},
+	/// };
+	///
+	/// type Row = CoproductBrand<IdentityBrand, CNilBrand>;
+	/// type Scoped = CNilBrand;
+	///
+	/// let layer = Coproduct::inject(Identity(7));
+	/// let node = make_node_first::<Row, Scoped, i32>(layer);
+	/// match node {
+	/// 	Node::First(_) => assert!(true),
+	/// 	Node::Scoped(_) => panic!("expected First"),
+	/// }
+	/// ```
+	#[doc(hidden)]
+	pub fn make_node_first<R, S, A>(
+		layer: Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+	) -> Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+	where
+		R: Kind_cdc7cd43dac7585f + 'static,
+		S: Kind_cdc7cd43dac7585f + 'static,
+		A: 'static, {
+		Node::First(layer)
+	}
+
+	/// HRTB-poisoning workaround for [`ArcRun::interpret_with`]'s
+	/// unmatched-arm [`ArcFree::wrap`](crate::types::ArcFree::wrap)
+	/// call. Sibling to [`lift_node`] and [`unwrap_first`]; receives
+	/// the already-built [`Node`] projection (constructed by
+	/// [`make_node_first`] outside any HRTB scope) and forwards it to
+	/// [`ArcFree::wrap`]. The function body therefore performs no GAT
+	/// projection construction inside its own HRTB-bearing scope, so
+	/// the projection equality declared by
+	/// [`impl_kind!`](crate::impl_kind) normalizes cleanly. The five
+	/// other Run wrappers do not need this workaround.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The narrowed first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The result type of the program."
+	)]
+	///
+	#[document_parameters(
+		"The pre-built `Node::First` projection (typically produced by `make_node_first` whose narrowed-row layer was mapped via `<RMinusE as SendFunctor>::send_map` so each inner program is an `ArcFree` in the narrowed brand)."
+	)]
+	///
+	#[document_returns("An `ArcFree` carrying the narrowed-row suspended layer.")]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// // The helper is internal (`#[doc(hidden)]`) and is exercised
+	/// // through `ArcRun::interpret_with`'s unmatched arm. See that
+	/// // method's example for the end-to-end path; here we just confirm
+	/// // a fully-narrowed program round-trips through `extract`.
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	types::{
+	/// 		Identity,
+	/// 		effects::arc_run::ArcRun,
+	/// 	},
+	/// };
+	///
+	/// type FullRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+	///
+	/// let prog: ArcRun<FullRow, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(7));
+	/// let narrowed: ArcRun<CNilBrand, CNilBrand, i32> = prog
+	/// 	.interpret_with::<IdentityBrand, _, CNilBrand>(
+	/// 		|op: Identity<ArcRun<CNilBrand, CNilBrand, i32>>| op.0,
+	/// 	);
+	/// assert_eq!(narrowed.extract(), 7);
+	/// ```
+	#[doc(hidden)]
+	pub fn wrap_first_arc<RMinusE, S, A>(
+		node: Apply!(<NodeBrand<RMinusE, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<RMinusE, S>, A>,
+		>)
+	) -> ArcFree<NodeBrand<RMinusE, S>, A>
+	where
+		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+		S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+		A: Send + Sync + 'static,
+		NodeBrand<RMinusE, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<RMinusE, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + SendFunctor,
+		Apply!(<NodeBrand<RMinusE, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<RMinusE, S>, ArcTypeErasedValue>,
+		>): Clone, {
+		ArcFree::<NodeBrand<RMinusE, S>, A>::wrap(node)
+	}
+
+	#[document_type_parameters("The result type.")]
+	#[document_parameters("The `ArcRun` instance.")]
+	impl<A> ArcRun<CNilBrand, CNilBrand, A>
+	where
+		NodeBrand<CNilBrand, CNilBrand>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<CNilBrand, CNilBrand>, ArcTypeErasedValue>>: Send
+				                                                                               + Sync,
+			> + 'static,
+		A: 'static,
+	{
+		/// Extracts the result value from an `ArcRun` program whose
+		/// first-order and scoped rows have both been fully interpreted
+		/// away. Routes through the [`unwrap_pure_node`] HRTB-free helper
+		/// (since `ArcRun`'s impl-block scope poisons inline `Node`
+		/// pattern matching). The helper exhaustively matches both
+		/// uninhabited `CNil` payloads, statically proving no runtime
+		/// panic.
+		#[document_signature]
+		///
+		#[document_returns("The final result value of the fully-narrowed program.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// let pure_prog: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(42);
+		/// assert_eq!(pure_prog.extract(), 42);
+		/// ```
+		#[inline]
+		pub fn extract(self) -> A
+		where
+			A: Clone + Send + Sync,
+			NodeBrand<CNilBrand, CNilBrand>: SendFunctor,
+			Apply!(<NodeBrand<CNilBrand, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<CNilBrand, CNilBrand>, ArcTypeErasedValue>,
+			>): Clone, {
+			match self.peel() {
+				Ok(a) => a,
+				Err(node) => unwrap_pure_node::<ArcRun<CNilBrand, CNilBrand, A>, A>(node),
 			}
 		}
 	}

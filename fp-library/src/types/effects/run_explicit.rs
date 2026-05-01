@@ -58,6 +58,7 @@ mod inner {
 		crate::{
 			Apply,
 			brands::{
+				CNilBrand,
 				FreeExplicitBrand,
 				NodeBrand,
 				RunExplicitBrand,
@@ -627,6 +628,154 @@ mod inner {
 		) -> A {
 			let _ = init;
 			self.interpret(handlers)
+		}
+
+		/// Pipeline row-narrowing interpreter. See
+		/// [`Run::interpret_with`](crate::types::effects::run::Run::interpret_with)
+		/// for the cross-wrapper semantics. Differences for
+		/// `RunExplicit`: the Box-in-Wrap substrate
+		/// (Coyoneda variant: bare [`Coyoneda`]); recursion uses
+		/// [`FreeExplicit::wrap`](crate::types::FreeExplicit) which
+		/// expects the inner program type to be wrapped in a
+		/// [`Box`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being interpreted out of the row.",
+			"The type-level position witness (typically inferred).",
+			"The narrowed row brand."
+		)]
+		///
+		#[document_parameters("The handler closure for the targeted effect.")]
+		///
+		#[document_returns("A `RunExplicit` program in the narrowed row.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run_explicit::RunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FullRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type EmptyRow = CNilBrand;
+		///
+		/// let prog: RunExplicit<'static, FullRow, CNilBrand, i32> =
+		/// 	RunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// let narrowed: RunExplicit<'static, EmptyRow, CNilBrand, i32> = prog
+		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
+		/// 		|op: Identity<RunExplicit<'static, EmptyRow, CNilBrand, i32>>| op.0,
+		/// 	);
+		/// assert_eq!(narrowed.extract(), 42);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them."
+		)]
+		pub fn interpret_with<EBrand, Idx, RMinusE>(
+			self,
+			handler: impl Fn(
+				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, RMinusE, S, A>>),
+			) -> RunExplicit<'a, RMinusE, S, A>
+			+ Clone
+			+ 'a,
+		) -> RunExplicit<'a, RMinusE, S, A>
+		where
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>):
+				Member<
+						Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+						Idx,
+						Remainder = Apply!(
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>
+									),
+					>, {
+			match self.peel() {
+				Ok(a) => RunExplicit::pure(a),
+				Err(Node::First(layer)) => match <Apply!(
+					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>
+				) as Member<
+					Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+					Idx,
+				>>::project(layer)
+				{
+					Ok(coyo) => {
+						let lowered = coyo.lower();
+						let h_for_recurse = handler.clone();
+						let mapped = <EBrand as Functor>::map(
+							move |inner: RunExplicit<'a, R, S, A>| {
+								inner.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
+							},
+							lowered,
+						);
+						handler(mapped)
+					}
+					Err(rest) => {
+						let h_for_recurse = handler.clone();
+						let mapped_boxed = <RMinusE as Functor>::map(
+							move |inner: RunExplicit<'a, R, S, A>| {
+								Box::new(
+									inner
+										.interpret_with::<EBrand, Idx, RMinusE>(
+											h_for_recurse.clone(),
+										)
+										.into_free_explicit(),
+								)
+							},
+							rest,
+						);
+						RunExplicit::from_free_explicit(
+							FreeExplicit::<'a, NodeBrand<RMinusE, S>, A>::wrap(Node::First(
+								mapped_boxed,
+							)),
+						)
+					}
+				},
+				Err(Node::Scoped(_)) => {
+					unreachable!(
+						"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
+					)
+				}
+			}
+		}
+	}
+
+	#[document_type_parameters("The lifetime that bounds the payload.", "The result type.")]
+	#[document_parameters("The `RunExplicit` instance.")]
+	impl<'a, A: 'a> RunExplicit<'a, CNilBrand, CNilBrand, A> {
+		/// Extracts the result value from a `RunExplicit` program whose
+		/// first-order and scoped rows have both been fully interpreted
+		/// away. Exhaustive `match` over the uninhabited `CNil` payloads
+		/// proves no runtime panic, statically. See
+		/// [`Run::extract`](crate::types::effects::run::Run::extract).
+		#[document_signature]
+		///
+		#[document_returns("The final result value of the fully-narrowed program.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// let pure_prog: RunExplicit<'_, CNilBrand, CNilBrand, i32> = RunExplicit::pure(42);
+		/// assert_eq!(pure_prog.extract(), 42);
+		/// ```
+		#[inline]
+		pub fn extract(self) -> A {
+			match self.peel() {
+				Ok(a) => a,
+				Err(Node::First(cnil)) => match cnil {},
+				Err(Node::Scoped(cnil)) => match cnil {},
+			}
 		}
 	}
 

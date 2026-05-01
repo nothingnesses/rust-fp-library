@@ -33,7 +33,10 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::NodeBrand,
+			brands::{
+				CNilBrand,
+				NodeBrand,
+			},
 			classes::{
 				Functor,
 				WrapDrop,
@@ -802,6 +805,168 @@ mod inner {
 			>): Clone, {
 			let _ = init;
 			self.interpret(handlers)
+		}
+
+		/// Pipeline row-narrowing interpreter. See
+		/// [`Run::interpret_with`](crate::types::effects::run::Run::interpret_with)
+		/// for the cross-wrapper semantics. Differences for `RcRun`:
+		/// the [`RcCoyoneda`] variant pairs with the `Rc`-shared
+		/// substrate; matched-arm dispatch uses
+		/// [`RcCoyoneda::lower_ref`] (multi-shot friendly); the
+		/// per-`peel` `Clone` bound on the substrate's `Of<'_,
+		/// RcFree<...>>` propagates through the recursion.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being interpreted out of the row.",
+			"The type-level position witness (typically inferred).",
+			"The narrowed row brand."
+		)]
+		///
+		#[document_parameters("The handler closure for the targeted effect.")]
+		///
+		#[document_returns("An `RcRun` program in the narrowed row.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run::RcRun,
+		/// 	},
+		/// };
+		///
+		/// type FullRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type EmptyRow = CNilBrand;
+		///
+		/// let prog: RcRun<FullRow, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(42));
+		/// let narrowed: RcRun<EmptyRow, CNilBrand, i32> = prog
+		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
+		/// 		|op: Identity<RcRun<EmptyRow, CNilBrand, i32>>| op.0,
+		/// 	);
+		/// assert_eq!(narrowed.extract(), 42);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them."
+		)]
+		pub fn interpret_with<EBrand, Idx, RMinusE>(
+			self,
+			handler: impl Fn(
+				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<RMinusE, S, A>>),
+			) -> RcRun<RMinusE, S, A>
+			+ Clone
+			+ 'static,
+		) -> RcRun<RMinusE, S, A>
+		where
+			A: Clone,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: WrapDrop + Functor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<RMinusE, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<RMinusE, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>): Member<
+					RcCoyoneda<'static, EBrand, RcRun<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>
+								),
+				>, {
+			match self.peel() {
+				Ok(a) => RcRun::pure(a),
+				Err(Node::First(layer)) => match <Apply!(
+					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>
+				) as Member<
+					RcCoyoneda<'static, EBrand, RcRun<R, S, A>>,
+					Idx,
+				>>::project(layer)
+				{
+					Ok(coyo) => {
+						let lowered = coyo.lower_ref();
+						let h_for_recurse = handler.clone();
+						let mapped = <EBrand as Functor>::map(
+							move |inner: RcRun<R, S, A>| {
+								inner.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
+							},
+							lowered,
+						);
+						handler(mapped)
+					}
+					Err(rest) => {
+						let h_for_recurse = handler.clone();
+						let mapped_free = <RMinusE as Functor>::map(
+							move |inner: RcRun<R, S, A>| {
+								inner
+									.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
+									.into_rc_free()
+							},
+							rest,
+						);
+						RcRun::from_rc_free(RcFree::<NodeBrand<RMinusE, S>, A>::wrap(Node::First(
+							mapped_free,
+						)))
+					}
+				},
+				Err(Node::Scoped(_)) => {
+					unreachable!(
+						"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
+					)
+				}
+			}
+		}
+	}
+
+	#[document_type_parameters("The result type.")]
+	#[document_parameters("The `RcRun` instance.")]
+	impl<A> RcRun<CNilBrand, CNilBrand, A>
+	where
+		A: Clone + 'static,
+	{
+		/// Extracts the result value from an `RcRun` program whose
+		/// first-order and scoped rows have both been fully interpreted
+		/// away. Exhaustive `match` over the uninhabited `CNil` payloads
+		/// proves no runtime panic, statically. See
+		/// [`Run::extract`](crate::types::effects::run::Run::extract).
+		#[document_signature]
+		///
+		#[document_returns("The final result value of the fully-narrowed program.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// let pure_prog: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(42);
+		/// assert_eq!(pure_prog.extract(), 42);
+		/// ```
+		#[inline]
+		pub fn extract(self) -> A
+		where
+			Apply!(<NodeBrand<CNilBrand, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<CNilBrand, CNilBrand>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			match self.peel() {
+				Ok(a) => a,
+				Err(Node::First(cnil)) => match cnil {},
+				Err(Node::Scoped(cnil)) => match cnil {},
+			}
 		}
 	}
 }

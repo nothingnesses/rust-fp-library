@@ -14,19 +14,122 @@ complete. Phase 2 complete: steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b,
 9h, 9i), 10a (POC test migration into
 `fp-library/tests/run_row_canonicalisation.rs`), and 10b
 (`poc-effect-row/` workspace deleted). Phase 3 in progress:
-steps 1 (`handlers!{...}` macro plus `nt()` builder fallback)
-and 2 (simple all-handlers-at-once `interpret`/`run`/`run_accum`
-on six Run wrappers) landed; step 3 (pipeline row-narrowing
-`interpret_with::<E>` + `extract`) is the immediate next work
-following the resolved interpreter family shape question (see
-[resolutions.md](resolutions.md#resolved-2026-04-29-phase-3-step-23-interpreter-family-shape)).
+steps 1 (`handlers!{...}` macro plus `nt()` builder fallback),
+2 (simple all-handlers-at-once `interpret`/`run`/`run_accum` on
+six Run wrappers), and 3 (pipeline row-narrowing
+`interpret_with::<EBrand>` plus empty-row terminal `extract`)
+landed; step 4 (MonadRec-target
+`interpret_rec`/`run_rec`/`run_accum_rec`) is the immediate next
+work.
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
 
-**Phase 3 step 2 (this commit): `interpret`/`run`/`run_accum`
+**Phase 3 step 3 (this commit): pipeline row-narrowing
+`interpret_with::<EBrand>` plus empty-row terminal `extract`
+across all six Run wrappers.** Each wrapper exposes an inherent
+`interpret_with::<EBrand, Idx, RMinusE>(handler) -> Wrapper<RMinusE, S, A>`
+that peels one effect from the row at a time, returning a
+narrowed Run program that still needs further interpretation.
+The matched arm uses the per-wrapper Coyoneda variant's `lower`
+(or `lower_ref` for shared-pointer substrates) followed by
+recursive `Functor::map` (or `SendFunctor::send_map` for the
+`Arc` substrates) to narrow each inner program before invoking
+the handler. The unmatched arm narrows the layer's content via
+the same recursive map and re-emits via the substrate's `wrap`
+operation (`Free::wrap` / `RcFree::wrap` / `ArcFree::wrap` /
+their Explicit-substrate counterparts).
+
+The dispatch is inline per-wrapper rather than going through a
+shared `DispatchOneHandler` trait: each wrapper's
+[`Member`](../../../fp-library/src/types/effects/member.rs)
+projection at the call site already gives the row-narrowing
+remainder via the `Member::Remainder` associated type, and the
+per-Coyoneda-variant `lower` choice is one line of wrapper-local
+code; a trait abstraction would have added ceremony without
+enabling shared code paths. See [deviations.md](deviations.md)
+under Phase 3 step 3 for the alternatives considered (a
+`DispatchOneHandler` trait keyed on the Coyoneda variant or on
+the chain shape, both rejected as over-engineered for the
+single-handler case).
+
+`ArcRun`'s body factors three HRTB-poisoning workaround helpers
+(parallel to Phase 2 step 5's `lift_node` and `unwrap_first`
+precedents): `make_node_first` builds the
+[`Node::First`](../../../fp-library/src/types/effects/node.rs)
+projection in an HRTB-free scope, `wrap_first_arc` calls
+[`ArcFree::wrap`](../../../fp-library/src/types/arc_free.rs) on
+a pre-built node so no `Node` literal is constructed inside the
+caller's HRTB scope, and `unwrap_pure_node` exhaustively matches
+both `CNil` payloads of an empty-dual-row
+[`Node`](../../../fp-library/src/types/effects/node.rs) so the
+`extract` body diverges to `!` without any runtime panic. The
+other five wrappers pattern-match `Node::First` / `Node::Scoped`
+inline successfully (only `ArcRun`'s struct-level HRTB on
+`<NodeBrand<R, S> as Kind>::Of<'static, ArcFree<...>>: Send + Sync`
+poisons GAT normalization in scope; `ArcRunExplicit` carries the
+`Send + Sync` bounds per-method instead, so its body matches
+inline like the other Explicit wrappers).
+
+`extract`'s where-bound is tightened to
+`Wrapper<CNilBrand, CNilBrand, A>` (both first-order and scoped
+rows empty). Both `Node` arms then carry uninhabited
+[`CNil`](../../../fp-library/src/types/effects/coproduct.rs)
+payloads; the body's exhaustive `match cnil {}` on each side
+diverges to type `!`, statically proving no runtime panic. Phase
+4 will introduce a separate elimination operation for non-empty
+scoped rows; `extract`'s remit is fully-pure programs only.
+
+The handler bound is `impl Fn(...) -> Wrapper<RMinusE, S, A> + Clone + 'static`
+(plus `Send + Sync` on the `Arc` wrappers) so the closure can be
+cloned across the recursive narrowing of each inner sub-program
+in a layer's content. Each call clones the handler once per
+`Functor::map` closure invocation; for typical effects with one
+inner slot per layer (e.g., Identity), this is one clone per
+peeled chain link.
+
+Recursion is via host-stack-frame per peeled layer (the
+recursion lives inside the `Functor::map` closure's body, not in
+a `while` loop); programs with deep chains of eager-recursing
+effects can blow the host stack. Phase 3 step 4 will provide the
+stack-safe alternative via `tail_rec_m` for external `MBrand`
+targets. Per the resolutions doc this trade-off is intentional:
+step 3's pipeline shape uniquely enables partial interpretation,
+user-controlled handler ordering for non-commuting effects, and
+compositional handler libraries; step 4's MonadRec-target shape
+is the stack-safe extraction path.
+
+Tests: 16 integration tests in
+[`fp-library/tests/run_interpret_with.rs`](../../../fp-library/tests/run_interpret_with.rs)
+covering single-effect narrowing-then-extract, bind-chain
+narrowing-then-extract, and `extract` on pure-by-construction
+programs across all six Run wrappers. Per-wrapper doctests on
+each `interpret_with` and `extract` method exercise the
+canonical-row-and-handler combination. `just verify` clean: 2471
+unit tests + 16 new integration tests + doctests on each method
+compile and pass.
+
+Per-step deviation entry in
+[deviations.md](deviations.md) Phase 3 step 3 records: (1) the
+inline-dispatch design choice (no `DispatchOneHandler` trait);
+(2) the panic-free `extract` design via tightening to empty dual
+row; (3) the three new `ArcRun` HRTB-free helpers; (4) the
+`Fn + Clone + 'static` (plus `Send + Sync` on Arc) handler bound
+rationale; (5) the host-stack recursion trade-off vs Phase 3
+step 4's stack-safe sibling; (6) the per-wrapper Coyoneda
+variant pairing with the existing per-wrapper `peel`/`lift`
+substrate constraints; (7) the renumbering of steps 4-7 per the
+Phase 3 step 2/3 interpreter shape resolution
+((3.A) Insert + renumber).
+
+Step 4 (`interpret_rec` / `run_rec` / `run_accum_rec` with
+`<MBrand: MonadRec>` external target via `tail_rec_m`) is the
+immediate next work. Step 5 (standard first-order effect types
+and smart constructors) follows.
+
+**Phase 3 step 2: `interpret`/`run`/`run_accum`
 recursive-target interpreter family across all six Run wrappers.**
 New module
 [`fp-library/src/types/effects/interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
@@ -180,82 +283,6 @@ ships. The interpreter trait will dispatch over `Run::peel` /
 `*Run::peel` results, recursing through the handler list in
 lock-step with the row's `Coproduct::Inl`/`Inr` branches.
 
-**Phase 2 step 10a (`162ab1e`): row-canonicalisation regression
-baseline at
-[`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs).**
-20 integration tests migrated from
-`poc-effect-row/tests/` (workspace deleted in 10b),
-substituting fp-library's existing brands
-(`IdentityBrand` / `OptionBrand` / `ResultBrand` / `BoxBrand` /
-`CatListBrand` / `ThunkBrand` / `SendThunkBrand` /
-`TryThunkBrand` / `ArcCoyonedaBrand`) for the POC's local
-`struct A(i32)` / `struct B(...)` placeholder types.
-
-Coverage: canonicalisation across all 6 permutations of 3
-brands; 5- and 7-brand scaling; lexical-canonical-form check;
-empty / single-brand edge cases; same-root different-params sort
-(via `CoyonedaBrand<Identity>` vs `CoyonedaBrand<Option>`);
-`CoproductSubsetter` (workaround 3) on runtime
-`Coproduct` values across 3- and 5-element permutations;
-`effects!` vs `raw_effects!` Coyoneda wrapping difference;
-each row brand drives all six Run wrappers
-(`Run`/`RcRun`/`ArcRun`/`RunExplicit`/`RcRunExplicit`/`ArcRunExplicit`).
-Arc-family wrappers use `ArcCoyonedaBrand`-headed rows to
-satisfy the substrate's struct-level `Send + Sync` HRTB.
-
-Tests intentionally skipped from the POC (4 of 25 not migrated;
-a fifth, `c08`, is implicitly covered):
-
-- `feasibility::t08` (1 test): lifetime-parameter-bearing raw
-  effect type. Production effect brands are zero-sized `'static`
-  markers (no lifetime params at the brand level); the test
-  exercises a property production brands cannot have.
-- `feasibility::t10` (1 test): "handler accepts macro output as
-  runtime value". In POC, effect types served as both row brands
-  AND runtime value types; in production the brand is a
-  zero-sized marker and the analog is the all-six-Run-wrappers
-  integration tests (a row brand drives the wrapper's type
-  parameters).
-- `feasibility::t14`-`t16` (3 tests): `tstr_crates` compile-time
-  string-ordering demos; not testing fp-library; would require
-  adding `tstr` as a dev-dep to no regression-baseline benefit.
-- `coyoneda::c03`-`c05` (3 tests): POC-local `Coyoneda` lift +
-  decoder-closure mechanics. Production
-  [`Coyoneda`](../../../fp-library/src/types/coyoneda.rs) has
-  no decoder closure (uses brand-Kind machinery directly); the
-  mechanics-tests don't translate.
-- `coyoneda::c08` (1 test, implicitly covered): Coproduct-of-
-  Coyoneda end-to-end fmap dispatch, exercised by the
-  [`tests/run_lift.rs`](../../../fp-library/tests/run_lift.rs)
-  round-trip tests on all six Run wrappers (lift -> peel -> lower
-  recovers the value, which only works if the Coproduct +
-  Coyoneda dispatch composes correctly).
-
-Per-test mapping is documented in
-[deviations.md](deviations.md) under step 10a, with a follow-up
-on `coyoneda::c06`: that test was initially landed as a
-PhantomData-only placeholder during the migration; on review it
-was replaced with `subsetter_over_runtime_coyoneda_wrapped_values`
-that constructs production `Coyoneda::lift(Identity(7))` runtime
-values, builds a non-canonical Coproduct of Coyoneda variants,
-and runs `.subset()` to recover the canonical permutation. This
-is the production analog of the POC's `c06` and the gap the
-review surfaced.
-
-Plus net-new coverage that wasn't in the POC (all 6 permutations
-vs POC's 3, `effects!` vs `raw_effects!` contrast,
-all-six-Run-wrappers integration). All 2437 unit tests pass
-under `just verify` (no `src/` changes in this commit;
-integration-test-only addition); 21 new integration tests in
-`tests/run_row_canonicalisation.rs` all pass.
-
-Step 10b (delete `poc-effect-row/` workspace) is the only
-remaining work and is held for explicit user confirmation
-because it is destructive. The POC workspace is detached
-(declares its own `[workspace]` block) and not built by the
-outer cargo workspace, so the deletion is safe but
-irreversible.
-
 ### Earlier completed steps (commit log)
 
 Each entry's design choices are recorded in
@@ -275,6 +302,15 @@ Phase 2:
   cargo workspace was unaffected by its presence and absence.
   Doc-link maintenance across four cross-referencing files;
   Phase 2 ships complete with this commit.
+- `162ab1e` (step 10a): row-canonicalisation regression baseline at
+  [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs).
+  21 of 25 POC tests migrated (4 not-applicable, 1 implicitly
+  covered) using fp-library's production brands; net-new coverage
+  includes all 6 permutations of 3 brands (vs POC's 3),
+  `effects!` vs `raw_effects!` Coyoneda contrast, and
+  all-six-Run-wrappers integration. Per-test mapping including
+  `coyoneda::c06`'s production-value replacement is in
+  [deviations.md](deviations.md).
 - `df99ff6` (step 9i): `SendRefPointed` lands on
   `ArcRunExplicitBrand` via inherent-method delegation; the rest
   of the SendRef cascade (`SendRefFunctor` /
