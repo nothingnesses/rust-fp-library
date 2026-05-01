@@ -13,10 +13,13 @@ complete. Phase 2 complete: steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b,
 7c.1, 7c.2a, 7c.2b, 8, 9 (all sub-steps 9a, 9b+9e, 9c+9f, 9d+9g,
 9h, 9i), 10a (POC test migration into
 `fp-library/tests/run_row_canonicalisation.rs`), and 10b
-(`poc-effect-row/` workspace deleted). Phase 3 in progress: step
-1 (`handlers!{...}` macro plus `nt()` builder fallback) and step
-2 (`interpret`/`run`/`run_accum` recursive-target interpreter
-family across all six Run wrappers) landed.
+(`poc-effect-row/` workspace deleted). Phase 3 in progress:
+steps 1 (`handlers!{...}` macro plus `nt()` builder fallback)
+and 2 (simple all-handlers-at-once `interpret`/`run`/`run_accum`
+on six Run wrappers) landed; step 3 (pipeline row-narrowing
+`interpret_with::<E>` + `extract`) is the immediate next work
+following the resolved interpreter family shape question (see
+[resolutions.md](resolutions.md#resolved-2026-04-29-phase-3-step-23-interpreter-family-shape)).
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
@@ -93,10 +96,13 @@ threading via closure captures vs a separate stateful trait;
 and the inner-brand handler-list key matching `effects!`'s
 sort.
 
-Step 3 (`interpret_rec` / `run_rec` / `run_accum_rec` MonadRec-target
-interpreter family) is the immediate next work; the
-`DispatchHandlers` trait reuses unchanged, only the loop body
-switches from host-stack recursion to `tail_rec_m` trampolining.
+Step 3 (pipeline row-narrowing: `interpret_with::<EBrand>(handler) -> Run<R_minus_E, S, A>`
+plus `extract(self) -> A` per wrapper) is the immediate next
+work. Adds a new `DispatchOneHandler` trait variant alongside
+`DispatchHandlers`. Step 4 (MonadRec-target
+`interpret_rec` / `run_rec` / `run_accum_rec`) follows; reuses
+`DispatchHandlers` with the loop body switched from while-loop
+to `tail_rec_m` trampolining.
 
 **Phase 3 step 1: `handlers!{...}` macro plus
 `nt()` builder fallback for assembling natural transformations
@@ -509,622 +515,15 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-04-29): Phase 3 step 2/3 interpreter family shape
-
-##### TL;DR
-
-Phase 3 step 2 (`d5efe2a`) shipped `interpret`/`run`/`run_accum`
-on the six Run wrappers with the target monad implicit
-(`M = self Run wrapper`, returns `A`). Before step 3 ships,
-five decisions gate the implementation. The first three change
-what code lands; the last two only change documentation.
-
-| #   | Decision                                                                  | Recommendation              | Status                   |
-| --- | ------------------------------------------------------------------------- | --------------------------- | ------------------------ |
-| 1   | Schedule `runPure`-style row-narrowing pipeline + `extract`?              | **(1.A) Yes**               | **Confirmed 2026-04-29** |
-| 2   | Reshape step 2 to expose target M (PureScript-faithful symmetry)?         | **(2.C) No, asymmetric**    | **Confirmed 2026-04-29** |
-| 3   | Renumber Phase 3 if decision 1 widens scope?                              | **(3.A) Insert + renumber** | **Confirmed 2026-04-29** |
-| 4   | Add Phase 6+ deferred entries for `runCont` / `interpose` / algebraic-FO? | **(4.A) Defer all three**   | **Confirmed 2026-04-29** |
-| 5   | Update decisions.md to acknowledge implementation choices?                | **(5.A) Keep frozen**       | **Confirmed 2026-04-29** |
-
-Confirmation rationale per decision is recorded in section 2
-below. Once all five decisions are confirmed, the
-implementation sequence in section 5 resumes Phase 3 work and
-this entry moves to resolutions.md.
-
-##### 1. Background
-
-###### 1.1 What step 2 shipped
-
-Phase 3 step 2 (commit `d5efe2a`) shipped `interpret`,
-`run`, and `run_accum` as inherent methods on each of the six
-Run wrappers. The methods take a handler list and return `A`
-directly:
-
-```rust
-pub fn interpret(self, handlers: H) -> A
-```
-
-The M target is implicit (M = self Run wrapper). The
-interpreter loop is a `while`-loop with `prog =
-handlers.dispatch(layer)` (assignment-driven, not bind-driven).
-The DispatchHandlers trait has three cons-cell impls covering
-the three Coyoneda variants (Coyoneda / RcCoyoneda /
-ArcCoyoneda).
-
-###### 1.2 PureScript Run reference shapes
-
-PureScript Run ships eleven interpreter functions. The most
-relevant
-([`Run.purs:178-261`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs#L178-L261)):
-
-```haskell
--- interpret/interpretRec are aliases of run/runRec respectively
-interpret    :: Monad m    => (VariantF r ~> m) -> Run r a -> m a
-interpretRec :: MonadRec m => (VariantF r ~> m) -> Run r a -> m a
-
--- The actual workhorses (mono-in-a, take a step function)
-run          :: Monad m    => (VariantF r (Run r a) -> m (Run r a)) -> Run r a -> m a
-runRec       :: MonadRec m => (VariantF r (Run r a) -> m (Run r a)) -> Run r a -> m a
-runAccum     :: Monad m    => (s -> ... -> m (Tuple s ...)) -> s -> Run r a -> m a
-runAccumRec  :: MonadRec m => (s -> ... -> m (Tuple s ...)) -> s -> Run r a -> m a
-
--- Loop bodies:
-run k = loop where loop = resume (\a -> loop =<< k a) pure   -- bind-driven
-runRec k = runFreeM (coerceM k) <<< unwrap                   -- tailRecM-driven
-```
-
-PureScript's `MonadRec` class
-([`Control.Monad.Rec.Class:58-59`](https://github.com/purescript/purescript-tailrec/blob/master/src/Control/Monad/Rec/Class.purs#L58-L59))
-defines `tailRecM` with a constant-stack class invariant.
-fp-library's
-[`MonadRec`](../../../fp-library/src/classes/monad_rec.rs)
-mirrors this exactly. `IdentityBrand` / `OptionBrand` /
-`ThunkBrand` / `VecBrand` already implement it.
-
-The Rust precedent at
-[`Free::fold_free<G: MonadRec>`](../../../fp-library/src/types/free.rs)
-already implements the PureScript-faithful pattern for the
-externally-targeted MonadRec form: takes a
-[`NaturalTransformation<F, G>`](../../../fp-library/src/classes/natural_transformation.rs),
-drives the loop via `G::tail_rec_m`, returns `G::Of<'_, A>`.
-
-###### 1.3 Why the rec/non-rec distinction exists in PureScript
-
-PureScript's `run` body recurses through `m`'s bind:
-`loop =<< k a` builds nested `m`-bind frames in the host stack,
-which blows for `m`s with non-stack-safe bind. `runRec`'s
-`runFreeM` swaps for `tailRecM` (constant stack by class
-invariant). The distinction is purely a stack-safety guarantee
-on the target monad.
-
-###### 1.4 Why Rust differs
-
-fp-library's step 2 uses a `while`-loop, not bind-driven
-recursion. The interpreter loop is structurally stack-safe
-regardless of `M`. The PureScript rec/non-rec distinction does
-not apply to step 2 as-shipped.
-
-To match PureScript Run's `<M: Monad>` shape, step 2 would
-need to expose M and route through `M::bind`. That requires
-the Rust workarounds in 1.5 below.
-
-###### 1.5 Rust workarounds for the bind-driven loop
-
-PureScript's `loop =<< k a` recurses through `m`'s bind. In
-Rust, the closure passed to `M::bind` must:
-
-1. Be `Fn` (multi-callable) so non-deterministic `m`s like
-   `Vec` can call the continuation multiple times.
-2. Capture the handler list to recurse with it.
-3. Not mutably alias the handler list across calls.
-
-Three workarounds, all cheap in practice:
-
-- **`Fn` closures (not `FnMut`).** Most user closures are
-  naturally `Fn` already (mutation through `RefCell::borrow_mut`
-  / `Mutex::lock` works from `&self`). Mostly free.
-- **Handler list `Clone`.** Each step clones before passing to
-  the recursive bind closure. Trivial closures are auto-`Clone`;
-  closures capturing `Rc<RefCell<T>>` / `Arc<Mutex<T>>` are
-  `Clone` (refcount bump). `HandlersCons` / `HandlersNil`
-  already derive `Clone`. Per-step cost: one shallow clone
-  (HCons cells × handler closure clones).
-- **`'static` bound.** Already implicit for the Erased family;
-  tightening for the Explicit family adds friction but isn't a
-  hard wall.
-
-With these workarounds, a bind-driven `<M: Monad>` interpreter
-is implementable in stable Rust. They influence decision 2's
-trade-offs.
-
-###### 1.6 Heftia and the dual-row framing
-
-[Heftia](https://github.com/sayo-hs/heftia) uses **one** effect
-list (`es`) where each element has a `KnownOrder` (FO or HO).
-The `FOEs es` constraint requires all members to be
-first-order. fp-library's
-[decisions.md](decisions.md) section 4.5 takes the IDEA
-(separate FO vs HO dispatch) and ships a value-level dual row
-(`Run<R, S, A>` with `Node<R, S> = First | Scoped`). So
-fp-library's "heftia-inspired" framing is inspiration, not
-direct port; we don't need heftia's mixed-order constraint
-machinery, just `Node::First` vs `Node::Scoped` dispatch.
-Heftia's primary interpreter mode is row-narrowing
-(`interpretWith` strips the head effect from the row),
-relevant to decision 1 below.
-
-###### 1.7 The three orthogonal axes the question covers
-
-The blocker started narrow (rec/non-rec for the M-targeted
-family) but a close read of PureScript Run + heftia revealed
-three orthogonal axes:
-
-- **Axis 1: which interpreter functions ship.** PureScript Run
-  ships eleven; current plan.md schedules six
-  (`interpret`/`run`/`run_accum` × rec/non-rec). Gaps: `extract`,
-  `runPure`/`runAccumPure` (pipeline row-narrowing),
-  `runCont`/`runAccumCont` (continuation-passing handlers),
-  `interpose` (heftia hook-without-removing). Decision 1 covers
-  pipeline + `extract`; decision 4 covers the rest as deferred.
-- **Axis 2: handler shape.** Heftia's `AlgHandler e m n a =
-forall x. e x -> (x -> m a) -> n a` (algebraic, explicit
-  continuation) vs PureScript Run's "handler returns m-wrapped
-  next program" (implicit continuation). fp-library currently
-  uses implicit-continuation for FO + algebraic-shape for HO
-  (scoped constructors carry body/release closures inside). The
-  asymmetry is reasonable: FO effects rarely need continuation
-  control, HO effects often do. Decision 4 defers
-  algebraic-shape for FO to Phase 6+.
-- **Axis 3: rec/non-rec for the externally-targeted M family.**
-  The original blocker question. Decision 2 covers it.
-
-##### 2. Decisions
-
-Listed in dependency order. Decisions 1, 2, 3 change what code
-ships. Decisions 4, 5 only change documentation.
-
-###### Decision 1: Schedule row-narrowing pipeline + `extract`?
-
-**Question.** Should Phase 3 schedule
-`extract(self) -> A` (empty-row pure extract) and
-`interpret_with::<EBrand>(handler) -> Run<R_minus_E, S, A>`
-(single-effect row-narrowing pipeline)? These are heftia's
-primary mode + PureScript's `runPure`/`extract` analogs.
-
-**Approaches.**
-
-- **(1.A) Full widen.** Ship both `extract` and
-  `interpret_with::<E>` as a new Phase 3 step.
-- **(1.B) No widen.** Keep current six-method schedule; defer
-  pipeline-style entirely to Phase 6+.
-- **(1.C) Partial widen.** Ship `extract` only; defer
-  `interpret_with::<E>` pipeline.
-
-**Trade-offs.**
-
-- **(1.A)**: Closes the heftia/PureScript ergonomic gap.
-  Enables `prog.interpret_with(state).interpret_with(reader).extract()`.
-  Phase 4 inherits parallel scoped-row-narrowing naturally.
-  Brings plan.md back toward decisions.md section 3's full
-  inventory. Cost: new method per wrapper + new
-  `DispatchOneHandler` trait variant + tests.
-- **(1.B)**: Cheapest now. Real ergonomic gap: users can only
-  use one mega `handlers!{}` block with all effects. Future
-  widening is non-breaking but current users live without it.
-- **(1.C)**: `extract` alone is mostly useless (only matters
-  AFTER all effects are stripped, which `interpret_with::<E>`
-  enables). Not a meaningful intermediate.
-
-**Confirmed 2026-04-29: (1.A) Full widen.**
-
-Initial recommendation reasoning ("pipeline-style is heftia's
-primary mode") was partly principled and partly conventional
-("matches PureScript / heftia"). The convention-following part
-was challenged through the lens "what does each option
-uniquely enable, ignoring ecosystem precedent?".
-
-Re-examination identified three principled capabilities
-pipeline + `extract` uniquely enables that step 2's
-all-handlers-at-once form (and the future MonadRec form
-under (2.C)) cannot:
-
-1. **Partial interpretation.** Users can interpret one
-   effect, get a `Run<R_minus_E, S, A>` back, store it / pass
-   it elsewhere, and interpret the rest later (or never).
-   Step 2 demands all handlers upfront; the future MonadRec
-   form returns `M::Of<A>` (extracted), not `Run<R', S, A>`
-   (partial). Pipeline is the only shape that keeps the
-   program in Run-land while peeling effects.
-2. **User-controlled handler ordering for non-commuting
-   effects.** For combinations like `NonDet × Except`, the
-   interpretation order materially affects semantics. Step 2
-   dispatches in program-encoded order; pipeline lets users
-   explicitly chain `.interpret_with::<Except>(...).interpret_with::<NonDet>(...)`
-   vs the reverse.
-3. **Compositional handler libraries.** Library authors can
-   ship reusable handlers as
-   `fn run_state<R, A>(...) -> Run<R_minus_State, S, A>`.
-   Without pipeline, library authors can only ship handler
-   closures meant to be plugged into a user-built
-   `handlers!{}` block.
-
-These three capabilities are real ecosystem needs, not just
-conventions. The fact that heftia and PureScript ship
-pipeline as primary is corroborating evidence (the
-ecosystems hit these needs and chose to provide pipeline);
-the load-bearing reason is the capability set, not the
-ecosystem precedent.
-
-(1.B) "no widen" was rejected because it ships less
-capability without compensating gain. (1.C) "extract only"
-was rejected because `extract` without pipeline is
-incoherent: extract only matters when the row is empty,
-which is what `interpret_with::<E>` enables. So either ship
-both or neither.
-
-###### Decision 2: Reshape step 2 to expose target M?
-
-**Question.** When the MonadRec-target step ships, should
-step 2 be reshaped to symmetric `<M: Monad>` (matching
-PureScript Run 1:1)?
-
-**Approaches.** Originally framed as options (i.a) / (i.b) /
-(ii); the (2.A) / (2.B) / (2.C) labels below are equivalent.
-
-- **(2.A) (i.a) Symmetric.** Reshape step 2 to take
-  `<MBrand: Monad>` (bind-driven loop, requires the
-  workarounds in 1.5). Add the rec family bounded
-  `<MBrand: MonadRec>`. Mirrors PureScript Run's `run` /
-  `runRec`. Breaking change to `d5efe2a`.
-- **(2.B) (i.b) MonadRec uniform.** Reshape step 2 to take
-  `<MBrand: MonadRec>`. Drop the `_rec` naming distinction.
-  Six methods total instead of twelve (under axis 1 widening).
-  Breaking change to `d5efe2a`.
-- **(2.C) (ii) Asymmetric.** Step 2 stays as-shipped (M = self
-  Run, returns A). The MonadRec step adds an
-  externally-targeted `<MBrand: MonadRec>` family alongside.
-  Three distinct primitives under axis 1 widening:
-  `interpret -> A` (simple value extract),
-  `interpret_with -> Run<R', S, A>` (pipeline),
-  `interpret_rec<M> -> M::Of<A>` (MonadRec target).
-
-**Trade-offs.**
-
-| Dimension                  | (2.A) Symmetric                                     | (2.B) MonadRec uniform      | (2.C) Asymmetric                                            |
-| -------------------------- | --------------------------------------------------- | --------------------------- | ----------------------------------------------------------- |
-| PureScript fidelity        | 1:1                                                 | Diverges (no Monad form)    | Step 3+ faithful; step 2 documented as specialization       |
-| decisions.md 4.3 alignment | Full                                                | Partial (one family)        | Step 3+ honors; step 2 honest specialization                |
-| Implementation effort      | High: reshape + Clone bounds                        | Medium: reshape; one family | Low: step 2 unchanged; add new step                         |
-| Breaking change to d5efe2a | Yes                                                 | Yes                         | No                                                          |
-| Method count under (1.A)   | 18/wrapper × 6 = 108                                | 9/wrapper × 6 = 54          | 9/wrapper × 6 = 54                                          |
-| Closure ergonomics         | Closures produce `M::Of<Run>`; verbose for Identity | Same                        | Step 2 closures unchanged; new family produces `M::Of<Run>` |
-| Handler list bounds        | `Clone` everywhere                                  | `Clone` everywhere          | None on step 2; `Clone` on new family                       |
-| Stack-safety story         | Explicit choice via bound                           | Implicit (always)           | Step 2 structurally safe; new family `tail_rec_m`-driven    |
-| Conceptual redundancy      | Two methods for similar loops                       | None                        | None: methods functionally distinct                         |
-
-**Confirmed 2026-04-29: (2.C) Asymmetric.**
-
-Initial recommendation reasoning ("three distinct primitives,
-marginal value of (2.A) is small") was partly principled and
-partly conventional ("preserve `d5efe2a`'s API"). The
-preserve-d5efe2a part was religious adherence; user feedback
-forced re-examination through the lens "what does each option
-uniquely enable, ignoring what already shipped?".
-
-Re-examination identified that step 2's M-free shape uniquely
-enables value extraction without engaging MonadRec
-abstraction. The structural stack-safety of step 2's
-while-loop (per section 1.4 above) means there's no `M` in the
-body, no `bind`, no `tail_rec_m` — the user's mental model is
-"give me a value", not "extract via a chosen monad target".
-Under any alternative (2.A / 2.B / 2.D), the basic
-value-extraction case routes through `M = IdentityBrand` with
-turbofish + `.0` unwrap, forcing users to encounter MonadRec
-machinery they don't conceptually need.
-
-The simple form is therefore not redundant with the MonadRec
-form. The three primitives — simple (M-free), pipeline
-(row-narrowing), MonadRec (external target) — cover three
-orthogonal cognitive models, and dropping any of them loses
-real capability. (2.C) ships all three; that's the minimal
-complete set under (1.A) widening.
-
-(A fourth option (2.D) "drop step 2's simple form, ship only
-pipeline + MonadRec" was considered and rejected because
-forcing every user through the MonadRec abstraction for the
-basic case is a real ergonomic cost. The unique
-value-extraction-without-MonadRec capability of step 2's form
-is what makes (2.C) principled.)
-
-###### Decision 3: Phase 3 step ordering after axis 1 widening?
-
-**Question.** If decision 1.A ships, Phase 3 gets a new step.
-How to order?
-
-**Approaches.**
-
-- **(3.A) Insert + renumber.** Steps 1-2 done; new step 3 ships
-  row-narrowing pipeline; step 4 is the (was step 3) MonadRec
-  family; renumber 5-7 (was 4-6).
-- **(3.B) Insert without renumbering.** Add a step "2.5" or
-  "3a" alongside the existing.
-- **(3.C) Combine.** Step 3 becomes "row-narrowing + MonadRec
-  extraction" as one combined step.
-
-**Trade-offs.**
-
-- **(3.A) Renumber**: Clean canonical ordering. Reference-sweep
-  cost in plan.md / deviations.md but bounded.
-- **(3.B) Step 2.5**: Avoids renumbering. Non-canonical;
-  confusing to future readers.
-- **(3.C) Combine**: One commit ships two substantively
-  different things. Violates "one logical thing per step"
-  convention.
-
-**Confirmed 2026-04-29: (3.A) Insert + renumber.** (Applies
-because decision 1 confirmed (1.A) "full widen", introducing
-the new pipeline + extract step that needs scheduling.)
-
-Initial recommendation reasoning ("clean canonical ordering")
-was framed against the per-step protocol convention. User
-feedback prompted a check: is "follow the convention"
-religious adherence, or is the convention principled?
-
-Re-examination identified that the per-step protocol's
-"atomic commits + linear readability" is a software-engineering
-practice with concrete benefits: bisectability (`git bisect`
-on per-step commits), reviewability (one logical thing per
-diff), and navigability (numbered sequence reads
-linearly). The convention is principled.
-
-What each alternative trades for what:
-
-- **(3.B) Step "2.5" or "3a".** Saves one-time edit cost
-  (renumbering plan.md sections). Costs permanent
-  non-canonical numbering ("Phase 3 step 1, step 2, step
-  2.5, step 3..."). Trades a small one-time cost for
-  permanent reader confusion. Net negative.
-- **(3.C) Combine pipeline + MonadRec into one step.** Saves
-  one commit. Costs reviewability: pipeline returns
-  `Run<R', S, A>` and uses a new `DispatchOneHandler` trait;
-  MonadRec form returns `M::Of<A>` and reuses
-  `DispatchHandlers`. Different shapes, different doctests.
-  A combined commit would be ~2x size, harder to review,
-  harder to bisect. Net negative.
-
-(3.A) does the small one-time renumbering work to preserve
-the protocol's structural quality. The reference-sweep is
-bounded (plan.md "Implementation phasing" + "Current
-progress" sections; existing deviations.md entries for
-already-shipped steps 1-2 don't need editing because their
-numbers don't change; commit messages are immutable but
-their step numbers are also unchanged). Future deviations.md
-entries and commit messages use the new numbering.
-
-###### Decision 4: Phase 6+ deferred entries for axis-1/2 items not in scope?
-
-**Question.** Do `runCont` / `runAccumCont` (continuation-passing,
-axis 1), `interpose` (heftia hook-without-removing, axis 1), and
-algebraic-shape FO handlers (axis 2) get explicit Phase 6+
-deferred-items entries (vs being unscheduled)?
-
-**Approaches.**
-
-- **(4.A) Defer all three.** Add Phase 6+ entries for each,
-  naming use case, deferral cost, and trigger.
-- **(4.B) Mixed.** Defer some, mark others as out-of-scope.
-- **(4.C) Skip Phase 6+ entries.** Rely on decisions.md
-  section 3 inventory.
-
-**Trade-offs.**
-
-- **(4.A) Defer all**: Most discoverable. Matches existing
-  Phase 6+ pattern (7 existing entries). Future implementers
-  see explicit trigger conditions.
-- **(4.B) Mixed**: Inconsistent (some get triggers, others
-  implicit "if needed").
-- **(4.C) Skip**: decisions.md section 3 is an inventory, not
-  a deferral plan; not actionable for future implementers.
-
-**Confirmed 2026-04-29: (4.A) Defer all three.**
-
-Initial recommendation reasoning ("matches existing Phase 6+
-pattern, 7 existing entries") was framed as
-pattern-matching to existing convention. User feedback
-prompted a check: is "follow the convention" religious
-adherence, or is the convention principled?
-
-Re-examination identified that the Phase 6+ deferred-entries
-pattern serves a real institutional-memory purpose: each
-entry records (i) what the item is, (ii) why it was
-deferred (cost / dependency / ergonomic-trade-off), and (iii)
-a trigger condition for when to revisit. Without entries,
-deferred items either get lost (no record outside chat
-history) or get re-litigated (each future agent re-evaluates
-from scratch). The pattern exists because plan.md has
-finite v1 scope and needs a structured way to forward-record
-"considered but deferred". Principled, not arbitrary.
-
-Why all three deserve full entries (not (4.B) mixed):
-
-- `runCont` / `runAccumCont` (continuation-passing handler
-  shape): rare use case; can be approximated via
-  `Free::fold_free` directly. Trigger: first user request
-  for explicit-continuation handlers that the
-  closure-returns-next-program shape can't accommodate.
-- `interpose` (heftia hook-without-removing-from-row):
-  genuinely useful for logging/tracing; not in PureScript Run.
-  Trigger: first observability use case where users want to
-  hook an effect without consuming it.
-- Algebraic-shape FO handlers (axis 2): would force every FO
-  handler to take a continuation; ergonomic regression for
-  typical case. Trigger: first user with a real need for
-  explicit-continuation FO handlers (e.g., a non-standard
-  control-flow effect requiring explicit yield/resume).
-
-These three differ in WHY they're deferred but share the
-same structural status (deliberately not in v1; may revisit
-later). Documenting them uniformly preserves that status.
-
-(4.B) "mixed" would need a principled criterion for which
-items get entries vs which don't; no such criterion exists
-that doesn't reduce to religious adherence ("PureScript ones
-get entries" is convention; "near-term-user ones" is hard
-to predict pre-deployment).
-
-(4.C) "skip entries" relies on decisions.md section 3
-"Entirely missing" inventory, but that's an inventory, not a
-deferral plan — it doesn't say WHEN items ship or under
-what trigger. Future implementers reading section 3 alone
-would re-evaluate from scratch.
-
-###### Decision 5: Update decisions.md?
-
-**Question.** Should decisions.md be edited to reflect the
-implementation choices (especially axis 3 deviation if 2.C
-ships)?
-
-**Approaches.**
-
-- **(5.A) Keep decisions.md frozen.** All implementation
-  choices recorded in plan.md / deviations.md / resolutions.md
-  per the existing convention.
-- **(5.B) Refine 4.3.** Add a short note to section 4.3
-  acknowledging axis 3 deviation.
-- **(5.C) Add 4.7 for axis 2.** Make the implicit
-  "PureScript-Run shape for FO + algebraic for HO" decision
-  explicit.
-
-**Trade-offs.**
-
-- **(5.A) Frozen**: Honors CLAUDE.md / AGENTS.md convention
-  ("decisions are frozen"). Original design rationale
-  preserved.
-- **(5.B) Refine 4.3**: Visible at the design-rationale
-  layer. Violates "frozen decisions" convention.
-- **(5.C) Add 4.7**: Completeness. Same convention violation.
-
-**Confirmed 2026-04-29: (5.A) Keep decisions.md frozen.**
-
-Initial recommendation reasoning ("CLAUDE.md / AGENTS.md
-convention says decisions are frozen") was the most explicitly
-convention-anchored of the five. User feedback prompted the
-deepest probe: is this convention principled, or just rules?
-
-Re-examination identified that the doc system has separate
-roles for separate kinds of content:
-
-- **decisions.md** = design-time rationale, frozen at Phase 0.
-  Records "what we believed before we started building".
-- **plan.md "Key decisions"** = implementation-time design
-  choices, accumulating across phases.
-- **resolutions.md** = blocker-level analyses with full
-  reasoning for load-bearing questions that paused work.
-- **deviations.md** = per-step implementation choices that
-  diverged from plan text.
-
-Each doc has a distinct role: design-time vs
-implementation-time, narrative vs per-step, frozen vs living.
-**Editing decisions.md to record implementation-time choices
-would merge two roles inappropriately**, making the doc
-system harder to reason about. Future readers benefit from
-role separation: they know exactly which doc to consult for
-which kind of question.
-
-(5.B) "refine 4.3" violates role separation by mixing
-implementation-time content (axis 3 deviation) into a
-design-time doc. The same content belongs in resolutions.md.
-
-(5.C) "add 4.7" is structurally wrong: axis 2 is an
-implementation-time decision that didn't exist when
-decisions.md was written. New decisions made during
-implementation belong in plan.md "Key decisions" or
-resolutions.md, not in decisions.md.
-
-The "set a precedent" concern about editing decisions.md is
-real but secondary. The primary reason is role separation:
-each doc serves a different question, and conflating roles
-defeats the purpose of having multiple docs.
-
-##### 3. Phase 4 implications
-
-The decision set affects Phase 4's interpreter family work:
-
-- **Decision 1 (axis 1)**: If (1.A), Phase 4 inherits a parallel
-  `interpret_scoped_with::<E>` row-narrowing pattern for scoped
-  effects. Same dispatch loop, parallel methods. If (1.B),
-  Phase 4 stays "all-handlers-at-once" for scoped, matching
-  step 2's shape.
-- **Decision 2 (axis 3)**: If (2.A), scoped-effect interpreters
-  also get rec/non-rec siblings (method count doubles in
-  Phase 4 alongside Phase 3). If (2.C), scoped interpreters
-  get a single MonadRec-bound externally-targeted form;
-  minimal addition.
-- **Decision 4 (axis 2)**: If algebraic-shape FO handlers are
-  deferred (recommended (4.A)), Phase 4's HO scoped handlers
-  remain de-facto algebraic (their constructors carry body /
-  release closures), and the FO/HO asymmetry persists. No
-  Phase 4 macro reshape needed.
-
-##### 4. Cross-references
-
-- [decisions.md](decisions.md) section 3 ("Entirely missing")
-  lists the full PureScript Run combinator family as needing
-  to be built; current plan.md schedule is narrower.
-- [decisions.md](decisions.md) section 4.3 ("Ship both
-  interpreter families") commits to the rec/non-rec split.
-- [decisions.md](decisions.md) section 4.5 mentions `runPure`
-  ("Run-to-bare-value") as a free-function companion; under
-  (1.A) we'd ship it as scheduled methods instead.
-- [`fp-library/src/types/free.rs`](../../../fp-library/src/types/free.rs)'s
-  `Free::fold_free<G: MonadRec>` is the existing Rust
-  precedent for the externally-targeted MonadRec form.
-- [`fp-library/src/classes/natural_transformation.rs`](../../../fp-library/src/classes/natural_transformation.rs)
-  is the rank-2 polymorphic abstraction; complementary to the
-  handler-list path. Already drafted as a Phase 6+ deferred
-  `interpret_nt` companion entry.
-- [PureScript Run](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
-  source.
-- [PureScript MonadRec](https://github.com/purescript/purescript-tailrec/blob/master/src/Control/Monad/Rec/Class.purs)
-  source.
-- [Heftia](https://github.com/sayo-hs/heftia) interpreter
-  machinery.
-- Phase 3 step 2 commit `d5efe2a`: the API that (2.A) / (2.B)
-  reshapes would break and that (2.C) preserves.
-
-##### 5. What happens if the recommended set is confirmed
-
-Action sequence to unblock:
-
-1. **Doc updates land first** (single `docs(plan):` commit):
-   - Renumber Phase 3 steps in the implementation phasing
-     section: current step 3 (`interpretRec` family) becomes
-     step 4; current step 4 (effects) becomes step 5; etc.
-     New step 3 = `runPure`-style row-narrowing pipeline +
-     `extract`.
-   - Add three Phase 6+ deferred-items entries:
-     `runCont`/`runAccumCont` family (axis 1
-     continuation-passing), `interpose` (heftia
-     hook-without-removing, axis 1), algebraic handler shape
-     for FO (axis 2). Trigger conditions per the existing
-     Phase 6+ pattern.
-   - Decisions.md unchanged.
-2. **Implementation resumes** with the renumbered Phase 3
-   sequence:
-   - Step 3 (new): pipeline-style row-narrowing.
-     `interpret_with::<EBrand>(handler) -> Run<R_minus_E, S, A>`
-     and `extract(self) -> A` per wrapper. New
-     `DispatchOneHandler` trait variant.
-   - Step 4 (was step 3): MonadRec-target
-     `interpret_rec`/`run_rec`/`run_accum_rec` per wrapper.
-   - Steps 5-7 (was 4-6): standard first-order effects;
-     `define_effect!` macro; `compile_fail` UI tests.
-3. **Resolution** once steps 3 and 4 ship: move this active
-   blocker entry to resolutions.md as a top-level dated
-   entry; replace it with a one-line summary plus an anchor
-   link in this `Active blockers` section. Phase 2 step 9
-   resolution (resolutions.md) is the precedent.
+_(None active.)_
+
+Recently resolved: the Phase 3 step 2/3 interpreter family
+shape question (2026-04-29). Full investigation,
+alternatives, and resolution in
+[resolutions.md](resolutions.md#resolved-2026-04-29-phase-3-step-23-interpreter-family-shape).
+The one-line summary is in the
+[Resolved blockers (summary)](#resolved-blockers-summary)
+section below.
 
 The Phase 2 step 9 under-specification (logged 2026-04-28) is
 resolved; full investigation, alternatives, and resolution moved
@@ -1167,6 +566,16 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-04-29): Phase 3 step 2/3 interpreter family shape](resolutions.md#resolved-2026-04-29-phase-3-step-23-interpreter-family-shape)
+  -- five decisions confirmed: (1.A) ship row-narrowing
+  pipeline + `extract`; (2.C) keep step 2's M-free shape and
+  add MonadRec extract as a sibling; (3.A) renumber Phase 3
+  to insert pipeline at position 3; (4.A) defer
+  `interpret_with<M: Monad>` / `runCont` / `interpose` /
+  algebraic-FO to Phase 6+; (5.A) keep decisions.md frozen.
+  Resolution distinguishes three orthogonal cognitive models
+  (simple value extract, pipeline row-narrowing, MonadRec
+  external target) and ships all three under axis 1 widening.
 - [Resolved (2026-04-28 implementation expansion): step 9 SendFunctor cascade prerequisites for Arc family](resolutions.md#resolved-2026-04-28-implementation-expansion-step-9-sendfunctor-cascade-prerequisites-for-arc-family)
   -- discovered while implementing the original 2026-04-28
   resolution: `ArcRun::lift` and `ArcRunExplicit::lift` cannot
@@ -1486,23 +895,24 @@ production tests cover the same surface.
 The full decision rationale is in [decisions.md](decisions.md).
 Quick reference table:
 
-| ID        | Decision                                                                                                                | Rationale (one-line)                                                                                                                                  |
-| --------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 4.1       | Option 4 hybrid (macro + nested Coproduct) with corophage-style `'a` per effect                                         | Most production-credible reference (corophage) and best stable-Rust ergonomics                                                                        |
-| 4.1       | Workaround 1 (macro canonicalisation) primary; workaround 3 (`CoproductSubsetter`) fallback                             | Macro pays the sort cost once at row construction; Subsetter handles hand-written rows                                                                |
-| 4.1       | tstr_crates content-addressed naming as Phase 2 refinement                                                              | Stable type-level identity across import paths; the only credible stable-Rust improvement                                                             |
-| 4.2       | Static option via `Coyoneda` per effect                                                                                 | Each row variant is trivially a Functor; section 5.2 commits to Coyoneda anyway                                                                       |
-| 4.3       | Ship both `interpret` and `interpretRec` families                                                                       | Documentation parity with PureScript Run; few-percent runtime cost is small                                                                           |
-| 4.4       | Six-variant Free: `Free`, `RcFree`, `ArcFree` (Erased) + `FreeExplicit`, `RcFreeExplicit`, `ArcFreeExplicit` (Explicit) | Erased family is inherent-method-only with O(1) bind; Explicit family is Brand-dispatched with O(N) bind; Erased/Explicit split is the dispatch story |
-| 4.4       | `SendFunctor` / `SendPointed` / `SendSemimonad` / `SendMonad` trait family for `ArcFreeExplicitBrand`                   | By-value parallel of existing `SendRef*` family; closes the same gap that today prevents `ArcCoyonedaBrand` from implementing `Functor`               |
-| 4.5       | Heftia dual-row for scoped effects                                                                                      | Cleanest higher-order effect encoding surveyed; preserves first-class programs                                                                        |
-| 4.5       | `'a` lifetime parameter on every scoped-effect constructor from day one                                                 | Avoids breaking-change retrofit when `FreeExplicit` use cases want non-`'static` actions                                                              |
-| 4.5       | Fixed `Run<R, A>` interpreter continuation (no associated type)                                                         | Matches every Haskell library surveyed; associated type deferred until use case forces it                                                             |
-| 4.5       | Coproduct-of-constructors for user-defined scoped effects                                                               | Mirrors the first-order row's structure; preserves first-class-programs property                                                                      |
-| 4.6       | `handlers!{...}` macro DSL primary; builder pattern fallback                                                            | Same shape as section 4.1's macro + mechanical-fallback hybrid                                                                                        |
-| 9.3 / 9.4 | Sync interpreters in v1; async (and async IO) via `Future` as a `MonadRec` target in Phase 3                            | "User picks the target monad" -- single mechanism, no parallel `AsyncRun` family                                                                      |
-| 9.8       | All effects-related macros live in `fp-macros`; split off a separate crate only if needed                               | One crate, one release cadence, one place to coordinate macro semantics                                                                               |
-| 9.9       | TalkF + DinnerF integration test from `purescript-run` as the headline Phase 4 milestone                                | Real-world reference; validates the port behaves like `purescript-run` for a worked example                                                           |
+| ID        | Decision                                                                                                                                                                                                                                                                                                                   | Rationale (one-line)                                                                                                                                                                                                                                                  |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 4.1       | Option 4 hybrid (macro + nested Coproduct) with corophage-style `'a` per effect                                                                                                                                                                                                                                            | Most production-credible reference (corophage) and best stable-Rust ergonomics                                                                                                                                                                                        |
+| 4.1       | Workaround 1 (macro canonicalisation) primary; workaround 3 (`CoproductSubsetter`) fallback                                                                                                                                                                                                                                | Macro pays the sort cost once at row construction; Subsetter handles hand-written rows                                                                                                                                                                                |
+| 4.1       | tstr_crates content-addressed naming as Phase 2 refinement                                                                                                                                                                                                                                                                 | Stable type-level identity across import paths; the only credible stable-Rust improvement                                                                                                                                                                             |
+| 4.2       | Static option via `Coyoneda` per effect                                                                                                                                                                                                                                                                                    | Each row variant is trivially a Functor; section 5.2 commits to Coyoneda anyway                                                                                                                                                                                       |
+| 4.3       | Ship both `interpret` and `interpretRec` families                                                                                                                                                                                                                                                                          | Documentation parity with PureScript Run; few-percent runtime cost is small                                                                                                                                                                                           |
+| 4.4       | Six-variant Free: `Free`, `RcFree`, `ArcFree` (Erased) + `FreeExplicit`, `RcFreeExplicit`, `ArcFreeExplicit` (Explicit)                                                                                                                                                                                                    | Erased family is inherent-method-only with O(1) bind; Explicit family is Brand-dispatched with O(N) bind; Erased/Explicit split is the dispatch story                                                                                                                 |
+| 4.4       | `SendFunctor` / `SendPointed` / `SendSemimonad` / `SendMonad` trait family for `ArcFreeExplicitBrand`                                                                                                                                                                                                                      | By-value parallel of existing `SendRef*` family; closes the same gap that today prevents `ArcCoyonedaBrand` from implementing `Functor`                                                                                                                               |
+| 4.5       | Heftia dual-row for scoped effects                                                                                                                                                                                                                                                                                         | Cleanest higher-order effect encoding surveyed; preserves first-class programs                                                                                                                                                                                        |
+| 4.5       | `'a` lifetime parameter on every scoped-effect constructor from day one                                                                                                                                                                                                                                                    | Avoids breaking-change retrofit when `FreeExplicit` use cases want non-`'static` actions                                                                                                                                                                              |
+| 4.5       | Fixed `Run<R, A>` interpreter continuation (no associated type)                                                                                                                                                                                                                                                            | Matches every Haskell library surveyed; associated type deferred until use case forces it                                                                                                                                                                             |
+| 4.5       | Coproduct-of-constructors for user-defined scoped effects                                                                                                                                                                                                                                                                  | Mirrors the first-order row's structure; preserves first-class-programs property                                                                                                                                                                                      |
+| 4.6       | `handlers!{...}` macro DSL primary; builder pattern fallback                                                                                                                                                                                                                                                               | Same shape as section 4.1's macro + mechanical-fallback hybrid                                                                                                                                                                                                        |
+| (impl)    | Phase 3 interpreter family ships three orthogonal primitives: simple `interpret` (M-free, returns `A`), pipeline `interpret_with::<E>` (row-narrowing), MonadRec `interpret_rec<M>` (external target with `tail_rec_m`); see [resolutions.md](resolutions.md#resolved-2026-04-29-phase-3-step-23-interpreter-family-shape) | Each shape uniquely enables a use case the others cannot subsume; the M-free simple form sidesteps MonadRec abstraction for basic value extraction; the asymmetric layout avoids the Clone-bound and reshape costs of PureScript-faithful `<M: Monad>`-bound symmetry |
+| 9.3 / 9.4 | Sync interpreters in v1; async (and async IO) via `Future` as a `MonadRec` target in Phase 3                                                                                                                                                                                                                               | "User picks the target monad" -- single mechanism, no parallel `AsyncRun` family                                                                                                                                                                                      |
+| 9.8       | All effects-related macros live in `fp-macros`; split off a separate crate only if needed                                                                                                                                                                                                                                  | One crate, one release cadence, one place to coordinate macro semantics                                                                                                                                                                                               |
+| 9.9       | TalkF + DinnerF integration test from `purescript-run` as the headline Phase 4 milestone                                                                                                                                                                                                                                   | Real-world reference; validates the port behaves like `purescript-run` for a worked example                                                                                                                                                                           |
 
 ## Integration surface
 
@@ -2256,18 +1666,33 @@ this section is the phasing-side checklist.
    keyed on the row's type-level structure. Builder fallback
    (`nt().on::<E>(handler)...`) as the non-macro path
    ([decisions.md](decisions.md) section 4.6).
-2. `interpret` / `run` / `runAccum` recursive-target interpreter
-   family in `fp-library/src/types/effects/interpreter.rs`.
-3. `interpretRec` / `runRec` / `runAccumRec` `MonadRec`-target
-   interpreter family in the same module.
-4. Standard first-order effect types and their smart
-   constructors: `State<S>`, `Reader<E>`, `Except<E>`, `Writer<W>`,
-   `Choose` (multi-shot, `RcRun`-only).
-5. `define_effect!` macro at
+2. `interpret` / `run` / `run_accum` simple all-handlers-at-once
+   interpreter family on the six Run wrappers
+   (`fp-library/src/types/effects/interpreter.rs`). M-free
+   `while`-loop shape; handler closures produce `Run<R, S, A>`
+   directly; returns `A`.
+3. Pipeline row-narrowing interpreter family:
+   `interpret_with::<EBrand>(handler) -> Run<R_minus_E, S, A>`
+   per wrapper plus `extract(self) -> A` for empty-row Run.
+   New `DispatchOneHandler` trait variant alongside the
+   existing `DispatchHandlers`. Enables partial interpretation,
+   user-controlled handler ordering for non-commuting effects,
+   and compositional handler libraries (heftia's primary mode +
+   PureScript's `runPure` / `extract` analogs).
+4. `interpret_rec` / `run_rec` / `run_accum_rec`
+   `MonadRec`-target interpreter family in the same module.
+   `interpret_rec<MBrand: MonadRec>(handlers) -> M::Of<'_, A>`
+   with `tail_rec_m`-driven loop. Externally-targeted form for
+   extracting Run programs to `Thunk` / `Option` / `Result` /
+   `Vec` etc. with stack-safety guarantees.
+5. Standard first-order effect types and their smart
+   constructors: `State<S>`, `Reader<E>`, `Except<E>`,
+   `Writer<W>`, `Choose` (multi-shot, `RcRun`-only).
+6. `define_effect!` macro at
    `fp-macros/src/effects/define_effect.rs` generating effect
    enum + smart constructors + label / brand registration.
-6. `compile_fail` UI tests for negative cases (handler missing an
-   effect, wrong type ascription, multi-shot via single-shot
+7. `compile_fail` UI tests for negative cases (handler missing
+   an effect, wrong type ascription, multi-shot via single-shot
    `Run`).
 
 ### Phase 4: Scoped effects (heftia dual row)
@@ -2585,6 +2010,84 @@ outward to user surface.
   mono-in-`A` constraint blocks; or a benchmark / DX motivation
   for offering trait-impl handlers as a first-class user-facing
   alternative.
+- **`interpret_with<M: Monad>` (Monad-bound externally-targeted
+  family).** Companion to Phase 3 step 4's
+  `interpret_rec<M: MonadRec>` family that drops the
+  stack-safety bound. PureScript Run analog: the `run` /
+  `runAccum` pair (Monad-bound) alongside `runRec` /
+  `runAccumRec` (MonadRec-bound). _What this is for:_ users
+  with a target `m` that implements `Monad` but not `MonadRec`
+  (rare in fp-library; possibly user-defined custom monads).
+  _Why deferred:_ requires `Fn` closures and handler-list
+  `Clone` bound to make bind-driven recursion work in Rust
+  (per the workarounds in the resolved 2026-04-29 blocker);
+  these constraints don't appear in the other interpreter
+  families. The closure-based MonadRec path covers the
+  common-case ergonomic surface for most fp-library brands,
+  which already implement `MonadRec`. Shipping the Monad-bound
+  family alongside would have ~doubled Phase 3 step 4's
+  interpreter surface for marginal real-world value.
+  _Trigger:_ first real user with a non-MonadRec Monad target,
+  or a benchmark / audit showing the closure-recursion-with-Clone
+  path is desirable for some specific m.
+- **`run_cont` / `run_accum_cont` (continuation-passing
+  interpreter family).** PureScript Run's `runCont` and
+  `runAccumCont` ([`Run.purs:224-275`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs#L224-L275))
+  use an algebraic-shape handler that takes the continuation
+  explicitly: `(VariantF r (m b) -> m b) -> (a -> m b) -> Run r a -> m b`.
+  Different shape from the closure-returns-next-program form
+  Phase 3 ships. _What this is for:_ handlers that need fine
+  control over continuation invocation (e.g., custom
+  control-flow effects, non-trivial yield/resume semantics).
+  _Why deferred:_ rare use case in practice; users with
+  continuation-passing needs can reach for
+  [`Free::fold_free`](../../../fp-library/src/types/free.rs)
+  directly with a custom natural transformation. Shipping this
+  family would require a new handler-closure shape, a parallel
+  `cont_handlers!` macro, and per-wrapper methods. _Trigger:_
+  first user request for explicit-continuation handlers that
+  the Phase 3 closure-returns-next-program shape can't
+  accommodate.
+- **`interpose` family (heftia hook-without-removing).**
+  Heftia's
+  [`interposeBy`](https://github.com/sayo-hs/heftia/blob/master/heftia/src/Control/Monad/Hefty/Interpret.hs)
+  and siblings hook into an effect WITHOUT removing it from
+  the row, useful for logging / tracing / observability
+  patterns. Not in PureScript Run; heftia-specific. _What this
+  is for:_ wrap an effect call site to record / observe its
+  operations and forward them to the next handler unchanged.
+  E.g., a logging shim that records every State operation
+  before passing through to the actual State handler.
+  _Why deferred:_ genuinely useful but not blocking; users can
+  approximate via custom handlers that re-emit the original
+  effect. Shipping `interpose` is a separate substantive piece
+  of machinery (handler runs, then the row stays the same and
+  the original effect is forwarded to the next handler in the
+  pipeline). _Trigger:_ first observability / tracing use case
+  where users want to hook an effect without consuming it.
+- **Algebraic-shape FO handlers (axis 2 widening).** Rework
+  the `handlers!{}` macro and `Handler<E, F>` so each FO
+  handler closure receives the operation AND a continuation
+  explicitly: `Fn(EOp, (X -> Run<R, S, A>)) -> Run<R, S, A>`.
+  Heftia's `AlgHandler` shape; matches PureScript Run's
+  `runCont` form. fp-library currently ships
+  implicit-continuation FO handlers (closure returns the next
+  program directly) plus algebraic-shape HO handlers (scoped
+  constructors carry body / release closures internally per
+  decisions.md section 4.5). _What this is for:_ FO handlers
+  that need to decide whether / when / how-many-times to
+  invoke the continuation. E.g., a non-standard control-flow
+  effect requiring explicit yield/resume. _Why deferred:_
+  forces every FO handler to take a continuation; ergonomic
+  regression for the typical case (most FO handlers just
+  return the next program). Shipping algebraic-shape would
+  require reshaping `handlers!{}` macro, all
+  `DispatchHandlers` impls, and all FO doctests across the
+  six Run wrappers. _Trigger:_ first user with a real need for
+  explicit-continuation FO handlers (non-standard control flow)
+  that the implicit-continuation form can't express; or
+  Phase 4 / Phase 5 finding that scoped HO and FO handler
+  shapes diverge enough to warrant unification.
 - **`generalBracket` and `BracketConditions`.** Port the
   more general bracket from PureScript Aff at
   [`Aff.purs:364-373`](https://github.com/purescript-contrib/purescript-aff/blob/master/src/Effect/Aff.purs#L364-L373):

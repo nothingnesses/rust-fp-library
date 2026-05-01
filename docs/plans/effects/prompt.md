@@ -23,41 +23,11 @@ was deleted in step 10b after its tests migrated to
 in step 10a.
 
 **Phase 3 (first-order effect handlers, interpreters, natural
-transformations) is the active phase.** Steps 1 and 2 shipped;
-**an active blocker pauses step 3**.
-
-**Active blocker pending resolution.** plan.md's
-`Active blockers` section contains a comprehensive entry
-(`Active blocker (2026-04-29): Phase 3 step 2/3 interpreter
-target-monad shape`) accumulated across three commits
-(`9f9e07b` introduced; `8e59bb5` widened to a three-axis
-analysis; `05539af` added per-decision approaches and
-trade-offs). The blocker has **five pending decisions** with
-documented approaches, trade-offs, and recommendations. **The
-next session's first task is to surface these decisions to
-the user, get a chosen set, and only then resume
-implementation.** Do not treat this as a "find the next
-numbered step and start coding" situation.
-
-The five decisions, with the recommended set:
-
-| #   | Question                                                              | Recommendation              |
-| --- | --------------------------------------------------------------------- | --------------------------- |
-| 1   | Axis 1 widening: ship row-narrowing pipeline + `extract`?             | **(1.A) Full widen**        |
-| 2   | Axis 3 rec/non-rec: PureScript-faithful symmetric vs asymmetric?      | **(2.C) Asymmetric**        |
-| 3   | Phase 3 step ordering: renumber after axis 1 widening?                | **(3.A) Insert + renumber** |
-| 4   | Phase 6+ deferred entries for `runCont` / `interpose` / algebraic-FO? | **(4.A) Defer all three**   |
-| 5   | Update decisions.md?                                                  | **(5.A) Keep frozen**       |
-
-The full analysis (~600 lines under
-`### Active blockers` in plan.md) covers PureScript Run's
-reference shapes, the `MonadRec` class invariant, the Rust
-constraints (closure-recursion-with-borrowed-state) and their
-workarounds, the three orthogonal axes (which functions,
-handler shape, rec/non-rec), Phase 4 implications, heftia row
-architecture clarification, decisions.md alignment, and a
-summary recommendation table. Read it end-to-end before
-acting.
+transformations) is the active phase.** Steps 1 and 2 shipped.
+Step 3 (pipeline row-narrowing) is the immediate next work.
+There are no active blockers; the Phase 3 step 2/3 interpreter
+family shape question resolved on 2026-04-29 (see
+[resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md)).
 
 What Phase 2 shipped (commit-log order, oldest first):
 
@@ -131,64 +101,45 @@ What Phase 3 has shipped:
   [`fp-library/tests/run_interpret.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_interpret.rs)
   - per-method doctests.
 
-  **Step 2 simplified:** the M target is implicit (= self Run
-  wrapper); methods return `A` directly. This is a
-  Rust-pragmatic specialization that doesn't fully mirror
-  PureScript Run's `<m: Monad>` shape. The active blocker
-  records this and lays out the choice between reshaping
-  step 2 to expose M (option (i.a) / (i.b) per the blocker
-  entry) and shipping a different-shape MonadRec sibling
-  alongside (option (ii)). Recommendation in the blocker
-  entry: option (ii) under axis 1 widening.
+  **Note on step 2's shape.** The M target is implicit
+  (M = self Run wrapper); methods return `A` directly. This
+  is one of three orthogonal interpreter primitives Phase 3
+  ships: simple value extraction (step 2, M-free), pipeline
+  row-narrowing (step 3, partial interpretation), and
+  MonadRec extraction (step 4, external target). Each shape
+  uniquely enables a use case the others can't subsume; full
+  reasoning in
+  [resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md).
 
-**Remaining Phase 3 steps (contingent on the active blocker
-resolution).** If the recommended set is confirmed, Phase 3
-re-orders as:
+**Remaining Phase 3 steps:**
 
-- Step 3 (NEW): row-narrowing pipeline + `extract`. Per
-  wrapper: `interpret_with::<EBrand>(handler) -> Run<R_minus_E, S, A>`
-  (PureScript `runPure` / heftia `interpretWith` analog) plus
-  `extract(self) -> A` for empty-row Run. New
+- Step 3 (next): pipeline row-narrowing per wrapper:
+  `interpret_with::<EBrand>(handler) -> Run<R_minus_E, S, A>`
+  plus `extract(self) -> A` for empty-row Run. New
   `DispatchOneHandler` trait variant alongside the existing
-  `DispatchHandlers`.
-- Step 4 (was step 3): `interpret_rec` / `run_rec` /
-  `run_accum_rec` `<MBrand: MonadRec>` externally-targeted
-  interpreter family in the same module
+  `DispatchHandlers`. PureScript `runPure` / heftia
+  `interpretWith` analog. Enables partial interpretation,
+  user-controlled handler ordering for non-commuting effects,
+  and compositional handler libraries.
+- Step 4: `interpret_rec` / `run_rec` / `run_accum_rec`
+  `<MBrand: MonadRec>` externally-targeted interpreter family
+  in the same module
   (`fp-library/src/types/effects/interpreter.rs`).
-- Step 5 (was step 4): standard first-order effect types and
-  their smart constructors (`State<S>`, `Reader<E>`,
-  `Except<E>`, `Writer<W>`, `Choose` (multi-shot,
-  `RcRun`-only)).
-- Step 6 (was step 5): `define_effect!` macro at
+  `tail_rec_m`-driven loop for stack-safety guarantees on
+  external M targets like `Thunk` / `Option` / `Result`.
+- Step 5: standard first-order effect types and their smart
+  constructors (`State<S>`, `Reader<E>`, `Except<E>`,
+  `Writer<W>`, `Choose` (multi-shot, `RcRun`-only)).
+- Step 6: `define_effect!` macro at
   `fp-macros/src/effects/define_effect.rs`.
-- Step 7 (was step 6): `compile_fail` UI tests for negative
-  cases.
-
-If a different decision set lands (e.g., (1.B) no widen +
-(2.A) symmetric reshape), the step ordering differs; consult
-the active blocker for the alternative.
-
-**Process for the next session:**
-
-1. Read plan.md's `Active blockers` section end-to-end.
-2. Surface the five decisions to the user with the recommended
-   set; ask them to confirm or override per-decision.
-3. Once decisions land, do whatever doc updates the chosen
-   decisions require (e.g., if (4.A): add the three Phase 6+
-   deferred entries to plan.md; if (3.A): renumber Phase 3
-   steps in plan.md).
-4. Then implement the chosen step 3 (and onward).
-5. After implementation, move the active-blocker entry to
-   resolutions.md as a top-level dated entry per the standard
-   procedure; replace it with a one-line summary in plan.md's
-   `Active blockers` (or remove it).
+- Step 7: `compile_fail` UI tests for negative cases.
 
 If you encounter unexpected behaviour during Phase 3
 implementation, plan.md's `Active blockers` section is the
-place to record additional load-bearing questions; entries
-should cite concrete file paths and line numbers so the next
-implementor (or you in a future session) can verify claims
-without conversational context.
+place to record load-bearing questions; entries should cite
+concrete file paths and line numbers so the next implementor
+(or you in a future session) can verify claims without
+conversational context.
 
 ## Lessons learned in Phase 2 (load-bearing for Phase 3)
 

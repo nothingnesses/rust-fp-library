@@ -15,6 +15,236 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-04-29): Phase 3 step 2/3 interpreter family shape
+
+Phase 3 step 2 (`d5efe2a`) shipped `interpret` / `run` /
+`run_accum` on the six Run wrappers with the target monad
+implicit (`M = self Run wrapper`, returns `A` directly via a
+while-loop). [decisions.md](decisions.md) section 4.3 frames
+both step 2 (`Monad m`) and step 3 (`MonadRec m`) as exposing
+the target monad as a parameter, mirroring PureScript Run's
+`run` / `runRec`. The blocker question: should step 2 be
+reshaped to match decisions.md 4.3, and what shape should
+step 3 take?
+
+A subsequent close read of
+[PureScript Run](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
+plus [heftia](https://github.com/sayo-hs/heftia)'s
+interpreter machinery widened the question into three
+orthogonal axes: which interpreter functions ship (axis 1),
+handler shape algebraic vs return-next-program (axis 2), and
+rec/non-rec for the externally-targeted M family (axis 3).
+The original blocker was just axis 3; the widened scope made
+axes 1 and 2 explicit.
+
+Five decisions ultimately gated the resolution. The full
+analysis lives in plan.md across commits `9f9e07b` (initial
+blocker), `8e59bb5` (widened-scope analysis), `05539af`
+(per-decision approaches and trade-offs), `f3148b2` (clean
+rewrite for readability), and `35ceeee` / `ccc66c9` /
+`5757796` / `86a544f` / `855f85c` (per-decision lock-ins).
+
+### The five decisions and their resolutions
+
+**Decision 1 (axis 1 widening, confirmed (1.A) Full widen).**
+Schedule `extract(self) -> A` (empty-row pure extract) and
+`interpret_with::<EBrand>(handler) -> Run<R_minus_E, S, A>`
+(single-effect row-narrowing pipeline) as a new Phase 3 step.
+Pipeline + extract uniquely enables three capabilities that
+neither step 2's all-handlers-at-once form nor the future
+MonadRec form can provide:
+
+1. **Partial interpretation.** Pipeline keeps the program in
+   Run-land while peeling effects (returns
+   `Run<R_minus_E, S, A>`). Step 2 returns `A`; the future
+   MonadRec form returns `M::Of<A>` (extracted). Pipeline is
+   the only shape that supports "interpret one effect, store
+   the result, interpret the rest later".
+2. **User-controlled handler ordering for non-commuting
+   effects.** Combinations like `NonDet × Except` produce
+   different semantics depending on which handler runs
+   "outside" which. Pipeline lets users explicitly chain
+   `.interpret_with::<Except>(...).interpret_with::<NonDet>(...)`.
+3. **Compositional handler libraries.** Library authors can
+   ship reusable handlers as
+   `fn run_state<R, A>(...) -> Run<R_minus_State, S, A>`.
+   Without pipeline, they can only ship handler closures
+   meant for inclusion in a user-built `handlers!{}` block.
+
+These three capabilities are real ecosystem needs, not just
+ecosystem precedent. Heftia and PureScript ship pipeline as
+their primary interpretation mode for these reasons; the
+load-bearing argument is the capability set, not the
+convention.
+
+**Decision 2 (axis 3 rec/non-rec, confirmed (2.C) Asymmetric).**
+Step 2 stays as-shipped (M = self Run, returns A). The
+MonadRec step (renumbered to step 4) adds an
+externally-targeted `<MBrand: MonadRec>` family alongside.
+Three orthogonal cognitive models map to three primitives:
+
+- Simple (step 2): M-free, "give me a value", no engagement
+  with MonadRec abstraction.
+- Pipeline (step 3): row-narrowing for compositional handler
+  chains.
+- MonadRec (step 4): external target (`Thunk` / `Option` /
+  `Result` etc.) with stack-safety guarantees via
+  `tail_rec_m`.
+
+The key principled argument: step 2's M-free shape uniquely
+enables value extraction without engaging MonadRec
+abstraction. Its `while`-loop is structurally stack-safe by
+construction (no `M::bind` or `M::tail_rec_m` in the body),
+so there's no need for a `MonadRec` constraint. Under any
+alternative — (2.A) symmetric Monad/MonadRec, (2.B) MonadRec
+uniform, or (2.D) drop-simple-form — value extraction would
+route through `M = IdentityBrand` with turbofish + `.0`
+unwrap, forcing users to encounter MonadRec machinery they
+don't conceptually need.
+
+The original recommendation reasoning ("preserve `d5efe2a`'s
+API") was partly conventional. The principled reasoning that
+landed during the discussion is the M-free unique-value
+framing.
+
+**Decision 3 (Phase 3 step ordering, confirmed (3.A) Insert + renumber).**
+Inserts the new pipeline step at position 3; renumbers
+former steps 3-6 to 4-7. The principled reason: atomic
+commits + linear readability is a software-engineering
+practice with concrete benefits (bisectability, reviewability,
+navigability). Reference-sweep cost is bounded (plan.md
+"Implementation phasing" + "Current progress" only; existing
+deviations.md entries don't need editing because their step
+numbers don't change).
+
+**Decision 4 (Phase 6+ deferred entries, confirmed (4.A) Defer all three).**
+Three new Phase 6+ deferred-items entries in plan.md:
+
+- `interpret_with<M: Monad>` (Monad-bound externally-targeted
+  family, axis 3 alternative branch).
+- `run_cont` / `run_accum_cont` family (axis 1
+  continuation-passing handlers).
+- `interpose` family (heftia hook-without-removing).
+- Algebraic-shape FO handlers (axis 2).
+
+The Phase 6+ pattern serves a real institutional-memory
+purpose: each entry records what the item is, why it's
+deferred, and a trigger for revisitation. Without entries,
+deferred items get lost or re-litigated by future agents.
+
+**Decision 5 (decisions.md update, confirmed (5.A) Keep frozen).**
+The doc system has separate roles for separate kinds of
+content: decisions.md (design-time frozen rationale), plan.md
+"Key decisions" (implementation-time choices), resolutions.md
+(blocker analyses), deviations.md (per-step deviations).
+Editing decisions.md to record implementation-time choices
+would merge two roles inappropriately. (5.B) "refine 4.3"
+and (5.C) "add 4.7" both violate role separation.
+
+### Rust constraints that shaped the analysis
+
+The Rust port differs from PureScript in two structural ways
+that affect the interpreter design:
+
+1. **Step 2's loop is structurally stack-safe regardless of
+   M.** PureScript Run's `run` body
+   `loop = resume (\a -> loop =<< k a) pure` recurses through
+   `m`'s bind, building m-bind frames in the host stack. The
+   `runRec` sibling swaps for `tailRecM` to keep host stack
+   constant. fp-library step 2's body is
+   `while { match peel { Ok(a) => return a, Err(node) => prog = handlers.dispatch(layer) }}`
+   — assignment-driven, no `m`, no `bind`, no `tail_rec_m`.
+   The PureScript rec/non-rec distinction does not apply to
+   step 2's shape; stack-safety is by construction.
+2. **Bind-driven recursion with borrowed handler state is
+   awkward in Rust.** PureScript's `loop =<< k a` recurses
+   inside the bind continuation, which captures `loop`. In
+   Rust, the closure passed to `M::bind` must be `Fn`
+   (multi-callable for non-deterministic m), capture the
+   handler list, and avoid mutably aliasing it. The
+   workarounds are real but cheap (`Fn` closures are
+   natural; `HandlersCons<H, T>` and `Handler<E, F>` already
+   derive `Clone`; `'static` is mostly already required).
+   Without the workarounds, only `tail_rec_m`-driven loops
+   are tractable.
+
+These constraints meant the original decisions.md 4.3
+"ship both families" reasoning ("implementation cost is
+mostly mechanical") was weaker in Rust than the
+decision-author anticipated. (2.C) accepts this and ships
+the rec form alongside step 2's M-free form rather than
+mirroring PureScript's bind-driven `run` shape.
+
+### Heftia row architecture clarification
+
+Decisions.md section 4.5 commits to "heftia's dual-row
+architecture" for scoped effects. Reading
+[heftia source](https://github.com/sayo-hs/heftia) directly:
+heftia uses **one** effect list (`es`) where each element
+has a `KnownOrder` (FO or HO), with a `FOEs es` constraint
+when all members must be first-order. fp-library takes the
+**idea** (separate FO vs HO dispatch) and ships a
+value-level dual row (`Run<R, S, A>` with
+`Node<R, S> = First | Scoped`). So fp-library's
+"heftia-inspired" framing is inspiration, not direct port;
+the row encoding diverges. This gives latitude on the
+interpreter API: we don't need heftia's mixed-order
+constraint machinery (`FOEs`, `KnownOrder`); we just
+dispatch on `Node::First` vs `Node::Scoped`.
+
+### What ships under the resolution
+
+Phase 3 re-scheduled per (3.A):
+
+1. Step 1 (`82dd7bb`): `handlers!{...}` macro + `nt()` builder.
+2. Step 2 (`d5efe2a`): `interpret` / `run` / `run_accum`
+   M-free family.
+3. Step 3 (NEW, pending): pipeline `interpret_with::<E>` +
+   `extract` per wrapper. New `DispatchOneHandler` trait
+   variant.
+4. Step 4 (was step 3, pending): MonadRec-target
+   `interpret_rec` / `run_rec` / `run_accum_rec`.
+5. Step 5 (was step 4): standard first-order effects.
+6. Step 6 (was step 5): `define_effect!` macro.
+7. Step 7 (was step 6): `compile_fail` UI tests.
+
+Phase 6+ deferred-items section gains four new entries
+(`interpret_with<M: Monad>`, `run_cont` / `run_accum_cont`,
+`interpose` family, algebraic-shape FO handlers) with full
+trigger conditions.
+
+decisions.md stays frozen per (5.A); per-step deviations.md
+entries land when each Phase 3 step ships, cross-referencing
+this resolutions.md entry.
+
+### Cross-references
+
+- [decisions.md](decisions.md) section 4.3 ("Ship both
+  interpreter families"): the original commitment that
+  shaped the question.
+- [decisions.md](decisions.md) section 4.5: heftia-inspired
+  dual-row scoped effects (where the heftia inspiration
+  framing originated).
+- [`fp-library/src/types/free.rs`](../../../fp-library/src/types/free.rs)'s
+  `Free::fold_free<G: MonadRec>`: existing Rust precedent
+  for the externally-targeted MonadRec pattern.
+- [`fp-library/src/classes/natural_transformation.rs`](../../../fp-library/src/classes/natural_transformation.rs):
+  rank-2 polymorphic abstraction; complementary to the
+  handler-list path. Future `interpret_nt` deferred entry
+  references this.
+- [`fp-library/src/classes/monad_rec.rs`](../../../fp-library/src/classes/monad_rec.rs):
+  fp-library's MonadRec, mirror of PureScript's.
+- Phase 3 step 1 commit `82dd7bb` (handlers! macro).
+- Phase 3 step 2 commit `d5efe2a` (interpret family) — the
+  API `(2.C)` preserves and `(2.A)` / `(2.B)` / `(2.D)` would
+  have broken.
+- [PureScript Run](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
+  source.
+- [PureScript MonadRec](https://github.com/purescript/purescript-tailrec/blob/master/src/Control/Monad/Rec/Class.purs)
+  source.
+- [Heftia](https://github.com/sayo-hs/heftia) interpreter
+  machinery.
+
 ## Resolved (2026-04-28): Phase 2 step 9 scope is under-specified
 
 Phase 2 step 9's plan-text originally read in full:
