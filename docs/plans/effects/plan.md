@@ -551,7 +551,206 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-_(None active.)_
+### Active blocker (2026-05-01): Phase 3 step 4 interpreter design (handler shape, dispatch-trait reuse, state threading)
+
+Phase 3 step 3 shipped as `ff84f20`. Step 4 (the
+`MonadRec`-target interpreter family `interpret_rec` / `run_rec`
+/ `run_accum_rec`) is the next work. Three load-bearing design
+questions surfaced during step-4 scoping; all three shape the
+public API and the dispatch-trait reuse and should be answered
+before implementation starts. Each question records the
+options considered and the implementor's leaning. The user
+selects per-question.
+
+#### Q1: Handler input/output shape
+
+PureScript Run's
+[`runRec`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
+has signature
+`(VariantF r (m (Run r a)) -> m (Run r a)) -> Run r a -> m a`.
+Continuations are M-wrapped on both the input and output sides:
+each handler arm receives a layer whose continuations are
+`m (Run r a)` and returns `m (Run r a)`.
+
+- **(A) Mirror PureScript.** Handler is
+  `Fn(<EBrand as Kind>::Of<'_, M::Of<'_, Run<R, S, A>>>) -> M::Of<'_, Run<R, S, A>>`.
+  The interpreter does
+  `<R as Functor>::map(M::pure, peel_layer)` to lift the
+  peeled layer's `Run<R, S, A>`-continuations to
+  `M::Of<Run<R, S, A>>`-continuations before dispatch.
+  Reuses step 2's
+  [`DispatchHandlers<'a, Layer, NextProgram>`](../../../fp-library/src/types/effects/interpreter.rs)
+  trait unchanged, instantiated with
+  `NextProgram = M::Of<Run<R, S, A>>`. Handlers can do real
+  `M::bind`-monadic work between effect dispatches (e.g., short-
+  circuit on `M = ResultBrand` via `Result::bind`).
+- **(B) Rust-flavoured simplification.** Handler input matches
+  step 2's raw shape
+  `Fn(<EBrand as Kind>::Of<'_, Run<R, S, A>>) -> M::Of<'_, Run<R, S, A>>`.
+  Output is M-wrapped only. The interpreter does the
+  pre-dispatch lift on the input side (none needed since input
+  is raw), and chains the M output via `tail_rec_m` directly.
+  Requires a new
+  `DispatchHandlersRec<'a, Layer, NextProgram, MBrand>` trait
+  parallel to `DispatchHandlers`. The user-facing handler shape
+  is simpler (no `M::Of<...>` ceremony in the input type), but
+  the handler cannot perform M-monadic operations on the
+  continuation before dispatch.
+- **(C) Hybrid: M-wrapped input, raw Run output.** Handler is
+  `Fn(<EBrand as Kind>::Of<'_, M::Of<'_, Run<R, S, A>>>) -> Run<R, S, A>`.
+  The interpreter wraps the handler's output via `M::pure`
+  internally before recursing. Loses access to `M::bind` inside
+  handlers, defeating most of the reason to ship a MonadRec-
+  target form.
+
+Implementor leaning: **(A)**. Mirrors PureScript exactly, lets
+handlers do real M-monadic work (which is the load-bearing
+capability that distinguishes step 4 from step 2), and reuses
+the existing dispatch trait without ceremony. (B) is a
+Rust-only simplification that loses the M-monadic-handler
+capability; (C) is unprincipled. Once (A) is locked in, the
+public-facing handler shape for `interpret_rec` is the same
+`handlers!` macro that step 2/3 use, just with the user-supplied
+brand-type-parameter set to the M-wrapped continuation type.
+
+#### Q2: `DispatchHandlers::dispatch` `&mut self` vs `&self`
+
+[`DispatchHandlers::dispatch`](../../../fp-library/src/types/effects/interpreter.rs)
+currently takes `&mut self`. Step 4's body invokes dispatch
+inside a `tail_rec_m` step function whose closure is `Fn` (not
+`FnMut`); the closure captures the handler list and calls
+`dispatch` on each iteration. With `&mut self`, the captured
+list cannot be borrowed mutably across iterations from inside
+a `Fn`-bound closure.
+
+- **(A1) Relax `dispatch` to `&self`** (and
+  `Handler::F: Fn` instead of `FnMut`). All current handler
+  closures across the codebase use interior mutability for
+  state (e.g.,
+  [`run_interpret.rs`](../../../fp-library/tests/run_interpret.rs)'s
+  `run_accum`-via-`Rc<RefCell>` tests use closures that
+  Rust infers as `Fn` because the mutation goes through
+  `RefCell::borrow_mut(&self)`). Step 2 step 1's
+  [`Handler<E, F>`](../../../fp-library/src/types/effects/handlers.rs)
+  carrier holds `F` opaquely; the `Fn` constraint is added at
+  the dispatch trait's impl bounds, not at the carrier. So
+  relaxing to `&self` likely doesn't break any existing
+  handlers in the test suite (verify: re-run `just test`
+  after the relaxation; confirm no regressions). This is a
+  step 2 trait-shape change; it lands in step 4's commit
+  rather than as a separate refactor since the motivation
+  comes from step 4.
+- **(A2) Clone handlers per iteration.**
+  `HandlersCons<H, T>: Clone` already holds for `H, T: Clone`,
+  which `Handler<E, F>: Clone` satisfies for `F: Clone`. The
+  step closure clones the handler list each iteration. Per-
+  iteration overhead proportional to chain depth (each clone
+  is O(N) in handler-list length, so O(N x chain depth)
+  total). Acceptable for short handler lists but unbounded.
+- **(A3) Wrap in `RefCell` inside the step closure.** The step
+  closure captures
+  `RefCell::new(handlers)`; each iteration calls
+  `handlers.borrow_mut().dispatch(layer)`. Hides the issue at
+  the call site rather than fixing it; ergonomically bad and
+  not a clean shape.
+
+Implementor leaning: **(A1)**. Cleanest; matches actual handler
+usage across the codebase; step 2's API stays symmetric with
+step 4's; no per-iteration overhead. The risk (relaxation
+breaks an existing handler) is bounded and easily verified.
+
+#### Q3: State threading in `run_accum_rec`
+
+Step 2's
+[`run_accum`](../../../fp-library/src/types/effects/run.rs)
+deviated from PureScript Run's
+[`runAccum`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
+by threading state through closure captures (e.g.,
+`Rc<RefCell<S>>` for single-threaded substrates,
+`Arc<Mutex<S>>` for thread-safe substrates) rather than through
+the target monad (PureScript's `runAccum` puts the state in `m`
+via `StateT s m`). Step 4's `run_accum_rec` faces the same
+choice.
+
+- **(A) Continue closure-capture pattern.** Match step 2's
+  shape exactly; the only difference between
+  `interpret_rec` and `run_accum_rec` is that the latter is
+  documented as the convention for state-threading uses (no
+  separate trait). State cells (`Rc<RefCell<S>>`,
+  `Arc<Mutex<S>>`) live at the user level. The `init`
+  parameter is moved into the user's chosen state cell
+  internally and is otherwise ignored.
+- **(B) State-via-M (PureScript-mirroring).** Add a separate
+  stateful trait or require `M = StateT<S, MInner>` for some
+  inner monad. Mirrors PureScript more directly. Requires
+  fp-library to ship `StateT` (currently absent) or a similar
+  state-monad transformer. Doubles the trait machinery.
+  Defer this to Phase 6+.
+- **(C) Punt to Phase 6+.** Drop `run_accum_rec` from step 4;
+  document it as deferred. Users who need state-threading with
+  `MonadRec` write their handler with a state cell capture and
+  call `interpret_rec` directly; the convention is the same as
+  step 2's `run_accum` body, which delegates to `interpret`.
+
+Implementor leaning: **(A)**. Parity with step 2 minimises
+cognitive load and keeps the trait machinery thin. State-via-M
+(B) is genuinely useful for some `MonadRec` instances but
+requires `StateT` which is a separate Phase 6+ addition; we can
+revisit when the demand surfaces. (C) loses the per-method API
+parity with step 2.
+
+#### Recommended set
+
+(A) + (A1) + (A) (Q1 = mirror PureScript; Q2 = relax to
+`&self` + `Fn`; Q3 = closure-capture). The combination ships
+step 4 with maximum ergonomic and capability symmetry to step
+2, mirrors PureScript Run as the upstream design intent, and
+introduces no new trait ceremony.
+
+#### What this blocks
+
+Step 4 implementation. Once the user picks (or overrides) the
+recommended set, the implementation order:
+
+1. (Conditional on Q2 = A1.) Refactor
+   [`DispatchHandlers::dispatch`](../../../fp-library/src/types/effects/interpreter.rs)
+   from `&mut self` to `&self` and confirm `Handler::F: Fn`
+   bound suffices for the existing dispatch impls. Land as
+   the first commit in step 4 (mechanical refactor; should
+   not break any existing tests).
+2. Add `interpret_rec` / `run_rec` / `run_accum_rec` per-wrapper
+   inherent methods (parallel to step 2's
+   `interpret`/`run`/`run_accum`). Each wrapper's body uses
+   `tail_rec_m::<MBrand, _, _>(step_fn, self.into())`. Step
+   function: peel current program, dispatch on `Node::First`
+   via the (now `&self`) `DispatchHandlers` trait, fmap
+   `M::Of<NextProgram>` to `M::Of<ControlFlow<Continue,
+Break>>`. ArcRun reuses
+   [`unwrap_first`](../../../fp-library/src/types/effects/arc_run.rs)
+   for the HRTB-poisoning workaround. The
+   [`make_node_first`](../../../fp-library/src/types/effects/arc_run.rs)
+   /
+   [`wrap_first_arc`](../../../fp-library/src/types/effects/arc_run.rs)
+   helpers from step 3 are not needed for step 4 (no narrowed
+   Run construction in scope; the rec form returns `M::Of<A>`
+   directly).
+3. Per-wrapper bounds cascade: `MBrand: MonadRec`; for the Arc
+   wrappers, also `M::Of<'_, Run<...>>: Send + Sync` and the
+   per-projection cascade.
+4. Integration tests in
+   `fp-library/tests/run_interpret_rec.rs` covering each
+   wrapper x several `M` choices (`ThunkBrand`, `OptionBrand`,
+   `ResultBrand`); doctests on each method.
+5. Update plan.md's `Current progress` (rolling-detail entry
+   for step 4; demote step 1 to commit log per the rolling-
+   detail trim window of ~3 narratives).
+6. Append deviations.md entry for step 4.
+
+When the blocker resolves, move this entry verbatim (or with
+added resolution detail) to
+[resolutions.md](resolutions.md) as a new top-level dated
+entry; replace the active-blocker subsection here with a one-
+line pointer per the procedure below.
 
 Recently resolved: the Phase 3 step 2/3 interpreter family
 shape question (2026-04-29). Full investigation,
