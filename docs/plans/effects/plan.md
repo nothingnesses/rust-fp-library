@@ -16,18 +16,111 @@ complete. Phase 2 complete: steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b,
 (`poc-effect-row/` workspace deleted). Phase 3 in progress:
 steps 1 (`handlers!{...}` macro plus `nt()` builder fallback),
 2 (simple all-handlers-at-once `interpret`/`run`/`run_accum` on
-six Run wrappers), and 3 (pipeline row-narrowing
-`interpret_with::<EBrand>` plus empty-row terminal `extract`)
-landed; step 4 (MonadRec-target
-`interpret_rec`/`run_rec`/`run_accum_rec`) is the immediate next
-work.
+six Run wrappers), 3 (pipeline row-narrowing
+`interpret_with::<EBrand>` plus empty-row terminal `extract`),
+and 4 (MonadRec-target
+`interpret_rec`/`run_rec`/`run_accum_rec`) landed; step 5
+(standard first-order effect types and smart constructors) is
+the immediate next work.
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
 
-**Phase 3 step 3 (this commit): pipeline row-narrowing
+**Phase 3 step 4 (this commit): MonadRec-target interpreter
+family `interpret_rec` / `run_rec` / `run_accum_rec` across all
+six Run wrappers.** Each wrapper exposes a per-method
+`interpret_rec::<MBrand>(handlers) -> M::Of<A>` (plus the `run_rec`
+alias and the stateful `run_accum_rec::<MBrand, St>`) that walks
+the program via [`tail_rec_m`](../../../fp-library/src/classes/monad_rec.rs)
+for stack-safety on external `MBrand: MonadRec` targets like
+[`ThunkBrand`](../../../fp-library/src/types/thunk.rs),
+[`OptionBrand`](../../../fp-library/src/types/option.rs), or
+[`ResultBrand`](../../../fp-library/src/types/result.rs). The
+step closure peels the program, lifts each layer's inner
+continuations to M-wrapped via
+[`Functor::map`](../../../fp-library/src/classes/functor.rs)`(M::pure, layer)`
+(or [`SendFunctor::send_map`](../../../fp-library/src/classes/send_functor.rs)
+for the Arc family), dispatches through the shared
+[`DispatchHandlers`](../../../fp-library/src/types/effects/interpreter.rs)
+trait, and fmaps `M::Of<Run<R, S, A>>` to
+`M::Of<ControlFlow<A, Run<R, S, A>>>` via [`ControlFlow::Continue`].
+
+Implementation arrived in two commits per the
+[2026-05-02 resolution](resolutions.md): commit 1 relaxed
+[`DispatchHandlers::dispatch`](../../../fp-library/src/types/effects/interpreter.rs)
+from `&mut self` to `&self` (and `Handler::F: Fn` in the impl
+bounds) so the dispatch trait is callable from inside
+`tail_rec_m`'s `Fn` step closure; commit 2 (this one) adds the
+rec interpreter family using the relaxed trait.
+
+The handler shape mirrors PureScript's `runRec`:
+`Fn(<EBrand as Kind>::Of<'_, M::Of<'_, Run<R, S, A>>>) -> M::Of<'_, Run<R, S, A>>`.
+The dispatch trait is reused unchanged from step 2 (`NextProgram`
+instantiated as `M::Of<'_, Run<R, S, A>>` instead of
+`Run<R, S, A>`).
+
+M's lifetime is pinned: `'static` for the Erased family
+(`Run`, `RcRun`, `ArcRun`; the wrapper struct already requires
+`'static` everywhere) and `'a` for the Explicit family
+(`RunExplicit`, `RcRunExplicit`, `ArcRunExplicit`; matches the
+wrapper's struct-level `'a`). The HRTB `for<'h>` only quantifies
+over the row brand's lifetime, not M's. This pinning is required
+because Rust closures cannot be HRTB-polymorphic over a type
+parameter that contains the lifetime in non-reference position
+(e.g., `Thunk<'h, T>`'s `'h` lives in the `Box<dyn FnOnce>`'s
+content, not behind a `&'h` reference); without pinning, user
+handler closures over `Identity<Thunk<'h, ...>>` would fail to
+satisfy `for<'h>`. See [deviations.md](deviations.md) under
+Phase 3 step 4 for the alternatives considered.
+
+`ArcRun`'s body reuses [`unwrap_first`](../../../fp-library/src/types/effects/arc_run.rs)
+(the HRTB-poisoning workaround helper from Phase 2 step 5 / Phase
+3 step 2) to extract the `Node::First` payload outside the
+struct's HRTB-bearing scope. `ArcRunExplicit` matches `Node`
+literals inline because its `Send + Sync` bounds are per-method,
+not at the struct level.
+
+Wrapper-specific where-clauses cascade the existing constraints
+plus one M-related bound: the Erased trio adds
+`MBrand: MonadRec + 'static`; the Rc family carries the per-`peel`
+`A: Clone` and substrate-`Of<...>: Clone` bounds; the Arc family
+adds `M::Of<'static, ArcRun<R, S, A>>: Send + Sync` (or `'a` for
+ArcRunExplicit) so the M-wrapped continuations satisfy
+`SendFunctor::send_map`'s `Send + Sync` requirement on the inner
+type.
+
+`run_accum_rec` threads state via closure captures (parity with
+step 2's `run_accum`) per the resolution's Q3 = A; state-via-
+StateT is deferred to Phase 6+.
+
+Tests: 18 integration tests in
+[`fp-library/tests/run_interpret_rec.rs`](../../../fp-library/tests/run_interpret_rec.rs)
+covering each wrapper x M-target combination viable for that
+wrapper's substrate constraints (Erased non-Arc + ThunkBrand +
+OptionBrand; Arc family + OptionBrand only because Thunk's
+`Box<dyn FnOnce>` is not `Send + Sync`). Per-wrapper doctests on
+each rec method exercise the canonical-row-and-handler
+combination. `just verify` clean: 2489 unit tests + 18 new
+integration tests + doctests on each method compile and pass.
+
+Per-step deviation entry in
+[deviations.md](deviations.md) Phase 3 step 4 records: (1) the
+two-commit split (trait relaxation as commit 1, rec interpreter
+family as commit 2); (2) M-lifetime pinning (`'static` for
+Erased, `'a` for Explicit) with HRTB-over-types alternative
+analysis; (3) the Arc family's M-`Of<...>: Send + Sync` bound
+addition for `send_map`; (4) ThunkBrand + Arc-family doctest
+limitation (Thunk's payload is not `Send + Sync` so Arc doctests
+use OptionBrand instead); (5) reuse of `DispatchHandlers` trait
+unchanged with `NextProgram` instantiated as `M::Of<...>`.
+
+Step 5 (standard first-order effect types `State<S>`, `Reader<E>`,
+`Except<E>`, `Writer<W>`, `Choose`, plus their smart
+constructors) is the immediate next work.
+
+**Phase 3 step 3: pipeline row-narrowing
 `interpret_with::<EBrand>` plus empty-row terminal `extract`
 across all six Run wrappers.** Each wrapper exposes an inherent
 `interpret_with::<EBrand, Idx, RMinusE>(handler) -> Wrapper<RMinusE, S, A>`
@@ -207,82 +300,6 @@ work. Adds a new `DispatchOneHandler` trait variant alongside
 `DispatchHandlers` with the loop body switched from while-loop
 to `tail_rec_m` trampolining.
 
-**Phase 3 step 1: `handlers!{...}` macro plus
-`nt()` builder fallback for assembling natural transformations
-`VariantF<R> ~> M`.** New runtime carrier in
-[`fp-library/src/types/effects/handlers.rs`](../../../fp-library/src/types/effects/handlers.rs):
-`Handler<E, F>` newtype (pins brand identity at the type level
-via `PhantomData<fn() -> E>`); `HandlersNil` / `HandlersCons<H,
-T>` cons-list types whose cells mirror the row brand
-`CoproductBrand<H, T>` / `CNilBrand` chain cell-for-cell;
-inherent `.on::<E, F>(self, handler)` builder methods on both
-list types using prepend semantics; `nt()` entry-point.
-
-New macro at
-[`fp-macros/src/effects/handlers.rs`](../../../fp-macros/src/effects/handlers.rs)
-with `#[proc_macro] pub fn handlers` entry-point in
-[`fp-macros/src/lib.rs`](../../../fp-macros/src/lib.rs). Parses
-`Brand: expression, Brand: expression, ...` syntax (brand parses
-as `syn::Type`, expression as `syn::Expr` so closure literals,
-function references, and pre-built handler values all work),
-sorts entries lexically by `quote!(brand).to_string()` (matching
-[`effects!`](../../../fp-macros/src/effects/effects_macro.rs)'s
-sort key exactly), and emits a right-nested `HandlersCons` chain
-terminated in `HandlersNil`. Each entry's expression is wrapped
-in `Handler::<Brand, _>::new(...)`. Empty input emits just
-`HandlersNil`.
-
-Re-export pattern: per the optics A+B hybrid, the handler types
-ship at the subsystem-scope `crate::types::effects::*`
-(`Handler`, `HandlersCons`, `HandlersNil`, `nt`) but not at the
-top-level `crate::types::*`; the Run wrappers hold the
-headline-types tier. The `handlers!` macro re-exports through
-the standard `pub use fp_macros::*` path and is user-facing (no
-`__internal` marker).
-
-The closure shape `F` carried inside each `Handler<E, F>` is left
-fully generic. Phase 3 step 2's interpreter family
-(`interpret`/`run`/`runAccum`) will pin the concrete shape
-via an interpreter-side trait bound.
-
-Tests: 10 integration tests in
-[`fp-library/tests/handlers_macro.rs`](../../../fp-library/tests/handlers_macro.rs)
-covering empty input, single-entry shape, two- and three-entry
-canonical-ordering equivalence (input order does not affect the
-emitted type), trailing-comma acceptance, brand-pinning in the
-emitted `Handler<Brand, _>` shape, the `nt()` builder's
-prepend-semantics property, and macro/builder shape-equivalence
-when the builder is called in reverse-lexical order. 6
-token-string assertion tests in
-[`fp-macros/src/effects/handlers.rs`](../../../fp-macros/src/effects/handlers.rs)
-cover the worker function directly. 6 inline unit tests in the
-runtime-carrier module exercise the builder methods and
-struct-literal construction. `just verify` clean (2437 unit
-tests; 10 new integration tests; 6 worker-token tests).
-
-Per-step deviation entry in
-[deviations.md](deviations.md) Phase 3 step 1 records: (1) the
-runtime-carrier shape choice (dedicated `HandlersNil`/`HandlersCons`
-distinct from `frunk_core::hlist::{HCons, HNil}` to keep the
-type-level position vs runtime closure carrier roles separate
-and to enable inherent `.on()` methods); (2) prepend semantics
-on the builder, with macro lexical sorting handling alignment
-to canonical row order; (3) the macro lives next to
-[`effects_macro.rs`](../../../fp-macros/src/effects/effects_macro.rs)
-but does not reuse the
-[`row_sort.rs`](../../../fp-macros/src/effects/row_sort.rs)
-helper because the parser shapes differ
-(`Punctuated<Type, ...>` vs `Punctuated<HandlerEntry, ...>`);
-(4) `Handler<E, F>` uses `PhantomData<fn() -> E>` for variance
-neutrality; (5) re-export at subsystem scope only; (6) no
-`__internal` re-export.
-
-Step 2 (`interpret`/`run`/`runAccum` family) is the immediate
-next work and will consume the handler-list shape this step
-ships. The interpreter trait will dispatch over `Run::peel` /
-`*Run::peel` results, recursing through the handler list in
-lock-step with the row's `Coproduct::Inl`/`Inr` branches.
-
 ### Earlier completed steps (commit log)
 
 Each entry's design choices are recorded in
@@ -290,6 +307,23 @@ Each entry's design choices are recorded in
 heading; the commit message has the full implementation
 summary; resolved blockers are in
 [resolutions.md](resolutions.md). Listed newest-first.
+
+Phase 3:
+
+- `82dd7bb` (step 1): `handlers!{...}` macro plus `nt()` builder
+  fallback for assembling natural transformations
+  `VariantF<R> ~> M`. Runtime carrier
+  ([`Handler<E, F>`](../../../fp-library/src/types/effects/handlers.rs)
+  with `PhantomData<fn() -> E>` brand identity; `HandlersNil` /
+  `HandlersCons<H, T>` cons-list with inherent
+  `.on::<E, F>(...)` builder methods, prepend semantics) at
+  [`fp-library/src/types/effects/handlers.rs`](../../../fp-library/src/types/effects/handlers.rs);
+  proc-macro at
+  [`fp-macros/src/effects/handlers.rs`](../../../fp-macros/src/effects/handlers.rs)
+  (lexical sort matching `effects!`'s key, right-nested
+  `HandlersCons` emit). Re-exported at subsystem scope only.
+  10 integration tests + 6 worker-token tests + 6 inline unit
+  tests.
 
 Phase 2:
 

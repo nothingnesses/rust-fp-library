@@ -36,9 +36,12 @@ mod inner {
 				NodeBrand,
 			},
 			classes::{
+				MonadRec,
+				Pointed,
 				SendFunctor,
 				WrapDrop,
 			},
+			functions::tail_rec_m,
 			kinds::Kind_cdc7cd43dac7585f,
 			types::{
 				ArcCoyoneda,
@@ -51,6 +54,7 @@ mod inner {
 				},
 			},
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 	};
 
@@ -820,6 +824,248 @@ mod inner {
 			>): Clone, {
 			let _ = init;
 			self.interpret(handlers)
+		}
+
+		/// MonadRec-target interpreter for [`ArcRun`]. Mirrors
+		/// [`Run::interpret_rec`](crate::types::effects::run::Run::interpret_rec);
+		/// see that method's docs for the handler shape, loop body,
+		/// and stack-safety guarantee. `ArcRun` differences: the
+		/// thread-safe substrate (`A: Send + Sync`, the M-wrapped
+		/// continuation must be `Send + Sync`); inner program
+		/// lifting uses [`SendFunctor::send_map`] rather than
+		/// [`Functor::map`](crate::classes::Functor); the
+		/// [`Node::First`] pattern match is factored through
+		/// [`unwrap_first`] (HRTB-poisoning workaround).
+		#[document_signature]
+		///
+		#[document_type_parameters("The brand of the target monad (must implement [`MonadRec`]).")]
+		///
+		#[document_parameters("The handler list.")]
+		///
+		#[document_returns("The program result wrapped in the target monad `MBrand`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			arc_run::ArcRun,
+		/// 			handlers::*,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(42));
+		/// let result: Option<i32> = prog.interpret_rec::<OptionBrand>(handlers! {
+		/// 	IdentityBrand: |op: Identity<Option<ArcRun<FirstRow, Scoped, i32>>>| op.0,
+		/// });
+		/// assert_eq!(result, Some(42));
+		/// ```
+		#[inline]
+		pub fn interpret_rec<MBrand>(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'h,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+				>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+			> + 'static,
+		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+		where
+			MBrand: MonadRec + 'static,
+			R: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			A: Clone + Send + Sync,
+			NodeBrand<R, S>: SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>):
+				Send + Sync, {
+			tail_rec_m::<MBrand, ArcRun<R, S, A>, A>(
+				move |prog: ArcRun<R, S, A>| match prog.peel() {
+					Ok(a) => <MBrand as Pointed>::pure::<ControlFlow<A, ArcRun<R, S, A>>>(
+						ControlFlow::Break(a),
+					),
+					Err(node) => {
+						let layer = unwrap_first::<R, S, ArcRun<R, S, A>>(node);
+						let mapped = <R as SendFunctor>::send_map(
+							|inner: ArcRun<R, S, A>| {
+								<MBrand as Pointed>::pure::<ArcRun<R, S, A>>(inner)
+							},
+							layer,
+						);
+						let next = handlers.dispatch(mapped);
+						<MBrand as crate::classes::Functor>::map::<
+							ArcRun<R, S, A>,
+							ControlFlow<A, ArcRun<R, S, A>>,
+						>(ControlFlow::Continue, next)
+					}
+				},
+				self,
+			)
+		}
+
+		/// Alias for [`interpret_rec`](ArcRun::interpret_rec). See
+		/// [`Run::run_rec`](crate::types::effects::run::Run::run_rec).
+		#[document_signature]
+		///
+		#[document_type_parameters("The brand of the target monad (must implement [`MonadRec`]).")]
+		///
+		#[document_parameters("The handler list.")]
+		///
+		#[document_returns("The program result wrapped in the target monad `MBrand`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			arc_run::ArcRun,
+		/// 			handlers::*,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(99));
+		/// let result: Option<i32> = prog.run_rec::<OptionBrand>(handlers! {
+		/// 	IdentityBrand: |op: Identity<Option<ArcRun<FirstRow, Scoped, i32>>>| op.0,
+		/// });
+		/// assert_eq!(result, Some(99));
+		/// ```
+		#[inline]
+		pub fn run_rec<MBrand>(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'h,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+				>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+			> + 'static,
+		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+		where
+			MBrand: MonadRec + 'static,
+			R: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			A: Clone + Send + Sync,
+			NodeBrand<R, S>: SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>):
+				Send + Sync, {
+			self.interpret_rec::<MBrand>(handlers)
+		}
+
+		/// Stateful variant of
+		/// [`interpret_rec`](ArcRun::interpret_rec). See
+		/// [`Run::run_accum_rec`](crate::types::effects::run::Run::run_accum_rec).
+		/// State threading uses thread-safe primitives (e.g.,
+		/// [`Arc`](std::sync::Arc) /
+		/// [`Mutex`](std::sync::Mutex)) at the user level so the
+		/// captured state cell satisfies `ArcRun`'s `Send + Sync`
+		/// substrate.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the target monad (must implement [`MonadRec`]).",
+			"The state type."
+		)]
+		///
+		#[document_parameters(
+			"The handler list (typically built via the `handlers!` macro), with each closure capturing the state cell.",
+			"The initial state value."
+		)]
+		///
+		#[document_returns("The program result wrapped in the target monad `MBrand`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		handlers,
+		/// 		types::{
+		/// 			Identity,
+		/// 			effects::{
+		/// 				arc_run::ArcRun,
+		/// 				handlers::*,
+		/// 			},
+		/// 		},
+		/// 	},
+		/// 	std::sync::{
+		/// 		Arc,
+		/// 		Mutex,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let counter: Arc<Mutex<i32>> = Arc::new(Mutex::new(0));
+		/// let counter_for_handler = Arc::clone(&counter);
+		///
+		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(7));
+		/// let result: Option<i32> = prog.run_accum_rec::<OptionBrand, _>(
+		/// 	handlers! {
+		/// 		IdentityBrand: move |op: Identity<Option<ArcRun<FirstRow, Scoped, i32>>>| {
+		/// 			*counter_for_handler.lock().unwrap() += 1;
+		/// 			op.0
+		/// 		},
+		/// 	},
+		/// 	0_i32,
+		/// );
+		/// assert_eq!(result, Some(7));
+		/// assert_eq!(*counter.lock().unwrap(), 1);
+		/// ```
+		#[inline]
+		pub fn run_accum_rec<MBrand, St>(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'h,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+				>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+			> + 'static,
+			init: St,
+		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+		where
+			MBrand: MonadRec + 'static,
+			R: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			A: Clone + Send + Sync,
+			NodeBrand<R, S>: SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>):
+				Send + Sync, {
+			let _ = init;
+			self.interpret_rec::<MBrand>(handlers)
 		}
 
 		/// Pipeline row-narrowing interpreter. See

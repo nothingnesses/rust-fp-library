@@ -54,12 +54,14 @@ mod inner {
 			},
 			classes::{
 				Functor,
+				MonadRec,
 				Pointed,
 				RefFunctor,
 				RefPointed,
 				RefSemimonad,
 				WrapDrop,
 			},
+			functions::tail_rec_m,
 			impl_kind,
 			kinds::*,
 			types::{
@@ -74,6 +76,7 @@ mod inner {
 				},
 			},
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 	};
 
@@ -881,6 +884,239 @@ mod inner {
 			>): Clone, {
 			let _ = init;
 			self.interpret(handlers)
+		}
+
+		/// MonadRec-target interpreter for [`RcRunExplicit`]. Mirrors
+		/// [`Run::interpret_rec`](crate::types::effects::run::Run::interpret_rec);
+		/// see that method's docs for the handler shape, loop body,
+		/// and stack-safety guarantee. `RcRunExplicit` differences:
+		/// the per-`peel` `A: Clone` and substrate-`Of<...>: Clone`
+		/// bounds propagate (matching [`RcRunExplicit::interpret`]).
+		#[document_signature]
+		///
+		#[document_type_parameters("The brand of the target monad (must implement [`MonadRec`]).")]
+		///
+		#[document_parameters("The handler list.")]
+		///
+		#[document_returns("The program result wrapped in the target monad `MBrand`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		Thunk,
+		/// 		effects::{
+		/// 			handlers::*,
+		/// 			rc_run_explicit::RcRunExplicit,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, i32> =
+		/// 	RcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// let result: Thunk<'static, i32> = prog.interpret_rec::<ThunkBrand>(handlers! {
+		/// 	IdentityBrand: |op: Identity<Thunk<'static, RcRunExplicit<'static, FirstRow, Scoped, i32>>>| op.0,
+		/// });
+		/// assert_eq!(result.evaluate(), 42);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them."
+		)]
+		pub fn interpret_rec<MBrand>(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'h,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>),
+				>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>),
+			> + 'a,
+		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		where
+			MBrand: MonadRec + 'static,
+			A: Clone + 'a,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone, {
+			tail_rec_m::<MBrand, RcRunExplicit<'a, R, S, A>, A>(
+				move |prog: RcRunExplicit<'a, R, S, A>| match prog.peel() {
+					Ok(a) =>
+						<MBrand as Pointed>::pure::<ControlFlow<A, RcRunExplicit<'a, R, S, A>>>(
+							ControlFlow::Break(a),
+						),
+					Err(Node::First(layer)) => {
+						let mapped = <R as Functor>::map(
+							|inner: RcRunExplicit<'a, R, S, A>| {
+								<MBrand as Pointed>::pure::<RcRunExplicit<'a, R, S, A>>(inner)
+							},
+							layer,
+						);
+						let next = handlers.dispatch(mapped);
+						<MBrand as Functor>::map::<
+							RcRunExplicit<'a, R, S, A>,
+							ControlFlow<A, RcRunExplicit<'a, R, S, A>>,
+						>(ControlFlow::Continue, next)
+					}
+					Err(Node::Scoped(_)) => {
+						unreachable!(
+							"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
+						)
+					}
+				},
+				self,
+			)
+		}
+
+		/// Alias for [`interpret_rec`](RcRunExplicit::interpret_rec).
+		/// See [`Run::run_rec`](crate::types::effects::run::Run::run_rec).
+		#[document_signature]
+		///
+		#[document_type_parameters("The brand of the target monad (must implement [`MonadRec`]).")]
+		///
+		#[document_parameters("The handler list.")]
+		///
+		#[document_returns("The program result wrapped in the target monad `MBrand`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		Thunk,
+		/// 		effects::{
+		/// 			handlers::*,
+		/// 			rc_run_explicit::RcRunExplicit,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, i32> =
+		/// 	RcRunExplicit::lift::<IdentityBrand, _>(Identity(99));
+		/// let result: Thunk<'static, i32> = prog.run_rec::<ThunkBrand>(handlers! {
+		/// 	IdentityBrand: |op: Identity<Thunk<'static, RcRunExplicit<'static, FirstRow, Scoped, i32>>>| op.0,
+		/// });
+		/// assert_eq!(result.evaluate(), 99);
+		/// ```
+		#[inline]
+		pub fn run_rec<MBrand>(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'h,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>),
+				>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>),
+			> + 'a,
+		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		where
+			MBrand: MonadRec + 'static,
+			A: Clone + 'a,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone, {
+			self.interpret_rec::<MBrand>(handlers)
+		}
+
+		/// Stateful variant of
+		/// [`interpret_rec`](RcRunExplicit::interpret_rec). See
+		/// [`Run::run_accum_rec`](crate::types::effects::run::Run::run_accum_rec).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the target monad (must implement [`MonadRec`]).",
+			"The state type."
+		)]
+		///
+		#[document_parameters(
+			"The handler list (typically built via the `handlers!` macro), with each closure capturing the state cell.",
+			"The initial state value."
+		)]
+		///
+		#[document_returns("The program result wrapped in the target monad `MBrand`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		handlers,
+		/// 		types::{
+		/// 			Identity,
+		/// 			Thunk,
+		/// 			effects::{
+		/// 				handlers::*,
+		/// 				rc_run_explicit::RcRunExplicit,
+		/// 			},
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::RefCell,
+		/// 		rc::Rc,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let counter: Rc<RefCell<i32>> = Rc::new(RefCell::new(0));
+		/// let counter_for_handler = Rc::clone(&counter);
+		///
+		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, i32> =
+		/// 	RcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
+		/// let result: Thunk<'static, i32> = prog.run_accum_rec::<ThunkBrand, _>(
+		/// 	handlers! {
+		/// 		IdentityBrand: move |op: Identity<Thunk<'static, RcRunExplicit<'static, FirstRow, Scoped, i32>>>| {
+		/// 			*counter_for_handler.borrow_mut() += 1;
+		/// 			op.0
+		/// 		},
+		/// 	},
+		/// 	0_i32,
+		/// );
+		/// assert_eq!(result.evaluate(), 7);
+		/// assert_eq!(*counter.borrow(), 1);
+		/// ```
+		#[inline]
+		pub fn run_accum_rec<MBrand, St>(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'h,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>),
+				>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>),
+			> + 'a,
+			init: St,
+		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		where
+			MBrand: MonadRec + 'static,
+			A: Clone + 'a,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone, {
+			let _ = init;
+			self.interpret_rec::<MBrand>(handlers)
 		}
 
 		/// Pipeline row-narrowing interpreter. See

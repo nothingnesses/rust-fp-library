@@ -50,10 +50,13 @@ mod inner {
 			},
 			classes::{
 				Functor,
+				MonadRec,
+				Pointed,
 				SendFunctor,
 				SendPointed,
 				WrapDrop,
 			},
+			functions::tail_rec_m,
 			impl_kind,
 			kinds::*,
 			types::{
@@ -69,6 +72,7 @@ mod inner {
 				},
 			},
 		},
+		core::ops::ControlFlow,
 		fp_macros::*,
 	};
 
@@ -970,6 +974,293 @@ mod inner {
 			>): Send + Sync, {
 			let _ = init;
 			self.interpret(handlers)
+		}
+
+		/// MonadRec-target interpreter for [`ArcRunExplicit`]. Mirrors
+		/// [`Run::interpret_rec`](crate::types::effects::run::Run::interpret_rec);
+		/// see that method's docs for the handler shape, loop body,
+		/// and stack-safety guarantee. `ArcRunExplicit` differences:
+		/// the thread-safe substrate (`A: Send + Sync`, the M-wrapped
+		/// continuation must be `Send + Sync`); inner program lifting
+		/// uses [`SendFunctor::send_map`]; pattern matches `Node`
+		/// literals inline because `Send + Sync` bounds are per-method
+		/// (no HRTB-poisoning workaround needed, unlike [`ArcRun`]).
+		#[document_signature]
+		///
+		#[document_type_parameters("The brand of the target monad (must implement [`MonadRec`]).")]
+		///
+		#[document_parameters("The handler list.")]
+		///
+		#[document_returns("The program result wrapped in the target monad `MBrand`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			arc_run_explicit::ArcRunExplicit,
+		/// 			handlers::*,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: ArcRunExplicit<'static, FirstRow, Scoped, i32> =
+		/// 	ArcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// let result: Option<i32> = prog.interpret_rec::<OptionBrand>(handlers! {
+		/// 	IdentityBrand: |op: Identity<Option<ArcRunExplicit<'static, FirstRow, Scoped, i32>>>| op.0,
+		/// });
+		/// assert_eq!(result, Some(42));
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them."
+		)]
+		pub fn interpret_rec<MBrand>(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'h,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>),
+				>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>),
+			> + 'a,
+		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		where
+			MBrand: MonadRec + 'static,
+			A: Clone + Send + Sync + 'a,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync,
+			Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>):
+				Send + Sync, {
+			tail_rec_m::<MBrand, ArcRunExplicit<'a, R, S, A>, A>(
+				move |prog: ArcRunExplicit<'a, R, S, A>| match prog.peel() {
+					Ok(a) =>
+						<MBrand as Pointed>::pure::<ControlFlow<A, ArcRunExplicit<'a, R, S, A>>>(
+							ControlFlow::Break(a),
+						),
+					Err(Node::First(layer)) => {
+						let mapped = <R as SendFunctor>::send_map(
+							|inner: ArcRunExplicit<'a, R, S, A>| {
+								<MBrand as Pointed>::pure::<ArcRunExplicit<'a, R, S, A>>(inner)
+							},
+							layer,
+						);
+						let next = handlers.dispatch(mapped);
+						<MBrand as Functor>::map::<
+							ArcRunExplicit<'a, R, S, A>,
+							ControlFlow<A, ArcRunExplicit<'a, R, S, A>>,
+						>(ControlFlow::Continue, next)
+					}
+					Err(Node::Scoped(_)) => {
+						unreachable!(
+							"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
+						)
+					}
+				},
+				self,
+			)
+		}
+
+		/// Alias for [`interpret_rec`](ArcRunExplicit::interpret_rec).
+		/// See [`Run::run_rec`](crate::types::effects::run::Run::run_rec).
+		#[document_signature]
+		///
+		#[document_type_parameters("The brand of the target monad (must implement [`MonadRec`]).")]
+		///
+		#[document_parameters("The handler list.")]
+		///
+		#[document_returns("The program result wrapped in the target monad `MBrand`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			arc_run_explicit::ArcRunExplicit,
+		/// 			handlers::*,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: ArcRunExplicit<'static, FirstRow, Scoped, i32> =
+		/// 	ArcRunExplicit::lift::<IdentityBrand, _>(Identity(99));
+		/// let result: Option<i32> = prog.run_rec::<OptionBrand>(handlers! {
+		/// 	IdentityBrand: |op: Identity<Option<ArcRunExplicit<'static, FirstRow, Scoped, i32>>>| op.0,
+		/// });
+		/// assert_eq!(result, Some(99));
+		/// ```
+		#[inline]
+		pub fn run_rec<MBrand>(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'h,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>),
+				>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>),
+			> + 'a,
+		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		where
+			MBrand: MonadRec + 'static,
+			A: Clone + Send + Sync + 'a,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync,
+			Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>):
+				Send + Sync, {
+			self.interpret_rec::<MBrand>(handlers)
+		}
+
+		/// Stateful variant of
+		/// [`interpret_rec`](ArcRunExplicit::interpret_rec). See
+		/// [`Run::run_accum_rec`](crate::types::effects::run::Run::run_accum_rec).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the target monad (must implement [`MonadRec`]).",
+			"The state type."
+		)]
+		///
+		#[document_parameters(
+			"The handler list (typically built via the `handlers!` macro), with each closure capturing the state cell.",
+			"The initial state value."
+		)]
+		///
+		#[document_returns("The program result wrapped in the target monad `MBrand`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		handlers,
+		/// 		types::{
+		/// 			Identity,
+		/// 			effects::{
+		/// 				arc_run_explicit::ArcRunExplicit,
+		/// 				handlers::*,
+		/// 			},
+		/// 		},
+		/// 	},
+		/// 	std::sync::{
+		/// 		Arc,
+		/// 		Mutex,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let counter: Arc<Mutex<i32>> = Arc::new(Mutex::new(0));
+		/// let counter_for_handler = Arc::clone(&counter);
+		///
+		/// let prog: ArcRunExplicit<'static, FirstRow, Scoped, i32> =
+		/// 	ArcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
+		/// let result: Option<i32> = prog.run_accum_rec::<OptionBrand, _>(
+		/// 	handlers! {
+		/// 		IdentityBrand: move |op: Identity<Option<ArcRunExplicit<'static, FirstRow, Scoped, i32>>>| {
+		/// 			*counter_for_handler.lock().unwrap() += 1;
+		/// 			op.0
+		/// 		},
+		/// 	},
+		/// 	0_i32,
+		/// );
+		/// assert_eq!(result, Some(7));
+		/// assert_eq!(*counter.lock().unwrap(), 1);
+		/// ```
+		#[inline]
+		pub fn run_accum_rec<MBrand, St>(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'h,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>),
+				>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>),
+			> + 'a,
+			init: St,
+		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		where
+			MBrand: MonadRec + 'static,
+			A: Clone + Send + Sync + 'a,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync,
+			Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>):
+				Send + Sync, {
+			let _ = init;
+			self.interpret_rec::<MBrand>(handlers)
 		}
 
 		/// Pipeline row-narrowing interpreter. See

@@ -2132,3 +2132,141 @@ Open follow-ups for step 4 (`MonadRec`-target family):
   (`prog.interpret_with::<E1>(...).interpret_with::<E2>(...).extract()`)
   is the typical user-facing surface for narrowing programs to
   pure values.
+
+### Step 4: MonadRec-target interpreter family (`interpret_rec` / `run_rec` / `run_accum_rec`)
+
+Per-wrapper inherent
+`interpret_rec::<MBrand>(handlers) -> M::Of<A>` (plus the
+`run_rec` alias and the stateful `run_accum_rec::<MBrand, St>`)
+shipped across all six Run wrappers, driven by
+[`tail_rec_m`](../../../fp-library/src/classes/monad_rec.rs) for
+stack-safety on external `MBrand: MonadRec` targets. Locked-in
+design from the
+[2026-05-02 resolution](resolutions.md#resolved-2026-05-02-phase-3-step-4-interpreter-design-handler-shape-dispatch-trait-reuse-state-threading)
+((Q1 = A) mirror PureScript handler shape; (Q2 = A1) relax
+`DispatchHandlers::dispatch` to `&self` + `Fn`; (Q3 = A) closure-
+capture state threading).
+
+What landed across two commits:
+
+1. **Commit 1: trait relaxation refactor (`bd540d5`).**
+   - [`DispatchHandlers::dispatch`](../../../fp-library/src/types/effects/interpreter.rs)
+     `&mut self` -> `&self` in trait def and all four impls
+     (`HandlersNil` base case + three Coyoneda-variant cons-cell
+     impls).
+   - `Handler::F: FnMut` -> `F: Fn` in all three Coyoneda-variant
+     cons-cell impls.
+   - Dropped the now-unused `mut` binding from the existing
+     `interpret`/`run`/`run_accum` method signatures on all six
+     wrappers (mechanical sed substitution).
+   - Module-doc paragraph in
+     [`interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
+     explains why `&self` (callable from `Fn` closures like
+     `tail_rec_m`'s step closure; mutation pushed to interior
+     mutability at the user level via `Rc<RefCell<_>>` /
+     `Arc<Mutex<_>>` captures).
+2. **Commit 2: rec interpreter family (this commit).** Per-wrapper
+   inherent `interpret_rec` / `run_rec` / `run_accum_rec` methods
+   on all six wrappers using the relaxed `DispatchHandlers` trait
+   with `NextProgram = M::Of<Run<R, S, A>>`.
+
+What the plan called for, and what diverged:
+
+- **M-lifetime pinning.** The plan text and the 2026-05-02
+  resolution did not anticipate that the dispatch trait's
+  `for<'h>` HRTB over `M::Of<'h, Run<R, S, A>>` would fail when
+  M's GAT carries `'h` in non-reference position (e.g.,
+  `Thunk<'h, T> = Box<dyn FnOnce() -> T + 'h>`). Stable Rust
+  closures cannot be HRTB-polymorphic over types with a lifetime
+  in non-reference position, so user handlers like
+  `|op: Identity<Thunk<'h, ...>>| ...` cannot satisfy
+  `for<'h>`. The fix: pin M's lifetime parameter at the
+  per-wrapper natural choice (`'static` for the Erased family
+  whose struct is `'static`-only; `'a` for the Explicit family
+  whose struct already carries `'a`). The `for<'h>` quantifier
+  remains on the row brand's projection (`<R as Kind>::Of<'h, ...>`)
+  only. This is a concrete instance of the stable-Rust HRTB-over-
+  types limit that has appeared elsewhere in fp-library
+  (per-`A` Clone bounds, brand-level `Send + Sync` cascade); the
+  workaround is principled rather than a one-off.
+- **Arc family: M-`Of<...>: Send + Sync` bound.** `ArcRun` and
+  `ArcRunExplicit` use [`SendFunctor::send_map`](../../../fp-library/src/classes/send_functor.rs)
+  to lift inner programs to M-wrapped, which requires the
+  M-wrapped continuation type to be `Send + Sync`. So both Arc
+  wrappers add a `<MBrand as Kind>::Of<'static, ArcRun<R, S, A>>: Send + Sync`
+  (or `'a` for ArcRunExplicit) where-clause bound on top of their
+  existing per-`peel` cascade.
+- **Arc family: ThunkBrand doctest limitation.** `Thunk<'a, T>`
+  is `Box<dyn FnOnce() -> T + 'a>`; the trait object does not
+  carry `Send + Sync` by default. So the Arc wrappers'
+  `Of<'_, ArcRun<...>>: Send + Sync` bound rules out
+  `MBrand = ThunkBrand`. The Arc family's rec doctests use
+  `OptionBrand` instead. This is a fundamental property of
+  `Thunk`'s representation, not a limitation of the rec
+  interpreter design; users who want stack-safe + thread-safe
+  interpretation should use a Send + Sync M brand or wait for a
+  hypothetical `SendThunk` brand.
+- **`ArcRun` HRTB-poisoning workaround reused.** `ArcRun`'s
+  `interpret_rec` body extracts `Node::First` payloads via
+  [`unwrap_first`](../../../fp-library/src/types/effects/arc_run.rs)
+  (the existing helper from Phase 2 step 5 / Phase 3 step 2),
+  not via inline pattern matching, because the struct's
+  `Send + Sync` HRTB poisons GAT normalization on `Node` literals
+  in scope. No new helpers required (unlike step 3 which added
+  three; step 4's loop returns `M::Of<A>` directly so it does
+  not construct narrowed Run programs in scope).
+- **Two-commit split.** The trait relaxation landed as a
+  separate `refactor(effects):` commit ahead of the new methods
+  per the resolutions doc's per-commit breakdown. The mechanical
+  refactor verifies cleanly on its own (1361+ existing tests
+  unaffected); landing them together would have made the diff
+  hard to review.
+- **`DispatchHandlers` trait reuse.** Per (5.B) the existing
+  trait is reused unchanged with `NextProgram` instantiated as
+  `M::Of<Run<R, S, A>>` (in place of `Run<R, S, A>` for step 2).
+  No parallel `DispatchHandlersRec` trait was needed.
+- **State threading via closure captures.** `run_accum_rec`'s
+  `init: St` parameter is moved into the user's chosen state
+  cell at the call site (`Rc<RefCell<St>>` for non-Arc;
+  `Arc<Mutex<St>>` for Arc). Parity with step 2's `run_accum`;
+  state-via-`StateT` deferred to Phase 6+.
+
+What landed in this commit:
+
+- Eight new public methods per wrapper x 6 wrappers = 18 new
+  inherent methods total (3 per wrapper:
+  `interpret_rec` / `run_rec` / `run_accum_rec`).
+- New file: [`fp-library/tests/run_interpret_rec.rs`](../../../fp-library/tests/run_interpret_rec.rs)
+  with 18 integration tests across all six wrappers (Erased
+  non-Arc + ThunkBrand for stack-safety; all six wrappers +
+  OptionBrand for short-circuit; per-wrapper `run_accum_rec`
+  state threading).
+- New imports across the six wrapper files: `MonadRec`,
+  `Pointed` (or `SendPointed` for Arc Explicit), `tail_rec_m`,
+  `core::ops::ControlFlow`.
+- Doctests on each rec method exercise the canonical-row-and-
+  handler combination. Arc wrappers' doctests use `OptionBrand`
+  (Thunk is not Send + Sync); non-Arc wrappers' doctests use
+  `ThunkBrand` to exercise the stack-safety story.
+
+Verification: `just verify` clean. 2489 unit tests; 18 new
+integration tests; doctests across the rec methods on all six
+wrappers compile and pass.
+
+Open follow-ups:
+
+- Phase 3 step 5 (standard first-order effect smart constructors:
+  `State<S>`, `Reader<E>`, `Except<E>`, `Writer<W>`, `Choose`)
+  is the next work; these plug into all three interpreter
+  primitives (steps 2's all-handlers, 3's pipeline, 4's
+  MonadRec-target).
+- The Phase 6+ `interpret_nt` companion entry-point remains
+  deferred unless the closure-mono-in-A constraint blocks a
+  real user need.
+- Future migration path for `ArcRun`: if Phase 4 / 5 push the
+  HRTB-free helper count past ~7-8, consider migrating
+  `ArcRun` to `ArcRunExplicit`'s per-method-bound shape (the
+  `Send + Sync` bounds move from the struct to each method).
+  Cost: bound restatement; benefit: helper proliferation
+  eliminated. Currently provisional; revisit if helper count
+  grows.
