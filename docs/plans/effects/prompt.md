@@ -26,11 +26,11 @@ in step 10a.
 transformations) is the active phase.** Steps 1, 2, and 3
 shipped. Step 4 (`MonadRec`-target externally-targeted
 interpreter family `interpret_rec` / `run_rec` / `run_accum_rec`)
-is the next work and **paused on an active blocker** logged
-2026-05-01 carrying three load-bearing design questions
-(handler input/output shape; `DispatchHandlers::dispatch`
-`&mut self` vs `&self`; state-threading in `run_accum_rec`).
-The first task is blocker resolution, not implementation.
+is the next work; the design is locked in per the
+[2026-05-02 resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-02-phase-3-step-4-interpreter-design-handler-shape-dispatch-trait-reuse-state-threading)
+((Q1 = A) mirror PureScript handler shape; (Q2 = A1) relax
+`DispatchHandlers::dispatch` to `&self` + `Fn`; (Q3 = A)
+continue closure-capture state threading). No active blockers.
 
 What Phase 2 shipped (commit-log order, oldest first):
 
@@ -151,27 +151,28 @@ What Phase 3 has shipped:
 
 **Remaining Phase 3 steps:**
 
-- Step 4 (next, **active blocker** logged 2026-05-01):
+- Step 4 (next, design locked in 2026-05-02):
   `interpret_rec` / `run_rec` / `run_accum_rec`
   `<MBrand: MonadRec>` externally-targeted interpreter family
   in the same module
   (`fp-library/src/types/effects/interpreter.rs`).
   `tail_rec_m`-driven loop for stack-safety guarantees on
   external M targets like `Thunk` / `Option` / `Result`.
-  Three load-bearing design questions in plan.md's
-  `Active blockers` section need user-confirmed answers before
-  implementation begins:
-  1. Handler input/output shape: mirror PureScript's M-wrapped
-     continuations on both sides (recommended), Rust-flavoured
-     simplification (raw input, M-wrapped output), or hybrid.
-  2. `DispatchHandlers::dispatch` `&mut self` vs `&self`:
-     relax to `&self` + `Fn` (recommended), clone handlers per
-     iteration, or wrap in `RefCell`.
-  3. State threading in `run_accum_rec`: continue closure-
-     capture pattern (recommended), state-via-M (defer to
-     Phase 6+), or punt `run_accum_rec` to Phase 6+.
-     Recommended set: (A) + (A1) + (A). Read the blocker before
-     starting any code.
+  Locked-in design (full investigation in
+  [resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-02-phase-3-step-4-interpreter-design-handler-shape-dispatch-trait-reuse-state-threading);
+  cross-referenced from plan.md's Key decisions table):
+  1. Handler shape mirrors PureScript: input
+     `Fn(<EBrand as Kind>::Of<'_, M::Of<'_, Run<R, S, A>>>) -> M::Of<'_, Run<R, S, A>>`.
+     Reuses the existing `DispatchHandlers` trait with
+     `NextProgram = M::Of<Run<R, S, A>>`; the interpreter
+     does `<R as Functor>::map(M::pure, peel_layer)` to lift
+     Run-continuations to M-wrapped before dispatch.
+  2. `DispatchHandlers::dispatch` is relaxed from `&mut self`
+     to `&self` (and `Handler::F: Fn` in the impl bounds) as
+     the first commit in step 4 implementation.
+  3. `run_accum_rec` continues closure-capture state
+     threading (parity with step 2's `run_accum`); state-via-
+     `StateT` deferred to Phase 6+.
 - Step 5: standard first-order effect types and their smart
   constructors (`State<S>`, `Reader<E>`, `Except<E>`,
   `Writer<W>`, `Choose` (multi-shot, `RcRun`-only)).
@@ -578,48 +579,60 @@ starting step 4.
 
 ## Where to start
 
-**The active blocker is non-empty as of the most recent
-commits** (see "Current resume point" above). The first task
-is blocker resolution, not implementation. Adjust the
-sequence below accordingly.
+**No active blockers as of the most recent commits** (see
+"Current resume point" above). Step 4's design is locked in
+per the
+[2026-05-02 resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-02-phase-3-step-4-interpreter-design-handler-shape-dispatch-trait-reuse-state-threading).
+The first task is implementation, starting with the dispatch-
+trait relaxation refactor.
 
-1. **Read plan.md's `Active blockers` section end-to-end first.**
-   The `Active blocker (2026-05-01): Phase 3 step 4 interpreter
-design (handler shape, dispatch-trait reuse, state threading)`
-   entry carries three pending design questions. Each question
-   records its options considered, the implementor's leaning,
-   and the implementation order conditional on the chosen set;
-   read them in order. You don't need to invent new analysis;
-   your job is to surface the questions to the user and get a
-   chosen set.
-2. Read [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s
+1. Read [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s
    `Current progress` section to confirm what shipped under
    `82dd7bb` (Phase 3 step 1), `d5efe2a` (Phase 3 step 2), and
    `ff84f20` (Phase 3 step 3). The implementation phasing
    sections (Phase 1 through Phase 5, plus Phase 6+ deferred)
-   list numbered steps within each phase.
-3. Surface the three questions to the user. The recommended
-   set in plan.md is (Q1 = A) mirror PureScript handler shape;
-   (Q2 = A1) relax `DispatchHandlers::dispatch` to `&self` +
-   `Fn`; (Q3 = A) continue closure-capture state threading.
-   Get the user's per-question choice (confirm-or-override).
-4. Apply doc updates the chosen set requires (typically none if
-   the recommended set is accepted; the dispatch-trait
-   relaxation in Q2 = A1 lands as the first commit in step 4
-   rather than as a separate doc-only commit). If the user
-   overrides any choice, capture the rationale by editing the
-   blocker entry in place, then land any required plan.md /
-   decisions.md doc updates as a `docs(plan):` commit before
-   starting implementation, so the implementation commit stays
-   focused on code.
-5. Read [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
-   for any sections referenced by the chosen step. Section 4.3
-   (interpreter families) is the most relevant for step 4;
-   sections 4.5 (scoped effects) and 4.6 (natural
-   transformations) become relevant for Phase 4 / future work.
-6. Skim relevant entries under
-   [research/](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/research/)
-   only if a step names them. Do not re-read the full corpus.
+   list numbered steps within each phase; Phase 3 step 4's
+   description carries the locked-in design (handler shape,
+   dispatch-trait relaxation, state-threading pattern).
+2. Read the
+   [2026-05-02 resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-02-phase-3-step-4-interpreter-design-handler-shape-dispatch-trait-reuse-state-threading)
+   for the full design rationale on Q1 / Q2 / Q3 (mirror-
+   PureScript handler shape; relax `DispatchHandlers::dispatch`
+   to `&self` + `Fn`; closure-capture state threading). The
+   `Implementation order under the locked-in set` subsection
+   describes the per-commit breakdown.
+3. Implement step 4 starting with the
+   [`DispatchHandlers::dispatch`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/interpreter.rs)
+   `&mut self` -> `&self` relaxation (and `Handler::F: Fn` in
+   the impl bounds). Run `just verify` to confirm no existing
+   handler closure regresses; if one does, fix it via interior
+   mutability rather than reverting the relaxation. Land as
+   the first step-4 commit (mechanical refactor, doc-update
+   only as needed).
+4. Add `interpret_rec` / `run_rec` / `run_accum_rec` per-
+   wrapper inherent methods. Each wrapper's body uses
+   [`tail_rec_m`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/monad_rec.rs)
+   with a `Fn`-bound step closure that peels the current
+   program, dispatches `Node::First` via the (now `&self`)
+   `DispatchHandlers` trait with `NextProgram = M::Of<Run<R, S, A>>`,
+   and fmaps `M::Of<NextProgram>` to
+   `M::Of<ControlFlow<NextProgram, A>>`. ArcRun reuses
+   [`unwrap_first`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/arc_run.rs)
+   for the HRTB-poisoning workaround. Add per-wrapper bounds
+   cascade: `MBrand: MonadRec`; for the Arc wrappers, also
+   `M::Of<'_, Run<...>>: Send + Sync` and the per-projection
+   cascade.
+5. Add integration tests in
+   `fp-library/tests/run_interpret_rec.rs` covering each
+   wrapper x several `M` choices (`ThunkBrand`, `OptionBrand`,
+   `ResultBrand`); doctests on each method. Per-wrapper
+   Coyoneda variant pairing per the per-wrapper Coyoneda
+   variant pairing rule (Phase 2 step 9h).
+6. Read [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
+   section 4.3 (interpreter families) only if you need the
+   original commitment that frames step 4. Sections 4.5
+   (scoped effects) and 4.6 (natural transformations) become
+   relevant for Phase 4 / future work.
 7. If your step touches type-class impls, brand-level dispatch, or
    `Send + Sync` auto-derive, also skim
    [fp-library/docs/limitations-and-workarounds.md](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/limitations-and-workarounds.md)'s
@@ -631,14 +644,11 @@ design (handler shape, dispatch-trait reuse, state threading)`
    path) is the precedent any new wrapper type with shared
    internal state will end up following. Saves rediscovering the
    constraint mid-implementation.
-8. After implementation lands and `just verify` is clean,
-   move the active-blocker entry from plan.md to resolutions.md
-   as a top-level dated entry per the standard procedure;
-   replace the entry in plan.md's `Active blockers` with a
-   one-line summary plus an anchor link to resolutions.md (or
-   remove the entry). The Phase 3 step 2/3 resolution
-   (2026-04-29) and the Phase 2 step 9 resolution are recent
-   precedents for this move.
+8. Update plan.md's `Current progress` (rolling-detail entry
+   for step 4; demote oldest step from rolling-detail to commit
+   log per the rolling-detail trim window of ~3 narratives).
+   Append deviations.md entry for step 4. Standard end-of-step
+   doc maintenance.
 
 ## Per-step protocol
 
