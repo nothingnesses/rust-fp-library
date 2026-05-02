@@ -585,7 +585,343 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-_(None active.)_
+#### Active blocker (2026-05-02): Phase 3 step 5 smart-constructor wrapper parameterization
+
+**TL;DR:** Phase 3 step 5 ships standard first-order effect types
+and smart constructors (`State<S>`, `Reader<E>`, `Except<E>`,
+`Writer<W>`, `Choose`). Each constructor is conceptually a
+one-liner over `*Run::lift`, but `*Run::lift` is per-wrapper
+(six variants) with each wrapper carrying a substrate-specific
+Coyoneda variant per the [Phase 2 step 9h pairing
+rule](#earlier-completed-steps-commit-log). So a user-facing
+`ask` / `get` / etc. must either be (a) parameterised over the
+Run wrapper, (b) ship six per-wrapper variants per effect, or
+(c) pick one canonical wrapper per effect family. The lessons-
+learned section in
+[prompt.md](prompt.md) flags this as needing resolution before
+step 5 starts. Five sub-decisions are entangled with the
+top-level wrapper question.
+
+**Status:** unresolved as of 2026-05-02. Phase 3 steps 1, 2, 3,
+4 shipped; step 5 cannot proceed without picking a shape because
+the choice cascades into the effect type representation and the
+shape of the Phase 3 step 6 `define_effect!` macro.
+
+##### Background
+
+PureScript Run ships `ask :: Run (READER e r) e`, `get :: Run (STATE s r) s`,
+etc. — single entry-points, no wrapper choice. PureScript has
+one `Run` type, so the question doesn't arise.
+
+fp-library has six Run wrappers
+([`Run`](../../../fp-library/src/types/effects/run.rs),
+[`RcRun`](../../../fp-library/src/types/effects/rc_run.rs),
+[`ArcRun`](../../../fp-library/src/types/effects/arc_run.rs),
+[`RunExplicit`](../../../fp-library/src/types/effects/run_explicit.rs),
+[`RcRunExplicit`](../../../fp-library/src/types/effects/rc_run_explicit.rs),
+[`ArcRunExplicit`](../../../fp-library/src/types/effects/arc_run_explicit.rs))
+because Rust requires substrate choices around continuation
+function-pointer kind (`Box<dyn FnOnce>` vs `Rc<dyn Fn>` vs
+`Arc<dyn Fn + Send + Sync>`), `'static` vs `'a` payload, and
+type-erasure vs concrete-recursive-enum representation. The
+[per-wrapper Coyoneda variant pairing rule](#earlier-completed-steps-commit-log)
+locks each wrapper to one Coyoneda variant. So smart
+constructors that produce `Wrapper<R, S, A>` cannot be wrapper-
+polymorphic without abstracting over the substrate cascade.
+
+A second consideration: effects must compose. If a user wants
+both `Choose` (multi-shot) and `State` (any wrapper) in the
+same program, they must pick a multi-shot wrapper for the whole
+program. So `State` has to be available in _whichever wrapper
+supports `Choose`_ (i.e., `RcRun` / `ArcRun`), not just on a
+canonical default like `Run`. This rules out a simple "ship each
+effect on one canonical wrapper" approach.
+
+A third consideration: Phase 3 step 6's `define_effect!` macro
+generates effect types + smart constructors at user request.
+Whatever shape step 5 picks for the hand-rolled standard
+effects, step 6's macro must emit the same shape. So the
+decision cascades.
+
+##### The decisions
+
+###### Decision 1: top-level wrapper parameterization shape
+
+(a) **Wrapper-parameterized.** One `ask::<W, R, ..., E, Idx>(...)`
+generic over `W: RunWrapper` (a new trait abstracting the lift
+behaviour). All wrappers implement the trait. Users call
+`ask::<Run<R, S, E>, ...>()` or via type inference.
+
+- **Pros:** one entry-point per effect; symmetric across
+  wrappers; mirrors PureScript's single-Run shape most closely.
+- **Cons:** requires defining a `RunWrapper` trait that captures
+  the substrate cascade (Coyoneda variant choice, `lift`
+  signature, where-clause cascade). Every effect type must be
+  parameterised by the wrapper's function-pointer kind via
+  [`FnBrand`](../../../fp-library/src/types/fn_brand.rs); user-
+  facing turbofish at call sites in non-inferrable cases. The
+  trait machinery is non-trivial because the six wrappers have
+  meaningfully different bound cascades (`A: Clone` for Rc
+  family; `A: Send + Sync` for Arc family; etc.).
+
+(b) **Six variants per effect.** `Run::ask`, `RcRun::ask`,
+`ArcRun::ask`, `RunExplicit::ask`, `RcRunExplicit::ask`,
+`ArcRunExplicit::ask`. Each is an inherent method on its
+wrapper (or in a per-wrapper module like
+`fp_library::types::effects::rc_run::ask`).
+
+- **Pros:** simple; no generic trait machinery; matches the
+  precedent set by step 2's six-variant
+  `interpret`/`run`/`run_accum`, step 3's six-variant
+  `interpret_with`/`extract`, and step 4's six-variant
+  `interpret_rec`/`run_rec`/`run_accum_rec`. Each effect's
+  representation can be hand-tuned per substrate (e.g., `Box`
+  vs `Rc` vs `Arc` continuations).
+- **Cons:** verbose. With 5 effects (State, Reader, Except,
+  Writer, Choose) shipping on multiple wrappers, the count is
+  6 × 4 + 4 (Choose only multi-shot) = 28 named entry-points
+  (assuming 1 constructor per effect on average; State's
+  `get`+`put`, Writer's `tell`, Except's `throw`, etc. each
+  multiply). Doc duplication. `define_effect!` macro must emit
+  six bodies per user-defined effect. Closer to ~50 entry-
+  points across the standard effects.
+
+(c) **Canonical wrapper per effect family.** Pick one per effect:
+e.g., State/Reader/Except/Writer ship on `Run` (Erased single-
+shot); Choose ships on `RcRun`. Users convert between wrappers
+via existing `From` impls when needed.
+
+- **Pros:** minimal API surface; one entry-point per effect.
+- **Cons:** broken by the composition argument: if a user wants
+  Choose + State, they need `RcRun`-shaped State, not `Run`-
+  shaped. So the user would have to convert `Run::get()` into
+  an `RcRun` program, but the row brand is fixed at the
+  wrapper, so there's no clean conversion. (c) requires either
+  ad-hoc conversion machinery or just falls back to (b) under
+  the hood for the multi-shot case. Not a coherent design as
+  stated.
+
+**Recommendation: (b)** with the caveat that step 6's
+`define_effect!` macro mechanically generates the six variants
+from a single user declaration, hiding the verbosity. The
+precedent of every other step shipping six wrapper-specific
+inherent methods is strong; (a) would be the first time we
+introduce a wrapper-abstracting trait, and the cost (substrate-
+cascade abstraction; complex bounds; turbofish proliferation)
+outweighs the cosmetic benefit of one entry-point.
+
+###### Decision 2: effect-type representation (Coyoneda-friendly vs Functor)
+
+PureScript: `data State s a = Get (s -> a) | Put s (Unit -> a)` —
+State is its own Functor; Coyoneda wraps it for free.
+
+Rust options:
+
+(a) **Per-effect Functor instance.** Each effect type holds
+its continuation directly:
+
+```rust
+enum State<S, A> {
+    Get(/* fn-ptr */ FnP::Of<dyn FnOnce(S) -> A>),
+    Put(S, /* fn-ptr */ FnP::Of<dyn FnOnce(()) -> A>),
+}
+```
+
+Requires per-effect `Functor` impl (and `SendFunctor` for the
+Arc family). The function-pointer kind is wrapper-specific
+(`Box` for Run/RunExplicit; `Rc` for Rc family; `Arc` for Arc
+family).
+
+(b) **Continuation-free effect type, Coyoneda holds the
+continuation.** Effect types carry only the operation
+discriminator:
+
+```rust
+enum State<S, A> {
+    Get(PhantomData<A>),       // signals "ask for the state, value is S"
+    Put(S, PhantomData<A>),    // signals "put state, value is ()"
+}
+```
+
+Coyoneda's `lift(fa)` stores `fa: F::Of<'_, A>` plus an
+identity function. After `map`, Coyoneda accumulates
+continuations. The handler peels via Coyoneda's `lower` to
+recover the underlying State value, then routes by variant.
+Functor instance is trivial (maps `PhantomData<A>` to
+`PhantomData<B>`).
+
+The catch: in (b), the "underlying value" inside Coyoneda is
+not actually `A`; it's `S` for Get and `()` for Put. Coyoneda's
+type signature is `Coyoneda<F, A>` where `F::Of<A>` is the
+inner value. With (b), `F::Of<A> = State<S, A>` which is just
+a tag — but Coyoneda's stored `f: B -> A` would then be
+`B = A`, so the function is identity, and the handler must
+manually invoke its own continuation by inspecting the variant.
+
+So (b) really means: the handler does dispatch by variant and
+runs its own continuations; Coyoneda's deferred map is only
+useful for syntactic `map` composition, not for wiring the
+operation's natural semantics. This is workable but loses the
+Functor abstraction.
+
+**Recommendation: (a)** — per-effect Functor instance. The
+function-pointer-kind dependency is real but manageable via
+`FnBrand` parameterisation. Matches PureScript's structure
+directly. Precedent: the `Choose<A> = Choose Boolean a`
+shape needs the continuation in the type because the handler
+runs both branches; (b) would force handlers to track the
+continuation outside the effect type.
+
+###### Decision 3: function-pointer-kind threading
+
+If we go with decision-2 (a), each effect has a function-pointer
+kind in its representation. Options:
+
+(a-1) **Effect type parameterised by `FnBrand`.**
+
+```rust
+enum State<FnP: FnBrand, S, A> {
+    Get(FnP::Of<dyn FnOnce(S) -> A>),
+    Put(S, FnP::Of<dyn FnOnce(()) -> A>),
+}
+```
+
+Single `State` type works across all wrappers; smart
+constructors thread `FnP` per-wrapper.
+
+(a-2) **Per-wrapper effect types.** `RunState<S, A>`, `RcState<S, A>`,
+`ArcState<S, A>`, etc., each hard-coded to its substrate's
+function-pointer. 30 named effect types + 4 brand types per
+effect = 30+ types per effect.
+
+(a-3) **Single effect type with `Box<dyn FnOnce>` always; convert
+at lift site.** The effect type stores `Box<dyn FnOnce>`; for
+Rc/Arc lifts, convert to `Rc`/`Arc` wrapping at lift time.
+Requires the conversion machinery.
+
+**Recommendation: (a-1)** with `FnBrand`. Single effect type per
+effect; smart constructors thread `FnP`. Matches existing
+`FnBrand`-based code (e.g.,
+[`RcFree`/`ArcFree`](../../../fp-library/src/types/rc_free.rs)
+already use `FnBrand`-shaped continuations).
+
+###### Decision 4: Choose's wrapper coverage
+
+Choose is intrinsically multi-shot (handler runs both branches
+of the choice and combines results). Continuation must be
+cloneable.
+
+- `Run` / `RunExplicit` (single-shot): Choose cannot ship.
+- `RcRun` / `RcRunExplicit` (multi-shot single-thread): Choose
+  ships.
+- `ArcRun` / `ArcRunExplicit` (multi-shot thread-safe): Choose
+  ships.
+
+Plan text says "Choose (multi-shot, `RcRun`-only)" — I think
+this is overly narrow. Should be "multi-shot (RcRun /
+RcRunExplicit / ArcRun / ArcRunExplicit)".
+
+**Recommendation: ship Choose on all four multi-shot wrappers;
+update plan text.**
+
+###### Decision 5: row-brand notation in PureScript-style aliases
+
+PureScript: `type STATE s r = (state :: State s | r)`. Row alias
+that the user composes via `Run (STATE s + READER e r) a`.
+
+Rust precedent: the `effects!` macro takes a comma-separated
+list of brands and emits a `CoproductBrand<...>` chain.
+PureScript-style row aliases (`type ReaderRow<E, R> = ...`) are
+type aliases, which Rust supports.
+
+Sub-options:
+
+(a) **Ship row-alias type aliases per effect.** E.g.,
+`type ReaderRow<'a, E, R> = CoproductBrand<CoyonedaBrand<ReaderBrand<'a, E>>, R>;`
+Users write `Run<ReaderRow<E, StateRow<S, CNilBrand>>, ...>`.
+
+(b) **Don't ship; users compose via `effects!` macro.** Users
+write `effects!(ReaderBrand<E>, StateBrand<S>)` to get the
+row brand. No per-effect aliases.
+
+(c) **Both.** Ship aliases for ergonomics; users can also use
+`effects!`.
+
+**Recommendation: (b)** initially; add aliases via (c) later if
+users complain. Aliases multiply the API surface and lock in
+naming choices. The `effects!` macro is the canonical
+composition path.
+
+##### Sub-decisions summary
+
+| #   | Question                        | Options                                                                             | Recommendation                                    |
+| --- | ------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------- |
+| 1   | Wrapper parameterization        | (a) trait-abstracted; (b) six variants per effect; (c) canonical wrapper per effect | (b), with `define_effect!` macro hiding verbosity |
+| 2   | Effect type representation      | (a) per-effect Functor; (b) continuation-free + Coyoneda                            | (a) Functor; matches PureScript directly          |
+| 3   | Function-pointer-kind threading | (a-1) `FnBrand`-parameterised; (a-2) per-wrapper types; (a-3) Box-always + convert  | (a-1) `FnBrand`                                   |
+| 4   | Choose's wrapper coverage       | (i) RcRun-only (plan text); (ii) all four multi-shot wrappers                       | (ii); update plan text                            |
+| 5   | Row-brand notation              | (a) per-effect aliases; (b) `effects!` only; (c) both                               | (b) initially                                     |
+
+##### Implementation phasing implications
+
+Under the recommended set ((1.b) + (2.a) + (3.a-1) + (4.ii) + (5.b)):
+
+- **Step 5 ships 5 effect types** (`State<FnP, S, A>`,
+  `Reader<FnP, E, A>`, `Except<E, A>`, `Writer<FnP, W, A>`,
+  `Choose<FnP, A>`) parameterised by `FnBrand`.
+- **Step 5 ships 4 smart-constructor entry-points per effect
+  per wrapper:**
+  - State: `get` and `put` on each wrapper. 2 × 6 = 12.
+  - Reader: `ask` on each wrapper. 1 × 6 = 6.
+  - Except: `throw` on each wrapper. 1 × 6 = 6.
+  - Writer: `tell` on each wrapper. 1 × 6 = 6.
+  - Choose: `choose` on each multi-shot wrapper. 1 × 4 = 4.
+  - Total: ~34 named smart constructors, distributed across
+    six per-wrapper modules.
+- **Step 6's `define_effect!` macro** mechanically generates
+  the six per-wrapper variants from a single user declaration:
+  ```rust
+  define_effect! {
+      Reader<E> {
+          fn ask() -> E,
+      }
+  }
+  ```
+  expands to per-effect type + 6 per-wrapper smart-constructor
+  bodies.
+- **`Choose` opts out of the single-shot wrappers** at the
+  `define_effect!` macro level via a `multi_shot` attribute or
+  similar. Step 6's design needs to account for this.
+
+##### Cross-references
+
+- The [Phase 2 step 9h pairing rule](#earlier-completed-steps-commit-log)
+  locks each wrapper to one Coyoneda variant; this is the root
+  cause of the wrapper proliferation.
+- [`FnBrand`](../../../fp-library/src/types/fn_brand.rs) is the
+  precedent for substrate-abstracted function-pointer kinds.
+- The lessons-learned section in [prompt.md](prompt.md)'s
+  "Coyoneda variant pairing rule (load-bearing for Phase 3
+  step 4)" subsection explicitly flags this question.
+- [decisions.md](decisions.md) section 4.6 covers natural-
+  transformation handler shape but does not pre-decide the
+  wrapper-parameterization question.
+
+##### What happens next
+
+User decision needed on the recommended set
+((1.b) + (2.a) + (3.a-1) + (4.ii) + (5.b)) or alternatives.
+Once locked in:
+
+1. Move this entry to [resolutions.md](resolutions.md) verbatim
+   (with added resolution detail).
+2. Update plan.md's Phase 3 step 5 description to reflect the
+   locked-in design (effect types parameterised by FnBrand;
+   six-variant smart constructors per effect; row-brand
+   composition via `effects!`).
+3. Update plan.md's Phase 3 step 6 (`define_effect!`) to
+   reflect the macro emit shape.
+4. Begin step 5 implementation.
 
 Recently resolved: the Phase 3 step 4 interpreter design
 (handler shape, dispatch-trait reuse, state threading)
