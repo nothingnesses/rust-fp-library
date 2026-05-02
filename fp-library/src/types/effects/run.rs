@@ -492,7 +492,7 @@ mod inner {
 		)]
 		pub fn interpret(
 			self,
-			mut handlers: impl for<'h> DispatchHandlers<
+			handlers: impl for<'h> DispatchHandlers<
 				'h,
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Run<R, S, A>>),
 				Run<R, S, A>,

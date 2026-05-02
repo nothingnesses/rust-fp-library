@@ -84,6 +84,14 @@ use crate::{
 /// result type. The trait method takes ownership of the layer
 /// (single-shot semantics; multi-shot wrappers' callers can
 /// [`Clone`] the layer before invoking dispatch).
+///
+/// `dispatch` takes `&self` (not `&mut self`) so it can be called
+/// from inside a [`Fn`] closure (e.g., the step closure passed to
+/// [`MonadRec::tail_rec_m`](crate::classes::MonadRec) by
+/// `interpret_rec`). Handler closures stored in [`Handler<E, F>`]
+/// are bound `F: Fn`; mutation flows through interior mutability
+/// at the user level (`Rc<RefCell<_>>` or `Arc<Mutex<_>>` captures),
+/// matching the `Fn`-callable contract.
 pub trait DispatchHandlers<'a, Layer, NextProgram>
 where
 	Layer: 'a,
@@ -91,7 +99,7 @@ where
 	/// Dispatches the row's active variant to the matching handler
 	/// closure, producing the next program.
 	fn dispatch(
-		&mut self,
+		&self,
 		layer: Layer,
 	) -> NextProgram;
 }
@@ -102,7 +110,7 @@ where
 {
 	#[inline]
 	fn dispatch(
-		&mut self,
+		&self,
 		layer: CNil,
 	) -> NextProgram {
 		match layer {}
@@ -114,14 +122,14 @@ impl<'a, EBrand, F, T, Rest, NextProgram>
 	for HandlersCons<Handler<EBrand, F>, T>
 where
 	EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
-	F: FnMut(<EBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>) -> NextProgram,
+	F: Fn(<EBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>) -> NextProgram,
 	T: DispatchHandlers<'a, Rest, NextProgram>,
 	NextProgram: 'a,
 	Rest: 'a,
 {
 	#[inline]
 	fn dispatch(
-		&mut self,
+		&self,
 		layer: Coproduct<Coyoneda<'a, EBrand, NextProgram>, Rest>,
 	) -> NextProgram {
 		match layer {
@@ -136,7 +144,7 @@ impl<'a, EBrand, F, T, Rest, NextProgram>
 	for HandlersCons<Handler<EBrand, F>, T>
 where
 	EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
-	F: FnMut(<EBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>) -> NextProgram,
+	F: Fn(<EBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>) -> NextProgram,
 	T: DispatchHandlers<'a, Rest, NextProgram>,
 	NextProgram: 'a,
 	Rest: 'a,
@@ -144,7 +152,7 @@ where
 {
 	#[inline]
 	fn dispatch(
-		&mut self,
+		&self,
 		layer: Coproduct<RcCoyoneda<'a, EBrand, NextProgram>, Rest>,
 	) -> NextProgram {
 		match layer {
@@ -159,7 +167,7 @@ impl<'a, EBrand, F, T, Rest, NextProgram>
 	for HandlersCons<Handler<EBrand, F>, T>
 where
 	EBrand: Kind_cdc7cd43dac7585f + Functor + SendFunctor + 'static,
-	F: FnMut(<EBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>) -> NextProgram,
+	F: Fn(<EBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>) -> NextProgram,
 	T: DispatchHandlers<'a, Rest, NextProgram>,
 	NextProgram: Send + Sync + 'a,
 	Rest: 'a,
@@ -167,7 +175,7 @@ where
 {
 	#[inline]
 	fn dispatch(
-		&mut self,
+		&self,
 		layer: Coproduct<ArcCoyoneda<'a, EBrand, NextProgram>, Rest>,
 	) -> NextProgram {
 		match layer {
