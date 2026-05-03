@@ -1499,6 +1499,163 @@ mod inner {
 			}
 		}
 	}
+
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The state type (also the program's result type for `get`)."
+	)]
+	impl<R, ScopedRow, A> ArcRun<R, ScopedRow, A>
+	where
+		R: Kind_cdc7cd43dac7585f + 'static,
+		ScopedRow: Kind_cdc7cd43dac7585f + 'static,
+		A: 'static,
+		NodeBrand<R, ScopedRow>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>>: Send + Sync,
+			> + 'static,
+	{
+		/// Lifts a `Get` state effect into the `ArcRun` program.
+		/// Mirrors [`Run::get`](crate::types::effects::run::Run::get);
+		/// see that method for cross-wrapper semantics. Differences for
+		/// `ArcRun`: threads
+		/// [`ArcBrand`](crate::brands::ArcBrand) as the pointer kind
+		/// and uses
+		/// [`SendStateBrand`](crate::brands::SendStateBrand) (rather
+		/// than `StateBrand`) so the continuation projection
+		/// `<ArcBrand as SendRefCountedPointer>::Of<'_, dyn Fn(...) + Send + Sync>`
+		/// is structurally `Send + Sync`. See the
+		/// [2026-05-03 SendFunctor option-(c) resolution](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/resolutions.md)
+		/// for design rationale.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
+		///
+		#[document_returns("An `ArcRun` program suspended at the lifted `Get` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		state::SendState,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendStateBrand<ArcBrand, i32>>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::get();
+		/// // The program is suspended at the Get effect; peel reveals the layer.
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn get<Idx>() -> Self
+		where
+			A: Clone + Send + Sync,
+			NodeBrand<R, ScopedRow>: SendFunctor,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>): Member<
+					ArcCoyoneda<
+						'static,
+						crate::brands::SendStateBrand<crate::brands::ArcBrand, A>,
+						A,
+					>,
+					Idx,
+				>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>,
+			>): Clone, {
+			let effect: crate::types::effects::state::SendState<
+				'static,
+				crate::brands::ArcBrand,
+				A,
+				A,
+			> = crate::types::effects::state::SendState::Get(
+				<crate::brands::ArcBrand as crate::classes::ToDynSendFn>::new(|s: A| s),
+			);
+			Self::lift::<crate::brands::SendStateBrand<crate::brands::ArcBrand, A>, Idx>(effect)
+		}
+	}
+
+	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
+	impl<R, ScopedRow> ArcRun<R, ScopedRow, ()>
+	where
+		R: Kind_cdc7cd43dac7585f + 'static,
+		ScopedRow: Kind_cdc7cd43dac7585f + 'static,
+		NodeBrand<R, ScopedRow>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>>: Send + Sync,
+			> + 'static,
+	{
+		/// Lifts a `Put` state effect into the `ArcRun` program.
+		/// Mirrors [`Run::put`](crate::types::effects::run::Run::put);
+		/// see that method for cross-wrapper semantics. Threads
+		/// [`ArcBrand`](crate::brands::ArcBrand) as the pointer kind
+		/// and uses
+		/// [`SendStateBrand`](crate::brands::SendStateBrand); see
+		/// [`get`](ArcRun::get) for the design rationale.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The state type carried by `SendStateBrand` in the row.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The new state value to write.")]
+		///
+		#[document_returns("An `ArcRun` program suspended at the lifted `Put` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		state::SendState,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendStateBrand<ArcBrand, i32>>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: ArcRun<FirstRow, Scoped, ()> = ArcRun::put::<i32, _>(42);
+		/// // The program is suspended at the Put effect; peel reveals the layer.
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn put<StateType: Clone + Send + Sync + 'static, Idx>(s: StateType) -> Self
+		where
+			NodeBrand<R, ScopedRow>: SendFunctor,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ()>): Member<
+					ArcCoyoneda<
+						'static,
+						crate::brands::SendStateBrand<crate::brands::ArcBrand, StateType>,
+						(),
+					>,
+					Idx,
+				>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>,
+			>): Clone, {
+			let effect: crate::types::effects::state::SendState<
+				'static,
+				crate::brands::ArcBrand,
+				StateType,
+				(),
+			> = crate::types::effects::state::SendState::Put(
+				s,
+				<crate::brands::ArcBrand as crate::classes::ToDynSendFn>::new(|_: ()| ()),
+			);
+			Self::lift::<crate::brands::SendStateBrand<crate::brands::ArcBrand, StateType>, Idx>(
+				effect,
+			)
+		}
+	}
 }
 
 pub use inner::*;

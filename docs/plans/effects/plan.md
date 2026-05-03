@@ -22,12 +22,11 @@ plus empty-row terminal `extract`), 4 (MonadRec-target
 machinery + Run-only smart constructors), 6a.3
 (`RcRun::get` / `RcRun::put`), and 6a.5
 (`RunExplicit::get` / `RunExplicit::put` plus
-`RcRunExplicit::get` / `RcRunExplicit::put`) landed; step 6a
-is in progress (four of six wrappers covered; the Arc family
-6a.4 and 6a.6 are unblocked under the
-[2026-05-03 SendFunctor option-(c) resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)
-which locks in a parallel `SendStateBrand<P, S>` /
-`SendState<'a, P, S, A>` type for the Arc family).
+`RcRunExplicit::get` / `RcRunExplicit::put`), and 6a.4 + 6a.6
+(`ArcRun::get` / `ArcRun::put` plus `ArcRunExplicit::get` /
+`ArcRunExplicit::put` using
+[`SendStateBrand`](../../../fp-library/src/brands.rs)) landed;
+**step 6a is complete** (all six wrappers covered).
 
 The
 [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)
@@ -35,19 +34,121 @@ is complete (F1D `05be270`, F3A `f8031c5`, M3C `b8c9b3c`):
 `run_accum` / `run_accum_rec` deleted, `S = CNilBrand` tightened
 on the interpreter family, and `interpret_with` parameterised
 over `P: RefCountedPointer` with the user-facing `Clone` bound
-on handler closures dropped. Step 6a.3 and step 6a.5 have
-landed; the four non-Arc wrappers' smart constructors are now
-complete. Step 6a.4 (`ArcRun::get/put`) and step 6a.6
-(`ArcRunExplicit::get/put`) are unblocked under the
-[2026-05-03 SendFunctor option-(c) resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)
-(parallel `SendStateBrand` / `SendState` type for the Arc
-family). Step 5 (`interpret_with_rec` pipeline-plus-`MonadRec`
-family) is the next greenfield step.
+on handler closures dropped. Step 6a is complete: 6a.3, 6a.5,
+and 6a.4 + 6a.6 (the latter under the
+[2026-05-03 SendFunctor option-(c) resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified))
+have all landed. Step 5 (`interpret_with_rec` pipeline-plus-
+`MonadRec` family) is the next greenfield step.
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
+
+**Phase 3 step 6a.4 + 6a.6: Arc family `get` / `put` smart
+constructors (`ArcRun` + `ArcRunExplicit`) plus a parallel
+`SendStateBrand` / `SendState` type.** Closes step 6a (all six
+wrappers covered) under the
+[2026-05-03 SendFunctor option-(c) resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified).
+
+The substrate-half adds:
+
+- [`SendStateBrand<P, S>`](../../../fp-library/src/brands.rs)
+  brand registration (parallel to `StateBrand<P, S>`).
+- [`SendState<'a, P, S, A>`](../../../fp-library/src/types/effects/state.rs)
+  enum whose variants store
+  `<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(...) -> A + Send + Sync>`
+  (parallel to `State<'a, P, S, A>` whose variants use
+  `<P as RefCountedPointer>::Of<'a, dyn 'a + Fn(...) -> A>`).
+  Adding `+ Send + Sync` to the trait object's bounds makes
+  the projection structurally `Send + Sync` (`Arc<T>: Send + Sync`
+  if `T: Send + Sync`, and `dyn Fn(...) + Send + Sync` IS
+  `Send + Sync`).
+- `impl_kind!` for `SendStateBrand`.
+- Manual `Clone` impl for `SendState` gated on `S: Clone + 'a`
+  (mirrors the 6a.3 `State::Clone` impl shape).
+- `SendFunctor` impl for `SendStateBrand` (the whole point of
+  option (c) — implementable because the projection is
+  structurally `Send + Sync`; no HRTB-over-types needed). The
+  `Functor` (by-value `map`) impl is intentionally NOT added
+  because it would have to construct a Send-aware trait object
+  from an `f: Fn` (no `Send + Sync` bound), which it can't.
+  `SendFunctor` is independent of `Functor` in fp-library, so
+  the gap is sound.
+
+The smart-constructor half adds:
+
+- `ArcRun::get<Idx>() -> Self` and
+  `ArcRun::put<StateType: Clone + Send + Sync + 'static, Idx>(s) -> Self`
+  using `SendStateBrand<ArcBrand, A>` /
+  `SendStateBrand<ArcBrand, StateType>` in the row.
+- `ArcRunExplicit::get<Idx>() -> Self` and
+  `ArcRunExplicit::put<StateType: Clone + Send + Sync + 'static, Idx>(s) -> Self`
+  same pattern, with the Explicit substrate's per-method
+  `Send + Sync` cascade through
+  `ArcFreeExplicit<...>: Send + Sync`.
+
+All four methods construct continuations via
+[`<ArcBrand as ToDynSendFn>::new(closure)`](../../../fp-library/src/classes/to_dyn_send_fn.rs)
+(parallel to the non-Arc family's `ToDynCloneFn::new`); the
+returned projection IS `Arc<dyn Fn + Send + Sync>` which
+satisfies the `ArcCoyoneda` / `ArcFree` substrate's
+`Send + Sync` bounds without any per-use-site refinement.
+
+The pre-existing aborted-(b) attempt (working-tree only,
+never committed) used `StateBrand<ArcBrand, S>` plus per-
+method `Send + Sync` bounds and failed to compile (rustc
+error `(dyn Fn(()) + 'static) cannot be shared between threads
+safely`). Switching to `SendStateBrand<ArcBrand, S>` resolved
+the issue at compile time without any per-method bound
+proliferation.
+
+The user-facing API surface for State is now:
+
+- Single-thread or thread-flexible programs: use
+  [`StateBrand<P, S>`](../../../fp-library/src/brands.rs) in
+  the row.
+- Thread-safe Arc-substrate programs: use
+  [`SendStateBrand<ArcBrand, S>`](../../../fp-library/src/brands.rs)
+  in the row.
+
+The Phase 3 step 7
+[`define_effect!`](../../../fp-macros/src/effects/) macro can
+hide this distinction by selecting the right brand per
+wrapper.
+
+Per-wrapper smart-constructor brand summary (now all six
+covered):
+
+- `Run::get/put` (6a.2): `StateBrand<RcBrand, S>`.
+- `RcRun::get/put` (6a.3): `StateBrand<RcBrand, S>`.
+- `RunExplicit::get/put` (6a.5): `StateBrand<RcBrand, S>`.
+- `RcRunExplicit::get/put` (6a.5): `StateBrand<RcBrand, S>`.
+- `ArcRun::get/put` (6a.4, this commit): `SendStateBrand<ArcBrand, S>`.
+- `ArcRunExplicit::get/put` (6a.6, this commit): `SendStateBrand<ArcBrand, S>`.
+
+Per-method doctests on each of `ArcRun::get/put` and
+`ArcRunExplicit::get/put` exercise the canonical row
+instantiation
+(`CoproductBrand<ArcCoyonedaBrand<SendStateBrand<ArcBrand, i32>>, CNilBrand>`)
+plus a doctest each on the new `SendState::Clone` and
+`SendStateBrand::SendFunctor::send_map` impls. `just verify`
+clean: 2500+ unit tests + integration tests + 6 new doctests
+pass.
+
+Per-step deviation entry in
+[deviations.md](deviations.md) Phase 3 step 5a.4 + 5a.6
+records: (1) the rejection of (b) in favor of (c) with code-
+level evidence; (2) the parallel-brand design (cost: two
+brands for users who mix substrate kinds); (3) the absence of
+`Functor` impl on `SendStateBrand` and why that's sound; (4)
+the per-wrapper brand-selection table.
+
+What's next: step 5 (`interpret_with_rec` pipeline-plus-
+`MonadRec` family) is the next greenfield step. Step 6b-6e
+(`Reader`, `Except`, `Writer`, `Choose` smart constructors)
+follow once 5 ships, mirroring 6a's per-wrapper rollout
+pattern.
 
 **Phase 3 step 6a.5: Explicit non-Arc family `get` / `put`
 smart constructors (`RunExplicit` + `RcRunExplicit`).**
@@ -193,105 +294,6 @@ substrate; 6a.4 (`ArcRun::get/put`) and 6a.6
 (`ArcRunExplicit::get/put`) follow under the
 [2026-05-03 SendFunctor resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-impl-on-statebrand-for-the-arc-family-option-b-per-method-bounds).
 
-**Phase 3 reversal cleanup (F1D + F3A + M3C): land the
-2026-05-03 adversarial-review reversals across the existing
-interpreter family.** Three commits implement the
-[2026-05-03 reversal resolution](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)
-in-place against steps 2, 3, and 4. The original plan was a
-single combined commit; the implementation split into three
-focused commits per finding so each reversal stands alone in
-review.
-
-F1D (`05be270`, `refactor(effects):`): `run_accum` and
-`run_accum_rec` deleted from all six Run wrappers (12 method
-definitions plus 12 doctests, ~480 lines). The Q3 (2026-05-02)
-lock-in delegated state threading to user-side closure captures,
-making the `init` parameter vestigial and the bodies
-byte-equivalent to `interpret` / `interpret_rec`. Closure-capture
-state pattern remains; the redundant method names go. The
-state-threading paragraph migrates onto
-[`Run::interpret`](../../../fp-library/src/types/effects/run.rs)'s
-rustdoc with the keyword "state" for rustdoc-search
-discoverability. Integration tests rename to drop `_run_accum`
-suffixes.
-
-F3A (`f8031c5`, `refactor(effects):`): the `impl<R, S, A>
-Wrapper<R, S, A>` blocks across the six Run wrappers split into
-the original general block (`pure`, `peel`, `send`, `bind`,
-`map`, `lift`) plus a new `impl<R, A> Wrapper<R, CNilBrand, A>`
-block holding the interpreter family (`interpret`, `run`,
-`interpret_with`, `interpret_rec`, `run_rec`). The new impl
-fixes `S = CNilBrand` structurally, so each `Node::Scoped(_)`
-arm becomes `match cnil {}` (statically uninhabited) rather
-than the `clippy::unreachable`-suppressed runtime panic.
-Removes the six `clippy::unreachable` suppressions on
-interpreter bodies. `arc_run`'s `unwrap_first` helper retains
-its internal suppression because it remains generic over `S`
-for code reuse and is only called from the (now
-`CNilBrand`-restricted) interpreter methods. Phase 4's
-scoped-handler family will ship in a parallel impl block
-without the bound.
-
-M3C (this commit, `refactor(effects):`): `interpret_with`
-parameterised over `P: RefCountedPointer`. Each wrapper's
-public outer method wraps the user handler in
-`<P as RefCountedPointer>::Of<'_, F>` once at entry (`RcBrand`
-for the four non-Arc wrappers; `ArcBrand` for `ArcRun` /
-`ArcRunExplicit`) and delegates to a private inner
-`interpret_with_shared::<EBrand, Idx, RMinusE, F>` method that
-takes the wrapped pointer by value. Recursive narrowing clones
-the pointer (refcount bump) instead of the underlying closure;
-the user-facing handler bound drops from `Fn + Clone + 'static`
-(plus `Send + Sync` on Arc) to `Fn + 'static` (plus
-`Send + Sync` on Arc). Handlers can now capture move-only
-resources (e.g., a `BufWriter`) without being wrapped in
-[`Rc<RefCell<_>>`](std::rc::Rc) at the user call site.
-
-`(*handler)(mapped)` invokes the wrapped handler via the
-`Deref<Target = F>` projection from
-[`RefCountedPointer::Of<'_, T>`](../../../fp-library/src/classes/ref_counted_pointer.rs).
-The four non-Arc wrappers thread `RcBrand` through their
-`interpret_with_shared` signature; the two Arc wrappers thread
-`ArcBrand` and the inner method's `F` keeps the
-`Send + Sync` bounds (so the wrapped `Arc<F>` is `Send + Sync`
-as required by `SendFunctor::send_map`'s closure-capture
-constraint). `ArcRun`'s body continues to route through the
-[`unwrap_first`](../../../fp-library/src/types/effects/arc_run.rs)
-/ [`make_node_first`](../../../fp-library/src/types/effects/arc_run.rs)
-/ [`wrap_first_arc`](../../../fp-library/src/types/effects/arc_run.rs)
-HRTB-poisoning workaround helpers unchanged.
-
-The inner `interpret_with_shared` carries full
-`#[document_signature]` / `#[document_type_parameters]` /
-`#[document_parameters]` / `#[document_returns]` /
-`#[document_examples]` doc attributes per the
-`#[document_module]` macro's validation; the example exercises
-each wrapper's public `interpret_with` (which delegates to
-`interpret_with_shared`) since the inner method is private and
-not user-callable.
-
-Tests: existing 16 `interpret_with` integration tests in
-[`fp-library/tests/run_interpret_with.rs`](../../../fp-library/tests/run_interpret_with.rs)
-plus per-wrapper doctests on `interpret_with` continue to pass
-unchanged (the public signature is the same minus the `Clone`
-bound). `just verify` clean: 2500+ unit tests + integration
-tests + doctests pass.
-
-Per-step deviation entry in
-[deviations.md](deviations.md) Phase 3 step 3 records the M3C
-structural changes: (1) the public-outer + private-inner method
-split shape; (2) the `RcBrand` / `ArcBrand` threading per
-wrapper; (3) the `(*handler)(mapped)` deref-call invocation
-pattern; (4) the doc-attribute requirement on the private
-inner method. F1D and F3A's per-step deviations live in
-their respective commit messages (no separate deviations.md
-entry; the changes are in-place revisions to existing steps).
-
-Step 5 (`interpret_with_rec` pipeline-plus-`MonadRec` family) is
-the next greenfield step. Step 6a.3 (`RcRun::get` /
-`RcRun::put` smart constructors) can resume in parallel since
-the M3C cleanup unblocked it.
-
 ### Earlier completed steps (commit log)
 
 Each entry's design choices are recorded in
@@ -302,6 +304,31 @@ summary; resolved blockers are in
 
 Phase 3:
 
+- `05be270` + `f8031c5` + `b8c9b3c` (reversal cleanup):
+  three commits implement the
+  [2026-05-03 reversal resolution](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)
+  in-place against the existing interpreter family. F1D
+  deletes `run_accum` / `run_accum_rec` from all six Run
+  wrappers (12 method definitions plus 12 doctests, ~480
+  lines); state threading remains via user-side closure
+  captures applied to `interpret` / `interpret_rec`. F3A
+  splits the `impl<R, S, A> Wrapper<R, S, A>` blocks across
+  the six wrappers into a general block plus a new
+  `impl<R, A> Wrapper<R, CNilBrand, A>` block holding the
+  interpreter family (`interpret`, `run`, `interpret_with`,
+  `interpret_rec`, `run_rec`); fixing `S = CNilBrand`
+  structurally lets each `Node::Scoped(_)` arm become
+  `match cnil {}` rather than a `clippy::unreachable`-
+  suppressed panic. M3C parameterises `interpret_with` over
+  `P: RefCountedPointer`: each wrapper's public outer method
+  wraps the user handler in
+  `<P as RefCountedPointer>::Of<'_, F>` once at entry and
+  delegates to a private inner `interpret_with_shared`;
+  recursive narrowing clones the pointer (refcount bump)
+  instead of the underlying closure, dropping the
+  `Fn + Clone + 'static` bound to `Fn + 'static` (plus
+  `Send + Sync` on Arc). Handlers can now capture move-only
+  resources (e.g., `BufWriter`).
 - `96bc448` + `f865152` (step 6a.1 + 6a.2): `State` effect type
   machinery and `Run::get` / `Run::put` smart constructors.
   6a.1 adds

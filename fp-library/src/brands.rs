@@ -488,6 +488,24 @@ pub struct SendThunkBrand;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StateBrand<P, S>(PhantomData<(P, S)>);
 
+/// Brand for
+/// [`SendState`](crate::types::effects::state::SendState), the
+/// thread-safe sibling of
+/// [`State`](crate::types::effects::state::State). Variants store
+/// `<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(...) -> A + Send + Sync>`
+/// (with `+ Send + Sync` baked into the trait object's bounds), so
+/// the projection is structurally `Send + Sync`. Used by the Arc
+/// family smart constructors
+/// ([`ArcRun::get`](crate::types::effects::arc_run::ArcRun) /
+/// [`ArcRun::put`](crate::types::effects::arc_run::ArcRun) /
+/// [`ArcRunExplicit::get`](crate::types::effects::arc_run_explicit::ArcRunExplicit) /
+/// [`ArcRunExplicit::put`](crate::types::effects::arc_run_explicit::ArcRunExplicit))
+/// per the
+/// [2026-05-03 SendFunctor option-(c) resolution](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/resolutions.md);
+/// non-Arc smart constructors keep using [`StateBrand`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SendStateBrand<P, S>(PhantomData<(P, S)>);
+
 /// Brand for [`Thunk`](crate::types::Thunk).
 ///
 /// Note: This is for `Thunk<'a, A>`, NOT for `Trampoline<A>`.

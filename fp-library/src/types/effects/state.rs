@@ -33,11 +33,17 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::StateBrand,
+			brands::{
+				SendStateBrand,
+				StateBrand,
+			},
 			classes::{
 				Functor,
 				RefCountedPointer,
+				SendFunctor,
+				SendRefCountedPointer,
 				ToDynCloneFn,
+				ToDynSendFn,
 			},
 			impl_kind,
 			kinds::*,
@@ -189,11 +195,181 @@ mod inner {
 		}
 	}
 
-	// SendFunctor impl deferred to step 5a.3: the bound
-	// `<P as RefCountedPointer>::Of<'_, dyn 'a + Fn(S) -> A>: Send + Sync`
-	// must be expressed per-`A` for `send_map`'s generic `A` parameter,
-	// which requires HRTB-over-types support not available on stable Rust.
-	// Ships when ArcRun's smart constructors land alongside it.
+	// SendFunctor on StateBrand cannot ship: the projection
+	// <P as RefCountedPointer>::Of<'_, dyn 'a + Fn(S) -> A>
+	// is structurally !Send + !Sync because the trait object's bounds
+	// don't include + Send + Sync. The Send-aware sibling SendStateBrand
+	// below uses <P as SendRefCountedPointer>::Of<'_, dyn 'a + Fn(...) + Send + Sync>
+	// to sidestep this; the Arc family smart constructors target
+	// SendStateBrand. Per the 2026-05-03 SendFunctor option-(c) resolution.
+
+	/// Thread-safe sibling of [`State`] with `Send + Sync`-bounded
+	/// continuation trait objects.
+	///
+	/// Each variant carries a continuation in `P`'s Send-aware
+	/// pointer kind
+	/// (`Arc<dyn Fn(...) -> A + Send + Sync>` for
+	/// [`ArcBrand`](crate::brands::ArcBrand)). Mirrors PureScript
+	/// Run's
+	/// [`State s a`](https://github.com/natefaubion/purescript-run/blob/main/src/Run/State.purs)
+	/// shape directly, with the marker traits baked into the trait
+	/// object's bounds so the projection is structurally
+	/// `Send + Sync`.
+	///
+	/// Used by the Arc family smart constructors
+	/// ([`ArcRun::get`](crate::types::effects::arc_run::ArcRun) /
+	/// [`ArcRun::put`](crate::types::effects::arc_run::ArcRun) /
+	/// [`ArcRunExplicit::get`](crate::types::effects::arc_run_explicit::ArcRunExplicit) /
+	/// [`ArcRunExplicit::put`](crate::types::effects::arc_run_explicit::ArcRunExplicit))
+	/// per the
+	/// [2026-05-03 SendFunctor option-(c) resolution](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/resolutions.md);
+	/// non-Arc smart constructors keep using [`State`].
+	#[document_type_parameters(
+		"The lifetime of the continuations and any references they capture.",
+		"The pointer brand used for the continuations (typically [`ArcBrand`](crate::brands::ArcBrand)).",
+		"The state type.",
+		"The result type produced by running the effect."
+	)]
+	pub enum SendState<'a, P, S, A>
+	where
+		P: ToDynSendFn,
+		S: 'a,
+		A: 'a, {
+		/// Read the current state. The continuation is applied to
+		/// the current state value to produce the result `A`.
+		Get(<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(S) -> A + Send + Sync>),
+		/// Write a new state. The continuation is applied to `()`
+		/// (after the state has been updated) to produce the result
+		/// `A`.
+		Put(S, <P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(()) -> A + Send + Sync>),
+	}
+
+	impl_kind! {
+		impl<P: ToDynSendFn, S: 'static> for SendStateBrand<P, S> {
+			type Of<'a, A: 'a>: 'a = SendState<'a, P, S, A>;
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the continuations.",
+		"The pointer brand used for the continuations.",
+		"The state type.",
+		"The result type."
+	)]
+	#[document_parameters("The send-state effect to clone.")]
+	impl<'a, P, S, A> Clone for SendState<'a, P, S, A>
+	where
+		P: ToDynSendFn,
+		S: Clone + 'a,
+		A: 'a,
+	{
+		/// Clones the send-state effect by refcount-bumping the
+		/// stored continuation pointer; the `Put` variant additionally
+		/// clones the carried state value (hence the `S: Clone`
+		/// bound). The continuation pointer is
+		/// `<P as SendRefCountedPointer>::Of<...>`, which is
+		/// unconditionally [`Clone`] per the trait's associated-type
+		/// bound.
+		#[document_signature]
+		///
+		#[document_returns("A new send-state effect sharing the continuation by refcount.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		types::effects::state::SendState,
+		/// 	},
+		/// 	std::sync::Arc,
+		/// };
+		///
+		/// let original: SendState<'static, ArcBrand, i32, i32> =
+		/// 	SendState::Get(Arc::new(|s: i32| s + 1) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
+		/// let cloned = original.clone();
+		/// match cloned {
+		/// 	SendState::Get(k) => assert_eq!(k(7), 8),
+		/// 	SendState::Put(..) => panic!("expected Get"),
+		/// }
+		/// ```
+		fn clone(&self) -> Self {
+			match self {
+				SendState::Get(k) => SendState::Get(k.clone()),
+				SendState::Put(s, k) => SendState::Put(s.clone(), k.clone()),
+			}
+		}
+	}
+
+	// Functor (by-value `map`) is intentionally NOT implemented for
+	// SendStateBrand: the new continuation must be storable behind
+	// <P as SendRefCountedPointer>::Of<'_, dyn Fn + Send + Sync>, but
+	// Functor::map's signature only requires `f: Fn` (no Send + Sync),
+	// so a Functor impl could not construct a Send-aware trait object.
+	// SendFunctor is independent of Functor in fp-library (not a
+	// supertrait), so this is sound; users reach for
+	// SendFunctor::send_map directly.
+
+	#[document_type_parameters("The pointer brand used for the continuations.", "The state type.")]
+	impl<P, S> SendFunctor for SendStateBrand<P, S>
+	where
+		P: ToDynSendFn,
+		S: Send + Sync + 'static,
+	{
+		/// Maps `f` over the result type of this thread-safe
+		/// stateful effect, with `Send + Sync` bounds on `f` and
+		/// the result types so the new continuation can be stored
+		/// behind a thread-safe trait object.
+		///
+		/// Composes `f` with each variant's stored continuation via
+		/// [`ToDynSendFn::new`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the continuations.",
+			"The original result type.",
+			"The new result type after applying `f`."
+		)]
+		///
+		#[document_parameters(
+			"The function to compose with each continuation.",
+			"The send-state effect to map over."
+		)]
+		///
+		#[document_returns("A new send-state effect with `f` composed onto each continuation.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::*,
+		/// 		types::effects::state::SendState,
+		/// 	},
+		/// 	std::sync::Arc,
+		/// };
+		///
+		/// let get: SendState<'static, ArcBrand, i32, i32> =
+		/// 	SendState::Get(Arc::new(|s: i32| s * 2) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
+		/// let mapped = <SendStateBrand<ArcBrand, i32> as SendFunctor>::send_map(|x: i32| x + 1, get);
+		/// match mapped {
+		/// 	SendState::Get(k) => assert_eq!(k(3), 7),
+		/// 	SendState::Put(..) => panic!("expected Get"),
+		/// }
+		/// ```
+		fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+			f: impl Fn(A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match fa {
+				SendState::Get(k) =>
+					SendState::Get(<P as ToDynSendFn>::new(move |s: S| f((*k)(s)))),
+				SendState::Put(s, k) =>
+					SendState::Put(s, <P as ToDynSendFn>::new(move |u: ()| f((*k)(u)))),
+			}
+		}
+	}
 }
 
 pub use inner::*;

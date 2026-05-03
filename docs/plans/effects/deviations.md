@@ -2620,6 +2620,106 @@ Open follow-ups: 5a.4 (`ArcRun::get/put`) and 5a.6
 integration tests in `fp-library/tests/run_state.rs` once all
 six wrappers' smart constructors land.
 
+### Step 5a.4 + 5a.6: ArcRun and ArcRunExplicit get/put smart constructors plus SendStateBrand / SendState
+
+Closes step 6a (all six wrappers covered) under the
+[2026-05-03 SendFunctor option-(c) resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified).
+Adds a parallel `SendStateBrand<P, S>` /
+`SendState<'a, P, S, A>` type for the Arc family, alongside
+the existing `StateBrand<P, S>` / `State<'a, P, S, A>` for
+the non-Arc family.
+
+What landed:
+
+- [`SendStateBrand<P, S>`](../../../fp-library/src/brands.rs)
+  brand registration parallel to `StateBrand<P, S>`.
+- [`SendState<'a, P, S, A>`](../../../fp-library/src/types/effects/state.rs)
+  enum whose variants store
+  `<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(...) -> A + Send + Sync>`
+  (the `+ Send + Sync` is baked into the trait object's
+  bounds, so the projection is structurally `Send + Sync`).
+- `impl_kind!` for `SendStateBrand`.
+- Manual `Clone` impl for `SendState` gated on
+  `S: Clone + 'a` (mirrors 5a.3's `State::Clone`).
+- `SendFunctor` impl for `SendStateBrand` (the whole point
+  of (c); implementable because the projection is
+  structurally `Send + Sync`).
+- `ArcRun::get<Idx>() -> Self` and
+  `ArcRun::put<StateType: Clone + Send + Sync + 'static, Idx>(s) -> Self`
+  using `SendStateBrand<ArcBrand, A>` /
+  `SendStateBrand<ArcBrand, StateType>` in the row.
+- `ArcRunExplicit::get<Idx>() -> Self` and
+  `ArcRunExplicit::put<StateType: Clone + Send + Sync + 'static, Idx>(s) -> Self`
+  same pattern, with the Explicit substrate's per-method
+  `Send + Sync` cascade through
+  `ArcFreeExplicit<...>: Send + Sync`.
+
+What the plan called for, and what diverged:
+
+- **Option (b) was ratified first, then discovered
+  unimplementable.** The
+  [original 2026-05-03 ratification](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-impl-on-statebrand-for-the-arc-family-option-b-per-method-bounds)
+  locked in per-method `Send + Sync` bounds at smart-
+  constructor sites. Implementation of `ArcRun::get` /
+  `ArcRun::put` under that lock-in failed at compile time:
+  `Arc<dyn Fn(...)>` is structurally `!Send + !Sync` because
+  the trait object's bounds don't include `Send + Sync`, and
+  `Arc<T>: Send + Sync` requires `T: Send + Sync`
+  structurally. Use-site bounds can't refine a structural
+  type-level fact. The blocker was reopened and re-ratified
+  with option (c). See the
+  [option (c) resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)
+  for the full investigation, alternatives (including (d.1)
+  polymorphic-projection State and (d.2) unconditional Send-
+  aware representation), and rationale.
+- **Two State types instead of one.** Users with mixed
+  Rc/Arc programs face two distinct row brands they must
+  use depending on the substrate. The Phase 3 step 7
+  `define_effect!` macro can hide this distinction by
+  selecting the right brand per wrapper.
+- **No `Functor` impl on `SendStateBrand`.** `Functor::map`'s
+  signature only requires `f: Fn` (no `Send + Sync`), so a
+  `Functor` impl could not construct the Send-aware trait
+  object that `SendState`'s variants require.
+  [`SendFunctor`](../../../fp-library/src/classes/send_functor.rs)
+  is independent of `Functor` in fp-library (not a
+  supertrait), so the gap is sound; users reach for
+  `SendFunctor::send_map` directly.
+- **`A: Clone + Send + Sync + 'static`** on the Arc smart
+  constructors. The `'static` comes from `SendStateBrand<P, S>`'s
+  `impl_kind!` registration (`S: 'static`); `Clone` cascades
+  from `SendState::Clone`'s `S: Clone` bound; `Send + Sync`
+  cascades from `ArcRun::lift` / `ArcRunExplicit::lift`'s
+  per-method bounds.
+
+Per-wrapper smart-constructor brand summary (now all six
+covered):
+
+- `Run::get/put` (5a.2): `StateBrand<RcBrand, S>`.
+- `RcRun::get/put` (5a.3): `StateBrand<RcBrand, S>`.
+- `RunExplicit::get/put` (5a.5): `StateBrand<RcBrand, S>`.
+- `RcRunExplicit::get/put` (5a.5): `StateBrand<RcBrand, S>`.
+- `ArcRun::get/put` (5a.4, this step):
+  `SendStateBrand<ArcBrand, S>`.
+- `ArcRunExplicit::get/put` (5a.6, this step):
+  `SendStateBrand<ArcBrand, S>`.
+
+Verification: `just verify` clean. 2500+ unit tests + 6 new
+doctests (`SendState::Clone`,
+`SendStateBrand::SendFunctor::send_map`, `ArcRun::get`,
+`ArcRun::put`, `ArcRunExplicit::get`, `ArcRunExplicit::put`)
+compile and pass.
+
+Open follow-ups: integration tests in
+`fp-library/tests/run_state.rs` covering bind-chain
+composition, run with handlers dispatching State, and
+`interpret`-with-closure-capture state threading through
+Get/Put for each of the six wrappers. Step 6 (`Reader`,
+`Except`, `Writer`, `Choose` smart constructors) follows the
+6a per-wrapper rollout pattern; `Reader` will likely need a
+parallel `SendReaderBrand` for the same reason `State` needed
+`SendStateBrand`.
+
 ### Cross-cutting docs/macros commits during step 5a
 
 Two cross-cutting commits landed in the same set as 5a.1 / 5a.2;
