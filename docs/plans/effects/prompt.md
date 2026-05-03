@@ -28,54 +28,100 @@ shipped. The adversarial-review reversal cleanup is complete:
 F1D (`05be270`, delete `run_accum` / `run_accum_rec`), F3A
 (`f8031c5`, tighten `S = CNilBrand` on the interpreter family),
 and M3C (`b8c9b3c`, parameterise `interpret_with` over
-`P: RefCountedPointer`). **Step 6a is complete** (all six
-wrappers' State smart constructors landed): 6a.1 + 6a.2
-(`96bc448` + `f865152`), 6a.3 (`619127e`, `RcRun::get/put`),
-6a.5 (`db07a2f`, Explicit non-Arc family), and 6a.4 + 6a.6
-(`7a0d04b`, Arc family using a parallel
+`P: RefCountedPointer`). All six wrappers' State smart
+constructors landed: 6a.1 + 6a.2 (`96bc448` + `f865152`), 6a.3
+(`619127e`, `RcRun::get/put`), 6a.5 (`db07a2f`, Explicit non-
+Arc family), and 6a.4 + 6a.6 (`7a0d04b`, Arc family using a
+parallel
 [`SendStateBrand`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/brands.rs)
 /
 [`SendState`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/state.rs)
 type per the
 [2026-05-03 SendFunctor option-(c) resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)).
+**Smart constructors compile but the Arc family doesn't
+dispatch end-to-end;** see active blocker below.
 
-**No active blockers.** The 2026-05-03 SendFunctor blocker on
-`StateBrand` for the Arc family resolved twice within the same
-day: first as option (b) per-method bounds (`4bd1636`), then
-re-ratified as option (c) parallel `SendStateBrand` (`afe8b76`)
-after (b) was discovered structurally unimplementable. Both
-resolutions stay in
-[resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md)
-as historical record.
+**Active blocker (2026-05-04):** attempting to ship
+`run_state.rs` integration tests surfaced a downstream issue
+on the Arc family. `ArcCoyoneda`'s dispatch impl bounds
+`EBrand: Functor + SendFunctor`
+([`interpreter.rs:337`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/interpreter.rs)),
+but `SendStateBrand` cannot honestly implement `Functor`
+because [`Functor::map`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/functor.rs)'s
+signature only requires `f: impl Fn` (no `Send + Sync` bound)
+while `SendState`'s variants store
+`<P as SendRefCountedPointer>::Of<'a, dyn Fn(...) -> A + Send + Sync>`
+(closures must be `Send + Sync` at storage time).
+`ArcRun::interpret` on a `SendStateBrand`-headed row hits
+this and fails. Four design options surveyed in
+[plan.md's Active blockers](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#active-blockers):
+(α) migrate `ArcCoyoneda`'s algebra to `SendFunctor`, the
+principled extension of Phase 2 step 9's `ArcFree` migration;
+(β) parallel `send_lower_ref` method, structurally harder
+than it sounds; (γ) defer 6a.4 + 6a.6 indefinitely; (c'')
+parallel `SendArcCoyoneda` variant. **No recommendation
+locked in; user decision pending.** Working draft of
+`run_state.rs` covering all six wrappers preserved in
+`git stash@{0}`.
 
-**Immediate pending task: step 5 (`interpret_with_rec`
-pipeline-plus-MonadRec family).** Per the
-[2026-05-03 reversal resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)
-M2A reversal, ship six new per-wrapper inherent methods
-`interpret_with_rec::<MBrand, EBrand, Idx, RMinusE>(handler) -> M::Of<'_, Wrapper<RMinusE, CNilBrand, A>>`
-combining the pipeline shape (step 3) with `tail_rec_m`
-(step 4). New integration tests in
-`fp-library/tests/run_interpret_with_rec.rs`.
+**Immediate pending task (after blocker resolves):** complete
+`run_state.rs` integration tests (pop `git stash@{0}`, fix
+`State<'_, ...>` lifetime annotations, adjust Arc family
+tests per chosen option). Then step 5 (`interpret_with_rec`
+pipeline-plus-MonadRec family) is the next greenfield step,
+unaffected by the blocker.
 
-### Open follow-up (priority): step 6a integration tests in `run_state.rs`
+### Resolution path (after user decides on α / β / γ / c'')
 
-The original prompt's "Where to start" #5 said:
+- **(α) ArcCoyoneda algebra migration:**
+  1. Replace `F: Functor` with `F: SendFunctor` in
+     [`arc_coyoneda.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/arc_coyoneda.rs):
+     `ArcCoyonedaLowerRef::lower_ref` trait method, three
+     layer impls (Base, MapLayer, NewLayer), public
+     `ArcCoyoneda::lower_ref`, and downstream methods that
+     call `self.lower_ref()` (collapse, hoist, fold, bind,
+     apply).
+  2. Update bodies to use
+     [`F::send_map`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/send_functor.rs)
+     instead of `F::map`.
+  3. Add `SendFunctor` impl for
+     [`VecBrand`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/vec.rs)
+     (currently only implements `Functor`; the
+     `SendFunctor::send_map` body is byte-identical to
+     `Functor::map`'s, just with tighter bounds). Iterate
+     `just check` for any other brand surfaced by compile
+     errors and add SendFunctor impls similarly.
+  4. Drop `+ Functor` from the
+     [`ArcCoyoneda` dispatch impl](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/interpreter.rs)
+     in `interpreter.rs:337`.
+  5. Run `just verify`. Existing `arc_coyoneda` doctests
+     using `VecBrand`, `OptionBrand`, etc. should pass
+     (those brands have or will have SendFunctor).
+  6. Pop `git stash@{0}`, fix `State<'_, ...>` lifetimes
+     (the FnOnce-not-general-enough error in the original
+     draft was caused by pinning the State projection
+     lifetime to `'static` instead of letting it be HRTB-
+     polymorphic).
+  7. Run `just verify` again. Commit migration + run_state
+     tests.
+  8. Move active-blocker entry to resolutions.md as a new
+     dated resolution.
 
-> After all six wrappers' smart constructors land, add
-> integration tests in `fp-library/tests/run_state.rs`
-> covering: bind-chain composition, run with handlers
-> dispatching State, `interpret`-with-closure-capture state
-> threading through Get/Put for each wrapper.
+- **(β) parallel `send_lower_ref`:** see plan.md's blocker
+  entry for the structural problem (`B: Send + Sync` on
+  layer impls forces `ArcCoyoneda::map`'s `B` parameter
+  too); not recommended.
 
-Step 6a closed without `run_state.rs`. Per-method doctests
-landed but they validate construction-only
-(`peel().is_err()`); full Get/Put roundtrip via
-`interpret(handlers!{ ... StateBrand: handler ... })` was
-never exercised. **Recommendation: ship `run_state.rs` before
-step 5** so step 6a's success criteria are met end-to-end.
-Step 5's own tests will then exercise State via
-`interpret_with_rec`, which is a different-but-complementary
-integration scenario.
+- **(γ) defer 6a.4 + 6a.6:** ship the four non-Arc
+  `run_state.rs` tests; document the Arc family as an open
+  gap in deviations.md; revert the `SendStateBrand` /
+  `SendState` types if cleaner; or leave them as
+  scaffolding.
+
+- **(c'') parallel `SendArcCoyoneda`:** new module
+  `send_arc_coyoneda.rs`; brand registration; rewrite Arc
+  family smart constructors to target the new brand; large
+  refactor.
 
 ### Step 5 implementation pattern (next greenfield work)
 
@@ -853,35 +899,40 @@ docs for bare-name doc-links before / after the wrapping.
 
 ## Where to start
 
-**No active blockers.** Step 6a is complete (all six wrappers'
-State smart constructors landed). Step 5
-(`interpret_with_rec`) is the immediate next greenfield step.
-**Recommended pre-step: ship `run_state.rs` integration tests
-first** (open follow-up from step 6a's original scope; see
-"Open follow-up" subsection in the resume point above).
+**Active blocker (2026-05-04):** `ArcCoyoneda`'s algebra-Send-
+awareness gap. `ArcCoyoneda` dispatch requires
+`EBrand: Functor + SendFunctor` but `SendStateBrand` cannot
+honestly implement `Functor`. Four design options surveyed
+in [plan.md's Active blockers](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#active-blockers);
+no recommendation locked in. **The Arc family integration
+tests in `run_state.rs` cannot ship until this resolves.**
+The non-Arc family tests (4 of 6 wrappers) and step 5
+(`interpret_with_rec`) are unaffected by the blocker.
 
 1. Read [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s
-   `Current progress` section. The rolling-detail covers the
-   three most recent narratives; older steps live in the
-   `Earlier completed steps (commit log)` subsection.
-2. **(Recommended pre-step)** Add integration tests in
-   `fp-library/tests/run_state.rs` covering: bind-chain
-   composition (e.g., `get >>= |s| put(s + 1) >> get`); run
-   with handlers dispatching State (closure-capture state
-   threading through `Rc<RefCell<S>>` /
-   [`Arc<Mutex<S>>`](https://doc.rust-lang.org/std/sync/struct.Mutex.html)
-   for the Arc family); per-wrapper coverage. Each of the six
-   wrappers needs one or more end-to-end Get/Put roundtrip
-   tests. State is now available on all six wrappers — Run /
-   RunExplicit / RcRun / RcRunExplicit use
-   [`StateBrand<RcBrand, S>`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/brands.rs);
-   ArcRun / ArcRunExplicit use
-   [`SendStateBrand<ArcBrand, S>`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/brands.rs).
-   Per-method doctests landed during step 6a but only validate
-   construction (`peel().is_err()`); full roundtrip via
-   `interpret(handlers!{ ... StateBrand: handler ... })` is
-   the gap. Land as step 6a.7 or `test(effects):` commit.
-3. **Step 5 (`interpret_with_rec`):** see "Step 5
+   `Current progress` section and the
+   [2026-05-04 active blocker](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#active-blockers)
+   subsection. Read the "Resolution path" subsection of this
+   prompt's resume point above for the implementation paths
+   under each of the four options (α / β / γ / c'').
+2. **Decide the design.** User decision needed on (α) /
+   (β) / (γ) / (c''). My analysis recommends (α): the
+   principled extension of Phase 2 step 9's `ArcFree`
+   migration; but the user has not yet locked in a choice.
+   Once the design is settled, move the active-blocker entry
+   to resolutions.md as a new dated resolution with the
+   chosen option's rationale.
+3. **(Pre-step before step 5):** ship `run_state.rs` per the
+   chosen option's "Resolution path" guidance. The working
+   draft in `git stash@{0}` covers all six wrappers (~430
+   lines, 18 tests). Pop the stash, fix `State<'_, ...>`
+   lifetime annotations (the FnOnce-not-general-enough
+   error in the original draft was caused by pinning to
+   `'static`), and adjust the Arc family tests per the
+   chosen option (delete them under γ; rewrite per c''; or
+   keep as-is under α/β). Land as a `test(effects):`
+   commit.
+4. **Step 5 (`interpret_with_rec`):** see "Step 5
    implementation pattern" subsection in the resume point
    above for the full shape. Six per-wrapper inherent methods
    in `run.rs` / `run_explicit.rs` / `rc_run.rs` /
@@ -891,9 +942,10 @@ first** (open follow-up from step 6a's original scope; see
    inline per-wrapper dispatch pattern (no
    `DispatchOneHandler` trait). Integration tests in
    `fp-library/tests/run_interpret_with_rec.rs`. Use State
-   (now end-to-end on all six wrappers) as one of the test
-   scenarios.
-4. **Steps 6b-6e (`Reader`, `Except`, `Writer`, `Choose`)**
+   (end-to-end on the four non-Arc wrappers; on the Arc
+   family iff the active blocker resolves) as one of the
+   test scenarios.
+5. **Steps 6b-6e (`Reader`, `Except`, `Writer`, `Choose`)**
    follow 6a's per-effect / per-wrapper rollout pattern.
    Note: any effect type whose representation includes
    `dyn Fn(...) -> A` continuations (likely `Reader` and
@@ -904,12 +956,12 @@ first** (open follow-up from step 6a's original scope; see
    don't try option (b) per-method bounds first. `Choose`
    ships only on the four multi-shot wrappers per the
    2026-05-03 wrapper-parameterization resolution's Q4=ii.
-5. Read [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
+6. Read [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
    section 4.3 (interpreter families) only if you need the
    original commitment context. Sections 4.5 (scoped effects)
    and 4.6 (natural transformations) become relevant for
    Phase 4 / future work.
-6. If your step touches type-class impls, brand-level dispatch, or
+7. If your step touches type-class impls, brand-level dispatch, or
    `Send + Sync` auto-derive, also skim
    [fp-library/docs/limitations-and-workarounds.md](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/limitations-and-workarounds.md)'s
    "Unexpressible Bounds in Trait Method Signatures" table. Phase
@@ -920,7 +972,7 @@ first** (open follow-up from step 6a's original scope; see
    path) is the precedent any new wrapper type with shared
    internal state will end up following. Saves rediscovering the
    constraint mid-implementation.
-7. Update plan.md's `Current progress` (rolling-detail entry
+8. Update plan.md's `Current progress` (rolling-detail entry
    for step 5; demote oldest step from rolling-detail to commit
    log per the rolling-detail trim window of ~3 narratives).
    Append deviations.md entry for step 5. Standard end-of-step
