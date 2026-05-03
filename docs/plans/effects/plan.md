@@ -18,18 +18,91 @@ steps 1 (`handlers!{...}` macro plus `nt()` builder fallback),
 2 (simple all-handlers-at-once `interpret`/`run`/`run_accum` on
 six Run wrappers), 3 (pipeline row-narrowing
 `interpret_with::<EBrand>` plus empty-row terminal `extract`),
-and 4 (MonadRec-target
-`interpret_rec`/`run_rec`/`run_accum_rec`) landed; step 5
-(standard first-order effect types and smart constructors) is
-the immediate next work, with design locked in per the
-[2026-05-03 resolution](resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization).
+4 (MonadRec-target
+`interpret_rec`/`run_rec`/`run_accum_rec`), and 5a.1 + 5a.2
+landed; step 5a is in progress (State effect type machinery +
+Run-only smart constructors shipped; remaining wrappers and
+SendFunctor-dependent Arc family blocked on the
+[2026-05-03 SendFunctor blocker](#active-blockers)).
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
 
-**Phase 3 step 4 (this commit): MonadRec-target interpreter
+**Phase 3 step 5a.1 + 5a.2 (this commit set): `State` effect
+type machinery + Run-only smart constructors.** Two sub-step
+commits land the State effect under the locked-in design from
+the [2026-05-03 resolution](resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization)
+((1.b) six variants per effect, (2.a) per-effect Functor,
+(3.a-1) `FnBrand`-parameterised continuations, (4.ii) Choose on
+all four multi-shot wrappers, (5.b) `effects!` for row
+composition).
+
+5a.1 (`96bc448`) ships:
+
+- [`StateBrand<P, S>`](../../../fp-library/src/brands.rs)
+  registration parameterised by `P: ToDynCloneFn` (typically
+  [`RcBrand`](../../../fp-library/src/brands.rs) or
+  [`ArcBrand`](../../../fp-library/src/brands.rs)) and
+  `S: 'static`.
+- [`fp-library/src/types/effects/state.rs`](../../../fp-library/src/types/effects/state.rs)
+  with the `State<'a, P, S, A>` enum (Get + Put variants
+  holding `<P as RefCountedPointer>::Of<'a, dyn 'a + Fn(...) -> A>`
+  continuations), `impl_kind!` registration, and `Functor`
+  impl that composes user `f: A -> B` with each variant's
+  stored continuation via
+  [`<P as ToDynCloneFn>::new(closure)`](../../../fp-library/src/classes/to_dyn_clone_fn.rs).
+- `SendFunctor` impl deferred (see the active blocker for the
+  HRTB-over-types limit driving the deferral).
+
+5a.2 (`f865152`) ships:
+
+- `Run::get<Idx>() -> Run<R, ScopedRow, A>` in the existing
+  `impl<R, ScopedRow, A> Run<R, ScopedRow, A>` block (the state
+  type and program result type coincide for `get`).
+- `Run::put<StateType, Idx>(s) -> Run<R, ScopedRow, ()>` in a
+  separate `impl<R, ScopedRow> Run<R, ScopedRow, ()>` block
+  (state type generic; turbofish typically required since
+  `put`'s result is `()`).
+- Both thread `RcBrand` as the pointer kind. Continuations
+  constructed via `<RcBrand as ToDynCloneFn>::new(closure)`
+  (direct `Rc::new(closure)` produces `Rc<{closure_type}>`,
+  not the `Rc<dyn Fn>` that `State::Get`/`Put` expects).
+- Per-method doctests on each constructor exercise the
+  canonical-row instantiation.
+- `fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.stderr`
+  regenerated (rustc's "consider using one of the following
+  associated functions" diagnostic now lists `Run::get` /
+  `Run::put` after `Run::lift`).
+
+Cross-cutting commits also landed in the same set:
+
+- `4f0e977` (`docs(effects):`): wrapped
+  [`handlers.rs`](../../../fp-library/src/types/effects/handlers.rs),
+  [`interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs),
+  and [`member.rs`](../../../fp-library/src/types/effects/member.rs)
+  in `#[fp_macros::document_module]` + `mod inner { ... }` to
+  bring them in line with the rest of the effects subsystem's
+  macro-driven documentation enforcement.
+- `3a5a0a8` (`fix(macros):`): tightened
+  [`#[document_examples]`](../../../fp-macros/src/documentation/document_examples.rs)
+  validation to reject six trivially-true assertion patterns
+  (`assert!(true)`, `debug_assert!(true)`,
+  `assert_eq!(true, true)`, `assert_eq!((), ())`,
+  `assert_ne!(true, false)`, `assert_ne!(false, true)`). All
+  19 existing trivial-assertion doctests across the codebase
+  refactored to meaningful ones (Drop tests construct a
+  post-drop value and assert via `resume()` / `evaluate()`;
+  uninhabited-type tests use `core::mem::size_of`; etc.).
+
+What's next: 5a.3 (`RcRun::get/put`) and 5a.5 (Explicit non-Arc
+family) can proceed without resolving the `SendFunctor`
+blocker; 5a.4 (`ArcRun::get/put`) and 5a.6 (`ArcRunExplicit::get/put`)
+depend on the [2026-05-03 active blocker](#active-blockers)
+resolution.
+
+**Phase 3 step 4: MonadRec-target interpreter
 family `interpret_rec` / `run_rec` / `run_accum_rec` across all
 six Run wrappers.** Each wrapper exposes a per-method
 `interpret_rec::<MBrand>(handlers) -> M::Of<A>` (plus the `run_rec`
@@ -223,84 +296,6 @@ Step 4 (`interpret_rec` / `run_rec` / `run_accum_rec` with
 immediate next work. Step 5 (standard first-order effect types
 and smart constructors) follows.
 
-**Phase 3 step 2: `interpret`/`run`/`run_accum`
-recursive-target interpreter family across all six Run wrappers.**
-New module
-[`fp-library/src/types/effects/interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
-hosts the `DispatchHandlers<'a, Layer, NextProgram>` trait that
-walks a [`HandlersCons`](../../../fp-library/src/types/effects/handlers.rs)
-in lock-step with the row's value-level
-[`Coproduct`](../../../fp-library/src/types/effects/coproduct.rs)
-chain. Three cons-cell impls cover one Coyoneda variant each
-(`Coyoneda` / `RcCoyoneda` / `ArcCoyoneda`); the empty case is
-`HandlersNil`/`CNil`. Each wrapper exposes inherent
-`interpret`/`run`/`run_accum` methods that loop on `peel`,
-dispatch each `Node::First` layer through `DispatchHandlers`,
-and panic on `Node::Scoped` (Phase 4 will route scoped
-dispatch).
-
-Per-wrapper deltas: ArcRun's loop pattern-matches `Node::First`
-through a free-function helper
-[`unwrap_first`](../../../fp-library/src/types/effects/arc_run.rs)
-to sidestep the same struct-level HRTB-poisoning that drove
-[`lift_node`](../../../fp-library/src/types/effects/arc_run.rs)
-in Phase 2 step 5; the other five wrappers pattern-match inline.
-RcRun / RcRunExplicit / ArcRun / ArcRunExplicit add the
-substrate-specific `Clone` / `Send + Sync` bounds matching their
-respective `peel` signatures. State threading in `run_accum` is
-via closure captures (`Rc<RefCell<S>>` for single-threaded
-substrates, `Arc<Mutex<S>>` for ArcRun / ArcRunExplicit), which
-matches PureScript Run's `runAccum :: ... -> Run r a -> m a`
-shape (state is internal to the loop; final result is `A` only).
-
-The handler closure's mono-in-`A` shape matches PureScript Run's
-actual runtime model
-([`Run.purs:184-217`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs#L178-L217)
-shows `interpret = run` aliasing). The handler closure receives
-the Coyoneda-lowered effect (`<EBrand as Kind>::Of<'_, NextProgram>`)
-and returns the next program. Users name the _inner_ effect
-brand (`IdentityBrand`, `StateBrand`, etc.) in the `handlers!`
-macro for all six wrappers, matching `effects!`'s sort key; the
-DispatchHandlers impls bind the inner brand and dispatch on the
-relevant Coyoneda value variant.
-
-Tests: 12 integration tests in
-[`fp-library/tests/run_interpret.rs`](../../../fp-library/tests/run_interpret.rs)
-covering single-effect interpretation, bind-chain interpretation,
-the `run` alias matching `interpret`, and `run_accum` with state
-threading via `Rc<RefCell<...>>` (single-threaded) or
-`Arc<Mutex<...>>` (Send + Sync). Per-wrapper doctests on each
-`interpret` / `run` / `run_accum` method exercise the
-canonical-row-and-handler combination. `just verify` clean: 2456
-unit tests + 12 integration tests + doctests on each method
-compile and pass.
-
-Plan.md Phase 6+ deferred-items section gains an entry for a
-future `interpret_nt`-style companion entry-point taking
-[`NaturalTransformation`](../../../fp-library/src/classes/natural_transformation.rs)
-directly (the existing rank-2 polymorphic trait used by
-[`Free::fold_free`](../../../fp-library/src/types/free.rs)),
-preserving the future-revisit context per the user's request.
-
-Per-step deviation entry in
-[deviations.md](deviations.md) Phase 3 step 2 records: the
-three-impl Coyoneda-variant traversal pattern; the mono-in-`A`
-step-function rationale; per-wrapper inherent-method layout;
-ArcRun's `unwrap_first` HRTB-poisoning workaround mirroring
-`lift_node`'s precedent; the `Scoped` arm panic gated by
-`#[expect(clippy::unreachable, ...)]` until Phase 4; state
-threading via closure captures vs a separate stateful trait;
-and the inner-brand handler-list key matching `effects!`'s
-sort.
-
-Step 3 (pipeline row-narrowing: `interpret_with::<EBrand>(handler) -> Run<R_minus_E, S, A>`
-plus `extract(self) -> A` per wrapper) is the immediate next
-work. Adds a new `DispatchOneHandler` trait variant alongside
-`DispatchHandlers`. Step 4 (MonadRec-target
-`interpret_rec` / `run_rec` / `run_accum_rec`) follows; reuses
-`DispatchHandlers` with the loop body switched from while-loop
-to `tail_rec_m` trampolining.
-
 ### Earlier completed steps (commit log)
 
 Each entry's design choices are recorded in
@@ -311,6 +306,23 @@ summary; resolved blockers are in
 
 Phase 3:
 
+- `d5efe2a` (step 2): `interpret` / `run` / `run_accum` simple
+  all-handlers-at-once interpreter family across all six Run
+  wrappers. New module
+  [`fp-library/src/types/effects/interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
+  hosts the
+  [`DispatchHandlers<'a, Layer, NextProgram>`](../../../fp-library/src/types/effects/interpreter.rs)
+  trait that walks a `HandlersCons` against the row's value-
+  level Coproduct chain in lock-step. Three cons-cell impls
+  (Coyoneda / RcCoyoneda / ArcCoyoneda) plus HandlersNil/CNil
+  base case. Per-wrapper inherent methods loop on `peel`,
+  dispatch each `Node::First` layer, panic on `Node::Scoped`
+  (Phase 4 wires scoped). ArcRun uses a free-function
+  [`unwrap_first`](../../../fp-library/src/types/effects/arc_run.rs)
+  helper to sidestep struct-level HRTB poisoning. State
+  threading in `run_accum` is via closure captures
+  (`Rc<RefCell<...>>` / `Arc<Mutex<...>>`). 12 integration tests
+  - per-method doctests.
 - `82dd7bb` (step 1): `handlers!{...}` macro plus `nt()` builder
   fallback for assembling natural transformations
   `VariantF<R> ~> M`. Runtime carrier
@@ -586,7 +598,175 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-_(None active.)_
+#### Active blocker (2026-05-03): Phase 3 step 5a `SendFunctor` impl on `StateBrand` for the Arc family
+
+**TL;DR:** [`StateBrand<P, S>`](../../../fp-library/src/types/effects/state.rs)
+ships in step 5a.1 with the `Functor` impl only; the
+`SendFunctor` impl is deferred. Without `SendFunctor`, the
+Arc family smart constructors (`ArcRun::get/put` /
+`ArcRunExplicit::get/put`, step 5a.4 and 5a.6) cannot ship via
+the same path that 5a.3 / 5a.5 use, because `ArcCoyoneda`'s
+`Member::project` and `lower_ref` paths require the inner
+projection to be `Send + Sync` per-`A`. The bound
+`<P as RefCountedPointer>::Of<'_, dyn 'a + Fn(S) -> A>: Send + Sync`
+must be expressed for each `A` the smart constructor produces,
+which hits stable Rust's HRTB-over-types limit (the same
+constraint family that drove the brand-level `SendFunctor`
+cascade gaps in Phase 2 step 9d / 9g / 9i).
+
+**Status:** unresolved as of 2026-05-03. Step 5a.3 (`RcRun::get/put`)
+and 5a.5 (Explicit non-Arc family) can proceed without resolving
+this blocker; 5a.4 and 5a.6 depend on it.
+
+##### Background
+
+[`SendFunctor`](../../../fp-library/src/classes/send_functor.rs)
+adds `Send + Sync` bounds on the input/output types and the
+closure to the `Functor::map` contract. The
+[`ArcCoyoneda`](../../../fp-library/src/types/arc_coyoneda.rs)
+dispatch impl in
+[`interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
+requires `EBrand: SendFunctor` and
+`<EBrand as Kind>::Of<'a, NextProgram>: Send + Sync + 'a`.
+
+For `StateBrand<P, S>` with `P = ArcBrand`, the projection is
+`State<'a, ArcBrand, S, A>`. The Get and Put variants hold
+`<ArcBrand as RefCountedPointer>::Of<'a, dyn 'a + Fn(...) -> A>` =
+`Arc<dyn 'a + Fn(...) -> A>`. **This `Arc<dyn Fn>` is NOT
+`Send + Sync` by default**: `RefCountedPointer::Of` provides
+`Clone + Deref + 'a` but no `Send + Sync` guarantee. For the
+`Arc<dyn Fn>` to be thread-safe, the inner `dyn Fn` must carry
+`+ Send + Sync`. The fp-library codebase has a parallel trait
+[`SendRefCountedPointer`](../../../fp-library/src/classes/ref_counted_pointer.rs)
+whose `Of<'a, T: ?Sized + Send + Sync + 'a>` projection captures
+this, but `State`'s representation uses `RefCountedPointer::Of`
+(not `SendRefCountedPointer::Of`) so the bound isn't built in.
+
+This is a concrete instance of the per-`A` HRTB-over-types
+limit documented in
+[fp-library/docs/limitations-and-workarounds.md](../../../fp-library/docs/limitations-and-workarounds.md):
+the bound holds for any specific `A`, but cannot be expressed
+once-and-for-all in a brand-level `SendFunctor` impl on
+`StateBrand<ArcBrand, S>` because stable Rust does not support
+`for<T>` HRTBs.
+
+##### The decisions
+
+###### Decision 1: where the `Send + Sync` bound lives
+
+(a) **Brand-level `SendFunctor` impl with HRTB.** Add an impl
+like:
+
+```rust
+impl<S> SendFunctor for StateBrand<ArcBrand, S>
+where
+    S: Send + Sync + 'static,
+    for<'a, A: Send + Sync + 'a> <ArcBrand as RefCountedPointer>::Of<
+        'a,
+        dyn 'a + Fn(S) -> A,
+    >: Send + Sync,
+{
+    ...
+}
+```
+
+**Cons:** the `for<'a, A>` HRTB-over-types is unsupported on
+stable Rust. Same wall as Phase 2 step 9d / 9g / 9i.
+
+(b) **Per-method `Send + Sync` bounds at smart-constructor
+sites.** No brand-level `SendFunctor` impl on `StateBrand<P, S>`.
+Instead, `ArcRun::get/put` and `ArcRunExplicit::get/put`
+explicitly require
+`<ArcBrand as RefCountedPointer>::Of<'static, dyn Fn(...)>: Send + Sync`
+in their where-clauses for the specific `A` the constructor
+produces. Callers see the bound at use sites; the
+`SendFunctor::send_map` cascade through `ArcCoyoneda` resolves
+because each `A` instantiation gets its own concrete bound
+discharged.
+
+This mirrors `ArcRunExplicit`'s precedent (per the lessons-
+learned section): per-method `Send + Sync` bounds, not at
+the struct level.
+
+**Cons:** more verbose smart-constructor signatures; users
+who interpret_with on State get the bound in their
+where-clause. **Pros:** matches the existing pattern in
+fp-library; no new trait machinery; works on stable Rust.
+
+(c) **Parallel `SendStateBrand<P, S>` separate from
+`StateBrand<P, S>`.** Define a second brand whose `Of<'a, A>`
+is `SendState<'a, P, S, A>` with the inner pointer projection
+typed via `SendRefCountedPointer::Of` (which carries
+`T: Send + Sync` in its bound). The Arc smart constructors
+use `SendStateBrand` in the row; non-Arc constructors use
+`StateBrand`. Two state types, two row brand entries.
+
+**Cons:** doubles the type surface; users with mixed
+single-thread / thread-safe code in the same program face two
+state types they must convert between. **Pros:** the
+`SendFunctor` impl is straightforward (no HRTB-over-types);
+no per-method bound proliferation.
+
+(d) **Use `SendRefCountedPointer::Of` directly in `State`'s
+representation.** Change `State<'a, P, S, A>` to require
+`P: ToDynCloneFn`, but type the inner projection via
+`<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(...) -> A + Send + Sync>`
+when used with the Arc family. This unifies (b)'s per-site
+bound with the type surface. Requires extending or replacing
+`ToDynCloneFn` with a `Send + Sync`-aware variant.
+
+**Cons:** changes the existing `State` representation; bigger
+refactor than (b). **Pros:** the Send + Sync property is
+encoded in the type, no per-method bound proliferation.
+
+**Recommendation: (b)** per-method `Send + Sync` bounds at
+smart-constructor sites. Matches the precedent set by every
+other Arc-family `interpret_with` / `interpret_rec` method
+(which also requires per-method `Send + Sync` bounds rather
+than struct-level ones), avoids new trait machinery, works on
+stable Rust today. (a) is unimplementable (HRTB wall); (c) and
+(d) restructure the type surface in ways disproportionate to
+the problem's scope.
+
+##### Implementation phasing implications
+
+Under (b):
+
+- `state.rs` keeps `Functor` impl on `StateBrand<P, S>`.
+- `state.rs` does NOT add a `SendFunctor` impl. The
+  deferred-comment block in 5a.1 stays.
+- `ArcRun::get/put` and `ArcRunExplicit::get/put` add
+  per-method bounds:
+  - `<ArcBrand as RefCountedPointer>::Of<'_, dyn 'a + Fn(S) -> A>: Send + Sync`
+  - `<ArcBrand as RefCountedPointer>::Of<'_, dyn 'a + Fn(()) -> A>: Send + Sync`
+  - `S: Send + Sync` (already required for `ArcCoyoneda::lift`).
+- `ArcRun::interpret_with::<StateBrand<ArcBrand, S>>` users get
+  these bounds propagated into their where-clauses. Documented
+  as a known cost in deviations.md and the `Arc family`
+  per-wrapper notes.
+
+##### Cross-references
+
+- [Per-`A` HRTB-over-types blocks brand-level type-class
+  delegation](prompt.md#per-a-hrtb-over-types-blocks-brand-level-type-class-delegation):
+  the broader pattern this blocker instantiates.
+- [Phase 2 step 9d resolution](resolutions.md#resolved-2026-04-28-implementation-expansion-step-9-sendfunctor-cascade-prerequisites-for-arc-family):
+  the per-method workaround precedent.
+- [`fp-library/docs/limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md):
+  the project-wide table of HRTB-over-types-blocked
+  brand-level cascades.
+
+##### What happens next
+
+User decision needed on (a) / (b) / (c) / (d), with (b)
+recommended. Once locked in:
+
+1. Move this entry to [resolutions.md](resolutions.md) verbatim.
+2. Resume implementation at step 5a.4 (`ArcRun::get/put`) under
+   the locked-in approach.
+3. 5a.3 (`RcRun::get/put`) and 5a.5 (Explicit non-Arc family)
+   can proceed in parallel since they don't need
+   `SendFunctor`.
 
 Recently resolved: the Phase 3 step 5 smart-constructor wrapper
 parameterization question (2026-05-03). Five sub-decisions

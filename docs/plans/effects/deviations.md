@@ -2270,3 +2270,174 @@ Open follow-ups:
   Cost: bound restatement; benefit: helper proliferation
   eliminated. Currently provisional; revisit if helper count
   grows.
+
+### Step 5a.1: State effect type machinery
+
+`StateBrand<P, S>` registration + `State<'a, P, S, A>` enum
+
+- `Functor` impl shipped per the
+  [2026-05-03 resolution](resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization)
+  ((1.b) + (2.a) + (3.a-1)).
+
+What landed:
+
+- [`StateBrand<P, S>`](../../../fp-library/src/brands.rs)
+  registration in `brands.rs`, parameterised by
+  `P: ToDynCloneFn` (the pointer brand for the stored
+  continuations) and `S: 'static`.
+- [`fp-library/src/types/effects/state.rs`](../../../fp-library/src/types/effects/state.rs)
+  with `State<'a, P, S, A>`:
+  - `Get(<P as RefCountedPointer>::Of<'a, dyn 'a + Fn(S) -> A>)`
+  - `Put(S, <P as RefCountedPointer>::Of<'a, dyn 'a + Fn(()) -> A>)`
+- `Functor` impl on `StateBrand<P, S>` that composes the user-
+  supplied `f: A -> B` with each variant's stored continuation
+  via [`<P as ToDynCloneFn>::new(closure)`](../../../fp-library/src/classes/to_dyn_clone_fn.rs).
+- `impl_kind!` registration connecting `StateBrand<P, S>` to
+  the `Of<'a, A>: 'a = State<'a, P, S, A>` projection.
+- Per-method doctest exercising the Functor instance with
+  `RcBrand`.
+
+What the plan called for, and what diverged:
+
+- **`SendFunctor` impl deferred.** Per the locked-in design
+  resolution, `StateBrand<ArcBrand, S>` should support the
+  Arc family. Implementing this requires the bound
+  `<ArcBrand as RefCountedPointer>::Of<'_, dyn 'a + Fn(S) -> A>: Send + Sync`
+  per-`A`, which hits stable Rust's HRTB-over-types limit (the
+  same wall that blocked brand-level `SendFunctor` on
+  `ArcFreeExplicitBrand` in Phase 2 step 9d / 9g / 9i). The
+  impl is deferred with a code comment in `state.rs`; an
+  active blocker in plan.md tracks the open design decision
+  for how to ship Arc family smart constructors. See the
+  [2026-05-03 active blocker](plan.md#active-blockers).
+- **All wrappers use FnBrand-wrapped continuations**, not just
+  the multi-shot ones. Single-shot wrappers (Run, RunExplicit)
+  accept the small Rc-allocation cost of going through
+  `<RcBrand as ToDynCloneFn>::new` rather than `Box::new`. This
+  unifies the type surface (one `State<'a, P, S, A>` for all
+  wrappers); the alternative of two State types (one for
+  single-shot with `Box<dyn FnOnce>`, one for multi-shot with
+  `Rc<dyn Fn>`) was rejected as over-fragmenting the API.
+- **`S: 'static` simplification.** The state type is bounded
+  `'static` at the brand level; users with non-`'static` state
+  (e.g., state holding borrowed data) cannot use `StateBrand`
+  directly. Lifetime-parameterised state is deferred to Phase
+  6+ if user demand surfaces.
+
+Verification: `just verify` clean. 2490 unit tests + 1 new
+doctest on the Functor impl compile and pass.
+
+### Step 5a.2: Run::get and Run::put smart constructors
+
+Run-only smart constructors for State, the first per-wrapper
+variant in the rollout per the resolution's (1.b) decision.
+
+What landed:
+
+- `Run::get<Idx>() -> Run<R, ScopedRow, A>` in the existing
+  `impl<R, ScopedRow, A> Run<R, ScopedRow, A>` block. The state
+  type and program result type coincide for `get`, so it sits
+  on the existing impl block without specializing `A`.
+- `Run::put<StateType, Idx>(s: StateType) -> Run<R, ScopedRow, ()>`
+  in a separate `impl<R, ScopedRow> Run<R, ScopedRow, ()>` block.
+  The state type is generic and typically requires turbofish
+  because `put`'s result is `()` (which doesn't constrain the
+  state type from the call site).
+- Both thread `RcBrand` as the pointer kind. Continuations
+  constructed via
+  `<RcBrand as ToDynCloneFn>::new(closure)`; direct
+  `Rc::new(closure)` returns `Rc<{closure_type}>` rather than
+  `Rc<dyn Fn>` and would not match `State::Get`/`Put`'s slot.
+- Per-method doctests on each constructor exercise the
+  canonical-row instantiation.
+
+What the plan called for, and what diverged:
+
+- **`#[document_parameters("...")]` cannot annotate impl blocks
+  with no `&self` / `self` methods.** Both new impl blocks
+  contain only associated functions (no receiver), so they use
+  `#[document_type_parameters(...)]` only. Documented as
+  general macro-attribute knowledge in subsequent commits.
+- **Trybuild `.stderr` regenerated for the
+  `im_do_ref_on_non_clone_wrapper` UI test.** Adding `Run::get`
+  / `Run::put` changes rustc's "consider using one of the
+  following associated functions" suggestion list, so the
+  captured `.stderr` shifts. Regenerated via
+  `TRYBUILD=overwrite cargo test --test compile_fail`.
+
+Verification: `just verify` clean. 2492 unit tests + 2 new
+doctests (Run::get, Run::put) compile and pass.
+
+Open follow-ups:
+
+- 5a.3: `RcRun::get` / `RcRun::put` (no `SendFunctor` needed,
+  can proceed without the active blocker).
+- 5a.5: `RunExplicit::get/put`, `RcRunExplicit::get/put`
+  (Explicit non-Arc family, also blocker-independent).
+- 5a.4: `ArcRun::get/put` blocked on the
+  [2026-05-03 SendFunctor active blocker](plan.md#active-blockers).
+- 5a.6: `ArcRunExplicit::get/put` same blocker.
+- Integration tests in `fp-library/tests/run_state.rs` once
+  all six wrappers' smart constructors land.
+
+### Cross-cutting docs/macros commits during step 5a
+
+Two cross-cutting commits landed in the same set as 5a.1 / 5a.2;
+not tied to a specific phase step but worth recording for
+context:
+
+#### `4f0e977`: `docs(effects):` document_module wrappers
+
+Wrapped [`handlers.rs`](../../../fp-library/src/types/effects/handlers.rs),
+[`interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs),
+and [`member.rs`](../../../fp-library/src/types/effects/member.rs)
+in `#[fp_macros::document_module]` + `mod inner { ... }` +
+`pub use inner::*;` per user request. Each item gained the
+required attribute markers (`document_signature`,
+`document_type_parameters`, `document_parameters`,
+`document_returns`, `document_examples`).
+
+What diverged:
+
+- **`#[document_parameters]` cannot annotate impl blocks with
+  no methods that take a receiver.** The
+  `Handler::<E, F>::new` block has only an associated function
+  (no `&self`/`self`), so `document_parameters` is omitted.
+- **Wrapping in `mod inner { ... }` brings inner items out of
+  scope for module-level (`//!`) doc-link references.** Module
+  docs that previously referenced `[`HandlersNil`]` etc. are
+  rewritten to use full crate paths
+  (`[`HandlersNil`](crate::types::effects::handlers::HandlersNil)`).
+
+#### `3a5a0a8`: `fix(macros):` reject trivial assertions
+
+Tightened
+[`#[document_examples]`](../../../fp-macros/src/documentation/document_examples.rs)
+validation to reject six trivially-true assertion patterns
+(`assert!(true)`, `debug_assert!(true)`,
+`assert_eq!(true, true)`, `assert_eq!((), ())`,
+`assert_ne!(true, false)`, `assert_ne!(false, true)`). Even if
+a code block contains a meaningful assertion alongside a
+trivial one, the trivial form is treated as noise and rejected.
+
+Refactored 19 existing trivial-assertion doctests across
+fp-library + 5 in fp-macros to meaningful assertions:
+
+- 6 Free-family Drop tests construct a post-drop value and
+  assert via `resume()` / `evaluate()`.
+- 5 interpreter.rs `dispatch` examples exercise via the user-
+  facing `*Run::interpret` path with `assert_eq!(result, N)`.
+- 6 Run-family `from_*_free` / `Clone` doctests bind the
+  constructed value (no underscore prefix) and assert via
+  `peel()` / `resume()`.
+- 2 Arc helper doctests use `assert!(matches!(...))` rather
+  than match-arm `assert!(true)`.
+- 2 fixtures use `core::mem::size_of` (uninhabited types are
+  size-0).
+- 5 fp-macros test fixtures use `assert_eq!(1 + 1, 2)`.
+
+Side effect: `rc_run.rs`'s Clone doctest's `FirstRow` switched
+from `CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>`
+to `CoproductBrand<IdentityBrand, CNilBrand>` so `peel()` works
+(bare `Coyoneda` is `!Clone`, blocking `RcRun::peel`'s
+substrate-`Clone` bound).
