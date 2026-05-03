@@ -1000,7 +1000,9 @@ mod inner {
 		/// {
 		/// 	let _free = Free::<ThunkBrand, _>::pure(42);
 		/// } // drop called here
-		/// assert!(true);
+		/// // Reaching this point without panicking proves drop completed.
+		/// let post_drop = Free::<ThunkBrand, _>::pure(7);
+		/// assert!(matches!(post_drop.resume(), Ok(7)));
 		/// ```
 		fn drop(&mut self) {
 			// Take the view out so we can iteratively dismantle the chain

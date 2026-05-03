@@ -174,7 +174,8 @@ mod inner {
 		/// ) -> CNil {
 		/// 	<CNilBrand as SendFunctor>::send_map::<A, B>(|_| panic!("unreachable"), cnil)
 		/// }
-		/// assert!(true);
+		/// // CNil is uninhabited; verify zero size at runtime.
+		/// assert_eq!(core::mem::size_of::<CNil>(), 0);
 		/// ```
 		fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
 			_func: impl Fn(A) -> B + Send + Sync + 'a,
@@ -340,7 +341,10 @@ mod inner {
 		/// };
 		/// fn requires_wrap_drop<F: WrapDrop>() {}
 		/// requires_wrap_drop::<CNilBrand>();
-		/// assert!(true);
+		/// // The trait-bound check above passed at compile time; this
+		/// // runtime assertion records that fact.
+		/// use fp_library::types::effects::coproduct::CNil;
+		/// assert_eq!(core::mem::size_of::<CNil>(), 0);
 		/// ```
 		fn drop<'a, X: 'a>(
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)

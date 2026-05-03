@@ -106,12 +106,12 @@ mod inner {
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::from_rc_free(RcFree::pure(42));
-		/// let _branch = rc_run.clone();
-		/// assert!(true);
+		/// let branch = rc_run.clone();
+		/// assert!(matches!(branch.peel(), Ok(42)));
 		/// ```
 		fn clone(&self) -> Self {
 			RcRun(self.0.clone())
@@ -149,11 +149,11 @@ mod inner {
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
-		/// let _rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::from_rc_free(RcFree::pure(7));
-		/// assert!(true);
+		/// let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::from_rc_free(RcFree::pure(7));
+		/// assert!(matches!(rc_run.peel(), Ok(7)));
 		/// ```
 		#[inline]
 		pub fn from_rc_free(rc_free: RcFree<NodeBrand<R, S>, A>) -> Self {
@@ -178,12 +178,12 @@ mod inner {
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::from_rc_free(RcFree::pure(7));
-		/// let _rc_free: RcFree<NodeBrand<FirstRow, Scoped>, i32> = rc_run.into_rc_free();
-		/// assert!(true);
+		/// let rc_free: RcFree<NodeBrand<FirstRow, Scoped>, i32> = rc_run.into_rc_free();
+		/// assert!(matches!(rc_free.resume(), Ok(7)));
 		/// ```
 		#[inline]
 		pub fn into_rc_free(self) -> RcFree<NodeBrand<R, S>, A> {

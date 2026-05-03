@@ -116,8 +116,8 @@ mod inner {
 		/// type Scoped = CNilBrand;
 		///
 		/// let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::from_arc_free(ArcFree::pure(42));
-		/// let _branch = arc_run.clone();
-		/// assert!(true);
+		/// let branch = arc_run.clone();
+		/// assert!(matches!(branch.peel(), Ok(42)));
 		/// ```
 		fn clone(&self) -> Self {
 			ArcRun(self.0.clone())
@@ -160,8 +160,8 @@ mod inner {
 		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
-		/// let _arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::from_arc_free(ArcFree::pure(7));
-		/// assert!(true);
+		/// let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::from_arc_free(ArcFree::pure(7));
+		/// assert!(matches!(arc_run.peel(), Ok(7)));
 		/// ```
 		#[inline]
 		pub fn from_arc_free(arc_free: ArcFree<NodeBrand<R, S>, A>) -> Self {
@@ -190,8 +190,8 @@ mod inner {
 		/// type Scoped = CNilBrand;
 		///
 		/// let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::from_arc_free(ArcFree::pure(7));
-		/// let _arc_free: ArcFree<NodeBrand<FirstRow, Scoped>, i32> = arc_run.into_arc_free();
-		/// assert!(true);
+		/// let arc_free: ArcFree<NodeBrand<FirstRow, Scoped>, i32> = arc_run.into_arc_free();
+		/// assert!(matches!(arc_free.resume(), Ok(7)));
 		/// ```
 		#[inline]
 		pub fn into_arc_free(self) -> ArcFree<NodeBrand<R, S>, A> {
@@ -1326,10 +1326,7 @@ mod inner {
 	///
 	/// let node = lift_node::<FirstRow, Scoped, IdentityBrand, _, i32>(Identity(42));
 	/// let layer = unwrap_first::<FirstRow, Scoped, i32>(node);
-	/// match layer {
-	/// 	Coproduct::Inl(_) => assert!(true),
-	/// 	Coproduct::Inr(_) => panic!("expected head Inl"),
-	/// }
+	/// assert!(matches!(layer, Coproduct::Inl(_)));
 	/// ```
 	#[doc(hidden)]
 	#[expect(
@@ -1450,10 +1447,7 @@ mod inner {
 	///
 	/// let layer = Coproduct::inject(Identity(7));
 	/// let node = make_node_first::<Row, Scoped, i32>(layer);
-	/// match node {
-	/// 	Node::First(_) => assert!(true),
-	/// 	Node::Scoped(_) => panic!("expected First"),
-	/// }
+	/// assert!(matches!(node, Node::First(_)));
 	/// ```
 	#[doc(hidden)]
 	pub fn make_node_first<R, S, A>(

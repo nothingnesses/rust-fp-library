@@ -224,7 +224,9 @@ mod inner {
 		/// {
 		/// 	let _free = RcFreeExplicit::<IdentityBrand, _>::pure(42);
 		/// } // drop called here
-		/// assert!(true);
+		/// // Reaching this point without panicking proves drop completed.
+		/// let post_drop = RcFreeExplicit::<IdentityBrand, _>::pure(7);
+		/// assert_eq!(post_drop.evaluate(), 7);
 		/// ```
 		fn drop(&mut self) {
 			let mut current_view = self.view.take();

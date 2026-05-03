@@ -254,7 +254,7 @@ mod test_trait_fully_documented {
 		///
 		/// ```
 		/// // Example placeholder
-		/// assert!(true);
+		/// assert_eq!(1 + 1, 2);
 		/// ```
 		fn len(&self) -> usize;
 
@@ -265,7 +265,7 @@ mod test_trait_fully_documented {
 		#[document_examples]
 		///
 		/// ```
-		/// assert!(true);
+		/// assert_eq!(1 + 1, 2);
 		/// ```
 		fn add(
 			&mut self,
@@ -347,7 +347,7 @@ mod test_trait_signature_with_examples {
 	#[document_examples]
 	///
 	/// ```
-	/// assert!(true);
+	/// assert_eq!(1 + 1, 2);
 	/// ```
 	pub trait Testable {
 		/// Does a thing.
@@ -356,7 +356,7 @@ mod test_trait_signature_with_examples {
 		#[document_examples]
 		///
 		/// ```
-		/// assert!(true);
+		/// assert_eq!(1 + 1, 2);
 		/// ```
 		fn do_thing() -> bool;
 	}

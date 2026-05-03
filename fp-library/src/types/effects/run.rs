@@ -119,8 +119,8 @@ mod inner {
 		/// type Scoped = CNilBrand;
 		///
 		/// let free: Free<NodeBrand<FirstRow, Scoped>, i32> = Free::pure(7);
-		/// let _run: Run<FirstRow, Scoped, i32> = Run::from_free(free);
-		/// assert!(true);
+		/// let run: Run<FirstRow, Scoped, i32> = Run::from_free(free);
+		/// assert!(matches!(run.peel(), Ok(7)));
 		/// ```
 		#[inline]
 		pub fn from_free(free: Free<NodeBrand<R, S>, A>) -> Self {
@@ -149,8 +149,8 @@ mod inner {
 		/// type Scoped = CNilBrand;
 		///
 		/// let run: Run<FirstRow, Scoped, i32> = Run::from_free(Free::pure(7));
-		/// let _free: Free<NodeBrand<FirstRow, Scoped>, i32> = run.into_free();
-		/// assert!(true);
+		/// let free: Free<NodeBrand<FirstRow, Scoped>, i32> = run.into_free();
+		/// assert!(matches!(free.resume(), Ok(7)));
 		/// ```
 		#[inline]
 		pub fn into_free(self) -> Free<NodeBrand<R, S>, A> {

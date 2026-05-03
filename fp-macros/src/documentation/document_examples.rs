@@ -23,6 +23,40 @@ fn contains_assertion(code: &str) -> bool {
 	ASSERTION_MACROS.iter().any(|mac| code.contains(mac))
 }
 
+/// Trivially-true assertion patterns. These technically contain an
+/// assertion macro but assert nothing about the example's expected
+/// outputs; they are rejected so authors must write meaningful
+/// assertions instead.
+const TRIVIAL_ASSERTION_PATTERNS: &[&str] = &[
+	"assert!(true)",
+	"debug_assert!(true)",
+	"assert_eq!(true, true)",
+	"assert_eq!((), ())",
+	"assert_ne!(true, false)",
+	"assert_ne!(false, true)",
+];
+
+/// Check whether `code` contains any trivially-true assertion
+/// pattern.
+///
+/// A trivially-true assertion (e.g., `assert!(true)`) satisfies the
+/// "must contain at least one assertion" check structurally but
+/// doesn't verify anything about the example's expected outputs. This
+/// function detects such patterns so the macro can reject them and
+/// require authors to write meaningful assertions instead. Even if a
+/// code block also contains a meaningful assertion, having a trivial
+/// one alongside is treated as noise and rejected.
+///
+/// Whitespace inside the pattern is normalized via simple substring
+/// match: `assert!(true)`, `assert!(true);`, `assert!( true )` (after
+/// whitespace removal) all match the same canonical form. Leading
+/// `# ` doc-test sigils are also accommodated by stripping all
+/// whitespace before comparison.
+fn contains_trivial_assertion(code: &str) -> bool {
+	let stripped: String = code.chars().filter(|c| !c.is_whitespace()).collect();
+	TRIVIAL_ASSERTION_PATTERNS.iter().any(|pattern| stripped.contains(&pattern.replace(' ', "")))
+}
+
 /// State machine for parsing doc comment code blocks.
 enum ParseState {
 	Normal,
@@ -135,7 +169,8 @@ fn validate_code_blocks_exist(code_blocks: &[String]) -> OurResult<()> {
 	Ok(())
 }
 
-/// Validate that every Rust code block contains at least one assertion.
+/// Validate that every Rust code block contains at least one assertion
+/// and that the assertion is non-trivial.
 fn validate_code_blocks(code_blocks: &[String]) -> OurResult<()> {
 	validate_code_blocks_exist(code_blocks)?;
 
@@ -145,6 +180,17 @@ fn validate_code_blocks(code_blocks: &[String]) -> OurResult<()> {
 				proc_macro2::Span::call_site(),
 				format!(
 					"Code block {} in the doc comments for #[{DOCUMENT_EXAMPLES}] must contain at least one assertion macro (e.g., assert_eq!, assert!)",
+					i + 1,
+				),
+			)
+			.into());
+		}
+
+		if contains_trivial_assertion(code) {
+			return Err(syn::Error::new(
+				proc_macro2::Span::call_site(),
+				format!(
+					"Code block {} in the doc comments for #[{DOCUMENT_EXAMPLES}] contains a trivially-true assertion (e.g., `assert!(true)`); replace with a meaningful assertion that verifies the example's expected output",
 					i + 1,
 				),
 			)

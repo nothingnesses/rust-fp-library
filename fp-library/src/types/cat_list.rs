@@ -3399,7 +3399,9 @@ mod inner {
 		/// {
 		/// 	let _list = CatList::singleton(1).snoc(2).snoc(3);
 		/// } // drop called here
-		/// assert!(true);
+		/// // Reaching this point without panicking proves drop completed.
+		/// let post_drop: CatList<i32> = CatList::singleton(7);
+		/// assert!(matches!(post_drop.uncons().map(|(h, _)| h), Some(7)));
 		/// ```
 		fn drop(&mut self) {
 			let mut worklist: Vec<VecDeque<CatList<A>>> = Vec::new();

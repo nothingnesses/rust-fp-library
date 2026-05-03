@@ -118,12 +118,25 @@ mod inner {
 		#[fp_macros::document_examples]
 		///
 		/// ```
-		/// // `dispatch` is invoked internally by `*Run::interpret`,
-		/// // `*Run::run`, `*Run::run_accum`, and the rec family. End
-		/// // users typically don't call it directly; see the per-
-		/// // wrapper interpret method docs (e.g.,
-		/// // `Run::interpret`) for the user-facing surface.
-		/// assert!(true);
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run::Run,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// // `dispatch` is invoked internally by `Run::interpret` once per
+		/// // peeled `Node::First` layer. The handler list passed to
+		/// // `interpret` becomes the `&self` receiver of `dispatch`.
+		/// let prog: Run<FirstRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
+		/// let result = prog.interpret(handlers! {
+		/// 	IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
+		/// });
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch(
 			&self,
@@ -151,10 +164,26 @@ mod inner {
 		#[fp_macros::document_examples]
 		///
 		/// ```
-		/// // `HandlersNil`'s dispatch is uninhabited; calling it requires
-		/// // a `CNil` value, which cannot be constructed. The base case
-		/// // exists so the recursive impls can terminate.
-		/// assert!(true);
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run::Run,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// // The `HandlersNil` / `CNil` base case is the recursion
+		/// // terminator: when `interpret` walks past every cons-cell
+		/// // dispatch impl, it eventually lands here on the `CNil`
+		/// // tail, which is uninhabited and matches exhaustively.
+		/// let prog: Run<FirstRow, CNilBrand, i32> = Run::pure(7);
+		/// let result = prog.interpret(handlers! {
+		/// 	IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
+		/// });
+		/// assert_eq!(result, 7);
 		/// ```
 		#[inline]
 		fn dispatch(
@@ -196,9 +225,24 @@ mod inner {
 		#[fp_macros::document_examples]
 		///
 		/// ```
-		/// // Dispatch is invoked internally by `Run::interpret` /
-		/// // `RunExplicit::interpret` (the bare-Coyoneda Run wrappers).
-		/// assert!(true);
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run::Run,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// // Bare-Coyoneda dispatch impl is invoked by `Run::interpret` /
+		/// // `RunExplicit::interpret` per peeled `Node::First` layer.
+		/// let prog: Run<FirstRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(99));
+		/// let result = prog.interpret(handlers! {
+		/// 	IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
+		/// });
+		/// assert_eq!(result, 99);
 		/// ```
 		#[inline]
 		fn dispatch(
@@ -244,9 +288,26 @@ mod inner {
 		#[fp_macros::document_examples]
 		///
 		/// ```
-		/// // Invoked internally by `RcRun::interpret` /
-		/// // `RcRunExplicit::interpret`.
-		/// assert!(true);
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run::RcRun,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// // The `RcCoyoneda` dispatch impl is invoked by
+		/// // `RcRun::interpret` / `RcRunExplicit::interpret` per peeled
+		/// // layer; `lower_ref` preserves the underlying `Rc`-shared
+		/// // continuation for multi-shot use.
+		/// let prog: RcRun<FirstRow, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(11));
+		/// let result = prog.interpret(handlers! {
+		/// 	IdentityBrand: |op: Identity<RcRun<FirstRow, CNilBrand, i32>>| op.0,
+		/// });
+		/// assert_eq!(result, 11);
 		/// ```
 		#[inline]
 		fn dispatch(
@@ -292,9 +353,27 @@ mod inner {
 		#[fp_macros::document_examples]
 		///
 		/// ```
-		/// // Invoked internally by `ArcRun::interpret` /
-		/// // `ArcRunExplicit::interpret`.
-		/// assert!(true);
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run::ArcRun,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// // The `ArcCoyoneda` dispatch impl is invoked by
+		/// // `ArcRun::interpret` / `ArcRunExplicit::interpret`. The
+		/// // `Send + Sync` bounds on `NextProgram` and the inner
+		/// // projection let the dispatched continuation cross thread
+		/// // boundaries.
+		/// let prog: ArcRun<FirstRow, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(13));
+		/// let result = prog.interpret(handlers! {
+		/// 	IdentityBrand: |op: Identity<ArcRun<FirstRow, CNilBrand, i32>>| op.0,
+		/// });
+		/// assert_eq!(result, 13);
 		/// ```
 		#[inline]
 		fn dispatch(
