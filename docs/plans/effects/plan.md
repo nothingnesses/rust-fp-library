@@ -705,6 +705,25 @@ trait object IS thread-safe. Full investigation including the
 (b)-discovery details, alternatives, and rationale in
 [resolutions.md](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified).
 
+### Open follow-ups (not blocking but worth surfacing)
+
+- **Step 6a integration tests in `run_state.rs`**: the
+  original
+  [prompt.md](prompt.md)'s
+  "Where to start" #5 said: "After all six wrappers' smart
+  constructors land, add integration tests in
+  `fp-library/tests/run_state.rs` covering: bind-chain
+  composition, run with handlers dispatching State,
+  `interpret`-with-closure-capture state threading through
+  Get/Put for each wrapper." Step 6a closed without this
+  file. Per-method doctests landed but only validate
+  construction (`peel().is_err()`); full Get/Put roundtrip
+  via `interpret(handlers!{ ... StateBrand: handler ... })`
+  was never exercised. Recommended to land before step 5 so
+  step 6a's success criteria are met end-to-end. Tracked in
+  [deviations.md Phase 3 step 5a.4 + 5a.6](deviations.md)'s
+  Open follow-ups subsection.
+
 Recently resolved: the Phase 3 step 6 smart-constructor wrapper
 parameterization question (2026-05-03). Five sub-decisions
 locked in: (1.b) six variants per effect; (2.a) per-effect
