@@ -42,11 +42,13 @@ mod inner {
 			brands::{
 				CNilBrand,
 				NodeBrand,
+				RcBrand,
 			},
 			classes::{
 				Functor,
 				MonadRec,
 				Pointed,
+				RefCountedPointer,
 				WrapDrop,
 			},
 			functions::tail_rec_m,
@@ -804,8 +806,11 @@ mod inner {
 		/// `handler` consumes the lowered effect (`<EBrand as Kind>::Of<'_, Run<RMinusE, S, A>>`,
 		/// where each inner program is already narrowed) and produces
 		/// the next-step program in the narrowed row. The handler is
-		/// reused across recursive calls (one clone per inner sub-program
-		/// in the layer's content), so `F: Fn + Clone + 'static`.
+		/// wrapped in an [`Rc`](std::rc::Rc) once at entry; recursive
+		/// calls clone the [`Rc`](std::rc::Rc) (refcount bump) instead
+		/// of cloning the underlying closure, so the user-facing bound
+		/// is just `Fn + 'static` (no `Clone`). This permits handlers
+		/// that capture move-only resources (e.g., a `BufWriter`).
 		///
 		/// ## Stack safety
 		///
@@ -866,7 +871,6 @@ mod inner {
 			handler: impl Fn(
 				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<RMinusE, CNilBrand, A>>),
 			) -> Run<RMinusE, CNilBrand, A>
-			+ Clone
 			+ 'static,
 		) -> Run<RMinusE, CNilBrand, A>
 		where
@@ -880,41 +884,111 @@ mod inner {
 										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>
 									),
 					>, {
+			let handler = <RcBrand as RefCountedPointer>::new(handler);
+			self.interpret_with_shared::<EBrand, Idx, RMinusE, _>(handler)
+		}
+
+		/// Inner pipeline-narrowing implementation, parameterised
+		/// over the concrete handler closure type `F`. The public
+		/// [`interpret_with`](Run::interpret_with) wraps the user
+		/// handler in [`Rc<F>`](std::rc::Rc) once at entry and
+		/// delegates here; recursive narrowing clones the
+		/// [`Rc<F>`](std::rc::Rc) (refcount bump) instead of
+		/// cloning the underlying closure, which is what drops the
+		/// `Clone` bound from the user-facing API.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being interpreted out of the row.",
+			"The type-level position witness.",
+			"The narrowed row brand.",
+			"The concrete handler closure type."
+		)]
+		///
+		#[document_parameters("The handler wrapped in a refcounted pointer.")]
+		///
+		#[document_returns("A `Run` program in the narrowed row `RMinusE`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run::Run,
+		/// 	},
+		/// };
+		///
+		/// type FullRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type EmptyRow = CNilBrand;
+		///
+		/// // Exercised internally by Run::interpret_with.
+		/// let prog: Run<FullRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
+		/// let narrowed: Run<EmptyRow, CNilBrand, i32> = prog
+		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
+		/// 		|op: Identity<Run<EmptyRow, CNilBrand, i32>>| op.0,
+		/// 	);
+		/// assert_eq!(narrowed.extract(), 42);
+		/// ```
+		#[inline]
+		fn interpret_with_shared<EBrand, Idx, RMinusE, F>(
+			self,
+			handler: <RcBrand as RefCountedPointer>::Of<'static, F>,
+		) -> Run<RMinusE, CNilBrand, A>
+		where
+			F: Fn(
+					Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<RMinusE, CNilBrand, A>>),
+				) -> Run<RMinusE, CNilBrand, A>
+				+ 'static,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>):
+				Member<
+						Coyoneda<'static, EBrand, Run<R, CNilBrand, A>>,
+						Idx,
+						Remainder = Apply!(
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>
+									),
+					>, {
 			match self.peel() {
 				Ok(a) => Run::pure(a),
-				Err(Node::First(layer)) => match <Apply!(
-					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>
-				) as Member<
-					Coyoneda<'static, EBrand, Run<R, CNilBrand, A>>,
-					Idx,
-				>>::project(layer)
-				{
-					Ok(coyo) => {
-						let lowered = coyo.lower();
-						let h_for_recurse = handler.clone();
-						let mapped = <EBrand as Functor>::map(
-							move |inner: Run<R, CNilBrand, A>| {
-								inner.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
-							},
-							lowered,
-						);
-						handler(mapped)
-					}
-					Err(rest) => {
-						let h_for_recurse = handler.clone();
-						let mapped_free = <RMinusE as Functor>::map(
-							move |inner: Run<R, CNilBrand, A>| {
-								inner
-									.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
-									.into_free()
-							},
-							rest,
-						);
-						Run::from_free(Free::<NodeBrand<RMinusE, CNilBrand>, A>::wrap(Node::First(
-							mapped_free,
-						)))
-					}
-				},
+				Err(Node::First(layer)) =>
+					match <Apply!(
+						<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>
+					) as Member<Coyoneda<'static, EBrand, Run<R, CNilBrand, A>>, Idx>>::project(
+						layer
+					) {
+						Ok(coyo) => {
+							let lowered = coyo.lower();
+							let h_for_recurse = handler.clone();
+							let mapped = <EBrand as Functor>::map(
+								move |inner: Run<R, CNilBrand, A>| {
+									inner.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+										h_for_recurse.clone(),
+									)
+								},
+								lowered,
+							);
+							(*handler)(mapped)
+						}
+						Err(rest) => {
+							let h_for_recurse = handler.clone();
+							let mapped_free = <RMinusE as Functor>::map(
+								move |inner: Run<R, CNilBrand, A>| {
+									inner
+										.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+											h_for_recurse.clone(),
+										)
+										.into_free()
+								},
+								rest,
+							);
+							Run::from_free(Free::<NodeBrand<RMinusE, CNilBrand>, A>::wrap(
+								Node::First(mapped_free),
+							))
+						}
+					},
 				Err(Node::Scoped(cnil)) => match cnil {},
 			}
 		}

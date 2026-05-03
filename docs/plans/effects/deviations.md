@@ -2133,6 +2133,79 @@ Open follow-ups for step 4 (`MonadRec`-target family):
   is the typical user-facing surface for narrowing programs to
   pure values.
 
+#### M3C: parameterise `interpret_with` over `P: RefCountedPointer` (drops `Clone` bound)
+
+Per the
+[2026-05-03 reversal resolution](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)
+M3C, the user-facing handler bound on `interpret_with` drops
+from `Fn + Clone + 'static` (plus `Send + Sync` on Arc) to
+`Fn + 'static` (plus `Send + Sync` on Arc). Each wrapper's
+public outer method wraps the user handler in
+`<P as RefCountedPointer>::Of<'_, F>` once at entry and
+delegates to a private inner `interpret_with_shared` that
+takes the wrapped pointer by value; recursive narrowing clones
+the pointer (refcount bump) instead of the underlying closure.
+This permits handlers that capture move-only resources (e.g., a
+`BufWriter`) without users having to wrap their captures in
+`Rc<RefCell<_>>` themselves.
+
+What diverged from the plan text:
+
+- **Public-outer + private-inner method split.** The original
+  step 3 plan text described one `interpret_with` method per
+  wrapper with the recursion inline. M3C introduces a private
+  `interpret_with_shared::<EBrand, Idx, RMinusE, F>` companion
+  on each wrapper. The outer method has the same generic
+  parameters as before (`<EBrand, Idx, RMinusE>`, with `F`
+  hidden behind `impl Fn`); the inner method names `F`
+  explicitly so the recursion can pass `<P as RefCountedPointer>::Of<'_, F>`
+  through each call. Users only ever call the public outer; the
+  private inner is implementation detail.
+- **Pointer brand fixed per wrapper, not user-visible.** The
+  resolution proposed parameterising over `P: RefCountedPointer`
+  in the abstract; the implementation fixes `P` per wrapper.
+  `Run`, `RunExplicit`, `RcRun`, `RcRunExplicit` thread
+  [`RcBrand`](../../../fp-library/src/brands.rs);
+  `ArcRun`, `ArcRunExplicit` thread
+  [`ArcBrand`](../../../fp-library/src/brands.rs). User call
+  sites see no extra turbofish parameter.
+- **`(*handler)(mapped)` deref-call invocation pattern.** The
+  inner method invokes the wrapped handler via the
+  `Deref<Target = F>` projection from
+  [`RefCountedPointer::Of<'_, T>`](../../../fp-library/src/classes/ref_counted_pointer.rs).
+  `Rc<F>: Fn` does not hold for arbitrary `F: Fn`; the call
+  goes through `*handler` (a place of type `F`) which then
+  dispatches via `Fn::call(&*handler, args)`.
+- **Doc-attribute requirement on the private inner method.**
+  The `#[document_module]` macro validates all impl-block
+  methods regardless of visibility; private methods are not
+  exempt. Each `interpret_with_shared` carries full
+  `#[document_signature]` / `#[document_type_parameters]` /
+  `#[document_parameters]` / `#[document_returns]` /
+  `#[document_examples]` attributes. The example exercises
+  the method indirectly through the public `interpret_with`
+  (which delegates to `interpret_with_shared`), since the
+  inner method is private and not user-callable.
+  `#[doc(hidden)]` was considered as an opt-out but the macro
+  still validates; `#[allow(deprecated)]` on the method does
+  not suppress the macro's emitted warnings (the warning span
+  comes from impl-block-level macro-emitted code, not the
+  method itself).
+- **Arc family bounds keep `Send + Sync` on `F`.** The Arc
+  inner method's `F` bound retains `Send + Sync + 'static`
+  (or `+ 'a` for `ArcRunExplicit`) so that the wrapped
+  `Arc<F>` is itself `Send + Sync` (`Arc<T>: Send + Sync`
+  requires `T: Send + Sync`); the move-closure that captures
+  the wrapped pointer for `SendFunctor::send_map` then
+  satisfies that combinator's `Send + Sync` requirement on
+  its closure argument.
+- **Three-commit split.** The reversal resolution's land-order
+  prescribed F1D + F3A + M3C as a single combined commit.
+  Implementation split into three focused commits per finding
+  (`05be270` F1D, `f8031c5` F3A, this commit M3C). Each
+  reversal stands alone in review and `just verify` is clean
+  at every commit boundary; the total diff is the same.
+
 ### Step 4: MonadRec-target interpreter family (`interpret_rec` / `run_rec` / `run_accum_rec`)
 
 Per-wrapper inherent

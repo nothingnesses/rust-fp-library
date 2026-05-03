@@ -43,6 +43,7 @@ mod inner {
 		crate::{
 			Apply,
 			brands::{
+				ArcBrand,
 				ArcFreeExplicitBrand,
 				ArcRunExplicitBrand,
 				CNilBrand,
@@ -52,6 +53,7 @@ mod inner {
 				Functor,
 				MonadRec,
 				Pointed,
+				RefCountedPointer,
 				SendFunctor,
 				SendPointed,
 				WrapDrop,
@@ -1119,12 +1121,123 @@ mod inner {
 			handler: impl Fn(
 				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, RMinusE, CNilBrand, A>>),
 			) -> ArcRunExplicit<'a, RMinusE, CNilBrand, A>
-			+ Clone
 			+ Send
 			+ Sync
 			+ 'a,
 		) -> ArcRunExplicit<'a, RMinusE, CNilBrand, A>
 		where
+			A: Clone + Send + Sync,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + SendFunctor + 'static,
+			RMinusE: WrapDrop + SendFunctor + 'static,
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
+			>): Send + Sync,
+			Apply!(<NodeBrand<RMinusE, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusE, CNilBrand>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusE, CNilBrand>, A>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusE, CNilBrand>, A>,
+			>): Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, RMinusE, CNilBrand, A>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, RMinusE, CNilBrand, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, CNilBrand, A>>):
+				Member<
+						ArcCoyoneda<'a, EBrand, ArcRunExplicit<'a, R, CNilBrand, A>>,
+						Idx,
+						Remainder = Apply!(
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, CNilBrand, A>>
+									),
+					>, {
+			let handler = <ArcBrand as RefCountedPointer>::new(handler);
+			self.interpret_with_shared::<EBrand, Idx, RMinusE, _>(handler)
+		}
+
+		/// Inner pipeline-narrowing implementation, parameterised
+		/// over the concrete handler closure type `F`. The public
+		/// [`interpret_with`](ArcRunExplicit::interpret_with)
+		/// wraps the user handler in [`Arc<F>`](std::sync::Arc)
+		/// once at entry and delegates here; recursive narrowing
+		/// clones the [`Arc<F>`](std::sync::Arc) (atomic refcount
+		/// bump) instead of cloning the underlying closure, which
+		/// is what drops the `Clone` bound from the user-facing
+		/// API.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being interpreted out of the row.",
+			"The type-level position witness.",
+			"The narrowed row brand.",
+			"The concrete handler closure type."
+		)]
+		///
+		#[document_parameters("The handler wrapped in an `Arc` pointer.")]
+		///
+		#[document_returns("An `ArcRunExplicit` program in the narrowed row `RMinusE`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run_explicit::ArcRunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FullRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type EmptyRow = CNilBrand;
+		///
+		/// // Exercised internally by ArcRunExplicit::interpret_with.
+		/// let prog: ArcRunExplicit<'static, FullRow, CNilBrand, i32> =
+		/// 	ArcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// let narrowed: ArcRunExplicit<'static, EmptyRow, CNilBrand, i32> = prog
+		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
+		/// 		|op: Identity<ArcRunExplicit<'static, EmptyRow, CNilBrand, i32>>| op.0,
+		/// 	);
+		/// assert_eq!(narrowed.extract(), 42);
+		/// ```
+		#[inline]
+		fn interpret_with_shared<EBrand, Idx, RMinusE, F>(
+			self,
+			handler: <ArcBrand as RefCountedPointer>::Of<'a, F>,
+		) -> ArcRunExplicit<'a, RMinusE, CNilBrand, A>
+		where
+			F: Fn(
+					Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, RMinusE, CNilBrand, A>>),
+				) -> ArcRunExplicit<'a, RMinusE, CNilBrand, A>
+				+ Send
+				+ Sync
+				+ 'a,
 			A: Clone + Send + Sync,
 			EBrand: Kind_cdc7cd43dac7585f + Functor + SendFunctor + 'static,
 			RMinusE: WrapDrop + SendFunctor + 'static,
@@ -1190,18 +1303,22 @@ mod inner {
 						let h_for_recurse = handler.clone();
 						let mapped = <EBrand as SendFunctor>::send_map(
 							move |inner: ArcRunExplicit<'a, R, CNilBrand, A>| {
-								inner.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
+								inner.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+									h_for_recurse.clone(),
+								)
 							},
 							lowered,
 						);
-						handler(mapped)
+						(*handler)(mapped)
 					}
 					Err(rest) => {
 						let h_for_recurse = handler.clone();
 						let mapped_free = <RMinusE as SendFunctor>::send_map(
 							move |inner: ArcRunExplicit<'a, R, CNilBrand, A>| {
 								inner
-									.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
+									.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+										h_for_recurse.clone(),
+									)
 									.into_arc_free_explicit()
 							},
 							rest,

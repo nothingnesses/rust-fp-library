@@ -32,12 +32,14 @@ mod inner {
 		crate::{
 			Apply,
 			brands::{
+				ArcBrand,
 				CNilBrand,
 				NodeBrand,
 			},
 			classes::{
 				MonadRec,
 				Pointed,
+				RefCountedPointer,
 				SendFunctor,
 				WrapDrop,
 			},
@@ -950,12 +952,97 @@ mod inner {
 			handler: impl Fn(
 				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<RMinusE, CNilBrand, A>>),
 			) -> ArcRun<RMinusE, CNilBrand, A>
-			+ Clone
 			+ Send
 			+ Sync
 			+ 'static,
 		) -> ArcRun<RMinusE, CNilBrand, A>
 		where
+			R: Kind_cdc7cd43dac7585f + 'static,
+			A: Clone + Send + Sync,
+			EBrand: Kind_cdc7cd43dac7585f + crate::classes::Functor + SendFunctor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			NodeBrand<R, CNilBrand>: SendFunctor,
+			NodeBrand<RMinusE, CNilBrand>: WrapDrop
+				+ Kind_cdc7cd43dac7585f<
+					Of<'static, ArcFree<NodeBrand<RMinusE, CNilBrand>, ArcTypeErasedValue>>: Send + Sync,
+				> + SendFunctor,
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<NodeBrand<RMinusE, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<RMinusE, CNilBrand>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>): Member<
+					ArcCoyoneda<'static, EBrand, ArcRun<R, CNilBrand, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>
+								),
+		>,{
+			let handler = <ArcBrand as RefCountedPointer>::new(handler);
+			self.interpret_with_shared::<EBrand, Idx, RMinusE, _>(handler)
+		}
+
+		/// Inner pipeline-narrowing implementation, parameterised
+		/// over the concrete handler closure type `F`. The public
+		/// [`interpret_with`](ArcRun::interpret_with) wraps the
+		/// user handler in [`Arc<F>`](std::sync::Arc) once at entry
+		/// and delegates here; recursive narrowing clones the
+		/// [`Arc<F>`](std::sync::Arc) (atomic refcount bump)
+		/// instead of cloning the underlying closure, which is
+		/// what drops the `Clone` bound from the user-facing API.
+		/// Internal recursion goes through the
+		/// [`unwrap_first`] / [`make_node_first`] /
+		/// [`wrap_first_arc`] HRTB-poisoning workaround helpers.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being interpreted out of the row.",
+			"The type-level position witness.",
+			"The narrowed row brand.",
+			"The concrete handler closure type."
+		)]
+		///
+		#[document_parameters("The handler wrapped in an `Arc` pointer.")]
+		///
+		#[document_returns("An `ArcRun` program in the narrowed row `RMinusE`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run::ArcRun,
+		/// 	},
+		/// };
+		///
+		/// type FullRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type EmptyRow = CNilBrand;
+		///
+		/// // Exercised internally by ArcRun::interpret_with.
+		/// let prog: ArcRun<FullRow, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(42));
+		/// let narrowed: ArcRun<EmptyRow, CNilBrand, i32> = prog
+		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
+		/// 		|op: Identity<ArcRun<EmptyRow, CNilBrand, i32>>| op.0,
+		/// 	);
+		/// assert_eq!(narrowed.extract(), 42);
+		/// ```
+		#[inline]
+		fn interpret_with_shared<EBrand, Idx, RMinusE, F>(
+			self,
+			handler: <ArcBrand as RefCountedPointer>::Of<'static, F>,
+		) -> ArcRun<RMinusE, CNilBrand, A>
+		where
+			F: Fn(
+					Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<RMinusE, CNilBrand, A>>),
+				) -> ArcRun<RMinusE, CNilBrand, A>
+				+ Send
+				+ Sync
+				+ 'static,
 			R: Kind_cdc7cd43dac7585f + 'static,
 			A: Clone + Send + Sync,
 			EBrand: Kind_cdc7cd43dac7585f + crate::classes::Functor + SendFunctor + 'static,
@@ -994,20 +1081,20 @@ mod inner {
 							let h_for_recurse = handler.clone();
 							let mapped = <EBrand as SendFunctor>::send_map(
 								move |inner: ArcRun<R, CNilBrand, A>| {
-									inner.interpret_with::<EBrand, Idx, RMinusE>(
+									inner.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
 										h_for_recurse.clone(),
 									)
 								},
 								lowered,
 							);
-							handler(mapped)
+							(*handler)(mapped)
 						}
 						Err(rest) => {
 							let h_for_recurse = handler.clone();
 							let mapped_arc_free = <RMinusE as SendFunctor>::send_map(
 								move |inner: ArcRun<R, CNilBrand, A>| {
 									inner
-										.interpret_with::<EBrand, Idx, RMinusE>(
+										.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
 											h_for_recurse.clone(),
 										)
 										.into_arc_free()

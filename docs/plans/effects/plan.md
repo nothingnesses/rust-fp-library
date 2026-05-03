@@ -24,21 +24,123 @@ constructors shipped; remaining wrappers and
 SendFunctor-dependent Arc family blocked on the
 [2026-05-03 SendFunctor blocker](#active-blockers)).
 
-The earliest pending pre-step-5 work is the
-[2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer):
-F1D (delete `run_accum`/`run_accum_rec` from steps 2 and 4),
-F3A (tighten `S = CNilBrand` on the interpreter families'
-type bounds), and M3C (parameterise step 3's `interpret_with`
-over `P: RefCountedPointer`). Land these before resuming step
-6a.3 so the standard first-order effect work does not inherit
-the issues the review surfaced.
+The
+[2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)
+is complete (F1D `05be270`, F3A `f8031c5`, M3C this commit set):
+`run_accum` / `run_accum_rec` deleted, `S = CNilBrand` tightened
+on the interpreter family, and `interpret_with` parameterised
+over `P: RefCountedPointer` with the user-facing `Clone` bound
+on handler closures dropped. Step 6a.3 (next pending sub-step
+of the standard first-order effects work) can now proceed
+without inheriting the issues the review surfaced; step 5
+(`interpret_with_rec` pipeline-plus-`MonadRec` family) is the
+next greenfield step.
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
 
-**Phase 3 step 6a.1 + 6a.2 (this commit set): `State` effect
+**Phase 3 reversal cleanup (F1D + F3A + M3C): land the
+2026-05-03 adversarial-review reversals across the existing
+interpreter family.** Three commits implement the
+[2026-05-03 reversal resolution](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)
+in-place against steps 2, 3, and 4. The original plan was a
+single combined commit; the implementation split into three
+focused commits per finding so each reversal stands alone in
+review.
+
+F1D (`05be270`, `refactor(effects):`): `run_accum` and
+`run_accum_rec` deleted from all six Run wrappers (12 method
+definitions plus 12 doctests, ~480 lines). The Q3 (2026-05-02)
+lock-in delegated state threading to user-side closure captures,
+making the `init` parameter vestigial and the bodies
+byte-equivalent to `interpret` / `interpret_rec`. Closure-capture
+state pattern remains; the redundant method names go. The
+state-threading paragraph migrates onto
+[`Run::interpret`](../../../fp-library/src/types/effects/run.rs)'s
+rustdoc with the keyword "state" for rustdoc-search
+discoverability. Integration tests rename to drop `_run_accum`
+suffixes.
+
+F3A (`f8031c5`, `refactor(effects):`): the `impl<R, S, A>
+Wrapper<R, S, A>` blocks across the six Run wrappers split into
+the original general block (`pure`, `peel`, `send`, `bind`,
+`map`, `lift`) plus a new `impl<R, A> Wrapper<R, CNilBrand, A>`
+block holding the interpreter family (`interpret`, `run`,
+`interpret_with`, `interpret_rec`, `run_rec`). The new impl
+fixes `S = CNilBrand` structurally, so each `Node::Scoped(_)`
+arm becomes `match cnil {}` (statically uninhabited) rather
+than the `clippy::unreachable`-suppressed runtime panic.
+Removes the six `clippy::unreachable` suppressions on
+interpreter bodies. `arc_run`'s `unwrap_first` helper retains
+its internal suppression because it remains generic over `S`
+for code reuse and is only called from the (now
+`CNilBrand`-restricted) interpreter methods. Phase 4's
+scoped-handler family will ship in a parallel impl block
+without the bound.
+
+M3C (this commit, `refactor(effects):`): `interpret_with`
+parameterised over `P: RefCountedPointer`. Each wrapper's
+public outer method wraps the user handler in
+`<P as RefCountedPointer>::Of<'_, F>` once at entry (`RcBrand`
+for the four non-Arc wrappers; `ArcBrand` for `ArcRun` /
+`ArcRunExplicit`) and delegates to a private inner
+`interpret_with_shared::<EBrand, Idx, RMinusE, F>` method that
+takes the wrapped pointer by value. Recursive narrowing clones
+the pointer (refcount bump) instead of the underlying closure;
+the user-facing handler bound drops from `Fn + Clone + 'static`
+(plus `Send + Sync` on Arc) to `Fn + 'static` (plus
+`Send + Sync` on Arc). Handlers can now capture move-only
+resources (e.g., a `BufWriter`) without being wrapped in
+[`Rc<RefCell<_>>`](std::rc::Rc) at the user call site.
+
+`(*handler)(mapped)` invokes the wrapped handler via the
+`Deref<Target = F>` projection from
+[`RefCountedPointer::Of<'_, T>`](../../../fp-library/src/classes/ref_counted_pointer.rs).
+The four non-Arc wrappers thread `RcBrand` through their
+`interpret_with_shared` signature; the two Arc wrappers thread
+`ArcBrand` and the inner method's `F` keeps the
+`Send + Sync` bounds (so the wrapped `Arc<F>` is `Send + Sync`
+as required by `SendFunctor::send_map`'s closure-capture
+constraint). `ArcRun`'s body continues to route through the
+[`unwrap_first`](../../../fp-library/src/types/effects/arc_run.rs)
+/ [`make_node_first`](../../../fp-library/src/types/effects/arc_run.rs)
+/ [`wrap_first_arc`](../../../fp-library/src/types/effects/arc_run.rs)
+HRTB-poisoning workaround helpers unchanged.
+
+The inner `interpret_with_shared` carries full
+`#[document_signature]` / `#[document_type_parameters]` /
+`#[document_parameters]` / `#[document_returns]` /
+`#[document_examples]` doc attributes per the
+`#[document_module]` macro's validation; the example exercises
+each wrapper's public `interpret_with` (which delegates to
+`interpret_with_shared`) since the inner method is private and
+not user-callable.
+
+Tests: existing 16 `interpret_with` integration tests in
+[`fp-library/tests/run_interpret_with.rs`](../../../fp-library/tests/run_interpret_with.rs)
+plus per-wrapper doctests on `interpret_with` continue to pass
+unchanged (the public signature is the same minus the `Clone`
+bound). `just verify` clean: 2500+ unit tests + integration
+tests + doctests pass.
+
+Per-step deviation entry in
+[deviations.md](deviations.md) Phase 3 step 3 records the M3C
+structural changes: (1) the public-outer + private-inner method
+split shape; (2) the `RcBrand` / `ArcBrand` threading per
+wrapper; (3) the `(*handler)(mapped)` deref-call invocation
+pattern; (4) the doc-attribute requirement on the private
+inner method. F1D and F3A's per-step deviations live in
+their respective commit messages (no separate deviations.md
+entry; the changes are in-place revisions to existing steps).
+
+Step 5 (`interpret_with_rec` pipeline-plus-`MonadRec` family) is
+the next greenfield step. Step 6a.3 (`RcRun::get` /
+`RcRun::put` smart constructors) can resume in parallel since
+the M3C cleanup unblocked it.
+
+**Phase 3 step 6a.1 + 6a.2: `State` effect
 type machinery + Run-only smart constructors.** Two sub-step
 commits land the State effect under the locked-in design from
 the [2026-05-03 resolution](resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization)
@@ -203,109 +305,6 @@ Step 6 (standard first-order effect types `State<S>`, `Reader<E>`,
 `Except<E>`, `Writer<W>`, `Choose`, plus their smart
 constructors) is the immediate next work.
 
-**Phase 3 step 3: pipeline row-narrowing
-`interpret_with::<EBrand>` plus empty-row terminal `extract`
-across all six Run wrappers.** Each wrapper exposes an inherent
-`interpret_with::<EBrand, Idx, RMinusE>(handler) -> Wrapper<RMinusE, S, A>`
-that peels one effect from the row at a time, returning a
-narrowed Run program that still needs further interpretation.
-The matched arm uses the per-wrapper Coyoneda variant's `lower`
-(or `lower_ref` for shared-pointer substrates) followed by
-recursive `Functor::map` (or `SendFunctor::send_map` for the
-`Arc` substrates) to narrow each inner program before invoking
-the handler. The unmatched arm narrows the layer's content via
-the same recursive map and re-emits via the substrate's `wrap`
-operation (`Free::wrap` / `RcFree::wrap` / `ArcFree::wrap` /
-their Explicit-substrate counterparts).
-
-The dispatch is inline per-wrapper rather than going through a
-shared `DispatchOneHandler` trait: each wrapper's
-[`Member`](../../../fp-library/src/types/effects/member.rs)
-projection at the call site already gives the row-narrowing
-remainder via the `Member::Remainder` associated type, and the
-per-Coyoneda-variant `lower` choice is one line of wrapper-local
-code; a trait abstraction would have added ceremony without
-enabling shared code paths. See [deviations.md](deviations.md)
-under Phase 3 step 3 for the alternatives considered (a
-`DispatchOneHandler` trait keyed on the Coyoneda variant or on
-the chain shape, both rejected as over-engineered for the
-single-handler case).
-
-`ArcRun`'s body factors three HRTB-poisoning workaround helpers
-(parallel to Phase 2 step 5's `lift_node` and `unwrap_first`
-precedents): `make_node_first` builds the
-[`Node::First`](../../../fp-library/src/types/effects/node.rs)
-projection in an HRTB-free scope, `wrap_first_arc` calls
-[`ArcFree::wrap`](../../../fp-library/src/types/arc_free.rs) on
-a pre-built node so no `Node` literal is constructed inside the
-caller's HRTB scope, and `unwrap_pure_node` exhaustively matches
-both `CNil` payloads of an empty-dual-row
-[`Node`](../../../fp-library/src/types/effects/node.rs) so the
-`extract` body diverges to `!` without any runtime panic. The
-other five wrappers pattern-match `Node::First` / `Node::Scoped`
-inline successfully (only `ArcRun`'s struct-level HRTB on
-`<NodeBrand<R, S> as Kind>::Of<'static, ArcFree<...>>: Send + Sync`
-poisons GAT normalization in scope; `ArcRunExplicit` carries the
-`Send + Sync` bounds per-method instead, so its body matches
-inline like the other Explicit wrappers).
-
-`extract`'s where-bound is tightened to
-`Wrapper<CNilBrand, CNilBrand, A>` (both first-order and scoped
-rows empty). Both `Node` arms then carry uninhabited
-[`CNil`](../../../fp-library/src/types/effects/coproduct.rs)
-payloads; the body's exhaustive `match cnil {}` on each side
-diverges to type `!`, statically proving no runtime panic. Phase
-4 will introduce a separate elimination operation for non-empty
-scoped rows; `extract`'s remit is fully-pure programs only.
-
-The handler bound is `impl Fn(...) -> Wrapper<RMinusE, S, A> + Clone + 'static`
-(plus `Send + Sync` on the `Arc` wrappers) so the closure can be
-cloned across the recursive narrowing of each inner sub-program
-in a layer's content. Each call clones the handler once per
-`Functor::map` closure invocation; for typical effects with one
-inner slot per layer (e.g., Identity), this is one clone per
-peeled chain link.
-
-Recursion is via host-stack-frame per peeled layer (the
-recursion lives inside the `Functor::map` closure's body, not in
-a `while` loop); programs with deep chains of eager-recursing
-effects can blow the host stack. Phase 3 step 4 will provide the
-stack-safe alternative via `tail_rec_m` for external `MBrand`
-targets. Per the resolutions doc this trade-off is intentional:
-step 3's pipeline shape uniquely enables partial interpretation,
-user-controlled handler ordering for non-commuting effects, and
-compositional handler libraries; step 4's MonadRec-target shape
-is the stack-safe extraction path.
-
-Tests: 16 integration tests in
-[`fp-library/tests/run_interpret_with.rs`](../../../fp-library/tests/run_interpret_with.rs)
-covering single-effect narrowing-then-extract, bind-chain
-narrowing-then-extract, and `extract` on pure-by-construction
-programs across all six Run wrappers. Per-wrapper doctests on
-each `interpret_with` and `extract` method exercise the
-canonical-row-and-handler combination. `just verify` clean: 2471
-unit tests + 16 new integration tests + doctests on each method
-compile and pass.
-
-Per-step deviation entry in
-[deviations.md](deviations.md) Phase 3 step 3 records: (1) the
-inline-dispatch design choice (no `DispatchOneHandler` trait);
-(2) the panic-free `extract` design via tightening to empty dual
-row; (3) the three new `ArcRun` HRTB-free helpers; (4) the
-`Fn + Clone + 'static` (plus `Send + Sync` on Arc) handler bound
-rationale; (5) the host-stack recursion trade-off vs Phase 3
-step 4's stack-safe sibling; (6) the per-wrapper Coyoneda
-variant pairing with the existing per-wrapper `peel`/`lift`
-substrate constraints; (7) the renumbering of steps 4-7 per the
-Phase 3 step 2/3 interpreter shape resolution
-((3.A) Insert + renumber).
-
-Step 4 (`interpret_rec` / `run_rec` with
-`<MBrand: MonadRec>` external target via `tail_rec_m`) is the
-immediate next work. Step 5 (`interpret_with_rec`
-pipeline-plus-`MonadRec` family) and step 6 (standard
-first-order effect types and smart constructors) follow.
-
 ### Earlier completed steps (commit log)
 
 Each entry's design choices are recorded in
@@ -316,6 +315,28 @@ summary; resolved blockers are in
 
 Phase 3:
 
+- `ff84f20` (step 3): pipeline row-narrowing
+  `interpret_with::<EBrand, Idx, RMinusE>(handler) -> Wrapper<RMinusE, S, A>`
+  plus empty-row terminal `extract` across all six Run
+  wrappers. Inline per-wrapper dispatch via
+  [`Member::project`](../../../fp-library/src/types/effects/member.rs)
+  rather than a `DispatchOneHandler` trait. Matched arm uses
+  the per-wrapper Coyoneda variant's `lower` (or `lower_ref`
+  for shared-pointer substrates) followed by recursive
+  `Functor::map` (or `SendFunctor::send_map` for Arc); unmatched
+  arm narrows via the same recursive map and re-emits via the
+  substrate's `wrap` operation. `extract`'s where-bound is
+  tightened to `Wrapper<CNilBrand, CNilBrand, A>` so both
+  `Node` arms diverge on uninhabited `CNil`, statically
+  proving no runtime panic. `ArcRun` factors three new
+  HRTB-poisoning workaround helpers (`make_node_first`,
+  `wrap_first_arc`, `unwrap_pure_node`) parallel to Phase 2
+  step 5's `lift_node` / `unwrap_first`. Subsequently revised
+  by M3C (this commit set) which dropped the
+  `F: Clone` bound on the handler closure via
+  `RefCountedPointer` parameterisation; F3A tightened
+  `S = CNilBrand` on the impl block. 16 integration tests +
+  per-wrapper doctests.
 - `d5efe2a` (step 2): `interpret` / `run` simple
   all-handlers-at-once interpreter family across all six Run
   wrappers. New module

@@ -49,6 +49,7 @@ mod inner {
 			brands::{
 				CNilBrand,
 				NodeBrand,
+				RcBrand,
 				RcFreeExplicitBrand,
 				RcRunExplicitBrand,
 			},
@@ -56,6 +57,7 @@ mod inner {
 				Functor,
 				MonadRec,
 				Pointed,
+				RefCountedPointer,
 				RefFunctor,
 				RefPointed,
 				RefSemimonad,
@@ -1003,7 +1005,6 @@ mod inner {
 			handler: impl Fn(
 				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, RMinusE, CNilBrand, A>>),
 			) -> RcRunExplicit<'a, RMinusE, CNilBrand, A>
-			+ Clone
 			+ 'a,
 		) -> RcRunExplicit<'a, RMinusE, CNilBrand, A>
 		where
@@ -1022,45 +1023,121 @@ mod inner {
 										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>
 									),
 					>, {
+			let handler = <RcBrand as RefCountedPointer>::new(handler);
+			self.interpret_with_shared::<EBrand, Idx, RMinusE, _>(handler)
+		}
+
+		/// Inner pipeline-narrowing implementation, parameterised
+		/// over the concrete handler closure type `F`. The public
+		/// [`interpret_with`](RcRunExplicit::interpret_with) wraps
+		/// the user handler in [`Rc<F>`](std::rc::Rc) once at
+		/// entry and delegates here; recursive narrowing clones
+		/// the [`Rc<F>`](std::rc::Rc) (refcount bump) instead of
+		/// cloning the underlying closure, which is what drops
+		/// the `Clone` bound from the user-facing API.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being interpreted out of the row.",
+			"The type-level position witness.",
+			"The narrowed row brand.",
+			"The concrete handler closure type."
+		)]
+		///
+		#[document_parameters("The handler wrapped in a refcounted pointer.")]
+		///
+		#[document_returns("An `RcRunExplicit` program in the narrowed row `RMinusE`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run_explicit::RcRunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FullRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type EmptyRow = CNilBrand;
+		///
+		/// // Exercised internally by RcRunExplicit::interpret_with.
+		/// let prog: RcRunExplicit<'static, FullRow, CNilBrand, i32> =
+		/// 	RcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// let narrowed: RcRunExplicit<'static, EmptyRow, CNilBrand, i32> = prog
+		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
+		/// 		|op: Identity<RcRunExplicit<'static, EmptyRow, CNilBrand, i32>>| op.0,
+		/// 	);
+		/// assert_eq!(narrowed.extract(), 42);
+		/// ```
+		#[inline]
+		fn interpret_with_shared<EBrand, Idx, RMinusE, F>(
+			self,
+			handler: <RcBrand as RefCountedPointer>::Of<'a, F>,
+		) -> RcRunExplicit<'a, RMinusE, CNilBrand, A>
+		where
+			F: Fn(
+					Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, RMinusE, CNilBrand, A>>),
+				) -> RcRunExplicit<'a, RMinusE, CNilBrand, A>
+				+ 'a,
+			A: Clone,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>):
+				Member<
+						RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, CNilBrand, A>>,
+						Idx,
+						Remainder = Apply!(
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>
+									),
+					>, {
 			match self.peel() {
 				Ok(a) => RcRunExplicit::pure(a),
-				Err(Node::First(layer)) => match <Apply!(
-					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>
-				) as Member<
-					RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, CNilBrand, A>>,
-					Idx,
-				>>::project(layer)
-				{
-					Ok(coyo) => {
-						let lowered = coyo.lower_ref();
-						let h_for_recurse = handler.clone();
-						let mapped = <EBrand as Functor>::map(
-							move |inner: RcRunExplicit<'a, R, CNilBrand, A>| {
-								inner.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
-							},
-							lowered,
-						);
-						handler(mapped)
-					}
-					Err(rest) => {
-						let h_for_recurse = handler.clone();
-						let mapped_free = <RMinusE as Functor>::map(
-							move |inner: RcRunExplicit<'a, R, CNilBrand, A>| {
-								inner
-									.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
-									.into_rc_free_explicit()
-							},
-							rest,
-						);
-						RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::<
-							'a,
-							NodeBrand<RMinusE, CNilBrand>,
-							A,
-						>::wrap(Node::First(
-							mapped_free,
-						)))
-					}
-				},
+				Err(Node::First(layer)) =>
+					match <Apply!(
+						<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>
+					) as Member<RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, CNilBrand, A>>, Idx>>::project(
+						layer
+					) {
+						Ok(coyo) => {
+							let lowered = coyo.lower_ref();
+							let h_for_recurse = handler.clone();
+							let mapped = <EBrand as Functor>::map(
+								move |inner: RcRunExplicit<'a, R, CNilBrand, A>| {
+									inner.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+										h_for_recurse.clone(),
+									)
+								},
+								lowered,
+							);
+							(*handler)(mapped)
+						}
+						Err(rest) => {
+							let h_for_recurse = handler.clone();
+							let mapped_free = <RMinusE as Functor>::map(
+								move |inner: RcRunExplicit<'a, R, CNilBrand, A>| {
+									inner
+										.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+											h_for_recurse.clone(),
+										)
+										.into_rc_free_explicit()
+								},
+								rest,
+							);
+							RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::<
+								'a,
+								NodeBrand<RMinusE, CNilBrand>,
+								A,
+							>::wrap(Node::First(
+								mapped_free,
+							)))
+						}
+					},
 				Err(Node::Scoped(cnil)) => match cnil {},
 			}
 		}
