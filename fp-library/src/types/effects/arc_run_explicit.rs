@@ -733,7 +733,18 @@ mod inner {
 			A: Clone + Send + Sync, {
 			ArcRunExplicit::pure(a.clone())
 		}
+	}
 
+	#[document_type_parameters(
+		"The lifetime of the program and its captures.",
+		"The first-order effect row brand.",
+		"The result type."
+	)]
+	#[document_parameters("The `ArcRunExplicit` instance.")]
+	impl<'a, R, A: 'a> ArcRunExplicit<'a, R, CNilBrand, A>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+	{
 		/// Interprets this `ArcRunExplicit` program by walking each
 		/// effect via the matching handler closure in `handlers`.
 		/// Multi-shot, lifetime-flexible, thread-safe variant of
@@ -770,50 +781,42 @@ mod inner {
 		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
-		#[expect(
-			clippy::unreachable,
-			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them."
-		)]
 		pub fn interpret(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
-				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRunExplicit<'a, R, S, A>>),
-				ArcRunExplicit<'a, R, S, A>,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRunExplicit<'a, R, CNilBrand, A>>),
+				ArcRunExplicit<'a, R, CNilBrand, A>,
 			>,
 		) -> A
 		where
 			A: Clone + Send + Sync,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
 			>): Clone + Send + Sync,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
 			>): Send + Sync,
-			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
 			>): Send + Sync,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcRunExplicit<'a, R, S, A>,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
 			>): Send + Sync,
-			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcRunExplicit<'a, R, S, A>,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
 			>): Send + Sync, {
 			let mut prog = self;
 			loop {
 				match prog.peel() {
 					Ok(a) => return a,
 					Err(Node::First(layer)) => prog = handlers.dispatch(layer),
-					Err(Node::Scoped(_)) => {
-						unreachable!(
-							"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
-						)
-					}
+					Err(Node::Scoped(cnil)) => match cnil {},
 				}
 			}
 		}
@@ -856,31 +859,31 @@ mod inner {
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
-				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRunExplicit<'a, R, S, A>>),
-				ArcRunExplicit<'a, R, S, A>,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRunExplicit<'a, R, CNilBrand, A>>),
+				ArcRunExplicit<'a, R, CNilBrand, A>,
 			>,
 		) -> A
 		where
 			A: Clone + Send + Sync,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
 			>): Clone + Send + Sync,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
 			>): Send + Sync,
-			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
 			>): Send + Sync,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcRunExplicit<'a, R, S, A>,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
 			>): Send + Sync,
-			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcRunExplicit<'a, R, S, A>,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
 			>): Send + Sync, {
 			self.interpret(handlers)
 		}
@@ -928,70 +931,63 @@ mod inner {
 		/// assert_eq!(result, Some(42));
 		/// ```
 		#[inline]
-		#[expect(
-			clippy::unreachable,
-			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them."
-		)]
 		pub fn interpret_rec<MBrand>(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 					'h,
-					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>),
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, CNilBrand, A>>),
 				>),
-				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, CNilBrand, A>>),
 			> + 'a,
 		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		where
 			MBrand: MonadRec + 'static,
 			A: Clone + Send + Sync + 'a,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
 			>): Clone + Send + Sync,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
 			>): Send + Sync,
-			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
 			>): Send + Sync,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcRunExplicit<'a, R, S, A>,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
 			>): Send + Sync,
-			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcRunExplicit<'a, R, S, A>,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
 			>): Send + Sync,
-			Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>):
+			Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, CNilBrand, A>>):
 				Send + Sync, {
-			tail_rec_m::<MBrand, ArcRunExplicit<'a, R, S, A>, A>(
-				move |prog: ArcRunExplicit<'a, R, S, A>| match prog.peel() {
-					Ok(a) =>
-						<MBrand as Pointed>::pure::<ControlFlow<A, ArcRunExplicit<'a, R, S, A>>>(
-							ControlFlow::Break(a),
-						),
+			tail_rec_m::<MBrand, ArcRunExplicit<'a, R, CNilBrand, A>, A>(
+				move |prog: ArcRunExplicit<'a, R, CNilBrand, A>| match prog.peel() {
+					Ok(a) => <MBrand as Pointed>::pure::<
+						ControlFlow<A, ArcRunExplicit<'a, R, CNilBrand, A>>,
+					>(ControlFlow::Break(a)),
 					Err(Node::First(layer)) => {
 						let mapped = <R as SendFunctor>::send_map(
-							|inner: ArcRunExplicit<'a, R, S, A>| {
-								<MBrand as Pointed>::pure::<ArcRunExplicit<'a, R, S, A>>(inner)
+							|inner: ArcRunExplicit<'a, R, CNilBrand, A>| {
+								<MBrand as Pointed>::pure::<ArcRunExplicit<'a, R, CNilBrand, A>>(
+									inner,
+								)
 							},
 							layer,
 						);
 						let next = handlers.dispatch(mapped);
 						<MBrand as Functor>::map::<
-							ArcRunExplicit<'a, R, S, A>,
-							ControlFlow<A, ArcRunExplicit<'a, R, S, A>>,
+							ArcRunExplicit<'a, R, CNilBrand, A>,
+							ControlFlow<A, ArcRunExplicit<'a, R, CNilBrand, A>>,
 						>(ControlFlow::Continue, next)
 					}
-					Err(Node::Scoped(_)) => {
-						unreachable!(
-							"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
-						)
-					}
+					Err(Node::Scoped(cnil)) => match cnil {},
 				},
 				self,
 			)
@@ -1039,35 +1035,35 @@ mod inner {
 				'h,
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 					'h,
-					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>),
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, CNilBrand, A>>),
 				>),
-				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, CNilBrand, A>>),
 			> + 'a,
 		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		where
 			MBrand: MonadRec + 'static,
 			A: Clone + Send + Sync + 'a,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
 			>): Clone + Send + Sync,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
 			>): Send + Sync,
-			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
 			>): Send + Sync,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcRunExplicit<'a, R, S, A>,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
 			>): Send + Sync,
-			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcRunExplicit<'a, R, S, A>,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
 			>): Send + Sync,
-			Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>):
+			Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, CNilBrand, A>>):
 				Send + Sync, {
 			self.interpret_rec::<MBrand>(handlers)
 		}
@@ -1118,78 +1114,74 @@ mod inner {
 		/// assert_eq!(narrowed.extract(), 42);
 		/// ```
 		#[inline]
-		#[expect(
-			clippy::unreachable,
-			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them."
-		)]
 		pub fn interpret_with<EBrand, Idx, RMinusE>(
 			self,
 			handler: impl Fn(
-				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, RMinusE, S, A>>),
-			) -> ArcRunExplicit<'a, RMinusE, S, A>
+				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, RMinusE, CNilBrand, A>>),
+			) -> ArcRunExplicit<'a, RMinusE, CNilBrand, A>
 			+ Clone
 			+ Send
 			+ Sync
 			+ 'a,
-		) -> ArcRunExplicit<'a, RMinusE, S, A>
+		) -> ArcRunExplicit<'a, RMinusE, CNilBrand, A>
 		where
 			A: Clone + Send + Sync,
 			EBrand: Kind_cdc7cd43dac7585f + Functor + SendFunctor + 'static,
 			RMinusE: WrapDrop + SendFunctor + 'static,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
 			>): Clone + Send + Sync,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
 			>): Send + Sync,
-			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
 			>): Send + Sync,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcRunExplicit<'a, R, S, A>,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
 			>): Send + Sync,
-			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcRunExplicit<'a, R, S, A>,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
 			>): Send + Sync,
-			Apply!(<NodeBrand<RMinusE, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<NodeBrand<RMinusE, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<RMinusE, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<RMinusE, CNilBrand>, A>,
 			>): Clone + Send + Sync,
 			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<RMinusE, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<RMinusE, CNilBrand>, A>,
 			>): Send + Sync,
-			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<RMinusE, S>, A>,
+				ArcFreeExplicit<'a, NodeBrand<RMinusE, CNilBrand>, A>,
 			>): Send + Sync,
 			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcRunExplicit<'a, RMinusE, S, A>,
+				ArcRunExplicit<'a, RMinusE, CNilBrand, A>,
 			>): Send + Sync,
-			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcRunExplicit<'a, RMinusE, S, A>,
+				ArcRunExplicit<'a, RMinusE, CNilBrand, A>,
 			>): Send + Sync,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>):
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, CNilBrand, A>>):
 				Member<
-						ArcCoyoneda<'a, EBrand, ArcRunExplicit<'a, R, S, A>>,
+						ArcCoyoneda<'a, EBrand, ArcRunExplicit<'a, R, CNilBrand, A>>,
 						Idx,
 						Remainder = Apply!(
-										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, CNilBrand, A>>
 									),
 					>, {
 			match self.peel() {
 				Ok(a) => ArcRunExplicit::pure(a),
 				Err(Node::First(layer)) => match <Apply!(
-					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>
+					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, CNilBrand, A>>
 				) as Member<
-					ArcCoyoneda<'a, EBrand, ArcRunExplicit<'a, R, S, A>>,
+					ArcCoyoneda<'a, EBrand, ArcRunExplicit<'a, R, CNilBrand, A>>,
 					Idx,
 				>>::project(layer)
 				{
@@ -1197,7 +1189,7 @@ mod inner {
 						let lowered = coyo.lower_ref();
 						let h_for_recurse = handler.clone();
 						let mapped = <EBrand as SendFunctor>::send_map(
-							move |inner: ArcRunExplicit<'a, R, S, A>| {
+							move |inner: ArcRunExplicit<'a, R, CNilBrand, A>| {
 								inner.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
 							},
 							lowered,
@@ -1207,7 +1199,7 @@ mod inner {
 					Err(rest) => {
 						let h_for_recurse = handler.clone();
 						let mapped_free = <RMinusE as SendFunctor>::send_map(
-							move |inner: ArcRunExplicit<'a, R, S, A>| {
+							move |inner: ArcRunExplicit<'a, R, CNilBrand, A>| {
 								inner
 									.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
 									.into_arc_free_explicit()
@@ -1216,18 +1208,14 @@ mod inner {
 						);
 						ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::<
 							'a,
-							NodeBrand<RMinusE, S>,
+							NodeBrand<RMinusE, CNilBrand>,
 							A,
 						>::wrap(Node::First(
 							mapped_free,
 						)))
 					}
 				},
-				Err(Node::Scoped(_)) => {
-					unreachable!(
-						"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
-					)
-				}
+				Err(Node::Scoped(cnil)) => match cnil {},
 			}
 		}
 	}

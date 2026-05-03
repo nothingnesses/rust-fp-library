@@ -449,7 +449,18 @@ mod inner {
 		) -> RunExplicit<'a, R, S, B> {
 			self.bind(move |a| RunExplicit::pure(f(a)))
 		}
+	}
 
+	#[document_type_parameters(
+		"The lifetime of the program and its captures.",
+		"The first-order effect row brand.",
+		"The result type."
+	)]
+	#[document_parameters("The `RunExplicit` instance.")]
+	impl<'a, R, A: 'a> RunExplicit<'a, R, CNilBrand, A>
+	where
+		R: WrapDrop + Functor + 'static,
+	{
 		/// Interprets this `RunExplicit` program by walking each
 		/// effect via the matching handler closure in `handlers`,
 		/// looping until the program reduces to a
@@ -458,7 +469,7 @@ mod inner {
 		/// Lifetime-flexible variant of [`Run::interpret`](crate::types::effects::run::Run::interpret).
 		/// `RunExplicit`'s `'a` payload constraint flows into the
 		/// handler list's closures, which receive the program-level
-		/// `RunExplicit<'a, R, S, A>` as the [`Coyoneda`] inner type.
+		/// `RunExplicit<'a, R, CNilBrand, A>` as the [`Coyoneda`] inner type.
 		#[document_signature]
 		///
 		#[document_parameters("The handler list (typically built via the `handlers!` macro).")]
@@ -491,16 +502,12 @@ mod inner {
 		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
-		#[expect(
-			clippy::unreachable,
-			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them."
-		)]
 		pub fn interpret(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
-				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RunExplicit<'a, R, S, A>>),
-				RunExplicit<'a, R, S, A>,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RunExplicit<'a, R, CNilBrand, A>>),
+				RunExplicit<'a, R, CNilBrand, A>,
 			>,
 		) -> A {
 			let mut prog = self;
@@ -508,11 +515,7 @@ mod inner {
 				match prog.peel() {
 					Ok(a) => return a,
 					Err(Node::First(layer)) => prog = handlers.dispatch(layer),
-					Err(Node::Scoped(_)) => {
-						unreachable!(
-							"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
-						)
-					}
+					Err(Node::Scoped(cnil)) => match cnil {},
 				}
 			}
 		}
@@ -556,8 +559,8 @@ mod inner {
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
-				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RunExplicit<'a, R, S, A>>),
-				RunExplicit<'a, R, S, A>,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RunExplicit<'a, R, CNilBrand, A>>),
+				RunExplicit<'a, R, CNilBrand, A>,
 			>,
 		) -> A {
 			self.interpret(handlers)
@@ -602,47 +605,39 @@ mod inner {
 		/// assert_eq!(result.evaluate(), 42);
 		/// ```
 		#[inline]
-		#[expect(
-			clippy::unreachable,
-			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them."
-		)]
 		pub fn interpret_rec<MBrand>(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 					'h,
-					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, CNilBrand, A>>),
 				>),
-				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, CNilBrand, A>>),
 			> + 'a,
 		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		where
 			MBrand: MonadRec + 'static,
 			A: 'a, {
-			tail_rec_m::<MBrand, RunExplicit<'a, R, S, A>, A>(
-				move |prog: RunExplicit<'a, R, S, A>| match prog.peel() {
-					Ok(a) => <MBrand as Pointed>::pure::<ControlFlow<A, RunExplicit<'a, R, S, A>>>(
-						ControlFlow::Break(a),
-					),
+			tail_rec_m::<MBrand, RunExplicit<'a, R, CNilBrand, A>, A>(
+				move |prog: RunExplicit<'a, R, CNilBrand, A>| match prog.peel() {
+					Ok(a) => <MBrand as Pointed>::pure::<
+						ControlFlow<A, RunExplicit<'a, R, CNilBrand, A>>,
+					>(ControlFlow::Break(a)),
 					Err(Node::First(layer)) => {
 						let mapped = <R as Functor>::map(
-							|inner: RunExplicit<'a, R, S, A>| {
-								<MBrand as Pointed>::pure::<RunExplicit<'a, R, S, A>>(inner)
+							|inner: RunExplicit<'a, R, CNilBrand, A>| {
+								<MBrand as Pointed>::pure::<RunExplicit<'a, R, CNilBrand, A>>(inner)
 							},
 							layer,
 						);
 						let next = handlers.dispatch(mapped);
 						<MBrand as Functor>::map::<
-							RunExplicit<'a, R, S, A>,
-							ControlFlow<A, RunExplicit<'a, R, S, A>>,
+							RunExplicit<'a, R, CNilBrand, A>,
+							ControlFlow<A, RunExplicit<'a, R, CNilBrand, A>>,
 						>(ControlFlow::Continue, next)
 					}
-					Err(Node::Scoped(_)) => {
-						unreachable!(
-							"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
-						)
-					}
+					Err(Node::Scoped(cnil)) => match cnil {},
 				},
 				self,
 			)
@@ -692,9 +687,9 @@ mod inner {
 				'h,
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 					'h,
-					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, CNilBrand, A>>),
 				>),
-				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, CNilBrand, A>>),
 			> + 'a,
 		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		where
@@ -746,35 +741,31 @@ mod inner {
 		/// assert_eq!(narrowed.extract(), 42);
 		/// ```
 		#[inline]
-		#[expect(
-			clippy::unreachable,
-			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them."
-		)]
 		pub fn interpret_with<EBrand, Idx, RMinusE>(
 			self,
 			handler: impl Fn(
-				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, RMinusE, S, A>>),
-			) -> RunExplicit<'a, RMinusE, S, A>
+				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, RMinusE, CNilBrand, A>>),
+			) -> RunExplicit<'a, RMinusE, CNilBrand, A>
 			+ Clone
 			+ 'a,
-		) -> RunExplicit<'a, RMinusE, S, A>
+		) -> RunExplicit<'a, RMinusE, CNilBrand, A>
 		where
 			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
 			RMinusE: WrapDrop + Functor + 'static,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>):
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, CNilBrand, A>>):
 				Member<
-						Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+						Coyoneda<'a, EBrand, RunExplicit<'a, R, CNilBrand, A>>,
 						Idx,
 						Remainder = Apply!(
-										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, CNilBrand, A>>
 									),
 					>, {
 			match self.peel() {
 				Ok(a) => RunExplicit::pure(a),
 				Err(Node::First(layer)) => match <Apply!(
-					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>
+					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, CNilBrand, A>>
 				) as Member<
-					Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+					Coyoneda<'a, EBrand, RunExplicit<'a, R, CNilBrand, A>>,
 					Idx,
 				>>::project(layer)
 				{
@@ -782,7 +773,7 @@ mod inner {
 						let lowered = coyo.lower();
 						let h_for_recurse = handler.clone();
 						let mapped = <EBrand as Functor>::map(
-							move |inner: RunExplicit<'a, R, S, A>| {
+							move |inner: RunExplicit<'a, R, CNilBrand, A>| {
 								inner.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
 							},
 							lowered,
@@ -792,7 +783,7 @@ mod inner {
 					Err(rest) => {
 						let h_for_recurse = handler.clone();
 						let mapped_boxed = <RMinusE as Functor>::map(
-							move |inner: RunExplicit<'a, R, S, A>| {
+							move |inner: RunExplicit<'a, R, CNilBrand, A>| {
 								Box::new(
 									inner
 										.interpret_with::<EBrand, Idx, RMinusE>(
@@ -803,18 +794,14 @@ mod inner {
 							},
 							rest,
 						);
-						RunExplicit::from_free_explicit(
-							FreeExplicit::<'a, NodeBrand<RMinusE, S>, A>::wrap(Node::First(
-								mapped_boxed,
-							)),
-						)
+						RunExplicit::from_free_explicit(FreeExplicit::<
+							'a,
+							NodeBrand<RMinusE, CNilBrand>,
+							A,
+						>::wrap(Node::First(mapped_boxed)))
 					}
 				},
-				Err(Node::Scoped(_)) => {
-					unreachable!(
-						"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
-					)
-				}
+				Err(Node::Scoped(cnil)) => match cnil {},
 			}
 		}
 	}

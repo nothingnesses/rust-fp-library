@@ -423,7 +423,15 @@ mod inner {
 				>>::inject(coyo);
 			Self::send(Node::First(layer))
 		}
+	}
 
+	#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+	#[document_parameters("The Run instance.")]
+	impl<R, A> Run<R, CNilBrand, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		A: 'static,
+	{
 		/// Interprets this `Run` program by walking each effect via the
 		/// matching handler closure in `handlers`, looping until the
 		/// program reduces to a [`Pure`](crate::types::Free) value.
@@ -538,30 +546,20 @@ mod inner {
 		/// assert_eq!(*counter.borrow(), 1);
 		/// ```
 		#[inline]
-		#[expect(
-			clippy::unreachable,
-			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them. Reaching the Scoped arm would indicate a wrapper-API logic error rather than user error, so the descriptive panic is appropriate until Phase 4 lands."
-		)]
 		pub fn interpret(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
-				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Run<R, S, A>>),
-				Run<R, S, A>,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Run<R, CNilBrand, A>>),
+				Run<R, CNilBrand, A>,
 			>,
-		) -> A
-		where
-			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static, {
+		) -> A {
 			let mut prog = self;
 			loop {
 				match prog.peel() {
 					Ok(a) => return a,
 					Err(Node::First(layer)) => prog = handlers.dispatch(layer),
-					Err(Node::Scoped(_)) => {
-						unreachable!(
-							"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
-						)
-					}
+					Err(Node::Scoped(cnil)) => match cnil {},
 				}
 			}
 		}
@@ -616,12 +614,10 @@ mod inner {
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
-				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Run<R, S, A>>),
-				Run<R, S, A>,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Run<R, CNilBrand, A>>),
+				Run<R, CNilBrand, A>,
 			>,
-		) -> A
-		where
-			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static, {
+		) -> A {
 			self.interpret(handlers)
 		}
 
@@ -696,45 +692,38 @@ mod inner {
 		/// assert_eq!(result.evaluate(), 42);
 		/// ```
 		#[inline]
-		#[expect(
-			clippy::unreachable,
-			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them."
-		)]
 		pub fn interpret_rec<MBrand>(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 					'h,
-					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>),
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>),
 				>),
-				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>),
 			> + 'static,
 		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
 		where
-			MBrand: MonadRec + 'static,
-			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static, {
-			tail_rec_m::<MBrand, Run<R, S, A>, A>(
-				move |prog: Run<R, S, A>| match prog.peel() {
-					Ok(a) => <MBrand as Pointed>::pure::<ControlFlow<A, Run<R, S, A>>>(
+			MBrand: MonadRec + 'static, {
+			tail_rec_m::<MBrand, Run<R, CNilBrand, A>, A>(
+				move |prog: Run<R, CNilBrand, A>| match prog.peel() {
+					Ok(a) => <MBrand as Pointed>::pure::<ControlFlow<A, Run<R, CNilBrand, A>>>(
 						ControlFlow::Break(a),
 					),
 					Err(Node::First(layer)) => {
 						let mapped = <R as Functor>::map(
-							|inner: Run<R, S, A>| <MBrand as Pointed>::pure::<Run<R, S, A>>(inner),
+							|inner: Run<R, CNilBrand, A>| {
+								<MBrand as Pointed>::pure::<Run<R, CNilBrand, A>>(inner)
+							},
 							layer,
 						);
 						let next = handlers.dispatch(mapped);
-						<MBrand as Functor>::map::<Run<R, S, A>, ControlFlow<A, Run<R, S, A>>>(
-							ControlFlow::Continue,
-							next,
-						)
+						<MBrand as Functor>::map::<
+							Run<R, CNilBrand, A>,
+							ControlFlow<A, Run<R, CNilBrand, A>>,
+						>(ControlFlow::Continue, next)
 					}
-					Err(Node::Scoped(_)) => {
-						unreachable!(
-							"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
-						)
-					}
+					Err(Node::Scoped(cnil)) => match cnil {},
 				},
 				self,
 			)
@@ -787,14 +776,13 @@ mod inner {
 				'h,
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 					'h,
-					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>),
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>),
 				>),
-				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>),
 			> + 'static,
 		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
 		where
-			MBrand: MonadRec + 'static,
-			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static, {
+			MBrand: MonadRec + 'static, {
 			self.interpret_rec::<MBrand>(handlers)
 		}
 
@@ -873,35 +861,31 @@ mod inner {
 		/// assert_eq!(narrowed.extract(), 42);
 		/// ```
 		#[inline]
-		#[expect(
-			clippy::unreachable,
-			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them. Reaching the Scoped arm would indicate a wrapper-API logic error rather than user error, so the descriptive panic is appropriate until Phase 4 lands."
-		)]
 		pub fn interpret_with<EBrand, Idx, RMinusE>(
 			self,
 			handler: impl Fn(
-				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<RMinusE, S, A>>),
-			) -> Run<RMinusE, S, A>
+				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<RMinusE, CNilBrand, A>>),
+			) -> Run<RMinusE, CNilBrand, A>
 			+ Clone
 			+ 'static,
-		) -> Run<RMinusE, S, A>
+		) -> Run<RMinusE, CNilBrand, A>
 		where
 			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>): Member<
-					Coyoneda<'static, EBrand, Run<R, S, A>>,
-					Idx,
-					Remainder = Apply!(
-									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>
-								),
-				>, {
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>):
+				Member<
+						Coyoneda<'static, EBrand, Run<R, CNilBrand, A>>,
+						Idx,
+						Remainder = Apply!(
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>
+									),
+					>, {
 			match self.peel() {
 				Ok(a) => Run::pure(a),
 				Err(Node::First(layer)) => match <Apply!(
-					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>
+					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>
 				) as Member<
-					Coyoneda<'static, EBrand, Run<R, S, A>>,
+					Coyoneda<'static, EBrand, Run<R, CNilBrand, A>>,
 					Idx,
 				>>::project(layer)
 				{
@@ -909,7 +893,7 @@ mod inner {
 						let lowered = coyo.lower();
 						let h_for_recurse = handler.clone();
 						let mapped = <EBrand as Functor>::map(
-							move |inner: Run<R, S, A>| {
+							move |inner: Run<R, CNilBrand, A>| {
 								inner.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
 							},
 							lowered,
@@ -919,23 +903,19 @@ mod inner {
 					Err(rest) => {
 						let h_for_recurse = handler.clone();
 						let mapped_free = <RMinusE as Functor>::map(
-							move |inner: Run<R, S, A>| {
+							move |inner: Run<R, CNilBrand, A>| {
 								inner
 									.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
 									.into_free()
 							},
 							rest,
 						);
-						Run::from_free(Free::<NodeBrand<RMinusE, S>, A>::wrap(Node::First(
+						Run::from_free(Free::<NodeBrand<RMinusE, CNilBrand>, A>::wrap(Node::First(
 							mapped_free,
 						)))
 					}
 				},
-				Err(Node::Scoped(_)) => {
-					unreachable!(
-						"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
-					)
-				}
+				Err(Node::Scoped(cnil)) => match cnil {},
 			}
 		}
 	}

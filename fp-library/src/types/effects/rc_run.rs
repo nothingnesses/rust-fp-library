@@ -604,7 +604,15 @@ mod inner {
 			A: Clone, {
 			RcRun::pure(a.clone())
 		}
+	}
 
+	#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+	#[document_parameters("The `RcRun` instance.")]
+	impl<R, A> RcRun<R, CNilBrand, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		A: 'static,
+	{
 		/// Interprets this `RcRun` program by walking each effect via
 		/// the matching handler closure in `handlers`, looping until
 		/// the program reduces to a [`Pure`](crate::types::RcFree)
@@ -648,35 +656,26 @@ mod inner {
 		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
-		#[expect(
-			clippy::unreachable,
-			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them."
-		)]
 		pub fn interpret(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
-				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RcRun<R, S, A>>),
-				RcRun<R, S, A>,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RcRun<R, CNilBrand, A>>),
+				RcRun<R, CNilBrand, A>,
 			>,
 		) -> A
 		where
 			A: Clone,
-			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+				RcFree<NodeBrand<R, CNilBrand>, crate::types::rc_free::RcTypeErasedValue>,
 			>): Clone, {
 			let mut prog = self;
 			loop {
 				match prog.peel() {
 					Ok(a) => return a,
 					Err(Node::First(layer)) => prog = handlers.dispatch(layer),
-					Err(Node::Scoped(_)) => {
-						unreachable!(
-							"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
-						)
-					}
+					Err(Node::Scoped(cnil)) => match cnil {},
 				}
 			}
 		}
@@ -720,16 +719,15 @@ mod inner {
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
-				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RcRun<R, S, A>>),
-				RcRun<R, S, A>,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RcRun<R, CNilBrand, A>>),
+				RcRun<R, CNilBrand, A>,
 			>,
 		) -> A
 		where
 			A: Clone,
-			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+				RcFree<NodeBrand<R, CNilBrand>, crate::types::rc_free::RcTypeErasedValue>,
 			>): Clone, {
 			self.interpret(handlers)
 		}
@@ -775,52 +773,43 @@ mod inner {
 		/// assert_eq!(result.evaluate(), 42);
 		/// ```
 		#[inline]
-		#[expect(
-			clippy::unreachable,
-			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them."
-		)]
 		pub fn interpret_rec<MBrand>(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 					'h,
-					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>),
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, CNilBrand, A>>),
 				>),
-				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, CNilBrand, A>>),
 			> + 'static,
 		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
 		where
 			MBrand: MonadRec + 'static,
 			A: Clone,
-			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+				RcFree<NodeBrand<R, CNilBrand>, crate::types::rc_free::RcTypeErasedValue>,
 			>): Clone, {
-			tail_rec_m::<MBrand, RcRun<R, S, A>, A>(
-				move |prog: RcRun<R, S, A>| match prog.peel() {
-					Ok(a) => <MBrand as Pointed>::pure::<ControlFlow<A, RcRun<R, S, A>>>(
+			tail_rec_m::<MBrand, RcRun<R, CNilBrand, A>, A>(
+				move |prog: RcRun<R, CNilBrand, A>| match prog.peel() {
+					Ok(a) => <MBrand as Pointed>::pure::<ControlFlow<A, RcRun<R, CNilBrand, A>>>(
 						ControlFlow::Break(a),
 					),
 					Err(Node::First(layer)) => {
 						let mapped = <R as Functor>::map(
-							|inner: RcRun<R, S, A>| {
-								<MBrand as Pointed>::pure::<RcRun<R, S, A>>(inner)
+							|inner: RcRun<R, CNilBrand, A>| {
+								<MBrand as Pointed>::pure::<RcRun<R, CNilBrand, A>>(inner)
 							},
 							layer,
 						);
 						let next = handlers.dispatch(mapped);
-						<MBrand as Functor>::map::<RcRun<R, S, A>, ControlFlow<A, RcRun<R, S, A>>>(
-							ControlFlow::Continue,
-							next,
-						)
+						<MBrand as Functor>::map::<
+							RcRun<R, CNilBrand, A>,
+							ControlFlow<A, RcRun<R, CNilBrand, A>>,
+						>(ControlFlow::Continue, next)
 					}
-					Err(Node::Scoped(_)) => {
-						unreachable!(
-							"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
-						)
-					}
+					Err(Node::Scoped(cnil)) => match cnil {},
 				},
 				self,
 			)
@@ -868,18 +857,17 @@ mod inner {
 				'h,
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 					'h,
-					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>),
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, CNilBrand, A>>),
 				>),
-				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, CNilBrand, A>>),
 			> + 'static,
 		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
 		where
 			MBrand: MonadRec + 'static,
 			A: Clone,
-			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+				RcFree<NodeBrand<R, CNilBrand>, crate::types::rc_free::RcTypeErasedValue>,
 			>): Clone, {
 			self.interpret_rec::<MBrand>(handlers)
 		}
@@ -926,48 +914,44 @@ mod inner {
 		/// assert_eq!(narrowed.extract(), 42);
 		/// ```
 		#[inline]
-		#[expect(
-			clippy::unreachable,
-			reason = "Phase 3 first-order interpreter does not handle scoped layers; Phase 4 wires them."
-		)]
 		pub fn interpret_with<EBrand, Idx, RMinusE>(
 			self,
 			handler: impl Fn(
-				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<RMinusE, S, A>>),
-			) -> RcRun<RMinusE, S, A>
+				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<RMinusE, CNilBrand, A>>),
+			) -> RcRun<RMinusE, CNilBrand, A>
 			+ Clone
 			+ 'static,
-		) -> RcRun<RMinusE, S, A>
+		) -> RcRun<RMinusE, CNilBrand, A>
 		where
 			A: Clone,
 			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
 			RMinusE: WrapDrop + Functor + 'static,
-			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+				RcFree<NodeBrand<R, CNilBrand>, crate::types::rc_free::RcTypeErasedValue>,
 			>): Clone,
 			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				RcFree<NodeBrand<RMinusE, S>, crate::types::rc_free::RcTypeErasedValue>,
+				RcFree<NodeBrand<RMinusE, CNilBrand>, crate::types::rc_free::RcTypeErasedValue>,
 			>): Clone,
-			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				RcFree<NodeBrand<RMinusE, S>, crate::types::rc_free::RcTypeErasedValue>,
+				RcFree<NodeBrand<RMinusE, CNilBrand>, crate::types::rc_free::RcTypeErasedValue>,
 			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>): Member<
-					RcCoyoneda<'static, EBrand, RcRun<R, S, A>>,
-					Idx,
-					Remainder = Apply!(
-									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>
-								),
-				>, {
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, CNilBrand, A>>):
+				Member<
+						RcCoyoneda<'static, EBrand, RcRun<R, CNilBrand, A>>,
+						Idx,
+						Remainder = Apply!(
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, CNilBrand, A>>
+									),
+					>, {
 			match self.peel() {
 				Ok(a) => RcRun::pure(a),
 				Err(Node::First(layer)) => match <Apply!(
-					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>
+					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, CNilBrand, A>>
 				) as Member<
-					RcCoyoneda<'static, EBrand, RcRun<R, S, A>>,
+					RcCoyoneda<'static, EBrand, RcRun<R, CNilBrand, A>>,
 					Idx,
 				>>::project(layer)
 				{
@@ -975,7 +959,7 @@ mod inner {
 						let lowered = coyo.lower_ref();
 						let h_for_recurse = handler.clone();
 						let mapped = <EBrand as Functor>::map(
-							move |inner: RcRun<R, S, A>| {
+							move |inner: RcRun<R, CNilBrand, A>| {
 								inner.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
 							},
 							lowered,
@@ -985,23 +969,19 @@ mod inner {
 					Err(rest) => {
 						let h_for_recurse = handler.clone();
 						let mapped_free = <RMinusE as Functor>::map(
-							move |inner: RcRun<R, S, A>| {
+							move |inner: RcRun<R, CNilBrand, A>| {
 								inner
 									.interpret_with::<EBrand, Idx, RMinusE>(h_for_recurse.clone())
 									.into_rc_free()
 							},
 							rest,
 						);
-						RcRun::from_rc_free(RcFree::<NodeBrand<RMinusE, S>, A>::wrap(Node::First(
-							mapped_free,
-						)))
+						RcRun::from_rc_free(RcFree::<NodeBrand<RMinusE, CNilBrand>, A>::wrap(
+							Node::First(mapped_free),
+						))
 					}
 				},
-				Err(Node::Scoped(_)) => {
-					unreachable!(
-						"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
-					)
-				}
+				Err(Node::Scoped(cnil)) => match cnil {},
 			}
 		}
 	}
