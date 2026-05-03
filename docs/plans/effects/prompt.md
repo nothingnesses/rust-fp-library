@@ -24,17 +24,21 @@ in step 10a.
 
 **Phase 3 (first-order effect handlers, interpreters, natural
 transformations) is the active phase.** Steps 1, 2, 3, 4
-shipped. Step 6a is in progress: 6a.1 (State effect type
-machinery) and 6a.2 (`Run::get` / `Run::put` smart
+shipped. The adversarial-review reversal cleanup is partially
+done: F1D (`05be270`, delete `run_accum` / `run_accum_rec`) and
+F3A (`f8031c5`, tighten `S = CNilBrand` on the interpreter
+family) have landed. **Immediate pending task: M3C** —
+parameterise `interpret_with` over `P: RefCountedPointer` to
+drop the user-facing `Clone` bound on handler closures, per the
+[2026-05-03 reversal resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer).
+M3C must land before resuming step 6a so the standard
+first-order effect work does not inherit the `Clone`-bound
+limitation the review surfaced. After M3C, step 5
+(`interpret_with_rec` pipeline-plus-MonadRec) is the next
+greenfield step. Step 6a is in progress: 6a.1 (State effect
+type machinery) and 6a.2 (`Run::get` / `Run::put` smart
 constructors) shipped. 6a.3 (`RcRun::get/put`) and 6a.5
-(Explicit non-Arc family) can proceed without resolving
-blockers. **Pending pre-step gate (2026-05-03):** the
-adversarial-review reversal cleanup (F1D + F3A + M3C per the
-[2026-05-03 reversal resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md))
-must land before resuming step 6a.3 so the standard first-order
-effect work does not inherit the issues the review surfaced.
-Then step 5 (`interpret_with_rec` pipeline-plus-MonadRec) is
-the next greenfield step before standard effects continue.
+(Explicit non-Arc family) can proceed once M3C lands.
 **Active blocker (2026-05-03):** `SendFunctor` impl on
 `StateBrand` for the Arc family hits the same per-`A`
 HRTB-over-types limit that drove Phase 2 step 9d / 9g / 9i;
@@ -45,6 +49,68 @@ ship per-method `Send + Sync` bounds at smart-constructor sites
 `ArcRunExplicit`'s existing per-method-bound precedent. Full
 analysis in
 [plan.md's Active blockers](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#active-blockers).
+
+### M3C implementation pattern (immediate next task)
+
+The user-facing `interpret_with` on each of the six wrappers
+currently requires `Fn + Clone + 'static` (plus `Send + Sync`
+on Arc) on the handler closure, because each recursive
+narrowing of a layer's content clones the handler. This rules
+out handler closures that capture unique non-`Clone` resources
+(e.g., a [`BufWriter`](https://doc.rust-lang.org/std/io/struct.BufWriter.html)).
+M3C drops the `Clone` requirement by wrapping the handler in
+the wrapper's canonical pointer brand once at entry, then
+cloning the pointer (cheap refcount bump) on each recursion.
+
+Implementation shape per wrapper:
+
+1. Split each `interpret_with::<EBrand, Idx, RMinusE>` into a
+   public outer + private inner method:
+
+   ```rust
+   pub fn interpret_with<EBrand, Idx, RMinusE>(
+       self,
+       handler: impl Fn(...) -> Wrapper<RMinusE, CNilBrand, A> + 'static,
+       // (plus Send + Sync on Arc wrappers)
+   ) -> Wrapper<RMinusE, CNilBrand, A> { ... }
+   {
+       let handler = <P as RefCountedPointer>::new(handler);
+       self.interpret_with_shared::<EBrand, Idx, RMinusE>(handler)
+   }
+
+   fn interpret_with_shared<EBrand, Idx, RMinusE, F>(
+       self,
+       handler: <P as RefCountedPointer>::Of<'_, F>,
+   ) -> Wrapper<RMinusE, CNilBrand, A>
+   where F: Fn(...) -> Wrapper<RMinusE, CNilBrand, A> + 'static,
+   { ... recurse with handler.clone() ... }
+   ```
+
+2. Pick `P` per wrapper:
+   - `Run`, `RunExplicit`, `RcRun`, `RcRunExplicit`: thread
+     [`RcBrand`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/brands.rs).
+   - `ArcRun`, `ArcRunExplicit`: thread
+     [`ArcBrand`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/brands.rs).
+3. Drop the `Clone` bound on the user-facing handler.
+4. Inside calls, invoke the underlying `Fn` via the pointer's
+   `Deref`: `(*handler)(arg)`.
+5. The
+   [`RefCountedPointer`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/ref_counted_pointer.rs)
+   trait already abstracts the `new` / `clone` / `Deref` shape.
+
+Watch out for: the Arc wrappers' `interpret_with` already
+carries ~12 separate `Send + Sync` where clauses; each needs
+careful adjustment (the wrapped handler's pointer type must
+also be `Send + Sync` so it can be sent across threads).
+[`arc_run.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/arc_run.rs)'s
+`interpret_with` (in the new
+`impl<R, A> ArcRun<R, CNilBrand, A>` block landed by F3A) is
+the largest body to migrate.
+
+After M3C, run `just verify` and verify all six wrappers'
+existing `interpret_with` integration tests in
+[`fp-library/tests/`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/)
+still pass.
 
 **Phase 2 (complete; all 10 steps).** Built the Run-wrapper
 foundation: `frunk_core`-based Coproduct adapter,
@@ -78,21 +144,28 @@ and per-step deviations in
   transformations; runtime carrier types `Handler<E, F>` /
   `HandlersNil` / `HandlersCons<H, T>` at
   [`handlers.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/handlers.rs).
-- **Step 2** (`d5efe2a`): `interpret` / `run` / `run_accum`
-  inherent methods on all six Run wrappers + the
+- **Step 2** (`d5efe2a`, then F1D `05be270` and F3A
+  `f8031c5` cleanup): `interpret` / `run` inherent methods on
+  all six Run wrappers + the
   [`DispatchHandlers`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/interpreter.rs)
   trait with three Coyoneda-variant cons-cell impls. M-free
   while-loop shape; one of three orthogonal interpreter
   primitives Phase 3 ships (see lesson "Three orthogonal
-  interpreter primitives" below).
+  interpreter primitives" below). State threading is via
+  user-side closure captures applied to `interpret` directly;
+  no separate `run_accum` companion (F1D removed it). The
+  `S` bound is fixed to `CNilBrand` so the `Node::Scoped` arm
+  is structurally uninhabited via `match cnil {}` rather than
+  a runtime panic (F3A); Phase 4 will add a parallel
+  scoped-handler family without this bound.
 - **Step 3** (`ff84f20`): pipeline row-narrowing
   `interpret_with::<EBrand, Idx, RMinusE>(handler) -> Wrapper<RMinusE, S, A>`
   plus empty-dual-row terminal `extract(self) -> A` on all six
   wrappers. ArcRun gains three HRTB-free helpers
   (`make_node_first`, `wrap_first_arc`, `unwrap_pure_node`).
-- **Step 4** (`bd540d5` + `fafcfde`): MonadRec-target
-  interpreter family `interpret_rec` / `run_rec` /
-  `run_accum_rec`. Two-commit split: relax
+- **Step 4** (`bd540d5` + `fafcfde`, then F1D `05be270` and
+  F3A `f8031c5` cleanup): MonadRec-target interpreter family
+  `interpret_rec` / `run_rec`. Two-commit split: relax
   `DispatchHandlers::dispatch` from `&mut self` to `&self` +
   `Fn`, then add the rec methods using
   [`tail_rec_m`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/monad_rec.rs).
@@ -101,7 +174,7 @@ and per-step deviations in
   because stable Rust closures can't be HRTB-polymorphic over
   `Thunk<'h, T>`-shaped types. Arc family uses `OptionBrand`
   rather than `ThunkBrand` in doctests (Thunk is `!Send`).
-- **Step 5a.1** (`96bc448`): State effect type machinery.
+- **Step 6a.1** (`96bc448`): State effect type machinery.
   [`StateBrand<P, S>`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/brands.rs)
   parameterised by `P: ToDynCloneFn` (typically `RcBrand` /
   `ArcBrand`) and `S: 'static`;
@@ -110,7 +183,7 @@ and per-step deviations in
   `<P as RefCountedPointer>::Of<'_, dyn Fn(...) -> A>`
   continuations. `Functor` impl shipped; `SendFunctor`
   deferred (active blocker — see Resume point above).
-- **Step 5a.2** (`f865152`): `Run::get` / `Run::put` smart
+- **Step 6a.2** (`f865152`): `Run::get` / `Run::put` smart
   constructors. `get` lives on the existing
   `impl<R, ScopedRow, A> Run<R, ScopedRow, A>` block (state =
   result type for `get`); `put` lives on a separate
@@ -119,7 +192,7 @@ and per-step deviations in
   continuations via
   [`<RcBrand as ToDynCloneFn>::new(closure)`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/to_dyn_clone_fn.rs).
 
-Cross-cutting commits during step 5a (shipped alongside, no
+Cross-cutting commits during step 6a (shipped alongside, no
 phase-step number):
 
 - **`4f0e977`** (`docs(effects):`): wrapped
@@ -135,27 +208,46 @@ phase-step number):
 
 **Remaining Phase 3 steps:**
 
-- Step 5a.3 (next, blocker-independent): `RcRun::get` /
-  `RcRun::put` smart constructors. Mirrors 5a.2's pattern;
+- **M3C cleanup (immediate next; gates step 6a resumption):**
+  parameterise `interpret_with` over `P: RefCountedPointer`
+  on all six wrappers per the 2026-05-03 reversal resolution.
+  See "M3C implementation pattern" subsection above for the
+  shape. Drops the user-facing `Clone` bound on handler
+  closures.
+- Step 5 (`interpret_with_rec`): per-wrapper inherent method
+  combining the pipeline shape (step 3) with `tail_rec_m`
+  (step 4). Six new method bodies + integration tests in
+  `fp-library/tests/run_interpret_with_rec.rs`. Sequence
+  after step 6 completes so the standard first-order effects
+  can drive the integration tests.
+- Step 6a.3 (blocker-independent): `RcRun::get` /
+  `RcRun::put` smart constructors. Mirrors 6a.2's pattern;
   threads `RcBrand` as the pointer kind. No new design needed.
-- Step 5a.4 (blocked on 2026-05-03 SendFunctor blocker):
+- Step 6a.4 (blocked on 2026-05-03 SendFunctor blocker):
   `ArcRun::get` / `ArcRun::put`. Awaits decision on per-method
   `Send + Sync` bounds (option b) vs alternatives.
-- Step 5a.5 (blocker-independent): `RunExplicit::get/put` and
-  `RcRunExplicit::get/put`. Same pattern as 5a.2 / 5a.3.
-- Step 5a.6 (blocked on the same 2026-05-03 blocker):
+- Step 6a.5 (blocker-independent): `RunExplicit::get/put` and
+  `RcRunExplicit::get/put`. Same pattern as 6a.2 / 6a.3.
+- Step 6a.6 (blocked on the same 2026-05-03 blocker):
   `ArcRunExplicit::get/put`.
-- Step 5b-5e: `Reader`, `Except`, `Writer`, `Choose` effects
+- Step 6b-6e: `Reader`, `Except`, `Writer`, `Choose` effects
   - their smart constructors (one effect per sub-step;
     `Choose` ships on the four multi-shot wrappers per the
     2026-05-03 resolution's Q4=ii).
-- Step 6: `define_effect!` macro at
+- Step 7: `define_effect!` macro at
   `fp-macros/src/effects/define_effect.rs` mechanically
   generating the six per-wrapper variants from one user
   declaration.
-- Step 7: `compile_fail` UI tests for negative cases (handler
+- Step 8: `compile_fail` UI tests for negative cases (handler
   missing an effect, wrong type ascription, multi-shot via
   single-shot `Run`, `Choose` on single-shot wrappers).
+- Step 9: review-remediation documentation pass — bundle the
+  docs-only items from
+  [`remediation_proposals.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/remediation_proposals.md)
+  (F2A, F4A, F5A, M4 audit, M6A async-via-`spawn_blocking`,
+  M7A bind/handler asymmetry note, all minor m1-m9) into one
+  commit. Lands after the substantive code work above so the
+  docs reflect the settled state.
 
 If you encounter unexpected behaviour during Phase 3
 implementation, plan.md's `Active blockers` section is the
@@ -531,20 +623,27 @@ cognitive model, per the 2026-04-29 resolution
 ([resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-04-29-phase-3-step-23-interpreter-family-shape)):
 
 - **Simple value extraction (step 2, M-free):** `interpret`
-  / `run` / `run_accum` return `A` directly via a `while`-loop;
+  / `run` return `A` directly via a `while`-loop;
   no engagement with `MonadRec` abstraction. Stack-safe by
   construction (no `M::bind` or `M::tail_rec_m` in the body).
+  State threading is via user-side closure captures applied
+  to `interpret` directly.
 - **Pipeline row-narrowing (step 3, partial interpretation):**
-  `interpret_with::<EBrand>` returns `Wrapper<RMinusE, S, A>`;
-  enables compositional handler chains and user-controlled
-  handler ordering for non-commuting effects. Recursion is
-  host-stack-frame per peeled layer (not stack-safe on long
-  Identity-shaped chains).
+  `interpret_with::<EBrand>` returns
+  `Wrapper<RMinusE, CNilBrand, A>`; enables compositional
+  handler chains and user-controlled handler ordering for
+  non-commuting effects. Recursion is host-stack-frame per
+  peeled layer (not stack-safe on long Identity-shaped chains;
+  step 5's `interpret_with_rec` is the stack-safe pipeline
+  variant).
 - **MonadRec extraction (step 4, external M target):**
-  `interpret_rec` / `run_rec` / `run_accum_rec` return
-  `M::Of<A>` for `MBrand: MonadRec`; uses `tail_rec_m` for
-  stack-safety on external M targets like `Thunk` / `Option`
-  / `Result` / `Vec`.
+  `interpret_rec` / `run_rec` return `M::Of<A>` for
+  `MBrand: MonadRec`; uses `tail_rec_m` for stack-safety on
+  external M targets like `Thunk` / `Option` / `Result` /
+  `Vec`. State threading parallels step 2's pattern.
+- **Pipeline + MonadRec (step 5, pending; per the 2026-05-03
+  reversal resolution):** `interpret_with_rec` combines step 3
+  and step 4. Closes the orthogonality grid.
 
 Each shape uniquely enables a use case the others cannot
 subsume. Step 4's three load-bearing design questions are
@@ -554,7 +653,7 @@ and shipped (see Phase 3 progress above).
 
 ### M-lifetime pinning in step 4 (load-bearing for any future MBrand-target work)
 
-Step 4's `interpret_rec` / `run_rec` / `run_accum_rec` pin
+Step 4's `interpret_rec` / `run_rec` pin
 M's lifetime per Run-wrapper family rather than HRTB-quantifying
 it: `'static` for the Erased family (`Run`, `RcRun`, `ArcRun`;
 the wrapper struct already requires `'static` everywhere) and
@@ -697,19 +796,19 @@ docs for bare-name doc-links before / after the wrapping.
 
 **One active blocker** (the
 [2026-05-03 SendFunctor blocker](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#active-blockers))
-gates 5a.4 (`ArcRun::get/put`) and 5a.6 (`ArcRunExplicit::get/put`)
+gates 6a.4 (`ArcRun::get/put`) and 6a.6 (`ArcRunExplicit::get/put`)
 pending design decision. The recommended approach (per-method
 `Send + Sync` bounds at smart-constructor sites) matches
 `ArcRunExplicit`'s existing per-method-bound precedent and
-sidesteps the per-`A` HRTB-over-types limit. **5a.3
-(`RcRun::get/put`) and 5a.5 (Explicit non-Arc family) can
-proceed without blocker resolution**, mirroring 5a.2's pattern.
+sidesteps the per-`A` HRTB-over-types limit. **6a.3
+(`RcRun::get/put`) and 6a.5 (Explicit non-Arc family) can
+proceed without blocker resolution**, mirroring 6a.2's pattern.
 
 1. Read [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s
    `Current progress` section to confirm what shipped under
    `82dd7bb` (step 1), `d5efe2a` (step 2), `ff84f20` (step 3),
-   `bd540d5` + `fafcfde` (step 4), `96bc448` (step 5a.1),
-   `f865152` (step 5a.2), `4f0e977` + `3a5a0a8` (cross-cutting
+   `bd540d5` + `fafcfde` (step 4), `96bc448` (step 6a.1),
+   `f865152` (step 6a.2), `4f0e977` + `3a5a0a8` (cross-cutting
    docs/macros). The implementation phasing sections (Phase 1
    through Phase 5, plus Phase 6+ deferred) list numbered steps
    within each phase; Phase 3 step 5's description carries the
@@ -721,8 +820,8 @@ proceed without blocker resolution**, mirroring 5a.2's pattern.
    impl on `StateBrand`. The four design options (a-d) are
    documented; option (b) per-method use-site bounds is
    recommended.
-3. To proceed with **blocker-independent steps 5a.3 / 5a.5**:
-   - Mirror 5a.2's
+3. To proceed with **blocker-independent steps 6a.3 / 6a.5**:
+   - Mirror 6a.2's
      [`Run::get` / `Run::put`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/run.rs)
      pattern. For each wrapper (`RcRun`, then `RunExplicit`,
      `RcRunExplicit`), add a `get` inherent method on the
@@ -736,7 +835,7 @@ proceed without blocker resolution**, mirroring 5a.2's pattern.
      `tests/ui/im_do_ref_on_non_clone_wrapper.stderr` if the
      associated-functions list changes (run
      `TRYBUILD=overwrite cargo test --test compile_fail`).
-4. To proceed with **blocker-dependent steps 5a.4 / 5a.6**
+4. To proceed with **blocker-dependent steps 6a.4 / 6a.6**
    under the recommended option (b): add per-method bounds
    `<ArcBrand as RefCountedPointer>::Of<'_, dyn Fn(S) -> A>: Send + Sync`
    and similar for the Put variant. ArcRun smart constructors
@@ -748,10 +847,10 @@ proceed without blocker resolution**, mirroring 5a.2's pattern.
 5. After all six wrappers' smart constructors land, add
    integration tests in `fp-library/tests/run_state.rs`
    covering: bind-chain composition, run with handlers
-   dispatching State, run_accum threading state through
-   Get/Put for each wrapper.
-6. Steps 5b-5e (`Reader`, `Except`, `Writer`, `Choose`) follow
-   5a's per-effect / per-wrapper rollout pattern. `Choose`
+   dispatching State, `interpret`-with-closure-capture state
+   threading through Get/Put for each wrapper.
+6. Steps 6b-6e (`Reader`, `Except`, `Writer`, `Choose`) follow
+   6a's per-effect / per-wrapper rollout pattern. `Choose`
    ships only on the four multi-shot wrappers per the
    2026-05-03 resolution's Q4=ii.
 7. Read [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
