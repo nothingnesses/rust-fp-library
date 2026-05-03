@@ -15,6 +15,204 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-03): Adversarial review reversals (delete `run_accum`, ship `interpret_with_rec`, parameterise `interpret_with` over `RefCountedPointer`)
+
+An adversarial review of the WIP effects implementation
+(commissioned 2026-05-03;
+[review_effects_rs.md](review/review_effects_rs.md))
+filed 5 fundamental, 8 major, and 9 minor findings. The
+remediation analysis
+([remediation_proposals.md](review/remediation_proposals.md))
+recommended three changes that overturn prior locked-in
+decisions in this file. This entry ratifies those three
+reversals and pre-records the remaining recommendations as a
+Phase 3 cleanup step.
+
+### Reversal 1: delete `run_accum` and `run_accum_rec` entirely (review F1D)
+
+**Prior decision:**
+[Q3 (2026-05-02): closure-capture state threading with `init`
+parameter](#resolved-2026-05-02-phase-3-step-4-interpreter-design-handler-shape-dispatch-trait-reuse-state-threading)
+locked the `run_accum` family at "accept `init`, thread state
+via user-side closure captures, return `A`". The implementation
+honours that lock by writing `let _ = init; self.interpret(handlers)`
+across all six wrappers.
+
+**Review finding:** F1 (fundamental). With state threading
+delegated to user-side captures, the `init` parameter is
+vestigial; the function body is byte-equivalent to `interpret`'s.
+The signature accepts `init` but does nothing with it. The
+function name advertises state threading the implementation
+cannot deliver in the mono-in-A return-type encoding.
+
+**Reversal:** Delete `run_accum` and `run_accum_rec` from all six
+wrappers. Document the closure-capture state pattern on
+[`interpret`](../../../fp-library/src/types/effects/run.rs#L497)'s
+rustdoc with the keyword "state" so rustdoc-search picks it up.
+The closure-capture state pattern itself is unchanged; only the
+vestigial second method name is removed.
+
+**Why the prior reasoning no longer holds:** The Q3 lock-in
+recorded "the latter is documented as the convention for
+state-threading uses". That role was a documentation hook, not a
+semantic distinction. The same hook lives equally well as a
+rustdoc paragraph on `interpret`. The PureScript Run parity
+argument (literal `runAccum` naming) is a convention rather than
+a constraint, and the project has departed from PureScript naming
+elsewhere when the Rust shape diverges (e.g., `im_do!` for
+inherent monadic do, no PureScript analogue).
+
+**Forward compatibility:** When StateT lands in Phase 6+ per
+[plan.md decisions row 1207](plan.md#L1207), the natural entry
+point is `interpret_rec::<StateT<S, IdBrand>>`, not a re-purposed
+`run_accum` slot. Keeping the slot would invite future confusion;
+deleting it forecloses that.
+
+### Reversal 2: ship `interpret_with_rec::<MBrand, EBrand>` (review M2A)
+
+**Prior decision:**
+[Decision 4 (2026-04-29): Phase 6+ deferred entry for
+`interpret_with<M: Monad>`](#resolved-2026-04-29-phase-3-step-23-interpreter-family-shape)
+deferred the pipeline-plus-MonadRec combination on the grounds of
+"no current user demand" and "axis 3 alternative branch".
+
+**Review finding:** M2 (major). `interpret_with`'s recursion is
+host-stack-frame per peeled layer
+([run.rs:1032-1054](../../../fp-library/src/types/effects/run.rs#L1032-L1054)),
+so users with deep eager-recursing effect chains who also need
+row narrowing have no stack-safe option. The current escape
+hatch (flatten into `interpret_rec`) forfeits the row-narrowing
+benefit; the two shapes are not interchangeable.
+
+**Reversal:** Ship the pipeline-plus-MonadRec combination as a
+new Phase 3 step appended after the existing step 7 (rather than
+inserted between step 4 and step 5, which would renumber the
+in-flight step 5a and break cross-references). Per-wrapper
+inherent method `interpret_with_rec::<MBrand, EBrand, Idx, RMinusE>`
+returning `M::Of<'_, Run<RMinusE, S, A>>`, internally driven by
+[`tail_rec_m`](../../../fp-library/src/classes/monad_rec.rs).
+Closes the orthogonality grid: simple, pipeline, MonadRec,
+pipeline+MonadRec.
+
+**Why the prior reasoning no longer holds:** The "no current
+user demand" reasoning was driven by the absence of standard
+first-order effects (which only Phase 3 step 5 provides). With
+Phase 3 step 5 in progress and the standard effects (`State`,
+`Reader`, `Except`, `Writer`, `Choose`) about to land, the
+demand-floor is no longer "no users"; it is "every user with a
+deep program who wants pipeline narrowing". The original
+deferral was precautionary; the review made the trade-off
+visible.
+
+### Reversal 3: parameterise `interpret_with` over `P: RefCountedPointer` (review M3C)
+
+**Prior decision:** Implicit. The current `interpret_with`
+implementation
+([run.rs:1003-1063](../../../fp-library/src/types/effects/run.rs#L1003-L1063))
+requires the handler closure to be `Fn + Clone + 'static` (plus
+`Send + Sync` on Arc wrappers); the per-recursion clone is the
+mechanism for sharing the handler across sub-program narrowings.
+No prior resolution covered this; the choice landed in the
+[Phase 3 step 3 deviations entry](deviations.md#L2059-L2061)
+without an alternative survey.
+
+**Review finding:** M3 (major). The `Clone` bound rules out
+handler closures that capture unique resources (e.g., a
+`BufWriter` acquired in scope). Users hit the bound at
+`interpret_with` call sites and must wrap their captures in
+`Rc<RefCell<_>>` themselves.
+
+**Reversal:** Parameterise `interpret_with` over a pointer brand
+`P: RefCountedPointer` (the existing trait at
+[`ref_counted_pointer.rs`](../../../fp-library/src/classes/ref_counted_pointer.rs)).
+Wrap the handler in `P::Of<F>` once at entry; clone the pointer
+(cheap refcount bump) on each recursion. The four non-Arc
+wrappers thread `RcBrand`; the two Arc wrappers thread
+`ArcBrand`. The wrapper-level public method fixes `P` so users
+see no extra parameter at the call site. Drops the user-facing
+`Clone` bound; the bound becomes `Fn + 'static` (plus
+`Send + Sync` on Arc wrappers).
+
+**Why the prior reasoning no longer holds:** The implicit choice
+predated the
+[`RefCountedPointer`](../../../fp-library/src/classes/ref_counted_pointer.rs)
+trait's load-bearing role in
+[Phase 3 step 5a's State effect parameterisation](#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization),
+which set the convention "abstract per-effect machinery over
+`P: RefCountedPointer` so one definition serves both refcount
+families". `interpret_with` is currently the only Phase 3
+machinery that does not follow that convention; aligning it
+removes a per-wrapper hard-code and a user-facing bound in one
+move.
+
+### Locked-in resolution set: F1D + M2A + M3C
+
+The three reversals are independent and do not interact (F1D
+deletes; M2A adds; M3C refactors a separate method body). Land
+order is therefore flexibility, not dependency:
+
+1. **F1D first** (small, pure deletion). Removes the largest API
+   lie identified by the review. Touches 12 method signatures +
+   12 doctests + the [plan.md "Implementation phasing" line
+   1131](plan.md#L1131) `runAccum` mention + the [Phase 3 step 2
+   deviations entry line 1885-1890](deviations.md#L1885-L1890).
+2. **F3A next** (small, type tightening). Tightens the
+   `interpret` family's `S` bound to `CNilBrand` so the
+   `Node::Scoped(_)` arm becomes structurally uninhabited (`match
+cnil {}`) instead of a `clippy::unreachable`-suppressed
+   panic. Removes the runtime trap noted as F3 in the review.
+   Touches 18 wrapper-method bodies (interpret + interpret_with
+   - interpret_rec on six wrappers) + the F3A-related plan
+     updates.
+3. **M3C** (small, abstraction lift). Threads
+   `P: RefCountedPointer` through `interpret_with`. Pairs
+   naturally with [m9 (interpreter dispatch impl
+   deduplication)](review/remediation_proposals.md#minor-findings).
+4. **M2A** (medium, new method family). Six new method bodies
+   plus integration tests; sequence after Phase 3 step 5
+   completes so the standard FO effects can drive the tests.
+
+### Remaining review recommendations: tracked as Phase 3 cleanup steps
+
+The review's other recommendations
+([remediation_proposals.md](review/remediation_proposals.md))
+are non-reversals and do not require ratification here. Per the
+sequencing plan they bundle into:
+
+- **A docs-only cleanup step** (review F2A, F4A, F5A, M4 audit
+  documentation, M6A async-via-`spawn_blocking` doc, M7A
+  bind/handler asymmetry note, all minor m1-m9 items). Lands as
+  one commit before public release.
+- **A small code step** for F3A (already absorbed into the F1D
+  - F3A landing above).
+- **An M5 spike** on `SendFunctorAt` for State, gating the
+  ArcRun State Success criterion. Lands per its own resolution
+  if successful, or per a deferral note in plan.md if not.
+
+The
+[plan.md "Implementation phasing"](plan.md#L1314) Phase 3
+section gains two new step entries to track these.
+
+### Cross-references
+
+- [`review_effects_rs.md`](review/review_effects_rs.md): the
+  adversarial review report ($9fd2bb8$) that surfaced the
+  findings.
+- [`remediation_proposals.md`](review/remediation_proposals.md):
+  the per-finding options + recommendations ($1bfb9f0$) that
+  proposed these reversals.
+- [Q3 (2026-05-02)](#resolved-2026-05-02-phase-3-step-4-interpreter-design-handler-shape-dispatch-trait-reuse-state-threading):
+  the closure-capture-state lock-in that F1D updates.
+- [Decision 4 (2026-04-29)](#resolved-2026-04-29-phase-3-step-23-interpreter-family-shape):
+  the Phase 6+ deferral that M2A overturns.
+- [Phase 3 step 5 (2026-05-03)](#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization):
+  the
+  [`RefCountedPointer`](../../../fp-library/src/classes/ref_counted_pointer.rs)
+  parameterisation convention that M3C aligns with.
+- [Phase 3 step 3 deviations
+  entry](deviations.md#L2059-L2061): the implicit `Clone`-bound
+  decision that M3C overturns.
+
 ## Resolved (2026-05-03): Phase 3 step 5 smart-constructor wrapper parameterization
 
 Phase 3 step 4 shipped as `bd540d5` + `fafcfde`. Step 5

@@ -2092,6 +2092,89 @@ this section is the phasing-side checklist.
 7. `compile_fail` UI tests for negative cases (handler missing
    an effect, wrong type ascription, multi-shot via single-shot
    `Run`, `Choose` on single-shot wrappers).
+8. Adversarial-review reversal cleanup
+   ([F1D + F3A per the
+   2026-05-03 resolution](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)):
+   - **F1D:** delete `run_accum` and `run_accum_rec` from all
+     six Run wrappers; document the closure-capture state
+     pattern on
+     [`interpret`](../../../fp-library/src/types/effects/run.rs)'s
+     rustdoc with the keyword "state" for rustdoc-search
+     discoverability. Touches 12 method signatures + 12
+     doctests + the `runAccum`-mentioning prose elsewhere in
+     this file.
+   - **F3A:** tighten the `interpret`, `interpret_with`, and
+     `interpret_rec` families' `S` bound to `CNilBrand` so the
+     `Node::Scoped(_)` arm becomes structurally uninhabited
+     (`match cnil {}`) instead of a `clippy::unreachable`-suppressed
+     panic. Phase 4's scoped-handler family ships a separate
+     interpreter family without the `S = CNilBrand` bound.
+9. **M3C interpret_with parameterisation
+   ([per the 2026-05-03 resolution](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)):**
+   parameterise
+   [`interpret_with`](../../../fp-library/src/types/effects/run.rs)
+   over `P: RefCountedPointer` (using the existing
+   [`ref_counted_pointer.rs`](../../../fp-library/src/classes/ref_counted_pointer.rs)
+   trait). Wrap the handler in `P::Of<F>` once at entry; clone
+   the pointer (cheap refcount bump) on each recursion. The
+   four non-Arc wrappers thread `RcBrand`; the two Arc wrappers
+   thread `ArcBrand`. Drops the user-facing `Clone` bound on
+   handler closures; the bound becomes `Fn + 'static` (plus
+   `Send + Sync` on Arc wrappers). May be combined with M9
+   (interpreter dispatch impl deduplication) into a shared
+   helper function.
+10. **M2A interpret_with_rec
+    ([per the 2026-05-03 resolution](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)):**
+    per-wrapper inherent method
+    `interpret_with_rec::<MBrand, EBrand, Idx, RMinusE>`
+    returning `M::Of<'_, Run<RMinusE, S, A>>`, internally
+    driven by
+    [`tail_rec_m`](../../../fp-library/src/classes/monad_rec.rs).
+    Closes the orthogonality grid (simple, pipeline, MonadRec,
+    pipeline+MonadRec). Six method bodies + integration tests
+    in `fp-library/tests/run_interpret_with_rec.rs`. Sequence
+    after step 5 completes so the standard first-order effects
+    can drive the integration tests.
+11. **Review-remediation documentation pass**: bundle the
+    docs-only items from
+    [remediation_proposals.md](review/remediation_proposals.md)
+    into one commit. Includes:
+    - **F2A:** add "callable continuation primitives in handler
+      clauses (Plotkin-Pretnar `k`)" to the
+      [Out of scope](#out-of-scope) section.
+    - **F4A:** weaken the [Success criteria](#success-criteria)
+      "single-shot vs. multi-shot" claim to apply to the Free
+      wrapper's spine consumption only; per-effect closures
+      (e.g., State's `dyn Fn` continuations) carry the
+      multi-shot property at the effect-instance level on every
+      wrapper.
+    - **F5A:** cross-link
+      [`NaturalTransformation`](../../../fp-library/src/classes/natural_transformation.rs)
+      - [`Free::fold_free`](../../../fp-library/src/types/free.rs)
+        from the interpreter rustdoc as the rank-2 NT escape
+        hatch.
+    - **M4 audit:** verify that `<StateBrand as Functor>::map`
+      is only called once per dispatch (via Coyoneda lowering)
+      and document Coyoneda fusion at the call site.
+    - **M6A:** add async-via-`spawn_blocking` workaround
+      paragraph to interpreter rustdoc, cross-linking the
+      Phase 6+ Future-as-MonadRec deferred entry.
+    - **M7A:** one-line rustdoc note on `bind` and on
+      `DispatchHandlers::dispatch` mentioning the
+      FnOnce-vs-Fn asymmetry.
+    - All minor (m1-m9) findings per
+      [remediation_proposals.md "Minor Findings"](review/remediation_proposals.md#minor-findings).
+12. **M5 spike: prototype `SendFunctorAt` for State** to
+    determine whether ArcRun State can ship without
+    HRTB-over-types support. If the spike succeeds,
+    `ArcRun::get` / `ArcRun::put` / `ArcRunExplicit::get` /
+    `ArcRunExplicit::put` ship and resolve the
+    [active SendFunctor blocker](#active-blockers). If the
+    spike fails, demote the
+    [Success criteria](#success-criteria) "State on every
+    wrapper" claim to "State on every wrapper except Arc family
+    (deferred pending HRTB-over-types in stable Rust)" and add
+    a Phase 6+ deferred entry.
 
 ### Phase 4: Scoped effects (heftia dual row)
 
@@ -2411,23 +2494,21 @@ outward to user surface.
 - **`interpret_with<M: Monad>` (Monad-bound externally-targeted
   family).** Companion to Phase 3 step 4's
   `interpret_rec<M: MonadRec>` family that drops the
-  stack-safety bound. PureScript Run analog: the `run` /
-  `runAccum` pair (Monad-bound) alongside `runRec` /
-  `runAccumRec` (MonadRec-bound). _What this is for:_ users
-  with a target `m` that implements `Monad` but not `MonadRec`
-  (rare in fp-library; possibly user-defined custom monads).
-  _Why deferred:_ requires `Fn` closures and handler-list
-  `Clone` bound to make bind-driven recursion work in Rust
-  (per the workarounds in the resolved 2026-04-29 blocker);
-  these constraints don't appear in the other interpreter
-  families. The closure-based MonadRec path covers the
-  common-case ergonomic surface for most fp-library brands,
-  which already implement `MonadRec`. Shipping the Monad-bound
-  family alongside would have ~doubled Phase 3 step 4's
-  interpreter surface for marginal real-world value.
-  _Trigger:_ first real user with a non-MonadRec Monad target,
-  or a benchmark / audit showing the closure-recursion-with-Clone
-  path is desirable for some specific m.
+  stack-safety bound for callers with a `Monad`-but-not-`MonadRec`
+  target. _What this is for:_ users with a target `m` that
+  implements `Monad` but not `MonadRec` (rare in fp-library;
+  possibly user-defined custom monads). _Why deferred:_
+  requires `Fn` closures and handler-list `Clone` bound to make
+  bind-driven recursion work in Rust (per the workarounds in
+  the resolved 2026-04-29 blocker); these constraints don't
+  appear in the other interpreter families. The closure-based
+  MonadRec path (now including Phase 3 step 10's
+  `interpret_with_rec`) covers the common-case ergonomic
+  surface for most fp-library brands, which already implement
+  `MonadRec`. _Trigger:_ first real user with a non-MonadRec
+  Monad target, or a benchmark / audit showing the
+  closure-recursion-with-Clone path is desirable for some
+  specific m.
 - **`run_cont` / `run_accum_cont` (continuation-passing
   interpreter family).** PureScript Run's `runCont` and
   `runAccumCont` ([`Run.purs:224-275`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs#L224-L275))
