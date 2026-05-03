@@ -84,15 +84,18 @@ row narrowing have no stack-safe option. The current escape
 hatch (flatten into `interpret_rec`) forfeits the row-narrowing
 benefit; the two shapes are not interchangeable.
 
-**Reversal:** Ship the pipeline-plus-MonadRec combination as a
-new Phase 3 step appended after the existing step 7 (rather than
-inserted between step 4 and step 5, which would renumber the
-in-flight step 5a and break cross-references). Per-wrapper
-inherent method `interpret_with_rec::<MBrand, EBrand, Idx, RMinusE>`
-returning `M::Of<'_, Run<RMinusE, S, A>>`, internally driven by
+**Reversal:** Ship the pipeline-plus-MonadRec combination as
+Phase 3 step 5, sitting between the simple/pipeline/rec
+interpreter families (steps 2-4) and the standard first-order
+effects step (step 6). Per-wrapper inherent method
+`interpret_with_rec::<MBrand, EBrand, Idx, RMinusE>` returning
+`M::Of<'_, Run<RMinusE, CNilBrand, A>>`, internally driven by
 [`tail_rec_m`](../../../fp-library/src/classes/monad_rec.rs).
 Closes the orthogonality grid: simple, pipeline, MonadRec,
-pipeline+MonadRec.
+pipeline+MonadRec. The renumbering shifts the in-flight
+"standard first-order effects" step from 5 to 6 and consequent
+sub-step labels from 5a to 6a (per the project's preference for
+clean numerical ordering over append-only step preservation).
 
 **Why the prior reasoning no longer holds:** The "no current
 user demand" reasoning was driven by the absence of standard
@@ -145,53 +148,46 @@ machinery that does not follow that convention; aligning it
 removes a per-wrapper hard-code and a user-facing bound in one
 move.
 
-### Locked-in resolution set: F1D + M2A + M3C
+### Locked-in resolution set: F1D + F3A + M3C cleanup, then M2A
 
-The three reversals are independent and do not interact (F1D
-deletes; M2A adds; M3C refactors a separate method body). Land
-order is therefore flexibility, not dependency:
+The three reversals fold into the plan's Phase 3 step list
+through in-place revisions to existing steps (F1D, F3A, M3C
+become "what step 2/3/4 say going forward") plus one new step
+(M2A becomes step 5). Land order:
 
-1. **F1D first** (small, pure deletion). Removes the largest API
-   lie identified by the review. Touches 12 method signatures +
-   12 doctests + the [plan.md "Implementation phasing" line
-   1131](plan.md#L1131) `runAccum` mention + the [Phase 3 step 2
-   deviations entry line 1885-1890](deviations.md#L1885-L1890).
-2. **F3A next** (small, type tightening). Tightens the
-   `interpret` family's `S` bound to `CNilBrand` so the
-   `Node::Scoped(_)` arm becomes structurally uninhabited (`match
-cnil {}`) instead of a `clippy::unreachable`-suppressed
-   panic. Removes the runtime trap noted as F3 in the review.
-   Touches 18 wrapper-method bodies (interpret + interpret_with
-   - interpret_rec on six wrappers) + the F3A-related plan
-     updates.
-3. **M3C** (small, abstraction lift). Threads
-   `P: RefCountedPointer` through `interpret_with`. Pairs
-   naturally with [m9 (interpreter dispatch impl
-   deduplication)](review/remediation_proposals.md#minor-findings).
-4. **M2A** (medium, new method family). Six new method bodies
-   plus integration tests; sequence after Phase 3 step 5
-   completes so the standard FO effects can drive the tests.
+1. **Reversal cleanup** (small): F1D + F3A + M3C land together
+   as one commit. F1D deletes `run_accum` / `run_accum_rec`
+   from steps 2 and 4 (12 method signatures + 12 doctests).
+   F3A tightens the `S` bound to `CNilBrand` on the
+   `interpret`, `interpret_with`, and `interpret_rec` families
+   (18 wrapper-method bodies; removes the
+   `clippy::unreachable`-suppressed panic in the
+   `Node::Scoped(_)` arms). M3C parameterises step 3's
+   `interpret_with` over `P: RefCountedPointer` (drops the
+   user-facing `Clone` bound; pairs naturally with [m9
+   interpreter dispatch impl deduplication](review/remediation_proposals.md#minor-findings)).
+   Lands before resuming step 6a.3 (next pending sub-step of
+   the standard first-order effects work) so step 6 does not
+   inherit the issues.
+2. **M2A: new step 5** (medium): six new method bodies
+   `interpret_with_rec` plus integration tests. Sequence after
+   step 6 completes so the standard first-order effects can
+   drive the integration tests.
 
-### Remaining review recommendations: tracked as Phase 3 cleanup steps
+### Remaining review recommendations: tracked as Phase 3 step 9
 
 The review's other recommendations
 ([remediation_proposals.md](review/remediation_proposals.md))
-are non-reversals and do not require ratification here. Per the
-sequencing plan they bundle into:
-
-- **A docs-only cleanup step** (review F2A, F4A, F5A, M4 audit
-  documentation, M6A async-via-`spawn_blocking` doc, M7A
-  bind/handler asymmetry note, all minor m1-m9 items). Lands as
-  one commit before public release.
-- **A small code step** for F3A (already absorbed into the F1D
-  - F3A landing above).
-- **An M5 spike** on `SendFunctorAt` for State, gating the
-  ArcRun State Success criterion. Lands per its own resolution
-  if successful, or per a deferral note in plan.md if not.
-
-The
-[plan.md "Implementation phasing"](plan.md#L1314) Phase 3
-section gains two new step entries to track these.
+are non-reversals and do not require ratification here. They
+bundle into the new Phase 3 step 9 (review-remediation
+documentation pass): F2A, F4A, F5A, M4 audit, M6A
+async-via-`spawn_blocking` doc, M7A bind/handler asymmetry
+note, and all minor m1-m9 items. Lands as one commit before
+public release. The
+[`SendFunctorAt`](review/remediation_proposals.md#m5-sendfunctor-for-statebrand-is-deferred-multi-thread-state-is-unimplemented)
+spike on State for the Arc family is a sub-task of step 6
+(standard first-order effects), not step 9, since it gates the
+ArcRun State Success criterion.
 
 ### Cross-references
 

@@ -15,22 +15,30 @@ complete. Phase 2 complete: steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b,
 `fp-library/tests/run_row_canonicalisation.rs`), and 10b
 (`poc-effect-row/` workspace deleted). Phase 3 in progress:
 steps 1 (`handlers!{...}` macro plus `nt()` builder fallback),
-2 (simple all-handlers-at-once `interpret`/`run`/`run_accum` on
-six Run wrappers), 3 (pipeline row-narrowing
-`interpret_with::<EBrand>` plus empty-row terminal `extract`),
-4 (MonadRec-target
-`interpret_rec`/`run_rec`/`run_accum_rec`), and 5a.1 + 5a.2
-landed; step 5a is in progress (State effect type machinery +
-Run-only smart constructors shipped; remaining wrappers and
+2 (simple all-handlers-at-once `interpret`/`run` on six Run
+wrappers), 3 (pipeline row-narrowing `interpret_with::<EBrand>`
+plus empty-row terminal `extract`), 4 (MonadRec-target
+`interpret_rec`/`run_rec`), and 6a.1 + 6a.2 landed; step 6a is
+in progress (State effect type machinery + Run-only smart
+constructors shipped; remaining wrappers and
 SendFunctor-dependent Arc family blocked on the
 [2026-05-03 SendFunctor blocker](#active-blockers)).
+
+The earliest pending pre-step-5 work is the
+[2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer):
+F1D (delete `run_accum`/`run_accum_rec` from steps 2 and 4),
+F3A (tighten `S = CNilBrand` on the interpreter families'
+type bounds), and M3C (parameterise step 3's `interpret_with`
+over `P: RefCountedPointer`). Land these before resuming step
+6a.3 so the standard first-order effect work does not inherit
+the issues the review surfaced.
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
 
-**Phase 3 step 5a.1 + 5a.2 (this commit set): `State` effect
+**Phase 3 step 6a.1 + 6a.2 (this commit set): `State` effect
 type machinery + Run-only smart constructors.** Two sub-step
 commits land the State effect under the locked-in design from
 the [2026-05-03 resolution](resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization)
@@ -39,7 +47,7 @@ the [2026-05-03 resolution](resolutions.md#resolved-2026-05-03-phase-3-step-5-sm
 all four multi-shot wrappers, (5.b) `effects!` for row
 composition).
 
-5a.1 (`96bc448`) ships:
+6a.1 (`96bc448`) ships:
 
 - [`StateBrand<P, S>`](../../../fp-library/src/brands.rs)
   registration parameterised by `P: ToDynCloneFn` (typically
@@ -56,7 +64,7 @@ composition).
 - `SendFunctor` impl deferred (see the active blocker for the
   HRTB-over-types limit driving the deferral).
 
-5a.2 (`f865152`) ships:
+6a.2 (`f865152`) ships:
 
 - `Run::get<Idx>() -> Run<R, ScopedRow, A>` in the existing
   `impl<R, ScopedRow, A> Run<R, ScopedRow, A>` block (the state
@@ -96,9 +104,9 @@ Cross-cutting commits also landed in the same set:
   post-drop value and assert via `resume()` / `evaluate()`;
   uninhabited-type tests use `core::mem::size_of`; etc.).
 
-What's next: 5a.3 (`RcRun::get/put`) and 5a.5 (Explicit non-Arc
+What's next: 6a.3 (`RcRun::get/put`) and 6a.5 (Explicit non-Arc
 family) can proceed without resolving the `SendFunctor`
-blocker; 5a.4 (`ArcRun::get/put`) and 5a.6 (`ArcRunExplicit::get/put`)
+blocker; 6a.4 (`ArcRun::get/put`) and 6a.6 (`ArcRunExplicit::get/put`)
 depend on the [2026-05-03 active blocker](#active-blockers)
 resolution.
 
@@ -190,7 +198,7 @@ limitation (Thunk's payload is not `Send + Sync` so Arc doctests
 use OptionBrand instead); (5) reuse of `DispatchHandlers` trait
 unchanged with `NextProgram` instantiated as `M::Of<...>`.
 
-Step 5 (standard first-order effect types `State<S>`, `Reader<E>`,
+Step 6 (standard first-order effect types `State<S>`, `Reader<E>`,
 `Except<E>`, `Writer<W>`, `Choose`, plus their smart
 constructors) is the immediate next work.
 
@@ -291,10 +299,11 @@ substrate constraints; (7) the renumbering of steps 4-7 per the
 Phase 3 step 2/3 interpreter shape resolution
 ((3.A) Insert + renumber).
 
-Step 4 (`interpret_rec` / `run_rec` / `run_accum_rec` with
+Step 4 (`interpret_rec` / `run_rec` with
 `<MBrand: MonadRec>` external target via `tail_rec_m`) is the
-immediate next work. Step 5 (standard first-order effect types
-and smart constructors) follows.
+immediate next work. Step 5 (`interpret_with_rec`
+pipeline-plus-`MonadRec` family) and step 6 (standard
+first-order effect types and smart constructors) follow.
 
 ### Earlier completed steps (commit log)
 
@@ -598,14 +607,14 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-05-03): Phase 3 step 5a `SendFunctor` impl on `StateBrand` for the Arc family
+#### Active blocker (2026-05-03): Phase 3 step 6a `SendFunctor` impl on `StateBrand` for the Arc family
 
 **TL;DR:** [`StateBrand<P, S>`](../../../fp-library/src/types/effects/state.rs)
-ships in step 5a.1 with the `Functor` impl only; the
+ships in step 6a.1 with the `Functor` impl only; the
 `SendFunctor` impl is deferred. Without `SendFunctor`, the
 Arc family smart constructors (`ArcRun::get/put` /
-`ArcRunExplicit::get/put`, step 5a.4 and 5a.6) cannot ship via
-the same path that 5a.3 / 5a.5 use, because `ArcCoyoneda`'s
+`ArcRunExplicit::get/put`, step 6a.4 and 6a.6) cannot ship via
+the same path that 6a.3 / 6a.5 use, because `ArcCoyoneda`'s
 `Member::project` and `lower_ref` paths require the inner
 projection to be `Send + Sync` per-`A`. The bound
 `<P as RefCountedPointer>::Of<'_, dyn 'a + Fn(S) -> A>: Send + Sync`
@@ -614,9 +623,9 @@ which hits stable Rust's HRTB-over-types limit (the same
 constraint family that drove the brand-level `SendFunctor`
 cascade gaps in Phase 2 step 9d / 9g / 9i).
 
-**Status:** unresolved as of 2026-05-03. Step 5a.3 (`RcRun::get/put`)
-and 5a.5 (Explicit non-Arc family) can proceed without resolving
-this blocker; 5a.4 and 5a.6 depend on it.
+**Status:** unresolved as of 2026-05-03. Step 6a.3 (`RcRun::get/put`)
+and 6a.5 (Explicit non-Arc family) can proceed without resolving
+this blocker; 6a.4 and 6a.6 depend on it.
 
 ##### Background
 
@@ -734,7 +743,7 @@ Under (b):
 
 - `state.rs` keeps `Functor` impl on `StateBrand<P, S>`.
 - `state.rs` does NOT add a `SendFunctor` impl. The
-  deferred-comment block in 5a.1 stays.
+  deferred-comment block in 6a.1 stays.
 - `ArcRun::get/put` and `ArcRunExplicit::get/put` add
   per-method bounds:
   - `<ArcBrand as RefCountedPointer>::Of<'_, dyn 'a + Fn(S) -> A>: Send + Sync`
@@ -762,13 +771,13 @@ User decision needed on (a) / (b) / (c) / (d), with (b)
 recommended. Once locked in:
 
 1. Move this entry to [resolutions.md](resolutions.md) verbatim.
-2. Resume implementation at step 5a.4 (`ArcRun::get/put`) under
+2. Resume implementation at step 6a.4 (`ArcRun::get/put`) under
    the locked-in approach.
-3. 5a.3 (`RcRun::get/put`) and 5a.5 (Explicit non-Arc family)
+3. 6a.3 (`RcRun::get/put`) and 6a.5 (Explicit non-Arc family)
    can proceed in parallel since they don't need
    `SendFunctor`.
 
-Recently resolved: the Phase 3 step 5 smart-constructor wrapper
+Recently resolved: the Phase 3 step 6 smart-constructor wrapper
 parameterization question (2026-05-03). Five sub-decisions
 locked in: (1.b) six variants per effect; (2.a) per-effect
 Functor instance; (3.a-1) `FnBrand`-parameterised effect types;
@@ -838,9 +847,9 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
-- [Resolved (2026-05-03): Phase 3 step 5 smart-constructor wrapper parameterization](resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization)
+- [Resolved (2026-05-03): smart-constructor wrapper parameterization for the standard first-order effects step](resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization)
   : five sub-decisions confirmed: (1.b) six per-wrapper variants
-  per effect, with the Phase 3 step 6 `define_effect!` macro
+  per effect, with the Phase 3 step 7 `define_effect!` macro
   hiding verbosity user-side; (2.a) per-effect Functor instance
   (matches PureScript directly); (3.a-1) effect types
   parameterised by `FnBrand` for substrate-agnostic continuation
@@ -1127,9 +1136,17 @@ The design is recorded in full in
   dispatch (`H: Functor + T: Functor`). The dynamic
   `DynFunctor` option is retained as a fallback only.
 - **Stack safety (decisions §4.3):** ship both interpreter
-  families, mirroring PureScript: `interpret`/`run`/`runAccum`
-  (assume target stack-safe) and `interpretRec`/`runRec`/
-  `runAccumRec` (require `MonadRec` on target).
+  families, mirroring PureScript: `interpret` / `run` (assume
+  target stack-safe) and `interpretRec` / `runRec` (require
+  `MonadRec` on target). Plus the Rust-specific row-narrowing
+  pair `interpret_with` / `interpret_with_rec` per the
+  [2026-04-29 widening resolution](resolutions.md#resolved-2026-04-29-phase-3-step-23-interpreter-family-shape)
+  and the
+  [2026-05-03 reversal](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer).
+  No `run_accum` / `runAccum` companion: state threading is via
+  user-side closure captures; PureScript Run's `runAccum` shape
+  drops the threaded state on return anyway, and the mono-in-A
+  Rust port has no slot for a tupled state result.
 - **Free family (decisions §4.4):** six variants in two rows.
   Erased family (`Free`, `RcFree`, `ArcFree`) is inherent-method
   only with O(1) bind via `dyn Any` erasure plus CatList; pins
@@ -1961,37 +1978,71 @@ this section is the phasing-side checklist.
    keyed on the row's type-level structure. Builder fallback
    (`nt().on::<E>(handler)...`) as the non-macro path
    ([decisions.md](decisions.md) section 4.6).
-2. `interpret` / `run` / `run_accum` simple all-handlers-at-once
+2. `interpret` / `run` simple all-handlers-at-once
    interpreter family on the six Run wrappers
    (`fp-library/src/types/effects/interpreter.rs`). M-free
-   `while`-loop shape; handler closures produce `Run<R, S, A>`
-   directly; returns `A`.
+   `while`-loop shape; handler closures produce `Run<R, CNilBrand, A>`
+   directly; returns `A`. The `S` bound is fixed at
+   [`CNilBrand`](../../../fp-library/src/brands.rs) so the
+   `Node::Scoped(_)` arm is structurally uninhabited
+   (`match cnil {}`) rather than a runtime panic; Phase 4
+   ships a separate scoped-handler family without this bound.
+   State threading is via user-side
+   [`Rc<RefCell<S>>`](https://doc.rust-lang.org/std/cell/struct.RefCell.html)
+   /
+   [`Arc<Mutex<S>>`](https://doc.rust-lang.org/std/sync/struct.Mutex.html)
+   closure captures applied directly to `interpret`; the
+   pattern is documented on `interpret`'s rustdoc with the
+   keyword "state" for rustdoc-search discoverability. No
+   `run_accum` companion: the mono-in-A return type has no
+   slot for threaded state to flow out, so a separate stateful
+   interpreter would be a literal alias. State-via-`StateT s m`
+   is deferred to Phase 6+; the closure-capture pattern
+   minimises cognitive load and keeps the trait machinery thin
+   (per the
+   [2026-05-03 reversal resolution](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)).
 3. Pipeline row-narrowing interpreter family:
-   `interpret_with::<EBrand>(handler) -> Run<R_minus_E, S, A>`
+   `interpret_with::<EBrand>(handler) -> Run<R_minus_E, CNilBrand, A>`
    per wrapper plus `extract(self) -> A` for empty-row Run.
-   New `DispatchOneHandler` trait variant alongside the
-   existing `DispatchHandlers`. Enables partial interpretation,
-   user-controlled handler ordering for non-commuting effects,
-   and compositional handler libraries (heftia's primary mode +
-   PureScript's `runPure` / `extract` analogs).
-4. `interpret_rec` / `run_rec` / `run_accum_rec`
-   `MonadRec`-target interpreter family in the same module.
+   Enables partial interpretation, user-controlled handler
+   ordering for non-commuting effects, and compositional
+   handler libraries (heftia's primary mode + PureScript's
+   `runPure` / `extract` analogs). The handler closure is
+   parameterised over a pointer brand `P: RefCountedPointer`
+   (using the existing
+   [`ref_counted_pointer.rs`](../../../fp-library/src/classes/ref_counted_pointer.rs)
+   trait): wrapped in `P::Of<F>` once at entry, then cloned
+   (cheap refcount bump) on each recursive narrowing of a
+   layer's content. The four non-Arc wrappers thread
+   [`RcBrand`](../../../fp-library/src/brands.rs); the two Arc
+   wrappers thread [`ArcBrand`](../../../fp-library/src/brands.rs).
+   The user-facing handler bound is `Fn + 'static` (plus
+   `Send + Sync` on Arc wrappers); no `Clone` requirement, so
+   handlers may capture unique resources like a
+   [`BufWriter`](https://doc.rust-lang.org/std/io/struct.BufWriter.html).
+   Same `S = CNilBrand` bound as step 2; same rationale.
+4. `interpret_rec` `MonadRec`-target interpreter family in the
+   same module.
    `interpret_rec<MBrand: MonadRec>(handlers) -> M::Of<'_, A>`
    with `tail_rec_m`-driven loop. Externally-targeted form for
-   extracting Run programs to `Thunk` / `Option` / `Result` /
-   `Vec` etc. with stack-safety guarantees. Per the
+   extracting Run programs to
+   [`Thunk`](../../../fp-library/src/types/thunk.rs) /
+   [`Option`](../../../fp-library/src/types/option.rs) /
+   [`Result`](../../../fp-library/src/types/result.rs) /
+   [`Vec`](../../../fp-library/src/types/vec.rs) etc. with
+   stack-safety guarantees. Per the
    [2026-05-02 resolution](resolutions.md#resolved-2026-05-02-phase-3-step-4-interpreter-design-handler-shape-dispatch-trait-reuse-state-threading),
    the locked-in design is:
    - **Handler shape mirrors PureScript:** input
-     `Fn(<EBrand as Kind>::Of<'_, M::Of<'_, Run<R, S, A>>>) -> M::Of<'_, Run<R, S, A>>`.
+     `Fn(<EBrand as Kind>::Of<'_, M::Of<'_, Run<R, CNilBrand, A>>>) -> M::Of<'_, Run<R, CNilBrand, A>>`.
      The interpreter does
      `<R as Functor>::map(M::pure, peel_layer)` to lift the
-     peeled layer's `Run<R, S, A>`-continuations to
-     `M::Of<Run<R, S, A>>`-continuations before dispatch.
+     peeled layer's `Run<R, CNilBrand, A>`-continuations to
+     `M::Of<Run<R, CNilBrand, A>>`-continuations before dispatch.
      Reuses the existing
      [`DispatchHandlers<'a, Layer, NextProgram>`](../../../fp-library/src/types/effects/interpreter.rs)
-     trait with `NextProgram = M::Of<Run<R, S, A>>`. Handlers
-     can do real `M::bind`-monadic work between effect
+     trait with `NextProgram = M::Of<Run<R, CNilBrand, A>>`.
+     Handlers can do real `M::bind`-monadic work between effect
      dispatches (e.g., short-circuit on `M = ResultBrand` via
      `Result::bind`).
    - **Dispatch-trait relaxation as commit 1:** refactor
@@ -2001,19 +2052,16 @@ this section is the phasing-side checklist.
      `FnMut`) can call dispatch on each iteration without
      cloning the handler list. All current handler closures
      across the codebase use interior mutability for state
-     (e.g., `run_accum`-via-`Rc<RefCell>` tests use closures
-     Rust infers as `Fn`); the relaxation matches actual
-     usage and adds zero per-iteration overhead. Lands as
-     the first commit in step 4 (mechanical refactor).
-   - **State threading via closure capture:** `run_accum_rec`
-     follows step 2's
-     [`run_accum`](../../../fp-library/src/types/effects/run.rs)
-     pattern. State cells (`Rc<RefCell<S>>`,
-     `Arc<Mutex<S>>`) live at the user level; the `init`
-     parameter is moved into the user's chosen state cell
-     internally. State-via-`StateT s m` is deferred to Phase
-     6+; the closure-capture pattern minimises cognitive load
-     and keeps the trait machinery thin.
+     (closures Rust infers as `Fn`); the relaxation matches
+     actual usage and adds zero per-iteration overhead. Lands
+     as the first commit in this step (mechanical refactor).
+   - **State threading via closure capture:** parallels step 2's
+     pattern. State cells (`Rc<RefCell<S>>`, `Arc<Mutex<S>>`)
+     live at the user level. No `run_accum_rec` companion (per
+     the [2026-05-03 reversal resolution](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)).
+   - **`S` bound is `CNilBrand`** so the `Node::Scoped(_)` arm
+     is structurally uninhabited; Phase 4 ships a parallel
+     scoped-handler `MonadRec` family without this bound.
    - **ArcRun reuses
      [`unwrap_first`](../../../fp-library/src/types/effects/arc_run.rs)**
      for the HRTB-poisoning workaround. The
@@ -2030,7 +2078,23 @@ this section is the phasing-side checklist.
      `fp-library/tests/run_interpret_rec.rs` covering each
      wrapper x several `M` choices (`ThunkBrand`,
      `OptionBrand`, `ResultBrand`).
-5. Standard first-order effect types and their smart
+5. `interpret_with_rec` pipeline-plus-`MonadRec` interpreter
+   family: per-wrapper inherent method
+   `interpret_with_rec::<MBrand, EBrand, Idx, RMinusE>`
+   returning `M::Of<'_, Run<RMinusE, CNilBrand, A>>`,
+   internally driven by
+   [`tail_rec_m`](../../../fp-library/src/classes/monad_rec.rs).
+   Closes the orthogonality grid (simple, pipeline, MonadRec,
+   pipeline+MonadRec) so users do not have to choose between
+   row narrowing and stack safety. Inherits step 3's
+   `P: RefCountedPointer`-parameterised handler shape and
+   step 4's `MonadRec`-target loop. Six method bodies +
+   integration tests in
+   `fp-library/tests/run_interpret_with_rec.rs`. Per the
+   [2026-05-03 reversal resolution](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer);
+   sequencing after step 6 completes so the standard
+   first-order effects can drive the integration tests.
+6. Standard first-order effect types and their smart
    constructors: `State<FnP, S>`, `Reader<FnP, E>`,
    `Except<E>`, `Writer<FnP, W>`, `Choose<FnP>`. Per the
    [2026-05-03 resolution](resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization),
@@ -2044,12 +2108,10 @@ this section is the phasing-side checklist.
      [`SendFunctor`](../../../fp-library/src/classes/send_functor.rs)
      for the Arc family) over its continuation parameter.
    - **Six per-wrapper smart-constructor variants per effect**
-     (matches the precedent set by step 2's six-variant
-     `interpret`/`run`/`run_accum`, step 3's six-variant
-     `interpret_with`/`extract`, step 4's six-variant
-     `interpret_rec`/`run_rec`/`run_accum_rec`). Smart
-     constructors live in per-wrapper module paths
-     (e.g., `fp_library::types::effects::run::ask`,
+     (matching the precedent set by the per-wrapper interpreter
+     families in steps 2-5). Smart constructors live in
+     per-wrapper module paths (e.g.,
+     `fp_library::types::effects::run::ask`,
      `fp_library::types::effects::rc_run::ask`, etc.) or as
      inherent methods on each wrapper.
    - **Choose ships on all four multi-shot wrappers** (`RcRun`,
@@ -2060,20 +2122,32 @@ this section is the phasing-side checklist.
    - **Row-brand composition via the existing
      [`effects!`](../../../fp-macros/src/effects/effects_macro.rs)
      macro.** No per-effect type aliases (`type ReaderRow<E, R> = ...`)
-     ship in step 5; deferred until user demand surfaces.
+     ship in this step; deferred until user demand surfaces.
    - Per-effect smart-constructor counts: State (`get` + `put`)
      × 6 wrappers = 12; Reader (`ask`) × 6 = 6; Except
      (`throw`) × 6 = 6; Writer (`tell`) × 6 = 6; Choose
      (`choose`) × 4 multi-shot wrappers = 4. Total ~34 named
      entry-points across six per-wrapper modules.
-   - **Step 5 may be split into sub-steps** per the
+   - **`SendFunctorAt` spike for ArcRun State as a sub-task**
+     (per the
+     [2026-05-03 reversal resolution](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer))
+     to determine whether ArcRun State can ship without
+     HRTB-over-types support. If the spike succeeds,
+     `ArcRun::get` / `ArcRun::put` / `ArcRunExplicit::get` /
+     `ArcRunExplicit::put` ship as part of this step. If the
+     spike fails, demote the
+     [Success criteria](#success-criteria) "State on every
+     wrapper" claim to "State on every wrapper except Arc family
+     (deferred pending HRTB-over-types in stable Rust)" and add
+     a Phase 6+ deferred entry.
+   - **This step may be split into sub-steps** per the
      [Implementation protocol](#implementation-protocol)'s
      oversized-step rule (~1500+ new lines, 7+ new files, or
      multiple new public types with mixed concerns); one
-     effect per sub-step is the natural cut (5a State, 5b
-     Reader, 5c Except, 5d Writer, 5e Choose). Surface the
+     effect per sub-step is the natural cut (6a State, 6b
+     Reader, 6c Except, 6d Writer, 6e Choose). Surface the
      split decision to the user before starting.
-6. `define_effect!` macro at
+7. `define_effect!` macro at
    `fp-macros/src/effects/define_effect.rs` generating effect
    enum + smart constructors + label / brand registration.
    Mechanically emits the six per-wrapper variants from a
@@ -2089,92 +2163,39 @@ this section is the phasing-side checklist.
    bodies. The macro accepts a `multi_shot` attribute for
    effects like `Choose` that opt out of the single-shot
    wrappers (`Run`, `RunExplicit`).
-7. `compile_fail` UI tests for negative cases (handler missing
+8. `compile_fail` UI tests for negative cases (handler missing
    an effect, wrong type ascription, multi-shot via single-shot
    `Run`, `Choose` on single-shot wrappers).
-8. Adversarial-review reversal cleanup
-   ([F1D + F3A per the
-   2026-05-03 resolution](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)):
-   - **F1D:** delete `run_accum` and `run_accum_rec` from all
-     six Run wrappers; document the closure-capture state
-     pattern on
-     [`interpret`](../../../fp-library/src/types/effects/run.rs)'s
-     rustdoc with the keyword "state" for rustdoc-search
-     discoverability. Touches 12 method signatures + 12
-     doctests + the `runAccum`-mentioning prose elsewhere in
-     this file.
-   - **F3A:** tighten the `interpret`, `interpret_with`, and
-     `interpret_rec` families' `S` bound to `CNilBrand` so the
-     `Node::Scoped(_)` arm becomes structurally uninhabited
-     (`match cnil {}`) instead of a `clippy::unreachable`-suppressed
-     panic. Phase 4's scoped-handler family ships a separate
-     interpreter family without the `S = CNilBrand` bound.
-9. **M3C interpret_with parameterisation
-   ([per the 2026-05-03 resolution](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)):**
-   parameterise
-   [`interpret_with`](../../../fp-library/src/types/effects/run.rs)
-   over `P: RefCountedPointer` (using the existing
-   [`ref_counted_pointer.rs`](../../../fp-library/src/classes/ref_counted_pointer.rs)
-   trait). Wrap the handler in `P::Of<F>` once at entry; clone
-   the pointer (cheap refcount bump) on each recursion. The
-   four non-Arc wrappers thread `RcBrand`; the two Arc wrappers
-   thread `ArcBrand`. Drops the user-facing `Clone` bound on
-   handler closures; the bound becomes `Fn + 'static` (plus
-   `Send + Sync` on Arc wrappers). May be combined with M9
-   (interpreter dispatch impl deduplication) into a shared
-   helper function.
-10. **M2A interpret_with_rec
-    ([per the 2026-05-03 resolution](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)):**
-    per-wrapper inherent method
-    `interpret_with_rec::<MBrand, EBrand, Idx, RMinusE>`
-    returning `M::Of<'_, Run<RMinusE, S, A>>`, internally
-    driven by
-    [`tail_rec_m`](../../../fp-library/src/classes/monad_rec.rs).
-    Closes the orthogonality grid (simple, pipeline, MonadRec,
-    pipeline+MonadRec). Six method bodies + integration tests
-    in `fp-library/tests/run_interpret_with_rec.rs`. Sequence
-    after step 5 completes so the standard first-order effects
-    can drive the integration tests.
-11. **Review-remediation documentation pass**: bundle the
-    docs-only items from
-    [remediation_proposals.md](review/remediation_proposals.md)
-    into one commit. Includes:
-    - **F2A:** add "callable continuation primitives in handler
-      clauses (Plotkin-Pretnar `k`)" to the
-      [Out of scope](#out-of-scope) section.
-    - **F4A:** weaken the [Success criteria](#success-criteria)
-      "single-shot vs. multi-shot" claim to apply to the Free
-      wrapper's spine consumption only; per-effect closures
-      (e.g., State's `dyn Fn` continuations) carry the
-      multi-shot property at the effect-instance level on every
-      wrapper.
-    - **F5A:** cross-link
-      [`NaturalTransformation`](../../../fp-library/src/classes/natural_transformation.rs)
-      - [`Free::fold_free`](../../../fp-library/src/types/free.rs)
-        from the interpreter rustdoc as the rank-2 NT escape
-        hatch.
-    - **M4 audit:** verify that `<StateBrand as Functor>::map`
-      is only called once per dispatch (via Coyoneda lowering)
-      and document Coyoneda fusion at the call site.
-    - **M6A:** add async-via-`spawn_blocking` workaround
-      paragraph to interpreter rustdoc, cross-linking the
-      Phase 6+ Future-as-MonadRec deferred entry.
-    - **M7A:** one-line rustdoc note on `bind` and on
-      `DispatchHandlers::dispatch` mentioning the
-      FnOnce-vs-Fn asymmetry.
-    - All minor (m1-m9) findings per
-      [remediation_proposals.md "Minor Findings"](review/remediation_proposals.md#minor-findings).
-12. **M5 spike: prototype `SendFunctorAt` for State** to
-    determine whether ArcRun State can ship without
-    HRTB-over-types support. If the spike succeeds,
-    `ArcRun::get` / `ArcRun::put` / `ArcRunExplicit::get` /
-    `ArcRunExplicit::put` ship and resolve the
-    [active SendFunctor blocker](#active-blockers). If the
-    spike fails, demote the
-    [Success criteria](#success-criteria) "State on every
-    wrapper" claim to "State on every wrapper except Arc family
-    (deferred pending HRTB-over-types in stable Rust)" and add
-    a Phase 6+ deferred entry.
+9. Review-remediation documentation pass: bundle the docs-only
+   items from
+   [remediation_proposals.md](review/remediation_proposals.md)
+   into one commit. Lands after the substantive code work
+   above so the docs reflect the settled state. Includes:
+   - Add "callable continuation primitives in handler clauses
+     (Plotkin-Pretnar `k`)" and "rank-2 natural transformations
+     at the headline interpreter API" to the
+     [Out of scope](#out-of-scope) section, with the
+     freer-monad-encoding rationale and cross-links to
+     [`NaturalTransformation`](../../../fp-library/src/classes/natural_transformation.rs)
+     - [`Free::fold_free`](../../../fp-library/src/types/free.rs)
+       as the rank-2 escape hatch.
+   - Weaken the [Success criteria](#success-criteria)
+     "single-shot vs. multi-shot" claim to apply to the Free
+     wrapper's spine consumption only; per-effect closures
+     (e.g., State's `dyn Fn` continuations) carry the
+     multi-shot property at the effect-instance level on every
+     wrapper.
+   - Audit `<StateBrand as Functor>::map` call sites: verify
+     it is only called once per dispatch (via Coyoneda
+     lowering) and document Coyoneda fusion at the call site.
+   - Add async-via-`spawn_blocking` workaround paragraph to
+     interpreter rustdoc, cross-linking the Phase 6+
+     Future-as-MonadRec deferred entry.
+   - One-line rustdoc note on `bind` and on
+     `DispatchHandlers::dispatch` mentioning the FnOnce-vs-Fn
+     asymmetry.
+   - All minor (m1-m9) findings per
+     [remediation_proposals.md "Minor Findings"](review/remediation_proposals.md#minor-findings).
 
 ### Phase 4: Scoped effects (heftia dual row)
 

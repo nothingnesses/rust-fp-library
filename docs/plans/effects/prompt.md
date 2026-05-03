@@ -24,14 +24,21 @@ in step 10a.
 
 **Phase 3 (first-order effect handlers, interpreters, natural
 transformations) is the active phase.** Steps 1, 2, 3, 4
-shipped. Step 5a is in progress: 5a.1 (State effect type
-machinery) and 5a.2 (`Run::get` / `Run::put` smart
-constructors) shipped. 5a.3 (`RcRun::get/put`) and 5a.5
+shipped. Step 6a is in progress: 6a.1 (State effect type
+machinery) and 6a.2 (`Run::get` / `Run::put` smart
+constructors) shipped. 6a.3 (`RcRun::get/put`) and 6a.5
 (Explicit non-Arc family) can proceed without resolving
-blockers. **Active blocker (2026-05-03):** `SendFunctor` impl
-on `StateBrand` for the Arc family hits the same per-`A`
+blockers. **Pending pre-step gate (2026-05-03):** the
+adversarial-review reversal cleanup (F1D + F3A + M3C per the
+[2026-05-03 reversal resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md))
+must land before resuming step 6a.3 so the standard first-order
+effect work does not inherit the issues the review surfaced.
+Then step 5 (`interpret_with_rec` pipeline-plus-MonadRec) is
+the next greenfield step before standard effects continue.
+**Active blocker (2026-05-03):** `SendFunctor` impl on
+`StateBrand` for the Arc family hits the same per-`A`
 HRTB-over-types limit that drove Phase 2 step 9d / 9g / 9i;
-5a.4 (`ArcRun::get/put`) and 5a.6 (`ArcRunExplicit::get/put`)
+6a.4 (`ArcRun::get/put`) and 6a.6 (`ArcRunExplicit::get/put`)
 are blocked pending design decision. Recommended approach:
 ship per-method `Send + Sync` bounds at smart-constructor sites
 (option b in plan.md's active-blocker analysis), matching
@@ -249,7 +256,7 @@ raw Coproduct brand rows (no Coyoneda wrap), used in test
 fixtures and lower-level combinators.
 
 Phase 3 handlers should generally consume rows produced by
-`effects!`; Phase 3 step 6's compile_fail UI tests may use
+`effects!`; Phase 3 step 8's compile_fail UI tests may use
 `raw_effects!` to construct test-only edge cases.
 
 ### Bundle substrate/wrapper migrations by default (load-bearing for any future cascade work)
@@ -272,7 +279,7 @@ cascade-coupled refactor.
   `arc_free_explicit_bind_requires_send` UI test; regenerate
   with `TRYBUILD=overwrite cargo test --test compile_fail`
   (raw `cargo`, not `just test`, to avoid `wip/` artifacts).
-  Phase 3 step 6's compile_fail UI tests will need the same
+  Phase 3 step 8's compile_fail UI tests will need the same
   regeneration treatment whenever bounds shift.
 - **Clippy's `type_repetition_in_bounds` lint requires a
   type's bounds to be in one place.** If you split bounds
@@ -412,7 +419,7 @@ would otherwise poison:
 not at the struct level, so it pattern-matches `Node` literals
 inline.
 
-If a future step (Phase 3 step 4 / step 5; Phase 4 scoped
+If a future step (Phase 3 step 5 / step 6; Phase 4 scoped
 effects) needs new `Node`-construction or `ArcFree::wrap`-call
 sites inside `ArcRun`'s impl block, expect to add another
 helper following the same naming convention. Step 4's
@@ -460,7 +467,7 @@ cheap-to-clone handlers wrap captured state in `Rc` / `Arc`,
 which Rust infers as `Fn` automatically due to interior
 mutability.
 
-When Phase 3 step 5 ships standard first-order effects with
+When Phase 3 step 6 ships standard first-order effects with
 non-Identity shapes (`State<S>` whose `Of<NextProgram>` is a
 closure `S -> NextProgram`), the recursive narrowing for those
 effects becomes lazy: `Functor::map` over a closure composes
@@ -602,7 +609,7 @@ shipped; not yet requested.
 [`SendRefCountedPointer`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/ref_counted_pointer.rs)
 parallel trait carries `T: ?Sized + Send + Sync + 'a` and is
 the projection to use when the inner type must cross thread
-boundaries. State-family effect types (Phase 3 step 5a) use
+boundaries. State-family effect types (Phase 3 step 6a) use
 `RefCountedPointer::Of` for the unified single-thread / multi-
 shot type surface; the Arc family then needs per-method `Send
 
@@ -628,7 +635,7 @@ direct constructor returns `Rc<{closure_type}>` (a sized
 inner) which does NOT match the `Rc<dyn Fn>` projection;
 `ToDynCloneFn::new` performs the unsized coercion.
 
-This pattern is load-bearing for Phase 3 step 5+'s smart-
+This pattern is load-bearing for Phase 3 step 6+'s smart-
 constructor implementations: any effect type carrying
 `<P as RefCountedPointer>::Of<'_, dyn Fn(...) -> ...>`
 continuations must be constructed via `ToDynCloneFn::new`.
@@ -895,7 +902,7 @@ change them unilaterally. If you encounter:
   (Phase 2 step 8); `handlers!` at
   [`handlers.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/handlers.rs)
   (Phase 3 step 1, commit `82dd7bb`). Pending:
-  `define_effect!` (Phase 3 step 5 / 6 depending on blocker
+  `define_effect!` (Phase 3 step 6 / 7 depending on blocker
   resolution), `define_scoped_effect!` (Phase 4),
   `scoped_effects!` (Phase 4 step 4) — all land in the same
   directory. `ia_do!` ("Inherent Applicative do") is
