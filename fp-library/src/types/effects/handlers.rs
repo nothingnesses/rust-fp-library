@@ -60,114 +60,203 @@
 //! chain in canonical order automatically; users who want
 //! macro-equivalent ordering should prefer the macro.
 
-use core::marker::PhantomData;
+#[fp_macros::document_module]
+mod inner {
+	use core::marker::PhantomData;
 
-/// Newtype tagging a handler closure with the brand `E` it handles.
-///
-/// `Handler<E, F>` pins the brand identity at the type level so the
-/// Phase 3 step 2 interpreter can match each handler against the row's
-/// head brand without the closure's type signature having to encode
-/// the brand explicitly. The closure value `F` stays opaque at this
-/// step; step 2 will introduce an interpreter trait that adds the
-/// concrete `F: FnMut(...) -> ...` bound.
-#[derive(Clone, Copy)]
-pub struct Handler<E, F> {
-	/// The handler closure for effect brand `E`.
-	pub run: F,
-	#[doc(hidden)]
-	pub _brand: PhantomData<fn() -> E>,
-}
-
-impl<E, F> Handler<E, F> {
-	/// Wraps a closure as a [`Handler`] for effect brand `E`. Zero-cost.
-	#[inline]
-	pub const fn new(run: F) -> Self {
-		Handler {
-			run,
-			_brand: PhantomData,
-		}
-	}
-}
-
-/// Empty handler list, mirrors [`CNilBrand`](crate::brands::CNilBrand)
-/// at the row-shape level.
-///
-/// Returned by [`nt()`] as the seed of a builder chain. The
-/// [`handlers!`](https://docs.rs/fp-macros/latest/fp_macros/macro.handlers.html)
-/// macro emits this as the terminator of its cons chain.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct HandlersNil;
-
-/// Cons cell of the handler list, mirrors [`CoproductBrand`](crate::brands::CoproductBrand)
-/// at the row-shape level.
-///
-/// `HandlersCons<H, T>` carries a head handler `H` (typically a
-/// [`Handler<EBrand, F>`](Handler)) and a tail `T` that is itself
-/// either another `HandlersCons` or [`HandlersNil`]. The shape mirrors
-/// the row brand `CoproductBrand<EBrand, Tail>` cell-for-cell so the
-/// Phase 3 step 2 interpreter can recurse through both in lock-step.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct HandlersCons<H, T> {
-	/// The handler at this row position.
-	pub head: H,
-	/// The remaining handlers, aligned with the tail of the row.
-	pub tail: T,
-}
-
-impl HandlersNil {
-	/// Prepends a new handler for effect brand `E` at the head of the
-	/// list, transitioning [`HandlersNil`] to a single-cell
-	/// [`HandlersCons<Handler<E, F>, HandlersNil>`](HandlersCons).
+	/// Newtype tagging a handler closure with the brand `E` it handles.
 	///
-	/// `E` is the brand identity (usually turbofished;
-	/// `nt().on::<StateBrand, _>(...)`); `F` is inferred from the
-	/// closure literal.
-	#[inline]
-	pub fn on<E, F>(
-		self,
-		handler: F,
-	) -> HandlersCons<Handler<E, F>, Self> {
-		HandlersCons {
-			head: Handler::new(handler),
-			tail: self,
+	/// `Handler<E, F>` pins the brand identity at the type level so the
+	/// Phase 3 step 2 interpreter can match each handler against the row's
+	/// head brand without the closure's type signature having to encode
+	/// the brand explicitly. The closure value `F` stays opaque at this
+	/// step; step 2 will introduce an interpreter trait that adds the
+	/// concrete `F: FnMut(...) -> ...` bound.
+	#[derive(Clone, Copy)]
+	pub struct Handler<E, F> {
+		/// The handler closure for effect brand `E`.
+		pub run: F,
+		#[doc(hidden)]
+		pub _brand: PhantomData<fn() -> E>,
+	}
+
+	#[fp_macros::document_type_parameters(
+		"The effect brand identifier.",
+		"The closure type stored in this handler cell."
+	)]
+	impl<E, F> Handler<E, F> {
+		/// Wraps a closure as a [`Handler`] for effect brand `E`.
+		/// Zero-cost.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters("The handler closure to wrap.")]
+		///
+		#[fp_macros::document_returns("A [`Handler`] tagged with brand `E` carrying the closure.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::handlers::Handler;
+		///
+		/// struct StateBrand;
+		///
+		/// let handler = Handler::<StateBrand, _>::new(|x: i32| x + 1);
+		/// assert_eq!((handler.run)(2), 3);
+		/// ```
+		#[inline]
+		pub const fn new(run: F) -> Self {
+			Handler {
+				run,
+				_brand: PhantomData,
+			}
 		}
 	}
-}
 
-impl<H, T> HandlersCons<H, T> {
-	/// Prepends a new handler for effect brand `E` at the head of the
-	/// list. The previous list becomes the tail.
+	/// Empty handler list, mirrors [`CNilBrand`](crate::brands::CNilBrand)
+	/// at the row-shape level.
 	///
-	/// Builder semantics are prepend; chained calls produce a list
-	/// whose head is the most-recently-added handler. See the
-	/// module-level "Builder ordering" note for alignment with rows
-	/// built by [`effects!`](https://docs.rs/fp-macros/latest/fp_macros/macro.effects.html).
-	#[inline]
-	pub fn on<E, F>(
-		self,
-		handler: F,
-	) -> HandlersCons<Handler<E, F>, Self> {
-		HandlersCons {
-			head: Handler::new(handler),
-			tail: self,
+	/// Returned by [`nt()`] as the seed of a builder chain. The
+	/// [`handlers!`](https://docs.rs/fp-macros/latest/fp_macros/macro.handlers.html)
+	/// macro emits this as the terminator of its cons chain.
+	#[derive(Clone, Copy, Debug, Default)]
+	pub struct HandlersNil;
+
+	/// Cons cell of the handler list, mirrors [`CoproductBrand`](crate::brands::CoproductBrand)
+	/// at the row-shape level.
+	///
+	/// `HandlersCons<H, T>` carries a head handler `H` (typically a
+	/// [`Handler<EBrand, F>`](Handler)) and a tail `T` that is itself
+	/// either another `HandlersCons` or [`HandlersNil`]. The shape mirrors
+	/// the row brand `CoproductBrand<EBrand, Tail>` cell-for-cell so the
+	/// Phase 3 step 2 interpreter can recurse through both in lock-step.
+	#[derive(Clone, Copy, Debug, Default)]
+	pub struct HandlersCons<H, T> {
+		/// The handler at this row position.
+		pub head: H,
+		/// The remaining handlers, aligned with the tail of the row.
+		pub tail: T,
+	}
+
+	#[fp_macros::document_parameters("The empty handler list.")]
+	impl HandlersNil {
+		/// Prepends a new handler for effect brand `E` at the head of the
+		/// list, transitioning [`HandlersNil`] to a single-cell
+		/// [`HandlersCons<Handler<E, F>, HandlersNil>`](HandlersCons).
+		///
+		/// `E` is the brand identity (usually turbofished;
+		/// `nt().on::<StateBrand, _>(...)`); `F` is inferred from the
+		/// closure literal.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The effect brand identifier (typically turbofished).",
+			"The handler closure type (inferred from the closure literal)."
+		)]
+		///
+		#[fp_macros::document_parameters("The handler closure to prepend.")]
+		///
+		#[fp_macros::document_returns("A single-cell handler list with `handler` at the head.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::handlers::*;
+		///
+		/// struct StateBrand;
+		///
+		/// let h = nt().on::<StateBrand, _>(|x: i32| x + 1);
+		/// assert_eq!((h.head.run)(2), 3);
+		/// ```
+		#[inline]
+		pub fn on<E, F>(
+			self,
+			handler: F,
+		) -> HandlersCons<Handler<E, F>, Self> {
+			HandlersCons {
+				head: Handler::new(handler),
+				tail: self,
+			}
 		}
+	}
+
+	#[fp_macros::document_type_parameters(
+		"The head handler type at this position.",
+		"The tail handler list (another [`HandlersCons`] or [`HandlersNil`])."
+	)]
+	#[fp_macros::document_parameters("The handler list instance.")]
+	impl<H, T> HandlersCons<H, T> {
+		/// Prepends a new handler for effect brand `E` at the head of
+		/// the list. The previous list becomes the tail.
+		///
+		/// Builder semantics are prepend; chained calls produce a list
+		/// whose head is the most-recently-added handler. See the
+		/// module-level "Builder ordering" note for alignment with rows
+		/// built by [`effects!`](https://docs.rs/fp-macros/latest/fp_macros/macro.effects.html).
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The effect brand identifier for the new handler.",
+			"The handler closure type."
+		)]
+		///
+		#[fp_macros::document_parameters("The handler closure to prepend at the head.")]
+		///
+		#[fp_macros::document_returns("A new [`HandlersCons`] with `handler` prepended.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::handlers::*;
+		///
+		/// struct StateBrand;
+		/// struct ReaderBrand;
+		///
+		/// let h = nt().on::<StateBrand, _>(|x: i32| x).on::<ReaderBrand, _>(|x: i32| x * 2);
+		/// assert_eq!((h.head.run)(5), 10);
+		/// ```
+		#[inline]
+		pub fn on<E, F>(
+			self,
+			handler: F,
+		) -> HandlersCons<Handler<E, F>, Self> {
+			HandlersCons {
+				head: Handler::new(handler),
+				tail: self,
+			}
+		}
+	}
+
+	/// Entry point for the chained-builder fallback for assembling a
+	/// handler list per [decisions.md](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/decisions.md)
+	/// section 4.6.
+	///
+	/// Returns [`HandlersNil`]; chain `.on::<EBrand, _>(handler)` calls
+	/// to prepend handlers. The
+	/// [`handlers!`](https://docs.rs/fp-macros/latest/fp_macros/macro.handlers.html)
+	/// macro is the primary surface and produces equivalent shapes via
+	/// the macro DSL.
+	#[fp_macros::document_signature]
+	///
+	#[fp_macros::document_returns("The empty handler list, ready for `.on(...)` calls.")]
+	///
+	#[fp_macros::document_examples]
+	///
+	/// ```
+	/// use fp_library::types::effects::handlers::*;
+	///
+	/// struct StateBrand;
+	///
+	/// let h = nt().on::<StateBrand, _>(|x: i32| x + 1);
+	/// assert_eq!((h.head.run)(0), 1);
+	/// ```
+	#[inline]
+	#[must_use]
+	pub const fn nt() -> HandlersNil {
+		HandlersNil
 	}
 }
 
-/// Entry point for the chained-builder fallback for assembling a
-/// handler list per [decisions.md](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/decisions.md)
-/// section 4.6.
-///
-/// Returns [`HandlersNil`]; chain `.on::<EBrand, _>(handler)` calls to
-/// prepend handlers. The
-/// [`handlers!`](https://docs.rs/fp-macros/latest/fp_macros/macro.handlers.html)
-/// macro is the primary surface and produces equivalent shapes via the
-/// macro DSL.
-#[inline]
-#[must_use]
-pub const fn nt() -> HandlersNil {
-	HandlersNil
-}
+pub use inner::*;
 
 #[cfg(test)]
 mod tests {
