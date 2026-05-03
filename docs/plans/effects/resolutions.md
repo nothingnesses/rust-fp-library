@@ -15,6 +15,157 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-03): Phase 3 step 6a `SendFunctor` impl on `StateBrand` for the Arc family (option (b) per-method bounds)
+
+[`StateBrand<P, S>`](../../../fp-library/src/types/effects/state.rs)
+shipped in step 6a.1 with the `Functor` impl only; the
+`SendFunctor` impl was deferred. Without `SendFunctor`, the
+Arc family smart constructors (`ArcRun::get/put` /
+`ArcRunExplicit::get/put`, step 6a.4 and 6a.6) could not ship
+via the same path that 6a.3 / 6a.5 use, because
+`ArcCoyoneda`'s `Member::project` and `lower_ref` paths
+require the inner projection to be `Send + Sync` per-`A`. The
+bound
+`<P as RefCountedPointer>::Of<'_, dyn 'a + Fn(S) -> A>: Send + Sync`
+must be expressed for each `A` the smart constructor
+produces, which hits stable Rust's HRTB-over-types limit (the
+same constraint family that drove the brand-level
+`SendFunctor` cascade gaps in Phase 2 step 9d / 9g / 9i).
+
+### Background
+
+[`SendFunctor`](../../../fp-library/src/classes/send_functor.rs)
+adds `Send + Sync` bounds on the input/output types and the
+closure to the `Functor::map` contract. The
+[`ArcCoyoneda`](../../../fp-library/src/types/arc_coyoneda.rs)
+dispatch impl in
+[`interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
+requires `EBrand: SendFunctor` and
+`<EBrand as Kind>::Of<'a, NextProgram>: Send + Sync + 'a`.
+
+For `StateBrand<P, S>` with `P = ArcBrand`, the projection is
+`State<'a, ArcBrand, S, A>`. The Get and Put variants hold
+`<ArcBrand as RefCountedPointer>::Of<'a, dyn 'a + Fn(...) -> A>`
+= `Arc<dyn 'a + Fn(...) -> A>`. **This `Arc<dyn Fn>` is NOT
+`Send + Sync` by default**: `RefCountedPointer::Of` provides
+`Clone + Deref + 'a` but no `Send + Sync` guarantee. For the
+`Arc<dyn Fn>` to be thread-safe, the inner `dyn Fn` must
+carry `+ Send + Sync`.
+
+### Decision: option (b) per-method `Send + Sync` bounds at smart-constructor sites
+
+No brand-level `SendFunctor` impl on `StateBrand<P, S>`.
+Instead, `ArcRun::get/put` and `ArcRunExplicit::get/put`
+explicitly require
+`<ArcBrand as RefCountedPointer>::Of<'_, dyn Fn(...)>: Send + Sync`
+in their where-clauses for the specific `A` the constructor
+produces. Callers see the bound at use sites; the
+`SendFunctor::send_map` cascade through `ArcCoyoneda`
+resolves because each `A` instantiation gets its own concrete
+bound discharged.
+
+This mirrors `ArcRunExplicit`'s precedent (every Arc-family
+`interpret_with` / `interpret_rec` method already carries
+~12 per-method `Send + Sync` clauses rather than struct-level
+ones). Uniform precedent across the codebase.
+
+### Alternatives considered and rejected
+
+**(a) Brand-level `SendFunctor` impl with HRTB.** Would need
+
+```rust
+impl<S> SendFunctor for StateBrand<ArcBrand, S>
+where
+    S: Send + Sync + 'static,
+    for<'a, A: Send + Sync + 'a> <ArcBrand as RefCountedPointer>::Of<
+        'a,
+        dyn 'a + Fn(S) -> A,
+    >: Send + Sync,
+{
+    ...
+}
+```
+
+The `for<'a, A>` HRTB-over-types is unsupported on stable
+Rust. Same wall as Phase 2 step 9d / 9g / 9i. Unimplementable.
+
+**(c) Parallel `SendStateBrand<P, S>` separate from
+`StateBrand<P, S>`.** Define a second brand whose `Of<'a, A>`
+is `SendState<'a, P, S, A>` with the inner pointer projection
+typed via
+[`SendRefCountedPointer::Of`](../../../fp-library/src/classes/ref_counted_pointer.rs)
+(which carries `T: Send + Sync` in its bound). The Arc smart
+constructors use `SendStateBrand` in the row; non-Arc
+constructors use `StateBrand`. Two state types, two row-brand
+entries.
+
+Rejected because:
+
+- Doubles the type surface; users with mixed
+  single-thread / thread-safe code in the same program face
+  two state types they must convert between.
+- The current `StateBrand<P, S>` parameterization was chosen
+  specifically to give one State type across all six
+  wrappers; splitting it would partially undo that design.
+
+**(d) Use `SendRefCountedPointer::Of` directly in `State`'s
+representation.** Bake `+ Send + Sync` into the `dyn Fn(...)`
+trait object in the State enum's variants. Rejected because:
+
+- Forces RcBrand single-thread users to provide
+  `Send + Sync` closures for State, which **breaks the
+  canonical `Rc<RefCell<S>>` capture pattern** for state
+  threading (`Rc` is `!Send`).
+- The workaround is parallel `ToDynCloneFn::new_send`
+  machinery, which collapses into option (c) with extra
+  steps.
+
+**(e) Defer-and-document.** Don't ship 6a.4 / 6a.6; document
+the closure-capture state pattern (the same pattern F1D
+codified for `interpret`) as the canonical way to thread
+state through `ArcRun` / `ArcRunExplicit`.
+
+Rejected because:
+
+- The locked-in design from the
+  [2026-05-03 wrapper-parameterization resolution](#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization)
+  signaled "six variants per effect" intent; deferring would
+  partially unfulfill that lock-in.
+- The implementation cost of (b) is small (~80 lines per
+  wrapper plus where-clause noise), so deferring buys little
+  while delaying a complete State surface.
+
+### Implementation phasing
+
+Under (b):
+
+- `state.rs` keeps the `Functor` impl on `StateBrand<P, S>`;
+  no `SendFunctor` impl is added.
+- `ArcRun::get/put` and `ArcRunExplicit::get/put` add
+  per-method bounds:
+  - `<ArcBrand as RefCountedPointer>::Of<'_, dyn 'a + Fn(S) -> A>: Send + Sync`
+  - `<ArcBrand as RefCountedPointer>::Of<'_, dyn 'a + Fn(()) -> A>: Send + Sync`
+  - `S: Send + Sync` (already required for `ArcCoyoneda::lift`).
+- `ArcRun::interpret_with::<StateBrand<ArcBrand, S>>` users
+  get these bounds propagated into their where-clauses.
+  Documented as a known cost in deviations.md and the `Arc
+family` per-wrapper notes.
+
+### Cross-references
+
+- [Per-`A` HRTB-over-types blocks brand-level type-class
+  delegation](prompt.md#per-a-hrtb-over-types-blocks-brand-level-type-class-delegation):
+  the broader pattern this blocker instantiates.
+- [Phase 2 step 9d resolution](#resolved-2026-04-28-implementation-expansion-step-9-sendfunctor-cascade-prerequisites-for-arc-family):
+  the per-method workaround precedent.
+- [`fp-library/docs/limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md):
+  the project-wide table of HRTB-over-types-blocked
+  brand-level cascades.
+- [Phase 3 step 5 wrapper-parameterization
+  resolution](#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization):
+  the locked-in "six variants per effect" design that this
+  resolution implements for the Arc family.
+
 ## Resolved (2026-05-03): Adversarial review reversals (delete `run_accum`, ship `interpret_with_rec`, parameterise `interpret_with` over `RefCountedPointer`)
 
 An adversarial review of the WIP effects implementation
