@@ -7,7 +7,7 @@
 //! [`HandlersNil`](crate::types::effects::handlers::HandlersNil) handler
 //! list in lock-step, dispatching the active variant to its matching
 //! [`Handler`](crate::types::effects::handlers::Handler) closure. Each Run wrapper
-//! exposes inherent `interpret` / `run` / `run_accum` methods that
+//! exposes inherent `interpret` / `run` methods that
 //! loop over `peel` and invoke `DispatchHandlers` once per
 //! `Node::First` layer.
 //!

@@ -454,9 +454,19 @@ mod inner {
 		/// ## Stack safety
 		///
 		/// This method recurses host-stack-frame per peeled layer.
-		/// Phase 3 step 3 ships
-		/// [`interpret_rec`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
-		/// (and siblings) for stack-safe interpretation via `MonadRec`.
+		/// [`interpret_rec`](Run::interpret_rec) (and siblings) provide
+		/// stack-safe interpretation via `MonadRec`.
+		///
+		/// ## Threading state through handlers
+		///
+		/// Handlers can capture an
+		/// [`Rc<RefCell<S>>`](std::rc::Rc) (or
+		/// [`Arc<Mutex<S>>`](std::sync::Arc) on thread-safe wrappers)
+		/// to thread state through dispatch. Each `interpret` call only
+		/// returns the program's `A`; the captured cell holds the
+		/// final state for the caller to read after interpretation
+		/// completes. The keyword "state" appears here for
+		/// rustdoc-search discoverability of stateful interpretation.
 		#[document_signature]
 		///
 		#[document_parameters("The handler list (typically built via the `handlers!` macro).")]
@@ -488,6 +498,44 @@ mod inner {
 		/// 	IdentityBrand: |op: Identity<Run<FirstRow, Scoped, i32>>| op.0,
 		/// });
 		/// assert_eq!(result, 42);
+		/// ```
+		///
+		/// State threading via a captured cell:
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		handlers,
+		/// 		types::{
+		/// 			Identity,
+		/// 			effects::{
+		/// 				handlers::*,
+		/// 				run::Run,
+		/// 			},
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::RefCell,
+		/// 		rc::Rc,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let counter: Rc<RefCell<i32>> = Rc::new(RefCell::new(0));
+		/// let counter_for_handler = Rc::clone(&counter);
+		///
+		/// let prog: Run<FirstRow, Scoped, i32> = Run::lift::<IdentityBrand, _>(Identity(7));
+		/// let result = prog.interpret(handlers! {
+		/// 	IdentityBrand: move |op: Identity<Run<FirstRow, Scoped, i32>>| {
+		/// 		*counter_for_handler.borrow_mut() += 1;
+		/// 		op.0
+		/// 	},
+		/// });
+		/// assert_eq!(result, 7);
+		/// assert_eq!(*counter.borrow(), 1);
 		/// ```
 		#[inline]
 		#[expect(
@@ -574,94 +622,6 @@ mod inner {
 		) -> A
 		where
 			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static, {
-			self.interpret(handlers)
-		}
-
-		/// Interprets this `Run` program with a state value threaded
-		/// through each handler invocation, mirroring PureScript Run's
-		/// [`runAccum`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs).
-		///
-		/// `init` is the initial state value. Each handler receives
-		/// the current state by mutable reference inside the closures
-		/// that compose `handlers`; users mutate the state in-place to
-		/// thread updates between effect dispatches. The final state is
-		/// discarded, matching PureScript Run's
-		/// `runAccum :: ... -> Run r a -> m a` shape (state is internal
-		/// to the loop).
-		///
-		/// Per the Phase 3 step 2 deviations entry, state threading in
-		/// the Rust port is via closure captures (a mutable
-		/// [`Rc`](std::rc::Rc) /
-		/// [`RefCell`](std::cell::RefCell) or plain `&mut` borrowed
-		/// across the handler-list closures) rather than a separate
-		/// stateful trait, which would have doubled the trait
-		/// machinery. The `init` parameter exists for API parity and
-		/// is moved into the user's choice of state cell at the call
-		/// site.
-		#[document_signature]
-		///
-		#[document_type_parameters("The state type.")]
-		///
-		#[document_parameters(
-			"The handler list (typically built via the `handlers!` macro), with each closure capturing the state cell.",
-			"The initial state value (passed through to the user's state cell)."
-		)]
-		///
-		#[document_returns("The final result value of the program.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		handlers,
-		/// 		types::{
-		/// 			Identity,
-		/// 			effects::{
-		/// 				handlers::*,
-		/// 				run::Run,
-		/// 			},
-		/// 		},
-		/// 	},
-		/// 	std::{
-		/// 		cell::RefCell,
-		/// 		rc::Rc,
-		/// 	},
-		/// };
-		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
-		/// type Scoped = CNilBrand;
-		///
-		/// let counter: Rc<RefCell<i32>> = Rc::new(RefCell::new(0));
-		/// let counter_for_handler = Rc::clone(&counter);
-		///
-		/// let prog: Run<FirstRow, Scoped, i32> = Run::lift::<IdentityBrand, _>(Identity(7));
-		/// let result = prog.run_accum(
-		/// 	handlers! {
-		/// 		IdentityBrand: move |op: Identity<Run<FirstRow, Scoped, i32>>| {
-		/// 			*counter_for_handler.borrow_mut() += 1;
-		/// 			op.0
-		/// 		},
-		/// 	},
-		/// 	0_i32,
-		/// );
-		/// assert_eq!(result, 7);
-		/// assert_eq!(*counter.borrow(), 1);
-		/// ```
-		#[inline]
-		pub fn run_accum<St>(
-			self,
-			handlers: impl for<'h> DispatchHandlers<
-				'h,
-				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Run<R, S, A>>),
-				Run<R, S, A>,
-			>,
-			init: St,
-		) -> A
-		where
-			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static, {
-			let _ = init;
 			self.interpret(handlers)
 		}
 
@@ -835,89 +795,6 @@ mod inner {
 		where
 			MBrand: MonadRec + 'static,
 			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static, {
-			self.interpret_rec::<MBrand>(handlers)
-		}
-
-		/// Stateful variant of [`interpret_rec`](Run::interpret_rec).
-		/// Mirrors PureScript Run's
-		/// [`runAccumRec`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs).
-		/// State is threaded via closure captures (an
-		/// [`Rc`](std::rc::Rc) /
-		/// [`RefCell`](std::cell::RefCell) cell shared across the
-		/// handler-list closures), parallel to step 2's
-		/// [`run_accum`](Run::run_accum).
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The brand of the target monad (must implement [`MonadRec`]).",
-			"The state type."
-		)]
-		///
-		#[document_parameters(
-			"The handler list (typically built via the `handlers!` macro), with each closure capturing the state cell.",
-			"The initial state value (passed through to the user's state cell)."
-		)]
-		///
-		#[document_returns("The program result wrapped in the target monad `MBrand`.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		handlers,
-		/// 		types::{
-		/// 			Identity,
-		/// 			Thunk,
-		/// 			effects::{
-		/// 				handlers::*,
-		/// 				run::Run,
-		/// 			},
-		/// 		},
-		/// 	},
-		/// 	std::{
-		/// 		cell::RefCell,
-		/// 		rc::Rc,
-		/// 	},
-		/// };
-		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
-		/// type Scoped = CNilBrand;
-		///
-		/// let counter: Rc<RefCell<i32>> = Rc::new(RefCell::new(0));
-		/// let counter_for_handler = Rc::clone(&counter);
-		///
-		/// let prog: Run<FirstRow, Scoped, i32> = Run::lift::<IdentityBrand, _>(Identity(7));
-		/// let result: Thunk<'static, i32> = prog.run_accum_rec::<ThunkBrand, _>(
-		/// 	handlers! {
-		/// 		IdentityBrand: move |op: Identity<Thunk<'static, Run<FirstRow, Scoped, i32>>>| {
-		/// 			*counter_for_handler.borrow_mut() += 1;
-		/// 			op.0
-		/// 		},
-		/// 	},
-		/// 	0_i32,
-		/// );
-		/// assert_eq!(result.evaluate(), 7);
-		/// assert_eq!(*counter.borrow(), 1);
-		/// ```
-		#[inline]
-		pub fn run_accum_rec<MBrand, St>(
-			self,
-			handlers: impl for<'h> DispatchHandlers<
-				'h,
-				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-					'h,
-					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>),
-				>),
-				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>),
-			> + 'static,
-			init: St,
-		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
-		where
-			MBrand: MonadRec + 'static,
-			S: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static, {
-			let _ = init;
 			self.interpret_rec::<MBrand>(handlers)
 		}
 

@@ -1,9 +1,9 @@
 #![expect(clippy::unwrap_used, reason = "Tests use panicking operations for brevity and clarity.")]
 
 // Integration tests for the MonadRec-target interpreter family
-// (`interpret_rec` / `run_rec` / `run_accum_rec`) on all six Run
-// wrappers. Each wrapper is exercised against several `M` brand
-// targets; the available choice depends on the wrapper's substrate:
+// (`interpret_rec` / `run_rec`) on all six Run wrappers. Each
+// wrapper is exercised against several `M` brand targets; the
+// available choice depends on the wrapper's substrate:
 //
 //   - Erased non-Arc (Run, RcRun, RunExplicit, RcRunExplicit) +
 //     ThunkBrand: stack-safety target. Thunk's `Box<dyn FnOnce>`
@@ -15,8 +15,9 @@
 //   - All six wrappers + ResultBrand: error-channel semantics.
 //
 // State threading uses closure captures (Rc/RefCell for non-Arc;
-// Arc/Mutex for the Arc family) per the Phase 3 step 4 design
-// (Q3 = A, parallel to step 2's `run_accum`).
+// Arc/Mutex for the Arc family) directly on `interpret_rec`. The
+// captured cell holds the final state for the caller to read after
+// interpretation completes.
 //
 // Each test verifies the final value (and post-loop state where
 // applicable). Stack-safety is verified by `prop_monad_rec_*` tests
@@ -85,19 +86,16 @@ fn run_run_rec_alias_matches() {
 }
 
 #[test]
-fn run_run_accum_rec_threads_state() {
+fn run_interpret_rec_threads_state() {
 	let counter: Rc<RefCell<i32>> = Rc::new(RefCell::new(0));
 	let counter_for_handler = Rc::clone(&counter);
 	let prog: Run<RunRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(11));
-	let result: Thunk<'static, i32> = prog.run_accum_rec::<ThunkBrand, _>(
-		handlers! {
-			IdentityBrand: move |op: Identity<Thunk<'static, Run<RunRow, CNilBrand, i32>>>| {
-				*counter_for_handler.borrow_mut() += 1;
-				op.0
-			},
+	let result: Thunk<'static, i32> = prog.interpret_rec::<ThunkBrand>(handlers! {
+		IdentityBrand: move |op: Identity<Thunk<'static, Run<RunRow, CNilBrand, i32>>>| {
+			*counter_for_handler.borrow_mut() += 1;
+			op.0
 		},
-		0_i32,
-	);
+	});
 	assert_eq!(result.evaluate(), 11);
 	assert_eq!(*counter.borrow(), 1);
 }
@@ -133,19 +131,16 @@ fn rc_run_interpret_rec_option() {
 }
 
 #[test]
-fn rc_run_run_accum_rec_threads_state() {
+fn rc_run_interpret_rec_threads_state() {
 	let counter: Rc<RefCell<i32>> = Rc::new(RefCell::new(0));
 	let counter_for_handler = Rc::clone(&counter);
 	let prog: RcRun<RcRunRow, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(13));
-	let result: Thunk<'static, i32> = prog.run_accum_rec::<ThunkBrand, _>(
-		handlers! {
-			IdentityBrand: move |op: Identity<Thunk<'static, RcRun<RcRunRow, CNilBrand, i32>>>| {
-				*counter_for_handler.borrow_mut() += 1;
-				op.0
-			},
+	let result: Thunk<'static, i32> = prog.interpret_rec::<ThunkBrand>(handlers! {
+		IdentityBrand: move |op: Identity<Thunk<'static, RcRun<RcRunRow, CNilBrand, i32>>>| {
+			*counter_for_handler.borrow_mut() += 1;
+			op.0
 		},
-		0_i32,
-	);
+	});
 	assert_eq!(result.evaluate(), 13);
 	assert_eq!(*counter.borrow(), 1);
 }
@@ -171,19 +166,16 @@ fn arc_run_run_rec_alias_matches() {
 }
 
 #[test]
-fn arc_run_run_accum_rec_threads_state_via_mutex() {
+fn arc_run_interpret_rec_threads_state_via_mutex() {
 	let counter: Arc<Mutex<i32>> = Arc::new(Mutex::new(0));
 	let counter_for_handler = Arc::clone(&counter);
 	let prog: ArcRun<ArcRunRow, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(7));
-	let result: Option<i32> = prog.run_accum_rec::<OptionBrand, _>(
-		handlers! {
-			IdentityBrand: move |op: Identity<Option<ArcRun<ArcRunRow, CNilBrand, i32>>>| {
-				*counter_for_handler.lock().unwrap() += 1;
-				op.0
-			},
+	let result: Option<i32> = prog.interpret_rec::<OptionBrand>(handlers! {
+		IdentityBrand: move |op: Identity<Option<ArcRun<ArcRunRow, CNilBrand, i32>>>| {
+			*counter_for_handler.lock().unwrap() += 1;
+			op.0
 		},
-		0_i32,
-	);
+	});
 	assert_eq!(result, Some(7));
 	assert_eq!(*counter.lock().unwrap(), 1);
 }
@@ -211,20 +203,17 @@ fn run_explicit_interpret_rec_option() {
 }
 
 #[test]
-fn run_explicit_run_accum_rec_threads_state() {
+fn run_explicit_interpret_rec_threads_state() {
 	let counter: Rc<RefCell<i32>> = Rc::new(RefCell::new(0));
 	let counter_for_handler = Rc::clone(&counter);
 	let prog: RunExplicit<'static, RunRow, CNilBrand, i32> =
 		RunExplicit::lift::<IdentityBrand, _>(Identity(7));
-	let result: Thunk<'static, i32> = prog.run_accum_rec::<ThunkBrand, _>(
-		handlers! {
-			IdentityBrand: move |op: Identity<Thunk<'static, RunExplicit<'static, RunRow, CNilBrand, i32>>>| {
-				*counter_for_handler.borrow_mut() += 1;
-				op.0
-			},
+	let result: Thunk<'static, i32> = prog.interpret_rec::<ThunkBrand>(handlers! {
+		IdentityBrand: move |op: Identity<Thunk<'static, RunExplicit<'static, RunRow, CNilBrand, i32>>>| {
+			*counter_for_handler.borrow_mut() += 1;
+			op.0
 		},
-		0_i32,
-	);
+	});
 	assert_eq!(result.evaluate(), 7);
 	assert_eq!(*counter.borrow(), 1);
 }
@@ -264,20 +253,17 @@ fn arc_run_explicit_interpret_rec_option() {
 }
 
 #[test]
-fn arc_run_explicit_run_accum_rec_threads_state() {
+fn arc_run_explicit_interpret_rec_threads_state() {
 	let counter: Arc<Mutex<i32>> = Arc::new(Mutex::new(0));
 	let counter_for_handler = Arc::clone(&counter);
 	let prog: ArcRunExplicit<'static, ArcRunRow, CNilBrand, i32> =
 		ArcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
-	let result: Option<i32> = prog.run_accum_rec::<OptionBrand, _>(
-		handlers! {
-			IdentityBrand: move |op: Identity<Option<ArcRunExplicit<'static, ArcRunRow, CNilBrand, i32>>>| {
-				*counter_for_handler.lock().unwrap() += 1;
-				op.0
-			},
+	let result: Option<i32> = prog.interpret_rec::<OptionBrand>(handlers! {
+		IdentityBrand: move |op: Identity<Option<ArcRunExplicit<'static, ArcRunRow, CNilBrand, i32>>>| {
+			*counter_for_handler.lock().unwrap() += 1;
+			op.0
 		},
-		0_i32,
-	);
+	});
 	assert_eq!(result, Some(7));
 	assert_eq!(*counter.lock().unwrap(), 1);
 }

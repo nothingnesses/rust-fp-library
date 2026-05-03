@@ -111,11 +111,11 @@ depend on the [2026-05-03 active blocker](#active-blockers)
 resolution.
 
 **Phase 3 step 4: MonadRec-target interpreter
-family `interpret_rec` / `run_rec` / `run_accum_rec` across all
-six Run wrappers.** Each wrapper exposes a per-method
+family `interpret_rec` / `run_rec` across all six Run
+wrappers.** Each wrapper exposes a per-method
 `interpret_rec::<MBrand>(handlers) -> M::Of<A>` (plus the `run_rec`
-alias and the stateful `run_accum_rec::<MBrand, St>`) that walks
-the program via [`tail_rec_m`](../../../fp-library/src/classes/monad_rec.rs)
+alias) that walks the program via
+[`tail_rec_m`](../../../fp-library/src/classes/monad_rec.rs)
 for stack-safety on external `MBrand: MonadRec` targets like
 [`ThunkBrand`](../../../fp-library/src/types/thunk.rs),
 [`OptionBrand`](../../../fp-library/src/types/option.rs), or
@@ -173,9 +173,10 @@ ArcRunExplicit) so the M-wrapped continuations satisfy
 `SendFunctor::send_map`'s `Send + Sync` requirement on the inner
 type.
 
-`run_accum_rec` threads state via closure captures (parity with
-step 2's `run_accum`) per the resolution's Q3 = A; state-via-
-StateT is deferred to Phase 6+.
+State threading is via user-side closure captures applied to
+`interpret_rec` directly; the captured cell holds the final
+state for the caller to read after interpretation completes.
+State-via-StateT is deferred to Phase 6+.
 
 Tests: 18 integration tests in
 [`fp-library/tests/run_interpret_rec.rs`](../../../fp-library/tests/run_interpret_rec.rs)
@@ -315,7 +316,7 @@ summary; resolved blockers are in
 
 Phase 3:
 
-- `d5efe2a` (step 2): `interpret` / `run` / `run_accum` simple
+- `d5efe2a` (step 2): `interpret` / `run` simple
   all-handlers-at-once interpreter family across all six Run
   wrappers. New module
   [`fp-library/src/types/effects/interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
@@ -329,9 +330,9 @@ Phase 3:
   (Phase 4 wires scoped). ArcRun uses a free-function
   [`unwrap_first`](../../../fp-library/src/types/effects/arc_run.rs)
   helper to sidestep struct-level HRTB poisoning. State
-  threading in `run_accum` is via closure captures
-  (`Rc<RefCell<...>>` / `Arc<Mutex<...>>`). 12 integration tests
-  - per-method doctests.
+  threading is via user-side closure captures applied to
+  `interpret` directly (`Rc<RefCell<...>>` /
+  `Arc<Mutex<...>>`). Integration tests + per-method doctests.
 - `82dd7bb` (step 1): `handlers!{...}` macro plus `nt()` builder
   fallback for assembling natural transformations
   `VariantF<R> ~> M`. Runtime carrier
