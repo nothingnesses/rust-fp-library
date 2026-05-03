@@ -910,6 +910,125 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The state type (also the program's result type for `get`)."
+	)]
+	impl<'a, R, ScopedRow, A: 'a> RunExplicit<'a, R, ScopedRow, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		ScopedRow: WrapDrop + Functor + 'static,
+	{
+		/// Lifts a `Get` state effect into the `RunExplicit` program.
+		/// Mirrors [`Run::get`](crate::types::effects::run::Run::get);
+		/// see that method for cross-wrapper semantics. Differences for
+		/// `RunExplicit`: the bare [`Coyoneda`] variant pairs with the
+		/// Box-in-Wrap Explicit substrate (the substrate's `peel` does
+		/// not require a `Clone` bound on the inner effect). Threads
+		/// [`RcBrand`](crate::brands::RcBrand) as the pointer kind.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
+		///
+		#[document_returns("A `RunExplicit` program suspended at the lifted `Get` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		run_explicit::RunExplicit,
+		/// 		state::State,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: RunExplicit<'static, FirstRow, Scoped, i32> = RunExplicit::get();
+		/// // The program is suspended at the Get effect; peel reveals the layer.
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn get<Idx>() -> Self
+		where
+			A: 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
+				Member<Coyoneda<'a, crate::brands::StateBrand<crate::brands::RcBrand, A>, A>, Idx>, {
+			let effect: crate::types::effects::state::State<'a, crate::brands::RcBrand, A, A> =
+				crate::types::effects::state::State::Get(
+					<crate::brands::RcBrand as crate::classes::ToDynCloneFn>::new(|s: A| s),
+				);
+			Self::lift::<crate::brands::StateBrand<crate::brands::RcBrand, A>, Idx>(effect)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand."
+	)]
+	impl<'a, R, ScopedRow> RunExplicit<'a, R, ScopedRow, ()>
+	where
+		R: WrapDrop + Functor + 'static,
+		ScopedRow: WrapDrop + Functor + 'static,
+	{
+		/// Lifts a `Put` state effect into the `RunExplicit` program.
+		/// Mirrors [`Run::put`](crate::types::effects::run::Run::put);
+		/// see that method for cross-wrapper semantics. Threads
+		/// [`RcBrand`](crate::brands::RcBrand) as the pointer kind.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The state type carried by `StateBrand` in the row.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The new state value to write.")]
+		///
+		#[document_returns("A `RunExplicit` program suspended at the lifted `Put` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		run_explicit::RunExplicit,
+		/// 		state::State,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: RunExplicit<'static, FirstRow, Scoped, ()> = RunExplicit::put::<i32, _>(42);
+		/// // The program is suspended at the Put effect; peel reveals the layer.
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn put<StateType: 'static, Idx>(s: StateType) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>): Member<
+					Coyoneda<'a, crate::brands::StateBrand<crate::brands::RcBrand, StateType>, ()>,
+					Idx,
+				>, {
+			let effect: crate::types::effects::state::State<
+				'a,
+				crate::brands::RcBrand,
+				StateType,
+				(),
+			> = crate::types::effects::state::State::Put(
+				s,
+				<crate::brands::RcBrand as crate::classes::ToDynCloneFn>::new(|_: ()| ()),
+			);
+			Self::lift::<crate::brands::StateBrand<crate::brands::RcBrand, StateType>, Idx>(effect)
+		}
+	}
+
 	// -- From<Run> for RunExplicit (Erased -> Explicit conversion) --
 
 	#[document_type_parameters(

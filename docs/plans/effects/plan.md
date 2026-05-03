@@ -19,9 +19,11 @@ steps 1 (`handlers!{...}` macro plus `nt()` builder fallback),
 wrappers), 3 (pipeline row-narrowing `interpret_with::<EBrand>`
 plus empty-row terminal `extract`), 4 (MonadRec-target
 `interpret_rec`/`run_rec`), 6a.1 + 6a.2 (State effect type
-machinery + Run-only smart constructors), and 6a.3
-(`RcRun::get` / `RcRun::put`) landed; step 6a is in progress
-(four of six wrappers covered; remaining wrappers and
+machinery + Run-only smart constructors), 6a.3
+(`RcRun::get` / `RcRun::put`), and 6a.5
+(`RunExplicit::get` / `RunExplicit::put` plus
+`RcRunExplicit::get` / `RcRunExplicit::put`) landed; step 6a
+is in progress (four of six wrappers covered; the
 SendFunctor-dependent Arc family blocked on the
 [2026-05-03 SendFunctor blocker](#active-blockers)).
 
@@ -31,16 +33,87 @@ is complete (F1D `05be270`, F3A `f8031c5`, M3C `b8c9b3c`):
 `run_accum` / `run_accum_rec` deleted, `S = CNilBrand` tightened
 on the interpreter family, and `interpret_with` parameterised
 over `P: RefCountedPointer` with the user-facing `Clone` bound
-on handler closures dropped. Step 6a.3 (`RcRun::get` /
-`RcRun::put`, this commit) lands next; step 6a.5 (Explicit
-non-Arc family) is the next blocker-independent sub-step;
-step 5 (`interpret_with_rec` pipeline-plus-`MonadRec` family)
-is the next greenfield step.
+on handler closures dropped. Step 6a.3 and step 6a.5 have
+landed; the four non-Arc wrappers' smart constructors are now
+complete. Step 6a.4 (`ArcRun::get/put`) and step 6a.6
+(`ArcRunExplicit::get/put`) remain blocked on the
+[2026-05-03 SendFunctor blocker](#active-blockers); step 5
+(`interpret_with_rec` pipeline-plus-`MonadRec` family) is the
+next greenfield step.
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
+
+**Phase 3 step 6a.5: Explicit non-Arc family `get` / `put`
+smart constructors (`RunExplicit` + `RcRunExplicit`).**
+Mirrors 6a.2 (`Run`) and 6a.3 (`RcRun`) across the
+[`FreeExplicit`](../../../fp-library/src/types/free_explicit.rs)
+/ [`RcFreeExplicit`](../../../fp-library/src/types/rc_free_explicit.rs)
+substrate; threads
+[`RcBrand`](../../../fp-library/src/brands.rs) as the pointer
+kind for both wrappers (the Explicit-vs-Erased axis is
+orthogonal to the single-thread-vs-thread-safe axis).
+
+`RunExplicit::get<Idx>` and `RunExplicit::put<StateType, Idx>`
+follow the `Run`-shape with the wrapper's `'a` lifetime:
+`RunExplicit::lift` does not require a `Clone` bound on the
+inner effect projection (the substrate is
+`Box<dyn FnOnce>`-backed and single-shot), so these smart
+constructors carry only `A: 'static` (on `get`) or
+`StateType: 'static` (on `put`), the same minimum bound 6a.2's
+`Run::get/put` carry. The `'static` requirement comes from
+[`StateBrand<P, S>`](../../../fp-library/src/brands.rs)'s
+[`impl_kind!`](../../../fp-macros/src/lib.rs) registration
+(`S: 'static`), which pins the state type even on Explicit
+wrappers.
+
+`RcRunExplicit::get<Idx>` and `RcRunExplicit::put<StateType, Idx>`
+follow the `RcRun`-shape with the wrapper's `'a` lifetime:
+`RcRunExplicit::lift` requires
+`Apply!(<EBrand as Kind!(...)>::Of<'a, A>): Clone`, which
+expands to `State<'a, RcBrand, A, A>: Clone` and is satisfied
+by 6a.3's manual `State::Clone` impl (gated on `S: Clone`).
+Methods accordingly carry `A: Clone + 'static` and
+`StateType: Clone + 'static`. `RcRunExplicit::lift` does not
+add the substrate-`Clone` bound that `RcRun::lift` carries
+(the Explicit substrate's `RcFreeExplicit` is `Box`-in-`Wrap`
+with the `Rc<Inner>` outer wrap, so the recursive walk does
+not need additional projection-`Clone` bounds at the smart-
+constructor sites).
+
+All four methods construct continuations via
+[`<RcBrand as ToDynCloneFn>::new(closure)`](../../../fp-library/src/classes/to_dyn_clone_fn.rs)
+and call `Self::lift::<StateBrand<RcBrand, _>, Idx>(effect)`.
+Per-method doctests exercise the canonical-row instantiation
+(`CoproductBrand<CoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>`
+for `RunExplicit`,
+`CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>`
+for `RcRunExplicit`) and assert program suspension via
+`peel().is_err()`.
+
+`fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.stderr`
+unchanged (the UI test targets `Run`'s diagnostic). `just
+verify` clean: 2500+ unit tests + integration tests + 4 new
+doctests pass.
+
+Per-step deviation entry in
+[deviations.md](deviations.md) Phase 3 step 5a.5 records:
+(1) the `'static` requirement on the state type even for
+Explicit wrappers (driven by `StateBrand`'s `impl_kind!`
+registration); (2) the per-wrapper `Clone` cascade summary
+(now four wrappers covered: Run / RunExplicit minimal bounds;
+RcRun / RcRunExplicit add Clone); (3) the substrate-`Clone`
+bound asymmetry between `RcRun::lift` (with) and
+`RcRunExplicit::lift` (without).
+
+What's next: 6a.4 (`ArcRun::get/put`) and 6a.6
+(`ArcRunExplicit::get/put`) depend on the
+[2026-05-03 active blocker](#active-blockers) resolution
+(option (b) per-method `Send + Sync` bounds, recommended).
+Step 5 (`interpret_with_rec` pipeline-plus-`MonadRec` family)
+is the next greenfield step.
 
 **Phase 3 step 6a.3: `RcRun::get` / `RcRun::put` smart
 constructors plus a manual `Clone` impl for `State`.** Mirrors
@@ -216,78 +289,6 @@ the next greenfield step. Step 6a.3 (`RcRun::get` /
 `RcRun::put` smart constructors) can resume in parallel since
 the M3C cleanup unblocked it.
 
-**Phase 3 step 6a.1 + 6a.2: `State` effect
-type machinery + Run-only smart constructors.** Two sub-step
-commits land the State effect under the locked-in design from
-the [2026-05-03 resolution](resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization)
-((1.b) six variants per effect, (2.a) per-effect Functor,
-(3.a-1) `FnBrand`-parameterised continuations, (4.ii) Choose on
-all four multi-shot wrappers, (5.b) `effects!` for row
-composition).
-
-6a.1 (`96bc448`) ships:
-
-- [`StateBrand<P, S>`](../../../fp-library/src/brands.rs)
-  registration parameterised by `P: ToDynCloneFn` (typically
-  [`RcBrand`](../../../fp-library/src/brands.rs) or
-  [`ArcBrand`](../../../fp-library/src/brands.rs)) and
-  `S: 'static`.
-- [`fp-library/src/types/effects/state.rs`](../../../fp-library/src/types/effects/state.rs)
-  with the `State<'a, P, S, A>` enum (Get + Put variants
-  holding `<P as RefCountedPointer>::Of<'a, dyn 'a + Fn(...) -> A>`
-  continuations), `impl_kind!` registration, and `Functor`
-  impl that composes user `f: A -> B` with each variant's
-  stored continuation via
-  [`<P as ToDynCloneFn>::new(closure)`](../../../fp-library/src/classes/to_dyn_clone_fn.rs).
-- `SendFunctor` impl deferred (see the active blocker for the
-  HRTB-over-types limit driving the deferral).
-
-6a.2 (`f865152`) ships:
-
-- `Run::get<Idx>() -> Run<R, ScopedRow, A>` in the existing
-  `impl<R, ScopedRow, A> Run<R, ScopedRow, A>` block (the state
-  type and program result type coincide for `get`).
-- `Run::put<StateType, Idx>(s) -> Run<R, ScopedRow, ()>` in a
-  separate `impl<R, ScopedRow> Run<R, ScopedRow, ()>` block
-  (state type generic; turbofish typically required since
-  `put`'s result is `()`).
-- Both thread `RcBrand` as the pointer kind. Continuations
-  constructed via `<RcBrand as ToDynCloneFn>::new(closure)`
-  (direct `Rc::new(closure)` produces `Rc<{closure_type}>`,
-  not the `Rc<dyn Fn>` that `State::Get`/`Put` expects).
-- Per-method doctests on each constructor exercise the
-  canonical-row instantiation.
-- `fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.stderr`
-  regenerated (rustc's "consider using one of the following
-  associated functions" diagnostic now lists `Run::get` /
-  `Run::put` after `Run::lift`).
-
-Cross-cutting commits also landed in the same set:
-
-- `4f0e977` (`docs(effects):`): wrapped
-  [`handlers.rs`](../../../fp-library/src/types/effects/handlers.rs),
-  [`interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs),
-  and [`member.rs`](../../../fp-library/src/types/effects/member.rs)
-  in `#[fp_macros::document_module]` + `mod inner { ... }` to
-  bring them in line with the rest of the effects subsystem's
-  macro-driven documentation enforcement.
-- `3a5a0a8` (`fix(macros):`): tightened
-  [`#[document_examples]`](../../../fp-macros/src/documentation/document_examples.rs)
-  validation to reject six trivially-true assertion patterns
-  (`assert!(true)`, `debug_assert!(true)`,
-  `assert_eq!(true, true)`, `assert_eq!((), ())`,
-  `assert_ne!(true, false)`, `assert_ne!(false, true)`). All
-  19 existing trivial-assertion doctests across the codebase
-  refactored to meaningful ones (Drop tests construct a
-  post-drop value and assert via `resume()` / `evaluate()`;
-  uninhabited-type tests use `core::mem::size_of`; etc.).
-
-What's next: 6a.3 (`RcRun::get/put`) and 6a.5 (Explicit non-Arc
-family) can proceed without resolving the `SendFunctor`
-blocker; 6a.4 (`ArcRun::get/put`) and 6a.6 (`ArcRunExplicit::get/put`)
-depend on the [2026-05-03 active blocker](#active-blockers)
-resolution.
-
 ### Earlier completed steps (commit log)
 
 Each entry's design choices are recorded in
@@ -298,6 +299,29 @@ summary; resolved blockers are in
 
 Phase 3:
 
+- `96bc448` + `f865152` (step 6a.1 + 6a.2): `State` effect type
+  machinery and `Run::get` / `Run::put` smart constructors.
+  6a.1 adds
+  [`StateBrand<P, S>`](../../../fp-library/src/brands.rs)
+  parameterised by `P: ToDynCloneFn` (typically `RcBrand` or
+  `ArcBrand`) and `S: 'static`, plus the
+  [`State<'a, P, S, A>`](../../../fp-library/src/types/effects/state.rs)
+  enum with `Get` / `Put` variants holding
+  `<P as RefCountedPointer>::Of<'a, dyn Fn(...) -> A>`
+  continuations and a `Functor` impl that composes via
+  [`<P as ToDynCloneFn>::new(closure)`](../../../fp-library/src/classes/to_dyn_clone_fn.rs).
+  `SendFunctor` impl deferred (active blocker tracks the
+  HRTB-over-types limit). 6a.2 adds `Run::get<Idx>` and
+  `Run::put<StateType, Idx>` smart constructors threading
+  `RcBrand` as the pointer kind. Cross-cutting commits also
+  landed: `4f0e977` wrapped
+  [`handlers.rs`](../../../fp-library/src/types/effects/handlers.rs)
+  / [`interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
+  / [`member.rs`](../../../fp-library/src/types/effects/member.rs)
+  in `#[fp_macros::document_module]`; `3a5a0a8` tightened
+  [`#[document_examples]`](../../../fp-macros/src/documentation/document_examples.rs)
+  validation to reject six trivially-true assertion patterns
+  (refactored 19 existing trivial-assertion doctests).
 - `bd540d5` + `fafcfde` (step 4): MonadRec-target interpreter
   family `interpret_rec` / `run_rec` across all six Run
   wrappers, driven by

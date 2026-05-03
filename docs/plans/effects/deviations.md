@@ -2536,6 +2536,90 @@ diagnostic, not `RcRun`'s).
 Open follow-ups: same as 5a.2's open follow-ups minus 5a.3
 itself.
 
+### Step 5a.5: RunExplicit and RcRunExplicit get/put smart constructors
+
+Mirrors 5a.2 (`Run::get/put`) and 5a.3 (`RcRun::get/put`) across
+the Explicit-substrate non-Arc family. One commit covering both
+wrappers because the Explicit-vs-Erased axis is orthogonal to
+the single-thread-vs-thread-safe axis: both `RunExplicit` and
+`RcRunExplicit` thread
+[`RcBrand`](../../../fp-library/src/brands.rs) as the pointer
+kind, with the same `<RcBrand as ToDynCloneFn>::new(closure)`
+continuation-construction call across all four methods.
+
+What landed:
+
+- `RunExplicit::get<Idx>() -> Self` on a new
+  `impl<'a, R, ScopedRow, A: 'a> RunExplicit<'a, R, ScopedRow, A>`
+  block (state and result type coincide for `get`).
+- `RunExplicit::put<StateType: 'static, Idx>(s) -> Self` on a
+  separate `impl<'a, R, ScopedRow> RunExplicit<'a, R, ScopedRow, ()>`
+  block (state-type generic).
+- `RcRunExplicit::get<Idx>() -> Self` and
+  `RcRunExplicit::put<StateType: Clone + 'static, Idx>(s) -> Self`
+  on parallel impl blocks.
+
+What the plan called for, and what diverged:
+
+- **`A: 'static` on the `get` method even on Explicit
+  wrappers.** `RunExplicit` and `RcRunExplicit` carry an
+  `'a` lifetime parameter, so it would be natural to expect
+  the smart constructor's state type to follow `'a`. Instead
+  the bound is `A: 'static`. The driver is
+  [`StateBrand<P, S>`](../../../fp-library/src/brands.rs)'s
+  [`impl_kind!`](../../../fp-macros/src/lib.rs) registration:
+  `S: 'static` is fixed at the brand level, pinning the
+  state type regardless of the enclosing wrapper's lifetime.
+  This is a deliberate constraint on the State effect's
+  scope; lifting it would require parameterising `StateBrand`
+  by an additional lifetime, which the locked-in design
+  rejected.
+- **No substrate-`Clone` cascade on `RcRunExplicit::lift`.**
+  `RcRun::lift` (Erased shared substrate) requires
+  `Apply!(<NodeBrand<R, S>>::Of<..., RcFree<...>>): Clone`
+  for the recursive walk's projection cloning; 5a.3 cascades
+  this to `RcRun::get/put`. `RcRunExplicit::lift` (Explicit
+  shared substrate) does not require this bound because
+  `RcFreeExplicit` uses `Box`-in-`Wrap` with the `Rc<Inner>`
+  outer wrap; the walk doesn't need additional projection-
+  `Clone` bounds. Net: `RcRunExplicit::get/put`'s where-
+  clauses are simpler than `RcRun::get/put`'s.
+- **One commit covering both wrappers.** 5a.2 (Run) and 5a.3
+  (RcRun) each landed as a separate commit, one wrapper per
+  commit. 5a.5 bundles both Explicit wrappers because the
+  pattern is well-trodden after 5a.3 (the `RunExplicit` half
+  reuses 5a.2's bound shape; the `RcRunExplicit` half reuses
+  5a.3's bound shape). Splitting would have meant ~4 method
+  bodies per commit, well below the 1500-line / 7-file
+  threshold for an oversized step.
+
+Per-wrapper `Clone` cascade summary (now four wrappers
+covered):
+
+- `Run::get/put` (5a.2): `A: 'static` (or `StateType: 'static`
+  on `put`); no `Clone`.
+- `RunExplicit::get/put` (5a.5): same as `Run`'s; no `Clone`.
+- `RcRun::get/put` (5a.3): adds `A: Clone + 'static` and
+  `StateType: Clone + 'static`; cascades substrate-`Clone`
+  bound from `RcRun::lift`.
+- `RcRunExplicit::get/put` (5a.5): adds `A: Clone + 'static`
+  and `StateType: Clone + 'static`; no substrate-`Clone`
+  bound (Explicit substrate doesn't need it).
+- `ArcRun::get/put` (5a.4, blocked): pending.
+- `ArcRunExplicit::get/put` (5a.6, blocked): pending.
+
+Verification: `just verify` clean. 2500+ unit tests + 4 new
+doctests (`RunExplicit::get`, `RunExplicit::put`,
+`RcRunExplicit::get`, `RcRunExplicit::put`) compile and pass.
+The `fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.stderr`
+file is unchanged (the UI test targets `Run`'s diagnostic).
+
+Open follow-ups: 5a.4 (`ArcRun::get/put`) and 5a.6
+(`ArcRunExplicit::get/put`) blocked on the
+[2026-05-03 SendFunctor active blocker](plan.md#active-blockers);
+integration tests in `fp-library/tests/run_state.rs` once all
+six wrappers' smart constructors land.
+
 ### Cross-cutting docs/macros commits during step 5a
 
 Two cross-cutting commits landed in the same set as 5a.1 / 5a.2;
