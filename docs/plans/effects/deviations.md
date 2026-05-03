@@ -2443,15 +2443,98 @@ doctests (Run::get, Run::put) compile and pass.
 
 Open follow-ups:
 
-- 5a.3: `RcRun::get` / `RcRun::put` (no `SendFunctor` needed,
-  can proceed without the active blocker).
 - 5a.5: `RunExplicit::get/put`, `RcRunExplicit::get/put`
-  (Explicit non-Arc family, also blocker-independent).
+  (Explicit non-Arc family, blocker-independent).
 - 5a.4: `ArcRun::get/put` blocked on the
   [2026-05-03 SendFunctor active blocker](plan.md#active-blockers).
 - 5a.6: `ArcRunExplicit::get/put` same blocker.
 - Integration tests in `fp-library/tests/run_state.rs` once
   all six wrappers' smart constructors land.
+
+### Step 5a.3: RcRun::get and RcRun::put smart constructors
+
+Mirrors 5a.2's `Run::get` / `Run::put` pattern across the
+multi-shot single-thread Erased substrate. Threads
+[`RcBrand`](../../../fp-library/src/brands.rs) as the pointer
+kind, just like 5a.2 (`Run` and `RcRun` both run on the
+single-thread substrate; the difference is multi-shot vs
+single-shot, which is orthogonal to the handler-pointer
+choice).
+
+What landed:
+
+- `RcRun::get<Idx>() -> Self` on a new
+  `impl<R, ScopedRow, A> RcRun<R, ScopedRow, A>` block (state
+  type and result type coincide for `get`).
+- `RcRun::put<StateType: Clone + 'static, Idx>(s) -> Self` on
+  a separate `impl<R, ScopedRow> RcRun<R, ScopedRow, ()>`
+  block (state-type generic; turbofish typically required
+  since `put`'s result is `()`).
+- A manual
+  [`Clone`](../../../fp-library/src/types/effects/state.rs)
+  impl for `State<'a, P, S, A>` gated on `S: Clone + 'a`.
+- Per-method doctests + a doctest on the `State::Clone` impl.
+
+What the plan called for, and what diverged:
+
+- **Manual `State::Clone` impl shape.** The plan text simply
+  said "mirrors 5a.2's pattern," but `RcRun::lift`'s where-
+  clause carries an `Apply!(<EBrand as Kind!(...)>::Of<'static, A>): Clone`
+  bound that 5a.2's `Run::lift` does not. For
+  `EBrand = StateBrand<RcBrand, A>`, this expands to
+  `State<'static, RcBrand, A, A>: Clone`, which `State`
+  did not satisfy out of the box. A manual `Clone` impl was
+  required. The bound shape is `S: Clone + 'a` (because
+  `Put`'s `S` field is cloned structurally); the
+  continuation-pointer field
+  `<P as RefCountedPointer>::Of<'a, dyn ...>` is
+  unconditionally `Clone` per the trait's associated-type
+  bound, so `k.clone()` always works without a `P`-side
+  Clone bound.
+- **Why not `#[derive(Clone)]`.** A derive would add
+  `P: Clone` and `A: Clone` bounds (rustc's derive emits
+  trait bounds for every type parameter that appears in
+  fields, even at the type-projection level). Neither holds
+  nor is needed: `P` is a brand (zero-sized), and `A`
+  appears only inside the `dyn Fn(...) -> A`'s return type,
+  which is reached via the `Rc<dyn ...>` indirection that's
+  unconditionally `Clone`. Manual impl with the minimum
+  bound is the right shape.
+- **`A: Clone + 'static` requirement on `RcRun::get`'s impl
+  block.** 5a.2's `Run::get` has `A: 'static` only. `RcRun::get`
+  needs `A: Clone` because the doctest's `peel().is_err()`
+  call exercises `RcRun::peel`'s substrate-Clone bound. This
+  is the standard cascade for the shared-substrate family.
+- **`StateType: Clone + 'static` on `RcRun::put`.** Same
+  cascade reason: the substrate's `peel` requires the inner
+  effect to be Clone, and `State::Clone` requires
+  `S: Clone`.
+
+The bound cascade applies to all four shared-substrate
+wrappers' smart constructors:
+
+- `Run::get/put` (5a.2): no `A: Clone` (single-shot,
+  `Box<dyn FnOnce>` substrate; `peel` does not require Clone).
+- `RcRun::get/put` (5a.3, this step): adds `A: Clone +
+'static` and `StateType: Clone + 'static`.
+- `RunExplicit::get/put` (5a.5, pending): `Run`-shaped
+  bounds, no `Clone`.
+- `RcRunExplicit::get/put` (5a.5, pending): `RcRun`-shaped
+  bounds, with `Clone`.
+- `ArcRun::get/put` (5a.4, blocked): adds `Send + Sync`
+  cascade plus `Clone`.
+- `ArcRunExplicit::get/put` (5a.6, blocked): adds
+  `Send + Sync` cascade plus `Clone`.
+
+Verification: `just verify` clean. 2500+ unit tests + 3 new
+doctests (`RcRun::get`, `RcRun::put`, `State::Clone`) compile
+and pass. The
+`fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.stderr`
+file is unchanged (the existing UI test targets `Run`'s
+diagnostic, not `RcRun`'s).
+
+Open follow-ups: same as 5a.2's open follow-ups minus 5a.3
+itself.
 
 ### Cross-cutting docs/macros commits during step 5a
 

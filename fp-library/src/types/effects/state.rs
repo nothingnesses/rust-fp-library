@@ -78,6 +78,56 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters(
+		"The lifetime of the continuations.",
+		"The pointer brand used for the continuations.",
+		"The state type.",
+		"The result type."
+	)]
+	#[document_parameters("The state effect to clone.")]
+	impl<'a, P, S, A> Clone for State<'a, P, S, A>
+	where
+		P: ToDynCloneFn,
+		S: Clone + 'a,
+		A: 'a,
+	{
+		/// Clones the state effect by refcount-bumping the stored
+		/// continuation pointer; the `Put` variant additionally clones
+		/// the carried state value (hence the `S: Clone` bound). The
+		/// continuation pointer is `<P as RefCountedPointer>::Of<...>`,
+		/// which is unconditionally [`Clone`] per the trait's
+		/// associated-type bound.
+		#[document_signature]
+		///
+		#[document_returns("A new state effect sharing the continuation by refcount.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		types::effects::state::State,
+		/// 	},
+		/// 	std::rc::Rc,
+		/// };
+		///
+		/// let original: State<'static, RcBrand, i32, i32> =
+		/// 	State::Get(Rc::new(|s: i32| s + 1) as Rc<dyn Fn(i32) -> i32>);
+		/// let cloned = original.clone();
+		/// match cloned {
+		/// 	State::Get(k) => assert_eq!(k(7), 8),
+		/// 	State::Put(..) => panic!("expected Get"),
+		/// }
+		/// ```
+		fn clone(&self) -> Self {
+			match self {
+				State::Get(k) => State::Get(k.clone()),
+				State::Put(s, k) => State::Put(s.clone(), k.clone()),
+			}
+		}
+	}
+
 	#[document_type_parameters("The pointer brand used for the continuations.", "The state type.")]
 	impl<P, S> Functor for StateBrand<P, S>
 	where

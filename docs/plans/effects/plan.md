@@ -18,28 +18,104 @@ steps 1 (`handlers!{...}` macro plus `nt()` builder fallback),
 2 (simple all-handlers-at-once `interpret`/`run` on six Run
 wrappers), 3 (pipeline row-narrowing `interpret_with::<EBrand>`
 plus empty-row terminal `extract`), 4 (MonadRec-target
-`interpret_rec`/`run_rec`), and 6a.1 + 6a.2 landed; step 6a is
-in progress (State effect type machinery + Run-only smart
-constructors shipped; remaining wrappers and
+`interpret_rec`/`run_rec`), 6a.1 + 6a.2 (State effect type
+machinery + Run-only smart constructors), and 6a.3
+(`RcRun::get` / `RcRun::put`) landed; step 6a is in progress
+(four of six wrappers covered; remaining wrappers and
 SendFunctor-dependent Arc family blocked on the
 [2026-05-03 SendFunctor blocker](#active-blockers)).
 
 The
 [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)
-is complete (F1D `05be270`, F3A `f8031c5`, M3C this commit set):
+is complete (F1D `05be270`, F3A `f8031c5`, M3C `b8c9b3c`):
 `run_accum` / `run_accum_rec` deleted, `S = CNilBrand` tightened
 on the interpreter family, and `interpret_with` parameterised
 over `P: RefCountedPointer` with the user-facing `Clone` bound
-on handler closures dropped. Step 6a.3 (next pending sub-step
-of the standard first-order effects work) can now proceed
-without inheriting the issues the review surfaced; step 5
-(`interpret_with_rec` pipeline-plus-`MonadRec` family) is the
-next greenfield step.
+on handler closures dropped. Step 6a.3 (`RcRun::get` /
+`RcRun::put`, this commit) lands next; step 6a.5 (Explicit
+non-Arc family) is the next blocker-independent sub-step;
+step 5 (`interpret_with_rec` pipeline-plus-`MonadRec` family)
+is the next greenfield step.
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
+
+**Phase 3 step 6a.3: `RcRun::get` / `RcRun::put` smart
+constructors plus a manual `Clone` impl for `State`.** Mirrors
+6a.2's `Run::get` / `Run::put` pattern across the multi-shot
+single-thread Erased substrate. `RcRun::get<Idx>() -> Self`
+lives on a new `impl<R, ScopedRow, A> RcRun<R, ScopedRow, A>`
+block (state and result type coincide for `get`);
+`RcRun::put<StateType, Idx>(s) -> Self` lives on a separate
+`impl<R, ScopedRow> RcRun<R, ScopedRow, ()>` block
+(state-type generic). Both thread
+[`RcBrand`](../../../fp-library/src/brands.rs) as the pointer
+kind and construct continuations via
+[`<RcBrand as ToDynCloneFn>::new(closure)`](../../../fp-library/src/classes/to_dyn_clone_fn.rs)
+(direct `Rc::new(closure)` produces `Rc<{closure_type}>`, not
+the `Rc<dyn Fn>` that `State::Get` / `Put` expect).
+
+The where-clauses cascade `RcRun::lift`'s bounds: `Member`
+projection over the
+[`RcCoyoneda`](../../../fp-library/src/types/rc_coyoneda.rs)
+variant (paired with the multi-shot substrate per the per-
+wrapper Coyoneda variant rule); the
+[`NodeBrand`](../../../fp-library/src/brands.rs) projection
+over `RcFree<..., RcTypeErasedValue>` must be `Clone` for the
+shared-substrate's recursive walk; and `A: Clone + 'static`
+on the impl block so the `Get`-variant doctest's `peel()`
+satisfies `RcRun::peel`'s substrate-`Clone` bound. `put`
+additionally adds `StateType: Clone + 'static` so the
+`State::Put(s, ...)` carries a `Clone`-able state value.
+
+Side-effect: a manual `Clone` impl for
+[`State<'a, P, S, A>`](../../../fp-library/src/types/effects/state.rs)
+gated on `S: Clone + 'a` (the `Put`-variant's `S` field). The
+continuation pointer `<P as RefCountedPointer>::Of<'a, dyn ...>`
+is unconditionally `Clone` per the trait's associated-type
+bound; the impl just refcount-bumps it. This was unblocked by
+the trait's projection guarantee: a derive would have required
+`P: Clone` and `A: Clone` (which neither holds nor is needed),
+so a manual impl with the minimum bound is the right shape.
+The bound is propagated up to all four shared-substrate
+wrappers' smart constructors (`RcRun`, future `RcRunExplicit`,
+`ArcRun`, `ArcRunExplicit`); `Run` and `RunExplicit` do not
+need it because their `lift` bound omits the `EBrand::Of<...>: Clone`
+requirement.
+
+Per-method doctests on each constructor exercise the canonical-
+row instantiation (`CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>`),
+asserting the program is suspended at the lifted effect via
+`peel().is_err()`. The `State::Clone` impl carries its own
+doctest building a `State::Get` from
+`Rc::new(|s: i32| s + 1) as Rc<dyn Fn(i32) -> i32>`, cloning,
+and asserting the cloned continuation produces the expected
+output.
+
+`fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.stderr`
+unchanged: `RcRun::get` / `put` only widen the
+"associated functions" suggestion list for `RcRun`, but the
+existing UI test targets `Run`'s diagnostic, not `RcRun`'s.
+`just verify` clean: 2500+ unit tests + integration tests +
+doctests pass.
+
+Per-step deviation entry in
+[deviations.md](deviations.md) Phase 3 step 5a.3 records: (1)
+the manual `State::Clone` impl shape and the alternative-
+derive analysis; (2) the substrate-`Clone` bound cascade
+across the smart-constructor where-clause; (3) the
+`A: Clone + 'static` requirement that 6a.2's `Run::get` did
+not need; (4) the per-wrapper `Clone` cascade table for the
+remaining four shared-substrate variants.
+
+What's next: 6a.5 (`RunExplicit::get/put` and
+`RcRunExplicit::get/put`) is the next blocker-independent
+sub-step, mirroring this commit's pattern across the Explicit
+substrate; 6a.4 (`ArcRun::get/put`) and 6a.6
+(`ArcRunExplicit::get/put`) depend on the
+[2026-05-03 active blocker](#active-blockers) resolution.
 
 **Phase 3 reversal cleanup (F1D + F3A + M3C): land the
 2026-05-03 adversarial-review reversals across the existing
@@ -212,99 +288,6 @@ blocker; 6a.4 (`ArcRun::get/put`) and 6a.6 (`ArcRunExplicit::get/put`)
 depend on the [2026-05-03 active blocker](#active-blockers)
 resolution.
 
-**Phase 3 step 4: MonadRec-target interpreter
-family `interpret_rec` / `run_rec` across all six Run
-wrappers.** Each wrapper exposes a per-method
-`interpret_rec::<MBrand>(handlers) -> M::Of<A>` (plus the `run_rec`
-alias) that walks the program via
-[`tail_rec_m`](../../../fp-library/src/classes/monad_rec.rs)
-for stack-safety on external `MBrand: MonadRec` targets like
-[`ThunkBrand`](../../../fp-library/src/types/thunk.rs),
-[`OptionBrand`](../../../fp-library/src/types/option.rs), or
-[`ResultBrand`](../../../fp-library/src/types/result.rs). The
-step closure peels the program, lifts each layer's inner
-continuations to M-wrapped via
-[`Functor::map`](../../../fp-library/src/classes/functor.rs)`(M::pure, layer)`
-(or [`SendFunctor::send_map`](../../../fp-library/src/classes/send_functor.rs)
-for the Arc family), dispatches through the shared
-[`DispatchHandlers`](../../../fp-library/src/types/effects/interpreter.rs)
-trait, and fmaps `M::Of<Run<R, S, A>>` to
-`M::Of<ControlFlow<A, Run<R, S, A>>>` via [`ControlFlow::Continue`].
-
-Implementation arrived in two commits per the
-[2026-05-02 resolution](resolutions.md): commit 1 relaxed
-[`DispatchHandlers::dispatch`](../../../fp-library/src/types/effects/interpreter.rs)
-from `&mut self` to `&self` (and `Handler::F: Fn` in the impl
-bounds) so the dispatch trait is callable from inside
-`tail_rec_m`'s `Fn` step closure; commit 2 (this one) adds the
-rec interpreter family using the relaxed trait.
-
-The handler shape mirrors PureScript's `runRec`:
-`Fn(<EBrand as Kind>::Of<'_, M::Of<'_, Run<R, S, A>>>) -> M::Of<'_, Run<R, S, A>>`.
-The dispatch trait is reused unchanged from step 2 (`NextProgram`
-instantiated as `M::Of<'_, Run<R, S, A>>` instead of
-`Run<R, S, A>`).
-
-M's lifetime is pinned: `'static` for the Erased family
-(`Run`, `RcRun`, `ArcRun`; the wrapper struct already requires
-`'static` everywhere) and `'a` for the Explicit family
-(`RunExplicit`, `RcRunExplicit`, `ArcRunExplicit`; matches the
-wrapper's struct-level `'a`). The HRTB `for<'h>` only quantifies
-over the row brand's lifetime, not M's. This pinning is required
-because Rust closures cannot be HRTB-polymorphic over a type
-parameter that contains the lifetime in non-reference position
-(e.g., `Thunk<'h, T>`'s `'h` lives in the `Box<dyn FnOnce>`'s
-content, not behind a `&'h` reference); without pinning, user
-handler closures over `Identity<Thunk<'h, ...>>` would fail to
-satisfy `for<'h>`. See [deviations.md](deviations.md) under
-Phase 3 step 4 for the alternatives considered.
-
-`ArcRun`'s body reuses [`unwrap_first`](../../../fp-library/src/types/effects/arc_run.rs)
-(the HRTB-poisoning workaround helper from Phase 2 step 5 / Phase
-3 step 2) to extract the `Node::First` payload outside the
-struct's HRTB-bearing scope. `ArcRunExplicit` matches `Node`
-literals inline because its `Send + Sync` bounds are per-method,
-not at the struct level.
-
-Wrapper-specific where-clauses cascade the existing constraints
-plus one M-related bound: the Erased trio adds
-`MBrand: MonadRec + 'static`; the Rc family carries the per-`peel`
-`A: Clone` and substrate-`Of<...>: Clone` bounds; the Arc family
-adds `M::Of<'static, ArcRun<R, S, A>>: Send + Sync` (or `'a` for
-ArcRunExplicit) so the M-wrapped continuations satisfy
-`SendFunctor::send_map`'s `Send + Sync` requirement on the inner
-type.
-
-State threading is via user-side closure captures applied to
-`interpret_rec` directly; the captured cell holds the final
-state for the caller to read after interpretation completes.
-State-via-StateT is deferred to Phase 6+.
-
-Tests: 18 integration tests in
-[`fp-library/tests/run_interpret_rec.rs`](../../../fp-library/tests/run_interpret_rec.rs)
-covering each wrapper x M-target combination viable for that
-wrapper's substrate constraints (Erased non-Arc + ThunkBrand +
-OptionBrand; Arc family + OptionBrand only because Thunk's
-`Box<dyn FnOnce>` is not `Send + Sync`). Per-wrapper doctests on
-each rec method exercise the canonical-row-and-handler
-combination. `just verify` clean: 2489 unit tests + 18 new
-integration tests + doctests on each method compile and pass.
-
-Per-step deviation entry in
-[deviations.md](deviations.md) Phase 3 step 4 records: (1) the
-two-commit split (trait relaxation as commit 1, rec interpreter
-family as commit 2); (2) M-lifetime pinning (`'static` for
-Erased, `'a` for Explicit) with HRTB-over-types alternative
-analysis; (3) the Arc family's M-`Of<...>: Send + Sync` bound
-addition for `send_map`; (4) ThunkBrand + Arc-family doctest
-limitation (Thunk's payload is not `Send + Sync` so Arc doctests
-use OptionBrand instead); (5) reuse of `DispatchHandlers` trait
-unchanged with `NextProgram` instantiated as `M::Of<...>`.
-
-Step 6 (standard first-order effect types `State<S>`, `Reader<E>`,
-`Except<E>`, `Writer<W>`, `Choose`, plus their smart
-constructors) is the immediate next work.
-
 ### Earlier completed steps (commit log)
 
 Each entry's design choices are recorded in
@@ -315,6 +298,29 @@ summary; resolved blockers are in
 
 Phase 3:
 
+- `bd540d5` + `fafcfde` (step 4): MonadRec-target interpreter
+  family `interpret_rec` / `run_rec` across all six Run
+  wrappers, driven by
+  [`tail_rec_m`](../../../fp-library/src/classes/monad_rec.rs)
+  for stack-safety on external `MBrand: MonadRec` targets.
+  Two-commit split: `bd540d5` relaxed
+  [`DispatchHandlers::dispatch`](../../../fp-library/src/types/effects/interpreter.rs)
+  from `&mut self` to `&self` (and `Handler::F: Fn` in the
+  impl bounds) so the dispatch trait is callable from inside
+  `tail_rec_m`'s `Fn` step closure; `fafcfde` adds the rec
+  interpreter family using the relaxed trait. M's lifetime
+  is pinned per family (`'static` for Erased, `'a` for
+  Explicit) because Rust closures cannot be HRTB-polymorphic
+  over a type parameter that contains the lifetime in
+  non-reference position. `ArcRun` body reuses
+  [`unwrap_first`](../../../fp-library/src/types/effects/arc_run.rs)
+  to extract `Node::First` outside the struct's HRTB-bearing
+  scope; `ArcRunExplicit` matches inline (per-method
+  `Send + Sync`). Arc family adds `M::Of<...>: Send + Sync`
+  so M-wrapped continuations satisfy `SendFunctor::send_map`.
+  Subsequently revised by F1D (deleted `run_accum_rec`) and
+  F3A (tightened `S = CNilBrand`). 18 integration tests +
+  per-wrapper doctests.
 - `ff84f20` (step 3): pipeline row-narrowing
   `interpret_with::<EBrand, Idx, RMinusE>(handler) -> Wrapper<RMinusE, S, A>`
   plus empty-row terminal `extract` across all six Run
