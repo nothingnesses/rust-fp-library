@@ -25,8 +25,9 @@ machinery + Run-only smart constructors), 6a.3
 `RcRunExplicit::get` / `RcRunExplicit::put`) landed; step 6a
 is in progress (four of six wrappers covered; the Arc family
 6a.4 and 6a.6 are unblocked under the
-[2026-05-03 SendFunctor resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-impl-on-statebrand-for-the-arc-family-option-b-per-method-bounds)
-which locks in option (b) per-method `Send + Sync` bounds).
+[2026-05-03 SendFunctor option-(c) resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)
+which locks in a parallel `SendStateBrand<P, S>` /
+`SendState<'a, P, S, A>` type for the Arc family).
 
 The
 [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)
@@ -37,11 +38,11 @@ over `P: RefCountedPointer` with the user-facing `Clone` bound
 on handler closures dropped. Step 6a.3 and step 6a.5 have
 landed; the four non-Arc wrappers' smart constructors are now
 complete. Step 6a.4 (`ArcRun::get/put`) and step 6a.6
-(`ArcRunExplicit::get/put`) are now unblocked under the
-[2026-05-03 SendFunctor resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-impl-on-statebrand-for-the-arc-family-option-b-per-method-bounds)
-(option (b) per-method `Send + Sync` bounds at smart-
-constructor sites); step 5 (`interpret_with_rec` pipeline-
-plus-`MonadRec` family) is the next greenfield step.
+(`ArcRunExplicit::get/put`) are unblocked under the
+[2026-05-03 SendFunctor option-(c) resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)
+(parallel `SendStateBrand` / `SendState` type for the Arc
+family). Step 5 (`interpret_with_rec` pipeline-plus-`MonadRec`
+family) is the next greenfield step.
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
@@ -662,15 +663,20 @@ history. Per-step deviations from the plan are logged in
 ### Active blockers
 
 No active blockers. The 2026-05-03 SendFunctor blocker on
-`StateBrand` for the Arc family has been resolved with
-option (b): per-method `Send + Sync` bounds at smart-
-constructor sites, matching `ArcRunExplicit`'s
-existing per-method-bound precedent. Step 6a.4 and 6a.6
-implement under this lock-in. Full investigation,
-alternatives (including the rejected (a) HRTB, (c) parallel
-brand, (d) `SendRefCountedPointer::Of` representation, and
-(e) defer-and-document), and rationale in
-[resolutions.md](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-impl-on-statebrand-for-the-arc-family-option-b-per-method-bounds).
+`StateBrand` for the Arc family was first ratified with
+option (b) per-method `Send + Sync` bounds (`4bd1636`); option
+(b) was discovered unimplementable during the attempted 6a.4
+landing because `Arc<dyn Fn(...)>` is structurally
+`!Send + !Sync` (the trait object's bounds don't include
+`Send + Sync` and use-site bounds can't change a structural
+type-level fact). The blocker was reopened and re-ratified
+with option (c): a parallel `SendStateBrand<P, S>` /
+`SendState<'a, P, S, A>` type whose variants store
+`<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(...) -> A + Send + Sync>`,
+sidestepping the structural problem because the Send-aware
+trait object IS thread-safe. Full investigation including the
+(b)-discovery details, alternatives, and rationale in
+[resolutions.md](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified).
 
 Recently resolved: the Phase 3 step 6 smart-constructor wrapper
 parameterization question (2026-05-03). Five sub-decisions
@@ -742,19 +748,28 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-03): Phase 3 step 6a SendFunctor reopened after option (b) unimplementable; option (c) parallel `SendStateBrand` ratified](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)
+  : the original (b) ratification (`4bd1636`) was discovered
+  unimplementable — `Arc<dyn Fn(...)>` is structurally
+  `!Send + !Sync` because the trait object's bounds don't
+  include `Send + Sync`, and use-site bounds can't change a
+  structural type-level fact. Reopened and re-ratified with
+  option (c): a parallel
+  [`SendStateBrand<P, S>`](../../../fp-library/src/brands.rs)
+  / `SendState<'a, P, S, A>` type whose variants store
+  `<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(...) -> A + Send + Sync>`,
+  sidestepping the structural problem. Brand-level
+  `SendFunctor` impl on `SendStateBrand<P, S>` is
+  implementable because the projection is structurally
+  `Send + Sync`. Non-Arc smart constructors keep using
+  `StateBrand`; Arc smart constructors use `SendStateBrand`.
 - [Resolved (2026-05-03): Phase 3 step 6a `SendFunctor` impl on `StateBrand` for the Arc family (option (b) per-method bounds)](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-impl-on-statebrand-for-the-arc-family-option-b-per-method-bounds)
-  : option (b) per-method `Send + Sync` bounds at smart-
-  constructor sites locks in. `state.rs` keeps the `Functor`
-  impl on `StateBrand<P, S>`; no `SendFunctor` impl is added.
-  `ArcRun::get/put` and `ArcRunExplicit::get/put` add per-
-  method bounds on
-  `<ArcBrand as RefCountedPointer>::Of<'_, dyn Fn(...)>: Send + Sync`
-  for the specific `A` the constructor produces. Matches the
-  `ArcRunExplicit` per-method-bound precedent established in
-  Phase 2 step 9d / 9g / 9i. Alternatives (a) HRTB,
-  (c) parallel `SendStateBrand`, (d) `SendRefCountedPointer::Of`
-  representation, and (e) defer-and-document all rejected with
-  detailed rationale in the resolution.
+  (superseded): option (b) per-method `Send + Sync` bounds at
+  smart-constructor sites was the original ratification. The
+  bound was discovered unsatisfiable during implementation
+  because `Arc<dyn Fn(...)>: Send + Sync` is structurally
+  false. Superseded by the option (c) ratification above; this
+  entry stays as historical record.
 - [Resolved (2026-05-03): smart-constructor wrapper parameterization for the standard first-order effects step](resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization)
   : five sub-decisions confirmed: (1.b) six per-wrapper variants
   per effect, with the Phase 3 step 7 `define_effect!` macro

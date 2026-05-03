@@ -15,6 +15,178 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-03): Phase 3 step 6a SendFunctor reopened after option (b) unimplementable; option (c) parallel `SendStateBrand` ratified
+
+The
+[earlier 2026-05-03 ratification of option (b)](#resolved-2026-05-03-phase-3-step-6a-sendfunctor-impl-on-statebrand-for-the-arc-family-option-b-per-method-bounds)
+(commit `4bd1636`) locked in per-method `Send + Sync` bounds
+at smart-constructor sites. Implementation of `ArcRun::get` /
+`ArcRun::put` under that lock-in failed at compile time; the
+blocker was reopened and re-ratified with option (c).
+
+### Why option (b) was unimplementable
+
+[`State<'a, P, S, A>`](../../../fp-library/src/types/effects/state.rs)
+holds:
+
+- `Get(<P as RefCountedPointer>::Of<'a, dyn 'a + Fn(S) -> A>)`
+- `Put(S, <P as RefCountedPointer>::Of<'a, dyn 'a + Fn(()) -> A>)`
+
+For `P = ArcBrand`, the projection is
+`Arc<dyn 'a + Fn(...) -> A>`. The trait object's bounds are
+`'a + Fn(...) -> A` only — no `+ Send + Sync` baked in. Since
+`Arc<T>: Send + Sync` requires `T: Send + Sync` structurally,
+and `dyn Fn(...)` (without `+ Send + Sync`) is structurally
+`!Send + !Sync`, the projection
+`Arc<dyn Fn(...)>: Send + Sync` is provably false at the type
+level.
+
+Concrete rustc error from the attempted implementation:
+
+```
+error[E0277]: `(dyn Fn(()) + 'static)` cannot be shared between threads safely
+   = help: the trait `Sync` is not implemented for `(dyn Fn(()) + 'static)`
+   = note: required for `Arc<(dyn Fn(()) + 'static)>` to implement `Sync`
+```
+
+Adding the bound
+`<ArcBrand as RefCountedPointer>::Of<'static, dyn 'static + Fn(()) -> ()>: Send + Sync`
+to the smart-constructor's where-clause does not satisfy
+this: rustc rejects the bound because the underlying type is
+structurally `!Send + !Sync`, and use-site bounds cannot
+refine a structural type-level fact.
+
+The (b) analysis conflated two superficially-similar cases:
+the existing per-method `Send + Sync` bounds on Arc-family
+`interpret_with` / `interpret_rec` work because they apply to
+projections of _concrete generic structs_ like
+`ArcFree<NodeBrand<R, S>, ...>`, where `Send + Sync` _can_ be
+true for specific instantiations. `Arc<dyn Fn(...)>` is a
+different beast: the dyn trait object's marker-trait bounds
+are part of its type identity, so `dyn Fn(...)` and
+`dyn Fn(...) + Send + Sync` are different types.
+
+### Decision: option (c) parallel `SendStateBrand` / `SendState`
+
+Add a parallel
+[`SendStateBrand<P, S>`](../../../fp-library/src/brands.rs)
+brand registration alongside `StateBrand<P, S>`, and a
+parallel
+[`SendState<'a, P, S, A>`](../../../fp-library/src/types/effects/state.rs)
+enum whose variants use the Send-aware projection:
+
+- `Get(<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(S) -> A + Send + Sync>)`
+- `Put(S, <P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(()) -> A + Send + Sync>)`
+
+For `P = ArcBrand`, the projection is
+`Arc<dyn 'a + Fn(...) + Send + Sync>` — a different type from
+the non-Send `Arc<dyn Fn(...)>` in `State`, and one that IS
+`Send + Sync` because the trait object's bounds now include
+the marker traits.
+
+Brand-level `SendFunctor` impl on `SendStateBrand<P, S>` is
+implementable because `SendRefCountedPointer::Of<'a, T>`'s
+trait bound carries `T: ?Sized + Send + Sync + 'a`,
+guaranteeing the projection is structurally `Send + Sync` for
+any valid `T`. No HRTB-over-types needed.
+
+The non-Arc smart constructors (`Run::get/put` /
+`RunExplicit::get/put` / `RcRun::get/put` /
+`RcRunExplicit::get/put`) keep using `StateBrand<P, S>` in
+their rows; they cannot use `SendStateBrand` because
+`RcBrand` does not implement `SendRefCountedPointer` (`Rc` is
+`!Send`). The Arc smart constructors (`ArcRun::get/put` /
+`ArcRunExplicit::get/put`) use `SendStateBrand<ArcBrand, S>`
+in their rows.
+
+### Why other alternatives were rejected (again)
+
+**(a) HRTB-over-types**: still unimplementable on stable Rust.
+
+**(b) Per-method bounds**: discovered unimplementable, see
+above. The original (b) ratification stays in
+[resolutions.md](#resolved-2026-05-03-phase-3-step-6a-sendfunctor-impl-on-statebrand-for-the-arc-family-option-b-per-method-bounds)
+as historical record.
+
+**(d.1) Polymorphic-projection State**: parameterize
+`State<'a, P, S, A>` over a "function-pointer-shape" trait
+that returns `RefCountedPointer::Of<dyn Fn>` for non-Send
+brands and `SendRefCountedPointer::Of<dyn Fn + Send + Sync>`
+for Send brands. The "function-pointer-shape" trait would
+need a per-`A`-and-`S` associated type to express the
+parametric projection, which collapses back into the
+HRTB-over-types wall.
+
+**(d.2) Unconditional Send-aware representation**: change
+`State<'a, P, S, A>` to use the Send-aware projection
+unconditionally. Forces RcBrand users' closures to be
+`Send + Sync`, breaking the canonical `Rc<RefCell<S>>`
+capture pattern for state threading (`Rc` is `!Send`).
+Rejected.
+
+**(d.3) Two struct-level variants `State` and `SendState`**:
+effectively option (c) under a different name. The chosen
+implementation IS this; calling it (c) keeps continuity with
+the original blocker analysis.
+
+**(e) Defer-and-document**: viable, but the implementation
+cost of (c) is small (~1 new brand, ~1 new enum, ~4 new impls
+plus 4 smart-constructor methods, all parallel to existing
+`State` shape), so the cost-benefit favors shipping over
+deferring.
+
+### Implementation phasing
+
+1. New
+   [`SendStateBrand<P, S>`](../../../fp-library/src/brands.rs)
+   registration.
+2. New `SendState<'a, P, S, A>` enum in
+   [`state.rs`](../../../fp-library/src/types/effects/state.rs)
+   alongside `State<'a, P, S, A>`. Or in a new
+   `send_state.rs` module if `state.rs` grows too large.
+3. `impl_kind!` for `SendStateBrand`.
+4. `Functor` impl for `SendStateBrand`.
+5. Manual `Clone` impl for `SendState` (gated on `S: Clone`,
+   like the existing `State::Clone` impl from 5a.3).
+6. `SendFunctor` impl for `SendStateBrand` (the whole point
+   of (c) — this works because the projection is structurally
+   `Send + Sync`).
+7. `ArcRun::get<Idx>()` and `ArcRun::put<StateType, Idx>(s)`
+   smart constructors using `SendStateBrand<ArcBrand, A>` in
+   the row, plus `<ArcBrand as ToDynSendFn>::new(closure)`
+   for continuation construction.
+8. `ArcRunExplicit::get/put` same pattern.
+
+The user-facing API surface for State is now:
+
+- Single-thread programs: use `StateBrand<RcBrand, S>` (or
+  `StateBrand<ArcBrand, S>` if the substrate happens to be
+  Arc but you don't need thread-safety).
+- Thread-safe programs that lift state-effect closures into
+  Arc-substrate Run programs: use
+  `SendStateBrand<ArcBrand, S>`.
+
+Users with mixed programs face two distinct row brands they
+must use depending on the substrate. The
+[`define_effect!`](../../../fp-macros/src/effects/) macro
+(Phase 3 step 7) can generate the per-wrapper smart
+constructors that hide this distinction by selecting the
+right brand per wrapper.
+
+### Cross-references
+
+- [Original (b) ratification](#resolved-2026-05-03-phase-3-step-6a-sendfunctor-impl-on-statebrand-for-the-arc-family-option-b-per-method-bounds):
+  the superseded resolution.
+- [Phase 3 step 5a.1 deviations entry](deviations.md): the
+  original `State` design with `Functor`-only impl.
+- [Phase 3 step 5a.3 deviations entry](deviations.md): the
+  `State::Clone` impl that 6a.4 / 6a.6 cascade requires.
+- [`SendRefCountedPointer`](../../../fp-library/src/classes/send_ref_counted_pointer.rs):
+  the trait powering `SendState`'s projection.
+- [`ToDynSendFn`](../../../fp-library/src/classes/to_dyn_send_fn.rs):
+  parallel to `ToDynCloneFn`, used to construct Send-aware
+  `dyn Fn + Send + Sync` continuations.
+
 ## Resolved (2026-05-03): Phase 3 step 6a `SendFunctor` impl on `StateBrand` for the Arc family (option (b) per-method bounds)
 
 [`StateBrand<P, S>`](../../../fp-library/src/types/effects/state.rs)
