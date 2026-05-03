@@ -1111,6 +1111,141 @@ mod inner {
 			}
 		}
 	}
+
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The state type (also the program's result type for `get`)."
+	)]
+	impl<R, ScopedRow, A> Run<R, ScopedRow, A>
+	where
+		R: crate::classes::WrapDrop + crate::classes::Functor + 'static,
+		ScopedRow: crate::classes::WrapDrop + crate::classes::Functor + 'static,
+		A: 'static,
+	{
+		/// Lifts a `Get` state effect into the Run program. Direct
+		/// analog of PureScript Run's
+		/// [`get`](https://github.com/natefaubion/purescript-run/blob/main/src/Run/State.purs).
+		/// The program reads the current state and returns it as the
+		/// result type `A` (the state type and the result type
+		/// coincide for `get`).
+		///
+		/// `Idx` is the type-level position witness identifying where
+		/// `StateBrand<RcBrand, A>` lives in the row `R`. Rust infers
+		/// `Idx` whenever the effect appears unambiguously in the row.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
+		///
+		#[document_returns("A `Run` program suspended at the lifted `Get` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		state::State,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: Run<FirstRow, Scoped, i32> = Run::get();
+		/// // The program is suspended at the Get effect; peel reveals the layer.
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn get<Idx>() -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				crate::types::effects::member::Member<
+						crate::types::Coyoneda<
+							'static,
+							crate::brands::StateBrand<crate::brands::RcBrand, A>,
+							A,
+						>,
+						Idx,
+					>, {
+			let effect: crate::types::effects::state::State<'static, crate::brands::RcBrand, A, A> =
+				crate::types::effects::state::State::Get(
+					<crate::brands::RcBrand as crate::classes::ToDynCloneFn>::new(|s: A| s),
+				);
+			Self::lift::<crate::brands::StateBrand<crate::brands::RcBrand, A>, Idx>(effect)
+		}
+	}
+
+	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
+	impl<R, ScopedRow> Run<R, ScopedRow, ()>
+	where
+		R: crate::classes::WrapDrop + crate::classes::Functor + 'static,
+		ScopedRow: crate::classes::WrapDrop + crate::classes::Functor + 'static,
+	{
+		/// Lifts a `Put` state effect into the Run program. Direct
+		/// analog of PureScript Run's
+		/// [`put`](https://github.com/natefaubion/purescript-run/blob/main/src/Run/State.purs).
+		/// The program writes the supplied state value `s` and
+		/// returns `()` as the result type.
+		///
+		/// `StateType` is the state type carried by `StateBrand` in
+		/// the row. Rust may need a turbofish on `StateType` because
+		/// `put`'s result type is `()` (which doesn't constrain the
+		/// state type from the call site).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The state type carried by `StateBrand` in the row.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The new state value to write.")]
+		///
+		#[document_returns("A `Run` program suspended at the lifted `Put` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		state::State,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: Run<FirstRow, Scoped, ()> = Run::put::<i32, _>(42);
+		/// // The program is suspended at the Put effect; peel reveals the layer.
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn put<StateType: 'static, Idx>(s: StateType) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ()>):
+				crate::types::effects::member::Member<
+						crate::types::Coyoneda<
+							'static,
+							crate::brands::StateBrand<crate::brands::RcBrand, StateType>,
+							(),
+						>,
+						Idx,
+					>, {
+			let effect: crate::types::effects::state::State<
+				'static,
+				crate::brands::RcBrand,
+				StateType,
+				(),
+			> = crate::types::effects::state::State::Put(
+				s,
+				<crate::brands::RcBrand as crate::classes::ToDynCloneFn>::new(|_: ()| ()),
+			);
+			Self::lift::<crate::brands::StateBrand<crate::brands::RcBrand, StateType>, Idx>(effect)
+		}
+	}
 }
 
 pub use inner::*;

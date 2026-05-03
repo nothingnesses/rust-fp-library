@@ -25,6 +25,7 @@ note: if you're trying to build a new `Run<_, _, _>` consider using one of the f
       Run::<R, S, A>::pure
       Run::<R, S, A>::send
       Run::<R, S, A>::lift
+      and $N others
   --> src/types/effects/run.rs
    |
    |           pub fn from_free(free: Free<NodeBrand<R, S>, A>) -> Self {
