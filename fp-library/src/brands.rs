@@ -477,6 +477,17 @@ pub struct RunExplicitBrand<R, S>(PhantomData<(R, S)>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SendThunkBrand;
 
+/// Brand for [`State`](crate::types::effects::state::State), the
+/// stateful first-order effect type with `Get` (read state) and
+/// `Put` (write state) operations. Parameterised by
+/// `P: ToDynCloneFn` (typically [`RcBrand`] for single-thread
+/// substrates or [`ArcBrand`] for thread-safe substrates) so the
+/// same effect type works across all six Run wrappers; the
+/// per-wrapper smart constructors thread the substrate-appropriate
+/// `P`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct StateBrand<P, S>(PhantomData<(P, S)>);
+
 /// Brand for [`Thunk`](crate::types::Thunk).
 ///
 /// Note: This is for `Thunk<'a, A>`, NOT for `Trampoline<A>`.
