@@ -52,6 +52,7 @@
 pub mod arc_run;
 pub mod arc_run_explicit;
 pub mod coproduct;
+pub mod except;
 pub mod handlers;
 pub mod interpreter;
 pub mod member;

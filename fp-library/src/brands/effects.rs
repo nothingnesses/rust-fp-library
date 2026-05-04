@@ -73,6 +73,19 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct CoproductBrand<H, T>(PhantomData<(H, T)>);
 
+	/// Brand for
+	/// [`Except`](crate::types::effects::except::Except), the
+	/// error-throwing first-order effect type with `Throw` (raise an
+	/// error of type `E`) as its sole operation. Parameterised only by
+	/// the error type `E`; unlike
+	/// [`StateBrand`] / [`ReaderBrand`], `ExceptBrand` does not need a
+	/// pointer brand `P` or a parallel `SendExceptBrand` because
+	/// `Except` has no continuation (`Throw` never returns), so the
+	/// `Send + Sync` cascade reduces to a per-wrapper bound on `E`
+	/// alone. The same brand serves all six Run wrappers.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct ExceptBrand<E>(PhantomData<E>);
+
 	/// Brand for the [`Node<R, S>`](crate::types::effects::node::Node) wrapper that
 	/// dispatches a Free-family computation between its first-order effect
 	/// row `R` and its scoped-effect row `S`.

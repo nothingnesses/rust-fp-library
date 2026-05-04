@@ -1514,6 +1514,68 @@ mod inner {
 			);
 			Self::lift::<crate::brands::SendReaderBrand<crate::brands::ArcBrand, A>, Idx>(effect)
 		}
+
+		/// Lifts a `Throw` except effect into the `ArcRunExplicit`
+		/// program. Mirrors
+		/// [`Run::throw`](crate::types::effects::run::Run::throw);
+		/// see that method for cross-wrapper semantics. The same
+		/// [`ExceptBrand`](crate::brands::ExceptBrand) serves all six
+		/// wrappers because [`Except`](crate::types::effects::except::Except)
+		/// has no `dyn Fn` continuation; no parallel `SendExceptBrand`
+		/// is needed. Requires `ErrorType: Send + Sync` so the lifted
+		/// layer participates in the Arc substrate's thread-safety
+		/// cascade.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The error type carried by `ExceptBrand` in the row.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The error value to throw.")]
+		///
+		#[document_returns("An `ArcRunExplicit` program suspended at the lifted `Throw` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		except::Except,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: ArcRunExplicit<'static, FirstRow, Scoped, i32> =
+		/// 	ArcRunExplicit::throw::<&'static str, _>("oops");
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn throw<ErrorType: Clone + Send + Sync + 'static, Idx>(e: ErrorType) -> Self
+		where
+			A: Clone + Send + Sync + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
+				Member<ArcCoyoneda<'a, crate::brands::ExceptBrand<ErrorType>, A>, Idx>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Send + Sync,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Send + Sync,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Clone + Send + Sync, {
+			let effect: crate::types::effects::except::Except<'a, ErrorType, A> =
+				crate::types::effects::except::Except::Throw(e, core::marker::PhantomData);
+			Self::lift::<crate::brands::ExceptBrand<ErrorType>, Idx>(effect)
+		}
 	}
 
 	#[document_type_parameters(

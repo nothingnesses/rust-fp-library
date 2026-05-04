@@ -59,10 +59,15 @@ constructors) shipped on all six wrappers with a parallel
 `Arc<dyn Fn(...)>: !Send + !Sync` structural concern). The
 brands reorg (see deviations.md) extracted effect-specific
 brands to `crate::brands::effects` while preserving flat
-re-exports at `crate::brands`. Steps 6 (`define_effect!`
-macro), 7 (`compile_fail` UI tests), and 8
-(review-remediation documentation pass) remain; the next
-greenfield work is step 5c (`Except` smart constructors).
+re-exports at `crate::brands`. Step 5c (`Except` smart
+constructors) shipped on all six wrappers with a single
+`ExceptBrand<E>` (no parallel `SendExceptBrand` because
+`Except` has no `dyn Fn` continuation; the `Send + Sync`
+cascade reduces to a per-wrapper bound on `E` alone).
+Steps 6 (`define_effect!` macro), 7 (`compile_fail` UI
+tests), and 8 (review-remediation documentation pass)
+remain; the next greenfield work is step 5d (`Writer`
+smart constructors).
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit

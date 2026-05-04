@@ -3001,6 +3001,66 @@ What diverged:
 
 Verification: 12 Reader tests pass; full `just verify` clean.
 
+### Step 5c: `throw` smart constructors on all six Run wrappers (`Except` effect)
+
+Adds the
+[`Except<'a, E, A>`](../../../fp-library/src/types/effects/except.rs)
+first-order effect type with the single `Throw` operation.
+Per-wrapper `throw` smart constructors lift an error of type
+`E` through each wrapper's substrate.
+
+What landed:
+
+- [`ExceptBrand<E>`](../../../fp-library/src/brands/effects.rs)
+  brand registration. Parameterised only by the error type
+  `E`, with no pointer-brand `P` parameter (`Except` has no
+  continuation, so it does not need substrate-pointer
+  selection). The same brand serves all six Run wrappers.
+- [`Except<'a, E, A: 'a>`](../../../fp-library/src/types/effects/except.rs)
+  enum with a single `Throw(E, PhantomData<&'a A>)` variant.
+  The `A` parameter is phantom (`Throw` never returns to the
+  caller); `PhantomData<&'a A>` keeps the type within the
+  [`Kind`](../../../fp-library/src/kinds.rs) trait's
+  `Of<'a, A: 'a>: 'a` contract without imposing variance
+  constraints from references the type does not own.
+- Manual `Clone` impl gated on `E: Clone`.
+- `Functor` and `SendFunctor` impls. Both bodies discard the
+  mapping function `f` (since `Throw` carries no `A`-typed
+  payload) and rebuild the variant with the new phantom type
+  parameter.
+- `Run::throw`, `RcRun::throw`, `RunExplicit::throw`,
+  `RcRunExplicit::throw` smart constructors using
+  `ExceptBrand<ErrorType>` in the row.
+- `ArcRun::throw`, `ArcRunExplicit::throw` smart constructors
+  using the same `ExceptBrand<ErrorType>` (no parallel
+  `SendExceptBrand` needed). Per-wrapper `Send + Sync`
+  cascades on `ErrorType` instead.
+- Integration tests in
+  [`fp-library/tests/run_except.rs`](../../../fp-library/tests/run_except.rs):
+  12 tests (2 per wrapper) covering single-Throw dispatch
+  and a `pure(x).bind(|_| throw(e))` chain verifying that
+  Throw can appear after a successful bind step.
+
+What diverged:
+
+- **No parallel `SendExceptBrand` for the Arc family.**
+  State and Reader needed `Send*Brand` siblings because
+  their `dyn Fn(...)` continuations are structurally
+  `!Send + !Sync` without the marker traits baked into the
+  trait object's bounds. `Except` has no `dyn Fn`
+  continuation, so this concern doesn't apply; the per-
+  wrapper `Send + Sync` bound on `ErrorType` is sufficient.
+- **`PhantomData<&'a A>` rather than
+  `PhantomData<(&'a (), fn() -> A)>`.** Initial draft
+  attempted to encode covariance in `A` via `fn() -> A`, but
+  clippy flagged the resulting tuple as `type_complexity`.
+  Reverted to the simpler `PhantomData<&'a A>` (which makes
+  `A` invariant via the reference); since `A` is purely a
+  type-level marker for the `Functor` interface and never
+  participates in field data, invariance is unproblematic.
+
+Verification: 12 Except tests pass; full `just verify` clean.
+
 ### Cross-cutting docs/macros commits during step 5a
 
 Two cross-cutting commits landed in the same set as 5a.1 / 5a.2;

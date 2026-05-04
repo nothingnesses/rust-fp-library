@@ -1177,6 +1177,58 @@ mod inner {
 			);
 			Self::lift::<crate::brands::ReaderBrand<crate::brands::RcBrand, A>, Idx>(effect)
 		}
+
+		/// Lifts a `Throw` except effect into the Run program. Direct
+		/// analog of PureScript Run's `throw`. The program raises an
+		/// error of type `ErrorType` and never returns to the caller;
+		/// the result type `A` is determined by the call-site (any
+		/// `A` works because `Throw` doesn't produce one).
+		///
+		/// `ErrorType` is the error type carried by `ExceptBrand` in
+		/// the row. Rust may need a turbofish on `ErrorType` because
+		/// the value `e` may not constrain it from the call site
+		/// alone.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The error type carried by `ExceptBrand` in the row.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The error value to throw.")]
+		///
+		#[document_returns("A `Run` program suspended at the lifted `Throw` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		except::Except,
+		/// 		run::Run,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: Run<FirstRow, Scoped, i32> = Run::throw::<&'static str, _>("oops");
+		/// // The program is suspended at the Throw effect; peel reveals the layer.
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn throw<ErrorType: 'static, Idx>(e: ErrorType) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				crate::types::effects::member::Member<
+						crate::types::Coyoneda<'static, crate::brands::ExceptBrand<ErrorType>, A>,
+						Idx,
+					>, {
+			let effect: crate::types::effects::except::Except<'static, ErrorType, A> =
+				crate::types::effects::except::Except::Throw(e, core::marker::PhantomData);
+			Self::lift::<crate::brands::ExceptBrand<ErrorType>, Idx>(effect)
+		}
 	}
 
 	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
