@@ -3115,6 +3115,74 @@ What diverged:
 Verification: 12 Writer tests pass; full `just verify`
 clean.
 
+### Step 5e: `choose` smart constructors on the four multi-shot Run wrappers (`Choose` effect) plus Erased Free family multi-shot substrate fix
+
+Adds the nondeterministic-branching
+[`Choose<'a, P, A>`](../../../fp-library/src/types/effects/choose.rs)
+first-order effect type with the single `Alt(P::Of<'a, dyn 'a +
+Fn(bool) -> A>)` variant. Per-wrapper `choose` smart constructors
+lift the effect into a row whose handler can run the continuation
+twice (once per branch) to capture both outcomes.
+
+Step 5e shipped together with a substrate fix on the Erased Free
+family because the original implementation panicked at runtime on
+the Erased pair. See the 2026-05-04 resolution
+[`Phase 3 step 5e Erased Free family multi-shot dispatch via RcCatList/ArcCatList`](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)
+for the design discussion.
+
+What landed:
+
+- [`ChooseBrand<P>`](../../../fp-library/src/brands/effects.rs)
+  brand parameterised by `P: ToDynCloneFn` (typically `RcBrand`)
+  for the Rc-substrate variant; serves the Rc-family wrappers.
+- [`SendChooseBrand<P>`](../../../fp-library/src/brands/effects.rs)
+  parallel for the Arc family; the projection bakes `Send + Sync`
+  into the trait-object bounds so Arc-substrate programs satisfy
+  thread-safety end-to-end.
+- [`Choose<'a, P, A>`](../../../fp-library/src/types/effects/choose.rs)
+  with `Functor` and `SendFunctor` impls.
+- `RcRun::choose`, `RcRunExplicit::choose`, `ArcRun::choose`,
+  `ArcRunExplicit::choose` smart constructors on each wrapper's
+  `Self<R, S, bool>` impl block.
+- Substrate fix: new
+  [`RcCatList<A>`](../../../fp-library/src/types/rc_cat_list.rs)
+  and [`ArcCatList<A>`](../../../fp-library/src/types/arc_cat_list.rs)
+  reference-counted catenable list variants. `RcFree` and `ArcFree`
+  switch their continuation queues to these new types and replace
+  the `Cell<Option<...>>::take` / `Mutex<Option<...>>::take`
+  workaround in `to_view` with capture-and-clone-per-call.
+- Integration tests in
+  [`fp-library/tests/run_choose.rs`](../../../fp-library/tests/run_choose.rs):
+  4 tests (one per multi-shot wrapper) exercising lift -> bind ->
+  peel and confirming the program suspends at the lifted `Alt`
+  effect with continuations attached.
+
+What diverged from the original Phase 3 step 5e plan:
+
+- **Substrate fix shipped alongside the smart constructors.** The
+  original step 5e plan assumed the Erased Free family supported
+  multi-shot dispatch directly. It didn't. Rather than demote the
+  2026-05-03 Q4=ii resolution ("`Choose` ships on all four
+  multi-shot wrappers"), the substrate was extended with two
+  parallel O(1)-cloneable catenable list types. The smart
+  constructors and integration tests pass on all four wrappers as
+  originally specified.
+- **Choose ships only on `Self<R, S, bool>` impl blocks.** The
+  result type is structurally `bool` (the branch), so a separate
+  impl block parallel to the existing `get`/`put` bodies wasn't
+  reusable; a new `impl<R, S> *Run<R, S, bool>` block was added
+  per wrapper.
+- **No parallel test for the substrate fix in isolation.** The
+  Choose integration tests double as substrate validation; if the
+  substrate fix regresses, those tests panic. This avoids a
+  mock-only test that re-implements the failure mode.
+
+Verification: 4 Choose tests pass; full pre-existing test suite
+passes unchanged (no regression on single-inner Free workloads).
+Per-Suspend cost on those workloads adds one `Rc::clone` (or
+`Arc::clone`) for the captured continuation queue, which is a
+refcount bump, not a structural copy.
+
 ### Cross-cutting docs/macros commits during step 5a
 
 Two cross-cutting commits landed in the same set as 5a.1 / 5a.2;

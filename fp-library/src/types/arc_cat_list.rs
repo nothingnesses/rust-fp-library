@@ -14,9 +14,10 @@
 //!
 //! - **Clone:** O(1) (head clone plus an atomic refcount bump).
 //!   [`CatList::clone`](crate::types::CatList) is O(N) deep-recursive.
-//! - **Mutation cost:** structural mutations use [`Arc::make_mut`]
-//!   for copy-on-write; uniquely-owned deques mutate in place,
-//!   shared deques are cloned one level deep.
+//! - **Mutation cost:** structural mutations use
+//!   [`std::sync::Arc::make_mut`] for copy-on-write; uniquely-
+//!   owned deques mutate in place, shared deques are cloned one
+//!   level deep.
 //! - **Bounds:** mutation methods and `uncons` require `A: Clone`.
 //!   `Send + Sync` propagate from the element type via the auto-
 //!   trait derivation on `Arc`.

@@ -16,10 +16,10 @@
 //!   because its sublist deque is value-typed and recursively cloned.
 //! - **Mutation cost:** structural mutations
 //!   ([`snoc`](RcCatList::snoc), [`append`](RcCatList::append),
-//!   [`cons`](RcCatList::cons)) use [`Rc::make_mut`] on the head's
-//!   sublist deque. Uniquely-owned deques mutate in place; shared
-//!   deques are cloned one level deep (each contained `RcCatList`
-//!   element clones in O(1)).
+//!   [`cons`](RcCatList::cons)) use [`std::rc::Rc::make_mut`] on
+//!   the head's sublist deque. Uniquely-owned deques mutate in
+//!   place; shared deques are cloned one level deep (each
+//!   contained `RcCatList` element clones in O(1)).
 //! - **Bounds:** mutation methods and `uncons` require `A: Clone`.
 //! - **Thread safety:** `RcCatList` is `!Send + !Sync`. Use
 //!   [`ArcCatList`](crate::types::ArcCatList) in thread-safe contexts.

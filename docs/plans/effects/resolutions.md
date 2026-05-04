@@ -15,6 +15,111 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-04): Phase 3 step 5e Erased Free family multi-shot dispatch via `RcCatList`/`ArcCatList` (option 1c-ii: parallel reference-counted CatList variants)
+
+`Choose` smart constructors on `RcRun` and `ArcRun` were
+panicking at runtime with "`RcFree::to_view map called more
+than once`" / "`ArcFree::to_view map called more than once`"
+because the Erased Free family's continuation queue was held
+in a value-typed [`CatList`](../../../fp-library/src/types/cat_list.rs)
+whose derived `Clone` is O(N) deep-recursive. To compensate,
+[`RcFree::to_view`](../../../fp-library/src/types/rc_free.rs)
+captured the queue inside a `Cell<Option<...>>` and consumed it
+once via `take()`, making the closure structurally single-shot
+even though its outer `Rc<dyn Fn>` wrapping permitted multiple
+invocations. The `Choose` handler runs the continuation twice
+(once per branch) and tripped the panic on the second call.
+
+PureScript's `CatList` is naturally O(1)-cloneable because the
+language is GC-managed and immutable: "cloning" is just copying
+a heap reference. The Rust port chose `VecDeque<CatList<A>>`
+with a derived `Clone`, which is cache-local and ergonomic for
+a regular catenable list but has no structural sharing, so
+clones cost O(N). The Cell/Mutex pattern in `to_view` was a
+workaround for that ownership friction.
+
+### What landed
+
+Two new substrates: [`RcCatList<A>`](../../../fp-library/src/types/rc_cat_list.rs)
+and [`ArcCatList<A>`](../../../fp-library/src/types/arc_cat_list.rs).
+Each wraps `Rc<VecDeque<RcCatList<A>>>` (or `Arc<...>` for the
+Send + Sync sibling), so `Clone` is a refcount bump. Mutation
+methods (`snoc`, `append`, `cons`) use `Rc::make_mut`/`Arc::
+make_mut` for copy-on-write; uniquely-owned deques mutate in
+place, shared deques clone one level deep (each contained
+element clones in O(1)). The `A: Clone` bound is required on
+mutation/uncons; the Free family's continuation types
+(`RcContinuation`, `ArcContinuation`) already implement Clone
+via `Rc::clone`/`Arc::clone`.
+
+`RcFree::to_view` and `ArcFree::to_view` switched to capture
+the continuation list by move and clone it (`all_conts.clone()`)
+on every invocation. The `Cell<Option<...>>` and
+`Mutex<Option<...>>` workarounds are gone, including the per-
+layer mutex acquire on the Arc path that was only ever in
+place for `Sync` compatibility, never for actual concurrency
+control. `ArcCatList` is structurally `Send + Sync` whenever
+`A` is, so the closure satisfies the trait-object bounds on
+`Arc<dyn Fn(...) + Send + Sync>` without any synchronisation
+primitive.
+
+The new substrates implement only the surface needed by the
+Free family (`empty`, `is_empty`, `singleton`, `cons`, `snoc`,
+`append`, `uncons`, `len`, `Clone`, `Default`, iterative
+`Drop`). The full trait soup on
+[`CatListBrand`](../../../fp-library/src/brands.rs) (Functor,
+Foldable, Traversable, etc.) is intentionally not mirrored;
+`RcCatList`/`ArcCatList` are continuation-queue substrates,
+not general-purpose lists. Existing `CatList` is unchanged.
+
+### Why option 1c-ii over the alternatives
+
+Five sub-options were surveyed. Approach 1a (clone the
+existing `CatList` per call) ran into the O(N) deep-clone
+cost on the single-inner hot path (Identity, State, Reader,
+Except, Writer). Approach 1b (Rc-wrap the existing CatList
+at the use site) didn't actually help, since `append`
+consumes the list and would still need a deep clone before
+mutation. Approach 1c-i (a single Arc-everywhere CatList)
+would penalise `RcFree`'s hot path with atomic refcount ops.
+Approach 1c-iii (generic over `RefCountedPointer`) leaks
+bound noise through every type signature that touches
+CatList. Approach 1d (don't fold continuations into `F::map`
+at all) would unwind the Phase 1 stack-safety story by
+walking continuations one at a time per Suspend.
+
+1c-ii (parallel `RcCatList`/`ArcCatList` types) mirrors the
+codebase's existing Rc/Arc split (`RcCoyoneda`/`ArcCoyoneda`,
+`RcFree`/`ArcFree`, `RcBrand`/`ArcBrand`). The duplication is
+straightforward (the implementations differ only in `Rc` vs
+`Arc` and the resulting auto-trait derivations) and matches
+the convention every other type in the split already pays.
+
+### Validation
+
+All 4 [`run_choose.rs`](../../../fp-library/tests/run_choose.rs)
+integration tests pass on the new substrate (one per
+multi-shot wrapper). The full pre-existing test suite passes
+unchanged, confirming no regression on single-inner Free
+workloads. Per-Suspend cost on those workloads adds one
+`Rc::clone` (or `Arc::clone`), which is a refcount bump
+rather than a structural copy.
+
+### What's preserved
+
+The 2026-05-03 wrapper-parameterization resolution Q4=ii
+("`Choose` ships on all four multi-shot wrappers") is fully
+honored; no demotion needed. The substrate fix unblocks the
+same API surface that resolution committed to.
+
+### Future direction
+
+If a future workload surfaces a measurable need for a
+fully-featured `RcCatList`/`ArcCatList` (Functor, Foldable,
+Traversable, brand-level dispatch), the additional surface
+can be added incrementally. The current scope deliberately
+ships the minimum needed by the Free family.
+
 ## Resolved (2026-05-04): Phase 3 step 5 (`interpret_with_rec`) deferred indefinitely (option (c))
 
 Pipeline row-narrowing combined with `MonadRec`-target stack

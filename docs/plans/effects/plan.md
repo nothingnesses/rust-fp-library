@@ -66,14 +66,22 @@ constructors) shipped on all six wrappers with a single
 cascade reduces to a per-wrapper bound on `E` alone).
 Step 5d (`Writer` smart constructors) shipped on all six
 wrappers with a single `WriterBrand<W>` (same no-`dyn Fn`
-shape as Except). Steps 6 (`define_effect!` macro), 7
-(`compile_fail` UI tests), and 8 (review-remediation
-documentation pass) remain; the next greenfield work is
-step 5e (`Choose` smart constructors), the last of the
-effect-suite rollout. Choose ships only on the four
-multi-shot wrappers (`RcRun`, `RcRunExplicit`, `ArcRun`,
-`ArcRunExplicit`) per the 2026-05-03 wrapper-
-parameterization resolution.
+shape as Except). Step 5e (`Choose` smart constructors)
+shipped on all four multi-shot wrappers (`RcRun`,
+`RcRunExplicit`, `ArcRun`, `ArcRunExplicit`) per the
+2026-05-03 wrapper-parameterization resolution. Step 5e
+also delivered a substrate fix: new
+[`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs)
+and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs)
+reference-counted catenable list variants replace the
+value-typed `CatList` in `RcFree`/`ArcFree`'s continuation
+queues, making `Clone` O(1) and unblocking multi-shot
+dispatch on the Erased Free family. See the
+[2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants).
+The effect-suite rollout (steps 5a-5e) is now complete.
+Steps 6 (`define_effect!` macro), 7 (`compile_fail` UI
+tests), and 8 (review-remediation documentation pass)
+remain; the next greenfield work is step 6.
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
@@ -724,140 +732,7 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-05-04): Erased Free family's `to_view` machinery panics on multi-shot dispatch; `Choose` smart constructors on `RcRun` / `ArcRun` are unimplementable end-to-end
-
-**TL;DR:** Phase 3 step 5e (`Choose` smart constructors)
-landed `choose` on all four multi-shot wrappers per the
-[2026-05-03 wrapper-parameterization resolution Q4=ii](resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization).
-The substrate types compile, the Explicit-family integration
-tests pass, but the Erased-family integration tests
-(`RcRun::choose`, `ArcRun::choose`) panic at runtime with
-"`RcFree::to_view map called more than once`" /
-"`ArcFree::to_view map called more than once`". The Erased
-Free family uses a `Cell<Option<...>>` inside its
-[`to_view`](../../../fp-library/src/types/rc_free.rs)
-materialisation to track per-layer continuation state; the
-`Cell::take` is consumed on the first map call, making the
-machinery structurally single-shot even though the outer
-`Rc<dyn Fn>` wrapping permits multiple invocations.
-
-**Status:** active as of 2026-05-04. Implementation present
-in working tree (uncommitted). 2 of 4 integration tests fail
-at runtime; 2 pass.
-
-##### Background: where the invariant lives
-
-[`RcFree::to_view`](../../../fp-library/src/types/rc_free.rs)
-and
-[`ArcFree::to_view`](../../../fp-library/src/types/arc_free.rs)
-flatten the program's CatList of pending continuations into a
-single composed map applied to the next layer. Inside the
-map closure, a `Cell<Option<all_conts>>` is consumed via
-`take()`:
-
-```rust
-let remaining = std::cell::Cell::new(Some(all_conts));
-let typed_fa = F::map(
-    move |inner_free: RcFree<F, RcTypeErasedValue>| {
-        let conts_for_inner = remaining
-            .take()
-            .expect("RcFree::to_view map called more than once");
-        // ...
-    },
-    fa,
-);
-```
-
-The closure passed to `F::map` is the entry-point for
-applying pending continuations to each inner. For
-single-inner row brands (`Identity`, `State`, `Reader`,
-etc.), `F::map` invokes the closure exactly once per layer
-walk, and the `Cell::take` invariant is satisfied. For
-`Choose`, however, the handler invokes `(*k)(true)` and
-`(*k)(false)` on the same lowered continuation, and each
-invocation walks the
-[`RcCoyoneda`](../../../fp-library/src/types/rc_coyoneda.rs)'s
-MapLayer chain, which propagates back into a second call of
-the captured closure on the same `remaining` Cell.
-
-The Explicit Free family's `to_view` does not have this
-invariant; its concrete recursive enum walks the layer
-without the `Cell` indirection, so `RcRunExplicit::choose`
-and `ArcRunExplicit::choose` work end-to-end.
-
-##### Options
-
-**(A) Fix `RcFree`/`ArcFree::to_view` to support multi-shot
-dispatch.** Replace the `Cell<Option<...>>` with shared state
-that can be re-taken on each invocation (e.g.,
-`Rc<RefCell<Option<...>>>` with cloneable take-and-restore
-semantics, or restructure to invoke the continuations once
-per call rather than relying on take-once). Significant
-refactor of the Erased Free family; touches the structural
-foundation that all six Run wrappers' Erased layer relies
-on. Risk: breaking single-shot path performance and the
-Phase 1 stack-safety guarantees.
-
-- _Pros:_ honors the 2026-05-03 4.ii resolution (Choose
-  ships on all four multi-shot wrappers); no documentation
-  deviation.
-- _Cons:_ deep refactor of code that has been stable since
-  Phase 1; changes the Erased family's invariants.
-
-**(B) Demote 4.ii: ship `Choose` on the Explicit family
-only.** Drop `RcRun::choose` and `ArcRun::choose` smart
-constructors and the corresponding integration tests; keep
-`RcRunExplicit::choose` and `ArcRunExplicit::choose`. Update
-the 2026-05-03 resolution's Q4=ii from "all four multi-shot
-wrappers" to "the Explicit multi-shot wrappers only".
-Document the Erased Free family's structural multi-shot
-limitation in deviations.md.
-
-- _Pros:_ honest about the implementation gap; preserves
-  the Erased family's existing invariants; ships immediately
-  with no refactor risk.
-- _Cons:_ user-facing surface narrows from 4 wrappers to 2;
-  users wanting `Choose` on a `RcCoyoneda`-backed Erased
-  substrate must convert to Explicit first
-  (`RcRun::into_explicit()` or similar; to be verified).
-
-**(C) Ship the four smart constructors but document the
-Erased-family runtime limitation.** Keep `RcRun::choose` and
-`ArcRun::choose` in the API but mark the integration tests
-as `#[should_panic(expected = "...")]` or `#[ignore]`.
-Document the runtime limitation prominently in the
-docstrings.
-
-- _Pros:_ preserves the API surface; doesn't change the
-  resolution.
-- _Cons:_ ships a public API that panics at runtime for any
-  non-trivial use; users discover the limitation only at
-  runtime; the smart constructor's existence is misleading.
-  Half-baked.
-
-##### Recommendation
-
-**(B) demote 4.ii** is the pragmatic answer. The Erased
-family's `to_view` machinery has a structural single-shot
-invariant that's been load-bearing since Phase 1 and would
-be risky to change inside the effect-suite rollout. Phase
-6+ can revisit (A) if real users surface the need for
-`Choose` on the Erased multi-shot wrappers; the Explicit
-family covers the same use case at the cost of O(N) bind.
-
-Recommendation locked-in: open. User decision needed.
-
-##### What happens next
-
-User decision needed on (A) / (B) / (C). Once locked in:
-
-1. Move this entry to [resolutions.md](resolutions.md).
-2. Implement the chosen option.
-3. Update the
-   [2026-05-03 wrapper-parameterization resolution](resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization)
-   if needed (option (B) demotes Q4=ii).
-4. Land the resulting commits and continue with Phase 3
-   step 6.
+No active blockers.
 
 ### Open follow-ups (not blocking but worth surfacing)
 
