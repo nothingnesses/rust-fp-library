@@ -700,7 +700,166 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers.
+#### Active blocker (2026-05-04): Phase 3 step 5 (`interpret_with_rec`) signature has a structural-recursion-vs-tail-recursion tension; design decision needed before implementation
+
+**TL;DR:** the
+[prompt.md](prompt.md)
+"Step 5 implementation pattern" subsection specifies the handler
+signature as
+
+```rust
+handler: impl Fn(<EBrand as Kind>::Of<'_, M::Of<'_, Wrapper<RMinusE, CNilBrand, A>>>)
+    -> M::Of<'_, Wrapper<RMinusE, CNilBrand, A>>
+```
+
+i.e. inners arrive at the handler already narrowed (`Run<RMinusE, ...>`)
+and M-wrapped. But producing narrowed inners requires structural
+recursion through the inner programs (the same recursion that
+[`Run::interpret_with_shared`](../../../fp-library/src/types/effects/run.rs)'s
+matched arm performs inside `EBrand::Functor::map`'s closure).
+[`tail_rec_m`](../../../fp-library/src/classes/monad_rec.rs)'s
+step closure cannot synthesize narrowed inners by itself, since
+its `A -> M(ControlFlow<B, A>)` shape advances one level at a
+time, not into multi-inner layer structures.
+
+**Status:** active as of 2026-05-04. No code written for step 5
+yet. Step 6a is fully complete (smart constructors + integration
+tests on all six wrappers); the blocker is gated on step 5 only.
+
+##### Background: why the tension
+
+[`Run::interpret_with_shared`](../../../fp-library/src/types/effects/run.rs)'s
+matched arm uses
+`EBrand::Functor::map(|inner: Run<R, ...>| inner.interpret_with_shared(...), lowered)`
+to recursively narrow each inner before handing the layer to
+the handler. The recursion is structural (one frame per peel)
+and lazy for closure-shaped effects (e.g., `State`'s
+continuations defer the recursion). For Identity-shaped
+effects, the recursion is eager.
+
+[`Run::interpret_rec`](../../../fp-library/src/types/effects/run.rs)
+sidesteps recursion via `tail_rec_m` because the row collapses
+fully (no narrowing): the step closure produces
+`M(ControlFlow<A, Run<R, CNilBrand, A>>)`, where the loop
+state is the un-narrowed program and the final result is the
+plain `A`. There's no per-layer structural-recursion need.
+
+`interpret_with_rec` is the conjunction: pipeline narrowing
+plus `MonadRec`-driven stack safety. The signature in
+prompt.md presumes the handler-input shape from
+`interpret_with` (narrowed inners), but the loop driver is
+`tail_rec_m`, which doesn't natively produce narrowed inners.
+
+##### Options
+
+**(a) Handler keeps `interpret_with`'s narrowed-inner shape;
+implementation does inner structural recursion + outer `tail_rec_m`.**
+Step closure type:
+`Run<R, ..., A> -> M(ControlFlow<Run<RMinusE, ..., A>, Run<R, ..., A>>)`.
+Matched arm: structurally-recurse into each inner to produce
+`EBrand::Of<Run<RMinusE, ..., A>>`; M-fmap pure to wrap;
+hand to handler; M-fmap `Break` over handler's output.
+Unmatched arm: structurally-recurse into each inner to produce
+the narrowed layer; rebuild via `Run::from_free + Free::wrap`;
+M-fmap `Break`. Outer loop terminates after one peel.
+
+- _Pros:_ matches the prompt's handler signature; user
+  ergonomics consistent with non-rec `interpret_with`.
+- _Cons:_ `tail_rec_m` is essentially decorative because the
+  outer loop never iterates; stack-safety benefit limited to
+  the matched-effect's M-bind chain (analogous to how
+  `interpret_rec` benefits long State Get/Put chains). The
+  inner structural recursion still has the same stack-depth
+  characteristics as non-rec `interpret_with`.
+
+**(b) Handler returns `M::Of<Run<R, CNilBrand, A>>` (next-state
+in the un-narrowed row).** Step closure:
+`Run<R, ..., A> -> M(ControlFlow<Run<RMinusE, ..., A>, Run<R, ..., A>>)`.
+Matched arm: hand original-row inners to handler; handler
+returns `M::Of<Run<R, ...>>`; M-fmap `Continue`. Outer loop
+iterates per matched-effect occurrence. Unmatched arm: same
+as (a) (structurally narrow + Break).
+
+- _Pros:_ `tail_rec_m` actually iterates; matched-effect
+  chains run in constant stack.
+- _Cons:_ handler signature differs from non-rec
+  `interpret_with`: handler can't compose in the narrowed
+  row, only the original row. User-facing ergonomics suffer;
+  most non-rec `interpret_with` handlers won't translate.
+
+**(c) Defer step 5 indefinitely.** Document that the
+pipeline + MonadRec combination doesn't compose cleanly
+without a richer abstraction (e.g., Eff / Tagless Final).
+Users who want both chain `interpret_with` (for narrowing,
+no stack safety) followed by `interpret_rec` (for stack
+safety on the all-handlers-at-once form). Phase 3 ships the
+two interpreter primitives separately; the combined form
+becomes a Phase 6+ concern when a richer abstraction is in
+scope.
+
+- _Pros:_ zero implementation cost; honest about the
+  abstraction limit; existing primitives are sufficient for
+  most use cases.
+- _Cons:_ closes off one of the four cells in the
+  cognitive-model matrix (M-free pipeline / M-free
+  all-handlers / M-target pipeline / M-target all-handlers).
+  Users who specifically want stack-safe single-effect
+  pipelining have no path.
+
+**(d) Take a step back: re-derive from PureScript Run.**
+PS Run doesn't have `interpretWithRec`. The pipeline form
+is `interpret` (row-narrowing, no MonadRec); the M-target
+form is `runRec` (all-handlers, MonadRec). PS may not have
+the abstraction issue at all because it lacks Rust's
+structural-recursion stack concerns. If PS doesn't have it,
+maybe Phase 3 doesn't need it either. Equivalent to (c) but
+with the explicit "no PS analog" justification.
+
+##### Recommendation
+
+**Recommendation locked-in: open. User decision needed.**
+
+(a) is the most prompt-faithful but the rec-benefit is
+narrow and limited to the matched effect's M-bind chain.
+(b) gives genuine `tail_rec_m` benefit but breaks handler
+ergonomics. (c) / (d) defer; ship Phase 3 with two
+interpreter primitives instead of three, document the gap.
+My lean is (c)/(d): the abstraction tension reflects a real
+design limit, not just an implementation gap; deferring
+preserves the option to revisit with a richer encoding (e.g.,
+a `Codensity`-style transformation) when one is in scope.
+
+##### What happens next
+
+User decision needed on (a) / (b) / (c) / (d). Once locked
+in:
+
+1. Move this entry to [resolutions.md](resolutions.md)
+   verbatim (with added resolution detail).
+2. Implement the chosen option (or document the deferral
+   under (c)/(d)).
+3. If (a) or (b): six per-wrapper inherent methods in
+   `run.rs` / `run_explicit.rs` / `rc_run.rs` /
+   `rc_run_explicit.rs` / `arc_run.rs` / `arc_run_explicit.rs`,
+   plus integration tests in
+   `fp-library/tests/run_interpret_with_rec.rs`.
+4. If (c) or (d): document the deferral in `decisions.md`
+   and `deviations.md`; rename or remove the step 5 entry
+   from the phasing list; proceed to step 6b-6e.
+
+##### Cross-references
+
+- [Step 3 `interpret_with`](../../../fp-library/src/types/effects/run.rs):
+  the row-narrowing primitive; structural recursion in
+  `interpret_with_shared`'s matched arm is the precedent.
+- [Step 4 `interpret_rec`](../../../fp-library/src/types/effects/run.rs):
+  the MonadRec-target primitive; loop state is un-narrowed
+  program, no structural recursion needed.
+- [`tail_rec_m`](../../../fp-library/src/classes/monad_rec.rs):
+  the stack-safe loop driver; step closure shape is
+  `A -> M(ControlFlow<B, A>)`.
+- [prompt.md "Step 5 implementation pattern"](prompt.md):
+  the original signature spec that surfaces this tension.
 
 ### Open follow-ups (not blocking but worth surfacing)
 
