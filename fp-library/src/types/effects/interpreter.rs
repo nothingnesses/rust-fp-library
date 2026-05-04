@@ -334,7 +334,7 @@ mod inner {
 		DispatchHandlers<'a, Coproduct<ArcCoyoneda<'a, EBrand, NextProgram>, Rest>, NextProgram>
 		for HandlersCons<Handler<EBrand, F>, T>
 	where
-		EBrand: Kind_cdc7cd43dac7585f + Functor + SendFunctor + 'static,
+		EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
 		F: Fn(<EBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>) -> NextProgram,
 		T: DispatchHandlers<'a, Rest, NextProgram>,
 		NextProgram: Send + Sync + 'a,

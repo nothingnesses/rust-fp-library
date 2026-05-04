@@ -1189,7 +1189,7 @@ mod inner {
 			Member<ArcCoyoneda<'static, EBrand, A>, Idx>,
 		EBrand: Kind_cdc7cd43dac7585f + 'static,
 		Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>): Clone + Send + Sync,
-		A: 'static, {
+		A: Send + Sync + 'static, {
 		let coyo: ArcCoyoneda<'static, EBrand, A> = ArcCoyoneda::lift(effect);
 		let layer = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>) as Member<
 			ArcCoyoneda<'static, EBrand, A>,

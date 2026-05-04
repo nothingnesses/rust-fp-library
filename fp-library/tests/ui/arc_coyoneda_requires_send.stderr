@@ -1,65 +1,31 @@
 error[E0277]: `Rc<{integer}>` cannot be sent between threads safely
- --> tests/ui/arc_coyoneda_requires_send.rs:8:46
+ --> tests/ui/arc_coyoneda_requires_send.rs:8:13
   |
 8 |     let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![std::rc::Rc::new(1)]);
-  |                -------------------------------- ^^^^^^^^^^^^^^^^^^^^^^^^^ `Rc<{integer}>` cannot be sent between threads safely
-  |                |
-  |                required by a bound introduced by this call
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Rc<{integer}>` cannot be sent between threads safely
   |
-  = help: within `Vec<Rc<{integer}>>`, the trait `Send` is not implemented for `Rc<{integer}>`
-note: required because it appears within the type `PhantomData<Rc<{integer}>>`
- --> $RUST/core/src/marker.rs
-  |
-  | pub struct PhantomData<T: PointeeSized>;
-  |            ^^^^^^^^^^^
-note: required because it appears within the type `alloc::raw_vec::RawVec<Rc<{integer}>>`
- --> $RUST/alloc/src/raw_vec/mod.rs
-  |
-  | pub(crate) struct RawVec<T, A: Allocator = Global> {
-  |                   ^^^^^^
-note: required because it appears within the type `Vec<Rc<{integer}>>`
- --> $RUST/alloc/src/vec/mod.rs
-  |
-  | pub struct Vec<T, #[unstable(feature = "allocator_api", issue = "32838")] A: Allocator = Global> {
-  |            ^^^
+  = help: the trait `Send` is not implemented for `Rc<{integer}>`
 note: required by a bound in `ArcCoyoneda::<'a, F, A>::lift`
  --> src/types/arc_coyoneda.rs
   |
+  |     impl<'a, F, A: Send + Sync + 'a> ArcCoyoneda<'a, F, A>
+  |                    ^^^^ required by this bound in `ArcCoyoneda::<'a, F, A>::lift`
+...
   |         pub fn lift(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> Self
   |                ---- required by a bound in this associated function
-  |         where
-  |             Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone + Send + Sync, {
-  |                                                                                 ^^^^ required by this bound in `ArcCoyoneda::<'a, F, A>::lift`
 
 error[E0277]: `Rc<{integer}>` cannot be shared between threads safely
- --> tests/ui/arc_coyoneda_requires_send.rs:8:46
+ --> tests/ui/arc_coyoneda_requires_send.rs:8:13
   |
 8 |     let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![std::rc::Rc::new(1)]);
-  |                -------------------------------- ^^^^^^^^^^^^^^^^^^^^^^^^^ `Rc<{integer}>` cannot be shared between threads safely
-  |                |
-  |                required by a bound introduced by this call
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Rc<{integer}>` cannot be shared between threads safely
   |
-  = help: within `Vec<Rc<{integer}>>`, the trait `Sync` is not implemented for `Rc<{integer}>`
-note: required because it appears within the type `PhantomData<Rc<{integer}>>`
- --> $RUST/core/src/marker.rs
-  |
-  | pub struct PhantomData<T: PointeeSized>;
-  |            ^^^^^^^^^^^
-note: required because it appears within the type `alloc::raw_vec::RawVec<Rc<{integer}>>`
- --> $RUST/alloc/src/raw_vec/mod.rs
-  |
-  | pub(crate) struct RawVec<T, A: Allocator = Global> {
-  |                   ^^^^^^
-note: required because it appears within the type `Vec<Rc<{integer}>>`
- --> $RUST/alloc/src/vec/mod.rs
-  |
-  | pub struct Vec<T, #[unstable(feature = "allocator_api", issue = "32838")] A: Allocator = Global> {
-  |            ^^^
+  = help: the trait `Sync` is not implemented for `Rc<{integer}>`
 note: required by a bound in `ArcCoyoneda::<'a, F, A>::lift`
  --> src/types/arc_coyoneda.rs
   |
+  |     impl<'a, F, A: Send + Sync + 'a> ArcCoyoneda<'a, F, A>
+  |                           ^^^^ required by this bound in `ArcCoyoneda::<'a, F, A>::lift`
+...
   |         pub fn lift(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> Self
   |                ---- required by a bound in this associated function
-  |         where
-  |             Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone + Send + Sync, {
-  |                                                                                        ^^^^ required by this bound in `ArcCoyoneda::<'a, F, A>::lift`

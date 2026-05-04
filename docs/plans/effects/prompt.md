@@ -38,90 +38,31 @@ parallel
 [`SendState`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/state.rs)
 type per the
 [2026-05-03 SendFunctor option-(c) resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)).
-**Smart constructors compile but the Arc family doesn't
-dispatch end-to-end;** see active blocker below.
+The
+[2026-05-04 ArcCoyoneda algebra-Send-awareness resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-6a-downstream-blocker-arccoyonedas-algebra-migrated-to-sendfunctor-option-a)
+migrated `ArcCoyoneda` from `F: Functor` to `F: SendFunctor`
+(option (a)), unblocking end-to-end dispatch through
+`*Run::interpret` for `SendStateBrand`-headed rows. All six
+step 6a smart constructors are now usable end-to-end.
 
-**Active blocker (2026-05-04):** attempting to ship
-`run_state.rs` integration tests surfaced a downstream issue
-on the Arc family. `ArcCoyoneda`'s dispatch impl bounds
-`EBrand: Functor + SendFunctor`
-([`interpreter.rs:337`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/interpreter.rs)),
-but `SendStateBrand` cannot honestly implement `Functor`
-because [`Functor::map`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/functor.rs)'s
-signature only requires `f: impl Fn` (no `Send + Sync` bound)
-while `SendState`'s variants store
-`<P as SendRefCountedPointer>::Of<'a, dyn Fn(...) -> A + Send + Sync>`
-(closures must be `Send + Sync` at storage time).
-`ArcRun::interpret` on a `SendStateBrand`-headed row hits
-this and fails. Four design options surveyed in
-[plan.md's Active blockers](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#active-blockers):
-(a) migrate `ArcCoyoneda`'s algebra to `SendFunctor`, the
-principled extension of Phase 2 step 9's `ArcFree` migration;
-(b) parallel `send_lower_ref` method, structurally harder
-than it sounds; (c) defer 6a.4 + 6a.6 indefinitely; (c'')
-parallel `SendArcCoyoneda` variant. **No recommendation
-locked in; user decision pending.** Working draft of
-`run_state.rs` covering all six wrappers preserved in
-`git stash@{0}`.
+**Immediate pending tasks:**
 
-**Immediate pending task (after blocker resolves):** complete
-`run_state.rs` integration tests (pop `git stash@{0}`, fix
-`State<'_, ...>` lifetime annotations, adjust Arc family
-tests per chosen option). Then step 5 (`interpret_with_rec`
-pipeline-plus-MonadRec family) is the next greenfield step,
-unaffected by the blocker.
-
-### Resolution path (after user decides on a / b / c / c'')
-
-- **(a) ArcCoyoneda algebra migration:**
-  1. Replace `F: Functor` with `F: SendFunctor` in
-     [`arc_coyoneda.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/arc_coyoneda.rs):
-     `ArcCoyonedaLowerRef::lower_ref` trait method, three
-     layer impls (Base, MapLayer, NewLayer), public
-     `ArcCoyoneda::lower_ref`, and downstream methods that
-     call `self.lower_ref()` (collapse, hoist, fold, bind,
-     apply).
-  2. Update bodies to use
-     [`F::send_map`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/send_functor.rs)
-     instead of `F::map`.
-  3. Add `SendFunctor` impl for
-     [`VecBrand`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/vec.rs)
-     (currently only implements `Functor`; the
-     `SendFunctor::send_map` body is byte-identical to
-     `Functor::map`'s, just with tighter bounds). Iterate
-     `just check` for any other brand surfaced by compile
-     errors and add SendFunctor impls similarly.
-  4. Drop `+ Functor` from the
-     [`ArcCoyoneda` dispatch impl](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/interpreter.rs)
-     in `interpreter.rs:337`.
-  5. Run `just verify`. Existing `arc_coyoneda` doctests
-     using `VecBrand`, `OptionBrand`, etc. should pass
-     (those brands have or will have SendFunctor).
-  6. Pop `git stash@{0}`, fix `State<'_, ...>` lifetimes
-     (the FnOnce-not-general-enough error in the original
-     draft was caused by pinning the State projection
-     lifetime to `'static` instead of letting it be HRTB-
-     polymorphic).
-  7. Run `just verify` again. Commit migration + run_state
-     tests.
-  8. Move active-blocker entry to resolutions.md as a new
-     dated resolution.
-
-- **(b) parallel `send_lower_ref`:** see plan.md's blocker
-  entry for the structural problem (`B: Send + Sync` on
-  layer impls forces `ArcCoyoneda::map`'s `B` parameter
-  too); not recommended.
-
-- **(c) defer 6a.4 + 6a.6:** ship the four non-Arc
-  `run_state.rs` tests; document the Arc family as an open
-  gap in deviations.md; revert the `SendStateBrand` /
-  `SendState` types if cleaner; or leave them as
-  scaffolding.
-
-- **(c'') parallel `SendArcCoyoneda`:** new module
-  `send_arc_coyoneda.rs`; brand registration; rewrite Arc
-  family smart constructors to target the new brand; large
-  refactor.
+1. Add a `SendFoldable` trait + cascade impls (`VecBrand`,
+   `OptionBrand`, `ResultBrand`, `ArcCoyonedaBrand`) to
+   restore the brand-level fold surface on
+   `ArcCoyonedaBrand` (dropped during the (a) migration
+   because `Foldable::fold_map`'s trait bounds cannot be
+   tightened in impls). Mirrors `SendFunctor`'s pattern.
+2. Pop `git stash@{0}` (the `run_state.rs` draft, ~430
+   lines, 18 tests across all six wrappers), fix
+   `State<'static, ...>` lifetime annotations to
+   `State<'_, ...>` (the FnOnce-not-general-enough error in
+   the original draft was caused by pinning the State
+   projection lifetime instead of letting it be HRTB-
+   polymorphic), run `just verify`, commit as
+   `test(effects):`.
+3. Step 5 (`interpret_with_rec` pipeline-plus-MonadRec
+   family) is the next greenfield step.
 
 ### Step 5 implementation pattern (next greenfield work)
 
@@ -258,8 +199,9 @@ and per-step deviations in
   [`State<'a, P, S, A>`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/state.rs)
   enum with Get / Put variants holding
   `<P as RefCountedPointer>::Of<'_, dyn Fn(...) -> A>`
-  continuations. `Functor` impl shipped; `SendFunctor`
-  deferred (active blocker , see Resume point above).
+  continuations. `Functor` impl shipped; the Arc family uses
+  the parallel `SendStateBrand` / `SendState` instead (per
+  the 2026-05-03 option-(c) resolution).
 - **Step 6a.2** (`f865152`): `Run::get` / `Run::put` smart
   constructors. Threads `RcBrand` as the pointer kind;
   continuations via
@@ -325,9 +267,17 @@ phase-step number):
 
 **Remaining Phase 3 steps:**
 
+- **`SendFoldable` follow-up (recommended next):** restores
+  the brand-level fold surface on `ArcCoyonedaBrand` dropped
+  during the 2026-05-04 (a) migration. New trait at
+  `fp-library/src/classes/send_foldable.rs` mirroring
+  `SendFunctor`'s pattern; cascade impls on `VecBrand`,
+  `OptionBrand`, `ResultBrand`, `ArcCoyonedaBrand`.
 - **Step 6a integration tests in `run_state.rs` (open
-  follow-up; recommended before step 5):** see "Open
-  follow-up" subsection in the resume point above.
+  follow-up; recommended before step 5):** pop
+  `git stash@{0}`, fix `State<'_, ...>` lifetime
+  annotations, run `just verify`. All six wrappers covered
+  end-to-end now that the Arc family is unblocked.
 - Step 5 (`interpret_with_rec`, immediate next greenfield
   step): per-wrapper inherent method combining the pipeline
   shape (step 3) with `tail_rec_m` (step 4). Six new method
@@ -814,18 +764,25 @@ shipped; not yet requested.
 parallel trait carries `T: ?Sized + Send + Sync + 'a` and is
 the projection to use when the inner type must cross thread
 boundaries. State-family effect types (Phase 3 step 6a) use
-`RefCountedPointer::Of` for the unified single-thread / multi-
-shot type surface; the Arc family then needs per-method `Send
-
-- Sync`bounds at smart-constructor sites (the
-[2026-05-03 active blocker](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#active-blockers))
-to satisfy`ArcCoyoneda`'s dispatch impl bounds.
+`RefCountedPointer::Of` for the unified single-thread surface
+([`StateBrand` / `State`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/state.rs))
+and a parallel `SendRefCountedPointer::Of`-based
+`SendStateBrand` / `SendState` for the Arc family (per the
+[2026-05-03 option-(c) resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)).
+Trying to bake `Send + Sync` into `RefCountedPointer::Of`'s
+projection at use-site bounds was discovered structurally
+unimplementable: `Arc<dyn Fn(...)>: Send + Sync` is provably
+false because the trait object's bounds don't include
+`Send + Sync`, and use-site bounds can't refine a structural
+type-level fact.
 
 This is a recurring theme: brand-level `SendFunctor` impls on
 types whose projection is `<P as RefCountedPointer>::Of<...>`
-hit the per-`A` HRTB-over-types wall on stable Rust. The
-established workaround is to push `Send + Sync` bounds to per-
-method use sites (matching `ArcRunExplicit`'s precedent).
+must use the `SendRefCountedPointer` projection instead so
+the trait object's bounds bake in `Send + Sync` at the type
+level. Plan for a parallel `Send*Brand` from the start
+whenever an effect type's representation includes
+`dyn Fn(...) -> A` continuations.
 
 ### `<P as ToDynCloneFn>::new(closure)` is the construction path for `<P as RefCountedPointer>::Of<dyn Fn>` (load-bearing for FnBrand-parameterised effect types)
 
@@ -899,39 +856,35 @@ docs for bare-name doc-links before / after the wrapping.
 
 ## Where to start
 
-**Active blocker (2026-05-04):** `ArcCoyoneda`'s algebra-Send-
-awareness gap. `ArcCoyoneda` dispatch requires
-`EBrand: Functor + SendFunctor` but `SendStateBrand` cannot
-honestly implement `Functor`. Four design options surveyed
-in [plan.md's Active blockers](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#active-blockers);
-no recommendation locked in. **The Arc family integration
-tests in `run_state.rs` cannot ship until this resolves.**
-The non-Arc family tests (4 of 6 wrappers) and step 5
-(`interpret_with_rec`) are unaffected by the blocker.
-
 1. Read [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s
-   `Current progress` section and the
-   [2026-05-04 active blocker](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#active-blockers)
-   subsection. Read the "Resolution path" subsection of this
-   prompt's resume point above for the implementation paths
-   under each of the four options (a / b / c / c'').
-2. **Decide the design.** User decision needed on (a) /
-   (b) / (c) / (c''). My analysis recommends (a): the
-   principled extension of Phase 2 step 9's `ArcFree`
-   migration; but the user has not yet locked in a choice.
-   Once the design is settled, move the active-blocker entry
-   to resolutions.md as a new dated resolution with the
-   chosen option's rationale.
-3. **(Pre-step before step 5):** ship `run_state.rs` per the
-   chosen option's "Resolution path" guidance. The working
-   draft in `git stash@{0}` covers all six wrappers (~430
-   lines, 18 tests). Pop the stash, fix `State<'_, ...>`
-   lifetime annotations (the FnOnce-not-general-enough
-   error in the original draft was caused by pinning to
-   `'static`), and adjust the Arc family tests per the
-   chosen option (delete them under c; rewrite per c''; or
-   keep as-is under a/b). Land as a `test(effects):`
-   commit.
+   `Current progress` section. The active-blockers
+   subsection is empty; the most recent resolution is the
+   [2026-05-04 ArcCoyoneda algebra migration](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-6a-downstream-blocker-arccoyonedas-algebra-migrated-to-sendfunctor-option-a).
+2. **`SendFoldable` follow-up (recommended next):** add a
+   new trait at
+   `fp-library/src/classes/send_foldable.rs` parallel to
+   [`SendFunctor`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/send_functor.rs);
+   trait method
+   `send_fold_map<'a, FnBrand, A: 'a + Clone + Send + Sync, M: Send + Sync>(
+    f: impl Fn(A) -> M + Send + Sync + 'a, fa: ...) -> M`;
+   free function for explicit dispatch. Implement on
+   `VecBrand` (byte-identical body to `Foldable::fold_map`),
+   `OptionBrand`, `ResultBrand`, and `ArcCoyonedaBrand`
+   (restoring the brand-level fold surface dropped in the
+   2026-05-04 migration). Add to module exports. Update
+   plan.md `Earlier completed steps` and add a deviations.md
+   entry. Commit as
+   `feat(classes): introduce SendFoldable trait, restore
+brand-level fold on ArcCoyonedaBrand`.
+3. **`run_state.rs` integration tests (open follow-up;
+   recommended before step 5):** pop `git stash@{0}` (the
+   ~430-line draft covering all six wrappers, 18 tests).
+   Fix `State<'static, ...>` to `State<'_, ...>` (the
+   FnOnce-not-general-enough error in the original draft was
+   caused by pinning the projection lifetime instead of
+   letting it be HRTB-polymorphic). All six wrappers'
+   tests are reachable end-to-end now. Run `just verify`,
+   commit as `test(effects):`.
 4. **Step 5 (`interpret_with_rec`):** see "Step 5
    implementation pattern" subsection in the resume point
    above for the full shape. Six per-wrapper inherent methods
@@ -942,9 +895,8 @@ The non-Arc family tests (4 of 6 wrappers) and step 5
    inline per-wrapper dispatch pattern (no
    `DispatchOneHandler` trait). Integration tests in
    `fp-library/tests/run_interpret_with_rec.rs`. Use State
-   (end-to-end on the four non-Arc wrappers; on the Arc
-   family iff the active blocker resolves) as one of the
-   test scenarios.
+   (now end-to-end on all six wrappers) as one of the test
+   scenarios.
 5. **Steps 6b-6e (`Reader`, `Except`, `Writer`, `Choose`)**
    follow 6a's per-effect / per-wrapper rollout pattern.
    Note: any effect type whose representation includes

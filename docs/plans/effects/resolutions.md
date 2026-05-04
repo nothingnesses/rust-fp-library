@@ -15,6 +15,164 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-04): Phase 3 step 6a downstream blocker; `ArcCoyoneda`'s algebra migrated to `SendFunctor` (option (a))
+
+The
+[2026-05-03 SendFunctor option-(c) resolution](#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)
+ratified a parallel
+[`SendStateBrand<P, S>`](../../../fp-library/src/brands.rs)
+/
+[`SendState<'a, P, S, A>`](../../../fp-library/src/types/effects/state.rs)
+type for the Arc family State effect. The 6a.4 + 6a.6 smart
+constructors compiled under that resolution, but attempting to
+ship `run_state.rs` integration tests surfaced a downstream
+gap: the
+[`ArcCoyoneda`](../../../fp-library/src/types/arc_coyoneda.rs)
+dispatch path required `EBrand: Functor + SendFunctor`
+([`interpreter.rs:337`](../../../fp-library/src/types/effects/interpreter.rs)),
+but `SendStateBrand` cannot honestly implement `Functor`
+because [`Functor::map`](../../../fp-library/src/classes/functor.rs)'s
+signature only requires `f: impl Fn` (no `Send + Sync` bound)
+while `SendState`'s variants store
+`<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(...) -> A + Send + Sync>`
+(closures must be `Send + Sync` at storage time).
+
+### Three flavours of "Send-aware"
+
+[`ArcCoyoneda`](../../../fp-library/src/types/arc_coyoneda.rs)
+satisfied two of three Send-awareness properties but not the
+third:
+
+1. **Storage Send-aware** (yes): the inner
+   `ArcCoyonedaLowerRef` trait has `: Send + Sync + 'a` as a
+   supertrait; layer fields are `Send + Sync`; the whole value
+   can cross thread boundaries.
+2. **Operations Send-aware** (yes): `lower_ref` is callable
+   from a spawned thread.
+3. **Algebra Send-aware** (no, pre-migration): `lower_ref`'s
+   body invoked `F::map` (no `Send + Sync` bound on the
+   closure parameter).
+
+For brands implementing both `Functor` and `SendFunctor`,
+`lower_ref` worked because `Functor::map` happened to produce
+a `Send + Sync` result when inputs were. The system implicitly
+relied on every `Functor` impl in the project producing
+`Send + Sync` results; a coincidence rather than a guarantee.
+For brands like `SendStateBrand` whose structure pins
+`Send + Sync` on the closure, the gap surfaced as a hard
+compile error: the dispatch impl's `Functor` bound was
+unsatisfiable.
+
+### Phase 2 step 9d precedent
+
+[Phase 2 step 9d](#resolved-2026-04-28-implementation-expansion-step-9-sendfunctor-cascade-prerequisites-for-arc-family)
+explicitly migrated
+[`ArcFree`](../../../fp-library/src/types/arc_free.rs) and
+[`ArcFreeExplicit`](../../../fp-library/src/types/arc_free_explicit.rs)
+from `F: Functor` to `F: SendFunctor` for the same reason: a
+Send-aware substrate's algebra should propagate Send-aware
+bounds. `ArcCoyoneda` was not part of that migration because
+no Send-only brand existed inside ArcCoyoneda at the time.
+`SendStateBrand` was the first.
+
+### Options surveyed
+
+**(a) Migrate `ArcCoyoneda`'s algebra to `SendFunctor`.**
+Replace `F: Functor` with `F: SendFunctor` on the inner
+`ArcCoyonedaLowerRef` trait method, the three layer impls
+(Base, MapLayer, NewLayer), and the public
+`ArcCoyoneda::lower_ref` plus all derived methods. Bodies use
+[`F::send_map`](../../../fp-library/src/classes/send_functor.rs)
+instead of `F::map`. Drop `+ Functor` from the dispatch impl.
+
+**(b) Add a parallel `send_lower_ref` method.** Keep
+`lower_ref` bound on `F: Functor`; add a new `send_lower_ref`
+method bound on `F: SendFunctor`. Layer impls implement both.
+Discovered structurally harder than it sounded:
+`MapLayer::send_lower_ref`'s recursion needs `B: Send + Sync`
+on the intermediate type, but Rust forbids tightening
+trait-method where-clauses on impls beyond what the trait
+declares, so the bound has to live at the struct level
+(`ArcCoyonedaMapLayer<F, B: Send + Sync, A>`), which
+propagates back to `ArcCoyoneda::map<B>` and breaks callers
+using non-Send + Sync intermediates.
+
+**(c) Defer 6a.4 + 6a.6 indefinitely.** Document the gap;
+leave `SendStateBrand` and the Arc-family smart constructors
+in place but un-dispatch-able. Rejected because it abandons
+the locked-in "six variants per effect" design from the
+[2026-05-03 wrapper-parameterization resolution](#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization).
+
+**(c'') Define a parallel `SendArcCoyoneda`.** Additive (no
+breaking change), but doubles the Coyoneda type surface and
+complicates the per-wrapper Coyoneda variant pairing rule
+from Phase 2 step 9h.
+
+### Resolution: option (a)
+
+Locked in. The migration is bounded; the Phase 2 step 9d
+precedent is exactly this; the existing implicit "every
+Functor produces Send + Sync" reliance is fragile and would
+break the next time a Functor-only-but-not-Send-friendly
+brand surfaces.
+
+### Bound placement: method-level + impl-block-level
+
+Matching ArcFree's precedent:
+
+- `A: Send + Sync + 'a` lives at the main impl block.
+- `F: SendFunctor` lives at method-level where-clauses.
+- The struct definition stays minimal.
+
+### Brand-level `Foldable` on `ArcCoyonedaBrand` dropped (deferred to a follow-up)
+
+The brand-level
+[`Foldable`](../../../fp-library/src/classes/foldable.rs)
+impl on `ArcCoyonedaBrand` was dropped because
+`Foldable::fold_map`'s trait method declares `A: Clone` only,
+but the post-migration body needs `A: Send + Sync`. Rust
+forbids tightening trait method bounds in impls, so the impl
+cannot be salvaged without a parallel `SendFoldable` trait.
+That trait is a separate follow-up; the inherent
+`ArcCoyoneda::fold_map` method (now `F: SendFunctor`-bound)
+covers the user-facing surface in the meantime.
+
+### Migration scope
+
+- [`fp-library/src/types/vec.rs`](../../../fp-library/src/types/vec.rs):
+  added `SendFunctor` impl for `VecBrand` (byte-identical
+  body to `Functor::map`'s, with tighter `Send + Sync` bounds).
+- [`fp-library/src/types/arc_coyoneda.rs`](../../../fp-library/src/types/arc_coyoneda.rs):
+  inner trait, three layer impls (Base, MapLayer, NewLayer),
+  and public methods (`lower_ref`, `collapse`, `hoist`,
+  `fold_map`, `bind`, `apply`, `lift2`) migrated;
+  `From<ArcCoyoneda> for Coyoneda` bounds tightened to
+  `F: SendFunctor` and `A: Send + Sync`; brand-level
+  `Foldable` impl on `ArcCoyonedaBrand` dropped.
+- [`fp-library/src/types/effects/interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs):
+  dropped `+ Functor` from the ArcCoyoneda dispatch impl's
+  `EBrand` bound (now just
+  `EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static`).
+- [`fp-library/src/types/effects/arc_run.rs`](../../../fp-library/src/types/effects/arc_run.rs):
+  added `A: Send + Sync` to the `lift_node` helper's
+  where-clause.
+- [`fp-library/tests/ui/arc_coyoneda_requires_send.stderr`](../../../fp-library/tests/ui/arc_coyoneda_requires_send.stderr):
+  re-blessed because the `Send + Sync` rejection now points
+  at the impl-block-level bound rather than the inner
+  `Apply!` clone-bound.
+
+### Cross-references
+
+- [Original (b) ratification](#resolved-2026-05-03-phase-3-step-6a-sendfunctor-impl-on-statebrand-for-the-arc-family-option-b-per-method-bounds):
+  the first SendFunctor blocker resolution.
+- [Option (c) re-ratification](#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified):
+  the parallel `SendStateBrand` design that surfaced this
+  downstream issue.
+- [Phase 2 step 9d resolution](#resolved-2026-04-28-implementation-expansion-step-9-sendfunctor-cascade-prerequisites-for-arc-family):
+  the `ArcFree` migration precedent.
+- [`fp-library/docs/limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md):
+  the project-wide pattern table for Send-awareness gaps.
+
 ## Resolved (2026-05-03): Phase 3 step 6a SendFunctor reopened after option (b) unimplementable; option (c) parallel `SendStateBrand` ratified
 
 The

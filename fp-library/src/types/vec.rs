@@ -134,6 +134,42 @@ mod inner {
 		}
 	}
 
+	impl SendFunctor for VecBrand {
+		/// Maps a function over the vector with `Send + Sync` bounds on
+		/// the closure and the input/output types so the operation
+		/// composes inside thread-safe contexts (e.g.,
+		/// [`ArcCoyoneda`](crate::types::ArcCoyoneda)). Body is
+		/// byte-identical to [`Functor::map`]'s; only the bounds tighten.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the elements in the vector.",
+			"The type of the elements in the resulting vector."
+		)]
+		///
+		#[document_parameters("The function to apply to each element.", "The vector to map over.")]
+		///
+		#[document_returns("A new vector containing the results of applying the function.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// };
+		///
+		/// assert_eq!(<VecBrand as SendFunctor>::send_map(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);
+		/// ```
+		fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+			func: impl Fn(A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.into_iter().map(func).collect()
+		}
+	}
+
 	impl Lift for VecBrand {
 		/// Lifts a binary function into the vector context (Cartesian product).
 		///

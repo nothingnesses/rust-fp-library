@@ -2714,11 +2714,80 @@ Open follow-ups: integration tests in
 `fp-library/tests/run_state.rs` covering bind-chain
 composition, run with handlers dispatching State, and
 `interpret`-with-closure-capture state threading through
-Get/Put for each of the six wrappers. Step 6 (`Reader`,
-`Except`, `Writer`, `Choose` smart constructors) follows the
-6a per-wrapper rollout pattern; `Reader` will likely need a
-parallel `SendReaderBrand` for the same reason `State` needed
-`SendStateBrand`.
+Get/Put for each of the six wrappers. The Arc family subset
+of those tests was unblocked by the
+[step 5a.4 + 5a.6 follow-up below](#step-5a4--5a6-follow-up-2026-05-04-arccoyoneda-algebra-migrated-to-sendfunctor).
+Step 6 (`Reader`, `Except`, `Writer`, `Choose` smart
+constructors) follows the 6a per-wrapper rollout pattern;
+`Reader` will likely need a parallel `SendReaderBrand` for
+the same reason `State` needed `SendStateBrand`.
+
+### Step 5a.4 + 5a.6 follow-up (2026-05-04): `ArcCoyoneda` algebra migrated to `SendFunctor`
+
+Closes the downstream gap surfaced by the 5a.4 + 5a.6
+`SendStateBrand` rollout. Full investigation in
+[resolutions.md](resolutions.md#resolved-2026-05-04-phase-3-step-6a-downstream-blocker-arccoyonedas-algebra-migrated-to-sendfunctor-option-a).
+
+What landed:
+
+- [`fp-library/src/types/vec.rs`](../../../fp-library/src/types/vec.rs):
+  `SendFunctor` impl for `VecBrand` (byte-identical body to
+  `Functor::map`'s, with tighter `Send + Sync` bounds).
+- [`fp-library/src/types/arc_coyoneda.rs`](../../../fp-library/src/types/arc_coyoneda.rs):
+  inner `ArcCoyonedaLowerRef` trait method bound migrated
+  from `F: Functor` to `F: SendFunctor`. Three layer impls
+  (Base, MapLayer, NewLayer) updated; bodies use
+  `F::send_map`. `MapLayer` and `NewLayer` impl-blocks gain
+  `B: Send + Sync + 'a`. Public methods (`lower_ref`,
+  `collapse`, `hoist`, `fold_map`, `bind`, `apply`, `lift2`)
+  migrated. Main impl block gains `A: Send + Sync + 'a`.
+  `ArcCoyoneda::map<B>` and `ArcCoyoneda::new<B>` gain
+  `B: Send + Sync + 'a`. `From<ArcCoyoneda> for Coyoneda`
+  bounds tightened to `F: SendFunctor` and `A: Send + Sync`.
+- [`fp-library/src/types/effects/interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs):
+  dropped `+ Functor` from the ArcCoyoneda dispatch impl's
+  `EBrand` bound (now just
+  `EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static`).
+- [`fp-library/src/types/effects/arc_run.rs`](../../../fp-library/src/types/effects/arc_run.rs):
+  `A: Send + Sync` added to the `lift_node` helper's
+  where-clause.
+- [`fp-library/tests/ui/arc_coyoneda_requires_send.stderr`](../../../fp-library/tests/ui/arc_coyoneda_requires_send.stderr):
+  re-blessed; the `Rc<i32>` rejection now points at the
+  impl-block-level `A: Send + Sync + 'a` bound rather than
+  the inner `Apply!` clone-bound on `lift`.
+
+What diverged:
+
+- **Bound placement matches ArcFree's precedent.**
+  `A: Send + Sync + 'a` lives at the main impl block;
+  `F: SendFunctor` lives at method-level where-clauses; the
+  struct definition stays minimal. Considered struct-level
+  bounds but rejected because they would propagate to every
+  type-position mention of `ArcCoyoneda` and tighten the API
+  surface beyond what's needed.
+- **Brand-level `Foldable` on `ArcCoyonedaBrand` dropped.**
+  `Foldable::fold_map`'s trait method declares `A: Clone`
+  only, but the post-migration body needs `A: Send + Sync`,
+  and Rust forbids tightening trait method bounds in impls.
+  Two test functions (`fold_map_on_mapped` and
+  `foldable_consistency_vec`) updated to use the inherent
+  `ArcCoyoneda::fold_map` method instead. Restoring the
+  brand-level surface requires a `SendFoldable` trait
+  parallel to `SendFunctor`; deferred to a separate
+  follow-up commit before `run_state.rs` ships.
+
+Verification: `just verify` clean. Existing 2500+ unit tests
+plus all doctests pass; the `arc_coyoneda_requires_send` UI
+compile-fail test still rejects `Rc<i32>` (with the new
+error pointing at the impl-block bound).
+
+Open follow-ups:
+
+- `SendFoldable` trait + cascade impls (`VecBrand`,
+  `OptionBrand`, `ResultBrand`, `ArcCoyonedaBrand`) to
+  restore the brand-level fold surface.
+- Pop `git stash@{0}` (the `run_state.rs` draft) and fix the
+  `State<'static, ...>` lifetime annotations.
 
 ### Cross-cutting docs/macros commits during step 5a
 
