@@ -17,13 +17,21 @@ fmt:
 clippy *args:
     {{direnv_prefix}} cargo clippy {{ if args == "" { "--workspace --all-targets --all-features" } else { args } }} -- -D warnings
 
-# Check documentation (warnings are errors) and reject emoji/unicode.
+# Check documentation (warnings are errors) and reject any non-ASCII characters.
 doc *args:
     #!/usr/bin/env bash
     set -euo pipefail
     {{direnv_prefix}} true
-    if grep -rn '[✅❌⚠⚡←→↔≥≤≠✓✗✘✔✖──━┃┏┓┗┛┣┫┳┻╋═║►▶◀◁▲△▼▽●○■□★☆♠♣♥♦]' fp-library/src/ fp-macros/src/ --include='*.rs' docs/ fp-library/docs/ --include='*.md' 2>/dev/null; then
-        echo "ERROR: Found emoji or unicode characters in source or documentation files. Use ASCII equivalents." >&2
+    # ASCII-only allow-list: reject any byte outside the printable ASCII
+    # range. Catches em-dashes, en-dashes, smart quotes, non-breaking
+    # spaces, emoji, math symbols, accented letters, CJK characters, and
+    # anything else non-ASCII without per-character maintenance.
+    matches=$(rg -nP '[^[:ascii:]]' fp-library/src/ fp-macros/src/ -g '*.rs' docs/ fp-library/docs/ -g '*.md' || true)
+    if [[ -n "$matches" ]]; then
+        echo "ERROR: Non-ASCII characters found in source or documentation files. Use ASCII equivalents (e.g., '->' not the unicode arrow, ',' or ';' not em-dash, '\"' not smart quotes)." >&2
+        echo "" >&2
+        echo "Offending lines:" >&2
+        echo "$matches" >&2
         exit 1
     fi
     lychee --offline --no-progress "README.md" "fp-library/docs/**/*.md" "docs/**/*.md"

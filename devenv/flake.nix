@@ -167,6 +167,8 @@
                 pkgs.gnuplot
                 # For link checking in markdown
                 pkgs.lychee
+                # For ASCII-only lint check in `just doc`
+                pkgs.ripgrep
               ];
 
               env = {
