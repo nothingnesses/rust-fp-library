@@ -31,11 +31,13 @@ The
 migrated `ArcCoyoneda` from `F: Functor` to `F: SendFunctor`
 (option (a)), unblocking end-to-end dispatch through
 `*Run::interpret` for `SendStateBrand`-headed rows. A
-follow-up will introduce `SendFoldable` to restore the
-brand-level fold surface on `ArcCoyonedaBrand` (dropped during
-the migration because `Foldable::fold_map`'s trait bounds
-cannot be tightened in impls). All six step 6a smart
-constructors are now usable end-to-end.
+[follow-up commit](deviations.md#step-5a4--5a6-second-follow-up-2026-05-04-sendfoldable-trait--brand-level-fold-restored-on-arccoyonedabrand)
+introduced
+[`SendFoldable`](../../../fp-library/src/classes/send_foldable.rs)
+restoring the brand-level fold surface on `ArcCoyonedaBrand`
+(dropped during the migration because `Foldable::fold_map`'s
+trait bounds cannot be tightened in impls). All six step 6a
+smart constructors are now usable end-to-end.
 
 The
 [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)
@@ -715,8 +717,9 @@ non-Arc family tests (12 of 18) need a small fix changing
 HRTB-polymorphic over State's projection lifetime. The Arc
 family tests (6 of 18) are unblocked by the
 [2026-05-04 ArcCoyoneda algebra migration resolution](resolutions.md#resolved-2026-05-04-phase-3-step-6a-downstream-blocker-arccoyonedas-algebra-migrated-to-sendfunctor-option-a)
-and a follow-up`SendFoldable`trait that restores brand-level
-fold on`ArcCoyonedaBrand`. Tracked in
+and the
+[`SendFoldable`follow-up commit](deviations.md#step-5a4--5a6-second-follow-up-2026-05-04-sendfoldable-trait--brand-level-fold-restored-on-arccoyonedabrand)
+that restored brand-level fold on`ArcCoyonedaBrand`. Tracked in
 [deviations.md Phase 3 step 5a.4 + 5a.6](deviations.md)'s
 Open follow-ups subsection.
 
@@ -803,8 +806,10 @@ summaries:
   `SendFunctor` impl for `VecBrand`; dropped `+ Functor` from
   the dispatch impl's `EBrand` bound. Brand-level `Foldable`
   on `ArcCoyonedaBrand` was dropped (Rust forbids tightening
-  trait method bounds in impls); `SendFoldable` follow-up will
-  restore it.
+  trait method bounds in impls); a
+  [`SendFoldable` follow-up commit](deviations.md#step-5a4--5a6-second-follow-up-2026-05-04-sendfoldable-trait--brand-level-fold-restored-on-arccoyonedabrand)
+  introduced the Send-aware parallel trait and restored the
+  brand-level fold surface.
 - [Resolved (2026-05-03): Phase 3 step 6a SendFunctor reopened after option (b) unimplementable; option (c) parallel `SendStateBrand` ratified](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)
   : the original (b) ratification (`4bd1636`) was discovered
   unimplementable , `Arc<dyn Fn(...)>` is structurally

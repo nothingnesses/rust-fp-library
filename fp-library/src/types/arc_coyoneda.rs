@@ -29,12 +29,15 @@
 //!
 //! ## HKT limitations
 //!
-//! `ArcCoyonedaBrand` does **not** implement [`Functor`](crate::classes::Functor).
-//! The HKT trait signatures lack `Send + Sync` bounds on their closure parameters,
-//! so there is no way to guarantee that closures passed to `map` are safe to store
-//! inside an `Arc`-wrapped layer. The thread-safe by-value parallel
-//! [`SendFunctor`](crate::classes::SendFunctor) (closure has `Send + Sync`)
-//! resolves this and is implemented for `ArcCoyonedaBrand`.
+//! `ArcCoyonedaBrand` does **not** implement [`Functor`](crate::classes::Functor)
+//! or [`Foldable`](crate::classes::Foldable). The HKT trait signatures lack
+//! `Send + Sync` bounds on their closure parameters and on `A`, so there is
+//! no way to guarantee that closures and elements are safe to store inside
+//! an `Arc`-wrapped layer or to call `lower_ref` (which requires
+//! `A: Send + Sync`). The thread-safe parallels
+//! [`SendFunctor`](crate::classes::SendFunctor) and
+//! [`SendFoldable`](crate::classes::SendFoldable) bake those bounds in at
+//! the trait method level and are implemented for `ArcCoyonedaBrand`.
 //!
 //! `ArcCoyonedaBrand` does not implement [`Pointed`](crate::classes::Pointed),
 //! [`SendPointed`](crate::classes::SendPointed),
@@ -738,15 +741,18 @@ mod inner {
 
 	// -- Brand-level type class instances --
 	//
-	// ArcCoyonedaBrand implements Foldable, SendFunctor, and WrapDrop.
-	// It does NOT implement Functor, Pointed, SendPointed, Lift,
+	// ArcCoyonedaBrand implements SendFunctor, SendFoldable, and WrapDrop.
+	// It does NOT implement Functor, Foldable, Pointed, SendPointed, Lift,
 	// Semiapplicative, Semimonad, or SendSemimonad, for two independent
 	// reasons:
 	//
-	// 1. Functor: the HKT Functor::map signature lacks Send + Sync bounds on
-	//    its closure parameter, so closures passed to map cannot be stored
-	//    inside Arc-wrapped layers. This is what SendFunctor (with Send + Sync
-	//    on the closure) resolves; ArcCoyonedaBrand implements SendFunctor.
+	// 1. Functor / Foldable: the HKT Functor::map and Foldable::fold_map
+	//    signatures lack Send + Sync bounds on their closure parameter and
+	//    on `A`, so closures passed in cannot be stored inside Arc-wrapped
+	//    layers and `lower_ref` (which requires `A: Send + Sync`) cannot be
+	//    called from the impl bodies. The Send-aware parallels SendFunctor
+	//    and SendFoldable bake those bounds in at the trait method level and
+	//    are implemented here.
 	//
 	// 2. Pointed, SendPointed, Lift, Semiapplicative, Semimonad,
 	//    SendSemimonad: these traits require constructing an ArcCoyoneda via
@@ -862,23 +868,60 @@ mod inner {
 		}
 	}
 
-	// -- Foldable implementation --
+	// -- SendFoldable implementation --
 	//
-	// Brand-level Foldable on ArcCoyonedaBrand was dropped during the
-	// 2026-05-04 ArcCoyoneda algebra-Send-awareness migration: the
-	// post-migration ArcCoyoneda::lower_ref requires A: Send + Sync, but
-	// Foldable::fold_map's trait method declares only `A: Clone`, so the
-	// impl method body cannot call lower_ref without tightening the
-	// trait method's where-clause (which Rust forbids: "impl has stricter
-	// requirements than trait"). Users who need to fold an ArcCoyoneda
-	// can use the inherent `fold_map` method on ArcCoyoneda (which
-	// already tightens to A: Clone + Send + Sync), or convert the
-	// ArcCoyoneda to a Coyoneda via the From impl below and fold that.
-	//
-	// A future Phase could introduce a `SendFoldable` trait whose
-	// fold_map method declares A: Send + Sync, and implement it on
-	// ArcCoyonedaBrand as a Send-aware sibling. Out of scope for the
-	// current migration.
+	// Brand-level Foldable cannot be implemented on ArcCoyonedaBrand
+	// because Foldable::fold_map declares only `A: Clone` on the trait
+	// method, but the body needs to call `ArcCoyoneda::lower_ref` which
+	// requires `A: Send + Sync`. Rust forbids tightening trait method
+	// bounds in impls. SendFoldable is the Send-aware parallel whose
+	// trait method declares `A: Send + Sync` directly, so the bound is
+	// already satisfied at the impl site.
+
+	#[document_type_parameters("The brand of the underlying foldable functor.")]
+	impl<F: SendFunctor + SendFoldable + 'static> SendFoldable for ArcCoyonedaBrand<F> {
+		/// Folds the `ArcCoyoneda` by lowering to the underlying functor and delegating.
+		///
+		/// Requires `F: SendFunctor` (for lowering) and `F: SendFoldable`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the monoid."
+		)]
+		///
+		#[document_parameters(
+			"The function to map each element to a monoid.",
+			"The `ArcCoyoneda` structure to fold."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::send_foldable::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x * 10);
+		/// let result =
+		/// 	send_fold_map::<ArcFnBrand, ArcCoyonedaBrand<VecBrand>, _, _>(|x: i32| x.to_string(), coyo);
+		/// assert_eq!(result, "102030".to_string());
+		/// ```
+		fn send_fold_map<'a, FnBrand, A: Send + Sync + 'a + Clone, M>(
+			func: impl Fn(A) -> M + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: SendLiftFn + 'a,
+			M: Monoid + Send + Sync + 'a, {
+			F::send_fold_map::<FnBrand, A, M>(func, fa.lower_ref())
+		}
+	}
 
 	// -- Debug --
 
@@ -1035,10 +1078,6 @@ mod tests {
 	#[test]
 	fn fold_map_on_mapped() {
 		let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]).map(|x| x * 10);
-		// Brand-level Foldable on ArcCoyonedaBrand was dropped in the
-		// 2026-05-04 ArcCoyoneda algebra-Send-awareness migration; use
-		// the inherent `fold_map` method instead. SendFoldable trait
-		// (the by-value Send-aware analog) lands in a follow-up commit.
 		let result: String = coyo.fold_map::<RcFnBrand, _>(|x: i32| x.to_string());
 		assert_eq!(result, "102030".to_string());
 	}
@@ -1106,11 +1145,12 @@ mod tests {
 		#[quickcheck]
 		fn foldable_consistency_vec(v: Vec<i32>) -> bool {
 			let coyo = ArcCoyoneda::<VecBrand, _>::lift(v.clone()).map(|x: i32| x.wrapping_add(1));
-			// Brand-level Foldable on ArcCoyonedaBrand was dropped in the
-			// 2026-05-04 ArcCoyoneda algebra-Send-awareness migration; use
-			// the inherent `fold_map` method instead. SendFoldable trait
-			// (the by-value Send-aware analog) lands in a follow-up commit.
-			let via_coyoneda: String = coyo.fold_map::<RcFnBrand, _>(|x: i32| x.to_string());
+			let via_coyoneda: String = crate::classes::send_foldable::send_fold_map::<
+				ArcFnBrand,
+				ArcCoyonedaBrand<VecBrand>,
+				_,
+				_,
+			>(|x: i32| x.to_string(), coyo);
 			let direct: String = explicit::fold_map::<RcFnBrand, VecBrand, _, _, _, _>(
 				|x: i32| x.to_string(),
 				v.iter().map(|x| x.wrapping_add(1)).collect::<Vec<_>>(),

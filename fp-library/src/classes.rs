@@ -96,6 +96,7 @@ pub mod send_apply_first;
 pub mod send_apply_second;
 pub mod send_clone_fn;
 pub mod send_deferrable;
+pub mod send_foldable;
 pub mod send_functor;
 pub mod send_lift;
 pub mod send_monad;

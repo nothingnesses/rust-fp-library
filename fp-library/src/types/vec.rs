@@ -556,6 +556,46 @@ mod inner {
 		}
 	}
 
+	impl SendFoldable for VecBrand {
+		/// Folds the vector by mapping each element to a monoid and combining
+		/// (thread-safe). Body is byte-identical to [`Foldable::fold_map`]'s;
+		/// only the bounds tighten with `Send + Sync`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the vector.",
+			"The type of the monoid."
+		)]
+		///
+		#[document_parameters("The mapping function.", "The vector to fold.")]
+		///
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::send_foldable::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	send_fold_map::<ArcFnBrand, VecBrand, _, _>(|x: i32| x.to_string(), vec![1, 2, 3],),
+		/// 	"123".to_string(),
+		/// );
+		/// ```
+		fn send_fold_map<'a, FnBrand, A: Send + Sync + 'a + Clone, M>(
+			func: impl Fn(A) -> M + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: SendLiftFn + 'a,
+			M: Monoid + Send + Sync + 'a, {
+			fa.into_iter().map(func).fold(M::empty(), |acc, x| M::append(acc, x))
+		}
+	}
+
 	impl Traversable for VecBrand {
 		/// Traverses the vector with an applicative function.
 		///

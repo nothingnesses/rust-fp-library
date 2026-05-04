@@ -2783,11 +2783,69 @@ error pointing at the impl-block bound).
 
 Open follow-ups:
 
-- `SendFoldable` trait + cascade impls (`VecBrand`,
-  `OptionBrand`, `ResultBrand`, `ArcCoyonedaBrand`) to
-  restore the brand-level fold surface.
 - Pop `git stash@{0}` (the `run_state.rs` draft) and fix the
   `State<'static, ...>` lifetime annotations.
+
+### Step 5a.4 + 5a.6 second follow-up (2026-05-04): `SendFoldable` trait + brand-level fold restored on `ArcCoyonedaBrand`
+
+Closes the `SendFoldable` follow-up flagged by the
+[2026-05-04 ArcCoyoneda migration resolution](resolutions.md#resolved-2026-05-04-phase-3-step-6a-downstream-blocker-arccoyonedas-algebra-migrated-to-sendfunctor-option-a).
+The previous follow-up dropped the brand-level
+[`Foldable`](../../../fp-library/src/classes/foldable.rs) impl
+on `ArcCoyonedaBrand` because `Foldable::fold_map` declares
+only `A: Clone` on the trait method but the post-migration
+body needs `A: Send + Sync`, which Rust forbids tightening
+in impls. The Send-aware parallel
+[`SendFoldable`](../../../fp-library/src/classes/send_foldable.rs)
+bakes `A: Send + Sync` into the trait method signature, so
+the impl can call `ArcCoyoneda::lower_ref` cleanly.
+
+What landed:
+
+- [`fp-library/src/classes/send_foldable.rs`](../../../fp-library/src/classes/send_foldable.rs):
+  new trait with three methods (`send_fold_map`,
+  `send_fold_right`, `send_fold_left`), each with default
+  implementations in terms of the others (matching
+  `SendRefFoldable`'s pattern). `FnBrand: SendLiftFn` plus
+  `Send + Sync` bounds on `A`, the closure, and the
+  monoid/accumulator. Free function `send_fold_map<Brand: SendFoldable, ...>`
+  for explicit dispatch.
+- [`fp-library/src/classes.rs`](../../../fp-library/src/classes.rs):
+  module registration alphabetically between `send_deferrable`
+  and `send_functor`.
+- [`fp-library/src/types/vec.rs`](../../../fp-library/src/types/vec.rs):
+  `SendFoldable` impl for `VecBrand` (overrides
+  `send_fold_map` directly with a one-line iterator body;
+  `send_fold_right` / `send_fold_left` use the trait
+  defaults).
+- [`fp-library/src/types/arc_coyoneda.rs`](../../../fp-library/src/types/arc_coyoneda.rs):
+  `SendFoldable` impl for `ArcCoyonedaBrand<F>` requiring
+  `F: SendFunctor + SendFoldable + 'static`; body delegates
+  to `F::send_fold_map` after lowering. Module-level doc
+  and brand-level summary comment updated to mention the new
+  surface. Two property tests (`fold_map_on_mapped`,
+  `foldable_consistency_vec`) cleaned up; the latter now
+  exercises brand-level `send_fold_map` dispatch.
+
+What diverged:
+
+- **Three-method default-implementations cycle.** Mirrors
+  `SendRefFoldable`'s pattern (each method has a default
+  implementation in terms of one other), so implementors
+  only need to provide one. `Foldable` uses the same pattern
+  modulo the Send-aware bounds.
+- **No impls on `OptionBrand` or `ResultBrand`.** The 2026-05-04
+  migration resolution flagged these as cascade candidates,
+  but the only consumer is `ArcCoyonedaBrand<F>` where `F`
+  is the substrate brand inside the Coyoneda. The current
+  test surface uses `F = VecBrand`; `OptionBrand` and
+  `ResultBrand` impls can land when the first user-side need
+  surfaces.
+
+Verification: `just verify` clean. 2520 unit tests + new
+doctests (`send_fold_map` free function, `VecBrand::send_fold_map`,
+`VecBrand::send_fold_right`, `VecBrand::send_fold_left`,
+`ArcCoyonedaBrand::send_fold_map`) compile and pass.
 
 ### Cross-cutting docs/macros commits during step 5a
 
