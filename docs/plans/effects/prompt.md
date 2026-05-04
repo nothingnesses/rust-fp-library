@@ -31,7 +31,7 @@ and M3C (`b8c9b3c`, parameterise `interpret_with` over
 `P: RefCountedPointer`). All six wrappers' State smart
 constructors landed: 6a.1 + 6a.2 (`96bc448` + `f865152`), 6a.3
 (`619127e`, `RcRun::get/put`), 6a.5 (`db07a2f`, Explicit non-
-Arc family), and 6a.4 + 6a.6 (`7a0d04b`, Arc family using a
+Arc family), and 5a.4 + 5a.6 (`7a0d04b`, Arc family using a
 parallel
 [`SendStateBrand`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/brands.rs)
 /
@@ -43,87 +43,35 @@ The
 migrated `ArcCoyoneda` from `F: Functor` to `F: SendFunctor`
 (option (a)), unblocking end-to-end dispatch through
 `*Run::interpret` for `SendStateBrand`-headed rows. All six
-step 6a smart constructors are now usable end-to-end.
+step 5a State smart constructors are usable end-to-end.
 
 A follow-up commit added
 [`SendFoldable`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/send_foldable.rs)
 parallel to `SendFunctor`, restoring the brand-level fold
 surface on `ArcCoyonedaBrand` that the (a) migration dropped.
-Step 6a integration tests landed at
+Step 5a integration tests landed at
 [`fp-library/tests/run_state.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_state.rs)
 (18 tests, 3 per wrapper: single-Get, single-Put, and a
 bind-chained Get-Put-Get program).
 
+The
+[2026-05-04 deferral resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c)
+shelved `interpret_with_rec` indefinitely; pipeline row-
+narrowing combined with `MonadRec`-target stack safety doesn't
+compose cleanly without `Traversable` on the row brand plus
+`Applicative` on `M`. PureScript Run skips the combination
+too. Phase 3 ships three interpreter primitives instead of
+four; users chain `interpret_with` (narrow) then
+`interpret_rec` (stack-safe) for the workaround.
+
 **Immediate pending tasks:**
 
-Step 5 (`interpret_with_rec` pipeline-plus-MonadRec family)
-is the next greenfield step.
-
-### Step 5 implementation pattern (next greenfield work)
-
-`interpret_with_rec` combines step 3's pipeline row-narrowing
-shape with step 4's `MonadRec`-target stack-safety. Per-wrapper
-inherent method:
-
-```rust
-pub fn interpret_with_rec<MBrand, EBrand, Idx, RMinusE>(
-    self,
-    handler: impl Fn(<EBrand as Kind>::Of<'_, M::Of<'_, Wrapper<RMinusE, CNilBrand, A>>>)
-        -> M::Of<'_, Wrapper<RMinusE, CNilBrand, A>>
-        + 'static,
-    // (plus Send + Sync on Arc wrappers)
-) -> M::Of<'_, Wrapper<RMinusE, CNilBrand, A>>
-where MBrand: MonadRec + ...,
-```
-
-Implementation:
-
-1. Wrap the handler in
-   `<P as RefCountedPointer>::Of<'_, F>` once at entry (per
-   M3C's pattern, drops the `Clone` bound).
-2. Drive the loop via
-   [`tail_rec_m`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/monad_rec.rs)
-   with a step closure that:
-   - Peels the program.
-   - On `Ok(a)`: returns `M::pure(ControlFlow::Break(M::pure(Wrapper::pure(a))))`
-     (or similar shape; consult step 4's body for exact
-     shape).
-   - On `Err(Node::First(layer))`: projects via
-     [`Member::project`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/member.rs).
-     - Matched arm: lower the Coyoneda; M-fmap the recursive
-       continuation; hand to handler; wrap in
-       `ControlFlow::Continue` for tail_rec_m.
-     - Unmatched arm: M-fmap the recursive continuation; re-
-       emit via the substrate's `wrap` operation; wrap in
-       `ControlFlow::Continue`.
-3. Pin M's lifetime per family: `'static` for the Erased
-   trio, `'a` for the Explicit trio (matches step 4).
-4. Reuse the
-   [`DispatchHandlers`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/interpreter.rs)
-   trait if applicable; step 4 reuses it unchanged with
-   `NextProgram = M::Of<...>`. Step 5 may need different
-   dispatch since it walks one effect at a time rather than
-   the full handler list.
-
-Step 5's tests in `fp-library/tests/run_interpret_with_rec.rs`
-should cover each wrapper x M-target combination viable for
-that wrapper's substrate constraints (Erased non-Arc +
-ThunkBrand + OptionBrand; Arc family + OptionBrand only
-because Thunk is `!Send`). Use State (now available on all
-six wrappers) as one of the test scenarios to exercise the
-pipeline-plus-MonadRec interaction with a real first-order
-effect.
-
-Watch out for: HRTB poisoning on ArcRun (continues to apply
-in step 5's body); the
-[`unwrap_first`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/arc_run.rs)
-/
-[`make_node_first`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/arc_run.rs)
-/
-[`wrap_first_arc`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/arc_run.rs)
-helpers from step 3's body are likely needed verbatim. The
-Arc family's per-method `Send + Sync` cascade is large (~12
-clauses); step 5's signatures will be the largest yet.
+The next greenfield work is step 5b (`Reader` smart
+constructors) within the broader step 5 effect-suite rollout.
+Step 5a (`State`) is complete on all six wrappers; remaining
+sub-steps are 5b (`Reader`), 5c (`Except`), 5d (`Writer`),
+5e (`Choose`), each per the locked-in step 5 design from the
+[2026-05-03 wrapper-parameterization resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization).
 
 **Phase 2 (complete; all 10 steps).** Built the Run-wrapper
 foundation: `frunk_core`-based Coproduct adapter,
@@ -187,7 +135,7 @@ and per-step deviations in
   because stable Rust closures can't be HRTB-polymorphic over
   `Thunk<'h, T>`-shaped types. Arc family uses `OptionBrand`
   rather than `ThunkBrand` in doctests (Thunk is `!Send`).
-- **Step 6a.1** (`96bc448`): State effect type machinery.
+- **Step 5a.1** (`96bc448`): State effect type machinery.
   [`StateBrand<P, S>`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/brands.rs)
   parameterised by `P: ToDynCloneFn` (typically `RcBrand` /
   `ArcBrand`) and `S: 'static`;
@@ -197,7 +145,7 @@ and per-step deviations in
   continuations. `Functor` impl shipped; the Arc family uses
   the parallel `SendStateBrand` / `SendState` instead (per
   the 2026-05-03 option-(c) resolution).
-- **Step 6a.2** (`f865152`): `Run::get` / `Run::put` smart
+- **Step 5a.2** (`f865152`): `Run::get` / `Run::put` smart
   constructors. Threads `RcBrand` as the pointer kind;
   continuations via
   [`<RcBrand as ToDynCloneFn>::new(closure)`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/to_dyn_clone_fn.rs).
@@ -215,26 +163,26 @@ and per-step deviations in
   narrowing clones the pointer (refcount bump) instead of
   the closure, dropping the `Fn + Clone + 'static` bound to
   `Fn + 'static` (plus `Send + Sync` on Arc).
-- **Step 6a.3** (`619127e`): `RcRun::get` / `RcRun::put`
+- **Step 5a.3** (`619127e`): `RcRun::get` / `RcRun::put`
   smart constructors plus a manual `Clone` impl for `State`
   gated on `S: Clone`. `RcRun::lift`'s
   `Apply!(<EBrand>::Of<'static, A>): Clone` bound forced the
   `State::Clone` impl; the bound cascades to all four
   shared-substrate wrappers' smart constructors.
-- **Step 6a.5** (`db07a2f`): Explicit non-Arc family
+- **Step 5a.5** (`db07a2f`): Explicit non-Arc family
   (`RunExplicit::get/put` + `RcRunExplicit::get/put`). One
   commit covering both wrappers because the
   Explicit-vs-Erased axis is orthogonal to single-thread-vs-
   thread-safe; both thread `RcBrand`. `A: 'static` required
   even on Explicit wrappers (driven by `StateBrand<P, S>`'s
   `impl_kind!` `S: 'static`).
-- **Step 6a.4 + 6a.6** (`7a0d04b`): Arc family
+- **Step 5a.4 + 6a.6** (`7a0d04b`): Arc family
   (`ArcRun::get/put` + `ArcRunExplicit::get/put`) plus a
   parallel
   [`SendStateBrand<P, S>`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/brands.rs)
   /
   [`SendState<'a, P, S, A>`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/state.rs)
-  type. Closes step 6a (all six wrappers covered). The
+  type. Closes step 5a (all six wrappers covered). The
   earlier `4bd1636` ratification of option (b) per-method
   bounds was discovered structurally unimplementable
   (`Arc<dyn Fn>: Send + Sync` is provably false because the
@@ -246,7 +194,7 @@ and per-step deviations in
   in the row; non-Arc constructors keep using
   `StateBrand<P, S>`.
 
-Cross-cutting commits during step 6a (shipped alongside, no
+Cross-cutting commits during step 5a (shipped alongside, no
 phase-step number):
 
 - **`4f0e977`** (`docs(effects):`): wrapped
@@ -262,25 +210,18 @@ phase-step number):
 
 **Remaining Phase 3 steps:**
 
-- Step 5 (`interpret_with_rec`, immediate next greenfield
-  step): per-wrapper inherent method combining the pipeline
-  shape (step 3) with `tail_rec_m` (step 4). Six new method
-  bodies + integration tests in
-  `fp-library/tests/run_interpret_with_rec.rs`. State (now
-  available on all six wrappers) drives one of the test
-  scenarios.
-- Step 6b-6e: `Reader`, `Except`, `Writer`, `Choose` effects
-  - their smart constructors (one effect per sub-step;
-    `Choose` ships on the four multi-shot wrappers per the
-    2026-05-03 resolution's Q4=ii).
-- Step 7: `define_effect!` macro at
+- Step 5b-5e: `Reader`, `Except`, `Writer`, `Choose` effects
+  and their smart constructors (one effect per sub-step;
+  `Choose` ships on the four multi-shot wrappers per the
+  2026-05-03 resolution's Q4=ii).
+- Step 6: `define_effect!` macro at
   `fp-macros/src/effects/define_effect.rs` mechanically
   generating the six per-wrapper variants from one user
   declaration.
-- Step 8: `compile_fail` UI tests for negative cases (handler
+- Step 7: `compile_fail` UI tests for negative cases (handler
   missing an effect, wrong type ascription, multi-shot via
   single-shot `Run`, `Choose` on single-shot wrappers).
-- Step 9: review-remediation documentation pass , bundle the
+- Step 8: review-remediation documentation pass , bundle the
   docs-only items from
   [`remediation_proposals.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/remediation_proposals.md)
   (F2A, F4A, F5A, M4 audit, M6A async-via-`spawn_blocking`,
@@ -747,7 +688,7 @@ shipped; not yet requested.
 [`SendRefCountedPointer`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/ref_counted_pointer.rs)
 parallel trait carries `T: ?Sized + Send + Sync + 'a` and is
 the projection to use when the inner type must cross thread
-boundaries. State-family effect types (Phase 3 step 6a) use
+boundaries. State-family effect types (Phase 3 step 5a) use
 `RefCountedPointer::Of` for the unified single-thread surface
 ([`StateBrand` / `State`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/state.rs))
 and a parallel `SendRefCountedPointer::Of`-based
@@ -865,7 +806,7 @@ docs for bare-name doc-links before / after the wrapping.
    Note: any effect type whose representation includes
    `dyn Fn(...) -> A` continuations (likely `Reader` and
    `Except`) will hit the same `dyn Fn: !Send + !Sync`
-   structural problem that drove 6a.4 + 6a.6's
+   structural problem that drove 5a.4 + 5a.6's
    `SendStateBrand` parallel-brand design. Plan for parallel
    `SendReaderBrand` / `SendExceptBrand` from the start;
    don't try option (b) per-method bounds first. `Choose`

@@ -18,11 +18,11 @@ steps 1 (`handlers!{...}` macro plus `nt()` builder fallback),
 2 (simple all-handlers-at-once `interpret`/`run` on six Run
 wrappers), 3 (pipeline row-narrowing `interpret_with::<EBrand>`
 plus empty-row terminal `extract`), 4 (MonadRec-target
-`interpret_rec`/`run_rec`), 6a.1 + 6a.2 (State effect type
-machinery + Run-only smart constructors), 6a.3
-(`RcRun::get` / `RcRun::put`), and 6a.5
+`interpret_rec`/`run_rec`), 5a.1 + 5a.2 (State effect type
+machinery + Run-only smart constructors), 5a.3
+(`RcRun::get` / `RcRun::put`), and 5a.5
 (`RunExplicit::get` / `RunExplicit::put` plus
-`RcRunExplicit::get` / `RcRunExplicit::put`), and 6a.4 + 6a.6
+`RcRunExplicit::get` / `RcRunExplicit::put`), and 5a.4 + 5a.6
 (`ArcRun::get` / `ArcRun::put` plus `ArcRunExplicit::get` /
 `ArcRunExplicit::put` using
 [`SendStateBrand`](../../../fp-library/src/brands.rs)) landed.
@@ -36,7 +36,7 @@ introduced
 [`SendFoldable`](../../../fp-library/src/classes/send_foldable.rs)
 restoring the brand-level fold surface on `ArcCoyonedaBrand`
 (dropped during the migration because `Foldable::fold_map`'s
-trait bounds cannot be tightened in impls). All six step 6a
+trait bounds cannot be tightened in impls). All six step 5a
 smart constructors are now usable end-to-end.
 
 The
@@ -45,20 +45,27 @@ is complete (F1D `05be270`, F3A `f8031c5`, M3C `b8c9b3c`):
 `run_accum` / `run_accum_rec` deleted, `S = CNilBrand` tightened
 on the interpreter family, and `interpret_with` parameterised
 over `P: RefCountedPointer` with the user-facing `Clone` bound
-on handler closures dropped. Step 6a smart constructors all
-landed (6a.3, 6a.5, 6a.4 + 6a.6) and the Arc family is
+on handler closures dropped. Step 5a smart constructors all
+landed (5a.3, 5a.5, 5a.4 + 5a.6) and the Arc family is
 unblocked end-to-end after the 2026-05-04 ArcCoyoneda
-migration. Step 5 (`interpret_with_rec` pipeline-plus-
-`MonadRec` family) is the next greenfield step.
+migration. The
+[2026-05-04 deferral resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c)
+shelved the original step 5 (`interpret_with_rec` pipeline-
+plus-`MonadRec` family); Phase 3 ships three interpreter
+primitives instead of four. Steps 6 (`define_effect!` macro),
+7 (`compile_fail` UI tests), and 8 (review-remediation
+documentation pass) remain; the next greenfield work is
+step 5b (`Reader` smart constructors) within the broader
+step 5 effect-suite rollout.
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
 messages and [deviations.md](deviations.md); see the **Earlier
 completed steps (commit log)** subsection further down.
 
-**Phase 3 step 6a.4 + 6a.6: Arc family `get` / `put` smart
+**Phase 3 step 5a.4 + 5a.6: Arc family `get` / `put` smart
 constructors (`ArcRun` + `ArcRunExplicit`) plus a parallel
-`SendStateBrand` / `SendState` type.** Closes step 6a (all six
+`SendStateBrand` / `SendState` type.** Closes step 5a (all six
 wrappers covered) under the
 [2026-05-03 SendFunctor option-(c) resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified).
 
@@ -77,7 +84,7 @@ The substrate-half adds:
   `Send + Sync`).
 - `impl_kind!` for `SendStateBrand`.
 - Manual `Clone` impl for `SendState` gated on `S: Clone + 'a`
-  (mirrors the 6a.3 `State::Clone` impl shape).
+  (mirrors the 5a.3 `State::Clone` impl shape).
 - `SendFunctor` impl for `SendStateBrand` (the whole point of
   option (c) , implementable because the projection is
   structurally `Send + Sync`; no HRTB-over-types needed). The
@@ -123,7 +130,7 @@ The user-facing API surface for State is now:
   [`SendStateBrand<ArcBrand, S>`](../../../fp-library/src/brands.rs)
   in the row.
 
-The Phase 3 step 7
+The Phase 3 step 6
 [`define_effect!`](../../../fp-macros/src/effects/) macro can
 hide this distinction by selecting the right brand per
 wrapper.
@@ -131,12 +138,12 @@ wrapper.
 Per-wrapper smart-constructor brand summary (now all six
 covered):
 
-- `Run::get/put` (6a.2): `StateBrand<RcBrand, S>`.
-- `RcRun::get/put` (6a.3): `StateBrand<RcBrand, S>`.
-- `RunExplicit::get/put` (6a.5): `StateBrand<RcBrand, S>`.
-- `RcRunExplicit::get/put` (6a.5): `StateBrand<RcBrand, S>`.
-- `ArcRun::get/put` (6a.4, this commit): `SendStateBrand<ArcBrand, S>`.
-- `ArcRunExplicit::get/put` (6a.6, this commit): `SendStateBrand<ArcBrand, S>`.
+- `Run::get/put` (5a.2): `StateBrand<RcBrand, S>`.
+- `RcRun::get/put` (5a.3): `StateBrand<RcBrand, S>`.
+- `RunExplicit::get/put` (5a.5): `StateBrand<RcBrand, S>`.
+- `RcRunExplicit::get/put` (5a.5): `StateBrand<RcBrand, S>`.
+- `ArcRun::get/put` (5a.4, this commit): `SendStateBrand<ArcBrand, S>`.
+- `ArcRunExplicit::get/put` (5a.6, this commit): `SendStateBrand<ArcBrand, S>`.
 
 Per-method doctests on each of `ArcRun::get/put` and
 `ArcRunExplicit::get/put` exercise the canonical row
@@ -161,9 +168,9 @@ What's next: step 5 (`interpret_with_rec` pipeline-plus-
 follow once 5 ships, mirroring 6a's per-wrapper rollout
 pattern.
 
-**Phase 3 step 6a.5: Explicit non-Arc family `get` / `put`
+**Phase 3 step 5a.5: Explicit non-Arc family `get` / `put`
 smart constructors (`RunExplicit` + `RcRunExplicit`).**
-Mirrors 6a.2 (`Run`) and 6a.3 (`RcRun`) across the
+Mirrors 5a.2 (`Run`) and 5a.3 (`RcRun`) across the
 [`FreeExplicit`](../../../fp-library/src/types/free_explicit.rs)
 / [`RcFreeExplicit`](../../../fp-library/src/types/rc_free_explicit.rs)
 substrate; threads
@@ -177,7 +184,7 @@ follow the `Run`-shape with the wrapper's `'a` lifetime:
 inner effect projection (the substrate is
 `Box<dyn FnOnce>`-backed and single-shot), so these smart
 constructors carry only `A: 'static` (on `get`) or
-`StateType: 'static` (on `put`), the same minimum bound 6a.2's
+`StateType: 'static` (on `put`), the same minimum bound 5a.2's
 `Run::get/put` carry. The `'static` requirement comes from
 [`StateBrand<P, S>`](../../../fp-library/src/brands.rs)'s
 [`impl_kind!`](../../../fp-macros/src/lib.rs) registration
@@ -189,7 +196,7 @@ follow the `RcRun`-shape with the wrapper's `'a` lifetime:
 `RcRunExplicit::lift` requires
 `Apply!(<EBrand as Kind!(...)>::Of<'a, A>): Clone`, which
 expands to `State<'a, RcBrand, A, A>: Clone` and is satisfied
-by 6a.3's manual `State::Clone` impl (gated on `S: Clone`).
+by 5a.3's manual `State::Clone` impl (gated on `S: Clone`).
 Methods accordingly carry `A: Clone + 'static` and
 `StateType: Clone + 'static`. `RcRunExplicit::lift` does not
 add the substrate-`Clone` bound that `RcRun::lift` carries
@@ -223,16 +230,16 @@ RcRun / RcRunExplicit add Clone); (3) the substrate-`Clone`
 bound asymmetry between `RcRun::lift` (with) and
 `RcRunExplicit::lift` (without).
 
-What's next: 6a.4 (`ArcRun::get/put`) and 6a.6
+What's next: 5a.4 (`ArcRun::get/put`) and 5a.6
 (`ArcRunExplicit::get/put`) under the locked-in
 [2026-05-03 SendFunctor resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-impl-on-statebrand-for-the-arc-family-option-b-per-method-bounds)
 (option (b) per-method `Send + Sync` bounds at smart-
 constructor sites). Step 5 (`interpret_with_rec` pipeline-
 plus-`MonadRec` family) is the next greenfield step.
 
-**Phase 3 step 6a.3: `RcRun::get` / `RcRun::put` smart
+**Phase 3 step 5a.3: `RcRun::get` / `RcRun::put` smart
 constructors plus a manual `Clone` impl for `State`.** Mirrors
-6a.2's `Run::get` / `Run::put` pattern across the multi-shot
+5a.2's `Run::get` / `Run::put` pattern across the multi-shot
 single-thread Erased substrate. `RcRun::get<Idx>() -> Self`
 lives on a new `impl<R, ScopedRow, A> RcRun<R, ScopedRow, A>`
 block (state and result type coincide for `get`);
@@ -294,14 +301,14 @@ Per-step deviation entry in
 the manual `State::Clone` impl shape and the alternative-
 derive analysis; (2) the substrate-`Clone` bound cascade
 across the smart-constructor where-clause; (3) the
-`A: Clone + 'static` requirement that 6a.2's `Run::get` did
+`A: Clone + 'static` requirement that 5a.2's `Run::get` did
 not need; (4) the per-wrapper `Clone` cascade table for the
 remaining four shared-substrate variants.
 
-What's next: 6a.5 (`RunExplicit::get/put` and
+What's next: 5a.5 (`RunExplicit::get/put` and
 `RcRunExplicit::get/put`) is the next blocker-independent
 sub-step, mirroring this commit's pattern across the Explicit
-substrate; 6a.4 (`ArcRun::get/put`) and 6a.6
+substrate; 5a.4 (`ArcRun::get/put`) and 5a.6
 (`ArcRunExplicit::get/put`) follow under the
 [2026-05-03 SendFunctor resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-impl-on-statebrand-for-the-arc-family-option-b-per-method-bounds).
 
@@ -340,9 +347,9 @@ Phase 3:
   `Fn + Clone + 'static` bound to `Fn + 'static` (plus
   `Send + Sync` on Arc). Handlers can now capture move-only
   resources (e.g., `BufWriter`).
-- `96bc448` + `f865152` (step 6a.1 + 6a.2): `State` effect type
+- `96bc448` + `f865152` (step 5a.1 + 5a.2): `State` effect type
   machinery and `Run::get` / `Run::put` smart constructors.
-  6a.1 adds
+  5a.1 adds
   [`StateBrand<P, S>`](../../../fp-library/src/brands.rs)
   parameterised by `P: ToDynCloneFn` (typically `RcBrand` or
   `ArcBrand`) and `S: 'static`, plus the
@@ -352,7 +359,7 @@ Phase 3:
   continuations and a `Functor` impl that composes via
   [`<P as ToDynCloneFn>::new(closure)`](../../../fp-library/src/classes/to_dyn_clone_fn.rs).
   `SendFunctor` impl deferred (active blocker tracks the
-  HRTB-over-types limit). 6a.2 adds `Run::get<Idx>` and
+  HRTB-over-types limit). 5a.2 adds `Run::get<Idx>` and
   `Run::put<StateType, Idx>` smart constructors threading
   `RcBrand` as the pointer kind. Cross-cutting commits also
   landed: `4f0e977` wrapped
@@ -700,170 +707,11 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-05-04): Phase 3 step 5 (`interpret_with_rec`) signature has a structural-recursion-vs-tail-recursion tension; design decision needed before implementation
-
-**TL;DR:** the
-[prompt.md](prompt.md)
-"Step 5 implementation pattern" subsection specifies the handler
-signature as
-
-```rust
-handler: impl Fn(<EBrand as Kind>::Of<'_, M::Of<'_, Wrapper<RMinusE, CNilBrand, A>>>)
-    -> M::Of<'_, Wrapper<RMinusE, CNilBrand, A>>
-```
-
-i.e. inners arrive at the handler already narrowed (`Run<RMinusE, ...>`)
-and M-wrapped. But producing narrowed inners requires structural
-recursion through the inner programs (the same recursion that
-[`Run::interpret_with_shared`](../../../fp-library/src/types/effects/run.rs)'s
-matched arm performs inside `EBrand::Functor::map`'s closure).
-[`tail_rec_m`](../../../fp-library/src/classes/monad_rec.rs)'s
-step closure cannot synthesize narrowed inners by itself, since
-its `A -> M(ControlFlow<B, A>)` shape advances one level at a
-time, not into multi-inner layer structures.
-
-**Status:** active as of 2026-05-04. No code written for step 5
-yet. Step 6a is fully complete (smart constructors + integration
-tests on all six wrappers); the blocker is gated on step 5 only.
-
-##### Background: why the tension
-
-[`Run::interpret_with_shared`](../../../fp-library/src/types/effects/run.rs)'s
-matched arm uses
-`EBrand::Functor::map(|inner: Run<R, ...>| inner.interpret_with_shared(...), lowered)`
-to recursively narrow each inner before handing the layer to
-the handler. The recursion is structural (one frame per peel)
-and lazy for closure-shaped effects (e.g., `State`'s
-continuations defer the recursion). For Identity-shaped
-effects, the recursion is eager.
-
-[`Run::interpret_rec`](../../../fp-library/src/types/effects/run.rs)
-sidesteps recursion via `tail_rec_m` because the row collapses
-fully (no narrowing): the step closure produces
-`M(ControlFlow<A, Run<R, CNilBrand, A>>)`, where the loop
-state is the un-narrowed program and the final result is the
-plain `A`. There's no per-layer structural-recursion need.
-
-`interpret_with_rec` is the conjunction: pipeline narrowing
-plus `MonadRec`-driven stack safety. The signature in
-prompt.md presumes the handler-input shape from
-`interpret_with` (narrowed inners), but the loop driver is
-`tail_rec_m`, which doesn't natively produce narrowed inners.
-
-##### Options
-
-**(a) Handler keeps `interpret_with`'s narrowed-inner shape;
-implementation does inner structural recursion + outer `tail_rec_m`.**
-Step closure type:
-`Run<R, ..., A> -> M(ControlFlow<Run<RMinusE, ..., A>, Run<R, ..., A>>)`.
-Matched arm: structurally-recurse into each inner to produce
-`EBrand::Of<Run<RMinusE, ..., A>>`; M-fmap pure to wrap;
-hand to handler; M-fmap `Break` over handler's output.
-Unmatched arm: structurally-recurse into each inner to produce
-the narrowed layer; rebuild via `Run::from_free + Free::wrap`;
-M-fmap `Break`. Outer loop terminates after one peel.
-
-- _Pros:_ matches the prompt's handler signature; user
-  ergonomics consistent with non-rec `interpret_with`.
-- _Cons:_ `tail_rec_m` is essentially decorative because the
-  outer loop never iterates; stack-safety benefit limited to
-  the matched-effect's M-bind chain (analogous to how
-  `interpret_rec` benefits long State Get/Put chains). The
-  inner structural recursion still has the same stack-depth
-  characteristics as non-rec `interpret_with`.
-
-**(b) Handler returns `M::Of<Run<R, CNilBrand, A>>` (next-state
-in the un-narrowed row).** Step closure:
-`Run<R, ..., A> -> M(ControlFlow<Run<RMinusE, ..., A>, Run<R, ..., A>>)`.
-Matched arm: hand original-row inners to handler; handler
-returns `M::Of<Run<R, ...>>`; M-fmap `Continue`. Outer loop
-iterates per matched-effect occurrence. Unmatched arm: same
-as (a) (structurally narrow + Break).
-
-- _Pros:_ `tail_rec_m` actually iterates; matched-effect
-  chains run in constant stack.
-- _Cons:_ handler signature differs from non-rec
-  `interpret_with`: handler can't compose in the narrowed
-  row, only the original row. User-facing ergonomics suffer;
-  most non-rec `interpret_with` handlers won't translate.
-
-**(c) Defer step 5 indefinitely.** Document that the
-pipeline + MonadRec combination doesn't compose cleanly
-without a richer abstraction (e.g., Eff / Tagless Final).
-Users who want both chain `interpret_with` (for narrowing,
-no stack safety) followed by `interpret_rec` (for stack
-safety on the all-handlers-at-once form). Phase 3 ships the
-two interpreter primitives separately; the combined form
-becomes a Phase 6+ concern when a richer abstraction is in
-scope.
-
-- _Pros:_ zero implementation cost; honest about the
-  abstraction limit; existing primitives are sufficient for
-  most use cases.
-- _Cons:_ closes off one of the four cells in the
-  cognitive-model matrix (M-free pipeline / M-free
-  all-handlers / M-target pipeline / M-target all-handlers).
-  Users who specifically want stack-safe single-effect
-  pipelining have no path.
-
-**(d) Take a step back: re-derive from PureScript Run.**
-PS Run doesn't have `interpretWithRec`. The pipeline form
-is `interpret` (row-narrowing, no MonadRec); the M-target
-form is `runRec` (all-handlers, MonadRec). PS may not have
-the abstraction issue at all because it lacks Rust's
-structural-recursion stack concerns. If PS doesn't have it,
-maybe Phase 3 doesn't need it either. Equivalent to (c) but
-with the explicit "no PS analog" justification.
-
-##### Recommendation
-
-**Recommendation locked-in: open. User decision needed.**
-
-(a) is the most prompt-faithful but the rec-benefit is
-narrow and limited to the matched effect's M-bind chain.
-(b) gives genuine `tail_rec_m` benefit but breaks handler
-ergonomics. (c) / (d) defer; ship Phase 3 with two
-interpreter primitives instead of three, document the gap.
-My lean is (c)/(d): the abstraction tension reflects a real
-design limit, not just an implementation gap; deferring
-preserves the option to revisit with a richer encoding (e.g.,
-a `Codensity`-style transformation) when one is in scope.
-
-##### What happens next
-
-User decision needed on (a) / (b) / (c) / (d). Once locked
-in:
-
-1. Move this entry to [resolutions.md](resolutions.md)
-   verbatim (with added resolution detail).
-2. Implement the chosen option (or document the deferral
-   under (c)/(d)).
-3. If (a) or (b): six per-wrapper inherent methods in
-   `run.rs` / `run_explicit.rs` / `rc_run.rs` /
-   `rc_run_explicit.rs` / `arc_run.rs` / `arc_run_explicit.rs`,
-   plus integration tests in
-   `fp-library/tests/run_interpret_with_rec.rs`.
-4. If (c) or (d): document the deferral in `decisions.md`
-   and `deviations.md`; rename or remove the step 5 entry
-   from the phasing list; proceed to step 6b-6e.
-
-##### Cross-references
-
-- [Step 3 `interpret_with`](../../../fp-library/src/types/effects/run.rs):
-  the row-narrowing primitive; structural recursion in
-  `interpret_with_shared`'s matched arm is the precedent.
-- [Step 4 `interpret_rec`](../../../fp-library/src/types/effects/run.rs):
-  the MonadRec-target primitive; loop state is un-narrowed
-  program, no structural recursion needed.
-- [`tail_rec_m`](../../../fp-library/src/classes/monad_rec.rs):
-  the stack-safe loop driver; step closure shape is
-  `A -> M(ControlFlow<B, A>)`.
-- [prompt.md "Step 5 implementation pattern"](prompt.md):
-  the original signature spec that surfaces this tension.
+No active blockers.
 
 ### Open follow-ups (not blocking but worth surfacing)
 
-No outstanding step 6a follow-ups. Integration tests in
+No outstanding step 5a follow-ups. Integration tests in
 [`fp-library/tests/run_state.rs`](../../../fp-library/tests/run_state.rs)
 landed covering all six wrappers (3 tests per wrapper:
 single-Get, single-Put, and a bind-chained Get-Put-Get
@@ -939,6 +787,16 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-04): Phase 3 step 5 (`interpret_with_rec`) deferred indefinitely (option (c))](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c)
+  : pipeline row-narrowing combined with `MonadRec`-target stack
+  safety doesn't compose cleanly. Multi-inner row layers in the
+  unmatched arm need `Traversable` on the row brand plus
+  `Applicative` on `M` to swap `RMinusE::Of<M::Of<...>>` to
+  `M::Of<RMinusE::Of<...>>`; non-rec `interpret_with` sidesteps
+  this with plain `Functor::map`. PureScript Run skips the
+  combination too. Phase 3 ships three interpreter primitives,
+  not four; users chain `interpret_with` (narrow) then
+  `interpret_rec` (stack-safe) for the workaround.
 - [Resolved (2026-05-04): Phase 3 step 6a downstream blocker; `ArcCoyoneda`'s algebra migrated to `SendFunctor` (option (a))](resolutions.md#resolved-2026-05-04-phase-3-step-6a-downstream-blocker-arccoyonedas-algebra-migrated-to-sendfunctor-option-a)
   : the
   [2026-05-03 option-(c) `SendStateBrand` resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)
@@ -2209,23 +2067,7 @@ this section is the phasing-side checklist.
      `fp-library/tests/run_interpret_rec.rs` covering each
      wrapper x several `M` choices (`ThunkBrand`,
      `OptionBrand`, `ResultBrand`).
-5. `interpret_with_rec` pipeline-plus-`MonadRec` interpreter
-   family: per-wrapper inherent method
-   `interpret_with_rec::<MBrand, EBrand, Idx, RMinusE>`
-   returning `M::Of<'_, Run<RMinusE, CNilBrand, A>>`,
-   internally driven by
-   [`tail_rec_m`](../../../fp-library/src/classes/monad_rec.rs).
-   Closes the orthogonality grid (simple, pipeline, MonadRec,
-   pipeline+MonadRec) so users do not have to choose between
-   row narrowing and stack safety. Inherits step 3's
-   `P: RefCountedPointer`-parameterised handler shape and
-   step 4's `MonadRec`-target loop. Six method bodies +
-   integration tests in
-   `fp-library/tests/run_interpret_with_rec.rs`. Per the
-   [2026-05-03 reversal resolution](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer);
-   sequencing after step 6 completes so the standard
-   first-order effects can drive the integration tests.
-6. Standard first-order effect types and their smart
+5. Standard first-order effect types and their smart
    constructors: `State<FnP, S>`, `Reader<FnP, E>`,
    `Except<E>`, `Writer<FnP, W>`, `Choose<FnP>`. Per the
    [2026-05-03 resolution](resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization),
@@ -2275,10 +2117,10 @@ this section is the phasing-side checklist.
      [Implementation protocol](#implementation-protocol)'s
      oversized-step rule (~1500+ new lines, 7+ new files, or
      multiple new public types with mixed concerns); one
-     effect per sub-step is the natural cut (6a State, 6b
-     Reader, 6c Except, 6d Writer, 6e Choose). Surface the
+     effect per sub-step is the natural cut (5a State, 5b
+     Reader, 5c Except, 5d Writer, 5e Choose). Surface the
      split decision to the user before starting.
-7. `define_effect!` macro at
+6. `define_effect!` macro at
    `fp-macros/src/effects/define_effect.rs` generating effect
    enum + smart constructors + label / brand registration.
    Mechanically emits the six per-wrapper variants from a
@@ -2294,10 +2136,10 @@ this section is the phasing-side checklist.
    bodies. The macro accepts a `multi_shot` attribute for
    effects like `Choose` that opt out of the single-shot
    wrappers (`Run`, `RunExplicit`).
-8. `compile_fail` UI tests for negative cases (handler missing
+7. `compile_fail` UI tests for negative cases (handler missing
    an effect, wrong type ascription, multi-shot via single-shot
    `Run`, `Choose` on single-shot wrappers).
-9. Review-remediation documentation pass: bundle the docs-only
+8. Review-remediation documentation pass: bundle the docs-only
    items from
    [remediation_proposals.md](review/remediation_proposals.md)
    into one commit. Lands after the substantive code work

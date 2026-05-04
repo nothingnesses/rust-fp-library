@@ -319,21 +319,21 @@ Does the Rust `Functor` trait's `map` signature (`fn map<'a, A, B>(f: impl Fn(A)
 
 **Scope narrowing from the dual-row decision in section 4.5.** The Functor-dictionary problem applies only to the _first-order_ effect row (the `VariantF` of algebraic effects). The higher-order row (scoped effects such as `Catch<E>` or `Local<E>`; see section 4.5) is not a functor: it is a closed set of constructors, each holding its own action and handler payload, and is interpreted by manual case dispatch rather than by `map`. This halves the surface area of the problem. Whichever option is adopted here (static bound, dynamic `DynFunctor`, or freer-style erasure) applies only to first-order effects; scoped effects do not require a dictionary at all. See [research/deep-dive-scoped-effects.md](research/deep-dive-scoped-effects.md).
 
-### 4.3 DECISION: Ship both interpreter families (PureScript-mirroring)
+### 4.3 DECISION: Ship three interpreter primitives (revised; original commitment was four)
 
-The existing `Free` is stack-safe (O(1) bind, iterative drop via `Extract`). That is sufficient for `Run`'s own stack-safety. The PureScript library distinguishes two interpreter families:
+The existing `Free` is stack-safe (O(1) bind, iterative drop via `Extract`). That is sufficient for `Run`'s own stack-safety. PureScript Run distinguishes two interpreter families: `interpret` / `run` / `runAccum` (assume the target monad is stack-safe) and `interpretRec` / `runRec` / `runAccumRec` (require `MonadRec` on the target).
 
-- `interpret` / `run` / `runAccum`: assume the target monad is stack-safe.
-- `interpretRec` / `runRec` / `runAccumRec`: require `MonadRec` on the target.
+In Rust, the cognitive-model matrix at the time this section was written had four cells: simple all-handlers, pipeline row-narrowing, MonadRec-target all-handlers, MonadRec-target pipeline. The library ships three of the four; the fourth (MonadRec-target pipeline, `interpret_with_rec`) was deferred indefinitely per the [2026-05-04 deferral resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) because pipeline narrowing combined with `MonadRec`-target stack safety doesn't compose cleanly without a richer abstraction (multi-inner row layers in the unmatched arm need `Traversable` on the row brand plus `Applicative` on `M`). PureScript Run skips the combination too. The `runAccum` / `runAccumRec` companions were deleted per the [2026-05-03 reversal resolution](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer); state threading is via user-side closure capture instead.
 
-In Rust, this distinction is less useful at the design level: most target monads we'd write (`Option`, `Result`, `Thunk`) already implement `MonadRec` or trivially can. But the documentation and pedagogical advantages of mirroring PureScript 1:1 are real, and the implementation cost of shipping the second family is mostly mechanical (the iterative-via-`MonadRec` path is the harder one and is already required for the six-variant Free family in section 4.4).
+**Decision: ship three interpreter primitives.**
 
-**Decision: ship both families, mirroring PureScript.** Two interpreter families:
+- `interpret` / `run`: simple all-handlers-at-once, M-free, recursive interpretation. Assumes the target monad (or the Run wrapper itself) is stack-safe.
+- `interpret_with::<EBrand, Idx, RMinusE>`: pipeline row-narrowing. Interprets a single effect out of the row; returns a Run program in the narrowed row. Composes via chaining; `extract` on `Run<CNilBrand, CNilBrand, A>` yields the bare `A`.
+- `interpret_rec` / `run_rec`: M-target all-handlers, `MonadRec`-driven (`tail_rec_m` loop). Requires `MonadRec` on the target monad.
 
-- `interpret` / `run` / `runAccum`: assume the target monad is stack-safe (recursive interpretation).
-- `interpretRec` / `runRec` / `runAccumRec`: require `MonadRec` on the target (iterative via trampolining).
+Users who want both row narrowing and stack safety chain `interpret_with` (narrow) followed by `interpret_rec` (stack-safe on the all-handlers stage). The intermediate `interpret_with` calls have no stack-safety guarantee, but the final `interpret_rec` covers the dispatched effects' M-bind chains.
 
-This doubles the public-API surface but matches the upstream PureScript naming, which makes the library easier to teach to PureScript users and easier to cross-reference against `purescript-run` source. The few-percent runtime cost concern that motivated "MonadRec only" is real but small; users who care can reach for the recursive family explicitly.
+Mirrors PureScript Run's actual public-API shape (which doesn't ship `interpretWithRec` either), with two name additions for clarity (`interpret_with` is the row-narrowing form; PS calls it `interpret`, conflating with the all-handlers form).
 
 ### 4.4 DECISION: Ship a six-variant `Free` family with Erased/Explicit dispatch split
 
