@@ -820,8 +820,23 @@ mod inner {
 		/// the recursion is eager; for closure-shaped effects (e.g.,
 		/// `State<S>`), the recursion is deferred until the closure is
 		/// invoked. Programs with deep chains of eager-recursing effects
-		/// can blow the host stack; for stack-safe interpretation use
-		/// the Phase 3 step 4 `interpret_rec` family (when shipped).
+		/// can blow the host stack.
+		///
+		/// For M-target stack safety on the dispatched effects' M-bind
+		/// chains (e.g., long `State` Get/Put chains), chain
+		/// [`interpret_with`](Run::interpret_with) (narrow effects one
+		/// at a time) followed by [`interpret_rec`](Run::interpret_rec)
+		/// at the end of the pipeline. There is no combined
+		/// `interpret_with_rec` primitive: the unmatched-arm step needs
+		/// to swap `RMinusE::Of<M::Of<...>>` to `M::Of<RMinusE::Of<...>>`,
+		/// which requires
+		/// [`Traversable`](crate::classes::Traversable) on every row
+		/// brand plus
+		/// [`Applicative`](crate::classes::Applicative) on `M`; non-rec
+		/// `interpret_with` sidesteps this by using just
+		/// [`Functor::map`](crate::classes::Functor::map) (no `M` to
+		/// swap with). PureScript Run does not provide the combination
+		/// either.
 		///
 		/// ## Type inference
 		///
