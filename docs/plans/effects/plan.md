@@ -8,334 +8,42 @@ transformations) is the next phase.
 
 ## Current progress
 
-Phase 1 complete (steps 1-9). Phase 1 follow-up commits 1 and 2
-complete. Phase 2 complete: steps 1, 2, 3, 4a, 4b, 5, 6, 7a, 7b,
-7c.1, 7c.2a, 7c.2b, 8, 9 (all sub-steps 9a, 9b+9e, 9c+9f, 9d+9g,
-9h, 9i), 10a (POC test migration into
-`fp-library/tests/run_row_canonicalisation.rs`), and 10b
-(`poc-effect-row/` workspace deleted). Phase 3 in progress:
-steps 1 (`handlers!{...}` macro plus `nt()` builder fallback),
-2 (simple all-handlers-at-once `interpret`/`run` on six Run
-wrappers), 3 (pipeline row-narrowing `interpret_with::<EBrand>`
-plus empty-row terminal `extract`), 4 (MonadRec-target
-`interpret_rec`/`run_rec`), 5a.1 + 5a.2 (State effect type
-machinery + Run-only smart constructors), 5a.3
-(`RcRun::get` / `RcRun::put`), and 5a.5
-(`RunExplicit::get` / `RunExplicit::put` plus
-`RcRunExplicit::get` / `RcRunExplicit::put`), and 5a.4 + 5a.6
-(`ArcRun::get` / `ArcRun::put` plus `ArcRunExplicit::get` /
-`ArcRunExplicit::put` using
-[`SendStateBrand`](../../../fp-library/src/brands.rs)) landed.
-The
-[2026-05-04 ArcCoyoneda algebra-Send-awareness resolution](resolutions.md#resolved-2026-05-04-phase-3-step-6a-downstream-blocker-arccoyonedas-algebra-migrated-to-sendfunctor-option-a)
-migrated `ArcCoyoneda` from `F: Functor` to `F: SendFunctor`
-(option (a)), unblocking end-to-end dispatch through
-`*Run::interpret` for `SendStateBrand`-headed rows. A
-[follow-up commit](deviations.md#step-5a4--5a6-second-follow-up-2026-05-04-sendfoldable-trait--brand-level-fold-restored-on-arccoyonedabrand)
-introduced
-[`SendFoldable`](../../../fp-library/src/classes/send_foldable.rs)
-restoring the brand-level fold surface on `ArcCoyonedaBrand`
-(dropped during the migration because `Foldable::fold_map`'s
-trait bounds cannot be tightened in impls). All six step 5a
-smart constructors are now usable end-to-end.
+> **Maintenance template** (see [Implementation protocol](#implementation-protocol) step 3 for the full rule).
+> Update this section after every step. Keep it under ~250 lines. Order: **Phase status** -> **Next greenfield work** -> **Most recent steps (rolling detail, ~3 newest)** -> **Earlier completed steps (commit log)**. Demote the oldest rolling-detail entry to a one-line bullet in the commit log when a fourth narrative is added; verify load-bearing context lives in [deviations.md](deviations.md) / [resolutions.md](resolutions.md) / commit message before demoting. Do not append new prose to the intro paragraphs; refresh the Phase status block in place. Cross-cutting decisions awaiting user input live in the dedicated [Open decisions](#open-decisions) section, not here.
 
-The
-[2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer)
-is complete (F1D `05be270`, F3A `f8031c5`, M3C `b8c9b3c`):
-`run_accum` / `run_accum_rec` deleted, `S = CNilBrand` tightened
-on the interpreter family, and `interpret_with` parameterised
-over `P: RefCountedPointer` with the user-facing `Clone` bound
-on handler closures dropped. Step 5a smart constructors all
-landed (5a.3, 5a.5, 5a.4 + 5a.6) and the Arc family is
-unblocked end-to-end after the 2026-05-04 ArcCoyoneda
-migration. The
-[2026-05-04 deferral resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c)
-shelved the original step 5 (`interpret_with_rec` pipeline-
-plus-`MonadRec` family); Phase 3 ships three interpreter
-primitives instead of four. Step 5b (`Reader` smart
-constructors) shipped on all six wrappers with a parallel
-`SendReaderBrand` for the Arc family (analogous to
-`SendStateBrand` for State, motivated by the same
-`Arc<dyn Fn(...)>: !Send + !Sync` structural concern). The
-brands reorg (see deviations.md) extracted effect-specific
-brands to `crate::brands::effects` while preserving flat
-re-exports at `crate::brands`. Step 5c (`Except` smart
-constructors) shipped on all six wrappers with a single
-`ExceptBrand<E>` (no parallel `SendExceptBrand` because
-`Except` has no `dyn Fn` continuation; the `Send + Sync`
-cascade reduces to a per-wrapper bound on `E` alone).
-Step 5d (`Writer` smart constructors) shipped on all six
-wrappers with a single `WriterBrand<W>` (same no-`dyn Fn`
-shape as Except). Step 5e (`Choose` smart constructors)
-shipped on all four multi-shot wrappers (`RcRun`,
-`RcRunExplicit`, `ArcRun`, `ArcRunExplicit`) per the
-2026-05-03 wrapper-parameterization resolution. Step 5e
-also delivered a substrate fix: new
-[`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs)
-and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs)
-reference-counted catenable list variants replace the
-value-typed `CatList` in `RcFree`/`ArcFree`'s continuation
-queues, making `Clone` O(1) and unblocking multi-shot
-dispatch on the Erased Free family. See the
-[2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants).
-The effect-suite rollout (steps 5a-5e) is now complete.
-Steps 6 (`define_effect!` macro), 7 (`compile_fail` UI
-tests), and 8 (review-remediation documentation pass)
-remain; the next greenfield work is step 6.
+### Phase status
 
-The three entries below carry the rolling detail for the most
-recent steps. Older steps' detailed narratives live in commit
-messages and [deviations.md](deviations.md); see the **Earlier
-completed steps (commit log)** subsection further down.
+- **Phase 1** (Free family, [`fp-library/src/types/`](../../../fp-library/src/types/)): complete. Steps 1-9 plus two follow-up commits (the `WrapDrop` migration and the `Functor` -> `Kind` relaxation).
+- **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs) in 10a.
+- **Phase 3** (first-order effect handlers, interpreters, natural transformations): in progress. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), and the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors) all shipped. Step 5e also delivered a substrate fix on the Erased Free family: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). The [2026-05-04 deferral resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) shelved the original step 5 (`interpret_with_rec`); Phase 3 ships three interpreter primitives instead of four. The remaining work is steps 6 (`define_effect!` macro), 7 (`compile_fail` UI tests), and 8 (review-remediation documentation pass).
 
-**Phase 3 step 5a.4 + 5a.6: Arc family `get` / `put` smart
-constructors (`ArcRun` + `ArcRunExplicit`) plus a parallel
-`SendStateBrand` / `SendState` type.** Closes step 5a (all six
-wrappers covered) under the
-[2026-05-03 SendFunctor option-(c) resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified).
+### Next greenfield work
 
-The substrate-half adds:
+The next step is **Phase 3 step 6**: the [`define_effect!`](../../../fp-macros/src/effects/) proc-macro that mechanically generates an effect enum + brand registration + per-wrapper smart constructors from a single user declaration like:
 
-- [`SendStateBrand<P, S>`](../../../fp-library/src/brands.rs)
-  brand registration (parallel to `StateBrand<P, S>`).
-- [`SendState<'a, P, S, A>`](../../../fp-library/src/types/effects/state.rs)
-  enum whose variants store
-  `<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(...) -> A + Send + Sync>`
-  (parallel to `State<'a, P, S, A>` whose variants use
-  `<P as RefCountedPointer>::Of<'a, dyn 'a + Fn(...) -> A>`).
-  Adding `+ Send + Sync` to the trait object's bounds makes
-  the projection structurally `Send + Sync` (`Arc<T>: Send + Sync`
-  if `T: Send + Sync`, and `dyn Fn(...) + Send + Sync` IS
-  `Send + Sync`).
-- `impl_kind!` for `SendStateBrand`.
-- Manual `Clone` impl for `SendState` gated on `S: Clone + 'a`
-  (mirrors the 5a.3 `State::Clone` impl shape).
-- `SendFunctor` impl for `SendStateBrand` (the whole point of
-  option (c) , implementable because the projection is
-  structurally `Send + Sync`; no HRTB-over-types needed). The
-  `Functor` (by-value `map`) impl is intentionally NOT added
-  because it would have to construct a Send-aware trait object
-  from an `f: Fn` (no `Send + Sync` bound), which it can't.
-  `SendFunctor` is independent of `Functor` in fp-library, so
-  the gap is sound.
+```rust
+define_effect! {
+    Reader<E> {
+        fn ask() -> E,
+    }
+}
+```
 
-The smart-constructor half adds:
+The macro should accept a `multi_shot` attribute for effects (e.g., `Choose`) that ship only on the four multi-shot wrappers. Step 6 is a candidate for splitting under the [Implementation protocol](#implementation-protocol)'s oversized-step rule; a proposed split surfaced for user decision lives under [Open decisions](#open-decisions). Steps 7 (`compile_fail` UI tests) and 8 (review-remediation documentation pass) follow.
 
-- `ArcRun::get<Idx>() -> Self` and
-  `ArcRun::put<StateType: Clone + Send + Sync + 'static, Idx>(s) -> Self`
-  using `SendStateBrand<ArcBrand, A>` /
-  `SendStateBrand<ArcBrand, StateType>` in the row.
-- `ArcRunExplicit::get<Idx>() -> Self` and
-  `ArcRunExplicit::put<StateType: Clone + Send + Sync + 'static, Idx>(s) -> Self`
-  same pattern, with the Explicit substrate's per-method
-  `Send + Sync` cascade through
-  `ArcFreeExplicit<...>: Send + Sync`.
+### Most recent steps (rolling detail)
 
-All four methods construct continuations via
-[`<ArcBrand as ToDynSendFn>::new(closure)`](../../../fp-library/src/classes/to_dyn_send_fn.rs)
-(parallel to the non-Arc family's `ToDynCloneFn::new`); the
-returned projection IS `Arc<dyn Fn + Send + Sync>` which
-satisfies the `ArcCoyoneda` / `ArcFree` substrate's
-`Send + Sync` bounds without any per-use-site refinement.
+**Phase 3 step 5e: `Choose` smart constructors plus Erased Free family multi-shot substrate fix.** Three commits: `adbde7b` (substrate fix), `9f58492` (Choose effect surface), `de4d0eb` (docs). Adds the nondeterministic-branching [`Choose<'a, P, A>`](../../../fp-library/src/types/effects/choose.rs) effect with the `Alt(P::Of<'a, dyn 'a + Fn(bool) -> A>)` variant; per-wrapper `choose` smart constructors land on the four multi-shot wrappers (`RcRun`, `RcRunExplicit`, `ArcRun`, `ArcRunExplicit`) per the [2026-05-03 wrapper-parameterization resolution](resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization)'s Q4=ii.
 
-The pre-existing aborted-(b) attempt (working-tree only,
-never committed) used `StateBrand<ArcBrand, S>` plus per-
-method `Send + Sync` bounds and failed to compile (rustc
-error `(dyn Fn(()) + 'static) cannot be shared between threads
-safely`). Switching to `SendStateBrand<ArcBrand, S>` resolved
-the issue at compile time without any per-method bound
-proliferation.
+Brand surface: [`ChooseBrand<P>`](../../../fp-library/src/brands/effects.rs) for the Rc-substrate variant; parallel [`SendChooseBrand<P>`](../../../fp-library/src/brands/effects.rs) for the Arc family with `Send + Sync` baked into the trait-object bounds (same shape as `SendStateBrand` / `SendReaderBrand`).
 
-The user-facing API surface for State is now:
+Substrate fix: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants whose sublist deque sits behind an `Rc`/`Arc` so cloning is O(1) (refcount bump) rather than the deep recursive copy that derived `Clone` on the existing `VecDeque`-backed `CatList` incurs. [`RcFree::to_view`](../../../fp-library/src/types/rc_free.rs) and [`ArcFree::to_view`](../../../fp-library/src/types/arc_free.rs) drop the `Cell<Option<...>>::take` / `Mutex<Option<...>>::take` workarounds in favour of capturing the continuation list by move and cloning per call. The per-layer mutex acquire on the Arc path is gone since the new substrate is structurally `Send + Sync`. Fix-half details in the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants).
 
-- Single-thread or thread-flexible programs: use
-  [`StateBrand<P, S>`](../../../fp-library/src/brands.rs) in
-  the row.
-- Thread-safe Arc-substrate programs: use
-  [`SendStateBrand<ArcBrand, S>`](../../../fp-library/src/brands.rs)
-  in the row.
+Effect-suite rollout (steps 5a-5e) is complete with this commit set. 4/4 integration tests in [`fp-library/tests/run_choose.rs`](../../../fp-library/tests/run_choose.rs) pass; full pre-existing test suite passes unchanged (no regression on single-inner Free workloads). Per-step deviation in [deviations.md](deviations.md) Phase 3 step 5e records the substrate-fix-shipped-alongside-effect divergence.
 
-The Phase 3 step 6
-[`define_effect!`](../../../fp-macros/src/effects/) macro can
-hide this distinction by selecting the right brand per
-wrapper.
+**Phase 3 step 5d: `Writer` smart constructors on all six Run wrappers.** One commit: `5905e9b`. Adds the [`Writer<'a, W, A: 'a>`](../../../fp-library/src/types/effects/writer.rs) first-order effect type with the single `Tell(W, A, PhantomData<&'a ()>)` variant. Per-wrapper `tell` smart constructors thread a log value of type `W` through each wrapper's substrate; `tell` lives on the `Self<R, S, ()>` impl block (mirrors `put`) since the result type is `()`. Single brand ([`WriterBrand<W>`](../../../fp-library/src/brands/effects.rs)) serves all six wrappers because `Writer` has no `dyn Fn` continuation; the `Send + Sync` cascade reduces to a per-wrapper bound on the log type alone (no parallel `SendWriterBrand` needed). 12 integration tests in [`fp-library/tests/run_writer.rs`](../../../fp-library/tests/run_writer.rs) (2 per wrapper) covering single-Tell dispatch and a `tell(a) >>= |_| tell(b)` chain that verifies both logs are captured in order. Per-step deviation in [deviations.md](deviations.md) Phase 3 step 5d records the no-parallel-brand decision.
 
-Per-wrapper smart-constructor brand summary (now all six
-covered):
-
-- `Run::get/put` (5a.2): `StateBrand<RcBrand, S>`.
-- `RcRun::get/put` (5a.3): `StateBrand<RcBrand, S>`.
-- `RunExplicit::get/put` (5a.5): `StateBrand<RcBrand, S>`.
-- `RcRunExplicit::get/put` (5a.5): `StateBrand<RcBrand, S>`.
-- `ArcRun::get/put` (5a.4, this commit): `SendStateBrand<ArcBrand, S>`.
-- `ArcRunExplicit::get/put` (5a.6, this commit): `SendStateBrand<ArcBrand, S>`.
-
-Per-method doctests on each of `ArcRun::get/put` and
-`ArcRunExplicit::get/put` exercise the canonical row
-instantiation
-(`CoproductBrand<ArcCoyonedaBrand<SendStateBrand<ArcBrand, i32>>, CNilBrand>`)
-plus a doctest each on the new `SendState::Clone` and
-`SendStateBrand::SendFunctor::send_map` impls. `just verify`
-clean: 2500+ unit tests + integration tests + 6 new doctests
-pass.
-
-Per-step deviation entry in
-[deviations.md](deviations.md) Phase 3 step 5a.4 + 5a.6
-records: (1) the rejection of (b) in favor of (c) with code-
-level evidence; (2) the parallel-brand design (cost: two
-brands for users who mix substrate kinds); (3) the absence of
-`Functor` impl on `SendStateBrand` and why that's sound; (4)
-the per-wrapper brand-selection table.
-
-What's next: step 5 (`interpret_with_rec` pipeline-plus-
-`MonadRec` family) is the next greenfield step. Step 6b-6e
-(`Reader`, `Except`, `Writer`, `Choose` smart constructors)
-follow once 5 ships, mirroring 6a's per-wrapper rollout
-pattern.
-
-**Phase 3 step 5a.5: Explicit non-Arc family `get` / `put`
-smart constructors (`RunExplicit` + `RcRunExplicit`).**
-Mirrors 5a.2 (`Run`) and 5a.3 (`RcRun`) across the
-[`FreeExplicit`](../../../fp-library/src/types/free_explicit.rs)
-/ [`RcFreeExplicit`](../../../fp-library/src/types/rc_free_explicit.rs)
-substrate; threads
-[`RcBrand`](../../../fp-library/src/brands.rs) as the pointer
-kind for both wrappers (the Explicit-vs-Erased axis is
-orthogonal to the single-thread-vs-thread-safe axis).
-
-`RunExplicit::get<Idx>` and `RunExplicit::put<StateType, Idx>`
-follow the `Run`-shape with the wrapper's `'a` lifetime:
-`RunExplicit::lift` does not require a `Clone` bound on the
-inner effect projection (the substrate is
-`Box<dyn FnOnce>`-backed and single-shot), so these smart
-constructors carry only `A: 'static` (on `get`) or
-`StateType: 'static` (on `put`), the same minimum bound 5a.2's
-`Run::get/put` carry. The `'static` requirement comes from
-[`StateBrand<P, S>`](../../../fp-library/src/brands.rs)'s
-[`impl_kind!`](../../../fp-macros/src/lib.rs) registration
-(`S: 'static`), which pins the state type even on Explicit
-wrappers.
-
-`RcRunExplicit::get<Idx>` and `RcRunExplicit::put<StateType, Idx>`
-follow the `RcRun`-shape with the wrapper's `'a` lifetime:
-`RcRunExplicit::lift` requires
-`Apply!(<EBrand as Kind!(...)>::Of<'a, A>): Clone`, which
-expands to `State<'a, RcBrand, A, A>: Clone` and is satisfied
-by 5a.3's manual `State::Clone` impl (gated on `S: Clone`).
-Methods accordingly carry `A: Clone + 'static` and
-`StateType: Clone + 'static`. `RcRunExplicit::lift` does not
-add the substrate-`Clone` bound that `RcRun::lift` carries
-(the Explicit substrate's `RcFreeExplicit` is `Box`-in-`Wrap`
-with the `Rc<Inner>` outer wrap, so the recursive walk does
-not need additional projection-`Clone` bounds at the smart-
-constructor sites).
-
-All four methods construct continuations via
-[`<RcBrand as ToDynCloneFn>::new(closure)`](../../../fp-library/src/classes/to_dyn_clone_fn.rs)
-and call `Self::lift::<StateBrand<RcBrand, _>, Idx>(effect)`.
-Per-method doctests exercise the canonical-row instantiation
-(`CoproductBrand<CoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>`
-for `RunExplicit`,
-`CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>`
-for `RcRunExplicit`) and assert program suspension via
-`peel().is_err()`.
-
-`fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.stderr`
-unchanged (the UI test targets `Run`'s diagnostic). `just
-verify` clean: 2500+ unit tests + integration tests + 4 new
-doctests pass.
-
-Per-step deviation entry in
-[deviations.md](deviations.md) Phase 3 step 5a.5 records:
-(1) the `'static` requirement on the state type even for
-Explicit wrappers (driven by `StateBrand`'s `impl_kind!`
-registration); (2) the per-wrapper `Clone` cascade summary
-(now four wrappers covered: Run / RunExplicit minimal bounds;
-RcRun / RcRunExplicit add Clone); (3) the substrate-`Clone`
-bound asymmetry between `RcRun::lift` (with) and
-`RcRunExplicit::lift` (without).
-
-What's next: 5a.4 (`ArcRun::get/put`) and 5a.6
-(`ArcRunExplicit::get/put`) under the locked-in
-[2026-05-03 SendFunctor resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-impl-on-statebrand-for-the-arc-family-option-b-per-method-bounds)
-(option (b) per-method `Send + Sync` bounds at smart-
-constructor sites). Step 5 (`interpret_with_rec` pipeline-
-plus-`MonadRec` family) is the next greenfield step.
-
-**Phase 3 step 5a.3: `RcRun::get` / `RcRun::put` smart
-constructors plus a manual `Clone` impl for `State`.** Mirrors
-5a.2's `Run::get` / `Run::put` pattern across the multi-shot
-single-thread Erased substrate. `RcRun::get<Idx>() -> Self`
-lives on a new `impl<R, ScopedRow, A> RcRun<R, ScopedRow, A>`
-block (state and result type coincide for `get`);
-`RcRun::put<StateType, Idx>(s) -> Self` lives on a separate
-`impl<R, ScopedRow> RcRun<R, ScopedRow, ()>` block
-(state-type generic). Both thread
-[`RcBrand`](../../../fp-library/src/brands.rs) as the pointer
-kind and construct continuations via
-[`<RcBrand as ToDynCloneFn>::new(closure)`](../../../fp-library/src/classes/to_dyn_clone_fn.rs)
-(direct `Rc::new(closure)` produces `Rc<{closure_type}>`, not
-the `Rc<dyn Fn>` that `State::Get` / `Put` expect).
-
-The where-clauses cascade `RcRun::lift`'s bounds: `Member`
-projection over the
-[`RcCoyoneda`](../../../fp-library/src/types/rc_coyoneda.rs)
-variant (paired with the multi-shot substrate per the per-
-wrapper Coyoneda variant rule); the
-[`NodeBrand`](../../../fp-library/src/brands.rs) projection
-over `RcFree<..., RcTypeErasedValue>` must be `Clone` for the
-shared-substrate's recursive walk; and `A: Clone + 'static`
-on the impl block so the `Get`-variant doctest's `peel()`
-satisfies `RcRun::peel`'s substrate-`Clone` bound. `put`
-additionally adds `StateType: Clone + 'static` so the
-`State::Put(s, ...)` carries a `Clone`-able state value.
-
-Side-effect: a manual `Clone` impl for
-[`State<'a, P, S, A>`](../../../fp-library/src/types/effects/state.rs)
-gated on `S: Clone + 'a` (the `Put`-variant's `S` field). The
-continuation pointer `<P as RefCountedPointer>::Of<'a, dyn ...>`
-is unconditionally `Clone` per the trait's associated-type
-bound; the impl just refcount-bumps it. This was unblocked by
-the trait's projection guarantee: a derive would have required
-`P: Clone` and `A: Clone` (which neither holds nor is needed),
-so a manual impl with the minimum bound is the right shape.
-The bound is propagated up to all four shared-substrate
-wrappers' smart constructors (`RcRun`, future `RcRunExplicit`,
-`ArcRun`, `ArcRunExplicit`); `Run` and `RunExplicit` do not
-need it because their `lift` bound omits the `EBrand::Of<...>: Clone`
-requirement.
-
-Per-method doctests on each constructor exercise the canonical-
-row instantiation (`CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>`),
-asserting the program is suspended at the lifted effect via
-`peel().is_err()`. The `State::Clone` impl carries its own
-doctest building a `State::Get` from
-`Rc::new(|s: i32| s + 1) as Rc<dyn Fn(i32) -> i32>`, cloning,
-and asserting the cloned continuation produces the expected
-output.
-
-`fp-library/tests/ui/im_do_ref_on_non_clone_wrapper.stderr`
-unchanged: `RcRun::get` / `put` only widen the
-"associated functions" suggestion list for `RcRun`, but the
-existing UI test targets `Run`'s diagnostic, not `RcRun`'s.
-`just verify` clean: 2500+ unit tests + integration tests +
-doctests pass.
-
-Per-step deviation entry in
-[deviations.md](deviations.md) Phase 3 step 5a.3 records: (1)
-the manual `State::Clone` impl shape and the alternative-
-derive analysis; (2) the substrate-`Clone` bound cascade
-across the smart-constructor where-clause; (3) the
-`A: Clone + 'static` requirement that 5a.2's `Run::get` did
-not need; (4) the per-wrapper `Clone` cascade table for the
-remaining four shared-substrate variants.
-
-What's next: 5a.5 (`RunExplicit::get/put` and
-`RcRunExplicit::get/put`) is the next blocker-independent
-sub-step, mirroring this commit's pattern across the Explicit
-substrate; 5a.4 (`ArcRun::get/put`) and 5a.6
-(`ArcRunExplicit::get/put`) follow under the
-[2026-05-03 SendFunctor resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-impl-on-statebrand-for-the-arc-family-option-b-per-method-bounds).
+**Phase 3 step 5c: `Except` smart constructors on all six Run wrappers.** One commit: `66eca99`. Adds the [`Except<'a, E, A: 'a>`](../../../fp-library/src/types/effects/except.rs) first-order effect type with the single `Throw(E, PhantomData<&'a A>)` variant; per-wrapper `throw` smart constructors thread an error value of type `E` through each wrapper's substrate. Single brand ([`ExceptBrand<E>`](../../../fp-library/src/brands/effects.rs)) serves all six wrappers (no parallel `SendExceptBrand` needed because `Except` has no `dyn Fn` continuation; the `Send + Sync` cascade is per-wrapper on `E` alone). The Arc family's `throw` adds `E: Send + Sync` per the Arc substrate's structural requirement; multi-shot wrappers additionally require `E: Clone + 'static` because the substrate's `lift` requires a cloneable effect projection. 12 integration tests in [`fp-library/tests/run_except.rs`](../../../fp-library/tests/run_except.rs) (2 per wrapper). Per-step deviation in [deviations.md](deviations.md) Phase 3 step 5c records the `PhantomData<&'a A>` shape decision and the per-wrapper `E`-bound cascade table.
 
 ### Earlier completed steps (commit log)
 
@@ -346,6 +54,13 @@ summary; resolved blockers are in
 [resolutions.md](resolutions.md). Listed newest-first.
 
 Phase 3:
+
+- `4162d20` (step 5b): Reader smart constructors on all six wrappers with a parallel [`SendReaderBrand`](../../../fp-library/src/brands/effects.rs) for the Arc family (analogous to `SendStateBrand` for State; motivated by the same `Arc<dyn Fn(...)>: !Send + !Sync` structural concern). 12 integration tests in [`fp-library/tests/run_reader.rs`](../../../fp-library/tests/run_reader.rs).
+- `72f753e` (brands reorg): extracted effect-specific brands to [`crate::brands::effects`](../../../fp-library/src/brands/effects.rs) while preserving flat re-exports at `crate::brands` via `pub use effects::*;`. Wrapped in `#[fp_macros::document_module]` with self-contained docs only.
+- `7a0d04b` (step 5a.4 + 5a.6): Arc family `get` / `put` smart constructors (`ArcRun` + `ArcRunExplicit`) using a parallel [`SendStateBrand<P, S>`](../../../fp-library/src/brands/effects.rs) and [`SendState<'a, P, S, A>`](../../../fp-library/src/types/effects/state.rs) per the [2026-05-03 option-(c) re-ratification](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified) (option (b) per-method bounds was discovered structurally unimplementable: `Arc<dyn Fn>: Send + Sync` is provably false because the trait object's bounds don't include `Send + Sync`). Closes step 5a (all six wrappers covered).
+- `6db4a26` + `690df0f` + `000a732` (step 5a.4 + 5a.6 follow-ups): `ArcCoyoneda` algebra migrated to `F: SendFunctor` per the [2026-05-04 option-(a) resolution](resolutions.md#resolved-2026-05-04-phase-3-step-6a-downstream-blocker-arccoyonedas-algebra-migrated-to-sendfunctor-option-a) (unblocks end-to-end dispatch through `*Run::interpret` for `SendStateBrand`-headed rows); [`SendFoldable`](../../../fp-library/src/classes/send_foldable.rs) trait introduced to restore the brand-level fold surface dropped during migration; integration tests for State across all six Run wrappers landed in [`fp-library/tests/run_state.rs`](../../../fp-library/tests/run_state.rs) (18 tests).
+- `db07a2f` (step 5a.5): Explicit non-Arc family `get` / `put` smart constructors (`RunExplicit` + `RcRunExplicit`) threading `RcBrand` as the pointer kind. `A: 'static` required even on Explicit wrappers (driven by `StateBrand<P, S>`'s `impl_kind!`).
+- `619127e` (step 5a.3): `RcRun::get` / `RcRun::put` smart constructors plus a manual `Clone` impl for [`State<'a, P, S, A>`](../../../fp-library/src/types/effects/state.rs) gated on `S: Clone` (forced by `RcRun::lift`'s `Apply!(<EBrand>::Of<'static, A>): Clone` bound).
 
 - `05be270` + `f8031c5` + `b8c9b3c` (reversal cleanup):
   three commits implement the
@@ -723,6 +438,35 @@ Other artefacts:
   is preserved as research history; the deletion does not
   invalidate the findings it documents.
 
+## Open decisions
+
+> **Maintenance template.** Tracks decisions awaiting user input that affect upcoming steps. Each entry: a heading naming the decision, a one-paragraph context, the proposed options, and trade-offs. Once the user picks an option, fold the chosen path into the relevant phasing section, demote the survey to [resolutions.md](resolutions.md) (or [deviations.md](deviations.md) for smaller-grain choices), and remove the entry from this section.
+
+### Phase 3 step 6 split proposal (surfaced 2026-05-04)
+
+Step 6 (`define_effect!` macro at [`fp-macros/src/effects/`](../../../fp-macros/src/effects/)) is a candidate for splitting under the [Implementation protocol](#implementation-protocol)'s oversized-step rule (~1500+ new lines, multiple new public types with mixed concerns). One effect-shape per sub-step is the natural cut. The user has surfaced this for review before implementation begins.
+
+**Proposed sub-steps:**
+
+- **6a. Macro design + parser skeleton.** Lock in the input syntax (e.g., `define_effect! { Reader<E> { fn ask() -> E, } }`); decide whether handler bodies are user-supplied or auto-generated; decide whether `multi_shot` is an attribute or syntax keyword. Write the `syn`-based parser, no codegen yet. Tests assert parse-success and parse-error shapes.
+- **6b. Codegen for no-continuation effects (Tell-style).** Generate the effect enum (e.g., `Writer<W>`), `Functor` and `SendFunctor` impls, brand registration ([`WriterBrand<W>`](../../../fp-library/src/brands/effects.rs)), and 6 per-wrapper smart constructors. Verify the generated code matches [`fp-library/src/types/effects/writer.rs`](../../../fp-library/src/types/effects/writer.rs).
+- **6c. Codegen for continuation-bearing effects (Reader / State / Choose patterns).** Generate `<P as RefCountedPointer>::Of<'a, dyn 'a + Fn(...) -> A>` continuation variants. Distinguishes continuation-from-environment ([`Reader`](../../../fp-library/src/types/effects/reader.rs)) and continuation-from-state ([`State`](../../../fp-library/src/types/effects/state.rs)'s Get/Put).
+- **6d. Send-aware brand parallels (`SendStateBrand` / `SendReaderBrand` / `SendChooseBrand`).** Generate the `Send + Sync` parallel brand + type pair when the effect has a `dyn Fn` continuation. Effects without `dyn Fn` (Except, Writer) skip this.
+- **6e. `multi_shot` attribute.** Generate smart constructors only on the four multi-shot wrappers when an effect is marked multi-shot. Single-shot wrappers omit the constructor.
+- **6f. Integration tests + migration (optional).** Demonstrate the macro generates equivalent code by regenerating one of the existing effects via the macro and asserting it compiles + tests still pass. Migrate other effects opportunistically; not part of step 6's success criteria.
+
+**Trade-offs of the proposed split.**
+
+- Six commits is a lot for one macro. Could merge 6c-6e into one larger commit if the codegen is straightforward; the proposed split is conservative because each shape adds non-trivial logic.
+- 6a-6b alone is a usable deliverable for the simplest effects, even before continuation-bearing support lands.
+- 6f is optional, so step 6 is "complete" after 6e even without migrating any existing effects.
+
+**Questions for the user:**
+
+1. **Split granularity:** OK with 6 sub-commits, or prefer 3-4 larger ones (e.g., merge 6a+6b, merge 6c+6d, then 6e, then optional 6f)?
+2. **Migration scope:** ship the macro alongside the existing hand-written effects (no migration), or migrate at least one effect (e.g., Reader) to prove the codegen matches?
+3. **Input syntax:** the plan example has `fn ask() -> E,` inside an effect block. OK with that shape, or prefer something terser/different?
+
 ## Open questions, issues and blockers
 
 This section tracks **active** blockers only. Resolved blockers
@@ -983,24 +727,40 @@ After completing each step within a phase:
    `just deny`, `just doc`, `just test` (or `just verify` which
    runs all six in order).
 2. If verification passes, update `Current progress`, `Open
-questions, issues and blockers`, and `Deviations` sections at
-   the top of this plan to reflect the current state.
-3. **Trim `Current progress` if it has grown.** The section
-   has two subsections:
-   - **"Most recent steps (rolling detail)"** holds the latest
-     ~3 step narratives in detail. Each new step's narrative
-     lands at the top of this subsection.
-   - **"Earlier completed steps (commit log)"** holds older
-     entries as one-line bullets:
-     `- ``<commit-hash>`` (step <N>): <one-line summary>.`
-     with cross-references to deviations.md / resolutions.md /
-     commit messages where the deeper narrative lives.
+questions, issues and blockers`, `Open decisions` (if a
+   decision lands or is newly surfaced), and `Deviations`
+   sections at the top of this plan to reflect the current
+   state.
+3. **Refresh `Current progress` per the canonical template.**
+   The section has four required subsections, in this order:
+   1. **`### Phase status`** holds one short paragraph per phase
+      summarising current state. Edit in place; do not append
+      new prose.
+   2. **`### Next greenfield work`** holds a 1-3 paragraph
+      description of the next step, including the example
+      syntax / shape if relevant and a cross-link to
+      `Open decisions` if a sub-step split is awaiting user
+      input.
+   3. **`### Most recent steps (rolling detail)`** holds the
+      latest ~3 step narratives in detail. Each new step's
+      narrative lands at the top of this subsection. When the
+      subsection grows past 3 entries, demote the oldest
+      narrative to a one-line bullet in the commit log below.
+   4. **`### Earlier completed steps (commit log)`** holds
+      older entries as one-line bullets:
+      `- ``<commit-hash>`` (step <N>): <one-line summary>.`
+      with cross-references to deviations.md / resolutions.md /
+      commit messages where the deeper narrative lives.
 
-   When the rolling-detail subsection grows past ~3 entries,
-   demote the oldest narrative to a bullet in the commit-log
-   subsection. Before demoting, verify the narrative's
-   load-bearing context lives somewhere persistent: design
-   choices in [deviations.md](deviations.md), load-bearing
+   **Anti-pattern (do not do this):** appending new prose to
+   the Phase status paragraph each time a step ships, growing
+   the intro into a multi-paragraph blob. The Phase status
+   block must remain a tight summary; per-step detail belongs
+   in the rolling-detail subsection or commit log.
+
+   Before demoting, verify the narrative's load-bearing context
+   lives somewhere persistent: design choices in
+   [deviations.md](deviations.md), load-bearing
    investigations in [resolutions.md](resolutions.md),
    "what changed" in the commit message. If a piece of
    context lives only in plan.md, move it to the right home
