@@ -15,15 +15,18 @@ transformations) is the next phase.
 
 - **Phase 1** (Free family, [`fp-library/src/types/`](../../../fp-library/src/types/)): complete. Steps 1-9 plus two follow-up commits (the `WrapDrop` migration and the `Functor` -> `Kind` relaxation).
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs) in 10a.
-- **Phase 3** (first-order effect handlers, interpreters, natural transformations): in progress. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), and the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors) all shipped. Step 5e also delivered a substrate fix on the Erased Free family: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four) and the [2026-05-04 `define_effect!` macro deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand for custom effects surfaces). The remaining work is steps 7 (`compile_fail` UI tests) and 8 (review-remediation documentation pass).
+- **Phase 3** (first-order effect handlers, interpreters, natural transformations): complete. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors), step 7 (`compile_fail` UI tests), and step 8 (review-remediation documentation pass) all shipped. Step 5e also delivered a substrate fix on the Erased Free family: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four) and the [2026-05-04 `define_effect!` macro deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand for custom effects surfaces).
+- **Phase 4** (scoped effects via heftia dual row): not started. Targets `Catch<'a, E>`, `Span<'a, Tag>`, `Local`, and `Bracket` scoped-effect constructors plus a parallel `DispatchScopedHandlers` trait family. This is the next phase after Phase 3 closes.
 
 ### Next greenfield work
 
-The next step is **Phase 3 step 8**: review-remediation documentation pass. Bundles the docs-only items from [`remediation_proposals.md`](review/remediation_proposals.md) (F2A, F4A, F5A, M4 audit, M6A async-via-`spawn_blocking`, M7A bind/handler asymmetry note, all minor m1-m9) into one commit. Lands the docs that reflect Phase 3's settled state.
+Phase 3 closes with step 8. The next phase target is **Phase 4** (scoped effects via heftia dual row). Phase 4 ships [`Catch<'a, E>`](#phase-4-scoped-effects-heftia-dual-row), [`Span<'a, Tag>`](#phase-4-scoped-effects-heftia-dual-row), [`Local`](#phase-4-scoped-effects-heftia-dual-row), and [`Bracket`](#phase-4-scoped-effects-heftia-dual-row) scoped-effect constructors plus a parallel `DispatchScopedHandlers` trait family that handles the `Node::Scoped` arm currently kept structurally uninhabited via `S = CNilBrand`. Sub-step planning lives in the [Phase 4 phasing section](#phase-4-scoped-effects-heftia-dual-row) below.
 
-Step 6 (`define_effect!` macro) was [deferred 2026-05-04](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) until Phase 4 ships or a user surfaces concrete demand for custom effects; design research is preserved in resolutions.md. After step 8, Phase 3 closes and Phase 4 (scoped effects, heftia dual row) becomes the next phase target.
+Two Phase 3 steps were deferred and may revisit during or after Phase 4: step 6 ([`define_effect!` macro](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit), revisit when Phase 4 settles the codegen target or a user surfaces concrete demand) and step 5's [`interpret_with_rec`](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (deferred indefinitely; users chain `interpret_with` then `interpret_rec` for the workaround). Pre-public-release polish work (m1-m9 minor findings from [`remediation_proposals.md`](review/remediation_proposals.md)) is also outstanding as a non-phased follow-up commit.
 
 ### Most recent steps (rolling detail)
+
+**Phase 3 step 8: review-remediation documentation pass.** One docs-only commit. Bundles the doc-shaped items from [`remediation_proposals.md`](review/remediation_proposals.md) that the substantive Phase 3 code work didn't already absorb. (1) **F2A + F5A:** new entries in plan.md's [Out of scope](#out-of-scope) section explaining why the freer-monad encoding has no callable continuation primitive (Plotkin-Pretnar `k`) and why the headline `interpret` API is not a rank-2 natural transformation, with cross-links to [`NaturalTransformation`](../../../fp-library/src/classes/natural_transformation.rs) and [`Free::fold_free`](../../../fp-library/src/types/free.rs) as the rank-2 escape hatches. (2) **F4A:** the [Success criteria](#success-criteria) "single-shot vs. multi-shot" claim weakened to apply to the Free wrapper's spine consumption only; per-effect closures (`State`'s `dyn Fn`, `Choose`'s `dyn Fn(bool) -> A`) carry their multi-shot property at the effect-instance level on every wrapper. (3) **M4:** Coyoneda-fusion documentation block added to [`StateBrand`'s Functor impl](../../../fp-library/src/types/effects/state.rs) explaining that production rows wrap `StateBrand` in `CoyonedaBrand`, so `StateBrand::map`'s per-call `Rc`/`Arc` allocation is amortised to one per layer dispatch (not per user-side `.map()`). (4) **M6A:** async / IO workaround paragraph added to the [interpreter module docs](../../../fp-library/src/types/effects/interpreter.rs) describing `tokio::task::spawn_blocking` as the supported escape hatch and explaining why no `async fn` interpreter ships (no `MonadRec` impl over `Future`). (5) **M7A:** `Fn` vs `FnOnce` asymmetry note added to [`Run::bind`](../../../fp-library/src/types/effects/run.rs) and [`DispatchHandlers::dispatch`](../../../fp-library/src/types/effects/interpreter.rs) cross-referencing each other so readers navigating the API surface see the asymmetry from both call sites. The minor m1-m9 findings are explicitly slated for a separate "polish" commit before the next public release per the sequencing plan; they are out of scope for step 8. With step 8 shipped, Phase 3 closes.
 
 **Phase 3 step 7: `compile_fail` UI tests for negative cases of the Phase 3 effect surface.** One commit. Adds three tests under [`fp-library/tests/ui/`](../../../fp-library/tests/ui/) wired into the existing [`fp-library/tests/compile_fail.rs`](../../../fp-library/tests/compile_fail.rs) trybuild harness: (1) [`run_choose_not_found.rs`](../../../fp-library/tests/ui/run_choose_not_found.rs) verifies single-shot wrappers (`Run`, `RunExplicit`) reject the `Choose` smart constructor (E0599 no method found) since `Choose`'s handler runs the continuation twice and only multi-shot wrappers can host that property; (2) [`run_smart_constructor_type_mismatch.rs`](../../../fp-library/tests/ui/run_smart_constructor_type_mismatch.rs) verifies that a smart constructor's result type is bound to the row's effect parameterization (a row carrying `ReaderBrand<RcBrand, String>` rejects an ascription `Run<R, S, i32>` via E0277 on `CoprodUninjector`); (3) [`interpret_missing_handler.rs`](../../../fp-library/tests/ui/interpret_missing_handler.rs) verifies `interpret` rejects a handler list that doesn't cover every effect in the row (E0277 on `DispatchHandlers` against a non-empty row tail). Each test exercises a different layer of the type system; per-step deviation in [deviations.md](deviations.md) Phase 3 step 7 records the test selection and what was deliberately left out.
 
@@ -35,8 +38,6 @@ Substrate fix: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) a
 
 Effect-suite rollout (steps 5a-5e) is complete with this commit set. 4/4 integration tests in [`fp-library/tests/run_choose.rs`](../../../fp-library/tests/run_choose.rs) pass; full pre-existing test suite passes unchanged (no regression on single-inner Free workloads). Per-step deviation in [deviations.md](deviations.md) Phase 3 step 5e records the substrate-fix-shipped-alongside-effect divergence.
 
-**Phase 3 step 5d: `Writer` smart constructors on all six Run wrappers.** One commit: `5905e9b`. Adds the [`Writer<'a, W, A: 'a>`](../../../fp-library/src/types/effects/writer.rs) first-order effect type with the single `Tell(W, A, PhantomData<&'a ()>)` variant. Per-wrapper `tell` smart constructors thread a log value of type `W` through each wrapper's substrate; `tell` lives on the `Self<R, S, ()>` impl block (mirrors `put`) since the result type is `()`. Single brand ([`WriterBrand<W>`](../../../fp-library/src/brands/effects.rs)) serves all six wrappers because `Writer` has no `dyn Fn` continuation; the `Send + Sync` cascade reduces to a per-wrapper bound on the log type alone (no parallel `SendWriterBrand` needed). 12 integration tests in [`fp-library/tests/run_writer.rs`](../../../fp-library/tests/run_writer.rs) (2 per wrapper) covering single-Tell dispatch and a `tell(a) >>= |_| tell(b)` chain that verifies both logs are captured in order. Per-step deviation in [deviations.md](deviations.md) Phase 3 step 5d records the no-parallel-brand decision.
-
 ### Earlier completed steps (commit log)
 
 Each entry's design choices are recorded in
@@ -47,6 +48,7 @@ summary; resolved blockers are in
 
 Phase 3:
 
+- `5905e9b` (step 5d): Writer smart constructors on all six wrappers using a single `WriterBrand<W>` (no parallel `SendWriterBrand` needed because Writer has no `dyn Fn` continuation; the `Send + Sync` cascade is per-wrapper on `W` alone). 12 integration tests in [`fp-library/tests/run_writer.rs`](../../../fp-library/tests/run_writer.rs).
 - `66eca99` (step 5c): Except smart constructors on all six wrappers using a single `ExceptBrand<E>` (no parallel `SendExceptBrand` because Except has no `dyn Fn` continuation; the `Send + Sync` cascade is per-wrapper on `E` alone). The Arc family adds `E: Send + Sync`; multi-shot wrappers additionally require `E: Clone + 'static`. 12 integration tests in [`fp-library/tests/run_except.rs`](../../../fp-library/tests/run_except.rs).
 - `4162d20` (step 5b): Reader smart constructors on all six wrappers with a parallel [`SendReaderBrand`](../../../fp-library/src/brands/effects.rs) for the Arc family (analogous to `SendStateBrand` for State; motivated by the same `Arc<dyn Fn(...)>: !Send + !Sync` structural concern). 12 integration tests in [`fp-library/tests/run_reader.rs`](../../../fp-library/tests/run_reader.rs).
 - `72f753e` (brands reorg): extracted effect-specific brands to [`crate::brands::effects`](../../../fp-library/src/brands/effects.rs) while preserving flat re-exports at `crate::brands` via `pub use effects::*;`. Wrapped in `#[fp_macros::document_module]` with self-contained docs only.
@@ -1071,6 +1073,39 @@ constraints change.
 - **`async fn`-shaped interpreters.** Section 9.3 commits to
   sync interpreters with async-via-target-monad. No parallel
   `AsyncRun` family.
+- **Callable continuation primitives in handler clauses
+  (Plotkin-Pretnar `k : x -> Result`).** The freer-monad
+  encoding stores per-effect closures inside variant
+  constructors; handlers fold sub-programs via the
+  [`DispatchHandlers`](../../../fp-library/src/types/effects/interpreter.rs)
+  trait but do not receive a uniform resumable continuation.
+  Multi-shot semantics are achievable via the per-effect
+  closure (e.g.,
+  [`Choose`](../../../fp-library/src/types/effects/choose.rs)'s
+  embedded `dyn Fn(bool) -> NextProgram` can be invoked twice),
+  but the shape is per-effect, not per-handler. This is a
+  structural property of the freer-monad encoding, not a
+  defect of the implementation. Stable Rust has no
+  delimited-continuation primitive
+  ([`prompt#`](https://gitlab.haskell.org/ghc/ghc/-/wikis/proposal/delimited-continuation-primops)
+  / `control0#` GHC equivalents), so a uniform `k` cannot be
+  exposed even with library-level effort.
+- **Rank-2 natural transformations at the headline
+  interpreter API.** `interpret` and friends take handler
+  closures with a fixed `NextProgram` type per dispatch step,
+  not an `A`-polymorphic shape. PureScript Run's
+  `(VariantF r ~> m) -> Run r a -> m a` (a true rank-2 NT)
+  cannot be expressed with stable-Rust closures (no
+  rank-2-quantification over types). The mono-in-`A` form was
+  ratified as
+  [Decision 1, Q1](resolutions.md#resolved-2026-04-29-phase-3-step-23-interpreter-family-shape).
+  Users who genuinely need rank-2 polymorphism over `A` reach
+  for [`NaturalTransformation`](../../../fp-library/src/classes/natural_transformation.rs)
+  directly, consumed by
+  [`Free::fold_free`](../../../fp-library/src/types/free.rs)
+  or similar; that path bypasses the per-effect handler-list
+  pattern. The headline `interpret` API trades rank-2 reach
+  for closure-fitting ergonomics.
 
 ## Implementation phasing
 
@@ -2433,9 +2468,18 @@ The plan is complete when all of the following hold:
   `ArcRunExplicit`) where brand-level `m_do!(ref ...)` cannot
   reach.
 - Each of the six Free variants supports its promised property
-  (single-shot vs. multi-shot, thread-safe, `'static` vs `'a`,
-  Brand-dispatched vs inherent-method-only) with per-variant unit
-  tests passing.
+  (the Free wrapper's spine consumption is single-shot vs.
+  multi-shot, thread-safe, `'static` vs `'a`, Brand-dispatched
+  vs inherent-method-only) with per-variant unit tests passing.
+  Note: the single-shot vs. multi-shot property applies to the
+  Free wrapper's spine consumption only; per-effect closures
+  (e.g., [`State`](../../../fp-library/src/types/effects/state.rs)'s
+  `dyn Fn` continuations,
+  [`Choose`](../../../fp-library/src/types/effects/choose.rs)'s
+  `dyn Fn(bool) -> A` branch) carry their own multi-shot
+  property at the effect-instance level on every wrapper that
+  hosts the effect, independent of the wrapper's spine
+  semantics.
 - The `SendFunctor` / `SendPointed` / `SendSemimonad` /
   `SendMonad` trait family ships and is used by
   `ArcFreeExplicitBrand` and `ArcRunExplicitBrand` for their

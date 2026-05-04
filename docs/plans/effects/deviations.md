@@ -3259,6 +3259,106 @@ What diverged from the original step 7 plan:
 Verification: 23 UI tests pass (20 pre-existing + 3 new).
 `just verify` clean across all sub-recipes.
 
+### Step 8: review-remediation documentation pass
+
+Bundles the doc-shaped items from
+[`remediation_proposals.md`](review/remediation_proposals.md)
+that the substantive Phase 3 code work didn't already absorb.
+Closes Phase 3.
+
+What landed:
+
+- **F2A + F5A:** new entries in
+  [`plan.md`'s Out of scope](plan.md#out-of-scope) section.
+  One entry explains why the freer-monad encoding has no
+  callable continuation primitive (Plotkin-Pretnar `k`):
+  handlers fold sub-programs via the
+  [`DispatchHandlers`](../../../fp-library/src/types/effects/interpreter.rs)
+  trait but do not receive a uniform resumable continuation;
+  multi-shot semantics are achievable via the per-effect
+  closure but the shape is per-effect, not per-handler. A
+  second entry explains why the headline `interpret` API is
+  not a rank-2 natural transformation: stable Rust closures
+  cannot be `A`-polymorphic. Both cross-link to
+  [`NaturalTransformation`](../../../fp-library/src/classes/natural_transformation.rs)
+  and [`Free::fold_free`](../../../fp-library/src/types/free.rs)
+  as the rank-2 escape hatches.
+- **F4A:** the [Success criteria](plan.md#success-criteria)
+  "single-shot vs. multi-shot" claim weakened to apply to the
+  Free wrapper's spine consumption only; per-effect closures
+  (`State`'s `dyn Fn`, `Choose`'s `dyn Fn(bool) -> A`) carry
+  their multi-shot property at the effect-instance level on
+  every wrapper that hosts the effect, independent of the
+  wrapper's spine semantics.
+- **M4 audit + Coyoneda fusion docs:** added a
+  "Coyoneda fusion at the call site" doc block to
+  [`StateBrand`'s Functor impl](../../../fp-library/src/types/effects/state.rs)
+  documenting that production rows wrap `StateBrand` in
+  [`CoyonedaBrand`](../../../fp-library/src/brands.rs), so
+  `StateBrand::map`'s per-call `Rc`/`Arc` allocation is
+  amortised to one per **layer dispatch** (not per user-side
+  `.map()`). Direct call-sites are exercised only by
+  doctests; the rows in
+  [`Run`](../../../fp-library/src/types/effects/run.rs) /
+  [`RcRun`](../../../fp-library/src/types/effects/rc_run.rs) /
+  [`ArcRun`](../../../fp-library/src/types/effects/arc_run.rs)
+  / their `Explicit` siblings always interpose Coyoneda.
+- **M6A async / IO workaround:** added a paragraph to the
+  [interpreter module docs](../../../fp-library/src/types/effects/interpreter.rs)
+  describing
+  [`tokio::task::spawn_blocking`](https://docs.rs/tokio/latest/tokio/task/fn.spawn_blocking.html)
+  as the supported escape hatch for interleaving async work
+  with synchronous effect interpretation, plus
+  [`tokio::runtime::Handle::block_on`](https://docs.rs/tokio/latest/tokio/runtime/struct.Handle.html#method.block_on)
+  for handler closures that need to call out to async APIs.
+  Explains why no `async fn` interpreter ships (no
+  [`MonadRec`](../../../fp-library/src/classes/monad_rec.rs)
+  impl for `Future`-shaped target monads).
+- **M7A `Fn` vs `FnOnce` asymmetry note:** one-line note added
+  to [`Run::bind`](../../../fp-library/src/types/effects/run.rs)
+  and [`DispatchHandlers::dispatch`](../../../fp-library/src/types/effects/interpreter.rs)
+  documenting that `bind` takes `f: FnOnce(A) -> ...`
+  (single-shot, matching the Free continuation queue) while
+  handler closures stored in
+  [`Handler<E, F>`](../../../fp-library/src/types/effects/handlers.rs)
+  are bound `F: Fn` (multi-shot, callable inside
+  `tail_rec_m`'s step closure). Each cross-references the
+  other so readers navigating the API surface see the
+  asymmetry from both call sites.
+
+What diverged from the original step 8 plan:
+
+- **Minor m1-m9 findings excluded.** The original step 8
+  description listed "all minor m1-m9 findings" as part of
+  the bundle, but the
+  [`remediation_proposals.md` sequencing plan](review/remediation_proposals.md)
+  explicitly slates them for a separate "polish" commit
+  before the next public release. Step 8 ships the focused
+  doc remediations for F2/F4/F5/M4/M6/M7 only.
+- **Mid-step feedback on self-contained source docs.** The
+  user flagged during the M6A edit that all source-code
+  documentation must be self-contained (no plan / decisions
+  / resolutions / `Phase N step M` / GitHub-URL references).
+  The new spawn_blocking text was rewritten to remove
+  "Phase 6+" and "Phase 3 step 1" references; the rule was
+  saved as a memory note. Pre-existing source-doc external
+  references across the effects module (~78 occurrences as
+  of 2026-05-04) are addressed in the immediately-following
+  commit, not in step 8 proper.
+
+Verification: `just verify` clean across all sub-recipes.
+
+### Step 9 (post-step-8 follow-up): scrub external references from source-code docs
+
+Not a numbered phasing step; a doc-cleanup commit triggered by
+mid-step-8 user feedback that all source-code documentation must
+be self-contained. Scrubs `Phase N step M` identifiers,
+`https://github.com/...` URLs into the project, and bare
+references to plan / decisions / resolutions / deviations
+documents from `.rs` source files. Replaces them with
+self-contained explanations or intra-doc links to in-crate
+symbols. No semantic changes; doc text only.
+
 Two cross-cutting commits landed in the same set as 5a.1 / 5a.2;
 not tied to a specific phase step but worth recording for
 context:

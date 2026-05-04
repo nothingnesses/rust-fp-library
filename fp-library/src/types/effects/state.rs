@@ -145,6 +145,35 @@ mod inner {
 		/// Composes `f` with each variant's stored continuation. The
 		/// pointer kind `P` is preserved; the new continuation is
 		/// constructed via [`ToDynCloneFn::new`].
+		///
+		/// ## Coyoneda fusion at the call site
+		///
+		/// Each invocation allocates one fresh
+		/// [`<P as RefCountedPointer>::Of<...>`](crate::classes::RefCountedPointer)
+		/// to wrap the composed continuation. In production, this
+		/// method is called at most **once per dispatch** because the
+		/// row brand wraps `StateBrand<P, S>` in
+		/// [`CoyonedaBrand`](crate::brands::CoyonedaBrand) (or its
+		/// Rc/Arc-cloneable siblings), and `CoyonedaBrand::map`
+		/// accumulates deferred compositions inside the Coyoneda
+		/// layer chain rather than calling the inner functor's `map`
+		/// directly. The chain is collapsed to a single application
+		/// only when `Coyoneda::lower` (or `lower_ref`) runs at the
+		/// dispatch boundary, which then invokes
+		/// [`StateBrand::map`](StateBrand) exactly once with the
+		/// fully-fused composition.
+		///
+		/// Net cost: one `Rc`/`Arc` allocation per **layer dispatch**,
+		/// not per user-side `.map()` call. Direct call-sites of
+		/// `StateBrand::map` in production would defeat this fusion;
+		/// the rows in
+		/// [`Run`](crate::types::effects::run::Run) /
+		/// [`RcRun`](crate::types::effects::rc_run::RcRun) /
+		/// [`ArcRun`](crate::types::effects::arc_run::ArcRun) /
+		/// their `Explicit` siblings always interpose Coyoneda, so no
+		/// production path hits the un-fused cost. Doctests below
+		/// exercise the method directly to verify behaviour at the
+		/// trait boundary.
 		#[document_signature]
 		///
 		#[document_type_parameters(

@@ -35,8 +35,7 @@
 //!
 //! ## Shape: handler list mirrors row brand chain
 //!
-//! Per [Phase 3 step 1](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md),
-//! the handler list cons cells are positional:
+//! The handler list cons cells are positional:
 //! `HandlersCons<Handler<EBrand, F>, T>` aligns with the row brand
 //! chain `CoproductBrand<CoyonedaBrand<EBrand>, RestBrand>`. The
 //! [`DispatchHandlers`] trait recurses through both in lock-step:
@@ -44,6 +43,31 @@
 //! `Coproduct::Inr` recurses on `HandlersCons::tail`. `CNil` matches
 //! [`HandlersNil`](crate::types::effects::handlers::HandlersNil) and is uninhabited, so the recursion terminates
 //! safely.
+//!
+//! ## Async / IO workaround: `spawn_blocking`
+//!
+//! The interpreter family is synchronous: handler closures take a
+//! row layer and return the next program directly, not a `Future`.
+//! No `async fn` interpreter variant ships, because
+//! [`MonadRec`](crate::classes::MonadRec) (the trait whose
+//! `tail_rec_m` drives `interpret_rec`'s stack-safe loop) has no
+//! impl for `Future`-shaped target monads in this library; without
+//! that, an async interpreter cannot satisfy the same stack-safety
+//! contract the sync family does.
+//!
+//! For programs that need to interleave async work with effect
+//! interpretation today, the supported workaround is
+//! [`tokio::task::spawn_blocking`](https://docs.rs/tokio/latest/tokio/task/fn.spawn_blocking.html)
+//! (or the equivalent on other runtimes): wrap the synchronous
+//! `interpret` call inside a blocking task, await the join handle
+//! from async code. Handler closures may themselves block on
+//! [`tokio::runtime::Handle::block_on`](https://docs.rs/tokio/latest/tokio/runtime/struct.Handle.html#method.block_on)
+//! to call out to async APIs from inside the interpreter, at the
+//! cost of one blocking-thread-pool slot per concurrent program.
+//!
+//! This is a runtime-level workaround, not a library feature. A
+//! native `Future`-based interpreter would compose better but
+//! requires a `MonadRec` impl over `Future` first.
 
 #[fp_macros::document_module]
 mod inner {
@@ -97,6 +121,17 @@ mod inner {
 	/// are bound `F: Fn`; mutation flows through interior mutability
 	/// at the user level (`Rc<RefCell<_>>` or `Arc<Mutex<_>>` captures),
 	/// matching the `Fn`-callable contract.
+	///
+	/// **Note: `Fn` vs `FnOnce` asymmetry.** Each Run wrapper's
+	/// inherent `bind` method
+	/// ([`Run::bind`](crate::types::effects::run::Run::bind) and
+	/// siblings) takes `f: FnOnce(A) -> ...` (single-shot, matching
+	/// the Free continuation queue's storage). Handler closures
+	/// here are `Fn` (multi-shot, callable inside `tail_rec_m`'s
+	/// step closure). Converting one shape to the other requires
+	/// either an interior-mutability capture or wrapping in
+	/// `Rc`/`Arc`; the asymmetry is structural, driven by the two
+	/// call sites' differing reentry needs.
 	#[fp_macros::document_type_parameters(
 		"The lifetime of the layer and the produced next program.",
 		"The row's value-level shape (typically a `Coproduct` chain).",

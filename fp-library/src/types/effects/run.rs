@@ -285,6 +285,18 @@ mod inner {
 
 		/// Sequences this `Run` with a continuation `f`. Delegates to
 		/// [`Free::bind`](crate::types::Free).
+		///
+		/// `f: FnOnce(A) -> Run<...>` is single-shot, mirroring
+		/// [`Free`](crate::types::Free)'s `Box<dyn FnOnce>`-backed
+		/// continuation queue. Handler closures stored in
+		/// [`Handler<E, F>`](crate::types::effects::handlers::Handler)
+		/// are bound `F: Fn` (the
+		/// [`DispatchHandlers::dispatch`](crate::types::effects::interpreter::DispatchHandlers)
+		/// receiver is `&self` so it can be called from inside
+		/// [`MonadRec::tail_rec_m`](crate::classes::MonadRec)'s `Fn`
+		/// step closure). Conversions between the two require
+		/// interior mutability or refcounted captures
+		/// (`Rc<RefCell<_>>`, `Arc<Mutex<_>>`).
 		#[document_signature]
 		///
 		#[document_type_parameters("The result type of the new computation.")]
