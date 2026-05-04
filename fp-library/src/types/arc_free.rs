@@ -2,7 +2,7 @@
 //!
 //! [`ArcFree`] is the [`Send`] + [`Sync`] sibling of
 //! [`RcFree`](crate::types::RcFree): the same "Reflection without Remorse"
-//! structure (a [`CatList`](crate::types::CatList) of pending continuations
+//! structure (a [`ArcCatList`](crate::types::ArcCatList) of pending continuations
 //! sitting beside a single type-erased view), but with [`Arc<dyn Fn + Send + Sync>`](std::sync::Arc)
 //! continuations (matching what
 //! [`FnBrand<ArcBrand>`](crate::brands::FnBrand) resolves to via
@@ -48,7 +48,7 @@ mod inner {
 				WrapDrop,
 			},
 			kinds::*,
-			types::CatList,
+			types::ArcCatList,
 		},
 		fp_macros::*,
 		std::{
@@ -63,7 +63,7 @@ mod inner {
 	/// `Send + Sync`.
 	pub type ArcTypeErasedValue = Arc<dyn Any + Send + Sync>;
 
-	/// Type-erased continuation stored in the [`CatList`](crate::types::CatList)
+	/// Type-erased continuation stored in the [`ArcCatList`](crate::types::ArcCatList)
 	/// queue, equivalent to
 	/// [`<ArcFnBrand as SendCloneFn>::Of<'static, ArcTypeErasedValue, ArcFree<F, ArcTypeErasedValue>>`](crate::brands::FnBrand).
 	pub struct ArcContinuation<F>(
@@ -195,7 +195,7 @@ mod inner {
 			+ 'static,
 		A: 'static, {
 		view: Option<ArcFreeView<F>>,
-		continuations: CatList<ArcContinuation<F>>,
+		continuations: ArcCatList<ArcContinuation<F>>,
 		_marker: PhantomData<A>,
 	}
 
@@ -213,7 +213,7 @@ mod inner {
 		>): Clone,
 	{
 		/// Clones the inner state: view via [`ArcFreeView`]'s `Clone`, the
-		/// continuation queue via [`CatList`](crate::types::CatList)'s
+		/// continuation queue via [`ArcCatList`](crate::types::ArcCatList)'s
 		/// `Clone` (each `Arc<dyn Fn + Send + Sync>` cell becomes an
 		/// atomic refcount bump).
 		#[document_signature]
@@ -447,7 +447,7 @@ mod inner {
 			A: Send + Sync, {
 			ArcFree::from_inner(ArcFreeInner {
 				view: Some(ArcFreeView::Return(Arc::new(a) as ArcTypeErasedValue)),
-				continuations: CatList::empty(),
+				continuations: ArcCatList::empty(),
 				_marker: PhantomData,
 			})
 		}
@@ -493,7 +493,7 @@ mod inner {
 		///
 		/// Wraps the user closure into an `Arc<dyn Fn + Send + Sync>` (via
 		/// [`<ArcFnBrand as SendLiftFn>::new`](crate::classes::SendLiftFn))
-		/// and snocs onto the [`CatList`](crate::types::CatList) queue.
+		/// and snocs onto the [`ArcCatList`](crate::types::ArcCatList) queue.
 		/// Requires `A: Clone + Send + Sync` because the continuation
 		/// recovers an owned `A` from a shared `Arc<dyn Any + Send + Sync>`
 		/// cell on each call, with `Clone` as the fallback when the cell is
@@ -612,7 +612,7 @@ mod inner {
 			);
 			ArcFree::from_inner(ArcFreeInner {
 				view: Some(ArcFreeView::Suspend(erased_fa)),
-				continuations: CatList::empty(),
+				continuations: ArcCatList::empty(),
 				_marker: PhantomData,
 			})
 		}
@@ -723,14 +723,15 @@ mod inner {
 							},
 						));
 						let all_conts = conts.snoc(downcast_cont);
-						let remaining = std::sync::Mutex::new(Some(all_conts));
 						let typed_fa = F::send_map(
 							move |inner_free: ArcFree<F, ArcTypeErasedValue>| {
-								let conts_for_inner = remaining
-									.lock()
-									.expect("ArcFree::to_view mutex poisoned")
-									.take()
-									.expect("ArcFree::to_view map called more than once");
+								// `ArcCatList::clone` is O(1) (atomic refcount
+								// bump) and `Send + Sync` whenever the element
+								// type is, so this closure is safely callable
+								// multiple times - including from concurrent
+								// threads - by handlers that re-enter the
+								// continuation (e.g. `Choose`).
+								let conts_for_inner = all_conts.clone();
 								let mut owned_inner = inner_free.into_inner_owned();
 								let v = owned_inner.view.take();
 								let c = std::mem::take(&mut owned_inner.continuations);

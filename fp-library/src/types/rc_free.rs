@@ -1,7 +1,7 @@
 //! Stack-safe Free monad with `Rc`-shared continuations supporting multi-shot effects.
 //!
 //! [`RcFree`] mirrors [`Free`](crate::types::Free)'s "Reflection without Remorse"
-//! structure (a [`CatList`](crate::types::CatList) of pending continuations
+//! structure (a [`RcCatList`](crate::types::RcCatList) of pending continuations
 //! sitting beside a single type-erased view) but swaps the closure storage
 //! from `Box<dyn FnOnce>` to `Rc<dyn Fn>` (matching what
 //! [`FnBrand<RcBrand>`](crate::brands::FnBrand) resolves to). The `Fn`-shape
@@ -28,7 +28,7 @@
 //!   cell is shared.
 //! - **Allocation per bind:** [`bind`](RcFree::bind) wraps each user
 //!   continuation in `Rc<dyn Fn(...)>` and snocs onto the
-//!   [`CatList`](crate::types::CatList), so the per-bind cost is one `Rc`
+//!   [`RcCatList`](crate::types::RcCatList), so the per-bind cost is one `Rc`
 //!   allocation plus the queue snoc.
 //! - **Thread-safety:** `RcFree` is `!Send`. Use `ArcFree` for thread-safe
 //!   contexts.
@@ -62,7 +62,7 @@ mod inner {
 				WrapDrop,
 			},
 			kinds::*,
-			types::CatList,
+			types::RcCatList,
 		},
 		fp_macros::*,
 		std::{
@@ -78,7 +78,7 @@ mod inner {
 	/// participate in [`Clone`] without deep-copying the payload.
 	pub type RcTypeErasedValue = Rc<dyn Any>;
 
-	/// Type-erased continuation stored in the [`CatList`](crate::types::CatList)
+	/// Type-erased continuation stored in the [`RcCatList`](crate::types::RcCatList)
 	/// queue, equivalent to
 	/// [`<RcFnBrand as CloneFn>::Of<'static, RcTypeErasedValue, RcFree<F, RcTypeErasedValue>>`](crate::brands::FnBrand).
 	pub struct RcContinuation<F>(Rc<dyn Fn(RcTypeErasedValue) -> RcFree<F, RcTypeErasedValue>>)
@@ -189,7 +189,7 @@ mod inner {
 		F: WrapDrop + 'static,
 		A: 'static, {
 		view: Option<RcFreeView<F>>,
-		continuations: CatList<RcContinuation<F>>,
+		continuations: RcCatList<RcContinuation<F>>,
 		_marker: PhantomData<A>,
 	}
 
@@ -205,7 +205,7 @@ mod inner {
 		>): Clone,
 	{
 		/// Clones the inner state: the view via [`RcFreeView`]'s `Clone`,
-		/// the continuation queue via [`CatList`](crate::types::CatList)'s
+		/// the continuation queue via [`RcCatList`](crate::types::RcCatList)'s
 		/// `Clone` (each `Rc<dyn Fn>` cell becomes a refcount bump).
 		#[document_signature]
 		///
@@ -432,7 +432,7 @@ mod inner {
 		pub fn pure(a: A) -> Self {
 			RcFree::from_inner(RcFreeInner {
 				view: Some(RcFreeView::Return(Rc::new(a) as RcTypeErasedValue)),
-				continuations: CatList::empty(),
+				continuations: RcCatList::empty(),
 				_marker: PhantomData,
 			})
 		}
@@ -477,7 +477,7 @@ mod inner {
 		/// Monadic bind with O(1) per-call cost.
 		///
 		/// Wraps the user closure into an `Rc<dyn Fn>` and snocs onto the
-		/// continuation [`CatList`](crate::types::CatList). Requires
+		/// continuation [`RcCatList`](crate::types::RcCatList). Requires
 		/// `A: Clone` because each stored continuation may be invoked more
 		/// than once and must recover an owned `A` from the type-erased
 		/// `Rc<A>` cell on every call.
@@ -593,7 +593,7 @@ mod inner {
 			);
 			RcFree::from_inner(RcFreeInner {
 				view: Some(RcFreeView::Suspend(erased_fa)),
-				continuations: CatList::empty(),
+				continuations: RcCatList::empty(),
 				_marker: PhantomData,
 			})
 		}
@@ -657,7 +657,7 @@ mod inner {
 		/// ```
 		#[expect(
 			clippy::expect_used,
-			reason = "RcFree values consumed exactly once per branch; double consumption indicates a bug"
+			reason = "RcFree views consumed exactly once per layer-walk step; double consumption indicates a bug"
 		)]
 		pub fn to_view(self) -> RcFreeStep<F, A>
 		where
@@ -705,12 +705,13 @@ mod inner {
 							},
 						));
 						let all_conts = conts.snoc(downcast_cont);
-						let remaining = std::cell::Cell::new(Some(all_conts));
 						let typed_fa = F::map(
 							move |inner_free: RcFree<F, RcTypeErasedValue>| {
-								let conts_for_inner = remaining
-									.take()
-									.expect("RcFree::to_view map called more than once");
+								// `RcCatList::clone` is O(1) (refcount bump),
+								// so this closure is safely callable multiple
+								// times by handlers that re-enter the
+								// continuation (e.g. `Choose`).
+								let conts_for_inner = all_conts.clone();
 								let mut owned_inner = inner_free.into_inner_owned();
 								let v = owned_inner.view.take();
 								let c = std::mem::take(&mut owned_inner.continuations);

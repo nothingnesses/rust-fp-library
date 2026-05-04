@@ -18,6 +18,7 @@
 //! ```
 
 pub mod additive;
+pub mod arc_cat_list;
 pub mod arc_coyoneda;
 pub mod arc_free;
 pub mod arc_free_explicit;
@@ -45,6 +46,7 @@ pub mod multiplicative;
 pub mod optics;
 pub mod option;
 pub mod pair;
+pub mod rc_cat_list;
 pub mod rc_coyoneda;
 pub mod rc_free;
 pub mod rc_free_explicit;
@@ -65,6 +67,7 @@ pub mod vec;
 
 pub use {
 	additive::Additive,
+	arc_cat_list::ArcCatList,
 	arc_coyoneda::ArcCoyoneda,
 	arc_free::{
 		ArcContinuation,
@@ -121,6 +124,7 @@ pub use {
 		LensPrime,
 	},
 	pair::Pair,
+	rc_cat_list::RcCatList,
 	rc_coyoneda::RcCoyoneda,
 	rc_free::{
 		RcFree,
