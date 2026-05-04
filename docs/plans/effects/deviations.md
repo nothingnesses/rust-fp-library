@@ -2783,8 +2783,10 @@ error pointing at the impl-block bound).
 
 Open follow-ups:
 
-- Pop `git stash@{0}` (the `run_state.rs` draft) and fix the
-  `State<'static, ...>` lifetime annotations.
+- Integration tests in
+  [`fp-library/tests/run_state.rs`](../../../fp-library/tests/run_state.rs)
+  landed in a separate `test(effects):` commit covering all
+  six wrappers (3 tests per wrapper, 18 total).
 
 ### Step 5a.4 + 5a.6 second follow-up (2026-05-04): `SendFoldable` trait + brand-level fold restored on `ArcCoyonedaBrand`
 
@@ -2846,6 +2848,46 @@ Verification: `just verify` clean. 2520 unit tests + new
 doctests (`send_fold_map` free function, `VecBrand::send_fold_map`,
 `VecBrand::send_fold_right`, `VecBrand::send_fold_left`,
 `ArcCoyonedaBrand::send_fold_map`) compile and pass.
+
+### Step 5a integration tests (2026-05-04): `run_state.rs`
+
+End-to-end integration tests for the State effect smart
+constructors on all six Run wrappers, landed at
+[`fp-library/tests/run_state.rs`](../../../fp-library/tests/run_state.rs).
+Three tests per wrapper:
+
+- `*_get_returns_current_state`: a single Get effect
+  dispatched through a handler that reads from a captured
+  cell.
+- `*_put_writes_state`: a single Put effect dispatched
+  through a handler that writes to a captured cell.
+- `*_get_put_get_bind_chain`: a bind-chained program
+  (`get >>= |s| put(s + 1) >>= |_| get`) verifying state
+  threads through the bind continuation.
+
+State threading is via user-side closure captures
+(`Rc<RefCell<S>>` for the four non-Arc wrappers,
+`Arc<Mutex<S>>` for the two Arc wrappers). The non-Arc
+family threads `RcBrand` and uses `StateBrand<RcBrand, S>`
+in the row; the Arc family threads `ArcBrand` and uses
+`SendStateBrand<ArcBrand, S>` whose closure projection
+bakes in `Send + Sync` at the type level.
+
+Implementation notes:
+
+- **Closure parameter types use `'_` (not `'static`) for
+  the inner State projection lifetime** so the closure is
+  HRTB-polymorphic over State's projection lifetime (e.g.,
+  `op: State<'_, RcBrand, i32, Run<...>>` rather than
+  `op: State<'static, ...>`). Pinning the projection
+  lifetime to `'static` produces a
+  "FnOnce-not-general-enough" error because `interpret`'s
+  where-clause requires `for<'a> Fn(State<'a, ...>) -> ...`.
+  The wrapper's outer lifetime stays `'static` (e.g.,
+  `RunExplicit<'static, ...>`) because that's pinned by the
+  program type.
+
+Verification: 18 tests pass; full `just verify` clean.
 
 ### Cross-cutting docs/macros commits during step 5a
 

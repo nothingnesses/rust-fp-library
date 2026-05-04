@@ -49,19 +49,15 @@ A follow-up commit added
 [`SendFoldable`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/send_foldable.rs)
 parallel to `SendFunctor`, restoring the brand-level fold
 surface on `ArcCoyonedaBrand` that the (a) migration dropped.
+Step 6a integration tests landed at
+[`fp-library/tests/run_state.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_state.rs)
+(18 tests, 3 per wrapper: single-Get, single-Put, and a
+bind-chained Get-Put-Get program).
 
 **Immediate pending tasks:**
 
-1. Pop `git stash@{0}` (the `run_state.rs` draft, ~430
-   lines, 18 tests across all six wrappers), fix
-   `State<'static, ...>` lifetime annotations to
-   `State<'_, ...>` (the FnOnce-not-general-enough error in
-   the original draft was caused by pinning the State
-   projection lifetime instead of letting it be HRTB-
-   polymorphic), run `just verify`, commit as
-   `test(effects):`.
-2. Step 5 (`interpret_with_rec` pipeline-plus-MonadRec
-   family) is the next greenfield step.
+Step 5 (`interpret_with_rec` pipeline-plus-MonadRec family)
+is the next greenfield step.
 
 ### Step 5 implementation pattern (next greenfield work)
 
@@ -266,11 +262,6 @@ phase-step number):
 
 **Remaining Phase 3 steps:**
 
-- **Step 6a integration tests in `run_state.rs` (open
-  follow-up; recommended before step 5):** pop
-  `git stash@{0}`, fix `State<'_, ...>` lifetime
-  annotations, run `just verify`. All six wrappers covered
-  end-to-end.
 - Step 5 (`interpret_with_rec`, immediate next greenfield
   step): per-wrapper inherent method combining the pipeline
   shape (step 3) with `tail_rec_m` (step 4). Six new method
@@ -857,16 +848,7 @@ docs for bare-name doc-links before / after the wrapping.
    [`SendFoldable` follow-up commit](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md#step-5a4--5a6-second-follow-up-2026-05-04-sendfoldable-trait--brand-level-fold-restored-on-arccoyonedabrand)
    that restored the brand-level fold surface on
    `ArcCoyonedaBrand`.
-2. **`run_state.rs` integration tests (open follow-up;
-   recommended before step 5):** pop `git stash@{0}` (the
-   ~430-line draft covering all six wrappers, 18 tests).
-   Fix `State<'static, ...>` to `State<'_, ...>` (the
-   FnOnce-not-general-enough error in the original draft was
-   caused by pinning the projection lifetime instead of
-   letting it be HRTB-polymorphic). All six wrappers'
-   tests are reachable end-to-end. Run `just verify`,
-   commit as `test(effects):`.
-3. **Step 5 (`interpret_with_rec`):** see "Step 5
+2. **Step 5 (`interpret_with_rec`):** see "Step 5
    implementation pattern" subsection in the resume point
    above for the full shape. Six per-wrapper inherent methods
    in `run.rs` / `run_explicit.rs` / `rc_run.rs` /
@@ -878,7 +860,7 @@ docs for bare-name doc-links before / after the wrapping.
    `fp-library/tests/run_interpret_with_rec.rs`. Use State
    (now end-to-end on all six wrappers) as one of the test
    scenarios.
-4. **Steps 6b-6e (`Reader`, `Except`, `Writer`, `Choose`)**
+3. **Steps 6b-6e (`Reader`, `Except`, `Writer`, `Choose`)**
    follow 6a's per-effect / per-wrapper rollout pattern.
    Note: any effect type whose representation includes
    `dyn Fn(...) -> A` continuations (likely `Reader` and
@@ -889,12 +871,12 @@ docs for bare-name doc-links before / after the wrapping.
    don't try option (b) per-method bounds first. `Choose`
    ships only on the four multi-shot wrappers per the
    2026-05-03 wrapper-parameterization resolution's Q4=ii.
-5. Read [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
+4. Read [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
    section 4.3 (interpreter families) only if you need the
    original commitment context. Sections 4.5 (scoped effects)
    and 4.6 (natural transformations) become relevant for
    Phase 4 / future work.
-6. If your step touches type-class impls, brand-level dispatch, or
+5. If your step touches type-class impls, brand-level dispatch, or
    `Send + Sync` auto-derive, also skim
    [fp-library/docs/limitations-and-workarounds.md](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/limitations-and-workarounds.md)'s
    "Unexpressible Bounds in Trait Method Signatures" table. Phase
@@ -905,7 +887,7 @@ docs for bare-name doc-links before / after the wrapping.
    path) is the precedent any new wrapper type with shared
    internal state will end up following. Saves rediscovering the
    constraint mid-implementation.
-7. Update plan.md's `Current progress` (rolling-detail entry
+6. Update plan.md's `Current progress` (rolling-detail entry
    for step 5; demote oldest step from rolling-detail to commit
    log per the rolling-detail trim window of ~3 narratives).
    Append deviations.md entry for step 5. Standard end-of-step

@@ -704,24 +704,11 @@ No active blockers.
 
 ### Open follow-ups (not blocking but worth surfacing)
 
-Step 6a integration tests in `run_state.rs` are pending. The
-original [prompt.md](prompt.md)'s "Where to start" #5 called
-for integration tests covering bind-chain composition, run
-with handlers dispatching State, and interpret-with-closure-
-capture state threading through Get/Put for each wrapper. A
-draft is preserved in `git stash@{0}` ("wip(effects):
-run*state.rs draft for 6a integration tests") covering all
-six wrappers in ~430 lines with 18 test functions. The
-non-Arc family tests (12 of 18) need a small fix changing
-`State<'static, ...>` to `State<'*, ...>`so the closure is
-HRTB-polymorphic over State's projection lifetime. The Arc
-family tests (6 of 18) are unblocked by the
-[2026-05-04 ArcCoyoneda algebra migration resolution](resolutions.md#resolved-2026-05-04-phase-3-step-6a-downstream-blocker-arccoyonedas-algebra-migrated-to-sendfunctor-option-a)
-and the
-[`SendFoldable`follow-up commit](deviations.md#step-5a4--5a6-second-follow-up-2026-05-04-sendfoldable-trait--brand-level-fold-restored-on-arccoyonedabrand)
-that restored brand-level fold on`ArcCoyonedaBrand`. Tracked in
-[deviations.md Phase 3 step 5a.4 + 5a.6](deviations.md)'s
-Open follow-ups subsection.
+No outstanding step 6a follow-ups. Integration tests in
+[`fp-library/tests/run_state.rs`](../../../fp-library/tests/run_state.rs)
+landed covering all six wrappers (3 tests per wrapper:
+single-Get, single-Put, and a bind-chained Get-Put-Get
+program), 18 tests total.
 
 Recently resolved: the Phase 3 step 6 smart-constructor wrapper
 parameterization question (2026-05-03). Five sub-decisions
