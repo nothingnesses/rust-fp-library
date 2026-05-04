@@ -585,11 +585,8 @@ mod inner {
 		/// This is the only by-reference dispatch path available for
 		/// `ArcRunExplicit` (the brand-level `SendRefSemimonad` is
 		/// permanently unreachable on stable Rust per
-		/// [`fp-library/docs/limitations-and-workarounds.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/docs/limitations-and-workarounds.md)).
-		/// The
-		/// [`im_do!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
-		/// macro's `ref` form (Phase 2 step 7c) desugars to this
-		/// method.
+		/// [`limitations-and-workarounds.md`](../../../../docs/limitations-and-workarounds.md)).
+		/// The `im_do!` macro's `ref` form desugars to this method.
 		#[document_signature]
 		///
 		#[document_type_parameters("The result type of the new computation.")]
@@ -701,13 +698,11 @@ mod inner {
 		/// `SendRefPointed` on
 		/// [`ArcRunExplicitBrand`](crate::brands::ArcRunExplicitBrand)
 		/// is unreachable on stable Rust per
-		/// [`fp-library/docs/limitations-and-workarounds.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/docs/limitations-and-workarounds.md).
+		/// [`limitations-and-workarounds.md`](../../../../docs/limitations-and-workarounds.md).
 		///
-		/// The
-		/// [`im_do!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
-		/// macro's `ref` form (Phase 2 step 7c) rewrites bare
-		/// `pure(x)` calls inside
-		/// `im_do!(ref ArcRunExplicit { ... })` to this method.
+		/// The `im_do!` macro's `ref` form rewrites bare `pure(x)`
+		/// calls inside `im_do!(ref ArcRunExplicit { ... })` to this
+		/// method.
 		#[document_signature]
 		///
 		#[document_parameters("A reference to the value to wrap.")]
@@ -1396,9 +1391,8 @@ mod inner {
 		/// and uses
 		/// [`SendStateBrand`](crate::brands::SendStateBrand) (rather
 		/// than `StateBrand`) so the continuation projection is
-		/// structurally `Send + Sync`. See the
-		/// [2026-05-03 SendFunctor option-(c) resolution](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/resolutions.md)
-		/// for design rationale.
+		/// structurally `Send + Sync`, which the `SendFunctor`
+		/// algebra requires across thread boundaries.
 		#[document_signature]
 		///
 		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
@@ -1833,12 +1827,11 @@ mod inner {
 		/// substrates when `A: Send + Sync` and the projection HRTB holds.
 		/// O(N) in the chain depth.
 		///
-		/// The body uses the GAT-poisoning workaround established in
-		/// step 5: projection-typed values come from `peel`'s return and
-		/// from `Functor::map`'s output, never from inline
-		/// `Node::First(...)` literals, so this composes cleanly under
-		/// the HRTB-bearing impl-block scope. See
-		/// [`tests/arc_run_normalization_probe.rs`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/tests/arc_run_normalization_probe.rs)
+		/// The body uses a GAT-poisoning workaround: projection-typed
+		/// values come from `peel`'s return and from `Functor::map`'s
+		/// output, never from inline `Node::First(...)` literals, so
+		/// this composes cleanly under the HRTB-bearing impl-block
+		/// scope. See `fp-library/tests/arc_run_normalization_probe.rs`
 		/// for the regression test.
 		#[document_signature]
 		///

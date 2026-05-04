@@ -895,8 +895,8 @@ mod inner {
 		/// [`WrapDrop`]: effects injected via `lift_f`-style operations
 		/// and chained via `bind` produce structural `Wrap` chains of
 		/// bounded depth (at most 1 for Run-typical patterns; see
-		/// [`tests/run_wrap_depth_probe.rs`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/tests/run_wrap_depth_probe.rs)
-		/// for the regression evidence). Required by the row-cascade
+		/// `fp-library/tests/run_wrap_depth_probe.rs` for the regression
+		/// evidence). Required by the row-cascade
 		/// brands' [`WrapDrop`] machinery so [`RcCoyonedaBrand`]-headed
 		/// rows can serve as the row brand for
 		/// [`RcRun`](crate::types::effects::rc_run::RcRun) /

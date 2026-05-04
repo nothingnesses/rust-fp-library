@@ -20,13 +20,12 @@
 //! Use [`ArcRun`](crate::types::effects::arc_run::ArcRun) when programs cross
 //! thread boundaries.
 //!
-//! ## Step 4a scope
-//!
-//! This module currently only ships the type-level wrapper plus the
+//! The construction sugar
 //! [`from_rc_free`](RcRun::from_rc_free) /
-//! [`into_rc_free`](RcRun::into_rc_free) construction sugar. The
-//! user-facing operations (`pure`, `peel`, `send`, `bind`, `map`,
-//! `lift_f`, `evaluate`, `handle`, etc.) land in Phase 2 step 5.
+//! [`into_rc_free`](RcRun::into_rc_free) bridges to the underlying
+//! [`RcFree`](crate::types::RcFree). User-facing operations
+//! (`pure`, `peel`, `send`, `bind`, `map`, `lift_f`, `evaluate`,
+//! `handle`, etc.) are exposed as inherent methods.
 
 #[fp_macros::document_module]
 mod inner {
@@ -480,11 +479,8 @@ mod inner {
 		/// where brand-level `RefSemimonad::ref_bind` is unreachable
 		/// because `CoyonedaBrand: RefFunctor` is unimplementable on
 		/// stable Rust (see
-		/// [`fp-library/docs/limitations-and-workarounds.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/docs/limitations-and-workarounds.md)).
-		/// The
-		/// [`im_do!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
-		/// macro's `ref` form (Phase 2 step 7c) desugars to this
-		/// method.
+		/// [`limitations-and-workarounds.md`](../../../../docs/limitations-and-workarounds.md)).
+		/// The `im_do!` macro's `ref` form desugars to this method.
 		#[document_signature]
 		///
 		#[document_type_parameters("The result type of the new computation.")]
@@ -574,9 +570,7 @@ mod inner {
 		/// [`RefPointed::ref_pure`](crate::classes::RefPointed) for
 		/// types where brand-level dispatch isn't reachable.
 		///
-		/// The
-		/// [`im_do!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
-		/// macro's `ref` form (Phase 2 step 7c) rewrites bare
+		/// The `im_do!` macro's `ref` form rewrites bare
 		/// `pure(x)` calls inside `im_do!(ref RcRun { ... })` to
 		/// this method.
 		#[document_signature]

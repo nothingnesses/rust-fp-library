@@ -5,9 +5,8 @@
 //! [`Data.Functor.Variant`](https://github.com/purescript-deprecated/purescript-variant).
 //! Where PureScript carries a runtime `Mapper f` dictionary alongside each
 //! `VariantFRep` so its `Functor (VariantF r)` impl can dispatch to the
-//! active variant's `map`, the Rust port adopts the static option from
-//! [decisions.md](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/decisions.md)
-//! section 4.2: each effect is wrapped in
+//! active variant's `map`, the Rust port encodes the dispatch statically:
+//! each effect is wrapped in
 //! [`CoyonedaBrand`](crate::brands::CoyonedaBrand) at lift time, the
 //! Coproduct row is encoded at the brand level via
 //! [`CoproductBrand`](crate::brands::CoproductBrand) /
@@ -18,12 +17,11 @@
 //! a runtime dictionary.
 //!
 //! The conceptual type is also exposed as the alias [`VariantF<H, T>`] so
-//! call sites that read the surrounding plan / decisions docs can use the
-//! canonical name.
+//! call sites can use the canonical name.
 //!
 //! ## Effect-row shape
 //!
-//! The macro `effects![E1, E2, E3]` (Phase 2 step 8) lowers a list of
+//! The macro `effects![E1, E2, E3]` lowers a list of
 //! effect types into a `CoproductBrand` chain whose head and tail brands
 //! are [`CoyonedaBrand`](crate::brands::CoyonedaBrand)-wrapped, terminated
 //! by `CNilBrand`. The recursion implements
@@ -70,11 +68,9 @@ mod inner {
 		}
 	}
 
-	/// Conceptual alias for the [`CoproductBrand`] chain, matching the
-	/// vocabulary used by
-	/// [decisions.md](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/decisions.md)
-	/// section 5.1 (`VariantF<Effects>` = open sum of first-order effect
-	/// functors, encoded as a nested Coproduct).
+	/// Conceptual alias for the [`CoproductBrand`] chain
+	/// (`VariantF<Effects>` = open sum of first-order effect functors,
+	/// encoded as a nested Coproduct).
 	///
 	/// The alias has no behaviour beyond [`CoproductBrand`]; using it at
 	/// call sites communicates intent ("this is an effect row") without

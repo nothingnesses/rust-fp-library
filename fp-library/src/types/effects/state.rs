@@ -16,10 +16,9 @@
 //! for single-thread substrates, [`ArcBrand`](crate::brands::ArcBrand)
 //! for thread-safe substrates) is threaded through `State`'s
 //! continuations via [`ToDynCloneFn`](crate::classes::ToDynCloneFn)
-//! so a single `State` type works across all six Run wrappers per
-//! the [2026-05-03 resolution](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/resolutions.md).
-//! Per-wrapper smart constructors (Phase 3 step 5a.2) thread the
-//! substrate-appropriate `P`.
+//! so a single `State` type works across all six Run wrappers.
+//! Per-wrapper smart constructors thread the substrate-appropriate
+//! `P`.
 //!
 //! Note that even single-shot wrappers (`Run` / `RunExplicit`) use
 //! `Rc`-wrapped continuations rather than `Box<dyn FnOnce>`. The
@@ -250,9 +249,9 @@ mod inner {
 	/// [`ArcRun::put`](crate::types::effects::arc_run::ArcRun) /
 	/// [`ArcRunExplicit::get`](crate::types::effects::arc_run_explicit::ArcRunExplicit) /
 	/// [`ArcRunExplicit::put`](crate::types::effects::arc_run_explicit::ArcRunExplicit))
-	/// per the
-	/// [2026-05-03 SendFunctor option-(c) resolution](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/resolutions.md);
-	/// non-Arc smart constructors keep using [`State`].
+	/// because their `SendFunctor` algebra requires the continuation
+	/// projection to be structurally `Send + Sync`; non-Arc smart
+	/// constructors keep using [`State`].
 	#[document_type_parameters(
 		"The lifetime of the continuations and any references they capture.",
 		"The pointer brand used for the continuations (typically [`ArcBrand`](crate::brands::ArcBrand)).",

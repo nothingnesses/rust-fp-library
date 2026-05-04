@@ -19,12 +19,11 @@
 //! multi-shot but single-threaded. Use `ArcRun` for thread-safe
 //! multi-shot.
 //!
-//! ## Step 4a scope
-//!
-//! This module currently only ships the type-level wrapper plus the
+//! The construction sugar
 //! [`from_arc_free`](ArcRun::from_arc_free) /
-//! [`into_arc_free`](ArcRun::into_arc_free) construction sugar. The
-//! user-facing operations land in Phase 2 step 5.
+//! [`into_arc_free`](ArcRun::into_arc_free) bridges to the underlying
+//! [`ArcFree`](crate::types::ArcFree). User-facing operations are
+//! exposed as inherent methods.
 
 #[fp_macros::document_module]
 mod inner {
@@ -288,9 +287,8 @@ mod inner {
 		/// normalization in any scope mentioning it: constructing a
 		/// `Node::First` literal inside this method body fails to
 		/// unify with the projection. The caller (test code, smart
-		/// constructors emitted by
-		/// [`effects!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md),
-		/// or generic helpers without the HRTB) constructs the layer
+		/// constructors emitted by `effects!`, or generic helpers
+		/// without the HRTB) constructs the layer
 		/// outside the HRTB scope and passes the result here. See
 		/// `tests/arc_run_normalization_probe.rs` for the experimental
 		/// matrix that established the limit.
@@ -493,11 +491,8 @@ mod inner {
 		/// This is the only by-reference dispatch path available for
 		/// `ArcRun` (the brand-level `SendRefSemimonad` is
 		/// unreachable for the broader Run family on stable Rust per
-		/// [`fp-library/docs/limitations-and-workarounds.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/docs/limitations-and-workarounds.md)).
-		/// The
-		/// [`im_do!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
-		/// macro's `ref` form (Phase 2 step 7c) desugars to this
-		/// method.
+		/// [`limitations-and-workarounds.md`](../../../../docs/limitations-and-workarounds.md)).
+		/// The `im_do!` macro's `ref` form desugars to this method.
 		#[document_signature]
 		///
 		#[document_type_parameters("The result type of the new computation.")]
@@ -586,11 +581,8 @@ mod inner {
 		/// [`SendRefPointed::send_ref_pure`](crate::classes::SendRefPointed)
 		/// for types where brand-level dispatch isn't reachable.
 		///
-		/// The
-		/// [`im_do!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
-		/// macro's `ref` form (Phase 2 step 7c) rewrites bare
-		/// `pure(x)` calls inside `im_do!(ref ArcRun { ... })` to
-		/// this method.
+		/// The `im_do!` macro's `ref` form rewrites bare `pure(x)`
+		/// calls inside `im_do!(ref ArcRun { ... })` to this method.
 		#[document_signature]
 		///
 		#[document_parameters("A reference to the value to wrap.")]
@@ -637,10 +629,10 @@ mod inner {
 		///
 		/// Thread-safe variant of [`Run::interpret`](crate::types::effects::run::Run::interpret).
 		/// Each [`peel`](ArcRun::peel) requires `A: Clone + Send +
-		/// Sync` and `ArcFree`-projection `Clone`. Per the Phase 2
-		/// step 5 HRTB-poisoning resolution, the handler list itself
-		/// is constructed outside this method's scope (typically
-		/// outside the impl block) and passed in.
+		/// Sync` and `ArcFree`-projection `Clone`. Because of the
+		/// HRTB poisoning that the `ArcFree` projection induces, the
+		/// handler list itself is constructed outside this method's
+		/// scope (typically outside the impl block) and passed in.
 		#[document_signature]
 		///
 		#[document_parameters("The handler list (typically built via the `handlers!` macro).")]
@@ -1123,9 +1115,8 @@ mod inner {
 	/// [`ArcRun`]'s impl-block scope, the HRTB on the `Kind`
 	/// projection
 	/// (`Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync`)
-	/// poisons that normalization (the 2026-04-27 limit; see
-	/// [`docs/plans/effects/resolutions.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/resolutions.md)).
-	/// Factoring the literal-build step into a free function outside
+	/// poisons that normalization. Factoring the literal-build step
+	/// into a free function outside
 	/// the HRTB-bearing impl scope sidesteps the poisoning:
 	/// [`ArcRun::lift`] only sees the already-normalized projection
 	/// value as a function argument and never builds the literal
@@ -1209,8 +1200,8 @@ mod inner {
 	/// normalizes; the caller (typically [`ArcRun::interpret`]) hands
 	/// the [`Node`]-projection value here and receives the matched
 	/// `First`-payload back, with the `Scoped` arm rejected via
-	/// [`unreachable!`] (Phase 3 first-order interpretation does not
-	/// route scoped layers; Phase 4 will).
+	/// [`unreachable!`] (the first-order interpreter does not route
+	/// scoped layers; future scoped-effect work will).
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -1252,7 +1243,7 @@ mod inner {
 	#[doc(hidden)]
 	#[expect(
 		clippy::unreachable,
-		reason = "Phase 3 first-order interpreter does not handle scoped layers; the helper is only reachable from interpret loops that route Node::First, so the Scoped arm is genuinely unreachable until Phase 4."
+		reason = "The first-order interpreter does not handle scoped layers; the helper is only reachable from interpret loops that route Node::First, so the Scoped arm is genuinely unreachable until scoped effects land."
 	)]
 	pub fn unwrap_first<R, S, A>(
 		node: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
@@ -1265,7 +1256,7 @@ mod inner {
 			Node::First(layer) => layer,
 			Node::Scoped(_) => {
 				unreachable!(
-					"Phase 3 first-order interpreter received a scoped layer; scoped effects ship in Phase 4"
+					"first-order interpreter received a scoped layer; scoped-effect dispatch is not yet implemented"
 				)
 			}
 		}
@@ -1524,9 +1515,8 @@ mod inner {
 		/// [`SendStateBrand`](crate::brands::SendStateBrand) (rather
 		/// than `StateBrand`) so the continuation projection
 		/// `<ArcBrand as SendRefCountedPointer>::Of<'_, dyn Fn(...) + Send + Sync>`
-		/// is structurally `Send + Sync`. See the
-		/// [2026-05-03 SendFunctor option-(c) resolution](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/resolutions.md)
-		/// for design rationale.
+		/// is structurally `Send + Sync`, which the `SendFunctor`
+		/// algebra requires across thread boundaries.
 		#[document_signature]
 		///
 		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]

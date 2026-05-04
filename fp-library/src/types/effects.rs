@@ -1,10 +1,6 @@
 //! Effects subsystem: row-polymorphic first-order effects and heftia-style
 //! scoped effects.
 //!
-//! See [decisions.md](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/decisions.md)
-//! for the design rationale, and `fp-library/docs/run.md` (planned for
-//! Phase 5 step 4) for the user guide.
-//!
 //! ## Submodules
 //!
 //! - [`coproduct`]: Re-export adapter over [`frunk_core::coproduct`],
@@ -44,10 +40,10 @@
 //! - [`handlers`]: [`Handler<E, F>`](handlers::Handler) newtype plus
 //!   the [`HandlersNil`] / [`HandlersCons<H, T>`](HandlersCons)
 //!   cons-list runtime carrier for the `handlers!` macro and
-//!   `nt().on::<E, _>(...)` builder fallback (Phase 3 step 1).
+//!   `nt().on::<E, _>(...)` builder fallback.
 //! - `interpreter`: [`DispatchHandlers`] trait that walks a handler
 //!   list against a row's value-level `Coproduct` chain, dispatching
-//!   each variant to the matching handler closure (Phase 3 step 2).
+//!   each variant to the matching handler closure.
 
 pub mod arc_run;
 pub mod arc_run_explicit;

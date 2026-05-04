@@ -1,4 +1,4 @@
-//! Interpreter family for Run programs (Phase 3 step 2).
+//! Interpreter family for Run programs.
 //!
 //! Provides the [`DispatchHandlers`] trait that walks a row's
 //! value-level [`Coproduct`](crate::types::effects::coproduct::Coproduct)

@@ -12,9 +12,9 @@
 //! a [`CoproductBrand`](crate::brands::CoproductBrand) of
 //! [`CoyonedaBrand`](crate::brands::CoyonedaBrand)-wrapped effects
 //! terminated by [`CNilBrand`](crate::brands::CNilBrand)); the scoped
-//! row brand `S` carries higher-order constructors (Phase 4 populates
-//! it with `Catch`, `Local`, etc.; for first-order-only programs it
-//! stays as `CNilBrand`).
+//! row brand `S` carries higher-order constructors (future
+//! scoped-effect work populates it with `Catch`, `Local`, etc.; for
+//! first-order-only programs it stays as `CNilBrand`).
 //!
 //! `RunExplicit` is the Explicit counterpart of
 //! [`Run`](crate::types::effects::run::Run). The Explicit substrate is
@@ -1183,9 +1183,9 @@ mod inner {
 		///
 		/// O(N) in chain depth (one stack frame per suspended layer);
 		/// per the structural Wrap-depth probe at
-		/// [`tests/run_wrap_depth_probe.rs`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/tests/run_wrap_depth_probe.rs),
-		/// Run-typical patterns have depth at most 1, so the recursion
-		/// is constant in practice.
+		/// `fp-library/tests/run_wrap_depth_probe.rs`, Run-typical
+		/// patterns have depth at most 1, so the recursion is
+		/// constant in practice.
 		#[document_signature]
 		///
 		#[document_parameters("The Erased-substrate `Run` to convert.")]

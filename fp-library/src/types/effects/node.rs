@@ -15,19 +15,19 @@
 //!
 //! ## Why two rows
 //!
-//! The dual-row architecture (heftia's pattern, decided in
-//! [decisions.md](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/decisions.md)
-//! section 4.5) keeps first-order algebraic effects (Reader, State,
-//! Choose, ...) separate from higher-order scoped effects (Catch,
-//! Local, Bracket, Span). The first-order row uses
+//! The dual-row architecture (heftia's pattern) keeps first-order
+//! algebraic effects (Reader, State, Choose, ...) separate from
+//! higher-order scoped effects (Catch, Local, Bracket, Span). The
+//! first-order row uses
 //! [`CoyonedaBrand`](crate::brands::CoyonedaBrand)-wrapped effect
 //! functors so any effect type becomes a [`Functor`](crate::classes::Functor)
-//! for free; the scoped row holds concrete constructor types interpreted
-//! via manual case dispatch and does not require [`Functor`](crate::classes::Functor).
+//! for free; the scoped row holds concrete constructor types
+//! interpreted via manual case dispatch and does not require
+//! [`Functor`](crate::classes::Functor).
 //!
-//! In Phase 2 step 4a (this commit) the scoped row is structurally a
-//! second [`CoproductBrand`](crate::brands::CoproductBrand) chain whose
-//! tail is `CNilBrand`; Phase 4 will populate it with the standard
+//! Currently the scoped row is structurally a second
+//! [`CoproductBrand`](crate::brands::CoproductBrand) chain whose tail
+//! is `CNilBrand`. Future work will populate it with the standard
 //! scoped constructors (`Catch`, `Local`, ...).
 
 #[fp_macros::document_module]
@@ -59,7 +59,7 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the layer and its inner Free continuations.",
 		"The first-order row brand (typically a `CoproductBrand` of `CoyonedaBrand`-wrapped effects, terminated by `CNilBrand`).",
-		"The scoped-effect row brand (typically `CNilBrand` for first-order-only programs; Phase 4 populates it with scoped constructors).",
+		"The scoped-effect row brand (typically `CNilBrand` for first-order-only programs; future scoped constructors populate it).",
 		"The result type of the layer's continuation."
 	)]
 	pub enum Node<'a, R, S, A>
@@ -90,9 +90,9 @@ mod inner {
 		/// `First` recurses into `R::map`; `Scoped` recurses into
 		/// `S::map`. Both row brands satisfy [`Functor`] in the
 		/// canonical Run shape (the first-order row via the
-		/// `CoproductBrand`-of-`CoyonedaBrand`-of-effects recursion
-		/// from [Phase 2 step 2](crate::types::effects::variant_f); the
-		/// scoped row will satisfy it once Phase 4 lands).
+		/// `CoproductBrand`-of-`CoyonedaBrand`-of-effects recursion in
+		/// [`crate::types::effects::variant_f`]; the scoped row will
+		/// satisfy it once scoped constructors land).
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -284,8 +284,8 @@ mod inner {
 		/// variant: `First` recurses into `R::ref_map`; `Scoped`
 		/// recurses into `S::ref_map`. Mirrors the
 		/// [`Functor`](crate::classes::Functor) impl above with `&self`
-		/// receivers; required by Phase 2 step 4b's
-		/// `RunExplicitBrand` Ref-hierarchy delegation through
+		/// receivers; required by `RunExplicitBrand`'s Ref-hierarchy
+		/// delegation through
 		/// [`FreeExplicitBrand`](crate::brands::FreeExplicitBrand)'s
 		/// `RefFunctor` impl.
 		#[document_signature]

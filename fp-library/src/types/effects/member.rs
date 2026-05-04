@@ -21,7 +21,7 @@
 //! Row narrowing (subset / sculpt) stays through
 //! [`CoproductSubsetter`](crate::types::effects::coproduct::CoproductSubsetter)
 //! directly. A separate `Members<Targets, Indices>` plural trait may be
-//! added later if Phase 3 handler code wants the same single-bound
+//! added later if handler code wants the same single-bound
 //! convenience for multi-effect narrowing; this module covers
 //! single-effect membership only.
 //!
@@ -30,8 +30,8 @@
 //! `Member` is agnostic to whether row variants are bare effect types
 //! `E`, [`Coyoneda<E, A>`](crate::types::Coyoneda)-wrapped effects, or
 //! anything else. The Coyoneda-wrapping policy belongs to the smart
-//! constructors that the [`effects!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
-//! macro emits (Phase 2 step 9), not to `Member` itself.
+//! constructors that the `effects!` macro emits, not to `Member`
+//! itself.
 
 #[fp_macros::document_module]
 mod inner {

@@ -12,27 +12,17 @@
 //! a [`CoproductBrand`](crate::brands::CoproductBrand) of
 //! [`CoyonedaBrand`](crate::brands::CoyonedaBrand)-wrapped effects
 //! terminated by [`CNilBrand`](crate::brands::CNilBrand)); the scoped
-//! row brand `S` carries higher-order constructors (Phase 4 populates
-//! it with `Catch`, `Local`, etc.; for first-order-only programs it
-//! stays as `CNilBrand`).
+//! row brand `S` carries higher-order constructors (future scoped
+//! work populates it with `Catch`, `Local`, etc.; for
+//! first-order-only programs it stays as `CNilBrand`).
 //!
-//! `Run` is the Erased counterpart of
-//! `RunExplicit` (Phase 2 step 4b; not yet implemented).
-//! The Erased substrate is single-shot, type-erases through
-//! `Box<dyn Any>`, has O(1) `bind`, and is `'static`-only. It exposes
-//! its API via inherent methods rather than Brand-dispatched type
-//! classes, so do-notation is via the `run_do!` macro (Phase 2 step 7),
-//! not `m_do!`. Use `RunExplicit` for non-`'static` payloads or when
-//! Brand-dispatched typeclass-generic code is required.
-//!
-//! ## Step 4a scope
-//!
-//! This module currently only ships the type-level wrapper, the Drop
-//! impl (which inherits from the underlying Free's WrapDrop-driven
-//! iterative dismantling), and the construction sugar
-//! [`Run::from_free`] / [`Run::into_free`]. The user-facing
-//! operations (`pure`, `peel`, `send`, `bind`, `map`, `lift_f`,
-//! `evaluate`, `handle`, etc.) land in Phase 2 step 5.
+//! `Run` is the Erased counterpart of `RunExplicit`. The Erased
+//! substrate is single-shot, type-erases through `Box<dyn Any>`, has
+//! O(1) `bind`, and is `'static`-only. It exposes its API via
+//! inherent methods rather than Brand-dispatched type classes, so
+//! do-notation is via the `run_do!` macro, not `m_do!`. Use
+//! `RunExplicit` for non-`'static` payloads or when Brand-dispatched
+//! typeclass-generic code is required.
 
 #[fp_macros::document_module]
 mod inner {
@@ -372,11 +362,10 @@ mod inner {
 		/// at the
 		/// [`Member`](crate::types::effects::member::Member)-determined
 		/// position, wraps in [`Node::First`](crate::types::effects::node::Node),
-		/// and lifts via [`send`](Run::send). Phase 3's per-effect
-		/// smart constructors (`ask`, `get`, `put`, `tell`, `throw`)
-		/// will be one-liners over this combinator, mirroring
-		/// PureScript Run's `liftEffect = lift (Proxy :: "effect")`
-		/// pattern.
+		/// and lifts via [`send`](Run::send). Per-effect smart
+		/// constructors (`ask`, `get`, `put`, `tell`, `throw`) are
+		/// one-liners over this combinator, mirroring PureScript
+		/// Run's `liftEffect = lift (Proxy :: "effect")` pattern.
 		///
 		/// Naming note: PureScript Run distinguishes
 		/// [`Run.lift`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
@@ -466,12 +455,12 @@ mod inner {
 		/// [`interpret`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
 		/// (which is itself a literal alias for
 		/// [`run`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)).
-		/// Per [Phase 3 step 2 deviations](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/deviations.md),
-		/// the Rust port adopts the mono-in-`A` step-function shape so
-		/// handler closures don't need rank-2 polymorphism (which Rust
-		/// closures can't express). The scoped row `S` is fixed at
-		/// [`CNilBrand`](crate::brands::CNilBrand) for Phase 3; Phase 4
-		/// extends this to dispatch over scoped effects too.
+		/// The Rust port adopts a mono-in-`A` step-function shape so
+		/// handler closures don't need rank-2 polymorphism (which
+		/// Rust closures can't express). The scoped row `S` is fixed
+		/// at [`CNilBrand`](crate::brands::CNilBrand) for the
+		/// first-order interpreter; future scoped-effect work extends
+		/// this to dispatch over scoped effects too.
 		///
 		/// ## Stack safety
 		///
@@ -1042,9 +1031,9 @@ mod inner {
 		/// Pairs with [`Run::interpret_with`] for the
 		/// chain-and-extract pipeline:
 		/// `prog.interpret_with::<E1>(...).interpret_with::<E2>(...).extract()`.
-		/// Phase 4 will introduce a separate elimination operation for
-		/// non-empty scoped rows, leaving `extract` as the
-		/// fully-pure-program entry point.
+		/// Future scoped-effect work will introduce a separate
+		/// elimination operation for non-empty scoped rows, leaving
+		/// `extract` as the fully-pure-program entry point.
 		#[document_signature]
 		///
 		#[document_returns("The final result value of the fully-narrowed program.")]

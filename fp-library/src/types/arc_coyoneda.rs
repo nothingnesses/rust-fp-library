@@ -105,10 +105,10 @@ mod inner {
 		/// `ArcCoyoneda`'s storage is Send-aware and the compose-and-lower path
 		/// must stay Send-aware to support brands whose continuation storage
 		/// requires `Send + Sync` at the type level (e.g.,
-		/// [`SendStateBrand`](crate::brands::SendStateBrand)). Mirrors Phase 2
-		/// step 9's [`ArcFree`](crate::types::ArcFree) Functor-to-SendFunctor
-		/// migration; ArcCoyoneda was migrated in 2026-05-04 as a Phase 3
-		/// follow-up.
+		/// [`SendStateBrand`](crate::brands::SendStateBrand)). Mirrors
+		/// [`ArcFree`](crate::types::ArcFree)'s Functor-to-SendFunctor
+		/// algebra migration so the two carriers compose under the same
+		/// Send-aware bound.
 		#[document_signature]
 		///
 		#[document_returns("The underlying functor value with accumulated functions applied.")]
@@ -827,14 +827,14 @@ mod inner {
 		/// `lift_f`-style operations and chained via `bind` produce
 		/// structural `Wrap` chains of bounded depth (at most 1 for
 		/// Run-typical patterns; see
-		/// [`tests/run_wrap_depth_probe.rs`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/tests/run_wrap_depth_probe.rs)
-		/// for the regression evidence). Required by the row-cascade
+		/// `fp-library/tests/run_wrap_depth_probe.rs` for the
+		/// regression evidence). Required by the row-cascade
 		/// brands' [`WrapDrop`] machinery so
 		/// [`ArcCoyonedaBrand`]-headed rows can serve as the row
 		/// brand for [`ArcRun`](crate::types::effects::arc_run::ArcRun)
 		/// /
 		/// [`ArcRunExplicit`](crate::types::effects::arc_run_explicit::ArcRunExplicit)
-		/// (Phase 2 step 9 SendFunctor cascade).
+		/// under the SendFunctor cascade.
 		#[document_signature]
 		///
 		#[document_type_parameters(

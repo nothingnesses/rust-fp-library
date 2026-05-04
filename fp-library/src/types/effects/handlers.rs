@@ -2,9 +2,8 @@
 //! [`handlers!`](https://docs.rs/fp-macros/latest/fp_macros/macro.handlers.html)
 //! macro and the `nt()` builder fallback.
 //!
-//! Per [decisions.md](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/decisions.md)
-//! section 4.6, a natural transformation `VariantF<R> ~> M` is assembled
-//! at the user level either via the macro
+//! A natural transformation `VariantF<R> ~> M` is assembled at the user
+//! level either via the macro
 //! `handlers!{ EBrand1: |op| ..., EBrand2: |op| ... }` (the primary
 //! surface) or via the chained-builder fallback
 //! `nt().on::<EBrand1, _>(|op| ...).on::<EBrand2, _>(|op| ...)`. Both
@@ -13,16 +12,14 @@
 //! [`CoproductBrand`](crate::brands::CoproductBrand) /
 //! [`CNilBrand`](crate::brands::CNilBrand) chain cell-for-cell.
 //!
-//! Phase 3 step 1 (this module) only ships the runtime carrier; the
-//! Phase 3 step 2 interpreter family
-//! (`interpret` / `run` / `runAccum` and their `MonadRec` siblings) is
-//! the consumer that recurses through the row and the handler list in
-//! lock-step, dispatching each [`Coproduct::Inl`](crate::types::effects::coproduct::Coproduct::Inl)
+//! This module ships only the runtime carrier; the interpreter family
+//! (`interpret` / `run` / `runAccum` and their `MonadRec` siblings)
+//! is the consumer that recurses through the row and the handler list
+//! in lock-step, dispatching each [`Coproduct::Inl`](crate::types::effects::coproduct::Coproduct::Inl)
 //! variant to the matching [`HandlersCons::head`] and recursing into
 //! [`HandlersCons::tail`] on [`Coproduct::Inr`](crate::types::effects::coproduct::Coproduct::Inr).
 //! The closure shape carried inside each [`Handler`] is left fully
-//! generic at this step; step 2 will pin it via an interpreter-side
-//! trait bound.
+//! generic here; the interpreter pins it via a trait bound.
 //!
 //! ## Why a dedicated cons-list rather than reusing `frunk_core`'s `HList`
 //!
@@ -67,11 +64,10 @@ mod inner {
 	/// Newtype tagging a handler closure with the brand `E` it handles.
 	///
 	/// `Handler<E, F>` pins the brand identity at the type level so the
-	/// Phase 3 step 2 interpreter can match each handler against the row's
-	/// head brand without the closure's type signature having to encode
-	/// the brand explicitly. The closure value `F` stays opaque at this
-	/// step; step 2 will introduce an interpreter trait that adds the
-	/// concrete `F: FnMut(...) -> ...` bound.
+	/// interpreter can match each handler against the row's head brand
+	/// without the closure's type signature having to encode the brand
+	/// explicitly. The closure value `F` stays opaque here; the
+	/// interpreter side adds the concrete `F: FnMut(...) -> ...` bound.
 	#[derive(Clone, Copy)]
 	pub struct Handler<E, F> {
 		/// The handler closure for effect brand `E`.
@@ -128,7 +124,7 @@ mod inner {
 	/// [`Handler<EBrand, F>`](Handler)) and a tail `T` that is itself
 	/// either another `HandlersCons` or [`HandlersNil`]. The shape mirrors
 	/// the row brand `CoproductBrand<EBrand, Tail>` cell-for-cell so the
-	/// Phase 3 step 2 interpreter can recurse through both in lock-step.
+	/// interpreter can recurse through both in lock-step.
 	#[derive(Clone, Copy, Debug, Default)]
 	pub struct HandlersCons<H, T> {
 		/// The handler at this row position.
@@ -227,8 +223,7 @@ mod inner {
 	}
 
 	/// Entry point for the chained-builder fallback for assembling a
-	/// handler list per [decisions.md](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/decisions.md)
-	/// section 4.6.
+	/// handler list.
 	///
 	/// Returns [`HandlersNil`]; chain `.on::<EBrand, _>(handler)` calls
 	/// to prepend handlers. The

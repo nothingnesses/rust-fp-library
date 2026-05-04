@@ -546,14 +546,12 @@ mod inner {
 		/// where brand-level `RefSemimonad::ref_bind` is unreachable
 		/// because `CoyonedaBrand: RefFunctor` is unimplementable on
 		/// stable Rust (see
-		/// [`fp-library/docs/limitations-and-workarounds.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/docs/limitations-and-workarounds.md)).
+		/// [`limitations-and-workarounds.md`](../../../../docs/limitations-and-workarounds.md)).
 		/// For synthetic rows whose row brand satisfies
 		/// [`RefFunctor`](crate::classes::RefFunctor), brand-level
 		/// `m_do!(ref RcRunExplicitBrand { ... })` is also available
-		/// and slightly cheaper (no clone). The
-		/// [`im_do!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
-		/// macro's `ref` form (Phase 2 step 7c) desugars to this
-		/// method.
+		/// and slightly cheaper (no clone). The `im_do!` macro's
+		/// `ref` form desugars to this method.
 		#[document_signature]
 		///
 		#[document_type_parameters("The result type of the new computation.")]
@@ -661,11 +659,9 @@ mod inner {
 		/// concrete-type call sites; the brand-level form is
 		/// [`<RcRunExplicitBrand<R, S> as RefPointed>::ref_pure(&a)`](crate::brands::RcRunExplicitBrand).
 		///
-		/// The
-		/// [`im_do!`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md)
-		/// macro's `ref` form (Phase 2 step 7c) rewrites bare
-		/// `pure(x)` calls inside
-		/// `im_do!(ref RcRunExplicit { ... })` to this method.
+		/// The `im_do!` macro's `ref` form rewrites bare `pure(x)`
+		/// calls inside `im_do!(ref RcRunExplicit { ... })` to this
+		/// method.
 		#[document_signature]
 		///
 		#[document_parameters("A reference to the value to wrap.")]
