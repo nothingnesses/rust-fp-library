@@ -15,11 +15,11 @@ without losing state. See [`_status.md`](_status.md) for the task queue.
 
 ## File layout
 
-- `_status.md` — task tracker with checkboxes. Read this first to resume.
-- `_classification.md` — aggregated Stage 1 findings; populated only after
+- `_status.md` , task tracker with checkboxes. Read this first to resume.
+- `_classification.md` , aggregated Stage 1 findings; populated only after
   every per-codebase file is complete.
-- `<codebase>.md` — one per codebase, Stage 1 classification.
-- `deep-dive-<topic>.md` — Stage 2, added only for codebases flagged as
+- `<codebase>.md` , one per codebase, Stage 1 classification.
+- `deep-dive-<topic>.md` , Stage 2, added only for codebases flagged as
   genuinely novel in Stage 1. Shape defined ad-hoc per topic.
 
 Underscore-prefixed files are meta-files (tracking, indices, synthesis);

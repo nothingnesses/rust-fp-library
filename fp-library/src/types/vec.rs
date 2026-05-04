@@ -3342,20 +3342,20 @@ mod tests {
 
 	// Filterable Laws
 
-	/// Tests `filterMap identity ≡ compact`.
+	/// Tests `filterMap identity == compact`.
 	#[quickcheck]
 	fn filterable_filter_map_identity(x: Vec<Option<i32>>) -> bool {
 		explicit::filter_map::<VecBrand, _, _, _, _>(identity, x.clone())
 			== explicit::compact::<VecBrand, _, _, _>(x)
 	}
 
-	/// Tests `filterMap Just ≡ identity`.
+	/// Tests `filterMap Just == identity`.
 	#[quickcheck]
 	fn filterable_filter_map_just(x: Vec<i32>) -> bool {
 		explicit::filter_map::<VecBrand, _, _, _, _>(Some, x.clone()) == x
 	}
 
-	/// Tests `filterMap (l <=< r) ≡ filterMap l <<< filterMap r`.
+	/// Tests `filterMap (l <=< r) == filterMap l <<< filterMap r`.
 	#[quickcheck]
 	fn filterable_filter_map_composition(x: Vec<i32>) -> bool {
 		let r = |i: i32| if i % 2 == 0 { Some(i) } else { None };
@@ -3369,7 +3369,7 @@ mod tests {
 			)
 	}
 
-	/// Tests `filter ≡ filterMap <<< maybeBool`.
+	/// Tests `filter == filterMap <<< maybeBool`.
 	#[quickcheck]
 	fn filterable_filter_consistency(x: Vec<i32>) -> bool {
 		let p = |i: i32| i % 2 == 0;
@@ -3379,21 +3379,21 @@ mod tests {
 			== explicit::filter_map::<VecBrand, _, _, _, _>(maybe_bool, x)
 	}
 
-	/// Tests `partitionMap identity ≡ separate`.
+	/// Tests `partitionMap identity == separate`.
 	#[quickcheck]
 	fn filterable_partition_map_identity(x: Vec<Result<i32, i32>>) -> bool {
 		explicit::partition_map::<VecBrand, _, _, _, _, _>(identity, x.clone())
 			== explicit::separate::<VecBrand, _, _, _, _>(x)
 	}
 
-	/// Tests `partitionMap Right ≡ identity` (on the right side).
+	/// Tests `partitionMap Right == identity` (on the right side).
 	#[quickcheck]
 	fn filterable_partition_map_right_identity(x: Vec<i32>) -> bool {
 		let (_, oks) = explicit::partition_map::<VecBrand, _, _, _, _, _>(Ok::<_, i32>, x.clone());
 		oks == x
 	}
 
-	/// Tests `partitionMap Left ≡ identity` (on the left side).
+	/// Tests `partitionMap Left == identity` (on the left side).
 	#[quickcheck]
 	fn filterable_partition_map_left_identity(x: Vec<i32>) -> bool {
 		let (errs, _) =
@@ -3401,7 +3401,7 @@ mod tests {
 		errs == x
 	}
 
-	/// Tests `f <<< partition ≡ partitionMap <<< eitherBool`.
+	/// Tests `f <<< partition == partitionMap <<< eitherBool`.
 	#[quickcheck]
 	fn filterable_partition_consistency(x: Vec<i32>) -> bool {
 		let p = |i: i32| i % 2 == 0;
@@ -3415,7 +3415,7 @@ mod tests {
 
 	// Witherable Laws
 
-	/// Tests `wither (pure <<< Just) ≡ pure`.
+	/// Tests `wither (pure <<< Just) == pure`.
 	#[quickcheck]
 	fn witherable_identity(x: Vec<i32>) -> bool {
 		explicit::wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
@@ -3424,7 +3424,7 @@ mod tests {
 		) == Some(x)
 	}
 
-	/// Tests `wilt p ≡ map separate <<< traverse p`.
+	/// Tests `wilt p == map separate <<< traverse p`.
 	#[quickcheck]
 	fn witherable_wilt_consistency(x: Vec<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Ok(i) } else { Err(i) });
@@ -3438,7 +3438,7 @@ mod tests {
 		lhs == rhs
 	}
 
-	/// Tests `wither p ≡ map compact <<< traverse p`.
+	/// Tests `wither p == map compact <<< traverse p`.
 	#[quickcheck]
 	fn witherable_wither_consistency(x: Vec<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Some(i) } else { None });

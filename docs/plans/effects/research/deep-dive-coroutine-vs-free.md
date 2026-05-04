@@ -450,7 +450,7 @@ and evaluation is driven iteratively by `tail_rec_m`, not recursion.
 
 _Corophage_: The async coroutine is driven by a futures runtime, which is
 inherently stack-safe. Yields and resumes do not grow the call stack; they are
-state machine transitions. Confirmed by benchmark: 1000 yields take ~9.5 µs
+state machine transitions. Confirmed by benchmark: 1000 yields take ~9.5 us
 (src/README.md, "Yield Scaling" table), which is linear, not exponential.
 
 _Reffect_: Native Rust coroutines (nightly) are stack-safe by design. A

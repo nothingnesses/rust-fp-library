@@ -362,7 +362,7 @@ pub mod explicit {
 /// Composes two functions.
 ///
 /// Takes two functions, `f` and `g`, and returns a new function that applies `g` to its argument,
-/// and then applies `f` to the result. This is equivalent to the mathematical composition `f ∘ g`.
+/// and then applies `f` to the result. This is equivalent to the mathematical composition `f <<< g`.
 #[document_signature]
 ///
 #[document_type_parameters(

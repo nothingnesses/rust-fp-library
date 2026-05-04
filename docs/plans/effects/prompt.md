@@ -55,10 +55,10 @@ while `SendState`'s variants store
 `ArcRun::interpret` on a `SendStateBrand`-headed row hits
 this and fails. Four design options surveyed in
 [plan.md's Active blockers](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#active-blockers):
-(α) migrate `ArcCoyoneda`'s algebra to `SendFunctor`, the
+(a) migrate `ArcCoyoneda`'s algebra to `SendFunctor`, the
 principled extension of Phase 2 step 9's `ArcFree` migration;
-(β) parallel `send_lower_ref` method, structurally harder
-than it sounds; (γ) defer 6a.4 + 6a.6 indefinitely; (c'')
+(b) parallel `send_lower_ref` method, structurally harder
+than it sounds; (c) defer 6a.4 + 6a.6 indefinitely; (c'')
 parallel `SendArcCoyoneda` variant. **No recommendation
 locked in; user decision pending.** Working draft of
 `run_state.rs` covering all six wrappers preserved in
@@ -71,9 +71,9 @@ tests per chosen option). Then step 5 (`interpret_with_rec`
 pipeline-plus-MonadRec family) is the next greenfield step,
 unaffected by the blocker.
 
-### Resolution path (after user decides on α / β / γ / c'')
+### Resolution path (after user decides on a / b / c / c'')
 
-- **(α) ArcCoyoneda algebra migration:**
+- **(a) ArcCoyoneda algebra migration:**
   1. Replace `F: Functor` with `F: SendFunctor` in
      [`arc_coyoneda.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/arc_coyoneda.rs):
      `ArcCoyonedaLowerRef::lower_ref` trait method, three
@@ -107,12 +107,12 @@ unaffected by the blocker.
   8. Move active-blocker entry to resolutions.md as a new
      dated resolution.
 
-- **(β) parallel `send_lower_ref`:** see plan.md's blocker
+- **(b) parallel `send_lower_ref`:** see plan.md's blocker
   entry for the structural problem (`B: Send + Sync` on
   layer impls forces `ArcCoyoneda::map`'s `B` parameter
   too); not recommended.
 
-- **(γ) defer 6a.4 + 6a.6:** ship the four non-Arc
+- **(c) defer 6a.4 + 6a.6:** ship the four non-Arc
   `run_state.rs` tests; document the Arc family as an open
   gap in deviations.md; revert the `SendStateBrand` /
   `SendState` types if cleaner; or leave them as
@@ -259,7 +259,7 @@ and per-step deviations in
   enum with Get / Put variants holding
   `<P as RefCountedPointer>::Of<'_, dyn Fn(...) -> A>`
   continuations. `Functor` impl shipped; `SendFunctor`
-  deferred (active blocker — see Resume point above).
+  deferred (active blocker , see Resume point above).
 - **Step 6a.2** (`f865152`): `Run::get` / `Run::put` smart
   constructors. Threads `RcBrand` as the pointer kind;
   continuations via
@@ -346,7 +346,7 @@ phase-step number):
 - Step 8: `compile_fail` UI tests for negative cases (handler
   missing an effect, wrong type ascription, multi-shot via
   single-shot `Run`, `Choose` on single-shot wrappers).
-- Step 9: review-remediation documentation pass — bundle the
+- Step 9: review-remediation documentation pass , bundle the
   docs-only items from
   [`remediation_proposals.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/remediation_proposals.md)
   (F2A, F4A, F5A, M4 audit, M6A async-via-`spawn_blocking`,
@@ -525,7 +525,7 @@ The
 trait walks a `HandlersCons` / `HandlersNil` against the
 row's value-level `Coproduct` chain in lock-step. It has
 **four impls**: a base case for `HandlersNil` paired with
-`CNil`, plus three cons-cell impls — one per Coyoneda variant
+`CNil`, plus three cons-cell impls , one per Coyoneda variant
 (`Coyoneda`, `RcCoyoneda`, `ArcCoyoneda`). The duplication is
 mechanical: identical body, different `lower*` method (bare
 `Coyoneda::lower` consumes self; the Rc/Arc variants ship
@@ -559,7 +559,7 @@ PureScript Run's
 [`interpret`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
 is the rank-2 polymorphic API; its actual implementation is
 `run` (literally aliased). The `run` form's handler is
-`(VariantF r (Run r a) -> m (Run r a))` — mono in `a`. fp-library
+`(VariantF r (Run r a) -> m (Run r a))` , mono in `a`. fp-library
 adopts the mono-in-`a` form so handler closures fit Rust's
 non-generic-closure constraint. Each `Handler<E, F>` cell
 carries a closure of shape
@@ -914,9 +914,9 @@ The non-Arc family tests (4 of 6 wrappers) and step 5
    [2026-05-04 active blocker](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#active-blockers)
    subsection. Read the "Resolution path" subsection of this
    prompt's resume point above for the implementation paths
-   under each of the four options (α / β / γ / c'').
-2. **Decide the design.** User decision needed on (α) /
-   (β) / (γ) / (c''). My analysis recommends (α): the
+   under each of the four options (a / b / c / c'').
+2. **Decide the design.** User decision needed on (a) /
+   (b) / (c) / (c''). My analysis recommends (a): the
    principled extension of Phase 2 step 9's `ArcFree`
    migration; but the user has not yet locked in a choice.
    Once the design is settled, move the active-blocker entry
@@ -929,8 +929,8 @@ The non-Arc family tests (4 of 6 wrappers) and step 5
    lifetime annotations (the FnOnce-not-general-enough
    error in the original draft was caused by pinning to
    `'static`), and adjust the Arc family tests per the
-   chosen option (delete them under γ; rewrite per c''; or
-   keep as-is under α/β). Land as a `test(effects):`
+   chosen option (delete them under c; rewrite per c''; or
+   keep as-is under a/b). Land as a `test(effects):`
    commit.
 4. **Step 5 (`interpret_with_rec`):** see "Step 5
    implementation pattern" subsection in the resume point
@@ -1106,7 +1106,7 @@ change them unilaterally. If you encounter:
   (Phase 3 step 1, commit `82dd7bb`). Pending:
   `define_effect!` (Phase 3 step 6 / 7 depending on blocker
   resolution), `define_scoped_effect!` (Phase 4),
-  `scoped_effects!` (Phase 4 step 4) — all land in the same
+  `scoped_effects!` (Phase 4 step 4) , all land in the same
   directory. `ia_do!` ("Inherent Applicative do") is
   forward-reserved as a future applicative companion to
   `im_do!`. The shared `DoInput` parser used by all four

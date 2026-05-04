@@ -81,9 +81,9 @@ mod inner {
 	///
 	/// `SendThunk` satisfies the monad laws through its inherent methods, even though
 	/// it cannot implement the HKT `Monad` trait (due to the `Send` bound requirement):
-	/// - `pure(a).bind(f) ≡ f(a)` (left identity).
-	/// - `m.bind(|x| pure(x)) ≡ m` (right identity).
-	/// - `m.bind(f).bind(g) ≡ m.bind(|x| f(x).bind(g))` (associativity).
+	/// - `pure(a).bind(f) == f(a)` (left identity).
+	/// - `m.bind(|x| pure(x)) == m` (right identity).
+	/// - `m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))` (associativity).
 	///
 	/// ### Stack Safety
 	///

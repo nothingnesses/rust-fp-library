@@ -327,7 +327,7 @@ This is the oldest approach and predates algebraic effects. It's included here b
 | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | Extremely mature, well-understood, widely available       | O(n) lifting cost for n transformer layers                                                                  |
 | Excellent tooling and documentation                       | Transformer ordering matters and affects semantics (e.g., `StateT s (ExceptT e)` vs `ExceptT e (StateT s)`) |
-| No special runtime support needed                         | N² instance problem: each transformer needs instances for every type class                                  |
+| No special runtime support needed                         | N^2 instance problem: each transformer needs instances for every type class                                 |
 | Good performance for simple stacks (GHC specializes well) | Adding/removing effects from the middle of the stack is painful                                             |
 |                                                           | Higher-order effects have surprising semantics (e.g., `catchError` discards state)                          |
 
@@ -369,10 +369,10 @@ This is the oldest approach and predates algebraic effects. It's included here b
 - **"An Introduction to Algebraic Effects and Handlers"** (Pretnar, 2015) -The best tutorial-style introduction. Start here.
 - **"Freer Monads, More Extensible Effects"** (Kiselyov & Ishii, 2015) -The freer monad approach that eliminates the Functor constraint.
 - **"Type Directed Compilation of Row-typed Algebraic Effects"** (Leijen, 2017) -Koka's selective CPS and evidence passing.
-- **"Generalized Evidence Passing for Effect Handlers"** (Xie, Brachthäuser, Hillerström, Schuster, Leijen, 2020) -The O(1) dispatch strategy.
+- **"Generalized Evidence Passing for Effect Handlers"** (Xie, Brachthauser, Hillerstrom, Schuster, Leijen, 2020) -The O(1) dispatch strategy.
 - **"One-shot Algebraic Effects as Coroutines"** (Kawahara & Kameyama, 2020) -The coroutine embedding.
-- **"Capability-passing Style for Zero-cost Effect Handlers"** (Schuster, Brachthäuser, Ostermann, ICFP 2020) -Effekt's approach.
-- **"Effects, Capabilities, and Boxes"** (Brachthäuser et al., OOPSLA 2022) -Extends capability passing with scope safety.
+- **"Capability-passing Style for Zero-cost Effect Handlers"** (Schuster, Brachthauser, Ostermann, ICFP 2020) -Effekt's approach.
+- **"Effects, Capabilities, and Boxes"** (Brachthauser et al., OOPSLA 2022) -Extends capability passing with scope safety.
 - **"Efficient Compilation of Algebraic Effects"** (Pretnar et al., 2020) -Source-to-source optimization of effect handlers.
 - **"Effects for Less"** (Alexis King) -The blog post / talk that motivated Hasura's `eff` and GHC's delimited continuations proposal.
 

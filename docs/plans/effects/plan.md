@@ -78,7 +78,7 @@ The substrate-half adds:
 - Manual `Clone` impl for `SendState` gated on `S: Clone + 'a`
   (mirrors the 6a.3 `State::Clone` impl shape).
 - `SendFunctor` impl for `SendStateBrand` (the whole point of
-  option (c) — implementable because the projection is
+  option (c) , implementable because the projection is
   structurally `Send + Sync`; no HRTB-over-types needed). The
   `Functor` (by-value `map`) impl is intentionally NOT added
   because it would have to construct a Send-aware trait object
@@ -792,7 +792,7 @@ gap.
 
 ##### Options
 
-**(α) Migrate `ArcCoyoneda`'s algebra to `SendFunctor`.**
+**(a) Migrate `ArcCoyoneda`'s algebra to `SendFunctor`.**
 Replace `F: Functor` with `F: SendFunctor` on the inner
 `ArcCoyonedaLowerRef` trait method, the three layer impls
 (Base, MapLayer, NewLayer), and the public
@@ -819,7 +819,7 @@ in addition to `Functor`).
   VecBrand); estimated 50-100 lines across `arc_coyoneda.rs`
   - a few brand files + `interpreter.rs`.
 
-**(β) Add a parallel `send_lower_ref` method.** Keep
+**(b) Add a parallel `send_lower_ref` method.** Keep
 `lower_ref` bound on `F: Functor` (existing semantics).
 Add a new `send_lower_ref` method bound on `F: SendFunctor`.
 Layer impls implement both. Dispatch impl uses
@@ -838,7 +838,7 @@ Layer impls implement both. Dispatch impl uses
   Sync intermediate types. Two parallel methods on the public
   API.
 
-**(γ) Defer 6a.4 + 6a.6 indefinitely.** Document the gap;
+**(c) Defer 6a.4 + 6a.6 indefinitely.** Document the gap;
 leave `SendStateBrand` and the Arc-family smart constructors
 in place but un-dispatch-able. Users threading state through
 `ArcRun` / `ArcRunExplicit` use the closure-capture state
@@ -875,20 +875,20 @@ target `SendArcCoyonedaBrand` instead of `ArcCoyonedaBrand`.
 
 ##### Recommendation
 
-**(α) full migration** is the principled answer. The
+**(a) full migration** is the principled answer. The
 migration is real work but bounded; the Phase 2 step 9
 precedent is exactly this; the existing implicit "every
 Functor produces Send + Sync" reliance is fragile and would
 break the next time a Functor-only-but-not-Send-friendly
-brand surfaces. (β) is structurally harder than it sounds.
-(γ) defers the 2026-05-03 design lock-in. (c'') is bigger
-than (α) once the user-facing complexity is counted.
+brand surfaces. (b) is structurally harder than it sounds.
+(c) defers the 2026-05-03 design lock-in. (c'') is bigger
+than (a) once the user-facing complexity is counted.
 
 Recommendation locked-in: open. User decision needed.
 
 ##### What happens next
 
-User decision needed on (α) / (β) / (γ) / (c''). Once locked
+User decision needed on (a) / (b) / (c) / (c''). Once locked
 in:
 
 1. Move this entry to [resolutions.md](resolutions.md)
@@ -896,13 +896,13 @@ in:
 2. Implement the chosen option.
 3. Pop `git stash@{0}` (the run_state.rs draft) and update
    the file based on the chosen option's implications:
-   - (α): all six wrappers ship after fixing the
+   - (a): all six wrappers ship after fixing the
      `State<'_, ...>` lifetime annotations. SendFunctor for
      VecBrand and other affected brands lands in the same
      migration commit.
-   - (β): same as (α) post-design, but with two parallel
+   - (b): same as (a) post-design, but with two parallel
      methods.
-   - (γ): keep only the four non-Arc tests; document the
+   - (c): keep only the four non-Arc tests; document the
      two Arc tests as deferred.
    - (c''): rewrite the Arc family tests to use
      `SendArcCoyonedaBrand`.
@@ -1016,7 +1016,7 @@ summaries:
 
 - [Resolved (2026-05-03): Phase 3 step 6a SendFunctor reopened after option (b) unimplementable; option (c) parallel `SendStateBrand` ratified](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)
   : the original (b) ratification (`4bd1636`) was discovered
-  unimplementable — `Arc<dyn Fn(...)>` is structurally
+  unimplementable , `Arc<dyn Fn(...)>` is structurally
   `!Send + !Sync` because the trait object's bounds don't
   include `Send + Sync`, and use-site bounds can't change a
   structural type-level fact. Reopened and re-ratified with
@@ -1313,18 +1313,18 @@ The design is recorded in full in
 [decisions.md](decisions.md) sections 4 (six core DECISIONs) and
 5 (draft architecture). Quick reference:
 
-- **Row encoding (decisions §4.1):** Option 4 hybrid (frunk-style
+- **Row encoding (decisions Section 4.1):** Option 4 hybrid (frunk-style
   Peano-indexed `Coproduct<H, T>` plus `effects![...]` macro
   layer). Workaround 1 (macro lexical sort) is primary; workaround
   3 (`CoproductSubsetter` permutation proof) is fallback for
   hand-written rows.
-- **Functor dictionary (decisions §4.2):** static option via
+- **Functor dictionary (decisions Section 4.2):** static option via
   `Coyoneda` per effect. Each row variant is `Coyoneda<E, A>`,
   which is a `Functor` for any `E` regardless of `E`'s own shape.
   `Coproduct<H, T>` implements `Functor` via recursive trait
   dispatch (`H: Functor + T: Functor`). The dynamic
   `DynFunctor` option is retained as a fallback only.
-- **Stack safety (decisions §4.3):** ship both interpreter
+- **Stack safety (decisions Section 4.3):** ship both interpreter
   families, mirroring PureScript: `interpret` / `run` (assume
   target stack-safe) and `interpretRec` / `runRec` (require
   `MonadRec` on target). Plus the Rust-specific row-narrowing
@@ -1336,7 +1336,7 @@ The design is recorded in full in
   user-side closure captures; PureScript Run's `runAccum` shape
   drops the threaded state on return anyway, and the mono-in-A
   Rust port has no slot for a tupled state result.
-- **Free family (decisions §4.4):** six variants in two rows.
+- **Free family (decisions Section 4.4):** six variants in two rows.
   Erased family (`Free`, `RcFree`, `ArcFree`) is inherent-method
   only with O(1) bind via `dyn Any` erasure plus CatList; pins
   `A: 'static`. Explicit family (`FreeExplicit<'a, ...>`,
@@ -1347,7 +1347,7 @@ The design is recorded in full in
   code uses the Erased row, and `into_explicit()` converts between
   them when needed. The `ArcFreeExplicitBrand` `Functor` impl
   lands via the new `SendFunctor` trait family (Phase 1 step 6).
-- **Scoped effects (decisions §4.5):** heftia-style dual-row
+- **Scoped effects (decisions Section 4.5):** heftia-style dual-row
   architecture. `Run` carries a separate higher-order row of
   scoped-effect constructors (`Catch<'a, E>`, `Local<'a, E>`,
   `Bracket<'a, A, B>`, `Span<'a, Tag>`). Day-one `'a` parameter,
@@ -1357,7 +1357,7 @@ The design is recorded in full in
   [decisions.md](decisions.md) section 4.5's "Deferred to a future
   revision" sub-decision for the four options preserved on the
   shelf.)
-- **Natural transformations (decisions §4.6):** `handlers!{...}`
+- **Natural transformations (decisions Section 4.6):** `handlers!{...}`
   macro DSL primary, builder pattern (`nt().on::<E>(handler)...`)
   as fallback.
 
@@ -1468,7 +1468,7 @@ Quick reference table:
   existing `m_do!` / `a_do!` macros with the `ref` qualifier
   (`m_do!(ref RcRunExplicitBrand { ... })`), routing through
   `RefFunctor` / `RefSemimonad` (with the constraint that the
-  row brand must implement `RefFunctor` — synthetic rows like
+  row brand must implement `RefFunctor` , synthetic rows like
   `CoproductBrand<IdentityBrand, CNilBrand>` qualify, but
   canonical Coyoneda-headed rows generated by the `effects!`
   macro do not, because `CoyonedaBrand` cannot implement
@@ -1494,7 +1494,7 @@ constraints change.
   Ruled out by [decisions.md](decisions.md) section 1.2; no Rust
   equivalent of GHC's `prompt#` / `control0#`.
 - **Tag-based type-level sorting** (workaround 2 from
-  decisions §4.1). Surveyed in
+  decisions Section 4.1). Surveyed in
   [docs/plans/type-level-sorting/research/](../type-level-sorting/research/);
   the credible building blocks exist (`tstr_crates`) but the full
   sort engine on stable Rust requires the user to write it. The
@@ -1509,7 +1509,7 @@ constraints change.
   loses 4 of 5 first-class-program properties section 4.4
   requires.
 - **`mtl`-style trait-bound effect set** (Option 5 from
-  decisions §4.1). Loses first-class programs.
+  decisions Section 4.1). Loses first-class programs.
 - **Custom `Effect`-monad analogue.** Section 9.4 commits to
   `Thunk` (v1) and `Future` (Phase 3) as `MonadRec` targets;
   inventing a Rust-specific `Effect` monad is unnecessary.
@@ -2313,10 +2313,10 @@ this section is the phasing-side checklist.
      macro.** No per-effect type aliases (`type ReaderRow<E, R> = ...`)
      ship in this step; deferred until user demand surfaces.
    - Per-effect smart-constructor counts: State (`get` + `put`)
-     × 6 wrappers = 12; Reader (`ask`) × 6 = 6; Except
-     (`throw`) × 6 = 6; Writer (`tell`) × 6 = 6; Choose
-     (`choose`) × 4 multi-shot wrappers = 4. Total ~34 named
-     entry-points across six per-wrapper modules.
+     - 6 wrappers = 12; Reader (`ask`) _ 6 = 6; Except
+       (`throw`) _ 6 = 6; Writer (`tell`) _ 6 = 6; Choose
+       (`choose`) _ 4 multi-shot wrappers = 4. Total ~34 named
+       entry-points across six per-wrapper modules.
    - **`SendFunctorAt` spike for ArcRun State as a sub-task**
      (per the
      [2026-05-03 reversal resolution](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer))

@@ -43,8 +43,8 @@ mod inner {
 	///
 	/// `Strong` instances must satisfy the following laws:
 	/// * Identity: `first(identity) = identity`.
-	/// * Composition: `first(p ∘ q) = first(p) ∘ first(q)`.
-	/// * Naturality: `dimap(fst, fst) ∘ first(p) = first(p) ∘ dimap(fst, fst)`.
+	/// * Composition: `first(p <<< q) = first(p) <<< first(q)`.
+	/// * Naturality: `dimap(fst, fst) <<< first(p) = first(p) <<< dimap(fst, fst)`.
 	#[document_examples]
 	///
 	/// Strong laws for [`RcFnBrand`](crate::brands::RcFnBrand):
@@ -64,7 +64,7 @@ mod inner {
 	/// let first_id = first::<RcFnBrand, _, _, String>(id);
 	/// assert_eq!(first_id((5, "hi".to_string())), (5, "hi".to_string()));
 	///
-	/// // Composition: first(p ∘ q) = first(p) ∘ first(q)
+	/// // Composition: first(p <<< q) = first(p) <<< first(q)
 	/// let lhs = first::<RcFnBrand, _, _, String>(semigroupoid_compose::<RcFnBrand, _, _, _>(
 	/// 	p.clone(),
 	/// 	q.clone(),

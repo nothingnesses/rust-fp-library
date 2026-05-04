@@ -34,7 +34,7 @@ holds:
 
 For `P = ArcBrand`, the projection is
 `Arc<dyn 'a + Fn(...) -> A>`. The trait object's bounds are
-`'a + Fn(...) -> A` only — no `+ Send + Sync` baked in. Since
+`'a + Fn(...) -> A` only , no `+ Send + Sync` baked in. Since
 `Arc<T>: Send + Sync` requires `T: Send + Sync` structurally,
 and `dyn Fn(...)` (without `+ Send + Sync`) is structurally
 `!Send + !Sync`, the projection
@@ -79,7 +79,7 @@ enum whose variants use the Send-aware projection:
 - `Put(S, <P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(()) -> A + Send + Sync>)`
 
 For `P = ArcBrand`, the projection is
-`Arc<dyn 'a + Fn(...) + Send + Sync>` — a different type from
+`Arc<dyn 'a + Fn(...) + Send + Sync>` , a different type from
 the non-Send `Arc<dyn Fn(...)>` in `State`, and one that IS
 `Send + Sync` because the trait object's bounds now include
 the marker traits.
@@ -149,7 +149,7 @@ deferring.
 5. Manual `Clone` impl for `SendState` (gated on `S: Clone`,
    like the existing `State::Clone` impl from 5a.3).
 6. `SendFunctor` impl for `SendStateBrand` (the whole point
-   of (c) — this works because the projection is structurally
+   of (c) , this works because the projection is structurally
    `Send + Sync`).
 7. `ArcRun::get<Idx>()` and `ArcRun::put<StateType, Idx>(s)`
    smart constructors using `SendStateBrand<ArcBrand, A>` in
@@ -545,7 +545,7 @@ emit shape, and were answered before implementation begins.
 ### Background
 
 PureScript Run ships `ask :: Run (READER e r) e`, `get :: Run (STATE s r) s`,
-etc. — single entry-points, no wrapper choice. PureScript has
+etc. , single entry-points, no wrapper choice. PureScript has
 one `Run` type, so the question doesn't arise.
 
 fp-library has six Run wrappers
@@ -656,7 +656,7 @@ Alternatives considered:
   inside Coyoneda is not actually `A`; it's `S` for Get and
   `()` for Put. Coyoneda's type signature is `Coyoneda<F, A>`
   where `F::Of<A>` is the inner value. With (b),
-  `F::Of<A> = State<S, A>` which is just a tag — but Coyoneda's
+  `F::Of<A> = State<S, A>` which is just a tag , but Coyoneda's
   stored `f: B -> A` would then be `B = A`, so the function is
   identity, and the handler must manually invoke its own
   continuation by inspecting the variant. Workable but loses
@@ -699,7 +699,7 @@ of the choice and combines results). Continuation must be
 cloneable. So Choose ships on `RcRun`, `RcRunExplicit`,
 `ArcRun`, `ArcRunExplicit`; not on `Run` or `RunExplicit`.
 
-Plan text said "Choose (multi-shot, `RcRun`-only)" — overly
+Plan text said "Choose (multi-shot, `RcRun`-only)" , overly
 narrow. Plan text needs updating to reflect all four
 multi-shot wrappers.
 
@@ -747,11 +747,11 @@ and row-brand composition via the existing `effects!` macro.
   `Choose<FnP, A>`) parameterised by `FnBrand` where the
   effect carries continuations.
 - **Step 5 ships ~34 smart constructors:**
-  - State: `get` and `put` on each wrapper. 2 × 6 = 12.
-  - Reader: `ask` on each wrapper. 1 × 6 = 6.
-  - Except: `throw` on each wrapper. 1 × 6 = 6.
-  - Writer: `tell` on each wrapper. 1 × 6 = 6.
-  - Choose: `choose` on each multi-shot wrapper. 1 × 4 = 4.
+  - State: `get` and `put` on each wrapper. 2 \* 6 = 12.
+  - Reader: `ask` on each wrapper. 1 \* 6 = 6.
+  - Except: `throw` on each wrapper. 1 \* 6 = 6.
+  - Writer: `tell` on each wrapper. 1 \* 6 = 6.
+  - Choose: `choose` on each multi-shot wrapper. 1 \* 4 = 4.
   - Total: ~34 named smart constructors, distributed across
     six per-wrapper modules.
 - **Step 5 may be split into sub-steps** per the
@@ -1026,7 +1026,7 @@ MonadRec form can provide:
    the only shape that supports "interpret one effect, store
    the result, interpret the rest later".
 2. **User-controlled handler ordering for non-commuting
-   effects.** Combinations like `NonDet × Except` produce
+   effects.** Combinations like `NonDet * Except` produce
    different semantics depending on which handler runs
    "outside" which. Pipeline lets users explicitly chain
    `.interpret_with::<Except>(...).interpret_with::<NonDet>(...)`.
@@ -1061,8 +1061,8 @@ enables value extraction without engaging MonadRec
 abstraction. Its `while`-loop is structurally stack-safe by
 construction (no `M::bind` or `M::tail_rec_m` in the body),
 so there's no need for a `MonadRec` constraint. Under any
-alternative — (2.A) symmetric Monad/MonadRec, (2.B) MonadRec
-uniform, or (2.D) drop-simple-form — value extraction would
+alternative , (2.A) symmetric Monad/MonadRec, (2.B) MonadRec
+uniform, or (2.D) drop-simple-form , value extraction would
 route through `M = IdentityBrand` with turbofish + `.0`
 unwrap, forcing users to encounter MonadRec machinery they
 don't conceptually need.
@@ -1118,7 +1118,7 @@ that affect the interpreter design:
    `runRec` sibling swaps for `tailRecM` to keep host stack
    constant. fp-library step 2's body is
    `while { match peel { Ok(a) => return a, Err(node) => prog = handlers.dispatch(layer) }}`
-   — assignment-driven, no `m`, no `bind`, no `tail_rec_m`.
+   , assignment-driven, no `m`, no `bind`, no `tail_rec_m`.
    The PureScript rec/non-rec distinction does not apply to
    step 2's shape; stack-safety is by construction.
 2. **Bind-driven recursion with borrowed handler state is
@@ -1200,7 +1200,7 @@ this resolutions.md entry.
 - [`fp-library/src/classes/monad_rec.rs`](../../../fp-library/src/classes/monad_rec.rs):
   fp-library's MonadRec, mirror of PureScript's.
 - Phase 3 step 1 commit `82dd7bb` (handlers! macro).
-- Phase 3 step 2 commit `d5efe2a` (interpret family) — the
+- Phase 3 step 2 commit `d5efe2a` (interpret family) , the
   API `(2.C)` preserves and `(2.A)` / `(2.B)` / `(2.D)` would
   have broken.
 - [PureScript Run](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)

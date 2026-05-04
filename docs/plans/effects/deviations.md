@@ -900,7 +900,7 @@ forward-reservation of an applicative companion name.
   over a subsystem-scoped name:
   1. The dispatch pattern (inherent-method calls instead of
      trait dispatch) is the load-bearing fact about the
-     macro. The Run-scoping is incidental — any wrapper type
+     macro. The Run-scoping is incidental , any wrapper type
      with inherent `bind` could use the same macro.
   2. The applicative companion (see below) needs a parallel
      name. `run_a_do!` reads awkwardly; `run_ado!` is
@@ -930,7 +930,7 @@ forward-reservation of an applicative companion name.
   guidance: applicative composition is generally preferable
   to monadic composition when binds are independent (it
   allows parallelization, avoids closure-nesting issues
-  in `ref` mode, and produces simpler desugarings — a
+  in `ref` mode, and produces simpler desugarings , a
   single `liftN` / `map` call instead of nested `bind`s).
   Users should reach for `ia_do!` over `im_do!` (and
   `a_do!` over `m_do!`) whenever the binds are independent;
@@ -956,7 +956,7 @@ forward-reservation of an applicative companion name.
      rows need an alternative path. Inherent `ref_bind`
      (added in step 7b) sidesteps the cascade by cloning
      the program and calling by-value `bind` with a
-     wrapping closure — this works without requiring the
+     wrapping closure , this works without requiring the
      row brand to be `RefFunctor`. `im_do!(ref RcRunExplicit { ... })`
      desugars to inherent `ref_bind` calls, providing the
      by-reference path that `m_do!(ref ...)` cannot reach.

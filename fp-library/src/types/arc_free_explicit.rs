@@ -807,7 +807,7 @@ mod inner {
 	// `ArcFreeExplicit<'a, F, B>: Send + Sync`. Auto-derive of `Send +
 	// Sync` on `ArcFreeExplicit` requires
 	// `Kind<Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync>` (the bound
-	// dropped from the struct in step 5 — see deviations in plan.md).
+	// dropped from the struct in step 5; see deviations in plan.md).
 	// That bound's `'a` and `A` are the trait method's per-method
 	// generics; stable Rust does not support `for<'a, T>` HRTB, so the
 	// bound cannot be added at the impl block level. By-reference

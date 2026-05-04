@@ -329,7 +329,7 @@ On top of `control0#`, eff exposes three operators in the `Handle` monad:
 
 2. **`control :: ((a -> Eff effs r) -> Eff effs r) -> Handle eff effs i r effs' a`**
 
-   Captures the continuation _with_ the prompt included (`CaptureMode = IncludePrompt`). When the continuation is invoked, the handler is effectively reinstalled because the prompt was never removed from the continuation. This is `shift`-like behavior: composable, re-enterable, and crucially **multi-shot** — the continuation can be invoked zero, one, or many times. Used for `Choose` in NonDet:
+   Captures the continuation _with_ the prompt included (`CaptureMode = IncludePrompt`). When the continuation is invoked, the handler is effectively reinstalled because the prompt was never removed from the continuation. This is `shift`-like behavior: composable, re-enterable, and crucially **multi-shot** , the continuation can be invoked zero, one, or many times. Used for `Choose` in NonDet:
 
    ```haskell
    Choose -> control \k -> liftA2 (<|>) (k True) (k False)
@@ -347,7 +347,7 @@ On top of `control0#`, eff exposes three operators in the `Handle` monad:
 
    The continuation `k` is handed to the external caller as part of a `Yielded` value. To resume, the caller passes a new value and implicitly reinstalls the coroutine handler. This gives coroutines/generators their characteristic API.
 
-4. **`liftH`** and **`locally`** are not continuation captures at all — they are adjustments to the registers (targets vector) used to run a sub-computation under a different effect view. `liftH` runs an action with the outer effect list visible (used by `Ask` to return a plain value without re-sending). `locally` runs an action with the _caller's_ effect list visible (used by `Catch` and `Local`, where the inner computation should bypass the current handler).
+4. **`liftH`** and **`locally`** are not continuation captures at all , they are adjustments to the registers (targets vector) used to run a sub-computation under a different effect view. `liftH` runs an action with the outer effect list visible (used by `Ask` to return a plain value without re-sending). `locally` runs an action with the _caller's_ effect list visible (used by `Catch` and `Local`, where the inner computation should bypass the current handler).
 
 ### Summary of What eff Needs
 
@@ -386,7 +386,7 @@ Semantics:
 
 - **`run(f)`** installs a delimiter and drives the body future `f(task)` to completion.
 - **`task.switch(g)`** pauses the current future, captures the continuation (the rest of the body up to the `run` boundary), and transfers control to `g(resume)`. The closure `g` produces a new future of the same result type `T`.
-- **`resume(arg)`** is a `FnOnce` — one-shot. Awaiting it feeds `arg` back into the pause point and runs the captured continuation to completion, returning the final `T` into the switching closure.
+- **`resume(arg)`** is a `FnOnce` , one-shot. Awaiting it feeds `arg` back into the pause point and runs the captured continuation to completion, returning the final `T` into the switching closure.
 
 ### Example (from the project's README)
 
@@ -427,7 +427,7 @@ Closest match: `switch-resume`'s `switch` is roughly equivalent to `shift` at th
 
 **Supported:**
 
-- **Tail-resumptive effects** (Reader `ask`, State `get`/`put`, Writer `tell`): implement as plain function calls against a handler stored in the task environment. No continuation capture needed — these don't use `switch` at all.
+- **Tail-resumptive effects** (Reader `ask`, State `get`/`put`, Writer `tell`): implement as plain function calls against a handler stored in the task environment. No continuation capture needed , these don't use `switch` at all.
 - **Abortive effects** (Error `throw`, NonDet `empty`): implement via `switch` with a closure that ignores `resume` and returns the error/empty value directly, effectively aborting the task.
 - **One-shot resumption** (Coroutine-like `yield` where the consumer only resumes once): the `switch` closure hands `resume` to external code. Since `FnOnce` allows exactly one call, this fits.
 
@@ -457,7 +457,7 @@ But it cannot support:
 - Scoped operations (`catch`, `local`) in their full generality
 - Sync (non-async) code paths
 
-This is enough to cover the "boring but useful 80%" of an effects library, but falls short of being a full eff port. The "interesting" cases — the ones that justify algebraic effects as a framework rather than a dependency-injection pattern — are precisely the ones `switch-resume` cannot handle.
+This is enough to cover the "boring but useful 80%" of an effects library, but falls short of being a full eff port. The "interesting" cases , the ones that justify algebraic effects as a framework rather than a dependency-injection pattern , are precisely the ones `switch-resume` cannot handle.
 
 ## Could `switch-resume` Be Extended to Fully Match eff?
 
@@ -551,7 +551,7 @@ where F: FnOnce(BareCont<Arg>) -> Fut, Fut: Future<Output = R>;
 5. **Known workarounds all require abandoning direct style**:
    - **CPS** (hand- or macro-transformed): explicit continuation-passing closures stored in `Arc<dyn Fn>` can be invoked multiple times. Loses direct-style syntax.
    - **Free-monad reification**: represent the computation as a data structure; multi-shot is "interpret the tree twice." Works perfectly but is exactly what `purescript-run` does. At that point, `switch-resume` contributes nothing.
-   - **Replay-based**: re-run the entire computation with different "branch decisions" recorded externally. Requires effects to be pure-functions-of-input, and costs O(n²) for n effect calls.
+   - **Replay-based**: re-run the entire computation with different "branch decisions" recorded externally. Requires effects to be pure-functions-of-input, and costs O(n^2) for n effect calls.
 
 **Verdict**: **Hard blocker in stable Rust**. Multi-shot cannot be added to `switch-resume` without either moving to nightly + hand-written coroutines (losing async/direct style), or falling back to free-monad reification (at which point we have two disjoint mechanisms and switch-resume adds nothing).
 
@@ -587,7 +587,7 @@ These are all on the "cost" side of the design rather than "blocker" side, but t
 | Async coloring                     | No                   | Inherent; manageable ergonomic cost.                                                               |
 | Performance parity with eff        | No                   | Allocation and executor overhead are baseline.                                                     |
 
-The bolded row is the dispositive one. An extended `switch-resume` can get close to eff's _shape_ — multi-prompt handlers, control0-like semantics, scoped operations — but it cannot get NonDet/Alternative back. Since multi-shot is one of the defining features of eff (and of algebraic effects generally), extended `switch-resume` is still a _partial_ port, not a full one.
+The bolded row is the dispositive one. An extended `switch-resume` can get close to eff's _shape_ , multi-prompt handlers, control0-like semantics, scoped operations , but it cannot get NonDet/Alternative back. Since multi-shot is one of the defining features of eff (and of algebraic effects generally), extended `switch-resume` is still a _partial_ port, not a full one.
 
 ## Feasibility for Rust Port
 

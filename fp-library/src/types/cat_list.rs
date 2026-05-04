@@ -4597,7 +4597,7 @@ mod tests {
 
 	// Filterable Laws
 
-	/// Tests `filterMap identity ≡ compact`.
+	/// Tests `filterMap identity == compact`.
 	#[quickcheck]
 	fn filterable_filter_map_identity(x: Vec<Option<i32>>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
@@ -4605,14 +4605,14 @@ mod tests {
 			== explicit::compact::<CatListBrand, _, _, _>(x)
 	}
 
-	/// Tests `filterMap Just ≡ identity`.
+	/// Tests `filterMap Just == identity`.
 	#[quickcheck]
 	fn filterable_filter_map_just(x: Vec<i32>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
 		explicit::filter_map::<CatListBrand, _, _, _, _>(Some, x.clone()) == x
 	}
 
-	/// Tests `partitionMap identity ≡ separate`.
+	/// Tests `partitionMap identity == separate`.
 	#[quickcheck]
 	fn filterable_partition_map_identity(x: Vec<Result<i32, i32>>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();
@@ -4622,7 +4622,7 @@ mod tests {
 
 	// Witherable Laws
 
-	/// Tests `wither (pure <<< Just) ≡ pure`.
+	/// Tests `wither (pure <<< Just) == pure`.
 	#[quickcheck]
 	fn witherable_identity(x: Vec<i32>) -> bool {
 		let x: CatList<_> = x.into_iter().collect();

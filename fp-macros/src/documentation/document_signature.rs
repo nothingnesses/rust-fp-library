@@ -91,7 +91,7 @@ pub fn document_signature_worker(
 	let doc_comment = if let Some(sig_str) = manual_signature {
 		format!("`{sig_str}`")
 	} else {
-		// Handle functions and methods — generate HM type signature
+		// Handle functions and methods, generate HM type signature
 		let sig = item.signature().ok_or_else(|| {
 			Error::validation(
 				proc_macro2::Span::call_site(),

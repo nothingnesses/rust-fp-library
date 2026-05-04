@@ -190,7 +190,7 @@ mod inner {
 		/// Monadic bind with O(1) complexity.
 		///
 		/// Chains computations together. The key property is that
-		/// left-associated chains don't degrade to O(n²).
+		/// left-associated chains don't degrade to O(n^2).
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the result of the new task.")]
@@ -205,7 +205,7 @@ mod inner {
 		/// ```
 		/// use fp_library::types::*;
 		///
-		/// // This is O(n), not O(n²)
+		/// // This is O(n), not O(n^2)
 		/// let mut task = Trampoline::pure(0);
 		/// for i in 0 .. 100 {
 		/// 	task = task.bind(move |x| Trampoline::pure(x + i));

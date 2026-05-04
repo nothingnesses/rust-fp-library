@@ -568,7 +568,7 @@ This section is an inventory, not a design. The Rust port must answer, or consci
 
 ### 8.1 Must Be Supplied
 
-1. **A row-polymorphic effect index.** Rust has no row types. The port needs a substitute: type-level lists via traits (à la `frunk`, `generic-array`), const-generic tuples, or an enum-of-enums. Each option has tradeoffs for partial interpretation and inference.
+1. **A row-polymorphic effect index.** Rust has no row types. The port needs a substitute: type-level lists via traits (a la `frunk`, `generic-array`), const-generic tuples, or an enum-of-enums. Each option has tradeoffs for partial interpretation and inference.
 2. **An open sum of functors (`VariantF`).** The runtime representation can be a tagged union: `{ tag: &'static str, value: Box<dyn Any>, map: Box<dyn Fn...> }`, or a generic enum. The `Mapper f` dictionary must be carried somehow; Rust traits can supply it statically via trait bounds or dynamically via vtables.
 3. **A `Free`-equivalent monad.** Must be `Functor`, `Applicative`, `Monad` for the chosen HKT encoding (this project already has HKT machinery via Brand types). Must be stack-safe, meaning either (a) eager left-associated construction with efficient continuation sequencing, or (b) a catenable-list sequence with phantom type erasure via `Box<dyn Any>`, or (c) a trampoline loop in the interpreter.
 4. **A `MonadRec`-equivalent.** Either a trait with a method `tail_rec_m`, or iterator-style interpreters that drive continuations in a `while let` loop.
