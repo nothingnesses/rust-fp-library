@@ -1375,6 +1375,62 @@ mod inner {
 			Self::lift::<crate::brands::WriterBrand<LogType>, Idx>(effect)
 		}
 	}
+
+	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
+	impl<R, ScopedRow> RcRun<R, ScopedRow, bool>
+	where
+		R: WrapDrop + Functor + 'static,
+		ScopedRow: WrapDrop + Functor + 'static,
+	{
+		/// Lifts an `Alt` choose effect into the `RcRun` program.
+		/// Direct analog of PureScript Run's `choose` /
+		/// `runChoose`. The program nondeterministically returns
+		/// `true` or `false`; the handler runs the continuation
+		/// twice (once per branch) to capture both outcomes.
+		///
+		/// `Choose` ships only on the four multi-shot wrappers
+		/// because the handler must clone the continuation to invoke
+		/// it twice. Threads
+		/// [`RcBrand`](crate::brands::RcBrand) as the pointer kind.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
+		///
+		#[document_returns("An `RcRun` program suspended at the lifted `Alt` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		choose::Choose,
+		/// 		rc_run::RcRun,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ChooseBrand<RcBrand>>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: RcRun<FirstRow, Scoped, bool> = RcRun::choose();
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn choose<Idx>() -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, bool>):
+				Member<RcCoyoneda<'static, crate::brands::ChooseBrand<RcBrand>, bool>, Idx>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			let effect: crate::types::effects::choose::Choose<'static, RcBrand, bool> =
+				crate::types::effects::choose::Choose::Alt(
+					<RcBrand as crate::classes::ToDynCloneFn>::new(|b: bool| b),
+				);
+			Self::lift::<crate::brands::ChooseBrand<RcBrand>, Idx>(effect)
+		}
+	}
 }
 
 pub use inner::*;

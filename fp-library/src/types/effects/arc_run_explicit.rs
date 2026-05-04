@@ -1724,6 +1724,79 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand."
+	)]
+	impl<'a, R, ScopedRow> ArcRunExplicit<'a, R, ScopedRow, bool>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		ScopedRow: WrapDrop + SendFunctor + 'static,
+	{
+		/// Lifts an `Alt` choose effect into the `ArcRunExplicit`
+		/// program. Mirrors
+		/// [`RcRun::choose`](crate::types::effects::rc_run::RcRun::choose);
+		/// see that method for cross-wrapper semantics. Differences
+		/// for `ArcRunExplicit`: threads
+		/// [`ArcBrand`](crate::brands::ArcBrand) as the pointer kind
+		/// and uses
+		/// [`SendChooseBrand`](crate::brands::SendChooseBrand) (rather
+		/// than `ChooseBrand`) so the continuation projection is
+		/// structurally `Send + Sync`.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
+		///
+		#[document_returns("An `ArcRunExplicit` program suspended at the lifted `Alt` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		choose::SendChoose,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendChooseBrand<ArcBrand>>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: ArcRunExplicit<'static, FirstRow, Scoped, bool> = ArcRunExplicit::choose();
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn choose<Idx>() -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, bool>): Member<
+					ArcCoyoneda<'a, crate::brands::SendChooseBrand<crate::brands::ArcBrand>, bool>,
+					Idx,
+				>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, bool>,
+			>): Send + Sync,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, bool>,
+			>): Send + Sync,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, bool>,
+			>): Clone + Send + Sync, {
+			let effect: crate::types::effects::choose::SendChoose<
+				'a,
+				crate::brands::ArcBrand,
+				bool,
+			> = crate::types::effects::choose::SendChoose::Alt(
+				<crate::brands::ArcBrand as crate::classes::ToDynSendFn>::new(|b: bool| b),
+			);
+			Self::lift::<crate::brands::SendChooseBrand<crate::brands::ArcBrand>, Idx>(effect)
+		}
+	}
+
 	// -- From<ArcRun> for ArcRunExplicit (Erased -> Explicit conversion) --
 
 	#[document_type_parameters(

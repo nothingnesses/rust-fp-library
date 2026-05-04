@@ -1825,6 +1825,76 @@ mod inner {
 			Self::lift::<crate::brands::WriterBrand<LogType>, Idx>(effect)
 		}
 	}
+
+	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
+	impl<R, ScopedRow> ArcRun<R, ScopedRow, bool>
+	where
+		R: Kind_cdc7cd43dac7585f + 'static,
+		ScopedRow: Kind_cdc7cd43dac7585f + 'static,
+		NodeBrand<R, ScopedRow>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>>: Send + Sync,
+			> + 'static,
+	{
+		/// Lifts an `Alt` choose effect into the `ArcRun` program.
+		/// Mirrors
+		/// [`RcRun::choose`](crate::types::effects::rc_run::RcRun::choose);
+		/// see that method for cross-wrapper semantics. Differences for
+		/// `ArcRun`: threads
+		/// [`ArcBrand`](crate::brands::ArcBrand) as the pointer kind
+		/// and uses
+		/// [`SendChooseBrand`](crate::brands::SendChooseBrand) (rather
+		/// than `ChooseBrand`) so the continuation projection is
+		/// structurally `Send + Sync`.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
+		///
+		#[document_returns("An `ArcRun` program suspended at the lifted `Alt` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		choose::SendChoose,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendChooseBrand<ArcBrand>>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: ArcRun<FirstRow, Scoped, bool> = ArcRun::choose();
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn choose<Idx>() -> Self
+		where
+			NodeBrand<R, ScopedRow>: SendFunctor,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, bool>): Member<
+					ArcCoyoneda<
+						'static,
+						crate::brands::SendChooseBrand<crate::brands::ArcBrand>,
+						bool,
+					>,
+					Idx,
+				>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>,
+			>): Clone, {
+			let effect: crate::types::effects::choose::SendChoose<
+				'static,
+				crate::brands::ArcBrand,
+				bool,
+			> = crate::types::effects::choose::SendChoose::Alt(
+				<crate::brands::ArcBrand as crate::classes::ToDynSendFn>::new(|b: bool| b),
+			);
+			Self::lift::<crate::brands::SendChooseBrand<crate::brands::ArcBrand>, Idx>(effect)
+		}
+	}
 }
 
 pub use inner::*;

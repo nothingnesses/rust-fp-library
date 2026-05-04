@@ -52,6 +52,28 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct CNilBrand;
 
+	/// Brand for [`Choose`](crate::types::effects::choose::Choose),
+	/// the nondeterministic-branching first-order effect type with
+	/// `Alt` (run a continuation `bool -> A` for both branches) as
+	/// its sole operation. Parameterised by `P: ToDynCloneFn`
+	/// (typically [`RcBrand`](crate::brands::RcBrand) for
+	/// single-thread substrates) so the same effect type works
+	/// across the four multi-shot Run wrappers.
+	///
+	/// `Choose` ships only on the four multi-shot wrappers
+	/// ([`RcRun`](crate::types::effects::rc_run::RcRun) /
+	/// [`RcRunExplicit`](crate::types::effects::rc_run_explicit::RcRunExplicit) /
+	/// [`ArcRun`](crate::types::effects::arc_run::ArcRun) /
+	/// [`ArcRunExplicit`](crate::types::effects::arc_run_explicit::ArcRunExplicit))
+	/// because a `Choose` handler runs the continuation twice (once
+	/// for each branch), which requires the continuation to be
+	/// cloneable; the single-shot wrappers
+	/// ([`Run`](crate::types::effects::run::Run) /
+	/// [`RunExplicit`](crate::types::effects::run_explicit::RunExplicit))
+	/// cannot host this effect.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct ChooseBrand<P>(PhantomData<P>);
+
 	/// Brand for a non-empty effect row encoded as a nested
 	/// [`Coproduct`](crate::types::effects::coproduct::Coproduct).
 	///
@@ -162,6 +184,26 @@ mod inner {
 	/// signatures cannot express).
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct RunExplicitBrand<R, S>(PhantomData<(R, S)>);
+
+	/// Brand for
+	/// [`SendChoose`](crate::types::effects::choose::SendChoose), the
+	/// thread-safe sibling of
+	/// [`Choose`](crate::types::effects::choose::Choose). The `Alt`
+	/// variant stores
+	/// `<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(bool) -> A + Send + Sync>`
+	/// (with `+ Send + Sync` baked into the trait object's bounds),
+	/// so the projection is structurally `Send + Sync`. Used by the
+	/// Arc family `choose` smart constructors
+	/// ([`ArcRun::choose`](crate::types::effects::arc_run::ArcRun) /
+	/// [`ArcRunExplicit::choose`](crate::types::effects::arc_run_explicit::ArcRunExplicit)).
+	/// `Arc<dyn Fn(bool) -> A>` (without `+ Send + Sync` in the
+	/// trait object's bounds) is structurally `!Send + !Sync`, so a
+	/// parallel brand whose projection bakes the marker traits in
+	/// at the type level is required for end-to-end dispatch through
+	/// `*Run::interpret` on Arc-substrate programs. Non-Arc smart
+	/// constructors keep using [`ChooseBrand`].
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct SendChooseBrand<P>(PhantomData<P>);
 
 	/// Brand for
 	/// [`SendReader`](crate::types::effects::reader::SendReader), the

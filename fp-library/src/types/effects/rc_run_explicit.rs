@@ -1445,6 +1445,58 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand."
+	)]
+	impl<'a, R, ScopedRow> RcRunExplicit<'a, R, ScopedRow, bool>
+	where
+		R: WrapDrop + Functor + 'static,
+		ScopedRow: WrapDrop + Functor + 'static,
+	{
+		/// Lifts an `Alt` choose effect into the `RcRunExplicit`
+		/// program. Mirrors
+		/// [`RcRun::choose`](crate::types::effects::rc_run::RcRun::choose);
+		/// see that method for cross-wrapper semantics.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
+		///
+		#[document_returns("An `RcRunExplicit` program suspended at the lifted `Alt` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		choose::Choose,
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ChooseBrand<RcBrand>>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, bool> = RcRunExplicit::choose();
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn choose<Idx>() -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, bool>): Member<
+					RcCoyoneda<'a, crate::brands::ChooseBrand<crate::brands::RcBrand>, bool>,
+					Idx,
+				>, {
+			let effect: crate::types::effects::choose::Choose<'a, crate::brands::RcBrand, bool> =
+				crate::types::effects::choose::Choose::Alt(
+					<crate::brands::RcBrand as crate::classes::ToDynCloneFn>::new(|b: bool| b),
+				);
+			Self::lift::<crate::brands::ChooseBrand<crate::brands::RcBrand>, Idx>(effect)
+		}
+	}
+
 	// -- From<RcRun> for RcRunExplicit (Erased -> Explicit conversion) --
 
 	#[document_type_parameters(
