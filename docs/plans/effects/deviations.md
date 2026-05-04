@@ -3183,7 +3183,81 @@ Per-Suspend cost on those workloads adds one `Rc::clone` (or
 `Arc::clone`) for the captured continuation queue, which is a
 refcount bump, not a structural copy.
 
-### Cross-cutting docs/macros commits during step 5a
+### Step 7: `compile_fail` UI tests for Phase 3 negative cases
+
+Adds three trybuild UI tests under
+[`fp-library/tests/ui/`](../../../fp-library/tests/ui/) wired
+into the existing
+[`fp-library/tests/compile_fail.rs`](../../../fp-library/tests/compile_fail.rs)
+harness (one-line glob `t.compile_fail("tests/ui/*.rs")` picks
+them up automatically). Each `.rs` file is a small program that
+should fail to compile, paired with a `.stderr` snapshot
+generated via
+`TRYBUILD=overwrite cargo test -p fp-library --test compile_fail`.
+
+What landed:
+
+- [`run_choose_not_found.rs`](../../../fp-library/tests/ui/run_choose_not_found.rs):
+  verifies single-shot wrappers (`Run`, `RunExplicit`) reject
+  the `Choose` smart constructor. Surfaces as
+  [`E0599 no function or associated item named 'choose' found for struct 'Run<R, S, A>'`](https://doc.rust-lang.org/error_codes/E0599.html).
+  Only `Run` is exercised; the same property applies to
+  `RunExplicit` and a single failure suffices to demonstrate
+  it.
+- [`run_smart_constructor_type_mismatch.rs`](../../../fp-library/tests/ui/run_smart_constructor_type_mismatch.rs):
+  verifies a smart constructor's result type is bound to the
+  row's effect parameterization, not free to vary. Row carries
+  `ReaderBrand<RcBrand, String>`; binding ascribes
+  `Run<FirstRow, Scoped, i32>`; type inference unifies the
+  row's `A` with the ascription's `A` and surfaces
+  [`E0277 the trait bound 'CNil: CoprodUninjector<Coyoneda<'static, ReaderBrand<RcBrand, i32>, i32>, _>' is not satisfied`](https://doc.rust-lang.org/error_codes/E0277.html)
+  via the
+  [`Member`](../../../fp-library/src/types/effects/member.rs)
+  trait's recursion.
+- [`interpret_missing_handler.rs`](../../../fp-library/tests/ui/interpret_missing_handler.rs):
+  verifies `interpret` rejects a handler list that doesn't
+  cover every effect in the row. The
+  [`DispatchHandlers`](../../../fp-library/src/types/effects/interpreter.rs)
+  trait walks the handler list and the row in lock-step:
+  `HandlersNil` only matches `CNil`. With a 2-effect row
+  (`IdentityBrand` + `OptionBrand`) and a handler list
+  covering only `IdentityBrand`, the recursion bottoms out at
+  `HandlersNil` against `Coproduct<Coyoneda<OptionBrand, ...>, CNil>`,
+  surfacing
+  [`E0277 'HandlersNil: DispatchHandlers<...>' is not satisfied`](https://doc.rust-lang.org/error_codes/E0277.html).
+
+What diverged from the original step 7 plan:
+
+- **Three tests instead of four.** The plan listed four
+  negative cases (handler missing, wrong type ascription,
+  multi-shot via single-shot `Run`, `Choose` on single-shot
+  wrappers). Cases 3 and 4 are the same property exercised
+  from two angles: `Choose`'s smart constructor only exists on
+  multi-shot wrappers, and using it on a single-shot wrapper
+  produces the method-not-found error. One test
+  (`run_choose_not_found.rs`) covers both; a second test
+  proving the same property on `RunExplicit` would be
+  redundant.
+- **No test for cross-brand mismatch (`ChooseBrand<ArcBrand>`
+  on `RcRun`).** Out of scope for step 7; the existing three
+  tests cover the four originally-listed cases. Cross-brand
+  mismatch detection is a property of the smart constructors'
+  where-clauses, which would surface as a different error
+  shape; worth adding if a future regression motivates it.
+- **No `multi_brand_diagonal`-style test for the row-vs-handler
+  positional alignment** (e.g., handler list in the wrong
+  order). The trybuild test
+  [`multi_brand_diagonal.rs`](../../../fp-library/tests/ui/multi_brand_diagonal.rs)
+  already exercises a similar property at the row construction
+  level; adding a Phase-3-specific positional-alignment test
+  would duplicate it. The
+  [`handlers!`](../../../fp-macros/src/effects/handlers.rs)
+  macro's lexical sort matches the row brand's lexical sort,
+  so user-side ordering errors are mechanically prevented at
+  macro expansion time.
+
+Verification: 23 UI tests pass (20 pre-existing + 3 new).
+`just verify` clean across all sub-recipes.
 
 Two cross-cutting commits landed in the same set as 5a.1 / 5a.2;
 not tied to a specific phase step but worth recording for

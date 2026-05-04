@@ -39,20 +39,19 @@ one step per commit, until the phase is complete or you hit a blocker.
 
 ### Next greenfield work
 
-The next step is **Phase 3 step 7**: `compile_fail` UI tests for
-negative cases of the existing hand-written effect surface. Targets
-handler-missing-an-effect, wrong type ascription, multi-shot programs
-constructed against single-shot wrappers (`Run`, `RunExplicit`), and
-`Choose` constructors used on single-shot wrappers. Lives in
-[`fp-library/tests/ui/`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/ui/)
-alongside the existing UI tests; uses the project's standard
-`trybuild` harness.
+The next step is **Phase 3 step 8**: review-remediation
+documentation pass. Bundles the docs-only items from
+[`remediation_proposals.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/remediation_proposals.md)
+(F2A, F4A, F5A, M4 audit, M6A async-via-`spawn_blocking`, M7A
+bind/handler asymmetry note, all minor m1-m9) into one commit.
+Lands the docs that reflect Phase 3's settled state.
 
 Step 6 (`define_effect!` macro) was
 [deferred 2026-05-04](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit)
 until Phase 4 ships or a user surfaces concrete demand for custom
-effects; design research is preserved in resolutions.md. Step 8
-(review-remediation documentation pass) follows step 7.
+effects; design research is preserved in resolutions.md. After
+step 8, Phase 3 closes and Phase 4 (scoped effects, heftia dual
+row) becomes the next phase target.
 
 ### Phase 3 commit log (newest-first)
 
@@ -64,6 +63,7 @@ subsections; per-step deviations in
 resolved blockers in
 [resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md).
 
+- **Step 7**: three `compile_fail` UI tests in [`fp-library/tests/ui/`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/ui/) for Phase 3 negative cases: `run_choose_not_found.rs` (single-shot wrappers reject `Choose` constructor; E0599), `run_smart_constructor_type_mismatch.rs` (smart-constructor result type bound to row's effect parameterization; E0277 on `CoprodUninjector`), `interpret_missing_handler.rs` (handler list shorter than row; E0277 on `DispatchHandlers`).
 - **Step 5e** (`adbde7b` + `9f58492` + `de4d0eb`): `Choose` smart constructors on the four multi-shot wrappers + Erased Free family multi-shot substrate fix (new `RcCatList` / `ArcCatList`, capture-and-clone-per-call replaces `Cell::take` / `Mutex::take` in `*Free::to_view`).
 - **Step 5d** (`5905e9b`): `Writer` smart constructors on all six wrappers using a single `WriterBrand<W>` (no parallel `SendWriterBrand` because Writer has no `dyn Fn` continuation).
 - **Step 5c** (`66eca99`): `Except` smart constructors on all six wrappers using a single `ExceptBrand<E>` (same shape as Writer).
@@ -84,7 +84,6 @@ resolved blockers in
 ### Remaining Phase 3 steps
 
 - **Step 6 [DEFERRED 2026-05-04]:** [`define_effect!`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/) macro mechanically generating the six per-wrapper variants from one user declaration. Deferred until Phase 4 (scoped effects) ships or a real user surfaces concrete demand for custom effects. Five design approaches and seven open questions preserved in [resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) for revisit.
-- **Step 7:** `compile_fail` UI tests for negative cases (handler missing an effect, wrong type ascription, multi-shot via single-shot `Run`, `Choose` on single-shot wrappers).
 - **Step 8:** review-remediation documentation pass , bundle the docs-only items from [`remediation_proposals.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/remediation_proposals.md) (F2A, F4A, F5A, M4 audit, M6A async-via-`spawn_blocking`, M7A bind/handler asymmetry note, all minor m1-m9) into one commit. Lands after the substantive code work above so the docs reflect the settled state.
 
 ### When you hit something unexpected

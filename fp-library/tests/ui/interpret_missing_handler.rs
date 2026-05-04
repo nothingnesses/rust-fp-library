@@ -1,0 +1,42 @@
+// Verifies that `interpret` rejects a handler list that doesn't
+// cover every effect in the row. The
+// [`DispatchHandlers`](fp_library::types::effects::interpreter::DispatchHandlers)
+// trait walks the handler list and the row in lock-step:
+// `HandlersNil` only matches `CNil`, and
+// `HandlersCons<Handler<E, F>, T>` only matches a row whose head is
+// `E`. A handler list shorter than the row produces a
+// trait-not-implemented error at the `interpret` call site.
+//
+// Here the row carries two effects (`IdentityBrand` and
+// `OptionBrand`) but the handler list covers only `IdentityBrand`.
+
+use fp_library::{
+	brands::{
+		CNilBrand,
+		CoproductBrand,
+		CoyonedaBrand,
+		IdentityBrand,
+		OptionBrand,
+	},
+	handlers,
+	types::{
+		Identity,
+		effects::run::Run,
+	},
+};
+
+type FirstRow = CoproductBrand<
+	CoyonedaBrand<IdentityBrand>,
+	CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>,
+>;
+
+fn main() {
+	let prog: Run<FirstRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
+
+	// Handler list missing the OptionBrand handler -- DispatchHandlers
+	// is not implemented for HandlersCons<Handler<IdentityBrand, _>, HandlersNil>
+	// against a row whose tail is non-empty.
+	let _result = prog.interpret(handlers! {
+		IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
+	});
+}
