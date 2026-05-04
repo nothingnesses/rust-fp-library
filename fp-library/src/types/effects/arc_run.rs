@@ -1771,6 +1771,59 @@ mod inner {
 				effect,
 			)
 		}
+
+		/// Lifts a `Tell` writer effect into the `ArcRun` program.
+		/// Mirrors [`Run::tell`](crate::types::effects::run::Run::tell);
+		/// see that method for cross-wrapper semantics. Differences for
+		/// `ArcRun`: requires `LogType: Send + Sync` so the lifted
+		/// layer participates in the Arc substrate's thread-safety
+		/// cascade. The same
+		/// [`WriterBrand`](crate::brands::WriterBrand) serves all six
+		/// wrappers because [`Writer`](crate::types::effects::writer::Writer)
+		/// has no `dyn Fn` continuation; no parallel `SendWriterBrand`
+		/// is needed.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The log type carried by `WriterBrand` in the row.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The log value to emit.")]
+		///
+		#[document_returns("An `ArcRun` program suspended at the lifted `Tell` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		writer::Writer,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<WriterBrand<&'static str>>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: ArcRun<FirstRow, Scoped, ()> = ArcRun::tell::<&'static str, _>("logged");
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn tell<LogType: Clone + Send + Sync + 'static, Idx>(log: LogType) -> Self
+		where
+			NodeBrand<R, ScopedRow>: SendFunctor,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ()>):
+				Member<ArcCoyoneda<'static, crate::brands::WriterBrand<LogType>, ()>, Idx>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>,
+			>): Clone, {
+			let effect: crate::types::effects::writer::Writer<'static, LogType, ()> =
+				crate::types::effects::writer::Writer::Tell(log, (), core::marker::PhantomData);
+			Self::lift::<crate::brands::WriterBrand<LogType>, Idx>(effect)
+		}
 	}
 }
 

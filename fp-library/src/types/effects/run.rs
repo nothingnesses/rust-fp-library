@@ -1299,6 +1299,55 @@ mod inner {
 			);
 			Self::lift::<crate::brands::StateBrand<crate::brands::RcBrand, StateType>, Idx>(effect)
 		}
+
+		/// Lifts a `Tell` writer effect into the Run program. Direct
+		/// analog of PureScript Run's `tell`. The program emits the
+		/// log value `log` and returns `()` as the result type.
+		///
+		/// `LogType` is the log type carried by `WriterBrand` in the
+		/// row. Rust may need a turbofish on `LogType` because
+		/// `tell`'s result type is `()` (which doesn't constrain the
+		/// log type from the call site).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The log type carried by `WriterBrand` in the row.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The log value to emit.")]
+		///
+		#[document_returns("A `Run` program suspended at the lifted `Tell` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		writer::Writer,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<WriterBrand<&'static str>>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: Run<FirstRow, Scoped, ()> = Run::tell::<&'static str, _>("logged");
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn tell<LogType: 'static, Idx>(log: LogType) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ()>):
+				crate::types::effects::member::Member<
+						crate::types::Coyoneda<'static, crate::brands::WriterBrand<LogType>, ()>,
+						Idx,
+					>, {
+			let effect: crate::types::effects::writer::Writer<'static, LogType, ()> =
+				crate::types::effects::writer::Writer::Tell(log, (), core::marker::PhantomData);
+			Self::lift::<crate::brands::WriterBrand<LogType>, Idx>(effect)
+		}
 	}
 }
 

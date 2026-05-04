@@ -215,6 +215,20 @@ mod inner {
 	/// `P`.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct StateBrand<P, S>(PhantomData<(P, S)>);
+
+	/// Brand for
+	/// [`Writer`](crate::types::effects::writer::Writer), the
+	/// log-emitting first-order effect type with `Tell` (emit a log
+	/// value of type `W`) as its sole operation. Parameterised only
+	/// by the log type `W`; unlike [`StateBrand`] / [`ReaderBrand`],
+	/// `WriterBrand` does not need a pointer brand `P` or a parallel
+	/// `SendWriterBrand` because `Writer` has no `dyn Fn`
+	/// continuation (`Tell` carries the log value and the next
+	/// program's value directly), so the `Send + Sync` cascade
+	/// reduces to a per-wrapper bound on `W` alone. The same brand
+	/// serves all six Run wrappers.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct WriterBrand<W>(PhantomData<W>);
 }
 
 pub use inner::*;

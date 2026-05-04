@@ -1661,6 +1661,67 @@ mod inner {
 				effect,
 			)
 		}
+
+		/// Lifts a `Tell` writer effect into the `ArcRunExplicit`
+		/// program. Mirrors
+		/// [`Run::tell`](crate::types::effects::run::Run::tell); see
+		/// that method for cross-wrapper semantics. The same
+		/// [`WriterBrand`](crate::brands::WriterBrand) serves all six
+		/// wrappers because [`Writer`](crate::types::effects::writer::Writer)
+		/// has no `dyn Fn` continuation; no parallel `SendWriterBrand`
+		/// is needed. Requires `LogType: Send + Sync` so the lifted
+		/// layer participates in the Arc substrate's thread-safety
+		/// cascade.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The log type carried by `WriterBrand` in the row.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The log value to emit.")]
+		///
+		#[document_returns("An `ArcRunExplicit` program suspended at the lifted `Tell` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		writer::Writer,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<WriterBrand<&'static str>>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: ArcRunExplicit<'static, FirstRow, Scoped, ()> =
+		/// 	ArcRunExplicit::tell::<&'static str, _>("logged");
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn tell<LogType: Clone + Send + Sync + 'static, Idx>(log: LogType) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>):
+				Member<ArcCoyoneda<'a, crate::brands::WriterBrand<LogType>, ()>, Idx>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, ()>,
+			>): Send + Sync,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, ()>,
+			>): Send + Sync,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, ()>,
+			>): Clone + Send + Sync, {
+			let effect: crate::types::effects::writer::Writer<'a, LogType, ()> =
+				crate::types::effects::writer::Writer::Tell(log, (), core::marker::PhantomData);
+			Self::lift::<crate::brands::WriterBrand<LogType>, Idx>(effect)
+		}
 	}
 
 	// -- From<ArcRun> for ArcRunExplicit (Erased -> Explicit conversion) --

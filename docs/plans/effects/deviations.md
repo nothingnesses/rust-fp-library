@@ -3061,6 +3061,60 @@ What diverged:
 
 Verification: 12 Except tests pass; full `just verify` clean.
 
+### Step 5d: `tell` smart constructors on all six Run wrappers (`Writer` effect)
+
+Adds the
+[`Writer<'a, W, A>`](../../../fp-library/src/types/effects/writer.rs)
+first-order effect type with the single `Tell` operation.
+Per-wrapper `tell` smart constructors lift a log value of
+type `W` through each wrapper's substrate.
+
+What landed:
+
+- [`WriterBrand<W>`](../../../fp-library/src/brands/effects.rs)
+  brand registration. Parameterised only by the log type `W`,
+  with no pointer-brand parameter (same shape as
+  `ExceptBrand`; `Writer` has no continuation so it does not
+  need substrate-pointer selection). The same brand serves
+  all six Run wrappers.
+- [`Writer<'a, W, A: 'a>`](../../../fp-library/src/types/effects/writer.rs)
+  enum with a single `Tell(W, A, PhantomData<&'a ()>)`
+  variant. Unlike `Except`, `A` is owned (the next-program
+  value), not phantom; the `PhantomData<&'a ()>` exists only
+  to satisfy the [`Kind`](../../../fp-library/src/kinds.rs)
+  trait's `Of<'a, A: 'a>: 'a` contract since `'a` is unused
+  in the variants.
+- Manual `Clone` impl gated on `W: Clone, A: Clone`.
+- `Functor` and `SendFunctor` impls. The mapping function `f`
+  is applied to the stored `A` to produce a new `Writer<'a,
+W, B>`; the log value is carried unchanged.
+- `Run::tell`, `RcRun::tell`, `RunExplicit::tell`,
+  `RcRunExplicit::tell` smart constructors using
+  `WriterBrand<LogType>` in the row.
+- `ArcRun::tell`, `ArcRunExplicit::tell` smart constructors
+  using the same `WriterBrand<LogType>` (no parallel
+  `SendWriterBrand` needed). Per-wrapper `Send + Sync`
+  cascades on `LogType` instead.
+- Integration tests in
+  [`fp-library/tests/run_writer.rs`](../../../fp-library/tests/run_writer.rs):
+  12 tests (2 per wrapper) covering single-Tell dispatch and
+  a `tell(a) >>= |_| tell(b)` chain verifying that both logs
+  are captured in order.
+
+What diverged:
+
+- **No parallel `SendWriterBrand` for the Arc family.** Same
+  reasoning as Except: no `dyn Fn` continuation means the
+  `Send + Sync` cascade reduces to a per-wrapper bound on
+  `LogType` alone.
+- **`tell` lives on the `Run<R, S, ()>` impl block** (mirrors
+  `put`) because the result type is `()`. The smart
+  constructor takes a `LogType` argument (the log value) and
+  produces a `Run<R, S, ()>`.
+
+Verification: 12 Writer tests pass; full `just verify`
+clean.
+
 ### Cross-cutting docs/macros commits during step 5a
 
 Two cross-cutting commits landed in the same set as 5a.1 / 5a.2;

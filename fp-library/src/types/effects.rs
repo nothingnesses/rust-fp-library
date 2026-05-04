@@ -64,6 +64,7 @@ pub mod run;
 pub mod run_explicit;
 pub mod state;
 pub mod variant_f;
+pub mod writer;
 
 pub use {
 	arc_run::ArcRun,

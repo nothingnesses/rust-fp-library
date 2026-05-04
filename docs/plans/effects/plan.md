@@ -64,10 +64,16 @@ constructors) shipped on all six wrappers with a single
 `ExceptBrand<E>` (no parallel `SendExceptBrand` because
 `Except` has no `dyn Fn` continuation; the `Send + Sync`
 cascade reduces to a per-wrapper bound on `E` alone).
-Steps 6 (`define_effect!` macro), 7 (`compile_fail` UI
-tests), and 8 (review-remediation documentation pass)
-remain; the next greenfield work is step 5d (`Writer`
-smart constructors).
+Step 5d (`Writer` smart constructors) shipped on all six
+wrappers with a single `WriterBrand<W>` (same no-`dyn Fn`
+shape as Except). Steps 6 (`define_effect!` macro), 7
+(`compile_fail` UI tests), and 8 (review-remediation
+documentation pass) remain; the next greenfield work is
+step 5e (`Choose` smart constructors), the last of the
+effect-suite rollout. Choose ships only on the four
+multi-shot wrappers (`RcRun`, `RcRunExplicit`, `ArcRun`,
+`ArcRunExplicit`) per the 2026-05-03 wrapper-
+parameterization resolution.
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit
