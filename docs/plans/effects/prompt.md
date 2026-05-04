@@ -35,32 +35,24 @@ one step per commit, until the phase is complete or you hit a blocker.
 
 - **Phase 1** (Free family): complete. Steps 1-9 plus two follow-up commits (`WrapDrop` migration and the `Functor` -> `Kind` relaxation).
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_row_canonicalisation.rs) in 10a. Two recurring constraints surfaced that shape Phase 3 work: the HRTB-poisoning pattern across `ArcRun`-substrate code (see Lessons below) and the per-`A` HRTB-over-types limit that caps brand-level `SendFunctor` coverage on the Arc family.
-- **Phase 3** (first-order effect handlers, interpreters, natural transformations): in progress. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), and the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors) all shipped. Step 5e shipped together with a substrate fix on the Erased Free family: new [`RcCatList`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). The [2026-05-04 deferral resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) shelved `interpret_with_rec`; Phase 3 ships three interpreter primitives instead of four (users chain `interpret_with` then `interpret_rec` for the workaround).
+- **Phase 3** (first-order effect handlers, interpreters, natural transformations): in progress. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), and the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors) all shipped. Step 5e shipped together with a substrate fix on the Erased Free family: new [`RcCatList`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four; users chain `interpret_with` then `interpret_rec` for the workaround) and the [2026-05-04 `define_effect!` macro deferral](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand surfaces; design research for five candidate approaches preserved in resolutions.md).
 
 ### Next greenfield work
 
-The next step is **Phase 3 step 6**: the
-[`define_effect!`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/)
-proc-macro that mechanically generates an effect enum + brand
-registration + per-wrapper smart constructors from a single user
-declaration like:
+The next step is **Phase 3 step 7**: `compile_fail` UI tests for
+negative cases of the existing hand-written effect surface. Targets
+handler-missing-an-effect, wrong type ascription, multi-shot programs
+constructed against single-shot wrappers (`Run`, `RunExplicit`), and
+`Choose` constructors used on single-shot wrappers. Lives in
+[`fp-library/tests/ui/`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/ui/)
+alongside the existing UI tests; uses the project's standard
+`trybuild` harness.
 
-```rust
-define_effect! {
-    Reader<E> {
-        fn ask() -> E,
-    }
-}
-```
-
-The macro should accept a `multi_shot` attribute for effects (e.g.,
-`Choose`) that ship only on the four multi-shot wrappers. Step 6 is a
-candidate for splitting under the
-[Implementation protocol](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#implementation-protocol)'s
-oversized-step rule; a proposed split surfaced for user decision lives
-under
-[Open decisions](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#open-decisions)
-in plan.md.
+Step 6 (`define_effect!` macro) was
+[deferred 2026-05-04](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit)
+until Phase 4 ships or a user surfaces concrete demand for custom
+effects; design research is preserved in resolutions.md. Step 8
+(review-remediation documentation pass) follows step 7.
 
 ### Phase 3 commit log (newest-first)
 
@@ -91,7 +83,7 @@ resolved blockers in
 
 ### Remaining Phase 3 steps
 
-- **Step 6:** [`define_effect!`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/) macro mechanically generating the six per-wrapper variants from one user declaration. Proposed split for user decision in plan.md's [Open decisions](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#open-decisions).
+- **Step 6 [DEFERRED 2026-05-04]:** [`define_effect!`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/) macro mechanically generating the six per-wrapper variants from one user declaration. Deferred until Phase 4 (scoped effects) ships or a real user surfaces concrete demand for custom effects. Five design approaches and seven open questions preserved in [resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) for revisit.
 - **Step 7:** `compile_fail` UI tests for negative cases (handler missing an effect, wrong type ascription, multi-shot via single-shot `Run`, `Choose` on single-shot wrappers).
 - **Step 8:** review-remediation documentation pass , bundle the docs-only items from [`remediation_proposals.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/remediation_proposals.md) (F2A, F4A, F5A, M4 audit, M6A async-via-`spawn_blocking`, M7A bind/handler asymmetry note, all minor m1-m9) into one commit. Lands after the substantive code work above so the docs reflect the settled state.
 
@@ -407,13 +399,13 @@ cheap-to-clone handlers wrap captured state in `Rc` / `Arc`,
 which Rust infers as `Fn` automatically due to interior
 mutability.
 
-When Phase 3 step 6 ships standard first-order effects with
+With the standard first-order effects shipped (Phase 3 step 5),
 non-Identity shapes (`State<S>` whose `Of<NextProgram>` is a
-closure `S -> NextProgram`), the recursive narrowing for those
-effects becomes lazy: `Functor::map` over a closure composes
-with the new function, and the recursion is deferred until the
-state value is supplied. This is a property worth exploiting
-for stack safety on State-heavy programs.
+closure `S -> NextProgram`) make the recursive narrowing lazy:
+`Functor::map` over a closure composes with the new function,
+and the recursion is deferred until the state value is
+supplied. This is a property worth exploiting for stack safety
+on State-heavy programs.
 
 ### Panic-free `extract` via empty dual row
 

@@ -15,6 +15,288 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-04): Phase 3 step 6 (`define_effect!` macro) deferred until Phase 4 ships or user demand surfaces; design research preserved for later revisit
+
+`define_effect!` was scoped as a proc-macro that mechanically
+generates an effect enum + brand registration + per-wrapper
+smart constructors from a single user declaration like:
+
+```rust
+define_effect! {
+    Reader<E> {
+        fn ask() -> E,
+    }
+}
+```
+
+Per-effect, the macro would emit ~200-400 lines of boilerplate:
+the effect enum, `impl_kind!` brand registration, manual `Clone`,
+[`Functor`](../../../fp-library/src/classes/functor.rs) /
+[`SendFunctor`](../../../fp-library/src/classes/send_functor.rs)
+impls, conditional Send-aware parallel brand + type pair, and
+4 or 6 per-wrapper smart constructors. The macro itself was
+estimated at ~1500+ lines of proc-macro code.
+
+### Why deferred
+
+Five reasons, in order of weight:
+
+1. **Phase 4 (scoped effects, heftia dual row) may invalidate
+   the codegen target.** Scoped effects use a different brand
+   shape and a different per-wrapper rollout pattern than
+   first-order effects. A `define_effect!` shipped now for
+   first-order effects would either need significant rework or
+   become a sibling-not-replacement when Phase 4 lands. Better
+   to know the full target before mechanising.
+2. **Pre-1.0 API instability bleeds into macros.** The recent
+   step 5e substrate fix changed `RcFree`/`ArcFree`'s
+   continuation queue from value-typed `CatList` to refcounted
+   `RcCatList`/`ArcCatList`. A macro shipped before that would
+   have hard-coded the wrong substrate and needed migration.
+   The same risk exists for whatever refines next.
+3. **No users yet to validate the input syntax.** Five design
+   approaches were surveyed (see below) with non-trivial
+   ergonomic differences; without real workloads it's not clear
+   which is right.
+4. **Library already ships 5 standard effects.** The boilerplate
+   savings only apply to effects that don't yet exist. Without
+   active demand for custom effects, the macro's break-even is
+   ~4-8 future effects, which may take a long time to surface.
+5. **Nothing in the rest of the plan depends on the macro.**
+   Step 7 (`compile_fail` UI tests) and step 8 (review-
+   remediation docs) validate / document the existing hand-
+   written effects. Phase 4 (scoped) and Phase 5/6+ also do
+   not depend on this macro.
+
+### Trigger conditions for revisiting
+
+Revisit when **either** of:
+
+- **(a) Phase 4 ships** (scoped effects via heftia dual row).
+  The full effect-shape design space is then settled; the macro
+  can target both first-order and scoped effects, or be cleanly
+  scoped to first-order if scoped effects are too different to
+  share a macro.
+- **(b) A real user surfaces concrete demand for custom
+  effects** (a workload, not a hypothetical). The use case
+  informs which design approach below is right.
+
+If neither trigger fires within the foreseeable future, the
+permanent answer "copy
+[`reader.rs`](../../../fp-library/src/types/effects/reader.rs)
+and adapt for your effect" is also acceptable for a library
+that already ships 5 standard effects covering the common
+cases. A Phase 6+ HOWTO entry documenting that recipe would
+close out the deferral.
+
+### Design research (preserved for later revisit)
+
+Five approaches were surveyed during the deferral discussion.
+Listed roughly from most-terse to most-explicit.
+
+#### Approach 1: PureScript-faithful (most terse)
+
+```rust
+define_effect! {
+    Reader<E> {
+        fn ask() -> E,
+    }
+
+    State<S> {
+        fn get() -> S,
+        fn put(s: S),
+    }
+
+    Writer<W> {
+        fn tell(log: W),
+    }
+
+    #[multi_shot]
+    Choose {
+        fn choose() -> bool,
+    }
+}
+```
+
+The macro infers the variant encoding from the operation
+signature:
+
+- `fn op(args...) -> Ret` -> variant carries `args` (if any)
+  plus a `dyn Fn(Ret) -> A` continuation.
+- `fn op(args...)` (no return arrow) -> variant carries `args`
+  plus `A` directly (no continuation;
+  `PhantomData<&'a ()>` for the unused lifetime).
+
+Pros: reads exactly like PureScript Run; minimal cognitive
+overhead; naturally maps `fn ask() -> E` to "the operation
+produces an `E` that the next program consumes".
+
+Cons: the `fn op(...)` (no return) vs `fn op(...) -> ()`
+distinction is subtle; users might expect them to mean the
+same thing. Variant names are auto-derived from operation
+names (`ask` -> `Ask`, `tell` -> `Tell`), which works for
+PureScript-style naming but may clash on edge cases.
+
+#### Approach 2: Explicit variant + constructor names
+
+```rust
+define_effect! {
+    State<S> {
+        Get: get() -> S,
+        Put: put(s: S) -> (),
+    }
+}
+```
+
+`Variant: smart_constructor(args) -> ContType` syntax pairs
+each enum variant with its smart-constructor entry-point.
+
+Pros: variant names are explicit, matching PureScript
+convention exactly. Operation-vs-variant distinction is
+visible. The `-> ()` makes "this op has a unit continuation"
+explicit (Put pattern).
+
+Cons: slightly more verbose. Two names per op (variant +
+constructor) when most map 1:1 (`Ask`/`ask`).
+
+#### Approach 3: Plain Rust enum + attribute-driven generation
+
+```rust
+#[define_effect(brand = "ReaderBrand", multi_shot = false)]
+pub enum Reader<E, A> {
+    #[constructor(ask)]
+    Ask(Continuation<E, A>),
+}
+```
+
+Users write a normal Rust enum; marker types like
+`Continuation<E, A>` signal what gets generated.
+
+Pros: looks like normal Rust; users can mix custom variants
+with macro-generated boilerplate; visible in `rust-analyzer`
+even without macro expansion.
+
+Cons: requires marker types in scope; doesn't match the
+PureScript Run user-facing surface as closely; pointer-brand
+`P` and lifetime `'a` parameters need separate inference rules.
+
+#### Approach 4: Two-tier (separate brand registration from constructors)
+
+```rust
+define_effect_type! {
+    Reader<E> {
+        fn ask() -> E,
+    }
+}
+
+// Generated: ReaderBrand, Reader<'a, P, E, A>, Functor,
+// SendFunctor, SendReaderBrand, SendReader.
+// User still hand-writes the smart constructors per wrapper.
+```
+
+The macro generates everything except the per-wrapper smart
+constructors; users keep those hand-written for explicit
+control over bounds.
+
+Pros: smart constructors stay legible in source (where most of
+the per-wrapper bound differences live); the macro is smaller
+and more focused.
+
+Cons: doesn't eliminate the largest single chunk of boilerplate
+(~50-100 lines per smart constructor x 6 wrappers); users
+still have to write them.
+
+#### Approach 5: Single-tier with attribute escape hatches
+
+Approach 1 plus attribute hooks for special cases:
+
+```rust
+define_effect! {
+    State<S> {
+        fn get() -> S,
+        fn put(s: S),
+    }
+
+    #[no_send_aware]    // skip SendReaderBrand / SendReader
+    Reader<E> {
+        fn ask() -> E,
+    }
+
+    #[multi_shot]
+    Choose {
+        fn choose() -> bool,
+    }
+
+    #[wrappers(Run, RunExplicit)]    // override default 6-wrapper rollout
+    SingleShotOnly {
+        fn op() -> i32,
+    }
+}
+```
+
+Pros: default behavior is what users want 95% of the time;
+attributes handle the corner cases without polluting the base
+syntax.
+
+Cons: attribute set is open-ended; risk of feature creep over
+time.
+
+### Open design questions (deferred along with the macro)
+
+1. **Variant-encoding inference.** How does `fn op(args)` vs
+   `fn op(args) -> Ret` distinguish "no continuation,
+   `A` is owned directly" (Tell) from "continuation
+   `Fn(Ret) -> A`" (Ask/Get/Put/Choose)? Three plausible rules:
+   - **(a)** Missing return arrow -> no continuation;
+     `-> ()` -> `Fn(()) -> A` continuation;
+     `-> T` -> `Fn(T) -> A` continuation. Distinguishes
+     Tell/Put/Ask cleanly.
+   - **(b)** Always generate a continuation; the user signals
+     "no continuation" via a marker
+     (`fn tell(log: W) using direct;` or
+     `#[direct] fn tell(log: W);`).
+   - **(c)** Each declaration explicitly states its
+     continuation type.
+2. **Send-aware brand: auto or opt-in?** Auto-generate
+   `SendXxxBrand` for every effect that has a `dyn Fn`
+   continuation (matches existing State/Reader/Choose
+   pattern), or require `#[send_aware]` opt-in?
+3. **`multi_shot` placement.** Per-effect attribute, per-
+   operation attribute, or syntax keyword?
+4. **Pointer-brand parameter `P` inference.** Effects with
+   `dyn Fn` continuations need a `P: ToDynCloneFn` parameter;
+   effects without (Writer, Except) don't. Auto-detect from
+   the presence of any continuation-bearing operation, or
+   require explicit declaration?
+5. **User-extensibility.** Can a user add custom variants
+   alongside macro-generated ones? Or is the enum closed by
+   the macro? PureScript users sidestep this because their
+   data declarations are open by construction. Approach 3
+   (proc-macro on a plain enum) handles this naturally;
+   approach 1 doesn't without explicit support.
+6. **Migration path.** If/when the macro ships, should the
+   five existing effects be migrated to dogfood it, or shipped
+   untouched? If migrated, the macro must produce
+   byte-equivalent code (modulo doc comments) so the test
+   suite continues to pass.
+7. **Doc comment placement.** Where do user-supplied doc
+   comments land? On the variant, the smart constructor, the
+   brand, or all three? Per-component override?
+
+### Tentative recommendation if revisited
+
+Pre-deferral, **Approach 1 (PureScript-faithful) with rule
+(1.a)** was the leading option: closest match to the existing
+user-facing surface, smallest cognitive load, naturally
+auto-generates Send-aware parallels for continuation-bearing
+effects. The most uncertain question was **(5) user-
+extensibility**; if a future workload needs that, approach 3
+becomes more attractive.
+
+This recommendation is non-binding; revisit with full Phase 4
+context (or user-workload context, depending on which trigger
+fires first).
+
 ## Resolved (2026-05-04): Phase 3 step 5e Erased Free family multi-shot dispatch via `RcCatList`/`ArcCatList` (option 1c-ii: parallel reference-counted CatList variants)
 
 `Choose` smart constructors on `RcRun` and `ArcRun` were

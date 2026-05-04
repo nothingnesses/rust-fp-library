@@ -15,21 +15,13 @@ transformations) is the next phase.
 
 - **Phase 1** (Free family, [`fp-library/src/types/`](../../../fp-library/src/types/)): complete. Steps 1-9 plus two follow-up commits (the `WrapDrop` migration and the `Functor` -> `Kind` relaxation).
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs) in 10a.
-- **Phase 3** (first-order effect handlers, interpreters, natural transformations): in progress. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), and the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors) all shipped. Step 5e also delivered a substrate fix on the Erased Free family: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). The [2026-05-04 deferral resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) shelved the original step 5 (`interpret_with_rec`); Phase 3 ships three interpreter primitives instead of four. The remaining work is steps 6 (`define_effect!` macro), 7 (`compile_fail` UI tests), and 8 (review-remediation documentation pass).
+- **Phase 3** (first-order effect handlers, interpreters, natural transformations): in progress. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), and the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors) all shipped. Step 5e also delivered a substrate fix on the Erased Free family: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four) and the [2026-05-04 `define_effect!` macro deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand for custom effects surfaces). The remaining work is steps 7 (`compile_fail` UI tests) and 8 (review-remediation documentation pass).
 
 ### Next greenfield work
 
-The next step is **Phase 3 step 6**: the [`define_effect!`](../../../fp-macros/src/effects/) proc-macro that mechanically generates an effect enum + brand registration + per-wrapper smart constructors from a single user declaration like:
+The next step is **Phase 3 step 7**: `compile_fail` UI tests for negative cases of the existing hand-written effect surface. Targets handler-missing-an-effect, wrong type ascription, multi-shot programs constructed against single-shot wrappers (`Run`, `RunExplicit`), and `Choose` constructors used on single-shot wrappers. Lives in [`fp-library/tests/ui/`](../../../fp-library/tests/ui/) alongside the existing UI tests; uses the project's standard `trybuild` harness.
 
-```rust
-define_effect! {
-    Reader<E> {
-        fn ask() -> E,
-    }
-}
-```
-
-The macro should accept a `multi_shot` attribute for effects (e.g., `Choose`) that ship only on the four multi-shot wrappers. Step 6 is a candidate for splitting under the [Implementation protocol](#implementation-protocol)'s oversized-step rule; a proposed split surfaced for user decision lives under [Open decisions](#open-decisions). Steps 7 (`compile_fail` UI tests) and 8 (review-remediation documentation pass) follow.
+Step 6 (`define_effect!` macro) was [deferred 2026-05-04](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) until Phase 4 ships or a user surfaces concrete demand for custom effects; design research is preserved in resolutions.md. Step 8 (review-remediation documentation pass) follows step 7.
 
 ### Most recent steps (rolling detail)
 
@@ -442,30 +434,7 @@ Other artefacts:
 
 > **Maintenance template.** Tracks decisions awaiting user input that affect upcoming steps. Each entry: a heading naming the decision, a one-paragraph context, the proposed options, and trade-offs. Once the user picks an option, fold the chosen path into the relevant phasing section, demote the survey to [resolutions.md](resolutions.md) (or [deviations.md](deviations.md) for smaller-grain choices), and remove the entry from this section.
 
-### Phase 3 step 6 split proposal (surfaced 2026-05-04)
-
-Step 6 (`define_effect!` macro at [`fp-macros/src/effects/`](../../../fp-macros/src/effects/)) is a candidate for splitting under the [Implementation protocol](#implementation-protocol)'s oversized-step rule (~1500+ new lines, multiple new public types with mixed concerns). One effect-shape per sub-step is the natural cut. The user has surfaced this for review before implementation begins.
-
-**Proposed sub-steps:**
-
-- **6a. Macro design + parser skeleton.** Lock in the input syntax (e.g., `define_effect! { Reader<E> { fn ask() -> E, } }`); decide whether handler bodies are user-supplied or auto-generated; decide whether `multi_shot` is an attribute or syntax keyword. Write the `syn`-based parser, no codegen yet. Tests assert parse-success and parse-error shapes.
-- **6b. Codegen for no-continuation effects (Tell-style).** Generate the effect enum (e.g., `Writer<W>`), `Functor` and `SendFunctor` impls, brand registration ([`WriterBrand<W>`](../../../fp-library/src/brands/effects.rs)), and 6 per-wrapper smart constructors. Verify the generated code matches [`fp-library/src/types/effects/writer.rs`](../../../fp-library/src/types/effects/writer.rs).
-- **6c. Codegen for continuation-bearing effects (Reader / State / Choose patterns).** Generate `<P as RefCountedPointer>::Of<'a, dyn 'a + Fn(...) -> A>` continuation variants. Distinguishes continuation-from-environment ([`Reader`](../../../fp-library/src/types/effects/reader.rs)) and continuation-from-state ([`State`](../../../fp-library/src/types/effects/state.rs)'s Get/Put).
-- **6d. Send-aware brand parallels (`SendStateBrand` / `SendReaderBrand` / `SendChooseBrand`).** Generate the `Send + Sync` parallel brand + type pair when the effect has a `dyn Fn` continuation. Effects without `dyn Fn` (Except, Writer) skip this.
-- **6e. `multi_shot` attribute.** Generate smart constructors only on the four multi-shot wrappers when an effect is marked multi-shot. Single-shot wrappers omit the constructor.
-- **6f. Integration tests + migration (optional).** Demonstrate the macro generates equivalent code by regenerating one of the existing effects via the macro and asserting it compiles + tests still pass. Migrate other effects opportunistically; not part of step 6's success criteria.
-
-**Trade-offs of the proposed split.**
-
-- Six commits is a lot for one macro. Could merge 6c-6e into one larger commit if the codegen is straightforward; the proposed split is conservative because each shape adds non-trivial logic.
-- 6a-6b alone is a usable deliverable for the simplest effects, even before continuation-bearing support lands.
-- 6f is optional, so step 6 is "complete" after 6e even without migrating any existing effects.
-
-**Questions for the user:**
-
-1. **Split granularity:** OK with 6 sub-commits, or prefer 3-4 larger ones (e.g., merge 6a+6b, merge 6c+6d, then 6e, then optional 6f)?
-2. **Migration scope:** ship the macro alongside the existing hand-written effects (no migration), or migrate at least one effect (e.g., Reader) to prove the codegen matches?
-3. **Input syntax:** the plan example has `fn ask() -> E,` inside an effect block. OK with that shape, or prefer something terser/different?
+No open decisions awaiting user input.
 
 ## Open questions, issues and blockers
 
@@ -1905,10 +1874,10 @@ this section is the phasing-side checklist.
      effect per sub-step is the natural cut (5a State, 5b
      Reader, 5c Except, 5d Writer, 5e Choose). Surface the
      split decision to the user before starting.
-6. `define_effect!` macro at
+6. **[DEFERRED 2026-05-04]** `define_effect!` macro at
    `fp-macros/src/effects/define_effect.rs` generating effect
    enum + smart constructors + label / brand registration.
-   Mechanically emits the six per-wrapper variants from a
+   Mechanically would emit the six per-wrapper variants from a
    single user declaration:
    ```rust
    define_effect! {
@@ -1917,10 +1886,17 @@ this section is the phasing-side checklist.
        }
    }
    ```
-   expands to per-effect type + 6 per-wrapper smart-constructor
-   bodies. The macro accepts a `multi_shot` attribute for
-   effects like `Choose` that opt out of the single-shot
-   wrappers (`Run`, `RunExplicit`).
+   Deferred until Phase 4 (scoped effects) ships or a real user
+   surfaces concrete demand for custom effects. Phase 4's brand
+   shape may invalidate the codegen target; pre-1.0 substrate
+   churn (e.g., the recent `RcCatList`/`ArcCatList` migration)
+   would have forced an early-shipped macro to be migrated; and
+   the library already covers the common cases with five hand-
+   written effects, so the boilerplate savings only apply to
+   effects that don't yet exist. Five design approaches and
+   seven open questions are preserved in
+   [resolutions.md](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit)
+   for revisit when either trigger fires.
 7. `compile_fail` UI tests for negative cases (handler missing
    an effect, wrong type ascription, multi-shot via single-shot
    `Run`, `Choose` on single-shot wrappers).
