@@ -91,6 +91,18 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct NodeBrand<R, S>(PhantomData<(R, S)>);
 
+	/// Brand for [`Reader`](crate::types::effects::reader::Reader), the
+	/// environment-reading first-order effect type with `Ask` (read
+	/// the immutable environment) as its sole operation. Parameterised
+	/// by `P: ToDynCloneFn` (typically [`RcBrand`](crate::brands::RcBrand)
+	/// for single-thread substrates or
+	/// [`ArcBrand`](crate::brands::ArcBrand) for thread-safe substrates)
+	/// so the same effect type works across all six Run wrappers; the
+	/// per-wrapper smart constructors thread the substrate-appropriate
+	/// `P`.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct ReaderBrand<P, E>(PhantomData<(P, E)>);
+
 	/// Brand for [`RcRunExplicit<R, S, A>`](crate::types::effects::rc_run_explicit::RcRunExplicit),
 	/// the multi-shot, [`Clone`]-cheap Explicit Run program.
 	///
@@ -137,6 +149,26 @@ mod inner {
 	/// signatures cannot express).
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct RunExplicitBrand<R, S>(PhantomData<(R, S)>);
+
+	/// Brand for
+	/// [`SendReader`](crate::types::effects::reader::SendReader), the
+	/// thread-safe sibling of
+	/// [`Reader`](crate::types::effects::reader::Reader). The `Ask`
+	/// variant stores
+	/// `<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(E) -> A + Send + Sync>`
+	/// (with `+ Send + Sync` baked into the trait object's bounds), so
+	/// the projection is structurally `Send + Sync`. Used by the Arc
+	/// family `ask` smart constructors
+	/// ([`ArcRun::ask`](crate::types::effects::arc_run::ArcRun) /
+	/// [`ArcRunExplicit::ask`](crate::types::effects::arc_run_explicit::ArcRunExplicit)).
+	/// `Arc<dyn Fn(E) -> A>` (without `+ Send + Sync` in the trait
+	/// object's bounds) is structurally `!Send + !Sync`, so a parallel
+	/// brand whose projection bakes the marker traits in at the type
+	/// level is required for end-to-end dispatch through `*Run::interpret`
+	/// on Arc-substrate programs. Non-Arc smart constructors keep using
+	/// [`ReaderBrand`].
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct SendReaderBrand<P, E>(PhantomData<(P, E)>);
 
 	/// Brand for
 	/// [`SendState`](crate::types::effects::state::SendState), the

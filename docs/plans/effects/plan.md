@@ -52,11 +52,17 @@ migration. The
 [2026-05-04 deferral resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c)
 shelved the original step 5 (`interpret_with_rec` pipeline-
 plus-`MonadRec` family); Phase 3 ships three interpreter
-primitives instead of four. Steps 6 (`define_effect!` macro),
-7 (`compile_fail` UI tests), and 8 (review-remediation
-documentation pass) remain; the next greenfield work is
-step 5b (`Reader` smart constructors) within the broader
-step 5 effect-suite rollout.
+primitives instead of four. Step 5b (`Reader` smart
+constructors) shipped on all six wrappers with a parallel
+`SendReaderBrand` for the Arc family (analogous to
+`SendStateBrand` for State, motivated by the same
+`Arc<dyn Fn(...)>: !Send + !Sync` structural concern). The
+brands reorg (see deviations.md) extracted effect-specific
+brands to `crate::brands::effects` while preserving flat
+re-exports at `crate::brands`. Steps 6 (`define_effect!`
+macro), 7 (`compile_fail` UI tests), and 8
+(review-remediation documentation pass) remain; the next
+greenfield work is step 5c (`Except` smart constructors).
 
 The three entries below carry the rolling detail for the most
 recent steps. Older steps' detailed narratives live in commit

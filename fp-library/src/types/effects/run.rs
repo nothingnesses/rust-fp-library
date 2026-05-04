@@ -1121,6 +1121,62 @@ mod inner {
 				);
 			Self::lift::<crate::brands::StateBrand<crate::brands::RcBrand, A>, Idx>(effect)
 		}
+
+		/// Lifts an `Ask` reader effect into the Run program. Direct
+		/// analog of PureScript Run's `ask`. The program reads the
+		/// immutable environment and returns it as the result type
+		/// `A` (the environment type and the result type coincide
+		/// for `ask`).
+		///
+		/// `Idx` is the type-level position witness identifying where
+		/// `ReaderBrand<RcBrand, A>` lives in the row `R`. Rust infers
+		/// `Idx` whenever the effect appears unambiguously in the row.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
+		///
+		#[document_returns("A `Run` program suspended at the lifted `Ask` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		reader::Reader,
+		/// 		run::Run,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: Run<FirstRow, Scoped, i32> = Run::ask();
+		/// // The program is suspended at the Ask effect; peel reveals the layer.
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn ask<Idx>() -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				crate::types::effects::member::Member<
+						crate::types::Coyoneda<
+							'static,
+							crate::brands::ReaderBrand<crate::brands::RcBrand, A>,
+							A,
+						>,
+						Idx,
+					>, {
+			let effect: crate::types::effects::reader::Reader<
+				'static,
+				crate::brands::RcBrand,
+				A,
+				A,
+			> = crate::types::effects::reader::Reader::Ask(
+				<crate::brands::RcBrand as crate::classes::ToDynCloneFn>::new(|e: A| e),
+			);
+			Self::lift::<crate::brands::ReaderBrand<crate::brands::RcBrand, A>, Idx>(effect)
+		}
 	}
 
 	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]

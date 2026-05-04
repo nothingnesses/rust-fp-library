@@ -2889,6 +2889,118 @@ Implementation notes:
 
 Verification: 18 tests pass; full `just verify` clean.
 
+### Brands reorg (2026-05-04): extract effect-specific brands to `brands/effects.rs`
+
+Refactor commit landed before step 5b to mirror the existing
+[`crate::types::effects`](../../../fp-library/src/types/effects)
+sub-module organisation. Brands whose corresponding types live
+in `types/effects/` now cluster in
+[`crate::brands::effects`](../../../fp-library/src/brands/effects.rs),
+re-exported flat at `crate::brands` so user-facing paths
+(`crate::brands::StateBrand`, etc.) are unchanged.
+
+Brands moved:
+
+- `ArcRunExplicitBrand`, `RcRunExplicitBrand`,
+  `RunExplicitBrand` (Run-wrapper brands for the Explicit
+  family).
+- `CoproductBrand`, `CNilBrand`, `NodeBrand` (effect-row
+  machinery).
+- `StateBrand`, `SendStateBrand` (the State first-order
+  effect).
+
+Brands kept in `brands.rs`:
+
+- Coyoneda variants (`CoyonedaBrand`, `RcCoyonedaBrand`,
+  `ArcCoyonedaBrand`, `CoyonedaExplicitBrand`) and Free-family
+  brands (`FreeExplicitBrand`, `RcFreeExplicitBrand`,
+  `ArcFreeExplicitBrand`) stay because their corresponding
+  types live in `crate::types` (not `crate::types::effects`);
+  they are general functor / free-monad abstractions that
+  the effects subsystem consumes but does not own.
+- All non-effect brands (substrate brands, container brands,
+  Lazy brands, etc.) keep their existing positions.
+
+The new module wraps in
+`#[fp_macros::document_module]` + `mod inner` +
+`pub use inner::*` per the project pattern. Doc strings
+rewritten to be self-contained (no external plan-doc or
+third-party-repo hyperlinks).
+
+Considered moving effects-related traits to a
+`classes/effects/` sub-module but decided against it: the
+effects-specific traits in the codebase
+([`DispatchHandlers`](../../../fp-library/src/types/effects/interpreter.rs),
+[`Member`](../../../fp-library/src/types/effects/member.rs))
+already live in `types/effects/`, co-located with the types
+they support. The remaining traits in `classes/`
+([`NaturalTransformation`](../../../fp-library/src/classes/natural_transformation.rs),
+[`WrapDrop`](../../../fp-library/src/classes/wrap_drop.rs))
+are general categorical / structural interfaces that
+effects happen to be a primary consumer of, not effects-
+specific in nature. `classes/` stays flat.
+
+### Step 5b: `ask` smart constructors on all six Run wrappers (`Reader` effect)
+
+Adds the
+[`Reader<'a, P, E, A>`](../../../fp-library/src/types/effects/reader.rs)
+first-order effect type with the single `Ask` operation,
+parallel to the State / `Get` shape. Per-wrapper `ask` smart
+constructors lift the identity-on-environment continuation
+through each wrapper's substrate-appropriate pointer kind.
+
+What landed:
+
+- [`ReaderBrand<P, E>`](../../../fp-library/src/brands/effects.rs)
+  brand registration (parameterised by pointer brand `P` and
+  environment type `E`, parallel to `StateBrand<P, S>`).
+- [`Reader<'a, P, E, A>`](../../../fp-library/src/types/effects/reader.rs)
+  enum with single `Ask` variant holding
+  `<P as RefCountedPointer>::Of<'a, dyn Fn(E) -> A>`. Manual
+  `Clone` impl (refcount-bumps the continuation pointer);
+  `Functor` impl composes `f: A -> B` with the stored
+  continuation via `ToDynCloneFn::new`.
+- `impl_kind!` for `ReaderBrand`.
+- [`SendReaderBrand<P, E>`](../../../fp-library/src/brands/effects.rs)
+  brand registration for the Arc family (analogous to
+  `SendStateBrand`); `Arc<dyn Fn(E) -> A>` (without
+  `+ Send + Sync` in the trait object's bounds) is
+  structurally `!Send + !Sync`, so a parallel brand whose
+  projection bakes the marker traits in at the type level is
+  required for end-to-end dispatch through `*Run::interpret`
+  on Arc-substrate programs.
+- [`SendReader<'a, P, E, A>`](../../../fp-library/src/types/effects/reader.rs)
+  enum with single `Ask` variant holding
+  `<P as SendRefCountedPointer>::Of<'a, dyn Fn(E) -> A + Send + Sync>`.
+  Manual `Clone`; `SendFunctor` impl. No `Functor` impl
+  (would require constructing a Send-aware trait object from
+  a non-Send-bounded `f: Fn`, which it can't).
+- `Run::ask`, `RcRun::ask`, `RunExplicit::ask`,
+  `RcRunExplicit::ask` smart constructors using
+  `ReaderBrand<RcBrand, A>` in the row.
+- `ArcRun::ask`, `ArcRunExplicit::ask` smart constructors
+  using `SendReaderBrand<ArcBrand, A>` in the row, with the
+  per-wrapper `Send + Sync` cascade matching `ArcRun::get` /
+  `ArcRunExplicit::get`'s pattern.
+- Integration tests in
+  [`fp-library/tests/run_reader.rs`](../../../fp-library/tests/run_reader.rs):
+  12 tests (2 per wrapper) covering single-Ask dispatch and a
+  bind-chained `ask >>= |e1| ask >>= |e2| pure(e1 + e2)`
+  program verifying the same environment is delivered on each
+  successive Ask within one program.
+
+What diverged:
+
+- Reader's `Functor::map` body has only one variant
+  (vs. State's two), so the impl is shorter; otherwise the
+  shape matches.
+- The `ask` smart constructor mirrors `get` exactly because
+  both produce "read this thing back as the result"
+  semantics; the call-site looks identical except for the
+  brand name (`StateBrand` vs `ReaderBrand`).
+
+Verification: 12 Reader tests pass; full `just verify` clean.
+
 ### Cross-cutting docs/macros commits during step 5a
 
 Two cross-cutting commits landed in the same set as 5a.1 / 5a.2;

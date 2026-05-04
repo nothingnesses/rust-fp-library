@@ -964,6 +964,50 @@ mod inner {
 				);
 			Self::lift::<crate::brands::StateBrand<crate::brands::RcBrand, A>, Idx>(effect)
 		}
+
+		/// Lifts an `Ask` reader effect into the `RunExplicit`
+		/// program. Mirrors
+		/// [`Run::ask`](crate::types::effects::run::Run::ask); see
+		/// that method for cross-wrapper semantics. Differences for
+		/// `RunExplicit`: the bare [`Coyoneda`] variant pairs with the
+		/// Box-in-Wrap Explicit substrate. Threads
+		/// [`RcBrand`](crate::brands::RcBrand) as the pointer kind.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
+		///
+		#[document_returns("A `RunExplicit` program suspended at the lifted `Ask` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		reader::Reader,
+		/// 		run_explicit::RunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: RunExplicit<'static, FirstRow, Scoped, i32> = RunExplicit::ask();
+		/// // The program is suspended at the Ask effect; peel reveals the layer.
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn ask<Idx>() -> Self
+		where
+			A: 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
+				Member<Coyoneda<'a, crate::brands::ReaderBrand<crate::brands::RcBrand, A>, A>, Idx>, {
+			let effect: crate::types::effects::reader::Reader<'a, crate::brands::RcBrand, A, A> =
+				crate::types::effects::reader::Reader::Ask(
+					<crate::brands::RcBrand as crate::classes::ToDynCloneFn>::new(|e: A| e),
+				);
+			Self::lift::<crate::brands::ReaderBrand<crate::brands::RcBrand, A>, Idx>(effect)
+		}
 	}
 
 	#[document_type_parameters(

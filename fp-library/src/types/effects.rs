@@ -58,6 +58,7 @@ pub mod member;
 pub mod node;
 pub mod rc_run;
 pub mod rc_run_explicit;
+pub mod reader;
 pub mod run;
 pub mod run_explicit;
 pub mod state;
