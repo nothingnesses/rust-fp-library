@@ -198,6 +198,7 @@ pub use crate::{
 		to_dyn_clone_fn::ref_new as to_ref_dyn_clone_fn,
 		to_dyn_fn::to_dyn_fn,
 		to_dyn_fn::to_ref_dyn_fn,
+		to_dyn_fn_once::to_dyn_fn_once,
 		to_dyn_send_fn::new as to_dyn_send_fn,
 		to_dyn_send_fn::ref_new as to_ref_dyn_send_fn,
 		traversable::sequence,

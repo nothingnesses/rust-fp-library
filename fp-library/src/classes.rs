@@ -118,6 +118,7 @@ pub mod send_semiapplicative;
 pub mod send_semimonad;
 pub mod to_dyn_clone_fn;
 pub mod to_dyn_fn;
+pub mod to_dyn_fn_once;
 pub mod to_dyn_send_fn;
 pub mod traversable;
 pub mod traversable_with_index;

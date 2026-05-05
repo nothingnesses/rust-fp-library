@@ -122,9 +122,17 @@ pub struct BifunctorSecondAppliedBrand<Brand, B>(PhantomData<(Brand, B)>);
 
 /// Brand for [`Box`] owned heap-allocated pointer.
 ///
-/// `BoxBrand` implements [`Pointer`](crate::classes::Pointer) and
-/// [`ToDynFn`](crate::classes::ToDynFn) but not
+/// `BoxBrand` implements [`Pointer`](crate::classes::Pointer),
+/// [`ToDynFn`](crate::classes::ToDynFn), and
+/// [`ToDynFnOnce`](crate::classes::ToDynFnOnce) but not
 /// [`RefCountedPointer`] (since `Box<dyn Fn>` is not `Clone`).
+///
+/// `BoxBrand` is the only brand that implements
+/// [`ToDynFnOnce`](crate::classes::ToDynFnOnce); `Rc<dyn FnOnce>` and
+/// `Arc<dyn FnOnce>` are operationally broken because
+/// [`FnOnce::call_once`] consumes `self` (the trait object), which
+/// cannot be moved out of a shared pointer without invalidating
+/// other clones.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BoxBrand;
 
