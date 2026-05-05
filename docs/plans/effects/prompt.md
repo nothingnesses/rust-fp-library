@@ -36,25 +36,32 @@ one step per commit, until the phase is complete or you hit a blocker.
 - **Phase 1** (Free family): complete. Steps 1-9 plus two follow-up commits (`WrapDrop` migration and the `Functor` -> `Kind` relaxation).
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_row_canonicalisation.rs) in 10a. Two recurring constraints surfaced that shape Phase 3 work: the HRTB-poisoning pattern across `ArcRun`-substrate code (see Lessons below) and the per-`A` HRTB-over-types limit that caps brand-level `SendFunctor` coverage on the Arc family.
 - **Phase 3** (first-order effect handlers, interpreters, natural transformations): complete. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors), step 7 (`compile_fail` UI tests), and step 8 (review-remediation documentation pass) all shipped. Step 5e shipped together with a substrate fix on the Erased Free family: new [`RcCatList`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four; users chain `interpret_with` then `interpret_rec` for the workaround) and the [2026-05-04 `define_effect!` macro deferral](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand surfaces; design research for five candidate approaches preserved in resolutions.md).
-- **Phase 4** (scoped effects via heftia-inspired dual row): design adopted; implementation pending. The Phase 4 design review ([`review/1_scoped_effects_design/review_phase_4_design.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/review_phase_4_design.md)) and its remediation report ([`review/1_scoped_effects_design/remediation_proposals_phase_4.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/remediation_proposals_phase_4.md)) shipped, with two POC validations ([`fp-library/tests/poc_send_catch_brand.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_send_catch_brand.rs) for the F2 parallel-Send-brand pattern, [`fp-library/tests/poc_rc_run_interpose.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_rc_run_interpose.rs) for the F1 substrate-level `Run::interpose` primitive). Plan revisions adopting the recommendations landed in three doc-only commits (Phase 4 plan-text minors, R1 specification, R2 specification). Phase 4 ships `Catch<'a, P, E, A>`, `Local<'a, P, E, A>` / `RefLocal`, `Bracket<'a, P, A, B>` / `RefBracket`, and `Span<'a, Tag>` scoped-effect constructors; a parallel `DispatchScopedHandlers` trait; a substrate-level `Run::interpose` primitive on each Run wrapper; and a `BoxBrand` pointer brand alongside `RcBrand` / `ArcBrand`.
+- **Phase 3.5** (pointer-brand-pattern retrofit): design adopted; implementation pending. Sequenced between Phase 3 close and Phase 4 implementation. Adds the `ToDynFnOnce` trait to the existing pointer-abstraction trait family at [`fp-library/docs/pointer-abstraction.md`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/pointer-abstraction.md) (implemented by `BoxBrand` only; `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` are operationally broken). Retrofits Phase 3's closure-bearing first-order effects (`State`, `Reader`, `Choose`) to use `BoxBrand` + `ToDynFnOnce` (`Box<dyn FnOnce>`) on default `Run`/`RunExplicit` instead of the current `RcBrand` + `ToDynCloneFn` (`Rc<dyn Fn>`). Closes Phase 3 prior-review F4 finding structurally rather than as accepted-tradeoff. Phase 4 then uses the same per-pointer-brand pattern.
+- **Phase 4** (scoped effects via heftia-inspired dual row): design adopted; implementation pending after Phase 3.5. The Phase 4 design review ([`review/1_scoped_effects_design/review_phase_4_design.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/review_phase_4_design.md)) and its remediation report ([`review/1_scoped_effects_design/remediation_proposals_phase_4.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/remediation_proposals_phase_4.md)) shipped, with two POC validations ([`fp-library/tests/poc_send_catch_brand.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_send_catch_brand.rs) for the F2 parallel-Send-brand pattern, [`fp-library/tests/poc_rc_run_interpose.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_rc_run_interpose.rs) for the F1 substrate-level `Run::interpose` primitive); POC 3 (`interpret_with_either` substrate primitive on `RcRun`) pending. Plan revisions adopting the recommendations landed across multiple commits (plan-text minors, R1 specification, R2 specification, design-question resolutions). Phase 4 ships `Catch<'a, P, E, A>`, `Local<'a, P, E, A>` / `RefLocal`, `Bracket<'a, P, A, B>` / `RefBracket`, and `Span<'a, Tag>` scoped-effect constructors; a parallel `DispatchScopedHandlers` trait; substrate-level `Run::interpose` and `interpret_with_either` primitives on each Run wrapper.
 
 ### Next greenfield work
 
-Phase 3 closes with step 8. The Phase 4 design is adopted (review,
-remediation, POC validation, and plan revisions all shipped);
-implementation is the next concrete work. Implementation order
-follows the [remediation report's Sequencing Plan](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/remediation_proposals_phase_4.md)
-items 3, 5, 6, 7, 8, 9: substrate-level `Run::interpose` and
+Phase 3 closes with step 8. The next concrete work is **Phase 3.5**
+(pointer-brand-pattern retrofit), then Phase 4 implementation.
+Phase 3.5 lands the `ToDynFnOnce` trait, retrofits Phase 3's
+closure-bearing first-order effects to use the per-pointer-brand
+pattern, and updates the pointer-abstraction documentation. Phase
+4 implementation then follows the [remediation report's Sequencing Plan](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/remediation_proposals_phase_4.md)
+items 3, 5, 6, 7, 8, 9 with the resolved [Phase 4 pre-implementation design questions](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#phase-4-pre-implementation-design-questions):
+substrate-level `Run::interpose` (POC 2 validated) and
+`interpret_with_either` (POC 3 pending) primitives,
 `DispatchScopedHandlers` trait + per-wrapper interpret rewrite (R1
-implementation); per-pointer-brand parameterisation of the four
-standard scoped ops (R2 implementation); bracket dispatcher with
-Drop-guard for panic safety (M3); standard scoped-effect rollout
-(`Catch`, `Local` / `RefLocal`, `Bracket` / `RefBracket`, `Span`
-plus `scoped_effects!` and `define_scoped_effect!` macros);
-standard scoped handlers; review-remediation documentation pass
-closing Phase 4. Sub-step planning and full constructor signatures
-live in plan.md's
-[Phase 4 phasing section](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#phase-4-scoped-effects-heftia-inspired-dual-row).
+implementation); standard scoped-effect constructors using the
+Phase 3.5 retrofit's pointer-brand pattern (R2 implementation);
+bracket dispatcher with Drop-guard for panic safety (M3); standard
+scoped-effect rollout (`Catch`, `Local` / `RefLocal`, `Bracket` /
+`RefBracket`, `Span` plus `scoped_effects!` and `scoped_handlers!`
+macros via the new `handler_list_emitter` helper module shared with
+`handlers!`); standard scoped handlers; review-remediation
+documentation pass closing Phase 4. Sub-step planning for both
+phases lives in plan.md's phasing sections
+([Phase 3.5](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#phase-35-pointer-brand-pattern-retrofit),
+[Phase 4](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)).
 
 Two Phase 3 steps were deferred and may revisit during or after
 Phase 4: step 6
@@ -655,41 +662,77 @@ docs for bare-name doc-links before / after the wrapping.
 ## Where to start
 
 1. Read [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s
-   `Current progress` section. The active-blockers
-   subsection is empty; the most recent resolution is the
-   [2026-05-04 ArcCoyoneda algebra migration](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-6a-downstream-blocker-arccoyonedas-algebra-migrated-to-sendfunctor-option-a),
-   followed by the
-   [`SendFoldable` follow-up commit](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md#step-5a4--5a6-second-follow-up-2026-05-04-sendfoldable-trait--brand-level-fold-restored-on-arccoyonedabrand)
-   that restored the brand-level fold surface on
-   `ArcCoyonedaBrand`.
-2. **Step 5 (`interpret_with_rec`):** see "Step 5
-   implementation pattern" subsection in the resume point
-   above for the full shape. Six per-wrapper inherent methods
-   in `run.rs` / `run_explicit.rs` / `rc_run.rs` /
-   `rc_run_explicit.rs` / `arc_run.rs` /
-   `arc_run_explicit.rs`. Reuse step 4's M-lifetime pinning
-   (`'static` for Erased, `'a` for Explicit) and step 3's
-   inline per-wrapper dispatch pattern (no
-   `DispatchOneHandler` trait). Integration tests in
-   `fp-library/tests/run_interpret_with_rec.rs`. Use State
-   (now end-to-end on all six wrappers) as one of the test
-   scenarios.
-3. **Steps 6b-6e (`Reader`, `Except`, `Writer`, `Choose`)**
-   follow 6a's per-effect / per-wrapper rollout pattern.
-   Note: any effect type whose representation includes
-   `dyn Fn(...) -> A` continuations (likely `Reader` and
-   `Except`) will hit the same `dyn Fn: !Send + !Sync`
-   structural problem that drove 5a.4 + 5a.6's
-   `SendStateBrand` parallel-brand design. Plan for parallel
-   `SendReaderBrand` / `SendExceptBrand` from the start;
-   don't try option (b) per-method bounds first. `Choose`
-   ships only on the four multi-shot wrappers per the
-   2026-05-03 wrapper-parameterization resolution's Q4=ii.
+   `Current progress` section. Phase 3 closed at step 8
+   (commit `5911d579`); the most recent design adoption is
+   the 2026-05-05 Phase 4 design-question adoption plus
+   Phase 3.5 introduction (`docs(effects): adopt Phase 4
+design-question recommendations and add Phase 3.5
+pointer-brand-pattern retrofit`), which sequenced
+   [Phase 3.5](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#phase-35-pointer-brand-pattern-retrofit)
+   between Phase 3 close and Phase 4 implementation kickoff
+   and adopted the `BoxBrand` + `ToDynFnOnce` +
+   closure-FnOnce-on-default-`Run` pattern as the unified
+   pointer-brand approach for both Phase 3.5 and Phase 4.
+   Plan.md's
+   [`Active blockers`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#active-blockers)
+   subsection still names Phase 4 design-question items
+   B1-B4 as blocking R1 implementation; that wording predates
+   the 2026-05-05 adoption commit and applies only to Phase 4
+   step 1 onward (Phase 3.5 work is not gated by it).
+2. **Phase 3.5 (pointer-brand-pattern retrofit):** see
+   [plan.md's Phase 3.5 section](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#phase-35-pointer-brand-pattern-retrofit)
+   for the five sub-steps. The work lands the new
+   `ToDynFnOnce` trait at
+   `fp-library/src/classes/to_dyn_fn_once.rs` (paralleling
+   the existing
+   [`ToDynFn`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/to_dyn_fn.rs)
+   and only implemented by `BoxBrand`; `Rc<dyn FnOnce>` and
+   `Arc<dyn FnOnce>` are operationally broken because
+   `FnOnce::call_once` consumes `self` out of the trait
+   object), retrofits the three Phase 3 closure-bearing
+   effects (`State`, `Reader`, `Choose`) to use `BoxBrand` +
+   `ToDynFnOnce` on default `Run` / `RunExplicit` while
+   keeping `RcRun` / `ArcRun` smart constructors on their
+   existing `Rc<dyn Fn>` / `Arc<dyn Fn + Send + Sync>`
+   paths, updates
+   [`fp-library/docs/pointer-abstraction.md`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/pointer-abstraction.md)
+   to add `ToDynFnOnce` to the trait diagram and table, and
+   appends a
+   [resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md)
+   entry closing prior-review F4 structurally. Default
+   commit boundary is one per numbered sub-step; surface any
+   intra-step split (e.g., per-effect commits inside sub-step 2) to the user before starting per the per-step protocol's
+   "splitting an oversized step" clause. Existing integration
+   tests at
+   [`fp-library/tests/run_state.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_state.rs),
+   [`fp-library/tests/run_reader.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_reader.rs),
+   and
+   [`fp-library/tests/run_choose.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_choose.rs)
+   verify the retrofit preserves observable behaviour.
+3. **Phase 4 (scoped effects):** see
+   [plan.md's Phase 4 section](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+   for the full step list and constructor signatures. Phase 4
+   follows the
+   [remediation report's Sequencing Plan](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/remediation_proposals_phase_4.md)
+   items 3, 5, 6, 7, 8, 9 with the resolved
+   [Phase 4 pre-implementation design questions](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#phase-4-pre-implementation-design-questions).
+   Substrate-level `Run::interpose` is POC-validated at
+   [`fp-library/tests/poc_rc_run_interpose.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_rc_run_interpose.rs);
+   the parallel-Send-brand pattern is POC-validated at
+   [`fp-library/tests/poc_send_catch_brand.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_send_catch_brand.rs).
+   POC 3 (`interpret_with_either` substrate primitive on
+   `RcRun`) is pending validation; it must land before the
+   step that introduces `interpret_with_either` ships
+   generically across all six Run wrappers. Reuse Phase 3.5's
+   `BoxBrand` + `ToDynFnOnce` pattern for all user-supplied
+   scoped-effect handlers.
 4. Read [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
-   section 4.3 (interpreter families) only if you need the
-   original commitment context. Sections 4.5 (scoped effects)
-   and 4.6 (natural transformations) become relevant for
-   Phase 4 / future work.
+   [section 4.5](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md#45-decision-scoped-effect-representation-via-a-heftia-inspired-dual-row)
+   (scoped effects) and
+   [section 4.6](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md#46-decision-natural-transformations-as-values)
+   (natural transformations) for Phase 4 commitment context.
+   Section 4.3 (interpreter families) is the reference for
+   any work that touches the interpreter primitive surface.
 5. If your step touches type-class impls, brand-level dispatch, or
    `Send + Sync` auto-derive, also skim
    [fp-library/docs/limitations-and-workarounds.md](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/limitations-and-workarounds.md)'s
@@ -701,11 +744,21 @@ docs for bare-name doc-links before / after the wrapping.
    path) is the precedent any new wrapper type with shared
    internal state will end up following. Saves rediscovering the
    constraint mid-implementation.
-6. Update plan.md's `Current progress` (rolling-detail entry
-   for step 5; demote oldest step from rolling-detail to commit
-   log per the rolling-detail trim window of ~3 narratives).
-   Append deviations.md entry for step 5. Standard end-of-step
-   doc maintenance.
+6. Per-step doc maintenance follows the per-step protocol below
+   and plan.md's
+   [Implementation protocol](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#implementation-protocol)
+   step 3: refresh plan.md's `Current progress` four required
+   subsections in their canonical order in place, mirror the
+   same template into prompt.md's `Current resume point`, and
+   append a
+   [deviations.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md)
+   entry for any per-step deviation from plan text. The
+   subsection names and ordering rule are restated at the top
+   of the resume point above. When the rolling-detail subsection
+   grows past 3 entries, demote the oldest narrative to a
+   one-line bullet in the commit log; verify any load-bearing
+   context is preserved in deviations.md / resolutions.md /
+   commit message before demoting.
 
 ## Per-step protocol
 
