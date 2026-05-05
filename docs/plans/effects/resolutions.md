@@ -1233,7 +1233,15 @@ become "what step 2/3/4 say going forward") plus one new step
    `interpret`, `interpret_with`, and `interpret_rec` families
    (18 wrapper-method bodies; removes the
    `clippy::unreachable`-suppressed panic in the
-   `Node::Scoped(_)` arms). M3C parameterises step 3's
+   `Node::Scoped(_)` arms). **Phase 4 addendum (2026-05-05):**
+   the `S = CNilBrand` tightening was correct for Phase 3
+   closure but assumed Phase 4 would specify a parallel
+   dispatch mechanism. Per [decisions.md section 4.5's
+   "Dispatcher trait shape and substrate-level interpose
+   primitive" sub-decision](decisions.md), Phase 4 lifts the
+   `S = CNilBrand` bound on the interpret family and routes
+   `Node::Scoped` through the new `DispatchScopedHandlers`
+   trait; the F3A invariant is therefore Phase-3-only. M3C parameterises step 3's
    `interpret_with` over `P: RefCountedPointer` (drops the
    user-facing `Clone` bound; pairs naturally with [m9
    interpreter dispatch impl deduplication](review/0_first_order_effects_implementation/remediation_proposals.md#minor-findings)).

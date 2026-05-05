@@ -1974,7 +1974,32 @@ this section is the phasing-side checklist.
 1. `ScopedCoproduct<ScopedEffects>` at
    `fp-library/src/types/effects/scoped.rs` with the dual-row
    integration into `Run<Effects, ScopedEffects, A>`.
-2. Standard scoped-effect constructors. Per
+2. Substrate-level `Run::interpose<EBrand, Idx>` primitive on
+   each of the six Run wrappers. The Rust analogue of heftia's
+   [`interposeInWith`](https://github.com/sayo-hs/heftia/blob/master/heftia/src/Control/Monad/Hefty/Interpret.hs):
+   walks the Free tree, finds dispatches against `EBrand`,
+   substitutes a user-supplied replacement, and re-emits in
+   the same row (no row narrowing). Approximate signature:
+   ```rust,ignore
+   pub fn interpose<EBrand, Idx>(
+       self,
+       replacement: impl Fn(<EBrand as Kind>::Of<'_, Self>) -> Self + 'static,
+   ) -> Self
+   ```
+   Implementation mirrors
+   [`RcRun::interpret_with_shared`](../../../fp-library/src/types/effects/rc_run.rs)
+   line for line, with the rebuilt layer's row staying in `R`
+   instead of narrowing to `RMinusE`. POC-validated for the
+   one-effect concrete row at
+   [`fp-library/tests/poc_rc_run_interpose.rs`](../../../fp-library/tests/poc_rc_run_interpose.rs);
+   the generic shape is mechanical from the POC template.
+   `Run::interpose` is the load-bearing operation `Catch`'s
+   scoped-handler dispatcher uses to splice a `Throw` catcher
+   into the action's interpretation. Shipping `Run::interpose`
+   here closes the [Phase 6+ deferred `interpose` family
+   entry](#phase-6-deferred-not-in-this-plan); the deferred
+   entry is removed from Phase 6+ once Phase 4 step 2 lands.
+3. Standard scoped-effect constructors. Per
    [decisions.md](decisions.md) section 4.5 sub-decisions, `Bracket`
    and `Local` ship in two parallel flavours each (Val and Ref) that
    mirror the library's existing Val/Ref dispatch pattern at
@@ -1997,7 +2022,14 @@ this section is the phasing-side checklist.
      `release: Box<dyn FnOnce(A) -> Run<R, S, ()>>`. The body
      consumes `A`, threads it back to the interpreter via
      `(A, B)`, and the interpreter moves the returned `A` into
-     `release`.
+     `release`. **Panic safety:** the bracket dispatcher wraps
+     the resource in a `BracketGuard<A, F>` whose `Drop` impl
+     invokes `release` synchronously, so cleanup runs even if
+     `body` panics during interpretation. `release`'s
+     synchronous-Drop invocation cannot itself perform effects
+     in the row; effectful release on panic is best-effort and
+     users wanting fully-effectful release on panic should
+     layer their own `Drop`-impl on top of the resource.
    - `RefBracket<'a, P, A, B>` (Ref flavour) for refcounted-substrate
      users (`RcRun`, `ArcRun`, `RcRunExplicit`, `ArcRunExplicit`),
      parameterised by
@@ -2012,16 +2044,45 @@ this section is the phasing-side checklist.
      until the last clone drops, mirroring PureScript's
      GC-aliased `bracket` semantics
      ([`Aff.purs:308`](https://github.com/purescript-contrib/purescript-aff/blob/master/src/Effect/Aff.purs#L308)).
+     Same `BracketGuard`-based panic safety as the Val flavour.
    - `Span<'a, Tag>`, with `tag: Tag`, `action: Run<R, S, A>`.
      Val only (no closure to dispatch over).
-3. Scoped-effect interpreter trait. Method per constructor;
-   fixed `Run<R, A>` continuation
-   ([decisions.md](decisions.md) section 4.5).
-4. `scoped_effects!` macro and `define_scoped_effect!` macro,
+4. `DispatchScopedHandlers` trait at
+   [`fp-library/src/types/effects/interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
+   parallel to the Phase 3
+   [`DispatchHandlers`](../../../fp-library/src/types/effects/interpreter.rs)
+   trait. Approximate signature:
+   ```rust,ignore
+   pub trait DispatchScopedHandlers<'a, ScopedLayer, FOLayer, NextProgram> {
+       fn dispatch_scoped<FOH: DispatchHandlers<'a, FOLayer, NextProgram>>(
+           &self,
+           layer: ScopedLayer,
+           fo_handlers: &FOH,
+       ) -> NextProgram;
+   }
+   ```
+   Each scoped-effect cons-cell impl receives the FO handler list
+   `fo_handlers` so it can call `Run::interpose` (step 2) on the
+   constructor's stored action. For `Catch` specifically, the
+   cons-cell impl interposes a `Throw` catcher that returns to a
+   sentinel value, recursively interprets the action via the
+   outer interpreter loop, observes the sentinel, and routes to
+   `Catch::handler`. Each Run wrapper's `interpret` grows a
+   second handler-list parameter; the loop dispatches `Node::First`
+   to the existing `DispatchHandlers::dispatch` and `Node::Scoped`
+   to the new `DispatchScopedHandlers::dispatch_scoped`, threading
+   the FO handler list along. The Phase 3 `S = CNilBrand`
+   tightening on each wrapper's `interpret` family (per the
+   [2026-05-03 F3A reversal](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer))
+   is lifted; the new trait subsumes the role.
+5. `scoped_effects!` macro and `define_scoped_effect!` macro,
    sharing the lexical-sort helper with Phase 2's `effects!` (one
    helper, two thin entry-point macros, distinct output shapes:
-   Coyoneda-wrapped Coproduct vs `ScopedCoproduct`).
-5. Smart constructors: `catch`, `span` (single-flavour
+   Coyoneda-wrapped Coproduct vs `ScopedCoproduct`). The macro
+   layer also emits a `scoped_handlers!{...}` companion to the
+   Phase 3 [`handlers!`](../../../fp-library/src/types/effects/handlers.rs)
+   macro for assembling the second list passed to `interpret`.
+6. Smart constructors: `catch`, `span` (single-flavour
    wrappers); `bracket` and `local` (closure-driven dispatch over
    Val and Ref flavours, reusing the existing `Val` / `Ref`
    markers and dispatch machinery from
@@ -2045,25 +2106,25 @@ this section is the phasing-side checklist.
      No `mask` smart constructor in v1; the `Mask` constructor is
      deferred per [decisions.md](decisions.md) section 4.5
      sub-decisions.
-6. Standard scoped-handler implementations as a parallel
+7. Standard scoped-handler implementations as a parallel
    set of `DispatchScopedHandlers` cons-cell impls, NOT as
    extensions to the existing FO `run_reader` / `run_except`
    handlers. Phase 4 ships `LocalDispatcher`,
    `RefLocalDispatcher`, `CatchDispatcher`, `BracketDispatcher`
    (Val and Ref<P>), `SpanDispatcher` impls. Both the FO and
    scoped handler lists are passed to `interpret` together via
-   the unified two-list form (per Phase 4 step 1's interpreter
-   trait spec). The FO and scoped handlers may share state via
-   interior-mutability captures (the Phase 3 closure-capture
-   convention) but do not share types; `Local` requires the FO
-   `ReaderBrand`'s `Ask` clause to remain in scope while the
-   scoped narrowing runs, since `Local`'s implementation
-   temporarily modifies the env that the FO Reader handler
-   returns. Pipeline ordering (which row to narrow first) is
-   user-driven: callers writing `interpret_scoped_with::<EBrand>`
-   sequence FO and scoped narrowing as their handler interactions
-   require.
-7. Tests: scoped-effect unit tests covering each of the four
+   the unified two-list form (per Phase 4 step 4's
+   `DispatchScopedHandlers` trait spec). The FO and scoped
+   handlers may share state via interior-mutability captures
+   (the Phase 3 closure-capture convention) but do not share
+   types; `Local` requires the FO `ReaderBrand`'s `Ask` clause
+   to remain in scope while the scoped narrowing runs, since
+   `Local`'s implementation temporarily modifies the env that
+   the FO Reader handler returns. Pipeline ordering (which row
+   to narrow first) is user-driven: callers writing
+   `interpret_scoped_with::<EBrand>` sequence FO and scoped
+   narrowing as their handler interactions require.
+8. Tests: scoped-effect unit tests covering each of the four
    standard constructors (`Catch`, `Local`, `Bracket`, `Span`)
    plus `compile_fail` cases. Negative-case enumeration:
    - Scoped operation in an FO-only row (program declares
@@ -2346,23 +2407,6 @@ outward to user surface.
   first user request for explicit-continuation handlers that
   the Phase 3 closure-returns-next-program shape can't
   accommodate.
-- **`interpose` family (heftia hook-without-removing).**
-  Heftia's
-  [`interposeBy`](https://github.com/sayo-hs/heftia/blob/master/heftia/src/Control/Monad/Hefty/Interpret.hs)
-  and siblings hook into an effect WITHOUT removing it from
-  the row, useful for logging / tracing / observability
-  patterns. Not in PureScript Run; heftia-specific. _What this
-  is for:_ wrap an effect call site to record / observe its
-  operations and forward them to the next handler unchanged.
-  E.g., a logging shim that records every State operation
-  before passing through to the actual State handler.
-  _Why deferred:_ genuinely useful but not blocking; users can
-  approximate via custom handlers that re-emit the original
-  effect. Shipping `interpose` is a separate substantive piece
-  of machinery (handler runs, then the row stays the same and
-  the original effect is forwarded to the next handler in the
-  pipeline). _Trigger:_ first observability / tracing use case
-  where users want to hook an effect without consuming it.
 - **Algebraic-shape FO handlers (axis 2 widening).** Rework
   the `handlers!{}` macro and `Handler<E, F>` so each FO
   handler closure receives the operation AND a continuation
