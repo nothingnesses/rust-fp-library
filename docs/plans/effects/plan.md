@@ -1967,7 +1967,9 @@ this section is the phasing-side checklist.
    - All minor (m1-m9) findings per
      [remediation_proposals.md "Minor Findings"](review/0_first_order_effects_implementation/remediation_proposals.md#minor-findings).
 
-### Phase 4: Scoped effects (heftia dual row)
+### Phase 4: Scoped effects (heftia-inspired dual row)
+
+> Heftia v0.7 itself ships a single effect list `es` with per-element `KnownOrder` markers, not literal dual rows; fp-library takes the **idea** (separate FO vs HO dispatch) and ships a value-level dual row (`Run<R, S, A>` with `Node<R, S> = First | Scoped`). The substrate-level mechanism (action stored as a Free-monad-encoded sub-program, handlers walk it via interpose-style rewrites) IS heftia v0.7's mechanism. See [decisions.md section 4.5](decisions.md#45-decision-scoped-effect-representation-via-a-heftia-inspired-dual-row) for the divergence framing.
 
 1. `ScopedCoproduct<ScopedEffects>` at
    `fp-library/src/types/effects/scoped.rs` with the dual-row
@@ -2043,13 +2045,39 @@ this section is the phasing-side checklist.
      No `mask` smart constructor in v1; the `Mask` constructor is
      deferred per [decisions.md](decisions.md) section 4.5
      sub-decisions.
-6. Standard handlers (`run_reader`'s `local` clause,
-   `run_except`'s `catch` clause, etc.) wired through the dual
-   row.
+6. Standard scoped-handler implementations as a parallel
+   set of `DispatchScopedHandlers` cons-cell impls, NOT as
+   extensions to the existing FO `run_reader` / `run_except`
+   handlers. Phase 4 ships `LocalDispatcher`,
+   `RefLocalDispatcher`, `CatchDispatcher`, `BracketDispatcher`
+   (Val and Ref<P>), `SpanDispatcher` impls. Both the FO and
+   scoped handler lists are passed to `interpret` together via
+   the unified two-list form (per Phase 4 step 1's interpreter
+   trait spec). The FO and scoped handlers may share state via
+   interior-mutability captures (the Phase 3 closure-capture
+   convention) but do not share types; `Local` requires the FO
+   `ReaderBrand`'s `Ask` clause to remain in scope while the
+   scoped narrowing runs, since `Local`'s implementation
+   temporarily modifies the env that the FO Reader handler
+   returns. Pipeline ordering (which row to narrow first) is
+   user-driven: callers writing `interpret_scoped_with::<EBrand>`
+   sequence FO and scoped narrowing as their handler interactions
+   require.
 7. Tests: scoped-effect unit tests covering each of the four
    standard constructors (`Catch`, `Local`, `Bracket`, `Span`)
-   plus `compile_fail` cases. Reformulate relevant Phase 3 tests
-   to use scoped operations where appropriate.
+   plus `compile_fail` cases. Negative-case enumeration:
+   - Scoped operation in an FO-only row (program declares
+     `S = CNilBrand` but constructs a scoped op).
+   - Mismatched body / release closure shapes for the
+     `bracket` smart constructor (closure types that resolve
+     to neither `Val` nor any `Ref<P>` impl).
+   - `RefBracket` instantiated with a `P` that does not
+     implement [`RefCountedPointer`](../../../fp-library/src/classes/ref_counted_pointer.rs).
+   - Scoped handler-list omission (a row containing
+     `CatchBrand<E>` interpreted with a scoped handler list
+     missing the `Catch` cell).
+     Reformulate relevant Phase 3 tests to use scoped operations
+     where appropriate.
 
 ### Phase 5: Integration test, deferred items as needed
 
