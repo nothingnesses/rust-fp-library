@@ -927,7 +927,9 @@ mod inner {
 		/// `RunExplicit`: the bare [`Coyoneda`] variant pairs with the
 		/// Box-in-Wrap Explicit substrate (the substrate's `peel` does
 		/// not require a `Clone` bound on the inner effect). Threads
-		/// [`RcBrand`](crate::brands::RcBrand) as the pointer kind.
+		/// [`BoxBrand`](crate::brands::BoxBrand) as the pointer kind
+		/// post-Phase-3.5 retrofit so the continuation projection is
+		/// `Box<dyn FnOnce>` rather than `Rc<dyn Fn>`.
 		#[document_signature]
 		///
 		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
@@ -941,11 +943,11 @@ mod inner {
 		/// 	brands::*,
 		/// 	types::effects::{
 		/// 		run_explicit::RunExplicit,
-		/// 		state::State,
+		/// 		state::BoxState,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxStateBrand<BoxBrand, i32>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: RunExplicit<'static, FirstRow, Scoped, i32> = RunExplicit::get();
@@ -956,13 +958,15 @@ mod inner {
 		pub fn get<Idx>() -> Self
 		where
 			A: 'static,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
-				Member<Coyoneda<'a, crate::brands::StateBrand<crate::brands::RcBrand, A>, A>, Idx>, {
-			let effect: crate::types::effects::state::State<'a, crate::brands::RcBrand, A, A> =
-				crate::types::effects::state::State::Get(
-					<crate::brands::RcBrand as crate::classes::ToDynCloneFn>::new(|s: A| s),
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Member<
+					Coyoneda<'a, crate::brands::BoxStateBrand<crate::brands::BoxBrand, A>, A>,
+					Idx,
+				>, {
+			let effect: crate::types::effects::state::BoxState<'a, crate::brands::BoxBrand, A, A> =
+				crate::types::effects::state::BoxState::Get(
+					<crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(|s: A| s),
 				);
-			Self::lift::<crate::brands::StateBrand<crate::brands::RcBrand, A>, Idx>(effect)
+			Self::lift::<crate::brands::BoxStateBrand<crate::brands::BoxBrand, A>, Idx>(effect)
 		}
 
 		/// Lifts an `Ask` reader effect into the `RunExplicit`
@@ -971,7 +975,8 @@ mod inner {
 		/// that method for cross-wrapper semantics. Differences for
 		/// `RunExplicit`: the bare [`Coyoneda`] variant pairs with the
 		/// Box-in-Wrap Explicit substrate. Threads
-		/// [`RcBrand`](crate::brands::RcBrand) as the pointer kind.
+		/// [`BoxBrand`](crate::brands::BoxBrand) as the pointer kind
+		/// post-Phase-3.5 retrofit.
 		#[document_signature]
 		///
 		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
@@ -984,12 +989,12 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::*,
 		/// 	types::effects::{
-		/// 		reader::Reader,
+		/// 		reader::BoxReader,
 		/// 		run_explicit::RunExplicit,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: RunExplicit<'static, FirstRow, Scoped, i32> = RunExplicit::ask();
@@ -1000,13 +1005,19 @@ mod inner {
 		pub fn ask<Idx>() -> Self
 		where
 			A: 'static,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
-				Member<Coyoneda<'a, crate::brands::ReaderBrand<crate::brands::RcBrand, A>, A>, Idx>, {
-			let effect: crate::types::effects::reader::Reader<'a, crate::brands::RcBrand, A, A> =
-				crate::types::effects::reader::Reader::Ask(
-					<crate::brands::RcBrand as crate::classes::ToDynCloneFn>::new(|e: A| e),
-				);
-			Self::lift::<crate::brands::ReaderBrand<crate::brands::RcBrand, A>, Idx>(effect)
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Member<
+					Coyoneda<'a, crate::brands::BoxReaderBrand<crate::brands::BoxBrand, A>, A>,
+					Idx,
+				>, {
+			let effect: crate::types::effects::reader::BoxReader<
+				'a,
+				crate::brands::BoxBrand,
+				A,
+				A,
+			> = crate::types::effects::reader::BoxReader::Ask(
+				<crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(|e: A| e),
+			);
+			Self::lift::<crate::brands::BoxReaderBrand<crate::brands::BoxBrand, A>, Idx>(effect)
 		}
 
 		/// Lifts a `Throw` except effect into the `RunExplicit`
@@ -1067,11 +1078,13 @@ mod inner {
 		/// Lifts a `Put` state effect into the `RunExplicit` program.
 		/// Mirrors [`Run::put`](crate::types::effects::run::Run::put);
 		/// see that method for cross-wrapper semantics. Threads
-		/// [`RcBrand`](crate::brands::RcBrand) as the pointer kind.
+		/// [`BoxBrand`](crate::brands::BoxBrand) as the pointer kind
+		/// post-Phase-3.5 retrofit so the continuation projection is
+		/// `Box<dyn FnOnce>`.
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The state type carried by `StateBrand` in the row.",
+			"The state type carried by `BoxStateBrand` in the row.",
 			"The type-level Member-position witness (typically inferred)."
 		)]
 		///
@@ -1086,11 +1099,11 @@ mod inner {
 		/// 	brands::*,
 		/// 	types::effects::{
 		/// 		run_explicit::RunExplicit,
-		/// 		state::State,
+		/// 		state::BoxState,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxStateBrand<BoxBrand, i32>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: RunExplicit<'static, FirstRow, Scoped, ()> = RunExplicit::put::<i32, _>(42);
@@ -1101,19 +1114,25 @@ mod inner {
 		pub fn put<StateType: 'static, Idx>(s: StateType) -> Self
 		where
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>): Member<
-					Coyoneda<'a, crate::brands::StateBrand<crate::brands::RcBrand, StateType>, ()>,
+					Coyoneda<
+						'a,
+						crate::brands::BoxStateBrand<crate::brands::BoxBrand, StateType>,
+						(),
+					>,
 					Idx,
 				>, {
-			let effect: crate::types::effects::state::State<
+			let effect: crate::types::effects::state::BoxState<
 				'a,
-				crate::brands::RcBrand,
+				crate::brands::BoxBrand,
 				StateType,
 				(),
-			> = crate::types::effects::state::State::Put(
+			> = crate::types::effects::state::BoxState::Put(
 				s,
-				<crate::brands::RcBrand as crate::classes::ToDynCloneFn>::new(|_: ()| ()),
+				<crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(|_: ()| ()),
 			);
-			Self::lift::<crate::brands::StateBrand<crate::brands::RcBrand, StateType>, Idx>(effect)
+			Self::lift::<crate::brands::BoxStateBrand<crate::brands::BoxBrand, StateType>, Idx>(
+				effect,
+			)
 		}
 
 		/// Lifts a `Tell` writer effect into the `RunExplicit`

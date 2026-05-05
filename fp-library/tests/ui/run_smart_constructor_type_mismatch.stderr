@@ -1,8 +1,8 @@
-error[E0277]: the trait bound `CNil: CoprodUninjector<Coyoneda<'static, ReaderBrand<RcBrand, i32>, i32>, _>` is not satisfied
-  --> tests/ui/run_smart_constructor_type_mismatch.rs:27:42
+error[E0277]: the trait bound `CNil: CoprodUninjector<Coyoneda<'static, BoxReaderBrand<BoxBrand, i32>, i32>, _>` is not satisfied
+  --> tests/ui/run_smart_constructor_type_mismatch.rs:28:42
    |
-27 |     let _prog: Run<FirstRow, Scoped, i32> = Run::ask();
-   |                                             ^^^^^^^^^^ the trait `CoprodUninjector<Coyoneda<'static, ReaderBrand<RcBrand, i32>, i32>, _>` is not implemented for `CNil`
+28 |     let _prog: Run<FirstRow, Scoped, i32> = Run::ask();
+   |                                             ^^^^^^^^^^ the trait `CoprodUninjector<Coyoneda<'static, BoxReaderBrand<BoxBrand, i32>, i32>, _>` is not implemented for `CNil`
    |
 help: the following other types implement trait `CoprodUninjector<T, Idx>`
   --> $CARGO/frunk_core-$VERSION/src/coproduct.rs
@@ -14,8 +14,8 @@ help: the following other types implement trait `CoprodUninjector<T, Idx>`
    | | where
    | |     Tl: CoprodUninjector<T, N>,
    | |_______________________________^ `Coproduct<Hd, Tl>` implements `CoprodUninjector<T, There<N>>`
-   = note: required for `Coproduct<Coyoneda<'static, ReaderBrand<RcBrand, String>, i32>, CNil>` to implement `CoprodUninjector<Coyoneda<'static, ReaderBrand<RcBrand, i32>, i32>, There<_>>`
-   = note: required for `Coproduct<Coyoneda<'static, ReaderBrand<RcBrand, String>, i32>, CNil>` to implement `Member<Coyoneda<'static, ReaderBrand<RcBrand, i32>, i32>, There<_>>`
+   = note: required for `Coproduct<Coyoneda<'static, BoxReaderBrand<BoxBrand, String>, i32>, CNil>` to implement `CoprodUninjector<Coyoneda<'static, BoxReaderBrand<BoxBrand, i32>, i32>, There<_>>`
+   = note: required for `Coproduct<Coyoneda<'static, BoxReaderBrand<BoxBrand, String>, i32>, CNil>` to implement `Member<Coyoneda<'static, BoxReaderBrand<BoxBrand, i32>, i32>, There<_>>`
 note: required by a bound in `Run::<R, ScopedRow, A>::ask`
   --> src/types/effects/run.rs
    |
@@ -25,7 +25,7 @@ note: required by a bound in `Run::<R, ScopedRow, A>::ask`
    | /                 crate::types::effects::member::Member<
    | |                         crate::types::Coyoneda<
    | |                             'static,
-   | |                             crate::brands::ReaderBrand<crate::brands::RcBrand, A>,
+   | |                             crate::brands::BoxReaderBrand<crate::brands::BoxBrand, A>,
 ...  |
    | |                         Idx,
    | |                     >, {

@@ -15,11 +15,14 @@
 // State threading is via user-side closure captures
 // (`Rc<RefCell<S>>` for non-Arc, `Arc<Mutex<S>>` for Arc).
 //
-// The four non-Arc wrappers (Run, RunExplicit, RcRun,
-// RcRunExplicit) thread `RcBrand` and use `StateBrand<RcBrand, S>`
-// in the row. The two Arc wrappers (ArcRun, ArcRunExplicit) thread
-// `ArcBrand` and use `SendStateBrand<ArcBrand, S>` whose closure
-// projection bakes in `Send + Sync`.
+// The two default single-shot wrappers (Run, RunExplicit) thread
+// `BoxBrand` and use `BoxStateBrand<BoxBrand, S>` whose closure
+// projection is `Box<dyn FnOnce>`. The two non-Arc multi-shot
+// wrappers (RcRun, RcRunExplicit) thread `RcBrand` and use
+// `StateBrand<RcBrand, S>` whose closure projection is
+// `Rc<dyn Fn>`. The two Arc wrappers (ArcRun, ArcRunExplicit)
+// thread `ArcBrand` and use `SendStateBrand<ArcBrand, S>` whose
+// closure projection bakes in `Send + Sync`.
 
 use {
 	fp_library::{
@@ -33,6 +36,7 @@ use {
 			run::Run,
 			run_explicit::RunExplicit,
 			state::{
+				BoxState,
 				SendState,
 				State,
 			},
@@ -50,7 +54,7 @@ use {
 
 // -- Run --
 
-type RunStateRow = CoproductBrand<CoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
+type RunStateRow = CoproductBrand<CoyonedaBrand<BoxStateBrand<BoxBrand, i32>>, CNilBrand>;
 
 #[test]
 fn run_get_returns_current_state() {
@@ -58,15 +62,15 @@ fn run_get_returns_current_state() {
 	let cell_for_handler = Rc::clone(&cell);
 	let prog: Run<RunStateRow, CNilBrand, i32> = Run::get();
 	let result = prog.interpret(handlers! {
-		StateBrand<RcBrand, i32>: move |op: State<'_, RcBrand, i32, Run<RunStateRow, CNilBrand, i32>>| {
+		BoxStateBrand<BoxBrand, i32>: move |op: BoxState<'_, BoxBrand, i32, Run<RunStateRow, CNilBrand, i32>>| {
 			match op {
-				State::Get(k) => {
+				BoxState::Get(k) => {
 					let s = *cell_for_handler.borrow();
-					(*k)(s)
+					k(s)
 				}
-				State::Put(s, k) => {
+				BoxState::Put(s, k) => {
 					*cell_for_handler.borrow_mut() = s;
-					(*k)(())
+					k(())
 				}
 			}
 		},
@@ -81,15 +85,15 @@ fn run_put_writes_state() {
 	let cell_for_handler = Rc::clone(&cell);
 	let prog: Run<RunStateRow, CNilBrand, ()> = Run::put::<i32, _>(99);
 	prog.interpret(handlers! {
-		StateBrand<RcBrand, i32>: move |op: State<'_, RcBrand, i32, Run<RunStateRow, CNilBrand, ()>>| {
+		BoxStateBrand<BoxBrand, i32>: move |op: BoxState<'_, BoxBrand, i32, Run<RunStateRow, CNilBrand, ()>>| {
 			match op {
-				State::Get(k) => {
+				BoxState::Get(k) => {
 					let s = *cell_for_handler.borrow();
-					(*k)(s)
+					k(s)
 				}
-				State::Put(s, k) => {
+				BoxState::Put(s, k) => {
 					*cell_for_handler.borrow_mut() = s;
-					(*k)(())
+					k(())
 				}
 			}
 		},
@@ -105,15 +109,15 @@ fn run_get_put_get_bind_chain() {
 		.bind(|s: i32| Run::<RunStateRow, CNilBrand, ()>::put::<i32, _>(s + 1))
 		.bind(|()| Run::<RunStateRow, CNilBrand, i32>::get());
 	let result = prog.interpret(handlers! {
-		StateBrand<RcBrand, i32>: move |op: State<'_, RcBrand, i32, Run<RunStateRow, CNilBrand, i32>>| {
+		BoxStateBrand<BoxBrand, i32>: move |op: BoxState<'_, BoxBrand, i32, Run<RunStateRow, CNilBrand, i32>>| {
 			match op {
-				State::Get(k) => {
+				BoxState::Get(k) => {
 					let s = *cell_for_handler.borrow();
-					(*k)(s)
+					k(s)
 				}
-				State::Put(s, k) => {
+				BoxState::Put(s, k) => {
 					*cell_for_handler.borrow_mut() = s;
-					(*k)(())
+					k(())
 				}
 			}
 		},
@@ -204,15 +208,15 @@ fn run_explicit_get_returns_current_state() {
 	let cell_for_handler = Rc::clone(&cell);
 	let prog: RunExplicit<'static, RunStateRow, CNilBrand, i32> = RunExplicit::get();
 	let result = prog.interpret(handlers! {
-		StateBrand<RcBrand, i32>: move |op: State<'_, RcBrand, i32, RunExplicit<'static, RunStateRow, CNilBrand, i32>>| {
+		BoxStateBrand<BoxBrand, i32>: move |op: BoxState<'_, BoxBrand, i32, RunExplicit<'static, RunStateRow, CNilBrand, i32>>| {
 			match op {
-				State::Get(k) => {
+				BoxState::Get(k) => {
 					let s = *cell_for_handler.borrow();
-					(*k)(s)
+					k(s)
 				}
-				State::Put(s, k) => {
+				BoxState::Put(s, k) => {
 					*cell_for_handler.borrow_mut() = s;
-					(*k)(())
+					k(())
 				}
 			}
 		},
@@ -227,15 +231,15 @@ fn run_explicit_put_writes_state() {
 	let cell_for_handler = Rc::clone(&cell);
 	let prog: RunExplicit<'static, RunStateRow, CNilBrand, ()> = RunExplicit::put::<i32, _>(99);
 	prog.interpret(handlers! {
-		StateBrand<RcBrand, i32>: move |op: State<'_, RcBrand, i32, RunExplicit<'static, RunStateRow, CNilBrand, ()>>| {
+		BoxStateBrand<BoxBrand, i32>: move |op: BoxState<'_, BoxBrand, i32, RunExplicit<'static, RunStateRow, CNilBrand, ()>>| {
 			match op {
-				State::Get(k) => {
+				BoxState::Get(k) => {
 					let s = *cell_for_handler.borrow();
-					(*k)(s)
+					k(s)
 				}
-				State::Put(s, k) => {
+				BoxState::Put(s, k) => {
 					*cell_for_handler.borrow_mut() = s;
-					(*k)(())
+					k(())
 				}
 			}
 		},
@@ -252,15 +256,15 @@ fn run_explicit_get_put_get_bind_chain() {
 			.bind(|s: i32| RunExplicit::<'static, RunStateRow, CNilBrand, ()>::put::<i32, _>(s + 1))
 			.bind(|()| RunExplicit::<'static, RunStateRow, CNilBrand, i32>::get());
 	let result = prog.interpret(handlers! {
-		StateBrand<RcBrand, i32>: move |op: State<'_, RcBrand, i32, RunExplicit<'static, RunStateRow, CNilBrand, i32>>| {
+		BoxStateBrand<BoxBrand, i32>: move |op: BoxState<'_, BoxBrand, i32, RunExplicit<'static, RunStateRow, CNilBrand, i32>>| {
 			match op {
-				State::Get(k) => {
+				BoxState::Get(k) => {
 					let s = *cell_for_handler.borrow();
-					(*k)(s)
+					k(s)
 				}
-				State::Put(s, k) => {
+				BoxState::Put(s, k) => {
 					*cell_for_handler.borrow_mut() = s;
-					(*k)(())
+					k(())
 				}
 			}
 		},

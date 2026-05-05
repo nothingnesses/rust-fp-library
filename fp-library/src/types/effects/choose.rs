@@ -41,15 +41,19 @@ mod inner {
 		crate::{
 			Apply,
 			brands::{
+				BoxBrand,
+				BoxChooseBrand,
 				ChooseBrand,
 				SendChooseBrand,
 			},
 			classes::{
 				Functor,
+				Pointer,
 				RefCountedPointer,
 				SendFunctor,
 				SendRefCountedPointer,
 				ToDynCloneFn,
+				ToDynFnOnce,
 				ToDynSendFn,
 			},
 			impl_kind,
@@ -343,6 +347,105 @@ mod inner {
 			match fa {
 				SendChoose::Alt(k) =>
 					SendChoose::Alt(<P as ToDynSendFn>::new(move |b: bool| f((*k)(b)))),
+			}
+		}
+	}
+
+	/// Single-shot sibling of [`Choose`] with `dyn FnOnce`-bounded
+	/// continuation trait objects. Defined for substrate
+	/// uniformity but not exposed via any smart constructor.
+	///
+	/// `Choose` ships only on the four multi-shot wrappers
+	/// per the
+	/// [2026-05-03 wrapper-parameterization resolution](../../../../docs/plans/effects/resolutions.md)
+	/// because a `Choose` handler runs the continuation twice
+	/// (once per branch), which a single-shot `dyn FnOnce`
+	/// continuation cannot host. `BoxChoose` exists so that
+	/// the substrate trait family
+	/// (`Choose` / `SendChoose` / `BoxChoose` parallel to
+	/// `State` / `SendState` / `BoxState` and
+	/// `Reader` / `SendReader` / `BoxReader`) is structurally
+	/// uniform; no [`Run::choose`](crate::types::effects::run::Run)
+	/// or
+	/// [`RunExplicit::choose`](crate::types::effects::run_explicit::RunExplicit)
+	/// smart constructor exists, so the type is reachable only
+	/// from user code.
+	#[document_type_parameters(
+		"The lifetime of the continuation and any references it captures.",
+		"The pointer brand used for the continuation (necessarily [`BoxBrand`](crate::brands::BoxBrand) since that is the only brand implementing [`ToDynFnOnce`](crate::classes::ToDynFnOnce)).",
+		"The result type produced by running the effect."
+	)]
+	pub enum BoxChoose<'a, P, A>
+	where
+		P: ToDynFnOnce,
+		A: 'a, {
+		/// Run the continuation once for the chosen branch.
+		/// Unlike [`Choose::Alt`], this single-shot variant
+		/// invokes the continuation at most once.
+		Alt(<P as Pointer>::Of<'a, dyn 'a + FnOnce(bool) -> A>),
+	}
+
+	impl_kind! {
+		impl<P: ToDynFnOnce> for BoxChooseBrand<P> {
+			type Of<'a, A: 'a>: 'a = BoxChoose<'a, P, A>;
+		}
+	}
+
+	// No Clone impl: Box<dyn FnOnce> is not Clone.
+	// No SendFunctor impl: BoxBrand is single-thread by design.
+
+	impl Functor for BoxChooseBrand<BoxBrand> {
+		/// Maps `f` over the result type of this single-shot
+		/// choose effect.
+		///
+		/// Composes `f` with the stored continuation. The new
+		/// continuation is constructed via
+		/// [`ToDynFnOnce::new`]. Specialised to
+		/// [`BoxBrand`](crate::brands::BoxBrand) for the same
+		/// reason
+		/// [`BoxStateBrand`](crate::brands::BoxStateBrand)'s
+		/// [`Functor`](crate::classes::Functor) is specialised:
+		/// `Box<dyn FnOnce(...)>` itself implements
+		/// [`FnOnce`] via the standard library's
+		/// blanket impl on [`Box`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the continuation.",
+			"The original result type.",
+			"The new result type after applying `f`."
+		)]
+		///
+		#[document_parameters(
+			"The function to compose with the continuation.",
+			"The choose effect to map over."
+		)]
+		///
+		#[document_returns("A new choose effect with `f` composed onto the continuation.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::effects::choose::BoxChoose,
+		/// };
+		///
+		/// let alt: BoxChoose<'static, BoxBrand, i32> =
+		/// 	BoxChoose::Alt(Box::new(|b: bool| if b { 10 } else { 20 }) as Box<dyn FnOnce(bool) -> i32>);
+		/// let mapped = <BoxChooseBrand<BoxBrand> as Functor>::map(|x: i32| x + 1, alt);
+		/// match mapped {
+		/// 	BoxChoose::Alt(k) => assert_eq!(k(true), 11),
+		/// }
+		/// ```
+		fn map<'a, A: 'a, B: 'a>(
+			f: impl Fn(A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match fa {
+				BoxChoose::Alt(k) =>
+					BoxChoose::Alt(<BoxBrand as ToDynFnOnce>::new(move |b: bool| f(k(b)))),
 			}
 		}
 	}

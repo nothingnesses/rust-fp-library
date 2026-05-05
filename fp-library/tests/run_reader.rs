@@ -8,11 +8,14 @@
 //     >>= |e2| pure(e1 + e2)`) verifying the same environment is
 //     delivered on each successive Ask within one program.
 //
-// The four non-Arc wrappers (Run, RunExplicit, RcRun,
-// RcRunExplicit) thread `RcBrand` and use `ReaderBrand<RcBrand, E>`
-// in the row. The two Arc wrappers (ArcRun, ArcRunExplicit) thread
-// `ArcBrand` and use `SendReaderBrand<ArcBrand, E>` whose closure
-// projection bakes in `Send + Sync`.
+// The two default single-shot wrappers (Run, RunExplicit) thread
+// `BoxBrand` and use `BoxReaderBrand<BoxBrand, E>` whose closure
+// projection is `Box<dyn FnOnce>`. The two non-Arc multi-shot
+// wrappers (RcRun, RcRunExplicit) thread `RcBrand` and use
+// `ReaderBrand<RcBrand, E>` whose closure projection is
+// `Rc<dyn Fn>`. The two Arc wrappers (ArcRun, ArcRunExplicit)
+// thread `ArcBrand` and use `SendReaderBrand<ArcBrand, E>` whose
+// closure projection bakes in `Send + Sync`.
 
 use fp_library::{
 	brands::*,
@@ -23,6 +26,7 @@ use fp_library::{
 		rc_run::RcRun,
 		rc_run_explicit::RcRunExplicit,
 		reader::{
+			BoxReader,
 			Reader,
 			SendReader,
 		},
@@ -33,16 +37,16 @@ use fp_library::{
 
 // -- Run --
 
-type RunReaderRow = CoproductBrand<CoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+type RunReaderRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
 
 #[test]
 fn run_ask_returns_environment() {
 	let env: i32 = 42;
 	let prog: Run<RunReaderRow, CNilBrand, i32> = Run::ask();
 	let result = prog.interpret(handlers! {
-		ReaderBrand<RcBrand, i32>: move |op: Reader<'_, RcBrand, i32, Run<RunReaderRow, CNilBrand, i32>>| {
+		BoxReaderBrand<BoxBrand, i32>: move |op: BoxReader<'_, BoxBrand, i32, Run<RunReaderRow, CNilBrand, i32>>| {
 			match op {
-				Reader::Ask(k) => (*k)(env),
+				BoxReader::Ask(k) => k(env),
 			}
 		},
 	});
@@ -57,9 +61,9 @@ fn run_ask_bind_chain() {
 			Run::<RunReaderRow, CNilBrand, i32>::ask().bind(move |e2: i32| Run::pure(e1 + e2))
 		});
 	let result = prog.interpret(handlers! {
-		ReaderBrand<RcBrand, i32>: move |op: Reader<'_, RcBrand, i32, Run<RunReaderRow, CNilBrand, i32>>| {
+		BoxReaderBrand<BoxBrand, i32>: move |op: BoxReader<'_, BoxBrand, i32, Run<RunReaderRow, CNilBrand, i32>>| {
 			match op {
-				Reader::Ask(k) => (*k)(env),
+				BoxReader::Ask(k) => k(env),
 			}
 		},
 	});
@@ -108,9 +112,9 @@ fn run_explicit_ask_returns_environment() {
 	let env: i32 = 42;
 	let prog: RunExplicit<'static, RunReaderRow, CNilBrand, i32> = RunExplicit::ask();
 	let result = prog.interpret(handlers! {
-		ReaderBrand<RcBrand, i32>: move |op: Reader<'_, RcBrand, i32, RunExplicit<'static, RunReaderRow, CNilBrand, i32>>| {
+		BoxReaderBrand<BoxBrand, i32>: move |op: BoxReader<'_, BoxBrand, i32, RunExplicit<'static, RunReaderRow, CNilBrand, i32>>| {
 			match op {
-				Reader::Ask(k) => (*k)(env),
+				BoxReader::Ask(k) => k(env),
 			}
 		},
 	});
@@ -126,9 +130,9 @@ fn run_explicit_ask_bind_chain() {
 				.bind(move |e2: i32| RunExplicit::pure(e1 + e2))
 		});
 	let result = prog.interpret(handlers! {
-		ReaderBrand<RcBrand, i32>: move |op: Reader<'_, RcBrand, i32, RunExplicit<'static, RunReaderRow, CNilBrand, i32>>| {
+		BoxReaderBrand<BoxBrand, i32>: move |op: BoxReader<'_, BoxBrand, i32, RunExplicit<'static, RunReaderRow, CNilBrand, i32>>| {
 			match op {
-				Reader::Ask(k) => (*k)(env),
+				BoxReader::Ask(k) => k(env),
 			}
 		},
 	});

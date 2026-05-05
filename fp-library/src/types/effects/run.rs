@@ -1078,8 +1078,9 @@ mod inner {
 		/// coincide for `get`).
 		///
 		/// `Idx` is the type-level position witness identifying where
-		/// `StateBrand<RcBrand, A>` lives in the row `R`. Rust infers
-		/// `Idx` whenever the effect appears unambiguously in the row.
+		/// `BoxStateBrand<BoxBrand, A>` lives in the row `R`. Rust
+		/// infers `Idx` whenever the effect appears unambiguously in
+		/// the row.
 		#[document_signature]
 		///
 		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
@@ -1093,11 +1094,11 @@ mod inner {
 		/// 	brands::*,
 		/// 	types::effects::{
 		/// 		run::Run,
-		/// 		state::State,
+		/// 		state::BoxState,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxStateBrand<BoxBrand, i32>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: Run<FirstRow, Scoped, i32> = Run::get();
@@ -1111,16 +1112,20 @@ mod inner {
 				crate::types::effects::member::Member<
 						crate::types::Coyoneda<
 							'static,
-							crate::brands::StateBrand<crate::brands::RcBrand, A>,
+							crate::brands::BoxStateBrand<crate::brands::BoxBrand, A>,
 							A,
 						>,
 						Idx,
 					>, {
-			let effect: crate::types::effects::state::State<'static, crate::brands::RcBrand, A, A> =
-				crate::types::effects::state::State::Get(
-					<crate::brands::RcBrand as crate::classes::ToDynCloneFn>::new(|s: A| s),
-				);
-			Self::lift::<crate::brands::StateBrand<crate::brands::RcBrand, A>, Idx>(effect)
+			let effect: crate::types::effects::state::BoxState<
+				'static,
+				crate::brands::BoxBrand,
+				A,
+				A,
+			> = crate::types::effects::state::BoxState::Get(
+				<crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(|s: A| s),
+			);
+			Self::lift::<crate::brands::BoxStateBrand<crate::brands::BoxBrand, A>, Idx>(effect)
 		}
 
 		/// Lifts an `Ask` reader effect into the Run program. Direct
@@ -1130,8 +1135,9 @@ mod inner {
 		/// for `ask`).
 		///
 		/// `Idx` is the type-level position witness identifying where
-		/// `ReaderBrand<RcBrand, A>` lives in the row `R`. Rust infers
-		/// `Idx` whenever the effect appears unambiguously in the row.
+		/// `BoxReaderBrand<BoxBrand, A>` lives in the row `R`. Rust
+		/// infers `Idx` whenever the effect appears unambiguously in
+		/// the row.
 		#[document_signature]
 		///
 		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
@@ -1144,12 +1150,12 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::*,
 		/// 	types::effects::{
-		/// 		reader::Reader,
+		/// 		reader::BoxReader,
 		/// 		run::Run,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: Run<FirstRow, Scoped, i32> = Run::ask();
@@ -1163,20 +1169,20 @@ mod inner {
 				crate::types::effects::member::Member<
 						crate::types::Coyoneda<
 							'static,
-							crate::brands::ReaderBrand<crate::brands::RcBrand, A>,
+							crate::brands::BoxReaderBrand<crate::brands::BoxBrand, A>,
 							A,
 						>,
 						Idx,
 					>, {
-			let effect: crate::types::effects::reader::Reader<
+			let effect: crate::types::effects::reader::BoxReader<
 				'static,
-				crate::brands::RcBrand,
+				crate::brands::BoxBrand,
 				A,
 				A,
-			> = crate::types::effects::reader::Reader::Ask(
-				<crate::brands::RcBrand as crate::classes::ToDynCloneFn>::new(|e: A| e),
+			> = crate::types::effects::reader::BoxReader::Ask(
+				<crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(|e: A| e),
 			);
-			Self::lift::<crate::brands::ReaderBrand<crate::brands::RcBrand, A>, Idx>(effect)
+			Self::lift::<crate::brands::BoxReaderBrand<crate::brands::BoxBrand, A>, Idx>(effect)
 		}
 
 		/// Lifts a `Throw` except effect into the Run program. Direct
@@ -1244,14 +1250,14 @@ mod inner {
 		/// The program writes the supplied state value `s` and
 		/// returns `()` as the result type.
 		///
-		/// `StateType` is the state type carried by `StateBrand` in
-		/// the row. Rust may need a turbofish on `StateType` because
-		/// `put`'s result type is `()` (which doesn't constrain the
-		/// state type from the call site).
+		/// `StateType` is the state type carried by `BoxStateBrand`
+		/// in the row. Rust may need a turbofish on `StateType`
+		/// because `put`'s result type is `()` (which doesn't
+		/// constrain the state type from the call site).
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The state type carried by `StateBrand` in the row.",
+			"The state type carried by `BoxStateBrand` in the row.",
 			"The type-level Member-position witness (typically inferred)."
 		)]
 		///
@@ -1266,11 +1272,11 @@ mod inner {
 		/// 	brands::*,
 		/// 	types::effects::{
 		/// 		run::Run,
-		/// 		state::State,
+		/// 		state::BoxState,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxStateBrand<BoxBrand, i32>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: Run<FirstRow, Scoped, ()> = Run::put::<i32, _>(42);
@@ -1284,21 +1290,23 @@ mod inner {
 				crate::types::effects::member::Member<
 						crate::types::Coyoneda<
 							'static,
-							crate::brands::StateBrand<crate::brands::RcBrand, StateType>,
+							crate::brands::BoxStateBrand<crate::brands::BoxBrand, StateType>,
 							(),
 						>,
 						Idx,
 					>, {
-			let effect: crate::types::effects::state::State<
+			let effect: crate::types::effects::state::BoxState<
 				'static,
-				crate::brands::RcBrand,
+				crate::brands::BoxBrand,
 				StateType,
 				(),
-			> = crate::types::effects::state::State::Put(
+			> = crate::types::effects::state::BoxState::Put(
 				s,
-				<crate::brands::RcBrand as crate::classes::ToDynCloneFn>::new(|_: ()| ()),
+				<crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(|_: ()| ()),
 			);
-			Self::lift::<crate::brands::StateBrand<crate::brands::RcBrand, StateType>, Idx>(effect)
+			Self::lift::<crate::brands::BoxStateBrand<crate::brands::BoxBrand, StateType>, Idx>(
+				effect,
+			)
 		}
 
 		/// Lifts a `Tell` writer effect into the Run program. Direct

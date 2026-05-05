@@ -27,15 +27,19 @@ mod inner {
 		crate::{
 			Apply,
 			brands::{
+				BoxBrand,
+				BoxReaderBrand,
 				ReaderBrand,
 				SendReaderBrand,
 			},
 			classes::{
 				Functor,
+				Pointer,
 				RefCountedPointer,
 				SendFunctor,
 				SendRefCountedPointer,
 				ToDynCloneFn,
+				ToDynFnOnce,
 				ToDynSendFn,
 			},
 			impl_kind,
@@ -342,6 +346,118 @@ mod inner {
 			match fa {
 				SendReader::Ask(k) =>
 					SendReader::Ask(<P as ToDynSendFn>::new(move |e: E| f((*k)(e)))),
+			}
+		}
+	}
+
+	/// Single-shot sibling of [`Reader`] with `dyn FnOnce`-bounded
+	/// continuation trait objects, for use on default
+	/// [`Run`](crate::types::effects::run::Run) /
+	/// [`RunExplicit`](crate::types::effects::run_explicit::RunExplicit)
+	/// substrates whose program-tree is non-cloneable.
+	///
+	/// The single `Ask` variant carries a continuation in `P`'s
+	/// pointer kind projected onto a `dyn FnOnce` trait object
+	/// (`Box<dyn FnOnce(E) -> A>` for
+	/// [`BoxBrand`](crate::brands::BoxBrand) via
+	/// [`ToDynFnOnce`](crate::classes::ToDynFnOnce)). Mirrors
+	/// PureScript Run's `Reader e a` shape directly, with
+	/// FnOnce semantics replacing the multi-shot `Fn` of the
+	/// existing [`Reader`] / [`SendReader`] siblings.
+	///
+	/// Used by the default `Run` family `ask` smart constructors
+	/// ([`Run::ask`](crate::types::effects::run::Run) /
+	/// [`RunExplicit::ask`](crate::types::effects::run_explicit::RunExplicit)).
+	/// Multi-shot non-thread-safe wrappers
+	/// ([`RcRun`](crate::types::effects::rc_run::RcRun) /
+	/// [`RcRunExplicit`](crate::types::effects::rc_run_explicit::RcRunExplicit))
+	/// keep using [`Reader`]; thread-safe wrappers
+	/// ([`ArcRun`](crate::types::effects::arc_run::ArcRun) /
+	/// [`ArcRunExplicit`](crate::types::effects::arc_run_explicit::ArcRunExplicit))
+	/// keep using [`SendReader`].
+	#[document_type_parameters(
+		"The lifetime of the continuation and any references it captures.",
+		"The pointer brand used for the continuation (necessarily [`BoxBrand`](crate::brands::BoxBrand) since that is the only brand implementing [`ToDynFnOnce`](crate::classes::ToDynFnOnce)).",
+		"The environment type.",
+		"The result type produced by running the effect."
+	)]
+	pub enum BoxReader<'a, P, E, A>
+	where
+		P: ToDynFnOnce,
+		E: 'a,
+		A: 'a, {
+		/// Read the immutable environment. The continuation is
+		/// applied to the current environment value to produce
+		/// the result `A`.
+		Ask(<P as Pointer>::Of<'a, dyn 'a + FnOnce(E) -> A>),
+	}
+
+	impl_kind! {
+		impl<P: ToDynFnOnce, E: 'static> for BoxReaderBrand<P, E> {
+			type Of<'a, A: 'a>: 'a = BoxReader<'a, P, E, A>;
+		}
+	}
+
+	// No Clone impl: Box<dyn FnOnce> is not Clone.
+	// No SendFunctor impl: BoxBrand is single-thread by design.
+
+	#[document_type_parameters("The environment type.")]
+	impl<E> Functor for BoxReaderBrand<BoxBrand, E>
+	where
+		E: 'static,
+	{
+		/// Maps `f` over the result type of this single-shot
+		/// reader effect.
+		///
+		/// Composes `f` with the stored continuation. The new
+		/// continuation is constructed via
+		/// [`ToDynFnOnce::new`]. Specialised to
+		/// [`BoxBrand`](crate::brands::BoxBrand) for the same
+		/// reason
+		/// [`BoxStateBrand`](crate::brands::BoxStateBrand)'s
+		/// [`Functor`](crate::classes::Functor) is specialised:
+		/// `Box<dyn FnOnce(...)>` itself implements
+		/// [`FnOnce`] via the standard library's
+		/// blanket impl on [`Box`], a property not available
+		/// generically over `P: ToDynFnOnce`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the continuation.",
+			"The original result type.",
+			"The new result type after applying `f`."
+		)]
+		///
+		#[document_parameters(
+			"The function to compose with the continuation.",
+			"The reader effect to map over."
+		)]
+		///
+		#[document_returns("A new reader effect with `f` composed onto the continuation.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::effects::reader::BoxReader,
+		/// };
+		///
+		/// let ask: BoxReader<'static, BoxBrand, i32, i32> =
+		/// 	BoxReader::Ask(Box::new(|e: i32| e * 2) as Box<dyn FnOnce(i32) -> i32>);
+		/// let mapped = <BoxReaderBrand<BoxBrand, i32> as Functor>::map(|x: i32| x + 1, ask);
+		/// match mapped {
+		/// 	BoxReader::Ask(k) => assert_eq!(k(3), 7),
+		/// }
+		/// ```
+		fn map<'a, A: 'a, B: 'a>(
+			f: impl Fn(A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match fa {
+				BoxReader::Ask(k) =>
+					BoxReader::Ask(<BoxBrand as ToDynFnOnce>::new(move |e: E| f(k(e)))),
 			}
 		}
 	}

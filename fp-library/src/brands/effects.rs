@@ -43,6 +43,55 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct ArcRunExplicitBrand<R, S>(PhantomData<(R, S)>);
 
+	/// Brand for [`BoxChoose`](crate::types::effects::choose::BoxChoose),
+	/// the FnOnce-continuation sibling of [`ChooseBrand`] used on
+	/// default `Run` / `RunExplicit` substrates whose closure
+	/// storage is `Box<dyn FnOnce>`. Parameterised by
+	/// `P: ToDynFnOnce`, which is implementable only by
+	/// [`BoxBrand`](crate::brands::BoxBrand); `Rc<dyn FnOnce>` and
+	/// `Arc<dyn FnOnce>` are operationally broken because
+	/// [`FnOnce::call_once`] consumes `self` (the trait object)
+	/// out of a shared pointer.
+	///
+	/// Phase 3.5 retrofit: `Choose` smart constructors only ship
+	/// on the four multi-shot wrappers per the
+	/// [2026-05-03 wrapper-parameterization resolution](../../../docs/plans/effects/resolutions.md),
+	/// so `BoxChoose` is defined for substrate uniformity but no
+	/// smart constructor exposes it on `Run` / `RunExplicit`.
+	/// Multi-shot wrappers (`RcRun` / `RcRunExplicit` / `ArcRun` /
+	/// `ArcRunExplicit`) keep using [`ChooseBrand`] /
+	/// [`SendChooseBrand`] because their handlers require
+	/// multi-shot continuation invocation.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct BoxChooseBrand<P>(PhantomData<P>);
+
+	/// Brand for [`BoxReader`](crate::types::effects::reader::BoxReader),
+	/// the FnOnce-continuation sibling of [`ReaderBrand`] used on
+	/// default `Run` / `RunExplicit` substrates whose closure
+	/// storage is `Box<dyn FnOnce>`. Parameterised by
+	/// `P: ToDynFnOnce`, which is implementable only by
+	/// [`BoxBrand`](crate::brands::BoxBrand).
+	///
+	/// Phase 3.5 retrofit. Multi-shot wrappers (`RcRun` /
+	/// `RcRunExplicit` / `ArcRun` / `ArcRunExplicit`) keep using
+	/// [`ReaderBrand`] / [`SendReaderBrand`].
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct BoxReaderBrand<P, E>(PhantomData<(P, E)>);
+
+	/// Brand for [`BoxState`](crate::types::effects::state::BoxState),
+	/// the FnOnce-continuation sibling of [`StateBrand`] used on
+	/// default `Run` / `RunExplicit` substrates whose closure
+	/// storage is `Box<dyn FnOnce>`. Parameterised by
+	/// `P: ToDynFnOnce`, which is implementable only by
+	/// [`BoxBrand`](crate::brands::BoxBrand).
+	///
+	/// Phase 3.5 retrofit. Multi-shot non-thread-safe wrappers
+	/// (`RcRun` / `RcRunExplicit`) keep using [`StateBrand`];
+	/// thread-safe wrappers (`ArcRun` / `ArcRunExplicit`) keep
+	/// using [`SendStateBrand`].
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct BoxStateBrand<P, S>(PhantomData<(P, S)>);
+
 	/// Brand for the empty effect row [`CNil`](crate::types::effects::coproduct::CNil).
 	///
 	/// The base case of the recursive [`CoproductBrand`] chain that encodes a

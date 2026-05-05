@@ -3418,3 +3418,133 @@ from `CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>`
 to `CoproductBrand<IdentityBrand, CNilBrand>` so `peel()` works
 (bare `Coyoneda` is `!Clone`, blocking `RcRun::peel`'s
 substrate-`Clone` bound).
+
+## Phase 3.5: Pointer-brand-pattern retrofit
+
+### Sub-step 2: three-sibling-types interpretation of effect retrofit
+
+[plan.md sub-step 2](plan.md#phase-35-pointer-brand-pattern-retrofit)
+specifies that `Run::get` / `Run::put` / `Run::ask` (and the
+`RunExplicit` parallels) "switch from `StateBrand<RcBrand, S>` to
+`StateBrand<BoxBrand, S>`" (and similar for Reader / Choose) so the
+default `Run` family uses `Box<dyn FnOnce>` continuations via the new
+[`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs)
+trait. Taken literally, this would have the existing
+[`StateBrand<P, S>`](../../../fp-library/src/brands/effects.rs)
+accept `BoxBrand` as `P`. The implementation diverges: the actual
+landed shape introduces parallel sibling brands
+[`BoxStateBrand<P, S>`](../../../fp-library/src/brands/effects.rs) /
+[`BoxReaderBrand<P, E>`](../../../fp-library/src/brands/effects.rs) /
+[`BoxChooseBrand<P>`](../../../fp-library/src/brands/effects.rs) plus
+parallel sibling types
+[`BoxState<'a, P, S, A>`](../../../fp-library/src/types/effects/state.rs) /
+[`BoxReader<'a, P, E, A>`](../../../fp-library/src/types/effects/reader.rs) /
+[`BoxChoose<'a, P, A>`](../../../fp-library/src/types/effects/choose.rs)
+each bounded by `where P: ToDynFnOnce` (which only `BoxBrand`
+satisfies). `Run::get` / `Run::put` / `Run::ask` now thread
+`BoxStateBrand<BoxBrand, A>` / `BoxReaderBrand<BoxBrand, A>` (no smart
+constructor for `BoxChooseBrand` because `Choose` ships only on
+multi-shot wrappers per the
+[2026-05-03 wrapper-parameterization resolution](resolutions.md);
+`BoxChoose` exists for substrate uniformity).
+
+**Rationale for the three-sibling interpretation rather than the
+literal "single brand parametrised over `P`" reading:**
+
+1. `StateBrand<P, S>`'s existing variant types are
+   `<P as RefCountedPointer>::Of<'a, dyn 'a + Fn(S) -> A>` and the
+   companion `Fn(()) -> A`. `BoxBrand` does NOT implement
+   [`RefCountedPointer`](../../../fp-library/src/classes/ref_counted_pointer.rs)
+   because `Box<dyn Fn>` is not `Clone`. Generalising the `where`
+   bound on `StateBrand` would not reach `BoxBrand`; it would only
+   accept the same `Rc` / `Arc` brands the original bound already
+   accepts.
+
+2. The structural mismatch is deeper than the bound: the closure
+   trait _shape_ differs per pointer brand. `BoxBrand` needs
+   `dyn FnOnce(S) -> A` (single-shot); `RcBrand` needs
+   `dyn Fn(S) -> A` (multi-shot, cloneable); `ArcBrand` needs
+   `dyn Fn(S) -> A + Send + Sync`. A unified `State<P, S, A>` would
+   require either GAT-over-closure-traits (not in stable Rust) or a
+   new abstraction trait `ClosureCarrier` whose `make_closure<F: ???>`
+   bound differs per impl (not expressible in stable Rust either).
+
+3. The three-sibling pattern has direct precedent: Phase 3 step 5a.4
+   introduced
+   [`SendStateBrand`](../../../fp-library/src/brands/effects.rs) and
+   [`SendState`](../../../fp-library/src/types/effects/state.rs) as
+   siblings to the original `StateBrand` / `State` for exactly the
+   same structural reason (Arc's `Send + Sync` trait object differs
+   structurally from Rc's; see
+   [the 2026-05-03 option-(c) resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)).
+   The Arc-substrate Run wrappers thread `SendStateBrand<ArcBrand, S>`
+   instead of `StateBrand<ArcBrand, S>`. The Phase 3.5 retrofit
+   extends this to a third sibling: the `Box`-substrate Run wrappers
+   thread `BoxStateBrand<BoxBrand, S>`.
+
+4. plan.md's `StateBrand<BoxBrand, S>` notation is loose shorthand
+   for "the State-family brand parameterised by `BoxBrand`". The
+   actual artifact name (`BoxStateBrand`) keeps the family naming
+   convention `<Property>StateBrand<P, S>`: empty prefix for
+   Rc-substrate, `Send` for Arc-substrate (`Send + Sync` property),
+   `Box` for default-substrate (`FnOnce` property).
+
+**Per-sibling design choices:**
+
+- `Functor` impls on `BoxStateBrand` / `BoxReaderBrand` /
+  `BoxChooseBrand` are specialised to `BoxBrand` (rather than
+  generic over `P: ToDynFnOnce`) because the body invokes the stored
+  continuation directly via `k(arg)`, which requires the projection
+  `<P as Pointer>::Of<'_, dyn FnOnce(...) -> A>` to itself implement
+  [`FnOnce`]. The standard library provides this implementation only
+  for [`Box`] (the
+  [`impl<F: ?Sized + FnOnce<Args>> FnOnce<Args> for Box<F>`](https://doc.rust-lang.org/stable/core/ops/trait.FnOnce.html#impl-FnOnce%3CArgs%3E-for-Box%3CF,+A%3E)
+  blanket impl on `Box`). Generalising would require extending
+  [`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs)
+  with a `call_once` trait method that consumes the projection, which
+  goes beyond Phase 3.5 sub-step 1's surface and is not needed since
+  `BoxBrand` is the only valid `P`.
+
+- Three new types ship without `Clone` impls (the `Send` / non-`Send`
+  siblings keep their existing `Clone` impls): `Box<dyn FnOnce>` is
+  not `Clone`, and the default Run wrapper's program-tree is also
+  not `Clone`, so cloning the effect would have no compatible
+  consumer. This is the structural reason `Choose` does not ship a
+  smart constructor for `BoxChoose` on `Run` / `RunExplicit`: a
+  `Choose` handler invokes the continuation twice.
+
+- No `SendFunctor` impls on the three new brands: `BoxBrand`'s
+  projection lacks `Send + Sync` bounds in the trait object, and the
+  default Run wrappers are single-thread by design.
+
+**Test impact and migration:**
+
+[`fp-library/tests/run_state.rs`](../../../fp-library/tests/run_state.rs)
+and
+[`fp-library/tests/run_reader.rs`](../../../fp-library/tests/run_reader.rs)
+already cover all six wrappers. The retrofit updates the
+`RunStateRow` and `RunReaderRow` type aliases (used by both `Run` and
+`RunExplicit` tests) from `StateBrand<RcBrand, i32>` /
+`ReaderBrand<RcBrand, i32>` to `BoxStateBrand<BoxBrand, i32>` /
+`BoxReaderBrand<BoxBrand, i32>`. The handler closures in
+`Run::interpret` / `RunExplicit::interpret` calls switch from `State`
+/ `Reader` to `BoxState` / `BoxReader` operands, with the closure
+body invocation simplified from `(*k)(arg)` (Rc-deref-then-call) to
+`k(arg)` (Box's blanket `FnOnce` impl, consuming the box on the
+single call). `RcRun` / `RcRunExplicit` / `ArcRun` /
+`ArcRunExplicit` test handlers stay unchanged.
+
+The
+[`run_smart_constructor_type_mismatch.rs`](../../../fp-library/tests/ui/run_smart_constructor_type_mismatch.rs)
+compile_fail UI test (Phase 3 step 7) is updated to use
+`BoxReaderBrand<BoxBrand, String>` in the row, mirroring the new
+shape of `Run::ask`'s smart constructor signature; the test still
+demonstrates the `String != i32` mismatch via row/ascription
+unification. Sibling `.stderr` regenerated via `TRYBUILD=overwrite
+cargo test --test compile_fail`.
+
+`Choose<BoxBrand, A>` is structurally not exposed via any smart
+constructor on `Run` / `RunExplicit` per plan.md sub-step 2's note
+("the retrofit still defines it for substrate uniformity but no
+smart constructor exposes it"); the type is reachable only through
+direct user code constructing a `BoxChoose` value.

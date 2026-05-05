@@ -33,15 +33,19 @@ mod inner {
 		crate::{
 			Apply,
 			brands::{
+				BoxBrand,
+				BoxStateBrand,
 				SendStateBrand,
 				StateBrand,
 			},
 			classes::{
 				Functor,
+				Pointer,
 				RefCountedPointer,
 				SendFunctor,
 				SendRefCountedPointer,
 				ToDynCloneFn,
+				ToDynFnOnce,
 				ToDynSendFn,
 			},
 			impl_kind,
@@ -395,6 +399,139 @@ mod inner {
 					SendState::Get(<P as ToDynSendFn>::new(move |s: S| f((*k)(s)))),
 				SendState::Put(s, k) =>
 					SendState::Put(s, <P as ToDynSendFn>::new(move |u: ()| f((*k)(u)))),
+			}
+		}
+	}
+
+	/// Single-shot sibling of [`State`] with `dyn FnOnce`-bounded
+	/// continuation trait objects, for use on default
+	/// [`Run`](crate::types::effects::run::Run) /
+	/// [`RunExplicit`](crate::types::effects::run_explicit::RunExplicit)
+	/// substrates whose program-tree is non-cloneable.
+	///
+	/// Each variant carries a continuation in `P`'s pointer kind
+	/// projected onto a `dyn FnOnce` trait object
+	/// (`Box<dyn FnOnce(...) -> A>` for
+	/// [`BoxBrand`](crate::brands::BoxBrand) via
+	/// [`ToDynFnOnce`](crate::classes::ToDynFnOnce)). Mirrors
+	/// PureScript Run's
+	/// [`State s a`](https://github.com/natefaubion/purescript-run/blob/main/src/Run/State.purs)
+	/// shape directly, with FnOnce semantics replacing the
+	/// multi-shot `Fn` of the existing [`State`] / [`SendState`]
+	/// siblings.
+	///
+	/// Used by the default `Run` family smart constructors
+	/// ([`Run::get`](crate::types::effects::run::Run) /
+	/// [`Run::put`](crate::types::effects::run::Run) /
+	/// [`RunExplicit::get`](crate::types::effects::run_explicit::RunExplicit) /
+	/// [`RunExplicit::put`](crate::types::effects::run_explicit::RunExplicit))
+	/// because their programs are single-shot and `FnOnce` is the
+	/// precise semantic; non-thread-safe multi-shot wrappers
+	/// ([`RcRun`](crate::types::effects::rc_run::RcRun) /
+	/// [`RcRunExplicit`](crate::types::effects::rc_run_explicit::RcRunExplicit))
+	/// keep using [`State`]; thread-safe wrappers
+	/// ([`ArcRun`](crate::types::effects::arc_run::ArcRun) /
+	/// [`ArcRunExplicit`](crate::types::effects::arc_run_explicit::ArcRunExplicit))
+	/// keep using [`SendState`].
+	#[document_type_parameters(
+		"The lifetime of the continuations and any references they capture.",
+		"The pointer brand used for the continuations (necessarily [`BoxBrand`](crate::brands::BoxBrand) since that is the only brand implementing [`ToDynFnOnce`](crate::classes::ToDynFnOnce)).",
+		"The state type.",
+		"The result type produced by running the effect."
+	)]
+	pub enum BoxState<'a, P, S, A>
+	where
+		P: ToDynFnOnce,
+		S: 'a,
+		A: 'a, {
+		/// Read the current state. The continuation is applied to
+		/// the current state value to produce the result `A`.
+		Get(<P as Pointer>::Of<'a, dyn 'a + FnOnce(S) -> A>),
+		/// Write a new state. The continuation is applied to `()`
+		/// (after the state has been updated) to produce the
+		/// result `A`.
+		Put(S, <P as Pointer>::Of<'a, dyn 'a + FnOnce(()) -> A>),
+	}
+
+	impl_kind! {
+		impl<P: ToDynFnOnce, S: 'static> for BoxStateBrand<P, S> {
+			type Of<'a, A: 'a>: 'a = BoxState<'a, P, S, A>;
+		}
+	}
+
+	// No Clone impl: Box<dyn FnOnce> is not Clone (a single-shot
+	// continuation cannot be duplicated). This is the structural
+	// reason BoxState ships only on the single-shot Run wrappers;
+	// multi-shot wrappers route through State / SendState whose
+	// shared-pointer projections are Clone.
+
+	// No SendFunctor impl: BoxBrand's projection is Box<dyn FnOnce>
+	// without Send + Sync bounds in the trait object; the BoxBrand
+	// path is single-thread by design.
+
+	#[document_type_parameters("The state type.")]
+	impl<S> Functor for BoxStateBrand<BoxBrand, S>
+	where
+		S: 'static,
+	{
+		/// Maps `f` over the result type of this single-shot
+		/// stateful effect.
+		///
+		/// Composes `f` with each variant's stored continuation.
+		/// The new continuation is constructed via
+		/// [`ToDynFnOnce::new`]. Specialised to
+		/// [`BoxBrand`](crate::brands::BoxBrand) because the body
+		/// requires the projection
+		/// `<BoxBrand as Pointer>::Of<'_, dyn FnOnce(...)>` =
+		/// `Box<dyn FnOnce(...)>` to itself implement
+		/// [`FnOnce`] (which the standard library provides only
+		/// for [`Box`]); generalising the impl over
+		/// `P: ToDynFnOnce` would require a trait method that
+		/// consumes the projection to call its inner `FnOnce`,
+		/// which would extend
+		/// [`ToDynFnOnce`](crate::classes::ToDynFnOnce)'s surface
+		/// beyond Phase 3.5 sub-step 1.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the continuations.",
+			"The original result type.",
+			"The new result type after applying `f`."
+		)]
+		///
+		#[document_parameters(
+			"The function to compose with each continuation.",
+			"The state effect to map over."
+		)]
+		///
+		#[document_returns("A new state effect with `f` composed onto each continuation.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::effects::state::BoxState,
+		/// };
+		///
+		/// let get: BoxState<'static, BoxBrand, i32, i32> =
+		/// 	BoxState::Get(Box::new(|s: i32| s * 2) as Box<dyn FnOnce(i32) -> i32>);
+		/// let mapped = <BoxStateBrand<BoxBrand, i32> as Functor>::map(|x: i32| x + 1, get);
+		/// match mapped {
+		/// 	BoxState::Get(k) => assert_eq!(k(3), 7),
+		/// 	BoxState::Put(..) => panic!("expected Get"),
+		/// }
+		/// ```
+		fn map<'a, A: 'a, B: 'a>(
+			f: impl Fn(A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match fa {
+				BoxState::Get(k) =>
+					BoxState::Get(<BoxBrand as ToDynFnOnce>::new(move |s: S| f(k(s)))),
+				BoxState::Put(s, k) =>
+					BoxState::Put(s, <BoxBrand as ToDynFnOnce>::new(move |u: ()| f(k(u)))),
 			}
 		}
 	}
