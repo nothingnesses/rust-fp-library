@@ -153,7 +153,7 @@ toward fundamental and explain the uncertainty.
 ## Output format
 
 Write the report to
-`/home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/review_effects_rs.md`.
+`/home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/0_first_order_effects_implementation/review_effects_rs.md`.
 If a file already exists at that path, overwrite it; prior reviews
 are tracked through git history.
 

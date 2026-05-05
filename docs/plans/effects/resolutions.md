@@ -1090,10 +1090,10 @@ family` per-wrapper notes.
 
 An adversarial review of the WIP effects implementation
 (commissioned 2026-05-03;
-[review_effects_rs.md](review/review_effects_rs.md))
+[review_effects_rs.md](review/0_first_order_effects_implementation/review_effects_rs.md))
 filed 5 fundamental, 8 major, and 9 minor findings. The
 remediation analysis
-([remediation_proposals.md](review/remediation_proposals.md))
+([remediation_proposals.md](review/0_first_order_effects_implementation/remediation_proposals.md))
 recommended three changes that overturn prior locked-in
 decisions in this file. This entry ratifies those three
 reversals and pre-records the remaining recommendations as a
@@ -1236,7 +1236,7 @@ become "what step 2/3/4 say going forward") plus one new step
    `Node::Scoped(_)` arms). M3C parameterises step 3's
    `interpret_with` over `P: RefCountedPointer` (drops the
    user-facing `Clone` bound; pairs naturally with [m9
-   interpreter dispatch impl deduplication](review/remediation_proposals.md#minor-findings)).
+   interpreter dispatch impl deduplication](review/0_first_order_effects_implementation/remediation_proposals.md#minor-findings)).
    Lands before resuming step 6a.3 (next pending sub-step of
    the standard first-order effects work) so step 6 does not
    inherit the issues.
@@ -1248,24 +1248,24 @@ become "what step 2/3/4 say going forward") plus one new step
 ### Remaining review recommendations: tracked as Phase 3 step 9
 
 The review's other recommendations
-([remediation_proposals.md](review/remediation_proposals.md))
+([remediation_proposals.md](review/0_first_order_effects_implementation/remediation_proposals.md))
 are non-reversals and do not require ratification here. They
 bundle into the new Phase 3 step 9 (review-remediation
 documentation pass): F2A, F4A, F5A, M4 audit, M6A
 async-via-`spawn_blocking` doc, M7A bind/handler asymmetry
 note, and all minor m1-m9 items. Lands as one commit before
 public release. The
-[`SendFunctorAt`](review/remediation_proposals.md#m5-sendfunctor-for-statebrand-is-deferred-multi-thread-state-is-unimplemented)
+[`SendFunctorAt`](review/0_first_order_effects_implementation/remediation_proposals.md#m5-sendfunctor-for-statebrand-is-deferred-multi-thread-state-is-unimplemented)
 spike on State for the Arc family is a sub-task of step 6
 (standard first-order effects), not step 9, since it gates the
 ArcRun State Success criterion.
 
 ### Cross-references
 
-- [`review_effects_rs.md`](review/review_effects_rs.md): the
+- [`review_effects_rs.md`](review/0_first_order_effects_implementation/review_effects_rs.md): the
   adversarial review report ($9fd2bb8$) that surfaced the
   findings.
-- [`remediation_proposals.md`](review/remediation_proposals.md):
+- [`remediation_proposals.md`](review/0_first_order_effects_implementation/remediation_proposals.md):
   the per-finding options + recommendations ($1bfb9f0$) that
   proposed these reversals.
 - [Q3 (2026-05-02)](#resolved-2026-05-02-phase-3-step-4-interpreter-design-handler-shape-dispatch-trait-reuse-state-threading):

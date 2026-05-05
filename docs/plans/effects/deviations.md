@@ -3262,7 +3262,7 @@ Verification: 23 UI tests pass (20 pre-existing + 3 new).
 ### Step 8: review-remediation documentation pass
 
 Bundles the doc-shaped items from
-[`remediation_proposals.md`](review/remediation_proposals.md)
+[`remediation_proposals.md`](review/0_first_order_effects_implementation/remediation_proposals.md)
 that the substantive Phase 3 code work didn't already absorb.
 Closes Phase 3.
 
@@ -3331,7 +3331,7 @@ What diverged from the original step 8 plan:
 - **Minor m1-m9 findings excluded.** The original step 8
   description listed "all minor m1-m9 findings" as part of
   the bundle, but the
-  [`remediation_proposals.md` sequencing plan](review/remediation_proposals.md)
+  [`remediation_proposals.md` sequencing plan](review/0_first_order_effects_implementation/remediation_proposals.md)
   explicitly slates them for a separate "polish" commit
   before the next public release. Step 8 ships the focused
   doc remediations for F2/F4/F5/M4/M6/M7 only.

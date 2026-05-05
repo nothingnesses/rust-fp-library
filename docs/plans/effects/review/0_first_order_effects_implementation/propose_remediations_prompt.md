@@ -42,7 +42,7 @@ Read all of the following before producing output. They are listed in
 the order you should read them.
 
 1. **Review report (the source of findings):**
-   `/home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/review_effects_rs.md`
+   `/home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/0_first_order_effects_implementation/review_effects_rs.md`
    This is your working set. Every finding in it must appear in your
    output. If the report is missing, stop and tell the user; do not
    fabricate findings.
@@ -189,7 +189,7 @@ A bad remediation proposal:
 ## Output
 
 Write the result to
-`/home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/remediation_proposals.md`.
+`/home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/0_first_order_effects_implementation/remediation_proposals.md`.
 If the file exists, overwrite it. Use this top-level structure:
 
 ```

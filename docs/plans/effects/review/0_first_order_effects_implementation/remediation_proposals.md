@@ -35,7 +35,7 @@ signature is therefore a contract the implementation cannot keep.
 **Root cause:** The mono-in-A handler dispatch returns `A`, with no
 `M` in the return type. The interpreter has no slot to expose
 threaded state to the caller. The plan
-[resolutions.md Q3](../resolutions.md#L360) confirmed
+[resolutions.md Q3](../../resolutions.md#L360) confirmed
 "closure-capture" as the chosen state-threading model and explicitly
 deferred StateT-as-target to Phase 6+. Once that decision was
 locked, `init` had no role inside the function but remained in the
@@ -47,15 +47,15 @@ signature for "PureScript Run parity".
   parameter from `run_accum` / `run_accum_rec` on all six wrappers.
   Touches the 12 method signatures listed in the review report
   (e.g.,
-  [run.rs:653-666](../../../../fp-library/src/types/effects/run.rs#L653-L666)),
+  [run.rs:653-666](../../../../../fp-library/src/types/effects/run.rs#L653-L666)),
   the 12 doctests, and the brief mention in
-  [plan.md "Out of scope" / decisions row](../plan.md#L1207).
+  [plan.md "Out of scope" / decisions row](../../plan.md#L1207).
 - _Cost:_ Small (a session). API breakage is in-scope (no public
   release yet per
-  [plan.md API stability stance](../plan.md#L1011)). No type-inference
+  [plan.md API stability stance](../../plan.md#L1011)). No type-inference
   impact (removing a parameter strictly relaxes inference). One
   resolution-doc revision: amend
-  [resolutions.md Q3](../resolutions.md#L360) to record that the
+  [resolutions.md Q3](../../resolutions.md#L360) to record that the
   `init` parameter was vestigial and is now removed; the
   closure-capture pattern remains.
 - _Benefit:_ The headline `run_accum` / `run_accum_rec` API stops
@@ -87,7 +87,7 @@ state-injection adapter.**
   parity at the API level. Does not require StateT.
 - _Risks:_ The "wrap each handler" step has to walk the handler
   list at type-level, which is exactly the trait machinery
-  [resolutions.md Q3](../resolutions.md#L386) called "doubles the
+  [resolutions.md Q3](../../resolutions.md#L386) called "doubles the
   trait machinery" and rejected. Reproduces a rejected design.
 
 **Option C: Rename `run_accum` to `run_with_cell` (or similar) and
@@ -99,7 +99,7 @@ keep `init` removed.**
 - _Cost:_ Same as Option A plus the rename. Loses literal naming
   parity with PureScript Run (`runAccum`). Touches ~30 call sites
   (12 doctests + tests in
-  [run_interpret.rs](../../../../fp-library/tests/run_interpret.rs)
+  [run_interpret.rs](../../../../../fp-library/tests/run_interpret.rs)
   and similar).
 - _Benefit:_ Clearer API. The name advertises the closure-capture
   convention. Forecloses future confusion.
@@ -113,19 +113,19 @@ only `interpret` / `interpret_rec`.**
 
 - _What:_ Remove all 12 method definitions across the six wrappers,
   delete the corresponding doctests, and add a doctest to
-  [`interpret`](../../../../fp-library/src/types/effects/run.rs#L497)
+  [`interpret`](../../../../../fp-library/src/types/effects/run.rs#L497)
   showing the closure-capture state pattern (the same pattern the
   current `run_accum` doctests show, just attached to `interpret`
   instead of to a function whose name implies state). Touches the
   same files as Option A minus the surviving signatures. Roughly
   the same effort as Option A; net deletes more lines than it adds.
 - _Cost:_ Small (a session). API breakage is in-scope per
-  [plan.md "API stability stance"](../plan.md#L1011). Loses the
+  [plan.md "API stability stance"](../../plan.md#L1011). Loses the
   PureScript Run name `runAccum` from the public surface; the
   closure-capture pattern is documented on `interpret` instead.
   Same plan revisions as Option A plus removing the `runAccum`
   bullet from
-  [plan.md "Implementation phasing" line 1131](../plan.md#L1131).
+  [plan.md "Implementation phasing" line 1131](../../plan.md#L1131).
 - _Benefit:_ Smallest possible API surface for the same
   capability. Two names for one operation is strictly worse than
   one. Future-proof: when StateT lands in Phase 6+, the new
@@ -161,12 +161,12 @@ so that scoped-effect handlers do not inherit the same parameter
 mistake.
 
 **Plan revision required:** Yes (small).
-[Resolutions.md Q3](../resolutions.md#L360)'s text needs updating
+[Resolutions.md Q3](../../resolutions.md#L360)'s text needs updating
 to "state threading is via user-side closure captures applied to
 `interpret` / `interpret_rec`; no separate `run_accum` API". The
-[plan.md "Implementation phasing" line 1131](../plan.md#L1131)
+[plan.md "Implementation phasing" line 1131](../../plan.md#L1131)
 mention of `runAccum` should be removed; the
-[Phase 6+ deferred entry](../plan.md#L2325) for "state-via-StateT"
+[Phase 6+ deferred entry](../../plan.md#L2325) for "state-via-StateT"
 should explicitly say the future entry point will be a new
 function name, not a revival of `run_accum`.
 
@@ -183,20 +183,20 @@ encoding: the program is an AST, the handler folds the AST, and
 "the rest of the program" is a sub-AST inside each operation
 constructor, not a delimited continuation. Stable Rust has no
 delimited continuations (no `prompt#` / `control0#`). The
-[decisions.md section 1.2](../decisions.md) explicitly rules out
+[decisions.md section 1.2](../../decisions.md) explicitly rules out
 Hasura-`eff`-style delimited continuations as not portable.
 
 **Option A: Accept the limitation; document it in plan.md and
 rustdoc.**
 
 - _What:_ Add a "Continuations" section to
-  [plan.md "Out of scope"](../plan.md#L1287) stating that this is a
+  [plan.md "Out of scope"](../../plan.md#L1287) stating that this is a
   freer-monad encoding, that handlers receive folded sub-programs
   not callable continuations `k`, and that callers wanting
   multi-shot resumption work through the per-effect closure (e.g.,
   `dyn Fn(Bool) -> NextProgram` in a `Choose` effect). Add a
   rustdoc paragraph to
-  [interpreter.rs](../../../../fp-library/src/types/effects/interpreter.rs)
+  [interpreter.rs](../../../../../fp-library/src/types/effects/interpreter.rs)
   with the same framing. Touches two files.
 - _Cost:_ Negligible. Documentation only.
 - _Benefit:_ Honest with rubric Section 3 / Section 6.1 #4 readers
@@ -214,7 +214,7 @@ exposes the embedded closure as `k`.**
   it for every effect type that embeds a closure. Handlers can
   call `state_op.resume(current_state)` instead of pattern-matching
   on `State::Get(k)` and calling `(*k)(s)`. Touches every effect
-  type's module (today only [state.rs](../../../../fp-library/src/types/effects/state.rs);
+  type's module (today only [state.rs](../../../../../fp-library/src/types/effects/state.rs);
   Phase 3 step 5 adds Reader, Except, Writer, Choose).
 - _Cost:_ Small to medium. Per-effect trait impl plus one trait
   declaration. No type-inference impact (handler bodies still call
@@ -237,15 +237,15 @@ encoding.**
 - _Cost:_ Massive. Total rewrite.
 - _Benefit:_ Real callable continuations.
 - _Risks:_ Plan
-  [decisions.md sections 1.2, 4.5](../decisions.md) and
-  [plan.md "Out of scope" line 1287](../plan.md#L1287) explicitly
+  [decisions.md sections 1.2, 4.5](../../decisions.md) and
+  [plan.md "Out of scope" line 1287](../../plan.md#L1287) explicitly
   rule out evidence-passing and delimited continuations on stable
   Rust. Reproducing a rejected approach. Listed only for
   completeness.
 
 **Recommendation: Option A.** Accept the limitation and document
 it. The freer-monad encoding was chosen with eyes open per
-[decisions.md section 1.2](../decisions.md); the rubric judges this
+[decisions.md section 1.2](../../decisions.md); the rubric judges this
 as a real loss but the loss was the price of stable-Rust
 portability. Option B is a small ergonomic sweetener that can land
 later if user feedback asks for it; not load-bearing now. Option C
@@ -257,7 +257,7 @@ F5 (also a mono-in-A consequence) so the documentation reads
 coherently.
 
 **Plan revision required:** Yes (small).
-[Plan.md "Out of scope" line 1287](../plan.md#L1287) should grow
+[Plan.md "Out of scope" line 1287](../../plan.md#L1287) should grow
 a "Callable continuations in handler clauses (Plotkin-Pretnar `k`)"
 bullet, with a one-paragraph reason citing the freer-monad encoding
 and the absence of stable-Rust delimited continuations.
@@ -281,7 +281,7 @@ and returns a program in the same row.
 constraint by tightening interpret bounds to `S = CNilBrand`.**
 
 - _What:_ Today
-  [run.rs:497-519](../../../../fp-library/src/types/effects/run.rs#L497-L519)
+  [run.rs:497-519](../../../../../fp-library/src/types/effects/run.rs#L497-L519)
   takes any `S: Kind + WrapDrop + Functor + 'static`. Tighten to
   `where S = CNilBrand` (or via a `ScopedRowEmpty` marker trait).
   The `Node::Scoped(_)` arm becomes
@@ -304,7 +304,7 @@ constraint by tightening interpret bounds to `S = CNilBrand`.**
 removing the `unreachable!`.**
 
 - _What:_ Per
-  [plan.md "Phase 4: Scoped effects" line 2096](../plan.md#L2096),
+  [plan.md "Phase 4: Scoped effects" line 2096](../../plan.md#L2096),
   build the `Catch`, `Local`, `Bracket`, `Span` constructors and a
   parallel `DispatchScopedHandlers` trait. The interpreter's
   `Node::Scoped(layer) => scoped_handlers.dispatch(layer)` arm
@@ -314,7 +314,7 @@ removing the `unreachable!`.**
   Success criteria. Resolves M8 by giving `S` a real role.
 - _Risks:_ Phase 4 has known design uncertainty (heftia's row
   architecture diverges from fp-library's per
-  [resolutions.md "Heftia row architecture clarification"](../resolutions.md#L626));
+  [resolutions.md "Heftia row architecture clarification"](../../resolutions.md#L626));
   rushing scoped dispatch to fix a runtime panic is the wrong
   motivation.
 
@@ -347,7 +347,7 @@ plan; no change to its sequencing.
 
 **Plan revision required:** Yes (small for A, none for B).
 Option A requires noting in
-[plan.md "Phase 3 step 2" entries](../plan.md#L1957) that the
+[plan.md "Phase 3 step 2" entries](../../plan.md#L1957) that the
 `interpret` family is `S = CNilBrand`-only until Phase 4 ships
 the scoped dispatch.
 
@@ -361,10 +361,10 @@ still call the State continuation many times. The wrapper-level
 to per-effect closures.
 
 **Root cause:** The plan's
-[resolved 2026-05-03 sub-decision (3.a-1)](../resolutions.md#L18)
+[resolved 2026-05-03 sub-decision (3.a-1)](../../resolutions.md#L18)
 locked "one effect type per operation across all wrappers" for
 design simplicity, with continuations parameterised by the pointer
-brand `P` ([state.rs:60-73](../../../../fp-library/src/types/effects/state.rs#L60-L73)).
+brand `P` ([state.rs:60-73](../../../../../fp-library/src/types/effects/state.rs#L60-L73)).
 The choice trades the strict per-wrapper Fn-trait property for
 "one State definition runs everywhere".
 
@@ -372,12 +372,12 @@ The choice trades the strict per-wrapper Fn-trait property for
 the Free spine only, not to per-effect closures.**
 
 - _What:_ Add a paragraph to
-  [plan.md Success criteria line 2598](../plan.md#L2598) clarifying
+  [plan.md Success criteria line 2598](../../plan.md#L2598) clarifying
   that "single-shot vs multi-shot" describes the Free wrapper's
   spine consumption, and that effects with stored closure
   continuations (State, Reader, etc.) carry the multi-shot
   property at the effect-instance level on every wrapper.
-  Mirror in [state.rs:24-29](../../../../fp-library/src/types/effects/state.rs#L24-L29)
+  Mirror in [state.rs:24-29](../../../../../fp-library/src/types/effects/state.rs#L24-L29)
   rustdoc.
 - _Cost:_ Negligible.
 - _Benefit:_ Honest framing. Resolves F4's "API claim does not
@@ -398,7 +398,7 @@ continuations.**
   Choose in Phase 3 step 5).
 - _Cost:_ Medium. Doubles the per-effect type definitions.
   Reproduces the rejected design from
-  [resolutions.md (3.a-2) sub-decision](../resolutions.md#L209).
+  [resolutions.md (3.a-2) sub-decision](../../resolutions.md#L209).
 - _Benefit:_ Type-system enforcement of single-shot.
 - _Risks:_ Doubles the documentation surface, doubles the macro
   complexity, doubles the brand registration. The plan locked
@@ -422,7 +422,7 @@ runtime guard on single-shot wrappers.**
   multi-shot wrappers.
 
 **Recommendation: Option A.** The plan
-[(3.a-1) resolution](../resolutions.md#L209) locked "single effect
+[(3.a-1) resolution](../../resolutions.md#L209) locked "single effect
 type per operation". The review's F4 finding is a complaint about
 the _advertised_ property, not the implementation. Documentation
 resolves the mismatch without re-opening a settled decision.
@@ -433,7 +433,7 @@ documentation gap for a runtime trap.
 documentation revision for coherent rustdoc.
 
 **Plan revision required:** Yes (small).
-[Plan.md Success criteria line 2598](../plan.md#L2598) text should
+[Plan.md Success criteria line 2598](../../plan.md#L2598) text should
 read "single-shot vs multi-shot of the Free wrapper's spine
 consumption" rather than the unqualified claim today.
 
@@ -449,16 +449,16 @@ expose a `k` either.
 
 **Root cause:** Same as F2: stable Rust lacks rank-2 closures and
 delimited continuations. The choice was made under
-[resolutions.md "Rust constraints that shaped the analysis"](../resolutions.md#L592).
+[resolutions.md "Rust constraints that shaped the analysis"](../../resolutions.md#L592).
 
 **Option A: Document the limitation; promote `NaturalTransformation +
 fold_free` to a first-class API.**
 
 - _What:_ Add a "Reusable handler libraries" section to plan.md
   and to the rustdoc on
-  [interpreter.rs](../../../../fp-library/src/types/effects/interpreter.rs)
+  [interpreter.rs](../../../../../fp-library/src/types/effects/interpreter.rs)
   pointing users to
-  [`NaturalTransformation`](../../../../fp-library/src/classes/natural_transformation.rs)
+  [`NaturalTransformation`](../../../../../fp-library/src/classes/natural_transformation.rs)
   for cross-`A` reuse, with a worked example showing
   `fold_free(nt, prog)`. Touches plan.md and the interpreter
   rustdoc.
@@ -478,7 +478,7 @@ expands to an impl over an `A`-generic trait.**
   `DispatchHandlers<'_, EBrand::Of<'a, A>, A>` for any `A`.
   Library authors ship the macro invocation; users include the
   emitted struct in their `handlers!{}` block. Touches
-  [fp-macros/src/effects.rs](../../../../fp-macros/src/effects.rs)
+  [fp-macros/src/effects.rs](../../../../../fp-macros/src/effects.rs)
   and adds a new module.
 - _Cost:_ Medium. New macro plus per-effect skeleton boilerplate.
   Type inference: users pass the struct value as a handler; the
@@ -487,7 +487,7 @@ expands to an impl over an `A`-generic trait.**
 - _Benefit:_ Approximates rank-2 NT via macro-generated rank-1
   impls. Closes the "compositional handler library" gap mentioned
   in
-  [resolutions.md "Decision 1" line 516](../resolutions.md#L516).
+  [resolutions.md "Decision 1" line 516](../../resolutions.md#L516).
 - _Risks:_ Macro complexity. The macro must correctly emit GAT
   bounds; non-trivial. Rust trait-resolution may surface
   ambiguity if multiple library-handler structs collide on the
@@ -501,7 +501,7 @@ expands to an impl over an `A`-generic trait.**
 - _Cost:_ Large. Stable Rust does not allow `for<...>` over types
   in trait objects (this is the same HRTB-over-types limitation
   that blocks
-  [state.rs SendFunctor (M5)](../../../../fp-library/src/types/effects/state.rs#L142-L146)).
+  [state.rs SendFunctor (M5)](../../../../../fp-library/src/types/effects/state.rs#L142-L146)).
   Likely unimplementable today.
 - _Benefit:_ Real rank-2 if it worked.
 - _Risks:_ Reproduces an unsolved type-system problem.
@@ -520,9 +520,9 @@ effects, there is nothing to compose.
 
 **Plan revision required:** Yes (small for A; medium for B if it
 ships). The
-[plan.md Phase 6+ deferred items](../plan.md#L2325) section already
+[plan.md Phase 6+ deferred items](../../plan.md#L2325) section already
 mentions an `interpret_nt` deferred entry per
-[resolutions.md "Decision 4" line 568](../resolutions.md#L568); add
+[resolutions.md "Decision 4" line 568](../../resolutions.md#L568); add
 a cross-link to `NaturalTransformation` there. For B, add a new
 phase entry "Phase 5+ optional: define_handler! macro".
 
@@ -539,7 +539,7 @@ all-at-once form does not expose ordering.
 
 **Root cause:** The handler-list/row chain alignment is the
 mono-in-A dispatch trait's structural invariant
-([interpreter.rs:36-46](../../../../fp-library/src/types/effects/interpreter.rs#L36-L46)).
+([interpreter.rs:36-46](../../../../../fp-library/src/types/effects/interpreter.rs#L36-L46)).
 The `handlers!` macro chose lexical sort for canonicalisation
 (matches the `effects!` row macro's sort).
 
@@ -548,10 +548,10 @@ non-commuting cases.**
 
 - _What:_ Add a rustdoc warning to the all-at-once `interpret`
   body
-  ([run.rs:497-519](../../../../fp-library/src/types/effects/run.rs#L497-L519))
+  ([run.rs:497-519](../../../../../fp-library/src/types/effects/run.rs#L497-L519))
   pointing users at `interpret_with` for non-commuting effects.
   Already partly documented at
-  [run.rs:933-935](../../../../fp-library/src/types/effects/run.rs#L933-L935).
+  [run.rs:933-935](../../../../../fp-library/src/types/effects/run.rs#L933-L935).
 - _Cost:_ Negligible.
 - _Benefit:_ Honest about the limitation.
 - _Risks:_ Users may not read the warning.
@@ -568,12 +568,12 @@ does not lex-sort.**
   `interpret_with`.
 - _Risks:_ Two macros for the same job; users have to remember
   which to use. Lexical-sort canonicalisation was deliberate per
-  [decisions.md section 4.1 workaround 1](../decisions.md).
+  [decisions.md section 4.1 workaround 1](../../decisions.md).
 
 **Recommendation: Option A.** The pipelined `interpret_with` is
 the existing escape hatch, and the lexical-sort canonicalisation
 buys real ergonomic value for the common case
-([decisions.md section 4.1](../decisions.md)). Option B duplicates
+([decisions.md section 4.1](../../decisions.md)). Option B duplicates
 machinery for a rare case.
 
 **Dependencies and ordering:** Standalone.
@@ -584,7 +584,7 @@ machinery for a rare case.
 
 **Restated:** `interpret`'s outer `loop` over `peel` is iterative,
 but `interpret_with`'s `Functor::map` recursion is host-stack
-([run.rs:1032-1054](../../../../fp-library/src/types/effects/run.rs#L1032-L1054)).
+([run.rs:1032-1054](../../../../../fp-library/src/types/effects/run.rs#L1032-L1054)).
 Programs with deep eager-recursion blow the stack on
 `interpret_with`.
 
@@ -629,7 +629,7 @@ MonadRec, pipeline+MonadRec); naming it
 `interpret_with_rec::<MBrand, EBrand>` keeps the convention from
 the existing `interpret_with` and `interpret_rec` siblings. Per
 the principle from
-[resolutions.md "Decision 2"](../resolutions.md#L528), each
+[resolutions.md "Decision 2"](../../resolutions.md#L528), each
 interpreter shape uniquely enables a use case the others cannot
 subsume; pipeline-plus-stack-safe is a real combination today
 that no current method serves.
@@ -641,7 +641,7 @@ Reader, Except chains rather than IdentityBrand toy effects.
 **Plan revision required:** Yes (small). Add a Phase 3 step
 between current step 4 (`interpret_rec`) and step 5 (standard
 effects), or fold into step 4 as a sub-step. The
-[plan.md Phase 6+ deferred items](../plan.md#L2325) section
+[plan.md Phase 6+ deferred items](../../plan.md#L2325) section
 already mentions axis combinations not yet shipped; this fills
 one of the slots.
 
@@ -685,7 +685,7 @@ resources in `Rc<RefCell<_>>` themselves.**
 brand at the call site.**
 
 - _What:_ Use the existing
-  [`RefCountedPointer`](../../../../fp-library/src/classes/ref_counted_pointer.rs)
+  [`RefCountedPointer`](../../../../../fp-library/src/classes/ref_counted_pointer.rs)
   trait that already abstracts over `RcBrand` / `ArcBrand`. Each
   wrapper's `interpret_with` body becomes:
 
@@ -697,7 +697,7 @@ brand at the call site.**
   The wrapper's public method picks `P`: the four non-Arc
   wrappers default to `RcBrand`, the two Arc wrappers default to
   `ArcBrand`, parallel to the choice
-  [state.rs:60-73](../../../../fp-library/src/types/effects/state.rs#L60-L73)
+  [state.rs:60-73](../../../../../fp-library/src/types/effects/state.rs#L60-L73)
   already makes for State's continuation slot. The implementation
   body could live in a shared helper function generic over
   `P: RefCountedPointer` so the six wrappers do not duplicate the
@@ -719,7 +719,7 @@ brand at the call site.**
   via the brand choice, so `Send + Sync` falls out structurally
   rather than being a manual per-wrapper concern. Matches the
   established convention in
-  [state.rs](../../../../fp-library/src/types/effects/state.rs)
+  [state.rs](../../../../../fp-library/src/types/effects/state.rs)
   of parameterising per-effect machinery over `P: RefCountedPointer`
   exactly so one definition serves both refcount families.
 - _Risks:_ The shared helper's signature gets one extra type
@@ -731,7 +731,7 @@ brand at the call site.**
   handler closures are always `Sized`, so this is theoretical.
 
 **Recommendation: Option C.** The
-[`RefCountedPointer`](../../../../fp-library/src/classes/ref_counted_pointer.rs)
+[`RefCountedPointer`](../../../../../fp-library/src/classes/ref_counted_pointer.rs)
 trait is the project's existing answer for "abstract over Rc vs
 Arc with a single brand parameter"; this is precisely its job.
 Option A hard-codes the brand per wrapper and reproduces six
@@ -739,7 +739,7 @@ near-identical bodies; Option C threads `P` through one shared
 helper and uses the wrapper-level brand choice as the only
 difference. The Arc wrappers gain `Send + Sync` for free via the
 brand, mirroring the pattern
-[state.rs](../../../../fp-library/src/types/effects/state.rs)
+[state.rs](../../../../../fp-library/src/types/effects/state.rs)
 already establishes for per-effect continuations. Option C is
 also a cleaner foundation for Phase 4 scoped handlers, which will
 face the same Clone-vs-shared-handler choice.
@@ -770,10 +770,10 @@ the leaf brand.
 Functor::map directly during composition.**
 
 - _What:_ Audit the call sites of
-  [state.rs:130-139](../../../../fp-library/src/types/effects/state.rs#L130-L139).
+  [state.rs:130-139](../../../../../fp-library/src/types/effects/state.rs#L130-L139).
   `Functor::map` on State is only called by interpreters that
   lower the Coyoneda before dispatch
-  ([interpreter.rs:253](../../../../fp-library/src/types/effects/interpreter.rs#L253)
+  ([interpreter.rs:253](../../../../../fp-library/src/types/effects/interpreter.rs#L253)
   calls `coyo.lower()`). The lowering already fuses
   `Coyoneda::map` into one closure composition. So State's
   `Functor::map` runs once per dispatch, not per bind.
@@ -791,7 +791,7 @@ Functor::map directly during composition.**
 - _What:_ Smart constructors emit `Coyoneda::lift_map` (or similar)
   that pre-composes `f` into the Coyoneda's stored `f` slot,
   avoiding a fresh State allocation. Touches
-  [run.rs](../../../../fp-library/src/types/effects/run.rs) and
+  [run.rs](../../../../../fp-library/src/types/effects/run.rs) and
   the smart-constructor sites.
 - _Cost:_ Medium. Per-smart-constructor refactor.
 - _Benefit:_ Per-bind allocation cost moves into Coyoneda's
@@ -817,9 +817,9 @@ written because the bound
 `<P as RefCountedPointer>::Of<'_, dyn 'a + Fn(S) -> A>: Send + Sync`
 must be expressed per-`A` and stable Rust does not support
 HRTB-over-types
-([state.rs:142-146](../../../../fp-library/src/types/effects/state.rs#L142-L146)).
+([state.rs:142-146](../../../../../fp-library/src/types/effects/state.rs#L142-L146)).
 Plan
-[active blocker](../plan.md#L599) records this. `ArcRun::get` and
+[active blocker](../../plan.md#L599) records this. `ArcRun::get` and
 `ArcRun::put` cannot ship.
 
 **Root cause:** Same family as F5 / Option C: stable Rust's HRTB
@@ -836,8 +836,8 @@ helper trait that requires `A: Send + Sync` at the impl site.**
   The wrapper machinery dispatches through
   `SendFunctorAt::<A>::send_map_at` instead of
   `SendFunctor::send_map` for State. Touches
-  [state.rs](../../../../fp-library/src/types/effects/state.rs),
-  [send_functor.rs](../../../../fp-library/src/classes/send_functor.rs),
+  [state.rs](../../../../../fp-library/src/types/effects/state.rs),
+  [send_functor.rs](../../../../../fp-library/src/classes/send_functor.rs),
   and the Arc wrapper bodies.
 - _Cost:_ Medium. New trait variant. The wrapper bodies must
   pick between `SendFunctor` and `SendFunctorAt` based on whether
@@ -852,7 +852,7 @@ helper trait that requires `A: Send + Sync` at the impl site.**
 feature) and defer ArcRun State indefinitely.**
 
 - _What:_ Plan
-  [active blocker section](../plan.md#L599) accepts this as the
+  [active blocker section](../../plan.md#L599) accepts this as the
   current state. Defer until rustc lands `for<T>` over types.
 - _Cost:_ None.
 - _Benefit:_ No effort spent.
@@ -892,7 +892,7 @@ State" criterion as deferred.
 
 **Restated:** Real-world IO inside handlers and async/await
 integration are absent. Plan
-[line 1308-1312](../plan.md#L1308-L1312) commits to `Future` as a
+[line 1308-1312](../../plan.md#L1308-L1312) commits to `Future` as a
 MonadRec target later but ships only `Thunk`, `Option`, `Result`
 today.
 
@@ -900,7 +900,7 @@ today.
 accommodate a `Future` carrier, which involves runtime selection
 (`tokio` vs `async-std`), polling state, and waker management.
 Plan
-[Phase 6+ deferred entry](../plan.md#L2325) is correct that this
+[Phase 6+ deferred entry](../../plan.md#L2325) is correct that this
 is a separate effort.
 
 **Option A: Accept the Phase 6+ deferral; document async usage
@@ -919,7 +919,7 @@ Phase 5.**
 
 - _What:_ Implement a `MonadRec` impl for `Pin<Box<dyn Future>>`
   (or similar). Touches
-  [`monad_rec.rs`](../../../../fp-library/src/classes/monad_rec.rs)
+  [`monad_rec.rs`](../../../../../fp-library/src/classes/monad_rec.rs)
   (which exposes the `tail_rec_m` method on the `MonadRec`
   trait), and adds a `FutureBrand`. Substantial.
 - _Cost:_ Large. Whole sub-phase.
@@ -946,7 +946,7 @@ bound.
 **Root cause:** `bind` is consumed once (the program is moved into
 bind); handlers may be called many times by `tail_rec_m`'s `Fn`
 step closure (per
-[resolutions.md Q2 line 321](../resolutions.md#L321)). The bounds
+[resolutions.md Q2 line 321](../../resolutions.md#L321)). The bounds
 are correct for their respective callers; they just do not
 co-compose.
 
@@ -967,7 +967,7 @@ co-compose.
   not today; bind is single-use semantically).
 - _Benefit:_ Symmetric `Fn` bound.
 - _Risks:_ `Free::bind`'s implementation in
-  [`free.rs`](../../../../fp-library/src/types/free.rs) builds the
+  [`free.rs`](../../../../../fp-library/src/types/free.rs) builds the
   CatList queue assuming single-use bind closures; relaxing the
   bound has implications across the Free family.
 
@@ -987,7 +987,7 @@ ever inhabitable as `CNilBrand`. Users pay the type parameter cost
 in every signature for no current benefit.
 
 **Root cause:** Plan
-[decisions.md section 4.5](../decisions.md) committed the dual-row
+[decisions.md section 4.5](../../decisions.md) committed the dual-row
 architecture before any scoped constructor existed; the parameter
 is structurally reserved for Phase 4.
 
@@ -1025,42 +1025,42 @@ removing them at Phase 4 is more work than leaving them in place.
 ## Minor Findings
 
 - **m1.** `clippy::unreachable` suppression in
-  [run.rs:493-496](../../../../fp-library/src/types/effects/run.rs#L493-L496):
+  [run.rs:493-496](../../../../../fp-library/src/types/effects/run.rs#L493-L496):
   remove the suppression after F3 Option A lands (the
   `unreachable!` arm becomes structurally impossible via
   `match cnil {}`).
 - **m2.** `&self` on `HandlersNil::dispatch`
-  ([interpreter.rs:189-194](../../../../fp-library/src/types/effects/interpreter.rs#L189-L194)):
+  ([interpreter.rs:189-194](../../../../../fp-library/src/types/effects/interpreter.rs#L189-L194)):
   acceptable; an alternative `fn dispatch(layer: CNil) -> NextProgram`
   free function would avoid materialising `HandlersNil`, but
   duplicates the trait object surface. Leave as-is.
 - **m3.** `Handler<E, F>: Clone, Copy` derive
-  ([handlers.rs:75-81](../../../../fp-library/src/types/effects/handlers.rs#L75-L81)):
+  ([handlers.rs:75-81](../../../../../fp-library/src/types/effects/handlers.rs#L75-L81)):
   remove `Copy` (closures are not `Copy`), keep `Clone`.
 - **m4.** Builder ordering enforced only by docs
-  ([handlers.rs:140-180](../../../../fp-library/src/types/effects/handlers.rs#L140-L180)):
+  ([handlers.rs:140-180](../../../../../fp-library/src/types/effects/handlers.rs#L140-L180)):
   add a compile-time check via a marker trait `HandlerListAlignedWith<RowBrand>`
   that the dispatch impl requires; failures surface at the
   builder call site rather than at dispatch.
 - **m5.** Aliases `run` / `run_rec`
-  ([run.rs:824-839](../../../../fp-library/src/types/effects/run.rs#L824-L839)):
+  ([run.rs:824-839](../../../../../fp-library/src/types/effects/run.rs#L824-L839)):
   retain for PureScript parity; tag the rustdoc with
   `#[doc(alias = "interpret")]` so search elides the duplication.
 - **m6.** `Node` HRTB-poisoning helpers in arc_run.rs: extract a
   shared private `node_helpers` submodule to deduplicate the
   three workaround helpers across arc_run.rs and arc_run_explicit.rs.
 - **m7.** State module docs reference plan phases by identifier
-  ([state.rs:1-30](../../../../fp-library/src/types/effects/state.rs#L1-L30)):
+  ([state.rs:1-30](../../../../../fp-library/src/types/effects/state.rs#L1-L30)):
   rewrite to be self-contained per
   [feedback_no_history_in_text.md memory note]. Touches several
   effects-module docs.
 - **m8.** `Member` facade over `CoprodInjector` /
   `CoprodUninjector`
-  ([member.rs:81-139](../../../../fp-library/src/types/effects/member.rs#L81-L139)):
+  ([member.rs:81-139](../../../../../fp-library/src/types/effects/member.rs#L81-L139)):
   retain; the `Remainder` projection is the reason the facade
   exists. Document this in the module docs.
 - **m9.** Three near-duplicate `DispatchHandlers` impls
-  ([interpreter.rs:329-388](../../../../fp-library/src/types/effects/interpreter.rs#L329-L388)):
+  ([interpreter.rs:329-388](../../../../../fp-library/src/types/effects/interpreter.rs#L329-L388)):
   factor into one impl over a `Lower<NextProgram>` trait
   (consuming for Coyoneda, by-ref for Rc/Arc), or accept the
   duplication and add a comment cross-linking the three.
@@ -1071,7 +1071,7 @@ The 13 non-minor findings collapse into 4 root-cause clusters.
 
 **Cluster 1: Mono-in-A interpreter shape, no `M` in return type
 (F1, F5, M6, partially F2 and M2).** The mono-in-A choice
-([resolutions.md Decision 1, Q1](../resolutions.md#L466)) was
+([resolutions.md Decision 1, Q1](../../resolutions.md#L466)) was
 forced by Rust's no-rank-2-closures constraint. Consequence: the
 return type is `A`, not `M<A>`, so anything that needs to thread
 an effect monadically (state, async/IO, library-handler reuse)
@@ -1160,7 +1160,7 @@ ergonomic costs. Cluster remediation: **prototype `SendFunctorAt`
 delimited continuations; the freer-monad encoding cannot expose a
 uniform `k`. The honest answer is documentation, not a fix. Plan
 revision: amend
-[plan.md "Out of scope" line 1287](../plan.md#L1287) to add:
+[plan.md "Out of scope" line 1287](../../plan.md#L1287) to add:
 
 > Callable continuation primitives in handler clauses (Plotkin-Pretnar
 > `k : x -> Result`). The freer-monad encoding stores per-effect
@@ -1176,16 +1176,16 @@ revision: amend
 cannot be A-polymorphic. Plan revision: extend the same
 "Out of scope" entry to mention rank-2 natural transformations,
 and cross-link to
-[`NaturalTransformation`](../../../../fp-library/src/classes/natural_transformation.rs)
+[`NaturalTransformation`](../../../../../fp-library/src/classes/natural_transformation.rs)
 plus
-[`Free::fold_free`](../../../../fp-library/src/types/free.rs) as
+[`Free::fold_free`](../../../../../fp-library/src/types/free.rs) as
 the escape hatches.
 
 **M5 (HRTB-over-types) if the prototype fails.** If
 `SendFunctorAt` cannot be expressed without HRTB-over-types
 either, then ArcRun State is structurally blocked until rustc
 ships the feature. Plan revision: revise
-[Success criteria line 2610](../plan.md#L2610) to qualify "State
+[Success criteria line 2610](../../plan.md#L2610) to qualify "State
 on every wrapper" as "State on every wrapper except Arc family
 (deferred pending HRTB-over-types in stable Rust)".
 
