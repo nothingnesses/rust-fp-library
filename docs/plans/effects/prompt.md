@@ -36,17 +36,25 @@ one step per commit, until the phase is complete or you hit a blocker.
 - **Phase 1** (Free family): complete. Steps 1-9 plus two follow-up commits (`WrapDrop` migration and the `Functor` -> `Kind` relaxation).
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_row_canonicalisation.rs) in 10a. Two recurring constraints surfaced that shape Phase 3 work: the HRTB-poisoning pattern across `ArcRun`-substrate code (see Lessons below) and the per-`A` HRTB-over-types limit that caps brand-level `SendFunctor` coverage on the Arc family.
 - **Phase 3** (first-order effect handlers, interpreters, natural transformations): complete. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors), step 7 (`compile_fail` UI tests), and step 8 (review-remediation documentation pass) all shipped. Step 5e shipped together with a substrate fix on the Erased Free family: new [`RcCatList`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four; users chain `interpret_with` then `interpret_rec` for the workaround) and the [2026-05-04 `define_effect!` macro deferral](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand surfaces; design research for five candidate approaches preserved in resolutions.md).
-- **Phase 4** (scoped effects via heftia dual row): not started. Targets `Catch<'a, E>`, `Span<'a, Tag>`, `Local`, and `Bracket` scoped-effect constructors plus a parallel `DispatchScopedHandlers` trait family. This is the next phase after Phase 3 closes.
+- **Phase 4** (scoped effects via heftia-inspired dual row): design adopted; implementation pending. The Phase 4 design review ([`review/1_scoped_effects_design/review_phase_4_design.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/review_phase_4_design.md)) and its remediation report ([`review/1_scoped_effects_design/remediation_proposals_phase_4.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/remediation_proposals_phase_4.md)) shipped, with two POC validations ([`fp-library/tests/poc_send_catch_brand.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_send_catch_brand.rs) for the F2 parallel-Send-brand pattern, [`fp-library/tests/poc_rc_run_interpose.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_rc_run_interpose.rs) for the F1 substrate-level `Run::interpose` primitive). Plan revisions adopting the recommendations landed in three doc-only commits (Phase 4 plan-text minors, R1 specification, R2 specification). Phase 4 ships `Catch<'a, P, E, A>`, `Local<'a, P, E, A>` / `RefLocal`, `Bracket<'a, P, A, B>` / `RefBracket`, and `Span<'a, Tag>` scoped-effect constructors; a parallel `DispatchScopedHandlers` trait; a substrate-level `Run::interpose` primitive on each Run wrapper; and a `BoxBrand` pointer brand alongside `RcBrand` / `ArcBrand`.
 
 ### Next greenfield work
 
-Phase 3 closes with step 8. The next phase target is **Phase 4**
-(scoped effects via heftia dual row). Phase 4 ships `Catch<'a, E>`,
-`Span<'a, Tag>`, `Local`, and `Bracket` scoped-effect constructors
-plus a parallel `DispatchScopedHandlers` trait family that handles
-the `Node::Scoped` arm currently kept structurally uninhabited via
-`S = CNilBrand`. Sub-step planning lives in plan.md's Phase 4
-phasing section.
+Phase 3 closes with step 8. The Phase 4 design is adopted (review,
+remediation, POC validation, and plan revisions all shipped);
+implementation is the next concrete work. Implementation order
+follows the [remediation report's Sequencing Plan](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/remediation_proposals_phase_4.md)
+items 3, 5, 6, 7, 8, 9: substrate-level `Run::interpose` and
+`DispatchScopedHandlers` trait + per-wrapper interpret rewrite (R1
+implementation); per-pointer-brand parameterisation of the four
+standard scoped ops (R2 implementation); bracket dispatcher with
+Drop-guard for panic safety (M3); standard scoped-effect rollout
+(`Catch`, `Local` / `RefLocal`, `Bracket` / `RefBracket`, `Span`
+plus `scoped_effects!` and `define_scoped_effect!` macros);
+standard scoped handlers; review-remediation documentation pass
+closing Phase 4. Sub-step planning and full constructor signatures
+live in plan.md's
+[Phase 4 phasing section](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#phase-4-scoped-effects-heftia-inspired-dual-row).
 
 Two Phase 3 steps were deferred and may revisit during or after
 Phase 4: step 6
