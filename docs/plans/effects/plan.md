@@ -1999,54 +1999,91 @@ this section is the phasing-side checklist.
    here closes the [Phase 6+ deferred `interpose` family
    entry](#phase-6-deferred-not-in-this-plan); the deferred
    entry is removed from Phase 6+ once Phase 4 step 2 lands.
-3. Standard scoped-effect constructors. Per
-   [decisions.md](decisions.md) section 4.5 sub-decisions, `Bracket`
-   and `Local` ship in two parallel flavours each (Val and Ref) that
-   mirror the library's existing Val/Ref dispatch pattern at
-   [`fp-library/docs/dispatch.md`](../../../fp-library/docs/dispatch.md);
-   `Catch` and `Span` ship Val-only (Ref flavours rejected per the
-   sub-decision).
-   - `Catch<'a, E>` for `Error.catch`, with `action: Run<R, S, A>`,
-     `handler: Box<dyn FnOnce(E) -> Run<R, S, A>>`. Val only.
-   - `Local<'a, E>` (Val flavour) for `Reader.local` with a
-     consuming modify, holding `modify: Box<dyn FnOnce(E) -> E>`,
+3. Standard scoped-effect constructors. Each constructor is
+   parameterised by a pointer brand `P` (`BoxBrand` for the
+   default substrate, `RcBrand` for the Rc family, `ArcBrand`
+   for the Arc family) selecting the closure storage shape;
+   the parameterisation mirrors Phase 3's
+   [`StateBrand<P, S>`](../../../fp-library/src/brands/effects.rs)
+   pattern that solved the equivalent problem for first-order
+   `State`. Closure cells project as
+   `<P as RefCountedPointer>::Of<'a, dyn 'a + Fn(...)>` for the
+   refcounted brands and as `Box<dyn 'a + FnOnce(...)>` for
+   `BoxBrand` (the new pointer brand introduced for this
+   purpose, paralleling `RcBrand` / `ArcBrand`). Per
+   [decisions.md](decisions.md) section 4.5 sub-decisions,
+   `Bracket` and `Local` additionally ship two flavours each
+   distinguished by the closure-argument shape (Val takes
+   `A` by value; Ref takes `P::Of<A>` for refcounted
+   sharing); `Catch` and `Span` ship Val-only (Ref flavours
+   rejected per the sub-decision). Each scoped-effect type
+   parameterised by `P` has a parallel `Send*Brand` sibling
+   that bakes `+ Send + Sync` into the dyn bound at
+   definition time, mirroring the Phase 3
+   [`SendStateBrand`](../../../fp-library/src/brands/effects.rs)
+   pattern; POC-validated at
+   [`fp-library/tests/poc_send_catch_brand.rs`](../../../fp-library/tests/poc_send_catch_brand.rs).
+   - `Catch<'a, P, E, A>` for `Error.catch`, with
+     `action: Run<R, S, A>`,
+     `handler: <P as RefCountedPointer>::Of<'a, dyn 'a + Fn(E) -> Run<R, S, A>>`.
+     Val only. (`SendCatchBrand<P, E>` for `ArcRun`-family use.)
+   - `Local<'a, P, E, A>` (Val flavour) for `Reader.local`
+     with a consuming modify, holding
+     `modify: <P as RefCountedPointer>::Of<'a, dyn 'a + Fn(E) -> E>`,
      `action: Run<R, S, A>`.
-   - `RefLocal<'a, E>` (Ref flavour) for `Reader.local` with a
-     borrowing modify, holding `modify: Box<dyn FnOnce(&E) -> E>`,
+   - `RefLocal<'a, P, E, A>` (Ref flavour) for `Reader.local`
+     with a borrowing modify, holding
+     `modify: <P as RefCountedPointer>::Of<'a, dyn 'a + Fn(&E) -> E>`,
      `action: Run<R, S, A>`. Removes the `E: Clone` requirement
      that the Val flavour imposes when users want to derive a
      sub-scope env from the parent without owning it.
-   - `Bracket<'a, A, B>` (Val flavour) for non-refcounted-substrate
-     users (`Run` / `RunExplicit`), with `acquire: Run<R, S, A>`,
-     `body: Box<dyn FnOnce(A) -> Run<R, S, (A, B)>>`,
-     `release: Box<dyn FnOnce(A) -> Run<R, S, ()>>`. The body
-     consumes `A`, threads it back to the interpreter via
-     `(A, B)`, and the interpreter moves the returned `A` into
-     `release`. **Panic safety:** the bracket dispatcher wraps
-     the resource in a `BracketGuard<A, F>` whose `Drop` impl
-     invokes `release` synchronously, so cleanup runs even if
-     `body` panics during interpretation. `release`'s
+   - `Bracket<'a, P, A, B>` (Val flavour), with
+     `acquire: Run<R, S, A>`,
+     `body: <P as RefCountedPointer>::Of<'a, dyn 'a + Fn(A) -> Run<R, S, (A, B)>>`,
+     `release: <P as RefCountedPointer>::Of<'a, dyn 'a + Fn(A) -> Run<R, S, ()>>`.
+     The body consumes `A`, threads it back to the interpreter
+     via `(A, B)`, and the interpreter moves the returned `A`
+     into `release`. **Panic safety:** the bracket dispatcher
+     wraps the resource in a `BracketGuard<A, F>` whose `Drop`
+     impl invokes `release` synchronously, so cleanup runs
+     even if `body` panics during interpretation. `release`'s
      synchronous-Drop invocation cannot itself perform effects
      in the row; effectful release on panic is best-effort and
      users wanting fully-effectful release on panic should
      layer their own `Drop`-impl on top of the resource.
-   - `RefBracket<'a, P, A, B>` (Ref flavour) for refcounted-substrate
-     users (`RcRun`, `ArcRun`, `RcRunExplicit`, `ArcRunExplicit`),
-     parameterised by
-     [`P: RefCountedPointer`](../../../fp-library/src/classes/ref_counted_pointer.rs)
-     ([`RcBrand`](../../../fp-library/src/brands.rs#L250) for
-     `RcRun` / `RcRunExplicit`,
-     [`ArcBrand`](../../../fp-library/src/brands.rs#L43) for
-     `ArcRun` / `ArcRunExplicit`), with `acquire: Run<R, S, A>`,
-     `body: Box<dyn FnOnce(P::Of<A>) -> Run<R, S, B>>`,
-     `release: Box<dyn FnOnce(P::Of<A>) -> Run<R, S, ()>>`. Body
-     and release both receive a pointer clone; the resource lives
-     until the last clone drops, mirroring PureScript's
-     GC-aliased `bracket` semantics
+   - `RefBracket<'a, P, A, B>` (Ref flavour), with
+     `acquire: Run<R, S, A>`,
+     `body: <P as RefCountedPointer>::Of<'a, dyn 'a + Fn(P::Of<A>) -> Run<R, S, B>>`,
+     `release: <P as RefCountedPointer>::Of<'a, dyn 'a + Fn(P::Of<A>) -> Run<R, S, ()>>`.
+     Body and release both receive a pointer clone; the
+     resource lives until the last clone drops, mirroring
+     PureScript's GC-aliased `bracket` semantics
      ([`Aff.purs:308`](https://github.com/purescript-contrib/purescript-aff/blob/master/src/Effect/Aff.purs#L308)).
      Same `BracketGuard`-based panic safety as the Val flavour.
+     `RefBracket` requires `P` to be a refcounted brand
+     (`RcBrand` for `RcRun` / `RcRunExplicit`, `ArcBrand` for
+     `ArcRun` / `ArcRunExplicit`); `BoxBrand` does not satisfy
+     `P::Of<A>: Clone` and is rejected at the type level.
    - `Span<'a, Tag>`, with `tag: Tag`, `action: Run<R, S, A>`.
-     Val only (no closure to dispatch over).
+     Val only (no closure to dispatch over; no `P` parameter
+     needed).
+
+   **Closure-storage ceiling on default `Run`.** User-defined
+   scoped effects requiring multi-shot bodies (Coroutine,
+   Provider, Retry, scoped NonDet with backtracking) are not
+   expressible on the default `Run` and `RunExplicit`
+   wrappers because `BoxBrand`'s `Box<dyn FnOnce>` storage is
+   single-shot. Users requiring multi-shot scoped bodies must
+   use `RcRun` / `ArcRun` / `RcRunExplicit` / `ArcRunExplicit`,
+   whose `RcBrand` / `ArcBrand` storage projects to multi-shot
+   `Rc<dyn Fn>` / `Arc<dyn Fn + Send + Sync>` cells. The
+   standard scoped set (`Catch`, `Local`, `Bracket`, `Span`)
+   is single-shot on every wrapper and is therefore
+   unaffected. Lifting the multi-shot ceiling on the default
+   `Run` family would require introducing FTCQueue-style
+   scoped continuations as a substrate addition; this is
+   deferred to a v2 surface and is not part of Phase 4.
+
 4. `DispatchScopedHandlers` trait at
    [`fp-library/src/types/effects/interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
    parallel to the Phase 3
