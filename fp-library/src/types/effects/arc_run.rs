@@ -1372,6 +1372,127 @@ mod inner {
 				}
 			}
 		}
+
+		/// Substrate-level matched-effect short-circuit primitive on
+		/// the thread-safe Erased Run wrapper: walk this `ArcRun`
+		/// program, dispatching non-matched first-order effects through
+		/// `fo_handlers` and short-circuiting the moment a
+		/// matched-effect (`EBrand`) dispatch is encountered, returning
+		/// the matched effect's lowered payload.
+		///
+		/// Returns `Ok(a)` when the program reduces to a pure value
+		/// without firing the matched effect; returns `Err(op)` with
+		/// the matched effect's lowered payload otherwise.
+		///
+		/// `fo_handlers` covers only the non-matched effects; the
+		/// program type retains the full row `R`. Recursion routes
+		/// through the [`unwrap_first`] HRTB-poisoning workaround
+		/// helper (mirroring [`ArcRun::interpret_with`]).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the matched effect.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand."
+		)]
+		///
+		#[document_parameters(
+			"The handler list covering non-matched first-order effects (must be `Send + Sync`)."
+		)]
+		///
+		#[document_returns(
+			"`Ok(a)` if the program completes without firing the matched effect; `Err(op)` carrying the matched effect's lowered payload otherwise."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		ArcCoyonedaBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		ExceptBrand,
+		/// 		IdentityBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			arc_run::ArcRun,
+		/// 			except::Except,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<
+		/// 	ArcCoyonedaBrand<ExceptBrand<String>>,
+		/// 	CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>,
+		/// >;
+		/// type RowMinusExcept = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = ArcRun<Row, CNilBrand, i32>;
+		///
+		/// let prog: Prog = ArcRun::throw::<String, _>("oops".to_string());
+		/// let result: Result<i32, Except<'_, String, Prog>> = prog
+		/// 	.interpret_with_either::<ExceptBrand<String>, _, RowMinusExcept>(handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	});
+		/// match result {
+		/// 	Ok(_) => panic!("expected throw"),
+		/// 	Err(Except::Throw(e, _)) => assert_eq!(e, "oops"),
+		/// }
+		/// ```
+		#[inline]
+		pub fn interpret_with_either<EBrand, Idx, RMinusE>(
+			self,
+			fo_handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, CNilBrand, A>>),
+				ArcRun<R, CNilBrand, A>,
+			>,
+		) -> Result<
+			A,
+			Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>),
+		>
+		where
+			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			A: Clone + Send + Sync,
+			EBrand: Kind_cdc7cd43dac7585f + crate::classes::Functor + SendFunctor + 'static,
+			RMinusE: WrapDrop + SendFunctor + 'static,
+			NodeBrand<R, CNilBrand>: WrapDrop
+				+ Kind_cdc7cd43dac7585f<
+					Of<'static, ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>>: Send + Sync,
+				> + SendFunctor,
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>):
+				Member<
+						ArcCoyoneda<'static, EBrand, ArcRun<R, CNilBrand, A>>,
+						Idx,
+						Remainder = Apply!(
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>
+									),
+					>, {
+			let mut prog = self;
+			loop {
+				match prog.peel() {
+					Ok(a) => return Ok(a),
+					Err(node) => {
+						let layer = unwrap_first::<R, CNilBrand, ArcRun<R, CNilBrand, A>>(node);
+						match <Apply!(
+							<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>
+						) as Member<ArcCoyoneda<'static, EBrand, ArcRun<R, CNilBrand, A>>, Idx>>::project(
+							layer
+						) {
+							Ok(matched_coyo) => return Err(matched_coyo.lower_ref()),
+							Err(rest) => prog = fo_handlers.dispatch(rest),
+						}
+					}
+				}
+			}
+		}
 	}
 
 	/// HRTB-poisoning workaround for [`ArcRun::lift`]. The body of

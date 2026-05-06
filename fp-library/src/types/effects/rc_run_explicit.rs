@@ -1364,6 +1364,109 @@ mod inner {
 				Err(Node::Scoped(cnil)) => match cnil {},
 			}
 		}
+
+		/// Substrate-level matched-effect short-circuit primitive on
+		/// the explicit-lifetime multi-shot Run wrapper: walk this
+		/// `RcRunExplicit` program, dispatching non-matched first-order
+		/// effects through `fo_handlers` and short-circuiting the
+		/// moment a matched-effect (`EBrand`) dispatch is encountered,
+		/// returning the matched effect's lowered payload.
+		///
+		/// Returns `Ok(a)` when the program reduces to a pure value
+		/// without firing the matched effect; returns `Err(op)` with
+		/// the matched effect's lowered payload otherwise.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the matched effect.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand."
+		)]
+		///
+		#[document_parameters("The handler list covering non-matched first-order effects.")]
+		///
+		#[document_returns(
+			"`Ok(a)` if the program completes without firing the matched effect; `Err(op)` carrying the matched effect's lowered payload otherwise."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			except::Except,
+		/// 			rc_run_explicit::RcRunExplicit,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<
+		/// 	RcCoyonedaBrand<ExceptBrand<String>>,
+		/// 	CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>,
+		/// >;
+		/// type RowMinusExcept = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = RcRunExplicit<'static, Row, CNilBrand, i32>;
+		///
+		/// let prog: Prog = RcRunExplicit::throw::<String, _>("oops".to_string());
+		/// let result: Result<i32, Except<'static, String, Prog>> = prog
+		/// 	.interpret_with_either::<ExceptBrand<String>, _, RowMinusExcept>(handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	});
+		/// match result {
+		/// 	Ok(_) => panic!("expected throw"),
+		/// 	Err(Except::Throw(e, _)) => assert_eq!(e, "oops"),
+		/// }
+		/// ```
+		#[inline]
+		pub fn interpret_with_either<EBrand, Idx, RMinusE>(
+			self,
+			fo_handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RcRunExplicit<'a, R, CNilBrand, A>>),
+				RcRunExplicit<'a, R, CNilBrand, A>,
+			>,
+		) -> Result<
+			A,
+			Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>),
+		>
+		where
+			A: Clone,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>):
+				Member<
+						RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, CNilBrand, A>>,
+						Idx,
+						Remainder = Apply!(
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>
+									),
+					>, {
+			let mut prog = self;
+			loop {
+				match prog.peel() {
+					Ok(a) => return Ok(a),
+					Err(Node::First(layer)) => match <Apply!(
+						<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>
+					) as Member<
+						RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, CNilBrand, A>>,
+						Idx,
+					>>::project(layer)
+					{
+						Ok(matched_coyo) => return Err(matched_coyo.lower_ref()),
+						Err(rest) => prog = fo_handlers.dispatch(rest),
+					},
+					Err(Node::Scoped(cnil)) => match cnil {},
+				}
+			}
+		}
 	}
 
 	#[document_type_parameters("The lifetime that bounds the payload.", "The result type.")]
