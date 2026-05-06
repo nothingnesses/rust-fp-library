@@ -664,53 +664,29 @@ docs for bare-name doc-links before / after the wrapping.
 
 1. Read [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s
    `Current progress` section. Phase 3 closed at step 8
-   (commit `5911d579`); the most recent design adoption is
-   the 2026-05-05 Phase 4 design-question adoption plus
-   Phase 3.5 introduction (`docs(effects): adopt Phase 4
-design-question recommendations and add Phase 3.5
-pointer-brand-pattern retrofit`), which sequenced
-   [Phase 3.5](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#phase-35-pointer-brand-pattern-retrofit)
-   between Phase 3 close and Phase 4 implementation kickoff
-   and adopted the `BoxBrand` + `ToDynFnOnce` +
-   closure-FnOnce-on-default-`Run` pattern as the unified
-   pointer-brand approach for both Phase 3.5 and Phase 4.
-   Plan.md's
-   [`Active blockers`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#active-blockers)
-   subsection still names Phase 4 design-question items
-   B1-B4 as blocking R1 implementation; that wording predates
-   the 2026-05-05 adoption commit and applies only to Phase 4
-   step 1 onward (Phase 3.5 work is not gated by it).
-2. **Phase 3.5 (pointer-brand-pattern retrofit):** see
-   [plan.md's Phase 3.5 section](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#phase-35-pointer-brand-pattern-retrofit)
-   for the five sub-steps. The work lands the new
-   `ToDynFnOnce` trait at
-   `fp-library/src/classes/to_dyn_fn_once.rs` (paralleling
-   the existing
-   [`ToDynFn`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/to_dyn_fn.rs)
-   and only implemented by `BoxBrand`; `Rc<dyn FnOnce>` and
-   `Arc<dyn FnOnce>` are operationally broken because
-   `FnOnce::call_once` consumes `self` out of the trait
-   object), retrofits the three Phase 3 closure-bearing
-   effects (`State`, `Reader`, `Choose`) to use `BoxBrand` +
-   `ToDynFnOnce` on default `Run` / `RunExplicit` while
-   keeping `RcRun` / `ArcRun` smart constructors on their
-   existing `Rc<dyn Fn>` / `Arc<dyn Fn + Send + Sync>`
-   paths, updates
-   [`fp-library/docs/pointer-abstraction.md`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/pointer-abstraction.md)
-   to add `ToDynFnOnce` to the trait diagram and table, and
-   appends a
-   [resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md)
-   entry closing prior-review F4 structurally. Default
-   commit boundary is one per numbered sub-step; surface any
-   intra-step split (e.g., per-effect commits inside sub-step 2) to the user before starting per the per-step protocol's
-   "splitting an oversized step" clause. Existing integration
-   tests at
-   [`fp-library/tests/run_state.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_state.rs),
-   [`fp-library/tests/run_reader.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_reader.rs),
-   and
-   [`fp-library/tests/run_choose.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_choose.rs)
-   verify the retrofit preserves observable behaviour.
-3. **Phase 4 (scoped effects):** see
+   (commit `5911d579`); Phase 3.5 closed at sub-step 5
+   (commit `4471629d`). The 2026-05-05 design-adoption
+   commit (`6e960701`) and the subsequent Phase 3.5
+   retrofit landings closed Phase 4 pre-implementation
+   design questions B1-B4; the adopted `BoxBrand` +
+   `ToDynFnOnce` + closure-FnOnce-on-default-`Run` pattern
+   is in production for Phase 3's State / Reader / Choose
+   on default `Run` and is the template for Phase 4 user-
+   supplied scoped handlers. Two implementation-kickoff
+   sequencing decisions surface at the Phase 3.5-to-Phase-4
+   transition and need the user's input before substantive
+   Phase 4 code lands: K1 (POC 3 validation ordering) and
+   K2 (plan.md numbering vs Sequencing Plan numbering as
+   the authoritative commit boundary). Both are documented
+   with options / trade-offs / recommendation / reasoning in
+   plan.md's
+   [`Phase 4 implementation-kickoff sequencing`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#phase-4-implementation-kickoff-sequencing)
+   subsection. Read these before starting; the
+   recommendations in each (K1 = Option A, standalone POC 3
+   commit first; K2 = Option A, plan.md numbering
+   authoritative) are the default unless the user
+   redirects.
+2. **Phase 4 (scoped effects):** see
    [plan.md's Phase 4 section](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
    for the full step list and constructor signatures. Phase 4
    follows the
@@ -727,14 +703,14 @@ pointer-brand-pattern retrofit`), which sequenced
    generically across all six Run wrappers. Reuse Phase 3.5's
    `BoxBrand` + `ToDynFnOnce` pattern for all user-supplied
    scoped-effect handlers.
-4. Read [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
+3. Read [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
    [section 4.5](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md#45-decision-scoped-effect-representation-via-a-heftia-inspired-dual-row)
    (scoped effects) and
    [section 4.6](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md#46-decision-natural-transformations-as-values)
    (natural transformations) for Phase 4 commitment context.
    Section 4.3 (interpreter families) is the reference for
    any work that touches the interpreter primitive surface.
-5. If your step touches type-class impls, brand-level dispatch, or
+4. If your step touches type-class impls, brand-level dispatch, or
    `Send + Sync` auto-derive, also skim
    [fp-library/docs/limitations-and-workarounds.md](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/limitations-and-workarounds.md)'s
    "Unexpressible Bounds in Trait Method Signatures" table. Phase
@@ -745,7 +721,7 @@ pointer-brand-pattern retrofit`), which sequenced
    path) is the precedent any new wrapper type with shared
    internal state will end up following. Saves rediscovering the
    constraint mid-implementation.
-6. Per-step doc maintenance follows the per-step protocol below
+5. Per-step doc maintenance follows the per-step protocol below
    and plan.md's
    [Implementation protocol](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#implementation-protocol)
    step 3: refresh plan.md's `Current progress` four required

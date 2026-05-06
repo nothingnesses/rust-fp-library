@@ -450,7 +450,9 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-The Phase 4 pre-implementation design questions documented in the [Phase 4 pre-implementation design questions](#phase-4-pre-implementation-design-questions) subsection below are blocking items B1-B4. They must be resolved (decisions made and incorporated into plan.md / decisions.md) before R1 implementation begins per the [remediation report's Sequencing Plan item 3](review/1_scoped_effects_design/remediation_proposals_phase_4.md). Items Q1-Q5 are open questions that may resolve during R1 specification (sequencing item 2) but not after; items R1-R3 are unprototyped scaling risks acceptable to address during implementation but worth budgeting.
+**Phase 3 / 3.5 era questions are resolved.** Phase 4 pre-implementation design questions B1-B4 (subsection below) were closed by the 2026-05-05 design-adoption commit `6e960701` and the subsequent Phase 3.5 retrofit landings (commits `b067f912` / `a762fa27` / `89546709` / `4471629d`); their recommendation columns are authoritative and the plan-revision-required edits are in place. Items Q1-Q5 in the same subsection are open questions captured against the relevant Phase 4 step descriptions and resolve during R1 specification work; items R1-R3 are unprototyped scaling risks acceptable to address during implementation but worth budgeting.
+
+**Phase 4 implementation-kickoff sequencing.** Two load-bearing sequencing decisions surface at the Phase 3.5-to-Phase-4 transition: K1 (POC 3 validation ordering relative to the first Phase 4 substrate work) and K2 (plan.md numbering vs Sequencing Plan numbering as the authoritative commit boundary). Both are documented with options / trade-offs / recommendation / reasoning in the [Phase 4 implementation-kickoff sequencing](#phase-4-implementation-kickoff-sequencing) subsection below. Resolutions land in [resolutions.md](resolutions.md) once the user confirms; plan-text amendments follow.
 
 ### Phase 4 pre-implementation design questions
 
@@ -685,6 +687,62 @@ Method-level generics over types are stable Rust, but the FOH bound's satisfiabi
 **Risk.** Bracket on `RcRun` allocates 3 closure cells (acquire is a Run; body and release are `Rc<dyn Fn>`); plus the `BracketGuard`. No benchmarks exist. The plan's performance characterisation is implicit ("amortised over Coyoneda fusion") but scoped operations don't go through Coyoneda.
 
 **Mitigation:** Add a Phase 4 benchmark commit alongside the standard scoped-effect rollout (sequencing item 7), paralleling the [Phase 1 step 8 per-variant Free benches](#phase-1-complete-the-free-family). Compare scoped-op cost against equivalent FO-only programs that simulate the scoped behaviour through closure capture.
+
+### Phase 4 implementation-kickoff sequencing
+
+These items surface at the Phase 3.5-to-Phase-4 transition. Each is documented with options / trade-offs / recommendation / reasoning in the same style as the [Phase 4 pre-implementation design questions](#phase-4-pre-implementation-design-questions) subsection. Resolutions land in [resolutions.md](resolutions.md) and the plan text is amended in place.
+
+#### K1. POC 3 (`interpret_with_either`) validation ordering
+
+**Issue.** [Phase 4 step 2a](#phase-4-scoped-effects-heftia-inspired-dual-row) commits to a new substrate primitive `interpret_with_either<EBrand, Idx>(self, fo_handlers: &impl DispatchHandlers<...>) -> Either<A, EBrand::Op>` on each Run wrapper, used by the `Catch` cons-cell impl in [Phase 4 step 4](#phase-4-scoped-effects-heftia-inspired-dual-row). Plan.md states POC 3 (validating the primitive on `RcRun`) "must land before the step that introduces `interpret_with_either` ships generically across all six Run wrappers", but the literal commit ordering relative to other Phase 4 substrate work (steps 1, 2, the `Span` cons-cell) is unspecified.
+
+**Option A: Land POC 3 first as a standalone commit, before any other Phase 4 substrate work.** A focused commit at [`fp-library/tests/poc_rc_run_interpret_with_either.rs`](../../../fp-library/tests/) validates the substrate primitive's shape on `RcRun`. Subsequent Phase 4 commits (steps 1, 2, 2a, 3, 4, ...) consume the validated shape with no surprise.
+
+- _Cost:_ One small commit (~50-100 lines, mechanical from [`interpret_with`'s body](../../../fp-library/src/types/effects/run.rs#L885-L900) with one branch substitution). Half-day spend, amortised across Phase 4's 1-2-week budget for [Sequencing Plan item 3](review/1_scoped_effects_design/remediation_proposals_phase_4.md#sequencing-plan).
+- _Benefit:_ Mirrors POC 1 ([`poc_send_catch_brand.rs`](../../../fp-library/tests/poc_send_catch_brand.rs)) and POC 2 ([`poc_rc_run_interpose.rs`](../../../fp-library/tests/poc_rc_run_interpose.rs)) precedent (each shipped as a standalone validation commit before its generic rollout). Walls discovered before generic implementation begins.
+- _Risks:_ None beyond the half-day cost if POC succeeds (expected).
+
+**Option B: Land Phase 4 steps 1, 2 plus `Span` cons-cell first; land POC 3 paired with the `Catch` cons-cell substrate primitive.** The earliest Phase 4 commits (`ScopedCoproduct`, `Run::interpose` per POC 2, `DispatchScopedHandlers` skeleton + `Span` cons-cell) do not touch `interpret_with_either`; POC 3 + the substrate primitive land as a paired commit immediately before the `Catch` cons-cell.
+
+- _Cost:_ Mixed-layer paired commit (POC + substrate primitive together). Slightly larger commit boundary than Option A.
+- _Benefit:_ Tighter scheduling for the easy-first wave (Span cons-cell does not need `interpret_with_either`).
+- _Risks:_ If POC 3 surfaces a wall, the `Catch` cons-cell design is blocked mid-Phase 4. Earlier commits stand but the [B4 Option A placeholder-program subtlety](#b4-catch-dispatchers-sentinel-mechanism) re-surfaces and the Phase 4 step 4 design needs revision.
+
+**Option C: Skip POC 3; land the substrate primitive directly inline with the generic rollout.** The `interpret_with_either` substrate primitive lands as part of the same commit as the per-wrapper rollout, with integration tests serving as POC equivalence.
+
+- _Cost:_ Larger commit boundary; less granular review.
+- _Benefit:_ One fewer commit.
+- _Risks:_ HRTB-poisoning on the Explicit family (per the [R1 risk](#r1-explicit-family-interpose-generalisation)) could surface mid-rollout, forcing a back-out. Removes the validation step entirely.
+
+**Recommendation: Option A.** POC 1 and POC 2 both shipped as standalone validation commits before their respective generic rollouts; POC 3 follows that precedent. The half-day cost is amortised across the Phase 4 budget. Option B's mixed-layer paired commit increases blast-radius if the POC fails; Option C's inline rollout removes the validation step entirely.
+
+**Plan revision required.** Yes (small). Add a Phase 4 step 0 entry before step 1 stating: "POC 3: validate `interpret_with_either<EBrand, Idx>` substrate primitive on `RcRun` at [`fp-library/tests/poc_rc_run_interpret_with_either.rs`](../../../fp-library/tests/) (paralleling POC 1 / POC 2). Mechanical from [`interpret_with`'s body](../../../fp-library/src/types/effects/run.rs#L885-L900) with one branch substitution. Generic rollout across all six Run wrappers ships in step 2a after POC 3 validates."
+
+#### K2. Plan.md step numbering vs Sequencing Plan item numbering
+
+**Issue.** Phase 4 work is described twice with different boundaries. Plan.md numbers the steps 1, 2, 2a, 3, 4, 5, 6, 7, 8 (eight + one sub-step). The [Sequencing Plan in the remediation report](review/1_scoped_effects_design/remediation_proposals_phase_4.md#sequencing-plan) numbers the items 1, 2, 3, 4, 5, 6, 7, 8, 9 (nine items). The two schemes overlap differently: Sequencing items 1, 2, 4 are pre-implementation doc commits already shipped (`64620778`, `00056428`, `d2ed51d5`, `658646c4`); Sequencing item 3 spans plan.md steps 1, 2 (substrate `Run::interpose`), 4 (`DispatchScopedHandlers` trait + `Catch` and `Span` cons-cells); Sequencing item 5 maps to plan.md step 3; item 6 maps to plan.md step 4's `Bracket` slice; item 7 maps to plan.md steps 5, 6; item 8 maps to plan.md step 7; item 9 is the documentation pass paralleling Phase 3 step 8. The prompt's per-step protocol cites "one step per commit" without specifying which numbering.
+
+**Option A: Plan.md numbering is the authoritative commit boundary.** Each plan.md step (1, 2, 2a, 3, 4, 5, 6, 7, 8) becomes one commit (or a small bundled-commit group with surfaced split). The Sequencing Plan items group these commits but do not replace them.
+
+- _Cost:_ Plan.md step 4 (`DispatchScopedHandlers` trait + per-wrapper interpret rewrite) is large (~600+ lines across six wrappers); may need a surfaced sub-step split (one wrapper at a time, or trait + Erased family + Explicit family). The same applies to step 3 (per-pointer-brand parameterisation across four scoped-op types). Splits are surfaced before starting per the per-step protocol's "splitting an oversized step" clause.
+- _Benefit:_ Fine-grained commit history; easy review per concept (substrate primitive, dispatcher trait, scoped-effect type, etc.). Mirrors Phase 3 step-numbering precedent (Phase 3 step 5a shipped as 5a.1 / 5a.2 / 5a.3 / 5a.4 / 5a.5 / 5a.6 sub-step commits).
+- _Risks:_ Mapping commits back to the Sequencing Plan items requires a translation table; the report estimates time per Sequencing item, not per plan.md step.
+
+**Option B: Sequencing Plan numbering is the authoritative commit boundary.** Each Sequencing Plan item becomes one commit. Items 3, 5, 7 are 1-2 weeks each per the report's estimate.
+
+- _Cost:_ Each commit is large; review burden per commit is high. Bundled commits do not match the prompt's per-step protocol cleanly.
+- _Benefit:_ Matches the report's framing exactly; total-time estimation tracks commit-by-commit.
+- _Risks:_ Large commits hide internal regressions; reverting becomes harder.
+
+**Option C: Hybrid.** Plan.md numbering for substrate primitives (steps 1, 2, 2a) and the dispatcher trait (step 4); Sequencing Plan numbering for the cons-cell rollout (items 6, 7) and standard handlers (item 8); R1/R2 prototype kickoff prototypes as their own commits.
+
+- _Cost:_ Two-layer numbering scheme; commit-log readers must follow both.
+- _Benefit:_ Each commit boundary matches the right granularity per work type.
+- _Risks:_ Inconsistent commit-message phrasing.
+
+**Recommendation: Option A.** Plan.md is the authoritative source per the prompt's "one step per commit" rule. The Sequencing Plan in the remediation report is a planning artefact for total-time estimation, not a commit-boundary spec. Sub-step splits within plan.md step 3 / step 4 are surfaced before starting per the per-step protocol's "splitting an oversized step" clause; this preserves fine-grained commit history without forcing oversized commits. Option B's large commits clash with the per-step protocol; Option C's parallel numbering schemes confuse future implementors. Phase 3 step 5a established the precedent (sub-step splits within a single plan.md step) and the same shape applies here.
+
+**Plan revision required.** No (semantic-only decision). Sequencing Plan numbering remains in the remediation report as planning context; plan.md remains authoritative for commit boundaries.
 
 ### Open follow-ups (not blocking but worth surfacing)
 
