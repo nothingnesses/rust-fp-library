@@ -15,6 +15,206 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-06): Phase 3 prior-review F4 closed structurally via Phase 3.5 retrofit (sibling `Box*Brand` family on default Run substrates)
+
+**Question.** The Phase 3 prior-review's
+[F4 finding](review/0_first_order_effects_implementation/remediation_proposals.md#f4-the-single-shot-vs-multi-shot-property-promised-per-wrapper-is-not-enforced-at-the-effect-instance-level)
+flagged that the "single-shot vs multi-shot" property advertised
+per Run wrapper applied only to the Free-spine consumption, not to
+per-effect closure cells. Concretely: on
+[`Run`](../../../fp-library/src/types/effects/run.rs) and
+[`RunExplicit`](../../../fp-library/src/types/effects/run_explicit.rs)
+(both single-shot per the wrapper-level guarantee), the smart
+constructors `get` / `put` / `ask` stored continuations as
+[`StateBrand<RcBrand, A>`](../../../fp-library/src/brands/effects.rs)
+/
+[`ReaderBrand<RcBrand, A>`](../../../fp-library/src/brands/effects.rs)
+whose closure cell is `Rc<dyn Fn(...) -> A>`. The cell was thus
+multi-shot-callable at the effect-instance level even though the
+surrounding program was single-shot, creating a semantic asymmetry:
+a handler could call the State continuation many times even on a
+wrapper advertised as single-shot. The review's F4 framing called
+this "API claim does not match reality at the effect-instance
+level".
+
+**Original Phase 3 disposition (step 8, 2026-05-05):** Phase 3
+step 8 adopted F4's recommended **Option A** (documentation-only):
+weaken the [Success criteria](plan.md#success-criteria)'s
+"single-shot vs multi-shot" claim to apply to Free spine
+consumption only, and document at
+[`StateBrand`'s rustdoc](../../../fp-library/src/types/effects/state.rs#L24-L29)
+that per-effect closures carry their multi-shot property at the
+effect-instance level on every wrapper. Phase 3 closed under this
+option.
+
+**Phase 3.5 re-opening rationale.** Phase 4 design-question B3 (the
+[Phase 4 pre-implementation design questions](plan.md#phase-4-pre-implementation-design-questions))
+re-examined the F4 framing in the context of user-supplied scoped
+handlers. The key observation: Phase 3's State / Reader / Choose
+continuations are _substrate-constructed_ (the smart constructor
+emits a trivial `|s| s` or `|()| ()` closure), so the mismatch
+surfaces only inside the substrate code at handler dispatch.
+Phase 4's scoped-effect handlers (the body of `Catch::handler`,
+`Local::modify`, `Bracket::body`, etc.) are _user-supplied_, so the
+FnOnce-ergonomics friction would land on user code: a natural
+recovery handler is `move |e: MyErr| recovery_built_from_captures`
+where the captures are consumed in building the recovery program.
+That is `FnOnce`, not `Fn`. Forcing it through `Rc<dyn Fn>` would
+reject the natural pattern at the type level on default `Run`,
+requiring users to wrap captures in `Rc` or constrain captures to
+`Clone`. Phase 4 needs the FnOnce ergonomics; landing the same
+pattern across Phase 3 + Phase 4 keeps the user-facing
+pointer-brand surface uniform.
+
+**Resolution.** Phase 3.5 (pointer-brand-pattern retrofit) closes
+F4 structurally rather than as accepted-tradeoff. The retrofit
+replaces, on default `Run` / `RunExplicit` only, the
+[`StateBrand<RcBrand, S>`](../../../fp-library/src/brands/effects.rs)
+/
+[`ReaderBrand<RcBrand, E>`](../../../fp-library/src/brands/effects.rs)
+threading with parallel sibling brands
+[`BoxStateBrand<BoxBrand, S>`](../../../fp-library/src/brands/effects.rs)
+/
+[`BoxReaderBrand<BoxBrand, E>`](../../../fp-library/src/brands/effects.rs)
+whose closure cells are `Box<dyn FnOnce(...) -> A>` via the new
+[`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs)
+trait (sub-step 1). The new sibling effect types
+[`BoxState`](../../../fp-library/src/types/effects/state.rs) /
+[`BoxReader`](../../../fp-library/src/types/effects/reader.rs) /
+[`BoxChoose`](../../../fp-library/src/types/effects/choose.rs)
+mirror the structure of
+[`State`](../../../fp-library/src/types/effects/state.rs) /
+[`Reader`](../../../fp-library/src/types/effects/reader.rs) /
+[`Choose`](../../../fp-library/src/types/effects/choose.rs) and
+[`SendState`](../../../fp-library/src/types/effects/state.rs) /
+[`SendReader`](../../../fp-library/src/types/effects/reader.rs) /
+[`SendChoose`](../../../fp-library/src/types/effects/choose.rs) but
+with `where P: ToDynFnOnce` bounds restricting instantiation to
+`BoxBrand` (the only brand for which `<P as Pointer>::Of<dyn FnOnce>`
+is operationally implementable). Multi-shot wrappers
+([`RcRun`](../../../fp-library/src/types/effects/rc_run.rs) /
+[`RcRunExplicit`](../../../fp-library/src/types/effects/rc_run_explicit.rs)
+/ [`ArcRun`](../../../fp-library/src/types/effects/arc_run.rs) /
+[`ArcRunExplicit`](../../../fp-library/src/types/effects/arc_run_explicit.rs))
+keep their existing `Rc<dyn Fn>` / `Arc<dyn Fn + Send + Sync>`
+paths unchanged, because their wrapper-level multi-shot guarantee
+makes the multi-shot continuation cell semantically aligned.
+
+After the retrofit, the single-shot-vs-multi-shot property is
+enforced at the type level for both the Free spine _and_ the
+per-effect closure cell on default Run substrates. A handler on
+`Run::interpret` matches `BoxState::Get(k) => k(state)`; the
+`k(state)` consumes the box on the single call, statically proving
+the continuation is single-shot.
+
+**Trade-off discussion (relative to the F4-recommended Option A).**
+The retrofit does what Option A explicitly avoided: it re-opens the
+[(3.a-1) "one effect type per operation"
+sub-decision](#L209-L240) (locked 2026-05-03). The trade-off is
+acceptable because:
+
+1. **Doubling cost is amortised over Phase 4.** Option B's
+   "doubles the per-effect type definitions" critique applied when
+   only Phase 3 was in scope; with Phase 4 also needing the
+   `BoxBrand` path for user-supplied scoped handlers (per Phase 4
+   design-question B3), the cost is amortised across both phases.
+   Phase 3.5 lands three sibling types
+   ([`BoxState`](../../../fp-library/src/types/effects/state.rs) /
+   [`BoxReader`](../../../fp-library/src/types/effects/reader.rs) /
+   [`BoxChoose`](../../../fp-library/src/types/effects/choose.rs))
+   in one commit; Phase 4 reuses the same pattern for
+   [`Catch`](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+   / `Local` / `Bracket` / `Span` / `RefLocal` / `RefBracket`
+   without adding a parallel brand-family per scoped effect.
+
+2. **Brand surface stays alphabetised, not duplicated.** Each
+   `Box*Brand` lives in
+   [`fp-library/src/brands/effects.rs`](../../../fp-library/src/brands/effects.rs)
+   alongside its `*Brand` and `Send*Brand` siblings; the
+   brand-implementations table at
+   [`fp-library/docs/pointer-abstraction.md`](../../../fp-library/docs/pointer-abstraction.md)'s
+   newly-added
+   `(closure-semantic, pointer-capability)` matrix shows that the
+   trait family is structurally complete (each pair maps to
+   exactly the brands that legitimately implement it).
+
+3. **Doc surface stays single-source.** The retrofit re-uses
+   existing rustdoc on
+   [`StateBrand`](../../../fp-library/src/brands/effects.rs)'s
+   "Coyoneda-fusion at call-site" subsection (which applies
+   equally to `BoxStateBrand`); module-level `state.rs` /
+   `reader.rs` / `choose.rs` docs gain one new paragraph each
+   describing the sibling. The combined incremental doc surface is
+   ~30 lines, not the "doubles the documentation surface" Option
+   B would have implied at Phase 3 step 5a's smaller scope.
+
+4. **Macro complexity is unaffected.** Phase 3 step 6's
+   [`define_effect!` macro](#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit)
+   is deferred indefinitely; the per-wrapper smart constructors
+   are hand-written. Adding the `BoxBrand` path to the hand-written
+   smart constructors is a per-method update on `Run` /
+   `RunExplicit` only (six methods total: `get` / `put` / `ask`
+   across two wrappers), not a macro extension. If `define_effect!` ever
+   ships, the per-pointer-brand split becomes a macro parameter.
+
+The 2026-05-03 (3.a-1) "one effect type per operation" decision
+remains valid for the _user-facing_ effect family naming
+convention: users see `BoxStateBrand` / `StateBrand` /
+`SendStateBrand` as one State family with three pointer-substrate
+variants, and the `Run`-family smart constructors thread the
+appropriate variant per wrapper without users specifying the
+pointer brand explicitly. The "one type per operation" promise
+holds at the user-API level (one `get` on `Run`, one `get` on
+`RcRun`, one `get` on `ArcRun`); the under-the-hood representation
+splits into three siblings to satisfy the structural closure-trait
+constraint.
+
+**Why structural is now preferable to documentation-only.** Phase 3
+step 8's Option A wrote: "the API claim does not match reality at
+the effect-instance level; document the mismatch." After Phase 3.5,
+the API claim _does_ match reality: `Run`'s `BoxState::Get(k)` /
+`BoxState::Put(s, k)` / `BoxReader::Ask(k)` continuations are
+exactly single-shot at the type level. Future-you reading
+`Run::get`'s smart constructor signature does not need to consult
+the rustdoc for "by the way, the inner closure is multi-shot but
+the program is single-shot". The structural property is visible at
+the type signature.
+
+**Plan integration.** Phase 3.5 is sequenced between Phase 3 close
+and Phase 4 implementation. Sub-steps:
+
+1. `ToDynFnOnce` trait + `BoxBrand` impl (commit `b067f912`,
+   2026-05-05).
+2. Sibling effect types and brands; smart constructor updates on
+   `Run` / `RunExplicit`; integration test updates (commit
+   `a762fa27`, 2026-05-05).
+3. `pointer-abstraction.md` documentation update (commit
+   `89546709`, 2026-05-06).
+4. Implicit (covered by sub-step 2's `just verify` clean run).
+5. This resolutions.md entry (this commit, 2026-05-06).
+
+Phase 4 implementation then follows, reusing the same
+`BoxBrand` + `ToDynFnOnce` pattern for user-supplied scoped-effect
+handlers per
+[Phase 4 design-question B3's recommendation](plan.md#b3-pointer-brand-parameterisation-drop-boxbrand-follow-phase-3-state-precedent).
+
+**Cross-references:**
+
+- Phase 3 step 8 disposition (Option A doc-only, 2026-05-05):
+  [deviations.md Phase 3 step 8](deviations.md).
+- F4 finding's full restatement, root cause, options A/B/C
+  evaluation:
+  [`review/0_first_order_effects_implementation/remediation_proposals.md`](review/0_first_order_effects_implementation/remediation_proposals.md).
+- Phase 4 design-question B3 (the original re-opening rationale):
+  [plan.md Phase 4 pre-implementation design questions](plan.md#phase-4-pre-implementation-design-questions).
+- Three-sibling-types interpretation rationale (why
+  `BoxStateBrand` rather than parameterising `StateBrand` over
+  `BoxBrand`): [deviations.md Phase 3.5 sub-step 2](deviations.md).
+- Trait-family completeness matrix:
+  [`fp-library/docs/pointer-abstraction.md`](../../../fp-library/docs/pointer-abstraction.md)'s
+  `ToDynFnOnce is BoxBrand-only by structural necessity`
+  subsection.
+
 ## Resolved (2026-05-04): Phase 3 step 6 (`define_effect!` macro) deferred until Phase 4 ships or user demand surfaces; design research preserved for later revisit
 
 `define_effect!` was scoped as a proc-macro that mechanically
