@@ -17,8 +17,10 @@ graph TD
     RefCountedPointer --> ToDynCloneFn["ToDynCloneFn"]
     SendRefCountedPointer --> ToDynSendFn["ToDynSendFn"]
     Pointer --> ToDynFn["ToDynFn"]
+    Pointer --> ToDynFnOnce["ToDynFnOnce"]
     BoxBrand -.implements.-> Pointer
     BoxBrand -.implements.-> ToDynFn
+    BoxBrand -.implements.-> ToDynFnOnce
     RcBrand -.implements.-> Pointer
     RcBrand -.implements.-> RefCountedPointer
     RcBrand -.implements.-> ToDynFn
@@ -37,14 +39,28 @@ graph TD
 | `RefCountedPointer`     | `Of`, `TakeCellOf`                 | `Clone + Deref`               | Clonable reference-counted pointer                                      |
 | `SendRefCountedPointer` | `Of`                               | `Clone + Send + Sync + Deref` | Thread-safe reference-counted pointer                                   |
 | `ToDynFn`               | (uses `Pointer::Of`)               |                               | Coerce `impl Fn` -> `dyn Fn` behind a pointer                           |
+| `ToDynFnOnce`           | (uses `Pointer::Of`)               |                               | Coerce `impl FnOnce` -> `dyn FnOnce` behind a pointer (single-shot)     |
 | `ToDynCloneFn`          | (uses `RefCountedPointer::Of`)     |                               | Coerce `impl Fn` -> `dyn Fn` behind a clonable pointer                  |
 | `ToDynSendFn`           | (uses `SendRefCountedPointer::Of`) |                               | Coerce `impl Fn` -> `dyn Fn + Send + Sync` behind a thread-safe pointer |
 
-| Brand      | Implements                                                |
-| :--------- | :-------------------------------------------------------- |
-| `BoxBrand` | `Pointer`, `ToDynFn`                                      |
-| `RcBrand`  | `Pointer`, `RefCountedPointer`, `ToDynFn`, `ToDynCloneFn` |
-| `ArcBrand` | All six traits                                            |
+| Brand      | Implements                                                                                                                                                      |
+| :--------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BoxBrand` | `Pointer`, `ToDynFn`, `ToDynFnOnce`                                                                                                                             |
+| `RcBrand`  | `Pointer`, `RefCountedPointer`, `ToDynFn`, `ToDynCloneFn`                                                                                                       |
+| `ArcBrand` | All six multi-shot traits (`Pointer`, `RefCountedPointer`, `SendRefCountedPointer`, `ToDynFn`, `ToDynCloneFn`, `ToDynSendFn`); does NOT implement `ToDynFnOnce` |
+
+#### `ToDynFnOnce` is `BoxBrand`-only by structural necessity
+
+The `(pointer-capability, closure-semantic)` matrix maps each pair to exactly the brands that legitimately host it:
+
+| Closure semantic       | Owned (`BoxBrand`) | Refcounted (`RcBrand`)     | Thread-safe refcounted (`ArcBrand`) |
+| :--------------------- | :----------------- | :------------------------- | :---------------------------------- |
+| `Fn` (multi-shot)      | `ToDynFn`          | `ToDynFn` + `ToDynCloneFn` | All four `Fn`-family traits         |
+| `FnOnce` (single-shot) | `ToDynFnOnce`      | (operationally broken)     | (operationally broken)              |
+
+`Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` cannot be implemented because [`FnOnce::call_once`](https://doc.rust-lang.org/stable/core/ops/trait.FnOnce.html) consumes `self` (the trait object), which cannot be moved out of a shared pointer without invalidating other clones. The only legitimate `dyn FnOnce` carrier is `Box<dyn FnOnce>`, where the standard library's blanket [`impl<F: ?Sized + FnOnce<Args>> FnOnce<Args> for Box<F>`](https://doc.rust-lang.org/stable/core/ops/trait.FnOnce.html#impl-FnOnce%3CArgs%3E-for-Box%3CF,+A%3E) consumes the box on call, moving the underlying `FnOnce` out and dropping the `Box` allocation in one step.
+
+**Use-case:** single-shot continuation cells in effect types (Phase 3.5 retrofit's [`BoxState`](../src/types/effects/state.rs) / [`BoxReader`](../src/types/effects/reader.rs) / [`BoxChoose`](../src/types/effects/choose.rs); future Phase 4 scoped-effect closure storage on default `Run` substrates) where the program-tree's single-shot semantics make `FnOnce` the precise type and `Box<dyn Fn>` would over-promise multi-shot semantics. Multi-shot wrappers (`RcRun` / `ArcRun` and their `Explicit` siblings) keep using the cloneable `dyn Fn` paths via `ToDynCloneFn` / `ToDynSendFn`.
 
 #### Generic Function Brands
 
