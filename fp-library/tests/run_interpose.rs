@@ -18,6 +18,7 @@
 
 use fp_library::{
 	brands::{
+		ArcCoyonedaBrand,
 		CNilBrand,
 		CoproductBrand,
 		CoyonedaBrand,
@@ -29,6 +30,7 @@ use fp_library::{
 	types::{
 		Identity,
 		effects::{
+			arc_run::ArcRun,
 			except::Except,
 			rc_run::RcRun,
 			run::Run,
@@ -199,6 +201,81 @@ fn run_t4_dual_row_unmatched_at_head_walks_through_embed_path() {
 		IdentityBrand: |op: Identity<RunDualProg>| op.0,
 		ExceptBrand<String>: |op: Except<'_, String, RunDualProg>| match op {
 			Except::Throw(_, _) => Run::pure(0),
+		},
+	});
+	assert_eq!(result, 99);
+}
+
+// -- ArcRun --
+
+// Single-effect row used in T1, T2 for the thread-safe ArcRun wrapper.
+type ArcSingleRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+type ArcSingleProg = ArcRun<ArcSingleRow, CNilBrand, i32>;
+
+// Single-effect row remainder (after Identity is removed).
+type ArcSingleRowMinus = CNilBrand;
+
+// Two-effect row used in T3, T4. Row variants follow the handlers!
+// macro's lexical-sort canonical ordering: ExceptBrand < IdentityBrand.
+type ArcDualRow = CoproductBrand<
+	ArcCoyonedaBrand<ExceptBrand<String>>,
+	CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>,
+>;
+type ArcDualProg = ArcRun<ArcDualRow, CNilBrand, i32>;
+
+// Dual-row remainders for each interpose target.
+type ArcDualRowMinusExcept = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+type ArcDualRowMinusIdentity = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<String>>, CNilBrand>;
+
+#[test]
+fn arc_run_t1_single_effect_no_op_interpose() {
+	let prog: ArcSingleProg = ArcRun::lift::<IdentityBrand, _>(Identity(7));
+	let interposed = prog
+		.interpose::<IdentityBrand, _, ArcSingleRowMinus, _>(|op: Identity<ArcSingleProg>| op.0);
+	let result = interposed.interpret(handlers! {
+		IdentityBrand: |op: Identity<ArcSingleProg>| op.0,
+	});
+	assert_eq!(result, 7);
+}
+
+#[test]
+fn arc_run_t2_single_effect_constant_replacement() {
+	let prog: ArcSingleProg = ArcRun::lift::<IdentityBrand, _>(Identity(7));
+	let interposed =
+		prog.interpose::<IdentityBrand, _, ArcSingleRowMinus, _>(|_op: Identity<ArcSingleProg>| {
+			ArcRun::pure(99)
+		});
+	let result = interposed.interpret(handlers! {
+		IdentityBrand: |op: Identity<ArcSingleProg>| op.0,
+	});
+	assert_eq!(result, 99);
+}
+
+#[test]
+fn arc_run_t3_dual_row_unmatched_walks_through_embed_path() {
+	let prog: ArcDualProg = ArcRun::throw::<String, _>("from_t3".to_string());
+	let interposed = prog.interpose::<IdentityBrand, _, ArcDualRowMinusIdentity, _>(
+		|_op: Identity<ArcDualProg>| ArcRun::pure(0),
+	);
+	let result = interposed.interpret(handlers! {
+		IdentityBrand: |op: Identity<ArcDualProg>| op.0,
+		ExceptBrand<String>: |op: Except<'_, String, ArcDualProg>| match op {
+			Except::Throw(_, _) => ArcRun::pure(42),
+		},
+	});
+	assert_eq!(result, 42);
+}
+
+#[test]
+fn arc_run_t4_dual_row_unmatched_at_head_walks_through_embed_path() {
+	let prog: ArcDualProg = ArcRun::lift::<IdentityBrand, _>(Identity(99));
+	let interposed = prog.interpose::<ExceptBrand<String>, _, ArcDualRowMinusExcept, _>(
+		|_op: Except<'_, String, ArcDualProg>| ArcRun::pure(0),
+	);
+	let result = interposed.interpret(handlers! {
+		IdentityBrand: |op: Identity<ArcDualProg>| op.0,
+		ExceptBrand<String>: |op: Except<'_, String, ArcDualProg>| match op {
+			Except::Throw(_, _) => ArcRun::pure(0),
 		},
 	});
 	assert_eq!(result, 99);
