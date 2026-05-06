@@ -55,6 +55,7 @@
 
 pub mod arc_run;
 pub mod arc_run_explicit;
+pub mod catch;
 pub mod choose;
 pub mod coproduct;
 pub mod except;

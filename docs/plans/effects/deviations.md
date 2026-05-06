@@ -18,6 +18,14 @@ phasing, see [plan.md](plan.md).
 
 ## Phase 4: Scoped effects (heftia-inspired dual row)
 
+### Step 3.1.1: `SendCatchBrand` ships only with `SendFunctor` (not `Functor`); scoped.rs's "all five required" claim is over-broad
+
+[scoped.rs's "Per-scoped-effect-brand substrate-required traits" subsection](../../../fp-library/src/types/effects/scoped.rs) claims each scoped-effect brand placed in a `ScopedCoproduct` must implement five traits: `Functor`, `SendFunctor`, `WrapDrop`, `RefFunctor`, `Extract`. The shipped step 3.1.1 foundational scaffold at [`catch.rs`](../../../fp-library/src/types/effects/catch.rs) implements four of the five for [`SendCatchBrand<ArcBrand, E>`](../../../fp-library/src/brands/effects.rs) (`SendFunctor`, `WrapDrop`, `Extract`; plus the deferred `RefFunctor` per [B5](plan.md#b5-reffunctor-gat-normalization-for-scoped-effect-closure-cell-brands)) but deliberately omits `Functor`. The omission is structural, not an oversight: `Functor::map`'s closure parameter `f: impl Fn(A) -> B + 'a` lacks the `Send + Sync` bounds that [`<ArcBrand as ToDynSendFn>::new`](../../../fp-library/src/classes/to_dyn_send_fn.rs) requires for closure storage in the `SendCatch` handler cell. Post-composing `f` into a new `Arc<dyn Fn(E) -> B + Send + Sync>` therefore fails to type-check.
+
+This mirrors Phase 3's [`SendStateBrand` precedent](../../../fp-library/src/types/effects/state.rs): `SendStateBrand<ArcBrand, S>` ships only with `SendFunctor`, not `Functor`, for the same structural reason. The Arc-family substrate's program-traversal machinery [`NodeBrand<R, S>`](../../../fp-library/src/types/effects/node.rs) routes through `<S as SendFunctor>::send_map` (whose closure parameter carries the required `Send + Sync` bounds), not through `<S as Functor>::map`, so the missing `Functor` impl is unreachable for Arc-family programs.
+
+The scoped.rs comment will be refined in step 3.1.4 (or a 3.1 follow-up doc commit) to clarify that Send-flavoured brands skip `Functor` per the `SendStateBrand` precedent and that `NodeBrand<R, S>: Functor` is reachable only when `S` excludes Send-flavoured brands.
+
 ### Step 2.1: `RcRun::interpose` carries an extra `EmbedIndices` type parameter beyond plan.md's sketched `<EBrand, Idx>` signature
 
 [plan.md Phase 4 step 2](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row) sketches the substrate primitive as `interpose<EBrand, Idx>(...)`. The shipped signature at [`RcRun::interpose`](../../../fp-library/src/types/effects/rc_run.rs) carries four type parameters: `EBrand, Idx, RMinusE, EmbedIndices`. The two extra parameters are structural necessities of the Rust type system, not design changes:

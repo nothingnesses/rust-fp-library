@@ -65,6 +65,21 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct BoxChooseBrand<P>(PhantomData<P>);
 
+	/// Brand for [`BoxCatch`](crate::types::effects::catch::BoxCatch),
+	/// the FnOnce-recovery-handler sibling of [`CatchBrand`] used on
+	/// default `Run` / `RunExplicit` scoped rows whose closure
+	/// storage is `Box<dyn FnOnce>`. Parameterised by
+	/// `P: ToDynFnOnce`, which is implementable only by
+	/// [`BoxBrand`](crate::brands::BoxBrand).
+	///
+	/// Phase 4 step 3.1. Multi-shot non-thread-safe wrappers
+	/// (`RcRun` / `RcRunExplicit`) use [`CatchBrand`]; thread-safe
+	/// wrappers (`ArcRun` / `ArcRunExplicit`) use [`SendCatchBrand`].
+	/// The 3-sibling split mirrors the Phase 3.5 [`BoxStateBrand`] /
+	/// [`StateBrand`] / [`SendStateBrand`] pattern.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct BoxCatchBrand<P, E>(PhantomData<(P, E)>);
+
 	/// Brand for [`BoxReader`](crate::types::effects::reader::BoxReader),
 	/// the FnOnce-continuation sibling of [`ReaderBrand`] used on
 	/// default `Run` / `RunExplicit` substrates whose closure
@@ -100,6 +115,22 @@ mod inner {
 	/// load-bearing only at the type level.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct CNilBrand;
+
+	/// Brand for [`Catch`](crate::types::effects::catch::Catch), the
+	/// scoped error-recovery effect that runs an `action` program and,
+	/// if the action throws an error of type `E`, invokes a recovery
+	/// handler to produce a recovery program. Parameterised by
+	/// `P: ToDynCloneFn` (typically [`RcBrand`](crate::brands::RcBrand))
+	/// so the recovery handler closure storage shares the
+	/// same per-pointer-brand pattern used elsewhere in the library.
+	///
+	/// Phase 4 step 3.1. Single-shot wrappers (`Run` / `RunExplicit`)
+	/// use [`BoxCatchBrand`]; thread-safe wrappers (`ArcRun` /
+	/// `ArcRunExplicit`) use [`SendCatchBrand`]. The 3-sibling split
+	/// mirrors the Phase 3.5 [`BoxStateBrand`] / [`StateBrand`] /
+	/// [`SendStateBrand`] pattern.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct CatchBrand<P, E>(PhantomData<(P, E)>);
 
 	/// Brand for [`Choose`](crate::types::effects::choose::Choose),
 	/// the nondeterministic-branching first-order effect type with
@@ -233,6 +264,22 @@ mod inner {
 	/// signatures cannot express).
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct RunExplicitBrand<R, S>(PhantomData<(R, S)>);
+
+	/// Brand for [`SendCatch`](crate::types::effects::catch::SendCatch),
+	/// the thread-safe sibling of [`CatchBrand`]. The `Catch` variant
+	/// stores `<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(E) -> A + Send + Sync>`
+	/// (with `+ Send + Sync` baked into the trait object's bounds), so
+	/// the projection is structurally `Send + Sync`. Used by the Arc
+	/// family `catch` smart constructors
+	/// ([`ArcRun::catch`](crate::types::effects::arc_run::ArcRun) /
+	/// [`ArcRunExplicit::catch`](crate::types::effects::arc_run_explicit::ArcRunExplicit)).
+	/// `Arc<dyn Fn(E) -> A>` (without `+ Send + Sync` in the trait
+	/// object's bounds) is structurally `!Send + !Sync`, so a parallel
+	/// brand whose projection bakes the marker traits in at the type
+	/// level is required for end-to-end dispatch through `*Run::interpret`
+	/// on Arc-substrate programs.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct SendCatchBrand<P, E>(PhantomData<(P, E)>);
 
 	/// Brand for
 	/// [`SendChoose`](crate::types::effects::choose::SendChoose), the
