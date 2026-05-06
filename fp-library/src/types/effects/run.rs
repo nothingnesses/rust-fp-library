@@ -47,6 +47,7 @@ mod inner {
 				Coyoneda,
 				Free,
 				effects::{
+					coproduct::CoproductEmbedder,
 					interpreter::DispatchHandlers,
 					member::Member,
 					node::Node,
@@ -1003,6 +1004,223 @@ mod inner {
 							Run::from_free(Free::<NodeBrand<RMinusE, CNilBrand>, A>::wrap(
 								Node::First(mapped_free),
 							))
+						}
+					},
+				Err(Node::Scoped(cnil)) => match cnil {},
+			}
+		}
+
+		/// Substrate-level row-preserving replacement primitive: walk
+		/// this `Run` program, projecting each first-order dispatch
+		/// against `EBrand`; replace every matched dispatch with the
+		/// supplied `replacement` closure (applied to the lowered
+		/// effect value), and re-emit non-matching dispatches in the
+		/// same row. Direct analog of heftia's `interposeInWith` in
+		/// substrate-primitive form.
+		///
+		/// Unlike [`interpret_with`](Run::interpret_with), `interpose`
+		/// does not narrow the row: the matched arm produces a
+		/// continuation in the same `R`, the unmatched arm walks the
+		/// `Self::Remainder` (RMinusE) layer and embeds it back into
+		/// `R` via [`CoproductEmbedder`](crate::types::effects::coproduct::CoproductEmbedder).
+		/// This is the building block for scoped-effect handlers
+		/// (e.g., `Catch`'s recovery path interposes against the body
+		/// program's `Throw` dispatches without narrowing the row).
+		///
+		/// The user-facing closure is wrapped in an
+		/// [`Rc`](std::rc::Rc) once at entry; recursive calls clone
+		/// the [`Rc`](std::rc::Rc) (refcount bump) instead of cloning
+		/// the underlying closure, which is what drops the `Clone`
+		/// bound from the user-facing API.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect to replace.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand (the row with `EBrand` removed at position `Idx`).",
+			"The HList witness for embedding the narrowed row back into the original row."
+		)]
+		///
+		#[document_parameters(
+			"The replacement applied to each matched-effect dispatch's lowered effect value."
+		)]
+		///
+		#[document_returns(
+			"A new program in the same row with all matched-effect dispatches replaced."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run::Run,
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = Run<Row, CNilBrand, i32>;
+		///
+		/// let prog: Prog = Run::lift::<IdentityBrand, _>(Identity(7));
+		/// // Replacement substitutes each matched dispatch with a fresh
+		/// // program; here we return `pure(99)` for the Identity dispatch,
+		/// // demonstrating that the matched arm fires.
+		/// let interposed =
+		/// 	prog.interpose::<IdentityBrand, _, CNilBrand, _>(|_op: Identity<Prog>| Run::pure(99));
+		/// let result = interposed.interpret(handlers! {
+		/// 	IdentityBrand: |op: Identity<Prog>| op.0,
+		/// });
+		/// assert_eq!(result, 99);
+		/// ```
+		pub fn interpose<EBrand, Idx, RMinusE, EmbedIndices>(
+			self,
+			replacement: impl Fn(
+				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>),
+			) -> Run<R, CNilBrand, A>
+			+ 'static,
+		) -> Run<R, CNilBrand, A>
+		where
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>):
+				Member<
+						Coyoneda<'static, EBrand, Run<R, CNilBrand, A>>,
+						Idx,
+						Remainder = Apply!(
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>
+									),
+					>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				Free<NodeBrand<R, CNilBrand>, A>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					Free<NodeBrand<R, CNilBrand>, A>,
+				>),
+					EmbedIndices,
+				>, {
+			let replacement = <RcBrand as RefCountedPointer>::new(replacement);
+			self.interpose_shared::<EBrand, Idx, RMinusE, EmbedIndices, _>(replacement)
+		}
+
+		/// Inner shared implementation of [`interpose`](Run::interpose),
+		/// parameterised over the concrete replacement closure type
+		/// `F`. The public [`interpose`](Run::interpose) wraps the
+		/// user-supplied closure in [`Rc<F>`](std::rc::Rc) once at
+		/// entry and delegates here; recursive descent clones the
+		/// [`Rc<F>`](std::rc::Rc) (refcount bump) instead of cloning
+		/// the underlying closure, which is what drops the `Clone`
+		/// bound from the user-facing API.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect to replace.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand (the row with `EBrand` removed at position `Idx`).",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The concrete replacement closure type."
+		)]
+		///
+		#[document_parameters("The Rc-wrapped replacement closure.")]
+		///
+		#[document_returns(
+			"A new program in the same row with all matched-effect dispatches replaced."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// // Exercised internally by Run::interpose.
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run::Run,
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = Run<Row, CNilBrand, i32>;
+		///
+		/// let prog: Prog = Run::lift::<IdentityBrand, _>(Identity(3));
+		/// let interposed =
+		/// 	prog.interpose::<IdentityBrand, _, CNilBrand, _>(|_op: Identity<Prog>| Run::pure(42));
+		/// let result = interposed.interpret(handlers! {
+		/// 	IdentityBrand: |op: Identity<Prog>| op.0,
+		/// });
+		/// assert_eq!(result, 42);
+		/// ```
+		fn interpose_shared<EBrand, Idx, RMinusE, EmbedIndices, F>(
+			self,
+			replacement: <RcBrand as RefCountedPointer>::Of<'static, F>,
+		) -> Run<R, CNilBrand, A>
+		where
+			F: Fn(
+					Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>),
+				) -> Run<R, CNilBrand, A>
+				+ 'static,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>):
+				Member<
+						Coyoneda<'static, EBrand, Run<R, CNilBrand, A>>,
+						Idx,
+						Remainder = Apply!(
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>
+									),
+					>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				Free<NodeBrand<R, CNilBrand>, A>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					Free<NodeBrand<R, CNilBrand>, A>,
+				>),
+					EmbedIndices,
+				>, {
+			match self.peel() {
+				Ok(a) => Run::pure(a),
+				Err(Node::First(layer)) =>
+					match <Apply!(
+						<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>
+					) as Member<Coyoneda<'static, EBrand, Run<R, CNilBrand, A>>, Idx>>::project(
+						layer
+					) {
+						Ok(coyo) => {
+							let lowered = coyo.lower();
+							let r_for_recurse = replacement.clone();
+							let mapped = <EBrand as Functor>::map(
+								move |inner: Run<R, CNilBrand, A>| {
+									inner.interpose_shared::<EBrand, Idx, RMinusE, EmbedIndices, F>(
+										r_for_recurse.clone(),
+									)
+								},
+								lowered,
+							);
+							(*replacement)(mapped)
+						}
+						Err(rest) => {
+							let r_for_recurse = replacement.clone();
+							let mapped_rest = <RMinusE as Functor>::map(
+								move |inner: Run<R, CNilBrand, A>| {
+									inner
+										.interpose_shared::<EBrand, Idx, RMinusE, EmbedIndices, F>(
+											r_for_recurse.clone(),
+										)
+										.into_free()
+								},
+								rest,
+							);
+							let layer_back = mapped_rest.embed();
+							Run::from_free(Free::<NodeBrand<R, CNilBrand>, A>::wrap(Node::First(
+								layer_back,
+							)))
 						}
 					},
 				Err(Node::Scoped(cnil)) => match cnil {},
