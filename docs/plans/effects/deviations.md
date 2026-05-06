@@ -16,6 +16,21 @@ implementation until investigated), see [resolutions.md](resolutions.md).
 For active blockers, current progress, and the implementation
 phasing, see [plan.md](plan.md).
 
+## Phase 4: Scoped effects (heftia-inspired dual row)
+
+### Step 2.1: `RcRun::interpose` carries an extra `EmbedIndices` type parameter beyond plan.md's sketched `<EBrand, Idx>` signature
+
+[plan.md Phase 4 step 2](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row) sketches the substrate primitive as `interpose<EBrand, Idx>(...)`. The shipped signature at [`RcRun::interpose`](../../../fp-library/src/types/effects/rc_run.rs) carries four type parameters: `EBrand, Idx, RMinusE, EmbedIndices`. The two extra parameters are structural necessities of the Rust type system, not design changes:
+
+- **`RMinusE`** matches the same role it plays on the existing [`RcRun::interpret_with`](../../../fp-library/src/types/effects/rc_run.rs#L913) primitive: the row brand for "the original row with `EBrand` removed at position `Idx`". `Member<EBrand, Idx>::project` on the row's layer returns `Result<EBrand_projection, Self::Remainder>`; the `Remainder`'s row-brand identity has to be named at the type level so the unmatched-arm Functor map (`<RMinusE as Functor>::map`) and the embed-back step (`CoproductEmbedder<R, EmbedIndices>`) can refer to it. Plan.md's sketch elided this parameter for brevity; the `interpret_with` precedent shows this is standard.
+- **`EmbedIndices`** is new to interpose. `interpret_with` narrows the row to `RMinusE` and rebuilds the program in the narrowed row, so no embed step is needed. `interpose` keeps the row at `R`, so the unmatched-arm rebuilt layer (which is `RMinusE`-typed after `Functor::map`) must be embedded back into the `R`-typed shape via [`CoproductEmbedder<<R>::Of<...>, EmbedIndices>`](../../../fp-library/src/types/effects/coproduct.rs). The `EmbedIndices` is an HList of [`CoprodInjector`](../../../fp-library/src/types/effects/coproduct.rs) position witnesses (one per non-`EBrand` variant in `R`); frunk_core resolves it through type inference at the call site, but the parameter must be present on the function so the compiler has a name to bind the inference result to. There is no obvious way to derive `EmbedIndices` from `Idx` alone because `Idx` only locates `EBrand` in `R`; the embedding witness specifies how each of the OTHER variants in `R` maps back, which is independent type-level information.
+
+The user-facing turbofish convention `prog.interpose::<EBrand, _, RMinusE, _>(...)` lets `Idx` and `EmbedIndices` both stay as `_` for type inference; users only spell `EBrand` and `RMinusE` explicitly. This matches `interpret_with`'s ergonomics for `Idx`.
+
+If a future deviation finds a way to derive `EmbedIndices` automatically from `Idx` (e.g., via a custom trait that exposes it as an associated type on `Member<E, Idx>`), the parameter could be hidden. For now, the four-parameter form is the most pragmatic shape that types cleanly with frunk_core's existing trait family.
+
+The shipped signature applies only to `RcRun` so far (sub-step 2.1); the remaining five wrapper sub-steps (2.2-2.6) are expected to mirror the same shape.
+
 ## Phase 1: Free family
 
 ### Step 1: `FreeExplicit` promotion
