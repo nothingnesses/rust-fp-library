@@ -48,7 +48,7 @@ effect-instance level on every wrapper. Phase 3 closed under this
 option.
 
 **Phase 3.5 re-opening rationale.** Phase 4 design-question B3 (the
-[Phase 4 pre-implementation design questions](plan.md#phase-4-pre-implementation-design-questions))
+[Phase 4 pre-implementation design questions](#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701))
 re-examined the F4 framing in the context of user-supplied scoped
 handlers. The key observation: Phase 3's State / Reader / Choose
 continuations are _substrate-constructed_ (the smart constructor
@@ -196,7 +196,7 @@ and Phase 4 implementation. Sub-steps:
 Phase 4 implementation then follows, reusing the same
 `BoxBrand` + `ToDynFnOnce` pattern for user-supplied scoped-effect
 handlers per
-[Phase 4 design-question B3's recommendation](plan.md#b3-pointer-brand-parameterisation-drop-boxbrand-follow-phase-3-state-precedent).
+[Phase 4 design-question B3's recommendation](#b3-pointer-brand-parameterisation-boxbrand--todynfnonce-on-default-run).
 
 **Cross-references:**
 
@@ -206,7 +206,7 @@ handlers per
   evaluation:
   [`review/0_first_order_effects_implementation/remediation_proposals.md`](review/0_first_order_effects_implementation/remediation_proposals.md).
 - Phase 4 design-question B3 (the original re-opening rationale):
-  [plan.md Phase 4 pre-implementation design questions](plan.md#phase-4-pre-implementation-design-questions).
+  [plan.md Phase 4 pre-implementation design questions](#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701).
 - Three-sibling-types interpretation rationale (why
   `BoxStateBrand` rather than parameterising `StateBrand` over
   `BoxBrand`): [deviations.md Phase 3.5 sub-step 2](deviations.md).
@@ -214,6 +214,60 @@ handlers per
   [`fp-library/docs/pointer-abstraction.md`](../../../fp-library/docs/pointer-abstraction.md)'s
   `ToDynFnOnce is BoxBrand-only by structural necessity`
   subsection.
+
+## Resolved (2026-05-05): Phase 4 pre-implementation design questions B1-B4, Q1-Q3, Q5 closed by design-adoption commit `6e960701`
+
+**Disposition.** Eight Phase 4 pre-implementation design questions had their plan-revision-required edits adopted into [plan.md](plan.md) and [decisions.md](decisions.md) by the 2026-05-05 design-adoption commit `6e960701` (B1, B2, B4, Q1, Q2, Q3, Q5) plus subsequent Phase 3.5 retrofit landings (B3 implementation: commits `b067f912`, `a762fa27`, `89546709`, `4471629d`). Each item's original framing (issue, options, recommendation, reasoning) lived in plan.md's `Phase 4 pre-implementation design questions` subsection prior to this 2026-05-06 cleanup; the pre-cleanup framing is recoverable via `git show 2e97e812:docs/plans/effects/plan.md` (last commit retaining the long-form entries). Compact summary below; outstanding follow-ups (POC 3 prerequisite for B4; Q4 / R1 / R2 / R3 prototype-and-risk items pending at R1 implementation kickoff) live in plan.md's [Phase 4 implementation prototypes and risk mitigations](plan.md#phase-4-implementation-prototypes-and-risk-mitigations) and [Phase 4 implementation-kickoff sequencing](plan.md#phase-4-implementation-kickoff-sequencing) subsections.
+
+### B1. `Catch::action` type-parameter interpretation
+
+- **Issue.** Plan and [decisions.md](decisions.md) describe `Catch<'a, P, E, A>` as storing `action: Run<R, S, A>`, but `CatchBrand<P, E>` does not carry `R` or `S` as parameters; the `Run<R, S, A>` rendering was therefore loose notation rather than a literal Rust type. Implementer needed to know whether `action` is genuinely `Run<R, S, A>` (forcing `CatchBrand` to grow `R, S` parameters) or `A` abstract (where `A` becomes "the next program" at the dispatch boundary, mirroring Phase 3 [`State<'a, P, S, A>`](../../../fp-library/src/types/effects/state.rs)).
+- **Resolution: Option A.** `action: A` literal; `Run<R, S, A>` is loose notation for "the next program" bound by dispatch context, mirroring Phase 3 `State<'a, P, S, A>`'s use of `A`. Adding `R, S` parameters to every scoped-effect brand contradicts Phase 3 precedent without structural reason; brand parameter surface stays at 2 per scoped-effect type.
+- **Plan-text amendments.** [decisions.md section 4.5](decisions.md#45-decision-scoped-effect-representation-via-a-heftia-inspired-dual-row) clarifying paragraph; [plan.md Phase 4 step 3](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row) constructor-list paragraph specifying loose-notation semantics.
+
+### B2. Per-scoped-effect-brand `Functor` / `SendFunctor` / `WrapDrop` / `RefFunctor` / `Extract` impls
+
+- **Issue.** The substrate's [`NodeBrand<R, S>`](../../../fp-library/src/types/effects/node.rs) impls require `S: Functor + SendFunctor + WrapDrop + RefFunctor + Extract`. With `S = CNilBrand` (Phase 3) these are vacuously satisfied; with `S = CoproductBrand<CatchBrand<...>, ...>` (Phase 4), each scoped-effect brand must explicitly implement all five traits because [`RcFree::wrap`](../../../fp-library/src/types/rc_free.rs) and similar substrate operations call `<F as Functor>::map` directly. [decisions.md](decisions.md) had stated "the higher-order row does NOT require a Functor instance" which was misleading: the dispatcher trait does not go through Functor, but the substrate's program-traversal machinery still does.
+- **Resolution: Option A.** Each scoped-effect brand provides explicit per-trait impls; Phase 3 per-effect impls are the template. Up to 30 trait impls total (5 brands \* ~5 traits, minus Span which has no closure); each is mechanical. Option B (Coyoneda wrapping per scoped effect) was rejected: doubles per-op allocation cost and contradicts the dual-row design's whole point. Option C (substrate redesign of `NodeBrand`'s Functor requirement) was rejected: justification was documentation alignment, not capability.
+- **Plan-text amendments.** [decisions.md section 4.5](decisions.md#45-decision-scoped-effect-representation-via-a-heftia-inspired-dual-row) clarifying paragraph distinguishing dispatcher-trait vs program-traversal-trait requirements; [plan.md Phase 4 step 3](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row) substrate-required-traits paragraph plus a code-block `impl Functor for CatchBrand<P, E>` template (added 2026-05-06 follow-up cleanup).
+
+### B3. Pointer-brand parameterisation: `BoxBrand` + `ToDynFnOnce` on default Run
+
+- **Issue.** The R2 plan revision specified a `BoxBrand` pointer brand for the default `Run` / `RunExplicit` substrate, with `BoxBrand`'s closure projection differing from `RcBrand` / `ArcBrand`'s (`Box<dyn FnOnce>` vs `Rc<dyn Fn>` vs `Arc<dyn Fn + Send + Sync>`). On cross-checking, Phase 3's State effect did not have a `BoxBrand`: State on `Run` used `RcBrand` per [`Run::get`](../../../fp-library/src/types/effects/run.rs)'s smart constructor signature. The original plan revision invented `BoxBrand` to symmetrise the wrapper-to-pointer-brand mapping, but the symmetry didn't hold in Phase 3 and forcing it into Phase 4 introduced a new brand whose closure-trait-object differed from its siblings.
+- **Resolution: Option B (revised).** Use the existing pointer-abstraction infrastructure (`BoxBrand`, `RcBrand`, `ArcBrand` per [`fp-library/docs/pointer-abstraction.md`](../../../fp-library/docs/pointer-abstraction.md)) extended with a new trait `ToDynFnOnce` parallel to `ToDynFn`, implemented only by `BoxBrand`. `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` are operationally broken because `FnOnce::call_once` consumes `self` (the trait object), which cannot be moved out of a shared pointer without invalidating other clones. Default `Run` users get `Box<dyn FnOnce>` storage (single-shot at the closure level by construction); `RcRun` / `ArcRun` users get `Rc<dyn Fn>` / `Arc<dyn Fn + Send + Sync>` for multi-shot. Ergonomic gain: user-supplied scoped handlers on default `Run` can be `FnOnce`-natural (no Rc-wrapping or Clone-bounded captures). The retrofit applied to Phase 3's State / Reader / Choose closes the [F4 finding structurally](resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates) rather than as accepted-tradeoff.
+- **Plan-text amendments.** [decisions.md section 4.5](decisions.md#45-decision-scoped-effect-representation-via-a-heftia-inspired-dual-row) trait-family table and `Closure-storage ceiling on default Run` subsection; new [Phase 3.5 sub-section in plan.md](plan.md#phase-35-pointer-brand-pattern-retrofit) with five sub-steps.
+- **Implementation status.** Shipped in Phase 3.5 (sub-steps 1-5; commits `b067f912` / `a762fa27` / `89546709` / `4471629d`). The same pattern is reused in Phase 4 step 3 for user-supplied scoped handlers.
+
+### B4. Catch dispatcher's sentinel mechanism
+
+- **Issue.** The R1 plan revision said the catch dispatcher "interposes a `Throw` catcher that returns to a sentinel value, observes the sentinel via the dispatcher's outer `interpret` loop, and routes to `Catch::handler`". The sentinel's TYPE in the program was unspecified. `Run<R, S, A>`'s payload type is `A`; encoding "either A or thrown E" required either changing the program type or using a side channel.
+- **Resolution: Option B with POC validation prerequisite.** New substrate primitive `interpret_with_either<EBrand, Idx>(self, fo_handlers: &impl DispatchHandlers<...>) -> Either<A, EBrand::Op>` (specialisation of [`interpret_with`](../../../fp-library/src/types/effects/run.rs#L885-L900) returning the matched effect's payload as `Right` instead of narrowing). The Catch dispatcher pattern-matches the Either; `Left(a)` becomes `Run::pure(a)`, `Right(thrown_e)` calls `Catch::handler`. No interior mutability; the type system structurally distinguishes "completed" from "thrown". Option A's interior-mutability cell with a placeholder-program return was rejected because the placeholder requires either `A: Default`, an unsafe sentinel, or a panic-on-evaluate `Box::leak`-style construct, none of which is clean. Option C (`std::panic::catch_unwind`) was rejected as unsound for non-`UnwindSafe` programs.
+- **Plan-text amendments.** New [Phase 4 step 2a](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row) substrate primitive entry; [Phase 4 step 4](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row) Catch dispatcher description with `match interpret_with_either` body sketch.
+- **Outstanding prerequisite.** POC 3 (`interpret_with_either` substrate primitive on `RcRun`) pending validation; commit-ordering decision is documented at [Phase 4 implementation-kickoff sequencing K1](plan.md#k1-poc-3-interpret_with_either-validation-ordering).
+
+### Q1. `scoped_handlers!` macro shape
+
+- **Issue.** Phase 4 step 5 references a `scoped_handlers!{...}` macro as a companion to the existing [`handlers!`](../../../fp-library/src/types/effects/handlers.rs) macro for assembling the second list passed to `interpret`. Syntax and emitted shape were unspecified.
+- **Resolution: Option A with DRY factoring.** `scoped_handlers!{CatchBrand<P, E>: |op| ..., ...}` mirrors `handlers!` syntax exactly; both factor through a new helper module [`fp-macros/src/effects/handler_list_emitter.rs`](../../../fp-macros/src/effects/) (new file) parameterised by cell type identifier (`Handler<E, F>` for FO; `ScopedHandler<S, F>` for scoped) and cons-list cell-and-tail type identifiers (`HandlersCons` / `HandlersNil` for FO; `ScopedHandlersCons` / `ScopedHandlersNil` for scoped). The `effects!` macro's lexical-sort helper is consumed inside the new emitter helper as well.
+- **Plan-text amendments.** [Phase 4 step 5](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row) helper-module reference + entry-point pattern. Deviations.md entry pending at the commit that retrofits `handlers!` through the helper.
+
+### Q2. `define_scoped_effect!` macro fate
+
+- **Issue.** Phase 4 step 5 referenced `define_scoped_effect!` "mirroring section 9's planned `define_effect!` for first-order effects". `define_effect!` was [deferred per the 2026-05-04 resolution](#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (Phase 3 step 6) until Phase 4 ships or user demand surfaces; `define_scoped_effect!` had no precedent template.
+- **Resolution: Option A.** Defer in parallel with the Phase 3 `define_effect!` deferral; users hand-write each scoped effect's brand + four-to-six trait impls (analog to Phase 3's `State` / `Reader` / etc.). Revisit triggers parallel the existing `define_effect!` deferred-item triggers (a user writing more than two custom scoped effects, or a Phase 6+ revisit of `define_effect!`).
+- **Plan-text amendments.** [Phase 4 step 5](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row) drops the `define_scoped_effect!` reference; [Phase 6+ deferred items](plan.md#phase-6-deferred-not-in-this-plan) gains a new entry parallel to the existing `define_effect!` entry.
+
+### Q3. `interpret_scoped_with::<EBrand>` row-narrowing primitive
+
+- **Issue.** Phase 4 step 7 references `interpret_scoped_with::<EBrand>` as a row-narrowing primitive on the scoped row paralleling Phase 3's [`interpret_with`](../../../fp-library/src/types/effects/run.rs#L885-L900). Signature and substrate plumbing unspecified.
+- **Resolution: Option A.** New per-wrapper method `interpret_scoped_with::<EBrand, Idx, SMinusE>(scoped_handler) -> Run<R, SMinusE, A>`, paralleling Phase 3's `interpret_with` on the scoped row. Mechanically derivable from Phase 3 pattern; users need pipeline-ordering control for non-commuting scoped effects (e.g., `Catch` before `Local` vs after). Option B (reuse `interpret_with` with type-level branching) has worse type-inference characteristics; Option C (no row-narrowing on scoped row) limits expressivity for handler libraries that ship narrowing handlers.
+- **Plan-text amendments.** [Phase 4 step 7](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row) callers-write-`interpret_scoped_with` paragraph already in canonical text. The per-wrapper method itself ships as part of Phase 4 step 4's interpret-rewrite.
+
+### Q5. `BracketGuard<A, F>` lifecycle
+
+- **Issue.** Phase 4 step 3's Bracket entries said the dispatcher wraps the resource in a `BracketGuard<A, F>` whose `Drop` impl invokes `release` synchronously. Specific lifecycle questions: when is the guard constructed? Does `body` receive the guard by ownership or reference? Does `release`'s `Run<R, S, ()>` get scheduled by Drop or executed synchronously? These small decisions combined into whether panic-during-body actually runs `release`.
+- **Resolution: Option A.** RAII guard, ownership-passed to body, synchronous release-on-Drop. Guard constructed inside the bracket dispatcher after `acquire` evaluates; ownership-passed to the body closure; dropped when body returns (running release on drop). Release executes as a synchronous function call (not threaded through interpret) because the interpret loop has already exited the dispatcher's frame. Matches Rust's RAII conventions; release runs deterministically on body completion or panic; no reliance on `catch_unwind`'s `UnwindSafe` constraints. Option B (reference-passed + explicit-drop) is harder to reason about under panic; Option C (`catch_unwind`) is unsound for non-`UnwindSafe` programs.
+- **Plan-text amendments.** [Phase 4 step 3 Bracket entries](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row) `BracketGuard` lifecycle sentence specifying ownership-passed-to-body + synchronous-release-on-Drop semantics.
 
 ## Resolved (2026-05-04): Phase 3 step 6 (`define_effect!` macro) deferred until Phase 4 ships or user demand surfaces; design research preserved for later revisit
 

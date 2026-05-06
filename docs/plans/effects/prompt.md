@@ -44,7 +44,7 @@ one step per commit, until the phase is complete or you hit a blocker.
 Phase 3 closes with step 8; Phase 3.5 closes with sub-step 5.
 The next concrete work is **Phase 4 implementation**.
 Phase 4 implementation then follows the [remediation report's Sequencing Plan](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/remediation_proposals_phase_4.md)
-items 3, 5, 6, 7, 8, 9 with the resolved [Phase 4 pre-implementation design questions](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#phase-4-pre-implementation-design-questions):
+items 3, 5, 6, 7, 8, 9 with the resolved [Phase 4 pre-implementation design questions](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701):
 substrate-level `Run::interpose` (POC 2 validated) and
 `interpret_with_either` (POC 3 pending) primitives,
 `DispatchScopedHandlers` trait + per-wrapper interpret rewrite (R1
@@ -692,7 +692,7 @@ docs for bare-name doc-links before / after the wrapping.
    follows the
    [remediation report's Sequencing Plan](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/remediation_proposals_phase_4.md)
    items 3, 5, 6, 7, 8, 9 with the resolved
-   [Phase 4 pre-implementation design questions](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#phase-4-pre-implementation-design-questions).
+   [Phase 4 pre-implementation design questions](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701).
    Substrate-level `Run::interpose` is POC-validated at
    [`fp-library/tests/poc_rc_run_interpose.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_rc_run_interpose.rs);
    the parallel-Send-brand pattern is POC-validated at

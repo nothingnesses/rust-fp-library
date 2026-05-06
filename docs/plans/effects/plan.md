@@ -21,13 +21,13 @@ transformations) is the next phase.
 
 ### Next greenfield work
 
-Phase 3 closes with step 8; Phase 3.5 closes with sub-step 5. The next concrete work is **Phase 4 implementation**. Phase 4 implementation follows the [remediation report's Sequencing Plan](review/1_scoped_effects_design/remediation_proposals_phase_4.md) items 3, 5, 6, 7, 8, 9 with the resolved [Phase 4 pre-implementation design questions](#phase-4-pre-implementation-design-questions): substrate-level `Run::interpose` (POC 2 validated) and `interpret_with_either` (POC 3 pending) primitives, `DispatchScopedHandlers` trait + per-wrapper interpret rewrite (R1 implementation); standard scoped-effect constructors using the Phase 3.5 retrofit's pointer-brand pattern (R2 implementation); bracket dispatcher with Drop-guard for panic safety (M3); standard scoped-effect rollout (`Catch`, `Local` / `RefLocal`, `Bracket` / `RefBracket`, `Span` plus `scoped_effects!` and `scoped_handlers!` macros via the new `handler_list_emitter` helper module shared with `handlers!`); standard scoped handlers; review-remediation documentation pass closing Phase 4. Sub-step planning for both phases lives in plan.md's phasing sections ([Phase 3.5](#phase-35-pointer-brand-pattern-retrofit), [Phase 4](#phase-4-scoped-effects-heftia-inspired-dual-row)) below.
+Phase 3 closes with step 8; Phase 3.5 closes with sub-step 5. The next concrete work is **Phase 4 implementation**. Phase 4 implementation follows the [remediation report's Sequencing Plan](review/1_scoped_effects_design/remediation_proposals_phase_4.md) items 3, 5, 6, 7, 8, 9 with the resolved [Phase 4 pre-implementation design questions](resolutions.md#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701): substrate-level `Run::interpose` (POC 2 validated) and `interpret_with_either` (POC 3 pending) primitives, `DispatchScopedHandlers` trait + per-wrapper interpret rewrite (R1 implementation); standard scoped-effect constructors using the Phase 3.5 retrofit's pointer-brand pattern (R2 implementation); bracket dispatcher with Drop-guard for panic safety (M3); standard scoped-effect rollout (`Catch`, `Local` / `RefLocal`, `Bracket` / `RefBracket`, `Span` plus `scoped_effects!` and `scoped_handlers!` macros via the new `handler_list_emitter` helper module shared with `handlers!`); standard scoped handlers; review-remediation documentation pass closing Phase 4. Sub-step planning for both phases lives in plan.md's phasing sections ([Phase 3.5](#phase-35-pointer-brand-pattern-retrofit), [Phase 4](#phase-4-scoped-effects-heftia-inspired-dual-row)) below.
 
 Two Phase 3 steps were deferred and may revisit during or after Phase 4: step 6 ([`define_effect!` macro](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit), revisit when Phase 4 settles the codegen target or a user surfaces concrete demand) and step 5's [`interpret_with_rec`](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (deferred indefinitely; users chain `interpret_with` then `interpret_rec` for the workaround). Pre-public-release polish work (m1-m9 minor findings from [`remediation_proposals.md`](review/0_first_order_effects_implementation/remediation_proposals.md)) is also outstanding as a non-phased follow-up commit.
 
 ### Most recent steps (rolling detail)
 
-**Phase 3.5 sub-step 5: F4 closure resolutions.md entry; Phase 3.5 closes.** One docs-only commit. Appends a new top-of-file entry to [resolutions.md](resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates) documenting that the Phase 3 prior-review [F4 finding](review/0_first_order_effects_implementation/remediation_proposals.md) (per-effect closure cells multi-shot-callable on single-shot wrappers despite the wrapper-level guarantee) is now closed structurally rather than as accepted-tradeoff. The 2026-05-05 Phase 3 step 8 disposition adopted F4-recommended Option A (documentation-only weakening of the Success criteria's single-shot claim); Phase 3.5 supersedes that with structural closure via the parallel `Box*Brand` family on default `Run` / `RunExplicit`. The entry's main work is justifying the re-opening of the [(3.a-1) "one effect type per operation" sub-decision](resolutions.md#l209-l240) (locked 2026-05-03) via four arguments: (1) doubling cost is amortised across Phase 3 + Phase 4 because Phase 4's user-supplied scoped handlers also need the FnOnce ergonomics on default Run per [Phase 4 design-question B3](#phase-4-pre-implementation-design-questions); (2) brand surface stays alphabetised; (3) doc surface stays single-source (only ~30 incremental lines); (4) macro complexity unaffected since `define_effect!` is deferred. The (3.a-1) "one type per operation" promise still holds at the user-API level (one `Run::get`, one `RcRun::get`, one `ArcRun::get`); the under-the-hood representation splits into three siblings to satisfy the structural closure-trait constraint. After the retrofit, the API claim _does_ match reality at the type level: `Run::interpret`'s handler matches `BoxState::Get(k) => k(state)`, where `k(state)` consumes the box, statically proving single-shot. Phase 3.5 closes with this commit; the next concrete work is Phase 4 implementation per the [remediation report's Sequencing Plan](review/1_scoped_effects_design/remediation_proposals_phase_4.md).
+**Phase 3.5 sub-step 5: F4 closure resolutions.md entry; Phase 3.5 closes.** One docs-only commit. Appends a new top-of-file entry to [resolutions.md](resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates) documenting that the Phase 3 prior-review [F4 finding](review/0_first_order_effects_implementation/remediation_proposals.md) (per-effect closure cells multi-shot-callable on single-shot wrappers despite the wrapper-level guarantee) is now closed structurally rather than as accepted-tradeoff. The 2026-05-05 Phase 3 step 8 disposition adopted F4-recommended Option A (documentation-only weakening of the Success criteria's single-shot claim); Phase 3.5 supersedes that with structural closure via the parallel `Box*Brand` family on default `Run` / `RunExplicit`. The entry's main work is justifying the re-opening of the [(3.a-1) "one effect type per operation" sub-decision](resolutions.md#l209-l240) (locked 2026-05-03) via four arguments: (1) doubling cost is amortised across Phase 3 + Phase 4 because Phase 4's user-supplied scoped handlers also need the FnOnce ergonomics on default Run per [Phase 4 design-question B3](resolutions.md#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701); (2) brand surface stays alphabetised; (3) doc surface stays single-source (only ~30 incremental lines); (4) macro complexity unaffected since `define_effect!` is deferred. The (3.a-1) "one type per operation" promise still holds at the user-API level (one `Run::get`, one `RcRun::get`, one `ArcRun::get`); the under-the-hood representation splits into three siblings to satisfy the structural closure-trait constraint. After the retrofit, the API claim _does_ match reality at the type level: `Run::interpret`'s handler matches `BoxState::Get(k) => k(state)`, where `k(state)` consumes the box, statically proving single-shot. Phase 3.5 closes with this commit; the next concrete work is Phase 4 implementation per the [remediation report's Sequencing Plan](review/1_scoped_effects_design/remediation_proposals_phase_4.md).
 
 **Phase 3.5 sub-step 3: `pointer-abstraction.md` update for `ToDynFnOnce`.** One docs-only commit. Updates [`fp-library/docs/pointer-abstraction.md`](../../../fp-library/docs/pointer-abstraction.md) to reflect the trait-family completion shipped in sub-step 1: `ToDynFnOnce` is added to the mermaid trait diagram (extending `Pointer` parallel to `ToDynFn`); the trait table gains a row describing `ToDynFnOnce` as the single-shot `dyn FnOnce` coercion; the brand-implementations table lists `ToDynFnOnce` for `BoxBrand` and clarifies that `ArcBrand` does NOT implement it (rather than the prior "all six traits" wording, which is true only for the multi-shot `Fn` family). A new `ToDynFnOnce is BoxBrand-only by structural necessity` subsection adds a (closure-semantic, pointer-capability) matrix and explains the structural reason `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` cannot be implemented (`FnOnce::call_once` consumes `self`, which cannot be moved out of a shared pointer without invalidating other clones); cross-references `BoxState` / `BoxReader` / `BoxChoose` as the production use-case from sub-step 2. `just fmt && just doc` clean (839 OK; 0 errors). With sub-step 3 shipped, the only remaining Phase 3.5 work is sub-step 5 (F4 closure resolutions entry).
 
@@ -450,189 +450,13 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-**Phase 3 / 3.5 era questions are resolved.** Phase 4 pre-implementation design questions B1-B4 (subsection below) were closed by the 2026-05-05 design-adoption commit `6e960701` and the subsequent Phase 3.5 retrofit landings (commits `b067f912` / `a762fa27` / `89546709` / `4471629d`); their recommendation columns are authoritative and the plan-revision-required edits are in place. Items Q1-Q5 in the same subsection are open questions captured against the relevant Phase 4 step descriptions and resolve during R1 specification work; items R1-R3 are unprototyped scaling risks acceptable to address during implementation but worth budgeting.
+**Phase 3 / 3.5 era questions are resolved.** The eight Phase 4 pre-implementation design questions B1-B4 + Q1-Q3 + Q5 closed via the 2026-05-05 design-adoption commit `6e960701` (and Phase 3.5 retrofit landings `b067f912` / `a762fa27` / `89546709` / `4471629d` for B3 implementation); compact summaries with plan-text-amendment pointers live in [resolutions.md](resolutions.md#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701). Items Q4 / R1 / R2 / R3 are still pending half-day prototypes at R1 implementation kickoff (Q4, R1, R2) or a benchmark commit alongside the standard scoped-effect rollout (R3); they live inline in the [Phase 4 implementation prototypes and risk mitigations](#phase-4-implementation-prototypes-and-risk-mitigations) subsection below.
 
 **Phase 4 implementation-kickoff sequencing.** Two load-bearing sequencing decisions surface at the Phase 3.5-to-Phase-4 transition: K1 (POC 3 validation ordering relative to the first Phase 4 substrate work) and K2 (plan.md numbering vs Sequencing Plan numbering as the authoritative commit boundary). Both are documented with options / trade-offs / recommendation / reasoning in the [Phase 4 implementation-kickoff sequencing](#phase-4-implementation-kickoff-sequencing) subsection below. Resolutions land in [resolutions.md](resolutions.md) once the user confirms; plan-text amendments follow.
 
-### Phase 4 pre-implementation design questions
+### Phase 4 implementation prototypes and risk mitigations
 
-These items surfaced when cross-checking the adopted Phase 4 plan revisions against the existing Phase 1-3 substrate constraints. Each is documented with valid approaches, trade-offs, a recommendation, and reasoning. Resolutions land in [resolutions.md](resolutions.md) and the corresponding plan / decisions text is amended in place.
-
-#### B1. `Catch::action` type-parameter interpretation
-
-**Issue.** The plan and decisions.md describe `Catch<'a, P, E, A>` as storing `action: Run<R, S, A>`, but `CatchBrand<P, E>` does not carry `R` or `S` as parameters. The `Run<R, S, A>` rendering is therefore loose notation rather than a literal Rust type. The implementer needs to know whether `action` is genuinely `Run<R, S, A>` (forcing CatchBrand to grow `R, S` parameters) or `A` abstract (where `A` becomes "the next program" at the dispatch boundary, mirroring Phase 3 State).
-
-**Option A: `action: A` literal; `Run<R, S, A>` is loose notation for "the next program".** When `CatchBrand<P, E>` is in a row, the dispatch projection `<CatchBrand<P, E> as Kind>::Of<'a, NextProgram>` = `Catch<'a, P, E, NextProgram>`, where `NextProgram` is bound by the surrounding row context. The constructor stores `action: NextProgram` (a `Run<R, S, X>` shape at runtime, but the type is just `A` from CatchBrand's perspective). Mirrors how [`State<'a, P, S, A>`](../../../fp-library/src/types/effects/state.rs) uses `A` for the next-program type.
-
-- _Cost:_ Negligible. Plan-text edit to clarify the notation; no change to brand parameters.
-- _Benefit:_ Matches Phase 3 precedent exactly. CatchBrand stays minimal (`P, E` parameters only).
-
-**Option B: `CatchBrand<P, R, S, E>` carries `R, S` as additional parameters.** The constructor literally stores `action: Run<R, S, A>` and `handler: P::Of<'a, dyn Fn(E) -> Run<R, S, A>>`.
-
-- _Cost:_ Brand parameter surface grows from 2 to 4 per scoped-effect type. Every row instantiation must spell out `R, S` for each scoped brand. Type inference suffers (more parameters to unify).
-- _Benefit:_ Constructor types are literally what they say; no notational mismatch.
-
-**Recommendation: Option A.** Phase 3 State uses this pattern at [state.rs:60-77](../../../fp-library/src/types/effects/state.rs#L60-L77) and the substrate's brand-projection mechanics expect it. Adding `R, S` to every scoped-effect brand contradicts the Phase 3 precedent without a structural reason; the loose notation in the plan is acceptable shorthand once it is documented as such.
-
-**Plan revision required.** Yes (small). Add a clarifying paragraph after the constructor table in [decisions.md section 4.5](decisions.md#45-decision-scoped-effect-representation-via-a-heftia-inspired-dual-row) and the constructor list in this Phase 4 section, stating: "the `Run<R, S, A>` rendering in constructor signatures is a loose notation; the underlying Rust type is `A`, with `Run<R, S, ?>` semantics imposed by the dispatch boundary as in Phase 3 State."
-
-#### B2. Per-scoped-effect-brand `Functor` / `SendFunctor` / `WrapDrop` / `RefFunctor` / `Extract` impls
-
-**Issue.** The substrate's `NodeBrand<R, S>` impls at [node.rs:84-449](../../../fp-library/src/types/effects/node.rs#L84-L449) require `S: Functor + SendFunctor + WrapDrop + RefFunctor + Extract`. With `S = CNilBrand` (Phase 3 closure), these are vacuously satisfied. With `S = CoproductBrand<CatchBrand<...>, ...>` (Phase 4), each scoped-effect brand must explicitly implement all five traits because [`RcFree::wrap`](../../../fp-library/src/types/rc_free.rs) and similar substrate operations call `<F as Functor>::map` directly. [decisions.md section 4.5](decisions.md) currently states "the higher-order row does NOT require a Functor instance" which is misleading: the scoped-effect dispatch trait does not go through Functor, but the substrate's program-traversal machinery still does.
-
-**Option A: Each scoped-effect brand provides explicit impls.** Bodies are non-trivial for closure-bearing constructors. For Catch, `Functor::map<A, B>(f, Catch{action, handler})` returns `Catch{action: f(action), handler: P-wrapped (move |e| f(handler(e)))}`. For Span (no closure), trivially `Span{tag, action: f(action)}`. For Bracket (Val), the body returns `(A, B)`, so the impl maps the second component via `f`: `Bracket{acquire, body: |a| body(a).map(|(a, b)| (a, f_dummy_b))}` actually this is complicated since A and B aren't both transformed by a single `f`. Hmm wait, the brand-level Functor's f maps over the BRAND'S A (the next-program type per B1), not over the constructor's resource types A, B. So Bracket<P, A, B>'s NextProg parameter (call it X) is what f transforms; the body's A and B (resource types) are inside the constructor and untouched. So the Functor impl is straightforward per constructor.
-
-- _Cost:_ One trait impl per (scoped-effect brand, trait) pair. With 5 brands (Catch, Local, RefLocal, Bracket, RefBracket, Span minus Span which has no closure) and 5 traits, that is up to 30 impls. Many are trivial or mechanical via macro. Mirrors Phase 3's per-effect impls at [state.rs](../../../fp-library/src/types/effects/state.rs) / [reader.rs](../../../fp-library/src/types/effects/reader.rs) / etc.
-- _Benefit:_ Substrate constraints satisfied; programs traverse `Node::Scoped` arms cleanly via `Functor::map`. Each impl's body is visible to the user and reviewable.
-
-**Option B: Wrap each scoped-effect type in `Coyoneda` (parallel to FO row).** Then `CoyonedaBrand<ScopedEffect>` provides Functor for free, and per-scoped-effect Functor impls aren't needed.
-
-- _Cost:_ Adds one Coyoneda layer per scoped-effect dispatch. Doubles the per-op allocation cost. Contradicts [decisions.md section 4.5](decisions.md) which explicitly differentiates the scoped row from the FO row by NOT using Coyoneda.
-- _Benefit:_ Less per-effect boilerplate.
-
-**Option C: Lift `NodeBrand`'s substrate-level Functor requirement.** Change `NodeBrand<R, S>: Functor where R: Functor, S: Functor` to use a different abstraction for the Scoped arm (e.g., a sealed trait that scoped-effect brands satisfy without needing Functor).
-
-- _Cost:_ Substrate-level redesign. Touches [node.rs](../../../fp-library/src/types/effects/node.rs) plus every Free-family wrapper that calls `Functor::map` on `NodeBrand`. Phase 1-3 invariants broken.
-- _Benefit:_ Aligns substrate constraints with the decisions.md narrative.
-
-**Recommendation: Option A.** Per-scoped-effect impls are mechanical (a fp-macros emitter could generate them in a future commit, paralleling Phase 3's `effects!` macro emission). Option B's Coyoneda wrapping doubles allocations and contradicts the dual-row design's whole point. Option C is a substrate redesign whose justification is documentation alignment, not capability.
-
-**Plan revision required.** Yes (medium). Amend [decisions.md section 4.5](decisions.md) to clarify that "the dispatcher trait does not require Functor on the scoped row" (true) but "the substrate's program-traversal traits (Functor, SendFunctor, WrapDrop, RefFunctor, Extract) are required and provided per scoped-effect brand". Add a concrete impl sketch for `Catch` to this Phase 4 section as the implementation template; subsequent scoped-effects implementations follow the template.
-
-#### B3. Pointer-brand parameterisation: drop `BoxBrand`, follow Phase 3 State precedent
-
-**Issue.** The R2 plan revision specifies a `BoxBrand` pointer brand for the default `Run` / `RunExplicit` substrate, with `BoxBrand`'s closure projection differing from `RcBrand` / `ArcBrand`'s (`Box<dyn FnOnce>` vs `Rc<dyn Fn>` vs `Arc<dyn Fn + Send + Sync>`). On cross-checking: Phase 3's State effect does NOT have a `BoxBrand`. State on `Run` uses `RcBrand` per [`Run::get`](../../../fp-library/src/types/effects/run.rs)'s smart constructor signature; the closure storage is `Rc<dyn Fn>` on every wrapper except the Arc family. The plan revision invented `BoxBrand` to symmetrise the wrapper-to-pointer-brand mapping, but the symmetry doesn't hold in Phase 3 and forcing it into Phase 4 introduces a new brand whose closure-trait-object differs from its siblings, creating Blocker 3's original framing.
-
-**Option A: Drop `BoxBrand`; mirror Phase 3 State precedent exactly.** All scoped-effect closures use `<P>::Of<'a, dyn Fn(...)>` where `P = RcBrand` for non-Arc-family wrappers (`Run`, `RcRun`, `RunExplicit`, `RcRunExplicit`) and `P = ArcBrand` for Arc-family wrappers (`ArcRun`, `ArcRunExplicit`). No new pointer brand; the closure storage trait surface is uniform `Rc<dyn Fn>` / `Arc<dyn Fn + Send + Sync>`.
-
-- _Cost:_ Plan revision text needs amending to remove `BoxBrand` references; the constructor parameter `P: RefCountedPointer` keeps its existing meaning (Phase 3's `RefCountedPointer` covers Rc and Arc). Default `Run` users pay one Rc allocation per scoped-effect closure cell, matching Phase 3 State's cost on `Run`.
-- _Benefit:_ Phase 3 precedent reused exactly; no new brand or trait abstraction; the multi-shot ceiling on default `Run` (per the F2 ceiling subsection) becomes structurally correct: the closure can be called many times (Rc<dyn Fn>) but the surrounding `Run<R, S, A>` is non-Clone, so multi-shot bodies are blocked at the program-tree level, not at the closure cell.
-- _Risks:_ The closure storage being multi-shot-callable on `Run` is a slight semantic asymmetry: the closure CAN be called many times but the program containing it is single-shot. Users who expected single-shot semantics at the closure level get multi-shot semantics there. This is exactly the Phase 3 prior-review F4 finding ([review_effects_rs.md F4](review/0_first_order_effects_implementation/review_effects_rs.md)) - already documented and accepted as an inherited property.
-
-**Option B: Keep `BoxBrand`; introduce a separate `ScopedClosureStorage` trait.** `BoxBrand` projects to `Box<dyn FnOnce>`; `RcBrand` / `ArcBrand` project to `Rc<dyn Fn>` / `Arc<dyn Fn + Send + Sync>`. Each scoped-effect type takes `P: ScopedClosureStorage`.
-
-- _Cost:_ New trait abstraction; new pointer brand; per-impl divergence in trait-object types. Implementer must reconcile the trait-object asymmetry at every Functor / SendFunctor impl on scoped-effect brands.
-- _Benefit:_ Default `Run` users get true single-shot closures (matching the substrate's Free-spine single-shot semantics).
-
-**Option C: Use `Box<dyn Fn>` for `BoxBrand` (compromise).** Single-shot semantics at the wrapper level, multi-shot-capable closure storage; uniform `dyn Fn` trait object across all P's.
-
-- _Cost:_ New brand; small.
-- _Benefit:_ Trait-surface unification at the cost of removing the FnOnce semantic precision the R2 revision originally emphasised.
-
-**Recommendation: Option B, but using the existing pointer-abstraction infrastructure rather than a new trait.** Re-examining the existing [`fp-library/docs/pointer-abstraction.md`](../../../fp-library/docs/pointer-abstraction.md) reveals that `BoxBrand`, `RcBrand`, `ArcBrand` are already established with the trait family `Pointer` / `RefCountedPointer` / `SendRefCountedPointer` and the closure-coercion traits `ToDynFn` / `ToDynCloneFn` / `ToDynSendFn`. The infrastructure already provides `<P as Pointer>::Of<'a, dyn Fn(...)>` for all three brands. The design-question's "new trait abstraction" is therefore not needed; the existing infrastructure is extended with one new trait `ToDynFnOnce` (parallel to `ToDynFn`) that is implemented only by `BoxBrand`.
-
-Why `ToDynFnOnce` is `BoxBrand`-only: `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` are operationally broken because `FnOnce::call_once` consumes `self` (the trait object), which cannot be moved out of a shared pointer without invalidating other clones. The trait family's structural completion is therefore: `ToDynFn` (all brands), `ToDynFnOnce` (BoxBrand only), `ToDynCloneFn` (Rc, Arc), `ToDynSendFn` (Arc only). Each pair of (pointer-capability, closure-semantic) maps to exactly the brands that legitimately implement it.
-
-Two arguments justify the FnOnce on the BoxBrand path:
-
-1. **FnOnce ergonomics on default `Run` are user-observable.** A natural `Catch` recovery handler is `move |e: MyErr| recovery_built_from_captures` where the captures are consumed in building the recovery program. That's FnOnce, not Fn. Forcing it through `Rc<dyn Fn>` (Option A) or `Box<dyn Fn>` (Option C) rejects the natural pattern at the type level; users must wrap captures in `Rc` or constrain captures to `Clone`. Phase 3 State accepted this cost (the F4 finding) because State's substrate-constructed continuations don't surface the friction at the user API; Phase 4's user-supplied scoped handlers do.
-
-2. **Cost on default `Run` is not negligible.** Bracket on `Run` with Option A pays 2 Rc allocations per op (body + release). The `BoxBrand` + `ToDynFnOnce` path pays 2 Box allocations: same allocator pressure, no refcount overhead, no atomic operations on Arc-eligible types. For a wrapper users explicitly chose for minimum overhead, the BoxBrand path is the more honest answer.
-
-The Phase 3 retrofit (Phase 3.5) makes the same change for Phase 3's State / Reader / Choose: switch from `<P as RefCountedPointer>::Of<'a, dyn Fn>` (`ToDynCloneFn`-driven, Rc on default Run) to `<P as Pointer>::Of<'a, dyn FnOnce>` for the BoxBrand path. Phase 3's substrate-constructed continuations are called once per dispatch, so FnOnce is the precise semantic. The retrofit closes the F4 finding structurally rather than as accepted-tradeoff.
-
-Option C (uniform `Box<dyn Fn>` via existing `ToDynFn`) sidesteps the new trait but reintroduces the FnOnce-ergonomics problem.
-
-**Plan revision required.** Yes (medium). Add a new [Phase 3.5: Pointer-brand-pattern retrofit](#phase-35-pointer-brand-pattern-retrofit) phase between Phase 3 and Phase 4 that ships the `ToDynFnOnce` trait + `BoxBrand` impl + Phase 3 effects retrofit + `pointer-abstraction.md` documentation update. Update [Phase 4 step 3](#phase-4-scoped-effects-heftia-inspired-dual-row) and [decisions.md section 4.5 constructor table](decisions.md#45-decision-scoped-effect-representation-via-a-heftia-inspired-dual-row) to specify the three pointer brands' projections (`Box<dyn FnOnce(...)>` for `BoxBrand` via `ToDynFnOnce`, `Rc<dyn Fn(...)>` for `RcBrand` via `ToDynCloneFn`, `Arc<dyn Fn(...) + Send + Sync>` for `ArcBrand` via `ToDynSendFn`). Update the [closure-storage ceiling subsection](#phase-4-scoped-effects-heftia-inspired-dual-row) to keep the multi-shot ceiling on default `Run` framed at the closure level (`Box<dyn FnOnce>` is single-shot by construction).
-
-#### B4. `Catch` dispatcher's sentinel mechanism
-
-**Issue.** The R1 plan revision says the catch dispatcher "interposes a `Throw` catcher that returns to a sentinel value, observes the sentinel via the dispatcher's outer `interpret` loop, and routes to `Catch::handler`". The sentinel's TYPE in the program is unspecified. `Run<R, S, A>`'s payload type is `A`; encoding "either A or thrown E" requires either changing the program type or using a side channel. This is the load-bearing implementation detail F1's whole remediation hinges on.
-
-**Option A: Local interior-mutability cell scoped to the dispatcher's stack frame.** The catch dispatcher constructs a `Rc<RefCell<Option<E>>>` and captures it in the interposed Throw clause; the clause stores the thrown value into the cell and returns a placeholder program. After interpret returns, the dispatcher inspects the cell; if `Some(e)`, calls `Catch::handler(e)` and re-interprets the recovery program; if `None`, returns the action's normal result.
-
-- _Cost:_ No new substrate primitives; uses POC-validated `Run::interpose`. Implementation is local to the catch dispatcher (one impl per the new `DispatchScopedHandlers` cons-cell trait).
-- _Benefit:_ Smallest implementation footprint. The interior mutability is scoped (not global); the cell lives in the dispatcher's stack frame and is dropped on dispatcher return.
-- _Risks:_ Less type-level discipline than option B; needs a placeholder program (some `Run<R, S, A>` value to return from the interposed clause when the throw triggers). The placeholder must not be observable by the rest of the action's interpretation since the cell already contains the thrown value; concretely, the placeholder is a `Run::pure(unreachable_a)` where `unreachable_a` is constructed via a panic-on-evaluate sentinel value (acceptable because the dispatcher will detect the cell and discard the placeholder before any caller observes it). Subtle to verify.
-
-**Option B: Type-level sentinel via `Result<A, CaughtError<E>>`-shaped reinterpretation primitive.** A new substrate primitive `interpret_with_either<EBrand, Idx>(self, fo_handlers) -> Either<A, EBrand::Op>` (specialisation of `interpret_with` that returns the matched effect's payload as `Right` instead of narrowing). The catch dispatcher calls this on the action with `EBrand = ExceptBrand<E>`; if `Right(throw_op)`, calls `Catch::handler` with the unwrapped error.
-
-- _Cost:_ New substrate primitive on each Run wrapper (six wrappers, ~50-100 lines each). POC unprototyped though the shape is mechanical from `interpret_with`.
-- _Benefit:_ Type-level discipline; no interior mutability; the sentinel is structurally distinguished as a Result variant.
-- _Risks:_ Not POC-validated. The Either-typed return interaction with the dispatcher's outer interpret loop needs careful design since the outer loop expects `NextProgram` not `Either<A, E>`.
-
-**Option C: `panic!` + `catch_unwind` sentinel.** The interposed Throw clause panics with a special token; the dispatcher catches via `std::panic::catch_unwind` and recovers.
-
-- _Cost:_ Small.
-- _Benefit:_ No new substrate; no new types.
-- _Risks:_ `catch_unwind` requires `UnwindSafe`; many program types aren't. Heavyweight (panic infrastructure runs). Idiomatic Rust strongly discourages this for non-error control flow. **Reject.**
-
-**Recommendation: Option B with a POC first.** Two arguments override Option A:
-
-1. **The placeholder-program subtlety in Option A is a soundness concern, not a doctest concern.** The interposed Throw clause must return `Run<R, S, A>`; when `A` is unreachable (the throw triggered, no `A` was computed), the placeholder needs a value of type `A`. Constructing one requires either (i) an unsafe sentinel (transmute or `MaybeUninit`-based panic-value), (ii) `A: Default` (limits the API to types with sensible defaults, which most `A`s are not), or (iii) a panic-on-evaluate sentinel constructed via `Box::leak` or similar. Each is a real semantic compromise; no combination produces a clean, guaranteed-safe placeholder.
-
-2. **Option B's substrate primitive parallels existing Phase 3 patterns.** `interpret_with_either<EBrand, Idx>(self, fo_handlers) -> Either<A, EBrand::Op>` is structurally a specialisation of [`interpret_with`](../../../fp-library/src/types/effects/run.rs#L885-L900) where the matched-effect arm short-circuits to `Right(op_value)` instead of calling a user handler. The implementation is mechanical: copy interpret_with's body and substitute one branch. POC-validation precedent is established (POC 2 validated `Run::interpose` before R1 adoption); B4B deserves the same treatment.
-
-The catch dispatcher then becomes:
-
-```rust,ignore
-fn dispatch_scoped<FOH>(&self, catch: Catch<...>, fo_handlers: &FOH) -> NextProgram {
-    match catch.action.interpret_with_either::<ExceptBrand<E>, _>(fo_handlers) {
-        Either::Left(a) => Run::pure(a),
-        Either::Right(thrown_e) => (catch.handler)(thrown_e),
-    }
-}
-```
-
-No interior mutability; the type system distinguishes "completed" from "thrown" structurally.
-
-**POC scope (POC 3).** Half-day prototype on `RcRun` validating that `interpret_with_either<EBrand, Idx>` compiles and short-circuits correctly. Test shape: build a program emitting an Identity effect followed by a Throw; call `interpret_with_either::<ExceptBrand, _>`; confirm the result is `Right(thrown_value)` rather than running through the FO Throw handler. POC sits at [`fp-library/tests/poc_rc_run_interpret_with_either.rs`](../../../fp-library/tests/) following the POC 1/2 conventions. If POC 3 surfaces a wall (e.g., HRTB-over-types friction at the Either-shaped return type), revisit Option A with the placeholder-subtlety mitigation that surfaces.
-
-**Plan revision required.** Yes (medium). Expand [Phase 4 step 4](#phase-4-scoped-effects-heftia-inspired-dual-row)'s `Catch` dispatcher description to specify the `interpret_with_either` substrate primitive (one new method per Run wrapper, ~50-100 lines each) and its POC reference. Add Phase 4 step 2a (new): `interpret_with_either` substrate primitive on each Run wrapper, validated by POC 3.
-
-#### Q1. `scoped_handlers!` macro shape
-
-**Issue.** Phase 4 step 5 references a `scoped_handlers!{...}` macro as a companion to the existing [`handlers!`](../../../fp-library/src/types/effects/handlers.rs) macro for assembling the second list passed to `interpret`. The syntax and emitted shape are unspecified.
-
-**Options:**
-
-- **A. Mirror `handlers!` syntax exactly.** `scoped_handlers!{ CatchBrand<P, E>: |op| ..., LocalBrand<P, E>: |op| ... }` emits a `ScopedHandlersCons` cons-list with one cell per scoped-effect brand. Lexical-sort canonicalisation shared with `handlers!` per the [Phase 4 step 5 macro layer](#phase-4-scoped-effects-heftia-inspired-dual-row).
-- **B. Combined `dual_handlers!{ FO: { ... }, Scoped: { ... } }`.** Emits both lists at once.
-- **C. No macro; users construct `ScopedHandlersCons` manually.**
-
-**Recommendation: Option A with explicit DRY code-sharing.** Matches Phase 3 precedent and minimal cognitive load for users who already know `handlers!`; the implementation must factor the cons-list emission shared between `handlers!` and `scoped_handlers!` into a helper module to avoid duplication.
-
-**Required DRY factoring.** [`fp-macros/src/effects/handlers.rs`](../../../fp-macros/src/effects/handlers.rs) and the new scoped equivalent share four pieces of logic:
-
-- Cons-list lexical-sort canonicalisation.
-- Per-cell handler-closure validation (closure shape, brand-key resolution).
-- Brand-key-to-cell-position resolution (used by `Member`-witness inference downstream).
-- Right-nested cons emission shape.
-
-These factor into a helper module at [`fp-macros/src/effects/handler_list_emitter.rs`](../../../fp-macros/src/effects/) (new file) parameterised by:
-
-- The cell type identifier (`Handler<E, F>` for FO; `ScopedHandler<S, F>` for scoped).
-- The cons-list cell-and-tail type identifiers (`HandlersCons` / `HandlersNil` for FO; `ScopedHandlersCons` / `ScopedHandlersNil` for scoped).
-
-Both `handlers!` and `scoped_handlers!` become thin entry-point macros that invoke the helper with the appropriate type identifiers. The `effects!` macro's lexical-sort helper [already extracted per the Phase 4 step 5 plan text](#phase-4-scoped-effects-heftia-inspired-dual-row) is consumed inside the new emitter helper as well.
-
-**Plan revision required.** Yes (small). Update [Phase 4 step 5](#phase-4-scoped-effects-heftia-inspired-dual-row) to specify the `handler_list_emitter` helper module and the entry-point pattern; add a deviations.md entry on the `handlers!` macro retroactively factoring through the helper (since the helper is new code that absorbs `handlers!`'s existing emission logic).
-
-#### Q2. `define_scoped_effect!` macro fate
-
-**Issue.** Phase 4 step 5 references `define_scoped_effect!` "mirroring section 9's planned `define_effect!` for first-order effects". `define_effect!` is [DEFERRED per the 2026-05-04 resolution](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (Phase 3 step 6) until Phase 4 ships or user demand surfaces. So `define_scoped_effect!` has no precedent template.
-
-**Options:**
-
-- **A. Defer in parallel.** Ship Phase 4 without `define_scoped_effect!`; users hand-write each scoped effect's brand + impls (analog to Phase 3's `State`/`Reader`/etc.). Revisit when `define_effect!` is reconsidered.
-- **B. Design from scratch.** Build `define_scoped_effect!` as part of Phase 4. Adds substantial macro work; likely informs the eventual `define_effect!` design.
-- **C. Combined `define_effect!` that handles both FO and scoped.** Address the deferred Phase 3 macro and the new scoped macro together as one unit.
-
-**Recommendation: Option A.** Matches the existing deferral; keeps the Phase 4 surface smaller; users defining their own scoped effects hand-write four to six trait impls per effect (the same boilerplate Phase 3's standard effects accept). Revisit triggers: a user writing more than two custom scoped effects, or a Phase 6+ revisit of `define_effect!`.
-
-**Plan revision required.** Yes (small). Update [Phase 4 step 5](#phase-4-scoped-effects-heftia-inspired-dual-row) to drop the `define_scoped_effect!` reference and add a deferred-item entry under [Phase 6+](#phase-6-deferred-not-in-this-plan) paralleling the existing `define_effect!` entry.
-
-#### Q3. `interpret_scoped_with::<EBrand>` row-narrowing primitive
-
-**Issue.** Phase 4 step 7 references `interpret_scoped_with::<EBrand>` as a row-narrowing primitive on the scoped row paralleling Phase 3's [`interpret_with`](../../../fp-library/src/types/effects/run.rs#L885-L900). Signature and substrate plumbing unspecified.
-
-**Options:**
-
-- **A. New per-wrapper method `interpret_scoped_with::<EBrand, Idx, SMinusE>(scoped_handler) -> Run<R, SMinusE, A>`.** Mirrors Phase 3's `interpret_with` on the scoped row.
-- **B. Reuse `interpret_with`'s machinery with type-level branching to select FO or scoped row.** Single method, dual purpose.
-- **C. Don't ship row-narrowing on the scoped row.** Users always interpret all scoped effects via the all-at-once scoped handlers list.
-
-**Recommendation: Option A.** Parallels Phase 3 precedent; users need pipeline-ordering control for non-commuting scoped effects (e.g., `Catch` before `Local` vs after); mechanically derivable from Phase 3 pattern. Option B's dual-purpose method has worse type-inference characteristics; Option C limits expressivity for handler libraries that want to ship narrowing handlers.
+Items B1-B4, Q1-Q3, Q5 are resolved; full original framing and resolution summaries live in [resolutions.md](resolutions.md#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701). The remaining items below are pending half-day prototypes at R1 implementation kickoff (Q4, R1, R2) and a benchmark commit alongside the standard scoped-effect rollout (R3); each is documented with options or mitigation strategies in the same style as the resolved items so the kickoff scope is fully scoped before substrate work begins.
 
 #### Q4. `dispatch_scoped<FOH>` method-generic viability
 
@@ -656,20 +480,6 @@ Method-level generics over types are stable Rust, but the FOH bound's satisfiabi
 
 **Recommendation: Option A.** Static dispatch is preferable; the prototype is cheap. If Option A surfaces a wall, fall back to Option B (Option C limits scoped-handler-list reuse).
 
-#### Q5. `BracketGuard<A, F>` lifecycle
-
-**Issue.** Phase 4 step 3's Bracket entries say the dispatcher wraps the resource in a `BracketGuard<A, F>` whose `Drop` impl invokes `release` synchronously. Specific lifecycle questions: when is the guard constructed (before or after `acquire` returns)? Does `body` receive the guard by ownership or reference? Does `release`'s `Run<R, S, ()>` get scheduled by the guard's Drop or executed synchronously? These small decisions combine into whether panic-during-body actually runs `release`.
-
-**Options:**
-
-- **A. RAII guard, ownership-passed to body, synchronous release-on-Drop.** Guard constructed inside the bracket dispatcher after `acquire` evaluates; ownership-passed to the body closure; dropped when body returns (running release on drop). Release executes as a synchronous function call (not threaded through interpret) because the interpret loop has already exited the dispatcher's frame.
-- **B. RAII guard, reference-passed to body, explicit-drop after body returns.** Guard held by the dispatcher's stack frame; passed by reference to body; explicitly dropped after body returns.
-- **C. Non-RAII: dispatcher uses `std::panic::catch_unwind`.** Catches panics, runs release in the catch arm.
-
-**Recommendation: Option A.** Matches Rust's RAII conventions; release runs deterministically on body completion or panic; no reliance on `catch_unwind`'s `UnwindSafe` constraints. The synchronous-release-on-Drop limitation (release cannot itself dispatch through the interpret loop) is the documented panic-leakiness tradeoff per [decisions.md section 4.5's panic-safety subsection](decisions.md). Option B's explicit-drop is harder to reason about under panic; Option C's catch_unwind is unsound for non-`UnwindSafe` programs.
-
-**Plan revision required.** Yes (small). Expand [Phase 4 step 3 Bracket entries](#phase-4-scoped-effects-heftia-inspired-dual-row) with a "BracketGuard lifecycle" sentence specifying Option A's ownership-passed-to-body + synchronous-release-on-Drop semantics.
-
 #### R1. Explicit-family interpose generalisation
 
 **Risk.** [POC 2](../../../fp-library/tests/poc_rc_run_interpose.rs) validated `Run::interpose` on `RcRun` (Erased family) only. The Explicit family (`RunExplicit`, `RcRunExplicit`, `ArcRunExplicit`) has HRTB-poisoning workarounds at [arc_run.rs](../../../fp-library/src/types/effects/arc_run.rs) per [plan.md:152-157](#current-progress) (`unwrap_first`, `lift_node`, `make_node_first`, `wrap_first_arc`, `unwrap_pure_node`). Generalising `interpose` to the Explicit family will likely need similar workarounds.
@@ -690,7 +500,7 @@ Method-level generics over types are stable Rust, but the FOH bound's satisfiabi
 
 ### Phase 4 implementation-kickoff sequencing
 
-These items surface at the Phase 3.5-to-Phase-4 transition. Each is documented with options / trade-offs / recommendation / reasoning in the same style as the [Phase 4 pre-implementation design questions](#phase-4-pre-implementation-design-questions) subsection. Resolutions land in [resolutions.md](resolutions.md) and the plan text is amended in place.
+These items surface at the Phase 3.5-to-Phase-4 transition. Each is documented with options / trade-offs / recommendation / reasoning in the same style as the [Phase 4 implementation prototypes and risk mitigations](#phase-4-implementation-prototypes-and-risk-mitigations) subsection. Resolutions land in [resolutions.md](resolutions.md) and the plan text is amended in place.
 
 #### K1. POC 3 (`interpret_with_either`) validation ordering
 
@@ -706,7 +516,7 @@ These items surface at the Phase 3.5-to-Phase-4 transition. Each is documented w
 
 - _Cost:_ Mixed-layer paired commit (POC + substrate primitive together). Slightly larger commit boundary than Option A.
 - _Benefit:_ Tighter scheduling for the easy-first wave (Span cons-cell does not need `interpret_with_either`).
-- _Risks:_ If POC 3 surfaces a wall, the `Catch` cons-cell design is blocked mid-Phase 4. Earlier commits stand but the [B4 Option A placeholder-program subtlety](#b4-catch-dispatchers-sentinel-mechanism) re-surfaces and the Phase 4 step 4 design needs revision.
+- _Risks:_ If POC 3 surfaces a wall, the `Catch` cons-cell design is blocked mid-Phase 4. Earlier commits stand but the [B4 Option A placeholder-program subtlety](resolutions.md#b4-catch-dispatchers-sentinel-mechanism) re-surfaces and the Phase 4 step 4 design needs revision.
 
 **Option C: Skip POC 3; land the substrate primitive directly inline with the generic rollout.** The `interpret_with_either` substrate primitive lands as part of the same commit as the per-wrapper rollout, with integration tests serving as POC equivalence.
 
@@ -2263,7 +2073,7 @@ this section is the phasing-side checklist.
 
 ### Phase 3.5: Pointer-brand-pattern retrofit
 
-Lands between Phase 3 close and Phase 4 implementation kickoff. Introduces `ToDynFnOnce` to the existing pointer-abstraction trait family at [`fp-library/docs/pointer-abstraction.md`](../../../fp-library/docs/pointer-abstraction.md), retrofits the Phase 3 closure-bearing first-order effects (`State`, `Reader`, `Choose`) to use the new `BoxBrand` + `ToDynFnOnce` path on default `Run` / `RunExplicit`, and updates the documentation. Driven by Phase 4 design-question B3 (see [Phase 4 pre-implementation design questions](#phase-4-pre-implementation-design-questions)) which surfaced that the user-supplied scoped-effect handlers in Phase 4 need FnOnce ergonomics on default `Run`, and that doing the retrofit before Phase 4 ships keeps Phase 3 + Phase 4 on a single consistent pointer-brand pattern.
+Lands between Phase 3 close and Phase 4 implementation kickoff. Introduces `ToDynFnOnce` to the existing pointer-abstraction trait family at [`fp-library/docs/pointer-abstraction.md`](../../../fp-library/docs/pointer-abstraction.md), retrofits the Phase 3 closure-bearing first-order effects (`State`, `Reader`, `Choose`) to use the new `BoxBrand` + `ToDynFnOnce` path on default `Run` / `RunExplicit`, and updates the documentation. Driven by Phase 4 design-question B3 (see [Phase 4 pre-implementation design questions](resolutions.md#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701)) which surfaced that the user-supplied scoped-effect handlers in Phase 4 need FnOnce ergonomics on default `Run`, and that doing the retrofit before Phase 4 ships keeps Phase 3 + Phase 4 on a single consistent pointer-brand pattern.
 
 1. `ToDynFnOnce` trait at [`fp-library/src/classes/to_dyn_fn_once.rs`](../../../fp-library/src/classes/) (new file) paralleling [`ToDynFn`](../../../fp-library/src/classes/to_dyn_fn.rs):
    ```rust,ignore
@@ -2400,6 +2210,36 @@ Estimated total scope: ~500-700 lines across the three Phase 3 effect modules, s
    constructor's payload and applies `f` to the next-program
    slots, composing `f` onto stored closures via the brand's
    per-P trait (`ToDynFnOnce::new` for BoxBrand, etc.).
+   `Catch` is the implementation template; subsequent scoped-
+   effect impls follow the same shape:
+
+   ```rust,ignore
+   impl<E: 'static> Functor for CatchBrand<BoxBrand, E> {
+       fn map<'a, A: 'a, B: 'a>(
+           f: impl 'a + FnOnce(A) -> B,
+           fa: Catch<'a, BoxBrand, E, A>,
+       ) -> Catch<'a, BoxBrand, E, B> {
+           let Catch { action, handler } = fa;
+           Catch {
+               action: f(action),
+               handler: <BoxBrand as ToDynFnOnce>::new(
+                   move |e: E| f(handler(e)),
+               ),
+           }
+       }
+   }
+   ```
+
+   `RcBrand` and `ArcBrand` parallels swap `BoxBrand` /
+   `ToDynFnOnce` for `RcBrand` / `ToDynCloneFn` and
+   `ArcBrand` / `ToDynSendFn` respectively, with `Fn` / `Fn +
+Send + Sync` closure shapes; the body is structurally
+   identical because the brand's per-P trait abstracts the
+   coercion. `Local` / `RefLocal` map the `action` slot only
+   (the `modify` closure has shape `E -> E` and is untouched
+   by `f`); `Bracket` / `RefBracket` map the `acquire` slot
+   plus the `body`'s return-program post-composition; `Span`
+   maps `action` only.
    - `Catch<'a, P, E, A>` for `Error.catch`, with
      `action: Run<R, S, A>`,
      `handler: <P>::Of<'a, dyn 'a + ClosureTrait(E) -> Run<R, S, A>>`
@@ -2532,7 +2372,7 @@ Estimated total scope: ~500-700 lines across the three Phase 3 effect modules, s
    `define_scoped_effect!` macro is **deferred to Phase 6+**
    in parallel with the [Phase 3 `define_effect!` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit)
    per design-question Q2 (see [Phase 4 pre-implementation
-   design questions](#phase-4-pre-implementation-design-questions)).
+   design questions](resolutions.md#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701)).
    Users defining their own scoped effects hand-write the
    constructor type plus four to six trait impls (mirroring
    Phase 3's standard effect definitions). Revisit triggers
