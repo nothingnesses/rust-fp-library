@@ -37,6 +37,14 @@
 //! - [`arc_run_explicit`]: [`ArcRunExplicit<'a, R, S, A>`](arc_run_explicit::ArcRunExplicit),
 //!   the `Send + Sync` Explicit sibling over
 //!   [`ArcFreeExplicit`](crate::types::ArcFreeExplicit).
+//! - [`scoped`]: [`ScopedCoproduct<H, T>`](scoped::ScopedCoproduct)
+//!   and [`ScopedNil`] row-encoding aliases for
+//!   the dual-row Run substrate's scoped-effect arm. Transparent
+//!   aliases over [`CoproductBrand`](crate::brands::CoproductBrand)
+//!   and [`CNilBrand`](crate::brands::CNilBrand); the distinct names
+//!   document intent at user-facing type signatures so the dual
+//!   row's first-order and scoped arms remain visually
+//!   distinguished.
 //! - [`handlers`]: [`Handler<E, F>`](handlers::Handler) newtype plus
 //!   the [`HandlersNil`] / [`HandlersCons<H, T>`](HandlersCons)
 //!   cons-list runtime carrier for the `handlers!` macro and
@@ -59,6 +67,7 @@ pub mod rc_run_explicit;
 pub mod reader;
 pub mod run;
 pub mod run_explicit;
+pub mod scoped;
 pub mod state;
 pub mod variant_f;
 pub mod writer;
@@ -78,5 +87,9 @@ pub use {
 	rc_run_explicit::RcRunExplicit,
 	run::Run,
 	run_explicit::RunExplicit,
+	scoped::{
+		ScopedCoproduct,
+		ScopedNil,
+	},
 	variant_f::VariantF,
 };
